@@ -56,9 +56,132 @@ const MAX_NAME_ATTEMPTS: u32 = 1000;
 /// Returns [`SeleniumBaseError::Io`] if the folder cannot be created, for
 /// example because `latest_logs` is a file or the directory is read-only.
 pub fn ensure_latest_logs_dir() -> Result<PathBuf, SeleniumBaseError> {
-    let path = PathBuf::from(LATEST_LOGS_DIR);
+    let path = logs_root().join(LATEST_LOGS_DIR);
     ensure_dir(&path)?;
     Ok(path)
+}
+
+/// The variable that names the folder a run's files go under.
+pub const REPORT_ROOT_VARIABLE: &str = "SB_REPORT_ROOT";
+
+/// The folder where manual-QA reports are made, under [`logs_root`].
+pub const LATEST_REPORT_DIR: &str = "latest_report";
+
+/// The folder where finished manual-QA reports are kept, under [`logs_root`].
+pub const ARCHIVED_REPORTS_DIR: &str = "archived_reports";
+
+/// The folder the files of a run go under: `SB_REPORT_ROOT`, or the empty
+/// path (the current folder) when it is unset or blank.
+///
+/// `sbrs test` sets the variable to its own working directory, because cargo
+/// runs the tests of each package from that package's folder.
+#[must_use]
+pub fn logs_root() -> PathBuf {
+    std::env::var(REPORT_ROOT_VARIABLE)
+        .ok()
+        .filter(|root| !root.trim().is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_default()
+}
+
+/// The folders of the logs of the tests that are being recorded, by the thread
+/// that started each.
+static ACTIVE_TEST_LOGS: Mutex<Vec<(std::thread::ThreadId, PathBuf)>> = Mutex::new(Vec::new());
+
+/// Makes `dir` the folder [`ensure_test_logs_dir`] answers with on the calling
+/// thread, and returns the thread to hand to [`deactivate_test_logs`].
+pub(crate) fn activate_test_logs(dir: &Path) -> std::thread::ThreadId {
+    let thread = std::thread::current().id();
+    ACTIVE_TEST_LOGS
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .push((thread, dir.to_path_buf()));
+    thread
+}
+
+/// Undoes [`activate_test_logs`]. It may run on any thread.
+pub(crate) fn deactivate_test_logs(thread: std::thread::ThreadId, dir: &Path) {
+    let mut active = ACTIVE_TEST_LOGS
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner);
+    if let Some(index) = active
+        .iter()
+        .position(|(owner, folder)| *owner == thread && folder == dir)
+    {
+        active.remove(index);
+    }
+}
+
+/// Creates the folder for the files of the test running on this thread and
+/// returns its path: `latest_logs/<test id>` while a
+/// [`TestRecorder`](crate::core::test_run::TestRecorder) is recording it, and
+/// [`ensure_latest_logs_dir`] otherwise.
+///
+/// # Errors
+///
+/// Returns [`SeleniumBaseError::Io`] if the folder cannot be created.
+pub fn ensure_test_logs_dir() -> Result<PathBuf, SeleniumBaseError> {
+    let thread = std::thread::current().id();
+    let active = ACTIVE_TEST_LOGS
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .iter()
+        .rev()
+        .find(|(owner, _)| *owner == thread)
+        .map(|(_, folder)| folder.clone());
+    match active {
+        Some(dir) => {
+            ensure_dir(&dir)?;
+            Ok(dir)
+        }
+        None => ensure_latest_logs_dir(),
+    }
+}
+
+/// Creates the `latest_report` folder if it is missing and returns its path.
+///
+/// # Errors
+///
+/// Returns [`SeleniumBaseError::Io`] if the folder cannot be created.
+pub fn ensure_latest_report_dir() -> Result<PathBuf, SeleniumBaseError> {
+    let path = logs_root().join(LATEST_REPORT_DIR);
+    ensure_dir(&path)?;
+    Ok(path)
+}
+
+/// Moves `latest_report` to `archived_reports/log_<unix seconds>`, makes an
+/// empty `latest_report` again, and returns the folder it was moved to.
+///
+/// # Errors
+///
+/// Returns [`SeleniumBaseError::Io`] if a folder cannot be created or moved.
+pub fn archive_latest_report() -> Result<PathBuf, SeleniumBaseError> {
+    let latest = logs_root().join(LATEST_REPORT_DIR);
+    let seconds = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_secs());
+    let archive = logs_root()
+        .join(ARCHIVED_REPORTS_DIR)
+        .join(format!("log_{seconds}"));
+    if let Some(parent) = archive.parent() {
+        ensure_dir(parent)?;
+    }
+    if latest.is_dir() {
+        fs::rename(&latest, &archive).map_err(|error| {
+            SeleniumBaseError::Io(io::Error::new(
+                error.kind(),
+                format!(
+                    "failed to move {} to {}: {error}",
+                    latest.display(),
+                    archive.display()
+                ),
+            ))
+        })?;
+    } else {
+        ensure_dir(&archive)?;
+    }
+    ensure_dir(&latest)?;
+    Ok(archive)
 }
 
 fn ensure_dir(path: &Path) -> Result<(), SeleniumBaseError> {

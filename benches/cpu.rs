@@ -134,7 +134,7 @@ fn main() {
 
 #[cfg(feature = "turso")]
 fn database() {
-    use seleniumbase_rs::core::report_helper::TestResult;
+    use seleniumbase_rs::core::report_helper::{TestResult, TestStatus};
     use seleniumbase_rs::storage::{ProfileVault, ResultStore, RunInfo};
 
     let runtime = tokio::runtime::Runtime::new().unwrap();
@@ -147,10 +147,11 @@ fn database() {
         let run = store.start_run(&RunInfo::new("bench")).await.unwrap();
         let result = TestResult {
             name: "login_works".into(),
-            passed: true,
+            status: TestStatus::Passed,
             duration_secs: 1.25,
             message: "ok".into(),
             failure: None,
+            log_dir: None,
         };
         let n = 2_000_u32;
         let started = Instant::now();

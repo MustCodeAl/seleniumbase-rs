@@ -44,7 +44,7 @@ pub async fn run(
             .ok_or_else(|| format!("there is no run {id} in {}", path.display()))?;
         let mut results = store.results(id).await?;
         if failed {
-            results.retain(|r| !r.passed);
+            results.retain(|r| !r.passed());
         }
         if json {
             pretty(&json!({ "run": run_json(&summary), "results": results_json(&results) }))
@@ -86,7 +86,7 @@ fn results_json(results: &[TestResult]) -> Value {
             .map(|r| {
                 json!({
                     "name": r.name,
-                    "passed": r.passed,
+                    "passed": r.passed(),
                     "duration_secs": r.duration_secs,
                     "message": r.message,
                 })
@@ -147,12 +147,12 @@ fn render_run(run: &RunSummary, results: &[TestResult]) -> String {
         out.push_str("\n(no results to show)");
     }
     for result in results {
-        let status = if result.passed { "PASS" } else { "FAIL" };
+        let status = if result.passed() { "PASS" } else { "FAIL" };
         out.push_str(&format!(
             "\n{status}  {:>8.3}s  {}",
             result.duration_secs, result.name
         ));
-        if !result.passed && !result.message.is_empty() {
+        if !result.passed() && !result.message.is_empty() {
             for line in result.message.lines() {
                 out.push_str(&format!("\n          {line}"));
             }
@@ -204,7 +204,11 @@ mod tests {
                     run,
                     &TestResult {
                         name: name.to_owned(),
-                        passed,
+                        status: if passed {
+                            seleniumbase_rs::core::report_helper::TestStatus::Passed
+                        } else {
+                            seleniumbase_rs::core::report_helper::TestStatus::Failed
+                        },
                         duration_secs: 1.25,
                         message: if passed {
                             "ok"
@@ -213,6 +217,7 @@ mod tests {
                         }
                         .to_owned(),
                         failure: None,
+                        log_dir: None,
                     },
                 )
                 .await

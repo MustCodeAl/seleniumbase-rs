@@ -9,7 +9,7 @@
 //! # Examples
 //!
 //! ```
-//! use seleniumbase_rs::core::report_helper::TestResult;
+//! use seleniumbase_rs::core::report_helper::{TestResult, TestStatus};
 //! use seleniumbase_rs::storage::{ResultStore, RunInfo};
 //!
 //! # async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
@@ -19,10 +19,12 @@
 //! store
 //!     .record(run, &TestResult {
 //!         name: "login_works".into(),
-//!         passed: true,
+//!         status: TestStatus::Passed,
 //!         duration_secs: 1.8,
 //!         message: "ok".into(),
 //!         failure: None,
+//!         log_dir: None,
+
 //!     })
 //!     .await?;
 //!
@@ -42,7 +44,7 @@ use chrono::{DateTime, Utc};
 use turso::{Connection, Database};
 
 use super::db;
-use crate::core::report_helper::TestResult;
+use crate::core::report_helper::{TestResult, TestStatus};
 use crate::error::{Result, SeleniumBaseError};
 
 const KIND: &str = "results";
@@ -251,6 +253,13 @@ impl ResultStore {
                 "there is no run {run}"
             )));
         }
+        // A skip is stored as a pass, and the message says it was one.
+        let message = if result.status == TestStatus::Skipped {
+            format!("skipped: {}", result.message)
+        } else {
+            result.message.clone()
+        };
+
         // A NaN or infinite duration would not survive the database.
         let duration = if result.duration_secs.is_finite() {
             result.duration_secs
@@ -264,9 +273,9 @@ impl ResultStore {
                 (
                     run.0,
                     result.name.as_str(),
-                    i64::from(result.passed),
+                    i64::from(result.passed()),
                     duration,
-                    result.message.as_str(),
+                    message.as_str(),
                     now_ms(),
                 ),
             )
@@ -369,11 +378,12 @@ impl ResultStore {
         while let Some(row) = rows.next().await? {
             results.push(TestResult {
                 name: db::text(&row, 0)?,
-                passed: db::integer(&row, 1)? != 0,
+                status: stored_status(db::integer(&row, 1)? != 0, &db::text(&row, 3)?),
                 duration_secs: db::real(&row, 2)?,
                 message: db::text(&row, 3)?,
                 // The database keeps the message, not the failure details.
                 failure: None,
+                log_dir: None,
             });
         }
         Ok(results)
@@ -420,13 +430,30 @@ fn outcome_to_result<E: fmt::Display>(
 ) -> TestResult {
     TestResult {
         name: name.to_owned(),
-        passed: outcome.is_ok(),
+        status: if outcome.is_ok() {
+            TestStatus::Passed
+        } else {
+            TestStatus::Failed
+        },
         duration_secs: elapsed.as_secs_f64(),
         message: match outcome {
             Ok(()) => "ok".to_owned(),
             Err(error) => error.to_string(),
         },
         failure: None,
+        log_dir: None,
+    }
+}
+
+/// The status of a stored result. The database keeps a pass or a failure, and
+/// a skip as a pass whose message starts with `skipped: `.
+fn stored_status(passed: bool, message: &str) -> TestStatus {
+    if !passed {
+        TestStatus::Failed
+    } else if message.starts_with("skipped: ") {
+        TestStatus::Skipped
+    } else {
+        TestStatus::Passed
     }
 }
 
@@ -456,10 +483,15 @@ mod tests {
     fn result(name: &str, passed: bool) -> TestResult {
         TestResult {
             name: name.to_owned(),
-            passed,
+            status: if passed {
+                TestStatus::Passed
+            } else {
+                TestStatus::Failed
+            },
             duration_secs: 0.5,
             message: if passed { "ok" } else { "boom" }.to_owned(),
             failure: None,
+            log_dir: None,
         }
     }
 
@@ -476,13 +508,13 @@ mod tests {
     fn an_outcome_becomes_a_pass_or_a_failure_with_the_error_as_message() {
         let ok: std::result::Result<(), String> = Ok(());
         let passed = outcome_to_result("a", Duration::from_millis(1500), &ok);
-        assert!(passed.passed);
+        assert!(passed.passed());
         assert_eq!(passed.message, "ok");
         assert!((passed.duration_secs - 1.5).abs() < 1e-9);
 
         let bad: std::result::Result<(), String> = Err("no such element".into());
         let failed = outcome_to_result("a", Duration::ZERO, &bad);
-        assert!(!failed.passed);
+        assert!(!failed.passed());
         assert_eq!(failed.message, "no such element");
     }
 
@@ -497,7 +529,7 @@ mod tests {
 
         assert_eq!(
             back.iter()
-                .map(|r| (r.name.as_str(), r.passed))
+                .map(|r| (r.name.as_str(), r.passed()))
                 .collect::<Vec<_>>(),
             [("first", true), ("second", false)]
         );
@@ -650,10 +682,11 @@ mod tests {
             .unwrap();
         let tricky = TestResult {
             name: "naïve; DROP TABLE results;--".to_owned(),
-            passed: false,
+            status: TestStatus::Failed,
             duration_secs: 0.0,
             message: "expected 'a' but got \"b\"\nsecond line ✗".to_owned(),
             failure: None,
+            log_dir: None,
         };
         store.record(run, &tricky).await.unwrap();
 

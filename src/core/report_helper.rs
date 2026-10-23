@@ -1,47 +1,94 @@
-//! Test results and the JSON and HTML reports made from them.
+//! Test results and the JSON report made from them.
 //!
-//! A [`TestResult`] is one line of a report. [`render_json_report`] and
-//! [`render_html_report`] turn a slice of them into text, and the
-//! `write_*_report` functions put that text in a file. The files are written
-//! whole to a temporary neighbour and renamed into place, so a reader (a CI
-//! step tailing the report, say) never sees half a report and an interrupted
-//! run leaves the previous one intact.
-//!
-//! Everything a test printed is escaped before it reaches the HTML, so a
-//! failing assertion that contains markup cannot inject any into the report.
+//! A [`TestResult`] is one line of a report: a test, its [`TestStatus`], how
+//! long it took and what it said. A [`RunSnapshot`] is a whole run at one
+//! moment, the input of the renderers in [`dashboard`](super::dashboard) and
+//! [`junit`](super::junit). [`render_json_report`] turns a slice of results
+//! into JSON, and the `write_*_report` functions put the text in a file. The
+//! files are written whole to a temporary neighbour and renamed into place, so
+//! a reader (a CI step tailing the report, say) never sees half a report and an
+//! interrupted run leaves the previous one intact.
 //!
 //! A failure can carry [`FailureDetails`]: the kind of error, the hint, the
 //! page's URL and title, and the screenshot and page source taken when it
-//! failed. The HTML report shows them the way a person debugs: the error,
-//! how to fix it, the page, links to the evidence, and the technical detail
-//! folded away.
+//! failed. The paths in them are relative to the run's folder.
 //!
 //! # Examples
 //!
 //! ```
-//! use seleniumbase_rs::core::report_helper::{render_html_report, FailureDetails, TestResult};
+//! use seleniumbase_rs::core::dashboard::{render_html_report, PageOptions};
+//! use seleniumbase_rs::core::report_helper::{
+//!     FailureDetails, RunSnapshot, TestResult, TestStatus,
+//! };
 //! use seleniumbase_rs::SeleniumBaseError;
 //!
 //! let error = SeleniumBaseError::element_not_found("#buy");
-//! let results = [TestResult {
-//!     name: "login_works".to_owned(),
-//!     passed: false,
-//!     duration_secs: 1.5,
-//!     message: error.to_string(),
-//!     failure: Some(FailureDetails::from_error(&error)),
-//! }];
-//! let html = render_html_report(&results);
+//! let mut login = TestResult::new("login_works", TestStatus::Failed, 1.5, error.to_string());
+//! login.failure = Some(FailureDetails::from_error(&error));
+//! let run = RunSnapshot::from_results("Report", vec![login]);
+//! let html = render_html_report(&run, &PageOptions::default());
 //! assert!(html.contains("1 test: 0 passed, 1 failed"));
 //! assert!(html.contains("How to fix:"));
 //! ```
 
 use std::fmt::{self, Write as _};
 use std::io;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 
+use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
 
 use crate::error::SeleniumBaseError;
+
+/// How a test ended, or has not ended yet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum TestStatus {
+    /// The test passed.
+    Passed,
+    /// The test failed: an error, a panic, or a time limit that ran out.
+    Failed,
+    /// The test skipped itself; its message is the reason.
+    Skipped,
+    /// The test started and has not finished.
+    Untested,
+    /// The test started and its process ended without reporting a result: the
+    /// run was killed, or the test never reached its end.
+    Unreported,
+}
+
+impl TestStatus {
+    /// The lower-case word, as it is written in the JSON report.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Passed => "passed",
+            Self::Failed => "failed",
+            Self::Skipped => "skipped",
+            Self::Untested => "untested",
+            Self::Unreported => "unreported",
+        }
+    }
+
+    /// The upper-case word a report prints, so a status never rests on colour
+    /// alone.
+    #[must_use]
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Passed => "PASS",
+            Self::Failed => "FAIL",
+            Self::Skipped => "SKIP",
+            Self::Untested => "UNTESTED",
+            Self::Unreported => "UNREPORTED",
+        }
+    }
+}
+
+impl fmt::Display for TestStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
 
 /// Result of a single test.
 ///
@@ -49,18 +96,48 @@ use crate::error::SeleniumBaseError;
 /// results `sbrs report` reads back, so they are part of the report format.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TestResult {
-    /// The test's name.
+    /// The test's display id, such as `login_chrome::tests::test_login`.
     pub name: String,
-    /// Whether the test passed.
-    pub passed: bool,
+    /// How the test ended.
+    pub status: TestStatus,
     /// How long the test took, in seconds.
     pub duration_secs: f64,
-    /// `"ok"` for a pass, or the error for a failure.
+    /// `"ok"` for a pass, the error for a failure, the reason for a skip.
     pub message: String,
     /// What is known about a failure beyond its message. Absent from the
     /// JSON when there is none.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub failure: Option<FailureDetails>,
+    /// The test's folder of logs, such as `latest_logs/login.valid`, relative
+    /// to the run's folder. Absent when the test left no logs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub log_dir: Option<String>,
+}
+
+impl TestResult {
+    /// A result with no failure details and no logs.
+    #[must_use]
+    pub fn new(
+        name: impl Into<String>,
+        status: TestStatus,
+        duration_secs: f64,
+        message: impl Into<String>,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            status,
+            duration_secs,
+            message: message.into(),
+            failure: None,
+            log_dir: None,
+        }
+    }
+
+    /// Whether the test counts as a success: it passed or it was skipped.
+    #[must_use]
+    pub fn passed(&self) -> bool {
+        matches!(self.status, TestStatus::Passed | TestStatus::Skipped)
+    }
 }
 
 /// What a person needs to debug a failed test.
@@ -78,10 +155,10 @@ pub struct FailureDetails {
     /// The page's title when the test failed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
-    /// The failure screenshot, relative to the report's folder.
+    /// The failure screenshot, relative to the run's folder.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub screenshot: Option<String>,
-    /// The page source saved at the failure, relative to the report's folder.
+    /// The page source saved at the failure, relative to the run's folder.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub page_source: Option<String>,
     /// The full error with each of its causes, one per line.
@@ -112,10 +189,11 @@ impl FailureDetails {
     }
 }
 
-/// How many tests passed and failed, and how long they took altogether.
+/// How many tests passed, failed and so on, and how long they took altogether.
 ///
 /// Its [`Display`](fmt::Display) form is the summary line at the top of the
-/// HTML report: `3 tests: 2 passed, 1 failed in 1.250s`.
+/// HTML report: `3 tests: 2 passed, 1 failed in 1.250s`. Skipped, untested and
+/// unreported tests are named only when there are some.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ReportSummary {
     /// The number of tests.
@@ -124,6 +202,12 @@ pub struct ReportSummary {
     pub passed: usize,
     /// The number of tests that failed.
     pub failed: usize,
+    /// The number of tests that skipped themselves.
+    pub skipped: usize,
+    /// The number of tests that have not finished.
+    pub untested: usize,
+    /// The number of tests that never reported a result.
+    pub unreported: usize,
     /// The sum of the tests' durations, in seconds.
     pub duration_secs: f64,
 }
@@ -132,11 +216,14 @@ impl ReportSummary {
     /// Counts `results`.
     #[must_use]
     pub fn from_results(results: &[TestResult]) -> Self {
-        let passed = results.iter().filter(|result| result.passed).count();
+        let count = |status: TestStatus| results.iter().filter(|r| r.status == status).count();
         Self {
             total: results.len(),
-            passed,
-            failed: results.len() - passed,
+            passed: count(TestStatus::Passed),
+            failed: count(TestStatus::Failed),
+            skipped: count(TestStatus::Skipped),
+            untested: count(TestStatus::Untested),
+            unreported: count(TestStatus::Unreported),
             // Not `sum()`: an empty float sum is -0.0, which would print as "-0.000s".
             duration_secs: results
                 .iter()
@@ -150,88 +237,64 @@ impl fmt::Display for ReportSummary {
         let noun = if self.total == 1 { "test" } else { "tests" };
         write!(
             f,
-            "{} {noun}: {} passed, {} failed in {:.3}s",
-            self.total, self.passed, self.failed, self.duration_secs
-        )
+            "{} {noun}: {} passed, {} failed",
+            self.total, self.passed, self.failed
+        )?;
+        for (count, word) in [
+            (self.skipped, "skipped"),
+            (self.untested, "untested"),
+            (self.unreported, "unreported"),
+        ] {
+            if count > 0 {
+                write!(f, ", {count} {word}")?;
+            }
+        }
+        write!(f, " in {:.3}s", self.duration_secs)
     }
 }
 
-/// The page's stylesheet. It follows the reader's light or dark preference and
-/// does not rely on colour alone: every row also says `PASS` or `FAIL`.
-const STYLE: &str = "\
-:root{color-scheme:light dark;--bg:#fff;--fg:#1b1f23;--muted:#6a737d;--line:#d8dee4;\
---pass:#1a7f37;--fail:#cf222e;--pass-bg:#e6f4ea;--fail-bg:#fdecee}\
-@media(prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--muted:#8b949e;\
---line:#30363d;--pass:#3fb950;--fail:#ff7b72;--pass-bg:#12261a;--fail-bg:#2d1618}}\
-body{font:15px/1.5 system-ui,sans-serif;margin:0 auto;max-width:72rem;padding:1rem;\
-background:var(--bg);color:var(--fg)}\
-h1{font-size:1.4rem;margin:0 0 .5rem}\
-.summary{margin:0 0 1rem;padding:.5rem .75rem;border-left:4px solid var(--muted);font-weight:600}\
-.summary.pass{border-color:var(--pass);background:var(--pass-bg)}\
-.summary.fail{border-color:var(--fail);background:var(--fail-bg)}\
-table{border-collapse:collapse;width:100%}\
-th,td{border:1px solid var(--line);padding:.35rem .6rem;text-align:left;vertical-align:top}\
-th{color:var(--muted);font-weight:600}\
-td.num{text-align:right;white-space:nowrap}\
-td.msg{white-space:pre-wrap;overflow-wrap:anywhere}\
-td.msg .kind{font:600 12px/1.6 ui-monospace,monospace;color:var(--muted)}\
-td.msg .error{font-weight:600}\
-td.msg .hint,td.msg .page,td.msg .evidence{margin-top:.25rem}\
-td.msg details{margin-top:.35rem;color:var(--muted)}\
-td.msg pre{margin:.25rem 0 0;white-space:pre-wrap;font:12px/1.5 ui-monospace,monospace}\
-td.status{font-weight:700;white-space:nowrap}\
-tr.pass td.status{color:var(--pass)}\
-tr.fail td.status{color:var(--fail)}\
-tr.fail{background:var(--fail-bg)}\
-@media(max-width:40rem){body{padding:.5rem}th,td{padding:.25rem .4rem}}";
-
-/// An HTML page listing `results`, with a summary line on top.
+/// A run at one moment: its results in the order the tests started, and where
+/// they were taken from.
 ///
-/// The page is self-contained: its stylesheet is inline and it needs no
-/// script. Test names and messages are escaped.
-#[must_use]
-pub fn render_html_report(results: &[TestResult]) -> String {
-    let summary = ReportSummary::from_results(results);
-    let verdict = if summary.failed == 0 { "pass" } else { "fail" };
-    let mut html = String::with_capacity(2048 + results.len() * 192);
-    html.push_str(
-        "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n\
-         <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n\
-         <title>SeleniumBase Rust Test Report</title>\n<style>",
-    );
-    html.push_str(STYLE);
-    html.push_str("</style>\n</head>\n<body>\n<h1>SeleniumBase Rust Test Report</h1>\n");
-    // Writing to a `String` cannot fail.
-    let _ = writeln!(html, "<p class=\"summary {verdict}\">{summary}</p>");
-    if results.is_empty() {
-        html.push_str("<p>No tests were recorded.</p>\n");
-    } else {
-        html.push_str(
-            "<table>\n<thead><tr><th>Test</th><th>Status</th><th>Duration</th>\
-             <th>Message</th></tr></thead>\n<tbody>\n",
-        );
-        for result in results {
-            let (class, status) = if result.passed {
-                ("pass", "PASS")
-            } else {
-                ("fail", "FAIL")
-            };
-            let message = match (&result.failure, result.passed) {
-                (Some(failure), false) => failure_cell(&result.message, failure),
-                _ => html_escape(&result.message),
-            };
-            let _ = writeln!(
-                html,
-                "<tr class=\"{class}\"><td>{}</td><td class=\"status\">{status}</td>\
-                 <td class=\"num\">{:.3}s</td><td class=\"msg\">{message}</td></tr>",
-                html_escape(&result.name),
-                result.duration_secs,
-            );
+/// [`TestRun::snapshot`](super::test_run::TestRun::snapshot) makes one from the
+/// files of a run; [`from_results`](Self::from_results) makes one from results
+/// you already hold.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RunSnapshot {
+    /// The title of the report or dashboard.
+    pub title: String,
+    /// When the run started.
+    pub started_at: DateTime<Local>,
+    /// When the run last changed.
+    pub updated_at: DateTime<Local>,
+    /// Whether the run is over: no result is going to be added.
+    pub finished: bool,
+    /// One result per test.
+    pub results: Vec<TestResult>,
+    /// The run's folder, which the paths in the results are relative to.
+    pub root: PathBuf,
+}
+
+impl RunSnapshot {
+    /// A finished run of `results`, taken now, whose folder is the current one.
+    #[must_use]
+    pub fn from_results(title: impl Into<String>, results: Vec<TestResult>) -> Self {
+        let now = Local::now();
+        Self {
+            title: title.into(),
+            started_at: now,
+            updated_at: now,
+            finished: true,
+            results,
+            root: PathBuf::from("."),
         }
-        html.push_str("</tbody>\n</table>\n");
     }
-    html.push_str("</body>\n</html>\n");
-    html
+
+    /// The counts and the total duration of the results.
+    #[must_use]
+    pub fn summary(&self) -> ReportSummary {
+        ReportSummary::from_results(&self.results)
+    }
 }
 
 /// `results` as pretty-printed JSON: an array with one object per test, keyed
@@ -245,18 +308,6 @@ pub fn render_json_report(results: &[TestResult]) -> Result<String, serde_json::
     serde_json::to_string_pretty(results)
 }
 
-/// Writes an HTML report of `results` to `path`, replacing any file there.
-///
-/// The parent directory must exist. See the [module](self) documentation for
-/// how the file is written.
-///
-/// # Errors
-///
-/// Returns the I/O error if the file cannot be written.
-pub fn write_html_report<P: AsRef<Path>>(path: P, results: &[TestResult]) -> io::Result<()> {
-    write_atomically(path.as_ref(), render_html_report(results).as_bytes())
-}
-
 /// Writes a JSON report of `results` to `path`, replacing any file there.
 ///
 /// The parent directory must exist. See the [module](self) documentation for
@@ -268,18 +319,6 @@ pub fn write_html_report<P: AsRef<Path>>(path: P, results: &[TestResult]) -> io:
 /// cannot be written.
 pub fn write_json_report<P: AsRef<Path>>(path: P, results: &[TestResult]) -> io::Result<()> {
     write_atomically(path.as_ref(), render_json_report(results)?.as_bytes())
-}
-
-/// Like [`write_html_report`], without blocking the async runtime.
-///
-/// # Errors
-///
-/// Returns the I/O error if the file cannot be written.
-pub async fn write_html_report_async(
-    path: impl AsRef<Path>,
-    results: &[TestResult],
-) -> io::Result<()> {
-    write_atomically_async(path.as_ref(), render_html_report(results).as_bytes()).await
 }
 
 /// Like [`write_json_report`], without blocking the async runtime.
@@ -309,7 +348,8 @@ fn temporary_neighbour(path: &Path) -> io::Result<PathBuf> {
     Ok(path.with_file_name(temporary))
 }
 
-fn write_atomically(path: &Path, bytes: &[u8]) -> io::Result<()> {
+/// Writes `bytes` to `path` through a temporary neighbour and a rename.
+pub(crate) fn write_atomically(path: &Path, bytes: &[u8]) -> io::Result<()> {
     let temporary = temporary_neighbour(path)?;
     let written =
         std::fs::write(&temporary, bytes).and_then(|()| std::fs::rename(&temporary, path));
@@ -320,7 +360,8 @@ fn write_atomically(path: &Path, bytes: &[u8]) -> io::Result<()> {
     written
 }
 
-async fn write_atomically_async(path: &Path, bytes: &[u8]) -> io::Result<()> {
+/// Like [`write_atomically`], without blocking the async runtime.
+pub(crate) async fn write_atomically_async(path: &Path, bytes: &[u8]) -> io::Result<()> {
     let temporary = temporary_neighbour(path)?;
     let written = match tokio::fs::write(&temporary, bytes).await {
         Ok(()) => tokio::fs::rename(&temporary, path).await,
@@ -332,86 +373,8 @@ async fn write_atomically_async(path: &Path, bytes: &[u8]) -> io::Result<()> {
     written
 }
 
-/// The message cell of a failed test with details: the error, how to fix it,
-/// the page, links to the evidence, and the full detail folded away.
-/// Everything in it is escaped.
-fn failure_cell(message: &str, failure: &FailureDetails) -> String {
-    let mut cell = String::new();
-    if !failure.kind.is_empty() {
-        let _ = write!(
-            cell,
-            "<span class=\"kind\">{}</span>",
-            html_escape(&failure.kind)
-        );
-    }
-    let summary = message.lines().next().unwrap_or_default();
-    let _ = write!(cell, "<div class=\"error\">{}</div>", html_escape(summary));
-    if let Some(hint) = &failure.hint {
-        let _ = write!(
-            cell,
-            "<div class=\"hint\"><b>How to fix:</b> {}</div>",
-            html_escape(hint)
-        );
-    }
-    if failure.url.is_some() || failure.title.is_some() {
-        cell.push_str("<div class=\"page\"><b>Page:</b> ");
-        if let Some(url) = &failure.url {
-            let lower = url.to_ascii_lowercase();
-            if lower.starts_with("http://") || lower.starts_with("https://") {
-                let _ = write!(
-                    cell,
-                    "<a href=\"{0}\" rel=\"noreferrer\">{0}</a>",
-                    html_escape(url)
-                );
-            } else {
-                cell.push_str(&html_escape(url));
-            }
-        }
-        if let Some(title) = &failure.title {
-            let _ = write!(cell, " &ldquo;{}&rdquo;", html_escape(title));
-        }
-        cell.push_str("</div>");
-    }
-    let evidence: Vec<String> = [
-        ("Screenshot", &failure.screenshot),
-        ("Page source", &failure.page_source),
-    ]
-    .into_iter()
-    .filter_map(|(label, path)| path.as_deref().map(|path| evidence_link(label, path)))
-    .collect();
-    if !evidence.is_empty() {
-        let _ = write!(
-            cell,
-            "<div class=\"evidence\"><b>Evidence:</b> {}</div>",
-            evidence.join(" &middot; ")
-        );
-    }
-    let detail = failure.detail.as_deref().unwrap_or(message);
-    let _ = write!(
-        cell,
-        "<details><summary>Technical detail</summary><pre>{}</pre></details>",
-        html_escape(detail)
-    );
-    cell
-}
-
-/// A link to an evidence file next to the report, or its path as text when
-/// it is not a plain relative path (a link must not lead elsewhere).
-fn evidence_link(label: &str, path: &str) -> String {
-    let relative = !path.is_empty()
-        && !path.contains(':')
-        && Path::new(path)
-            .components()
-            .all(|part| matches!(part, Component::Normal(_) | Component::CurDir));
-    if relative {
-        format!("<a href=\"{}\">{label}</a>", html_escape(path))
-    } else {
-        format!("{label}: {}", html_escape(path))
-    }
-}
-
 /// `s` safe to put in HTML text or in a quoted attribute.
-fn html_escape(s: &str) -> String {
+pub(crate) fn html_escape(s: &str) -> String {
     let mut escaped = String::with_capacity(s.len());
     for c in s.chars() {
         match c {
@@ -430,105 +393,20 @@ fn html_escape(s: &str) -> String {
 mod tests {
     use super::*;
 
-    fn result(name: &str, passed: bool, secs: f64, message: &str) -> TestResult {
-        TestResult {
-            name: name.to_owned(),
-            passed,
-            duration_secs: secs,
-            message: message.to_owned(),
-            failure: None,
-        }
-    }
-
-    fn failed_with(details: FailureDetails) -> TestResult {
-        TestResult {
-            failure: Some(details),
-            ..result("checkout", false, 2.0, "element not found: #buy\nmore")
-        }
-    }
-
-    #[test]
-    fn a_failure_shows_the_error_the_fix_the_page_and_the_evidence() {
-        let error = SeleniumBaseError::element_not_found("#buy");
-        let html = render_html_report(&[failed_with(FailureDetails {
-            url: Some("https://shop.test/cart".to_owned()),
-            title: Some("Cart".to_owned()),
-            screenshot: Some("checkout_20261010_101500.png".to_owned()),
-            page_source: Some("checkout_20261010_101500.html".to_owned()),
-            ..FailureDetails::from_error(&error)
-        })]);
-
-        assert!(html.contains("<span class=\"kind\">element_not_found</span>"));
-        assert!(html.contains("<div class=\"error\">element not found: #buy</div>"));
-        assert!(
-            html.contains("<b>How to fix:</b> Nothing on the page matched"),
-            "{html}"
-        );
-        assert!(html.contains(
-            "<a href=\"https://shop.test/cart\" rel=\"noreferrer\">https://shop.test/cart</a> &ldquo;Cart&rdquo;"
-        ));
-        assert!(html.contains("<a href=\"checkout_20261010_101500.png\">Screenshot</a>"));
-        assert!(html.contains("<a href=\"checkout_20261010_101500.html\">Page source</a>"));
-        assert!(html.contains("<details><summary>Technical detail</summary><pre>"));
-        assert!(!html.contains("<script"), "the report needs no script");
-    }
-
-    #[test]
-    fn hostile_failure_details_cannot_inject_markup_or_links() {
-        let html = render_html_report(&[failed_with(FailureDetails {
-            kind: "<b>kind</b>".to_owned(),
-            hint: Some("<script>alert(1)</script>".to_owned()),
-            url: Some("javascript:alert(1)".to_owned()),
-            title: Some("\"><img src=x onerror=alert(1)>".to_owned()),
-            screenshot: Some("../../etc/passwd".to_owned()),
-            page_source: Some("\" onmouseover=\"alert(1)".to_owned()),
-            detail: Some("</pre><script>alert(2)</script>".to_owned()),
-        })]);
-
-        assert!(!html.contains("<script"), "{html}");
-        assert!(!html.contains("<img"), "{html}");
-        assert!(!html.contains("<b>kind"), "{html}");
-        assert!(!html.contains("href=\"javascript"), "{html}");
-        assert!(
-            !html.contains("href=\"../"),
-            "a path that climbs out is not linked"
-        );
-        assert!(!html.contains("\" onmouseover"), "{html}");
-        assert!(html.contains("Screenshot: ../../etc/passwd"));
-    }
-
-    #[test]
-    fn a_failure_without_details_keeps_the_plain_message() {
-        let html = render_html_report(&[result("t", false, 0.0, "plain <b>")]);
-        assert!(html.contains("<td class=\"msg\">plain &lt;b&gt;</td>"));
-        assert!(!html.contains("How to fix"));
-    }
-
-    #[test]
-    fn failure_details_travel_in_the_json_report() {
-        let error = SeleniumBaseError::assertion_failed("title");
-        let rows = vec![failed_with(FailureDetails {
-            url: Some("https://a.test/".to_owned()),
-            ..FailureDetails::from_error(&error)
-        })];
-
-        let json = render_json_report(&rows).unwrap();
-        let back: Vec<TestResult> = serde_json::from_str(&json).unwrap();
-
-        assert_eq!(back, rows);
-        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
-        assert_eq!(value[0]["failure"]["kind"], "assertion_failed");
-        assert!(
-            value[0]["failure"].get("screenshot").is_none(),
-            "absent, not null"
-        );
+    fn result(name: &str, status: TestStatus, secs: f64, message: &str) -> TestResult {
+        TestResult::new(name, status, secs, message)
     }
 
     fn mixed() -> Vec<TestResult> {
         vec![
-            result("login", true, 0.5, "ok"),
-            result("checkout", false, 1.25, "expected 'a' but got \"b\""),
-            result("search", true, 0.25, "ok"),
+            result("login", TestStatus::Passed, 0.5, "ok"),
+            result(
+                "checkout",
+                TestStatus::Failed,
+                1.25,
+                "expected 'a' but got \"b\"",
+            ),
+            result("search", TestStatus::Passed, 0.25, "ok"),
         ]
     }
 
@@ -555,70 +433,94 @@ mod tests {
     }
 
     #[test]
+    fn the_summary_names_skipped_untested_and_unreported_tests_only_when_there_are_some() {
+        let mut results = mixed();
+        results.push(result("later", TestStatus::Skipped, 0.0, "no browser"));
+        assert_eq!(
+            ReportSummary::from_results(&results).to_string(),
+            "4 tests: 2 passed, 1 failed, 1 skipped in 2.000s"
+        );
+        results.push(result("running", TestStatus::Untested, 0.0, ""));
+        results.push(result("killed", TestStatus::Unreported, 0.0, ""));
+        let summary = ReportSummary::from_results(&results);
+        assert_eq!(
+            (summary.skipped, summary.untested, summary.unreported),
+            (1, 1, 1)
+        );
+        assert_eq!(
+            summary.to_string(),
+            "6 tests: 2 passed, 1 failed, 1 skipped, 1 untested, 1 unreported in 2.000s"
+        );
+    }
+
+    #[test]
     fn the_summary_says_one_test_not_one_tests() {
-        let summary = ReportSummary::from_results(&[result("a", true, 0.0, "ok")]);
+        let summary = ReportSummary::from_results(&[result("a", TestStatus::Passed, 0.0, "ok")]);
         assert_eq!(summary.to_string(), "1 test: 1 passed, 0 failed in 0.000s");
         let none = ReportSummary::from_results(&[]);
         assert_eq!(none.to_string(), "0 tests: 0 passed, 0 failed in 0.000s");
     }
 
     #[test]
-    fn the_html_report_has_a_summary_a_row_per_test_and_a_verdict() {
-        let html = render_html_report(&mixed());
+    fn a_skipped_test_counts_as_a_success_and_an_untested_one_does_not() {
+        assert!(result("a", TestStatus::Passed, 0.0, "").passed());
+        assert!(result("a", TestStatus::Skipped, 0.0, "").passed());
+        for status in [
+            TestStatus::Failed,
+            TestStatus::Untested,
+            TestStatus::Unreported,
+        ] {
+            assert!(!result("a", status, 0.0, "").passed(), "{status}");
+        }
+    }
 
-        assert!(html.starts_with("<!DOCTYPE html>"));
-        assert!(
-            html.contains("3 tests: 2 passed, 1 failed in 2.000s"),
-            "{html}"
+    #[test]
+    fn a_status_is_a_lower_case_word_in_json_and_an_upper_case_one_on_a_page() {
+        assert_eq!(
+            serde_json::to_string(&TestStatus::Unreported).unwrap(),
+            "\"unreported\""
         );
-        assert!(html.contains("class=\"summary fail\""));
-        assert_eq!(html.matches("<tr class=\"pass\">").count(), 2);
-        assert_eq!(html.matches("<tr class=\"fail\">").count(), 1);
-        assert!(html.contains(">PASS<") && html.contains(">FAIL<"));
-        assert!(html.contains("<td class=\"num\">1.250s</td>"));
+        assert_eq!(TestStatus::Passed.to_string(), "passed");
+        assert_eq!(TestStatus::Passed.label(), "PASS");
+        assert_eq!(TestStatus::Failed.label(), "FAIL");
     }
 
     #[test]
-    fn an_all_green_run_gets_the_passing_verdict() {
-        let html = render_html_report(&[result("a", true, 0.1, "ok")]);
-        assert!(html.contains("class=\"summary pass\""));
-        assert!(!html.contains("class=\"summary fail\""));
+    fn a_snapshot_of_results_is_finished_and_counts_them() {
+        let run = RunSnapshot::from_results("Report", mixed());
+        assert!(run.finished);
+        assert_eq!(run.title, "Report");
+        assert_eq!(run.summary().total, 3);
     }
 
     #[test]
-    fn the_html_report_is_responsive_and_follows_the_color_scheme() {
-        let html = render_html_report(&mixed());
+    fn failure_details_travel_in_the_json_report() {
+        let error = SeleniumBaseError::assertion_failed("title");
+        let rows = vec![TestResult {
+            failure: Some(FailureDetails {
+                url: Some("https://a.test/".to_owned()),
+                ..FailureDetails::from_error(&error)
+            }),
+            log_dir: Some("latest_logs/checkout".to_owned()),
+            ..result(
+                "checkout",
+                TestStatus::Failed,
+                2.0,
+                "assertion failed: title",
+            )
+        }];
 
-        assert!(html.contains("name=\"viewport\""));
-        assert!(html.contains("prefers-color-scheme:dark"));
-        assert!(html.contains("<html lang=\"en\">"));
-    }
+        let json = render_json_report(&rows).unwrap();
+        let back: Vec<TestResult> = serde_json::from_str(&json).unwrap();
 
-    #[test]
-    fn the_html_report_needs_no_script_and_escapes_what_a_test_printed() {
-        let hostile = [result(
-            "<b>name</b>",
-            false,
-            0.0,
-            "<script>alert('x')</script> & \"quotes\"",
-        )];
-
-        let html = render_html_report(&hostile);
-
-        assert!(!html.contains("<script"), "{html}");
-        assert!(!html.contains("<b>name"), "{html}");
-        assert!(html.contains("&lt;b&gt;name&lt;/b&gt;"));
-        assert!(html
-            .contains("&lt;script&gt;alert(&#39;x&#39;)&lt;/script&gt; &amp; &quot;quotes&quot;"));
-    }
-
-    #[test]
-    fn an_empty_run_says_so_instead_of_showing_an_empty_table() {
-        let html = render_html_report(&[]);
-
-        assert!(html.contains("0 tests"));
-        assert!(html.contains("No tests were recorded."));
-        assert!(!html.contains("<table>"));
+        assert_eq!(back, rows);
+        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(value[0]["failure"]["kind"], "assertion_failed");
+        assert_eq!(value[0]["log_dir"], "latest_logs/checkout");
+        assert!(
+            value[0]["failure"].get("screenshot").is_none(),
+            "absent, not null"
+        );
     }
 
     #[test]
@@ -635,9 +537,9 @@ mod tests {
             .map(String::as_str)
             .collect();
         keys.sort_unstable();
-        assert_eq!(keys, ["duration_secs", "message", "name", "passed"]);
+        assert_eq!(keys, ["duration_secs", "message", "name", "status"]);
         assert_eq!(rows[1]["name"], "checkout");
-        assert_eq!(rows[1]["passed"], false);
+        assert_eq!(rows[1]["status"], "failed");
         let back: Vec<TestResult> = serde_json::from_str(&json).unwrap();
         assert_eq!(back, mixed());
     }
@@ -650,19 +552,16 @@ mod tests {
     #[test]
     fn written_reports_replace_the_old_file_and_leave_nothing_behind() {
         let dir = tempfile::tempdir().unwrap();
-        let html = dir.path().join("report.html");
         let json = dir.path().join("report.json");
-        std::fs::write(&html, "old").unwrap();
+        std::fs::write(&json, "old").unwrap();
 
-        write_html_report(&html, &mixed()).unwrap();
         write_json_report(&json, &mixed()).unwrap();
         write_json_report(&json, &mixed()[..1]).unwrap();
 
-        assert!(std::fs::read_to_string(&html).unwrap().contains("PASS"));
         let rows: Vec<TestResult> =
             serde_json::from_str(&std::fs::read_to_string(&json).unwrap()).unwrap();
         assert_eq!(rows.len(), 1, "the second write replaced the first");
-        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 2);
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
     }
 
     #[test]
@@ -671,7 +570,7 @@ mod tests {
         let missing_parent = dir.path().join("no-such-dir").join("report.json");
 
         assert!(write_json_report(&missing_parent, &mixed()).is_err());
-        assert!(write_html_report(dir.path().join(".."), &mixed()).is_err());
+        assert!(write_atomically(&dir.path().join(".."), b"x").is_err());
         assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0);
     }
 
@@ -686,30 +585,25 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn the_async_writers_match_the_blocking_ones() {
+    async fn the_async_writer_matches_the_blocking_one() {
         let dir = tempfile::tempdir().unwrap();
-        let (html, json) = (dir.path().join("r.html"), dir.path().join("r.json"));
+        let json = dir.path().join("r.json");
 
-        write_html_report_async(&html, &mixed()).await.unwrap();
         write_json_report_async(&json, &mixed()).await.unwrap();
 
-        assert_eq!(
-            std::fs::read_to_string(&html).unwrap(),
-            render_html_report(&mixed())
-        );
         assert_eq!(
             std::fs::read_to_string(&json).unwrap(),
             render_json_report(&mixed()).unwrap()
         );
-        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 2);
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
     }
 
     #[tokio::test]
     async fn an_async_report_that_cannot_be_written_is_an_error() {
         let dir = tempfile::tempdir().unwrap();
-        let missing_parent = dir.path().join("no-such-dir").join("report.html");
+        let missing_parent = dir.path().join("no-such-dir").join("report.json");
 
-        assert!(write_html_report_async(&missing_parent, &mixed())
+        assert!(write_json_report_async(&missing_parent, &mixed())
             .await
             .is_err());
         assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0);

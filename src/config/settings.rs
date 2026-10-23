@@ -9,6 +9,8 @@ use crate::browser::options::{LaunchSettings, LaunchSwitch, WindowSize};
 use crate::browser::reuse::ReuseClass;
 use crate::config::plugins::{PluginSelection, PLUGINS_ENV};
 use crate::config::test_settings::TestSettings;
+use crate::core::test_run::ReportSettings;
+
 use crate::error::SeleniumBaseError;
 use crate::stealth::fingerprint::Fingerprint;
 
@@ -262,6 +264,10 @@ pub struct Settings {
     pub timeout_multiplier: Option<f64>,
     /// The `[test]` table: test data, debug modes, reruns, evidence and reports.
     pub test: TestSettings,
+    /// The `[report]` table: what a run writes beyond the `[test]` table's options
+    /// (`SB_HTML`, `SB_JUNIT_XML`, `SB_ALLURE_DIR`, `SB_REPORT_DB`). See
+    /// [`ReportSettings::from_settings`].
+    pub report: ReportSettings,
 }
 
 /// The settings a command line asked for explicitly, and nothing else.
@@ -568,6 +574,7 @@ impl Default for Settings {
             disable_beforeunload: false,
             timeout_multiplier: None,
             test: TestSettings::default(),
+            report: ReportSettings::default(),
         }
     }
 }

@@ -6,7 +6,7 @@
 use std::path::Path;
 use std::process::{Command, Output};
 
-use seleniumbase_rs::core::report_helper::TestResult;
+use seleniumbase_rs::core::report_helper::{TestResult, TestStatus};
 use seleniumbase_rs::storage::{ResultStore, RunInfo};
 use serde_json::Value;
 
@@ -15,10 +15,15 @@ const SBASE: &str = env!("CARGO_BIN_EXE_sbrs");
 fn result(name: &str, passed: bool) -> TestResult {
     TestResult {
         name: name.to_owned(),
-        passed,
+        status: if passed {
+            TestStatus::Passed
+        } else {
+            TestStatus::Failed
+        },
         duration_secs: 0.75,
         message: if passed { "ok" } else { "timed out waiting" }.to_owned(),
         failure: None,
+        log_dir: None,
     }
 }
 

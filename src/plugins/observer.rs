@@ -67,6 +67,19 @@ pub trait PageEvidence: Sync {
         ))
     }
 
+    /// The browser and its version, such as `Chrome 155.0.7000.1`, when the page
+    /// can tell. The default is `None`, which reports print as an unknown
+    /// browser.
+    async fn browser_label(&self) -> Option<String> {
+        None
+    }
+
+    /// What drives the browser, such as `WebDriver`, when the page can tell. The
+    /// default is `None`, which reports print as an unknown driver.
+    async fn driver_label(&self) -> Option<String> {
+        None
+    }
+
     /// The current page's title. The default is an error, as for
     /// [`current_url`](Self::current_url).
     async fn page_title(&self) -> Result<String> {
@@ -95,6 +108,17 @@ impl PageEvidence for BaseCase {
     async fn page_title(&self) -> Result<String> {
         script_text(self, "return document.title;").await
     }
+
+    async fn browser_label(&self) -> Option<String> {
+        let agent = script_text(self, "return navigator.userAgent;")
+            .await
+            .ok()?;
+        label_from_user_agent(&agent)
+    }
+
+    async fn driver_label(&self) -> Option<String> {
+        Some("WebDriver".to_owned())
+    }
 }
 
 /// The text a script returns, or an error if it returns something else.
@@ -122,6 +146,44 @@ impl PageEvidence for crate::sb_cdp::Page {
     async fn page_title(&self) -> Result<String> {
         self.title().await
     }
+
+    async fn browser_label(&self) -> Option<String> {
+        let agent: String = self.evaluate_as("navigator.userAgent").await.ok()?;
+        label_from_user_agent(&agent)
+    }
+
+    async fn driver_label(&self) -> Option<String> {
+        Some("Pure CDP (no driver)".to_owned())
+    }
+}
+
+/// `Chrome 155.0.7000.1` (or `Edge`, `Firefox`) from a browser's user agent;
+/// ` / headless` is added for a headless Chrome. `None` for an agent that names
+/// none of them.
+pub(crate) fn label_from_user_agent(agent: &str) -> Option<String> {
+    let (name, token) = [
+        ("Edge", "Edg/"),
+        ("Firefox", "Firefox/"),
+        ("Chrome", "Chrome/"),
+    ]
+    .into_iter()
+    .find(|(_, token)| agent.contains(token))?;
+    let version: String = agent
+        .split_once(token)?
+        .1
+        .chars()
+        .take_while(|c| c.is_ascii_digit() || *c == '.')
+        .collect();
+    let headless = if agent.contains("HeadlessChrome") {
+        " / headless"
+    } else {
+        ""
+    };
+    Some(if version.is_empty() {
+        format!("{name}{headless}")
+    } else {
+        format!("{name} {version}{headless}")
+    })
 }
 
 /// Code that runs around a test. Every hook is optional.

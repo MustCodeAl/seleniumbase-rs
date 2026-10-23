@@ -1,13 +1,19 @@
 //! Plugins that record how each test went.
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
 use std::time::Duration;
 
 use async_trait::async_trait;
 
+use crate::core::dashboard::{write_html_report_async, PageOptions};
+use crate::core::log_helper::TestId;
+use crate::core::test_run::{TestRecorder, TestRun};
+
 use super::observer::{write_evidence, PageEvidence, TestPlugin};
 use crate::core::report_helper::{
-    write_html_report_async, write_json_report_async, FailureDetails, TestResult,
+    write_json_report_async, FailureDetails, RunSnapshot, TestResult, TestStatus,
 };
 use crate::error::{Result, SeleniumBaseError};
 
@@ -90,6 +96,23 @@ impl ReportPlugin {
             .map(|name| name.to_string_lossy().into_owned())
     }
 
+    /// The results seen so far as a finished run whose folder is the report's.
+    fn snapshot(&self) -> RunSnapshot {
+        let mut run =
+            RunSnapshot::from_results("SeleniumBase Rust Test Report", self.results.clone());
+        run.root = self.folder().to_path_buf();
+        run
+    }
+
+    /// How the report page is rendered: links to evidence are made from the
+    /// report's own folder.
+    fn page(&self) -> PageOptions {
+        PageOptions {
+            page_dir: self.folder().to_path_buf(),
+            ..PageOptions::default()
+        }
+    }
+
     /// The results seen so far, in the order the tests finished.
     #[must_use]
     pub fn results(&self) -> &[TestResult] {
@@ -137,7 +160,9 @@ impl TestPlugin for ReportPlugin {
         }
         match self.format {
             Format::Json => write_json_report_async(&self.path, &self.results).await,
-            Format::Html => write_html_report_async(&self.path, &self.results).await,
+            Format::Html => {
+                write_html_report_async(&self.path, &self.snapshot(), &self.page()).await
+            }
         }
         .map_err(SeleniumBaseError::from)
     }
@@ -146,13 +171,90 @@ impl TestPlugin for ReportPlugin {
 fn to_result(test: &str, elapsed: Duration, outcome: &Result<()>) -> TestResult {
     TestResult {
         name: test.to_owned(),
-        passed: outcome.is_ok(),
+        status: status_of(outcome),
         duration_secs: elapsed.as_secs_f64(),
         message: match outcome {
             Ok(()) => "ok".to_owned(),
             Err(error) => error.to_string(),
         },
         failure: None,
+        log_dir: None,
+    }
+}
+
+/// How `outcome` ended: a skip is not a failure.
+fn status_of(outcome: &Result<()>) -> TestStatus {
+    match outcome {
+        Ok(()) => TestStatus::Passed,
+        Err(error) if error.is_skipped() => TestStatus::Skipped,
+        Err(_) => TestStatus::Failed,
+    }
+}
+
+/// Records every test in the shared [`TestRun`]: the dashboard, the HTML
+/// report and the JUnit XML that are turned on (`SB_DASHBOARD`, `SB_HTML`,
+/// `SB_JUNIT_XML`), and `latest_logs/<test>/` with the evidence of a failure.
+///
+/// Unlike [`ReportPlugin`], which keeps the results of one plugin, this one
+/// shares a run with the other processes of the same `cargo test`; see
+/// [`core::test_run`](crate::core::test_run).
+#[derive(Debug)]
+pub struct RunReporterPlugin {
+    run: Arc<TestRun>,
+    recorder: Option<TestRecorder>,
+}
+
+impl RunReporterPlugin {
+    /// A plugin that records into the run of this process
+    /// ([`TestRun::current`]).
+    ///
+    /// # Errors
+    ///
+    /// Returns the error that made the run: the settings could not be read or
+    /// the run folder could not be used.
+    pub fn new() -> Result<Self> {
+        Ok(Self::with_run(TestRun::current()?))
+    }
+
+    /// A plugin that records into `run`.
+    #[must_use]
+    pub fn with_run(run: Arc<TestRun>) -> Self {
+        Self {
+            run,
+            recorder: None,
+        }
+    }
+}
+
+#[async_trait]
+impl TestPlugin for RunReporterPlugin {
+    async fn test_started(&mut self, test: &str) -> Result<()> {
+        self.recorder = Some(self.run.start(TestId::named(test))?);
+        Ok(())
+    }
+
+    async fn test_failed(
+        &mut self,
+        _test: &str,
+        error: &SeleniumBaseError,
+        page: &dyn PageEvidence,
+    ) -> Result<()> {
+        if let Some(recorder) = self.recorder.as_mut() {
+            recorder.on_failure(error, page).await;
+        }
+        Ok(())
+    }
+
+    async fn test_finished(
+        &mut self,
+        _test: &str,
+        _elapsed: Duration,
+        outcome: &Result<()>,
+    ) -> Result<()> {
+        match self.recorder.take() {
+            Some(recorder) => recorder.finish(outcome),
+            None => Ok(()),
+        }
     }
 }
 
