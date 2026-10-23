@@ -50,7 +50,11 @@ fn entries(manifest: &toml::Table, section: &str) -> Vec<(String, String)> {
 fn every_options_pytest_key_has_a_spelling_in_the_table() {
     let manifest = manifest();
     let pytest = entries(&manifest, "options_pytest");
-    assert!(pytest.len() > 200, "the manifest lists {} options", pytest.len());
+    assert!(
+        pytest.len() > 200,
+        "the manifest lists {} options",
+        pytest.len()
+    );
     let missing: Vec<_> = pytest
         .iter()
         .filter(|(key, _)| find_option(key).is_none())

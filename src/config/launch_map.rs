@@ -17,6 +17,7 @@ use crate::browser::options::{
     WindowPosition, WindowSize,
 };
 use crate::config::settings::Settings;
+use crate::config::test_settings::TestData;
 use crate::error::SeleniumBaseError;
 use crate::sb_cdp::LaunchOptions;
 
@@ -191,7 +192,12 @@ impl Settings {
             run = run.with_default_timeout(duration("timeout_multiplier", base * multiplier)?);
         }
         config = config.with_run_settings(run);
-        config.launch.test_data = self.test.data.clone();
+        // A file can hold any string for `env`; the variable is checked as it is read.
+        let mut data = self.test.data.clone();
+        if let Some(env) = &data.env {
+            data.env = Some(TestData::parse_env(env)?);
+        }
+        config.launch.test_data = data;
         Ok(config)
     }
 
@@ -379,6 +385,9 @@ mod tests {
     use super::*;
     use crate::api::run_settings::RunSettings;
 
+    /// Changes one setting of a `Settings`.
+    type Setter = fn(&mut Settings);
+
     fn args_of(settings: &Settings) -> Vec<String> {
         settings
             .to_launch_options()
@@ -399,7 +408,7 @@ mod tests {
 
     #[test]
     fn each_switch_of_the_settings_turns_its_launch_switch_on() {
-        let cases: [(fn(&mut Settings), LaunchSwitch); 19] = [
+        let cases: [(Setter, LaunchSwitch); 19] = [
             (|s| s.block_images = true, LaunchSwitch::BlockImages),
             (|s| s.disable_js = true, LaunchSwitch::DisableJavaScript),
             (|s| s.disable_cookies = true, LaunchSwitch::DisableCookies),
@@ -551,7 +560,7 @@ mod tests {
     #[test]
     fn a_value_that_does_not_parse_is_refused_when_the_settings_are_checked() {
         for set in [
-            (|s: &mut Settings| s.window_size = Some("wide".to_owned())) as fn(&mut Settings),
+            (|s: &mut Settings| s.window_size = Some("wide".to_owned())) as Setter,
             |s| s.window_position = Some("here".to_owned()),
             |s| s.device_metrics = Some("412".to_owned()),
             |s| s.page_load_strategy = Some("slow".to_owned()),
@@ -691,6 +700,76 @@ mod tests {
             .collect();
         assert_eq!(features, ["--disable-features=Translate,Foo"]);
         assert_eq!(args.iter().filter(|arg| *arg == "--no-sandbox").count(), 1);
+    }
+
+    fn settings_file(name: &str, text: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("sb-settings-{name}-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("run.toml");
+        std::fs::write(&file, text).unwrap();
+        file
+    }
+
+    #[test]
+    fn the_variable_names_the_settings_file_and_the_table_reads_the_new_keys() {
+        let file = settings_file(
+            "named",
+            "dark_mode = true\nwindow_size = \"1000,700\"\n[test]\nenv = \"qa\"\npdb = true\nreruns = 2\n",
+        );
+        let named = file.display().to_string();
+        let check = Settings::check_with(None::<&std::path::Path>, |name| {
+            (name == "SB_SETTINGS_FILE").then(|| named.clone())
+        });
+        assert!(check.problems.is_empty(), "{:?}", check.problems);
+        assert_eq!(check.file.as_deref(), Some(file.as_path()));
+        let settings = check.settings;
+        assert!(settings.dark_mode && settings.test.pdb);
+        assert_eq!(settings.test.data.env(), "qa");
+        assert_eq!(settings.test.reruns, 2);
+        assert_eq!(
+            settings.to_browser_config().launch.window_size,
+            Some(WindowSize::new(1000, 700))
+        );
+        std::fs::remove_dir_all(file.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn a_variable_beats_the_file_and_a_blank_file_name_is_unset() {
+        let file = settings_file("precedence", "dark_mode = true\n[test]\nenv = \"qa\"\n");
+        let named = file.display().to_string();
+        let check = Settings::check_with(None::<&std::path::Path>, |name| match name {
+            "SB_SETTINGS_FILE" => Some(named.clone()),
+            "SB_DARK_MODE" => Some("false".to_owned()),
+            "SB_ENV" => Some("Staging".to_owned()),
+            _ => None,
+        });
+        assert!(check.problems.is_empty(), "{:?}", check.problems);
+        assert!(!check.settings.dark_mode);
+        assert_eq!(check.settings.test.data.env(), "staging");
+        std::fs::remove_dir_all(file.parent().unwrap()).unwrap();
+
+        let blank = Settings::global_file_with(&|name| {
+            (name == "SB_SETTINGS_FILE").then(|| "  ".to_owned())
+        });
+        assert_ne!(blank, Some(PathBuf::from("  ")));
+    }
+
+    #[test]
+    fn a_bad_value_in_the_file_is_reported_by_the_check() {
+        let file = settings_file("bad", "window_size = \"wide\"\n[test]\nenv = \"nosuch\"\n");
+        let named = file.display().to_string();
+        let check = Settings::check_with(None::<&std::path::Path>, |name| {
+            (name == "SB_SETTINGS_FILE").then(|| named.clone())
+        });
+        assert!(
+            check
+                .problems
+                .iter()
+                .any(|problem| problem.source == "validation"),
+            "{:?}",
+            check.problems
+        );
+        std::fs::remove_dir_all(file.parent().unwrap()).unwrap();
     }
 
     #[test]

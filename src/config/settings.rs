@@ -713,7 +713,7 @@ impl Settings {
         }
         let table = match config {
             Some(path) => Some(path.as_ref().to_owned()),
-            None => Self::global_file().map(PathBuf::from),
+            None => Self::global_file(),
         };
         match table {
             Some(path) => Ok(parse_fingerprint_table(&path)?.file),
@@ -882,7 +882,7 @@ impl Settings {
     ) -> SettingsCheck {
         let file = match &path {
             Some(path) => Some(path.as_ref().to_path_buf()),
-            None => Self::global_file().map(PathBuf::from),
+            None => Self::global_file_with(&var),
         };
         let mut problems = Vec::new();
         let from_file = match &file {
