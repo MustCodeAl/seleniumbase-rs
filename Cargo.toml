@@ -204,9 +204,12 @@ pdf = ["dep:pdf-extract"]
 # prompts) and the test id. See `docs/tutorials/writing_tests.md`.
 testing = ["dep:rstest"]
 # Gherkin features as cargo tests (rstest-bdd; replaces the removed `behave` module):
-# `testing::bdd::{sb, sb_cdp, SbCase, SbCdpCase, SbHarness}`. The four crates are
+# `testing::bdd::{sb, sb_cdp, SbCase, SbCdpCase}`. The four crates are
 # optional and the macros' own dependency tree (i18n, rust-embed, gherkin) comes with them.
 bdd = ["testing", "dep:rstest-bdd", "dep:rstest-bdd-macros", "dep:rstest-bdd-harness", "dep:rstest-bdd-harness-tokio"]
+# Allure results (`core::allure`, `SB_ALLURE_DIR`). The feature has no dependency yet: the
+# lane that writes the results adds `dep:allure-rust-commons` here.
+allure = []
 
 [dev-dependencies]
 # Paused clocks let tests play out human-paced input instantly.
