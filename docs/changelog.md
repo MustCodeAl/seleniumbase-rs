@@ -31,10 +31,23 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.5.1 s
 
 ## All releases
 
-<Update label="Unreleased" description="Next release" tags={["New", "Fix"]}>
+<Update label="Unreleased" description="Next release" tags={["New", "Fix", "Breaking"]}>
 
 ### Breaking
 
+- **Downloads go to `./downloaded_files`, as in Python SeleniumBase.** `BaseCase::get_downloads_folder`,
+  `assert_downloaded_file`, `download_file` and the other download helpers used the OS Downloads
+  folder; they now use `downloaded_files` in the working directory
+  (`browser::downloads::downloads_dir`), and a browser the library launches is told to save
+  there: WebDriver sessions ask for it in their capabilities (the Chrome and Edge preferences
+  `download.default_directory`, `download.prompt_for_download` and `download.directory_upgrade`,
+  and the Firefox `browser.download.*` ones; a preference you set yourself wins), and the pure CDP
+  engine sends `Browser.setDownloadBehavior` at launch, so `Page::assert_downloaded_file` finds a
+  file without a folder being chosen first. `downloaded_files/` is in `.gitignore`.
+- **A reused browser keeps its cookies unless `--crumbs`.** With `--reuse-session` or `--rcs` the
+  browser handed to the next test used to have every cookie deleted; now the cookies stay (Python's
+  default) and `SB_CRUMBS=1` or `browser::reuse::set_crumbs(true)` deletes them. The other windows
+  are still closed, the page's storage cleared and the page set to `about:blank`.
 - **A page command needs a page.** `get-text`, `get-title`, `get-attribute`, `screenshot`,
   `assert-element`, `hover`, `send-keys`, the alert commands and the other commands that act
   on a page used to act on `about:blank`, which no one wants. Without a start page (`--url`,
@@ -66,6 +79,31 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.5.1 s
 
 ### Added
 
+- **A debug prompt: `BaseCase::breakpoint`, `sb_cdp::Page::breakpoint` and
+  `common::debug_prompt`.** `sb.breakpoint("message").await?` pauses a test with the browser
+  open and reads commands from the terminal: `c` goes on, `s` saves a screenshot and `src` the
+  page source to `latest_logs/<test id>/`, `u` shows the address and title, `js <expr>` shows
+  a value, `q` stops the test with a `TestLifecycle` error and `h` lists the commands. The time
+  spent at the prompt is added to the time limit. The pause is skipped, with a warning in the
+  log, when standard input is not a terminal (CI, `cargo nextest`), and `SB_BREAKPOINTS=0` turns
+  it off, as Python's `PYTHONBREAKPOINT=0` does. `DebugPrompt`, `PromptKind`, `PromptOutcome`,
+  `PromptPage` and `LineInput` are public, for the runner's `--trace`, `--pdb` and
+  `--final-debug` (not wired to a flag yet). `BaseCase::recorder_mode` says whether a
+  recording window is open.
+- **A command line that does not parse prints the command's page, then the error.** Like
+  Python's `sbase`, `sbrs mkfile`, `sbrs grid-hub`, `sbrs get-text` and `sbrs plugin info`
+  print the usage, arguments, flags and examples of the command the words reached, a blank
+  line, and last the parser's `error:` line and `tip:`, on standard error with status 2. A
+  mistake found after parsing (a page command with no page, a start page for a command with a
+  URL of its own) prints the same way. An unknown command, or none, prints the commands by
+  group, names only, instead of the 112-line help. `--help`, `--version` and shell completion
+  are as before.
+- **Every command has an example and a help heading.** `sbrs <command> --help` ends with an
+  `Examples:` section (`sbrs --url https://example.com get-text --css h1`), the commands are
+  grouped as Page commands, Files and generators, Record and replay, Tests, Drivers, grid and
+  servers, Import and convert, Security, and Info and setup in `sbrs --help`, and a test
+  proves that every example parses. The examples are in the usage spec and in
+  `docs/help/cli_reference.md`.
 - **The start page: `--start-page`, `--url` and `--start_page`, `SB_START_PAGE`, and the
   `start_page` key of the settings file.** Every `sbrs` command starts a fresh browser, so
   a command that acts on a page now acts on this one: `sbrs --url https://example.com
@@ -179,6 +217,35 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.5.1 s
   `export_session_as_test` and `diagnose_environment`. It is 34 tools now.
   `get_failed_requests` and `audit_page` stay with `cdp` and `sb`.
 - `Profile::ALL` has a fourth profile, and `sbrs-mcp --server` accepts `dev`.
+- `find_api` no longer returns a `deprecated` field: no method can carry one now.
+
+### Removed
+
+Every deprecated item is gone, with no shim, and nothing in `src/` is marked
+`#[deprecated]` (`tests/no_deprecated.rs` keeps it so). Each one had a replacement since
+0.5.0, or 0.1.0 for the `common` modules.
+
+- `common::decorators` (`retry_on_exception`, `retry_on_exception_async`, `rate_limited`)
+  and `common::exceptions` (`Exception`): use `utilities::retry::{RetryPolicy, RateLimiter}`
+  and `SeleniumBaseError`.
+- `StealthFlags`: use `StealthPolicy`. `StealthPolicy::{mask_all, all_custom}`: use
+  `StealthPolicy::max`. `evasions::cdp_overrides`: use `safe_cdp_overrides`, which leaves out
+  the `Proxy-Authorization` header.
+- `profile_payloads::{Flags, Fingerprint, ProxyConfig}`: use `ProfileFlags`,
+  `ProfileFingerprint` and `ProfileProxy`.
+- `PlaywrightSession::&#123;launch_headless, launch_with_fingerprint,
+  launch_headless_with_fingerprint&#125;`: use `launch_with_config` with a `BrowserConfig`.
+- `run_browser_test_boxed`, `Plugins::run_browser_test_boxed` and `BrowserTestFuture`: pass
+  an async closure, `async |sb| { .. }`, to `run_browser_test`.
+- `RunSettings::{with_fast_mode, pause, message_seconds}` and `DEFAULT_MESSAGE_SECONDS`:
+  `--fast` has no effect here, so there is no replacement; use `pause_for(PauseKind)`,
+  `message_duration()` and `DEFAULT_MESSAGE_DURATION`.
+- `BaseCase::&#123;cdp_type_text, cdp_click_element, save_saved_cookies, load_saved_cookies,
+  qa_report_markdown&#125;`: use `cdp_insert_text`, `cdp_click`, `save_cookies`, `load_cookies`
+  and `MasterQaSession::to_markdown`.
+- `sb_cdp::Locator::click_at`: use `click_with_offset(x, y, false)`.
+- `Settings::from_toml`: use `Settings::from_file`.
+- The `assert_visible!` macro: use `sb_assert_visible!`.
 
 ### Fixed
 
