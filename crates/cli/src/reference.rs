@@ -53,7 +53,7 @@ pub(crate) fn render(spec: &Spec) -> String {
     let flags: Vec<&SpecFlag> = root.flags.iter().filter(|f| !f.hide).collect();
     if !flags.is_empty() {
         out.push_str(
-            "## Global flags\n\nThey go before the command: `sbrs --headless open URL`.\n\n",
+            "## Global flags\n\nEach applies to every command and goes before the command or after it, but not both: `sbrs --headless open URL` and `sbrs open URL --headless` are the same.\n\n",
         );
         for flag in flags {
             out.push_str(&flag_field(flag));
@@ -146,7 +146,35 @@ fn command_section(bin: &str, cmd: &SpecCommand) -> String {
             out.push_str(&flag_field(flag));
         }
     }
-    for example in &cmd.examples {
+    out.push_str(&examples_section(cmd));
+    if let Some(text) = cmd.after_help_long.as_ref().or(cmd.after_help.as_ref()) {
+        out.push_str(&prose(text.trim()));
+        out.push_str("\n\n");
+    }
+    out
+}
+
+/// The examples of a command: those with no header and no text of their own in one `bash`
+/// block titled "Examples", one command per line, then each of the others under its header.
+fn examples_section(cmd: &SpecCommand) -> String {
+    let examples = &cmd.examples;
+    let mut out = String::new();
+    let plain: Vec<_> = examples
+        .iter()
+        .filter(|example| example.header.is_none() && example.help.is_none())
+        .collect();
+    if !plain.is_empty() {
+        out.push_str("```bash Examples\n");
+        for example in plain {
+            out.push_str(example.code.trim_end());
+            out.push('\n');
+        }
+        out.push_str("```\n\n");
+    }
+    for example in examples
+        .iter()
+        .filter(|example| example.header.is_some() || example.help.is_some())
+    {
         if let Some(header) = &example.header {
             out.push_str(&format!("**{}**\n\n", prose(header)));
         }
@@ -154,15 +182,15 @@ fn command_section(bin: &str, cmd: &SpecCommand) -> String {
             out.push_str(&prose(help.trim()));
             out.push_str("\n\n");
         }
+        let lang = if example.lang.is_empty() {
+            "bash"
+        } else {
+            example.lang.as_str()
+        };
         out.push_str(&format!(
-            "```{}\n{}\n```\n\n",
-            example.lang,
+            "```{lang} Example\n{}\n```\n\n",
             example.code.trim_end()
         ));
-    }
-    if let Some(text) = cmd.after_help_long.as_ref().or(cmd.after_help.as_ref()) {
-        out.push_str(&prose(text.trim()));
-        out.push_str("\n\n");
     }
     out
 }
@@ -336,4 +364,47 @@ fn angle_brackets_outside_code_are_escaped() {
 #[test]
 fn a_command_heading_links_from_the_table() {
     assert_eq!(anchor("sbrs plugin list"), "sbrs-plugin-list");
+}
+
+/// The pieces the page renders: a global flag, and a command with two plain examples and
+/// one that has a header and a text of its own.
+const SAMPLE: &str = r#"name sbrs
+bin sbrs
+flag --headless help="Run the browser in headless mode" global=#true
+cmd open help="Open a URL." {
+    arg <URL>
+    example "sbrs open https://a.test"
+    example "sbrs open https://b.test"
+    example "sbrs --headless open https://c.test" header="Headless" help="Without a window."
+}
+"#;
+
+#[test]
+fn the_plain_examples_of_a_command_are_one_bash_block_titled_examples() {
+    let spec: Spec = SAMPLE.parse().expect("the sample spec parses");
+    let page = render(&spec);
+    assert!(
+        page.contains(
+            "```bash Examples\nsbrs open https://a.test\nsbrs open https://b.test\n```\n"
+        ),
+        "{page}"
+    );
+    assert!(
+        page.contains(
+            "**Headless**\n\nWithout a window.\n\n```bash Example\nsbrs --headless open https://c.test\n```\n"
+        ),
+        "{page}"
+    );
+}
+
+#[test]
+fn the_global_flags_go_before_or_after_the_command() {
+    let spec: Spec = SAMPLE.parse().expect("the sample spec parses");
+    let page = render(&spec);
+    assert!(page.contains("## Global flags"), "{page}");
+    assert!(
+        page.contains("goes before the command or after it"),
+        "{page}"
+    );
+    assert!(!page.contains("They go before the command"), "{page}");
 }

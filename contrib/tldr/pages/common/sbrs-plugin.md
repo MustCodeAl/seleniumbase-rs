@@ -12,7 +12,7 @@
 
 `sbrs plugin info {{shield}}`
 
-- Run a command with a plugin (the global options go before the command):
+- Run a command with a plugin (a global option goes before the command or after it):
 
 `sbrs --plugin {{shield}} open {{https://example.com}}`
 

@@ -95,6 +95,7 @@ const completionSpec: Fig.Spec = {
           description: "Output image file path (default: a new file in latest_logs/)",
           args: {
             name: "path",
+            template: "filepaths",
           },
         },
         {
@@ -112,6 +113,7 @@ const completionSpec: Fig.Spec = {
           description: "Output HTML file path (default: a new file in latest_logs/)",
           args: {
             name: "path",
+            template: "filepaths",
           },
         },
         {
@@ -548,6 +550,7 @@ const completionSpec: Fig.Spec = {
           description: "Rust test to write (default: the action file's name with .rs)",
           args: {
             name: "output",
+            template: "filepaths",
           },
         },
         {
@@ -559,6 +562,7 @@ const completionSpec: Fig.Spec = {
         {
           name: "file",
           description: "Action file written by `sbrs record` (.json or .yaml)",
+          template: "filepaths",
         },
       ],
     },
@@ -890,6 +894,7 @@ const completionSpec: Fig.Spec = {
           isRequired: true,
           args: {
             name: "file",
+            template: "filepaths",
           },
         },
         {
@@ -908,6 +913,7 @@ const completionSpec: Fig.Spec = {
           isRequired: true,
           args: {
             name: "file",
+            template: "filepaths",
           },
         },
         {
@@ -1574,6 +1580,7 @@ const completionSpec: Fig.Spec = {
         {
           name: "file",
           description: "The scenario file.",
+          template: "filepaths",
         },
         {
           name: "language",
@@ -1635,6 +1642,7 @@ const completionSpec: Fig.Spec = {
         {
           name: "file",
           description: "File to create, for example `tests/login.rs`.",
+          template: "filepaths",
         },
       ],
     },
@@ -1688,6 +1696,7 @@ const completionSpec: Fig.Spec = {
           name: "path",
           description: "A folder of feature files, or one `.feature` file.",
           isOptional: true,
+          template: "filepaths",
         },
       ],
     },
@@ -1730,6 +1739,7 @@ const completionSpec: Fig.Spec = {
           isRequired: true,
           args: {
             name: "file",
+            template: "filepaths",
           },
         },
         {
@@ -1748,6 +1758,7 @@ const completionSpec: Fig.Spec = {
           isRequired: true,
           args: {
             name: "file",
+            template: "filepaths",
           },
         },
         {
@@ -1780,6 +1791,7 @@ const completionSpec: Fig.Spec = {
           isRequired: true,
           args: {
             name: "file",
+            template: "filepaths",
           },
         },
         {
@@ -1798,6 +1810,7 @@ const completionSpec: Fig.Spec = {
           isRequired: true,
           args: {
             name: "file",
+            template: "filepaths",
           },
         },
         {
@@ -1805,6 +1818,7 @@ const completionSpec: Fig.Spec = {
           description: "Optional path to write a scenario dashboard",
           args: {
             name: "dashboard",
+            template: "filepaths",
           },
         },
         {
@@ -1839,6 +1853,7 @@ const completionSpec: Fig.Spec = {
           description: "Output file for the generated Rust test",
           args: {
             name: "output",
+            template: "filepaths",
           },
         },
         {
@@ -1865,6 +1880,7 @@ const completionSpec: Fig.Spec = {
         {
           name: "file",
           description: "Python source file to convert.",
+          template: "filepaths",
         },
       ],
     },
@@ -1877,6 +1893,7 @@ const completionSpec: Fig.Spec = {
           description: "Output file for the generated Rust tests",
           args: {
             name: "output",
+            template: "filepaths",
           },
         },
         {
@@ -1903,6 +1920,7 @@ const completionSpec: Fig.Spec = {
         {
           name: "file",
           description: "Playwright source file to convert.",
+          template: "filepaths",
         },
       ],
     },
@@ -1915,6 +1933,7 @@ const completionSpec: Fig.Spec = {
           description: "Output file for the generated Rust tests",
           args: {
             name: "output",
+            template: "filepaths",
           },
         },
         {
@@ -1941,6 +1960,7 @@ const completionSpec: Fig.Spec = {
         {
           name: "file",
           description: "Puppeteer source file (or Recorder `.json` export) to convert.",
+          template: "filepaths",
         },
       ],
     },
@@ -1984,6 +2004,7 @@ const completionSpec: Fig.Spec = {
           description: "Output PDF file path",
           args: {
             name: "output",
+            template: "filepaths",
           },
         },
         {
@@ -2007,6 +2028,7 @@ const completionSpec: Fig.Spec = {
           description: "Also keep the intermediate PDF at this path",
           args: {
             name: "save_pdf",
+            template: "filepaths",
           },
         },
         {
@@ -2038,6 +2060,7 @@ const completionSpec: Fig.Spec = {
           description: "Also keep the intermediate PDF at this path",
           args: {
             name: "save_pdf",
+            template: "filepaths",
           },
         },
         {
@@ -2090,6 +2113,7 @@ const completionSpec: Fig.Spec = {
           description: "JSON file containing an array of assertion specs",
           args: {
             name: "spec",
+            template: "filepaths",
           },
         },
         {
@@ -2107,6 +2131,7 @@ const completionSpec: Fig.Spec = {
           description: "Output action file (.json or .yaml)",
           args: {
             name: "output",
+            template: "filepaths",
           },
         },
         {
@@ -2141,6 +2166,7 @@ const completionSpec: Fig.Spec = {
         {
           name: "file",
           description: "JSON action file produced by `sbrs record`",
+          template: "filepaths",
         },
       ],
     },
@@ -2223,6 +2249,7 @@ const completionSpec: Fig.Spec = {
               description: "Write the fingerprint to FILE instead of printing it.",
               args: {
                 name: "file",
+                template: "filepaths",
               },
             },
             {
@@ -2230,6 +2257,7 @@ const completionSpec: Fig.Spec = {
               description: "Also write the readings that no setting holds, and where the capture was taken, to FILE.",
               args: {
                 name: "file",
+                template: "filepaths",
               },
             },
             {
@@ -2281,6 +2309,7 @@ const completionSpec: Fig.Spec = {
               description: "Write the fingerprint to FILE instead of printing it.",
               args: {
                 name: "file",
+                template: "filepaths",
               },
             },
             {
@@ -2302,6 +2331,7 @@ const completionSpec: Fig.Spec = {
             {
               name: "file",
               description: "The fingerprint file to check.",
+              template: "filepaths",
             },
           ],
         },
@@ -2318,10 +2348,12 @@ const completionSpec: Fig.Spec = {
             {
               name: "expected",
               description: "The file with what is expected.",
+              template: "filepaths",
             },
             {
               name: "found",
               description: "The file with what is found.",
+              template: "filepaths",
             },
           ],
         },
@@ -2353,6 +2385,7 @@ const completionSpec: Fig.Spec = {
     {
       name: "--webdriver",
       description: "WebDriver server URL (default: SB_WEBDRIVER_URL, else http://localhost:4444)",
+      isPersistent: true,
       args: {
         name: "url",
       },
@@ -2360,6 +2393,7 @@ const completionSpec: Fig.Spec = {
     {
       name: "--browser",
       description: "Browser engine to launch (default: chrome, or the config file's)",
+      isPersistent: true,
       args: {
         name: "browser",
         suggestions: ["chrome", "chromium", "edge", "firefox", "brave", "comet", "opera", "safari", "ie", "cft", "chs"],
@@ -2368,22 +2402,27 @@ const completionSpec: Fig.Spec = {
     {
       name: "--headed",
       description: "Run the browser in headed mode",
+      isPersistent: true,
     },
     {
       name: "--headless",
       description: "Run the browser in headless mode",
+      isPersistent: true,
     },
     {
       name: "--cdp",
       description: "Enable Chrome DevTools Protocol mode",
+      isPersistent: true,
     },
     {
       name: "--uc",
       description: "Enable undetected-chromedriver style evasions",
+      isPersistent: true,
     },
     {
       name: "--user-agent",
       description: "Override the default user agent string",
+      isPersistent: true,
       args: {
         name: "user_agent",
       },
@@ -2391,6 +2430,7 @@ const completionSpec: Fig.Spec = {
     {
       name: ["-a", "--agent"],
       description: "Alias for --user-agent",
+      isPersistent: true,
       args: {
         name: "agent",
       },
@@ -2398,6 +2438,7 @@ const completionSpec: Fig.Spec = {
     {
       name: "--locale",
       description: "Locale string for the browser context",
+      isPersistent: true,
       args: {
         name: "locale",
       },
@@ -2405,6 +2446,7 @@ const completionSpec: Fig.Spec = {
     {
       name: ["--start-page", "--url", "--start_page"],
       description: "Page the browser opens first, Python's --start-page (aliases --url and --start_page)",
+      isPersistent: true,
       args: {
         name: "url",
       },
@@ -2412,14 +2454,17 @@ const completionSpec: Fig.Spec = {
     {
       name: ["--save-screenshot", "--save_screenshot"],
       description: "Save a screenshot to latest_logs/ just before the browser closes, and print its path",
+      isPersistent: true,
     },
     {
       name: "--ad-block",
       description: "Refuse the requests of ad and tracker hosts (Chromium WebDriver sessions)",
+      isPersistent: true,
     },
     {
       name: "--proxy",
       description: "Proxy (host:port or scheme://host:port); with --proxy-list, a name from the list",
+      isPersistent: true,
       args: {
         name: "proxy",
       },
@@ -2427,6 +2472,7 @@ const completionSpec: Fig.Spec = {
     {
       name: "--proxy-list",
       description: "File of proxies to choose from; without --proxy a random one is used",
+      isPersistent: true,
       args: {
         name: "file",
         template: "filepaths",
@@ -2435,6 +2481,7 @@ const completionSpec: Fig.Spec = {
     {
       name: "--proxy-pac-url",
       description: "URL to a proxy auto-config (PAC) file",
+      isPersistent: true,
       args: {
         name: "proxy_pac_url",
       },
@@ -2442,6 +2489,7 @@ const completionSpec: Fig.Spec = {
     {
       name: "--user-data-dir",
       description: "Path to a persistent browser user-data directory",
+      isPersistent: true,
       args: {
         name: "user_data_dir",
         template: "folders",
@@ -2450,6 +2498,7 @@ const completionSpec: Fig.Spec = {
     {
       name: "--extension-dir",
       description: "Path to an unpacked extension directory",
+      isPersistent: true,
       args: {
         name: "extension_dir",
         template: "folders",
@@ -2458,26 +2507,32 @@ const completionSpec: Fig.Spec = {
     {
       name: ["--reuse-session", "--reuse_session", "--rs"],
       description: "Share browsers among the tests of the run (SB_REUSE_SESSION)",
+      isPersistent: true,
     },
     {
       name: ["--rcs", "--reuse-class-session", "--reuse_class_session"],
       description: "Share a browser among the tests of one Rust module (SB_REUSE_CLASS_SESSION)",
+      isPersistent: true,
     },
     {
       name: "--mobile",
       description: "Use a mobile device emulation profile",
+      isPersistent: true,
     },
     {
       name: ["--esc-end", "--esc_end", "--ee"],
       description: "End the current test when ESC is pressed in the browser",
+      isPersistent: true,
     },
     {
       name: ["--rec-sb-cdp", "--rec_sb_cdp"],
       description: "Write recordings as pure CDP code (sb_cdp Page and Locator calls)",
+      isPersistent: true,
     },
     {
       name: ["-n", "--threads"],
       description: "Number of parallel threads for test runs",
+      isPersistent: true,
       args: {
         name: "threads",
       },
@@ -2485,13 +2540,16 @@ const completionSpec: Fig.Spec = {
     {
       name: ["-c", "--config"],
       description: "Path to a TOML/JSON settings file",
+      isPersistent: true,
       args: {
         name: "config",
+        template: "filepaths",
       },
     },
     {
       name: "--fingerprint",
       description: "Make every browser the command starts present the fingerprint in FILE",
+      isPersistent: true,
       args: {
         name: "file",
         template: "filepaths",
@@ -2501,6 +2559,7 @@ const completionSpec: Fig.Spec = {
       name: "--plugin",
       description: "Turn on a built-in plugin in the browsers the command starts (repeatable)",
       isRepeatable: true,
+      isPersistent: true,
       args: {
         name: "name",
       },
@@ -2509,6 +2568,7 @@ const completionSpec: Fig.Spec = {
       name: "--plugin-opt",
       description: "Set one option of a plugin, NAME.KEY=VALUE with a TOML VALUE (repeatable)",
       isRepeatable: true,
+      isPersistent: true,
       args: {
         name: "name.key=value",
       },

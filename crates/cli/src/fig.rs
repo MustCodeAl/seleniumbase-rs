@@ -120,6 +120,11 @@ fn push_flag(out: &mut String, flag: &FlagMeta<'_>, depth: usize) {
     if flag.repeatable {
         push_line(out, depth + 1, "isRepeatable: true,");
     }
+    if flag.flag.global {
+        // Declared once, on the root, and valid below every command.
+        push_line(out, depth + 1, "isPersistent: true,");
+    }
+
     if flag.required {
         push_line(out, depth + 1, "isRequired: true,");
     }
@@ -182,10 +187,11 @@ fn push_arg(out: &mut String, arg: &ArgMeta<'_>, depth: usize) {
     push_line(out, depth, "},");
 }
 
-/// Fig completes file names and folders from a template; usage calls them `path` and `dir`.
+/// Fig completes file names and folders from a template; usage calls them `path` (with the
+/// extensions it is limited to after a colon, `path:json,yaml`) and `dir`.
 fn push_template(out: &mut String, complete_type: Option<&str>, depth: usize) {
     let template = match complete_type {
-        Some("path") => "filepaths",
+        Some(kind) if kind == "path" || kind.starts_with("path:") => "filepaths",
         Some("dir") => "folders",
         _ => return,
     };
@@ -235,6 +241,30 @@ fn push_line(out: &mut String, depth: usize, line: &str) {
 #[cfg(test)]
 mod tests {
     use super::{first_line, list, names, quote};
+
+    /// The first lines of the option or argument that starts with `name:` in the spec of the CLI.
+    fn entry(spec: &str, name: &str) -> String {
+        let start = spec
+            .find(&format!("name: {name},"))
+            .unwrap_or_else(|| panic!("{name} is listed"));
+        spec[start..].lines().take(8).collect::<Vec<_>>().join("\n")
+    }
+
+    #[test]
+    fn a_global_option_is_persistent_and_a_local_one_is_not() {
+        let spec = super::spec(crate::Cli::spec());
+        assert!(entry(&spec, "\"--headless\"").contains("isPersistent: true,"));
+        assert!(entry(&spec, "[\"-c\", \"--config\"]").contains("isPersistent: true,"));
+        assert!(!entry(&spec, "\"--title-contains\"").contains("isPersistent"));
+    }
+
+    #[test]
+    fn a_path_limited_to_extensions_keeps_its_file_template() {
+        let spec = super::spec(crate::Cli::spec());
+        // `--config` takes `path:toml,json` in the usage spec; Fig has no extension filter.
+        assert!(entry(&spec, "[\"-c\", \"--config\"]").contains("template: \"filepaths\""));
+        assert!(entry(&spec, "\"--user-data-dir\"").contains("template: \"folders\""));
+    }
 
     #[test]
     fn strings_are_quoted_for_typescript() {

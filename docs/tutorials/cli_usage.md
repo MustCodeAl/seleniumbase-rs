@@ -91,7 +91,7 @@ Ctrl+C, which closes the browser. See [DevTools MCP servers](/tutorials/devtools
 ```
 
 `--plugin NAME` and `--plugin-opt NAME.KEY=VALUE` (a TOML value, so quote a
-string) go before the command, repeat, and add to the `[plugins]` table of the
+string) go before the command or after it, repeat, and add to the `[plugins]` table of the
 settings file and `SB_PLUGINS`; the command line wins over the variable, which
 wins over the file. They apply to every command that starts a browser and to
 `sbrs devtools`. A mistake stops the command with exit status 2 before a browser

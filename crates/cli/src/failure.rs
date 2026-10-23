@@ -133,7 +133,7 @@ fn without_global_flags(page: &str) -> String {
             skipping = plain.trim_end() == GLOBAL_FLAGS_HEADING;
             if skipping {
                 text.push_str(&format!(
-                    "{GLOBAL_FLAGS_HEADING} written before the command; see '{PROGRAM} --help'\n\n"
+                    "{GLOBAL_FLAGS_HEADING} written before or after the command; see '{PROGRAM} --help'\n\n"
                 ));
                 continue;
             }
@@ -463,7 +463,7 @@ mod tests {
         assert!(text.contains("Flags:\n  --url <URL>"), "{text}");
         assert!(!text.contains("--headless"), "{text}");
         assert!(
-            text.contains("Global flags: written before the command"),
+            text.contains("Global flags: written before or after the command"),
             "{text}"
         );
         assert!(
