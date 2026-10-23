@@ -8,7 +8,48 @@ work, `docs/parity.md` the per-API status).
 
 ## [Unreleased]
 
+### Breaking
+
+- **`Settings::screenshot_dir` and `SB_SCREENSHOT_DIR` are removed.** The library read neither;
+  a settings file that still has the key loads as before.
+- **The presentation and chart helpers have Python's names, arguments and files.** Each is a call
+  builder with Python's keyword arguments, so `sb.create_pie_chart().title("T").unit("%").await?`,
+  `sb.add_slide("<h1>Hi</h1>").notes("n").await?`, `sb.save_presentation().show_notes(true).await?`
+  and `sb.display_chart().interval(Duration::from_secs(3)).await?`. A chart or a presentation has a
+  name (`.chart_name(..)`, `.name(..)`; `default` when none is given), so several can exist at
+  once; `create_*_chart` takes the title as a keyword, not first; `add_data_point` takes an `f64`
+  and `.color(..)`; `add_series_to_chart()` starts a series that the next data points fill instead
+  of taking its data; `extract_chart` returns the chart's HTML, not JSON; slides are HTML with
+  `image`, `code`, `iframe`, `content2`, `notes` and a `transition`, so the Markdown subset is
+  gone; and `create_presentation` takes a `PresentationTheme` and a `Transition`, not a title.
+  Files go to `saved_presentations/my_presentation.html` and `saved_charts/my_chart.html`
+  (`.filename(..)`, `.folder(..)`), not to `latest_logs`, and a name that does not end in
+  `.html` is refused. `begin_presentation` shows a saved presentation and waits for its last
+  slide, and returns `None` in a headless browser or on a virtual display; `PieChart`,
+  `ChartSeries::add_data_point(i32)` and `Presentation::new(title)` are replaced.
+- **`sbrs install` needs a driver name**, as in Python: `sbrs install` alone prints the
+  install page and exits with status 2 instead of installing chromedriver.
+- **`Browser` and `DriverVersion` have new variants.** `Browser::Remote` (`--browser=remote`) and
+  `DriverVersion::{Keep, Previous}`: a `match` on either needs the new arms.
+  `BrowserConfig::with_grid` returns a `Result`, because an empty server name is an error.
+- **Chrome is no longer given a proxy login.** `--proxy=user:pass@host:port` used to put
+  `user:pass@host:port` in `--proxy-server`, where Chrome reads no login and the process list
+  shows it; Chrome now gets `--proxy-server=host:port`. A WebDriver session still does not answer
+  the proxy's login (the pure CDP engine does).
+
+
+- **`RunSettings` no longer implements `Eq`.** It now holds the timeout multiplier, a
+  floating-point number; `PartialEq` stays.
+
 ### Added
+
+- **`sbrs install` fetches more.** `sbrs install` (and `get`) now installs `uc_driver` (a
+  patched chromedriver), `cft` and `chs` (Chrome for Testing and its headless shell) and
+  `chromium` (a Chromium snapshot with the chromedriver of the same revision, `--revision N`),
+  reads the version words `previous`, `mlatest` and `keep`, and copies the driver into
+  `SB_DRIVER_PATH_DIR` (else `/usr/local/bin`) with `-p`/`--path`, refusing a symlink at the
+  target. `--browser chromium` finds a downloaded or installed Chromium, else downloads the
+  newest snapshot, and matches its chromedriver to it.
 
 - **`sbrs proxy`.** A minimal forward proxy for this machine: `sbrs proxy [--hostname HOST]
   [--port PORT]` listens on 127.0.0.1:8899, tunnels `CONNECT host:port` (so HTTPS passes
@@ -111,38 +152,6 @@ work, `docs/parity.md` the per-API status).
 - **`SB_SETTINGS_FILE` names the settings file** that `Settings::load` and `Settings::check`
   read instead of the global file of the working folder.
 
-### Breaking
-
-- **`Settings::screenshot_dir` and `SB_SCREENSHOT_DIR` are removed.** The library read neither;
-  a settings file that still has the key loads as before.
-- **The presentation and chart helpers have Python's names, arguments and files.** Each is a call
-  builder with Python's keyword arguments, so `sb.create_pie_chart().title("T").unit("%").await?`,
-  `sb.add_slide("<h1>Hi</h1>").notes("n").await?`, `sb.save_presentation().show_notes(true).await?`
-  and `sb.display_chart().interval(Duration::from_secs(3)).await?`. A chart or a presentation has a
-  name (`.chart_name(..)`, `.name(..)`; `default` when none is given), so several can exist at
-  once; `create_*_chart` takes the title as a keyword, not first; `add_data_point` takes an `f64`
-  and `.color(..)`; `add_series_to_chart()` starts a series that the next data points fill instead
-  of taking its data; `extract_chart` returns the chart's HTML, not JSON; slides are HTML with
-  `image`, `code`, `iframe`, `content2`, `notes` and a `transition`, so the Markdown subset is
-  gone; and `create_presentation` takes a `PresentationTheme` and a `Transition`, not a title.
-  Files go to `saved_presentations/my_presentation.html` and `saved_charts/my_chart.html`
-  (`.filename(..)`, `.folder(..)`), not to `latest_logs`, and a name that does not end in
-  `.html` is refused. `begin_presentation` shows a saved presentation and waits for its last
-  slide, and returns `None` in a headless browser or on a virtual display; `PieChart`,
-  `ChartSeries::add_data_point(i32)` and `Presentation::new(title)` are replaced.
-
-
-### Breaking
-
-- **`Browser` and `DriverVersion` have new variants.** `Browser::Remote` (`--browser=remote`) and
-  `DriverVersion::{Keep, Previous}`: a `match` on either needs the new arms.
-  `BrowserConfig::with_grid` returns a `Result`, because an empty server name is an error.
-- **Chrome is no longer given a proxy login.** `--proxy=user:pass@host:port` used to put
-  `user:pass@host:port` in `--proxy-server`, where Chrome reads no login and the process list
-  shows it; Chrome now gets `--proxy-server=host:port`. A WebDriver session still does not answer
-  the proxy's login (the pure CDP engine does).
-
-### Added
 
 - **Proxies are checked the way Python checks them.** `browser::options::ProxyAddress`
   (`[scheme://][user:pass@]host:port`, schemes `http`, `https`, `socks4`, `socks5`, `socks5h`),
@@ -170,12 +179,6 @@ work, `docs/parity.md` the per-API status).
   (`port N is already in use`). `BrowserSession::remote_debug_address()` says where it listens.
 
 
-### Breaking
-
-- **`RunSettings` no longer implements `Eq`.** It now holds the timeout multiplier, a
-  floating-point number; `PartialEq` stays.
-
-### Added
 
 - **The Python page and wait options are in `RunSettings`:** `with_highlights` (`--highlights`,
   zero is unset, `DEFAULT_HIGHLIGHT_LOOPS` is 4), `with_interval` (`--interval`, zero is unset),
@@ -203,7 +206,6 @@ work, `docs/parity.md` the per-API status).
 - **A message stays at most 0.75 s on a virtual display too:** `post_message` and its relatives
   cut the time when nobody watches, which is a headless browser or a headed one on Xvfb (Python:
   `self.headless or self.xvfb`); a headed browser on Xvfb kept the long time before.
-
 
 ## [0.6.0] - 2026-10-23
 
