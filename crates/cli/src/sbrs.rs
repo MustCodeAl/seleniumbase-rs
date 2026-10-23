@@ -44,7 +44,8 @@ use seleniumbase_rs::{
 use serde_json::{json, Value};
 
 mod args;
-
+#[path = "args/install.rs"]
+mod args_install;
 mod completion;
 mod crypto;
 
@@ -124,6 +125,15 @@ enum DriverArg {
     /// msedgedriver, for Microsoft Edge.
     #[usage(alias = "msedgedriver")]
     Edgedriver,
+    /// chromedriver patched for the UC mode, kept as downloaded_drivers/uc_driver-VERSION/uc_driver.
+    #[usage(name = "uc_driver", aliases("uc-driver", "ucdriver"))]
+    UcDriver,
+    /// Chrome for Testing, the browser, in downloaded_drivers/cft/.
+    Cft,
+    /// chrome-headless-shell, the headless-only browser, in downloaded_drivers/chs/.
+    Chs,
+    /// A Chromium snapshot build (see --revision), in downloaded_drivers/chromium/.
+    Chromium,
 }
 
 impl From<DriverArg> for sb_install::DriverName {
@@ -132,6 +142,10 @@ impl From<DriverArg> for sb_install::DriverName {
             DriverArg::Chromedriver => Self::Chromedriver,
             DriverArg::Geckodriver => Self::Geckodriver,
             DriverArg::Edgedriver => Self::Msedgedriver,
+            DriverArg::UcDriver => Self::UcDriver,
+            DriverArg::Cft => Self::Cft,
+            DriverArg::Chs => Self::Chs,
+            DriverArg::Chromium => Self::Chromium,
         }
     }
 }
@@ -139,13 +153,25 @@ impl From<DriverArg> for sb_install::DriverName {
 /// The words `sbrs install DRIVER <Tab>` offers for the version, each one a spelling
 /// `DriverVersion` reads (a test keeps it so). A major version such as `126` or a full build
 /// is accepted as well, but there are too many to list.
-const INSTALL_VERSIONS: [(&str, &str); 6] = [
+const INSTALL_VERSIONS: [(&str, &str); 9] = [
     ("browser", "the driver for the installed browser"),
     ("stable", "the newest stable release"),
     ("latest", "the newest stable release"),
     ("beta", "the newest beta release"),
     ("dev", "the newest dev release"),
     ("canary", "the newest canary release"),
+    (
+        "previous",
+        "the newest release of the major version before the stable one",
+    ),
+    (
+        "mlatest",
+        "the newest build of the installed browser's major version",
+    ),
+    (
+        "keep",
+        "the driver already downloaded, else the one for the installed browser",
+    ),
 ];
 
 /// The completer of `sbrs install DRIVER VERSION`: the words of [`INSTALL_VERSIONS`].
@@ -1255,22 +1281,32 @@ enum Commands {
         #[usage(long, value_hint = usage::ValueHint::Other, help = "Text to type in UC mode")]
         text: String,
     },
-    /// Download a driver into ./downloaded_drivers/ (Python's `sbrs get`).
+    /// Download a driver or a browser into ./downloaded_drivers/ (Python's `sbrs get`).
     ///
     /// Without a version, chromedriver and edgedriver are the drivers for the
-    /// installed Chrome and Edge, and geckodriver is the newest release.
+    /// installed Chrome and Edge, and geckodriver is the newest release. uc_driver is the
+    /// chromedriver patched for the UC mode; cft, chs and chromium are browsers, and chromium
+    /// takes a snapshot --revision instead of a version.
     #[usage(alias = "get")]
     #[usage(
         help_heading = "Drivers, grid and servers",
         example = "sbrs install chromedriver latest"
     )]
     Install {
-        /// The driver: chromedriver, geckodriver (or firefoxdriver), edgedriver
-        /// (or msedgedriver).
-        #[usage(value_enum, default = "chromedriver")]
+        /// The program: chromedriver, uc_driver, geckodriver (or firefoxdriver), edgedriver
+        /// (or msedgedriver), or the browsers cft, chs and chromium.
+        #[usage(value_enum)]
         driver: DriverArg,
-        /// `latest`, a major version (chromedriver, edgedriver), a full build,
-        /// or a geckodriver version such as 0.36.0.
+        /// Also copy the driver into the folder named by SB_DRIVER_PATH_DIR (else /usr/local/bin).
+        /// Never uses sudo and never replaces a symbolic link. Drivers only.
+        #[usage(short = 'p', long, bool_value)]
+        path: bool,
+        /// The Chromium snapshot to take (chromium only); the newest when left out.
+        #[usage(long, value_name = "REVISION", value_hint = usage::ValueHint::Other)]
+        revision: Option<u64>,
+        /// A version word (stable, beta, dev, canary, latest, previous, mlatest, browser, keep),
+        /// a major version, a full build,
+        /// or for geckodriver a version such as 0.36.0.
         #[usage(complete = install_version_candidates)]
         version: Option<String>,
     },
@@ -3739,10 +3775,15 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             println!("UC typed into '{}'", css);
             after.finish(&mut sb).await?;
         }
-        Commands::Install { driver, version } => {
-            let name = sb_install::DriverName::from(driver);
-            let path = sb_install::install_driver(name, version.as_deref()).await?;
-            println!("{name} installed at {}", path.display());
+        Commands::Install {
+            driver,
+            version,
+            path,
+            revision,
+        } => {
+            let request = args_install::request(driver, version, path, revision)?;
+            let installed = sb_install::install(&request).await?;
+            println!("{}", args_install::report(request.name, &installed));
         }
         Commands::Test {
             filter,
@@ -4412,7 +4453,7 @@ mod plugin_cli_tests {
             &["sbrs", "test"],
             &["sbrs", "plugin", "list"],
             &["sbrs", "completions", "bash"],
-            &["sbrs", "install"],
+            &["sbrs", "install", "chromedriver"],
             &["sbrs", "mkfile", "tests/a.rs"],
         ] {
             assert!(!launches(argv), "{argv:?} starts no BaseCase browser");

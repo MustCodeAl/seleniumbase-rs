@@ -184,7 +184,18 @@ fn fish_completes_every_level_and_offers_no_file_for_a_free_text_value() {
     assert_eq!(flags, ["--headed", "--headless"]);
     let mut drivers = fish_candidates("sbrs install ");
     drivers.sort();
-    assert_eq!(drivers, ["chromedriver", "edgedriver", "geckodriver"]);
+    assert_eq!(
+        drivers,
+        [
+            "cft",
+            "chromedriver",
+            "chromium",
+            "chs",
+            "edgedriver",
+            "geckodriver",
+            "uc_driver"
+        ]
+    );
     assert_eq!(fish_candidates("sbrs install chromedriver sta"), ["stable"]);
     // Nothing for a selector or a URL, where the shell would offer `only.txt` and `sub/`.
     assert_eq!(
@@ -250,7 +261,15 @@ fn bash_completes_every_level_and_offers_no_file_for_a_free_text_value() {
     );
     assert_eq!(
         bash_candidates("sbrs install "),
-        ["chromedriver", "edgedriver", "geckodriver"]
+        [
+            "cft",
+            "chromedriver",
+            "chromium",
+            "chs",
+            "edgedriver",
+            "geckodriver",
+            "uc_driver"
+        ]
     );
     assert_eq!(bash_candidates("sbrs install chromedriver sta"), ["stable"]);
     // Nothing for a selector or a URL, where bash would offer `only.txt` and `sub`.
@@ -310,6 +329,17 @@ fn powershell_completes_every_level_after_a_space() {
     assert_eq!(flags, ["--headed", "--headless"]);
     let mut drivers = pwsh_candidates("sbrs install ");
     drivers.sort();
-    assert_eq!(drivers, ["chromedriver", "edgedriver", "geckodriver"]);
+    assert_eq!(
+        drivers,
+        [
+            "cft",
+            "chromedriver",
+            "chromium",
+            "chs",
+            "edgedriver",
+            "geckodriver",
+            "uc_driver"
+        ]
+    );
     assert_eq!(pwsh_candidates("sbrs install chromedriver sta"), ["stable"]);
 }

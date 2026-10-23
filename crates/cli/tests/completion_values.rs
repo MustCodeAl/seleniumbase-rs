@@ -110,17 +110,33 @@ fn a_file_is_completed_by_the_kind_the_command_takes() {
 fn install_offers_the_drivers_and_then_the_versions() {
     assert_eq!(
         complete("sbrs install "),
-        ["chromedriver", "edgedriver", "geckodriver"]
+        [
+            "cft",
+            "chromedriver",
+            "chromium",
+            "chs",
+            "edgedriver",
+            "geckodriver",
+            "uc_driver"
+        ]
     );
     // `get` is the same command.
     assert_eq!(
         complete("sbrs get "),
-        ["chromedriver", "edgedriver", "geckodriver"]
+        [
+            "cft",
+            "chromedriver",
+            "chromium",
+            "chs",
+            "edgedriver",
+            "geckodriver",
+            "uc_driver"
+        ]
     );
     assert_eq!(complete("sbrs install gecko"), ["geckodriver"]);
     assert_eq!(
         complete("sbrs install chromedriver "),
-        ["beta", "browser", "canary", "dev", "latest", "stable"]
+        ["beta", "browser", "canary", "dev", "keep", "latest", "mlatest", "previous", "stable"]
     );
     assert_eq!(complete("sbrs install chromedriver sta"), ["stable"]);
 }
