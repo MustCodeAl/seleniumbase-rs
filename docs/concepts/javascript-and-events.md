@@ -1,18 +1,75 @@
 ---
-title: "JavaScript, events and waiting"
-sidebarTitle: "JavaScript and events"
-description: "How a page runs code and reacts to input: the event loop, asynchronous loading with fetch and XHR, single-page apps, how clicks and typing become events, trusted and synthetic events (isTrusted), why a JavaScript click differs from real input, auto-waiting and actionability, and how seleniumbase-rs dispatches input."
+title: "JavaScript, events and the Web APIs"
+sidebarTitle: "JavaScript and Web APIs"
+description: "How a page runs code and reacts to input, and what the browser gives that code: JavaScript versus Web APIs, the APIs you meet most, secure contexts and permissions, the event loop, fetch and XHR, single-page apps, how clicks and typing become events, trusted and synthetic events, auto-waiting and actionability, observers that help a test wait, reading MDN, and how seleniumbase-rs dispatches input and evaluates JavaScript."
 ---
 
 <Info>
 
 **In short:** a page is a program that waits. It runs a little JavaScript, then
 waits for the next click, key press, timer or network answer, then runs a little
-more. A test that acts too early finds a page that has not finished, and a test
-that fakes input with script may not be believed. Good automation **waits for
-the page to be ready** and **sends real input events**.
+more. JavaScript is only the language: everything that touches the page or the
+outside world comes from the browser as **Web APIs** (the DOM, `fetch`, storage,
+observers), and a test can call any of them with one line of script. A test that
+acts too early finds a page that has not finished, and a test that fakes input
+with script may not be believed. Good automation **waits for the page to be
+ready** and **sends real input events**.
 
 </Info>
+
+## JavaScript and the browser are two things
+
+The JavaScript language (called ECMAScript) gives you variables, functions,
+arrays, promises and `Math`. It has no idea what a web page is. Everything that
+touches the page or the outside world comes from the browser, as objects and
+functions that already exist when your script starts:
+
+- `window`, the global object, and `document`, the page (see
+  [selectors and the DOM](/concepts/selectors-and-the-dom)).
+- `navigator`, facts about the browser and the device.
+- `fetch`, `localStorage`, `setTimeout`, `console`, `location`, `history`.
+
+These are **Web APIs**. Each one is written down in a standard (mostly by the
+WHATWG and the W3C) so that every browser implements it the same way. The same
+JavaScript runs in a Node.js server without them: `document` does not exist
+there. That is also why an automation tool has to run its script *inside* the
+page (see [Running your own JavaScript](#running-your-own-javascript)).
+
+## The APIs you meet most
+
+| API | What it does | A taste | Notes |
+|---|---|---|---|
+| **DOM** | Read and change the page's tree of elements | `document.querySelector('h1').textContent` | Always available |
+| **Fetch** | Make HTTP requests from a script | `await fetch('/api/items').then(r => r.json())` | Subject to CORS (see [network](/concepts/network)) |
+| **Storage** | Keep data in the browser: `localStorage`, `sessionStorage`, IndexedDB, the Cache API | `localStorage.getItem('theme')` | See [sessions and state](/concepts/sessions-and-state) |
+| **Canvas** | Draw pixels with code (2D, and WebGL for 3D) | `canvas.getContext('2d').fillRect(0, 0, 50, 50)` | No elements inside; a test sees a picture, not a tree |
+| **Geolocation** | Ask where the device is | `navigator.geolocation.getCurrentPosition(ok, fail)` | Needs permission and a secure context |
+| **Notifications** | Show a system notification | `new Notification('Done')` | Needs permission |
+| **Clipboard** | Read and write copied text | `await navigator.clipboard.writeText('hi')` | Needs a secure context, a user action and often permission |
+| **Permissions** | Ask whether a permission is granted, denied or still to be asked | `await navigator.permissions.query({ name: 'geolocation' })` | The answer is `granted`, `denied` or `prompt` |
+| **History and URL** | Change the address bar without a reload; take addresses apart | `history.pushState({}, '', '/page/2')` | Used by single-page apps |
+| **Workers** | Run scripts on another thread | `new Worker('job.js')` | Cannot touch the DOM |
+
+Hundreds more exist (sensors, Bluetooth, payment, speech). New ones appear first
+in Chromium, which is why a feature you rely on can work in your tests and fail
+for a user on another browser.
+
+### Secure contexts and permissions
+
+Powerful APIs are limited in two ways.
+
+- **Secure context.** They work only on `https://` pages (and on `localhost`, so
+  developers can try them). On a plain `http://` page the object is missing.
+- **Permission.** Many need the user to say yes, through a prompt that belongs to
+  the **browser**, not to the page.
+
+That second rule is a trap for automation. A prompt asking for the location is
+browser interface, outside the page's DOM, so no selector can click "Allow". The
+answer is to settle the permission before the page asks, with the
+[DevTools Protocol](/concepts/cdp): `Browser.grantPermissions` grants a
+permission to an origin, and `Emulation.setGeolocationOverride` sets the
+position the page will receive. In a headless run with no answer, the request
+usually just fails with the state `denied` or stays `prompt`.
 
 ## The event loop
 
@@ -66,6 +123,60 @@ For automation this changes three things. There is **no load event** after the
 first, so "wait for the page to load" returns at once. The **URL changes
 without a navigation**. And elements are created and **replaced** all the time,
 so an element you found a moment ago can be removed from under you.
+
+## Observers: telling you when something changes
+
+A modern page is never "finished". It loads data after the load event, adds
+rows while you scroll and swaps parts of itself. Instead of asking the page
+again and again, **observers** let you subscribe: the browser calls your
+function when something happens.
+
+| Observer | Calls you when | Typical use on a page | Typical use in a test |
+|---|---|---|---|
+| `MutationObserver` | The DOM changes: children added or removed, attributes or text changed | Update a widget when its container changes | Wait until a list gets its rows or a class appears |
+| `IntersectionObserver` | An element enters or leaves the visible area (the viewport), by a fraction you choose | Lazy-load images, infinite scroll, "seen" tracking | Understand why content only appears after scrolling |
+| `ResizeObserver` | An element's size changes | Responsive components, charts that redraw | Wait for a layout to settle |
+| `PerformanceObserver` | A new performance entry is recorded: paint, largest-contentful-paint, layout-shift, long task, resource | Real-user monitoring | Read timings (see [rendering and performance](/concepts/how-a-page-loads#from-bytes-to-pixels)) |
+
+All four work the same way: create the observer with a callback, call
+`observe()` on a target, call `disconnect()` when done. They are asynchronous:
+the callback runs after the change, batched, on the main thread.
+
+### Waiting for a change
+
+Two ways to wait for "the results are there":
+
+- **Poll.** Ask every 100 ms or so, for example "does `#results` have children
+  yet?", until yes or a timeout. It is simple, works anywhere, and is what the
+  waits of most tools do.
+- **Observe.** Let the browser tell you. It reacts at once and costs nothing
+  between changes, but you write a small script.
+
+A reliable observer script checks the state **first** (the change may already
+have happened), then watches, and always has a timeout:
+
+```js
+new Promise((resolve, reject) => {
+  const target = document.querySelector('#results');
+  const done = () => target.children.length > 0;
+  if (done()) return resolve(target.children.length);
+
+  const timer = setTimeout(() => { observer.disconnect(); reject(new Error('no rows in 5 s')); }, 5000);
+  const observer = new MutationObserver(() => {
+    if (done()) { clearTimeout(timer); observer.disconnect(); resolve(target.children.length); }
+  });
+  observer.observe(target, { childList: true });
+})
+```
+
+<Tip>
+
+Infinite scroll is an `IntersectionObserver` waiting for a sentinel element to
+come into view. If a test never scrolls, or the browser window is so tall that
+everything is already visible, the next page loads in a different way than for
+a real visitor. Scroll to the sentinel, then wait for new items.
+
+</Tip>
 
 ## How a click or a key press becomes an event
 
@@ -158,7 +269,63 @@ that proves the click worked (the success message, the next screen) with
 
 </Tip>
 
-## How seleniumbase-rs sends input
+## Reading MDN and its compatibility tables
+
+**MDN Web Docs** is the reference for Web APIs. Learning to read a page pays off
+every time you automate something new.
+
+<Steps>
+
+<Step title="Start from the summary and the box at the top" icon="flag">
+
+The first lines say what the API is for. Badges mark the state of the feature:
+**Experimental** (may change), **Deprecated** (do not start using it),
+**Non-standard** (no standard backs it). A **Secure context** notice means it
+only works on HTTPS. **Available in Web Workers** says whether a worker may use
+it.
+
+</Step>
+
+<Step title="Read the syntax, parameters and return value" icon="code">
+
+The syntax block shows the call. Pay attention to whether the call returns a
+value, a promise (then you need `await`), or nothing and calls you back later.
+The exceptions it can throw are listed, for instance `NotAllowedError` for a
+refused permission.
+
+</Step>
+
+<Step title="Run the example" icon="play">
+
+Most pages have live examples. Paste one into the browser console, or into your
+test as a script, and see the real result before you wrap it.
+
+</Step>
+
+<Step title="Check the browser compatibility table" icon="table">
+
+At the bottom, a table lists the first version of each browser that supports each
+feature. Green means supported since that version. A flag or "Partial
+implementation" means it is behind a setting or incomplete. A "Baseline" label
+(widely available, newly available) says whether all major browsers support it.
+
+</Step>
+
+</Steps>
+
+<Warning>
+
+A feature that works in the Chrome that your tests drive may be missing in
+Firefox or Safari, where your users are. Passing a test proves the page works in
+that browser version, not that the API is safe to use everywhere. Check the
+table before building a feature on a new API, and test with the browsers your
+users have (see [browser engines](/concepts/browser-architecture#what-an-engine-is)).
+
+</Warning>
+
+## How seleniumbase-rs uses it
+
+### Sending input
 
 The pure CDP engine (`src/sb_cdp/input.rs`) sends input through the DevTools
 `Input` domain, the browser's own input path, so every event is trusted. See
@@ -207,7 +374,7 @@ nothing to empty the field first.
 
 </Steps>
 
-### Input with a person's pace
+#### Input with a person's pace
 
 Real input is trusted, but a script's movement is still unlike a person's: the
 pointer jumps in a straight line to the exact centre, and letters arrive at the
@@ -227,7 +394,7 @@ person.type_text(&page.locator("#search"), "rust cdp").await?;
 person.click(&page.locator("button[type=submit]")).await?;
 ```
 
-## Running your own JavaScript
+### Running your own JavaScript
 
 Sometimes you need to read something the DOM does not expose, or call a function
 of the page. `Page::evaluate("document.title")` runs a script in the page and
@@ -235,6 +402,79 @@ returns its value, and `Page::execute("Runtime.evaluate", ...)` sends the raw
 command (see [Any CDP command](/concepts/cdp#how-seleniumbase-rs-uses-it)). The
 script runs in the page's own world, with the page's globals, and is bound by the
 page's rules: if the page redefined a function, your script sees the change.
+
+### Calling Web APIs from a test
+
+seleniumbase-rs has no wrapper for these APIs, and does not need one: you call
+them by running JavaScript in the page. That is also how the library itself reads
+much of the page.
+
+<Tabs>
+
+<Tab title="WebDriver engine" icon="plug">
+
+`BaseCase::execute_script` runs a script and returns its value as JSON.
+`BaseCase::evaluate` is an alias for it.
+
+```rust,ignore src/main.rs
+let theme = sb.execute_script("return localStorage.getItem('theme');").await?;
+let online = sb.execute_script("return navigator.onLine;").await?;
+```
+
+</Tab>
+
+<Tab title="Pure CDP engine" icon="bolt">
+
+`sb_cdp::Page::evaluate` runs an expression and **awaits promises**, so a
+Promise built from an observer works as it is. `Page::evaluate_as` also turns the
+result into a Rust type with serde. A script that throws comes back as
+`SeleniumBaseError::CdpDriver`. A `return` that starts the last line is dropped,
+so a Selenium-style script still works; a `return` anywhere else needs the
+script wrapped in an arrow function that is called.
+
+```rust,ignore src/main.rs
+let rows: u64 = page
+    .evaluate_as(
+        r#"new Promise(resolve => {
+             const target = document.querySelector('#results');
+             const done = () => target.children.length > 0;
+             if (done()) return resolve(target.children.length);
+             new MutationObserver((_, observer) => {
+               if (done()) { observer.disconnect(); resolve(target.children.length); }
+             }).observe(target, { childList: true });
+           })"#,
+    )
+    .await?;
+```
+
+</Tab>
+
+<Tab title="MCP server" icon="robot">
+
+The browser-driving MCP servers have a `run_javascript` tool that takes an
+`expression`, so an assistant can read `navigator`, `localStorage` or a
+`PerformanceObserver` result from the live page. See [MCP](/concepts/mcp).
+
+</Tab>
+
+</Tabs>
+
+<Note>
+
+The result of a script must be JSON-representable. A DOM element comes back as an
+empty object `{}`, so return what you need from it (`el.textContent`,
+`el.getBoundingClientRect().toJSON()`), not the element itself.
+
+</Note>
+
+<Accordion title="What about permissions in a test?" icon="shield">
+
+Grant them before the page asks. With either engine you can send the DevTools
+command by name, for example `Browser.grantPermissions` with the origin and a
+list of permission names. On the WebDriver engine this is
+`BaseCase::execute_cdp_with_params`. See [the DevTools Protocol](/concepts/cdp).
+
+</Accordion>
 
 ## Where to go next
 
@@ -254,6 +494,14 @@ page's rules: if the page redefined a function, your script sees the change.
 
 <Card title="Modern web technologies" icon="layer-group" color="#a631be" href="/concepts/modern-web">
   Single-page apps, WebSockets, service workers and more.
+</Card>
+
+<Card title="How a page loads" icon="gauge-high" color="#d47628" href="/concepts/how-a-page-loads">
+  What PerformanceObserver reports, and why pages feel slow.
+</Card>
+
+<Card title="Mobile web and accessibility" icon="universal-access" color="#a631be" href="/concepts/mobile-and-accessibility">
+  The accessibility tree the browser builds from the DOM.
 </Card>
 
 </Columns>
