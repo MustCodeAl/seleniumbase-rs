@@ -204,10 +204,16 @@ async fn chrome_loads_a_page_through_the_proxy_and_its_command_line_has_no_login
         .await
         .expect("read the page");
     assert_eq!(text.as_str(), Some("through the proxy"), "{text}");
-    let request = asked.try_recv().expect("the proxy was asked for the page");
+    // Chrome asks the proxy for a few pages of its own as well.
+    let mut requests = Vec::new();
+    while let Ok(request) = asked.try_recv() {
+        requests.push(request);
+    }
     assert!(
-        request.starts_with("GET http://sbrs-proxy-check.test/ HTTP/1.1"),
-        "{request}"
+        requests
+            .iter()
+            .any(|request| request.starts_with("GET http://sbrs-proxy-check.test/ HTTP/1.1")),
+        "{requests:?}"
     );
 
     sb.open("chrome://version")
