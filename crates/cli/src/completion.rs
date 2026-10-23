@@ -1,4 +1,4 @@
-//! The zsh completion script `sbrs completions zsh` prints: usage's script with one fix.
+//! The zsh and PowerShell scripts `sbrs completions` prints: usage's scripts with one fix each.
 //!
 //! usage 6.12's zsh script adds every candidate with `compadd -S ''`. That stops zsh from
 //! putting its space after a complete word, so `sbrs pl<Tab>` gives `sbrs plugin` and the
@@ -35,9 +35,32 @@ pub(crate) fn zsh(script: &str) -> String {
     script.replacen(ZSH_COMPADD, ZSH_COMPADD_PATCHED, 1)
 }
 
+/// The lines of usage's PowerShell script that cut the command line at the cursor. They clamp
+/// the cursor to `Extent.Text`, which leaves out the spaces after the last word, so for
+/// `sbrs plugin ` the engine saw `sbrs plugin` and completed `plugin` again.
+const PS_CUT: &str = "    if ($offset -gt $extent.Text.Length) { $offset = $extent.Text.Length }
+    $line = $extent.Text.Substring(0, $offset)
+";
+
+/// Their replacement: a cursor past the text means a new word starts, so pad with spaces.
+const PS_CUT_PATCHED: &str =
+    "    # Patched by sbrs (crates/cli/src/completion.rs): Extent.Text leaves out the spaces
+    # after the last word, so a cursor past it starts a new word: pad instead of cutting.
+    if ($offset -gt $extent.Text.Length) {
+        $line = $extent.Text + (' ' * ($offset - $extent.Text.Length))
+    } else {
+        $line = $extent.Text.Substring(0, $offset)
+    }
+";
+
+/// usage's PowerShell `script` with the line cut patched (see [`PS_CUT`]).
+pub(crate) fn powershell(script: &str) -> String {
+    script.replacen(PS_CUT, PS_CUT_PATCHED, 1)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{zsh, ZSH_COMPADD};
+    use super::{powershell, zsh, PS_CUT, ZSH_COMPADD};
     use crate::Cli;
     use usage::complete::Shell;
 
@@ -60,5 +83,21 @@ mod tests {
             patched.starts_with("#compdef sbrs"),
             "usage's installer looks for this header"
         );
+    }
+
+    #[test]
+    fn usage_still_cuts_the_powershell_line_the_way_the_patch_replaces() {
+        let script = Cli::completion_script(Shell::PowerShell);
+        assert!(
+            script.contains(PS_CUT),
+            "usage's PowerShell script changed: update crates/cli/src/completion.rs"
+        );
+    }
+
+    #[test]
+    fn the_powershell_line_is_padded_past_the_last_word() {
+        let patched = powershell(&Cli::completion_script(Shell::PowerShell));
+        assert!(!patched.contains(PS_CUT), "{patched}");
+        assert!(patched.contains("$extent.Text + (' ' * ($offset - $extent.Text.Length))"));
     }
 }

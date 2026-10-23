@@ -2118,6 +2118,9 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 (_, Some(usage::complete::Shell::Zsh)) => {
                     completion::zsh(&Cli::completion_script(usage::complete::Shell::Zsh))
                 }
+                (_, Some(usage::complete::Shell::PowerShell)) => completion::powershell(
+                    &Cli::completion_script(usage::complete::Shell::PowerShell),
+                ),
                 (_, Some(shell)) => Cli::completion_script(shell),
                 (CompletionFormat::Usage, None) => USAGE_SPEC.to_owned(),
                 (_, None) => fig::spec(Cli::spec()),

@@ -679,3 +679,41 @@ done
         "stdout: {stdout}\nstderr: {stderr}"
     );
 }
+
+#[test]
+fn powershell_completion_after_a_space_offers_the_next_level() {
+    // usage 6.12's PowerShell script cut the line at `Extent.Text`, which leaves out the space
+    // after the last word, so `sbrs plugin <Tab>` completed `plugin` again.
+    if std::process::Command::new("pwsh")
+        .args(["-NoProfile", "-Command", "exit 0"])
+        .status()
+        .is_err()
+    {
+        eprintln!("skipped: pwsh is not installed");
+        return;
+    }
+    let sbrs = std::path::Path::new(env!("CARGO_BIN_EXE_sbrs"));
+    let path = format!(
+        "{}:{}",
+        sbrs.parent().expect("sbrs has a folder").display(),
+        std::env::var("PATH").unwrap_or_default()
+    );
+    let script = "
+. ([scriptblock]::Create((& sbrs completions powershell | Out-String)))
+$line = 'sbrs plugin '
+(TabExpansion2 -inputScript $line -cursorColumn $line.Length).CompletionMatches |
+    ForEach-Object { $_.CompletionText }
+";
+    let output = std::process::Command::new("pwsh")
+        .args(["-NoProfile", "-Command", script])
+        .env("PATH", path)
+        .output()
+        .expect("run pwsh");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let words: Vec<&str> = stdout.lines().map(str::trim).collect();
+    assert!(
+        words.contains(&"info") && words.contains(&"list"),
+        "stdout: {stdout}\nstderr: {stderr}"
+    );
+}

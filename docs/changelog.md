@@ -114,6 +114,10 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.5.1 s
   word; `sbrs completions zsh` now adds complete words with zsh's own space and keeps no
   suffix only for words that go on (`--flag=`, a folder `/`, `key:`). Shells installed
   from Homebrew pick it up with the next release.
+- PowerShell completion after a space offers the next level: `sbrs plugin <Tab>` gives
+  `info` and `list` instead of `plugin` again. usage 6.12's script cut the line at the
+  command's text, which leaves out the trailing space; `sbrs completions powershell` pads
+  it instead.
 
 </Update>
 

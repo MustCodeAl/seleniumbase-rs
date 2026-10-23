@@ -89,6 +89,10 @@ work, `docs/parity.md` the per-API status).
   word; `sbrs completions zsh` now adds complete words with zsh's own space and keeps no
   suffix only for words that go on (`--flag=`, a folder `/`, `key:`). Shells installed
   from Homebrew pick it up with the next release.
+- PowerShell completion after a space offers the next level: `sbrs plugin <Tab>` gives
+  `info` and `list` instead of `plugin` again. usage 6.12's script cut the line at the
+  command's text, which leaves out the trailing space; `sbrs completions powershell` pads
+  it instead.
 
 ## [0.5.1] - 2026-10-17
 
