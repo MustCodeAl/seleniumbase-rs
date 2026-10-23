@@ -78,7 +78,9 @@ async fn without_check_js_a_page_that_throws_opens() {
     let mut sb = BaseCase::new(test_config(RunSettings::default()))
         .await
         .expect("connect to browser");
-    sb.open(BROKEN_PAGE).await.expect("the error is not looked for");
+    sb.open(BROKEN_PAGE)
+        .await
+        .expect("the error is not looked for");
     sb.quit().await.expect("quit");
 }
 
