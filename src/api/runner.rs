@@ -167,11 +167,11 @@ impl Ended {
 ///
 /// A panic in `test` is caught so `close` still runs; it counts as a failure
 /// for `evidence` and is raised again by [`Ended::finish`].
-pub(crate) async fn drive<C>(
+pub(crate) async fn drive_with<C>(
     case: &mut C,
     test: impl AsyncFnOnce(&mut C) -> Result<()>,
     evidence: impl AsyncFnOnce(&C, &SeleniumBaseError),
-    close: impl AsyncFnOnce(&mut C) -> Result<()>,
+    close: impl AsyncFnOnce(&mut C, &Result<()>) -> Result<()>,
 ) -> Ended {
     let (test_result, panic) = match AssertUnwindSafe(test(&mut *case)).catch_unwind().await {
         Ok(result) => (result, None),
@@ -189,11 +189,28 @@ pub(crate) async fn drive<C>(
             evidence(&*case, error).await;
         }
     }
-    let cleanup_result = close(&mut *case).await;
+    let cleanup_result = close(&mut *case, &test_result).await;
     Ended {
         outcome: combine_outcomes(test_result, cleanup_result),
         panic,
     }
+}
+
+/// [`drive_with`] for a runner whose `close` does not look at how the test
+/// ended.
+pub(crate) async fn drive<C>(
+    case: &mut C,
+    test: impl AsyncFnOnce(&mut C) -> Result<()>,
+    evidence: impl AsyncFnOnce(&C, &SeleniumBaseError),
+    close: impl AsyncFnOnce(&mut C) -> Result<()>,
+) -> Ended {
+    drive_with(
+        case,
+        test,
+        evidence,
+        async |case: &mut C, _ended: &Result<()>| close(case).await,
+    )
+    .await
 }
 
 /// The message of a panic payload, when it is text.
