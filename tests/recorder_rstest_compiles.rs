@@ -10,7 +10,7 @@
 //! imports exist. The generated test is not run: it would start a browser.
 #![cfg(feature = "testing")]
 // The generated test is never called.
-#![allow(dead_code)]
+#![allow(dead_code, unused_imports)]
 
 use std::fs;
 use std::path::Path;
@@ -21,7 +21,7 @@ mod generated {
     // `#[tokio::test]` in the generated code would run the test. Here the path
     // `tokio::test` is `tokio::main`, which turns the test into a plain
     // function that nothing calls, and the rest of the file is compiled as it is.
-    #[allow(unused_imports)]
+    // Only the names the generated code uses count as used.
 
     mod tokio {
         pub use ::tokio::main as test;
