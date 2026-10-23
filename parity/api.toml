@@ -4235,7 +4235,7 @@ note = "The pure CDP engine has LaunchOptionsBuilder::mobile and device_metrics:
 [options_driver."multi_proxy"]
 status = "composed"
 rust = "LaunchOptionsBuilder::proxy"
-note = "Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine passes the proxy as a flag and cannot log in to one."
+note = "Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine logs in to one through a DevTools client beside chromedriver (Chrome and Edge, a driver on this machine; a remote grid with a login is refused)."
 
 [options_driver."no_sandbox"]
 status = "implemented"
@@ -5040,12 +5040,12 @@ note = "Give the screen with `with_device_metrics`."
 [options_pytest."--multi-proxy"]
 status = "composed"
 rust = "LaunchOptionsBuilder::proxy"
-note = "Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine passes the proxy as a flag and cannot log in to one."
+note = "Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine logs in to one through a DevTools client beside chromedriver (Chrome and Edge, a driver on this machine; a remote grid with a login is refused)."
 
 [options_pytest."--multi_proxy"]
 status = "composed"
 rust = "LaunchOptionsBuilder::proxy"
-note = "Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine passes the proxy as a flag and cannot log in to one."
+note = "Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine logs in to one through a DevTools client beside chromedriver (Chrome and Edge, a driver on this machine; a remote grid with a login is refused)."
 
 [options_pytest."--no-csp"]
 status = "implemented"
@@ -5093,7 +5093,7 @@ note = "Run with operadriver, which must be in downloaded_drivers/ or on the PAT
 [options_pytest."--pac-url"]
 status = "composed"
 rust = "BrowserConfig::proxy_pac_url"
-note = "URL only: a WebDriver session cannot log in to a proxy, so USERNAME:PASSWORD@URL does not authenticate."
+note = "USERNAME:PASSWORD@URL works for Chrome and Edge on a driver this machine runs: a DevTools client answers the proxy login. A remote grid with a login is refused; Firefox refuses it too."
 
 [options_pytest."--page-load-strategy"]
 status = "implemented"
@@ -5869,7 +5869,7 @@ rust = "BrowserConfig::mobile"
 [options_sb."multi_proxy"]
 status = "composed"
 rust = "LaunchOptionsBuilder::proxy"
-note = "Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine passes the proxy as a flag and cannot log in to one."
+note = "Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine logs in to one through a DevTools client beside chromedriver (Chrome and Edge, a driver on this machine; a remote grid with a login is refused)."
 
 [options_sb."no_screenshot"]
 status = "not-applicable"

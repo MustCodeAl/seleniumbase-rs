@@ -991,8 +991,8 @@ Python `--option` flags.
 | `--mobile` | implemented | `BrowserConfig::mobile` |  |
 | `--mobile-emulator` | composed | `BrowserConfig::mobile` | Give the screen with `with_device_metrics`. |
 | `--mobile_emulator` | composed | `BrowserConfig::mobile` | Give the screen with `with_device_metrics`. |
-| `--multi-proxy` | composed | `LaunchOptionsBuilder::proxy` | Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine passes the proxy as a flag and cannot log in to one. |
-| `--multi_proxy` | composed | `LaunchOptionsBuilder::proxy` | Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine passes the proxy as a flag and cannot log in to one. |
+| `--multi-proxy` | composed | `LaunchOptionsBuilder::proxy` | Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine logs in to one through a DevTools client beside chromedriver (Chrome and Edge, a driver on this machine; a remote grid with a login is refused). |
+| `--multi_proxy` | composed | `LaunchOptionsBuilder::proxy` | Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine logs in to one through a DevTools client beside chromedriver (Chrome and Edge, a driver on this machine; a remote grid with a login is refused). |
 | `--no-csp` | implemented | `BrowserConfig::with_disable_csp` | Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only. |
 | `--no-sandbox` | implemented | `BrowserConfig::with_no_sandbox` |  |
 | `--no-screenshot` | not-applicable |  | Nothing to turn off: this crate saves a screenshot only when a test or ScreenshotOnFailurePlugin asks for one. |
@@ -1003,7 +1003,7 @@ Python `--option` flags.
 | `--open-devtools` | implemented | `BrowserConfig::with_devtools` |  |
 | `--open_devtools` | implemented | `BrowserConfig::with_devtools` |  |
 | `--opera` | implemented | `BrowserConfig::browser` | Run with operadriver, which must be in downloaded_drivers/ or on the PATH; nothing downloads it. |
-| `--pac-url` | composed | `BrowserConfig::proxy_pac_url` | URL only: a WebDriver session cannot log in to a proxy, so USERNAME:PASSWORD@URL does not authenticate. |
+| `--pac-url` | composed | `BrowserConfig::proxy_pac_url` | USERNAME:PASSWORD@URL works for Chrome and Edge on a driver this machine runs: a DevTools client answers the proxy login. A remote grid with a login is refused; Firefox refuses it too. |
 | `--page-load-strategy` | implemented | `BrowserConfig::with_page_load_strategy` | The `pageLoadStrategy` capability: normal, eager or none. |
 | `--page_load_strategy` | implemented | `BrowserConfig::with_page_load_strategy` | The `pageLoadStrategy` capability: normal, eager or none. |
 | `--pls` | implemented | `BrowserConfig::with_page_load_strategy` | The `pageLoadStrategy` capability: normal, eager or none. |
@@ -1171,7 +1171,7 @@ Keyword arguments of `SB()`.
 | `maximize` | implemented | `BrowserConfig::with_maximize` | A headed Chromium window starts with --start-maximized and no --window-size; Firefox and Safari are maximized once they are running. A headless session ignores it. |
 | `message_duration` | implemented | `RunSettings::with_message_duration` | How long BaseCase::post_message keeps its message, to the millisecond (2.55 s by default, 0.75 s at most in a headless browser). |
 | `mobile` | implemented | `BrowserConfig::mobile` |  |
-| `multi_proxy` | composed | `LaunchOptionsBuilder::proxy` | Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine passes the proxy as a flag and cannot log in to one. |
+| `multi_proxy` | composed | `LaunchOptionsBuilder::proxy` | Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine logs in to one through a DevTools client beside chromedriver (Chrome and Edge, a driver on this machine; a remote grid with a login is refused). |
 | `no_screenshot` | not-applicable |  | Nothing to turn off: this crate saves a screenshot only when a test or ScreenshotOnFailurePlugin asks for one. |
 | `page_load_strategy` | implemented | `BrowserConfig::with_page_load_strategy` | The `pageLoadStrategy` capability: normal, eager or none. |
 | `pls` | implemented | `BrowserConfig::with_page_load_strategy` | The `pageLoadStrategy` capability: normal, eager or none. |
@@ -1276,7 +1276,7 @@ Keyword arguments of `Driver()`.
 | `log_cdp` | implemented | `BrowserConfig::with_cdp_events` | Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`. |
 | `log_cdp_events` | implemented | `BrowserConfig::with_cdp_events` | Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`. |
 | `mobile` | implemented | `BrowserConfig::mobile` | The pure CDP engine has LaunchOptionsBuilder::mobile and device_metrics: every tab, also one opened later, gets the same phone (390 by 715 at a ratio of 3 unless metrics are given). Python's pure CDP default is 412 by 732. |
-| `multi_proxy` | composed | `LaunchOptionsBuilder::proxy` | Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine passes the proxy as a flag and cannot log in to one. |
+| `multi_proxy` | composed | `LaunchOptionsBuilder::proxy` | Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine logs in to one through a DevTools client beside chromedriver (Chrome and Edge, a driver on this machine; a remote grid with a login is refused). |
 | `no_sandbox` | implemented | `BrowserConfig::with_no_sandbox` |  |
 | `page_load_strategy` | implemented | `BrowserConfig::with_page_load_strategy` | The `pageLoadStrategy` capability: normal, eager or none. |
 | `pls` | implemented | `BrowserConfig::with_page_load_strategy` | The `pageLoadStrategy` capability: normal, eager or none. |

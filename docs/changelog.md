@@ -40,10 +40,23 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   `BrowserConfig::with_grid` returns a `Result`, because an empty server name is an error.
 - **Chrome is no longer given a proxy login.** `--proxy=user:pass@host:port` used to put
   `user:pass@host:port` in `--proxy-server`, where Chrome reads no login and the process list
-  shows it; Chrome now gets `--proxy-server=host:port`. A WebDriver session still does not answer
-  the proxy's login (the pure CDP engine does).
+  shows it; Chrome now gets `--proxy-server=host:port`. A WebDriver session answers the proxy's
+  login another way (see Added).
 
 ### Added
+
+- **A WebDriver session logs in to a proxy that asks for a password.** `--proxy=user:pass@host:port`
+  (or a PAC URL with a login) now works with Chrome, Edge and the other Chromium browsers on a
+  chromedriver this machine runs, as the pure CDP engine already did. Python SeleniumBase writes a
+  browser extension for it, which Chrome no longer loads from the command line; this crate attaches
+  a DevTools client beside chromedriver (the `debuggerAddress` of the session's capabilities) that
+  turns `Fetch` on in every tab, also one the page opens or a WebDriver new window, and answers the
+  proxy's `407` with the login. A website's own `401` is never given the proxy account, and the
+  login is neither in the browser's command line nor in an error message. The client closes with the
+  session (and is started again for each lease with `--reuse-session`). A remote grid with a proxy
+  login is refused when the session connects, before a browser starts, because the grid does not
+  share its browser's DevTools endpoint: use the grid's proxy capability (`--cap-string`) or a proxy
+  without a login.
 
 - **The pure CDP engine takes the browser options of the WebDriver engine.**
   `LaunchOptionsBuilder::mobile` and `device_metrics` make every tab, the first and each one
