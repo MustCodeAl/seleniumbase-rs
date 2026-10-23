@@ -34,7 +34,7 @@ const MOCK_WS_URL: &str = "ws://mock.invalid/devtools/browser/mock";
 
 /// Where downloads are expected until [`Browser::set_download_dir`] says
 /// otherwise: the folder SeleniumBase's CDP Mode uses, in the working directory.
-pub(super) const DEFAULT_DOWNLOAD_DIR: &str = "downloaded_files";
+pub(super) const DEFAULT_DOWNLOAD_DIR: &str = crate::browser::downloads::DOWNLOADS_DIR;
 
 /// `host:port` for a URL, with an IPv6 address in the brackets a URL needs.
 fn devtools_authority(host: &str, port: u16) -> String {
@@ -362,6 +362,10 @@ impl Browser {
         }
         #[cfg(feature = "plugins")]
         super::plugin_hooks::on_browser(&self.inner.options.plugins, &self.inner.client).await?;
+        // Downloads go to ./downloaded_files until a folder is chosen, as in
+        // SeleniumBase; done before the first page loads, which may be a file.
+        self.use_default_download_dir(Path::new(DEFAULT_DOWNLOAD_DIR))
+            .await;
         let page = self.default_page().await?;
         if let Some(url) = &self.inner.options.url {
             page.goto(url).await?;
@@ -1052,6 +1056,23 @@ impl Browser {
         .await?;
         *locked(&self.inner.download_dir) = Some(absolute.clone());
         Ok(absolute)
+    }
+
+    /// What a launch does about downloads: tells the browser to save them in
+    /// `dir`, so that [`download_dir`](Self::download_dir) is true from the
+    /// start. A folder that cannot be made, or a browser that refuses, is
+    /// logged and not an error: downloads then go where the browser puts them
+    /// by default.
+    pub(super) async fn use_default_download_dir(&self, dir: &Path) {
+        if let Err(error) = self.start_downloads_in(dir).await {
+            tracing::event!(
+                name: "cdp.browser.downloads.default_dir",
+                tracing::Level::WARN,
+                folder = %dir.display(),
+                error = %error,
+                "downloads are not saved in {{folder}}: {{error}}",
+            );
+        }
     }
 
     /// The folder downloads are saved in: the last one given to

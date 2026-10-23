@@ -72,6 +72,49 @@ mod plain_path_tests {
 }
 use crate::utils::selectors::SelectorBuf;
 
+#[cfg(test)]
+mod default_download_dir_tests {
+    use serde_json::json;
+
+    use super::*;
+    use crate::sb_cdp::Browser;
+
+    #[tokio::test]
+    async fn a_launch_tells_the_browser_to_save_in_the_default_folder() {
+        let (browser, mock) = Browser::new_mocked();
+        mock.on("Browser.setDownloadBehavior", |_| Ok(json!({})));
+        let folder = tempfile::tempdir().unwrap();
+        let dir = folder.path().join("downloaded_files");
+
+        browser.use_default_download_dir(&dir).await;
+
+        let calls = mock.calls_to("Browser.setDownloadBehavior");
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].params["behavior"], "allow");
+        assert_eq!(calls[0].params["eventsEnabled"], true);
+        assert!(dir.is_dir(), "the folder is made");
+        assert_eq!(
+            browser.download_dir(),
+            plain_path(fs::canonicalize(&dir).unwrap())
+        );
+    }
+
+    #[tokio::test]
+    async fn a_folder_that_cannot_be_made_is_logged_not_an_error() {
+        let (browser, mock) = Browser::new_mocked();
+        let folder = tempfile::tempdir().unwrap();
+        let file = folder.path().join("a-file");
+        fs::write(&file, "x").unwrap();
+
+        browser
+            .use_default_download_dir(&file.join("downloaded_files"))
+            .await;
+
+        assert!(mock.calls_to("Browser.setDownloadBehavior").is_empty());
+        assert_eq!(browser.download_dir(), PathBuf::from("downloaded_files"));
+    }
+}
+
 /// How often [`Page::assert_downloaded_file`] looks in the folder.
 const FILE_POLL: Duration = Duration::from_millis(50);
 

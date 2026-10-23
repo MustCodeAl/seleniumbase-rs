@@ -1325,6 +1325,7 @@ pub(crate) fn server_url_for_joins(url: &str) -> String {
 }
 
 async fn try_connect(config: &BrowserConfig, url: &str) -> Result<WebDriver, SeleniumBaseError> {
+    crate::browser::downloads::create_folder_for(config.browser);
     let caps = session_capabilities(config)?;
     connect_with_caps(config, url, caps).await
 }
@@ -1369,6 +1370,13 @@ fn session_capabilities(
             caps.into()
         }
     };
+    // Downloads go to ./downloaded_files, as in Python; what the capabilities
+    // the caller gave name for themselves (merged next) wins.
+    crate::browser::downloads::ask_for_downloads_in(
+        &mut caps,
+        config.browser,
+        &crate::browser::downloads::downloads_dir(),
+    );
     config.launch.capabilities.apply_to(&mut caps);
     Ok(caps)
 }
@@ -1805,6 +1813,39 @@ mod capability_tests {
         CapabilityOverrides, FirefoxOptions, PageLoadStrategy, WindowSize,
     };
 
+    /// `prefs` without the preferences that name the downloads folder.
+    fn without_downloads(prefs: &Value) -> Value {
+        let mut rest = prefs.clone();
+        if let Some(map) = rest.as_object_mut() {
+            map.retain(|name, _| !name.starts_with("browser.download."));
+        }
+        rest
+    }
+
+    #[test]
+    fn chrome_is_asked_to_save_downloads_in_downloaded_files() {
+        let caps = caps_json(&BrowserConfig::default());
+        let prefs = &caps["goog:chromeOptions"]["prefs"];
+        let folder = crate::browser::downloads::downloads_dir();
+        assert_eq!(
+            prefs["download.default_directory"],
+            folder.to_string_lossy().as_ref()
+        );
+        assert_eq!(prefs["download.prompt_for_download"], false);
+    }
+
+    #[test]
+    fn a_preference_the_caller_names_wins_over_the_downloads_folder() {
+        let mut config = BrowserConfig::default();
+        config.launch.capabilities = CapabilityOverrides::from_text(
+            r#"{"goog:chromeOptions": {"prefs": {"download.default_directory": "/elsewhere"}}}"#,
+        )
+        .unwrap();
+        let prefs = &caps_json(&config)["goog:chromeOptions"]["prefs"];
+        assert_eq!(prefs["download.default_directory"], "/elsewhere");
+        assert_eq!(prefs["download.prompt_for_download"], false);
+    }
+
     fn caps_json(config: &BrowserConfig) -> Value {
         serde_json::to_value(session_capabilities(config).unwrap()).unwrap()
     }
@@ -1832,7 +1873,7 @@ mod capability_tests {
         assert_eq!(options["args"], json!(["-headless", "--private-window"]));
         // An explicit preference wins over the one a switch sets.
         assert_eq!(
-            options["prefs"],
+            without_downloads(&options["prefs"]),
             json!({
                 "permissions.default.image": 2,
                 "javascript.enabled": true,
@@ -1843,10 +1884,10 @@ mod capability_tests {
     }
 
     #[test]
-    fn a_plain_firefox_session_asks_for_no_preferences() {
+    fn a_plain_firefox_session_asks_for_no_preferences_but_the_downloads_folder() {
         let caps = caps_json(&BrowserConfig::default().with_browser(Browser::Firefox));
         let options = &caps["moz:firefoxOptions"];
-        assert!(options.get("prefs").is_none(), "{options}");
+        assert_eq!(without_downloads(&options["prefs"]), json!({}), "{options}");
         assert!(options.get("binary").is_none(), "{options}");
         assert!(caps.get("pageLoadStrategy").is_none());
     }

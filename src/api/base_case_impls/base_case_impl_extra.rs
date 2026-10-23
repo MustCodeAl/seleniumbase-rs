@@ -81,9 +81,9 @@ fn base32_decode(input: &str) -> Result<Vec<u8>, SeleniumBaseError> {
     Ok(output)
 }
 
-/// Return the default downloads directory used by the browser.
+/// The folder downloads are saved in: `./downloaded_files`, as in Python.
 fn default_download_dir() -> PathBuf {
-    dirs::download_dir().unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
+    crate::browser::downloads::downloads_dir()
 }
 
 /// Waits up to `timeout_secs` for the file at `path` to exist.
