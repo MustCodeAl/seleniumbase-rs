@@ -43,7 +43,6 @@ use serde_json::Value;
 use crate::browser::config::BrowserConfig;
 use crate::error::SeleniumBaseError;
 use crate::sb_cdp::Proxy;
-use crate::stealth::fingerprint::Fingerprint;
 
 /// Chrome switches every session starts with, on top of rustwright's own.
 ///
