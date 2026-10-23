@@ -20,7 +20,7 @@ Summary for AI exports: enable the feature `testing` and add `rstest` and `tokio
 
 ```toml
 [dev-dependencies]
-seleniumbase-rs = { version = "0.6", features = ["testing"] }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", features = ["testing"] }
 rstest = "0.26"
 tokio = { version = "1", features = ["macros", "rt"] }
 ```
