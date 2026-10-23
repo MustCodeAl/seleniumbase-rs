@@ -1,0 +1,41 @@
+{
+  "browser_type": "chromium",
+  "os_type": "Macos",
+  "core_version": 155,
+  "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+  "platform": "MacIntel",
+  "hardware_concurrency": 8,
+  "device_memory": 8,
+  "max_touch_points": 0,
+  "vendor": "Google Inc.",
+  "product_sub": "20030107",
+  "app_version": "5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+  "locale": "en-US",
+  "languages": "en-US,en;q=0.9",
+  "timezone": "Europe/Paris",
+  "screen": { "width": 1512, "height": 982 },
+  "avail_screen": { "width": 1512, "height": 944 },
+  "pixel_ratio": 2,
+  "color_depth": 30,
+  "webgl": {
+    "vendor": "Google Inc. (Apple)",
+    "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)"
+  },
+  "media_devices": { "audio_inputs": 1, "audio_outputs": 1, "video_inputs": 1 },
+  "client_hints": {
+    "brands": [
+      { "brand": "Chromium", "version": "155" },
+      { "brand": "Google Chrome", "version": "155" }
+    ],
+    "mobile": false,
+    "platform": "macOS",
+    "full_version_list": [{ "brand": "Chromium", "version": "155.0.8059.40" }],
+    "platform_version": "15.0.0",
+    "architecture": "arm",
+    "bitness": "64",
+    "ua_full_version": "155.0.8059.40",
+    "wow64": false,
+    "form_factors": ["Desktop"],
+    "model": ""
+  }
+}
