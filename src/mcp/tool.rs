@@ -38,6 +38,18 @@ impl Output {
         }
     }
 
+    /// The structured content of the result: the value of a
+    /// [`Json`](Self::Json) output that is an object.
+    ///
+    /// MCP's `structuredContent` is a JSON object, so a list, a string or a
+    /// number has none and travels as text only.
+    pub(crate) fn structured(&self) -> Option<&Value> {
+        match self {
+            Self::Json(value @ Value::Object(_)) => Some(value),
+            Self::Json(_) | Self::Text(_) => None,
+        }
+    }
+
     /// The text of a [`Text`](Self::Text) output, for assertions in tests.
     #[must_use]
     pub fn as_text(&self) -> Option<&str> {
@@ -403,6 +415,8 @@ pub struct ToolDef<S> {
     effect: Effect,
     schema: Arc<Map<String, Value>>,
     handler: Handler<S>,
+    output_schema: Option<Arc<Map<String, Value>>>,
+    untrusted: bool,
 }
 
 impl<S> fmt::Debug for ToolDef<S> {
@@ -436,6 +450,8 @@ impl<S> ToolDef<S> {
             effect,
             schema: schema.build(),
             handler: Box::new(move |ctx, args| Box::pin(handler(ctx, args))),
+            output_schema: None,
+            untrusted: false,
         }
     }
 
@@ -451,9 +467,56 @@ impl<S> ToolDef<S> {
         self.effect
     }
 
+    /// Declares the JSON Schema of the tool's structured result, which
+    /// clients read as `outputSchema` in `tools/list`.
+    ///
+    /// A tool that declares a schema returns [`Output::Json`] with an object:
+    /// that object is sent as the result's `structuredContent`. The root of
+    /// a schema must be an object schema; one that is not a JSON object is
+    /// ignored and logged. [`Schema`] stays the type of the input.
+    #[must_use]
+    pub fn with_output_schema(mut self, schema: Value) -> Self {
+        if let Value::Object(schema) = schema {
+            self.output_schema = Some(Arc::new(schema));
+        } else {
+            tracing::error!(
+                tool = self.name,
+                "an output schema must be a JSON object; the tool declares none"
+            );
+        }
+        self
+    }
+
+    /// Marks the tool's output as text taken from a page.
+    ///
+    /// What a page says can address the model as if it were an instruction.
+    /// The result of an untrusted tool starts with a line that says the text
+    /// below is data, and carries `_meta: {"sbrs/untrusted_content": true}`
+    /// for clients that wrap or filter such content.
+    #[must_use]
+    pub fn untrusted(mut self) -> Self {
+        self.untrusted = true;
+        self
+    }
+
+    /// Whether the output is page text a client should not trust, see
+    /// [`untrusted`](Self::untrusted).
+    #[must_use]
+    pub fn is_untrusted(&self) -> bool {
+        self.untrusted
+    }
+
+    /// The JSON Schema of the structured result, if the tool declares one.
+    #[must_use]
+    pub fn output_schema(&self) -> Option<&Map<String, Value>> {
+        self.output_schema.as_deref()
+    }
+
     pub(crate) fn describe(&self) -> Tool {
-        Tool::new(self.name, self.description, Arc::clone(&self.schema))
-            .with_annotations(self.effect.annotations(self.title))
+        let mut tool = Tool::new(self.name, self.description, Arc::clone(&self.schema))
+            .with_annotations(self.effect.annotations(self.title));
+        tool.output_schema = self.output_schema.clone();
+        tool
     }
 
     pub(crate) fn call(&self, ctx: Ctx<S>, args: Args) -> ToolFuture {

@@ -44,7 +44,10 @@ pub mod sb;
 mod stealth;
 
 pub use failure::FailureReport;
-pub use host::{Closeable, Ctx, Host, Session, Settings, Started, OUTPUT_DIR_VAR};
+pub use host::{
+    Closeable, Ctx, Host, Session, Settings, Started, OUTPUT_DIR_VAR, UNTRUSTED_META_KEY,
+    UNTRUSTED_NOTICE,
+};
 pub use schema::{Prop, Schema};
 pub use tool::{Args, Effect, Output, ToolDef, ToolError, ToolFuture};
 
