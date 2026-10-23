@@ -1556,12 +1556,12 @@ fn session_capabilities(
     // person has not answered must stay open, not be dismissed by the next
     // command (chromedriver's default is to dismiss it and fail the command).
     if config.recorder_mode()
-            && config.browser.is_chromium_based()
-            && caps.get_mut("unhandledPromptBehavior").is_none()
-        {
-            // `Capabilities::set` only fails when serialising, which text cannot.
-            let _ = caps.set("unhandledPromptBehavior", "ignore");
-        }
+        && config.browser.is_chromium_based()
+        && caps.get_mut("unhandledPromptBehavior").is_none()
+    {
+        // `Capabilities::set` only fails when serialising, which text cannot.
+        let _ = caps.set("unhandledPromptBehavior", "ignore");
+    }
 
     config.launch.capabilities.apply_to(&mut caps);
     Ok(caps)
