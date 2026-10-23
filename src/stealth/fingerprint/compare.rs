@@ -189,6 +189,28 @@ impl Fingerprint {
         self.compare_with(observed, Mode::Live)
     }
 
+    /// The names of the settings this fingerprint gives, which is every one that is
+    /// not `Natural`, in the order of the file.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use seleniumbase_rs::Fingerprint;
+    ///
+    /// let fp = Fingerprint::builder().timezone("Europe/Berlin").screen(800, 600).build()?;
+    ///
+    /// assert_eq!(fp.claimed_settings(), ["timezone", "screen"]);
+    /// # Ok::<(), seleniumbase_rs::FingerprintError>(())
+    /// ```
+    #[must_use]
+    pub fn claimed_settings(&self) -> Vec<&'static str> {
+        self.setting_values()
+            .into_iter()
+            .filter(|(_, value)| !is_natural(value))
+            .map(|(name, _)| name)
+            .collect()
+    }
+
     /// The settings as the JSON of a setting each: `"natural"` for one that is
     /// left to the browser.
     fn setting_values(&self) -> Vec<(&'static str, Value)> {
@@ -402,6 +424,20 @@ mod tests {
         listed.sort_unstable();
 
         assert_eq!(settings, listed);
+    }
+
+    #[test]
+    fn the_claimed_settings_are_the_ones_that_are_not_natural_in_the_order_of_the_file() {
+        assert!(Fingerprint::builder().build().unwrap().claimed_settings().is_empty());
+        let fp = Fingerprint::builder()
+            .geolocation(Spoof::Off)
+            .screen(800, 600)
+            .timezone("Europe/Berlin")
+            .build()
+            .unwrap();
+
+        assert_eq!(fp.claimed_settings(), ["timezone", "screen", "geolocation"]);
+        assert!(Fingerprint::windows_desktop().claimed_settings().len() > 10);
     }
 
     #[test]
