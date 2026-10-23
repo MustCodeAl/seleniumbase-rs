@@ -60,6 +60,20 @@ pub enum LaunchSwitch {
     /// Nothing about the launch changes; `BaseCase::export_recording_as_rust`
     /// reads the switch to choose the generator.
     RecSbCdp,
+    /// Recorder Mode (`--rec`, `--record`, `--recorder`, `--codegen`,
+    /// `recorder_mode`): `BaseCase` records what a person does in the browser
+    /// and writes it as a test when the case ends. Chromium only.
+    RecorderMode,
+    /// Print the recording when it is written (`--rec-print`, `rec_print`).
+    /// Implies Recorder Mode.
+    RecPrint,
+    /// Also write the recording as a Gherkin feature (`--rec-behave`,
+    /// `rec_behave`). Implies Recorder Mode.
+    RecBehave,
+    /// Write the recording as a standalone script instead of a test
+    /// (`--rec-sb-mgr`, `rec_sb_mgr`). Implies Recorder Mode.
+    RecSbMgr,
+
     /// Force Chrome's dark theme on web pages (`--dark`, `dark_mode`), through
     /// `--enable-features=WebContentsForceDark`. Chromium only.
     DarkMode,
@@ -98,7 +112,7 @@ pub enum LaunchSwitch {
 
 impl LaunchSwitch {
     /// Every switch.
-    pub const ALL: [Self; 23] = [
+    pub const ALL: [Self; 27] = [
         Self::BlockImages,
         Self::DisableJavaScript,
         Self::DisableCookies,
@@ -111,6 +125,10 @@ impl LaunchSwitch {
         Self::ProxyForDriverDownload,
         Self::EscEnd,
         Self::RecSbCdp,
+        Self::RecorderMode,
+        Self::RecPrint,
+        Self::RecBehave,
+        Self::RecSbMgr,
         Self::DarkMode,
         Self::Incognito,
         Self::Guest,
@@ -145,6 +163,10 @@ impl LaunchSwitch {
             "proxy_driver" => Self::ProxyForDriverDownload,
             "esc_end" | "ee" => Self::EscEnd,
             "rec_sb_cdp" => Self::RecSbCdp,
+            "recorder_mode" | "recorder" | "rec" | "record" | "codegen" => Self::RecorderMode,
+            "rec_print" => Self::RecPrint,
+            "rec_behave" | "rec_gherkin" => Self::RecBehave,
+            "rec_sb_mgr" => Self::RecSbMgr,
             "dark" | "dark_mode" => Self::DarkMode,
             "incognito" | "incognito_mode" => Self::Incognito,
             "guest" | "guest_mode" => Self::Guest,
@@ -366,6 +388,10 @@ mod tests {
             LaunchSwitch::ProxyForDriverDownload,
             LaunchSwitch::EscEnd,
             LaunchSwitch::RecSbCdp,
+            LaunchSwitch::RecorderMode,
+            LaunchSwitch::RecPrint,
+            LaunchSwitch::RecBehave,
+            LaunchSwitch::RecSbMgr,
         ]
         .into();
         assert!(chrome_preferences(&others).is_empty());
@@ -430,6 +456,15 @@ mod tests {
             ("--ee", LaunchSwitch::EscEnd),
             ("--rec-sb-cdp", LaunchSwitch::RecSbCdp),
             ("rec_sb_cdp", LaunchSwitch::RecSbCdp),
+            ("--rec", LaunchSwitch::RecorderMode),
+            ("--record", LaunchSwitch::RecorderMode),
+            ("--recorder", LaunchSwitch::RecorderMode),
+            ("--codegen", LaunchSwitch::RecorderMode),
+            ("recorder_mode", LaunchSwitch::RecorderMode),
+            ("--rec-print", LaunchSwitch::RecPrint),
+            ("--rec-behave", LaunchSwitch::RecBehave),
+            ("rec_behave", LaunchSwitch::RecBehave),
+            ("--rec-sb-mgr", LaunchSwitch::RecSbMgr),
             ("--dark", LaunchSwitch::DarkMode),
             ("dark_mode", LaunchSwitch::DarkMode),
             ("--incognito", LaunchSwitch::Incognito),

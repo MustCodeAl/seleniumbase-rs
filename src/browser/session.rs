@@ -217,6 +217,26 @@ impl BrowserSession {
             .map(|driver| driver.handle().session_id().to_string())
     }
 
+    /// A DevTools Protocol client for this session, whatever its
+    /// [`DriverMode`](crate::browser::config::DriverMode): the commands go
+    /// through the driver's `/goog/cdp/execute` passthrough, so no mode has to
+    /// be switched on. Chromium sessions only; the driver of another browser
+    /// answers the commands with an error.
+    ///
+    /// [`execute_cdp_with_params`](Self::execute_cdp_with_params) needs the
+    /// `cdp` or `uc` mode; this is what Recorder Mode uses instead.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::Unsupported`] for a session that is not
+    /// connected.
+    pub fn devtools(&self) -> Result<CdpClient, SeleniumBaseError> {
+        let driver = self.driver.as_ref().ok_or_else(|| {
+            SeleniumBaseError::Unsupported("the session has no browser driver".to_owned())
+        })?;
+        Ok(CdpClient::from_handle(driver.handle().clone()))
+    }
+
     /// Lets go of the driver without ending its session: the browser stays
     /// open for the next test.
     fn keep_browser_open(&mut self) {
@@ -1532,6 +1552,16 @@ fn session_capabilities(
         config.browser,
         &crate::browser::downloads::downloads_dir(),
     );
+    // Recorder Mode polls the page while a person works in it: a dialog the
+    // person has not answered must stay open, not be dismissed by the next
+    // command (chromedriver's default is to dismiss it and fail the command).
+    if config.recorder_mode() && config.browser.is_chromium_based() {
+        if caps.get_mut("unhandledPromptBehavior").is_none() {
+            // `Capabilities::set` only fails when serialising, which text cannot.
+            let _ = caps.set("unhandledPromptBehavior", "ignore");
+        }
+    }
+
     config.launch.capabilities.apply_to(&mut caps);
     Ok(caps)
 }

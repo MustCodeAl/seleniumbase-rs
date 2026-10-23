@@ -747,6 +747,71 @@ impl BrowserConfig {
         self.launch.has(LaunchSwitch::RecSbCdp)
     }
 
+    /// Turn Recorder Mode on or off (`--rec`, `--record`, `--recorder`,
+    /// `--codegen`, `recorder_mode`).
+    ///
+    /// With it on, `BaseCase` puts the recorder script into every page, keeps
+    /// what the person does, and writes it as a test under `recordings/` when
+    /// the case ends (`BaseCase::quit`). Chromium only: another browser makes
+    /// `BaseCase::new` fail.
+    pub fn with_recorder_mode(self, on: bool) -> Self {
+        self.with_switch(LaunchSwitch::RecorderMode, on)
+    }
+
+    /// Print the recording when it is written (`--rec-print`). Turns Recorder
+    /// Mode on.
+    pub fn with_rec_print(self, on: bool) -> Self {
+        self.with_switch(LaunchSwitch::RecPrint, on)
+    }
+
+    /// Also write the recording as a Gherkin feature (`--rec-behave`). Turns
+    /// Recorder Mode on.
+    pub fn with_rec_behave(self, on: bool) -> Self {
+        self.with_switch(LaunchSwitch::RecBehave, on)
+    }
+
+    /// Write the recording as a standalone script instead of a test
+    /// (`--rec-sb-mgr`). Turns Recorder Mode on.
+    pub fn with_rec_sb_mgr(self, on: bool) -> Self {
+        self.with_switch(LaunchSwitch::RecSbMgr, on)
+    }
+
+    /// Whether Recorder Mode is on: `recorder_mode`, or any option that
+    /// implies it (`rec_print`, `rec_behave`, `rec_sb_mgr`, `rec_sb_cdp`), as in
+    /// Python.
+    #[must_use]
+    pub fn recorder_mode(&self) -> bool {
+        [
+            LaunchSwitch::RecorderMode,
+            LaunchSwitch::RecPrint,
+            LaunchSwitch::RecBehave,
+            LaunchSwitch::RecSbMgr,
+            LaunchSwitch::RecSbCdp,
+        ]
+        .into_iter()
+        .any(|switch| self.launch.has(switch))
+    }
+
+    /// Whether the recording is printed ([`with_rec_print`](Self::with_rec_print)).
+    #[must_use]
+    pub fn rec_print(&self) -> bool {
+        self.launch.has(LaunchSwitch::RecPrint)
+    }
+
+    /// Whether the recording is also written as a Gherkin feature
+    /// ([`with_rec_behave`](Self::with_rec_behave)).
+    #[must_use]
+    pub fn rec_behave(&self) -> bool {
+        self.launch.has(LaunchSwitch::RecBehave)
+    }
+
+    /// Whether the recording is written as a standalone script
+    /// ([`with_rec_sb_mgr`](Self::with_rec_sb_mgr)).
+    #[must_use]
+    pub fn rec_sb_mgr(&self) -> bool {
+        self.launch.has(LaunchSwitch::RecSbMgr)
+    }
+
     /// The client-side timeout of each request sent to a Remote WebDriver
     /// server such as a Selenium Grid (`SB_REMOTE_WEBDRIVER_TIMEOUT`). A part of
     /// a second rounds up to a whole second. See
@@ -1603,6 +1668,30 @@ mod tests {
     }
 
     #[test]
+    fn recorder_mode_follows_its_switch_and_every_option_that_implies_it() {
+        let off = BrowserConfig::default();
+        assert!(!off.recorder_mode());
+        assert!(off.clone().with_recorder_mode(true).recorder_mode());
+        assert!(!off.clone().with_recorder_mode(true).rec_print());
+        for config in [
+            off.clone().with_rec_print(true),
+            off.clone().with_rec_behave(true),
+            off.clone().with_rec_sb_mgr(true),
+            off.clone().with_rec_sb_cdp(true),
+        ] {
+            assert!(config.recorder_mode());
+        }
+        let on = off.with_rec_print(true).with_rec_behave(true);
+        assert!(on.rec_print() && on.rec_behave() && !on.rec_sb_mgr());
+        let json = serde_json::to_value(&on).unwrap();
+        assert_eq!(
+            json["switches"],
+            serde_json::json!(["rec-print", "rec-behave"])
+        );
+    }
+
+    #[test]
+
     fn esc_end_is_written_beside_the_other_switches() {
         let config = BrowserConfig::default().with_esc_end(true);
         let json = serde_json::to_value(&config).unwrap();

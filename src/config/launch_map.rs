@@ -65,6 +65,10 @@ impl Settings {
             (self.maximize, LaunchSwitch::Maximize),
             (self.no_sandbox, LaunchSwitch::NoSandbox),
             (self.disable_gpu, LaunchSwitch::DisableGpu),
+            (self.test.recorder, LaunchSwitch::RecorderMode),
+            (self.test.rec_print, LaunchSwitch::RecPrint),
+            (self.test.rec_behave, LaunchSwitch::RecBehave),
+            (self.test.rec_sb_mgr, LaunchSwitch::RecSbMgr),
         ] {
             if on {
                 config = config.with_switch(switch, true);
