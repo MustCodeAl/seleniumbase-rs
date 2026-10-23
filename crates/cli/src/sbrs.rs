@@ -48,11 +48,14 @@ use thirtyfour::extensions::cdp::NetworkConditions;
 
 mod completion;
 mod fig;
+mod fingerprint;
 #[cfg(test)]
 mod reference;
 #[cfg(feature = "turso")]
 mod report;
 mod strict;
+
+use fingerprint::{FingerprintArgs, FingerprintCommand};
 
 /// What `sbrs --version` prints after the program name. It names the library
 /// package, as it did when the binary was part of it, not this crate
@@ -403,6 +406,15 @@ struct Cli {
     threads: Option<usize>,
     #[usage(short = 'c', long, help = "Path to a TOML/JSON settings file")]
     config: Option<String>,
+    /// Make every browser the command starts present the fingerprint in FILE
+    ///
+    /// The file is the fingerprint JSON that `sbrs fingerprint capture` and `export` write.
+    /// A Chromium browser then runs in the CDP mode unless --uc or another mode is given.
+    /// The command line wins over SB_FINGERPRINT, which wins over the [fingerprint] table of
+    /// the settings file. The user agent, language and proxy named by their own options win
+    /// over the fingerprint's.
+    #[usage(long, global, value_name = "FILE", value_hint = usage::ValueHint::AnyPath)]
+    fingerprint: Option<PathBuf>,
     /// Turn on a built-in plugin in the browsers the command starts (repeatable)
     ///
     /// Adds to the plugins the settings file (the [plugins] table) and SB_PLUGINS turn on.
@@ -1265,6 +1277,14 @@ enum Commands {
     /// table of the settings file; the command line wins over SB_PLUGINS, which wins over
     /// the file. `sbrs plugin list` shows the plugins this build has.
     Plugin(PluginArgs),
+    /// Capture, write, check and compare browser fingerprints.
+    ///
+    /// A fingerprint file is what a browser claims to be: the user agent, the screen, the
+    /// language, the graphics card and the rest, as one JSON file. `capture` reads it from
+    /// a real browser; `export` writes a preset or a random identity; `check` and `diff`
+    /// read files. The global --fingerprint FILE (or SB_FINGERPRINT, or the [fingerprint]
+    /// table of the settings file) makes every browser a command starts present one.
+    Fingerprint(FingerprintArgs),
 }
 
 /// The error of a token that would not open. The library's own error names the cipher and its
@@ -1371,6 +1391,7 @@ impl Commands {
                 | Self::PrintPdf { .. }
                 | Self::PdfText { .. }
                 | Self::AssertPdfText { .. }
+                | Self::Fingerprint(_)
         )
     }
 }
@@ -1955,6 +1976,13 @@ async fn run_devtools(args: &Cli) -> Result<(), Box<dyn std::error::Error>> {
         extension_dir: args.extension_dir.as_deref().map(PathBuf::from),
         url: url.as_deref().map(navigable_url).transpose()?,
         plugins: choice.into_selection(),
+        // The flag, else SB_FINGERPRINT, else the `[fingerprint]` table of the settings file.
+        fingerprint: Settings::resolve_fingerprint_file(
+            args.config.as_deref(),
+            args.fingerprint.as_deref(),
+        )?
+        .map(seleniumbase_rs::Fingerprint::load)
+        .transpose()?,
     };
     if args.uc || args.cdp {
         rich_helper::print_notice(
@@ -2248,6 +2276,13 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Commands::Devtools { .. } => return run_devtools(&args).await,
         Commands::Prompt(options) => return run_prompt(options).await,
         Commands::Plugin(plugin) => return run_plugin(&plugin.command, &args),
+        // The subcommands that start no browser end here; `capture` goes on to start one.
+        Commands::Fingerprint(fingerprint) => match fingerprint::run_offline(&fingerprint.command)?
+        {
+            Some(0) => return Ok(()),
+            Some(status) => std::process::exit(status),
+            None => {}
+        },
         _ => {}
     }
 
@@ -2288,15 +2323,21 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         threads: args.threads,
         esc_end: args.esc_end.then_some(true),
         rec_sb_cdp: args.rec_sb_cdp.then_some(true),
+        fingerprint: args.fingerprint.map(|file| file.display().to_string()),
     };
     overrides.apply(&mut settings);
+    // A fingerprint file named on the command line is checked here, like the variable's and
+    // the file's: a wrong path is an error, not a browser without the fingerprint.
+    settings.check_fingerprint()?;
 
     // `SB_WEBDRIVER_URL` and `SB_CHROME_BIN` are settings too, so
     // `to_browser_config` has them; `--webdriver` goes on top.
     let mut config = settings.to_browser_config();
     // A command that speaks the DevTools Protocol gets a session that has a
     // DevTools connection when no mode was asked for, on a Chromium browser.
-    let default_mode = if args.command.needs_devtools() && config.browser.is_chromium_based() {
+    let default_mode = if (args.command.needs_devtools() || settings.fingerprint.file.is_some())
+        && config.browser.is_chromium_based()
+    {
         DriverMode::Cdp
     } else {
         DriverMode::WebDriver
@@ -2343,6 +2384,12 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     let selection = choice.map_or_else(PluginSelection::new, PluginChoice::into_selection);
 
     match args.command {
+        Commands::Fingerprint(FingerprintArgs {
+            command: FingerprintCommand::Capture(capture),
+        }) => fingerprint::capture(capture, config).await?,
+        Commands::Fingerprint(_) => {
+            unreachable!("the other fingerprint subcommands return before a browser starts")
+        }
         Commands::Open { url } => {
             let mut sb = BaseCase::new(config).await?;
             sb.open(&url).await?;
