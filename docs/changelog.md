@@ -35,6 +35,31 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.5.1 s
 
 ### Added
 
+- **Fingerprint capture, export and import.** A browser's fingerprint can now be read from
+  a real browser and handed back to any launch path, as one file format everywhere: the v2
+  `Fingerprint` JSON, described by the new `schemas/fingerprint.schema.json` (a test fails
+  when the schema is stale). `Page::capture_fingerprint` (pure CDP) and
+  `BaseCase::capture_fingerprint` (WebDriver) read what a page can see of the browser and
+  return a `CapturedFingerprint` (the fingerprint, the readings no setting holds in
+  `unmapped`, and a `ProbeInfo` with the page, the time and the browser version);
+  `compare_fingerprint` checks that a live page presents a fingerprint and lists what no page
+  can read as unverifiable instead of as a match. `Fingerprint::load`, `save` (atomic,
+  mode `0600`), `from_json`, `to_json_pretty`, `diff` (`SettingDiff`), `compare_to`
+  (`FingerprintComparison`) and `claimed_settings` are public.
+- **`sbrs fingerprint capture|export|check|diff|presets`.** `capture [URL] [-o FILE]
+  [--readings FILE]` prints or writes the fingerprint of the browser the global options
+  start; `export (--preset NAME | --random [--seed N] [--os OS])` writes a preset or a seeded
+  random identity; `check FILE` reports the errors and warnings of a file (status 2 when
+  there is an error); `diff A B` lists the settings where `B` differs from what `A` expects
+  (status 1 when any does); `presets` lists the presets.
+- **The global `--fingerprint FILE`, `SB_FINGERPRINT` and a `[fingerprint]` table (`file =
+  "..."`) in the settings file** make every browser a command starts present a fingerprint
+  file. The command line wins over the variable, which wins over the file; a file that
+  cannot be read stops the command before a browser starts. A Chromium browser runs in the
+  CDP mode for it when no mode was asked for, and `sbrs devtools` applies it through the
+  pure CDP launch options. `Settings::fingerprint`, `load_fingerprint`, `check_fingerprint`
+  and `Settings::resolve_fingerprint_file` are the library side.
+
 - **`sbrs-mcp install CLIENT...`, `sbrs-mcp uninstall CLIENT...` and `sbrs-mcp clients`**
   register the server with MCP clients, remove the registration, and list the clients
   with where each keeps its config and whether its config and program were found.
@@ -107,6 +132,29 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.5.1 s
 - `Profile::ALL` has a fourth profile, and `sbrs-mcp --server` accepts `dev`.
 
 ### Fixed
+
+- The recorder writes a test that runs. A page reached by a click or a key is recorded as
+  `goto_if_not_url` (the first page stays `goto`), so the generated test no longer loads
+  every page twice; the Rust, pure CDP and Gherkin outputs and `sbrs replay` understand it.
+- `sbrs record` no longer loses what is done right after a page loads: it runs in a session
+  with a DevTools connection, which installs the listeners in every page from its first
+  moment, and looks at the page every 300 ms.
+- An `alert`, `confirm` or `prompt` no longer ends `sbrs record` or gets dismissed by it:
+  `RecorderSession::poll` tells an open dialog from a closed browser, and
+  `RecorderSession::prepare_config` leaves dialogs open for the person.
+- A click on the label of a checkbox is recorded once, not twice (the replay used to
+  toggle the box twice); a click on a `<select>` is no longer recorded before its change.
+- Enter in a field is recorded with the text (`type_text("#q", "text\n")`), so the replay
+  sends the form again, instead of a typing and a `goto` of the page the form led to.
+- The recorder's selectors find the element and nothing else: the id, then `data-testid`,
+  `name`, `aria-label`, `placeholder` and the like, then the shortest path up from the
+  element that is unique. A path cut after six levels used to fit other elements too.
+- A password typed while recording is no longer written to the file in clear text: it is
+  `{{SB_RECORDED_SECRET}}`, the generated test and `sbrs replay` read `SB_RECORDED_SECRET`
+  from the environment, and `SB_REC_KEEP_SECRETS=true` keeps the typed text.
+- `sbrs export-recording ACTIONS.json [-o TEST.rs]` writes a Rust test from an action file
+  (it used to start a browser and export an empty recording). `sbrs record URL -o test.rs`
+  and `sbrs mkrec --file test.rs --url URL` write the Rust test of what was done directly.
 
 - zsh completion reaches the second level: `sbrs pl<Tab>` now gives `sbrs plugin ` with
   a space, so the next Tab offers `info` and `list`, and a completed flag such as

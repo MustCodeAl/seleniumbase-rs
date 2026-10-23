@@ -565,8 +565,8 @@ impl BrowserConfig {
     /// for `BaseCase` (`--rec-sb-cdp`, `rec_sb_cdp`).
     ///
     /// With it on, [`BaseCase::export_recording_as_rust`](crate::BaseCase::export_recording_as_rust)
-    /// (and so `save_recording_to_logs`, `sbrs run-scenario` and
-    /// `sbrs export-recording`) returns
+    /// (and so `save_recording_to_logs` and `sbrs run-scenario`)
+    /// returns
     /// [`ActionRecorder::to_cdp_script`](crate::api::recorder::ActionRecorder::to_cdp_script).
     /// The session itself still runs on WebDriver; only the generated code
     /// changes.
