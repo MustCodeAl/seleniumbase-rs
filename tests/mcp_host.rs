@@ -531,6 +531,102 @@ async fn an_unknown_resource_and_a_refused_one_are_told_apart() {
     assert_eq!(refused["error"]["message"], "not today");
 }
 
+/// A page script that shows one button and says every ref's element is as it was.
+fn button_script(mock: &MockCtrl) {
+    mock.on("Runtime.evaluate", |params| {
+        let expression = params["expression"].as_str().unwrap_or_default();
+        let answer = if expression.contains("})(\"snapshot\"") {
+            json!({
+                "url": "https://a.test/", "title": "A", "more": 0, "truncated": false,
+                "nodes": [{ "d": 0, "role": "button", "name": "Go", "visible": true,
+                            "enabled": true, "selector": "button#go" }],
+            })
+        } else if expression.contains("})(\"verify_ref\"") {
+            json!({ "count": 1, "role": "button", "name": "Go", "url": "https://a.test/" })
+        } else {
+            Value::Null
+        };
+        Ok(json!({ "result": { "value": answer } }))
+    });
+}
+
+#[tokio::test]
+async fn a_page_snapshot_reaches_a_client_as_marked_text_structured_content_and_a_resource() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut client, _host, mock) = cdp_client(dir.path()).await;
+    button_script(&mock);
+
+    let before = client
+        .request("resources/read", json!({ "uri": "sbrs://page/snapshot" }))
+        .await;
+    let result = client.call("page_snapshot", json!({})).await;
+    let read = client
+        .result("resources/read", json!({ "uri": "sbrs://page/snapshot" }))
+        .await;
+    let listed = client.result("resources/list", json!({})).await;
+
+    assert_eq!(before["error"]["code"], json!(-32002), "{before}");
+    let text = result["content"][0]["text"].as_str().expect("a text block");
+    assert!(text.starts_with(UNTRUSTED_NOTICE), "{text}");
+    assert_eq!(result["_meta"][UNTRUSTED_META_KEY], json!(true));
+    assert_eq!(result["structuredContent"]["nodes"][0]["ref"], "e1");
+    assert_eq!(result["structuredContent"]["snapshot"], 1);
+    assert_eq!(
+        read["contents"][0]["text"].as_str().unwrap(),
+        text.strip_prefix(UNTRUSTED_NOTICE)
+            .unwrap()
+            .trim_start_matches('\n'),
+        "the resource holds the snapshot, without the notice"
+    );
+    let uris: Vec<_> = listed["resources"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|resource| resource["uri"].as_str().unwrap())
+        .collect();
+    assert!(
+        uris.contains(&"sbrs://page/snapshot") && uris.contains(&"sbrs://page/text"),
+        "{uris:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_ref_over_the_protocol_is_journaled_as_its_selector_and_a_bad_one_is_an_error_result() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut client, _host, mock) = cdp_client(dir.path()).await;
+    button_script(&mock);
+    client.call("page_snapshot", json!({})).await;
+
+    client
+        .call(
+            "click_element",
+            json!({ "selector": "ref=e1", "timeout": 0.05 }),
+        )
+        .await;
+    let bad = client
+        .call("click_element", json!({ "selector": "ref=e7" }))
+        .await;
+    let read = client
+        .result("resources/read", json!({ "uri": "sbrs://journal" }))
+        .await;
+
+    assert_eq!(bad["isError"], json!(true), "{bad}");
+    let report = bad["content"][0]["text"].as_str().unwrap();
+    assert!(
+        report.contains("unknown ref e7; the last snapshot (1) has e1..e1"),
+        "{report}"
+    );
+    assert_eq!(bad["structuredContent"]["kind"], "invalid_argument");
+    let journal: Value =
+        serde_json::from_str(read["contents"][0]["text"].as_str().unwrap()).unwrap();
+    let calls = journal["calls"].as_array().unwrap();
+    let click = calls
+        .iter()
+        .find(|call| call["tool"] == "click_element")
+        .expect("the click is in the journal");
+    assert_eq!(click["arguments"]["selector"], "button#go");
+}
+
 /// The Pure CDP server on a scripted browser, behind the protocol.
 async fn cdp_client(output_dir: &std::path::Path) -> (Client, Host<Cdp>, MockCtrl) {
     let host = cdp::host(Settings::new(output_dir));
@@ -833,11 +929,27 @@ fn the_tools_that_return_page_text_are_marked_untrusted() {
 
     assert_eq!(
         cdp::host(settings()).untrusted_tool_names(),
-        ["get_content", "get_attributes"]
+        [
+            "get_content",
+            "get_attributes",
+            "page_snapshot",
+            "read_page_text",
+            "extract_links",
+            "extract_tables",
+            "extract_forms"
+        ]
     );
     assert_eq!(
         driver::host(settings()).untrusted_tool_names(),
-        ["get_page_source", "get_text"]
+        [
+            "get_page_source",
+            "get_text",
+            "page_snapshot",
+            "read_page_text",
+            "extract_links",
+            "extract_tables",
+            "extract_forms"
+        ]
     );
     assert_eq!(
         sb::host(settings()).untrusted_tool_names(),
@@ -845,7 +957,12 @@ fn the_tools_that_return_page_text_are_marked_untrusted() {
             "get_text",
             "get_html_source",
             "get_element_html",
-            "get_attribute"
+            "get_attribute",
+            "page_snapshot",
+            "read_page_text",
+            "extract_links",
+            "extract_tables",
+            "extract_forms"
         ]
     );
     assert!(dev::host(settings()).untrusted_tool_names().is_empty());

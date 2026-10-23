@@ -159,7 +159,12 @@ fn sorted(mut names: Vec<&'static str>) -> Vec<&'static str> {
 /// The debugging tools the `driver` server shares with `sb`: the same
 /// definitions, registered by name, so that a model that drives with `Driver()`
 /// can also look at the page and the session.
-const DRIVER_DEBUG_TOOLS: [&str; 8] = [
+const DRIVER_DEBUG_TOOLS: [&str; 13] = [
+    "extract_forms",
+    "extract_links",
+    "extract_tables",
+    "page_snapshot",
+    "read_page_text",
     "capture_debug_bundle",
     "diagnose_environment",
     "diagnose_selector",
@@ -181,7 +186,7 @@ fn the_driver_server_offers_the_tools_of_the_python_driver_server_plus_the_debug
         .collect();
     expected.sort_unstable();
     assert_eq!(offered, expected);
-    assert_eq!(offered.len(), 34);
+    assert_eq!(offered.len(), 39);
 }
 
 #[test]
@@ -224,7 +229,12 @@ async fn the_driver_servers_debugging_tools_need_a_started_browser_like_the_sb_s
 }
 
 /// The tools this crate adds for developing, debugging and testing.
-const DEVELOPER_TOOLS: [&str; 9] = [
+const DEVELOPER_TOOLS: [&str; 14] = [
+    "extract_forms",
+    "extract_links",
+    "extract_tables",
+    "page_snapshot",
+    "read_page_text",
     "audit_page",
     "capture_debug_bundle",
     "diagnose_environment",

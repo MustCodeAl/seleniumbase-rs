@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head><title>Snapshot Fixture</title></head>
+<body>
+<header>
+  <nav aria-label="Main menu">
+    <a href="/docs">Docs</a>
+    <a href="/blog" rel="noopener">Blog</a>
+    <a href="/docs">Docs</a>
+    <a href="https://other.test/x" target="_blank">Elsewhere</a>
+    <a href="javascript:void(0)">Script</a>
+  </nav>
+</header>
+<main>
+  <h1>Sign in</h1>
+  <form id="login" aria-label="Login" action="/login" method="post">
+    <label for="email">Email</label>
+    <input id="email" name="email" type="email" required value="a@b.c">
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" required value="s3cret-pass">
+    <label><input id="remember" type="checkbox" name="remember" checked> Remember me</label>
+    <select id="plan" name="plan" aria-label="Plan">
+      <option value="free" selected>Free</option>
+      <option value="pro">Pro</option>
+    </select>
+    <input type="hidden" name="csrf" value="tok123">
+    <button id="go" type="submit" disabled>Sign in</button>
+  </form>
+  <table id="prices">
+    <caption>Prices</caption>
+    <thead><tr><th>Item</th><th colspan="2">Cost</th></tr></thead>
+    <tbody>
+      <tr><td rowspan="2">Mug</td><td>Small</td><td>4</td></tr>
+      <tr><td>Large</td><td>6</td></tr>
+    </tbody>
+  </table>
+  <p>Some <a href="/docs">readable</a> paragraph about <code>mugs</code>.</p>
+</main>
+<footer>Footer text</footer>
+<iframe id="pay" title="Payment" src="/frame"></iframe>
+<div id="host"></div>
+<script>
+  document.getElementById("host").attachShadow({ mode: "open" }).innerHTML =
+    '<button id="shadow-btn">Inside the shadow</button>';
+</script>
+</body>
+</html>
