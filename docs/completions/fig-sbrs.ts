@@ -2398,6 +2398,144 @@ const completionSpec: Fig.Spec = {
       ],
     },
     {
+      name: "fingerprint",
+      description: "Capture, write, check and compare browser fingerprints.",
+      subcommands: [
+        {
+          name: "capture",
+          description: "Read the fingerprint of a real browser and write it as a fingerprint file.",
+          options: [
+            {
+              name: ["-o", "--output"],
+              description: "Write the fingerprint to FILE instead of printing it.",
+              args: {
+                name: "file",
+                template: "filepaths",
+              },
+            },
+            {
+              name: "--readings",
+              description: "Also write the readings that no setting holds, and where the capture was taken, to FILE.",
+              args: {
+                name: "file",
+                template: "filepaths",
+              },
+            },
+            {
+              name: ["-h", "--help"],
+              description: "Print help",
+            },
+          ],
+          args: [
+            {
+              name: "url",
+              description: "The page to open first (default: a blank page).",
+              isOptional: true,
+            },
+          ],
+        },
+        {
+          name: "export",
+          description: "Write a preset or a random identity as a fingerprint file.",
+          options: [
+            {
+              name: "--preset",
+              description: "The preset to write: windows, edge, macos, linux, android or ios (safari is ios).",
+              args: {
+                name: "name",
+              },
+            },
+            {
+              name: "--random",
+              description: "Write a random identity instead of a preset.",
+            },
+            {
+              name: "--seed",
+              description: "With --random, the seed of the draw: the same seed gives the same identity.",
+              args: {
+                name: "n",
+              },
+            },
+            {
+              name: "--os",
+              description: "With --random, the system the identity claims (default: this machine's).",
+              args: {
+                name: "os",
+                suggestions: ["windows", "macos", "linux", "android", "ios"],
+              },
+            },
+            {
+              name: ["-o", "--output"],
+              description: "Write the fingerprint to FILE instead of printing it.",
+              args: {
+                name: "file",
+                template: "filepaths",
+              },
+            },
+            {
+              name: ["-h", "--help"],
+              description: "Print help",
+            },
+          ],
+        },
+        {
+          name: "check",
+          description: "Check that a fingerprint file loads and is coherent.",
+          options: [
+            {
+              name: ["-h", "--help"],
+              description: "Print help",
+            },
+          ],
+          args: [
+            {
+              name: "file",
+              description: "The fingerprint file to check.",
+              template: "filepaths",
+            },
+          ],
+        },
+        {
+          name: "diff",
+          description: "Compare two fingerprint files.",
+          options: [
+            {
+              name: ["-h", "--help"],
+              description: "Print help",
+            },
+          ],
+          args: [
+            {
+              name: "expected",
+              description: "The file with what is expected.",
+              template: "filepaths",
+            },
+            {
+              name: "found",
+              description: "The file with what is found.",
+              template: "filepaths",
+            },
+          ],
+        },
+        {
+          name: "presets",
+          description: "List the presets and what each claims.",
+          options: [
+            {
+              name: ["-h", "--help"],
+              description: "Print help",
+            },
+          ],
+        },
+      ],
+      options: [
+        {
+          name: ["-h", "--help"],
+          description: "Print help",
+        },
+      ],
+    },
+    {
       name: "help",
       description: "Print this message or the help of the given subcommand(s)",
       args: { name: "subcommand", isOptional: true, isVariadic: true },
@@ -2527,6 +2665,14 @@ const completionSpec: Fig.Spec = {
       description: "Path to a TOML/JSON settings file",
       args: {
         name: "config",
+      },
+    },
+    {
+      name: "--fingerprint",
+      description: "Make every browser the command starts present the fingerprint in FILE",
+      args: {
+        name: "file",
+        template: "filepaths",
       },
     },
     {

@@ -72,6 +72,14 @@ flag "-n --threads" help="Number of parallel threads for test runs" {
 flag "-c --config" help="Path to a TOML/JSON settings file" {
     arg <CONFIG>
 }
+flag --fingerprint help="Make every browser the command starts present the fingerprint in FILE" global=#true {
+    long_help #"""
+Make every browser the command starts present the fingerprint in FILE
+
+The file is the fingerprint JSON that `sbrs fingerprint capture` and `export` write. A Chromium browser then runs in the CDP mode unless --uc or another mode is given. The command line wins over SB_FINGERPRINT, which wins over the [fingerprint] table of the settings file. The user agent, language and proxy named by their own options win over the fingerprint's.
+"""#
+    arg <FILE>
+}
 flag --plugin help="Turn on a built-in plugin in the browsers the command starts (repeatable)" var=#true {
     long_help #"""
 Turn on a built-in plugin in the browsers the command starts (repeatable)
@@ -90,6 +98,7 @@ Quote the whole option so the shell keeps the quotes of a string: --plugin-opt '
 }
 flag "-h --help" help="Print help" action=help builtin=#true
 flag "-V --version" help="Print version" action=version builtin=#true
+complete file type=path
 cmd version help="Print the sbrs version, as `sbrs --version` does." {
     flag "-h --help" help="Print help" action=help builtin=#true
 }
@@ -1002,5 +1011,86 @@ Prints the plugin's category, phase, capabilities (with their risk, and whether 
 """#
         flag "-h --help" help="Print help" action=help builtin=#true
         arg <NAME> help="The plugin's name, as `sbrs plugin list` shows it."
+    }
+}
+cmd fingerprint help="Capture, write, check and compare browser fingerprints." subcommand_required=#true {
+    long_help #"""
+Capture, write, check and compare browser fingerprints.
+
+A fingerprint file is what a browser claims to be: the user agent, the screen, the language, the graphics card and the rest, as one JSON file. `capture` reads it from a real browser; `export` writes a preset or a random identity; `check` and `diff` read files. The global --fingerprint FILE (or SB_FINGERPRINT, or the [fingerprint] table of the settings file) makes every browser a command starts present one.
+"""#
+    flag "-h --help" help="Print help" action=help builtin=#true
+    cmd capture help="Read the fingerprint of a real browser and write it as a fingerprint file." args_override_self=#false {
+        long_help #"""
+Read the fingerprint of a real browser and write it as a fingerprint file.
+
+Starts a browser as `sbrs open` does (the global --browser, --headless, --proxy and the rest apply), opens URL (a blank page when there is none), reads what a page can see of the browser, and prints the fingerprint as JSON, or writes it to FILE. A summary goes to standard error. What no setting holds (window sizes, the automation markers, the canvas hash) stays out of the fingerprint; --readings writes it to its own file.
+"""#
+        flag "-o --output" help="Write the fingerprint to FILE instead of printing it." {
+            arg <FILE>
+        }
+        flag --readings help="Also write the readings that no setting holds, and where the capture was taken, to FILE." {
+            arg <FILE>
+        }
+        flag "-h --help" help="Print help" action=help builtin=#true
+        arg "[URL]" help="The page to open first (default: a blank page)."
+        complete file type=path
+    }
+    cmd export help="Write a preset or a random identity as a fingerprint file." args_override_self=#false {
+        long_help #"""
+Write a preset or a random identity as a fingerprint file.
+
+Give --preset NAME (windows, edge, macos, linux, android, ios) or --random. A random identity follows --seed, so the same seed gives the same file, and --os, the system it claims (default: this machine's). The file goes to FILE, else to standard output.
+"""#
+        flag --preset help="The preset to write: windows, edge, macos, linux, android or ios (safari is ios)." {
+            arg <NAME>
+        }
+        flag --random help="Write a random identity instead of a preset." bool_value=#true
+        flag --seed help="With --random, the seed of the draw: the same seed gives the same identity." {
+            arg <N>
+        }
+        flag --os help="With --random, the system the identity claims (default: this machine's)." {
+            arg <OS> {
+                choices {
+                    choice windows
+                    choice macos
+                    choice linux
+                    choice android
+                    choice ios
+                }
+            }
+        }
+        flag "-o --output" help="Write the fingerprint to FILE instead of printing it." {
+            arg <FILE>
+        }
+        flag "-h --help" help="Print help" action=help builtin=#true
+        complete file type=path
+    }
+    cmd check help="Check that a fingerprint file loads and is coherent." {
+        long_help #"""
+Check that a fingerprint file loads and is coherent.
+
+Prints how many settings the file gives, each error and warning, and the verdict. Exits with status 2 when there is an error or the file does not load.
+"""#
+        flag "-h --help" help="Print help" action=help builtin=#true
+        arg <FILE> help="The fingerprint file to check."
+        complete file type=path
+    }
+    cmd diff help="Compare two fingerprint files." {
+        long_help #"""
+Compare two fingerprint files.
+
+EXPECTED is what is expected and FOUND what is found: a setting that EXPECTED leaves natural is never compared. Prints each setting that differs. Exits with status 1 when any differs, 0 when none does, and 2 when a file does not load.
+
+To check that a browser presents a file: `sbrs --fingerprint f.json fingerprint capture -o seen.json`, then `sbrs fingerprint diff f.json seen.json`.
+"""#
+        flag "-h --help" help="Print help" action=help builtin=#true
+        arg <EXPECTED> help="The file with what is expected."
+        arg <FOUND> help="The file with what is found."
+        complete expected type=path
+        complete found type=path
+    }
+    cmd presets help="List the presets and what each claims." {
+        flag "-h --help" help="Print help" action=help builtin=#true
     }
 }
