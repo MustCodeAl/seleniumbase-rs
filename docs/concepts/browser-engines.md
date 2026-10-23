@@ -36,7 +36,7 @@ The JavaScript engine does not stand alone. It is given access to the page
 engine is normally paired with one JavaScript engine. The next pages explain
 the parts in detail: [how a page loads](/concepts/how-a-page-loads), the
 [browser's processes](/concepts/browser-architecture) and
-[the render steps](/concepts/rendering-and-performance).
+the render steps.
 
 ## The three families
 
@@ -134,7 +134,7 @@ A new feature normally appears first in one engine as an experiment, then in the
 others once the standard settles. Reference sites track who supports what: the
 browser compatibility tables on MDN, [caniuse.com](https://caniuse.com), and the
 shared test suite **Web Platform Tests**, which every engine runs against.
-[Web APIs](/concepts/web-apis) shows how to read a compatibility table, and
+Web APIs shows how to read a compatibility table, and
 [Modern web](/concepts/modern-web) lists newer features.
 
 ## Why cross-browser testing exists
@@ -231,7 +231,7 @@ There is no WebKit or Gecko option in the pure CDP engine, because
 [CDP](/concepts/cdp) belongs to Chromium. To test on Safari, run the WebDriver
 engine with `Browser::Safari` on a Mac. To test on iOS, use a real device or a
 cloud device service: Chrome's phone emulation is Blink pretending to be small,
-as [Mobile web](/concepts/mobile-web) explains.
+as Mobile web explains.
 
 </Note>
 
@@ -243,16 +243,10 @@ as [Mobile web](/concepts/mobile-web) explains.
   The processes, the sandbox and the tabs around an engine.
 </Card>
 
-<Card title="Rendering and performance" icon="gauge-high" color="#199f43" href="/concepts/rendering-and-performance">
-  What the rendering engine does between HTML and pixels.
-</Card>
 
 <Card title="WebDriver and drivers" icon="plug" color="#d47628" href="/concepts/webdriver">
   The standard protocol every browser's driver speaks.
 </Card>
 
-<Card title="Mobile web" icon="mobile-screen" color="#a631be" href="/concepts/mobile-web">
-  Phones, WebKit on iOS and device emulation.
-</Card>
 
 </Columns>
