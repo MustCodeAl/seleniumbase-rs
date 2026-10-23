@@ -213,6 +213,29 @@ work, `docs/parity.md` the per-API status).
   read instead of the global file of the working folder.
 
 
+- **The pure CDP engine takes the browser options of the WebDriver engine.**
+  `LaunchOptionsBuilder::mobile` and `device_metrics` make every tab, the first and each one
+  opened later, a phone: `Emulation.setDeviceMetricsOverride` with `mobile: true` (390 by 715
+  at a ratio of 3 unless metrics are given), five touch points, and the `Android` user agent
+  with matching client hints. `dark_mode`, `devtools`, `disable_web_security`, `swiftshader`,
+  `maximize`, `disable_features`, `enable_features`, `host_resolver_rules`,
+  `proxy_bypass_list`, `proxy_pac_url` (a login the PAC file asks for is answered over the
+  protocol), `virtual_display` (Xvfb, Linux, headed) and `switch(LaunchSwitch, bool)` are
+  public. `switch` writes `BlockImages`, `DisableJavaScript`, `DisableCookies`, `DoNotTrack`
+  and `ExternalPdf` as profile preferences, makes `DisableCsp` call `Page.setBypassCSP` in
+  every tab, and logs at debug level the switches that only the WebDriver engine can use.
+  A maximized window gets no `--window-size`, a headless browser neither developer tools nor
+  a maximized window, and this engine never switches the GPU off by itself.
+  `LaunchOptionsBuilder::browser_config(&BrowserConfig)` reads everything of a
+  `BrowserConfig` that the engine can use, as Python's `sb_cdp.Chrome(**kwargs)` reads its
+  options, and lists at debug level what it cannot (page load strategy, capabilities, driver
+  version, Firefox options, the DevTools event log, extension archives); a bad proxy or PAC
+  address fails `build()` as it fails the WebDriver engine. `build()` refuses `mobile` together
+  with a `fingerprint`, which both set the screen and the user agent.
+- **`Emulation` changes a running tab.** `device_metrics(metrics, mobile)`,
+  `clear_device_metrics()`, `touch(enabled)` and `color_scheme(ColorScheme)` (`Light`,
+  `Dark`, `NoPreference`: what `prefers-color-scheme` reports).
+
 - **Proxies are checked the way Python checks them.** `browser::options::ProxyAddress`
   (`[scheme://][user:pass@]host:port`, schemes `http`, `https`, `socks4`, `socks5`, `socks5h`),
   `ProxyScheme` and `PacUrl` (`[user:pass@]URL`, which must end in `.pac`) refuse a bad string
@@ -469,8 +492,8 @@ work, `docs/parity.md` the per-API status).
   capability, which a page can see, and sends the same phone over DevTools to every window
   (`BrowserSession::apply_mobile_emulation`: device metrics, five touch points and the user
   agent). Firefox, Safari and Internet Explorer log a warning and start as desktop browsers.
-  `MOBILE_USER_AGENT` is public in `browser::options`. The pure CDP engine is not changed
-  here.
+  `MOBILE_USER_AGENT` is public in `browser::options`. The pure CDP engine gets the same
+  phone in every tab (see Added).
 - **`headless1` runs `chrome-headless-shell`** for Chrome with no program of its own named
   (downloaded when missing); the undetected mode refuses it as it refuses the shell.
   `chrome-headless-shell` is always headless. `Chrome`'s locale is written `ar-EG` for

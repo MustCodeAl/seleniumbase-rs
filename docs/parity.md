@@ -1244,14 +1244,14 @@ Keyword arguments of `Driver()`.
 | `d_height` | implemented | `DeviceMetrics::height` |  |
 | `d_p_r` | implemented | `DeviceMetrics::pixel_ratio` |  |
 | `d_width` | implemented | `DeviceMetrics::width` |  |
-| `dark_mode` | implemented | `BrowserConfig::with_dark_mode` |  |
-| `devtools` | implemented | `BrowserConfig::with_devtools` |  |
+| `dark_mode` | implemented | `BrowserConfig::with_dark_mode` | The pure CDP engine has LaunchOptionsBuilder::dark_mode, and Emulation::color_scheme changes only what prefers-color-scheme reports in a running tab. |
+| `devtools` | implemented | `BrowserConfig::with_devtools` | The pure CDP engine has LaunchOptionsBuilder::devtools. A headless browser has no window for them and gets nothing. |
 | `disable_cookies` | implemented | `BrowserConfig::with_disable_cookies` | Chrome's cookie content-setting preference, or Firefox's `network.cookie.cookieBehavior`. |
-| `disable_csp` | implemented | `BrowserConfig::with_disable_csp` | Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only. |
-| `disable_features` | implemented | `BrowserConfig::with_disable_features` |  |
+| `disable_csp` | implemented | `BrowserConfig::with_disable_csp` | Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only. The pure CDP engine calls Page.setBypassCSP in every tab (LaunchOptionsBuilder::switch with LaunchSwitch::DisableCsp), as Python's CDP mode does. |
+| `disable_features` | implemented | `BrowserConfig::with_disable_features` | The pure CDP engine has LaunchOptionsBuilder::disable_features, joined with the library's own into the one switch Chrome reads. |
 | `disable_gpu` | implemented | `BrowserConfig::with_disable_gpu` |  |
 | `disable_js` | implemented | `BrowserConfig::with_disable_js` | Chrome's JavaScript content-setting preference, or Firefox's `javascript.enabled`. |
-| `disable_ws` | implemented | `BrowserConfig::with_disable_ws` |  |
+| `disable_ws` | implemented | `BrowserConfig::with_disable_ws` | The pure CDP engine has LaunchOptionsBuilder::disable_web_security. |
 | `do_not_track` | implemented | `BrowserConfig::with_do_not_track` | Chrome's `enable_do_not_track` preference, or Firefox's `privacy.donottrackheader.enabled`. |
 | `driver_version` | implemented | `BrowserConfig::with_driver_version` | browser, mlatest (the newest build of the browser's major version), latest, stable, beta, dev, canary, keep (a driver already downloaded or on the PATH), previous or latest-1 (the major before the stable one), a major version or a full version. The driver goes to downloaded_drivers/chromedriver-&lt;version&gt;/. |
 | `enable_3d_apis` | implemented | `BrowserConfig::with_enable_3d_apis` | A headless session keeps the GPU. A Rust session never adds --disable-3d-apis. |
@@ -1268,14 +1268,14 @@ Keyword arguments of `Driver()`.
 | `headless` | implemented | `BrowserConfig::headless` |  |
 | `headless1` | implemented | `BrowserConfig::with_headless1` | Chrome's old headless mode now exists only as chrome-headless-shell: Chrome with no program of its own named runs it (downloaded when missing); the undetected mode cannot. |
 | `headless2` | implemented | `BrowserConfig::with_headless2` | `headless = true` launches Chrome's new headless mode (`--headless=new`), which is what headless2 asks for. |
-| `host_resolver_rules` | implemented | `BrowserConfig::with_host_resolver_rules` |  |
+| `host_resolver_rules` | implemented | `BrowserConfig::with_host_resolver_rules` | The pure CDP engine has LaunchOptionsBuilder::host_resolver_rules. |
 | `incognito` | implemented | `BrowserConfig::with_incognito` |  |
 | `is_mobile` | composed | `BrowserConfig::mobile` | Give the screen with `with_device_metrics`. |
 | `locale` | implemented | `BrowserConfig::locale` |  |
 | `locale_code` | composed | `BrowserConfig::locale` |  |
 | `log_cdp` | implemented | `BrowserConfig::with_cdp_events` | Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`. |
 | `log_cdp_events` | implemented | `BrowserConfig::with_cdp_events` | Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`. |
-| `mobile` | implemented | `BrowserConfig::mobile` |  |
+| `mobile` | implemented | `BrowserConfig::mobile` | The pure CDP engine has LaunchOptionsBuilder::mobile and device_metrics: every tab, also one opened later, gets the same phone (390 by 715 at a ratio of 3 unless metrics are given). Python's pure CDP default is 412 by 732. |
 | `multi_proxy` | composed | `LaunchOptionsBuilder::proxy` | Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine passes the proxy as a flag and cannot log in to one. |
 | `no_sandbox` | implemented | `BrowserConfig::with_no_sandbox` |  |
 | `page_load_strategy` | implemented | `BrowserConfig::with_page_load_strategy` | The `pageLoadStrategy` capability: normal, eager or none. |
@@ -1284,14 +1284,14 @@ Keyword arguments of `Driver()`.
 | `position` | implemented | `BrowserConfig::with_window_position` | Chrome's `--window-position`; a Firefox window is moved once it runs. |
 | `protocol` | implemented | `BrowserConfig::with_grid` | `with_grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL. |
 | `proxy` | implemented | `BrowserConfig::proxy` | Differs: Checked as Python checks it (schemes http, https, socks4, socks5, socks5h; a SOCKS proxy takes no login). Chrome is never given the login in its arguments, and a WebDriver session does not answer the proxy's login yet, so USER:PASS@SERVER:PORT does not authenticate there; Firefox refuses a login with Python's message. The pure CDP engine can log in (LaunchOptionsBuilder::proxy). |
-| `proxy_bypass_list` | implemented | `BrowserConfig::with_proxy_bypass_list` | Chrome's `--proxy-bypass-list`. It applies to a proxy named with `proxy`, not to a PAC file. |
-| `proxy_pac_url` | implemented | `BrowserConfig::proxy_pac_url` | Differs: The URL must end in .pac, with a login before it or in it. Chrome is never given the login, and a WebDriver session does not answer the PAC login yet, so it does not authenticate there; Firefox refuses a login with Python's message. |
+| `proxy_bypass_list` | implemented | `BrowserConfig::with_proxy_bypass_list` | Chrome's `--proxy-bypass-list`. It applies to a proxy named with `proxy`, not to a PAC file. The pure CDP engine has LaunchOptionsBuilder::proxy_bypass_list. |
+| `proxy_pac_url` | implemented | `BrowserConfig::proxy_pac_url` | The pure CDP engine has LaunchOptionsBuilder::proxy_pac_url, and answers a login the PAC file asks for over the protocol. Differs: The URL must end in .pac, with a login before it or in it. Chrome is never given the login, and a WebDriver session does not answer the PAC login yet, so it does not authenticate there; Firefox refuses a login with Python's message. |
 | `recorder_ext` | implemented | `BrowserConfig::with_recorder_extension` | Loads the bundled SeleniumBase Recorder extension. Chromium only. |
 | `remote_debug` | implemented | `BrowserConfig::with_remote_debug` | Opens Chrome's debugger on port 9222, or on a free port when 9222 is in use; `with_remote_debug_port` names another and refuses it when it is in use; `BrowserSession::remote_debug_address` says where it listens. |
 | `server` | implemented | `BrowserConfig::with_grid` | `with_grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL. |
 | `servername` | implemented | `BrowserConfig::with_grid` | The server name may carry a login (`USER:KEY@hub.browserstack.com`), which stays in the WebDriver URL; see `with_grid`. |
 | `size` | implemented | `BrowserConfig::with_window_size` | Chrome's `--window-size`; a Firefox window is resized once it runs. |
-| `swiftshader` | implemented | `BrowserConfig::with_swiftshader` |  |
+| `swiftshader` | implemented | `BrowserConfig::with_swiftshader` | The pure CDP engine has LaunchOptionsBuilder::swiftshader. |
 | `uc` | composed | `BrowserConfig::mode` | DriverMode::Uc. |
 | `uc_cdp` | implemented | `BrowserConfig::with_cdp_events` | CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`. Differs: Python adds a listener with driver.add_cdp_listener; here the events are read back from the log. |
 | `uc_cdp_events` | implemented | `BrowserConfig::with_cdp_events` | CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`. Differs: Python adds a listener with driver.add_cdp_listener; here the events are read back from the log. |

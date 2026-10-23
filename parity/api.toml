@@ -4084,10 +4084,12 @@ rust = "DeviceMetrics::width"
 [options_driver."dark_mode"]
 status = "implemented"
 rust = "BrowserConfig::with_dark_mode"
+note = "The pure CDP engine has LaunchOptionsBuilder::dark_mode, and Emulation::color_scheme changes only what prefers-color-scheme reports in a running tab."
 
 [options_driver."devtools"]
 status = "implemented"
 rust = "BrowserConfig::with_devtools"
+note = "The pure CDP engine has LaunchOptionsBuilder::devtools. A headless browser has no window for them and gets nothing."
 
 [options_driver."disable_cookies"]
 status = "implemented"
@@ -4097,11 +4099,12 @@ note = "Chrome's cookie content-setting preference, or Firefox's `network.cookie
 [options_driver."disable_csp"]
 status = "implemented"
 rust = "BrowserConfig::with_disable_csp"
-note = "Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only."
+note = "Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only. The pure CDP engine calls Page.setBypassCSP in every tab (LaunchOptionsBuilder::switch with LaunchSwitch::DisableCsp), as Python's CDP mode does."
 
 [options_driver."disable_features"]
 status = "implemented"
 rust = "BrowserConfig::with_disable_features"
+note = "The pure CDP engine has LaunchOptionsBuilder::disable_features, joined with the library's own into the one switch Chrome reads."
 
 [options_driver."disable_gpu"]
 status = "implemented"
@@ -4115,6 +4118,7 @@ note = "Chrome's JavaScript content-setting preference, or Firefox's `javascript
 [options_driver."disable_ws"]
 status = "implemented"
 rust = "BrowserConfig::with_disable_ws"
+note = "The pure CDP engine has LaunchOptionsBuilder::disable_web_security."
 
 [options_driver."do_not_track"]
 status = "implemented"
@@ -4194,6 +4198,7 @@ note = "`headless = true` launches Chrome's new headless mode (`--headless=new`)
 [options_driver."host_resolver_rules"]
 status = "implemented"
 rust = "BrowserConfig::with_host_resolver_rules"
+note = "The pure CDP engine has LaunchOptionsBuilder::host_resolver_rules."
 
 [options_driver."incognito"]
 status = "implemented"
@@ -4225,6 +4230,7 @@ note = "Asks the driver to keep the performance log; read it with `BrowserSessio
 [options_driver."mobile"]
 status = "implemented"
 rust = "BrowserConfig::mobile"
+note = "The pure CDP engine has LaunchOptionsBuilder::mobile and device_metrics: every tab, also one opened later, gets the same phone (390 by 715 at a ratio of 3 unless metrics are given). Python's pure CDP default is 412 by 732."
 
 [options_driver."multi_proxy"]
 status = "composed"
@@ -4268,11 +4274,12 @@ divergence = "Checked as Python checks it (schemes http, https, socks4, socks5, 
 [options_driver."proxy_bypass_list"]
 status = "implemented"
 rust = "BrowserConfig::with_proxy_bypass_list"
-note = "Chrome's `--proxy-bypass-list`. It applies to a proxy named with `proxy`, not to a PAC file."
+note = "Chrome's `--proxy-bypass-list`. It applies to a proxy named with `proxy`, not to a PAC file. The pure CDP engine has LaunchOptionsBuilder::proxy_bypass_list."
 
 [options_driver."proxy_pac_url"]
 status = "implemented"
 rust = "BrowserConfig::proxy_pac_url"
+note = "The pure CDP engine has LaunchOptionsBuilder::proxy_pac_url, and answers a login the PAC file asks for over the protocol."
 divergence = "The URL must end in .pac, with a login before it or in it. Chrome is never given the login, and a WebDriver session does not answer the PAC login yet, so it does not authenticate there; Firefox refuses a login with Python's message."
 
 [options_driver."recorder_ext"]
@@ -4303,6 +4310,7 @@ note = "Chrome's `--window-size`; a Firefox window is resized once it runs."
 [options_driver."swiftshader"]
 status = "implemented"
 rust = "BrowserConfig::with_swiftshader"
+note = "The pure CDP engine has LaunchOptionsBuilder::swiftshader."
 
 [options_driver."uc"]
 status = "composed"
