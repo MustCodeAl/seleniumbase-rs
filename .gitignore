@@ -6,6 +6,8 @@
 .DS_Store
 node_modules/
 downloaded_drivers/
+# Where a browser launched by the library saves downloads (./downloaded_files)
+downloaded_files/
 .serena/
 __pycache__/
 

@@ -5,6 +5,7 @@ pub mod binaries;
 pub mod chrome_for_testing;
 pub mod config;
 pub mod downloader;
+pub mod downloads;
 pub mod driver_access;
 pub mod driver_install;
 pub mod driver_version;
