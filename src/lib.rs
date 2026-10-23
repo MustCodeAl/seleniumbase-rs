@@ -138,6 +138,12 @@ pub mod storage;
 )]
 pub mod sb_cdp;
 pub mod stealth;
+/// The `sb` and `sb_cdp` fixtures for `cargo test` with the per-test lifecycle:
+/// the run configuration, reruns, a time limit, evidence of a failure and the debug
+/// prompts (feature `testing`).
+#[cfg(feature = "testing")]
+pub mod testing;
+
 pub mod tracing_util;
 pub mod utilities;
 pub mod utils;
