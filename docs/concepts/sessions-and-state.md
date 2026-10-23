@@ -153,7 +153,8 @@ are two main designs.
 
 Where the token lives matters. A cookie marked `HttpOnly` cannot be read by page
 JavaScript, so a cross-site scripting bug cannot steal it. A token in
-`localStorage` can be read by any script on the page. The sections above show how cookies and storage behave.
+`localStorage` can be read by any script on the page. The sections above show how cookies and storage
+behave.
 
 ## How a login persists
 
@@ -380,31 +381,12 @@ expires. Keep it out of Git and out of CI logs.
 
 ### Saving a signed-in state
 
-<Steps>
-
-<Step title="Sign in once" icon="right-to-bracket">
-
-Run the login flow in a browser.
-
-</Step>
-
-<Step title="Save the state" icon="floppy-disk">
-
-Save the cookies (and storage, where the site uses it): `save_cookies` in
-`BaseCase`, `page.cookies().save(path, filter)` for a file in the pure CDP
-engine, `save_session` on a pool lease for an in-memory copy.
-
-</Step>
-
-<Step title="Load it next time" icon="rotate">
-
-Open the site's origin, then load the state: `load_cookies`,
-`page.cookies().load(path, filter)`, or `load_session`. Cookies belong to a
-domain, so the page must be on that domain first.
-
-</Step>
-
-</Steps>
+These are the calls for each step. To save the state, use `save_cookies` in
+`BaseCase`, `page.cookies().save(path, filter)` for a file in the pure CDP engine,
+or `save_session` on a pool lease for an in-memory copy (and the `localStorage`
+entries as well, where the site keeps its token there). To load it, open the
+site's origin first, because cookies belong to a domain, then call
+`load_cookies`, `page.cookies().load(path, filter)` or `load_session`.
 
 The in-memory form is a `Session`: the cookies plus the `localStorage` entries
 of one origin, built with `Session::new(cookies)` and
