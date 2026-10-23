@@ -242,10 +242,14 @@ fn push_line(out: &mut String, depth: usize, line: &str) {
 mod tests {
     use super::{first_line, list, names, quote};
 
-    /// The first lines of the option or argument that starts with `name:` in the spec of the CLI.
+    /// The names of the root's `-c` flag, as the spec lists them.
+    const CONFIG: &str = "[\"-c\", \"--config\", \"--settings-file\", \"--settings\"]";
+
+    /// The first lines of the last option or argument that starts with `name:` in the spec of
+    /// the CLI: the root's options come after its subcommands, so a global flag is the root's.
     fn entry(spec: &str, name: &str) -> String {
         let start = spec
-            .find(&format!("name: {name},"))
+            .rfind(&format!("name: {name},"))
             .unwrap_or_else(|| panic!("{name} is listed"));
         spec[start..].lines().take(8).collect::<Vec<_>>().join("\n")
     }
@@ -253,8 +257,8 @@ mod tests {
     #[test]
     fn a_global_option_is_persistent_and_a_local_one_is_not() {
         let spec = super::spec(crate::Cli::spec());
-        assert!(entry(&spec, "\"--headless\"").contains("isPersistent: true,"));
-        assert!(entry(&spec, "[\"-c\", \"--config\"]").contains("isPersistent: true,"));
+        assert!(entry(&spec, "[\"--headless\", \"--headless2\"]").contains("isPersistent: true,"));
+        assert!(entry(&spec, CONFIG).contains("isPersistent: true,"));
         assert!(!entry(&spec, "\"--title-contains\"").contains("isPersistent"));
     }
 
@@ -262,7 +266,7 @@ mod tests {
     fn a_path_limited_to_extensions_keeps_its_file_template() {
         let spec = super::spec(crate::Cli::spec());
         // `--config` takes `path:toml,json` in the usage spec; Fig has no extension filter.
-        assert!(entry(&spec, "[\"-c\", \"--config\"]").contains("template: \"filepaths\""));
+        assert!(entry(&spec, CONFIG).contains("template: \"filepaths\""));
         assert!(entry(&spec, "\"--user-data-dir\"").contains("template: \"folders\""));
     }
 
