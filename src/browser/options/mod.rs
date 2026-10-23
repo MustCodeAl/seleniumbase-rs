@@ -50,6 +50,8 @@ mod page_load;
 #[cfg(feature = "plugins")]
 mod plugins;
 mod proxy;
+mod remote;
+
 mod switches;
 mod virtual_display;
 mod window;
@@ -68,7 +70,8 @@ pub use locale::LocaleCode;
 pub use page_load::PageLoadStrategy;
 #[cfg(feature = "plugins")]
 pub use plugins::BrowserPlugins;
-pub use proxy::ProxyBypassList;
+pub use proxy::{PacUrl, ProxyAddress, ProxyBypassList, ProxyScheme};
+pub use remote::{grid_url, GridProtocol};
 pub use switches::{chrome_preferences, firefox_preferences, nested_preferences, LaunchSwitch};
 pub use virtual_display::VirtualDisplay;
 pub use window::{WindowPosition, WindowSize};
@@ -114,6 +117,15 @@ pub struct LaunchSettings {
     /// The port of Chrome's remote debugger (`--remote-debug`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub remote_debug_port: Option<u16>,
+    /// Whether the remote debugger may take another port when
+    /// `remote_debug_port` is in use. Set by
+    /// [`with_remote_debug`](crate::BrowserConfig::with_remote_debug), which asks
+    /// for the default port only; a port named with
+    /// [`with_remote_debug_port`](crate::BrowserConfig::with_remote_debug_port)
+    /// is an error when it is busy.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub remote_debug_any_port: bool,
+
     /// Whether to log DevTools Protocol events (`--log-cdp-events`).
     #[serde(skip_serializing_if = "CdpEventCapture::is_off")]
     pub cdp_events: CdpEventCapture,

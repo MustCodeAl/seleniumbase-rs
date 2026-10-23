@@ -109,7 +109,7 @@ fn add_missing_preferences(options: &mut Value, preferences: Map<String, Value>)
 /// stays as it is; Safari and Internet Explorer have none to set.
 pub(crate) fn ask_for_downloads_in(caps: &mut Capabilities, browser: Browser, dir: &Path) {
     let (key, preferences) = match browser {
-        Browser::Safari | Browser::InternetExplorer => return,
+        Browser::Safari | Browser::InternetExplorer | Browser::Remote => return,
         Browser::Firefox => ("moz:firefoxOptions", firefox_preferences(dir)),
         Browser::Edge => ("ms:edgeOptions", chromium_preferences(dir)),
         _ => ("goog:chromeOptions", chromium_preferences(dir)),
@@ -130,7 +130,10 @@ pub(crate) fn ask_for_downloads_in(caps: &mut Capabilities, browser: Browser, di
 /// save there, so the browser finds it. A failure is logged and does not stop
 /// the session: the browser then saves wherever it would by default.
 pub(crate) fn create_folder_for(browser: Browser) {
-    if matches!(browser, Browser::Safari | Browser::InternetExplorer) {
+    if matches!(
+        browser,
+        Browser::Safari | Browser::InternetExplorer | Browser::Remote
+    ) {
         return;
     }
     let dir = downloads_dir();

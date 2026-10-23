@@ -147,3 +147,81 @@ async fn the_switches_are_on_the_command_line_chrome_started_with() {
     assert!(disabled[0].contains("Translate") && disabled[0].contains("MediaRouter"));
     sb.quit().await.expect("quit");
 }
+
+/// A proxy on a free port that answers every request with a small page, and
+/// sends the first line of each request it was asked for down the channel.
+async fn fake_proxy() -> (u16, tokio::sync::mpsc::UnboundedReceiver<String>) {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind the proxy");
+    let port = listener.local_addr().expect("the proxy's address").port();
+    let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();
+    tokio::spawn(async move {
+        loop {
+            let Ok((mut stream, _)) = listener.accept().await else {
+                return;
+            };
+            let sender = sender.clone();
+            tokio::spawn(async move {
+                let mut head = Vec::new();
+                let mut chunk = [0_u8; 1024];
+                while !head.windows(4).any(|window| window == b"\r\n\r\n") {
+                    match stream.read(&mut chunk).await {
+                        Ok(read) if read > 0 => head.extend_from_slice(&chunk[..read]),
+                        _ => return,
+                    }
+                }
+                let text = String::from_utf8_lossy(&head);
+                let _ = sender.send(text.lines().next().unwrap_or_default().to_owned());
+                let body = "<html><body>through the proxy</body></html>";
+                let reply = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\n\
+                     Connection: close\r\n\r\n{body}",
+                    body.len()
+                );
+                let _ = stream.write_all(reply.as_bytes()).await;
+            });
+        }
+    });
+    (port, receiver)
+}
+
+#[tokio::test]
+#[ignore = "requires a local Chrome/chromedriver"]
+async fn chrome_loads_a_page_through_the_proxy_and_its_command_line_has_no_login() {
+    let _guard = BROWSER_LOCK.lock().await;
+    let (port, mut asked) = fake_proxy().await;
+    let config = test_config().with_proxy(format!("user:secret@127.0.0.1:{port}"));
+    let mut sb = BaseCase::new(config).await.expect("connect to browser");
+
+    sb.open("http://sbrs-proxy-check.test/")
+        .await
+        .expect("open a page through the proxy");
+    let text = sb
+        .execute_script("return document.body.textContent;")
+        .await
+        .expect("read the page");
+    assert_eq!(text.as_str(), Some("through the proxy"), "{text}");
+    let request = asked.try_recv().expect("the proxy was asked for the page");
+    assert!(
+        request.starts_with("GET http://sbrs-proxy-check.test/ HTTP/1.1"),
+        "{request}"
+    );
+
+    sb.open("chrome://version")
+        .await
+        .expect("open chrome://version");
+    let line = sb
+        .execute_script("return document.getElementById('command_line').textContent;")
+        .await
+        .expect("read the command line");
+    let line = line.as_str().expect("the command line is text");
+    assert!(
+        line.contains(&format!("--proxy-server=127.0.0.1:{port}")),
+        "{line}"
+    );
+    assert!(!line.contains("secret"), "{line}");
+    sb.quit().await.expect("quit");
+}

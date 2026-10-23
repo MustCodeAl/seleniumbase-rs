@@ -58,7 +58,9 @@ impl ReleaseChannel {
 #[serde(try_from = "String", into = "String")]
 pub enum DriverVersion {
     /// The driver for the major version of the Chrome that is installed
-    /// (`browser`, also `chrome`).
+    /// (`browser`, also `chrome`). The newest build of that major version is
+    /// taken, which is what Python's `mlatest` asks for, so `mlatest` reads as
+    /// this too.
     MatchBrowser,
     /// The newest driver of a release channel (`stable` or `latest`, `beta`,
     /// `dev`, `canary`).
@@ -67,6 +69,33 @@ pub enum DriverVersion {
     Milestone(u32),
     /// One build, by its full version (`126.0.6478.126`).
     Exact(String),
+    /// Any driver already in `downloaded_drivers/` or on the `PATH`; the one for
+    /// the installed browser is downloaded only when there is none (`keep`).
+    Keep,
+    /// The newest driver of the Chrome major version before the stable one
+    /// (`previous`, also `latest-1`).
+    Previous,
+}
+
+impl DriverVersion {
+    /// The major version before the one of `stable_build`, which is what
+    /// [`Previous`](Self::Previous) means once the stable build is known.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `stable_build` does not start with a major version
+    /// above 1.
+    pub(crate) fn major_before(stable_build: &str) -> Result<u32, SeleniumBaseError> {
+        stable_build
+            .split('.')
+            .next()
+            .and_then(|major| major.trim().parse::<u32>().ok())
+            .filter(|major| *major > 1)
+            .map(|major| major - 1)
+            .ok_or_else(|| {
+                SeleniumBaseError::parse(stable_build, "a build number such as 126.0.6478.126")
+            })
+    }
 }
 
 impl fmt::Display for DriverVersion {
@@ -78,6 +107,8 @@ impl fmt::Display for DriverVersion {
             Self::Channel(ReleaseChannel::Dev) => f.write_str("dev"),
             Self::Channel(ReleaseChannel::Canary) => f.write_str("canary"),
             Self::Milestone(major) => write!(f, "{major}"),
+            Self::Keep => f.write_str("keep"),
+            Self::Previous => f.write_str("previous"),
             Self::Exact(version) => f.write_str(version),
         }
     }
@@ -92,7 +123,9 @@ impl FromStr for DriverVersion {
     fn from_str(text: &str) -> Result<Self, Self::Err> {
         let wanted = text.trim().to_ascii_lowercase();
         match wanted.as_str() {
-            "browser" | "chrome" => return Ok(Self::MatchBrowser),
+            "browser" | "chrome" | "mlatest" => return Ok(Self::MatchBrowser),
+            "keep" => return Ok(Self::Keep),
+            "previous" | "latest-1" => return Ok(Self::Previous),
             "latest" | "stable" => return Ok(Self::Channel(ReleaseChannel::Stable)),
             "beta" => return Ok(Self::Channel(ReleaseChannel::Beta)),
             "dev" => return Ok(Self::Channel(ReleaseChannel::Dev)),
@@ -102,7 +135,8 @@ impl FromStr for DriverVersion {
         let invalid = || {
             SeleniumBaseError::parse(
                 text,
-                "browser, latest, stable, beta, dev, canary, a major version like 126, \
+                "browser, mlatest, latest, stable, beta, dev, canary, keep, previous, latest-1, \
+                 a major version like 126, \
                  or a full version like 126.0.6478.126",
             )
         };
@@ -144,6 +178,10 @@ mod tests {
     fn the_names_python_documents_are_read() {
         let cases = [
             ("browser", DriverVersion::MatchBrowser),
+            ("mlatest", DriverVersion::MatchBrowser),
+            ("keep", DriverVersion::Keep),
+            (" Previous ", DriverVersion::Previous),
+            ("latest-1", DriverVersion::Previous),
             ("Chrome", DriverVersion::MatchBrowser),
             ("latest", DriverVersion::Channel(ReleaseChannel::Stable)),
             ("stable", DriverVersion::Channel(ReleaseChannel::Stable)),
@@ -185,6 +223,8 @@ mod tests {
     fn display_reads_back_the_same() {
         for version in [
             DriverVersion::MatchBrowser,
+            DriverVersion::Keep,
+            DriverVersion::Previous,
             DriverVersion::Channel(ReleaseChannel::Stable),
             DriverVersion::Channel(ReleaseChannel::Canary),
             DriverVersion::Milestone(126),
@@ -212,5 +252,36 @@ mod tests {
     fn channels_are_named_as_the_chrome_for_testing_listing_names_them() {
         assert_eq!(ReleaseChannel::Stable.listing_name(), "Stable");
         assert_eq!(ReleaseChannel::Canary.listing_name(), "Canary");
+    }
+
+    #[test]
+    fn the_keywords_python_adds_are_read_and_the_error_lists_them_all() {
+        assert_eq!(
+            "MLATEST".parse::<DriverVersion>().unwrap(),
+            DriverVersion::MatchBrowser
+        );
+        assert_eq!(
+            "keep".parse::<DriverVersion>().unwrap(),
+            DriverVersion::Keep
+        );
+        assert_eq!(
+            "latest-1".parse::<DriverVersion>().unwrap(),
+            DriverVersion::Previous
+        );
+        let error = "latest-2".parse::<DriverVersion>().unwrap_err().to_string();
+        for keyword in [
+            "browser", "mlatest", "latest", "keep", "previous", "latest-1",
+        ] {
+            assert!(error.contains(keyword), "{keyword} missing from {error}");
+        }
+    }
+
+    #[test]
+    fn the_major_before_the_stable_build_is_the_previous_one() {
+        assert_eq!(DriverVersion::major_before("126.0.6478.126").unwrap(), 125);
+        assert_eq!(DriverVersion::major_before(" 150.0.1.2 ").unwrap(), 149);
+        for bad in ["", "x.1.2.3", "1.0.0.0", "0.1.2.3", "-3.1"] {
+            assert!(DriverVersion::major_before(bad).is_err(), "{bad:?}");
+        }
     }
 }

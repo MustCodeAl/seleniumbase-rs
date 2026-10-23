@@ -191,7 +191,11 @@ impl StealthOptions {
             .as_deref()
             .filter(|_| !set_by_fingerprint("--proxy-server="))
         {
-            caps.add_arg(&format!("--proxy-server={proxy}"))?;
+            // Chrome reads no login here and a process list would show it.
+            let server = proxy
+                .parse::<crate::browser::options::ProxyAddress>()?
+                .chrome_server();
+            caps.add_arg(&format!("--proxy-server={server}"))?;
         }
 
         if let Some(hosts) = self.launch.proxy_bypass_list.to_chrome_value() {
@@ -199,7 +203,8 @@ impl StealthOptions {
         }
 
         if let Some(pac_url) = self.proxy_pac_url.as_deref() {
-            caps.add_arg(&format!("--proxy-pac-url={pac_url}"))?;
+            let pac = pac_url.parse::<crate::browser::options::PacUrl>()?;
+            caps.add_arg(&format!("--proxy-pac-url={}", pac.url()))?;
         }
 
         if let Some(user_data_dir) = self.user_data_dir.as_deref() {
@@ -684,6 +689,49 @@ mod tests {
 
         let none = options_for(&BrowserConfig::default()).args().unwrap();
         assert!(!none.iter().any(|a| a.starts_with("--proxy-bypass-list")));
+    }
+
+    #[test]
+    fn chrome_is_given_the_proxy_and_the_pac_file_without_their_login() {
+        let config = BrowserConfig::default()
+            .with_proxy("user:hunter2@proxy.example:8080")
+            .with_proxy_pac_url("pac-user:hunter3@http://pac.example/proxy.pac");
+        let args = options_for(&config).args().unwrap();
+        assert!(
+            args.contains(&"--proxy-server=proxy.example:8080".to_owned()),
+            "{args:?}"
+        );
+        assert!(
+            args.contains(&"--proxy-pac-url=http://pac.example/proxy.pac".to_owned()),
+            "{args:?}"
+        );
+        let everything = args.join(" ");
+        assert!(!everything.contains("hunter"), "{everything}");
+
+        let socks = BrowserConfig::default().with_proxy("socks5h://10.0.0.1:1080");
+        let args = options_for(&socks).args().unwrap();
+        assert!(
+            args.contains(&"--proxy-server=socks5://10.0.0.1:1080".to_owned()),
+            "{args:?}"
+        );
+    }
+
+    #[test]
+    fn a_proxy_that_is_not_one_stops_the_launch_arguments_without_echoing_the_password() {
+        for (proxy, pac) in [
+            (Some("ftp://user:hunter2@proxy.example:21"), None),
+            (Some("proxy.example"), None),
+            (None, Some("user:hunter2@http://pac.example/proxy.js")),
+        ] {
+            let config = BrowserConfig {
+                proxy: proxy.map(str::to_owned),
+                proxy_pac_url: pac.map(str::to_owned),
+                ..BrowserConfig::default()
+            };
+
+            let error = options_for(&config).args().unwrap_err().to_string();
+            assert!(!error.contains("hunter2"), "{error}");
+        }
     }
 
     #[test]

@@ -182,9 +182,11 @@ pub fn edgedriver_listing_url(
     match version {
         DriverVersion::Exact(_) => None,
         DriverVersion::Milestone(major) => Some(release(*major)),
-        DriverVersion::MatchBrowser => {
+        DriverVersion::MatchBrowser | DriverVersion::Keep => {
             Some(edge_major.map_or_else(|| format!("{EDGEDRIVER_HOST}/LATEST_STABLE"), release))
         }
+        // The stable build; the major version before it is worked out from it.
+        DriverVersion::Previous => Some(format!("{EDGEDRIVER_HOST}/LATEST_STABLE")),
         DriverVersion::Channel(channel) => Some(format!(
             "{EDGEDRIVER_HOST}/LATEST_{}",
             channel.listing_name().to_ascii_uppercase()
@@ -385,10 +387,15 @@ pub(crate) async fn install_msedgedriver_in(
     edge_major: Option<u32>,
     proxy: Option<&str>,
 ) -> Result<PathBuf, SeleniumBaseError> {
+    if *version == DriverVersion::Keep {
+        if let Some(found) = downloaded_driver(root, "msedgedriver", &MSEDGEDRIVER_NAMES) {
+            return Ok(found);
+        }
+    }
     let platform = edgedriver_platform(std::env::consts::OS, std::env::consts::ARCH)?;
     let known_major = match version {
         DriverVersion::Milestone(major) => Some(*major),
-        DriverVersion::MatchBrowser => edge_major,
+        DriverVersion::MatchBrowser | DriverVersion::Keep => edge_major,
         _ => None,
     };
     if let Some(found) = known_major
@@ -415,6 +422,21 @@ pub(crate) async fn install_msedgedriver_in(
         }
     }
     let client = http_client(proxy)?;
+    let resolved;
+    let version = if *version == DriverVersion::Previous {
+        let listing = format!("{EDGEDRIVER_HOST}/LATEST_STABLE");
+        let stable =
+            read_release_text(&fetch_bytes(&client, &listing, Some(MAX_LISTING_BYTES)).await?)?;
+        let major = DriverVersion::major_before(&stable)?;
+        if let Some(found) = downloaded_for_major(root, "msedgedriver", major, &MSEDGEDRIVER_NAMES)
+        {
+            return Ok(found);
+        }
+        resolved = DriverVersion::Milestone(major);
+        &resolved
+    } else {
+        version
+    };
     let build = match edgedriver_listing_url(version, edge_major, std::env::consts::OS) {
         None => version.to_string(),
         Some(listing) => {

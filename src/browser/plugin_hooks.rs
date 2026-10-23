@@ -52,6 +52,12 @@ pub(crate) fn family_of(browser: Browser) -> Result<BrowserFamily, SeleniumBaseE
         | Browser::ChromeHeadlessShell => Ok(BrowserFamily::Chromium),
         Browser::Firefox => Ok(BrowserFamily::Firefox),
         Browser::Safari => Ok(BrowserFamily::Safari),
+        Browser::Remote => Err(SeleniumBaseError::plugin(
+            "",
+            "browser plugins need to know the browser, and --browser=remote leaves that to the \
+             WebDriver server",
+        )),
+
         Browser::InternetExplorer => Err(SeleniumBaseError::plugin(
             "",
             "browser plugins do not run with Internet Explorer, which is neither a Chromium \

@@ -42,6 +42,15 @@ pub enum Browser {
     /// `chrome-headless-shell`, the headless-only Chrome, run with chromedriver
     /// (`--chs`). It cannot run the undetected (UC) mode.
     ChromeHeadlessShell,
+    /// A WebDriver server that already runs the browser, such as a Selenium
+    /// Grid or a cloud provider (`--browser=remote`). The session asks for
+    /// nothing but the capabilities of
+    /// [`with_capabilities`](BrowserConfig::with_capabilities) (`--cap-file`,
+    /// `--cap-string`), so the other browser options (mobile mode, switches,
+    /// window geometry) do not apply to it. It needs a server that is not the
+    /// local default: see [`with_webdriver_url`](BrowserConfig::with_webdriver_url)
+    /// and [`with_grid`](BrowserConfig::with_grid).
+    Remote,
 }
 
 impl Browser {
@@ -49,7 +58,10 @@ impl Browser {
     /// and the Chrome launch arguments need.
     #[must_use]
     pub const fn is_chromium_based(self) -> bool {
-        !matches!(self, Self::Firefox | Self::Safari | Self::InternetExplorer)
+        !matches!(
+            self,
+            Self::Firefox | Self::Safari | Self::InternetExplorer | Self::Remote
+        )
     }
 
     /// The name Python SeleniumBase gives the browser (`--browser=NAME`).
@@ -67,6 +79,7 @@ impl Browser {
             Self::InternetExplorer => "ie",
             Self::ChromeForTesting => "cft",
             Self::ChromeHeadlessShell => "chs",
+            Self::Remote => "remote",
         }
     }
 }
@@ -96,11 +109,12 @@ impl std::str::FromStr for Browser {
             "ie" | "internet explorer" | "internet-explorer" => Self::InternetExplorer,
             "cft" | "chrome-for-testing" => Self::ChromeForTesting,
             "chs" | "chrome-headless-shell" => Self::ChromeHeadlessShell,
+            "remote" => Self::Remote,
             _ => {
                 return Err(SeleniumBaseError::parse(
                     text,
                     "a browser: chrome, chromium, edge, firefox, brave, comet, opera, safari, ie, \
-                     cft or chs",
+                     cft, chs or remote",
                 ))
             }
         })
@@ -246,6 +260,12 @@ pub struct BrowserConfig {
     #[serde(default, flatten)]
     pub launch: LaunchSettings,
 }
+
+/// What Firefox is told when its proxy has a login: only Chromium browsers can
+/// answer the proxy's challenge.
+pub(crate) const FIREFOX_PROXY_LOGIN: &str =
+    "Chrome or Edge is required when using a proxy server that has authentication! \
+     (If using a proxy server without auth, Chrome, Edge, or Firefox may be used.)";
 
 /// `timeout` in whole seconds, rounded up: the WebDriver client and
 /// `BaseCase` take seconds.
@@ -485,6 +505,105 @@ impl BrowserConfig {
     pub fn with_browser_binary_path(mut self, path: impl Into<PathBuf>) -> Self {
         self.browser_binary_path = Some(path.into());
         self
+    }
+
+    /// Names the program of the browser (Python's `binary_location`,
+    /// `--binary-location`). The same as
+    /// [`with_browser_binary_path`](Self::with_browser_binary_path).
+    pub fn with_binary_location(self, path: impl Into<PathBuf>) -> Self {
+        self.with_browser_binary_path(path)
+    }
+
+    /// Sends the session to a Selenium Grid: the WebDriver URL Python
+    /// SeleniumBase builds from `--protocol`, `--server` and `--port`
+    /// (see [`grid_url`](crate::browser::options::grid_url)).
+    ///
+    /// A `servername` of `localhost` leaves the configuration as it is, so the
+    /// local driver runs, as in Python.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `servername` is empty.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use seleniumbase_rs::browser::options::GridProtocol;
+    /// use seleniumbase_rs::BrowserConfig;
+    ///
+    /// let config = BrowserConfig::default().with_grid(
+    ///     GridProtocol::Http,
+    ///     "USER:KEY@hub.browserstack.com",
+    ///     80,
+    /// )?;
+    /// assert_eq!(
+    ///     config.webdriver_url,
+    ///     "http://USER:KEY@hub.browserstack.com/wd/hub"
+    /// );
+    /// # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
+    /// ```
+    pub fn with_grid(
+        mut self,
+        protocol: crate::browser::options::GridProtocol,
+        servername: &str,
+        port: u16,
+    ) -> Result<Self, SeleniumBaseError> {
+        if servername.trim() != "localhost" {
+            self.webdriver_url = crate::browser::options::grid_url(protocol, servername, port)?;
+        }
+        Ok(self)
+    }
+
+    /// Checks the settings that can be refused before anything starts: the
+    /// proxy and the PAC URL, a login on a Firefox proxy, and `--browser=remote`
+    /// without capabilities or a server. A session checks them itself when it
+    /// connects; call this to fail early.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidConfig`] naming the setting. The
+    /// message hides a proxy's password.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use seleniumbase_rs::BrowserConfig;
+    ///
+    /// assert!(BrowserConfig::default().with_proxy("user:pw@proxy.test:8080").validate().is_ok());
+    /// let error = BrowserConfig::default().with_proxy("user:pw@proxy.test").validate();
+    /// assert!(error.is_err());
+    /// ```
+    pub fn validate(&self) -> Result<(), SeleniumBaseError> {
+        use crate::browser::options::{PacUrl, ProxyAddress};
+        let proxy = self
+            .proxy
+            .as_deref()
+            .map(str::parse::<ProxyAddress>)
+            .transpose()?;
+        let pac = self
+            .proxy_pac_url
+            .as_deref()
+            .map(str::parse::<PacUrl>)
+            .transpose()?;
+        let has_login = proxy.is_some_and(|proxy| proxy.credentials().is_some())
+            || pac.is_some_and(|pac| pac.credentials().is_some());
+        if has_login && self.browser == Browser::Firefox {
+            return Err(SeleniumBaseError::invalid_config(FIREFOX_PROXY_LOGIN));
+        }
+        if self.browser == Browser::Remote {
+            if self.launch.capabilities.is_empty() {
+                return Err(SeleniumBaseError::invalid_config(
+                    "--browser=remote needs --cap-file or --cap-string",
+                ));
+            }
+            if self.is_default_webdriver_url() {
+                return Err(SeleniumBaseError::invalid_config(
+                    "--browser=remote needs a WebDriver server: --server, --webdriver or \
+                     SB_WEBDRIVER_URL",
+                ));
+            }
+        }
+        Ok(())
     }
 
     pub fn is_cdp_enabled(&self) -> bool {
@@ -859,15 +978,19 @@ impl BrowserConfig {
     /// reach the port can drive the browser, so use it for debugging only.
     pub fn with_remote_debug_port(mut self, port: u16) -> Self {
         self.launch.remote_debug_port = Some(port);
+        self.launch.remote_debug_any_port = false;
         self
     }
 
     /// Open Chrome's remote debugger on port 9222, or close it again
     /// (`--remote-debug`, `--remote-debugger`). Debugger at
-    /// `http://localhost:9222`.
+    /// `http://localhost:9222`. When 9222 is in use by something else, a free
+    /// port is taken instead and logged; see
+    /// [`BrowserSession::remote_debug_address`](crate::browser::session::BrowserSession::remote_debug_address).
     pub fn with_remote_debug(mut self, on: bool) -> Self {
         self.launch.remote_debug_port =
             on.then_some(crate::stealth::options::DEFAULT_REMOTE_DEBUG_PORT);
+        self.launch.remote_debug_any_port = on;
         self
     }
 
@@ -1134,7 +1257,8 @@ mod tests {
         assert!(text.contains(r#""reuse_class":"test_module""#), "{text}");
     }
 
-    const ALL: [Browser; 11] = [
+    const ALL: [Browser; 12] = [
+        Browser::Remote,
         Browser::Chrome,
         Browser::Chromium,
         Browser::Edge,
@@ -1167,6 +1291,7 @@ mod tests {
             ("ie", Browser::InternetExplorer),
             ("cft", Browser::ChromeForTesting),
             ("chs", Browser::ChromeHeadlessShell),
+            ("remote", Browser::Remote),
             ("Internet Explorer", Browser::InternetExplorer),
             (" CHROME ", Browser::Chrome),
         ] {
@@ -1177,11 +1302,16 @@ mod tests {
     }
 
     #[test]
-    fn only_firefox_safari_and_ie_are_not_chromium_based() {
+    fn only_firefox_safari_ie_and_remote_are_not_chromium_based() {
         let others: Vec<_> = ALL.into_iter().filter(|b| !b.is_chromium_based()).collect();
         assert_eq!(
             others,
-            [Browser::Firefox, Browser::Safari, Browser::InternetExplorer]
+            [
+                Browser::Remote,
+                Browser::Firefox,
+                Browser::Safari,
+                Browser::InternetExplorer
+            ]
         );
     }
 
@@ -1189,6 +1319,130 @@ mod tests {
     fn the_default_browser_is_chrome() {
         assert_eq!(Browser::default(), Browser::Chrome);
         assert_eq!(BrowserConfig::default().browser, Browser::Chrome);
+    }
+
+    #[test]
+    fn validate_refuses_a_bad_proxy_before_anything_starts() {
+        assert!(BrowserConfig::default().validate().is_ok());
+        assert!(BrowserConfig::default()
+            .with_proxy("user:pw@h:8080")
+            .validate()
+            .is_ok());
+        assert!(BrowserConfig::default()
+            .with_proxy_pac_url("user:pw@http://h/p.pac")
+            .validate()
+            .is_ok());
+
+        let bad_proxy = BrowserConfig::default()
+            .with_proxy("ftp://user:hunter2@h:21")
+            .validate()
+            .unwrap_err()
+            .to_string();
+        assert!(bad_proxy.contains("is NOT in the expected"), "{bad_proxy}");
+        assert!(!bad_proxy.contains("hunter2"), "{bad_proxy}");
+
+        let bad_pac = BrowserConfig::default()
+            .with_proxy_pac_url("http://h/p.js")
+            .validate()
+            .unwrap_err()
+            .to_string();
+        assert!(
+            bad_pac.contains("The proxy PAC URL must end with \".pac\""),
+            "{bad_pac}"
+        );
+    }
+
+    #[test]
+    fn firefox_cannot_answer_a_proxy_login() {
+        let firefox = BrowserConfig::default().with_browser(Browser::Firefox);
+        let error = firefox
+            .clone()
+            .with_proxy("user:pw@h:8080")
+            .validate()
+            .unwrap_err()
+            .to_string();
+        assert!(
+            error.contains(
+                "Chrome or Edge is required when using a proxy server that has authentication!"
+            ),
+            "{error}"
+        );
+        assert!(!error.contains("pw@"), "{error}");
+        assert!(firefox
+            .clone()
+            .with_proxy_pac_url("user:pw@http://h/p.pac")
+            .validate()
+            .is_err());
+        assert!(firefox.with_proxy("h:8080").validate().is_ok());
+        for browser in [Browser::Chrome, Browser::Edge, Browser::Brave] {
+            let config = BrowserConfig::default()
+                .with_browser(browser)
+                .with_proxy("user:pw@h:8080");
+            assert!(config.validate().is_ok(), "{browser}");
+        }
+    }
+
+    #[test]
+    fn remote_needs_capabilities_and_a_server() {
+        let remote = BrowserConfig::default().with_browser(Browser::Remote);
+        let error = remote.clone().validate().unwrap_err().to_string();
+        assert!(
+            error.contains("--browser=remote needs --cap-file or --cap-string"),
+            "{error}"
+        );
+        let caps = CapabilityOverrides::from_text(r#"{"browserName":"chrome"}"#).unwrap();
+        let with_caps = remote.with_capabilities(caps);
+        let error = with_caps.clone().validate().unwrap_err().to_string();
+        assert!(
+            error.contains("--browser=remote needs a WebDriver server"),
+            "{error}"
+        );
+        assert!(with_caps
+            .with_webdriver_url("http://hub.example.com:4444/wd/hub")
+            .validate()
+            .is_ok());
+    }
+
+    #[test]
+    fn a_grid_sets_the_server_and_localhost_keeps_the_local_driver() {
+        use crate::browser::options::GridProtocol;
+        let config = BrowserConfig::default()
+            .with_grid(GridProtocol::Https, "USER:KEY@hub.example.com", 443)
+            .unwrap();
+        assert_eq!(
+            config.webdriver_url,
+            "https://USER:KEY@hub.example.com/wd/hub"
+        );
+        // The access key stays out of the debug output.
+        assert!(!format!("{config:?}").contains("KEY"));
+        let local = BrowserConfig::default()
+            .with_grid(GridProtocol::Http, "localhost", 4444)
+            .unwrap();
+        assert!(local.is_default_webdriver_url());
+        assert!(BrowserConfig::default()
+            .with_grid(GridProtocol::Http, " ", 4444)
+            .is_err());
+    }
+
+    #[test]
+    fn a_binary_location_is_the_browser_binary_path() {
+        let config = BrowserConfig::default().with_binary_location("/opt/chrome/chrome");
+        assert_eq!(
+            config.browser_binary_path,
+            Some(PathBuf::from("/opt/chrome/chrome"))
+        );
+    }
+
+    #[test]
+    fn the_remote_debugger_may_move_only_when_the_default_port_was_asked_for() {
+        let default = BrowserConfig::default().with_remote_debug(true);
+        assert!(default.launch.remote_debug_any_port);
+        let named = default.with_remote_debug_port(9333);
+        assert!(!named.launch.remote_debug_any_port);
+        assert_eq!(named.launch.remote_debug_port, Some(9333));
+        let off = named.with_remote_debug(false);
+        assert_eq!(off.launch.remote_debug_port, None);
+        assert!(!off.launch.remote_debug_any_port);
     }
 
     #[test]

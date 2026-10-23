@@ -172,7 +172,7 @@ enum Waited {
 }
 
 /// Find an unused TCP port on localhost.
-fn find_free_port() -> Result<u16, SeleniumBaseError> {
+pub(crate) fn find_free_port() -> Result<u16, SeleniumBaseError> {
     let addr: SocketAddr = "127.0.0.1:0".parse().unwrap();
     let listener = TcpListener::bind(addr).map_err(|e| {
         SeleniumBaseError::browser_launch("127.0.0.1:0", format!("bind failed: {e}"))
@@ -182,6 +182,43 @@ fn find_free_port() -> Result<u16, SeleniumBaseError> {
     })?;
     drop(listener);
     Ok(port.port())
+}
+
+/// Whether nothing listens on `port` of localhost, where Chrome's remote
+/// debugger binds.
+pub(crate) fn port_is_free(port: u16) -> bool {
+    TcpListener::bind(("127.0.0.1", port)).is_ok()
+}
+
+/// The port Chrome's remote debugger takes: `port` when `is_free` says it is
+/// free; otherwise, when `any_port` (the default port was asked for, not a
+/// named one), the port `pick` gives; otherwise an error.
+///
+/// # Errors
+///
+/// Returns [`SeleniumBaseError::InvalidConfig`] for a named port that is busy,
+/// or the error of `pick`.
+pub(crate) fn choose_debug_port(
+    port: u16,
+    any_port: bool,
+    is_free: impl Fn(u16) -> bool,
+    pick: impl FnOnce() -> Result<u16, SeleniumBaseError>,
+) -> Result<u16, SeleniumBaseError> {
+    if is_free(port) {
+        return Ok(port);
+    }
+    if !any_port {
+        return Err(SeleniumBaseError::invalid_config(format!(
+            "port {port} is already in use"
+        )));
+    }
+    let other = pick()?;
+    tracing::info!(
+        port,
+        other,
+        "the remote debugger's port is in use; using another"
+    );
+    Ok(other)
 }
 
 /// Poll the port until the driver accepts a TCP connection, its process ends,
@@ -463,6 +500,16 @@ pub(crate) enum ChromedriverPlan {
     /// The one in `downloaded_drivers/` when it fits the installed Chrome,
     /// otherwise a download for that Chrome.
     Default,
+    /// Any chromedriver already in `downloaded_drivers/` or on the `PATH`; the
+    /// one for the installed Chrome is downloaded only when there is none
+    /// (`--driver-version=keep`).
+    Keep {
+        /// The browser whose version a download follows; the installed Chrome
+        /// when unset.
+        browser: Option<PathBuf>,
+        /// The proxy to download through.
+        proxy: Option<String>,
+    },
     /// The build `version` names, downloaded when it is not on disk.
     Pinned {
         /// Which build.
@@ -480,6 +527,11 @@ impl std::fmt::Debug for ChromedriverPlan {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Default => f.write_str("Default"),
+            Self::Keep { browser, proxy } => f
+                .debug_struct("Keep")
+                .field("browser", browser)
+                .field("proxy", &proxy.as_ref().map(|_| "<redacted>"))
+                .finish(),
             Self::Pinned {
                 version,
                 browser,
@@ -514,12 +566,38 @@ pub(crate) fn chromedriver_plan(config: &BrowserConfig) -> ChromedriverPlan {
     });
     match version {
         None => ChromedriverPlan::Default,
+        Some(DriverVersion::Keep) => ChromedriverPlan::Keep {
+            browser: config.browser_binary_path.clone(),
+            proxy,
+        },
         Some(version) => ChromedriverPlan::Pinned {
             version,
             browser: config.browser_binary_path.clone(),
             proxy,
         },
     }
+}
+
+/// The chromedriver already in `downloaded_drivers/` or on the `PATH`, else the
+/// one for the installed Chrome (or `browser`), downloaded.
+async fn keep_chromedriver(
+    browser: Option<PathBuf>,
+    proxy: Option<&str>,
+) -> Result<PathBuf, SeleniumBaseError> {
+    let found = find_downloaded_or_on_path(
+        DriverProgram::Chromedriver,
+        Path::new(DOWNLOADS_DIR),
+        &|name| which::which(name).ok(),
+    );
+    if let Some(found) = found {
+        return Ok(found);
+    }
+    let program = browser.or_else(find_system_chrome);
+    let major = match &program {
+        Some(program) => binary_major(program).await,
+        None => None,
+    };
+    install_chromedriver(&DriverVersion::MatchBrowser, major, proxy).await
 }
 
 /// Starts the driver `config.browser` needs on a free port.
@@ -545,6 +623,9 @@ pub async fn launch_driver_for(
     if program == DriverProgram::Chromedriver {
         let binary = match chromedriver_plan(config) {
             ChromedriverPlan::Default => ensure_chromedriver_binary().await?,
+            ChromedriverPlan::Keep { browser, proxy } => {
+                keep_chromedriver(browser, proxy.as_deref()).await?
+            }
             ChromedriverPlan::Pinned {
                 version,
                 browser,
@@ -807,6 +888,76 @@ mod driver_program_tests {
             download_proxy(&asked).as_deref(),
             Some("u:p@proxy.test:8080")
         );
+    }
+
+    #[test]
+    fn keep_and_previous_are_planned_without_a_pin_for_keep() {
+        let keep = BrowserConfig::default().with_driver_version(DriverVersion::Keep);
+        assert_eq!(
+            chromedriver_plan(&keep),
+            ChromedriverPlan::Keep {
+                browser: None,
+                proxy: None
+            }
+        );
+        let named = keep
+            .with_browser_binary_path("/opt/chrome/chrome")
+            .with_proxy("u:p@proxy.test:8080")
+            .with_proxy_for_driver_download(true);
+        let plan = chromedriver_plan(&named);
+        assert_eq!(
+            plan,
+            ChromedriverPlan::Keep {
+                browser: Some("/opt/chrome/chrome".into()),
+                proxy: Some("u:p@proxy.test:8080".into())
+            }
+        );
+        assert!(!format!("{plan:?}").contains("proxy.test"), "{plan:?}");
+
+        let previous = BrowserConfig::default().with_driver_version(DriverVersion::Previous);
+        assert_eq!(
+            chromedriver_plan(&previous),
+            ChromedriverPlan::Pinned {
+                version: DriverVersion::Previous,
+                browser: None,
+                proxy: None
+            }
+        );
+    }
+
+    #[test]
+    fn the_remote_debugger_keeps_a_free_port_and_moves_only_the_default_one() {
+        // A free port is kept, whoever asked for it.
+        assert_eq!(
+            choose_debug_port(9222, false, |_| true, || Ok(1)).unwrap(),
+            9222
+        );
+        // The default port gives way to another.
+        assert_eq!(
+            choose_debug_port(9222, true, |_| false, || Ok(40000)).unwrap(),
+            40000
+        );
+        // A named port that is busy is an error, and nothing else is asked.
+        let error = choose_debug_port(
+            9333,
+            false,
+            |_| false,
+            || panic!("no other port may be picked"),
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("port 9333 is already in use"), "{error}");
+    }
+
+    #[test]
+    fn a_port_somebody_listens_on_is_not_free() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let busy = listener.local_addr().unwrap().port();
+        assert!(!port_is_free(busy));
+        drop(listener);
+        // Not checked once the listener is gone: another test may take the port.
+        assert!(find_free_port().is_ok());
+        // `find_free_port` asks the system for a port, so there is always one.
     }
 
     #[test]

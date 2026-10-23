@@ -274,7 +274,16 @@ pub async fn resolve_build(
             let listing = fetch_json(client, MILESTONE_LISTING).await?;
             milestone_build(&listing, *major, artifact, platform)
         }
-        DriverVersion::MatchBrowser => match browser_major {
+        DriverVersion::Previous => {
+            let listing = fetch_json(client, LAST_KNOWN_GOOD).await?;
+            let stable = channel_build(&listing, ReleaseChannel::Stable, artifact, platform)?;
+            let major = DriverVersion::major_before(&stable.version)?;
+            let listing = fetch_json(client, MILESTONE_LISTING).await?;
+            milestone_build(&listing, major, artifact, platform)
+        }
+        // A driver kept on disk is looked for before this is asked; the one
+        // that is downloaded when none is there follows the browser.
+        DriverVersion::MatchBrowser | DriverVersion::Keep => match browser_major {
             Some(major) => {
                 let listing = fetch_json(client, MILESTONE_LISTING).await?;
                 milestone_build(&listing, major, artifact, platform)
@@ -434,9 +443,18 @@ pub(crate) async fn install_chromedriver_in(
     browser_major: Option<u32>,
     proxy: Option<&str>,
 ) -> Result<PathBuf, SeleniumBaseError> {
+    if *version == DriverVersion::Keep {
+        if let Some(found) = crate::browser::driver_install::downloaded_driver(
+            root,
+            "chromedriver",
+            &CHROMEDRIVER_NAMES,
+        ) {
+            return Ok(found);
+        }
+    }
     let known_major = match version {
         DriverVersion::Milestone(major) => Some(*major),
-        DriverVersion::MatchBrowser => browser_major,
+        DriverVersion::MatchBrowser | DriverVersion::Keep => browser_major,
         _ => None,
     };
     if let Some(found) =
@@ -849,5 +867,42 @@ mod tests {
             request.contains("dXNlcjpzM2NyZXQ="),
             "no Proxy-Authorization in:\n{request}"
         );
+    }
+
+    #[tokio::test]
+    async fn keep_takes_the_newest_driver_that_is_downloaded_without_the_network() {
+        let dir = tempfile::tempdir().unwrap();
+        for folder in ["chromedriver-120.0.1.1", "chromedriver-126.0.1.1"] {
+            fs::create_dir_all(dir.path().join(folder)).unwrap();
+            fs::write(dir.path().join(folder).join("chromedriver"), b"x").unwrap();
+        }
+        // Whatever major the browser has, and with a proxy that would fail.
+        let found = install_chromedriver_in(
+            dir.path(),
+            &DriverVersion::Keep,
+            Some(99),
+            Some("127.0.0.1:1"),
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            found,
+            dir.path().join("chromedriver-126.0.1.1/chromedriver")
+        );
+    }
+
+    #[tokio::test]
+    async fn keep_downloads_only_when_no_driver_is_there() {
+        let dir = tempfile::tempdir().unwrap();
+        // With nothing downloaded the build is asked for, and the dead proxy
+        // refuses: the download was tried.
+        let tried = install_chromedriver_in(
+            dir.path(),
+            &DriverVersion::Keep,
+            Some(126),
+            Some("127.0.0.1:1"),
+        )
+        .await;
+        assert!(tried.is_err());
     }
 }

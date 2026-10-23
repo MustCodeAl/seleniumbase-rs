@@ -56,6 +56,9 @@ pub struct BrowserSession {
     /// closing it, and the reuse registry owns the driver process and the
     /// virtual display.
     reuse: Option<Lease>,
+    /// The port of Chrome's remote debugger, when the configuration asked for
+    /// one: the port that was asked for, or the free one taken in its place.
+    remote_debug: Option<u16>,
     /// The browser plugins of the session (feature `plugins`), and the scripts
     /// they added; none without plugins.
     #[cfg(feature = "plugins")]
@@ -92,9 +95,12 @@ impl BrowserSession {
 
     /// Starts a browser for `config` and connects to it, whatever its reuse
     /// setting says.
-    pub(crate) async fn connect_new(config: BrowserConfig) -> Result<Self, SeleniumBaseError> {
+    pub(crate) async fn connect_new(mut config: BrowserConfig) -> Result<Self, SeleniumBaseError> {
         info!(browser = ?config.browser, headless = config.headless, "connecting browser session");
+        // Everything that can be refused is, before a browser starts.
+        config.validate()?;
         validate_mode_support(&config)?;
+        let remote_debug = resolve_remote_debug(&mut config)?;
         // Worked out first, so a list the browser cannot be given is refused
         // before a browser starts.
         let ad_block = ad_block_commands(&config)?;
@@ -123,6 +129,7 @@ impl BrowserSession {
             driver_process,
             virtual_display,
             mobile: mobile_commands(&config),
+            remote_debug,
             ad_block,
             reuse: None,
             #[cfg(feature = "plugins")]
@@ -159,6 +166,7 @@ impl BrowserSession {
             ad_block,
             reuse: Some(lease),
             mobile: mobile_commands(config),
+            remote_debug: config.launch.remote_debug_port,
             #[cfg(feature = "plugins")]
             plugins: None,
         })
@@ -203,6 +211,16 @@ impl BrowserSession {
         }
     }
 
+    /// Where Chrome's remote debugger listens (`localhost:9222`), when the
+    /// configuration opened one (`--remote-debug`); open `chrome://inspect` in
+    /// another Chrome to see the session. With
+    /// [`with_remote_debug`](crate::BrowserConfig::with_remote_debug) the port is
+    /// the free one taken in place of a busy 9222.
+    #[must_use]
+    pub fn remote_debug_address(&self) -> Option<String> {
+        self.remote_debug.map(|port| format!("localhost:{port}"))
+    }
+
     /// Creates a disconnected session for test-only use. Any WebDriver call will
     /// panic, so this must only be used when the caller never touches the driver.
     pub fn disconnected() -> Self {
@@ -213,6 +231,7 @@ impl BrowserSession {
             virtual_display: None,
             ad_block: Vec::new(),
             mobile: Vec::new(),
+            remote_debug: None,
             reuse: None,
             #[cfg(feature = "plugins")]
             plugins: None,
@@ -1420,6 +1439,8 @@ fn session_capabilities(
             apply_firefox_capabilities(&mut caps, config)?;
             caps.into()
         }
+        // The server's own browser: only the capabilities the caller gave.
+        Browser::Remote => thirtyfour::Capabilities::new(),
         Browser::Safari => {
             let mut caps = DesiredCapabilities::safari();
             apply_generic_capabilities(&mut caps, config)?;
@@ -1498,6 +1519,24 @@ fn apply_firefox_capabilities(
         caps.set_page_load_strategy(strategy.into())?;
     }
     let mut from_settings = firefox_preferences(&launch.switches);
+    if let Some(proxy) = &config.proxy {
+        let proxy: crate::browser::options::ProxyAddress = proxy.parse()?;
+        if proxy.credentials().is_some() {
+            return Err(SeleniumBaseError::invalid_config(
+                crate::browser::config::FIREFOX_PROXY_LOGIN,
+            ));
+        }
+        from_settings.extend(proxy.firefox_preferences(&launch.proxy_bypass_list));
+    }
+    if let Some(pac) = &config.proxy_pac_url {
+        let pac: crate::browser::options::PacUrl = pac.parse()?;
+        if pac.credentials().is_some() {
+            return Err(SeleniumBaseError::invalid_config(
+                crate::browser::config::FIREFOX_PROXY_LOGIN,
+            ));
+        }
+        from_settings.extend(pac.firefox_preferences());
+    }
     if let Some(agent) = &config.user_agent {
         from_settings.insert("general.useragent.override".into(), json!(agent));
     }
@@ -1715,6 +1754,35 @@ fn start_virtual_display(config: &BrowserConfig) -> Result<Option<XvfbProcess>, 
         return Ok(None);
     }
     XvfbProcess::start(screen).map(Some)
+}
+
+/// Settles the port of Chrome's remote debugger before the browser starts.
+///
+/// A browser this crate starts on this machine gets the port that was asked
+/// for when it is free. When it is busy, the default port (`with_remote_debug`)
+/// gives way to a free one, and a named port (`with_remote_debug_port`) is an
+/// error. A browser on a WebDriver server of its own cannot be checked from
+/// here. Returns the port the session will have, or `None` for a browser with no
+/// remote debugger.
+fn resolve_remote_debug(config: &mut BrowserConfig) -> Result<Option<u16>, SeleniumBaseError> {
+    let Some(port) = config.launch.remote_debug_port else {
+        return Ok(None);
+    };
+    if !config.browser.is_chromium_based() {
+        return Ok(None);
+    }
+    if !config.auto_start_driver || !config.is_default_webdriver_url() {
+        return Ok(Some(port));
+    }
+    let port = crate::browser::launcher::choose_debug_port(
+        port,
+        config.launch.remote_debug_any_port,
+        crate::browser::launcher::port_is_free,
+        crate::browser::launcher::find_free_port,
+    )?;
+    config.launch.remote_debug_port = Some(port);
+    info!("Chrome's remote debugger listens on localhost:{port}; open chrome://inspect");
+    Ok(Some(port))
 }
 
 async fn connect_driver(
@@ -2115,6 +2183,125 @@ mod capability_tests {
                 CapabilityOverrides::from_text(r#"{"pageLoadStrategy": "none"}"#).unwrap(),
             );
         assert_eq!(caps_json(&config)["pageLoadStrategy"], "none");
+    }
+
+    #[test]
+    fn firefox_gets_its_proxy_as_preferences() {
+        let firefox = BrowserConfig::default().with_browser(Browser::Firefox);
+        let socks = firefox
+            .clone()
+            .with_proxy("socks5://proxy.test:1080")
+            .with_proxy_bypass_list("*.example.com;localhost".parse().unwrap());
+        let caps = caps_json(&socks);
+        let prefs = &caps["moz:firefoxOptions"]["prefs"];
+        assert_eq!(prefs["network.proxy.type"], 1);
+        assert_eq!(prefs["network.proxy.socks"], "proxy.test");
+        assert_eq!(prefs["network.proxy.socks_port"], 1080);
+        assert_eq!(prefs["network.proxy.socks_version"], 5);
+        assert_eq!(
+            prefs["network.proxy.no_proxies_on"],
+            ".example.com, localhost"
+        );
+
+        let http = caps_json(&firefox.clone().with_proxy("h.test:8080"));
+        let prefs = &http["moz:firefoxOptions"]["prefs"];
+        assert_eq!(prefs["network.proxy.http"], "h.test");
+        assert_eq!(prefs["network.proxy.http_port"], 8080);
+        assert_eq!(prefs["network.proxy.ssl"], "h.test");
+        assert_eq!(prefs["network.proxy.ssl_port"], 8080);
+
+        let pac = caps_json(&firefox.with_proxy_pac_url("http://pac.test/p.pac"));
+        let prefs = &pac["moz:firefoxOptions"]["prefs"];
+        assert_eq!(prefs["network.proxy.type"], 2);
+        assert_eq!(
+            prefs["network.proxy.autoconfig_url"],
+            "http://pac.test/p.pac"
+        );
+    }
+
+    #[test]
+    fn firefox_with_a_proxy_login_is_refused_with_pythons_message() {
+        for config in [
+            BrowserConfig::default()
+                .with_browser(Browser::Firefox)
+                .with_proxy("user:hunter2@h.test:8080"),
+            BrowserConfig::default()
+                .with_browser(Browser::Firefox)
+                .with_proxy_pac_url("user:hunter2@http://pac.test/p.pac"),
+        ] {
+            let error = session_capabilities(&config).unwrap_err().to_string();
+            assert!(
+                error.contains("Chrome or Edge is required when using a proxy server"),
+                "{error}"
+            );
+            assert!(!error.contains("hunter2"), "{error}");
+        }
+    }
+
+    #[test]
+    fn remote_asks_for_nothing_but_the_capabilities_it_was_given() {
+        let caps = CapabilityOverrides::from_text(
+            r#"{"browserName":"chrome","bstack:options":{"os":"Windows"}}"#,
+        )
+        .unwrap();
+        let config = BrowserConfig::default()
+            .with_browser(Browser::Remote)
+            .with_headless(true)
+            .with_block_images(true)
+            .with_window_size(WindowSize::new(800, 600))
+            .with_capabilities(caps);
+        assert_eq!(
+            caps_json(&config),
+            json!({"browserName": "chrome", "bstack:options": {"os": "Windows"}})
+        );
+    }
+
+    #[test]
+    fn the_remote_debugger_port_is_settled_before_the_browser_starts() {
+        let mut off = BrowserConfig::default();
+        assert_eq!(resolve_remote_debug(&mut off).unwrap(), None);
+
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let busy = listener.local_addr().unwrap().port();
+
+        // A port that was named and is in use is an error.
+        let named = BrowserConfig::default().with_remote_debug_port(busy);
+        let error = resolve_remote_debug(&mut named.clone())
+            .unwrap_err()
+            .to_string();
+        assert!(
+            error.contains(&format!("port {busy} is already in use")),
+            "{error}"
+        );
+
+        // The default port gives way to a free one.
+        let mut moving = BrowserConfig::default();
+        moving.launch.remote_debug_port = Some(busy);
+        moving.launch.remote_debug_any_port = true;
+        let chosen = resolve_remote_debug(&mut moving).unwrap().unwrap();
+        assert_ne!(chosen, busy);
+        assert_eq!(moving.launch.remote_debug_port, Some(chosen));
+
+        // A browser on a server of its own is not checked from here, and
+        // Firefox has no such debugger.
+        let mut elsewhere = named
+            .clone()
+            .with_webdriver_url("http://hub.test:4444/wd/hub");
+        assert_eq!(resolve_remote_debug(&mut elsewhere).unwrap(), Some(busy));
+        let mut firefox = named.with_browser(Browser::Firefox);
+        assert_eq!(resolve_remote_debug(&mut firefox).unwrap(), None);
+        drop(listener);
+    }
+
+    #[test]
+    fn the_remote_debugger_address_is_localhost_and_its_port() {
+        let mut session = BrowserSession::disconnected();
+        assert_eq!(session.remote_debug_address(), None);
+        session.remote_debug = Some(9222);
+        assert_eq!(
+            session.remote_debug_address().as_deref(),
+            Some("localhost:9222")
+        );
     }
 }
 
