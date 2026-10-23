@@ -4057,9 +4057,8 @@ rust = "BrowserConfig::browser"
 note = "Chrome for Testing, downloaded into downloaded_drivers/cft/ when missing; the driver follows its version."
 
 [options_driver."chromium_arg"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_chromium_arg"
 
 [options_driver."chs"]
 status = "implemented"
@@ -4079,14 +4078,12 @@ status = "implemented"
 rust = "DeviceMetrics::width"
 
 [options_driver."dark_mode"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_dark_mode"
 
 [options_driver."devtools"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_devtools"
 
 [options_driver."disable_cookies"]
 status = "implemented"
@@ -4099,14 +4096,12 @@ rust = "BrowserConfig::with_disable_csp"
 note = "Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only."
 
 [options_driver."disable_features"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_disable_features"
 
 [options_driver."disable_gpu"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_disable_gpu"
 
 [options_driver."disable_js"]
 status = "implemented"
@@ -4114,9 +4109,8 @@ rust = "BrowserConfig::with_disable_js"
 note = "Chrome's JavaScript content-setting preference, or Firefox's `javascript.enabled`."
 
 [options_driver."disable_ws"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_disable_ws"
 
 [options_driver."do_not_track"]
 status = "implemented"
@@ -4129,10 +4123,9 @@ rust = "BrowserConfig::with_driver_version"
 note = "browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/."
 
 [options_driver."enable_3d_apis"]
-status = "composed"
-rust = "BrowserConfig::headless"
-note = "Python adds --disable-3d-apis and --disable-gpu unless enable_3d_apis is set. A Rust session never adds --disable-3d-apis, and adds --disable-gpu only when it is headless, so a headed session already has 3D APIs on."
-divergence = "A headless session always adds --disable-gpu, and there is no option to leave it out."
+status = "implemented"
+rust = "BrowserConfig::with_enable_3d_apis"
+note = "A headless session keeps the GPU. A Rust session never adds --disable-3d-apis."
 
 [options_driver."enable_sync"]
 status = "implemented"
@@ -4168,14 +4161,12 @@ rust = "FirefoxOptions::add_preferences"
 note = "Comma-separated NAME:VALUE; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`."
 
 [options_driver."guest"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_guest_mode"
 
 [options_driver."guest_mode"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_guest_mode"
 
 [options_driver."headed"]
 status = "composed"
@@ -4187,24 +4178,22 @@ status = "implemented"
 rust = "BrowserConfig::headless"
 
 [options_driver."headless1"]
-status = "composed"
-rust = "BrowserConfig::browser"
-note = "Chrome's old headless mode now exists only as chrome-headless-shell: choose `Browser::ChromeHeadlessShell` as the browser, with `headless` set. `BrowserConfig::headless` alone launches the new mode."
+status = "implemented"
+rust = "BrowserConfig::with_headless1"
+note = "Chrome's old headless mode now exists only as chrome-headless-shell: Chrome with no program of its own named runs it (downloaded when missing); the undetected mode cannot."
 
 [options_driver."headless2"]
-status = "composed"
-rust = "BrowserConfig::headless"
+status = "implemented"
+rust = "BrowserConfig::with_headless2"
 note = "`headless = true` launches Chrome's new headless mode (`--headless=new`), which is what headless2 asks for."
 
 [options_driver."host_resolver_rules"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_host_resolver_rules"
 
 [options_driver."incognito"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_incognito"
 
 [options_driver."is_mobile"]
 status = "composed"
@@ -4239,9 +4228,8 @@ rust = "LaunchOptionsBuilder::proxy"
 note = "Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine passes the proxy as a flag and cannot log in to one."
 
 [options_driver."no_sandbox"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_no_sandbox"
 
 [options_driver."page_load_strategy"]
 status = "implemented"
@@ -4309,9 +4297,8 @@ rust = "BrowserConfig::with_window_size"
 note = "Chrome's `--window-size`; a Firefox window is resized once it runs."
 
 [options_driver."swiftshader"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_swiftshader"
 
 [options_driver."uc"]
 status = "composed"
@@ -4513,14 +4500,12 @@ rust = "BrowserConfig::browser"
 note = "Choose the Browser variant."
 
 [options_pytest."--chromium-arg"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_chromium_arg"
 
 [options_pytest."--chromium_arg"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_chromium_arg"
 
 [options_pytest."--chs"]
 status = "implemented"
@@ -4548,19 +4533,16 @@ rust = "BrowserConfig::with_extension_archive"
 note = "A .zip or .crx file, sent in the `extensions` option of `goog:chromeOptions`. Chromium only."
 
 [options_pytest."--dark"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_dark_mode"
 
 [options_pytest."--dark-mode"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_dark_mode"
 
 [options_pytest."--dark_mode"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_dark_mode"
 
 [options_pytest."--dash-title"]
 status = "not-applicable"
@@ -4629,9 +4611,8 @@ note = "Chrome's `mobileEmulation` experimental option."
 divergence = "Python applies the metrics only together with --mobile; here setting them turns mobile emulation on."
 
 [options_pytest."--devtools"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_devtools"
 
 [options_pytest."--disable-beforeunload"]
 status = "composed"
@@ -4649,14 +4630,12 @@ rust = "BrowserConfig::with_disable_csp"
 note = "Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only."
 
 [options_pytest."--disable-features"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_disable_features"
 
 [options_pytest."--disable-gpu"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_disable_gpu"
 
 [options_pytest."--disable-js"]
 status = "implemented"
@@ -4664,14 +4643,12 @@ rust = "BrowserConfig::with_disable_js"
 note = "Chrome's JavaScript content-setting preference, or Firefox's `javascript.enabled`."
 
 [options_pytest."--disable-web-security"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_disable_ws"
 
 [options_pytest."--disable-ws"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_disable_ws"
 
 [options_pytest."--disable_beforeunload"]
 status = "composed"
@@ -4689,14 +4666,12 @@ rust = "BrowserConfig::with_disable_csp"
 note = "Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only."
 
 [options_pytest."--disable_features"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_disable_features"
 
 [options_pytest."--disable_gpu"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_disable_gpu"
 
 [options_pytest."--disable_js"]
 status = "implemented"
@@ -4704,9 +4679,8 @@ rust = "BrowserConfig::with_disable_js"
 note = "Chrome's JavaScript content-setting preference, or Firefox's `javascript.enabled`."
 
 [options_pytest."--disable_ws"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_disable_ws"
 
 [options_pytest."--do-not-track"]
 status = "implemented"
@@ -4729,9 +4703,8 @@ rust = "BrowserConfig::with_driver_version"
 note = "browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/, or msedgedriver-<version>/ for Edge. geckodriver takes no version here: one geckodriver drives many Firefox versions, and `sbrs get geckodriver VERSION` pins one."
 
 [options_pytest."--dws"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_disable_ws"
 
 [options_pytest."--edge"]
 status = "composed"
@@ -4745,10 +4718,9 @@ note = "Also `sbrs --esc-end` (aliases `--esc_end`, `--ee`), `Settings::esc_end`
 divergence = "Python assigns `document.onkeydown`, replacing the page's own handler; the Rust listener is added once per document with addEventListener, so the page keeps its handlers. A script that fails (an open alert, no page) counts as 'ESC not pressed'. Only the WebDriver engine (BaseCase) has the option."
 
 [options_pytest."--enable-3d-apis"]
-status = "composed"
-rust = "BrowserConfig::headless"
-note = "Python adds --disable-3d-apis and --disable-gpu unless this is set. A Rust session never adds --disable-3d-apis, and adds --disable-gpu only when it is headless, so a headed session already has 3D APIs on."
-divergence = "A headless session always adds --disable-gpu, and there is no option to leave it out."
+status = "implemented"
+rust = "BrowserConfig::with_enable_3d_apis"
+note = "A headless session keeps the GPU. A Rust session never adds --disable-3d-apis."
 
 [options_pytest."--enable-sync"]
 status = "implemented"
@@ -4764,10 +4736,9 @@ status = "not-applicable"
 reason = "Python adds --disable-web-security unless this is set. A Rust session never adds it, so web security is already on and there is nothing to enable."
 
 [options_pytest."--enable_3d_apis"]
-status = "composed"
-rust = "BrowserConfig::headless"
-note = "Python adds --disable-3d-apis and --disable-gpu unless this is set. A Rust session never adds --disable-3d-apis, and adds --disable-gpu only when it is headless, so a headed session already has 3D APIs on."
-divergence = "A headless session always adds --disable-gpu, and there is no option to leave it out."
+status = "implemented"
+rust = "BrowserConfig::with_enable_3d_apis"
+note = "A headless session keeps the GPU. A Rust session never adds --disable-3d-apis."
 
 [options_pytest."--enable_sync"]
 status = "implemented"
@@ -4881,19 +4852,16 @@ rust = "BaseCase::maximize_window"
 note = "Alias of --maximize upstream. Call `maximize_window()` once the session has started; it works for Firefox too. A session always starts with a --window-size, so --start-maximized alone is not relied on."
 
 [options_pytest."--guest"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_guest_mode"
 
 [options_pytest."--guest-mode"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_guest_mode"
 
 [options_pytest."--guest_mode"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_guest_mode"
 
 [options_pytest."--gui"]
 status = "composed"
@@ -4910,13 +4878,13 @@ status = "implemented"
 rust = "BrowserConfig::headless"
 
 [options_pytest."--headless1"]
-status = "composed"
-rust = "BrowserConfig::browser"
-note = "Chrome's old headless mode now exists only as chrome-headless-shell: choose `Browser::ChromeHeadlessShell` as the browser, with `headless` set. `BrowserConfig::headless` alone launches the new mode."
+status = "implemented"
+rust = "BrowserConfig::with_headless1"
+note = "Chrome's old headless mode now exists only as chrome-headless-shell: Chrome with no program of its own named runs it (downloaded when missing); the undetected mode cannot."
 
 [options_pytest."--headless2"]
-status = "composed"
-rust = "BrowserConfig::headless"
+status = "implemented"
+rust = "BrowserConfig::with_headless2"
 note = "`headless = true` launches Chrome's new headless mode (`--headless=new`), which is what headless2 asks for."
 
 [options_pytest."--highlights"]
@@ -4924,14 +4892,12 @@ status = "not-applicable"
 reason = "BaseCase::highlight outlines the element once and restores it after about a second; it has no loop count for a --highlights option to override."
 
 [options_pytest."--host-resolver-rules"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_host_resolver_rules"
 
 [options_pytest."--host_resolver_rules"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_host_resolver_rules"
 
 [options_pytest."--ie"]
 status = "implemented"
@@ -4939,19 +4905,16 @@ rust = "BrowserConfig::browser"
 note = "Run with IEDriverServer, which must be in downloaded_drivers/ or on the PATH, on Windows."
 
 [options_pytest."--incognito"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_incognito"
 
 [options_pytest."--incognito-mode"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_incognito"
 
 [options_pytest."--incognito_mode"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_incognito"
 
 [options_pytest."--interval"]
 status = "not-applicable"
@@ -5018,9 +4981,9 @@ status = "not-applicable"
 reason = "Deprecated upstream and no longer editable: logs always go to latest_logs/, as artifacts::ensure_latest_logs_dir does here."
 
 [options_pytest."--maximize"]
-status = "composed"
-rust = "BaseCase::maximize_window"
-note = "Call `maximize_window()` once the session has started; it works for Firefox too. A session always starts with a --window-size, so --start-maximized alone is not relied on."
+status = "implemented"
+rust = "BrowserConfig::with_maximize"
+note = "A headed Chromium window starts with --start-maximized and no --window-size; Firefox and Safari are maximized once they are running. A headless session ignores it."
 
 [options_pytest."--maximize-window"]
 status = "composed"
@@ -5078,9 +5041,8 @@ rust = "BrowserConfig::with_disable_csp"
 note = "Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only."
 
 [options_pytest."--no-sandbox"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_no_sandbox"
 
 [options_pytest."--no-screenshot"]
 status = "not-applicable"
@@ -5092,9 +5054,8 @@ rust = "BrowserConfig::with_disable_csp"
 note = "Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only."
 
 [options_pytest."--no_sandbox"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_no_sandbox"
 
 [options_pytest."--no_screenshot"]
 status = "not-applicable"
@@ -5105,14 +5066,12 @@ status = "not-applicable"
 reason = "Nothing to turn off: this crate saves a screenshot only when a test or ScreenshotOnFailurePlugin asks for one."
 
 [options_pytest."--open-devtools"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_devtools"
 
 [options_pytest."--open_devtools"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_devtools"
 
 [options_pytest."--opera"]
 status = "implemented"
@@ -5387,9 +5346,8 @@ rust = "BrowserConfig::start_page"
 note = "BaseCase::new opens the start page when one is set; BaseCase::open_start_page opens it again (about:blank when none is set)."
 
 [options_pytest."--swiftshader"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_swiftshader"
 
 [options_pytest."--time-limit"]
 status = "composed"
@@ -5691,9 +5649,8 @@ rust = "BrowserConfig::browser"
 note = "Chrome for Testing, downloaded into downloaded_drivers/cft/ when missing; the driver follows its version."
 
 [options_sb."chromium_arg"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_chromium_arg"
 
 [options_sb."chs"]
 status = "implemented"
@@ -5701,9 +5658,8 @@ rust = "BrowserConfig::browser"
 note = "chrome-headless-shell, downloaded into downloaded_drivers/chs/ when missing; it cannot run UC mode."
 
 [options_sb."dark_mode"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_dark_mode"
 
 [options_sb."data"]
 status = "not-applicable"
@@ -5726,9 +5682,8 @@ note = "Chrome's `mobileEmulation` experimental option."
 divergence = "Python applies the metrics only together with --mobile; here setting them turns mobile emulation on."
 
 [options_sb."devtools"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_devtools"
 
 [options_sb."disable_beforeunload"]
 status = "composed"
@@ -5746,9 +5701,8 @@ rust = "BrowserConfig::with_disable_csp"
 note = "Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only."
 
 [options_sb."disable_features"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_disable_features"
 
 [options_sb."disable_js"]
 status = "implemented"
@@ -5756,9 +5710,8 @@ rust = "BrowserConfig::with_disable_js"
 note = "Chrome's JavaScript content-setting preference, or Firefox's `javascript.enabled`."
 
 [options_sb."disable_ws"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_disable_ws"
 
 [options_sb."do_not_track"]
 status = "implemented"
@@ -5771,10 +5724,9 @@ rust = "BrowserConfig::with_driver_version"
 note = "browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/."
 
 [options_sb."enable_3d_apis"]
-status = "composed"
-rust = "BrowserConfig::headless"
-note = "Python adds --disable-3d-apis and --disable-gpu unless enable_3d_apis is set. A Rust session never adds --disable-3d-apis, and adds --disable-gpu only when it is headless, so a headed session already has 3D APIs on."
-divergence = "A headless session always adds --disable-gpu, and there is no option to leave it out."
+status = "implemented"
+rust = "BrowserConfig::with_enable_3d_apis"
+note = "A headless session keeps the GPU. A Rust session never adds --disable-3d-apis."
 
 [options_sb."enable_sync"]
 status = "implemented"
@@ -5818,14 +5770,12 @@ rust = "FirefoxOptions::add_preferences"
 note = "Comma-separated NAME:VALUE; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`."
 
 [options_sb."guest"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_guest_mode"
 
 [options_sb."guest_mode"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_guest_mode"
 
 [options_sb."headed"]
 status = "composed"
@@ -5837,13 +5787,13 @@ status = "implemented"
 rust = "BrowserConfig::headless"
 
 [options_sb."headless1"]
-status = "composed"
-rust = "BrowserConfig::browser"
-note = "Chrome's old headless mode now exists only as chrome-headless-shell: choose `Browser::ChromeHeadlessShell` as the browser, with `headless` set. `BrowserConfig::headless` alone launches the new mode."
+status = "implemented"
+rust = "BrowserConfig::with_headless1"
+note = "Chrome's old headless mode now exists only as chrome-headless-shell: Chrome with no program of its own named runs it (downloaded when missing); the undetected mode cannot."
 
 [options_sb."headless2"]
-status = "composed"
-rust = "BrowserConfig::headless"
+status = "implemented"
+rust = "BrowserConfig::with_headless2"
 note = "`headless = true` launches Chrome's new headless mode (`--headless=new`), which is what headless2 asks for."
 
 [options_sb."highlights"]
@@ -5851,14 +5801,12 @@ status = "not-applicable"
 reason = "BaseCase::highlight outlines the element once and restores it after about a second; it has no loop count for a highlights argument to override."
 
 [options_sb."host_resolver_rules"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_host_resolver_rules"
 
 [options_sb."incognito"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_incognito"
 
 [options_sb."interval"]
 status = "not-applicable"
@@ -5893,9 +5841,9 @@ rust = "BrowserConfig::with_cdp_events"
 note = "Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`."
 
 [options_sb."maximize"]
-status = "composed"
-rust = "BaseCase::maximize_window"
-note = "Call `maximize_window()` once the session has started; it works for Firefox too. A session always starts with a --window-size, so --start-maximized alone is not relied on."
+status = "implemented"
+rust = "BrowserConfig::with_maximize"
+note = "A headed Chromium window starts with --start-maximized and no --window-size; Firefox and Safari are maximized once they are running. A headless session ignores it."
 
 [options_sb."message_duration"]
 status = "implemented"
@@ -6045,9 +5993,8 @@ rust = "BrowserConfig::start_page"
 note = "BaseCase::new opens the start page when one is set; BaseCase::open_start_page opens it again (about:blank when none is set)."
 
 [options_sb."swiftshader"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_swiftshader"
 
 [options_sb."test"]
 status = "not-applicable"
