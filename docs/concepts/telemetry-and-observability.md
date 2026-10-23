@@ -43,7 +43,7 @@ sequenceDiagram
     D-->>A: rows, 4 ms
     A-->>W: reply, 38 ms
     W-->>B: page, 61 ms
-    Note over W,D: each hop records a span; all share one trace id
+    Note over W,D: each hop records a span, and all spans share one trace id
 ```
 
 *One request, one trace id. The spans show where the 61 ms went.*
