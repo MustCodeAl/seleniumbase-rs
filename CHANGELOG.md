@@ -65,7 +65,20 @@ work, `docs/parity.md` the per-API status).
   `PromptPage` and `LineInput` are public, for the runner's `--trace`, `--pdb` and
   `--final-debug` (not wired to a flag yet). `BaseCase::recorder_mode` says whether a
   recording window is open.
-
+- **A command line that does not parse prints the command's page, then the error.** Like
+  Python's `sbase`, `sbrs mkfile`, `sbrs grid-hub`, `sbrs get-text` and `sbrs plugin info`
+  print the usage, arguments, flags and examples of the command the words reached, a blank
+  line, and last the parser's `error:` line and `tip:`, on standard error with status 2. A
+  mistake found after parsing (a page command with no page, a start page for a command with a
+  URL of its own) prints the same way. An unknown command, or none, prints the commands by
+  group, names only, instead of the 112-line help. `--help`, `--version` and shell completion
+  are as before.
+- **Every command has an example and a help heading.** `sbrs <command> --help` ends with an
+  `Examples:` section (`sbrs --url https://example.com get-text --css h1`), the commands are
+  grouped as Page commands, Files and generators, Record and replay, Tests, Drivers, grid and
+  servers, Import and convert, Security, and Info and setup in `sbrs --help`, and a test
+  proves that every example parses. The examples are in the usage spec and in
+  `docs/help/cli_reference.md`.
 - **The start page: `--start-page`, `--url` and `--start_page`, `SB_START_PAGE`, and the
   `start_page` key of the settings file.** Every `sbrs` command starts a fresh browser, so
   a command that acts on a page now acts on this one: `sbrs --url https://example.com
