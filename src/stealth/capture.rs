@@ -138,7 +138,9 @@ impl CapturedFingerprint {
         captured_at: impl Into<String>,
     ) -> Result<Self, SeleniumBaseError> {
         if let Some(reason) = raw.get("failure").and_then(Value::as_str) {
-            return Err(stealth(format!("the capture script failed in the page: {reason}")));
+            return Err(stealth(format!(
+                "the capture script failed in the page: {reason}"
+            )));
         }
         match raw.get("version").and_then(Value::as_u64) {
             Some(PROBE_VERSION) => {}
@@ -214,7 +216,10 @@ impl<T> Default for Reading<T> {
 impl<'de, T: DeserializeOwned> Deserialize<'de> for Reading<T> {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let value = Value::deserialize(deserializer)?;
-        let reason = value.get("unknown").and_then(Value::as_str).map(str::to_owned);
+        let reason = value
+            .get("unknown")
+            .and_then(Value::as_str)
+            .map(str::to_owned);
         Ok(match value.get("supported").and_then(Value::as_bool) {
             Some(false) => Self::Absent,
             Some(true) => match serde_json::from_value::<T>(value) {
@@ -404,7 +409,9 @@ fn non_empty(text: &Option<String>) -> Option<&str> {
 /// `155.0.0.0`).
 fn token_version<'a>(user_agent: &'a str, token: &str) -> Option<&'a str> {
     let rest = user_agent.split(token).nth(1)?;
-    let version = rest.split(|c: char| c.is_whitespace() || c == ';' || c == ')').next()?;
+    let version = rest
+        .split(|c: char| c.is_whitespace() || c == ';' || c == ')')
+        .next()?;
     (!version.is_empty()).then_some(version)
 }
 
@@ -551,7 +558,10 @@ impl RawProbe {
     ) -> FingerprintBuilder {
         match &self.webgl {
             Reading::Present(gl) => {
-                match (non_empty(&gl.unmasked_vendor), non_empty(&gl.unmasked_renderer)) {
+                match (
+                    non_empty(&gl.unmasked_vendor),
+                    non_empty(&gl.unmasked_renderer),
+                ) {
                     (Some(vendor), Some(renderer)) => builder.webgl(WebGl::new(vendor, renderer)),
                     _ => {
                         unanswered.insert(
@@ -707,7 +717,13 @@ impl RawProbe {
     /// The version of the browser, for the record of the capture.
     fn browser_version(&self) -> Option<String> {
         if let Reading::Present(data) = &self.user_agent_data {
-            for brand in ["Google Chrome", "Microsoft Edge", "Brave", "Opera", "Chromium"] {
+            for brand in [
+                "Google Chrome",
+                "Microsoft Edge",
+                "Brave",
+                "Opera",
+                "Chromium",
+            ] {
                 if let Some(found) = data.full_version_list.iter().find(|b| b.brand == brand) {
                     return Some(found.version.clone());
                 }
@@ -735,17 +751,26 @@ impl RawProbe {
         put("secure_context", Some(json!(self.secure_context)));
         put("webdriver", nav.webdriver.map(Value::from));
         put("plugins_length", whole(nav.plugins_length).map(Value::from));
-        put("mime_types_length", whole(nav.mime_types_length).map(Value::from));
+        put(
+            "mime_types_length",
+            whole(nav.mime_types_length).map(Value::from),
+        );
         put("cookie_enabled", nav.cookie_enabled.map(Value::from));
         put("do_not_track", nav.do_not_track.clone().map(Value::from));
-        put("pdf_viewer_enabled", nav.pdf_viewer_enabled.map(Value::from));
+        put(
+            "pdf_viewer_enabled",
+            nav.pdf_viewer_enabled.map(Value::from),
+        );
         if let Some(screen) = &self.screen {
             put("pixel_depth", whole(screen.pixel_depth).map(Value::from));
             put("orientation", screen.orientation.clone());
         }
         put("window", self.window.clone());
         if let Some(intl) = &self.intl {
-            put("time_zone_offset_minutes", intl.offset_minutes.map(json_number));
+            put(
+                "time_zone_offset_minutes",
+                intl.offset_minutes.map(json_number),
+            );
             put("intl_locale", intl.locale.clone().map(Value::from));
         }
         if let Reading::Present(gl) = &self.webgl {
@@ -801,7 +826,8 @@ mod tests {
     use super::*;
     use crate::stealth::fingerprint::{Dimension, OsType};
 
-    const CHROME_MACOS: &str = include_str!("../../tests/fixtures/fingerprint/probe_chrome_macos.json");
+    const CHROME_MACOS: &str =
+        include_str!("../../tests/fixtures/fingerprint/probe_chrome_macos.json");
     const FIREFOX_LINUX: &str =
         include_str!("../../tests/fixtures/fingerprint/probe_firefox_linux.json");
     const CHROME_INSECURE: &str =
@@ -822,7 +848,10 @@ mod tests {
     fn a_chrome_probe_maps_every_answered_setting_to_a_value() {
         let fp = capture(CHROME_MACOS).fingerprint;
 
-        assert!(fp.user_agent().as_str().is_some_and(|ua| ua.contains("Chrome/155")));
+        assert!(fp
+            .user_agent()
+            .as_str()
+            .is_some_and(|ua| ua.contains("Chrome/155")));
         assert_eq!(fp.platform().as_str(), Some("MacIntel"));
         assert_eq!(fp.hardware_concurrency().value(), Some(&8));
         assert_eq!(fp.device_memory().value(), Some(&8.0));
@@ -838,13 +867,22 @@ mod tests {
         assert_eq!(fp.color_depth().value(), Some(&30));
         let gl = fp.webgl().value().expect("webgl is a value");
         assert_eq!(gl.vendor.as_deref(), Some("Google Inc. (Apple)"));
-        assert!(gl.renderer.as_deref().is_some_and(|r| r.contains("Apple M3 Pro")));
-        assert_eq!(fp.media_devices().value(), Some(&MediaDevices::counts(1, 1, 1)));
+        assert!(gl
+            .renderer
+            .as_deref()
+            .is_some_and(|r| r.contains("Apple M3 Pro")));
+        assert_eq!(
+            fp.media_devices().value(),
+            Some(&MediaDevices::counts(1, 1, 1))
+        );
         assert_eq!(fp.bluetooth().value(), Some(&true));
         assert_eq!(fp.speech_voices().value().map(Vec::len), Some(2));
         let battery = fp.battery().value().expect("battery is a value");
         assert!(battery.charging && (battery.level - 1.0).abs() < f64::EPSILON);
-        assert!(battery.discharging_time.is_infinite(), "a null time is infinite");
+        assert!(
+            battery.discharging_time.is_infinite(),
+            "a null time is infinite"
+        );
         let link = fp.connection().value().expect("connection is a value");
         assert_eq!((link.effective_type.as_str(), link.rtt), ("4g", 50));
     }
@@ -873,7 +911,11 @@ mod tests {
 
         assert_eq!(fp.os_type(), OsType::Macos);
         assert_eq!(fp.browser_type(), BrowserType::Chromium);
-        assert_eq!(fp.core_version(), Some(155), "it must claim the Chrome that was measured");
+        assert_eq!(
+            fp.core_version(),
+            Some(155),
+            "it must claim the Chrome that was measured"
+        );
         assert!(fp.policy().chrome_runtime, "the policy of every preset");
     }
 
@@ -892,7 +934,10 @@ mod tests {
     fn a_chromium_capture_derives_the_accept_language_header_from_the_list() {
         let fp = capture(CHROME_MACOS).fingerprint;
 
-        assert_eq!(fp.accept_languages().as_str(), Some("en-US,en;q=0.9,de;q=0.8"));
+        assert_eq!(
+            fp.accept_languages().as_str(),
+            Some("en-US,en;q=0.9,de;q=0.8")
+        );
     }
 
     #[test]
@@ -916,8 +961,14 @@ mod tests {
         assert!(fp.connection().is_off());
         assert!(fp.bluetooth().is_off());
         assert!(fp.speech_voices().is_off(), "no voice listed is an answer");
-        assert_eq!(fp.media_devices().value(), Some(&MediaDevices::counts(0, 0, 0)));
-        assert!(fp.device_memory().is_natural(), "Firefox has no deviceMemory");
+        assert_eq!(
+            fp.media_devices().value(),
+            Some(&MediaDevices::counts(0, 0, 0))
+        );
+        assert!(
+            fp.device_memory().is_natural(),
+            "Firefox has no deviceMemory"
+        );
     }
 
     #[test]
@@ -931,7 +982,10 @@ mod tests {
         assert_eq!(fp.oscpu().as_str(), Some("Linux x86_64"));
         assert_eq!(fp.build_id().as_str(), Some("20181001000000"));
         assert_eq!(fp.vendor().as_str(), Some(""), "Firefox's vendor is empty");
-        assert!(fp.accept_languages().is_natural(), "Firefox builds its header another way");
+        assert!(
+            fp.accept_languages().is_natural(),
+            "Firefox builds its header another way"
+        );
         assert_eq!(captured.probe.browser_version.as_deref(), Some("130.0"));
     }
 
@@ -966,7 +1020,9 @@ mod tests {
                 "{setting} should be unanswered: {unanswered:?}"
             );
         }
-        assert!(unanswered.iter().all(|(_, reason)| reason.contains("secure context")));
+        assert!(unanswered
+            .iter()
+            .all(|(_, reason)| reason.contains("secure context")));
         assert_eq!(captured.unmapped["secure_context"], json!(false));
     }
 
@@ -998,7 +1054,10 @@ mod tests {
 
         assert_eq!(captured.probe.url, "https://example.test/");
         assert_eq!(captured.probe.captured_at, AT);
-        assert_eq!(captured.probe.browser_version.as_deref(), Some("155.0.8059.40"));
+        assert_eq!(
+            captured.probe.browser_version.as_deref(),
+            Some("155.0.8059.40")
+        );
     }
 
     #[test]
@@ -1031,8 +1090,14 @@ mod tests {
         assert!(fp.validate().is_coherent(), "{:?}", fp.validate().errors);
         assert_eq!(fp.core_version(), Some(155));
         assert_eq!(fp.os_type(), OsType::Macos);
-        assert!(fp.user_agent().as_str().is_some_and(|ua| ua.contains("HeadlessChrome/155")));
-        assert_eq!(captured.probe.browser_version.as_deref(), Some("155.0.8059.85"));
+        assert!(fp
+            .user_agent()
+            .as_str()
+            .is_some_and(|ua| ua.contains("HeadlessChrome/155")));
+        assert_eq!(
+            captured.probe.browser_version.as_deref(),
+            Some("155.0.8059.85")
+        );
         let hints = fp.client_hints().value().expect("client hints");
         assert_eq!(hints.brands[0].brand, "Google Chrome");
         assert_eq!(hints.platform_version, "27.0.1");
@@ -1047,7 +1112,11 @@ mod tests {
             json!(["user_agent_says_headless", "navigator_webdriver_true"])
         );
         assert_eq!(captured.unmapped["webdriver"], json!(true));
-        assert!(captured.unanswered().is_empty(), "{:?}", captured.unanswered());
+        assert!(
+            captured.unanswered().is_empty(),
+            "{:?}",
+            captured.unanswered()
+        );
     }
 
     #[test]
@@ -1068,7 +1137,10 @@ mod tests {
         let back: Fingerprint = serde_json::from_str(&text).unwrap();
 
         assert_eq!(back, captured.fingerprint);
-        assert!(!text.contains("\"geolocation\""), "natural settings are left out: {text}");
+        assert!(
+            !text.contains("\"geolocation\""),
+            "natural settings are left out: {text}"
+        );
     }
 
     #[test]
@@ -1077,7 +1149,9 @@ mod tests {
         raw["navigator"]["hardwareConcurrency"] = json!(8.0);
         raw["screen"]["width"] = json!(1512.0);
 
-        let fp = CapturedFingerprint::from_probe(&raw, AT).unwrap().fingerprint;
+        let fp = CapturedFingerprint::from_probe(&raw, AT)
+            .unwrap()
+            .fingerprint;
 
         assert_eq!(fp.hardware_concurrency().value(), Some(&8));
         assert_eq!(fp.screen().value().map(|s| s.width), Some(1512));
@@ -1102,7 +1176,10 @@ mod tests {
         assert!(fp.device_memory().is_natural());
         assert!(fp.timezone().is_natural());
         assert!(fp.battery().is_natural());
-        assert!(captured.unanswered().iter().any(|(name, _)| *name == "battery"));
+        assert!(captured
+            .unanswered()
+            .iter()
+            .any(|(name, _)| *name == "battery"));
     }
 
     #[test]
@@ -1112,12 +1189,20 @@ mod tests {
         let error = CapturedFingerprint::from_probe(&raw, AT).unwrap_err();
 
         assert!(matches!(error, SeleniumBaseError::Stealth { .. }));
-        assert!(error.to_string().contains("ReferenceError: boom"), "{error}");
+        assert!(
+            error.to_string().contains("ReferenceError: boom"),
+            "{error}"
+        );
     }
 
     #[test]
     fn readings_of_another_version_are_refused() {
-        for raw in [json!({ "version": 2 }), json!({}), json!(null), json!({ "version": "1" })] {
+        for raw in [
+            json!({ "version": 2 }),
+            json!({}),
+            json!(null),
+            json!({ "version": "1" }),
+        ] {
             let error = CapturedFingerprint::from_probe(&raw, AT).unwrap_err();
 
             assert!(error.to_string().contains("version"), "{error}");

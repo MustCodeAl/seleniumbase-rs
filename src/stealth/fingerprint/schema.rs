@@ -103,7 +103,9 @@ fn restrict_keywords(root: &mut Value) {
         let Some(alternatives) = setting.get_mut("anyOf").and_then(Value::as_array_mut) else {
             continue;
         };
-        if let Some(keywords) = alternatives.first_mut().filter(|first| first.get("enum").is_some())
+        if let Some(keywords) = alternatives
+            .first_mut()
+            .filter(|first| first.get("enum").is_some())
         {
             keywords["enum"] = json!(allowed);
         }
@@ -118,7 +120,10 @@ fn restrict_keywords(root: &mut Value) {
 /// The `properties` of the schema of the settings.
 fn find_properties(root: &mut Value) -> Option<&mut serde_json::Map<String, Value>> {
     // The root holds them, or a definition it points at does.
-    if root.get("properties").is_some_and(|p| p.get("user_agent").is_some()) {
+    if root
+        .get("properties")
+        .is_some_and(|p| p.get("user_agent").is_some())
+    {
         return root.get_mut("properties")?.as_object_mut();
     }
     root.get_mut("$defs")?
@@ -194,8 +199,14 @@ fn check(root: &Value, schema: &Value, instance: &Value, at: &str, found: &mut V
         return;
     }
     if let Some(options) = schema.get("anyOf").and_then(Value::as_array) {
-        if !options.iter().any(|option| violations(root, option, instance, at).is_empty()) {
-            found.push(format!("{at}: matches none of the {} alternatives", options.len()));
+        if !options
+            .iter()
+            .any(|option| violations(root, option, instance, at).is_empty())
+        {
+            found.push(format!(
+                "{at}: matches none of the {} alternatives",
+                options.len()
+            ));
         }
         return;
     }
@@ -205,7 +216,9 @@ fn check(root: &Value, schema: &Value, instance: &Value, at: &str, found: &mut V
             .filter(|option| violations(root, option, instance, at).is_empty())
             .count();
         if matching != 1 {
-            found.push(format!("{at}: matches {matching} of the alternatives, not one"));
+            found.push(format!(
+                "{at}: matches {matching} of the alternatives, not one"
+            ));
         }
         return;
     }
@@ -264,7 +277,9 @@ fn check(root: &Value, schema: &Value, instance: &Value, at: &str, found: &mut V
             match properties.and_then(|properties| properties.get(name)) {
                 Some(property) => check(root, property, value, &place, found),
                 None => match schema.get("additionalProperties") {
-                    Some(Value::Bool(false)) => found.push(format!("{place}: is not a known field")),
+                    Some(Value::Bool(false)) => {
+                        found.push(format!("{place}: is not a known field"))
+                    }
                     Some(rule @ Value::Object(_)) => check(root, rule, value, &place, found),
                     _ => {}
                 },
@@ -315,7 +330,13 @@ fn every_preset_a_drawn_identity_and_a_capture_is_valid_against_the_schema() {
         Fingerprint::ios_mobile_safari(),
         Fingerprint::builder().build().unwrap(),
     ];
-    for os in [OsType::Windows, OsType::Macos, OsType::Linux, OsType::Android, OsType::Ios] {
+    for os in [
+        OsType::Windows,
+        OsType::Macos,
+        OsType::Linux,
+        OsType::Android,
+        OsType::Ios,
+    ] {
         files.push(Fingerprint::randomized(os, 17));
     }
     for fixture in [
@@ -400,7 +421,10 @@ fn the_schema_and_the_loader_agree_on_which_settings_take_off_and_random() {
     for setting in NO_RANDOM {
         let random = json!({ setting: "random" });
         assert!(!valid(&random), "{setting}");
-        assert!(Fingerprint::from_json(&random.to_string()).is_err(), "{setting}");
+        assert!(
+            Fingerprint::from_json(&random.to_string()).is_err(),
+            "{setting}"
+        );
     }
 }
 
@@ -411,11 +435,22 @@ fn every_setting_of_the_file_is_in_the_schema_with_a_description() {
     let properties = find_properties(&mut root).expect("the schema has the settings");
 
     for setting in SETTINGS {
-        let property = properties.get(setting).unwrap_or_else(|| panic!("{setting} is missing"));
-        let description = property.get("description").and_then(Value::as_str).unwrap_or("");
+        let property = properties
+            .get(setting)
+            .unwrap_or_else(|| panic!("{setting} is missing"));
+        let description = property
+            .get("description")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         assert!(!description.is_empty(), "{setting} has no description");
-        assert!(!description.contains("](") && !description.contains('\n'), "{description}");
+        assert!(
+            !description.contains("](") && !description.contains('\n'),
+            "{description}"
+        );
     }
-    assert_eq!(schema["$schema"], "https://json-schema.org/draft/2020-12/schema");
+    assert_eq!(
+        schema["$schema"],
+        "https://json-schema.org/draft/2020-12/schema"
+    );
     assert_eq!(schema["title"], "Fingerprint");
 }

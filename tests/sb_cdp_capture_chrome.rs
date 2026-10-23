@@ -67,7 +67,10 @@ async fn a_real_chrome_is_captured_and_presents_what_it_captured() {
 
     // What the browser reports through plain evaluation is what was captured.
     let user_agent: String = page.evaluate_as("navigator.userAgent").await.unwrap();
-    let cores: u32 = page.evaluate_as("navigator.hardwareConcurrency").await.unwrap();
+    let cores: u32 = page
+        .evaluate_as("navigator.hardwareConcurrency")
+        .await
+        .unwrap();
     let width: u32 = page.evaluate_as("screen.width").await.unwrap();
     let zone: String = page
         .evaluate_as("Intl.DateTimeFormat().resolvedOptions().timeZone")
@@ -85,7 +88,10 @@ async fn a_real_chrome_is_captured_and_presents_what_it_captured() {
         .await
         .unwrap();
     assert_eq!(fp.core_version(), Some(major));
-    assert!(fp.client_hints().is_value(), "a secure page has Client Hints");
+    assert!(
+        fp.client_hints().is_value(),
+        "a secure page has Client Hints"
+    );
     assert!(fp.webgl().is_value() || captured.unanswered().iter().any(|(s, _)| *s == "webgl"));
     assert!(fp.media_devices().is_value());
     assert_eq!(captured.probe.url.starts_with("http://127.0.0.1:"), true);
@@ -102,7 +108,10 @@ async fn a_real_chrome_is_captured_and_presents_what_it_captured() {
     // The page presents what was captured from it.
     let comparison = page.compare_fingerprint(fp).await.unwrap();
     println!("{}", fp.to_json_pretty().unwrap());
-    println!("unmapped: {}", serde_json::to_string_pretty(&captured.unmapped).unwrap());
+    println!(
+        "unmapped: {}",
+        serde_json::to_string_pretty(&captured.unmapped).unwrap()
+    );
     println!("comparison: {comparison:#?}");
     assert!(comparison.presents(), "{:?}", comparison.differences);
 
@@ -135,7 +144,10 @@ async fn a_chrome_launched_with_a_fingerprint_shows_it_to_a_capture() {
     assert_eq!(fp.timezone().as_str(), Some("Asia/Tokyo"));
     assert_eq!(fp.locale().as_str(), Some("ja-JP"));
     assert_eq!(fp.user_agent(), claimed.user_agent());
-    assert!(fp.battery().is_off(), "the claimed missing battery is missing");
+    assert!(
+        fp.battery().is_off(),
+        "the claimed missing battery is missing"
+    );
     assert!(fp.webgl().is_value());
     assert!(
         comparison.presents(),

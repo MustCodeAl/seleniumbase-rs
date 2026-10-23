@@ -255,7 +255,11 @@ mod tests {
     #[test]
     fn the_fingerprint_reaches_the_launch_and_what_was_named_wins_over_it() {
         let fingerprint = Fingerprint::windows_desktop();
-        let own_agent = fingerprint.user_agent().as_str().unwrap_or_default().to_owned();
+        let own_agent = fingerprint
+            .user_agent()
+            .as_str()
+            .unwrap_or_default()
+            .to_owned();
 
         let given = DevtoolsRequest {
             fingerprint: Some(fingerprint.clone()),
@@ -265,7 +269,10 @@ mod tests {
             .launch_options()
             .expect("options")
             .browser_args(std::path::Path::new("/tmp/p"));
-        assert!(args.contains(&format!("--user-agent={own_agent}")), "{args:?}");
+        assert!(
+            args.contains(&format!("--user-agent={own_agent}")),
+            "{args:?}"
+        );
         assert!(args.contains(&"--lang=en-US".to_owned()), "{args:?}");
 
         let named = DevtoolsRequest {
@@ -278,10 +285,15 @@ mod tests {
             .launch_options()
             .expect("options")
             .browser_args(std::path::Path::new("/tmp/p"));
-        assert!(args.contains(&"--user-agent=Agent/1.0".to_owned()), "{args:?}");
+        assert!(
+            args.contains(&"--user-agent=Agent/1.0".to_owned()),
+            "{args:?}"
+        );
         assert!(args.contains(&"--lang=de-DE".to_owned()), "{args:?}");
 
-        let none = DevtoolsRequest::default().launch_options().expect("options");
+        let none = DevtoolsRequest::default()
+            .launch_options()
+            .expect("options");
         assert!(
             !none
                 .browser_args(std::path::Path::new("/tmp/p"))

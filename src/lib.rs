@@ -179,9 +179,9 @@ pub use common::tls::install_tls_provider;
 pub use config::settings::{Settings, SettingsOverrides};
 pub use config::{LogFormat, RuntimeConfig};
 pub use error::{Result, ResultExt, SeleniumBaseError};
+pub use stealth::capture::CapturedFingerprint;
 #[allow(deprecated, reason = "the old name stays importable for one release")]
 pub use stealth::fingerprint::StealthFlags;
-pub use stealth::capture::CapturedFingerprint;
 pub use stealth::fingerprint::{
     AudioNoise, BatteryProfile, BrandVersion, BrowserType, CanvasNoise, ClientHints,
     CoherenceReport, ConnectionProfile, Dimension, Fingerprint, FingerprintBuilder,

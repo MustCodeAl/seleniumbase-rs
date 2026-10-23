@@ -67,7 +67,10 @@ impl Fingerprint {
         let io = |action: &str, error: std::io::Error| {
             SeleniumBaseError::Io(std::io::Error::new(
                 error.kind(),
-                format!("cannot {action} the fingerprint file {}: {error}", path.display()),
+                format!(
+                    "cannot {action} the fingerprint file {}: {error}",
+                    path.display()
+                ),
             ))
         };
         let size = fs::metadata(path).map_err(|error| io("read", error))?.len();
@@ -120,7 +123,10 @@ impl Fingerprint {
         let io = |action: &str, error: std::io::Error| {
             SeleniumBaseError::Io(std::io::Error::new(
                 error.kind(),
-                format!("cannot {action} the fingerprint file {}: {error}", path.display()),
+                format!(
+                    "cannot {action} the fingerprint file {}: {error}",
+                    path.display()
+                ),
             ))
         };
         let folder = path
@@ -243,7 +249,10 @@ mod tests {
 
         Fingerprint::macos_desktop().save(&path).unwrap();
 
-        assert_eq!(Fingerprint::load(&path).unwrap(), Fingerprint::macos_desktop());
+        assert_eq!(
+            Fingerprint::load(&path).unwrap(),
+            Fingerprint::macos_desktop()
+        );
         let names: Vec<_> = fs::read_dir(dir.path())
             .unwrap()
             .map(|entry| entry.unwrap().file_name())
@@ -305,10 +314,16 @@ mod tests {
 
         let error = Fingerprint::load(&path).unwrap_err();
 
-        assert!(matches!(error, SeleniumBaseError::InvalidConfig(_)), "{error:?}");
+        assert!(
+            matches!(error, SeleniumBaseError::InvalidConfig(_)),
+            "{error:?}"
+        );
         let message = error.to_string();
         assert!(message.contains("broken.json"), "{message}");
-        assert!(message.contains("`timezone`"), "it names the setting: {message}");
+        assert!(
+            message.contains("`timezone`"),
+            "it names the setting: {message}"
+        );
         assert!(message.contains('5'), "it shows the value: {message}");
         assert_eq!(error.exit_code(), 2);
     }
@@ -348,7 +363,10 @@ mod tests {
 
         let error = Fingerprint::load(&path).unwrap_err();
 
-        assert!(matches!(error, SeleniumBaseError::InvalidConfig(_)), "{error:?}");
+        assert!(
+            matches!(error, SeleniumBaseError::InvalidConfig(_)),
+            "{error:?}"
+        );
         assert!(error.to_string().contains("more than"), "{error}");
     }
 

@@ -110,7 +110,9 @@ pub fn export(source: &ExportSource) -> Result<Fingerprint, SeleniumBaseError> {
 fn browser_label(user_agent: &str) -> String {
     let token = |name: &str| {
         let rest = user_agent.split(name).nth(1)?;
-        let version = rest.split(|c: char| c.is_whitespace() || c == ';' || c == ')').next()?;
+        let version = rest
+            .split(|c: char| c.is_whitespace() || c == ';' || c == ')')
+            .next()?;
         Some(version.split('.').next().unwrap_or(version).to_owned())
     };
     if let Some(version) = token("Edg/") {
@@ -203,7 +205,10 @@ pub fn check(path: &Path) -> Result<Check, SeleniumBaseError> {
 pub fn check_report(name: &str, fingerprint: &Fingerprint) -> Check {
     let report = fingerprint.validate();
     let given = fingerprint.claimed_settings().len();
-    let mut text = format!("{name}: {given} settings given ({})\n", describe(fingerprint));
+    let mut text = format!(
+        "{name}: {given} settings given ({})\n",
+        describe(fingerprint)
+    );
     for error in &report.errors {
         let _ = writeln!(text, "error: {error}");
     }
@@ -451,7 +456,11 @@ mod tests {
         let second = export(&source).unwrap();
 
         assert_ne!(first, second);
-        assert_eq!(first.os_type(), host_os(), "this machine's system by default");
+        assert_eq!(
+            first.os_type(),
+            host_os(),
+            "this machine's system by default"
+        );
         // The seed is in the file, so the same file is the same identity.
         let reread = Fingerprint::from_json(&first.to_json_pretty().unwrap()).unwrap();
         assert_eq!(reread, first);
@@ -463,7 +472,10 @@ mod tests {
 
         assert_eq!(table.lines().count(), PRESET_NAMES.len());
         let windows = table.lines().find(|l| l.starts_with("windows")).unwrap();
-        assert!(windows.contains("Chrome") && windows.contains("1920x1080"), "{windows}");
+        assert!(
+            windows.contains("Chrome") && windows.contains("1920x1080"),
+            "{windows}"
+        );
         assert!(windows.contains("America/New_York"), "{windows}");
         let edge = table.lines().find(|l| l.starts_with("edge")).unwrap();
         assert!(edge.contains("Edge "), "{edge}");
@@ -479,7 +491,11 @@ mod tests {
 
         assert!(check.is_coherent);
         assert!(check.text.contains(" settings given ("), "{}", check.text);
-        assert!(check.text.trim_end().ends_with("coherent"), "{}", check.text);
+        assert!(
+            check.text.trim_end().ends_with("coherent"),
+            "{}",
+            check.text
+        );
         assert!(!check.text.contains("error:") && !check.text.contains("warning:"));
     }
 
@@ -495,8 +511,16 @@ mod tests {
         let check = check(&path).unwrap();
 
         assert!(!check.is_coherent);
-        assert!(check.text.contains("error: navigator.platform 'MacIntel'"), "{}", check.text);
-        assert!(check.text.trim_end().ends_with("not coherent: 1 error(s)"), "{}", check.text);
+        assert!(
+            check.text.contains("error: navigator.platform 'MacIntel'"),
+            "{}",
+            check.text
+        );
+        assert!(
+            check.text.trim_end().ends_with("not coherent: 1 error(s)"),
+            "{}",
+            check.text
+        );
     }
 
     #[test]
@@ -512,7 +536,10 @@ mod tests {
         assert!(check.is_coherent, "{}", check.text);
         assert!(check.text.contains("warning: "), "{}", check.text);
         assert!(
-            check.text.trim_end().ends_with("coherent, with 2 warning(s)"),
+            check
+                .text
+                .trim_end()
+                .ends_with("coherent, with 2 warning(s)"),
             "{}",
             check.text
         );
@@ -538,9 +565,15 @@ mod tests {
         let difference = diff(&a, &b).unwrap();
 
         assert!(!difference.differs);
-        assert!(difference.text.starts_with("no difference: "), "{}", difference.text);
         assert!(
-            difference.text.contains(&windows.claimed_settings().len().to_string()),
+            difference.text.starts_with("no difference: "),
+            "{}",
+            difference.text
+        );
+        assert!(
+            difference
+                .text
+                .contains(&windows.claimed_settings().len().to_string()),
             "{}",
             difference.text
         );
@@ -555,16 +588,27 @@ mod tests {
 
         assert!(difference.differs);
         let lines: Vec<&str> = difference.text.lines().collect();
-        assert!(lines.iter().any(|l| l.starts_with("platform: expected \"Win32\", found \"MacIntel\"")));
+        assert!(lines
+            .iter()
+            .any(|l| l.starts_with("platform: expected \"Win32\", found \"MacIntel\"")));
         assert!(lines.iter().any(|l| l.starts_with("timezone: ")));
         let last = lines.last().unwrap();
-        assert!(last.contains("preset.json is what is expected, real.json what is found"), "{last}");
-        assert!(last.starts_with(&format!("{} setting(s) differ", lines.len() - 1)), "{last}");
+        assert!(
+            last.contains("preset.json is what is expected, real.json what is found"),
+            "{last}"
+        );
+        assert!(
+            last.starts_with(&format!("{} setting(s) differ", lines.len() - 1)),
+            "{last}"
+        );
     }
 
     #[test]
     fn what_the_expected_side_leaves_natural_is_never_a_difference() {
-        let bare = Fingerprint::builder().timezone("America/New_York").build().unwrap();
+        let bare = Fingerprint::builder()
+            .timezone("America/New_York")
+            .build()
+            .unwrap();
         let windows = Fingerprint::windows_desktop();
 
         assert!(!diff_report("a", "b", &bare, &windows).differs);
@@ -588,13 +632,21 @@ mod tests {
 
         let summary = capture_summary(&captured);
 
-        assert!(summary.starts_with("Captured Chrome 155.0.0.0 from https://example.test/ at 2026-10-18T12:00:00Z: "), "{summary}");
+        assert!(
+            summary.starts_with(
+                "Captured Chrome 155.0.0.0 from https://example.test/ at 2026-10-18T12:00:00Z: "
+            ),
+            "{summary}"
+        );
         assert!(
             summary.contains("client_hints (the API needs a secure context)"),
             "{summary}"
         );
         // A reading the script left out altogether is not answered either, and says so.
-        assert!(summary.contains("battery (the capture script did not answer)"), "{summary}");
+        assert!(
+            summary.contains("battery (the capture script did not answer)"),
+            "{summary}"
+        );
         assert!(summary.contains("not readable by any page: geolocation, fonts, proxy, webrtc"));
         assert!(summary.contains("warning: this browser shows the markers of an automated one"));
         assert!(summary.contains("user_agent_says_headless, navigator_webdriver_true"));

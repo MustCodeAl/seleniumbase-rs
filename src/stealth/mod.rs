@@ -20,9 +20,9 @@ pub mod settings;
 pub mod spoof;
 pub mod uc;
 
+pub use capture::{CapturedFingerprint, ProbeInfo};
 #[allow(deprecated, reason = "the old name stays importable for one release")]
 pub use fingerprint::StealthFlags;
-pub use capture::{CapturedFingerprint, ProbeInfo};
 pub use fingerprint::{
     BatteryProfile, BrandVersion, ClientHints, CoherenceReport, ConnectionProfile, Fingerprint,
     FingerprintComparison, FingerprintError, HumanizeConfig, SettingDiff, SpeechVoice,

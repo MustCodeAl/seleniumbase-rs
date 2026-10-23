@@ -66,7 +66,10 @@ async fn webdriver_and_the_pure_cdp_engine_read_the_same_chrome_the_same_way() {
     );
     println!("webdriver unanswered: {:?}", through_webdriver.unanswered());
     assert_eq!(wd.browser_type(), BrowserType::Chromium);
-    assert!(wd.client_hints().is_value(), "a secure page has Client Hints");
+    assert!(
+        wd.client_hints().is_value(),
+        "a secure page has Client Hints"
+    );
     assert!(wd.validate().is_coherent(), "{:?}", wd.validate().errors);
     // The same browser reads the same through either engine.
     for (name, a, b) in [
@@ -84,7 +87,10 @@ async fn webdriver_and_the_pure_cdp_engine_read_the_same_chrome_the_same_way() {
     // then says so and does not invent the strings.
     if wd.webgl().is_natural() {
         assert!(
-            through_webdriver.unanswered().iter().any(|(setting, _)| *setting == "webgl"),
+            through_webdriver
+                .unanswered()
+                .iter()
+                .any(|(setting, _)| *setting == "webgl"),
             "{:?}",
             through_webdriver.unanswered()
         );
@@ -93,9 +99,16 @@ async fn webdriver_and_the_pure_cdp_engine_read_the_same_chrome_the_same_way() {
     }
     assert_eq!(wd.core_version(), cdp.core_version());
     assert_eq!(
-        wd.client_hints().value().map(|h| h.platform_version.clone()),
-        cdp.client_hints().value().map(|h| h.platform_version.clone())
+        wd.client_hints()
+            .value()
+            .map(|h| h.platform_version.clone()),
+        cdp.client_hints()
+            .value()
+            .map(|h| h.platform_version.clone())
     );
     // A page driven through chromedriver says so.
-    assert_eq!(through_webdriver.unmapped["webdriver"], serde_json::json!(true));
+    assert_eq!(
+        through_webdriver.unmapped["webdriver"],
+        serde_json::json!(true)
+    );
 }

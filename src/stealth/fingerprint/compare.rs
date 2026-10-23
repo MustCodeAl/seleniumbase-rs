@@ -46,7 +46,13 @@ pub(super) const SETTINGS: [&str; 29] = [
 /// a position needs a permission prompt, the fonts and the addresses of WebRTC
 /// need sweeps that would change what is measured, and the proxy is outside the
 /// page.
-const UNOBSERVABLE: [&str; 5] = ["accept_languages", "geolocation", "fonts", "proxy", "webrtc"];
+const UNOBSERVABLE: [&str; 5] = [
+    "accept_languages",
+    "geolocation",
+    "fonts",
+    "proxy",
+    "webrtc",
+];
 
 /// How a setting that is `Natural` reads in the JSON of a setting.
 const NATURAL: &str = "natural";
@@ -226,8 +232,10 @@ impl Fingerprint {
 
     fn compare_with(&self, other: &Self, mode: Mode) -> FingerprintComparison {
         let mut comparison = FingerprintComparison::default();
-        for ((setting, expected), (_, actual)) in
-            self.setting_values().into_iter().zip(other.setting_values())
+        for ((setting, expected), (_, actual)) in self
+            .setting_values()
+            .into_iter()
+            .zip(other.setting_values())
         {
             if is_natural(&expected) {
                 continue;
@@ -259,10 +267,12 @@ fn is_off(setting: &Value) -> bool {
 /// Whether two readings of one setting say the same.
 fn agree(setting: &str, expected: &Value, actual: &Value, mode: Mode) -> bool {
     match setting {
-        "languages" | "accept_languages" => match (language_tags(expected), language_tags(actual)) {
-            (Some(expected), Some(actual)) => expected == actual,
-            _ => same_json(expected, actual),
-        },
+        "languages" | "accept_languages" => {
+            match (language_tags(expected), language_tags(actual)) {
+                (Some(expected), Some(actual)) => expected == actual,
+                _ => same_json(expected, actual),
+            }
+        }
         "webgl" => webgl_agrees(expected, actual),
         "media_devices" => device_counts(expected) == device_counts(actual),
         "speech_voices" if is_off(expected) || is_off(actual) => {
@@ -292,9 +302,11 @@ fn webgl_agrees(expected: &Value, actual: &Value) -> bool {
     let (Some(expected), Some(actual)) = (expected.as_object(), actual.as_object()) else {
         return same_json(expected, actual);
     };
-    ["vendor", "renderer"]
-        .iter()
-        .all(|half| expected.get(*half).is_none_or(|given| actual.get(*half) == Some(given)))
+    ["vendor", "renderer"].iter().all(|half| {
+        expected
+            .get(*half)
+            .is_none_or(|given| actual.get(*half) == Some(given))
+    })
 }
 
 /// How many microphones, speakers and cameras a media-devices setting lists.
@@ -310,10 +322,18 @@ fn device_counts(devices: &Value) -> (u64, u64, u64) {
                 .filter(|device| device.get("kind").and_then(Value::as_str) == Some(kind))
                 .count() as u64
         };
-        return (count("audioinput"), count("audiooutput"), count("videoinput"));
+        return (
+            count("audioinput"),
+            count("audiooutput"),
+            count("videoinput"),
+        );
     }
     let number = |key: &str| devices.get(key).and_then(Value::as_u64).unwrap_or(0);
-    (number("audio_inputs"), number("audio_outputs"), number("video_inputs"))
+    (
+        number("audio_inputs"),
+        number("audio_outputs"),
+        number("video_inputs"),
+    )
 }
 
 /// Whether a voices setting lists nothing: `Off`, or an empty list.
@@ -428,7 +448,11 @@ mod tests {
 
     #[test]
     fn the_claimed_settings_are_the_ones_that_are_not_natural_in_the_order_of_the_file() {
-        assert!(Fingerprint::builder().build().unwrap().claimed_settings().is_empty());
+        assert!(Fingerprint::builder()
+            .build()
+            .unwrap()
+            .claimed_settings()
+            .is_empty());
         let fp = Fingerprint::builder()
             .geolocation(Spoof::Off)
             .screen(800, 600)
@@ -485,7 +509,10 @@ mod tests {
     #[test]
     fn natural_against_a_value_differs_only_when_the_expected_side_gives_a_value() {
         let natural = Fingerprint::builder().build().unwrap();
-        let tokyo = Fingerprint::builder().timezone("Asia/Tokyo").build().unwrap();
+        let tokyo = Fingerprint::builder()
+            .timezone("Asia/Tokyo")
+            .build()
+            .unwrap();
 
         assert!(natural.diff(&tokyo).is_empty(), "nothing was expected");
         let reverse = tokyo.diff(&natural);
@@ -496,7 +523,16 @@ mod tests {
     #[test]
     fn off_is_a_claim_and_differs_from_a_value_and_from_natural() {
         let off = Fingerprint::builder().battery(Spoof::Off).build().unwrap();
-        let on = Fingerprint::builder().battery(Fingerprint::windows_desktop().battery().value().cloned().unwrap()).build().unwrap();
+        let on = Fingerprint::builder()
+            .battery(
+                Fingerprint::windows_desktop()
+                    .battery()
+                    .value()
+                    .cloned()
+                    .unwrap(),
+            )
+            .build()
+            .unwrap();
         let natural = Fingerprint::builder().build().unwrap();
 
         assert_eq!(names(&off.diff(&on)), ["battery"]);
@@ -541,7 +577,10 @@ mod tests {
             ])
         });
 
-        assert!(counts.diff(&labelled).is_empty(), "labelled devices count by kind");
+        assert!(
+            counts.diff(&labelled).is_empty(),
+            "labelled devices count by kind"
+        );
         assert!(none.diff(&off).is_empty() && off.diff(&none).is_empty());
         assert_eq!(names(&counts.diff(&none)), ["media_devices"]);
     }
@@ -571,7 +610,11 @@ mod tests {
         let mut hints = randomized.client_hints().value().cloned().unwrap();
         hints.brands.reverse();
         hints.full_version_list.reverse();
-        let reordered = randomized.to_builder().client_hints(hints.clone()).build().unwrap();
+        let reordered = randomized
+            .to_builder()
+            .client_hints(hints.clone())
+            .build()
+            .unwrap();
         hints.platform_version = "99.0.0".to_owned();
         let other = randomized.to_builder().client_hints(hints).build().unwrap();
 
@@ -607,14 +650,20 @@ mod tests {
 
     #[test]
     fn what_a_page_cannot_read_is_unverifiable_never_a_match() {
-        let claimed =
-            changed(|b| b.geolocation((52.52, 13.405)).fonts(["Arial"]).webrtc(Spoof::Off));
+        let claimed = changed(|b| {
+            b.geolocation((52.52, 13.405))
+                .fonts(["Arial"])
+                .webrtc(Spoof::Off)
+        });
         let seen = as_captured(&claimed);
 
         let comparison = claimed.compare_to(&seen);
 
         for setting in ["geolocation", "fonts", "webrtc"] {
-            assert!(comparison.unverifiable.contains(&setting), "{setting}: {comparison:?}");
+            assert!(
+                comparison.unverifiable.contains(&setting),
+                "{setting}: {comparison:?}"
+            );
             assert!(!comparison.matched.contains(&setting), "{setting}");
         }
         assert!(comparison.presents());
@@ -663,7 +712,10 @@ mod tests {
         let comparison = claimed.compare_to(&seen);
 
         assert!(!comparison.presents());
-        assert_eq!(names(&comparison.differences), ["hardware_concurrency", "timezone"]);
+        assert_eq!(
+            names(&comparison.differences),
+            ["hardware_concurrency", "timezone"]
+        );
         let timezone = &comparison.differences[1];
         assert_eq!(timezone.expected, json!("America/New_York"));
         assert_eq!(timezone.actual, json!("Asia/Tokyo"));
@@ -678,14 +730,23 @@ mod tests {
         let mut link = claimed.connection().value().cloned().unwrap();
         link.rtt = 250;
         link.downlink = 1.1;
-        let seen = claimed.to_builder().battery(battery).connection(link).build().unwrap();
+        let seen = claimed
+            .to_builder()
+            .battery(battery)
+            .connection(link)
+            .build()
+            .unwrap();
 
         let live = claimed.compare_to(&seen);
         let exact = claimed.diff(&seen);
 
         assert!(live.presents(), "{:?}", live.differences);
         assert!(live.matched.contains(&"battery") && live.matched.contains(&"connection"));
-        assert_eq!(names(&exact), ["battery", "connection"], "two fingerprints compare exactly");
+        assert_eq!(
+            names(&exact),
+            ["battery", "connection"],
+            "two fingerprints compare exactly"
+        );
     }
 
     #[test]

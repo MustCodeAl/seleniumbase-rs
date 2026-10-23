@@ -55,7 +55,10 @@ async fn the_readings_come_back_as_a_fingerprint_with_the_page_and_the_browser()
     assert_eq!(fp.timezone().as_str(), Some("Europe/Berlin"));
     assert!(fp.client_hints().is_value());
     assert_eq!(captured.probe.url, "https://example.test/");
-    assert_eq!(captured.probe.browser_version.as_deref(), Some("155.0.8059.40"));
+    assert_eq!(
+        captured.probe.browser_version.as_deref(),
+        Some("155.0.8059.40")
+    );
     assert!(
         captured.probe.captured_at.ends_with('Z') && captured.probe.captured_at.contains('T'),
         "an RFC 3339 time in UTC: {}",
@@ -87,7 +90,10 @@ async fn a_script_that_throws_is_a_protocol_error() {
 
     let error = page.capture_fingerprint().await.unwrap_err();
 
-    assert!(matches!(error, SeleniumBaseError::CdpDriver(_)), "{error:?}");
+    assert!(
+        matches!(error, SeleniumBaseError::CdpDriver(_)),
+        "{error:?}"
+    );
     assert!(error.to_string().contains("ReferenceError: x"), "{error}");
 }
 
@@ -97,7 +103,10 @@ async fn readings_of_another_version_are_a_stealth_error_not_a_fingerprint() {
 
     let error = page.capture_fingerprint().await.unwrap_err();
 
-    assert!(matches!(error, SeleniumBaseError::Stealth { .. }), "{error:?}");
+    assert!(
+        matches!(error, SeleniumBaseError::Stealth { .. }),
+        "{error:?}"
+    );
 }
 
 #[tokio::test]
@@ -127,7 +136,10 @@ async fn comparing_a_fingerprint_with_the_live_page_lists_what_differs_and_what_
     for setting in ["user_agent", "platform", "timezone", "webgl", "screen"] {
         assert!(differing.contains(&setting), "{setting} in {differing:?}");
     }
-    assert!(!differing.contains(&"hardware_concurrency"), "both have 8 cores");
+    assert!(
+        !differing.contains(&"hardware_concurrency"),
+        "both have 8 cores"
+    );
     assert!(comparison.matched.contains(&"hardware_concurrency"));
     assert!(
         comparison.unverifiable.contains(&"geolocation"),
@@ -142,7 +154,10 @@ async fn the_fingerprint_a_capture_gave_is_presented_by_the_page_it_came_from() 
     let (page, _mock) = page_that_reads(CHROME_MACOS).await;
     let captured = page.capture_fingerprint().await.unwrap();
 
-    let comparison = page.compare_fingerprint(&captured.fingerprint).await.unwrap();
+    let comparison = page
+        .compare_fingerprint(&captured.fingerprint)
+        .await
+        .unwrap();
 
     assert!(comparison.presents(), "{:?}", comparison.differences);
     assert_eq!(

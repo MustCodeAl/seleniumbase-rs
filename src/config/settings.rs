@@ -1746,7 +1746,8 @@ threads = 4
     #[test]
     fn the_settings_file_names_its_fingerprint_in_a_table_and_a_default_writes_none() {
         let from_toml: Settings =
-            toml::from_str("headless = true\n[fingerprint]\nfile = \"profiles/real.json\"\n").unwrap();
+            toml::from_str("headless = true\n[fingerprint]\nfile = \"profiles/real.json\"\n")
+                .unwrap();
         let from_json: Settings =
             serde_json::from_str(r#"{"fingerprint": {"file": "profiles/real.json"}}"#).unwrap();
 
@@ -1757,8 +1758,12 @@ threads = 4
         assert_eq!(from_json.fingerprint, from_toml.fingerprint);
         let round_trip: Settings = toml::from_str(&toml::to_string(&from_toml).unwrap()).unwrap();
         assert_eq!(round_trip, from_toml);
-        assert!(!toml::to_string(&Settings::default()).unwrap().contains("fingerprint"));
-        assert!(!serde_json::to_string(&Settings::default()).unwrap().contains("fingerprint"));
+        assert!(!toml::to_string(&Settings::default())
+            .unwrap()
+            .contains("fingerprint"));
+        assert!(!serde_json::to_string(&Settings::default())
+            .unwrap()
+            .contains("fingerprint"));
         assert!(Settings::default().fingerprint.is_empty());
     }
 
@@ -1787,8 +1792,14 @@ threads = 4
         })
         .unwrap();
 
-        assert_eq!(untouched.fingerprint.file.as_deref(), Some(from_table.as_path()));
-        assert_eq!(replaced.fingerprint.file.as_deref(), Some(from_variable.as_path()));
+        assert_eq!(
+            untouched.fingerprint.file.as_deref(),
+            Some(from_table.as_path())
+        );
+        assert_eq!(
+            replaced.fingerprint.file.as_deref(),
+            Some(from_variable.as_path())
+        );
     }
 
     #[test]
@@ -1801,7 +1812,10 @@ threads = 4
             (name == FINGERPRINT_ENV).then(|| variable.clone())
         })
         .unwrap();
-        assert_eq!(settings.fingerprint.file.as_deref(), Some(from_variable.as_path()));
+        assert_eq!(
+            settings.fingerprint.file.as_deref(),
+            Some(from_variable.as_path())
+        );
 
         SettingsOverrides {
             fingerprint: Some(from_flag.display().to_string()),
@@ -1809,16 +1823,17 @@ threads = 4
         }
         .apply(&mut settings);
 
-        assert_eq!(settings.fingerprint.file.as_deref(), Some(from_flag.as_path()));
+        assert_eq!(
+            settings.fingerprint.file.as_deref(),
+            Some(from_flag.as_path())
+        );
     }
 
     #[test]
     fn the_fingerprint_reaches_the_browser_config() {
         let (_dir, file) = fingerprint_file();
         let settings = Settings {
-            fingerprint: FingerprintSettings {
-                file: Some(file),
-            },
+            fingerprint: FingerprintSettings { file: Some(file) },
             ..Settings::default()
         };
 
@@ -1826,7 +1841,10 @@ threads = 4
 
         assert_eq!(config.fingerprint, Some(Fingerprint::windows_desktop()));
         assert_eq!(settings.load_fingerprint().unwrap(), config.fingerprint);
-        assert!(Settings::default().to_browser_config().fingerprint.is_none());
+        assert!(Settings::default()
+            .to_browser_config()
+            .fingerprint
+            .is_none());
         assert!(Settings::default().load_fingerprint().unwrap().is_none());
     }
 
@@ -1847,9 +1865,18 @@ threads = 4
         })
         .unwrap_err();
 
-        assert!(matches!(not_there, SeleniumBaseError::InvalidConfig(_)), "{not_there:?}");
-        assert!(not_there.to_string().contains("missing.json"), "{not_there}");
-        assert!(not_a_fingerprint.to_string().contains("screen_width"), "{not_a_fingerprint}");
+        assert!(
+            matches!(not_there, SeleniumBaseError::InvalidConfig(_)),
+            "{not_there:?}"
+        );
+        assert!(
+            not_there.to_string().contains("missing.json"),
+            "{not_there}"
+        );
+        assert!(
+            not_a_fingerprint.to_string().contains("screen_width"),
+            "{not_a_fingerprint}"
+        );
         assert_eq!(not_there.exit_code(), 2);
     }
 
@@ -1892,16 +1919,21 @@ threads = 4
             ..SettingsOverrides::default()
         };
 
-        assert_eq!(only.env(), [("SB_FINGERPRINT", "profiles/real.json".to_owned())]);
+        assert_eq!(
+            only.env(),
+            [("SB_FINGERPRINT", "profiles/real.json".to_owned())]
+        );
     }
 
     #[test]
-    fn the_fingerprint_file_a_command_presents_comes_from_the_flag_then_the_variable_then_the_table() {
+    fn the_fingerprint_file_a_command_presents_comes_from_the_flag_then_the_variable_then_the_table(
+    ) {
         // Not a valid `Settings` file: `headless` is not a boolean. Only the table is read.
         let body = "headless = \"maybe\"\n[fingerprint]\nfile = \"from-table.json\"\n";
         let mut file = tempfile::NamedTempFile::with_suffix(".toml").unwrap();
         file.write_all(body.as_bytes()).unwrap();
-        let variable = |name: &str| (name == FINGERPRINT_ENV).then(|| "from-variable.json".to_owned());
+        let variable =
+            |name: &str| (name == FINGERPRINT_ENV).then(|| "from-variable.json".to_owned());
         let flag = Path::new("from-flag.json");
 
         let resolved = |flag, var: &dyn Fn(&str) -> Option<String>| {
@@ -1917,13 +1949,18 @@ threads = 4
             resolved(None, &|_| None).as_deref(),
             Some(Path::new("from-table.json"))
         );
-        assert_eq!(resolved(None, &|_| Some("  ".to_owned())).as_deref(), Some(Path::new("from-table.json")));
+        assert_eq!(
+            resolved(None, &|_| Some("  ".to_owned())).as_deref(),
+            Some(Path::new("from-table.json"))
+        );
         // Nothing is named anywhere.
         let mut empty = tempfile::NamedTempFile::with_suffix(".toml").unwrap();
         empty.write_all(b"headless = true\n").unwrap();
-        assert!(Settings::fingerprint_file_with(Some(empty.path()), None, |_| None)
-            .unwrap()
-            .is_none());
+        assert!(
+            Settings::fingerprint_file_with(Some(empty.path()), None, |_| None)
+                .unwrap()
+                .is_none()
+        );
         // A settings file that is not there is an error, as it is for the plugins.
         let error = Settings::fingerprint_file_with(Some("no-such-settings.toml"), None, |_| None)
             .unwrap_err();
