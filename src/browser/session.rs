@@ -1,11 +1,16 @@
-#![allow(deprecated)]
+// thirtyfour deprecates its `NetworkConditions`, which `set_network_conditions`
+// still takes.
+#![expect(
+    deprecated,
+    reason = "thirtyfour has deprecated NetworkConditions, which this API still takes"
+)]
+
 
 use std::path::Path;
 use std::time::Duration;
 
 use serde_json::{json, Value};
 use thirtyfour::common::capabilities::chromium::ChromiumLikeCapabilities;
-#[allow(deprecated)]
 use thirtyfour::extensions::cdp::NetworkConditions;
 use thirtyfour::prelude::{By, DesiredCapabilities, WebDriver, WebElement};
 use tracing::{info, instrument};
@@ -1717,7 +1722,7 @@ fn apply_chromium_capabilities<C: ChromiumLikeCapabilities>(
 #[cfg(test)]
 mod fingerprint_tests {
     use super::*;
-    use crate::stealth::evasions::{cdp_overrides, CREDENTIAL_HEADER_METHOD};
+    use crate::stealth::evasions::{raw_overrides, CREDENTIAL_HEADER_METHOD};
     use crate::stealth::fingerprint::{Fingerprint, OsType, ProxyConfig};
 
     fn with_proxy_login() -> Fingerprint {
@@ -1739,7 +1744,7 @@ mod fingerprint_tests {
     fn the_proxy_login_is_never_sent_to_every_site() {
         let fingerprint = with_proxy_login();
         // The source of the overrides does ask for the header.
-        assert!(cdp_overrides(&fingerprint).contains_key(CREDENTIAL_HEADER_METHOD));
+        assert!(raw_overrides(&fingerprint).contains_key(CREDENTIAL_HEADER_METHOD));
 
         let sent = fingerprint_overrides(&fingerprint);
 

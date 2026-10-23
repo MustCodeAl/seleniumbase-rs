@@ -1,5 +1,3 @@
-#![allow(deprecated)]
-
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};

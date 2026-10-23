@@ -4,7 +4,13 @@
 //! common commands such as injecting scripts, clearing state, and dispatching
 //! input events. It is used by stealth and automation internals.
 
-#![allow(deprecated)]
+// thirtyfour deprecates `ChromeDevTools` and its `NetworkConditions`, which
+// this wrapper still exposes.
+#![expect(
+    deprecated,
+    reason = "thirtyfour has deprecated ChromeDevTools and NetworkConditions, which this wrapper exposes"
+)]
+
 
 use std::sync::Arc;
 use thirtyfour::extensions::cdp::ChromeDevTools;
@@ -57,7 +63,6 @@ fn warn_if_detectable(method: &str) {
 }
 
 /// Thin wrapper around [`ChromeDevTools`] for issuing CDP commands.
-#[allow(deprecated)]
 pub struct CdpClient {
     pub dev_tools: ChromeDevTools,
 }
