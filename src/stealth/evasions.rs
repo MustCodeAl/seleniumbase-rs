@@ -239,14 +239,14 @@ fn webrtc_policy_value(policy: WebRtcPolicy) -> &'static str {
 
 /// The command that would add a `Proxy-Authorization` header to every request.
 ///
-/// The deprecated [`cdp_overrides`] contains it for a fingerprint whose proxy
+/// The raw overrides contain it for a fingerprint whose proxy
 /// has a user name and a password. A header added this way goes to every site
 /// the browser visits, which hands the proxy's login to the sites; the proxy is
 /// answered through its own challenge instead. [`safe_cdp_overrides`] leaves it
 /// out.
 pub const CREDENTIAL_HEADER_METHOD: &str = "Network.setExtraHTTPHeaders";
 
-/// The overrides from [`cdp_overrides`] that are safe to send to a browser, in
+/// The overrides for a fingerprint that are safe to send to a browser, in
 /// the order of their command names.
 ///
 /// Both ways of giving a browser a fingerprint, the pure CDP engine and the
@@ -262,19 +262,8 @@ pub fn safe_cdp_overrides(fp: &Fingerprint) -> Vec<(String, serde_json::Value)> 
     overrides
 }
 
-/// Returns CDP parameter overrides recommended for a fingerprint.
-///
-/// Do not send these as they are: see [`CREDENTIAL_HEADER_METHOD`]. Use
-/// [`safe_cdp_overrides`], which leaves out the header that hands the proxy's
-/// login to every site.
-#[deprecated(note = "use safe_cdp_overrides, which leaves out the Proxy-Authorization header")]
-#[must_use]
-pub fn cdp_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Value> {
-    raw_overrides(fp)
-}
-
 /// Every override the fingerprint asks for, the proxy header included.
-fn raw_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Value> {
+pub(crate) fn raw_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Value> {
     let mut map = HashMap::new();
 
     if let Some(place) = fp.geolocation().value() {
@@ -565,7 +554,6 @@ fn major_of(version: &str) -> Option<u32> {
 }
 
 #[cfg(test)]
-#[allow(deprecated)]
 mod tests {
     use super::*;
     use crate::stealth::fingerprint::{Fingerprint, FingerprintBuilder, Spoof};
@@ -636,14 +624,14 @@ mod tests {
                 .screen(1920, 1080)
                 .geolocation((40.0, -74.0)),
         );
-        let map = cdp_overrides(&fp);
+        let map = raw_overrides(&fp);
         assert!(map.contains_key("Emulation.setDeviceMetricsOverride"));
         assert!(map.contains_key("Emulation.setGeolocationOverride"));
     }
 
     /// The names in the `Browser.grantPermissions` override, if there is one.
     fn granted(fp: &Fingerprint) -> Option<Vec<String>> {
-        let map = cdp_overrides(fp);
+        let map = raw_overrides(fp);
         let params = map.get("Browser.grantPermissions")?;
         Some(
             params["permissions"]
@@ -656,7 +644,7 @@ mod tests {
 
     /// The URL patterns in the `Network.setBlockedURLs` override, if any.
     fn blocked_urls(fp: &Fingerprint) -> Option<Vec<String>> {
-        let map = cdp_overrides(fp);
+        let map = raw_overrides(fp);
         let params = map.get("Network.setBlockedURLs")?;
         Some(
             params["urls"]
@@ -732,7 +720,7 @@ mod tests {
             b.grant_permissions(true)
         });
 
-        let map = cdp_overrides(&fp);
+        let map = raw_overrides(&fp);
 
         let names: Vec<&str> = map["Browser.grantPermissions"]["permissions"]
             .as_array()
@@ -754,7 +742,7 @@ mod tests {
     #[test]
     fn native_spoofing_emits_cdp_user_agent_locale() {
         let fp = changed(&Fingerprint::windows_desktop(), |b| b.native_spoofing(true));
-        let map = cdp_overrides(&fp);
+        let map = raw_overrides(&fp);
         let ua = map
             .get("Network.setUserAgentOverride")
             .expect("UA override");
@@ -783,7 +771,7 @@ mod tests {
         let fp = changed(&Fingerprint::ios_mobile_safari(), |b| {
             b.native_spoofing(true)
         });
-        let map = cdp_overrides(&fp);
+        let map = raw_overrides(&fp);
 
         let metrics = map
             .get("Emulation.setDeviceMetricsOverride")
@@ -810,7 +798,7 @@ mod tests {
     #[test]
     fn android_mobile_emits_cdp_mobile_overrides() {
         let fp = changed(&Fingerprint::android_mobile(), |b| b.native_spoofing(true));
-        let map = cdp_overrides(&fp);
+        let map = raw_overrides(&fp);
 
         let metrics = map
             .get("Emulation.setDeviceMetricsOverride")
@@ -850,7 +838,7 @@ mod tests {
     #[test]
     fn windows_desktop_native_spoofing_emits_full_cdp_stack() {
         let fp = changed(&Fingerprint::windows_desktop(), |b| b.native_spoofing(true));
-        let map = cdp_overrides(&fp);
+        let map = raw_overrides(&fp);
 
         let metrics = map
             .get("Emulation.setDeviceMetricsOverride")

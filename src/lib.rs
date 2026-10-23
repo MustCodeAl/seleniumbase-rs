@@ -165,11 +165,6 @@ pub use api::chart::{Chart, ChartType};
 pub use api::gui::Gui;
 pub use api::run_settings::{PauseKind, RunSettings};
 pub use api::runner::{run_browser_test, run_cdp_test};
-#[allow(
-    deprecated,
-    reason = "the old closure form stays exported for old callers"
-)]
-pub use api::runner::{run_browser_test_boxed, BrowserTestFuture};
 pub use api::tour::TourTheme;
 pub use api::traits::{AssertionApi, BrowserApi, ElementApi, ScreenshotApi};
 pub use browser::config::{Browser, BrowserConfig, DriverMode};
@@ -180,8 +175,6 @@ pub use config::settings::{Settings, SettingsOverrides};
 pub use config::{LogFormat, RuntimeConfig};
 pub use error::{Result, ResultExt, SeleniumBaseError};
 pub use stealth::capture::CapturedFingerprint;
-#[allow(deprecated, reason = "the old name stays importable for one release")]
-pub use stealth::fingerprint::StealthFlags;
 pub use stealth::fingerprint::{
     AudioNoise, BatteryProfile, BrandVersion, BrowserType, CanvasNoise, ClientHints,
     CoherenceReport, ConnectionProfile, Dimension, Fingerprint, FingerprintBuilder,

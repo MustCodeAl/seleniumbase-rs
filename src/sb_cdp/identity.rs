@@ -203,12 +203,7 @@ pub(super) fn refused(method: &str, error: &SeleniumBaseError) -> SeleniumBaseEr
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[allow(
-        deprecated,
-        reason = "the unsafe set is what the test compares the safe one with"
-    )]
-    use crate::stealth::evasions::cdp_overrides;
-    use crate::stealth::evasions::CREDENTIAL_HEADER_METHOD;
+    use crate::stealth::evasions::{raw_overrides, CREDENTIAL_HEADER_METHOD};
     use crate::stealth::fingerprint::{OsType, ProxyConfig, Spoof};
     use crate::stealth::providers::{session_registry, EvasionContext};
 
@@ -332,10 +327,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(
-        deprecated,
-        reason = "the unsafe set is what the test compares the safe one with"
-    )]
     fn the_proxy_password_is_never_turned_into_a_header() {
         let fingerprint = Fingerprint::randomized(OsType::Linux, 3)
             .to_builder()
@@ -350,7 +341,7 @@ mod tests {
             .build()
             .unwrap();
         // The WebDriver path would send it; confirm the source does ask for it.
-        assert!(cdp_overrides(&fingerprint).contains_key(CREDENTIAL_HEADER_METHOD));
+        assert!(raw_overrides(&fingerprint).contains_key(CREDENTIAL_HEADER_METHOD));
 
         let identity = Identity::of(&fingerprint);
 

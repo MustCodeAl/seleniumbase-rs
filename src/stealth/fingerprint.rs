@@ -709,13 +709,6 @@ macro_rules! accessors {
     };
 }
 
-/// The old name of [`StealthPolicy`].
-///
-/// The masking modes it held are gone: a setting is one [`Spoof`], and the
-/// behaviour that remains is the policy. See the CHANGELOG for the migration.
-#[deprecated(note = "renamed StealthPolicy; the masking modes are gone")]
-pub type StealthFlags = StealthPolicy;
-
 /// Complete browser fingerprint / anti-detection profile.
 ///
 /// Build one with [`Fingerprint::builder`] or take a preset such as
@@ -3409,12 +3402,5 @@ mod tests {
     fn a_screen_of_no_pixels_is_an_error() {
         let report = built(Fingerprint::builder().screen(0, 1080)).validate();
         assert!(report.errors.iter().any(|e| e.contains("screen")));
-    }
-
-    #[test]
-    fn the_old_name_of_the_policy_still_resolves() {
-        #[allow(deprecated)]
-        let policy: StealthFlags = StealthFlags::balanced();
-        assert_eq!(policy, StealthPolicy::balanced());
     }
 }

@@ -214,20 +214,6 @@ impl StealthPolicy {
         }
     }
 
-    /// Every protection. Deprecated: use [`max`](Self::max).
-    #[deprecated(note = "use StealthPolicy::max; the masking modes are gone")]
-    #[must_use]
-    pub fn mask_all() -> Self {
-        Self::max()
-    }
-
-    /// Every protection. Deprecated: use [`max`](Self::max).
-    #[deprecated(note = "use StealthPolicy::max; Custom was always the same as Mask")]
-    #[must_use]
-    pub fn all_custom() -> Self {
-        Self::max()
-    }
-
     /// Sets the WebRTC IP-handling policy; `None` passes no policy flag.
     #[must_use]
     pub fn webrtc_policy(mut self, policy: impl Into<Option<WebRtcPolicy>>) -> Self {
