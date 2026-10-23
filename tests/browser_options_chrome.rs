@@ -26,7 +26,11 @@ use seleniumbase_rs::{BaseCase, BrowserConfig};
 /// chromedriver's default port when auto-starting the driver.
 static BROWSER_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
-const PAGE: &str = "data:text/html,<html><head><title>phone</title></head><body>hi</body></html>";
+/// A page with a `viewport` meta tag, as a mobile-friendly page has: without
+/// one a phone lays the page out 980 pixels wide whatever its screen is.
+const PAGE: &str = "data:text/html,<html><head><title>phone</title>\
+    <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\
+    </head><body>hi</body></html>";
 
 fn test_config() -> BrowserConfig {
     let mut config = BrowserConfig {
