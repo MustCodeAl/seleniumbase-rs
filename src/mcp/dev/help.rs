@@ -516,7 +516,12 @@ mod tests {
                 && global.contains("[also --reuse_session, --rs]"),
             "{global}"
         );
-        assert!(global.contains("- -n, --threads <THREADS>:"), "{global}");
+        let test = text(json!({ "command": "test" })).await;
+        // The thread count is a flag of `test`, and the flags `test` takes in
+        // from its flag set are listed with it.
+        assert!(!global.contains("--threads"), "{global}");
+        assert!(test.contains("- -n, --threads <"), "{test}");
+        assert!(test.contains("- --headless"), "{test}");
     }
 
     #[tokio::test]

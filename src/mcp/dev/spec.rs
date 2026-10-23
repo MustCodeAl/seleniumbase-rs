@@ -600,11 +600,19 @@ impl Command {
         }
     }
 
-    /// The flags, arguments, aliases and subcommands in the children of a node.
-    fn fill(&mut self, nodes: &[Node]) {
+    /// The flags, arguments, aliases and subcommands in the children of a node;
+    /// `use NAME` takes in the top-level `flagset NAME` of `top`.
+    fn fill(&mut self, nodes: &[Node], top: &[Node]) {
         for node in nodes {
             match node.name.as_str() {
                 "flag" => self.flags.push(flag_of(node)),
+                "use" => {
+                    let named =
+                        |set: &&Node| set.name == "flagset" && set.arg_text(0) == node.arg_text(0);
+                    for set in top.iter().filter(named) {
+                        self.fill(&set.children, top);
+                    }
+                }
                 "arg" => self.args.push(arg_of(node)),
                 "alias" => self
                     .aliases
@@ -622,7 +630,7 @@ impl Command {
                         help: node.prop_text("help").unwrap_or_default().to_owned(),
                         ..Self::default()
                     };
-                    sub.fill(&node.children);
+                    sub.fill(&node.children, top);
                     self.subcommands.push(sub);
                 }
                 _ => {}
@@ -739,7 +747,7 @@ impl Spec {
             root: Command::default(),
         };
         spec.root.help.clone_from(&spec.about);
-        spec.root.fill(&nodes);
+        spec.root.fill(&nodes, &nodes);
         Ok(spec)
     }
 
