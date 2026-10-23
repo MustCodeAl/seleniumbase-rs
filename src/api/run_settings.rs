@@ -430,62 +430,14 @@ pub(crate) fn test_baseline_folder() -> PathBuf {
 
 /// The running test's folder of pixel baselines for
 /// [`BaseCase::assert_visual_match`](crate::BaseCase::assert_visual_match):
-/// `visual_baseline/<test id>`; see `test_id`.
+/// `visual_baseline/<test id>`, the [`current_test_id`](crate::common::test_id::current_test_id).
 ///
 /// Unlike `check_window`'s folder, which keeps Python's name (the test
 /// function alone), it tells apart tests of the same name in other modules
 /// or test files, so none compares its screenshot with another's.
 #[cfg(feature = "visual")]
 pub(crate) fn visual_match_folder() -> PathBuf {
-    let thread = std::thread::current();
-    let exe = std::env::current_exe().ok();
-    let binary = exe
-        .as_deref()
-        .and_then(Path::file_stem)
-        .and_then(std::ffi::OsStr::to_str);
-    Path::new("visual_baseline").join(test_id(thread.name().unwrap_or_default(), binary))
-}
-
-/// The longest [`test_id`]; a longer one keeps its end, the most specific
-/// part.
-#[cfg(feature = "visual")]
-const MAX_TEST_ID_LEN: usize = 120;
-
-/// A file name for the test run by the thread named `thread` in the program
-/// `binary` (its file name without the extension): the test binary's name
-/// when it is one cargo built (`cart` for `cart-0123456789abcdef`), then the
-/// module path and the test function, joined with `.`, as
-/// `cart.checkout.renders` for `checkout::renders` in `tests/cart.rs`.
-///
-/// Each part keeps only ASCII letters, digits, `-` and `_`, so the id is one
-/// plain file name; `default` when nothing is left.
-#[cfg(feature = "visual")]
-fn test_id(thread: &str, binary: Option<&str>) -> String {
-    let parts: Vec<String> = binary
-        .and_then(cargo_test_binary)
-        .into_iter()
-        .chain(thread.split("::"))
-        .map(crate::artifacts::replace_unsafe)
-        .filter(|part| !part.is_empty())
-        .collect();
-    let id = parts.join(".");
-    let start = id.len().saturating_sub(MAX_TEST_ID_LEN);
-    // Only ASCII is left, so any byte index is a character boundary.
-    let id = id[start..].trim_start_matches('.');
-    if id.is_empty() {
-        "default".to_owned()
-    } else {
-        id.to_owned()
-    }
-}
-
-/// The crate or test-file name of a test binary cargo built, whose file name
-/// is that name, a dash and a 16-digit hexadecimal hash.
-#[cfg(feature = "visual")]
-fn cargo_test_binary(stem: &str) -> Option<&str> {
-    let (name, hash) = stem.rsplit_once('-')?;
-    let is_hash = hash.len() == 16 && hash.bytes().all(|byte| byte.is_ascii_hexdigit());
-    (is_hash && !name.is_empty()).then_some(name)
+    Path::new("visual_baseline").join(crate::common::test_id::current_test_id())
 }
 
 /// The files of a baseline that must all be there for it to be compared.
@@ -1159,33 +1111,5 @@ mod tests {
         );
 
         assert_eq!(visual_match_folder(), expected);
-    }
-
-    #[cfg(feature = "visual")]
-    #[test]
-    fn a_test_id_is_one_plain_file_name() {
-        let binary = Some("cart-0123456789abcdef");
-        assert_eq!(
-            test_id("checkout::renders", binary),
-            "cart.checkout.renders"
-        );
-        assert_eq!(test_id("renders", binary), "cart.renders");
-        assert_ne!(
-            test_id("renders", Some("shop-0123456789abcdef")),
-            test_id("renders", binary),
-            "same-named tests of two test files"
-        );
-        // Not a test binary cargo built: no name from it.
-        assert_eq!(test_id("a::renders", Some("mytool")), "a.renders");
-        assert_eq!(test_id("main", Some("tool-v1")), "main");
-        assert_eq!(test_id("", None), "default");
-        assert_eq!(test_id("../../etc/passwd", None), "______etc_passwd");
-        assert_eq!(test_id("a::::b::", None), "a.b");
-
-        let long = format!("{}::renders", "m".repeat(200));
-        let id = test_id(&long, binary);
-        assert_eq!(id.len(), MAX_TEST_ID_LEN);
-        assert!(id.ends_with(".renders"), "{id}");
-        assert!(crate::artifacts::bare_file_name(&id).is_ok(), "{id}");
     }
 }
