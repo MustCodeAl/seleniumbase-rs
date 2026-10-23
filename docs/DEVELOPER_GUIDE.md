@@ -754,7 +754,7 @@ the `mcp` module, built with the `mcp-server` feature. A server is a
 Pick the server file: `src/mcp/cdp.rs` (the Pure CDP engine),
 `src/mcp/driver.rs` or `src/mcp/sb.rs` (WebDriver, sharing the handlers in
 `src/mcp/webdriver.rs`), or, for a tool that needs no browser, the `dev` server in
-`src/mcp/dev/` (`api.rs`, `author.rs`, `cli.rs`, `diagnose.rs`). Every tool costs
+`src/mcp/dev/` (`api.rs`, `author.rs`, `help.rs`, `cli.rs`, `diagnose.rs`). Every tool costs
 context in every session that loads its server, so a tool for the library or the
 command line goes to `dev`, not to a browser server. Tools shared by servers are
 defined once in `src/mcp/devtools.rs` and registered by name.
@@ -799,6 +799,14 @@ signature or the first doc paragraph of such a method, a test fails until you
 write the index again with
 `SB_UPDATE_API_INDEX=1 cargo test -p seleniumbase-rs --features mcp-server api_index`
 and commit it.
+
+The `dev` tool `cli_help` reads `completions/sbrs.usage.kdl`, the usage spec of the
+command line, with the small KDL reader in `src/mcp/dev/spec.rs` (the library may
+not depend on a command-line crate, so it cannot use `usage-lib`). A new command or
+flag shows up in `cli_help` as soon as the spec is written again, with
+`SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec`.
+The reader has its own tests, and one of them reads the real spec and counts its
+commands and flags against the text.
 
 </Step>
 

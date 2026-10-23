@@ -70,12 +70,18 @@ embedded data are read-only and open-world false.
   templates the commands write, through the same name validation
   (`RelativeName`). `sbrs mkchart` and `sbrs mkpres` write HTML straight to a
   file and have no renderer, so they are not offered.
-- **`cli_help`** reads `docs/help/cli_reference.md`, embedded and cut by
-  heading. That page is generated from `completions/sbrs.usage.kdl` by a test of
-  the CLI crate, so it cannot drift from the parser. The alternative, parsing the
-  KDL with `usage-lib`, would add that crate and its dependencies to the library
-  for the `mcp-server` feature (the CLI crate only has it as a dev-dependency);
-  the rendered page already holds every flag, default, alias and choice.
+- **`cli_help`** reads `completions/sbrs.usage.kdl`, embedded: the usage spec the
+  `usage` derives write from the declarations of the command line. A test of the
+  CLI crate fails when it is stale, so it cannot drift from the parser, and
+  `sbrs --help`, the shell completions and the CLI reference page come from the
+  same spec. The library may not depend on a command-line crate
+  (`tests/library_manifest.rs`), so `usage-lib` cannot read it there:
+  `src/mcp/dev/spec.rs` reads the subset of KDL the spec uses (nodes, arguments,
+  properties, child blocks, quoted, raw and multi-line strings, `#true`, `#false`,
+  `#null`, comments) into commands, flags and arguments, and `src/mcp/dev/help.rs`
+  renders them as text. The tool reads the spec and not the rendered reference
+  page because the page is a layout that changes (it was restyled while this tool
+  was written), and the spec is the data.
 - **`list_plugins`, `plugin_info`** call `cli::plugin_cmd::list` and `info`.
   Without the feature `plugins-builtin` they say the build has no plugin and
   how to get them (`--features plugins-builtin`).

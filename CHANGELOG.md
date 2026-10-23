@@ -26,8 +26,9 @@ work, `docs/parity.md` the per-API status).
   - `python_to_rust`: the importer of `sbrs import-python`, with its diagnostics.
   - `scaffold`: the files `sbrs mkfile` and `sbrs mkdir` would create, as text; it
     writes nothing.
-  - `cli_help`: the `sbrs` command line from the CLI reference page, embedded:
-    commands, flags, defaults, choices and aliases.
+  - `cli_help`: the `sbrs` command line from its usage spec
+    (`completions/sbrs.usage.kdl`), embedded and read by a small KDL reader in the
+    library: commands, flags, defaults, choices and aliases.
   - `list_plugins` and `plugin_info`: the built-in plugins of the build, or how to
     get them.
   - `install_driver`: downloads a driver as `sbrs install` does and returns its path

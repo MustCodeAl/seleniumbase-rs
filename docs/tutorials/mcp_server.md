@@ -802,8 +802,9 @@ renderer, so `scaffold` does not offer them.
 
 ### `cli_help`
 
-The `sbrs` command line, from the [CLI reference](/help/cli_reference) of this
-version (generated from the same spec the parser and the shell completions use).
+The `sbrs` command line, read from the usage spec of this version, the file the
+parser, the shell completions and the [CLI reference](/help/cli_reference) are
+generated from, so the answer cannot disagree with `sbrs --help`.
 With no `command`: the global flags, one line each, and every command with a
 one-line description. With a command or an alias (`wait-for-text`, `obfuscate`,
 `plugin list`): its usage, arguments, flags with their defaults and choices, and
@@ -815,19 +816,16 @@ global flags in full. An unknown command is answered with the nearest name.
 ```
 
 ```text
-## sbrs wait-for-text
-
-- **Usage:** `sbrs wait-for-text <FLAGS>`
-
+sbrs wait-for-text
 Wait until an element contains the expected text.
 
-### Flags
-- **`--css <CSS>`** — CSS selector for the target element
-- **`--text <TEXT>`** — Expected text substring to wait for
-- **`--timeout <TIMEOUT>`** — Maximum wait time in seconds
+Usage: sbrs wait-for-text --css <CSS> --text <TEXT> [--timeout <TIMEOUT>]
 
-  **Default:** `10`
-- **`-h --help`** — Print help
+Flags:
+- --css <CSS>: CSS selector for the target element [required]
+- --text <TEXT>: Expected text substring to wait for [required]
+- --timeout <TIMEOUT>: Maximum wait time in seconds [default: 10]
+- -h, --help: Print help
 ```
 
 ### `list_plugins` and `plugin_info`
