@@ -44,7 +44,6 @@ use seleniumbase_rs::{
     RuntimeConfig,
 };
 use serde_json::{json, Value};
-use thirtyfour::extensions::cdp::NetworkConditions;
 
 mod completion;
 mod fig;
@@ -321,66 +320,104 @@ impl From<BrowserArg> for Browser {
 struct Cli {
     #[usage(
         long,
+        global,
         value_name = "URL",
+        value_hint = usage::ValueHint::Url,
         help = "WebDriver server URL (default: SB_WEBDRIVER_URL, else http://localhost:4444)"
     )]
     webdriver: Option<String>,
     #[usage(
         long,
+        global,
         value_enum,
         help = "Browser engine to launch (default: chrome, or the config file's)"
     )]
     browser: Option<BrowserArg>,
-    #[usage(long, bool_value, help = "Run the browser in headed mode")]
+    #[usage(long, global, bool_value, help = "Run the browser in headed mode")]
     headed: bool,
-    #[usage(long, bool_value, help = "Run the browser in headless mode")]
+    #[usage(long, global, bool_value, help = "Run the browser in headless mode")]
     headless: bool,
-    #[usage(long, bool_value, help = "Enable Chrome DevTools Protocol mode")]
+    #[usage(
+        long,
+        global,
+        bool_value,
+        help = "Enable Chrome DevTools Protocol mode"
+    )]
     cdp: bool,
     #[usage(
         long,
+        global,
         bool_value,
         help = "Enable undetected-chromedriver style evasions"
     )]
     uc: bool,
-    #[usage(long, help = "Override the default user agent string")]
+    #[usage(long, global, help = "Override the default user agent string")]
     user_agent: Option<String>,
-    #[usage(short = 'a', long, help = "Alias for --user-agent")]
+    #[usage(short = 'a', long, global, help = "Alias for --user-agent")]
     agent: Option<String>,
-    #[usage(long, help = "Locale string for the browser context")]
+    #[usage(long, global, help = "Locale string for the browser context")]
     locale: Option<String>,
-    /// Page the browser opens first, Python's --start-page (alias --url)
+    /// Page the browser opens first, Python's --start-page (aliases --url and --start_page)
     ///
     /// Every command starts its own browser and closes it at the end, so a command that
     /// acts on a page (get-text, click, screenshot, assert-element, ...) acts on this one:
-    /// `sbrs --url https://example.com get-text --css h1`.
-    #[usage(long = "start-page", visible_aliases = ["url", "start_page"], value_name = "URL")]
+    /// `sbrs --url https://example.com get-text --css h1`. A bare host gets `https://` and
+    /// a local file becomes a `file://` URL. The command line wins over SB_START_PAGE, which
+    /// wins over the `start_page` key of the settings file. Commands that open a URL of
+    /// their own (open, smoke, download-file, print-pdf, pdf-text, assert-pdf-text, record)
+    /// refuse it.
+    #[usage(
+        long = "start-page",
+        global,
+        visible_aliases = ["url", "start_page"],
+        value_name = "URL",
+        value_hint = usage::ValueHint::Url
+    )]
     start_page: Option<String>,
+    /// Save a screenshot to latest_logs/ just before the browser closes, and print its path
+    ///
+    /// Python's `--save-screenshot`. A command that acts on the page (click, type, ...) also
+    /// prints where it ended up as `Now at: <url> (<title>)`.
+    #[usage(
+        long = "save-screenshot",
+        global,
+        visible_alias = "save_screenshot",
+        bool_value
+    )]
+    save_screenshot: bool,
     #[usage(
         long,
+        global,
         bool_value,
         help = "Refuse the requests of ad and tracker hosts (Chromium WebDriver sessions)"
     )]
     ad_block: bool,
     #[usage(
         long,
+        global,
         help = "Proxy (host:port or scheme://host:port); with --proxy-list, a name from the list"
     )]
     proxy: Option<String>,
     #[usage(
         long,
+        global,
         value_name = "FILE",
         help = "File of proxies to choose from; without --proxy a random one is used"
     )]
     proxy_list: Option<String>,
-    #[usage(long, help = "URL to a proxy auto-config (PAC) file")]
+    #[usage(long, global, help = "URL to a proxy auto-config (PAC) file")]
     proxy_pac_url: Option<String>,
-    #[usage(long, help = "Path to a persistent browser user-data directory")]
+    #[usage(
+        long,
+        global,
+        help = "Path to a persistent browser user-data directory"
+    )]
     user_data_dir: Option<String>,
-    #[usage(long, help = "Path to an unpacked extension directory")]
+    #[usage(long, global, help = "Path to an unpacked extension directory")]
     extension_dir: Option<String>,
     #[usage(
         long = "reuse-session",
+        global,
         visible_aliases = ["reuse_session", "rs"],
         bool_value,
         help = "Share browsers among the tests of the run (SB_REUSE_SESSION)"
@@ -388,15 +425,22 @@ struct Cli {
     reuse_session: bool,
     #[usage(
         long = "rcs",
+        global,
         visible_aliases = ["reuse-class-session", "reuse_class_session"],
         bool_value,
         help = "Share a browser among the tests of one Rust module (SB_REUSE_CLASS_SESSION)"
     )]
     reuse_class_session: bool,
-    #[usage(long, bool_value, help = "Use a mobile device emulation profile")]
+    #[usage(
+        long,
+        global,
+        bool_value,
+        help = "Use a mobile device emulation profile"
+    )]
     mobile: bool,
     #[usage(
         long = "esc-end",
+        global,
         visible_aliases = ["esc_end", "ee"],
         bool_value,
         help = "End the current test when ESC is pressed in the browser"
@@ -404,14 +448,20 @@ struct Cli {
     esc_end: bool,
     #[usage(
         long = "rec-sb-cdp",
+        global,
         visible_alias = "rec_sb_cdp",
         bool_value,
         help = "Write recordings as pure CDP code (sb_cdp Page and Locator calls)"
     )]
     rec_sb_cdp: bool,
-    #[usage(short = 'n', long, help = "Number of parallel threads for test runs")]
+    #[usage(
+        short = 'n',
+        long,
+        global,
+        help = "Number of parallel threads for test runs"
+    )]
     threads: Option<usize>,
-    #[usage(short = 'c', long, help = "Path to a TOML/JSON settings file")]
+    #[usage(short = 'c', long, global, help = "Path to a TOML/JSON settings file")]
     config: Option<String>,
     /// Make every browser the command starts present the fingerprint in FILE
     ///
@@ -428,7 +478,7 @@ struct Cli {
     /// Precedence, highest first: the command line, then SB_PLUGINS (which replaces the names
     /// the file enables), then the settings file. `sbrs plugin list` shows the plugins this
     /// build has. `sbrs test` passes the names on to the tests as SB_PLUGINS.
-    #[usage(long, value_name = "NAME")]
+    #[usage(long, global, value_name = "NAME")]
     plugin: Vec<String>,
     /// Set one option of a plugin, NAME.KEY=VALUE with a TOML VALUE (repeatable)
     ///
@@ -438,7 +488,7 @@ struct Cli {
     /// precedence is the command line, then SB_PLUGINS, then the file. The plugin must be
     /// turned on by --plugin, SB_PLUGINS or the file. Not available for `sbrs test`: put
     /// the options in the [plugins.NAME] table of the settings file.
-    #[usage(long, value_name = "NAME.KEY=VALUE")]
+    #[usage(long, global, value_name = "NAME.KEY=VALUE")]
     plugin_opt: Vec<String>,
     #[usage(subcommand)]
     command: Commands,
@@ -469,8 +519,6 @@ enum Commands {
     },
     /// Clear the browser cache via CDP.
     CacheClear,
-    /// Throttle the browser connection to 3G speeds.
-    Throttle3g,
     /// Capture a screenshot of the current page.
     Screenshot {
         #[usage(
@@ -539,14 +587,6 @@ enum Commands {
         #[usage(long, help = "Text to inject via CDP")]
         text: String,
     },
-
-    /// Navigate back in browser history.
-    GoBack,
-    /// Navigate forward in browser history.
-    GoForward,
-    /// Reload the current page.
-    Refresh,
-
     /// Print the visible text of an element.
     GetText {
         #[usage(long, help = "CSS selector for the target element")]
@@ -575,13 +615,13 @@ enum Commands {
     /// Delete all browser cookies.
     ClearCookies,
 
-    /// Accept the active browser alert.
+    /// Accept the alert that the page opens when it loads.
     AcceptAlert,
-    /// Dismiss the active browser alert.
+    /// Dismiss the alert that the page opens when it loads.
     DismissAlert,
-    /// Print the text of the active alert.
+    /// Print the text of the alert that the page opens when it loads.
     GetAlertText,
-    /// Type text into the active alert prompt.
+    /// Type text into the prompt that the page opens when it loads.
     TypeAlertText {
         #[usage(long, help = "Text to type into the alert prompt")]
         text: String,
@@ -605,19 +645,6 @@ enum Commands {
         #[usage(long, help = "Storage key")]
         key: String,
     },
-    /// Switch focus to a window by handle.
-    SwitchToWindow {
-        #[usage(long, help = "Window handle to switch to")]
-        handle: String,
-    },
-    /// Switch focus to an iframe.
-    SwitchToFrame {
-        #[usage(long, help = "CSS selector for the target element")]
-        css: String,
-    },
-    /// Switch focus back to the main document.
-    SwitchToDefaultContent,
-
     /// Print all browser cookies as JSON.
     GetCookies,
     /// Turn an action file written by `record` into a Rust test.
@@ -735,17 +762,6 @@ enum Commands {
     WaitForReadyStateComplete,
     /// Print the browser window position.
     GetWindowPosition,
-    /// Set the browser window position.
-    SetWindowPosition {
-        #[usage(long, help = "Window X coordinate in pixels")]
-        x: u32,
-        #[usage(long, help = "Window Y coordinate in pixels")]
-        y: u32,
-    },
-    /// Close the current browser window.
-    CloseWindow,
-    /// Switch focus to the parent frame.
-    SwitchToParentFrame,
     /// Print whether an element is visible.
     IsElementVisible {
         #[usage(long, help = "CSS selector for the target element")]
@@ -795,16 +811,6 @@ enum Commands {
         #[usage(long, help = "CSS selector for the target element")]
         css: String,
     },
-    /// Open a new browser window.
-    OpenNewWindow,
-    /// Open a new browser tab.
-    OpenNewTab,
-    /// Switch focus to the newest browser window.
-    SwitchToNewestWindow,
-    /// Switch focus to the default window.
-    SwitchToDefaultWindow,
-    /// Print a CSS selector for the currently focused element.
-    GetActiveElementCss,
     /// Wait until an element is present in the DOM.
     WaitForElementPresent {
         #[usage(long, help = "CSS selector for the target element")]
@@ -836,12 +842,12 @@ enum Commands {
         #[usage(long, help = "CSS selector for the target element")]
         css: String,
     },
-    /// Wait for an alert, then accept it.
+    /// Wait for an alert that the page opens, then accept it.
     WaitForAndAcceptAlert {
         #[usage(long, default = "10", help = "Maximum wait time in seconds")]
         timeout: u64,
     },
-    /// Wait for an alert, then dismiss it.
+    /// Wait for an alert that the page opens, then dismiss it.
     WaitForAndDismissAlert {
         #[usage(long, default = "10", help = "Maximum wait time in seconds")]
         timeout: u64,
@@ -1085,7 +1091,7 @@ enum Commands {
         #[usage(long, help = "Output recording scaffold path")]
         file: String,
     },
-    /// Run a scenario file and write an optional dashboard.
+    /// Run a scenario file, the way to do several steps in one browser, and write an optional dashboard.
     RunScenario {
         #[usage(long, help = "Scenario file to run")]
         file: String,
@@ -1212,16 +1218,11 @@ enum Commands {
         selector: String,
         #[usage(help = "Local file to upload")]
         file: String,
-        #[usage(
-            long,
-            help = "Page to open first (defaults to a generated blank upload page)"
-        )]
-        url: Option<String>,
     },
     /// Run several assertions, then report every failure at once.
+    ///
+    /// The page they run on is the global --url, if there is one.
     Deferred {
-        #[usage(long, help = "URL to open before running the assertions")]
-        url: Option<String>,
         #[usage(
             long = "assert",
             value_name = "SPEC",
@@ -1260,11 +1261,9 @@ enum Commands {
     /// Google's chrome-devtools-mcp and Microsoft's Playwright MCP, then keeps
     /// the browser running until Ctrl+C, which closes it and exits with 0.
     /// The global --browser (chrome, chromium, edge or another Chromium
-    /// browser), --headed, --user-agent, --locale, --ad-block, --extension-dir
-    /// and --proxy-list apply as well.
+    /// browser), --headless, --headed, --user-data-dir, --proxy, --user-agent, --locale, --ad-block, --extension-dir
+    /// --proxy-list and --url (the page to open once the browser runs) apply as well.
     Devtools {
-        #[usage(long, bool_value, help = "Run the browser without a window")]
-        headless: bool,
         #[usage(
             long,
             default_value_t = DEFAULT_DEVTOOLS_PORT,
@@ -1274,23 +1273,10 @@ enum Commands {
         port: u16,
         #[usage(
             long,
-            value_name = "DIR",
-            help = "Profile directory to keep (default: a throwaway one; never Chrome's own default profile)"
-        )]
-        user_data_dir: Option<String>,
-        #[usage(
-            long,
-            help = "Proxy: SERVER:PORT, USER:PASS@SERVER:PORT or scheme://SERVER:PORT"
-        )]
-        proxy: Option<String>,
-        #[usage(
-            long,
             value_name = "PATH",
             help = "Browser binary to launch, such as Microsoft Edge or another Chromium browser"
         )]
         browser_path: Option<String>,
-        #[usage(long, value_name = "URL", help = "Page to open once the browser runs")]
-        url: Option<String>,
         #[usage(
             long,
             bool_value,
@@ -1414,7 +1400,6 @@ impl Commands {
             self,
             Self::Cdp { .. }
                 | Self::CacheClear
-                | Self::Throttle3g
                 | Self::CdpClickElement { .. }
                 | Self::CdpTypeText { .. }
                 | Self::Record { .. }
@@ -1423,6 +1408,240 @@ impl Commands {
                 | Self::AssertPdfText { .. }
                 | Self::Fingerprint(_)
         )
+    }
+
+    /// Whether the command acts on, or reads, the page the browser is on. Every `sbrs`
+    /// command starts a fresh browser, so such a command needs a start page (`--url`,
+    /// `SB_START_PAGE` or the settings file) and is refused without one, before any browser
+    /// starts. `cdp` is exempt: it speaks to the browser, not to a page.
+    fn needs_page(&self) -> bool {
+        self.acts_on_page()
+            || self.changes_profile()
+            || matches!(
+                self,
+                // Read what the page holds.
+                Self::GetText { .. }
+                        | Self::GetAttribute { .. }
+                        | Self::GetProperty { .. }
+                        | Self::GetValue { .. }
+                        | Self::GetTitle
+                        | Self::GetCurrentUrl
+                        | Self::GetCookies
+                        | Self::GetLocalStorageItem { .. }
+                        | Self::GetWindowPosition
+                        | Self::IsElementVisible { .. }
+                        | Self::IsTextVisible { .. }
+                        | Self::IsChecked { .. }
+                        | Self::IsLinkTextVisible { .. }
+                        | Self::IsPartialLinkTextVisible { .. }
+                        | Self::AssertElement { .. }
+                        | Self::AssertTextVisible { .. }
+                        | Self::AssertTextNotVisible { .. }
+                        | Self::AssertAttribute { .. }
+                        | Self::AssertTitle { .. }
+                        | Self::AssertLinkText { .. }
+                        | Self::WaitForText { .. }
+                        | Self::WaitForElementPresent { .. }
+                        | Self::WaitForElementNotVisible { .. }
+                        | Self::WaitForReadyStateComplete
+                        | Self::Screenshot { .. }
+                        | Self::SaveSource { .. }
+                        | Self::SaveCookies { .. }
+                        // Answer an alert that the page opens when it loads.
+                        | Self::AcceptAlert
+                        | Self::DismissAlert
+                        | Self::GetAlertText
+                        | Self::TypeAlertText { .. }
+                        | Self::WaitForAndAcceptAlert { .. }
+                        | Self::WaitForAndDismissAlert { .. }
+            )
+    }
+
+    /// Whether the command changes the page, so that where the browser ended up is worth
+    /// saying: these print `Now at: <url> (<title>)` after they act.
+    fn acts_on_page(&self) -> bool {
+        matches!(
+            self,
+            Self::Hover { .. }
+                | Self::HoverAndClick { .. }
+                | Self::SelectOption { .. }
+                | Self::DragAndDrop { .. }
+                | Self::CdpClickElement { .. }
+                | Self::CdpTypeText { .. }
+                | Self::AddText { .. }
+                | Self::SendKeys { .. }
+                | Self::ClickVisibleElements { .. }
+                | Self::HighlightClick { .. }
+                | Self::CheckIfUnchecked { .. }
+                | Self::UncheckIfChecked { .. }
+                | Self::HumanType { .. }
+                | Self::HumanClick { .. }
+                | Self::SmoothScrollTo { .. }
+                | Self::UcClick { .. }
+                | Self::UcType { .. }
+                | Self::ClickPartialLinkText { .. }
+        )
+    }
+
+    /// Whether the command's only lasting effect is on the browser profile (cookies, local
+    /// storage, the cache). A fresh browser throws its profile away, so these need
+    /// `--user-data-dir`.
+    fn changes_profile(&self) -> bool {
+        matches!(
+            self,
+            Self::ClearCookies
+                | Self::LoadCookies { .. }
+                | Self::SetLocalStorageItem { .. }
+                | Self::RemoveLocalStorageItem { .. }
+                | Self::ClearLocalStorage
+                | Self::CacheClear
+        )
+    }
+
+    /// Whether the command names the page it opens itself, so a start page is a second one.
+    fn opens_own_url(&self) -> bool {
+        matches!(
+            self,
+            Self::Open { .. }
+                | Self::Smoke { .. }
+                | Self::DownloadFile { .. }
+                | Self::PrintPdf { .. }
+                | Self::PdfText { .. }
+                | Self::AssertPdfText { .. }
+                | Self::Record { .. }
+                | Self::Mkrec { .. }
+        )
+    }
+}
+
+/// The name a command is typed as (`get-text`), for what a refusal says about it.
+fn command_name(command: &Commands) -> String {
+    let debug = format!("{command:?}");
+    let variant: String = debug
+        .chars()
+        .take_while(char::is_ascii_alphanumeric)
+        .collect();
+    let mut name = String::with_capacity(variant.len() + 4);
+    for (at, letter) in variant.chars().enumerate() {
+        if letter.is_ascii_uppercase() {
+            if at > 0 {
+                name.push('-');
+            }
+            name.push(letter.to_ascii_lowercase());
+        } else {
+            name.push(letter);
+        }
+    }
+    name
+}
+
+/// A command line that parses but whose options the command refuses. It is said as a parse
+/// failure is, `error: ...` on standard error with status 2, before any browser starts.
+#[derive(Debug)]
+struct ArgumentError {
+    message: String,
+}
+
+impl ArgumentError {
+    fn new(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+        }
+    }
+}
+
+impl std::fmt::Display for ArgumentError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for ArgumentError {}
+
+/// Refuses what only the command and its options together show to be a mistake.
+///
+/// `start_page_given` is whether the command line itself named a start page (`start_page` is
+/// the page after the command line, `SB_START_PAGE` and the settings file have been
+/// merged), and `user_data_dir` the profile folder the same sources name.
+///
+/// # Errors
+///
+/// An [`ArgumentError`] for a page command with no page to act on, a command that changes
+/// the profile with no profile to keep, and a command that opens a URL of its own given a
+/// start page on the command line.
+fn check_page_arguments(
+    command: &Commands,
+    start_page_given: bool,
+    start_page: Option<&str>,
+    user_data_dir: Option<&str>,
+) -> Result<(), ArgumentError> {
+    let name = command_name(command);
+    if start_page_given && command.opens_own_url() {
+        return Err(ArgumentError::new(format!(
+            "{name} opens its own URL; leave out --start-page"
+        )));
+    }
+    if command.needs_page() && start_page.is_none() {
+        return Err(ArgumentError::new(format!(
+            "{name} acts on a page, and every sbrs command starts a fresh browser; give the \
+                 page: sbrs --url https://example.com {name} …"
+        )));
+    }
+    if command.changes_profile() && user_data_dir.is_none() {
+        return Err(ArgumentError::new(format!(
+                "{name} changes the profile, which a fresh browser throws away; add --user-data-dir DIR"
+            )));
+    }
+    Ok(())
+}
+
+/// What a page command does after it has acted and before its browser quits.
+#[derive(Clone, Copy, Debug)]
+struct PageEnd {
+    /// Print `Now at: <url> (<title>)`, so a click that navigates shows where it went.
+    now_at: bool,
+    /// Save a screenshot to `latest_logs/` and print its path (the global `--save-screenshot`).
+    screenshot: bool,
+}
+
+impl PageEnd {
+    /// Says where the browser is and saves the screenshot, as asked, and quits the browser.
+    async fn finish(self, sb: &mut BaseCase) -> Result<(), Box<dyn std::error::Error>> {
+        if self.now_at {
+            let url = sb.get_current_url().await?;
+            let title = sb.get_title().await?;
+            println!("Now at: {url} ({title})");
+        }
+        if self.screenshot {
+            let path = sb.save_screenshot_to_logs().await?;
+            println!("Saved screenshot: {}", path.display());
+        }
+        sb.quit().await?;
+        Ok(())
+    }
+}
+
+/// Turns a start page into a URL a browser can open: a local path becomes a `file://` URL, a
+/// bare host gets `https://`, and anything with a scheme (`about:blank`, `data:`) stays as it is.
+fn start_page_url(page: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let url = navigable_url(page)?;
+    let has_scheme = url.contains("://")
+        || ["about:", "data:", "blob:", "javascript:"]
+            .iter()
+            .any(|scheme| url.starts_with(scheme));
+    Ok(if has_scheme {
+        url
+    } else {
+        format!("https://{url}")
+    })
+}
+
+impl Commands {
+    /// Whether the command opens no page of its own and takes none: the commands that read
+    /// files, write files or print. A marker for the tests.
+    #[cfg(test)]
+    fn opens_no_page(&self) -> bool {
+        !self.launches_browser()
     }
 }
 
@@ -1937,6 +2156,11 @@ fn run_command() -> std::process::ExitCode {
         // The reader of standard output went away (`sbrs ... | head`): the
         // normal end of a pipeline, not a failure.
         Err(error) if is_broken_pipe(error.as_ref()) => std::process::ExitCode::SUCCESS,
+        // An option the command refuses, said as a parse failure is, with no browser started.
+        Err(error) if error.is::<ArgumentError>() => {
+            eprintln!("error: {error}");
+            std::process::ExitCode::from(2)
+        }
         Err(error) => {
             // `error:`, its causes and a `hint:`, and an exit status that
             // says which kind of failure it was (see `exit_code_for`).
@@ -2060,12 +2284,8 @@ fn devtools_browser(
 /// SIGTERM), which closes it and exits with 0, or until its window is closed.
 async fn run_devtools(args: &Cli) -> Result<(), Box<dyn std::error::Error>> {
     let Commands::Devtools {
-        headless,
         port,
-        user_data_dir,
-        proxy,
         browser_path,
-        url,
         json,
     } = &args.command
     else {
@@ -2077,8 +2297,14 @@ async fn run_devtools(args: &Cli) -> Result<(), Box<dyn std::error::Error>> {
     let choice = plugin_choice(args)?;
     choice.check()?;
     choice.log();
+    // The page to open once the browser runs: the global --url, else SB_START_PAGE.
+    let page = args.start_page.clone().or_else(|| {
+        std::env::var(seleniumbase_rs::config::settings::START_PAGE_ENV)
+            .ok()
+            .filter(|page| !page.trim().is_empty())
+    });
     let request = DevtoolsRequest {
-        headless: if *headless || args.headless {
+        headless: if args.headless {
             Some(true)
         } else if args.headed {
             Some(false)
@@ -2086,21 +2312,15 @@ async fn run_devtools(args: &Cli) -> Result<(), Box<dyn std::error::Error>> {
             None
         },
         port: *port,
-        user_data_dir: user_data_dir
-            .as_deref()
-            .or(args.user_data_dir.as_deref())
-            .map(PathBuf::from),
-        proxy: resolve_proxy(
-            proxy.as_deref().or(args.proxy.as_deref()),
-            args.proxy_list.as_deref(),
-        )?,
+        user_data_dir: args.user_data_dir.as_deref().map(PathBuf::from),
+        proxy: resolve_proxy(args.proxy.as_deref(), args.proxy_list.as_deref())?,
         executable,
         use_chromium,
         user_agent: args.user_agent.clone().or_else(|| args.agent.clone()),
         locale: args.locale.clone(),
         ad_block: args.ad_block,
         extension_dir: args.extension_dir.as_deref().map(PathBuf::from),
-        url: url.as_deref().map(navigable_url).transpose()?,
+        url: page.as_deref().map(start_page_url).transpose()?,
         plugins: choice.into_selection(),
         // The flag, else SB_FINGERPRINT, else the `[fingerprint]` table of the settings file.
         fingerprint: Settings::resolve_fingerprint_file(
@@ -2426,6 +2646,8 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         None => Settings::load()?,
     };
     let proxy = resolve_proxy(args.proxy.as_deref(), args.proxy_list.as_deref())?;
+    // The page the command line names, with `https://` or `file://` where it was left out.
+    let start_page_flag = args.start_page.as_deref().map(start_page_url).transpose()?;
     let overrides = SettingsOverrides {
         browser: args.browser.map(|browser| browser.name().to_owned()),
         headless: args
@@ -2450,11 +2672,20 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         esc_end: args.esc_end.then_some(true),
         rec_sb_cdp: args.rec_sb_cdp.then_some(true),
         fingerprint: args.fingerprint.map(|file| file.display().to_string()),
+        start_page: start_page_flag.clone(),
     };
     overrides.apply(&mut settings);
     // A fingerprint file named on the command line is checked here, like the variable's and
     // the file's: a wrong path is an error, not a browser without the fingerprint.
     settings.check_fingerprint()?;
+    // What only the command and the options together show to be a mistake is refused here,
+    // before any browser starts.
+    check_page_arguments(
+        &args.command,
+        start_page_flag.is_some(),
+        settings.start_page.as_deref(),
+        settings.user_data_dir.as_deref(),
+    )?;
 
     // `SB_WEBDRIVER_URL` and `SB_CHROME_BIN` are settings too, so
     // `to_browser_config` has them; `--webdriver` goes on top.
@@ -2478,10 +2709,23 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     }
     config.mode = mode;
     config.auto_start_driver = true;
-    // `BaseCase::new` opens the start page before the command acts.
-    if let Some(url) = args.start_page {
-        config.start_page = Some(url);
-    }
+    // `BaseCase::new` opens the start page before the command acts. A command with a URL of
+    // its own opens only that one.
+    config.start_page = if args.command.opens_own_url() {
+        None
+    } else {
+        settings
+            .start_page
+            .as_deref()
+            .map(start_page_url)
+            .transpose()?
+    };
+    let start_page_set = config.start_page.is_some();
+    // What a page command does just before its browser quits.
+    let after = PageEnd {
+        now_at: args.command.acts_on_page(),
+        screenshot: args.save_screenshot,
+    };
 
     // The plugins: what the settings file and `SB_PLUGINS` turn on, with `--plugin` and
     // `--plugin-opt` on top. Only a command that starts a browser, and `test`, which passes
@@ -2525,7 +2769,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             sb.open(&url).await?;
             let title = sb.get_title().await?;
             println!("Title: {title}");
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::Smoke {
             url,
@@ -2539,7 +2783,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 println!("Loaded: {}", sb.get_title().await?);
             }
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::Cdp { cmd, params } => {
             let mut sb = BaseCase::new(config).await?;
@@ -2550,27 +2794,13 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 sb.execute_cdp(&cmd).await?
             };
             println!("{result}");
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::CacheClear => {
             let mut sb = BaseCase::new(config).await?;
             sb.clear_browser_cache().await?;
             println!("CDP cache clear command sent.");
-            sb.quit().await?;
-        }
-        Commands::Throttle3g => {
-            let mut sb = BaseCase::new(config).await?;
-            let mut conditions = NetworkConditions::new();
-            conditions.offline = false;
-            conditions.latency = 200;
-            conditions.download_throughput = 256 * 1024;
-            conditions.upload_throughput = 64 * 1024;
-            sb.set_network_conditions(&conditions).await?;
-            let result = sb
-                .execute_cdp_with_params("Network.setCacheDisabled", json!({"cacheDisabled": true}))
-                .await?;
-            println!("3G throttle enabled. {result}");
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::Screenshot { path } => {
             let mut sb = BaseCase::new(config).await?;
@@ -2583,7 +2813,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 let out = sb.save_screenshot_to_logs().await?;
                 println!("Saved screenshot: {}", out.display());
             }
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::SaveSource { path } => {
             let mut sb = BaseCase::new(config).await?;
@@ -2595,25 +2825,25 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 let out = sb.save_page_source_to_logs().await?;
                 println!("Saved page source: {}", out.display());
             }
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::AssertElement { css } => {
             let mut sb = BaseCase::new(config).await?;
             sb.assert_element(&css).await?;
             println!("Assertion passed: element exists for selector '{css}'");
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::WaitForText { css, text, timeout } => {
             let mut sb = BaseCase::new(config).await?;
             sb.wait_for_text(&text, &css, timeout).await?;
             println!("Text found for selector '{css}': {text}");
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::Hover { css } => {
             let mut sb = BaseCase::new(config).await?;
             sb.hover(&css).await?;
             println!("Hovered over element '{css}'");
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::HoverAndClick {
             hover_css,
@@ -2622,7 +2852,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             let mut sb = BaseCase::new(config).await?;
             sb.hover_and_click(&hover_css, &click_css).await?;
             println!("Hovered '{hover_css}' and clicked '{click_css}'");
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::SelectOption { css, text, value } => {
             let mut sb = BaseCase::new(config).await?;
@@ -2635,7 +2865,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 println!("Must provide either --text or --value for SelectOption");
             }
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::DragAndDrop {
             source_css,
@@ -2644,45 +2874,26 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             let mut sb = BaseCase::new(config).await?;
             sb.drag_and_drop(&source_css, &target_css).await?;
             println!("Dragged '{source_css}' and dropped on '{target_css}'");
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::CdpClickElement { css } => {
             let mut sb = BaseCase::new(config).await?;
             sb.cdp_click(&css).await?;
             println!("CDP clicked element '{css}'");
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::CdpTypeText { text } => {
             let mut sb = BaseCase::new(config).await?;
             sb.cdp_insert_text(&text).await?;
             println!("CDP typed text '{text}'");
-            sb.quit().await?;
-        }
-
-        Commands::GoBack => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.go_back().await?;
-            println!("Went back");
-            sb.quit().await?;
-        }
-        Commands::GoForward => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.go_forward().await?;
-            println!("Went forward");
-            sb.quit().await?;
-        }
-        Commands::Refresh => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.refresh().await?;
-            println!("Refreshed page");
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
 
         Commands::GetText { css } => {
             let mut sb = BaseCase::new(config).await?;
             let text = sb.get_text(&css).await?;
             println!("Text for '{}': {}", css, text);
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::GetAttribute { css, attribute } => {
             let mut sb = BaseCase::new(config).await?;
@@ -2692,7 +2903,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 println!("Attribute '{}' not found for '{}'", attribute, css);
             }
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::GetProperty { css, property } => {
             let mut sb = BaseCase::new(config).await?;
@@ -2702,101 +2913,83 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 println!("Property '{}' not found for '{}'", property, css);
             }
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
 
         Commands::GetTitle => {
             let mut sb = BaseCase::new(config).await?;
             let title = sb.get_title().await?;
             println!("Title: {}", title);
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::GetCurrentUrl => {
             let mut sb = BaseCase::new(config).await?;
             let url = sb.get_current_url().await?;
             println!("Current URL: {}", url);
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
 
         Commands::ClearCookies => {
             let mut sb = BaseCase::new(config).await?;
             sb.clear_browser_cookies().await?;
             println!("Cookies cleared");
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
 
         Commands::AcceptAlert => {
             let mut sb = BaseCase::new(config).await?;
             sb.accept_alert().await?;
             println!("Accepted alert");
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::DismissAlert => {
             let mut sb = BaseCase::new(config).await?;
             sb.dismiss_alert().await?;
             println!("Dismissed alert");
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::GetAlertText => {
             let mut sb = BaseCase::new(config).await?;
             let text = sb.get_alert_text().await?;
             println!("Alert text: {}", text);
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::TypeAlertText { text } => {
             let mut sb = BaseCase::new(config).await?;
             sb.type_alert_text(&text).await?;
             println!("Typed alert text: {}", text);
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::ClearLocalStorage => {
             let mut sb = BaseCase::new(config).await?;
             sb.clear_local_storage().await?;
             println!("Cleared local storage");
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::GetLocalStorageItem { key } => {
             let mut sb = BaseCase::new(config).await?;
             let val = sb.get_local_storage_item(&key).await?;
             println!("Local storage item '{}': {}", key, val);
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::SetLocalStorageItem { key, value } => {
             let mut sb = BaseCase::new(config).await?;
             sb.set_local_storage_item(&key, &value).await?;
             println!("Set local storage item '{}' to '{}'", key, value);
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::RemoveLocalStorageItem { key } => {
             let mut sb = BaseCase::new(config).await?;
             sb.remove_local_storage_item(&key).await?;
             println!("Removed local storage item '{}'", key);
-            sb.quit().await?;
-        }
-        Commands::SwitchToWindow { handle } => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.switch_to_window(&handle).await?;
-            println!("Switched to window '{}'", handle);
-            sb.quit().await?;
-        }
-        Commands::SwitchToFrame { css } => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.switch_to_frame(&css).await?;
-            println!("Switched to frame '{}'", css);
-            sb.quit().await?;
-        }
-        Commands::SwitchToDefaultContent => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.switch_to_default_content().await?;
-            println!("Switched to default content");
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
 
         Commands::GetCookies => {
             let mut sb = BaseCase::new(config).await?;
             let cookies = sb.get_cookies().await?;
             println!("Cookies: {:?}", cookies);
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::ExportRecording { file, output } => {
             let saved = export_recording(&file, output.as_deref())?;
@@ -2849,13 +3042,13 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             let mut sb = BaseCase::new(config).await?;
             sb.assert_text_visible(&text, &css).await?;
             println!("Text '{}' is visible in '{}'", text, css);
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::AssertTextNotVisible { css, text } => {
             let mut sb = BaseCase::new(config).await?;
             sb.assert_text_not_visible(&text, &css).await?;
             println!("Text '{}' is not visible in '{}'", text, css);
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::AssertAttribute {
             css,
@@ -2865,201 +3058,179 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             let mut sb = BaseCase::new(config).await?;
             sb.assert_attribute(&css, &attribute, &value).await?;
             println!("Attribute '{}' of '{}' is '{}'", attribute, css, value);
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::AssertTitle { text } => {
             let mut sb = BaseCase::new(config).await?;
             sb.assert_title(&text).await?;
             println!("Title is '{}'", text);
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::WaitForReadyStateComplete => {
             let mut sb = BaseCase::new(config).await?;
             sb.wait_for_ready_state_complete().await?;
             println!("Ready state complete");
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::GetWindowPosition => {
             let mut sb = BaseCase::new(config).await?;
             let (x, y) = sb.get_window_position().await?;
             println!("Window position: x={}, y={}", x, y);
-            sb.quit().await?;
-        }
-        Commands::SetWindowPosition { x, y } => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.set_window_position(x, y).await?;
-            println!("Set window position to x={}, y={}", x, y);
-            sb.quit().await?;
-        }
-        Commands::CloseWindow => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.close_window().await?;
-            println!("Closed window");
-            sb.quit().await?;
-        }
-        Commands::SwitchToParentFrame => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.switch_to_parent_frame().await?;
-            println!("Switched to parent frame");
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::IsElementVisible { css } => {
             let mut sb = BaseCase::new(config).await?;
             let visible = sb.is_element_visible(&css).await?;
             println!("Element '{}' is visible: {}", css, visible);
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::IsTextVisible { css, text } => {
             let mut sb = BaseCase::new(config).await?;
             let visible = sb.is_text_visible(&text, &css).await?;
             println!("Text '{}' in '{}' is visible: {}", text, css, visible);
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::WaitForElementNotVisible { css, timeout } => {
             let mut sb = BaseCase::new(config).await?;
             sb.wait_for_element_not_visible(&css, timeout).await?;
             println!("Element '{}' is not visible", css);
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::SaveCookies { file } => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             sb.save_cookies_to_path(std::path::Path::new(&file)).await?;
             println!("Saved cookies to '{}'", file);
+            after.finish(&mut sb).await?;
         }
         Commands::LoadCookies { file } => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             sb.load_cookies_from_path(
                 std::path::Path::new(&file),
                 seleniumbase_rs::CookieExpiry::Saved,
             )
             .await?;
             println!("Loaded cookies from '{}'", file);
+            after.finish(&mut sb).await?;
         }
         Commands::HighlightClick { css } => {
             let mut sb = BaseCase::new(config).await?;
             sb.highlight_click(&css).await?;
             println!("Highlighted and clicked '{}'", css);
+            after.finish(&mut sb).await?;
         }
         Commands::IsChecked { css } => {
             let mut sb = BaseCase::new(config).await?;
             let checked = sb.is_checked(&css).await?;
             println!("Element '{}' is checked: {}", css, checked);
+            after.finish(&mut sb).await?;
         }
         Commands::CheckIfUnchecked { css } => {
             let mut sb = BaseCase::new(config).await?;
             sb.check_if_unchecked(&css).await?;
             println!("Checked '{}'", css);
+            after.finish(&mut sb).await?;
         }
         Commands::UncheckIfChecked { css } => {
             let mut sb = BaseCase::new(config).await?;
             sb.uncheck_if_checked(&css).await?;
             println!("Unchecked '{}'", css);
-        }
-        Commands::OpenNewWindow => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.open_new_window().await?;
-            println!("Opened new window");
-        }
-        Commands::OpenNewTab => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.open_new_tab().await?;
-            println!("Opened new tab");
-        }
-        Commands::SwitchToNewestWindow => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.switch_to_newest_window().await?;
-            println!("Switched to newest window");
-        }
-        Commands::SwitchToDefaultWindow => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.switch_to_default_window().await?;
-            println!("Switched to default window");
-        }
-        Commands::GetActiveElementCss => {
-            let mut sb = BaseCase::new(config).await?;
-            let css = sb.get_active_element_css().await?;
-            println!("Active element CSS: {}", css);
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
         }
         Commands::WaitForElementPresent { css, timeout } => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             sb.wait_for_element_present(&css, timeout).await?;
             println!("Element '{}' is present", css);
+            after.finish(&mut sb).await?;
         }
         Commands::AddText { css, text } => {
             let mut sb = BaseCase::new(config).await?;
             sb.add_text(&css, &text).await?;
             println!("Added text to '{}'", css);
+            after.finish(&mut sb).await?;
         }
         Commands::SendKeys { css, text } => {
             let mut sb = BaseCase::new(config).await?;
             sb.send_keys(&css, &text).await?;
             println!("Sent keys to '{}'", css);
+            after.finish(&mut sb).await?;
         }
         Commands::GetValue { css } => {
             let mut sb = BaseCase::new(config).await?;
             let value = sb.get_value(&css).await?;
             println!("Value of '{}': {}", css, value);
+            after.finish(&mut sb).await?;
         }
         Commands::ClickVisibleElements { css } => {
             let mut sb = BaseCase::new(config).await?;
             sb.click_visible_elements(&css).await?;
             println!("Clicked visible elements matching '{}'", css);
+            after.finish(&mut sb).await?;
         }
         Commands::WaitForAndAcceptAlert { timeout } => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             sb.wait_for_and_accept_alert(timeout).await?;
             println!("Waited for and accepted alert");
+            after.finish(&mut sb).await?;
         }
         Commands::WaitForAndDismissAlert { timeout } => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             sb.wait_for_and_dismiss_alert(timeout).await?;
             println!("Waited for and dismissed alert");
+            after.finish(&mut sb).await?;
         }
         Commands::IsLinkTextVisible { text } => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             let visible = sb.is_link_text_visible(&text).await?;
             println!("Link text '{}' is visible: {}", text, visible);
+            after.finish(&mut sb).await?;
         }
         Commands::IsPartialLinkTextVisible { text } => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             let visible = sb.is_partial_link_text_visible(&text).await?;
             println!("Partial link text '{}' is visible: {}", text, visible);
+            after.finish(&mut sb).await?;
         }
         Commands::AssertLinkText { text } => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             sb.assert_link_text(&text).await?;
             println!("Link text '{}' asserted", text);
+            after.finish(&mut sb).await?;
         }
         Commands::ClickPartialLinkText { text } => {
             let mut sb = BaseCase::new(config).await?;
             sb.click_partial_link_text(&text).await?;
             println!("Clicked partial link text '{}'", text);
+            after.finish(&mut sb).await?;
         }
         Commands::HumanType { css, text } => {
             let mut sb = BaseCase::new(config).await?;
             sb.human_type(&css, &text).await?;
             println!("Human typed into '{}'", css);
+            after.finish(&mut sb).await?;
         }
         Commands::HumanClick { css } => {
             let mut sb = BaseCase::new(config).await?;
             sb.human_click(&css).await?;
             println!("Human clicked '{}'", css);
+            after.finish(&mut sb).await?;
         }
         Commands::SmoothScrollTo { css } => {
             let mut sb = BaseCase::new(config).await?;
             sb.smooth_scroll_to(&css).await?;
             println!("Smooth scrolled to '{}'", css);
+            after.finish(&mut sb).await?;
         }
         Commands::UcClick { css } => {
             let mut sb = BaseCase::new(config).await?;
             sb.uc_click(&css).await?;
             println!("UC clicked '{}'", css);
+            after.finish(&mut sb).await?;
         }
         Commands::UcType { css, text } => {
             let mut sb = BaseCase::new(config).await?;
             sb.uc_type(&css, &text).await?;
             println!("UC typed into '{}'", css);
+            after.finish(&mut sb).await?;
         }
         Commands::Install { driver, version } => {
             let name: sb_install::DriverName = driver.parse()?;
@@ -3228,7 +3399,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             let (json_file, rust_file) = sb.save_recording_to_logs()?;
             println!("Recording json: {}", json_file.display());
             println!("Recording script: {}", rust_file.display());
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
             if summary.failed_steps > 0 {
                 return Err(format!(
                     "scenario '{}' failed: {} of {} steps failed",
@@ -3270,7 +3441,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     false
                 }
             };
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
             if !downloaded {
                 http_download(&url, &dest).await?;
             }
@@ -3286,7 +3457,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
             sb.print_to_pdf(&output).await?;
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
             let size = std::fs::metadata(&output)
                 .map(|meta| meta.len())
                 .unwrap_or(0);
@@ -3300,7 +3471,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             let (path, _scratch) = resolve_pdf(&mut sb, &url, save_pdf.as_deref()).await?;
             let target = path.to_str().ok_or("PDF path is not valid UTF-8")?;
             let text = sb.get_pdf_text(target)?;
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
             println!("{text}");
         }
         #[cfg(feature = "pdf")]
@@ -3313,36 +3484,33 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             let (path, _scratch) = resolve_pdf(&mut sb, &url, save_pdf.as_deref()).await?;
             let target = path.to_str().ok_or("PDF path is not valid UTF-8")?;
             let outcome = sb.assert_pdf_text(target, &text);
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
             outcome?;
             println!("Assertion passed: PDF contains '{text}'");
         }
-        Commands::ChooseFile {
-            selector,
-            file,
-            url,
-        } => {
-            let page = match url.as_deref() {
-                Some(target) => navigable_url(target)?,
-                None => html_data_url(&blank_file_input_page(&selector)),
-            };
+        Commands::ChooseFile { selector, file } => {
             let mut sb = BaseCase::new(config).await?;
-            sb.open(&page).await?;
+            // The start page (the global --url) is the page that has the file input;
+            // without one, a blank page that has it.
+            if !start_page_set {
+                sb.open(&html_data_url(&blank_file_input_page(&selector)))
+                    .await?;
+            }
             let outcome = sb.choose_file(&selector, &file).await;
             let value = match outcome {
                 Ok(()) => sb.get_value(&selector).await.unwrap_or_default(),
                 Err(err) => {
-                    sb.quit().await?;
+                    let _ = sb.quit().await;
                     return Err(err.into());
                 }
             };
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
             println!("Uploaded '{file}' into '{selector}'");
             if !value.is_empty() {
                 println!("Input value: {value}");
             }
         }
-        Commands::Deferred { url, asserts, spec } => {
+        Commands::Deferred { asserts, spec } => {
             let mut specs = parse_deferred_specs(&asserts)?;
             if let Some(path) = spec.as_deref() {
                 let raw = std::fs::read_to_string(path)?;
@@ -3352,10 +3520,8 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 return Err("no assertions provided: pass --assert or --spec".into());
             }
 
+            // The start page, if there is one, is open already.
             let mut sb = BaseCase::new(config).await?;
-            if let Some(target) = url.as_deref() {
-                sb.open(&navigable_url(target)?).await?;
-            }
             let mut results = Vec::with_capacity(specs.len());
             for entry in &specs {
                 let outcome = match entry {
@@ -3371,7 +3537,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     error: outcome.err().map(|err| err.to_string()),
                 });
             }
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
 
             print!("{}", format_deferred_summary(&results));
             if results.iter().any(|result| !result.passed()) {
@@ -3398,7 +3564,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             }
             let mut sb = BaseCase::new(config).await?;
             let report = RecorderSession::replay(&mut sb, &actions).await?;
-            sb.quit().await?;
+            after.finish(&mut sb).await?;
 
             for step in &report.steps {
                 match &step.error {
@@ -3457,23 +3623,21 @@ mod devtools_cli_tests {
     #[test]
     fn devtools_takes_its_own_options_with_port_9222_by_default() {
         let cli = parse(&["sbrs", "devtools"]);
+        assert!(!cli.headless && cli.user_data_dir.is_none() && cli.proxy.is_none());
+        assert!(cli.start_page.is_none());
         let Commands::Devtools {
-            headless,
             port,
-            user_data_dir,
-            proxy,
             browser_path,
-            url,
             json,
         } = cli.command
         else {
             panic!("not the devtools command");
         };
         assert_eq!(port, 9222);
-        assert!(!headless && !json);
-        assert!(user_data_dir.is_none() && proxy.is_none());
-        assert!(browser_path.is_none() && url.is_none());
+        assert!(!json);
+        assert!(browser_path.is_none());
 
+        // The browser options and the page are the global ones, wherever they are written.
         let cli = parse(&[
             "sbrs",
             "devtools",
@@ -3490,24 +3654,21 @@ mod devtools_cli_tests {
             "example.com",
             "--json",
         ]);
+        assert!(cli.headless);
+        assert_eq!(cli.user_data_dir.as_deref(), Some("/tmp/devtools"));
+        assert_eq!(cli.proxy.as_deref(), Some("host:8080"));
+        assert_eq!(cli.start_page.as_deref(), Some("example.com"));
         let Commands::Devtools {
-            headless,
             port,
-            user_data_dir,
-            proxy,
             browser_path,
-            url,
             json,
         } = cli.command
         else {
             panic!("not the devtools command");
         };
-        assert!(headless && json);
+        assert!(json);
         assert_eq!(port, 0);
-        assert_eq!(user_data_dir.as_deref(), Some("/tmp/devtools"));
-        assert_eq!(proxy.as_deref(), Some("host:8080"));
         assert_eq!(browser_path.as_deref(), Some("/opt/edge"));
-        assert_eq!(url.as_deref(), Some("example.com"));
     }
 
     #[test]
@@ -3666,7 +3827,7 @@ mod plugin_cli_tests {
     }
 
     /// Python's `--start-page`, under each of its names, is the page a command acts on;
-    /// like the other global options it goes before the command.
+    /// like the other global options it goes before the command, or after it.
     #[test]
     fn the_start_page_goes_before_the_command_under_any_of_its_names() {
         for flag in ["--start-page", "--url", "--start_page"] {
@@ -3677,13 +3838,17 @@ mod plugin_cli_tests {
                 "{flag}"
             );
         }
-        assert!(try_parse(&["sbrs", "get-title", "--url", "https://example.test/"]).is_err());
+        // The option is global, so after the command is just as good.
+        let cli = parse(&["sbrs", "get-title", "--url", "https://example.test/"]);
+        assert_eq!(cli.start_page.as_deref(), Some("https://example.test/"));
     }
 
     #[test]
-    fn a_plugin_option_after_the_command_is_refused_like_the_other_global_options() {
-        assert!(try_parse(&["sbrs", "open", "x", "--plugin", "shield"]).is_err());
-        assert!(try_parse(&["sbrs", "open", "x", "--plugin-opt", "a.b=1"]).is_err());
+    fn a_plugin_option_after_the_command_is_global_like_the_other_options() {
+        let cli = try_parse(&["sbrs", "open", "x", "--plugin", "shield"]).expect("accepted");
+        assert_eq!(cli.plugin, ["shield"]);
+        let cli = try_parse(&["sbrs", "open", "x", "--plugin-opt", "a.b=1"]).expect("accepted");
+        assert_eq!(cli.plugin_opt, ["a.b=1"]);
         assert!(
             try_parse(&["sbrs", "--plugin"]).is_err(),
             "a name is required"
@@ -3895,10 +4060,41 @@ mod strict_cli_tests {
     }
 
     #[test]
-    fn the_same_name_in_two_commands_is_two_flags() {
-        let cli = try_parse_checked(&["sbrs", "--proxy", "a:1", "devtools", "--proxy", "b:2"])
-            .expect("parses");
-        assert_eq!(cli.proxy.as_deref(), Some("a:1"));
+    fn a_global_flag_given_before_and_after_the_command_is_a_repeat() {
+        for argv in [
+            &["sbrs", "--headless", "get-title", "--headless"][..],
+            &["sbrs", "--proxy", "a:1", "get-title", "--proxy", "b:2"],
+            &["sbrs", "--proxy", "a:1", "devtools", "--proxy", "b:2"],
+            &["sbrs", "--url", "a", "get-title", "--start-page", "b"],
+            &["sbrs", "--mobile", "get-title", "--mobile"],
+            &[
+                "sbrs",
+                "--save-screenshot",
+                "get-title",
+                "--save-screenshot",
+            ],
+            &["sbrs", "get-title", "--headless", "--headless"],
+        ] {
+            let error = refused(argv);
+            assert!(error.contains("multiple times"), "{argv:?}: {error}");
+        }
+    }
+
+    #[test]
+    fn a_global_flag_may_come_before_or_after_the_command() {
+        let before = try_parse_checked(&["sbrs", "--proxy", "a:1", "devtools"]).expect("parses");
+        assert_eq!(before.proxy.as_deref(), Some("a:1"));
+        let after = try_parse_checked(&["sbrs", "devtools", "--proxy", "b:2"]).expect("parses");
+        assert_eq!(after.proxy.as_deref(), Some("b:2"));
+        // A flag that may be repeated is no repeat when it is written on both sides.
+        for argv in [
+            &["sbrs", "--plugin", "a", "open", "x", "--plugin", "b"][..],
+            &["sbrs", "--headless", "open", "x", "--uc", "--plugin", "a"],
+        ] {
+            if let Err(error) = try_parse_checked(argv) {
+                panic!("{argv:?}: {error}");
+            }
+        }
     }
 
     #[test]
@@ -4118,5 +4314,298 @@ mod usage_spec_tests {
     fn the_committed_cli_reference_matches_the_cli() {
         let spec: usage_lib::Spec = Cli::to_kdl().parse().expect("the usage spec parses");
         assert_generated("docs/help/cli_reference.md", &reference::render(&spec));
+    }
+}
+
+#[cfg(test)]
+mod page_cli_tests {
+    use super::*;
+
+    fn parse(argv: &[&str]) -> Cli {
+        try_parse_checked(argv).expect("the arguments parse")
+    }
+
+    fn refused(argv: &[&str]) -> String {
+        try_parse_checked(argv).expect_err(&format!("{argv:?} was accepted"))
+    }
+
+    fn command(argv: &[&str]) -> Commands {
+        parse(argv).command
+    }
+
+    /// Python's `--start-page`, under each of its names, is the page a command acts on; it
+    /// goes before the command or after it, like the other global options.
+    #[test]
+    fn the_start_page_goes_before_or_after_the_command_under_any_of_its_names() {
+        for flag in ["--start-page", "--url", "--start_page"] {
+            let page = "https://example.test/";
+            let before = parse(&["sbrs", flag, page, "get-title"]);
+            assert_eq!(before.start_page.as_deref(), Some(page), "{flag} before");
+            let after = parse(&["sbrs", "get-title", flag, page]);
+            assert_eq!(after.start_page.as_deref(), Some(page), "{flag} after");
+            let joined = format!("{flag}={page}");
+            let equals = parse(&["sbrs", "get-text", "--css", "h1", &joined]);
+            assert_eq!(equals.start_page.as_deref(), Some(page), "{joined}");
+        }
+        assert!(parse(&["sbrs", "get-title"]).start_page.is_none());
+    }
+
+    #[test]
+    fn the_save_screenshot_switch_has_both_spellings_and_goes_anywhere() {
+        for words in [
+            &["sbrs", "--save-screenshot", "get-title"][..],
+            &["sbrs", "--save_screenshot", "get-title"],
+            &["sbrs", "get-title", "--save-screenshot"],
+        ] {
+            assert!(parse(words).save_screenshot, "{words:?}");
+        }
+        assert!(!parse(&["sbrs", "get-title"]).save_screenshot);
+    }
+
+    #[test]
+    fn a_global_option_may_follow_the_command() {
+        let cli = parse(&[
+            "sbrs",
+            "get-title",
+            "--headless",
+            "--browser",
+            "chromium",
+            "--proxy",
+            "p:1",
+            "-n",
+            "3",
+        ]);
+        assert!(cli.headless);
+        assert_eq!(cli.browser, Some(BrowserArg::Chromium));
+        assert_eq!(cli.proxy.as_deref(), Some("p:1"));
+        assert_eq!(cli.threads, Some(3));
+        let cli = parse(&["sbrs", "open", "x", "--plugin", "shield", "--plugin", "b"]);
+        assert_eq!(cli.plugin, ["shield", "b"]);
+    }
+
+    /// Every option of the root is a browser or session option for the command that
+    /// follows it, so every one is accepted after the command too.
+    #[test]
+    fn every_root_option_is_global() {
+        let spec: usage_lib::Spec = Cli::to_kdl().parse().expect("the usage spec parses");
+        let mut checked = 0;
+        for flag in &spec.cmd.flags {
+            if flag
+                .long
+                .iter()
+                .any(|long| long == "help" || long == "version")
+            {
+                continue;
+            }
+            assert!(flag.global, "--{} is not global", flag.long.join("/"));
+            checked += 1;
+        }
+        assert!(checked > 20, "only {checked} root options found");
+    }
+
+    #[test]
+    fn the_page_commands_that_a_fresh_browser_makes_useless_are_gone() {
+        for name in [
+            "go-back",
+            "go-forward",
+            "refresh",
+            "switch-to-window",
+            "switch-to-frame",
+            "switch-to-default-content",
+            "switch-to-parent-frame",
+            "switch-to-newest-window",
+            "switch-to-default-window",
+            "open-new-window",
+            "open-new-tab",
+            "close-window",
+            "set-window-position",
+            "get-active-element-css",
+            "throttle3g",
+        ] {
+            let error = refused(&["sbrs", name]);
+            assert!(error.contains("unrecognized subcommand"), "{name}: {error}");
+        }
+        // `export-recording` turns an action file into a test and starts no browser.
+        assert!(parse(&["sbrs", "export-recording", "a.json"])
+            .command
+            .opens_no_page());
+    }
+
+    #[test]
+    fn the_commands_that_act_on_a_page_need_one() {
+        for argv in [
+            &["sbrs", "get-text", "--css", "h1"][..],
+            &["sbrs", "get-title"],
+            &["sbrs", "screenshot"],
+            &["sbrs", "save-source"],
+            &["sbrs", "hover", "--css", "a"],
+            &["sbrs", "accept-alert"],
+            &["sbrs", "clear-cookies"],
+            &["sbrs", "assert-title", "--text", "x"],
+            &["sbrs", "uc-click", "--css", "a"],
+        ] {
+            assert!(command(argv).needs_page(), "{argv:?}");
+        }
+        for argv in [
+            &["sbrs", "cdp", "--cmd", "Browser.getVersion"][..],
+            &["sbrs", "open", "x"],
+            &["sbrs", "smoke", "x"],
+            &["sbrs", "version"],
+            &["sbrs", "mkdir", "d"],
+            &["sbrs", "run-scenario", "--file", "s.json"],
+            &["sbrs", "test"],
+        ] {
+            assert!(!command(argv).needs_page(), "{argv:?}");
+        }
+    }
+
+    #[test]
+    fn only_the_commands_that_change_the_page_say_where_they_ended() {
+        for argv in [
+            &["sbrs", "click-partial-link-text", "--text", "a"][..],
+            &["sbrs", "hover", "--css", "a"],
+            &["sbrs", "human-click", "--css", "a"],
+            &["sbrs", "add-text", "--css", "a", "--text", "b"],
+        ] {
+            assert!(command(argv).acts_on_page(), "{argv:?}");
+        }
+        for argv in [
+            &["sbrs", "get-text", "--css", "h1"][..],
+            &["sbrs", "screenshot"],
+            &["sbrs", "assert-title", "--text", "x"],
+            &["sbrs", "open", "x"],
+        ] {
+            assert!(!command(argv).acts_on_page(), "{argv:?}");
+        }
+    }
+
+    #[test]
+    fn a_command_is_named_as_it_is_typed() {
+        for (argv, name) in [
+            (&["sbrs", "get-text", "--css", "h1"][..], "get-text"),
+            (&["sbrs", "uc-click", "--css", "a"], "uc-click"),
+            (
+                &["sbrs", "cdp-click-element", "--css", "a"],
+                "cdp-click-element",
+            ),
+            (
+                &["sbrs", "wait-for-ready-state-complete"],
+                "wait-for-ready-state-complete",
+            ),
+            (&["sbrs", "cache-clear"], "cache-clear"),
+        ] {
+            assert_eq!(command_name(&command(argv)), name);
+        }
+    }
+
+    #[test]
+    fn a_page_command_without_a_page_is_refused_before_a_browser_starts() {
+        let get_text = command(&["sbrs", "get-text", "--css", "h1"]);
+        let error = check_page_arguments(&get_text, false, None, None).expect_err("no page");
+        let message = error.to_string();
+        assert!(message.contains("get-text acts on a page"), "{message}");
+        assert!(
+            message.contains("every sbrs command starts a fresh browser"),
+            "{message}"
+        );
+        assert!(
+            message.contains("sbrs --url https://example.com get-text"),
+            "{message}"
+        );
+
+        // A start page from the command line, the environment or the settings file is a page.
+        check_page_arguments(&get_text, true, Some("https://example.test/"), None)
+            .expect("the flag");
+        check_page_arguments(&get_text, false, Some("https://example.test/"), None)
+            .expect("the environment or the file");
+        // `cdp` needs none, and neither does a command that has a URL of its own.
+        let cdp = command(&["sbrs", "cdp", "--cmd", "Browser.getVersion"]);
+        check_page_arguments(&cdp, false, None, None).expect("cdp");
+        let open = command(&["sbrs", "open", "https://example.test/"]);
+        check_page_arguments(&open, false, None, None).expect("open");
+    }
+
+    #[test]
+    fn a_command_that_changes_the_profile_needs_a_profile_to_keep() {
+        for argv in [
+            &["sbrs", "clear-cookies"][..],
+            &["sbrs", "cache-clear"],
+            &["sbrs", "clear-local-storage"],
+            &["sbrs", "load-cookies", "--file", "c.json"],
+            &[
+                "sbrs",
+                "set-local-storage-item",
+                "--key",
+                "k",
+                "--value",
+                "v",
+            ],
+            &["sbrs", "remove-local-storage-item", "--key", "k"],
+        ] {
+            let profile = command(argv);
+            let page = Some("https://example.test/");
+            let error = check_page_arguments(&profile, true, page, None).expect_err("no profile");
+            let message = error.to_string();
+            assert!(
+                message.contains("changes the profile"),
+                "{argv:?}: {message}"
+            );
+            assert!(
+                message.contains("add --user-data-dir DIR"),
+                "{argv:?}: {message}"
+            );
+            check_page_arguments(&profile, true, page, Some("/tmp/profile"))
+                .unwrap_or_else(|error| panic!("{argv:?}: {error}"));
+        }
+    }
+
+    #[test]
+    fn a_command_with_a_url_of_its_own_refuses_a_start_page_from_the_command_line() {
+        for argv in [
+            &["sbrs", "open", "https://example.test/"][..],
+            &["sbrs", "smoke", "https://example.test/"],
+            &["sbrs", "download-file", "https://example.test/f"],
+            &[
+                "sbrs",
+                "record",
+                "https://example.test/",
+                "--output",
+                "a.json",
+            ],
+        ] {
+            let own = command(argv);
+            let error = check_page_arguments(&own, true, Some("https://other.test/"), None)
+                .expect_err("two pages");
+            let message = error.to_string();
+            assert!(message.contains("opens its own URL"), "{argv:?}: {message}");
+            assert!(
+                message.contains("leave out --start-page"),
+                "{argv:?}: {message}"
+            );
+            // A page from the environment or the settings file is only a default.
+            check_page_arguments(&own, false, Some("https://other.test/"), None)
+                .unwrap_or_else(|error| panic!("{argv:?}: {error}"));
+            assert!(own.opens_own_url(), "{argv:?}");
+        }
+    }
+
+    #[test]
+    fn a_start_page_gets_a_scheme() {
+        assert_eq!(
+            start_page_url("https://example.test/a").unwrap(),
+            "https://example.test/a"
+        );
+        assert_eq!(
+            start_page_url("example.test").unwrap(),
+            "https://example.test"
+        );
+        assert_eq!(start_page_url("about:blank").unwrap(), "about:blank");
+        assert_eq!(
+            start_page_url("file:///tmp/a.html").unwrap(),
+            "file:///tmp/a.html"
+        );
+        let here = std::env::current_dir().unwrap();
+        let local = start_page_url(&here.display().to_string()).unwrap();
+        assert!(local.starts_with("file://"), "{local}");
     }
 }

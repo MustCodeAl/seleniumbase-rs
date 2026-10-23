@@ -44,12 +44,18 @@ pub fn check<'v>(
     // The metadata of the command the parser is in, and the flags it has been given.
     let mut meta = spec.root;
     let mut given: Vec<u64> = Vec::new();
+    // The commands above the one the parser is in, and the flags of the root that have been
+    // given so far wherever they were written: a `global` flag goes before the subcommand or
+    // after it, and given on both sides it is a repeat.
+    let mut ancestors: Vec<&'static CommandMeta<'static>> = Vec::new();
+    let mut inherited: Vec<u64> = Vec::new();
     while let Some(event) = parser.next_event() {
         match event {
             Ok(Event::Command(command)) => {
                 let Some(next) = subcommand_meta(meta, command) else {
                     return Ok(());
                 };
+                ancestors.push(meta);
                 meta = next;
                 given.clear();
             }
@@ -64,6 +70,19 @@ pub fn check<'v>(
                     return Err(switch_value(flag, value));
                 }
                 let Some(flag_meta) = flag_meta(meta, flag) else {
+                    // A flag of an ancestor, written after the subcommand (a `global` one): the root says
+                    // `args_override_self = false`, so it is a repeat of the same flag given before.
+                    if strict {
+                        if let Some(own) = ancestors
+                            .iter()
+                            .find_map(|ancestor| flag_meta(ancestor, flag))
+                        {
+                            if !repeats(own) && inherited.contains(&flag.key) {
+                                return Err(Error::DuplicateFlag { name: flag.name });
+                            }
+                            inherited.push(flag.key);
+                        }
+                    }
                     continue;
                 };
                 // Only a command whose own declaration lets the last value win needs the
@@ -76,6 +95,11 @@ pub fn check<'v>(
                     return Err(Error::DuplicateFlag { name: flag.name });
                 }
                 given.push(flag.key);
+                // Written before any subcommand, it is the root's, and a repeat of it after
+                // the subcommand is caught above.
+                if ancestors.is_empty() {
+                    inherited.push(flag.key);
+                }
             }
             Ok(_) => {}
             // The parser's own refusal of a value other than `true` or `false` after a
