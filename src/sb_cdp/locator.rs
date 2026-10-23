@@ -940,22 +940,6 @@ impl Locator {
             .await
     }
 
-    /// Clicks at `offset` pixels right of and below the element's top-left
-    /// corner, scrolling it into view first.
-    ///
-    /// The same as `click_with_offset(offset.x, offset.y, false)`.
-    ///
-    /// # Errors
-    ///
-    /// See [`click`](Self::click).
-    #[deprecated(
-        since = "0.5.0",
-        note = "use `click_with_offset(x, y, false)`, Python's name for it"
-    )]
-    pub async fn click_at(&self, offset: Point) -> Result<(), SeleniumBaseError> {
-        self.click_with_offset(offset.x, offset.y, false).await
-    }
-
     /// Clicks the first match if it is visible now, and says whether it
     /// clicked. It looks once and does not wait.
     ///

@@ -682,8 +682,7 @@ async fn reload_keeps_the_cache_and_hard_reload_bypasses_it() {
 // ----------------------------------------------------------------------
 
 #[tokio::test]
-#[allow(deprecated, reason = "click_at stays as a shim until it is removed")]
-async fn the_deprecated_click_at_still_measures_from_the_elements_top_left() {
+async fn click_with_offset_measures_from_the_elements_top_left() {
     let (page, mock) = quick_page().await;
     mock.on("Runtime.evaluate", |params| {
         let expression = params["expression"].as_str().unwrap_or_default();
@@ -705,7 +704,7 @@ async fn the_deprecated_click_at_still_measures_from_the_elements_top_left() {
     });
 
     page.locator("#target")
-        .click_at(seleniumbase_rs::sb_cdp::Point { x: 10.0, y: 5.0 })
+        .click_with_offset(10.0, 5.0, false)
         .await
         .unwrap();
 

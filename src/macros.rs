@@ -238,16 +238,6 @@ macro_rules! sb_assert_visible {
     };
 }
 
-/// The old name of [`sb_assert_visible!`], which every other macro of the
-/// crate follows with its `sb_` prefix.
-#[deprecated(since = "0.5.0", note = "use `sb_assert_visible!`")]
-#[macro_export]
-macro_rules! assert_visible {
-    ($sb:expr, $selector:expr $(, $msg:expr)?) => {
-        $crate::sb_assert_visible!($sb, $selector $(, $msg)?)
-    };
-}
-
 /// Builds a [`Fingerprint`](crate::Fingerprint) preset.
 ///
 /// # Examples
@@ -541,12 +531,10 @@ mod tests {
     }
 
     #[tokio::test]
-    #[allow(deprecated)]
-    async fn the_old_visible_macro_still_works_and_the_new_one_has_the_prefix() {
+    async fn the_visible_macro_takes_an_optional_message() {
         let driver = page_with_element(true);
         let sb = driver.base_case().await;
         sb_assert_visible!(sb, "#a").unwrap();
-        crate::assert_visible!(sb, "#a").unwrap();
         sb_assert_visible!(sb, "#a", "the element is visible");
     }
 

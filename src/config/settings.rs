@@ -536,21 +536,6 @@ impl Settings {
         }
     }
 
-    #[deprecated(
-        since = "0.5.0",
-        note = "use Settings::from_file, which reads TOML for a .toml name and JSON otherwise"
-    )]
-    pub fn from_toml<P: AsRef<Path>>(path: P) -> Result<Self, SeleniumBaseError> {
-        let content = fs::read_to_string(path).map_err(|e| {
-            SeleniumBaseError::InvalidConfig(format!("failed to read TOML settings: {e}"))
-        })?;
-        let settings: Self = toml::from_str(&content).map_err(|e| {
-            SeleniumBaseError::InvalidConfig(format!("failed to parse TOML settings: {e}"))
-        })?;
-        settings.plugins.ensure_supported()?;
-        Ok(settings)
-    }
-
     pub fn from_env() -> Result<Self, SeleniumBaseError> {
         let settings = Self::default();
         Self::apply_env_overrides(settings)
@@ -1504,7 +1489,6 @@ threads = 4
 
     #[cfg(not(feature = "plugins"))]
     #[test]
-    #[allow(deprecated)] // `from_toml` is deprecated but still has to refuse the selection
     fn without_plugin_support_a_selection_stops_the_load() {
         let hint = "--features plugins-builtin";
         let error = Settings::apply_overrides(Settings::default(), |name| {
@@ -1516,13 +1500,8 @@ threads = 4
         let mut file = tempfile::NamedTempFile::with_suffix(".toml").unwrap();
         file.write_all(b"[plugins]\nenable = [\"shield\"]\n")
             .unwrap();
-        for result in [
-            Settings::from_file(file.path()),
-            Settings::from_toml(file.path()),
-        ] {
-            let error = result.unwrap_err();
-            assert!(error.to_string().contains(hint), "{error}");
-        }
+        let error = Settings::from_file(file.path()).unwrap_err();
+        assert!(error.to_string().contains(hint), "{error}");
 
         // Asking for nothing is fine.
         Settings::apply_overrides(Settings::default(), |name| {
