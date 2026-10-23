@@ -12,6 +12,10 @@ use rmcp::model::{
     ServerConfig, Tool,
 };
 use rmcp::model::{
+    GetPromptRequestParams, GetPromptResponse, GetPromptResult, ListPromptsResult, Prompt,
+    PromptArgument, PromptsCapability,
+};
+use rmcp::model::{
     ListResourceTemplatesResult, ListResourcesResult, ReadResourceRequestParams,
     ReadResourceResponse, ReadResourceResult, Resource, ResourceContents, ResourceTemplate,
     ResourcesCapability,
@@ -23,6 +27,7 @@ use tokio::sync::{Mutex, OwnedMappedMutexGuard, OwnedMutexGuard};
 use super::failure::{concerns_page, focus_selector, FailureReport, PROBE_TIMEOUT};
 use super::journal::{CallRecord, Journal};
 use super::progress::{Progress, ProgressSink};
+use super::prompts::PromptDef;
 use super::resources::{ResourceBody, ResourceDef, ResourceError};
 use super::tool::{Args, Output, ToolDef, ToolError};
 use crate::config::plugins::PluginSelection;
@@ -276,6 +281,7 @@ struct Shared<S> {
     ctx: Ctx<S>,
     probe: Option<Probe<S>>,
     resources: Vec<ResourceDef<S>>,
+    prompts: Vec<PromptDef>,
 }
 
 /// A named set of tools and the session they share.
@@ -319,6 +325,7 @@ impl<S: Send + 'static> Host<S> {
                 ctx: Ctx::new(settings),
                 probe: None,
                 resources: Vec::new(),
+                prompts: Vec::new(),
             }),
         }
     }
@@ -355,10 +362,98 @@ impl<S: Send + 'static> Host<S> {
         self
     }
 
+    /// Offers `prompts` to clients: ready-made requests they list for the
+    /// user, which name the tools to use.
+    ///
+    /// Call it while building the server: a host that has been cloned keeps
+    /// the prompts it had.
+    #[must_use]
+    pub fn with_prompts(mut self, prompts: Vec<PromptDef>) -> Self {
+        if let Some(shared) = Arc::get_mut(&mut self.shared) {
+            shared.prompts = prompts;
+        } else {
+            tracing::warn!(server = self.shared.name, "a shared host keeps its prompts");
+        }
+        self
+    }
+
+    /// The tools some prompt names that this server does not offer, as
+    /// `(prompt, tool)` pairs; empty when every prompt is sound.
+    ///
+    /// A prompt that names a missing tool sends the model looking for it.
+    #[must_use]
+    pub fn missing_prompt_tools(&self) -> Vec<(&'static str, &'static str)> {
+        self.shared
+            .prompts
+            .iter()
+            .flat_map(|prompt| prompt.uses().iter().map(move |tool| (prompt.name(), *tool)))
+            .filter(|(_, tool)| !self.has_tool(tool))
+            .collect()
+    }
+
+    /// The names of the prompts, in the order they are listed.
+    #[must_use]
+    pub fn prompt_names(&self) -> Vec<&'static str> {
+        self.shared.prompts.iter().map(PromptDef::name).collect()
+    }
+
+    /// The prompts, as `prompts/list` shows them.
+    fn describe_prompts(&self) -> Vec<Prompt> {
+        let mut listed = Vec::new();
+        for def in &self.shared.prompts {
+            let arguments = def
+                .arguments()
+                .iter()
+                .map(|argument| {
+                    PromptArgument::new(argument.name)
+                        .with_description(argument.description)
+                        .with_required(argument.required)
+                })
+                .collect::<Vec<_>>();
+            listed.push(
+                Prompt::new(def.name(), Some(def.description()), Some(arguments))
+                    .with_title(def.title()),
+            );
+        }
+        listed
+    }
+
+    /// The messages of the prompt `request` asks for.
+    fn render_prompt(
+        &self,
+        request: &GetPromptRequestParams,
+    ) -> Result<GetPromptResult, ErrorData> {
+        let def = self
+            .shared
+            .prompts
+            .iter()
+            .find(|def| def.name() == request.name)
+            .ok_or_else(|| {
+                let known: Vec<_> = self.shared.prompts.iter().map(PromptDef::name).collect();
+                ErrorData::invalid_params(
+                    format!(
+                        "unknown prompt: {}; known: {}",
+                        request.name,
+                        known.join(", ")
+                    ),
+                    None,
+                )
+            })?;
+        let arguments = request.arguments.clone().unwrap_or_default();
+        let messages = def
+            .render(&arguments)
+            .map_err(|error| ErrorData::invalid_params(error.to_string(), None))?;
+        Ok(GetPromptResult::new(messages).with_description(def.description()))
+    }
+
     /// What the server announces at the start: tools always, and resources
     /// only when it has some.
     fn capabilities(&self) -> ServerCapabilities {
         let mut capabilities = ServerCapabilities::builder().enable_tools().build();
+        if !self.shared.prompts.is_empty() {
+            capabilities.prompts = Some(PromptsCapability::default());
+        }
+
         if !self.shared.resources.is_empty() {
             capabilities.resources = Some(ResourcesCapability::default());
         }
@@ -707,6 +802,25 @@ impl<S: Send + 'static> ServerHandler for Host<S> {
             self.read_resource_at(&request.uri)
                 .await
                 .map(ReadResourceResponse::Complete)
+        }
+    }
+
+    fn list_prompts(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _context: RequestContext<RoleServer>,
+    ) -> impl Future<Output = Result<ListPromptsResult, ErrorData>> + '_ {
+        async move { Ok(ListPromptsResult::with_all_items(self.describe_prompts())) }
+    }
+
+    fn get_prompt(
+        &self,
+        request: GetPromptRequestParams,
+        _context: RequestContext<RoleServer>,
+    ) -> impl Future<Output = Result<GetPromptResponse, ErrorData>> + '_ {
+        async move {
+            self.render_prompt(&request)
+                .map(GetPromptResponse::Complete)
         }
     }
 

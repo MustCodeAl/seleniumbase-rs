@@ -10,6 +10,7 @@
 use std::time::Duration;
 
 use seleniumbase_rs::mcp::cdp::{self, Cdp};
+use seleniumbase_rs::mcp::{dev, driver, sb, PromptDef};
 use seleniumbase_rs::mcp::{
     Args, Ctx, Effect, Host, Output, ProgressSink, ProgressUpdate, Schema, Settings, ToolDef,
     ToolError, UNTRUSTED_META_KEY, UNTRUSTED_NOTICE,
@@ -670,4 +671,157 @@ async fn output_paths_that_leave_the_directory_are_refused() {
         )
         .await;
     assert_eq!(missing["error"]["code"], json!(-32002), "{missing}");
+}
+
+// ----------------------------------------------------------------------
+// Prompts
+// ----------------------------------------------------------------------
+
+#[tokio::test]
+async fn the_browser_servers_offer_prompts_and_the_dev_server_does_not() {
+    let dir = tempfile::tempdir().unwrap();
+    let settings = || Settings::new(dir.path());
+
+    let cdp = Client::start(cdp::host(settings())).await;
+    let driver = Client::start(driver::host(settings())).await;
+    let sb = Client::start(sb::host(settings())).await;
+    let dev = Client::start(dev::host(settings())).await;
+
+    for client in [&cdp, &driver, &sb] {
+        let capabilities = &client.initialized["capabilities"];
+        assert!(capabilities.get("prompts").is_some(), "{capabilities}");
+        assert!(capabilities.get("resources").is_some(), "{capabilities}");
+    }
+    let capabilities = &dev.initialized["capabilities"];
+    assert!(capabilities.get("prompts").is_none(), "{capabilities}");
+    assert!(capabilities.get("resources").is_none(), "{capabilities}");
+}
+
+#[test]
+fn every_prompt_names_only_tools_its_server_has() {
+    let dir = tempfile::tempdir().unwrap();
+    let hosts = [
+        (
+            "cdp",
+            cdp::host(Settings::new(dir.path())).missing_prompt_tools(),
+            cdp::host(Settings::new(dir.path())).prompt_names(),
+        ),
+        (
+            "driver",
+            driver::host(Settings::new(dir.path())).missing_prompt_tools(),
+            driver::host(Settings::new(dir.path())).prompt_names(),
+        ),
+        (
+            "sb",
+            sb::host(Settings::new(dir.path())).missing_prompt_tools(),
+            sb::host(Settings::new(dir.path())).prompt_names(),
+        ),
+    ];
+
+    for (server, missing, names) in hosts {
+        assert!(
+            missing.is_empty(),
+            "{server}: prompts name missing tools {missing:?}"
+        );
+        assert_eq!(
+            names,
+            ["write_test", "debug_failure", "extract_data"],
+            "{server}"
+        );
+    }
+}
+
+#[test]
+fn a_prompt_that_names_a_missing_tool_is_reported() {
+    let prompt = PromptDef::new(
+        "uses_ghost",
+        "Ghost",
+        "Names a tool nobody has.",
+        Vec::new(),
+        &["ghost_tool"],
+        |_arguments| Ok(Vec::new()),
+    );
+    let host = host_with(vec![tool("real_tool", |_, _| async {
+        Ok(Output::from("ok"))
+    })])
+    .with_prompts(vec![prompt]);
+
+    assert_eq!(host.missing_prompt_tools(), [("uses_ghost", "ghost_tool")]);
+}
+
+#[tokio::test]
+async fn prompts_are_listed_with_their_arguments() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut client = Client::start(cdp::host(Settings::new(dir.path()))).await;
+
+    let listed = client.result("prompts/list", json!({})).await;
+
+    let prompts = listed["prompts"].as_array().expect("a list of prompts");
+    let names: Vec<_> = prompts
+        .iter()
+        .map(|prompt| prompt["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(names, ["write_test", "debug_failure", "extract_data"]);
+    let write_test = &prompts[0];
+    assert_eq!(write_test["title"], "Write a test");
+    let arguments = write_test["arguments"].as_array().expect("arguments");
+    assert_eq!(arguments[0]["name"], "url");
+    assert_eq!(arguments[0]["required"], json!(true));
+    assert_eq!(arguments[1]["name"], "goal");
+    let debug = &prompts[1];
+    assert_eq!(debug["arguments"][0]["name"], "selector");
+    assert_ne!(debug["arguments"][0]["required"], json!(true));
+}
+
+#[tokio::test]
+async fn a_prompt_is_rendered_with_its_arguments() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut client = Client::start(cdp::host(Settings::new(dir.path()))).await;
+
+    let prompt = client
+        .result(
+            "prompts/get",
+            json!({
+                "name": "write_test",
+                "arguments": { "url": "https://shop.test", "goal": "buy a mug" },
+            }),
+        )
+        .await;
+
+    let messages = prompt["messages"].as_array().expect("messages");
+    assert_eq!(messages.len(), 1);
+    assert_eq!(messages[0]["role"], "user");
+    let text = messages[0]["content"]["text"].as_str().expect("text");
+    assert!(
+        text.contains("https://shop.test") && text.contains("buy a mug"),
+        "{text}"
+    );
+    assert!(text.contains("export_session_as_test"), "{text}");
+}
+
+#[tokio::test]
+async fn a_missing_argument_and_an_unknown_prompt_are_invalid_params() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut client = Client::start(cdp::host(Settings::new(dir.path()))).await;
+
+    let missing = client
+        .request(
+            "prompts/get",
+            json!({ "name": "write_test", "arguments": { "url": "https://a.test" } }),
+        )
+        .await;
+    let unknown = client
+        .request("prompts/get", json!({ "name": "make_coffee" }))
+        .await;
+
+    assert_eq!(missing["error"]["code"], json!(-32602), "{missing}");
+    assert!(missing["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("goal"));
+    assert_eq!(unknown["error"]["code"], json!(-32602), "{unknown}");
+    assert!(unknown["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("write_test"));
 }

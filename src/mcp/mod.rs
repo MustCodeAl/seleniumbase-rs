@@ -33,6 +33,7 @@ mod failure;
 mod host;
 mod journal;
 mod progress;
+mod prompts;
 mod resources;
 mod schema;
 mod support;
@@ -51,6 +52,7 @@ pub use host::{
     UNTRUSTED_NOTICE,
 };
 pub use progress::{Progress, ProgressSink, ProgressUpdate};
+pub use prompts::{PromptArg, PromptDef, Render};
 pub use resources::{
     ResourceBody, ResourceDef, ResourceError, ResourceFuture, JOURNAL_URI, MAX_OUTPUT_BYTES,
     OUTPUT_TEMPLATE, SESSION_URI,

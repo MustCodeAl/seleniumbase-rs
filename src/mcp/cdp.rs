@@ -233,6 +233,7 @@ pub fn host(settings: Settings) -> Host<Cdp> {
     Host::new(SERVER_NAME, INSTRUCTIONS, tools, settings)
         .with_probe(devtools::probe::<Cdp>)
         .with_resources(super::resources::standard())
+        .with_prompts(super::prompts::browser())
 }
 
 fn selector_prop() -> Prop {

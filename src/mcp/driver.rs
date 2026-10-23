@@ -43,6 +43,7 @@ pub fn host(settings: Settings) -> Host<BaseCase> {
     Host::new(SERVER_NAME, INSTRUCTIONS, tools, settings)
         .with_probe(devtools::probe::<BaseCase>)
         .with_resources(super::resources::standard())
+        .with_prompts(super::prompts::browser())
 }
 
 fn dropdown_schema(option: Prop) -> Schema {
