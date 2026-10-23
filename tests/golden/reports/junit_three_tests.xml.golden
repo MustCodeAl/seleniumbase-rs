@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites name="sbrs" tests="3" failures="1" errors="0" skipped="1" time="1.750" timestamp="2026-10-22T15:24:01.000000">
+  <testsuite name="login_chrome" errors="0" failures="1" skipped="0" tests="2" time="1.750" timestamp="2026-10-22T15:24:01.000000" hostname="ci-box">
+    <testcase classname="login_chrome.tests" name="test_login" time="0.500"/>
+    <testcase classname="login_chrome.tests" name="test_bad_password" time="1.250">
+      <failure message="assertion failed: the error text was missing" type="assertion_failed">assertion failed: the error text was missing</failure>
+      <system-out>Last Page: https://example.test/login
+[[ATTACHMENT|/run/latest_logs/login_chrome.tests.test_bad_password/screenshot.png]]
+[[ATTACHMENT|/run/latest_logs/login_chrome.tests.test_bad_password/page_source.html]]</system-out>
+    </testcase>
+  </testsuite>
+  <testsuite name="cart_chrome" errors="0" failures="0" skipped="1" tests="1" time="0.000" timestamp="2026-10-22T15:24:01.000000" hostname="ci-box">
+    <testcase classname="cart_chrome.tests" name="test_checkout" time="0.000">
+      <skipped message="needs a payment sandbox"/>
+    </testcase>
+  </testsuite>
+</testsuites>
