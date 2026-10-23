@@ -39,6 +39,9 @@
 //! [`Sb::configure`]. Anything that wants to know how each attempt ended (the
 //! reports, the plugin host, the recorder) is a [`Finalizer`].
 
+#[cfg(feature = "bdd")]
+pub mod bdd;
+
 mod deadline;
 mod evidence;
 mod fixture;
