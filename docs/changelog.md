@@ -35,6 +35,28 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ### Added
 
+- **`sbrs proxy`.** A minimal forward proxy for this machine: `sbrs proxy [--hostname HOST]
+  [--port PORT]` listens on 127.0.0.1:8899, tunnels `CONNECT host:port` (so HTTPS passes
+  through untouched) and forwards an absolute `http://` request once with `Connection: close`.
+  It has no authentication and no TLS interception, warns when it listens on an address other
+  than loopback, logs one line per request at INFO, refuses a request head over 64 KiB, serves
+  at most 256 connections at once, drops a connection that carries no byte for 30 seconds and
+  stops on Ctrl-C or SIGTERM with status 0. Use it with the global `--proxy 127.0.0.1:8899`.
+
+- **`sbrs download server`.** Downloads Selenium Server 4 into `downloaded_drivers/`
+  (`--version 4.x.y`). The default release, 4.51.0, has its SHA-256 pinned in the source and a
+  download that differs is not saved; another version is saved as it arrives and printed with
+  its SHA-256 and `not verified`. Python's Selenium 3 server is not offered. `sbrs grid-hub`
+  and `sbrs grid-node` now run the newest jar in that folder when neither `--jar` nor
+  `SB_SELENIUM_SERVER_JAR` names one.
+
+- **`sbrs encrypt` and `sbrs decrypt` prompt on a terminal.** With no argument and a terminal on
+  standard input they ask as Python's `obfuscate` and `unobfuscate` do: the text and its
+  verification without echo, then the token with the line that decrypts it in a test, again
+  and again until Ctrl-C (`Exiting...`, status 0). When `SB_ENCRYPTION_KEY` is not set they ask
+  once for the passphrase without echo (`encrypt` twice, to catch a typo); it is never printed
+  or saved. A pipe or file on standard input behaves as before.
+
 - **Shell completion says what each value is.** A selector, text, key, value, attribute, property
   or CDP method (`--css`, `--text`, `--key`, `--value`, `--attribute`, `--property`, `--cmd`,
   `--params`, `--hover-css`, `--click-css`, `--source-css`, `--target-css`) no longer completes
@@ -67,6 +89,26 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   `final_debug`), `reruns` and `reruns_delay`, `time_limit`, the evidence and report switches,
   the recorder switches and `runner`. The settings stay on `LaunchSettings::test_data` for the
   `sb` fixture.
+- **The rstest `sb` and `sb_cdp` fixtures (feature `testing`).** `#[rstest] #[tokio::test] async fn
+  t(sb: Sb) -> Result&lt;()> &#123; sb.run(async |sb| &#123; .. &#125;).await &#125;` runs a test on a WebDriver
+  `BaseCase` (or `sb_cdp: SbCdp` on a pure CDP `Page`) with the whole run configuration: the
+  settings file, `SB_SETTINGS_FILE` and the `SB_*` variables. `run` reruns a failed test
+  (`reruns`, `reruns_delay`, printing `RERUN <test id> (attempt 2 of 3) after: <error>`), stops one
+  that runs past `time_limit` with Python's `This test has exceeded the time limit of N seconds!`
+  (the time a prompt is open does not count), leaves `latest_logs/<test id>/screenshot.png`,
+  `page_source.html` and `basic_test_info.txt` while the browser is still open
+  (`no_screenshot`, `save_screenshot` for a pass, `list_fail_page`), asks at the `trace`, `pdb`
+  and `final_debug` prompts (skipped with a warning where nobody is at a terminal), and closes the
+  browser whatever happened. A panic is a failure too and is raised again after the last attempt.
+  `Sb::configure` is the Rust form of Python's `SB(...)` arguments, and `testing::Finalizer` sees
+  every attempt end with the page open, for the reports, the plugin host and the recorder.
+  `docs/tutorials/writing_tests.md` shows it.
+- **`BaseCase` reads the test data of the run** as Python's `sb` does: `data()`, `env()` and
+  `environment()` (`test` by default), `account()`, `var1()` to `var3()`, `variables()`, and
+  `test_id()`, the id that names the test's folder of evidence.
+- **`common::test_id::current_test_id`**, the id of the running test (`cart.checkout.renders`: the
+  test binary, the module path and the function, one plain file name), replaces the debug prompt's
+  thread-name stub.
 - **A key and a variable for each browser option.** `Settings` gains `dark_mode`, `devtools`,
   `incognito`, `guest_mode`, `disable_ws`, `swiftshader`, `enable_3d_apis`, `maximize`,
   `no_sandbox`, `disable_gpu`, `chromium_arg`, `disable_features`, `host_resolver_rules`,
