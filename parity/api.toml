@@ -2978,8 +2978,10 @@ note = "Terminal UI instead of Tkinter (feature `tui`): lists the .feature files
 divergence = "Python starts `python -m behave` with the browser, session, demo, dashboard, headless, screenshot and extra options. Here the only run option is a tag filter, and the steps are the built-in ones: steps written in Rust cannot be loaded, so a scenario that uses one is reported as undefined."
 
 [cli."behave-options"]
-status = "not-applicable"
-reason = "Lists behave (Python BDD) options; this crate has its own Gherkin runner."
+status = "implemented"
+rust = "sbrs behave-options"
+note = "Prints how the behave options map to `sbrs test`: each `-D name[=value]` is the flag of the same name, `--dry-run` is `--co`, `--stop` is `--runner nextest`."
+divergence = "Gherkin scenarios are rstest-bdd tests run by `cargo test`, so `-q/--no-snippets` has no meaning (steps are checked at compile time) and `--tags` is `scenarios!(.., tags = ..)` or `-m`."
 
 [cli."case-plans"]
 status = "implemented"

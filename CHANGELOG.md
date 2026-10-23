@@ -99,6 +99,31 @@ work, `docs/parity.md` the per-API status).
   `with_prompts` and `call_with`, and the types `ResourceDef`, `PromptDef`, `Progress` and
   `ProgressSink`.
 
+- **`sbrs test` takes every option of Python SeleniumBase's pytest plugin.** One flag for each row
+  of the option table, built from the table itself: the browser and page options (`--firefox`,
+  `--headed`, `--uc`, `--dark`, `--no-sandbox`, ...), the test data (`--env`, `--account`, `--data`,
+  `--var1` to `--var3`, `--variables`, checked before Cargo starts), the debug modes (`--pdb`,
+  `--trace`, `--final-debug`, which run one test at a time with its output shown), `--reruns`,
+  `--time-limit`, the evidence and report options and the recorder. Each is accepted in every
+  spelling and alias Python has (`--no-sandbox`, `--no_sandbox`, `--dcsp`); a switch can be turned
+  off with `--flag=false`; the options that do nothing here (`--fast`, `--with-selenium`, ...) are
+  accepted and ignored. They reach the tests as `SB_*` variables. The pytest options are there too:
+  `-k` and `-m` (a marker is a module name; `a or b` and `not c` become libtest filters and skips,
+  anything else asks for `--runner nextest`, where it is a filterset), `-n N|auto`, `-s`,
+  `--co` (lists the tests and prints `collected N items`), `--runner cargo|nextest`,
+  `-c FILE` or `--settings-file FILE` (passed on as an absolute `SB_SETTINGS_FILE`), and
+  `--all-scripts`, which runs every example after the tests. `sbrs behave-options` prints how the
+  behave options map to these flags.
+- **`sbrs test` empties `latest_logs/` and `downloaded_files/` before a run, as pytest does**, or
+  moves them to `archived_logs/logs_<epoch>/` and `archived_files/downloads_<epoch>/` with
+  `--archive-logs` and `--archive-downloads`. It does so in the folder of each package the tests
+  run in and never for `--co`; plain `cargo test` touches nothing.
+- **Library helpers for a test launcher:** `cli::scripts::run::{Runner, list_names}` and the
+  nextest, list, skip and capture builders of `TestRun`, `run_filter::translate` (the `-k` and `-m`
+  expressions), `run_logs` (reset or archive the logs folders), `all_scripts` (the examples of a
+  package) and `behave_options`.
+
+
 - **Shell completion says what each value is.** A selector, text, key, value, attribute, property
   or CDP method (`--css`, `--text`, `--key`, `--value`, `--attribute`, `--property`, `--cmd`,
   `--params`, `--hover-css`, `--click-css`, `--source-css`, `--target-css`) no longer completes
@@ -221,6 +246,11 @@ work, `docs/parity.md` the per-API status).
 - **A message stays at most 0.75 s on a virtual display too:** `post_message` and its relatives
   cut the time when nobody watches, which is a headless browser or a headed one on Xvfb (Python:
   `self.headless or self.xvfb`); a headed browser on Xvfb kept the long time before.
+- **`-n` belongs to `sbrs test`.** The global `-n/--threads` is now `sbrs test -n N` (or `auto`);
+  `sbrs -n 2 test` no longer parses. `SB_THREADS` and the `threads` key of the settings file
+  still set it.
+- **`Settings::screenshot_dir` and `SB_SCREENSHOT_DIR` are removed.** The library read neither;
+  a settings file that still has the key loads as before.
 
 ## [0.6.0] - 2026-10-23
 
