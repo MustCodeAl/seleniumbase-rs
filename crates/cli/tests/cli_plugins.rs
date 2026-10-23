@@ -306,10 +306,11 @@ fn a_plugin_flag_runs_the_plugin_in_the_browser_the_command_starts() {
 
 #[test]
 fn other_commands_that_start_a_browser_get_the_plugins_too() {
+    // A page command acts on the start page, which may be named after the command too.
     for command in [
-        &["get-title"][..],
+        &["get-title", "--url", "https://example.test/"][..],
         &["smoke", "https://example.test/", "--title-contains", "Fake"],
-        &["get-current-url"],
+        &["--url", "https://example.test/", "get-current-url"],
     ] {
         let run = against_a_fake_server(None, &[], &["--plugin", "shield"], command);
         assert!(run.output.status.success(), "{command:?}: {}", run.stderr());

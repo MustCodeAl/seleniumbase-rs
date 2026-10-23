@@ -1728,7 +1728,7 @@ threads = 4
         let (_dir, file) = fingerprint_file();
         let overrides = every_option(&file);
         let vars: std::collections::HashMap<_, _> = overrides.env().into_iter().collect();
-        assert_eq!(vars.len(), 17, "one variable per option");
+        assert_eq!(vars.len(), 18, "one variable per option");
 
         let via_env =
             Settings::apply_overrides(Settings::default(), |name| vars.get(name).cloned()).unwrap();
@@ -1999,5 +1999,53 @@ threads = 4
         assert!(!parse_bool("false").unwrap());
         assert!(!parse_bool("OFF").unwrap());
         assert!(parse_bool("not-a-bool").is_err());
+    }
+
+    #[test]
+    fn the_start_page_comes_from_the_variable_the_file_or_the_command_line() {
+        // Nothing names a page: a browser opens none.
+        assert_eq!(Settings::default().start_page, None);
+        assert_eq!(Settings::default().to_browser_config().start_page, None);
+
+        // The variable, a blank one counting as unset.
+        let from_variable = with_vars(&[("SB_START_PAGE", "https://start.test/")]).unwrap();
+        assert_eq!(
+            from_variable.start_page.as_deref(),
+            Some("https://start.test/")
+        );
+        assert_eq!(
+            from_variable.to_browser_config().start_page.as_deref(),
+            Some("https://start.test/")
+        );
+        assert_eq!(
+            with_vars(&[("SB_START_PAGE", "  ")]).unwrap().start_page,
+            None
+        );
+
+        // The `start_page` key of the settings file, and the variable over it.
+        let from_file: Settings = toml::from_str("start_page = \"https://file.test/\"").unwrap();
+        assert_eq!(from_file.start_page.as_deref(), Some("https://file.test/"));
+        let both = Settings::apply_overrides(from_file, |name| {
+            (name == START_PAGE_ENV).then(|| "https://start.test/".to_owned())
+        })
+        .unwrap();
+        assert_eq!(both.start_page.as_deref(), Some("https://start.test/"));
+
+        // The command line over both, and on to the tests as the variable.
+        let mut settings = both;
+        let flag = SettingsOverrides {
+            start_page: Some("https://flag.test/".to_owned()),
+            ..SettingsOverrides::default()
+        };
+        flag.apply(&mut settings);
+        assert_eq!(settings.start_page.as_deref(), Some("https://flag.test/"));
+        assert_eq!(
+            flag.env(),
+            [(START_PAGE_ENV, "https://flag.test/".to_owned())]
+        );
+        // A settings file that does not name one writes none.
+        assert!(!toml::to_string(&Settings::default())
+            .unwrap()
+            .contains("start_page"));
     }
 }

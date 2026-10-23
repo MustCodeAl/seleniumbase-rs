@@ -22,6 +22,7 @@ fn command(dir: &Path, args: &[&str]) -> Command {
         .env_remove("NO_COLOR")
         .env_remove("RUST_LOG")
         .env_remove("SB_ENCRYPTION_KEY")
+        .env_remove("SB_START_PAGE")
         .env("SB_LOG_LEVEL", "error")
         .stdin(Stdio::null());
     command
@@ -116,7 +117,7 @@ fn every_subcommand_prints_its_help_and_exits_0() {
             "{known} in {names:?}"
         );
     }
-    assert!(names.len() > 100, "{} subcommands: {names:?}", names.len());
+    assert!(names.len() > 85, "{} subcommands: {names:?}", names.len());
 
     let mut failures = Vec::new();
     for name in names.iter().filter(|name| *name != "help") {
@@ -715,5 +716,170 @@ $line = 'sbrs plugin '
     assert!(
         words.contains(&"info") && words.contains(&"list"),
         "stdout: {stdout}\nstderr: {stderr}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// The page commands: a start page, the global options, and the commands that are gone
+// ---------------------------------------------------------------------------
+
+/// A browser is never reached: the WebDriver address is nobody's, and no Chrome is named.
+fn without_a_browser(dir: &Path, args: &[&str]) -> Output {
+    command(dir, args)
+        .env("SB_WEBDRIVER_URL", "http://127.0.0.1:9")
+        .env("SB_CHROME_BIN", "/nonexistent/chrome")
+        .env_remove("SB_USER_DATA_DIR")
+        .output()
+        .expect("sbrs runs")
+}
+
+#[test]
+fn a_page_command_without_a_page_says_so_and_starts_no_browser() {
+    let dir = tempfile::tempdir().unwrap();
+    for (args, name) in [
+        (&["get-text", "--css", "h1"][..], "get-text"),
+        (&["get-title"], "get-title"),
+        (&["--headless", "screenshot"], "screenshot"),
+        (&["assert-element", "--css", "h1"], "assert-element"),
+        (&["send-keys", "--css", "a", "--text", "b"], "send-keys"),
+    ] {
+        let output = without_a_browser(dir.path(), args);
+        assert_eq!(
+            output.status.code(),
+            Some(2),
+            "{args:?}: {}",
+            stderr(&output)
+        );
+        let message = stderr(&output);
+        assert!(
+            message.starts_with(&format!(
+                "error: {name} acts on a page, and every sbrs command starts a fresh browser; \
+                 give the page: sbrs --url https://example.com {name}"
+            )),
+            "{args:?}: {message}"
+        );
+        assert!(stdout(&output).is_empty(), "{}", stdout(&output));
+    }
+    // Nothing was started, so nothing was written.
+    assert!(!dir.path().join("latest_logs").exists());
+}
+
+#[test]
+fn a_command_that_changes_the_profile_needs_a_user_data_dir_before_a_browser_starts() {
+    let dir = tempfile::tempdir().unwrap();
+    for name in ["clear-cookies", "clear-local-storage", "cache-clear"] {
+        let output = without_a_browser(dir.path(), &["--url", "https://example.test/", name]);
+        assert_eq!(output.status.code(), Some(2), "{name}: {}", stderr(&output));
+        assert!(
+            stderr(&output).contains(&format!(
+                "error: {name} changes the profile, which a fresh browser throws away; \
+                 add --user-data-dir DIR"
+            )),
+            "{name}: {}",
+            stderr(&output)
+        );
+    }
+}
+
+#[test]
+fn a_command_with_a_url_of_its_own_refuses_a_start_page() {
+    let dir = tempfile::tempdir().unwrap();
+    for args in [
+        &[
+            "open",
+            "https://example.test/",
+            "--url",
+            "https://other.test/",
+        ][..],
+        &[
+            "--url",
+            "https://other.test/",
+            "smoke",
+            "https://example.test/",
+        ],
+    ] {
+        let output = without_a_browser(dir.path(), args);
+        assert_eq!(
+            output.status.code(),
+            Some(2),
+            "{args:?}: {}",
+            stderr(&output)
+        );
+        assert!(
+            stderr(&output).contains("opens its own URL; leave out --start-page"),
+            "{args:?}: {}",
+            stderr(&output)
+        );
+    }
+}
+
+#[test]
+fn a_global_option_is_refused_on_both_sides_of_the_command() {
+    let dir = tempfile::tempdir().unwrap();
+    let output = without_a_browser(dir.path(), &["--headless", "get-title", "--headless"]);
+    assert_eq!(output.status.code(), Some(2), "{}", stderr(&output));
+    assert!(
+        stderr(&output).contains("multiple times"),
+        "{}",
+        stderr(&output)
+    );
+
+    // Either side alone is fine: the command goes on to the page check.
+    for args in [
+        &["--headless", "get-title"][..],
+        &["get-title", "--headless"],
+    ] {
+        let output = without_a_browser(dir.path(), args);
+        assert!(
+            stderr(&output).contains("get-title acts on a page"),
+            "{args:?}: {}",
+            stderr(&output)
+        );
+    }
+}
+
+#[test]
+fn the_commands_that_do_nothing_in_a_fresh_browser_are_gone() {
+    let dir = tempfile::tempdir().unwrap();
+    for name in [
+        "go-back",
+        "go-forward",
+        "refresh",
+        "switch-to-window",
+        "switch-to-frame",
+        "switch-to-default-content",
+        "switch-to-parent-frame",
+        "switch-to-newest-window",
+        "switch-to-default-window",
+        "open-new-window",
+        "open-new-tab",
+        "close-window",
+        "set-window-position",
+        "get-active-element-css",
+        "throttle3g",
+    ] {
+        let output = run(dir.path(), &[name]);
+        assert_eq!(output.status.code(), Some(2), "{name}: {}", stderr(&output));
+        assert!(
+            stderr(&output).contains("unrecognized subcommand"),
+            "{name}: {}",
+            stderr(&output)
+        );
+        assert!(
+            !subcommands(dir.path()).iter().any(|listed| listed == name),
+            "{name} is still listed"
+        );
+    }
+}
+
+#[test]
+fn run_scenario_is_the_way_to_do_several_steps_in_one_browser() {
+    let dir = tempfile::tempdir().unwrap();
+    let output = run(dir.path(), &["run-scenario", "--help"]);
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert!(
+        stdout(&output).contains("several steps in one browser"),
+        "{}",
+        stdout(&output)
     );
 }

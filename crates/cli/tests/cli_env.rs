@@ -19,7 +19,7 @@ const SBASE: &str = env!("CARGO_BIN_EXE_sbrs");
 
 /// Every `SB_*` variable `sbrs` reads, cleared so the host's own cannot leak
 /// into a test.
-const SB_VARS: [&str; 24] = [
+const SB_VARS: [&str; 25] = [
     "SB_BROWSER",
     "SB_HEADLESS",
     "SB_TIMEOUT",
@@ -44,6 +44,7 @@ const SB_VARS: [&str; 24] = [
     "SB_CHROME_BIN",
     "SB_LOG_FORMAT",
     "SB_CHROMEDRIVER_PORT",
+    "SB_START_PAGE",
 ];
 
 /// Runs `sbrs` in `dir` with `env` set and `args` after the executable's name.
@@ -350,4 +351,210 @@ fn sb_rec_sb_cdp_makes_run_scenario_save_a_pure_cdp_program() {
         script.contains("page.goto(\"https://example.test/\").await?;"),
         "{script}"
     );
+}
+
+// ---------------------------------------------------------------------------
+// The start page: --url (--start-page, --start_page), SB_START_PAGE, the settings file
+// ---------------------------------------------------------------------------
+
+/// The pages the browser was told to open, oldest first.
+fn navigations(run: &Run) -> Vec<String> {
+    run.driver
+        .requests()
+        .iter()
+        .filter(|request| request.method == "POST" && request.path == "/url")
+        .filter_map(|request| request.body["url"].as_str().map(str::to_owned))
+        .collect()
+}
+
+#[test]
+fn sb_start_page_is_the_page_a_page_command_acts_on() {
+    let run = against_a_fake_server(
+        &[("SB_START_PAGE", "https://start.test/")],
+        &[],
+        &["get-title"],
+    );
+
+    assert!(run.output.status.success(), "{}", run.stderr());
+    assert_eq!(run.stdout(), "Title: Fake page\n");
+    assert_eq!(navigations(&run), ["https://start.test/"]);
+}
+
+#[test]
+fn the_start_page_beats_the_variable_under_each_name_and_may_follow_the_command() {
+    for (flags, command) in [
+        (&["--url", "https://flag.test/"][..], &["get-title"][..]),
+        (&["--start-page", "https://flag.test/"], &["get-title"]),
+        (&["--start_page", "https://flag.test/"], &["get-title"]),
+        (&[], &["get-title", "--url", "https://flag.test/"]),
+        (&[], &["get-title", "--start-page=https://flag.test/"]),
+    ] {
+        let run = against_a_fake_server(&[("SB_START_PAGE", "https://env.test/")], flags, command);
+
+        assert!(
+            run.output.status.success(),
+            "{flags:?} {command:?}: {}",
+            run.stderr()
+        );
+        assert_eq!(
+            navigations(&run),
+            ["https://flag.test/"],
+            "{flags:?} {command:?}"
+        );
+    }
+}
+
+#[test]
+fn a_bare_host_gets_https_and_a_local_file_a_file_url() {
+    let run = against_a_fake_server(&[], &["--url", "example.test"], &["get-title"]);
+    assert!(run.output.status.success(), "{}", run.stderr());
+    assert_eq!(navigations(&run), ["https://example.test"]);
+
+    let dir = tempfile::tempdir().expect("temp dir");
+    std::fs::write(dir.path().join("page.html"), "<title>x</title>").unwrap();
+    let run = against_a_fake_server_in(dir.path(), &[], &["--url", "page.html"], &["get-title"]);
+    assert!(run.output.status.success(), "{}", run.stderr());
+    let pages = navigations(&run);
+    assert!(
+        pages.len() == 1 && pages[0].starts_with("file://") && pages[0].ends_with("/page.html"),
+        "{pages:?}"
+    );
+}
+
+#[test]
+fn the_start_page_key_of_the_settings_file_is_a_default() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    std::fs::write(
+        dir.path().join("settings.toml"),
+        "start_page = \"https://file.test/\"\n",
+    )
+    .unwrap();
+
+    let from_file = against_a_fake_server_in(
+        dir.path(),
+        &[],
+        &["--config", "settings.toml"],
+        &["get-title"],
+    );
+    assert!(from_file.output.status.success(), "{}", from_file.stderr());
+    assert_eq!(navigations(&from_file), ["https://file.test/"]);
+
+    let from_environment = against_a_fake_server_in(
+        dir.path(),
+        &[("SB_START_PAGE", "https://env.test/")],
+        &["--config", "settings.toml"],
+        &["get-title"],
+    );
+    assert_eq!(navigations(&from_environment), ["https://env.test/"]);
+}
+
+#[test]
+fn a_page_command_without_a_page_is_refused_and_starts_no_browser() {
+    for command in [
+        &["get-text", "--css", "h1"][..],
+        &["get-title"],
+        &["screenshot"],
+        &["hover", "--css", "a"],
+        &["accept-alert"],
+    ] {
+        let run = against_a_fake_server(&[], &[], command);
+
+        assert_eq!(
+            run.output.status.code(),
+            Some(2),
+            "{command:?}: {}",
+            run.stderr()
+        );
+        assert!(
+            run.stderr().starts_with("error: ")
+                && run.stderr().contains("acts on a page")
+                && run.stderr().contains("sbrs --url https://example.com"),
+            "{command:?}: {}",
+            run.stderr()
+        );
+        assert!(run.stdout().is_empty(), "{}", run.stdout());
+        assert!(run.driver.requests().is_empty(), "no session was requested");
+    }
+}
+
+#[test]
+fn a_command_with_a_url_of_its_own_refuses_a_start_page_on_the_command_line() {
+    for (flags, command) in [
+        (&["--url", "https://other.test/"][..], &OPEN[..]),
+        (
+            &[],
+            &[
+                "open",
+                "https://example.test/",
+                "--url",
+                "https://other.test/",
+            ][..],
+        ),
+    ] {
+        let run = against_a_fake_server(&[], flags, command);
+
+        assert_eq!(run.output.status.code(), Some(2), "{}", run.stderr());
+        assert!(
+            run.stderr()
+                .contains("open opens its own URL; leave out --start-page"),
+            "{}",
+            run.stderr()
+        );
+        assert!(run.driver.requests().is_empty(), "no session was requested");
+    }
+
+    // The variable is only a default: the command opens its own page and nothing else.
+    let run = against_a_fake_server(&[("SB_START_PAGE", "https://env.test/")], &[], &OPEN);
+    assert!(run.output.status.success(), "{}", run.stderr());
+    assert_eq!(navigations(&run), ["https://example.test/"]);
+}
+
+#[test]
+fn a_command_that_changes_the_profile_needs_a_user_data_dir() {
+    let run = against_a_fake_server(&[], &["--url", "https://x.test/"], &["clear-cookies"]);
+    assert_eq!(run.output.status.code(), Some(2), "{}", run.stderr());
+    assert!(
+        run.stderr().contains("clear-cookies changes the profile")
+            && run.stderr().contains("add --user-data-dir DIR"),
+        "{}",
+        run.stderr()
+    );
+    assert!(run.driver.requests().is_empty(), "no session was requested");
+
+    let profile = tempfile::tempdir().expect("profile folder");
+    let kept = profile.path().display().to_string();
+    let run = against_a_fake_server(
+        &[],
+        &["--url", "https://x.test/", "--user-data-dir", &kept],
+        &["clear-cookies"],
+    );
+    assert!(run.output.status.success(), "{}", run.stderr());
+    assert_eq!(run.stdout(), "Cookies cleared\n");
+}
+
+#[test]
+fn a_global_option_given_before_and_after_the_command_is_a_repeat() {
+    let run = against_a_fake_server(&[], &["--headless"], &["get-title", "--headless"]);
+
+    assert_eq!(run.output.status.code(), Some(2), "{}", run.stderr());
+    assert!(run.stderr().contains("multiple times"), "{}", run.stderr());
+    assert!(run.driver.requests().is_empty(), "no session was requested");
+}
+
+#[test]
+fn a_command_that_acts_on_the_page_says_where_it_ended() {
+    let acting = against_a_fake_server(
+        &[],
+        &["--url", "https://start.test/"],
+        &["click-partial-link-text", "--text", "About"],
+    );
+    assert!(acting.output.status.success(), "{}", acting.stderr());
+    assert_eq!(
+        acting.stdout(),
+        "Clicked partial link text 'About'\nNow at: https://example.test/ (Fake page)\n"
+    );
+
+    // A command that only reads says what it read, and nothing else.
+    let reading = against_a_fake_server(&[], &["--url", "https://start.test/"], &["get-title"]);
+    assert_eq!(reading.stdout(), "Title: Fake page\n");
 }

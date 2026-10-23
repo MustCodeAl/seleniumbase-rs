@@ -66,7 +66,7 @@ fn serve() -> String {
 }
 
 /// Every `SB_*` variable the browser commands read, cleared so the host's own cannot leak in.
-const SETTINGS_VARS: [&str; 17] = [
+const SETTINGS_VARS: [&str; 18] = [
     "SB_BROWSER",
     "SB_HEADLESS",
     "SB_MODE",
@@ -83,6 +83,7 @@ const SETTINGS_VARS: [&str; 17] = [
     "SB_ESC_END",
     "SB_REC_SB_CDP",
     "SB_WEBDRIVER_URL",
+    "SB_START_PAGE",
     "SB_LOG_LEVEL",
 ];
 
@@ -218,11 +219,18 @@ fn the_commands_that_speak_the_devtools_protocol_work_without_asking_for_a_mode(
         stdout(&evaluated)
     );
 
+    // These act on a page, and the two that change the profile need one to keep.
+    let profile = dir.path().join("profile").display().to_string();
     for (args, said) in [
-        (vec!["cache-clear"], "CDP cache clear command sent."),
-        (vec!["throttle3g"], "3G throttle enabled."),
-        (vec!["clear-cookies"], "Cookies cleared"),
-        (vec!["get-cookies"], "Cookies:"),
+        (
+            vec!["--url", &page, "--user-data-dir", &profile, "cache-clear"],
+            "CDP cache clear command sent.",
+        ),
+        (
+            vec!["--url", &page, "--user-data-dir", &profile, "clear-cookies"],
+            "Cookies cleared",
+        ),
+        (vec!["--url", &page, "get-cookies"], "Cookies:"),
     ] {
         let output = headless(dir.path(), &args);
         assert!(output.status.success(), "{args:?}: {}", stderr(&output));
@@ -415,12 +423,18 @@ fn a_scenario_runs_and_leaves_a_dashboard_and_a_recording_replays() {
 fn screenshot_and_save_source_write_where_they_are_told_and_a_blank_session_has_no_element() {
     let dir = tempfile::tempdir().unwrap();
 
-    let shot = headless(dir.path(), &["screenshot", "--path", "shot.png"]);
+    let shot = headless(
+        dir.path(),
+        &["--url", "about:blank", "screenshot", "--path", "shot.png"],
+    );
     assert!(shot.status.success(), "{}", stderr(&shot));
     let png = std::fs::read(dir.path().join("shot.png")).expect("a screenshot");
     assert!(png.starts_with(b"\x89PNG"));
 
-    let source = headless(dir.path(), &["save-source", "--path", "src.html"]);
+    let source = headless(
+        dir.path(),
+        &["--url", "about:blank", "save-source", "--path", "src.html"],
+    );
     assert!(source.status.success(), "{}", stderr(&source));
     assert!(std::fs::read_to_string(dir.path().join("src.html"))
         .unwrap()
@@ -428,7 +442,99 @@ fn screenshot_and_save_source_write_where_they_are_told_and_a_blank_session_has_
 
     // Each command has a browser of its own, so on its blank page nothing is found, and
     // the error says so with the exit status of a failed check.
-    let nothing = headless(dir.path(), &["assert-element", "--css", "#nope"]);
+    let nothing = headless(
+        dir.path(),
+        &["--url", "about:blank", "assert-element", "--css", "#nope"],
+    );
     assert_eq!(nothing.status.code(), Some(1));
     assert!(stderr(&nothing).contains("#nope"), "{}", stderr(&nothing));
+}
+
+#[test]
+#[ignore = "launches a real Chrome through chromedriver"]
+fn get_text_reads_the_start_page_under_any_of_its_spellings() {
+    let dir = tempfile::tempdir().unwrap();
+    let base = serve();
+    let page = format!("{base}/");
+    let answer = "Text for '#title': Welcome to the fixture\n";
+
+    for args in [
+        vec!["--url", &page, "get-text", "--css", "#title"],
+        vec!["--start-page", &page, "get-text", "--css", "#title"],
+        vec!["--start_page", &page, "get-text", "--css", "#title"],
+        // A global option may follow the command.
+        vec!["get-text", "--css", "#title", "--url", &page],
+    ] {
+        let output = headless(dir.path(), &args);
+        assert!(output.status.success(), "{args:?}: {}", stderr(&output));
+        assert_eq!(stdout(&output), answer, "{args:?}");
+    }
+
+    // SB_START_PAGE is the page when the command line names none.
+    let mut by_environment = command(dir.path(), &["--headless", "get-text", "--css", "#title"]);
+    by_environment.env("SB_START_PAGE", &page);
+    let output = finish_within(by_environment, Duration::from_secs(180));
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert_eq!(stdout(&output), answer);
+
+    // A local file is a page too.
+    std::fs::write(
+        dir.path().join("local.html"),
+        "<!doctype html><title>Local</title><h1 id=\"title\">From a file</h1>",
+    )
+    .unwrap();
+    let output = headless(
+        dir.path(),
+        &["--url", "local.html", "get-text", "--css", "#title"],
+    );
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert_eq!(stdout(&output), "Text for '#title': From a file\n");
+}
+
+#[test]
+#[ignore = "launches a real Chrome through chromedriver"]
+fn save_screenshot_writes_a_png_just_before_the_browser_quits() {
+    let dir = tempfile::tempdir().unwrap();
+    let base = serve();
+    let page = format!("{base}/");
+
+    let output = headless(
+        dir.path(),
+        &["--save-screenshot", "--url", &page, "get-title"],
+    );
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    let text = stdout(&output);
+    let mut lines = text.lines();
+    assert_eq!(lines.next(), Some("Title: CLI Fixture"), "{text}");
+    let saved = lines
+        .next()
+        .and_then(|line| line.strip_prefix("Saved screenshot: "))
+        .unwrap_or_else(|| panic!("no screenshot was reported:\n{text}"));
+    assert!(lines.next().is_none(), "{text}");
+    let png = std::fs::read(dir.path().join(saved)).expect("the screenshot exists");
+    assert!(
+        png.starts_with(b"\x89PNG\r\n\x1a\n"),
+        "not a PNG: {saved} ({} bytes)",
+        png.len()
+    );
+}
+
+#[test]
+#[ignore = "launches a real Chrome through chromedriver"]
+fn a_click_that_navigates_says_where_the_browser_ended() {
+    let dir = tempfile::tempdir().unwrap();
+    let base = serve();
+    let page = format!("{base}/");
+
+    let output = headless(
+        dir.path(),
+        &["--url", &page, "click-partial-link-text", "--text", "About"],
+    );
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert_eq!(
+        stdout(&output),
+        format!("Clicked partial link text 'About'\nNow at: {base}/about (About)\n")
+    );
 }
