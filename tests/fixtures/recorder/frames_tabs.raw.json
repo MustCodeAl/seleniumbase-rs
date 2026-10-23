@@ -1,0 +1,18 @@
+{
+ "start_ms": 1760000000000,
+ "origins": [],
+ "uc": false,
+ "actions": [
+  ["begin", "https://a.test", "https://a.test/frames", 1760000000100],
+  ["click", "#before", "", 1760000000300],
+  ["sw_fr", "iframe#f", "https://a.test", 1760000001000],
+  ["sk_fo", "", "https://a.test", 1760000001001],
+  ["begin", "https://f.test", "https://f.test/frame", 1760000001100],
+  ["click", "#in-frame", "", 1760000001500],
+  ["_url_", "https://a.test", "https://a.test/back", 1760000009000],
+  ["sw_fr", "iframe#g", "https://a.test", 1760000010000],
+  ["o_url", "https://a.test", "https://a.test/g", 1760000010001],
+  ["_url_", "https://a.test", "https://a.test/g", 1760000010002],
+  ["_url_", "https://a.test", "https://a.test/g", 1760000011000]
+ ]
+}

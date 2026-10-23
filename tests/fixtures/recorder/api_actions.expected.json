@@ -1,0 +1,813 @@
+{
+ "processed": [
+  [
+   "begin",
+   "https://a.test",
+   "https://a.test/api",
+   1760000000100
+  ],
+  [
+   "_skip",
+   "#a",
+   "",
+   1760000000200
+  ],
+  [
+   "_skip",
+   "#a",
+   "",
+   1760000000300
+  ],
+  [
+   "dbclk",
+   "#a",
+   "",
+   1760000000301
+  ],
+  [
+   "r_clk",
+   "#ctx",
+   "https://a.test",
+   1760000000400
+  ],
+  [
+   "hover",
+   "#h",
+   "https://a.test",
+   1760000000500
+  ],
+  [
+   "hi_li",
+   "#h",
+   "https://a.test",
+   1760000000510
+  ],
+  [
+   "pkeys",
+   "#q",
+   "abc",
+   1760000000600
+  ],
+  [
+   "_skip",
+   "#q",
+   "abc",
+   1760000000601
+  ],
+  [
+   "js_ty",
+   "#j",
+   "jj",
+   1760000000700
+  ],
+  [
+   "jq_ty",
+   "#k",
+   "kk",
+   1760000000800
+  ],
+  [
+   "js_cl",
+   "#jc",
+   [
+    "https://a.test/api",
+    "https://a.test"
+   ],
+   1760000000900
+  ],
+  [
+   "js_ca",
+   ".all",
+   [
+    "https://a.test/api",
+    "https://a.test"
+   ],
+   1760000001000
+  ],
+  [
+   "jq_cl",
+   "#qc",
+   [
+    "https://a.test/api",
+    "https://a.test"
+   ],
+   1760000001100
+  ],
+  [
+   "jq_ca",
+   ".qall",
+   [
+    "https://a.test/api",
+    "https://a.test"
+   ],
+   1760000001200
+  ],
+  [
+   "as_ep",
+   "#e",
+   "https://a.test",
+   1760000001300
+  ],
+  [
+   "asenv",
+   "#gone",
+   "https://a.test",
+   1760000001400
+  ],
+  [
+   "wf_el",
+   "#slow",
+   "https://a.test",
+   1760000001500
+  ],
+  [
+   "asnet",
+   "#nonempty",
+   "https://a.test",
+   1760000001600
+  ],
+  [
+   "as_lt",
+   "Home",
+   "https://a.test",
+   1760000001700
+  ],
+  [
+   "as_ti",
+   "Title",
+   "https://a.test",
+   1760000001800
+  ],
+  [
+   "as_tc",
+   "Tit",
+   "https://a.test",
+   1760000001900
+  ],
+  [
+   "a_url",
+   "https://a.test/api",
+   "https://a.test",
+   1760000002000
+  ],
+  [
+   "a_u_c",
+   "/api",
+   "https://a.test",
+   1760000002100
+  ],
+  [
+   "as_at",
+   [
+    "#a",
+    "href",
+    "/x"
+   ],
+   "https://a.test",
+   1760000002200
+  ],
+  [
+   "as_at",
+   [
+    "#a",
+    "disabled",
+    ""
+   ],
+   "https://a.test",
+   1760000002300
+  ],
+  [
+   "s_at_",
+   [
+    "#a",
+    "title",
+    "t"
+   ],
+   "https://a.test",
+   1760000002400
+  ],
+  [
+   "s_ats",
+   [
+    ".a",
+    "title",
+    "t"
+   ],
+   "https://a.test",
+   1760000002500
+  ],
+  [
+   "acc_a",
+   "",
+   "https://a.test",
+   1760000002600
+  ],
+  [
+   "dis_a",
+   "",
+   "https://a.test",
+   1760000002700
+  ],
+  [
+   "sleep",
+   1.5,
+   "https://a.test",
+   1760000002800
+  ],
+  [
+   "s_scr",
+   "shot.png",
+   "https://a.test",
+   1760000002900
+  ],
+  [
+   "ss_tf",
+   [
+    "shot.png",
+    "imgs"
+   ],
+   "https://a.test",
+   1760000003000
+  ],
+  [
+   "ss_tl",
+   "",
+   "https://a.test",
+   1760000003100
+  ],
+  [
+   "pdftl",
+   "",
+   "https://a.test",
+   1760000003150
+  ],
+  [
+   "spstl",
+   "",
+   "https://a.test",
+   1760000003160
+  ],
+  [
+   "go_bk",
+   "",
+   "https://a.test",
+   1760000003200
+  ],
+  [
+   "go_fw",
+   "",
+   "https://a.test",
+   1760000003300
+  ],
+  [
+   "c_l_s",
+   "",
+   "https://a.test",
+   1760000003400
+  ],
+  [
+   "c_s_s",
+   "",
+   "https://a.test",
+   1760000003500
+  ],
+  [
+   "d_a_c",
+   "",
+   "https://a.test",
+   1760000003600
+  ],
+  [
+   "a_d_m",
+   "",
+   "https://a.test",
+   1760000003700
+  ],
+  [
+   "d_d_m",
+   "",
+   "https://a.test",
+   1760000003800
+  ],
+  [
+   "pr_da",
+   "",
+   "https://a.test",
+   1760000003900
+  ],
+  [
+   "da_el",
+   "#d",
+   "https://a.test",
+   1760000004000
+  ],
+  [
+   "da_ep",
+   "#d",
+   "https://a.test",
+   1760000004100
+  ],
+  [
+   "da_te",
+   [
+    "Text",
+    "#t"
+   ],
+   "https://a.test",
+   1760000004200
+  ],
+  [
+   "da_et",
+   [
+    "Text",
+    "#t"
+   ],
+   "https://a.test",
+   1760000004300
+  ],
+  [
+   "danet",
+   "#n",
+   "https://a.test",
+   1760000004400
+  ],
+  [
+   "astnv",
+   [
+    "Gone",
+    "#g"
+   ],
+   "https://a.test",
+   1760000004500
+  ],
+  [
+   "aetnv",
+   [
+    "Gone",
+    "#g"
+   ],
+   "https://a.test",
+   1760000004600
+  ],
+  [
+   "do_fi",
+   [
+    "https://a.test/f.zip",
+    ""
+   ],
+   "https://a.test",
+   1760000004700
+  ],
+  [
+   "do_fi",
+   [
+    "https://a.test/f.zip",
+    "downloads"
+   ],
+   "https://a.test",
+   1760000004750
+  ],
+  [
+   "as_df",
+   "f.zip",
+   "https://a.test",
+   1760000004800
+  ],
+  [
+   "e_mfa",
+   "#mfa",
+   "JBSWY3DPEHPK3PXP",
+   1760000004900
+  ],
+  [
+   "_skip",
+   "#mfa",
+   "123456",
+   1760000004901
+  ],
+  [
+   "set_v",
+   "#range",
+   "7",
+   1760000005000
+  ],
+  [
+   "_skip",
+   "",
+   "https://a.test",
+   1760000005100
+  ],
+  [
+   "sh_fc",
+   "",
+   "https://a.test",
+   1760000005200
+  ],
+  [
+   "sw_fr",
+   "iframe#f",
+   "https://a.test",
+   1760000005300
+  ],
+  [
+   "s_c_f",
+   "iframe#g",
+   "https://a.test",
+   1760000005400
+  ],
+  [
+   "s_c_d",
+   true,
+   "https://a.test",
+   1760000005500
+  ],
+  [
+   "s_c_d",
+   false,
+   "https://a.test",
+   1760000005600
+  ],
+  [
+   "sw_pf",
+   "",
+   "https://a.test",
+   1760000005700
+  ],
+  [
+   "sw_dc",
+   "",
+   "https://a.test",
+   1760000005800
+  ],
+  [
+   "_skip",
+   "#elsewhere",
+   "https://b.test",
+   1760000005900
+  ]
+ ],
+ "python": [
+  "self.goto(\"https://a.test/api\")",
+  "self.double_click(\"#a\")",
+  "self.context_click(\"#ctx\")",
+  "self.hover(\"#h\")",
+  "self.highlight(\"#h\")",
+  "self.press_keys(\"#q\", \"abc\")",
+  "self.js_type(\"#j\", \"jj\")",
+  "self.jquery_type(\"#k\", \"kk\")",
+  "self.js_click(\"#jc\")",
+  "self.js_click_all(\".all\")",
+  "self.jquery_click(\"#qc\")",
+  "self.jquery_click_all(\".qall\")",
+  "self.assert_element_present(\"#e\")",
+  "self.assert_element_not_visible(\"#gone\")",
+  "self.wait_for_element(\"#slow\")",
+  "self.assert_non_empty_text(\"#nonempty\")",
+  "self.assert_link_text(\"Home\")",
+  "self.assert_title(\"Title\")",
+  "self.assert_title_contains(\"Tit\")",
+  "self.assert_url(\"https://a.test/api\")",
+  "self.assert_url_contains(\"/api\")",
+  "self.assert_attribute(\"#a\", \"href\", \"/x\")",
+  "self.assert_attribute(\"#a\", \"disabled\")",
+  "self.set_attribute(\"#a\", \"title\", \"t\")",
+  "self.set_attributes(\".a\", \"title\", \"t\")",
+  "self.accept_alert()",
+  "self.dismiss_alert()",
+  "self.sleep(1.5)",
+  "self.save_screenshot(\"shot.png\")",
+  "self.save_screenshot(\"shot.png\", \"imgs\")",
+  "self.save_screenshot_to_logs()",
+  "self.save_as_pdf_to_logs()",
+  "self.save_page_source_to_logs()",
+  "self.go_back()",
+  "self.go_forward()",
+  "self.clear_local_storage()",
+  "self.clear_session_storage()",
+  "self.delete_all_cookies()",
+  "self.activate_demo_mode()",
+  "self.deactivate_demo_mode()",
+  "self.process_deferred_asserts()",
+  "self.deferred_assert_element(\"#d\")",
+  "self.deferred_assert_element_present(\"#d\")",
+  "self.deferred_assert_text(\"Text\", \"#t\")",
+  "self.deferred_assert_exact_text(\"Text\", \"#t\")",
+  "self.deferred_assert_non_empty_text(\"#n\")",
+  "self.assert_text_not_visible(\"Gone\", \"#g\")",
+  "self.assert_exact_text_not_visible(\"Gone\", \"#g\")",
+  "self.download_file(\"https://a.test/f.zip\")",
+  "self.download_file(\"https://a.test/f.zip\", \"downloads\")",
+  "self.assert_downloaded_file(\"f.zip\")",
+  "self.enter_mfa_code(\"#mfa\", \"JBSWY3DPEHPK3PXP\")",
+  "self.set_value(\"#range\", \"7\")",
+  "self.show_file_choosers()",
+  "self.switch_to_frame(\"iframe#f\")",
+  "self.set_content_to_frame(\"iframe#g\")",
+  "self.set_content_to_parent()",
+  "self.set_content_to_default()",
+  "self.switch_to_parent_frame()",
+  "self.switch_to_default_content()"
+ ],
+ "calls": [
+  {
+   "name": "goto",
+   "target": "https://a.test/api",
+   "value": null
+  },
+  {
+   "name": "double_click",
+   "target": "#a",
+   "value": null
+  },
+  {
+   "name": "context_click",
+   "target": "#ctx",
+   "value": null
+  },
+  {
+   "name": "hover",
+   "target": "#h",
+   "value": null
+  },
+  {
+   "name": "highlight",
+   "target": "#h",
+   "value": null
+  },
+  {
+   "name": "press_keys",
+   "target": "#q",
+   "value": "abc"
+  },
+  {
+   "name": "js_type",
+   "target": "#j",
+   "value": "jj"
+  },
+  {
+   "name": "jquery_type",
+   "target": "#k",
+   "value": "kk"
+  },
+  {
+   "name": "js_click",
+   "target": "#jc",
+   "value": null
+  },
+  {
+   "name": "js_click_all",
+   "target": ".all",
+   "value": null
+  },
+  {
+   "name": "jquery_click",
+   "target": "#qc",
+   "value": null
+  },
+  {
+   "name": "jquery_click_all",
+   "target": ".qall",
+   "value": null
+  },
+  {
+   "name": "assert_element_present",
+   "target": "#e",
+   "value": null
+  },
+  {
+   "name": "assert_element_not_visible",
+   "target": "#gone",
+   "value": null
+  },
+  {
+   "name": "wait_for_element",
+   "target": "#slow",
+   "value": null
+  },
+  {
+   "name": "assert_non_empty_text",
+   "target": "#nonempty",
+   "value": null
+  },
+  {
+   "name": "assert_link_text",
+   "target": "Home",
+   "value": null
+  },
+  {
+   "name": "assert_title",
+   "target": "Title",
+   "value": null
+  },
+  {
+   "name": "assert_title_contains",
+   "target": "Tit",
+   "value": null
+  },
+  {
+   "name": "assert_url",
+   "target": "https://a.test/api",
+   "value": null
+  },
+  {
+   "name": "assert_url_contains",
+   "target": "/api",
+   "value": null
+  },
+  {
+   "name": "assert_attribute",
+   "target": "#a",
+   "value": "href=/x"
+  },
+  {
+   "name": "assert_attribute",
+   "target": "#a",
+   "value": "disabled="
+  },
+  {
+   "name": "set_attribute",
+   "target": "#a",
+   "value": "title=t"
+  },
+  {
+   "name": "set_attributes",
+   "target": ".a",
+   "value": "title=t"
+  },
+  {
+   "name": "accept_alert",
+   "target": null,
+   "value": null
+  },
+  {
+   "name": "dismiss_alert",
+   "target": null,
+   "value": null
+  },
+  {
+   "name": "sleep",
+   "target": null,
+   "value": "1.5"
+  },
+  {
+   "name": "save_screenshot",
+   "target": "shot.png",
+   "value": null
+  },
+  {
+   "name": "save_screenshot_to_folder",
+   "target": "shot.png",
+   "value": "imgs"
+  },
+  {
+   "name": "save_screenshot_to_logs",
+   "target": null,
+   "value": null
+  },
+  {
+   "name": "save_as_pdf_to_logs",
+   "target": null,
+   "value": null
+  },
+  {
+   "name": "save_page_source_to_logs",
+   "target": null,
+   "value": null
+  },
+  {
+   "name": "go_back",
+   "target": null,
+   "value": null
+  },
+  {
+   "name": "go_forward",
+   "target": null,
+   "value": null
+  },
+  {
+   "name": "clear_local_storage",
+   "target": null,
+   "value": null
+  },
+  {
+   "name": "clear_session_storage",
+   "target": null,
+   "value": null
+  },
+  {
+   "name": "delete_all_cookies",
+   "target": null,
+   "value": null
+  },
+  {
+   "name": "activate_demo_mode",
+   "target": null,
+   "value": null
+  },
+  {
+   "name": "deactivate_demo_mode",
+   "target": null,
+   "value": null
+  },
+  {
+   "name": "process_deferred_asserts",
+   "target": null,
+   "value": null
+  },
+  {
+   "name": "deferred_assert_element",
+   "target": "#d",
+   "value": null
+  },
+  {
+   "name": "deferred_assert_element_present",
+   "target": "#d",
+   "value": null
+  },
+  {
+   "name": "deferred_assert_text",
+   "target": "#t",
+   "value": "Text"
+  },
+  {
+   "name": "deferred_assert_exact_text",
+   "target": "#t",
+   "value": "Text"
+  },
+  {
+   "name": "deferred_assert_non_empty_text",
+   "target": "#n",
+   "value": null
+  },
+  {
+   "name": "assert_text_not_visible",
+   "target": "#g",
+   "value": "Gone"
+  },
+  {
+   "name": "assert_exact_text_not_visible",
+   "target": "#g",
+   "value": "Gone"
+  },
+  {
+   "name": "download_file",
+   "target": "https://a.test/f.zip",
+   "value": null
+  },
+  {
+   "name": "download_file",
+   "target": "https://a.test/f.zip",
+   "value": "downloads"
+  },
+  {
+   "name": "assert_downloaded_file",
+   "target": "f.zip",
+   "value": null
+  },
+  {
+   "name": "enter_mfa_code",
+   "target": "#mfa",
+   "value": "JBSWY3DPEHPK3PXP"
+  },
+  {
+   "name": "set_value",
+   "target": "#range",
+   "value": "7"
+  },
+  {
+   "name": "show_file_choosers",
+   "target": null,
+   "value": null
+  },
+  {
+   "name": "switch_to_frame",
+   "target": "iframe#f",
+   "value": null
+  },
+  {
+   "name": "set_content_to_frame",
+   "target": "iframe#g",
+   "value": null
+  },
+  {
+   "name": "set_content_to_parent",
+   "target": null,
+   "value": null
+  },
+  {
+   "name": "set_content_to_default",
+   "target": null,
+   "value": null
+  },
+  {
+   "name": "switch_to_parent_frame",
+   "target": null,
+   "value": null
+  },
+  {
+   "name": "switch_to_default_content",
+   "target": null,
+   "value": null
+  }
+ ]
+}

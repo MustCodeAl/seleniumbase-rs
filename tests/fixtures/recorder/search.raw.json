@@ -1,0 +1,21 @@
+{
+ "start_ms": 1760000000000,
+ "origins": [],
+ "uc": false,
+ "actions": [
+  ["begin", "https://a.test", "https://a.test/", 1760000000100],
+  ["input", "#q", "cats", 1760000000500],
+  ["input", "#q", "cats\n", 1760000000900],
+  ["submi", "#q", "cats\n", 1760000000900],
+  ["_url_", "https://a.test", "https://a.test/search?q=cats&sca=1&x=2", 1760000001500],
+  ["click", "a[href=\"/images\"]", "https://a.test/images", 1760000003000],
+  ["_url_", "https://a.test", "https://a.test/images", 1760000003300],
+  ["click", "h3 a", "https://other.test/page", 1760000005000],
+  ["begin", "https://other.test", "https://other.test/page", 1760000005400],
+  ["as_el", "h1", "https://other.test", 1760000006000],
+  ["begin", "https://a.test", "https://a.test/a%20b?c=%C3%A9", 1760000020000],
+  ["button", "ignored", "", 1760000020100],
+  ["click", "button#go", "", 1760000021000],
+  ["_url_", "https://a.test", "https://a.test/done", 1760000023000]
+ ]
+}

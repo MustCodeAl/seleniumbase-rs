@@ -1,0 +1,23 @@
+{
+ "start_ms": 1760000000000,
+ "origins": [],
+ "uc": false,
+ "actions": [
+  ["begin", "https://a.test", "https://a.test/", 1760000000100],
+  ["input", "#q", "rust", 1760000000200],
+  ["js_cl", "#btn", ["https://a.test/", "https://a.test"], 1760000000300],
+  ["input", "#q", "rust\n", 1760000000400],
+  ["jq_cl", "#btn2", ["https://a.test/", "https://a.test"], 1760000010000],
+  ["input", "#q2", "go\n", 1760000010500],
+  ["js_ty", ["#q3", "abc"], "https://a.test", 1760000020000],
+  ["_skip", "", "", 1760000020001],
+  ["_skip", "", "", 1760000020002],
+  ["input", "#q3", "abc\n", 1760000020300],
+  ["jq_ty", ["#q4", "xyz"], "https://a.test", 1760000030000],
+  ["_skip", "", "", 1760000030001],
+  ["input", "#q4", "xyz\n", 1760000030800],
+  ["input", "#ta", "textarea text", 1760000040000],
+  ["submi", "#ta", "textarea text\n", 1760000040001],
+  ["input", "#ta", "textarea text\n", 1760000040002]
+ ]
+}

@@ -1,0 +1,83 @@
+{
+ "processed": [
+  [
+   "begin",
+   "https://a.test",
+   "https://a.test/?x=\"1\"",
+   1760000000100
+  ],
+  [
+   "input",
+   "#q",
+   "say \"hi\"",
+   1760000000500
+  ],
+  [
+   "input",
+   "input[name=\"x\"]",
+   "it's",
+   1760000001000
+  ],
+  [
+   "click",
+   "a[title=\"t\"]",
+   "",
+   1760000001500
+  ],
+  [
+   "as_te",
+   [
+    "It's ok",
+    "h1"
+   ],
+   "https://a.test",
+   1760000002000
+  ],
+  [
+   "as_el",
+   "a[title='x\"y']",
+   "https://a.test",
+   1760000002500
+  ]
+ ],
+ "python": [
+  "self.goto('https://a.test/?x=\"1\"')",
+  "self.press_keys(\"#q\", 'say \"hi\"')",
+  "self.press_keys('input[name=\"x\"]', \"it's\")",
+  "self.click('a[title=\"t\"]')",
+  "self.assert_text(\"It's ok\", \"h1\")",
+  "self.assert_element(\"\"\"a[title='x\"y']\"\"\")"
+ ],
+ "calls": [
+  {
+   "name": "goto",
+   "target": "https://a.test/?x=\"1\"",
+   "value": null
+  },
+  {
+   "name": "press_keys",
+   "target": "#q",
+   "value": "say \"hi\""
+  },
+  {
+   "name": "press_keys",
+   "target": "input[name=\"x\"]",
+   "value": "it's"
+  },
+  {
+   "name": "click",
+   "target": "a[title=\"t\"]",
+   "value": null
+  },
+  {
+   "name": "assert_text",
+   "target": "h1",
+   "value": "It's ok"
+  },
+  {
+   "name": "assert_element",
+   "target": "a[title='x\"y']",
+   "value": null
+  }
+ ]
+}

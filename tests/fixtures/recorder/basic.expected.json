@@ -1,0 +1,155 @@
+{
+ "processed": [
+  [
+   "begin",
+   "https://a.test",
+   "https://a.test/demo_page",
+   1760000000100
+  ],
+  [
+   "click",
+   "#myButton",
+   "",
+   1760000000600
+  ],
+  [
+   "input",
+   "#myTextInput",
+   "hello",
+   1760000001100
+  ],
+  [
+   "s_opt",
+   "#mySelect",
+   "Set to 75%",
+   1760000001600
+  ],
+  [
+   "c_box",
+   "#checkBox1",
+   "yes",
+   1760000002100
+  ],
+  [
+   "as_el",
+   "h1",
+   "https://a.test",
+   1760000002600
+  ],
+  [
+   "as_te",
+   [
+    "Demo Page",
+    "h1"
+   ],
+   "https://a.test",
+   1760000003100
+  ],
+  [
+   "as_et",
+   [
+    "Demo Page¶",
+    "h1"
+   ],
+   "https://a.test",
+   1760000003600
+  ],
+  [
+   "as_et",
+   [
+    "Demo Page",
+    "html"
+   ],
+   "https://a.test",
+   1760000004100
+  ],
+  [
+   "dbclk",
+   "#dbl",
+   "",
+   1760000004600
+  ],
+  [
+   "_skip",
+   "#myTextInput",
+   "",
+   1760000005100
+  ],
+  [
+   "input",
+   "#myTextInput",
+   "again",
+   1760000005200
+  ]
+ ],
+ "python": [
+  "self.goto(\"https://a.test/demo_page\")",
+  "self.click(\"#myButton\")",
+  "self.type(\"#myTextInput\", \"hello\")",
+  "self.select_option_by_text(\"#mySelect\", \"Set to 75%\")",
+  "self.check_if_unchecked(\"#checkBox1\")",
+  "self.assert_element(\"h1\")",
+  "self.assert_text(\"Demo Page\", \"h1\")",
+  "self.assert_exact_text(\"Demo Page\", \"h1\")",
+  "self.assert_exact_text(\"Demo Page\")",
+  "self.double_click(\"#dbl\")",
+  "self.type(\"#myTextInput\", \"again\")"
+ ],
+ "calls": [
+  {
+   "name": "goto",
+   "target": "https://a.test/demo_page",
+   "value": null
+  },
+  {
+   "name": "click",
+   "target": "#myButton",
+   "value": null
+  },
+  {
+   "name": "type_text",
+   "target": "#myTextInput",
+   "value": "hello"
+  },
+  {
+   "name": "select_option_by_text",
+   "target": "#mySelect",
+   "value": "Set to 75%"
+  },
+  {
+   "name": "check_if_unchecked",
+   "target": "#checkBox1",
+   "value": null
+  },
+  {
+   "name": "assert_element",
+   "target": "h1",
+   "value": null
+  },
+  {
+   "name": "assert_text",
+   "target": "h1",
+   "value": "Demo Page"
+  },
+  {
+   "name": "assert_exact_text",
+   "target": "h1",
+   "value": "Demo Page"
+  },
+  {
+   "name": "assert_exact_text",
+   "target": "html",
+   "value": "Demo Page"
+  },
+  {
+   "name": "double_click",
+   "target": "#dbl",
+   "value": null
+  },
+  {
+   "name": "type_text",
+   "target": "#myTextInput",
+   "value": "again"
+  }
+ ]
+}

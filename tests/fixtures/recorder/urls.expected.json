@@ -1,0 +1,152 @@
+{
+ "processed": [
+  [
+   "_skip",
+   "https://a.test",
+   "https://a.test/",
+   1760000000100
+  ],
+  [
+   "_url_",
+   "https://a.test",
+   "https://www.a.test/",
+   1760000000200
+  ],
+  [
+   "begin",
+   "https://a.test",
+   "http://a.test/x",
+   1760000000300
+  ],
+  [
+   "_url_",
+   "https://a.test",
+   "https://a.test/x/y",
+   1760000000400
+  ],
+  [
+   "o_url",
+   "https://a.test",
+   "https://a.test/z",
+   1760000010000
+  ],
+  [
+   "_url_",
+   "https://a.test",
+   "https://a.test/z",
+   1760000010001
+  ],
+  [
+   "f_url",
+   "https://a.test",
+   "https://a.test/z/#/",
+   1760000011000
+  ],
+  [
+   "click",
+   "div a",
+   "https://a.test/w",
+   1760000020000
+  ],
+  [
+   "f_url",
+   "https://a.test",
+   "https://a.test/w/",
+   1760000020400
+  ],
+  [
+   "click",
+   "span",
+   "https://a.test/#/",
+   1760000030000
+  ],
+  [
+   "f_url",
+   "https://a.test",
+   "https://a.test/#/",
+   1760000030200
+  ],
+  [
+   "click",
+   "p",
+   "https://a.test/search?search=1",
+   1760000040000
+  ],
+  [
+   "f_url",
+   "https://a.test",
+   "https://a.test/search?search=1&page=2",
+   1760000045000
+  ]
+ ],
+ "python": [
+  "self.goto(\"https://www.a.test/\")",
+  "self.goto(\"http://a.test/x\")",
+  "self.goto(\"https://a.test/x/y\")",
+  "self.goto(\"https://a.test/z\")",
+  "self.goto_if_not_url(\"https://a.test/z/#/\")",
+  "self.click(\"div a\")",
+  "self.goto_if_not_url(\"https://a.test/w/\")",
+  "self.click(\"span\")",
+  "self.goto_if_not_url(\"https://a.test/#/\")",
+  "self.click(\"p\")",
+  "self.goto_if_not_url(\"https://a.test/search?search=1&page=2\")"
+ ],
+ "calls": [
+  {
+   "name": "goto",
+   "target": "https://www.a.test/",
+   "value": null
+  },
+  {
+   "name": "goto",
+   "target": "http://a.test/x",
+   "value": null
+  },
+  {
+   "name": "goto",
+   "target": "https://a.test/x/y",
+   "value": null
+  },
+  {
+   "name": "goto",
+   "target": "https://a.test/z",
+   "value": null
+  },
+  {
+   "name": "goto_if_not_url",
+   "target": "https://a.test/z/#/",
+   "value": null
+  },
+  {
+   "name": "click",
+   "target": "div a",
+   "value": null
+  },
+  {
+   "name": "goto_if_not_url",
+   "target": "https://a.test/w/",
+   "value": null
+  },
+  {
+   "name": "click",
+   "target": "span",
+   "value": null
+  },
+  {
+   "name": "goto_if_not_url",
+   "target": "https://a.test/#/",
+   "value": null
+  },
+  {
+   "name": "click",
+   "target": "p",
+   "value": null
+  },
+  {
+   "name": "goto_if_not_url",
+   "target": "https://a.test/search?search=1&page=2",
+   "value": null
+  }
+ ]
+}

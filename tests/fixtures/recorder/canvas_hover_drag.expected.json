@@ -1,0 +1,154 @@
+{
+ "processed": [
+  [
+   "begin",
+   "https://a.test",
+   "https://a.test/widgets",
+   1760000000100
+  ],
+  [
+   "canva",
+   [
+    "#cv",
+    11,
+    21
+   ],
+   "",
+   1760000000500
+  ],
+  [
+   "canva",
+   [
+    "#cv",
+    5,
+    3
+   ],
+   "",
+   1760000000600
+  ],
+  [
+   "_skip",
+   [
+    ".menu",
+    ".menu .item"
+   ],
+   "https://a.test",
+   1760000001000
+  ],
+  [
+   "h_clk",
+   ".menu",
+   ".menu .item",
+   1760000001010
+  ],
+  [
+   "h_clk",
+   ".menu2",
+   ".menu2 .item",
+   1760000001500
+  ],
+  [
+   "ddrop",
+   "#drag",
+   "#drop",
+   1760000002000
+  ],
+  [
+   "_skip",
+   [
+    "#file",
+    "/tmp/a b.txt"
+   ],
+   "https://a.test",
+   1760000003000
+  ],
+  [
+   "cho_f",
+   "#file",
+   "/tmp/a b.txt",
+   1760000003010
+  ],
+  [
+   "cho_f",
+   "#file2",
+   "/tmp/c.txt",
+   1760000003500
+  ],
+  [
+   "set_v",
+   "#range",
+   "7",
+   1760000004000
+  ],
+  [
+   "s_opt",
+   "#sel",
+   "Two \"quoted\"",
+   1760000004500
+  ]
+ ],
+ "python": [
+  "self.goto(\"https://a.test/widgets\")",
+  "self.click_with_offset(\"#cv\", 11, 21)",
+  "self.click_with_offset(\"#cv\", 5, 3)",
+  "self.hover_and_click(\".menu\", \".menu .item\")",
+  "self.hover_and_click(\".menu2\", \".menu2 .item\")",
+  "self.drag_and_drop(\"#drag\", \"#drop\")",
+  "self.choose_file(\"#file\", \"/tmp/a b.txt\")",
+  "self.choose_file(\"#file2\", \"/tmp/c.txt\")",
+  "self.set_value(\"#range\", \"7\")",
+  "self.select_option_by_text(\"#sel\", 'Two \"quoted\"')"
+ ],
+ "calls": [
+  {
+   "name": "goto",
+   "target": "https://a.test/widgets",
+   "value": null
+  },
+  {
+   "name": "click_with_offset",
+   "target": "#cv",
+   "value": "11, 21"
+  },
+  {
+   "name": "click_with_offset",
+   "target": "#cv",
+   "value": "5, 3"
+  },
+  {
+   "name": "hover_and_click",
+   "target": ".menu",
+   "value": ".menu .item"
+  },
+  {
+   "name": "hover_and_click",
+   "target": ".menu2",
+   "value": ".menu2 .item"
+  },
+  {
+   "name": "drag_and_drop",
+   "target": "#drag",
+   "value": "#drop"
+  },
+  {
+   "name": "choose_file",
+   "target": "#file",
+   "value": "/tmp/a b.txt"
+  },
+  {
+   "name": "choose_file",
+   "target": "#file2",
+   "value": "/tmp/c.txt"
+  },
+  {
+   "name": "set_value",
+   "target": "#range",
+   "value": "7"
+  },
+  {
+   "name": "select_option_by_text",
+   "target": "#sel",
+   "value": "Two \"quoted\""
+  }
+ ]
+}

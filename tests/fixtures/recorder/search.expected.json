@@ -1,0 +1,164 @@
+{
+ "processed": [
+  [
+   "begin",
+   "https://a.test",
+   "https://a.test/",
+   1760000000100
+  ],
+  [
+   "input",
+   "#q",
+   "cats",
+   1760000000500
+  ],
+  [
+   "input",
+   "#q",
+   "cats\n",
+   1760000000900
+  ],
+  [
+   "submi",
+   "#q",
+   "cats\n",
+   1760000000900
+  ],
+  [
+   "f_url",
+   "https://a.test",
+   "https://a.test/search?q=cats",
+   1760000001500
+  ],
+  [
+   "click",
+   "a[href=\"/images\"]",
+   "https://a.test/images",
+   1760000003000
+  ],
+  [
+   "f_url",
+   "https://a.test",
+   "https://a.test/images",
+   1760000003300
+  ],
+  [
+   "click",
+   "h3 a",
+   "https://other.test/page",
+   1760000005000
+  ],
+  [
+   "f_url",
+   "https://other.test",
+   "https://other.test/page",
+   1760000005400
+  ],
+  [
+   "as_el",
+   "h1",
+   "https://other.test",
+   1760000006000
+  ],
+  [
+   "begin",
+   "https://a.test",
+   "https://a.test/a%20b?c=%C3%A9",
+   1760000020000
+  ],
+  [
+   "button",
+   "ignored",
+   "",
+   1760000020100
+  ],
+  [
+   "click",
+   "button#go",
+   "",
+   1760000021000
+  ],
+  [
+   "f_url",
+   "https://a.test",
+   "https://a.test/done",
+   1760000023000
+  ]
+ ],
+ "python": [
+  "self.goto(\"https://a.test/\")",
+  "self.type(\"#q\", \"cats\")",
+  "self.type(\"#q\", \"cats\\n\")",
+  "self.goto_if_not_url(\"https://a.test/search?q=cats\")",
+  "self.click('a[href=\"/images\"]')",
+  "self.goto_if_not_url(\"https://a.test/images\")",
+  "self.click(\"h3 a\")",
+  "self.goto_if_not_url(\"https://other.test/page\")",
+  "self.assert_element(\"h1\")",
+  "self.goto(\"https://a.test/a b?c=é\")",
+  "self.click(\"button#go\")",
+  "self.goto_if_not_url(\"https://a.test/done\")"
+ ],
+ "calls": [
+  {
+   "name": "goto",
+   "target": "https://a.test/",
+   "value": null
+  },
+  {
+   "name": "type_text",
+   "target": "#q",
+   "value": "cats"
+  },
+  {
+   "name": "type_text",
+   "target": "#q",
+   "value": "cats\n"
+  },
+  {
+   "name": "goto_if_not_url",
+   "target": "https://a.test/search?q=cats",
+   "value": null
+  },
+  {
+   "name": "click",
+   "target": "a[href=\"/images\"]",
+   "value": null
+  },
+  {
+   "name": "goto_if_not_url",
+   "target": "https://a.test/images",
+   "value": null
+  },
+  {
+   "name": "click",
+   "target": "h3 a",
+   "value": null
+  },
+  {
+   "name": "goto_if_not_url",
+   "target": "https://other.test/page",
+   "value": null
+  },
+  {
+   "name": "assert_element",
+   "target": "h1",
+   "value": null
+  },
+  {
+   "name": "goto",
+   "target": "https://a.test/a b?c=é",
+   "value": null
+  },
+  {
+   "name": "click",
+   "target": "button#go",
+   "value": null
+  },
+  {
+   "name": "goto_if_not_url",
+   "target": "https://a.test/done",
+   "value": null
+  }
+ ]
+}

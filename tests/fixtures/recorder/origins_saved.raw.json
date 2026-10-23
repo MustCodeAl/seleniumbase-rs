@@ -1,0 +1,14 @@
+{
+ "start_ms": 1760000000000,
+ "origins": ["https://b.test", "https://c.test"],
+ "uc": false,
+ "actions": [
+  ["begin", "https://a.test/", "https://a.test/", 1760000000100],
+  ["as_el", "h1", "https://a.test", 1760000000200],
+  ["as_el", "h1", "https://b.test", 1760000000300],
+  ["js_cl", "#x", ["https://b.test/", "https://b.test"], 1760000000400],
+  ["pkeys", ["#q", "text"], "https://b.test/", 1760000000500],
+  ["as_el", "h2", "https://b.test", 1760000000700],
+  ["sleep", 2, "https://c.test", 1760000000800]
+ ]
+}

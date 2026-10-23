@@ -1,0 +1,158 @@
+{
+ "processed": [
+  [
+   "begin",
+   "https://a.test",
+   "https://a.test/",
+   1760000000100
+  ],
+  [
+   "_skip",
+   "#q",
+   "rust",
+   1760000000200
+  ],
+  [
+   "_skip",
+   "#btn",
+   [
+    "https://a.test/",
+    "https://a.test"
+   ],
+   1760000000300
+  ],
+  [
+   "input",
+   "#q",
+   "rust\n",
+   1760000000400
+  ],
+  [
+   "_skip",
+   "#btn2",
+   [
+    "https://a.test/",
+    "https://a.test"
+   ],
+   1760000010000
+  ],
+  [
+   "input",
+   "#q2",
+   "go\n",
+   1760000010500
+  ],
+  [
+   "_skip",
+   [
+    "#q3",
+    "abc"
+   ],
+   "https://a.test",
+   1760000020000
+  ],
+  [
+   "_skip",
+   "",
+   "",
+   1760000020001
+  ],
+  [
+   "_skip",
+   "",
+   "",
+   1760000020002
+  ],
+  [
+   "input",
+   "#q3",
+   "abc\n",
+   1760000020300
+  ],
+  [
+   "_skip",
+   [
+    "#q4",
+    "xyz"
+   ],
+   "https://a.test",
+   1760000030000
+  ],
+  [
+   "_skip",
+   "",
+   "",
+   1760000030001
+  ],
+  [
+   "input",
+   "#q4",
+   "xyz\n",
+   1760000030800
+  ],
+  [
+   "input",
+   "#ta",
+   "textarea text",
+   1760000040000
+  ],
+  [
+   "submi",
+   "#ta",
+   "textarea text\n",
+   1760000040001
+  ],
+  [
+   "input",
+   "#ta",
+   "textarea text\n",
+   1760000040002
+  ]
+ ],
+ "python": [
+  "self.goto(\"https://a.test/\")",
+  "self.type(\"#q\", \"rust\\n\")",
+  "self.type(\"#q2\", \"go\\n\")",
+  "self.type(\"#q3\", \"abc\\n\")",
+  "self.type(\"#q4\", \"xyz\\n\")",
+  "self.type(\"#ta\", \"textarea text\")",
+  "self.type(\"#ta\", \"textarea text\\n\")"
+ ],
+ "calls": [
+  {
+   "name": "goto",
+   "target": "https://a.test/",
+   "value": null
+  },
+  {
+   "name": "type_text",
+   "target": "#q",
+   "value": "rust\n"
+  },
+  {
+   "name": "type_text",
+   "target": "#q2",
+   "value": "go\n"
+  },
+  {
+   "name": "type_text",
+   "target": "#q3",
+   "value": "abc\n"
+  },
+  {
+   "name": "type_text",
+   "target": "#q4",
+   "value": "xyz\n"
+  },
+  {
+   "name": "type_text",
+   "target": "#ta",
+   "value": "textarea text"
+  },
+  {
+   "name": "type_text",
+   "target": "#ta",
+   "value": "textarea text\n"
+  }
+ ]
+}

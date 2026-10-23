@@ -1,0 +1,20 @@
+{
+ "start_ms": 1760000000000,
+ "origins": [],
+ "uc": false,
+ "actions": [
+  ["begin", "https://a.test", "https://a.test/", 1760000000100],
+  ["_url_", "https://a.test", "https://www.a.test/", 1760000000200],
+  ["begin", "https://a.test", "http://a.test/x", 1760000000300],
+  ["_url_", "https://a.test", "https://a.test/x/y", 1760000000400],
+  ["o_url", "https://a.test", "https://a.test/z", 1760000010000],
+  ["_url_", "https://a.test", "https://a.test/z", 1760000010001],
+  ["_url_", "https://a.test", "https://a.test/z/#/", 1760000011000],
+  ["click", "div a", "https://a.test/w", 1760000020000],
+  ["_url_", "https://a.test", "https://a.test/w/", 1760000020400],
+  ["click", "span", "https://a.test/#/", 1760000030000],
+  ["_url_", "https://a.test", "https://a.test/#/", 1760000030200],
+  ["click", "p", "https://a.test/search?search=1", 1760000040000],
+  ["_url_", "https://a.test", "https://a.test/search?search=1&page=2", 1760000045000]
+ ]
+}

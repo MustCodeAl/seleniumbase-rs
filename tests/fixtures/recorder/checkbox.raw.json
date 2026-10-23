@@ -1,0 +1,20 @@
+{
+ "start_ms": 1760000000000,
+ "origins": [],
+ "uc": false,
+ "actions": [
+  ["begin", "https://a.test", "https://a.test/form", 1760000000100],
+  ["click", "label[for=\"cb\"]", "", 1760000001000],
+  ["c_box", "#cb", "yes", 1760000001010],
+  ["click", "#cb2", "", 1760000002000],
+  ["c_box", "#cb2", "no", 1760000002020],
+  ["c_box", "#cb3", "yes", 1760000003000],
+  ["click", "#cb3", "", 1760000003010],
+  ["js_cl", "#cb4", ["https://a.test/form", "https://a.test"], 1760000004000],
+  ["c_box", "#cb4", "yes", 1760000004041],
+  ["jq_cl", "#cb5", ["https://a.test/form", "https://a.test"], 1760000005000],
+  ["c_box", "#cb5", "yes", 1760000005439],
+  ["jq_cl", "#cb6", ["https://a.test/form", "https://a.test"], 1760000006000],
+  ["c_box", "#cb6", "no", 1760000006440]
+ ]
+}

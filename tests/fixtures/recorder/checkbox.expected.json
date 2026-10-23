@@ -1,0 +1,149 @@
+{
+ "processed": [
+  [
+   "begin",
+   "https://a.test",
+   "https://a.test/form",
+   1760000000100
+  ],
+  [
+   "js_cl",
+   "label[for=\"cb\"]",
+   "",
+   1760000001000
+  ],
+  [
+   "_skip",
+   "#cb",
+   "yes",
+   1760000001010
+  ],
+  [
+   "click",
+   "#cb2",
+   "",
+   1760000002000
+  ],
+  [
+   "c_box",
+   "#cb2",
+   "no",
+   1760000002020
+  ],
+  [
+   "_skip",
+   "#cb3",
+   "yes",
+   1760000003000
+  ],
+  [
+   "click",
+   "#cb3",
+   "",
+   1760000003010
+  ],
+  [
+   "js_cl",
+   "#cb4",
+   [
+    "https://a.test/form",
+    "https://a.test"
+   ],
+   1760000004000
+  ],
+  [
+   "_skip",
+   "#cb4",
+   "yes",
+   1760000004041
+  ],
+  [
+   "jq_cl",
+   "#cb5",
+   [
+    "https://a.test/form",
+    "https://a.test"
+   ],
+   1760000005000
+  ],
+  [
+   "_skip",
+   "#cb5",
+   "yes",
+   1760000005439
+  ],
+  [
+   "jq_cl",
+   "#cb6",
+   [
+    "https://a.test/form",
+    "https://a.test"
+   ],
+   1760000006000
+  ],
+  [
+   "c_box",
+   "#cb6",
+   "no",
+   1760000006440
+  ]
+ ],
+ "python": [
+  "self.goto(\"https://a.test/form\")",
+  "self.js_click('label[for=\"cb\"]')",
+  "self.click(\"#cb2\")",
+  "self.uncheck_if_checked(\"#cb2\")",
+  "self.click(\"#cb3\")",
+  "self.js_click(\"#cb4\")",
+  "self.jquery_click(\"#cb5\")",
+  "self.jquery_click(\"#cb6\")",
+  "self.uncheck_if_checked(\"#cb6\")"
+ ],
+ "calls": [
+  {
+   "name": "goto",
+   "target": "https://a.test/form",
+   "value": null
+  },
+  {
+   "name": "js_click",
+   "target": "label[for=\"cb\"]",
+   "value": null
+  },
+  {
+   "name": "click",
+   "target": "#cb2",
+   "value": null
+  },
+  {
+   "name": "uncheck_if_checked",
+   "target": "#cb2",
+   "value": null
+  },
+  {
+   "name": "click",
+   "target": "#cb3",
+   "value": null
+  },
+  {
+   "name": "js_click",
+   "target": "#cb4",
+   "value": null
+  },
+  {
+   "name": "jquery_click",
+   "target": "#cb5",
+   "value": null
+  },
+  {
+   "name": "jquery_click",
+   "target": "#cb6",
+   "value": null
+  },
+  {
+   "name": "uncheck_if_checked",
+   "target": "#cb6",
+   "value": null
+  }
+ ]
+}

@@ -16,6 +16,15 @@
 //! [`to_cdp_script`](ActionRecorder::to_cdp_script) and
 //! [`to_cdp_test`](ActionRecorder::to_cdp_test) call the pure CDP engine
 //! ([`sb_cdp`](crate::sb_cdp)), as Python's `--rec-sb-cdp` does.
+//!
+//! Recorder Mode (a person acting in a browser) is a pipeline of three steps,
+//! each a port of the Python code: the page script ([`RECORDER_JS`]) stores
+//! [`RawAction`]s, [`process`] rewrites them as Python's
+//! `__process_recorded_actions` does, and [`to_actions`] writes them as calls.
+//! [`ActionRecorder::from_raw_actions`] runs the last two, and
+//! [`to_rstest_test`](ActionRecorder::to_rstest_test) writes the default
+//! output: a test that uses the `sb` fixture.
+
 
 mod cdp;
 mod generate;

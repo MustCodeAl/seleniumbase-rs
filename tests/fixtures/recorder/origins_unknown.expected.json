@@ -1,0 +1,101 @@
+{
+ "processed": [
+  [
+   "begin",
+   "https://a.test/",
+   "https://a.test/",
+   1760000000100
+  ],
+  [
+   "as_el",
+   "h1",
+   "https://a.test",
+   1760000000200
+  ],
+  [
+   "as_el",
+   "h1",
+   "https://b.test",
+   1760000000300
+  ],
+  [
+   "js_cl",
+   "#x",
+   [
+    "https://b.test/",
+    "https://b.test"
+   ],
+   1760000000400
+  ],
+  [
+   "pkeys",
+   "#q",
+   "text",
+   1760000000500
+  ],
+  [
+   "_url_",
+   "https://b.test",
+   "https://b.test/page/",
+   1760000000600
+  ],
+  [
+   "as_el",
+   "h2",
+   "https://b.test",
+   1760000000700
+  ],
+  [
+   "_skip",
+   2,
+   "https://c.test",
+   1760000000800
+  ]
+ ],
+ "python": [
+  "self.goto(\"https://a.test/\")",
+  "self.assert_element(\"h1\")",
+  "self.assert_element(\"h1\")",
+  "self.js_click(\"#x\")",
+  "self.press_keys(\"#q\", \"text\")",
+  "self.goto(\"https://b.test/page/\")",
+  "self.assert_element(\"h2\")"
+ ],
+ "calls": [
+  {
+   "name": "goto",
+   "target": "https://a.test/",
+   "value": null
+  },
+  {
+   "name": "assert_element",
+   "target": "h1",
+   "value": null
+  },
+  {
+   "name": "assert_element",
+   "target": "h1",
+   "value": null
+  },
+  {
+   "name": "js_click",
+   "target": "#x",
+   "value": null
+  },
+  {
+   "name": "press_keys",
+   "target": "#q",
+   "value": "text"
+  },
+  {
+   "name": "goto",
+   "target": "https://b.test/page/",
+   "value": null
+  },
+  {
+   "name": "assert_element",
+   "target": "h2",
+   "value": null
+  }
+ ]
+}

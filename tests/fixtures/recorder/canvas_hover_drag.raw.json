@@ -1,0 +1,19 @@
+{
+ "start_ms": 1760000000000,
+ "origins": [],
+ "uc": false,
+ "actions": [
+  ["begin", "https://a.test", "https://a.test/widgets", 1760000000100],
+  ["canva", ["#cv", 10.2, 20.7], "", 1760000000500],
+  ["canva", ["#cv", "5", 3], "", 1760000000600],
+  ["ho_cl", [".menu", ".menu .item"], "https://a.test", 1760000001000],
+  ["click", ".menu .item", "", 1760000001010],
+  ["h_clk", ".menu2", ".menu2 .item", 1760000001500],
+  ["ddrop", "#drag", "#drop", 1760000002000],
+  ["chfil", ["#file", "/tmp/a b.txt"], "https://a.test", 1760000003000],
+  ["cho_f", "#file", "C:\\fakepath\\a b.txt", 1760000003010],
+  ["chfil", ["#file2", "/tmp/c.txt"], "https://a.test", 1760000003500],
+  ["set_v", "#range", "7", 1760000004000],
+  ["s_opt", "#sel", "Two \"quoted\"", 1760000004500]
+ ]
+}

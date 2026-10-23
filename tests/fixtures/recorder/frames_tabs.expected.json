@@ -1,0 +1,122 @@
+{
+ "processed": [
+  [
+   "begin",
+   "https://a.test",
+   "https://a.test/frames",
+   1760000000100
+  ],
+  [
+   "click",
+   "#before",
+   "",
+   1760000000300
+  ],
+  [
+   "sw_fr",
+   "iframe#f",
+   "https://a.test",
+   1760000001000
+  ],
+  [
+   "sk_op",
+   "",
+   "https://a.test",
+   1760000001001
+  ],
+  [
+   "sw_pf",
+   "",
+   "https://a.test",
+   "1760000001099"
+  ],
+  [
+   "_skip",
+   "https://f.test",
+   "https://f.test/frame",
+   1760000001100
+  ],
+  [
+   "click",
+   "#in-frame",
+   "",
+   1760000001500
+  ],
+  [
+   "_url_",
+   "https://a.test",
+   "https://a.test/back",
+   1760000009000
+  ],
+  [
+   "sw_fr",
+   "iframe#g",
+   "https://a.test",
+   1760000010000
+  ],
+  [
+   "o_url",
+   "https://a.test",
+   "https://a.test/g",
+   1760000010001
+  ],
+  [
+   "_skip",
+   "https://a.test",
+   "https://a.test/g",
+   1760000010002
+  ],
+  [
+   "_skip",
+   "https://a.test",
+   "https://a.test/g",
+   1760000011000
+  ]
+ ],
+ "python": [
+  "self.goto(\"https://a.test/frames\")",
+  "self.click(\"#before\")",
+  "self.switch_to_frame(\"iframe#f\")",
+  "self.switch_to_parent_frame()",
+  "self.click(\"#in-frame\")",
+  "self.goto(\"https://a.test/back\")",
+  "self.switch_to_frame(\"iframe#g\")"
+ ],
+ "calls": [
+  {
+   "name": "goto",
+   "target": "https://a.test/frames",
+   "value": null
+  },
+  {
+   "name": "click",
+   "target": "#before",
+   "value": null
+  },
+  {
+   "name": "switch_to_frame",
+   "target": "iframe#f",
+   "value": null
+  },
+  {
+   "name": "switch_to_parent_frame",
+   "target": null,
+   "value": null
+  },
+  {
+   "name": "click",
+   "target": "#in-frame",
+   "value": null
+  },
+  {
+   "name": "goto",
+   "target": "https://a.test/back",
+   "value": null
+  },
+  {
+   "name": "switch_to_frame",
+   "target": "iframe#g",
+   "value": null
+  }
+ ]
+}

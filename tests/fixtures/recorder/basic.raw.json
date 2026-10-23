@@ -1,0 +1,19 @@
+{
+ "start_ms": 1760000000000,
+ "origins": [],
+ "uc": false,
+ "actions": [
+  ["begin", "https://a.test", "https://a.test/demo_page", 1760000000100],
+  ["click", "#myButton", "", 1760000000600],
+  ["input", "#myTextInput", "hello", 1760000001100],
+  ["s_opt", "#mySelect", "Set to 75%", 1760000001600],
+  ["c_box", "#checkBox1", "yes", 1760000002100],
+  ["as_el", "h1", "https://a.test", 1760000002600],
+  ["as_te", ["Demo Page", "h1"], "https://a.test", 1760000003100],
+  ["as_et", ["Demo Page¶", "h1"], "https://a.test", 1760000003600],
+  ["as_et", ["Demo Page", "html"], "https://a.test", 1760000004100],
+  ["dbclk", "#dbl", "", 1760000004600],
+  ["input", "#myTextInput", "", 1760000005100],
+  ["input", "#myTextInput", "again", 1760000005200]
+ ]
+}
