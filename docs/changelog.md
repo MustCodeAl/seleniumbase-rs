@@ -33,60 +33,42 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 <Update label="Unreleased" description="Next release" tags={["New"]}>
 
-### Added
-
-- **Shell completion says what each value is.** A selector, text, key, value, attribute, property
-  or CDP method (`--css`, `--text`, `--key`, `--value`, `--attribute`, `--property`, `--cmd`,
-  `--params`, `--hover-css`, `--click-css`, `--source-css`, `--target-css`) no longer completes
-  file names, and neither does a number, a URL (`open`, `smoke`, `download-file`, `print-pdf`,
-  `pdf-text`, `record`, `mkfile --url`, `--start-page`, `--proxy-pac-url`) or a free-form option.
-  Files complete by the kind a command takes (`.json` or `.yaml` for `export-recording` and
-  `replay`, `.rs` for `mkfile` and the generated tests, `.png` for `screenshot`, `.toml` or
-  `.json` for `--config`, ...), folders for `mkdir`, `--user-data-dir` and `--extension-dir`,
-  programs for `patch-chrome`, `patch-chromedriver` and `devtools --browser-path`.
-  `sbrs translate FILE` offers the language codes, and `sbrs fingerprint export --preset` its
-  presets.
-- **`sbrs install` completes its driver and its version.** The driver is a value enum
-  (`chromedriver`, `geckodriver`, `edgedriver`; `firefoxdriver` and `msedgedriver` still work), and
-  the version offers `browser`, `stable`, `latest`, `beta`, `dev` and `canary`. The Fig spec
-  (`sbrs completions fig`) marks the global options `isPersistent` and keeps the file template of
-  a path limited to extensions, and `docs/help/cli_reference.md` shows each command's examples in
-  a `bash` block titled Examples and says the global options go before or after the command.
-- **One option table for a test run (`config::test_options`).** Every Python SeleniumBase
-  option, whether a pytest flag or an `SB(...)` keyword, is a row of `TEST_OPTIONS`: the `sbrs`
-  flags that spell it (`_` and `-` alike), the `SB_*` variable that carries it, and the
-  `Settings` field it lands in. `find_option("--dark")` finds a row by any spelling, and
-  `tests/test_options_table.rs` fails when `parity/api.toml` lists an option the table does not
-  spell. `Settings::load` reads the variables from the table, in the order and with the
-  messages it always had.
-- **`TestSettings` and `TestData` (`config::test_settings`), the `[test]` table of the settings
-  file.** `TestData` holds what a test reads: `env` (one of the 24 environments of Python
-  SeleniumBase, `test` by default, checked and lower-cased), `account`, `data`, `var1` to
-  `var3` and `variables`, a JSON object or a Python dictionary literal
-  (`TestData::parse_variables`). `TestSettings` holds the debug modes (`pdb`, `trace`,
-  `final_debug`), `reruns` and `reruns_delay`, `time_limit`, the evidence and report switches,
-  the recorder switches and `runner`. The settings stay on `LaunchSettings::test_data` for the
-  `sb` fixture.
-- **A key and a variable for each browser option.** `Settings` gains `dark_mode`, `devtools`,
-  `incognito`, `guest_mode`, `disable_ws`, `swiftshader`, `enable_3d_apis`, `maximize`,
-  `no_sandbox`, `disable_gpu`, `chromium_arg`, `disable_features`, `host_resolver_rules`,
-  `server`, `port`, `protocol`, `locale_code`, `window_size`, `window_position`,
-  `device_metrics`, `page_load_strategy`, `driver_version`, `proxy_bypass_list`, `cap_file`,
-  `cap_string`, `extension_zip`, `firefox_arg`, `firefox_pref`, `xvfb`, `xvfb_metrics`,
-  `remote_debug`, `log_cdp_events`, `block_images`, `disable_js`, `disable_cookies`,
-  `do_not_track`, `external_pdf`, `enable_sync`, `disable_csp`, `use_auto_ext`, `demo`, `slow`,
-  `skip_js_waits`, `crumbs` and more, each with its `SB_*` variable
-  (`SB_DARK_MODE`, `SB_WINDOW_SIZE`, ...). `Settings::to_browser_config` puts them on the typed
-  `BrowserConfig` builders, and a value that does not parse is refused by `Settings::validate`.
-- **`Settings::to_launch_options` for the pure CDP engine.** The same settings, as the
-  `LaunchOptions` of `sb_cdp`, with the Chromium switches both engines share.
-- **`SB_SETTINGS_FILE` names the settings file** that `Settings::load` and `Settings::check`
-  read instead of the global file of the working folder.
-
 ### Breaking
 
-- **`Settings::screenshot_dir` and `SB_SCREENSHOT_DIR` are removed.** The library read neither;
-  a settings file that still has the key loads as before.
+- **`Browser` and `DriverVersion` have new variants.** `Browser::Remote` (`--browser=remote`) and
+  `DriverVersion::{Keep, Previous}`: a `match` on either needs the new arms.
+  `BrowserConfig::with_grid` returns a `Result`, because an empty server name is an error.
+- **Chrome is no longer given a proxy login.** `--proxy=user:pass@host:port` used to put
+  `user:pass@host:port` in `--proxy-server`, where Chrome reads no login and the process list
+  shows it; Chrome now gets `--proxy-server=host:port`. A WebDriver session still does not answer
+  the proxy's login (the pure CDP engine does).
+
+### Added
+
+- **Proxies are checked the way Python checks them.** `browser::options::ProxyAddress`
+  (`[scheme://][user:pass@]host:port`, schemes `http`, `https`, `socks4`, `socks5`, `socks5h`),
+  `ProxyScheme` and `PacUrl` (`[user:pass@]URL`, which must end in `.pac`) refuse a bad string
+  with the password hidden (`user:***@`), and so do their `Debug` and `Display`. Firefox gets
+  `network.proxy.*` preferences from a proxy, a PAC file and the bypass list; a login on a Firefox
+  proxy, or on a SOCKS proxy, is refused with Python's message. `BrowserConfig::validate()` runs
+  these checks (and the `--browser=remote` ones) before a browser starts; `BrowserSession::connect`
+  calls it.
+- **Selenium Grid addresses.** `browser::options::grid_url` and `GridProtocol` build the WebDriver
+  URL Python's `get_remote_driver` builds (`USER:KEY@hub.browserstack.com` stays in the URL, an
+  `https://` server forces https, `/wd/hub` is added, a port the protocol already uses is left
+  out), and `BrowserConfig::with_grid(protocol, servername, port)` sets it (`localhost` keeps the
+  local driver). `BrowserConfig::with_binary_location` is Python's `binary_location`.
+- **`Browser::Remote`** (`--browser=remote`) sends the WebDriver server nothing but the
+  capabilities of `--cap-file` and `--cap-string`; mobile mode, switches and window geometry do not
+  apply to it.
+- **`DriverVersion` keywords `keep`, `previous` (`latest-1`) and `mlatest`.** `keep` runs a
+  chromedriver or msedgedriver that is already in `downloaded_drivers/` or on the `PATH` and
+  downloads one only when there is none; `previous` is the newest driver of the major version
+  before the stable one; `mlatest` is the newest build of the browser's own major version, which
+  `browser` already was.
+- **The remote debugger gives way.** `with_remote_debug(true)` takes a free port, and logs it, when
+  9222 is in use; a port named with `with_remote_debug_port` that is in use is an error
+  (`port N is already in use`). `BrowserSession::remote_debug_address()` says where it listens.
 
 </Update>
 

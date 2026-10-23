@@ -63,6 +63,44 @@ work, `docs/parity.md` the per-API status).
 - **`Settings::screenshot_dir` and `SB_SCREENSHOT_DIR` are removed.** The library read neither;
   a settings file that still has the key loads as before.
 
+### Breaking
+
+- **`Browser` and `DriverVersion` have new variants.** `Browser::Remote` (`--browser=remote`) and
+  `DriverVersion::{Keep, Previous}`: a `match` on either needs the new arms.
+  `BrowserConfig::with_grid` returns a `Result`, because an empty server name is an error.
+- **Chrome is no longer given a proxy login.** `--proxy=user:pass@host:port` used to put
+  `user:pass@host:port` in `--proxy-server`, where Chrome reads no login and the process list
+  shows it; Chrome now gets `--proxy-server=host:port`. A WebDriver session still does not answer
+  the proxy's login (the pure CDP engine does).
+
+### Added
+
+- **Proxies are checked the way Python checks them.** `browser::options::ProxyAddress`
+  (`[scheme://][user:pass@]host:port`, schemes `http`, `https`, `socks4`, `socks5`, `socks5h`),
+  `ProxyScheme` and `PacUrl` (`[user:pass@]URL`, which must end in `.pac`) refuse a bad string
+  with the password hidden (`user:***@`), and so do their `Debug` and `Display`. Firefox gets
+  `network.proxy.*` preferences from a proxy, a PAC file and the bypass list; a login on a Firefox
+  proxy, or on a SOCKS proxy, is refused with Python's message. `BrowserConfig::validate()` runs
+  these checks (and the `--browser=remote` ones) before a browser starts; `BrowserSession::connect`
+  calls it.
+- **Selenium Grid addresses.** `browser::options::grid_url` and `GridProtocol` build the WebDriver
+  URL Python's `get_remote_driver` builds (`USER:KEY@hub.browserstack.com` stays in the URL, an
+  `https://` server forces https, `/wd/hub` is added, a port the protocol already uses is left
+  out), and `BrowserConfig::with_grid(protocol, servername, port)` sets it (`localhost` keeps the
+  local driver). `BrowserConfig::with_binary_location` is Python's `binary_location`.
+- **`Browser::Remote`** (`--browser=remote`) sends the WebDriver server nothing but the
+  capabilities of `--cap-file` and `--cap-string`; mobile mode, switches and window geometry do not
+  apply to it.
+- **`DriverVersion` keywords `keep`, `previous` (`latest-1`) and `mlatest`.** `keep` runs a
+  chromedriver or msedgedriver that is already in `downloaded_drivers/` or on the `PATH` and
+  downloads one only when there is none; `previous` is the newest driver of the major version
+  before the stable one; `mlatest` is the newest build of the browser's own major version, which
+  `browser` already was.
+- **The remote debugger gives way.** `with_remote_debug(true)` takes a free port, and logs it, when
+  9222 is in use; a port named with `with_remote_debug_port` that is in use is an error
+  (`port N is already in use`). `BrowserSession::remote_debug_address()` says where it listens.
+
+
 ## [0.6.0] - 2026-10-23
 
 ### Breaking

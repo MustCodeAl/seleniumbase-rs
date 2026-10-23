@@ -4028,8 +4028,8 @@ status = "composed"
 rust = "BrowserConfig::user_agent"
 
 [options_driver."binary_location"]
-status = "composed"
-rust = "BrowserConfig::browser_binary_path"
+status = "implemented"
+rust = "BrowserConfig::with_binary_location"
 
 [options_driver."block_images"]
 status = "implemented"
@@ -4120,7 +4120,7 @@ note = "Chrome's `enable_do_not_track` preference, or Firefox's `privacy.donottr
 [options_driver."driver_version"]
 status = "implemented"
 rust = "BrowserConfig::with_driver_version"
-note = "browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/."
+note = "browser, mlatest (the newest build of the browser's major version), latest, stable, beta, dev, canary, keep (a driver already downloaded or on the PATH), previous or latest-1 (the major before the stable one), a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/."
 
 [options_driver."enable_3d_apis"]
 status = "implemented"
@@ -4242,9 +4242,9 @@ rust = "BrowserConfig::with_page_load_strategy"
 note = "The `pageLoadStrategy` capability: normal, eager or none."
 
 [options_driver."port"]
-status = "composed"
-rust = "BrowserConfig::webdriver_url"
-note = "Give the full WebDriver URL instead of its parts."
+status = "implemented"
+rust = "BrowserConfig::with_grid"
+note = "`with_grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL."
 
 [options_driver."position"]
 status = "implemented"
@@ -4252,14 +4252,14 @@ rust = "BrowserConfig::with_window_position"
 note = "Chrome's `--window-position`; a Firefox window is moved once it runs."
 
 [options_driver."protocol"]
-status = "composed"
-rust = "BrowserConfig::webdriver_url"
-note = "Give the full WebDriver URL instead of its parts."
+status = "implemented"
+rust = "BrowserConfig::with_grid"
+note = "`with_grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL."
 
 [options_driver."proxy"]
 status = "implemented"
 rust = "BrowserConfig::proxy"
-divergence = "SERVER:PORT only: a WebDriver session cannot log in to a proxy, so USER:PASS@SERVER:PORT does not authenticate. The pure CDP engine can (LaunchOptionsBuilder::proxy)."
+divergence = "Checked as Python checks it (schemes http, https, socks4, socks5, socks5h; a SOCKS proxy takes no login). Chrome is never given the login in its arguments, and a WebDriver session does not answer the proxy's login yet, so USER:PASS@SERVER:PORT does not authenticate there; Firefox refuses a login with Python's message. The pure CDP engine can log in (LaunchOptionsBuilder::proxy)."
 
 [options_driver."proxy_bypass_list"]
 status = "implemented"
@@ -4269,7 +4269,7 @@ note = "Chrome's `--proxy-bypass-list`. It applies to a proxy named with `proxy`
 [options_driver."proxy_pac_url"]
 status = "implemented"
 rust = "BrowserConfig::proxy_pac_url"
-divergence = "URL only: a WebDriver session cannot log in to a proxy, so USERNAME:PASSWORD@URL does not authenticate."
+divergence = "The URL must end in .pac, with a login before it or in it. Chrome is never given the login, and a WebDriver session does not answer the PAC login yet, so it does not authenticate there; Firefox refuses a login with Python's message."
 
 [options_driver."recorder_ext"]
 status = "implemented"
@@ -4279,17 +4279,17 @@ note = "Loads the bundled SeleniumBase Recorder extension. Chromium only."
 [options_driver."remote_debug"]
 status = "implemented"
 rust = "BrowserConfig::with_remote_debug"
-note = "Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another."
+note = "Opens Chrome's debugger on port 9222, or on a free port when 9222 is in use; `with_remote_debug_port` names another and refuses it when it is in use; `BrowserSession::remote_debug_address` says where it listens."
 
 [options_driver."server"]
-status = "composed"
-rust = "BrowserConfig::webdriver_url"
-note = "Give the full WebDriver URL instead of its parts."
+status = "implemented"
+rust = "BrowserConfig::with_grid"
+note = "`with_grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL."
 
 [options_driver."servername"]
-status = "composed"
-rust = "BrowserConfig::webdriver_url"
-note = "Give the full WebDriver URL, with the Grid's host in it."
+status = "implemented"
+rust = "BrowserConfig::with_grid"
+note = "The server name may carry a login (`USER:KEY@hub.browserstack.com`), which stays in the WebDriver URL; see `with_grid`."
 
 [options_driver."size"]
 status = "implemented"
@@ -4416,8 +4416,8 @@ status = "composed"
 rust = "BrowserConfig::browser_binary_path"
 
 [options_pytest."--binary_location"]
-status = "composed"
-rust = "BrowserConfig::browser_binary_path"
+status = "implemented"
+rust = "BrowserConfig::with_binary_location"
 
 [options_pytest."--bl"]
 status = "composed"
@@ -4695,12 +4695,12 @@ note = "Chrome's `enable_do_not_track` preference, or Firefox's `privacy.donottr
 [options_pytest."--driver-version"]
 status = "implemented"
 rust = "BrowserConfig::with_driver_version"
-note = "browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/, or msedgedriver-<version>/ for Edge. geckodriver takes no version here: one geckodriver drives many Firefox versions, and `sbrs get geckodriver VERSION` pins one."
+note = "browser, mlatest (the newest build of the browser's major version), latest, stable, beta, dev, canary, keep (a driver already downloaded or on the PATH), previous or latest-1 (the major before the stable one), a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/, or msedgedriver-<version>/ for Edge. geckodriver takes no version here: one geckodriver drives many Firefox versions, and `sbrs get geckodriver VERSION` pins one."
 
 [options_pytest."--driver_version"]
 status = "implemented"
 rust = "BrowserConfig::with_driver_version"
-note = "browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/, or msedgedriver-<version>/ for Edge. geckodriver takes no version here: one geckodriver drives many Firefox versions, and `sbrs get geckodriver VERSION` pins one."
+note = "browser, mlatest (the newest build of the browser's major version), latest, stable, beta, dev, canary, keep (a driver already downloaded or on the PATH), previous or latest-1 (the major before the stable one), a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/, or msedgedriver-<version>/ for Edge. geckodriver takes no version here: one geckodriver drives many Firefox versions, and `sbrs get geckodriver VERSION` pins one."
 
 [options_pytest."--dws"]
 status = "implemented"
@@ -5099,19 +5099,19 @@ rust = "BrowserConfig::with_page_load_strategy"
 note = "The `pageLoadStrategy` capability: normal, eager or none."
 
 [options_pytest."--port"]
-status = "composed"
-rust = "BrowserConfig::webdriver_url"
-note = "Give the full WebDriver URL instead of its parts."
+status = "implemented"
+rust = "BrowserConfig::with_grid"
+note = "`with_grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL."
 
 [options_pytest."--protocol"]
-status = "composed"
-rust = "BrowserConfig::webdriver_url"
-note = "Give the full WebDriver URL instead of its parts."
+status = "implemented"
+rust = "BrowserConfig::with_grid"
+note = "`with_grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL."
 
 [options_pytest."--proxy"]
 status = "implemented"
 rust = "BrowserConfig::proxy"
-divergence = "SERVER:PORT only: a WebDriver session cannot log in to a proxy, so USER:PASS@SERVER:PORT does not authenticate. The pure CDP engine can (LaunchOptionsBuilder::proxy)."
+divergence = "Checked as Python checks it (schemes http, https, socks4, socks5, socks5h; a SOCKS proxy takes no login). Chrome is never given the login in its arguments, and a WebDriver session does not answer the proxy's login yet, so USER:PASS@SERVER:PORT does not authenticate there; Firefox refuses a login with Python's message. The pure CDP engine can log in (LaunchOptionsBuilder::proxy)."
 
 [options_pytest."--proxy-bypass-list"]
 status = "implemented"
@@ -5126,7 +5126,7 @@ note = "Downloads of the driver, and of the Chrome for Testing builds, go throug
 [options_pytest."--proxy-pac-url"]
 status = "implemented"
 rust = "BrowserConfig::proxy_pac_url"
-divergence = "URL only: a WebDriver session cannot log in to a proxy, so USERNAME:PASSWORD@URL does not authenticate."
+divergence = "The URL must end in .pac, with a login before it or in it. Chrome is never given the login, and a WebDriver session does not answer the PAC login yet, so it does not authenticate there; Firefox refuses a login with Python's message."
 
 [options_pytest."--proxy-server"]
 status = "composed"
@@ -5208,22 +5208,22 @@ note = "`RecorderSession::install(&sb)` injects the page recorder, so clicks and
 [options_pytest."--remote-debug"]
 status = "implemented"
 rust = "BrowserConfig::with_remote_debug"
-note = "Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another."
+note = "Opens Chrome's debugger on port 9222, or on a free port when 9222 is in use; `with_remote_debug_port` names another and refuses it when it is in use; `BrowserSession::remote_debug_address` says where it listens."
 
 [options_pytest."--remote-debugger"]
 status = "implemented"
 rust = "BrowserConfig::with_remote_debug"
-note = "Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another."
+note = "Opens Chrome's debugger on port 9222, or on a free port when 9222 is in use; `with_remote_debug_port` names another and refuses it when it is in use; `BrowserSession::remote_debug_address` says where it listens."
 
 [options_pytest."--remote_debug"]
 status = "implemented"
 rust = "BrowserConfig::with_remote_debug"
-note = "Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another."
+note = "Opens Chrome's debugger on port 9222, or on a free port when 9222 is in use; `with_remote_debug_port` names another and refuses it when it is in use; `BrowserSession::remote_debug_address` says where it listens."
 
 [options_pytest."--remote_debugger"]
 status = "implemented"
 rust = "BrowserConfig::with_remote_debug"
-note = "Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another."
+note = "Opens Chrome's debugger on port 9222, or on a free port when 9222 is in use; `with_remote_debug_port` names another and refuses it when it is in use; `BrowserSession::remote_debug_address` says where it listens."
 
 [options_pytest."--reuse-class-session"]
 status = "implemented"
@@ -5276,9 +5276,9 @@ rust = "BaseCase::save_teardown_screenshot"
 note = "Call it at the end of a test."
 
 [options_pytest."--server"]
-status = "composed"
-rust = "BrowserConfig::webdriver_url"
-note = "Give the full WebDriver URL instead of its parts."
+status = "implemented"
+rust = "BrowserConfig::with_grid"
+note = "`with_grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL."
 
 [options_pytest."--settings"]
 status = "composed"
@@ -5620,8 +5620,8 @@ status = "composed"
 rust = "BrowserConfig::user_agent"
 
 [options_sb."binary_location"]
-status = "composed"
-rust = "BrowserConfig::browser_binary_path"
+status = "implemented"
+rust = "BrowserConfig::with_binary_location"
 
 [options_sb."block_images"]
 status = "implemented"
@@ -5721,7 +5721,7 @@ note = "Chrome's `enable_do_not_track` preference, or Firefox's `privacy.donottr
 [options_sb."driver_version"]
 status = "implemented"
 rust = "BrowserConfig::with_driver_version"
-note = "browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/."
+note = "browser, mlatest (the newest build of the browser's major version), latest, stable, beta, dev, canary, keep (a driver already downloaded or on the PATH), previous or latest-1 (the major before the stable one), a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/."
 
 [options_sb."enable_3d_apis"]
 status = "implemented"
@@ -5874,9 +5874,9 @@ rust = "BrowserConfig::with_page_load_strategy"
 note = "The `pageLoadStrategy` capability: normal, eager or none."
 
 [options_sb."port"]
-status = "composed"
-rust = "BrowserConfig::webdriver_url"
-note = "Give the full WebDriver URL instead of its parts."
+status = "implemented"
+rust = "BrowserConfig::with_grid"
+note = "`with_grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL."
 
 [options_sb."position"]
 status = "implemented"
@@ -5884,14 +5884,14 @@ rust = "BrowserConfig::with_window_position"
 note = "Chrome's `--window-position`; a Firefox window is moved once it runs."
 
 [options_sb."protocol"]
-status = "composed"
-rust = "BrowserConfig::webdriver_url"
-note = "Give the full WebDriver URL instead of its parts."
+status = "implemented"
+rust = "BrowserConfig::with_grid"
+note = "`with_grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL."
 
 [options_sb."proxy"]
 status = "implemented"
 rust = "BrowserConfig::proxy"
-divergence = "SERVER:PORT only: a WebDriver session cannot log in to a proxy, so USER:PASS@SERVER:PORT does not authenticate. The pure CDP engine can (LaunchOptionsBuilder::proxy)."
+divergence = "Checked as Python checks it (schemes http, https, socks4, socks5, socks5h; a SOCKS proxy takes no login). Chrome is never given the login in its arguments, and a WebDriver session does not answer the proxy's login yet, so USER:PASS@SERVER:PORT does not authenticate there; Firefox refuses a login with Python's message. The pure CDP engine can log in (LaunchOptionsBuilder::proxy)."
 
 [options_sb."proxy_bypass_list"]
 status = "implemented"
@@ -5901,7 +5901,7 @@ note = "Chrome's `--proxy-bypass-list`. It applies to a proxy named with `proxy`
 [options_sb."proxy_pac_url"]
 status = "implemented"
 rust = "BrowserConfig::proxy_pac_url"
-divergence = "URL only: a WebDriver session cannot log in to a proxy, so USERNAME:PASSWORD@URL does not authenticate."
+divergence = "The URL must end in .pac, with a login before it or in it. Chrome is never given the login, and a WebDriver session does not answer the PAC login yet, so it does not authenticate there; Firefox refuses a login with Python's message."
 
 [options_sb."raise_test_failure"]
 status = "not-applicable"
@@ -5941,7 +5941,7 @@ note = "Loads the bundled SeleniumBase Recorder extension. Chromium only."
 [options_sb."remote_debug"]
 status = "implemented"
 rust = "BrowserConfig::with_remote_debug"
-note = "Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another."
+note = "Opens Chrome's debugger on port 9222, or on a free port when 9222 is in use; `with_remote_debug_port` names another and refuses it when it is in use; `BrowserSession::remote_debug_address` says where it listens."
 
 [options_sb."rtf"]
 status = "not-applicable"
@@ -5953,14 +5953,14 @@ rust = "BaseCase::save_teardown_screenshot"
 note = "Call it at the end of a test."
 
 [options_sb."server"]
-status = "composed"
-rust = "BrowserConfig::webdriver_url"
-note = "Give the full WebDriver URL instead of its parts."
+status = "implemented"
+rust = "BrowserConfig::with_grid"
+note = "`with_grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL."
 
 [options_sb."servername"]
-status = "composed"
-rust = "BrowserConfig::webdriver_url"
-note = "Give the full WebDriver URL, with the Grid's host in it."
+status = "implemented"
+rust = "BrowserConfig::with_grid"
+note = "The server name may carry a login (`USER:KEY@hub.browserstack.com`), which stays in the WebDriver URL; see `with_grid`."
 
 [options_sb."settings_file"]
 status = "composed"
