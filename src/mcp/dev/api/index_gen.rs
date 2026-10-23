@@ -4,7 +4,7 @@
 //! `impl` of `BaseCase` (anywhere in `src/`) and of the pure CDP engine's
 //! `Browser`, `Page`, `Locator` and `BrowserContext` (in `src/sb_cdp/`), with
 //! the signature as written, the first paragraph of the doc comment and the
-//! `async`, `deprecated` and feature facts.
+//! `async` and feature facts.
 //!
 //! `the_committed_api_index_matches_the_source` fails when the committed file
 //! is stale; `SB_UPDATE_API_INDEX=1 cargo test --features mcp-server api_index`
@@ -140,10 +140,6 @@ fn one_line(signature: &str) -> String {
         .replace(" )", ")")
 }
 
-fn deprecated(attrs: &[Attribute]) -> bool {
-    attrs.iter().any(|attr| attr.path().is_ident("deprecated"))
-}
-
 fn owner_of(ty: &Type) -> Option<String> {
     match ty {
         Type::Path(path) => path.path.segments.last().map(|s| s.ident.to_string()),
@@ -191,7 +187,6 @@ fn collect(
                         signature,
                         doc: first_paragraph(&method.attrs),
                         is_async: method.sig.asyncness.is_some(),
-                        deprecated: deprecated(&method.attrs),
                         file: file.to_owned(),
                         feature: cfg_feature(&method.attrs).or_else(|| impl_feature.clone()),
                     });
@@ -376,10 +371,9 @@ impl BaseCase {
     }
 
     #[test]
-    fn deprecation_and_features_are_recorded() {
+    fn features_are_recorded() {
         let source = r#"
 impl BaseCase {
-    #[deprecated(note = "use open")]
     pub fn goto(&self) {}
     #[cfg(feature = "pdf")]
     pub fn pdf_text(&self) {}
@@ -393,9 +387,7 @@ impl BaseCase {
 "#;
         let entries = indexed(source, &["BaseCase"]);
         let by_name = |name: &str| entries.iter().find(|e| e.name == name).unwrap();
-        assert!(by_name("goto").deprecated);
         assert_eq!(by_name("goto").feature, None);
-        assert!(!by_name("pdf_text").deprecated);
         assert_eq!(by_name("pdf_text").feature.as_deref(), Some("pdf"));
         assert_eq!(by_name("gui_click").feature.as_deref(), Some("gui"));
         assert_eq!(by_name("read_screen").feature.as_deref(), Some("ocr"));

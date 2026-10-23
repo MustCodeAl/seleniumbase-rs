@@ -44,8 +44,6 @@ pub(super) struct ApiEntry {
     pub doc: String,
     /// Whether the method is `async`.
     pub is_async: bool,
-    /// Whether the method is marked `#[deprecated]`.
-    pub deprecated: bool,
     /// The source file, relative to the repository.
     pub file: String,
     /// The cargo feature the method needs, if it needs one.
@@ -69,8 +67,8 @@ pub(super) fn tools() -> Vec<ToolDef<NoBrowser>> {
              and the pure CDP engine (Browser, Page, Locator, BrowserContext). Ranks an exact \
              name first, then names that contain the query, then methods whose name, type or \
              documentation mention every word. Each match has its type, full signature, the \
-             first paragraph of its documentation, whether it is async, and whether it is \
-             deprecated. The index is the one of this build.",
+             first paragraph of its documentation, and whether it is async. The index is \
+             the one of this build.",
             Effect::Inspect,
             Schema::new()
                 .required(
@@ -189,7 +187,6 @@ pub(super) fn search<'a>(index: &'a [ApiEntry], query: &str, engine: &str) -> Op
     matches.sort_by(|(a_score, a), (b_score, b)| {
         b_score
             .cmp(a_score)
-            .then_with(|| a.deprecated.cmp(&b.deprecated))
             .then_with(|| a.engine.cmp(&b.engine))
             .then_with(|| a.owner.cmp(&b.owner))
             .then_with(|| a.name.cmp(&b.name))
@@ -416,7 +413,6 @@ mod tests {
             signature: format!("pub async fn {name}(&self)"),
             doc: doc.into(),
             is_async: true,
-            deprecated: false,
             file: "src/x.rs".into(),
             feature: None,
         }
