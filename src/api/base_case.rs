@@ -19,7 +19,10 @@ use crate::api::master_qa::{MasterQA, MasterQaSession};
 use crate::api::page_scripts::{self, TextMatch};
 #[cfg(feature = "pdf")]
 use crate::api::pdf;
-use crate::api::recorder::{ActionRecorder, RecordedAction, RecorderSession};
+use crate::api::recorder::{
+    ActionRecorder, RawAction, RecordedAction, RecorderEnd, RecorderSession, RecorderState,
+    RecordingFormat, RecordingOptions, RecordingTarget, SavedRecording,
+};
 use crate::api::run_settings::{PauseKind, RunSettings, HEADLESS_MESSAGE_CAP};
 use crate::api::tour::{Tour, TourTheme};
 use crate::artifacts::{artifact_path, ensure_latest_logs_dir};
@@ -92,6 +95,8 @@ pub struct BaseCase {
     /// The pages [`BaseCase::set_content_to_frame`] replaced, oldest first, for
     /// [`BaseCase::set_content_to_default`] to bring back.
     swapped_pages: Vec<SwappedPage>,
+    /// What Recorder Mode keeps while it is on (see `base_case_impl_recorder`).
+    recording: RecorderState,
 }
 
 impl BaseCase {
@@ -107,8 +112,16 @@ impl BaseCase {
     #[instrument(skip(config))]
     pub async fn new(config: BrowserConfig) -> Result<Self, SeleniumBaseError> {
         info!(browser = ?config.browser, headless = config.headless, "creating BaseCase");
+        Self::check_recorder_browser(&config)?;
+
         let session = BrowserSession::connect(config.clone()).await?;
         let mut case = Self::with_session(config, session);
+        if let Err(error) = case.start_recorder().await {
+            // Do not leave a browser running that nobody holds.
+            let _ = case.quit().await;
+            return Err(error);
+        }
+
         if case.config.start_page.is_some() {
             if let Err(error) = case.open_start_page().await {
                 // Do not leave a browser running that nobody holds.
@@ -159,6 +172,7 @@ impl BaseCase {
             #[cfg(any(test, feature = "test-util"))]
             demo_pauses_made: Mutex::new(Vec::new()),
             swapped_pages: Vec::new(),
+            recording: RecorderState::default(),
         }
     }
 
@@ -2049,6 +2063,8 @@ impl BaseCase {
     #[instrument(skip(self))]
     pub async fn quit(&mut self) -> Result<(), SeleniumBaseError> {
         info!("quitting BaseCase");
+        self.finish_recording_at_quit().await;
+
         #[cfg(feature = "playwright")]
         let playwright_closed = match self.playwright_session.take() {
             Some(playwright) => playwright.close().await,
@@ -2304,12 +2320,6 @@ impl BaseCase {
 
     pub async fn execute_active_css_js(&mut self) -> Result<(), SeleniumBaseError> {
         let js = crate::stealth::js::active_css_js::get_active_css_js();
-        self.execute_script(js).await?;
-        Ok(())
-    }
-
-    pub async fn activate_recorder(&mut self) -> Result<(), SeleniumBaseError> {
-        let js = crate::stealth::js::recorder_js::get_recorder_js();
         self.execute_script(js).await?;
         Ok(())
     }
@@ -3284,6 +3294,7 @@ include!("base_case_impls/base_case_impl_addon.rs");
 include!("base_case_impls/base_case_impl_parity.rs");
 include!("base_case_impls/base_case_impl_esc.rs");
 include!("base_case_impls/base_case_impl_rec_cdp.rs");
+include!("base_case_impls/base_case_impl_recorder.rs");
 include!("base_case_impls/base_case_impl_fingerprint.rs");
 include!("base_case_impls/base_case_impl_debug.rs");
 include!("base_case_impls/base_case_impl_test_data.rs");

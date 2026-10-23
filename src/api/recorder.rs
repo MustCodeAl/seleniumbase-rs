@@ -32,6 +32,20 @@ mod generate;
 mod process;
 mod raw;
 
+mod breakpoint;
+mod extras;
+mod output;
+mod state;
+
+pub(crate) use breakpoint::{run_prompt, BreakpointExit, WATCH_TICK};
+pub(crate) use extras::{extra_raw_actions, origin_of, recordable};
+pub use output::{
+    write_recording, RecordingFormat, RecordingOptions, RecordingTarget, SavedRecording,
+    RECORDINGS_FOLDER,
+};
+pub use state::RecorderEnd;
+pub(crate) use state::RecorderState;
+
 pub use generate::to_actions;
 pub use process::{add_parent_frame_switches, process};
 pub use raw::RawAction;
@@ -60,6 +74,29 @@ pub fn recorder_injection() -> String {
         "if (!document.__sbRecorderHooked) {{ document.__sbRecorderHooked = true; \
          window.addEventListener('load', function () {{\n{RECORDER_JS}\n}}); }}"
     )
+}
+
+/// Pauses the test with the browser open so a person can record by hand: the
+/// function form of [`BaseCase::recorder_breakpoint`](crate::BaseCase::recorder_breakpoint),
+/// for a test that reads best with the breakpoint as a plain call.
+///
+/// ```no_run
+/// use seleniumbase_rs::api::recorder::recorder_breakpoint;
+/// # async fn demo(sb: &mut seleniumbase_rs::BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+/// sb.open("https://example.com").await?;
+/// recorder_breakpoint(sb, "Click what you want to test").await?;
+/// # Ok(())
+/// # }
+/// ```
+///
+/// # Errors
+///
+/// See [`BaseCase::recorder_breakpoint`](crate::BaseCase::recorder_breakpoint).
+pub async fn recorder_breakpoint(
+    sb: &mut BaseCase,
+    message: &str,
+) -> Result<(), SeleniumBaseError> {
+    sb.recorder_breakpoint(message).await
 }
 
 use serde::{Deserialize, Serialize};

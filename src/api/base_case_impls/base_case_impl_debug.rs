@@ -68,14 +68,6 @@ impl BaseCase {
         .await
     }
 
-    /// Whether a recording window is open ([`start_recording`](Self::start_recording)),
-    /// which generated recorder tests check before they call
-    /// [`breakpoint`](Self::breakpoint) so a person can record by hand.
-    #[must_use]
-    pub fn recorder_mode(&self) -> bool {
-        self.is_recording()
-    }
-
     /// Pauses at `prompt` as `kind`, adds the time spent there to the time
     /// limit, and turns a quit into an error.
     pub(crate) async fn pause_at<I, W>(
@@ -287,12 +279,13 @@ mod debug_prompt_tests {
     }
 
     #[test]
-    fn recorder_mode_follows_the_recording_window() {
+    fn recorder_mode_follows_the_configuration_and_not_the_recording_window() {
         let mut sb = BaseCase::without_session(BrowserConfig::default());
         assert!(!sb.recorder_mode());
-
         sb.start_recording();
+        assert!(!sb.recorder_mode(), "a recording window is not Recorder Mode");
 
-        assert!(sb.recorder_mode());
+        let on = BaseCase::without_session(BrowserConfig::default().with_recorder_mode(true));
+        assert!(on.recorder_mode());
     }
 }
