@@ -127,7 +127,7 @@ from what the browser would build (a date formatted in two time zones, a random
 id, a value that depends on `window`), the framework warns in the console and may
 rebuild the part of the page, discarding what a test just typed. A `Console`
 error about hydration in a test run is worth reading (see
-[Developer tools](/concepts/developer-tools)).
+Developer tools).
 
 ## Web Components and the shadow DOM
 
@@ -166,7 +166,7 @@ the usual reasons are these:
 reports invalid syntax, no match, matches that are hidden, off screen, disabled
 or covered, matches inside an iframe or a shadow root, and near misses such as a
 similar id. `suggest_selectors` proposes ones that work and `inspect_page` outlines the
-page. See [Developer tools](/concepts/developer-tools#how-seleniumbase-rs-fits-in).
+page. See Developer tools.
 
 ## Stable strategies
 

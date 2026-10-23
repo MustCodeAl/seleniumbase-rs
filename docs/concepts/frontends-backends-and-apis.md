@@ -309,7 +309,7 @@ Most new APIs use JSON, but XML is far from gone. You meet it in:
 - **RSS and Atom** feeds, the XML lists of recent posts that readers and
   podcast apps poll.
 - **Sitemaps** (`sitemap.xml`), the XML list of a site's URLs that search
-  engines read (see [Crawlers and spiders](/concepts/crawlers-and-spiders)).
+  engines read (see Crawlers and spiders).
 - **SVG** images. An SVG is XML, and when it is inlined in a page its elements
   (`svg`, `path`, `circle`) become part of the DOM, in their own XML namespace.
 - **XHTML**, HTML written as strict XML and served as `application/xhtml+xml`.
@@ -396,7 +396,7 @@ For tests this explains two kinds of flakiness. A page may show an old
 version after a deploy because an edge still holds the old HTML. And a test that
 runs twice may behave differently the second time because the browser cache
 is warm. Browser developer tools have a "Disable cache" box for this (see
-[Developer tools](/concepts/developer-tools)), CDP has `Network.setCacheDisabled`, and a
+Developer tools), CDP has `Network.setCacheDisabled`, and a
 fresh browser context starts with an empty cache (see
 [Sessions, cookies and storage](/concepts/sessions-and-state)). Response headers such as `Age`,
 `X-Cache` or `CF-Cache-Status` tell you whether an answer came from a cache.
