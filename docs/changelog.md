@@ -31,80 +31,62 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ## All releases
 
-<Update label="Unreleased" description="Next release" tags={["New"]}>
+<Update label="Unreleased" description="Next release" tags={["New", "Fix"]}>
 
 ### Breaking
 
-- **`Browser` and `DriverVersion` have new variants.** `Browser::Remote` (`--browser=remote`) and
-  `DriverVersion::{Keep, Previous}`: a `match` on either needs the new arms.
-  `BrowserConfig::with_grid` returns a `Result`, because an empty server name is an error.
-- **Chrome is no longer given a proxy login.** `--proxy=user:pass@host:port` used to put
-  `user:pass@host:port` in `--proxy-server`, where Chrome reads no login and the process list
-  shows it; Chrome now gets `--proxy-server=host:port`. A WebDriver session answers the proxy's
-  login another way (see Added).
+- **`RunSettings` no longer implements `Eq`.** It now holds the timeout multiplier, a
+  floating-point number; `PartialEq` stays.
+- **`set_jqc_theme` and `reset_jqc_theme` are synchronous and keep the theme in the case.**
+  `set_jqc_theme(theme, color, width)` takes Python's three arguments (`color` and `width` are
+  `Option<&str>`), checks them with Python's messages and stores them for the next `get_jqc_*`
+  dialogs; it no longer writes `jconfirm.defaults.theme` into the page and takes `&mut self`.
+  `reset_jqc_theme()` really brings back the factory theme (`bootstrap`, `blue`, `38%`, not
+  `light`); Python's does nothing. Unlike Python's process-wide setting, the theme belongs to the
+  case.
 
 ### Added
 
-- **A WebDriver session logs in to a proxy that asks for a password.** `--proxy=user:pass@host:port`
-  (or a PAC URL with a login) now works with Chrome, Edge and the other Chromium browsers on a
-  chromedriver this machine runs, as the pure CDP engine already did. Python SeleniumBase writes a
-  browser extension for it, which Chrome no longer loads from the command line; this crate attaches
-  a DevTools client beside chromedriver (the `debuggerAddress` of the session's capabilities) that
-  turns `Fetch` on in every tab, also one the page opens or a WebDriver new window, and answers the
-  proxy's `407` with the login. A website's own `401` is never given the proxy account, and the
-  login is neither in the browser's command line nor in an error message. The client closes with the
-  session (and is started again for each lease with `--reuse-session`). A remote grid with a proxy
-  login is refused when the session connects, before a browser starts, because the grid does not
-  share its browser's DevTools endpoint: use the grid's proxy capability (`--cap-string`) or a proxy
-  without a login.
+- **The Python page and wait options are in `RunSettings`:** `with_highlights` (`--highlights`,
+  zero is unset, `DEFAULT_HIGHLIGHT_LOOPS` is 4), `with_interval` (`--interval`, zero is unset),
+  `with_verify_delay` (`--verify-delay`, `DEFAULT_VERIFY_DELAY` is 500 ms), `with_check_js`
+  (`--check-js`), `with_wait_for_angularjs` (`--wfa`), `with_disable_beforeunload`
+  (`--disable-beforeunload`) and `with_timeout_multiplier` (`--timeout-multiplier`), each with a
+  getter. The highlight count, the interval and the verify delay are held for the highlight
+  calls, the tours and presentations, and MasterQA, which do not read them yet.
+- **`open`, `go_back`, `go_forward`, `refresh` and `wait_for_ready_state_complete` run the page-load
+  hooks the settings ask for:** the AngularJS wait, the check of the browser log for severe
+  JavaScript errors and the switch-off of the `beforeunload` dialog (the last two on Chromium
+  browsers only). `--skip-js-waits` skips all three. A click waits for AngularJS too under `--wfa`.
+- **`--timeout-multiplier` scales the default wait:** `ceil(multiplier * seconds)` for every wait
+  that names no time of its own, `set_timeout` included; a time a call names is kept, as in
+  Python. A multiplier below 0.5 is raised to 0.5 and one that is not a finite number is ignored.
+  `RunSettings::scale_timeout` gives the scaled time.
+- **`api::call::CallFuture` is the future of the call builders:** an async method that takes
+  Python's keyword arguments will return a builder whose methods set the keywords and whose
+  `.await` runs the call, so `sb.method(arg).await?` keeps working. The empty modules
+  `api::demo` and `api::messages` are where the demo mode and Messenger
+  work will go.
+- **jquery-confirm dialog boxes: `get_jqc_button_input`, `get_jqc_text_input` and
+  `get_jqc_form_inputs`.** Each opens a themed dialog in the page, waits for the person and returns
+  what was clicked or typed (`api::jqc`). They are call builders: `.options([("theme", "material"),
+  ("width", "52%")])` is Python's `options`, `.button(("Send", "green"))` is the text input's
+  `button`, and `.theme`, `.color` and `.width` take the typed `JqcTheme`, `JqcColor` and
+  `JqcWidth`. A button is a text, a text and a colour (`("Yes", "green")`) or a `JqcButton`; one
+  button answers to Enter, `y` and `1`, several to `y` for `Yes`, `n` for `No` and their numbers.
+  The arguments are checked with Python's messages. In a headless browser or on a virtual display
+  no dialog opens and no script is sent: the calls return the text of the last button, `""` and
+  `("", last button text)`, as Python does. A dialog waits as long as the person takes; the test's
+  time limit ends the wait, and so does a page that goes away, with an error that says the dialog
+  closed without an answer. `BaseCase::jqc_defaults` reads the stored theme.
+- **`BaseCase::with_somebody_watching` (feature `test-util`)** makes a headless case behave as if a
+  person watches, so a test can play the person for the dialogs that wait for one.
 
-- **The pure CDP engine takes the browser options of the WebDriver engine.**
-  `LaunchOptionsBuilder::mobile` and `device_metrics` make every tab, the first and each one
-  opened later, a phone: `Emulation.setDeviceMetricsOverride` with `mobile: true` (390 by 715
-  at a ratio of 3 unless metrics are given), five touch points, and the `Android` user agent
-  with matching client hints. `dark_mode`, `devtools`, `disable_web_security`, `swiftshader`,
-  `maximize`, `disable_features`, `enable_features`, `host_resolver_rules`,
-  `proxy_bypass_list`, `proxy_pac_url` (a login the PAC file asks for is answered over the
-  protocol), `virtual_display` (Xvfb, Linux, headed) and `switch(LaunchSwitch, bool)` are
-  public. `switch` writes `BlockImages`, `DisableJavaScript`, `DisableCookies`, `DoNotTrack`
-  and `ExternalPdf` as profile preferences, makes `DisableCsp` call `Page.setBypassCSP` in
-  every tab, and logs at debug level the switches that only the WebDriver engine can use.
-  A maximized window gets no `--window-size`, a headless browser neither developer tools nor
-  a maximized window, and this engine never switches the GPU off by itself.
-  `LaunchOptionsBuilder::browser_config(&BrowserConfig)` reads everything of a
-  `BrowserConfig` that the engine can use, as Python's `sb_cdp.Chrome(**kwargs)` reads its
-  options, and lists at debug level what it cannot (page load strategy, capabilities, driver
-  version, Firefox options, the DevTools event log, extension archives); a bad proxy or PAC
-  address fails `build()` as it fails the WebDriver engine. `build()` refuses `mobile` together
-  with a `fingerprint`, which both set the screen and the user agent.
-- **`Emulation` changes a running tab.** `device_metrics(metrics, mobile)`,
-  `clear_device_metrics()`, `touch(enabled)` and `color_scheme(ColorScheme)` (`Light`,
-  `Dark`, `NoPreference`: what `prefers-color-scheme` reports).
+### Fixed
 
-- **Proxies are checked the way Python checks them.** `browser::options::ProxyAddress`
-  (`[scheme://][user:pass@]host:port`, schemes `http`, `https`, `socks4`, `socks5`, `socks5h`),
-  `ProxyScheme` and `PacUrl` (`[user:pass@]URL`, which must end in `.pac`) refuse a bad string
-  with the password hidden (`user:***@`), and so do their `Debug` and `Display`. Firefox gets
-  `network.proxy.*` preferences from a proxy, a PAC file and the bypass list; a login on a Firefox
-  proxy, or on a SOCKS proxy, is refused with Python's message. `BrowserConfig::validate()` runs
-  these checks (and the `--browser=remote` ones) before a browser starts; `BrowserSession::connect`
-  calls it.
-- **Selenium Grid addresses.** `browser::options::grid_url` and `GridProtocol` build the WebDriver
-  URL Python's `get_remote_driver` builds (`USER:KEY@hub.browserstack.com` stays in the URL, an
-  `https://` server forces https, `/wd/hub` is added, a port the protocol already uses is left
-  out), and `BrowserConfig::with_grid(protocol, servername, port)` sets it (`localhost` keeps the
-  local driver). `BrowserConfig::with_binary_location` is Python's `binary_location`.
-- **`Browser::Remote`** (`--browser=remote`) sends the WebDriver server nothing but the
-  capabilities of `--cap-file` and `--cap-string`; mobile mode, switches and window geometry do not
-  apply to it.
-- **`DriverVersion` keywords `keep`, `previous` (`latest-1`) and `mlatest`.** `keep` runs a
-  chromedriver or msedgedriver that is already in `downloaded_drivers/` or on the `PATH` and
-  downloads one only when there is none; `previous` is the newest driver of the major version
-  before the stable one; `mlatest` is the newest build of the browser's own major version, which
-  `browser` already was.
-- **The remote debugger gives way.** `with_remote_debug(true)` takes a free port, and logs it, when
-  9222 is in use; a port named with `with_remote_debug_port` that is in use is an error
-  (`port N is already in use`). `BrowserSession::remote_debug_address()` says where it listens.
+- **A message stays at most 0.75 s on a virtual display too:** `post_message` and its relatives
+  cut the time when nobody watches, which is a headless browser or a headed one on Xvfb (Python:
+  `self.headless or self.xvfb`); a headed browser on Xvfb kept the long time before.
 
 </Update>
 
@@ -307,8 +289,8 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   capability, which a page can see, and sends the same phone over DevTools to every window
   (`BrowserSession::apply_mobile_emulation`: device metrics, five touch points and the user
   agent). Firefox, Safari and Internet Explorer log a warning and start as desktop browsers.
-  `MOBILE_USER_AGENT` is public in `browser::options`. The pure CDP engine gets the same
-  phone in every tab (see Added).
+  `MOBILE_USER_AGENT` is public in `browser::options`. The pure CDP engine is not changed
+  here.
 - **`headless1` runs `chrome-headless-shell`** for Chrome with no program of its own named
   (downloaded when missing); the undetected mode refuses it as it refuses the shell.
   `chrome-headless-shell` is always headless. `Chrome`'s locale is written `ar-EG` for

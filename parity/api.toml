@@ -797,16 +797,19 @@ status = "implemented"
 rust = "BaseCase::get_image_url"
 
 [basecase."get_jqc_button_input"]
-status = "not-applicable"
-reason = "JQuery-Confirm dialogs are a page UI; Rust uses native dialogs (show_prompt, show_confirm)."
+status = "implemented"
+rust = "BaseCase::get_jqc_button_input"
+note = "A call builder: await it, with Python's extra arguments as the builder methods (options, and button for the text input). A headless browser or a virtual display opens no dialog and returns Python's value at once."
 
 [basecase."get_jqc_form_inputs"]
-status = "not-applicable"
-reason = "JQuery-Confirm dialogs are a page UI; Rust uses native dialogs (show_prompt, show_confirm)."
+status = "implemented"
+rust = "BaseCase::get_jqc_form_inputs"
+note = "A call builder: await it, with Python's extra arguments as the builder methods (options, and button for the text input). A headless browser or a virtual display opens no dialog and returns Python's value at once."
 
 [basecase."get_jqc_text_input"]
-status = "not-applicable"
-reason = "JQuery-Confirm dialogs are a page UI; Rust uses native dialogs (show_prompt, show_confirm)."
+status = "implemented"
+rust = "BaseCase::get_jqc_text_input"
+note = "A call builder: await it, with Python's extra arguments as the builder methods (options, and button for the text input). A headless browser or a virtual display opens no dialog and returns Python's value at once."
 
 [basecase."get_link_attribute"]
 status = "implemented"
@@ -1373,6 +1376,7 @@ note = "Puts back the default wait from before set_default_timeout."
 [basecase."reset_jqc_theme"]
 status = "implemented"
 rust = "BaseCase::reset_jqc_theme"
+note = "Synchronous and per case (Python keeps the theme process-wide). It really resets the theme, border colour and width to bootstrap, blue and 38%; Python's version never does (upstream bug)."
 
 [basecase."reset_window_size"]
 status = "implemented"
@@ -1589,6 +1593,7 @@ rust = "BaseCase::set_introjs_colors"
 [basecase."set_jqc_theme"]
 status = "implemented"
 rust = "BaseCase::set_jqc_theme"
+note = "Takes (theme, color, width) as Python does and is synchronous. The settings are checked with Python's messages and kept per case, where Python keeps them process-wide; the next get_jqc_* dialogs are built from them and nothing is written into the page."
 
 [basecase."set_local_storage_item"]
 status = "implemented"

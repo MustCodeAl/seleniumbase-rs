@@ -46,6 +46,13 @@ work, `docs/parity.md` the per-API status).
 
 - **`RunSettings` no longer implements `Eq`.** It now holds the timeout multiplier, a
   floating-point number; `PartialEq` stays.
+- **`set_jqc_theme` and `reset_jqc_theme` are synchronous and keep the theme in the case.**
+  `set_jqc_theme(theme, color, width)` takes Python's three arguments (`color` and `width` are
+  `Option<&str>`), checks them with Python's messages and stores them for the next `get_jqc_*`
+  dialogs; it no longer writes `jconfirm.defaults.theme` into the page and takes `&mut self`.
+  `reset_jqc_theme()` really brings back the factory theme (`bootstrap`, `blue`, `38%`, not
+  `light`); Python's does nothing. Unlike Python's process-wide setting, the theme belongs to the
+  case.
 
 ### Added
 
@@ -294,8 +301,22 @@ work, `docs/parity.md` the per-API status).
 - **`api::call::CallFuture` is the future of the call builders:** an async method that takes
   Python's keyword arguments will return a builder whose methods set the keywords and whose
   `.await` runs the call, so `sb.method(arg).await?` keeps working. The empty modules
-  `api::demo`, `api::messages` and `api::jqc` are where the demo mode, Messenger and
-  jquery-confirm work will go.
+  `api::demo` and `api::messages` are where the demo mode and Messenger
+  work will go.
+- **jquery-confirm dialog boxes: `get_jqc_button_input`, `get_jqc_text_input` and
+  `get_jqc_form_inputs`.** Each opens a themed dialog in the page, waits for the person and returns
+  what was clicked or typed (`api::jqc`). They are call builders: `.options([("theme", "material"),
+  ("width", "52%")])` is Python's `options`, `.button(("Send", "green"))` is the text input's
+  `button`, and `.theme`, `.color` and `.width` take the typed `JqcTheme`, `JqcColor` and
+  `JqcWidth`. A button is a text, a text and a colour (`("Yes", "green")`) or a `JqcButton`; one
+  button answers to Enter, `y` and `1`, several to `y` for `Yes`, `n` for `No` and their numbers.
+  The arguments are checked with Python's messages. In a headless browser or on a virtual display
+  no dialog opens and no script is sent: the calls return the text of the last button, `""` and
+  `("", last button text)`, as Python does. A dialog waits as long as the person takes; the test's
+  time limit ends the wait, and so does a page that goes away, with an error that says the dialog
+  closed without an answer. `BaseCase::jqc_defaults` reads the stored theme.
+- **`BaseCase::with_somebody_watching` (feature `test-util`)** makes a headless case behave as if a
+  person watches, so a test can play the person for the dialogs that wait for one.
 
 ### Fixed
 

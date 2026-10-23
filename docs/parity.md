@@ -18,7 +18,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 
 | Surface | Total | implemented | composed | not-applicable | planned |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| [BaseCase methods](#basecase-methods) | 453 | 440 | 3 | 10 | 0 |
+| [BaseCase methods](#basecase-methods) | 453 | 443 | 3 | 7 | 0 |
 | [Driver methods](#driver-methods) | 79 | 77 | 2 | 0 | 0 |
 | [CDP Mode methods](#cdp-mode-methods) | 215 | 15 | 186 | 14 | 0 |
 | [Command-line commands](#command-line-commands) | 36 | 23 | 7 | 6 | 0 |
@@ -222,9 +222,9 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `get_gui_element_rect` | implemented | `BaseCase::get_gui_element_rect` |  |
 | `get_html` | implemented | `BaseCase::get_html` |  |
 | `get_image_url` | implemented | `BaseCase::get_image_url` |  |
-| `get_jqc_button_input` | not-applicable |  | JQuery-Confirm dialogs are a page UI; Rust uses native dialogs (show_prompt, show_confirm). |
-| `get_jqc_form_inputs` | not-applicable |  | JQuery-Confirm dialogs are a page UI; Rust uses native dialogs (show_prompt, show_confirm). |
-| `get_jqc_text_input` | not-applicable |  | JQuery-Confirm dialogs are a page UI; Rust uses native dialogs (show_prompt, show_confirm). |
+| `get_jqc_button_input` | implemented | `BaseCase::get_jqc_button_input` | A call builder: await it, with Python's extra arguments as the builder methods (options, and button for the text input). A headless browser or a virtual display opens no dialog and returns Python's value at once. |
+| `get_jqc_form_inputs` | implemented | `BaseCase::get_jqc_form_inputs` | A call builder: await it, with Python's extra arguments as the builder methods (options, and button for the text input). A headless browser or a virtual display opens no dialog and returns Python's value at once. |
+| `get_jqc_text_input` | implemented | `BaseCase::get_jqc_text_input` | A call builder: await it, with Python's extra arguments as the builder methods (options, and button for the text input). A headless browser or a virtual display opens no dialog and returns Python's value at once. |
 | `get_link_attribute` | implemented | `BaseCase::get_link_attribute` |  |
 | `get_link_status_code` | implemented | `BaseCase::get_link_status_code` |  |
 | `get_link_text_attribute` | implemented | `BaseCase::get_link_text_attribute` |  |
@@ -361,7 +361,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `remove_local_storage_item` | implemented | `BaseCase::remove_local_storage_item` |  |
 | `remove_session_storage_item` | implemented | `BaseCase::remove_session_storage_item` |  |
 | `reset_default_timeout` | implemented | `BaseCase::reset_default_timeout` | Puts back the default wait from before set_default_timeout. |
-| `reset_jqc_theme` | implemented | `BaseCase::reset_jqc_theme` |  |
+| `reset_jqc_theme` | implemented | `BaseCase::reset_jqc_theme` | Synchronous and per case (Python keeps the theme process-wide). It really resets the theme, border colour and width to bootstrap, blue and 38%; Python's version never does (upstream bug). |
 | `reset_window_size` | implemented | `BaseCase::reset_window_size` |  |
 | `right_click` | implemented | `BaseCase::right_click` |  |
 | `run` | not-applicable |  | unittest/pytest harness plumbing; the Rust runner (api::runner) owns the lifecycle. |
@@ -412,7 +412,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `set_content_to_parent_frame` | implemented | `BaseCase::set_content_to_parent_frame` | Same as set_content_to_parent. |
 | `set_default_timeout` | implemented | `BaseCase::set_default_timeout` | Raises or lowers how long actions wait by default; whole seconds, 1 to 60 (Python allows 0.5 to 60). |
 | `set_introjs_colors` | implemented | `BaseCase::set_introjs_colors` |  |
-| `set_jqc_theme` | implemented | `BaseCase::set_jqc_theme` |  |
+| `set_jqc_theme` | implemented | `BaseCase::set_jqc_theme` | Takes (theme, color, width) as Python does and is synchronous. The settings are checked with Python's messages and kept per case, where Python keeps them process-wide; the next get_jqc_* dialogs are built from them and nothing is written into the page. |
 | `set_local_storage_item` | implemented | `BaseCase::set_local_storage_item` |  |
 | `set_messenger_theme` | implemented | `BaseCase::set_messenger_theme` | Takes MessengerSettings (theme, location, max_messages; the defaults are Python's), or a MessengerTheme or MessengerLocation alone, and loads Messenger first. The pure-CDP engine has Page::set_messenger_theme with the same arguments. The old colour setter is BaseCase::set_messenger_color. Differs: BaseCase::post_message shows a plain box of its own, so the theme changes the Messenger widget (which the page or your script posts with) and not post_message's box. |
 | `set_session_storage_item` | implemented | `BaseCase::set_session_storage_item` |  |
