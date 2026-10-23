@@ -629,8 +629,6 @@ pub(crate) fn name_or_default(name: Option<&str>) -> &str {
 
 /// A value as JSON: a whole number as an integer, so that `90` is not `90.0`,
 /// and `null` for a value that is not a number.
-#[allow(clippy::cast_possible_truncation)]
-
 fn number(value: f64) -> Value {
     // The cast is exact: the value is whole and below 2^53.
     if value.is_finite() && value.fract() == 0.0 && value.abs() < 9_007_199_254_740_992.0 {
