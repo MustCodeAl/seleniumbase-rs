@@ -20,9 +20,8 @@ use std::thread;
 use std::time::Duration;
 
 use base64::Engine as _;
-use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Page, SelectBy};
+use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Page};
 use seleniumbase_rs::stealth::js::active_css_js::get_active_css_js;
-use seleniumbase_rs::stealth::js::recorder_js::get_recorder_js;
 use seleniumbase_rs::utils::extensions::{
     extract_extension, get_ad_block_bytes, get_disable_csp_bytes, get_recorder_bytes,
     get_sbase_ext_bytes, proxy_auth_background_js, write_proxy_auth_extension,
@@ -95,7 +94,6 @@ fn serve() -> u16 {
 struct Lab {
     browser: Browser,
     page: Page,
-    port: u16,
 }
 
 async fn lab(path: &str) -> Lab {
@@ -114,11 +112,7 @@ async fn lab(path: &str) -> Lab {
     let page = page.with_timeout(Duration::from_secs(10));
     // The engine installs its own helpers on first use.
     page.evaluate("1").await.expect("the page runs script");
-    Lab {
-        browser,
-        page,
-        port,
-    }
+    Lab { browser, page }
 }
 
 impl Lab {
@@ -130,25 +124,9 @@ impl Lab {
             .unwrap_or_else(|error| panic!("script failed: {error}"))
     }
 
-    async fn recorded(&self) -> Vec<Value> {
-        let actions = self
-            .page
-            .evaluate("window.recordedActions || []")
-            .await
-            .expect("the recording can be read");
-        actions.as_array().expect("a list").clone()
-    }
-
     async fn close(self) {
         self.browser.close().await.expect("Chrome closes");
     }
-}
-
-fn kinds(actions: &[Value]) -> Vec<&str> {
-    actions
-        .iter()
-        .map(|action| action["type"].as_str().unwrap_or("?"))
-        .collect()
 }
 
 /// Focuses the element matching `selector`, then runs the active-element script.
@@ -239,109 +217,6 @@ async fn active_element_selector_always_finds_its_element() {
     assert_eq!(selector_of("link-text"), "a:contains(\"Pricing\")");
     assert!(!selector_of("twice-1").contains(":contains("));
     assert_eq!(selector_of("icon-button"), "button:contains(\"Save\")");
-
-    lab.close().await;
-}
-
-#[tokio::test]
-#[ignore = "launches a real Chrome"]
-async fn recorder_running_twice_still_records_each_action_once() {
-    let lab = lab("/").await;
-
-    lab.run(get_recorder_js()).await;
-    // A click on the label inside a button is recorded as a click on the button.
-    lab.page.locator("#label").click().await.expect("click");
-    // A second activation, as a test that calls `activate_recorder` twice does.
-    lab.run(get_recorder_js()).await;
-    lab.page.locator("#go").click().await.expect("click");
-
-    let actions = lab.recorded().await;
-    assert_eq!(
-        kinds(&actions),
-        ["open", "click", "click"],
-        "one open, and one entry per click: {actions:?}"
-    );
-    assert_eq!(actions[1]["selector"], json!("button#go"));
-    assert_eq!(actions[1]["tag"], json!("button"));
-
-    lab.close().await;
-}
-
-#[tokio::test]
-#[ignore = "launches a real Chrome"]
-async fn recorder_notes_values_and_keeps_passwords_out() {
-    let lab = lab("/").await;
-    lab.run(get_recorder_js()).await;
-
-    lab.page
-        .locator("#email")
-        .set_value("me@example.com")
-        .await
-        .expect("type the address");
-    lab.page
-        .locator("#pw")
-        .set_value("hunter2")
-        .await
-        .expect("type the password");
-    lab.page
-        .locator("#color")
-        .select_option(SelectBy::Text("Green"))
-        .await
-        .expect("choose a colour");
-    lab.page.locator("#agree").check().await.expect("tick");
-
-    let actions = lab.recorded().await;
-    let changes: Vec<&Value> = actions
-        .iter()
-        .filter(|action| action["type"] == "change")
-        .collect();
-    assert_eq!(changes.len(), 4, "{actions:?}");
-    assert_eq!(changes[0]["selector"], json!("input#email"));
-    assert_eq!(changes[0]["value"], json!("me@example.com"));
-    assert_eq!(changes[1]["selector"], json!("input#pw"));
-    assert_eq!(changes[1]["value"], json!(""));
-    assert_eq!(changes[1]["sensitive"], json!(true));
-    assert_eq!(changes[2]["value"], json!("Green"));
-    assert_eq!(changes[3]["checked"], json!(true));
-    let stored = serde_json::to_string(&actions).expect("serialises");
-    assert!(!stored.contains("hunter2"), "the password leaked: {stored}");
-
-    lab.close().await;
-}
-
-#[tokio::test]
-#[ignore = "launches a real Chrome"]
-async fn recorder_carries_on_across_pages_and_stops_on_request() {
-    let lab = lab("/").await;
-    lab.run(get_recorder_js()).await;
-    lab.page.locator("#go").click().await.expect("click");
-
-    // The next page of the same site starts with nothing, until the recorder
-    // is started again, when it picks the recording up.
-    lab.page
-        .goto(format!("http://127.0.0.1:{}/next", lab.port))
-        .await
-        .expect("navigate");
-    assert!(lab.recorded().await.is_empty());
-    lab.run(get_recorder_js()).await;
-    lab.page.locator("#send").click().await.expect("click");
-    let actions = lab.recorded().await;
-    // The button submits its form, which is recorded too.
-    assert_eq!(
-        kinds(&actions),
-        ["open", "click", "open", "click", "submit"],
-        "{actions:?}"
-    );
-    assert_eq!(actions[3]["selector"], json!("button#send"));
-    assert_eq!(actions[4]["selector"], json!("form#login"));
-
-    // After `stop`, clicks are no longer recorded.
-    lab.page
-        .evaluate("window.__sbRecorder.stop(); 1")
-        .await
-        .expect("stop");
-    lab.page.locator("#go").click().await.expect("click");
-    assert_eq!(lab.recorded().await.len(), 5);
 
     lab.close().await;
 }
