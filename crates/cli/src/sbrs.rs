@@ -107,6 +107,52 @@ impl From<GridActionArg> for sb_grid::GridAction {
     }
 }
 
+/// The drivers `sbrs install` (and `sbrs get`) fetches.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, usage::ValueEnum)]
+enum DriverArg {
+    /// chromedriver, for Chrome.
+    Chromedriver,
+    /// geckodriver, for Firefox.
+    #[usage(alias = "firefoxdriver")]
+    Geckodriver,
+    /// msedgedriver, for Microsoft Edge.
+    #[usage(alias = "msedgedriver")]
+    Edgedriver,
+}
+
+impl From<DriverArg> for sb_install::DriverName {
+    fn from(value: DriverArg) -> Self {
+        match value {
+            DriverArg::Chromedriver => Self::Chromedriver,
+            DriverArg::Geckodriver => Self::Geckodriver,
+            DriverArg::Edgedriver => Self::Msedgedriver,
+        }
+    }
+}
+
+/// The words `sbrs install DRIVER <Tab>` offers for the version, each one a spelling
+/// `DriverVersion` reads (a test keeps it so). A major version such as `126` or a full build
+/// is accepted as well, but there are too many to list.
+const INSTALL_VERSIONS: [(&str, &str); 6] = [
+    ("browser", "the driver for the installed browser"),
+    ("stable", "the newest stable release"),
+    ("latest", "the newest stable release"),
+    ("beta", "the newest beta release"),
+    ("dev", "the newest dev release"),
+    ("canary", "the newest canary release"),
+];
+
+/// The completer of `sbrs install DRIVER VERSION`: the words of [`INSTALL_VERSIONS`].
+fn install_version_candidates<P>(
+    _partial: &P,
+    _ctx: &usage::complete::CompleteCtx<'_>,
+) -> Vec<usage::complete::Candidate<'static>> {
+    INSTALL_VERSIONS
+        .iter()
+        .map(|&(word, about)| usage::complete::Candidate::described(word, about))
+        .collect()
+}
+
 // The options of `sbrs prompt`.
 //
 // A struct of their own, not fields of the `Prompt` variant: the parser builds each
@@ -120,7 +166,7 @@ struct PromptArgs {
         long,
         value_name = "TEMPLATE",
         default = "{browser} {major} {driver}",
-        help = "The line to print; placeholders {browser} {major} {driver} {mark} {driver_major}, {{ and }} for braces"
+        value_hint = usage::ValueHint::Other, help = "The line to print; placeholders {browser} {major} {driver} {mark} {driver_major}, {{ and }} for braces"
     )]
     format: prompt::PromptFormat,
     #[usage(long, bool_value, help = "Mark the driver with + - ? instead of ✓ ✗ ?")]
@@ -178,6 +224,7 @@ enum PluginCommand {
 #[derive(Debug, usage::Args)]
 struct PluginInfoArgs {
     /// The plugin's name, as `sbrs plugin list` shows it.
+    #[usage(value_hint = usage::ValueHint::Other)]
     name: String,
 }
 
@@ -197,19 +244,19 @@ struct GridArgs {
     #[usage(long, value_name = "PATH", value_hint = usage::ValueHint::AnyPath)]
     java: Option<PathBuf>,
     /// The address to listen on.
-    #[usage(long = "grid-host", value_name = "HOST")]
+    #[usage(long = "grid-host", value_name = "HOST", value_hint = usage::ValueHint::Hostname)]
     host: Option<String>,
     /// The port to listen on (default: 4444 for a hub, 5555 for a node).
-    #[usage(long = "grid-port", value_name = "PORT")]
+    #[usage(long = "grid-port", value_name = "PORT", value_hint = usage::ValueHint::Other)]
     port: Option<u16>,
     /// For a node, the hub to register with: a host or a URL.
-    #[usage(long, value_name = "HOST_OR_URL")]
+    #[usage(long, value_name = "HOST_OR_URL", value_hint = usage::ValueHint::Other)]
     hub: Option<String>,
     /// Close sessions that have been idle this many seconds.
-    #[usage(long, value_name = "SECONDS")]
+    #[usage(long, value_name = "SECONDS", value_hint = usage::ValueHint::Other)]
     session_timeout: Option<u64>,
     /// How many seconds `start` waits for the Grid to become ready.
-    #[usage(long, value_name = "SECONDS", default = "60")]
+    #[usage(long, value_name = "SECONDS", default = "60", value_hint = usage::ValueHint::Other)]
     wait: u64,
     /// Log at INFO instead of WARNING.
     #[usage(long = "grid-verbose", bool_value)]
@@ -218,7 +265,7 @@ struct GridArgs {
     #[usage(long, bool_value)]
     skip_port_check: bool,
     /// More arguments for the Selenium Server, after `--`.
-    #[usage(double_dash = "required")]
+    #[usage(double_dash = "required", value_hint = usage::ValueHint::Other)]
     extra_args: Vec<String>,
 }
 
@@ -354,11 +401,11 @@ struct Cli {
         help = "Enable undetected-chromedriver style evasions"
     )]
     uc: bool,
-    #[usage(long, global, help = "Override the default user agent string")]
+    #[usage(long, global, value_hint = usage::ValueHint::Other, help = "Override the default user agent string")]
     user_agent: Option<String>,
-    #[usage(short = 'a', long, global, help = "Alias for --user-agent")]
+    #[usage(short = 'a', long, global, value_hint = usage::ValueHint::Other, help = "Alias for --user-agent")]
     agent: Option<String>,
-    #[usage(long, global, help = "Locale string for the browser context")]
+    #[usage(long, global, value_hint = usage::ValueHint::Other, help = "Locale string for the browser context")]
     locale: Option<String>,
     /// Page the browser opens first, Python's --start-page (aliases --url and --start_page)
     ///
@@ -398,25 +445,25 @@ struct Cli {
     #[usage(
         long,
         global,
-        help = "Proxy (host:port or scheme://host:port); with --proxy-list, a name from the list"
+        value_hint = usage::ValueHint::Other, help = "Proxy (host:port or scheme://host:port); with --proxy-list, a name from the list"
     )]
     proxy: Option<String>,
     #[usage(
         long,
         global,
         value_name = "FILE",
-        help = "File of proxies to choose from; without --proxy a random one is used"
+        value_hint = usage::ValueHint::FilePath, help = "File of proxies to choose from; without --proxy a random one is used"
     )]
     proxy_list: Option<String>,
-    #[usage(long, global, help = "URL to a proxy auto-config (PAC) file")]
+    #[usage(long, global, value_hint = usage::ValueHint::Url, help = "URL to a proxy auto-config (PAC) file")]
     proxy_pac_url: Option<String>,
     #[usage(
         long,
         global,
-        help = "Path to a persistent browser user-data directory"
+        value_hint = usage::ValueHint::DirPath, help = "Path to a persistent browser user-data directory"
     )]
     user_data_dir: Option<String>,
-    #[usage(long, global, help = "Path to an unpacked extension directory")]
+    #[usage(long, global, value_hint = usage::ValueHint::DirPath, help = "Path to an unpacked extension directory")]
     extension_dir: Option<String>,
     #[usage(
         long = "reuse-session",
@@ -461,10 +508,10 @@ struct Cli {
         short = 'n',
         long,
         global,
-        help = "Number of parallel threads for test runs"
+        value_hint = usage::ValueHint::Other, help = "Number of parallel threads for test runs"
     )]
     threads: Option<usize>,
-    #[usage(short = 'c', long, global, help = "Path to a TOML/JSON settings file")]
+    #[usage(short = 'c', long, global, value_hint = usage::ValueHint::FilePath, extensions("toml", "json"), help = "Path to a TOML/JSON settings file")]
     config: Option<String>,
     /// Make every browser the command starts present the fingerprint in FILE
     ///
@@ -481,7 +528,7 @@ struct Cli {
     /// Precedence, highest first: the command line, then SB_PLUGINS (which replaces the names
     /// the file enables), then the settings file. `sbrs plugin list` shows the plugins this
     /// build has. `sbrs test` passes the names on to the tests as SB_PLUGINS.
-    #[usage(long, global, value_name = "NAME")]
+    #[usage(long, global, value_name = "NAME", value_hint = usage::ValueHint::Other)]
     plugin: Vec<String>,
     /// Set one option of a plugin, NAME.KEY=VALUE with a TOML VALUE (repeatable)
     ///
@@ -491,7 +538,7 @@ struct Cli {
     /// precedence is the command line, then SB_PLUGINS, then the file. The plugin must be
     /// turned on by --plugin, SB_PLUGINS or the file. Not available for `sbrs test`: put
     /// the options in the [plugins.NAME] table of the settings file.
-    #[usage(long, global, value_name = "NAME.KEY=VALUE")]
+    #[usage(long, global, value_name = "NAME.KEY=VALUE", value_hint = usage::ValueHint::Other)]
     plugin_opt: Vec<String>,
     #[usage(subcommand)]
     command: Commands,
@@ -509,6 +556,7 @@ enum Commands {
     )]
     Open {
         /// URL to open in the browser.
+        #[usage(value_hint = usage::ValueHint::Url)]
         url: String,
     },
     /// Run a smoke test against a URL.
@@ -517,9 +565,9 @@ enum Commands {
         example = "sbrs smoke https://example.com --title-contains Example"
     )]
     Smoke {
-        #[usage(help = "URL to open or smoke-test")]
+        #[usage(value_hint = usage::ValueHint::Url, help = "URL to open or smoke-test")]
         url: String,
-        #[usage(long, help = "Expected substring in the page title")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "Expected substring in the page title")]
         title_contains: Option<String>,
     },
     /// Execute a Chrome DevTools Protocol command.
@@ -528,9 +576,9 @@ enum Commands {
         example = "sbrs cdp --cmd Browser.getVersion"
     )]
     Cdp {
-        #[usage(long, help = "CDP method name (e.g. Runtime.evaluate)")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CDP method name (e.g. Runtime.evaluate)")]
         cmd: String,
-        #[usage(long, help = "JSON object of CDP parameters")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "JSON object of CDP parameters")]
         params: Option<String>,
     },
     /// Clear the browser cache via CDP.
@@ -547,7 +595,7 @@ enum Commands {
     Screenshot {
         #[usage(
             long,
-            help = "Output image file path (default: a new file in latest_logs/)"
+            value_hint = usage::ValueHint::FilePath, extensions("png"), help = "Output image file path (default: a new file in latest_logs/)"
         )]
         path: Option<String>,
     },
@@ -559,7 +607,7 @@ enum Commands {
     SaveSource {
         #[usage(
             long,
-            help = "Output HTML file path (default: a new file in latest_logs/)"
+            value_hint = usage::ValueHint::FilePath, extensions("html", "htm"), help = "Output HTML file path (default: a new file in latest_logs/)"
         )]
         path: Option<String>,
     },
@@ -569,7 +617,7 @@ enum Commands {
         example = "sbrs --url https://example.com assert-element --css h1"
     )]
     AssertElement {
-        #[usage(long, help = "CSS selector for the target element")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
         css: String,
     },
     /// Wait until an element contains the expected text.
@@ -578,11 +626,11 @@ enum Commands {
         example = "sbrs --url https://example.com wait-for-text --css h1 --text 'Example Domain' --timeout 5"
     )]
     WaitForText {
-        #[usage(long, help = "CSS selector for the target element")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
         css: String,
-        #[usage(long, help = "Expected text substring to wait for")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "Expected text substring to wait for")]
         text: String,
-        #[usage(long, default = "10", help = "Maximum wait time in seconds")]
+        #[usage(long, default = "10", value_hint = usage::ValueHint::Other, help = "Maximum wait time in seconds")]
         timeout: u64,
     },
     /// Hover over an element.
@@ -591,7 +639,7 @@ enum Commands {
         example = "sbrs --url https://example.com hover --css h1"
     )]
     Hover {
-        #[usage(long, help = "CSS selector for the target element")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
         css: String,
     },
     /// Hover over one element, then click another.
@@ -600,9 +648,9 @@ enum Commands {
         example = "sbrs --url https://example.com hover-and-click --hover-css nav --click-css 'nav a'"
     )]
     HoverAndClick {
-        #[usage(long, help = "CSS selector to hover over")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector to hover over")]
         hover_css: String,
-        #[usage(long, help = "CSS selector to click")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector to click")]
         click_css: String,
     },
     /// Select an option from a dropdown.
@@ -611,11 +659,11 @@ enum Commands {
         example = "sbrs --url https://example.com select-option --css select --text Two"
     )]
     SelectOption {
-        #[usage(long, help = "CSS selector for the target element")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
         css: String,
-        #[usage(long, help = "Visible text of the option to select")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "Visible text of the option to select")]
         text: Option<String>,
-        #[usage(long, help = "Option value attribute")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "Option value attribute")]
         value: Option<String>,
     },
     /// Drag one element onto another.
@@ -624,9 +672,9 @@ enum Commands {
         example = "sbrs --url https://example.com drag-and-drop --source-css '#a' --target-css '#b'"
     )]
     DragAndDrop {
-        #[usage(long, help = "CSS selector of the element to drag")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector of the element to drag")]
         source_css: String,
-        #[usage(long, help = "CSS selector of the drop target")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector of the drop target")]
         target_css: String,
     },
     /// Click an element using CDP.
@@ -635,7 +683,7 @@ enum Commands {
         example = "sbrs --url https://example.com cdp-click-element --css a"
     )]
     CdpClickElement {
-        #[usage(long, help = "CSS selector for the target element")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
         css: String,
     },
     /// Type text using CDP input injection.
@@ -644,7 +692,7 @@ enum Commands {
         example = "sbrs --url https://example.com cdp-type-text --text hello"
     )]
     CdpTypeText {
-        #[usage(long, help = "Text to inject via CDP")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "Text to inject via CDP")]
         text: String,
     },
     /// Print the visible text of an element.
@@ -653,7 +701,7 @@ enum Commands {
         example = "sbrs --url https://example.com get-text --css h1"
     )]
     GetText {
-        #[usage(long, help = "CSS selector for the target element")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
         css: String,
     },
     /// Print an element attribute value.
@@ -662,9 +710,9 @@ enum Commands {
         example = "sbrs --url https://example.com get-attribute --css a --attribute href"
     )]
     GetAttribute {
-        #[usage(long, help = "CSS selector for the target element")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
         css: String,
-        #[usage(long, help = "Attribute name to read or assert")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "Attribute name to read or assert")]
         attribute: String,
     },
     /// Print an element property value.
@@ -673,9 +721,9 @@ enum Commands {
         example = "sbrs --url https://example.com get-property --css input --property value"
     )]
     GetProperty {
-        #[usage(long, help = "CSS selector for the target element")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
         css: String,
-        #[usage(long, help = "Property name to read")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "Property name to read")]
         property: String,
     },
 
@@ -723,7 +771,7 @@ enum Commands {
         example = "sbrs --url https://example.com type-alert-text --text hello"
     )]
     TypeAlertText {
-        #[usage(long, help = "Text to type into the alert prompt")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "Text to type into the alert prompt")]
         text: String,
     },
     /// Clear the page local storage.
@@ -738,7 +786,7 @@ enum Commands {
         example = "sbrs --url https://example.com get-local-storage-item --key theme"
     )]
     GetLocalStorageItem {
-        #[usage(long, help = "Storage key")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "Storage key")]
         key: String,
     },
     /// Set a local storage key/value pair.
@@ -747,9 +795,9 @@ enum Commands {
         example = "sbrs --url https://example.com --user-data-dir ./profile set-local-storage-item --key theme --value dark"
     )]
     SetLocalStorageItem {
-        #[usage(long, help = "Storage key")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "Storage key")]
         key: String,
-        #[usage(long, help = "Value to store in local storage")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "Value to store in local storage")]
         value: String,
     },
     /// Remove a local storage entry by key.
@@ -758,7 +806,7 @@ enum Commands {
         example = "sbrs --url https://example.com --user-data-dir ./profile remove-local-storage-item --key theme"
     )]
     RemoveLocalStorageItem {
-        #[usage(long, help = "Storage key")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "Storage key")]
         key: String,
     },
     /// Print all browser cookies as JSON.
@@ -773,12 +821,12 @@ enum Commands {
         example = "sbrs export-recording actions.json --output tests/login.rs"
     )]
     ExportRecording {
-        #[usage(help = "Action file written by `sbrs record` (.json or .yaml)")]
+        #[usage(value_hint = usage::ValueHint::FilePath, extensions("json", "yaml"), help = "Action file written by `sbrs record` (.json or .yaml)")]
         file: String,
         #[usage(
             short,
             long,
-            help = "Rust test to write (default: the action file's name with .rs)"
+            value_hint = usage::ValueHint::FilePath, extensions("rs"), help = "Rust test to write (default: the action file's name with .rs)"
         )]
         output: Option<String>,
     },
@@ -789,7 +837,7 @@ enum Commands {
         example = "sbrs patch-chromedriver --path ./chromedriver"
     )]
     PatchChromedriver {
-        #[usage(long, help = "Path to the chromedriver binary")]
+        #[usage(long, value_hint = usage::ValueHint::ExecutablePath, help = "Path to the chromedriver binary")]
         path: String,
     },
     /// Patch a Chrome/Chromium binary for native-level spoofing.
@@ -798,10 +846,10 @@ enum Commands {
         example = "sbrs patch-chrome --path ./chrome --cache-dir ./patched"
     )]
     PatchChrome {
-        #[usage(long, help = "Path to the Chrome/Chromium binary")]
+        #[usage(long, value_hint = usage::ValueHint::ExecutablePath, help = "Path to the Chrome/Chromium binary")]
         path: String,
         /// Directory where the patched copy is cached.
-        #[usage(long, help = "Directory where patched binaries are cached")]
+        #[usage(long, value_hint = usage::ValueHint::DirPath, help = "Directory where patched binaries are cached")]
         cache_dir: Option<String>,
     },
     /// Encrypt text with a passphrase (AES-256-GCM); read from stdin if TEXT is omitted.
@@ -813,6 +861,7 @@ enum Commands {
     #[usage(help_heading = "Security", example = "sbrs encrypt 'my secret'")]
     Encrypt {
         /// The text to encrypt.
+        #[usage(value_hint = usage::ValueHint::Other)]
         text: Option<String>,
     },
     /// Decrypt a token made by `sbrs encrypt`; read from stdin if TOKEN is omitted.
@@ -821,6 +870,7 @@ enum Commands {
     #[usage(help_heading = "Security", example = "sbrs decrypt TOKEN")]
     Decrypt {
         /// The token to decrypt.
+        #[usage(value_hint = usage::ValueHint::Other)]
         token: Option<String>,
     },
     /// Show the test runs recorded in a results database.
@@ -873,9 +923,9 @@ enum Commands {
         example = "sbrs --url https://example.com assert-text-visible --css h1 --text 'Example Domain'"
     )]
     AssertTextVisible {
-        #[usage(long, help = "CSS selector for the target element")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
         css: String,
-        #[usage(long, help = "Expected visible text")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "Expected visible text")]
         text: String,
     },
     /// Assert that an element does not contain the given text.
@@ -884,9 +934,9 @@ enum Commands {
         example = "sbrs --url https://example.com assert-text-not-visible --css h1 --text Error"
     )]
     AssertTextNotVisible {
-        #[usage(long, help = "CSS selector for the target element")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
         css: String,
-        #[usage(long, help = "Text that should not be visible")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "Text that should not be visible")]
         text: String,
     },
     /// Assert an element attribute equals an expected value.
@@ -895,11 +945,11 @@ enum Commands {
         example = "sbrs --url https://example.com assert-attribute --css a --attribute href --value https://iana.org/domains/example"
     )]
     AssertAttribute {
-        #[usage(long, help = "CSS selector for the target element")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
         css: String,
-        #[usage(long, help = "Attribute name to read or assert")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "Attribute name to read or assert")]
         attribute: String,
-        #[usage(long, help = "Expected attribute value")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "Expected attribute value")]
         value: String,
     },
     /// Assert the page title contains the expected text.
@@ -908,7 +958,7 @@ enum Commands {
         example = "sbrs --url https://example.com assert-title --text Example"
     )]
     AssertTitle {
-        #[usage(long, help = "Expected page title substring")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "Expected page title substring")]
         text: String,
     },
     /// Wait until the document readyState is complete.
@@ -929,7 +979,7 @@ enum Commands {
         example = "sbrs --url https://example.com is-element-visible --css h1"
     )]
     IsElementVisible {
-        #[usage(long, help = "CSS selector for the target element")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
         css: String,
     },
     /// Print whether the expected text is visible in an element.
@@ -938,9 +988,9 @@ enum Commands {
         example = "sbrs --url https://example.com is-text-visible --css h1 --text Example"
     )]
     IsTextVisible {
-        #[usage(long, help = "CSS selector for the target element")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
         css: String,
-        #[usage(long, help = "Expected text to check")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "Expected text to check")]
         text: String,
     },
     /// Wait until an element is no longer visible.
@@ -949,9 +999,9 @@ enum Commands {
         example = "sbrs --url https://example.com wait-for-element-not-visible --css '#spinner' --timeout 5"
     )]
     WaitForElementNotVisible {
-        #[usage(long, help = "CSS selector for the target element")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
         css: String,
-        #[usage(long, default = "10", help = "Maximum wait time in seconds")]
+        #[usage(long, default = "10", value_hint = usage::ValueHint::Other, help = "Maximum wait time in seconds")]
         timeout: u64,
     },
     /// Save browser cookies to a JSON file.
@@ -960,7 +1010,7 @@ enum Commands {
         example = "sbrs --url https://example.com save-cookies --file cookies.json"
     )]
     SaveCookies {
-        #[usage(long, help = "JSON file to save cookies to")]
+        #[usage(long, value_hint = usage::ValueHint::FilePath, extensions("json"), help = "JSON file to save cookies to")]
         file: String,
     },
     /// Load browser cookies from a JSON file.
@@ -969,7 +1019,7 @@ enum Commands {
         example = "sbrs --url https://example.com --user-data-dir ./profile load-cookies --file cookies.json"
     )]
     LoadCookies {
-        #[usage(long, help = "JSON file to load cookies from")]
+        #[usage(long, value_hint = usage::ValueHint::FilePath, extensions("json"), help = "JSON file to load cookies from")]
         file: String,
     },
     /// Highlight an element, then click it.
@@ -978,7 +1028,7 @@ enum Commands {
         example = "sbrs --url https://example.com highlight-click --css a"
     )]
     HighlightClick {
-        #[usage(long, help = "CSS selector for the target element")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
         css: String,
     },
     /// Print whether a checkbox is checked.
@@ -987,7 +1037,7 @@ enum Commands {
         example = "sbrs --url https://example.com is-checked --css '#agree'"
     )]
     IsChecked {
-        #[usage(long, help = "CSS selector for the target element")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
         css: String,
     },
     /// Check a checkbox only if it is unchecked.
@@ -996,7 +1046,7 @@ enum Commands {
         example = "sbrs --url https://example.com check-if-unchecked --css '#agree'"
     )]
     CheckIfUnchecked {
-        #[usage(long, help = "CSS selector for the target element")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
         css: String,
     },
     /// Uncheck a checkbox only if it is checked.
@@ -1005,7 +1055,7 @@ enum Commands {
         example = "sbrs --url https://example.com uncheck-if-checked --css '#agree'"
     )]
     UncheckIfChecked {
-        #[usage(long, help = "CSS selector for the target element")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
         css: String,
     },
     /// Wait until an element is present in the DOM.
@@ -1014,9 +1064,9 @@ enum Commands {
         example = "sbrs --url https://example.com wait-for-element-present --css h1 --timeout 5"
     )]
     WaitForElementPresent {
-        #[usage(long, help = "CSS selector for the target element")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
         css: String,
-        #[usage(long, default = "10", help = "Maximum wait time in seconds")]
+        #[usage(long, default = "10", value_hint = usage::ValueHint::Other, help = "Maximum wait time in seconds")]
         timeout: u64,
     },
     /// Append text to an input or textarea.
@@ -1025,9 +1075,9 @@ enum Commands {
         example = "sbrs --url https://example.com add-text --css '#name' --text hello"
     )]
     AddText {
-        #[usage(long, help = "CSS selector for the target element")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
         css: String,
-        #[usage(long, help = "Text to append to the element")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "Text to append to the element")]
         text: String,
     },
     /// Send keystrokes to an element.
@@ -1036,9 +1086,9 @@ enum Commands {
         example = "sbrs --url https://example.com send-keys --css '#name' --text hello"
     )]
     SendKeys {
-        #[usage(long, help = "CSS selector for the target element")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
         css: String,
-        #[usage(long, help = "Keys to send to the element")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "Keys to send to the element")]
         text: String,
     },
     /// Print the value of a form element.
@@ -1047,7 +1097,7 @@ enum Commands {
         example = "sbrs --url https://example.com get-value --css '#name'"
     )]
     GetValue {
-        #[usage(long, help = "CSS selector for the target element")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
         css: String,
     },
     /// Click all visible elements matching a selector.
@@ -1056,7 +1106,7 @@ enum Commands {
         example = "sbrs --url https://example.com click-visible-elements --css button"
     )]
     ClickVisibleElements {
-        #[usage(long, help = "CSS selector for the target element")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
         css: String,
     },
     /// Wait for an alert that the page opens, then accept it.
@@ -1065,7 +1115,7 @@ enum Commands {
         example = "sbrs --url https://example.com wait-for-and-accept-alert --timeout 5"
     )]
     WaitForAndAcceptAlert {
-        #[usage(long, default = "10", help = "Maximum wait time in seconds")]
+        #[usage(long, default = "10", value_hint = usage::ValueHint::Other, help = "Maximum wait time in seconds")]
         timeout: u64,
     },
     /// Wait for an alert that the page opens, then dismiss it.
@@ -1074,7 +1124,7 @@ enum Commands {
         example = "sbrs --url https://example.com wait-for-and-dismiss-alert --timeout 5"
     )]
     WaitForAndDismissAlert {
-        #[usage(long, default = "10", help = "Maximum wait time in seconds")]
+        #[usage(long, default = "10", value_hint = usage::ValueHint::Other, help = "Maximum wait time in seconds")]
         timeout: u64,
     },
     /// Print whether a link with the given text is visible.
@@ -1083,7 +1133,7 @@ enum Commands {
         example = "sbrs --url https://example.com is-link-text-visible --text 'More information...'"
     )]
     IsLinkTextVisible {
-        #[usage(long, help = "Exact link text to check")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "Exact link text to check")]
         text: String,
     },
     /// Print whether a link containing the given text is visible.
@@ -1092,7 +1142,7 @@ enum Commands {
         example = "sbrs --url https://example.com is-partial-link-text-visible --text 'More info'"
     )]
     IsPartialLinkTextVisible {
-        #[usage(long, help = "Link text substring to check")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "Link text substring to check")]
         text: String,
     },
     /// Assert a link with the given text is visible.
@@ -1101,7 +1151,7 @@ enum Commands {
         example = "sbrs --url https://example.com assert-link-text --text 'More information...'"
     )]
     AssertLinkText {
-        #[usage(long, help = "Exact link text to assert")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "Exact link text to assert")]
         text: String,
     },
     /// Click a link containing the given text.
@@ -1110,7 +1160,7 @@ enum Commands {
         example = "sbrs --url https://example.com click-partial-link-text --text 'More info'"
     )]
     ClickPartialLinkText {
-        #[usage(long, help = "Link text substring to click")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "Link text substring to click")]
         text: String,
     },
     /// Type text with human-like timing and noise.
@@ -1119,9 +1169,9 @@ enum Commands {
         example = "sbrs --url https://example.com human-type --css '#q' --text hello"
     )]
     HumanType {
-        #[usage(long, help = "CSS selector for the target element")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
         css: String,
-        #[usage(long, help = "Text to type with humanized timing")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "Text to type with humanized timing")]
         text: String,
     },
     /// Click an element with human-like timing and noise.
@@ -1130,7 +1180,7 @@ enum Commands {
         example = "sbrs --url https://example.com human-click --css a"
     )]
     HumanClick {
-        #[usage(long, help = "CSS selector for the target element")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
         css: String,
     },
     /// Smoothly scroll an element into view.
@@ -1139,7 +1189,7 @@ enum Commands {
         example = "sbrs --url https://example.com smooth-scroll-to --css footer"
     )]
     SmoothScrollTo {
-        #[usage(long, help = "CSS selector for the target element")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
         css: String,
     },
     /// Perform a UC-mode click on an element.
@@ -1148,7 +1198,7 @@ enum Commands {
         example = "sbrs --uc --url https://example.com uc-click --css a"
     )]
     UcClick {
-        #[usage(long, help = "CSS selector for the target element")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
         css: String,
     },
     /// Perform UC-mode typing into an element.
@@ -1157,9 +1207,9 @@ enum Commands {
         example = "sbrs --uc --url https://example.com uc-type --css '#q' --text hello"
     )]
     UcType {
-        #[usage(long, help = "CSS selector for the target element")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
         css: String,
-        #[usage(long, help = "Text to type in UC mode")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "Text to type in UC mode")]
         text: String,
     },
     /// Download a driver into ./downloaded_drivers/ (Python's `sbrs get`).
@@ -1174,10 +1224,11 @@ enum Commands {
     Install {
         /// The driver: chromedriver, geckodriver (or firefoxdriver), edgedriver
         /// (or msedgedriver).
-        #[usage(default = "chromedriver")]
-        driver: String,
+        #[usage(value_enum, default = "chromedriver")]
+        driver: DriverArg,
         /// `latest`, a major version (chromedriver, edgedriver), a full build,
         /// or a geckodriver version such as 0.36.0.
+        #[usage(complete = install_version_candidates)]
         version: Option<String>,
     },
     /// Run the project's tests, or one example, through Cargo.
@@ -1191,22 +1242,22 @@ enum Commands {
     #[usage(help_heading = "Tests", example = "sbrs test login")]
     Test {
         /// Run only the tests whose name contains this text.
-        #[usage(conflicts("--example"))]
+        #[usage(value_hint = usage::ValueHint::Other, conflicts("--example"))]
         filter: Option<String>,
         /// Run one integration test file from tests/.
-        #[usage(long, value_name = "NAME", conflicts("--example"))]
+        #[usage(long, value_name = "NAME", value_hint = usage::ValueHint::Other, conflicts("--example"))]
         test: Option<String>,
         /// Run one example from examples/ instead of the tests.
-        #[usage(long, value_name = "NAME")]
+        #[usage(long, value_name = "NAME", value_hint = usage::ValueHint::Other)]
         example: Option<String>,
         /// Build with the release profile.
         #[usage(long, bool_value)]
         release: bool,
         /// Cargo features to enable, separated by commas.
-        #[usage(long, delimiter = ',')]
+        #[usage(long, delimiter = ',', value_hint = usage::ValueHint::Other)]
         features: Vec<String>,
         /// Arguments for the test harness, after `--` (for example --nocapture).
-        #[usage(double_dash = "required")]
+        #[usage(double_dash = "required", value_hint = usage::ValueHint::Other)]
         harness_args: Vec<String>,
     },
     /// Start, stop, restart or check a Selenium Grid hub.
@@ -1239,10 +1290,14 @@ enum Commands {
     )]
     Translate {
         /// The scenario file.
-        #[usage(value_hint = usage::ValueHint::AnyPath)]
+        #[usage(value_hint = usage::ValueHint::FilePath, extensions("json"))]
         file: PathBuf,
         /// The language: a code (en, zh, nl, fr, it, ja, ko, pt, ru, es) or its
         /// English name.
+        #[usage(
+            choices("en", "zh", "nl", "fr", "it", "ja", "ko", "pt", "ru", "es"),
+            choices_strict = false
+        )]
         language: Language,
         /// Print the translation and write nothing (the default).
         #[usage(short, long, bool_value, conflicts("--overwrite", "--copy"))]
@@ -1266,6 +1321,7 @@ enum Commands {
     #[usage(help_heading = "Files and generators", example = "sbrs mkdir ui_tests")]
     Mkdir {
         /// Folder to create, for example `tests/ui`.
+        #[usage(value_hint = usage::ValueHint::DirPath)]
         dir: String,
         /// Create only the scaffolding, with no example tests.
         #[usage(short, long, bool_value)]
@@ -1285,9 +1341,10 @@ enum Commands {
     )]
     Mkfile {
         /// File to create, for example `tests/login.rs`.
+        #[usage(value_hint = usage::ValueHint::FilePath, extensions("rs"))]
         file: String,
         /// Page the test opens (default: https://example.com).
-        #[usage(long)]
+        #[usage(long, value_hint = usage::ValueHint::Url)]
         url: Option<String>,
         /// Leave the test body empty: it only opens the page.
         #[usage(short, long, bool_value)]
@@ -1311,6 +1368,7 @@ enum Commands {
     #[usage(help_heading = "Tests", example = "sbrs caseplans --starter")]
     Caseplans {
         /// A folder of tests, or one test file.
+        #[usage(value_hint = usage::ValueHint::AnyPath)]
         #[cfg_attr(
             not(feature = "tui"),
             expect(dead_code, reason = "only the terminal app reads it")
@@ -1334,6 +1392,7 @@ enum Commands {
     #[usage(help_heading = "Tests", example = "sbrs behave-gui features")]
     BehaveGui {
         /// A folder of feature files, or one `.feature` file.
+        #[usage(value_hint = usage::ValueHint::AnyPath, extensions("feature"))]
         #[cfg_attr(
             not(feature = "tui"),
             expect(dead_code, reason = "only the terminal app reads it")
@@ -1350,7 +1409,7 @@ enum Commands {
         example = "sbrs print --file tests/login.rs"
     )]
     Print {
-        #[usage(long, help = "File path to print")]
+        #[usage(long, value_hint = usage::ValueHint::FilePath, help = "File path to print")]
         file: String,
     },
     /// Objectify a test recording.
@@ -1362,7 +1421,7 @@ enum Commands {
         example = "sbrs mkpres --file deck.html"
     )]
     Mkpres {
-        #[usage(long, help = "Output HTML presentation path")]
+        #[usage(long, value_hint = usage::ValueHint::FilePath, extensions("html", "htm"), help = "Output HTML presentation path")]
         file: String,
     },
     /// Create an HTML chart.
@@ -1371,7 +1430,7 @@ enum Commands {
         example = "sbrs mkchart --file chart.html"
     )]
     Mkchart {
-        #[usage(long, help = "Output HTML chart path")]
+        #[usage(long, value_hint = usage::ValueHint::FilePath, extensions("html", "htm"), help = "Output HTML chart path")]
         file: String,
     },
     /// Create a test recording scaffold, or record a test live with --url.
@@ -1382,16 +1441,16 @@ enum Commands {
     Mkrec {
         #[usage(
             long,
-            help = "Open this page in a browser and record what you do there into the file"
+            value_hint = usage::ValueHint::Url, help = "Open this page in a browser and record what you do there into the file"
         )]
         url: Option<String>,
         #[usage(
             long,
-            help = "With --url: stop recording after this many seconds (default: until Ctrl-C)"
+            value_hint = usage::ValueHint::Other, help = "With --url: stop recording after this many seconds (default: until Ctrl-C)"
         )]
         duration: Option<u64>,
 
-        #[usage(long, help = "Output recording scaffold path")]
+        #[usage(long, value_hint = usage::ValueHint::FilePath, extensions("rs"), help = "Output recording scaffold path")]
         file: String,
     },
     /// Run a scenario file, the way to do several steps in one browser, and write an optional dashboard.
@@ -1400,9 +1459,9 @@ enum Commands {
         example = "sbrs run-scenario --file scenario.json"
     )]
     RunScenario {
-        #[usage(long, help = "Scenario file to run")]
+        #[usage(long, value_hint = usage::ValueHint::FilePath, extensions("json"), help = "Scenario file to run")]
         file: String,
-        #[usage(long, help = "Optional path to write a scenario dashboard")]
+        #[usage(long, value_hint = usage::ValueHint::FilePath, extensions("html", "htm"), help = "Optional path to write a scenario dashboard")]
         dashboard: Option<String>,
     },
     /// Generate a completion script for a supported shell, or a Fig spec.
@@ -1421,9 +1480,10 @@ enum Commands {
     )]
     ImportPython {
         /// Python source file to convert.
+        #[usage(value_hint = usage::ValueHint::FilePath, extensions("py"))]
         file: String,
         /// Write generated Rust to this path instead of stdout.
-        #[usage(short, long, help = "Output file for the generated Rust test")]
+        #[usage(short, long, value_hint = usage::ValueHint::FilePath, extensions("rs"), help = "Output file for the generated Rust test")]
         output: Option<String>,
         /// Override source API detection.
         #[usage(
@@ -1434,7 +1494,7 @@ enum Commands {
         )]
         source: ImportSourceArg,
         /// Generated Rust test function name.
-        #[usage(long, help = "Name of the generated test function")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "Name of the generated test function")]
         test_name: Option<String>,
     },
     /// Convert Playwright tests or a script (JavaScript, TypeScript or Python) into Rust tests for the pure CDP engine.
@@ -1445,8 +1505,9 @@ enum Commands {
     )]
     ImportPlaywright {
         /// Playwright source file to convert.
+        #[usage(value_hint = usage::ValueHint::FilePath, extensions("js", "ts", "py"))]
         file: String,
-        #[usage(short, long, help = "Output file for the generated Rust tests")]
+        #[usage(short, long, value_hint = usage::ValueHint::FilePath, extensions("rs"), help = "Output file for the generated Rust tests")]
         output: Option<String>,
         #[usage(
             long,
@@ -1456,7 +1517,7 @@ enum Commands {
         language: Option<PlaywrightLanguageArg>,
         #[usage(
             long,
-            help = "Name of the test generated for a script without test titles (default: the file name)"
+            value_hint = usage::ValueHint::Other, help = "Name of the test generated for a script without test titles (default: the file name)"
         )]
         test_name: Option<String>,
     },
@@ -1468,8 +1529,9 @@ enum Commands {
     )]
     ImportPuppeteer {
         /// Puppeteer source file (or Recorder `.json` export) to convert.
+        #[usage(value_hint = usage::ValueHint::FilePath, extensions("js", "ts", "json"))]
         file: String,
-        #[usage(short, long, help = "Output file for the generated Rust tests")]
+        #[usage(short, long, value_hint = usage::ValueHint::FilePath, extensions("rs"), help = "Output file for the generated Rust tests")]
         output: Option<String>,
         #[usage(
             long,
@@ -1479,7 +1541,7 @@ enum Commands {
         language: Option<PuppeteerLanguageArg>,
         #[usage(
             long,
-            help = "Name of the test generated for a script without test titles (default: the file name)"
+            value_hint = usage::ValueHint::Other, help = "Name of the test generated for a script without test titles (default: the file name)"
         )]
         test_name: Option<String>,
     },
@@ -1490,18 +1552,18 @@ enum Commands {
         example = "sbrs download-file https://example.com/report.pdf --output report.pdf"
     )]
     DownloadFile {
-        #[usage(help = "URL of the file to download")]
+        #[usage(value_hint = usage::ValueHint::Url, help = "URL of the file to download")]
         url: String,
         #[usage(
             short,
             long,
-            help = "Output file path (defaults to the URL file name in the current directory)"
+            value_hint = usage::ValueHint::FilePath, help = "Output file path (defaults to the URL file name in the current directory)"
         )]
         output: Option<String>,
         #[usage(
             long,
             default = "30",
-            help = "Seconds to wait for the browser download before falling back to HTTP"
+            value_hint = usage::ValueHint::Other, help = "Seconds to wait for the browser download before falling back to HTTP"
         )]
         timeout: u64,
     },
@@ -1511,9 +1573,9 @@ enum Commands {
         example = "sbrs print-pdf https://example.com --output page.pdf"
     )]
     PrintPdf {
-        #[usage(help = "URL to render as a PDF")]
+        #[usage(value_hint = usage::ValueHint::Url, help = "URL to render as a PDF")]
         url: String,
-        #[usage(short, long, default = "page.pdf", help = "Output PDF file path")]
+        #[usage(short, long, default = "page.pdf", value_hint = usage::ValueHint::FilePath, extensions("pdf"), help = "Output PDF file path")]
         output: String,
     },
     /// Print the text extracted from a page or PDF URL.
@@ -1526,9 +1588,9 @@ enum Commands {
         example = "sbrs pdf-text https://example.com/report.pdf"
     )]
     PdfText {
-        #[usage(help = "URL of the page or PDF to extract text from")]
+        #[usage(value_hint = usage::ValueHint::Url, help = "URL of the page or PDF to extract text from")]
         url: String,
-        #[usage(long, help = "Also keep the intermediate PDF at this path")]
+        #[usage(long, value_hint = usage::ValueHint::FilePath, extensions("pdf"), help = "Also keep the intermediate PDF at this path")]
         save_pdf: Option<String>,
     },
     /// Assert that a page or PDF URL contains the expected text.
@@ -1541,11 +1603,11 @@ enum Commands {
         example = "sbrs assert-pdf-text https://example.com/report.pdf --text Total"
     )]
     AssertPdfText {
-        #[usage(help = "URL of the page or PDF to check")]
+        #[usage(value_hint = usage::ValueHint::Url, help = "URL of the page or PDF to check")]
         url: String,
-        #[usage(long, help = "Text that must appear in the PDF")]
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "Text that must appear in the PDF")]
         text: String,
-        #[usage(long, help = "Also keep the intermediate PDF at this path")]
+        #[usage(long, value_hint = usage::ValueHint::FilePath, extensions("pdf"), help = "Also keep the intermediate PDF at this path")]
         save_pdf: Option<String>,
     },
     /// Upload a local file into a file input.
@@ -1554,9 +1616,9 @@ enum Commands {
         example = "sbrs --url https://example.com/upload choose-file 'input[type=file]' ./photo.png"
     )]
     ChooseFile {
-        #[usage(help = "CSS selector of the <input type=file> element")]
+        #[usage(value_hint = usage::ValueHint::Other, help = "CSS selector of the <input type=file> element")]
         selector: String,
-        #[usage(help = "Local file to upload")]
+        #[usage(value_hint = usage::ValueHint::FilePath, help = "Local file to upload")]
         file: String,
     },
     /// Run several assertions, then report every failure at once.
@@ -1570,10 +1632,10 @@ enum Commands {
         #[usage(
             long = "assert",
             value_name = "SPEC",
-            help = "Assertion spec: element=<css>, text=<css>:<text>, title=<text>, or url=<text>"
+            value_hint = usage::ValueHint::Other, help = "Assertion spec: element=<css>, text=<css>:<text>, title=<text>, or url=<text>"
         )]
         asserts: Vec<String>,
-        #[usage(long, help = "JSON file containing an array of assertion specs")]
+        #[usage(long, value_hint = usage::ValueHint::FilePath, extensions("json"), help = "JSON file containing an array of assertion specs")]
         spec: Option<String>,
     },
     /// Record browser interactions into a replayable action file.
@@ -1582,18 +1644,18 @@ enum Commands {
         example = "sbrs record https://example.com --output actions.json --duration 30"
     )]
     Record {
-        #[usage(help = "URL to open and record")]
+        #[usage(value_hint = usage::ValueHint::Url, help = "URL to open and record")]
         url: String,
         #[usage(
             short,
             long,
             default = "actions.json",
-            help = "Output action file (.json or .yaml)"
+            value_hint = usage::ValueHint::FilePath, extensions("json", "yaml"), help = "Output action file (.json or .yaml)"
         )]
         output: String,
         #[usage(
             long,
-            help = "Stop recording after this many seconds (default: run until Ctrl-C)"
+            value_hint = usage::ValueHint::Other, help = "Stop recording after this many seconds (default: run until Ctrl-C)"
         )]
         duration: Option<u64>,
     },
@@ -1603,7 +1665,7 @@ enum Commands {
         example = "sbrs replay actions.json"
     )]
     Replay {
-        #[usage(help = "JSON action file produced by `sbrs record`")]
+        #[usage(value_hint = usage::ValueHint::FilePath, extensions("json", "yaml"), help = "JSON action file produced by `sbrs record`")]
         file: String,
     },
     /// Launch Chrome with an open DevTools endpoint and print MCP client configs.
@@ -1624,13 +1686,13 @@ enum Commands {
             long,
             default_value_t = DEFAULT_DEVTOOLS_PORT,
             default = "9222",
-            help = "DevTools port on 127.0.0.1 (0 lets Chrome pick a free one)"
+            value_hint = usage::ValueHint::Other, help = "DevTools port on 127.0.0.1 (0 lets Chrome pick a free one)"
         )]
         port: u16,
         #[usage(
             long,
             value_name = "PATH",
-            help = "Browser binary to launch, such as Microsoft Edge or another Chromium browser"
+            value_hint = usage::ValueHint::ExecutablePath, help = "Browser binary to launch, such as Microsoft Edge or another Chromium browser"
         )]
         browser_path: Option<String>,
         #[usage(
@@ -3585,7 +3647,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             after.finish(&mut sb).await?;
         }
         Commands::Install { driver, version } => {
-            let name: sb_install::DriverName = driver.parse()?;
+            let name = sb_install::DriverName::from(driver);
             let path = sb_install::install_driver(name, version.as_deref()).await?;
             println!("{name} installed at {}", path.display());
         }

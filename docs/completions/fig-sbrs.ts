@@ -597,6 +597,7 @@ const completionSpec: Fig.Spec = {
           description: "Directory where patched binaries are cached",
           args: {
             name: "cache_dir",
+            template: "folders",
           },
         },
         {
@@ -1326,6 +1327,7 @@ const completionSpec: Fig.Spec = {
           name: "driver",
           description: "The driver: chromedriver, geckodriver (or firefoxdriver), edgedriver (or msedgedriver).",
           isOptional: true,
+          suggestions: ["chromedriver", "geckodriver", "edgedriver"],
         },
         {
           name: "version",
@@ -1572,11 +1574,11 @@ const completionSpec: Fig.Spec = {
         {
           name: "file",
           description: "The scenario file.",
-          template: "filepaths",
         },
         {
           name: "language",
           description: "The language: a code (en, zh, nl, fr, it, ja, ko, pt, ru, es) or its English name.",
+          suggestions: ["en", "zh", "nl", "fr", "it", "ja", "ko", "pt", "ru", "es"],
         },
       ],
     },
@@ -1601,6 +1603,7 @@ const completionSpec: Fig.Spec = {
         {
           name: "dir",
           description: "Folder to create, for example `tests/ui`.",
+          template: "folders",
         },
       ],
     },
@@ -1663,6 +1666,7 @@ const completionSpec: Fig.Spec = {
           name: "path",
           description: "A folder of tests, or one test file.",
           isOptional: true,
+          template: "filepaths",
         },
       ],
     },
@@ -1697,6 +1701,7 @@ const completionSpec: Fig.Spec = {
           isRequired: true,
           args: {
             name: "file",
+            template: "filepaths",
           },
         },
         {
@@ -1948,6 +1953,7 @@ const completionSpec: Fig.Spec = {
           description: "Output file path (defaults to the URL file name in the current directory)",
           args: {
             name: "output",
+            template: "filepaths",
           },
         },
         {
@@ -2063,6 +2069,7 @@ const completionSpec: Fig.Spec = {
         {
           name: "file",
           description: "Local file to upload",
+          template: "filepaths",
         },
       ],
     },
@@ -2216,7 +2223,6 @@ const completionSpec: Fig.Spec = {
               description: "Write the fingerprint to FILE instead of printing it.",
               args: {
                 name: "file",
-                template: "filepaths",
               },
             },
             {
@@ -2224,7 +2230,6 @@ const completionSpec: Fig.Spec = {
               description: "Also write the readings that no setting holds, and where the capture was taken, to FILE.",
               args: {
                 name: "file",
-                template: "filepaths",
               },
             },
             {
@@ -2249,6 +2254,7 @@ const completionSpec: Fig.Spec = {
               description: "The preset to write: windows, edge, macos, linux, android or ios (safari is ios).",
               args: {
                 name: "name",
+                suggestions: ["windows", "edge", "macos", "linux", "android", "ios"],
               },
             },
             {
@@ -2275,7 +2281,6 @@ const completionSpec: Fig.Spec = {
               description: "Write the fingerprint to FILE instead of printing it.",
               args: {
                 name: "file",
-                template: "filepaths",
               },
             },
             {
@@ -2297,7 +2302,6 @@ const completionSpec: Fig.Spec = {
             {
               name: "file",
               description: "The fingerprint file to check.",
-              template: "filepaths",
             },
           ],
         },
@@ -2314,12 +2318,10 @@ const completionSpec: Fig.Spec = {
             {
               name: "expected",
               description: "The file with what is expected.",
-              template: "filepaths",
             },
             {
               name: "found",
               description: "The file with what is found.",
-              template: "filepaths",
             },
           ],
         },
@@ -2427,6 +2429,7 @@ const completionSpec: Fig.Spec = {
       description: "File of proxies to choose from; without --proxy a random one is used",
       args: {
         name: "file",
+        template: "filepaths",
       },
     },
     {
@@ -2441,6 +2444,7 @@ const completionSpec: Fig.Spec = {
       description: "Path to a persistent browser user-data directory",
       args: {
         name: "user_data_dir",
+        template: "folders",
       },
     },
     {
@@ -2448,6 +2452,7 @@ const completionSpec: Fig.Spec = {
       description: "Path to an unpacked extension directory",
       args: {
         name: "extension_dir",
+        template: "folders",
       },
     },
     {

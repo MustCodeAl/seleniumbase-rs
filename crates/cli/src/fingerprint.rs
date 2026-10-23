@@ -68,13 +68,13 @@ pub enum FingerprintCommand {
 #[usage(args_override_self = false)]
 pub struct CaptureArgs {
     /// The page to open first (default: a blank page).
-    #[usage(value_name = "URL")]
+    #[usage(value_name = "URL", value_hint = usage::ValueHint::Url)]
     url: Option<String>,
     /// Write the fingerprint to FILE instead of printing it.
-    #[usage(short = 'o', long, value_name = "FILE", value_hint = usage::ValueHint::AnyPath)]
+    #[usage(short = 'o', long, value_name = "FILE", value_hint = usage::ValueHint::FilePath, extensions("json"))]
     output: Option<PathBuf>,
     /// Also write the readings that no setting holds, and where the capture was taken, to FILE.
-    #[usage(long, value_name = "FILE", value_hint = usage::ValueHint::AnyPath)]
+    #[usage(long, value_name = "FILE", value_hint = usage::ValueHint::FilePath, extensions("json"))]
     readings: Option<PathBuf>,
 }
 
@@ -106,19 +106,24 @@ impl From<OsArg> for OsType {
 #[usage(args_override_self = false)]
 pub struct ExportArgs {
     /// The preset to write: windows, edge, macos, linux, android or ios (safari is ios).
-    #[usage(long, value_name = "NAME")]
+    #[usage(
+        long,
+        value_name = "NAME",
+        choices("windows", "edge", "macos", "linux", "android", "ios"),
+        choices_strict = false
+    )]
     preset: Option<String>,
     /// Write a random identity instead of a preset.
     #[usage(long, bool_value)]
     random: bool,
     /// With --random, the seed of the draw: the same seed gives the same identity.
-    #[usage(long, value_name = "N")]
+    #[usage(long, value_name = "N", value_hint = usage::ValueHint::Other)]
     seed: Option<u64>,
     /// With --random, the system the identity claims (default: this machine's).
     #[usage(long, value_enum, value_name = "OS")]
     os: Option<OsArg>,
     /// Write the fingerprint to FILE instead of printing it.
-    #[usage(short = 'o', long, value_name = "FILE", value_hint = usage::ValueHint::AnyPath)]
+    #[usage(short = 'o', long, value_name = "FILE", value_hint = usage::ValueHint::FilePath, extensions("json"))]
     output: Option<PathBuf>,
 }
 
@@ -127,7 +132,7 @@ pub struct ExportArgs {
 #[derive(Debug, usage::Args)]
 pub struct CheckArgs {
     /// The fingerprint file to check.
-    #[usage(value_name = "FILE", value_hint = usage::ValueHint::AnyPath)]
+    #[usage(value_name = "FILE", value_hint = usage::ValueHint::FilePath, extensions("json"))]
     file: PathBuf,
 }
 
@@ -136,10 +141,10 @@ pub struct CheckArgs {
 #[derive(Debug, usage::Args)]
 pub struct DiffArgs {
     /// The file with what is expected.
-    #[usage(value_name = "EXPECTED", value_hint = usage::ValueHint::AnyPath)]
+    #[usage(value_name = "EXPECTED", value_hint = usage::ValueHint::FilePath, extensions("json"))]
     expected: PathBuf,
     /// The file with what is found.
-    #[usage(value_name = "FOUND", value_hint = usage::ValueHint::AnyPath)]
+    #[usage(value_name = "FOUND", value_hint = usage::ValueHint::FilePath, extensions("json"))]
     found: PathBuf,
 }
 

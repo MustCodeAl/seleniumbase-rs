@@ -114,7 +114,18 @@ Quote the whole option so the shell keeps the quotes of a string: --plugin-opt '
 flag "-h --help" help="Print help" action=help builtin=#true
 flag "-V --version" help="Print version" action=version builtin=#true
 complete url type=url
+complete user_agent type=none
+complete agent type=none
+complete locale type=none
+complete proxy type=none
 complete file type=path
+complete proxy_pac_url type=url
+complete user_data_dir type=dir
+complete extension_dir type=dir
+complete threads type=none
+complete config type=path:toml,json
+complete name type=none
+complete "name.key=value" type=none
 cmd version help_heading="Info and setup" help="Print the sbrs version, as `sbrs --version` does." {
     flag "-h --help" help="Print help" action=help builtin=#true
     example "sbrs version"
@@ -122,6 +133,7 @@ cmd version help_heading="Info and setup" help="Print the sbrs version, as `sbrs
 cmd open help_heading="Page commands" help="Open a URL in the browser." {
     flag "-h --help" help="Print help" action=help builtin=#true
     arg <URL> help="URL to open in the browser."
+    complete url type=url
     example "sbrs open https://example.com"
 }
 cmd smoke help_heading="Page commands" help="Run a smoke test against a URL." {
@@ -130,6 +142,8 @@ cmd smoke help_heading="Page commands" help="Run a smoke test against a URL." {
     }
     flag "-h --help" help="Print help" action=help builtin=#true
     arg <URL> help="URL to open or smoke-test"
+    complete url type=url
+    complete title_contains type=none
     example "sbrs smoke https://example.com --title-contains Example"
 }
 cmd cdp help_heading="Page commands" help="Execute a Chrome DevTools Protocol command." {
@@ -140,6 +154,8 @@ cmd cdp help_heading="Page commands" help="Execute a Chrome DevTools Protocol co
         arg <PARAMS>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete cmd type=none
+    complete params type=none
     example "sbrs cdp --cmd Browser.getVersion"
 }
 cmd cache-clear help_heading="Page commands" help="Clear the browser cache via CDP." {
@@ -151,6 +167,7 @@ cmd screenshot help_heading="Page commands" help="Capture a screenshot of the cu
         arg <PATH>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete path type=path:png
     example "sbrs --url https://example.com screenshot --path page.png"
 }
 cmd save-source help_heading="Page commands" help="Save the current page source to a file." {
@@ -158,6 +175,7 @@ cmd save-source help_heading="Page commands" help="Save the current page source 
         arg <PATH>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete path type=path:html,htm
     example "sbrs --url https://example.com save-source --path page.html"
 }
 cmd assert-element help_heading="Page commands" help="Assert that an element exists." {
@@ -165,6 +183,7 @@ cmd assert-element help_heading="Page commands" help="Assert that an element exi
         arg <CSS>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete css type=none
     example "sbrs --url https://example.com assert-element --css h1"
 }
 cmd wait-for-text help_heading="Page commands" help="Wait until an element contains the expected text." {
@@ -178,6 +197,9 @@ cmd wait-for-text help_heading="Page commands" help="Wait until an element conta
         arg <TIMEOUT>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete css type=none
+    complete text type=none
+    complete timeout type=none
     example "sbrs --url https://example.com wait-for-text --css h1 --text 'Example Domain' --timeout 5"
 }
 cmd hover help_heading="Page commands" help="Hover over an element." {
@@ -185,6 +207,7 @@ cmd hover help_heading="Page commands" help="Hover over an element." {
         arg <CSS>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete css type=none
     example "sbrs --url https://example.com hover --css h1"
 }
 cmd hover-and-click help_heading="Page commands" help="Hover over one element, then click another." {
@@ -195,6 +218,8 @@ cmd hover-and-click help_heading="Page commands" help="Hover over one element, t
         arg <CLICK_CSS>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete hover_css type=none
+    complete click_css type=none
     example "sbrs --url https://example.com hover-and-click --hover-css nav --click-css 'nav a'"
 }
 cmd select-option help_heading="Page commands" help="Select an option from a dropdown." {
@@ -208,6 +233,9 @@ cmd select-option help_heading="Page commands" help="Select an option from a dro
         arg <VALUE>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete css type=none
+    complete text type=none
+    complete value type=none
     example "sbrs --url https://example.com select-option --css select --text Two"
 }
 cmd drag-and-drop help_heading="Page commands" help="Drag one element onto another." {
@@ -218,6 +246,8 @@ cmd drag-and-drop help_heading="Page commands" help="Drag one element onto anoth
         arg <TARGET_CSS>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete source_css type=none
+    complete target_css type=none
     example "sbrs --url https://example.com drag-and-drop --source-css '#a' --target-css '#b'"
 }
 cmd cdp-click-element help_heading="Page commands" help="Click an element using CDP." {
@@ -225,6 +255,7 @@ cmd cdp-click-element help_heading="Page commands" help="Click an element using 
         arg <CSS>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete css type=none
     example "sbrs --url https://example.com cdp-click-element --css a"
 }
 cmd cdp-type-text help_heading="Page commands" help="Type text using CDP input injection." {
@@ -232,6 +263,7 @@ cmd cdp-type-text help_heading="Page commands" help="Type text using CDP input i
         arg <TEXT>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete text type=none
     example "sbrs --url https://example.com cdp-type-text --text hello"
 }
 cmd get-text help_heading="Page commands" help="Print the visible text of an element." {
@@ -239,6 +271,7 @@ cmd get-text help_heading="Page commands" help="Print the visible text of an ele
         arg <CSS>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete css type=none
     example "sbrs --url https://example.com get-text --css h1"
 }
 cmd get-attribute help_heading="Page commands" help="Print an element attribute value." {
@@ -249,6 +282,8 @@ cmd get-attribute help_heading="Page commands" help="Print an element attribute 
         arg <ATTRIBUTE>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete css type=none
+    complete attribute type=none
     example "sbrs --url https://example.com get-attribute --css a --attribute href"
 }
 cmd get-property help_heading="Page commands" help="Print an element property value." {
@@ -259,6 +294,8 @@ cmd get-property help_heading="Page commands" help="Print an element property va
         arg <PROPERTY>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete css type=none
+    complete property type=none
     example "sbrs --url https://example.com get-property --css input --property value"
 }
 cmd get-title help_heading="Page commands" help="Print the page title." {
@@ -290,6 +327,7 @@ cmd type-alert-text help_heading="Page commands" help="Type text into the prompt
         arg <TEXT>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete text type=none
     example "sbrs --url https://example.com type-alert-text --text hello"
 }
 cmd clear-local-storage help_heading="Page commands" help="Clear the page local storage." {
@@ -301,6 +339,7 @@ cmd get-local-storage-item help_heading="Page commands" help="Print a local stor
         arg <KEY>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete key type=none
     example "sbrs --url https://example.com get-local-storage-item --key theme"
 }
 cmd set-local-storage-item help_heading="Page commands" help="Set a local storage key/value pair." {
@@ -311,6 +350,8 @@ cmd set-local-storage-item help_heading="Page commands" help="Set a local storag
         arg <VALUE>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete key type=none
+    complete value type=none
     example "sbrs --url https://example.com --user-data-dir ./profile set-local-storage-item --key theme --value dark"
 }
 cmd remove-local-storage-item help_heading="Page commands" help="Remove a local storage entry by key." {
@@ -318,6 +359,7 @@ cmd remove-local-storage-item help_heading="Page commands" help="Remove a local 
         arg <KEY>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete key type=none
     example "sbrs --url https://example.com --user-data-dir ./profile remove-local-storage-item --key theme"
 }
 cmd get-cookies help_heading="Page commands" help="Print all browser cookies as JSON." {
@@ -330,6 +372,8 @@ cmd export-recording help_heading="Record and replay" help="Turn an action file 
     }
     flag "-h --help" help="Print help" action=help builtin=#true
     arg <FILE> help="Action file written by `sbrs record` (.json or .yaml)"
+    complete file type=path:json,yaml
+    complete output type=path:rs
     example "sbrs export-recording actions.json --output tests/login.rs"
 }
 cmd patch-chromedriver help_heading="Drivers, grid and servers" help="Patch a chromedriver binary to reduce detection surface." {
@@ -337,6 +381,7 @@ cmd patch-chromedriver help_heading="Drivers, grid and servers" help="Patch a ch
         arg <PATH>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete path type=executable
     example "sbrs patch-chromedriver --path ./chromedriver"
 }
 cmd patch-chrome help_heading="Drivers, grid and servers" help="Patch a Chrome/Chromium binary for native-level spoofing." {
@@ -347,6 +392,8 @@ cmd patch-chrome help_heading="Drivers, grid and servers" help="Patch a Chrome/C
         arg <CACHE_DIR>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete path type=executable
+    complete cache_dir type=dir
     example "sbrs patch-chrome --path ./chrome --cache-dir ./patched"
 }
 cmd encrypt help_heading=Security help="Encrypt text with a passphrase (AES-256-GCM); read from stdin if TEXT is omitted." {
@@ -358,12 +405,14 @@ The passphrase comes from the SB_ENCRYPTION_KEY environment variable, never from
 """#
     flag "-h --help" help="Print help" action=help builtin=#true
     arg "[TEXT]" help="The text to encrypt."
+    complete text type=none
     example "sbrs encrypt 'my secret'"
 }
 cmd decrypt help_heading=Security help="Decrypt a token made by `sbrs encrypt`; read from stdin if TOKEN is omitted. Python's `sbrs unobfuscate` is the same command." {
     alias unobfuscate
     flag "-h --help" help="Print help" action=help builtin=#true
     arg "[TOKEN]" help="The token to decrypt."
+    complete token type=none
     example "sbrs decrypt TOKEN"
 }
 cmd doctor help_heading="Info and setup" help="Run a diagnostic check on the environment and configuration." {
@@ -386,6 +435,7 @@ Prints `chrome 155 ✓driver`, with `✗driver` when the chromedriver is missing
     flag --no-cache help="Run --version again instead of using the versions cached in the user cache folder" bool_value=#true
     flag --verbose help="Explain on standard error what was found and how" bool_value=#true
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete template type=none
     complete path type=path
     example "sbrs prompt"
 }
@@ -397,6 +447,8 @@ cmd assert-text-visible help_heading="Page commands" help="Assert that an elemen
         arg <TEXT>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete css type=none
+    complete text type=none
     example "sbrs --url https://example.com assert-text-visible --css h1 --text 'Example Domain'"
 }
 cmd assert-text-not-visible help_heading="Page commands" help="Assert that an element does not contain the given text." {
@@ -407,6 +459,8 @@ cmd assert-text-not-visible help_heading="Page commands" help="Assert that an el
         arg <TEXT>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete css type=none
+    complete text type=none
     example "sbrs --url https://example.com assert-text-not-visible --css h1 --text Error"
 }
 cmd assert-attribute help_heading="Page commands" help="Assert an element attribute equals an expected value." {
@@ -420,6 +474,9 @@ cmd assert-attribute help_heading="Page commands" help="Assert an element attrib
         arg <VALUE>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete css type=none
+    complete attribute type=none
+    complete value type=none
     example "sbrs --url https://example.com assert-attribute --css a --attribute href --value https://iana.org/domains/example"
 }
 cmd assert-title help_heading="Page commands" help="Assert the page title contains the expected text." {
@@ -427,6 +484,7 @@ cmd assert-title help_heading="Page commands" help="Assert the page title contai
         arg <TEXT>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete text type=none
     example "sbrs --url https://example.com assert-title --text Example"
 }
 cmd wait-for-ready-state-complete help_heading="Page commands" help="Wait until the document readyState is complete." {
@@ -442,6 +500,7 @@ cmd is-element-visible help_heading="Page commands" help="Print whether an eleme
         arg <CSS>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete css type=none
     example "sbrs --url https://example.com is-element-visible --css h1"
 }
 cmd is-text-visible help_heading="Page commands" help="Print whether the expected text is visible in an element." {
@@ -452,6 +511,8 @@ cmd is-text-visible help_heading="Page commands" help="Print whether the expecte
         arg <TEXT>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete css type=none
+    complete text type=none
     example "sbrs --url https://example.com is-text-visible --css h1 --text Example"
 }
 cmd wait-for-element-not-visible help_heading="Page commands" help="Wait until an element is no longer visible." {
@@ -462,6 +523,8 @@ cmd wait-for-element-not-visible help_heading="Page commands" help="Wait until a
         arg <TIMEOUT>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete css type=none
+    complete timeout type=none
     example "sbrs --url https://example.com wait-for-element-not-visible --css '#spinner' --timeout 5"
 }
 cmd save-cookies help_heading="Page commands" help="Save browser cookies to a JSON file." {
@@ -469,6 +532,7 @@ cmd save-cookies help_heading="Page commands" help="Save browser cookies to a JS
         arg <FILE>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete file type=path:json
     example "sbrs --url https://example.com save-cookies --file cookies.json"
 }
 cmd load-cookies help_heading="Page commands" help="Load browser cookies from a JSON file." {
@@ -476,6 +540,7 @@ cmd load-cookies help_heading="Page commands" help="Load browser cookies from a 
         arg <FILE>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete file type=path:json
     example "sbrs --url https://example.com --user-data-dir ./profile load-cookies --file cookies.json"
 }
 cmd highlight-click help_heading="Page commands" help="Highlight an element, then click it." {
@@ -483,6 +548,7 @@ cmd highlight-click help_heading="Page commands" help="Highlight an element, the
         arg <CSS>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete css type=none
     example "sbrs --url https://example.com highlight-click --css a"
 }
 cmd is-checked help_heading="Page commands" help="Print whether a checkbox is checked." {
@@ -490,6 +556,7 @@ cmd is-checked help_heading="Page commands" help="Print whether a checkbox is ch
         arg <CSS>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete css type=none
     example "sbrs --url https://example.com is-checked --css '#agree'"
 }
 cmd check-if-unchecked help_heading="Page commands" help="Check a checkbox only if it is unchecked." {
@@ -497,6 +564,7 @@ cmd check-if-unchecked help_heading="Page commands" help="Check a checkbox only 
         arg <CSS>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete css type=none
     example "sbrs --url https://example.com check-if-unchecked --css '#agree'"
 }
 cmd uncheck-if-checked help_heading="Page commands" help="Uncheck a checkbox only if it is checked." {
@@ -504,6 +572,7 @@ cmd uncheck-if-checked help_heading="Page commands" help="Uncheck a checkbox onl
         arg <CSS>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete css type=none
     example "sbrs --url https://example.com uncheck-if-checked --css '#agree'"
 }
 cmd wait-for-element-present help_heading="Page commands" help="Wait until an element is present in the DOM." {
@@ -514,6 +583,8 @@ cmd wait-for-element-present help_heading="Page commands" help="Wait until an el
         arg <TIMEOUT>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete css type=none
+    complete timeout type=none
     example "sbrs --url https://example.com wait-for-element-present --css h1 --timeout 5"
 }
 cmd add-text help_heading="Page commands" help="Append text to an input or textarea." {
@@ -524,6 +595,8 @@ cmd add-text help_heading="Page commands" help="Append text to an input or texta
         arg <TEXT>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete css type=none
+    complete text type=none
     example "sbrs --url https://example.com add-text --css '#name' --text hello"
 }
 cmd send-keys help_heading="Page commands" help="Send keystrokes to an element." {
@@ -534,6 +607,8 @@ cmd send-keys help_heading="Page commands" help="Send keystrokes to an element."
         arg <TEXT>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete css type=none
+    complete text type=none
     example "sbrs --url https://example.com send-keys --css '#name' --text hello"
 }
 cmd get-value help_heading="Page commands" help="Print the value of a form element." {
@@ -541,6 +616,7 @@ cmd get-value help_heading="Page commands" help="Print the value of a form eleme
         arg <CSS>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete css type=none
     example "sbrs --url https://example.com get-value --css '#name'"
 }
 cmd click-visible-elements help_heading="Page commands" help="Click all visible elements matching a selector." {
@@ -548,6 +624,7 @@ cmd click-visible-elements help_heading="Page commands" help="Click all visible 
         arg <CSS>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete css type=none
     example "sbrs --url https://example.com click-visible-elements --css button"
 }
 cmd wait-for-and-accept-alert help_heading="Page commands" help="Wait for an alert that the page opens, then accept it." {
@@ -555,6 +632,7 @@ cmd wait-for-and-accept-alert help_heading="Page commands" help="Wait for an ale
         arg <TIMEOUT>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete timeout type=none
     example "sbrs --url https://example.com wait-for-and-accept-alert --timeout 5"
 }
 cmd wait-for-and-dismiss-alert help_heading="Page commands" help="Wait for an alert that the page opens, then dismiss it." {
@@ -562,6 +640,7 @@ cmd wait-for-and-dismiss-alert help_heading="Page commands" help="Wait for an al
         arg <TIMEOUT>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete timeout type=none
     example "sbrs --url https://example.com wait-for-and-dismiss-alert --timeout 5"
 }
 cmd is-link-text-visible help_heading="Page commands" help="Print whether a link with the given text is visible." {
@@ -569,6 +648,7 @@ cmd is-link-text-visible help_heading="Page commands" help="Print whether a link
         arg <TEXT>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete text type=none
     example "sbrs --url https://example.com is-link-text-visible --text 'More information...'"
 }
 cmd is-partial-link-text-visible help_heading="Page commands" help="Print whether a link containing the given text is visible." {
@@ -576,6 +656,7 @@ cmd is-partial-link-text-visible help_heading="Page commands" help="Print whethe
         arg <TEXT>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete text type=none
     example "sbrs --url https://example.com is-partial-link-text-visible --text 'More info'"
 }
 cmd assert-link-text help_heading="Page commands" help="Assert a link with the given text is visible." {
@@ -583,6 +664,7 @@ cmd assert-link-text help_heading="Page commands" help="Assert a link with the g
         arg <TEXT>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete text type=none
     example "sbrs --url https://example.com assert-link-text --text 'More information...'"
 }
 cmd click-partial-link-text help_heading="Page commands" help="Click a link containing the given text." {
@@ -590,6 +672,7 @@ cmd click-partial-link-text help_heading="Page commands" help="Click a link cont
         arg <TEXT>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete text type=none
     example "sbrs --url https://example.com click-partial-link-text --text 'More info'"
 }
 cmd human-type help_heading="Page commands" help="Type text with human-like timing and noise." {
@@ -600,6 +683,8 @@ cmd human-type help_heading="Page commands" help="Type text with human-like timi
         arg <TEXT>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete css type=none
+    complete text type=none
     example "sbrs --url https://example.com human-type --css '#q' --text hello"
 }
 cmd human-click help_heading="Page commands" help="Click an element with human-like timing and noise." {
@@ -607,6 +692,7 @@ cmd human-click help_heading="Page commands" help="Click an element with human-l
         arg <CSS>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete css type=none
     example "sbrs --url https://example.com human-click --css a"
 }
 cmd smooth-scroll-to help_heading="Page commands" help="Smoothly scroll an element into view." {
@@ -614,6 +700,7 @@ cmd smooth-scroll-to help_heading="Page commands" help="Smoothly scroll an eleme
         arg <CSS>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete css type=none
     example "sbrs --url https://example.com smooth-scroll-to --css footer"
 }
 cmd uc-click help_heading="Page commands" help="Perform a UC-mode click on an element." {
@@ -621,6 +708,7 @@ cmd uc-click help_heading="Page commands" help="Perform a UC-mode click on an el
         arg <CSS>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete css type=none
     example "sbrs --uc --url https://example.com uc-click --css a"
 }
 cmd uc-type help_heading="Page commands" help="Perform UC-mode typing into an element." {
@@ -631,6 +719,8 @@ cmd uc-type help_heading="Page commands" help="Perform UC-mode typing into an el
         arg <TEXT>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete css type=none
+    complete text type=none
     example "sbrs --uc --url https://example.com uc-type --css '#q' --text hello"
 }
 cmd install help_heading="Drivers, grid and servers" help="Download a driver into ./downloaded_drivers/ (Python's `sbrs get`)." {
@@ -641,8 +731,19 @@ Download a driver into ./downloaded_drivers/ (Python's `sbrs get`).
 Without a version, chromedriver and edgedriver are the drivers for the installed Chrome and Edge, and geckodriver is the newest release.
 """#
     flag "-h --help" help="Print help" action=help builtin=#true
-    arg "[DRIVER]" help="The driver: chromedriver, geckodriver (or firefoxdriver), edgedriver (or msedgedriver)." default=chromedriver
+    arg "[DRIVER]" help="The driver: chromedriver, geckodriver (or firefoxdriver), edgedriver (or msedgedriver)." default=chromedriver {
+        choices {
+            choice chromedriver help="chromedriver, for Chrome."
+            choice geckodriver help="geckodriver, for Firefox." {
+                alias firefoxdriver hide=#true
+            }
+            choice edgedriver help="msedgedriver, for Microsoft Edge." {
+                alias msedgedriver hide=#true
+            }
+        }
+    }
     arg "[VERSION]" help="`latest`, a major version (chromedriver, edgedriver), a full build, or a geckodriver version such as 0.36.0."
+    complete version run="sbrs __complete_word__ --candidates version --line={{ words | shell_join | shell_quote }}"
     example "sbrs install chromedriver latest"
 }
 cmd test help_heading=Tests help="Run the project's tests, or one example, through Cargo." {
@@ -664,6 +765,10 @@ The global options reach the tests as SB_* environment variables (for example `s
     flag "-h --help" help="Print help" action=help builtin=#true
     arg "[FILTER]" help="Run only the tests whose name contains this text." conflicts=--example
     arg "[HARNESS_ARGS]..." help="Arguments for the test harness, after `--` (for example --nocapture)." double_dash=required
+    complete filter type=none
+    complete harness_args type=none
+    complete name type=none
+    complete features type=none
     example "sbrs test login"
 }
 cmd grid-hub help_heading="Drivers, grid and servers" help="Start, stop, restart or check a Selenium Grid hub." args_override_self=#false {
@@ -705,7 +810,12 @@ Needs a Selenium Server jar you supply; nothing is downloaded. The process recor
         }
     }
     arg "[EXTRA_ARGS]..." help="More arguments for the Selenium Server, after `--`." double_dash=required
+    complete extra_args type=none
     complete path type=path
+    complete host type=hostname
+    complete port type=none
+    complete host_or_url type=none
+    complete seconds type=none
     example "sbrs grid-hub start"
 }
 cmd grid-node help_heading="Drivers, grid and servers" help="Start, stop, restart or check a Selenium Grid node." args_override_self=#false {
@@ -747,7 +857,12 @@ A node registers with the hub named by `--hub`, or with this machine's.
         }
     }
     arg "[EXTRA_ARGS]..." help="More arguments for the Selenium Server, after `--`." double_dash=required
+    complete extra_args type=none
     complete path type=path
+    complete host type=hostname
+    complete port type=none
+    complete host_or_url type=none
+    complete seconds type=none
     example "sbrs grid-node start"
 }
 cmd translate help_heading="Files and generators" help="Write the actions of a JSON scenario in another language." {
@@ -763,8 +878,10 @@ Rewrites each step's `action` (`click`, `open`, ...) with the translation dictio
     flag "-c --copy" help="Write the translation to a new file next to it, such as `login_es.json`." bool_value=#true
     flag "-h --help" help="Print help" action=help builtin=#true
     arg <FILE> help="The scenario file."
-    arg <LANGUAGE> help="The language: a code (en, zh, nl, fr, it, ja, ko, pt, ru, es) or its English name."
-    complete file type=path
+    arg <LANGUAGE> help="The language: a code (en, zh, nl, fr, it, ja, ko, pt, ru, es) or its English name." {
+        choices strict=#false en zh nl fr it ja ko pt ru es
+    }
+    complete file type=path:json
     example "sbrs translate scenario.json zh --print"
 }
 cmd mkdir help_heading="Files and generators" help="Create a folder with a runnable browser-test suite." {
@@ -777,6 +894,7 @@ Names are relative to the current directory and use letters, digits, `_`, `-` an
     flag --force help="Replace generated files that already exist." bool_value=#true
     flag "-h --help" help="Print help" action=help builtin=#true
     arg <DIR> help="Folder to create, for example `tests/ui`."
+    complete dir type=dir
     example "sbrs mkdir ui_tests"
 }
 cmd mkfile help_heading="Files and generators" help="Create a browser-test file." {
@@ -793,6 +911,8 @@ The name follows the same rules as `mkdir`; `.rs` is added when missing. An exis
     flag --force help="Replace the file if it already exists." bool_value=#true
     flag "-h --help" help="Print help" action=help builtin=#true
     arg <FILE> help="File to create, for example `tests/login.rs`."
+    complete file type=path:rs
+    complete url type=url
     example "sbrs mkfile tests/login.rs"
 }
 cmd commander help_heading=Tests help="Launch the interactive commander (needs a build with the `tui` feature)." {
@@ -811,6 +931,7 @@ The Python command opens a Tkinter window; this one runs in the terminal.
     flag --starter help="Write the starter checklist `CASE_PLANS.md` instead; this needs no `tui` feature." conflicts=PATH bool_value=#true
     flag "-h --help" help="Print help" action=help builtin=#true
     arg "[PATH]" help="A folder of tests, or one test file."
+    complete path type=path
     example "sbrs caseplans --starter"
 }
 cmd behave-gui help_heading=Tests help="Launch the Behave Commander, a terminal app (needs a build with the `tui` feature)." {
@@ -825,6 +946,7 @@ The runner has only the built-in steps: steps written in Rust are not loaded, an
     flag --new help="Prompt for a name, a title and scenarios and write a new feature file instead; this needs no `tui` feature." conflicts=PATH bool_value=#true
     flag "-h --help" help="Print help" action=help builtin=#true
     arg "[PATH]" help="A folder of feature files, or one `.feature` file."
+    complete path type=path:feature
     example "sbrs behave-gui features"
 }
 cmd print help_heading="Files and generators" help="Print a file." {
@@ -832,6 +954,7 @@ cmd print help_heading="Files and generators" help="Print a file." {
         arg <FILE>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete file type=path
     example "sbrs print --file tests/login.rs"
 }
 cmd objectify help_heading="Files and generators" help="Objectify a test recording." {
@@ -843,6 +966,7 @@ cmd mkpres help_heading="Files and generators" help="Create an HTML presentation
         arg <FILE>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete file type=path:html,htm
     example "sbrs mkpres --file deck.html"
 }
 cmd mkchart help_heading="Files and generators" help="Create an HTML chart." {
@@ -850,6 +974,7 @@ cmd mkchart help_heading="Files and generators" help="Create an HTML chart." {
         arg <FILE>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete file type=path:html,htm
     example "sbrs mkchart --file chart.html"
 }
 cmd mkrec help_heading="Record and replay" help="Create a test recording scaffold, or record a test live with --url." {
@@ -863,6 +988,9 @@ cmd mkrec help_heading="Record and replay" help="Create a test recording scaffol
         arg <FILE>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete url type=url
+    complete duration type=none
+    complete file type=path:rs
     example "sbrs mkrec --url https://example.com --file tests/recorded.rs --duration 60"
 }
 cmd run-scenario help_heading=Tests help="Run a scenario file, the way to do several steps in one browser, and write an optional dashboard." {
@@ -873,6 +1001,8 @@ cmd run-scenario help_heading=Tests help="Run a scenario file, the way to do sev
         arg <DASHBOARD>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete file type=path:json
+    complete dashboard type=path:html,htm
     example "sbrs run-scenario --file scenario.json"
 }
 cmd completions help_heading="Info and setup" help="Generate a completion script for a supported shell, or a Fig spec." {
@@ -908,6 +1038,9 @@ cmd import-python help_heading="Import and convert" help="Convert common Seleniu
     }
     flag "-h --help" help="Print help" action=help builtin=#true
     arg <FILE> help="Python source file to convert."
+    complete file type=path:py
+    complete output type=path:rs
+    complete test_name type=none
     example "sbrs import-python login.py --output tests/login.rs"
 }
 cmd import-playwright help_heading="Import and convert" help="Convert Playwright tests or a script (JavaScript, TypeScript or Python) into Rust tests for the pure CDP engine." {
@@ -929,6 +1062,9 @@ cmd import-playwright help_heading="Import and convert" help="Convert Playwright
     }
     flag "-h --help" help="Print help" action=help builtin=#true
     arg <FILE> help="Playwright source file to convert."
+    complete file type=path:js,ts,py
+    complete output type=path:rs
+    complete test_name type=none
     example "sbrs import-playwright login.spec.ts --output tests/login.rs"
 }
 cmd import-puppeteer help_heading="Import and convert" help="Convert Puppeteer scripts or tests (JavaScript, TypeScript) or a Chrome Recorder JSON export into Rust tests for the pure CDP engine." {
@@ -950,6 +1086,9 @@ cmd import-puppeteer help_heading="Import and convert" help="Convert Puppeteer s
     }
     flag "-h --help" help="Print help" action=help builtin=#true
     arg <FILE> help="Puppeteer source file (or Recorder `.json` export) to convert."
+    complete file type=path:js,ts,json
+    complete output type=path:rs
+    complete test_name type=none
     example "sbrs import-puppeteer login.js --output tests/login.rs"
 }
 cmd download-file help_heading="Page commands" help="Download a file from a URL (browser download with an HTTP fallback)." {
@@ -961,6 +1100,9 @@ cmd download-file help_heading="Page commands" help="Download a file from a URL 
     }
     flag "-h --help" help="Print help" action=help builtin=#true
     arg <URL> help="URL of the file to download"
+    complete url type=url
+    complete output type=path
+    complete timeout type=none
     example "sbrs download-file https://example.com/report.pdf --output report.pdf"
 }
 cmd print-pdf help_heading="Page commands" help="Print a page to PDF and save it to disk." {
@@ -969,6 +1111,8 @@ cmd print-pdf help_heading="Page commands" help="Print a page to PDF and save it
     }
     flag "-h --help" help="Print help" action=help builtin=#true
     arg <URL> help="URL to render as a PDF"
+    complete url type=url
+    complete output type=path:pdf
     example "sbrs print-pdf https://example.com --output page.pdf"
 }
 cmd pdf-text help_heading="Page commands" help="Print the text extracted from a page or PDF URL." {
@@ -977,6 +1121,8 @@ cmd pdf-text help_heading="Page commands" help="Print the text extracted from a 
     }
     flag "-h --help" help="Print help" action=help builtin=#true
     arg <URL> help="URL of the page or PDF to extract text from"
+    complete url type=url
+    complete save_pdf type=path:pdf
     example "sbrs pdf-text https://example.com/report.pdf"
 }
 cmd assert-pdf-text help_heading="Page commands" help="Assert that a page or PDF URL contains the expected text." {
@@ -988,12 +1134,17 @@ cmd assert-pdf-text help_heading="Page commands" help="Assert that a page or PDF
     }
     flag "-h --help" help="Print help" action=help builtin=#true
     arg <URL> help="URL of the page or PDF to check"
+    complete url type=url
+    complete text type=none
+    complete save_pdf type=path:pdf
     example "sbrs assert-pdf-text https://example.com/report.pdf --text Total"
 }
 cmd choose-file help_heading="Page commands" help="Upload a local file into a file input." {
     flag "-h --help" help="Print help" action=help builtin=#true
     arg <SELECTOR> help="CSS selector of the <input type=file> element"
     arg <FILE> help="Local file to upload"
+    complete selector type=none
+    complete file type=path
     example "sbrs --url https://example.com/upload choose-file 'input[type=file]' ./photo.png"
 }
 cmd deferred help_heading="Page commands" help="Run several assertions, then report every failure at once." {
@@ -1009,6 +1160,8 @@ The page they run on is the global --url, if there is one.
         arg <SPEC>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete spec type=none
+    complete spec type=path:json
     example "sbrs --url https://example.com deferred --assert element=h1 --assert 'text=h1:Example Domain'"
 }
 cmd record help_heading="Record and replay" help="Record browser interactions into a replayable action file." {
@@ -1020,11 +1173,15 @@ cmd record help_heading="Record and replay" help="Record browser interactions in
     }
     flag "-h --help" help="Print help" action=help builtin=#true
     arg <URL> help="URL to open and record"
+    complete url type=url
+    complete output type=path:json,yaml
+    complete duration type=none
     example "sbrs record https://example.com --output actions.json --duration 30"
 }
 cmd replay help_heading="Record and replay" help="Replay a recorded action file against a fresh browser session." {
     flag "-h --help" help="Print help" action=help builtin=#true
     arg <FILE> help="JSON action file produced by `sbrs record`"
+    complete file type=path:json,yaml
     example "sbrs replay actions.json"
 }
 cmd devtools help_heading="Drivers, grid and servers" help="Launch Chrome with an open DevTools endpoint and print MCP client configs." {
@@ -1041,6 +1198,8 @@ Starts Chrome with the Pure CDP engine (no chromedriver), prints the DevTools HT
     }
     flag --json help="Print the endpoint and configs as one line of JSON instead of text" bool_value=#true
     flag "-h --help" help="Print help" action=help builtin=#true
+    complete port type=none
+    complete path type=executable
     example "sbrs devtools --port 9222"
 }
 cmd plugin help_heading="Info and setup" help="List the built-in plugins, or show what one declares." subcommand_required=#true {
@@ -1067,6 +1226,7 @@ Prints the plugin's category, phase, capabilities (with their risk, and whether 
 """#
         flag "-h --help" help="Print help" action=help builtin=#true
         arg <NAME> help="The plugin's name, as `sbrs plugin list` shows it."
+        complete name type=none
         example "sbrs plugin info shield"
     }
     example "sbrs plugin list"
@@ -1092,7 +1252,8 @@ Starts a browser as `sbrs open` does (the global --browser, --headless, --proxy 
         }
         flag "-h --help" help="Print help" action=help builtin=#true
         arg "[URL]" help="The page to open first (default: a blank page)."
-        complete file type=path
+        complete url type=url
+        complete file type=path:json
         example "sbrs fingerprint capture https://example.com --output seen.json"
     }
     cmd export help="Write a preset or a random identity as a fingerprint file." args_override_self=#false {
@@ -1102,7 +1263,9 @@ Write a preset or a random identity as a fingerprint file.
 Give --preset NAME (windows, edge, macos, linux, android, ios) or --random. A random identity follows --seed, so the same seed gives the same file, and --os, the system it claims (default: this machine's). The file goes to FILE, else to standard output.
 """#
         flag --preset help="The preset to write: windows, edge, macos, linux, android or ios (safari is ios)." {
-            arg <NAME>
+            arg <NAME> {
+                choices strict=#false windows edge macos linux android ios
+            }
         }
         flag --random help="Write a random identity instead of a preset." bool_value=#true
         flag --seed help="With --random, the seed of the draw: the same seed gives the same identity." {
@@ -1123,7 +1286,8 @@ Give --preset NAME (windows, edge, macos, linux, android, ios) or --random. A ra
             arg <FILE>
         }
         flag "-h --help" help="Print help" action=help builtin=#true
-        complete file type=path
+        complete n type=none
+        complete file type=path:json
         example "sbrs fingerprint export --preset windows --output windows.json"
     }
     cmd check help="Check that a fingerprint file loads and is coherent." {
@@ -1134,7 +1298,7 @@ Prints how many settings the file gives, each error and warning, and the verdict
 """#
         flag "-h --help" help="Print help" action=help builtin=#true
         arg <FILE> help="The fingerprint file to check."
-        complete file type=path
+        complete file type=path:json
         example "sbrs fingerprint check windows.json"
     }
     cmd diff help="Compare two fingerprint files." {
@@ -1148,8 +1312,8 @@ To check that a browser presents a file: `sbrs --fingerprint f.json fingerprint 
         flag "-h --help" help="Print help" action=help builtin=#true
         arg <EXPECTED> help="The file with what is expected."
         arg <FOUND> help="The file with what is found."
-        complete expected type=path
-        complete found type=path
+        complete expected type=path:json
+        complete found type=path:json
         example "sbrs fingerprint diff windows.json seen.json"
     }
     cmd presets help="List the presets and what each claims." {

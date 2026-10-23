@@ -1191,6 +1191,8 @@ sbrs fingerprint export [FLAGS]
 
 The preset to write: windows, edge, macos, linux, android or ios (safari is ios).
 
+One of: `windows`, `edge`, `macos`, `linux`, `android`, `ios`
+
 </ParamField>
 
 <ParamField query="--random" type="boolean">
@@ -1846,6 +1848,8 @@ sbrs install [DRIVER] [VERSION]
 <ParamField path="DRIVER" type="string" default="chromedriver">
 
 The driver: chromedriver, geckodriver (or firefoxdriver), edgedriver (or msedgedriver).
+
+One of: `chromedriver`, `geckodriver`, `edgedriver`
 
 </ParamField>
 
@@ -2762,6 +2766,8 @@ The scenario file.
 <ParamField path="LANGUAGE" type="string" required>
 
 The language: a code (en, zh, nl, fr, it, ja, ko, pt, ru, es) or its English name.
+
+One of: `en`, `zh`, `nl`, `fr`, `it`, `ja`, `ko`, `pt`, `ru`, `es`
 
 </ParamField>
 

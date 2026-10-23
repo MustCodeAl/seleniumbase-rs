@@ -63,6 +63,55 @@ mod tests {
     use super::{powershell, zsh, PS_CUT, ZSH_COMPADD};
     use crate::Cli;
     use usage::complete::Shell;
+    use usage::spec::CommandMeta;
+
+    #[test]
+    fn install_offers_only_versions_it_reads() {
+        for (word, _) in crate::INSTALL_VERSIONS {
+            assert!(
+                word.parse::<seleniumbase_rs::browser::options::DriverVersion>()
+                    .is_ok(),
+                "`sbrs install DRIVER {word}` is offered but not read"
+            );
+        }
+    }
+
+    /// The visible flags and arguments below `command` that take a value and say nothing
+    /// about it: no choices, no value hint, no completer. The shell completes file names
+    /// there, which is wrong for a selector, a number or a URL, so every declaration must say
+    /// what it takes.
+    fn unhinted(command: &CommandMeta<'_>, path: &str, found: &mut Vec<String>) {
+        for flag in command.flags.iter().filter(|flag| !flag.hide) {
+            if flag.flag.takes_value
+                && flag.choices.is_empty()
+                && flag.complete_type().is_none()
+                && flag.complete.is_none()
+            {
+                let name = flag.flag.longs.first().copied().unwrap_or("?");
+                found.push(format!("{path} --{name}"));
+            }
+        }
+        for arg in command.args.iter().filter(|arg| !arg.hide) {
+            if arg.choices.is_empty() && arg.complete_type.is_none() && arg.complete.is_none() {
+                found.push(format!("{path} <{}>", arg.arg.name));
+            }
+        }
+        for subcommand in command.subcommands.iter().filter(|command| !command.hide) {
+            let name = format!("{path} {}", subcommand.cmd.name);
+            unhinted(subcommand, &name, &mut *found);
+        }
+    }
+
+    #[test]
+    fn every_value_says_what_it_takes() {
+        let mut found = Vec::new();
+        unhinted(Cli::spec().root, "sbrs", &mut found);
+        assert!(
+            found.is_empty(),
+            "these values fall back to file names in the shell; give each a value_hint, choices or complete:\n{}",
+            found.join("\n")
+        );
+    }
 
     #[test]
     fn usage_still_writes_the_line_the_patch_replaces() {
