@@ -32,6 +32,7 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs assert-text-visible`](#sbrs-assert-text-visible) | Assert that an element contains the expected text. |
 | [`sbrs assert-title`](#sbrs-assert-title) | Assert the page title contains the expected text. |
 | [`sbrs behave-gui`](#sbrs-behave-gui) | Launch the Behave Commander, a terminal app (needs a build with the `tui` feature). |
+| [`sbrs behave-options`](#sbrs-behave-options) | Print how Python SeleniumBase's behave options map to `sbrs test`. |
 | [`sbrs cache-clear`](#sbrs-cache-clear) | Clear the browser cache via CDP. |
 | [`sbrs caseplans`](#sbrs-caseplans) | Launch the Case Plans Generator, a terminal app (needs a build with the `tui` feature). |
 | [`sbrs cdp`](#sbrs-cdp) | Execute a Chrome DevTools Protocol command. |
@@ -118,7 +119,7 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs set-local-storage-item`](#sbrs-set-local-storage-item) | Set a local storage key/value pair. |
 | [`sbrs smoke`](#sbrs-smoke) | Run a smoke test against a URL. |
 | [`sbrs smooth-scroll-to`](#sbrs-smooth-scroll-to) | Smoothly scroll an element into view. |
-| [`sbrs test`](#sbrs-test) | Run the project's tests, or one example, through Cargo. |
+| [`sbrs test`](#sbrs-test) | Run the project's tests, or one example, through Cargo or cargo-nextest. |
 | [`sbrs translate`](#sbrs-translate) | Write the actions of a JSON scenario in another language. |
 | [`sbrs type-alert-text`](#sbrs-type-alert-text) | Type text into the prompt that the page opens when it loads. |
 | [`sbrs uc-click`](#sbrs-uc-click) | Perform a UC-mode click on an element. |
@@ -285,14 +286,6 @@ Also: `--esc_end`, `--ee`
 Write recordings as pure CDP code (sb_cdp Page and Locator calls)
 
 Also: `--rec_sb_cdp`
-
-</ParamField>
-
-<ParamField query="--threads <THREADS>" type="string">
-
-Number of parallel threads for test runs
-
-Also: `-n`
 
 </ParamField>
 
@@ -592,6 +585,18 @@ Prompt for a name, a title and scenarios and write a new feature file instead; t
 
 ```bash Examples
 sbrs behave-gui features
+```
+
+## sbrs behave-options
+
+Print how Python SeleniumBase's behave options map to `sbrs test`.
+
+```bash Usage
+sbrs behave-options
+```
+
+```bash Examples
+sbrs behave-options
 ```
 
 ## sbrs cache-clear
@@ -2780,9 +2785,11 @@ sbrs --url https://example.com smooth-scroll-to --css footer
 
 ## sbrs test
 
-Run the project's tests, or one example, through Cargo.
+Run the project's tests, or one example, through Cargo or cargo-nextest.
 
-The global options reach the tests as SB_* environment variables (for example `sbrs --headless --browser firefox test` sets SB_HEADLESS and SB_BROWSER), so a test that loads `Settings` sees them, and `-n` sets how many tests run at once. `--plugin` reaches them as SB_PLUGINS, with the plugins the settings file and the variable already turn on; `--plugin-opt` cannot be passed on, so `sbrs test` refuses it.
+Every option of Python SeleniumBase's pytest plugin is a flag of `test`, in each of its spellings (`--no-sandbox`, `--no_sandbox`, `--dcsp`): the flags reach the tests as SB_* environment variables, which a test that loads `Settings` reads. The options before the command (`sbrs --headless --browser firefox test`) reach them too, and a flag after it wins. `--plugin` reaches them as SB_PLUGINS, with the plugins the settings file and the variable already turn on; `--plugin-opt` cannot be passed on, so `sbrs test` refuses it.
+
+`-k` and `-m` select tests as pytest does (a marker is a module name), `-n` sets how many run at once, `--co` lists them, `--pdb`, `--trace` and `--final-debug` stop in a prompt (one test at a time, output shown), `--reruns N` runs a failing test again, and `--archive-logs` keeps the old latest_logs folder, which a run otherwise empties. `-c FILE` (or `--settings-file`) names the settings file the tests read.
 
 ```bash Usage
 sbrs test [FLAGS] [FILTER] [-- HARNESS_ARGS]…
@@ -2798,7 +2805,7 @@ Run only the tests whose name contains this text.
 
 <ParamField path="HARNESS_ARGS" type="string[]">
 
-Arguments for the test harness, after `--` (for example --nocapture).
+Arguments for the test harness, after `--` (for example --exact).
 
 </ParamField>
 
@@ -2828,8 +2835,987 @@ Cargo features to enable, separated by commas.
 
 </ParamField>
 
+<ParamField query="-k <EXPR>" type="string">
+
+Select tests by name, as pytest's -k: `login or signup`, `not slow`, `(a or b) and not c`.
+
+</ParamField>
+
+<ParamField query="-m <EXPR>" type="string">
+
+Select tests by marker, as pytest's -m. A marker is a module name: `-m smoke` runs the tests in `mod smoke`.
+
+</ParamField>
+
+<ParamField query="--threads <N|auto>" type="string">
+
+How many tests run at once, as pytest-xdist's -n: a number or `auto`.
+
+Also: `-n`
+
+</ParamField>
+
+<ParamField query="--no-capture" type="boolean">
+
+Show what the tests print as they run (pytest's -s).
+
+Also: `--nocapture`, `-s`
+
+</ParamField>
+
+<ParamField query="--co" type="boolean">
+
+List the tests that would run and how many (`collected N items`) without running them.
+
+Also: `--collect-only`
+
+</ParamField>
+
+<ParamField query="--all-scripts" type="boolean">
+
+After the tests, run every example of the packages with `cargo run --example`.
+
+</ParamField>
+
+<ParamField query="--browser <BROWSER>" type="string">
+
+The browser to run: chrome, edge, firefox, brave, ...
+
+One of: `chrome`, `chromium`, `edge`, `firefox`, `brave`, `comet`, `opera`, `safari`, `ie`, `cft`, `chs`
+
+</ParamField>
+
+<ParamField query="--headless [HEADLESS]" type="string">
+
+Run without a visible window (Chrome's new headless mode)
+
+Also: `--headless2`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--binary-location <PATH>" type="string">
+
+The browser binary to run
+
+Also: `--bl`
+
+</ParamField>
+
+<ParamField query="--proxy <VALUE>" type="string">
+
+The proxy server: HOST:PORT or USER:PASS@HOST:PORT
+
+Also: `--proxy-server`, `--proxy-string`
+
+</ParamField>
+
+<ParamField query="--user-data-dir <DIR>" type="string">
+
+The browser profile folder
+
+</ParamField>
+
+<ParamField query="--extension-dir <DIR>" type="string">
+
+Unpacked extension folders to load, separated by commas
+
+</ParamField>
+
+<ParamField query="--locale <VALUE>" type="string">
+
+The browser locale
+
+</ParamField>
+
+<ParamField query="--user-agent <VALUE>" type="string">
+
+The user agent string
+
+Also: `--agent`
+
+</ParamField>
+
+<ParamField query="--mode <MODE>" type="string">
+
+The driver mode: webdriver, cdp or uc
+
+One of: `webdriver`, `cdp`, `uc`
+
+</ParamField>
+
+<ParamField query="--ad-block [AD_BLOCK]" type="string">
+
+Block the requests of ad and tracker hosts
+
+Also: `--adblock`, `--block-ads`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--reuse-session [REUSE_SESSION]" type="string">
+
+Share browsers among the tests of the run
+
+Also: `--rs`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--reuse-class-session [REUSE_CLASS_SESSION]" type="string">
+
+Share a browser among the tests of one module
+
+Also: `--rcs`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--mobile [MOBILE]" type="string">
+
+Emulate a mobile phone
+
+Also: `--mobile-emulator`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--proxy-pac-url <URL>" type="string">
+
+A proxy auto-config URL
+
+Also: `--pac-url`
+
+</ParamField>
+
+<ParamField query="--esc-end [ESC_END]" type="string">
+
+End the current test when ESC is pressed in the browser
+
+Also: `--ee`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--rec-sb-cdp [REC_SB_CDP]" type="string">
+
+Write recordings as pure CDP code
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--fingerprint <PATH>" type="string">
+
+A fingerprint file every browser presents
+
+</ParamField>
+
+<ParamField query="--start-page <URL>" type="string">
+
+The page every browser opens first
+
+Also: `--url`
+
+</ParamField>
+
+<ParamField query="--settings-file <PATH>" type="string">
+
+The settings file to read instead of sbase_config.toml
+
+Also: `--settings`
+
+</ParamField>
+
+<ParamField query="--chrome [CHROME]" type="string">
+
+Run Chrome
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--edge [EDGE]" type="string">
+
+Run Edge
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--firefox [FIREFOX]" type="string">
+
+Run Firefox
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--brave [BRAVE]" type="string">
+
+Run Brave
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--comet [COMET]" type="string">
+
+Run Comet
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--opera [OPERA]" type="string">
+
+Run Opera
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--safari [SAFARI]" type="string">
+
+Run Safari
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--ie [IE]" type="string">
+
+Run Internet Explorer
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--cft [CFT]" type="string">
+
+Run Chrome for Testing
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--chs [CHS]" type="string">
+
+Run chrome-headless-shell
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--chromium [CHROMIUM]" type="string">
+
+Run Chromium
+
+Also: `--use-chromium`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--headed [HEADED]" type="string">
+
+Run with a visible window
+
+Also: `--gui`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--uc [UC]" type="string">
+
+Run in undetected-chromedriver mode
+
+Also: `--undetected`, `--undetectable`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--headless1 [HEADLESS1]" type="string">
+
+Run headless with chrome-headless-shell (Chrome's old headless mode)
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--locale-code <VALUE>" type="string">
+
+The browser language code, such as fr or ar_eg
+
+</ParamField>
+
+<ParamField query="--server <VALUE>" type="string">
+
+The Selenium Grid server to connect to
+
+</ParamField>
+
+<ParamField query="--port <VALUE>" type="string">
+
+The port of the Selenium Grid server
+
+</ParamField>
+
+<ParamField query="--protocol <VALUE>" type="string">
+
+The protocol of the Selenium Grid server: http or https
+
+</ParamField>
+
+<ParamField query="--chromium-arg <VALUE>" type="string">
+
+Extra Chromium switches, separated by commas
+
+</ParamField>
+
+<ParamField query="--dark-mode [DARK_MODE]" type="string">
+
+Force Chrome's dark theme on web pages
+
+Also: `--dark`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--devtools [DEVTOOLS]" type="string">
+
+Open the developer tools with each tab (headed only)
+
+Also: `--open-devtools`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--disable-features <VALUE>" type="string">
+
+Chromium features to switch off, separated by commas
+
+</ParamField>
+
+<ParamField query="--disable-gpu [DISABLE_GPU]" type="string">
+
+Switch the GPU off
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--disable-ws [DISABLE_WS]" type="string">
+
+Switch web security off
+
+Also: `--dws`, `--disable-web-security`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--guest-mode [GUEST_MODE]" type="string">
+
+Open the browser as a guest
+
+Also: `--guest`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--incognito [INCOGNITO]" type="string">
+
+Open the browser in an incognito window
+
+Also: `--incognito-mode`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--host-resolver-rules <VALUE>" type="string">
+
+Chromium rules that map host names to addresses
+
+</ParamField>
+
+<ParamField query="--no-sandbox [NO_SANDBOX]" type="string">
+
+Start Chromium without its sandbox
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--swiftshader [SWIFTSHADER]" type="string">
+
+Render with SwiftShader, a software WebGL renderer
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--enable-3d-apis [ENABLE_3D_APIS]" type="string">
+
+Keep the GPU on in a headless session, for WebGL
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--maximize [MAXIMIZE]" type="string">
+
+Maximize the browser window
+
+Also: `--maximize-window`, `--fullscreen`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--block-images [BLOCK_IMAGES]" type="string">
+
+Do not load images
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--disable-js [DISABLE_JS]" type="string">
+
+Turn JavaScript off
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--disable-cookies [DISABLE_COOKIES]" type="string">
+
+Refuse every cookie
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--do-not-track [DO_NOT_TRACK]" type="string">
+
+Send the DNT: 1 header
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--external-pdf [EXTERNAL_PDF]" type="string">
+
+Download PDF files instead of showing them
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--enable-sync [ENABLE_SYNC]" type="string">
+
+Leave Chrome Sync on
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--disable-csp [DISABLE_CSP]" type="string">
+
+Strip the Content Security Policy from every response
+
+Also: `--dcsp`, `--no-csp`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--use-auto-ext [USE_AUTO_EXT]" type="string">
+
+Keep Chrome's automation extension
+
+Also: `--auto-ext`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--proxy-driver [PROXY_DRIVER]" type="string">
+
+Download the driver through the proxy
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--page-load-strategy <STRATEGY>" type="string">
+
+How long a navigation waits: normal, eager or none
+
+Also: `--pls`
+
+One of: `normal`, `eager`, `none`
+
+</ParamField>
+
+<ParamField query="--window-size <VALUE>" type="string">
+
+The window size: WIDTH,HEIGHT
+
+</ParamField>
+
+<ParamField query="--window-position <VALUE>" type="string">
+
+The window position: X,Y
+
+</ParamField>
+
+<ParamField query="--device-metrics <VALUE>" type="string">
+
+Emulate a phone screen: WIDTH,HEIGHT,PIXEL_RATIO
+
+Also: `--metrics`
+
+</ParamField>
+
+<ParamField query="--proxy-bypass-list <VALUE>" type="string">
+
+Hosts that skip the proxy
+
+</ParamField>
+
+<ParamField query="--driver-version <VALUE>" type="string">
+
+The driver version: a number, latest, stable, beta, ...
+
+</ParamField>
+
+<ParamField query="--cap-file <PATH>" type="string">
+
+A JSON file of capabilities to add to the session's
+
+</ParamField>
+
+<ParamField query="--cap-string <VALUE>" type="string">
+
+A JSON object of capabilities to add to the session's
+
+</ParamField>
+
+<ParamField query="--extension-zip <VALUE>" type="string">
+
+Extension .zip or .crx files to load, separated by commas
+
+Also: `--crx`
+
+</ParamField>
+
+<ParamField query="--firefox-arg <VALUE>" type="string">
+
+Firefox arguments, separated by commas
+
+</ParamField>
+
+<ParamField query="--firefox-pref <VALUE>" type="string">
+
+Firefox preferences, NAME:VALUE separated by commas
+
+</ParamField>
+
+<ParamField query="--xvfb [XVFB]" type="string">
+
+Open a virtual display for a headed browser on Linux
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--xvfb-metrics <VALUE>" type="string">
+
+The virtual display size: WIDTH,HEIGHT
+
+</ParamField>
+
+<ParamField query="--remote-debug [REMOTE_DEBUG]" type="string">
+
+Open Chrome's remote debugger on port 9222
+
+Also: `--remote-debugger`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--log-cdp-events [LOG_CDP_EVENTS]" type="string">
+
+Log the DevTools Protocol events
+
+Also: `--log-cdp`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--uc-cdp-events [UC_CDP_EVENTS]" type="string">
+
+Log the DevTools Protocol events in undetected mode
+
+Also: `--uc-cdp`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--demo [DEMO]" type="string">
+
+Highlight each element and pause after an action
+
+Also: `--demo-mode`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--slow [SLOW]" type="string">
+
+Pause briefly after each action
+
+Also: `--slow-mode`, `--slowmo`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--demo-sleep <SECONDS>" type="string">
+
+Seconds to pause after each action in demo mode
+
+</ParamField>
+
+<ParamField query="--message-duration <SECONDS>" type="string">
+
+Seconds a message stays on the page
+
+</ParamField>
+
+<ParamField query="--skip-js-waits [SKIP_JS_WAITS]" type="string">
+
+Do not wait for the page's JavaScript to settle
+
+Also: `--sjw`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--highlights <COUNT>" type="string">
+
+How many times to flash a highlighted element
+
+</ParamField>
+
+<ParamField query="--interval <SECONDS>" type="string">
+
+Seconds between the steps of a tour or presentation
+
+</ParamField>
+
+<ParamField query="--verify-delay <SECONDS>" type="string">
+
+Seconds to wait before each MasterQA verification
+
+</ParamField>
+
+<ParamField query="--check-js [CHECK_JS]" type="string">
+
+Check each page for JavaScript errors after it opens
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--wait-for-angularjs [WAIT_FOR_ANGULARJS]" type="string">
+
+Wait for AngularJS after opening a page and clicking
+
+Also: `--wfa`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--disable-beforeunload [DISABLE_BEFOREUNLOAD]" type="string">
+
+Remove the beforeunload prompt after each page opens
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--visual-baseline [VISUAL_BASELINE]" type="string">
+
+Set the visual baselines again instead of comparing
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--crumbs [CRUMBS]" type="string">
+
+Delete the cookies when a reused browser is handed to the next test
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--timeout-multiplier <VALUE>" type="string">
+
+Multiply the default waits by this number
+
+</ParamField>
+
+<ParamField query="--rec-sleep [REC_SLEEP]" type="string">
+
+Keep the sleeps of a recording
+
+Also: `--record-sleep`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--env <ENV>" type="string">
+
+The environment the tests run against: qa, staging, production, ...
+
+One of: `qa`, `rc`, `staging`, `develop`, `production`, `performance`, `replica`, `fedramp`, `offline`, `online`, `master`, `remote`, `legacy`, `local`, `alpha`, `beta`, `demo`, `gdpr`, `main`, `test`, `gov`, `new`, `old`, `uat`
+
+</ParamField>
+
+<ParamField query="--account <VALUE>" type="string">
+
+A free account name for the tests
+
+</ParamField>
+
+<ParamField query="--data <VALUE>" type="string">
+
+Free test data
+
+</ParamField>
+
+<ParamField query="--var1 <VALUE>" type="string">
+
+A free variable for the tests
+
+</ParamField>
+
+<ParamField query="--var2 <VALUE>" type="string">
+
+A free variable for the tests
+
+</ParamField>
+
+<ParamField query="--var3 <VALUE>" type="string">
+
+A free variable for the tests
+
+</ParamField>
+
+<ParamField query="--variables <VALUE>" type="string">
+
+A dictionary of values: JSON or a Python dictionary literal
+
+</ParamField>
+
+<ParamField query="--pdb [PDB]" type="string">
+
+Stop in a post-mortem prompt when a test fails
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--trace [TRACE]" type="string">
+
+Stop in a prompt before each test's body
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--final-debug [FINAL_DEBUG]" type="string">
+
+Stop in a prompt after each test, before the browser quits
+
+Also: `--fdebug`, `--final-trace`, `--ftrace`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--reruns <COUNT>" type="string">
+
+Run a failing test again this many times
+
+</ParamField>
+
+<ParamField query="--reruns-delay <SECONDS>" type="string">
+
+Seconds to wait between reruns
+
+</ParamField>
+
+<ParamField query="--time-limit <SECONDS>" type="string">
+
+Fail a test that runs longer than this many seconds
+
+Also: `--timelimit`
+
+</ParamField>
+
+<ParamField query="--runner <RUNNER>" type="string">
+
+The test runner: cargo or nextest
+
+One of: `cargo`, `nextest`
+
+</ParamField>
+
+<ParamField query="--screenshot [SCREENSHOT]" type="string">
+
+Save a screenshot of passing tests too
+
+Also: `--save-screenshot`, `--ss`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--no-screenshot [NO_SCREENSHOT]" type="string">
+
+Save no screenshot of failing tests
+
+Also: `--ns`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--list-fail-page [LIST_FAIL_PAGE]" type="string">
+
+Print the URL of the page a failing test ended on
+
+Also: `--list-fail-pages`, `--lfp`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--archive-logs [ARCHIVE_LOGS]" type="string">
+
+Keep the old latest_logs folder in archived_logs
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--archive-downloads [ARCHIVE_DOWNLOADS]" type="string">
+
+Keep the old downloaded_files folder in archived_files
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--dashboard [DASHBOARD]" type="string">
+
+Write the results dashboard
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--dash-title <VALUE>" type="string">
+
+The dashboard's title
+
+</ParamField>
+
+<ParamField query="--with-db-reporting [WITH_DB_REPORTING]" type="string">
+
+Record each test's outcome in the results database
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--database-env <VALUE>" type="string">
+
+Which results database to use
+
+</ParamField>
+
+<ParamField query="--with-s3-logging [WITH_S3_LOGGING]" type="string">
+
+Upload each test's logs to S3
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--rec [REC]" type="string">
+
+Record the browser actions as a test
+
+Also: `--record`, `--recorder`, `--codegen`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--rec-behave [REC_BEHAVE]" type="string">
+
+Also write the recording as a Gherkin feature
+
+Also: `--rec-gherkin`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--rec-print [REC_PRINT]" type="string">
+
+Print the recording when the test ends
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--rec-sb-mgr [REC_SB_MGR]" type="string">
+
+Write the recording as a script
+
+One of: `true`, `false`
+
+</ParamField>
+
 ```bash Examples
 sbrs test login
+sbrs test -k 'login and not slow' --runner nextest --headless --browser firefox
 ```
 
 ## sbrs translate

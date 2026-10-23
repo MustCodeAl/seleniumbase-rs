@@ -1407,7 +1407,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "test",
-      description: "Run the project's tests, or one example, through Cargo.",
+      description: "Run the project's tests, or one example, through Cargo or cargo-nextest.",
       options: [
         {
           name: "--test",
@@ -1436,6 +1436,1012 @@ const completionSpec: Fig.Spec = {
           },
         },
         {
+          name: "-k",
+          description: "Select tests by name, as pytest's -k: `login or signup`, `not slow`, `(a or b) and not c`.",
+          args: {
+            name: "expr",
+          },
+        },
+        {
+          name: "-m",
+          description: "Select tests by marker, as pytest's -m. A marker is a module name: `-m smoke` runs the tests in `mod smoke`.",
+          args: {
+            name: "expr",
+          },
+        },
+        {
+          name: ["-n", "--threads"],
+          description: "How many tests run at once, as pytest-xdist's -n: a number or `auto`.",
+          args: {
+            name: "n|auto",
+          },
+        },
+        {
+          name: ["-s", "--no-capture", "--nocapture"],
+          description: "Show what the tests print as they run (pytest's -s).",
+        },
+        {
+          name: ["--co", "--collect-only"],
+          description: "List the tests that would run and how many (`collected N items`) without running them.",
+        },
+        {
+          name: "--all-scripts",
+          description: "After the tests, run every example of the packages with `cargo run --example`.",
+        },
+        {
+          name: "--browser",
+          description: "The browser to run: chrome, edge, firefox, brave, ...",
+          args: {
+            name: "browser",
+            suggestions: ["chrome", "chromium", "edge", "firefox", "brave", "comet", "opera", "safari", "ie", "cft", "chs"],
+          },
+        },
+        {
+          name: ["--headless", "--headless2"],
+          description: "Run without a visible window (Chrome's new headless mode)",
+          args: {
+            name: "headless",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: ["--binary-location", "--bl"],
+          description: "The browser binary to run",
+          args: {
+            name: "path",
+            template: "filepaths",
+          },
+        },
+        {
+          name: ["--proxy", "--proxy-server", "--proxy-string"],
+          description: "The proxy server: HOST:PORT or USER:PASS@HOST:PORT",
+          args: {
+            name: "value",
+          },
+        },
+        {
+          name: "--user-data-dir",
+          description: "The browser profile folder",
+          args: {
+            name: "dir",
+            template: "folders",
+          },
+        },
+        {
+          name: "--extension-dir",
+          description: "Unpacked extension folders to load, separated by commas",
+          args: {
+            name: "dir",
+            template: "folders",
+          },
+        },
+        {
+          name: "--locale",
+          description: "The browser locale",
+          args: {
+            name: "value",
+          },
+        },
+        {
+          name: ["--user-agent", "--agent"],
+          description: "The user agent string",
+          args: {
+            name: "value",
+          },
+        },
+        {
+          name: "--mode",
+          description: "The driver mode: webdriver, cdp or uc",
+          args: {
+            name: "mode",
+            suggestions: ["webdriver", "cdp", "uc"],
+          },
+        },
+        {
+          name: ["--ad-block", "--adblock", "--block-ads"],
+          description: "Block the requests of ad and tracker hosts",
+          args: {
+            name: "ad_block",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: ["--reuse-session", "--rs"],
+          description: "Share browsers among the tests of the run",
+          args: {
+            name: "reuse_session",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: ["--reuse-class-session", "--rcs"],
+          description: "Share a browser among the tests of one module",
+          args: {
+            name: "reuse_class_session",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: ["--mobile", "--mobile-emulator"],
+          description: "Emulate a mobile phone",
+          args: {
+            name: "mobile",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: ["--proxy-pac-url", "--pac-url"],
+          description: "A proxy auto-config URL",
+          args: {
+            name: "url",
+          },
+        },
+        {
+          name: ["--esc-end", "--ee"],
+          description: "End the current test when ESC is pressed in the browser",
+          args: {
+            name: "esc_end",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--rec-sb-cdp",
+          description: "Write recordings as pure CDP code",
+          args: {
+            name: "rec_sb_cdp",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--fingerprint",
+          description: "A fingerprint file every browser presents",
+          args: {
+            name: "path",
+            template: "filepaths",
+          },
+        },
+        {
+          name: ["--start-page", "--url"],
+          description: "The page every browser opens first",
+          args: {
+            name: "url",
+          },
+        },
+        {
+          name: ["--settings-file", "--settings"],
+          description: "The settings file to read instead of sbase_config.toml",
+          args: {
+            name: "path",
+            template: "filepaths",
+          },
+        },
+        {
+          name: "--chrome",
+          description: "Run Chrome",
+          args: {
+            name: "chrome",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--edge",
+          description: "Run Edge",
+          args: {
+            name: "edge",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--firefox",
+          description: "Run Firefox",
+          args: {
+            name: "firefox",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--brave",
+          description: "Run Brave",
+          args: {
+            name: "brave",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--comet",
+          description: "Run Comet",
+          args: {
+            name: "comet",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--opera",
+          description: "Run Opera",
+          args: {
+            name: "opera",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--safari",
+          description: "Run Safari",
+          args: {
+            name: "safari",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--ie",
+          description: "Run Internet Explorer",
+          args: {
+            name: "ie",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--cft",
+          description: "Run Chrome for Testing",
+          args: {
+            name: "cft",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--chs",
+          description: "Run chrome-headless-shell",
+          args: {
+            name: "chs",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: ["--chromium", "--use-chromium"],
+          description: "Run Chromium",
+          args: {
+            name: "chromium",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: ["--headed", "--gui"],
+          description: "Run with a visible window",
+          args: {
+            name: "headed",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: ["--uc", "--undetected", "--undetectable"],
+          description: "Run in undetected-chromedriver mode",
+          args: {
+            name: "uc",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--headless1",
+          description: "Run headless with chrome-headless-shell (Chrome's old headless mode)",
+          args: {
+            name: "headless1",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--locale-code",
+          description: "The browser language code, such as fr or ar_eg",
+          args: {
+            name: "value",
+          },
+        },
+        {
+          name: "--server",
+          description: "The Selenium Grid server to connect to",
+          args: {
+            name: "value",
+          },
+        },
+        {
+          name: "--port",
+          description: "The port of the Selenium Grid server",
+          args: {
+            name: "value",
+          },
+        },
+        {
+          name: "--protocol",
+          description: "The protocol of the Selenium Grid server: http or https",
+          args: {
+            name: "value",
+          },
+        },
+        {
+          name: "--chromium-arg",
+          description: "Extra Chromium switches, separated by commas",
+          args: {
+            name: "value",
+          },
+        },
+        {
+          name: ["--dark-mode", "--dark"],
+          description: "Force Chrome's dark theme on web pages",
+          args: {
+            name: "dark_mode",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: ["--devtools", "--open-devtools"],
+          description: "Open the developer tools with each tab (headed only)",
+          args: {
+            name: "devtools",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--disable-features",
+          description: "Chromium features to switch off, separated by commas",
+          args: {
+            name: "value",
+          },
+        },
+        {
+          name: "--disable-gpu",
+          description: "Switch the GPU off",
+          args: {
+            name: "disable_gpu",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: ["--disable-ws", "--dws", "--disable-web-security"],
+          description: "Switch web security off",
+          args: {
+            name: "disable_ws",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: ["--guest-mode", "--guest"],
+          description: "Open the browser as a guest",
+          args: {
+            name: "guest_mode",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: ["--incognito", "--incognito-mode"],
+          description: "Open the browser in an incognito window",
+          args: {
+            name: "incognito",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--host-resolver-rules",
+          description: "Chromium rules that map host names to addresses",
+          args: {
+            name: "value",
+          },
+        },
+        {
+          name: "--no-sandbox",
+          description: "Start Chromium without its sandbox",
+          args: {
+            name: "no_sandbox",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--swiftshader",
+          description: "Render with SwiftShader, a software WebGL renderer",
+          args: {
+            name: "swiftshader",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--enable-3d-apis",
+          description: "Keep the GPU on in a headless session, for WebGL",
+          args: {
+            name: "enable_3d_apis",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: ["--maximize", "--maximize-window", "--fullscreen"],
+          description: "Maximize the browser window",
+          args: {
+            name: "maximize",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--block-images",
+          description: "Do not load images",
+          args: {
+            name: "block_images",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--disable-js",
+          description: "Turn JavaScript off",
+          args: {
+            name: "disable_js",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--disable-cookies",
+          description: "Refuse every cookie",
+          args: {
+            name: "disable_cookies",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--do-not-track",
+          description: "Send the DNT: 1 header",
+          args: {
+            name: "do_not_track",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--external-pdf",
+          description: "Download PDF files instead of showing them",
+          args: {
+            name: "external_pdf",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--enable-sync",
+          description: "Leave Chrome Sync on",
+          args: {
+            name: "enable_sync",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: ["--disable-csp", "--dcsp", "--no-csp"],
+          description: "Strip the Content Security Policy from every response",
+          args: {
+            name: "disable_csp",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: ["--use-auto-ext", "--auto-ext"],
+          description: "Keep Chrome's automation extension",
+          args: {
+            name: "use_auto_ext",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--proxy-driver",
+          description: "Download the driver through the proxy",
+          args: {
+            name: "proxy_driver",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: ["--page-load-strategy", "--pls"],
+          description: "How long a navigation waits: normal, eager or none",
+          args: {
+            name: "strategy",
+            suggestions: ["normal", "eager", "none"],
+          },
+        },
+        {
+          name: "--window-size",
+          description: "The window size: WIDTH,HEIGHT",
+          args: {
+            name: "value",
+          },
+        },
+        {
+          name: "--window-position",
+          description: "The window position: X,Y",
+          args: {
+            name: "value",
+          },
+        },
+        {
+          name: ["--device-metrics", "--metrics"],
+          description: "Emulate a phone screen: WIDTH,HEIGHT,PIXEL_RATIO",
+          args: {
+            name: "value",
+          },
+        },
+        {
+          name: "--proxy-bypass-list",
+          description: "Hosts that skip the proxy",
+          args: {
+            name: "value",
+          },
+        },
+        {
+          name: "--driver-version",
+          description: "The driver version: a number, latest, stable, beta, ...",
+          args: {
+            name: "value",
+          },
+        },
+        {
+          name: "--cap-file",
+          description: "A JSON file of capabilities to add to the session's",
+          args: {
+            name: "path",
+            template: "filepaths",
+          },
+        },
+        {
+          name: "--cap-string",
+          description: "A JSON object of capabilities to add to the session's",
+          args: {
+            name: "value",
+          },
+        },
+        {
+          name: ["--extension-zip", "--crx"],
+          description: "Extension .zip or .crx files to load, separated by commas",
+          args: {
+            name: "value",
+          },
+        },
+        {
+          name: "--firefox-arg",
+          description: "Firefox arguments, separated by commas",
+          args: {
+            name: "value",
+          },
+        },
+        {
+          name: "--firefox-pref",
+          description: "Firefox preferences, NAME:VALUE separated by commas",
+          args: {
+            name: "value",
+          },
+        },
+        {
+          name: "--xvfb",
+          description: "Open a virtual display for a headed browser on Linux",
+          args: {
+            name: "xvfb",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--xvfb-metrics",
+          description: "The virtual display size: WIDTH,HEIGHT",
+          args: {
+            name: "value",
+          },
+        },
+        {
+          name: ["--remote-debug", "--remote-debugger"],
+          description: "Open Chrome's remote debugger on port 9222",
+          args: {
+            name: "remote_debug",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: ["--log-cdp-events", "--log-cdp"],
+          description: "Log the DevTools Protocol events",
+          args: {
+            name: "log_cdp_events",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: ["--uc-cdp-events", "--uc-cdp"],
+          description: "Log the DevTools Protocol events in undetected mode",
+          args: {
+            name: "uc_cdp_events",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: ["--demo", "--demo-mode"],
+          description: "Highlight each element and pause after an action",
+          args: {
+            name: "demo",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: ["--slow", "--slow-mode", "--slowmo"],
+          description: "Pause briefly after each action",
+          args: {
+            name: "slow",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--demo-sleep",
+          description: "Seconds to pause after each action in demo mode",
+          args: {
+            name: "seconds",
+          },
+        },
+        {
+          name: "--message-duration",
+          description: "Seconds a message stays on the page",
+          args: {
+            name: "seconds",
+          },
+        },
+        {
+          name: ["--skip-js-waits", "--sjw"],
+          description: "Do not wait for the page's JavaScript to settle",
+          args: {
+            name: "skip_js_waits",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--highlights",
+          description: "How many times to flash a highlighted element",
+          args: {
+            name: "count",
+          },
+        },
+        {
+          name: "--interval",
+          description: "Seconds between the steps of a tour or presentation",
+          args: {
+            name: "seconds",
+          },
+        },
+        {
+          name: "--verify-delay",
+          description: "Seconds to wait before each MasterQA verification",
+          args: {
+            name: "seconds",
+          },
+        },
+        {
+          name: "--check-js",
+          description: "Check each page for JavaScript errors after it opens",
+          args: {
+            name: "check_js",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: ["--wait-for-angularjs", "--wfa"],
+          description: "Wait for AngularJS after opening a page and clicking",
+          args: {
+            name: "wait_for_angularjs",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--disable-beforeunload",
+          description: "Remove the beforeunload prompt after each page opens",
+          args: {
+            name: "disable_beforeunload",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--visual-baseline",
+          description: "Set the visual baselines again instead of comparing",
+          args: {
+            name: "visual_baseline",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--crumbs",
+          description: "Delete the cookies when a reused browser is handed to the next test",
+          args: {
+            name: "crumbs",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--timeout-multiplier",
+          description: "Multiply the default waits by this number",
+          args: {
+            name: "value",
+          },
+        },
+        {
+          name: ["--rec-sleep", "--record-sleep"],
+          description: "Keep the sleeps of a recording",
+          args: {
+            name: "rec_sleep",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--env",
+          description: "The environment the tests run against: qa, staging, production, ...",
+          args: {
+            name: "env",
+            suggestions: ["qa", "rc", "staging", "develop", "production", "performance", "replica", "fedramp", "offline", "online", "master", "remote", "legacy", "local", "alpha", "beta", "demo", "gdpr", "main", "test", "gov", "new", "old", "uat"],
+          },
+        },
+        {
+          name: "--account",
+          description: "A free account name for the tests",
+          args: {
+            name: "value",
+          },
+        },
+        {
+          name: "--data",
+          description: "Free test data",
+          args: {
+            name: "value",
+          },
+        },
+        {
+          name: "--var1",
+          description: "A free variable for the tests",
+          args: {
+            name: "value",
+          },
+        },
+        {
+          name: "--var2",
+          description: "A free variable for the tests",
+          args: {
+            name: "value",
+          },
+        },
+        {
+          name: "--var3",
+          description: "A free variable for the tests",
+          args: {
+            name: "value",
+          },
+        },
+        {
+          name: "--variables",
+          description: "A dictionary of values: JSON or a Python dictionary literal",
+          args: {
+            name: "value",
+          },
+        },
+        {
+          name: "--pdb",
+          description: "Stop in a post-mortem prompt when a test fails",
+          args: {
+            name: "pdb",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--trace",
+          description: "Stop in a prompt before each test's body",
+          args: {
+            name: "trace",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: ["--final-debug", "--fdebug", "--final-trace", "--ftrace"],
+          description: "Stop in a prompt after each test, before the browser quits",
+          args: {
+            name: "final_debug",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--reruns",
+          description: "Run a failing test again this many times",
+          args: {
+            name: "count",
+          },
+        },
+        {
+          name: "--reruns-delay",
+          description: "Seconds to wait between reruns",
+          args: {
+            name: "seconds",
+          },
+        },
+        {
+          name: ["--time-limit", "--timelimit"],
+          description: "Fail a test that runs longer than this many seconds",
+          args: {
+            name: "seconds",
+          },
+        },
+        {
+          name: "--runner",
+          description: "The test runner: cargo or nextest",
+          args: {
+            name: "runner",
+            suggestions: ["cargo", "nextest"],
+          },
+        },
+        {
+          name: ["--screenshot", "--save-screenshot", "--ss"],
+          description: "Save a screenshot of passing tests too",
+          args: {
+            name: "screenshot",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: ["--no-screenshot", "--ns"],
+          description: "Save no screenshot of failing tests",
+          args: {
+            name: "no_screenshot",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: ["--list-fail-page", "--list-fail-pages", "--lfp"],
+          description: "Print the URL of the page a failing test ended on",
+          args: {
+            name: "list_fail_page",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--archive-logs",
+          description: "Keep the old latest_logs folder in archived_logs",
+          args: {
+            name: "archive_logs",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--archive-downloads",
+          description: "Keep the old downloaded_files folder in archived_files",
+          args: {
+            name: "archive_downloads",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--dashboard",
+          description: "Write the results dashboard",
+          args: {
+            name: "dashboard",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--dash-title",
+          description: "The dashboard's title",
+          args: {
+            name: "value",
+          },
+        },
+        {
+          name: "--with-db-reporting",
+          description: "Record each test's outcome in the results database",
+          args: {
+            name: "with_db_reporting",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--database-env",
+          description: "Which results database to use",
+          args: {
+            name: "value",
+          },
+        },
+        {
+          name: "--with-s3-logging",
+          description: "Upload each test's logs to S3",
+          args: {
+            name: "with_s3_logging",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: ["--rec", "--record", "--recorder", "--codegen"],
+          description: "Record the browser actions as a test",
+          args: {
+            name: "rec",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: ["--rec-behave", "--rec-gherkin"],
+          description: "Also write the recording as a Gherkin feature",
+          args: {
+            name: "rec_behave",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--rec-print",
+          description: "Print the recording when the test ends",
+          args: {
+            name: "rec_print",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
+          name: "--rec-sb-mgr",
+          description: "Write the recording as a script",
+          args: {
+            name: "rec_sb_mgr",
+            isOptional: true,
+            suggestions: ["true", "false"],
+          },
+        },
+        {
           name: ["-h", "--help"],
           description: "Print help",
         },
@@ -1448,9 +2454,19 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "harness_args",
-          description: "Arguments for the test harness, after `--` (for example --nocapture).",
+          description: "Arguments for the test harness, after `--` (for example --exact).",
           isOptional: true,
           isVariadic: true,
+        },
+      ],
+    },
+    {
+      name: "behave-options",
+      description: "Print how Python SeleniumBase's behave options map to `sbrs test`.",
+      options: [
+        {
+          name: ["-h", "--help"],
+          description: "Print help",
         },
       ],
     },
@@ -2591,14 +3607,6 @@ const completionSpec: Fig.Spec = {
       name: ["--rec-sb-cdp", "--rec_sb_cdp"],
       description: "Write recordings as pure CDP code (sb_cdp Page and Locator calls)",
       isPersistent: true,
-    },
-    {
-      name: ["-n", "--threads"],
-      description: "Number of parallel threads for test runs",
-      isPersistent: true,
-      args: {
-        name: "threads",
-      },
     },
     {
       name: ["-c", "--config"],

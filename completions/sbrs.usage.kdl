@@ -12,6 +12,607 @@ logo #"""
 unknown_flags error
 args_override_self #false
 subcommand_required #true
+flagset test-options {
+    flag --browser help="The browser to run: chrome, edge, firefox, brave, ..." help_heading="Browser and page options" {
+        arg <BROWSER> {
+            choices strict=#false chrome chromium edge firefox brave comet opera safari ie cft chs
+        }
+    }
+    flag --headless help="Run without a visible window (Chrome's new headless mode)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        alias --headless2 hide=#true
+        arg "[HEADLESS]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --binary-location help="The browser binary to run" help_heading="Browser and page options" {
+        alias --bl hide=#true
+        arg <PATH>
+    }
+    flag --proxy help="The proxy server: HOST:PORT or USER:PASS@HOST:PORT" help_heading="Browser and page options" {
+        alias --proxy-server --proxy-string hide=#true
+        arg <VALUE>
+    }
+    flag --user-data-dir help="The browser profile folder" help_heading="Browser and page options" {
+        arg <DIR>
+    }
+    flag --extension-dir help="Unpacked extension folders to load, separated by commas" help_heading="Browser and page options" {
+        arg <DIR>
+    }
+    flag --locale help="The browser locale" help_heading="Browser and page options" {
+        arg <VALUE>
+    }
+    flag --user-agent help="The user agent string" help_heading="Browser and page options" {
+        alias --agent hide=#true
+        arg <VALUE>
+    }
+    flag --mode help="The driver mode: webdriver, cdp or uc" help_heading="Browser and page options" {
+        arg <MODE> {
+            choices webdriver cdp uc
+        }
+    }
+    flag --ad-block help="Block the requests of ad and tracker hosts" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        alias --adblock --block-ads hide=#true
+        arg "[AD_BLOCK]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --reuse-session help="Share browsers among the tests of the run" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        alias --rs hide=#true
+        arg "[REUSE_SESSION]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --reuse-class-session help="Share a browser among the tests of one module" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        alias --rcs hide=#true
+        arg "[REUSE_CLASS_SESSION]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --mobile help="Emulate a mobile phone" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        alias --mobile-emulator hide=#true
+        arg "[MOBILE]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --proxy-pac-url help="A proxy auto-config URL" help_heading="Browser and page options" {
+        alias --pac-url hide=#true
+        arg <URL>
+    }
+    flag --esc-end help="End the current test when ESC is pressed in the browser" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        alias --ee hide=#true
+        arg "[ESC_END]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --rec-sb-cdp help="Write recordings as pure CDP code" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[REC_SB_CDP]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --fingerprint help="A fingerprint file every browser presents" help_heading="Browser and page options" {
+        arg <PATH>
+    }
+    flag --start-page help="The page every browser opens first" help_heading="Browser and page options" {
+        alias --url hide=#true
+        arg <URL>
+    }
+    flag --settings-file help="The settings file to read instead of sbase_config.toml" help_heading="Browser and page options" {
+        alias --settings hide=#true
+        arg <PATH>
+    }
+    flag --chrome help="Run Chrome" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[CHROME]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --edge help="Run Edge" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[EDGE]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --firefox help="Run Firefox" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[FIREFOX]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --brave help="Run Brave" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[BRAVE]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --comet help="Run Comet" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[COMET]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --opera help="Run Opera" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[OPERA]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --safari help="Run Safari" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[SAFARI]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --ie help="Run Internet Explorer" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[IE]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --cft help="Run Chrome for Testing" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[CFT]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --chs help="Run chrome-headless-shell" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[CHS]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --chromium help="Run Chromium" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        alias --use-chromium hide=#true
+        arg "[CHROMIUM]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --headed help="Run with a visible window" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        alias --gui hide=#true
+        arg "[HEADED]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --uc help="Run in undetected-chromedriver mode" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        alias --undetected --undetectable hide=#true
+        arg "[UC]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --headless1 help="Run headless with chrome-headless-shell (Chrome's old headless mode)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[HEADLESS1]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --locale-code help="The browser language code, such as fr or ar_eg" help_heading="Browser and page options" {
+        arg <VALUE>
+    }
+    flag --server help="The Selenium Grid server to connect to" help_heading="Browser and page options" {
+        arg <VALUE>
+    }
+    flag --port help="The port of the Selenium Grid server" help_heading="Browser and page options" {
+        arg <VALUE>
+    }
+    flag --protocol help="The protocol of the Selenium Grid server: http or https" help_heading="Browser and page options" {
+        arg <VALUE>
+    }
+    flag --chromium-arg help="Extra Chromium switches, separated by commas" help_heading="Browser and page options" {
+        arg <VALUE>
+    }
+    flag --dark-mode help="Force Chrome's dark theme on web pages" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        alias --dark hide=#true
+        arg "[DARK_MODE]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --devtools help="Open the developer tools with each tab (headed only)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        alias --open-devtools hide=#true
+        arg "[DEVTOOLS]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --disable-features help="Chromium features to switch off, separated by commas" help_heading="Browser and page options" {
+        arg <VALUE>
+    }
+    flag --disable-gpu help="Switch the GPU off" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[DISABLE_GPU]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --disable-ws help="Switch web security off" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        alias --dws --disable-web-security hide=#true
+        arg "[DISABLE_WS]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --guest-mode help="Open the browser as a guest" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        alias --guest hide=#true
+        arg "[GUEST_MODE]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --incognito help="Open the browser in an incognito window" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        alias --incognito-mode hide=#true
+        arg "[INCOGNITO]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --host-resolver-rules help="Chromium rules that map host names to addresses" help_heading="Browser and page options" {
+        arg <VALUE>
+    }
+    flag --no-sandbox help="Start Chromium without its sandbox" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[NO_SANDBOX]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --swiftshader help="Render with SwiftShader, a software WebGL renderer" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[SWIFTSHADER]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --enable-3d-apis help="Keep the GPU on in a headless session, for WebGL" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[ENABLE_3D_APIS]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --maximize help="Maximize the browser window" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        alias --maximize-window --fullscreen hide=#true
+        arg "[MAXIMIZE]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --block-images help="Do not load images" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[BLOCK_IMAGES]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --disable-js help="Turn JavaScript off" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[DISABLE_JS]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --disable-cookies help="Refuse every cookie" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[DISABLE_COOKIES]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --do-not-track help="Send the DNT: 1 header" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[DO_NOT_TRACK]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --external-pdf help="Download PDF files instead of showing them" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[EXTERNAL_PDF]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --enable-sync help="Leave Chrome Sync on" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[ENABLE_SYNC]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --disable-csp help="Strip the Content Security Policy from every response" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        alias --dcsp --no-csp hide=#true
+        arg "[DISABLE_CSP]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --use-auto-ext help="Keep Chrome's automation extension" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        alias --auto-ext hide=#true
+        arg "[USE_AUTO_EXT]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --proxy-driver help="Download the driver through the proxy" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[PROXY_DRIVER]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --page-load-strategy help="How long a navigation waits: normal, eager or none" help_heading="Browser and page options" {
+        alias --pls hide=#true
+        arg <STRATEGY> {
+            choices normal eager none
+        }
+    }
+    flag --window-size help="The window size: WIDTH,HEIGHT" help_heading="Browser and page options" {
+        arg <VALUE>
+    }
+    flag --window-position help="The window position: X,Y" help_heading="Browser and page options" {
+        arg <VALUE>
+    }
+    flag --device-metrics help="Emulate a phone screen: WIDTH,HEIGHT,PIXEL_RATIO" help_heading="Browser and page options" {
+        alias --metrics hide=#true
+        arg <VALUE>
+    }
+    flag --proxy-bypass-list help="Hosts that skip the proxy" help_heading="Browser and page options" {
+        arg <VALUE>
+    }
+    flag --driver-version help="The driver version: a number, latest, stable, beta, ..." help_heading="Browser and page options" {
+        arg <VALUE>
+    }
+    flag --cap-file help="A JSON file of capabilities to add to the session's" help_heading="Browser and page options" {
+        arg <PATH>
+    }
+    flag --cap-string help="A JSON object of capabilities to add to the session's" help_heading="Browser and page options" {
+        arg <VALUE>
+    }
+    flag --extension-zip help="Extension .zip or .crx files to load, separated by commas" help_heading="Browser and page options" {
+        alias --crx hide=#true
+        arg <VALUE>
+    }
+    flag --firefox-arg help="Firefox arguments, separated by commas" help_heading="Browser and page options" {
+        arg <VALUE>
+    }
+    flag --firefox-pref help="Firefox preferences, NAME:VALUE separated by commas" help_heading="Browser and page options" {
+        arg <VALUE>
+    }
+    flag --xvfb help="Open a virtual display for a headed browser on Linux" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[XVFB]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --xvfb-metrics help="The virtual display size: WIDTH,HEIGHT" help_heading="Browser and page options" {
+        arg <VALUE>
+    }
+    flag --remote-debug help="Open Chrome's remote debugger on port 9222" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        alias --remote-debugger hide=#true
+        arg "[REMOTE_DEBUG]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --log-cdp-events help="Log the DevTools Protocol events" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        alias --log-cdp hide=#true
+        arg "[LOG_CDP_EVENTS]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --uc-cdp-events help="Log the DevTools Protocol events in undetected mode" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        alias --uc-cdp hide=#true
+        arg "[UC_CDP_EVENTS]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --demo help="Highlight each element and pause after an action" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        alias --demo-mode hide=#true
+        arg "[DEMO]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --slow help="Pause briefly after each action" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        alias --slow-mode --slowmo hide=#true
+        arg "[SLOW]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --demo-sleep help="Seconds to pause after each action in demo mode" help_heading="Browser and page options" {
+        arg <SECONDS>
+    }
+    flag --message-duration help="Seconds a message stays on the page" help_heading="Browser and page options" {
+        arg <SECONDS>
+    }
+    flag --skip-js-waits help="Do not wait for the page's JavaScript to settle" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        alias --sjw hide=#true
+        arg "[SKIP_JS_WAITS]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --highlights help="How many times to flash a highlighted element" help_heading="Browser and page options" {
+        arg <COUNT>
+    }
+    flag --interval help="Seconds between the steps of a tour or presentation" help_heading="Browser and page options" {
+        arg <SECONDS>
+    }
+    flag --verify-delay help="Seconds to wait before each MasterQA verification" help_heading="Browser and page options" {
+        arg <SECONDS>
+    }
+    flag --check-js help="Check each page for JavaScript errors after it opens" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[CHECK_JS]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --wait-for-angularjs help="Wait for AngularJS after opening a page and clicking" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        alias --wfa hide=#true
+        arg "[WAIT_FOR_ANGULARJS]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --disable-beforeunload help="Remove the beforeunload prompt after each page opens" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[DISABLE_BEFOREUNLOAD]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --visual-baseline help="Set the visual baselines again instead of comparing" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[VISUAL_BASELINE]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --crumbs help="Delete the cookies when a reused browser is handed to the next test" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[CRUMBS]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --timeout-multiplier help="Multiply the default waits by this number" help_heading="Browser and page options" {
+        arg <VALUE>
+    }
+    flag --rec-sleep help="Keep the sleeps of a recording" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+        alias --record-sleep hide=#true
+        arg "[REC_SLEEP]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --env help="The environment the tests run against: qa, staging, production, ..." help_heading="Test data" {
+        arg <ENV> {
+            choices strict=#false qa rc staging develop production performance replica fedramp offline online master remote legacy local alpha beta demo gdpr main test gov new old uat
+        }
+    }
+    flag --account help="A free account name for the tests" help_heading="Test data" {
+        arg <VALUE>
+    }
+    flag --data help="Free test data" help_heading="Test data" {
+        arg <VALUE>
+    }
+    flag --var1 help="A free variable for the tests" help_heading="Test data" {
+        arg <VALUE>
+    }
+    flag --var2 help="A free variable for the tests" help_heading="Test data" {
+        arg <VALUE>
+    }
+    flag --var3 help="A free variable for the tests" help_heading="Test data" {
+        arg <VALUE>
+    }
+    flag --variables help="A dictionary of values: JSON or a Python dictionary literal" help_heading="Test data" {
+        arg <VALUE>
+    }
+    flag --pdb help="Stop in a post-mortem prompt when a test fails" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[PDB]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --trace help="Stop in a prompt before each test's body" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[TRACE]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --final-debug help="Stop in a prompt after each test, before the browser quits" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+        alias --fdebug --final-trace --ftrace hide=#true
+        arg "[FINAL_DEBUG]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --reruns help="Run a failing test again this many times" help_heading="Test run, debugging and reports" {
+        arg <COUNT>
+    }
+    flag --reruns-delay help="Seconds to wait between reruns" help_heading="Test run, debugging and reports" {
+        arg <SECONDS>
+    }
+    flag --time-limit help="Fail a test that runs longer than this many seconds" help_heading="Test run, debugging and reports" {
+        alias --timelimit hide=#true
+        arg <SECONDS>
+    }
+    flag --runner help="The test runner: cargo or nextest" help_heading="Test run, debugging and reports" {
+        arg <RUNNER> {
+            choices cargo nextest
+        }
+    }
+    flag --screenshot help="Save a screenshot of passing tests too" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+        alias --save-screenshot --ss hide=#true
+        arg "[SCREENSHOT]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --no-screenshot help="Save no screenshot of failing tests" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+        alias --ns hide=#true
+        arg "[NO_SCREENSHOT]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --list-fail-page help="Print the URL of the page a failing test ended on" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+        alias --list-fail-pages --lfp hide=#true
+        arg "[LIST_FAIL_PAGE]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --archive-logs help="Keep the old latest_logs folder in archived_logs" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[ARCHIVE_LOGS]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --archive-downloads help="Keep the old downloaded_files folder in archived_files" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[ARCHIVE_DOWNLOADS]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --dashboard help="Write the results dashboard" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[DASHBOARD]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --dash-title help="The dashboard's title" help_heading="Test run, debugging and reports" {
+        arg <VALUE>
+    }
+    flag --with-db-reporting help="Record each test's outcome in the results database" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[WITH_DB_REPORTING]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --database-env help="Which results database to use" help_heading="Test run, debugging and reports" {
+        arg <VALUE>
+    }
+    flag --with-s3-logging help="Upload each test's logs to S3" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[WITH_S3_LOGGING]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --rec help="Record the browser actions as a test" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+        alias --record --recorder --codegen hide=#true
+        arg "[REC]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --rec-behave help="Also write the recording as a Gherkin feature" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+        alias --rec-gherkin hide=#true
+        arg "[REC_BEHAVE]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --rec-print help="Print the recording when the test ends" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[REC_PRINT]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --rec-sb-mgr help="Write the recording as a script" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[REC_SB_MGR]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --with-testing-base help="Accepted and ignored" hide=#true help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[WITH_TESTING_BASE]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --with-basic-test-info help="Accepted and ignored" hide=#true help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[WITH_BASIC_TEST_INFO]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --with-page-source help="Accepted and ignored" hide=#true help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[WITH_PAGE_SOURCE]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --with-screen-shots help="Accepted and ignored" hide=#true help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[WITH_SCREEN_SHOTS]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --log-path help="Accepted and ignored" hide=#true help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[LOG_PATH]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --with-selenium help="Accepted and ignored" hide=#true help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[WITH_SELENIUM]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --is-pytest help="Accepted and ignored" hide=#true help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[IS_PYTEST]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --uc-sub help="Accepted and ignored" hide=#true help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        alias --uc-subprocess hide=#true
+        arg "[UC_SUB]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --enable-ws help="Accepted and ignored" hide=#true help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        alias --enable-web-security hide=#true
+        arg "[ENABLE_WS]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --fast help="Accepted and ignored" hide=#true help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        alias --fast-mode hide=#true
+        arg "[FAST]" required=#false {
+            choices "true" "false"
+        }
+    }
+    flag --multi-proxy help="Accepted and ignored" hide=#true help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+        arg "[MULTI_PROXY]" required=#false {
+            choices "true" "false"
+        }
+    }
+}
 flag --webdriver help="WebDriver server URL (default: SB_WEBDRIVER_URL, else http://localhost:4444)" global=#true {
     arg <URL>
 }
@@ -81,9 +682,6 @@ flag "--rcs --reuse-class-session --reuse_class_session" help="Share a browser a
 flag --mobile help="Use a mobile device emulation profile" global=#true bool_value=#true
 flag "--esc-end --esc_end --ee" help="End the current test when ESC is pressed in the browser" global=#true bool_value=#true
 flag "--rec-sb-cdp --rec_sb_cdp" help="Write recordings as pure CDP code (sb_cdp Page and Locator calls)" global=#true bool_value=#true
-flag "-n --threads" help="Number of parallel threads for test runs" global=#true {
-    arg <THREADS>
-}
 flag "-c --config" help="Path to a TOML/JSON settings file" global=#true {
     arg <CONFIG>
 }
@@ -122,7 +720,6 @@ complete file type=path
 complete proxy_pac_url type=url
 complete user_data_dir type=dir
 complete extension_dir type=dir
-complete threads type=none
 complete config type=path:toml,json
 complete name type=none
 complete "name.key=value" type=none
@@ -804,11 +1401,13 @@ Without a version, chromedriver and edgedriver are the drivers for the installed
     complete version run="sbrs __complete_word__ --candidates version --line={{ words | shell_join | shell_quote }}"
     example "sbrs install chromedriver latest"
 }
-cmd test help_heading=Tests help="Run the project's tests, or one example, through Cargo." {
+cmd test help_heading=Tests help="Run the project's tests, or one example, through Cargo or cargo-nextest." args_override_self=#false {
     long_help #"""
-Run the project's tests, or one example, through Cargo.
+Run the project's tests, or one example, through Cargo or cargo-nextest.
 
-The global options reach the tests as SB_* environment variables (for example `sbrs --headless --browser firefox test` sets SB_HEADLESS and SB_BROWSER), so a test that loads `Settings` sees them, and `-n` sets how many tests run at once. `--plugin` reaches them as SB_PLUGINS, with the plugins the settings file and the variable already turn on; `--plugin-opt` cannot be passed on, so `sbrs test` refuses it.
+Every option of Python SeleniumBase's pytest plugin is a flag of `test`, in each of its spellings (`--no-sandbox`, `--no_sandbox`, `--dcsp`): the flags reach the tests as SB_* environment variables, which a test that loads `Settings` reads. The options before the command (`sbrs --headless --browser firefox test`) reach them too, and a flag after it wins. `--plugin` reaches them as SB_PLUGINS, with the plugins the settings file and the variable already turn on; `--plugin-opt` cannot be passed on, so `sbrs test` refuses it.
+
+`-k` and `-m` select tests as pytest does (a marker is a module name), `-n` sets how many run at once, `--co` lists them, `--pdb`, `--trace` and `--final-debug` stop in a prompt (one test at a time, output shown), `--reruns N` runs a failing test again, and `--archive-logs` keeps the old latest_logs folder, which a run otherwise empties. `-c FILE` (or `--settings-file`) names the settings file the tests read.
 """#
     flag --test help="Run one integration test file from tests/." conflicts=--example {
         arg <NAME>
@@ -820,14 +1419,42 @@ The global options reach the tests as SB_* environment variables (for example `s
     flag --features help="Cargo features to enable, separated by commas." var=#true delimiter=, {
         arg <FEATURES>
     }
+    flag -k help="Select tests by name, as pytest's -k: `login or signup`, `not slow`, `(a or b) and not c`." {
+        arg <EXPR>
+    }
+    flag -m help="Select tests by marker, as pytest's -m. A marker is a module name: `-m smoke` runs the tests in `mod smoke`." {
+        arg <EXPR>
+    }
+    flag "-n --threads" help="How many tests run at once, as pytest-xdist's -n: a number or `auto`." {
+        arg <N|auto>
+    }
+    flag "-s --no-capture" help="Show what the tests print as they run (pytest's -s)." bool_value=#true {
+        alias --nocapture hide=#true
+    }
+    flag "--co --collect-only" help="List the tests that would run and how many (`collected N items`) without running them." bool_value=#true
+    flag --all-scripts help="After the tests, run every example of the packages with `cargo run --example`." bool_value=#true
+    use test-options
     flag "-h --help" help="Print help" action=help builtin=#true
     arg "[FILTER]" help="Run only the tests whose name contains this text." conflicts=--example
-    arg "[HARNESS_ARGS]..." help="Arguments for the test harness, after `--` (for example --nocapture)." double_dash=required
+    arg "[HARNESS_ARGS]..." help="Arguments for the test harness, after `--` (for example --exact)." double_dash=required
     complete filter type=none
     complete harness_args type=none
     complete name type=none
     complete features type=none
+    complete expr type=none
+    complete n|auto type=none
+    complete path type=path
+    complete value type=none
+    complete dir type=dir
+    complete url type=url
+    complete seconds type=none
+    complete count type=none
     example "sbrs test login"
+    example "sbrs test -k 'login and not slow' --runner nextest --headless --browser firefox"
+}
+cmd behave-options help_heading=Tests help="Print how Python SeleniumBase's behave options map to `sbrs test`." {
+    flag "-h --help" help="Print help" action=help builtin=#true
+    example "sbrs behave-options"
 }
 cmd grid-hub help_heading="Drivers, grid and servers" help="Start, stop, restart or check a Selenium Grid hub." args_override_self=#false {
     long_help #"""

@@ -1,3 +1,5 @@
+#![recursion_limit = "1024"]
+
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
@@ -60,9 +62,11 @@ mod reference;
 #[cfg(feature = "turso")]
 mod report;
 mod strict;
+mod test_args;
 
 use failure::ArgumentError;
 use fingerprint::{FingerprintArgs, FingerprintCommand};
+use test_args::TestArgs;
 
 /// What `sbrs --version` prints after the program name. It names the library
 /// package, as it did when the binary was part of it, not this crate
@@ -537,13 +541,6 @@ struct Cli {
         help = "Write recordings as pure CDP code (sb_cdp Page and Locator calls)"
     )]
     rec_sb_cdp: bool,
-    #[usage(
-        short = 'n',
-        long,
-        global,
-        value_hint = usage::ValueHint::Other, help = "Number of parallel threads for test runs"
-    )]
-    threads: Option<usize>,
     #[usage(short = 'c', long, global, value_hint = usage::ValueHint::FilePath, extensions("toml", "json"), help = "Path to a TOML/JSON settings file")]
     config: Option<String>,
     /// Make every browser the command starts present the fingerprint in FILE
@@ -1310,35 +1307,31 @@ enum Commands {
         #[usage(complete = install_version_candidates)]
         version: Option<String>,
     },
-    /// Run the project's tests, or one example, through Cargo.
+    /// Run the project's tests, or one example, through Cargo or cargo-nextest.
     ///
-    /// The global options reach the tests as SB_* environment variables (for
-    /// example `sbrs --headless --browser firefox test` sets SB_HEADLESS and
-    /// SB_BROWSER), so a test that loads `Settings` sees them, and `-n` sets
-    /// how many tests run at once. `--plugin` reaches them as SB_PLUGINS, with the
-    /// plugins the settings file and the variable already turn on; `--plugin-opt`
-    /// cannot be passed on, so `sbrs test` refuses it.
-    #[usage(help_heading = "Tests", example = "sbrs test login")]
-    Test {
-        /// Run only the tests whose name contains this text.
-        #[usage(value_hint = usage::ValueHint::Other, conflicts("--example"))]
-        filter: Option<String>,
-        /// Run one integration test file from tests/.
-        #[usage(long, value_name = "NAME", value_hint = usage::ValueHint::Other, conflicts("--example"))]
-        test: Option<String>,
-        /// Run one example from examples/ instead of the tests.
-        #[usage(long, value_name = "NAME", value_hint = usage::ValueHint::Other)]
-        example: Option<String>,
-        /// Build with the release profile.
-        #[usage(long, bool_value)]
-        release: bool,
-        /// Cargo features to enable, separated by commas.
-        #[usage(long, delimiter = ',', value_hint = usage::ValueHint::Other)]
-        features: Vec<String>,
-        /// Arguments for the test harness, after `--` (for example --nocapture).
-        #[usage(double_dash = "required", value_hint = usage::ValueHint::Other)]
-        harness_args: Vec<String>,
-    },
+    /// Every option of Python SeleniumBase's pytest plugin is a flag of `test`, in each of
+    /// its spellings (`--no-sandbox`, `--no_sandbox`, `--dcsp`): the flags reach the tests
+    /// as SB_* environment variables, which a test that loads `Settings` reads. The options
+    /// before the command (`sbrs --headless --browser firefox test`) reach them too, and a
+    /// flag after it wins. `--plugin` reaches them as SB_PLUGINS, with the plugins the
+    /// settings file and the variable already turn on; `--plugin-opt` cannot be passed
+    /// on, so `sbrs test` refuses it.
+    ///
+    /// `-k` and `-m` select tests as pytest does (a marker is a module name), `-n` sets
+    /// how many run at once, `--co` lists them, `--pdb`, `--trace` and `--final-debug`
+    /// stop in a prompt (one test at a time, output shown), `--reruns N` runs a failing
+    /// test again, and `--archive-logs` keeps the old latest_logs folder, which a run
+    /// otherwise empties. `-c FILE` (or `--settings-file`) names the settings file the
+    /// tests read.
+    #[usage(
+        help_heading = "Tests",
+        example = "sbrs test login",
+        example = "sbrs test -k 'login and not slow' --runner nextest --headless --browser firefox"
+    )]
+    Test(TestArgs),
+    /// Print how Python SeleniumBase's behave options map to `sbrs test`.
+    #[usage(help_heading = "Tests", example = "sbrs behave-options")]
+    BehaveOptions,
     /// Start, stop, restart or check a Selenium Grid hub.
     ///
     /// Needs a Selenium Server jar: --jar, SB_SELENIUM_SERVER_JAR, or the newest one in
@@ -1867,7 +1860,7 @@ impl Commands {
             | Self::Doctor
             | Self::Prompt(_)
             | Self::Install { .. }
-            | Self::Test { .. }
+            | Self::Test(_)
             | Self::GridHub(_)
             | Self::GridNode(_)
             | Self::Proxy(_)
@@ -2679,12 +2672,23 @@ fn run_command() -> std::process::ExitCode {
     }
 }
 
+/// `sbrs test --settings-file FILE` is `sbrs -c FILE test`: the one setting names the file the
+/// command and the tests it starts read.
+fn with_settings_file(mut cli: Cli) -> Cli {
+    if cli.config.is_none() {
+        if let Commands::Test(test) = &cli.command {
+            cli.config = test.settings_file();
+        }
+    }
+    cli
+}
+
 /// `Cli::parse`, after the checks of [`strict`] that usage 6 does not make itself. A command line that
 /// does not parse prints the page of the command its words reached (see [`failure`]) and then the
 /// error, on standard error, and exits with status 2. Help, version and completion requests are
 /// answered by `Cli::parse` as before.
 fn parse_command_line() -> Cli {
-    let argv: Vec<std::ffi::OsString> = std::env::args_os().skip(1).collect();
+    let argv = test_args::python_spellings(std::env::args_os().skip(1).collect());
     let words: Vec<&std::ffi::OsStr> = argv.iter().map(std::ffi::OsString::as_os_str).collect();
     if words
         .first()
@@ -2697,7 +2701,7 @@ fn parse_command_line() -> Cli {
         std::process::exit(2);
     }
     match Cli::parse_from(&words) {
-        Ok(cli) => cli,
+        Ok(cli) => with_settings_file(cli),
         Err(error) if failure::is_request(&error) => Cli::parse(),
         Err(error) => {
             eprint!("{}", failure::render(&words, &error));
@@ -3163,6 +3167,10 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
 
         Commands::Devtools { .. } => return run_devtools(&args).await,
+        Commands::BehaveOptions => {
+            print!("{}", behave_options::render());
+            return Ok(());
+        }
         Commands::Prompt(options) => return run_prompt(options).await,
         Commands::Plugin(plugin) => return run_plugin(&plugin.command, &args),
         // The subcommands that start no browser end here; `capture` goes on to start one.
@@ -3211,7 +3219,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         reuse_session: args.reuse_session.then_some(true),
         reuse_class_session: args.reuse_class_session.then_some(true),
         mobile: args.mobile.then_some(true),
-        threads: args.threads,
+        threads: None,
         esc_end: args.esc_end.then_some(true),
         rec_sb_cdp: args.rec_sb_cdp.then_some(true),
         fingerprint: args.fingerprint.map(|file| file.display().to_string()),
@@ -3275,7 +3283,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     // the names on, looks at them; the others ignore the options. A browser is not started
     // with a mistake in them.
     let launches = args.command.launches_browser();
-    let is_test = matches!(args.command, Commands::Test { .. });
+    let is_test = matches!(args.command, Commands::Test(_));
     let choice = if launches || is_test {
         Some(PluginChoice::load(
             args.config.as_deref(),
@@ -3785,45 +3793,24 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             let installed = sb_install::install(&request).await?;
             println!("{}", args_install::report(request.name, &installed));
         }
-        Commands::Test {
-            filter,
-            test,
-            example,
-            release,
-            features,
-            harness_args,
-        } => {
-            let target = match (test, example) {
-                (_, Some(name)) => run::TestTarget::Example(name),
-                (Some(name), None) => run::TestTarget::Test(name),
-                (None, None) => run::TestTarget::All,
-            };
-            let mut test_run = run::TestRun::new()
-                .target(target)
-                .release(release)
-                .features(features)
-                .harness_args(harness_args);
-            if let Some(filter) = filter {
-                test_run = test_run.filter(filter);
-            }
-            if let Some(threads) = settings.threads {
-                test_run = test_run.threads(threads);
-            }
-            // Only what the command line asked for: the tests load the config
-            // file and the rest of the environment themselves.
-            for (name, value) in overrides.env() {
-                test_run = test_run.env(name, value);
-            }
+        Commands::Test(test) => {
+            // What the options before the command asked for, then the flags after it, which win.
+            let mut forwarded: Vec<(String, String)> = overrides
+                .env()
+                .into_iter()
+                .map(|(name, value)| (name.to_owned(), value))
+                .collect();
             if config.webdriver_url != "http://localhost:4444" {
-                test_run = test_run.env("SB_WEBDRIVER_URL", config.webdriver_url.clone());
+                forwarded.push(("SB_WEBDRIVER_URL".to_owned(), config.webdriver_url.clone()));
             }
             // The variable replaces the names the file enables, so it carries all of them.
             if forward_plugins {
-                test_run = test_run.env("SB_PLUGINS", selection.to_list());
+                forwarded.push(("SB_PLUGINS".to_owned(), selection.to_list()));
             }
-            let status = test_run.status()?;
-            if !status.success() {
-                std::process::exit(status.code().unwrap_or(1));
+            let plan = test.plan(&settings, forwarded, args.config.as_deref())?;
+            let code = plan.execute()?;
+            if code != 0 {
+                std::process::exit(code);
             }
         }
         Commands::Mkdir { .. }
@@ -3833,6 +3820,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         | Commands::GridNode(_)
         | Commands::Proxy(_)
         | Commands::Download(_)
+        | Commands::BehaveOptions
         | Commands::Devtools { .. } => {
             unreachable!("these commands return before browser configuration")
         }
@@ -4922,13 +4910,10 @@ mod page_cli_tests {
             "chromium",
             "--proxy",
             "p:1",
-            "-n",
-            "3",
         ]);
         assert!(cli.headless);
         assert_eq!(cli.browser, Some(BrowserArg::Chromium));
         assert_eq!(cli.proxy.as_deref(), Some("p:1"));
-        assert_eq!(cli.threads, Some(3));
         let cli = parse(&["sbrs", "open", "x", "--plugin", "shield", "--plugin", "b"]);
         assert_eq!(cli.plugin, ["shield", "b"]);
     }
