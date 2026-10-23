@@ -261,15 +261,6 @@ mod tests_messages {
         BrowserConfig::default().with_headless(false)
     }
 
-    /// A case on a mock that accepts every command, for a headed browser.
-    async fn case(config: BrowserConfig) -> (MockWebDriver, BaseCase) {
-        let driver = MockWebDriver::start(json!({}), |_| Reply::Value(Value::Null));
-        let mut config = config.with_webdriver_url(driver.url().to_owned());
-        config.auto_start_driver = false;
-        let sb = BaseCase::new(config).await.unwrap();
-        (driver, sb)
-    }
-
     fn last_script(driver: &MockWebDriver) -> String {
         driver.requests("/execute/sync").last().unwrap().body["script"]
             .as_str()
