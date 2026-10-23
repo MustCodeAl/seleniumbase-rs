@@ -18,6 +18,8 @@ use crate::browser::binaries;
 use crate::browser::chrome_for_testing::{
     install_chrome_for_testing, install_chrome_headless_shell,
 };
+use crate::browser::chromium_snapshots::install_chromium;
+
 use crate::browser::config::{Browser, BrowserConfig};
 use crate::browser::launcher::{launch_driver_for, DriverProcess};
 use crate::browser::options::{
@@ -1826,38 +1828,44 @@ async fn resolve_browser_binary(config: &mut BrowserConfig) -> Result<(), Seleni
         Browser::Brave
             | Browser::Comet
             | Browser::Opera
+            | Browser::Chromium
             | Browser::ChromeForTesting
             | Browser::ChromeHeadlessShell
     );
     if !needs_program || config.browser_binary_path.is_some() {
         return Ok(());
     }
+    let proxy = config
+        .launch
+        .has(LaunchSwitch::ProxyForDriverDownload)
+        .then_some(config.proxy.as_deref())
+        .flatten();
     let found = match binaries::locate(config.browser) {
         Some(found) => found,
-        // Chrome for Testing is a download, so a missing one is fetched.
-        None if matches!(
-            config.browser,
-            Browser::ChromeForTesting | Browser::ChromeHeadlessShell
-        ) =>
-        {
-            let stable = DriverVersion::Channel(ReleaseChannel::Stable);
-            let proxy = config
-                .launch
-                .has(LaunchSwitch::ProxyForDriverDownload)
-                .then_some(config.proxy.as_deref())
-                .flatten();
-            if config.browser == Browser::ChromeForTesting {
+        // Chrome for Testing, chrome-headless-shell and Chromium are downloads, so a missing
+        // one is fetched: the stable build of the first two, the newest snapshot of Chromium.
+        None => match config.browser {
+            Browser::ChromeForTesting => {
+                let stable = DriverVersion::Channel(ReleaseChannel::Stable);
                 install_chrome_for_testing(&stable, proxy).await?
-            } else {
+            }
+            Browser::ChromeHeadlessShell => {
+                let stable = DriverVersion::Channel(ReleaseChannel::Stable);
                 install_chrome_headless_shell(&stable, proxy).await?
             }
-        }
-        None => {
-            return Err(SeleniumBaseError::invalid_config(missing_browser_message(
-                config.browser,
-            )))
-        }
+            Browser::Chromium => install_chromium(None, proxy).await?,
+            _ => {
+                return Err(SeleniumBaseError::invalid_config(missing_browser_message(
+                    config.browser,
+                )))
+            }
+        },
     };
+    // A chromedriver drives only the Chrome of its own major version, and the Chromium found
+    // is not the Chrome that is installed: the driver follows the Chromium.
+    if config.browser == Browser::Chromium && config.launch.driver_version.is_none() {
+        config.launch.driver_version = Some(DriverVersion::MatchBrowser);
+    }
     config.browser_binary_path = Some(found);
     Ok(())
 }
