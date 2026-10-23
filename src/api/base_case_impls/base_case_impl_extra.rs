@@ -1065,44 +1065,6 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Saves all current cookies to a JSON file in the logs directory.
-    #[deprecated(
-        since = "0.5.0",
-        note = "use `save_cookies`, which writes `saved_cookies/<name>.txt` as Python does"
-    )]
-    pub async fn save_saved_cookies(&self, filename: &str) -> Result<PathBuf, SeleniumBaseError> {
-        let cookies = self.session.get_cookies().await?;
-        let dir = ensure_latest_logs_dir()?;
-        let path = crate::artifacts::confined_path(&dir, filename)?;
-        fs::write(&path, serde_json::to_string_pretty(&cookies)?)?;
-        Ok(path)
-    }
-
-    /// Loads cookies from a JSON file and adds them to the browser. Only the
-    /// name and value of each cookie are restored.
-    #[deprecated(
-        since = "0.5.0",
-        note = "use `load_cookies`, which restores the whole cookie as Python does"
-    )]
-    pub async fn load_saved_cookies(
-        &mut self,
-        filename: &str,
-    ) -> Result<(), SeleniumBaseError> {
-        let dir = ensure_latest_logs_dir()?;
-        let path = crate::artifacts::confined_path(&dir, filename)?;
-        let data = fs::read_to_string(&path)?;
-        let cookies: Vec<Value> = serde_json::from_str(&data)?;
-        for cookie in cookies {
-            if let (Some(name), Some(value)) = (
-                cookie["name"].as_str(),
-                cookie["value"].as_str(),
-            ) {
-                self.session.add_cookie(name, value).await?;
-            }
-        }
-        Ok(())
-    }
-
     // ========================================================================
     // Download helpers
     // ========================================================================

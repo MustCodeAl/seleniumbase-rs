@@ -1,5 +1,5 @@
 // Tests of the `BaseCase` clicks and text input that go through DevTools
-// (`cdp_click`, `cdp_click_element`, `cdp_insert_text`, `cdp_type_text`),
+// (`cdp_click`, `cdp_insert_text`),
 // against a mock WebDriver whose DevTools channel is scripted (no browser).
 // Included (for tests only) at the end of `base_case.rs` like the files beside
 // it.
@@ -69,12 +69,12 @@ mod tests_cdp_input {
 
     #[tokio::test]
     async fn clicking_an_element_presses_where_it_is_in_the_viewport() {
-        // `cdp_click_element` used to press at WebDriver's rectangle, which is
-        // in the document: 600 px below the button on a scrolled page.
+        // `cdp_click` presses in the viewport. The rectangle that WebDriver
+        // gives is in the document: 600 px below the button on a scrolled page.
         let driver = page();
         let mut sb = case(&driver).await;
 
-        sb.cdp_click_element("#go").await.unwrap();
+        sb.cdp_click("#go").await.unwrap();
 
         assert_eq!(clicks(&driver), [(60.0, 45.0)]);
         assert!(
@@ -84,30 +84,17 @@ mod tests_cdp_input {
     }
 
     #[tokio::test]
-    async fn cdp_click_and_the_deprecated_cdp_click_element_press_at_the_same_place() {
-        let driver = page();
-        let mut sb = case(&driver).await;
-
-        sb.cdp_click("#go").await.unwrap();
-        sb.cdp_click_element("#go").await.unwrap();
-
-        assert_eq!(clicks(&driver), [(60.0, 45.0), (60.0, 45.0)]);
-    }
-
-    #[tokio::test]
-    async fn both_clicks_are_recorded_once_as_cdp_click() {
-        // A generated program must not call the deprecated method.
+    async fn a_click_is_recorded_as_cdp_click() {
         let driver = page();
         let mut sb = case(&driver).await;
         sb.cdp_click("#go").await.unwrap();
-        sb.cdp_click_element("#go").await.unwrap();
         let recorded = sb.recorded_actions().unwrap();
         let names: Vec<_> = recorded
             .iter()
             .filter(|action| action.name.starts_with("cdp_click"))
             .map(|action| action.name.as_str())
             .collect();
-        assert_eq!(names, ["cdp_click", "cdp_click"], "{recorded:?}");
+        assert_eq!(names, ["cdp_click"], "{recorded:?}");
     }
 
     #[tokio::test]
@@ -116,13 +103,12 @@ mod tests_cdp_input {
         let sb = case(&driver).await;
 
         sb.cdp_insert_text("hello").await.unwrap();
-        sb.cdp_type_text("again").await.unwrap();
 
         let inserted: Vec<_> = sent(&driver, "Input.insertText")
             .iter()
             .map(|params| params["text"].as_str().unwrap().to_owned())
             .collect();
-        assert_eq!(inserted, ["hello", "again"]);
+        assert_eq!(inserted, ["hello"]);
         assert!(sent(&driver, "Input.dispatchKeyEvent").is_empty());
     }
 }

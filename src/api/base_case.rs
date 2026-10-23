@@ -1,4 +1,10 @@
-#![allow(deprecated)]
+// thirtyfour deprecates its `NetworkConditions`, which `set_network_conditions`
+// still takes.
+#![expect(
+    deprecated,
+    reason = "thirtyfour has deprecated NetworkConditions, which this API still takes"
+)]
+
 
 use base64::prelude::*;
 use rand::RngExt;
@@ -29,7 +35,6 @@ use crate::utils::selectors::{css_to_xpath, Selector};
 use serde_json::Value;
 use std::collections::HashMap;
 use thirtyfour::common::keys::Key;
-#[allow(deprecated)]
 use thirtyfour::extensions::cdp::NetworkConditions;
 use thirtyfour::prelude::By;
 
@@ -1114,28 +1119,6 @@ impl BaseCase {
     /// `cdp_type` it takes no selector and clears nothing.
     pub async fn cdp_insert_text(&self, text: &str) -> Result<(), SeleniumBaseError> {
         self.session.cdp_type_text(text).await
-    }
-
-    /// Inserts `text` via CDP without using element focus.
-    #[deprecated(since = "0.5.0", note = "renamed cdp_insert_text: it types nothing")]
-    pub async fn cdp_type_text(&self, text: &str) -> Result<(), SeleniumBaseError> {
-        self.cdp_insert_text(text).await
-    }
-
-    /// Finds `css` and dispatches a CDP mouse click at its center.
-    ///
-    /// It used to press at WebDriver's rectangle of the element, which is in
-    /// the document, so on a page scrolled by N pixels the click landed N
-    /// pixels too low. It now is [`cdp_click`](Self::cdp_click), which scrolls
-    /// the element into view and presses at its centre in the viewport. As
-    /// `cdp_click` does, it takes a CSS selector only (it used to accept the
-    /// XPath and `link=` forms) and records the click as `cdp_click`.
-    #[deprecated(
-        since = "0.5.0",
-        note = "use cdp_click, which scrolls the element into view and clicks it at its place in the viewport"
-    )]
-    pub async fn cdp_click_element(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
-        self.cdp_click(css).await
     }
 
     /// Configures network throttling/latency via CDP.

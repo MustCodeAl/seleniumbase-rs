@@ -106,8 +106,7 @@ async fn the_cdp_helpers_click_read_select_and_report_what_is_missing() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
-#[allow(deprecated)]
-async fn cdp_click_element_hits_the_button_on_a_page_scrolled_down() {
+async fn cdp_click_hits_the_button_on_a_page_scrolled_down() {
     let mut config = BrowserConfig::default()
         .with_headless(true)
         .with_mode(DriverMode::Cdp);
@@ -121,7 +120,7 @@ async fn cdp_click_element_hits_the_button_on_a_page_scrolled_down() {
     sb.execute_script("window.scrollTo(0, 1900);")
         .await
         .unwrap();
-    sb.cdp_click_element("#low").await.unwrap();
+    sb.cdp_click("#low").await.unwrap();
     assert_eq!(sb.cdp_get_text("#out").await.unwrap(), "clicked");
 
     sb.quit().await.unwrap();

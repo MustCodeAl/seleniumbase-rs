@@ -1,7 +1,5 @@
 // MasterQA and test-case management wrappers for BaseCase.
 
-use crate::api::master_qa::QaStep;
-
 /// Title of the session `manual_verify` starts when none is active.
 const MANUAL_VERIFY_TITLE: &str = "Manual verification";
 
@@ -31,19 +29,6 @@ impl BaseCase {
     /// reports built from it instead of being lost.
     pub fn manual_verify(&mut self, question: &str) -> bool {
         session_for_manual_check(&mut self.qa_session).verify(question)
-    }
-
-    /// Generates a Markdown test-case management report from QA steps.
-    #[deprecated(
-        since = "0.5.0",
-        note = "use MasterQaSession::to_markdown on the session; save_qa_report writes the active one"
-    )]
-    pub fn qa_report_markdown(steps: &[QaStep], title: &str) -> String {
-        let mut session = MasterQaSession::new(title);
-        for step in steps {
-            session.steps.push(step.clone());
-        }
-        session.to_markdown()
     }
 
     /// Saves the active QA session ([`start_qa_session`](Self::start_qa_session),
@@ -89,6 +74,7 @@ impl BaseCase {
 #[cfg(test)]
 mod tests_masterqa {
     use super::*;
+    use crate::api::master_qa::QaStep;
 
     #[test]
     fn markdown_report_format() {
@@ -98,7 +84,9 @@ mod tests_masterqa {
             passed: true,
             notes: None,
         }];
-        let md = BaseCase::qa_report_markdown(&steps, "Login Test");
+        let mut session = MasterQaSession::new("Login Test");
+        session.steps.extend(steps);
+        let md = session.to_markdown();
         assert!(md.contains("# Login Test"));
         assert!(md.contains("| 1 | Page loads | PASS |"));
     }
@@ -133,7 +121,9 @@ mod tests_masterqa {
             passed: false,
             notes: Some("x|y".to_owned()),
         }];
-        let md = BaseCase::qa_report_markdown(&steps, "T");
+        let mut session = MasterQaSession::new("T");
+        session.steps.extend(steps);
+        let md = session.to_markdown();
         assert!(md.contains("| 1 | a \\| b c | FAIL | x\\|y |"), "{md}");
     }
 
