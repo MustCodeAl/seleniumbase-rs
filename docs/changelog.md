@@ -52,6 +52,41 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   (`sbrs completions fig`) marks the global options `isPersistent` and keeps the file template of
   a path limited to extensions, and `docs/help/cli_reference.md` shows each command's examples in
   a `bash` block titled Examples and says the global options go before or after the command.
+- **One option table for a test run (`config::test_options`).** Every Python SeleniumBase
+  option, whether a pytest flag or an `SB(...)` keyword, is a row of `TEST_OPTIONS`: the `sbrs`
+  flags that spell it (`_` and `-` alike), the `SB_*` variable that carries it, and the
+  `Settings` field it lands in. `find_option("--dark")` finds a row by any spelling, and
+  `tests/test_options_table.rs` fails when `parity/api.toml` lists an option the table does not
+  spell. `Settings::load` reads the variables from the table, in the order and with the
+  messages it always had.
+- **`TestSettings` and `TestData` (`config::test_settings`), the `[test]` table of the settings
+  file.** `TestData` holds what a test reads: `env` (one of the 24 environments of Python
+  SeleniumBase, `test` by default, checked and lower-cased), `account`, `data`, `var1` to
+  `var3` and `variables`, a JSON object or a Python dictionary literal
+  (`TestData::parse_variables`). `TestSettings` holds the debug modes (`pdb`, `trace`,
+  `final_debug`), `reruns` and `reruns_delay`, `time_limit`, the evidence and report switches,
+  the recorder switches and `runner`. The settings stay on `LaunchSettings::test_data` for the
+  `sb` fixture.
+- **A key and a variable for each browser option.** `Settings` gains `dark_mode`, `devtools`,
+  `incognito`, `guest_mode`, `disable_ws`, `swiftshader`, `enable_3d_apis`, `maximize`,
+  `no_sandbox`, `disable_gpu`, `chromium_arg`, `disable_features`, `host_resolver_rules`,
+  `server`, `port`, `protocol`, `locale_code`, `window_size`, `window_position`,
+  `device_metrics`, `page_load_strategy`, `driver_version`, `proxy_bypass_list`, `cap_file`,
+  `cap_string`, `extension_zip`, `firefox_arg`, `firefox_pref`, `xvfb`, `xvfb_metrics`,
+  `remote_debug`, `log_cdp_events`, `block_images`, `disable_js`, `disable_cookies`,
+  `do_not_track`, `external_pdf`, `enable_sync`, `disable_csp`, `use_auto_ext`, `demo`, `slow`,
+  `skip_js_waits`, `crumbs` and more, each with its `SB_*` variable
+  (`SB_DARK_MODE`, `SB_WINDOW_SIZE`, ...). `Settings::to_browser_config` puts them on the typed
+  `BrowserConfig` builders, and a value that does not parse is refused by `Settings::validate`.
+- **`Settings::to_launch_options` for the pure CDP engine.** The same settings, as the
+  `LaunchOptions` of `sb_cdp`, with the Chromium switches both engines share.
+- **`SB_SETTINGS_FILE` names the settings file** that `Settings::load` and `Settings::check`
+  read instead of the global file of the working folder.
+
+### Breaking
+
+- **`Settings::screenshot_dir` and `SB_SCREENSHOT_DIR` are removed.** The library read neither;
+  a settings file that still has the key loads as before.
 
 </Update>
 
