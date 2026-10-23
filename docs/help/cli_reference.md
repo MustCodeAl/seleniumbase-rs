@@ -559,9 +559,9 @@ Also: `gui-behave`
 
 Launch the Behave Commander, a terminal app (needs a build with the `tui` feature).
 
-Lists the `.feature` files under PATH with their scenarios, runs the ones you mark through the crate's behave runner and shows the results. PATH is a folder of feature files or one file; by default `features`.
+Lists the `.feature` files under PATH with their scenarios, runs the ones you mark with `cargo test` and shows the results. PATH is a folder of feature files or one file; by default `features`.
 
-The runner has only the built-in steps: steps written in Rust are not loaded, and a scenario that uses one is reported as undefined. The Python command opens a Tkinter window; this one runs in the terminal.
+A scenario is matched to the test your project binds to it with rstest-bdd: one with no test named after it is reported as undefined. The Python command opens a Tkinter window; this one runs in the terminal.
 
 ```bash Usage
 sbrs behave-gui [--new] [PATH]
