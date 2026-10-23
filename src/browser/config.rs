@@ -398,6 +398,15 @@ impl BrowserConfig {
 
     /// Routes traffic through a proxy written
     /// `[scheme://][user:password@]host:port` (`--proxy`).
+    ///
+    /// Chrome is given `--proxy-server=host:port` and never the login. A
+    /// Chrome or Edge session on a WebDriver server this machine runs logs in
+    /// to a proxy that asks for a password through a DevTools client beside the
+    /// driver, in every tab (also one the page opens), and gives the login to
+    /// the proxy only, never to a website that asks for its own. A remote
+    /// WebDriver server cannot share its browser's DevTools endpoint, so a
+    /// proxy with a login is refused there when the session connects; Firefox
+    /// refuses a login too.
     pub fn with_proxy(mut self, proxy: impl Into<String>) -> Self {
         self.proxy = Some(proxy.into());
         self
