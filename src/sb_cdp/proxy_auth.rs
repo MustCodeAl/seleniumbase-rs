@@ -43,6 +43,9 @@ pub(super) struct ProxyAuth {
     /// Tabs whose paused requests an `Interception` is answering.
     intercepted: Mutex<HashSet<String>>,
     started: AtomicBool,
+    /// Tabs of an attached browser whose prompts are already being answered,
+    /// by target id, so a tab the browser reports twice is set up once.
+    guarded: Mutex<HashSet<String>>,
 }
 
 impl fmt::Debug for ProxyAuth {
@@ -103,6 +106,12 @@ impl ProxyAuth {
     /// `true` the first time only: whoever gets it starts the responder task.
     pub(super) fn claim_start(&self) -> bool {
         !self.started.swap(true, Ordering::AcqRel)
+    }
+
+    /// `true` the first time a tab (by target id) is named: whoever gets it
+    /// turns the tab's password handling on.
+    pub(super) fn claim_target(&self, target: &str) -> bool {
+        locked(&self.guarded).insert(target.to_owned())
     }
 
     /// The command that answers a `Fetch` event from `session`, if any.

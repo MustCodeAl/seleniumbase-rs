@@ -466,6 +466,38 @@ impl Browser {
         Ok(browser)
     }
 
+    /// Attaches to a browser another program launched, such as the one a
+    /// chromedriver session drives, and answers its proxy's password prompts
+    /// with `credentials` in every tab: the ones it has and the ones it opens
+    /// later. Nothing else about the tabs is changed. This is what lets a
+    /// WebDriver session log in to a proxy (`browser::proxy_auth`).
+    ///
+    /// The browser keeps running after [`close`](Self::close).
+    pub(crate) async fn connect_answering_proxy(
+        host: &str,
+        port: u16,
+        credentials: Credentials,
+    ) -> Result<Self, SeleniumBaseError> {
+        Self::attach(host, port, LaunchOptions::default())
+            .await?
+            .answering_proxy(credentials)
+            .await
+    }
+
+    /// Makes this browser answer its proxy's prompts with `credentials`.
+    async fn answering_proxy(
+        mut self,
+        credentials: Credentials,
+    ) -> Result<Self, SeleniumBaseError> {
+        // The handle was just made, so nothing else holds the browser yet.
+        let inner = Arc::get_mut(&mut self.inner).ok_or_else(|| {
+            SeleniumBaseError::cdp_driver("the browser was shared before its proxy login was set")
+        })?;
+        inner.auth = Arc::new(ProxyAuth::new(Some(credentials)));
+        self.answer_proxy_in_every_tab().await?;
+        Ok(self)
+    }
+
     /// Creates a browser that talks to a scripted mock instead of Chrome.
     ///
     /// For testing code that drives pages. The returned [`MockCtrl`] scripts
@@ -996,6 +1028,99 @@ impl Browser {
         locked(&self.inner.tasks).push(task);
     }
 
+    /// Answers the proxy's password prompts in every tab of this browser, the
+    /// tabs it has now and the tabs it opens later, and changes nothing else
+    /// in them.
+    ///
+    /// It is for a browser another program drives (chromedriver's), where the
+    /// page scripts and protocol domains this crate sets up in its own tabs
+    /// must not be added: each tab is attached to for `Fetch` alone. A tab
+    /// that opens later (a pop-up, a link that opens a tab, a WebDriver new
+    /// window) is attached by the browser itself and held until `Fetch` is on,
+    /// so its very first request already finds the login.
+    async fn answer_proxy_in_every_tab(&self) -> Result<(), SeleniumBaseError> {
+        let client = Arc::clone(&self.inner.client);
+        let auth = Arc::clone(&self.inner.auth);
+        // Subscribed before anything is attached, so no report is missed.
+        let mut events = client.events();
+        self.ensure_proxy_auth();
+        for info in self.list_pages().await? {
+            if auth.claim_target(&info.id) {
+                let attached = client
+                    .send(
+                        "Target.attachToTarget",
+                        json!({ "targetId": info.id, "flatten": true }),
+                        None,
+                    )
+                    .await?;
+                let session = attached["sessionId"]
+                    .as_str()
+                    .ok_or_else(|| SeleniumBaseError::cdp_driver("attach returned no sessionId"))?;
+                Self::enable_proxy_login(&client, session).await?;
+            }
+        }
+        let (task_client, task_auth) = (Arc::clone(&client), auth);
+        let task = tokio::spawn(async move {
+            while let Some(event) = events.next().await {
+                if event.method == "Target.attachedToTarget" {
+                    Self::guard_reported_target(&task_client, &task_auth, &event.params).await;
+                }
+            }
+        });
+        locked(&self.inner.tasks).push(task);
+        client
+            .send(
+                "Target.setAutoAttach",
+                json!({ "autoAttach": true, "waitForDebuggerOnStart": true, "flatten": true }),
+                None,
+            )
+            .await?;
+        Ok(())
+    }
+
+    /// Turns `Fetch` on for `session`, with proxy prompts handed to the
+    /// responder of [`ensure_proxy_auth`](Self::ensure_proxy_auth).
+    async fn enable_proxy_login(client: &Client, session: &str) -> Result<(), SeleniumBaseError> {
+        client
+            .send(
+                "Fetch.enable",
+                json!({ "handleAuthRequests": true, "patterns": [{ "urlPattern": "*" }] }),
+                Some(session),
+            )
+            .await
+            .map(drop)
+    }
+
+    /// What is done for a target the browser attached this client to: a tab
+    /// gets its password handling, and whatever the browser holds for a
+    /// debugger, a tab or not, is let go, so nothing waits on this client.
+    async fn guard_reported_target(client: &Client, auth: &ProxyAuth, params: &Value) {
+        let Some(session) = params["sessionId"].as_str() else {
+            return;
+        };
+        let info = &params["targetInfo"];
+        let is_new_tab = info["type"] == "page"
+            && info["targetId"]
+                .as_str()
+                .is_some_and(|target| auth.claim_target(target));
+        if is_new_tab {
+            if let Err(error) = Self::enable_proxy_login(client, session).await {
+                tracing::event!(
+                    name: "cdp.browser.proxy_login.tab",
+                    tracing::Level::WARN,
+                    error = %error,
+                    "a tab's proxy login could not be turned on: {{error}}",
+                );
+            }
+        }
+        if params["waitingForDebugger"].as_bool() == Some(true) {
+            // A tab that has gone already has nothing to resume.
+            let _ = client
+                .send("Runtime.runIfWaitingForDebugger", json!({}), Some(session))
+                .await;
+        }
+    }
+
     // ------------------------------------------------------------------
     // Browser-wide settings
     // ------------------------------------------------------------------
@@ -1157,5 +1282,184 @@ impl Browser {
         #[cfg(any(test, feature = "test-util"))]
         self.inner.client.mark_closed();
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod proxy_login_tests {
+    use std::time::Duration;
+
+    use super::*;
+    use crate::sb_cdp::mock::{Call, MockCtrl};
+
+    const PASSWORD: &str = "s3cret-proxy-password";
+
+    async fn answering() -> (Browser, MockCtrl) {
+        let (browser, mock) = Browser::new_mocked();
+        let browser = browser
+            .answering_proxy(("alice".to_owned(), PASSWORD.to_owned()))
+            .await
+            .expect("the mocked browser takes the login");
+        (browser, mock)
+    }
+
+    async fn settle() {
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+
+    fn reported(mock: &MockCtrl, target: &str, kind: &str, session: &str, waiting: bool) {
+        mock.emit(
+            "Target.attachedToTarget",
+            json!({
+                "sessionId": session,
+                "targetInfo": { "targetId": target, "type": kind, "url": "about:blank" },
+                "waitingForDebugger": waiting,
+            }),
+            None,
+        );
+    }
+
+    fn sent(calls: &[Call], method: &str, session: &str) -> Vec<usize> {
+        calls
+            .iter()
+            .enumerate()
+            .filter(|(_, call)| {
+                call.method == method && call.session_id.as_deref() == Some(session)
+            })
+            .map(|(index, _)| index)
+            .collect()
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn the_tabs_the_browser_has_get_password_handling_and_nothing_else() {
+        let (_browser, mock) = answering().await;
+
+        let attach = &mock.calls_to("Target.attachToTarget")[0].params;
+        assert_eq!(attach["targetId"], "T1");
+        assert_eq!(attach["flatten"], true);
+        let enable = &mock.calls_to("Fetch.enable")[0];
+        assert_eq!(enable.params["handleAuthRequests"], true);
+        assert_eq!(enable.session_id.as_deref(), Some("S1"));
+        // A tab that chromedriver drives is not given the library's helpers.
+        for method in [
+            "Page.enable",
+            "Runtime.evaluate",
+            "Page.addScriptToEvaluateOnNewDocument",
+            "Emulation.setFocusEmulationEnabled",
+            "Network.enable",
+        ] {
+            assert!(mock.calls_to(method).is_empty(), "{method} was sent");
+        }
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn the_browser_is_asked_to_hold_new_tabs_until_the_login_is_on() {
+        let (_browser, mock) = answering().await;
+
+        let auto_attach = mock.calls_to("Target.setAutoAttach");
+        assert_eq!(auto_attach.len(), 1);
+        assert_eq!(auto_attach[0].session_id, None, "the browser's own session");
+        assert_eq!(auto_attach[0].params["autoAttach"], true);
+        assert_eq!(auto_attach[0].params["waitForDebuggerOnStart"], true);
+        assert_eq!(auto_attach[0].params["flatten"], true);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_new_tab_gets_the_login_before_it_is_let_go() {
+        let (_browser, mock) = answering().await;
+
+        reported(&mock, "T9", "page", "S9", true);
+        settle().await;
+
+        let calls = mock.calls();
+        let enable = sent(&calls, "Fetch.enable", "S9");
+        let resume = sent(&calls, "Runtime.runIfWaitingForDebugger", "S9");
+        assert_eq!(enable.len(), 1, "{calls:?}");
+        assert_eq!(resume.len(), 1, "{calls:?}");
+        assert!(enable[0] < resume[0], "the tab ran before its login was on");
+        assert_eq!(calls[enable[0]].params["handleAuthRequests"], true);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_tab_reported_twice_is_set_up_once() {
+        let (_browser, mock) = answering().await;
+
+        // T1 has been set up already; T9 is reported twice.
+        reported(&mock, "T1", "page", "S5", false);
+        reported(&mock, "T9", "page", "S9", true);
+        reported(&mock, "T9", "page", "S10", false);
+        settle().await;
+
+        let calls = mock.calls();
+        assert!(sent(&calls, "Fetch.enable", "S5").is_empty());
+        assert_eq!(sent(&calls, "Fetch.enable", "S9").len(), 1);
+        assert!(sent(&calls, "Fetch.enable", "S10").is_empty());
+        assert!(sent(&calls, "Runtime.runIfWaitingForDebugger", "S5").is_empty());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_worker_is_let_go_and_given_no_fetch() {
+        let (_browser, mock) = answering().await;
+
+        reported(&mock, "W1", "service_worker", "S7", true);
+        settle().await;
+
+        let calls = mock.calls();
+        assert!(sent(&calls, "Fetch.enable", "S7").is_empty());
+        assert_eq!(
+            sent(&calls, "Runtime.runIfWaitingForDebugger", "S7").len(),
+            1
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn the_proxy_prompt_of_a_later_tab_is_answered_and_a_websites_is_not() {
+        let (_browser, mock) = answering().await;
+        reported(&mock, "T9", "page", "S9", true);
+        settle().await;
+
+        mock.emit(
+            "Fetch.authRequired",
+            json!({ "requestId": "A1", "authChallenge": { "source": "Proxy" } }),
+            Some("S9"),
+        );
+        mock.emit(
+            "Fetch.authRequired",
+            json!({ "requestId": "A2", "authChallenge": { "source": "Server" } }),
+            Some("S9"),
+        );
+        settle().await;
+
+        let answers = mock.calls_to("Fetch.continueWithAuth");
+        assert_eq!(answers.len(), 2);
+        let proxy = &answers[0].params["authChallengeResponse"];
+        assert_eq!(proxy["username"], "alice");
+        assert_eq!(proxy["password"], PASSWORD);
+        let website = &answers[1].params["authChallengeResponse"];
+        assert_eq!(website["response"], "Default");
+        assert!(website.get("password").is_none());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn the_password_goes_nowhere_but_the_answer_to_the_proxy() {
+        let (browser, mock) = answering().await;
+        reported(&mock, "T9", "page", "S9", true);
+        mock.emit(
+            "Fetch.authRequired",
+            json!({ "requestId": "A1", "authChallenge": { "source": "Proxy" } }),
+            Some("S9"),
+        );
+        settle().await;
+
+        for call in mock.calls() {
+            if call.method != "Fetch.continueWithAuth" {
+                assert!(
+                    !call.params.to_string().contains(PASSWORD),
+                    "{} carries the password",
+                    call.method
+                );
+            }
+        }
+        assert!(!format!("{browser:?}").contains(PASSWORD));
     }
 }
