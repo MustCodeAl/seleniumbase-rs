@@ -21,7 +21,7 @@
 //!    (everything but the start page and the reuse settings themselves), and
 //!    attaches to it with a new client made in the current runtime;
 //! 2. cleans it: dismisses an open dialog, closes every window but the first,
-//!    deletes every cookie (all of them through DevTools on a Chromium browser,
+//!    deletes every cookie if [`crumbs`] is on (all of them through DevTools on a Chromium browser,
 //!    those of the open page through WebDriver elsewhere), clears the open
 //!    page's local and session storage, and goes to `about:blank` (the start
 //!    page, if there is one, is opened by `BaseCase::new` as for a new browser);
@@ -68,7 +68,8 @@
 //! # What differs from Python
 //!
 //! Python keeps the cookies and the page of the previous test unless `--crumbs`
-//! is given; here a reused browser is always cleaned, because Rust tests run in
+//! is given. Cookies are kept the same way here (see [`crumbs`]), but the page, its
+//! storage and the other windows are always reset, because Rust tests run in
 //! any order and side by side, so what one test leaves must not decide what the
 //! next one sees. Python closes the shared browser when pytest ends, and the
 //! class's browser when the next class starts; here the idle timeout does both.
@@ -109,6 +110,58 @@ const DEFAULT_REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 /// (`about:blank`, `data:`) or one that refuses access throws, which is caught.
 const CLEAR_STORAGE: &str = "try { window.localStorage.clear(); } catch (e) {} \
                              try { window.sessionStorage.clear(); } catch (e) {}";
+
+/// The environment variable that turns [`crumbs`] on: `1`, `true`, `yes` or
+/// `on` (`sbrs test --crumbs` sets it).
+pub const CRUMBS_VAR: &str = "SB_CRUMBS";
+
+/// What [`set_crumbs`] last set, if it was called.
+static CRUMBS: Mutex<Option<bool>> = Mutex::new(None);
+
+/// Sets whether a browser that is reused has its cookies deleted between
+/// tests, which is Python's `--crumbs`. It is a setting of the process, like
+/// [`set_idle_timeout`], and takes precedence over [`CRUMBS_VAR`].
+pub fn set_crumbs(on: bool) {
+    *CRUMBS.lock().unwrap_or_else(PoisonError::into_inner) = Some(on);
+}
+
+/// Whether a browser that is reused has its cookies deleted between tests
+/// (Python's `--crumbs`): what [`set_crumbs`] set, else [`CRUMBS_VAR`], else
+/// off, so the cookies stay, as they do in Python. The other windows are closed
+/// and the page and its storage are reset either way.
+#[must_use]
+pub fn crumbs() -> bool {
+    let set = *CRUMBS.lock().unwrap_or_else(PoisonError::into_inner);
+    set.unwrap_or_else(|| {
+        static FROM_ENV: OnceLock<bool> = OnceLock::new();
+        *FROM_ENV.get_or_init(|| {
+            let value = std::env::var(CRUMBS_VAR).ok();
+            parse_crumbs(value.as_deref()).unwrap_or_else(|error| {
+                warn!(%error, "ignoring {CRUMBS_VAR}; cookies are kept between tests");
+                false
+            })
+        })
+    })
+}
+
+/// Reads the value of [`CRUMBS_VAR`] as a flag: unset or blank is off.
+///
+/// # Errors
+///
+/// Returns [`SeleniumBaseError::InvalidConfig`] for a value that is not one of
+/// `1`, `true`, `yes`, `on`, `0`, `false`, `no` or `off` (in any case).
+pub fn parse_crumbs(value: Option<&str>) -> Result<bool, SeleniumBaseError> {
+    let Some(text) = value.map(str::trim).filter(|text| !text.is_empty()) else {
+        return Ok(false);
+    };
+    match text.to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" => Ok(true),
+        "0" | "false" | "no" | "off" => Ok(false),
+        _ => Err(SeleniumBaseError::invalid_config(format!(
+            "{CRUMBS_VAR} must be true or false, got {text:?}"
+        ))),
+    }
+}
 
 /// Which tests share a browser under Python's `--rcs`. See the
 /// [module documentation](self#what-plays-the-role-of-a-test-class).
@@ -646,7 +699,7 @@ async fn attach(
         .request_timeout(timeout)
         .connect()
         .await?;
-    if let Err(error) = reset(&driver, config).await {
+    if let Err(error) = reset(&driver, config, crumbs()).await {
         // Dropped as it is, the client would end the session; the caller
         // closes the browser instead.
         let _ = driver.leak();
@@ -657,7 +710,11 @@ async fn attach(
 
 /// Cleans a reused browser for the next test. See the
 /// [module documentation](self#how-it-works).
-async fn reset(driver: &WebDriver, config: &BrowserConfig) -> Result<(), SeleniumBaseError> {
+async fn reset(
+    driver: &WebDriver,
+    config: &BrowserConfig,
+    crumbs: bool,
+) -> Result<(), SeleniumBaseError> {
     // An open dialog would make the commands below fail.
     let _ = driver.dismiss_alert().await;
     let windows = driver.windows().await?;
@@ -668,13 +725,14 @@ async fn reset(driver: &WebDriver, config: &BrowserConfig) -> Result<(), Seleniu
         }
         driver.switch_to_window(first.clone()).await?;
     }
-    // Every cookie of the browser through DevTools on Chromium; elsewhere, or
+    // Crumbs delete every cookie, through DevTools on Chromium; elsewhere, or
     // if DevTools refuses, WebDriver deletes those of the open page.
-    let cleared = config.browser.is_chromium_based()
-        && CdpClient::from_handle(driver.handle().clone())
-            .clear_cookies()
-            .await
-            .is_ok();
+    let cleared = !crumbs
+        || (config.browser.is_chromium_based()
+            && CdpClient::from_handle(driver.handle().clone())
+                .clear_cookies()
+                .await
+                .is_ok());
     if !cleared {
         driver.delete_all_cookies().await?;
     }
@@ -1076,6 +1134,10 @@ mod tests_with_a_driver {
     /// A configuration that reuses browsers of `driver`. The server's address
     /// is part of the key, so the tests do not share browsers with each other.
     fn reusing(driver: &MockWebDriver) -> BrowserConfig {
+        // Most of these tests look at how a browser is cleaned, cookies included,
+        // which is what crumbs ask for; the process-wide setting is on for all of
+        // them, and `cookies_are_kept_unless_crumbs_are_on` calls `reset` itself.
+        set_crumbs(true);
         let mut config = BrowserConfig::default()
             .with_webdriver_url(driver.url())
             .with_reuse_session(true);
@@ -1196,6 +1258,65 @@ mod tests_with_a_driver {
             })
             .collect();
         assert_eq!(windows, ["to w2", "close", "to w3", "close", "to w1"]);
+    }
+
+    /// `reset` run by hand on a new session of `driver`, with `crumbs` as given.
+    async fn reset_by_hand(driver: &MockWebDriver, config: &BrowserConfig, crumbs: bool) {
+        let url = crate::browser::session::server_url_for_joins(&driver.url());
+        let web = thirtyfour::WebDriver::new(url, thirtyfour::DesiredCapabilities::chrome())
+            .await
+            .unwrap();
+        reset(&web, config, crumbs).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn cookies_are_kept_unless_crumbs_are_on() {
+        let driver = mock_with_windows(&["w1"]);
+        let config = reusing(&driver);
+
+        reset_by_hand(&driver, &config, false).await;
+        assert!(
+            driver.requests("/goog/cdp/execute").is_empty(),
+            "no cookie is deleted without crumbs"
+        );
+        assert!(driver
+            .requests("/cookie")
+            .iter()
+            .all(|r| r.method != "DELETE"));
+        // The rest of the cleaning is the same either way.
+        assert!(
+            !driver.requests("/execute/sync").is_empty(),
+            "storage is cleared"
+        );
+        assert!(driver
+            .requests("/url")
+            .iter()
+            .any(|r| r.body["url"] == "about:blank"));
+
+        reset_by_hand(&driver, &config, true).await;
+        let cdp = driver.requests("/goog/cdp/execute");
+        assert_eq!(cdp.len(), 1, "crumbs delete the cookies");
+        assert_eq!(cdp[0].body["cmd"], "Network.clearBrowserCookies");
+    }
+
+    #[test]
+    fn crumbs_are_read_from_the_environment_variable() {
+        assert!(!parse_crumbs(None).unwrap());
+        assert!(!parse_crumbs(Some("  ")).unwrap());
+        for on in ["1", "true", "YES", " on "] {
+            assert!(parse_crumbs(Some(on)).unwrap(), "{on}");
+        }
+        for off in ["0", "false", "No", "off"] {
+            assert!(!parse_crumbs(Some(off)).unwrap(), "{off}");
+        }
+        let error = parse_crumbs(Some("maybe")).unwrap_err();
+        assert!(
+            matches!(&error, SeleniumBaseError::InvalidConfig(m)
+                if m.contains("SB_CRUMBS") && m.contains("maybe")),
+            "{error:?}"
+        );
+        set_crumbs(true);
+        assert!(crumbs(), "the setting of the process wins");
     }
 
     #[tokio::test]

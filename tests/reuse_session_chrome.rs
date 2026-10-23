@@ -24,7 +24,7 @@ use std::net::{TcpListener, TcpStream};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use seleniumbase_rs::browser::reuse::{reused_sessions, set_idle_timeout};
+use seleniumbase_rs::browser::reuse::{reused_sessions, set_crumbs, set_idle_timeout};
 use seleniumbase_rs::{BaseCase, BrowserConfig};
 use serde_json::Value;
 
@@ -42,6 +42,9 @@ struct First {
 static FIRST: Mutex<Option<First>> = Mutex::new(None);
 
 fn config() -> BrowserConfig {
+    // The second test checks that the first one's cookie is cleaned away, which
+    // is what crumbs ask for; `crumbs_chrome.rs` checks the default.
+    set_crumbs(true);
     BrowserConfig {
         headless: true,
         auto_start_driver: true,

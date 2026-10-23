@@ -199,8 +199,8 @@ pub struct BrowserConfig {
     /// With it on, [`BrowserSession::connect`](crate::BrowserSession::connect)
     /// (and so `BaseCase::new`) attaches to a browser that an earlier test
     /// started with the same configuration and has given back, after cleaning
-    /// it (other windows closed, cookies and the page's storage deleted,
-    /// `about:blank`), and `BaseCase::quit` gives the browser back instead of
+    /// it (other windows closed, the page's storage deleted, cookies deleted if
+    /// [`crumbs`](crate::browser::reuse::crumbs) are on, `about:blank`), and `BaseCase::quit` gives the browser back instead of
     /// closing it. One test holds a browser at a time; a test that starts while
     /// every matching browser is held gets one of its own, kept for reuse too.
     /// Idle browsers close after
