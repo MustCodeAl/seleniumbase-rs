@@ -3012,7 +3012,7 @@ divergence = "Reads tokens made by `sbrs encrypt` only; see `encrypt`."
 
 [cli."download"]
 status = "implemented"
-rust = "sbrs download server"
+rust = "sbrs download"
 divergence = "Downloads Selenium Server 4 (default 4.51.0, whose SHA-256 is pinned in the source and checked; another --version is saved with its SHA-256 and `not verified`) into downloaded_drivers/, not Python's Selenium 3.141.59, because Selenium Grid 3 is gone. `sbrs grid-hub` and `sbrs grid-node` use the newest jar there when neither --jar nor SB_SELENIUM_SERVER_JAR names one. (`sbrs download-file` downloads a file from a URL, which is another command.)"
 
 [cli."encrypt"]
