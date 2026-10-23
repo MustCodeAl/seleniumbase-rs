@@ -10,6 +10,19 @@ work, `docs/parity.md` the per-API status).
 
 ### Breaking
 
+- **Downloads go to `./downloaded_files`, as in Python SeleniumBase.** `BaseCase::get_downloads_folder`,
+  `assert_downloaded_file`, `download_file` and the other download helpers used the OS Downloads
+  folder; they now use `downloaded_files` in the working directory
+  (`browser::downloads::downloads_dir`), and a browser the library launches is told to save
+  there: WebDriver sessions ask for it in their capabilities (the Chrome and Edge preferences
+  `download.default_directory`, `download.prompt_for_download` and `download.directory_upgrade`,
+  and the Firefox `browser.download.*` ones; a preference you set yourself wins), and the pure CDP
+  engine sends `Browser.setDownloadBehavior` at launch, so `Page::assert_downloaded_file` finds a
+  file without a folder being chosen first. `downloaded_files/` is in `.gitignore`.
+- **A reused browser keeps its cookies unless `--crumbs`.** With `--reuse-session` or `--rcs` the
+  browser handed to the next test used to have every cookie deleted; now the cookies stay (Python's
+  default) and `SB_CRUMBS=1` or `browser::reuse::set_crumbs(true)` deletes them. The other windows
+  are still closed, the page's storage cleared and the page set to `about:blank`.
 - **A page command needs a page.** `get-text`, `get-title`, `get-attribute`, `screenshot`,
   `assert-element`, `hover`, `send-keys`, the alert commands and the other commands that act
   on a page used to act on `about:blank`, which no one wants. Without a start page (`--url`,

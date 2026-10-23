@@ -130,7 +130,7 @@ rust = "BaseCase::assert_data_in_downloaded_file"
 [basecase."assert_downloaded_file"]
 status = "implemented"
 rust = "BaseCase::assert_downloaded_file"
-divergence = "Waits for the default timeout (set_timeout), not a per-call one, and looks only in the OS downloads folder; Python's browser flag and its downloaded_files folder are not used."
+divergence = "Waits for the default timeout (set_timeout), not a per-call one, and takes no browser flag. It looks in ./downloaded_files (browser::downloads::downloads_dir), where a launched browser is told to save, as Python does."
 
 [basecase."assert_downloaded_file_regex"]
 status = "implemented"
@@ -4538,9 +4538,9 @@ rust = "BrowserConfig::browser"
 note = "Run with chromedriver; the program is found in Comet's install locations or on the PATH (the Linux location is a guess)."
 
 [options_pytest."--crumbs"]
-status = "composed"
-rust = "BaseCase::delete_all_cookies"
-note = "With --reuse-session or --rcs, a browser handed to the next test always has its cookies deleted (every cookie, through DevTools, on Chromium) and goes to about:blank, so --crumbs is in effect whenever a browser is reused. Without reuse every test has a new browser and no cookies; call delete_all_cookies to clear them within a test."
+status = "implemented"
+rust = "reuse::set_crumbs"
+note = "SB_CRUMBS=1 or `browser::reuse::set_crumbs(true)` (process-wide, as the idle timeout is): with --reuse-session or --rcs, a browser handed to the next test has every cookie deleted (Network.clearBrowserCookies on Chromium, WebDriver's delete-all elsewhere). Without it the cookies stay, as in Python; the other windows are still closed, the page's local and session storage cleared and the page set to about:blank. Without reuse every test has a new browser and no cookies; call delete_all_cookies to clear them within a test. Mock WebDriver tests in browser::reuse check both paths, and tests/crumbs_chrome.rs (ignored) checks them in Chrome."
 
 [options_pytest."--crx"]
 status = "implemented"
@@ -5275,8 +5275,8 @@ divergence = "See --rcs: the module plays the part of the class, and a class's b
 [options_pytest."--reuse-session"]
 status = "implemented"
 rust = "BrowserConfig::with_reuse_session"
-note = "Also `sbrs --reuse-session` (aliases `--reuse_session`, `--rs`), `Settings::reuse_session` and SB_REUSE_SESSION. BaseCase::new (BrowserSession::connect) leases an idle browser started with the same configuration (all of it but the start page) from a process-wide registry that keeps each browser's WebDriver server address, session id, capabilities and the chromedriver this crate started; it attaches with a new client made in the test's own Tokio runtime, then cleans the browser: an open dialog dismissed, every window but the first closed, every cookie deleted (Network.clearBrowserCookies on Chromium, WebDriver's delete-all elsewhere), the open page's local and session storage cleared, about:blank, and the start page if there is one. BaseCase::quit, run_browser_test and dropping the case give it back open. One test holds a browser at a time; one that starts while every matching browser is held gets its own, kept for reuse too. A browser that no longer answers is closed and replaced; get_new_driver browsers are never shared. Idle browsers are closed with their chromedriver after reuse::idle_timeout (5 s; reuse::set_idle_timeout, SB_REUSE_IDLE_SECS), by seleniumbase_rs::shutdown_reused_sessions() and by common::shutdown::drain_cleanups (which sbrs calls). Mock WebDriver tests in browser::reuse check that the second case sends no new-session request (from another Tokio runtime) and which cleaning commands it sends; tests/reuse_session_chrome.rs (ignored) checks in Chrome 155 that two #[tokio::test] in one binary share one Chrome (the same session id), that the first test's cookie and local storage are gone in the second, and that the reaper closes the browser and stops chromedriver after the idle timeout."
-divergence = "Python keeps the previous test's cookies and page unless --crumbs is given; here a reused browser is always cleaned, because Rust tests run in any order and side by side. Python quits the shared browser when pytest ends; a Rust test binary has no end-of-run hook, so the idle timeout does it, and a binary that exits sooner after its last test leaves that browser and its chromedriver running unless shutdown_reused_sessions() is called. Under cargo-nextest each test is a process of its own and nothing is shared."
+note = "Also `sbrs --reuse-session` (aliases `--reuse_session`, `--rs`), `Settings::reuse_session` and SB_REUSE_SESSION. BaseCase::new (BrowserSession::connect) leases an idle browser started with the same configuration (all of it but the start page) from a process-wide registry that keeps each browser's WebDriver server address, session id, capabilities and the chromedriver this crate started; it attaches with a new client made in the test's own Tokio runtime, then cleans the browser: an open dialog dismissed, every window but the first closed, every cookie deleted only with --crumbs (Network.clearBrowserCookies on Chromium, WebDriver's delete-all elsewhere), the open page's local and session storage cleared, about:blank, and the start page if there is one. BaseCase::quit, run_browser_test and dropping the case give it back open. One test holds a browser at a time; one that starts while every matching browser is held gets its own, kept for reuse too. A browser that no longer answers is closed and replaced; get_new_driver browsers are never shared. Idle browsers are closed with their chromedriver after reuse::idle_timeout (5 s; reuse::set_idle_timeout, SB_REUSE_IDLE_SECS), by seleniumbase_rs::shutdown_reused_sessions() and by common::shutdown::drain_cleanups (which sbrs calls). Mock WebDriver tests in browser::reuse check that the second case sends no new-session request (from another Tokio runtime) and which cleaning commands it sends; tests/reuse_session_chrome.rs (ignored) checks in Chrome 155 that two #[tokio::test] in one binary share one Chrome (the same session id), that the first test's cookie and local storage are gone in the second, and that the reaper closes the browser and stops chromedriver after the idle timeout."
+divergence = "Cookies are kept unless --crumbs is given, as in Python; unlike Python, the page is always set to about:blank and the page's local and session storage cleared, and the other windows closed, because Rust tests run in any order and side by side. Python quits the shared browser when pytest ends; a Rust test binary has no end-of-run hook, so the idle timeout does it, and a binary that exits sooner after its last test leaves that browser and its chromedriver running unless shutdown_reused_sessions() is called. Under cargo-nextest each test is a process of its own and nothing is shared."
 
 [options_pytest."--reuse_class_session"]
 status = "implemented"
@@ -5288,13 +5288,13 @@ divergence = "See --rcs: the module plays the part of the class, and a class's b
 status = "implemented"
 rust = "BrowserConfig::with_reuse_session"
 note = "The same option as --reuse-session: the tests of a run share browsers, cleaned between tests. Also `sbrs --reuse_session` and SB_REUSE_SESSION. See --reuse-session."
-divergence = "See --reuse-session: the browser is always cleaned (Python needs --crumbs), and it closes after an idle timeout, since a test binary has no end-of-run hook."
+divergence = "See --reuse-session: cookies are kept unless --crumbs is given, the page and its storage are always reset, and the browser closes after an idle timeout, since a test binary has no end-of-run hook."
 
 [options_pytest."--rs"]
 status = "implemented"
 rust = "BrowserConfig::with_reuse_session"
 note = "Alias of --reuse-session upstream: the tests of a run share browsers, cleaned between tests. Also `sbrs --rs` and SB_REUSE_SESSION. See --reuse-session."
-divergence = "See --reuse-session: the browser is always cleaned (Python needs --crumbs), and it closes after an idle timeout, since a test binary has no end-of-run hook."
+divergence = "See --reuse-session: cookies are kept unless --crumbs is given, the page and its storage are always reset, and the browser closes after an idle timeout, since a test binary has no end-of-run hook."
 
 [options_pytest."--safari"]
 status = "implemented"
