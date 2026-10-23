@@ -197,6 +197,14 @@ The Chrome DevTools Protocol: the browser's own debugging protocol, spoken over 
 
 See [Pure CDP: Chrome without a WebDriver](/tutorials/pure_cdp).
 
+### CDP domain
+
+<Badge color="blue">Engine</Badge>
+
+A group of related commands and events in the DevTools Protocol, such as `Page`, `Network`, `Input` or `Fetch`. A command is named `Domain.command`, for example `Page.navigate`, and most domains must be turned on with an `enable` command before they send events.
+
+See [The DevTools Protocol](/concepts/cdp#domains).
+
 ### CDP mode
 
 <Badge color="blue">Engine</Badge>
@@ -277,6 +285,14 @@ A terminal UI for browsing and running tests and examples, behind the Cargo feat
 
 See [SeleniumBase Commander](/help/commander).
 
+### Cookie
+
+<Badge color="red">Network</Badge>
+
+A small piece of text that a server asks the browser to keep (the `Set-Cookie` header) and that the browser sends back with every matching request (the `Cookie` header). Attributes such as `Domain`, `Path`, `Expires`, `Secure`, `HttpOnly` and `SameSite` decide when it is sent. A login is usually a cookie holding a session id.
+
+See [Sessions, cookies and storage](/concepts/sessions-and-state#cookies-in-depth).
+
 ### Cookie jar
 
 <Badge color="red">Network</Badge>
@@ -327,6 +343,14 @@ The address of a running Chrome's remote-debugging port, by default `127.0.0.1:9
 
 See [DevTools MCP servers](/tutorials/devtools_mcp).
 
+### DNS
+
+<Badge color="red">Network</Badge>
+
+The Domain Name System: the lookup that turns a host name such as `shop.example.com` into an IP address before a connection is opened. Answers are cached for the record's time to live. A lookup that bypasses a proxy is called a DNS leak.
+
+See [DNS: names to addresses](/concepts/network#dns-names-to-addresses).
+
 ### Docs7
 
 <Badge color="yellow">Project</Badge>
@@ -352,6 +376,14 @@ See [Public items of the crate root](/api/crate-root).
 The exit address a request leaves through: one of your proxies, or the direct connection. Changing it (`rotate_egress`) opens a new browser context behind the new proxy and drops the old one with its cookies, because a [clearance](#clearance) belongs to the address that earned it.
 
 See [BrowserScraper](/stealth/browser-scraper#egress-and-the-profile).
+
+### Element reference
+
+<Badge color="blue">Engine</Badge>
+
+In WebDriver, the opaque id (under the key `element-6066-11e4-a52e-4f735466cecf`) that the driver returns for an element it found. It is a handle, not the element itself: when the page replaces the element, the handle goes stale and the next command fails with `stale element reference`.
+
+See [Element references](/concepts/webdriver#element-references).
 
 ### Ephemeral CA
 
@@ -423,6 +455,14 @@ A browser that runs without a window; it still loads pages, runs scripts and tak
 
 See [Headless and Headed Browsers](/tutorials/headless#defaults).
 
+### HttpOnly
+
+<Badge color="red">Network</Badge>
+
+A cookie attribute that hides the cookie from JavaScript (`document.cookie` cannot read it) while the browser still sends it with requests. It keeps a login cookie out of reach of an injected script.
+
+See [Cookies, in depth](/concepts/sessions-and-state#cookies-in-depth).
+
 ### HttpSession
 
 <Badge color="red">Network</Badge>
@@ -456,6 +496,14 @@ See [Cookies, Identity and Challenges](/stealth/identity#identity-session-policy
 Making a client send the same TLS handshake, HTTP/2 start and headers as a [measured](#measured-profile) browser, so a site sees that browser's [wire fingerprint](#wire-fingerprint). The `mimic` crate does it with a wreq client, and only Chrome 155 on macOS is measured today.
 
 See [Wire Formats and Impersonation](/stealth/wire-formats#an-impersonating-client).
+
+### IndexedDB
+
+<Badge color="blue">Engine</Badge>
+
+A database built into the browser, holding objects with indexes and transactions, for each origin. Larger and more capable than `localStorage`, and never sent to the server. Single-page apps often keep tokens and offline data in it.
+
+See [Web storage](/concepts/sessions-and-state#web-storage).
 
 ### Interstitial
 
@@ -500,6 +548,14 @@ See [Syntax Formats](/help/syntax_formats).
 A [selector](#selector) kind that finds a link by the text people see. `link=Log in` matches the whole text and `partial_link=Privacy` part of it (short form `p_link=`); in the pure CDP engine a `text=` prefix also means link text.
 
 See [Selectors Guide](/tutorials/selectors#supported-formats).
+
+### localStorage
+
+<Badge color="blue">Engine</Badge>
+
+Key and value storage of about 5 MB that a page's JavaScript can read and write, kept for one origin until it is deleted and shared by all its tabs. It is never sent to the server by the browser. In the pure CDP engine, `Page::local_storage()` reads and writes it.
+
+See [Web storage](/concepts/sessions-and-state#web-storage).
 
 ### Locator
 
@@ -627,6 +683,14 @@ The plugins a program uses, with the [capabilities](#capability) each was grante
 
 See [PluginSet](/plugins/api/plugin-set).
 
+### Proxy
+
+<Badge color="red">Network</Badge>
+
+A server that makes requests on your behalf, so the site sees the proxy's IP address instead of yours. HTTP, HTTPS and SOCKS5 proxies differ in what they relay; a proxy may ask for a user name and password (a `407` reply), and a PAC file or a bypass list decides which hosts use it.
+
+See [Proxies](/concepts/network#proxies).
+
 ### Pure CDP
 
 <Badge color="blue">Engine</Badge>
@@ -697,6 +761,22 @@ See [Playwright Mode](/help/playwright_mode).
 
 ## S
 
+### Same-origin policy
+
+<Badge color="blue">Engine</Badge>
+
+The browser's main security rule: a page can read data only from its own origin, the combination of scheme, host and port. It is why storage is per origin, and why sites that share data on purpose use CORS headers.
+
+See [Origins and the same-origin policy](/concepts/sessions-and-state#origins-and-the-same-origin-policy).
+
+### SameSite
+
+<Badge color="red">Network</Badge>
+
+A cookie attribute that says whether the cookie is sent on requests started from another site: `Strict` never, `Lax` only on top-level navigations (the default in modern browsers), `None` always (and then `Secure` is required). In the pure CDP engine it is the `SameSite` enum.
+
+See [Cookies, in depth](/concepts/sessions-and-state#cookies-in-depth).
+
 ### sbrs
 
 <Badge color="gray">CLI</Badge>
@@ -760,6 +840,14 @@ See [Deployment](/deployment#selenium-grid).
 The separate, experimental repository that holds the TLS and HTTP/2 layer as three crates: `codec` (wire formats), `scrape` ([BrowserScraper](#browserscraper), identity, challenge detection) and `mimic` ([HttpSession](#httpsession), [MitmProxy](#mitmproxy), [StealthSession](#stealthsession)). It left this crate in 0.3.0.
 
 See [Stealth Scraping](/stealth/overview).
+
+### sessionStorage
+
+<Badge color="blue">Engine</Badge>
+
+Like `localStorage`, but kept for one tab only and gone when the tab closes. In the pure CDP engine, `Page::session_storage()` reads and writes it.
+
+See [Web storage](/concepts/sessions-and-state#web-storage).
 
 ### Settings
 
@@ -835,6 +923,14 @@ See [StealthSession](/stealth/stealth-session).
 
 ## T
 
+### Target
+
+<Badge color="blue">Engine</Badge>
+
+In the DevTools Protocol, one thing you can attach to and command: a tab, a cross-site iframe, a worker, or the browser itself. After `Target.attachToTarget` the target has a session id that goes with every message for it on the shared WebSocket.
+
+See [Targets and sessions](/concepts/cdp#targets-and-sessions).
+
 ### Tauri
 
 <Badge color="yellow">Project</Badge>
@@ -851,6 +947,14 @@ Code that runs around a test: when it starts, when it fails (with the browser st
 
 See [Test Plugins](/tutorials/test_plugins).
 
+### Third-party cookie
+
+<Badge color="red">Network</Badge>
+
+A cookie set by something embedded in the page (an ad, a video player) rather than by the site in the address bar. The same service embedded on many sites can recognise you on all of them, so browsers block, restrict or partition these cookies.
+
+See [First-party and third-party](/concepts/sessions-and-state#first-party-and-third-party).
+
 ### thirtyfour
 
 <Badge color="blue">Engine</Badge>
@@ -858,6 +962,14 @@ See [Test Plugins](/tutorials/test_plugins).
 The Rust WebDriver client library that the WebDriver engine is built on. Selectors become `thirtyfour::By` values, and elements are `thirtyfour::WebElement` handles.
 
 See [How it compares](/comparison).
+
+### TLS
+
+<Badge color="red">Network</Badge>
+
+Transport Layer Security, the encryption under HTTPS. A handshake picks versions, ciphers and keys, and the server proves its identity with a certificate signed by an authority the browser trusts. The client's opening message, the ClientHello, is what JA3 and JA4 fingerprint.
+
+See [TLS and certificates](/concepts/network#tls-and-certificates).
 
 ### TokenSave
 
@@ -909,6 +1021,14 @@ The string a browser sends to say what it is. A headless Chrome reports `Headles
 
 See [Headless and Headed Browsers](/tutorials/headless#headless-and-stealth).
 
+### User data directory
+
+<Badge color="blue">Engine</Badge>
+
+The folder where Chrome keeps a browser profile: cookies, `localStorage`, `IndexedDB`, cache, settings and extensions (the `--user-data-dir` flag). Starting Chrome again with the same folder gives the same signed-in user. In the pure CDP engine, `LaunchOptionsBuilder::user_data_dir` sets it.
+
+See [Profiles, and what is in one](/concepts/sessions-and-state#profiles-and-what-is-in-one).
+
 ## W
 
 ### wasm plugin
@@ -927,6 +1047,14 @@ The Selenium protocol: the test talks to [chromedriver](#chromedriver) (or anoth
 
 See [Performance](/performance#choosing-the-engine).
 
+### WebDriver BiDi
+
+<Badge color="blue">Engine</Badge>
+
+The bidirectional part of the W3C WebDriver standard: a WebSocket on which the browser can push events (console messages, network activity, page loads) as well as answer commands. seleniumbase-rs does not use it; the CDP engine covers the same ground for Chromium.
+
+See [WebDriver BiDi](/concepts/webdriver#webdriver-bidi).
+
 ### WebRTC leak
 
 <Badge color="red">Network</Badge>
@@ -934,6 +1062,14 @@ See [Performance](/performance#choosing-the-engine).
 A page can open an `RTCPeerConnection` without asking, and the candidates it gathers describe the machine's network, which is how a proxy or VPN gets bypassed. In the pure CDP engine the WebRTC shield makes every connection relay-only, and the `shield` plugin and a fingerprint's WebRTC settings limit what a page can learn.
 
 See [Pure CDP](/tutorials/pure_cdp#keeping-webrtc-from-leaking-addresses).
+
+### WebSocket
+
+<Badge color="red">Network</Badge>
+
+A long-lived two-way connection that starts as an HTTP request and then carries messages in both directions. The DevTools Protocol runs over one, and so does WebDriver BiDi.
+
+See [Connecting](/concepts/cdp#connecting).
 
 ### Wire fingerprint
 
