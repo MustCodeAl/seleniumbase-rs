@@ -469,17 +469,11 @@ the database of the application under test.
   HTTP, DNS, TLS, forward proxies, interception and HAR.
 </Card>
 
-<Card title="TCP and streams" icon="water" color="#1a85d4" href="/concepts/tcp-and-streams">
-  The connections that every layer on this page rides on.
-</Card>
 
 <Card title="Frameworks and the DOM" icon="layer-group" color="#199f43" href="/concepts/frameworks-and-the-dom">
   How the frontend frameworks shape the page a test sees.
 </Card>
 
-<Card title="Developer tools" icon="terminal" color="#d47628" href="/concepts/developer-tools">
-  See the requests behind a page, and repeat them with curl.
-</Card>
 
 <Card title="Captchas" icon="shield-halved" color="#d52c36" href="/concepts/captchas">
   What an edge proxy may ask of a visitor before the site sees it.

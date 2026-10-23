@@ -298,9 +298,6 @@ problems that make role- and label-based selectors fail.
   Service workers, WebAssembly, WebSockets and more.
 </Card>
 
-<Card title="Developer tools" icon="terminal" color="#d52c36" href="/concepts/developer-tools">
-  Inspect the live DOM and test a selector in the console.
-</Card>
 
 <Card title="How a page loads" icon="globe" color="#1a85d4" href="/concepts/how-a-page-loads">
   The load events that client rendering and hydration come after.

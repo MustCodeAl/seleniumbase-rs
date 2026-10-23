@@ -258,9 +258,6 @@ for an API, a feed or an allowlist.
   Where the edge proxy that shows a challenge sits.
 </Card>
 
-<Card title="Crawlers and spiders" icon="spider" color="#d52c36" href="/concepts/crawlers-and-spiders">
-  Why automated visitors meet challenges, and how to be a polite one.
-</Card>
 
 <Card title="Glossary" icon="book" color="#1a85d4" href="/glossary">
   Challenge, clearance, interstitial and more.
