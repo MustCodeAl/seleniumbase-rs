@@ -1374,8 +1374,19 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: ["install", "get"],
-      description: "Download a driver into ./downloaded_drivers/ (Python's `sbrs get`).",
+      description: "Download a driver or a browser into ./downloaded_drivers/ (Python's `sbrs get`).",
       options: [
+        {
+          name: ["-p", "--path"],
+          description: "Also copy the driver into the folder named by SB_DRIVER_PATH_DIR (else /usr/local/bin). Never uses sudo and never replaces a symbolic link. Drivers only.",
+        },
+        {
+          name: "--revision",
+          description: "The Chromium snapshot to take (chromium only); the newest when left out.",
+          args: {
+            name: "revision",
+          },
+        },
         {
           name: ["-h", "--help"],
           description: "Print help",
@@ -1384,13 +1395,12 @@ const completionSpec: Fig.Spec = {
       args: [
         {
           name: "driver",
-          description: "The driver: chromedriver, geckodriver (or firefoxdriver), edgedriver (or msedgedriver).",
-          isOptional: true,
-          suggestions: ["chromedriver", "geckodriver", "edgedriver"],
+          description: "The program: chromedriver, uc_driver, geckodriver (or firefoxdriver), edgedriver (or msedgedriver), or the browsers cft, chs and chromium.",
+          suggestions: ["chromedriver", "geckodriver", "edgedriver", "uc_driver", "cft", "chs", "chromium"],
         },
         {
           name: "version",
-          description: "`latest`, a major version (chromedriver, edgedriver), a full build, or a geckodriver version such as 0.36.0.",
+          description: "A version word (stable, beta, dev, canary, latest, previous, mlatest, browser, keep), a major version, a full build, or for geckodriver a version such as 0.36.0.",
           isOptional: true,
         },
       ],

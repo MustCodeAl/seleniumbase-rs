@@ -82,7 +82,7 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs import-playwright`](#sbrs-import-playwright) | Convert Playwright tests or a script (JavaScript, TypeScript or Python) into Rust tests for the pure CDP engine. |
 | [`sbrs import-puppeteer`](#sbrs-import-puppeteer) | Convert Puppeteer scripts or tests (JavaScript, TypeScript) or a Chrome Recorder JSON export into Rust tests for the pure CDP engine. |
 | [`sbrs import-python`](#sbrs-import-python) | Convert common SeleniumBase or Selenium Python code into a Rust test. |
-| [`sbrs install`](#sbrs-install) | Download a driver into ./downloaded_drivers/ (Python's `sbrs get`). |
+| [`sbrs install`](#sbrs-install) | Download a driver or a browser into ./downloaded_drivers/ (Python's `sbrs get`). |
 | [`sbrs is-checked`](#sbrs-is-checked) | Print whether a checkbox is checked. |
 | [`sbrs is-element-visible`](#sbrs-is-element-visible) | Print whether an element is visible. |
 | [`sbrs is-link-text-visible`](#sbrs-is-link-text-visible) | Print whether a link with the given text is visible. |
@@ -1878,27 +1878,43 @@ sbrs import-python login.py --output tests/login.rs
 
 Also: `get`
 
-Download a driver into ./downloaded_drivers/ (Python's `sbrs get`).
+Download a driver or a browser into ./downloaded_drivers/ (Python's `sbrs get`).
 
-Without a version, chromedriver and edgedriver are the drivers for the installed Chrome and Edge, and geckodriver is the newest release.
+Without a version, chromedriver and edgedriver are the drivers for the installed Chrome and Edge, and geckodriver is the newest release. uc_driver is the chromedriver patched for the UC mode; cft, chs and chromium are browsers, and chromium takes a snapshot --revision instead of a version.
 
 ```bash Usage
-sbrs install [DRIVER] [VERSION]
+sbrs install [-p --path] [--revision <REVISION>] <DRIVER> [VERSION]
 ```
 
 **Arguments**
 
-<ParamField path="DRIVER" type="string" default="chromedriver">
+<ParamField path="DRIVER" type="string" required>
 
-The driver: chromedriver, geckodriver (or firefoxdriver), edgedriver (or msedgedriver).
+The program: chromedriver, uc_driver, geckodriver (or firefoxdriver), edgedriver (or msedgedriver), or the browsers cft, chs and chromium.
 
-One of: `chromedriver`, `geckodriver`, `edgedriver`
+One of: `chromedriver`, `geckodriver`, `edgedriver`, `uc_driver`, `cft`, `chs`, `chromium`
 
 </ParamField>
 
 <ParamField path="VERSION" type="string">
 
-`latest`, a major version (chromedriver, edgedriver), a full build, or a geckodriver version such as 0.36.0.
+A version word (stable, beta, dev, canary, latest, previous, mlatest, browser, keep), a major version, a full build, or for geckodriver a version such as 0.36.0.
+
+</ParamField>
+
+**Flags**
+
+<ParamField query="--path" type="boolean">
+
+Also copy the driver into the folder named by SB_DRIVER_PATH_DIR (else /usr/local/bin). Never uses sudo and never replaces a symbolic link. Drivers only.
+
+Also: `-p`
+
+</ParamField>
+
+<ParamField query="--revision <REVISION>" type="string">
+
+The Chromium snapshot to take (chromium only); the newest when left out.
 
 </ParamField>
 

@@ -769,15 +769,19 @@ cmd uc-type help_heading="Page commands" help="Perform UC-mode typing into an el
     complete text type=none
     example "sbrs --uc --url https://example.com uc-type --css '#q' --text hello"
 }
-cmd install help_heading="Drivers, grid and servers" help="Download a driver into ./downloaded_drivers/ (Python's `sbrs get`)." {
+cmd install help_heading="Drivers, grid and servers" help="Download a driver or a browser into ./downloaded_drivers/ (Python's `sbrs get`)." {
     alias get
     long_help #"""
-Download a driver into ./downloaded_drivers/ (Python's `sbrs get`).
+Download a driver or a browser into ./downloaded_drivers/ (Python's `sbrs get`).
 
-Without a version, chromedriver and edgedriver are the drivers for the installed Chrome and Edge, and geckodriver is the newest release.
+Without a version, chromedriver and edgedriver are the drivers for the installed Chrome and Edge, and geckodriver is the newest release. uc_driver is the chromedriver patched for the UC mode; cft, chs and chromium are browsers, and chromium takes a snapshot --revision instead of a version.
 """#
+    flag "-p --path" help="Also copy the driver into the folder named by SB_DRIVER_PATH_DIR (else /usr/local/bin). Never uses sudo and never replaces a symbolic link. Drivers only." bool_value=#true
+    flag --revision help="The Chromium snapshot to take (chromium only); the newest when left out." {
+        arg <REVISION>
+    }
     flag "-h --help" help="Print help" action=help builtin=#true
-    arg "[DRIVER]" help="The driver: chromedriver, geckodriver (or firefoxdriver), edgedriver (or msedgedriver)." default=chromedriver {
+    arg <DRIVER> help="The program: chromedriver, uc_driver, geckodriver (or firefoxdriver), edgedriver (or msedgedriver), or the browsers cft, chs and chromium." {
         choices {
             choice chromedriver help="chromedriver, for Chrome."
             choice geckodriver help="geckodriver, for Firefox." {
@@ -786,9 +790,17 @@ Without a version, chromedriver and edgedriver are the drivers for the installed
             choice edgedriver help="msedgedriver, for Microsoft Edge." {
                 alias msedgedriver hide=#true
             }
+            choice uc_driver help="chromedriver patched for the UC mode, kept as downloaded_drivers/uc_driver-VERSION/uc_driver." {
+                alias uc-driver hide=#true
+                alias ucdriver hide=#true
+            }
+            choice cft help="Chrome for Testing, the browser, in downloaded_drivers/cft/."
+            choice chs help="chrome-headless-shell, the headless-only browser, in downloaded_drivers/chs/."
+            choice chromium help="A Chromium snapshot build (see --revision), in downloaded_drivers/chromium/."
         }
     }
-    arg "[VERSION]" help="`latest`, a major version (chromedriver, edgedriver), a full build, or a geckodriver version such as 0.36.0."
+    arg "[VERSION]" help="A version word (stable, beta, dev, canary, latest, previous, mlatest, browser, keep), a major version, a full build, or for geckodriver a version such as 0.36.0."
+    complete revision type=none
     complete version run="sbrs __complete_word__ --candidates version --line={{ words | shell_join | shell_quote }}"
     example "sbrs install chromedriver latest"
 }
