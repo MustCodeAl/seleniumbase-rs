@@ -105,6 +105,11 @@ impl BrowserSession {
             // Chromium takes its window geometry as launch arguments; the
             // others have to be told once they are running.
             apply_window_rect(&driver, &config.launch).await?;
+            // Chromium is given `--start-maximized`; the others are asked once
+            // they are running, and only when they have a window.
+            if config.launch.has(LaunchSwitch::Maximize) && !config.headless {
+                driver.maximize_window().await?;
+            }
         }
         let cdp = if config.is_cdp_enabled() {
             Some(CdpClient::from_handle(driver.handle().clone()))
@@ -1336,7 +1341,9 @@ fn validate_mode_support(config: &BrowserConfig) -> Result<(), SeleniumBaseError
             config.browser
         )));
     }
-    if config.is_uc_enabled() && config.browser == Browser::ChromeHeadlessShell {
+    if config.is_uc_enabled()
+        && (config.browser == Browser::ChromeHeadlessShell || headless1_uses_shell(config))
+    {
         return Err(SeleniumBaseError::InvalidConfig(
             "chrome-headless-shell cannot run the undetected (UC) mode".to_owned(),
         ));
@@ -1459,6 +1466,23 @@ fn apply_firefox_capabilities(
     let launch = &config.launch;
     if config.headless {
         caps.add_arg("-headless")?;
+    }
+    if launch.has(LaunchSwitch::Incognito) {
+        caps.add_arg("-private")?;
+    }
+    if launch.has(LaunchSwitch::Devtools) && !config.headless {
+        caps.add_arg("-devtools")?;
+    }
+    for switch in [
+        LaunchSwitch::DarkMode,
+        LaunchSwitch::Guest,
+        LaunchSwitch::DisableWebSecurity,
+        LaunchSwitch::Swiftshader,
+        LaunchSwitch::DisableGpu,
+    ] {
+        if launch.has(switch) {
+            tracing::warn!("{switch:?} needs a Chromium browser; Firefox ignores it");
+        }
     }
     for arg in launch.firefox.args() {
         caps.add_arg(arg)?;
@@ -1633,6 +1657,44 @@ fn mobile_commands(config: &BrowserConfig) -> Vec<(&'static str, Value)> {
     metrics.emulation_commands(user_agent)
 }
 
+/// Whether `headless1` turns this configuration's Chrome into
+/// `chrome-headless-shell`: only Chrome with no program of its own named has a
+/// shell to stand for it.
+fn headless1_uses_shell(config: &BrowserConfig) -> bool {
+    config.launch.has(LaunchSwitch::Headless1)
+        && config.browser == Browser::Chrome
+        && config.browser_binary_path.is_none()
+}
+
+/// Settles the headless variants of `config` before a browser is asked for.
+///
+/// `chrome-headless-shell` always runs headless, so a headed request is
+/// overridden. `headless1` makes the session headless and, for Chrome, runs
+/// `chrome-headless-shell` (downloaded when missing, as `--chs` does); another
+/// Chromium browser has no such program and runs in its new headless mode, and
+/// Firefox simply runs headless. (`headless2` is plain headless.)
+fn apply_headless_variants(config: &mut BrowserConfig) {
+    if config.browser == Browser::ChromeHeadlessShell && !config.headless {
+        tracing::info!(
+            "chrome-headless-shell only runs headless; the headed request is overridden"
+        );
+        config.headless = true;
+    }
+    if !config.launch.has(LaunchSwitch::Headless1) {
+        return;
+    }
+    config.headless = true;
+    if headless1_uses_shell(config) {
+        config.browser = Browser::ChromeHeadlessShell;
+    } else if config.browser.is_chromium_based() && config.browser != Browser::ChromeHeadlessShell {
+        tracing::info!(
+            "headless1 needs chrome-headless-shell, which only replaces Chrome with no program of \
+             its own named; {} runs in its new headless mode",
+            config.browser
+        );
+    }
+}
+
 /// Starts the virtual screen the settings ask for, if this session can use one.
 ///
 /// Python SeleniumBase's `--xvfb` does the same on Linux and nothing elsewhere. A
@@ -1660,6 +1722,7 @@ async fn connect_driver(
     display: Option<&str>,
 ) -> Result<(WebDriver, Option<DriverProcess>), SeleniumBaseError> {
     let mut config = config.clone();
+    apply_headless_variants(&mut config);
     resolve_browser_binary(&mut config).await?;
     patch_chrome_binary_if_needed(&mut config).await?;
 
@@ -2689,5 +2752,102 @@ mod mobile_tests {
             "{sent:?}"
         );
         session.quit().await.expect("quits");
+    }
+}
+
+#[cfg(test)]
+mod headless_variant_tests {
+    use super::*;
+    use crate::browser::config::DriverMode;
+
+    fn settled(config: BrowserConfig) -> BrowserConfig {
+        let mut config = config;
+        apply_headless_variants(&mut config);
+        config
+    }
+
+    #[test]
+    fn headless1_runs_chrome_as_chrome_headless_shell() {
+        let mut config = BrowserConfig::default()
+            .with_headless(false)
+            .with_headless1(true);
+        config.browser_binary_path = None;
+        let settled = settled(config);
+        assert_eq!(settled.browser, Browser::ChromeHeadlessShell);
+        assert!(settled.headless);
+    }
+
+    #[test]
+    fn headless1_leaves_a_chrome_with_its_own_program_and_other_browsers_alone() {
+        let own = BrowserConfig::default()
+            .with_headless1(true)
+            .with_browser_binary_path("/opt/chrome/chrome");
+        assert_eq!(settled(own).browser, Browser::Chrome);
+
+        for browser in [Browser::Edge, Browser::Brave, Browser::Firefox] {
+            let config = BrowserConfig::default()
+                .with_browser(browser)
+                .with_headless(false)
+                .with_headless1(true);
+            let config = settled(config);
+            assert_eq!(config.browser, browser);
+            assert!(config.headless, "{browser}");
+        }
+    }
+
+    #[test]
+    fn headless2_and_a_plain_session_change_nothing() {
+        let config = BrowserConfig::default()
+            .with_headless(false)
+            .with_headless2(true);
+        let after = settled(config.clone());
+        assert_eq!(after, config);
+        assert!(after.headless);
+    }
+
+    #[test]
+    fn the_headless_shell_is_made_headless() {
+        let shell = BrowserConfig::default()
+            .with_browser(Browser::ChromeHeadlessShell)
+            .with_headless(false);
+        assert!(settled(shell).headless);
+    }
+
+    #[test]
+    fn headless1_cannot_run_the_undetected_mode_just_as_the_shell_cannot() {
+        let mut config = BrowserConfig::default()
+            .with_mode(DriverMode::Uc)
+            .with_headless1(true);
+        config.browser_binary_path = None;
+        let error = validate_mode_support(&config).expect_err("refused");
+        assert!(
+            error
+                .to_string()
+                .contains("chrome-headless-shell cannot run"),
+            "{error}"
+        );
+        let with_program = config.with_browser_binary_path("/opt/chrome/chrome");
+        assert!(validate_mode_support(&with_program).is_ok());
+    }
+
+    #[test]
+    fn firefox_is_asked_for_a_private_window_and_developer_tools() {
+        let config = BrowserConfig::default()
+            .with_browser(Browser::Firefox)
+            .with_headless(false)
+            .with_incognito(true)
+            .with_devtools(true);
+        let caps = serde_json::to_value(session_capabilities(&config).unwrap()).unwrap();
+        assert_eq!(
+            caps["moz:firefoxOptions"]["args"],
+            json!(["-private", "-devtools"])
+        );
+
+        let headless = config.with_headless(true);
+        let caps = serde_json::to_value(session_capabilities(&headless).unwrap()).unwrap();
+        assert_eq!(
+            caps["moz:firefoxOptions"]["args"],
+            json!(["-headless", "-private"])
+        );
     }
 }
