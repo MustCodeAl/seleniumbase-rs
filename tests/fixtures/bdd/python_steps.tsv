@@ -1,0 +1,669 @@
+open_url	Open '{url}'
+open_url	Open "{url}"
+open_url	Open URL '{url}'
+open_url	Open URL "{url}"
+open_url	User opens '{url}'
+open_url	User opens "{url}"
+open_url	User opens URL '{url}'
+open_url	User opens URL "{url}"
+open_url	User goes to '{url}'
+open_url	User goes to "{url}"
+open_url	User goes to URL '{url}'
+open_url	User goes to URL "{url}"
+click_element	Click '{selector}'
+click_element	Click "{selector}"
+click_element	Click element '{selector}'
+click_element	Click element "{selector}"
+click_element	User clicks '{selector}'
+click_element	User clicks "{selector}"
+click_element	User clicks element '{selector}'
+click_element	User clicks element "{selector}"
+type_text	Type text '{text}' into '{selector}'
+type_text	Type text "{text}" into "{selector}"
+type_text	Type text '{text}' into "{selector}"
+type_text	Type text "{text}" into '{selector}'
+type_text	Type text '{text}' in '{selector}'
+type_text	Type text "{text}" in "{selector}"
+type_text	Type text '{text}' in "{selector}"
+type_text	Type text "{text}" in '{selector}'
+type_text	Type '{text}' into '{selector}'
+type_text	Type "{text}" into "{selector}"
+type_text	Type '{text}' into "{selector}"
+type_text	Type "{text}" into '{selector}'
+type_text	Type '{text}' in '{selector}'
+type_text	Type "{text}" in "{selector}"
+type_text	Type '{text}' in "{selector}"
+type_text	Type "{text}" in '{selector}'
+type_text	In '{selector}' type '{text}'
+type_text	In "{selector}" type "{text}"
+type_text	In '{selector}' type "{text}"
+type_text	In "{selector}" type '{text}'
+type_text	Into '{selector}' type '{text}'
+type_text	Into "{selector}" type "{text}"
+type_text	Into '{selector}' type "{text}"
+type_text	Into "{selector}" type '{text}'
+type_text	Find '{selector}' and type '{text}'
+type_text	Find "{selector}" and type "{text}"
+type_text	Find '{selector}' and type "{text}"
+type_text	Find "{selector}" and type '{text}'
+type_text	User types '{text}' in '{selector}'
+type_text	User types "{text}" in "{selector}"
+type_text	User types '{text}' in "{selector}"
+type_text	User types "{text}" in '{selector}'
+type_text	User types '{text}' into '{selector}'
+type_text	User types "{text}" into "{selector}"
+type_text	User types '{text}' into "{selector}"
+type_text	User types "{text}" into '{selector}'
+add_text	Add text '{text}' into '{selector}'
+add_text	Add text "{text}" into "{selector}"
+add_text	Add text '{text}' into "{selector}"
+add_text	Add text "{text}" into '{selector}'
+add_text	Add text '{text}' in '{selector}'
+add_text	Add text "{text}" in "{selector}"
+add_text	Add text '{text}' in "{selector}"
+add_text	Add text "{text}" in '{selector}'
+add_text	Add '{text}' into '{selector}'
+add_text	Add "{text}" into "{selector}"
+add_text	Add '{text}' into "{selector}"
+add_text	Add "{text}" into '{selector}'
+add_text	Add '{text}' in '{selector}'
+add_text	Add "{text}" in "{selector}"
+add_text	Add '{text}' in "{selector}"
+add_text	Add "{text}" in '{selector}'
+add_text	Into '{selector}' add '{text}'
+add_text	Into "{selector}" add "{text}"
+add_text	Into '{selector}' add "{text}"
+add_text	Into "{selector}" add '{text}'
+add_text	In '{selector}' add '{text}'
+add_text	In "{selector}" add "{text}"
+add_text	In '{selector}' add "{text}"
+add_text	In "{selector}" add '{text}'
+add_text	User adds '{text}' in '{selector}'
+add_text	User adds "{text}" in "{selector}"
+add_text	User adds '{text}' in "{selector}"
+add_text	User adds "{text}" in '{selector}'
+add_text	User adds '{text}' into '{selector}'
+add_text	User adds "{text}" into "{selector}"
+add_text	User adds '{text}' into "{selector}"
+add_text	User adds "{text}" into '{selector}'
+assert_element	Assert element '{selector}'
+assert_element	Assert element "{selector}"
+assert_element	Assert element '{selector}' is visible
+assert_element	Assert element "{selector}" is visible
+assert_element	Element '{selector}' should be visible
+assert_element	Element "{selector}" should be visible
+assert_text_in_element	Assert text '{text}' in '{selector}'
+assert_text_in_element	Assert text "{text}" in "{selector}"
+assert_text_in_element	Assert text '{text}' in "{selector}"
+assert_text_in_element	Assert text "{text}" in '{selector}'
+assert_text_in_element	Text in '{selector}' should contain '{text}'
+assert_text_in_element	Text in "{selector}" should contain "{text}"
+assert_text_in_element	Text in '{selector}' should contain "{text}"
+assert_text_in_element	Text in "{selector}" should contain '{text}'
+assert_text	Assert text '{text}'
+assert_text	Assert text "{text}"
+assert_text	Assert text '{text}' is visible
+assert_text	Assert text "{text}" is visible
+assert_text	Text '{text}' should be visible
+assert_text	Text "{text}" should be visible
+assert_exact_text	Assert exact text '{text}' in '{selector}'
+assert_exact_text	Assert exact text "{text}" in "{selector}"
+assert_exact_text	Assert exact text '{text}' in "{selector}"
+assert_exact_text	Assert exact text "{text}" in '{selector}'
+assert_exact_text	Text in '{selector}' should be '{text}'
+assert_exact_text	Text in "{selector}" should be "{text}"
+assert_exact_text	Text in '{selector}' should be "{text}"
+assert_exact_text	Text in "{selector}" should be '{text}'
+assert_non_empty_text	Assert non-empty text in '{selector}'
+assert_non_empty_text	Assert non-empty text in "{selector}"
+assert_non_empty_text	Assert text in '{selector}' is not empty
+assert_non_empty_text	Assert text in "{selector}" is not empty
+assert_non_empty_text	Text in '{selector}' should be non-empty
+assert_non_empty_text	Text in "{selector}" should be non-empty
+assert_non_empty_text	Text in '{selector}' should not be empty
+assert_non_empty_text	Text in "{selector}" should not be empty
+highlight_element	Highlight '{selector}'
+highlight_element	Highlight "{selector}"
+highlight_element	Highlight element '{selector}'
+highlight_element	Highlight element "{selector}"
+highlight_element	Use JS to highlight '{selector}'
+highlight_element	Use JS to highlight "{selector}"
+click_link	Click link '{link}'
+click_link	Click link "{link}"
+click_link	User clicks link '{link}'
+click_link	User clicks link "{link}"
+js_click	JS click '{selector}'
+js_click	JS click "{selector}"
+js_click	JS click element '{selector}'
+js_click	JS click element "{selector}"
+js_click	Use JS to click '{selector}'
+js_click	Use JS to click "{selector}"
+save_screenshot_as	Save screenshot as '{name}'
+save_screenshot_as	Save screenshot as "{name}"
+save_screenshot_as	User saves screenshot as '{name}'
+save_screenshot_as	User saves screenshot as "{name}"
+save_screenshot_to_folder_as	Save screenshot to '{folder}' as '{name}'
+save_screenshot_to_folder_as	Save screenshot to "{folder}" as "{name}"
+save_screenshot_to_folder_as	Save screenshot to '{folder}' as "{name}"
+save_screenshot_to_folder_as	Save screenshot to "{folder}" as '{name}'
+save_screenshot_to_folder_as	User saves screenshot to '{folder}' as '{name}'
+save_screenshot_to_folder_as	User saves screenshot to "{folder}" as "{name}"
+save_screenshot_to_folder_as	User saves screenshot to '{folder}' as "{name}"
+save_screenshot_to_folder_as	User saves screenshot to "{folder}" as '{name}'
+save_screenshot_to_logs	Save screenshot to logs
+save_screenshot_to_logs	Save a screenshot to the logs
+save_screenshot_to_logs	User saves screenshot to logs
+save_screenshot_to_logs	User saves a screenshot to the logs
+refresh_page	Refresh page
+refresh_page	Reload page
+refresh_page	User refreshes the page
+refresh_page	User reloads the page
+go_back	Go back
+go_back	User goes back
+go_back	User navigates back
+go_forward	Go forward
+go_forward	User goes forward
+go_forward	User navigates forward
+set_value	Set value of '{selector}' to '{text}'
+set_value	Set value of "{selector}" to "{text}"
+set_value	Set value of "{selector}" to '{text}'
+set_value	Set value of '{selector}' to "{text}"
+set_value	User sets value of '{selector}' to '{text}'
+set_value	User sets value of "{selector}" to "{text}"
+set_value	User sets value of "{selector}" to '{text}'
+set_value	User sets value of '{selector}' to "{text}"
+switch_to_frame	Switch to iframe '{frame}'
+switch_to_frame	Switch to iframe "{frame}"
+switch_to_frame	Switch to frame '{frame}'
+switch_to_frame	Switch to frame "{frame}"
+switch_to_frame	User switches to iframe '{frame}'
+switch_to_frame	User switches to iframe "{frame}"
+switch_to_frame	User switches to frame '{frame}'
+switch_to_frame	User switches to frame "{frame}"
+switch_to_default_content	Switch to default content
+switch_to_default_content	Exit from iframes
+switch_to_default_content	Exit from frames
+switch_to_default_content	User switches to default content
+switch_to_default_content	User exits from iframes
+switch_to_default_content	User exits from frames
+switch_to_parent_frame	Switch to parent frame
+switch_to_parent_frame	Exit current iframe
+switch_to_parent_frame	Exit current frame
+switch_to_parent_frame	User switches to parent frame
+switch_to_parent_frame	User exits current iframe
+switch_to_parent_frame	User exits current frame
+enter_mfa_code	Into '{selector}' enter MFA code '{totp_key}'
+enter_mfa_code	Into "{selector}" enter MFA code "{totp_key}"
+enter_mfa_code	Into '{selector}' enter MFA code "{totp_key}"
+enter_mfa_code	Into "{selector}" enter MFA code '{totp_key}'
+enter_mfa_code	Into '{selector}' do MFA '{totp_key}'
+enter_mfa_code	Into "{selector}" do MFA "{totp_key}"
+enter_mfa_code	Into '{selector}' do MFA "{totp_key}"
+enter_mfa_code	Into "{selector}" do MFA '{totp_key}'
+enter_mfa_code	Do MFA '{totp_key}' into '{selector}'
+enter_mfa_code	Do MFA "{totp_key}" into "{selector}"
+enter_mfa_code	Do MFA "{totp_key}" into '{selector}'
+enter_mfa_code	Do MFA '{totp_key}' into "{selector}"
+enter_mfa_code	Enter MFA code '{totp_key}' into '{selector}'
+enter_mfa_code	Enter MFA code "{totp_key}" into "{selector}"
+enter_mfa_code	Enter MFA code "{totp_key}" into '{selector}'
+enter_mfa_code	Enter MFA code '{totp_key}' into "{selector}"
+enter_mfa_code	User enters MFA code '{totp_key}' into '{selector}'
+enter_mfa_code	User enters MFA code "{totp_key}" into "{selector}"
+enter_mfa_code	User enters MFA code "{totp_key}" into '{selector}'
+enter_mfa_code	User enters MFA code '{totp_key}' into "{selector}"
+open_if_not_url	Open if not '{url}'
+open_if_not_url	Open if not "{url}"
+open_if_not_url	Open if not URL '{url}'
+open_if_not_url	Open if not URL "{url}"
+open_if_not_url	User opens '{url}' if not on page
+open_if_not_url	User opens "{url}" if not on page
+open_if_not_url	User opens URL '{url}' if not on page
+open_if_not_url	User opens URL "{url}" if not on page
+select_if_unselected	Select if unselected '{selector}'
+select_if_unselected	Select if unselected "{selector}"
+select_if_unselected	Select '{selector}' if unselected
+select_if_unselected	Select "{selector}" if unselected
+select_if_unselected	User selects '{selector}' if unselected
+select_if_unselected	User selects "{selector}" if unselected
+unselect_if_selected	Unselect if selected '{selector}'
+unselect_if_selected	Unselect if selected "{selector}"
+unselect_if_selected	Unselect '{selector}' if selected
+unselect_if_selected	Unselect "{selector}" if selected
+unselect_if_selected	User unselects '{selector}' if selected
+unselect_if_selected	User unselects "{selector}" if selected
+check_if_unchecked	Check if unchecked '{selector}'
+check_if_unchecked	Check if unchecked "{selector}"
+check_if_unchecked	Check '{selector}' if unchecked
+check_if_unchecked	Check "{selector}" if unchecked
+check_if_unchecked	User checks '{selector}' if unchecked
+check_if_unchecked	User checks "{selector}" if unchecked
+uncheck_if_checked	Uncheck if checked '{selector}'
+uncheck_if_checked	Uncheck if checked "{selector}"
+uncheck_if_checked	Uncheck '{selector}' if checked
+uncheck_if_checked	Uncheck "{selector}" if checked
+uncheck_if_checked	User unchecks '{selector}' if checked
+uncheck_if_checked	User unchecks "{selector}" if checked
+drag_and_drop	Drag '{drag_selector}' into '{drop_selector}'
+drag_and_drop	Drag "{drag_selector}" into "{drop_selector}"
+drag_and_drop	Drag '{drag_selector}' into "{drop_selector}"
+drag_and_drop	Drag "{drag_selector}" into '{drop_selector}'
+drag_and_drop	User drags '{drag_selector}' into '{drop_selector}'
+drag_and_drop	User drags "{drag_selector}" into "{drop_selector}"
+drag_and_drop	User drags '{drag_selector}' into "{drop_selector}"
+drag_and_drop	User drags "{drag_selector}" into '{drop_selector}'
+hover_and_click	Hover '{hover_selector}' and click '{click_selector}'
+hover_and_click	Hover "{hover_selector}" and click "{click_selector}"
+hover_and_click	Hover '{hover_selector}' and click "{click_selector}"
+hover_and_click	Hover "{hover_selector}" and click '{click_selector}'
+hover_and_click	User hovers '{hover_selector}' and clicks '{click_selector}'
+hover_and_click	User hovers "{hover_selector}" and clicks "{click_selector}"
+hover_and_click	User hovers '{hover_selector}' and clicks "{click_selector}"
+hover_and_click	User hovers "{hover_selector}" and clicks '{click_selector}'
+select_option_by_text	Find '{selector}' and select '{text}'
+select_option_by_text	Find "{selector}" and select "{text}"
+select_option_by_text	Find '{selector}' and select "{text}"
+select_option_by_text	Find "{selector}" and select '{text}'
+select_option_by_text	User selects '{text}' in '{selector}'
+select_option_by_text	User selects "{text}" in "{selector}"
+select_option_by_text	User selects "{text}" in '{selector}'
+select_option_by_text	User selects '{text}' in "{selector}"
+select_option_by_text	User finds '{selector}' and selects '{text}'
+select_option_by_text	User finds "{selector}" and selects "{text}"
+select_option_by_text	User finds '{selector}' and selects "{text}"
+select_option_by_text	User finds "{selector}" and selects '{text}'
+select_option_by_option	Find '{selector}' and select '{text}' by {option}
+select_option_by_option	Find "{selector}" and select "{text}" by {option}
+select_option_by_option	Find '{selector}' and select "{text}" by {option}
+select_option_by_option	Find "{selector}" and select '{text}' by {option}
+select_option_by_option	User finds '{selector}' and selects '{text}' by {option}
+select_option_by_option	User finds "{selector}" and selects "{text}" by {option}
+select_option_by_option	User finds '{selector}' and selects "{text}" by {option}
+select_option_by_option	User finds "{selector}" and selects '{text}' by {option}
+wait_for_element	Wait for '{selector}' to be visible
+wait_for_element	Wait for "{selector}" to be visible
+wait_for_element	Wait for element '{selector}'
+wait_for_element	Wait for element "{selector}"
+wait_for_element	User waits for '{selector}' to be visible
+wait_for_element	User waits for "{selector}" to be visible
+wait_for_element	User waits for element '{selector}'
+wait_for_element	User waits for element "{selector}"
+wait_for_text_in_element	Wait for text '{text}' in '{selector}'
+wait_for_text_in_element	Wait for text "{text}" in "{selector}"
+wait_for_text_in_element	Wait for text '{text}' in "{selector}"
+wait_for_text_in_element	Wait for text "{text}" in '{selector}'
+wait_for_text_in_element	Wait for '{selector}' to have text '{text}'
+wait_for_text_in_element	Wait for "{selector}" to have text "{text}"
+wait_for_text_in_element	Wait for "{selector}" to have text '{text}'
+wait_for_text_in_element	Wait for '{selector}' to have text "{text}"
+wait_for_text_in_element	User waits for text '{text}' in '{selector}'
+wait_for_text_in_element	User waits for text "{text}" in "{selector}"
+wait_for_text_in_element	User waits for text '{text}' in "{selector}"
+wait_for_text_in_element	User waits for text "{text}" in '{selector}'
+wait_for_text_in_element	User waits for '{selector}' to have text '{text}'
+wait_for_text_in_element	User waits for "{selector}" to have text "{text}"
+wait_for_text_in_element	User waits for "{selector}" to have text '{text}'
+wait_for_text_in_element	User waits for '{selector}' to have text "{text}"
+wait_for_exact_text_in_element	Wait for exact text '{text}' in '{selector}'
+wait_for_exact_text_in_element	Wait for exact text "{text}" in "{selector}"
+wait_for_exact_text_in_element	Wait for exact text '{text}' in "{selector}"
+wait_for_exact_text_in_element	Wait for exact text "{text}" in '{selector}'
+wait_for_exact_text_in_element	Wait for '{selector}' to have exact text '{text}'
+wait_for_exact_text_in_element	Wait for "{selector}" to have exact text "{text}"
+wait_for_exact_text_in_element	Wait for "{selector}" to have exact text '{text}'
+wait_for_exact_text_in_element	Wait for '{selector}' to have exact text "{text}"
+wait_for_exact_text_in_element	User waits for exact text '{text}' in '{selector}'
+wait_for_exact_text_in_element	User waits for exact text "{text}" in "{selector}"
+wait_for_exact_text_in_element	User waits for exact text '{text}' in "{selector}"
+wait_for_exact_text_in_element	User waits for exact text "{text}" in '{selector}'
+wait_for_exact_text_in_element	User waits for '{selector}' to have exact text '{text}'
+wait_for_exact_text_in_element	User waits for "{selector}" to have exact text "{text}"
+wait_for_exact_text_in_element	User waits for "{selector}" to have exact text '{text}'
+wait_for_exact_text_in_element	User waits for '{selector}' to have exact text "{text}"
+wait_for_non_empty_text_in_element	Wait for non-empty text in '{selector}'
+wait_for_non_empty_text_in_element	Wait for non-empty text in "{selector}"
+wait_for_non_empty_text_in_element	Wait for '{selector}' to have non-empty text
+wait_for_non_empty_text_in_element	Wait for "{selector}" to have non-empty text
+wait_for_non_empty_text_in_element	User waits for non-empty text in '{selector}'
+wait_for_non_empty_text_in_element	User waits for non-empty text in "{selector}"
+wait_for_non_empty_text_in_element	User waits for '{selector}' to have non-empty text
+wait_for_non_empty_text_in_element	User waits for "{selector}" to have non-empty text
+wait_for_non_empty_text_in_element	Wait for '{selector}' to not have text
+wait_for_non_empty_text_in_element	Wait for "{selector}" to not have text
+wait_for_non_empty_text_in_element	Wait for text in '{selector}' to not be empty
+wait_for_non_empty_text_in_element	Wait for text in "{selector}" to not be empty
+wait_for_non_empty_text_in_element	User waits for '{selector}' to not have text
+wait_for_non_empty_text_in_element	User waits for "{selector}" to not have text
+wait_for_non_empty_text_in_element	User waits for text in '{selector}' to not be empty
+wait_for_non_empty_text_in_element	User waits for text in "{selector}" to not be empty
+wait_for_text	Wait for text '{text}'
+wait_for_text	Wait for text "{text}"
+wait_for_text	User waits for text '{text}'
+wait_for_text	User waits for text "{text}"
+double_click_element	Double click '{selector}'
+double_click_element	Double click "{selector}"
+double_click_element	Double click element '{selector}'
+double_click_element	Double click element "{selector}"
+double_click_element	User double clicks '{selector}'
+double_click_element	User double clicks "{selector}"
+double_click_element	User double clicks element '{selector}'
+double_click_element	User double clicks element "{selector}"
+slow_click_element	Slow click '{selector}'
+slow_click_element	Slow click "{selector}"
+slow_click_element	Slow click element '{selector}'
+slow_click_element	Slow click element "{selector}"
+slow_click_element	User slow clicks '{selector}'
+slow_click_element	User slow clicks "{selector}"
+slow_click_element	User slow clicks element '{selector}'
+slow_click_element	User slow clicks element "{selector}"
+clear_text_field	Clear text field '{selector}'
+clear_text_field	Clear text field "{selector}"
+clear_text_field	Clear text in '{selector}'
+clear_text_field	Clear text in "{selector}"
+clear_text_field	User clears text field '{selector}'
+clear_text_field	User clears text field "{selector}"
+clear_text_field	User clears text in '{selector}'
+clear_text_field	User clears text in "{selector}"
+maximize_window	Maximize window
+maximize_window	Maximize the window
+maximize_window	User maximizes window
+maximize_window	User maximizes the window
+get_new_driver	Get new driver
+get_new_driver	User gets new driver
+switch_to_default_driver	Switch to default driver
+switch_to_default_driver	User switches to default driver
+press_up_arrow	Press up arrow
+press_up_arrow	User presses up arrow
+press_down_arrow	Press down arrow
+press_down_arrow	User presses down arrow
+press_left_arrow	Press left arrow
+press_left_arrow	User presses left arrow
+press_right_arrow	Press right arrow
+press_right_arrow	User presses right arrow
+delete_all_cookies	Clear all cookies
+delete_all_cookies	Delete all cookies
+delete_all_cookies	User clears all cookies
+delete_all_cookies	User deletes all cookies
+clear_local_storage	Clear Local Storage
+clear_local_storage	Delete Local Storage
+clear_local_storage	User clears Local Storage
+clear_local_storage	User deletes Local Storage
+clear_session_storage	Clear Session Storage
+clear_session_storage	Delete Session Storage
+clear_session_storage	User clears Session Storage
+clear_session_storage	User deletes Session Storage
+js_click_all	JS click all '{selector}'
+js_click_all	JS click all "{selector}"
+js_click_all	Use JS to click all '{selector}'
+js_click_all	Use JS to click all "{selector}"
+click_with_offset	Click '{selector}' at ({px},{py})
+click_with_offset	Click "{selector}" at ({px},{py})
+click_with_offset	Click '{selector}' at ({px}, {py})
+click_with_offset	Click "{selector}" at ({px}, {py})
+click_with_offset	User clicks '{selector}' at ({px},{py})
+click_with_offset	User clicks "{selector}" at ({px},{py})
+click_with_offset	User clicks '{selector}' at ({px}, {py})
+click_with_offset	User clicks "{selector}" at ({px}, {py})
+choose_file	In '{selector}' choose file '{file_path}'
+choose_file	In "{selector}" choose file "{file_path}"
+choose_file	In '{selector}' choose file "{file_path}"
+choose_file	In "{selector}" choose file '{file_path}'
+choose_file	Into '{selector}' choose file '{file_path}'
+choose_file	Into "{selector}" choose file "{file_path}"
+choose_file	Into '{selector}' choose file "{file_path}"
+choose_file	Into "{selector}" choose file '{file_path}'
+choose_file	User chooses file '{file_path}' for '{selector}'
+choose_file	User chooses file "{file_path}" for "{selector}" 
+choose_file	User chooses file "{file_path}" for '{selector}' 
+choose_file	User chooses file '{file_path}' for "{selector}" 
+set_content_to_frame	Set content to frame '{frame}'
+set_content_to_frame	Set content to frame "{frame}"
+set_content_to_frame	User sets content to frame '{frame}'
+set_content_to_frame	User sets content to frame "{frame}"
+set_content_to_default	Set content to default
+set_content_to_default	User sets content to default
+set_content_to_parent	Set content to parent
+set_content_to_parent	User sets content to parent
+assert_element_present	Assert element present '{selector}'
+assert_element_present	Assert element present "{selector}"
+assert_element_present	Element '{selector}' should be present
+assert_element_present	Element "{selector}" should be present
+assert_element_not_visible	Assert element not visible '{selector}'
+assert_element_not_visible	Assert element not visible "{selector}"
+assert_element_not_visible	Element '{selector}' should not be visible
+assert_element_not_visible	Element "{selector}" should not be visible
+assert_link_text	Assert link text '{text}'
+assert_link_text	Assert link text "{text}"
+assert_link_text	Link text '{text}' should be visible
+assert_link_text	Link text "{text}" should be visible
+assert_title	Assert title '{title}'
+assert_title	Assert title "{title}"
+assert_title	The title should be '{title}'
+assert_title	The title should be "{title}"
+assert_downloaded_file	Assert downloaded file '{file}'
+assert_downloaded_file	Assert downloaded file "{file}"
+assert_downloaded_file	File '{file}' should be in downloads
+assert_downloaded_file	File "{file}" should be in downloads
+download_file	Download '{file}' to downloads
+download_file	Download "{file}" to downloads
+download_file	Download file '{file}' to downloads
+download_file	Download file "{file}" to downloads
+download_file	User downloads '{file}' to downloads
+download_file	User downloads "{file}" to downloads
+download_file_to_destination	Download '{file}' to '{destination}'
+download_file_to_destination	Download "{file}" to "{destination}"
+download_file_to_destination	Download file '{file}' to '{destination}'
+download_file_to_destination	Download file "{file}" to "{destination}"
+download_file_to_destination	User downloads '{file}' to '{destination}'
+download_file_to_destination	User downloads "{file}" to "{destination}"
+assert_attribute	In '{selector}' assert attribute '{attribute}'
+assert_attribute	In "{selector}" assert attribute "{attribute}"
+assert_attribute	In "{selector}" assert attribute '{attribute}'
+assert_attribute	In '{selector}' assert attribute "{attribute}"
+assert_attribute_has_value	In '{selector}' assert attribute/value '{attribute}'/'{value}'
+assert_attribute_has_value	In "{selector}" assert attribute/value "{attribute}"/"{value}"
+assert_attribute_has_value	In "{selector}" assert attribute/value '{attribute}'/"{value}"
+assert_attribute_has_value	In '{selector}' assert attribute/value "{attribute}"/'{value}'
+assert_attribute_has_value	In '{selector}' assert attribute/value '{attribute}'/"{value}"
+assert_attribute_has_value	In "{selector}" assert attribute/value "{attribute}"/'{value}'
+assert_attribute_has_value	In "{selector}" assert attribute/value '{attribute}'/'{value}'
+assert_attribute_has_value	In '{selector}' assert attribute/value "{attribute}"/"{value}"
+show_file_choosers	Show file choosers
+show_file_choosers	Show hidden file choosers
+show_file_choosers	Use JS to show file choosers
+show_file_choosers	Use JS to show hidden file choosers
+sleep	Sleep for {seconds} seconds
+sleep	Wait for {seconds} seconds
+sleep	User sleeps for {seconds} seconds
+sleep	User waits for {seconds} seconds
+activate_demo_mode	Activate Demo Mode
+activate_demo_mode	User activates Demo Mode
+deactivate_demo_mode	Deactivate Demo Mode
+deactivate_demo_mode	User deactivates Demo Mode
+deferred_assert_element	Deferred assert element '{selector}'
+deferred_assert_element	Deferred assert element "{selector}"
+deferred_assert_element_present	Deferred assert element present '{selector}'
+deferred_assert_element_present	Deferred assert element present "{selector}"
+deferred_assert_text_in_element	Deferred assert text '{text}' in '{selector}'
+deferred_assert_text_in_element	Deferred assert text "{text}" in "{selector}"
+deferred_assert_text_in_element	Deferred assert text '{text}' in "{selector}"
+deferred_assert_text_in_element	Deferred assert text "{text}" in '{selector}'
+deferred_assert_text	Deferred assert text '{text}'
+deferred_assert_text	Deferred assert text "{text}"
+deferred_assert_exact_text	Deferred assert exact text '{text}' in '{selector}'
+deferred_assert_exact_text	Deferred assert exact text "{text}" in "{selector}"
+deferred_assert_exact_text	Deferred assert exact text '{text}' in "{selector}"
+deferred_assert_exact_text	Deferred assert exact text "{text}" in '{selector}'
+deferred_assert_non_empty_text	Deferred assert non-empty text in '{selector}'
+deferred_assert_non_empty_text	Deferred assert non-empty text in "{selector}"
+process_deferred_asserts	Process deferred asserts
+assert_text_not_visible_in_element	Assert text not visible '{text}' in '{selector}'
+assert_text_not_visible_in_element	Assert text not visible "{text}" in "{selector}"
+assert_text_not_visible_in_element	Assert text not visible '{text}' in "{selector}"
+assert_text_not_visible_in_element	Assert text not visible "{text}" in '{selector}'
+assert_text_not_visible_in_element	Text '{text}' should not be visible in '{selector}'
+assert_text_not_visible_in_element	Text "{text}" should not be visible in "{selector}"
+assert_text_not_visible_in_element	Text '{text}' should not be visible in "{selector}"
+assert_text_not_visible_in_element	Text "{text}" should not be visible in '{selector}'
+assert_text_not_visible	Assert text not visible '{text}'
+assert_text_not_visible	Assert text not visible "{text}"
+assert_text_not_visible	Text '{text}' should not be visible
+assert_text_not_visible	Text "{text}" should not be visible
+assert_exact_text_not_visible_in_element	Assert exact text not visible '{text}' in '{selector}'
+assert_exact_text_not_visible_in_element	Assert exact text not visible "{text}" in "{selector}"
+assert_exact_text_not_visible_in_element	Assert exact text not visible '{text}' in "{selector}"
+assert_exact_text_not_visible_in_element	Assert exact text not visible "{text}" in '{selector}'
+assert_exact_text_not_visible_in_element	Exact text '{text}' should not be visible in '{selector}'
+assert_exact_text_not_visible_in_element	Exact text "{text}" should not be visible in "{selector}"
+assert_exact_text_not_visible_in_element	Exact text '{text}' should not be visible in "{selector}"
+assert_exact_text_not_visible_in_element	Exact text "{text}" should not be visible in '{selector}'
+assert_exact_text_not_visible	Assert exact text not visible '{text}'
+assert_exact_text_not_visible	Assert exact text not visible "{text}"
+assert_exact_text_not_visible	Exact text '{text}' should not be visible
+assert_exact_text_not_visible	Exact text "{text}" should not be visible
+assert_title_contains	Assert title contains '{substring}'
+assert_title_contains	Assert title contains "{substring}"
+assert_title_contains	The title should contain '{substring}'
+assert_title_contains	The title should contain "{substring}"
+open_new_window	Open new tab
+open_new_window	Open new window
+open_new_window	User opens new tab
+open_new_window	User opens new window
+accept_alert	Accept alert
+accept_alert	User accepts alert
+dismiss_alert	Dismiss alert
+dismiss_alert	User dismisses alert
+assert_url	Assert URL '{url}'
+assert_url	Assert URL "{url}"
+assert_url	The URL should be '{url}'
+assert_url	The URL should be "{url}"
+assert_url_contains	Assert URL contains '{substring}'
+assert_url_contains	Assert URL contains "{substring}"
+assert_url_contains	The URL should contain '{substring}'
+assert_url_contains	The URL should contain "{substring}"
+hover	Hover '{selector}'
+hover	Hover "{selector}"
+hover	Hover over '{selector}'
+hover	Hover over "{selector}"
+hover	Hover element '{selector}'
+hover	Hover element "{selector}"
+hover	User hovers over '{selector}'
+hover	User hovers over "{selector}"
+hover	User hovers over element '{selector}'
+hover	User hovers over element "{selector}"
+context_click	Context click '{selector}'
+context_click	Context click "{selector}"
+context_click	Context click element '{selector}'
+context_click	Context click element "{selector}"
+context_click	Right click '{selector}'
+context_click	Right click "{selector}"
+context_click	Right click element '{selector}'
+context_click	Right click element "{selector}"
+context_click	User right clicks '{selector}'
+context_click	User right clicks "{selector}"
+context_click	User right clicks element '{selector}'
+context_click	User right clicks element "{selector}"
+js_type	JS type '{text}' in '{selector}'
+js_type	JS type "{text}" in "{selector}"
+js_type	JS type '{text}' in "{selector}"
+js_type	JS type "{text}" in '{selector}'
+js_type	JS type '{text}' into '{selector}'
+js_type	JS type "{text}" into "{selector}"
+js_type	JS type '{text}' into "{selector}"
+js_type	JS type "{text}" into '{selector}'
+js_type	JS type text '{text}' in '{selector}'
+js_type	JS type text "{text}" in "{selector}"
+js_type	JS type text '{text}' in "{selector}"
+js_type	JS type text "{text}" in '{selector}'
+js_type	JS type text '{text}' into '{selector}'
+js_type	JS type text "{text}" into "{selector}"
+js_type	JS type text '{text}' into "{selector}"
+js_type	JS type text "{text}" into '{selector}'
+js_type	Use JS to type '{text}' in '{selector}'
+js_type	Use JS to type "{text}" in "{selector}"
+js_type	Use JS to type '{text}' in "{selector}"
+js_type	Use JS to type "{text}" in '{selector}'
+js_type	Use JS to type '{text}' into '{selector}'
+js_type	Use JS to type "{text}" into "{selector}"
+js_type	Use JS to type '{text}' into "{selector}"
+js_type	Use JS to type "{text}" into '{selector}'
+jquery_click	jQuery click '{selector}'
+jquery_click	jQuery click "{selector}"
+jquery_click	jQuery click element '{selector}'
+jquery_click	jQuery click element "{selector}"
+jquery_click	Use jQuery to click '{selector}'
+jquery_click	Use jQuery to click "{selector}"
+jquery_click_all	jQuery click all '{selector}'
+jquery_click_all	jQuery click all "{selector}"
+jquery_click_all	Use jQuery to click all '{selector}'
+jquery_click_all	Use jQuery to click all "{selector}"
+jquery_type	jQuery type '{text}' in '{selector}'
+jquery_type	jQuery type "{text}" in "{selector}"
+jquery_type	jQuery type '{text}' in "{selector}"
+jquery_type	jQuery type "{text}" in '{selector}'
+jquery_type	jQuery type '{text}' into '{selector}'
+jquery_type	jQuery type "{text}" into "{selector}"
+jquery_type	jQuery type '{text}' into "{selector}"
+jquery_type	jQuery type "{text}" into '{selector}'
+jquery_type	jQuery type text '{text}' in '{selector}'
+jquery_type	jQuery type text "{text}" in "{selector}"
+jquery_type	jQuery type text '{text}' in "{selector}"
+jquery_type	jQuery type text "{text}" in '{selector}'
+jquery_type	jQuery type text '{text}' into '{selector}'
+jquery_type	jQuery type text "{text}" into "{selector}"
+jquery_type	jQuery type text '{text}' into "{selector}"
+jquery_type	jQuery type text "{text}" into '{selector}'
+jquery_type	Use jQuery to type '{text}' in '{selector}'
+jquery_type	Use jQuery to type "{text}" in "{selector}"
+jquery_type	Use jQuery to type '{text}' in "{selector}"
+jquery_type	Use jQuery to type "{text}" in '{selector}'
+jquery_type	Use jQuery to type '{text}' into '{selector}'
+jquery_type	Use jQuery to type "{text}" into "{selector}"
+jquery_type	Use jQuery to type '{text}' into "{selector}"
+jquery_type	Use jQuery to type "{text}" into '{selector}'
+press_keys	Press keys '{text}' in '{selector}'
+press_keys	Press keys "{text}" in "{selector}"
+press_keys	Press keys '{text}' in "{selector}"
+press_keys	Press keys "{text}" in '{selector}'
+press_keys	Press keys '{text}' into '{selector}'
+press_keys	Press keys "{text}" into "{selector}"
+press_keys	Press keys '{text}' into "{selector}"
+press_keys	Press keys "{text}" into '{selector}'
+press_keys	In '{selector}' press keys '{text}'
+press_keys	In "{selector}" press keys "{text}"
+press_keys	In '{selector}' press keys "{text}"
+press_keys	In "{selector}" press keys '{text}'
+press_keys	Into '{selector}' press keys '{text}'
+press_keys	Into "{selector}" press keys "{text}"
+press_keys	Into '{selector}' press keys "{text}"
+press_keys	Into "{selector}" press keys '{text}'
+press_keys	Find '{selector}' and press keys '{text}'
+press_keys	Find "{selector}" and press keys "{text}"
+press_keys	Find '{selector}' and press keys "{text}"
+press_keys	Find "{selector}" and press keys '{text}'
+press_keys	User presses keys '{text}' in '{selector}'
+press_keys	User presses keys "{text}" in "{selector}"
+press_keys	User presses keys '{text}' in "{selector}"
+press_keys	User presses keys "{text}" in '{selector}'
+press_keys	User presses keys '{text}' into '{selector}'
+press_keys	User presses keys "{text}" into "{selector}"
+press_keys	User presses keys '{text}' into "{selector}"
+press_keys	User presses keys "{text}" into '{selector}'
+set_attribute	Find '{selector}' and set {attribute} to '{value}'
+set_attribute	Find "{selector}" and set {attribute} to "{value}"
+set_attribute	Find '{selector}' and set {attribute} to "{value}"
+set_attribute	Find "{selector}" and set {attribute} to '{value}'
+set_attributes	Find all '{selector}' and set {attribute} to '{value}'
+set_attributes	Find all "{selector}" and set {attribute} to "{value}"
+set_attributes	Find all '{selector}' and set {attribute} to "{value}"
+set_attributes	Find all "{selector}" and set {attribute} to '{value}'
+save_as_pdf_to_logs	Save as PDF to logs
+save_as_pdf_to_logs	Save as PDF to the logs
+save_as_pdf_to_logs	User saves page as PDF to logs
+save_as_pdf_to_logs	User saves page as PDF to the logs
+save_page_source_to_logs	Save page source to logs
+save_page_source_to_logs	Save the page source to the logs
+save_page_source_to_logs	User saves page source to logs
+save_page_source_to_logs	User saves the page source to the logs
+activate_cdp_mode	Activate CDP Mode
+activate_cdp_mode	User activates CDP Mode
