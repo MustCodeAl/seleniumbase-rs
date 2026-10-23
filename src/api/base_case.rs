@@ -1446,15 +1446,26 @@ impl BaseCase {
     }
 
     /// How long a message stays on the page: `requested`, else the run's
-    /// message duration ([`RunSettings::message_duration`]); cut to 0.75 s in a
-    /// headless browser.
+    /// message duration ([`RunSettings::message_duration`]); cut to 0.75 s where
+    /// nobody watches (see [`nobody_watches`](Self::nobody_watches)).
     fn message_time(&self, requested: Option<Duration>) -> Duration {
-        match (requested, self.config.headless) {
+        match (requested, self.nobody_watches()) {
             (None, false) => self.run_settings.message_duration(),
             (None, true) => self.run_settings.message_duration_headless(),
             (Some(duration), false) => duration,
             (Some(duration), true) => duration.min(HEADLESS_MESSAGE_CAP),
         }
+    }
+
+    /// Whether nobody watches the browser: it is headless (`--headless` or
+    /// `--headless2`) or runs on a virtual display (`--xvfb`), as Python tests
+    /// `self.headless or self.xvfb`.
+    ///
+    /// Where nobody watches, the helpers that wait for a person skip the wait or
+    /// shorten it: a message stays at most 0.75 s, the highlight loops are
+    /// halved, and the dialogs and tours that need an answer do not open.
+    pub(crate) fn nobody_watches(&self) -> bool {
+        self.config.headless || self.config.launch.virtual_display.is_some()
     }
 
     /// Shows `message` on a `color` background for [`message_time`] and, with

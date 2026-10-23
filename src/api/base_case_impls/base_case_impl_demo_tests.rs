@@ -307,6 +307,36 @@ mod tests_messages {
         );
     }
 
+    #[test]
+    fn nobody_watches_a_headless_browser_or_one_on_a_virtual_display() {
+        let sb = BaseCase::without_session(headed().with_headless(true));
+        assert!(sb.nobody_watches());
+
+        let sb = BaseCase::without_session(headed().with_xvfb(true));
+        assert!(sb.nobody_watches());
+
+        // Headed, with no virtual display, somebody watches.
+        let sb = BaseCase::without_session(headed());
+        assert!(!sb.nobody_watches());
+        let sb = BaseCase::without_session(headed().with_xvfb(true).with_xvfb(false));
+        assert!(!sb.nobody_watches());
+    }
+
+    #[test]
+    fn a_message_on_a_virtual_display_stays_at_most_three_quarters_of_a_second() {
+        let sb = BaseCase::without_session(headed().with_xvfb(true));
+        assert_eq!(sb.message_time(None), Duration::from_millis(750));
+        assert_eq!(
+            sb.message_time(Some(Duration::from_secs(5))),
+            Duration::from_millis(750)
+        );
+        assert_eq!(
+            sb.message_time(Some(Duration::from_millis(100))),
+            Duration::from_millis(100)
+        );
+    }
+
+
     #[tokio::test]
     async fn post_message_shows_the_message_for_the_duration_and_waits_for_it() {
         let (driver, sb) = case(headed().with_run_settings(
