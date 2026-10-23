@@ -83,45 +83,10 @@ impl PlaywrightSession {
     /// Launches Chromium with stealth-oriented launch arguments.
     ///
     /// The browser is launched in headed mode by default so that human-like
-    /// behavior is preserved. Use [`PlaywrightSession::launch_headless`] for
-    /// headless execution.
+    /// behavior is preserved. For headless execution, use
+    /// [`PlaywrightSession::launch_with_config`] with `BrowserConfig::with_headless`.
     pub async fn launch() -> Result<Self, SeleniumBaseError> {
         Self::launch_with_config(&BrowserConfig::default().with_headless(false)).await
-    }
-
-    /// Launches Chromium in headless mode with stealth arguments.
-    #[deprecated(
-        since = "0.5.0",
-        note = "use PlaywrightSession::launch_with_config(&BrowserConfig::default().with_headless(true))"
-    )]
-    pub async fn launch_headless() -> Result<Self, SeleniumBaseError> {
-        Self::launch_with_config(&BrowserConfig::default().with_headless(true)).await
-    }
-
-    /// Launches Chromium with a [`Fingerprint`] profile.
-    #[deprecated(
-        since = "0.5.0",
-        note = "use PlaywrightSession::launch_with_config with BrowserConfig::with_fingerprint"
-    )]
-    pub async fn launch_with_fingerprint(fp: &Fingerprint) -> Result<Self, SeleniumBaseError> {
-        let config = BrowserConfig::default()
-            .with_headless(false)
-            .with_fingerprint(fp.clone());
-        Self::launch_with_config(&config).await
-    }
-
-    /// Launches Chromium headless with a [`Fingerprint`] profile.
-    #[deprecated(
-        since = "0.5.0",
-        note = "use PlaywrightSession::launch_with_config with BrowserConfig::with_headless and with_fingerprint"
-    )]
-    pub async fn launch_headless_with_fingerprint(
-        fp: &Fingerprint,
-    ) -> Result<Self, SeleniumBaseError> {
-        let config = BrowserConfig::default()
-            .with_headless(true)
-            .with_fingerprint(fp.clone());
-        Self::launch_with_config(&config).await
     }
 
     /// Launches Chromium as `config` describes.
