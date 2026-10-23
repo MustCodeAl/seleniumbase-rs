@@ -146,7 +146,7 @@ pub fn check_revision(revision: u64) -> Result<u64, SeleniumBaseError> {
         Ok(revision)
     } else {
         Err(SeleniumBaseError::parse(
-            &revision.to_string(),
+            revision.to_string(),
             "a Chromium revision such as 1725796",
         ))
     }

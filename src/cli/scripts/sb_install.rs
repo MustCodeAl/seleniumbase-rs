@@ -234,10 +234,11 @@ pub async fn install(request: &InstallRequest) -> Result<Installed, SeleniumBase
     check_request(request)?;
     // The folder is settled before anything is downloaded, so a wrong setting costs no download.
     let target = if request.copy_to_path {
-        Some(path_target_dir(
-            &|name| std::env::var(name).ok(),
-            cfg!(windows),
-        )?)
+        {
+            let dir = path_target_dir(&|name| std::env::var(name).ok(), cfg!(windows))?;
+            check_path_folder(&dir)?;
+            Some(dir)
+        }
     } else {
         None
     };
@@ -429,6 +430,17 @@ async fn fetch(request: &InstallRequest) -> Result<Installed, SeleniumBaseError>
     }
 }
 
+/// Checks that `dir`, where `--path` copies to, is a folder.
+fn check_path_folder(dir: &Path) -> Result<(), SeleniumBaseError> {
+    if dir.is_dir() {
+        return Ok(());
+    }
+    Err(SeleniumBaseError::invalid_config(format!(
+        "{} is not a folder; create it, or set {PATH_DIR_VARIABLE} to a folder on your PATH",
+        dir.display()
+    )))
+}
+
 /// Where `--path` copies a driver: the folder named by [`PATH_DIR_VARIABLE`], else
 /// `/usr/local/bin`. `env` looks a variable up; `windows` says whether the system is Windows,
 /// where there is no such default.
@@ -464,12 +476,7 @@ pub fn copy_to_path_dir(executable: &Path, dir: &Path) -> Result<PathBuf, Seleni
     let name = executable.file_name().ok_or_else(|| {
         SeleniumBaseError::invalid_config(format!("{} names no file", executable.display()))
     })?;
-    if !dir.is_dir() {
-        return Err(SeleniumBaseError::invalid_config(format!(
-            "{} is not a folder; create it, or set {PATH_DIR_VARIABLE} to a folder on your PATH",
-            dir.display()
-        )));
-    }
+    check_path_folder(dir)?;
     let target = dir.join(name);
     match fs::symlink_metadata(&target) {
         Ok(found) if found.file_type().is_symlink() => {
@@ -548,9 +555,8 @@ pub(crate) fn make_uc_driver(
     }
     fs::create_dir_all(&folder)?;
     let partial = folder.join(format!("{name}.partial"));
-    patched_copy(chromedriver, &partial, &target, patch).map_err(|error| {
+    patched_copy(chromedriver, &partial, &target, patch).inspect_err(|_| {
         let _ = fs::remove_file(&partial);
-        error
     })?;
     Ok(target)
 }
