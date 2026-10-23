@@ -8,6 +8,16 @@ use serde_json::{json, Value};
 
 use crate::error::SeleniumBaseError;
 
+/// The user agent a phone-emulating session reports when the caller names none:
+/// Chrome on Android in its frozen format (release 10, model `K`), claiming
+/// [`PRESET_CHROMIUM_MAJOR`](crate::stealth::randomize::PRESET_CHROMIUM_MAJOR),
+/// which a test holds it to.
+///
+/// Python SeleniumBase names a Pixel 7 XL here; this crate keeps its own
+/// Android agent on both engines, so a mobile session looks the same whichever
+/// engine runs it.
+pub const MOBILE_USER_AGENT: &str = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36";
+
 /// The screen of the phone that Chrome emulates.
 ///
 /// Python SeleniumBase takes it as `--metrics="CSS_Width,CSS_Height,Pixel_Ratio"`
@@ -66,13 +76,74 @@ impl DeviceMetrics {
         }
         emulation
     }
+
+    /// The DevTools commands that emulate this phone in one tab, for a session
+    /// that cannot be given the `mobileEmulation` capability (the undetected
+    /// mode, where the capability would show).
+    ///
+    /// They are `Emulation.setDeviceMetricsOverride` with `mobile: true`,
+    /// `Emulation.setTouchEmulationEnabled` with five touch points and, when a
+    /// `user_agent` is given, `Emulation.setUserAgentOverride` with client-hint
+    /// metadata that says the same: an Android phone. The overrides belong to
+    /// a tab, so they are sent again for each window a session switches to.
+    #[must_use]
+    pub fn emulation_commands(&self, user_agent: Option<&str>) -> Vec<(&'static str, Value)> {
+        let mut commands = vec![
+            (
+                "Emulation.setDeviceMetricsOverride",
+                json!({
+                    "width": self.width,
+                    "height": self.height,
+                    "deviceScaleFactor": self.pixel_ratio,
+                    "mobile": true,
+                }),
+            ),
+            (
+                "Emulation.setTouchEmulationEnabled",
+                json!({ "enabled": true, "maxTouchPoints": 5 }),
+            ),
+        ];
+        if let Some(user_agent) = user_agent {
+            commands.push((
+                "Emulation.setUserAgentOverride",
+                json!({
+                    "userAgent": user_agent,
+                    "userAgentMetadata": {
+                        "platform": "Android",
+                        "platformVersion": "10",
+                        "architecture": "",
+                        "model": "K",
+                        "mobile": true,
+                    },
+                }),
+            ));
+        }
+        commands
+    }
+}
+
+/// The phone a session emulates, and the user agent it reports, from the
+/// settings that ask for one.
+///
+/// `metrics` name the screen; `mobile` alone gets [`DeviceMetrics::default`].
+/// The agent is `user_agent` when the caller chose one, else
+/// [`MOBILE_USER_AGENT`] when `mobile` is on, else none (the metrics were
+/// given alone, and the browser keeps its own agent). `None` when neither
+/// asks for a phone.
+pub(crate) fn emulated_phone(
+    mobile: bool,
+    metrics: Option<DeviceMetrics>,
+    user_agent: Option<&str>,
+) -> Option<(DeviceMetrics, Option<&str>)> {
+    let screen = metrics.or_else(|| mobile.then(DeviceMetrics::default))?;
+    Some((screen, user_agent.or(mobile.then_some(MOBILE_USER_AGENT))))
 }
 
 impl Default for DeviceMetrics {
-    /// 411 by 731 at a ratio of 3: the screen Python SeleniumBase emulates when
+    /// 390 by 715 at a ratio of 3 (Python's `constants.Mobile`), on both engines, used when
     /// it is asked for a mobile device and given no metrics.
     fn default() -> Self {
-        Self::new(411, 731, 3.0)
+        Self::new(390, 715, 3.0)
     }
 }
 
@@ -145,7 +216,7 @@ mod tests {
 
     #[test]
     fn the_default_is_the_screen_python_emulates() {
-        assert_eq!(DeviceMetrics::default(), DeviceMetrics::new(411, 731, 3.0));
+        assert_eq!(DeviceMetrics::default(), DeviceMetrics::new(390, 715, 3.0));
     }
 
     #[test]
@@ -172,5 +243,39 @@ mod tests {
                 "userAgent": "Agent/1"
             })
         );
+    }
+
+    #[test]
+    fn the_emulation_commands_make_a_touch_phone_with_the_given_agent() {
+        let metrics = DeviceMetrics::new(360, 640, 2.0);
+        let commands = metrics.emulation_commands(None);
+        assert_eq!(
+            commands,
+            vec![
+                (
+                    "Emulation.setDeviceMetricsOverride",
+                    json!({
+                        "width": 360, "height": 640, "deviceScaleFactor": 2.0, "mobile": true
+                    })
+                ),
+                (
+                    "Emulation.setTouchEmulationEnabled",
+                    json!({ "enabled": true, "maxTouchPoints": 5 })
+                ),
+            ]
+        );
+
+        let with_agent = metrics.emulation_commands(Some("Agent/1"));
+        assert_eq!(with_agent.len(), 3);
+        assert_eq!(with_agent[2].0, "Emulation.setUserAgentOverride");
+        assert_eq!(with_agent[2].1["userAgent"], "Agent/1");
+        assert_eq!(with_agent[2].1["userAgentMetadata"]["mobile"], true);
+        assert_eq!(with_agent[2].1["userAgentMetadata"]["platform"], "Android");
+    }
+
+    #[test]
+    fn the_mobile_user_agent_is_an_android_phone() {
+        assert!(MOBILE_USER_AGENT.contains("Android"));
+        assert!(MOBILE_USER_AGENT.contains("Mobile Safari"));
     }
 }

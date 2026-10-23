@@ -69,6 +69,16 @@ impl XvfbProcess {
         lock_dir: &Path,
         screen: VirtualDisplay,
     ) -> Result<Self, SeleniumBaseError> {
+        // Python raises a screen smaller than 1024x768 to that size.
+        let requested = screen;
+        let screen = screen.clamped();
+        if screen != requested {
+            tracing::info!(
+                "the virtual display {requested} is smaller than {}; using {screen}",
+                VirtualDisplay::MINIMUM
+            );
+        }
+
         let number = first_free_display(&|number| {
             socket_dir.join(format!("X{number}")).exists()
                 || lock_dir.join(format!(".X{number}-lock")).exists()

@@ -158,7 +158,7 @@ impl std::str::FromStr for DriverMode {
 }
 
 /// Configuration for a browser session.
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Deserialize, PartialEq, Serialize)]
 pub struct BrowserConfig {
     pub webdriver_url: String,
     pub browser: Browser,
@@ -251,6 +251,44 @@ pub struct BrowserConfig {
 /// `BaseCase` take seconds.
 pub(crate) fn whole_seconds(timeout: std::time::Duration) -> u64 {
     timeout.as_secs() + u64::from(timeout.subsec_nanos() > 0)
+}
+
+// Written by hand: the proxy, the PAC URL and the WebDriver server URL may carry
+// a password or a cloud provider's access key, and `{config:?}` must not print
+// them.
+impl std::fmt::Debug for BrowserConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use crate::stealth::options::without_credentials;
+        f.debug_struct("BrowserConfig")
+            .field("webdriver_url", &without_credentials(&self.webdriver_url))
+            .field("browser", &self.browser)
+            .field("headless", &self.headless)
+            .field("mode", &self.mode)
+            .field("user_agent", &self.user_agent)
+            .field("locale", &self.locale)
+            .field("ad_block", &self.ad_block)
+            .field("proxy", &self.proxy.as_deref().map(without_credentials))
+            .field(
+                "proxy_pac_url",
+                &self.proxy_pac_url.as_deref().map(without_credentials),
+            )
+            .field("user_data_dir", &self.user_data_dir)
+            .field("extension_dir", &self.extension_dir)
+            .field("start_page", &self.start_page)
+            .field("reuse_session", &self.reuse_session)
+            .field("mobile", &self.mobile)
+            .field("threads", &self.threads)
+            .field("auto_start_driver", &self.auto_start_driver)
+            .field("extra_args", &self.extra_args)
+            .field("fingerprint", &self.fingerprint)
+            .field("browser_binary_path", &self.browser_binary_path)
+            .field(
+                "remote_webdriver_timeout_seconds",
+                &self.remote_webdriver_timeout_seconds,
+            )
+            .field("launch", &self.launch)
+            .finish()
+    }
 }
 
 impl Default for BrowserConfig {
@@ -643,6 +681,137 @@ impl BrowserConfig {
     pub fn with_device_metrics(mut self, metrics: DeviceMetrics) -> Self {
         self.launch.device_metrics = Some(metrics);
         self.mobile = true;
+        self
+    }
+
+    /// Force Chrome's dark theme on web pages (`--dark`, `dark_mode`).
+    /// Chromium only.
+    pub fn with_dark_mode(self, on: bool) -> Self {
+        self.with_switch(LaunchSwitch::DarkMode, on)
+    }
+
+    /// Open the browser as a guest (`--guest`, `guest_mode`). Left out when the
+    /// session loads an extension. Chromium only.
+    pub fn with_guest_mode(self, on: bool) -> Self {
+        self.with_switch(LaunchSwitch::Guest, on)
+    }
+
+    /// Open the browser in an incognito or private window (`--incognito`,
+    /// `incognito_mode`). Left out for Chromium when the session loads an
+    /// extension.
+    pub fn with_incognito(self, on: bool) -> Self {
+        self.with_switch(LaunchSwitch::Incognito, on)
+    }
+
+    /// Open the developer tools with each tab (`--devtools`). A headed session
+    /// only.
+    pub fn with_devtools(self, on: bool) -> Self {
+        self.with_switch(LaunchSwitch::Devtools, on)
+    }
+
+    /// Switch web security off (`--disable-ws`, `--dws`): cross-origin
+    /// requests and certificate errors are allowed. Chromium only.
+    pub fn with_disable_ws(self, on: bool) -> Self {
+        self.with_switch(LaunchSwitch::DisableWebSecurity, on)
+    }
+
+    /// Keep web security on (`--enable-ws`), which is the default; the
+    /// opposite of [`with_disable_ws`](Self::with_disable_ws).
+    pub fn with_enable_ws(self, on: bool) -> Self {
+        self.with_disable_ws(!on)
+    }
+
+    /// Render with SwiftShader, a software WebGL renderer (`--swiftshader`).
+    /// Chromium only.
+    pub fn with_swiftshader(self, on: bool) -> Self {
+        self.with_switch(LaunchSwitch::Swiftshader, on)
+    }
+
+    /// Keep the GPU on in a headless session, for pages that need WebGL
+    /// (`--enable-3d-apis`). Chromium only.
+    pub fn with_enable_3d_apis(self, on: bool) -> Self {
+        self.with_switch(LaunchSwitch::Enable3dApis, on)
+    }
+
+    /// Open the window maximized (`--maximize`). A headed session only.
+    pub fn with_maximize(self, on: bool) -> Self {
+        self.with_switch(LaunchSwitch::Maximize, on)
+    }
+
+    /// Start Chromium without its sandbox (`--no-sandbox`). Sessions on Linux
+    /// already do.
+    pub fn with_no_sandbox(self, on: bool) -> Self {
+        self.with_switch(LaunchSwitch::NoSandbox, on)
+    }
+
+    /// Switch the GPU off, headed sessions too (`--disable-gpu`). Chromium
+    /// only.
+    pub fn with_disable_gpu(self, on: bool) -> Self {
+        self.with_switch(LaunchSwitch::DisableGpu, on)
+    }
+
+    /// Run headless with `chrome-headless-shell`, Chrome's old headless
+    /// implementation (`--headless1`). On, it also makes the session
+    /// [headless](Self::headless).
+    ///
+    /// Chrome runs as [`Browser::ChromeHeadlessShell`], which is downloaded
+    /// when it is missing; another Chromium browser, which has no such
+    /// program, runs in its new headless mode; Firefox runs headless. The
+    /// undetected mode cannot use it.
+    pub fn with_headless1(mut self, on: bool) -> Self {
+        if on {
+            self.headless = true;
+        }
+        self.with_switch(LaunchSwitch::Headless1, on)
+    }
+
+    /// Runs headless in Chrome's new mode (`--headless2`), which is what
+    /// [`with_headless`](Self::with_headless) already does.
+    pub fn with_headless2(self, on: bool) -> Self {
+        self.with_headless(on)
+    }
+
+    /// Opens a virtual display for a headed browser on Linux (`--xvfb`), of
+    /// the default size (`--xvfb-metrics` sets another through
+    /// [`VirtualDisplay`]). Off removes it.
+    pub fn with_xvfb(mut self, on: bool) -> Self {
+        self.launch.virtual_display = on.then(VirtualDisplay::default);
+        self
+    }
+
+    /// Adds Chromium switches written as Python's `--chromium-arg` takes them:
+    /// comma-separated, each made a `--` switch, and `disable-features=` items
+    /// joined with the other features to disable. May be called more than
+    /// once.
+    ///
+    /// See [`parse_chromium_args`](crate::browser::options::parse_chromium_args).
+    pub fn with_chromium_arg(mut self, text: &str) -> Self {
+        let (args, features) = crate::browser::options::parse_chromium_args(text);
+        self.extra_args.extend(args);
+        self.with_disable_features(features)
+    }
+
+    /// Chromium features to switch off (`--disable-features`), joined with the
+    /// session's own into the one switch Chrome reads. Each feature is kept
+    /// once; may be called more than once.
+    pub fn with_disable_features<I, S>(mut self, features: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        for feature in features {
+            let feature = feature.into();
+            if !self.launch.disable_features.contains(&feature) {
+                self.launch.disable_features.push(feature);
+            }
+        }
+        self
+    }
+
+    /// Rules that map host names to addresses in Chromium
+    /// (`--host-resolver-rules`), such as `MAP example.com 127.0.0.1`.
+    pub fn with_host_resolver_rules(mut self, rules: impl Into<String>) -> Self {
+        self.launch.host_resolver_rules = Some(rules.into());
         self
     }
 
@@ -1057,6 +1226,95 @@ mod tests {
             config.launch.device_metrics,
             Some(DeviceMetrics::new(360, 640, 2.0))
         );
+    }
+
+    #[test]
+    fn the_debug_output_hides_a_proxy_password_and_a_server_key() {
+        let config = BrowserConfig::default()
+            .with_proxy("socks5://user:secret@proxy.example:1080")
+            .with_proxy_pac_url("http://pac-user:pac-secret@pac.example/p.pac")
+            .with_webdriver_url("https://USER:ACCESSKEY@hub.example.com/wd/hub");
+        let shown = format!("{config:?}");
+        for secret in ["secret", "ACCESSKEY", "pac-user", "USER:"] {
+            assert!(!shown.contains(secret), "{secret} is in {shown}");
+        }
+        assert!(shown.contains("socks5://proxy.example:1080"), "{shown}");
+        assert!(shown.contains("https://hub.example.com/wd/hub"), "{shown}");
+        // The proxy itself is untouched.
+        assert_eq!(
+            config.proxy.as_deref(),
+            Some("socks5://user:secret@proxy.example:1080")
+        );
+    }
+
+    #[test]
+    fn the_switch_builders_turn_their_switches_on_and_off() {
+        let on = BrowserConfig::default()
+            .with_dark_mode(true)
+            .with_guest_mode(true)
+            .with_incognito(true)
+            .with_devtools(true)
+            .with_disable_ws(true)
+            .with_swiftshader(true)
+            .with_enable_3d_apis(true)
+            .with_maximize(true)
+            .with_no_sandbox(true)
+            .with_disable_gpu(true);
+        for switch in [
+            LaunchSwitch::DarkMode,
+            LaunchSwitch::Guest,
+            LaunchSwitch::Incognito,
+            LaunchSwitch::Devtools,
+            LaunchSwitch::DisableWebSecurity,
+            LaunchSwitch::Swiftshader,
+            LaunchSwitch::Enable3dApis,
+            LaunchSwitch::Maximize,
+            LaunchSwitch::NoSandbox,
+            LaunchSwitch::DisableGpu,
+        ] {
+            assert!(on.launch.has(switch), "{switch:?}");
+        }
+        let off = on.with_dark_mode(false).with_enable_ws(true);
+        assert!(!off.launch.has(LaunchSwitch::DarkMode));
+        assert!(!off.launch.has(LaunchSwitch::DisableWebSecurity));
+        assert!(off
+            .with_enable_ws(false)
+            .launch
+            .has(LaunchSwitch::DisableWebSecurity));
+    }
+
+    #[test]
+    fn headless1_asks_for_a_headless_browser_and_headless2_is_headless() {
+        let headed = BrowserConfig::default().with_headless(false);
+        let one = headed.clone().with_headless1(true);
+        assert!(one.headless && one.launch.has(LaunchSwitch::Headless1));
+        let two = headed.with_headless2(true);
+        assert!(two.headless && !two.launch.has(LaunchSwitch::Headless1));
+    }
+
+    #[test]
+    fn chromium_arg_text_adds_arguments_and_features_without_repeating_them() {
+        let config = BrowserConfig::default()
+            .with_chromium_arg("mute-audio,disable-features=Translate")
+            .with_chromium_arg("-ignore-gpu-blocklist,disable-features=Translate")
+            .with_disable_features(["Foo", "Translate"])
+            .with_host_resolver_rules("MAP a.test 127.0.0.1");
+        assert_eq!(
+            config.extra_args,
+            ["--mute-audio", "--ignore-gpu-blocklist"]
+        );
+        assert_eq!(config.launch.disable_features, ["Translate", "Foo"]);
+        assert_eq!(
+            config.launch.host_resolver_rules.as_deref(),
+            Some("MAP a.test 127.0.0.1")
+        );
+    }
+
+    #[test]
+    fn xvfb_is_the_default_virtual_display_or_none() {
+        let on = BrowserConfig::default().with_xvfb(true);
+        assert_eq!(on.launch.virtual_display, Some(VirtualDisplay::default()));
+        assert_eq!(on.with_xvfb(false).launch.virtual_display, None);
     }
 
     #[test]

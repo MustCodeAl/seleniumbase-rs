@@ -39,10 +39,12 @@ use crate::config::ad_block_list::AdBlockList;
 
 mod capabilities;
 mod cdp_events;
+mod chromium_args;
 mod device;
 mod driver;
 mod extensions;
 mod firefox;
+mod locale;
 mod page_load;
 #[cfg(feature = "plugins")]
 mod plugins;
@@ -53,11 +55,15 @@ mod window;
 
 pub use capabilities::CapabilityOverrides;
 pub use cdp_events::{CdpEvent, CdpEventCapture};
-pub use device::DeviceMetrics;
+pub use chromium_args::parse_chromium_args;
+pub(crate) use chromium_args::switch_args;
+pub(crate) use device::emulated_phone;
+pub use device::{DeviceMetrics, MOBILE_USER_AGENT};
 pub use driver::{DriverVersion, ReleaseChannel};
 pub(crate) use extensions::Bundled;
 pub use extensions::ExtensionArchive;
 pub use firefox::{FirefoxOptions, FirefoxPreference};
+pub use locale::LocaleCode;
 pub use page_load::PageLoadStrategy;
 #[cfg(feature = "plugins")]
 pub use plugins::BrowserPlugins;
@@ -113,6 +119,14 @@ pub struct LaunchSettings {
     /// The virtual screen for a headed browser on Linux (`--xvfb`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub virtual_display: Option<VirtualDisplay>,
+    /// Chromium features to switch off (`--disable-features`), joined with the
+    /// session's own into the one switch Chrome reads.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub disable_features: Vec<String>,
+    /// Rules that map host names to addresses (`--host-resolver-rules`), sent
+    /// as one Chromium switch.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub host_resolver_rules: Option<String>,
     /// The hosts to refuse when `ad_block` is on. Unset, the built-in list is
     /// used; see [`AdBlockList`].
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -197,6 +211,8 @@ mod tests {
         settings.capabilities = CapabilityOverrides::from_text(r#"{"name":"t"}"#).unwrap();
         settings.driver_version = Some("126".parse().unwrap());
         settings.virtual_display = Some(VirtualDisplay::new(1024, 768));
+        settings.disable_features = vec!["Translate".to_owned()];
+        settings.host_resolver_rules = Some("MAP a.test 127.0.0.1".to_owned());
         settings.remote_debug_port = Some(9222);
         settings.cdp_events = CdpEventCapture::Always;
         settings.ad_block_list = Some(AdBlockList::from_hosts(["ads.example.com"]).unwrap());

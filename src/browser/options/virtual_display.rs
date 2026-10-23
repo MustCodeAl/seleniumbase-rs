@@ -53,6 +53,38 @@ impl VirtualDisplay {
             "tcp".to_owned(),
         ]
     }
+
+    /// The smallest screen a virtual display is given: 1024 by 768, the
+    /// minimum Python SeleniumBase raises `--xvfb-metrics` to, because a
+    /// browser window does not fit a smaller one.
+    pub const MINIMUM: Self = Self::new(1024, 768);
+
+    /// This screen with each side raised to [`MINIMUM`](Self::MINIMUM) where it
+    /// is smaller.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use seleniumbase_rs::browser::options::VirtualDisplay;
+    ///
+    /// assert_eq!(VirtualDisplay::new(800, 600).clamped(), VirtualDisplay::new(1024, 768));
+    /// assert_eq!(VirtualDisplay::new(1920, 500).clamped(), VirtualDisplay::new(1920, 768));
+    /// assert_eq!(VirtualDisplay::default().clamped(), VirtualDisplay::default());
+    /// ```
+    #[must_use]
+    pub const fn clamped(self) -> Self {
+        let width = if self.width < Self::MINIMUM.width {
+            Self::MINIMUM.width
+        } else {
+            self.width
+        };
+        let height = if self.height < Self::MINIMUM.height {
+            Self::MINIMUM.height
+        } else {
+            self.height
+        };
+        Self::new(width, height)
+    }
 }
 
 impl Default for VirtualDisplay {

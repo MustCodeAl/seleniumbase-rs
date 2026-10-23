@@ -60,11 +60,45 @@ pub enum LaunchSwitch {
     /// Nothing about the launch changes; `BaseCase::export_recording_as_rust`
     /// reads the switch to choose the generator.
     RecSbCdp,
+    /// Force Chrome's dark theme on web pages (`--dark`, `dark_mode`), through
+    /// `--enable-features=WebContentsForceDark`. Chromium only.
+    DarkMode,
+    /// Open the browser in an incognito window (`--incognito`). Left out when
+    /// an extension is loaded, which Chrome does not allow in that mode.
+    /// Chromium and Firefox (`-private`).
+    Incognito,
+    /// Open the browser as a guest (`--guest`). Left out when an extension is
+    /// loaded. Chromium only.
+    Guest,
+    /// Open the developer tools with each tab (`--devtools`). A headed
+    /// session only; Chromium and Firefox.
+    Devtools,
+    /// Switch web security off (`--disable-ws`): cross-origin requests and
+    /// certificate errors are allowed. Chromium only.
+    DisableWebSecurity,
+    /// Render with SwiftShader, a software WebGL renderer (`--swiftshader`).
+    /// Chromium only.
+    Swiftshader,
+    /// Keep the GPU in a headless session, for pages that need WebGL
+    /// (`--enable-3d-apis`). Chromium only.
+    #[serde(rename = "enable-3d-apis")]
+    Enable3dApis,
+    /// Open the window maximized (`--maximize`). A headed session only.
+    Maximize,
+    /// Start Chromium without its sandbox (`--no-sandbox`). Linux sessions
+    /// already do.
+    NoSandbox,
+    /// Switch the GPU off, headed sessions too (`--disable-gpu`). Chromium
+    /// only.
+    DisableGpu,
+    /// Run Chrome headless with `chrome-headless-shell` (`--headless1`), the
+    /// old headless implementation.
+    Headless1,
 }
 
 impl LaunchSwitch {
     /// Every switch.
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 23] = [
         Self::BlockImages,
         Self::DisableJavaScript,
         Self::DisableCookies,
@@ -77,6 +111,17 @@ impl LaunchSwitch {
         Self::ProxyForDriverDownload,
         Self::EscEnd,
         Self::RecSbCdp,
+        Self::DarkMode,
+        Self::Incognito,
+        Self::Guest,
+        Self::Devtools,
+        Self::DisableWebSecurity,
+        Self::Swiftshader,
+        Self::Enable3dApis,
+        Self::Maximize,
+        Self::NoSandbox,
+        Self::DisableGpu,
+        Self::Headless1,
     ];
 
     /// The switch a Python SeleniumBase option name stands for, if any.
@@ -100,6 +145,17 @@ impl LaunchSwitch {
             "proxy_driver" => Self::ProxyForDriverDownload,
             "esc_end" | "ee" => Self::EscEnd,
             "rec_sb_cdp" => Self::RecSbCdp,
+            "dark" | "dark_mode" => Self::DarkMode,
+            "incognito" | "incognito_mode" => Self::Incognito,
+            "guest" | "guest_mode" => Self::Guest,
+            "devtools" | "open_devtools" => Self::Devtools,
+            "disable_ws" | "dws" | "disable_web_security" => Self::DisableWebSecurity,
+            "swiftshader" => Self::Swiftshader,
+            "enable_3d_apis" => Self::Enable3dApis,
+            "maximize" | "maximize_window" | "fullscreen" => Self::Maximize,
+            "no_sandbox" => Self::NoSandbox,
+            "disable_gpu" => Self::DisableGpu,
+            "headless1" => Self::Headless1,
             _ => return None,
         })
     }
@@ -172,6 +228,10 @@ pub fn firefox_preferences<'a>(
             }
             LaunchSwitch::ExternalPdf => {
                 preferences.insert("pdfjs.disabled".into(), json!(true));
+            }
+            LaunchSwitch::DisableCsp => {
+                // Python's `security.csp.enable` for Firefox.
+                preferences.insert("security.csp.enable".into(), json!(false));
             }
             _ => {}
         }
@@ -273,6 +333,11 @@ mod tests {
                 json!(true),
             ),
             (LaunchSwitch::ExternalPdf, "pdfjs.disabled", json!(true)),
+            (
+                LaunchSwitch::DisableCsp,
+                "security.csp.enable",
+                json!(false),
+            ),
         ];
         for (switch, name, value) in cases {
             let preferences = firefox_preferences(&one(switch));
@@ -285,7 +350,17 @@ mod tests {
     fn switches_that_are_not_preferences_set_none() {
         let others: BTreeSet<_> = [
             LaunchSwitch::EnableSync,
-            LaunchSwitch::DisableCsp,
+            LaunchSwitch::DarkMode,
+            LaunchSwitch::Incognito,
+            LaunchSwitch::Guest,
+            LaunchSwitch::Devtools,
+            LaunchSwitch::DisableWebSecurity,
+            LaunchSwitch::Swiftshader,
+            LaunchSwitch::Enable3dApis,
+            LaunchSwitch::Maximize,
+            LaunchSwitch::NoSandbox,
+            LaunchSwitch::DisableGpu,
+            LaunchSwitch::Headless1,
             LaunchSwitch::AutomationExtension,
             LaunchSwitch::RecorderExtension,
             LaunchSwitch::ProxyForDriverDownload,
@@ -302,7 +377,7 @@ mod tests {
     fn several_switches_set_several_preferences() {
         let set: BTreeSet<_> = LaunchSwitch::ALL.into();
         assert_eq!(chrome_preferences(&set).len(), 5);
-        assert_eq!(firefox_preferences(&set).len(), 5);
+        assert_eq!(firefox_preferences(&set).len(), 6);
     }
 
     #[test]
@@ -355,6 +430,26 @@ mod tests {
             ("--ee", LaunchSwitch::EscEnd),
             ("--rec-sb-cdp", LaunchSwitch::RecSbCdp),
             ("rec_sb_cdp", LaunchSwitch::RecSbCdp),
+            ("--dark", LaunchSwitch::DarkMode),
+            ("dark_mode", LaunchSwitch::DarkMode),
+            ("--incognito", LaunchSwitch::Incognito),
+            ("incognito_mode", LaunchSwitch::Incognito),
+            ("--guest", LaunchSwitch::Guest),
+            ("guest_mode", LaunchSwitch::Guest),
+            ("--devtools", LaunchSwitch::Devtools),
+            ("open_devtools", LaunchSwitch::Devtools),
+            ("--disable-ws", LaunchSwitch::DisableWebSecurity),
+            ("--dws", LaunchSwitch::DisableWebSecurity),
+            ("disable_web_security", LaunchSwitch::DisableWebSecurity),
+            ("--swiftshader", LaunchSwitch::Swiftshader),
+            ("--enable-3d-apis", LaunchSwitch::Enable3dApis),
+            ("enable_3d_apis", LaunchSwitch::Enable3dApis),
+            ("--maximize", LaunchSwitch::Maximize),
+            ("maximize_window", LaunchSwitch::Maximize),
+            ("fullscreen", LaunchSwitch::Maximize),
+            ("--no-sandbox", LaunchSwitch::NoSandbox),
+            ("--disable-gpu", LaunchSwitch::DisableGpu),
+            ("--headless1", LaunchSwitch::Headless1),
         ];
         for (name, switch) in cases {
             assert_eq!(LaunchSwitch::from_python_name(name), Some(switch), "{name}");

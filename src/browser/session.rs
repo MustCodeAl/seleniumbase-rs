@@ -21,7 +21,8 @@ use crate::browser::chrome_for_testing::{
 use crate::browser::config::{Browser, BrowserConfig};
 use crate::browser::launcher::{launch_driver_for, DriverProcess};
 use crate::browser::options::{
-    firefox_preferences, CdpEvent, DriverVersion, LaunchSettings, LaunchSwitch, ReleaseChannel,
+    emulated_phone, firefox_preferences, CdpEvent, DriverVersion, LaunchSettings, LaunchSwitch,
+    ReleaseChannel,
 };
 #[cfg(feature = "plugins")]
 use crate::browser::plugin_hooks::{self, SessionPlugins};
@@ -45,6 +46,11 @@ pub struct BrowserSession {
     /// configuration, or none if it blocks nothing. They are sent to the first
     /// window and to each window the session switches to.
     ad_block: Vec<(&'static str, Value)>,
+    /// The DevTools commands that make a window of an undetected-mode session a
+    /// phone, or none: the other modes ask for it with the `mobileEmulation`
+    /// capability. Sent like the ad-block commands, because the emulation
+    /// belongs to a window.
+    mobile: Vec<(&'static str, Value)>,
     /// The hold on a browser kept for reuse (`--reuse-session`). With one,
     /// quitting or dropping the session gives the browser back instead of
     /// closing it, and the reuse registry owns the driver process and the
@@ -111,6 +117,7 @@ impl BrowserSession {
             cdp,
             driver_process,
             virtual_display,
+            mobile: mobile_commands(&config),
             ad_block,
             reuse: None,
             #[cfg(feature = "plugins")]
@@ -146,6 +153,7 @@ impl BrowserSession {
             virtual_display: None,
             ad_block,
             reuse: Some(lease),
+            mobile: mobile_commands(config),
             #[cfg(feature = "plugins")]
             plugins: None,
         })
@@ -199,6 +207,7 @@ impl BrowserSession {
             driver_process: None,
             virtual_display: None,
             ad_block: Vec::new(),
+            mobile: Vec::new(),
             reuse: None,
             #[cfg(feature = "plugins")]
             plugins: None,
@@ -513,6 +522,7 @@ impl BrowserSession {
             .switch_to_window(h)
             .await
             .map_err(SeleniumBaseError::WebDriver)?;
+        self.apply_mobile_emulation().await?;
         self.apply_ad_block().await
     }
 
@@ -674,6 +684,7 @@ impl BrowserSession {
             .await
             .map_err(SeleniumBaseError::WebDriver)?;
         self.apply_ad_block().await?;
+        self.apply_mobile_emulation().await?;
         #[cfg(feature = "plugins")]
         self.apply_plugins_to_window().await?;
         Ok(())
@@ -994,6 +1005,47 @@ impl BrowserSession {
         Ok(())
     }
 
+    /// Makes the window the session is on a phone, for an undetected-mode
+    /// session that was asked to be mobile ([`BrowserConfig::mobile`] or
+    /// [`BrowserConfig::with_device_metrics`]).
+    ///
+    /// The other modes ask for the phone with the `mobileEmulation`
+    /// capability when the browser starts. The undetected mode drops that
+    /// capability, which a page can see, and sends the DevTools commands
+    /// instead (see [`DeviceMetrics::emulation_commands`](crate::browser::options::DeviceMetrics::emulation_commands)):
+    /// device metrics with `mobile: true`, touch, and the user agent. The
+    /// session does this itself for the window it opens with, again when it
+    /// reconnects, and for each window it switches to with
+    /// [`switch_to_window`](Self::switch_to_window) or
+    /// [`switch_to_new_window`](Self::switch_to_new_window), because the
+    /// emulation belongs to a window. Call it after switching windows some
+    /// other way. It does nothing when the session sends no such commands.
+    ///
+    /// # Errors
+    ///
+    /// Returns the browser's refusal if it rejects a command, and
+    /// [`SeleniumBaseError::Unsupported`] if the session is not connected.
+    pub async fn apply_mobile_emulation(&self) -> Result<(), SeleniumBaseError> {
+        if self.mobile.is_empty() {
+            return Ok(());
+        }
+        let driver = self.driver.as_ref().ok_or_else(|| {
+            SeleniumBaseError::Unsupported("the session is not connected".to_owned())
+        })?;
+        let own;
+        let cdp = match self.cdp.as_ref() {
+            Some(cdp) => cdp,
+            None => {
+                own = CdpClient::from_handle(driver.handle().clone());
+                &own
+            }
+        };
+        for (method, params) in &self.mobile {
+            cdp.execute_with_params(method, params.clone()).await?;
+        }
+        Ok(())
+    }
+
     /// Disconnects the current WebDriver session and creates a fresh one.
     ///
     /// This is useful in undetected (UC) mode to obtain a clean session handle.
@@ -1042,6 +1094,7 @@ impl BrowserSession {
             None
         };
         self.ad_block = ad_block;
+        self.mobile = mobile_commands(config);
         self.initialize_mode(config).await?;
         Ok(())
     }
@@ -1254,6 +1307,7 @@ impl BrowserSession {
             self.apply_fingerprint(config).await?;
         }
         self.apply_ad_block().await?;
+        self.apply_mobile_emulation().await?;
         Ok(())
     }
 
@@ -1550,6 +1604,33 @@ fn ad_block_commands(
         ("Network.enable", json!({})),
         ("Network.setBlockedURLs", json!({ "urls": patterns })),
     ])
+}
+
+/// The DevTools commands that make each window of `config`'s session a phone,
+/// or none.
+///
+/// Only the undetected mode needs them: the other Chromium modes are given the
+/// `mobileEmulation` capability. A browser that is not Chromium-based cannot
+/// emulate a phone, so it starts as a desktop browser, and a warning says so.
+fn mobile_commands(config: &BrowserConfig) -> Vec<(&'static str, Value)> {
+    let Some((metrics, user_agent)) = emulated_phone(
+        config.mobile,
+        config.launch.device_metrics,
+        config.user_agent.as_deref(),
+    ) else {
+        return Vec::new();
+    };
+    if !config.browser.is_chromium_based() {
+        tracing::warn!(
+            "mobile emulation needs a Chromium browser; {} starts as a desktop browser",
+            config.browser
+        );
+        return Vec::new();
+    }
+    if !config.is_uc_enabled() {
+        return Vec::new();
+    }
+    metrics.emulation_commands(user_agent)
 }
 
 /// Starts the virtual screen the settings ask for, if this session can use one.
@@ -2478,5 +2559,135 @@ mod server_url_tests {
             server_url_for_joins("http://hub:4444/wd/hub/"),
             "http://hub:4444/wd/hub/"
         );
+    }
+}
+
+#[cfg(test)]
+mod mobile_tests {
+    use super::*;
+    use crate::api::base_case::webdriver_support::{MockWebDriver, Reply};
+    use crate::browser::config::DriverMode;
+    use crate::browser::options::{DeviceMetrics, MOBILE_USER_AGENT};
+
+    fn config_for(driver: &MockWebDriver) -> BrowserConfig {
+        let mut config = BrowserConfig::default().with_webdriver_url(driver.url());
+        config.auto_start_driver = false;
+        config
+    }
+
+    /// A WebDriver that answers every command, opens windows and switches to
+    /// them.
+    fn driver() -> MockWebDriver {
+        MockWebDriver::start(json!({}), |request| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("POST", "/window/new") => Reply::Value(json!({ "handle": "w2", "type": "tab" })),
+                ("POST", "/window") => Reply::Value(Value::Null),
+                _ => Reply::Value(json!({})),
+            }
+        })
+    }
+
+    fn devtools_commands(driver: &MockWebDriver) -> Vec<Value> {
+        driver
+            .requests("/goog/cdp/execute")
+            .into_iter()
+            .map(|request| request.body)
+            .collect()
+    }
+
+    fn names(commands: &[Value]) -> Vec<&str> {
+        commands
+            .iter()
+            .map(|command| command["cmd"].as_str().unwrap())
+            .collect()
+    }
+
+    #[test]
+    fn only_the_undetected_mode_sends_the_phone_over_devtools() {
+        let mobile = BrowserConfig::default().with_mobile(true);
+        assert!(mobile_commands(&mobile).is_empty());
+        assert!(mobile_commands(&BrowserConfig::default().with_mode(DriverMode::Uc)).is_empty());
+
+        let uc = mobile.clone().with_mode(DriverMode::Uc);
+        let commands = mobile_commands(&uc);
+        assert_eq!(
+            commands.iter().map(|(name, _)| *name).collect::<Vec<_>>(),
+            [
+                "Emulation.setDeviceMetricsOverride",
+                "Emulation.setTouchEmulationEnabled",
+                "Emulation.setUserAgentOverride"
+            ]
+        );
+        assert_eq!(
+            commands[0].1,
+            json!({ "width": 390, "height": 715, "deviceScaleFactor": 3.0, "mobile": true })
+        );
+        assert_eq!(commands[2].1["userAgent"], MOBILE_USER_AGENT);
+
+        let own = uc
+            .with_device_metrics(DeviceMetrics::new(360, 640, 2.0))
+            .with_user_agent("MyAgent/1.0");
+        let commands = mobile_commands(&own);
+        assert_eq!(commands[0].1["width"], 360);
+        assert_eq!(commands[2].1["userAgent"], "MyAgent/1.0");
+    }
+
+    #[test]
+    fn a_browser_that_is_not_chromium_is_sent_no_phone() {
+        let firefox = BrowserConfig::default()
+            .with_browser(Browser::Firefox)
+            .with_mobile(true);
+        assert!(mobile_commands(&firefox).is_empty());
+    }
+
+    #[tokio::test]
+    async fn an_undetected_mobile_session_is_made_a_phone_and_each_new_window_too() {
+        let driver = driver();
+        let config = config_for(&driver)
+            .with_mode(DriverMode::Uc)
+            .with_mobile(true);
+        let mut session = match BrowserSession::connect(config).await {
+            Ok(session) => session,
+            Err(error) => panic!("connects: {error}"),
+        };
+        let first = devtools_commands(&driver);
+        let phone: Vec<&str> = names(&first)
+            .into_iter()
+            .filter(|name| name.starts_with("Emulation."))
+            .collect();
+        assert_eq!(
+            phone,
+            [
+                "Emulation.setDeviceMetricsOverride",
+                "Emulation.setTouchEmulationEnabled",
+                "Emulation.setUserAgentOverride"
+            ],
+            "{first:?}"
+        );
+
+        let before = first.len();
+        session.switch_to_new_window().await.expect("a new window");
+        let after = devtools_commands(&driver);
+        assert_eq!(after.len(), before + 3, "{after:?}");
+        assert_eq!(names(&after)[before], "Emulation.setDeviceMetricsOverride");
+
+        session.switch_to_window("w2").await.expect("a switch");
+        assert_eq!(devtools_commands(&driver).len(), before + 6);
+        session.quit().await.expect("quits");
+    }
+
+    #[tokio::test]
+    async fn a_session_that_is_not_mobile_sends_no_emulation_command() {
+        let driver = driver();
+        let config = config_for(&driver).with_mode(DriverMode::Uc);
+        let mut session = BrowserSession::connect(config).await.expect("connects");
+        let sent = devtools_commands(&driver);
+        assert!(
+            names(&sent)
+                .iter()
+                .all(|name| !name.starts_with("Emulation.setDeviceMetrics")),
+            "{sent:?}"
+        );
+        session.quit().await.expect("quits");
     }
 }

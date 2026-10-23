@@ -4,7 +4,10 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use crate::browser::config::BrowserConfig;
-use crate::browser::options::{chrome_preferences, Bundled, LaunchSettings, LaunchSwitch};
+use crate::browser::options::{
+    chrome_preferences, emulated_phone, switch_args, Bundled, LaunchSettings, LaunchSwitch,
+    LocaleCode,
+};
 use crate::error::SeleniumBaseError;
 use crate::stealth::fingerprint::Fingerprint;
 use thirtyfour::common::capabilities::chromium::ChromiumLikeCapabilities;
@@ -14,7 +17,7 @@ use thirtyfour::LoggingPrefsLogLevel;
 /// Chrome on Android in its frozen format (release 10, model `K`), claiming
 /// [`PRESET_CHROMIUM_MAJOR`](crate::stealth::randomize::PRESET_CHROMIUM_MAJOR),
 /// which a test holds it to.
-const MOBILE_USER_AGENT: &str = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36";
+pub use crate::browser::options::MOBILE_USER_AGENT;
 
 /// Chrome's port for its remote debugger when none is named.
 pub const DEFAULT_REMOTE_DEBUG_PORT: u16 = 9222;
@@ -97,7 +100,8 @@ pub(crate) fn without_credentials(url: &str) -> String {
 impl From<&BrowserConfig> for StealthOptions {
     fn from(config: &BrowserConfig) -> Self {
         Self {
-            headless: config.headless,
+            headless: config.headless
+                || config.browser == crate::browser::config::Browser::ChromeHeadlessShell,
             window_size: config.launch.window_size.map(|size| size.to_string()),
             window_position: config
                 .launch
@@ -136,7 +140,8 @@ impl StealthOptions {
             caps.add_arg("--no-sandbox")?;
         }
         if self.headless {
-            caps.add_arg("--disable-gpu")?;
+            // `--disable-gpu` comes from `switch_args`: a test that needs WebGL
+            // (`enable_3d_apis`, `swiftshader`) keeps the GPU.
             caps.add_arg("--headless=new")?;
         }
 
@@ -151,11 +156,13 @@ impl StealthOptions {
         let set_by_fingerprint =
             |switch: &str| fingerprint_args.iter().any(|arg| arg.starts_with(switch));
 
+        // Maximized, a headed window takes the screen and no size is asked for.
+        let maximize = !self.headless && self.launch.has(LaunchSwitch::Maximize);
         let size =
             self.window_size
                 .as_deref()
                 .unwrap_or(if self.mobile { "390,844" } else { "1280,720" });
-        if !set_by_fingerprint("--window-size=") {
+        if !set_by_fingerprint("--window-size=") && !maximize {
             caps.add_arg(&format!("--window-size={size}"))?;
         }
         if let Some(position) = self.window_position.as_deref() {
@@ -171,7 +178,7 @@ impl StealthOptions {
             .as_deref()
             .filter(|_| !set_by_fingerprint("--lang="))
         {
-            caps.add_arg(&format!("--lang={locale}"))?;
+            caps.add_arg(&format!("--lang={}", LocaleCode::normalise(locale)))?;
         }
 
         let fingerprint_agent = set_by_fingerprint("--user-agent=");
@@ -256,17 +263,38 @@ impl StealthOptions {
             caps.set_page_load_strategy(strategy.into())?;
         }
 
-        let preferences = chrome_preferences(&launch.switches);
+        let mut preferences = chrome_preferences(&launch.switches);
+        // Python sets the language preference as well as `--lang`, so the
+        // `Accept-Language` header follows the locale.
+        if let Some(locale) = self
+            .locale
+            .as_deref()
+            .filter(|_| self.fingerprint.is_none())
+        {
+            preferences.insert(
+                "intl.accept_languages".into(),
+                serde_json::json!(LocaleCode::normalise(locale)),
+            );
+        }
         if !preferences.is_empty() {
             caps.add_experimental_option("prefs", preferences)?;
         }
 
-        if let Some(metrics) = launch.device_metrics {
-            let user_agent = self
-                .user_agent
-                .as_deref()
-                .or(self.mobile.then_some(MOBILE_USER_AGENT));
-            caps.add_experimental_option("mobileEmulation", metrics.mobile_emulation(user_agent))?;
+        // The phone screen: the one that was asked for, or the default one when
+        // only `mobile` is on. The undetected mode would show the capability, so
+        // it is sent the same phone over DevTools instead
+        // (`BrowserSession::apply_mobile_emulation`).
+        if !self.uc {
+            if let Some((metrics, user_agent)) = emulated_phone(
+                self.mobile,
+                launch.device_metrics,
+                self.user_agent.as_deref(),
+            ) {
+                caps.add_experimental_option(
+                    "mobileEmulation",
+                    metrics.mobile_emulation(user_agent),
+                )?;
+            }
         }
 
         // Chrome Sync is off unless it was asked for. The undetected-mode
@@ -300,6 +328,13 @@ impl StealthOptions {
             // Chrome 137 and later ignore `--load-extension` unless this
             // feature is off.
             caps.add_arg("--disable-features=DisableLoadExtensionCommandLineSwitch")?;
+        }
+
+        // The on/off switches that are Chromium arguments (dark mode, incognito,
+        // guest, devtools, web security, GPU, `--disable-features`, ...), in one
+        // place and a fixed order.
+        for arg in switch_args(launch, self.headless, loads_extensions) {
+            caps.add_arg(&arg)?;
         }
 
         if let Some(port) = launch.remote_debug_port {
@@ -708,11 +743,124 @@ mod tests {
         let emulation = chrome_options(&options_for(&own))["mobileEmulation"].clone();
         assert_eq!(emulation["userAgent"], "MyAgent/1.0");
 
-        // Without metrics there is no emulation, only the mobile defaults.
+        // Without metrics the default phone is emulated, as Python does.
         let mobile = BrowserConfig::default().with_mobile(true);
-        assert!(chrome_options(&options_for(&mobile))
+        let emulation = chrome_options(&options_for(&mobile))["mobileEmulation"].clone();
+        assert_eq!(
+            emulation["deviceMetrics"],
+            json!({"width": 390, "height": 715, "pixelRatio": 3.0})
+        );
+        assert_eq!(emulation["userAgent"], MOBILE_USER_AGENT);
+
+        // The undetected mode would show the capability: it is sent the phone
+        // over DevTools instead (`BrowserSession::apply_mobile_emulation`).
+        let uc = mobile.clone().with_mode(DriverMode::Uc);
+        assert!(chrome_options(&options_for(&uc))
             .get("mobileEmulation")
             .is_none());
+        let uc_metrics = uc.with_device_metrics(DeviceMetrics::new(360, 640, 2.0));
+        assert!(chrome_options(&options_for(&uc_metrics))
+            .get("mobileEmulation")
+            .is_none());
+
+        // Metrics given alone do not choose a user agent.
+        let mut metrics_only = BrowserConfig::default();
+        metrics_only.launch.device_metrics = Some(DeviceMetrics::new(360, 640, 2.0));
+        let emulation = chrome_options(&options_for(&metrics_only))["mobileEmulation"].clone();
+        assert!(emulation.get("userAgent").is_none());
+    }
+
+    #[test]
+    fn the_switches_reach_the_chromium_arguments() {
+        let config = BrowserConfig::default()
+            .with_headless(false)
+            .with_dark_mode(true)
+            .with_incognito(true)
+            .with_devtools(true)
+            .with_disable_gpu(true)
+            .with_chromium_arg("mute-audio,disable-features=Translate")
+            .with_disable_features(["Foo"])
+            .with_host_resolver_rules("MAP a.test 127.0.0.1");
+        let args = options_for(&config).args().unwrap();
+        for wanted in [
+            "--enable-features=WebContentsForceDark",
+            "--incognito",
+            "--auto-open-devtools-for-tabs",
+            "--disable-gpu",
+            "--mute-audio",
+            "--host-resolver-rules=MAP a.test 127.0.0.1",
+            "--disable-features=Translate,Foo",
+        ] {
+            assert!(args.contains(&wanted.to_owned()), "{wanted}: {args:?}");
+        }
+        // The headed window keeps the GPU unless it was switched off.
+        let plain = options_for(&BrowserConfig::default().with_headless(false))
+            .args()
+            .unwrap();
+        assert!(!plain.contains(&"--disable-gpu".to_owned()), "{plain:?}");
+    }
+
+    #[test]
+    fn a_loaded_extension_drops_incognito_and_the_feature_lists_are_one_switch() {
+        let config = BrowserConfig::default()
+            .with_incognito(true)
+            .with_guest_mode(true)
+            .with_disable_csp(true)
+            .with_disable_features(["Foo"]);
+        let args = options_for(&config).args().unwrap();
+        assert!(!args.contains(&"--incognito".to_owned()), "{args:?}");
+        assert!(!args.contains(&"--guest".to_owned()), "{args:?}");
+        let features: Vec<&String> = args
+            .iter()
+            .filter(|a| a.starts_with("--disable-features="))
+            .collect();
+        assert_eq!(features.len(), 1, "{args:?}");
+        assert!(features[0].contains("Foo"));
+        assert!(features[0].contains("DisableLoadExtensionCommandLineSwitch"));
+    }
+
+    #[test]
+    fn a_maximized_headed_window_asks_for_no_size_and_a_headless_one_keeps_it() {
+        let headed = options_for(
+            &BrowserConfig::default()
+                .with_headless(false)
+                .with_maximize(true),
+        )
+        .args()
+        .unwrap();
+        assert!(
+            headed.contains(&"--start-maximized".to_owned()),
+            "{headed:?}"
+        );
+        assert!(!headed.iter().any(|a| a.starts_with("--window-size=")));
+
+        let headless = options_for(&BrowserConfig::default().with_maximize(true))
+            .args()
+            .unwrap();
+        assert!(!headless.contains(&"--start-maximized".to_owned()));
+        assert!(headless.iter().any(|a| a.starts_with("--window-size=")));
+    }
+
+    #[test]
+    fn chrome_headless_shell_is_always_headless() {
+        let shell = BrowserConfig::default()
+            .with_browser(crate::browser::config::Browser::ChromeHeadlessShell)
+            .with_headless(false);
+        let args = options_for(&shell).args().unwrap();
+        assert!(args.contains(&"--headless=new".to_owned()), "{args:?}");
+    }
+
+    #[test]
+    fn the_locale_is_chromes_form_in_the_switch_and_the_preference() {
+        let config = BrowserConfig::default().with_locale("ar_eg");
+        let options = options_for(&config);
+        assert!(options.args().unwrap().contains(&"--lang=ar-EG".to_owned()));
+        assert_eq!(
+            chrome_options(&options)["prefs"]["intl.accept_languages"],
+            "ar-EG"
+        );
+        let plain = chrome_options(&options_for(&BrowserConfig::default()));
+        assert!(plain.get("prefs").is_none(), "{plain}");
     }
 
     #[test]
