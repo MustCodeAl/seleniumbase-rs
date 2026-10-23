@@ -53,6 +53,20 @@ work, `docs/parity.md` the per-API status).
   `reset_jqc_theme()` really brings back the factory theme (`bootstrap`, `blue`, `38%`, not
   `light`); Python's does nothing. Unlike Python's process-wide setting, the theme belongs to the
   case.
+- **`post_message`, `post_success_message` and `post_error_message` show Python's Messenger
+  widget and take Python's keyword arguments as builder methods.** They drew a plain box before and
+  took no `duration`, `pause` or `style`. `sb.post_message("Hi").await?` still compiles; now
+  `sb.post_message("Hi").duration(Duration::from_secs(1)).pause(false).style(MessageStyle::Success)
+  .await?` is Python's `post_message("Hi", 1, False, "success")` (the success and error calls
+  have `duration` and `pause`). The message is HTML, as in Python: escape text that is not yours.
+  A message stays for its `duration`, else the run's message duration, at most 0.75 s where nobody
+  watches, and the call returns 0.15 s after it has gone unless `pause` is false.
+  `post_message_for(message, duration)` is removed: write `post_message(message).duration(duration)`.
+  `post_message_and_highlight` posts a success message and does not wait for it.
+- **The default Messenger theme is `future`, as in Python (it was `flat`).**
+  `MessengerTheme::default()`, `MessengerSettings::default()` and `"default".parse::<MessengerTheme>()`
+  give `future`, so a `MessengerLocation` alone, for `set_messenger_theme`, keeps the future theme.
+
 
 ### Added
 
@@ -300,9 +314,8 @@ work, `docs/parity.md` the per-API status).
   `RunSettings::scale_timeout` gives the scaled time.
 - **`api::call::CallFuture` is the future of the call builders:** an async method that takes
   Python's keyword arguments will return a builder whose methods set the keywords and whose
-  `.await` runs the call, so `sb.method(arg).await?` keeps working. The empty modules
-  `api::demo` and `api::messages` are where the demo mode and Messenger
-  work will go.
+  `.await` runs the call, so `sb.method(arg).await?` keeps working. The empty module
+  `api::demo` is where the demo mode will go; `api::messages` holds the Messenger call builder.
 - **jquery-confirm dialog boxes: `get_jqc_button_input`, `get_jqc_text_input` and
   `get_jqc_form_inputs`.** Each opens a themed dialog in the page, waits for the person and returns
   what was clicked or typed (`api::jqc`). They are call builders: `.options([("theme", "material"),
@@ -317,6 +330,17 @@ work, `docs/parity.md` the per-API status).
   closed without an answer. `BaseCase::jqc_defaults` reads the stored theme.
 - **`BaseCase::with_somebody_watching` (feature `test-util`)** makes a headless case behave as if a
   person watches, so a test can play the person for the dialogs that wait for one.
+- **`activate_messenger` loads everything Python loads, and the pure CDP engine's too:** the five
+  theme style sheets (flat, future, block, air, ice), the spinner, Underscore 1.13.6,
+  SeleniumBase's own Messenger style and the scripts of the flat and future themes, then it starts
+  Messenger with Python's options (future theme, bottom right, eight messages). Files the page
+  already has are not added again. It is one script, so a page that blocks a file fails with an
+  error that names it.
+- **A message the page cannot show is printed:** when Messenger cannot be loaded (offline, or a
+  policy that blocks the scripts) `post_message` prints ` * INFO message: text` (the style in
+  capitals) and still pauses, as Python does; it does not fail the test. `api::messages::fallback_line`
+  gives the line.
+
 
 ### Fixed
 

@@ -1265,22 +1265,22 @@ rust = "BaseCase::play_tour"
 [basecase."post_error_message"]
 status = "implemented"
 rust = "BaseCase::post_error_message"
-divergence = "Shows a plain error box in the corner for the run's message duration, replacing the one showing; it is not Python's Messenger widget, takes no duration or pause arguments, and waits for the box to go as Python's default pause=True does."
+note = "Returns a PostMessage builder whose duration(), pause() and style() are Python's keyword arguments: `sb.post_error_message(text).duration(d).pause(false).await?`. Posts with Messenger (the future theme), as post_message does with the style fixed to error."
 
 [basecase."post_message"]
 status = "implemented"
 rust = "BaseCase::post_message"
-divergence = "Shows a plain box, not Python's Messenger widget (activate_messenger and set_messenger_theme drive the widget), for the run's message duration, 0.75 s at most in a headless browser, and waits for it to go as the default pause=True does. It takes no duration, pause or style arguments: post_message_for takes the duration."
+note = "Returns a PostMessage builder whose duration(), pause() and style() are Python's keyword arguments: `sb.post_message(text).duration(d).pause(false).style(MessageStyle::Error).await?`. Posts with Messenger, loading it first when the page lacks it. The message is HTML, as in Python; it stays for the duration, else the run's message duration, 0.75 s at most where nobody watches (headless or xvfb), and the call waits for it plus 0.15 s unless pause is false. When Messenger cannot be loaded the message is printed (` * INFO message: text`) and the call still pauses, as in Python; showing a message never fails the test."
 
 [basecase."post_message_and_highlight"]
 status = "implemented"
 rust = "BaseCase::post_message_and_highlight"
-divergence = "Shows a plain box (see post_success_message), then highlights the selector's element as Python does; it does not wait for the message to go first."
+divergence = "Posts the message as a success message without waiting for it, then highlights the element; Python highlights first and posts the message once the element has been outlined."
 
 [basecase."post_success_message"]
 status = "implemented"
 rust = "BaseCase::post_success_message"
-divergence = "Shows a plain success box in the corner for the run's message duration, replacing the one showing; it is not Python's Messenger widget, takes no duration or pause arguments, and waits for the box to go as Python's default pause=True does."
+note = "Returns a PostMessage builder whose duration() and pause() are Python's keyword arguments: `sb.post_success_message(text).duration(d).pause(false).await?`. Posts with Messenger (the future theme), as post_message does with the style fixed to success."
 
 [basecase."press_down_arrow"]
 status = "implemented"
@@ -1602,8 +1602,7 @@ rust = "BaseCase::set_local_storage_item"
 [basecase."set_messenger_theme"]
 status = "implemented"
 rust = "BaseCase::set_messenger_theme"
-note = "Takes MessengerSettings (theme, location, max_messages; the defaults are Python's), or a MessengerTheme or MessengerLocation alone, and loads Messenger first. The pure-CDP engine has Page::set_messenger_theme with the same arguments. The old colour setter is BaseCase::set_messenger_color."
-divergence = "BaseCase::post_message shows a plain box of its own, so the theme changes the Messenger widget (which the page or your script posts with) and not post_message's box."
+note = "Takes MessengerSettings (theme, location, max_messages; the defaults are Python's: future, bottom right, 8), or a MessengerTheme or MessengerLocation alone, and loads Messenger first (activate_messenger loads what Python loads: the five themes, the spinner, Underscore). BaseCase::post_message and its relatives post with the theme set here. The pure-CDP engine has Page::set_messenger_theme with the same arguments. The old colour setter is BaseCase::set_messenger_color."
 
 [basecase."set_session_storage_item"]
 status = "implemented"
@@ -2855,7 +2854,7 @@ note = "`page.emulation().locale(..)` sets the Intl locale and also the language
 [cdp."set_messenger_theme"]
 status = "implemented"
 rust = "Page::set_messenger_theme"
-note = "Theme, location and the message limit are typed in MessengerSettings; the defaults are Python's (flat, bottom right, 8). A MessengerTheme or a MessengerLocation alone is accepted too and keeps the defaults for the rest."
+note = "Theme, location and the message limit are typed in MessengerSettings; the defaults are Python's (future, bottom right, 8). A MessengerTheme or a MessengerLocation alone is accepted too and keeps the defaults for the rest."
 
 [cdp."set_session_storage_item"]
 status = "composed"
