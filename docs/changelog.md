@@ -119,6 +119,13 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   and writers (`log_test_failure_data`, `log_page_source`, `log_screenshot`, `archive_logs_if_set`);
   the `[report]` settings table and `SB_HTML`, `SB_JUNIT_XML`, `SB_ALLURE_DIR`, `SB_REPORT_DB` say
   where reports go. `RunReporterPlugin` reports through the plugin runner.
+- **Allure results (feature `allure`).** `core::allure::AllureSink` writes Allure 2 results into
+  `SB_ALLURE_DIR` (`<uuid>-result.json` per test with status, durations, labels, failure message and
+  trace, plus the screenshot, page source and test info of a failure as attachments, and
+  `environment.properties`), so `allure serve <folder>` shows the run. A run adds the sink itself
+  when the folder is set, and a test is one result however many sinks hear of it. The JSON is
+  written with `serde`: the feature adds no dependency.
+
 - **Gherkin scenarios as cargo tests (feature `bdd`).** `testing::bdd::&#123;sb, sb_cdp, SbCase,
   SbCdpCase&#125;` run a feature file's scenarios through rstest-bdd 0.6: `#[scenario(path = ..)]` on
   an async test that takes `#[future(awt)] sb: SbCase`, and `#[given]`/`#[when]`/`#[then]` steps

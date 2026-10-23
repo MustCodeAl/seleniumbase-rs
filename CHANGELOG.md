@@ -109,6 +109,13 @@ work, `docs/parity.md` the per-API status).
   is the result type that carries both a text for the model and the object.
 
 
+- **Allure results (feature `allure`).** `core::allure::AllureSink` writes Allure 2 results into
+  `SB_ALLURE_DIR` (`<uuid>-result.json` per test with status, durations, labels, failure message and
+  trace, plus the screenshot, page source and test info of a failure as attachments, and
+  `environment.properties`), so `allure serve <folder>` shows the run. A run adds the sink itself
+  when the folder is set, and a test is one result however many sinks hear of it. The JSON is
+  written with `serde`: the feature adds no dependency.
+
 - **Gherkin scenarios as cargo tests (feature `bdd`).** `testing::bdd::{sb, sb_cdp, SbCase,
   SbCdpCase}` run a feature file's scenarios through rstest-bdd 0.6: `#[scenario(path = ..)]` on
   an async test that takes `#[future(awt)] sb: SbCase`, and `#[given]`/`#[when]`/`#[then]` steps

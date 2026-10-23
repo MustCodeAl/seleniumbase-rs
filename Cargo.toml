@@ -207,8 +207,9 @@ testing = ["dep:rstest"]
 # `testing::bdd::{sb, sb_cdp, SbCase, SbCdpCase}`. The four crates are
 # optional and the macros' own dependency tree (i18n, rust-embed, gherkin) comes with them.
 bdd = ["testing", "dep:rstest-bdd", "dep:rstest-bdd-macros", "dep:rstest-bdd-harness", "dep:rstest-bdd-harness-tokio"]
-# Allure results (`core::allure`, `SB_ALLURE_DIR`). The feature has no dependency yet: the
-# lane that writes the results adds `dep:allure-rust-commons` here.
+# Allure results (`core::allure`, `SB_ALLURE_DIR`). The feature has no dependency on purpose: the
+# results are written with serde, and allure-rust-commons would add a crate for a sink that is told
+# the duration of each test afterwards (its facade stamps the time of its own calls).
 allure = []
 
 [dev-dependencies]
