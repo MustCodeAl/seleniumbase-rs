@@ -53,34 +53,3 @@
 mod profile;
 
 pub use profile::*;
-
-/// The old name of [`ProfileFlags`], which was easy to mistake for
-/// [`StealthPolicy`](crate::stealth::fingerprint::StealthPolicy).
-#[deprecated(note = "renamed ProfileFlags, so it is not mistaken for StealthPolicy")]
-pub type Flags = ProfileFlags;
-
-/// The old name of [`ProfileFingerprint`], which was easy to mistake for the
-/// [`Fingerprint`](crate::stealth::fingerprint::Fingerprint) it becomes.
-#[deprecated(note = "renamed ProfileFingerprint, so it is not mistaken for Fingerprint")]
-pub type Fingerprint = ProfileFingerprint;
-
-/// The old name of [`ProfileProxy`], which was easy to mistake for the
-/// [`ProxyConfig`](crate::stealth::fingerprint::ProxyConfig) it becomes.
-#[deprecated(note = "renamed ProfileProxy, so it is not mistaken for ProxyConfig")]
-pub type ProxyConfig = ProfileProxy;
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    #[allow(deprecated, reason = "the test is that the old names still work")]
-    fn the_old_names_are_the_new_types() {
-        let flags: Flags = ProfileFlags::default();
-        let fingerprint: Fingerprint = ProfileFingerprint::default();
-        let proxy: ProxyConfig = ProfileProxy::default();
-        assert_eq!(flags.webrtc_masking, "auto");
-        assert!(fingerprint.navigator.is_none());
-        assert_eq!(proxy.port, 0);
-    }
-}
