@@ -89,9 +89,8 @@ useful when you send raw commands directly.
 | Method | Description |
 |--------|-------------|
 | `cdp_mouse_click(x, y)` | Dispatch a CDP mouse click at viewport coordinates: CSS pixels from the top-left of the visible page, without the scroll position. |
-| `cdp_insert_text(text)` | Insert text into whatever has focus with one CDP command (`Input.insertText`): no key events, no selector, nothing cleared. `cdp_type_text` is its deprecated old name. |
+| `cdp_insert_text(text)` | Insert text into whatever has focus with one CDP command (`Input.insertText`): no key events, no selector, nothing cleared. |
 | `cdp_click(css)` | Scroll the element into view and click its centre with CDP input events. |
-| `cdp_click_element(css)` | Deprecated: it is `cdp_click`. It used to click at the element's place in the document, so it missed on a scrolled page. |
 | `execute_cdp(method)` | Send a raw CDP command with no parameters. |
 | `execute_cdp_with_params(method, params)` | Send a raw CDP command with JSON parameters. |
 | `execute_cdp_cmd(command, params)` | Alias for `execute_cdp_with_params`. |

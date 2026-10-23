@@ -26,7 +26,7 @@ lists the limits.
 
 <Visibility for="agents">
 
-Summary for AI exports: `RunSettings` carries the run-wide knobs of Python's pytest options as plain data: `with_demo_mode`, `with_slow_mode`, `with_demo_sleep`, `with_message_duration`, `with_default_timeout`, `with_skip_js_waits`, `with_record_sleep` and `with_visual_baseline_reset` (`with_fast_mode` is deprecated and does nothing). Pass them with `BrowserConfig::with_run_settings` or `BaseCase::set_run_settings`. `RunSettings::default()` changes nothing. Nothing reads them from the command line, the environment or a config file. Keep demo and slow mode out of CI.
+Summary for AI exports: `RunSettings` carries the run-wide knobs of Python's pytest options as plain data: `with_demo_mode`, `with_slow_mode`, `with_demo_sleep`, `with_message_duration`, `with_default_timeout`, `with_skip_js_waits`, `with_record_sleep` and `with_visual_baseline_reset`. Pass them with `BrowserConfig::with_run_settings` or `BaseCase::set_run_settings`. `RunSettings::default()` changes nothing. Nothing reads them from the command line, the environment or a config file. Keep demo and slow mode out of CI.
 
 </Visibility>
 
@@ -49,14 +49,6 @@ Outlines the element before the interactive calls, then pauses after them. [Whic
 Python option: `--slow` (also `--slow-mode`, `--slow_mode`, `--slowmo`).
 
 The same pauses, without the outline.
-
-</ParamField>
-
-<ParamField body="with_fast_mode" type="bool" default="off" deprecated>
-
-Python option: `--fast` (also `--fast-mode`, `--fast_mode`).
-
-Deprecated, does nothing. Python reads `--fast` only in CDP mode, to skip waits this crate never makes; it never cancels demo or slow mode.
 
 </ParamField>
 
@@ -134,8 +126,7 @@ assert_eq!(settings.message_duration(), Duration::from_millis(2550));
 `BaseCase::run_settings()` returns the settings in force. Besides `pause_for` and
 `message_duration` there are plain getters `demo_mode()`, `slow_mode()`,
 `demo_sleep()`, `skip_js_waits()`, `record_sleep()` and
-`reset_visual_baseline()`. The older `pause(tiny: bool)` and `message_seconds()`
-stay, deprecated, for code that already calls them.
+`reset_visual_baseline()`.
 
 ## A complete test
 
@@ -272,8 +263,8 @@ How the modes combine:
 <Note>
 
 Python's `--fast` does not appear here: it only skips short waits in CDP mode,
-which this crate never makes, so `with_fast_mode` is deprecated and does
-nothing. It never cancels the pauses.
+which this crate never makes, so `RunSettings` has no setting for it. It never
+cancels the pauses.
 
 </Note>
 

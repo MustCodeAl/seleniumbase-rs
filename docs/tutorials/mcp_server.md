@@ -769,7 +769,7 @@ WebDriver engine) and of the pure CDP engine's `Browser`, `Page`, `Locator` and
 `BrowserContext`. An exact name ranks first, then names that contain the query,
 then methods whose name, type or documentation mention every word. Each match has
 its type, its full signature as written in the source, the first paragraph of its
-documentation, whether it is `async` and whether it is deprecated.
+documentation and whether it is `async`.
 
 | Argument | Meaning |
 | --- | --- |
@@ -794,7 +794,6 @@ documentation, whether it is `async` and whether it is deprecated.
       "signature": "pub async fn wait_for_text(&self, text: &str, css: &str, timeout_secs: u64) -> Result<(), SeleniumBaseError>",
       "doc": "Waits up to `timeout_secs` for the element `css` to be displayed and contain `text`. ...",
       "is_async": true,
-      "deprecated": false,
       "file": "src/api/base_case.rs"
     }
   ],

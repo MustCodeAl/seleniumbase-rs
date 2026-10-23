@@ -363,8 +363,6 @@ assert!(fp.policy().chrome_runtime && fp.policy().disable_csp);
 | `disable_csp` (`.disable_csp(..)`) | `Page.setBypassCSP`. |
 | `open_shadow_roots` | The `attach_shadow` provider, which forces closed shadow roots open so automation can reach into them. A page can detect that, so turn it off where it matters. |
 
-`StealthFlags` is a deprecated alias of `StealthPolicy`, kept for one release.
-
 ### Fingerprints as JSON
 
 A `Spoof` is written as `"natural"` (and left out), `"random"`, `"off"` or the
@@ -385,9 +383,9 @@ Pure CDP engine), a fingerprint is applied in two layers:
    detect a JavaScript patch through `Function.prototype.toString`,
    `Object.getOwnPropertyNames`, or descriptor inspection, which is why the
    providers use the `sb` helpers to look native.
-2. The protocol overrides from `evasions::safe_cdp_overrides`. (The older
-   `evasions::cdp_overrides` is deprecated: it also holds the `Proxy-Authorization`
-   header that would hand the proxy's login to every site.) A command is sent
+2. The protocol overrides from `evasions::safe_cdp_overrides`, which leave out the
+   `Proxy-Authorization` header that would hand the proxy's login to every site.
+   A command is sent
    for a setting that holds a value, so a `Natural` setting sends nothing:
 
 | Command | Sent when |
@@ -488,8 +486,7 @@ session.close().await?;
 ```
 
 `BrowserConfig::default()` is headless; `.with_headless(false)` opens a window.
-(`launch_with_fingerprint` and `launch_headless_with_fingerprint` are
-deprecated shortcuts for this.) The session passes the
+The session passes the
 fingerprint's launch arguments, then evaluates the evasion script in the first
 page and again after every `goto` and `new_page`, because rustwright cannot
 register a script to run in each new document.

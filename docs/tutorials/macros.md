@@ -169,7 +169,6 @@ which panics on failure.
 | `sb_js!(sb, script)` | `sb.execute_script(script).await` |
 | `sb_quit!(sb)` | `sb.quit().await` |
 | `sb_assert_visible!(sb, selector)` | `sb.assert_element_visible(selector).await` |
-| `assert_visible!(sb, selector)` | the old, deprecated name of `sb_assert_visible!` |
 
 ## Form and timeout macros
 

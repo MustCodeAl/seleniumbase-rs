@@ -334,7 +334,7 @@ See [Macros](/tutorials/macros) for the full macro catalog.
 
 `run_browser_test` takes an async closure now, so `|sb| Box::pin(async move { .. })`
 does not compile ("implementation of `AsyncFnOnce` is not general enough"). Write
-`async |sb| { .. }`, or call `run_browser_test_boxed` while you migrate.
+`async |sb| { .. }`.
 
 </Accordion>
 

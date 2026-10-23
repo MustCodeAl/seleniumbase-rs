@@ -123,9 +123,8 @@ The presets all double the wait after each attempt, up to a longest wait:
 | `seleniumbase()` (the Python `retry_on_exception` defaults) | 6 | 1 s | 32 s |
 
 Or fill in the four public fields yourself. `retry_blocking` is the version for synchronous
-code. This module replaces the older `retry_on_exception`,
-`retry_on_exception_async` and `rate_limited` functions in `common::decorators`,
-which are deprecated.
+code. This module is the only retry and rate-limit API; the old decorator functions
+of `common` are gone.
 
 Two more helpers live beside it. `poll_until(timeout, policy, op)` calls an
 async operation until it returns `Some` or the deadline passes (the waits in

@@ -94,9 +94,7 @@ To use the Playwright session on its own, with no WebDriver browser, launch it
 directly with `launch_with_config`. The configuration decides whether it runs
 without a window (`BrowserConfig::default()` is headless; `with_headless(false)`
 opens one), which browser binary, proxy, user agent, window size and [`Fingerprint`](/tutorials/fingerprint_stealth) it
-uses. `launch_headless`, `launch_with_fingerprint` and
-`launch_headless_with_fingerprint` still work but are deprecated shortcuts for
-that:
+uses:
 
 ```rust,no_run
 # #[cfg(feature = "playwright")]
