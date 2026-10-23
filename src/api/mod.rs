@@ -14,6 +14,8 @@
 //! | [`pdf`] | PDF text extraction (feature `pdf`) |
 //! | [`chart`], [`presentation`] | Chart.js and reveal.js pages |
 //! | [`tour`], [`master_qa`] | Website tours and manual verification sessions |
+//! | [`call`] | [`CallFuture`](call::CallFuture), the future of a call that takes Python's keyword arguments |
+//! | [`demo`], [`messages`], [`jqc`] | Demo mode, Messenger alerts and jquery-confirm dialog boxes (not written yet) |
 //!
 //! Some modules are behind Cargo features, because they pull in platform
 //! libraries or large dependency trees that a headless test run does not need:
@@ -26,17 +28,21 @@
 //! | `pdf` | `pdf` | PDF text extraction, and `BaseCase::get_pdf_text` / `assert_pdf_text` |
 
 pub mod base_case;
+pub mod call;
 pub mod cdp_driver;
 pub mod cdp_page;
 pub mod chart;
 pub mod deferred;
+pub mod demo;
 #[cfg(feature = "gui")]
 pub mod dialog;
 #[cfg(feature = "gui")]
 pub mod gui;
 pub mod html;
 pub mod html_inspector;
+pub mod jqc;
 pub mod master_qa;
+pub mod messages;
 pub(crate) mod page_scripts;
 #[cfg(feature = "pdf")]
 pub mod pdf;
