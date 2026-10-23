@@ -254,9 +254,11 @@ mod tests {
 
     #[test]
     fn the_resolver_rules_and_the_disabled_features_are_one_switch_each() {
-        let mut launch = LaunchSettings::default();
-        launch.host_resolver_rules = Some("MAP example.com 127.0.0.1".to_owned());
-        launch.disable_features = vec!["Translate".to_owned(), "Foo".to_owned()];
+        let launch = LaunchSettings {
+            host_resolver_rules: Some("MAP example.com 127.0.0.1".to_owned()),
+            disable_features: vec!["Translate".to_owned(), "Foo".to_owned()],
+            ..LaunchSettings::default()
+        };
         assert_eq!(
             switch_args(&launch, false, false),
             [
