@@ -6,6 +6,18 @@ use crate::sb_cdp::messenger::{
     theme_script, MessengerSettings, JQUERY_URL, MESSENGER_CSS_URL, MESSENGER_JS_URL,
 };
 
+// The jquery-confirm dialogs of `get_jqc_*`; `JqcDefaults` is imported with
+// the case that holds it.
+use crate::api::jqc::{self, Answer, JqcButton, JqcButtonInput, JqcFormInputs, JqcTextInput};
+
+/// How often a dialog is asked whether it is still open (Python: 0.05 s).
+const JQC_POLL: Duration = Duration::from_millis(50);
+
+/// How long a dialog is given to appear before its box is focused (Python:
+/// 0.02 s).
+const JQC_SETTLE: Duration = Duration::from_millis(20);
+
+
 const JQUERY_CONFIRM_CSS_URL: &str =
     "https://cdnjs.cloudflare.com/ajax/libs/jquery-confirm/3.3.4/jquery-confirm.min.css";
 const JQUERY_CONFIRM_JS_URL: &str =
@@ -160,52 +172,152 @@ impl BaseCase {
         .await
     }
 
-    /// Sets the theme jquery-confirm dialogs use (`modern`, `material`,
-    /// `bootstrap`, `supervan`, `light`, `dark`, `seamless`, ...).
+    /// Sets the theme, and the border colour and the width when they are
+    /// given, that the next jquery-confirm dialogs use, as Python's
+    /// `set_jqc_theme(theme, color=None, width=None)` does.
     ///
-    /// Call [`BaseCase::activate_jquery_confirm`] first.
+    /// The themes are `bootstrap`, `modern`, `material`, `supervan`, `light`,
+    /// `dark` and `seamless`; the colours (of the dialog's border, not of its
+    /// buttons) are `blue`, `default`, `green`, `red`, `purple`, `orange` and
+    /// `dark`, in any case. The width is a percent or pixels: `"36.0%"` or
+    /// `"450px"`, or a whole number, which is a percent up to 100 and pixels
+    /// above. Nothing is written into the page: the dialogs of
+    /// [`get_jqc_button_input`](Self::get_jqc_button_input),
+    /// [`get_jqc_text_input`](Self::get_jqc_text_input) and
+    /// [`get_jqc_form_inputs`](Self::get_jqc_form_inputs) are built from these
+    /// settings, and a call's own `options` win for that call.
+    ///
+    /// The settings belong to this case, where Python keeps them for the whole
+    /// process. They are all or nothing: a bad part changes none of them.
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::InvalidConfig`] if `theme` is not a plain
-    /// name, or if jquery-confirm is not loaded in the page.
-    pub async fn set_jqc_theme(&self, theme: &str) -> Result<(), SeleniumBaseError> {
-        self.set_jqc_default_theme(theme).await
+    /// Returns [`SeleniumBaseError::InvalidConfig`], with Python's message, if
+    /// the theme, the colour or the width is not valid.
+    pub fn set_jqc_theme(
+        &mut self,
+        theme: &str,
+        color: Option<&str>,
+        width: Option<&str>,
+    ) -> Result<(), SeleniumBaseError> {
+        self.jqc = self.jqc.changed(theme, color, width)?;
+        Ok(())
     }
 
-    /// Restores jquery-confirm's default theme (`light`).
+    /// Resets the jquery-confirm theme, border colour and width to the factory
+    /// defaults: `bootstrap`, `blue` and `38%` ([`JqcDefaults::default`]).
+    /// Python's `reset_jqc_theme` never does this in 4.55.2; here it does.
+    pub fn reset_jqc_theme(&mut self) {
+        self.jqc = JqcDefaults::default();
+    }
+
+    /// The theme, border colour and width the next jquery-confirm dialogs use.
+    #[must_use]
+    pub fn jqc_defaults(&self) -> &JqcDefaults {
+        &self.jqc
+    }
+
+    /// Pops up a jquery-confirm box with `buttons` and returns the text of the
+    /// button that was clicked, as Python's `get_jqc_button_input(message,
+    /// buttons, options=None)` does.
+    ///
+    /// `message` is HTML. A button is a text, a text and a colour name
+    /// (`("Yes!", "green")`) or a [`JqcButton`]; the colours are `blue`,
+    /// `green`, `red`, `orange`, `purple`, `default` and `dark`. With one
+    /// button Enter, `y` and `1` click it; with several, `y` clicks `Yes`, `n`
+    /// clicks `No` and the number keys click the buttons. The call waits for
+    /// the person for as long as it takes, unless
+    /// [`set_time_limit`](Self::set_time_limit) ends the test first. Python's
+    /// `options` is the builder method `.options([("theme", "modern"),
+    /// ("width", "450px")])`.
+    ///
+    /// In a headless browser, or on a virtual display, no dialog opens and the
+    /// text of the last button comes back at once.
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::InvalidConfig`] if jquery-confirm is not
-    /// loaded in the page.
-    pub async fn reset_jqc_theme(&self) -> Result<(), SeleniumBaseError> {
-        self.set_jqc_default_theme("light").await
+    /// Awaiting the call returns [`SeleniumBaseError::InvalidConfig`] if there
+    /// is no button, a colour or an option is not valid, or the dialog closed
+    /// without an answer because the page went away, and
+    /// [`SeleniumBaseError::Download`] if the page cannot load jquery-confirm.
+    pub fn get_jqc_button_input<'a, B: Into<JqcButton>>(
+        &'a self,
+        message: &'a str,
+        buttons: impl IntoIterator<Item = B>,
+    ) -> JqcButtonInput<'a> {
+        let buttons = buttons.into_iter().map(Into::into).collect();
+        JqcButtonInput::new(self, message, buttons, self.jqc.clone())
     }
 
-    async fn set_jqc_default_theme(&self, theme: &str) -> Result<(), SeleniumBaseError> {
-        let valid = !theme.is_empty()
-            && theme
-                .chars()
-                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_');
-        if !valid {
-            return Err(SeleniumBaseError::InvalidConfig(format!(
-                "jquery-confirm theme must be a plain name such as 'modern' (got {theme:?})"
-            )));
-        }
-        let script = format!(
-            "if (typeof window.jconfirm === 'undefined') {{ return false; }} \
-             window.jconfirm.defaults = window.jconfirm.defaults || {{}}; \
-             window.jconfirm.defaults.theme = {}; return true;",
-            quote(theme)
-        );
-        if self.execute_script(&script).await?.as_bool() == Some(true) {
-            return Ok(());
-        }
-        Err(SeleniumBaseError::InvalidConfig(
-            "jquery-confirm is not loaded in this page; call activate_jquery_confirm first".to_owned(),
-        ))
+    /// Pops up a jquery-confirm box with one input and returns the text
+    /// submitted, as Python's `get_jqc_text_input(message, button=None,
+    /// options=None)` does. Enter submits.
+    ///
+    /// Python's `button` is the builder method `.button(...)`, a text or a text
+    /// and a colour; the default is a blue `Submit`. Python's `options` is
+    /// `.options(...)`.
+    ///
+    /// In a headless browser, or on a virtual display, no dialog opens and `""`
+    /// comes back at once.
+    ///
+    /// # Errors
+    ///
+    /// As for [`get_jqc_button_input`](Self::get_jqc_button_input), except that
+    /// having no button is not an error.
+    pub fn get_jqc_text_input<'a>(&'a self, message: &'a str) -> JqcTextInput<'a> {
+        JqcTextInput::new(self, message, self.jqc.clone())
     }
+
+    /// Pops up a jquery-confirm box with an input and buttons and returns the
+    /// text typed and the text of the button clicked, as Python's
+    /// `get_jqc_form_inputs(message, buttons, options=None)` does. With one
+    /// button, Enter clicks it.
+    ///
+    /// In a headless browser, or on a virtual display, no dialog opens and
+    /// `("", last button text)` comes back at once.
+    ///
+    /// # Errors
+    ///
+    /// As for [`get_jqc_button_input`](Self::get_jqc_button_input).
+    pub fn get_jqc_form_inputs<'a, B: Into<JqcButton>>(
+        &'a self,
+        message: &'a str,
+        buttons: impl IntoIterator<Item = B>,
+    ) -> JqcFormInputs<'a> {
+        let buttons = buttons.into_iter().map(Into::into).collect();
+        JqcFormInputs::new(self, message, buttons, self.jqc.clone())
+    }
+
+    /// Opens the dialog `script` builds, focuses `focus`, and waits for the
+    /// person to answer it.
+    ///
+    /// It polls every 50 ms whether a dialog is still open and has no time
+    /// limit of its own, as in Python; the test's
+    /// [time limit](Self::set_time_limit) ends the wait. When the dialog is gone
+    /// it reads what the dialog stored.
+    pub(crate) async fn run_jqc_dialog(
+        &self,
+        script: &str,
+        focus: &str,
+    ) -> Result<Answer, SeleniumBaseError> {
+        self.activate_jquery_confirm().await?;
+        self.execute_script(script).await?;
+        tokio::time::sleep(JQC_SETTLE).await;
+        // Python ignores a failure to focus: the box may be gone already.
+        let _ = self.execute_script(focus).await;
+        loop {
+            tokio::time::sleep(JQC_POLL).await;
+            self.check_time_limit()?;
+            match self.execute_script(jqc::OPEN_COUNT_SCRIPT).await?.as_i64() {
+                Some(0) => break,
+                // jquery-confirm is gone: the page navigated.
+                Some(open) if open < 0 => return Err(jqc::closed_without_answer()),
+                _ => {}
+            }
+        }
+        Answer::from_value(&self.execute_script(jqc::ANSWER_SCRIPT).await?)
+    }
+
 
     /// Injects a small CSS snippet to customize IntroJS highlight colors.
     ///

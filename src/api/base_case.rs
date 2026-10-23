@@ -14,6 +14,7 @@ use tracing::{debug, info, instrument};
 
 use crate::api::deferred::DeferredAsserts;
 use crate::api::html::BeautifulSoup;
+use crate::api::jqc::JqcDefaults;
 use crate::api::master_qa::{MasterQA, MasterQaSession};
 use crate::api::page_scripts::{self, TextMatch};
 #[cfg(feature = "pdf")]
@@ -82,6 +83,14 @@ pub struct BaseCase {
     test_name: Option<String>,
     /// Run-wide demo, slow, fast and similar settings.
     run_settings: RunSettings,
+    /// The theme, border colour and width of the next jquery-confirm dialogs,
+    /// from [`BaseCase::set_jqc_theme`]. Kept per case (Python keeps them
+    /// process-wide).
+    jqc: JqcDefaults,
+    /// Makes [`BaseCase::nobody_watches`] false in a headless browser, so a
+    /// test can run the dialogs that wait for a person.
+    #[cfg(any(test, feature = "test-util"))]
+    somebody_watching: bool,
     /// The pauses demo and slow mode made, oldest first, for
     /// [`BaseCase::demo_pauses`].
     #[cfg(any(test, feature = "test-util"))]
@@ -150,6 +159,9 @@ impl BaseCase {
             drivers: DriverTable::new(),
             test_name: None,
             run_settings,
+            jqc: JqcDefaults::default(),
+            #[cfg(any(test, feature = "test-util"))]
+            somebody_watching: false,
             #[cfg(any(test, feature = "test-util"))]
             demo_pauses_made: Mutex::new(Vec::new()),
             swapped_pages: Vec::new(),
@@ -1463,6 +1475,18 @@ impl BaseCase {
         }
     }
 
+    /// Makes the case behave as if somebody watches the browser even when it
+    /// is headless or on a virtual display, so a test can run the dialogs that
+    /// wait for a person ([`get_jqc_button_input`](Self::get_jqc_button_input)
+    /// and the others) in a browser nobody sits at. A test script then plays
+    /// the person.
+    #[cfg(any(test, feature = "test-util"))]
+    #[must_use]
+    pub fn with_somebody_watching(mut self) -> Self {
+        self.somebody_watching = true;
+        self
+    }
+
     /// Whether nobody watches the browser: it is headless (`--headless` or
     /// `--headless2`) or runs on a virtual display (`--xvfb`), as Python tests
     /// `self.headless or self.xvfb`.
@@ -1471,6 +1495,10 @@ impl BaseCase {
     /// shorten it: a message stays at most 0.75 s, the highlight loops are
     /// halved, and the dialogs and tours that need an answer do not open.
     pub(crate) fn nobody_watches(&self) -> bool {
+        #[cfg(any(test, feature = "test-util"))]
+        if self.somebody_watching {
+            return false;
+        }
         self.config.headless || self.config.launch.virtual_display.is_some()
     }
 
