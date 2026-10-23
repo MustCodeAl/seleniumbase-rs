@@ -58,6 +58,9 @@ tracing = "0.1"
 # other tables, and finds the `claude`, `codex` and `code` programs on PATH.
 toml_edit = "0.25"
 which = "8.0"
+# `sbrs encrypt` and `sbrs decrypt` with no argument on a terminal: reads the text and the
+# passphrase without echo.
+rpassword = "7.5"
 
 [features]
 # The prebuilt binaries and `cargo install` carry PDF text extraction, the MCP
