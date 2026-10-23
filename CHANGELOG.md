@@ -10,6 +10,10 @@ work, `docs/parity.md` the per-API status).
 
 ### Breaking
 
+- **Test results carry a status.** `TestResult.passed` is now `status: TestStatus` (passed,
+  failed, skipped, untested, unreported) plus `log_dir`; `ReportSummary` counts the new states;
+  `render_html_report` and `write_html_report[_async]` moved to `core::dashboard` and take a
+  `RunSnapshot` and `PageOptions`.
 - **The behave port is removed; Gherkin runs through rstest-bdd.** Module
   `seleniumbase_rs::behave` (`StepRegistry`, `AsyncStepRegistry`, `CommonSteps`, `run_feature_*`,
   `RunFilter`) and `examples/behave_feature.rs` are gone: a feature file is now a cargo test with
@@ -69,6 +73,14 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- **A run's results across test binaries (`core::test_run`).** `TestRun` keeps one run's state in
+  `<root>/.sbrs_run/` under a file lock, so every test binary of a `cargo test` or nextest run
+  adds to the same report (`SB_RUN_ID`, else `NEXTEST_RUN_ID`, else the parent cargo process);
+  `RunFinalizer` records each attempt of an `sb` fixture test with the evidence it took, and
+  `finalize` marks unfinished tests unreported. `core::log_helper` has Python's log folder rules
+  and writers (`log_test_failure_data`, `log_page_source`, `log_screenshot`, `archive_logs_if_set`);
+  the `[report]` settings table and `SB_HTML`, `SB_JUNIT_XML`, `SB_ALLURE_DIR`, `SB_REPORT_DB` say
+  where reports go. `RunReporterPlugin` reports through the plugin runner.
 - **Gherkin scenarios as cargo tests (feature `bdd`).** `testing::bdd::{sb, sb_cdp, SbCase,
   SbCdpCase}` run a feature file's scenarios through rstest-bdd 0.6: `#[scenario(path = ..)]` on
   an async test that takes `#[future(awt)] sb: SbCase`, and `#[given]`/`#[when]`/`#[then]` steps
