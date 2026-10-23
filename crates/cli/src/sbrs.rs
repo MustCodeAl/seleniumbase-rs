@@ -242,8 +242,9 @@ struct GridArgs {
     /// What to do with the Grid process.
     #[usage(value_enum)]
     action: GridActionArg,
-    /// The Selenium Server jar (default: the SB_SELENIUM_SERVER_JAR variable).
-    /// It is never downloaded.
+    /// The Selenium Server jar (default: SB_SELENIUM_SERVER_JAR, else the newest in
+    /// downloaded_drivers/).
+    /// This command never downloads it.
     #[usage(long, value_name = "PATH", value_hint = usage::ValueHint::AnyPath)]
     jar: Option<PathBuf>,
     /// The Java executable (default: `java` on PATH).
@@ -871,6 +872,16 @@ enum Commands {
         example = "sbrs proxy --port 8899"
     )]
     Proxy(args::tools::ProxyArgs),
+    /// Download Selenium Server 4, the jar that `grid-hub` and `grid-node` run.
+    ///
+    /// `sbrs download server` saves selenium-server-VERSION.jar in ./downloaded_drivers/ and
+    /// prints its path and SHA-256. The release this build pins is checked against its
+    /// checksum; another one is not.
+    #[usage(
+        help_heading = "Drivers, grid and servers",
+        example = "sbrs download server"
+    )]
+    Download(args::tools::DownloadArgs),
 
     /// Encrypt text with a passphrase (AES-256-GCM); read from stdin if TEXT is omitted.
     ///
@@ -1294,7 +1305,9 @@ enum Commands {
     },
     /// Start, stop, restart or check a Selenium Grid hub.
     ///
-    /// Needs a Selenium Server jar you supply; nothing is downloaded. The
+    /// Needs a Selenium Server jar: --jar, SB_SELENIUM_SERVER_JAR, or the newest one in
+    /// downloaded_drivers/ (`sbrs download server` saves one there). This command downloads
+    /// nothing. The
     /// process record and log are kept in a folder of your own (SB_GRID_DIR).
     #[usage(
         help_heading = "Drivers, grid and servers",
@@ -1822,6 +1835,7 @@ impl Commands {
             | Self::GridHub(_)
             | Self::GridNode(_)
             | Self::Proxy(_)
+            | Self::Download(_)
             | Self::Translate { .. }
             | Self::Mkdir { .. }
             | Self::Mkfile { .. }
@@ -2247,6 +2261,33 @@ fn text_or_stdin(value: Option<String>) -> Result<String, Box<dyn std::error::Er
     let mut text = String::new();
     std::io::Read::read_to_string(&mut std::io::stdin(), &mut text)?;
     Ok(text.trim_end_matches(['\n', '\r']).to_owned())
+}
+
+/// Runs `download server`: saves the Selenium Server jar, then prints where it is and its
+/// SHA-256, saying whether that was checked against the checksum pinned in this build.
+async fn run_download(
+    command: &args::tools::DownloadCommand,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let args::tools::DownloadCommand::Server(server) = command;
+    let folder = Path::new(seleniumbase_rs::browser::binaries::DOWNLOADS_DIR);
+    let jar = sb_grid::download_server(server.version.as_deref(), folder).await?;
+    println!("{}", jar.path.display());
+    if jar.reused {
+        eprintln!("It was downloaded already.");
+    }
+    if jar.verified {
+        println!(
+            "SHA-256 {}: verified against the checksum pinned in this build",
+            jar.sha256
+        );
+    } else {
+        println!(
+            "SHA-256 {}: not verified (only Selenium Server {} has a checksum pinned in this build)",
+            jar.sha256,
+            sb_grid::SERVER_VERSION
+        );
+    }
+    Ok(())
 }
 
 /// Runs `grid-hub` or `grid-node` and prints what happened.
@@ -3076,6 +3117,8 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Commands::GridHub(grid) => return run_grid(GridRole::Hub, grid).await,
         Commands::GridNode(grid) => return run_grid(GridRole::Node, grid).await,
         Commands::Proxy(proxy) => return proxy::run(proxy).await,
+        Commands::Download(download) => return run_download(&download.command).await,
+
         Commands::Encrypt { text: None } if crypto::prompts() => {
             return crypto::interactive(crypto::Kind::Encrypt).await;
         }
@@ -3748,6 +3791,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         | Commands::GridHub(_)
         | Commands::GridNode(_)
         | Commands::Proxy(_)
+        | Commands::Download(_)
         | Commands::Devtools { .. } => {
             unreachable!("these commands return before browser configuration")
         }

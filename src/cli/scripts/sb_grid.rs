@@ -3,7 +3,9 @@
 //! Python SeleniumBase starts, stops and restarts a Selenium Grid hub or node
 //! with `sbrs grid-hub {start|stop|restart}` and `sbrs grid-node ...`. This
 //! is the same, built on [`GridProcess`]. The Selenium Server jar is supplied
-//! by the user (`--jar` or `SB_SELENIUM_SERVER_JAR`) and is never downloaded;
+//! by the user (`--jar`, `SB_SELENIUM_SERVER_JAR`, or the newest jar that
+//! `sbrs download server` saved in `downloaded_drivers/`) and is never
+//! downloaded by these commands themselves;
 //! `status` is an addition that reports whether the Grid is up and ready.
 //!
 //! [`run`] does the work and returns the lines to show, so the command can be
@@ -12,6 +14,8 @@
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+use crate::browser::binaries::DOWNLOADS_DIR;
 
 use crate::error::SeleniumBaseError;
 use crate::utilities::grid_server::{GridLaunch, GridProcess, GridRole, RunState, StopOutcome};
@@ -111,8 +115,9 @@ pub fn resolve_jar(
         })
         .ok_or_else(|| {
             SeleniumBaseError::invalid_config(format!(
-                "no Selenium Server jar: pass --jar PATH or set {JAR_ENV}. sbrs does not \
-                 download it; get selenium-server-<version>.jar from \
+                "no Selenium Server jar: pass --jar PATH, set {JAR_ENV}, or run \
+                 `sbrs download server`. sbrs does not \
+                 download it by itself; or get selenium-server-<version>.jar from \
                  https://github.com/SeleniumHQ/selenium/releases"
             ))
         })
@@ -140,8 +145,228 @@ pub async fn run(command: &GridCommand) -> Result<Vec<String>, SeleniumBaseError
     }
 }
 
+/// The jar to run: [`resolve_jar`]'s, else the newest `selenium-server-X.Y.Z.jar` in
+/// `downloads` (what `sbrs download server` saves).
+///
+/// # Errors
+///
+/// Returns the error of [`resolve_jar`] when nothing names a jar and the folder has none.
+pub fn resolve_server_jar(
+    explicit: Option<&Path>,
+    from_env: Option<OsString>,
+    downloads: &Path,
+) -> Result<PathBuf, SeleniumBaseError> {
+    resolve_jar(explicit, from_env).or_else(|error| newest_downloaded_jar(downloads).ok_or(error))
+}
+
+/// The Selenium Server release `sbrs download server` fetches when no version is asked for.
+pub const SERVER_VERSION: &str = "4.51.0";
+
+/// The SHA-256 of `selenium-server-4.51.0.jar`, as GitHub lists it for the release asset. The
+/// download of [`SERVER_VERSION`] is checked against it; another version is not.
+pub const SERVER_SHA256: &str = "f4ddbb992fd99c4152934b832c5fe5502a5ca207a1d1cb96af8e5068955c5037";
+
+/// Where Selenium's releases are downloaded from.
+const SERVER_RELEASES: &str = "https://github.com/SeleniumHQ/selenium/releases/download";
+
+/// The most bytes a Selenium Server jar may have (the jar of 4.51.0 has 56 MB).
+const SERVER_MAX_BYTES: usize = 128 * 1024 * 1024;
+
+/// A Selenium Server jar in the downloads folder.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ServerJar {
+    /// Where the jar is.
+    pub path: PathBuf,
+    /// The SHA-256 of the jar, in lower-case hex.
+    pub sha256: String,
+    /// Whether the SHA-256 is the one pinned in this build ([`SERVER_SHA256`]).
+    pub verified: bool,
+    /// Whether the jar was in the folder already, and nothing was downloaded.
+    pub reused: bool,
+}
+
+/// Downloads Selenium Server 4 into `dir` as `selenium-server-VERSION.jar`.
+///
+/// `version` is a Selenium 4 release such as `4.51.0`; without one it is [`SERVER_VERSION`].
+/// That release is checked against [`SERVER_SHA256`] and a download that differs is not saved;
+/// any other release is saved as it arrives and [`ServerJar::verified`] is `false`. A jar of the
+/// same name that is already in `dir` is not downloaded again, unless the version is the pinned
+/// one and the file does not match its hash. Needs network access otherwise.
+///
+/// # Errors
+///
+/// Returns an error for a version that is not a Selenium 4 release (Selenium 3's Grid is gone),
+/// a download that fails, is larger than 128 MiB or does not match the pinned hash, or a file
+/// that cannot be written.
+pub async fn download_server(
+    version: Option<&str>,
+    dir: &Path,
+) -> Result<ServerJar, SeleniumBaseError> {
+    let version = server_version(version.unwrap_or(SERVER_VERSION))?;
+    let name = format!("selenium-server-{version}.jar");
+    let url = format!("{SERVER_RELEASES}/selenium-{version}/{name}");
+    let expected = (version == SERVER_VERSION).then_some(SERVER_SHA256);
+    fetch_jar(&url, &dir.join(name), expected, SERVER_MAX_BYTES).await
+}
+
+/// `text` if it names a Selenium 4 release: three numbers separated by dots, the first 4.
+fn server_version(text: &str) -> Result<&str, SeleniumBaseError> {
+    let parts: Vec<&str> = text.split('.').collect();
+    let numbers = parts.len() == 3
+        && parts
+            .iter()
+            .all(|part| (1..=4).contains(&part.len()) && part.bytes().all(|b| b.is_ascii_digit()));
+    if !numbers {
+        return Err(SeleniumBaseError::parse(
+            text,
+            "a Selenium Server version such as 4.51.0",
+        ));
+    }
+    if parts[0] != "4" {
+        return Err(SeleniumBaseError::invalid_config(format!(
+            "only Selenium Server 4 can be downloaded, not {text}: Selenium Grid 3 is gone"
+        )));
+    }
+    Ok(text)
+}
+
+/// Downloads `url` to `dest`, or reuses the file already there (see [`download_server`]).
+async fn fetch_jar(
+    url: &str,
+    dest: &Path,
+    expected: Option<&str>,
+    max_bytes: usize,
+) -> Result<ServerJar, SeleniumBaseError> {
+    if let Ok(existing) = tokio::fs::read(dest).await {
+        let sha256 = sha256_hex(&existing);
+        // A pinned jar that does not match its hash is damaged or replaced: fetch it again.
+        if expected.is_none_or(|hash| hash == sha256) {
+            return Ok(ServerJar {
+                path: dest.to_path_buf(),
+                sha256,
+                verified: expected.is_some(),
+                reused: true,
+            });
+        }
+    }
+    crate::install_tls_provider();
+    let client = reqwest::Client::builder()
+        .connect_timeout(Duration::from_secs(30))
+        .read_timeout(Duration::from_secs(60))
+        .build()
+        .map_err(|error| SeleniumBaseError::download(url, error.to_string()))?;
+    let network = |error: reqwest::Error| {
+        SeleniumBaseError::network(
+            url,
+            error.status().map_or(0, |status| status.as_u16()),
+            error.to_string(),
+        )
+    };
+    let too_large = || {
+        SeleniumBaseError::download(
+            url,
+            format!("the file is larger than {max_bytes} bytes, which no Selenium Server jar is"),
+        )
+    };
+    let mut response = client
+        .get(url)
+        .send()
+        .await
+        .and_then(reqwest::Response::error_for_status)
+        .map_err(network)?;
+    if response
+        .content_length()
+        .is_some_and(|length| length > max_bytes as u64)
+    {
+        return Err(too_large());
+    }
+    let mut bytes = Vec::new();
+    while let Some(chunk) = response.chunk().await.map_err(network)? {
+        if bytes.len() + chunk.len() > max_bytes {
+            return Err(too_large());
+        }
+        bytes.extend_from_slice(&chunk);
+    }
+    let sha256 = sha256_hex(&bytes);
+    if let Some(hash) = expected {
+        if sha256 != hash {
+            return Err(SeleniumBaseError::invalid_config(format!(
+                "the download from {url} has SHA-256 {sha256}, not the pinned {hash}; \
+                 it was not saved"
+            )));
+        }
+    }
+    let path = dest.to_path_buf();
+    let target = path.clone();
+    tokio::task::spawn_blocking(move || save(&target, &bytes))
+        .await
+        .map_err(|error| {
+            SeleniumBaseError::download(url, format!("saving the jar stopped: {error}"))
+        })??;
+    Ok(ServerJar {
+        path,
+        sha256,
+        verified: expected.is_some(),
+        reused: false,
+    })
+}
+
+/// Writes `bytes` to a temporary file in the folder of `dest` and renames it to `dest`, so a
+/// cut write never looks like a jar.
+fn save(dest: &Path, bytes: &[u8]) -> Result<(), SeleniumBaseError> {
+    use std::io::Write as _;
+    let dir = match dest.parent() {
+        Some(dir) if !dir.as_os_str().is_empty() => dir,
+        _ => Path::new("."),
+    };
+    std::fs::create_dir_all(dir)?;
+    let mut file = tempfile::NamedTempFile::new_in(dir)?;
+    file.write_all(bytes)?;
+    file.persist(dest)
+        .map_err(|error| SeleniumBaseError::Io(error.error))?;
+    Ok(())
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    use std::fmt::Write as _;
+    let digest = ring::digest::digest(&ring::digest::SHA256, bytes);
+    digest.as_ref().iter().fold(String::new(), |mut hex, byte| {
+        // Writing to a String cannot fail.
+        let _ = write!(hex, "{byte:02x}");
+        hex
+    })
+}
+
+/// The newest `selenium-server-X.Y.Z.jar` in `dir`, by version number.
+#[must_use]
+pub fn newest_downloaded_jar(dir: &Path) -> Option<PathBuf> {
+    std::fs::read_dir(dir)
+        .ok()?
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let version = jar_version(entry.file_name().to_str()?)?;
+            entry.path().is_file().then(|| (version, entry.path()))
+        })
+        .max_by_key(|(version, _)| *version)
+        .map(|(_, path)| path)
+}
+
+/// The version in the name of a jar `sbrs download server` saves.
+fn jar_version(name: &str) -> Option<(u32, u32, u32)> {
+    let version = name
+        .strip_prefix("selenium-server-")?
+        .strip_suffix(".jar")?;
+    let mut parts = version.split('.').map(|part| part.parse::<u32>().ok());
+    let found = (parts.next()??, parts.next()??, parts.next()??);
+    parts.next().is_none().then_some(found)
+}
+
 fn launch_for(command: &GridCommand) -> Result<GridLaunch, SeleniumBaseError> {
-    let jar = resolve_jar(command.jar.as_deref(), std::env::var_os(JAR_ENV))?;
+    let jar = resolve_server_jar(
+        command.jar.as_deref(),
+        std::env::var_os(JAR_ENV),
+        Path::new(DOWNLOADS_DIR),
+    )?;
     let mut launch = match command.role {
         GridRole::Hub => GridLaunch::hub(jar),
         GridRole::Node => {
@@ -314,7 +539,235 @@ fn describe_age(started_at: u64) -> String {
 mod tests {
     use super::*;
 
+    fn jar_server(body: &[u8]) -> (String, std::sync::Arc<std::sync::atomic::AtomicUsize>) {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let address = listener.local_addr().unwrap();
+        let listener = tokio::net::TcpListener::from_std(listener).unwrap();
+        let hits = Arc::new(AtomicUsize::new(0));
+        let (counter, body) = (Arc::clone(&hits), body.to_vec());
+        tokio::spawn(async move {
+            while let Ok((mut stream, _)) = listener.accept().await {
+                counter.fetch_add(1, Ordering::SeqCst);
+                let body = body.clone();
+                tokio::spawn(async move {
+                    let mut seen = Vec::new();
+                    let mut chunk = [0_u8; 1024];
+                    while !seen.windows(4).any(|window| window == b"\r\n\r\n") {
+                        match stream.read(&mut chunk).await {
+                            Ok(count) if count > 0 => seen.extend_from_slice(&chunk[..count]),
+                            _ => return,
+                        }
+                    }
+                    let head = format!(
+                        "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                        body.len()
+                    );
+                    let _ = stream.write_all(head.as_bytes()).await;
+                    let _ = stream.write_all(&body).await;
+                });
+            }
+        });
+        (format!("http://{address}/selenium-server.jar"), hits)
+    }
+
+    #[tokio::test]
+    async fn a_download_that_matches_its_hash_is_saved_and_verified() {
+        let body = b"pretend this is a jar".to_vec();
+        let (url, _) = jar_server(&body);
+        let dir = tempfile::tempdir().unwrap();
+        let dest = dir
+            .path()
+            .join("downloaded_drivers/selenium-server-4.99.0.jar");
+        let hash = sha256_hex(&body);
+
+        let jar = fetch_jar(&url, &dest, Some(&hash), 1024).await.unwrap();
+
+        assert_eq!(jar.path, dest);
+        assert_eq!(jar.sha256, hash);
+        assert!(jar.verified && !jar.reused);
+        assert_eq!(std::fs::read(&dest).unwrap(), body);
+    }
+
+    #[tokio::test]
+    async fn a_download_that_does_not_match_its_hash_is_not_saved() {
+        let (url, _) = jar_server(b"something else");
+        let dir = tempfile::tempdir().unwrap();
+        let dest = dir.path().join("selenium-server-4.99.0.jar");
+
+        let error = fetch_jar(&url, &dest, Some(&sha256_hex(b"the real jar")), 1024)
+            .await
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("not the pinned"), "{error}");
+        assert!(
+            !dest.exists(),
+            "a jar that fails its check must not be left behind"
+        );
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0);
+    }
+
+    #[tokio::test]
+    async fn a_version_without_a_pinned_hash_reports_its_hash_as_not_verified() {
+        let body = b"another release".to_vec();
+        let (url, _) = jar_server(&body);
+        let dir = tempfile::tempdir().unwrap();
+        let dest = dir.path().join("selenium-server-4.1.0.jar");
+
+        let jar = fetch_jar(&url, &dest, None, 1024).await.unwrap();
+
+        assert!(!jar.verified && !jar.reused);
+        assert_eq!(jar.sha256, sha256_hex(&body));
+        assert_eq!(std::fs::read(&dest).unwrap(), body);
+    }
+
+    #[tokio::test]
+    async fn a_jar_that_is_there_already_is_not_downloaded_again() {
+        let body = b"the jar".to_vec();
+        let (url, hits) = jar_server(&body);
+        let dir = tempfile::tempdir().unwrap();
+        let dest = dir.path().join("selenium-server-4.99.0.jar");
+        std::fs::write(&dest, &body).unwrap();
+
+        let pinned = fetch_jar(&url, &dest, Some(&sha256_hex(&body)), 1024)
+            .await
+            .unwrap();
+        let unpinned = fetch_jar(&url, &dest, None, 1024).await.unwrap();
+
+        assert!(pinned.reused && pinned.verified);
+        assert!(unpinned.reused && !unpinned.verified);
+        assert_eq!(hits.load(std::sync::atomic::Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn a_pinned_jar_that_is_damaged_is_downloaded_again() {
+        let body = b"the real jar".to_vec();
+        let (url, hits) = jar_server(&body);
+        let dir = tempfile::tempdir().unwrap();
+        let dest = dir.path().join("selenium-server-4.99.0.jar");
+        std::fs::write(&dest, b"half a jar").unwrap();
+
+        let jar = fetch_jar(&url, &dest, Some(&sha256_hex(&body)), 1024)
+            .await
+            .unwrap();
+
+        assert!(!jar.reused && jar.verified);
+        assert_eq!(std::fs::read(&dest).unwrap(), body);
+        assert_eq!(hits.load(std::sync::atomic::Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn a_download_over_the_size_limit_is_refused() {
+        let (url, _) = jar_server(&[7_u8; 2048]);
+        let dir = tempfile::tempdir().unwrap();
+        let dest = dir.path().join("selenium-server-4.99.0.jar");
+
+        let error = fetch_jar(&url, &dest, None, 1024)
+            .await
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("larger than 1024 bytes"), "{error}");
+        assert!(!dest.exists());
+    }
+
     #[test]
+    fn only_selenium_four_releases_can_be_asked_for() {
+        assert_eq!(server_version("4.51.0").unwrap(), "4.51.0");
+        assert_eq!(server_version("4.9.12").unwrap(), "4.9.12");
+        let old = server_version("3.141.59").unwrap_err().to_string();
+        assert!(old.contains("Grid 3 is gone"), "{old}");
+        for bad in [
+            "4.51",
+            "4.51.0.1",
+            "latest",
+            "4.x.0",
+            "../4.1.0",
+            "4.1.0/../../x",
+            "",
+            "4..1",
+            "4.1.0-beta",
+        ] {
+            assert!(server_version(bad).is_err(), "{bad:?} was accepted");
+        }
+    }
+
+    #[test]
+    fn the_pinned_release_is_a_selenium_four_version_with_a_sha256() {
+        assert!(server_version(SERVER_VERSION).is_ok());
+        assert_eq!(SERVER_SHA256.len(), 64);
+        assert!(SERVER_SHA256
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)));
+    }
+
+    #[test]
+    fn hashes_are_lower_case_hex_sha256() {
+        assert_eq!(
+            sha256_hex(b"abc"),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+    }
+
+    #[test]
+    fn the_newest_jar_is_the_highest_version_not_the_last_name() {
+        let dir = tempfile::tempdir().unwrap();
+        for name in [
+            "selenium-server-4.9.0.jar",
+            "selenium-server-4.51.0.jar",
+            "selenium-server-4.10.1.jar",
+            "selenium-server-4.60.0.jar.part",
+            "selenium-server-4.70.0.jar.sha256",
+            "selenium-server-latest.jar",
+            "chromedriver",
+        ] {
+            std::fs::write(dir.path().join(name), b"x").unwrap();
+        }
+        std::fs::create_dir(dir.path().join("selenium-server-4.99.0.jar")).unwrap();
+
+        assert_eq!(
+            newest_downloaded_jar(dir.path()),
+            Some(dir.path().join("selenium-server-4.51.0.jar"))
+        );
+        assert_eq!(newest_downloaded_jar(&dir.path().join("missing")), None);
+    }
+
+    #[test]
+    fn a_downloaded_jar_is_used_only_when_nothing_else_names_one() {
+        let dir = tempfile::tempdir().unwrap();
+        let downloaded = dir.path().join("selenium-server-4.2.0.jar");
+        std::fs::write(&downloaded, b"x").unwrap();
+
+        assert_eq!(
+            resolve_server_jar(None, None, dir.path()).unwrap(),
+            downloaded
+        );
+        assert_eq!(
+            resolve_server_jar(None, Some("env.jar".into()), dir.path()).unwrap(),
+            Path::new("env.jar")
+        );
+        assert_eq!(
+            resolve_server_jar(
+                Some(Path::new("flag.jar")),
+                Some("env.jar".into()),
+                dir.path()
+            )
+            .unwrap(),
+            Path::new("flag.jar")
+        );
+        let error = resolve_server_jar(None, None, &dir.path().join("empty"))
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("sbrs download server"), "{error}");
+    }
+
+    #[test]
+
     fn the_explicit_jar_beats_the_environment() {
         let jar = resolve_jar(Some(Path::new("a.jar")), Some("b.jar".into())).unwrap();
         assert_eq!(jar, Path::new("a.jar"));
