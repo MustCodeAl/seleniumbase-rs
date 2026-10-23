@@ -67,7 +67,6 @@ work, `docs/parity.md` the per-API status).
   `MessengerTheme::default()`, `MessengerSettings::default()` and `"default".parse::<MessengerTheme>()`
   give `future`, so a `MessengerLocation` alone, for `set_messenger_theme`, keeps the future theme.
 
-
 ### Added
 
 - **Gherkin scenarios as cargo tests (feature `bdd`).** `testing::bdd::{sb, sb_cdp, SbCase,
@@ -341,7 +340,6 @@ work, `docs/parity.md` the per-API status).
   capitals) and still pauses, as Python does; it does not fail the test. `api::messages::fallback_line`
   gives the line.
 
-
 ### Fixed
 
 - **A message stays at most 0.75 s on a virtual display too:** `post_message` and its relatives
@@ -550,8 +548,8 @@ work, `docs/parity.md` the per-API status).
   capability, which a page can see, and sends the same phone over DevTools to every window
   (`BrowserSession::apply_mobile_emulation`: device metrics, five touch points and the user
   agent). Firefox, Safari and Internet Explorer log a warning and start as desktop browsers.
-  `MOBILE_USER_AGENT` is public in `browser::options`. The pure CDP engine gets the same
-  phone in every tab (see Added).
+  `MOBILE_USER_AGENT` is public in `browser::options`. The pure CDP engine is not changed
+  here.
 - **`headless1` runs `chrome-headless-shell`** for Chrome with no program of its own named
   (downloaded when missing); the undetected mode refuses it as it refuses the shell.
   `chrome-headless-shell` is always headless. `Chrome`'s locale is written `ar-EG` for
