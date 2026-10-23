@@ -652,6 +652,17 @@ mod tests {
                 ("POST", "/elements") => Reply::Value(json!([element("e1")])),
                 ("GET", "/url") => Reply::Value(json!("http://x.test/")),
                 ("GET", "/title") => Reply::Value(json!("Title")),
+                ("GET", "/window/handles") => Reply::Value(json!(["h1", "h2"])),
+                ("POST", "/window/new") => Reply::Value(json!({ "handle": "h2", "type": "tab" })),
+
+                ("GET", "/element/e1/rect") => {
+                    Reply::Value(json!({ "x": 10.0, "y": 20.0, "width": 100.0, "height": 50.0 }))
+                }
+
+                ("GET", path) if path.contains("/attribute/") || path.contains("/property/") => {
+                    Reply::Value(json!("/x"))
+                }
+
                 ("GET", "/element/e1/text") => Reply::Value(json!("Hello")),
                 ("GET", path) if path.ends_with("/displayed") || path.ends_with("/enabled") => {
                     Reply::Value(json!(true))
@@ -837,6 +848,43 @@ mod tests {
             ("js_click", Some("#a"), None, "POST", "/execute/sync"),
             ("scroll_to_top", None, None, "POST", "/execute/sync"),
             ("hover", Some("#a"), None, "POST", "/actions"),
+            ("find_element", Some("#a"), None, "POST", "/element"),
+            (
+                "wait_for_element_present",
+                Some("#a"),
+                None,
+                "POST",
+                "/element",
+            ),
+            (
+                "wait_for_element_visible",
+                Some("#a"),
+                None,
+                "GET",
+                "/element/e1/displayed",
+            ),
+            (
+                "click_with_offset",
+                Some("#a"),
+                Some("5, -7"),
+                "POST",
+                "/actions",
+            ),
+            (
+                "assert_attribute",
+                Some("#a"),
+                Some("href=/x"),
+                "GET",
+                "/element/e1/attribute/href",
+            ),
+            ("open_new_tab", None, None, "POST", "/execute/sync"),
+            (
+                "open_new_tab",
+                Some("http://x.test/n"),
+                None,
+                "POST",
+                "/url",
+            ),
             ("sleep", None, Some("0"), "", ""),
         ];
         for (name, target, value, method, path) in cases {
