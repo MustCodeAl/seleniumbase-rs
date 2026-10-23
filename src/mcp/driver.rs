@@ -36,7 +36,7 @@ const DEBUG_TOOLS: [&str; 6] = [
 /// server reads it.
 #[must_use]
 pub fn host(settings: Settings) -> Host<BaseCase> {
-    let mut tools = tools();
+    let mut tools = super::tool::mark_untrusted(tools(), &["get_text", "get_page_source"]);
     tools.push(w::page_info_tool());
     tools.extend(devtools::tools_named(&DEBUG_TOOLS));
     tools.extend(devtools::environment_tools());

@@ -825,3 +825,28 @@ async fn a_missing_argument_and_an_unknown_prompt_are_invalid_params() {
         .unwrap()
         .contains("write_test"));
 }
+
+#[test]
+fn the_tools_that_return_page_text_are_marked_untrusted() {
+    let dir = tempfile::tempdir().unwrap();
+    let settings = || Settings::new(dir.path());
+
+    assert_eq!(
+        cdp::host(settings()).untrusted_tool_names(),
+        ["get_content", "get_attributes"]
+    );
+    assert_eq!(
+        driver::host(settings()).untrusted_tool_names(),
+        ["get_page_source", "get_text"]
+    );
+    assert_eq!(
+        sb::host(settings()).untrusted_tool_names(),
+        [
+            "get_text",
+            "get_html_source",
+            "get_element_html",
+            "get_attribute"
+        ]
+    );
+    assert!(dev::host(settings()).untrusted_tool_names().is_empty());
+}

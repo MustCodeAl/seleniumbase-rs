@@ -19,7 +19,15 @@ stealth tools and diagnose_environment work without a browser.";
 /// Builds the `sb` server, with the stealth and developer tools.
 #[must_use]
 pub fn host(settings: Settings) -> Host<BaseCase> {
-    let mut tools = tools();
+    let mut tools = super::tool::mark_untrusted(
+        tools(),
+        &[
+            "get_text",
+            "get_html_source",
+            "get_element_html",
+            "get_attribute",
+        ],
+    );
     tools.extend(stealth::tools());
     tools.extend(devtools::tools());
     tools.extend(devtools::environment_tools());

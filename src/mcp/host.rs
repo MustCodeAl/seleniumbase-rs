@@ -543,6 +543,18 @@ impl<S: Send + 'static> Host<S> {
         self.shared.tools.iter().map(ToolDef::name).collect()
     }
 
+    /// The names of the tools whose output is page text, which clients are
+    /// told not to trust; see [`ToolDef::untrusted`].
+    #[must_use]
+    pub fn untrusted_tool_names(&self) -> Vec<&'static str> {
+        self.shared
+            .tools
+            .iter()
+            .filter(|tool| tool.is_untrusted())
+            .map(ToolDef::name)
+            .collect()
+    }
+
     /// The tools as clients see them: name, description, schema, annotations.
     #[must_use]
     pub fn describe_tools(&self) -> Vec<Tool> {

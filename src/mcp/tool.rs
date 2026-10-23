@@ -524,6 +524,21 @@ impl<S> ToolDef<S> {
     }
 }
 
+/// `tools` with the ones called `names` marked [`untrusted`](ToolDef::untrusted):
+/// the tools that return text a page wrote.
+pub(crate) fn mark_untrusted<S>(tools: Vec<ToolDef<S>>, names: &[&str]) -> Vec<ToolDef<S>> {
+    tools
+        .into_iter()
+        .map(|tool| {
+            if names.contains(&tool.name()) {
+                tool.untrusted()
+            } else {
+                tool
+            }
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use serde_json::json;

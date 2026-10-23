@@ -227,7 +227,7 @@ impl Closeable for Cdp {
 /// Builds the Pure CDP server, with the developer tools.
 #[must_use]
 pub fn host(settings: Settings) -> Host<Cdp> {
-    let mut tools = tools();
+    let mut tools = super::tool::mark_untrusted(tools(), &["get_content", "get_attributes"]);
     tools.extend(devtools::tools());
     tools.extend(devtools::environment_tools());
     Host::new(SERVER_NAME, INSTRUCTIONS, tools, settings)
