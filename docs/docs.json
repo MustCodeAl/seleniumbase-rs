@@ -368,11 +368,12 @@
               {
                 "product": "How it works",
                 "icon": "lightbulb",
-                "description": "WebDriver, CDP, detection, network, sessions, and the glossary",
+                "description": "How a page loads, WebDriver, CDP, sessions, detection, network, and the glossary",
                 "groups": [
                   {
                     "group": "How it works",
                     "pages": [
+                      "concepts/how-a-page-loads",
                       "concepts/webdriver",
                       "concepts/cdp",
                       "concepts/detection",
