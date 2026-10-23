@@ -10,6 +10,8 @@ work, `docs/parity.md` the per-API status).
 
 ### Breaking
 
+- **A recorded `goto` is written as `sb.goto(..)`**, its own BaseCase call, not `sb.open(..)`.
+
 - **`Settings::screenshot_dir` and `SB_SCREENSHOT_DIR` are removed.** The library read neither;
   a settings file that still has the key loads as before.
 - **The presentation and chart helpers have Python's names, arguments and files.** Each is a call
@@ -43,6 +45,14 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- **Recorder Mode pipeline, ported from SeleniumBase 4.56.2.** `api::recorder` now carries
+  Python's page script (`RECORDER_JS`, `SHIFT_ESC_JS`, `recorder_injection()`), its rewrite
+  passes (`process`, `add_parent_frame_switches`, over `RawAction` rows) and its code generation
+  (`to_actions`, `ActionRecorder::from_raw_actions`), and writes a recording as an rstest test on
+  the `sb` fixture (`to_rstest_test`) or a Gherkin scenario (`to_gherkin_scenario`). A typed
+  password is marked secret in the page and generated as `recorded_secret()?`, read from
+  `SB_RECORDED_SECRET`. Golden tests check the processed rows and calls against SeleniumBase's own
+  code on 11 recordings.
 - **`sbrs install` fetches more.** `sbrs install` (and `get`) now installs `uc_driver` (a
   patched chromedriver), `cft` and `chs` (Chrome for Testing and its headless shell) and
   `chromium` (a Chromium snapshot with the chromedriver of the same revision, `--revision N`),

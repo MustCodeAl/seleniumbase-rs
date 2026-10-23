@@ -44,7 +44,7 @@ fn an_action_file_becomes_a_rust_test_beside_it() {
     let test = std::fs::read_to_string(dir.path().join("login.rs")).expect("login.rs");
     assert!(test.contains("#[tokio::test]\nasync fn login()"), "{test}");
     for line in [
-        "sb.open(\"https://example.test/\").await?;",
+        "sb.goto(\"https://example.test/\").await?;",
         "sb.type_text(\"#q\", \"rust\\n\").await?;",
         "sb.goto_if_not_url(\"https://example.test/search?q=rust\").await?;",
         "sb.click(\"#first\").await?;",
