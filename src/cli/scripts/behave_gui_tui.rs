@@ -2,7 +2,7 @@
 //! Commander without Tkinter.
 //!
 //! It lists the feature files under a folder with their scenarios, lets the
-//! user mark some, runs them through the crate's behave runner and shows what
+//! user mark some, runs them with `cargo test` and shows what
 //! came of each scenario. What a run is, and what the runner can run, is in
 //! [`super::feature_files`]; this module is the state machine ([`BehaveGui`])
 //! and its drawing.

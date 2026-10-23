@@ -95,7 +95,7 @@ fn the_helps_name_the_terminal_app_not_a_window() {
     assert!(behave.contains("terminal app"), "{behave}");
     assert!(behave.contains("--new"), "{behave}");
     assert!(
-        behave.contains("built-in steps"),
+        behave.contains("rstest-bdd"),
         "the limit of the runner is in the help:\n{behave}"
     );
 }

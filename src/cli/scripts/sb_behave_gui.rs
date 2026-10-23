@@ -5,7 +5,7 @@
 //! (`behave_gui_tui`, feature `tui`), which lists feature files and runs their
 //! scenarios.
 
-use crate::behave::Step;
+use super::gherkin_outline::Step;
 use crate::cli::commands::write_new_file;
 use std::io::{self, BufRead, Write};
 use std::path::{Path, PathBuf};
@@ -14,10 +14,10 @@ const README: &str = "# BDD Features
 
 This directory holds Gherkin feature files for behavior-driven tests.
 
-Run them with the behave runner in this crate: register the steps in a
-`seleniumbase_rs::behave::StepRegistry` (or an `AsyncStepRegistry` for steps
-that drive a browser) and call `run_feature_file` on a file from this folder.
-Steps are looked up with their keyword, for example `^Given I open \"(.+)\"$`.
+Run them with rstest-bdd (feature `bdd` of seleniumbase-rs): bind each scenario to
+a test with `#[scenario]`, write the steps as `#[given]`, `#[when]` and
+`#[then]` functions, and run `cargo test` or `sbrs behave-gui`.
+A step matches its text without the keyword, for example `I open {url:string}`.
 ";
 
 /// Asks for a feature on the terminal and writes `features/<name>.feature`.
@@ -134,7 +134,7 @@ fn ask(input: &mut impl BufRead, output: &mut impl Write, message: &str) -> io::
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::behave::parse_feature;
+    use crate::cli::scripts::gherkin_outline::parse_feature;
 
     /// Answers for a one-scenario feature named `login`.
     const ANSWERS: &str = "login\nLog in\nuser\nto log in\nI can work\n1\nvalid login\n\

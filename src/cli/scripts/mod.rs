@@ -17,6 +17,8 @@ pub mod case_plans;
 pub mod caseplans_tui;
 pub mod discovery;
 pub mod feature_files;
+pub(crate) mod gherkin_outline;
+
 pub mod logo_helper;
 pub mod rich_helper;
 pub mod sb_behave_gui;

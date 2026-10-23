@@ -3113,7 +3113,6 @@ mod tests {
 
     #[test]
     fn an_argument_with_a_double_quote_is_written_in_single_quotes_as_python_does() {
-        use crate::behave::async_steps::AsyncStepRegistry;
         let mut recorder = ActionRecorder::default();
         recorder.record("open", Some("https://example.com/?q=\"x\""), None);
         recorder.record("click", Some("a[title=\"Go\"]"), None);
@@ -3124,20 +3123,10 @@ mod tests {
         assert_eq!(
             feature,
             "Feature: Quotes\n\n  Scenario: Quotes\n\
-             \x20   Given Open 'https://example.com/?q=\"x\"'\n\
-             \x20   And Click 'a[title=\"Go\"]'\n\
-             \x20   And Type 'say \"hi\"' into \"#q\"\n"
+                 \x20   Given Open 'https://example.com/?q=\"x\"'\n\
+                 \x20   And Click 'a[title=\"Go\"]'\n\
+                 \x20   And Type 'say \"hi\"' into \"#q\"\n"
         );
-        let mut registry =
-            AsyncStepRegistry::new(crate::BaseCase::without_session(BrowserConfig::default()));
-        registry.register_common_browser_steps();
-        for step in feature
-            .lines()
-            .map(str::trim)
-            .filter(|l| l.contains(' ') && !l.starts_with("Feature") && !l.starts_with("Scenario"))
-        {
-            assert!(registry.has_handler(step), "no handler for {step:?}");
-        }
     }
 
     #[test]
@@ -3162,12 +3151,12 @@ mod tests {
             "{feature:?}"
         );
         let lines: Vec<String> = feature.lines().map(String::from).collect();
-        let parsed = crate::behave::parse_feature(&lines);
+        let parsed = crate::cli::scripts::gherkin_outline::parse_feature(&lines);
         assert_eq!(parsed.scenarios.len(), 1, "{feature}");
         let steps: Vec<String> = parsed.scenarios[0]
             .steps
             .iter()
-            .map(crate::behave::Step::full_text)
+            .map(crate::cli::scripts::gherkin_outline::Step::full_text)
             .collect();
         assert_eq!(
             steps,
@@ -3183,10 +3172,6 @@ mod tests {
 
     #[test]
     fn an_empty_text_is_skipped_because_the_type_step_cannot_match_it() {
-        use crate::behave::async_steps::AsyncStepRegistry;
-        let mut registry =
-            AsyncStepRegistry::new(crate::BaseCase::without_session(BrowserConfig::default()));
-        registry.register_common_browser_steps();
         let mut recorder = ActionRecorder::default();
         recorder.record("open", Some("https://example.com"), None);
         recorder.record("type_text", Some("#q"), Some(""));
@@ -3199,9 +3184,6 @@ mod tests {
             .filter(|l| ["Given ", "And "].iter().any(|k| l.starts_with(k)))
             .collect();
         assert_eq!(steps.len(), 2, "{feature}");
-        for step in steps {
-            assert!(registry.has_handler(step), "no handler for {step:?}");
-        }
         assert!(
             feature.contains("    # skipped: type_text: the text is empty"),
             "{feature}"
@@ -3209,21 +3191,20 @@ mod tests {
     }
 
     #[test]
-    fn every_gherkin_step_has_a_handler_in_the_common_browser_steps() {
-        use crate::behave::async_steps::AsyncStepRegistry;
-        let mut registry =
-            AsyncStepRegistry::new(crate::BaseCase::without_session(BrowserConfig::default()));
-        registry.register_common_browser_steps();
+    fn every_gherkin_step_is_a_step_the_outline_reader_reads() {
+        use crate::cli::scripts::gherkin_outline::{parse_feature, Step};
+        // The built-in steps of `testing::bdd` (lane RUN-8) must each match one
+        // of these; this checks the shape of what is written.
         let feature = gherkin_recorder().to_gherkin("Sign up");
-        let steps: Vec<&str> = feature
-            .lines()
-            .map(str::trim)
-            .filter(|l| ["Given ", "And "].iter().any(|k| l.starts_with(k)))
+        let lines: Vec<String> = feature.lines().map(String::from).collect();
+        let parsed = parse_feature(&lines);
+        let steps: Vec<String> = parsed.scenarios[0]
+            .steps
+            .iter()
+            .map(Step::full_text)
             .collect();
-        assert_eq!(steps.len(), 4);
-        for step in steps {
-            assert!(registry.has_handler(step), "no handler for {step:?}");
-        }
+        assert_eq!(steps.len(), 4, "{feature}");
+        assert!(steps[0].starts_with("Given Open "), "{steps:?}");
     }
 
     #[test]

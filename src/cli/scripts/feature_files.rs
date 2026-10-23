@@ -1,19 +1,19 @@
 //! The feature files `sbrs behave-gui` lists and runs: finding them, telling
-//! each scenario by its line, and running chosen scenarios through the crate's
-//! behave runner ([`crate::behave`]).
+//! each scenario by its line, and running chosen scenarios with `cargo test`.
 //!
-//! The runner needs step definitions, and those are Rust code in the user's own
-//! program, which `sbrs` cannot load. The app therefore runs with the built-in
-//! steps ([`builtin_steps`]); a scenario that uses a step nobody defined is
-//! reported as [`Verdict::Undefined`], as `behave` does, not as a failure.
+//! The scenarios are bound to Rust tests with rstest-bdd (feature `bdd`, see
+//! [`crate::testing::bdd`]), and the steps are Rust code in the user's own
+//! program, which `sbrs` cannot load. So the app asks cargo to run the tests
+//! instead: one `cargo test` for the chosen scenarios of a feature, with a name
+//! filter for each ([`scenario_filter`]: the scenario's title in snake case, as
+//! `scenarios!` names its tests). A scenario no test is named after is
+//! reported as [`Verdict::Undefined`], as `behave` does for a step nobody
+//! defined, not as a failure.
 
+use std::collections::HashMap;
 use std::io;
 use std::path::{Path, PathBuf};
-
-use crate::behave::steps::step_pattern;
-use crate::behave::{
-    parse_feature, run_feature_text, CommonSteps, RunFilter, ScenarioResult, StepRegistry,
-};
+use std::process::Command;
 
 /// The folder `behave` looks in when none is given.
 pub const DEFAULT_FOLDER: &str = "features";
@@ -27,11 +27,8 @@ pub struct ScenarioInfo {
     pub line: usize,
     /// Whether it is a scenario outline.
     pub outline: bool,
-    /// The first line of the scenario's text, counted from 0: the tags above
-    /// its keyword are part of it.
-    start: usize,
-    /// One past the last line of the scenario's text, counted from 0.
-    end: usize,
+    /// The tags written directly above its keyword, without the `@`.
+    pub tags: Vec<String>,
 }
 
 /// A feature file read from disk.
@@ -41,12 +38,10 @@ pub struct FeatureFile {
     pub path: String,
     /// The text after `Feature:`; empty if the file has none.
     pub name: String,
+    /// The tags written above `Feature:`, without the `@`.
+    pub tags: Vec<String>,
     /// The scenarios, in file order.
     pub scenarios: Vec<ScenarioInfo>,
-    lines: Vec<String>,
-    /// One past the last line before the first scenario: the feature line, its
-    /// tags and the background.
-    header_end: usize,
 }
 
 /// The `*.feature` files under `target`, sorted by path.
@@ -108,20 +103,47 @@ pub fn load_feature(path: &Path, shown: &str) -> io::Result<FeatureFile> {
 #[must_use]
 pub fn split_feature(shown: &str, text: &str) -> FeatureFile {
     let lines: Vec<String> = text.lines().map(str::to_owned).collect();
-    let name = parse_feature(&lines).name;
-    let scenarios = scenario_blocks(&lines);
-    let header_end = scenarios.first().map_or(lines.len(), |first| first.start);
+    let (name, tags) = feature_header(&lines);
     FeatureFile {
         path: shown.to_owned(),
         name,
-        scenarios,
-        lines,
-        header_end,
+        tags,
+        scenarios: scenario_blocks(&lines),
     }
 }
 
-/// The scenario keyword of a trimmed line, as the behave parser reads it: the
-/// name after it, and whether it is an outline.
+/// The tags in `lines`, which are tag lines, without the `@`.
+fn tags_of<'a>(lines: impl Iterator<Item = &'a String>) -> Vec<String> {
+    lines
+        .flat_map(|line| line.split_whitespace())
+        .filter_map(|word| word.strip_prefix('@'))
+        .map(str::to_owned)
+        .collect()
+}
+
+/// The name of the feature and the tags above it.
+fn feature_header(lines: &[String]) -> (String, Vec<String>) {
+    let found = lines.iter().enumerate().find_map(|(index, line)| {
+        let trimmed = line.trim().trim_start_matches('\u{feff}');
+        trimmed
+            .strip_prefix("Feature:")
+            .map(|name| (index, name.trim().to_owned()))
+    });
+    match found {
+        Some((index, name)) => {
+            let first = (0..index)
+                .rev()
+                .take_while(|above| lines[*above].trim().starts_with('@'))
+                .last()
+                .unwrap_or(index);
+            (name, tags_of(lines[first..index].iter()))
+        }
+        None => (String::new(), Vec::new()),
+    }
+}
+
+/// The scenario keyword of a trimmed line: the name after it, and whether it
+/// is an outline.
 fn scenario_header(trimmed: &str) -> Option<(String, bool)> {
     [
         ("Scenario Outline:", true),
@@ -136,11 +158,8 @@ fn scenario_header(trimmed: &str) -> Option<(String, bool)> {
     })
 }
 
-/// Finds the scenarios in `lines` and the stretch of lines each one owns.
-///
-/// Lines inside a doc string are not looked at, as in the behave parser. A
-/// scenario owns the tags directly above its keyword and everything up to the
-/// tags of the next one.
+/// Finds the scenarios in `lines`. Lines inside a doc string are not looked
+/// at. A scenario's tags are the ones directly above its keyword.
 fn scenario_blocks(lines: &[String]) -> Vec<ScenarioInfo> {
     let mut blocks: Vec<ScenarioInfo> = Vec::new();
     let mut fence: Option<&str> = None;
@@ -163,74 +182,42 @@ fn scenario_blocks(lines: &[String]) -> Vec<ScenarioInfo> {
         let Some((name, outline)) = scenario_header(trimmed) else {
             continue;
         };
-        let mut start = index;
-        while start > 0 && lines[start - 1].trim().starts_with('@') {
-            start -= 1;
-        }
-        if let Some(previous) = blocks.last_mut() {
-            previous.end = start;
-        }
+        let first = (0..index)
+            .rev()
+            .take_while(|above| lines[*above].trim().starts_with('@'))
+            .last()
+            .unwrap_or(index);
         blocks.push(ScenarioInfo {
             name,
             line: index + 1,
             outline,
-            start,
-            end: lines.len(),
+            tags: tags_of(lines[first..index].iter()),
         });
     }
     blocks
 }
 
-impl FeatureFile {
-    /// The text of the feature with only the scenarios `chosen` (indexes into
-    /// [`scenarios`](Self::scenarios)): the feature line, its tags and the
-    /// background, then those scenarios as they are written, in file order.
-    #[must_use]
-    pub fn text_of(&self, chosen: &[usize]) -> String {
-        let mut picked: Vec<usize> = chosen
-            .iter()
-            .copied()
-            .filter(|index| *index < self.scenarios.len())
-            .collect();
-        picked.sort_unstable();
-        picked.dedup();
-        let mut text = String::new();
-        let mut push = |lines: &[String]| {
-            for line in lines {
-                text.push_str(line);
-                text.push('\n');
-            }
-        };
-        push(&self.lines[..self.header_end]);
-        for index in picked {
-            let scenario = &self.scenarios[index];
-            push(&self.lines[scenario.start..scenario.end]);
-        }
-        text
-    }
-}
-
 /// How a scenario ended.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Verdict {
-    /// Every step ran and passed.
+    /// Every test of it passed.
     Passed,
-    /// A step failed.
+    /// A test of it failed.
     Failed,
-    /// A step has no definition, so the scenario could not run.
+    /// No test is named after it, or cargo did not run the tests.
     Undefined,
-    /// Nothing ran: the tags left it out, or it is an outline with no examples.
+    /// Nothing ran: the tags left it out, or its test is `#[ignore]`d.
     Skipped,
 }
 
-/// The result of one scenario, or one row of an outline.
+/// The result of one scenario.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScenarioRun {
     /// The feature file, as shown.
     pub file: String,
     /// The line of the scenario in it.
     pub line: usize,
-    /// The scenario's name; an outline row has `(example N)` after it.
+    /// The scenario's name.
     pub name: String,
     /// How it ended.
     pub verdict: Verdict,
@@ -266,78 +253,29 @@ pub fn totals(runs: &[ScenarioRun]) -> Totals {
     totals
 }
 
-/// The steps the app can run: the placeholders of
-/// [`CommonSteps`](crate::behave::CommonSteps) (`I do nothing`, `the system is
-/// ready`, `I wait N seconds`) and the value steps that really compare.
-#[must_use]
-pub fn builtin_steps() -> StepRegistry {
-    let mut registry = StepRegistry::new();
-    CommonSteps::register_noop(&mut registry, &step_pattern("I do nothing"));
-    CommonSteps::register_noop(&mut registry, &step_pattern("the system is ready"));
-    CommonSteps::register_delay_steps(&mut registry);
-    // The value steps, not the placeholders that pass whatever they are given.
-    let _value = CommonSteps::register_value_steps(&mut registry);
-    registry
+/// Which scenarios run, by tag: the ones with at least one of the included
+/// tags (all when there are none) and none of the excluded ones.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RunFilter {
+    /// Tags, without the `@`, of which a scenario needs one.
+    pub include_tags: Vec<String>,
+    /// Tags, without the `@`, that leave a scenario out.
+    pub exclude_tags: Vec<String>,
 }
 
-/// Runs the scenarios `chosen` of `feature`, each with fresh built-in steps so
-/// that one scenario's value does not leak into the next, and the tags in
-/// `filter`.
-#[must_use]
-pub fn run_scenarios(
-    feature: &FeatureFile,
-    chosen: &[usize],
-    filter: &RunFilter,
-) -> Vec<ScenarioRun> {
-    let mut picked: Vec<usize> = chosen
-        .iter()
-        .copied()
-        .filter(|index| *index < feature.scenarios.len())
-        .collect();
-    picked.sort_unstable();
-    picked.dedup();
-    let mut runs = Vec::new();
-    for index in picked {
-        let scenario = &feature.scenarios[index];
-        let results = run_feature_text(&feature.text_of(&[index]), &builtin_steps(), filter);
-        let run = |name: String, verdict, messages| ScenarioRun {
-            file: feature.path.clone(),
-            line: scenario.line,
-            name,
-            verdict,
-            messages,
-        };
-        if results.is_empty() {
-            runs.push(run(
-                scenario.name.clone(),
-                Verdict::Skipped,
-                vec![
-                    "nothing ran: the tags left it out, or it is an outline with no examples"
-                        .to_owned(),
-                ],
-            ));
-        }
-        for result in results {
-            let verdict = verdict_of(&result);
-            runs.push(run(result.name, verdict, result.messages));
-        }
+impl RunFilter {
+    /// The filter that lets every scenario through.
+    #[must_use]
+    pub fn all() -> Self {
+        Self::default()
     }
-    runs
-}
 
-/// How a result of the runner ended. The runner says a step has no handler in
-/// the message of the failure; that is an undefined step, not a failing one.
-fn verdict_of(result: &ScenarioResult) -> Verdict {
-    if result.passed {
-        Verdict::Passed
-    } else if result
-        .messages
-        .first()
-        .is_some_and(|message| message.starts_with("no handler registered for step"))
-    {
-        Verdict::Undefined
-    } else {
-        Verdict::Failed
+    /// Whether a scenario with `tags` (its own and its feature's) runs.
+    #[must_use]
+    pub fn allows(&self, tags: &[String]) -> bool {
+        let has = |wanted: &String| tags.contains(wanted);
+        (self.include_tags.is_empty() || self.include_tags.iter().any(has))
+            && !self.exclude_tags.iter().any(has)
     }
 }
 
@@ -365,6 +303,210 @@ pub fn parse_tags(input: &str) -> RunFilter {
     filter
 }
 
+/// The name filter of `cargo test` for the scenario called `title`: the title
+/// in snake case, every run of characters that are not ASCII letters or digits
+/// as one `_`. `Valid login` is `valid_login`; this is how `scenarios!`
+/// names the tests it binds.
+#[must_use]
+pub fn scenario_filter(title: &str) -> String {
+    let mut name = String::new();
+    for c in title.chars() {
+        if c.is_ascii_alphanumeric() {
+            name.push(c.to_ascii_lowercase());
+        } else if !name.ends_with('_') {
+            name.push('_');
+        }
+    }
+    name.trim_matches('_').to_owned()
+}
+
+/// The arguments of the `cargo test` that runs the scenarios `filters` (see
+/// [`scenario_filter`]): one test at a time, so a browser prompt or a shared
+/// resource is not fought over.
+#[must_use]
+pub fn cargo_test_args(filters: &[String]) -> Vec<String> {
+    let mut args = vec!["test".to_owned()];
+    args.extend(filters.iter().cloned());
+    args.extend(["--".to_owned(), "--test-threads=1".to_owned()]);
+    args
+}
+
+/// How a test of the libtest output ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TestEnd {
+    Ok,
+    Failed,
+    Ignored,
+}
+
+/// What `cargo test` printed, read: each test with how it ended, and the
+/// output of the failed ones.
+#[derive(Debug, Default, PartialEq, Eq)]
+struct TestReport {
+    tests: Vec<(String, TestEnd)>,
+    failures: HashMap<String, String>,
+}
+
+/// Reads the output of `cargo test`: the `test <name> ... ok|FAILED|ignored`
+/// lines, and the `---- <name> stdout ----` sections that follow `failures:`.
+fn parse_libtest(output: &str) -> TestReport {
+    let mut report = TestReport::default();
+    let mut section: Option<String> = None;
+    for line in output.lines() {
+        if let Some(rest) = line.strip_prefix("test ") {
+            if let Some((name, result)) = rest.split_once(" ... ") {
+                let end = if result.starts_with("ok") {
+                    Some(TestEnd::Ok)
+                } else if result.starts_with("FAILED") {
+                    Some(TestEnd::Failed)
+                } else if result.starts_with("ignored") {
+                    Some(TestEnd::Ignored)
+                } else {
+                    None
+                };
+                if let Some(end) = end {
+                    report.tests.push((name.trim().to_owned(), end));
+                }
+                continue;
+            }
+        }
+        if let Some(name) = line
+            .strip_prefix("---- ")
+            .and_then(|rest| rest.strip_suffix(" stdout ----"))
+        {
+            section = Some(name.to_owned());
+        } else if line == "failures:" {
+            section = None;
+        } else if let Some(name) = &section {
+            let text = report.failures.entry(name.clone()).or_default();
+            text.push_str(line);
+            text.push('\n');
+        }
+    }
+    report
+}
+
+/// Whether the test `name` (a path such as `login::valid_login::case_1`) is
+/// named after the scenario filter: some segment of it is the filter, or ends
+/// with `_` and the filter (`login_valid_login`, as `scenarios!` writes it).
+fn named_after(name: &str, filter: &str) -> bool {
+    let tail = format!("_{filter}");
+    name.split("::")
+        .any(|segment| segment == filter || segment.ends_with(&tail))
+}
+
+/// The result of a scenario, from what `cargo test` printed.
+fn verdict_of(filter: &str, report: &TestReport, ran: &str) -> (Verdict, Vec<String>) {
+    let tests: Vec<&(String, TestEnd)> = report
+        .tests
+        .iter()
+        .filter(|(name, _)| named_after(name, filter))
+        .collect();
+    if tests.is_empty() {
+        let why = if report.tests.is_empty() {
+            format!("cargo test ran no test: {ran}")
+        } else {
+            format!(
+                "no test is named after `{filter}`: bind the scenario with #[scenario], \
+                 or name the test after it"
+            )
+        };
+        return (Verdict::Undefined, vec![why]);
+    }
+    let failed: Vec<String> = tests
+        .iter()
+        .filter(|(_, end)| *end == TestEnd::Failed)
+        .map(|(name, _)| {
+            let output = report.failures.get(name).map_or("", |text| text.trim());
+            format!("{name}: {output}")
+        })
+        .collect();
+    if !failed.is_empty() {
+        return (Verdict::Failed, failed);
+    }
+    if tests.iter().all(|(_, end)| *end == TestEnd::Ignored) {
+        return (Verdict::Skipped, vec!["the test is #[ignore]d".to_owned()]);
+    }
+    (Verdict::Passed, Vec::new())
+}
+
+/// The last lines of `output`, to say why cargo ran nothing.
+fn tail(output: &str) -> String {
+    let lines: Vec<&str> = output.lines().rev().take(8).collect();
+    lines.into_iter().rev().collect::<Vec<_>>().join(" | ")
+}
+
+/// Runs the scenarios `chosen` of `feature` with `cargo test` (one process for
+/// all of them) in the current folder, leaving out the ones `filter` does not
+/// allow, and says how each ended.
+#[must_use]
+pub fn run_scenarios(
+    feature: &FeatureFile,
+    chosen: &[usize],
+    filter: &RunFilter,
+) -> Vec<ScenarioRun> {
+    let mut picked: Vec<usize> = chosen
+        .iter()
+        .copied()
+        .filter(|index| *index < feature.scenarios.len())
+        .collect();
+    picked.sort_unstable();
+    picked.dedup();
+    let allowed = |index: &usize| {
+        let scenario = &feature.scenarios[*index];
+        let mut tags = feature.tags.clone();
+        tags.extend(scenario.tags.iter().cloned());
+        filter.allows(&tags)
+    };
+    let to_run: Vec<usize> = picked.iter().copied().filter(allowed).collect();
+    let filters: Vec<String> = to_run
+        .iter()
+        .map(|index| scenario_filter(&feature.scenarios[*index].name))
+        .collect();
+    let (report, ran) = if filters.is_empty() {
+        (TestReport::default(), String::new())
+    } else {
+        match Command::new("cargo")
+            .args(cargo_test_args(&filters))
+            .output()
+        {
+            Ok(output) => {
+                let text = format!(
+                    "{}\n{}",
+                    String::from_utf8_lossy(&output.stdout),
+                    String::from_utf8_lossy(&output.stderr)
+                );
+                (parse_libtest(&text), tail(&text))
+            }
+            Err(error) => (
+                TestReport::default(),
+                format!("cargo could not start: {error}"),
+            ),
+        }
+    };
+    picked
+        .iter()
+        .map(|index| {
+            let scenario = &feature.scenarios[*index];
+            let (verdict, messages) = if to_run.contains(index) {
+                verdict_of(&scenario_filter(&scenario.name), &report, &ran)
+            } else {
+                (
+                    Verdict::Skipped,
+                    vec!["nothing ran: the tags left it out".to_owned()],
+                )
+            };
+            ScenarioRun {
+                file: feature.path.clone(),
+                line: scenario.line,
+                name: scenario.name.clone(),
+                verdict,
+                messages,
+            }
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -387,13 +529,12 @@ Feature: Log in
     Given I set the value to \"5\"
     Then the value should be \"6\"
 
-  @slow
+  @slow @wip
   Scenario Outline: wait <n>
     When I wait <n> seconds
     Examples:
       | n |
       | 1 |
-      | 2 |
 
   Scenario: undefined step
     Given a step nobody defined
@@ -403,45 +544,45 @@ Feature: Log in
         split_feature("features/login.feature", LOGIN)
     }
 
-    fn names(runs: &[ScenarioRun]) -> Vec<(&str, Verdict)> {
-        runs.iter()
-            .map(|run| (run.name.as_str(), run.verdict))
-            .collect()
-    }
-
     // ------------------------------------------------------------------
     // Splitting a file
     // ------------------------------------------------------------------
 
     #[test]
-    fn the_scenarios_are_found_with_their_names_and_lines() {
+    fn the_scenarios_are_found_with_their_names_lines_and_tags() {
         let feature = login();
 
         assert_eq!(feature.path, "features/login.feature");
         assert_eq!(feature.name, "Log in");
+        assert_eq!(feature.tags, ["web"]);
         let found: Vec<_> = feature
             .scenarios
             .iter()
-            .map(|s| (s.name.as_str(), s.line, s.outline))
+            .map(|s| (s.name.as_str(), s.line, s.outline, s.tags.clone()))
             .collect();
         assert_eq!(
             found,
             [
-                ("valid login", 10, false),
-                ("wrong value", 14, false),
-                ("wait <n>", 19, true),
-                ("undefined step", 26, false),
+                ("valid login", 10, false, vec!["smoke".to_owned()]),
+                ("wrong value", 14, false, Vec::new()),
+                (
+                    "wait <n>",
+                    19,
+                    true,
+                    vec!["slow".to_owned(), "wip".to_owned()]
+                ),
+                ("undefined step", 25, false, Vec::new()),
             ]
         );
     }
 
     #[test]
-    fn the_scenarios_are_the_ones_the_behave_parser_finds() {
-        let feature = login();
+    fn the_scenarios_are_the_ones_the_outline_reader_finds() {
+        use crate::cli::scripts::gherkin_outline::parse_feature;
         let lines: Vec<String> = LOGIN.lines().map(String::from).collect();
-        let parsed = crate::behave::parse_feature(&lines);
+        let parsed = parse_feature(&lines);
 
-        let ours: Vec<_> = feature.scenarios.iter().map(|s| s.name.clone()).collect();
+        let ours: Vec<_> = login().scenarios.iter().map(|s| s.name.clone()).collect();
         let theirs: Vec<_> = parsed.scenarios.iter().map(|s| s.name.clone()).collect();
         assert_eq!(ours, theirs);
     }
@@ -457,60 +598,11 @@ Feature: Log in
     }
 
     #[test]
-    fn a_file_with_no_scenarios_has_only_a_header() {
+    fn a_file_with_no_scenarios_or_no_feature_line_is_empty_not_an_error() {
         let feature = split_feature("f.feature", "Feature: empty\n");
-
         assert_eq!(feature.name, "empty");
-        assert!(feature.scenarios.is_empty());
-        assert_eq!(feature.text_of(&[]), "Feature: empty\n");
-    }
-
-    #[test]
-    fn the_text_of_chosen_scenarios_keeps_the_header_the_tags_and_the_order() {
-        let feature = login();
-
-        let text = feature.text_of(&[2, 0]);
-
-        assert_eq!(
-            text,
-            "\
-@web
-Feature: Log in
-  As a user
-  I want to log in
-
-  Background:
-    Given the system is ready
-
-  @smoke
-  Scenario: valid login
-    Given I set the value to \"5\"
-    Then the value should be \"5\"
-
-  @slow
-  Scenario Outline: wait <n>
-    When I wait <n> seconds
-    Examples:
-      | n |
-      | 1 |
-      | 2 |
-
-"
-        );
-    }
-
-    #[test]
-    fn a_cut_feature_text_parses_to_the_scenarios_chosen() {
-        let feature = login();
-
-        let text = feature.text_of(&[1, 3]);
-
-        let lines: Vec<String> = text.lines().map(String::from).collect();
-        let parsed = crate::behave::parse_feature(&lines);
-        let names: Vec<_> = parsed.scenarios.iter().map(|s| s.name.as_str()).collect();
-        assert_eq!(names, ["wrong value", "undefined step"]);
-        assert_eq!(parsed.background.len(), 1, "the background comes along");
-        assert_eq!(parsed.tags, ["@web"]);
+        assert!(feature.scenarios.is_empty() && feature.tags.is_empty());
+        assert_eq!(split_feature("g.feature", "").name, "");
     }
 
     // ------------------------------------------------------------------
@@ -599,103 +691,153 @@ Feature: Log in
     // ------------------------------------------------------------------
 
     #[test]
-    fn each_chosen_scenario_ends_passed_failed_or_undefined() {
-        let feature = login();
+    fn a_title_becomes_the_name_filter_of_its_test() {
+        for (title, filter) in [
+            ("Valid login", "valid_login"),
+            ("wait <n>", "wait_n"),
+            ("  It's  \"quoted\" -- twice!  ", "it_s_quoted_twice"),
+            ("Ünïcode ok", "n_code_ok"),
+        ] {
+            assert_eq!(scenario_filter(title), filter, "{title}");
+        }
+    }
 
-        let runs = run_scenarios(&feature, &[0, 1, 3], &RunFilter::all());
+    #[test]
+    fn the_cargo_command_has_one_filter_per_scenario_and_one_test_thread() {
+        let filters = ["valid_login".to_owned(), "wrong_value".to_owned()];
 
         assert_eq!(
-            names(&runs),
+            cargo_test_args(&filters),
             [
-                ("valid login", Verdict::Passed),
-                ("wrong value", Verdict::Failed),
-                ("undefined step", Verdict::Undefined),
+                "test",
+                "valid_login",
+                "wrong_value",
+                "--",
+                "--test-threads=1"
             ]
         );
-        assert!(runs[0].messages.is_empty());
+    }
+
+    const OUTPUT: &str = "\
+running 5 tests
+test login::valid_login ... ok
+test login::wrong_value ... FAILED
+test login::wait_n::case_1 ... ok
+test login::wait_n::case_2 ... ok
+test login::slow_one ... ignored, takes a minute
+
+failures:
+
+---- login::wrong_value stdout ----
+thread 'login::wrong_value' panicked at tests/login.rs:9:5:
+the value is \"5\", expected \"6\"
+
+failures:
+    login::wrong_value
+
+test result: FAILED. 3 passed; 1 failed; 1 ignored
+";
+
+    #[test]
+    fn the_output_of_cargo_test_is_read_test_by_test() {
+        let report = parse_libtest(OUTPUT);
+
+        assert_eq!(report.tests.len(), 5);
+        assert_eq!(
+            report.tests[1],
+            ("login::wrong_value".to_owned(), TestEnd::Failed)
+        );
         assert!(
-            runs[1].messages[0].contains("the value is \"5\", expected \"6\""),
+            report.failures["login::wrong_value"].contains("expected \"6\""),
             "{:?}",
-            runs[1].messages
-        );
-        assert!(
-            runs[2].messages[0].contains("no handler registered for step"),
-            "{:?}",
-            runs[2].messages
+            report.failures
         );
     }
 
     #[test]
-    fn a_scenario_carries_its_file_and_line() {
-        let feature = login();
+    fn each_scenario_ends_by_the_tests_named_after_it() {
+        let report = parse_libtest(OUTPUT);
+        let verdict = |filter: &str| verdict_of(filter, &report, "").0;
 
-        let runs = run_scenarios(&feature, &[1], &RunFilter::all());
-
-        assert_eq!(runs[0].file, "features/login.feature");
-        assert_eq!(runs[0].line, 14);
-    }
-
-    #[test]
-    fn an_outline_gives_one_result_per_example_row() {
-        let feature = login();
-
-        let runs = run_scenarios(&feature, &[2], &RunFilter::all());
-
+        assert_eq!(verdict("valid_login"), Verdict::Passed);
+        assert_eq!(verdict("wrong_value"), Verdict::Failed);
         assert_eq!(
-            names(&runs),
-            [
-                ("wait 1 (example 1)", Verdict::Passed),
-                ("wait 2 (example 2)", Verdict::Passed)
-            ]
+            verdict("wait_n"),
+            Verdict::Passed,
+            "every row of an outline"
         );
-        assert!(runs.iter().all(|run| run.line == 19));
+        assert_eq!(verdict("slow_one"), Verdict::Skipped);
+        assert_eq!(verdict("nobody"), Verdict::Undefined);
+        let (_, messages) = verdict_of("wrong_value", &report, "");
+        assert!(messages[0].contains("expected \"6\""), "{messages:?}");
     }
 
     #[test]
-    fn the_value_of_one_scenario_does_not_leak_into_the_next() {
-        let text = "Feature: f\n\
-                    Scenario: sets it\nGiven I set the value to \"5\"\n\
-                    Scenario: starts empty\nThen the value should be \"\"\n";
-        let feature = split_feature("f.feature", text);
-
-        let runs = run_scenarios(&feature, &[0, 1], &RunFilter::all());
-
-        assert_eq!(
-            names(&runs),
-            [
-                ("sets it", Verdict::Passed),
-                ("starts empty", Verdict::Passed)
-            ]
-        );
+    fn a_name_has_to_end_with_the_filter_not_just_contain_it() {
+        assert!(named_after("login::valid_login", "valid_login"));
+        assert!(named_after("login_valid_login", "valid_login"));
+        assert!(!named_after("login::invalid_login", "valid_login"));
+        assert!(!named_after("login::valid_login_twice", "valid_login"));
     }
 
     #[test]
-    fn tags_leave_scenarios_out_and_they_are_reported_as_skipped() {
+    fn a_build_that_failed_says_so_instead_of_blaming_the_scenario() {
+        let (verdict, messages) = verdict_of(
+            "valid_login",
+            &TestReport::default(),
+            "error: could not compile `shop`",
+        );
+
+        assert_eq!(verdict, Verdict::Undefined);
+        assert!(messages[0].contains("could not compile"), "{messages:?}");
+    }
+
+    #[test]
+    fn tags_leave_scenarios_out_without_starting_cargo() {
         let feature = login();
         let only_smoke = parse_tags("@smoke");
 
-        let runs = run_scenarios(&feature, &[0, 1, 2], &only_smoke);
+        // None of the chosen scenarios has @smoke, so nothing is started.
+        let runs = run_scenarios(&feature, &[1, 2, 3], &only_smoke);
 
-        // The feature's @web does not match; @smoke is on the first only.
-        assert_eq!(
-            names(&runs),
-            [
-                ("valid login", Verdict::Passed),
-                ("wrong value", Verdict::Skipped),
-                ("wait <n>", Verdict::Skipped),
-            ]
-        );
+        assert_eq!(runs.len(), 3);
+        assert!(runs.iter().all(|run| run.verdict == Verdict::Skipped));
         assert!(
-            runs[1].messages[0].contains("tags"),
+            runs[0].messages[0].contains("tags"),
             "{:?}",
-            runs[1].messages
+            runs[0].messages
         );
+        assert_eq!(
+            (runs[0].file.as_str(), runs[0].line),
+            ("features/login.feature", 14)
+        );
+    }
+
+    #[test]
+    fn the_feature_tags_count_for_its_scenarios() {
+        let feature = login();
+
+        // @web is the feature's: `-@web` leaves every scenario out.
+        let runs = run_scenarios(&feature, &[0, 1, 2, 3], &parse_tags("-@web"));
+
+        assert!(runs.iter().all(|run| run.verdict == Verdict::Skipped));
     }
 
     #[test]
     fn the_totals_count_each_verdict() {
-        let feature = login();
-        let runs = run_scenarios(&feature, &[0, 1, 2, 3], &parse_tags("-@slow"));
+        let run = |verdict| ScenarioRun {
+            file: "f".to_owned(),
+            line: 1,
+            name: "s".to_owned(),
+            verdict,
+            messages: Vec::new(),
+        };
+        let runs = [
+            run(Verdict::Passed),
+            run(Verdict::Failed),
+            run(Verdict::Undefined),
+            run(Verdict::Skipped),
+        ];
 
         assert_eq!(
             totals(&runs),
@@ -717,20 +859,9 @@ Feature: Log in
         assert_eq!(filter.exclude_tags, ["slow", "wip"]);
         let none = parse_tags("  ");
         assert!(none.include_tags.is_empty() && none.exclude_tags.is_empty());
-    }
-
-    #[test]
-    fn the_built_in_steps_know_the_placeholders_and_the_value_steps() {
-        let steps = builtin_steps();
-
-        for step in [
-            "Given I do nothing",
-            "Given the system is ready",
-            "When I wait 3 seconds",
-            "Given I set the value to \"x\"",
-        ] {
-            assert!(steps.has_handler(step), "{step}");
-        }
-        assert!(!steps.has_handler("Given I open \"https://example.com\""));
+        assert!(filter.allows(&["web".to_owned()]));
+        assert!(!filter.allows(&["web".to_owned(), "slow".to_owned()]));
+        assert!(!filter.allows(&["other".to_owned()]));
+        assert!(RunFilter::all().allows(&[]));
     }
 }
