@@ -401,6 +401,12 @@
                       "concepts/encryption",
                       "concepts/authentication",
                       "concepts/forms",
+                      "concepts/rendering-and-performance",
+                      "concepts/web-apis",
+                      "concepts/accessibility",
+                      "concepts/compression-and-caching",
+                      "concepts/mobile-web",
+                      "concepts/seo",
                       "glossary"
                     ]
                   }
