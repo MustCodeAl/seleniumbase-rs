@@ -87,16 +87,6 @@ const completionSpec: Fig.Spec = {
       ],
     },
     {
-      name: "throttle3g",
-      description: "Throttle the browser connection to 3G speeds.",
-      options: [
-        {
-          name: ["-h", "--help"],
-          description: "Print help",
-        },
-      ],
-    },
-    {
       name: "screenshot",
       description: "Capture a screenshot of the current page.",
       options: [
@@ -320,36 +310,6 @@ const completionSpec: Fig.Spec = {
       ],
     },
     {
-      name: "go-back",
-      description: "Navigate back in browser history.",
-      options: [
-        {
-          name: ["-h", "--help"],
-          description: "Print help",
-        },
-      ],
-    },
-    {
-      name: "go-forward",
-      description: "Navigate forward in browser history.",
-      options: [
-        {
-          name: ["-h", "--help"],
-          description: "Print help",
-        },
-      ],
-    },
-    {
-      name: "refresh",
-      description: "Reload the current page.",
-      options: [
-        {
-          name: ["-h", "--help"],
-          description: "Print help",
-        },
-      ],
-    },
-    {
       name: "get-text",
       description: "Print the visible text of an element.",
       options: [
@@ -451,7 +411,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "accept-alert",
-      description: "Accept the active browser alert.",
+      description: "Accept the alert that the page opens when it loads.",
       options: [
         {
           name: ["-h", "--help"],
@@ -461,7 +421,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "dismiss-alert",
-      description: "Dismiss the active browser alert.",
+      description: "Dismiss the alert that the page opens when it loads.",
       options: [
         {
           name: ["-h", "--help"],
@@ -471,7 +431,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "get-alert-text",
-      description: "Print the text of the active alert.",
+      description: "Print the text of the alert that the page opens when it loads.",
       options: [
         {
           name: ["-h", "--help"],
@@ -481,7 +441,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "type-alert-text",
-      description: "Type text into the active alert prompt.",
+      description: "Type text into the prompt that the page opens when it loads.",
       options: [
         {
           name: "--text",
@@ -563,52 +523,6 @@ const completionSpec: Fig.Spec = {
             name: "key",
           },
         },
-        {
-          name: ["-h", "--help"],
-          description: "Print help",
-        },
-      ],
-    },
-    {
-      name: "switch-to-window",
-      description: "Switch focus to a window by handle.",
-      options: [
-        {
-          name: "--handle",
-          description: "Window handle to switch to",
-          isRequired: true,
-          args: {
-            name: "handle",
-          },
-        },
-        {
-          name: ["-h", "--help"],
-          description: "Print help",
-        },
-      ],
-    },
-    {
-      name: "switch-to-frame",
-      description: "Switch focus to an iframe.",
-      options: [
-        {
-          name: "--css",
-          description: "CSS selector for the target element",
-          isRequired: true,
-          args: {
-            name: "css",
-          },
-        },
-        {
-          name: ["-h", "--help"],
-          description: "Print help",
-        },
-      ],
-    },
-    {
-      name: "switch-to-default-content",
-      description: "Switch focus back to the main document.",
-      options: [
         {
           name: ["-h", "--help"],
           description: "Print help",
@@ -897,52 +811,6 @@ const completionSpec: Fig.Spec = {
       ],
     },
     {
-      name: "set-window-position",
-      description: "Set the browser window position.",
-      options: [
-        {
-          name: "--x",
-          description: "Window X coordinate in pixels",
-          isRequired: true,
-          args: {
-            name: "x",
-          },
-        },
-        {
-          name: "--y",
-          description: "Window Y coordinate in pixels",
-          isRequired: true,
-          args: {
-            name: "y",
-          },
-        },
-        {
-          name: ["-h", "--help"],
-          description: "Print help",
-        },
-      ],
-    },
-    {
-      name: "close-window",
-      description: "Close the current browser window.",
-      options: [
-        {
-          name: ["-h", "--help"],
-          description: "Print help",
-        },
-      ],
-    },
-    {
-      name: "switch-to-parent-frame",
-      description: "Switch focus to the parent frame.",
-      options: [
-        {
-          name: ["-h", "--help"],
-          description: "Print help",
-        },
-      ],
-    },
-    {
       name: "is-element-visible",
       description: "Print whether an element is visible.",
       options: [
@@ -1120,56 +988,6 @@ const completionSpec: Fig.Spec = {
       ],
     },
     {
-      name: "open-new-window",
-      description: "Open a new browser window.",
-      options: [
-        {
-          name: ["-h", "--help"],
-          description: "Print help",
-        },
-      ],
-    },
-    {
-      name: "open-new-tab",
-      description: "Open a new browser tab.",
-      options: [
-        {
-          name: ["-h", "--help"],
-          description: "Print help",
-        },
-      ],
-    },
-    {
-      name: "switch-to-newest-window",
-      description: "Switch focus to the newest browser window.",
-      options: [
-        {
-          name: ["-h", "--help"],
-          description: "Print help",
-        },
-      ],
-    },
-    {
-      name: "switch-to-default-window",
-      description: "Switch focus to the default window.",
-      options: [
-        {
-          name: ["-h", "--help"],
-          description: "Print help",
-        },
-      ],
-    },
-    {
-      name: "get-active-element-css",
-      description: "Print a CSS selector for the currently focused element.",
-      options: [
-        {
-          name: ["-h", "--help"],
-          description: "Print help",
-        },
-      ],
-    },
-    {
       name: "wait-for-element-present",
       description: "Wait until an element is present in the DOM.",
       options: [
@@ -1284,7 +1102,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "wait-for-and-accept-alert",
-      description: "Wait for an alert, then accept it.",
+      description: "Wait for an alert that the page opens, then accept it.",
       options: [
         {
           name: "--timeout",
@@ -1301,7 +1119,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "wait-for-and-dismiss-alert",
-      description: "Wait for an alert, then dismiss it.",
+      description: "Wait for an alert that the page opens, then dismiss it.",
       options: [
         {
           name: "--timeout",
@@ -1967,7 +1785,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "run-scenario",
-      description: "Run a scenario file and write an optional dashboard.",
+      description: "Run a scenario file, the way to do several steps in one browser, and write an optional dashboard.",
       options: [
         {
           name: "--file",
@@ -2233,13 +2051,6 @@ const completionSpec: Fig.Spec = {
       description: "Upload a local file into a file input.",
       options: [
         {
-          name: "--url",
-          description: "Page to open first (defaults to a generated blank upload page)",
-          args: {
-            name: "url",
-          },
-        },
-        {
           name: ["-h", "--help"],
           description: "Print help",
         },
@@ -2259,13 +2070,6 @@ const completionSpec: Fig.Spec = {
       name: "deferred",
       description: "Run several assertions, then report every failure at once.",
       options: [
-        {
-          name: "--url",
-          description: "URL to open before running the assertions",
-          args: {
-            name: "url",
-          },
-        },
         {
           name: "--assert",
           description: "Assertion spec: element=<css>, text=<css>:<text>, title=<text>, or url=<text>",
@@ -2338,10 +2142,6 @@ const completionSpec: Fig.Spec = {
       description: "Launch Chrome with an open DevTools endpoint and print MCP client configs.",
       options: [
         {
-          name: "--headless",
-          description: "Run the browser without a window",
-        },
-        {
           name: "--port",
           description: "DevTools port on 127.0.0.1 (0 lets Chrome pick a free one)",
           args: {
@@ -2349,31 +2149,10 @@ const completionSpec: Fig.Spec = {
           },
         },
         {
-          name: "--user-data-dir",
-          description: "Profile directory to keep (default: a throwaway one; never Chrome's own default profile)",
-          args: {
-            name: "dir",
-          },
-        },
-        {
-          name: "--proxy",
-          description: "Proxy: SERVER:PORT, USER:PASS@SERVER:PORT or scheme://SERVER:PORT",
-          args: {
-            name: "proxy",
-          },
-        },
-        {
           name: "--browser-path",
           description: "Browser binary to launch, such as Microsoft Edge or another Chromium browser",
           args: {
             name: "path",
-          },
-        },
-        {
-          name: "--url",
-          description: "Page to open once the browser runs",
-          args: {
-            name: "url",
           },
         },
         {
@@ -2620,6 +2399,17 @@ const completionSpec: Fig.Spec = {
       args: {
         name: "locale",
       },
+    },
+    {
+      name: ["--start-page", "--url", "--start_page"],
+      description: "Page the browser opens first, Python's --start-page (aliases --url and --start_page)",
+      args: {
+        name: "url",
+      },
+    },
+    {
+      name: ["--save-screenshot", "--save_screenshot"],
+      description: "Save a screenshot to latest_logs/ just before the browser closes, and print its path",
     },
     {
       name: "--ad-block",

@@ -22,7 +22,7 @@ sbrs [FLAGS] <SUBCOMMAND>
 
 | Command | What it does |
 |---|---|
-| [`sbrs accept-alert`](#sbrs-accept-alert) | Accept the active browser alert. |
+| [`sbrs accept-alert`](#sbrs-accept-alert) | Accept the alert that the page opens when it loads. |
 | [`sbrs add-text`](#sbrs-add-text) | Append text to an input or textarea. |
 | [`sbrs assert-attribute`](#sbrs-assert-attribute) | Assert an element attribute equals an expected value. |
 | [`sbrs assert-element`](#sbrs-assert-element) | Assert that an element exists. |
@@ -43,13 +43,12 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs clear-local-storage`](#sbrs-clear-local-storage) | Clear the page local storage. |
 | [`sbrs click-partial-link-text`](#sbrs-click-partial-link-text) | Click a link containing the given text. |
 | [`sbrs click-visible-elements`](#sbrs-click-visible-elements) | Click all visible elements matching a selector. |
-| [`sbrs close-window`](#sbrs-close-window) | Close the current browser window. |
 | [`sbrs commander`](#sbrs-commander) | Launch the interactive commander (needs a build with the `tui` feature). |
 | [`sbrs completions`](#sbrs-completions) | Generate a completion script for a supported shell, or a Fig spec. |
 | [`sbrs decrypt`](#sbrs-decrypt) | Decrypt a token made by `sbrs encrypt`; read from stdin if TOKEN is omitted. Python's `sbrs unobfuscate` is the same command. |
 | [`sbrs deferred`](#sbrs-deferred) | Run several assertions, then report every failure at once. |
 | [`sbrs devtools`](#sbrs-devtools) | Launch Chrome with an open DevTools endpoint and print MCP client configs. |
-| [`sbrs dismiss-alert`](#sbrs-dismiss-alert) | Dismiss the active browser alert. |
+| [`sbrs dismiss-alert`](#sbrs-dismiss-alert) | Dismiss the alert that the page opens when it loads. |
 | [`sbrs doctor`](#sbrs-doctor) | Run a diagnostic check on the environment and configuration. |
 | [`sbrs download-file`](#sbrs-download-file) | Download a file from a URL (browser download with an HTTP fallback). |
 | [`sbrs drag-and-drop`](#sbrs-drag-and-drop) | Drag one element onto another. |
@@ -61,8 +60,7 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs fingerprint diff`](#sbrs-fingerprint-diff) | Compare two fingerprint files. |
 | [`sbrs fingerprint export`](#sbrs-fingerprint-export) | Write a preset or a random identity as a fingerprint file. |
 | [`sbrs fingerprint presets`](#sbrs-fingerprint-presets) | List the presets and what each claims. |
-| [`sbrs get-active-element-css`](#sbrs-get-active-element-css) | Print a CSS selector for the currently focused element. |
-| [`sbrs get-alert-text`](#sbrs-get-alert-text) | Print the text of the active alert. |
+| [`sbrs get-alert-text`](#sbrs-get-alert-text) | Print the text of the alert that the page opens when it loads. |
 | [`sbrs get-attribute`](#sbrs-get-attribute) | Print an element attribute value. |
 | [`sbrs get-cookies`](#sbrs-get-cookies) | Print all browser cookies as JSON. |
 | [`sbrs get-current-url`](#sbrs-get-current-url) | Print the current URL. |
@@ -72,8 +70,6 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs get-title`](#sbrs-get-title) | Print the page title. |
 | [`sbrs get-value`](#sbrs-get-value) | Print the value of a form element. |
 | [`sbrs get-window-position`](#sbrs-get-window-position) | Print the browser window position. |
-| [`sbrs go-back`](#sbrs-go-back) | Navigate back in browser history. |
-| [`sbrs go-forward`](#sbrs-go-forward) | Navigate forward in browser history. |
 | [`sbrs grid-hub`](#sbrs-grid-hub) | Start, stop, restart or check a Selenium Grid hub. |
 | [`sbrs grid-node`](#sbrs-grid-node) | Start, stop, restart or check a Selenium Grid node. |
 | [`sbrs highlight-click`](#sbrs-highlight-click) | Highlight an element, then click it. |
@@ -98,8 +94,6 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs mkrec`](#sbrs-mkrec) | Create a test recording scaffold, or record a test live with --url. |
 | [`sbrs objectify`](#sbrs-objectify) | Objectify a test recording. |
 | [`sbrs open`](#sbrs-open) | Open a URL in the browser. |
-| [`sbrs open-new-tab`](#sbrs-open-new-tab) | Open a new browser tab. |
-| [`sbrs open-new-window`](#sbrs-open-new-window) | Open a new browser window. |
 | [`sbrs patch-chrome`](#sbrs-patch-chrome) | Patch a Chrome/Chromium binary for native-level spoofing. |
 | [`sbrs patch-chromedriver`](#sbrs-patch-chromedriver) | Patch a chromedriver binary to reduce detection surface. |
 | [`sbrs pdf-text`](#sbrs-pdf-text) | Print the text extracted from a page or PDF URL. |
@@ -110,35 +104,26 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs print-pdf`](#sbrs-print-pdf) | Print a page to PDF and save it to disk. |
 | [`sbrs prompt`](#sbrs-prompt) | Print one short line for a shell prompt: the installed Chrome's major version and whether a matching chromedriver is at hand. |
 | [`sbrs record`](#sbrs-record) | Record browser interactions into a replayable action file. |
-| [`sbrs refresh`](#sbrs-refresh) | Reload the current page. |
 | [`sbrs remove-local-storage-item`](#sbrs-remove-local-storage-item) | Remove a local storage entry by key. |
 | [`sbrs replay`](#sbrs-replay) | Replay a recorded action file against a fresh browser session. |
-| [`sbrs run-scenario`](#sbrs-run-scenario) | Run a scenario file and write an optional dashboard. |
+| [`sbrs run-scenario`](#sbrs-run-scenario) | Run a scenario file, the way to do several steps in one browser, and write an optional dashboard. |
 | [`sbrs save-cookies`](#sbrs-save-cookies) | Save browser cookies to a JSON file. |
 | [`sbrs save-source`](#sbrs-save-source) | Save the current page source to a file. |
 | [`sbrs screenshot`](#sbrs-screenshot) | Capture a screenshot of the current page. |
 | [`sbrs select-option`](#sbrs-select-option) | Select an option from a dropdown. |
 | [`sbrs send-keys`](#sbrs-send-keys) | Send keystrokes to an element. |
 | [`sbrs set-local-storage-item`](#sbrs-set-local-storage-item) | Set a local storage key/value pair. |
-| [`sbrs set-window-position`](#sbrs-set-window-position) | Set the browser window position. |
 | [`sbrs smoke`](#sbrs-smoke) | Run a smoke test against a URL. |
 | [`sbrs smooth-scroll-to`](#sbrs-smooth-scroll-to) | Smoothly scroll an element into view. |
-| [`sbrs switch-to-default-content`](#sbrs-switch-to-default-content) | Switch focus back to the main document. |
-| [`sbrs switch-to-default-window`](#sbrs-switch-to-default-window) | Switch focus to the default window. |
-| [`sbrs switch-to-frame`](#sbrs-switch-to-frame) | Switch focus to an iframe. |
-| [`sbrs switch-to-newest-window`](#sbrs-switch-to-newest-window) | Switch focus to the newest browser window. |
-| [`sbrs switch-to-parent-frame`](#sbrs-switch-to-parent-frame) | Switch focus to the parent frame. |
-| [`sbrs switch-to-window`](#sbrs-switch-to-window) | Switch focus to a window by handle. |
 | [`sbrs test`](#sbrs-test) | Run the project's tests, or one example, through Cargo. |
-| [`sbrs throttle3g`](#sbrs-throttle3g) | Throttle the browser connection to 3G speeds. |
 | [`sbrs translate`](#sbrs-translate) | Write the actions of a JSON scenario in another language. |
-| [`sbrs type-alert-text`](#sbrs-type-alert-text) | Type text into the active alert prompt. |
+| [`sbrs type-alert-text`](#sbrs-type-alert-text) | Type text into the prompt that the page opens when it loads. |
 | [`sbrs uc-click`](#sbrs-uc-click) | Perform a UC-mode click on an element. |
 | [`sbrs uc-type`](#sbrs-uc-type) | Perform UC-mode typing into an element. |
 | [`sbrs uncheck-if-checked`](#sbrs-uncheck-if-checked) | Uncheck a checkbox only if it is checked. |
 | [`sbrs version`](#sbrs-version) | Print the sbrs version, as `sbrs --version` does. |
-| [`sbrs wait-for-and-accept-alert`](#sbrs-wait-for-and-accept-alert) | Wait for an alert, then accept it. |
-| [`sbrs wait-for-and-dismiss-alert`](#sbrs-wait-for-and-dismiss-alert) | Wait for an alert, then dismiss it. |
+| [`sbrs wait-for-and-accept-alert`](#sbrs-wait-for-and-accept-alert) | Wait for an alert that the page opens, then accept it. |
+| [`sbrs wait-for-and-dismiss-alert`](#sbrs-wait-for-and-dismiss-alert) | Wait for an alert that the page opens, then dismiss it. |
 | [`sbrs wait-for-element-not-visible`](#sbrs-wait-for-element-not-visible) | Wait until an element is no longer visible. |
 | [`sbrs wait-for-element-present`](#sbrs-wait-for-element-present) | Wait until an element is present in the DOM. |
 | [`sbrs wait-for-ready-state-complete`](#sbrs-wait-for-ready-state-complete) | Wait until the document readyState is complete. |
@@ -203,6 +188,26 @@ Also: `-a`
 <ParamField query="--locale <LOCALE>" type="string">
 
 Locale string for the browser context
+
+</ParamField>
+
+<ParamField query="--start-page <URL>" type="string">
+
+Page the browser opens first, Python's --start-page (aliases --url and --start_page)
+
+Every command starts its own browser and closes it at the end, so a command that acts on a page (get-text, click, screenshot, assert-element, ...) acts on this one: `sbrs --url https://example.com get-text --css h1`. A bare host gets `https://` and a local file becomes a `file://` URL. The command line wins over SB_START_PAGE, which wins over the `start_page` key of the settings file. Commands that open a URL of their own (open, smoke, download-file, print-pdf, pdf-text, assert-pdf-text, record) refuse it.
+
+Also: `--url`, `--start_page`
+
+</ParamField>
+
+<ParamField query="--save-screenshot" type="boolean">
+
+Save a screenshot to latest_logs/ just before the browser closes, and print its path
+
+Python's `--save-screenshot`. A command that acts on the page (click, type, ...) also prints where it ended up as `Now at: <url> (<title>)`.
+
+Also: `--save_screenshot`
 
 </ParamField>
 
@@ -338,7 +343,7 @@ Also: `-V`
 
 ## sbrs accept-alert
 
-Accept the active browser alert.
+Accept the alert that the page opens when it loads.
 
 ```bash Usage
 sbrs accept-alert
@@ -659,7 +664,7 @@ CSS selector for the target element
 Upload a local file into a file input.
 
 ```bash Usage
-sbrs choose-file [--url <URL>] <SELECTOR> <FILE>
+sbrs choose-file <SELECTOR> <FILE>
 ```
 
 **Arguments**
@@ -673,14 +678,6 @@ CSS selector of the &lt;input type=file> element
 <ParamField path="FILE" type="string" required>
 
 Local file to upload
-
-</ParamField>
-
-**Flags**
-
-<ParamField query="--url <URL>" type="string">
-
-Page to open first (defaults to a generated blank upload page)
 
 </ParamField>
 
@@ -732,14 +729,6 @@ CSS selector for the target element
 
 </ParamField>
 
-## sbrs close-window
-
-Close the current browser window.
-
-```bash Usage
-sbrs close-window
-```
-
 ## sbrs commander
 
 Launch the interactive commander (needs a build with the `tui` feature).
@@ -788,17 +777,13 @@ The token to decrypt.
 
 Run several assertions, then report every failure at once.
 
+The page they run on is the global --url, if there is one.
+
 ```bash Usage
-sbrs deferred [FLAGS]
+sbrs deferred [--assert <SPEC>] [--spec <SPEC>]
 ```
 
 **Flags**
-
-<ParamField query="--url <URL>" type="string">
-
-URL to open before running the assertions
-
-</ParamField>
 
 <ParamField query="--assert <SPEC>" type="string[]">
 
@@ -816,7 +801,7 @@ JSON file containing an array of assertion specs
 
 Launch Chrome with an open DevTools endpoint and print MCP client configs.
 
-Starts Chrome with the Pure CDP engine (no chromedriver), prints the DevTools HTTP endpoint, the browser WebSocket URL and configs for Google's chrome-devtools-mcp and Microsoft's Playwright MCP, then keeps the browser running until Ctrl+C, which closes it and exits with 0. The global --browser (chrome, chromium, edge or another Chromium browser), --headed, --user-agent, --locale, --ad-block, --extension-dir and --proxy-list apply as well.
+Starts Chrome with the Pure CDP engine (no chromedriver), prints the DevTools HTTP endpoint, the browser WebSocket URL and configs for Google's chrome-devtools-mcp and Microsoft's Playwright MCP, then keeps the browser running until Ctrl+C, which closes it and exits with 0. The global --browser (chrome, chromium, edge or another Chromium browser), --headless, --headed, --user-data-dir, --proxy, --user-agent, --locale, --ad-block, --extension-dir --proxy-list and --url (the page to open once the browser runs) apply as well.
 
 ```bash Usage
 sbrs devtools [FLAGS]
@@ -824,39 +809,15 @@ sbrs devtools [FLAGS]
 
 **Flags**
 
-<ParamField query="--headless" type="boolean">
-
-Run the browser without a window
-
-</ParamField>
-
 <ParamField query="--port <PORT>" type="string" default="9222">
 
 DevTools port on 127.0.0.1 (0 lets Chrome pick a free one)
 
 </ParamField>
 
-<ParamField query="--user-data-dir <DIR>" type="string">
-
-Profile directory to keep (default: a throwaway one; never Chrome's own default profile)
-
-</ParamField>
-
-<ParamField query="--proxy <PROXY>" type="string">
-
-Proxy: SERVER:PORT, USER:PASS@SERVER:PORT or scheme://SERVER:PORT
-
-</ParamField>
-
 <ParamField query="--browser-path <PATH>" type="string">
 
 Browser binary to launch, such as Microsoft Edge or another Chromium browser
-
-</ParamField>
-
-<ParamField query="--url <URL>" type="string">
-
-Page to open once the browser runs
 
 </ParamField>
 
@@ -868,7 +829,7 @@ Print the endpoint and configs as one line of JSON instead of text
 
 ## sbrs dismiss-alert
 
-Dismiss the active browser alert.
+Dismiss the alert that the page opens when it loads.
 
 ```bash Usage
 sbrs dismiss-alert
@@ -1124,17 +1085,9 @@ List the presets and what each claims.
 sbrs fingerprint presets
 ```
 
-## sbrs get-active-element-css
-
-Print a CSS selector for the currently focused element.
-
-```bash Usage
-sbrs get-active-element-css
-```
-
 ## sbrs get-alert-text
 
-Print the text of the active alert.
+Print the text of the alert that the page opens when it loads.
 
 ```bash Usage
 sbrs get-alert-text
@@ -1262,22 +1215,6 @@ Print the browser window position.
 
 ```bash Usage
 sbrs get-window-position
-```
-
-## sbrs go-back
-
-Navigate back in browser history.
-
-```bash Usage
-sbrs go-back
-```
-
-## sbrs go-forward
-
-Navigate forward in browser history.
-
-```bash Usage
-sbrs go-forward
 ```
 
 ## sbrs grid-hub
@@ -1948,22 +1885,6 @@ URL to open in the browser.
 
 </ParamField>
 
-## sbrs open-new-tab
-
-Open a new browser tab.
-
-```bash Usage
-sbrs open-new-tab
-```
-
-## sbrs open-new-window
-
-Open a new browser window.
-
-```bash Usage
-sbrs open-new-window
-```
-
 ## sbrs patch-chrome
 
 Patch a Chrome/Chromium binary for native-level spoofing.
@@ -2180,14 +2101,6 @@ Stop recording after this many seconds (default: run until Ctrl-C)
 
 </ParamField>
 
-## sbrs refresh
-
-Reload the current page.
-
-```bash Usage
-sbrs refresh
-```
-
 ## sbrs remove-local-storage-item
 
 Remove a local storage entry by key.
@@ -2222,7 +2135,7 @@ JSON action file produced by `sbrs record`
 
 ## sbrs run-scenario
 
-Run a scenario file and write an optional dashboard.
+Run a scenario file, the way to do several steps in one browser, and write an optional dashboard.
 
 ```bash Usage
 sbrs run-scenario <--file <FILE>> [--dashboard <DASHBOARD>]
@@ -2362,28 +2275,6 @@ Value to store in local storage
 
 </ParamField>
 
-## sbrs set-window-position
-
-Set the browser window position.
-
-```bash Usage
-sbrs set-window-position <--x <X>> <--y <Y>>
-```
-
-**Flags**
-
-<ParamField query="--x <X>" type="string" required>
-
-Window X coordinate in pixels
-
-</ParamField>
-
-<ParamField query="--y <Y>" type="string" required>
-
-Window Y coordinate in pixels
-
-</ParamField>
-
 ## sbrs smoke
 
 Run a smoke test against a URL.
@@ -2421,70 +2312,6 @@ sbrs smooth-scroll-to <--css <CSS>>
 <ParamField query="--css <CSS>" type="string" required>
 
 CSS selector for the target element
-
-</ParamField>
-
-## sbrs switch-to-default-content
-
-Switch focus back to the main document.
-
-```bash Usage
-sbrs switch-to-default-content
-```
-
-## sbrs switch-to-default-window
-
-Switch focus to the default window.
-
-```bash Usage
-sbrs switch-to-default-window
-```
-
-## sbrs switch-to-frame
-
-Switch focus to an iframe.
-
-```bash Usage
-sbrs switch-to-frame <--css <CSS>>
-```
-
-**Flags**
-
-<ParamField query="--css <CSS>" type="string" required>
-
-CSS selector for the target element
-
-</ParamField>
-
-## sbrs switch-to-newest-window
-
-Switch focus to the newest browser window.
-
-```bash Usage
-sbrs switch-to-newest-window
-```
-
-## sbrs switch-to-parent-frame
-
-Switch focus to the parent frame.
-
-```bash Usage
-sbrs switch-to-parent-frame
-```
-
-## sbrs switch-to-window
-
-Switch focus to a window by handle.
-
-```bash Usage
-sbrs switch-to-window <--handle <HANDLE>>
-```
-
-**Flags**
-
-<ParamField query="--handle <HANDLE>" type="string" required>
-
-Window handle to switch to
 
 </ParamField>
 
@@ -2538,14 +2365,6 @@ Cargo features to enable, separated by commas.
 
 </ParamField>
 
-## sbrs throttle3g
-
-Throttle the browser connection to 3G speeds.
-
-```bash Usage
-sbrs throttle3g
-```
-
 ## sbrs translate
 
 Write the actions of a JSON scenario in another language.
@@ -2598,7 +2417,7 @@ Also: `-c`
 
 ## sbrs type-alert-text
 
-Type text into the active alert prompt.
+Type text into the prompt that the page opens when it loads.
 
 ```bash Usage
 sbrs type-alert-text <--text <TEXT>>
@@ -2676,7 +2495,7 @@ sbrs version
 
 ## sbrs wait-for-and-accept-alert
 
-Wait for an alert, then accept it.
+Wait for an alert that the page opens, then accept it.
 
 ```bash Usage
 sbrs wait-for-and-accept-alert [--timeout <TIMEOUT>]
@@ -2692,7 +2511,7 @@ Maximum wait time in seconds
 
 ## sbrs wait-for-and-dismiss-alert
 
-Wait for an alert, then dismiss it.
+Wait for an alert that the page opens, then dismiss it.
 
 ```bash Usage
 sbrs wait-for-and-dismiss-alert [--timeout <TIMEOUT>]

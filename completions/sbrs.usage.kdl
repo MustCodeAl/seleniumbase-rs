@@ -12,10 +12,10 @@ logo #"""
 unknown_flags error
 args_override_self #false
 subcommand_required #true
-flag --webdriver help="WebDriver server URL (default: SB_WEBDRIVER_URL, else http://localhost:4444)" {
+flag --webdriver help="WebDriver server URL (default: SB_WEBDRIVER_URL, else http://localhost:4444)" global=#true {
     arg <URL>
 }
-flag --browser help="Browser engine to launch (default: chrome, or the config file's)" {
+flag --browser help="Browser engine to launch (default: chrome, or the config file's)" global=#true {
     arg <BROWSER> {
         choices {
             choice chrome
@@ -32,44 +32,59 @@ flag --browser help="Browser engine to launch (default: chrome, or the config fi
         }
     }
 }
-flag --headed help="Run the browser in headed mode" bool_value=#true
-flag --headless help="Run the browser in headless mode" bool_value=#true
-flag --cdp help="Enable Chrome DevTools Protocol mode" bool_value=#true
-flag --uc help="Enable undetected-chromedriver style evasions" bool_value=#true
-flag --user-agent help="Override the default user agent string" {
+flag --headed help="Run the browser in headed mode" global=#true bool_value=#true
+flag --headless help="Run the browser in headless mode" global=#true bool_value=#true
+flag --cdp help="Enable Chrome DevTools Protocol mode" global=#true bool_value=#true
+flag --uc help="Enable undetected-chromedriver style evasions" global=#true bool_value=#true
+flag --user-agent help="Override the default user agent string" global=#true {
     arg <USER_AGENT>
 }
-flag "-a --agent" help="Alias for --user-agent" {
+flag "-a --agent" help="Alias for --user-agent" global=#true {
     arg <AGENT>
 }
-flag --locale help="Locale string for the browser context" {
+flag --locale help="Locale string for the browser context" global=#true {
     arg <LOCALE>
 }
-flag --ad-block help="Refuse the requests of ad and tracker hosts (Chromium WebDriver sessions)" bool_value=#true
-flag --proxy help="Proxy (host:port or scheme://host:port); with --proxy-list, a name from the list" {
+flag "--start-page --url --start_page" help="Page the browser opens first, Python's --start-page (aliases --url and --start_page)" global=#true {
+    long_help #"""
+Page the browser opens first, Python's --start-page (aliases --url and --start_page)
+
+Every command starts its own browser and closes it at the end, so a command that acts on a page (get-text, click, screenshot, assert-element, ...) acts on this one: `sbrs --url https://example.com get-text --css h1`. A bare host gets `https://` and a local file becomes a `file://` URL. The command line wins over SB_START_PAGE, which wins over the `start_page` key of the settings file. Commands that open a URL of their own (open, smoke, download-file, print-pdf, pdf-text, assert-pdf-text, record) refuse it.
+"""#
+    arg <URL>
+}
+flag "--save-screenshot --save_screenshot" help="Save a screenshot to latest_logs/ just before the browser closes, and print its path" global=#true bool_value=#true {
+    long_help #"""
+Save a screenshot to latest_logs/ just before the browser closes, and print its path
+
+Python's `--save-screenshot`. A command that acts on the page (click, type, ...) also prints where it ended up as `Now at: <url> (<title>)`.
+"""#
+}
+flag --ad-block help="Refuse the requests of ad and tracker hosts (Chromium WebDriver sessions)" global=#true bool_value=#true
+flag --proxy help="Proxy (host:port or scheme://host:port); with --proxy-list, a name from the list" global=#true {
     arg <PROXY>
 }
-flag --proxy-list help="File of proxies to choose from; without --proxy a random one is used" {
+flag --proxy-list help="File of proxies to choose from; without --proxy a random one is used" global=#true {
     arg <FILE>
 }
-flag --proxy-pac-url help="URL to a proxy auto-config (PAC) file" {
+flag --proxy-pac-url help="URL to a proxy auto-config (PAC) file" global=#true {
     arg <PROXY_PAC_URL>
 }
-flag --user-data-dir help="Path to a persistent browser user-data directory" {
+flag --user-data-dir help="Path to a persistent browser user-data directory" global=#true {
     arg <USER_DATA_DIR>
 }
-flag --extension-dir help="Path to an unpacked extension directory" {
+flag --extension-dir help="Path to an unpacked extension directory" global=#true {
     arg <EXTENSION_DIR>
 }
-flag "--reuse-session --reuse_session --rs" help="Share browsers among the tests of the run (SB_REUSE_SESSION)" bool_value=#true
-flag "--rcs --reuse-class-session --reuse_class_session" help="Share a browser among the tests of one Rust module (SB_REUSE_CLASS_SESSION)" bool_value=#true
-flag --mobile help="Use a mobile device emulation profile" bool_value=#true
-flag "--esc-end --esc_end --ee" help="End the current test when ESC is pressed in the browser" bool_value=#true
-flag "--rec-sb-cdp --rec_sb_cdp" help="Write recordings as pure CDP code (sb_cdp Page and Locator calls)" bool_value=#true
-flag "-n --threads" help="Number of parallel threads for test runs" {
+flag "--reuse-session --reuse_session --rs" help="Share browsers among the tests of the run (SB_REUSE_SESSION)" global=#true bool_value=#true
+flag "--rcs --reuse-class-session --reuse_class_session" help="Share a browser among the tests of one Rust module (SB_REUSE_CLASS_SESSION)" global=#true bool_value=#true
+flag --mobile help="Use a mobile device emulation profile" global=#true bool_value=#true
+flag "--esc-end --esc_end --ee" help="End the current test when ESC is pressed in the browser" global=#true bool_value=#true
+flag "--rec-sb-cdp --rec_sb_cdp" help="Write recordings as pure CDP code (sb_cdp Page and Locator calls)" global=#true bool_value=#true
+flag "-n --threads" help="Number of parallel threads for test runs" global=#true {
     arg <THREADS>
 }
-flag "-c --config" help="Path to a TOML/JSON settings file" {
+flag "-c --config" help="Path to a TOML/JSON settings file" global=#true {
     arg <CONFIG>
 }
 flag --fingerprint help="Make every browser the command starts present the fingerprint in FILE" global=#true {
@@ -80,7 +95,7 @@ The file is the fingerprint JSON that `sbrs fingerprint capture` and `export` wr
 """#
     arg <FILE>
 }
-flag --plugin help="Turn on a built-in plugin in the browsers the command starts (repeatable)" var=#true {
+flag --plugin help="Turn on a built-in plugin in the browsers the command starts (repeatable)" global=#true var=#true {
     long_help #"""
 Turn on a built-in plugin in the browsers the command starts (repeatable)
 
@@ -88,7 +103,7 @@ Adds to the plugins the settings file (the [plugins] table) and SB_PLUGINS turn 
 """#
     arg <NAME>
 }
-flag --plugin-opt help="Set one option of a plugin, NAME.KEY=VALUE with a TOML VALUE (repeatable)" var=#true {
+flag --plugin-opt help="Set one option of a plugin, NAME.KEY=VALUE with a TOML VALUE (repeatable)" global=#true var=#true {
     long_help #"""
 Set one option of a plugin, NAME.KEY=VALUE with a TOML VALUE (repeatable)
 
@@ -98,6 +113,7 @@ Quote the whole option so the shell keeps the quotes of a string: --plugin-opt '
 }
 flag "-h --help" help="Print help" action=help builtin=#true
 flag "-V --version" help="Print version" action=version builtin=#true
+complete url type=url
 complete file type=path
 cmd version help="Print the sbrs version, as `sbrs --version` does." {
     flag "-h --help" help="Print help" action=help builtin=#true
@@ -123,9 +139,6 @@ cmd cdp help="Execute a Chrome DevTools Protocol command." {
     flag "-h --help" help="Print help" action=help builtin=#true
 }
 cmd cache-clear help="Clear the browser cache via CDP." {
-    flag "-h --help" help="Print help" action=help builtin=#true
-}
-cmd throttle3g help="Throttle the browser connection to 3G speeds." {
     flag "-h --help" help="Print help" action=help builtin=#true
 }
 cmd screenshot help="Capture a screenshot of the current page." {
@@ -206,15 +219,6 @@ cmd cdp-type-text help="Type text using CDP input injection." {
     }
     flag "-h --help" help="Print help" action=help builtin=#true
 }
-cmd go-back help="Navigate back in browser history." {
-    flag "-h --help" help="Print help" action=help builtin=#true
-}
-cmd go-forward help="Navigate forward in browser history." {
-    flag "-h --help" help="Print help" action=help builtin=#true
-}
-cmd refresh help="Reload the current page." {
-    flag "-h --help" help="Print help" action=help builtin=#true
-}
 cmd get-text help="Print the visible text of an element." {
     flag --css help="CSS selector for the target element" required=#true {
         arg <CSS>
@@ -248,16 +252,16 @@ cmd get-current-url help="Print the current URL." {
 cmd clear-cookies help="Delete all browser cookies." {
     flag "-h --help" help="Print help" action=help builtin=#true
 }
-cmd accept-alert help="Accept the active browser alert." {
+cmd accept-alert help="Accept the alert that the page opens when it loads." {
     flag "-h --help" help="Print help" action=help builtin=#true
 }
-cmd dismiss-alert help="Dismiss the active browser alert." {
+cmd dismiss-alert help="Dismiss the alert that the page opens when it loads." {
     flag "-h --help" help="Print help" action=help builtin=#true
 }
-cmd get-alert-text help="Print the text of the active alert." {
+cmd get-alert-text help="Print the text of the alert that the page opens when it loads." {
     flag "-h --help" help="Print help" action=help builtin=#true
 }
-cmd type-alert-text help="Type text into the active alert prompt." {
+cmd type-alert-text help="Type text into the prompt that the page opens when it loads." {
     flag --text help="Text to type into the alert prompt" required=#true {
         arg <TEXT>
     }
@@ -285,21 +289,6 @@ cmd remove-local-storage-item help="Remove a local storage entry by key." {
     flag --key help="Storage key" required=#true {
         arg <KEY>
     }
-    flag "-h --help" help="Print help" action=help builtin=#true
-}
-cmd switch-to-window help="Switch focus to a window by handle." {
-    flag --handle help="Window handle to switch to" required=#true {
-        arg <HANDLE>
-    }
-    flag "-h --help" help="Print help" action=help builtin=#true
-}
-cmd switch-to-frame help="Switch focus to an iframe." {
-    flag --css help="CSS selector for the target element" required=#true {
-        arg <CSS>
-    }
-    flag "-h --help" help="Print help" action=help builtin=#true
-}
-cmd switch-to-default-content help="Switch focus back to the main document." {
     flag "-h --help" help="Print help" action=help builtin=#true
 }
 cmd get-cookies help="Print all browser cookies as JSON." {
@@ -405,21 +394,6 @@ cmd wait-for-ready-state-complete help="Wait until the document readyState is co
 cmd get-window-position help="Print the browser window position." {
     flag "-h --help" help="Print help" action=help builtin=#true
 }
-cmd set-window-position help="Set the browser window position." {
-    flag --x help="Window X coordinate in pixels" required=#true {
-        arg <X>
-    }
-    flag --y help="Window Y coordinate in pixels" required=#true {
-        arg <Y>
-    }
-    flag "-h --help" help="Print help" action=help builtin=#true
-}
-cmd close-window help="Close the current browser window." {
-    flag "-h --help" help="Print help" action=help builtin=#true
-}
-cmd switch-to-parent-frame help="Switch focus to the parent frame." {
-    flag "-h --help" help="Print help" action=help builtin=#true
-}
 cmd is-element-visible help="Print whether an element is visible." {
     flag --css help="CSS selector for the target element" required=#true {
         arg <CSS>
@@ -480,21 +454,6 @@ cmd uncheck-if-checked help="Uncheck a checkbox only if it is checked." {
     }
     flag "-h --help" help="Print help" action=help builtin=#true
 }
-cmd open-new-window help="Open a new browser window." {
-    flag "-h --help" help="Print help" action=help builtin=#true
-}
-cmd open-new-tab help="Open a new browser tab." {
-    flag "-h --help" help="Print help" action=help builtin=#true
-}
-cmd switch-to-newest-window help="Switch focus to the newest browser window." {
-    flag "-h --help" help="Print help" action=help builtin=#true
-}
-cmd switch-to-default-window help="Switch focus to the default window." {
-    flag "-h --help" help="Print help" action=help builtin=#true
-}
-cmd get-active-element-css help="Print a CSS selector for the currently focused element." {
-    flag "-h --help" help="Print help" action=help builtin=#true
-}
 cmd wait-for-element-present help="Wait until an element is present in the DOM." {
     flag --css help="CSS selector for the target element" required=#true {
         arg <CSS>
@@ -534,13 +493,13 @@ cmd click-visible-elements help="Click all visible elements matching a selector.
     }
     flag "-h --help" help="Print help" action=help builtin=#true
 }
-cmd wait-for-and-accept-alert help="Wait for an alert, then accept it." {
+cmd wait-for-and-accept-alert help="Wait for an alert that the page opens, then accept it." {
     flag --timeout help="Maximum wait time in seconds" default="10" {
         arg <TIMEOUT>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
 }
-cmd wait-for-and-dismiss-alert help="Wait for an alert, then dismiss it." {
+cmd wait-for-and-dismiss-alert help="Wait for an alert that the page opens, then dismiss it." {
     flag --timeout help="Maximum wait time in seconds" default="10" {
         arg <TIMEOUT>
     }
@@ -823,7 +782,7 @@ cmd mkrec help="Create a test recording scaffold, or record a test live with --u
     }
     flag "-h --help" help="Print help" action=help builtin=#true
 }
-cmd run-scenario help="Run a scenario file and write an optional dashboard." {
+cmd run-scenario help="Run a scenario file, the way to do several steps in one browser, and write an optional dashboard." {
     flag --file help="Scenario file to run" required=#true {
         arg <FILE>
     }
@@ -940,17 +899,16 @@ cmd assert-pdf-text help="Assert that a page or PDF URL contains the expected te
     arg <URL> help="URL of the page or PDF to check"
 }
 cmd choose-file help="Upload a local file into a file input." {
-    flag --url help="Page to open first (defaults to a generated blank upload page)" {
-        arg <URL>
-    }
     flag "-h --help" help="Print help" action=help builtin=#true
     arg <SELECTOR> help="CSS selector of the <input type=file> element"
     arg <FILE> help="Local file to upload"
 }
 cmd deferred help="Run several assertions, then report every failure at once." {
-    flag --url help="URL to open before running the assertions" {
-        arg <URL>
-    }
+    long_help #"""
+Run several assertions, then report every failure at once.
+
+The page they run on is the global --url, if there is one.
+"""#
     flag --assert help="Assertion spec: element=<css>, text=<css>:<text>, title=<text>, or url=<text>" var=#true {
         arg <SPEC>
     }
@@ -977,23 +935,13 @@ cmd devtools help="Launch Chrome with an open DevTools endpoint and print MCP cl
     long_help #"""
 Launch Chrome with an open DevTools endpoint and print MCP client configs.
 
-Starts Chrome with the Pure CDP engine (no chromedriver), prints the DevTools HTTP endpoint, the browser WebSocket URL and configs for Google's chrome-devtools-mcp and Microsoft's Playwright MCP, then keeps the browser running until Ctrl+C, which closes it and exits with 0. The global --browser (chrome, chromium, edge or another Chromium browser), --headed, --user-agent, --locale, --ad-block, --extension-dir and --proxy-list apply as well.
+Starts Chrome with the Pure CDP engine (no chromedriver), prints the DevTools HTTP endpoint, the browser WebSocket URL and configs for Google's chrome-devtools-mcp and Microsoft's Playwright MCP, then keeps the browser running until Ctrl+C, which closes it and exits with 0. The global --browser (chrome, chromium, edge or another Chromium browser), --headless, --headed, --user-data-dir, --proxy, --user-agent, --locale, --ad-block, --extension-dir --proxy-list and --url (the page to open once the browser runs) apply as well.
 """#
-    flag --headless help="Run the browser without a window" bool_value=#true
     flag --port help="DevTools port on 127.0.0.1 (0 lets Chrome pick a free one)" default="9222" {
         arg <PORT>
     }
-    flag --user-data-dir help="Profile directory to keep (default: a throwaway one; never Chrome's own default profile)" {
-        arg <DIR>
-    }
-    flag --proxy help="Proxy: SERVER:PORT, USER:PASS@SERVER:PORT or scheme://SERVER:PORT" {
-        arg <PROXY>
-    }
     flag --browser-path help="Browser binary to launch, such as Microsoft Edge or another Chromium browser" {
         arg <PATH>
-    }
-    flag --url help="Page to open once the browser runs" {
-        arg <URL>
     }
     flag --json help="Print the endpoint and configs as one line of JSON instead of text" bool_value=#true
     flag "-h --help" help="Print help" action=help builtin=#true
