@@ -22,7 +22,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | [Driver methods](#driver-methods) | 79 | 77 | 2 | 0 | 0 |
 | [CDP Mode methods](#cdp-mode-methods) | 215 | 15 | 186 | 14 | 0 |
 | [Command-line commands](#command-line-commands) | 36 | 21 | 7 | 8 | 0 |
-| [pytest options](#pytest-options) | 263 | 113 | 104 | 46 | 0 |
+| [pytest options](#pytest-options) | 263 | 112 | 105 | 46 | 0 |
 | [`SB()` arguments](#sb()-arguments) | 107 | 50 | 40 | 17 | 0 |
 | [`Driver()` arguments](#driver()-arguments) | 74 | 40 | 31 | 3 | 0 |
 | [MCP: CDP server](#mcp-cdp-server) | 24 | 24 | 0 | 0 | 0 |
@@ -881,7 +881,7 @@ Python `--option` flags.
 | `--chs` | implemented | `BrowserConfig::browser` | chrome-headless-shell, downloaded into downloaded_drivers/chs/ when missing; it cannot run UC mode. |
 | `--codegen` | composed | `RecorderSession::install` | `RecorderSession::install(&sb)` injects the page recorder, so clicks and typing done by hand in the browser are captured; `drain(&mut sb)` collects them, and `ActionRecorder::to_rust_test` or `save_recording_as_test` writes the test. Nothing is saved when the test ends. BaseCase::start_recording only marks where the log of the test's own BaseCase calls begins. |
 | `--comet` | implemented | `BrowserConfig::browser` | Run with chromedriver; the program is found in Comet's install locations or on the PATH (the Linux location is a guess). |
-| `--crumbs` | implemented | `set_crumbs` | SB_CRUMBS=1 or `browser::reuse::set_crumbs(true)` (process-wide, as the idle timeout is): with --reuse-session or --rcs, a browser handed to the next test has every cookie deleted (Network.clearBrowserCookies on Chromium, WebDriver's delete-all elsewhere). Without it the cookies stay, as in Python; the other windows are still closed, the page's local and session storage cleared and the page set to about:blank. Without reuse every test has a new browser and no cookies; call delete_all_cookies to clear them within a test. Mock WebDriver tests in browser::reuse check both paths, and tests/crumbs_chrome.rs (ignored) checks them in Chrome. |
+| `--crumbs` | composed | `BaseCase::delete_all_cookies` | SB_CRUMBS=1 or `browser::reuse::set_crumbs(true)` (process-wide, as the idle timeout is): with --reuse-session or --rcs, a browser handed to the next test has every cookie deleted (Network.clearBrowserCookies on Chromium, WebDriver's delete-all elsewhere). Without it the cookies stay, as in Python; the other windows are still closed, the page's local and session storage cleared and the page set to about:blank. Without reuse every test has a new browser and no cookies; call delete_all_cookies to clear them within a test. Mock WebDriver tests in browser::reuse check both paths, and tests/crumbs_chrome.rs (ignored) checks them in Chrome. |
 | `--crx` | implemented | `BrowserConfig::with_extension_archive` | A .zip or .crx file, sent in the `extensions` option of `goog:chromeOptions`. Chromium only. |
 | `--dark` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--dark-mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
