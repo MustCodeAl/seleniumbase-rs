@@ -1040,6 +1040,17 @@ flag --crumbs help="Delete the cookies when a reused browser is handed to the ne
 flag --timeout-multiplier help="Multiply the default waits by this number" global=#true help_heading="Browser options" {
     arg <VALUE>
 }
+flag "--rec --recorder --record --codegen" help="Record the browser actions as a test" global=#true help_heading="Recorder options" bool_value=#true {
+    long_help #"""
+Record the browser actions as a test
+
+Python's `--rec`. Every test that runs writes `recordings/NAME_rec.rs` when its browser quits; `sb.recorder_breakpoint("...")` pauses a test so the actions can be done by hand. `sbrs test` runs the tests one at a time while it is on.
+"""#
+}
+flag "--rec-print --rec_print" help="Print the recording when the test ends" global=#true help_heading="Recorder options" bool_value=#true
+flag "--rec-behave --rec_behave --rec-gherkin" help="Also write the recording as a Gherkin feature" global=#true help_heading="Recorder options" bool_value=#true
+flag "--rec-sb-mgr --rec_sb_mgr" help="Write the recording as a script, not a test" global=#true help_heading="Recorder options" bool_value=#true
+flag "--rec-sleep --record-sleep --rec_sleep --record_sleep" help="Keep the sleeps of the recording" global=#true help_heading="Recorder options" bool_value=#true
 flag "-h --help" help="Print help" action=help builtin=#true
 flag "-V --version" help="Print version" action=version builtin=#true
 complete url type=url
@@ -1297,16 +1308,6 @@ cmd remove-local-storage-item help_heading="Page commands" help="Remove a local 
 cmd get-cookies help_heading="Page commands" help="Print all browser cookies as JSON." {
     flag "-h --help" help="Print help" action=help builtin=#true
     example "sbrs --url https://example.com get-cookies"
-}
-cmd export-recording help_heading="Record and replay" help="Turn an action file written by `record` into a Rust test." {
-    flag "-o --output" help="Rust test to write (default: the action file's name with .rs)" {
-        arg <OUTPUT>
-    }
-    flag "-h --help" help="Print help" action=help builtin=#true
-    arg <FILE> help="Action file written by `sbrs record` (.json or .yaml)"
-    complete file type=path:json,yaml
-    complete output type=path:rs
-    example "sbrs export-recording actions.json --output tests/login.rs"
 }
 cmd patch-chromedriver help_heading="Drivers, grid and servers" help="Patch a chromedriver binary to reduce detection surface." {
     flag --path help="Path to the chromedriver binary" required=#true {
@@ -2009,21 +2010,20 @@ cmd mkchart help_heading="Files and generators" help="Create an HTML chart." {
     complete file type=path:html,htm
     example "sbrs mkchart --file chart.html"
 }
-cmd mkrec help_heading="Record and replay" help="Create a test recording scaffold, or record a test live with --url." {
-    flag --url help="Open this page in a browser and record what you do there into the file" {
-        arg <URL>
-    }
-    flag --duration help="With --url: stop recording after this many seconds (default: until Ctrl-C)" {
-        arg <DURATION>
-    }
-    flag --file help="Output recording scaffold path" required=#true {
-        arg <FILE>
-    }
+cmd mkrec help_heading="Record and replay" help="Create a new test file with the Recorder: record your actions in a browser, then save them as a test." {
+    alias codegen
+    alias record
+    long_help #"""
+Create a new test file with the Recorder: record your actions in a browser, then save them as a test.
+
+Python's `sbase mkrec` (also `codegen` and `record`). Starts a browser in Recorder Mode, opening --url first when it is given, and waits: type `c` and press Enter at the prompt, or press SHIFT+ESC in the browser with --ee. The recording is written to `recordings/NAME_rec.rs` and `recordings/NAME_rec.json`, shown, and copied to FILE.
+"""#
+    flag --overwrite help="Overwrite the file when it exists" bool_value=#true
+    flag "--behave --gherkin" help="Also write the recording as a Gherkin feature (same as --rec-behave)" bool_value=#true
     flag "-h --help" help="Print help" action=help builtin=#true
-    complete url type=url
-    complete duration type=none
+    arg <FILE> help="The test file to create (FILE.rs)"
     complete file type=path:rs
-    example "sbrs mkrec --url https://example.com --file tests/recorded.rs --duration 60"
+    example "sbrs mkrec new_test.rs --url seleniumbase.io/demo_page"
 }
 cmd run-scenario help_heading=Tests help="Run a scenario file, the way to do several steps in one browser, and write an optional dashboard." {
     flag --file help="Scenario file to run" required=#true {
@@ -2196,25 +2196,11 @@ The page they run on is the global --url, if there is one.
     complete spec type=path:json
     example "sbrs --url https://example.com deferred --assert element=h1 --assert 'text=h1:Example Domain'"
 }
-cmd record help_heading="Record and replay" help="Record browser interactions into a replayable action file." {
-    flag "-o --output" help="Output action file (.json or .yaml)" default=actions.json {
-        arg <OUTPUT>
-    }
-    flag --duration help="Stop recording after this many seconds (default: run until Ctrl-C)" {
-        arg <DURATION>
-    }
+cmd replay help_heading="Record and replay" help="Replay a recorded action file (recordings/NAME_rec.json) against a fresh browser." {
     flag "-h --help" help="Print help" action=help builtin=#true
-    arg <URL> help="URL to open and record"
-    complete url type=url
-    complete output type=path:json,yaml
-    complete duration type=none
-    example "sbrs record https://example.com --output actions.json --duration 30"
-}
-cmd replay help_heading="Record and replay" help="Replay a recorded action file against a fresh browser session." {
-    flag "-h --help" help="Print help" action=help builtin=#true
-    arg <FILE> help="JSON action file produced by `sbrs record`"
+    arg <FILE> help="JSON or YAML action file (recordings/NAME_rec.json)"
     complete file type=path:json,yaml
-    example "sbrs replay actions.json"
+    example "sbrs replay recordings/new_test_rec.json"
 }
 cmd devtools help_heading="Drivers, grid and servers" help="Launch Chrome with an open DevTools endpoint and print MCP client configs." {
     long_help #"""

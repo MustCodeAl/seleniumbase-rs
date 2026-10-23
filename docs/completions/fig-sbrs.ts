@@ -542,31 +542,6 @@ const completionSpec: Fig.Spec = {
       ],
     },
     {
-      name: "export-recording",
-      description: "Turn an action file written by `record` into a Rust test.",
-      options: [
-        {
-          name: ["-o", "--output"],
-          description: "Rust test to write (default: the action file's name with .rs)",
-          args: {
-            name: "output",
-            template: "filepaths",
-          },
-        },
-        {
-          name: ["-h", "--help"],
-          description: "Print help",
-        },
-      ],
-      args: [
-        {
-          name: "file",
-          description: "Action file written by `sbrs record` (.json or .yaml)",
-          template: "filepaths",
-        },
-      ],
-    },
-    {
       name: "patch-chromedriver",
       description: "Patch a chromedriver binary to reduce detection surface.",
       options: [
@@ -2865,35 +2840,27 @@ const completionSpec: Fig.Spec = {
       ],
     },
     {
-      name: "mkrec",
-      description: "Create a test recording scaffold, or record a test live with --url.",
+      name: ["mkrec", "codegen", "record"],
+      description: "Create a new test file with the Recorder: record your actions in a browser, then save them as a test.",
       options: [
         {
-          name: "--url",
-          description: "Open this page in a browser and record what you do there into the file",
-          args: {
-            name: "url",
-          },
+          name: "--overwrite",
+          description: "Overwrite the file when it exists",
         },
         {
-          name: "--duration",
-          description: "With --url: stop recording after this many seconds (default: until Ctrl-C)",
-          args: {
-            name: "duration",
-          },
-        },
-        {
-          name: "--file",
-          description: "Output recording scaffold path",
-          isRequired: true,
-          args: {
-            name: "file",
-            template: "filepaths",
-          },
+          name: ["--behave", "--gherkin"],
+          description: "Also write the recording as a Gherkin feature (same as --rec-behave)",
         },
         {
           name: ["-h", "--help"],
           description: "Print help",
+        },
+      ],
+      args: [
+        {
+          name: "file",
+          description: "The test file to create (FILE.rs)",
+          template: "filepaths",
         },
       ],
     },
@@ -3220,39 +3187,8 @@ const completionSpec: Fig.Spec = {
       ],
     },
     {
-      name: "record",
-      description: "Record browser interactions into a replayable action file.",
-      options: [
-        {
-          name: ["-o", "--output"],
-          description: "Output action file (.json or .yaml)",
-          args: {
-            name: "output",
-            template: "filepaths",
-          },
-        },
-        {
-          name: "--duration",
-          description: "Stop recording after this many seconds (default: run until Ctrl-C)",
-          args: {
-            name: "duration",
-          },
-        },
-        {
-          name: ["-h", "--help"],
-          description: "Print help",
-        },
-      ],
-      args: [
-        {
-          name: "url",
-          description: "URL to open and record",
-        },
-      ],
-    },
-    {
       name: "replay",
-      description: "Replay a recorded action file against a fresh browser session.",
+      description: "Replay a recorded action file (recordings/NAME_rec.json) against a fresh browser.",
       options: [
         {
           name: ["-h", "--help"],
@@ -3262,7 +3198,7 @@ const completionSpec: Fig.Spec = {
       args: [
         {
           name: "file",
-          description: "JSON action file produced by `sbrs record`",
+          description: "JSON or YAML action file (recordings/NAME_rec.json)",
           template: "filepaths",
         },
       ],
@@ -4310,6 +4246,31 @@ const completionSpec: Fig.Spec = {
       args: {
         name: "value",
       },
+    },
+    {
+      name: ["--rec", "--recorder", "--record", "--codegen"],
+      description: "Record the browser actions as a test",
+      isPersistent: true,
+    },
+    {
+      name: ["--rec-print", "--rec_print"],
+      description: "Print the recording when the test ends",
+      isPersistent: true,
+    },
+    {
+      name: ["--rec-behave", "--rec_behave", "--rec-gherkin"],
+      description: "Also write the recording as a Gherkin feature",
+      isPersistent: true,
+    },
+    {
+      name: ["--rec-sb-mgr", "--rec_sb_mgr"],
+      description: "Write the recording as a script, not a test",
+      isPersistent: true,
+    },
+    {
+      name: ["--rec-sleep", "--record-sleep", "--rec_sleep", "--record_sleep"],
+      description: "Keep the sleeps of the recording",
+      isPersistent: true,
     },
     {
       name: ["-h", "--help"],

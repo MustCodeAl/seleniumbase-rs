@@ -56,7 +56,6 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs download-file`](#sbrs-download-file) | Download a file from a URL (browser download with an HTTP fallback). |
 | [`sbrs drag-and-drop`](#sbrs-drag-and-drop) | Drag one element onto another. |
 | [`sbrs encrypt`](#sbrs-encrypt) | Encrypt text with a passphrase (AES-256-GCM); read from stdin if TEXT is omitted. |
-| [`sbrs export-recording`](#sbrs-export-recording) | Turn an action file written by `record` into a Rust test. |
 | [`sbrs fingerprint`](#sbrs-fingerprint) | Capture, write, check and compare browser fingerprints. |
 | [`sbrs fingerprint capture`](#sbrs-fingerprint-capture) | Read the fingerprint of a real browser and write it as a fingerprint file. |
 | [`sbrs fingerprint check`](#sbrs-fingerprint-check) | Check that a fingerprint file loads and is coherent. |
@@ -94,7 +93,7 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs mkdir`](#sbrs-mkdir) | Create a folder with a runnable browser-test suite. |
 | [`sbrs mkfile`](#sbrs-mkfile) | Create a browser-test file. |
 | [`sbrs mkpres`](#sbrs-mkpres) | Create an HTML presentation. |
-| [`sbrs mkrec`](#sbrs-mkrec) | Create a test recording scaffold, or record a test live with --url. |
+| [`sbrs mkrec`](#sbrs-mkrec) | Create a new test file with the Recorder: record your actions in a browser, then save them as a test. |
 | [`sbrs objectify`](#sbrs-objectify) | Objectify a test recording. |
 | [`sbrs open`](#sbrs-open) | Open a URL in the browser. |
 | [`sbrs options`](#sbrs-options) | List the browser options: each flag, its `SB_*` variable and its key in the settings file. |
@@ -108,9 +107,8 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs print-pdf`](#sbrs-print-pdf) | Print a page to PDF and save it to disk. |
 | [`sbrs prompt`](#sbrs-prompt) | Print one short line for a shell prompt: the installed Chrome's major version and whether a matching chromedriver is at hand. |
 | [`sbrs proxy`](#sbrs-proxy) | Run a small forward proxy on this machine (HTTP and CONNECT, no authentication). |
-| [`sbrs record`](#sbrs-record) | Record browser interactions into a replayable action file. |
 | [`sbrs remove-local-storage-item`](#sbrs-remove-local-storage-item) | Remove a local storage entry by key. |
-| [`sbrs replay`](#sbrs-replay) | Replay a recorded action file against a fresh browser session. |
+| [`sbrs replay`](#sbrs-replay) | Replay a recorded action file (recordings/NAME_rec.json) against a fresh browser. |
 | [`sbrs run-scenario`](#sbrs-run-scenario) | Run a scenario file, the way to do several steps in one browser, and write an optional dashboard. |
 | [`sbrs save-cookies`](#sbrs-save-cookies) | Save browser cookies to a JSON file. |
 | [`sbrs save-source`](#sbrs-save-source) | Save the current page source to a file. |
@@ -884,6 +882,48 @@ Multiply the default waits by this number
 
 </ParamField>
 
+<ParamField query="--rec" type="boolean">
+
+Record the browser actions as a test
+
+Python's `--rec`. Every test that runs writes `recordings/NAME_rec.rs` when its browser quits; `sb.recorder_breakpoint("...")` pauses a test so the actions can be done by hand. `sbrs test` runs the tests one at a time while it is on.
+
+Also: `--recorder`, `--record`, `--codegen`
+
+</ParamField>
+
+<ParamField query="--rec-print" type="boolean">
+
+Print the recording when the test ends
+
+Also: `--rec_print`
+
+</ParamField>
+
+<ParamField query="--rec-behave" type="boolean">
+
+Also write the recording as a Gherkin feature
+
+Also: `--rec_behave`, `--rec-gherkin`
+
+</ParamField>
+
+<ParamField query="--rec-sb-mgr" type="boolean">
+
+Write the recording as a script, not a test
+
+Also: `--rec_sb_mgr`
+
+</ParamField>
+
+<ParamField query="--rec-sleep" type="boolean">
+
+Keep the sleeps of the recording
+
+Also: `--record-sleep`, `--rec_sleep`, `--record_sleep`
+
+</ParamField>
+
 <ParamField query="--help" type="boolean">
 
 Print help
@@ -1650,36 +1690,6 @@ The text to encrypt.
 
 ```bash Examples
 sbrs encrypt 'my secret'
-```
-
-## sbrs export-recording
-
-Turn an action file written by `record` into a Rust test.
-
-```bash Usage
-sbrs export-recording [-o --output <OUTPUT>] <FILE>
-```
-
-**Arguments**
-
-<ParamField path="FILE" type="string" required>
-
-Action file written by `sbrs record` (.json or .yaml)
-
-</ParamField>
-
-**Flags**
-
-<ParamField query="--output <OUTPUT>" type="string">
-
-Rust test to write (default: the action file's name with .rs)
-
-Also: `-o`
-
-</ParamField>
-
-```bash Examples
-sbrs export-recording actions.json --output tests/login.rs
 ```
 
 ## sbrs fingerprint
@@ -2742,34 +2752,42 @@ sbrs mkpres --file deck.html
 
 ## sbrs mkrec
 
-Create a test recording scaffold, or record a test live with --url.
+Also: `codegen`, `record`
+
+Create a new test file with the Recorder: record your actions in a browser, then save them as a test.
+
+Python's `sbase mkrec` (also `codegen` and `record`). Starts a browser in Recorder Mode, opening --url first when it is given, and waits: type `c` and press Enter at the prompt, or press SHIFT+ESC in the browser with --ee. The recording is written to `recordings/NAME_rec.rs` and `recordings/NAME_rec.json`, shown, and copied to FILE.
 
 ```bash Usage
-sbrs mkrec <FLAGS>
+sbrs mkrec [--overwrite] [--behave] <FILE>
 ```
+
+**Arguments**
+
+<ParamField path="FILE" type="string" required>
+
+The test file to create (FILE.rs)
+
+</ParamField>
 
 **Flags**
 
-<ParamField query="--url <URL>" type="string">
+<ParamField query="--overwrite" type="boolean">
 
-Open this page in a browser and record what you do there into the file
-
-</ParamField>
-
-<ParamField query="--duration <DURATION>" type="string">
-
-With --url: stop recording after this many seconds (default: until Ctrl-C)
+Overwrite the file when it exists
 
 </ParamField>
 
-<ParamField query="--file <FILE>" type="string" required>
+<ParamField query="--behave" type="boolean">
 
-Output recording scaffold path
+Also write the recording as a Gherkin feature (same as --rec-behave)
+
+Also: `--gherkin`
 
 </ParamField>
 
 ```bash Examples
-sbrs mkrec --url https://example.com --file tests/recorded.rs --duration 60
+sbrs mkrec new_test.rs --url seleniumbase.io/demo_page
 ```
 
 ## sbrs objectify
@@ -3081,42 +3099,6 @@ The port to listen on; 0 picks a free one.
 sbrs proxy --port 8899
 ```
 
-## sbrs record
-
-Record browser interactions into a replayable action file.
-
-```bash Usage
-sbrs record [-o --output <OUTPUT>] [--duration <DURATION>] <URL>
-```
-
-**Arguments**
-
-<ParamField path="URL" type="string" required>
-
-URL to open and record
-
-</ParamField>
-
-**Flags**
-
-<ParamField query="--output <OUTPUT>" type="string" default="actions.json">
-
-Output action file (.json or .yaml)
-
-Also: `-o`
-
-</ParamField>
-
-<ParamField query="--duration <DURATION>" type="string">
-
-Stop recording after this many seconds (default: run until Ctrl-C)
-
-</ParamField>
-
-```bash Examples
-sbrs record https://example.com --output actions.json --duration 30
-```
-
 ## sbrs remove-local-storage-item
 
 Remove a local storage entry by key.
@@ -3139,7 +3121,7 @@ sbrs --url https://example.com --user-data-dir ./profile remove-local-storage-it
 
 ## sbrs replay
 
-Replay a recorded action file against a fresh browser session.
+Replay a recorded action file (recordings/NAME_rec.json) against a fresh browser.
 
 ```bash Usage
 sbrs replay <FILE>
@@ -3149,12 +3131,12 @@ sbrs replay <FILE>
 
 <ParamField path="FILE" type="string" required>
 
-JSON action file produced by `sbrs record`
+JSON or YAML action file (recordings/NAME_rec.json)
 
 </ParamField>
 
 ```bash Examples
-sbrs replay actions.json
+sbrs replay recordings/new_test_rec.json
 ```
 
 ## sbrs run-scenario
