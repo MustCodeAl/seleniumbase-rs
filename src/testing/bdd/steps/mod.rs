@@ -71,6 +71,12 @@ use super::SbCase;
 /// `When` and `Then` under every pattern of the action. The action is named as
 /// in Python's `steps.py`, so the tests can compare them.
 ///
+/// rstest-bdd gives the captures of a pattern to the function's parameters in
+/// the order they appear in the pattern, whatever their names. A wording with
+/// its arguments in another order is a second entry with `as` the action's
+/// name, which calls the first.
+///
+/// An entry reads `fn name(sb, arg: Type) { body } "pattern", ...;`.
 /// A module calls this once: it also defines the module's `STEPS` table and
 /// its `LINK` marker.
 macro_rules! sb_steps {

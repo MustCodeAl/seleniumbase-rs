@@ -75,9 +75,28 @@ as one `_`): a scenario `Valid login` is selected by `valid_login`; an outline
 runs all of its example rows (`case_1`, `case_2`, ...) under the same filter.
 `feature_files::scenario_filter` is that function.
 
-## Library-defined steps (for RUN-8)
+## Library-defined steps (RUN-8 result)
 
-Steps defined in this crate register through `inventory`. A test binary that
-uses nothing else of this crate can have the object file dropped by the linker;
-`seleniumbase_rs::testing::bdd::steps::link()` is the place for a reference
-(RUN-8 owns it). This spike did not test a step defined in a library crate.
+Steps defined in a library crate and registered through `inventory` are found
+by the test crate that links it. `tests/bdd_builtin_link.rs` is a test binary
+of its own that names only the `sb` fixture, and it finds the built-in steps
+under Given, When and Then. `steps::link()` is still called by `SbCase::start`,
+so every binary that launches the fixture references the object files of the
+steps; a control with that call removed passed too on a debug build on macOS,
+so the call is insurance against another linker or a release build (LTO,
+`--gc-sections`), not a measured need.
+
+What the built-in steps (`src/testing/bdd/steps/`) showed about rstest-bdd 0.6:
+
+* Stacked `#[given]`, `#[when]` and `#[then]` attributes on one function work,
+  so an action is one function whatever its wordings and keywords. A wording
+  with `And` or `But` takes the keyword of the step before it.
+* `{name:string}` matches text in double or single quotes, with `\"` and `\'`
+  inside; the step gets the text without the quotes.
+* The captures of a pattern are given to the step function's parameters **by
+  position** (the first placeholder to the first parameter that is not a
+  fixture), not by name. A wording that puts its arguments the other way round
+  (`In "#a" type "x"` against `Type "x" into "#a"`) needs a function of its
+  own; the built-in steps have ten such pairs.
+* `rstest_bdd::extract_placeholders` and `find_step` are enough to check a
+  step text against the registry without running a scenario.
