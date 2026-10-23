@@ -44,6 +44,8 @@ use seleniumbase_rs::{
 use serde_json::{json, Value};
 
 mod completion;
+mod failure;
+
 mod fig;
 mod fingerprint;
 #[cfg(test)]
@@ -52,6 +54,7 @@ mod reference;
 mod report;
 mod strict;
 
+use failure::ArgumentError;
 use fingerprint::{FingerprintArgs, FingerprintCommand};
 
 /// What `sbrs --version` prints after the program name. It names the library
@@ -158,6 +161,7 @@ enum PluginCommand {
     /// Prints each plugin's name, category and summary, and `yes` under ENABLED when the
     /// settings file, SB_PLUGINS or the global --plugin option turns it on. A build without
     /// built-in plugins says so; rebuild it with --features plugins-builtin.
+    #[usage(example = "sbrs plugin list")]
     List,
     /// Show what one plugin declares and what it may do.
     ///
@@ -165,6 +169,7 @@ enum PluginCommand {
     /// host enforces them), what it needs, its place among the other plugins and the options
     /// it was given. Exits with status 2 and lists the known names when there is no such
     /// plugin.
+    #[usage(example = "sbrs plugin info shield")]
     Info(PluginInfoArgs),
 }
 
@@ -495,13 +500,22 @@ struct Cli {
 #[derive(Debug, usage::Subcommands)]
 enum Commands {
     /// Print the sbrs version, as `sbrs --version` does.
+    #[usage(help_heading = "Info and setup", example = "sbrs version")]
     Version,
     /// Open a URL in the browser.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs open https://example.com"
+    )]
     Open {
         /// URL to open in the browser.
         url: String,
     },
     /// Run a smoke test against a URL.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs smoke https://example.com --title-contains Example"
+    )]
     Smoke {
         #[usage(help = "URL to open or smoke-test")]
         url: String,
@@ -509,6 +523,10 @@ enum Commands {
         title_contains: Option<String>,
     },
     /// Execute a Chrome DevTools Protocol command.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs cdp --cmd Browser.getVersion"
+    )]
     Cdp {
         #[usage(long, help = "CDP method name (e.g. Runtime.evaluate)")]
         cmd: String,
@@ -516,8 +534,16 @@ enum Commands {
         params: Option<String>,
     },
     /// Clear the browser cache via CDP.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com --user-data-dir ./profile cache-clear"
+    )]
     CacheClear,
     /// Capture a screenshot of the current page.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com screenshot --path page.png"
+    )]
     Screenshot {
         #[usage(
             long,
@@ -526,6 +552,10 @@ enum Commands {
         path: Option<String>,
     },
     /// Save the current page source to a file.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com save-source --path page.html"
+    )]
     SaveSource {
         #[usage(
             long,
@@ -534,11 +564,19 @@ enum Commands {
         path: Option<String>,
     },
     /// Assert that an element exists.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com assert-element --css h1"
+    )]
     AssertElement {
         #[usage(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Wait until an element contains the expected text.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com wait-for-text --css h1 --text 'Example Domain' --timeout 5"
+    )]
     WaitForText {
         #[usage(long, help = "CSS selector for the target element")]
         css: String,
@@ -548,11 +586,19 @@ enum Commands {
         timeout: u64,
     },
     /// Hover over an element.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com hover --css h1"
+    )]
     Hover {
         #[usage(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Hover over one element, then click another.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com hover-and-click --hover-css nav --click-css 'nav a'"
+    )]
     HoverAndClick {
         #[usage(long, help = "CSS selector to hover over")]
         hover_css: String,
@@ -560,6 +606,10 @@ enum Commands {
         click_css: String,
     },
     /// Select an option from a dropdown.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com select-option --css select --text Two"
+    )]
     SelectOption {
         #[usage(long, help = "CSS selector for the target element")]
         css: String,
@@ -569,6 +619,10 @@ enum Commands {
         value: Option<String>,
     },
     /// Drag one element onto another.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com drag-and-drop --source-css '#a' --target-css '#b'"
+    )]
     DragAndDrop {
         #[usage(long, help = "CSS selector of the element to drag")]
         source_css: String,
@@ -576,21 +630,37 @@ enum Commands {
         target_css: String,
     },
     /// Click an element using CDP.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com cdp-click-element --css a"
+    )]
     CdpClickElement {
         #[usage(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Type text using CDP input injection.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com cdp-type-text --text hello"
+    )]
     CdpTypeText {
         #[usage(long, help = "Text to inject via CDP")]
         text: String,
     },
     /// Print the visible text of an element.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com get-text --css h1"
+    )]
     GetText {
         #[usage(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Print an element attribute value.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com get-attribute --css a --attribute href"
+    )]
     GetAttribute {
         #[usage(long, help = "CSS selector for the target element")]
         css: String,
@@ -598,6 +668,10 @@ enum Commands {
         attribute: String,
     },
     /// Print an element property value.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com get-property --css input --property value"
+    )]
     GetProperty {
         #[usage(long, help = "CSS selector for the target element")]
         css: String,
@@ -606,32 +680,72 @@ enum Commands {
     },
 
     /// Print the page title.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com get-title"
+    )]
     GetTitle,
     /// Print the current URL.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com get-current-url"
+    )]
     GetCurrentUrl,
 
     /// Delete all browser cookies.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com --user-data-dir ./profile clear-cookies"
+    )]
     ClearCookies,
 
     /// Accept the alert that the page opens when it loads.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com accept-alert"
+    )]
     AcceptAlert,
     /// Dismiss the alert that the page opens when it loads.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com dismiss-alert"
+    )]
     DismissAlert,
     /// Print the text of the alert that the page opens when it loads.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com get-alert-text"
+    )]
     GetAlertText,
     /// Type text into the prompt that the page opens when it loads.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com type-alert-text --text hello"
+    )]
     TypeAlertText {
         #[usage(long, help = "Text to type into the alert prompt")]
         text: String,
     },
     /// Clear the page local storage.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com --user-data-dir ./profile clear-local-storage"
+    )]
     ClearLocalStorage,
     /// Print a local storage value by key.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com get-local-storage-item --key theme"
+    )]
     GetLocalStorageItem {
         #[usage(long, help = "Storage key")]
         key: String,
     },
     /// Set a local storage key/value pair.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com --user-data-dir ./profile set-local-storage-item --key theme --value dark"
+    )]
     SetLocalStorageItem {
         #[usage(long, help = "Storage key")]
         key: String,
@@ -639,13 +753,25 @@ enum Commands {
         value: String,
     },
     /// Remove a local storage entry by key.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com --user-data-dir ./profile remove-local-storage-item --key theme"
+    )]
     RemoveLocalStorageItem {
         #[usage(long, help = "Storage key")]
         key: String,
     },
     /// Print all browser cookies as JSON.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com get-cookies"
+    )]
     GetCookies,
     /// Turn an action file written by `record` into a Rust test.
+    #[usage(
+        help_heading = "Record and replay",
+        example = "sbrs export-recording actions.json --output tests/login.rs"
+    )]
     ExportRecording {
         #[usage(help = "Action file written by `sbrs record` (.json or .yaml)")]
         file: String,
@@ -658,11 +784,19 @@ enum Commands {
     },
 
     /// Patch a chromedriver binary to reduce detection surface.
+    #[usage(
+        help_heading = "Drivers, grid and servers",
+        example = "sbrs patch-chromedriver --path ./chromedriver"
+    )]
     PatchChromedriver {
         #[usage(long, help = "Path to the chromedriver binary")]
         path: String,
     },
     /// Patch a Chrome/Chromium binary for native-level spoofing.
+    #[usage(
+        help_heading = "Drivers, grid and servers",
+        example = "sbrs patch-chrome --path ./chrome --cache-dir ./patched"
+    )]
     PatchChrome {
         #[usage(long, help = "Path to the Chrome/Chromium binary")]
         path: String,
@@ -676,6 +810,7 @@ enum Commands {
     /// from an argument, so it stays out of shell history and process listings.
     /// Python's `sbrs obfuscate` is the same command.
     #[usage(alias = "obfuscate")]
+    #[usage(help_heading = "Security", example = "sbrs encrypt 'my secret'")]
     Encrypt {
         /// The text to encrypt.
         text: Option<String>,
@@ -683,6 +818,7 @@ enum Commands {
     /// Decrypt a token made by `sbrs encrypt`; read from stdin if TOKEN is omitted.
     /// Python's `sbrs unobfuscate` is the same command.
     #[usage(alias = "unobfuscate")]
+    #[usage(help_heading = "Security", example = "sbrs decrypt TOKEN")]
     Decrypt {
         /// The token to decrypt.
         token: Option<String>,
@@ -694,6 +830,7 @@ enum Commands {
     /// the one a `ResultStore` writes: pass its path with `--db` or set
     /// SB_REPORT_DB (default: reports/results.db).
     #[cfg(feature = "turso")]
+    #[usage(help_heading = "Info and setup", example = "sbrs report --limit 10")]
     Report {
         /// Path of the results database.
         #[usage(long, value_hint = usage::ValueHint::AnyPath)]
@@ -715,6 +852,7 @@ enum Commands {
         json: bool,
     },
     /// Run a diagnostic check on the environment and configuration.
+    #[usage(help_heading = "Info and setup", example = "sbrs doctor")]
     Doctor,
     /// Print one short line for a shell prompt: the installed Chrome's major
     /// version and whether a matching chromedriver is at hand.
@@ -727,8 +865,13 @@ enum Commands {
     /// user cache folder. Prints nothing and exits with 0 when no browser is
     /// found; --verbose says why, on standard error. The chromedriver is looked
     /// for as `sbrs doctor` does: CHROMEDRIVER_PATH, downloaded_drivers/, PATH.
+    #[usage(help_heading = "Info and setup", example = "sbrs prompt")]
     Prompt(PromptArgs),
     /// Assert that an element contains the expected text.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com assert-text-visible --css h1 --text 'Example Domain'"
+    )]
     AssertTextVisible {
         #[usage(long, help = "CSS selector for the target element")]
         css: String,
@@ -736,6 +879,10 @@ enum Commands {
         text: String,
     },
     /// Assert that an element does not contain the given text.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com assert-text-not-visible --css h1 --text Error"
+    )]
     AssertTextNotVisible {
         #[usage(long, help = "CSS selector for the target element")]
         css: String,
@@ -743,6 +890,10 @@ enum Commands {
         text: String,
     },
     /// Assert an element attribute equals an expected value.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com assert-attribute --css a --attribute href --value https://iana.org/domains/example"
+    )]
     AssertAttribute {
         #[usage(long, help = "CSS selector for the target element")]
         css: String,
@@ -752,20 +903,40 @@ enum Commands {
         value: String,
     },
     /// Assert the page title contains the expected text.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com assert-title --text Example"
+    )]
     AssertTitle {
         #[usage(long, help = "Expected page title substring")]
         text: String,
     },
     /// Wait until the document readyState is complete.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com wait-for-ready-state-complete"
+    )]
     WaitForReadyStateComplete,
     /// Print the browser window position.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com get-window-position"
+    )]
     GetWindowPosition,
     /// Print whether an element is visible.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com is-element-visible --css h1"
+    )]
     IsElementVisible {
         #[usage(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Print whether the expected text is visible in an element.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com is-text-visible --css h1 --text Example"
+    )]
     IsTextVisible {
         #[usage(long, help = "CSS selector for the target element")]
         css: String,
@@ -773,6 +944,10 @@ enum Commands {
         text: String,
     },
     /// Wait until an element is no longer visible.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com wait-for-element-not-visible --css '#spinner' --timeout 5"
+    )]
     WaitForElementNotVisible {
         #[usage(long, help = "CSS selector for the target element")]
         css: String,
@@ -780,36 +955,64 @@ enum Commands {
         timeout: u64,
     },
     /// Save browser cookies to a JSON file.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com save-cookies --file cookies.json"
+    )]
     SaveCookies {
         #[usage(long, help = "JSON file to save cookies to")]
         file: String,
     },
     /// Load browser cookies from a JSON file.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com --user-data-dir ./profile load-cookies --file cookies.json"
+    )]
     LoadCookies {
         #[usage(long, help = "JSON file to load cookies from")]
         file: String,
     },
     /// Highlight an element, then click it.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com highlight-click --css a"
+    )]
     HighlightClick {
         #[usage(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Print whether a checkbox is checked.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com is-checked --css '#agree'"
+    )]
     IsChecked {
         #[usage(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Check a checkbox only if it is unchecked.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com check-if-unchecked --css '#agree'"
+    )]
     CheckIfUnchecked {
         #[usage(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Uncheck a checkbox only if it is checked.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com uncheck-if-checked --css '#agree'"
+    )]
     UncheckIfChecked {
         #[usage(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Wait until an element is present in the DOM.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com wait-for-element-present --css h1 --timeout 5"
+    )]
     WaitForElementPresent {
         #[usage(long, help = "CSS selector for the target element")]
         css: String,
@@ -817,6 +1020,10 @@ enum Commands {
         timeout: u64,
     },
     /// Append text to an input or textarea.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com add-text --css '#name' --text hello"
+    )]
     AddText {
         #[usage(long, help = "CSS selector for the target element")]
         css: String,
@@ -824,6 +1031,10 @@ enum Commands {
         text: String,
     },
     /// Send keystrokes to an element.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com send-keys --css '#name' --text hello"
+    )]
     SendKeys {
         #[usage(long, help = "CSS selector for the target element")]
         css: String,
@@ -831,46 +1042,82 @@ enum Commands {
         text: String,
     },
     /// Print the value of a form element.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com get-value --css '#name'"
+    )]
     GetValue {
         #[usage(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Click all visible elements matching a selector.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com click-visible-elements --css button"
+    )]
     ClickVisibleElements {
         #[usage(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Wait for an alert that the page opens, then accept it.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com wait-for-and-accept-alert --timeout 5"
+    )]
     WaitForAndAcceptAlert {
         #[usage(long, default = "10", help = "Maximum wait time in seconds")]
         timeout: u64,
     },
     /// Wait for an alert that the page opens, then dismiss it.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com wait-for-and-dismiss-alert --timeout 5"
+    )]
     WaitForAndDismissAlert {
         #[usage(long, default = "10", help = "Maximum wait time in seconds")]
         timeout: u64,
     },
     /// Print whether a link with the given text is visible.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com is-link-text-visible --text 'More information...'"
+    )]
     IsLinkTextVisible {
         #[usage(long, help = "Exact link text to check")]
         text: String,
     },
     /// Print whether a link containing the given text is visible.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com is-partial-link-text-visible --text 'More info'"
+    )]
     IsPartialLinkTextVisible {
         #[usage(long, help = "Link text substring to check")]
         text: String,
     },
     /// Assert a link with the given text is visible.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com assert-link-text --text 'More information...'"
+    )]
     AssertLinkText {
         #[usage(long, help = "Exact link text to assert")]
         text: String,
     },
     /// Click a link containing the given text.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com click-partial-link-text --text 'More info'"
+    )]
     ClickPartialLinkText {
         #[usage(long, help = "Link text substring to click")]
         text: String,
     },
     /// Type text with human-like timing and noise.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com human-type --css '#q' --text hello"
+    )]
     HumanType {
         #[usage(long, help = "CSS selector for the target element")]
         css: String,
@@ -878,21 +1125,37 @@ enum Commands {
         text: String,
     },
     /// Click an element with human-like timing and noise.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com human-click --css a"
+    )]
     HumanClick {
         #[usage(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Smoothly scroll an element into view.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com smooth-scroll-to --css footer"
+    )]
     SmoothScrollTo {
         #[usage(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Perform a UC-mode click on an element.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --uc --url https://example.com uc-click --css a"
+    )]
     UcClick {
         #[usage(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Perform UC-mode typing into an element.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --uc --url https://example.com uc-type --css '#q' --text hello"
+    )]
     UcType {
         #[usage(long, help = "CSS selector for the target element")]
         css: String,
@@ -904,6 +1167,10 @@ enum Commands {
     /// Without a version, chromedriver and edgedriver are the drivers for the
     /// installed Chrome and Edge, and geckodriver is the newest release.
     #[usage(alias = "get")]
+    #[usage(
+        help_heading = "Drivers, grid and servers",
+        example = "sbrs install chromedriver latest"
+    )]
     Install {
         /// The driver: chromedriver, geckodriver (or firefoxdriver), edgedriver
         /// (or msedgedriver).
@@ -921,6 +1188,7 @@ enum Commands {
     /// how many tests run at once. `--plugin` reaches them as SB_PLUGINS, with the
     /// plugins the settings file and the variable already turn on; `--plugin-opt`
     /// cannot be passed on, so `sbrs test` refuses it.
+    #[usage(help_heading = "Tests", example = "sbrs test login")]
     Test {
         /// Run only the tests whose name contains this text.
         #[usage(conflicts("--example"))]
@@ -945,10 +1213,18 @@ enum Commands {
     ///
     /// Needs a Selenium Server jar you supply; nothing is downloaded. The
     /// process record and log are kept in a folder of your own (SB_GRID_DIR).
+    #[usage(
+        help_heading = "Drivers, grid and servers",
+        example = "sbrs grid-hub start"
+    )]
     GridHub(GridArgs),
     /// Start, stop, restart or check a Selenium Grid node.
     ///
     /// A node registers with the hub named by `--hub`, or with this machine's.
+    #[usage(
+        help_heading = "Drivers, grid and servers",
+        example = "sbrs grid-node start"
+    )]
     GridNode(GridArgs),
     /// Write the actions of a JSON scenario in another language.
     ///
@@ -957,6 +1233,10 @@ enum Commands {
     /// because a scenario can be read in any of the languages. Python
     /// SeleniumBase translates Python test files; a Rust test is compiled code,
     /// so this translates the portable JSON scenario instead.
+    #[usage(
+        help_heading = "Files and generators",
+        example = "sbrs translate scenario.json zh --print"
+    )]
     Translate {
         /// The scenario file.
         #[usage(value_hint = usage::ValueHint::AnyPath)]
@@ -983,6 +1263,7 @@ enum Commands {
     /// Names are relative to the current directory and use letters, digits, `_`,
     /// `-` and `.`, with `/` between folders. Nothing is overwritten unless
     /// `--force` is given.
+    #[usage(help_heading = "Files and generators", example = "sbrs mkdir ui_tests")]
     Mkdir {
         /// Folder to create, for example `tests/ui`.
         dir: String,
@@ -998,6 +1279,10 @@ enum Commands {
     /// The name follows the same rules as `mkdir`; `.rs` is added when missing.
     /// An existing file is never overwritten unless `--force` is given.
     #[usage(alias = "new")]
+    #[usage(
+        help_heading = "Files and generators",
+        example = "sbrs mkfile tests/login.rs"
+    )]
     Mkfile {
         /// File to create, for example `tests/login.rs`.
         file: String,
@@ -1012,6 +1297,7 @@ enum Commands {
         force: bool,
     },
     /// Launch the interactive commander (needs a build with the `tui` feature).
+    #[usage(help_heading = "Tests", example = "sbrs commander")]
     Commander,
     /// Launch the Case Plans Generator, a terminal app (needs a build with the `tui` feature).
     ///
@@ -1022,6 +1308,7 @@ enum Commands {
     ///
     /// The Python command opens a Tkinter window; this one runs in the terminal.
     #[usage(alias = "case-plans")]
+    #[usage(help_heading = "Tests", example = "sbrs caseplans --starter")]
     Caseplans {
         /// A folder of tests, or one test file.
         #[cfg_attr(
@@ -1044,6 +1331,7 @@ enum Commands {
     /// loaded, and a scenario that uses one is reported as undefined. The Python
     /// command opens a Tkinter window; this one runs in the terminal.
     #[usage(alias = "gui-behave")]
+    #[usage(help_heading = "Tests", example = "sbrs behave-gui features")]
     BehaveGui {
         /// A folder of feature files, or one `.feature` file.
         #[cfg_attr(
@@ -1057,23 +1345,40 @@ enum Commands {
         new: bool,
     },
     /// Print a file.
+    #[usage(
+        help_heading = "Files and generators",
+        example = "sbrs print --file tests/login.rs"
+    )]
     Print {
         #[usage(long, help = "File path to print")]
         file: String,
     },
     /// Objectify a test recording.
+    #[usage(help_heading = "Files and generators", example = "sbrs objectify")]
     Objectify,
     /// Create an HTML presentation.
+    #[usage(
+        help_heading = "Files and generators",
+        example = "sbrs mkpres --file deck.html"
+    )]
     Mkpres {
         #[usage(long, help = "Output HTML presentation path")]
         file: String,
     },
     /// Create an HTML chart.
+    #[usage(
+        help_heading = "Files and generators",
+        example = "sbrs mkchart --file chart.html"
+    )]
     Mkchart {
         #[usage(long, help = "Output HTML chart path")]
         file: String,
     },
     /// Create a test recording scaffold, or record a test live with --url.
+    #[usage(
+        help_heading = "Record and replay",
+        example = "sbrs mkrec --url https://example.com --file tests/recorded.rs --duration 60"
+    )]
     Mkrec {
         #[usage(
             long,
@@ -1090,6 +1395,10 @@ enum Commands {
         file: String,
     },
     /// Run a scenario file, the way to do several steps in one browser, and write an optional dashboard.
+    #[usage(
+        help_heading = "Tests",
+        example = "sbrs run-scenario --file scenario.json"
+    )]
     RunScenario {
         #[usage(long, help = "Scenario file to run")]
         file: String,
@@ -1097,6 +1406,7 @@ enum Commands {
         dashboard: Option<String>,
     },
     /// Generate a completion script for a supported shell, or a Fig spec.
+    #[usage(help_heading = "Info and setup", example = "sbrs completions zsh")]
     Completions {
         #[usage(
             value_enum,
@@ -1105,6 +1415,10 @@ enum Commands {
         shell: CompletionFormat,
     },
     /// Convert common SeleniumBase or Selenium Python code into a Rust test.
+    #[usage(
+        help_heading = "Import and convert",
+        example = "sbrs import-python login.py --output tests/login.rs"
+    )]
     ImportPython {
         /// Python source file to convert.
         file: String,
@@ -1125,6 +1439,10 @@ enum Commands {
     },
     /// Convert Playwright tests or a script (JavaScript, TypeScript or Python) into Rust tests for the pure CDP engine.
     #[usage(alias = "import-pw")]
+    #[usage(
+        help_heading = "Import and convert",
+        example = "sbrs import-playwright login.spec.ts --output tests/login.rs"
+    )]
     ImportPlaywright {
         /// Playwright source file to convert.
         file: String,
@@ -1144,6 +1462,10 @@ enum Commands {
     },
     /// Convert Puppeteer scripts or tests (JavaScript, TypeScript) or a Chrome Recorder JSON export into Rust tests for the pure CDP engine.
     #[usage(alias = "import-pptr")]
+    #[usage(
+        help_heading = "Import and convert",
+        example = "sbrs import-puppeteer login.js --output tests/login.rs"
+    )]
     ImportPuppeteer {
         /// Puppeteer source file (or Recorder `.json` export) to convert.
         file: String,
@@ -1163,6 +1485,10 @@ enum Commands {
     },
 
     /// Download a file from a URL (browser download with an HTTP fallback).
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs download-file https://example.com/report.pdf --output report.pdf"
+    )]
     DownloadFile {
         #[usage(help = "URL of the file to download")]
         url: String,
@@ -1180,6 +1506,10 @@ enum Commands {
         timeout: u64,
     },
     /// Print a page to PDF and save it to disk.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs print-pdf https://example.com --output page.pdf"
+    )]
     PrintPdf {
         #[usage(help = "URL to render as a PDF")]
         url: String,
@@ -1190,6 +1520,10 @@ enum Commands {
     #[cfg_attr(
         not(feature = "pdf"),
         expect(dead_code, reason = "a build without `pdf` only says how to get it")
+    )]
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs pdf-text https://example.com/report.pdf"
     )]
     PdfText {
         #[usage(help = "URL of the page or PDF to extract text from")]
@@ -1202,6 +1536,10 @@ enum Commands {
         not(feature = "pdf"),
         expect(dead_code, reason = "a build without `pdf` only says how to get it")
     )]
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs assert-pdf-text https://example.com/report.pdf --text Total"
+    )]
     AssertPdfText {
         #[usage(help = "URL of the page or PDF to check")]
         url: String,
@@ -1211,6 +1549,10 @@ enum Commands {
         save_pdf: Option<String>,
     },
     /// Upload a local file into a file input.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com/upload choose-file 'input[type=file]' ./photo.png"
+    )]
     ChooseFile {
         #[usage(help = "CSS selector of the <input type=file> element")]
         selector: String,
@@ -1220,6 +1562,10 @@ enum Commands {
     /// Run several assertions, then report every failure at once.
     ///
     /// The page they run on is the global --url, if there is one.
+    #[usage(
+        help_heading = "Page commands",
+        example = "sbrs --url https://example.com deferred --assert element=h1 --assert 'text=h1:Example Domain'"
+    )]
     Deferred {
         #[usage(
             long = "assert",
@@ -1231,6 +1577,10 @@ enum Commands {
         spec: Option<String>,
     },
     /// Record browser interactions into a replayable action file.
+    #[usage(
+        help_heading = "Record and replay",
+        example = "sbrs record https://example.com --output actions.json --duration 30"
+    )]
     Record {
         #[usage(help = "URL to open and record")]
         url: String,
@@ -1248,6 +1598,10 @@ enum Commands {
         duration: Option<u64>,
     },
     /// Replay a recorded action file against a fresh browser session.
+    #[usage(
+        help_heading = "Record and replay",
+        example = "sbrs replay actions.json"
+    )]
     Replay {
         #[usage(help = "JSON action file produced by `sbrs record`")]
         file: String,
@@ -1261,6 +1615,10 @@ enum Commands {
     /// The global --browser (chrome, chromium, edge or another Chromium
     /// browser), --headless, --headed, --user-data-dir, --proxy, --user-agent, --locale, --ad-block, --extension-dir
     /// --proxy-list and --url (the page to open once the browser runs) apply as well.
+    #[usage(
+        help_heading = "Drivers, grid and servers",
+        example = "sbrs devtools --port 9222"
+    )]
     Devtools {
         #[usage(
             long,
@@ -1288,6 +1646,7 @@ enum Commands {
     /// global options --plugin and --plugin-opt, the SB_PLUGINS variable, or the [plugins]
     /// table of the settings file; the command line wins over SB_PLUGINS, which wins over
     /// the file. `sbrs plugin list` shows the plugins this build has.
+    #[usage(help_heading = "Info and setup", example = "sbrs plugin list")]
     Plugin(PluginArgs),
     /// Capture, write, check and compare browser fingerprints.
     ///
@@ -1296,6 +1655,7 @@ enum Commands {
     /// a real browser; `export` writes a preset or a random identity; `check` and `diff`
     /// read files. The global --fingerprint FILE (or SB_FINGERPRINT, or the [fingerprint]
     /// table of the settings file) makes every browser a command starts present one.
+    #[usage(help_heading = "Security", example = "sbrs fingerprint presets")]
     Fingerprint(FingerprintArgs),
 }
 
@@ -1533,29 +1893,6 @@ fn command_name(command: &Commands) -> String {
     name
 }
 
-/// A command line that parses but whose options the command refuses. It is said as a parse
-/// failure is, `error: ...` on standard error with status 2, before any browser starts.
-#[derive(Debug)]
-struct ArgumentError {
-    message: String,
-}
-
-impl ArgumentError {
-    fn new(message: impl Into<String>) -> Self {
-        Self {
-            message: message.into(),
-        }
-    }
-}
-
-impl std::fmt::Display for ArgumentError {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str(&self.message)
-    }
-}
-
-impl std::error::Error for ArgumentError {}
-
 /// Refuses what only the command and its options together show to be a mistake.
 ///
 /// `start_page_given` is whether the command line itself named a start page (`start_page` is
@@ -1575,20 +1912,22 @@ fn check_page_arguments(
 ) -> Result<(), ArgumentError> {
     let name = command_name(command);
     if start_page_given && command.opens_own_url() {
-        return Err(ArgumentError::new(format!(
-            "{name} opens its own URL; leave out --start-page"
-        )));
+        return Err(ArgumentError::new(
+            &name,
+            format!("{name} opens its own URL; leave out --start-page"),
+        ));
     }
     if command.needs_page() && start_page.is_none() {
-        return Err(ArgumentError::new(format!(
-            "{name} acts on a page, and every sbrs command starts a fresh browser; give the \
-                 page: sbrs --url https://example.com {name} …"
-        )));
+        return Err(ArgumentError::new(
+            &name,
+            format!(
+                "{name} acts on a page, and every sbrs command starts a fresh browser; give the \
+             page: sbrs --url https://example.com {name} …"
+            ),
+        ));
     }
     if command.changes_profile() && user_data_dir.is_none() {
-        return Err(ArgumentError::new(format!(
-                "{name} changes the profile, which a fresh browser throws away; add --user-data-dir DIR"
-            )));
+        return Err(ArgumentError::new(&name, format!("{name} changes the profile, which a fresh browser throws away; add --user-data-dir DIR")));
     }
     Ok(())
 }
@@ -2156,7 +2495,7 @@ fn run_command() -> std::process::ExitCode {
         Err(error) if is_broken_pipe(error.as_ref()) => std::process::ExitCode::SUCCESS,
         // An option the command refuses, said as a parse failure is, with no browser started.
         Err(error) if error.is::<ArgumentError>() => {
-            eprintln!("error: {error}");
+            eprint!("{}", failure::render_argument_error(error.as_ref()));
             std::process::ExitCode::from(2)
         }
         Err(error) => {
@@ -2168,16 +2507,31 @@ fn run_command() -> std::process::ExitCode {
     }
 }
 
-/// `Cli::parse`, after the checks of [`strict`] that usage 6 does not make itself: a refused
-/// command line says why on standard error and exits with status 2, as clap did.
+/// `Cli::parse`, after the checks of [`strict`] that usage 6 does not make itself. A command line that
+/// does not parse prints the page of the command its words reached (see [`failure`]) and then the
+/// error, on standard error, and exits with status 2. Help, version and completion requests are
+/// answered by `Cli::parse` as before.
 fn parse_command_line() -> Cli {
     let argv: Vec<std::ffi::OsString> = std::env::args_os().skip(1).collect();
     let words: Vec<&std::ffi::OsStr> = argv.iter().map(std::ffi::OsString::as_os_str).collect();
+    if words
+        .first()
+        .is_some_and(|word| *word == failure::COMPLETE_WORD)
+    {
+        return Cli::parse();
+    }
     if let Err(error) = strict::check(Cli::spec(), Cli::command(), &words) {
-        eprint!("{}", Cli::render_failure(&words, &error));
+        eprint!("{}", failure::render(&words, &error));
         std::process::exit(2);
     }
-    Cli::parse()
+    match Cli::parse_from(&words) {
+        Ok(cli) => cli,
+        Err(error) if failure::is_request(&error) => Cli::parse(),
+        Err(error) => {
+            eprint!("{}", failure::render(&words, &error));
+            std::process::exit(2);
+        }
+    }
 }
 
 async fn execute() -> Result<(), Box<dyn std::error::Error>> {

@@ -32,17 +32,20 @@ pub enum FingerprintCommand {
     /// of the browser, and prints the fingerprint as JSON, or writes it to FILE. A summary
     /// goes to standard error. What no setting holds (window sizes, the automation markers,
     /// the canvas hash) stays out of the fingerprint; --readings writes it to its own file.
+    #[usage(example = "sbrs fingerprint capture https://example.com --output seen.json")]
     Capture(CaptureArgs),
     /// Write a preset or a random identity as a fingerprint file.
     ///
     /// Give --preset NAME (windows, edge, macos, linux, android, ios) or --random. A random
     /// identity follows --seed, so the same seed gives the same file, and --os, the system it
     /// claims (default: this machine's). The file goes to FILE, else to standard output.
+    #[usage(example = "sbrs fingerprint export --preset windows --output windows.json")]
     Export(ExportArgs),
     /// Check that a fingerprint file loads and is coherent.
     ///
     /// Prints how many settings the file gives, each error and warning, and the verdict. Exits
     /// with status 2 when there is an error or the file does not load.
+    #[usage(example = "sbrs fingerprint check windows.json")]
     Check(CheckArgs),
     /// Compare two fingerprint files.
     ///
@@ -52,8 +55,10 @@ pub enum FingerprintCommand {
     ///
     /// To check that a browser presents a file: `sbrs --fingerprint f.json fingerprint
     /// capture -o seen.json`, then `sbrs fingerprint diff f.json seen.json`.
+    #[usage(example = "sbrs fingerprint diff windows.json seen.json")]
     Diff(DiffArgs),
     /// List the presets and what each claims.
+    #[usage(example = "sbrs fingerprint presets")]
     Presets,
 }
 
