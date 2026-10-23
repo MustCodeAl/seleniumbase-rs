@@ -35,6 +35,40 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ### Breaking
 
+- **The behave port is removed; Gherkin runs through rstest-bdd.** Module
+  `seleniumbase_rs::behave` (`StepRegistry`, `AsyncStepRegistry`, `CommonSteps`, `run_feature_*`,
+  `RunFilter`) and `examples/behave_feature.rs` are gone: a feature file is now a cargo test with
+  `#[scenario]` and the `bdd::sb` fixture (see Added).
+- **A recorded `goto` is written as `sb.goto(..)`**, its own BaseCase call, not `sb.open(..)`.
+
+- **`Settings::screenshot_dir` and `SB_SCREENSHOT_DIR` are removed.** The library read neither;
+  a settings file that still has the key loads as before.
+- **The presentation and chart helpers have Python's names, arguments and files.** Each is a call
+  builder with Python's keyword arguments, so `sb.create_pie_chart().title("T").unit("%").await?`,
+  `sb.add_slide("<h1>Hi</h1>").notes("n").await?`, `sb.save_presentation().show_notes(true).await?`
+  and `sb.display_chart().interval(Duration::from_secs(3)).await?`. A chart or a presentation has a
+  name (`.chart_name(..)`, `.name(..)`; `default` when none is given), so several can exist at
+  once; `create_*_chart` takes the title as a keyword, not first; `add_data_point` takes an `f64`
+  and `.color(..)`; `add_series_to_chart()` starts a series that the next data points fill instead
+  of taking its data; `extract_chart` returns the chart's HTML, not JSON; slides are HTML with
+  `image`, `code`, `iframe`, `content2`, `notes` and a `transition`, so the Markdown subset is
+  gone; and `create_presentation` takes a `PresentationTheme` and a `Transition`, not a title.
+  Files go to `saved_presentations/my_presentation.html` and `saved_charts/my_chart.html`
+  (`.filename(..)`, `.folder(..)`), not to `latest_logs`, and a name that does not end in
+  `.html` is refused. `begin_presentation` shows a saved presentation and waits for its last
+  slide, and returns `None` in a headless browser or on a virtual display; `PieChart`,
+  `ChartSeries::add_data_point(i32)` and `Presentation::new(title)` are replaced.
+- **`sbrs install` needs a driver name**, as in Python: `sbrs install` alone prints the
+  install page and exits with status 2 instead of installing chromedriver.
+- **`Browser` and `DriverVersion` have new variants.** `Browser::Remote` (`--browser=remote`) and
+  `DriverVersion::{Keep, Previous}`: a `match` on either needs the new arms.
+  `BrowserConfig::with_grid` returns a `Result`, because an empty server name is an error.
+- **Chrome is no longer given a proxy login.** `--proxy=user:pass@host:port` used to put
+  `user:pass@host:port` in `--proxy-server`, where Chrome reads no login and the process list
+  shows it; Chrome now gets `--proxy-server=host:port`. A WebDriver session answers the proxy's
+  login another way (see Added).
+
+
 - **`RunSettings` no longer implements `Eq`.** It now holds the timeout multiplier, a
   floating-point number; `PartialEq` stays.
 - **`set_jqc_theme` and `reset_jqc_theme` are synchronous and keep the theme in the case.**
@@ -58,8 +92,234 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   `MessengerTheme::default()`, `MessengerSettings::default()` and `"default".parse::<MessengerTheme>()`
   give `future`, so a `MessengerLocation` alone, for `set_messenger_theme`, keeps the future theme.
 
-
 ### Added
+
+- **Gherkin scenarios as cargo tests (feature `bdd`).** `testing::bdd::&#123;sb, sb_cdp, SbCase,
+  SbCdpCase&#125;` run a feature file's scenarios through rstest-bdd 0.6: `#[scenario(path = ..)]` on
+  an async test that takes `#[future(awt)] sb: SbCase`, and `#[given]`/`#[when]`/`#[then]` steps
+  that take `sb: &mut SbCase`. A failed step leaves the screenshot, page source and test info in
+  `latest_logs/<test id>/` with the page still open, and the browser always closes. `sbrs
+  behave-gui` runs the scenarios you mark with `cargo test`.
+- **Recorder Mode pipeline, ported from SeleniumBase 4.56.2.** `api::recorder` now carries
+  Python's page script (`RECORDER_JS`, `SHIFT_ESC_JS`, `recorder_injection()`), its rewrite
+  passes (`process`, `add_parent_frame_switches`, over `RawAction` rows) and its code generation
+  (`to_actions`, `ActionRecorder::from_raw_actions`), and writes a recording as an rstest test on
+  the `sb` fixture (`to_rstest_test`) or a Gherkin scenario (`to_gherkin_scenario`). A typed
+  password is marked secret in the page and generated as `recorded_secret()?`, read from
+  `SB_RECORDED_SECRET`. Golden tests check the processed rows and calls against SeleniumBase's own
+  code on 11 recordings.
+- **`sbrs install` fetches more.** `sbrs install` (and `get`) now installs `uc_driver` (a
+  patched chromedriver), `cft` and `chs` (Chrome for Testing and its headless shell) and
+  `chromium` (a Chromium snapshot with the chromedriver of the same revision, `--revision N`),
+  reads the version words `previous`, `mlatest` and `keep`, and copies the driver into
+  `SB_DRIVER_PATH_DIR` (else `/usr/local/bin`) with `-p`/`--path`, refusing a symlink at the
+  target. `--browser chromium` finds a downloaded or installed Chromium, else downloads the
+  newest snapshot, and matches its chromedriver to it.
+
+- **`sbrs proxy`.** A minimal forward proxy for this machine: `sbrs proxy [--hostname HOST]
+  [--port PORT]` listens on 127.0.0.1:8899, tunnels `CONNECT host:port` (so HTTPS passes
+  through untouched) and forwards an absolute `http://` request once with `Connection: close`.
+  It has no authentication and no TLS interception, warns when it listens on an address other
+  than loopback, logs one line per request at INFO, refuses a request head over 64 KiB, serves
+  at most 256 connections at once, drops a connection that carries no byte for 30 seconds and
+  stops on Ctrl-C or SIGTERM with status 0. Use it with the global `--proxy 127.0.0.1:8899`.
+
+- **`sbrs download server`.** Downloads Selenium Server 4 into `downloaded_drivers/`
+  (`--version 4.x.y`). The default release, 4.51.0, has its SHA-256 pinned in the source and a
+  download that differs is not saved; another version is saved as it arrives and printed with
+  its SHA-256 and `not verified`. Python's Selenium 3 server is not offered. `sbrs grid-hub`
+  and `sbrs grid-node` now run the newest jar in that folder when neither `--jar` nor
+  `SB_SELENIUM_SERVER_JAR` names one.
+
+- **`sbrs encrypt` and `sbrs decrypt` prompt on a terminal.** With no argument and a terminal on
+  standard input they ask as Python's `obfuscate` and `unobfuscate` do: the text and its
+  verification without echo, then the token with the line that decrypts it in a test, again
+  and again until Ctrl-C (`Exiting...`, status 0). When `SB_ENCRYPTION_KEY` is not set they ask
+  once for the passphrase without echo (`encrypt` twice, to catch a typo); it is never printed
+  or saved. A pipe or file on standard input behaves as before.
+
+- **A presentation plays by itself and a chart waits for its interval.** `--interval`
+  (`RunSettings::with_interval`) is the autoplay time of `save_presentation` and
+  `begin_presentation` (`autoSlide`) and how long `display_chart` shows a chart, unless the call
+  gives its own `.interval(..)`. Themes (`PresentationTheme`: `serif`, `sky`, `white`, `black`,
+  `simple`, `league`, `moon`, `night`, `beige`, `blood`, `solarized`) and transitions
+  (`Transition`: `none`, `slide`, `fade`, `zoom`, `convex`, `concave`) are enums that also parse
+  from Python's names. A chart can be put on a slide with `extract_chart`, and the deck loads the
+  chart library once. Charts are still drawn with Chart.js: `unit` titles the value axis and
+  ends the tooltip, `zero` starts a line or area chart at zero, `legend` and `labels` show or
+  hide the legend and the values, and `libs` leaves the `<script src>` out of `extract_chart`.
+
+- **The MCP servers offer resources, prompts, structured results and progress.** The `cdp`,
+  `driver` and `sb` servers answer `resources/list`, `resources/templates/list` and
+  `resources/read` for `sbrs://journal` (the calls so far, with typed text, scripts and results
+  left out), `sbrs://session` (engine, URL, title, ready state) and `sbrs://output/{+path}` (a
+  file under `SB_MCP_OUTPUT_DIR`: text as text, anything else as base64; `..`, an absolute path,
+  an escape or a link that leaves the folder is refused), and `prompts/list` and `prompts/get`
+  for `write_test`, `debug_failure` and `extract_data`. An object result of a tool is also sent
+  as `structuredContent` next to its text, and a `tools/call` with `_meta.progressToken` gets
+  `notifications/progress` from the tools that report (`Ctx::progress`). The tools that return
+  page text (`get_content`, `get_attributes`, `get_text`, `get_page_source`, ...) start with a
+  notice that the text is data and carry `_meta: {"sbrs/untrusted_content": true}`. For hosts
+  built on the library: `ToolDef::with_output_schema` and `untrusted`, `Host::with_resources`,
+  `with_prompts` and `call_with`, and the types `ResourceDef`, `PromptDef`, `Progress` and
+  `ProgressSink`.
+
+- **`sbrs test` takes every option of Python SeleniumBase's pytest plugin.** One flag for each row
+  of the option table, built from the table itself: the browser and page options (`--firefox`,
+  `--headed`, `--uc`, `--dark`, `--no-sandbox`, ...), the test data (`--env`, `--account`, `--data`,
+  `--var1` to `--var3`, `--variables`, checked before Cargo starts), the debug modes (`--pdb`,
+  `--trace`, `--final-debug`, which run one test at a time with its output shown), `--reruns`,
+  `--time-limit`, the evidence and report options and the recorder. Each is accepted in every
+  spelling and alias Python has (`--no-sandbox`, `--no_sandbox`, `--dcsp`); a switch can be turned
+  off with `--flag=false`; the options that do nothing here (`--fast`, `--with-selenium`, ...) are
+  accepted and ignored. They reach the tests as `SB_*` variables. The pytest options are there too:
+  `-k` and `-m` (a marker is a module name; `a or b` and `not c` become libtest filters and skips,
+  anything else asks for `--runner nextest`, where it is a filterset), `-n N|auto`, `-s`,
+  `--co` (lists the tests and prints `collected N items`), `--runner cargo|nextest`,
+  `-c FILE` or `--settings-file FILE` (passed on as an absolute `SB_SETTINGS_FILE`), and
+  `--all-scripts`, which runs every example after the tests. `sbrs behave-options` prints how the
+  behave options map to these flags.
+- **`sbrs test` empties `latest_logs/` and `downloaded_files/` before a run, as pytest does**, or
+  moves them to `archived_logs/logs_<epoch>/` and `archived_files/downloads_<epoch>/` with
+  `--archive-logs` and `--archive-downloads`. It does so in the folder of each package the tests
+  run in and never for `--co`; plain `cargo test` touches nothing.
+- **Library helpers for a test launcher:** `cli::scripts::run::{Runner, list_names}` and the
+  nextest, list, skip and capture builders of `TestRun`, `run_filter::translate` (the `-k` and `-m`
+  expressions), `run_logs` (reset or archive the logs folders), `all_scripts` (the examples of a
+  package) and `behave_options`.
+
+
+- **Shell completion says what each value is.** A selector, text, key, value, attribute, property
+  or CDP method (`--css`, `--text`, `--key`, `--value`, `--attribute`, `--property`, `--cmd`,
+  `--params`, `--hover-css`, `--click-css`, `--source-css`, `--target-css`) no longer completes
+  file names, and neither does a number, a URL (`open`, `smoke`, `download-file`, `print-pdf`,
+  `pdf-text`, `record`, `mkfile --url`, `--start-page`, `--proxy-pac-url`) or a free-form option.
+  Files complete by the kind a command takes (`.json` or `.yaml` for `export-recording` and
+  `replay`, `.rs` for `mkfile` and the generated tests, `.png` for `screenshot`, `.toml` or
+  `.json` for `--config`, ...), folders for `mkdir`, `--user-data-dir` and `--extension-dir`,
+  programs for `patch-chrome`, `patch-chromedriver` and `devtools --browser-path`.
+  `sbrs translate FILE` offers the language codes, and `sbrs fingerprint export --preset` its
+  presets.
+- **`sbrs install` completes its driver and its version.** The driver is a value enum
+  (`chromedriver`, `geckodriver`, `edgedriver`; `firefoxdriver` and `msedgedriver` still work), and
+  the version offers `browser`, `stable`, `latest`, `beta`, `dev` and `canary`. The Fig spec
+  (`sbrs completions fig`) marks the global options `isPersistent` and keeps the file template of
+  a path limited to extensions, and `docs/help/cli_reference.md` shows each command's examples in
+  a `bash` block titled Examples and says the global options go before or after the command.
+- **One option table for a test run (`config::test_options`).** Every Python SeleniumBase
+  option, whether a pytest flag or an `SB(...)` keyword, is a row of `TEST_OPTIONS`: the `sbrs`
+  flags that spell it (`_` and `-` alike), the `SB_*` variable that carries it, and the
+  `Settings` field it lands in. `find_option("--dark")` finds a row by any spelling, and
+  `tests/test_options_table.rs` fails when `parity/api.toml` lists an option the table does not
+  spell. `Settings::load` reads the variables from the table, in the order and with the
+  messages it always had.
+- **`TestSettings` and `TestData` (`config::test_settings`), the `[test]` table of the settings
+  file.** `TestData` holds what a test reads: `env` (one of the 24 environments of Python
+  SeleniumBase, `test` by default, checked and lower-cased), `account`, `data`, `var1` to
+  `var3` and `variables`, a JSON object or a Python dictionary literal
+  (`TestData::parse_variables`). `TestSettings` holds the debug modes (`pdb`, `trace`,
+  `final_debug`), `reruns` and `reruns_delay`, `time_limit`, the evidence and report switches,
+  the recorder switches and `runner`. The settings stay on `LaunchSettings::test_data` for the
+  `sb` fixture.
+- **The rstest `sb` and `sb_cdp` fixtures (feature `testing`).** `#[rstest] #[tokio::test] async fn
+  t(sb: Sb) -> Result&lt;()> &#123; sb.run(async |sb| &#123; .. &#125;).await &#125;` runs a test on a WebDriver
+  `BaseCase` (or `sb_cdp: SbCdp` on a pure CDP `Page`) with the whole run configuration: the
+  settings file, `SB_SETTINGS_FILE` and the `SB_*` variables. `run` reruns a failed test
+  (`reruns`, `reruns_delay`, printing `RERUN <test id> (attempt 2 of 3) after: <error>`), stops one
+  that runs past `time_limit` with Python's `This test has exceeded the time limit of N seconds!`
+  (the time a prompt is open does not count), leaves `latest_logs/<test id>/screenshot.png`,
+  `page_source.html` and `basic_test_info.txt` while the browser is still open
+  (`no_screenshot`, `save_screenshot` for a pass, `list_fail_page`), asks at the `trace`, `pdb`
+  and `final_debug` prompts (skipped with a warning where nobody is at a terminal), and closes the
+  browser whatever happened. A panic is a failure too and is raised again after the last attempt.
+  `Sb::configure` is the Rust form of Python's `SB(...)` arguments, and `testing::Finalizer` sees
+  every attempt end with the page open, for the reports, the plugin host and the recorder.
+  `docs/tutorials/writing_tests.md` shows it.
+- **`BaseCase` reads the test data of the run** as Python's `sb` does: `data()`, `env()` and
+  `environment()` (`test` by default), `account()`, `var1()` to `var3()`, `variables()`, and
+  `test_id()`, the id that names the test's folder of evidence.
+- **`common::test_id::current_test_id`**, the id of the running test (`cart.checkout.renders`: the
+  test binary, the module path and the function, one plain file name), replaces the debug prompt's
+  thread-name stub.
+- **A key and a variable for each browser option.** `Settings` gains `dark_mode`, `devtools`,
+  `incognito`, `guest_mode`, `disable_ws`, `swiftshader`, `enable_3d_apis`, `maximize`,
+  `no_sandbox`, `disable_gpu`, `chromium_arg`, `disable_features`, `host_resolver_rules`,
+  `server`, `port`, `protocol`, `locale_code`, `window_size`, `window_position`,
+  `device_metrics`, `page_load_strategy`, `driver_version`, `proxy_bypass_list`, `cap_file`,
+  `cap_string`, `extension_zip`, `firefox_arg`, `firefox_pref`, `xvfb`, `xvfb_metrics`,
+  `remote_debug`, `log_cdp_events`, `block_images`, `disable_js`, `disable_cookies`,
+  `do_not_track`, `external_pdf`, `enable_sync`, `disable_csp`, `use_auto_ext`, `demo`, `slow`,
+  `skip_js_waits`, `crumbs` and more, each with its `SB_*` variable
+  (`SB_DARK_MODE`, `SB_WINDOW_SIZE`, ...). `Settings::to_browser_config` puts them on the typed
+  `BrowserConfig` builders, and a value that does not parse is refused by `Settings::validate`.
+- **`Settings::to_launch_options` for the pure CDP engine.** The same settings, as the
+  `LaunchOptions` of `sb_cdp`, with the Chromium switches both engines share.
+- **`SB_SETTINGS_FILE` names the settings file** that `Settings::load` and `Settings::check`
+  read instead of the global file of the working folder.
+
+
+- **A WebDriver session logs in to a proxy that asks for a password.** `--proxy=user:pass@host:port`
+  (or a PAC URL with a login) now works with Chrome, Edge and the other Chromium browsers on a
+  chromedriver this machine runs, as the pure CDP engine already did. Python SeleniumBase writes a
+  browser extension for it, which Chrome no longer loads from the command line; this crate attaches
+  a DevTools client beside chromedriver (the `debuggerAddress` of the session's capabilities) that
+  turns `Fetch` on in every tab, also one the page opens or a WebDriver new window, and answers the
+  proxy's `407` with the login. A website's own `401` is never given the proxy account, and the
+  login is neither in the browser's command line nor in an error message. The client closes with the
+  session (and is started again for each lease with `--reuse-session`). A remote grid with a proxy
+  login is refused when the session connects, before a browser starts, because the grid does not
+  share its browser's DevTools endpoint: use the grid's proxy capability (`--cap-string`) or a proxy
+  without a login.
+
+- **The pure CDP engine takes the browser options of the WebDriver engine.**
+  `LaunchOptionsBuilder::mobile` and `device_metrics` make every tab, the first and each one
+  opened later, a phone: `Emulation.setDeviceMetricsOverride` with `mobile: true` (390 by 715
+  at a ratio of 3 unless metrics are given), five touch points, and the `Android` user agent
+  with matching client hints. `dark_mode`, `devtools`, `disable_web_security`, `swiftshader`,
+  `maximize`, `disable_features`, `enable_features`, `host_resolver_rules`,
+  `proxy_bypass_list`, `proxy_pac_url` (a login the PAC file asks for is answered over the
+  protocol), `virtual_display` (Xvfb, Linux, headed) and `switch(LaunchSwitch, bool)` are
+  public. `switch` writes `BlockImages`, `DisableJavaScript`, `DisableCookies`, `DoNotTrack`
+  and `ExternalPdf` as profile preferences, makes `DisableCsp` call `Page.setBypassCSP` in
+  every tab, and logs at debug level the switches that only the WebDriver engine can use.
+  A maximized window gets no `--window-size`, a headless browser neither developer tools nor
+  a maximized window, and this engine never switches the GPU off by itself.
+  `LaunchOptionsBuilder::browser_config(&BrowserConfig)` reads everything of a
+  `BrowserConfig` that the engine can use, as Python's `sb_cdp.Chrome(**kwargs)` reads its
+  options, and lists at debug level what it cannot (page load strategy, capabilities, driver
+  version, Firefox options, the DevTools event log, extension archives); a bad proxy or PAC
+  address fails `build()` as it fails the WebDriver engine. `build()` refuses `mobile` together
+  with a `fingerprint`, which both set the screen and the user agent.
+- **`Emulation` changes a running tab.** `device_metrics(metrics, mobile)`,
+  `clear_device_metrics()`, `touch(enabled)` and `color_scheme(ColorScheme)` (`Light`,
+  `Dark`, `NoPreference`: what `prefers-color-scheme` reports).
+
+- **Proxies are checked the way Python checks them.** `browser::options::ProxyAddress`
+  (`[scheme://][user:pass@]host:port`, schemes `http`, `https`, `socks4`, `socks5`, `socks5h`),
+  `ProxyScheme` and `PacUrl` (`[user:pass@]URL`, which must end in `.pac`) refuse a bad string
+  with the password hidden (`user:***@`), and so do their `Debug` and `Display`. Firefox gets
+  `network.proxy.*` preferences from a proxy, a PAC file and the bypass list; a login on a Firefox
+  proxy, or on a SOCKS proxy, is refused with Python's message. `BrowserConfig::validate()` runs
+  these checks (and the `--browser=remote` ones) before a browser starts; `BrowserSession::connect`
+  calls it.
+- **Selenium Grid addresses.** `browser::options::grid_url` and `GridProtocol` build the WebDriver
+  URL Python's `get_remote_driver` builds (`USER:KEY@hub.browserstack.com` stays in the URL, an
+  `https://` server forces https, `/wd/hub` is added, a port the protocol already uses is left
+  out), and `BrowserConfig::with_grid(protocol, servername, port)` sets it (`localhost` keeps the
+  local driver). `BrowserConfig::with_binary_location` is Python's `binary_location`.
+- **`Browser::Remote`** (`--browser=remote`) sends the WebDriver server nothing but the
+  capabilities of `--cap-file` and `--cap-string`; mobile mode, switches and window geometry do not
+  apply to it.
+- **`DriverVersion` keywords `keep`, `previous` (`latest-1`) and `mlatest`.** `keep` runs a
+  chromedriver or msedgedriver that is already in `downloaded_drivers/` or on the `PATH` and
+  downloads one only when there is none; `previous` is the newest driver of the major version
+  before the stable one; `mlatest` is the newest build of the browser's own major version, which
+  `browser` already was.
+- **The remote debugger gives way.** `with_remote_debug(true)` takes a free port, and logs it, when
+  9222 is in use; a port named with `with_remote_debug_port` that is in use is an error
+  (`port N is already in use`). `BrowserSession::remote_debug_address()` says where it listens.
+
+
 
 - **The Python page and wait options are in `RunSettings`:** `with_highlights` (`--highlights`,
   zero is unset, `DEFAULT_HIGHLIGHT_LOOPS` is 4), `with_interval` (`--interval`, zero is unset),
@@ -105,12 +365,16 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   capitals) and still pauses, as Python does; it does not fail the test. `api::messages::fallback_line`
   gives the line.
 
-
 ### Fixed
 
 - **A message stays at most 0.75 s on a virtual display too:** `post_message` and its relatives
   cut the time when nobody watches, which is a headless browser or a headed one on Xvfb (Python:
   `self.headless or self.xvfb`); a headed browser on Xvfb kept the long time before.
+- **`-n` belongs to `sbrs test`.** The global `-n/--threads` is now `sbrs test -n N` (or `auto`);
+  `sbrs -n 2 test` no longer parses. `SB_THREADS` and the `threads` key of the settings file
+  still set it.
+- **`Settings::screenshot_dir` and `SB_SCREENSHOT_DIR` are removed.** The library read neither;
+  a settings file that still has the key loads as before.
 
 </Update>
 
