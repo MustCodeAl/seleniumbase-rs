@@ -10,6 +10,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use super::page::Page;
+use crate::browser::options::DeviceMetrics;
+
 use crate::error::SeleniumBaseError;
 
 // ----------------------------------------------------------------------
@@ -703,6 +705,118 @@ impl Emulation {
                     "latency": 0,
                     "downloadThroughput": -1,
                     "uploadThroughput": -1,
+                }),
+            )
+            .await?;
+        Ok(())
+    }
+}
+
+/// The colour scheme a page's `prefers-color-scheme` media query reports.
+///
+/// Chrome's own setting decides it unless
+/// [`Emulation::color_scheme`] overrides it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum ColorScheme {
+    /// `(prefers-color-scheme: light)` matches.
+    Light,
+    /// `(prefers-color-scheme: dark)` matches.
+    Dark,
+    /// No override: the browser's own setting decides again.
+    NoPreference,
+}
+
+impl ColorScheme {
+    /// The value `Emulation.setEmulatedMedia` takes for the feature. An empty
+    /// value clears the override.
+    pub(crate) const fn media_value(self) -> &'static str {
+        match self {
+            Self::Light => "light",
+            Self::Dark => "dark",
+            Self::NoPreference => "",
+        }
+    }
+}
+
+impl Emulation {
+    /// Gives the tab a screen of `metrics.width` by `metrics.height` CSS
+    /// pixels at `metrics.pixel_ratio` device pixels per CSS pixel
+    /// (`Emulation.setDeviceMetricsOverride`). With `mobile` the page is laid
+    /// out as on a phone: the meta viewport tag is honoured and the text is
+    /// not shrunk to fit. Touch input and the phone's user agent are separate:
+    /// see [`touch`](Self::touch) and [`user_agent`](Self::user_agent), or give
+    /// the launch [`mobile`](super::LaunchOptionsBuilder::mobile) to have every
+    /// tab set up with all three.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::CdpDriver`] if the browser rejects it.
+    pub async fn device_metrics(
+        &self,
+        metrics: DeviceMetrics,
+        mobile: bool,
+    ) -> Result<(), SeleniumBaseError> {
+        self.page
+            .execute(
+                "Emulation.setDeviceMetricsOverride",
+                json!({
+                    "width": metrics.width,
+                    "height": metrics.height,
+                    "deviceScaleFactor": metrics.pixel_ratio,
+                    "mobile": mobile,
+                }),
+            )
+            .await?;
+        Ok(())
+    }
+
+    /// Removes the screen set by [`device_metrics`](Self::device_metrics), so
+    /// the tab follows its window again.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::CdpDriver`] if the browser rejects it.
+    pub async fn clear_device_metrics(&self) -> Result<(), SeleniumBaseError> {
+        self.page
+            .execute("Emulation.clearDeviceMetricsOverride", json!({}))
+            .await?;
+        Ok(())
+    }
+
+    /// Turns touch emulation on (five touch points) or off, so
+    /// `navigator.maxTouchPoints` and the touch events follow a phone.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::CdpDriver`] if the browser rejects it.
+    pub async fn touch(&self, enabled: bool) -> Result<(), SeleniumBaseError> {
+        let params = if enabled {
+            json!({ "enabled": true, "maxTouchPoints": 5 })
+        } else {
+            json!({ "enabled": false })
+        };
+        self.page
+            .execute("Emulation.setTouchEmulationEnabled", params)
+            .await?;
+        Ok(())
+    }
+
+    /// Makes the page's `prefers-color-scheme` media query report `scheme`
+    /// (`Emulation.setEmulatedMedia`); [`ColorScheme::NoPreference`] removes
+    /// the override.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::CdpDriver`] if the browser rejects it.
+    pub async fn color_scheme(&self, scheme: ColorScheme) -> Result<(), SeleniumBaseError> {
+        self.page
+            .execute(
+                "Emulation.setEmulatedMedia",
+                json!({
+                    "features": [
+                        { "name": "prefers-color-scheme", "value": scheme.media_value() }
+                    ]
                 }),
             )
             .await?;

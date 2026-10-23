@@ -138,7 +138,8 @@ pub use pool::{BrowserPool, Lease, PoolOptions, PoolOptionsBuilder, PoolStats};
 pub use session_store::{Session, SessionStore};
 #[doc(inline)]
 pub use state::{
-    Cookie, Cookies, Emulation, SameSite, Storage, StorageArea, Window, WindowBounds, WindowState,
+    ColorScheme, Cookie, Cookies, Emulation, SameSite, Storage, StorageArea, Window, WindowBounds,
+    WindowState,
 };
 #[doc(inline)]
 pub use types::{
