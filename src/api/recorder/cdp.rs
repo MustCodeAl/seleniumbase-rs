@@ -103,6 +103,15 @@ const CDP_ACTIONS: &[&str] = &[
     "clear_local_storage",
     "click_with_offset",
     "sleep",
+    "goto",
+    "press_keys",
+    "wait_for_element",
+    "assert_element",
+    "assert_element_present",
+    "assert_element_not_visible",
+    "assert_exact_text_not_visible",
+    "assert_url",
+    "assert_url_contains",
 ];
 
 /// The longest pause a generated `sleep` is allowed: `Duration::from_secs_f64`
@@ -188,7 +197,7 @@ pub(super) fn cdp_call(action: &RecordedAction) -> Result<CdpCall, String> {
     };
 
     match name {
-        "open" | "goto_if_not_url" => Ok(CdpCall::statement(format!(
+        "open" | "goto" | "goto_if_not_url" => Ok(CdpCall::statement(format!(
             "page.goto({}).await?;",
             literal(need_target()?)
         ))),
@@ -259,6 +268,26 @@ pub(super) fn cdp_call(action: &RecordedAction) -> Result<CdpCall, String> {
             "page.expect().to_contain_title({}).await?;",
             literal(need_target()?)
         ))),
+        // What Python's recorder writes for typing into a field with `--uc`.
+        "press_keys" => Ok(CdpCall::statement(format!(
+            "{}.send_keys({}).await?;",
+            locator(need_target()?),
+            literal(need_value()?)
+        ))),
+        "wait_for_element" => wait("Visible"),
+        "assert_element" => on_target("expect().to_be_visible()"),
+        "assert_element_present" => on_target("expect().to_exist()"),
+        "assert_element_not_visible" => on_target("expect().not().to_be_visible()"),
+        "assert_exact_text_not_visible" => expect(".not()", "to_have_text"),
+        "assert_url" => Ok(CdpCall::statement(format!(
+            "page.expect().to_have_url({}).await?;",
+            literal(need_target()?)
+        ))),
+        "assert_url_contains" => Ok(CdpCall::statement(format!(
+            "page.expect().to_contain_url({}).await?;",
+            literal(need_target()?)
+        ))),
+
         "go_back" => plain("page.back().await?;"),
         "go_forward" => plain("page.forward().await?;"),
         "refresh" => plain("page.reload().await?;"),
@@ -378,6 +407,60 @@ mod tests {
                 Some("https://example.com/a?b=1"),
                 None,
                 vec![r##"page.goto("https://example.com/a?b=1").await?;"##],
+            ),
+            (
+                "goto",
+                Some("https://example.com/a?b=1"),
+                None,
+                vec![r##"page.goto("https://example.com/a?b=1").await?;"##],
+            ),
+            (
+                "press_keys",
+                Some("#q"),
+                Some("rust"),
+                vec![r##"page.locator("#q").send_keys("rust").await?;"##],
+            ),
+            (
+                "wait_for_element",
+                Some("#late"),
+                None,
+                vec![r##"page.locator("#late").wait_for(State::Visible).await?;"##],
+            ),
+            (
+                "assert_element",
+                Some("#m"),
+                None,
+                vec![r##"page.locator("#m").expect().to_be_visible().await?;"##],
+            ),
+            (
+                "assert_element_present",
+                Some("#m"),
+                None,
+                vec![r##"page.locator("#m").expect().to_exist().await?;"##],
+            ),
+            (
+                "assert_element_not_visible",
+                Some("#m"),
+                None,
+                vec![r##"page.locator("#m").expect().not().to_be_visible().await?;"##],
+            ),
+            (
+                "assert_exact_text_not_visible",
+                Some("#m"),
+                Some("Hi"),
+                vec![r##"page.locator("#m").expect().not().to_have_text("Hi").await?;"##],
+            ),
+            (
+                "assert_url",
+                Some("https://example.com/"),
+                None,
+                vec![r##"page.expect().to_have_url("https://example.com/").await?;"##],
+            ),
+            (
+                "assert_url_contains",
+                Some("example"),
+                None,
+                vec![r##"page.expect().to_contain_url("example").await?;"##],
             ),
             (
                 "click",

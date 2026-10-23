@@ -18,6 +18,39 @@
 //! ([`sb_cdp`](crate::sb_cdp)), as Python's `--rec-sb-cdp` does.
 
 mod cdp;
+mod generate;
+mod process;
+mod raw;
+
+pub use generate::to_actions;
+pub use process::{add_parent_frame_switches, process};
+pub use raw::RawAction;
+
+/// The Recorder Mode page script: a port of SeleniumBase 4.56.2's
+/// `recorder_js`, as `src/api/recorder/js/recorder.js`.
+///
+/// It records what a person does in the page as `[kind, a, b, time]` actions
+/// in sessionStorage `recorded_actions` (see [`RawAction`]) and draws the red
+/// (recording), purple (assert element, key `^`) and teal (assert text, key
+/// `&`) border. ESC pauses; `~` or `` ` `` resumes.
+pub const RECORDER_JS: &str = include_str!("recorder/js/recorder.js");
+
+/// The script that ends a recording made with `mkrec --ee`: it sets
+/// `document.sb_esc_end` to `"yes"` when SHIFT+ESC is pressed.
+pub const SHIFT_ESC_JS: &str = include_str!("recorder/js/shift_esc.js");
+
+/// [`RECORDER_JS`] wrapped for `Page.addScriptToEvaluateOnNewDocument`: it
+/// runs when each page has loaded, once per document.
+///
+/// Python wraps the script in `window.onload = function() { ... }`; this adds
+/// a `load` listener instead, so a page that sets its own `onload` neither
+/// loses it nor removes the recorder.
+pub fn recorder_injection() -> String {
+    format!(
+        "if (!document.__sbRecorderHooked) {{ document.__sbRecorderHooked = true; \
+         window.addEventListener('load', function () {{\n{RECORDER_JS}\n}}); }}"
+    )
+}
 
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -180,6 +213,105 @@ impl ActionRecorder {
         out
     }
 
+    /// The actions of a Recorder Mode recording: the raw actions the page
+    /// script stored, [`process`]ed as Python processes them and written as
+    /// calls by [`to_actions`].
+    ///
+    /// `start_ms` is the browser's `Date.now()` when recording began (older
+    /// actions are dropped), `origins_to_save` the origins of the tabs that
+    /// were harvested, and `uc` is Python's `--uc` output.
+    pub fn from_raw_actions(
+        raw: Vec<RawAction>,
+        start_ms: i64,
+        origins_to_save: &[String],
+        uc: bool,
+    ) -> Self {
+        Self {
+            actions: to_actions(&process(raw, start_ms, origins_to_save), uc),
+        }
+    }
+
+    /// The default Recorder Mode output: one rstest test that asks for the
+    /// `sb` fixture ([`RSTEST_PRELUDE`]) and runs the recorded calls in
+    /// `sb.run(...)`, which owns the browser, the reruns and the evidence.
+    ///
+    /// `test_name` becomes the function name. With `uc` the test starts with
+    /// `activate_cdp_mode`, as Python's `--uc` output does (the caller turns
+    /// `type_text` into `press_keys` when it builds the actions).
+    ///
+    /// A password typed into the browser is read from the environment
+    /// variable `SB_RECORDED_SECRET` when the test runs. An action the
+    /// generator cannot turn into a call becomes a `// skipped:` comment.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use seleniumbase_rs::api::recorder::ActionRecorder;
+    ///
+    /// let mut recorder = ActionRecorder::default();
+    /// recorder.record("goto", Some("https://example.com"), None);
+    /// recorder.record("assert_text", Some("h1"), Some("Example Domain"));
+    ///
+    /// let test = recorder.to_rstest_test("test_recording", false);
+    /// assert!(test.contains("async fn test_recording(sb: Sb) -> Result<()> {"));
+    /// assert!(test.contains("        sb.goto(\"https://example.com\").await?;"));
+    /// ```
+    pub fn to_rstest_test(&self, test_name: &str, uc: bool) -> String {
+        let secret = format!("std::env::var({})?", literal(SECRET_VARIABLE));
+        let mut body = String::new();
+        let mut needs_secret = false;
+        if uc && !self.actions.is_empty() {
+            body.push_str("        sb.activate_cdp_mode().await?;\n");
+        }
+        for action in &self.actions {
+            let statement = match rust_call(action) {
+                Ok(call) => {
+                    needs_secret |= call.contains(&secret);
+                    call.replace(&secret, "recorded_secret()?")
+                }
+                // `{:?}` in the reason keeps a hostile name from ending the comment.
+                Err(reason) => format!("// skipped: {reason}"),
+            };
+            body.push_str("        ");
+            body.push_str(&statement);
+            body.push('\n');
+        }
+        let mut out = String::from(RSTEST_PRELUDE);
+        if needs_secret {
+            out.push_str("use seleniumbase_rs::api::recorder::recorded_secret;\n");
+        }
+        out.push_str(&format!(
+            "\n#[rstest]\n#[tokio::test]\nasync fn {}(sb: Sb) -> Result<()> {{\n    sb.run(async |sb| {{\n{body}        Ok(())\n    }})\n    .await\n}}\n",
+            rust_identifier(test_name)
+        ));
+        out
+    }
+
+    /// Gherkin in the wording of Python's `--rec-behave`
+    /// (`behave/behave_helper.py`): `Feature:` and `Scenario:` named as given,
+    /// then `Given Open "url"` and `And Click "selector"`, one step per
+    /// action. With `uc` the first step is `Activate CDP Mode`.
+    ///
+    /// A password typed into the browser is `<SB_RECORDED_SECRET>`. An
+    /// action with no step becomes a `# skipped:` comment.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use seleniumbase_rs::api::recorder::ActionRecorder;
+    ///
+    /// let mut recorder = ActionRecorder::default();
+    /// recorder.record("goto", Some("https://example.com"), None);
+    /// recorder.record("click", Some("a"), None);
+    ///
+    /// let feature = recorder.to_gherkin_scenario("RecorderTest", "test_recording", false);
+    /// assert!(feature.starts_with("Feature: RecorderTest\n\n  Scenario: test_recording\n"));
+    /// assert!(feature.contains("    Given Open \"https://example.com\"\n    And Click \"a\"\n"));
+    /// ```
+    pub fn to_gherkin_scenario(&self, feature: &str, scenario: &str, uc: bool) -> String {
+        generate::gherkin_scenario(&self.actions, feature, scenario, uc)
+    }
+
     /// Writes the recording as a Gherkin feature file into `dir/{name}.feature`.
     ///
     /// # Errors
@@ -306,7 +438,7 @@ fn gherkin_step(action: &RecordedAction) -> Result<String, String> {
         .as_deref()
         .ok_or_else(|| format!("{name} has no target"));
     match name {
-        "open" | "goto_if_not_url" => Ok(format!("Open {}", plain(target?, "URL")?)),
+        "open" | "goto" | "goto_if_not_url" => Ok(format!("Open {}", plain(target?, "URL")?)),
         "click" => Ok(format!("Click {}", plain(target?, "selector")?)),
         "type_text" => {
             let value = action
@@ -579,6 +711,111 @@ const CALLS: &[(&str, &str, Shape)] = &[
     ("update_text", "update_text", Shape::TargetValue),
     ("sleep", "sleep", Shape::Sleep),
     ("click_xpath", "click_xpath", Shape::Target),
+    // What Python's Recorder Mode writes (`recorder_helper.generate_sbase_code`).
+    ("goto", "goto", Shape::Target),
+    ("highlight", "highlight", Shape::Target),
+    ("press_keys", "press_keys", Shape::TargetValue),
+    ("enter_mfa_code", "enter_mfa_code", Shape::TargetValue),
+    ("hover_and_click", "hover_and_click", Shape::TargetValue),
+    ("set_value", "set_value", Shape::TargetValue),
+    (
+        "set_content_to_frame",
+        "set_content_to_frame",
+        Shape::Target,
+    ),
+    (
+        "set_content_to_default",
+        "set_content_to_default",
+        Shape::NoArgs,
+    ),
+    (
+        "set_content_to_parent",
+        "set_content_to_parent",
+        Shape::NoArgs,
+    ),
+    ("wait_for_element", "wait_for_element", Shape::TargetSeconds),
+    ("assert_element", "assert_element", Shape::Target),
+    (
+        "assert_element_present",
+        "assert_element_present",
+        Shape::Target,
+    ),
+    (
+        "assert_element_not_visible",
+        "assert_element_not_visible",
+        Shape::Target,
+    ),
+    (
+        "assert_non_empty_text",
+        "assert_non_empty_text",
+        Shape::Target,
+    ),
+    (
+        "deferred_assert_element",
+        "deferred_assert_element",
+        Shape::Target,
+    ),
+    (
+        "deferred_assert_element_present",
+        "deferred_assert_element_present",
+        Shape::Target,
+    ),
+    (
+        "deferred_assert_non_empty_text",
+        "deferred_assert_non_empty_text",
+        Shape::Target,
+    ),
+    (
+        "deferred_assert_text",
+        "deferred_assert_text",
+        Shape::ValueTarget,
+    ),
+    (
+        "deferred_assert_exact_text",
+        "deferred_assert_exact_text",
+        Shape::ValueTarget,
+    ),
+    (
+        "assert_exact_text_not_visible",
+        "assert_exact_text_not_visible",
+        Shape::ValueTarget,
+    ),
+    ("set_attributes", "set_attributes", Shape::TargetPair),
+    ("assert_url", "assert_url", Shape::Target),
+    ("assert_url_contains", "assert_url_contains", Shape::Target),
+    (
+        "assert_downloaded_file",
+        "assert_downloaded_file",
+        Shape::Target,
+    ),
+    ("save_screenshot", "save_screenshot", Shape::Target),
+    (
+        "save_screenshot_to_logs",
+        "save_screenshot_to_logs",
+        Shape::NoArgs,
+    ),
+    (
+        "save_page_source_to_logs",
+        "save_page_source_to_logs",
+        Shape::NoArgs,
+    ),
+    ("show_file_choosers", "show_file_choosers", Shape::NoArgs),
+    (
+        "process_deferred_asserts",
+        "process_deferred_asserts",
+        Shape::NoArgs,
+    ),
+    ("activate_demo_mode", "activate_demo_mode", Shape::NoArgs),
+    (
+        "deactivate_demo_mode",
+        "deactivate_demo_mode",
+        Shape::NoArgs,
+    ),
+    (
+        "clear_session_storage",
+        "clear_session_storage",
+        Shape::NoArgs,
+    ),
     // `open_new_tab` is special: with a URL it is `open_new_tab_url`.
     ("open_new_tab", "open_new_tab", Shape::NoArgs),
 ];
@@ -586,7 +823,7 @@ const CALLS: &[(&str, &str, Shape)] = &[
 /// Other names for an action in `CALLS`: those `RecorderSession` and older
 /// recordings use.
 const ALIASES: &[(&str, &str)] = &[
-    ("goto", "open"),
+    // `goto` is a call of its own (`BaseCase::goto`, what Python's recorder writes).
     ("navigate", "open"),
     ("type", "type_text"),
     // Deprecated since 0.5.0; older recordings keep the name, and a generated
@@ -595,10 +832,24 @@ const ALIASES: &[(&str, &str)] = &[
 ];
 
 /// Actions `BaseCase` records without what it takes to run them again.
-const UNEXPORTABLE: &[(&str, &str)] = &[(
-    "drag_and_drop_with_offset",
-    "the recording keeps the two selectors but not the offset",
-)];
+const UNEXPORTABLE: &[(&str, &str)] = &[
+    (
+        "drag_and_drop_with_offset",
+        "the recording keeps the two selectors but not the offset",
+    ),
+    (
+        "download_file",
+        "BaseCase::download_file takes a url, a file name and a timeout here, not Python's url and folder",
+    ),
+    (
+        "save_as_pdf_to_logs",
+        "BaseCase::save_as_pdf_to_logs needs a file name, which the recording does not hold",
+    ),
+    (
+        "save_screenshot_to_folder",
+        "BaseCase::save_screenshot takes a file name only, not a folder",
+    ),
+];
 
 /// The known action closest to a mistyped `name`, if one is a small edit away.
 fn closest_action(name: &str) -> Option<&'static str> {
@@ -887,6 +1138,27 @@ pub const SECRET_PLACEHOLDER: &str = "{{SB_RECORDED_SECRET}}";
 /// The environment variable that holds the password [`SECRET_PLACEHOLDER`]
 /// stands for.
 pub const SECRET_VARIABLE: &str = "SB_RECORDED_SECRET";
+
+/// The lines every generated rstest test starts with: the `rstest` attribute
+/// and the `sb` fixture with its handle. They are in one place so that a
+/// change of the fixture's path is a change here.
+pub const RSTEST_PRELUDE: &str =
+    "use rstest::rstest;\nuse seleniumbase_rs::testing::{sb, Sb};\nuse seleniumbase_rs::Result;\n";
+
+/// The password a recording stands for, read from `SB_RECORDED_SECRET`
+/// ([`SECRET_VARIABLE`]): what a generated test types in place of a password
+/// that was typed into the browser while recording.
+///
+/// # Errors
+///
+/// Returns [`SeleniumBaseError::InvalidConfig`] when the variable is not set.
+pub fn recorded_secret() -> Result<String, SeleniumBaseError> {
+    std::env::var(SECRET_VARIABLE).map_err(|_| {
+        SeleniumBaseError::InvalidConfig(format!(
+            "the recording holds a password; set {SECRET_VARIABLE} to type it"
+        ))
+    })
+}
 
 /// Whether `SB_REC_KEEP_SECRETS` asks for typed passwords to be recorded as
 /// typed.
@@ -1933,7 +2205,7 @@ mod tests {
         // `goto` and `type` are what `RecorderSession` records; the generated
         // program must navigate and type, not silently drop them.
         assert!(
-            script.contains("sb.open(\"https://example.com\").await?;"),
+            script.contains("sb.goto(\"https://example.com\").await?;"),
             "{script}"
         );
         assert!(script.contains("sb.click(\"#submit\")"));
@@ -2210,10 +2482,11 @@ mod tests {
 
     #[test]
     fn what_a_recorder_session_records_is_what_the_generator_turns_into_code() {
-        // `goto` and `type` were dropped from the generated program.
+        // `goto` is a call of its own, as Python's recorder writes it;
+        // `navigate` is another name for `open`.
         assert_eq!(
             call("goto", Some("https://example.com"), None).unwrap(),
-            "sb.open(\"https://example.com\").await?;"
+            "sb.goto(\"https://example.com\").await?;"
         );
         assert_eq!(
             call("navigate", Some("https://example.com"), None).unwrap(),

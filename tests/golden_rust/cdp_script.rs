@@ -5,6 +5,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let browser = Browser::launch(LaunchOptions::builder().build()?).await?;
     let page = browser.default_page().await?;
     page.goto("https://example.com/a?b=1").await?;
+    page.goto("https://example.com/a?b=1").await?;
+    page.locator("#q").send_keys("rust").await?;
+    page.locator("#late").wait_for(State::Visible).await?;
+    page.locator("#m").expect().to_be_visible().await?;
+    page.locator("#m").expect().to_exist().await?;
+    page.locator("#m").expect().not().to_be_visible().await?;
+    page.locator("#m").expect().not().to_have_text("Hi").await?;
+    page.expect().to_have_url("https://example.com/").await?;
+    page.expect().to_contain_url("example").await?;
     page.locator("#go").click().await?;
     page.locator("#shadow").click().await?;
     page.locator("#go").click().await?;
