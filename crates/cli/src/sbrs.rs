@@ -2,9 +2,9 @@
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-use seleniumbase_rs::api::recorder::{Poll, RecordedAction, RecorderSession};
+use seleniumbase_rs::api::recorder::{RecordedAction, RecorderSession};
 use seleniumbase_rs::artifacts::{artifact_path, ensure_latest_logs_dir};
 #[cfg(feature = "pdf")]
 use seleniumbase_rs::cli::commands::looks_like_pdf;
@@ -56,6 +56,7 @@ mod failure;
 mod fig;
 mod fingerprint;
 mod proxy;
+mod recorder_flags;
 
 mod browser_flags;
 #[cfg(test)]
@@ -68,6 +69,7 @@ mod test_args;
 
 use failure::ArgumentError;
 use fingerprint::{FingerprintArgs, FingerprintCommand};
+use recorder_flags::RecorderFlags;
 use test_args::TestArgs;
 
 /// What `sbrs --version` prints after the program name. It names the library
@@ -584,6 +586,9 @@ struct Cli {
     /// (`sbrs options` lists them): `--dark`, `--metrics 360,640,2`, `--block-images`, ...
     #[usage(flatten, next_help_heading = "Browser options")]
     browser_flags: browser_flags::BrowserFlags,
+    /// The options of Recorder Mode, Python's `--rec` and its companions.
+    #[usage(flatten, next_help_heading = "Recorder options")]
+    recorder: RecorderFlags,
 
     #[usage(subcommand)]
     command: Commands,
@@ -864,22 +869,6 @@ enum Commands {
         example = "sbrs --url https://example.com get-cookies"
     )]
     GetCookies,
-    /// Turn an action file written by `record` into a Rust test.
-    #[usage(
-        help_heading = "Record and replay",
-        example = "sbrs export-recording actions.json --output tests/login.rs"
-    )]
-    ExportRecording {
-        #[usage(value_hint = usage::ValueHint::FilePath, extensions("json", "yaml"), help = "Action file written by `sbrs record` (.json or .yaml)")]
-        file: String,
-        #[usage(
-            short,
-            long,
-            value_hint = usage::ValueHint::FilePath, extensions("rs"), help = "Rust test to write (default: the action file's name with .rs)"
-        )]
-        output: Option<String>,
-    },
-
     /// Patch a chromedriver binary to reduce detection surface.
     #[usage(
         help_heading = "Drivers, grid and servers",
@@ -1539,25 +1528,29 @@ enum Commands {
         #[usage(long, value_hint = usage::ValueHint::FilePath, extensions("html", "htm"), help = "Output HTML chart path")]
         file: String,
     },
-    /// Create a test recording scaffold, or record a test live with --url.
+    /// Create a new test file with the Recorder: record your actions in a browser, then save them as a test.
+    ///
+    /// Python's `sbase mkrec` (also `codegen` and `record`). Starts a browser in Recorder
+    /// Mode, opening --url first when it is given, and waits: type `c` and press Enter at the
+    /// prompt, or press SHIFT+ESC in the browser with --ee. The recording is written to
+    /// `recordings/NAME_rec.rs` and `recordings/NAME_rec.json`, shown, and copied to FILE.
     #[usage(
+        visible_aliases = ["codegen", "record"],
         help_heading = "Record and replay",
-        example = "sbrs mkrec --url https://example.com --file tests/recorded.rs --duration 60"
+        example = "sbrs mkrec new_test.rs --url seleniumbase.io/demo_page"
     )]
     Mkrec {
-        #[usage(
-            long,
-            value_hint = usage::ValueHint::Url, help = "Open this page in a browser and record what you do there into the file"
-        )]
-        url: Option<String>,
-        #[usage(
-            long,
-            value_hint = usage::ValueHint::Other, help = "With --url: stop recording after this many seconds (default: until Ctrl-C)"
-        )]
-        duration: Option<u64>,
-
-        #[usage(long, value_hint = usage::ValueHint::FilePath, extensions("rs"), help = "Output recording scaffold path")]
+        #[usage(value_hint = usage::ValueHint::FilePath, extensions("rs"), help = "The test file to create (FILE.rs)")]
         file: String,
+        #[usage(long, bool_value, help = "Overwrite the file when it exists")]
+        overwrite: bool,
+        #[usage(
+            long,
+            visible_alias = "gherkin",
+            bool_value,
+            help = "Also write the recording as a Gherkin feature (same as --rec-behave)"
+        )]
+        behave: bool,
     },
     /// Run a scenario file, the way to do several steps in one browser, and write an optional dashboard.
     #[usage(
@@ -1744,34 +1737,13 @@ enum Commands {
         #[usage(long, value_hint = usage::ValueHint::FilePath, extensions("json"), help = "JSON file containing an array of assertion specs")]
         spec: Option<String>,
     },
-    /// Record browser interactions into a replayable action file.
+    /// Replay a recorded action file (recordings/NAME_rec.json) against a fresh browser.
     #[usage(
         help_heading = "Record and replay",
-        example = "sbrs record https://example.com --output actions.json --duration 30"
-    )]
-    Record {
-        #[usage(value_hint = usage::ValueHint::Url, help = "URL to open and record")]
-        url: String,
-        #[usage(
-            short,
-            long,
-            default = "actions.json",
-            value_hint = usage::ValueHint::FilePath, extensions("json", "yaml"), help = "Output action file (.json or .yaml)"
-        )]
-        output: String,
-        #[usage(
-            long,
-            value_hint = usage::ValueHint::Other, help = "Stop recording after this many seconds (default: run until Ctrl-C)"
-        )]
-        duration: Option<u64>,
-    },
-    /// Replay a recorded action file against a fresh browser session.
-    #[usage(
-        help_heading = "Record and replay",
-        example = "sbrs replay actions.json"
+        example = "sbrs replay recordings/new_test_rec.json"
     )]
     Replay {
-        #[usage(value_hint = usage::ValueHint::FilePath, extensions("json", "yaml"), help = "JSON action file produced by `sbrs record`")]
+        #[usage(value_hint = usage::ValueHint::FilePath, extensions("json", "yaml"), help = "JSON or YAML action file (recordings/NAME_rec.json)")]
         file: String,
     },
     /// Launch Chrome with an open DevTools endpoint and print MCP client configs.
@@ -1907,8 +1879,6 @@ impl Commands {
             | Self::Objectify
             | Self::Mkpres { .. }
             | Self::Mkchart { .. }
-            | Self::Mkrec { .. }
-            | Self::ExportRecording { .. }
             | Self::Completions { .. }
             | Self::ImportPython { .. }
             | Self::ImportPlaywright { .. }
@@ -1930,7 +1900,6 @@ impl Commands {
                 | Self::CacheClear
                 | Self::CdpClickElement { .. }
                 | Self::CdpTypeText { .. }
-                | Self::Record { .. }
                 | Self::PrintPdf { .. }
                 | Self::PdfText { .. }
                 | Self::AssertPdfText { .. }
@@ -2036,8 +2005,6 @@ impl Commands {
                 | Self::PrintPdf { .. }
                 | Self::PdfText { .. }
                 | Self::AssertPdfText { .. }
-                | Self::Record { .. }
-                | Self::Mkrec { .. }
         )
     }
 }
@@ -2150,102 +2117,6 @@ impl Commands {
     fn opens_no_page(&self) -> bool {
         !self.launches_browser()
     }
-}
-
-/// Opens `url` in a browser and records what the person does there, until
-/// Ctrl-C, `duration` seconds, or the window is closed. A dialog the page opens
-/// is left for the person to answer and does not end the recording.
-async fn record_live(
-    mut config: seleniumbase_rs::BrowserConfig,
-    url: &str,
-    duration: Option<u64>,
-) -> Result<RecorderSession, Box<dyn std::error::Error>> {
-    let mut shutdown = Shutdown::install()?;
-    RecorderSession::prepare_config(&mut config);
-    let mut sb = BaseCase::new(config).await?;
-    let mut session = RecorderSession::new();
-    session.goto(&mut sb, &navigable_url(url)?).await?;
-    session.install(&sb).await?;
-
-    match duration {
-        Some(secs) => println!("Recording for {secs}s (Ctrl-C to stop early)..."),
-        None => println!("Recording... press Ctrl-C to stop."),
-    }
-    let deadline = duration.map(|secs| Instant::now() + Duration::from_secs(secs));
-    loop {
-        tokio::select! {
-            signal = shutdown.recv() => {
-                println!("\n{signal} received; stopping recorder.");
-                break;
-            }
-            _ = tokio::time::sleep(Duration::from_millis(300)) => {}
-        }
-        match session.poll(&mut sb).await {
-            Poll::Ended => {
-                println!("Browser session ended; stopping recorder.");
-                break;
-            }
-            Poll::Dialog => {}
-            Poll::Captured(0) => {}
-            Poll::Captured(captured) => {
-                println!("Captured {captured} action(s) ({} total)", session.len());
-            }
-        }
-        if deadline.is_some_and(|end| Instant::now() >= end) {
-            println!("Duration elapsed; stopping recorder.");
-            break;
-        }
-    }
-    let _ = session.drain(&mut sb).await;
-    let _ = sb.quit().await;
-    Ok(session)
-}
-
-/// Writes the recording as a Rust test to `file`, which must not exist yet.
-fn save_recorded_test(
-    session: &RecorderSession,
-    file: &str,
-) -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let path = PathBuf::from(file);
-    if path.exists() {
-        return Err(format!("'{file}' already exists; choose another name").into());
-    }
-    write_recorded_test(session, &path)?;
-    Ok(path)
-}
-
-/// Writes the recording as a Rust test named after `path`, creating its folder.
-fn write_recorded_test(
-    session: &RecorderSession,
-    path: &Path,
-) -> Result<(), Box<dyn std::error::Error>> {
-    if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
-        std::fs::create_dir_all(parent)?;
-    }
-    let name = path
-        .file_stem()
-        .and_then(|stem| stem.to_str())
-        .unwrap_or("recorded_test");
-    std::fs::write(path, session.to_action_recorder().to_rust_test(name))?;
-    Ok(())
-}
-
-/// Reads the action file `file` that `sbrs record` wrote and writes a Rust test
-/// from it, to `output` or, without one, beside it with the extension `.rs`.
-fn export_recording(
-    file: &str,
-    output: Option<&str>,
-) -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let actions = RecorderSession::load(Path::new(file))?;
-    if actions.is_empty() {
-        return Err(format!("no actions found in '{file}'").into());
-    }
-    let target = output.map_or_else(|| Path::new(file).with_extension("rs"), PathBuf::from);
-    if target == Path::new(file) {
-        return Err(format!("'{file}' is the action file; choose another output").into());
-    }
-    write_recorded_test(&RecorderSession::from_actions(actions), &target)?;
-    Ok(target)
 }
 
 /// Download `url` to `dest` over plain HTTP. Returns the number of bytes written.
@@ -2754,7 +2625,7 @@ async fn execute() -> Result<(), Box<dyn std::error::Error>> {
     let args = parse_command_line();
     let stops_itself = matches!(
         args.command,
-        Commands::Record { .. } | Commands::Devtools { .. } | Commands::Proxy(_)
+        Commands::Mkrec { .. } | Commands::Devtools { .. } | Commands::Proxy(_)
     );
     // `encrypt` and `decrypt` with no argument on a terminal prompt in a loop and handle
     // Ctrl-C themselves (`Exiting...`, status 0).
@@ -3238,10 +3109,12 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     let start_page_flag = args.start_page.as_deref().map(start_page_url).transpose()?;
     // The flags of the option table that the root does not declare by hand, as the variables
     // of their rows. They are read as the environment is, after the typed flags.
-    let browser_options = args
+    let mut browser_options = args
         .browser_flags
         .options()
         .map_err(|message| ArgumentError::new(&command_name(&args.command), message))?;
+    // `--rec` and the other Recorder Mode flags are variables of their rows too.
+    browser_options.extend(args.recorder.options());
     let gives = |variable: &str| browser_options.iter().any(|(name, _)| *name == variable);
     if args.browser.is_some() && gives("SB_BROWSER") {
         return Err(ArgumentError::new(
@@ -3602,10 +3475,6 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             println!("Cookies: {:?}", cookies);
             after.finish(&mut sb).await?;
         }
-        Commands::ExportRecording { file, output } => {
-            let saved = export_recording(&file, output.as_deref())?;
-            println!("Saved recording script: {}", saved.display());
-        }
         Commands::PatchChromedriver { path } => {
             seleniumbase_rs::stealth::patcher::patch_chromedriver(&path)?;
             println!("Successfully patched chromedriver binary at: {path}");
@@ -3948,21 +3817,30 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::Mkrec {
             file,
-            url,
-            duration,
+            overwrite,
+            behave,
         } => {
-            if let Some(url) = url {
-                let session = record_live(config, &url, duration).await?;
-                let saved = save_recorded_test(&session, &file)?;
-                println!(
-                    "Recorded {} action(s) -> {}",
-                    session.len(),
-                    saved.display()
+            let mut options = sb_recorder::MkrecOptions::new(file);
+            options.overwrite = overwrite;
+            options.esc_end = args.esc_end;
+            options.behave = behave;
+            // Refuse a bad name before a browser starts.
+            if let Err(message) = options.check() {
+                eprintln!("ERROR: {message}");
+                std::process::exit(1);
+            }
+            let outcome = sb_recorder::run_mkrec(config, &options, &mut std::io::stdout()).await?;
+            if outcome.copied_to.is_none() {
+                eprintln!(
+                    "ERROR: nothing was recorded, so {} was not written",
+                    options.file
                 );
-            } else {
-                let path = sb_recorder::make_recorder_file(&file)
-                    .map_err(|e| context("create the recorder file", e))?;
-                println!("Created recorder file at {}", path.display());
+                std::process::exit(1);
+            }
+            // A Ctrl-C leaves the prompt's read of standard input waiting; the recording is
+            // saved and the browser is closed, so do not wait for a line.
+            if outcome.interrupted {
+                std::process::exit(0);
             }
         }
         Commands::RunScenario { file, dashboard } => {
@@ -4143,19 +4021,6 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 std::process::exit(1);
             }
         }
-        Commands::Record {
-            url,
-            output,
-            duration,
-        } => {
-            let session = record_live(config, &url, duration).await?;
-            let saved = session.save(Path::new(&output))?;
-            println!(
-                "Recorded {} action(s) -> {}",
-                session.len(),
-                saved.display()
-            );
-        }
         Commands::Replay { file } => {
             let actions: Vec<RecordedAction> = RecorderSession::load_json(Path::new(&file))?;
             if actions.is_empty() {
@@ -4178,6 +4043,9 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 report.failed(),
                 report.skipped
             );
+            if !report.skipped_names.is_empty() {
+                println!("Skipped: {}", report.skipped_names.join(", "));
+            }
             if !report.is_success() {
                 std::process::exit(1);
             }
@@ -4328,58 +4196,93 @@ mod recorder_cli_tests {
     }
 
     #[test]
-    fn record_runs_in_a_session_with_a_devtools_connection() {
-        // Without one, a page the browser loads later has no listeners until the
-        // next look at it, and what is done in between is lost.
-        let record = parse(&["sbrs", "record", "https://example.test/"]);
-        assert!(record.command.needs_devtools());
-        assert!(!parse(&["sbrs", "open", "https://example.test/"])
-            .command
-            .needs_devtools());
-    }
-
-    #[test]
-    fn export_recording_takes_the_action_file_and_starts_no_browser() {
-        let export = parse(&["sbrs", "export-recording", "a.json", "-o", "t.rs"]);
-        assert!(!export.command.launches_browser());
-        match export.command {
-            Commands::ExportRecording { file, output } => {
-                assert_eq!(file, "a.json");
-                assert_eq!(output.as_deref(), Some("t.rs"));
+    fn mkrec_takes_a_file_and_starts_a_browser() {
+        let cli = parse(&["sbrs", "mkrec", "new_test.rs"]);
+        assert!(cli.command.launches_browser());
+        // The page is the global --url, so mkrec does not refuse it.
+        assert!(!cli.command.opens_own_url());
+        match cli.command {
+            Commands::Mkrec {
+                file,
+                overwrite,
+                behave,
+            } => {
+                assert_eq!(file, "new_test.rs");
+                assert!(!overwrite && !behave);
             }
-            other => panic!("not export-recording: {other:?}"),
+            other => panic!("not mkrec: {other:?}"),
         }
-        assert!(try_parse_checked(&["sbrs", "export-recording"]).is_err());
+        assert!(try_parse_checked(&["sbrs", "mkrec"]).is_err());
     }
 
     #[test]
-    fn mkrec_records_when_it_is_given_a_page() {
-        let live = parse(&[
+    fn codegen_and_record_are_mkrec() {
+        for name in ["mkrec", "codegen", "record"] {
+            let cli = parse(&["sbrs", name, "t.rs", "--overwrite", "--gherkin"]);
+            assert!(
+                matches!(
+                    cli.command,
+                    Commands::Mkrec {
+                        overwrite: true,
+                        behave: true,
+                        ..
+                    }
+                ),
+                "{name}"
+            );
+        }
+    }
+
+    #[test]
+    fn mkrec_uses_the_global_page_and_recorder_flags() {
+        let cli = parse(&[
             "sbrs",
             "mkrec",
-            "--file",
             "t.rs",
             "--url",
             "example.test",
-            "--duration",
-            "5",
+            "--ee",
+            "--rec-sb-mgr",
+            "--rec-behave",
+            "--edge",
+            "--uc",
         ]);
-        match live.command {
-            Commands::Mkrec {
-                file,
-                url,
-                duration,
-            } => {
-                assert_eq!(file, "t.rs");
-                assert_eq!(url.as_deref(), Some("example.test"));
-                assert_eq!(duration, Some(5));
-            }
-            other => panic!("not mkrec: {other:?}"),
+        assert_eq!(cli.start_page.as_deref(), Some("example.test"));
+        assert!(cli.esc_end && cli.recorder.rec_sb_mgr && cli.recorder.rec_behave && cli.uc);
+        assert!(!cli.recorder.rec && !cli.recorder.rec_print && !cli.recorder.rec_sleep);
+    }
+
+    #[test]
+    fn the_recorder_flags_go_before_any_command() {
+        let cli = parse(&["sbrs", "--rec", "--rec-print", "--rec-sleep", "test"]);
+        assert!(cli.recorder.rec && cli.recorder.rec_print && cli.recorder.rec_sleep);
+        for spelling in ["--recorder", "--record", "--codegen"] {
+            assert!(
+                parse(&["sbrs", spelling, "test"]).recorder.rec,
+                "{spelling}"
+            );
         }
-        match parse(&["sbrs", "mkrec", "--file", "t.rs"]).command {
-            Commands::Mkrec { url, .. } => assert!(url.is_none()),
-            other => panic!("not mkrec: {other:?}"),
-        }
+        assert!(
+            parse(&["sbrs", "--rec-gherkin", "test"])
+                .recorder
+                .rec_behave
+        );
+        assert!(
+            parse(&["sbrs", "--record-sleep", "test"])
+                .recorder
+                .rec_sleep
+        );
+    }
+
+    #[test]
+    fn export_recording_and_the_live_record_form_are_gone() {
+        assert!(try_parse_checked(&["sbrs", "export-recording", "a.json"]).is_err());
+        // `record` is the mkrec alias, so its argument is a file name now.
+        assert!(matches!(
+            parse(&["sbrs", "record", "https://x.test/"]).command,
+            Commands::Mkrec { .. }
+        ));
+        assert!(try_parse_checked(&["sbrs", "mkrec", "t.rs", "--duration", "5"]).is_err());
     }
 }
 
@@ -4493,7 +4396,7 @@ mod plugin_cli_tests {
 
         assert!(launches(&["sbrs", "open", "x"]));
         assert!(launches(&["sbrs", "get-title"]));
-        assert!(launches(&["sbrs", "record", "x"]));
+        assert!(launches(&["sbrs", "mkrec", "x.rs"]));
         assert!(launches(&["sbrs", "run-scenario", "--file", "s.json"]));
         for argv in [
             &["sbrs", "doctor"][..],
@@ -5021,10 +4924,8 @@ mod page_cli_tests {
             let error = refused(&["sbrs", name]);
             assert!(error.contains("unrecognized subcommand"), "{name}: {error}");
         }
-        // `export-recording` turns an action file into a test and starts no browser.
-        assert!(parse(&["sbrs", "export-recording", "a.json"])
-            .command
-            .opens_no_page());
+        // `replay` runs a recording in a browser, so it takes a page of its own to act on.
+        assert!(!parse(&["sbrs", "replay", "a.json"]).command.opens_no_page());
     }
 
     #[test]
@@ -5161,13 +5062,6 @@ mod page_cli_tests {
             &["sbrs", "open", "https://example.test/"][..],
             &["sbrs", "smoke", "https://example.test/"],
             &["sbrs", "download-file", "https://example.test/f"],
-            &[
-                "sbrs",
-                "record",
-                "https://example.test/",
-                "--output",
-                "a.json",
-            ],
         ] {
             let own = command(argv);
             let error = check_page_arguments(&own, true, Some("https://other.test/"), None)

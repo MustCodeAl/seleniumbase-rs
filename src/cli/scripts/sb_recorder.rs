@@ -1,248 +1,321 @@
-//! `sbrs mkrec` and the two interactive recorders.
+//! `sbrs mkrec` (also `codegen` and `record`): record what you do in a
+//! browser, then save it as a test file.
 //!
-//! [`make_recorder_file`] writes a starter test. [`start_recorder`] and
-//! [`record_live_session`] read commands from the terminal; their loops are
-//! [`run_recorder`] and [`run_live_session`], which take any reader and writer
-//! so they can run without one.
+//! This is Python's `sbase mkrec`. [`run_mkrec`] starts a browser in Recorder
+//! Mode, waits until the person says they are done (the breakpoint prompt, or
+//! SHIFT+ESC in the browser with [`MkrecOptions::esc_end`]), writes the
+//! recording under `recordings/` and copies the code file to the name asked
+//! for. Unlike Python it runs in this process: no test is compiled first.
+//!
+//! The pure parts, [`validate_file_name`] and [`MkrecOptions::check`], need no
+//! browser, so the command line can refuse a bad name before one starts.
 
-use crate::api::recorder::ActionRecorder;
-use crate::cli::commands::write_new_file;
-use crate::BaseCase;
-use crate::BrowserConfig;
-use crate::SeleniumBaseError;
-use std::io::{self, BufRead, Write};
+use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
-/// The test `sbrs mkrec` writes. The file is kept apart so a test can compile
-/// it against the real `BaseCase` API.
-const STARTER_TEMPLATE: &str = include_str!("templates/starter_recording.tpl");
+use crate::api::recorder::SavedRecording;
+use crate::common::shutdown::{Shutdown, Signal};
+use crate::{BaseCase, BrowserConfig, SeleniumBaseError};
 
-/// Writes a starter recording template to `file`.
-///
-/// Missing folders are created. A file that already exists is left alone and
-/// reported as an [`io::ErrorKind::AlreadyExists`] error.
-pub fn make_recorder_file(file: &str) -> std::io::Result<PathBuf> {
-    let path = PathBuf::from(file);
-    write_new_file(&path, STARTER_TEMPLATE)?;
-    Ok(path)
+/// What the breakpoint prompt of `mkrec` tells the person to do.
+pub const BREAKPOINT_MESSAGE: &str = "When done recording actions, type \"c\", and press [Enter].";
+
+/// What `mkrec --ee` prints before it waits for SHIFT+ESC.
+pub const SHIFT_ESC_MESSAGE: &str = ">>> Use [SHIFT + ESC] in the browser to end recording!";
+
+/// How long `mkrec --ee` waits for SHIFT+ESC (Python waits 600 seconds).
+pub const SHIFT_ESC_LIMIT: Duration = Duration::from_secs(600);
+
+/// The name of the Gherkin feature and of the test class in a `mkrec` recording.
+const FEATURE: &str = "RecorderTest";
+
+/// The name of the scenario and of the test function in a `mkrec` recording.
+const SCENARIO: &str = "test_recording";
+
+/// What `sbrs mkrec FILE` was asked to do.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MkrecOptions {
+    /// The test file to create (`FILE.rs`), relative to the current folder.
+    /// A subfolder is allowed (`tests/login.rs`); the recording itself goes
+    /// to `recordings/<stem>_rec.rs`.
+    pub file: String,
+    /// Replace `file` when it exists (`--overwrite`). It is replaced only
+    /// after a recording was made, so a failed recording never deletes it.
+    pub overwrite: bool,
+    /// End the recording with SHIFT+ESC in the browser instead of the
+    /// breakpoint prompt (`--ee`).
+    pub esc_end: bool,
+    /// Also write the Gherkin feature (`--behave`, `--rec-behave`).
+    pub behave: bool,
+    /// How long `esc_end` waits for SHIFT+ESC.
+    pub limit: Duration,
 }
 
-/// Runs a simple stdin-based recorder without a live browser.
-pub fn start_recorder() {
-    let stdin = io::stdin();
-    let stdout = io::stdout();
-    if let Err(e) = run_recorder(stdin.lock(), stdout.lock()) {
-        eprintln!("Recorder stopped: {e}");
+impl MkrecOptions {
+    /// The options for creating `file`, with nothing else asked for.
+    ///
+    /// ```
+    /// use seleniumbase_rs::cli::scripts::sb_recorder::MkrecOptions;
+    ///
+    /// let options = MkrecOptions::new("tests/login.rs");
+    /// assert_eq!(options.stem(), "login");
+    /// assert!(!options.overwrite && !options.esc_end && !options.behave);
+    /// ```
+    #[must_use]
+    pub fn new(file: impl Into<String>) -> Self {
+        Self {
+            file: file.into(),
+            overwrite: false,
+            esc_end: false,
+            behave: false,
+            limit: SHIFT_ESC_LIMIT,
+        }
+    }
+
+    /// The first part of the recording's file names: `tests/login.rs` is
+    /// recorded as `recordings/login_rec.rs`.
+    #[must_use]
+    pub fn stem(&self) -> String {
+        Path::new(&self.file)
+            .file_stem()
+            .and_then(|stem| stem.to_str())
+            .unwrap_or("recorded")
+            .to_owned()
+    }
+
+    /// Checks the file name ([`validate_file_name`]) and that `file` does not
+    /// exist yet, unless [`overwrite`](Self::overwrite) is on. Relative to the
+    /// current folder.
+    ///
+    /// # Errors
+    ///
+    /// Returns the message Python prints after `ERROR: `.
+    pub fn check(&self) -> Result<(), String> {
+        self.check_in(Path::new("."))
+    }
+
+    /// [`check`](Self::check) for a file relative to `dir`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the message Python prints after `ERROR: `.
+    pub fn check_in(&self, dir: &Path) -> Result<(), String> {
+        validate_file_name(&self.file)?;
+        if !self.overwrite && dir.join(&self.file).exists() {
+            return Err(format!(
+                "File \"{}\" already exists in this directory!",
+                self.file
+            ));
+        }
+        Ok(())
     }
 }
 
-/// Records actions typed as `<action> <selector> [value]` until `quit`, `save
-/// <file>` or the end of `input`.
+/// Python's checks of the file name `mkrec` is given, with `.rs` for `.py`
+/// and a subfolder of the current folder allowed.
 ///
-/// `<action>` is the name of a `BaseCase` method that the script generator
-/// knows (`click`, `type_text`, `assert_text`, `go_back`, ...); `type` is
-/// accepted for `type_text`. A line that would add nothing to the generated
-/// script (an unknown action, a missing argument) is reported and not
-/// recorded, instead of being acknowledged and then missing from the file.
-/// When `save` cannot write the file the recording is kept, so the command can
-/// be tried again with another name.
+/// # Errors
+///
+/// Returns the message Python prints after `ERROR: `:
+/// `File name must end with ".rs"!`, `Invalid file name!`,
+/// `File name cannot start with "-"!` or
+/// `File must be created in the current directory!` (an absolute path, or one
+/// that goes up with `..`).
+///
+/// # Examples
 ///
 /// ```
-/// use seleniumbase_rs::cli::scripts::sb_recorder::run_recorder;
+/// use seleniumbase_rs::cli::scripts::sb_recorder::validate_file_name;
 ///
-/// let dir = tempfile::tempdir().unwrap();
-/// let file = dir.path().join("login.rs");
-/// let script = format!("click #login\ntype #user admin\nsave {}\n", file.display());
-/// let mut transcript = Vec::new();
-/// run_recorder(script.as_bytes(), &mut transcript).unwrap();
-///
-/// let saved = std::fs::read_to_string(&file).unwrap();
-/// assert!(saved.contains("sb.click(\"#login\")"));
-/// assert!(saved.contains("sb.type_text(\"#user\", \"admin\")"));
+/// assert!(validate_file_name("new_test.rs").is_ok());
+/// assert!(validate_file_name("tests/login.rs").is_ok());
+/// assert_eq!(
+///     validate_file_name("new_test.py").unwrap_err(),
+///     "File name must end with \".rs\"!"
+/// );
+/// assert_eq!(
+///     validate_file_name("../x.rs").unwrap_err(),
+///     "File must be created in the current directory!"
+/// );
 /// ```
-pub fn run_recorder(mut input: impl BufRead, mut output: impl Write) -> io::Result<()> {
-    writeln!(output, "Starting SeleniumBase action recorder...")?;
-    writeln!(
-        output,
-        "Type actions as: <action> <selector> [value], for example: click #login"
-    )?;
-    writeln!(
-        output,
-        "Type 'save <filename>' to export, or 'quit' to exit."
-    )?;
-
-    let mut recorder = ActionRecorder::default();
-    let mut line = String::new();
-    loop {
-        write!(output, "> ")?;
-        output.flush()?;
-        line.clear();
-        // Zero bytes is the end of the input (Ctrl-D, or a pipe that ran dry).
-        if input.read_line(&mut line)? == 0 {
-            writeln!(output)?;
-            if !recorder.actions.is_empty() {
-                writeln!(
-                    output,
-                    "Input ended before 'save': the recording was not saved."
-                )?;
-            }
-            break;
-        }
-        let command = line.trim();
-        if command.is_empty() {
-            continue;
-        }
-        if command.eq_ignore_ascii_case("quit") {
-            break;
-        }
-        if let Some(path) = command.strip_prefix("save ") {
-            let path = path.trim();
-            match write_new_file(Path::new(path), &recorder.to_rust_script()) {
-                Ok(()) => {
-                    writeln!(output, "Saved recorded test to {path}")?;
-                    break;
-                }
-                Err(e) => writeln!(output, "Failed to save: {e}")?,
-            }
-            continue;
-        }
-        match record_action(&mut recorder, command) {
-            Ok(message) | Err(message) => writeln!(output, "{message}")?,
-        }
+pub fn validate_file_name(file: &str) -> Result<(), String> {
+    if !file.ends_with(".rs") {
+        return Err("File name must end with \".rs\"!".to_owned());
+    }
+    if file.contains('*') || file.chars().count() < 4 {
+        return Err("Invalid file name!".to_owned());
+    }
+    if file.starts_with('-') {
+        return Err("File name cannot start with \"-\"!".to_owned());
+    }
+    let path = Path::new(file);
+    let leaves_the_folder = path.is_absolute()
+        || file.starts_with('/')
+        || file.contains('\\')
+        || path
+            .components()
+            .any(|part| matches!(part, std::path::Component::ParentDir));
+    if leaves_the_folder {
+        return Err("File must be created in the current directory!".to_owned());
     }
     Ok(())
 }
 
-/// Records `command` (`<action> [selector] [value]`) if the script generator can
-/// turn it into a call, and says what happened either way.
-fn record_action(recorder: &mut ActionRecorder, command: &str) -> Result<String, String> {
-    let mut parts = command.splitn(3, ' ');
-    let word = parts.next().unwrap_or_default();
-    let action = if word == "type" { "type_text" } else { word };
-    let target = parts.next().filter(|target| !target.is_empty());
-    let value = parts.next();
+/// What [`run_mkrec`] did.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct MkrecOutcome {
+    /// The files the recording was written to under `recordings/`; `None`
+    /// when nothing was recorded.
+    pub saved: Option<SavedRecording>,
+    /// The test file the recording was copied to; `None` when nothing was
+    /// recorded.
+    pub copied_to: Option<PathBuf>,
+    /// The recording was ended by Ctrl-C (or SIGTERM) and not by the person
+    /// saying they were done. It was saved all the same.
+    pub interrupted: bool,
+}
 
-    recorder
-        .try_record(action, target, value)
-        .map_err(|reason| {
-            format!("Not recorded: '{command}': {reason} (usage: <action> <selector> [value])")
-        })?;
-    Ok(match target {
-        Some(target) => format!("Recorded: {word} {target}"),
-        None => format!("Recorded: {word}"),
+/// How the wait for the end of the recording ended.
+enum Ended {
+    /// The prompt or SHIFT+ESC ended it, or it failed.
+    Finished(Result<(), SeleniumBaseError>),
+    /// A signal ended it.
+    Signal(Signal),
+}
+
+/// Waits until the person is done: the breakpoint prompt, or SHIFT+ESC.
+async fn wait_for_the_end(
+    sb: &mut BaseCase,
+    options: &MkrecOptions,
+    out: &mut dyn Write,
+) -> Result<(), SeleniumBaseError> {
+    if options.esc_end {
+        writeln!(out, "\n\n{SHIFT_ESC_MESSAGE}")?;
+        out.flush()?;
+        sb.wait_for_recorder_end(options.limit).await?;
+        return Ok(());
+    }
+    match sb.recorder_breakpoint(BREAKPOINT_MESSAGE).await {
+        // `q` at the prompt: stop, and keep what was recorded.
+        Ok(()) | Err(SeleniumBaseError::Skipped(_)) => Ok(()),
+        Err(other) => Err(other),
+    }
+}
+
+/// Records in a browser and writes the test: Python's `sbase mkrec FILE`.
+///
+/// `config` is the browser to start; Recorder Mode, printing and the
+/// ESC-ends-the-test key are set here. A start page in the configuration
+/// (`--url`) is opened before recording starts. In order:
+///
+/// 1. [`MkrecOptions::check`] and `* RECORDING initialized: FILE`.
+/// 2. The browser starts in Recorder Mode and the recording is named after
+///    the file.
+/// 3. With [`MkrecOptions::esc_end`] it waits for SHIFT+ESC in the browser
+///    (and prints how); otherwise the `[RECORDER BREAKPOINT]` prompt waits for
+///    `c` and Enter. Ctrl-C ends the wait and saves what was recorded.
+/// 4. The recording is written (`>>> RECORDING SAVED as: recordings/x_rec.rs`,
+///    then the file with line numbers) and the browser quits.
+/// 5. The code file is copied over `file` (`*** RECORDING COPIED to: FILE`),
+///    and with [`MkrecOptions::behave`] the feature is shown
+///    (`*** BEHAVE RECORDING at: recordings/features/x_rec.feature`).
+///
+/// An existing `file` is replaced only in step 5, so a recording that fails
+/// never deletes it.
+///
+/// # Errors
+///
+/// Returns [`SeleniumBaseError::InvalidConfig`] for a bad file name, a browser
+/// that is not Chromium-based, and the driver's error when the browser cannot
+/// be started or reached. `Ok` with no files in the outcome means nothing was
+/// recorded.
+pub async fn run_mkrec(
+    config: BrowserConfig,
+    options: &MkrecOptions,
+    out: &mut dyn Write,
+) -> Result<MkrecOutcome, SeleniumBaseError> {
+    options.check().map_err(SeleniumBaseError::InvalidConfig)?;
+    writeln!(out, "\n* RECORDING initialized: {}\n", options.file)?;
+    out.flush()?;
+
+    // The recording prints the code file, as `sbase print FILE -n` does for
+    // Python, and a plain ESC must keep pausing the recorder, not end it.
+    let mut config = config.with_recorder_mode(true).with_rec_print(true);
+    config = config.with_esc_end(false);
+    if options.behave {
+        config = config.with_rec_behave(true);
+    }
+    let mut shutdown = Shutdown::install()?;
+    let mut sb = BaseCase::new(config).await?;
+    sb.set_recording_target(&options.stem(), FEATURE, SCENARIO);
+    if let Err(error) = sb.activate_recorder().await {
+        let _ = sb.quit().await;
+        return Err(error);
+    }
+
+    let ended = tokio::select! {
+        result = wait_for_the_end(&mut sb, options, out) => Ended::Finished(result),
+        signal = shutdown.recv() => Ended::Signal(signal),
+    };
+    let interrupted = match ended {
+        Ended::Finished(Ok(())) => false,
+        Ended::Finished(Err(error)) => {
+            let _ = sb.quit().await;
+            return Err(error);
+        }
+        Ended::Signal(signal) => {
+            writeln!(out, "\n{signal} received; saving the recording.")?;
+            true
+        }
+    };
+
+    let saved = sb.finish_recording().await;
+    let quit = sb.quit().await;
+    let saved = saved?;
+    quit?;
+
+    let Some(saved) = saved else {
+        return Ok(MkrecOutcome {
+            saved: None,
+            copied_to: None,
+            interrupted,
+        });
+    };
+    let copied_to = copy_recording(&saved.code, &options.file)?;
+    writeln!(out, "\n*** RECORDING COPIED to: {}\n", options.file)?;
+    if let Some(feature) = &saved.feature {
+        print_numbered(out, feature)?;
+        writeln!(out, "\n*** BEHAVE RECORDING at: {}\n", feature.display())?;
+    }
+    out.flush()?;
+    Ok(MkrecOutcome {
+        saved: Some(saved),
+        copied_to: Some(copied_to),
+        interrupted,
     })
 }
 
-/// Launches a live `BaseCase` session on `url` and records actions from an
-/// interactive prompt.
-///
-/// Supported commands:
-/// - `open <url>`
-/// - `click <css>`
-/// - `type <css> <text>`
-/// - `assert_text <css> <text>`
-/// - `save <file>`
-/// - `quit`
-pub async fn record_live_session(url: &str) -> Result<(), SeleniumBaseError> {
-    let mut sb = BaseCase::new(BrowserConfig::default()).await?;
-    sb.open(url).await?;
-
-    println!("Live recording session started at {}", url);
-    let stdin = io::stdin();
-    let stdout = io::stdout();
-    run_live_session(&mut sb, stdin.lock(), stdout.lock()).await?;
-
-    sb.quit().await?;
-    println!("Live recording session ended.");
-    Ok(())
+/// Copies the recording `code` over `file`, making the folders of `file`.
+fn copy_recording(code: &Path, file: &str) -> Result<PathBuf, SeleniumBaseError> {
+    let target = PathBuf::from(file);
+    if let Some(parent) = target
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::copy(code, &target)?;
+    Ok(target)
 }
 
-/// The command loop of [`record_live_session`]: runs each line of `input` on
-/// `sb` until `quit` or the end of `input`.
-///
-/// A command that fails is reported to `output` and the session goes on. An
-/// `Err` is returned only when `input` or `output` itself fails.
-pub async fn run_live_session(
-    sb: &mut BaseCase,
-    mut input: impl BufRead,
-    mut output: impl Write,
-) -> Result<(), SeleniumBaseError> {
-    writeln!(
-        output,
-        "Commands: open <url>, click <css>, type <css> <text>, assert_text <css> <text>, save <file>, quit"
-    )?;
-    let mut line = String::new();
-    loop {
-        write!(output, "> ")?;
-        output.flush()?;
-        line.clear();
-        // Zero bytes is the end of the input; without this check a closed
-        // stdin would repeat the prompt forever.
-        if input.read_line(&mut line)? == 0 {
-            writeln!(output)?;
-            break;
-        }
-        let trimmed = line.trim();
-        if trimmed.eq_ignore_ascii_case("quit") {
-            break;
-        }
-        if trimmed.is_empty() {
-            continue;
-        }
-
-        if let Err(e) = handle_live_command(sb, trimmed, &mut output).await {
-            writeln!(output, "Error: {e}")?;
-        }
+/// The file with a line number before each line, as `sbase print FILE -n` shows it.
+fn print_numbered(out: &mut dyn Write, path: &Path) -> Result<(), SeleniumBaseError> {
+    let text = std::fs::read_to_string(path)?;
+    writeln!(out)?;
+    for (number, line) in text.lines().enumerate() {
+        writeln!(out, "{:>4}  {line}", number + 1)?;
     }
-    Ok(())
-}
-
-async fn handle_live_command(
-    sb: &mut BaseCase,
-    input: &str,
-    output: &mut impl Write,
-) -> Result<(), SeleniumBaseError> {
-    if let Some(rest) = input.strip_prefix("open ") {
-        let url = rest.trim();
-        sb.open(url).await?;
-        writeln!(output, "Opened {url}")?;
-        return Ok(());
-    }
-    if let Some(rest) = input.strip_prefix("click ") {
-        let css = rest.trim();
-        sb.click(css).await?;
-        writeln!(output, "Clicked {css}")?;
-        return Ok(());
-    }
-    if let Some(rest) = input.strip_prefix("type ") {
-        match rest.split_once(' ') {
-            Some((css, text)) => {
-                sb.type_text(css, text).await?;
-                writeln!(output, "Typed into {css}")?;
-            }
-            None => writeln!(output, "Usage: type <css> <text>")?,
-        }
-        return Ok(());
-    }
-    if let Some(rest) = input.strip_prefix("assert_text ") {
-        match rest.split_once(' ') {
-            Some((css, text)) => {
-                sb.assert_text(text, css).await?;
-                writeln!(output, "Asserted text in {css}")?;
-            }
-            None => writeln!(output, "Usage: assert_text <css> <text>")?,
-        }
-        return Ok(());
-    }
-    if let Some(rest) = input.strip_prefix("save ") {
-        let file = rest.trim();
-        let script = sb.export_recording_as_rust()?;
-        write_new_file(Path::new(file), &script)?;
-        writeln!(output, "Saved recording to {file}")?;
-        return Ok(());
-    }
-
-    writeln!(output, "Unknown command: {input}")?;
     Ok(())
 }
 
@@ -250,110 +323,91 @@ async fn handle_live_command(
 mod tests {
     use super::*;
 
-    /// Runs the stdin recorder on `commands` and returns what it printed.
-    fn transcript(commands: &str) -> String {
-        let mut out = Vec::new();
-        run_recorder(commands.as_bytes(), &mut out).expect("the recorder runs");
-        String::from_utf8(out).expect("utf-8")
+    #[test]
+    fn a_file_name_is_refused_with_the_message_python_prints() {
+        for (name, message) in [
+            ("new_test.py", "File name must end with \".rs\"!"),
+            ("new_test", "File name must end with \".rs\"!"),
+            ("*.rs", "Invalid file name!"),
+            ("a*b.rs", "Invalid file name!"),
+            (".rs", "Invalid file name!"),
+            ("-x.rs", "File name cannot start with \"-\"!"),
+            (
+                "/tmp/x.rs",
+                "File must be created in the current directory!",
+            ),
+            ("../x.rs", "File must be created in the current directory!"),
+            (
+                "a/../../x.rs",
+                "File must be created in the current directory!",
+            ),
+            ("a\\b.rs", "File must be created in the current directory!"),
+        ] {
+            assert_eq!(validate_file_name(name).unwrap_err(), message, "{name}");
+        }
     }
 
     #[test]
-    fn the_recorder_stops_when_its_input_ends() {
-        // Before the fix this never returned: read_line gives Ok(0) forever.
-        let out = transcript("click #a\n");
-        assert!(out.contains("Recorded: click #a"), "{out}");
-        assert!(out.contains("was not saved"), "{out}");
+    fn a_file_in_the_current_folder_or_below_it_is_fine() {
+        for name in ["a.rs", "new_test.rs", "tests/login.rs", "tests/a/b.rs"] {
+            assert_eq!(validate_file_name(name), Ok(()), "{name}");
+        }
     }
 
     #[test]
-    fn a_typed_action_ends_up_in_the_saved_script() {
+    fn the_stem_is_the_file_name_without_folders_and_extension() {
+        assert_eq!(MkrecOptions::new("tests/login.rs").stem(), "login");
+        assert_eq!(MkrecOptions::new("new_test.rs").stem(), "new_test");
+    }
+
+    #[test]
+    fn an_existing_file_is_refused_unless_it_may_be_overwritten() {
         let dir = tempfile::tempdir().unwrap();
-        let file = dir.path().join("t.rs");
+        std::fs::write(dir.path().join("taken.rs"), "keep me").unwrap();
+        let mut options = MkrecOptions::new("taken.rs");
 
-        let out = transcript(&format!(
-            "type #user admin\nclick #go\ngo_back\nsave {}\n",
-            file.display()
-        ));
-
-        assert!(out.contains("Saved recorded test"), "{out}");
-        let saved = std::fs::read_to_string(&file).unwrap();
-        assert!(
-            saved.contains("sb.type_text(\"#user\", \"admin\").await?;"),
-            "{saved}"
+        assert_eq!(
+            options.check_in(dir.path()).unwrap_err(),
+            "File \"taken.rs\" already exists in this directory!"
         );
-        assert!(saved.contains("sb.click(\"#go\")"), "{saved}");
-        assert!(
-            saved.contains("sb.go_back()"),
-            "an action without a target: {saved}"
-        );
+        options.overwrite = true;
+        assert_eq!(options.check_in(dir.path()), Ok(()));
+        assert_eq!(MkrecOptions::new("free.rs").check_in(dir.path()), Ok(()));
     }
 
     #[test]
-    fn a_line_that_adds_nothing_to_the_script_is_not_called_recorded() {
-        let out = transcript("fly #a\nclick\nquit\n");
-
-        assert_eq!(out.matches("Not recorded").count(), 2, "{out}");
-        assert!(!out.contains("Recorded:"), "{out}");
-    }
-
-    #[test]
-    fn a_mistyped_action_gets_a_suggestion_and_the_usage() {
-        let out = transcript("clik #a\nquit\n");
-
-        assert!(out.contains("did you mean \"click\""), "{out}");
-        assert!(out.contains("usage: <action> <selector>"), "{out}");
-        assert!(!out.contains("Recorded:"), "{out}");
-    }
-
-    #[test]
-    fn a_failed_save_keeps_the_recording_for_another_try() {
+    fn the_copy_makes_the_folders_and_replaces_an_old_file() {
         let dir = tempfile::tempdir().unwrap();
-        let taken = dir.path().join("taken.rs");
-        std::fs::write(&taken, "keep me").unwrap();
-        let free = dir.path().join("free.rs");
+        let code = dir.path().join("x_rec.rs");
+        std::fs::write(&code, "new").unwrap();
+        let file = dir.path().join("tests").join("x.rs");
+        std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+        std::fs::write(&file, "old").unwrap();
 
-        let out = transcript(&format!(
-            "click #a\nsave {}\nsave {}\n",
-            taken.display(),
-            free.display()
-        ));
+        let copied = copy_recording(&code, file.to_str().unwrap()).unwrap();
 
+        assert_eq!(copied, file);
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "new");
+    }
+
+    #[test]
+    fn a_feature_is_shown_with_line_numbers() {
+        let dir = tempfile::tempdir().unwrap();
+        let feature = dir.path().join("x_rec.feature");
+        std::fs::write(
+            &feature,
+            "Feature: RecorderTest\n  Scenario: test_recording\n",
+        )
+        .unwrap();
+        let mut out = Vec::new();
+
+        print_numbered(&mut out, &feature).unwrap();
+
+        let shown = String::from_utf8(out).unwrap();
+        assert!(shown.contains("   1  Feature: RecorderTest\n"), "{shown}");
         assert!(
-            out.contains("Failed to save") && out.contains("already exists"),
-            "{out}"
+            shown.contains("   2    Scenario: test_recording\n"),
+            "{shown}"
         );
-        assert_eq!(std::fs::read_to_string(&taken).unwrap(), "keep me");
-        assert!(std::fs::read_to_string(&free)
-            .unwrap()
-            .contains("sb.click(\"#a\")"));
-    }
-
-    #[tokio::test]
-    async fn the_live_session_stops_at_the_end_of_its_input() {
-        // Only commands that need no browser: a `BaseCase` without a session
-        // would panic on a real one.
-        let mut sb = BaseCase::without_session(BrowserConfig::default());
-        let mut out = Vec::new();
-
-        // Before the fix a closed stdin made this loop repeat the prompt for ever.
-        run_live_session(&mut sb, "bogus\ntype #a\n".as_bytes(), &mut out)
-            .await
-            .expect("only an I/O failure ends the session with an error");
-
-        let out = String::from_utf8(out).unwrap();
-        assert!(out.contains("Unknown command: bogus"), "{out}");
-        assert!(out.contains("Usage: type <css> <text>"), "{out}");
-    }
-
-    #[tokio::test]
-    async fn nothing_runs_after_quit() {
-        let mut sb = BaseCase::without_session(BrowserConfig::default());
-        let mut out = Vec::new();
-
-        run_live_session(&mut sb, "quit\nbogus\n".as_bytes(), &mut out)
-            .await
-            .unwrap();
-
-        assert!(!String::from_utf8(out).unwrap().contains("Unknown command"));
     }
 }

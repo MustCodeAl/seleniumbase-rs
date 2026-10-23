@@ -132,7 +132,7 @@ fn zsh_reaches_the_second_level_and_offers_no_file_for_a_free_text_value() {
     assert_eq!(zsh_answers("sbrs open "), Vec::<String>::new());
     assert_eq!(zsh_answers("sbrs mkfile x.rs --url "), Vec::<String>::new());
     // A folder or a file is, for a command that takes one.
-    for line in ["sbrs mkdir ", "sbrs --config ", "sbrs export-recording "] {
+    for line in ["sbrs mkdir ", "sbrs --config ", "sbrs replay "] {
         let answers = zsh_answers(line);
         assert!(
             answers.iter().any(|answer| answer.starts_with("files")),

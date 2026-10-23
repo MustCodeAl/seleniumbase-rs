@@ -120,6 +120,81 @@ fn refused(output: &Output) -> String {
 }
 
 #[test]
+fn the_recorder_flags_reach_the_tests_one_at_a_time() {
+    let fixture = Fixture::new();
+    // The flags go before the command (they are global) or after it.
+    for args in [
+        &[
+            "--rec",
+            "--rec-print",
+            "--rec-behave",
+            "--rec-sb-mgr",
+            "--rec-sleep",
+            "test",
+        ][..],
+        &[
+            "test",
+            "--rec",
+            "--rec-print",
+            "--rec-behave",
+            "--rec-sb-mgr",
+            "--rec-sleep",
+        ],
+        &[
+            "--codegen",
+            "--record-sleep",
+            "--rec-gherkin",
+            "--rec-print",
+            "--rec-sb-mgr",
+            "test",
+        ],
+    ] {
+        let output = fixture.run(args);
+
+        assert!(output.status.success(), "{args:?}: {}", stderr(&output));
+        assert!(
+            cargo_args(&output).contains("--test-threads 1"),
+            "{args:?}: {}",
+            cargo_args(&output)
+        );
+        for variable in [
+            "SB_RECORDER=true",
+            "SB_REC_PRINT=true",
+            "SB_REC_BEHAVE=true",
+            "SB_REC_SB_MGR=true",
+            "SB_REC_SLEEP=true",
+        ] {
+            assert!(
+                has_var(&output, variable),
+                "{args:?}: {variable} in {}",
+                stdout(&output)
+            );
+        }
+    }
+    // Without the recorder a thread count is the person's own.
+    let plain = fixture.run(&["test", "-n", "3"]);
+    assert!(
+        cargo_args(&plain).contains("--test-threads 3"),
+        "{}",
+        cargo_args(&plain)
+    );
+    assert!(!has_var(&plain, "SB_RECORDER=true"));
+    // With it, a count above one is said to be unsupported and one test runs at a time.
+    let many = fixture.run(&["--rec", "test", "-n", "3"]);
+    assert!(
+        cargo_args(&many).contains("--test-threads 1"),
+        "{}",
+        cargo_args(&many)
+    );
+    assert!(
+        stderr(&many).contains("Recorder Mode does NOT support multi-process mode (-n)"),
+        "{}",
+        stderr(&many)
+    );
+}
+
+#[test]
+
 fn the_test_data_options_reach_the_tests() {
     let fixture = Fixture::new();
     let output = fixture.run(&[

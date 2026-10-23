@@ -1,4 +1,4 @@
-//! The starter files that `sbrs mkrec` and `sbrs objectify` write, compiled
+//! The starter file that `sbrs objectify` writes, compiled
 //! against the real `BaseCase` API.
 //!
 //! The templates are Rust source kept in `src/cli/scripts/templates/`. Including
@@ -7,16 +7,6 @@
 //! users generate.
 
 #![allow(dead_code)]
-
-/// `sbrs mkrec`: a `#[tokio::main]` program.
-mod starter_recording {
-    include!("../src/cli/scripts/templates/starter_recording.tpl");
-
-    /// The template's `main` is private to this module; this names it.
-    pub fn entry_point() {
-        let _ = main;
-    }
-}
 
 /// `sbrs objectify`: a page object wrapping a `BaseCase`.
 mod page_object {
@@ -37,6 +27,6 @@ fn the_templates_compile_against_the_real_api() {
     // build. Nothing is run, because a `BaseCase` needs a live browser session
     // and the page object's `open` would drive it. Naming the entry points
     // ties the test to them.
-    let _ = starter_recording::entry_point;
+
     let _ = page_object::usage;
 }

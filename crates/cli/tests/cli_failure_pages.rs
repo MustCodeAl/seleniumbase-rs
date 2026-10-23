@@ -49,16 +49,16 @@ fn assert_page_then_error(error: &str, command: &str) {
 #[test]
 fn mkrec_with_global_options_and_no_file_prints_the_mkrec_page_then_the_missing_file() {
     // `--uc` and `--url` are global options now, so they parse after `mkrec`; what is wrong is
-    // the file the recording scaffold goes to.
+    // the missing FILE.
     let error = refused(&sbrs_with(&[], &["mkrec", "--uc", "--url=google.com"]));
 
     assert_page_then_error(&error, "sbrs mkrec");
-    assert!(error.contains("--file"), "{error}");
+    assert!(error.contains("required"), "{error}");
 }
 
 #[test]
 fn an_unknown_flag_prints_the_page_of_the_command_then_the_flag() {
-    let error = refused(&sbrs_with(&[], &["mkrec", "--nosuch", "--file", "a.rs"]));
+    let error = refused(&sbrs_with(&[], &["mkrec", "--nosuch", "a.rs"]));
 
     assert_page_then_error(&error, "sbrs mkrec");
     assert!(error.contains("unexpected argument '--nosuch'"), "{error}");
@@ -234,7 +234,7 @@ fn every_command_help_has_examples() {
         "test",
         "install",
         "mkdir",
-        "record",
+        "mkrec",
         "plugin",
         "plugin list",
     ] {

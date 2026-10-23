@@ -38,6 +38,15 @@ pub struct FakeWebDriver {
 
 impl FakeWebDriver {
     pub fn start() -> Self {
+        Self::start_with_recording("")
+    }
+
+    /// A server whose pages run the Recorder: `recorded` is the JSON the page script keeps
+    /// in `sessionStorage` (`[["begin", ...], ["click", ...]]`). One window, `H1`, holds
+    /// it; the script reports itself active and SHIFT+ESC pressed. With an empty `recorded`
+    /// this is [`start`](Self::start).
+    pub fn start_with_recording(recorded: &str) -> Self {
+        let recorded = Arc::new(recorded.to_owned());
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind a loopback port");
         let address = listener.local_addr().expect("bound address");
         let seen = Arc::new(Mutex::new(Vec::new()));
@@ -46,7 +55,8 @@ impl FakeWebDriver {
             for stream in listener.incoming() {
                 let Ok(stream) = stream else { continue };
                 let log = Arc::clone(&log);
-                std::thread::spawn(move || answer(stream, &log));
+                let recorded = Arc::clone(&recorded);
+                std::thread::spawn(move || answer(stream, &log, &recorded));
             }
         });
         Self {
@@ -88,7 +98,7 @@ impl FakeWebDriver {
     }
 }
 
-fn answer(mut stream: TcpStream, seen: &Mutex<Vec<Seen>>) {
+fn answer(mut stream: TcpStream, seen: &Mutex<Vec<Seen>>, recorded: &str) {
     let Some((method, target, body)) = read_request(&mut stream) else {
         return;
     };
@@ -96,6 +106,7 @@ fn answer(mut stream: TcpStream, seen: &Mutex<Vec<Seen>>) {
         .strip_prefix(&format!("/session/{SESSION}"))
         .unwrap_or(&target)
         .to_owned();
+    let recording = !recorded.is_empty();
     let value = match (method.as_str(), path.as_str()) {
         ("POST", "/session") => {
             json!({ "sessionId": SESSION, "capabilities": { "browserName": "chrome" } })
@@ -104,6 +115,24 @@ fn answer(mut stream: TcpStream, seen: &Mutex<Vec<Seen>>) {
         ("GET", "/element/e1/displayed" | "/element/e1/enabled") => json!(true),
         ("GET", "/title") => json!("Fake page"),
         ("GET", "/url") => json!("https://example.test/"),
+        // The windows and the page script of a Recorder session.
+        ("GET", "/window/handles") if recording => json!(["H1"]),
+        ("GET", "/window") if recording => json!("H1"),
+        ("POST", "/goog/cdp/execute") if recording => json!({}),
+        ("POST", "/execute/sync") if recording => {
+            let script = body["script"].as_str().unwrap_or_default();
+            if script.contains("getItem('recorded_actions')") {
+                json!(recorded)
+            } else if script.contains("getItem('recorder_activated')")
+                || script.contains("return document.sb_esc_end")
+            {
+                json!("yes")
+            } else if script.contains("document.readyState") {
+                json!("complete")
+            } else {
+                Value::Null
+            }
+        }
         _ => Value::Null,
     };
     seen.lock()

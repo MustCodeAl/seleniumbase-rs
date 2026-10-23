@@ -66,9 +66,8 @@ fn a_url_is_not_a_file_name() {
         "sbrs print-pdf ",
         "sbrs pdf-text ",
         "sbrs assert-pdf-text ",
-        "sbrs record ",
         "sbrs mkfile x.rs --url ",
-        "sbrs mkrec --file x.rs --url ",
+        "sbrs mkrec x.rs --url ",
         "sbrs --start-page ",
         "sbrs --url ",
         "sbrs get-title --url ",
@@ -82,7 +81,7 @@ fn a_url_is_not_a_file_name() {
 #[test]
 fn a_file_is_completed_by_the_kind_the_command_takes() {
     for (line, answer) in [
-        ("sbrs export-recording ", "\u{1}extensions\tjson\tyaml"),
+        ("sbrs mkrec ", "\u{1}extensions\trs"),
         ("sbrs replay ", "\u{1}extensions\tjson\tyaml"),
         ("sbrs mkfile ", "\u{1}extensions\trs"),
         ("sbrs import-python ", "\u{1}extensions\tpy"),

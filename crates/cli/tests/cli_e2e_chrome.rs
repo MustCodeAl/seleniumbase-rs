@@ -399,16 +399,12 @@ fn a_scenario_runs_and_leaves_a_dashboard_and_a_recording_replays() {
     );
     assert!(!broke.status.success(), "a failed step is a failed run");
 
-    let recorded = headless(
-        dir.path(),
-        &["record", &page, "-o", "actions.json", "--duration", "3"],
-    );
-    assert!(recorded.status.success(), "{}", stderr(&recorded));
-    let actions = std::fs::read_to_string(dir.path().join("actions.json")).expect("actions");
-    assert!(
-        actions.contains(&base),
-        "the recording starts at the page: {actions}"
-    );
+    // A recording (`recordings/NAME_rec.json`) replays in a browser of its own.
+    std::fs::write(
+        dir.path().join("actions.json"),
+        format!(r##"[{{"name":"goto","target":"{page}"}},{{"name":"click","target":"#title"}}]"##),
+    )
+    .unwrap();
     let replayed = headless(dir.path(), &["replay", "actions.json"]);
     assert!(replayed.status.success(), "{}", stderr(&replayed));
     assert!(

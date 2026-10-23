@@ -1,4 +1,4 @@
-//! The `sbrs` commands that write starter files (`mkchart`, `mkpres`, `mkrec`,
+//! The `sbrs` commands that write starter files (`mkchart`, `mkpres`,
 //! `objectify`, `caseplans --starter`, `behave-gui --new`) and `sbrs print`,
 //! run as the real binary in a scratch folder.
 //!
@@ -65,7 +65,7 @@ fn finish_within(mut child: std::process::Child, limit: Duration) -> Option<Outp
 #[test]
 fn the_starter_file_commands_do_not_replace_a_file_that_is_there() {
     // (arguments, the file they write, what the success line says)
-    let generators: [(&[&str], &str, &str); 5] = [
+    let generators: [(&[&str], &str, &str); 4] = [
         (
             &["mkchart", "--file", "chart.html"],
             "chart.html",
@@ -75,11 +75,6 @@ fn the_starter_file_commands_do_not_replace_a_file_that_is_there() {
             &["mkpres", "--file", "deck.html"],
             "deck.html",
             "Created presentation",
-        ),
-        (
-            &["mkrec", "--file", "rec.rs"],
-            "rec.rs",
-            "Created recorder file",
         ),
         (&["objectify"], "page_object.rs", "Generated"),
         (&["caseplans", "--starter"], "CASE_PLANS.md", "Generated"),

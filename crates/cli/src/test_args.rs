@@ -529,7 +529,17 @@ impl TestArgs {
             run = run.filter(filter);
         }
         // A prompt needs the terminal to itself: one test at a time, and its output shown.
+        let recording = on("SB_RECORDER", settings.test.recorder)
+            || on("SB_REC_PRINT", settings.test.rec_print)
+            || on("SB_REC_BEHAVE", settings.test.rec_behave)
+            || on("SB_REC_SB_MGR", settings.test.rec_sb_mgr);
         if debug.is_some() {
+            run = run.threads(1);
+        } else if recording {
+            // The Recorder's breakpoint asks a person, so the tests take turns.
+            if let Some(warning) = crate::recorder_flags::multi_process_warning(threads) {
+                eprint!("{warning}");
+            }
             run = run.threads(1);
         } else if let Some(threads) = threads {
             run = run.threads(threads);
@@ -897,6 +907,26 @@ mod tests {
             "--pdb needs the cargo runner: nextest gives tests no standard input"
         );
         assert!(plan(&["--trace", "--runner=nextest"]).is_err());
+    }
+
+    #[test]
+    fn the_recorder_runs_the_tests_one_at_a_time() {
+        let one = ["test", "--", "--test-threads", "1"];
+        for flag in ["--rec", "--rec-print", "--rec-behave", "--rec-sb-mgr"] {
+            assert_eq!(args_of(&plan(&[flag]).unwrap()), one, "{flag}");
+        }
+        // A thread count does not change that.
+        assert_eq!(args_of(&plan(&["--rec", "-n", "4"]).unwrap()), one);
+        // Nor does the recorder of the settings.
+        let mut settings = Settings::default();
+        settings.test.recorder = true;
+        let p = parse(&[]).plan(&settings, Vec::new(), None).unwrap();
+        assert_eq!(args_of(&p), one);
+        // Without the recorder the count is used.
+        assert_eq!(
+            args_of(&plan(&["-n", "4"]).unwrap()),
+            ["test", "--", "--test-threads", "4"]
+        );
     }
 
     #[test]
