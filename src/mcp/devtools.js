@@ -829,6 +829,737 @@
     };
   }
 
+  // ------------------------------------------------------------------
+  // Page parsing: snapshot, outline, text, links, tables and forms
+  // ------------------------------------------------------------------
+
+  var SKIP_TAGS = {
+    script: 1, style: 1, noscript: 1, template: 1, head: 1, meta: 1, link: 1, title: 1, base: 1
+  };
+  var NON_TEXT = { svg: 1, canvas: 1, iframe: 1, frame: 1, object: 1, embed: 1, select: 1, option: 1 };
+  var BLOCK_TAGS = {
+    address: 1, article: 1, aside: 1, body: 1, dd: 1, details: 1, dialog: 1, div: 1, dl: 1, dt: 1,
+    fieldset: 1, figcaption: 1, figure: 1, footer: 1, form: 1, header: 1, hr: 1, html: 1, li: 1,
+    main: 1, nav: 1, p: 1, section: 1, summary: 1, tr: 1
+  };
+  var LEAF_ROLES = {
+    heading: 1, link: 1, button: 1, textbox: 1, searchbox: 1, checkbox: 1, radio: 1, "switch": 1,
+    slider: 1, spinbutton: 1, combobox: 1, listbox: 1, img: 1, option: 1, tab: 1, menuitem: 1,
+    menuitemcheckbox: 1, menuitemradio: 1, treeitem: 1, progressbar: 1, meter: 1, iframe: 1
+  };
+  var CONTAINER_ROLES = {
+    main: 1, navigation: 1, banner: 1, contentinfo: 1, complementary: 1, region: 1, form: 1,
+    search: 1, article: 1, dialog: 1, alertdialog: 1, table: 1, grid: 1, group: 1, list: 1,
+    tablist: 1, toolbar: 1, menu: 1, menubar: 1, tree: 1, radiogroup: 1, alert: 1, status: 1
+  };
+  var LANDMARKS = {
+    main: 1, navigation: 1, banner: 1, contentinfo: 1, complementary: 1, region: 1, search: 1
+  };
+  var NAMED_ONLY = { region: 1, group: 1 };
+  var CHROME_TAGS = { nav: 1, header: 1, footer: 1, aside: 1 };
+  var CHROME_ROLES = { navigation: 1, banner: 1, contentinfo: 1, complementary: 1 };
+  var SECRET_AUTOCOMPLETE = /^(cc-|current-password|new-password|one-time-code)/;
+
+  // A field whose value must never be printed: passwords, card data, codes.
+  function isSecretField(el) {
+    if (el.localName !== "input" && el.localName !== "textarea") return false;
+    if (inputType(el) === "password") return true;
+    return SECRET_AUTOCOMPLETE.test((el.getAttribute("autocomplete") || "").toLowerCase());
+  }
+
+  function isKnownRole(role) {
+    return !!(LEAF_ROLES[role] || CONTAINER_ROLES[role]);
+  }
+
+  function sectioned(el) {
+    return !!(el.parentElement && el.parentElement.closest("article, aside, main, nav, section"));
+  }
+
+  // The name an author gave the element with aria-labelledby or aria-label.
+  function ariaName(el) {
+    var labelledBy = el.getAttribute("aria-labelledby");
+    if (labelledBy) {
+      var byIds = clip(textOfIds(labelledBy, el.getRootNode()));
+      if (byIds) return byIds;
+    }
+    var aria = el.getAttribute("aria-label");
+    return aria && aria.trim() ? clip(aria) : "";
+  }
+
+  // The role the snapshot shows for an element, or "" when it is not shown.
+  function snapRole(el) {
+    var explicit = el.getAttribute("role");
+    if (explicit) {
+      var first = explicit.trim().split(/\s+/)[0].toLowerCase();
+      return isKnownRole(first) ? first : "";
+    }
+    switch (el.localName) {
+      case "main": return "main";
+      case "nav": return "navigation";
+      case "header": return sectioned(el) ? "" : "banner";
+      case "footer": return sectioned(el) ? "" : "contentinfo";
+      case "aside": return "complementary";
+      case "form": return "form";
+      case "section": return ariaName(el) ? "region" : "";
+      case "article": return "article";
+      case "dialog": return "dialog";
+      case "table": return "table";
+      case "iframe": case "frame": return "iframe";
+      case "fieldset": return ariaName(el) || el.querySelector("legend") ? "group" : "";
+      case "img": return (el.getAttribute("alt") || "").trim() ? "img" : "";
+      case "progress": return "progressbar";
+      case "meter": return "meter";
+      case "option": return "";
+      case "summary": return "button";
+    }
+    var base = roleOf(el);
+    return isKnownRole(base) ? base : "";
+  }
+
+  function legendOrCaption(el) {
+    var node = null;
+    if (el.localName === "table") node = el.querySelector("caption");
+    else if (el.localName === "fieldset") node = el.querySelector("legend");
+    else if (el.localName === "details") node = el.querySelector("summary");
+    return node ? clip(node.textContent) : "";
+  }
+
+  // The name the snapshot shows: a landmark or container is named by its
+  // author, never by the text inside it.
+  function snapName(el, role) {
+    if (CONTAINER_ROLES[role]) {
+      var own = ariaName(el);
+      if (own) return own;
+      if (role === "form") return clip(el.getAttribute("name") || el.getAttribute("title") || "");
+      return legendOrCaption(el) || clip(el.getAttribute("title") || "");
+    }
+    if (role === "iframe") return clip(el.getAttribute("title") || el.getAttribute("name") || "");
+    return nameOf(el);
+  }
+
+  function hiddenSubtree(el) {
+    if (el.hidden || el.getAttribute("aria-hidden") === "true" || el.hasAttribute("inert")) return true;
+    return el.ownerDocument.defaultView.getComputedStyle(el).display === "none";
+  }
+
+  function hasTestAttribute(el) {
+    return TEST_ATTRIBUTES.some(function (name) { return el.hasAttribute(name); });
+  }
+
+  // `/html[1]/body[1]/div[2]/a[1]`: always one element, in a document.
+  function xpathIndexed(el) {
+    var parts = [];
+    for (var node = el; node && node.nodeType === 1; node = node.parentNode) {
+      var index = 1;
+      for (var sib = node.previousElementSibling; sib; sib = sib.previousElementSibling) {
+        if (sib.localName === node.localName) index++;
+      }
+      parts.unshift(node.localName + "[" + index + "]");
+    }
+    return "/" + parts.join("/");
+  }
+
+  // A selector that matches `el` and nothing else inside `root`, or "".
+  function uniqueIn(el, root) {
+    var found = selectorsFor(el, 8);
+    for (var i = 0; i < found.length; i++) {
+      if (found[i].unique) return found[i].selector;
+    }
+    if (root.nodeType === 9) {
+      var path = xpathIndexed(el);
+      var list = count({ kind: "xpath", value: path }, root);
+      if (list.length === 1 && list[0] === el) return path;
+    }
+    return "";
+  }
+
+  // The selector a ref stands for. An element in an open shadow root is
+  // reached through its hosts: `host ::shadow inner`, as the WebDriver engine
+  // reads it. "" when no selector finds exactly this element.
+  function refSelector(el) {
+    var parts = [];
+    var node = el;
+    for (var guard = 0; node && guard < 10; guard++) {
+      var root = node.getRootNode();
+      var one = uniqueIn(node, root);
+      if (!one) return "";
+      parts.unshift(one);
+      if (root.nodeType === 11 && root.host) node = root.host;
+      else return parts.join(" ::shadow ");
+    }
+    return "";
+  }
+
+  // The role and name a ref is checked against later.
+  function roleName(el) {
+    var role = snapRole(el) || "generic";
+    return { role: role, name: snapName(el, role) };
+  }
+
+  function addRef(entry, el) {
+    var selector = refSelector(el);
+    if (!selector) return;
+    var facts = roleName(el);
+    entry.selector = selector;
+    entry.ref_role = facts.role;
+    entry.ref_name = facts.name;
+  }
+
+  function refable(role, name) {
+    return INTERACTIVE_ROLES.indexOf(role) !== -1 || role === "form" || role === "iframe" ||
+      (!!LANDMARKS[role] && !!name);
+  }
+
+  // What the snapshot prints next to a node.
+  function roleFacts(el, role) {
+    var f = {};
+    var tag = el.localName;
+    if (role === "heading") {
+      var level = /^h([1-6])$/.exec(tag);
+      f.level = level ? Number(level[1]) : Number(el.getAttribute("aria-level")) || 2;
+    }
+    if (el.required || el.getAttribute("aria-required") === "true") f.required = true;
+    if (el.readOnly && (tag === "input" || tag === "textarea")) f.readonly = true;
+    if (role === "checkbox" || role === "radio" || role === "switch" ||
+        role === "menuitemcheckbox" || role === "menuitemradio") {
+      if (tag === "input") {
+        f.checked = !!el.checked;
+      } else {
+        var checked = el.getAttribute("aria-checked");
+        f.checked = checked === "true" ? true : checked === "mixed" ? "mixed" : false;
+      }
+    }
+    var expanded = el.getAttribute("aria-expanded");
+    if (expanded === "true" || expanded === "false") f.expanded = expanded === "true";
+    if (el.getAttribute("aria-selected") === "true" || (tag === "option" && el.selected)) f.selected = true;
+    if (el.getAttribute("aria-pressed") === "true") f.pressed = true;
+    var current = el.getAttribute("aria-current");
+    if (current && current !== "false") f.current = current;
+    if ((tag === "input" || tag === "textarea") && !isSecretField(el)) {
+      var type = tag === "input" ? inputType(el) : "text";
+      if (!/^(submit|button|reset|image|checkbox|radio|hidden|file)$/.test(type) && el.value) {
+        f.value = clip(el.value, 80);
+      }
+    } else if (tag === "select") {
+      var chosen = Array.prototype.filter.call(el.options, function (o) { return o.selected; })
+        .map(function (o) { return normal(o.text); });
+      if (chosen.length) f.value = clip(chosen.join(", "), 80);
+    }
+    if (tag === "a" && role === "link" && el.hasAttribute("href")) f.href = clip(el.href, 160);
+    if (role === "iframe" && el.getAttribute("src")) f.src = clip(el.getAttribute("src"), 160);
+    return f;
+  }
+
+  // snapshot (the accessibility tree) and outline (the tag tree): a flat list
+  // of nodes in document order, each with its depth; the server draws it.
+  function snapshot(outline) {
+    var maxDepth = args.depth || 12;
+    var maxNodes = args.max_nodes || 400;
+    var includeHidden = !!args.include_hidden;
+    var scope = scopeRoot();
+    if (scope.error) return { error: scope.error };
+    var out = pageFacts();
+    var nodes = [];
+    var state = { more: 0, seen: 0, cut: false };
+
+    function childrenOf(el) {
+      if (el.localName === "slot" && el.assignedElements) {
+        var assigned = el.assignedElements({ flatten: true });
+        if (assigned.length) return assigned;
+      }
+      return Array.prototype.slice.call((el.shadowRoot || el).children);
+    }
+
+    function entryFor(el, role, depth) {
+      var shown = role || "generic";
+      var entry = {
+        d: depth, role: shown, name: snapName(el, shown), tag: el.localName,
+        visible: isVisible(el), enabled: isEnabled(el)
+      };
+      if (el.getRootNode().nodeType === 11) entry.shadow = true;
+      var wantsRef;
+      if (outline) {
+        if (el.id) entry.id = el.id;
+        var classes = (el.getAttribute("class") || "").trim().split(/\s+/).filter(Boolean).slice(0, 2);
+        if (classes.length) entry.cls = classes.join(".");
+        entry.children = el.children.length;
+        entry.text_len = (el.textContent || "").length;
+        wantsRef = !!el.id || hasTestAttribute(el);
+      } else {
+        var facts = roleFacts(el, shown);
+        for (var key in facts) entry[key] = facts[key];
+        wantsRef = refable(shown, entry.name);
+      }
+      if (wantsRef) {
+        var selector = refSelector(el);
+        if (selector) entry.selector = selector;
+      }
+      return entry;
+    }
+
+    function visit(el, depth) {
+      if (state.seen++ >= MAX_NODES) { state.cut = true; return; }
+      if (SKIP_TAGS[el.localName]) return;
+      if (!includeHidden && hiddenSubtree(el)) return;
+      var role = snapRole(el);
+      var wanted = outline || (!!role && (!NAMED_ONLY[role] || !!snapName(el, role)));
+      var childDepth = depth;
+      if (wanted && (includeHidden || isVisible(el))) {
+        if (depth >= maxDepth || nodes.length >= maxNodes) {
+          state.more++;
+        } else {
+          nodes.push(entryFor(el, role, depth));
+          childDepth = depth + 1;
+        }
+      }
+      if (!outline && wanted && LEAF_ROLES[role]) return;
+      var kids = childrenOf(el);
+      for (var i = 0; i < kids.length; i++) visit(kids[i], childDepth);
+    }
+
+    visit(scope.root, 0);
+    out.mode = outline ? "outline" : "accessibility";
+    out.nodes = nodes;
+    out.more = state.more;
+    out.truncated = state.more > 0 || state.cut;
+    if (state.cut) out.note = "the page has more than " + MAX_NODES + " elements; only the first were read";
+    return out;
+  }
+
+  // The element still has the role and name it had? Answers for the last
+  // part of a (possibly shadow-piercing) selector given as tagged parts.
+  function verifyRef() {
+    var parts = args.parts || [];
+    var context = document;
+    var found = [];
+    for (var i = 0; i < parts.length; i++) {
+      var list;
+      try {
+        list = query(parts[i], context);
+      } catch (e) {
+        return { count: 0, url: location.href, error: String(e && e.message || e) };
+      }
+      if (i === parts.length - 1) { found = list; break; }
+      if (!list.length || !list[0].shadowRoot) return { count: 0, url: location.href };
+      context = list[0].shadowRoot;
+    }
+    var out = { count: found.length, url: location.href, role: "", name: "" };
+    if (found.length) {
+      var facts = roleName(found[0]);
+      out.role = facts.role;
+      out.name = facts.name;
+    }
+    return out;
+  }
+
+  // Slot content, the shadow root of a host, or the plain child nodes.
+  function kidsOf(node) {
+    if (node.localName === "slot" && node.assignedNodes) {
+      var assigned = node.assignedNodes({ flatten: true });
+      if (assigned.length) return assigned;
+    }
+    return (node.shadowRoot || node).childNodes;
+  }
+
+  // ---- tables -------------------------------------------------------
+
+  function rowList(table) {
+    if (table.localName === "table") {
+      return Array.prototype.map.call(table.rows, function (tr) {
+        return {
+          cells: Array.prototype.slice.call(tr.cells),
+          header: tr.parentNode.localName === "thead"
+        };
+      });
+    }
+    return Array.prototype.map.call(table.querySelectorAll("[role=row]"), function (row) {
+      var cells = Array.prototype.slice.call(
+        row.querySelectorAll("[role=columnheader], [role=rowheader], [role=cell], [role=gridcell]"));
+      return {
+        cells: cells,
+        header: cells.length > 0 && cells.every(function (c) {
+          return c.getAttribute("role") === "columnheader";
+        })
+      };
+    });
+  }
+
+  function spanFill(row, spans, col) {
+    while (spans[col] && spans[col].left > 0) {
+      row[col] = spans[col].text;
+      spans[col].left--;
+      col++;
+    }
+    return col;
+  }
+
+  // The cells of a table with colspan and rowspan expanded.
+  function tableGrid(table, maxRows) {
+    var list = rowList(table);
+    var spans = [];
+    var rows = [];
+    var headerRows = [];
+    var truncated = false;
+    for (var r = 0; r < list.length; r++) {
+      if (rows.length >= maxRows + 1) { truncated = true; break; }
+      var row = [];
+      var col = 0;
+      var allHeader = list[r].cells.length > 0;
+      for (var k = 0; k < list[r].cells.length; k++) {
+        col = spanFill(row, spans, col);
+        var cell = list[r].cells[k];
+        var text = clip(cell.textContent, 200);
+        var role = cell.getAttribute("role");
+        if (cell.localName !== "th" && role !== "columnheader" && role !== "rowheader") allHeader = false;
+        var cs = Math.min(Math.max(cell.colSpan || 1, 1), 50);
+        var rs = Math.min(Math.max(cell.rowSpan || 1, 1), 100);
+        for (var j = 0; j < cs; j++) {
+          row[col] = text;
+          if (rs > 1) spans[col] = { left: rs - 1, text: text };
+          col++;
+        }
+      }
+      spanFill(row, spans, col);
+      for (var c = 0; c < row.length; c++) {
+        if (row[c] === undefined) row[c] = "";
+      }
+      rows.push(row);
+      headerRows.push(list[r].header || allHeader);
+    }
+    var headers = [];
+    var hasHeader = rows.length > 0 && headerRows[0];
+    if (hasHeader) headers = rows.shift();
+    var total = list.length - (hasHeader ? 1 : 0);
+    if (rows.length > maxRows) { rows = rows.slice(0, maxRows); truncated = true; }
+    return { headers: headers, rows: rows, total: total, truncated: truncated };
+  }
+
+  function tableText(table, markdown) {
+    var grid = tableGrid(table, 100);
+    var rows = grid.headers.length ? [grid.headers].concat(grid.rows) : grid.rows;
+    if (!rows.length) return "";
+    var width = 0;
+    rows.forEach(function (row) { width = Math.max(width, row.length); });
+    var lines = rows.map(function (row) {
+      var cells = [];
+      for (var c = 0; c < width; c++) cells.push((row[c] || "").replace(/\|/g, "\\|"));
+      return markdown ? "| " + cells.join(" | ") + " |" : cells.join(" | ");
+    });
+    if (markdown) {
+      var rule = [];
+      for (var c = 0; c < width; c++) rule.push("---");
+      lines.splice(1, 0, "| " + rule.join(" | ") + " |");
+    }
+    return lines.join("\n");
+  }
+
+  function tablesOp() {
+    var scope = scopeRoot();
+    if (scope.error) return { error: scope.error };
+    var limit = args.limit || 20;
+    var maxRows = args.max_rows || 200;
+    var wanted = "table, [role=table], [role=grid]";
+    var found = Array.prototype.slice.call(scope.root.querySelectorAll(wanted));
+    if (scope.root.matches && scope.root.matches(wanted)) found.unshift(scope.root);
+    var tables = [];
+    var more = 0;
+    for (var i = 0; i < found.length; i++) {
+      var el = found[i];
+      if (!isVisible(el)) continue;
+      if (tables.length >= limit) { more++; continue; }
+      var grid = tableGrid(el, maxRows);
+      var entry = {
+        headers: grid.headers, rows: grid.rows, row_count: grid.total, truncated: grid.truncated
+      };
+      var caption = snapName(el, snapRole(el) || "table");
+      if (caption) entry.caption = caption;
+      addRef(entry, el);
+      tables.push(entry);
+    }
+    return { url: location.href, title: document.title, tables: tables, more_tables: more };
+  }
+
+  // ---- forms --------------------------------------------------------
+
+  function fieldType(el) {
+    if (el.localName === "input") return inputType(el);
+    if (el.localName === "select") return el.multiple ? "select-multiple" : "select";
+    return el.localName;
+  }
+
+  function formsOp() {
+    var scope = scopeRoot();
+    if (scope.error) return { error: scope.error };
+    var list = Array.prototype.slice.call(scope.root.querySelectorAll("form"));
+    if (scope.root.localName === "form") list.unshift(scope.root);
+    var forms = [];
+    var fieldBudget = 200;
+    var more = 0;
+    for (var i = 0; i < list.length; i++) {
+      if (forms.length >= 20) { more++; continue; }
+      var form = list[i];
+      var entry = {
+        action: form.getAttribute("action") ? form.action : "",
+        method: (form.getAttribute("method") || "get").toLowerCase(),
+        fields: []
+      };
+      addRef(entry, form);
+      var submit = null;
+      for (var k = 0; k < form.elements.length; k++) {
+        var el = form.elements[k];
+        var tag = el.localName;
+        if (tag !== "input" && tag !== "select" && tag !== "textarea" && tag !== "button") continue;
+        var type = fieldType(el);
+        if (/^(submit|button|reset|image)$/.test(type)) {
+          if (!submit && type !== "reset" && type !== "button") submit = el;
+          continue;
+        }
+        if (tag === "button") { if (!submit) submit = el; continue; }
+        if (fieldBudget-- <= 0) { entry.truncated = true; break; }
+        var field = {
+          name: el.name || el.id || "", type: type, label: nameOf(el), required: !!el.required
+        };
+        if (type === "checkbox" || type === "radio") field.checked = !!el.checked;
+        if (!isSecretField(el) && el.value && type !== "file") field.value = clip(el.value, 200);
+        if (tag === "select") {
+          field.options = Array.prototype.slice.call(el.options, 0, 50).map(function (o) {
+            return { value: o.value, label: normal(o.text), selected: o.selected };
+          });
+        }
+        addRef(field, el);
+        entry.fields.push(field);
+      }
+      if (submit) {
+        entry.submit = { label: nameOf(submit) };
+        addRef(entry.submit, submit);
+      }
+      forms.push(entry);
+    }
+    return { url: location.href, title: document.title, forms: forms, more_forms: more };
+  }
+
+  // ---- links --------------------------------------------------------
+
+  function regionOf(el) {
+    for (var node = el.parentElement; node; node = node.parentElement) {
+      var role = snapRole(node);
+      if (LANDMARKS[role] || role === "dialog" || role === "form") return role;
+    }
+    return "body";
+  }
+
+  function linksOp() {
+    var scope = scopeRoot();
+    if (scope.error) return { error: scope.error };
+    var limit = args.limit || 200;
+    var sameOrigin = !!args.same_origin;
+    var contains = String(args.contains || "").toLowerCase();
+    var anchors = scope.root.querySelectorAll("a[href], area[href]");
+    var seen = {};
+    var links = [];
+    var total = 0;
+    for (var i = 0; i < anchors.length; i++) {
+      var a = anchors[i];
+      if (!isVisible(a)) continue;
+      var href = a.href;
+      if (sameOrigin && a.origin !== location.origin) continue;
+      var image = a.querySelector && a.querySelector("img[alt]");
+      var text = clip(normal(a.textContent) || a.getAttribute("aria-label") || a.getAttribute("title") ||
+        (image ? image.getAttribute("alt") : ""), 120);
+      if (contains && (text + " " + href).toLowerCase().indexOf(contains) === -1) continue;
+      var key = href + "\u0000" + text;
+      if (seen[key] !== undefined) {
+        if (seen[key] >= 0) links[seen[key]].count = (links[seen[key]].count || 1) + 1;
+        continue;
+      }
+      total++;
+      if (links.length >= limit) { seen[key] = -1; continue; }
+      seen[key] = links.length;
+      var entry = { text: text, href: href, region: regionOf(a) };
+      var rel = a.getAttribute("rel");
+      if (rel) entry.rel = rel;
+      var target = a.getAttribute("target");
+      if (target) entry.target = target;
+      if (/^javascript:/i.test(href)) entry.kind = "script";
+      if (links.length < 100) addRef(entry, a);
+      links.push(entry);
+    }
+    return {
+      url: location.href, title: document.title, links: links, total: total,
+      truncated: total > links.length
+    };
+  }
+
+  // ---- readable text ------------------------------------------------
+
+  function densest(root) {
+    var current = root;
+    for (var depth = 0; depth < 12; depth++) {
+      var total = (current.textContent || "").length;
+      var best = null;
+      var bestLength = 0;
+      for (var i = 0; i < current.children.length; i++) {
+        var child = current.children[i];
+        if (SKIP_TAGS[child.localName]) continue;
+        var length = (child.textContent || "").length;
+        if (length > bestLength) { best = child; bestLength = length; }
+      }
+      if (!best || bestLength < 200 || bestLength < total * 0.6) break;
+      current = best;
+    }
+    return current;
+  }
+
+  function textBlocks(root, markdown, skipChrome) {
+    var blocks = [];
+    var line = "";
+
+    function flush() {
+      var t = line.replace(/\s+/g, " ").trim();
+      if (t) blocks.push(t);
+      line = "";
+    }
+
+    // The visible text under `node` on one line, links and code marked up.
+    function inline(node) {
+      if (node.nodeType === 3) return node.nodeValue;
+      if (node.nodeType !== 1) return "";
+      var tag = node.localName;
+      if (SKIP_TAGS[tag] || NON_TEXT[tag] || hiddenSubtree(node)) return "";
+      if (tag === "br") return " ";
+      var text = "";
+      var kids = kidsOf(node);
+      for (var i = 0; i < kids.length; i++) text += inline(kids[i]);
+      if (tag === "a" && markdown) {
+        var label = normal(text);
+        var href = node.href;
+        if (label && href && !/^javascript:/i.test(href)) return "[" + label + "](" + href + ")";
+      }
+      if (tag === "code" && markdown && normal(text)) return "`" + normal(text) + "`";
+      return text;
+    }
+
+    function listLines(list, depth, ordered, lines) {
+      var index = 0;
+      Array.prototype.forEach.call(list.children, function (li) {
+        if (li.localName !== "li" || hiddenSubtree(li)) return;
+        index++;
+        var own = "";
+        var nested = [];
+        Array.prototype.forEach.call(li.childNodes, function (child) {
+          if (child.nodeType === 1 && (child.localName === "ul" || child.localName === "ol")) nested.push(child);
+          else own += inline(child);
+        });
+        var text = normal(own);
+        if (text) lines.push(new Array(depth + 1).join("  ") + (ordered ? index + ". " : "- ") + text);
+        nested.forEach(function (inner) { listLines(inner, depth + 1, inner.localName === "ol", lines); });
+      });
+    }
+
+    function walkNode(node) {
+      if (node.nodeType === 3) { line += node.nodeValue; return; }
+      if (node.nodeType !== 1) return;
+      var tag = node.localName;
+      if (SKIP_TAGS[tag] || NON_TEXT[tag] || hiddenSubtree(node)) return;
+      if (skipChrome && (CHROME_TAGS[tag] || CHROME_ROLES[node.getAttribute("role") || ""])) return;
+      if (/^h[1-6]$/.test(tag)) {
+        flush();
+        var heading = normal(inline(node));
+        if (heading) blocks.push(markdown ? "######".slice(0, Number(tag[1])) + " " + heading : heading);
+        return;
+      }
+      if (tag === "a" || tag === "code") { line += inline(node); return; }
+      if (tag === "br") { flush(); return; }
+      if (tag === "pre") {
+        flush();
+        var raw = (node.textContent || "").replace(/\s+$/, "");
+        if (raw) blocks.push(markdown ? "```\n" + raw + "\n```" : raw);
+        return;
+      }
+      if (tag === "ul" || tag === "ol") {
+        flush();
+        var lines = [];
+        listLines(node, 0, tag === "ol", lines);
+        if (lines.length) blocks.push(lines.join("\n"));
+        return;
+      }
+      if (tag === "table") {
+        flush();
+        var table = tableText(node, markdown);
+        if (table) blocks.push(table);
+        return;
+      }
+      if (tag === "blockquote") {
+        flush();
+        var quote_ = normal(inline(node));
+        if (quote_) blocks.push((markdown ? "> " : "") + quote_);
+        return;
+      }
+      var block = !!BLOCK_TAGS[tag];
+      if (block) flush();
+      var kids = kidsOf(node);
+      for (var i = 0; i < kids.length; i++) walkNode(kids[i]);
+      if (block) flush();
+    }
+
+    walkNode(root);
+    flush();
+    return blocks;
+  }
+
+  function textOp() {
+    var scope = scopeRoot();
+    if (scope.error) return { error: scope.error };
+    var markdown = args.format !== "text";
+    var mainOnly = args.main_only !== false;
+    var maxChars = args.max_chars || 20000;
+    var root = scope.root;
+    var source = args.scope ? "scope" : "page";
+    var skipChrome = false;
+    if (mainOnly && !args.scope) {
+      var main = document.querySelector("main, [role=main]");
+      var articles = document.querySelectorAll("article");
+      if (main) {
+        root = main;
+        source = "main";
+      } else if (articles.length === 1) {
+        root = articles[0];
+        source = "article";
+      } else {
+        var body = document.body || root;
+        var dense = densest(body);
+        root = dense;
+        if (dense !== body) source = "densest block";
+        else skipChrome = true;
+      }
+    }
+    var blocks = textBlocks(root, markdown, skipChrome);
+    var kept = [];
+    var used = 0;
+    var total = 0;
+    blocks.forEach(function (block) { total += block.length + 2; });
+    total = Math.max(0, total - 2);
+    var cut = false;
+    for (var i = 0; i < blocks.length; i++) {
+      var next = used + (kept.length ? 2 : 0) + blocks[i].length;
+      if (next > maxChars) {
+        cut = true;
+        if (!kept.length) { kept.push(blocks[i].slice(0, maxChars)); used = maxChars; }
+        break;
+      }
+      kept.push(blocks[i]);
+      used = next;
+    }
+    var text = kept.join("\n\n");
+    var remaining = Math.max(0, total - used);
+    if (cut) text += "\n\n... [cut: " + remaining + " more characters]";
+    return {
+      text: text, chars: used, total_chars: total, truncated: cut, cut_chars: cut ? remaining : 0,
+      source: source, format: markdown ? "markdown" : "text", url: location.href, title: document.title
+    };
+  }
+
+
   switch (op) {
     case "state": return state();
     case "inspect": return inspect();
@@ -838,6 +1569,13 @@
     case "resources": return failedResources();
     case "source": return source();
     case "environment": return environment();
+    case "snapshot": return snapshot(false);
+    case "outline": return snapshot(true);
+    case "verify_ref": return verifyRef();
+    case "text": return textOp();
+    case "links": return linksOp();
+    case "tables": return tablesOp();
+    case "forms": return formsOp();
   }
   throw new Error("unknown developer-tools operation " + op);
 })

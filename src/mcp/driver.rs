@@ -40,8 +40,10 @@ pub fn host(settings: Settings) -> Host<BaseCase> {
     tools.push(w::page_info_tool());
     tools.extend(devtools::tools_named(&DEBUG_TOOLS));
     tools.extend(devtools::environment_tools());
+    tools.extend(super::pagetools::tools());
     Host::new(SERVER_NAME, INSTRUCTIONS, tools, settings)
         .with_probe(devtools::probe::<BaseCase>)
+        .with_refs(super::pagetools::verify::<BaseCase>)
         .with_resources(super::resources::standard())
         .with_prompts(super::prompts::browser())
 }

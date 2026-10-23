@@ -97,7 +97,7 @@ fn expression(op: &str, args: &Value) -> String {
 /// Every operation answers with an object. Anything else (a page that broke a
 /// built-in the script uses can cause it) is kept under `unexpected`, so the
 /// tools can add fields to the answer without failing.
-async fn page_op<S: DevSession>(
+pub(super) async fn page_op<S: DevSession>(
     session: &mut S,
     op: &str,
     args: &Value,
@@ -110,7 +110,7 @@ async fn page_op<S: DevSession>(
 }
 
 /// A whole-number argument between 1 and `max`, or `default`.
-fn bounded(args: &Args, name: &str, default: usize, max: usize) -> Result<usize, ToolError> {
+pub(super) fn bounded(args: &Args, name: &str, default: usize, max: usize) -> Result<usize, ToolError> {
     match args.opt_usize(name)? {
         None => Ok(default),
         Some(n) if (1..=max).contains(&n) => Ok(n),

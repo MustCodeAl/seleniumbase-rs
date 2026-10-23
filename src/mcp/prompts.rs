@@ -173,7 +173,7 @@ pub(crate) fn browser() -> Vec<PromptDef> {
             &[
                 "start_browser",
                 "open_url",
-                "inspect_page",
+                "page_snapshot",
                 "click_element",
                 "type_text",
                 "diagnose_selector",
@@ -188,8 +188,8 @@ pub(crate) fn browser() -> Vec<PromptDef> {
                      Start page: {url}\n\n\
                      1. Call start_browser if no browser is running, then open_url with the start \
                      page.\n\
-                     2. Call inspect_page to see the headings, forms and controls, each with a \
-                     selector.\n\
+                     2. Call page_snapshot to see the headings, forms and controls; each control has a \
+                     ref such as e5, which you pass as the selector \"ref=e5\".\n\
                      3. Reach the goal one step at a time with click_element and type_text. When \
                      a selector fails, call diagnose_selector, then suggest_selectors, and retry \
                      with what they suggest.\n\
@@ -241,15 +241,23 @@ pub(crate) fn browser() -> Vec<PromptDef> {
                     "What to extract, such as 'the product names and prices'",
                 ),
             ],
-            &["start_browser", "open_url", "inspect_page"],
+            &[
+                "start_browser",
+                "open_url",
+                "page_snapshot",
+                "read_page_text",
+                "extract_links",
+                "extract_tables",
+                "extract_forms",
+            ],
             |arguments| {
                 let url = text(arguments, "url", "");
                 let what = text(arguments, "what", "");
                 Ok(user(format!(
                     "Extract {what} from {url}.\n\n\
                      1. Call start_browser if no browser is running, then open_url with the page.\n\
-                     2. Call inspect_page to see how the page is laid out and which selectors \
-                     reach the data.\n\
+                     2. Call page_snapshot to see how the page is laid out, then read_page_text for \
+                     its text, or extract_links, extract_tables and extract_forms for data.\n\
                      3. Read the values with this server's tools for text and attributes, for \
                      every match, not only the first.\n\
                      4. Answer with the data as a table or a list, and say how many items you \

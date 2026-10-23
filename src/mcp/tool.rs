@@ -26,12 +26,24 @@ pub enum Output {
     Text(String),
     /// Structured data, rendered as indented JSON.
     Json(Value),
+    /// Text written for the model to read, and the same facts as an object.
+    ///
+    /// The text is what the client shows; `data` is sent as `structuredContent`
+    /// so a program can read it without parsing the text. Page tools use it
+    /// when their text is a compact outline, not indented JSON.
+    Structured {
+        /// What the model reads.
+        text: String,
+        /// The same result as a JSON object.
+        data: Value,
+    },
+
 }
 
 impl Output {
     pub(crate) fn render(&self) -> String {
         match self {
-            Self::Text(text) | Self::Json(Value::String(text)) => text.clone(),
+            Self::Text(text) | Self::Structured { text, .. } | Self::Json(Value::String(text)) => text.clone(),
             Self::Json(value) => {
                 serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string())
             }
@@ -45,8 +57,9 @@ impl Output {
     /// number has none and travels as text only.
     pub(crate) fn structured(&self) -> Option<&Value> {
         match self {
-            Self::Json(value @ Value::Object(_)) => Some(value),
-            Self::Json(_) | Self::Text(_) => None,
+            Self::Json(value @ Value::Object(_))
+            | Self::Structured { data: value @ Value::Object(_), .. } => Some(value),
+            Self::Json(_) | Self::Text(_) | Self::Structured { .. } => None,
         }
     }
 
@@ -54,7 +67,7 @@ impl Output {
     #[must_use]
     pub fn as_text(&self) -> Option<&str> {
         match self {
-            Self::Text(text) => Some(text),
+            Self::Text(text) | Self::Structured { text, .. } => Some(text),
             Self::Json(_) => None,
         }
     }
@@ -63,7 +76,7 @@ impl Output {
     #[must_use]
     pub fn as_json(&self) -> Option<&Value> {
         match self {
-            Self::Json(value) => Some(value),
+            Self::Json(value) | Self::Structured { data: value, .. } => Some(value),
             Self::Text(_) => None,
         }
     }

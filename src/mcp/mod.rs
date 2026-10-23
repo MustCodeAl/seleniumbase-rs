@@ -32,8 +32,11 @@ mod export;
 mod failure;
 mod host;
 mod journal;
+mod pagetools;
+
 mod progress;
 mod prompts;
+mod refs;
 mod resources;
 mod schema;
 mod support;
@@ -55,7 +58,7 @@ pub use progress::{Progress, ProgressSink, ProgressUpdate};
 pub use prompts::{PromptArg, PromptDef, Render};
 pub use resources::{
     ResourceBody, ResourceDef, ResourceError, ResourceFuture, JOURNAL_URI, MAX_OUTPUT_BYTES,
-    OUTPUT_TEMPLATE, SESSION_URI,
+    OUTPUT_TEMPLATE, PAGE_SNAPSHOT_URI, PAGE_TEXT_URI, SESSION_URI,
 };
 pub use schema::{Prop, Schema};
 pub use tool::{Args, Effect, Output, ToolDef, ToolError, ToolFuture};

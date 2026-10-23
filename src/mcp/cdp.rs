@@ -230,8 +230,10 @@ pub fn host(settings: Settings) -> Host<Cdp> {
     let mut tools = super::tool::mark_untrusted(tools(), &["get_content", "get_attributes"]);
     tools.extend(devtools::tools());
     tools.extend(devtools::environment_tools());
+    tools.extend(super::pagetools::tools());
     Host::new(SERVER_NAME, INSTRUCTIONS, tools, settings)
         .with_probe(devtools::probe::<Cdp>)
+        .with_refs(super::pagetools::verify::<Cdp>)
         .with_resources(super::resources::standard())
         .with_prompts(super::prompts::browser())
 }

@@ -28,6 +28,8 @@ use super::failure::{concerns_page, focus_selector, FailureReport, PROBE_TIMEOUT
 use super::journal::{CallRecord, Journal};
 use super::progress::{Progress, ProgressSink};
 use super::prompts::PromptDef;
+use super::refs::{self, RefTable, RefVerify};
+
 use super::resources::{ResourceBody, ResourceDef, ResourceError};
 use super::tool::{Args, Output, ToolDef, ToolError};
 use crate::config::plugins::PluginSelection;
@@ -154,6 +156,8 @@ pub struct Ctx<S> {
     settings: Arc<Settings>,
     journal: Arc<std::sync::Mutex<Journal>>,
     progress: Progress,
+    refs: Arc<std::sync::Mutex<RefTable>>,
+
 }
 
 impl<S> Clone for Ctx<S> {
@@ -163,6 +167,8 @@ impl<S> Clone for Ctx<S> {
             settings: Arc::clone(&self.settings),
             journal: Arc::clone(&self.journal),
             progress: self.progress.clone(),
+            refs: Arc::clone(&self.refs),
+
         }
     }
 }
@@ -184,6 +190,8 @@ impl<S: Send + 'static> Ctx<S> {
             settings: Arc::new(settings),
             journal: Arc::default(),
             progress: Progress::default(),
+            refs: Arc::default(),
+
         }
     }
 
@@ -201,6 +209,15 @@ impl<S: Send + 'static> Ctx<S> {
         let journal = self.journal.lock().unwrap_or_else(PoisonError::into_inner);
         (journal.calls(), journal.dropped())
     }
+
+    /// The refs of the last `page_snapshot`, and the page texts the
+    /// `sbrs://page/...` resources serve.
+    ///
+    /// Do not hold the guard across an `.await`.
+    pub(crate) fn refs(&self) -> std::sync::MutexGuard<'_, RefTable> {
+        self.refs.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
 
     /// Where this call reports its progress.
     ///
@@ -257,11 +274,15 @@ impl<S: Send + 'static> Ctx<S> {
             return Ok(Started::AlreadyRunning);
         }
         *slot = Some(create.await?);
+        self.refs().clear();
+
         Ok(Started::Created)
     }
 
     /// Removes the session from the slot, leaving the server without one.
     pub async fn take(&self) -> Option<S> {
+        self.refs().clear();
+
         self.slot.lock().await.take()
     }
 }
@@ -282,6 +303,7 @@ struct Shared<S> {
     probe: Option<Probe<S>>,
     resources: Vec<ResourceDef<S>>,
     prompts: Vec<PromptDef>,
+    refs_verify: Option<RefVerify<S>>,
 }
 
 /// A named set of tools and the session they share.
@@ -326,6 +348,7 @@ impl<S: Send + 'static> Host<S> {
                 probe: None,
                 resources: Vec::new(),
                 prompts: Vec::new(),
+                refs_verify: None,
             }),
         }
     }
@@ -344,6 +367,22 @@ impl<S: Send + 'static> Host<S> {
         }
         self
     }
+
+    /// Lets tool arguments name an element of the last `page_snapshot` as
+    /// `ref=e5`, checking it in the page with `verify` before the call runs.
+    ///
+    /// Call it while building the server: a host that has been cloned keeps
+    /// the check it had. A server without it leaves `ref=...` alone.
+    #[must_use]
+    pub(crate) fn with_refs(mut self, verify: RefVerify<S>) -> Self {
+        if let Some(shared) = Arc::get_mut(&mut self.shared) {
+            shared.refs_verify = Some(verify);
+        } else {
+            tracing::warn!(server = self.shared.name, "a shared host keeps its ref check");
+        }
+        self
+    }
+
 
     /// Offers `resources` to clients: read-only data next to the tools.
     ///
@@ -525,6 +564,64 @@ impl<S: Send + 'static> Host<S> {
         Ok(ReadResourceResult::new(vec![contents]))
     }
 
+    /// Swaps each `ref=eN` in a selector argument for the selector the last
+    /// `page_snapshot` stored, after checking in the page that the element
+    /// still has the role and name it had.
+    ///
+    /// The arguments pass through unchanged when the server has no ref check
+    /// or no argument is a ref.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ToolError::InvalidArgument`] naming the argument when a ref
+    /// is unknown, stale or cannot be used here, and what to do next.
+    async fn resolve_refs(
+        &self,
+        arguments: Map<String, Value>,
+    ) -> Result<Map<String, Value>, ToolError> {
+        let Some(verify) = self.shared.refs_verify else {
+            return Ok(arguments);
+        };
+        let wanted: Vec<(String, String)> = arguments
+            .iter()
+            .filter(|(name, _)| refs::is_selector_arg(name))
+            .filter_map(|(name, value)| {
+                let id = refs::parse_ref(value.as_str()?)?;
+                Some((name.clone(), id.to_owned()))
+            })
+            .collect();
+        if wanted.is_empty() {
+            return Ok(arguments);
+        }
+        let mut arguments = arguments;
+        for (argument, id) in wanted {
+            let (entry, snapshot_url) = {
+                let table = self.shared.ctx.refs();
+                let entry = table
+                    .get(&id)
+                    .map_err(|why| ToolError::invalid(&argument, why))?
+                    .clone();
+                (entry, table.url().to_owned())
+            };
+            let probe = verify(self.shared.ctx.clone(), entry.clone()).await?;
+            if let Some(why) = refs::problem(&entry, &probe, &snapshot_url) {
+                return Err(ToolError::invalid(&argument, why));
+            }
+            arguments.insert(argument, Value::String(entry.selector));
+        }
+        Ok(arguments)
+    }
+
+    /// The arguments of a client's call with its refs resolved, or as they
+    /// came when one cannot be: the call then fails on that ref, and the
+    /// failure report is about the ref the client wrote.
+    async fn resolved_or_original(&self, arguments: Map<String, Value>) -> Map<String, Value> {
+        self.resolve_refs(arguments.clone())
+            .await
+            .unwrap_or(arguments)
+    }
+
+
     /// Whether the server offers a tool called `name`.
     #[must_use]
     pub fn has_tool(&self, name: &str) -> bool {
@@ -603,6 +700,7 @@ impl<S: Send + 'static> Host<S> {
             .iter()
             .find(|tool| tool.name() == name)
             .ok_or_else(|| ToolError::UnknownTool(name.to_owned()))?;
+        let arguments = self.resolve_refs(arguments).await?;
         let logged = arguments.clone();
         let started = std::time::Instant::now();
         let result = tool
@@ -842,7 +940,9 @@ impl<S: Send + 'static> ServerHandler for Host<S> {
         context: RequestContext<RoleServer>,
     ) -> impl Future<Output = Result<CallToolResponse, ErrorData>> + '_ {
         async move {
-            let arguments = request.arguments.unwrap_or_default();
+            let arguments = self
+                .resolved_or_original(request.arguments.unwrap_or_default())
+                .await;
             // A client that wants progress puts a token in the request's `_meta`.
             let progress = context
                 .meta

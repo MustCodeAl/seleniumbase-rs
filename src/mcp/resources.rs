@@ -1,12 +1,14 @@
 //! Resources: read-only data the server offers next to its tools.
 //!
 //! A tool does something; a resource is something a client can read, and can
-//! put in front of the model without a tool call. The server offers three:
+//! put in front of the model without a tool call. The server offers these:
 //!
 //! - `sbrs://journal`: the tool calls made so far, with typed text, scripts
 //!   and results left out, as `capture_debug_bundle` does.
 //! - `sbrs://session`: the engine, URL, title and ready state of the
 //!   running browser, or `{"browser": false}`.
+//! - `sbrs://page/snapshot` and `sbrs://page/text`: the text of the last
+//!   `page_snapshot` and the last `read_page_text`, while a browser runs.
 //! - `sbrs://output/{+path}`: a file a tool wrote under the output
 //!   directory (`SB_MCP_OUTPUT_DIR`). Text is returned as text, anything else
 //!   as base64. A path that leaves the directory, by `..`, an absolute path
@@ -32,6 +34,12 @@ pub const JOURNAL_URI: &str = "sbrs://journal";
 
 /// The URI of the session summary.
 pub const SESSION_URI: &str = "sbrs://session";
+
+/// The URI of the text of the last `page_snapshot`.
+pub const PAGE_SNAPSHOT_URI: &str = "sbrs://page/snapshot";
+
+/// The URI of the text of the last `read_page_text`.
+pub const PAGE_TEXT_URI: &str = "sbrs://page/text";
 
 /// The URI template of the files under the output directory.
 pub const OUTPUT_TEMPLATE: &str = "sbrs://output/{+path}";
@@ -281,6 +289,25 @@ pub(crate) fn standard<S: DevSession>() -> Vec<ResourceDef<S>> {
             "application/json",
             |ctx: Ctx<S>| async move { Ok(ResourceBody::json(&session(&ctx).await)) },
         ),
+        ResourceDef::fixed(
+            PAGE_SNAPSHOT_URI,
+            "page_snapshot",
+            "Page snapshot",
+            "The text of the last page_snapshot: the page as an accessibility tree with element \
+             refs. Empty until page_snapshot has been called in the running browser.",
+            "text/plain",
+            |ctx: Ctx<S>| async move { page_text(&ctx, PAGE_SNAPSHOT_URI) },
+        ),
+        ResourceDef::fixed(
+            PAGE_TEXT_URI,
+            "page_text",
+            "Page text",
+            "The text of the last read_page_text: the page's readable content as Markdown. \
+             Empty until read_page_text has been called in the running browser.",
+            "text/plain",
+            |ctx: Ctx<S>| async move { page_text(&ctx, PAGE_TEXT_URI) },
+        ),
+
         ResourceDef::template(
             OUTPUT_TEMPLATE,
             "output",
@@ -302,6 +329,24 @@ fn journal<S: Send + 'static>(ctx: &Ctx<S>) -> ResourceBody {
         "dropped": dropped,
     }))
 }
+
+/// `sbrs://page/snapshot` and `sbrs://page/text`: the last text a page tool
+/// read. The text is forgotten when the browser is closed.
+fn page_text<S: Send + 'static>(ctx: &Ctx<S>, uri: &str) -> Result<ResourceBody, ResourceError> {
+    let table = ctx.refs();
+    let (kept, tool) = if uri == PAGE_TEXT_URI {
+        (table.page_text(), "read_page_text")
+    } else {
+        (table.snapshot_text(), "page_snapshot")
+    };
+    kept.map(|text| ResourceBody::text(text, "text/plain"))
+        .ok_or_else(|| {
+            ResourceError::NotFound(format!(
+                "nothing to read at {uri}: call {tool} in a running browser first"
+            ))
+        })
+}
+
 
 /// `sbrs://session`.
 async fn session<S: DevSession>(ctx: &Ctx<S>) -> Value {
