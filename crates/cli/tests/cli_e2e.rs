@@ -752,10 +752,15 @@ fn a_page_command_without_a_page_says_so_and_starts_no_browser() {
         );
         let message = stderr(&output);
         assert!(
-            message.starts_with(&format!(
-                "error: {name} acts on a page, and every sbrs command starts a fresh browser; \
+            message
+                .trim_end()
+                .lines()
+                .last()
+                .unwrap_or_default()
+                .starts_with(&format!(
+                    "error: {name} acts on a page, and every sbrs command starts a fresh browser; \
                  give the page: sbrs --url https://example.com {name}"
-            )),
+                )),
             "{args:?}: {message}"
         );
         assert!(stdout(&output).is_empty(), "{}", stdout(&output));

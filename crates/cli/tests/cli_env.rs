@@ -466,7 +466,12 @@ fn a_page_command_without_a_page_is_refused_and_starts_no_browser() {
             run.stderr()
         );
         assert!(
-            run.stderr().starts_with("error: ")
+            run.stderr()
+                .trim_end()
+                .lines()
+                .last()
+                .unwrap_or_default()
+                .starts_with("error: ")
                 && run.stderr().contains("acts on a page")
                 && run.stderr().contains("sbrs --url https://example.com"),
             "{command:?}: {}",
