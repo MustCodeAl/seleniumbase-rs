@@ -1,19 +1,12 @@
-//! `cli_help`, `list_plugins`, `plugin_info` and `install_driver`: the `sbrs`
-//! command line, from inside an MCP session.
+//! `list_plugins`, `plugin_info` and `install_driver`: the plugins and the driver
+//! downloader of the `sbrs` command line, from inside an MCP session.
 //!
-//! `cli_help` reads the CLI reference page (`docs/help/cli_reference.md`),
-//! embedded and cut by heading. That page is generated from the usage spec of
-//! `sbrs` (`completions/sbrs.usage.kdl`) by a test of the CLI crate, so it
-//! cannot drift from the parser. Parsing the spec itself with `usage-lib`
-//! would add that crate and what it brings to every build of the library with
-//! the MCP server; the page already holds every flag, default, alias and
-//! choice.
+//! `cli_help`, which explains the command line itself, is in [`help`](super::help).
 
-use std::fmt::Write as _;
 use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 use std::time::Duration;
 
 use serde_json::json;
@@ -22,12 +15,9 @@ use tokio::sync::Mutex;
 use super::NoBrowser;
 use crate::cli::plugin_cmd;
 use crate::cli::scripts::sb_install::{self, DriverName};
-use crate::error::{closest_match, SeleniumBaseError};
+use crate::error::SeleniumBaseError;
 use crate::mcp::support::{json_output, nonempty};
 use crate::mcp::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};
-
-/// The CLI reference page, generated from the usage spec of `sbrs`.
-const REFERENCE: &str = include_str!("../../../docs/help/cli_reference.md");
 
 /// How long `<driver> --version` may take.
 const VERSION_TIMEOUT: Duration = Duration::from_secs(10);
@@ -52,24 +42,6 @@ pub(super) fn sbrs_installer() -> Installer {
 /// The tools of this file.
 pub(super) fn tools(installer: Installer) -> Vec<ToolDef<NoBrowser>> {
     vec![
-        ToolDef::new(
-            "cli_help",
-            "CLI Help",
-            "Explain the `sbrs` command line. With no command: the global flags, one line \
-             each, and every command with a one-line description. With a command (`open`, \
-             `wait-for-text`, `plugin list`): its usage, arguments, flags with their defaults \
-             and choices, and aliases. With `global`: the global flags in full. It is the \
-             reference page of this version, the same text `sbrs --help` is built from.",
-            Effect::Inspect,
-            Schema::new().optional(
-                "command",
-                Prop::string(
-                    "A command or alias, such as `mkdir`, `install` or `plugin list`; `global` \
-                     for the flags that come before the command",
-                ),
-            ),
-            cli_help,
-        ),
         ToolDef::new(
             "list_plugins",
             "List Plugins",
@@ -119,218 +91,6 @@ pub(super) fn tools(installer: Installer) -> Vec<ToolDef<NoBrowser>> {
             move |ctx, args| install_driver(Arc::clone(&installer), ctx, args),
         ),
     ]
-}
-
-// ----------------------------------------------------------------------
-// cli_help
-// ----------------------------------------------------------------------
-
-/// One command of the reference page: `sbrs` itself or `sbrs <command>`.
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct Section {
-    /// `sbrs`, `sbrs open`, `sbrs plugin list`.
-    name: String,
-    /// The usage line without its backticks.
-    usage: String,
-    /// The version line of the root section.
-    version: Option<String>,
-    aliases: Vec<String>,
-    /// The first paragraph after the facts.
-    description: String,
-    /// The section's lines, as markdown.
-    lines: Vec<String>,
-}
-
-impl Section {
-    /// `open` for `sbrs open`; empty for the root.
-    fn command(&self) -> &str {
-        self.name.strip_prefix("sbrs").unwrap_or(&self.name).trim()
-    }
-
-    /// The section as markdown, trimmed.
-    fn markdown(&self) -> String {
-        format!("## {}\n{}", self.name, self.lines.join("\n"))
-            .trim_end()
-            .to_owned()
-    }
-}
-
-/// The name in a heading such as ``## `sbrs open` `` or ``# `sbrs` ``.
-fn heading_name(line: &str) -> Option<&str> {
-    let rest = line
-        .strip_prefix("## ")
-        .or_else(|| line.strip_prefix("# "))?;
-    let name = rest.strip_prefix('`')?.strip_suffix('`')?;
-    (name == "sbrs" || name.starts_with("sbrs ")).then_some(name)
-}
-
-/// The text after the bold label of a fact line, such as the usage line of a command.
-fn fact<'a>(lines: &'a [String], label: &str) -> Option<&'a str> {
-    let prefix = format!("- **{label}:** ");
-    lines
-        .iter()
-        .find_map(|line| line.strip_prefix(prefix.as_str()))
-}
-
-fn finish(name: &str, lines: Vec<String>) -> Section {
-    let unquote = |text: &str| text.trim().trim_matches('`').to_owned();
-    let aliases = fact(&lines, "Aliases")
-        .map(|list| list.split(", ").map(unquote).collect())
-        .unwrap_or_default();
-    let description = lines
-        .iter()
-        .map(String::as_str)
-        .skip_while(|line| line.trim().is_empty() || line.starts_with("- **"))
-        .take_while(|line| !line.trim().is_empty() && !line.starts_with('#'))
-        .collect::<Vec<_>>()
-        .join(" ");
-    Section {
-        name: name.to_owned(),
-        usage: fact(&lines, "Usage").map(unquote).unwrap_or_default(),
-        version: fact(&lines, "Version").map(str::to_owned),
-        aliases,
-        description,
-        lines,
-    }
-}
-
-/// Cuts the reference page into one section per command.
-fn parse_reference(page: &str) -> Vec<Section> {
-    let mut sections = Vec::new();
-    let mut current: Option<(String, Vec<String>)> = None;
-    for line in page.lines() {
-        if let Some(name) = heading_name(line) {
-            if let Some((previous, lines)) = current.take() {
-                sections.push(finish(&previous, lines));
-            }
-            current = Some((name.to_owned(), Vec::new()));
-        } else if let Some((_, lines)) = &mut current {
-            lines.push(line.to_owned());
-        }
-    }
-    if let Some((previous, lines)) = current {
-        sections.push(finish(&previous, lines));
-    }
-    sections
-}
-
-fn reference() -> &'static [Section] {
-    static SECTIONS: OnceLock<Vec<Section>> = OnceLock::new();
-    SECTIONS.get_or_init(|| parse_reference(REFERENCE))
-}
-
-/// The overview: global flags and every command.
-fn overview(sections: &[Section]) -> String {
-    let mut text = String::new();
-    if let Some(root) = sections.first().filter(|section| section.name == "sbrs") {
-        let _ = write!(
-            text,
-            "sbrs {}\n{}\nUsage: {}\n\n",
-            root.version.as_deref().unwrap_or(""),
-            root.description,
-            root.usage
-        );
-        // The root's flags follow its own facts, under a `## Flags` heading. The overview
-        // keeps the first line of each; their choices, aliases and long help are in
-        // `cli_help global`.
-        let flags: Vec<&str> = root
-            .lines
-            .iter()
-            .map(String::as_str)
-            .skip_while(|line| *line != "## Flags")
-            .skip(1)
-            .filter(|line| line.starts_with("- "))
-            .collect();
-        text.push_str(
-            "Global flags (they come before the command; cli_help with command `global` gives \
-             their choices, aliases and long help):\n",
-        );
-        text.push_str(&flags.join("\n"));
-        text.push_str("\n\n");
-    }
-    let commands: Vec<&Section> = sections
-        .iter()
-        .filter(|section| section.name != "sbrs")
-        .collect();
-    let _ = writeln!(
-        text,
-        "Commands ({}); cli_help with a command gives its arguments, flags, defaults and \
-         aliases:",
-        commands.len()
-    );
-    for section in commands {
-        let _ = write!(text, "- {}", section.command());
-        if !section.aliases.is_empty() {
-            let _ = write!(text, " (alias {})", section.aliases.join(", "));
-        }
-        if !section.description.is_empty() {
-            let _ = write!(text, ": {}", section.description);
-        }
-        text.push('\n');
-    }
-    text
-}
-
-/// `command` as the reference page names a command: lowercase, with `-` for `_`, and
-/// without a leading `sbrs`. The root (`sbrs`, `global`) is the empty name.
-fn bare(command: &str) -> String {
-    let lower = command.trim().to_lowercase().replace('_', "-");
-    let name = match lower.strip_prefix("sbrs") {
-        Some(rest) if rest.is_empty() || rest.starts_with(' ') => rest.trim(),
-        _ => lower.as_str(),
-    };
-    if matches!(name, "global" | "global flags" | "flags") {
-        String::new()
-    } else {
-        name.to_owned()
-    }
-}
-
-/// The sections `command` names: the command itself (or the command an alias
-/// stands for), and, for a command that only groups others, its subcommands. The
-/// root, with the global flags, is `sbrs` or `global`.
-fn find_command<'a>(sections: &'a [Section], command: &str) -> Vec<&'a Section> {
-    let wanted = bare(command);
-    if wanted.is_empty() {
-        return sections.first().into_iter().collect();
-    }
-    let exact = sections
-        .iter()
-        .find(|section| section.name != "sbrs" && section.command() == wanted)
-        .or_else(|| {
-            sections
-                .iter()
-                .find(|section| section.aliases.contains(&wanted))
-        });
-    let children = sections
-        .iter()
-        .filter(|section| section.command().starts_with(&format!("{wanted} ")));
-    exact.into_iter().chain(children).collect()
-}
-
-async fn cli_help(_ctx: Ctx<NoBrowser>, args: Args) -> Result<Output, ToolError> {
-    let sections = reference();
-    let Some(command) = nonempty(&args, "command")? else {
-        return Ok(overview(sections).into());
-    };
-    let found = find_command(sections, command);
-    if found.is_empty() {
-        let names = sections
-            .iter()
-            .filter(|section| section.name != "sbrs")
-            .map(Section::command);
-        let mut reason = format!("no command `{command}`; cli_help without a command lists them");
-        if let Some(near) = closest_match(&bare(command), names) {
-            let _ = write!(reason, "; did you mean `{near}`?");
-        }
-        return Err(ToolError::invalid("command", reason));
-    }
-    let text = found
-        .iter()
-        .map(|section| section.markdown())
-        .collect::<Vec<_>>()
-        .join("\n\n");
-    Ok(text.into())
 }
 
 // ----------------------------------------------------------------------
@@ -436,128 +196,6 @@ mod tests {
         super::super::host(Settings::new("out"))
             .call(tool, arguments.as_object().cloned().unwrap())
             .await
-    }
-
-    // ------------------------------------------------------------------
-    // cli_help
-    // ------------------------------------------------------------------
-
-    #[test]
-    fn the_reference_page_is_cut_into_one_section_per_command() {
-        let sections = reference();
-        assert_eq!(sections[0].name, "sbrs");
-        assert!(sections.len() > 50, "{} sections", sections.len());
-        let open = sections.iter().find(|s| s.name == "sbrs open").unwrap();
-        assert_eq!(open.usage, "sbrs open <URL>");
-        assert_eq!(open.description, "Open a URL in the browser.");
-        let names: std::collections::BTreeSet<_> =
-            sections.iter().map(|s| s.name.as_str()).collect();
-        assert_eq!(names.len(), sections.len(), "a command appears twice");
-    }
-
-    #[test]
-    fn every_command_heading_of_the_page_becomes_a_section() {
-        let headings = REFERENCE
-            .lines()
-            .filter(|line| heading_name(line).is_some())
-            .count();
-        assert_eq!(headings, reference().len());
-    }
-
-    #[tokio::test]
-    async fn without_a_command_the_help_lists_the_global_flags_and_every_command() {
-        let answer = call("cli_help", json!({})).await.unwrap();
-
-        let text = answer.as_text().unwrap();
-        assert!(text.starts_with("sbrs "), "{text}");
-        assert!(text.contains("Global flags"), "{text}");
-        assert!(text.contains("--webdriver <URL>"), "{text}");
-        assert!(
-            text.contains("- open: Open a URL in the browser."),
-            "{text}"
-        );
-        assert!(text.contains("- encrypt (alias obfuscate): "), "{text}");
-        let listed = text.lines().filter(|l| l.starts_with("- ")).count();
-        let commands = reference().len() - 1;
-        // The global flags are bullets too.
-        assert!(listed >= commands, "{listed} lines for {commands} commands");
-    }
-
-    #[tokio::test]
-    async fn a_command_shows_its_flags_with_their_defaults() {
-        let answer = call("cli_help", json!({ "command": "wait-for-text" }))
-            .await
-            .unwrap();
-
-        let text = answer.as_text().unwrap();
-        assert!(text.starts_with("## sbrs wait-for-text"), "{text}");
-        assert!(text.contains("--timeout <TIMEOUT>"), "{text}");
-        assert!(text.contains("**Default:** `10`"), "{text}");
-    }
-
-    #[tokio::test]
-    async fn an_alias_and_the_sbrs_prefix_find_the_command() {
-        for given in ["obfuscate", "sbrs encrypt", "Encrypt"] {
-            let answer = call("cli_help", json!({ "command": given })).await.unwrap();
-            assert!(
-                answer.as_text().unwrap().starts_with("## sbrs encrypt"),
-                "{given}"
-            );
-        }
-    }
-
-    #[tokio::test]
-    async fn the_overview_keeps_one_line_for_each_global_flag_and_global_gives_them_in_full() {
-        let overview = call("cli_help", json!({})).await.unwrap();
-        let overview = overview.as_text().unwrap();
-        assert!(overview.contains("--webdriver <URL>"), "{overview}");
-        assert!(!overview.contains("**Choices:**"), "{overview}");
-        assert!(!overview.contains("Adds to the plugins"), "{overview}");
-
-        for given in ["global", "sbrs", "Global Flags"] {
-            let full = call("cli_help", json!({ "command": given })).await.unwrap();
-            let full = full.as_text().unwrap();
-            assert!(full.starts_with("## sbrs"), "{given}: {full}");
-            assert!(full.contains("**Choices:** `chrome`"), "{given}");
-            assert!(
-                full.contains("Adds to the plugins the settings file"),
-                "{given}"
-            );
-        }
-    }
-
-    #[test]
-    fn a_command_is_read_as_the_page_names_it() {
-        assert_eq!(bare("  SBRS Wait_For_Text "), "wait-for-text");
-        assert_eq!(bare("sbrs plugin list"), "plugin list");
-        assert_eq!(bare("sbrs"), "");
-        assert_eq!(bare("global"), "");
-        // Only the word `sbrs` is dropped, not letters a command starts with.
-        assert_eq!(bare("sbrsx"), "sbrsx");
-    }
-
-    #[tokio::test]
-    async fn a_group_of_commands_shows_itself_and_its_subcommands() {
-        let answer = call("cli_help", json!({ "command": "plugin" }))
-            .await
-            .unwrap();
-
-        let text = answer.as_text().unwrap();
-        assert!(text.contains("## sbrs plugin list"), "{text}");
-        assert!(text.contains("## sbrs plugin info"), "{text}");
-    }
-
-    #[tokio::test]
-    async fn an_unknown_command_is_an_error_with_the_nearest_name() {
-        let error = call("cli_help", json!({ "command": "opn" }))
-            .await
-            .unwrap_err();
-
-        assert!(
-            matches!(&error, ToolError::InvalidArgument { name, reason }
-                if name == "command" && reason.contains("did you mean `open`?")),
-            "{error}"
-        );
     }
 
     // ------------------------------------------------------------------

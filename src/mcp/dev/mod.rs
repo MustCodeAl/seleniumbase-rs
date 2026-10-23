@@ -29,6 +29,8 @@ mod api;
 mod author;
 mod cli;
 mod diagnose;
+mod help;
+mod spec;
 
 pub use cli::{InstallFuture, Installer};
 
@@ -73,6 +75,7 @@ pub fn host_with_installer(settings: Settings, installer: Installer) -> Host<NoB
 fn tools(installer: Installer) -> Vec<ToolDef<NoBrowser>> {
     let mut tools = api::tools();
     tools.extend(author::tools());
+    tools.extend(help::tools());
     tools.extend(cli::tools(installer));
     tools.extend(diagnose::tools());
     tools.extend(devtools::environment_tools());

@@ -570,7 +570,8 @@ async fn the_dev_server_speaks_mcp_over_stdio_and_needs_no_browser() {
     );
 
     let help = mcp.text("cli_help", json!({ "command": "install" })).await;
-    assert!(help.starts_with("## sbrs install"), "{help}");
+    assert!(help.starts_with("sbrs install\n"), "{help}");
+    assert!(help.contains("\nUsage: sbrs install"), "{help}");
 
     let explained = mcp
         .json(

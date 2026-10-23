@@ -161,6 +161,7 @@ fn score(entry: &ApiEntry, words: &[String]) -> Option<u32> {
 /// What a search found: every match, best first.
 #[derive(Debug)]
 pub(super) struct Found<'a> {
+    /// Each match with its score, the best score first.
     pub matches: Vec<(u32, &'a ApiEntry)>,
 }
 
