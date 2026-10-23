@@ -32,6 +32,7 @@ mod export;
 mod failure;
 mod host;
 mod journal;
+mod progress;
 mod schema;
 mod support;
 mod tool;
@@ -48,6 +49,7 @@ pub use host::{
     Closeable, Ctx, Host, Session, Settings, Started, OUTPUT_DIR_VAR, UNTRUSTED_META_KEY,
     UNTRUSTED_NOTICE,
 };
+pub use progress::{Progress, ProgressSink, ProgressUpdate};
 pub use schema::{Prop, Schema};
 pub use tool::{Args, Effect, Output, ToolDef, ToolError, ToolFuture};
 

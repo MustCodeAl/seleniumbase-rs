@@ -54,6 +54,8 @@ pub(crate) struct CallRecord {
     outcome_chars: usize,
     /// When the call ended, as RFC 3339 local time.
     pub(crate) at: String,
+    /// How long the call took, in milliseconds; 0 when it was not timed.
+    pub(crate) ms: u64,
 }
 
 impl CallRecord {
@@ -81,7 +83,14 @@ impl CallRecord {
             outcome: kept,
             outcome_chars: outcome.chars().count(),
             at: chrono::Local::now().to_rfc3339(),
+            ms: 0,
         }
+    }
+
+    /// The record with the time the call took.
+    pub(crate) fn with_elapsed(mut self, elapsed: std::time::Duration) -> Self {
+        self.ms = u64::try_from(elapsed.as_millis()).unwrap_or(u64::MAX);
+        self
     }
 
     /// The record as JSON for a bug report: the values of arguments that may
@@ -113,6 +122,7 @@ impl CallRecord {
             },
             "error": if self.ok { Value::Null } else { Value::String(self.outcome.clone()) },
             "at": self.at,
+            "ms": self.ms,
         })
     }
 }

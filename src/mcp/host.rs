@@ -17,6 +17,7 @@ use tokio::sync::{Mutex, OwnedMappedMutexGuard, OwnedMutexGuard};
 
 use super::failure::{concerns_page, focus_selector, FailureReport, PROBE_TIMEOUT};
 use super::journal::{CallRecord, Journal};
+use super::progress::{Progress, ProgressSink};
 use super::tool::{Args, Output, ToolDef, ToolError};
 use crate::config::plugins::PluginSelection;
 use crate::error::closest_match;
@@ -141,6 +142,7 @@ pub struct Ctx<S> {
     slot: Arc<Mutex<Option<S>>>,
     settings: Arc<Settings>,
     journal: Arc<std::sync::Mutex<Journal>>,
+    progress: Progress,
 }
 
 impl<S> Clone for Ctx<S> {
@@ -149,6 +151,7 @@ impl<S> Clone for Ctx<S> {
             slot: Arc::clone(&self.slot),
             settings: Arc::clone(&self.settings),
             journal: Arc::clone(&self.journal),
+            progress: self.progress.clone(),
         }
     }
 }
@@ -169,6 +172,7 @@ impl<S: Send + 'static> Ctx<S> {
             slot: Arc::new(Mutex::new(None)),
             settings: Arc::new(settings),
             journal: Arc::default(),
+            progress: Progress::default(),
         }
     }
 
@@ -185,6 +189,23 @@ impl<S: Send + 'static> Ctx<S> {
     pub(crate) fn calls(&self) -> (Vec<CallRecord>, usize) {
         let journal = self.journal.lock().unwrap_or_else(PoisonError::into_inner);
         (journal.calls(), journal.dropped())
+    }
+
+    /// Where this call reports its progress.
+    ///
+    /// Reporting is always safe: without a client that asked for progress,
+    /// [`Progress::report`] does nothing.
+    #[must_use]
+    pub fn progress(&self) -> Progress {
+        self.progress.clone()
+    }
+
+    /// This context with `progress` as the report channel of one call.
+    fn with_progress(&self, progress: Progress) -> Self {
+        Self {
+            progress,
+            ..self.clone()
+        }
     }
 
     /// Where tools may write files.
@@ -350,6 +371,25 @@ impl<S: Send + 'static> Host<S> {
         name: &str,
         arguments: Map<String, Value>,
     ) -> Result<Output, ToolError> {
+        self.call_with(name, arguments, None).await
+    }
+
+    /// Runs one tool like [`call`](Self::call), reporting its progress to
+    /// `progress` when the tool reports any.
+    ///
+    /// `tools/call` does this when the client sent a progress token. A tool
+    /// that never reports, and a call without a sink, behave as in
+    /// [`call`](Self::call).
+    ///
+    /// # Errors
+    ///
+    /// As [`call`](Self::call).
+    pub async fn call_with(
+        &self,
+        name: &str,
+        arguments: Map<String, Value>,
+        progress: Option<ProgressSink>,
+    ) -> Result<Output, ToolError> {
         let tool = self
             .shared
             .tools
@@ -357,20 +397,18 @@ impl<S: Send + 'static> Host<S> {
             .find(|tool| tool.name() == name)
             .ok_or_else(|| ToolError::UnknownTool(name.to_owned()))?;
         let logged = arguments.clone();
+        let started = std::time::Instant::now();
         let result = tool
-            .call(self.shared.ctx.clone(), Args::new(arguments))
+            .call(self.ctx_for(progress), Args::new(arguments))
             .await;
         let outcome = match &result {
             Ok(output) => output.render(),
             Err(error) => error.to_string(),
         };
-        self.shared.ctx.record(CallRecord::new(
-            name,
-            tool.effect(),
-            &logged,
-            result.is_ok(),
-            &outcome,
-        ));
+        self.shared.ctx.record(
+            CallRecord::new(name, tool.effect(), &logged, result.is_ok(), &outcome)
+                .with_elapsed(started.elapsed()),
+        );
         result
     }
 
@@ -418,6 +456,15 @@ impl<S: Send + 'static> Host<S> {
             _ => None,
         };
         FailureReport::new(tool, arguments, error, page, &|name| self.has_tool(name))
+    }
+
+    /// The context one call runs with: the shared session and journal, and
+    /// the progress channel of that call.
+    fn ctx_for(&self, progress: Option<ProgressSink>) -> Ctx<S> {
+        match progress {
+            Some(sink) => self.shared.ctx.with_progress(Progress::new(sink)),
+            None => self.shared.ctx.clone(),
+        }
     }
 
     fn find_tool(&self, name: &str) -> Option<&ToolDef<S>> {
@@ -519,11 +566,19 @@ impl<S: Send + 'static> ServerHandler for Host<S> {
     fn call_tool(
         &self,
         request: CallToolRequestParams,
-        _context: RequestContext<RoleServer>,
+        context: RequestContext<RoleServer>,
     ) -> impl Future<Output = Result<CallToolResponse, ErrorData>> + '_ {
         async move {
             let arguments = request.arguments.unwrap_or_default();
-            match self.call(&request.name, arguments.clone()).await {
+            // A client that wants progress puts a token in the request's `_meta`.
+            let progress = context
+                .meta
+                .get_progress_token()
+                .map(|token| ProgressSink::to_peer(context.peer.clone(), token));
+            match self
+                .call_with(&request.name, arguments.clone(), progress)
+                .await
+            {
                 Ok(output) => Ok(self.success_result(&request.name, &output)),
                 Err(ToolError::UnknownTool(name)) => {
                     Err(ErrorData::invalid_params(self.unknown_tool(&name), None))

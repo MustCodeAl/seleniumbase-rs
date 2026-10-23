@@ -10,8 +10,8 @@
 use std::time::Duration;
 
 use seleniumbase_rs::mcp::{
-    Args, Ctx, Effect, Host, Output, Schema, Settings, ToolDef, ToolError, UNTRUSTED_META_KEY,
-    UNTRUSTED_NOTICE,
+    Args, Ctx, Effect, Host, Output, ProgressSink, ProgressUpdate, Schema, Settings, ToolDef,
+    ToolError, UNTRUSTED_META_KEY, UNTRUSTED_NOTICE,
 };
 use serde_json::{json, Value};
 use tokio::io::{
@@ -288,4 +288,109 @@ async fn untrusted_structured_output_keeps_a_clean_structured_value() {
     let text = result["content"][0]["text"].as_str().expect("a text block");
     assert!(text.starts_with(UNTRUSTED_NOTICE), "{text}");
     assert_eq!(result["_meta"][UNTRUSTED_META_KEY], json!(true));
+}
+
+// ----------------------------------------------------------------------
+// Progress
+// ----------------------------------------------------------------------
+
+/// A tool that reports three steps and then finishes.
+fn slow_tool() -> ToolDef<()> {
+    tool("slow", |ctx: Ctx<()>, _args: Args| async move {
+        let progress = ctx.progress();
+        progress.report(1, Some(3), "one").await;
+        progress.report(2, Some(3), "two").await;
+        progress.report(3, Some(3), "three").await;
+        Ok(Output::from("done"))
+    })
+}
+
+fn progress_notifications(client: &Client) -> Vec<&Value> {
+    client
+        .notifications
+        .iter()
+        .filter(|message| message["method"] == "notifications/progress")
+        .collect()
+}
+
+#[tokio::test]
+async fn a_progress_token_turns_reports_into_notifications() {
+    let mut client = Client::start(host_with(vec![slow_tool()])).await;
+
+    let result = client
+        .result(
+            "tools/call",
+            json!({ "name": "slow", "arguments": {}, "_meta": { "progressToken": "tok-1" } }),
+        )
+        .await;
+
+    assert_eq!(result["content"][0]["text"], "done");
+    let seen = progress_notifications(&client);
+    assert_eq!(seen.len(), 3, "{:?}", client.notifications);
+    for (index, notification) in seen.iter().enumerate() {
+        let params = &notification["params"];
+        assert_eq!(params["progressToken"], "tok-1");
+        assert_eq!(
+            params["progress"].as_f64(),
+            Some([1.0, 2.0, 3.0][index]),
+            "progress grows by one each time"
+        );
+        assert_eq!(params["total"].as_f64(), Some(3.0));
+    }
+    assert_eq!(seen[0]["params"]["message"], "one");
+    assert_eq!(seen[2]["params"]["message"], "three");
+}
+
+#[tokio::test]
+async fn a_numeric_progress_token_is_echoed_as_a_number() {
+    let mut client = Client::start(host_with(vec![slow_tool()])).await;
+
+    client
+        .result(
+            "tools/call",
+            json!({ "name": "slow", "arguments": {}, "_meta": { "progressToken": 7 } }),
+        )
+        .await;
+
+    let seen = progress_notifications(&client);
+    assert_eq!(seen.len(), 3);
+    assert_eq!(seen[0]["params"]["progressToken"], json!(7));
+    assert!(seen[0]["params"]["progressToken"].is_i64());
+}
+
+#[tokio::test]
+async fn without_a_progress_token_nothing_is_sent() {
+    let mut client = Client::start(host_with(vec![slow_tool()])).await;
+
+    let result = client.call("slow", json!({})).await;
+    // Anything the server sent before this answer would be in the list too.
+    client.request("ping", json!({})).await;
+
+    assert_eq!(result["content"][0]["text"], "done");
+    assert!(
+        progress_notifications(&client).is_empty(),
+        "{:?}",
+        client.notifications
+    );
+}
+
+#[tokio::test]
+async fn call_with_hands_reports_to_the_given_sink() {
+    let host = host_with(vec![slow_tool()]);
+    let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let log = std::sync::Arc::clone(&seen);
+    let sink = ProgressSink::new(move |update: ProgressUpdate| {
+        log.lock().unwrap().push(update);
+        std::future::ready(Ok::<(), String>(()))
+    });
+
+    let output = host
+        .call_with("slow", serde_json::Map::new(), Some(sink))
+        .await
+        .expect("the call succeeds");
+
+    assert_eq!(output.as_text(), Some("done"));
+    let seen = seen.lock().unwrap();
+    let steps: Vec<_> = seen.iter().map(|update| update.progress).collect();
+    assert_eq!(steps, [1, 2, 3]);
 }
