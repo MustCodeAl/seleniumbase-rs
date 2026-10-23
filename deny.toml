@@ -11,16 +11,6 @@ all-features = true
 # Each ignore needs a rationale and, where the fix is upstream, a pointer to
 # what we are waiting on.
 ignore = [
-    # RUSTSEC-2026-0194: quick-xml 0.38 denial-of-service (unbounded
-    # namespace-declaration allocation). Reached only through `rust-s3` and
-    # `aws-creds`, which are pulled in by the optional, off-by-default `s3`
-    # feature and still pin quick-xml 0.38 in their latest releases. The
-    # parser only ever sees XML returned by the S3 endpoint the operator
-    # configured, so exploiting it requires a malicious or compromised
-    # endpoint. Drop this once upstream moves to quick-xml >= 0.41:
-    # https://github.com/durch/rust-s3
-    "RUSTSEC-2026-0194",
-
     # RUSTSEC-2025-0141: bincode 1.x unmaintained. Reached only through
     # printpdf -> azul-layout -> hyphenation, and printpdf is a
     # dev-dependency, so this never ships in the library or the binaries.
