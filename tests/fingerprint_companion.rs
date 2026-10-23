@@ -11,7 +11,8 @@ const FROM_THE_EXTENSION: &str = include_str!("fixtures/fingerprint/companion_pa
 
 #[test]
 fn the_page_report_of_the_extension_is_a_fingerprint() {
-    let fingerprint = Fingerprint::from_json(FROM_THE_EXTENSION).expect("the extension's file loads");
+    let fingerprint =
+        Fingerprint::from_json(FROM_THE_EXTENSION).expect("the extension's file loads");
 
     let report = fingerprint.validate();
     assert!(report.is_coherent(), "{:?}", report.errors);
@@ -26,7 +27,10 @@ fn the_page_report_of_the_extension_is_a_fingerprint() {
         "media_devices",
         "client_hints",
     ] {
-        assert!(claimed.contains(&setting), "{setting} is not in {claimed:?}");
+        assert!(
+            claimed.contains(&setting),
+            "{setting} is not in {claimed:?}"
+        );
     }
 }
 

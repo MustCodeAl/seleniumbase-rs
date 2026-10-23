@@ -20,7 +20,6 @@ use std::thread;
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Page};
 use seleniumbase_rs::stealth::capture::capture_expression;
 use seleniumbase_rs::{BrowserType, Fingerprint, Spoof};
-use serde_json::Value;
 
 const PAGE: &str = "<!doctype html><title>capture</title><p>capture</p>";
 
@@ -94,7 +93,7 @@ async fn a_real_chrome_is_captured_and_presents_what_it_captured() {
     );
     assert!(fp.webgl().is_value() || captured.unanswered().iter().any(|(s, _)| *s == "webgl"));
     assert!(fp.media_devices().is_value());
-    assert_eq!(captured.probe.url.starts_with("http://127.0.0.1:"), true);
+    assert!(captured.probe.url.starts_with("http://127.0.0.1:"));
     assert!(captured.probe.browser_version.is_some());
 
     // It is coherent, and the file is the one file format.
