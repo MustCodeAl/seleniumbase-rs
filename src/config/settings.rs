@@ -14,6 +14,10 @@ use crate::stealth::fingerprint::Fingerprint;
 /// The variable that names the fingerprint file to apply to every browser.
 pub const FINGERPRINT_ENV: &str = "SB_FINGERPRINT";
 
+/// The variable that names the page every browser opens first (Python's `--start-page`;
+/// `--start-page`, `--url` and `--start_page` on `sbrs`).
+pub const START_PAGE_ENV: &str = "SB_START_PAGE";
+
 /// The `[fingerprint]` table of the settings file: which fingerprint file every browser
 /// of the run presents (`SB_FINGERPRINT`, and `--fingerprint` on `sbrs`).
 ///
@@ -128,6 +132,11 @@ pub struct Settings {
     /// does it for a `BaseCase`.
     #[serde(default, skip_serializing_if = "FingerprintSettings::is_empty")]
     pub fingerprint: FingerprintSettings,
+    /// The page every browser opens first (`SB_START_PAGE`, the `start_page` key, and
+    /// `--start-page` on `sbrs`; Python's `--start-page`). It becomes
+    /// [`BrowserConfig::start_page`], which `BaseCase::new` opens. `None` opens no page.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start_page: Option<String>,
 }
 
 /// The settings a command line asked for explicitly, and nothing else.
@@ -196,6 +205,8 @@ pub struct SettingsOverrides {
     pub esc_end: Option<bool>,
     /// Write recordings as pure CDP code (`SB_REC_SB_CDP`).
     pub rec_sb_cdp: Option<bool>,
+    /// The page every browser opens first (`SB_START_PAGE`).
+    pub start_page: Option<String>,
 }
 
 impl SettingsOverrides {
@@ -252,6 +263,9 @@ impl SettingsOverrides {
         if let Some(rec_sb_cdp) = self.rec_sb_cdp {
             settings.rec_sb_cdp = rec_sb_cdp;
         }
+        if let Some(page) = &self.start_page {
+            settings.start_page = Some(page.clone());
+        }
     }
 
     /// The `SB_*` environment variables that carry these options to a child
@@ -284,6 +298,7 @@ impl SettingsOverrides {
                 .map(|threads| ("SB_THREADS", threads.to_string())),
             flag("SB_ESC_END", self.esc_end),
             flag("SB_REC_SB_CDP", self.rec_sb_cdp),
+            text(START_PAGE_ENV, &self.start_page),
         ]
         .into_iter()
         .flatten()
@@ -369,6 +384,7 @@ impl Default for Settings {
             chrome_bin: None,
             plugins: PluginSelection::default(),
             fingerprint: FingerprintSettings::default(),
+            start_page: None,
         }
     }
 }
@@ -764,7 +780,7 @@ impl Settings {
             mobile: self.mobile,
             threads: self.threads,
             auto_start_driver: true,
-            start_page: None,
+            start_page: self.start_page.clone(),
             extra_args: Vec::new(),
             fingerprint: self.load_fingerprint().unwrap_or_else(|error| {
                 // A `Settings` that was read is checked already; this is one made by hand.
@@ -913,6 +929,9 @@ impl Settings {
         }
         if let Some(v) = var(FINGERPRINT_ENV) {
             settings.fingerprint.file = Some(PathBuf::from(v));
+        }
+        if let Some(v) = var(START_PAGE_ENV) {
+            settings.start_page = Some(v);
         }
         (settings, problems)
     }
@@ -1221,6 +1240,7 @@ threads = 4
             threads: Some(4),
             esc_end: Some(true),
             rec_sb_cdp: Some(true),
+            start_page: Some("https://example.test/".to_owned()),
         }
     }
 
@@ -1278,6 +1298,10 @@ threads = 4
         assert_eq!(settings.extension_dir.as_deref(), Some("/tmp/ext"));
         assert_eq!(settings.threads, Some(4));
         assert!(settings.esc_end && settings.rec_sb_cdp);
+        assert_eq!(
+            settings.start_page.as_deref(),
+            Some("https://example.test/")
+        );
     }
 
     #[test]
