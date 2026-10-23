@@ -46,10 +46,11 @@ async fn main() -> Result<()> {
 async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
     sb.open(&url).await?;
 
-    // The overlay disappears by itself after two seconds, and the call returns
+    // The message disappears by itself after two seconds, and the call returns
     // once it has, so there is nothing to clean up. (A headless browser cuts
     // the time to 0.75 s.)
-    sb.post_message_for("SeleniumBase Rust demo", Duration::from_secs(2))
+    sb.post_message("SeleniumBase Rust demo")
+        .duration(Duration::from_secs(2))
         .await?;
 
     sb.wait_for_element_visible(TEXT_BOX, 10)

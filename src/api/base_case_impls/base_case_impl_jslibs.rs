@@ -1,9 +1,12 @@
 // JavaScript library injection helpers.
 
 // jQuery, loaded from its own CDN by `BaseCase::activate_jquery`, and the
-// Messenger files, which the pure CDP engine loads from the same places.
+// scripts and settings of Messenger, which the pure CDP engine uses too. The
+// messages `post_message` and its relatives show are built from them.
+use crate::api::messages::{fallback_line, PostMessage};
 use crate::sb_cdp::messenger::{
-    theme_script, MessengerSettings, JQUERY_URL, MESSENGER_CSS_URL, MESSENGER_JS_URL,
+    activate_script, post_markup_script, theme_script, MessageOptions, MessageStyle,
+    MessengerLocation, MessengerSettings, JQUERY_URL,
 };
 
 // The jquery-confirm dialogs of `get_jqc_*`; `JqcDefaults` is imported with
@@ -152,24 +155,25 @@ impl BaseCase {
         .await
     }
 
-    /// Injects the HubSpot Messenger CSS and JS from a CDN, after jQuery, which
-    /// it needs.
+    /// Loads Messenger and what it needs into the page, as Python's
+    /// `activate_messenger` does: jQuery, Underscore, the Messenger script, the
+    /// style sheets of its five themes and its spinner, SeleniumBase's own
+    /// style, and the scripts of the flat and future themes. Then it starts
+    /// Messenger with Python's options: the future theme at the bottom right,
+    /// eight messages at most.
     ///
-    /// Returns once everything has loaded.
+    /// Something the page already has is not loaded again, so calling it twice
+    /// is harmless (the options are set again, though). It returns once
+    /// everything has loaded. A navigation drops Messenger with the page.
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::Download`] if the page cannot load a part.
+    /// Returns an error if the page cannot load one of the files, for example
+    /// when it is offline or its policy blocks scripts from the CDN.
     pub async fn activate_messenger(&self) -> Result<(), SeleniumBaseError> {
-        self.activate_jquery().await?;
-        self.load_page_resource(PageResource::Stylesheet, MESSENGER_CSS_URL, None)
+        self.execute_script(&format!("return {};", activate_script()))
             .await?;
-        self.load_page_resource(
-            PageResource::Script,
-            MESSENGER_JS_URL,
-            Some("typeof window.Messenger !== 'undefined'"),
-        )
-        .await
+        Ok(())
     }
 
     /// Sets the theme, and the border colour and the width when they are
@@ -340,29 +344,38 @@ impl BaseCase {
     /// one of the themes (`flat`, `future`, `block`, `air`, `ice`), one of six
     /// places on the screen and how many messages show at once. `settings` is
     /// a [`MessengerSettings`], or a [`MessengerTheme`] or a
-    /// [`MessengerLocation`] alone, which keeps Python's defaults (flat, bottom
+    /// [`MessengerLocation`] alone, which keeps Python's defaults (future, bottom
     /// right, eight messages) for the rest. It loads Messenger first, through
     /// [`activate_messenger`](Self::activate_messenger), when the page lacks it.
     ///
-    /// The settings are for Messenger, the widget the page itself or a script
-    /// of yours posts with. [`post_message`](Self::post_message) shows a plain
-    /// box of its own and is not themed by this. To recolour Messenger's
-    /// messages instead, see [`set_messenger_color`](Self::set_messenger_color).
+    /// Messages posted afterwards with [`post_message`](Self::post_message) and
+    /// its relatives, and with Messenger itself, follow the settings. To
+    /// recolour Messenger's messages instead, see
+    /// [`set_messenger_color`](Self::set_messenger_color).
     ///
     /// [`MessengerTheme`]: crate::sb_cdp::MessengerTheme
     /// [`MessengerLocation`]: crate::sb_cdp::MessengerLocation
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::Download`] if the page cannot load
-    /// Messenger, and [`SeleniumBaseError::InvalidConfig`] if it is still not
-    /// there afterwards.
+    /// Returns an error if the page cannot load Messenger, and
+    /// [`SeleniumBaseError::InvalidConfig`] if it is still not there
+    /// afterwards.
     pub async fn set_messenger_theme(
         &self,
         settings: impl Into<MessengerSettings>,
     ) -> Result<(), SeleniumBaseError> {
         self.activate_messenger().await?;
-        let script = format!("return {};", theme_script(settings.into()));
+        self.apply_messenger_settings(settings.into()).await
+    }
+
+    /// Gives the Messenger in the page `settings`, which must have been
+    /// loaded.
+    async fn apply_messenger_settings(
+        &self,
+        settings: MessengerSettings,
+    ) -> Result<(), SeleniumBaseError> {
+        let script = format!("return {};", theme_script(settings));
         if self.execute_script(&script).await?.as_bool() == Some(true) {
             return Ok(());
         }

@@ -363,10 +363,17 @@ mod tests_page_scripts {
 
     #[tokio::test]
     async fn a_posted_message_stays_inside_its_string() {
-        let driver = quiet_driver();
+        // Messenger answers true to the post script, so the message is posted
+        // at once and the last script is the one that carries it.
+        let driver = MockWebDriver::start(json!({}), |request| match request.path.as_str() {
+            "/execute/sync" => Reply::Value(json!(true)),
+            _ => Reply::Value(serde_json::Value::Null),
+        });
         let sb = driver.base_case().await;
         for message in HOSTILE {
-            sb.post_message_for(message, Duration::from_millis(1))
+            sb.post_message(message)
+                .duration(Duration::from_millis(1))
+                .pause(false)
                 .await
                 .unwrap();
             assert_carries(&last_script(&driver), &[message]);

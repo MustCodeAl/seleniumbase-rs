@@ -237,19 +237,79 @@ impl BaseCase {
         js_escape(code)
     }
 
-    /// Shows `message` in the page and waits for it to go. Corresponds to
-    /// Python's `post_message(message)`: it stays for the run's message
-    /// duration, 2.55 s unless `RunSettings::with_message_duration` says
-    /// otherwise, cut to 0.75 s in a headless browser; the call returns 0.15 s
-    /// after it has gone (Python's default `pause=True`). For another time, see
-    /// [`post_message_for`](Self::post_message_for).
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the page script fails.
-    pub async fn post_message(&self, message: &str) -> Result<(), SeleniumBaseError> {
-        self.show_message(message, INFO_MESSAGE_COLOR, None, true)
+    /// Shows `message` in the page with Messenger and, by default, waits for it
+    /// to go. Python's `post_message(message, duration=None, pause=True,
+    /// style="info")`: the message is the argument, and `.duration(..)`,
+    /// `.pause(..)` and `.style(..)` are the keywords; see [`PostMessage`].
+    /// The message is HTML, as in Python. It stays for the run's message
+    /// duration (2.55 s unless `RunSettings::with_message_duration` says
+    /// otherwise), at most 0.75 s where nobody watches, and the call returns
+    /// 0.15 s after it has gone. Where Messenger cannot be loaded the message
+    /// is printed instead, as in Python, so awaiting the builder does not fail
+    /// because of the page.
+    pub fn post_message<'a>(&'a self, message: &'a str) -> PostMessage<'a> {
+        PostMessage::new(self, message, MessageStyle::Info)
+    }
+
+    /// Shows the message `call` describes and waits as it asks: the work of
+    /// awaiting a [`PostMessage`]. The message stays for `call`'s duration, else
+    /// the run's message duration, at most 0.75 s where nobody watches.
+    pub(crate) async fn show_messenger_message(&self, call: &PostMessage<'_>) {
+        let shown = self.message_time(call.duration);
+        let options = MessageOptions {
+            duration: shown,
+            pause: call.pause,
+            style: call.style,
+        };
+        if !self.post_with_messenger(call.message, &options).await {
+            println!("{}", fallback_line(call.style, call.message));
+        }
+        if call.pause {
+            tokio::time::sleep(shown + MESSAGE_SETTLE).await;
+        }
+    }
+
+    /// Posts `markup` with Messenger as Python's `post_message` does: try
+    /// at once; if that fails, load Messenger, give it its starting theme and
+    /// try again. False when the message could not be shown.
+    async fn post_with_messenger(&self, markup: &str, options: &MessageOptions) -> bool {
+        let script = format!("return {};", post_markup_script(markup, options));
+        if self.messenger_posted(&script).await {
+            return true;
+        }
+        if self.activate_messenger().await.is_err() {
+            return false;
+        }
+        if self
+            .apply_messenger_settings(self.messenger_defaults())
             .await
+            .is_err()
+        {
+            return false;
+        }
+        self.messenger_posted(&script).await
+    }
+
+    /// Runs a script that answers true when Messenger took the message.
+    async fn messenger_posted(&self, script: &str) -> bool {
+        self.execute_script(script)
+            .await
+            .is_ok_and(|answer| answer.as_bool() == Some(true))
+    }
+
+    /// The theme and place Messenger starts with when a message loads it: the
+    /// future theme at the bottom right, but at the top centre in a mobile
+    /// emulator (Python's `set_messenger_theme` defaults).
+    fn messenger_defaults(&self) -> MessengerSettings {
+        let location = if self.config.mobile {
+            MessengerLocation::TopCenter
+        } else {
+            MessengerLocation::BottomRight
+        };
+        MessengerSettings {
+            location,
+            ..MessengerSettings::default()
+        }
     }
 
     /// Saves the page's HTML as `name` in the logs folder and returns its

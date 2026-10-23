@@ -39,9 +39,6 @@ use thirtyfour::prelude::By;
 /// How long [`BaseCase::highlight`] leaves its outline on an element.
 const HIGHLIGHT_MILLIS: u32 = 900;
 
-/// The background of the box [`BaseCase::post_message`] shows.
-const INFO_MESSAGE_COLOR: &str = "rgba(20,20,20,0.92)";
-
 /// How much longer than the message lasts Python's `post_message` waits.
 const MESSAGE_SETTLE: Duration = Duration::from_millis(150);
 
@@ -1441,28 +1438,6 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Shows `message` in a corner of the page for `duration` and waits for it
-    /// to go (plus 0.15 s), as Python's `post_message(message, duration)` does
-    /// with its default `pause=True`. In a headless browser, where nobody
-    /// watches, `duration` is cut to 0.75 s as in Python. A new message
-    /// replaces the one showing.
-    ///
-    /// It is a plain box, not Python's Messenger widget: see
-    /// [`activate_messenger`](Self::activate_messenger) and
-    /// [`set_messenger_theme`](Self::set_messenger_theme) for the widget.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the page script fails.
-    pub async fn post_message_for(
-        &self,
-        message: &str,
-        duration: Duration,
-    ) -> Result<(), SeleniumBaseError> {
-        self.show_message(message, INFO_MESSAGE_COLOR, Some(duration), true)
-            .await
-    }
-
     /// How long a message stays on the page: `requested`, else the run's
     /// message duration ([`RunSettings::message_duration`]); cut to 0.75 s where
     /// nobody watches (see [`nobody_watches`](Self::nobody_watches)).
@@ -1500,26 +1475,6 @@ impl BaseCase {
             return false;
         }
         self.config.headless || self.config.launch.virtual_display.is_some()
-    }
-
-    /// Shows `message` on a `color` background for [`message_time`] and, with
-    /// `wait`, waits for it to go and 0.15 s more (Python's `pause=True`).
-    ///
-    /// [`message_time`]: Self::message_time
-    async fn show_message(
-        &self,
-        message: &str,
-        color: &str,
-        requested: Option<Duration>,
-        wait: bool,
-    ) -> Result<(), SeleniumBaseError> {
-        let shown = self.message_time(requested);
-        self.execute_script(&page_scripts::toast_script_for(message, color, shown))
-            .await?;
-        if wait {
-            tokio::time::sleep(shown + MESSAGE_SETTLE).await;
-        }
-        Ok(())
     }
 
     /// Captures a screenshot and writes it to `path`.

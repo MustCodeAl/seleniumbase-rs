@@ -187,30 +187,30 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Displays a success toast message on the page for the run's message
-    /// duration ([`RunSettings`](crate::api::run_settings::RunSettings), cut
-    /// to 0.75 s in a headless browser) and waits for it to go, as Python's
-    /// `post_success_message` does with its default `pause=True`. It is a plain
-    /// box, not Python's Messenger widget, and replaces the toast already
-    /// showing.
-    pub async fn post_success_message(&self, message: &str) -> Result<(), SeleniumBaseError> {
-        self.show_message(message, "#28a745", None, true).await
+    /// Shows `message` in the page as a success message with Messenger.
+    /// Corresponds to Python's `post_success_message(message, duration=None,
+    /// pause=True)`: `.duration(..)` and `.pause(..)` are the keywords. It
+    /// behaves as [`post_message`](Self::post_message) does, with the style
+    /// fixed to success.
+    pub fn post_success_message<'a>(&'a self, message: &'a str) -> PostMessage<'a> {
+        PostMessage::new(self, message, MessageStyle::Success)
     }
 
-    /// Displays an error toast message on the page; see
-    /// [`post_success_message`](Self::post_success_message).
-    pub async fn post_error_message(&self, message: &str) -> Result<(), SeleniumBaseError> {
-        self.show_message(message, "#dc3545", None, true).await
+    /// Shows `message` in the page as an error message with Messenger.
+    /// Corresponds to Python's `post_error_message(message, duration=None,
+    /// pause=True)`; see [`post_success_message`](Self::post_success_message).
+    pub fn post_error_message<'a>(&'a self, message: &'a str) -> PostMessage<'a> {
+        PostMessage::new(self, message, MessageStyle::Error)
     }
 
-    /// Displays a toast message and then highlights the element `css`.
+    /// Shows `message` as a success message and highlights the element `css`.
     /// Corresponds to Python's `post_message_and_highlight(message,
     /// selector)`.
     ///
     /// # Errors
     ///
-    /// Returns an error if the message cannot be shown or `css` cannot be
-    /// highlighted (it is not on the page, for example).
+    /// Returns an error if `css` cannot be highlighted (it is not on the page,
+    /// for example).
     pub async fn post_message_and_highlight(
         &self,
         message: &str,
@@ -218,7 +218,7 @@ impl BaseCase {
     ) -> Result<(), SeleniumBaseError> {
         // The message stays while the element is outlined, so this does not
         // wait for it to go first.
-        self.show_message(message, "#ffc107", None, false).await?;
+        self.post_success_message(message).pause(false).await?;
         self.highlight(css).await
     }
 

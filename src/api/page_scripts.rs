@@ -232,31 +232,6 @@ pub(crate) fn console_log_string_script(text: &str) -> String {
     format!("console.log({});", literal(text))
 }
 
-/// Shows `message` in a corner of the page on a `color` background, replacing
-/// the one already there, and removes it after `duration`, to the millisecond,
-/// as Python's `post_message(duration=2.55)` does.
-pub(crate) fn toast_script_for(
-    message: &str,
-    color: &str,
-    duration: std::time::Duration,
-) -> String {
-    let millis = duration.as_millis();
-    format!(
-        "var old = document.getElementById('sb-toast-message'); \
-         if (old) {{ old.remove(); }} \
-         var box = document.createElement('div'); \
-         box.id = 'sb-toast-message'; \
-         box.textContent = {message}; \
-         box.style.cssText = 'position:fixed;top:10px;right:10px;padding:12px;color:#fff;z-index:999999;'; \
-         box.style.background = {color}; \
-         document.body.appendChild(box); \
-         setTimeout(function () {{ if (box.parentNode) {{ box.parentNode.removeChild(box); }} }}, {millis}); \
-         return true;",
-        message = literal(message),
-        color = literal(color)
-    )
-}
-
 /// Removes every element [`AD_BLOCK_SELECTORS`] picks. Returns how many.
 pub(crate) fn ad_block_script() -> String {
     let selectors = serde_json::to_string(AD_BLOCK_SELECTORS).unwrap_or_else(|_| "[]".to_owned());
@@ -294,10 +269,6 @@ mod tests {
             (bring_to_front_script(css), vec![css]),
             (select_by_index_script(css, 1), vec![css]),
             (console_log_string_script(text), vec![text]),
-            (
-                toast_script_for(text, "#fff", std::time::Duration::from_secs(1)),
-                vec![text],
-            ),
         ] {
             let mut rest = script.clone();
             for arg in args {
@@ -318,14 +289,6 @@ mod tests {
     fn a_literal_holds_no_raw_line_or_paragraph_separator() {
         let written = literal("a\u{2028}b\u{2029}c\nd");
         assert_eq!(written, "\"a\\u2028b\\u2029c\\nd\"");
-    }
-
-    #[test]
-    fn a_toast_lasts_the_milliseconds_it_was_given() {
-        let script = toast_script_for("hi", "#fff", std::time::Duration::from_millis(1500));
-        assert!(script.contains(", 1500);"), "{script}");
-        let whole = toast_script_for("hi", "#fff", std::time::Duration::from_secs(2));
-        assert!(whole.contains(", 2000);"), "{whole}");
     }
 
     #[test]
@@ -524,43 +487,6 @@ mod tests {
             .unwrap();
         let seen = page.evaluate("window.seen.join('|')").await.unwrap();
         assert_eq!(seen, "it's `quoted` \"text\"|T");
-        browser.close().await.unwrap();
-    }
-
-    #[tokio::test]
-    #[ignore = "needs Chrome"]
-    async fn a_toast_replaces_the_previous_one_and_goes_away() {
-        let (browser, page) = open_html("<!doctype html><p>page</p>").await;
-        let one_second = std::time::Duration::from_secs(1);
-        page.evaluate(as_call(&toast_script_for("first", "#28a745", one_second)))
-            .await
-            .unwrap();
-        page.evaluate(as_call(&toast_script_for("second", "#dc3545", one_second)))
-            .await
-            .unwrap();
-        let count = page
-            .evaluate("document.querySelectorAll('#sb-toast-message').length")
-            .await
-            .unwrap();
-        assert_eq!(
-            count, 1,
-            "repeated calls must not stack elements with one id"
-        );
-        let text = page
-            .evaluate("document.getElementById('sb-toast-message').textContent")
-            .await
-            .unwrap();
-        assert_eq!(text, "second");
-        tokio::time::sleep(std::time::Duration::from_millis(1600)).await;
-        let gone = page
-            .evaluate("document.getElementById('sb-toast-message') === null")
-            .await
-            .unwrap();
-        assert_eq!(
-            gone,
-            Value::Bool(true),
-            "the toast must vanish after its duration"
-        );
         browser.close().await.unwrap();
     }
 

@@ -127,8 +127,16 @@ mod tests_messenger_theme {
         assert!(script.contains("messenger-on-top"), "{script}");
         assert!(script.contains("messenger-on-left"), "{script}");
         assert!(script.contains("\"maxMessages\":3"), "{script}");
-        // Messenger is loaded first (jQuery, the style sheet, the script).
-        assert!(driver.requests("/execute/async").len() >= 3);
+        // Messenger is loaded first, by one script that waits for every file.
+        assert!(
+            driver
+                .requests("/execute/sync")
+                .iter()
+                .any(|request| request.body["script"]
+                    .as_str()
+                    .is_some_and(|script| script.contains("(async () =>"))),
+            "no script loaded Messenger"
+        );
     }
 
     #[tokio::test]
@@ -146,7 +154,7 @@ mod tests_messenger_theme {
             .await
             .unwrap();
         let script = last_script(&driver);
-        assert!(script.contains("\"theme\":\"flat\""), "{script}");
+        assert!(script.contains("\"theme\":\"future\""), "{script}");
         assert!(script.contains("messenger-on-top"), "{script}");
     }
 

@@ -337,9 +337,32 @@ mod tests_messages {
     }
 
 
+    /// A case on a mock where Messenger takes every message at once: each
+    /// script answers true.
+    async fn messenger_case(config: BrowserConfig) -> (MockWebDriver, BaseCase) {
+        let driver = MockWebDriver::start(json!({}), |request| match request.path.as_str() {
+            "/execute/sync" => Reply::Value(json!(true)),
+            _ => Reply::Value(Value::Null),
+        });
+        let mut config = config.with_webdriver_url(driver.url().to_owned());
+        config.auto_start_driver = false;
+        let sb = BaseCase::new(config).await.unwrap();
+        (driver, sb)
+    }
+
+    /// The scripts that touched Messenger, oldest first.
+    fn messenger_scripts(driver: &MockWebDriver) -> Vec<String> {
+        driver
+            .requests("/execute/sync")
+            .iter()
+            .filter_map(|request| request.body["script"].as_str().map(str::to_owned))
+            .filter(|script| script.contains("Messenger"))
+            .collect()
+    }
+
     #[tokio::test]
-    async fn post_message_shows_the_message_for_the_duration_and_waits_for_it() {
-        let (driver, sb) = case(headed().with_run_settings(
+    async fn post_message_posts_with_messenger_for_the_duration_and_waits_for_it() {
+        let (driver, sb) = messenger_case(headed().with_run_settings(
             RunSettings::default().with_message_duration(Duration::from_millis(120)),
         ))
         .await;
@@ -353,34 +376,209 @@ mod tests_messages {
             started.elapsed()
         );
         let script = last_script(&driver);
-        assert!(script.contains("\"Hello\""), "{script}");
-        assert!(script.contains(", 120);"), "{script}");
+        assert!(script.contains("window.Messenger().post("), "{script}");
+        assert!(script.contains("message: \"Hello\","), "{script}");
+        assert!(script.contains("type: \"info\","), "{script}");
+        assert!(script.contains("hideAfter: 0.12,"), "{script}");
     }
 
     #[tokio::test]
-    async fn post_message_for_shows_the_message_for_the_time_it_is_given() {
-        let (driver, sb) = case(headed()).await;
-        sb.post_message_for("Short", Duration::from_millis(40))
+    async fn the_keywords_reach_the_message_and_the_wait() {
+        let (driver, sb) = messenger_case(headed()).await;
+
+        let started = std::time::Instant::now();
+        sb.post_message("x")
+            .style(MessageStyle::Error)
+            .duration(Duration::from_millis(40))
             .await
             .unwrap();
-        assert!(last_script(&driver).contains(", 40);"));
+        assert!(
+            started.elapsed() >= Duration::from_millis(190),
+            "{:?}",
+            started.elapsed()
+        );
+        let script = last_script(&driver);
+        assert!(script.contains("type: \"error\","), "{script}");
+        assert!(script.contains("hideAfter: 0.04,"), "{script}");
+    }
+
+    #[tokio::test]
+    async fn without_a_pause_the_call_returns_at_once() {
+        let (_driver, sb) = messenger_case(headed().with_run_settings(
+            RunSettings::default().with_message_duration(Duration::from_secs(30)),
+        ))
+        .await;
+        let started = std::time::Instant::now();
+        sb.post_message("x").pause(false).await.unwrap();
+        assert!(started.elapsed() < Duration::from_secs(5), "{:?}", started.elapsed());
+    }
+
+    #[tokio::test]
+    async fn a_message_where_nobody_watches_is_cut_to_three_quarters_of_a_second() {
+        let (driver, sb) = messenger_case(headed().with_headless(true)).await;
+        sb.post_message("x")
+            .duration(Duration::from_secs(5))
+            .pause(false)
+            .await
+            .unwrap();
+        assert!(last_script(&driver).contains("hideAfter: 0.75,"));
+
+        // A shorter time is kept.
+        sb.post_message("x")
+            .duration(Duration::from_millis(100))
+            .pause(false)
+            .await
+            .unwrap();
+        assert!(last_script(&driver).contains("hideAfter: 0.1,"));
+    }
+
+    #[tokio::test]
+    async fn the_success_and_error_messages_fix_the_style() {
+        let (driver, sb) = messenger_case(headed()).await;
+        let quick = Duration::from_millis(1);
+
+        sb.post_success_message("ok")
+            .duration(quick)
+            .pause(false)
+            .await
+            .unwrap();
+        assert!(last_script(&driver).contains("type: \"success\","));
+
+        sb.post_error_message("bad")
+            .duration(quick)
+            .pause(false)
+            .await
+            .unwrap();
+        assert!(last_script(&driver).contains("type: \"error\","));
+
+        sb.post_success_message("odd")
+            .style(MessageStyle::Info)
+            .duration(quick)
+            .pause(false)
+            .await
+            .unwrap();
+        assert!(last_script(&driver).contains("type: \"info\","));
+    }
+
+    #[tokio::test]
+    async fn the_message_is_html_as_in_python() {
+        let (driver, sb) = messenger_case(headed()).await;
+        sb.post_message("<b>Saved</b> & \"more\"")
+            .pause(false)
+            .await
+            .unwrap();
+        let script = last_script(&driver);
+        assert!(
+            script.contains(r#"message: "<b>Saved</b> & \"more\"","#),
+            "{script}"
+        );
+    }
+
+    /// A page that has no Messenger until a script that loads it has run.
+    fn page_that_loads_messenger_on_request() -> MockWebDriver {
+        let loaded = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        MockWebDriver::start(json!({}), move |request| {
+            if request.path != "/execute/sync" {
+                return Reply::Value(Value::Null);
+            }
+            let script = request.body["script"].as_str().unwrap_or_default();
+            if script.contains("(async () =>") {
+                loaded.store(true, std::sync::atomic::Ordering::SeqCst);
+                return Reply::Value(json!(true));
+            }
+            if script.contains("hideOnNavigate") {
+                return Reply::Value(json!(loaded.load(std::sync::atomic::Ordering::SeqCst)));
+            }
+            Reply::Value(json!(true))
+        })
+    }
+
+    async fn case_on(driver: &MockWebDriver, config: BrowserConfig) -> BaseCase {
+        let mut config = config.with_webdriver_url(driver.url().to_owned());
+        config.auto_start_driver = false;
+        BaseCase::new(config).await.unwrap()
+    }
+
+    #[tokio::test]
+    async fn a_page_without_messenger_gets_it_loaded_themed_and_the_message_posted_again() {
+        let driver = page_that_loads_messenger_on_request();
+        let sb = case_on(&driver, headed()).await;
+
+        sb.post_message("Hello").pause(false).await.unwrap();
+
+        let scripts = messenger_scripts(&driver);
+        assert_eq!(scripts.len(), 4, "{scripts:?}");
+        assert!(scripts[0].contains("hideOnNavigate"), "first it posts: {}", scripts[0]);
+        assert!(
+            scripts[1].contains("(async () =>") && scripts[1].contains("messenger-theme-air.min.css"),
+            "then it loads Messenger and its themes: {}",
+            scripts[1]
+        );
+        assert!(
+            scripts[2].contains("\"theme\":\"future\"")
+                && scripts[2].contains("messenger-on-bottom messenger-on-right"),
+            "then it themes it as Python does: {}",
+            scripts[2]
+        );
+        assert!(scripts[3].contains("hideOnNavigate"), "and posts again: {}", scripts[3]);
+    }
+
+    #[tokio::test]
+    async fn a_mobile_emulator_gets_messenger_at_the_top_centre() {
+        let driver = page_that_loads_messenger_on_request();
+        let sb = case_on(&driver, headed().with_mobile(true)).await;
+
+        sb.post_message("Hello").pause(false).await.unwrap();
+
+        let scripts = messenger_scripts(&driver);
+        assert_eq!(scripts.len(), 4, "{scripts:?}");
+        assert!(
+            scripts[2].contains("\"extraClasses\":\"messenger-fixed messenger-on-top\""),
+            "{}",
+            scripts[2]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_page_that_cannot_load_messenger_still_pauses_and_the_call_succeeds() {
+        // Every script fails, as on a page whose policy blocks the files.
+        let driver = MockWebDriver::start(json!({}), |request| match request.path.as_str() {
+            "/execute/sync" => Reply::Error(500, "javascript error"),
+            _ => Reply::Value(Value::Null),
+        });
+        let sb = case_on(
+            &driver,
+            headed().with_run_settings(
+                RunSettings::default().with_message_duration(Duration::from_millis(120)),
+            ),
+        )
+        .await;
+
+        let started = std::time::Instant::now();
+        sb.post_message("Hello").await.unwrap();
+        assert!(
+            started.elapsed() >= Duration::from_millis(270),
+            "{:?}",
+            started.elapsed()
+        );
+        // It tried to post, then to load Messenger, and went no further.
+        let scripts = messenger_scripts(&driver);
+        assert_eq!(scripts.len(), 2, "{scripts:?}");
     }
 
     #[tokio::test]
     async fn a_message_with_a_highlight_does_not_wait_for_the_message_to_go() {
-        let (driver, sb) = case(headed().with_run_settings(
+        let (driver, sb) = messenger_case(headed().with_run_settings(
             RunSettings::default().with_message_duration(Duration::from_secs(30)),
         ))
         .await;
         let started = std::time::Instant::now();
         sb.post_message_and_highlight("Saved", "h1").await.unwrap();
         assert!(started.elapsed() < Duration::from_secs(5), "{:?}", started.elapsed());
-        // The message went first; the highlight is the last script.
-        let scripts: Vec<String> = driver
-            .requests("/execute/sync")
-            .iter()
-            .filter_map(|request| request.body["script"].as_str().map(str::to_owned))
-            .collect();
-        assert!(scripts.iter().any(|script| script.contains(", 30000);")));
+        // The message went first, as a success message of the full time.
+        let scripts = messenger_scripts(&driver);
+        assert!(scripts.iter().any(|script| {
+            script.contains("hideAfter: 30.0,") && script.contains("type: \"success\",")
+        }), "{scripts:?}");
     }
 }
