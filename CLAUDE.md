@@ -130,6 +130,10 @@ binaries with `cargo install --path crates/cli`.
   `SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec`.
   `docs/completions/fig-sbrs.ts` is `sbrs completions fig` through prettier (see the
   README beside it) and is not checked by a test.
+- The `dev` server's `cli_help` embeds `completions/sbrs.usage.kdl` and reads it with the
+  small KDL reader in `src/mcp/dev/spec.rs` (the library may not use `usage-lib`), so a new
+  command or flag reaches it once the spec is written again. A `usage` upgrade that writes
+  the KDL differently shows up as a failing `mcp::dev::spec` test.
 - `src/mcp/dev/api_index.json` (what the `dev` server's `find_api` searches) is generated
   from the public methods of `BaseCase` and the pure CDP engine; a test fails when it is
   stale. Write it again with
