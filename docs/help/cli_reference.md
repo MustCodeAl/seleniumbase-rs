@@ -97,6 +97,7 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs mkrec`](#sbrs-mkrec) | Create a test recording scaffold, or record a test live with --url. |
 | [`sbrs objectify`](#sbrs-objectify) | Objectify a test recording. |
 | [`sbrs open`](#sbrs-open) | Open a URL in the browser. |
+| [`sbrs options`](#sbrs-options) | List the browser options: each flag, its `SB_*` variable and its key in the settings file. |
 | [`sbrs patch-chrome`](#sbrs-patch-chrome) | Patch a Chrome/Chromium binary for native-level spoofing. |
 | [`sbrs patch-chromedriver`](#sbrs-patch-chromedriver) | Patch a chromedriver binary to reduce detection surface. |
 | [`sbrs pdf-text`](#sbrs-pdf-text) | Print the text extracted from a page or PDF URL. |
@@ -155,11 +156,15 @@ One of: `chrome`, `chromium`, `edge`, `firefox`, `brave`, `comet`, `opera`, `saf
 
 Run the browser in headed mode
 
+Also: `--gui`
+
 </ParamField>
 
 <ParamField query="--headless" type="boolean">
 
 Run the browser in headless mode
+
+Also: `--headless2`
 
 </ParamField>
 
@@ -172,6 +177,8 @@ Enable Chrome DevTools Protocol mode
 <ParamField query="--uc" type="boolean">
 
 Enable undetected-chromedriver style evasions
+
+Also: `--undetected`, `--undetectable`
 
 </ParamField>
 
@@ -219,11 +226,15 @@ Also: `--save_screenshot`
 
 Refuse the requests of ad and tracker hosts (Chromium WebDriver sessions)
 
+Also: `--adblock`, `--block-ads`
+
 </ParamField>
 
 <ParamField query="--proxy <PROXY>" type="string">
 
 Proxy (host:port or scheme://host:port); with --proxy-list, a name from the list
+
+Also: `--proxy-server`, `--proxy-string`
 
 </ParamField>
 
@@ -236,6 +247,8 @@ File of proxies to choose from; without --proxy a random one is used
 <ParamField query="--proxy-pac-url <PROXY_PAC_URL>" type="string">
 
 URL to a proxy auto-config (PAC) file
+
+Also: `--pac-url`
 
 </ParamField>
 
@@ -271,6 +284,8 @@ Also: `--reuse-class-session`, `--reuse_class_session`
 
 Use a mobile device emulation profile
 
+Also: `--mobile-emulator`
+
 </ParamField>
 
 <ParamField query="--esc-end" type="boolean">
@@ -293,7 +308,7 @@ Also: `--rec_sb_cdp`
 
 Path to a TOML/JSON settings file
 
-Also: `-c`
+Also: `--settings-file`, `--settings`, `-c`
 
 </ParamField>
 
@@ -318,6 +333,554 @@ Adds to the plugins the settings file (the [plugins] table) and SB_PLUGINS turn 
 Set one option of a plugin, NAME.KEY=VALUE with a TOML VALUE (repeatable)
 
 Quote the whole option so the shell keeps the quotes of a string: --plugin-opt 'shield.level="strict"'. An option given here replaces the same option from SB_PLUGINS or the settings file and keeps the plugin's other options, so the precedence is the command line, then SB_PLUGINS, then the file. The plugin must be turned on by --plugin, SB_PLUGINS or the file. Not available for `sbrs test`: put the options in the [plugins.NAME] table of the settings file.
+
+</ParamField>
+
+<ParamField query="--binary-location <PATH>" type="string">
+
+The browser binary to run
+
+Also: `--bl`
+
+</ParamField>
+
+<ParamField query="--mode <VALUE>" type="string">
+
+The driver mode: webdriver, cdp or uc
+
+</ParamField>
+
+<ParamField query="--chrome [CHROME]" type="string">
+
+Run Chrome
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--edge [EDGE]" type="string">
+
+Run Edge
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--firefox [FIREFOX]" type="string">
+
+Run Firefox
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--brave [BRAVE]" type="string">
+
+Run Brave
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--comet [COMET]" type="string">
+
+Run Comet
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--opera [OPERA]" type="string">
+
+Run Opera
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--safari [SAFARI]" type="string">
+
+Run Safari
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--ie [IE]" type="string">
+
+Run Internet Explorer
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--cft [CFT]" type="string">
+
+Run Chrome for Testing
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--chs [CHS]" type="string">
+
+Run chrome-headless-shell
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--chromium [CHROMIUM]" type="string">
+
+Run Chromium
+
+Also: `--use-chromium`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--headless1 [HEADLESS1]" type="string">
+
+Run headless with chrome-headless-shell (Chrome's old headless mode)
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--locale-code <VALUE>" type="string">
+
+The browser language code, such as fr or ar_eg
+
+</ParamField>
+
+<ParamField query="--server <VALUE>" type="string">
+
+The Selenium Grid server to connect to
+
+</ParamField>
+
+<ParamField query="--port <VALUE>" type="string">
+
+The port of the Selenium Grid server
+
+</ParamField>
+
+<ParamField query="--protocol <VALUE>" type="string">
+
+The protocol of the Selenium Grid server: http or https
+
+</ParamField>
+
+<ParamField query="--chromium-arg <VALUE>" type="string">
+
+Extra Chromium switches, separated by commas
+
+</ParamField>
+
+<ParamField query="--dark-mode [DARK_MODE]" type="string">
+
+Force Chrome's dark theme on web pages
+
+Also: `--dark`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--devtools [DEVTOOLS]" type="string">
+
+Open the developer tools with each tab (headed only)
+
+Also: `--open-devtools`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--disable-features <VALUE>" type="string">
+
+Chromium features to switch off, separated by commas
+
+</ParamField>
+
+<ParamField query="--disable-gpu [DISABLE_GPU]" type="string">
+
+Switch the GPU off
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--disable-ws [DISABLE_WS]" type="string">
+
+Switch web security off
+
+Also: `--dws`, `--disable-web-security`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--guest-mode [GUEST_MODE]" type="string">
+
+Open the browser as a guest
+
+Also: `--guest`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--incognito [INCOGNITO]" type="string">
+
+Open the browser in an incognito window
+
+Also: `--incognito-mode`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--host-resolver-rules <VALUE>" type="string">
+
+Chromium rules that map host names to addresses
+
+</ParamField>
+
+<ParamField query="--no-sandbox [NO_SANDBOX]" type="string">
+
+Start Chromium without its sandbox
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--swiftshader [SWIFTSHADER]" type="string">
+
+Render with SwiftShader, a software WebGL renderer
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--enable-3d-apis [ENABLE_3D_APIS]" type="string">
+
+Keep the GPU on in a headless session, for WebGL
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--maximize [MAXIMIZE]" type="string">
+
+Maximize the browser window
+
+Also: `--maximize-window`, `--fullscreen`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--block-images [BLOCK_IMAGES]" type="string">
+
+Do not load images
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--disable-js [DISABLE_JS]" type="string">
+
+Turn JavaScript off
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--disable-cookies [DISABLE_COOKIES]" type="string">
+
+Refuse every cookie
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--do-not-track [DO_NOT_TRACK]" type="string">
+
+Send the DNT: 1 header
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--external-pdf [EXTERNAL_PDF]" type="string">
+
+Download PDF files instead of showing them
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--enable-sync [ENABLE_SYNC]" type="string">
+
+Leave Chrome Sync on
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--disable-csp [DISABLE_CSP]" type="string">
+
+Strip the Content Security Policy from every response
+
+Also: `--dcsp`, `--no-csp`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--use-auto-ext [USE_AUTO_EXT]" type="string">
+
+Keep Chrome's automation extension
+
+Also: `--auto-ext`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--proxy-driver [PROXY_DRIVER]" type="string">
+
+Download the driver through the proxy
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--page-load-strategy <STRATEGY>" type="string">
+
+How long a navigation waits: normal, eager or none
+
+Also: `--pls`
+
+One of: `normal`, `eager`, `none`
+
+</ParamField>
+
+<ParamField query="--window-size <VALUE>" type="string">
+
+The window size: WIDTH,HEIGHT
+
+</ParamField>
+
+<ParamField query="--window-position <VALUE>" type="string">
+
+The window position: X,Y
+
+</ParamField>
+
+<ParamField query="--device-metrics <VALUE>" type="string">
+
+Emulate a phone screen: WIDTH,HEIGHT,PIXEL_RATIO
+
+Also: `--metrics`
+
+</ParamField>
+
+<ParamField query="--proxy-bypass-list <VALUE>" type="string">
+
+Hosts that skip the proxy
+
+</ParamField>
+
+<ParamField query="--driver-version <VALUE>" type="string">
+
+The driver version: a number, latest, stable, beta, ...
+
+</ParamField>
+
+<ParamField query="--cap-file <PATH>" type="string">
+
+A JSON file of capabilities to add to the session's
+
+</ParamField>
+
+<ParamField query="--cap-string <VALUE>" type="string">
+
+A JSON object of capabilities to add to the session's
+
+</ParamField>
+
+<ParamField query="--extension-zip <VALUE>" type="string">
+
+Extension .zip or .crx files to load, separated by commas
+
+Also: `--crx`
+
+</ParamField>
+
+<ParamField query="--firefox-arg <VALUE>" type="string">
+
+Firefox arguments, separated by commas
+
+</ParamField>
+
+<ParamField query="--firefox-pref <VALUE>" type="string">
+
+Firefox preferences, NAME:VALUE separated by commas
+
+</ParamField>
+
+<ParamField query="--xvfb [XVFB]" type="string">
+
+Open a virtual display for a headed browser on Linux
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--xvfb-metrics <VALUE>" type="string">
+
+The virtual display size: WIDTH,HEIGHT
+
+</ParamField>
+
+<ParamField query="--remote-debug [REMOTE_DEBUG]" type="string">
+
+Open Chrome's remote debugger on port 9222
+
+Also: `--remote-debugger`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--log-cdp-events [LOG_CDP_EVENTS]" type="string">
+
+Log the DevTools Protocol events
+
+Also: `--log-cdp`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--uc-cdp-events [UC_CDP_EVENTS]" type="string">
+
+Log the DevTools Protocol events in undetected mode
+
+Also: `--uc-cdp`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--demo [DEMO]" type="string">
+
+Highlight each element and pause after an action
+
+Also: `--demo-mode`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--slow [SLOW]" type="string">
+
+Pause briefly after each action
+
+Also: `--slow-mode`, `--slowmo`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--demo-sleep <SECONDS>" type="string">
+
+Seconds to pause after each action in demo mode
+
+</ParamField>
+
+<ParamField query="--message-duration <SECONDS>" type="string">
+
+Seconds a message stays on the page
+
+</ParamField>
+
+<ParamField query="--skip-js-waits [SKIP_JS_WAITS]" type="string">
+
+Do not wait for the page's JavaScript to settle
+
+Also: `--sjw`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--highlights <COUNT>" type="string">
+
+How many times to flash a highlighted element
+
+</ParamField>
+
+<ParamField query="--interval <SECONDS>" type="string">
+
+Seconds between the steps of a tour or presentation
+
+</ParamField>
+
+<ParamField query="--verify-delay <SECONDS>" type="string">
+
+Seconds to wait before each MasterQA verification
+
+</ParamField>
+
+<ParamField query="--check-js [CHECK_JS]" type="string">
+
+Check each page for JavaScript errors after it opens
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--wait-for-angularjs [WAIT_FOR_ANGULARJS]" type="string">
+
+Wait for AngularJS after opening a page and clicking
+
+Also: `--wfa`
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--disable-beforeunload [DISABLE_BEFOREUNLOAD]" type="string">
+
+Remove the beforeunload prompt after each page opens
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--visual-baseline [VISUAL_BASELINE]" type="string">
+
+Set the visual baselines again instead of comparing
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--crumbs [CRUMBS]" type="string">
+
+Delete the cookies when a reused browser is handed to the next test
+
+One of: `true`, `false`
+
+</ParamField>
+
+<ParamField query="--timeout-multiplier <VALUE>" type="string">
+
+Multiply the default waits by this number
 
 </ParamField>
 
@@ -2239,6 +2802,35 @@ URL to open in the browser.
 
 ```bash Examples
 sbrs open https://example.com
+```
+
+## sbrs options
+
+List the browser options: each flag, its `SB_*` variable and its key in the settings file.
+
+The same options can be set in the settings file, in the environment and with these flags; the command line wins over the environment, which wins over the file. `--markdown` prints the table for the documentation, and `--all` adds the options of the test run (`sbrs test`).
+
+```bash Usage
+sbrs options [--markdown] [--all]
+```
+
+**Flags**
+
+<ParamField query="--markdown" type="boolean">
+
+Print a Markdown table, for the documentation.
+
+</ParamField>
+
+<ParamField query="--all" type="boolean">
+
+Also list the options of the test run (`sbrs test`).
+
+</ParamField>
+
+```bash Examples
+sbrs options
+sbrs options --markdown
 ```
 
 ## sbrs patch-chrome

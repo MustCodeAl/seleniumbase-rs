@@ -2471,6 +2471,24 @@ const completionSpec: Fig.Spec = {
       ],
     },
     {
+      name: "options",
+      description: "List the browser options: each flag, its `SB_*` variable and its key in the settings file.",
+      options: [
+        {
+          name: "--markdown",
+          description: "Print a Markdown table, for the documentation.",
+        },
+        {
+          name: "--all",
+          description: "Also list the options of the test run (`sbrs test`).",
+        },
+        {
+          name: ["-h", "--help"],
+          description: "Print help",
+        },
+      ],
+    },
+    {
       name: "grid-hub",
       description: "Start, stop, restart or check a Selenium Grid hub.",
       options: [
@@ -3479,12 +3497,12 @@ const completionSpec: Fig.Spec = {
       },
     },
     {
-      name: "--headed",
+      name: ["--headed", "--gui"],
       description: "Run the browser in headed mode",
       isPersistent: true,
     },
     {
-      name: "--headless",
+      name: ["--headless", "--headless2"],
       description: "Run the browser in headless mode",
       isPersistent: true,
     },
@@ -3494,7 +3512,7 @@ const completionSpec: Fig.Spec = {
       isPersistent: true,
     },
     {
-      name: "--uc",
+      name: ["--uc", "--undetected", "--undetectable"],
       description: "Enable undetected-chromedriver style evasions",
       isPersistent: true,
     },
@@ -3536,12 +3554,12 @@ const completionSpec: Fig.Spec = {
       isPersistent: true,
     },
     {
-      name: "--ad-block",
+      name: ["--ad-block", "--adblock", "--block-ads"],
       description: "Refuse the requests of ad and tracker hosts (Chromium WebDriver sessions)",
       isPersistent: true,
     },
     {
-      name: "--proxy",
+      name: ["--proxy", "--proxy-server", "--proxy-string"],
       description: "Proxy (host:port or scheme://host:port); with --proxy-list, a name from the list",
       isPersistent: true,
       args: {
@@ -3558,7 +3576,7 @@ const completionSpec: Fig.Spec = {
       },
     },
     {
-      name: "--proxy-pac-url",
+      name: ["--proxy-pac-url", "--pac-url"],
       description: "URL to a proxy auto-config (PAC) file",
       isPersistent: true,
       args: {
@@ -3594,7 +3612,7 @@ const completionSpec: Fig.Spec = {
       isPersistent: true,
     },
     {
-      name: "--mobile",
+      name: ["--mobile", "--mobile-emulator"],
       description: "Use a mobile device emulation profile",
       isPersistent: true,
     },
@@ -3609,7 +3627,7 @@ const completionSpec: Fig.Spec = {
       isPersistent: true,
     },
     {
-      name: ["-c", "--config"],
+      name: ["-c", "--config", "--settings-file", "--settings"],
       description: "Path to a TOML/JSON settings file",
       isPersistent: true,
       args: {
@@ -3642,6 +3660,655 @@ const completionSpec: Fig.Spec = {
       isPersistent: true,
       args: {
         name: "name.key=value",
+      },
+    },
+    {
+      name: ["--binary-location", "--bl"],
+      description: "The browser binary to run",
+      isPersistent: true,
+      args: {
+        name: "path",
+        template: "filepaths",
+      },
+    },
+    {
+      name: "--mode",
+      description: "The driver mode: webdriver, cdp or uc",
+      isPersistent: true,
+      args: {
+        name: "value",
+      },
+    },
+    {
+      name: "--chrome",
+      description: "Run Chrome",
+      isPersistent: true,
+      args: {
+        name: "chrome",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: "--edge",
+      description: "Run Edge",
+      isPersistent: true,
+      args: {
+        name: "edge",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: "--firefox",
+      description: "Run Firefox",
+      isPersistent: true,
+      args: {
+        name: "firefox",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: "--brave",
+      description: "Run Brave",
+      isPersistent: true,
+      args: {
+        name: "brave",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: "--comet",
+      description: "Run Comet",
+      isPersistent: true,
+      args: {
+        name: "comet",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: "--opera",
+      description: "Run Opera",
+      isPersistent: true,
+      args: {
+        name: "opera",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: "--safari",
+      description: "Run Safari",
+      isPersistent: true,
+      args: {
+        name: "safari",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: "--ie",
+      description: "Run Internet Explorer",
+      isPersistent: true,
+      args: {
+        name: "ie",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: "--cft",
+      description: "Run Chrome for Testing",
+      isPersistent: true,
+      args: {
+        name: "cft",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: "--chs",
+      description: "Run chrome-headless-shell",
+      isPersistent: true,
+      args: {
+        name: "chs",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: ["--chromium", "--use-chromium"],
+      description: "Run Chromium",
+      isPersistent: true,
+      args: {
+        name: "chromium",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: "--headless1",
+      description: "Run headless with chrome-headless-shell (Chrome's old headless mode)",
+      isPersistent: true,
+      args: {
+        name: "headless1",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: "--locale-code",
+      description: "The browser language code, such as fr or ar_eg",
+      isPersistent: true,
+      args: {
+        name: "value",
+      },
+    },
+    {
+      name: "--server",
+      description: "The Selenium Grid server to connect to",
+      isPersistent: true,
+      args: {
+        name: "value",
+      },
+    },
+    {
+      name: "--port",
+      description: "The port of the Selenium Grid server",
+      isPersistent: true,
+      args: {
+        name: "value",
+      },
+    },
+    {
+      name: "--protocol",
+      description: "The protocol of the Selenium Grid server: http or https",
+      isPersistent: true,
+      args: {
+        name: "value",
+      },
+    },
+    {
+      name: "--chromium-arg",
+      description: "Extra Chromium switches, separated by commas",
+      isPersistent: true,
+      args: {
+        name: "value",
+      },
+    },
+    {
+      name: ["--dark-mode", "--dark"],
+      description: "Force Chrome's dark theme on web pages",
+      isPersistent: true,
+      args: {
+        name: "dark_mode",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: ["--devtools", "--open-devtools"],
+      description: "Open the developer tools with each tab (headed only)",
+      isPersistent: true,
+      args: {
+        name: "devtools",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: "--disable-features",
+      description: "Chromium features to switch off, separated by commas",
+      isPersistent: true,
+      args: {
+        name: "value",
+      },
+    },
+    {
+      name: "--disable-gpu",
+      description: "Switch the GPU off",
+      isPersistent: true,
+      args: {
+        name: "disable_gpu",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: ["--disable-ws", "--dws", "--disable-web-security"],
+      description: "Switch web security off",
+      isPersistent: true,
+      args: {
+        name: "disable_ws",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: ["--guest-mode", "--guest"],
+      description: "Open the browser as a guest",
+      isPersistent: true,
+      args: {
+        name: "guest_mode",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: ["--incognito", "--incognito-mode"],
+      description: "Open the browser in an incognito window",
+      isPersistent: true,
+      args: {
+        name: "incognito",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: "--host-resolver-rules",
+      description: "Chromium rules that map host names to addresses",
+      isPersistent: true,
+      args: {
+        name: "value",
+      },
+    },
+    {
+      name: "--no-sandbox",
+      description: "Start Chromium without its sandbox",
+      isPersistent: true,
+      args: {
+        name: "no_sandbox",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: "--swiftshader",
+      description: "Render with SwiftShader, a software WebGL renderer",
+      isPersistent: true,
+      args: {
+        name: "swiftshader",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: "--enable-3d-apis",
+      description: "Keep the GPU on in a headless session, for WebGL",
+      isPersistent: true,
+      args: {
+        name: "enable_3d_apis",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: ["--maximize", "--maximize-window", "--fullscreen"],
+      description: "Maximize the browser window",
+      isPersistent: true,
+      args: {
+        name: "maximize",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: "--block-images",
+      description: "Do not load images",
+      isPersistent: true,
+      args: {
+        name: "block_images",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: "--disable-js",
+      description: "Turn JavaScript off",
+      isPersistent: true,
+      args: {
+        name: "disable_js",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: "--disable-cookies",
+      description: "Refuse every cookie",
+      isPersistent: true,
+      args: {
+        name: "disable_cookies",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: "--do-not-track",
+      description: "Send the DNT: 1 header",
+      isPersistent: true,
+      args: {
+        name: "do_not_track",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: "--external-pdf",
+      description: "Download PDF files instead of showing them",
+      isPersistent: true,
+      args: {
+        name: "external_pdf",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: "--enable-sync",
+      description: "Leave Chrome Sync on",
+      isPersistent: true,
+      args: {
+        name: "enable_sync",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: ["--disable-csp", "--dcsp", "--no-csp"],
+      description: "Strip the Content Security Policy from every response",
+      isPersistent: true,
+      args: {
+        name: "disable_csp",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: ["--use-auto-ext", "--auto-ext"],
+      description: "Keep Chrome's automation extension",
+      isPersistent: true,
+      args: {
+        name: "use_auto_ext",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: "--proxy-driver",
+      description: "Download the driver through the proxy",
+      isPersistent: true,
+      args: {
+        name: "proxy_driver",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: ["--page-load-strategy", "--pls"],
+      description: "How long a navigation waits: normal, eager or none",
+      isPersistent: true,
+      args: {
+        name: "strategy",
+        suggestions: ["normal", "eager", "none"],
+      },
+    },
+    {
+      name: "--window-size",
+      description: "The window size: WIDTH,HEIGHT",
+      isPersistent: true,
+      args: {
+        name: "value",
+      },
+    },
+    {
+      name: "--window-position",
+      description: "The window position: X,Y",
+      isPersistent: true,
+      args: {
+        name: "value",
+      },
+    },
+    {
+      name: ["--device-metrics", "--metrics"],
+      description: "Emulate a phone screen: WIDTH,HEIGHT,PIXEL_RATIO",
+      isPersistent: true,
+      args: {
+        name: "value",
+      },
+    },
+    {
+      name: "--proxy-bypass-list",
+      description: "Hosts that skip the proxy",
+      isPersistent: true,
+      args: {
+        name: "value",
+      },
+    },
+    {
+      name: "--driver-version",
+      description: "The driver version: a number, latest, stable, beta, ...",
+      isPersistent: true,
+      args: {
+        name: "value",
+      },
+    },
+    {
+      name: "--cap-file",
+      description: "A JSON file of capabilities to add to the session's",
+      isPersistent: true,
+      args: {
+        name: "path",
+        template: "filepaths",
+      },
+    },
+    {
+      name: "--cap-string",
+      description: "A JSON object of capabilities to add to the session's",
+      isPersistent: true,
+      args: {
+        name: "value",
+      },
+    },
+    {
+      name: ["--extension-zip", "--crx"],
+      description: "Extension .zip or .crx files to load, separated by commas",
+      isPersistent: true,
+      args: {
+        name: "value",
+      },
+    },
+    {
+      name: "--firefox-arg",
+      description: "Firefox arguments, separated by commas",
+      isPersistent: true,
+      args: {
+        name: "value",
+      },
+    },
+    {
+      name: "--firefox-pref",
+      description: "Firefox preferences, NAME:VALUE separated by commas",
+      isPersistent: true,
+      args: {
+        name: "value",
+      },
+    },
+    {
+      name: "--xvfb",
+      description: "Open a virtual display for a headed browser on Linux",
+      isPersistent: true,
+      args: {
+        name: "xvfb",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: "--xvfb-metrics",
+      description: "The virtual display size: WIDTH,HEIGHT",
+      isPersistent: true,
+      args: {
+        name: "value",
+      },
+    },
+    {
+      name: ["--remote-debug", "--remote-debugger"],
+      description: "Open Chrome's remote debugger on port 9222",
+      isPersistent: true,
+      args: {
+        name: "remote_debug",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: ["--log-cdp-events", "--log-cdp"],
+      description: "Log the DevTools Protocol events",
+      isPersistent: true,
+      args: {
+        name: "log_cdp_events",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: ["--uc-cdp-events", "--uc-cdp"],
+      description: "Log the DevTools Protocol events in undetected mode",
+      isPersistent: true,
+      args: {
+        name: "uc_cdp_events",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: ["--demo", "--demo-mode"],
+      description: "Highlight each element and pause after an action",
+      isPersistent: true,
+      args: {
+        name: "demo",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: ["--slow", "--slow-mode", "--slowmo"],
+      description: "Pause briefly after each action",
+      isPersistent: true,
+      args: {
+        name: "slow",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: "--demo-sleep",
+      description: "Seconds to pause after each action in demo mode",
+      isPersistent: true,
+      args: {
+        name: "seconds",
+      },
+    },
+    {
+      name: "--message-duration",
+      description: "Seconds a message stays on the page",
+      isPersistent: true,
+      args: {
+        name: "seconds",
+      },
+    },
+    {
+      name: ["--skip-js-waits", "--sjw"],
+      description: "Do not wait for the page's JavaScript to settle",
+      isPersistent: true,
+      args: {
+        name: "skip_js_waits",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: "--highlights",
+      description: "How many times to flash a highlighted element",
+      isPersistent: true,
+      args: {
+        name: "count",
+      },
+    },
+    {
+      name: "--interval",
+      description: "Seconds between the steps of a tour or presentation",
+      isPersistent: true,
+      args: {
+        name: "seconds",
+      },
+    },
+    {
+      name: "--verify-delay",
+      description: "Seconds to wait before each MasterQA verification",
+      isPersistent: true,
+      args: {
+        name: "seconds",
+      },
+    },
+    {
+      name: "--check-js",
+      description: "Check each page for JavaScript errors after it opens",
+      isPersistent: true,
+      args: {
+        name: "check_js",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: ["--wait-for-angularjs", "--wfa"],
+      description: "Wait for AngularJS after opening a page and clicking",
+      isPersistent: true,
+      args: {
+        name: "wait_for_angularjs",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: "--disable-beforeunload",
+      description: "Remove the beforeunload prompt after each page opens",
+      isPersistent: true,
+      args: {
+        name: "disable_beforeunload",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: "--visual-baseline",
+      description: "Set the visual baselines again instead of comparing",
+      isPersistent: true,
+      args: {
+        name: "visual_baseline",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: "--crumbs",
+      description: "Delete the cookies when a reused browser is handed to the next test",
+      isPersistent: true,
+      args: {
+        name: "crumbs",
+        isOptional: true,
+        suggestions: ["true", "false"],
+      },
+    },
+    {
+      name: "--timeout-multiplier",
+      description: "Multiply the default waits by this number",
+      isPersistent: true,
+      args: {
+        name: "value",
       },
     },
     {
