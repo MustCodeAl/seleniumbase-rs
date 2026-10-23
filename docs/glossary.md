@@ -73,6 +73,14 @@ An Architecture Decision Record: a short page that records one design decision a
 
 See [ADR 001: Stealth and Fingerprinting Architecture](/adr/001-stealth-architecture).
 
+### AES-GCM
+
+<Badge color="red">Network</Badge>
+
+A symmetric cipher mode that encrypts a message and adds a tag, so a changed message fails to decrypt instead of giving garbage. `sbrs encrypt` uses AES-256-GCM with a random 12-byte nonce.
+
+See [Symmetric and asymmetric encryption](/concepts/encryption#symmetric-and-asymmetric-encryption).
+
 ### Akamai fingerprint
 
 <Badge color="red">Network</Badge>
@@ -88,6 +96,14 @@ See [Wire Formats and Impersonation](/stealth/wire-formats#reading-the-wire-form
 Application-Layer Protocol Negotiation: the part of the TLS handshake where client and server agree on HTTP/1.1 or HTTP/2. On the browser's side, `MitmProxy` offers `http/1.1` only.
 
 See [TLS Server and MitmProxy](/stealth/mitm-proxy).
+
+### Asymmetric encryption
+
+<Badge color="red">Network</Badge>
+
+Encryption with a key pair: the public key locks (or checks a signature) and only the private key unlocks (or signs). It is slow, so it is mostly used to agree on a symmetric key.
+
+See [Symmetric and asymmetric encryption](/concepts/encryption#symmetric-and-asymmetric-encryption).
 
 ### Audio noise
 
@@ -114,6 +130,14 @@ See [Undetected (UC) Mode Guide](/tutorials/uc_mode#what-is-patched-automaticall
 The signal that tells a fast producer of data to wait for a slow consumer, so that queues stay small. A stream with a full queue reports it, and TCP does the same with its receive window.
 
 See [TCP, sockets and streams](/concepts/tcp-and-streams#backpressure).
+
+### Base64
+
+<Badge color="red">Network</Badge>
+
+An encoding that writes bytes as letters, digits and a few symbols. It is not encryption: anyone can decode it, so a Base64 value is never a secret.
+
+See [Encryption and certificates](/concepts/encryption).
 
 ### BaseCase
 
@@ -269,6 +293,14 @@ A helper that connects to a browser's debug WebSocket, turns on the `Fetch` doma
 
 See [CDP Mode Guide](/tutorials/cdp_mode#network-reactor).
 
+### Certificate authority
+
+<Badge color="red">Network</Badge>
+
+An organization that your device trusts to vouch for websites by signing their certificates. A browser follows the signatures from a site's certificate up to a root authority it already holds.
+
+See [Certificates and the chain of trust](/concepts/encryption#certificates-and-the-chain-of-trust).
+
 ### Challenge
 
 <Badge color="purple">Stealth</Badge>
@@ -324,6 +356,14 @@ See [Version control and deployment](/concepts/version-control-and-deployment#co
 The cookie a site gives once a [challenge](#challenge) is solved. It belongs to the address that earned it, so an [identity](#identity) may use it only through the same [egress](#egress).
 
 See [Cookies, Identity and Challenges](/stealth/identity#identity-session-policy-and-the-identity-file).
+
+### Clickjacking
+
+<Badge color="red">Network</Badge>
+
+Tricking a user into clicking something hidden, by framing the target site in an invisible iframe over a decoy. It is defended with the `frame-ancestors` directive or the `X-Frame-Options` header.
+
+See [Clickjacking](/concepts/web-security#clickjacking).
 
 ### Client Hints
 
@@ -381,6 +421,14 @@ A read-only package of layered files plus a start command, built from a Dockerfi
 
 See [Containers](/concepts/containers#images-layers-and-registries).
 
+### Constraint validation
+
+<Badge color="green">Testing</Badge>
+
+The browser's built-in form checks (`required`, `pattern`, `min`, `max` and the input type), which run before a form is sent. The message bubble is drawn by the browser, so a test reads the field's `validationMessage` instead of looking for it in the page.
+
+See [Constraint validation](/concepts/forms#constraint-validation).
+
 ### Content script
 
 <Badge color="orange">Plugins</Badge>
@@ -388,6 +436,22 @@ See [Containers](/concepts/containers#images-layers-and-registries).
 JavaScript that a browser extension runs inside a web page. It sees the page's DOM but runs in an isolated world, with its own variables, so it cannot read the page's JavaScript objects and the page cannot read its.
 
 See [How browser extensions work](/concepts/browser-extensions#the-parts).
+
+### Content Security Policy
+
+<Badge color="red">Network</Badge>
+
+A response header that lists where a page may load and run content from. It blocks injected scripts, which is why a helper that adds an inline script can fail on such a page. `BrowserConfig::with_disable_csp` removes it for a session.
+
+See [Content Security Policy](/concepts/security-policies#content-security-policy).
+
+### Controlled input
+
+<Badge color="green">Testing</Badge>
+
+A form field whose value is kept in a framework's state (React, Vue) and updated by `input` and `change` events. Setting the field's value without those events changes the screen but not the state.
+
+See [Custom widgets and framework-controlled inputs](/concepts/forms#custom-widgets-and-framework-controlled-inputs).
 
 ### Cookie
 
@@ -421,6 +485,22 @@ A program that fetches a page, collects its links and visits those, as search en
 
 See [Crawlers and spiders](/concepts/crawlers-and-spiders#crawling-scraping-and-testing).
 
+### COOP, COEP and CORP
+
+<Badge color="red">Network</Badge>
+
+Three headers that put a page in its own cross-origin isolated group: Cross-Origin-Opener-Policy cuts the link to windows from other origins, Cross-Origin-Embedder-Policy refuses resources that have not opted in, and Cross-Origin-Resource-Policy says who may load a file.
+
+See [Security policies](/concepts/security-policies).
+
+### CORS
+
+<Badge color="red">Network</Badge>
+
+Cross-Origin Resource Sharing: response headers with which a server lets another origin read its answers. Browsers enforce it; command-line HTTP clients do not.
+
+See [Security policies](/concepts/security-policies).
+
 ### crx
 
 <Badge color="orange">Plugins</Badge>
@@ -428,6 +508,14 @@ See [Crawlers and spiders](/concepts/crawlers-and-spiders#crawling-scraping-and-
 The packed Chrome extension format (`.crx`, as CRX3 or the older CRX2). The `crx` plugin unpacks such files into a temporary folder and loads them into a Chromium browser that the plugin set starts; it does not check the signature in the header.
 
 See [crx Plugin](/plugins/crx).
+
+### CSRF
+
+<Badge color="red">Network</Badge>
+
+Cross-site request forgery: a hostile page makes your browser send a request, with your cookies, to a site where you are logged in. It is defended with tokens, SameSite cookies and Origin checks.
+
+See [Cross-site request forgery](/concepts/web-security#cross-site-request-forgery-csrf).
 
 ### CSS selector
 
@@ -494,6 +582,14 @@ See [Developer tools](/concepts/developer-tools#the-panels).
 The address of a running Chrome's remote-debugging port, by default `127.0.0.1:9222`, that other tools attach to. `sbrs devtools` starts a Chrome with one open and prints it; any program on the machine can drive a browser whose endpoint is open.
 
 See [DevTools MCP servers](/tutorials/devtools_mcp).
+
+### Digital signature
+
+<Badge color="red">Network</Badge>
+
+A value made with a private key that anyone with the public key can check, proving who made a message and that it was not changed. It is behind certificates, software updates and signed JWTs.
+
+See [Signatures](/concepts/encryption#signatures).
 
 ### DNS
 
@@ -655,6 +751,14 @@ The delay that follows when one lost TCP packet holds back all the bytes behind 
 
 See [TCP, sockets and streams](/concepts/tcp-and-streams#tcp-a-reliable-pipe).
 
+### Hash function
+
+<Badge color="red">Network</Badge>
+
+A one-way function that turns any input into a short fixed-size fingerprint. A tiny change in the input gives a completely different result. Fast hashes check files; passwords need slow ones.
+
+See [Encryption and certificates](/concepts/encryption).
+
 ### Headed
 
 <Badge color="blue">Engine</Badge>
@@ -670,6 +774,22 @@ See [Headless and Headed Browsers](/tutorials/headless).
 A browser that runs without a window; it still loads pages, runs scripts and takes screenshots and PDFs. The default depends on the entry point: `BrowserConfig::default()` is headless, while `sbrs` and the settings file are headed.
 
 See [Headless and Headed Browsers](/tutorials/headless#defaults).
+
+### HMAC
+
+<Badge color="red">Network</Badge>
+
+A hash mixed with a secret key, so only someone with the key can make or check it. It is used for webhook signatures, HS256 JWTs and TOTP codes.
+
+See [Encryption and certificates](/concepts/encryption).
+
+### HSTS
+
+<Badge color="red">Network</Badge>
+
+HTTP Strict Transport Security: a header that tells the browser to use only https for a host for a set time. It also removes the click-through on certificate errors.
+
+See [Mixed content and HSTS](/concepts/security-policies#mixed-content-and-hsts).
 
 ### HttpOnly
 
@@ -728,6 +848,14 @@ See [Wire Formats and Impersonation](/stealth/wire-formats#an-impersonating-clie
 A database built into the browser, holding objects with indexes and transactions, for each origin. Larger and more capable than `localStorage`, and never sent to the server. Single-page apps often keep tokens and offline data in it.
 
 See [Web storage](/concepts/sessions-and-state#web-storage).
+
+### Injection
+
+<Badge color="red">Network</Badge>
+
+Input that a program treats as a command, such as SQL or shell text. It is defended by keeping data and commands apart, for example with parameterized queries.
+
+See [Injection](/concepts/web-security#injection).
 
 ### Interstitial
 
@@ -796,6 +924,14 @@ See [Syntax Formats](/help/syntax_formats).
 One step of a container image build, which stores the files that step changed. Layers are shared between images and re-used by the build cache.
 
 See [Containers](/concepts/containers#images-layers-and-registries).
+
+### JWT
+
+<Badge color="green">Testing</Badge>
+
+JSON Web Token: a signed note of three Base64URL parts (header, payload and signature). It is signed, not encrypted, so anyone can read its claims.
+
+See [JWTs](/concepts/authentication#jwts).
 
 ### Link text
 
@@ -895,6 +1031,14 @@ A loopback forward proxy in the experimental `mimic` crate. It ends a real Chrom
 
 See [TLS Server and MitmProxy](/stealth/mitm-proxy#mitmproxy).
 
+### Mixed content
+
+<Badge color="red">Network</Badge>
+
+An https page that loads something over plain http. Browsers block active mixed content such as scripts, frames and fetches.
+
+See [Mixed content and HSTS](/concepts/security-policies#mixed-content-and-hsts).
+
 ### Mock browser
 
 <Badge color="green">Testing</Badge>
@@ -913,6 +1057,14 @@ See [Containers](/concepts/containers#the-dockerfile).
 
 ## N
 
+### Multipart form data
+
+<Badge color="red">Network</Badge>
+
+The form body format `multipart/form-data`, in which each field is its own part, separated by a boundary string. It is required for file uploads.
+
+See [How the body is encoded](/concepts/forms#how-the-body-is-encoded).
+
 ### Native spoofing
 
 <Badge color="purple">Stealth</Badge>
@@ -922,6 +1074,38 @@ A [StealthPolicy](#stealthpolicy) option (`native_spoofing`) that delivers a fin
 See [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth#native-level-cdp-spoofing).
 
 ## P
+
+### Nonce
+
+<Badge color="red">Network</Badge>
+
+A number used once. AES-GCM needs a unique one for every message under a key; a Content Security Policy uses a fresh random one per response to mark the page's own inline scripts as allowed.
+
+See [Encryption and certificates](/concepts/encryption) and [Content Security Policy](/concepts/security-policies#content-security-policy).
+
+### OAuth 2.0
+
+<Badge color="green">Testing</Badge>
+
+A standard that lets an app get limited access to an account without seeing the password. A "sign in with" button uses the authorization code flow: a redirect to the provider and back with a one-time code.
+
+See [Authentication](/concepts/authentication).
+
+### OpenID Connect
+
+<Badge color="green">Testing</Badge>
+
+A layer on top of OAuth 2.0 that adds an ID token, a JWT that tells the app who signed in.
+
+See [Authentication](/concepts/authentication).
+
+### OWASP Top 10
+
+<Badge color="red">Network</Badge>
+
+A ranked list of the most common web application risks, published by OWASP. The 2025 edition starts with broken access control.
+
+See [The OWASP Top 10](/concepts/web-security#the-owasp-top-10).
 
 ### Page
 
@@ -963,6 +1147,22 @@ A design in which computers talk to each other directly and each is client and s
 
 See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#peer-to-peer).
 
+### Password hashing
+
+<Badge color="red">Network</Badge>
+
+Storing a password as a deliberately slow, salted hash (Argon2id, scrypt, bcrypt or PBKDF2), so that a stolen database is hard to crack.
+
+See [Encryption and certificates](/concepts/encryption).
+
+### PBKDF2
+
+<Badge color="red">Network</Badge>
+
+A slow key-derivation function that turns a passphrase into a key by repeating HMAC many times. `sbrs encrypt` uses PBKDF2-HMAC-SHA256 with 600,000 iterations and a random salt.
+
+See [Encryption and certificates](/concepts/encryption).
+
 ### peetprint
 
 <Badge color="red">Network</Badge>
@@ -970,6 +1170,14 @@ See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#peer-to-peer).
 A [JA3](#ja3)-like TLS fingerprint that also records the signature algorithms, and shows [GREASE](#grease) as `GREASE`.
 
 See [Wire Formats and Impersonation](/stealth/wire-formats#reading-the-wire-formats).
+
+### Permissions-Policy
+
+<Badge color="red">Network</Badge>
+
+A header that switches browser features such as the camera, geolocation and microphone on or off for a page and its frames. It decides whether a permission prompt may appear at all.
+
+See [Permissions-Policy](/concepts/security-policies#permissions-policy).
 
 ### Persona
 
@@ -1010,6 +1218,14 @@ See [PluginSet](/plugins/api/plugin-set).
 A number from 0 to 65535 that says which program on a machine receives a message. HTTPS uses 443, and `sbrs devtools` listens on 9222 by default.
 
 See [TCP, sockets and streams](/concepts/tcp-and-streams#addresses-and-ports).
+
+### Preflight request
+
+<Badge color="red">Network</Badge>
+
+An `OPTIONS` request the browser sends before a cross-origin request that is not simple (a `PUT`, a JSON body or a custom header), to ask whether the server allows it.
+
+See [Preflighted requests](/concepts/security-policies#preflighted-requests).
 
 ### Proxy
 
@@ -1062,6 +1278,14 @@ See [Recorder Mode Guide](/tutorials/recorder_mode).
 A server that stores container images, such as Docker Hub or `ghcr.io`. An image name has the form `registry/owner/name:tag`.
 
 See [Containers](/concepts/containers#images-layers-and-registries).
+
+### Referrer-Policy
+
+<Badge color="red">Network</Badge>
+
+A header that controls how much of the previous page's address is sent in the `Referer` header when a link is followed.
+
+See [Referrer-Policy](/concepts/security-policies#referrer-policy).
 
 ### Renderer process
 
@@ -1160,6 +1384,14 @@ See [Origins and the same-origin policy](/concepts/sessions-and-state#origins-an
 A cookie attribute that says whether the cookie is sent on requests started from another site: `Strict` never, `Lax` only on top-level navigations (the default in modern browsers), `None` always (and then `Secure` is required). In the pure CDP engine it is the `SameSite` enum.
 
 See [Cookies, in depth](/concepts/sessions-and-state#cookies-in-depth).
+
+### Sandbox
+
+<Badge color="blue">Engine</Badge>
+
+An operating-system cage around the part of a browser that handles web content, so a bug there cannot read files or start programs. The switch `--no-sandbox` removes it.
+
+See [Sandboxing and isolation](/concepts/sandboxing).
 
 ### sbrs
 
@@ -1353,6 +1585,14 @@ One setting of a [Fingerprint](#fingerprint), which is in one of four states: `N
 
 See [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth#one-setting-four-states).
 
+### SSRF
+
+<Badge color="red">Network</Badge>
+
+Server-side request forgery: making a server fetch an address the attacker chooses, such as an internal admin page or a cloud metadata address.
+
+See [Server-side request forgery](/concepts/web-security#server-side-request-forgery-ssrf).
+
 ### Stale element
 
 <Badge color="blue">Engine</Badge>
@@ -1394,6 +1634,22 @@ Helper servers for WebRTC. STUN tells a browser its public address; TURN relays 
 See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#webrtc-and-data-channels).
 
 ## T
+
+### Subresource Integrity
+
+<Badge color="red">Network</Badge>
+
+An `integrity` attribute that holds the hash of a script or stylesheet. The browser refuses the file if its hash does not match.
+
+See [Encryption and certificates](/concepts/encryption).
+
+### Symmetric encryption
+
+<Badge color="red">Network</Badge>
+
+Encryption in which one key locks and unlocks. It is fast, so it carries most traffic; AES is the standard. Both sides must already share the key.
+
+See [Symmetric and asymmetric encryption](/concepts/encryption#symmetric-and-asymmetric-encryption).
 
 ### Target
 
@@ -1656,6 +1912,14 @@ See [Version control and deployment](/concepts/version-control-and-deployment#gi
 A selector language that walks the document tree. A [selector](#selector) that starts with `/`, `//`, `./`, `../` or `(`, or with an axis such as `parent::`, is read as XPath, and `xpath_to_css` converts only simple expressions to CSS.
 
 See [Selectors Guide](/tutorials/selectors#supported-formats).
+
+### XSS
+
+<Badge color="red">Network</Badge>
+
+Cross-site scripting: an attacker's JavaScript runs inside a page that other people view, with that site's rights. It is defended by output encoding, `HttpOnly` cookies and a Content Security Policy.
+
+See [Cross-site scripting](/concepts/web-security#cross-site-scripting-xss).
 
 ### Xvfb
 
