@@ -585,9 +585,9 @@ mod tests_recorder_mode {
                         Reply::Value(json!(now))
                     } else if script.contains("getItem('recorded_actions')") {
                         Reply::Value(json!(open.map_or("", |tab| tab.stored.as_str())))
-                    } else if script.contains("getItem('recorder_activated')") {
-                        Reply::Value(json!("yes"))
-                    } else if script.contains("return document.sb_esc_end") {
+                    } else if script.contains("getItem('recorder_activated')")
+                        || script.contains("return document.sb_esc_end")
+                    {
                         Reply::Value(json!("yes"))
                     } else {
                         Reply::Value(Value::Null)
