@@ -8,6 +8,8 @@ work, `docs/parity.md` the per-API status).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-23
+
 ### Breaking
 
 - **Downloads go to `./downloaded_files`, as in Python SeleniumBase.** `BaseCase::get_downloads_folder`,

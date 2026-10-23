@@ -5,19 +5,19 @@ title: "Changelog"
 Generated from `CHANGELOG.md` by `tools/docs7_changelog.py`. The versions follow
 Semantic Versioning.
 
-## Latest release: v0.5.1
+## Latest release: v0.6.0
 
 <Columns cols={3}>
 
-<Card title="Release notes" icon="github" color="#1a85d4" href="https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.5.1">
-  v0.5.1 on GitHub.
+<Card title="Release notes" icon="github" color="#1a85d4" href="https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.6.0">
+  v0.6.0 on GitHub.
 </Card>
 
-<Card title="Source (.zip)" icon="file-zipper" color="#199f43" href="https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.5.1.zip">
+<Card title="Source (.zip)" icon="file-zipper" color="#199f43" href="https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.6.0.zip">
   The source of this release as a zip archive.
 </Card>
 
-<Card title="Source (.tar.gz)" icon="box-archive" color="#d47628" href="https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.5.1.tar.gz">
+<Card title="Source (.tar.gz)" icon="box-archive" color="#d47628" href="https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.6.0.tar.gz">
   The source of this release as a tarball.
 </Card>
 
@@ -26,12 +26,19 @@ Semantic Versioning.
 The releases publish no prebuilt binaries; install the command line from the tag:
 
 ```bash Terminal
-cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.5.1 seleniumbase-rs-cli
+cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 seleniumbase-rs-cli
 ```
 
 ## All releases
 
-<Update label="Unreleased" description="Next release" tags={["New", "Fix", "Breaking"]}>
+<Update label="Unreleased" description="Next release" tags={[]}>
+
+
+</Update>
+
+<Update label="2026-10-23" description="v0.6.0" tags={["New", "Fix", "Breaking"]}>
+
+**Downloads:** [Release notes](https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.6.0) · [Source (.zip)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.6.0.zip) · [Source (.tar.gz)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.6.0.tar.gz)
 
 ### Breaking
 
@@ -104,6 +111,17 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.5.1 s
   servers, Import and convert, Security, and Info and setup in `sbrs --help`, and a test
   proves that every example parses. The examples are in the usage spec and in
   `docs/help/cli_reference.md`.
+- **The Chromium switches are typed.** `BrowserConfig::with_dark_mode`, `with_guest_mode`,
+  `with_incognito`, `with_devtools`, `with_disable_ws` / `with_enable_ws`, `with_swiftshader`,
+  `with_enable_3d_apis`, `with_maximize`, `with_no_sandbox`, `with_disable_gpu`,
+  `with_headless1` / `with_headless2`, `with_xvfb`, `with_chromium_arg` (Python's comma list,
+  read by `parse_chromium_args`), `with_disable_features` and `with_host_resolver_rules`
+  replace composing `extra_args` by hand. `--incognito` and `--guest` are left out, with a
+  warning, when the session loads an extension. A headless session may keep its GPU
+  (`with_enable_3d_apis`, `with_swiftshader`). Firefox gets `-private` and `-devtools`, and
+  `security.csp.enable` for `--disable-csp`; Firefox and Safari are maximized once running.
+- **`LocaleCode`** reads a language code in Python's form (`ar_eg`) or Chrome's (`ar-EG`) and
+  writes Chrome's.
 - **The start page: `--start-page`, `--url` and `--start_page`, `SB_START_PAGE`, and the
   `start_page` key of the settings file.** Every `sbrs` command starts a fresh browser, so
   a command that acts on a page now acts on this one: `sbrs --url https://example.com
@@ -210,6 +228,23 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.5.1 s
   yet by the nearest folder above it.
 
 ### Changed
+
+- **Mobile mode is a whole phone.** `with_mobile(true)` without metrics now sends the
+  `mobileEmulation` capability with the default screen, which is 390 by 715 at a ratio of 3
+  (it was 411 by 731, and only a window size and a user agent). The undetected mode drops the
+  capability, which a page can see, and sends the same phone over DevTools to every window
+  (`BrowserSession::apply_mobile_emulation`: device metrics, five touch points and the user
+  agent). Firefox, Safari and Internet Explorer log a warning and start as desktop browsers.
+  `MOBILE_USER_AGENT` is public in `browser::options`. The pure CDP engine is not changed
+  here.
+- **`headless1` runs `chrome-headless-shell`** for Chrome with no program of its own named
+  (downloaded when missing); the undetected mode refuses it as it refuses the shell.
+  `chrome-headless-shell` is always headless. `Chrome`'s locale is written `ar-EG` for
+  `--lang` and the `intl.accept_languages` preference, whichever way (`ar_eg`) it was given.
+  A virtual display smaller than 1024 by 768 is raised to that size, as Python does.
+- **`{config:?}` hides credentials.** The `Debug` output of `BrowserConfig` leaves the
+  password out of the proxy, the PAC URL and the WebDriver server URL.
+
 
 - The `driver` MCP server has eight debugging tools it did not have, the same
   definitions as on `sb`: `inspect_page`, `suggest_selectors`, `diagnose_selector`,

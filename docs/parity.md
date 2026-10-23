@@ -22,9 +22,9 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | [Driver methods](#driver-methods) | 79 | 77 | 2 | 0 | 0 |
 | [CDP Mode methods](#cdp-mode-methods) | 215 | 15 | 186 | 14 | 0 |
 | [Command-line commands](#command-line-commands) | 36 | 21 | 7 | 8 | 0 |
-| [pytest options](#pytest-options) | 263 | 112 | 105 | 46 | 0 |
-| [`SB()` arguments](#sb()-arguments) | 107 | 50 | 40 | 17 | 0 |
-| [`Driver()` arguments](#driver()-arguments) | 74 | 40 | 31 | 3 | 0 |
+| [pytest options](#pytest-options) | 263 | 144 | 73 | 46 | 0 |
+| [`SB()` arguments](#sb()-arguments) | 107 | 64 | 26 | 17 | 0 |
+| [`Driver()` arguments](#driver()-arguments) | 74 | 55 | 16 | 3 | 0 |
 | [MCP: CDP server](#mcp-cdp-server) | 24 | 24 | 0 | 0 | 0 |
 | [MCP: Driver server](#mcp-driver-server) | 26 | 26 | 0 | 0 | 0 |
 | [MCP: SB server](#mcp-sb-server) | 88 | 88 | 0 | 0 | 0 |
@@ -876,16 +876,16 @@ Python `--option` flags.
 | `--check_js` | composed | `BaseCase::assert_no_js_errors` | Call it after the page loads. |
 | `--chrome` | composed | `BrowserConfig::browser` | Choose the Browser variant. |
 | `--chromium` | composed | `BrowserConfig::browser` | Choose the Browser variant. |
-| `--chromium-arg` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--chromium_arg` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--chromium-arg` | implemented | `BrowserConfig::with_chromium_arg` |  |
+| `--chromium_arg` | implemented | `BrowserConfig::with_chromium_arg` |  |
 | `--chs` | implemented | `BrowserConfig::browser` | chrome-headless-shell, downloaded into downloaded_drivers/chs/ when missing; it cannot run UC mode. |
 | `--codegen` | composed | `RecorderSession::install` | `RecorderSession::install(&sb)` injects the page recorder, so clicks and typing done by hand in the browser are captured; `drain(&mut sb)` collects them, and `ActionRecorder::to_rust_test` or `save_recording_as_test` writes the test. Nothing is saved when the test ends. BaseCase::start_recording only marks where the log of the test's own BaseCase calls begins. |
 | `--comet` | implemented | `BrowserConfig::browser` | Run with chromedriver; the program is found in Comet's install locations or on the PATH (the Linux location is a guess). |
 | `--crumbs` | composed | `BaseCase::delete_all_cookies` | SB_CRUMBS=1 or `browser::reuse::set_crumbs(true)` (process-wide, as the idle timeout is): with --reuse-session or --rcs, a browser handed to the next test has every cookie deleted (Network.clearBrowserCookies on Chromium, WebDriver's delete-all elsewhere). Without it the cookies stay, as in Python; the other windows are still closed, the page's local and session storage cleared and the page set to about:blank. Without reuse every test has a new browser and no cookies; call delete_all_cookies to clear them within a test. Mock WebDriver tests in browser::reuse check both paths, and tests/crumbs_chrome.rs (ignored) checks them in Chrome. |
 | `--crx` | implemented | `BrowserConfig::with_extension_archive` | A .zip or .crx file, sent in the `extensions` option of `goog:chromeOptions`. Chromium only. |
-| `--dark` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--dark-mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--dark_mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--dark` | implemented | `BrowserConfig::with_dark_mode` |  |
+| `--dark-mode` | implemented | `BrowserConfig::with_dark_mode` |  |
+| `--dark_mode` | implemented | `BrowserConfig::with_dark_mode` |  |
 | `--dash-title` | not-applicable |  | Sets the title of the pytest session dashboard page; write_dashboard_html takes its title from the scenario's name. |
 | `--dash_title` | not-applicable |  | Sets the title of the pytest session dashboard page; write_dashboard_html takes its title from the scenario's name. |
 | `--dashboard` | not-applicable |  | Turns on the live dashboard.html that the pytest session rewrites during a run; a scenario run writes a static report with write_dashboard_html instead. |
@@ -900,34 +900,34 @@ Python `--option` flags.
 | `--demo_sleep` | implemented | `RunSettings::with_demo_sleep` | The pause demo and slow mode make after an action. |
 | `--device-metrics` | implemented | `BrowserConfig::with_device_metrics` | Chrome's `mobileEmulation` experimental option. Differs: Python applies the metrics only together with --mobile; here setting them turns mobile emulation on. |
 | `--device_metrics` | implemented | `BrowserConfig::with_device_metrics` | Chrome's `mobileEmulation` experimental option. Differs: Python applies the metrics only together with --mobile; here setting them turns mobile emulation on. |
-| `--devtools` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--devtools` | implemented | `BrowserConfig::with_devtools` |  |
 | `--disable-beforeunload` | composed | `BaseCase::disable_beforeunload` | Call it after each navigation. |
 | `--disable-cookies` | implemented | `BrowserConfig::with_disable_cookies` | Chrome's cookie content-setting preference, or Firefox's `network.cookie.cookieBehavior`. |
 | `--disable-csp` | implemented | `BrowserConfig::with_disable_csp` | Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only. |
-| `--disable-features` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--disable-gpu` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--disable-features` | implemented | `BrowserConfig::with_disable_features` |  |
+| `--disable-gpu` | implemented | `BrowserConfig::with_disable_gpu` |  |
 | `--disable-js` | implemented | `BrowserConfig::with_disable_js` | Chrome's JavaScript content-setting preference, or Firefox's `javascript.enabled`. |
-| `--disable-web-security` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--disable-ws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--disable-web-security` | implemented | `BrowserConfig::with_disable_ws` |  |
+| `--disable-ws` | implemented | `BrowserConfig::with_disable_ws` |  |
 | `--disable_beforeunload` | composed | `BaseCase::disable_beforeunload` | Call it after each navigation. |
 | `--disable_cookies` | implemented | `BrowserConfig::with_disable_cookies` | Chrome's cookie content-setting preference, or Firefox's `network.cookie.cookieBehavior`. |
 | `--disable_csp` | implemented | `BrowserConfig::with_disable_csp` | Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only. |
-| `--disable_features` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--disable_gpu` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--disable_features` | implemented | `BrowserConfig::with_disable_features` |  |
+| `--disable_gpu` | implemented | `BrowserConfig::with_disable_gpu` |  |
 | `--disable_js` | implemented | `BrowserConfig::with_disable_js` | Chrome's JavaScript content-setting preference, or Firefox's `javascript.enabled`. |
-| `--disable_ws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--disable_ws` | implemented | `BrowserConfig::with_disable_ws` |  |
 | `--do-not-track` | implemented | `BrowserConfig::with_do_not_track` | Chrome's `enable_do_not_track` preference, or Firefox's `privacy.donottrackheader.enabled`. |
 | `--do_not_track` | implemented | `BrowserConfig::with_do_not_track` | Chrome's `enable_do_not_track` preference, or Firefox's `privacy.donottrackheader.enabled`. |
 | `--driver-version` | implemented | `BrowserConfig::with_driver_version` | browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-&lt;version&gt;/, or msedgedriver-&lt;version&gt;/ for Edge. geckodriver takes no version here: one geckodriver drives many Firefox versions, and `sbrs get geckodriver VERSION` pins one. |
 | `--driver_version` | implemented | `BrowserConfig::with_driver_version` | browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-&lt;version&gt;/, or msedgedriver-&lt;version&gt;/ for Edge. geckodriver takes no version here: one geckodriver drives many Firefox versions, and `sbrs get geckodriver VERSION` pins one. |
-| `--dws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--dws` | implemented | `BrowserConfig::with_disable_ws` |  |
 | `--edge` | composed | `BrowserConfig::browser` | Choose Browser::Edge. The session starts msedgedriver itself, from downloaded_drivers/ or the PATH when it fits the installed Edge, else downloaded for that Edge from msedgedriver.microsoft.com; options go in ms:edgeOptions. |
 | `--ee` | implemented | `BrowserConfig::with_esc_end` | Also `sbrs --esc-end` (aliases `--esc_end`, `--ee`), `Settings::esc_end` and SB_ESC_END. BaseCase puts a keydown listener in the page that sets `document.sb_esc_end`, and open, click, click_link_text, highlight, wait_for_element_visible, wait_for_ready_state_complete and the demo highlight of type_text, update_text and press_keys return SeleniumBaseError::Skipped once ESC was pressed; run_browser_test counts that as a skipped test. Differs: Python assigns `document.onkeydown`, replacing the page's own handler; the Rust listener is added once per document with addEventListener, so the page keeps its handlers. A script that fails (an open alert, no page) counts as 'ESC not pressed'. Only the WebDriver engine (BaseCase) has the option. |
-| `--enable-3d-apis` | composed | `BrowserConfig::headless` | Python adds --disable-3d-apis and --disable-gpu unless this is set. A Rust session never adds --disable-3d-apis, and adds --disable-gpu only when it is headless, so a headed session already has 3D APIs on. Differs: A headless session always adds --disable-gpu, and there is no option to leave it out. |
+| `--enable-3d-apis` | implemented | `BrowserConfig::with_enable_3d_apis` | A headless session keeps the GPU. A Rust session never adds --disable-3d-apis. |
 | `--enable-sync` | implemented | `BrowserConfig::with_enable_sync` | Chrome Sync is switched off with `--disable-sync` unless this is set. |
 | `--enable-web-security` | not-applicable |  | Python adds --disable-web-security unless this is set. A Rust session never adds it, so web security is already on and there is nothing to enable. |
 | `--enable-ws` | not-applicable |  | Python adds --disable-web-security unless this is set. A Rust session never adds it, so web security is already on and there is nothing to enable. |
-| `--enable_3d_apis` | composed | `BrowserConfig::headless` | Python adds --disable-3d-apis and --disable-gpu unless this is set. A Rust session never adds --disable-3d-apis, and adds --disable-gpu only when it is headless, so a headed session already has 3D APIs on. Differs: A headless session always adds --disable-gpu, and there is no option to leave it out. |
+| `--enable_3d_apis` | implemented | `BrowserConfig::with_enable_3d_apis` | A headless session keeps the GPU. A Rust session never adds --disable-3d-apis. |
 | `--enable_sync` | implemented | `BrowserConfig::with_enable_sync` | Chrome Sync is switched off with `--disable-sync` unless this is set. |
 | `--enable_ws` | not-applicable |  | Python adds --disable-web-security unless this is set. A Rust session never adds it, so web security is already on and there is nothing to enable. |
 | `--env` | not-applicable |  | Names the test environment (qa, prod, ...) for the pytest plugin; this crate takes per-deploy configuration from SB_* environment variables (RuntimeConfig) instead. |
@@ -952,21 +952,21 @@ Python `--option` flags.
 | `--firefox_pref` | implemented | `FirefoxOptions::add_preferences` | Comma-separated NAME:VALUE; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`. |
 | `--ftrace` | not-applicable |  | Starts Python's pdb trace at the end of each test; Rust has no pdb. Attach a debugger, or open Chrome's debugger with BrowserConfig::with_remote_debug. |
 | `--fullscreen` | composed | `BaseCase::maximize_window` | Alias of --maximize upstream. Call `maximize_window()` once the session has started; it works for Firefox too. A session always starts with a --window-size, so --start-maximized alone is not relied on. |
-| `--guest` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--guest-mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--guest_mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--guest` | implemented | `BrowserConfig::with_guest_mode` |  |
+| `--guest-mode` | implemented | `BrowserConfig::with_guest_mode` |  |
+| `--guest_mode` | implemented | `BrowserConfig::with_guest_mode` |  |
 | `--gui` | composed | `BrowserConfig::headless` | Headed is headless = false. |
 | `--headed` | composed | `BrowserConfig::headless` | Headed is headless = false. |
 | `--headless` | implemented | `BrowserConfig::headless` |  |
-| `--headless1` | composed | `BrowserConfig::browser` | Chrome's old headless mode now exists only as chrome-headless-shell: choose `Browser::ChromeHeadlessShell` as the browser, with `headless` set. `BrowserConfig::headless` alone launches the new mode. |
-| `--headless2` | composed | `BrowserConfig::headless` | `headless = true` launches Chrome's new headless mode (`--headless=new`), which is what headless2 asks for. |
+| `--headless1` | implemented | `BrowserConfig::with_headless1` | Chrome's old headless mode now exists only as chrome-headless-shell: Chrome with no program of its own named runs it (downloaded when missing); the undetected mode cannot. |
+| `--headless2` | implemented | `BrowserConfig::with_headless2` | `headless = true` launches Chrome's new headless mode (`--headless=new`), which is what headless2 asks for. |
 | `--highlights` | not-applicable |  | BaseCase::highlight outlines the element once and restores it after about a second; it has no loop count for a --highlights option to override. |
-| `--host-resolver-rules` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--host_resolver_rules` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--host-resolver-rules` | implemented | `BrowserConfig::with_host_resolver_rules` |  |
+| `--host_resolver_rules` | implemented | `BrowserConfig::with_host_resolver_rules` |  |
 | `--ie` | implemented | `BrowserConfig::browser` | Run with IEDriverServer, which must be in downloaded_drivers/ or on the PATH, on Windows. |
-| `--incognito` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--incognito-mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--incognito_mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--incognito` | implemented | `BrowserConfig::with_incognito` |  |
+| `--incognito-mode` | implemented | `BrowserConfig::with_incognito` |  |
+| `--incognito_mode` | implemented | `BrowserConfig::with_incognito` |  |
 | `--interval` | not-applicable |  | Tour and Presentation here advance only when told, with no autoplay, so there is no interval to override. |
 | `--is-pytest` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--is_pytest` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
@@ -982,7 +982,7 @@ Python `--option` flags.
 | `--log_cdp` | implemented | `BrowserConfig::with_cdp_events` | Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`. |
 | `--log_cdp_events` | implemented | `BrowserConfig::with_cdp_events` | Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`. |
 | `--log_path` | not-applicable |  | Deprecated upstream and no longer editable: logs always go to latest_logs/, as artifacts::ensure_latest_logs_dir does here. |
-| `--maximize` | composed | `BaseCase::maximize_window` | Call `maximize_window()` once the session has started; it works for Firefox too. A session always starts with a --window-size, so --start-maximized alone is not relied on. |
+| `--maximize` | implemented | `BrowserConfig::with_maximize` | A headed Chromium window starts with --start-maximized and no --window-size; Firefox and Safari are maximized once they are running. A headless session ignores it. |
 | `--maximize-window` | composed | `BaseCase::maximize_window` | Call `maximize_window()` once the session has started; it works for Firefox too. A session always starts with a --window-size, so --start-maximized alone is not relied on. |
 | `--maximize_window` | composed | `BaseCase::maximize_window` | Call `maximize_window()` once the session has started; it works for Firefox too. A session always starts with a --window-size, so --start-maximized alone is not relied on. |
 | `--message-duration` | implemented | `RunSettings::with_message_duration` | How long BaseCase::post_message keeps its message, to the millisecond (2.55 s by default, 0.75 s at most in a headless browser). |
@@ -994,14 +994,14 @@ Python `--option` flags.
 | `--multi-proxy` | composed | `LaunchOptionsBuilder::proxy` | Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine passes the proxy as a flag and cannot log in to one. |
 | `--multi_proxy` | composed | `LaunchOptionsBuilder::proxy` | Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine passes the proxy as a flag and cannot log in to one. |
 | `--no-csp` | implemented | `BrowserConfig::with_disable_csp` | Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only. |
-| `--no-sandbox` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--no-sandbox` | implemented | `BrowserConfig::with_no_sandbox` |  |
 | `--no-screenshot` | not-applicable |  | Nothing to turn off: this crate saves a screenshot only when a test or ScreenshotOnFailurePlugin asks for one. |
 | `--no_csp` | implemented | `BrowserConfig::with_disable_csp` | Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only. |
-| `--no_sandbox` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--no_sandbox` | implemented | `BrowserConfig::with_no_sandbox` |  |
 | `--no_screenshot` | not-applicable |  | Nothing to turn off: this crate saves a screenshot only when a test or ScreenshotOnFailurePlugin asks for one. |
 | `--ns` | not-applicable |  | Nothing to turn off: this crate saves a screenshot only when a test or ScreenshotOnFailurePlugin asks for one. |
-| `--open-devtools` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--open_devtools` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--open-devtools` | implemented | `BrowserConfig::with_devtools` |  |
+| `--open_devtools` | implemented | `BrowserConfig::with_devtools` |  |
 | `--opera` | implemented | `BrowserConfig::browser` | Run with operadriver, which must be in downloaded_drivers/ or on the PATH; nothing downloads it. |
 | `--pac-url` | composed | `BrowserConfig::proxy_pac_url` | URL only: a WebDriver session cannot log in to a proxy, so USERNAME:PASSWORD@URL does not authenticate. |
 | `--page-load-strategy` | implemented | `BrowserConfig::with_page_load_strategy` | The `pageLoadStrategy` capability: normal, eager or none. |
@@ -1055,7 +1055,7 @@ Python `--option` flags.
 | `--ss` | composed | `BaseCase::save_teardown_screenshot` | Call it at the end of a test. |
 | `--start-page` | implemented | `BrowserConfig::start_page` | BaseCase::new opens the start page when one is set; BaseCase::open_start_page opens it again (about:blank when none is set). |
 | `--start_page` | implemented | `BrowserConfig::start_page` | BaseCase::new opens the start page when one is set; BaseCase::open_start_page opens it again (about:blank when none is set). |
-| `--swiftshader` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--swiftshader` | implemented | `BrowserConfig::with_swiftshader` |  |
 | `--time-limit` | composed | `BaseCase::set_time_limit` | Once the test has run longer than the limit (counted from creating the BaseCase), its next open, readiness wait or element action fails with a time-limit error; waits are cut to the time left. A test that does none of those is not interrupted: wrap it in `tokio::time::timeout` for a hard stop. |
 | `--time_limit` | composed | `BaseCase::set_time_limit` | Once the test has run longer than the limit (counted from creating the BaseCase), its next open, readiness wait or element action fails with a time-limit error; waits are cut to the time left. A test that does none of those is not interrupted: wrap it in `tokio::time::timeout` for a hard stop. |
 | `--timelimit` | composed | `BaseCase::set_time_limit` | Once the test has run longer than the limit (counted from creating the BaseCase), its next open, readiness wait or element action fails with a time-limit error; waits are cut to the time left. A test that does none of those is not interrupted: wrap it in `tokio::time::timeout` for a hard stop. |
@@ -1126,23 +1126,23 @@ Keyword arguments of `SB()`.
 | `cap_file` | implemented | `CapabilityOverrides::from_file` | Reads JSON or the Python dictionary of a capabilities file without running Python; merged over the session's capabilities with `BrowserConfig::with_capabilities`. Differs: Python's parser reads one key per line; this reads the whole dictionary. |
 | `cap_string` | implemented | `CapabilityOverrides::from_text` | JSON, or a Python dictionary; merged over the session's capabilities with `BrowserConfig::with_capabilities`. |
 | `cft` | implemented | `BrowserConfig::browser` | Chrome for Testing, downloaded into downloaded_drivers/cft/ when missing; the driver follows its version. |
-| `chromium_arg` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `chromium_arg` | implemented | `BrowserConfig::with_chromium_arg` |  |
 | `chs` | implemented | `BrowserConfig::browser` | chrome-headless-shell, downloaded into downloaded_drivers/chs/ when missing; it cannot run UC mode. |
-| `dark_mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `dark_mode` | implemented | `BrowserConfig::with_dark_mode` |  |
 | `data` | not-applicable |  | Passes one free-text string into SB() tests as sb.data; a Rust test reads its own values from std::env or a fixture file. |
 | `demo` | implemented | `RunSettings::with_demo_mode` | Outlines the element and pauses after the actions Python's demo mode covers (open, the clicks, typing, the selects, submit, focus, drag and drop, the window size calls and more); a pause is full after an action that changed the URL and 1/3.4 of it after one that did not; hand the settings to BaseCase::set_run_settings. |
 | `demo_sleep` | implemented | `RunSettings::with_demo_sleep` | The pause demo and slow mode make after an action. |
 | `device_metrics` | implemented | `BrowserConfig::with_device_metrics` | Chrome's `mobileEmulation` experimental option. Differs: Python applies the metrics only together with --mobile; here setting them turns mobile emulation on. |
-| `devtools` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `devtools` | implemented | `BrowserConfig::with_devtools` |  |
 | `disable_beforeunload` | composed | `BaseCase::disable_beforeunload` | Call it after each navigation. |
 | `disable_cookies` | implemented | `BrowserConfig::with_disable_cookies` | Chrome's cookie content-setting preference, or Firefox's `network.cookie.cookieBehavior`. |
 | `disable_csp` | implemented | `BrowserConfig::with_disable_csp` | Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only. |
-| `disable_features` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `disable_features` | implemented | `BrowserConfig::with_disable_features` |  |
 | `disable_js` | implemented | `BrowserConfig::with_disable_js` | Chrome's JavaScript content-setting preference, or Firefox's `javascript.enabled`. |
-| `disable_ws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `disable_ws` | implemented | `BrowserConfig::with_disable_ws` |  |
 | `do_not_track` | implemented | `BrowserConfig::with_do_not_track` | Chrome's `enable_do_not_track` preference, or Firefox's `privacy.donottrackheader.enabled`. |
 | `driver_version` | implemented | `BrowserConfig::with_driver_version` | browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-&lt;version&gt;/. |
-| `enable_3d_apis` | composed | `BrowserConfig::headless` | Python adds --disable-3d-apis and --disable-gpu unless enable_3d_apis is set. A Rust session never adds --disable-3d-apis, and adds --disable-gpu only when it is headless, so a headed session already has 3D APIs on. Differs: A headless session always adds --disable-gpu, and there is no option to leave it out. |
+| `enable_3d_apis` | implemented | `BrowserConfig::with_enable_3d_apis` | A headless session keeps the GPU. A Rust session never adds --disable-3d-apis. |
 | `enable_sync` | implemented | `BrowserConfig::with_enable_sync` | Chrome Sync is switched off with `--disable-sync` unless this is set. |
 | `enable_ws` | not-applicable |  | Python adds --disable-web-security unless enable_ws is set. A Rust session never adds it, so web security is already on and there is nothing to enable. |
 | `environment` | not-applicable |  | Names the test environment (qa, prod, ...) for SB() tests; this crate takes per-deploy configuration from SB_* environment variables (RuntimeConfig) instead. |
@@ -1152,15 +1152,15 @@ Keyword arguments of `SB()`.
 | `fast` | not-applicable |  | Python 4.55.2 reads fast only in CDP mode, where it skips the 0.2 s wait after a click and the wait after opening a page; demo mode never checks it. This crate's CDP engine makes neither wait, so there is nothing to skip, so RunSettings has no setting for it. |
 | `firefox_arg` | implemented | `FirefoxOptions::add_args` | Comma-separated; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`. |
 | `firefox_pref` | implemented | `FirefoxOptions::add_preferences` | Comma-separated NAME:VALUE; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`. |
-| `guest` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `guest_mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `guest` | implemented | `BrowserConfig::with_guest_mode` |  |
+| `guest_mode` | implemented | `BrowserConfig::with_guest_mode` |  |
 | `headed` | composed | `BrowserConfig::headless` | Headed is headless = false. |
 | `headless` | implemented | `BrowserConfig::headless` |  |
-| `headless1` | composed | `BrowserConfig::browser` | Chrome's old headless mode now exists only as chrome-headless-shell: choose `Browser::ChromeHeadlessShell` as the browser, with `headless` set. `BrowserConfig::headless` alone launches the new mode. |
-| `headless2` | composed | `BrowserConfig::headless` | `headless = true` launches Chrome's new headless mode (`--headless=new`), which is what headless2 asks for. |
+| `headless1` | implemented | `BrowserConfig::with_headless1` | Chrome's old headless mode now exists only as chrome-headless-shell: Chrome with no program of its own named runs it (downloaded when missing); the undetected mode cannot. |
+| `headless2` | implemented | `BrowserConfig::with_headless2` | `headless = true` launches Chrome's new headless mode (`--headless=new`), which is what headless2 asks for. |
 | `highlights` | not-applicable |  | BaseCase::highlight outlines the element once and restores it after about a second; it has no loop count for a highlights argument to override. |
-| `host_resolver_rules` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `incognito` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `host_resolver_rules` | implemented | `BrowserConfig::with_host_resolver_rules` |  |
+| `incognito` | implemented | `BrowserConfig::with_incognito` |  |
 | `interval` | not-applicable |  | Tour and Presentation here advance only when told, with no autoplay, so there is no interval to override. |
 | `is_mobile` | composed | `BrowserConfig::mobile` | Give the screen with `with_device_metrics`. |
 | `js_checking_on` | composed | `BaseCase::assert_no_js_errors` | Call it after the page loads. |
@@ -1168,7 +1168,7 @@ Keyword arguments of `SB()`.
 | `locale_code` | composed | `BrowserConfig::locale` |  |
 | `log_cdp` | implemented | `BrowserConfig::with_cdp_events` | Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`. |
 | `log_cdp_events` | implemented | `BrowserConfig::with_cdp_events` | Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`. |
-| `maximize` | composed | `BaseCase::maximize_window` | Call `maximize_window()` once the session has started; it works for Firefox too. A session always starts with a --window-size, so --start-maximized alone is not relied on. |
+| `maximize` | implemented | `BrowserConfig::with_maximize` | A headed Chromium window starts with --start-maximized and no --window-size; Firefox and Safari are maximized once they are running. A headless session ignores it. |
 | `message_duration` | implemented | `RunSettings::with_message_duration` | How long BaseCase::post_message keeps its message, to the millisecond (2.55 s by default, 0.75 s at most in a headless browser). |
 | `mobile` | implemented | `BrowserConfig::mobile` |  |
 | `multi_proxy` | composed | `LaunchOptionsBuilder::proxy` | Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine passes the proxy as a flag and cannot log in to one. |
@@ -1199,7 +1199,7 @@ Keyword arguments of `SB()`.
 | `skip_js_waits` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |
 | `slow` | implemented | `RunSettings::with_slow_mode` | Pauses, in full, after the same actions as --demo, which also outline the element. |
 | `start_page` | implemented | `BrowserConfig::start_page` | BaseCase::new opens the start page when one is set; BaseCase::open_start_page opens it again (about:blank when none is set). |
-| `swiftshader` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `swiftshader` | implemented | `BrowserConfig::with_swiftshader` |  |
 | `test` | not-applicable |  | Marks an SB() context-manager block as a test so it prints pytest-style results; Rust code runs under cargo test, which reports results itself. |
 | `time_limit` | composed | `BaseCase::set_time_limit` | Once the test has run longer than the limit (counted from creating the BaseCase), its next open, readiness wait or element action fails with a time-limit error; waits are cut to the time left. A test that does none of those is not interrupted: wrap it in `tokio::time::timeout` for a hard stop. |
 | `timeout_multiplier` | composed | `BaseCase::set_timeout` | Call `set_timeout(10 * multiplier)`: the default wait is 10 seconds. A timeout passed to a method explicitly is not multiplied, which matches Python, where only the default timeouts are. |
@@ -1239,22 +1239,22 @@ Keyword arguments of `Driver()`.
 | `cap_file` | implemented | `CapabilityOverrides::from_file` | Reads JSON or the Python dictionary of a capabilities file without running Python; merged over the session's capabilities with `BrowserConfig::with_capabilities`. Differs: Python's parser reads one key per line; this reads the whole dictionary. |
 | `cap_string` | implemented | `CapabilityOverrides::from_text` | JSON, or a Python dictionary; merged over the session's capabilities with `BrowserConfig::with_capabilities`. |
 | `cft` | implemented | `BrowserConfig::browser` | Chrome for Testing, downloaded into downloaded_drivers/cft/ when missing; the driver follows its version. |
-| `chromium_arg` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `chromium_arg` | implemented | `BrowserConfig::with_chromium_arg` |  |
 | `chs` | implemented | `BrowserConfig::browser` | chrome-headless-shell, downloaded into downloaded_drivers/chs/ when missing; it cannot run UC mode. |
 | `d_height` | implemented | `DeviceMetrics::height` |  |
 | `d_p_r` | implemented | `DeviceMetrics::pixel_ratio` |  |
 | `d_width` | implemented | `DeviceMetrics::width` |  |
-| `dark_mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `devtools` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `dark_mode` | implemented | `BrowserConfig::with_dark_mode` |  |
+| `devtools` | implemented | `BrowserConfig::with_devtools` |  |
 | `disable_cookies` | implemented | `BrowserConfig::with_disable_cookies` | Chrome's cookie content-setting preference, or Firefox's `network.cookie.cookieBehavior`. |
 | `disable_csp` | implemented | `BrowserConfig::with_disable_csp` | Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only. |
-| `disable_features` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `disable_gpu` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `disable_features` | implemented | `BrowserConfig::with_disable_features` |  |
+| `disable_gpu` | implemented | `BrowserConfig::with_disable_gpu` |  |
 | `disable_js` | implemented | `BrowserConfig::with_disable_js` | Chrome's JavaScript content-setting preference, or Firefox's `javascript.enabled`. |
-| `disable_ws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `disable_ws` | implemented | `BrowserConfig::with_disable_ws` |  |
 | `do_not_track` | implemented | `BrowserConfig::with_do_not_track` | Chrome's `enable_do_not_track` preference, or Firefox's `privacy.donottrackheader.enabled`. |
 | `driver_version` | implemented | `BrowserConfig::with_driver_version` | browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-&lt;version&gt;/. |
-| `enable_3d_apis` | composed | `BrowserConfig::headless` | Python adds --disable-3d-apis and --disable-gpu unless enable_3d_apis is set. A Rust session never adds --disable-3d-apis, and adds --disable-gpu only when it is headless, so a headed session already has 3D APIs on. Differs: A headless session always adds --disable-gpu, and there is no option to leave it out. |
+| `enable_3d_apis` | implemented | `BrowserConfig::with_enable_3d_apis` | A headless session keeps the GPU. A Rust session never adds --disable-3d-apis. |
 | `enable_sync` | implemented | `BrowserConfig::with_enable_sync` | Chrome Sync is switched off with `--disable-sync` unless this is set. |
 | `enable_ws` | not-applicable |  | Python adds --disable-web-security unless enable_ws is set. A Rust session never adds it, so web security is already on and there is nothing to enable. |
 | `extension_dir` | implemented | `BrowserConfig::extension_dir` |  |
@@ -1262,14 +1262,14 @@ Keyword arguments of `Driver()`.
 | `external_pdf` | implemented | `BrowserConfig::with_external_pdf` | Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disabled`. |
 | `firefox_arg` | implemented | `FirefoxOptions::add_args` | Comma-separated; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`. |
 | `firefox_pref` | implemented | `FirefoxOptions::add_preferences` | Comma-separated NAME:VALUE; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`. |
-| `guest` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `guest_mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `guest` | implemented | `BrowserConfig::with_guest_mode` |  |
+| `guest_mode` | implemented | `BrowserConfig::with_guest_mode` |  |
 | `headed` | composed | `BrowserConfig::headless` | Headed is headless = false. |
 | `headless` | implemented | `BrowserConfig::headless` |  |
-| `headless1` | composed | `BrowserConfig::browser` | Chrome's old headless mode now exists only as chrome-headless-shell: choose `Browser::ChromeHeadlessShell` as the browser, with `headless` set. `BrowserConfig::headless` alone launches the new mode. |
-| `headless2` | composed | `BrowserConfig::headless` | `headless = true` launches Chrome's new headless mode (`--headless=new`), which is what headless2 asks for. |
-| `host_resolver_rules` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `incognito` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `headless1` | implemented | `BrowserConfig::with_headless1` | Chrome's old headless mode now exists only as chrome-headless-shell: Chrome with no program of its own named runs it (downloaded when missing); the undetected mode cannot. |
+| `headless2` | implemented | `BrowserConfig::with_headless2` | `headless = true` launches Chrome's new headless mode (`--headless=new`), which is what headless2 asks for. |
+| `host_resolver_rules` | implemented | `BrowserConfig::with_host_resolver_rules` |  |
+| `incognito` | implemented | `BrowserConfig::with_incognito` |  |
 | `is_mobile` | composed | `BrowserConfig::mobile` | Give the screen with `with_device_metrics`. |
 | `locale` | implemented | `BrowserConfig::locale` |  |
 | `locale_code` | composed | `BrowserConfig::locale` |  |
@@ -1277,7 +1277,7 @@ Keyword arguments of `Driver()`.
 | `log_cdp_events` | implemented | `BrowserConfig::with_cdp_events` | Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`. |
 | `mobile` | implemented | `BrowserConfig::mobile` |  |
 | `multi_proxy` | composed | `LaunchOptionsBuilder::proxy` | Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine passes the proxy as a flag and cannot log in to one. |
-| `no_sandbox` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `no_sandbox` | implemented | `BrowserConfig::with_no_sandbox` |  |
 | `page_load_strategy` | implemented | `BrowserConfig::with_page_load_strategy` | The `pageLoadStrategy` capability: normal, eager or none. |
 | `pls` | implemented | `BrowserConfig::with_page_load_strategy` | The `pageLoadStrategy` capability: normal, eager or none. |
 | `port` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
@@ -1291,7 +1291,7 @@ Keyword arguments of `Driver()`.
 | `server` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
 | `servername` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL, with the Grid's host in it. |
 | `size` | implemented | `BrowserConfig::with_window_size` | Chrome's `--window-size`; a Firefox window is resized once it runs. |
-| `swiftshader` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `swiftshader` | implemented | `BrowserConfig::with_swiftshader` |  |
 | `uc` | composed | `BrowserConfig::mode` | DriverMode::Uc. |
 | `uc_cdp` | implemented | `BrowserConfig::with_cdp_events` | CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`. Differs: Python adds a listener with driver.add_cdp_listener; here the events are read back from the log. |
 | `uc_cdp_events` | implemented | `BrowserConfig::with_cdp_events` | CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`. Differs: Python adds a listener with driver.add_cdp_listener; here the events are read back from the log. |

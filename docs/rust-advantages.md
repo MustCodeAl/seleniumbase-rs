@@ -150,7 +150,7 @@ environment, no package manager on the target machine. Copy the binary into a
 container or a CI image, or install it from the tag:
 
 ```bash Terminal
-cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.5.1 seleniumbase-rs-cli
+cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 seleniumbase-rs-cli
 ```
 
 See [Deployment](/deployment) and [Docker](/help/docker).

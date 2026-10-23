@@ -10,7 +10,7 @@ Generated from the usage spec of `sbrs` (`completions/sbrs.usage.kdl`) by `SB_UP
 
 </Info>
 
-<Badge>sbrs 0.5.1 (seleniumbase-rs)</Badge>
+<Badge>sbrs 0.6.0 (seleniumbase-rs)</Badge>
 
 A Rust port of the Python SeleniumBase testing framework. Provides browser automation, stealth/undetected modes, and a command-line helper.
 

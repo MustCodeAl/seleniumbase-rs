@@ -243,7 +243,7 @@ suite between engines later.
 Depend on a tag, so a new commit on `main` cannot change your build:
 
 ```toml Cargo.toml
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.5.1" }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.6.0" }
 ```
 
 </Step>

@@ -5137,7 +5137,7 @@ dependencies = [
 
 [[package]]
 name = "seleniumbase-rs"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "async-trait",
  "azure_core",
@@ -5197,7 +5197,7 @@ dependencies = [
 
 [[package]]
 name = "seleniumbase-rs-cli"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "dirs",
  "regex",
