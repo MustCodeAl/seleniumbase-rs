@@ -35,6 +35,8 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ### Breaking
 
+- **A recorded `goto` is written as `sb.goto(..)`**, its own BaseCase call, not `sb.open(..)`.
+
 - **`Settings::screenshot_dir` and `SB_SCREENSHOT_DIR` are removed.** The library read neither;
   a settings file that still has the key loads as before.
 - **The presentation and chart helpers have Python's names, arguments and files.** Each is a call
@@ -68,6 +70,14 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ### Added
 
+- **Recorder Mode pipeline, ported from SeleniumBase 4.56.2.** `api::recorder` now carries
+  Python's page script (`RECORDER_JS`, `SHIFT_ESC_JS`, `recorder_injection()`), its rewrite
+  passes (`process`, `add_parent_frame_switches`, over `RawAction` rows) and its code generation
+  (`to_actions`, `ActionRecorder::from_raw_actions`), and writes a recording as an rstest test on
+  the `sb` fixture (`to_rstest_test`) or a Gherkin scenario (`to_gherkin_scenario`). A typed
+  password is marked secret in the page and generated as `recorded_secret()?`, read from
+  `SB_RECORDED_SECRET`. Golden tests check the processed rows and calls against SeleniumBase's own
+  code on 11 recordings.
 - **`sbrs install` fetches more.** `sbrs install` (and `get`) now installs `uc_driver` (a
   patched chromedriver), `cft` and `chs` (Chrome for Testing and its headless shell) and
   `chromium` (a Chromium snapshot with the chromedriver of the same revision, `--revision N`),
@@ -108,6 +118,46 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   chart library once. Charts are still drawn with Chart.js: `unit` titles the value axis and
   ends the tooltip, `zero` starts a line or area chart at zero, `legend` and `labels` show or
   hide the legend and the values, and `libs` leaves the `<script src>` out of `extract_chart`.
+
+- **The MCP servers offer resources, prompts, structured results and progress.** The `cdp`,
+  `driver` and `sb` servers answer `resources/list`, `resources/templates/list` and
+  `resources/read` for `sbrs://journal` (the calls so far, with typed text, scripts and results
+  left out), `sbrs://session` (engine, URL, title, ready state) and `sbrs://output/{+path}` (a
+  file under `SB_MCP_OUTPUT_DIR`: text as text, anything else as base64; `..`, an absolute path,
+  an escape or a link that leaves the folder is refused), and `prompts/list` and `prompts/get`
+  for `write_test`, `debug_failure` and `extract_data`. An object result of a tool is also sent
+  as `structuredContent` next to its text, and a `tools/call` with `_meta.progressToken` gets
+  `notifications/progress` from the tools that report (`Ctx::progress`). The tools that return
+  page text (`get_content`, `get_attributes`, `get_text`, `get_page_source`, ...) start with a
+  notice that the text is data and carry `_meta: {"sbrs/untrusted_content": true}`. For hosts
+  built on the library: `ToolDef::with_output_schema` and `untrusted`, `Host::with_resources`,
+  `with_prompts` and `call_with`, and the types `ResourceDef`, `PromptDef`, `Progress` and
+  `ProgressSink`.
+
+- **`sbrs test` takes every option of Python SeleniumBase's pytest plugin.** One flag for each row
+  of the option table, built from the table itself: the browser and page options (`--firefox`,
+  `--headed`, `--uc`, `--dark`, `--no-sandbox`, ...), the test data (`--env`, `--account`, `--data`,
+  `--var1` to `--var3`, `--variables`, checked before Cargo starts), the debug modes (`--pdb`,
+  `--trace`, `--final-debug`, which run one test at a time with its output shown), `--reruns`,
+  `--time-limit`, the evidence and report options and the recorder. Each is accepted in every
+  spelling and alias Python has (`--no-sandbox`, `--no_sandbox`, `--dcsp`); a switch can be turned
+  off with `--flag=false`; the options that do nothing here (`--fast`, `--with-selenium`, ...) are
+  accepted and ignored. They reach the tests as `SB_*` variables. The pytest options are there too:
+  `-k` and `-m` (a marker is a module name; `a or b` and `not c` become libtest filters and skips,
+  anything else asks for `--runner nextest`, where it is a filterset), `-n N|auto`, `-s`,
+  `--co` (lists the tests and prints `collected N items`), `--runner cargo|nextest`,
+  `-c FILE` or `--settings-file FILE` (passed on as an absolute `SB_SETTINGS_FILE`), and
+  `--all-scripts`, which runs every example after the tests. `sbrs behave-options` prints how the
+  behave options map to these flags.
+- **`sbrs test` empties `latest_logs/` and `downloaded_files/` before a run, as pytest does**, or
+  moves them to `archived_logs/logs_<epoch>/` and `archived_files/downloads_<epoch>/` with
+  `--archive-logs` and `--archive-downloads`. It does so in the folder of each package the tests
+  run in and never for `--co`; plain `cargo test` touches nothing.
+- **Library helpers for a test launcher:** `cli::scripts::run::{Runner, list_names}` and the
+  nextest, list, skip and capture builders of `TestRun`, `run_filter::translate` (the `-k` and `-m`
+  expressions), `run_logs` (reset or archive the logs folders), `all_scripts` (the examples of a
+  package) and `behave_options`.
+
 
 - **Shell completion says what each value is.** A selector, text, key, value, attribute, property
   or CDP method (`--css`, `--text`, `--key`, `--value`, `--attribute`, `--property`, `--cmd`,
@@ -231,6 +281,11 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 - **A message stays at most 0.75 s on a virtual display too:** `post_message` and its relatives
   cut the time when nobody watches, which is a headless browser or a headed one on Xvfb (Python:
   `self.headless or self.xvfb`); a headed browser on Xvfb kept the long time before.
+- **`-n` belongs to `sbrs test`.** The global `-n/--threads` is now `sbrs test -n N` (or `auto`);
+  `sbrs -n 2 test` no longer parses. `SB_THREADS` and the `threads` key of the settings file
+  still set it.
+- **`Settings::screenshot_dir` and `SB_SCREENSHOT_DIR` are removed.** The library read neither;
+  a settings file that still has the key loads as before.
 
 </Update>
 

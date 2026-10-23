@@ -21,10 +21,10 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | [BaseCase methods](#basecase-methods) | 453 | 440 | 3 | 10 | 0 |
 | [Driver methods](#driver-methods) | 79 | 77 | 2 | 0 | 0 |
 | [CDP Mode methods](#cdp-mode-methods) | 215 | 15 | 186 | 14 | 0 |
-| [Command-line commands](#command-line-commands) | 36 | 22 | 7 | 7 | 0 |
-| [pytest options](#pytest-options) | 263 | 144 | 73 | 46 | 0 |
-| [`SB()` arguments](#sb()-arguments) | 107 | 64 | 26 | 17 | 0 |
-| [`Driver()` arguments](#driver()-arguments) | 74 | 55 | 16 | 3 | 0 |
+| [Command-line commands](#command-line-commands) | 36 | 23 | 7 | 6 | 0 |
+| [pytest options](#pytest-options) | 263 | 157 | 60 | 42 | 4 |
+| [`SB()` arguments](#sb()-arguments) | 107 | 74 | 16 | 15 | 2 |
+| [`Driver()` arguments](#driver()-arguments) | 74 | 60 | 11 | 3 | 0 |
 | [MCP: CDP server](#mcp-cdp-server) | 24 | 24 | 0 | 0 | 0 |
 | [MCP: Driver server](#mcp-driver-server) | 26 | 26 | 0 | 0 | 0 |
 | [MCP: SB server](#mcp-sb-server) | 88 | 88 | 0 | 0 | 0 |
@@ -811,8 +811,8 @@ Python `seleniumbase` / `sbase`; Rust `sbrs`.
 | `commander` | implemented | `sbrs commander` |  |
 | `convert` | implemented | `sbrs convert` |  |
 | `decrypt` | implemented | `sbrs decrypt` | Differs: Reads tokens made by `sbrs encrypt` only; see `encrypt`. |
-| `download` | not-applicable |  | Python's `download server` fetches the Selenium Standalone Server. `sbrs` never downloads it: `sbrs grid-hub` and `sbrs grid-node` run a jar you supply with --jar or SB_SELENIUM_SERVER_JAR. (`sbrs download-file` downloads a file from a URL, which is another command.) |
-| `encrypt` | implemented | `sbrs encrypt` | Differs: AES-256-GCM under a PBKDF2 key from SB_ENCRYPTION_KEY, not Python's fixed-key obfuscation; tokens are not interchangeable. |
+| `download` | implemented | `sbrs download` | Differs: Downloads Selenium Server 4 (default 4.51.0, whose SHA-256 is pinned in the source and checked; another --version is saved with its SHA-256 and `not verified`) into downloaded_drivers/, not Python's Selenium 3.141.59, because Selenium Grid 3 is gone. `sbrs grid-hub` and `sbrs grid-node` use the newest jar there when neither --jar nor SB_SELENIUM_SERVER_JAR names one. (`sbrs download-file` downloads a file from a URL, which is another command.) |
+| `encrypt` | implemented | `sbrs encrypt` | Differs: AES-256-GCM under a PBKDF2 key from SB_ENCRYPTION_KEY (asked once, without echo, when it is not set and standard input is a terminal), not Python's fixed-key obfuscation; tokens are not interchangeable. |
 | `extract-objects` | not-applicable |  | Edits the structure of Python test files. |
 | `get` | implemented | `sbrs get` | An alias of `sbrs install`, as in Python: `sbrs get chromedriver\|geckodriver\|edgedriver [VERSION]` (also `firefoxdriver` and `msedgedriver`). chromedriver and edgedriver default to the driver for the installed Chrome and Edge, geckodriver to the newest GitHub release; VERSION is `latest`, a major version or a full build (a geckodriver version such as 0.36.0). Each driver goes to downloaded_drivers/&lt;driver&gt;-&lt;version&gt;/. Differs: No `--path`: the driver stays in downloaded_drivers/ and is not copied to a folder on the PATH. Chrome for Testing and chrome-headless-shell are not fetched by name here; they are fetched when a session chooses one of them as the browser. |
 | `grid-hub` | implemented | `sbrs grid-hub` | start, stop, restart and status; needs a Selenium Server jar you supply and Java, and downloads nothing. |
@@ -828,16 +828,16 @@ Python `seleniumbase` / `sbase`; Rust `sbrs`.
 | `mkfile` | implemented | `sbrs mkfile` |  |
 | `mkpres` | implemented | `sbrs mkpres` |  |
 | `mkrec` | composed | `sbrs record` | Python's mkrec creates a new test file with the Recorder. `sbrs record URL -o FILE` records in a browser and writes a JSON or YAML action list that `sbrs replay` runs, not a test file; `sbrs mkrec` only writes a starter recording file and opens no browser. |
-| `obfuscate` | composed | `sbrs encrypt` | Alias of encrypt upstream, as here: `sbrs obfuscate` is accepted. It encrypts a string, not a source file. Tokens are AES-256-GCM under SB_ENCRYPTION_KEY, read from the environment instead of a prompt, and do not interchange with Python's. |
+| `obfuscate` | composed | `sbrs encrypt` | Alias of encrypt upstream, as here: `sbrs obfuscate` is accepted. It encrypts a string, not a source file. Tokens are AES-256-GCM under SB_ENCRYPTION_KEY, read from the environment or asked once without echo on a terminal, and do not interchange with Python's. With no argument on a terminal it prompts in a loop as Python does (text and verification without echo; Ctrl-C prints Exiting... and exits 0). |
 | `objectify` | not-applicable |  | Python's objectify rewrites the selectors of a Python test file into page-object variables, like extract-objects and inject-objects, and there is no Python source to rewrite here. `sbrs objectify` only writes a starter page_object.rs. |
 | `options` | not-applicable |  | Lists pytest options; Rust settings are fields of BrowserConfig and RuntimeConfig. |
 | `print` | implemented | `sbrs print` |  |
-| `proxy` | implemented | `sbrs proxy` |  |
+| `proxy` | implemented | `sbrs proxy` | Differs: A minimal forward proxy for HTTP and CONNECT on 127.0.0.1:8899 (--hostname, --port), with no authentication and no TLS interception; it warns when it listens on a non-loopback address. proxy.py's other options are not offered. |
 | `record` | implemented | `sbrs record` |  |
 | `recorder` | composed | `sbrs record` | Python's recorder is a desktop app that launches the Recorder. `sbrs record URL -o FILE` has no window of its own: it opens the page, records until it is stopped, and writes a JSON or YAML action list that `sbrs replay` runs. It does not write a test file. |
 | `revert-objects` | not-applicable |  | Edits the structure of Python test files. |
 | `translate` | implemented | `sbrs translate` | sbrs translate FILE LANGUAGE [--print\|--overwrite\|--copy] rewrites the action of every step of a JSON scenario with the translation dictionary; Scenario::from_json reads actions in any of the ten languages. Differs: Python translates the method calls of a Python test file. A Rust test is compiled code with English method names, so the file translated here is the JSON scenario. The language is a positional argument, not a --zh style flag. |
-| `unobfuscate` | composed | `sbrs decrypt` | Alias of decrypt upstream, as here: `sbrs unobfuscate` is accepted. Tokens are AES-256-GCM under SB_ENCRYPTION_KEY, read from the environment instead of a prompt, and do not interchange with Python's. |
+| `unobfuscate` | composed | `sbrs decrypt` | Alias of decrypt upstream, as here: `sbrs unobfuscate` is accepted. Tokens are AES-256-GCM under SB_ENCRYPTION_KEY, read from the environment or asked once without echo on a terminal, and do not interchange with Python's. With no argument on a terminal it asks for a token on the screen in a loop as Python does (Ctrl-C prints Exiting... and exits 0). |
 | `version` | implemented | `sbrs version` | Prints the same line as `sbrs --version`. |
 
 ## pytest options
@@ -859,7 +859,7 @@ Python `--option` flags.
 | `--archive_logs` | not-applicable |  | This crate never deletes latest_logs/ (artifacts::ensure_latest_logs_dir only creates it), so there are no deleted old logs to archive instead. |
 | `--auto-ext` | implemented | `BrowserConfig::with_automation_extension` | Sets `useAutomationExtension` to true. Upstream marks the option deprecated. Chromium only. |
 | `--binary-location` | composed | `BrowserConfig::browser_binary_path` |  |
-| `--binary_location` | composed | `BrowserConfig::browser_binary_path` |  |
+| `--binary_location` | implemented | `BrowserConfig::with_binary_location` |  |
 | `--bl` | composed | `BrowserConfig::browser_binary_path` |  |
 | `--block-ads` | composed | `BrowserConfig::ad_block` | A Python spelling of --ad-block; `sbrs` takes --ad-block, and BrowserConfig::ad_block is the same setting. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs). |
 | `--block-images` | implemented | `BrowserConfig::with_block_images` | Chrome's content-setting preference (`prefs` of `goog:chromeOptions`), or Firefox's `permissions.default.image`. |
@@ -872,8 +872,8 @@ Python `--option` flags.
 | `--cap_file` | implemented | `CapabilityOverrides::from_file` | Reads JSON or the Python dictionary of a capabilities file without running Python; merged over the session's capabilities with `BrowserConfig::with_capabilities`. Differs: Python's parser reads one key per line; this reads the whole dictionary. |
 | `--cap_string` | implemented | `CapabilityOverrides::from_text` | JSON, or a Python dictionary; merged over the session's capabilities with `BrowserConfig::with_capabilities`. |
 | `--cft` | implemented | `BrowserConfig::browser` | Chrome for Testing, downloaded into downloaded_drivers/cft/ when missing; the driver follows its version. |
-| `--check-js` | composed | `BaseCase::assert_no_js_errors` | Call it after the page loads. |
-| `--check_js` | composed | `BaseCase::assert_no_js_errors` | Call it after the page loads. |
+| `--check-js` | implemented | `RunSettings::with_check_js` | After every page load (open, go_back, go_forward, refresh, wait_for_ready_state_complete) the browser log is checked for severe JavaScript errors, on a Chromium browser. Skipped by skip-js-waits. |
+| `--check_js` | implemented | `RunSettings::with_check_js` | After every page load (open, go_back, go_forward, refresh, wait_for_ready_state_complete) the browser log is checked for severe JavaScript errors, on a Chromium browser. Skipped by skip-js-waits. |
 | `--chrome` | composed | `BrowserConfig::browser` | Choose the Browser variant. |
 | `--chromium` | composed | `BrowserConfig::browser` | Choose the Browser variant. |
 | `--chromium-arg` | implemented | `BrowserConfig::with_chromium_arg` |  |
@@ -901,7 +901,7 @@ Python `--option` flags.
 | `--device-metrics` | implemented | `BrowserConfig::with_device_metrics` | Chrome's `mobileEmulation` experimental option. Differs: Python applies the metrics only together with --mobile; here setting them turns mobile emulation on. |
 | `--device_metrics` | implemented | `BrowserConfig::with_device_metrics` | Chrome's `mobileEmulation` experimental option. Differs: Python applies the metrics only together with --mobile; here setting them turns mobile emulation on. |
 | `--devtools` | implemented | `BrowserConfig::with_devtools` |  |
-| `--disable-beforeunload` | composed | `BaseCase::disable_beforeunload` | Call it after each navigation. |
+| `--disable-beforeunload` | implemented | `RunSettings::with_disable_beforeunload` | After every page load the beforeunload dialog is switched off (BaseCase::disable_beforeunload), on a Chromium browser. Skipped by skip-js-waits. |
 | `--disable-cookies` | implemented | `BrowserConfig::with_disable_cookies` | Chrome's cookie content-setting preference, or Firefox's `network.cookie.cookieBehavior`. |
 | `--disable-csp` | implemented | `BrowserConfig::with_disable_csp` | Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only. |
 | `--disable-features` | implemented | `BrowserConfig::with_disable_features` |  |
@@ -909,7 +909,7 @@ Python `--option` flags.
 | `--disable-js` | implemented | `BrowserConfig::with_disable_js` | Chrome's JavaScript content-setting preference, or Firefox's `javascript.enabled`. |
 | `--disable-web-security` | implemented | `BrowserConfig::with_disable_ws` |  |
 | `--disable-ws` | implemented | `BrowserConfig::with_disable_ws` |  |
-| `--disable_beforeunload` | composed | `BaseCase::disable_beforeunload` | Call it after each navigation. |
+| `--disable_beforeunload` | implemented | `RunSettings::with_disable_beforeunload` | After every page load the beforeunload dialog is switched off (BaseCase::disable_beforeunload), on a Chromium browser. Skipped by skip-js-waits. |
 | `--disable_cookies` | implemented | `BrowserConfig::with_disable_cookies` | Chrome's cookie content-setting preference, or Firefox's `network.cookie.cookieBehavior`. |
 | `--disable_csp` | implemented | `BrowserConfig::with_disable_csp` | Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only. |
 | `--disable_features` | implemented | `BrowserConfig::with_disable_features` |  |
@@ -918,8 +918,8 @@ Python `--option` flags.
 | `--disable_ws` | implemented | `BrowserConfig::with_disable_ws` |  |
 | `--do-not-track` | implemented | `BrowserConfig::with_do_not_track` | Chrome's `enable_do_not_track` preference, or Firefox's `privacy.donottrackheader.enabled`. |
 | `--do_not_track` | implemented | `BrowserConfig::with_do_not_track` | Chrome's `enable_do_not_track` preference, or Firefox's `privacy.donottrackheader.enabled`. |
-| `--driver-version` | implemented | `BrowserConfig::with_driver_version` | browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-&lt;version&gt;/, or msedgedriver-&lt;version&gt;/ for Edge. geckodriver takes no version here: one geckodriver drives many Firefox versions, and `sbrs get geckodriver VERSION` pins one. |
-| `--driver_version` | implemented | `BrowserConfig::with_driver_version` | browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-&lt;version&gt;/, or msedgedriver-&lt;version&gt;/ for Edge. geckodriver takes no version here: one geckodriver drives many Firefox versions, and `sbrs get geckodriver VERSION` pins one. |
+| `--driver-version` | implemented | `BrowserConfig::with_driver_version` | browser, mlatest (the newest build of the browser's major version), latest, stable, beta, dev, canary, keep (a driver already downloaded or on the PATH), previous or latest-1 (the major before the stable one), a major version or a full version. The driver goes to downloaded_drivers/chromedriver-&lt;version&gt;/, or msedgedriver-&lt;version&gt;/ for Edge. geckodriver takes no version here: one geckodriver drives many Firefox versions, and `sbrs get geckodriver VERSION` pins one. |
+| `--driver_version` | implemented | `BrowserConfig::with_driver_version` | browser, mlatest (the newest build of the browser's major version), latest, stable, beta, dev, canary, keep (a driver already downloaded or on the PATH), previous or latest-1 (the major before the stable one), a major version or a full version. The driver goes to downloaded_drivers/chromedriver-&lt;version&gt;/, or msedgedriver-&lt;version&gt;/ for Edge. geckodriver takes no version here: one geckodriver drives many Firefox versions, and `sbrs get geckodriver VERSION` pins one. |
 | `--dws` | implemented | `BrowserConfig::with_disable_ws` |  |
 | `--edge` | composed | `BrowserConfig::browser` | Choose Browser::Edge. The session starts msedgedriver itself, from downloaded_drivers/ or the PATH when it fits the installed Edge, else downloaded for that Edge from msedgedriver.microsoft.com; options go in ms:edgeOptions. |
 | `--ee` | implemented | `BrowserConfig::with_esc_end` | Also `sbrs --esc-end` (aliases `--esc_end`, `--ee`), `Settings::esc_end` and SB_ESC_END. BaseCase puts a keydown listener in the page that sets `document.sb_esc_end`, and open, click, click_link_text, highlight, wait_for_element_visible, wait_for_ready_state_complete and the demo highlight of type_text, update_text and press_keys return SeleniumBaseError::Skipped once ESC was pressed; run_browser_test counts that as a skipped test. Differs: Python assigns `document.onkeydown`, replacing the page's own handler; the Rust listener is added once per document with addEventListener, so the page keeps its handlers. A script that fails (an open alert, no page) counts as 'ESC not pressed'. Only the WebDriver engine (BaseCase) has the option. |
@@ -960,14 +960,14 @@ Python `--option` flags.
 | `--headless` | implemented | `BrowserConfig::headless` |  |
 | `--headless1` | implemented | `BrowserConfig::with_headless1` | Chrome's old headless mode now exists only as chrome-headless-shell: Chrome with no program of its own named runs it (downloaded when missing); the undetected mode cannot. |
 | `--headless2` | implemented | `BrowserConfig::with_headless2` | `headless = true` launches Chrome's new headless mode (`--headless=new`), which is what headless2 asks for. |
-| `--highlights` | not-applicable |  | BaseCase::highlight outlines the element once and restores it after about a second; it has no loop count for a --highlights option to override. |
+| `--highlights` | planned |  | RunSettings::with_highlights holds the count (zero is unset, 4 is the default), but BaseCase::highlight does not read it yet. |
 | `--host-resolver-rules` | implemented | `BrowserConfig::with_host_resolver_rules` |  |
 | `--host_resolver_rules` | implemented | `BrowserConfig::with_host_resolver_rules` |  |
 | `--ie` | implemented | `BrowserConfig::browser` | Run with IEDriverServer, which must be in downloaded_drivers/ or on the PATH, on Windows. |
 | `--incognito` | implemented | `BrowserConfig::with_incognito` |  |
 | `--incognito-mode` | implemented | `BrowserConfig::with_incognito` |  |
 | `--incognito_mode` | implemented | `BrowserConfig::with_incognito` |  |
-| `--interval` | not-applicable |  | Tour and Presentation here advance only when told, with no autoplay, so there is no interval to override. |
+| `--interval` | planned |  | RunSettings::with_interval holds the time (zero is unset), save_presentation, begin_presentation and display_chart use it, but a tour does not play by itself yet. |
 | `--is-pytest` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--is_pytest` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--lfp` | not-applicable |  | A pytest report hook that prints the URL of each failing test; a Rust test prints BaseCase::get_current_url itself when it fails. |
@@ -1007,12 +1007,12 @@ Python `--option` flags.
 | `--page-load-strategy` | implemented | `BrowserConfig::with_page_load_strategy` | The `pageLoadStrategy` capability: normal, eager or none. |
 | `--page_load_strategy` | implemented | `BrowserConfig::with_page_load_strategy` | The `pageLoadStrategy` capability: normal, eager or none. |
 | `--pls` | implemented | `BrowserConfig::with_page_load_strategy` | The `pageLoadStrategy` capability: normal, eager or none. |
-| `--port` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
-| `--protocol` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
-| `--proxy` | implemented | `BrowserConfig::proxy` | Differs: SERVER:PORT only: a WebDriver session cannot log in to a proxy, so USER:PASS@SERVER:PORT does not authenticate. The pure CDP engine can (LaunchOptionsBuilder::proxy). |
+| `--port` | implemented | `BrowserConfig::with_grid` | `with_grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL. |
+| `--protocol` | implemented | `BrowserConfig::with_grid` | `with_grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL. |
+| `--proxy` | implemented | `BrowserConfig::proxy` | Differs: Checked as Python checks it (schemes http, https, socks4, socks5, socks5h; a SOCKS proxy takes no login). Chrome is never given the login in its arguments, and a WebDriver session does not answer the proxy's login yet, so USER:PASS@SERVER:PORT does not authenticate there; Firefox refuses a login with Python's message. The pure CDP engine can log in (LaunchOptionsBuilder::proxy). |
 | `--proxy-bypass-list` | implemented | `BrowserConfig::with_proxy_bypass_list` | Chrome's `--proxy-bypass-list`. It applies to a proxy named with `proxy`, not to a PAC file. |
 | `--proxy-driver` | implemented | `BrowserConfig::with_proxy_for_driver_download` | Downloads of the driver, and of the Chrome for Testing builds, go through the session's proxy. |
-| `--proxy-pac-url` | implemented | `BrowserConfig::proxy_pac_url` | Differs: URL only: a WebDriver session cannot log in to a proxy, so USERNAME:PASSWORD@URL does not authenticate. |
+| `--proxy-pac-url` | implemented | `BrowserConfig::proxy_pac_url` | Differs: The URL must end in .pac, with a login before it or in it. Chrome is never given the login, and a WebDriver session does not answer the PAC login yet, so it does not authenticate there; Firefox refuses a login with Python's message. |
 | `--proxy-server` | composed | `BrowserConfig::proxy` | SERVER:PORT only. A WebDriver session hands the address to Chrome as a flag, Chrome ignores credentials in it, and the engine does not answer the proxy's login request, so USER:PASS@SERVER:PORT does not log in. For a proxy that needs a password use the pure CDP engine (LaunchOptionsBuilder::proxy). |
 | `--proxy-string` | composed | `BrowserConfig::proxy` | SERVER:PORT only. A WebDriver session hands the address to Chrome as a flag, Chrome ignores credentials in it, and the engine does not answer the proxy's login request, so USER:PASS@SERVER:PORT does not log in. For a proxy that needs a password use the pure CDP engine (LaunchOptionsBuilder::proxy). |
 | `--proxy_bypass_list` | implemented | `BrowserConfig::with_proxy_bypass_list` | Chrome's `--proxy-bypass-list`. It applies to a proxy named with `proxy`, not to a PAC file. |
@@ -1028,10 +1028,10 @@ Python `--option` flags.
 | `--record` | composed | `RecorderSession::install` | `RecorderSession::install(&sb)` injects the page recorder, so clicks and typing done by hand in the browser are captured; `drain(&mut sb)` collects them, and `ActionRecorder::to_rust_test` or `save_recording_as_test` writes the test. Nothing is saved when the test ends. BaseCase::start_recording only marks where the log of the test's own BaseCase calls begins. |
 | `--record-sleep` | implemented | `RunSettings::with_record_sleep` | BaseCase::sleep goes into the recording, and the generated Rust calls sb.sleep. |
 | `--recorder` | composed | `RecorderSession::install` | `RecorderSession::install(&sb)` injects the page recorder, so clicks and typing done by hand in the browser are captured; `drain(&mut sb)` collects them, and `ActionRecorder::to_rust_test` or `save_recording_as_test` writes the test. Nothing is saved when the test ends. BaseCase::start_recording only marks where the log of the test's own BaseCase calls begins. |
-| `--remote-debug` | implemented | `BrowserConfig::with_remote_debug` | Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another. |
-| `--remote-debugger` | implemented | `BrowserConfig::with_remote_debug` | Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another. |
-| `--remote_debug` | implemented | `BrowserConfig::with_remote_debug` | Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another. |
-| `--remote_debugger` | implemented | `BrowserConfig::with_remote_debug` | Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another. |
+| `--remote-debug` | implemented | `BrowserConfig::with_remote_debug` | Opens Chrome's debugger on port 9222, or on a free port when 9222 is in use; `with_remote_debug_port` names another and refuses it when it is in use; `BrowserSession::remote_debug_address` says where it listens. |
+| `--remote-debugger` | implemented | `BrowserConfig::with_remote_debug` | Opens Chrome's debugger on port 9222, or on a free port when 9222 is in use; `with_remote_debug_port` names another and refuses it when it is in use; `BrowserSession::remote_debug_address` says where it listens. |
+| `--remote_debug` | implemented | `BrowserConfig::with_remote_debug` | Opens Chrome's debugger on port 9222, or on a free port when 9222 is in use; `with_remote_debug_port` names another and refuses it when it is in use; `BrowserSession::remote_debug_address` says where it listens. |
+| `--remote_debugger` | implemented | `BrowserConfig::with_remote_debug` | Opens Chrome's debugger on port 9222, or on a free port when 9222 is in use; `with_remote_debug_port` names another and refuses it when it is in use; `BrowserSession::remote_debug_address` says where it listens. |
 | `--reuse-class-session` | implemented | `BrowserConfig::with_reuse_module_session` | The same option as --rcs: the tests of one Rust module share a browser (BrowserConfig::with_reuse_class_session(name) for the tests that pass one name). Also `sbrs --reuse-class-session` and SB_REUSE_CLASS_SESSION. See --rcs. Differs: See --rcs: the module plays the part of the class, and a class's browser closes after the idle timeout, not when the next class starts. |
 | `--reuse-session` | implemented | `BrowserConfig::with_reuse_session` | Also `sbrs --reuse-session` (aliases `--reuse_session`, `--rs`), `Settings::reuse_session` and SB_REUSE_SESSION. BaseCase::new (BrowserSession::connect) leases an idle browser started with the same configuration (all of it but the start page) from a process-wide registry that keeps each browser's WebDriver server address, session id, capabilities and the chromedriver this crate started; it attaches with a new client made in the test's own Tokio runtime, then cleans the browser: an open dialog dismissed, every window but the first closed, every cookie deleted only with --crumbs (Network.clearBrowserCookies on Chromium, WebDriver's delete-all elsewhere), the open page's local and session storage cleared, about:blank, and the start page if there is one. BaseCase::quit, run_browser_test and dropping the case give it back open. One test holds a browser at a time; one that starts while every matching browser is held gets its own, kept for reuse too. A browser that no longer answers is closed and replaced; get_new_driver browsers are never shared. Idle browsers are closed with their chromedriver after reuse::idle_timeout (5 s; reuse::set_idle_timeout, SB_REUSE_IDLE_SECS), by seleniumbase_rs::shutdown_reused_sessions() and by common::shutdown::drain_cleanups (which sbrs calls). Mock WebDriver tests in browser::reuse check that the second case sends no new-session request (from another Tokio runtime) and which cleaning commands it sends; tests/reuse_session_chrome.rs (ignored) checks in Chrome 155 that two #[tokio::test] in one binary share one Chrome (the same session id), that the first test's cookie and local storage are gone in the second, and that the reaper closes the browser and stops chromedriver after the idle timeout. Differs: Cookies are kept unless --crumbs is given, as in Python; unlike Python, the page is always set to about:blank and the page's local and session storage cleared, and the other windows closed, because Rust tests run in any order and side by side. Python quits the shared browser when pytest ends; a Rust test binary has no end-of-run hook, so the idle timeout does it, and a binary that exits sooner after its last test leaves that browser and its chromedriver running unless shutdown_reused_sessions() is called. Under cargo-nextest each test is a process of its own and nothing is shared. |
 | `--reuse_class_session` | implemented | `BrowserConfig::with_reuse_module_session` | The same option as --rcs: the tests of one Rust module share a browser (BrowserConfig::with_reuse_class_session(name) for the tests that pass one name). Also `sbrs --reuse_class_session` and SB_REUSE_CLASS_SESSION. See --rcs. Differs: See --rcs: the module plays the part of the class, and a class's browser closes after the idle timeout, not when the next class starts. |
@@ -1041,7 +1041,7 @@ Python `--option` flags.
 | `--save-screenshot` | composed | `BaseCase::save_teardown_screenshot` | Call it at the end of a test. |
 | `--save_screenshot` | composed | `BaseCase::save_teardown_screenshot` | Call it at the end of a test. |
 | `--screenshot` | composed | `BaseCase::save_teardown_screenshot` | Call it at the end of a test. |
-| `--server` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
+| `--server` | implemented | `BrowserConfig::with_grid` | `with_grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL. |
 | `--settings` | composed | `Settings::from_file` | `sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...). |
 | `--settings-file` | composed | `Settings::from_file` | `sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...). |
 | `--settings_file` | composed | `Settings::from_file` | `sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...). |
@@ -1059,8 +1059,8 @@ Python `--option` flags.
 | `--time-limit` | composed | `BaseCase::set_time_limit` | Once the test has run longer than the limit (counted from creating the BaseCase), its next open, readiness wait or element action fails with a time-limit error; waits are cut to the time left. A test that does none of those is not interrupted: wrap it in `tokio::time::timeout` for a hard stop. |
 | `--time_limit` | composed | `BaseCase::set_time_limit` | Once the test has run longer than the limit (counted from creating the BaseCase), its next open, readiness wait or element action fails with a time-limit error; waits are cut to the time left. A test that does none of those is not interrupted: wrap it in `tokio::time::timeout` for a hard stop. |
 | `--timelimit` | composed | `BaseCase::set_time_limit` | Once the test has run longer than the limit (counted from creating the BaseCase), its next open, readiness wait or element action fails with a time-limit error; waits are cut to the time left. A test that does none of those is not interrupted: wrap it in `tokio::time::timeout` for a hard stop. |
-| `--timeout-multiplier` | composed | `BaseCase::set_timeout` | Call `set_timeout(10 * multiplier)`: the default wait is 10 seconds. A timeout passed to a method explicitly is not multiplied, which matches Python, where only the default timeouts are. |
-| `--timeout_multiplier` | composed | `BaseCase::set_timeout` | Call `set_timeout(10 * multiplier)`: the default wait is 10 seconds. A timeout passed to a method explicitly is not multiplied, which matches Python, where only the default timeouts are. |
+| `--timeout-multiplier` | implemented | `RunSettings::with_timeout_multiplier` | The default wait becomes ceil(multiplier * seconds); a multiplier below 0.5 is raised to 0.5, as in Python. A timeout passed to a method explicitly is not multiplied, which matches Python, where only the default timeouts are. |
+| `--timeout_multiplier` | implemented | `RunSettings::with_timeout_multiplier` | The default wait becomes ceil(multiplier * seconds); a multiplier below 0.5 is raised to 0.5, as in Python. A timeout passed to a method explicitly is not multiplied, which matches Python, where only the default timeouts are. |
 | `--uc` | composed | `BrowserConfig::mode` | DriverMode::Uc. |
 | `--uc-cdp` | implemented | `BrowserConfig::with_cdp_events` | CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`. Differs: Python adds a listener with driver.add_cdp_listener; here the events are read back from the log. |
 | `--uc-cdp-events` | implemented | `BrowserConfig::with_cdp_events` | CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`. Differs: Python adds a listener with driver.add_cdp_listener; here the events are read back from the log. |
@@ -1082,13 +1082,13 @@ Python `--option` flags.
 | `--var2` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--var3` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--variables` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
-| `--verify-delay` | not-applicable |  | MasterQaSession::verify prompts on the terminal, not in a browser pop-up, so there is no pop-up delay to override. |
-| `--verify_delay` | not-applicable |  | MasterQaSession::verify prompts on the terminal, not in a browser pop-up, so there is no pop-up delay to override. |
+| `--verify-delay` | planned |  | RunSettings::with_verify_delay holds the delay (500 ms by default), but MasterQaSession::verify does not wait for it yet. |
+| `--verify_delay` | planned |  | RunSettings::with_verify_delay holds the delay (500 ms by default), but MasterQaSession::verify does not wait for it yet. |
 | `--visual-baseline` | implemented | `RunSettings::with_visual_baseline_reset` | check_window saves the page's structure as the new baseline instead of comparing. |
 | `--visual_baseline` | implemented | `RunSettings::with_visual_baseline_reset` | check_window saves the page's structure as the new baseline instead of comparing. |
-| `--wait-for-angularjs` | composed | `BaseCase::wait_for_angularjs` | Both default to no waiting; call it where a page needs it. |
-| `--wait_for_angularjs` | composed | `BaseCase::wait_for_angularjs` | Both default to no waiting; call it where a page needs it. |
-| `--wfa` | composed | `BaseCase::wait_for_angularjs` | Both default to no waiting; call it where a page needs it. |
+| `--wait-for-angularjs` | implemented | `RunSettings::with_wait_for_angularjs` | After every page load and after BaseCase::click the page is waited on for up to 2 s while AngularJS has requests in flight; a page without AngularJS does not wait. Skipped by skip-js-waits on page loads. |
+| `--wait_for_angularjs` | implemented | `RunSettings::with_wait_for_angularjs` | After every page load and after BaseCase::click the page is waited on for up to 2 s while AngularJS has requests in flight; a page without AngularJS does not wait. Skipped by skip-js-waits on page loads. |
+| `--wfa` | implemented | `RunSettings::with_wait_for_angularjs` | After every page load and after BaseCase::click the page is waited on for up to 2 s while AngularJS has requests in flight; a page without AngularJS does not wait. Skipped by skip-js-waits on page loads. |
 | `--window-position` | implemented | `BrowserConfig::with_window_position` | Chrome's `--window-position`; a Firefox window is moved once it runs. |
 | `--window-size` | implemented | `BrowserConfig::with_window_size` | Chrome's `--window-size`; a Firefox window is resized once it runs. |
 | `--window_position` | implemented | `BrowserConfig::with_window_position` | Chrome's `--window-position`; a Firefox window is moved once it runs. |
@@ -1120,7 +1120,7 @@ Keyword arguments of `SB()`.
 | `ad_block` | composed | `BrowserConfig::ad_block` | Set BrowserConfig::ad_block (BrowserConfig::with_ad_block). Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs). |
 | `ad_block_on` | composed | `BrowserConfig::ad_block` | Set BrowserConfig::ad_block (BrowserConfig::with_ad_block). Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs). |
 | `agent` | composed | `BrowserConfig::user_agent` |  |
-| `binary_location` | composed | `BrowserConfig::browser_binary_path` |  |
+| `binary_location` | implemented | `BrowserConfig::with_binary_location` |  |
 | `block_images` | implemented | `BrowserConfig::with_block_images` | Chrome's content-setting preference (`prefs` of `goog:chromeOptions`), or Firefox's `permissions.default.image`. |
 | `browser` | implemented | `BrowserConfig::browser` |  |
 | `cap_file` | implemented | `CapabilityOverrides::from_file` | Reads JSON or the Python dictionary of a capabilities file without running Python; merged over the session's capabilities with `BrowserConfig::with_capabilities`. Differs: Python's parser reads one key per line; this reads the whole dictionary. |
@@ -1134,14 +1134,14 @@ Keyword arguments of `SB()`.
 | `demo_sleep` | implemented | `RunSettings::with_demo_sleep` | The pause demo and slow mode make after an action. |
 | `device_metrics` | implemented | `BrowserConfig::with_device_metrics` | Chrome's `mobileEmulation` experimental option. Differs: Python applies the metrics only together with --mobile; here setting them turns mobile emulation on. |
 | `devtools` | implemented | `BrowserConfig::with_devtools` |  |
-| `disable_beforeunload` | composed | `BaseCase::disable_beforeunload` | Call it after each navigation. |
+| `disable_beforeunload` | implemented | `RunSettings::with_disable_beforeunload` | After every page load the beforeunload dialog is switched off (BaseCase::disable_beforeunload), on a Chromium browser. Skipped by skip-js-waits. |
 | `disable_cookies` | implemented | `BrowserConfig::with_disable_cookies` | Chrome's cookie content-setting preference, or Firefox's `network.cookie.cookieBehavior`. |
 | `disable_csp` | implemented | `BrowserConfig::with_disable_csp` | Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only. |
 | `disable_features` | implemented | `BrowserConfig::with_disable_features` |  |
 | `disable_js` | implemented | `BrowserConfig::with_disable_js` | Chrome's JavaScript content-setting preference, or Firefox's `javascript.enabled`. |
 | `disable_ws` | implemented | `BrowserConfig::with_disable_ws` |  |
 | `do_not_track` | implemented | `BrowserConfig::with_do_not_track` | Chrome's `enable_do_not_track` preference, or Firefox's `privacy.donottrackheader.enabled`. |
-| `driver_version` | implemented | `BrowserConfig::with_driver_version` | browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-&lt;version&gt;/. |
+| `driver_version` | implemented | `BrowserConfig::with_driver_version` | browser, mlatest (the newest build of the browser's major version), latest, stable, beta, dev, canary, keep (a driver already downloaded or on the PATH), previous or latest-1 (the major before the stable one), a major version or a full version. The driver goes to downloaded_drivers/chromedriver-&lt;version&gt;/. |
 | `enable_3d_apis` | implemented | `BrowserConfig::with_enable_3d_apis` | A headless session keeps the GPU. A Rust session never adds --disable-3d-apis. |
 | `enable_sync` | implemented | `BrowserConfig::with_enable_sync` | Chrome Sync is switched off with `--disable-sync` unless this is set. |
 | `enable_ws` | not-applicable |  | Python adds --disable-web-security unless enable_ws is set. A Rust session never adds it, so web security is already on and there is nothing to enable. |
@@ -1158,12 +1158,12 @@ Keyword arguments of `SB()`.
 | `headless` | implemented | `BrowserConfig::headless` |  |
 | `headless1` | implemented | `BrowserConfig::with_headless1` | Chrome's old headless mode now exists only as chrome-headless-shell: Chrome with no program of its own named runs it (downloaded when missing); the undetected mode cannot. |
 | `headless2` | implemented | `BrowserConfig::with_headless2` | `headless = true` launches Chrome's new headless mode (`--headless=new`), which is what headless2 asks for. |
-| `highlights` | not-applicable |  | BaseCase::highlight outlines the element once and restores it after about a second; it has no loop count for a highlights argument to override. |
+| `highlights` | planned |  | RunSettings::with_highlights holds the count (zero is unset, 4 is the default), but BaseCase::highlight does not read it yet. |
 | `host_resolver_rules` | implemented | `BrowserConfig::with_host_resolver_rules` |  |
 | `incognito` | implemented | `BrowserConfig::with_incognito` |  |
-| `interval` | not-applicable |  | Tour and Presentation here advance only when told, with no autoplay, so there is no interval to override. |
+| `interval` | planned |  | RunSettings::with_interval holds the time (zero is unset), save_presentation, begin_presentation and display_chart use it, but a tour does not play by itself yet. |
 | `is_mobile` | composed | `BrowserConfig::mobile` | Give the screen with `with_device_metrics`. |
-| `js_checking_on` | composed | `BaseCase::assert_no_js_errors` | Call it after the page loads. |
+| `js_checking_on` | implemented | `RunSettings::with_check_js` | After every page load (open, go_back, go_forward, refresh, wait_for_ready_state_complete) the browser log is checked for severe JavaScript errors, on a Chromium browser. Skipped by skip-js-waits. |
 | `locale` | implemented | `BrowserConfig::locale` |  |
 | `locale_code` | composed | `BrowserConfig::locale` |  |
 | `log_cdp` | implemented | `BrowserConfig::with_cdp_events` | Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`. |
@@ -1175,12 +1175,12 @@ Keyword arguments of `SB()`.
 | `no_screenshot` | not-applicable |  | Nothing to turn off: this crate saves a screenshot only when a test or ScreenshotOnFailurePlugin asks for one. |
 | `page_load_strategy` | implemented | `BrowserConfig::with_page_load_strategy` | The `pageLoadStrategy` capability: normal, eager or none. |
 | `pls` | implemented | `BrowserConfig::with_page_load_strategy` | The `pageLoadStrategy` capability: normal, eager or none. |
-| `port` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
+| `port` | implemented | `BrowserConfig::with_grid` | `with_grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL. |
 | `position` | implemented | `BrowserConfig::with_window_position` | Chrome's `--window-position`; a Firefox window is moved once it runs. |
-| `protocol` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
-| `proxy` | implemented | `BrowserConfig::proxy` | Differs: SERVER:PORT only: a WebDriver session cannot log in to a proxy, so USER:PASS@SERVER:PORT does not authenticate. The pure CDP engine can (LaunchOptionsBuilder::proxy). |
+| `protocol` | implemented | `BrowserConfig::with_grid` | `with_grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL. |
+| `proxy` | implemented | `BrowserConfig::proxy` | Differs: Checked as Python checks it (schemes http, https, socks4, socks5, socks5h; a SOCKS proxy takes no login). Chrome is never given the login in its arguments, and a WebDriver session does not answer the proxy's login yet, so USER:PASS@SERVER:PORT does not authenticate there; Firefox refuses a login with Python's message. The pure CDP engine can log in (LaunchOptionsBuilder::proxy). |
 | `proxy_bypass_list` | implemented | `BrowserConfig::with_proxy_bypass_list` | Chrome's `--proxy-bypass-list`. It applies to a proxy named with `proxy`, not to a PAC file. |
-| `proxy_pac_url` | implemented | `BrowserConfig::proxy_pac_url` | Differs: URL only: a WebDriver session cannot log in to a proxy, so USERNAME:PASSWORD@URL does not authenticate. |
+| `proxy_pac_url` | implemented | `BrowserConfig::proxy_pac_url` | Differs: The URL must end in .pac, with a login before it or in it. Chrome is never given the login, and a WebDriver session does not answer the PAC login yet, so it does not authenticate there; Firefox refuses a login with Python's message. |
 | `raise_test_failure` | not-applicable |  | Makes the SB() context manager re-raise a failing test; every Rust BaseCase method returns Result, so a failure already reaches the caller as an Err. |
 | `rec_behave` | implemented | `ActionRecorder::to_gherkin` | Writes a feature for the common browser steps; save_recording_as_feature saves it. |
 | `rec_print` | composed | `BaseCase::export_recording_as_rust` | Print the returned text. |
@@ -1188,11 +1188,11 @@ Keyword arguments of `SB()`.
 | `rec_sb_mgr` | composed | `ActionRecorder::to_rust_script` | Python's `with SB() as sb:` form is a standalone script. `ActionRecorder::to_rust_script` writes the recording as a standalone `#[tokio::main]` Rust program (BaseCase::export_recording_as_rust returns it); to_rust_test writes a test instead. |
 | `record_sleep` | implemented | `RunSettings::with_record_sleep` | BaseCase::sleep goes into the recording, and the generated Rust calls sb.sleep. |
 | `recorder_ext` | implemented | `BrowserConfig::with_recorder_extension` | Loads the bundled SeleniumBase Recorder extension. Chromium only. |
-| `remote_debug` | implemented | `BrowserConfig::with_remote_debug` | Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another. |
+| `remote_debug` | implemented | `BrowserConfig::with_remote_debug` | Opens Chrome's debugger on port 9222, or on a free port when 9222 is in use; `with_remote_debug_port` names another and refuses it when it is in use; `BrowserSession::remote_debug_address` says where it listens. |
 | `rtf` | not-applicable |  | Makes the SB() context manager re-raise a failing test; every Rust BaseCase method returns Result, so a failure already reaches the caller as an Err. |
 | `save_screenshot` | composed | `BaseCase::save_teardown_screenshot` | Call it at the end of a test. |
-| `server` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
-| `servername` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL, with the Grid's host in it. |
+| `server` | implemented | `BrowserConfig::with_grid` | `with_grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL. |
+| `servername` | implemented | `BrowserConfig::with_grid` | The server name may carry a login (`USER:KEY@hub.browserstack.com`), which stays in the WebDriver URL; see `with_grid`. |
 | `settings_file` | composed | `Settings::from_file` | `sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...). |
 | `size` | implemented | `BrowserConfig::with_window_size` | Chrome's `--window-size`; a Firefox window is resized once it runs. |
 | `sjw` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |
@@ -1202,7 +1202,7 @@ Keyword arguments of `SB()`.
 | `swiftshader` | implemented | `BrowserConfig::with_swiftshader` |  |
 | `test` | not-applicable |  | Marks an SB() context-manager block as a test so it prints pytest-style results; Rust code runs under cargo test, which reports results itself. |
 | `time_limit` | composed | `BaseCase::set_time_limit` | Once the test has run longer than the limit (counted from creating the BaseCase), its next open, readiness wait or element action fails with a time-limit error; waits are cut to the time left. A test that does none of those is not interrupted: wrap it in `tokio::time::timeout` for a hard stop. |
-| `timeout_multiplier` | composed | `BaseCase::set_timeout` | Call `set_timeout(10 * multiplier)`: the default wait is 10 seconds. A timeout passed to a method explicitly is not multiplied, which matches Python, where only the default timeouts are. |
+| `timeout_multiplier` | implemented | `RunSettings::with_timeout_multiplier` | The default wait becomes ceil(multiplier * seconds); a multiplier below 0.5 is raised to 0.5, as in Python. A timeout passed to a method explicitly is not multiplied, which matches Python, where only the default timeouts are. |
 | `uc` | composed | `BrowserConfig::mode` | DriverMode::Uc. |
 | `uc_cdp` | implemented | `BrowserConfig::with_cdp_events` | CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`. Differs: Python adds a listener with driver.add_cdp_listener; here the events are read back from the log. |
 | `uc_cdp_events` | implemented | `BrowserConfig::with_cdp_events` | CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`. Differs: Python adds a listener with driver.add_cdp_listener; here the events are read back from the log. |
@@ -1217,8 +1217,8 @@ Keyword arguments of `SB()`.
 | `var2` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `var3` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `variables` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
-| `wait_for_angularjs` | composed | `BaseCase::wait_for_angularjs` | Both default to no waiting; call it where a page needs it. |
-| `wfa` | composed | `BaseCase::wait_for_angularjs` | Both default to no waiting; call it where a page needs it. |
+| `wait_for_angularjs` | implemented | `RunSettings::with_wait_for_angularjs` | After every page load and after BaseCase::click the page is waited on for up to 2 s while AngularJS has requests in flight; a page without AngularJS does not wait. Skipped by skip-js-waits on page loads. |
+| `wfa` | implemented | `RunSettings::with_wait_for_angularjs` | After every page load and after BaseCase::click the page is waited on for up to 2 s while AngularJS has requests in flight; a page without AngularJS does not wait. Skipped by skip-js-waits on page loads. |
 | `window_position` | implemented | `BrowserConfig::with_window_position` | Chrome's `--window-position`; a Firefox window is moved once it runs. |
 | `window_size` | implemented | `BrowserConfig::with_window_size` | Chrome's `--window-size`; a Firefox window is resized once it runs. |
 | `xvfb` | implemented | `BrowserConfig::with_virtual_display` | Starts Xvfb for a headed session on Linux that starts its own driver; ignored elsewhere, as in Python. |
@@ -1233,7 +1233,7 @@ Keyword arguments of `Driver()`.
 | `ad_block` | composed | `BrowserConfig::ad_block` | Set BrowserConfig::ad_block (BrowserConfig::with_ad_block). Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs). |
 | `ad_block_on` | composed | `BrowserConfig::ad_block` | Set BrowserConfig::ad_block (BrowserConfig::with_ad_block). Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs). |
 | `agent` | composed | `BrowserConfig::user_agent` |  |
-| `binary_location` | composed | `BrowserConfig::browser_binary_path` |  |
+| `binary_location` | implemented | `BrowserConfig::with_binary_location` |  |
 | `block_images` | implemented | `BrowserConfig::with_block_images` | Chrome's content-setting preference (`prefs` of `goog:chromeOptions`), or Firefox's `permissions.default.image`. |
 | `browser` | implemented | `BrowserConfig::browser` |  |
 | `cap_file` | implemented | `CapabilityOverrides::from_file` | Reads JSON or the Python dictionary of a capabilities file without running Python; merged over the session's capabilities with `BrowserConfig::with_capabilities`. Differs: Python's parser reads one key per line; this reads the whole dictionary. |
@@ -1253,7 +1253,7 @@ Keyword arguments of `Driver()`.
 | `disable_js` | implemented | `BrowserConfig::with_disable_js` | Chrome's JavaScript content-setting preference, or Firefox's `javascript.enabled`. |
 | `disable_ws` | implemented | `BrowserConfig::with_disable_ws` |  |
 | `do_not_track` | implemented | `BrowserConfig::with_do_not_track` | Chrome's `enable_do_not_track` preference, or Firefox's `privacy.donottrackheader.enabled`. |
-| `driver_version` | implemented | `BrowserConfig::with_driver_version` | browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-&lt;version&gt;/. |
+| `driver_version` | implemented | `BrowserConfig::with_driver_version` | browser, mlatest (the newest build of the browser's major version), latest, stable, beta, dev, canary, keep (a driver already downloaded or on the PATH), previous or latest-1 (the major before the stable one), a major version or a full version. The driver goes to downloaded_drivers/chromedriver-&lt;version&gt;/. |
 | `enable_3d_apis` | implemented | `BrowserConfig::with_enable_3d_apis` | A headless session keeps the GPU. A Rust session never adds --disable-3d-apis. |
 | `enable_sync` | implemented | `BrowserConfig::with_enable_sync` | Chrome Sync is switched off with `--disable-sync` unless this is set. |
 | `enable_ws` | not-applicable |  | Python adds --disable-web-security unless enable_ws is set. A Rust session never adds it, so web security is already on and there is nothing to enable. |
@@ -1280,16 +1280,16 @@ Keyword arguments of `Driver()`.
 | `no_sandbox` | implemented | `BrowserConfig::with_no_sandbox` |  |
 | `page_load_strategy` | implemented | `BrowserConfig::with_page_load_strategy` | The `pageLoadStrategy` capability: normal, eager or none. |
 | `pls` | implemented | `BrowserConfig::with_page_load_strategy` | The `pageLoadStrategy` capability: normal, eager or none. |
-| `port` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
+| `port` | implemented | `BrowserConfig::with_grid` | `with_grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL. |
 | `position` | implemented | `BrowserConfig::with_window_position` | Chrome's `--window-position`; a Firefox window is moved once it runs. |
-| `protocol` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
-| `proxy` | implemented | `BrowserConfig::proxy` | Differs: SERVER:PORT only: a WebDriver session cannot log in to a proxy, so USER:PASS@SERVER:PORT does not authenticate. The pure CDP engine can (LaunchOptionsBuilder::proxy). |
+| `protocol` | implemented | `BrowserConfig::with_grid` | `with_grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL. |
+| `proxy` | implemented | `BrowserConfig::proxy` | Differs: Checked as Python checks it (schemes http, https, socks4, socks5, socks5h; a SOCKS proxy takes no login). Chrome is never given the login in its arguments, and a WebDriver session does not answer the proxy's login yet, so USER:PASS@SERVER:PORT does not authenticate there; Firefox refuses a login with Python's message. The pure CDP engine can log in (LaunchOptionsBuilder::proxy). |
 | `proxy_bypass_list` | implemented | `BrowserConfig::with_proxy_bypass_list` | Chrome's `--proxy-bypass-list`. It applies to a proxy named with `proxy`, not to a PAC file. |
-| `proxy_pac_url` | implemented | `BrowserConfig::proxy_pac_url` | Differs: URL only: a WebDriver session cannot log in to a proxy, so USERNAME:PASSWORD@URL does not authenticate. |
+| `proxy_pac_url` | implemented | `BrowserConfig::proxy_pac_url` | Differs: The URL must end in .pac, with a login before it or in it. Chrome is never given the login, and a WebDriver session does not answer the PAC login yet, so it does not authenticate there; Firefox refuses a login with Python's message. |
 | `recorder_ext` | implemented | `BrowserConfig::with_recorder_extension` | Loads the bundled SeleniumBase Recorder extension. Chromium only. |
-| `remote_debug` | implemented | `BrowserConfig::with_remote_debug` | Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another. |
-| `server` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
-| `servername` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL, with the Grid's host in it. |
+| `remote_debug` | implemented | `BrowserConfig::with_remote_debug` | Opens Chrome's debugger on port 9222, or on a free port when 9222 is in use; `with_remote_debug_port` names another and refuses it when it is in use; `BrowserSession::remote_debug_address` says where it listens. |
+| `server` | implemented | `BrowserConfig::with_grid` | `with_grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL. |
+| `servername` | implemented | `BrowserConfig::with_grid` | The server name may carry a login (`USER:KEY@hub.browserstack.com`), which stays in the WebDriver URL; see `with_grid`. |
 | `size` | implemented | `BrowserConfig::with_window_size` | Chrome's `--window-size`; a Firefox window is resized once it runs. |
 | `swiftshader` | implemented | `BrowserConfig::with_swiftshader` |  |
 | `uc` | composed | `BrowserConfig::mode` | DriverMode::Uc. |
