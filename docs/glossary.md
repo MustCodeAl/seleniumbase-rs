@@ -73,6 +73,14 @@ The state an element must be in before a tool acts on it: it exists, is visible,
 
 See [JavaScript, events and waiting](/concepts/javascript-and-events#auto-waiting-and-actionability).
 
+### Adaptive bitrate
+
+<Badge color="red">Network</Badge>
+
+Streaming that cuts a video into short segments in several qualities and lets the player switch between them as the connection speeds up or slows down. The common formats are [HLS](#hls) and DASH; a script feeds the segments to the video element.
+
+See [Adaptive streaming: HLS and DASH](/concepts/media-and-video#adaptive-streaming-hls-and-dash).
+
 ### ADR
 
 <Badge color="yellow">Project</Badge>
@@ -251,6 +259,14 @@ One of the official plugins that ship inside seleniumbase-rs, one Cargo feature 
 
 See [Choosing Plugins](/plugins/selecting).
 
+### Bundler
+
+<Badge color="blue">Engine</Badge>
+
+A build tool that follows the imports of a project's source files and joins them into a few files for the browser, usually also transpiling, minifying and splitting them. webpack, Rollup, esbuild, Vite and Turbopack are bundlers. A test meets their output as hashed file names and generated class names.
+
+See [Bundlers](/concepts/bundling-and-build-tools#bundlers).
+
 ## C
 
 ### Canary deployment
@@ -420,6 +436,14 @@ See [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth#randomised-i
 The first message of a TLS handshake, in which a client says which versions, ciphers and extensions it supports. A site can tell clients apart by it, and [JA3](#ja3) and [JA4](#ja4) are summaries of it.
 
 See [Wire Formats and Impersonation](/stealth/wire-formats#reading-the-wire-formats).
+
+### Codec
+
+<Badge color="blue">Engine</Badge>
+
+The method that compresses video or sound, such as H.264, VP9, AV1, AAC or Opus. It is not the container (MP4, WebM) that holds the compressed streams. A plain Chromium build may lack the proprietary codecs that Google Chrome has.
+
+See [Containers and codecs](/concepts/media-and-video#containers-and-codecs).
 
 ### Commander
 
@@ -713,6 +737,14 @@ A copy of a system with its own purpose, such as development, staging or product
 
 See [Version control and deployment](/concepts/version-control-and-deployment#environments-and-deployment).
 
+### EME
+
+<Badge color="blue">Engine</Badge>
+
+Encrypted Media Extensions: the browser interface for protected video. The page asks a content decryption module, such as [Widevine](#widevine), for keys from a license server, and the clear video never reaches the page, so a screenshot of it is often black.
+
+See [Protected video](/concepts/media-and-video#protected-video-eme-cdms-and-widevine).
+
 ### Ephemeral CA
 
 <Badge color="red">Network</Badge>
@@ -854,6 +886,22 @@ See [Encryption and certificates](/concepts/encryption).
 HTTP Strict Transport Security: a header that tells the browser to use only https for a host for a set time. It also removes the click-through on certificate errors.
 
 See [Mixed content and HSTS](/concepts/security-policies#mixed-content-and-hsts).
+
+### HLS
+
+<Badge color="red">Network</Badge>
+
+HTTP Live Streaming: an [adaptive bitrate](#adaptive-bitrate) format whose manifest is a `.m3u8` file listing short segments in several qualities. Safari plays it natively; other browsers use a script and Media Source Extensions, so the video's `src` is a `blob:` address.
+
+See [Adaptive streaming: HLS and DASH](/concepts/media-and-video#adaptive-streaming-hls-and-dash).
+
+### Hot module replacement
+
+<Badge color="blue">Engine</Badge>
+
+A dev-server feature (HMR) that sends a changed module to the open page over a WebSocket and swaps it in without a reload. A page served by a dev server therefore holds a connection open, so a wait for no network activity never finishes.
+
+See [Dev servers and hot reload](/concepts/bundling-and-build-tools#dev-servers-and-hot-reload).
 
 ### HttpOnly
 
@@ -1029,6 +1077,14 @@ A [selector](#selector) kind that finds a link by the text people see. `link=Log
 
 See [Selectors Guide](/tutorials/selectors#supported-formats).
 
+### LLM
+
+<Badge color="gray">CLI</Badge>
+
+Large language model: a neural network trained to predict the next token of text, used to write text and code and to choose the tool calls of an AI agent. The same prompt can give different replies, so a test of a site that uses one checks properties, not exact wording. `sbrs-mcp` lets an assistant drive a browser.
+
+See [Large language models](/concepts/ai-and-machine-learning#large-language-models).
+
 ### localStorage
 
 <Badge color="blue">Engine</Badge>
@@ -1118,6 +1174,22 @@ See [Media queries](/concepts/mobile-web#media-queries).
 Multi-factor authentication: a login that asks for a second proof, here usually a [TOTP](#totp) code. `enter_totp_code(css, secret)` types the code into a field and presses Enter.
 
 See [MFA / TOTP Guide](/tutorials/mfa_totp).
+
+### Middleware
+
+<Badge color="blue">Engine</Badge>
+
+A step in the chain a server runs around each request: logging, rate limiting, authentication, parsing, validation. A step can end the request early, so a 401, 429 or 422 may come from a step that runs before the handler.
+
+See [Middleware](/concepts/backend-patterns#middleware-a-pipeline-around-every-request).
+
+### Minification
+
+<Badge color="blue">Engine</Badge>
+
+Shrinking JavaScript and CSS by removing whitespace and comments and shortening local names. The output is hard to read, which is why a [source map](#source-map) exists.
+
+See [What happens to your code](/concepts/bundling-and-build-tools#what-happens-to-your-code).
 
 ### MitmProxy
 
@@ -1330,6 +1402,14 @@ See [TCP, sockets and streams](/concepts/tcp-and-streams#addresses-and-ports).
 An `OPTIONS` request the browser sends before a cross-origin request that is not simple (a `PUT`, a JSON body or a custom header), to ask whether the server allows it.
 
 See [Preflighted requests](/concepts/security-policies#preflighted-requests).
+
+### Prompt injection
+
+<Badge color="gray">CLI</Badge>
+
+Text in a page or in a tool result that is written to look like an instruction to an AI assistant. A model can be fooled by it, so a tool's output is treated as data and not as orders, and safety decisions (which plugins load, where files go) belong to the operator who starts the server.
+
+See [AI agents that drive a browser](/concepts/ai-and-machine-learning#ai-agents-that-drive-a-browser).
 
 ### Proxy
 
@@ -1609,6 +1689,14 @@ A one-way channel in which a server keeps an HTTP response open (`text/event-str
 
 See [Modern web technologies](/concepts/modern-web#websockets-and-server-sent-events).
 
+### Serverless function
+
+<Badge color="blue">Engine</Badge>
+
+Code that a platform starts when a request arrives and may stop afterwards. The first call after a quiet period is slow (a cold start), and nothing kept in the function's memory is there for the next call, so state lives in a database or travels in a cookie or token.
+
+See [Serverless and edge functions](/concepts/backend-patterns#serverless-and-edge-functions).
+
 ### Service worker
 
 <Badge color="red">Network</Badge>
@@ -1713,6 +1801,14 @@ Another name for a [deferred assertion](#deferred-assertion): a check that recor
 
 See [Waits and Assertions](/tutorials/waits_assertions#soft-assertions).
 
+### Source map
+
+<Badge color="blue">Engine</Badge>
+
+A file (such as `app.js.map`) that maps positions in minified output back to the original source, so developer tools can show real names. Production sites often leave it out, so a stack trace from a test can read `a.js:1:48213`.
+
+See [Source maps](/concepts/bundling-and-build-tools#source-maps).
+
 ### Spoof
 
 <Badge color="purple">Stealth</Badge>
@@ -1777,6 +1873,14 @@ Facts about a page written in a form that machines read, usually as [JSON-LD](#j
 
 See [Structured data](/concepts/seo#structured-data-json-ld).
 
+### Structured logging
+
+<Badge color="yellow">Project</Badge>
+
+Writing log lines as records with named fields, usually JSON, so a tool can filter and count them. `init_tracing_json()` and `SB_LOG_FORMAT=json` make the library log this way, to standard error.
+
+See [Structured logging](/concepts/telemetry-and-observability#structured-logging).
+
 ## T
 
 ### Subresource Integrity
@@ -1818,6 +1922,14 @@ See [Tauri Plugin](/ecosystem/tauri).
 The Transmission Control Protocol, which gives two programs a reliable, ordered stream of bytes, opened by a three-way handshake. It has no message boundaries.
 
 See [TCP, sockets and streams](/concepts/tcp-and-streams#tcp-a-reliable-pipe).
+
+### Telemetry
+
+<Badge color="yellow">Project</Badge>
+
+Data a program sends out about itself: logs, metrics and [traces](#trace). OpenTelemetry is the open standard for producing and shipping them. On a web page, analytics and tracking scripts are telemetry that add requests and consent banners to a test.
+
+See [The three kinds of signal](/concepts/telemetry-and-observability#the-three-kinds-of-signal).
 
 ### Test plugin
 
@@ -1890,6 +2002,30 @@ See [MFA / TOTP Guide](/tutorials/mfa_totp).
 A guided walkthrough of a page, drawn as HTML overlays by a JavaScript tour library. You build it in a test with `create_tour_with_theme`, `add_tour_step` and `export_tour`, and the exported file is standalone HTML that you open in a browser.
 
 See [Interactive Tours Guide](/tutorials/tours).
+
+### Trace
+
+<Badge color="yellow">Project</Badge>
+
+The path of one request through every service it touches, as a tree of timed spans that share a trace id. Between services the id travels in the W3C `traceparent` header. It is not the [tracing](#tracing) crate.
+
+See [OpenTelemetry](/concepts/telemetry-and-observability#opentelemetry).
+
+### tracing
+
+<Badge color="yellow">Project</Badge>
+
+The Rust crate that seleniumbase-rs logs with. `tracing_util::init_tracing()` installs a subscriber that writes to standard error and reads `RUST_LOG`; `SB_LOG_LEVEL` and `SB_LOG_FORMAT` set the level and format for `sbrs` and `sbrs-mcp`.
+
+See [The library's own logs](/concepts/telemetry-and-observability#the-librarys-own-logs).
+
+### Tree shaking
+
+<Badge color="blue">Engine</Badge>
+
+A build step that drops exports which nothing imports, so unused parts of a library do not ship. It relies on ES modules, whose imports can be read without running the code.
+
+See [What happens to your code](/concepts/bundling-and-build-tools#what-happens-to-your-code).
 
 ### Trusted input
 
@@ -2046,6 +2182,22 @@ See [Pure CDP](/tutorials/pure_cdp#keeping-webrtc-from-leaking-addresses).
 A long-lived two-way connection that starts as an HTTP request and then carries messages in both directions. The DevTools Protocol runs over one, and so does WebDriver BiDi.
 
 See [Connecting](/concepts/cdp#connecting).
+
+### WebVTT
+
+<Badge color="blue">Engine</Badge>
+
+The plain-text format for captions and subtitles: a `WEBVTT` header and cues with start and end times. A `track` element adds a file to a video, and the video's `textTracks` list gives a script the cues.
+
+See [Captions: WebVTT](/concepts/media-and-video#captions-webvtt).
+
+### Widevine
+
+<Badge color="blue">Engine</Badge>
+
+Google's content decryption module for [EME](#eme), shipped with Chrome. A Chromium build or a profile without it may fail to play protected video with a key-system error.
+
+See [Protected video](/concepts/media-and-video#protected-video-eme-cdms-and-widevine).
 
 ### Wire fingerprint
 
