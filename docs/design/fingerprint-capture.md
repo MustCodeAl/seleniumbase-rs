@@ -64,8 +64,8 @@ checks, never applied.
 
 ```rust
 // stealth::capture
-pub struct CapturedFingerprint { pub fingerprint: Fingerprint, pub unmapped: Map<String, Value>, pub probe: Probe }
-pub struct Probe { pub url: String, pub captured_at: String, pub browser_version: Option<String> }
+pub struct CapturedFingerprint { pub fingerprint: Fingerprint, pub unmapped: Map<String, Value>, pub probe: ProbeInfo }
+pub struct ProbeInfo { pub url: String, pub captured_at: String, pub browser_version: Option<String> }
 CapturedFingerprint::from_probe(raw: &Value, captured_at: impl Into<String>) -> Result<Self, SeleniumBaseError>
 
 // the engines
@@ -101,6 +101,24 @@ any reading that failed) is listed as **unverifiable**, never as a match. And th
 battery and the connection compare by presence, because their numbers move.
 `FingerprintComparison::presents()` is true when nothing differs, and
 `is_verified()` when nothing differs and nothing is unverifiable.
+
+## The browser extension
+
+The Page tab of the companion extension ([seleniumbase-rs-companion](/ecosystem/browser-extension))
+writes what the open page shows as a fingerprint file and reads one back; it is the same v2
+JSON, so a file moves in both directions: `sbrs fingerprint capture` reads a browser a script
+starts, the extension reads the browser a person uses, and either file goes to `check`, `diff`
+and `--fingerprint`. The extension writes only the settings the page answered (a missing
+reading is left out, not `null`) and only keys this crate knows, which is why a file with
+another key is refused here and not ignored. `tests/fingerprint_companion.rs` loads a file
+written the way the extension writes it (`tests/fixtures/fingerprint/companion_page_tab.json`,
+pinned on the extension's side by its `tests/fingerprint.test.ts`), so a change to either
+format fails a test.
+
+A page that is not a secure context (`about:blank`, a `data:` URL, plain `http`) cannot answer
+the settings whose APIs need one (`client_hints`, `media_devices`, `battery`, `bluetooth`);
+`capture` lists them as not answered. Give it an `https://` page to read them.
+
 
 ## JSON Schema
 

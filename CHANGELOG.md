@@ -10,6 +10,31 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- **Fingerprint capture, export and import.** A browser's fingerprint can now be read from
+  a real browser and handed back to any launch path, as one file format everywhere: the v2
+  `Fingerprint` JSON, described by the new `schemas/fingerprint.schema.json` (a test fails
+  when the schema is stale). `Page::capture_fingerprint` (pure CDP) and
+  `BaseCase::capture_fingerprint` (WebDriver) read what a page can see of the browser and
+  return a `CapturedFingerprint` (the fingerprint, the readings no setting holds in
+  `unmapped`, and a `ProbeInfo` with the page, the time and the browser version);
+  `compare_fingerprint` checks that a live page presents a fingerprint and lists what no page
+  can read as unverifiable instead of as a match. `Fingerprint::load`, `save` (atomic,
+  mode `0600`), `from_json`, `to_json_pretty`, `diff` (`SettingDiff`), `compare_to`
+  (`FingerprintComparison`) and `claimed_settings` are public.
+- **`sbrs fingerprint capture|export|check|diff|presets`.** `capture [URL] [-o FILE]
+  [--readings FILE]` prints or writes the fingerprint of the browser the global options
+  start; `export (--preset NAME | --random [--seed N] [--os OS])` writes a preset or a seeded
+  random identity; `check FILE` reports the errors and warnings of a file (status 2 when
+  there is an error); `diff A B` lists the settings where `B` differs from what `A` expects
+  (status 1 when any does); `presets` lists the presets.
+- **The global `--fingerprint FILE`, `SB_FINGERPRINT` and a `[fingerprint]` table (`file =
+  "..."`) in the settings file** make every browser a command starts present a fingerprint
+  file. The command line wins over the variable, which wins over the file; a file that
+  cannot be read stops the command before a browser starts. A Chromium browser runs in the
+  CDP mode for it when no mode was asked for, and `sbrs devtools` applies it through the
+  pure CDP launch options. `Settings::fingerprint`, `load_fingerprint`, `check_fingerprint`
+  and `Settings::resolve_fingerprint_file` are the library side.
+
 - **`sbrs-mcp install CLIENT...`, `sbrs-mcp uninstall CLIENT...` and `sbrs-mcp clients`**
   register the server with MCP clients, remove the registration, and list the clients
   with where each keeps its config and whether its config and program were found.
