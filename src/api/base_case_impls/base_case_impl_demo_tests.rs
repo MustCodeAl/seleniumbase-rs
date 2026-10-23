@@ -215,14 +215,11 @@ mod tests_demo_pauses {
             .requests("/execute/sync")
             .iter()
             .filter_map(|request| request.body["script"].as_str().map(str::to_owned))
-            .filter(|script| script.contains("3px solid magenta"))
+            .filter(|script| script.contains("rgba(255, 0, 0, 1)"))
             .collect();
-        for selector in ["#src", "#dst"] {
-            assert!(
-                scripts.iter().any(|script| script.contains(selector)),
-                "{selector} was not outlined: {scripts:?}"
-            );
-        }
+        // One animation for each of the two elements; the scripts take the
+        // element as an argument, so the selectors are not in them.
+        assert_eq!(scripts.len(), 2, "{scripts:?}");
     }
 
     #[tokio::test]
@@ -557,19 +554,4 @@ mod tests_messages {
         assert_eq!(scripts.len(), 2, "{scripts:?}");
     }
 
-    #[tokio::test]
-    async fn a_message_with_a_highlight_does_not_wait_for_the_message_to_go() {
-        let (driver, sb) = messenger_case(headed().with_run_settings(
-            RunSettings::default().with_message_duration(Duration::from_secs(30)),
-        ))
-        .await;
-        let started = std::time::Instant::now();
-        sb.post_message_and_highlight("Saved", "h1").await.unwrap();
-        assert!(started.elapsed() < Duration::from_secs(5), "{:?}", started.elapsed());
-        // The message went first, as a success message of the full time.
-        let scripts = messenger_scripts(&driver);
-        assert!(scripts.iter().any(|script| {
-            script.contains("hideAfter: 30.0,") && script.contains("type: \"success\",")
-        }), "{scripts:?}");
-    }
 }

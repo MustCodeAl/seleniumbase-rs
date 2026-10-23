@@ -22,6 +22,9 @@ use crate::error::SeleniumBaseError;
 /// The largest download the server will write to disk, in bytes.
 const MAX_DOWNLOAD_BYTES: u64 = 256 * 1024 * 1024;
 
+/// The most loops one `highlight` call may play (each takes about 0.2 s).
+const MAX_HIGHLIGHT_LOOPS: usize = 100;
+
 impl Closeable for BaseCase {
     async fn close(mut self) {
         // The server is shutting down; there is nobody left to report to.
@@ -1083,9 +1086,14 @@ pub(super) async fn execute_script(ctx: Ctx<BaseCase>, args: Args) -> Result<Out
 }
 
 pub(super) async fn highlight(ctx: Ctx<BaseCase>, args: Args) -> Result<Output, ToolError> {
-    let loops = args.opt_usize("loops")?.unwrap_or(4);
+    // More loops than this only keeps the browser busy.
+    let loops = args
+        .opt_usize("loops")?
+        .unwrap_or(4)
+        .min(MAX_HIGHLIGHT_LOOPS);
+    let loops = u32::try_from(loops).unwrap_or(1);
     on_element(ctx, args, async |case, selector, _| {
-        case.flash(selector, loops).await?;
+        case.highlight(selector).loops(loops).await?;
         Ok(format!("Highlighted {selector}"))
     })
     .await
@@ -1093,14 +1101,12 @@ pub(super) async fn highlight(ctx: Ctx<BaseCase>, args: Args) -> Result<Output, 
 
 pub(super) async fn flash(ctx: Ctx<BaseCase>, args: Args) -> Result<Output, ToolError> {
     let selector = args.str("selector")?;
-    let seconds = args.seconds_or("duration", 1.0)?.as_secs_f64();
-    #[expect(
-        clippy::cast_possible_truncation,
-        clippy::cast_sign_loss,
-        reason = "the duration is bounded by MAX_SECONDS and rounded to a small count"
-    )]
-    let times = (seconds.round() as usize).max(1);
-    ctx.session().await?.flash(selector, times).await?;
+    let duration = args.seconds_or("duration", 1.0)?;
+    ctx.session()
+        .await?
+        .flash(selector)
+        .duration(duration)
+        .await?;
     Ok(format!("Flashed {selector}").into())
 }
 

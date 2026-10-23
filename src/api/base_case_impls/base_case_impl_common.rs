@@ -342,6 +342,8 @@ impl BaseCase {
                 css
             )));
         }
+        let message = demo::non_empty_text_message(css);
+        self.demo_assert_success(&message, Some(css)).await;
         Ok(())
     }
 

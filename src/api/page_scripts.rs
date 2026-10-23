@@ -165,33 +165,6 @@ pub(crate) fn set_text_script(css: &str, text: &str) -> String {
     )
 }
 
-/// Outlines the element `css` picks for `restore_after_ms` milliseconds, then
-/// puts back the outline it had. Returns `false` when no element matches.
-pub(crate) fn highlight_script(css: &str, restore_after_ms: u32) -> String {
-    // The old outline is kept on the element, so highlighting it again before the
-    // timer fires restores the real outline, not the magenta one.
-    format!(
-        "var el = document.querySelector({css}); \
-         if (!el) {{ return false; }} \
-         try {{ el.scrollIntoView({{ block: 'center', inline: 'nearest' }}); }} catch (e) {{}} \
-         if (el.__sbOutline === undefined) {{ \
-             el.__sbOutline = [el.style.outline, el.style.outlineOffset]; \
-         }} \
-         clearTimeout(el.__sbOutlineTimer); \
-         el.style.outline = '3px solid magenta'; \
-         el.style.outlineOffset = '2px'; \
-         el.__sbOutlineTimer = setTimeout(function () {{ \
-             var old = el.__sbOutline; \
-             el.style.outline = old[0]; \
-             el.style.outlineOffset = old[1]; \
-             delete el.__sbOutline; \
-             delete el.__sbOutlineTimer; \
-         }}, {restore_after_ms}); \
-         return true;",
-        css = literal(css)
-    )
-}
-
 /// Raises the z-index of the element `css` picks. Returns `false` when no
 /// element matches.
 pub(crate) fn bring_to_front_script(css: &str) -> String {
@@ -265,7 +238,6 @@ mod tests {
         // Each payload may only appear as the JSON literal of an argument.
         for (script, args) in [
             (set_text_script(css, text), vec![css, text]),
-            (highlight_script(css, 10), vec![css]),
             (bring_to_front_script(css), vec![css]),
             (select_by_index_script(css, 1), vec![css]),
             (console_log_string_script(text), vec![text]),
@@ -373,33 +345,6 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(missing, Value::Bool(false));
-        browser.close().await.unwrap();
-    }
-
-    #[tokio::test]
-    #[ignore = "needs Chrome"]
-    async fn highlight_outlines_the_element_and_then_puts_its_outline_back() {
-        let (browser, page) =
-            open_html("<!doctype html><div id=x style='outline:1px dotted blue'>x</div>").await;
-        let found = page
-            .evaluate(as_call(&highlight_script("#x", 300)))
-            .await
-            .unwrap();
-        assert_eq!(found, Value::Bool(true));
-        let during = page
-            .evaluate("document.querySelector('#x').style.outline")
-            .await
-            .unwrap();
-        assert!(during.as_str().unwrap().contains("magenta"), "{during}");
-        tokio::time::sleep(std::time::Duration::from_millis(900)).await;
-        let after = page
-            .evaluate("document.querySelector('#x').style.outline")
-            .await
-            .unwrap();
-        assert!(
-            after.as_str().unwrap().contains("blue"),
-            "the old outline is back: {after}"
-        );
         browser.close().await.unwrap();
     }
 

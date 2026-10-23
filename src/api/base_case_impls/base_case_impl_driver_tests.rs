@@ -552,24 +552,6 @@ mod tests_page_scripts {
         );
     }
 
-    #[tokio::test]
-    async fn the_highlight_helpers_keep_their_arguments_inside_strings() {
-        let driver = quiet_driver();
-        let sb = driver.base_case().await;
-        assert_script!(
-            driver,
-            css,
-            sb.highlight_elements(css),
-            "document.querySelectorAll(S).forEach(el => { el.style.outline = S; \
-             el.style.background = S; });",
-            [css, "3px solid red", "yellow"]
-        );
-        for css in HOSTILE {
-            sb.flash(css, 1).await.unwrap();
-            assert_carries(&last_script(&driver), &[css]);
-        }
-    }
-
     #[test]
     fn the_scripts_built_from_a_url_or_a_selector_keep_it_inside_its_string() {
         for text in HOSTILE {

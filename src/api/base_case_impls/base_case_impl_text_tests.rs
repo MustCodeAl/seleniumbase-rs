@@ -302,28 +302,6 @@ mod tests_text_argument_order {
     }
 
     #[tokio::test]
-    async fn post_message_and_highlight_highlights_the_element_it_is_given() {
-        // It used to highlight the toast it had just shown, whatever it was told.
-        let driver = welcome_page();
-        let sb = driver.base_case().await;
-
-        sb.post_message_and_highlight("Saved", "h1").await.unwrap();
-
-        let scripts: Vec<String> = driver
-            .requests("/execute/sync")
-            .iter()
-            .map(|request| request.body["script"].as_str().unwrap_or_default().to_owned())
-            .collect();
-        let toast = scripts.first().expect("the toast script");
-        assert!(toast.contains("Saved"), "{toast}");
-        let highlight = scripts.last().expect("the highlight script");
-        assert!(
-            highlight.contains("\"h1\"") && !highlight.contains("sb-toast-message"),
-            "{highlight}"
-        );
-    }
-
-    #[tokio::test]
     async fn the_mfa_code_is_typed_followed_by_enter() {
         // Python types the code plus a newline, so the form is submitted.
         let driver = MockWebDriver::start(json!({}), |request| {

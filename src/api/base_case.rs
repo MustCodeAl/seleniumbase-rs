@@ -36,9 +36,6 @@ use thirtyfour::common::keys::Key;
 use thirtyfour::extensions::cdp::NetworkConditions;
 use thirtyfour::prelude::By;
 
-/// How long [`BaseCase::highlight`] leaves its outline on an element.
-const HIGHLIGHT_MILLIS: u32 = 900;
-
 /// How much longer than the message lasts Python's `post_message` waits.
 const MESSAGE_SETTLE: Duration = Duration::from_millis(150);
 
@@ -207,14 +204,17 @@ impl BaseCase {
     }
 
     /// Ends the test if ESC was pressed (`--esc-end`), then, in demo mode,
-    /// outlines the element `css` picks, if the page has it.
+    /// scrolls to the element `css` picks and plays the highlight animation on
+    /// it, or, in slow mode, only scrolls to it (Python's
+    /// `__demo_mode_highlight_if_active`).
     async fn demo_highlight(&self, css: &str) -> Result<(), SeleniumBaseError> {
         self.skip_if_esc().await?;
+        // A selector the page cannot show is for the action to report, so what
+        // goes wrong here is ignored.
         if self.run_settings.demo_mode() {
-            // A selector the outline script cannot use must not fail the action.
-            let _ = self
-                .execute_script(&page_scripts::highlight_script(css, HIGHLIGHT_MILLIS))
-                .await;
+            let _ = self.demo_outline(css).await;
+        } else if self.run_settings.slow_mode() {
+            let _ = self.slow_mode_scroll(css).await;
         }
         Ok(())
     }
@@ -400,6 +400,8 @@ impl BaseCase {
                 actual_value.unwrap_or_default()
             )));
         }
+        let message = demo::attribute_message(css, attribute, Some(value));
+        self.demo_assert_success(&message, Some(css)).await;
         Ok(())
     }
 
@@ -412,6 +414,11 @@ impl BaseCase {
                 expected, title
             )));
         }
+        self.demo_assert_success(
+            &demo::braced_message("ASSERT TITLE", expected),
+            Some("html"),
+        )
+        .await;
         Ok(())
     }
 
@@ -664,12 +671,6 @@ impl BaseCase {
             self.session.driver().add_cookie(cookie).await?;
         }
         Ok(())
-    }
-
-    /// Highlights the element `css`, then clicks it.
-    pub async fn highlight_click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
-        self.highlight(css).await?;
-        self.click(css).await
     }
 
     /// Executes the `is_checked` action.
@@ -1053,12 +1054,17 @@ impl BaseCase {
     /// displayed when the timeout ends.
     pub async fn assert_element(&self, css: &str) -> Result<(), SeleniumBaseError> {
         let timeout = self.default_wait_secs();
-        match self.wait_for_element_visible(css, timeout).await {
+        let seen = match self.wait_for_element_visible(css, timeout).await {
             Err(SeleniumBaseError::WaitTimeout(_)) => Err(SeleniumBaseError::AssertionFailed(
                 format!("expected element '{css}' to be visible after {timeout}s"),
             )),
             other => other,
+        };
+        if seen.is_ok() {
+            self.demo_assert_success(&demo::element_message(css), Some(css))
+                .await;
         }
+        seen
     }
 
     /// Executes the `assert_element_absent` action.
@@ -1085,6 +1091,8 @@ impl BaseCase {
     pub async fn assert_url_contains(&self, expected: &str) -> Result<(), SeleniumBaseError> {
         let url = self.get_current_url().await?;
         if url.contains(expected) {
+            let message = demo::braced_message("ASSERT URL CONTAINS", expected);
+            self.demo_assert_success(&message, Some("html")).await;
             return Ok(());
         }
         Err(SeleniumBaseError::AssertionFailed(format!(
@@ -1276,6 +1284,8 @@ impl BaseCase {
     pub async fn assert_title_contains(&self, expected: &str) -> Result<(), SeleniumBaseError> {
         let title = self.get_title().await?;
         if title.contains(expected) {
+            let message = demo::braced_message("ASSERT TITLE CONTAINS", expected);
+            self.demo_assert_success(&message, Some("html")).await;
             return Ok(());
         }
         Err(SeleniumBaseError::AssertionFailed(format!(
@@ -1299,7 +1309,10 @@ impl BaseCase {
     pub async fn assert_text(&self, expected: &str, css: &str) -> Result<(), SeleniumBaseError> {
         self.record("assert_text", Some(css), Some(expected));
         self.assert_shown_text(expected, css, TextMatch::Contains, self.default_wait_secs())
-            .await
+            .await?;
+        let message = demo::text_message(css, expected, false);
+        self.demo_assert_success(&message, Some(css)).await;
+        Ok(())
     }
 
     /// Asserts that the element selected by `css` is displayed and its text
@@ -1321,7 +1334,10 @@ impl BaseCase {
         css: &str,
     ) -> Result<(), SeleniumBaseError> {
         self.assert_shown_text(expected, css, TextMatch::Exact, self.default_wait_secs())
-            .await
+            .await?;
+        let message = demo::text_message(css, expected, true);
+        self.demo_assert_success(&message, Some(css)).await;
+        Ok(())
     }
 
     /// Polls for up to `timeout_secs` until the element `css` is displayed
@@ -1424,18 +1440,6 @@ impl BaseCase {
                  and '{expected}' selects an element whose text is '{css}'"
             )
         })
-    }
-
-    /// Scrolls the element `css` into view and outlines it in magenta for
-    /// about a second, then puts back the outline it had. Does nothing if the
-    /// page has no such element. Corresponds to Python's `highlight`, which
-    /// animates the element and restores its style too; this is one outline
-    /// that is restored by a timer in the page, so the call does not block.
-    pub async fn highlight(&self, css: &str) -> Result<(), SeleniumBaseError> {
-        self.skip_if_esc().await?;
-        self.execute_script(&page_scripts::highlight_script(css, HIGHLIGHT_MILLIS))
-            .await?;
-        Ok(())
     }
 
     /// How long a message stays on the page: `requested`, else the run's
@@ -2188,6 +2192,9 @@ impl BaseCase {
                 link_text
             )));
         }
+        let message = demo::braced_message("ASSERT LINK TEXT", link_text);
+        self.demo_assert_success(&message, Some(&format!("link={link_text}")))
+            .await;
         Ok(())
     }
 
@@ -2645,6 +2652,8 @@ impl BaseCase {
     pub async fn assert_url(&self, expected: &str) -> Result<(), SeleniumBaseError> {
         let url = self.get_current_url().await?;
         if url == expected {
+            let message = demo::braced_message("ASSERT URL", expected);
+            self.demo_assert_success(&message, Some("html")).await;
             return Ok(());
         }
         Err(SeleniumBaseError::AssertionFailed(format!(
@@ -2686,6 +2695,8 @@ impl BaseCase {
             }
         }
         if broken.is_empty() {
+            let message = demo::label_message("ASSERT NO 404 ERRORS");
+            self.demo_assert_success(&message, Some("html")).await;
             Ok(())
         } else {
             Err(SeleniumBaseError::AssertionFailed(format!(
@@ -3259,6 +3270,7 @@ include!("base_case_impls/base_case_impl_dom.rs");
 include!("base_case_impls/base_case_impl_window.rs");
 include!("base_case_impls/base_case_impl_drivers.rs");
 include!("base_case_impls/base_case_impl_mouse.rs");
+include!("base_case_impls/base_case_impl_highlight.rs");
 include!("base_case_impls/base_case_impl_alerts.rs");
 include!("base_case_impls/base_case_impl_browser.rs");
 include!("base_case_impls/base_case_impl_nav.rs");
@@ -3283,6 +3295,9 @@ include!("base_case_impls/base_case_impl_text_tests.rs");
 include!("base_case_impls/base_case_impl_element_tests.rs");
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_demo_tests.rs");
+#[cfg(test)]
+include!("base_case_impls/base_case_impl_highlight_tests.rs");
+
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_cdp_tests.rs");
 #[cfg(test)]

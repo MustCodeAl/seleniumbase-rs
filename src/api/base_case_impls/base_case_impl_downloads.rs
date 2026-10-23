@@ -116,7 +116,10 @@ impl BaseCase {
     /// compile and [`SeleniumBaseError::AssertionFailed`] if no file matches
     /// when the timeout ends.
     pub async fn assert_downloaded_file_regex(&self, regex: &str) -> Result<(), SeleniumBaseError> {
-        wait_for_downloaded_name(&default_download_dir(), regex, self.default_wait_secs()).await
+        wait_for_downloaded_name(&default_download_dir(), regex, self.default_wait_secs()).await?;
+        let message = demo::bracketed_message("ASSERT DOWNLOADED FILE REGEX", regex);
+        self.demo_assert_success(&message, None).await;
+        Ok(())
     }
 
     /// Asserts that the downloaded file `filename` contains `data` (ignoring

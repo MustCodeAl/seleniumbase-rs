@@ -408,6 +408,9 @@ impl BaseCase {
                 text
             )));
         }
+        let message = demo::braced_message("ASSERT PARTIAL LINK TEXT", text);
+        self.demo_assert_success(&message, Some(&format!("partial_link={text}")))
+            .await;
         Ok(())
     }
 
@@ -1104,7 +1107,10 @@ impl BaseCase {
                 "Downloaded file '{}' was not found after {timeout}s",
                 path.display()
             ))
-        })
+        })?;
+        let message = demo::bracketed_message("ASSERT DOWNLOADED FILE", filename);
+        self.demo_assert_success(&message, None).await;
+        Ok(())
     }
 
     /// Deletes `filename` from the downloads folder.
@@ -1494,28 +1500,6 @@ impl BaseCase {
     // ========================================================================
     // Demo / design mode
     // ========================================================================
-
-    /// Activates demo mode: highlights clicks and typed text.
-    pub async fn activate_demo_mode(&self) -> Result<(), SeleniumBaseError> {
-        self.execute_script(
-            r#"
-            document.body.addEventListener('click', function(e) {
-                var d = document.createElement('div');
-                d.style.cssText = 'position:fixed;left:' + e.clientX + 'px;top:' + e.clientY + 'px;width:20px;height:20px;border-radius:50%;background:rgba(255,0,0,0.5);pointer-events:none;z-index:999999;';
-                document.body.appendChild(d);
-                setTimeout(() => d.remove(), 800);
-            }, true);
-            return true;
-            "#,
-        )
-        .await?;
-        Ok(())
-    }
-
-    /// Deactivates demo mode by reloading the page (clears event listeners).
-    pub async fn deactivate_demo_mode(&mut self) -> Result<(), SeleniumBaseError> {
-        self.refresh().await
-    }
 
     /// Activates design mode, making the page content editable.
     pub async fn activate_design_mode(&self) -> Result<(), SeleniumBaseError> {

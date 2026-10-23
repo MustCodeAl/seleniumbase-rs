@@ -203,25 +203,6 @@ impl BaseCase {
         PostMessage::new(self, message, MessageStyle::Error)
     }
 
-    /// Shows `message` as a success message and highlights the element `css`.
-    /// Corresponds to Python's `post_message_and_highlight(message,
-    /// selector)`.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if `css` cannot be highlighted (it is not on the page,
-    /// for example).
-    pub async fn post_message_and_highlight(
-        &self,
-        message: &str,
-        css: &str,
-    ) -> Result<(), SeleniumBaseError> {
-        // The message stays while the element is outlined, so this does not
-        // wait for it to go first.
-        self.post_success_message(message).pause(false).await?;
-        self.highlight(css).await
-    }
-
     // Referral / traffic generators.
 
     /// Opens `start_page`, builds a link to `destination_page` in it and

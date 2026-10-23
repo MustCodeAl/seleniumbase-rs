@@ -77,68 +77,6 @@ impl BaseCase {
         self.hover(css).await?;
         self.js_click(css).await
     }
-
-    /// Highlights all elements matching `css`.
-    pub async fn highlight_elements(&self, css: &str) -> Result<(), SeleniumBaseError> {
-        let script = format!(
-            "document.querySelectorAll({}).forEach(el => {{ el.style.outline = '3px solid red'; el.style.background = 'yellow'; }});",
-            quote(css)
-        );
-        self.execute_script(&script).await?;
-        Ok(())
-    }
-
-    /// Highlights `css` only if it is visible.
-    pub async fn highlight_if_visible(&self, css: &str) -> Result<(), SeleniumBaseError> {
-        if self.is_element_visible(css).await.unwrap_or(false) {
-            self.highlight(css).await?;
-        }
-        Ok(())
-    }
-
-    /// Highlights `css`, then types `text` into it.
-    pub async fn highlight_type(
-        &mut self,
-        css: &str,
-        text: &str,
-    ) -> Result<(), SeleniumBaseError> {
-        self.highlight(css).await?;
-        self.type_text(css, text).await
-    }
-
-    /// Highlights `css`, then replaces the text of the field with `text` by
-    /// typing, as [`update_text`](Self::update_text) does. Corresponds to
-    /// Python's `highlight_update_text`.
-    pub async fn highlight_update_text(
-        &mut self,
-        css: &str,
-        text: &str,
-    ) -> Result<(), SeleniumBaseError> {
-        self.highlight(css).await?;
-        self.update_text(css, text).await
-    }
-
-    /// Flashes a highlight on `css` `times` times.
-    pub async fn flash(&self, css: &str, times: usize) -> Result<(), SeleniumBaseError> {
-        let script = format!(
-            r#"
-            (async function() {{
-                var el = document.querySelector({});
-                if (!el) return;
-                for (var i = 0; i < {}; i++) {{
-                    el.style.outline = '4px solid red';
-                    await new Promise(r => setTimeout(r, 200));
-                    el.style.outline = '';
-                    await new Promise(r => setTimeout(r, 200));
-                }}
-            }})();
-            "#,
-            quote(css),
-            times
-        );
-        self.execute_script(&script).await?;
-        Ok(())
-    }
 }
 
 impl BaseCase {

@@ -15,7 +15,7 @@
 //! | [`chart`], [`presentation`] | Chart.js and reveal.js pages |
 //! | [`tour`], [`master_qa`] | Website tours and manual verification sessions |
 //! | [`call`] | [`CallFuture`](call::CallFuture), the future of a call that takes Python's keyword arguments |
-//! | [`demo`], [`messages`], [`jqc`] | Demo mode, Messenger alerts and jquery-confirm dialog boxes (not written yet) |
+//! | [`demo`], [`messages`], [`jqc`] | Demo mode and the highlight family, Messenger alerts and jquery-confirm dialog boxes |
 //!
 //! Some modules are behind Cargo features, because they pull in platform
 //! libraries or large dependency trees that a headless test run does not need:

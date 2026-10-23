@@ -154,6 +154,8 @@ impl BaseCase {
         let entries = self.session.driver().browser_log().await?;
         let errors = severe_js_errors(&entries);
         if errors.is_empty() {
+            let message = demo::label_message("ASSERT NO JS ERRORS");
+            self.demo_assert_success(&message, Some("html")).await;
             return Ok(());
         }
         let listed = errors
