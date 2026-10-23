@@ -1,3 +1,4 @@
+pub mod debug_prompt;
 pub mod decorators;
 pub mod encryption;
 pub mod exceptions;

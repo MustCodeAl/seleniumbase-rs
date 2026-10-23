@@ -59,6 +59,7 @@
 //! the like are compositions such as `page.locator(sel).visible().first()`.
 //! The full mapping is in the parity table in the documentation.
 
+mod breakpoint;
 mod browser;
 mod captcha;
 mod capture;

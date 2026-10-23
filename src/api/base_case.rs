@@ -3345,6 +3345,7 @@ include!("base_case_impls/base_case_impl_parity.rs");
 include!("base_case_impls/base_case_impl_esc.rs");
 include!("base_case_impls/base_case_impl_rec_cdp.rs");
 include!("base_case_impls/base_case_impl_fingerprint.rs");
+include!("base_case_impls/base_case_impl_debug.rs");
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_driver_tests.rs");
 #[cfg(test)]
