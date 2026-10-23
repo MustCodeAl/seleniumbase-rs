@@ -119,6 +119,21 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   and writers (`log_test_failure_data`, `log_page_source`, `log_screenshot`, `archive_logs_if_set`);
   the `[report]` settings table and `SB_HTML`, `SB_JUNIT_XML`, `SB_ALLURE_DIR`, `SB_REPORT_DB` say
   where reports go. `RunReporterPlugin` reports through the plugin runner.
+- **MCP page tools for AI agents, with refs.** The `cdp`, `driver` and `sb` servers gain
+  `page_snapshot` (the page as a compact accessibility tree, or with `mode: "outline"` as the tag
+  tree; interactive nodes carry a ref such as `[ref=e5]`), `read_page_text` (the main content as
+  Markdown), `extract_links`, `extract_tables` (colspan and rowspan expanded) and `extract_forms`.
+  Any selector argument of any tool (`selector`, `scope`, `*_selector`) may be written `ref=e5`:
+  the server swaps in the stored selector after checking in the page that the element still has
+  its role and name, and says `ref e5 is stale: the element is now button "Save", it was textbox
+  "Email"` when it does not. Refs live on the server, not in the page. Open shadow roots are
+  pierced in the snapshot; a ref inside one is usable on the WebDriver engine only. All five tools
+  declare an `outputSchema`, return `structuredContent`, and are marked untrusted page content.
+  New resources `sbrs://page/snapshot` and `sbrs://page/text` serve the last texts, and the
+  `write_test` and `extract_data` prompts use the new tools. `Output::Structured { text, data }`
+  is the result type that carries both a text for the model and the object.
+
+
 - **Allure results (feature `allure`).** `core::allure::AllureSink` writes Allure 2 results into
   `SB_ALLURE_DIR` (`<uuid>-result.json` per test with status, durations, labels, failure message and
   trace, plus the screenshot, page source and test info of a failure as attachments, and
