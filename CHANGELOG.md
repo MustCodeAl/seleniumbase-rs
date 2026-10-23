@@ -41,6 +41,18 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- **A debug prompt: `BaseCase::breakpoint`, `sb_cdp::Page::breakpoint` and
+  `common::debug_prompt`.** `sb.breakpoint("message").await?` pauses a test with the browser
+  open and reads commands from the terminal: `c` goes on, `s` saves a screenshot and `src` the
+  page source to `latest_logs/<test id>/`, `u` shows the address and title, `js <expr>` shows
+  a value, `q` stops the test with a `TestLifecycle` error and `h` lists the commands. The time
+  spent at the prompt is added to the time limit. The pause is skipped, with a warning in the
+  log, when standard input is not a terminal (CI, `cargo nextest`), and `SB_BREAKPOINTS=0` turns
+  it off, as Python's `PYTHONBREAKPOINT=0` does. `DebugPrompt`, `PromptKind`, `PromptOutcome`,
+  `PromptPage` and `LineInput` are public, for the runner's `--trace`, `--pdb` and
+  `--final-debug` (not wired to a flag yet). `BaseCase::recorder_mode` says whether a
+  recording window is open.
+
 - **The start page: `--start-page`, `--url` and `--start_page`, `SB_START_PAGE`, and the
   `start_page` key of the settings file.** Every `sbrs` command starts a fresh browser, so
   a command that acts on a page now acts on this one: `sbrs --url https://example.com
