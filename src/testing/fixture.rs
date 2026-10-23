@@ -18,6 +18,7 @@ use serde_json::Value;
 
 use super::deadline::Deadline;
 use super::lifecycle::{say_on_stderr, Finalizer, Lifecycle, Plan, TerminalPrompter, TestCase};
+use crate::api::recorder::RecordingTarget;
 use crate::api::runner::{close_browser, CdpCase};
 use crate::common::debug_prompt::PromptPage;
 use crate::common::test_id::current_test_id;
@@ -222,10 +223,18 @@ impl Sb {
     {
         let plan = self.config.plan("WebDriver")?;
         let browser = self.config.settings()?.to_browser_config();
+        let test_id = self.config.test_id.clone();
+
         self.config
             .run(
                 &plan,
-                async |_attempt: u32| BaseCase::new(browser.clone()).await,
+                async |_attempt: u32| {
+                    let mut case = BaseCase::new(browser.clone()).await?;
+                    if case.recorder_mode() {
+                        case.set_recording_output(RecordingTarget::from_test_id(&test_id));
+                    }
+                    Ok(case)
+                },
                 test,
             )
             .await
