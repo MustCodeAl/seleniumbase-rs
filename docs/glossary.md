@@ -57,6 +57,14 @@ Summary for AI exports: an alphabetical glossary of the terms used across the se
 
 ## A
 
+### Accessibility tree
+
+<Badge color="blue">Engine</Badge>
+
+The browser's second view of a page for assistive technology: a filtered tree of nodes built from the DOM, each with a role, an accessible name and states. A screen reader reads it, not the pixels. The pure CDP engine has no query on it; `SelectorBuf::role` approximates one in XPath.
+
+See [The accessibility tree](/concepts/accessibility#the-accessibility-tree).
+
 ### Actionability
 
 <Badge color="green">Testing</Badge>
@@ -104,6 +112,14 @@ See [TLS Server and MitmProxy](/stealth/mitm-proxy).
 Encryption with a key pair: the public key locks (or checks a signature) and only the private key unlocks (or signs). It is slow, so it is mostly used to agree on a symmetric key.
 
 See [Symmetric and asymmetric encryption](/concepts/encryption#symmetric-and-asymmetric-encryption).
+
+### ARIA
+
+<Badge color="blue">Engine</Badge>
+
+Accessible Rich Internet Applications: attributes such as `role`, `aria-label` and `aria-expanded` that tell assistive technology what a custom control is. They change what is announced, never what the element does, so a native element is better whenever one exists.
+
+See [Roles, names and states](/concepts/accessibility#roles-names-and-states).
 
 ### Audio noise
 
@@ -187,6 +203,14 @@ A release method that runs the new version (green) beside the old one (blue) and
 
 See [Version control and deployment](/concepts/version-control-and-deployment#environments-and-deployment).
 
+### Brotli
+
+<Badge color="red">Network</Badge>
+
+A compression method for text, sent as `Content-Encoding: br` when the client lists `br` in `Accept-Encoding`. It usually beats gzip on HTML, CSS and JavaScript, and browsers use it on HTTPS only.
+
+See [Compression](/concepts/compression-and-caching#compression).
+
 ### BrowserConfig
 
 <Badge color="blue">Engine</Badge>
@@ -236,6 +260,22 @@ See [Choosing Plugins](/plugins/selecting).
 A release method that sends a small share of users to the new version first and widens it while monitoring, to limit the damage of a bad release.
 
 See [Version control and deployment](/concepts/version-control-and-deployment#environments-and-deployment).
+
+### Cache-Control
+
+<Badge color="red">Network</Badge>
+
+The response header that says how long and by whom a response may be reused: `max-age`, `no-cache` (store it, but check first), `no-store` (never keep it), `public`, `private` and `immutable`. A wrong value is a common cause of stale content in tests.
+
+See [Cache-Control](/concepts/compression-and-caching#cache-control).
+
+### Canonical URL
+
+<Badge color="red">Network</Badge>
+
+The preferred address for content that can be reached at several, named in a `link rel="canonical"` element. A search engine takes it as a strong hint when it merges duplicate pages.
+
+See [Canonical URLs](/concepts/seo#canonical-urls).
 
 ### Canvas noise
 
@@ -501,6 +541,14 @@ Cross-Origin Resource Sharing: response headers with which a server lets another
 
 See [Security policies](/concepts/security-policies).
 
+### Core Web Vitals
+
+<Badge color="blue">Engine</Badge>
+
+Three user-centred page metrics: LCP (Largest Contentful Paint, loading, good at 2.5 s or less), INP (Interaction to Next Paint, responsiveness, 200 ms or less) and CLS (Cumulative Layout Shift, visual stability, 0.1 or less). Search engines use them as a ranking signal.
+
+See [Core Web Vitals](/concepts/rendering-and-performance#core-web-vitals).
+
 ### crx
 
 <Badge color="orange">Plugins</Badge>
@@ -574,6 +622,14 @@ See [Run Settings: Demo, Slow and Fast Runs](/tutorials/run_settings).
 The panels built into a browser (Elements, Console, Sources, Network, Application and more). In Chrome they talk to the page over the [CDP](#cdp).
 
 See [Developer tools](/concepts/developer-tools#the-panels).
+
+### Device pixel ratio
+
+<Badge color="blue">Engine</Badge>
+
+How many physical screen pixels make one CSS pixel (`window.devicePixelRatio`). A phone that is 390 CSS pixels wide at a ratio of 3 has 1170 physical pixels. `DeviceMetrics` carries it as `pixel_ratio`.
+
+See [CSS pixels and the pixel ratio](/concepts/mobile-web#css-pixels-and-the-pixel-ratio).
 
 ### DevTools endpoint
 
@@ -664,6 +720,14 @@ See [Version control and deployment](/concepts/version-control-and-deployment#en
 A certificate authority made in memory and kept only for the life of one process. [MitmProxy](#mitmproxy) uses one to end Chrome's TLS. Chrome trusts the leaf certificates only through a pin of the leaf key, and the CA is never installed in a trust store or written to disk.
 
 See [TLS Server and MitmProxy](/stealth/mitm-proxy#the-ephemeral-ca-tls-server).
+
+### ETag
+
+<Badge color="red">Network</Badge>
+
+A response header holding an identifier of the content. The browser sends it back as `If-None-Match`, and the server answers `304 Not Modified` with no body when nothing changed.
+
+See [Revalidation](/concepts/compression-and-caching#revalidation).
 
 ### Evasion provider
 
@@ -899,6 +963,14 @@ A newer fingerprint of a client's [ClientHello](#clienthello), written in three 
 
 See [Wire Formats and Impersonation](/stealth/wire-formats#reading-the-wire-formats).
 
+### JSON-LD
+
+<Badge color="red">Network</Badge>
+
+A format for structured data: JSON inside a `script type="application/ld+json"` block, using the schema.org vocabulary, that tells a search engine what a page is (a product, an article, a recipe). It can earn rich results.
+
+See [Structured data](/concepts/seo#structured-data-json-ld).
+
 ### JSON-RPC
 
 <Badge color="gray">CLI</Badge>
@@ -932,6 +1004,22 @@ See [Containers](/concepts/containers#images-layers-and-registries).
 JSON Web Token: a signed note of three Base64URL parts (header, payload and signature). It is signed, not encrypted, so anyone can read its claims.
 
 See [JWTs](/concepts/authentication#jwts).
+
+### Layout viewport
+
+<Badge color="blue">Engine</Badge>
+
+The area that CSS lays a page out against. With `meta name="viewport"` set to `width=device-width`, a phone gives the real screen width; without it the browser pretends to be about 980 pixels wide. The visual viewport is the part you currently see.
+
+See [The viewport meta tag](/concepts/mobile-web#the-viewport-meta-tag).
+
+### Lighthouse
+
+<Badge color="green">Testing</Badge>
+
+Google's audit tool, in Chrome DevTools and on the command line. It loads a page under throttling and scores performance, accessibility, best practices and SEO. It drives Chrome through the DevTools Protocol; seleniumbase-rs has no built-in Lighthouse run.
+
+See [Lighthouse](/concepts/rendering-and-performance#lighthouse).
 
 ### Link text
 
@@ -1015,6 +1103,14 @@ Joining two Git branches. A fast-forward merge only moves a branch name ahead wh
 
 See [Version control and deployment](/concepts/version-control-and-deployment#git-in-five-ideas).
 
+### Media query
+
+<Badge color="blue">Engine</Badge>
+
+A CSS condition on the device, such as `@media (min-width: 768px)`, `(hover: none)` or `(prefers-color-scheme: dark)`. Emulating a phone changes the width and touch values that media queries see.
+
+See [Media queries](/concepts/mobile-web#media-queries).
+
 ### MFA
 
 <Badge color="green">Testing</Badge>
@@ -1054,6 +1150,14 @@ See [Pure CDP](/tutorials/pure_cdp#testing-without-chrome).
 A Dockerfile that builds in a large image full of compilers and copies only the result into a small runtime image.
 
 See [Containers](/concepts/containers#the-dockerfile).
+
+### MutationObserver
+
+<Badge color="blue">Engine</Badge>
+
+A browser API that calls a function when the DOM changes: children added or removed, attributes or text changed. A script run from a test can use it to wait for a change without polling.
+
+See [Web APIs](/concepts/web-apis).
 
 ## N
 
@@ -1287,6 +1391,14 @@ A header that controls how much of the previous page's address is sent in the `R
 
 See [Referrer-Policy](/concepts/security-policies#referrer-policy).
 
+### Reflow
+
+<Badge color="blue">Engine</Badge>
+
+The browser redoing layout, the step that works out the size and position of every box, after a change such as an added element or a new width. It is costly and can move content, which is why a late reflow can shift a button just as a test clicks it.
+
+See [Reflow and repaint](/concepts/rendering-and-performance#reflow-and-repaint).
+
 ### Renderer process
 
 <Badge color="blue">Engine</Badge>
@@ -1334,6 +1446,14 @@ See [Version control and deployment](/concepts/version-control-and-deployment#en
 Replacing servers a few at a time so that the service never stops, with the old and new versions running together for a while.
 
 See [Version control and deployment](/concepts/version-control-and-deployment#environments-and-deployment).
+
+### robots.txt
+
+<Badge color="red">Network</Badge>
+
+A file at the root of a site that tells crawlers which paths they may fetch. It controls crawling, not indexing: a blocked page can still be listed from links to it, and `noindex` only works on a page the crawler is allowed to fetch.
+
+See [Robots, sitemaps and status codes](/concepts/seo#robots-sitemaps-and-status-codes).
 
 ### RTK
 
@@ -1432,6 +1552,14 @@ See [MCP servers](/tutorials/mcp_server).
 The list of recovery words that encodes a wallet's private key. Never put a real one in a test, a script, a log or a repository.
 
 See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#web3-keys-and-shared-ledgers).
+
+### Screen reader
+
+<Badge color="blue">Engine</Badge>
+
+Software that speaks a page, or sends it to a braille display, working from the accessibility tree. NVDA, JAWS, VoiceOver, TalkBack and Orca are examples.
+
+See [Screen readers and the keyboard](/concepts/accessibility#screen-readers-and-the-keyboard).
 
 ### Selector
 
@@ -1537,6 +1665,14 @@ An XML file that lists the URLs a site wants found. It is the best seed list for
 
 See [Crawlers and spiders](/concepts/crawlers-and-spiders#robotstxt-and-sitemaps).
 
+### Sitemap
+
+<Badge color="red">Network</Badge>
+
+An XML file, usually `/sitemap.xml`, that lists the URLs a site wants search engines to find, often with their last change date. It helps discovery; it does not guarantee indexing.
+
+See [Robots, sitemaps and status codes](/concepts/seo#robots-sitemaps-and-status-codes).
+
 ### Slow mode
 
 <Badge color="green">Testing</Badge>
@@ -1632,6 +1768,14 @@ See [TCP, sockets and streams](/concepts/tcp-and-streams#the-streams-api).
 Helper servers for WebRTC. STUN tells a browser its public address; TURN relays the data when no direct path exists.
 
 See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#webrtc-and-data-channels).
+
+### Structured data
+
+<Badge color="red">Network</Badge>
+
+Facts about a page written in a form that machines read, usually as [JSON-LD](#json-ld) with the schema.org vocabulary, so that a search engine can show rich results for it.
+
+See [Structured data](/concepts/seo#structured-data-json-ld).
 
 ## T
 
@@ -1822,6 +1966,22 @@ See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#three-eras).
 A label for applications that use public blockchains and wallets, where a person proves who they are with a key instead of an account.
 
 See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#web3-keys-and-shared-ledgers).
+
+### WCAG
+
+<Badge color="green">Testing</Badge>
+
+The Web Content Accessibility Guidelines, the standard behind most accessibility law. Requirements have levels A, AA and AAA and fall under four principles: perceivable, operable, understandable and robust. AA is the usual target.
+
+See [WCAG in one table](/concepts/accessibility#wcag-in-one-table).
+
+### Web API
+
+<Badge color="blue">Engine</Badge>
+
+A feature the browser offers to the JavaScript of a page, such as the DOM, Fetch, Storage, Geolocation or Clipboard. Standards define them and MDN documents them; they are not part of the JavaScript language. A test uses them by running JavaScript in the page.
+
+See [The APIs you meet most](/concepts/web-apis#the-apis-you-meet-most).
 
 ### WebAssembly
 
