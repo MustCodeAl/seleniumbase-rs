@@ -611,6 +611,59 @@ const completionSpec: Fig.Spec = {
       ],
     },
     {
+      name: "proxy",
+      description: "Run a small forward proxy on this machine (HTTP and CONNECT, no authentication).",
+      options: [
+        {
+          name: "--hostname",
+          description: "The address to listen on. Anything but a loopback address makes this an open proxy for other machines, and the command says so.",
+          args: {
+            name: "host",
+          },
+        },
+        {
+          name: "--port",
+          description: "The port to listen on; 0 picks a free one.",
+          args: {
+            name: "port",
+          },
+        },
+        {
+          name: ["-h", "--help"],
+          description: "Print help",
+        },
+      ],
+    },
+    {
+      name: "download",
+      description: "Download Selenium Server 4, the jar that `grid-hub` and `grid-node` run.",
+      subcommands: [
+        {
+          name: "server",
+          description: "Download the Selenium Server 4 jar that `grid-hub` and `grid-node` run.",
+          options: [
+            {
+              name: "--version",
+              description: "The release to download, such as 4.51.0 (default: the version this build pins).",
+              args: {
+                name: "version",
+              },
+            },
+            {
+              name: ["-h", "--help"],
+              description: "Print help",
+            },
+          ],
+        },
+      ],
+      options: [
+        {
+          name: ["-h", "--help"],
+          description: "Print help",
+        },
+      ],
+    },
+    {
       name: ["encrypt", "obfuscate"],
       description: "Encrypt text with a passphrase (AES-256-GCM); read from stdin if TEXT is omitted.",
       options: [
@@ -1397,7 +1450,7 @@ const completionSpec: Fig.Spec = {
       options: [
         {
           name: "--jar",
-          description: "The Selenium Server jar (default: the SB_SELENIUM_SERVER_JAR variable). It is never downloaded.",
+          description: "The Selenium Server jar (default: SB_SELENIUM_SERVER_JAR, else the newest in downloaded_drivers/). This command never downloads it.",
           args: {
             name: "path",
             template: "filepaths",
@@ -1479,7 +1532,7 @@ const completionSpec: Fig.Spec = {
       options: [
         {
           name: "--jar",
-          description: "The Selenium Server jar (default: the SB_SELENIUM_SERVER_JAR variable). It is never downloaded.",
+          description: "The Selenium Server jar (default: SB_SELENIUM_SERVER_JAR, else the newest in downloaded_drivers/). This command never downloads it.",
           args: {
             name: "path",
             template: "filepaths",

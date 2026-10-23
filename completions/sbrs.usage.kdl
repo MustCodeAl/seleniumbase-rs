@@ -396,12 +396,53 @@ cmd patch-chrome help_heading="Drivers, grid and servers" help="Patch a Chrome/C
     complete cache_dir type=dir
     example "sbrs patch-chrome --path ./chrome --cache-dir ./patched"
 }
+cmd proxy help_heading="Drivers, grid and servers" help="Run a small forward proxy on this machine (HTTP and CONNECT, no authentication)." args_override_self=#false {
+    long_help #"""
+Run a small forward proxy on this machine (HTTP and CONNECT, no authentication).
+
+Point a browser at it with the global --proxy option. `CONNECT host:port` becomes a tunnel, so HTTPS passes through untouched; an absolute `http://` request is sent to its host once and the connection closed. It listens on 127.0.0.1:8899 unless told otherwise, and a request head over 64 KiB, more than 256 connections at once and 30 seconds without a byte are refused or cut. Each request is logged at INFO (SB_LOG_LEVEL=info). Ctrl-C or SIGTERM stops it with status 0.
+"""#
+    flag --hostname help="The address to listen on. Anything but a loopback address makes this an open proxy for other machines, and the command says so." default="127.0.0.1" {
+        arg <HOST>
+    }
+    flag --port help="The port to listen on; 0 picks a free one." default="8899" {
+        arg <PORT>
+    }
+    flag "-h --help" help="Print help" action=help builtin=#true
+    complete host type=hostname
+    complete port type=none
+    example "sbrs proxy --port 8899"
+}
+cmd download help_heading="Drivers, grid and servers" help="Download Selenium Server 4, the jar that `grid-hub` and `grid-node` run." subcommand_required=#true {
+    long_help #"""
+Download Selenium Server 4, the jar that `grid-hub` and `grid-node` run.
+
+`sbrs download server` saves selenium-server-VERSION.jar in ./downloaded_drivers/ and prints its path and SHA-256. The release this build pins is checked against its checksum; another one is not.
+"""#
+    flag "-h --help" help="Print help" action=help builtin=#true
+    cmd server help="Download the Selenium Server 4 jar that `grid-hub` and `grid-node` run." {
+        long_help #"""
+Download the Selenium Server 4 jar that `grid-hub` and `grid-node` run.
+
+Saves selenium-server-VERSION.jar in ./downloaded_drivers/ and prints its path. The default version is pinned in this build and the download is checked against its SHA-256; another --version is saved as it arrives, with its SHA-256 printed and `not verified`. When neither --jar nor SB_SELENIUM_SERVER_JAR is given, `grid-hub` and `grid-node` use the newest jar in that folder. Python's Selenium 3 server is not offered, because Grid 3 is gone.
+"""#
+        flag --version help="The release to download, such as 4.51.0 (default: the version this build pins)." {
+            arg <VERSION>
+        }
+        flag "-h --help" help="Print help" action=help builtin=#true
+        complete version type=none
+        example "sbrs download server"
+    }
+    example "sbrs download server"
+}
 cmd encrypt help_heading=Security help="Encrypt text with a passphrase (AES-256-GCM); read from stdin if TEXT is omitted." {
     alias obfuscate
     long_help #"""
 Encrypt text with a passphrase (AES-256-GCM); read from stdin if TEXT is omitted.
 
 The passphrase comes from the SB_ENCRYPTION_KEY environment variable, never from an argument, so it stays out of shell history and process listings. Python's `sbrs obfuscate` is the same command.
+
+With no TEXT and a terminal on standard input it prompts as Python's `obfuscate` does: the text and its verification are read without echo, the token is printed with the line that decrypts it in a test, and it asks again until Ctrl-C. When SB_ENCRYPTION_KEY is not set it asks once for the passphrase (twice, to catch a typo), without echo; the passphrase is never printed or saved.
 """#
     flag "-h --help" help="Print help" action=help builtin=#true
     arg "[TEXT]" help="The text to encrypt."
@@ -410,6 +451,11 @@ The passphrase comes from the SB_ENCRYPTION_KEY environment variable, never from
 }
 cmd decrypt help_heading=Security help="Decrypt a token made by `sbrs encrypt`; read from stdin if TOKEN is omitted. Python's `sbrs unobfuscate` is the same command." {
     alias unobfuscate
+    long_help #"""
+Decrypt a token made by `sbrs encrypt`; read from stdin if TOKEN is omitted. Python's `sbrs unobfuscate` is the same command.
+
+With no TOKEN and a terminal on standard input it asks for a token on the screen, prints the text and asks again until Ctrl-C, as Python's `unobfuscate` does. When SB_ENCRYPTION_KEY is not set it asks once for the passphrase, without echo.
+"""#
     flag "-h --help" help="Print help" action=help builtin=#true
     arg "[TOKEN]" help="The token to decrypt."
     complete token type=none
@@ -775,9 +821,9 @@ cmd grid-hub help_heading="Drivers, grid and servers" help="Start, stop, restart
     long_help #"""
 Start, stop, restart or check a Selenium Grid hub.
 
-Needs a Selenium Server jar you supply; nothing is downloaded. The process record and log are kept in a folder of your own (SB_GRID_DIR).
+Needs a Selenium Server jar: --jar, SB_SELENIUM_SERVER_JAR, or the newest one in downloaded_drivers/ (`sbrs download server` saves one there). This command downloads nothing. The process record and log are kept in a folder of your own (SB_GRID_DIR).
 """#
-    flag --jar help="The Selenium Server jar (default: the SB_SELENIUM_SERVER_JAR variable). It is never downloaded." {
+    flag --jar help="The Selenium Server jar (default: SB_SELENIUM_SERVER_JAR, else the newest in downloaded_drivers/). This command never downloads it." {
         arg <PATH>
     }
     flag --java help="The Java executable (default: `java` on PATH)." {
@@ -824,7 +870,7 @@ Start, stop, restart or check a Selenium Grid node.
 
 A node registers with the hub named by `--hub`, or with this machine's.
 """#
-    flag --jar help="The Selenium Server jar (default: the SB_SELENIUM_SERVER_JAR variable). It is never downloaded." {
+    flag --jar help="The Selenium Server jar (default: SB_SELENIUM_SERVER_JAR, else the newest in downloaded_drivers/). This command never downloads it." {
         arg <PATH>
     }
     flag --java help="The Java executable (default: `java` on PATH)." {

@@ -50,6 +50,8 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs devtools`](#sbrs-devtools) | Launch Chrome with an open DevTools endpoint and print MCP client configs. |
 | [`sbrs dismiss-alert`](#sbrs-dismiss-alert) | Dismiss the alert that the page opens when it loads. |
 | [`sbrs doctor`](#sbrs-doctor) | Run a diagnostic check on the environment and configuration. |
+| [`sbrs download`](#sbrs-download) | Download Selenium Server 4, the jar that `grid-hub` and `grid-node` run. |
+| [`sbrs download server`](#sbrs-download-server) | Download the Selenium Server 4 jar that `grid-hub` and `grid-node` run. |
 | [`sbrs download-file`](#sbrs-download-file) | Download a file from a URL (browser download with an HTTP fallback). |
 | [`sbrs drag-and-drop`](#sbrs-drag-and-drop) | Drag one element onto another. |
 | [`sbrs encrypt`](#sbrs-encrypt) | Encrypt text with a passphrase (AES-256-GCM); read from stdin if TEXT is omitted. |
@@ -103,6 +105,7 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs print`](#sbrs-print) | Print a file. |
 | [`sbrs print-pdf`](#sbrs-print-pdf) | Print a page to PDF and save it to disk. |
 | [`sbrs prompt`](#sbrs-prompt) | Print one short line for a shell prompt: the installed Chrome's major version and whether a matching chromedriver is at hand. |
+| [`sbrs proxy`](#sbrs-proxy) | Run a small forward proxy on this machine (HTTP and CONNECT, no authentication). |
 | [`sbrs record`](#sbrs-record) | Record browser interactions into a replayable action file. |
 | [`sbrs remove-local-storage-item`](#sbrs-remove-local-storage-item) | Remove a local storage entry by key. |
 | [`sbrs replay`](#sbrs-replay) | Replay a recorded action file against a fresh browser session. |
@@ -853,6 +856,8 @@ Also: `unobfuscate`
 
 Decrypt a token made by `sbrs encrypt`; read from stdin if TOKEN is omitted. Python's `sbrs unobfuscate` is the same command.
 
+With no TOKEN and a terminal on standard input it asks for a token on the screen, prints the text and asks again until Ctrl-C, as Python's `unobfuscate` does. When SB_ENCRYPTION_KEY is not set it asks once for the passphrase, without echo.
+
 ```bash Usage
 sbrs decrypt [TOKEN]
 ```
@@ -955,6 +960,42 @@ sbrs doctor
 sbrs doctor
 ```
 
+## sbrs download
+
+Download Selenium Server 4, the jar that `grid-hub` and `grid-node` run.
+
+`sbrs download server` saves selenium-server-VERSION.jar in ./downloaded_drivers/ and prints its path and SHA-256. The release this build pins is checked against its checksum; another one is not.
+
+```bash Usage
+sbrs download <SUBCOMMAND>
+```
+
+```bash Examples
+sbrs download server
+```
+
+### sbrs download server
+
+Download the Selenium Server 4 jar that `grid-hub` and `grid-node` run.
+
+Saves selenium-server-VERSION.jar in ./downloaded_drivers/ and prints its path. The default version is pinned in this build and the download is checked against its SHA-256; another --version is saved as it arrives, with its SHA-256 printed and `not verified`. When neither --jar nor SB_SELENIUM_SERVER_JAR is given, `grid-hub` and `grid-node` use the newest jar in that folder. Python's Selenium 3 server is not offered, because Grid 3 is gone.
+
+```bash Usage
+sbrs download server [--version <VERSION>]
+```
+
+**Flags**
+
+<ParamField query="--version <VERSION>" type="string">
+
+The release to download, such as 4.51.0 (default: the version this build pins).
+
+</ParamField>
+
+```bash Examples
+sbrs download server
+```
+
 ## sbrs download-file
 
 Download a file from a URL (browser download with an HTTP fallback).
@@ -1024,6 +1065,8 @@ Also: `obfuscate`
 Encrypt text with a passphrase (AES-256-GCM); read from stdin if TEXT is omitted.
 
 The passphrase comes from the SB_ENCRYPTION_KEY environment variable, never from an argument, so it stays out of shell history and process listings. Python's `sbrs obfuscate` is the same command.
+
+With no TEXT and a terminal on standard input it prompts as Python's `obfuscate` does: the text and its verification are read without echo, the token is printed with the line that decrypts it in a test, and it asks again until Ctrl-C. When SB_ENCRYPTION_KEY is not set it asks once for the passphrase (twice, to catch a typo), without echo; the passphrase is never printed or saved.
 
 ```bash Usage
 sbrs encrypt [TEXT]
@@ -1415,7 +1458,7 @@ sbrs --url https://example.com get-window-position
 
 Start, stop, restart or check a Selenium Grid hub.
 
-Needs a Selenium Server jar you supply; nothing is downloaded. The process record and log are kept in a folder of your own (SB_GRID_DIR).
+Needs a Selenium Server jar: --jar, SB_SELENIUM_SERVER_JAR, or the newest one in downloaded_drivers/ (`sbrs download server` saves one there). This command downloads nothing. The process record and log are kept in a folder of your own (SB_GRID_DIR).
 
 ```bash Usage
 sbrs grid-hub [FLAGS] <ACTION> [-- EXTRA_ARGS]…
@@ -1441,7 +1484,7 @@ More arguments for the Selenium Server, after `--`.
 
 <ParamField query="--jar <PATH>" type="string">
 
-The Selenium Server jar (default: the SB_SELENIUM_SERVER_JAR variable). It is never downloaded.
+The Selenium Server jar (default: SB_SELENIUM_SERVER_JAR, else the newest in downloaded_drivers/). This command never downloads it.
 
 </ParamField>
 
@@ -1527,7 +1570,7 @@ More arguments for the Selenium Server, after `--`.
 
 <ParamField query="--jar <PATH>" type="string">
 
-The Selenium Server jar (default: the SB_SELENIUM_SERVER_JAR variable). It is never downloaded.
+The Selenium Server jar (default: SB_SELENIUM_SERVER_JAR, else the newest in downloaded_drivers/). This command never downloads it.
 
 </ParamField>
 
@@ -2395,6 +2438,34 @@ Explain on standard error what was found and how
 
 ```bash Examples
 sbrs prompt
+```
+
+## sbrs proxy
+
+Run a small forward proxy on this machine (HTTP and CONNECT, no authentication).
+
+Point a browser at it with the global --proxy option. `CONNECT host:port` becomes a tunnel, so HTTPS passes through untouched; an absolute `http://` request is sent to its host once and the connection closed. It listens on 127.0.0.1:8899 unless told otherwise, and a request head over 64 KiB, more than 256 connections at once and 30 seconds without a byte are refused or cut. Each request is logged at INFO (SB_LOG_LEVEL=info). Ctrl-C or SIGTERM stops it with status 0.
+
+```bash Usage
+sbrs proxy [--hostname <HOST>] [--port <PORT>]
+```
+
+**Flags**
+
+<ParamField query="--hostname <HOST>" type="string" default="127.0.0.1">
+
+The address to listen on. Anything but a loopback address makes this an open proxy for other machines, and the command says so.
+
+</ParamField>
+
+<ParamField query="--port <PORT>" type="string" default="8899">
+
+The port to listen on; 0 picks a free one.
+
+</ParamField>
+
+```bash Examples
+sbrs proxy --port 8899
 ```
 
 ## sbrs record
