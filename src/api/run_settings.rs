@@ -29,15 +29,6 @@ use crate::error::SeleniumBaseError;
 /// `DEFAULT_DEMO_MODE_TIMEOUT`, 0.5 s in 4.55.2).
 pub const DEFAULT_DEMO_PAUSE: Duration = Duration::from_millis(500);
 
-/// How long [`BaseCase::post_message`](crate::BaseCase::post_message) shows a
-/// message unless [`RunSettings::with_message_duration`] says otherwise, in
-/// whole seconds.
-#[deprecated(
-    since = "0.5.0",
-    note = "use DEFAULT_MESSAGE_DURATION (2.55 s, as in Python); RunSettings::message_seconds rounds it up"
-)]
-pub const DEFAULT_MESSAGE_SECONDS: u64 = 3;
-
 /// How long a message stays on the page unless
 /// [`RunSettings::with_message_duration`] says otherwise (Python's
 /// `DEFAULT_MESSAGE_DURATION`, 2.55 s in 4.55.2).
@@ -99,18 +90,6 @@ impl RunSettings {
     #[must_use]
     pub fn with_slow_mode(mut self, on: bool) -> Self {
         self.slow_mode = on;
-        self
-    }
-
-    /// Python's `--fast`. It does nothing here and never did what this method
-    /// first claimed: Python reads `--fast` only in CDP mode, where it skips
-    /// short waits this crate never makes. It does not cancel demo or slow mode.
-    #[deprecated(
-        since = "0.5.0",
-        note = "Python's --fast skips CDP-mode waits this crate never makes; it has no effect here"
-    )]
-    #[must_use]
-    pub fn with_fast_mode(self, _on: bool) -> Self {
         self
     }
 
@@ -225,21 +204,6 @@ impl RunSettings {
         }
     }
 
-    /// [`pause_for`](Self::pause_for) with a flag: `true` is
-    /// [`PauseKind::Short`] (Python's `tiny`).
-    #[deprecated(
-        since = "0.5.0",
-        note = "use pause_for(PauseKind::Short or PauseKind::Full)"
-    )]
-    #[must_use]
-    pub fn pause(&self, tiny: bool) -> Duration {
-        self.pause_for(if tiny {
-            PauseKind::Short
-        } else {
-            PauseKind::Full
-        })
-    }
-
     /// How long `post_message` keeps a message on the page: what
     /// [`with_message_duration`](Self::with_message_duration) set, else
     /// [`DEFAULT_MESSAGE_DURATION`].
@@ -253,16 +217,6 @@ impl RunSettings {
     #[must_use]
     pub fn message_duration_headless(&self) -> Duration {
         self.message_duration().min(HEADLESS_MESSAGE_CAP)
-    }
-
-    /// The whole seconds `post_message` keeps a message on the page.
-    #[deprecated(
-        since = "0.5.0",
-        note = "use message_duration(); BaseCase::post_message shows a message for it to the millisecond"
-    )]
-    #[must_use]
-    pub fn message_seconds(&self) -> u64 {
-        self.message_duration().as_secs_f64().ceil() as u64
     }
 }
 
@@ -595,16 +549,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(deprecated)]
-    fn fast_mode_leaves_demo_and_slow_pauses_alone() {
-        let settings = RunSettings::default()
-            .with_demo_mode(true)
-            .with_slow_mode(true)
-            .with_fast_mode(true);
-        assert_eq!(settings.pause_for(PauseKind::Full), DEFAULT_DEMO_PAUSE);
-    }
-
-    #[test]
     fn a_full_pause_is_the_whole_time_and_a_short_one_a_third_of_it_in_demo_mode() {
         let demo = RunSettings::default()
             .with_demo_mode(true)
@@ -619,14 +563,6 @@ mod tests {
             RunSettings::default().pause_for(PauseKind::Full),
             Duration::ZERO
         );
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    fn the_boolean_pause_is_pause_for() {
-        let settings = RunSettings::default().with_demo_mode(true);
-        assert_eq!(settings.pause(false), settings.pause_for(PauseKind::Full));
-        assert_eq!(settings.pause(true), settings.pause_for(PauseKind::Short));
     }
 
     #[test]
@@ -698,20 +634,6 @@ mod tests {
             settings.pause_for(PauseKind::Short),
             Duration::from_secs(10)
         );
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    fn a_message_lasts_whole_seconds_rounded_up() {
-        assert_eq!(
-            RunSettings::default().message_seconds(),
-            3,
-            "2.55 s rounded up"
-        );
-        let settings = RunSettings::default().with_message_duration(Duration::from_millis(1500));
-        assert_eq!(settings.message_seconds(), 2);
-        let settings = settings.with_message_duration(Duration::from_secs(7));
-        assert_eq!(settings.message_seconds(), 7);
     }
 
     fn case(settings: RunSettings) -> crate::BaseCase {
