@@ -3011,13 +3011,14 @@ rust = "sbrs decrypt"
 divergence = "Reads tokens made by `sbrs encrypt` only; see `encrypt`."
 
 [cli."download"]
-status = "not-applicable"
-reason = "Python's `download server` fetches the Selenium Standalone Server. `sbrs` never downloads it: `sbrs grid-hub` and `sbrs grid-node` run a jar you supply with --jar or SB_SELENIUM_SERVER_JAR. (`sbrs download-file` downloads a file from a URL, which is another command.)"
+status = "implemented"
+rust = "sbrs download server"
+divergence = "Downloads Selenium Server 4 (default 4.51.0, whose SHA-256 is pinned in the source and checked; another --version is saved with its SHA-256 and `not verified`) into downloaded_drivers/, not Python's Selenium 3.141.59, because Selenium Grid 3 is gone. `sbrs grid-hub` and `sbrs grid-node` use the newest jar there when neither --jar nor SB_SELENIUM_SERVER_JAR names one. (`sbrs download-file` downloads a file from a URL, which is another command.)"
 
 [cli."encrypt"]
 status = "implemented"
 rust = "sbrs encrypt"
-divergence = "AES-256-GCM under a PBKDF2 key from SB_ENCRYPTION_KEY, not Python's fixed-key obfuscation; tokens are not interchangeable."
+divergence = "AES-256-GCM under a PBKDF2 key from SB_ENCRYPTION_KEY (asked once, without echo, when it is not set and standard input is a terminal), not Python's fixed-key obfuscation; tokens are not interchangeable."
 
 [cli."extract-objects"]
 status = "not-applicable"
@@ -3092,7 +3093,7 @@ note = "Python's mkrec creates a new test file with the Recorder. `sbrs record U
 [cli."obfuscate"]
 status = "composed"
 rust = "sbrs encrypt"
-note = "Alias of encrypt upstream, as here: `sbrs obfuscate` is accepted. It encrypts a string, not a source file. Tokens are AES-256-GCM under SB_ENCRYPTION_KEY, read from the environment instead of a prompt, and do not interchange with Python's."
+note = "Alias of encrypt upstream, as here: `sbrs obfuscate` is accepted. It encrypts a string, not a source file. Tokens are AES-256-GCM under SB_ENCRYPTION_KEY, read from the environment or asked once without echo on a terminal, and do not interchange with Python's. With no argument on a terminal it prompts in a loop as Python does (text and verification without echo; Ctrl-C prints Exiting... and exits 0)."
 
 [cli."objectify"]
 status = "not-applicable"
@@ -3109,6 +3110,7 @@ rust = "sbrs print"
 [cli."proxy"]
 status = "implemented"
 rust = "sbrs proxy"
+divergence = "A minimal forward proxy for HTTP and CONNECT on 127.0.0.1:8899 (--hostname, --port), with no authentication and no TLS interception; it warns when it listens on a non-loopback address. proxy.py's other options are not offered."
 
 [cli."record"]
 status = "implemented"
@@ -3132,7 +3134,7 @@ divergence = "Python translates the method calls of a Python test file. A Rust t
 [cli."unobfuscate"]
 status = "composed"
 rust = "sbrs decrypt"
-note = "Alias of decrypt upstream, as here: `sbrs unobfuscate` is accepted. Tokens are AES-256-GCM under SB_ENCRYPTION_KEY, read from the environment instead of a prompt, and do not interchange with Python's."
+note = "Alias of decrypt upstream, as here: `sbrs unobfuscate` is accepted. Tokens are AES-256-GCM under SB_ENCRYPTION_KEY, read from the environment or asked once without echo on a terminal, and do not interchange with Python's. With no argument on a terminal it asks for a token on the screen in a loop as Python does (Ctrl-C prints Exiting... and exits 0)."
 
 [cli."version"]
 status = "implemented"

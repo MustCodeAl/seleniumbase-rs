@@ -10,6 +10,28 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- **`sbrs proxy`.** A minimal forward proxy for this machine: `sbrs proxy [--hostname HOST]
+  [--port PORT]` listens on 127.0.0.1:8899, tunnels `CONNECT host:port` (so HTTPS passes
+  through untouched) and forwards an absolute `http://` request once with `Connection: close`.
+  It has no authentication and no TLS interception, warns when it listens on an address other
+  than loopback, logs one line per request at INFO, refuses a request head over 64 KiB, serves
+  at most 256 connections at once, drops a connection that carries no byte for 30 seconds and
+  stops on Ctrl-C or SIGTERM with status 0. Use it with the global `--proxy 127.0.0.1:8899`.
+
+- **`sbrs download server`.** Downloads Selenium Server 4 into `downloaded_drivers/`
+  (`--version 4.x.y`). The default release, 4.51.0, has its SHA-256 pinned in the source and a
+  download that differs is not saved; another version is saved as it arrives and printed with
+  its SHA-256 and `not verified`. Python's Selenium 3 server is not offered. `sbrs grid-hub`
+  and `sbrs grid-node` now run the newest jar in that folder when neither `--jar` nor
+  `SB_SELENIUM_SERVER_JAR` names one.
+
+- **`sbrs encrypt` and `sbrs decrypt` prompt on a terminal.** With no argument and a terminal on
+  standard input they ask as Python's `obfuscate` and `unobfuscate` do: the text and its
+  verification without echo, then the token with the line that decrypts it in a test, again
+  and again until Ctrl-C (`Exiting...`, status 0). When `SB_ENCRYPTION_KEY` is not set they ask
+  once for the passphrase without echo (`encrypt` twice, to catch a typo); it is never printed
+  or saved. A pipe or file on standard input behaves as before.
+
 - **Shell completion says what each value is.** A selector, text, key, value, attribute, property
   or CDP method (`--css`, `--text`, `--key`, `--value`, `--attribute`, `--property`, `--cmd`,
   `--params`, `--hover-css`, `--click-css`, `--source-css`, `--target-css`) no longer completes
