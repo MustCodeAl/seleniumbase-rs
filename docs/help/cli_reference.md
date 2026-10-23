@@ -54,13 +54,7 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs download-file`](#sbrs-download-file) | Download a file from a URL (browser download with an HTTP fallback). |
 | [`sbrs drag-and-drop`](#sbrs-drag-and-drop) | Drag one element onto another. |
 | [`sbrs encrypt`](#sbrs-encrypt) | Encrypt text with a passphrase (AES-256-GCM); read from stdin if TEXT is omitted. |
-| [`sbrs export-recording`](#sbrs-export-recording) | Export the recorded test actions. |
-| [`sbrs fingerprint`](#sbrs-fingerprint) | Capture, write, check and compare browser fingerprints. |
-| [`sbrs fingerprint capture`](#sbrs-fingerprint-capture) | Read the fingerprint of a real browser and write it as a fingerprint file. |
-| [`sbrs fingerprint check`](#sbrs-fingerprint-check) | Check that a fingerprint file loads and is coherent. |
-| [`sbrs fingerprint diff`](#sbrs-fingerprint-diff) | Compare two fingerprint files. |
-| [`sbrs fingerprint export`](#sbrs-fingerprint-export) | Write a preset or a random identity as a fingerprint file. |
-| [`sbrs fingerprint presets`](#sbrs-fingerprint-presets) | List the presets and what each claims. |
+| [`sbrs export-recording`](#sbrs-export-recording) | Turn an action file written by `record` into a Rust test. |
 | [`sbrs get-active-element-css`](#sbrs-get-active-element-css) | Print a CSS selector for the currently focused element. |
 | [`sbrs get-alert-text`](#sbrs-get-alert-text) | Print the text of the active alert. |
 | [`sbrs get-attribute`](#sbrs-get-attribute) | Print an element attribute value. |
@@ -95,7 +89,7 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs mkdir`](#sbrs-mkdir) | Create a folder with a runnable browser-test suite. |
 | [`sbrs mkfile`](#sbrs-mkfile) | Create a browser-test file. |
 | [`sbrs mkpres`](#sbrs-mkpres) | Create an HTML presentation. |
-| [`sbrs mkrec`](#sbrs-mkrec) | Create a test recording scaffold. |
+| [`sbrs mkrec`](#sbrs-mkrec) | Create a test recording scaffold, or record a test live with --url. |
 | [`sbrs objectify`](#sbrs-objectify) | Objectify a test recording. |
 | [`sbrs open`](#sbrs-open) | Open a URL in the browser. |
 | [`sbrs open-new-tab`](#sbrs-open-new-tab) | Open a new browser tab. |
@@ -293,14 +287,6 @@ Also: `-n`
 Path to a TOML/JSON settings file
 
 Also: `-c`
-
-</ParamField>
-
-<ParamField query="--fingerprint <FILE>" type="string">
-
-Make every browser the command starts present the fingerprint in FILE
-
-The file is the fingerprint JSON that `sbrs fingerprint capture` and `export` write. A Chromium browser then runs in the CDP mode unless --uc or another mode is given. The command line wins over SB_FINGERPRINT, which wins over the [fingerprint] table of the settings file. The user agent, language and proxy named by their own options win over the fingerprint's.
 
 </ParamField>
 
@@ -958,153 +944,29 @@ The text to encrypt.
 
 ## sbrs export-recording
 
-Export the recorded test actions.
+Turn an action file written by `record` into a Rust test.
 
 ```bash Usage
-sbrs export-recording
-```
-
-## sbrs fingerprint
-
-Capture, write, check and compare browser fingerprints.
-
-A fingerprint file is what a browser claims to be: the user agent, the screen, the language, the graphics card and the rest, as one JSON file. `capture` reads it from a real browser; `export` writes a preset or a random identity; `check` and `diff` read files. The global --fingerprint FILE (or SB_FINGERPRINT, or the [fingerprint] table of the settings file) makes every browser a command starts present one.
-
-```bash Usage
-sbrs fingerprint <SUBCOMMAND>
-```
-
-### sbrs fingerprint capture
-
-Read the fingerprint of a real browser and write it as a fingerprint file.
-
-Starts a browser as `sbrs open` does (the global --browser, --headless, --proxy and the rest apply), opens URL (a blank page when there is none), reads what a page can see of the browser, and prints the fingerprint as JSON, or writes it to FILE. A summary goes to standard error. What no setting holds (window sizes, the automation markers, the canvas hash) stays out of the fingerprint; --readings writes it to its own file.
-
-```bash Usage
-sbrs fingerprint capture [-o --output <FILE>] [--readings <FILE>] [URL]
-```
-
-**Arguments**
-
-<ParamField path="URL" type="string">
-
-The page to open first (default: a blank page).
-
-</ParamField>
-
-**Flags**
-
-<ParamField query="--output <FILE>" type="string">
-
-Write the fingerprint to FILE instead of printing it.
-
-Also: `-o`
-
-</ParamField>
-
-<ParamField query="--readings <FILE>" type="string">
-
-Also write the readings that no setting holds, and where the capture was taken, to FILE.
-
-</ParamField>
-
-### sbrs fingerprint check
-
-Check that a fingerprint file loads and is coherent.
-
-Prints how many settings the file gives, each error and warning, and the verdict. Exits with status 2 when there is an error or the file does not load.
-
-```bash Usage
-sbrs fingerprint check <FILE>
+sbrs export-recording [-o --output <OUTPUT>] <FILE>
 ```
 
 **Arguments**
 
 <ParamField path="FILE" type="string" required>
 
-The fingerprint file to check.
+Action file written by `sbrs record` (.json or .yaml)
 
 </ParamField>
-
-### sbrs fingerprint diff
-
-Compare two fingerprint files.
-
-EXPECTED is what is expected and FOUND what is found: a setting that EXPECTED leaves natural is never compared. Prints each setting that differs. Exits with status 1 when any differs, 0 when none does, and 2 when a file does not load.
-
-To check that a browser presents a file: `sbrs --fingerprint f.json fingerprint capture -o seen.json`, then `sbrs fingerprint diff f.json seen.json`.
-
-```bash Usage
-sbrs fingerprint diff <EXPECTED> <FOUND>
-```
-
-**Arguments**
-
-<ParamField path="EXPECTED" type="string" required>
-
-The file with what is expected.
-
-</ParamField>
-
-<ParamField path="FOUND" type="string" required>
-
-The file with what is found.
-
-</ParamField>
-
-### sbrs fingerprint export
-
-Write a preset or a random identity as a fingerprint file.
-
-Give --preset NAME (windows, edge, macos, linux, android, ios) or --random. A random identity follows --seed, so the same seed gives the same file, and --os, the system it claims (default: this machine's). The file goes to FILE, else to standard output.
-
-```bash Usage
-sbrs fingerprint export [FLAGS]
-```
 
 **Flags**
 
-<ParamField query="--preset <NAME>" type="string">
+<ParamField query="--output <OUTPUT>" type="string">
 
-The preset to write: windows, edge, macos, linux, android or ios (safari is ios).
-
-</ParamField>
-
-<ParamField query="--random" type="boolean">
-
-Write a random identity instead of a preset.
-
-</ParamField>
-
-<ParamField query="--seed <N>" type="string">
-
-With --random, the seed of the draw: the same seed gives the same identity.
-
-</ParamField>
-
-<ParamField query="--os <OS>" type="string">
-
-With --random, the system the identity claims (default: this machine's).
-
-One of: `windows`, `macos`, `linux`, `android`, `ios`
-
-</ParamField>
-
-<ParamField query="--output <FILE>" type="string">
-
-Write the fingerprint to FILE instead of printing it.
+Rust test to write (default: the action file's name with .rs)
 
 Also: `-o`
 
 </ParamField>
-
-### sbrs fingerprint presets
-
-List the presets and what each claims.
-
-```bash Usage
-sbrs fingerprint presets
-```
 
 ## sbrs get-active-element-css
 
@@ -1880,13 +1742,25 @@ Output HTML presentation path
 
 ## sbrs mkrec
 
-Create a test recording scaffold.
+Create a test recording scaffold, or record a test live with --url.
 
 ```bash Usage
-sbrs mkrec <--file <FILE>>
+sbrs mkrec <FLAGS>
 ```
 
 **Flags**
+
+<ParamField query="--url <URL>" type="string">
+
+Open this page in a browser and record what you do there into the file
+
+</ParamField>
+
+<ParamField query="--duration <DURATION>" type="string">
+
+With --url: stop recording after this many seconds (default: until Ctrl-C)
+
+</ParamField>
 
 <ParamField query="--file <FILE>" type="string" required>
 

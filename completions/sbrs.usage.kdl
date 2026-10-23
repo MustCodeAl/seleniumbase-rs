@@ -305,8 +305,12 @@ cmd switch-to-default-content help="Switch focus back to the main document." {
 cmd get-cookies help="Print all browser cookies as JSON." {
     flag "-h --help" help="Print help" action=help builtin=#true
 }
-cmd export-recording help="Export the recorded test actions." {
+cmd export-recording help="Turn an action file written by `record` into a Rust test." {
+    flag "-o --output" help="Rust test to write (default: the action file's name with .rs)" {
+        arg <OUTPUT>
+    }
     flag "-h --help" help="Print help" action=help builtin=#true
+    arg <FILE> help="Action file written by `sbrs record` (.json or .yaml)"
 }
 cmd patch-chromedriver help="Patch a chromedriver binary to reduce detection surface." {
     flag --path help="Path to the chromedriver binary" required=#true {
@@ -807,7 +811,13 @@ cmd mkchart help="Create an HTML chart." {
     }
     flag "-h --help" help="Print help" action=help builtin=#true
 }
-cmd mkrec help="Create a test recording scaffold." {
+cmd mkrec help="Create a test recording scaffold, or record a test live with --url." {
+    flag --url help="Open this page in a browser and record what you do there into the file" {
+        arg <URL>
+    }
+    flag --duration help="With --url: stop recording after this many seconds (default: until Ctrl-C)" {
+        arg <DURATION>
+    }
     flag --file help="Output recording scaffold path" required=#true {
         arg <FILE>
     }

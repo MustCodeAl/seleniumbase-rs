@@ -627,11 +627,24 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "export-recording",
-      description: "Export the recorded test actions.",
+      description: "Turn an action file written by `record` into a Rust test.",
       options: [
+        {
+          name: ["-o", "--output"],
+          description: "Rust test to write (default: the action file's name with .rs)",
+          args: {
+            name: "output",
+          },
+        },
         {
           name: ["-h", "--help"],
           description: "Print help",
+        },
+      ],
+      args: [
+        {
+          name: "file",
+          description: "Action file written by `sbrs record` (.json or .yaml)",
         },
       ],
     },
@@ -1922,8 +1935,22 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "mkrec",
-      description: "Create a test recording scaffold.",
+      description: "Create a test recording scaffold, or record a test live with --url.",
       options: [
+        {
+          name: "--url",
+          description: "Open this page in a browser and record what you do there into the file",
+          args: {
+            name: "url",
+          },
+        },
+        {
+          name: "--duration",
+          description: "With --url: stop recording after this many seconds (default: until Ctrl-C)",
+          args: {
+            name: "duration",
+          },
+        },
         {
           name: "--file",
           description: "Output recording scaffold path",
