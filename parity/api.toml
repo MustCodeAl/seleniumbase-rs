@@ -4920,7 +4920,7 @@ rust = "BrowserConfig::with_incognito"
 
 [options_pytest."--interval"]
 status = "planned"
-note = "RunSettings::with_interval holds the time (zero is unset), but Tour and Presentation do not play by themselves yet."
+note = "RunSettings::with_interval holds the time (zero is unset), save_presentation, begin_presentation and display_chart use it, but a tour does not play by itself yet."
 
 [options_pytest."--is-pytest"]
 status = "not-applicable"
@@ -5812,7 +5812,7 @@ rust = "BrowserConfig::with_incognito"
 
 [options_sb."interval"]
 status = "planned"
-note = "RunSettings::with_interval holds the time (zero is unset), but Tour and Presentation do not play by themselves yet."
+note = "RunSettings::with_interval holds the time (zero is unset), save_presentation, begin_presentation and display_chart use it, but a tour does not play by itself yet."
 
 [options_sb."is_mobile"]
 status = "composed"
