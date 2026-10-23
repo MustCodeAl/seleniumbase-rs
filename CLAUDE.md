@@ -68,6 +68,7 @@ public API of this crate: keep items it imports public (`stealth::randomize`,
 | `cli/` | The library half of the command line, with no parser: `commands.rs`, `devtools.rs`, `plugin_cmd.rs` (`sbrs plugin list|info`, the check of `--plugin` names and options), `prompt.rs`, `scaffold.rs`, `scripts/` (`sb_grid`, `sb_mkdir`, `sb_mkfile`, `sb_recorder`, `sb_commander` needs `tui`, ...). |
 | `crates/cli/` | Package `seleniumbase-rs-cli`: `src/sbrs.rs` (the command line, declared with the `usage` derives `Cli`, `Subcommands`, `Args` and `ValueEnum`), `src/fig.rs` (the Fig spec, written from the usage tables), `src/report.rs`, `src/mcp_server.rs`, `src/mcp_install/` (`sbrs-mcp install`, `uninstall` and `clients`: one module for the clients' locations and formats, one for editing JSON as text, one for `config.toml`; its tests point an `Env` at a temporary folder and never touch a real client config), and `tests/` for every test that runs the real `sbrs` or `sbrs-mcp` binary. Owns `usage` (the package `usage-rs`) and, for the tests, `usage-lib`. |
 | `behave/` | Gherkin runner and step registry. |
+| `testing/` | Feature `testing` (optional `rstest`): the `sb` and `sb_cdp` fixtures. `fixture.rs` (`Sb`, `SbCdp`: a handle that holds the settings and the test id, `run` owns the browser), `lifecycle.rs` (attempts, reruns, `Finalizer`, the `TestCase` seam), `evidence.rs` (`latest_logs/<test id>/`), `deadline.rs` (the hard time limit a prompt suspends); `common/test_id.rs` is the always-compiled test id. |
 | `plugins/` | Reporting and logging plugins (S3, GCP, Azure, screenshots, page source, driver manager, observer). |
 | `config/` | Settings, runtime config, `proxy_list`, `ad_block_list`. |
 | `utilities/` | `retry.rs` (`RetryPolicy`, `RateLimiter`), `grid_server.rs` (`GridProcess::start/state/stop/ended`), `selenium_grid`, `selenium_ide`, `python_importer`. |
@@ -90,8 +91,8 @@ Use the same environment flags everywhere so build artifacts are shared:
 ```bash
 export CARGO_BUILD_JOBS=2 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0
 cargo fmt --all -- --check
-cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings
-cargo test --features "mcp-server test-util"
+cargo clippy --all-targets --features "mcp-server test-util testing" -- -D warnings
+cargo test --features "mcp-server test-util testing"
 cargo audit && cargo deny check
 mdbook build
 ```

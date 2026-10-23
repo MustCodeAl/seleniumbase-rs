@@ -42,6 +42,26 @@ work, `docs/parity.md` the per-API status).
   `final_debug`), `reruns` and `reruns_delay`, `time_limit`, the evidence and report switches,
   the recorder switches and `runner`. The settings stay on `LaunchSettings::test_data` for the
   `sb` fixture.
+- **The rstest `sb` and `sb_cdp` fixtures (feature `testing`).** `#[rstest] #[tokio::test] async fn
+  t(sb: Sb) -> Result<()> { sb.run(async |sb| { .. }).await }` runs a test on a WebDriver
+  `BaseCase` (or `sb_cdp: SbCdp` on a pure CDP `Page`) with the whole run configuration: the
+  settings file, `SB_SETTINGS_FILE` and the `SB_*` variables. `run` reruns a failed test
+  (`reruns`, `reruns_delay`, printing `RERUN <test id> (attempt 2 of 3) after: <error>`), stops one
+  that runs past `time_limit` with Python's `This test has exceeded the time limit of N seconds!`
+  (the time a prompt is open does not count), leaves `latest_logs/<test id>/screenshot.png`,
+  `page_source.html` and `basic_test_info.txt` while the browser is still open
+  (`no_screenshot`, `save_screenshot` for a pass, `list_fail_page`), asks at the `trace`, `pdb`
+  and `final_debug` prompts (skipped with a warning where nobody is at a terminal), and closes the
+  browser whatever happened. A panic is a failure too and is raised again after the last attempt.
+  `Sb::configure` is the Rust form of Python's `SB(...)` arguments, and `testing::Finalizer` sees
+  every attempt end with the page open, for the reports, the plugin host and the recorder.
+  `docs/tutorials/writing_tests.md` shows it.
+- **`BaseCase` reads the test data of the run** as Python's `sb` does: `data()`, `env()` and
+  `environment()` (`test` by default), `account()`, `var1()` to `var3()`, `variables()`, and
+  `test_id()`, the id that names the test's folder of evidence.
+- **`common::test_id::current_test_id`**, the id of the running test (`cart.checkout.renders`: the
+  test binary, the module path and the function, one plain file name), replaces the debug prompt's
+  thread-name stub.
 - **A key and a variable for each browser option.** `Settings` gains `dark_mode`, `devtools`,
   `incognito`, `guest_mode`, `disable_ws`, `swiftshader`, `enable_3d_apis`, `maximize`,
   `no_sandbox`, `disable_gpu`, `chromium_arg`, `disable_features`, `host_resolver_rules`,
