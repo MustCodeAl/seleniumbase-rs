@@ -967,7 +967,7 @@ Python `--option` flags.
 | `--incognito` | implemented | `BrowserConfig::with_incognito` |  |
 | `--incognito-mode` | implemented | `BrowserConfig::with_incognito` |  |
 | `--incognito_mode` | implemented | `BrowserConfig::with_incognito` |  |
-| `--interval` | planned |  | RunSettings::with_interval holds the time (zero is unset), but Tour and Presentation do not play by themselves yet. |
+| `--interval` | planned |  | RunSettings::with_interval holds the time (zero is unset), save_presentation, begin_presentation and display_chart use it, but a tour does not play by itself yet. |
 | `--is-pytest` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--is_pytest` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--lfp` | not-applicable |  | A pytest report hook that prints the URL of each failing test; a Rust test prints BaseCase::get_current_url itself when it fails. |
@@ -1161,7 +1161,7 @@ Keyword arguments of `SB()`.
 | `highlights` | planned |  | RunSettings::with_highlights holds the count (zero is unset, 4 is the default), but BaseCase::highlight does not read it yet. |
 | `host_resolver_rules` | implemented | `BrowserConfig::with_host_resolver_rules` |  |
 | `incognito` | implemented | `BrowserConfig::with_incognito` |  |
-| `interval` | planned |  | RunSettings::with_interval holds the time (zero is unset), but Tour and Presentation do not play by themselves yet. |
+| `interval` | planned |  | RunSettings::with_interval holds the time (zero is unset), save_presentation, begin_presentation and display_chart use it, but a tour does not play by itself yet. |
 | `is_mobile` | composed | `BrowserConfig::mobile` | Give the screen with `with_device_metrics`. |
 | `js_checking_on` | implemented | `RunSettings::with_check_js` | After every page load (open, go_back, go_forward, refresh, wait_for_ready_state_complete) the browser log is checked for severe JavaScript errors, on a Chromium browser. Skipped by skip-js-waits. |
 | `locale` | implemented | `BrowserConfig::locale` |  |

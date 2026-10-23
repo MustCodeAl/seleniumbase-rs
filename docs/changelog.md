@@ -57,6 +57,17 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   once for the passphrase without echo (`encrypt` twice, to catch a typo); it is never printed
   or saved. A pipe or file on standard input behaves as before.
 
+- **A presentation plays by itself and a chart waits for its interval.** `--interval`
+  (`RunSettings::with_interval`) is the autoplay time of `save_presentation` and
+  `begin_presentation` (`autoSlide`) and how long `display_chart` shows a chart, unless the call
+  gives its own `.interval(..)`. Themes (`PresentationTheme`: `serif`, `sky`, `white`, `black`,
+  `simple`, `league`, `moon`, `night`, `beige`, `blood`, `solarized`) and transitions
+  (`Transition`: `none`, `slide`, `fade`, `zoom`, `convex`, `concave`) are enums that also parse
+  from Python's names. A chart can be put on a slide with `extract_chart`, and the deck loads the
+  chart library once. Charts are still drawn with Chart.js: `unit` titles the value axis and
+  ends the tooltip, `zero` starts a line or area chart at zero, `legend` and `labels` show or
+  hide the legend and the values, and `libs` leaves the `<script src>` out of `extract_chart`.
+
 - **Shell completion says what each value is.** A selector, text, key, value, attribute, property
   or CDP method (`--css`, `--text`, `--key`, `--value`, `--attribute`, `--property`, `--cmd`,
   `--params`, `--hover-css`, `--click-css`, `--source-css`, `--target-css`) no longer completes
@@ -129,6 +140,22 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 - **`Settings::screenshot_dir` and `SB_SCREENSHOT_DIR` are removed.** The library read neither;
   a settings file that still has the key loads as before.
+- **The presentation and chart helpers have Python's names, arguments and files.** Each is a call
+  builder with Python's keyword arguments, so `sb.create_pie_chart().title("T").unit("%").await?`,
+  `sb.add_slide("<h1>Hi</h1>").notes("n").await?`, `sb.save_presentation().show_notes(true).await?`
+  and `sb.display_chart().interval(Duration::from_secs(3)).await?`. A chart or a presentation has a
+  name (`.chart_name(..)`, `.name(..)`; `default` when none is given), so several can exist at
+  once; `create_*_chart` takes the title as a keyword, not first; `add_data_point` takes an `f64`
+  and `.color(..)`; `add_series_to_chart()` starts a series that the next data points fill instead
+  of taking its data; `extract_chart` returns the chart's HTML, not JSON; slides are HTML with
+  `image`, `code`, `iframe`, `content2`, `notes` and a `transition`, so the Markdown subset is
+  gone; and `create_presentation` takes a `PresentationTheme` and a `Transition`, not a title.
+  Files go to `saved_presentations/my_presentation.html` and `saved_charts/my_chart.html`
+  (`.filename(..)`, `.folder(..)`), not to `latest_logs`, and a name that does not end in
+  `.html` is refused. `begin_presentation` shows a saved presentation and waits for its last
+  slide, and returns `None` in a headless browser or on a virtual display; `PieChart`,
+  `ChartSeries::add_data_point(i32)` and `Presentation::new(title)` are replaced.
+
 
 ### Breaking
 
