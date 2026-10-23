@@ -385,11 +385,11 @@ async fn the_json_report_is_complete_after_every_test() {
     let rows = after_two.as_array().unwrap();
     assert_eq!(rows.len(), 2);
     assert_eq!(
-        (rows[0]["name"].clone(), rows[0]["passed"].clone()),
-        ("login".into(), true.into())
+        (rows[0]["name"].clone(), rows[0]["status"].clone()),
+        ("login".into(), "passed".into())
     );
     assert!((rows[0]["duration_secs"].as_f64().unwrap() - 1.5).abs() < 1e-9);
-    assert_eq!(rows[1]["passed"], false);
+    assert_eq!(rows[1]["status"], "failed");
     assert!(rows[1]["message"]
         .as_str()
         .unwrap()
