@@ -674,6 +674,21 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_skipped_test_is_stored_as_a_pass_that_says_it_was_skipped() {
+        let store = ResultStore::in_memory().await.unwrap();
+        let run = store.start_run(&RunInfo::new("skips")).await.unwrap();
+        let skipped = TestResult::new("later", TestStatus::Skipped, 0.0, "no browser");
+        store.record(run, &skipped).await.unwrap();
+
+        let back = store.results(run).await.unwrap();
+
+        assert_eq!(back[0].message, "skipped: no browser");
+        assert_eq!(back[0].status, TestStatus::Skipped);
+        assert!(back[0].passed());
+        assert_eq!(store.run(run).await.unwrap().unwrap().passed, 1);
+    }
+
+    #[tokio::test]
     async fn a_message_with_quotes_and_unicode_survives() {
         let store = ResultStore::in_memory().await.unwrap();
         let run = store

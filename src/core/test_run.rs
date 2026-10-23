@@ -84,6 +84,10 @@ const LOCK_FILE: &str = "lock";
 const FORMAT_VERSION: u32 = 1;
 /// How recently a run must have changed for a process with no key to join it.
 const RECENT_SECONDS: i64 = 120;
+/// How long a run keyed by a process id may sit unchanged and still be joined by
+/// a process with that id. Process ids are reused; a test run that quiet is over.
+const PPID_REUSE_SECONDS: i64 = 6 * 60 * 60;
+
 /// How long a failing page may take to give its URL, title, screenshot or
 /// source; a report must not hang on a page that has.
 const PAGE_WAIT: Duration = Duration::from_secs(5);
@@ -185,7 +189,11 @@ impl ReportSettings {
             no_screenshot: test.no_screenshot || table.no_screenshot,
             allure_dir: path("SB_ALLURE_DIR", table.allure_dir.as_deref()),
             with_db_reporting: test.with_db_reporting || table.with_db_reporting,
-            db: path("SB_REPORT_DB", table.db.as_deref()),
+            db: path("SB_REPORT_DB", table.db.as_deref()).or_else(|| {
+                // `--database-env` picks one of the databases of the `[test.databases]` table.
+                let name = test.database_env.as_ref()?;
+                test.databases.get(name).cloned()
+            }),
             database_env: test
                 .database_env
                 .clone()
@@ -686,6 +694,33 @@ impl TestRun {
         Ok(run)
     }
 
+    /// Opens the run that is already under `root`, whatever its key, to finish it
+    /// afterwards (`sbrs report finish`). The settings are the ones saved in the
+    /// run, or `settings` when given. Nothing is cleared or started.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error naming the folder if there is no run in `root`, or if
+    /// its files cannot be read.
+    pub fn resume(root: impl Into<PathBuf>, settings: Option<ReportSettings>) -> Result<Arc<Self>> {
+        let root = root.into();
+        let state = root.join(RUN_DIR);
+        let Some(run) = read_run_file(&state)? else {
+            return Err(SeleniumBaseError::InvalidConfig(format!(
+                "there is no test run in {} (looked for {}); run tests that use the sb fixture first",
+                root.display(),
+                state.join(RUN_FILE).display()
+            )));
+        };
+        Ok(Arc::new(Self {
+            root,
+            settings: settings.unwrap_or(run.settings),
+            key: RunKey::new(run.key),
+            console: stderr_console(),
+            sinks: Mutex::new(Vec::new()),
+        }))
+    }
+
     /// The folder the run's files are under.
     #[must_use]
     pub fn root(&self) -> &Path {
@@ -725,7 +760,12 @@ impl TestRun {
 
     fn joins(&self, run: &RunFile) -> bool {
         match self.key.as_str() {
-            Some(key) => run.key == key,
+            Some(key) => {
+                // A process id comes round again after a while: an old run is not this one.
+                let age = Local::now() - parse_time(&run.updated_at);
+                run.key == key
+                    && (!key.starts_with("cargo-ppid-") || age.num_seconds() < PPID_REUSE_SECONDS)
+            }
             None => {
                 let age = Local::now() - parse_time(&run.updated_at);
                 run.finalized_at.is_none() && age.num_seconds() < RECENT_SECONDS
@@ -917,6 +957,45 @@ impl TestRun {
             return Err(self.no_run());
         };
         Ok(fold(&run, &read_events(&dir)?, &self.root))
+    }
+
+    /// Records the results of the run in the results database
+    /// ([`ResultStore`](crate::storage::ResultStore)) as one run, when
+    /// `with_db_reporting` is on, and returns its number. Tests that have not
+    /// finished are left out; a test that never reported is stored as failed, a
+    /// skip as a pass whose message starts with `skipped: `.
+    ///
+    /// Call it once per run, after [`finalize`](Self::finalize), from one
+    /// process: the database is never written by several processes at once.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the run's files cannot be read or the database cannot
+    /// be written.
+    #[cfg(feature = "turso")]
+    pub async fn record_to_database(&self) -> Result<Option<crate::storage::RunId>> {
+        use crate::storage::{ResultStore, RunInfo};
+
+        if !self.settings.with_db_reporting {
+            return Ok(None);
+        }
+        let snapshot = self.snapshot()?;
+        let path = self.root.join(self.settings.db_path());
+        if let Some(parent) = path.parent() {
+            tokio::fs::create_dir_all(parent).await?;
+        }
+        let store = ResultStore::open(&path).await?;
+        let mut info = RunInfo::new(snapshot.title.clone());
+        if let Some(environment) = &self.settings.database_env {
+            info = info.environment(environment.clone());
+        }
+        let run = store.start_run(&info).await?;
+        for result in &snapshot.results {
+            if result.status != TestStatus::Untested {
+                store.record(run, result).await?;
+            }
+        }
+        Ok(Some(run))
     }
 
     /// Ends the run: tests that started and never ended become unreported, the
@@ -1351,6 +1430,120 @@ impl crate::testing::Finalizer for RunFinalizer {
         if let Err(error) = finished {
             tracing::warn!(%error, test = %self.test.display, "the test was not recorded");
         }
+    }
+}
+
+#[cfg(all(test, feature = "testing"))]
+mod finalizer_tests {
+    use async_trait::async_trait;
+    use serde_json::Value;
+
+    use super::*;
+    use crate::common::debug_prompt::PromptPage;
+    use crate::testing::{AttemptEnd, Finalizer, Outcome};
+
+    struct Fake;
+
+    #[async_trait]
+    impl PromptPage for Fake {
+        async fn url(&self) -> Result<String> {
+            Ok("https://a.test/".to_owned())
+        }
+        async fn title(&self) -> Result<String> {
+            Ok("A".to_owned())
+        }
+        async fn screenshot_png(&self) -> Result<Vec<u8>> {
+            Err(SeleniumBaseError::unsupported(
+                "the finalizer takes no screenshot",
+            ))
+        }
+        async fn page_source(&self) -> Result<String> {
+            Err(SeleniumBaseError::unsupported(
+                "the finalizer takes no page source",
+            ))
+        }
+        async fn evaluate(&self, _expression: &str) -> Result<Value> {
+            Ok(Value::Null)
+        }
+    }
+
+    fn run(root: &Path) -> Arc<TestRun> {
+        TestRun::open(root, ReportSettings::default(), RunKey::new("finalizer")).unwrap()
+    }
+
+    fn end(outcome: Outcome<'_>) -> AttemptEnd<'_> {
+        AttemptEnd {
+            test_id: "f.test",
+            attempt: 1,
+            attempts: 1,
+            outcome,
+            duration: Duration::from_millis(1500),
+        }
+    }
+
+    #[tokio::test]
+    async fn the_finalizer_records_how_an_attempt_ended() {
+        let root = tempfile::tempdir().unwrap();
+        let run = run(root.path());
+        let error = SeleniumBaseError::AssertionFailed("title".to_owned());
+        let skip = SeleniumBaseError::Skipped("no browser".to_owned());
+        let cases = [
+            ("f::passes", Outcome::Passed),
+            ("f::fails", Outcome::Failed(&error)),
+            ("f::skips", Outcome::Skipped(&skip)),
+        ];
+        for (name, outcome) in cases {
+            let finalizer = RunFinalizer::new(Arc::clone(&run), TestId::named(name));
+            finalizer.finish(&end(outcome), &Fake).await;
+        }
+
+        let results = run.snapshot().unwrap().results;
+        let seen: Vec<(&str, TestStatus)> = results
+            .iter()
+            .map(|result| (result.name.as_str(), result.status))
+            .collect();
+        assert_eq!(
+            seen,
+            [
+                ("f::passes", TestStatus::Passed),
+                ("f::fails", TestStatus::Failed),
+                ("f::skips", TestStatus::Skipped)
+            ]
+        );
+        assert!(
+            results[0].duration_secs >= 1.5,
+            "{}",
+            results[0].duration_secs
+        );
+        let failure = results[1].failure.as_ref().unwrap();
+        assert_eq!(failure.url.as_deref(), Some("https://a.test/"));
+        assert_eq!(failure.title.as_deref(), Some("A"));
+        assert_eq!(results[2].message, "no browser");
+    }
+
+    #[tokio::test]
+    async fn the_evidence_the_lifecycle_took_is_linked_not_taken_again() {
+        let root = tempfile::tempdir().unwrap();
+        let run = run(root.path());
+        let folder = root.path().join("latest_logs/f.fails");
+        fs::create_dir_all(&folder).unwrap();
+        fs::write(folder.join("screenshot.png"), b"taken by the lifecycle").unwrap();
+        let error = SeleniumBaseError::AssertionFailed("title".to_owned());
+
+        RunFinalizer::new(Arc::clone(&run), TestId::named("f::fails"))
+            .finish(&end(Outcome::Failed(&error)), &Fake)
+            .await;
+
+        let failure = run.snapshot().unwrap().results.remove(0).failure.unwrap();
+        assert_eq!(
+            failure.screenshot.as_deref(),
+            Some("latest_logs/f.fails/screenshot.png")
+        );
+        assert_eq!(failure.page_source, None, "there was none");
+        assert_eq!(
+            fs::read(folder.join("screenshot.png")).unwrap(),
+            b"taken by the lifecycle"
+        );
     }
 }
 

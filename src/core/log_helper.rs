@@ -623,7 +623,7 @@ mod tests {
         );
         assert_eq!(test_folder_id(r"dir\file name"), "dir.file_name");
         assert_eq!(test_folder_id("Mixed-Case_ok.1"), "Mixed-Case_ok.1");
-        assert_eq!(test_folder_id("ünï/<b>"), "___.__b_");
+        assert_eq!(test_folder_id("ünï/<b>"), "_n_._b_");
     }
 
     #[test]

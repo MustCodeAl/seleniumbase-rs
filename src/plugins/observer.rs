@@ -186,6 +186,36 @@ pub(crate) fn label_from_user_agent(agent: &str) -> Option<String> {
     })
 }
 
+#[cfg(test)]
+mod label_tests {
+    use super::label_from_user_agent;
+
+    #[test]
+    fn a_user_agent_gives_the_browser_and_its_version() {
+        let chrome = "Mozilla/5.0 (Macintosh) AppleWebKit/537.36 Chrome/155.0.7000.1 Safari/537.36";
+        assert_eq!(
+            label_from_user_agent(chrome).as_deref(),
+            Some("Chrome 155.0.7000.1")
+        );
+        let headless = "Mozilla/5.0 AppleWebKit/537.36 HeadlessChrome/155.0.7000.1 Safari/537.36";
+        assert_eq!(
+            label_from_user_agent(headless).as_deref(),
+            Some("Chrome 155.0.7000.1 / headless")
+        );
+        let edge = "Mozilla/5.0 Chrome/155.0.7000.1 Safari/537.36 Edg/155.0.2000.3";
+        assert_eq!(
+            label_from_user_agent(edge).as_deref(),
+            Some("Edge 155.0.2000.3")
+        );
+        let firefox = "Mozilla/5.0 (X11; Linux) Gecko/20100101 Firefox/140.0";
+        assert_eq!(
+            label_from_user_agent(firefox).as_deref(),
+            Some("Firefox 140.0")
+        );
+        assert_eq!(label_from_user_agent("curl/8.0"), None);
+    }
+}
+
 /// Code that runs around a test. Every hook is optional.
 ///
 /// A hook that returns an error is logged and skipped; it cannot change the
