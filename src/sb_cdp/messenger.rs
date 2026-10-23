@@ -64,6 +64,46 @@ pub(crate) const MESSENGER_CSS_URL: &str =
 pub(crate) const MESSENGER_JS_URL: &str =
     "https://cdnjs.cloudflare.com/ajax/libs/messenger/1.5.0/js/messenger.min.js";
 
+/// The style sheets Python loads, in its order: Messenger's own, then one for
+/// each of the five themes (flat, future, block, air, ice).
+pub(crate) const STYLE_SHEET_URLS: [&str; 6] = [
+    MESSENGER_CSS_URL,
+    "https://cdnjs.cloudflare.com/ajax/libs/messenger/1.5.0/css/messenger-theme-flat.min.css",
+    "https://cdnjs.cloudflare.com/ajax/libs/messenger/1.5.0/css/messenger-theme-future.min.css",
+    "https://cdnjs.cloudflare.com/ajax/libs/messenger/1.5.0/css/messenger-theme-block.min.css",
+    "https://cdnjs.cloudflare.com/ajax/libs/messenger/1.5.0/css/messenger-theme-air.min.css",
+    "https://cdnjs.cloudflare.com/ajax/libs/messenger/1.5.0/css/messenger-theme-ice.min.css",
+];
+
+/// The style sheet of Messenger's spinner.
+pub(crate) const SPINNER_CSS_URL: &str =
+    "https://cdnjs.cloudflare.com/ajax/libs/messenger/1.5.0/css/messenger-spinner.min.css";
+
+/// Underscore, which Messenger needs (the 1.13.6 Python loads).
+pub(crate) const UNDERSCORE_URL: &str =
+    "https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.13.6/underscore-min.js";
+
+/// The scripts of the two themes Python loads once Messenger is in the page:
+/// flat and future.
+pub(crate) const THEME_SCRIPT_URLS: [&str; 2] = [
+    "https://cdnjs.cloudflare.com/ajax/libs/messenger/1.5.0/js/messenger-theme-flat.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/messenger/1.5.0/js/messenger-theme-future.min.js",
+];
+
+/// SeleniumBase's own style for Messenger (Python's `get_messenger_style`): a
+/// larger font, and the soft glow of the flat and future themes.
+const MESSENGER_STYLE: &str = "\
+.messenger-message-inner {
+    font-family: \"open-sans\",Arial,sans-serif !important;
+    font-size: 17px;
+}
+ul.messenger-theme-flat, ul.messenger-theme-future {
+    box-shadow: 2px 2px 9px 4px rgba(32, 142, 120, 0.28),
+    2px 2px 9px 4px rgba(200, 240, 80, 0.34) !important;
+}
+";
+
+
 /// How long a message stays, when none is given: the 2.55 seconds Python
 /// SeleniumBase uses.
 const DEFAULT_DURATION: Duration = Duration::from_millis(2550);
@@ -126,10 +166,10 @@ impl FromStr for MessageStyle {
 /// How Messenger draws its messages.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub enum MessengerTheme {
-    /// Flat boxes (the default).
-    #[default]
+    /// Flat boxes.
     Flat,
-    /// Rounded boxes with a shadow.
+    /// Rounded boxes with a shadow (the default).
+    #[default]
     Future,
     /// Square boxes.
     Block,
@@ -156,11 +196,11 @@ impl MessengerTheme {
 impl FromStr for MessengerTheme {
     type Err = SeleniumBaseError;
 
-    /// Reads `flat`, `future`, `block`, `air` or `ice`; `default` is `flat`.
+    /// Reads `flat`, `future`, `block`, `air` or `ice`; `default` is `future`.
     fn from_str(text: &str) -> Result<Self, Self::Err> {
         match text.trim().to_ascii_lowercase().as_str() {
-            "flat" | "default" => Ok(Self::Flat),
-            "future" => Ok(Self::Future),
+            "flat" => Ok(Self::Flat),
+            "future" | "default" => Ok(Self::Future),
             "block" => Ok(Self::Block),
             "air" => Ok(Self::Air),
             "ice" => Ok(Self::Ice),
@@ -246,7 +286,7 @@ impl fmt::Display for MessengerLocation {
 
 /// How the messages in a page look and where they appear.
 ///
-/// The default is Python SeleniumBase's: the flat theme in the bottom right
+/// The default is Python SeleniumBase's: the future theme in the bottom right
 /// corner, eight messages at most.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct MessengerSettings {
@@ -325,7 +365,7 @@ impl Default for MessageOptions {
 }
 
 /// `text` with the characters HTML gives a meaning written as entities.
-fn html_escape(text: &str) -> String {
+pub(crate) fn html_escape(text: &str) -> String {
     let mut escaped = String::with_capacity(text.len());
     for c in text.chars() {
         match c {
@@ -342,43 +382,67 @@ fn html_escape(text: &str) -> String {
 
 /// `text` as a JavaScript string literal.
 fn js_string(text: &str) -> String {
-    Value::String(text.to_owned()).to_string()
+    // JSON allows the line and paragraph separators raw; a script engine older
+    // than ES2019 ends the literal at one, so they are written as escapes.
+    Value::String(text.to_owned())
+        .to_string()
+        .replace('\u{2028}', "\\u2028")
+        .replace('\u{2029}', "\\u2029")
 }
 
-/// A script that loads jQuery, the Messenger style sheet and the Messenger
-/// script into the page, each only if the page does not have it yet, and
-/// settles once all are loaded.
-fn activate_script() -> String {
+/// A script that loads what Python's `activate_messenger` loads (jQuery, the
+/// style sheets of Messenger, its five themes and its spinner, Underscore, the
+/// Messenger script and SeleniumBase's own style), sets Python's starting
+/// options, loads the scripts of the flat and future themes, and settles once
+/// all are loaded. Each file is added only if the page does not have it yet.
+/// Something the page already has, such as its own jQuery, is left alone.
+/// The promise the script returns settles when everything has loaded, or is
+/// rejected with an error naming the file the page could not load.
+pub(crate) fn activate_script() -> String {
     format!(
         "(async () => {{
-            const load = (element) => new Promise((resolve, reject) => {{
+            const attach = (element) => new Promise((resolve, reject) => {{
                 element.onload = () => resolve(true);
                 element.onerror = () => reject(new Error(
                     'the page could not load ' + (element.src || element.href)));
                 (document.head || document.documentElement).appendChild(element);
             }});
-            if (typeof window.jQuery === 'undefined') {{
-                const script = document.createElement('script');
-                script.src = {jquery};
-                await load(script);
+            const script = async (url) => {{
+                if (document.querySelector('script[src=\"' + url + '\"]')) {{ return; }}
+                const element = document.createElement('script');
+                element.src = url;
+                await attach(element);
+            }};
+            const sheet = async (url) => {{
+                if (document.querySelector('link[href=\"' + url + '\"]')) {{ return; }}
+                const element = document.createElement('link');
+                element.rel = 'stylesheet';
+                element.href = url;
+                await attach(element);
+            }};
+            if (typeof window.jQuery === 'undefined') {{ await script({jquery}); }}
+            for (const url of {sheets}) {{ await sheet(url); }}
+            if (typeof window._ === 'undefined') {{ await script({underscore}); }}
+            await sheet({spinner});
+            if (typeof window.Messenger === 'undefined') {{ await script({messenger}); }}
+            if (!document.getElementById('sbcdp-messenger-style')) {{
+                const style = document.createElement('style');
+                style.id = 'sbcdp-messenger-style';
+                style.textContent = {style};
+                (document.head || document.documentElement).appendChild(style);
             }}
-            if (!document.querySelector('link[data-sbcdp-messenger]')) {{
-                const sheet = document.createElement('link');
-                sheet.rel = 'stylesheet';
-                sheet.href = {css};
-                sheet.setAttribute('data-sbcdp-messenger', '1');
-                await load(sheet);
-            }}
-            if (typeof window.Messenger === 'undefined') {{
-                const script = document.createElement('script');
-                script.src = {messenger};
-                await load(script);
-            }}
+            window.Messenger.options = {options};
+            for (const url of {themes}) {{ await script(url); }}
             return true;
         }})()",
         jquery = js_string(JQUERY_URL),
-        css = js_string(MESSENGER_CSS_URL),
+        sheets = json!(STYLE_SHEET_URLS),
+        underscore = js_string(UNDERSCORE_URL),
+        spinner = js_string(SPINNER_CSS_URL),
         messenger = js_string(MESSENGER_JS_URL),
+        style = js_string(MESSENGER_STYLE),
+        options = MessengerSettings::default().options(),
+        themes = json!(THEME_SCRIPT_URLS),
     )
 }
 
@@ -398,9 +462,10 @@ pub(crate) fn theme_script(settings: MessengerSettings) -> String {
     )
 }
 
-/// A script that posts `message` (already HTML-escaped), and gives `false` if
+/// A script that posts `markup`, which Messenger shows as HTML (escape it
+/// first to show text, as [`Page::post_message`] does), and gives `false` if
 /// Messenger is not in the page.
-fn post_script(escaped_message: &str, options: &MessageOptions) -> String {
+pub(crate) fn post_markup_script(markup: &str, options: &MessageOptions) -> String {
     format!(
         "(() => {{
             if (typeof window.Messenger === 'undefined') {{ return false; }}
@@ -412,7 +477,7 @@ fn post_script(escaped_message: &str, options: &MessageOptions) -> String {
             }});
             return true;
         }})()",
-        message = js_string(escaped_message),
+        message = js_string(markup),
         style = js_string(options.style.as_str()),
         seconds = json!(options.duration.as_secs_f64()),
     )
@@ -476,7 +541,7 @@ impl Page {
         message: &str,
         options: &MessageOptions,
     ) -> Result<(), SeleniumBaseError> {
-        let script = post_script(&html_escape(message), options);
+        let script = post_markup_script(&html_escape(message), options);
         self.run_with_messenger(&script, MessengerSettings::default())
             .await?;
         if options.pause {
@@ -542,7 +607,7 @@ mod tests {
         assert_eq!(options.style, MessageStyle::Info);
 
         let settings = MessengerSettings::default();
-        assert_eq!(settings.theme, MessengerTheme::Flat);
+        assert_eq!(settings.theme, MessengerTheme::Future);
         assert_eq!(settings.location, MessengerLocation::BottomRight);
         assert_eq!(settings.max_messages, 8);
     }
@@ -555,7 +620,7 @@ mod tests {
         );
         assert_eq!(
             "default".parse::<MessengerTheme>().unwrap(),
-            MessengerTheme::Flat
+            MessengerTheme::Future
         );
         assert_eq!(
             "top_left".parse::<MessengerLocation>().unwrap(),
@@ -619,13 +684,15 @@ mod tests {
     #[test]
     fn a_message_can_not_break_out_of_its_string_literal() {
         let hostile = "\"});alert(1);//\n\u{2028}'</script>\\";
-        let script = post_script(&html_escape(hostile), &MessageOptions::default());
+        let script = post_markup_script(&html_escape(hostile), &MessageOptions::default());
         // The literal is JSON, so the quote that would end it is escaped, and
         // the HTML in it is already entities.
         let literal = js_string(&html_escape(hostile));
         assert!(script.contains(&format!("message: {literal},")), "{script}");
         assert!(!script.contains("alert(1);//\n"), "{script}");
         assert!(!script.contains("</script>"), "{script}");
+        // And the separators are escapes, not raw characters.
+        assert!(!literal.contains(['\u{2028}', '\u{2029}']), "{literal}");
         // The literal reads back as exactly the escaped message.
         let back: String = serde_json::from_str(&literal).unwrap();
         assert_eq!(back, html_escape(hostile));
@@ -638,7 +705,7 @@ mod tests {
             pause: false,
             style: MessageStyle::Error,
         };
-        let script = post_script("hi", &options);
+        let script = post_markup_script("hi", &options);
         assert!(script.contains("type: \"error\","), "{script}");
         assert!(script.contains("hideAfter: 1.5,"), "{script}");
         assert!(script.contains("hideOnNavigate: true"), "{script}");
@@ -670,7 +737,7 @@ mod tests {
         assert_eq!(theme.max_messages, 8);
 
         let location = MessengerSettings::from(MessengerLocation::TopLeft);
-        assert_eq!(location.theme, MessengerTheme::Flat);
+        assert_eq!(location.theme, MessengerTheme::Future);
         assert_eq!(location.location, MessengerLocation::TopLeft);
         assert_eq!(location.max_messages, 8);
     }
@@ -694,23 +761,67 @@ mod tests {
         assert!(sent[0].contains(r#""theme":"air""#), "{}", sent[0]);
         assert!(sent[0].contains("messenger-on-bottom messenger-on-right"));
         assert!(sent[0].contains(r#""maxMessages":8"#), "{}", sent[0]);
-        assert!(sent[1].contains(r#""theme":"flat""#), "{}", sent[1]);
+        assert!(sent[1].contains(r#""theme":"future""#), "{}", sent[1]);
         assert!(sent[1].contains("messenger-on-top messenger-on-left"));
-        assert!(sent[2].contains(r#""theme":"flat""#), "{}", sent[2]);
+        assert!(sent[2].contains(r#""theme":"future""#), "{}", sent[2]);
     }
 
     #[test]
-    fn the_activate_script_names_each_file_as_a_string_literal() {
-        let script = activate_script();
-        for url in [JQUERY_URL, MESSENGER_CSS_URL, MESSENGER_JS_URL] {
-            assert!(
-                script.contains(&format!("\"{url}\"")),
-                "{url} missing from {script}"
-            );
+    fn the_activate_script_names_each_file_python_loads_as_a_string_literal() {
+            let script = activate_script();
+            let files = STYLE_SHEET_URLS
+                .into_iter()
+                .chain(THEME_SCRIPT_URLS)
+                .chain([JQUERY_URL, UNDERSCORE_URL, SPINNER_CSS_URL, MESSENGER_JS_URL]);
+            for url in files {
+                assert!(
+                    script.contains(&format!("\"{url}\"")),
+                    "{url} missing from {script}"
+                );
+            }
+            assert!(script.contains("typeof window.jQuery === 'undefined'"));
+            assert!(script.contains("typeof window.Messenger === 'undefined'"));
         }
-        assert!(script.contains("typeof window.jQuery === 'undefined'"));
-        assert!(script.contains("typeof window.Messenger === 'undefined'"));
-    }
+    
+        #[test]
+        fn every_theme_has_its_style_sheet_and_flat_and_future_their_script() {
+            for theme in ["flat", "future", "block", "air", "ice"] {
+                let sheet = format!("messenger-theme-{theme}.min.css");
+                assert!(
+                    STYLE_SHEET_URLS.iter().any(|url| url.ends_with(&sheet)),
+                    "no style sheet for {theme}"
+                );
+            }
+            for theme in ["flat", "future"] {
+                let file = format!("messenger-theme-{theme}.min.js");
+                assert!(
+                    THEME_SCRIPT_URLS.iter().any(|url| url.ends_with(&file)),
+                    "no script for {theme}"
+                );
+            }
+            assert!(STYLE_SHEET_URLS[0].ends_with("/messenger.min.css"));
+            assert!(SPINNER_CSS_URL.ends_with("/messenger-spinner.min.css"));
+            assert!(UNDERSCORE_URL.contains("1.13.6"));
+        }
+    
+        #[test]
+        fn the_activate_script_starts_with_pythons_theme_and_adds_its_own_style_once() {
+            let script = activate_script();
+            // Python sets `Messenger.options` to the future theme in the bottom
+            // right corner, eight messages at most, once Messenger has loaded.
+            assert!(script.contains("window.Messenger.options = {"), "{script}");
+            assert!(script.contains(r#""theme":"future""#), "{script}");
+            assert!(
+                script.contains("messenger-fixed messenger-on-bottom messenger-on-right"),
+                "{script}"
+            );
+            assert!(script.contains("getElementById('sbcdp-messenger-style')"));
+            assert!(script.contains("messenger-message-inner"), "{script}");
+            // The two theme scripts come after the options, as in Python.
+            let options = script.find("window.Messenger.options").unwrap();
+            let theme_script = script.find("messenger-theme-flat.min.js").unwrap();
+            assert!(options < theme_script, "{script}");
+        }
 
     #[tokio::test]
     async fn a_page_that_has_messenger_is_posted_to_directly() {
@@ -741,7 +852,7 @@ mod tests {
         let flag = std::sync::Arc::clone(&loaded);
         mock.on("Runtime.evaluate", move |params| {
             let expression = params["expression"].as_str().unwrap_or_default();
-            if expression.contains("script.src = \"https://code.jquery.com") {
+            if expression.contains("https://code.jquery.com") {
                 flag.store(true, std::sync::atomic::Ordering::SeqCst);
                 return Ok(json!({ "result": { "value": true } }));
             }
