@@ -114,8 +114,10 @@ impl BaseCase {
 
 #[cfg(test)]
 mod debug_prompt_tests {
+    use super::webdriver_support::{MockWebDriver, Reply};
     use super::*;
     use crate::common::debug_prompt::{DebugPrompt, LineInput, PromptKind};
+    use serde_json::json;
 
     /// Answers one scripted line at a time, each after `wait`.
     struct SlowInput {
@@ -139,10 +141,16 @@ mod debug_prompt_tests {
         DebugPrompt::new(SlowInput { lines, wait }, Vec::new()).with_logs_dir(logs)
     }
 
+    /// A WebDriver that answers every command with `null`.
+    fn quiet_driver() -> MockWebDriver {
+        MockWebDriver::start(json!({}), |_| Reply::Value(Value::Null))
+    }
+
     #[tokio::test]
     async fn the_time_at_a_breakpoint_does_not_count_against_the_time_limit() {
         let logs = tempfile::tempdir().unwrap();
-        let mut sb = BaseCase::without_session(BrowserConfig::default());
+        let driver = quiet_driver();
+        let mut sb = driver.base_case().await;
         sb.set_time_limit(1).unwrap();
         let mut at_prompt = prompt(vec!["c"], Duration::from_millis(1200), logs.path());
 
@@ -158,7 +166,8 @@ mod debug_prompt_tests {
     #[tokio::test]
     async fn a_pause_without_a_time_limit_leaves_it_off() {
         let logs = tempfile::tempdir().unwrap();
-        let mut sb = BaseCase::without_session(BrowserConfig::default());
+        let driver = quiet_driver();
+        let mut sb = driver.base_case().await;
         let mut at_prompt = prompt(vec!["c"], Duration::ZERO, logs.path());
 
         sb.pause_at(&mut at_prompt, PromptKind::Breakpoint, "m")
@@ -171,7 +180,8 @@ mod debug_prompt_tests {
     #[tokio::test]
     async fn quitting_the_prompt_fails_the_test_and_still_extends_the_limit() {
         let logs = tempfile::tempdir().unwrap();
-        let mut sb = BaseCase::without_session(BrowserConfig::default());
+        let driver = quiet_driver();
+        let mut sb = driver.base_case().await;
         sb.set_time_limit(60).unwrap();
         let mut at_prompt = prompt(vec!["q"], Duration::from_millis(50), logs.path());
 
@@ -189,11 +199,25 @@ mod debug_prompt_tests {
     }
 
     #[tokio::test]
-    async fn the_prompt_names_the_test_and_survives_a_browser_that_is_gone() {
+    async fn the_prompt_reads_and_saves_what_the_webdriver_page_shows() {
+        const PNG: &[u8] = b"\x89PNG-from-the-mock";
         let logs = tempfile::tempdir().unwrap();
-        let mut sb =
-            BaseCase::without_session(BrowserConfig::default()).with_test_name("login.valid_login");
-        let mut at_prompt = prompt(vec!["u", "s", "src", "c"], Duration::ZERO, logs.path());
+        let driver = MockWebDriver::start(json!({}), |request| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("GET", "/url") => Reply::Value(json!("https://example.com/login")),
+                ("GET", "/title") => Reply::Value(json!("Login")),
+                ("GET", "/source") => Reply::Value(json!("<html>login</html>")),
+                ("GET", "/screenshot") => Reply::Value(json!(BASE64_STANDARD.encode(PNG))),
+                ("POST", "/execute/sync") => Reply::Value(json!(2)),
+                _ => Reply::Value(Value::Null),
+            }
+        });
+        let mut sb = driver.base_case().await.with_test_name("login.valid_login");
+        let mut at_prompt = prompt(
+            vec!["u", "s", "src", "js 1 + 1", "c"],
+            Duration::ZERO,
+            logs.path(),
+        );
 
         sb.pause_at(&mut at_prompt, PromptKind::Breakpoint, "look")
             .await
@@ -201,6 +225,44 @@ mod debug_prompt_tests {
 
         let text = String::from_utf8_lossy(at_prompt.output()).into_owned();
         assert!(text.contains("test:  login.valid_login"), "{text}");
+        assert!(
+            text.contains("page: https://example.com/login  \"Login\""),
+            "{text}"
+        );
+        assert!(text.contains("> 2\n"), "the js value: {text}");
+        let folder = logs.path().join("login.valid_login");
+        assert_eq!(std::fs::read(folder.join("breakpoint_1.png")).unwrap(), PNG);
+        assert_eq!(
+            std::fs::read_to_string(folder.join("page_source_1.html")).unwrap(),
+            "<html>login</html>"
+        );
+        let script = driver.requests("/execute/sync").pop().unwrap().body["script"].clone();
+        assert_eq!(
+            script,
+            json!("return (1 + 1);"),
+            "the expression is wrapped"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_browser_that_is_gone_does_not_stop_the_pause() {
+        let logs = tempfile::tempdir().unwrap();
+        let driver = MockWebDriver::start(json!({}), |request| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("GET", "/url" | "/title" | "/source" | "/screenshot") => {
+                    Reply::Error(404, "no such window")
+                }
+                _ => Reply::Value(Value::Null),
+            }
+        });
+        let mut sb = driver.base_case().await;
+        let mut at_prompt = prompt(vec!["u", "s", "src", "c"], Duration::ZERO, logs.path());
+
+        sb.pause_at(&mut at_prompt, PromptKind::Breakpoint, "look")
+            .await
+            .unwrap();
+
+        let text = String::from_utf8_lossy(at_prompt.output()).into_owned();
         assert!(text.contains("page: (unavailable: "), "{text}");
         assert!(text.contains("could not take a screenshot: "), "{text}");
         assert!(text.contains("could not read the page source: "), "{text}");

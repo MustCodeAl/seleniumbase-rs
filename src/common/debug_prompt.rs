@@ -903,8 +903,8 @@ mod tests {
             page.calls(),
             ["evaluate 1 + 1", "evaluate document.title", "evaluate nope"]
         );
-        assert!(text.contains("\n2\n"), "{text}");
-        assert!(text.contains("\"Login\"\n"), "{text}");
+        assert!(text.contains("execution: 2\n"), "{text}");
+        assert!(text.contains("> \"Login\"\n"), "{text}");
         assert!(
             text.contains("error: ") && text.contains("ReferenceError: nope"),
             "{text}"
@@ -1000,7 +1000,7 @@ mod tests {
         let entries: Vec<_> = std::fs::read_dir(logs.path()).unwrap().collect();
         assert_eq!(entries.len(), 1, "one folder inside the logs");
         let name = entries[0].as_ref().unwrap().file_name();
-        assert_eq!(name.to_str().unwrap(), "__.._etc_passwd");
+        assert_eq!(name.to_str().unwrap(), "_.._etc_passwd");
     }
 
     #[test]
@@ -1061,8 +1061,8 @@ mod tests {
         assert_eq!(parse("go now"), Command::Unknown("go"));
     }
 
-    /// Two prompts started together take turns: the second banner is not
-    /// written before the first prompt ends.
+    /// Two prompts started together both finish, one turn after the other:
+    /// the turn is released when a pause ends, so neither waits for ever.
     #[tokio::test]
     async fn prompts_take_turns() {
         let logs = tempfile::tempdir().unwrap();
