@@ -40,7 +40,9 @@ pub fn host(settings: Settings) -> Host<BaseCase> {
     tools.push(w::page_info_tool());
     tools.extend(devtools::tools_named(&DEBUG_TOOLS));
     tools.extend(devtools::environment_tools());
-    Host::new(SERVER_NAME, INSTRUCTIONS, tools, settings).with_probe(devtools::probe::<BaseCase>)
+    Host::new(SERVER_NAME, INSTRUCTIONS, tools, settings)
+        .with_probe(devtools::probe::<BaseCase>)
+        .with_resources(super::resources::standard())
 }
 
 fn dropdown_schema(option: Prop) -> Schema {

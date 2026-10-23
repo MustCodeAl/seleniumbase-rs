@@ -9,10 +9,13 @@
 
 use std::time::Duration;
 
+use seleniumbase_rs::mcp::cdp::{self, Cdp};
 use seleniumbase_rs::mcp::{
     Args, Ctx, Effect, Host, Output, ProgressSink, ProgressUpdate, Schema, Settings, ToolDef,
     ToolError, UNTRUSTED_META_KEY, UNTRUSTED_NOTICE,
 };
+use seleniumbase_rs::mcp::{ResourceBody, ResourceDef, ResourceError};
+use seleniumbase_rs::sb_cdp::{Browser, MockCtrl};
 use serde_json::{json, Value};
 use tokio::io::{
     AsyncBufReadExt, AsyncWriteExt, BufReader, DuplexStream, Lines, ReadHalf, WriteHalf,
@@ -34,7 +37,7 @@ struct Client {
 
 impl Client {
     /// Serves `host` and performs the handshake.
-    async fn start(host: Host<()>) -> Self {
+    async fn start<S: Send + 'static>(host: Host<S>) -> Self {
         let (server_end, client_end) = tokio::io::duplex(1 << 20);
         tokio::spawn(async move {
             if let Ok(running) = rmcp::serve_server(host, server_end).await {
@@ -393,4 +396,278 @@ async fn call_with_hands_reports_to_the_given_sink() {
     let seen = seen.lock().unwrap();
     let steps: Vec<_> = seen.iter().map(|update| update.progress).collect();
     assert_eq!(steps, [1, 2, 3]);
+}
+
+// ----------------------------------------------------------------------
+// Resources
+// ----------------------------------------------------------------------
+
+/// A host with a text resource, a binary one and a template that echoes
+/// what follows its prefix.
+fn host_with_resources() -> Host<()> {
+    host_with(vec![]).with_resources(vec![
+        ResourceDef::fixed(
+            "test://note",
+            "note",
+            "Note",
+            "A text resource.",
+            "text/plain",
+            |_ctx| async { Ok(ResourceBody::text("hello", "text/plain")) },
+        ),
+        ResourceDef::fixed(
+            "test://bytes",
+            "bytes",
+            "Bytes",
+            "A binary resource.",
+            "application/octet-stream",
+            |_ctx| async {
+                Ok(ResourceBody::blob(
+                    vec![0, 1, 2, 255],
+                    "application/octet-stream",
+                ))
+            },
+        ),
+        ResourceDef::fixed(
+            "test://broken",
+            "broken",
+            "Broken",
+            "A resource that cannot be read.",
+            "text/plain",
+            |_ctx| async { Err(ResourceError::Invalid("not today".to_owned())) },
+        ),
+        ResourceDef::template(
+            "test://echo/{+rest}",
+            "echo",
+            "Echo",
+            "Answers with what follows the prefix.",
+            |_ctx, rest: String| async move { Ok(ResourceBody::text(rest, "text/plain")) },
+        ),
+    ])
+}
+
+#[tokio::test]
+async fn a_host_with_resources_advertises_them() {
+    let client = Client::start(host_with_resources()).await;
+
+    let capabilities = &client.initialized["capabilities"];
+    assert!(capabilities.get("resources").is_some(), "{capabilities}");
+    assert!(capabilities.get("tools").is_some(), "{capabilities}");
+}
+
+#[tokio::test]
+async fn single_resources_and_templates_are_listed_apart() {
+    let mut client = Client::start(host_with_resources()).await;
+
+    let listed = client.result("resources/list", json!({})).await;
+    let templates = client.result("resources/templates/list", json!({})).await;
+
+    let uris: Vec<_> = listed["resources"]
+        .as_array()
+        .expect("a list")
+        .iter()
+        .map(|resource| resource["uri"].as_str().expect("a uri"))
+        .collect();
+    assert_eq!(uris, ["test://note", "test://bytes", "test://broken"]);
+    assert_eq!(listed["resources"][0]["mimeType"], "text/plain");
+    assert_eq!(listed["resources"][0]["name"], "note");
+    assert_eq!(
+        templates["resourceTemplates"].as_array().map(Vec::len),
+        Some(1)
+    );
+    assert_eq!(
+        templates["resourceTemplates"][0]["uriTemplate"],
+        "test://echo/{+rest}"
+    );
+}
+
+#[tokio::test]
+async fn a_text_resource_is_read_as_text_and_a_binary_one_as_base64() {
+    let mut client = Client::start(host_with_resources()).await;
+
+    let note = client
+        .result("resources/read", json!({ "uri": "test://note" }))
+        .await;
+    let bytes = client
+        .result("resources/read", json!({ "uri": "test://bytes" }))
+        .await;
+
+    assert_eq!(note["contents"][0]["uri"], "test://note");
+    assert_eq!(note["contents"][0]["text"], "hello");
+    assert_eq!(note["contents"][0]["mimeType"], "text/plain");
+    assert_eq!(bytes["contents"][0]["blob"], "AAEC/w==");
+    assert!(bytes["contents"][0].get("text").is_none());
+}
+
+#[tokio::test]
+async fn a_template_is_given_what_follows_its_prefix() {
+    let mut client = Client::start(host_with_resources()).await;
+
+    let read = client
+        .result("resources/read", json!({ "uri": "test://echo/a/b.txt" }))
+        .await;
+
+    assert_eq!(read["contents"][0]["text"], "a/b.txt");
+    assert_eq!(read["contents"][0]["uri"], "test://echo/a/b.txt");
+}
+
+#[tokio::test]
+async fn an_unknown_resource_and_a_refused_one_are_told_apart() {
+    let mut client = Client::start(host_with_resources()).await;
+
+    let missing = client
+        .request("resources/read", json!({ "uri": "test://nothing" }))
+        .await;
+    let refused = client
+        .request("resources/read", json!({ "uri": "test://broken" }))
+        .await;
+
+    assert_eq!(missing["error"]["code"], json!(-32002), "{missing}");
+    assert!(missing["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("test://nothing"));
+    assert_eq!(refused["error"]["code"], json!(-32602), "{refused}");
+    assert_eq!(refused["error"]["message"], "not today");
+}
+
+/// The Pure CDP server on a scripted browser, behind the protocol.
+async fn cdp_client(output_dir: &std::path::Path) -> (Client, Host<Cdp>, MockCtrl) {
+    let host = cdp::host(Settings::new(output_dir));
+    let (browser, mock) = Browser::new_mocked();
+    host.ctx()
+        .start(async { Ok::<_, ToolError>(Cdp::attach(browser).await?) })
+        .await
+        .expect("the mocked session starts");
+    (Client::start(host.clone()).await, host, mock)
+}
+
+#[tokio::test]
+async fn the_session_resource_describes_the_running_browser() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut client, _host, mock) = cdp_client(dir.path()).await;
+    mock.on("Runtime.evaluate", |_params| {
+        Ok(json!({ "result": { "value": {
+            "url": "https://a.test/",
+            "title": "A",
+            "ready_state": "complete",
+        } } }))
+    });
+
+    let read = client
+        .result("resources/read", json!({ "uri": "sbrs://session" }))
+        .await;
+
+    let session: Value =
+        serde_json::from_str(read["contents"][0]["text"].as_str().unwrap()).unwrap();
+    assert_eq!(session["browser"], json!(true));
+    assert_eq!(session["engine"], "cdp");
+    assert_eq!(session["url"], "https://a.test/");
+    assert_eq!(session["title"], "A");
+    assert_eq!(read["contents"][0]["mimeType"], "application/json");
+}
+
+#[tokio::test]
+async fn the_session_resource_says_so_when_no_browser_runs() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut client = Client::start(cdp::host(Settings::new(dir.path()))).await;
+
+    let read = client
+        .result("resources/read", json!({ "uri": "sbrs://session" }))
+        .await;
+
+    let session: Value =
+        serde_json::from_str(read["contents"][0]["text"].as_str().unwrap()).unwrap();
+    assert_eq!(session, json!({ "browser": false }));
+}
+
+#[tokio::test]
+async fn the_journal_lists_the_calls_without_what_was_typed() {
+    let dir = tempfile::tempdir().unwrap();
+    let host = cdp::host(Settings::new(dir.path()));
+    let mut client = Client::start(host.clone()).await;
+    // No browser runs, so the call fails: it still goes in the journal.
+    let failed = client
+        .call(
+            "type_text",
+            json!({ "selector": "#pw", "text": "hunter2-secret" }),
+        )
+        .await;
+    assert_eq!(failed["isError"], json!(true));
+
+    let read = client
+        .result("resources/read", json!({ "uri": "sbrs://journal" }))
+        .await;
+
+    let text = read["contents"][0]["text"].as_str().unwrap();
+    assert!(!text.contains("hunter2-secret"), "{text}");
+    let journal: Value = serde_json::from_str(text).unwrap();
+    let calls = journal["calls"].as_array().expect("a list of calls");
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0]["tool"], "type_text");
+    assert_eq!(calls[0]["ok"], json!(false));
+    assert_eq!(calls[0]["arguments"]["selector"], "#pw");
+    assert!(calls[0]["ms"].is_u64(), "{}", calls[0]);
+    assert_eq!(journal["dropped"], json!(0));
+}
+
+#[tokio::test]
+async fn output_files_are_read_through_the_template() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(dir.path().join("shots")).unwrap();
+    std::fs::write(dir.path().join("note.txt"), "saved text").unwrap();
+    std::fs::write(dir.path().join("shots/a.png"), [0x89, b'P', 0xff]).unwrap();
+    let mut client = Client::start(cdp::host(Settings::new(dir.path()))).await;
+
+    let text = client
+        .result("resources/read", json!({ "uri": "sbrs://output/note.txt" }))
+        .await;
+    let image = client
+        .result(
+            "resources/read",
+            json!({ "uri": "sbrs://output/shots/a.png" }),
+        )
+        .await;
+    let listed = client.result("resources/templates/list", json!({})).await;
+
+    assert_eq!(text["contents"][0]["text"], "saved text");
+    assert_eq!(image["contents"][0]["blob"], "iVD/");
+    assert_eq!(image["contents"][0]["mimeType"], "image/png");
+    assert_eq!(
+        listed["resourceTemplates"][0]["uriTemplate"],
+        "sbrs://output/{+path}"
+    );
+}
+
+#[tokio::test]
+async fn output_paths_that_leave_the_directory_are_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("out");
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::write(dir.path().join("secret.txt"), "private").unwrap();
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(dir.path().join("secret.txt"), root.join("link.txt")).unwrap();
+    let mut client = Client::start(cdp::host(Settings::new(&root))).await;
+
+    for uri in [
+        "sbrs://output/../secret.txt",
+        "sbrs://output/%2e%2e/secret.txt",
+        "sbrs://output/..%2Fsecret.txt",
+        "sbrs://output//etc/passwd",
+        "sbrs://output/%2Fetc%2Fpasswd",
+        #[cfg(unix)]
+        "sbrs://output/link.txt",
+    ] {
+        let answer = client
+            .request("resources/read", json!({ "uri": uri }))
+            .await;
+        assert_eq!(answer["error"]["code"], json!(-32602), "{uri}: {answer}");
+        assert!(!answer.to_string().contains("private"), "{uri}: {answer}");
+    }
+    let missing = client
+        .request(
+            "resources/read",
+            json!({ "uri": "sbrs://output/nothing.txt" }),
+        )
+        .await;
+    assert_eq!(missing["error"]["code"], json!(-32002), "{missing}");
 }

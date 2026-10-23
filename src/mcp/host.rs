@@ -11,6 +11,11 @@ use rmcp::model::{
     Implementation, ListToolsResult, MetaObject, PaginatedRequestParams, ServerCapabilities,
     ServerConfig, Tool,
 };
+use rmcp::model::{
+    ListResourceTemplatesResult, ListResourcesResult, ReadResourceRequestParams,
+    ReadResourceResponse, ReadResourceResult, Resource, ResourceContents, ResourceTemplate,
+    ResourcesCapability,
+};
 use rmcp::service::{RequestContext, RoleServer};
 use serde_json::{Map, Value};
 use tokio::sync::{Mutex, OwnedMappedMutexGuard, OwnedMutexGuard};
@@ -18,6 +23,7 @@ use tokio::sync::{Mutex, OwnedMappedMutexGuard, OwnedMutexGuard};
 use super::failure::{concerns_page, focus_selector, FailureReport, PROBE_TIMEOUT};
 use super::journal::{CallRecord, Journal};
 use super::progress::{Progress, ProgressSink};
+use super::resources::{ResourceBody, ResourceDef, ResourceError};
 use super::tool::{Args, Output, ToolDef, ToolError};
 use crate::config::plugins::PluginSelection;
 use crate::error::closest_match;
@@ -269,6 +275,7 @@ struct Shared<S> {
     tools: Vec<ToolDef<S>>,
     ctx: Ctx<S>,
     probe: Option<Probe<S>>,
+    resources: Vec<ResourceDef<S>>,
 }
 
 /// A named set of tools and the session they share.
@@ -311,6 +318,7 @@ impl<S: Send + 'static> Host<S> {
                 tools,
                 ctx: Ctx::new(settings),
                 probe: None,
+                resources: Vec::new(),
             }),
         }
     }
@@ -328,6 +336,98 @@ impl<S: Send + 'static> Host<S> {
             tracing::warn!(server = self.shared.name, "a shared host keeps its probe");
         }
         self
+    }
+
+    /// Offers `resources` to clients: read-only data next to the tools.
+    ///
+    /// Call it while building the server: a host that has been cloned keeps
+    /// the resources it had.
+    #[must_use]
+    pub fn with_resources(mut self, resources: Vec<ResourceDef<S>>) -> Self {
+        if let Some(shared) = Arc::get_mut(&mut self.shared) {
+            shared.resources = resources;
+        } else {
+            tracing::warn!(
+                server = self.shared.name,
+                "a shared host keeps its resources"
+            );
+        }
+        self
+    }
+
+    /// What the server announces at the start: tools always, and resources
+    /// only when it has some.
+    fn capabilities(&self) -> ServerCapabilities {
+        let mut capabilities = ServerCapabilities::builder().enable_tools().build();
+        if !self.shared.resources.is_empty() {
+            capabilities.resources = Some(ResourcesCapability::default());
+        }
+        capabilities
+    }
+
+    /// The single resources, as `resources/list` shows them.
+    fn describe_resources(&self) -> Vec<Resource> {
+        let mut listed = Vec::new();
+        for def in self
+            .shared
+            .resources
+            .iter()
+            .filter(|def| !def.is_template())
+        {
+            listed.push(
+                Resource::new(def.uri(), def.name())
+                    .with_title(def.title())
+                    .with_description(def.description())
+                    .with_mime_type(def.mime_type()),
+            );
+        }
+        listed
+    }
+
+    /// The URI templates, as `resources/templates/list` shows them.
+    fn describe_resource_templates(&self) -> Vec<ResourceTemplate> {
+        let mut listed = Vec::new();
+        for def in self.shared.resources.iter().filter(|def| def.is_template()) {
+            listed.push(
+                ResourceTemplate::new(def.uri(), def.name())
+                    .with_title(def.title())
+                    .with_description(def.description()),
+            );
+        }
+        listed
+    }
+
+    /// Reads the resource at `uri`: a single resource first, then the
+    /// template whose prefix the URI starts with.
+    async fn read_resource_at(&self, uri: &str) -> Result<ReadResourceResult, ErrorData> {
+        let resources = &self.shared.resources;
+        let def = resources
+            .iter()
+            .find(|def| !def.is_template() && def.serves(uri))
+            .or_else(|| {
+                resources
+                    .iter()
+                    .find(|def| def.is_template() && def.serves(uri))
+            })
+            .ok_or_else(|| {
+                ErrorData::resource_not_found(
+                    format!("no resource at {uri}"),
+                    Some(serde_json::json!({ "uri": uri })),
+                )
+            })?;
+        let body = def
+            .read(self.shared.ctx.clone(), uri)
+            .await
+            .map_err(|error| resource_error(error, uri))?;
+        let contents = match body {
+            ResourceBody::Text { text, mime_type } => {
+                ResourceContents::text(text, uri).with_mime_type(mime_type)
+            }
+            ResourceBody::Blob { bytes, mime_type } => {
+                ResourceContents::blob(ResourceBody::encoded(&bytes), uri).with_mime_type(mime_type)
+            }
+        };
+        Ok(ReadResourceResult::new(vec![contents]))
     }
 
     /// Whether the server offers a tool called `name`.
@@ -526,6 +626,17 @@ fn untrusted_meta() -> MetaObject {
     MetaObject::from(meta)
 }
 
+/// A resource that could not be read, as a protocol error.
+fn resource_error(error: ResourceError, uri: &str) -> ErrorData {
+    match error {
+        ResourceError::NotFound(message) => {
+            ErrorData::resource_not_found(message, Some(serde_json::json!({ "uri": uri })))
+        }
+        ResourceError::Invalid(message) => ErrorData::invalid_params(message, None),
+        ResourceError::Failed(message) => ErrorData::internal_error(message, None),
+    }
+}
+
 /// A failed call as the client sees it: the report as text, and the same
 /// fields as structured content.
 fn error_result(report: &FailureReport) -> CallToolResponse {
@@ -542,7 +653,7 @@ impl<S: Send + 'static> ServerHandler for Host<S> {
     fn get_info(&self) -> ServerConfig {
         // A client names the server by this: without it, every server of this
         // crate introduces itself as the MCP library.
-        ServerConfig::new(ServerCapabilities::builder().enable_tools().build())
+        ServerConfig::new(self.capabilities())
             .with_server_info(Implementation::new(
                 self.shared.name,
                 env!("CARGO_PKG_VERSION"),
@@ -560,6 +671,42 @@ impl<S: Send + 'static> ServerHandler for Host<S> {
                 tools: self.describe_tools(),
                 ..Default::default()
             })
+        }
+    }
+
+    fn list_resources(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _context: RequestContext<RoleServer>,
+    ) -> impl Future<Output = Result<ListResourcesResult, ErrorData>> + '_ {
+        async move {
+            Ok(ListResourcesResult::with_all_items(
+                self.describe_resources(),
+            ))
+        }
+    }
+
+    fn list_resource_templates(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _context: RequestContext<RoleServer>,
+    ) -> impl Future<Output = Result<ListResourceTemplatesResult, ErrorData>> + '_ {
+        async move {
+            Ok(ListResourceTemplatesResult::with_all_items(
+                self.describe_resource_templates(),
+            ))
+        }
+    }
+
+    fn read_resource(
+        &self,
+        request: ReadResourceRequestParams,
+        _context: RequestContext<RoleServer>,
+    ) -> impl Future<Output = Result<ReadResourceResponse, ErrorData>> + '_ {
+        async move {
+            self.read_resource_at(&request.uri)
+                .await
+                .map(ReadResourceResponse::Complete)
         }
     }
 

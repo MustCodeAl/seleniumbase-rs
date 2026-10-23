@@ -23,7 +23,9 @@ pub fn host(settings: Settings) -> Host<BaseCase> {
     tools.extend(stealth::tools());
     tools.extend(devtools::tools());
     tools.extend(devtools::environment_tools());
-    Host::new(SERVER_NAME, INSTRUCTIONS, tools, settings).with_probe(devtools::probe::<BaseCase>)
+    Host::new(SERVER_NAME, INSTRUCTIONS, tools, settings)
+        .with_probe(devtools::probe::<BaseCase>)
+        .with_resources(super::resources::standard())
 }
 
 #[expect(

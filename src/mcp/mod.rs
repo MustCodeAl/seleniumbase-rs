@@ -33,6 +33,7 @@ mod failure;
 mod host;
 mod journal;
 mod progress;
+mod resources;
 mod schema;
 mod support;
 mod tool;
@@ -50,6 +51,10 @@ pub use host::{
     UNTRUSTED_NOTICE,
 };
 pub use progress::{Progress, ProgressSink, ProgressUpdate};
+pub use resources::{
+    ResourceBody, ResourceDef, ResourceError, ResourceFuture, JOURNAL_URI, MAX_OUTPUT_BYTES,
+    OUTPUT_TEMPLATE, SESSION_URI,
+};
 pub use schema::{Prop, Schema};
 pub use tool::{Args, Effect, Output, ToolDef, ToolError, ToolFuture};
 

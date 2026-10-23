@@ -230,7 +230,9 @@ pub fn host(settings: Settings) -> Host<Cdp> {
     let mut tools = tools();
     tools.extend(devtools::tools());
     tools.extend(devtools::environment_tools());
-    Host::new(SERVER_NAME, INSTRUCTIONS, tools, settings).with_probe(devtools::probe::<Cdp>)
+    Host::new(SERVER_NAME, INSTRUCTIONS, tools, settings)
+        .with_probe(devtools::probe::<Cdp>)
+        .with_resources(super::resources::standard())
 }
 
 fn selector_prop() -> Prop {
