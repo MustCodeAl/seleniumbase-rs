@@ -43,11 +43,15 @@ use seleniumbase_rs::{
 };
 use serde_json::{json, Value};
 
+mod args;
+
 mod completion;
 mod failure;
 
 mod fig;
 mod fingerprint;
+mod proxy;
+
 #[cfg(test)]
 mod reference;
 #[cfg(feature = "turso")]
@@ -852,6 +856,20 @@ enum Commands {
         #[usage(long, value_hint = usage::ValueHint::DirPath, help = "Directory where patched binaries are cached")]
         cache_dir: Option<String>,
     },
+    /// Run a small forward proxy on this machine (HTTP and CONNECT, no authentication).
+    ///
+    /// Point a browser at it with the global --proxy option. `CONNECT host:port` becomes a
+    /// tunnel, so HTTPS passes through untouched; an absolute `http://` request is sent to
+    /// its host once and the connection closed. It listens on 127.0.0.1:8899 unless told
+    /// otherwise, and a request head over 64 KiB, more than 256 connections at once and 30
+    /// seconds without a byte are refused or cut. Each request is logged at INFO
+    /// (SB_LOG_LEVEL=info). Ctrl-C or SIGTERM stops it with status 0.
+    #[usage(
+        help_heading = "Drivers, grid and servers",
+        example = "sbrs proxy --port 8899"
+    )]
+    Proxy(args::tools::ProxyArgs),
+
     /// Encrypt text with a passphrase (AES-256-GCM); read from stdin if TEXT is omitted.
     ///
     /// The passphrase comes from the SB_ENCRYPTION_KEY environment variable, never
@@ -1789,6 +1807,7 @@ impl Commands {
             | Self::Test { .. }
             | Self::GridHub(_)
             | Self::GridNode(_)
+            | Self::Proxy(_)
             | Self::Translate { .. }
             | Self::Mkdir { .. }
             | Self::Mkfile { .. }
@@ -2608,9 +2627,10 @@ async fn execute() -> Result<(), Box<dyn std::error::Error>> {
     let args = parse_command_line();
     let stops_itself = matches!(
         args.command,
-        Commands::Record { .. } | Commands::Devtools { .. }
+        Commands::Record { .. } | Commands::Devtools { .. } | Commands::Proxy(_)
     );
-    // `record` stops itself on SIGINT or SIGTERM so that it can save what it
+    // `proxy` stops itself on SIGINT or SIGTERM and ends with 0. `record` stops itself on
+    // SIGINT or SIGTERM so that it can save what it
     // captured, and `devtools` so that it can close its browser and exit
     // with 0. A signal cancels any other command, which closes its browser.
     //
@@ -3033,6 +3053,8 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::GridHub(grid) => return run_grid(GridRole::Hub, grid).await,
         Commands::GridNode(grid) => return run_grid(GridRole::Node, grid).await,
+        Commands::Proxy(proxy) => return proxy::run(proxy).await,
+
         Commands::Devtools { .. } => return run_devtools(&args).await,
         Commands::Prompt(options) => return run_prompt(options).await,
         Commands::Plugin(plugin) => return run_plugin(&plugin.command, &args),
@@ -3697,6 +3719,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         | Commands::Translate { .. }
         | Commands::GridHub(_)
         | Commands::GridNode(_)
+        | Commands::Proxy(_)
         | Commands::Devtools { .. } => {
             unreachable!("these commands return before browser configuration")
         }
