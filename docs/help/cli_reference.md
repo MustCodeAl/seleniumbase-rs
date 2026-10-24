@@ -104,6 +104,7 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs plugin`](#sbrs-plugin) | List the built-in plugins, or show what one declares. |
 | [`sbrs plugin info`](#sbrs-plugin-info) | Show what one plugin declares and what it may do. |
 | [`sbrs plugin list`](#sbrs-plugin-list) | List the built-in plugins of this build, and whether they are on. |
+| [`sbrs plugin run`](#sbrs-plugin-run) | Run the task of a plugin on a browser it starts, and write its results as JSON lines. |
 | [`sbrs print`](#sbrs-print) | Print a file. |
 | [`sbrs print-pdf`](#sbrs-print-pdf) | Print a page to PDF and save it to disk. |
 | [`sbrs prompt`](#sbrs-prompt) | Print one short line for a shell prompt: the installed Chrome's major version and whether a matching chromedriver is at hand. |
@@ -3163,6 +3164,42 @@ sbrs plugin list
 
 ```bash Examples
 sbrs plugin list
+```
+
+### sbrs plugin run
+
+Run the task of a plugin on a browser it starts, and write its results as JSON lines.
+
+Only plugins that offer a task can be run, and the named plugin is turned on for this run without --plugin. The task reads its input from --input (a JSON file, or `-` for standard input; `{}` when there is none) and writes one JSON value per line to --out (default: standard output). Its summary goes to standard error. The global options --plugin, --plugin-opt, --headless, --proxy and the like shape the browser and the other plugins. Ctrl-C stops the task, closes the browser and exits with status 130. Exits with status 2 and lists the plugins that have a task when the name is not one of them.
+
+```bash Usage
+sbrs plugin run [--input <FILE>] [--out <FILE>] <NAME>
+```
+
+**Arguments**
+
+<ParamField path="NAME" type="string" required>
+
+The plugin whose task to run, as `sbrs plugin list` shows it.
+
+</ParamField>
+
+**Flags**
+
+<ParamField query="--input <FILE>" type="string">
+
+A JSON file with the task's input, or `-` to read it from standard input.
+
+</ParamField>
+
+<ParamField query="--out <FILE>" type="string">
+
+Write the results to this file, one JSON value per line (default: standard output).
+
+</ParamField>
+
+```bash Examples
+sbrs plugin run crawler --input crawl.json --out found.jsonl
 ```
 
 ## sbrs print

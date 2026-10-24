@@ -2395,6 +2395,24 @@ Prints the plugin's category, phase, capabilities (with their risk, and whether 
         complete name type=none
         example "sbrs plugin info shield"
     }
+    cmd run help="Run the task of a plugin on a browser it starts, and write its results as JSON lines." {
+        long_help #"""
+Run the task of a plugin on a browser it starts, and write its results as JSON lines.
+
+Only plugins that offer a task can be run, and the named plugin is turned on for this run without --plugin. The task reads its input from --input (a JSON file, or `-` for standard input; `{}` when there is none) and writes one JSON value per line to --out (default: standard output). Its summary goes to standard error. The global options --plugin, --plugin-opt, --headless, --proxy and the like shape the browser and the other plugins. Ctrl-C stops the task, closes the browser and exits with status 130. Exits with status 2 and lists the plugins that have a task when the name is not one of them.
+"""#
+        flag --input help="A JSON file with the task's input, or `-` to read it from standard input." {
+            arg <FILE>
+        }
+        flag --out help="Write the results to this file, one JSON value per line (default: standard output)." {
+            arg <FILE>
+        }
+        flag "-h --help" help="Print help" action=help builtin=#true
+        arg <NAME> help="The plugin whose task to run, as `sbrs plugin list` shows it."
+        complete name type=none
+        complete file type=path
+        example "sbrs plugin run crawler --input crawl.json --out found.jsonl"
+    }
     example "sbrs plugin list"
 }
 cmd fingerprint help_heading=Security help="Capture, write, check and compare browser fingerprints." subcommand_required=#true {

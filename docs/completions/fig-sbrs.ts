@@ -3476,6 +3476,38 @@ const completionSpec: Fig.Spec = {
             },
           ],
         },
+        {
+          name: "run",
+          description: "Run the task of a plugin on a browser it starts, and write its results as JSON lines.",
+          options: [
+            {
+              name: "--input",
+              description: "A JSON file with the task's input, or `-` to read it from standard input.",
+              args: {
+                name: "file",
+                template: "filepaths",
+              },
+            },
+            {
+              name: "--out",
+              description: "Write the results to this file, one JSON value per line (default: standard output).",
+              args: {
+                name: "file",
+                template: "filepaths",
+              },
+            },
+            {
+              name: ["-h", "--help"],
+              description: "Print help",
+            },
+          ],
+          args: [
+            {
+              name: "name",
+              description: "The plugin whose task to run, as `sbrs plugin list` shows it.",
+            },
+          ],
+        },
       ],
       options: [
         {
