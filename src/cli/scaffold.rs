@@ -235,6 +235,22 @@ impl RelativeName {
         }
     }
 
+    /// A name made of constants of the caller, such as
+    /// `.github/workflows/ci.yml`, whose components may start with a dot.
+    ///
+    /// `path` is a trusted constant, never user input: it must be relative
+    /// and hold no `..` or empty component.
+    #[must_use]
+    pub(crate) fn trusted(path: &str) -> Self {
+        debug_assert!(
+            !path.starts_with('/') && !path.split('/').any(|part| part.is_empty() || part == ".."),
+            "{path:?} is not a safe relative name"
+        );
+        Self {
+            path: PathBuf::from(path),
+        }
+    }
+
     /// This name with `child` below it.
     ///
     /// `child` is a trusted constant of the caller, never user input.

@@ -1,0 +1,15 @@
+//! A Gherkin scenario: `features/example.feature` says what happens, and the
+//! steps are the library's built-in ones. Needs the feature `bdd` of
+//! `seleniumbase-rs`.
+
+use rstest_bdd_macros::scenario;
+use seleniumbase_rs::testing::bdd::{sb, SbCase};
+
+#[scenario(
+    path = "tests/golden/cli/mkdir_bdd/features/example.feature",
+    name = "Open a page"
+)]
+#[tokio::test(flavor = "multi_thread")]
+async fn open_a_page(#[future(awt)] sb: SbCase) {
+    let _ = &sb;
+}

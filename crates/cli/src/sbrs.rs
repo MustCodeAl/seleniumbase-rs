@@ -20,8 +20,6 @@ use seleniumbase_rs::cli::devtools::{
 use seleniumbase_rs::cli::plugin_cmd::{self, PluginChoice};
 use seleniumbase_rs::cli::prompt;
 use seleniumbase_rs::cli::scaffold::{Scaffold, ScaffoldError};
-use seleniumbase_rs::cli::scripts::sb_mkdir::Suite;
-use seleniumbase_rs::cli::scripts::sb_mkfile::TestFile;
 use seleniumbase_rs::cli::scripts::*;
 use seleniumbase_rs::common::encryption::{decrypt_with_passphrase, encrypt_with_passphrase};
 use seleniumbase_rs::common::shutdown::{
@@ -1421,41 +1419,33 @@ enum Commands {
     /// Names are relative to the current directory and use letters, digits, `_`,
     /// `-` and `.`, with `/` between folders. Nothing is overwritten unless
     /// `--force` is given.
+    ///
+    /// The folder is one Cargo test target (`tests/<folder>/main.rs`) with example tests
+    /// that use the rstest `sb` fixture, a parameterized test and a pure CDP test.
+    /// `--bdd` adds a Gherkin scenario that runs on the built-in steps, and `--gha` a
+    /// GitHub Actions workflow in `.github/workflows/` of the current folder.
+
     #[usage(help_heading = "Files and generators", example = "sbrs mkdir ui_tests")]
-    Mkdir {
-        /// Folder to create, for example `tests/ui`.
-        #[usage(value_hint = usage::ValueHint::DirPath)]
-        dir: String,
-        /// Create only the scaffolding, with no example tests.
-        #[usage(short, long, bool_value)]
-        basic: bool,
-        /// Replace generated files that already exist.
-        #[usage(long, bool_value)]
-        force: bool,
-    },
+    Mkdir(args::generators::MkdirArgs),
     /// Create a browser-test file.
     ///
     /// The name follows the same rules as `mkdir`; `.rs` is added when missing.
     /// An existing file is never overwritten unless `--force` is given.
+    ///
+    /// The test uses the rstest `sb` fixture unless a syntax flag says otherwise: `--pf`
+    /// (the default), `--bc` (a BaseCase made and quit by hand), `--cm` (the
+    /// run_browser_test closure), `--dc` (the pure CDP `sb_cdp` fixture) or `--dm` (a pure
+    /// CDP browser launched by hand). A language flag (`--en`, `--zh`, `--nl`, `--fr`,
+    /// `--it`, `--ja`, `--ko`, `--pt`, `--ru`, `--es`) localises the strings it types and
+    /// expects. `--rec` adds a recorder breakpoint for Recorder Mode, and `--uc` and
+    /// `--cdp` write a basic test for UC Mode and for pure CDP.
+
     #[usage(alias = "new")]
     #[usage(
         help_heading = "Files and generators",
         example = "sbrs mkfile tests/login.rs"
     )]
-    Mkfile {
-        /// File to create, for example `tests/login.rs`.
-        #[usage(value_hint = usage::ValueHint::FilePath, extensions("rs"))]
-        file: String,
-        /// Page the test opens (default: https://example.com).
-        #[usage(long, value_hint = usage::ValueHint::Url)]
-        url: Option<String>,
-        /// Leave the test body empty: it only opens the page.
-        #[usage(short, long, bool_value)]
-        basic: bool,
-        /// Replace the file if it already exists.
-        #[usage(long, bool_value)]
-        force: bool,
-    },
+    Mkfile(args::generators::MkfileArgs),
     /// Launch the Commander, a terminal app (needs a build with the `tui` feature).
     ///
     /// Lists the tests and examples under PATH and runs the one you pick with `cargo test
@@ -1923,8 +1913,8 @@ impl Commands {
             | Self::Proxy(_)
             | Self::Download(_)
             | Self::Translate { .. }
-            | Self::Mkdir { .. }
-            | Self::Mkfile { .. }
+            | Self::Mkdir(_)
+            | Self::Mkfile(_)
             | Self::Commander { .. }
             | Self::Caseplans { .. }
             | Self::BehaveGui { .. }
@@ -3067,25 +3057,20 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 test_name.as_deref(),
             );
         }
-        Commands::Mkdir { dir, basic, force } => {
+        Commands::Mkdir(mkdir) => {
             report_created(
-                Suite::new(dir).and_then(|suite| suite.basic(*basic).create(&here(*force))),
+                mkdir
+                    .suite()
+                    .and_then(|suite| suite.create(&here(mkdir.force))),
             );
             return Ok(());
         }
-        Commands::Mkfile {
-            file,
-            url,
-            basic,
-            force,
-        } => {
+        Commands::Mkfile(mkfile) => {
+            mkfile.check()?;
             report_created(
-                TestFile::new(file)
-                    .and_then(|test| match url {
-                        Some(url) => test.url(url),
-                        None => Ok(test),
-                    })
-                    .and_then(|test| test.basic(*basic).create(&here(*force)))
+                mkfile
+                    .test_file()
+                    .and_then(|test| test.create(&here(mkfile.force)))
                     .map(|path| vec![path]),
             );
             return Ok(());
@@ -3790,8 +3775,8 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 std::process::exit(code);
             }
         }
-        Commands::Mkdir { .. }
-        | Commands::Mkfile { .. }
+        Commands::Mkdir(_)
+        | Commands::Mkfile(_)
         | Commands::Translate { .. }
         | Commands::GridHub(_)
         | Commands::GridNode(_)

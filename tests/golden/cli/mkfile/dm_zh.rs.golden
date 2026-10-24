@@ -1,0 +1,32 @@
+//! 由 `sbrs mkfile` 生成的浏览器测试。
+//!
+//! Run it with `cargo test --test dm_zh` when this file is in your crate's
+//! `tests/` folder. It needs Chrome, which it drives directly (`sbrs doctor`
+//! checks it). `SB_HEADLESS=true` runs it without a window.
+//!
+//! Your crate's dev-dependencies are `seleniumbase-rs` and `tokio` (features
+//! `macros` and `rt`).
+
+use seleniumbase_rs::config::settings::Settings;
+use seleniumbase_rs::sb_cdp::{Browser, Page};
+use seleniumbase_rs::Result;
+
+#[tokio::test]
+async fn dm_zh() -> Result<()> {
+    let options = Settings::load()?.to_launch_options()?;
+    let browser = Browser::launch(options).await?;
+    let page = browser.default_page().await?;
+    let outcome = steps(&page).await;
+    // Close the browser whether the steps passed or failed.
+    browser.close().await?;
+    outcome
+}
+
+async fn steps(page: &Page) -> Result<()> {
+    page.goto("data:text/html,<meta charset='utf-8'><p>你好<br><input>")
+        .await?;
+    page.locator("input").fill("再见").await?;
+    page.locator("p").click().await?;
+    page.locator("p").expect().to_contain_text("你好").await?;
+    Ok(())
+}

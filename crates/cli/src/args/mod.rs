@@ -3,5 +3,7 @@
 //! A struct here is a command's `Args` type, which keeps the parser's code for each command in
 //! a function of its own (see the note on `PromptArgs` in `sbrs.rs`).
 
+pub(crate) mod generators;
+pub(crate) mod language;
 pub(crate) mod report;
 pub(crate) mod tools;

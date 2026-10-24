@@ -1,0 +1,20 @@
+//! A pure CDP test: Chrome is driven over the DevTools Protocol, so no
+//! chromedriver is needed. `page` is the first tab.
+
+use rstest::rstest;
+use seleniumbase_rs::testing::{sb_cdp, SbCdp};
+use seleniumbase_rs::Result;
+
+#[rstest]
+#[tokio::test]
+async fn heading_over_cdp(sb_cdp: SbCdp) -> Result<()> {
+    sb_cdp
+        .run(async |page| {
+            page.goto("https://example.com").await?;
+            page.locator("h1")
+                .expect()
+                .to_contain_text("Example Domain")
+                .await
+        })
+        .await
+}

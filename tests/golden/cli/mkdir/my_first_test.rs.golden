@@ -1,12 +1,13 @@
 //! The first example test. Copy it to start your own.
 
-use seleniumbase_rs::{run_browser_test, Result};
+use rstest::rstest;
+use seleniumbase_rs::testing::{sb, Sb};
+use seleniumbase_rs::Result;
 
-use crate::helpers;
-
+#[rstest]
 #[tokio::test]
-async fn my_first_test() -> Result<()> {
-    run_browser_test(helpers::config()?, async |sb| {
+async fn my_first_test(sb: Sb) -> Result<()> {
+    sb.run(async |sb| {
         sb.open("https://example.com").await?;
         sb.assert_title("Example Domain").await?;
         sb.assert_text("Example Domain", "h1").await

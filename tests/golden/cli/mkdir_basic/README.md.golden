@@ -20,24 +20,26 @@ Then run it:
 cargo test --test ui
 ```
 
-The tests need Chrome and a matching chromedriver; `sbrs doctor` checks both.
-Your crate also needs the libraries the tests use:
+The tests need Chrome, and a matching chromedriver unless they are pure CDP;
+`sbrs doctor` checks both. Your crate also needs the libraries the tests use:
 
 ```toml
 [dev-dependencies]
-seleniumbase-rs = "0.1"
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+seleniumbase-rs = { version = "0.6", features = ["testing"] }
+rstest = "0.26"
+tokio = { version = "1", features = ["macros", "rt"] }
 ```
 
 ## Settings
 
-`helpers::config()` reads `sbase_config.toml` from the directory you run
-`cargo test` in, then applies `SB_*` environment variables. For example,
-`SB_HEADLESS=true cargo test --test ui` runs without a window.
+The `sb` and `sb_cdp` fixtures read `sbase_config.toml` from the directory you run
+`cargo test` in, then apply `SB_*` environment variables, which `sbrs test` sets
+from its flags (`--reruns`, `--time-limit`, `--env`, ...). For example,
+`SB_HEADLESS=true cargo test --test ui` runs without a window. A failed test
+leaves a screenshot, the page source and a report in `latest_logs/`.
 
 ## Files
 
 | File | What it is |
 | --- | --- |
 | `main.rs` | The test target; declares the modules below. |
-| `helpers.rs` | Setup shared by the tests. |

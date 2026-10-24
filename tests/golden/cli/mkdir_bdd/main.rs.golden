@@ -1,0 +1,3 @@
+//! Browser tests for this folder. See README.md for how Cargo finds them.
+
+mod bdd_test;
