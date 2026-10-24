@@ -20,6 +20,8 @@ pub mod feature_files;
 pub(crate) mod gherkin_outline;
 
 pub mod logo_helper;
+#[cfg(feature = "tui")]
+pub mod recorder_tui;
 pub mod rich_helper;
 pub mod sb_behave_gui;
 pub mod sb_caseplans;

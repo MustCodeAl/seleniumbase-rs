@@ -10,7 +10,9 @@
 
 use std::collections::VecDeque;
 use std::io::{self, stdout, Stdout};
+use std::sync::atomic::{AtomicBool, Ordering};
 
+use crossterm::cursor::Show;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use crossterm::execute;
 use crossterm::terminal::{
@@ -188,11 +190,41 @@ pub(crate) fn run<M: Machine>(
                     }
                 });
                 drawn?;
+                // The terminal was left and entered again (`suspend`): what it
+                // shows is not what was drawn last, so draw every cell again.
+                if REPAINT.swap(false, Ordering::Relaxed) {
+                    screen.terminal.clear()?;
+                }
             }
             Event::Resize(width, height) => machine.resize(width, height),
             _ => {}
         }
     }
+}
+
+/// Whether the terminal was left and entered again while [`run`] was drawing,
+/// so that the next draw has to paint every cell.
+static REPAINT: AtomicBool = AtomicBool::new(false);
+
+/// Gives the terminal back for as long as `work` takes: the alternate screen
+/// and raw mode are left, `work` runs on the ordinary terminal (it can print,
+/// read a line and start a program that owns the terminal), and the app comes
+/// back. [`run`] then draws the whole screen again.
+///
+/// Call it only from the function that performs an app's effects.
+///
+/// # Errors
+///
+/// Returns the error of leaving or entering the full-screen terminal. When
+/// leaving it fails, `work` does not run.
+pub(crate) fn suspend<T>(work: impl FnOnce() -> T) -> io::Result<T> {
+    disable_raw_mode()?;
+    execute!(stdout(), LeaveAlternateScreen, Show)?;
+    let result = work();
+    execute!(stdout(), EnterAlternateScreen)?;
+    enable_raw_mode()?;
+    REPAINT.store(true, Ordering::Relaxed);
+    Ok(result)
 }
 
 /// The first row to show, in a window of `rows` rows over a list, so that the
