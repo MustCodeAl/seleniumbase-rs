@@ -2464,7 +2464,17 @@ const completionSpec: Fig.Spec = {
       ],
     },
     {
-      name: "grid-hub",
+      name: "methods",
+      description: "List the common methods of the test API, as they are called on `sb`.",
+      options: [
+        {
+          name: ["-h", "--help"],
+          description: "Print help",
+        },
+      ],
+    },
+    {
+      name: ["grid-hub", "grid_hub"],
       description: "Start, stop, restart or check a Selenium Grid hub.",
       options: [
         {
@@ -2505,7 +2515,7 @@ const completionSpec: Fig.Spec = {
           },
         },
         {
-          name: "--session-timeout",
+          name: "--timeout",
           description: "Close sessions that have been idle this many seconds.",
           args: {
             name: "seconds",
@@ -2519,7 +2529,7 @@ const completionSpec: Fig.Spec = {
           },
         },
         {
-          name: "--grid-verbose",
+          name: ["-v", "--verbose"],
           description: "Log at INFO instead of WARNING.",
         },
         {
@@ -2546,7 +2556,7 @@ const completionSpec: Fig.Spec = {
       ],
     },
     {
-      name: "grid-node",
+      name: ["grid-node", "grid_node"],
       description: "Start, stop, restart or check a Selenium Grid node.",
       options: [
         {
@@ -2587,7 +2597,7 @@ const completionSpec: Fig.Spec = {
           },
         },
         {
-          name: "--session-timeout",
+          name: "--timeout",
           description: "Close sessions that have been idle this many seconds.",
           args: {
             name: "seconds",
@@ -2601,7 +2611,7 @@ const completionSpec: Fig.Spec = {
           },
         },
         {
-          name: "--grid-verbose",
+          name: ["-v", "--verbose"],
           description: "Log at INFO instead of WARNING.",
         },
         {
@@ -2719,19 +2729,41 @@ const completionSpec: Fig.Spec = {
       ],
     },
     {
-      name: "commander",
-      description: "Launch the interactive commander (needs a build with the `tui` feature).",
+      name: ["commander", "gui"],
+      description: "Launch the Commander, a terminal app (needs a build with the `tui` feature).",
       options: [
+        {
+          name: "-k",
+          description: "Start with the list narrowed to the names that contain FILTER.",
+          args: {
+            name: "filter",
+          },
+        },
         {
           name: ["-h", "--help"],
           description: "Print help",
         },
       ],
+      args: [
+        {
+          name: "path",
+          description: "A project folder, a folder of test files, or one test file.",
+          isOptional: true,
+          template: "filepaths",
+        },
+      ],
     },
     {
-      name: ["caseplans", "case-plans"],
+      name: ["caseplans", "case-plans", "case_plans"],
       description: "Launch the Case Plans Generator, a terminal app (needs a build with the `tui` feature).",
       options: [
+        {
+          name: "-k",
+          description: "Start with the list narrowed to the tests whose id contains FILTER.",
+          args: {
+            name: "filter",
+          },
+        },
         {
           name: "--starter",
           description: "Write the starter checklist `CASE_PLANS.md` instead; this needs no `tui` feature.",

@@ -1804,7 +1804,17 @@ The same options can be set in the settings file, in the environment and with th
     example "sbrs options"
     example "sbrs options --markdown"
 }
+cmd methods help_heading="Info and setup" help="List the common methods of the test API, as they are called on `sb`." {
+    long_help #"""
+List the common methods of the test API, as they are called on `sb`.
+
+Python SeleniumBase's `sbase methods` in Rust spelling: the methods most tests use (`sb.open(url)`, `sb.click(selector)`, `sb.assert_text(text, selector)`, ...), each with what it does. The whole API is in `cargo doc --open`, and docs/parity.md maps Python's names to it.
+"""#
+    flag "-h --help" help="Print help" action=help builtin=#true
+    example "sbrs methods"
+}
 cmd grid-hub help_heading="Drivers, grid and servers" help="Start, stop, restart or check a Selenium Grid hub." args_override_self=#false {
+    alias grid_hub
     long_help #"""
 Start, stop, restart or check a Selenium Grid hub.
 
@@ -1825,13 +1835,13 @@ Needs a Selenium Server jar: --jar, SB_SELENIUM_SERVER_JAR, or the newest one in
     flag --hub help="For a node, the hub to register with: a host or a URL." {
         arg <HOST_OR_URL>
     }
-    flag --session-timeout help="Close sessions that have been idle this many seconds." {
+    flag --timeout help="Close sessions that have been idle this many seconds." {
         arg <SECONDS>
     }
     flag --wait help="How many seconds `start` waits for the Grid to become ready." default="60" {
         arg <SECONDS>
     }
-    flag --grid-verbose help="Log at INFO instead of WARNING." bool_value=#true
+    flag "-v --verbose" help="Log at INFO instead of WARNING." bool_value=#true
     flag --skip-port-check help="Start even if something already accepts connections on the port." bool_value=#true
     flag "-h --help" help="Print help" action=help builtin=#true
     arg <ACTION> help="What to do with the Grid process." {
@@ -1850,8 +1860,10 @@ Needs a Selenium Server jar: --jar, SB_SELENIUM_SERVER_JAR, or the newest one in
     complete host_or_url type=none
     complete seconds type=none
     example "sbrs grid-hub start"
+    example "sbrs grid_hub start -v --timeout 120"
 }
 cmd grid-node help_heading="Drivers, grid and servers" help="Start, stop, restart or check a Selenium Grid node." args_override_self=#false {
+    alias grid_node
     long_help #"""
 Start, stop, restart or check a Selenium Grid node.
 
@@ -1872,13 +1884,13 @@ A node registers with the hub named by `--hub`, or with this machine's.
     flag --hub help="For a node, the hub to register with: a host or a URL." {
         arg <HOST_OR_URL>
     }
-    flag --session-timeout help="Close sessions that have been idle this many seconds." {
+    flag --timeout help="Close sessions that have been idle this many seconds." {
         arg <SECONDS>
     }
     flag --wait help="How many seconds `start` waits for the Grid to become ready." default="60" {
         arg <SECONDS>
     }
-    flag --grid-verbose help="Log at INFO instead of WARNING." bool_value=#true
+    flag "-v --verbose" help="Log at INFO instead of WARNING." bool_value=#true
     flag --skip-port-check help="Start even if something already accepts connections on the port." bool_value=#true
     flag "-h --help" help="Print help" action=help builtin=#true
     arg <ACTION> help="What to do with the Grid process." {
@@ -1897,6 +1909,7 @@ A node registers with the hub named by `--hub`, or with this machine's.
     complete host_or_url type=none
     complete seconds type=none
     example "sbrs grid-node start"
+    example "sbrs grid-node start --hub 127.0.0.1"
 }
 cmd translate help_heading="Files and generators" help="Write the actions of a JSON scenario in another language." {
     long_help #"""
@@ -1948,24 +1961,45 @@ The name follows the same rules as `mkdir`; `.rs` is added when missing. An exis
     complete url type=url
     example "sbrs mkfile tests/login.rs"
 }
-cmd commander help_heading=Tests help="Launch the interactive commander (needs a build with the `tui` feature)." {
+cmd commander help_heading=Tests help="Launch the Commander, a terminal app (needs a build with the `tui` feature)." {
+    alias gui
+    long_help #"""
+Launch the Commander, a terminal app (needs a build with the `tui` feature).
+
+Lists the tests and examples under PATH and runs the one you pick with `cargo test --test NAME` or `cargo run --example NAME`, then shows the end of the output. PATH is a project folder, a folder of test files or one test file; by default the `tests/` and `examples/` folders of the current folder. `-k FILTER` starts with the list narrowed to the names that contain FILTER, as `/` does in the app.
+
+Python's `gui` is the same command, and its window is a terminal app here.
+"""#
+    flag -k help="Start with the list narrowed to the names that contain FILTER." {
+        arg <FILTER>
+    }
     flag "-h --help" help="Print help" action=help builtin=#true
+    arg "[PATH]" help="A project folder, a folder of test files, or one test file."
+    complete path type=path
+    complete filter type=none
     example "sbrs commander"
+    example "sbrs gui tests -k login"
 }
 cmd caseplans help_heading=Tests help="Launch the Case Plans Generator, a terminal app (needs a build with the `tui` feature)." {
     alias case-plans
+    alias case_plans
     long_help #"""
 Launch the Case Plans Generator, a terminal app (needs a build with the `tui` feature).
 
-Lists the tests under PATH and creates, edits and saves a case plan for each, `case_plans/<test>.md` next to its file, and writes a summary of the plans to `case_summary.md`. PATH is a folder of tests or one test file; by default the `tests/` and `examples/` folders of the current folder.
+Lists the tests under PATH and creates, edits and saves a case plan for each, `case_plans/<test>.md` next to its file, and writes a summary of the plans to `case_summary.md`. PATH is a folder of tests or one test file; by default the `tests/` and `examples/` folders of the current folder. `-k FILTER` starts with the list narrowed to the tests whose id contains FILTER, as `/` does in the app.
 
 The Python command opens a Tkinter window; this one runs in the terminal.
 """#
+    flag -k help="Start with the list narrowed to the tests whose id contains FILTER." conflicts=--starter {
+        arg <FILTER>
+    }
     flag --starter help="Write the starter checklist `CASE_PLANS.md` instead; this needs no `tui` feature." conflicts=PATH bool_value=#true
     flag "-h --help" help="Print help" action=help builtin=#true
     arg "[PATH]" help="A folder of tests, or one test file."
     complete path type=path
+    complete filter type=none
     example "sbrs caseplans --starter"
+    example "sbrs case_plans tests -k login"
 }
 cmd behave-gui help_heading=Tests help="Launch the Behave Commander, a terminal app (needs a build with the `tui` feature)." {
     alias gui-behave

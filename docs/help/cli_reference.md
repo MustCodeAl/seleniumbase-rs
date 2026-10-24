@@ -44,7 +44,7 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs clear-local-storage`](#sbrs-clear-local-storage) | Clear the page local storage. |
 | [`sbrs click-partial-link-text`](#sbrs-click-partial-link-text) | Click a link containing the given text. |
 | [`sbrs click-visible-elements`](#sbrs-click-visible-elements) | Click all visible elements matching a selector. |
-| [`sbrs commander`](#sbrs-commander) | Launch the interactive commander (needs a build with the `tui` feature). |
+| [`sbrs commander`](#sbrs-commander) | Launch the Commander, a terminal app (needs a build with the `tui` feature). |
 | [`sbrs completions`](#sbrs-completions) | Generate a completion script for a supported shell, or a Fig spec. |
 | [`sbrs decrypt`](#sbrs-decrypt) | Decrypt a token made by `sbrs encrypt`; read from stdin if TOKEN is omitted. Python's `sbrs unobfuscate` is the same command. |
 | [`sbrs deferred`](#sbrs-deferred) | Run several assertions, then report every failure at once. |
@@ -89,6 +89,7 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs is-partial-link-text-visible`](#sbrs-is-partial-link-text-visible) | Print whether a link containing the given text is visible. |
 | [`sbrs is-text-visible`](#sbrs-is-text-visible) | Print whether the expected text is visible in an element. |
 | [`sbrs load-cookies`](#sbrs-load-cookies) | Load browser cookies from a JSON file. |
+| [`sbrs methods`](#sbrs-methods) | List the common methods of the test API, as they are called on `sb`. |
 | [`sbrs mkchart`](#sbrs-mkchart) | Create an HTML chart. |
 | [`sbrs mkdir`](#sbrs-mkdir) | Create a folder with a runnable browser-test suite. |
 | [`sbrs mkfile`](#sbrs-mkfile) | Create a browser-test file. |
@@ -1216,16 +1217,16 @@ sbrs --url https://example.com --user-data-dir ./profile cache-clear
 
 ## sbrs caseplans
 
-Also: `case-plans`
+Also: `case-plans`, `case_plans`
 
 Launch the Case Plans Generator, a terminal app (needs a build with the `tui` feature).
 
-Lists the tests under PATH and creates, edits and saves a case plan for each, `case_plans/<test>.md` next to its file, and writes a summary of the plans to `case_summary.md`. PATH is a folder of tests or one test file; by default the `tests/` and `examples/` folders of the current folder.
+Lists the tests under PATH and creates, edits and saves a case plan for each, `case_plans/<test>.md` next to its file, and writes a summary of the plans to `case_summary.md`. PATH is a folder of tests or one test file; by default the `tests/` and `examples/` folders of the current folder. `-k FILTER` starts with the list narrowed to the tests whose id contains FILTER, as `/` does in the app.
 
 The Python command opens a Tkinter window; this one runs in the terminal.
 
 ```bash Usage
-sbrs caseplans [--starter] [PATH]
+sbrs caseplans [-k <FILTER>] [--starter] [PATH]
 ```
 
 **Arguments**
@@ -1238,6 +1239,12 @@ A folder of tests, or one test file.
 
 **Flags**
 
+<ParamField query="-k <FILTER>" type="string">
+
+Start with the list narrowed to the tests whose id contains FILTER.
+
+</ParamField>
+
 <ParamField query="--starter" type="boolean">
 
 Write the starter checklist `CASE_PLANS.md` instead; this needs no `tui` feature.
@@ -1246,6 +1253,7 @@ Write the starter checklist `CASE_PLANS.md` instead; this needs no `tui` feature
 
 ```bash Examples
 sbrs caseplans --starter
+sbrs case_plans tests -k login
 ```
 
 ## sbrs cdp
@@ -1426,14 +1434,37 @@ sbrs --url https://example.com click-visible-elements --css button
 
 ## sbrs commander
 
-Launch the interactive commander (needs a build with the `tui` feature).
+Also: `gui`
+
+Launch the Commander, a terminal app (needs a build with the `tui` feature).
+
+Lists the tests and examples under PATH and runs the one you pick with `cargo test --test NAME` or `cargo run --example NAME`, then shows the end of the output. PATH is a project folder, a folder of test files or one test file; by default the `tests/` and `examples/` folders of the current folder. `-k FILTER` starts with the list narrowed to the names that contain FILTER, as `/` does in the app.
+
+Python's `gui` is the same command, and its window is a terminal app here.
 
 ```bash Usage
-sbrs commander
+sbrs commander [-k <FILTER>] [PATH]
 ```
+
+**Arguments**
+
+<ParamField path="PATH" type="string">
+
+A project folder, a folder of test files, or one test file.
+
+</ParamField>
+
+**Flags**
+
+<ParamField query="-k <FILTER>" type="string">
+
+Start with the list narrowed to the names that contain FILTER.
+
+</ParamField>
 
 ```bash Examples
 sbrs commander
+sbrs gui tests -k login
 ```
 
 ## sbrs completions
@@ -2034,6 +2065,8 @@ sbrs --url https://example.com get-window-position
 
 ## sbrs grid-hub
 
+Also: `grid_hub`
+
 Start, stop, restart or check a Selenium Grid hub.
 
 Needs a Selenium Server jar: --jar, SB_SELENIUM_SERVER_JAR, or the newest one in downloaded_drivers/ (`sbrs download server` saves one there). This command downloads nothing. The process record and log are kept in a folder of your own (SB_GRID_DIR).
@@ -2090,7 +2123,7 @@ For a node, the hub to register with: a host or a URL.
 
 </ParamField>
 
-<ParamField query="--session-timeout <SECONDS>" type="string">
+<ParamField query="--timeout <SECONDS>" type="string">
 
 Close sessions that have been idle this many seconds.
 
@@ -2102,9 +2135,11 @@ How many seconds `start` waits for the Grid to become ready.
 
 </ParamField>
 
-<ParamField query="--grid-verbose" type="boolean">
+<ParamField query="--verbose" type="boolean">
 
 Log at INFO instead of WARNING.
+
+Also: `-v`
 
 </ParamField>
 
@@ -2116,9 +2151,12 @@ Start even if something already accepts connections on the port.
 
 ```bash Examples
 sbrs grid-hub start
+sbrs grid_hub start -v --timeout 120
 ```
 
 ## sbrs grid-node
+
+Also: `grid_node`
 
 Start, stop, restart or check a Selenium Grid node.
 
@@ -2176,7 +2214,7 @@ For a node, the hub to register with: a host or a URL.
 
 </ParamField>
 
-<ParamField query="--session-timeout <SECONDS>" type="string">
+<ParamField query="--timeout <SECONDS>" type="string">
 
 Close sessions that have been idle this many seconds.
 
@@ -2188,9 +2226,11 @@ How many seconds `start` waits for the Grid to become ready.
 
 </ParamField>
 
-<ParamField query="--grid-verbose" type="boolean">
+<ParamField query="--verbose" type="boolean">
 
 Log at INFO instead of WARNING.
+
+Also: `-v`
 
 </ParamField>
 
@@ -2202,6 +2242,7 @@ Start even if something already accepts connections on the port.
 
 ```bash Examples
 sbrs grid-node start
+sbrs grid-node start --hub 127.0.0.1
 ```
 
 ## sbrs highlight-click
@@ -2624,6 +2665,20 @@ JSON file to load cookies from
 
 ```bash Examples
 sbrs --url https://example.com --user-data-dir ./profile load-cookies --file cookies.json
+```
+
+## sbrs methods
+
+List the common methods of the test API, as they are called on `sb`.
+
+Python SeleniumBase's `sbase methods` in Rust spelling: the methods most tests use (`sb.open(url)`, `sb.click(selector)`, `sb.assert_text(text, selector)`, ...), each with what it does. The whole API is in `cargo doc --open`, and docs/parity.md maps Python's names to it.
+
+```bash Usage
+sbrs methods
+```
+
+```bash Examples
+sbrs methods
 ```
 
 ## sbrs mkchart
