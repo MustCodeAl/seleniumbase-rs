@@ -82,7 +82,7 @@ let plugins = plugin_host::build_with(&registry, &selection)?;
 <ResponseExample>
 
 ```text Unknown name
-plugin error: no plugin named `sheild` is available (known: shield, block-resources, crx). The built-in plugins are cargo features of seleniumbase-rs: plugin-shield, plugin-block-resources, plugin-crx (plugins-builtin turns them all on). A plugin from another crate is added with PluginSet::with, or by name through Registry::with(Descriptor::of::<P>()) and plugin_host::build_with
+plugin error: no plugin named `sheild` is available (known: shield, block-resources, crx). The built-in plugins are cargo features of seleniumbase-rs: plugin-shield, plugin-block-resources, plugin-crx, plugin-fetcher, plugin-extractor, plugin-batcher, plugin-crawler (plugins-builtin turns them all on). A plugin from another crate is added with PluginSet::with, or by name through Registry::with(Descriptor::of::<P>()) and plugin_host::build_with
 ```
 
 ```text Named twice
@@ -105,7 +105,11 @@ plugin error: options were given for `shield`, which is not in `enable` ([plugin
 | `plugin-shield` | `plugins`, and `seleniumbase-rs-plugins-builtin/shield` |
 | `plugin-block-resources` | `plugins`, and `seleniumbase-rs-plugins-builtin/block-resources` |
 | `plugin-crx` | `plugins`, and `seleniumbase-rs-plugins-builtin/crx` |
-| `plugins-builtin` | `plugin-shield`, `plugin-block-resources` and `plugin-crx` |
+| `plugin-fetcher` | `plugins`, and `seleniumbase-rs-plugins-builtin/fetcher` |
+| `plugin-extractor` | `plugins`, and `seleniumbase-rs-plugins-builtin/extractor` |
+| `plugin-batcher` | `plugins`, and `seleniumbase-rs-plugins-builtin/batcher` |
+| `plugin-crawler` | `plugins`, and `seleniumbase-rs-plugins-builtin/crawler` |
+| `plugins-builtin` | every `plugin-*` feature above |
 
 The library's default features are empty. The command-line package
 `seleniumbase-rs-cli` has `plugins-builtin` among its defaults and passes

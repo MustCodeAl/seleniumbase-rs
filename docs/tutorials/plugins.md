@@ -32,6 +32,7 @@ drives the browser.
 - Turn plugins on and use one, with either engine
 - Install a plugin from the plugins repository
 - Write a plugin, and test it without a browser
+- Steer navigation, the network and browser contexts, hear tests end, and run a plugin's task by name
 - When each hook runs, and what happens when one fails
 - What each browser lets a plugin do on the WebDriver engine
 - What you trust when you add a plugin
@@ -40,7 +41,7 @@ drives the browser.
 
 <Visibility for="agents">
 
-Summary for AI exports: a browser plugin is a Rust crate that implements `Plugin` and runs hooks (`before_launch`, `on_browser`, `on_page_created`, `on_close`) around a browser launch. Turn plugins on with the `plugins` feature, build a `PluginSet`, and give it to `LaunchOptionsBuilder::plugins` (pure CDP engine) or `BrowserConfig::with_plugins` (`BaseCase`). Plugins fail closed: a refusal or a hook error stops the launch or the tab with `SeleniumBaseError::Plugin`. A plugin is Rust code that runs with your program's rights.
+Summary for AI exports: a browser plugin is a Rust crate that implements `Plugin` and runs hooks (`before_launch`, `on_browser`, `on_page_created`, `on_close`) around a browser launch. Turn plugins on with the `plugins` feature, build a `PluginSet`, and give it to `LaunchOptionsBuilder::plugins` (pure CDP engine) or `BrowserConfig::with_plugins` (`BaseCase`). Plugins fail closed: a refusal or a hook error stops the launch or the tab with `SeleniumBaseError::Plugin`. A plugin is Rust code that runs with your program's rights. Since plugin API 0.1.3 a plugin can also steer navigation (`before_navigate`, `after_navigate`), block or watch requests (`network`, `on_request`, `on_response`), change browser contexts (`before_context`), hear tests start and end (`on_test_start`, `on_test_end`) and offer a task run by name (`task`, `sbrs plugin run NAME`, the MCP tool `run_plugin_task`); those hooks need a capability declared in `metadata()`. A panic in a hook becomes `PluginError::Panicked`, and a set with a timer cuts a hook off at its time limit with `PluginError::Timeout`.
 
 </Visibility>
 
@@ -55,7 +56,8 @@ seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag =
 ```
 
 The official plugins are features of their own (`plugin-shield`,
-`plugin-block-resources`, `plugin-crx`, and `plugins-builtin` for all of them),
+`plugin-block-resources`, `plugin-crx`, `plugin-fetcher`, `plugin-extractor`,
+`plugin-batcher`, `plugin-crawler`, and `plugins-builtin` for all of them),
 turned on by name in the settings file, in `SB_PLUGINS`, in a builder call, or
 on the command line (`sbrs --plugin shield open https://example.com`, with the
 plugins compiled into the prebuilt `sbrs` and `sbrs-mcp`): see
@@ -294,6 +296,136 @@ browser.close().await?;
 # }
 ```
 
+## More hooks
+
+Since plugin API 0.1.3 a plugin can watch and steer what the browser does, not
+only how it starts. Every new method has a default body, so a plugin written
+for an earlier version compiles and behaves as before.
+
+| Hook | Runs when | Needs |
+|---|---|---|
+| `before_navigate` | the program is about to navigate a tab; return `NavDecision::Continue`, a redirect, or `NavDecision::Cancel(reason)`. An error cancels it too. | `Capability::PageNavigate` to redirect |
+| `after_navigate` | a navigation the program started has ended | |
+| `network`, then `on_request` | `network()` declares rules the host runs itself (block a URL, add a header) and filters; a request that matches an `intercept` filter is paused and `on_request` decides. An error blocks the request. | `Capability::NetIntercept` |
+| `on_response` | a response that matches an `observe` filter arrived; it only watches | `Capability::NetObserve` |
+| `protocol_events`, then `on_protocol_event` | a DevTools event the plugin named, such as `Log.entryAdded`, arrived | |
+| `before_context`, `on_context_created`, `on_context_closed` | a browser context is about to be made (change its settings, such as its proxy), exists, is gone | `Capability::Contexts` |
+| `before_close` | the browser is about to close and still answers commands, so the plugin can save state; `on_close` follows | |
+| `on_test_start`, `on_test_end` | a test starts; a test ended, with its tab still open. `on_test_end` may fail the test. | `Capability::TestHooks` |
+| `task`, `job_runner` | work the user starts by name; one kind of job a batching plugin hands out | `Capability::Task` for `task` |
+
+A plugin says what it needs in `metadata()`. A plugin that does not hold a
+capability is not called for the hooks it guards. The host merges the network
+declarations of all plugins, so the browser pauses only the requests some plugin
+asked for. The navigation, network, context and protocol-event hooks run on the
+Pure CDP engine; the WebDriver engine has no network observation or
+interception, so a plugin that needs `NetIntercept` or `NetObserve` is refused
+there before anything starts.
+
+```rust,no_run src/lib.rs
+use seleniumbase_rs::plugin_api::{
+    async_trait, Capability, Category, Metadata, NavDecision, Navigation, NetRule,
+    NetworkInterest, PageHandle, Plugin, RequestFilter, Result,
+};
+
+/// Keeps tests away from production and blocks a tracker.
+struct Fence;
+
+#[async_trait]
+impl Plugin for Fence {
+    fn name(&self) -> &str {
+        "fence"
+    }
+
+    fn metadata(&self) -> Metadata {
+        Metadata::new(Category::Core).capability(Capability::NetIntercept)
+    }
+
+    // The host blocks these itself, without calling the plugin.
+    fn network(&self) -> NetworkInterest {
+        NetworkInterest::none().rule(NetRule::block(
+            RequestFilter::any().url("https://tracker.example/*"),
+        ))
+    }
+
+    async fn before_navigate(
+        &self,
+        _page: &dyn PageHandle,
+        navigation: &Navigation,
+    ) -> Result<NavDecision> {
+        Ok(if navigation.url.starts_with("https://prod.example/") {
+            NavDecision::Cancel("tests must not touch production".into())
+        } else {
+            NavDecision::Continue
+        })
+    }
+}
+```
+
+A navigation `Fence` cancels comes back to the program as an error naming the
+plugin: `navigation to https://prod.example/pay cancelled by plugin fence: tests
+must not touch production`. To test the network part without a browser,
+`seleniumbase-rs-plugin-testing` has `drive_request` and `drive_response`, which
+run a request or a response through a set the way the host does.
+
+### Tasks
+
+A task is work a plugin does when the user starts it by name, such as crawling
+a site. Implement `Task`, return it from `Plugin::task`, and hold
+`Capability::Task`. `run` gets a `TaskContext`: the browser, the input as JSON,
+a `Sink` that takes results one at a time, the plugin set (to reach another
+plugin's `JobRunner` by name), a `Clock`, and a `Prompt` to ask a person for
+help, such as signing in. It returns a summary.
+
+```rust,no_run src/lib.rs
+use seleniumbase_rs::plugin_api::{
+    async_trait, Capability, Category, Metadata, Plugin, Result, Task, TaskContext,
+};
+use serde_json::{json, Value};
+
+struct Titles;
+
+#[async_trait]
+impl Task for Titles {
+    async fn run(&self, cx: &TaskContext<'_>) -> Result<Value> {
+        let url = cx.input["url"].as_str().unwrap_or("https://example.com");
+        let page = cx.browser.new_page(Some(url)).await?;
+        let title = page.evaluate("document.title").await?;
+        cx.sink.record(&json!({ "url": url, "title": title }))?;
+        Ok(json!({ "pages": 1 }))
+    }
+}
+
+struct TitlesPlugin(Titles);
+
+#[async_trait]
+impl Plugin for TitlesPlugin {
+    fn name(&self) -> &str {
+        "titles"
+    }
+
+    fn metadata(&self) -> Metadata {
+        Metadata::new(Category::Core).capability(Capability::Task)
+    }
+
+    fn task(&self) -> Option<&dyn Task> {
+        Some(&self.0)
+    }
+}
+```
+
+Run a task from the command line, which starts a browser, gives the task the
+JSON in `--input` and writes each result as one JSON line to `--out`:
+
+```bash
+sbrs plugin run crawler --input crawl.json --out found.jsonl
+```
+
+An MCP client runs one with the `run_plugin_task` tool, and gets the results as
+progress. The official `batcher` and `crawler` plugins are tasks; their READMEs
+in the plugins repository list their inputs.
+
+
 ## When the hooks run
 
 | Hook | Pure CDP engine |
@@ -383,6 +515,24 @@ not leave an unprotected browser.
 
 Errors from `on_close` are logged (event `cdp.plugin.close.failed`) and do not
 stop the browser from closing.
+
+A plugin cannot take the program down. A panic in any hook is caught and comes
+back as `PluginError::Panicked`, naming the plugin and the hook. A set that has
+a timer (`PluginSet::with_timer`) cuts every hook off at its limit with
+`PluginError::Timeout`: `before_navigate` 5 s, `on_request` 2 s (the request is
+blocked), `before_launch` and `on_test_end` 30 s, every other hook 10 s. A
+plugin may ask for other limits by setting the fields of a `Budgets::default()`
+and passing it to `Metadata::budget`; a limit is raised no higher than four
+times the default. A set without a timer applies no limit.
+
+Every browser, tab and context handle a hook gets is guarded for that plugin.
+`Fetch.*`, `Target.setAutoAttach`, `Browser.close` and the crash commands are
+refused for every plugin, a protocol command needs the capability it calls for,
+and a hook that would run its own hooks again (navigating inside
+`before_navigate`, opening a tab inside a page hook) fails with
+`PluginError::Reentrant`. Errors from `after_navigate`, `on_response`,
+`on_protocol_event`, `before_close`, `on_context_closed`, `on_test_start` and
+`on_test_end` are logged and change nothing.
 
 On the WebDriver engine, a refusal, a launch setting the browser cannot take,
 or an error from `before_launch`, `on_browser`, a package or `on_page_created`

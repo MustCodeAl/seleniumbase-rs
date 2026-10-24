@@ -94,6 +94,7 @@ The remaining public API sits in modules: `api`, `artifacts`, `behave`,
 `sb_cdp` (the [pure CDP engine](/tutorials/pure_cdp)), `stealth`, `tracing_util`,
 `utilities`, `utils`; and, behind features, `mcp` (`mcp-server`), `ocr` (`ocr`),
 `plugin_api` (`plugins`, the browser plugin API), `builtin_plugins` (any of
-`plugin-shield`, `plugin-block-resources`, `plugin-crx` or `plugins-builtin`: the
+`plugin-shield`, `plugin-block-resources`, `plugin-crx`, `plugin-fetcher`,
+`plugin-extractor`, `plugin-batcher`, `plugin-crawler` or `plugins-builtin`: the
 official plugins and their `registry()`, see [Choosing plugins](/plugins/selecting)),
 `storage` (`turso`) and `visual` (`visual`).

@@ -25,7 +25,7 @@ a plugin; a build with it reads them and leaves the selection to the program.
 
 <Visibility for="agents">
 
-Summary for AI exports: the official plugins (`shield`, `block-resources`, `crx`) are turned on by name, with no code. On the command line, `--plugin NAME` and `--plugin-opt NAME.KEY=VALUE` are global options, so they go before the command or after it, and both repeat (`sbrs --plugin shield open https://example.com`); `VALUE` is a TOML value, so `'shield.level="strict"'` is quoted. Other sources are `SB_PLUGINS=shield,block-resources` and `enable = [...]` in the `[plugins]` table of `sbase_config.toml`. Precedence, highest first: the command line, `SB_PLUGINS`, the settings file. In Rust, turn on the feature (`plugin-shield`, `plugin-block-resources`, `plugin-crx` or `plugins-builtin`) and use `plugins_named` or `plugin_selection`. A wrong name or option stops the run before a browser starts, with exit status 2. `sbrs plugin list` and `sbrs plugin info NAME` show the plugins and what they may do.
+Summary for AI exports: the official plugins (`shield`, `block-resources`, `crx`, `fetcher`, `extractor`, `batcher`, `crawler`) are turned on by name, with no code. On the command line, `--plugin NAME` and `--plugin-opt NAME.KEY=VALUE` are global options, so they go before the command or after it, and both repeat (`sbrs --plugin shield open https://example.com`); `VALUE` is a TOML value, so `'shield.level="strict"'` is quoted. Other sources are `SB_PLUGINS=shield,block-resources` and `enable = [...]` in the `[plugins]` table of `sbase_config.toml`. Precedence, highest first: the command line, `SB_PLUGINS`, the settings file. In Rust, turn on the feature (`plugin-shield`, `plugin-block-resources`, `plugin-crx`, `plugin-fetcher`, `plugin-extractor`, `plugin-batcher`, `plugin-crawler` or `plugins-builtin`) and use `plugins_named` or `plugin_selection`. A wrong name or option stops the run before a browser starts, with exit status 2. `sbrs plugin list` and `sbrs plugin info NAME` show the plugins and what they may do.
 
 </Visibility>
 
@@ -50,7 +50,11 @@ Summary for AI exports: the official plugins (`shield`, `block-resources`, `crx`
 | `plugin-shield` | `plugins`, and the [shield](/plugins/shield) plugin |
 | `plugin-block-resources` | `plugins`, and the [block-resources](/plugins/block-resources) plugin |
 | `plugin-crx` | `plugins`, and the [crx](/plugins/crx) plugin |
-| `plugins-builtin` | All three above |
+| `plugin-fetcher` | `plugins`, and the [fetcher](https://github.com/MustCodeAl/seleniumbase-rs-plugins/tree/main/plugins/fetcher) plugin: fetch rules and response records, and a fetch task |
+| `plugin-extractor` | `plugins`, and the [extractor](https://github.com/MustCodeAl/seleniumbase-rs-plugins/tree/main/plugins/extractor) plugin: find and extract structured data from pages |
+| `plugin-batcher` | `plugins`, and the [batcher](https://github.com/MustCodeAl/seleniumbase-rs-plugins/tree/main/plugins/batcher) plugin: a task that runs many jobs with bounded concurrency, retries and a resume file |
+| `plugin-crawler` | `plugins`, and the [crawler](https://github.com/MustCodeAl/seleniumbase-rs-plugins/tree/main/plugins/crawler) plugin: a task that follows a site's links and reports broken pages and console errors |
+| `plugins-builtin` | All of the above |
 
 A build compiles only the plugin crates it asks for: `plugin-shield` does not
 also compile the CRX unpacker. The plugins live in the
