@@ -414,8 +414,8 @@ async fn every_server_speaks_mcp_over_stdio_without_a_browser() {
         match server {
             "driver" => assert_eq!(
                 listed.len(),
-                34,
-                "the Driver() toolset and the debugging tools: {listed:?}"
+                39,
+                "the Driver() toolset, the debugging tools and the page tools: {listed:?}"
             ),
             "sb" => assert!(
                 listed.len() > 88,

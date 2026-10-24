@@ -111,6 +111,13 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   `chromium_arg` takes a TOML array kept unsplit; `sbrs options` (`--markdown`, `--all`) lists
   them. The run settings `highlights`, `interval`, `verify_delay`, `check_js`,
   `wait_for_angularjs`, `disable_beforeunload` and `timeout_multiplier` now reach the browser.
+- **The dashboard in Python's layout, `last_report.html` and JUnit XML.** `core::dashboard`
+  draws SeleniumBase's dashboard (an inline SVG pie in its colours, the counts row, a results
+  table with Logs and Data links, a 12 s refresh and "Awaiting results..." while the run is live,
+  the final status line when it ends), the HTML report writes `last_report.html` for a finished
+  run, and `core::junit` writes the JUnit XML CI systems read (`SB_JUNIT_XML`; failures, skips,
+  unreported tests as errors, attachments in system-out). Every page works without a script or
+  a CDN.
 - **A run's results across test binaries (`core::test_run`).** `TestRun` keeps one run's state in
   `<root>/.sbrs_run/` under a file lock, so every test binary of a `cargo test` or nextest run
   adds to the same report (`SB_RUN_ID`, else `NEXTEST_RUN_ID`, else the parent cargo process);
