@@ -114,7 +114,10 @@ rustwright = { version = "0.3", optional = true }
 rust-s3 = { version = "0.38", features = ["tokio-native-tls"], optional = true }
 azure_storage_blob = { version = "1.1", optional = true }
 azure_core = { version = "1.1", optional = true }
-rmcp = { version = "3.5", default-features = false, features = ["server", "transport-io"], optional = true }
+rmcp = { version = "3.5", default-features = false, features = ["server", "transport-io", "transport-streamable-http-server"], optional = true }
+# `mcp::http`: the router and the listener that serve rmcp's streamable HTTP service. Only the
+# `tokio` and `http1` parts; it was already in the graph through tonic.
+axum = { version = "0.8", default-features = false, features = ["tokio", "http1"], optional = true }
 # Embedded database for test-run reporting and the encrypted profile vault. The
 # default features are off because `mimalloc` installs a global allocator,
 # which a library must not impose on its users.
@@ -169,7 +172,7 @@ error-backtrace = []
 s3 = ["dep:rust-s3"]
 azure = ["dep:azure_storage_blob", "dep:azure_core"]
 gcp = []
-mcp-server = ["dep:rmcp"]
+mcp-server = ["dep:rmcp", "dep:axum"]
 # Scripted mock browser for testing code that drives pages without Chrome.
 test-util = []
 # Embedded Turso database: `ResultStore` (test-run reporting, `sbrs report`) and
