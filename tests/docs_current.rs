@@ -229,3 +229,20 @@ fn the_list_covers_the_pages_people_read() {
         .any(|p| p.to_string_lossy().contains("docs/tutorials")));
     assert!(pages.len() > 50, "only {} pages found", pages.len());
 }
+
+/// The quick start of the README runs against https://seleniumbase.io/simple/login, whose
+/// "Sign in" control is the link `#log-in`: the page has no `<button>`, so a quick start that
+/// clicked `locator("button")` stopped with `ElementNotFound` on a new user's first run.
+#[test]
+fn the_readme_quick_start_clicks_the_sign_in_link_the_page_has() {
+    let readme = fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("README.md"))
+        .expect("README.md");
+    assert!(
+        readme.contains("page.locator(\"#log-in\").click()"),
+        "the quick start clicks #log-in"
+    );
+    assert!(
+        !readme.contains("page.locator(\"button\")"),
+        "the login page has no <button>"
+    );
+}

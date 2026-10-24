@@ -32,7 +32,7 @@
 //! driver.start_async("127.0.0.1", 9222).await?;
 //! driver.get("https://seleniumbase.io/simple/login").await?;
 //! driver.type_text("#username", "demo_user").await?;
-//! driver.click("button").await?;
+//! driver.click("#log-in").await?;
 //! let title = driver.evaluate("document.title").await?;
 //! println!("{title}");
 //! driver.stop().await?;

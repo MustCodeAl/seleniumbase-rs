@@ -37,7 +37,7 @@
 //! page.goto("https://seleniumbase.io/simple/login").await?;
 //! page.locator("#username").fill("demo_user").await?;
 //! page.locator("#password").fill("secret_pass").await?;
-//! page.locator("button").click().await?;
+//! page.locator("#log-in").click().await?;
 //! page.locator("h1").expect().to_contain_text("Welcome").await?;
 //!
 //! browser.close().await?;

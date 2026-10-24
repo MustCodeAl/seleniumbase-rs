@@ -83,7 +83,7 @@ async fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
     let page = browser.default_page().await?;
     page.goto("https://seleniumbase.io/simple/login").await?;
     page.locator("#username").fill("demo_user").await?;
-    page.locator("button").click().await?;
+    page.locator("#log-in").click().await?;
     browser.close().await?;
     Ok(())
 }
