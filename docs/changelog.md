@@ -35,6 +35,14 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ### Breaking
 
+- **The highlight family and Demo Mode work as in Python.** `highlight`, `highlight_click`,
+  `highlight_type` (now through `update_text`), `highlight_if_visible`, `highlight_elements` and
+  `flash` return call builders with Python's keywords (`.loops(2).scroll(false)`; plain `.await`
+  still works), `flash(css, times)` is `flash(css).duration(d)`, and `highlight` plays the
+  scrolling box-shadow animation and blocks instead of drawing a magenta outline; under `--demo`
+  every action is highlighted first and passed assertions flash and announce themselves;
+  `activate_demo_mode` takes `&mut self` and no longer adds click dots, `deactivate_demo_mode` no
+  longer reloads the page, and `--slow` now scrolls.
 - **An unknown key in the settings file is an error.** `unknown setting "blok_images" in
   sbase_config.toml` names it (and `sbrs options` lists the options), and two spellings of one
   key (`dark` and `dark_mode`) are refused; `Settings.chromium_arg` is an `Option<ArgList>`.
