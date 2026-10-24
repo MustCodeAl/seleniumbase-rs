@@ -233,6 +233,23 @@ work, `docs/parity.md` the per-API status).
   `with_prompts` and `call_with`, and the types `ResourceDef`, `PromptDef`, `Progress` and
   `ProgressSink`.
 
+- **The MCP servers can be served over streamable HTTP.** `sbrs-mcp --listen 127.0.0.1:8931`
+  (or `--transport http`) serves the chosen toolset at `http://ADDR/mcp` next to stdio and prints
+  one line, `sbrs-mcp: listening on http://127.0.0.1:PORT/mcp (server NAME)`, to standard error
+  (port 0 picks a free port). Each MCP session gets a browser of its own and closes it when the
+  session ends (`DELETE`, 15 minutes of silence, or shutdown); `--max-sessions N`
+  (default 4) caps them, and an `initialize` over the cap is answered with HTTP 503. The server
+  is loopback by default and checks `Host` and `Origin` on every request (DNS rebinding):
+  `--allow-host` and `--allow-origin` add names, requests without an `Origin` are always let in.
+  An address that is not loopback is refused at start (exit 2) without a bearer token, read from
+  `SB_MCP_TOKEN` or `--token-file FILE` and never from the command line, and is logged as a
+  warning; a request without the token gets 401. A protocol version without sessions
+  (`MCP-Protocol-Version: 2026-07-28` and later) is answered with 400, because a browser needs a
+  session. `--path` changes the URL path. For programs: `mcp::serve_http`, `mcp::HttpOptions`
+  (validated; its `Debug` hides the token) and `mcp::HttpServer` (`bind`, `bind_with`,
+  `local_addr`, `serve`).
+
+
 - **`sbrs test` takes every option of Python SeleniumBase's pytest plugin.** One flag for each row
   of the option table, built from the table itself: the browser and page options (`--firefox`,
   `--headed`, `--uc`, `--dark`, `--no-sandbox`, ...), the test data (`--env`, `--account`, `--data`,
