@@ -22,8 +22,8 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | [Driver methods](#driver-methods) | 79 | 77 | 2 | 0 | 0 |
 | [CDP Mode methods](#cdp-mode-methods) | 215 | 15 | 186 | 14 | 0 |
 | [Command-line commands](#command-line-commands) | 36 | 27 | 5 | 4 | 0 |
-| [pytest options](#pytest-options) | 263 | 164 | 60 | 37 | 2 |
-| [`SB()` arguments](#sb()-arguments) | 107 | 74 | 16 | 15 | 2 |
+| [pytest options](#pytest-options) | 263 | 163 | 60 | 37 | 3 |
+| [`SB()` arguments](#sb()-arguments) | 107 | 75 | 16 | 15 | 1 |
 | [`Driver()` arguments](#driver()-arguments) | 74 | 60 | 11 | 3 | 0 |
 | [MCP: CDP server](#mcp-cdp-server) | 24 | 24 | 0 | 0 | 0 |
 | [MCP: Driver server](#mcp-driver-server) | 26 | 26 | 0 | 0 | 0 |
@@ -967,7 +967,7 @@ Python `--option` flags.
 | `--incognito` | implemented | `BrowserConfig::with_incognito` |  |
 | `--incognito-mode` | implemented | `BrowserConfig::with_incognito` |  |
 | `--incognito_mode` | implemented | `BrowserConfig::with_incognito` |  |
-| `--interval` | planned |  | RunSettings::with_interval holds the time (zero is unset), save_presentation, begin_presentation and display_chart use it, but a tour does not play by itself yet. |
+| `--interval` | implemented | `RunSettings::with_interval` | Zero is unset. play_tour (the tour moves on by itself), save_presentation, begin_presentation and display_chart use it. |
 | `--is-pytest` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--is_pytest` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--lfp` | not-applicable |  | A pytest report hook that prints the URL of each failing test; a Rust test prints BaseCase::get_current_url itself when it fails. |
@@ -1082,8 +1082,8 @@ Python `--option` flags.
 | `--var2` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--var3` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--variables` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
-| `--verify-delay` | implemented | `RunSettings::with_verify_delay` | MasterQA::verify waits this long (500 ms by default) before it shows each box. The terminal MasterQaSession::verify does not. |
-| `--verify_delay` | implemented | `RunSettings::with_verify_delay` | MasterQA::verify waits this long (500 ms by default) before it shows each box. The terminal MasterQaSession::verify does not. |
+| `--verify-delay` | planned |  | RunSettings::with_verify_delay holds the delay (500 ms by default), but MasterQaSession::verify does not wait for it yet. |
+| `--verify_delay` | planned |  | RunSettings::with_verify_delay holds the delay (500 ms by default), but MasterQaSession::verify does not wait for it yet. |
 | `--visual-baseline` | implemented | `RunSettings::with_visual_baseline_reset` | check_window saves the page's structure as the new baseline instead of comparing. |
 | `--visual_baseline` | implemented | `RunSettings::with_visual_baseline_reset` | check_window saves the page's structure as the new baseline instead of comparing. |
 | `--wait-for-angularjs` | implemented | `RunSettings::with_wait_for_angularjs` | After every page load and after BaseCase::click the page is waited on for up to 2 s while AngularJS has requests in flight; a page without AngularJS does not wait. Skipped by skip-js-waits on page loads. |
@@ -1161,7 +1161,7 @@ Keyword arguments of `SB()`.
 | `highlights` | planned |  | RunSettings::with_highlights holds the count (zero is unset, 4 is the default), but BaseCase::highlight does not read it yet. |
 | `host_resolver_rules` | implemented | `BrowserConfig::with_host_resolver_rules` |  |
 | `incognito` | implemented | `BrowserConfig::with_incognito` |  |
-| `interval` | planned |  | RunSettings::with_interval holds the time (zero is unset), save_presentation, begin_presentation and display_chart use it, but a tour does not play by itself yet. |
+| `interval` | implemented | `RunSettings::with_interval` | Zero is unset. play_tour (the tour moves on by itself), save_presentation, begin_presentation and display_chart use it. |
 | `is_mobile` | composed | `BrowserConfig::mobile` | Give the screen with `with_device_metrics`. |
 | `js_checking_on` | implemented | `RunSettings::with_check_js` | After every page load (open, go_back, go_forward, refresh, wait_for_ready_state_complete) the browser log is checked for severe JavaScript errors, on a Chromium browser. Skipped by skip-js-waits. |
 | `locale` | implemented | `BrowserConfig::locale` |  |
