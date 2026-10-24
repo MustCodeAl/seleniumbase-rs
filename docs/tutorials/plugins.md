@@ -389,7 +389,8 @@ struct Titles;
 impl Task for Titles {
     async fn run(&self, cx: &TaskContext<'_>) -> Result<Value> {
         let url = cx.input["url"].as_str().unwrap_or("https://example.com");
-        let page = cx.browser.new_page(Some(url)).await?;
+        let start = Some(url); // the plugin API's new_page takes the first address
+        let page = cx.browser.new_page(start).await?;
         let title = page.evaluate("document.title").await?;
         cx.sink.record(&json!({ "url": url, "title": title }))?;
         Ok(json!({ "pages": 1 }))
