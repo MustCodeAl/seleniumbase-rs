@@ -1105,8 +1105,16 @@ impl TestRun {
         write_run_file(&dir, &run)?;
         Ok(FinalizeOutcome {
             summary: snapshot.summary(),
-            dashboard: written.dashboard,
-            html: written.html,
+            dashboard: written.dashboard.clone(),
+            html: written.html.or_else(|| {
+                // A report in the dashboard's file is that file, as the final page.
+                let same_file = self
+                    .settings
+                    .html
+                    .as_ref()
+                    .is_some_and(|file| self.root.join(file) == self.root.join(DASHBOARD_FILE));
+                written.dashboard.filter(|_| same_file)
+            }),
             junit_xml: written.junit_xml,
             archived,
             logs_dir: self.logs_dir(),

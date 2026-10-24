@@ -300,6 +300,27 @@ async fn a_test_without_a_report_leaves_the_run_alone() {
 }
 
 #[tokio::test]
+async fn a_report_in_the_dashboards_file_is_reported_as_that_file() {
+    let root = tempfile::tempdir().unwrap();
+    let run = open(root.path(), |settings| {
+        settings.dashboard = true;
+        settings.html = Some("dashboard.html".into());
+    });
+    fixture(&run, |_| {})
+        .run_with_browser(async || mocked().await, async |_page| Ok(()))
+        .await
+        .unwrap();
+    let ended = run.finalize().unwrap();
+    let dashboard = root.path().join("dashboard.html");
+    assert_eq!(ended.dashboard.as_deref(), Some(dashboard.as_path()));
+    assert_eq!(
+        ended.html.as_deref(),
+        Some(dashboard.as_path()),
+        "the report is the dashboard's final page"
+    );
+}
+
+#[tokio::test]
 async fn finishing_a_run_ends_it_and_hands_the_results_to_the_database() {
     let root = tempfile::tempdir().unwrap();
     let run = open(root.path(), |settings| {
