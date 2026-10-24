@@ -4945,8 +4945,9 @@ status = "implemented"
 rust = "BrowserConfig::with_incognito"
 
 [options_pytest."--interval"]
-status = "planned"
-note = "RunSettings::with_interval holds the time (zero is unset), save_presentation, begin_presentation and display_chart use it, but a tour does not play by itself yet."
+status = "implemented"
+rust = "RunSettings::with_interval"
+note = "Zero is unset. play_tour (the tour moves on by itself), save_presentation, begin_presentation and display_chart use it."
 
 [options_pytest."--is-pytest"]
 status = "not-applicable"
@@ -5839,8 +5840,9 @@ status = "implemented"
 rust = "BrowserConfig::with_incognito"
 
 [options_sb."interval"]
-status = "planned"
-note = "RunSettings::with_interval holds the time (zero is unset), save_presentation, begin_presentation and display_chart use it, but a tour does not play by itself yet."
+status = "implemented"
+rust = "RunSettings::with_interval"
+note = "Zero is unset. play_tour (the tour moves on by itself), save_presentation, begin_presentation and display_chart use it."
 
 [options_sb."is_mobile"]
 status = "composed"

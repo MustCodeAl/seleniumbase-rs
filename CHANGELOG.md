@@ -10,6 +10,21 @@ work, `docs/parity.md` the per-API status).
 
 ### Breaking
 
+- **Website tours work as in Python.** `create_tour`, `create_shepherd_tour`,
+  `create_bootstrap_tour`, `create_driverjs_tour`, `create_hopscotch_tour`,
+  `create_introjs_tour`, `add_tour_step`, `play_tour` (also `start_tour`) and `export_tour` take
+  Python's keywords as call builders (`sb.add_tour_step("Hi").selector("#a").title("T").await?`,
+  `sb.play_tour().interval(Duration::from_secs(3)).await?`), tours have names and coexist, and
+  the default theme is IntroJS. The five libraries (Shepherd with its looks, Bootstrap Tour,
+  DriverJS, Hopscotch, IntroJS) come from Python's CDNs; `play_tour` waits until the tour ends, the
+  window closes or the page is left, checks the first step's element for 7 s, autoplays with an
+  interval (or `--interval`), and returns at once where nobody watches. `export_tour` writes a
+  JavaScript file for a browser console to `tours_exported/` and returns its path.
+  `set_introjs_colors(Option<&str>, Option<&str>)` validates hex colours as Python does and
+  belongs to the case. `create_tour_with_theme`, `TourTheme::SeleniumBase`, the HTML-outline export
+  and `Tour::play` are removed.
+
+
 - **`sbrs mkfile` and `sbrs mkdir` write tests on the rstest `sb` fixture.** The default test of
   `mkfile` is `#[rstest]` with the `sb` fixture (feature `testing`); the old
   `run_browser_test` closure is `--cm`. `--bc` writes a `BaseCase` made and quit by hand, `--dc`
