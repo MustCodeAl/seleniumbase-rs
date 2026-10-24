@@ -53,6 +53,15 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   every action is highlighted first and passed assertions flash and announce themselves;
   `activate_demo_mode` takes `&mut self` and no longer adds click dots, `deactivate_demo_mode` no
   longer reloads the page, and `--slow` now scrolls.
+- **`MasterQA` is Python's MasterQA, a wrapper that owns the case.** `MasterQA::new(sb)?` derefs
+  to `BaseCase`; `verify("Is it blue?").await?` (and `verify_default()`) wait `--verify-delay`,
+  pop up a jquery-confirm box with YES / PASS and NO / FAIL, record the answer and, on a failure,
+  `failed_check_N.png`; where nobody watches they print Python's warning once and return
+  `Ok(None)`. `finish(error).await?` writes `results_table.csv` and `report.html`, moves
+  `latest_report/` to `archived_reports/log_<epoch>/`, opens the page and returns the case and a
+  `MasterQaReport`. The stateless `MasterQA::verify(question)` is gone: the terminal prompt is
+  `MasterQaSession::verify`. `RunSettings::with_verify_delay` is now read.
+
 - **An unknown key in the settings file is an error.** `unknown setting "blok_images" in
   sbase_config.toml` names it (and `sbrs options` lists the options), and two spellings of one
   key (`dark` and `dark_mode`) are refused; `Settings.chromium_arg` is an `Option<ArgList>`.
@@ -134,6 +143,22 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   give `future`, so a `MessengerLocation` alone, for `set_messenger_theme`, keeps the future theme.
 
 ### Added
+
+- **Fingerprint tools on the MCP servers.** `capture_fingerprint` reads what the running browser
+  shows a page (the reading of `sbrs fingerprint capture`, with progress) and can save it as a
+  file; `compare_fingerprint` says whether the browser presents a fingerprint, a file or a preset
+  (`presents` and `verified`, the differences, and the settings no page can read, which never
+  count as matches); `explain_fingerprint` lists the signs of automation a detection script
+  finds, how loudly a detector reacts and what to change. They are on the `cdp`, `driver` and
+  `sb` servers, mark their output untrusted and declare output schemas. The `sb` server gains
+  `diff_fingerprints` and `patch_fingerprint` (an RFC 7386 merge patch); `build_fingerprint`
+  takes `random`, `seed`, `os` and `save_to` (the identity `sbrs fingerprint export` writes for
+  the same seed); `validate_fingerprint` takes a `fingerprint`, a `path` or a `preset`.
+  `start_browser` takes `fingerprint`, `fingerprint_path` or `fingerprint_preset` and applies it
+  as the browser starts (on `driver` and `sb` in undetected mode, Chromium browsers only). A
+  proxy password is shown as `***`; a saved file keeps it and is private to its owner. The
+  `check_fingerprint` prompt walks a model through capture, compare and explain.
+
 
 - **The plugin API is 0.1.3** (`seleniumbase-rs-plugins` rev `5f68042f`): the hooks for
   navigation, contexts, the network, tests and tasks, and the guard that holds each plugin to the
