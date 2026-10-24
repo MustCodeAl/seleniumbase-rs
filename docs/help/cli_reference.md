@@ -110,6 +110,8 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs proxy`](#sbrs-proxy) | Run a small forward proxy on this machine (HTTP and CONNECT, no authentication). |
 | [`sbrs remove-local-storage-item`](#sbrs-remove-local-storage-item) | Remove a local storage entry by key. |
 | [`sbrs replay`](#sbrs-replay) | Replay a recorded action file (recordings/NAME_rec.json) against a fresh browser. |
+| [`sbrs report`](#sbrs-report) | Finish a test run and write its reports, or show the runs of a results database. |
+| [`sbrs report finish`](#sbrs-report-finish) | Finish the test run of the current folder and write its reports. |
 | [`sbrs run-scenario`](#sbrs-run-scenario) | Run a scenario file, the way to do several steps in one browser, and write an optional dashboard. |
 | [`sbrs save-cookies`](#sbrs-save-cookies) | Save browser cookies to a JSON file. |
 | [`sbrs save-source`](#sbrs-save-source) | Save the current page source to a file. |
@@ -3194,6 +3196,78 @@ JSON or YAML action file (recordings/NAME_rec.json)
 sbrs replay recordings/new_test_rec.json
 ```
 
+## sbrs report
+
+Finish a test run and write its reports, or show the runs of a results database.
+
+`sbrs report finish` ends the run of the current folder: the dashboard, the HTML report and the JUnit XML are written a last time. Use it after a plain `cargo test`, which leaves the live dashboard going; `sbrs test` finishes its run by itself. `sbrs report history` lists the runs recorded in a results database (a build with the `turso` feature).
+
+```bash Usage
+sbrs report <SUBCOMMAND>
+```
+
+```bash Examples
+sbrs report finish --html report.html
+```
+
+### sbrs report finish
+
+Finish the test run of the current folder and write its reports.
+
+A plain `cargo test` leaves the live dashboard running, because the standard test harness cannot tell when the last test has ended. This command ends the run: the tests that started and never ended become unreported, the dashboard, the HTML report and the JUnit XML are written a last time, the logs are archived when asked, and the results go to the results database when `with_db_reporting` is on. `sbrs test` does the same by itself. The run is the one in `SB_REPORT_ROOT`, or in the current folder; the flags replace the settings the run was started with.
+
+```bash Usage
+sbrs report finish [FLAGS]
+```
+
+**Flags**
+
+<ParamField query="--dashboard" type="boolean">
+
+Write the live dashboard (dashboard.html) in its final form.
+
+</ParamField>
+
+<ParamField query="--dash-title <TITLE>" type="string">
+
+The dashboard's title; an underscore stands for a space.
+
+</ParamField>
+
+<ParamField query="--html <PATH>" type="string">
+
+Write an HTML report to this file.
+
+</ParamField>
+
+<ParamField query="--junit-xml <PATH>" type="string">
+
+Write a JUnit XML report to this file.
+
+</ParamField>
+
+<ParamField query="--archive-logs" type="boolean">
+
+Keep the logs of the run in archived_logs/ instead of deleting them later.
+
+</ParamField>
+
+<ParamField query="--show-report" type="boolean">
+
+Open the HTML report or the dashboard in a browser window and wait until it is closed.
+
+</ParamField>
+
+<ParamField query="--json" type="boolean">
+
+Print what was done as JSON instead of the `-----` lines.
+
+</ParamField>
+
+```bash Examples
+sbrs report finish --html report.html --junit-xml report.xml
+```
+
 ## sbrs run-scenario
 
 Run a scenario file, the way to do several steps in one browser, and write an optional dashboard.
@@ -3420,6 +3494,8 @@ Every option of Python SeleniumBase's pytest plugin is a flag of `test`, in each
 
 `-k` and `-m` select tests as pytest does (a marker is a module name), `-n` sets how many run at once, `--co` lists them, `--pdb`, `--trace` and `--final-debug` stop in a prompt (one test at a time, output shown), `--reruns N` runs a failing test again, and `--archive-logs` keeps the old latest_logs folder, which a run otherwise empties. `-c FILE` (or `--settings-file`) names the settings file the tests read.
 
+`sbrs test` starts the run of the tests before Cargo and ends it after: `--dashboard` writes dashboard.html (live while the tests run), `--html PATH` and `--junit-xml PATH` write a report, `--alluredir DIR` Allure results (the tested crate needs the library's `allure` feature), `--show-report` opens the report in a browser window and waits until it is closed, and `--with-db-reporting` records the run in the results database. The exit status is Cargo's, or 1 when a report could not be written. After a plain `cargo test` use `sbrs report finish`.
+
 ```bash Usage
 sbrs test [FLAGS] [FILTER] [-- HARNESS_ARGS]…
 ```
@@ -3503,6 +3579,12 @@ Also: `--collect-only`
 <ParamField query="--all-scripts" type="boolean">
 
 After the tests, run every example of the packages with `cargo run --example`.
+
+</ParamField>
+
+<ParamField query="--show-report" type="boolean">
+
+Open the HTML report or the dashboard in a browser window when the tests end, and wait until the window is closed.
 
 </ParamField>
 
@@ -4381,6 +4463,28 @@ One of: `true`, `false`
 <ParamField query="--dash-title <VALUE>" type="string">
 
 The dashboard's title
+
+</ParamField>
+
+<ParamField query="--html <PATH>" type="string">
+
+Write an HTML report to this file
+
+</ParamField>
+
+<ParamField query="--junit-xml <PATH>" type="string">
+
+Write a JUnit XML report to this file
+
+Also: `--junitxml`
+
+</ParamField>
+
+<ParamField query="--alluredir <PATH>" type="string">
+
+Write Allure results to this folder
+
+Also: `--allure-dir`
 
 </ParamField>
 

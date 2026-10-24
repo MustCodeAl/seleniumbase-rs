@@ -673,6 +673,67 @@ const completionSpec: Fig.Spec = {
       ],
     },
     {
+      name: "report",
+      description: "Finish a test run and write its reports, or show the runs of a results database.",
+      subcommands: [
+        {
+          name: "finish",
+          description: "Finish the test run of the current folder and write its reports.",
+          options: [
+            {
+              name: "--dashboard",
+              description: "Write the live dashboard (dashboard.html) in its final form.",
+            },
+            {
+              name: "--dash-title",
+              description: "The dashboard's title; an underscore stands for a space.",
+              args: {
+                name: "title",
+              },
+            },
+            {
+              name: "--html",
+              description: "Write an HTML report to this file.",
+              args: {
+                name: "path",
+                template: "filepaths",
+              },
+            },
+            {
+              name: "--junit-xml",
+              description: "Write a JUnit XML report to this file.",
+              args: {
+                name: "path",
+                template: "filepaths",
+              },
+            },
+            {
+              name: "--archive-logs",
+              description: "Keep the logs of the run in archived_logs/ instead of deleting them later.",
+            },
+            {
+              name: "--show-report",
+              description: "Open the HTML report or the dashboard in a browser window and wait until it is closed.",
+            },
+            {
+              name: "--json",
+              description: "Print what was done as JSON instead of the `-----` lines.",
+            },
+            {
+              name: ["-h", "--help"],
+              description: "Print help",
+            },
+          ],
+        },
+      ],
+      options: [
+        {
+          name: ["-h", "--help"],
+          description: "Print help",
+        },
+      ],
+    },
+    {
       name: "doctor",
       description: "Run a diagnostic check on the environment and configuration.",
       options: [
@@ -1442,6 +1503,10 @@ const completionSpec: Fig.Spec = {
         {
           name: "--all-scripts",
           description: "After the tests, run every example of the packages with `cargo run --example`.",
+        },
+        {
+          name: "--show-report",
+          description: "Open the HTML report or the dashboard in a browser window when the tests end, and wait until the window is closed.",
         },
         {
           name: "--browser",
@@ -2353,6 +2418,30 @@ const completionSpec: Fig.Spec = {
           description: "The dashboard's title",
           args: {
             name: "value",
+          },
+        },
+        {
+          name: "--html",
+          description: "Write an HTML report to this file",
+          args: {
+            name: "path",
+            template: "filepaths",
+          },
+        },
+        {
+          name: ["--junit-xml", "--junitxml"],
+          description: "Write a JUnit XML report to this file",
+          args: {
+            name: "path",
+            template: "filepaths",
+          },
+        },
+        {
+          name: ["--alluredir", "--allure-dir"],
+          description: "Write Allure results to this folder",
+          args: {
+            name: "path",
+            template: "filepaths",
           },
         },
         {

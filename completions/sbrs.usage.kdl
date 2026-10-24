@@ -519,6 +519,17 @@ flagset test-options {
     flag --dash-title help="The dashboard's title" help_heading="Test run, debugging and reports" {
         arg <VALUE>
     }
+    flag --html help="Write an HTML report to this file" help_heading="Test run, debugging and reports" {
+        arg <PATH>
+    }
+    flag --junit-xml help="Write a JUnit XML report to this file" help_heading="Test run, debugging and reports" {
+        alias --junitxml hide=#true
+        arg <PATH>
+    }
+    flag --alluredir help="Write Allure results to this folder" help_heading="Test run, debugging and reports" {
+        alias --allure-dir hide=#true
+        arg <PATH>
+    }
     flag --with-db-reporting help="Record each test's outcome in the results database" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
         arg "[WITH_DB_REPORTING]" required=#false {
             choices "true" "false"
@@ -1394,6 +1405,39 @@ With no TOKEN and a terminal on standard input it asks for a token on the screen
     complete token type=none
     example "sbrs decrypt TOKEN"
 }
+cmd report help_heading="Info and setup" help="Finish a test run and write its reports, or show the runs of a results database." subcommand_required=#true {
+    long_help #"""
+Finish a test run and write its reports, or show the runs of a results database.
+
+`sbrs report finish` ends the run of the current folder: the dashboard, the HTML report and the JUnit XML are written a last time. Use it after a plain `cargo test`, which leaves the live dashboard going; `sbrs test` finishes its run by itself. `sbrs report history` lists the runs recorded in a results database (a build with the `turso` feature).
+"""#
+    flag "-h --help" help="Print help" action=help builtin=#true
+    cmd finish help="Finish the test run of the current folder and write its reports." args_override_self=#false {
+        long_help #"""
+Finish the test run of the current folder and write its reports.
+
+A plain `cargo test` leaves the live dashboard running, because the standard test harness cannot tell when the last test has ended. This command ends the run: the tests that started and never ended become unreported, the dashboard, the HTML report and the JUnit XML are written a last time, the logs are archived when asked, and the results go to the results database when `with_db_reporting` is on. `sbrs test` does the same by itself. The run is the one in `SB_REPORT_ROOT`, or in the current folder; the flags replace the settings the run was started with.
+"""#
+        flag --dashboard help="Write the live dashboard (dashboard.html) in its final form." bool_value=#true
+        flag --dash-title help="The dashboard's title; an underscore stands for a space." {
+            arg <TITLE>
+        }
+        flag --html help="Write an HTML report to this file." {
+            arg <PATH>
+        }
+        flag --junit-xml help="Write a JUnit XML report to this file." {
+            arg <PATH>
+        }
+        flag --archive-logs help="Keep the logs of the run in archived_logs/ instead of deleting them later." bool_value=#true
+        flag --show-report help="Open the HTML report or the dashboard in a browser window and wait until it is closed." bool_value=#true
+        flag --json help="Print what was done as JSON instead of the `-----` lines." bool_value=#true
+        flag "-h --help" help="Print help" action=help builtin=#true
+        complete title type=none
+        complete path type=path
+        example "sbrs report finish --html report.html --junit-xml report.xml"
+    }
+    example "sbrs report finish --html report.html"
+}
 cmd doctor help_heading="Info and setup" help="Run a diagnostic check on the environment and configuration." {
     flag "-h --help" help="Print help" action=help builtin=#true
     example "sbrs doctor"
@@ -1744,6 +1788,8 @@ Run the project's tests, or one example, through Cargo or cargo-nextest.
 Every option of Python SeleniumBase's pytest plugin is a flag of `test`, in each of its spellings (`--no-sandbox`, `--no_sandbox`, `--dcsp`): the flags reach the tests as SB_* environment variables, which a test that loads `Settings` reads. The options before the command (`sbrs --headless --browser firefox test`) reach them too, and a flag after it wins. `--plugin` reaches them as SB_PLUGINS, with the plugins the settings file and the variable already turn on; `--plugin-opt` cannot be passed on, so `sbrs test` refuses it.
 
 `-k` and `-m` select tests as pytest does (a marker is a module name), `-n` sets how many run at once, `--co` lists them, `--pdb`, `--trace` and `--final-debug` stop in a prompt (one test at a time, output shown), `--reruns N` runs a failing test again, and `--archive-logs` keeps the old latest_logs folder, which a run otherwise empties. `-c FILE` (or `--settings-file`) names the settings file the tests read.
+
+`sbrs test` starts the run of the tests before Cargo and ends it after: `--dashboard` writes dashboard.html (live while the tests run), `--html PATH` and `--junit-xml PATH` write a report, `--alluredir DIR` Allure results (the tested crate needs the library's `allure` feature), `--show-report` opens the report in a browser window and waits until it is closed, and `--with-db-reporting` records the run in the results database. The exit status is Cargo's, or 1 when a report could not be written. After a plain `cargo test` use `sbrs report finish`.
 """#
     flag --test help="Run one integration test file from tests/." conflicts=--example {
         arg <NAME>
@@ -1769,6 +1815,7 @@ Every option of Python SeleniumBase's pytest plugin is a flag of `test`, in each
     }
     flag "--co --collect-only" help="List the tests that would run and how many (`collected N items`) without running them." bool_value=#true
     flag --all-scripts help="After the tests, run every example of the packages with `cargo run --example`." bool_value=#true
+    flag --show-report help="Open the HTML report or the dashboard in a browser window when the tests end, and wait until the window is closed." bool_value=#true
     use test-options
     flag "-h --help" help="Print help" action=help builtin=#true
     arg "[FILTER]" help="Run only the tests whose name contains this text." conflicts=--example
