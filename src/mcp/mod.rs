@@ -47,6 +47,9 @@ mod tool;
 mod webdriver;
 
 pub mod cdp;
+#[cfg(feature = "mcp-client")]
+pub mod client;
+
 pub mod dev;
 pub mod driver;
 pub mod sb;
