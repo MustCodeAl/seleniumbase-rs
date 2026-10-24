@@ -411,6 +411,91 @@ The same fields come as structured content for clients that read JSON. A
 mistyped choice or tool name is answered with the nearest valid one (`"bakc"`:
 `did you mean "back"?`).
 
+## Page tools and refs
+
+The `cdp`, `driver` and `sb` servers have five tools that read a page the way a
+model needs it (the `dev` server has no browser and none of them). They only look:
+they leave nothing behind in the page, each caps what it returns and says when it
+cut it, and all five declare an `outputSchema`, return `structuredContent` next to
+their text and mark the result as untrusted page content.
+
+| Tool | What it returns | Arguments (default) |
+| --- | --- | --- |
+| `page_snapshot` | The page as a compact accessibility tree: landmarks, headings, links, buttons and form controls with role, name, state and value. Interactive nodes carry a ref such as `[ref=e5]`. Passwords and card numbers are never printed. | `scope`; `mode` (`accessibility`, or `outline` for the tag tree; `accessibility`); `depth` (1 to 30; 12); `max_nodes` (1 to 2000; 400); `include_hidden` (false) |
+| `read_page_text` | The readable text as Markdown: the main content, headings as `#`, links as `[text](url)`, lists and tables. Scripts, styles and hidden nodes are skipped. | `scope`; `format` (`markdown` or `text`; `markdown`); `main_only` (true); `max_chars` (1000 to 200000; 20000) |
+| `extract_links` | The visible links with text, absolute URL, `rel`, `target` and the landmark they sit in. Duplicates are collapsed with a count, `javascript:` links are flagged, and the first 100 links carry a ref. | `scope`; `same_origin` (false); `contains`; `limit` (1 to 2000; 200) |
+| `extract_tables` | The visible tables (HTML tables and `role=table` or `grid`) as caption, headers and rows, with `colspan` and `rowspan` expanded. Each table carries a selector and a ref. | `scope`; `limit` (1 to 100; 20); `max_rows` (1 to 5000; 200) |
+| `extract_forms` | The forms as data: action, method, each field with name, type, label, required flag, value, checked state and options, and the submit button. Fields and forms carry refs; password and card values are left out. | `scope` |
+
+`scope` limits a tool to the first element that a selector (or a ref) matches.
+
+### Refs
+
+`page_snapshot` gives each interactive node a short ref (`e1`, `e2`, ...). Any
+argument that holds a selector (`selector`, `scope` and every `*_selector`) of any
+tool may then be written `ref=e5` instead of a CSS selector:
+
+```json
+{ "selector": "ref=e5" }
+```
+
+Before the call runs, the server checks in the page that the element still has the
+role and name it had in the snapshot, and only then swaps in the selector it stored.
+When something else has taken its place, the call fails and says what is there now,
+so a click never lands on the wrong element:
+
+```text
+ref e5 is stale: the element is now button "Save", it was textbox "Email"; call page_snapshot again
+```
+
+Refs belong to the last snapshot, so take a new one after the page changes. They
+live on the server, not in the page, where a script could look for them. A ref for
+an element inside an open shadow root works on the `driver` and `sb` servers only;
+on `cdp` the call says so.
+
+The text of the last `page_snapshot` is also the resource `sbrs://page/snapshot`,
+and the last text a page tool read is `sbrs://page/text`, while a browser runs. The
+`write_test` and `extract_data` prompts use these tools.
+
+## Fingerprint tools
+
+Three tools check what the running browser shows a page. The `cdp`, `driver` and
+`sb` servers have them; they mark their output untrusted and declare output
+schemas. (The `check_fingerprint` tool of the `dev` server is another thing: it
+validates a fingerprint you hand it and needs no browser.)
+
+| Tool | What it does | Arguments |
+| --- | --- | --- |
+| `capture_fingerprint` | Reads what the browser shows a page, as a fingerprint: the navigator, Client Hints, screen, time zone, WebGL, media devices and more, plus readings no setting holds (the webdriver flag, plugins, canvas and audio hashes, headless markers). It is the reading of [`sbrs fingerprint capture`](/help/cli_reference#sbrs-fingerprint-capture), with progress. An https page or `about:blank` gives the whole fingerprint; an http page has no Client Hints or media devices. | `url` (opened first); `save_to` (a file name in the output folder, saved as JSON and private to its owner) |
+| `compare_fingerprint` | Asks whether the browser presents a fingerprint. It lists the settings the page contradicts, the ones it matches, and the ones no page can read (`accept_languages`, `geolocation`, `fonts`, `proxy`, `webrtc`), which never count as matches. The text starts with `presents` and `verified`, each yes or no. | exactly one of `fingerprint` (a JSON object, or a string holding one), `path` (a file in the output folder or the working directory) or `preset` |
+| `explain_fingerprint` | Says what a detection script would find: the signs of automation (the webdriver flag, headless markers, a software renderer, ...) with how loudly a detector reacts and what to change, whether the readings agree with each other, and the values a script reads first. | `url` (opened first) |
+
+```json
+{ "preset": "macos" }
+```
+
+The presets are `windows`, `edge`, `macos`, `linux`, `android` and `ios`. A proxy
+password in a fingerprint that a tool returns is shown as `***`; a file written with
+`save_to` keeps the real one.
+
+Related tools and prompts:
+
+- `start_browser` takes `fingerprint`, `fingerprint_path` or `fingerprint_preset`
+  and applies it as the browser starts. On `driver` and `sb` this is for Chrome,
+  Chromium and Edge, not Firefox.
+- The `sb` server also has `diff_fingerprints` (`a` is the expected fingerprint and
+  `b` the one found, each a preset name, a file path or JSON text) and
+  `patch_fingerprint` (an RFC 7386 JSON merge patch for a fingerprint, path or
+  preset, where `null` removes a setting; `save_to` saves a valid result). Neither
+  needs a browser.
+- The `check_fingerprint` prompt takes `file_or_preset` and walks a model through
+  `start_browser`, `capture_fingerprint`, `compare_fingerprint` and
+  `explain_fingerprint`.
+
+See [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth) for what the
+settings mean.
+
+
 ## Developer tools
 
 `cdp` and `sb` add nine tools that help a model write tests, find out why
@@ -1154,7 +1239,7 @@ Run diagnose_environment and check_config on the dev server. Explain the first p
 
 <Visibility for="agents">
 
-Summary for AI exports: `sbrs-mcp --server cdp|driver|sb|dev` serves MCP over stdio. On `cdp`, `driver` and `sb`, call `start_browser` once, use the tools, then `close_browser`; `dev` has no browser and helps with the library, the `sbrs` command line and diagnosing problems (`find_api`, `explain_error`, `check_config`, ...). Files are written under `SB_MCP_OUTPUT_DIR`. A failed call returns an error result with a `kind`, the call tried and next steps, not a protocol error.
+Summary for AI exports: `sbrs-mcp --server cdp|driver|sb|dev` serves MCP over stdio. On `cdp`, `driver` and `sb`, call `start_browser` once, use the tools, then `close_browser`; `dev` has no browser and helps with the library, the `sbrs` command line and diagnosing problems (`find_api`, `explain_error`, `check_config`, ...). Files are written under `SB_MCP_OUTPUT_DIR`. A failed call returns an error result with a `kind`, the call tried and next steps, not a protocol error. The `cdp`, `driver` and `sb` servers also have the page tools `page_snapshot` (its refs can be written `ref=e5` in any selector argument), `read_page_text`, `extract_links`, `extract_tables` and `extract_forms`, and the fingerprint tools `capture_fingerprint`, `compare_fingerprint` and `explain_fingerprint`. `sbrs-mcp tools|call|batch|resources|read|prompts|prompt` is an MCP client for the shell: `--server cdp|driver|sb|dev` starts this program as that server, `--connect PROGRAM` any stdio server, `--url` a running HTTP server (token in `SB_MCP_TOKEN` or `--token-file`); exit status 0 worked, 1 the tool failed, 2 a mistake in what was typed, 3 the server could not be reached.
 
 </Visibility>
 
@@ -1187,6 +1272,98 @@ trust, and prefer a throwaway browser profile.
   writes nothing. `check_config` reads one settings file inside the folder the
   server runs in, redacts secrets, and does not quote the file's lines in its
   errors.
+
+## Calling tools from a shell
+
+`sbrs-mcp` is also an MCP client. A person, a script or an AI agent that has only a
+shell can use any tool of these servers, or of any other MCP server, without an MCP
+host. The commands need the cargo feature `mcp-client`, which the
+`seleniumbase-rs-cli` package turns on by default.
+
+| Command | What it does |
+| --- | --- |
+| `sbrs-mcp tools [TOOL]` | Lists the tools; with a name, shows that tool with the JSON Schema of its arguments. `--raw` prints JSON instead of a table. |
+| `sbrs-mcp call TOOL [JSON]` | Calls a tool and prints what it returns. |
+| `sbrs-mcp batch [FILE]` | Runs several calls in one session (see below). |
+| `sbrs-mcp resources` | Lists the resources, such as the call journal. |
+| `sbrs-mcp read URI` | Reads a resource, such as `sbrs://journal`. `--out DIR` saves a binary one. |
+| `sbrs-mcp prompts` | Lists the prompts; a `*` marks a required argument. |
+| `sbrs-mcp prompt NAME` | Renders a prompt; arguments are `--arg KEY=VALUE`, always text. |
+
+```bash
+sbrs-mcp tools                                    # the dev server, no setup
+sbrs-mcp tools click_element --server cdp         # one tool and its argument schema
+sbrs-mcp call find_api --arg query=click          # a dev-server tool
+```
+
+### Choosing the server
+
+Give at most one of these; the commands take the same flags.
+
+- **No flag:** the URL in `SB_MCP_URL` if it is set, else this program started as
+  the `dev` server, so `sbrs-mcp tools` works with no setup.
+- **`--server cdp`, `driver`, `sb` or `dev`:** this program, started as that
+  server. It stops when the command ends and closes its browser.
+- **`--connect PROGRAM`:** any MCP server that speaks stdio. Its arguments are
+  `--connect-arg ARG`, one each (write `--connect-arg=--flag` when one starts with
+  a dash).
+- **`--url http://127.0.0.1:8931/mcp`:** a running streamable HTTP server, such as
+  one started with `sbrs-mcp --listen 127.0.0.1:8931`. The bearer token it asks for
+  comes from `SB_MCP_TOKEN` or from `--token-file FILE`, never from the command
+  line; `--token-file` goes with `--url` only.
+
+`--timeout SECONDS` (default 60) is how long to wait for the connection and for each
+request.
+
+### Arguments and output of `call`
+
+Give the arguments one way: a JSON object after the tool name (or `-` for standard
+input), `--json OBJECT` (or `-`), or `--arg KEY=VALUE`, repeated. In `--arg`, VALUE
+is JSON when it parses as JSON (`true`, `3`, `[1,2]`), text in single quotes is that
+text, and anything else is a string: `--arg selector=ref=e1` sends the string
+`ref=e1`.
+
+```bash
+sbrs-mcp call --server cdp open_url '{"url": "https://example.com"}'
+```
+
+The text goes to standard output. `--raw` prints the structured result as one line of
+JSON (the text, for a tool that sends none), `--out DIR` saves the images of the
+result as `image-1.png`, `image-2.png`, ..., and `--progress` prints a tool's
+progress to standard error (on by default on a terminal).
+
+### One session for several calls
+
+A command is its own MCP session, and a browser that a server starts closes when the
+command ends: a `call` of `start_browser` does not leave a browser for the next
+command. `batch` runs the calls in one session. It reads one JSON object per line from
+FILE or standard input; blank lines and lines that start with `#` are skipped, and a
+bad line stops the command before anything runs.
+
+```bash
+sbrs-mcp batch --server cdp --raw <<'EOF'
+{"tool": "start_browser", "arguments": {"headless": true}}
+{"tool": "open_url", "arguments": {"url": "https://example.com"}}
+{"tool": "page_snapshot"}
+{"tool": "close_browser"}
+EOF
+```
+
+The calls run in order and stop at the first failure unless `--keep-going` is given.
+`--raw` prints one JSON object per call, and `--out` and `--progress` work as for
+`call`.
+
+### Exit status
+
+| Status | Meaning |
+| --- | --- |
+| 0 | It worked. |
+| 1 | The tool reported a failure (or the output could not be written). |
+| 2 | A mistake in what was typed: a bad flag or argument, an unknown tool, resource or prompt. |
+| 3 | The server could not be reached, refused the token or broke the protocol. |
+
+For `batch` the status is that of the first failure.
+
 
 ## Using the servers from Rust
 
