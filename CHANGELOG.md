@@ -174,6 +174,18 @@ work, `docs/parity.md` the per-API status).
   when the folder is set, and a test is one result however many sinks hear of it. The JSON is
   written with `serde`: the feature adds no dependency.
 
+- **Reports for plain `cargo test`.** With `--dashboard`, `--html`, `--junit-xml`, `--alluredir`,
+  `--with-db-reporting` or `--archive-logs` on (`SB_DASHBOARD=1 cargo test`), the `sb`, `sb_cdp`
+  and Gherkin fixtures start every test in the run of the process before its browser launches, so
+  the live `dashboard.html` shows it as untested, and end it on its last attempt (a rerun that is
+  still to come records nothing; a browser that did not start is a failure). `Finalizer` has
+  `begin` and `launch_failed`; `Sb::report_to(run)` and `Sb::without_report()` choose the run;
+  `TestRun::finish` ends a run and, with `with_db_reporting` (feature `turso`), imports its
+  results into the database. A plain `cargo test` leaves the dashboard live until `sbrs report
+  finish`. `--with-s3-logging` (feature `s3`, bucket in `SB_S3_BUCKET`) uploads a test's logs.
+  `basic_test_info.txt` is now written by the `log_helper` writers (CRLF, traceback section, the
+  display id on the first line).
+
 - **Gherkin scenarios as cargo tests (feature `bdd`).** `testing::bdd::{sb, sb_cdp, SbCase,
   SbCdpCase}` run a feature file's scenarios through rstest-bdd 0.6: `#[scenario(path = ..)]` on
   an async test that takes `#[future(awt)] sb: SbCase`, and `#[given]`/`#[when]`/`#[then]` steps
