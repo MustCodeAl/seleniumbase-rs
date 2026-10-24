@@ -633,6 +633,18 @@ work, `docs/parity.md` the per-API status).
 - **`BrowserSession::driver` says why it has no driver** after `quit()` or a `reconnect` that
   could not start the new browser, instead of a bare `unwrap` on `None`.
 
+- **A new user's first test passes on today's example.com.** example.com dropped its `<h1>` in
+  2026, so every example test that `sbrs mkdir` and `sbrs mkfile` wrote failed on its first run;
+  they assert the paragraph (`This domain is for use in`, in a `p`), which the old and the new
+  page both have. The examples in `sbrs --help` (`get-text --css h1`, ...) select the paragraph
+  too, and a test refuses an example that selects an `h1`.
+- **The README that `sbrs mkdir` writes names a dependency that resolves.** It asked for
+  `seleniumbase-rs = { version = "0.6" }`, but the crate is not on crates.io; it now names the
+  GitHub tag of the release.
+- **The README quick start finishes.** `https://seleniumbase.io/simple/login` has no `<button>`,
+  so `page.locator("button").click()` ended it with `ElementNotFound`; it clicks `#log-in`, as do
+  the rustdoc examples of the pure CDP engine.
+
 - **A message stays at most 0.75 s on a virtual display too:** `post_message` and its relatives
   cut the time when nobody watches, which is a headless browser or a headed one on Xvfb (Python:
   `self.headless or self.xvfb`); a headed browser on Xvfb kept the long time before.

@@ -35,21 +35,6 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ### Breaking
 
-- **Website tours work as in Python.** `create_tour`, `create_shepherd_tour`,
-  `create_bootstrap_tour`, `create_driverjs_tour`, `create_hopscotch_tour`,
-  `create_introjs_tour`, `add_tour_step`, `play_tour` (also `start_tour`) and `export_tour` take
-  Python's keywords as call builders (`sb.add_tour_step("Hi").selector("#a").title("T").await?`,
-  `sb.play_tour().interval(Duration::from_secs(3)).await?`), tours have names and coexist, and
-  the default theme is IntroJS. The five libraries (Shepherd with its looks, Bootstrap Tour,
-  DriverJS, Hopscotch, IntroJS) come from Python's CDNs; `play_tour` waits until the tour ends, the
-  window closes or the page is left, checks the first step's element for 7 s, autoplays with an
-  interval (or `--interval`), and returns at once where nobody watches. `export_tour` writes a
-  JavaScript file for a browser console to `tours_exported/` and returns its path.
-  `set_introjs_colors(Option<&str>, Option<&str>)` validates hex colours as Python does and
-  belongs to the case. `create_tour_with_theme`, `TourTheme::SeleniumBase`, the HTML-outline export
-  and `Tour::play` are removed.
-
-
 - **`sbrs mkfile` and `sbrs mkdir` write tests on the rstest `sb` fixture.** The default test of
   `mkfile` is `#[rstest]` with the `sb` fixture (feature `testing`); the old
   `run_browser_test` closure is `--cm`. `--bc` writes a `BaseCase` made and quit by hand, `--dc`
@@ -68,15 +53,6 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   every action is highlighted first and passed assertions flash and announce themselves;
   `activate_demo_mode` takes `&mut self` and no longer adds click dots, `deactivate_demo_mode` no
   longer reloads the page, and `--slow` now scrolls.
-- **`MasterQA` is Python's MasterQA, a wrapper that owns the case.** `MasterQA::new(sb)?` derefs
-  to `BaseCase`; `verify("Is it blue?").await?` (and `verify_default()`) wait `--verify-delay`,
-  pop up a jquery-confirm box with YES / PASS and NO / FAIL, record the answer and, on a failure,
-  `failed_check_N.png`; where nobody watches they print Python's warning once and return
-  `Ok(None)`. `finish(error).await?` writes `results_table.csv` and `report.html`, moves
-  `latest_report/` to `archived_reports/log_<epoch>/`, opens the page and returns the case and a
-  `MasterQaReport`. The stateless `MasterQA::verify(question)` is gone: the terminal prompt is
-  `MasterQaSession::verify`. `RunSettings::with_verify_delay` is now read.
-
 - **An unknown key in the settings file is an error.** `unknown setting "blok_images" in
   sbase_config.toml` names it (and `sbrs options` lists the options), and two spellings of one
   key (`dark` and `dark_mode`) are refused; `Settings.chromium_arg` is an `Option<ArgList>`.
@@ -159,22 +135,6 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ### Added
 
-- **Fingerprint tools on the MCP servers.** `capture_fingerprint` reads what the running browser
-  shows a page (the reading of `sbrs fingerprint capture`, with progress) and can save it as a
-  file; `compare_fingerprint` says whether the browser presents a fingerprint, a file or a preset
-  (`presents` and `verified`, the differences, and the settings no page can read, which never
-  count as matches); `explain_fingerprint` lists the signs of automation a detection script
-  finds, how loudly a detector reacts and what to change. They are on the `cdp`, `driver` and
-  `sb` servers, mark their output untrusted and declare output schemas. The `sb` server gains
-  `diff_fingerprints` and `patch_fingerprint` (an RFC 7386 merge patch); `build_fingerprint`
-  takes `random`, `seed`, `os` and `save_to` (the identity `sbrs fingerprint export` writes for
-  the same seed); `validate_fingerprint` takes a `fingerprint`, a `path` or a `preset`.
-  `start_browser` takes `fingerprint`, `fingerprint_path` or `fingerprint_preset` and applies it
-  as the browser starts (on `driver` and `sb` in undetected mode, Chromium browsers only). A
-  proxy password is shown as `***`; a saved file keeps it and is private to its owner. The
-  `check_fingerprint` prompt walks a model through capture, compare and explain.
-
-
 - **The plugin API is 0.1.3** (`seleniumbase-rs-plugins` rev `5f68042f`): the hooks for
   navigation, contexts, the network, tests and tasks, and the guard that holds each plugin to the
   capabilities it declares. The pure CDP engine calls the navigation, context and close hooks
@@ -194,38 +154,6 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   `close`, and a plugin set gets a tokio timer so the time limits of its hooks apply. A tab or
   context a plugin stops on its way out is closed. The WebDriver engine, the network hooks and the
   test and task hooks are not wired yet.
-
-- **Plugins watch and steer the network on the pure CDP engine (feature `plugins`).** When a
-  plugin declares network rules, `intercept` filters or `observe` filters, each tab gets a router
-  that owns its `Fetch` domain: Chrome pauses only what the union of the filters names (and every
-  request while `Page::intercept` runs or a proxy asks for a password). `on_request` and the
-  blocking rules fail a request with `BlockedByClient` (the event `cdp.plugin.request.failed`
-  starts its reason with the plugin's name; a decision that takes ten seconds fails the request),
-  the headers of the rules are added, and `on_response` hears the status, the type and, up to the
-  filter's `max_body`, the body. The rules of `Page::intercept` run first: one that blocks or
-  answers a request settles it, a plugin's block beats everything else, and a rule's headers beat
-  the plugins'. Proxy password prompts are still answered. A router that dies turns `Fetch` off, so
-  no request stays paused. Tabs a page opens itself and iframes in other processes are not routed.
-  Nothing else changes for programs without plugins.
-
-
-- **Plugins run tasks and hear the tests (feature `plugins`).** `sbrs plugin run NAME` runs the
-  task of a plugin on a browser it starts (the plugin is turned on by the name; `--plugin` and
-  `--plugin-opt` shape the others): the input is `--input FILE` (or `-`), the results are JSON
-  lines on standard output or in `--out FILE`, the summary goes to standard error, Ctrl-C stops the
-  task and closes the browser (exit status 130), and a name with no task is a usage error that
-  lists the plugins that have one. The library half is `plugin_host::run_task` (also
-  `run_task_until` and `run_task_on` for a browser you have) and, for the command, `plugin_cmd`
-  (`task_launch_options`, `read_task_input`, `JsonlSink`, `TerminalPrompt`). The `cdp` MCP server
-  gets `run_plugin_task {name, input, plugins, headless}`, which runs a task of a plugin the
-  operator enabled on a browser of its own and returns its summary and first results as progress
-  and answer; a task that needs a person at the keyboard fails there with the way to run it.
-  Tests on the pure CDP engine (`SbCdp`) now call the plugins' `on_test_start` after the browser is
-  up and `on_test_end` with the tab still open, for every attempt: a plugin that returns
-  `TestVerdict::Fail` makes a test that passed fail with the plugins' messages (and the evidence a
-  failure gets), and `plugin_host::test_start` and `test_end` are the entry for a runner of your
-  own. The WebDriver engine hosts neither.
-
 
 - **Recorder Mode on `BaseCase`.** With `BrowserConfig::with_recorder_mode(true)` (`--rec`,
   `--rec-print`, `--rec-behave`, `--rec-sb-mgr`, `--rec-sb-cdp` and `SB_RECORDER` and friends),
@@ -628,14 +556,17 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ### Fixed
 
-- **Downloads and DevTools connections no longer hang forever.** Driver and browser downloads
-  (`chrome_for_testing::http_client`, `downloader::download_chrome_driver`) and
-  `pdf::extract_text_from_url` give up after 30 s without a connection or 60 s without data
-  (`CONNECT_TIMEOUT`, `READ_TIMEOUT`); the DevTools WebSocket handshake of a launch or attach gives
-  up after 30 s, and `sb_cdp::Browser::connect` reads `/json/version` within the options' startup
-  timeout. Each error names the URL or endpoint.
-- **`BrowserSession::driver` says why it has no driver** after `quit()` or a `reconnect` that
-  could not start the new browser, instead of a bare `unwrap` on `None`.
+- **A new user's first test passes on today's example.com.** example.com dropped its `<h1>` in
+  2026, so every example test that `sbrs mkdir` and `sbrs mkfile` wrote failed on its first run;
+  they assert the paragraph (`This domain is for use in`, in a `p`), which the old and the new
+  page both have. The examples in `sbrs --help` (`get-text --css h1`, ...) select the paragraph
+  too, and a test refuses an example that selects an `h1`.
+- **The README that `sbrs mkdir` writes names a dependency that resolves.** It asked for
+  `seleniumbase-rs = { version = "0.6" }`, but the crate is not on crates.io; it now names the
+  GitHub tag of the release.
+- **The README quick start finishes.** `https://seleniumbase.io/simple/login` has no `<button>`,
+  so `page.locator("button").click()` ended it with `ElementNotFound`; it clicks `#log-in`, as do
+  the rustdoc examples of the pure CDP engine.
 
 - **A message stays at most 0.75 s on a virtual display too:** `post_message` and its relatives
   cut the time when nobody watches, which is a headless browser or a headed one on Xvfb (Python:
