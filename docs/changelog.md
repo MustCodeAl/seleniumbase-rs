@@ -199,6 +199,36 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   when the folder is set, and a test is one result however many sinks hear of it. The JSON is
   written with `serde`: the feature adds no dependency.
 
+- **Reports for plain `cargo test`.** With `--dashboard`, `--html`, `--junit-xml`, `--alluredir`,
+  `--with-db-reporting` or `--archive-logs` on (`SB_DASHBOARD=1 cargo test`), the `sb`, `sb_cdp`
+  and Gherkin fixtures start every test in the run of the process before its browser launches, so
+  the live `dashboard.html` shows it as untested, and end it on its last attempt (a rerun that is
+  still to come records nothing; a browser that did not start is a failure). `Finalizer` has
+  `begin` and `launch_failed`; `Sb::report_to(run)` and `Sb::without_report()` choose the run;
+  `TestRun::finish` ends a run and, with `with_db_reporting` (feature `turso`), imports its
+  results into the database. A plain `cargo test` leaves the dashboard live until `sbrs report
+  finish`. `--with-s3-logging` (feature `s3`, bucket in `SB_S3_BUCKET`) uploads a test's logs.
+  `basic_test_info.txt` is now written by the `log_helper` writers (CRLF, traceback section, the
+  display id on the first line).
+
+- **`sbrs test` reports, and `sbrs report finish`.** `sbrs test` opens the run before Cargo
+  (clearing `latest_logs`, or archiving it with `--archive-logs`), gives it to the test processes
+  as `SB_RUN_ID` and `SB_REPORT_ROOT`, prints `Dashboard: file://...` and a line of `*`, and after
+  Cargo ends the run and prints pytest's lines (`----- Dashboard = ... -----`, `Generated html
+  report`, `generated xml file`, `Latest Logs dir`). New flags: `--html PATH`, `--junit-xml PATH`
+  and `--alluredir DIR` (rows of the option table, so also `SB_HTML`, `SB_JUNIT_XML`,
+  `SB_ALLURE_DIR` and keys of the `[test]` table) and `--show-report`, which opens a headed Chrome
+  on the report and waits until its window is closed; a relative path is the run's folder's. The
+  exit status is Cargo's, or 1 when a report that was asked for could not be written;
+  `--with-db-reporting` in a build without the `turso` feature is refused with status 2.
+  **Breaking:** `sbrs report` is now `sbrs report history` (feature `turso`), and `sbrs report
+  finish [--dashboard] [--dash-title] [--html] [--junit-xml] [--archive-logs] [--show-report]
+  [--json]` ends the run a plain `cargo test` left going (exit 1 and a message when the folder has
+  no run). `sbrs run-scenario --dashboard` writes the shared dashboard page with one row;
+  `api::scenario::write_dashboard_html` is replaced by `write_dashboard`, and `RunSummary` has a
+  `duration_secs`.
+
+
 - **Gherkin scenarios as cargo tests (feature `bdd`).** `testing::bdd::&#123;sb, sb_cdp, SbCase,
   SbCdpCase&#125;` run a feature file's scenarios through rstest-bdd 0.6: `#[scenario(path = ..)]` on
   an async test that takes `#[future(awt)] sb: SbCase`, and `#[given]`/`#[when]`/`#[then]` steps
