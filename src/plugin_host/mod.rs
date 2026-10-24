@@ -6,7 +6,7 @@
 //! through a [`Registry`]:
 //!
 //! * [`builtin_registry`] holds the official plugins whose cargo feature is on
-//!   (`plugin-shield`, `plugin-block-resources`, `plugin-crx`, or
+//!   (`plugin-shield`, `plugin-block-resources`, `plugin-crx`, `plugin-fetcher`, `plugin-extractor`, or
 //!   `plugins-builtin` for all of them). A build with none has an empty
 //!   registry, and every name is then unknown.
 //! * [`build`] and [`build_with`] return a *strict* [`PluginSet`]: it refuses a
@@ -55,8 +55,8 @@ pub use test_hooks::{test_end, test_start};
 pub(crate) use timer::timed;
 
 /// The cargo features that add a built-in plugin, for messages.
-const BUILTIN_FEATURES: &str = "plugin-shield, plugin-block-resources, plugin-crx \
-                                (plugins-builtin turns them all on)";
+const BUILTIN_FEATURES: &str = "plugin-shield, plugin-block-resources, plugin-crx, \
+                                plugin-fetcher, plugin-extractor (plugins-builtin turns them all on)";
 
 /// The built-in plugins this build contains, by name.
 ///
@@ -67,6 +67,8 @@ pub fn builtin_registry() -> Registry {
     #[cfg(any(
         feature = "plugin-shield",
         feature = "plugin-block-resources",
+        feature = "plugin-fetcher",
+        feature = "plugin-extractor",
         feature = "plugin-crx"
     ))]
     {
@@ -75,6 +77,8 @@ pub fn builtin_registry() -> Registry {
     #[cfg(not(any(
         feature = "plugin-shield",
         feature = "plugin-block-resources",
+        feature = "plugin-fetcher",
+        feature = "plugin-extractor",
         feature = "plugin-crx"
     )))]
     {
@@ -343,6 +347,14 @@ mod tests {
         assert!(text.contains("known: dummy"), "{text}");
         assert!(text.contains("plugin-shield"), "{text}");
         assert!(text.contains("plugins-builtin"), "{text}");
+        for feature in [
+            "plugin-block-resources",
+            "plugin-crx",
+            "plugin-fetcher",
+            "plugin-extractor",
+        ] {
+            assert!(text.contains(feature), "{feature} in {text}");
+        }
         let error = build_with(&registry(), &selection).unwrap_err();
         assert!(
             matches!(&error, SeleniumBaseError::Plugin { plugin, .. } if plugin == "sheild"),
@@ -470,18 +482,25 @@ mod tests {
     #[cfg(all(
         feature = "plugin-shield",
         feature = "plugin-block-resources",
+        feature = "plugin-fetcher",
+        feature = "plugin-extractor",
         feature = "plugin-crx"
     ))]
     #[test]
-    fn plugins_builtin_knows_the_three_official_plugins() {
+    fn plugins_builtin_knows_the_five_official_plugins() {
         let mut names = builtin_registry().names();
         names.sort_unstable();
-        assert_eq!(names, ["block-resources", "crx", "shield"]);
+        assert_eq!(
+            names,
+            ["block-resources", "crx", "extractor", "fetcher", "shield"]
+        );
     }
 
     #[cfg(not(any(
         feature = "plugin-shield",
         feature = "plugin-block-resources",
+        feature = "plugin-fetcher",
+        feature = "plugin-extractor",
         feature = "plugin-crx"
     )))]
     #[test]

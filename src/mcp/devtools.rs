@@ -1059,7 +1059,7 @@ const LOW_DISK: u64 = 1024 * 1024 * 1024;
 /// The cargo features that change what this library can do, with whether this
 /// build has each. A feature that is off makes the calls that need it fail
 /// with an error that names it.
-const FEATURES: [(&str, bool); 18] = [
+const FEATURES: [(&str, bool); 20] = [
     ("mcp-server", cfg!(feature = "mcp-server")),
     ("test-util", cfg!(feature = "test-util")),
     ("plugins", cfg!(feature = "plugins")),
@@ -1069,6 +1069,8 @@ const FEATURES: [(&str, bool); 18] = [
         cfg!(feature = "plugin-block-resources"),
     ),
     ("plugin-crx", cfg!(feature = "plugin-crx")),
+    ("plugin-fetcher", cfg!(feature = "plugin-fetcher")),
+    ("plugin-extractor", cfg!(feature = "plugin-extractor")),
     ("plugins-builtin", cfg!(feature = "plugins-builtin")),
     ("pdf", cfg!(feature = "pdf")),
     ("visual", cfg!(feature = "visual")),

@@ -75,6 +75,8 @@ plugins = ["seleniumbase-rs/plugins"]
 plugin-shield = ["plugins", "seleniumbase-rs/plugin-shield"]
 plugin-block-resources = ["plugins", "seleniumbase-rs/plugin-block-resources"]
 plugin-crx = ["plugins", "seleniumbase-rs/plugin-crx"]
+plugin-fetcher = ["plugins", "seleniumbase-rs/plugin-fetcher"]
+plugin-extractor = ["plugins", "seleniumbase-rs/plugin-extractor"]
 plugins-builtin = ["plugins", "seleniumbase-rs/plugins-builtin"]
 # `sbrs pdf-text` and `sbrs assert-pdf-text`.
 pdf = ["seleniumbase-rs/pdf"]
