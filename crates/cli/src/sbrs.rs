@@ -258,6 +258,17 @@ enum PluginCommand {
     /// plugin.
     #[usage(example = "sbrs plugin info shield")]
     Info(PluginInfoArgs),
+    /// Run the task of a plugin on a browser it starts, and write its results as JSON lines.
+    ///
+    /// Only plugins that offer a task can be run, and the named plugin is turned on for this
+    /// run without --plugin. The task reads its input from --input (a JSON file, or `-` for
+    /// standard input; `{}` when there is none) and writes one JSON value per line to --out
+    /// (default: standard output). Its summary goes to standard error. The global options
+    /// --plugin, --plugin-opt, --headless, --proxy and the like shape the browser and the other
+    /// plugins. Ctrl-C stops the task, closes the browser and exits with status 130. Exits with
+    /// status 2 and lists the plugins that have a task when the name is not one of them.
+    #[usage(example = "sbrs plugin run crawler --input crawl.json --out found.jsonl")]
+    Run(PluginRunArgs),
 }
 
 // The argument of `plugin info`. (Plain comments, not docs: a doc comment on this struct
@@ -267,6 +278,21 @@ struct PluginInfoArgs {
     /// The plugin's name, as `sbrs plugin list` shows it.
     #[usage(value_hint = usage::ValueHint::Other)]
     name: String,
+}
+
+// The arguments of `plugin run`. (Plain comments, not docs: a doc comment on this struct would
+// be help text.)
+#[derive(Debug, usage::Args)]
+struct PluginRunArgs {
+    /// The plugin whose task to run, as `sbrs plugin list` shows it.
+    #[usage(value_hint = usage::ValueHint::Other)]
+    name: String,
+    /// A JSON file with the task's input, or `-` to read it from standard input.
+    #[usage(long, value_name = "FILE", value_hint = usage::ValueHint::AnyPath)]
+    input: Option<String>,
+    /// Write the results to this file, one JSON value per line (default: standard output).
+    #[usage(long, value_name = "FILE", value_hint = usage::ValueHint::AnyPath)]
+    out: Option<PathBuf>,
 }
 
 // The options `grid-hub` and `grid-node` share. (Plain comments, not docs: a doc
@@ -2999,13 +3025,98 @@ fn plugin_choice(args: &Cli) -> Result<PluginChoice, seleniumbase_rs::SeleniumBa
 
 /// `sbrs plugin list` and `sbrs plugin info NAME`. They start no browser and read only the
 /// plugin part of the settings, so a variable that is wrong for a browser does not stop them.
-fn run_plugin(command: &PluginCommand, args: &Cli) -> Result<(), Box<dyn std::error::Error>> {
+async fn run_plugin(command: &PluginCommand, args: &Cli) -> Result<(), Box<dyn std::error::Error>> {
     let choice = plugin_choice(args)?;
     let text = match command {
         PluginCommand::List => plugin_cmd::list(choice.selection()),
         PluginCommand::Info(info) => plugin_cmd::info(&info.name, choice.selection())?,
+        PluginCommand::Run(run) => return run_plugin_task(run, args).await,
     };
     std::io::stdout().lock().write_all(text.as_bytes())?;
+    Ok(())
+}
+
+/// `sbrs plugin run NAME`: launches a browser with the plugins the command line names and the
+/// plugin `NAME`, runs the task of `NAME` on it, and closes it. The results go to `--out` (or
+/// standard output) as JSON lines; the summary of the task goes to standard error.
+#[cfg(feature = "plugins")]
+async fn run_plugin_task(
+    run: &PluginRunArgs,
+    args: &Cli,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use seleniumbase_rs::common::shutdown::Outcome;
+    use seleniumbase_rs::plugin_host;
+
+    // The task's plugin is named by the command line, whatever else turned it on.
+    let mut names = args.plugin.clone();
+    if !names.contains(&run.name) {
+        names.push(run.name.clone());
+    }
+    let choice = PluginChoice::load(args.config.as_deref(), &names, &args.plugin_opt)?;
+
+    let mut settings = match args.config.as_deref() {
+        Some(path) => Settings::load_from(path)?,
+        None => Settings::load()?,
+    };
+    SettingsOverrides {
+        browser: args.browser.map(|browser| browser.name().to_owned()),
+        headless: args
+            .headless
+            .then_some(true)
+            .or_else(|| args.headed.then_some(false)),
+        user_agent: args.user_agent.clone().or_else(|| args.agent.clone()),
+        locale: args.locale.clone(),
+        ad_block: args.ad_block.then_some(true),
+        proxy: resolve_proxy(args.proxy.as_deref(), args.proxy_list.as_deref())?,
+        user_data_dir: args.user_data_dir.clone(),
+        extension_dir: args.extension_dir.clone(),
+        fingerprint: args
+            .fingerprint
+            .as_ref()
+            .map(|file| file.display().to_string()),
+        start_page: args.start_page.as_deref().map(start_page_url).transpose()?,
+        ..SettingsOverrides::default()
+    }
+    .try_apply(&mut settings)?;
+    settings.check_fingerprint()?;
+    settings.plugins = choice.selection().clone();
+
+    // Every mistake in the name, the options and the input is reported before a browser starts.
+    let options = plugin_cmd::task_launch_options(settings, &run.name)?;
+    // After the options, so that a name with no task is told with the names that have one.
+    choice.check()?;
+    choice.log();
+
+    let input = plugin_cmd::read_task_input(run.input.as_deref())?;
+    let sink = plugin_cmd::JsonlSink::open(run.out.as_deref())?;
+
+    match plugin_host::run_task(
+        options,
+        &run.name,
+        &input,
+        &sink,
+        &plugin_cmd::TerminalPrompt,
+    )
+    .await?
+    {
+        Outcome::Completed(summary) => {
+            eprintln!("{}", serde_json::to_string_pretty(&summary)?);
+            Ok(())
+        }
+        Outcome::Interrupted(signal) => {
+            eprintln!("{signal}: the task `{}` was stopped", run.name);
+            std::process::exit(signal.exit_code());
+        }
+    }
+}
+
+/// `sbrs plugin run NAME` in a build without plugins: there is none to run.
+#[cfg(not(feature = "plugins"))]
+async fn run_plugin_task(
+    run: &PluginRunArgs,
+    _args: &Cli,
+) -> Result<(), Box<dyn std::error::Error>> {
+    plugin_cmd::info(&run.name, &PluginSelection::new())?;
     Ok(())
 }
 
@@ -3169,7 +3280,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
 
         Commands::Prompt(options) => return run_prompt(options).await,
-        Commands::Plugin(plugin) => return run_plugin(&plugin.command, &args),
+        Commands::Plugin(plugin) => return run_plugin(&plugin.command, &args).await,
         // The subcommands that start no browser end here; `capture` goes on to start one.
         Commands::Fingerprint(fingerprint) => match fingerprint::run_offline(&fingerprint.command)?
         {
@@ -4554,6 +4665,49 @@ mod plugin_cli_tests {
             &["sbrs", "plugin", "info"],
             &["sbrs", "plugin", "remove", "shield"],
             &["sbrs", "plugin", "list", "extra"],
+        ] {
+            assert!(try_parse(argv).is_err(), "{argv:?} was accepted");
+        }
+    }
+
+    #[test]
+    fn plugin_run_takes_a_name_an_input_and_an_output() {
+        let cli = parse(&[
+            "sbrs",
+            "plugin",
+            "run",
+            "crawler",
+            "--input",
+            "-",
+            "--out",
+            "found.jsonl",
+            "--plugin",
+            "shield",
+        ]);
+        // The plugin options are global, so they stay valid after the subcommand.
+        assert_eq!(cli.plugin, ["shield"]);
+        let Commands::Plugin(PluginArgs {
+            command: PluginCommand::Run(run),
+        }) = cli.command
+        else {
+            panic!("not plugin run");
+        };
+        assert_eq!(run.name, "crawler");
+        assert_eq!(run.input.as_deref(), Some("-"));
+        assert_eq!(run.out, Some(PathBuf::from("found.jsonl")));
+
+        let bare = parse(&["sbrs", "plugin", "run", "batcher"]);
+        let Commands::Plugin(PluginArgs {
+            command: PluginCommand::Run(run),
+        }) = bare.command
+        else {
+            panic!("not plugin run");
+        };
+        assert_eq!((run.input, run.out), (None, None));
+
+        for argv in [
+            &["sbrs", "plugin", "run"][..],
+            &["sbrs", "plugin", "run", "a", "b"],
         ] {
             assert!(try_parse(argv).is_err(), "{argv:?} was accepted");
         }

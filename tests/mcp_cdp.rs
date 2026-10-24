@@ -123,8 +123,8 @@ const DEVELOPER_TOOLS: [&str; 17] = [
 ];
 
 /// The tools only this server has, because only this engine exposes a
-/// DevTools endpoint.
-const CDP_ONLY_TOOLS: [&str; 1] = ["get_devtools_endpoint"];
+/// DevTools endpoint (and `run_plugin_task`, which runs the tasks of plugins on a browser of their own).
+const CDP_ONLY_TOOLS: [&str; 2] = ["get_devtools_endpoint", "run_plugin_task"];
 
 // ----------------------------------------------------------------------
 // Catalogue

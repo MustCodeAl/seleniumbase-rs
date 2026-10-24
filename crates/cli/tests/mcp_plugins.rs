@@ -338,6 +338,85 @@ async fn no_tool_argument_adds_a_plugin() {
     );
 }
 
+/// The text a tool call that failed says.
+fn failure_of(result: &Value) -> String {
+    assert_eq!(result["isError"], json!(true), "the call failed: {result}");
+    text_of(result)
+}
+
+#[tokio::test]
+async fn the_cdp_server_offers_the_run_plugin_task_tool() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut server = Server::start(dir.path(), &[], &["--server", "cdp"]).await;
+
+    let reply = server.request("tools/list", json!({})).await;
+
+    let tools = reply["result"]["tools"].as_array().expect("a tool list");
+    let tool = tools
+        .iter()
+        .find(|tool| tool["name"] == "run_plugin_task")
+        .unwrap_or_else(|| panic!("run_plugin_task is listed: {reply}"));
+    assert_eq!(tool["inputSchema"]["required"], json!(["name"]));
+    for argument in ["name", "input", "plugins", "headless"] {
+        assert!(
+            tool["inputSchema"]["properties"].get(argument).is_some(),
+            "{argument}: {tool}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn run_plugin_task_refuses_a_plugin_the_operator_did_not_enable() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut server = Server::start(dir.path(), &[], &["--server", "cdp"]).await;
+
+    let result = server
+        .call("run_plugin_task", json!({ "name": "shield" }))
+        .await;
+
+    let text = failure_of(&result);
+    assert!(
+        text.contains("`shield` is not enabled for this server"),
+        "{text}"
+    );
+    assert!(text.contains("--plugin NAME"), "{text}");
+}
+
+#[tokio::test]
+async fn run_plugin_task_checks_the_task_the_input_and_the_plugin_list_before_any_browser_starts() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut server =
+        Server::start(dir.path(), &[], &["--server", "cdp", "--plugin", "shield"]).await;
+
+    // Shield is enabled, but it reacts to a browser and has no task.
+    let no_task = server
+        .call("run_plugin_task", json!({ "name": "shield" }))
+        .await;
+    assert!(
+        failure_of(&no_task).contains("plugin `shield` offers no task"),
+        "{no_task}"
+    );
+
+    let bad_input = server
+        .call(
+            "run_plugin_task",
+            json!({ "name": "shield", "input": "{not json" }),
+        )
+        .await;
+    let text = failure_of(&bad_input);
+    assert!(text.contains("invalid argument 'input'"), "{text}");
+
+    let more = server
+        .call(
+            "run_plugin_task",
+            json!({ "name": "shield", "plugins": "shield,crx" }),
+        )
+        .await;
+    let text = failure_of(&more);
+    assert!(text.contains("invalid argument 'plugins'"), "{text}");
+    assert!(text.contains("`crx` is not enabled"), "{text}");
+}
+
 /// `sbrs-mcp args...` in an empty folder, which has to end at once.
 fn refused(env: &[(&str, &str)], args: &[&str]) -> std::process::Output {
     let dir = tempfile::tempdir().unwrap();

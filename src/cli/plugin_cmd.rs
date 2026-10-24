@@ -699,6 +699,254 @@ fn row(text: &mut String, label: &str, lines: impl IntoIterator<Item = String>) 
     }
 }
 
+// ----------------------------------------------------------------------
+// `sbrs plugin run NAME`
+// ----------------------------------------------------------------------
+
+/// The names of the plugins of `registry` that offer a task, in registry order.
+///
+/// A plugin that refuses its default options is not listed, because its task cannot be seen
+/// without them.
+#[cfg(feature = "plugins")]
+#[must_use]
+pub fn task_names_with(registry: &Registry) -> Vec<String> {
+    registry
+        .names()
+        .into_iter()
+        .filter(|name| {
+            registry
+                .build(&PluginSpec::new(*name))
+                .is_ok_and(|plugin| plugin.task().is_some())
+        })
+        .map(|name| name.to_string())
+        .collect()
+}
+
+/// The error for a name that is not a plugin with a task: what is wrong, and which plugins do
+/// offer one.
+#[cfg(feature = "plugins")]
+fn no_task(name: &str, registry: &Registry) -> SeleniumBaseError {
+    let with_task = task_names_with(registry);
+    let known = if with_task.is_empty() {
+        "no plugin of this build offers a task".to_owned()
+    } else {
+        format!("plugins with a task: {}", with_task.join(", "))
+    };
+    let problem = if registry.get(name).is_none() {
+        format!("no plugin named `{name}`")
+    } else {
+        format!("plugin `{name}` offers no task")
+    };
+    SeleniumBaseError::invalid_config(format!(
+        "{problem} ({known}); `sbrs plugin list` shows the plugins"
+    ))
+}
+
+/// The launch options for `sbrs plugin run NAME`: the browser `settings` describe, with the
+/// plugins `settings` selects and the plugin `name` on top (enabled implicitly), all built from
+/// the built-in registry.
+///
+/// Everything that can be wrong with the name, the options and the capabilities is found here,
+/// before a browser starts.
+///
+/// # Errors
+///
+/// [`SeleniumBaseError::InvalidConfig`] when no built-in plugin called `name` offers a task (the
+/// message lists the ones that do), when a plugin or its options are refused, and what
+/// [`Settings::to_launch_options`] returns.
+#[cfg(feature = "plugins")]
+pub fn task_launch_options(
+    settings: Settings,
+    name: &str,
+) -> Result<crate::sb_cdp::LaunchOptions, SeleniumBaseError> {
+    task_launch_options_with(&crate::plugin_host::builtin_registry(), settings, name)
+}
+
+/// [`task_launch_options`] against the plugins of `registry`.
+///
+/// # Errors
+///
+/// As [`task_launch_options`].
+#[cfg(feature = "plugins")]
+pub fn task_launch_options_with(
+    registry: &Registry,
+    settings: Settings,
+    name: &str,
+) -> Result<crate::sb_cdp::LaunchOptions, SeleniumBaseError> {
+    if registry.get(name).is_none() {
+        return Err(no_task(name, registry));
+    }
+    let mut selection = settings.plugins.clone();
+    selection.enable_once(name);
+    let set = crate::plugin_host::build_with(registry, &selection).map_err(as_usage_error)?;
+    if !set.task_names().contains(&name) {
+        return Err(no_task(name, registry));
+    }
+    crate::plugin_host::check_task(&set, name).map_err(as_usage_error)?;
+    // The set above replaces the one the settings would build from the built-in registry.
+    let mut options = Settings {
+        plugins: PluginSelection::new(),
+        ..settings
+    }
+    .to_launch_options()?;
+    options.plugins = set;
+    Ok(options)
+}
+
+/// Reads the input of a task: JSON from the file `source`, from standard input when it is `-`,
+/// and an empty object when there is none.
+///
+/// # Errors
+///
+/// [`SeleniumBaseError::InvalidConfig`] when the input cannot be read or is not JSON.
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::cli::plugin_cmd::read_task_input;
+///
+/// assert_eq!(read_task_input(None)?, serde_json::json!({}));
+/// assert!(read_task_input(Some("no/such/input.json")).is_err());
+/// # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
+/// ```
+#[cfg(feature = "plugins")]
+pub fn read_task_input(source: Option<&str>) -> Result<Value, SeleniumBaseError> {
+    read_task_input_from(source, std::io::stdin().lock())
+}
+
+/// [`read_task_input`] with the reader that `-` means.
+#[cfg(feature = "plugins")]
+fn read_task_input_from(
+    source: Option<&str>,
+    mut stdin: impl std::io::Read,
+) -> Result<Value, SeleniumBaseError> {
+    let Some(source) = source else {
+        return Ok(Value::Object(serde_json::Map::new()));
+    };
+    let (text, from) = if source == "-" {
+        let mut text = String::new();
+        stdin.read_to_string(&mut text).map_err(|error| {
+            SeleniumBaseError::invalid_config(format!(
+                "cannot read the task input from standard input: {error}"
+            ))
+        })?;
+        (text, "standard input".to_owned())
+    } else {
+        let text = std::fs::read_to_string(source).map_err(|error| {
+            SeleniumBaseError::invalid_config(format!(
+                "cannot read the task input file {source}: {error}"
+            ))
+        })?;
+        (text, format!("file {source}"))
+    };
+    serde_json::from_str(&text).map_err(|error| {
+        SeleniumBaseError::invalid_config(format!(
+            "the task input from {from} is not JSON: {error}"
+        ))
+    })
+}
+
+/// Where the results of `sbrs plugin run` go: one JSON value per line, on standard output or in
+/// the file `--out` names. Every line is flushed, so a task that is stopped leaves what it found.
+pub struct JsonlSink {
+    out: std::sync::Mutex<Box<dyn std::io::Write + Send>>,
+}
+
+#[cfg(feature = "plugins")]
+impl JsonlSink {
+    /// A sink over any writer.
+    #[must_use]
+    pub fn new(out: impl std::io::Write + Send + 'static) -> Self {
+        Self {
+            out: std::sync::Mutex::new(Box::new(out)),
+        }
+    }
+
+    /// The sink `--out` asks for: the file `path` (created, with its folders; an existing file
+    /// is replaced), or standard output when there is none.
+    ///
+    /// # Errors
+    ///
+    /// [`SeleniumBaseError::InvalidConfig`] when the file cannot be created.
+    pub fn open(path: Option<&Path>) -> Result<Self, SeleniumBaseError> {
+        let Some(path) = path else {
+            return Ok(Self::new(std::io::stdout()));
+        };
+        let refused = |error: std::io::Error| {
+            SeleniumBaseError::invalid_config(format!(
+                "cannot create the output file {}: {error}",
+                path.display()
+            ))
+        };
+        if let Some(folder) = path
+            .parent()
+            .filter(|folder| !folder.as_os_str().is_empty())
+        {
+            std::fs::create_dir_all(folder).map_err(refused)?;
+        }
+        std::fs::File::create(path).map(Self::new).map_err(refused)
+    }
+}
+
+#[cfg(feature = "plugins")]
+impl std::fmt::Debug for JsonlSink {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("JsonlSink").finish_non_exhaustive()
+    }
+}
+
+#[cfg(feature = "plugins")]
+impl seleniumbase_rs_plugin::Sink for JsonlSink {
+    fn record(&self, line: &Value) -> seleniumbase_rs_plugin::Result<()> {
+        use std::io::Write as _;
+
+        let mut text = serde_json::to_string(line)
+            .map_err(|error| seleniumbase_rs_plugin::PluginError::other(error.to_string()))?;
+        text.push('\n');
+        let mut out = self
+            .out
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        out.write_all(text.as_bytes())
+            .and_then(|()| out.flush())
+            .map_err(|error| seleniumbase_rs_plugin::PluginError::other(error.to_string()))
+    }
+}
+
+/// How a task asks a person for help on the command line: it says what to do on standard error
+/// and waits for Enter. Without a terminal there is nobody to ask, and waiting fails.
+#[cfg(feature = "plugins")]
+#[derive(Debug, Clone, Copy, Default)]
+pub struct TerminalPrompt;
+
+#[cfg(feature = "plugins")]
+#[seleniumbase_rs_plugin::async_trait]
+impl seleniumbase_rs_plugin::Prompt for TerminalPrompt {
+    async fn wait(
+        &self,
+        message: &str,
+        _page: &dyn seleniumbase_rs_plugin::PageHandle,
+    ) -> seleniumbase_rs_plugin::Result<()> {
+        use std::io::{IsTerminal as _, Write as _};
+
+        if !std::io::stdin().is_terminal() {
+            return Err(seleniumbase_rs_plugin::PluginError::unsupported(
+                "waiting for a person: standard input is not a terminal",
+            ));
+        }
+        // A closed standard error is nothing to stop the wait for.
+        let _ = writeln!(
+            std::io::stderr().lock(),
+            "{message}\nPress Enter when you are done."
+        );
+        tokio::task::spawn_blocking(|| std::io::stdin().read_line(&mut String::new()))
+            .await
+            .map_err(|error| seleniumbase_rs_plugin::PluginError::other(error.to_string()))?
+            .map(drop)
+            .map_err(|error| seleniumbase_rs_plugin::PluginError::other(error.to_string()))
+    }
+}
+
 #[cfg(all(test, feature = "plugins"))]
 mod tests {
     use seleniumbase_rs_plugin::{
@@ -784,6 +1032,244 @@ mod tests {
         Registry::new()
             .with(Descriptor::of::<Probe>())
             .with(Descriptor::of::<Plain>())
+    }
+
+    /// A plugin with a task: it writes its input to the sink and says it is done.
+    struct Worker;
+
+    #[async_trait]
+    impl Plugin for Worker {
+        fn name(&self) -> &str {
+            Self::NAME
+        }
+
+        fn metadata(&self) -> Metadata {
+            Self::describe()
+        }
+
+        fn task(&self) -> Option<&dyn seleniumbase_rs_plugin::Task> {
+            Some(self)
+        }
+    }
+
+    impl Configurable for Worker {
+        const NAME: &'static str = "worker";
+
+        fn describe() -> Metadata {
+            Metadata::new(Category::Core).capability(Capability::Task)
+        }
+
+        fn configure(_options: &Value) -> seleniumbase_rs_plugin::Result<Self> {
+            Ok(Self)
+        }
+    }
+
+    #[async_trait]
+    impl seleniumbase_rs_plugin::Task for Worker {
+        async fn run(
+            &self,
+            cx: &seleniumbase_rs_plugin::TaskContext<'_>,
+        ) -> seleniumbase_rs_plugin::Result<Value> {
+            cx.sink.record(&json!({ "input": cx.input }))?;
+            Ok(json!({ "done": true }))
+        }
+    }
+
+    fn registry_with_a_task() -> Registry {
+        registry().with(Descriptor::of::<Worker>())
+    }
+
+    #[test]
+    fn the_plugins_that_offer_a_task_are_found_by_building_them() {
+        assert_eq!(task_names_with(&registry_with_a_task()), ["worker"]);
+        assert!(task_names_with(&registry()).is_empty());
+    }
+
+    #[test]
+    fn a_name_that_has_no_task_is_a_usage_error_that_lists_the_names_that_have() {
+        let with_task = registry_with_a_task();
+        for (name, problem) in [
+            ("ghost", "no plugin named `ghost`"),
+            ("plain", "plugin `plain` offers no task"),
+        ] {
+            let error = task_launch_options_with(&with_task, Settings::default(), name)
+                .map(drop)
+                .unwrap_err();
+            assert_eq!(error.exit_code(), 2, "{name}");
+            let text = error.to_string();
+            assert!(text.contains(problem), "{text}");
+            assert!(text.contains("plugins with a task: worker"), "{text}");
+        }
+        let error = task_launch_options_with(&registry(), Settings::default(), "plain")
+            .map(drop)
+            .unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("no plugin of this build offers a task"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn the_named_plugin_is_turned_on_by_the_name_alone_next_to_the_selected_ones() {
+        let settings = Settings {
+            plugins: PluginSelection::new().enable("plain"),
+            ..Settings::default()
+        };
+
+        let options = task_launch_options_with(&registry_with_a_task(), settings, "worker")
+            .expect("the options");
+
+        assert_eq!(options.plugins.task_names(), ["worker"]);
+        let names = options.plugins.names();
+        assert!(
+            names.contains(&"plain") && names.contains(&"worker"),
+            "{names:?}"
+        );
+    }
+
+    #[test]
+    fn a_name_the_selection_already_has_is_not_enabled_twice() {
+        let settings = Settings {
+            plugins: PluginSelection::new().enable("worker"),
+            ..Settings::default()
+        };
+        task_launch_options_with(&registry_with_a_task(), settings, "worker").expect("one worker");
+    }
+
+    #[test]
+    fn options_for_a_plugin_that_is_not_enabled_are_a_usage_error_before_a_browser_starts() {
+        let settings = Settings {
+            plugins: PluginSelection::new().with_options("probe", json!({ "mode": 3, "bad": 1 })),
+            ..Settings::default()
+        };
+        // `probe` is not in the selection's `enable`: the options alone are refused.
+        let error = task_launch_options_with(&registry_with_a_task(), settings, "worker")
+            .map(drop)
+            .unwrap_err();
+        assert_eq!(error.exit_code(), 2);
+    }
+
+    #[tokio::test]
+    async fn the_options_run_the_task_on_a_scripted_browser_and_the_sink_gets_its_lines() {
+        use crate::common::shutdown::{Outcome, Shutdown};
+        use crate::sb_cdp::{Browser, MockCtrl};
+
+        let options =
+            task_launch_options_with(&registry_with_a_task(), Settings::default(), "worker")
+                .expect("the options");
+        let browser = Browser::launch_mocked(options, &MockCtrl::new())
+            .await
+            .expect("the mocked launch");
+        let buffer = SharedBuffer::default();
+        let sink = JsonlSink::new(buffer.clone());
+        let (mut shutdown, _trigger) = Shutdown::manual();
+
+        let outcome = crate::plugin_host::run_task_on(
+            &mut shutdown,
+            browser,
+            "worker",
+            &json!({ "jobs": [1, 2] }),
+            &sink,
+            &seleniumbase_rs_plugin::NoPrompt,
+        )
+        .await
+        .expect("the task runs");
+
+        assert_eq!(outcome, Outcome::Completed(json!({ "done": true })));
+        assert_eq!(buffer.text(), "{\"input\":{\"jobs\":[1,2]}}\n");
+    }
+
+    /// A writer whose text the test can read back.
+    #[derive(Clone, Default)]
+    struct SharedBuffer(std::sync::Arc<std::sync::Mutex<Vec<u8>>>);
+
+    impl SharedBuffer {
+        fn text(&self) -> String {
+            String::from_utf8(self.0.lock().unwrap().clone()).unwrap()
+        }
+    }
+
+    impl std::io::Write for SharedBuffer {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.0.lock().unwrap().extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn the_sink_writes_one_json_value_per_line() {
+        use seleniumbase_rs_plugin::Sink as _;
+
+        let buffer = SharedBuffer::default();
+        let sink = JsonlSink::new(buffer.clone());
+        sink.record(&json!({ "a": 1 })).unwrap();
+        sink.record(&json!("two")).unwrap();
+        assert_eq!(buffer.text(), "{\"a\":1}\n\"two\"\n");
+    }
+
+    #[test]
+    fn a_file_sink_creates_its_folders_and_replaces_an_old_file() {
+        use seleniumbase_rs_plugin::Sink as _;
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("deep/er/found.jsonl");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, "old\n").unwrap();
+
+        let sink = JsonlSink::open(Some(&path)).unwrap();
+        sink.record(&json!({ "n": 1 })).unwrap();
+
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "{\"n\":1}\n");
+        let fresh = dir.path().join("new/folder/out.jsonl");
+        JsonlSink::open(Some(&fresh)).unwrap();
+        assert!(fresh.exists(), "its folders were created");
+        let blocked = dir.path().join("deep/er/found.jsonl/inside");
+        let error = JsonlSink::open(Some(&blocked)).unwrap_err();
+        assert_eq!(error.exit_code(), 2);
+    }
+
+    #[test]
+    fn the_task_input_is_a_file_standard_input_or_an_empty_object() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("jobs.json");
+        std::fs::write(&file, r#"{"jobs": [1]}"#).unwrap();
+        let file = file.to_str().unwrap();
+        let nothing: &[u8] = b"";
+
+        assert_eq!(read_task_input_from(None, nothing).unwrap(), json!({}));
+        assert_eq!(
+            read_task_input_from(Some(file), nothing).unwrap(),
+            json!({ "jobs": [1] })
+        );
+        assert_eq!(
+            read_task_input_from(Some("-"), &br#"[1, 2]"#[..]).unwrap(),
+            json!([1, 2])
+        );
+    }
+
+    #[test]
+    fn a_task_input_that_cannot_be_used_is_a_usage_error_naming_where_it_came_from() {
+        let dir = tempfile::tempdir().unwrap();
+        let bad = dir.path().join("bad.json");
+        std::fs::write(&bad, "{not json").unwrap();
+        let bad = bad.to_str().unwrap();
+        let nothing: &[u8] = b"";
+
+        for (source, stdin, needle) in [
+            (bad, nothing, "file ".to_owned() + bad),
+            ("no/such/file.json", nothing, "no/such/file.json".to_owned()),
+            ("-", &b"oops"[..], "standard input".to_owned()),
+        ] {
+            let error = read_task_input_from(Some(source), stdin).unwrap_err();
+            assert_eq!(error.exit_code(), 2, "{source}");
+            assert!(error.to_string().contains(&needle), "{source}: {error}");
+        }
     }
 
     /// The text of the line that starts with `label`, without the label, and

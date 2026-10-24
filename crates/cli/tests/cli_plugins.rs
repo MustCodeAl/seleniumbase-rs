@@ -905,3 +905,62 @@ fn devtools_does_not_read_the_settings_that_are_not_plugins() {
 
     assert!(chrome.args().is_some(), "the browser was started");
 }
+
+// ---------------------------------------------------------------------------
+// sbrs plugin run
+// ---------------------------------------------------------------------------
+
+#[test]
+fn plugin_run_with_an_unknown_name_is_a_usage_error_that_points_to_the_plugins_with_a_task() {
+    let output = in_a_new_folder(&[], &["plugin", "run", "no-such-plugin"]);
+
+    let text = stderr(&output);
+    assert_eq!(output.status.code(), Some(2), "{text}");
+    assert!(text.contains("no plugin named `no-such-plugin`"), "{text}");
+    assert!(text.contains("task"), "{text}");
+    assert!(text.contains("sbrs plugin list"), "{text}");
+    assert!(stdout(&output).is_empty(), "no result was written");
+}
+
+#[test]
+fn plugin_run_refuses_a_plugin_without_a_task_before_any_browser_starts() {
+    // Shield reacts to a browser; it has no task. The test needs no Chrome: the refusal comes
+    // before the launch.
+    let output = in_a_new_folder(&[], &["plugin", "run", "shield"]);
+
+    let text = stderr(&output);
+    assert_eq!(output.status.code(), Some(2), "{text}");
+    assert!(text.contains("plugin `shield` offers no task"), "{text}");
+    assert!(stdout(&output).is_empty(), "no result was written");
+}
+
+#[test]
+fn plugin_run_needs_the_name_of_a_plugin() {
+    let output = in_a_new_folder(&[], &["plugin", "run"]);
+
+    assert_eq!(output.status.code(), Some(2), "{}", stderr(&output));
+}
+
+#[test]
+fn plugin_run_is_listed_in_the_help_of_the_plugin_command() {
+    let output = in_a_new_folder(&[], &["plugin", "--help"]);
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    let text = stdout(&output);
+    assert!(
+        text.lines()
+            .any(|line| line.trim_start().starts_with("run")),
+        "{text}"
+    );
+}
+
+#[test]
+fn plugin_run_help_describes_the_input_the_output_and_the_exit_status() {
+    let output = in_a_new_folder(&[], &["plugin", "run", "--help"]);
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    let text = stdout(&output);
+    for expected in ["--input", "--out", "JSON", "130"] {
+        assert!(text.contains(expected), "{expected:?} in:\n{text}");
+    }
+}
