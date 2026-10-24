@@ -481,7 +481,7 @@ struct Cli {
     ///
     /// Every command starts its own browser and closes it at the end, so a command that
     /// acts on a page (get-text, click, screenshot, assert-element, ...) acts on this one:
-    /// `sbrs --url https://example.com get-text --css h1`. A bare host gets `https://` and
+    /// `sbrs --url https://example.com get-text --css p`. A bare host gets `https://` and
     /// a local file becomes a `file://` URL. The command line wins over SB_START_PAGE, which
     /// wins over the `start_page` key of the settings file. Commands that open a URL of
     /// their own (open, smoke, download-file, print-pdf, pdf-text, assert-pdf-text, record)
@@ -695,7 +695,7 @@ enum Commands {
     /// Assert that an element exists.
     #[usage(
         help_heading = "Page commands",
-        example = "sbrs --url https://example.com assert-element --css h1"
+        example = "sbrs --url https://example.com assert-element --css p"
     )]
     AssertElement {
         #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
@@ -704,7 +704,7 @@ enum Commands {
     /// Wait until an element contains the expected text.
     #[usage(
         help_heading = "Page commands",
-        example = "sbrs --url https://example.com wait-for-text --css h1 --text 'Example Domain' --timeout 5"
+        example = "sbrs --url https://example.com wait-for-text --css p --text 'This domain is for use in' --timeout 5"
     )]
     WaitForText {
         #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
@@ -717,7 +717,7 @@ enum Commands {
     /// Hover over an element.
     #[usage(
         help_heading = "Page commands",
-        example = "sbrs --url https://example.com hover --css h1"
+        example = "sbrs --url https://example.com hover --css p"
     )]
     Hover {
         #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
@@ -779,7 +779,7 @@ enum Commands {
     /// Print the visible text of an element.
     #[usage(
         help_heading = "Page commands",
-        example = "sbrs --url https://example.com get-text --css h1"
+        example = "sbrs --url https://example.com get-text --css p"
     )]
     GetText {
         #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
@@ -1005,7 +1005,7 @@ enum Commands {
     /// Assert that an element contains the expected text.
     #[usage(
         help_heading = "Page commands",
-        example = "sbrs --url https://example.com assert-text-visible --css h1 --text 'Example Domain'"
+        example = "sbrs --url https://example.com assert-text-visible --css p --text 'This domain is for use in'"
     )]
     AssertTextVisible {
         #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
@@ -1016,7 +1016,7 @@ enum Commands {
     /// Assert that an element does not contain the given text.
     #[usage(
         help_heading = "Page commands",
-        example = "sbrs --url https://example.com assert-text-not-visible --css h1 --text Error"
+        example = "sbrs --url https://example.com assert-text-not-visible --css p --text Error"
     )]
     AssertTextNotVisible {
         #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
@@ -1061,7 +1061,7 @@ enum Commands {
     /// Print whether an element is visible.
     #[usage(
         help_heading = "Page commands",
-        example = "sbrs --url https://example.com is-element-visible --css h1"
+        example = "sbrs --url https://example.com is-element-visible --css p"
     )]
     IsElementVisible {
         #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
@@ -1070,7 +1070,7 @@ enum Commands {
     /// Print whether the expected text is visible in an element.
     #[usage(
         help_heading = "Page commands",
-        example = "sbrs --url https://example.com is-text-visible --css h1 --text Example"
+        example = "sbrs --url https://example.com is-text-visible --css p --text domain"
     )]
     IsTextVisible {
         #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
@@ -1146,7 +1146,7 @@ enum Commands {
     /// Wait until an element is present in the DOM.
     #[usage(
         help_heading = "Page commands",
-        example = "sbrs --url https://example.com wait-for-element-present --css h1 --timeout 5"
+        example = "sbrs --url https://example.com wait-for-element-present --css p --timeout 5"
     )]
     WaitForElementPresent {
         #[usage(long, value_hint = usage::ValueHint::Other, help = "CSS selector for the target element")]
@@ -1809,7 +1809,7 @@ enum Commands {
     /// The page they run on is the global --url, if there is one.
     #[usage(
         help_heading = "Page commands",
-        example = "sbrs --url https://example.com deferred --assert element=h1 --assert 'text=h1:Example Domain'"
+        example = "sbrs --url https://example.com deferred --assert element=p --assert 'text=p:This domain is for use in'"
     )]
     Deferred {
         #[usage(

@@ -476,7 +476,7 @@ mod tests {
         let text = failure(&["get-text"]);
         assert!(text.contains("Examples:"), "{text}");
         assert!(
-            text.contains("$ sbrs --url https://example.com get-text --css h1"),
+            text.contains("$ sbrs --url https://example.com get-text --css p"),
             "{text}"
         );
         assert!(!text.contains("--proxy-pac-url"), "{text}");
@@ -638,5 +638,22 @@ mod tests {
             "examples the parser refuses:\n{}",
             refused.join("\n")
         );
+    }
+
+    /// example.com lost its `<h1>` in 2026, so an example that selects one fails as soon as
+    /// somebody pastes it from `--help`: the paragraph is the element both pages have.
+    #[test]
+    fn no_example_selects_the_h1_example_com_no_longer_serves() {
+        let stale: Vec<String> = visible_commands()
+            .iter()
+            .flat_map(|route| examples(route))
+            .filter(|example| example.contains("example.com"))
+            .filter(|example| {
+                shell_words(example)
+                    .iter()
+                    .any(|word| word == "h1" || word.contains("=h1"))
+            })
+            .collect();
+        assert!(stale.is_empty(), "examples that select an h1: {stale:?}");
     }
 }

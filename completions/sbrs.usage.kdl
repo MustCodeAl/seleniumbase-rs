@@ -667,7 +667,7 @@ flag "--start-page --url --start_page" help="Page the browser opens first, Pytho
     long_help #"""
 Page the browser opens first, Python's --start-page (aliases --url and --start_page)
 
-Every command starts its own browser and closes it at the end, so a command that acts on a page (get-text, click, screenshot, assert-element, ...) acts on this one: `sbrs --url https://example.com get-text --css h1`. A bare host gets `https://` and a local file becomes a `file://` URL. The command line wins over SB_START_PAGE, which wins over the `start_page` key of the settings file. Commands that open a URL of their own (open, smoke, download-file, print-pdf, pdf-text, assert-pdf-text, record) refuse it.
+Every command starts its own browser and closes it at the end, so a command that acts on a page (get-text, click, screenshot, assert-element, ...) acts on this one: `sbrs --url https://example.com get-text --css p`. A bare host gets `https://` and a local file becomes a `file://` URL. The command line wins over SB_START_PAGE, which wins over the `start_page` key of the settings file. Commands that open a URL of their own (open, smoke, download-file, print-pdf, pdf-text, assert-pdf-text, record) refuse it.
 """#
     arg <URL>
 }
@@ -1138,7 +1138,7 @@ cmd assert-element help_heading="Page commands" help="Assert that an element exi
     }
     flag "-h --help" help="Print help" action=help builtin=#true
     complete css type=none
-    example "sbrs --url https://example.com assert-element --css h1"
+    example "sbrs --url https://example.com assert-element --css p"
 }
 cmd wait-for-text help_heading="Page commands" help="Wait until an element contains the expected text." {
     flag --css help="CSS selector for the target element" required=#true {
@@ -1154,7 +1154,7 @@ cmd wait-for-text help_heading="Page commands" help="Wait until an element conta
     complete css type=none
     complete text type=none
     complete timeout type=none
-    example "sbrs --url https://example.com wait-for-text --css h1 --text 'Example Domain' --timeout 5"
+    example "sbrs --url https://example.com wait-for-text --css p --text 'This domain is for use in' --timeout 5"
 }
 cmd hover help_heading="Page commands" help="Hover over an element." {
     flag --css help="CSS selector for the target element" required=#true {
@@ -1162,7 +1162,7 @@ cmd hover help_heading="Page commands" help="Hover over an element." {
     }
     flag "-h --help" help="Print help" action=help builtin=#true
     complete css type=none
-    example "sbrs --url https://example.com hover --css h1"
+    example "sbrs --url https://example.com hover --css p"
 }
 cmd hover-and-click help_heading="Page commands" help="Hover over one element, then click another." {
     flag --hover-css help="CSS selector to hover over" required=#true {
@@ -1226,7 +1226,7 @@ cmd get-text help_heading="Page commands" help="Print the visible text of an ele
     }
     flag "-h --help" help="Print help" action=help builtin=#true
     complete css type=none
-    example "sbrs --url https://example.com get-text --css h1"
+    example "sbrs --url https://example.com get-text --css p"
 }
 cmd get-attribute help_heading="Page commands" help="Print an element attribute value." {
     flag --css help="CSS selector for the target element" required=#true {
@@ -1472,7 +1472,7 @@ cmd assert-text-visible help_heading="Page commands" help="Assert that an elemen
     flag "-h --help" help="Print help" action=help builtin=#true
     complete css type=none
     complete text type=none
-    example "sbrs --url https://example.com assert-text-visible --css h1 --text 'Example Domain'"
+    example "sbrs --url https://example.com assert-text-visible --css p --text 'This domain is for use in'"
 }
 cmd assert-text-not-visible help_heading="Page commands" help="Assert that an element does not contain the given text." {
     flag --css help="CSS selector for the target element" required=#true {
@@ -1484,7 +1484,7 @@ cmd assert-text-not-visible help_heading="Page commands" help="Assert that an el
     flag "-h --help" help="Print help" action=help builtin=#true
     complete css type=none
     complete text type=none
-    example "sbrs --url https://example.com assert-text-not-visible --css h1 --text Error"
+    example "sbrs --url https://example.com assert-text-not-visible --css p --text Error"
 }
 cmd assert-attribute help_heading="Page commands" help="Assert an element attribute equals an expected value." {
     flag --css help="CSS selector for the target element" required=#true {
@@ -1524,7 +1524,7 @@ cmd is-element-visible help_heading="Page commands" help="Print whether an eleme
     }
     flag "-h --help" help="Print help" action=help builtin=#true
     complete css type=none
-    example "sbrs --url https://example.com is-element-visible --css h1"
+    example "sbrs --url https://example.com is-element-visible --css p"
 }
 cmd is-text-visible help_heading="Page commands" help="Print whether the expected text is visible in an element." {
     flag --css help="CSS selector for the target element" required=#true {
@@ -1536,7 +1536,7 @@ cmd is-text-visible help_heading="Page commands" help="Print whether the expecte
     flag "-h --help" help="Print help" action=help builtin=#true
     complete css type=none
     complete text type=none
-    example "sbrs --url https://example.com is-text-visible --css h1 --text Example"
+    example "sbrs --url https://example.com is-text-visible --css p --text domain"
 }
 cmd wait-for-element-not-visible help_heading="Page commands" help="Wait until an element is no longer visible." {
     flag --css help="CSS selector for the target element" required=#true {
@@ -1608,7 +1608,7 @@ cmd wait-for-element-present help_heading="Page commands" help="Wait until an el
     flag "-h --help" help="Print help" action=help builtin=#true
     complete css type=none
     complete timeout type=none
-    example "sbrs --url https://example.com wait-for-element-present --css h1 --timeout 5"
+    example "sbrs --url https://example.com wait-for-element-present --css p --timeout 5"
 }
 cmd add-text help_heading="Page commands" help="Append text to an input or textarea." {
     flag --css help="CSS selector for the target element" required=#true {
@@ -2342,7 +2342,7 @@ The page they run on is the global --url, if there is one.
     flag "-h --help" help="Print help" action=help builtin=#true
     complete spec type=none
     complete spec type=path:json
-    example "sbrs --url https://example.com deferred --assert element=h1 --assert 'text=h1:Example Domain'"
+    example "sbrs --url https://example.com deferred --assert element=p --assert 'text=p:This domain is for use in'"
 }
 cmd replay help_heading="Record and replay" help="Replay a recorded action file (recordings/NAME_rec.json) against a fresh browser." {
     flag "-h --help" help="Print help" action=help builtin=#true

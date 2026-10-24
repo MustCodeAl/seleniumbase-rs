@@ -209,7 +209,7 @@ Locale string for the browser context
 
 Page the browser opens first, Python's --start-page (aliases --url and --start_page)
 
-Every command starts its own browser and closes it at the end, so a command that acts on a page (get-text, click, screenshot, assert-element, ...) acts on this one: `sbrs --url https://example.com get-text --css h1`. A bare host gets `https://` and a local file becomes a `file://` URL. The command line wins over SB_START_PAGE, which wins over the `start_page` key of the settings file. Commands that open a URL of their own (open, smoke, download-file, print-pdf, pdf-text, assert-pdf-text, record) refuse it.
+Every command starts its own browser and closes it at the end, so a command that acts on a page (get-text, click, screenshot, assert-element, ...) acts on this one: `sbrs --url https://example.com get-text --css p`. A bare host gets `https://` and a local file becomes a `file://` URL. The command line wins over SB_START_PAGE, which wins over the `start_page` key of the settings file. Commands that open a URL of their own (open, smoke, download-file, print-pdf, pdf-text, assert-pdf-text, record) refuse it.
 
 Also: `--url`, `--start_page`
 
@@ -1032,7 +1032,7 @@ CSS selector for the target element
 </ParamField>
 
 ```bash Examples
-sbrs --url https://example.com assert-element --css h1
+sbrs --url https://example.com assert-element --css p
 ```
 
 ## sbrs assert-link-text
@@ -1112,7 +1112,7 @@ Text that should not be visible
 </ParamField>
 
 ```bash Examples
-sbrs --url https://example.com assert-text-not-visible --css h1 --text Error
+sbrs --url https://example.com assert-text-not-visible --css p --text Error
 ```
 
 ## sbrs assert-text-visible
@@ -1138,7 +1138,7 @@ Expected visible text
 </ParamField>
 
 ```bash Examples
-sbrs --url https://example.com assert-text-visible --css h1 --text 'Example Domain'
+sbrs --url https://example.com assert-text-visible --css p --text 'This domain is for use in'
 ```
 
 ## sbrs assert-title
@@ -1542,7 +1542,7 @@ JSON file containing an array of assertion specs
 </ParamField>
 
 ```bash Examples
-sbrs --url https://example.com deferred --assert element=h1 --assert 'text=h1:Example Domain'
+sbrs --url https://example.com deferred --assert element=p --assert 'text=p:This domain is for use in'
 ```
 
 ## sbrs devtools
@@ -2020,7 +2020,7 @@ CSS selector for the target element
 </ParamField>
 
 ```bash Examples
-sbrs --url https://example.com get-text --css h1
+sbrs --url https://example.com get-text --css p
 ```
 
 ## sbrs get-title
@@ -2286,7 +2286,7 @@ CSS selector for the target element
 </ParamField>
 
 ```bash Examples
-sbrs --url https://example.com hover --css h1
+sbrs --url https://example.com hover --css p
 ```
 
 ## sbrs hover-and-click
@@ -2582,7 +2582,7 @@ CSS selector for the target element
 </ParamField>
 
 ```bash Examples
-sbrs --url https://example.com is-element-visible --css h1
+sbrs --url https://example.com is-element-visible --css p
 ```
 
 ## sbrs is-link-text-visible
@@ -2648,7 +2648,7 @@ Expected text to check
 </ParamField>
 
 ```bash Examples
-sbrs --url https://example.com is-text-visible --css h1 --text Example
+sbrs --url https://example.com is-text-visible --css p --text domain
 ```
 
 ## sbrs load-cookies
@@ -4981,7 +4981,7 @@ Maximum wait time in seconds
 </ParamField>
 
 ```bash Examples
-sbrs --url https://example.com wait-for-element-present --css h1 --timeout 5
+sbrs --url https://example.com wait-for-element-present --css p --timeout 5
 ```
 
 ## sbrs wait-for-ready-state-complete
@@ -5025,6 +5025,6 @@ Maximum wait time in seconds
 </ParamField>
 
 ```bash Examples
-sbrs --url https://example.com wait-for-text --css h1 --text 'Example Domain' --timeout 5
+sbrs --url https://example.com wait-for-text --css p --text 'This domain is for use in' --timeout 5
 ```
 
