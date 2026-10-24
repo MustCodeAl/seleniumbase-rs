@@ -1525,47 +1525,57 @@ impl BaseCase {
         data: &str,
         filename: &str,
     ) -> Result<(), SeleniumBaseError> {
-        let dir = ensure_latest_logs_dir()?;
-        let path = crate::artifacts::confined_path(&dir, filename)?;
+        Self::append_data_in(&ensure_latest_logs_dir()?, data, filename)
+    }
+
+    /// Appends `data` and a newline to the file `filename` in `dir`.
+    fn append_data_in(dir: &Path, data: &str, filename: &str) -> Result<(), SeleniumBaseError> {
         use std::io::Write;
+        let path = crate::artifacts::confined_path(dir, filename)?;
         let mut file = std::fs::OpenOptions::new()
             .create(true)
             .append(true)
             .open(&path)?;
-        writeln!(file, "{}", data)?;
+        writeln!(file, "{data}")?;
         Ok(())
     }
 
-    /// Appends `data` to `logs/sb_<timestamp>.log`.
-    pub fn append_data_to_logs(&self, data: &str) -> Result<(), SeleniumBaseError> {
-        let filename = format!(
+    /// The name of the log file `save_data_to_logs` and `append_data_to_logs`
+    /// write: `sb_` and the Unix time in seconds.
+    fn timestamped_log_name() -> String {
+        format!(
             "sb_{}.log",
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_secs()
-        );
-        self.append_data_to_file(data, &filename)
+        )
+    }
+
+    /// Appends `data` to `sb_<seconds>.log` in the log folder of the running test.
+    /// The folder is the one [`save_screenshot_to_logs`](Self::save_screenshot_to_logs)
+    /// writes to.
+    pub fn append_data_to_logs(&self, data: &str) -> Result<(), SeleniumBaseError> {
+        Self::append_data_in(&self.test_logs_dir()?, data, &Self::timestamped_log_name())
     }
 
     /// Saves `data` to `filename` in the logs directory (overwrites).
     pub fn save_data_as(&self, data: &str, filename: &str) -> Result<(), SeleniumBaseError> {
-        let dir = ensure_latest_logs_dir()?;
-        let path = crate::artifacts::confined_path(&dir, filename)?;
+        Self::save_data_in(&ensure_latest_logs_dir()?, data, filename)
+    }
+
+    /// Writes `data` to the file `filename` in `dir`, replacing it.
+    fn save_data_in(dir: &Path, data: &str, filename: &str) -> Result<(), SeleniumBaseError> {
+        let path = crate::artifacts::confined_path(dir, filename)?;
         fs::write(&path, data)?;
         Ok(())
     }
 
-    /// Saves `data` to a timestamped log file.
+    /// Saves `data` to `sb_<seconds>.log` in the log folder of the running test.
+    /// The folder is the one [`save_screenshot_to_logs`](Self::save_screenshot_to_logs)
+    /// writes to.
     pub fn save_data_to_logs(&self, data: &str) -> Result<(), SeleniumBaseError> {
-        let filename = format!(
-            "sb_{}.log",
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs()
-        );
-        self.save_data_as(data, &filename)
+        Self::save_data_in(&self.test_logs_dir()?, data, &Self::timestamped_log_name())
     }
 
     /// Returns the path to the latest logs directory.

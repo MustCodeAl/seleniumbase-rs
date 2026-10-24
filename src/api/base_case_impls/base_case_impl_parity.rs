@@ -312,9 +312,10 @@ impl BaseCase {
         }
     }
 
-    /// Saves the page's HTML as `name` in the logs folder and returns its
+    /// Saves the page's HTML as `name` in the log folder of the running test and returns its
     /// path. Only the last path part of `name` is used. Corresponds to
-    /// Python's `save_as_html_to_logs`.
+    /// Python's `save_as_html_to_logs`. The folder is the one
+    /// [`save_screenshot_to_logs`](Self::save_screenshot_to_logs) writes to.
     ///
     /// # Errors
     ///
@@ -323,19 +324,21 @@ impl BaseCase {
         let file = Path::new(name).file_name().ok_or_else(|| {
             SeleniumBaseError::invalid_config(format!("{name:?} is not a usable file name"))
         })?;
-        let path = ensure_latest_logs_dir()?.join(file);
+        let path = self.test_logs_dir()?.join(file);
         self.save_page_source_to_path(&path).await?;
         Ok(path)
     }
 
-    /// Saves a screenshot to the logs folder for a failed test's report.
+    /// Saves a screenshot to the log folder of the running test (as
+    /// [`save_screenshot_to_logs`](Self::save_screenshot_to_logs) does) for a
+    /// failed test's report.
     /// Corresponds to Python's `save_teardown_screenshot`.
     ///
     /// # Errors
     ///
     /// Returns an error if the screenshot cannot be taken or written.
     pub async fn save_teardown_screenshot(&self) -> Result<PathBuf, SeleniumBaseError> {
-        let path = artifact_path(&ensure_latest_logs_dir()?, "teardown_screenshot", "png");
+        let path = artifact_path(&self.test_logs_dir()?, "teardown_screenshot", "png");
         self.save_screenshot_to_path(&path).await?;
         Ok(path)
     }

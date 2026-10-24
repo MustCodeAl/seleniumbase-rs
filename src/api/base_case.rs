@@ -1523,20 +1523,53 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Executes the `save_screenshot_to_logs` action.
+    /// Saves a screenshot in the log folder of the running test and returns its path.
+    ///
+    /// Corresponds to Python's `save_screenshot_to_logs`. The folder is
+    /// `latest_logs/<test id>` while a test run records the test (the `sb`
+    /// fixture, the Gherkin harness and the `Plugins` runner do), found by
+    /// [`test_id`](Self::test_id) when another thread records it, and
+    /// `latest_logs` without a recorder. The file is `screenshot.png`, or the
+    /// first of `screenshot_1.png`, `screenshot_2.png` and so on that is free.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the folder cannot be made or the screenshot cannot
+    /// be taken or written.
     pub async fn save_screenshot_to_logs(&self) -> Result<PathBuf, SeleniumBaseError> {
-        let dir = ensure_latest_logs_dir()?;
+        let dir = self.test_logs_dir()?;
         let path = artifact_path(&dir, "screenshot", "png");
         self.save_screenshot_to_path(&path).await?;
         Ok(path)
     }
 
-    /// Executes the `save_page_source_to_logs` action.
+    /// Saves the page source in the log folder of the running test and returns its path.
+    ///
+    /// The folder is the one [`save_screenshot_to_logs`](Self::save_screenshot_to_logs)
+    /// writes to. The file is `page_source.html`, or the first of
+    /// `page_source_1.html`, `page_source_2.html` and so on that is free.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the folder cannot be made or the source cannot be
+    /// read or written.
     pub async fn save_page_source_to_logs(&self) -> Result<PathBuf, SeleniumBaseError> {
-        let dir = ensure_latest_logs_dir()?;
+        let dir = self.test_logs_dir()?;
         let path = artifact_path(&dir, "page_source", "html");
         self.save_page_source_to_path(&path).await?;
         Ok(path)
+    }
+
+    /// The folder of the files this case saves "to the logs": that of the test
+    /// it runs, as Python's `log_path/<test id>` is.
+    ///
+    /// It is `latest_logs/<test id>` while a test run records the test, found
+    /// on the calling thread or, for a test recorded on another thread (a
+    /// Gherkin scenario), by [`test_id`](Self::test_id); without a recorder it
+    /// is `latest_logs` itself. See
+    /// [`ensure_test_logs_dir_for`](crate::artifacts::ensure_test_logs_dir_for).
+    pub(crate) fn test_logs_dir(&self) -> Result<PathBuf, SeleniumBaseError> {
+        crate::artifacts::ensure_test_logs_dir_for(&self.test_id())
     }
 
     /// Executes the `recorded_actions` action.
@@ -1619,9 +1652,18 @@ impl BaseCase {
         Ok(recorder.to_rust_script())
     }
 
-    /// Executes the `save_recording_to_logs` action.
+    /// Saves the recording as `recording.json` and `recording.rs` (or the first
+    /// free `recording_1.json` and so on) in the log folder of the running test,
+    /// and returns both paths.
+    ///
+    /// The folder is the one [`save_screenshot_to_logs`](Self::save_screenshot_to_logs)
+    /// writes to; the `.rs` file is [`export_recording_as_rust`](Self::export_recording_as_rust).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the folder cannot be made or a file cannot be written.
     pub fn save_recording_to_logs(&self) -> Result<(PathBuf, PathBuf), SeleniumBaseError> {
-        let dir = ensure_latest_logs_dir()?;
+        let dir = self.test_logs_dir()?;
         let json_path = artifact_path(&dir, "recording", "json");
         let rust_path = artifact_path(&dir, "recording", "rs");
 
@@ -3319,3 +3361,5 @@ include!("base_case_impls/base_case_impl_playwright_tests.rs");
 include!("base_case_impls/base_case_impl_traffic_tests.rs");
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_frame_tests.rs");
+#[cfg(test)]
+include!("base_case_impls/base_case_impl_logs_tests.rs");

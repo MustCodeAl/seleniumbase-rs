@@ -13,11 +13,13 @@ impl BaseCase {
         Ok(path)
     }
 
-    /// Saves the current page as a PDF into the logs directory.
+    /// Saves the current page as a PDF into the log folder of the running test.
+    /// The folder is the one [`save_screenshot_to_logs`](Self::save_screenshot_to_logs)
+    /// writes to. A file of the same name is replaced.
     ///
     /// `filename` must be a plain file name, as for [`Self::save_screenshot`].
     pub async fn save_as_pdf_to_logs(&self, filename: &str) -> Result<PathBuf, SeleniumBaseError> {
-        let dir = ensure_latest_logs_dir()?;
+        let dir = self.test_logs_dir()?;
         let path = crate::artifacts::confined_path(&dir, filename)?;
         self.print_to_pdf(path.to_str().unwrap_or("page.pdf")).await?;
         Ok(path)
