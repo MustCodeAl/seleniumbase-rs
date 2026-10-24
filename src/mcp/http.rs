@@ -257,6 +257,9 @@ enum Refusal {
     ForeignOrigin,
     /// The bearer token is missing or wrong.
     Unauthorized,
+    /// The client speaks a protocol version without sessions, and a browser
+    /// needs one.
+    Stateless,
 }
 
 /// The checks made on every request, from its headers alone.
@@ -308,7 +311,7 @@ impl Gate {
     }
 
     /// Whether a request for `path` with these headers may go on to the MCP
-    /// service. The checks run in this order: `Host`, `Origin`, token, path. The
+    /// service. The checks run in this order: `Host`, `Origin`, token, path, protocol version. The
     /// two that guard against DNS rebinding come first, so a hostile page learns
     /// nothing, not even whether a token is needed.
     fn check(&self, path: &str, headers: &HeaderMap) -> Result<(), Refusal> {
@@ -337,6 +340,13 @@ impl Gate {
         }
         if path != self.path {
             return Err(Refusal::NotFound);
+        }
+        let stateless = headers
+            .get(PROTOCOL_HEADER)
+            .and_then(|value| value.to_str().ok())
+            .is_some_and(is_stateless_version);
+        if stateless {
+            return Err(Refusal::Stateless);
         }
         Ok(())
     }
@@ -792,6 +802,20 @@ pub async fn serve_http(
         .await
 }
 
+/// The header that names the protocol version a request speaks.
+const PROTOCOL_HEADER: &str = "mcp-protocol-version";
+
+/// The first protocol version without sessions. The service answers a request
+/// of that version on its own, with a new handler for it, so a browser one call
+/// started would be gone for the next.
+const FIRST_STATELESS_VERSION: &str = "2026-07-28";
+
+/// Whether a protocol version header names a version without sessions.
+fn is_stateless_version(version: &str) -> bool {
+    // Versions are dates, so they sort as text.
+    version.starts_with(|c: char| c.is_ascii_digit()) && version >= FIRST_STATELESS_VERSION
+}
+
 /// The header that names an MCP session.
 const SESSION_HEADER: &str = "mcp-session-id";
 
@@ -831,6 +855,13 @@ fn refuse(refusal: Refusal, method: &Method) -> Response {
         Refusal::NotFound => (StatusCode::NOT_FOUND, "not found"),
         Refusal::ForeignHost => (StatusCode::FORBIDDEN, "forbidden: unexpected Host header"),
         Refusal::ForeignOrigin => (StatusCode::FORBIDDEN, "forbidden: unexpected Origin header"),
+        Refusal::Stateless => (
+            StatusCode::BAD_REQUEST,
+            "unsupported MCP protocol version: this server keeps one browser per session, and \
+             protocol versions from 2026-07-28 on have no sessions; send \
+             MCP-Protocol-Version: 2025-11-25 or an earlier version",
+        ),
+
         Refusal::Unauthorized => (
             StatusCode::UNAUTHORIZED,
             "unauthorized: send Authorization: Bearer <token>",
@@ -1443,6 +1474,30 @@ mod tests {
     }
 
     #[test]
+    fn a_protocol_version_without_sessions_is_refused() {
+        let gate = gate(&options());
+        let with = |version| check(&gate, &[("host", LOCAL), ("mcp-protocol-version", version)]);
+        for version in [
+            "2025-03-26",
+            "2025-06-18",
+            "2025-11-25",
+            "2026-07-27",
+            "latest",
+        ] {
+            assert_eq!(with(version), Ok(()), "{version}");
+        }
+        for version in ["2026-07-28", "2026-12-01", "2027-01-01"] {
+            assert_eq!(with(version), Err(Refusal::Stateless), "{version}");
+        }
+        assert_eq!(
+            check(&gate, &[("host", LOCAL)]),
+            Ok(()),
+            "no header is the oldest version"
+        );
+    }
+
+    #[test]
+
     fn the_registry_stops_at_the_cap_and_frees_a_slot_when_a_session_ends() {
         let registry = Registry::new(2, Duration::from_secs(1));
         let first = registry.admit(host()).expect("room for one");

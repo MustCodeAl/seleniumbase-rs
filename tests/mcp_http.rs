@@ -561,14 +561,16 @@ fn stand_in_host(started: &Arc<AtomicUsize>, closed: &Arc<Mutex<Vec<usize>>>) ->
 }
 
 async fn stand_in_server() -> (Running, Arc<Mutex<Vec<usize>>>) {
+    stand_in_server_with(loopback_any_port()).await
+}
+
+async fn stand_in_server_with(options: HttpOptions) -> (Running, Arc<Mutex<Vec<usize>>>) {
     let started = Arc::new(AtomicUsize::new(0));
     let closed = Arc::new(Mutex::new(Vec::new()));
     let (for_hosts, for_closed) = (Arc::clone(&started), Arc::clone(&closed));
-    let server = HttpServer::bind_with(loopback_any_port(), move || {
-        stand_in_host(&for_hosts, &for_closed)
-    })
-    .await
-    .expect("the stand-in server binds");
+    let server = HttpServer::bind_with(options, move || stand_in_host(&for_hosts, &for_closed))
+        .await
+        .expect("the stand-in server binds");
     assert_eq!(server.name(), "stand-in");
     (Running::serve(server), closed)
 }
@@ -653,4 +655,46 @@ async fn shutdown_closes_the_browser_of_every_live_session() {
         "every browser was closed exactly once"
     );
     drop(clients);
+}
+
+#[tokio::test]
+async fn a_session_that_stays_silent_is_ended_and_its_browser_closed() {
+    let options = loopback_any_port().with_idle(Duration::from_millis(400));
+    let (server, closed) = stand_in_server_with(options).await;
+    let mut client = Mcp::new(&server.url);
+    client.initialize().await;
+    client.call("start_browser", json!({})).await;
+    assert!(closed.lock().unwrap().is_empty());
+
+    eventually("the silent session's browser is closed", || {
+        closed.lock().unwrap().as_slice() == [1]
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn a_client_of_a_protocol_without_sessions_gets_a_400_that_says_why() {
+    let server = Running::dev(loopback_any_port()).await;
+    let client = Mcp::new(&server.url);
+
+    let response = client
+        .builder(reqwest::Method::POST)
+        .header("mcp-protocol-version", "2026-07-28")
+        .json(&json!({ "jsonrpc": "2.0", "id": 1, "method": "tools/list" }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response.text().await.unwrap();
+    assert!(body.contains("one browser per session"), "{body}");
+    assert!(
+        body.contains("2025-11-25"),
+        "it names a version to use: {body}"
+    );
+
+    // A client that falls back to a protocol with sessions, as the 400 asks, is
+    // given a session and can use it.
+    let mut older = Mcp::new(&server.url);
+    let initialized = older.initialize().await;
+    assert_ne!(initialized["protocolVersion"], json!("2026-07-28"));
 }
