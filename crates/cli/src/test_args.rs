@@ -321,7 +321,7 @@ pub(crate) struct TestArgs {
     /// the tests in `mod smoke`.
     #[usage(short = 'm', value_name = "EXPR", value_hint = usage::ValueHint::Other)]
     pub(crate) marker: Option<String>,
-    /// How many tests run at once, as pytest-xdist's -n: a number or `auto`.
+    /// How many tests run at once, as pytest-xdist's -n: a number or `auto` (SB_THREADS).
     #[usage(short = 'n', long = "threads", value_name = "N|auto", value_hint = usage::ValueHint::Other)]
     pub(crate) threads: Option<String>,
     /// Show what the tests print as they run (pytest's -s).

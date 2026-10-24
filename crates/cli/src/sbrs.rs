@@ -448,18 +448,18 @@ struct Cli {
         long,
         global,
         value_enum,
-        help = "Browser engine to launch (default: chrome, or the config file's)"
+        help = "Browser engine to launch (SB_BROWSER; default: chrome, or the config file's)"
     )]
     browser: Option<BrowserArg>,
-    #[usage(long, global, aliases = ["gui"], bool_value, help = "Run the browser in headed mode")]
+    #[usage(long, global, aliases = ["gui"], bool_value, help = "Run the browser in headed mode (SB_HEADLESS=false)")]
     headed: bool,
-    #[usage(long, global, aliases = ["headless2"], bool_value, help = "Run the browser in headless mode")]
+    #[usage(long, global, aliases = ["headless2"], bool_value, help = "Run the browser in headless mode (SB_HEADLESS)")]
     headless: bool,
     #[usage(
         long,
         global,
         bool_value,
-        help = "Enable Chrome DevTools Protocol mode"
+        help = "Enable Chrome DevTools Protocol mode (SB_MODE=cdp)"
     )]
     cdp: bool,
     #[usage(
@@ -468,16 +468,16 @@ struct Cli {
         bool_value,
         aliases = ["undetected", "undetectable"],
 
-        help = "Enable undetected-chromedriver style evasions"
+        help = "Enable undetected-chromedriver style evasions (SB_MODE=uc)"
     )]
     uc: bool,
-    #[usage(long, global, value_hint = usage::ValueHint::Other, help = "Override the default user agent string")]
+    #[usage(long, global, value_hint = usage::ValueHint::Other, help = "Override the default user agent string (SB_USER_AGENT)")]
     user_agent: Option<String>,
-    #[usage(short = 'a', long, global, value_hint = usage::ValueHint::Other, help = "Alias for --user-agent")]
+    #[usage(short = 'a', long, global, value_hint = usage::ValueHint::Other, help = "Alias for --user-agent (SB_USER_AGENT)")]
     agent: Option<String>,
-    #[usage(long, global, value_hint = usage::ValueHint::Other, help = "Locale string for the browser context")]
+    #[usage(long, global, value_hint = usage::ValueHint::Other, help = "Locale string for the browser context (SB_LOCALE)")]
     locale: Option<String>,
-    /// Page the browser opens first, Python's --start-page (aliases --url and --start_page)
+    /// Page the browser opens first, Python's --start-page (SB_START_PAGE; aliases --url and --start_page)
     ///
     /// Every command starts its own browser and closes it at the end, so a command that
     /// acts on a page (get-text, click, screenshot, assert-element, ...) acts on this one:
@@ -494,7 +494,7 @@ struct Cli {
         value_hint = usage::ValueHint::Url
     )]
     start_page: Option<String>,
-    /// Save a screenshot to latest_logs/ just before the browser closes, and print its path
+    /// Save a screenshot to latest_logs/ just before the browser closes, and print its path (SB_SAVE_SCREENSHOT)
     ///
     /// Python's `--save-screenshot`. A command that acts on the page (click, type, ...) also
     /// prints where it ended up as `Now at: <url> (<title>)`.
@@ -511,7 +511,7 @@ struct Cli {
         bool_value,
         aliases = ["adblock", "block-ads"],
 
-        help = "Refuse the requests of ad and tracker hosts (Chromium WebDriver sessions)"
+        help = "Refuse the requests of ad and tracker hosts (SB_AD_BLOCK; Chromium WebDriver sessions)"
     )]
     ad_block: bool,
     #[usage(
@@ -519,25 +519,25 @@ struct Cli {
         global,
         aliases = ["proxy-server", "proxy-string"],
 
-        value_hint = usage::ValueHint::Other, help = "Proxy (host:port or scheme://host:port); with --proxy-list, a name from the list"
+        value_hint = usage::ValueHint::Other, help = "Proxy (SB_PROXY; host:port or scheme://host:port); with --proxy-list, a name from the list"
     )]
     proxy: Option<String>,
     #[usage(
         long,
         global,
         value_name = "FILE",
-        value_hint = usage::ValueHint::FilePath, help = "File of proxies to choose from; without --proxy a random one is used"
+        value_hint = usage::ValueHint::FilePath, help = "File of proxies to choose from; without --proxy a random one is used (SB_PROXY_LIST)"
     )]
     proxy_list: Option<String>,
-    #[usage(long, global, aliases = ["pac-url"], value_hint = usage::ValueHint::Url, help = "URL to a proxy auto-config (PAC) file")]
+    #[usage(long, global, aliases = ["pac-url"], value_hint = usage::ValueHint::Url, help = "URL to a proxy auto-config (PAC) file (SB_PROXY_PAC_URL)")]
     proxy_pac_url: Option<String>,
     #[usage(
         long,
         global,
-        value_hint = usage::ValueHint::DirPath, help = "Path to a persistent browser user-data directory"
+        value_hint = usage::ValueHint::DirPath, help = "Path to a persistent browser user-data directory (SB_USER_DATA_DIR)"
     )]
     user_data_dir: Option<String>,
-    #[usage(long, global, value_hint = usage::ValueHint::DirPath, help = "Path to an unpacked extension directory")]
+    #[usage(long, global, value_hint = usage::ValueHint::DirPath, help = "Path to an unpacked extension directory (SB_EXTENSION_DIR)")]
     extension_dir: Option<String>,
     #[usage(
         long = "reuse-session",
@@ -561,7 +561,7 @@ struct Cli {
         bool_value,
         aliases = ["mobile-emulator"],
 
-        help = "Use a mobile device emulation profile"
+        help = "Use a mobile device emulation profile (SB_MOBILE)"
     )]
     mobile: bool,
     #[usage(
@@ -569,7 +569,7 @@ struct Cli {
         global,
         visible_aliases = ["esc_end", "ee"],
         bool_value,
-        help = "End the current test when ESC is pressed in the browser"
+        help = "End the current test when ESC is pressed in the browser (SB_ESC_END)"
     )]
     esc_end: bool,
     #[usage(
@@ -577,12 +577,12 @@ struct Cli {
         global,
         visible_alias = "rec_sb_cdp",
         bool_value,
-        help = "Write recordings as pure CDP code (sb_cdp Page and Locator calls)"
+        help = "Write recordings as pure CDP code (SB_REC_SB_CDP; sb_cdp Page and Locator calls)"
     )]
     rec_sb_cdp: bool,
-    #[usage(short = 'c', long, global, aliases = ["settings-file", "settings"], value_hint = usage::ValueHint::FilePath, extensions("toml", "json"), help = "Path to a TOML/JSON settings file")]
+    #[usage(short = 'c', long, global, aliases = ["settings-file", "settings"], value_hint = usage::ValueHint::FilePath, extensions("toml", "json"), help = "Path to a TOML/JSON settings file (SB_SETTINGS_FILE)")]
     config: Option<String>,
-    /// Make every browser the command starts present the fingerprint in FILE
+    /// Make every browser the command starts present the fingerprint in FILE (SB_FINGERPRINT)
     ///
     /// The file is the fingerprint JSON that `sbrs fingerprint capture` and `export` write.
     /// A Chromium browser then runs in the CDP mode unless --uc or another mode is given.
@@ -591,7 +591,7 @@ struct Cli {
     /// over the fingerprint's.
     #[usage(long, global, value_name = "FILE", value_hint = usage::ValueHint::AnyPath)]
     fingerprint: Option<PathBuf>,
-    /// Turn on a built-in plugin in the browsers the command starts (repeatable)
+    /// Turn on a built-in plugin in the browsers the command starts (SB_PLUGINS; repeatable)
     ///
     /// Adds to the plugins the settings file (the [plugins] table) and SB_PLUGINS turn on.
     /// Precedence, highest first: the command line, then SB_PLUGINS (which replaces the names
@@ -914,7 +914,7 @@ enum Commands {
         #[usage(long, value_hint = usage::ValueHint::ExecutablePath, help = "Path to the Chrome/Chromium binary")]
         path: String,
         /// Directory where the patched copy is cached.
-        #[usage(long, value_hint = usage::ValueHint::DirPath, help = "Directory where patched binaries are cached")]
+        #[usage(long, value_hint = usage::ValueHint::DirPath, help = "Directory where patched binaries are cached (SB_PATCH_CACHE_DIR)")]
         cache_dir: Option<String>,
     },
     /// Run a small forward proxy on this machine (HTTP and CONNECT, no authentication).
@@ -1364,8 +1364,9 @@ enum Commands {
     ///
     /// The same options can be set in the settings file, in the environment and with these
     /// flags; the command line wins over the environment, which wins over the file.
-    /// `--markdown` prints the table for the documentation, and `--all` adds the options of
-    /// the test run (`sbrs test`).
+    /// `--env` lists the environment variables instead, those of `sbrs-mcp` too. `--markdown`
+    /// prints the table for the documentation, and `--all` adds the options of the test run
+    /// (`sbrs test`).
     #[usage(
         help_heading = "Info and setup",
         example = "sbrs options",
@@ -2777,9 +2778,18 @@ fn resolve_proxy(
     proxy: Option<&str>,
     proxy_list: Option<&str>,
 ) -> Result<Option<String>, Box<dyn std::error::Error>> {
-    let Some(path) = proxy_list else {
+    // The flag, else its variable.
+    let proxy_list = proxy_list
+        .map(str::to_owned)
+        .or_else(|| seleniumbase_rs::config::env_vars::text("SB_PROXY_LIST"));
+    let Some(path) = proxy_list.as_deref() else {
         return Ok(proxy.map(str::to_owned));
     };
+    // With a list, the proxy may be the name that SB_PROXY gives.
+    let proxy = proxy
+        .map(str::to_owned)
+        .or_else(|| seleniumbase_rs::config::env_vars::text("SB_PROXY"));
+    let proxy = proxy.as_deref();
     let list = ProxyList::from_file(path)?;
     Ok(Some(match proxy {
         Some(name_or_proxy) => list.resolve(name_or_proxy)?,
@@ -2791,6 +2801,16 @@ fn resolve_proxy(
             entry.spec().to_owned()
         }
     }))
+}
+
+/// The folder `sbrs patch-chrome` keeps the patched copy in: the flag, else the variable
+/// (`SB_PATCH_CACHE_DIR`), else a folder of the user's cache.
+fn patch_cache_dir(flag: Option<String>, variable: Option<String>) -> PathBuf {
+    flag.or(variable).map(PathBuf::from).unwrap_or_else(|| {
+        dirs::cache_dir()
+            .unwrap_or_default()
+            .join("sb-chrome-patches")
+    })
 }
 
 /// The browser `sbrs devtools` launches: its binary (`None` to search for
@@ -3408,7 +3428,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     // What a page command does just before its browser quits.
     let after = PageEnd {
         now_at: args.command.acts_on_page(),
-        screenshot: args.save_screenshot,
+        screenshot: args.save_screenshot || settings.test.save_screenshot,
     };
 
     // The plugins: what the settings file and `SB_PLUGINS` turn on, with `--plugin` and
@@ -3680,14 +3700,10 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             println!("Successfully patched chromedriver binary at: {path}");
         }
         Commands::PatchChrome { path, cache_dir } => {
-            let cache = cache_dir
-                .as_deref()
-                .map(std::path::PathBuf::from)
-                .unwrap_or_else(|| {
-                    dirs::cache_dir()
-                        .unwrap_or_default()
-                        .join("sb-chrome-patches")
-                });
+            let cache = patch_cache_dir(
+                cache_dir,
+                seleniumbase_rs::config::env_vars::text("SB_PATCH_CACHE_DIR"),
+            );
             let patcher = ChromeBinaryPatcher::new(path).with_cache_dir(cache);
             let patched = patcher.patch(EnginePatch::chrome_binary())?;
             println!("Patched Chrome binary available at: {}", patched.display());
@@ -5165,6 +5181,25 @@ mod page_cli_tests {
 
     fn command(argv: &[&str]) -> Commands {
         parse(argv).command
+    }
+
+    /// `sbrs patch-chrome` keeps the copy in the folder of `--cache-dir`, else of
+    /// `SB_PATCH_CACHE_DIR`, else of the user's cache. (The command itself needs a real
+    /// Chrome binary, which a test cannot give it.)
+    #[test]
+    fn patch_chrome_takes_its_folder_from_the_flag_then_the_variable() {
+        let flag = Some("from-the-flag".to_owned());
+        let variable = Some("from-the-variable".to_owned());
+
+        assert_eq!(
+            patch_cache_dir(flag.clone(), variable.clone()),
+            PathBuf::from("from-the-flag")
+        );
+        assert_eq!(
+            patch_cache_dir(None, variable),
+            PathBuf::from("from-the-variable")
+        );
+        assert!(patch_cache_dir(None, None).ends_with("sb-chrome-patches"));
     }
 
     /// Python's `--start-page`, under each of its names, is the page a command acts on; it

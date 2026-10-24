@@ -19,7 +19,7 @@ const MULTI_PROCESS_WARNING: &str = "\n  Recorder Mode does NOT support multi-pr
 #[derive(Debug, Default, usage::Args)]
 #[usage(args_override_self = false)]
 pub(crate) struct RecorderFlags {
-    /// Record the browser actions as a test
+    /// Record the browser actions as a test (SB_RECORDER)
     ///
     /// Python's `--rec`. Every test that runs writes `recordings/NAME_rec.rs` when its browser
     /// quits; `sb.recorder_breakpoint("...")` pauses a test so the actions can be done by hand.
@@ -31,10 +31,10 @@ pub(crate) struct RecorderFlags {
         bool_value
     )]
     pub(crate) rec: bool,
-    /// Print the recording when the test ends
+    /// Print the recording when the test ends (SB_REC_PRINT)
     #[usage(long = "rec-print", global, visible_alias = "rec_print", bool_value)]
     pub(crate) rec_print: bool,
-    /// Also write the recording as a Gherkin feature
+    /// Also write the recording as a Gherkin feature (SB_REC_BEHAVE)
     #[usage(
         long = "rec-behave",
         global,
@@ -42,10 +42,10 @@ pub(crate) struct RecorderFlags {
         bool_value
     )]
     pub(crate) rec_behave: bool,
-    /// Write the recording as a script, not a test
+    /// Write the recording as a script, not a test (SB_REC_SB_MGR)
     #[usage(long = "rec-sb-mgr", global, visible_alias = "rec_sb_mgr", bool_value)]
     pub(crate) rec_sb_mgr: bool,
-    /// Keep the sleeps of the recording
+    /// Keep the sleeps of the recording (SB_REC_SLEEP)
     #[usage(
         long = "rec-sleep",
         global,

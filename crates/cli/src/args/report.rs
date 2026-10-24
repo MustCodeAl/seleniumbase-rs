@@ -39,19 +39,19 @@ pub(crate) enum ReportCommand {
 #[derive(Debug, usage::Args)]
 #[usage(args_override_self = false)]
 pub(crate) struct FinishArgs {
-    /// Write the live dashboard (dashboard.html) in its final form.
+    /// Write the live dashboard (dashboard.html) in its final form (SB_DASHBOARD).
     #[usage(long, bool_value)]
     pub(crate) dashboard: bool,
-    /// The dashboard's title; an underscore stands for a space.
+    /// The dashboard's title; an underscore stands for a space (SB_DASH_TITLE).
     #[usage(long = "dash-title", value_name = "TITLE", value_hint = usage::ValueHint::Other)]
     pub(crate) dash_title: Option<String>,
-    /// Write an HTML report to this file.
+    /// Write an HTML report to this file (SB_HTML).
     #[usage(long, value_name = "PATH", value_hint = usage::ValueHint::AnyPath)]
     pub(crate) html: Option<PathBuf>,
-    /// Write a JUnit XML report to this file.
+    /// Write a JUnit XML report to this file (SB_JUNIT_XML).
     #[usage(long = "junit-xml", value_name = "PATH", value_hint = usage::ValueHint::AnyPath)]
     pub(crate) junit_xml: Option<PathBuf>,
-    /// Keep the logs of the run in archived_logs/ instead of deleting them later.
+    /// Keep the logs of the run in archived_logs/ instead of deleting them later (SB_ARCHIVE_LOGS).
     #[usage(long = "archive-logs", bool_value)]
     pub(crate) archive_logs: bool,
     /// Open the HTML report or the dashboard in a browser window and wait until it is closed.
@@ -67,7 +67,7 @@ pub(crate) struct FinishArgs {
 #[derive(Debug, usage::Args)]
 #[usage(args_override_self = false)]
 pub(crate) struct HistoryArgs {
-    /// Path of the results database.
+    /// Path of the results database (SB_REPORT_DB).
     #[usage(long, value_hint = usage::ValueHint::AnyPath)]
     pub(crate) db: Option<PathBuf>,
     /// Show the results of this run.

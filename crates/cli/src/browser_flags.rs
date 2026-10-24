@@ -15,6 +15,7 @@
 //! `--flag=false`, so a flag the settings file turned on can be turned off.
 
 use seleniumbase_rs::config::browser_options::{render_options, render_options_markdown};
+use seleniumbase_rs::config::env_vars::{render_variables, render_variables_markdown};
 
 use crate::test_args::shorthand_conflict;
 
@@ -231,14 +232,23 @@ pub(crate) struct OptionsArgs {
     /// Also list the options of the test run (`sbrs test`).
     #[usage(long, bool_value)]
     pub(crate) all: bool,
+    /// List the environment variables `sbrs` and `sbrs-mcp` read instead of the options.
+    ///
+    /// One line for each variable: who reads it, the flag that sets the same thing, what it
+    /// is when it is not set, and what it sets. `--markdown` prints the table for the
+    /// documentation. The table is made from the option table and the list of the other
+    /// variables, so it names every variable the command lines read.
+    #[usage(long, bool_value)]
+    pub(crate) env: bool,
 }
 
 /// The text `sbrs options` prints.
 pub(crate) fn options_listing(args: &OptionsArgs) -> String {
-    if args.markdown {
-        render_options_markdown(args.all)
-    } else {
-        render_options(args.all)
+    match (args.env, args.markdown) {
+        (true, true) => render_variables_markdown(),
+        (true, false) => render_variables(),
+        (false, true) => render_options_markdown(args.all),
+        (false, false) => render_options(args.all),
     }
 }
 
@@ -248,6 +258,169 @@ mod tests {
     use seleniumbase_rs::config::test_options::{OptionKind, TEST_OPTIONS};
 
     use super::*;
+    use std::collections::BTreeSet;
+
+    use seleniumbase_rs::config::env_vars::{
+        flag_variable, is_known, EXTRA_VARIABLES, TABLE_FLAGS,
+    };
+
+    /// A flag of the usage spec: the program and command it belongs to, its long spellings
+    /// and its help.
+    struct SpecFlag {
+        path: String,
+        longs: Vec<String>,
+        help: String,
+    }
+
+    /// Every flag of every command of the usage spec of `sbrs`.
+    fn spec_flags() -> Vec<SpecFlag> {
+        fn walk(path: &str, command: &usage_lib::SpecCommand, out: &mut Vec<SpecFlag>) {
+            for flag in &command.flags {
+                out.push(SpecFlag {
+                    path: path.to_owned(),
+                    longs: flag.long.clone(),
+                    help: flag.help.clone().unwrap_or_default(),
+                });
+            }
+            for sub in command.subcommands.values() {
+                walk(&format!("{path} {}", sub.name), sub, out);
+            }
+        }
+        let spec: usage_lib::Spec = crate::Cli::to_kdl().parse().expect("the usage spec parses");
+        let mut out = Vec::new();
+        walk(&spec.bin, &spec.cmd, &mut out);
+        out
+    }
+
+    fn is_builtin(flag: &SpecFlag) -> bool {
+        flag.longs
+            .iter()
+            .any(|long| long == "help" || long == "version")
+    }
+
+    /// The variable of a flag is named in its help, so `sbrs --help` and the reference page
+    /// say where to set it once for a machine or a CI job.
+    #[test]
+    fn a_flag_that_stands_for_a_variable_names_it_in_its_help() {
+        let mut named = 0;
+        for flag in spec_flags().iter().filter(|flag| !is_builtin(flag)) {
+            let variables: BTreeSet<&str> = flag
+                .longs
+                .iter()
+                .filter_map(|long| flag_variable(&flag.path, long))
+                .collect();
+            assert!(
+                variables.len() <= 1,
+                "`{} --{}` stands for {variables:?}",
+                flag.path,
+                flag.longs.join("/--")
+            );
+            for variable in variables {
+                assert!(
+                    flag.help.contains(variable),
+                    "`{} --{}` is set by {variable}, but its help does not say so: {}",
+                    flag.path,
+                    flag.longs.join("/--"),
+                    flag.help
+                );
+                named += 1;
+            }
+        }
+        assert!(named > 150, "only {named} flags have a variable");
+    }
+
+    /// Every global flag of `sbrs` is a setting, except the options of a plugin, which are a
+    /// table of the settings file.
+    #[test]
+    fn every_global_flag_has_a_variable_but_plugin_opt() {
+        for flag in spec_flags()
+            .iter()
+            .filter(|flag| flag.path == "sbrs" && !is_builtin(flag))
+        {
+            if flag.longs == ["plugin-opt"] {
+                continue;
+            }
+            assert!(
+                flag.longs
+                    .iter()
+                    .any(|long| flag_variable("sbrs", long).is_some()),
+                "--{} has no variable",
+                flag.longs.join("/--")
+            );
+        }
+    }
+
+    /// A variable that a help text names is one the programs read: a stale name would send a
+    /// person to a variable that does nothing.
+    #[test]
+    fn a_variable_named_in_a_help_text_is_one_the_programs_read() {
+        for flag in spec_flags() {
+            let words = flag
+                .help
+                .split(|c: char| !(c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_'));
+            for word in words.filter(|word| word.starts_with("SB_") && word.len() > 3) {
+                assert!(
+                    is_known(word),
+                    "`{} --{}` names {word}, which is not in the list of variables",
+                    flag.path,
+                    flag.longs.join("/--")
+                );
+            }
+        }
+    }
+
+    /// The registry points at flags that exist.
+    #[test]
+    fn the_flags_of_the_registry_are_flags_of_sbrs() {
+        let flags = spec_flags();
+        let exists = |spelled: &str| {
+            let (path, long) = spelled.rsplit_once(' ').expect("a command and a flag");
+            let long = long.trim_start_matches('-');
+            flags
+                .iter()
+                .any(|flag| flag.path == path && flag.longs.iter().any(|known| known == long))
+        };
+        for extra in EXTRA_VARIABLES {
+            for spelled in extra
+                .flags
+                .iter()
+                .filter(|spelled| spelled.starts_with("sbrs "))
+            {
+                // `sbrs report history` is built with the feature `turso` only.
+                if spelled.contains("report history") && !cfg!(feature = "turso") {
+                    continue;
+                }
+                assert!(exists(spelled), "{spelled} ({}) is no flag", extra.name);
+            }
+        }
+        for (spelled, variable) in TABLE_FLAGS {
+            assert!(exists(spelled), "{spelled} ({variable}) is no flag");
+        }
+    }
+
+    #[test]
+    fn options_env_lists_the_variables_and_not_the_options() {
+        let text = options_listing(&OptionsArgs {
+            markdown: false,
+            all: false,
+            env: true,
+        });
+        assert!(text.starts_with("VARIABLE"), "{text}");
+        for name in [
+            "SB_BROWSER",
+            "SB_PROXY_LIST",
+            "SB_MCP_LISTEN",
+            "SB_LOG_LEVEL",
+        ] {
+            assert!(text.contains(name), "{name} is missing:\n{text}");
+        }
+        let markdown = options_listing(&OptionsArgs {
+            markdown: true,
+            all: false,
+            env: true,
+        });
+        assert!(markdown.starts_with("| Variable |"), "{markdown}");
+    }
 
     /// The rows the root declares by hand, by canonical flag.
     const BY_HAND: [&str; 19] = [
@@ -306,11 +479,13 @@ mod tests {
         let text = options_listing(&OptionsArgs {
             markdown: false,
             all: false,
+            env: false,
         });
         assert_eq!(text.lines().count(), listed_options(false).count() + 1);
         let markdown = options_listing(&OptionsArgs {
             markdown: true,
             all: true,
+            env: false,
         });
         assert!(markdown.starts_with("| Flag |"));
     }
