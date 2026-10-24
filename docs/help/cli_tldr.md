@@ -55,8 +55,8 @@ sbrs test --example NAME                           # examples/NAME.rs instead of
 ## Record, replay, translate
 
 ```bash
-sbrs record https://example.com -o actions.json    # Ctrl-C stops, or --duration 60
-sbrs replay actions.json
+sbrs mkrec tests/login.rs --url example.com        # type c and Enter at the prompt to finish
+sbrs replay recordings/login_rec.json
 sbrs run-scenario --file login.json --dashboard dashboard.html
 sbrs translate login.json es --copy                # writes login_es.json
 ```

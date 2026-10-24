@@ -73,7 +73,7 @@ Run headed when someone has to see or use the window:
   element and pauses after each action so you can follow along (see
   [Run settings](/tutorials/run_settings)). `with_esc_end(true)` lets the person
   watching press ESC in the browser to end the test.
-- **Recording.** `sbrs record` saves the clicks and typing you do in the browser.
+- **Recording.** `sbrs mkrec` saves the clicks and typing you do in the browser.
   Like the other `sbrs` browser commands, it is headed by default.
 - **Clicking with the system pointer.** `Page::gui_click_captcha` and
   `Page::gui_captcha_plan` (feature `gui`) refuse a headless browser, because it
@@ -1003,7 +1003,7 @@ These need a window on a screen, or a person in front of it:
 | Demo mode, slow mode and the messages of `post_message` | They still run, but nobody sees them, so they only slow the run; a message stays at most 0.75 s | Screenshots, or a headed run |
 | `with_esc_end(true)` | It ends the test when a person presses ESC in the window | A headed run |
 | Native dialogs (`api::dialog`, `choose_file_dialog`) | They open the desktop's own dialogs and wait for a person | Leave them out of unattended runs |
-| `sbrs record` | It saves the clicks and typing a person does in the window | A headed run |
+| `sbrs mkrec` | It saves the clicks and typing a person does in the window | A headed run |
 | Browser plugins with `Requirements::HEADFUL` | They refuse a headless launch | A headed run, or no such plugin |
 
 On a Linux server, run the headed browser on a virtual display with

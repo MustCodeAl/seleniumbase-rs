@@ -2,9 +2,9 @@
 title: "Recorder CLI"
 ---
 
-There are three ways to produce something you can replay. `sbrs record` watches
-you use a real browser and saves what you did; `sbrs replay` plays that file
-back. The `BaseCase` recorder is code-driven: every action you perform through
+There are three ways to produce something you can replay. `sbrs mkrec` watches
+you use a real browser and saves what you did; `sbrs replay` plays the JSON file
+it writes back. The `BaseCase` recorder is code-driven: every action you perform through
 the API is stored in an internal `ActionRecorder`, which you can turn into Rust
 source or the same action file. And `sbrs run-scenario` runs a hand-written JSON
 scenario, which is a different, richer format.
@@ -13,7 +13,7 @@ scenario, which is a different, richer format.
 
 **What you will learn**
 
-- How to record manual browsing with `sbrs record` and replay it.
+- How to record manual browsing with `sbrs mkrec` and replay it.
 - How `BaseCase` records actions automatically, and how to export them.
 - The two JSON formats: recorded actions, and scenarios for `run-scenario`.
 
@@ -21,7 +21,7 @@ scenario, which is a different, richer format.
 
 <Visibility for="agents">
 
-Summary for AI exports: `sbrs record URL -o actions.json` records manual browsing and `sbrs replay actions.json` plays it back. `BaseCase` records its own actions, which `save_recorded_actions` and `export_recording_as_rust` write out. `sbrs recorder` turns typed lines into a Rust test with no browser. `sbrs run-scenario --file scenario.json` runs a hand-written JSON scenario, and a failing step does not change its exit status of 0.
+Summary for AI exports: `sbrs mkrec FILE.rs --url URL` records manual browsing into `recordings/NAME_rec.rs` and `recordings/NAME_rec.json`, and `sbrs replay recordings/NAME_rec.json` plays it back. `BaseCase` records its own actions, which `save_recording_json` and `export_recording_as_rust` write out. `sbrs recorder` is a terminal app (feature `tui`) that runs these steps from a form. `sbrs run-scenario --file scenario.json` runs a hand-written JSON scenario, and a failing step does not change its exit status of 0.
 
 </Visibility>
 
@@ -29,7 +29,7 @@ The three routes at a glance:
 
 ```mermaid
 flowchart LR
-    A["sbrs record<br/>(you use a browser)"] --> F["actions.json"]
+    A["sbrs mkrec<br/>(you use a browser)"] --> F["actions.json"]
     B["BaseCase<br/>(ActionRecorder)"] --> F
     B --> R["Rust source"]
     F --> P["sbrs replay"]
@@ -41,38 +41,29 @@ flowchart LR
 ## Record manual browsing
 
 ```bash
-cargo run --bin sbrs -- record https://seleniumbase.io/demo_page -o actions.json
+sbrs mkrec tests/login.rs --url seleniumbase.io/demo_page
 ```
 
-`record` opens a browser on the URL, injects a small listener into the page,
-and saves what you do in that window. Run it headed (the default; do not pass
-`--headless`) and, as for every `sbrs` option, put any flags such as
-`--browser` before `record`. It captures:
-
-- clicks, as `click` with a CSS path to the element;
-- text typed into a field, as `type` (recorded when the field changes);
-- changes to a `<select>`, as `select_option_by_value`;
-- navigation, as `goto` whenever the page URL changes.
-
-It checks the page every half second and stops when you press Ctrl-C, after
-`--duration SECONDS` if you gave one, or when you close the browser. It then
-writes the file given by `-o`/`--output` (default `actions.json`). A `.yaml` or
-`.yml` extension writes YAML; anything else writes JSON. Only JSON can be
-replayed.
+`mkrec` (also `codegen` and `record`) opens a browser in Recorder Mode on
+`--url` and saves what you do in that window. Type `c` and press Enter in the
+terminal, or press SHIFT+ESC in the browser with `--ee`, to end it. It writes
+`recordings/login_rec.rs` (a test) and `recordings/login_rec.json` (the
+actions, which `sbrs replay` reads), and copies the test to `tests/login.rs`.
+The flags and the other output formats are in
+[Recorder Mode](/tutorials/recorder_mode).
 
 ## Replay a recording
 
 ```bash
-cargo run --bin sbrs -- replay actions.json
+sbrs replay recordings/login_rec.json
 ```
 
 `replay` starts a fresh browser, runs each step, and prints `ok` or `FAIL` for
 each one followed by a summary such as
 `Replayed 3 step(s): 3 passed, 0 failed, 0 skipped`. The command exits with
-status 1 if any step failed. Replay understands these action names (aliases in
-parentheses): `goto` (`open`, `navigate`), `click`, `type` (`type_text`,
-`update_text`), `select_option_by_value`, `assert_text`, `assert_title` and
-`assert_url`. Anything else is counted as skipped and does not fail the run.
+status 1 if any step failed. It runs every action the recorder can write as a
+`BaseCase` call. Any other action is counted as skipped, named on a `Skipped:`
+line, and does not fail the run.
 
 The file is a JSON array of actions. Each has a `name`, an optional `target`
 and `value`, and a `timestamp_ms`:
@@ -106,7 +97,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     sb.type_text("#myInput", "hello").await?;
 
     // Save the recorded actions as JSON: latest_logs/recorded.json.
-    sb.save_recorded_actions("recorded.json")?;
+    sb.save_recording_json("recorded.json")?;
 
     // Or emit a standalone Rust program.
     let rust_test = sb.export_recording_as_rust()?;
@@ -117,7 +108,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-`save_recorded_actions` takes a plain file name, with no directory part, and
+`save_recording_json` takes a plain file name, with no directory part, and
 writes it into the `latest_logs` folder of the working directory.
 `save_recording_to_logs` writes a timestamped `recording` JSON and `.rs` pair
 there. The JSON is the action array above, so `sbrs replay
@@ -134,38 +125,18 @@ write calls the pure CDP engine (`Page` and `Locator`) instead of `BaseCase`;
 `recorder_session()` wraps that window as a `RecorderSession` you can serialize
 or replay with `replay_actions`.
 
-`sbrs mkrec --file my_recording.rs` writes a small starter program to fill in.
+## Record in a terminal app
 
-## Type a recording by hand
-
-`sbrs recorder` needs no browser. You type one action per line, as `<action>
-<selector> [value]`, and it writes the Rust test:
-
-```text sbrs recorder
-> click #login
-Recorded: click #login
-> type #user admin
-Recorded: type #user
-> clik #go
-Not recorded: 'clik #go': unknown action "clik"; did you mean "click"? (usage: <action> <selector> [value])
-> save tests/login.rs
-Saved recorded test to tests/login.rs
-```
-
-`<action>` is the name of a `BaseCase` method the generator knows (`type` stands
-for `type_text`). A line the generator cannot turn into a call, because the
-action is unknown or an argument is missing or malformed, is refused with the
-reason and, for a typo, the closest known action, instead of being acknowledged
-and then missing from the file. `save` never overwrites an existing file: if it
-cannot write, the recording is kept and you can try another name. `quit`, or the
-end of the input, leaves without saving. In code, `ActionRecorder::try_record`
-does the same check.
+`sbrs recorder` is a terminal app with a form for the file, the start URL, the
+browser and the output format, and buttons that record (it runs `sbrs mkrec`),
+run the recorded test and replay the recording. It needs the `tui` feature. See
+[Recorder Mode](/tutorials/recorder_mode).
 
 ## Run a JSON scenario
 
 A scenario is a different file: a hand-written JSON object with a `name` and a
 list of `steps`, each step an `action` plus the fields that action needs. It is
-not the array that `record` writes. Run it, and optionally choose where the HTML
+not the array that `mkrec` writes. Run it, and optionally choose where the HTML
 dashboard goes:
 
 <CodeGroup>
@@ -233,9 +204,9 @@ counts or the dashboard rather than the exit status.
 
 - Review generated code before committing it.
 - Replace brittle auto-generated selectors with stable `data-testid`
-  attributes. `record` builds CSS paths such as `div > button:nth-of-type(2)`
-  when an element has no `id`.
-- Add explicit assertions after the recording stops; `record` captures no
-  assertions.
+  attributes.
+- Add explicit assertions after the recording stops, or record them in the
+  browser with the page script's assert modes (see
+  [Recorder Mode](/tutorials/recorder_mode)).
 - Keep scenario and action files under version control so CI replays the same
   steps.

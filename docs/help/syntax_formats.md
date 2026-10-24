@@ -96,8 +96,8 @@ cargo run --bin sbrs -- run-scenario --file scenario.json
 ```
 
 The list of actions is in [Recorder CLI](/help/recorder_cli#run-a-json-scenario).
-`sbrs record` writes a different file, an array of recorded actions, which you
-replay with `sbrs replay`.
+`sbrs mkrec` writes a different file, an array of recorded actions
+(`recordings/NAME_rec.json`), which you replay with `sbrs replay`.
 
 </Tab>
 
