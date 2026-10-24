@@ -22,6 +22,7 @@
 
 #![cfg(feature = "test-util")]
 
+use std::io::{Read, Write};
 use std::time::{Duration, Instant};
 
 use seleniumbase_rs::api::tour::ShepherdTheme;
@@ -32,8 +33,34 @@ use seleniumbase_rs::{BaseCase, BrowserConfig};
 static BROWSER_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 /// A page with two elements to point at.
-const PAGE: &str = "data:text/html,<html><head><title>tour</title></head><body>\
-    <h1 id=\"one\">One</h1><p id=\"two\">Two</p></body></html>";
+const PAGE: &str = "<html><head><title>tour</title></head><body><h1 id='one'>One</h1><p id='two'>Two</p></body></html>";
+
+/// Serves `PAGE` on a loopback port and returns its address. A `data:` page
+/// will not do: Hopscotch keeps its state in a cookie, and Chrome has none
+/// for a `data:` URL.
+fn serve_page() -> String {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind a loopback port");
+    let address = listener.local_addr().expect("bound address");
+    // The line break of an HTTP header.
+    let crlf = String::from_utf8(vec![13, 10]).expect("ASCII");
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let mut request = [0_u8; 4096];
+            let _ = stream.read(&mut request);
+            let head = [
+                "HTTP/1.1 200 OK".to_owned(),
+                "Content-Type: text/html".to_owned(),
+                format!("Content-Length: {}", PAGE.len()),
+                "Connection: close".to_owned(),
+                String::new(),
+                PAGE.to_owned(),
+            ];
+            let _ = stream.write_all(head.join(&crlf).as_bytes());
+        }
+    });
+    format!("http://{address}/")
+}
 
 /// The person of an IntroJS tour: every 400 ms it reads the step on show and
 /// presses Next (Done on the last step).
@@ -68,16 +95,37 @@ async fn watched_case() -> BaseCase {
         .with_somebody_watching();
     // A tour nobody finishes waits for ever; the time limit ends it.
     sb.set_time_limit(120).expect("set the limit");
-    sb.open(PAGE).await.expect("open the page");
+    sb.open(&serve_page()).await.expect("open the page");
     sb
 }
 
-/// Moves the process into a new folder, so that the exported files do not land
-/// in the crate. The caller keeps the folder alive for the whole test.
-fn work_in_a_temporary_folder() -> tempfile::TempDir {
+/// A temporary folder the process works in, so that the exported files do not
+/// land in the crate. The working directory goes back when it is dropped, so
+/// that the next test can start a driver from a folder that exists.
+struct WorkDir {
+    dir: tempfile::TempDir,
+    previous: std::path::PathBuf,
+}
+
+impl WorkDir {
+    fn path(&self) -> &std::path::Path {
+        self.dir.path()
+    }
+}
+
+impl Drop for WorkDir {
+    fn drop(&mut self) {
+        let _ = std::env::set_current_dir(&self.previous);
+    }
+}
+
+/// Moves the process into a new folder. The caller keeps the guard alive for
+/// the whole test.
+fn work_in_a_temporary_folder() -> WorkDir {
+    let previous = std::env::current_dir().expect("a working directory");
     let dir = tempfile::tempdir().expect("a temporary folder");
     std::env::set_current_dir(dir.path()).expect("move into it");
-    dir
+    WorkDir { dir, previous }
 }
 
 #[tokio::test]
@@ -119,10 +167,10 @@ async fn a_two_step_shepherd_tour_with_an_interval_ends_by_itself() {
         .unwrap();
     assert_eq!(over, serde_json::json!(true), "no tour is active any more");
     let shown = sb
-        .execute_script("return document.querySelectorAll('.shepherd-step').length;")
+        .is_element_visible(".shepherd-step")
         .await
-        .unwrap();
-    assert_eq!(shown, serde_json::json!(0), "no step is left on the page");
+        .unwrap_or(false);
+    assert!(!shown, "no step is left on show");
     sb.quit().await.expect("quit");
 }
 
@@ -228,5 +276,46 @@ async fn an_exported_tour_plays_when_it_is_run_in_the_console_of_a_page() {
             .contains("The exported heading"),
         "{text}"
     );
+    sb.quit().await.expect("quit");
+}
+
+#[tokio::test]
+#[ignore = "requires a local Chrome/chromedriver and network access to the CDNs"]
+async fn bootstrap_driverjs_and_hopscotch_tours_end_by_themselves_with_an_interval() {
+    let _guard = BROWSER_LOCK.lock().await;
+    let mut sb = watched_case().await;
+    sb.create_bootstrap_tour().name("bootstrap").await.unwrap();
+    sb.create_driverjs_tour().name("driverjs").await.unwrap();
+    sb.create_hopscotch_tour().name("hopscotch").await.unwrap();
+    for name in ["bootstrap", "driverjs", "hopscotch"] {
+        sb.add_tour_step("The heading")
+            .name(name)
+            .selector("#one")
+            .title("One")
+            .await
+            .unwrap();
+        sb.add_tour_step("The paragraph")
+            .name(name)
+            .selector("#two")
+            .await
+            .unwrap();
+    }
+    for name in ["bootstrap", "driverjs", "hopscotch"] {
+        let started = Instant::now();
+        sb.play_tour()
+            .name(name)
+            .interval(Duration::from_secs(1))
+            .await
+            .unwrap_or_else(|error| panic!("the {name} tour plays to its end: {error}"));
+        let played = started.elapsed();
+        assert!(
+            played >= Duration::from_secs(1),
+            "{name} played for {played:?}"
+        );
+        assert!(
+            played < Duration::from_secs(90),
+            "{name} played for {played:?}"
+        );
+    }
     sb.quit().await.expect("quit");
 }
