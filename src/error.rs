@@ -11,7 +11,11 @@ pub type Result<T> = std::result::Result<T, SeleniumBaseError>;
 /// structured variants carry additional context (selectors, URLs, binary
 /// paths, durations, HTTP status codes) so errors are actionable for both
 /// humans and retry logic.
-#[derive(Debug, Error)]
+///
+/// `{}` prints the message; `{:?}` prints the message and the
+/// [`hint`](Self::hint), which is what a `main` that returns
+/// `Result<(), SeleniumBaseError>` shows when it fails.
+#[derive(Error)]
 #[non_exhaustive]
 pub enum SeleniumBaseError {
     // ------------------------------------------------------------------
@@ -178,6 +182,32 @@ pub enum SeleniumBaseError {
         /// What went wrong, as the plugin set reported it.
         reason: String,
     },
+}
+
+/// `{:?}` prints what `{}` prints and, on the next line, the hint, so a `main`
+/// that returns `Result<(), SeleniumBaseError>` fails with a message a person
+/// can act on rather than a dump of the variant's fields. `{:#?}` keeps a
+/// structured form (category, message, hint, exit status and whether the
+/// condition is transient) for logs and test output.
+impl std::fmt::Debug for SeleniumBaseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let hint = self.hint();
+        if f.alternate() {
+            return f
+                .debug_struct("SeleniumBaseError")
+                .field("category", &self.category())
+                .field("message", &self.to_string())
+                .field("hint", &hint)
+                .field("exit_code", &self.exit_code())
+                .field("transient", &self.is_transient())
+                .finish();
+        }
+        write!(f, "{self}")?;
+        if let Some(hint) = hint {
+            write!(f, "\nhint: {hint}")?;
+        }
+        Ok(())
+    }
 }
 
 #[cfg(feature = "plugins")]
@@ -1313,6 +1343,43 @@ mod tests {
         let msg = err.to_string();
         assert!(msg.contains("chromedriver"));
         assert!(msg.contains("checksum mismatch"));
+    }
+
+    #[test]
+    fn debug_is_the_message_and_the_hint_so_a_failing_main_reads_well() {
+        for error in one_of_each() {
+            let shown = format!("{error:?}");
+            let hint = error.hint().expect("every error has a hint");
+            assert_eq!(
+                shown,
+                format!("{error}\nhint: {hint}"),
+                "{}",
+                error.category()
+            );
+            assert!(!shown.contains(" { "), "{shown}");
+        }
+        // What `fn main() -> Result<(), SeleniumBaseError>` prints on failure.
+        let printed = format!(
+            "Error: {:?}",
+            SeleniumBaseError::element_not_found("button")
+        );
+        assert!(
+            printed
+                .starts_with("Error: element not found: button (strategy: css selector)\nhint: "),
+            "{printed}"
+        );
+        assert!(!printed.contains("ElementNotFound"), "{printed}");
+    }
+
+    #[test]
+    fn alternate_debug_keeps_a_structured_form() {
+        let shown = format!("{:#?}", SeleniumBaseError::wait_timeout("visible #x", None));
+        assert!(shown.starts_with("SeleniumBaseError {"), "{shown}");
+        assert!(shown.contains("category: \"wait_timeout\""), "{shown}");
+        assert!(shown.contains("exit_code: 3"), "{shown}");
+        assert!(shown.contains("transient: true"), "{shown}");
+        assert!(shown.contains("visible #x"), "{shown}");
+        assert!(shown.contains("hint: Some("), "{shown}");
     }
 
     #[test]
