@@ -4393,6 +4393,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "process-wrap"
+version = "10.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1f21b97672d2dc848e7b25701ab4535618b92f4861c13cc3f7f7bed52ad3c8da"
+dependencies = [
+ "futures",
+ "indexmap",
+ "nix 0.31.3",
+ "tokio",
+ "tracing",
+ "windows 0.62.2",
+]
+
+[[package]]
 name = "prost"
 version = "0.14.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5039,7 +5053,9 @@ dependencies = [
  "indexmap",
  "pastey",
  "pin-project-lite",
+ "process-wrap",
  "rand 0.10.3",
+ "reqwest 0.13.5",
  "schemars",
  "serde",
  "serde_json",

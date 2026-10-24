@@ -173,6 +173,11 @@ s3 = ["dep:rust-s3"]
 azure = ["dep:azure_storage_blob", "dep:azure_core"]
 gcp = []
 mcp-server = ["dep:rmcp", "dep:axum"]
+# `mcp::client`: an MCP client (`McpClient`) for the servers of this crate and any other one,
+# over a child process's stdio or streamable HTTP. `sbrs-mcp tools|call|...` is built on it.
+# The first two of rmcp's features are the client and the child process; the third is the HTTP
+# client on the reqwest of this crate (its TLS provider is the one `install_tls_provider` sets).
+mcp-client = ["mcp-server", "rmcp/client", "rmcp/transport-child-process", "rmcp/transport-streamable-http-client-reqwest"]
 # Scripted mock browser for testing code that drives pages without Chrome.
 test-util = []
 # Embedded Turso database: `ResultStore` (test-run reporting, `sbrs report`) and

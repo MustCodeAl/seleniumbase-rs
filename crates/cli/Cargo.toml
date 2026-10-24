@@ -67,7 +67,7 @@ rpassword = "7.5"
 # server and the built-in browser plugins (`--plugin NAME`, `sbrs plugin list`), as
 # the release workflow builds them. The terminal UI, the desktop dialogs and the
 # results database stay opt-in, as in the library.
-default = ["pdf", "mcp-server", "plugins-builtin"]
+default = ["pdf", "mcp-server", "mcp-client", "plugins-builtin"]
 # The plugin API and its hooks, with no plugin of its own: a build with this and no
 # `plugin-*` feature accepts no name, and says which features add one.
 plugins = ["seleniumbase-rs/plugins"]
@@ -80,6 +80,8 @@ plugins-builtin = ["plugins", "seleniumbase-rs/plugins-builtin"]
 pdf = ["seleniumbase-rs/pdf"]
 # The `sbrs-mcp` binary.
 mcp-server = ["seleniumbase-rs/mcp-server"]
+# `sbrs-mcp tools`, `call`, `resources`, `read`, `prompts` and `prompt`: the MCP client.
+mcp-client = ["mcp-server", "seleniumbase-rs/mcp-client"]
 # `sbrs commander`, `sbrs behave-gui` and `sbrs caseplans`.
 tui = ["seleniumbase-rs/tui"]
 # Native dialogs and GUI automation (enigo/rfd).

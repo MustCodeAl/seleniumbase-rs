@@ -399,6 +399,14 @@ work, `docs/parity.md` the per-API status).
   (validated; its `Debug` hides the token) and `mcp::HttpServer` (`bind`, `bind_with`,
   `local_addr`, `serve`).
 
+- **An MCP client in the library and on the command line.** New cargo feature `mcp-client` (on by
+  default in the command line crate) and the module `mcp::client`: `McpClient::connect(Target,
+  timeout)` over a child process's stdio or streamable HTTP, then `list_tools`, `call`,
+  `list_resources`, `read_resource`, `list_prompts` and `get_prompt`. `sbrs-mcp` gains the
+  commands `tools`, `call`, `resources`, `read`, `prompts`, `prompt` and `batch`, so a person, a
+  script or an AI agent with only a shell can use any tool of the servers.
+
+
 
 - **`sbrs test` takes every option of Python SeleniumBase's pytest plugin.** One flag for each row
   of the option table, built from the table itself: the browser and page options (`--firefox`,
