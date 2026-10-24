@@ -43,7 +43,18 @@ use seleniumbase_rs::cli::plugin_cmd::check_selection;
 use seleniumbase_rs::config::plugins::PluginSelection;
 use seleniumbase_rs::SeleniumBaseError;
 
-pub use args::Command;
+pub use args::{ClientsArgs, InstallArgs, UninstallArgs};
+
+/// One of the commands of this module, as `mcp_cmd::Command` hands it over.
+#[derive(Debug)]
+pub enum Action {
+    /// `install`.
+    Install(InstallArgs),
+    /// `uninstall`.
+    Uninstall(UninstallArgs),
+    /// `clients`.
+    Clients(ClientsArgs),
+}
 
 use apply::{perform, registered, Job, Scope, Task};
 use client::Client;
@@ -101,7 +112,7 @@ pub struct ClientsRequest {
 }
 
 /// Runs the subcommand and returns the exit status of the program.
-pub fn run(command: Command) -> i32 {
+pub fn run(action: Action) -> i32 {
     let env = match Env::detect() {
         Ok(env) => env,
         Err(message) => {
@@ -112,8 +123,8 @@ pub fn run(command: Command) -> i32 {
     let stdout = io::stdout();
     let stderr = io::stderr();
     let (mut out, mut err) = (stdout.lock(), stderr.lock());
-    match command {
-        Command::Install(args) => {
+    match action {
+        Action::Install(args) => {
             let exe = match running_binary() {
                 Ok(exe) => exe,
                 Err(message) => {
@@ -123,8 +134,8 @@ pub fn run(command: Command) -> i32 {
             };
             install(&env, &args.into_request(exe), &mut out, &mut err)
         }
-        Command::Uninstall(args) => uninstall(&env, &args.into_request(), &mut out, &mut err),
-        Command::Clients(args) => clients(&env, &args.into_request(), &mut out, &mut err),
+        Action::Uninstall(args) => uninstall(&env, &args.into_request(), &mut out, &mut err),
+        Action::Clients(args) => clients(&env, &args.into_request(), &mut out, &mut err),
     }
 }
 

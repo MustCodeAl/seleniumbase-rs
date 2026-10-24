@@ -41,7 +41,9 @@
 
 //! With no command the program serves. `sbrs-mcp install CLIENT...` registers it with MCP
 //! clients (`uninstall` removes the registration, `clients` lists them); see
-//! [`mcp_install`].
+//! [`mcp_install`]. The client commands `tools`, `call`, `batch`, `resources`, `read`, `prompts`
+//! and `prompt` call the tools of a server, this one or another, from the command line (see
+//! [`mcp_client`]); `sbrs-mcp call --server dev find_api '{"query":"click"}'` needs no setup.
 
 use std::net::{IpAddr, SocketAddr};
 use std::path::Path;
@@ -52,10 +54,13 @@ use seleniumbase_rs::cli::scripts::rich_helper;
 use seleniumbase_rs::mcp::{self, HttpOptions, Profile, DEFAULT_LISTEN, TOKEN_VAR};
 use seleniumbase_rs::{init_tracing_from_runtime, RuntimeConfig, SeleniumBaseError};
 
+#[cfg(feature = "mcp-client")]
+mod mcp_client;
+mod mcp_cmd;
 mod mcp_install;
 
 // The derive of `Cli` names the type of the subcommand field by its last path segment.
-use mcp_install::Command;
+use mcp_cmd::Command;
 
 #[derive(Debug, usage::Cli)]
 // usage prints `bin` in `--version`, in help and in the `Usage:` line of an error, so the
@@ -268,7 +273,7 @@ fn warn_if_shared(_file: &str) {}
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut cli = Cli::parse();
     if let Some(command) = cli.command.take() {
-        std::process::exit(mcp_install::run(command));
+        std::process::exit(mcp_cmd::run(command));
     }
     let choice = plugin_choice(&cli).unwrap_or_else(|error| {
         // The same report and exit status as `sbrs`: 2 for what the operator typed.

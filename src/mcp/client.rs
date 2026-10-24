@@ -128,7 +128,6 @@ pub struct ServerSummary {
 
 /// One tool of a server.
 #[derive(Debug, Clone, PartialEq)]
-#[non_exhaustive]
 pub struct ToolSummary {
     /// The name to call.
     pub name: String,
@@ -144,7 +143,6 @@ pub struct ToolSummary {
 
 /// The result of a tool call that ran.
 #[derive(Debug, Clone, PartialEq)]
-#[non_exhaustive]
 pub struct CallOutcome {
     /// Whether the tool reported a failure (`isError`). The text and the structured content
     /// then hold the server's failure report.
@@ -160,7 +158,6 @@ pub struct CallOutcome {
 
 /// A progress report of a running tool.
 #[derive(Debug, Clone, PartialEq)]
-#[non_exhaustive]
 pub struct ClientProgress {
     /// How far the tool is. It only grows.
     pub current: f64,
@@ -175,7 +172,6 @@ pub type ProgressCallback = Box<dyn FnMut(ClientProgress) + Send>;
 
 /// A resource, or a template of resource URIs, of a server.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[non_exhaustive]
 pub struct ResourceSummary {
     /// The URI, or the URI template (RFC 6570) when [`template`](Self::template) is set.
     pub uri: String,
@@ -193,7 +189,6 @@ pub struct ResourceSummary {
 
 /// One piece of what [`McpClient::read_resource`] returns.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[non_exhaustive]
 pub struct ResourceContent {
     /// The URI of this piece.
     pub uri: String,
@@ -207,7 +202,6 @@ pub struct ResourceContent {
 
 /// One argument of a prompt.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[non_exhaustive]
 pub struct PromptArgSummary {
     /// The argument's name.
     pub name: String,
@@ -219,7 +213,6 @@ pub struct PromptArgSummary {
 
 /// A prompt of a server.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[non_exhaustive]
 pub struct PromptSummary {
     /// The name to render it by.
     pub name: String,
@@ -233,7 +226,6 @@ pub struct PromptSummary {
 
 /// A prompt rendered with its arguments.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[non_exhaustive]
 pub struct PromptOutcome {
     /// What the prompt is for, when the server says.
     pub description: Option<String>,
@@ -521,7 +513,10 @@ impl McpClient {
     ///
     /// [`SeleniumBaseError::InvalidConfig`] if the server does not know the URI or refuses it;
     /// [`SeleniumBaseError::Mcp`] on a transport or protocol failure.
-    pub async fn read_resource(&self, uri: &str) -> Result<Vec<ResourceContent>, SeleniumBaseError> {
+    pub async fn read_resource(
+        &self,
+        uri: &str,
+    ) -> Result<Vec<ResourceContent>, SeleniumBaseError> {
         let params = serde_json::from_value(json!({ "uri": uri }))
             .map_err(|error| SeleniumBaseError::mcp(&self.label, error.to_string()))?;
         let answer = self
@@ -635,17 +630,16 @@ fn failure(label: &str, what: &str, error: &ServiceError) -> SeleniumBaseError {
 }
 
 fn decode(base64: &str) -> Option<Vec<u8>> {
-    base64::engine::general_purpose::STANDARD.decode(base64).ok()
+    base64::engine::general_purpose::STANDARD
+        .decode(base64)
+        .ok()
 }
 
 /// The text of one content block, or a line that says what kind of block it was.
 fn block_text(block: &Value) -> String {
     match block["type"].as_str() {
         Some("text") => text_of(block, "text").unwrap_or_default(),
-        Some("image") => format!(
-            "[image {}]",
-            text_of(block, "mimeType").unwrap_or_default()
-        ),
+        Some("image") => format!("[image {}]", text_of(block, "mimeType").unwrap_or_default()),
         Some("audio") => format!(
             "[audio {}, {} bytes]",
             text_of(block, "mimeType").unwrap_or_default(),
@@ -653,20 +647,28 @@ fn block_text(block: &Value) -> String {
                 .and_then(|b64| decode(&b64))
                 .map_or(0, |bytes| bytes.len())
         ),
-        Some("resource") => block["resource"]["text"]
-            .as_str()
-            .map_or_else(
-                || format!("[resource {}]", block["resource"]["uri"].as_str().unwrap_or("")),
-                str::to_owned,
-            ),
-        Some("resource_link") => format!("[resource {}]", text_of(block, "uri").unwrap_or_default()),
+        Some("resource") => block["resource"]["text"].as_str().map_or_else(
+            || {
+                format!(
+                    "[resource {}]",
+                    block["resource"]["uri"].as_str().unwrap_or("")
+                )
+            },
+            str::to_owned,
+        ),
+        Some("resource_link") => {
+            format!("[resource {}]", text_of(block, "uri").unwrap_or_default())
+        }
         _ => block.to_string(),
     }
 }
 
 /// A `CallToolResult`, as the JSON the protocol puts on the wire, read into a [`CallOutcome`].
 fn outcome(result: &Value) -> CallOutcome {
-    let blocks = result["content"].as_array().map(Vec::as_slice).unwrap_or_default();
+    let blocks = result["content"]
+        .as_array()
+        .map(Vec::as_slice)
+        .unwrap_or_default();
     let images = blocks
         .iter()
         .filter(|block| block["type"] == "image")
@@ -721,7 +723,10 @@ mod tests {
         assert!(read.is_error);
         assert_eq!(read.text, "one\n[image image/png]\ntwo");
         assert_eq!(read.structured, Some(json!({ "n": 1 })));
-        assert_eq!(read.images, vec![("image/png".to_owned(), vec![0, 1, 2, 255])]);
+        assert_eq!(
+            read.images,
+            vec![("image/png".to_owned(), vec![0, 1, 2, 255])]
+        );
     }
 
     #[test]

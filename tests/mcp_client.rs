@@ -65,7 +65,10 @@ async fn the_handshake_tells_what_the_server_offers() {
     let rich = browser.server_info();
 
     assert_eq!(plain.name, "host-test");
-    assert!(plain.tools && !plain.resources && !plain.prompts, "{plain:?}");
+    assert!(
+        plain.tools && !plain.resources && !plain.prompts,
+        "{plain:?}"
+    );
     assert_eq!(plain.instructions.as_deref(), Some("Instructions."));
     assert!(!plain.protocol_version.is_empty());
     assert!(rich.tools && rich.resources && rich.prompts, "{rich:?}");
@@ -93,14 +96,19 @@ async fn tools_are_listed_with_their_schemas() {
         Some(json!({ "type": "object", "required": ["title"] }))
     );
     assert_eq!(tools[1].output_schema, None);
-    assert_eq!(tools[1].description.as_deref(), Some("A tool for the client tests."));
+    assert_eq!(
+        tools[1].description.as_deref(),
+        Some("A tool for the client tests.")
+    );
 }
 
 #[tokio::test]
 async fn a_call_returns_the_text_and_the_structured_content() {
     let client = connect(host_with(vec![
         tool("object", |_, args: Args| async move {
-            Ok(Output::Json(json!({ "got": args.str("x").unwrap_or_default() })))
+            Ok(Output::Json(
+                json!({ "got": args.str("x").unwrap_or_default() }),
+            ))
         }),
         tool("text", |_, _| async { Ok(Output::from("done")) }),
     ]))
@@ -137,20 +145,27 @@ async fn a_tool_that_fails_is_an_outcome_and_not_an_error() {
         .expect("a failing tool is not a protocol error");
 
     assert!(outcome.is_error);
-    assert!(outcome.text.starts_with("refuses failed:"), "{}", outcome.text);
+    assert!(
+        outcome.text.starts_with("refuses failed:"),
+        "{}",
+        outcome.text
+    );
     let report = outcome.structured.expect("the failure report");
     assert_eq!(report["kind"], "refused");
 }
 
 #[tokio::test]
 async fn progress_reaches_the_callback_of_the_call() {
-    let client = connect(host_with(vec![tool("slow", |ctx: Ctx<()>, _| async move {
-        let progress = ctx.progress();
-        progress.report(1, Some(3), "one").await;
-        progress.report(2, Some(3), "two").await;
-        progress.report(3, Some(3), "three").await;
-        Ok(Output::from("done"))
-    })]))
+    let client = connect(host_with(vec![tool(
+        "slow",
+        |ctx: Ctx<()>, _| async move {
+            let progress = ctx.progress();
+            progress.report(1, Some(3), "one").await;
+            progress.report(2, Some(3), "two").await;
+            progress.report(3, Some(3), "three").await;
+            Ok(Output::from("done"))
+        },
+    )]))
     .await;
     let seen: Arc<Mutex<Vec<ClientProgress>>> = Arc::default();
     let sink = Arc::clone(&seen);
@@ -166,18 +181,28 @@ async fn progress_reaches_the_callback_of_the_call() {
 
     assert_eq!(outcome.text, "done");
     let seen = seen.lock().unwrap();
-    let messages: Vec<_> = seen.iter().map(|report| report.message.as_deref()).collect();
-    assert_eq!(messages, [Some("one"), Some("two"), Some("three")], "{seen:?}");
+    let messages: Vec<_> = seen
+        .iter()
+        .map(|report| report.message.as_deref())
+        .collect();
+    assert_eq!(
+        messages,
+        [Some("one"), Some("two"), Some("three")],
+        "{seen:?}"
+    );
     assert_eq!(seen[2].current, 3.0);
     assert_eq!(seen[2].total, Some(3.0));
 }
 
 #[tokio::test]
 async fn a_call_without_a_callback_runs_the_same() {
-    let client = connect(host_with(vec![tool("slow", |ctx: Ctx<()>, _| async move {
-        ctx.progress().report(1, Some(1), "only").await;
-        Ok(Output::from("done"))
-    })]))
+    let client = connect(host_with(vec![tool(
+        "slow",
+        |ctx: Ctx<()>, _| async move {
+            ctx.progress().report(1, Some(1), "only").await;
+            Ok(Output::from("done"))
+        },
+    )]))
     .await;
 
     let outcome = client.call("slow", Map::new(), None).await.expect("works");
@@ -221,7 +246,10 @@ async fn a_call_that_takes_too_long_is_a_timeout() {
         .expect_err("the call times out");
 
     assert_eq!(error.exit_code(), 7, "{error}");
-    assert!(error.to_string().contains("took longer than 1 s"), "{error}");
+    assert!(
+        error.to_string().contains("took longer than 1 s"),
+        "{error}"
+    );
 }
 
 #[tokio::test]
@@ -235,7 +263,11 @@ async fn resources_are_listed_and_read() {
         .await
         .expect("the journal is readable");
 
-    let fixed: Vec<_> = listed.iter().filter(|r| !r.template).map(|r| r.uri.as_str()).collect();
+    let fixed: Vec<_> = listed
+        .iter()
+        .filter(|r| !r.template)
+        .map(|r| r.uri.as_str())
+        .collect();
     assert!(fixed.contains(&"sbrs://journal"), "{listed:?}");
     let template = listed.iter().find(|r| r.template).expect("a template");
     assert_eq!(template.uri, "sbrs://output/{+path}");
@@ -281,8 +313,14 @@ async fn prompts_are_listed_and_rendered() {
         .await
         .expect_err("an argument is missing");
 
-    let write_test = prompts.iter().find(|p| p.name == "write_test").expect("write_test");
-    assert!(write_test.arguments.iter().any(|a| a.name == "url" && a.required));
+    let write_test = prompts
+        .iter()
+        .find(|p| p.name == "write_test")
+        .expect("write_test");
+    assert!(write_test
+        .arguments
+        .iter()
+        .any(|a| a.name == "url" && a.required));
     assert_eq!(rendered.messages.len(), 1);
     assert_eq!(rendered.messages[0].0, "user");
     assert!(rendered.messages[0].1.contains("buy a mug"), "{rendered:?}");

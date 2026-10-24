@@ -62,41 +62,6 @@ fn only(arg: Option<OnlyArg>) -> Only {
     }
 }
 
-// The commands of `sbrs-mcp` besides serving: `install`, `uninstall` and `clients`. (Plain
-// comments, not docs, as on the other declarations of this crate.)
-#[derive(Debug, usage::Subcommands)]
-pub enum Command {
-    /// Register sbrs-mcp with MCP clients, so an assistant can use it.
-    ///
-    /// Registers two servers: the browser server as NAME (--server picks cdp, driver or sb)
-    /// and the development server as NAME-dev, which starts no browser. --only registers
-    /// just one. Both start this program by its absolute path, because desktop apps do not
-    /// have your shell PATH, and write their files to --output-dir (SB_MCP_OUTPUT_DIR).
-    ///
-    /// Clients: claude-code, claude-desktop, codex, cursor, gemini-cli, opencode, vscode,
-    /// zed. `sbrs-mcp clients` shows where each keeps its config. Claude Code and Codex are
-    /// changed through their own `mcp` commands, the others by editing their config file:
-    /// only the key that holds the servers changes, a backup FILE.bak-sbrs-mcp is written
-    /// first, and a file with comments (JSONC) is never rewritten; the snippet to add by
-    /// hand is printed instead.
-    ///
-    /// An entry of the same name that starts the same process is left as it is (exit 0). A
-    /// different one is left alone and reported (exit 2) unless --force replaces it.
-    /// Exit status 2 also means a refusal: an unknown client, a scope the client does not
-    /// have, a file that cannot be rewritten, or a program that is not on PATH.
-    Install(InstallArgs),
-    /// Remove the entries `install` made (NAME and NAME-dev) from MCP clients.
-    ///
-    /// An entry that is not there is reported and is not an error. --only removes just one.
-    Uninstall(UninstallArgs),
-    /// List the MCP clients, where each keeps its config and whether it is on this machine.
-    ///
-    /// For each client: the user config file and the project one, whether they exist, whether
-    /// the client's program (claude, codex, code) is on PATH, and which of NAME and NAME-dev
-    /// are registered.
-    Clients(ClientsArgs),
-}
-
 // The options of `install`. (Plain comments, not docs: a doc comment on this struct would be
 // help text.)
 #[derive(Debug, usage::Args)]
