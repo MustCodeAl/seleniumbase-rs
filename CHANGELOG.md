@@ -105,6 +105,21 @@ work, `docs/parity.md` the per-API status).
   capabilities it declares. The pure CDP engine calls the navigation, context and close hooks
   (see the next entries); the network, test and task hooks follow.
 
+- **Plugins steer navigation and contexts on the pure CDP engine (feature `plugins`).** `Page::goto`
+  (so `goto_if_not_url`, `open_target`, the MCP `navigate` tool with the MCP origin, and a plugin's
+  own `PageHandle::navigate`) asks each plugin's `before_navigate`, which may cancel it (a
+  `SeleniumBaseError::Plugin` naming the plugin, with nothing sent to the browser) or redirect it,
+  and tells `after_navigate` the status or the failure; `Browser::new_context_with` runs
+  `before_context` (the proxy and bypass list a plugin sets reach `Target.createBrowserContext`) and
+  `on_context_created` (a context a plugin stops is disposed of), and `BrowserContext::dispose`
+  tells `on_context_closed` once; `Browser::close` runs `before_close` while the browser still
+  answers, then `on_close`; the protocol events a plugin names reach `on_protocol_event`. The
+  browser, context and tab handles now implement `id`, `extensions`, `new_context`, `new_page`,
+  `context`, `navigate`, `block_urls` (the tab blocks the union of every caller's patterns) and
+  `close`, and a plugin set gets a tokio timer so the time limits of its hooks apply. A tab or
+  context a plugin stops on its way out is closed. The WebDriver engine, the network hooks and the
+  test and task hooks are not wired yet.
+
 - **Recorder Mode on `BaseCase`.** With `BrowserConfig::with_recorder_mode(true)` (`--rec`,
   `--rec-print`, `--rec-behave`, `--rec-sb-mgr`, `--rec-sb-cdp` and `SB_RECORDER` and friends),
   `quit()` writes what a person did in the browser as `recordings/<stem>_rec.rs`,
