@@ -73,8 +73,17 @@ pub struct BrowserSession {
 
 impl BrowserSession {
     /// WebDriver interaction: `connect`.
+    ///
+    /// # Panics
+    ///
+    /// After [`quit`](Self::quit), or after a [`reconnect`](Self::reconnect)
+    /// that could not start the new browser: the session then has no driver
+    /// and a new one must be started.
     pub fn driver(&self) -> &WebDriver {
-        self.driver.as_ref().unwrap()
+        self.driver.as_ref().expect(
+            "the browser session has no WebDriver: it was quit, or a reconnect could not \
+                 start a new browser; start a new session",
+        )
     }
 
     /// Starts a browser for `config` and connects to it, or, with
