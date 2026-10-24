@@ -18,12 +18,14 @@ use serde_json::Value;
 
 use super::deadline::Deadline;
 use super::lifecycle::{say_on_stderr, Finalizer, Lifecycle, Plan, TerminalPrompter, TestCase};
+use super::report::{self, Reporting};
 use crate::api::recorder::RecordingTarget;
 use crate::api::runner::{close_browser, CdpCase};
 use crate::common::debug_prompt::PromptPage;
-use crate::common::test_id::current_test_id;
 use crate::config::settings::Settings;
 use crate::config::test_settings::TestData;
+use crate::core::log_helper::TestId;
+use crate::core::test_run::TestRun;
 use crate::error::{Result, SeleniumBaseError};
 use crate::sb_cdp::{Browser, Page};
 use crate::BaseCase;
@@ -32,7 +34,8 @@ use crate::BaseCase;
 /// the id of the test and what is registered to see it end.
 struct Config {
     settings: std::result::Result<Settings, String>,
-    test_id: String,
+    test: TestId,
+    reporting: Reporting,
     logs_dir: Option<PathBuf>,
     finalizers: Vec<Arc<dyn Finalizer>>,
 }
@@ -40,22 +43,23 @@ struct Config {
 impl Config {
     fn from_env() -> Self {
         // The id is read here, on the thread the harness named after the test.
-        let test_id = current_test_id();
+        let test = TestId::current();
         let settings = Settings::load().map_err(|error| match error {
             SeleniumBaseError::InvalidConfig(message) => message,
             other => other.to_string(),
         });
-        Self::with(settings, test_id)
+        Self::with(settings, test)
     }
 
     fn new(settings: Settings) -> Self {
-        Self::with(Ok(settings), current_test_id())
+        Self::with(Ok(settings), TestId::current())
     }
 
-    fn with(settings: std::result::Result<Settings, String>, test_id: String) -> Self {
+    fn with(settings: std::result::Result<Settings, String>, test: TestId) -> Self {
         Self {
             settings,
-            test_id,
+            test,
+            reporting: Reporting::Auto,
             logs_dir: None,
             finalizers: Vec::new(),
         }
@@ -78,32 +82,43 @@ impl Config {
     fn plan(&self, driver: &'static str) -> Result<Plan> {
         let settings = self.settings()?;
         settings.validate()?;
-        let mut plan = Plan::from_settings(settings, &self.test_id, driver)?;
+        let mut plan = Plan::from_settings(settings, &self.test.id, driver)?;
+        plan.display.clone_from(&self.test.display);
         if let Some(dir) = &self.logs_dir {
             plan.logs_dir.clone_from(dir);
         }
         Ok(plan)
     }
 
-    async fn run<C, L, B>(&self, plan: &Plan, launch: L, body: B) -> Result<()>
+    async fn run<C, L, B>(&self, mut plan: Plan, launch: L, body: B) -> Result<()>
     where
         C: TestCase,
         L: AsyncFn(u32) -> Result<C>,
         B: AsyncFn(&mut C) -> Result<()>,
     {
-        Lifecycle {
-            plan,
-            prompter: &TerminalPrompter,
-            finalizers: &self.finalizers,
-            say: &say_on_stderr,
+        {
+            let settings = self.settings()?;
+            let run = report::run_for(&self.reporting, settings);
+            if let (None, Some(run)) = (&self.logs_dir, &run) {
+                plan.logs_dir = run.logs_dir();
+            }
+            let mut finalizers =
+                report::finalizers(run.as_ref(), settings, &self.test, &plan.logs_dir);
+            finalizers.extend(self.finalizers.iter().cloned());
+            Lifecycle {
+                plan: &plan,
+                prompter: &TerminalPrompter,
+                finalizers: &finalizers,
+                say: &say_on_stderr,
+            }
+            .run(launch, body)
+            .await
         }
-        .run(launch, body)
-        .await
     }
 
     fn describe(&self, name: &str, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct(name)
-            .field("test_id", &self.test_id)
+            .field("test_id", &self.test.id)
             .field("settings", &self.settings.as_ref().map(|_| "read"))
             .field("finalizers", &self.finalizers.len())
             .finish_non_exhaustive()
@@ -173,6 +188,26 @@ impl Sb {
         self
     }
 
+    /// Records this test in `run` instead of the run of the process, whatever
+    /// the run configuration asks for. Its evidence goes to the run's
+    /// `latest_logs` unless [`logs_dir`](Self::logs_dir) says otherwise.
+    ///
+    /// Without this the test is recorded in the run of the process
+    /// ([`TestRun::current`]) when the settings turn a report on
+    /// (`--dashboard`, `--html`, `--junit-xml`, ...), and in none otherwise.
+    #[must_use]
+    pub fn report_to(mut self, run: Arc<TestRun>) -> Self {
+        self.config.reporting = Reporting::Run(run);
+        self
+    }
+
+    /// Records this test in no run, whatever the run configuration asks for.
+    #[must_use]
+    pub fn without_report(mut self) -> Self {
+        self.config.reporting = Reporting::Off;
+        self
+    }
+
     /// Writes the evidence of a failure under `dir` instead of `latest_logs`.
     #[must_use]
     pub fn logs_dir(mut self, dir: impl Into<PathBuf>) -> Self {
@@ -192,7 +227,7 @@ impl Sb {
     /// `.`, such as `login.valid_login`. It names the folder of evidence.
     #[must_use]
     pub fn test_id(&self) -> &str {
-        &self.config.test_id
+        &self.config.test.id
     }
 
     /// The settings of the run, or the reason they could not be read.
@@ -223,11 +258,11 @@ impl Sb {
     {
         let plan = self.config.plan("WebDriver")?;
         let browser = self.config.settings()?.to_browser_config();
-        let test_id = self.config.test_id.clone();
+        let test_id = self.config.test.id.clone();
 
         self.config
             .run(
-                &plan,
+                plan,
                 async |_attempt: u32| {
                     let mut case = BaseCase::new(browser.clone()).await?;
                     if case.recorder_mode() {
@@ -296,6 +331,20 @@ impl SbCdp {
         self
     }
 
+    /// As [`Sb::report_to`].
+    #[must_use]
+    pub fn report_to(mut self, run: Arc<TestRun>) -> Self {
+        self.config.reporting = Reporting::Run(run);
+        self
+    }
+
+    /// As [`Sb::without_report`].
+    #[must_use]
+    pub fn without_report(mut self) -> Self {
+        self.config.reporting = Reporting::Off;
+        self
+    }
+
     /// As [`Sb::logs_dir`].
     #[must_use]
     pub fn logs_dir(mut self, dir: impl Into<PathBuf>) -> Self {
@@ -313,7 +362,7 @@ impl SbCdp {
     /// The id of the test; see [`Sb::test_id`].
     #[must_use]
     pub fn test_id(&self) -> &str {
-        &self.config.test_id
+        &self.config.test.id
     }
 
     /// The test data of the run (`--env`, `--data`, `--var1`, ...). A [`Page`]
@@ -380,7 +429,7 @@ impl SbCdp {
         let plan = self.config.plan("CDP (no driver)")?;
         self.config
             .run(
-                &plan,
+                plan,
                 async |_attempt: u32| CdpCase::open(launch().await?).await,
                 async |case: &mut CdpCase| test(&case.page).await,
             )
@@ -497,7 +546,10 @@ mod tests {
     #[tokio::test]
     async fn settings_that_cannot_be_read_fail_the_run_not_the_fixture() {
         let sb = Sb {
-            config: Config::with(Err("SB_THREADS: not a number".to_owned()), "t".to_owned()),
+            config: Config::with(
+                Err("SB_THREADS: not a number".to_owned()),
+                TestId::named("t"),
+            ),
         };
         let error = sb.run(async |_: &mut BaseCase| Ok(())).await.unwrap_err();
         assert_eq!(
@@ -520,7 +572,7 @@ mod tests {
     #[test]
     fn a_handle_without_readable_settings_has_no_test_data() {
         let cdp = SbCdp {
-            config: Config::with(Err("bad".to_owned()), "t".to_owned()),
+            config: Config::with(Err("bad".to_owned()), TestId::named("t")),
         };
         assert_eq!(cdp.data(), &TestData::default());
     }

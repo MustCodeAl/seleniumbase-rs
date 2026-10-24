@@ -67,12 +67,14 @@
 
 use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
+use std::sync::Arc;
 
-use super::lifecycle::Plan;
+use super::lifecycle::{Finalizer, Plan};
+use super::report::{self, Reporting};
 use crate::api::runner::CdpCase;
-use crate::common::test_id::current_test_id;
 use crate::config::settings::Settings;
 use crate::config::test_settings::TestData;
+use crate::core::log_helper::TestId;
 use crate::error::{Result, SeleniumBaseError};
 use crate::sb_cdp::{Browser, Page};
 use crate::BaseCase;
@@ -83,17 +85,32 @@ pub mod steps;
 use session::{Launch, Scenario};
 
 /// The plan of a scenario's test, after the settings are checked.
-fn plan_for(settings: &Settings, driver: &'static str, logs_dir: Option<PathBuf>) -> Result<Plan> {
+fn plan_for(
+    settings: &Settings,
+    driver: &'static str,
+    logs_dir: Option<PathBuf>,
+) -> Result<(Plan, Vec<Arc<dyn Finalizer>>)> {
     settings.validate()?;
-    let mut plan = Plan::from_settings(settings, &current_test_id(), driver)?;
+    // Read on the thread the harness named after the test.
+    let test = TestId::current();
+    let mut plan = Plan::from_settings(settings, &test.id, driver)?;
+    plan.display.clone_from(&test.display);
     // The steps of a scenario run once, and a hard stop would have to drop
     // them halfway.
     plan.reruns = 0;
     plan.time_limit = None;
+    let own_logs = logs_dir.is_some();
     if let Some(dir) = logs_dir {
         plan.logs_dir = dir;
     }
-    Ok(plan)
+    // A scenario is recorded in the run of the process when reports are on,
+    // like a test of the `sb` fixture.
+    let run = report::run_for(&Reporting::Auto, settings);
+    if let (false, Some(run)) = (own_logs, &run) {
+        plan.logs_dir = run.logs_dir();
+    }
+    let finalizers = report::finalizers(run.as_ref(), settings, &test, &plan.logs_dir);
+    Ok((plan, finalizers))
 }
 
 /// The test's time limit in whole seconds, for the case's own (soft) limit.
@@ -140,7 +157,7 @@ impl SbCase {
         // launches an `SbCase`.
         steps::link();
 
-        let plan = plan_for(settings, "WebDriver", logs_dir)?;
+        let (plan, finalizers) = plan_for(settings, "WebDriver", logs_dir)?;
         let test_id = plan.test_id.clone();
         let browser = settings.to_browser_config();
         let soft = soft_limit(settings);
@@ -155,7 +172,7 @@ impl SbCase {
             })
         });
         Ok(Self {
-            scenario: Scenario::start(plan, Vec::new(), launch).await?,
+            scenario: Scenario::start(plan, finalizers, launch).await?,
             test_id,
         })
     }
@@ -217,7 +234,7 @@ impl SbCdpCase {
     ///
     /// As [`launch`](Self::launch).
     pub async fn launch_with(settings: Settings) -> Result<Self> {
-        let plan = plan_for(&settings, "CDP (no driver)", None)?;
+        let (plan, finalizers) = plan_for(&settings, "CDP (no driver)", None)?;
         // Checked here, so a setting that cannot start a browser fails the
         // fixture with its own message.
         settings.to_launch_options()?;
@@ -230,7 +247,7 @@ impl SbCdpCase {
                 })
             }
         });
-        Self::from_plan(plan, settings.test.data, launch).await
+        Self::from_plan(plan, finalizers, settings.test.data, launch).await
     }
 
     /// [`launch_with`](Self::launch_with) on the browser `launch` makes, such
@@ -249,18 +266,23 @@ impl SbCdpCase {
         F: Fn() -> Fut + Send + 'static,
         Fut: std::future::Future<Output = Result<Browser>> + 'static,
     {
-        let plan = plan_for(&settings, "CDP (no driver)", Some(logs_dir.into()))?;
+        let (plan, finalizers) = plan_for(&settings, "CDP (no driver)", Some(logs_dir.into()))?;
         let launch: Launch<CdpCase> = Box::new(move |_attempt| {
             let opening = launch();
             Box::pin(async move { CdpCase::open(opening.await?).await })
         });
-        Self::from_plan(plan, settings.test.data, launch).await
+        Self::from_plan(plan, finalizers, settings.test.data, launch).await
     }
 
-    async fn from_plan(plan: Plan, data: TestData, launch: Launch<CdpCase>) -> Result<Self> {
+    async fn from_plan(
+        plan: Plan,
+        finalizers: Vec<Arc<dyn Finalizer>>,
+        data: TestData,
+        launch: Launch<CdpCase>,
+    ) -> Result<Self> {
         let test_id = plan.test_id.clone();
         Ok(Self {
-            scenario: Scenario::start(plan, Vec::new(), launch).await?,
+            scenario: Scenario::start(plan, finalizers, launch).await?,
             test_id,
             data,
         })

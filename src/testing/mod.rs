@@ -15,6 +15,13 @@
 //!   still open (`--no-screenshot`, `--screenshot` and `--list-fail-page`);
 //! - the debug prompts (`--trace`, `--pdb`, `--final-debug`) and the
 //!   browser closed whatever happened.
+//! - the reports the settings ask for (`--dashboard`, `--html`, `--junit-xml`,
+//!   `--alluredir`, `--with-db-reporting`): every test is started in the
+//!   run of the process, so a live `dashboard.html` shows it while it runs,
+//!   and ended with its result (see [`TestRun`](crate::core::test_run::TestRun)
+//!   and, for what a plain `cargo test` leaves to `sbrs report finish`,
+//!   the module's `report` documentation in the source).
+
 //!
 //! ```no_run
 //! use rstest::rstest;
@@ -46,6 +53,7 @@ mod deadline;
 mod evidence;
 mod fixture;
 mod lifecycle;
+mod report;
 
 pub use fixture::{sb, sb_cdp, Sb, SbCdp};
 pub use lifecycle::{AttemptEnd, Finalizer, Outcome};
