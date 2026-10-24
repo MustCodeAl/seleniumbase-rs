@@ -636,14 +636,27 @@ sbrs --headless print-pdf https://example.com -o example.pdf
 
 <Tab title="BaseCase (WebDriver)" icon="code">
 
-`download_file` opens the address in a new tab, waits up to the given number of
-seconds for the file, and goes back to the first tab. The assertions wait up to
-the default timeout for a file that is still being written. All of them look in
-`get_downloads_folder()`: the system's Downloads folder, or the working
-directory when the system names none.
+`download_file_in_browser` opens the address in a new tab, waits up to the given
+number of seconds for the file, and goes back to the first tab. The assertions
+wait up to the default timeout for a file that is still being written. All of
+them look in `get_downloads_folder()`: the system's Downloads folder, or the
+working directory when the system names none.
+
+`download_file` is the plain HTTP form, as in Python: it fetches the address
+with the browser's user agent, sends none of the page's cookies, and saves the
+body in `get_downloads_folder()` under the last part of the address, or in the
+folder that `.destination_folder(..)` names. `save_file_as(url, new_file_name)`
+does the same under a name of your choosing. Both return the file's `PathBuf`.
 
 ```rust Downloads
-let path = sb.download_file("https://example.com/report.csv", "report.csv", 30).await?;
+let fetched = sb.download_file("https://example.com/report.csv").await?;
+let copy = sb
+    .download_file("https://example.com/report.csv")
+    .destination_folder("reports")
+    .await?;
+let path = sb
+    .download_file_in_browser("https://example.com/report.csv", "report.csv", 30)
+    .await?;
 
 sb.click("a#export").await?;
 sb.assert_downloaded_file("export.csv").await?;
@@ -654,8 +667,9 @@ println!("downloads go to {}", sb.get_downloads_folder().display());
 <Warning>
 
 The WebDriver engine does not tell the browser where to save. If the browser
-saves somewhere other than `get_downloads_folder()`, the wait ends in a timeout.
-The pure CDP engine sets the folder itself.
+saves somewhere other than `get_downloads_folder()`, the wait of
+`download_file_in_browser` or of an assertion ends in a timeout. The pure CDP
+engine sets the folder itself.
 
 </Warning>
 
