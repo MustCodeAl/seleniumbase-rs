@@ -14,6 +14,7 @@
 use std::fs;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use reqwest::Client;
 use serde_json::Value;
@@ -93,14 +94,41 @@ pub fn proxy_url(spec: &str) -> String {
     }
 }
 
+/// How long a download may take to reach the server, or the proxy.
+pub const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// How long a download may wait for its next bytes before it is given up.
+///
+/// It ends a stalled transfer, not a slow one: a large archive keeps going as
+/// long as data arrives.
+pub const READ_TIMEOUT: Duration = Duration::from_secs(60);
+
 /// An HTTP client for the downloads, going through `proxy` when one is given.
+///
+/// A server or proxy that cannot be reached within [`CONNECT_TIMEOUT`], or a
+/// transfer that sends nothing for [`READ_TIMEOUT`], ends the download with an
+/// error instead of waiting forever.
 ///
 /// # Errors
 ///
 /// Returns an error if the proxy is not a URL the client accepts.
 pub fn http_client(proxy: Option<&str>) -> Result<Client, SeleniumBaseError> {
+    http_client_with(proxy, READ_TIMEOUT)
+}
+
+/// [`http_client`] that gives up on a transfer silent for `read_timeout`.
+///
+/// # Errors
+///
+/// Returns an error if the proxy is not a URL the client accepts.
+fn http_client_with(
+    proxy: Option<&str>,
+    read_timeout: Duration,
+) -> Result<Client, SeleniumBaseError> {
     crate::install_tls_provider();
-    let mut builder = Client::builder();
+    let mut builder = Client::builder()
+        .connect_timeout(CONNECT_TIMEOUT)
+        .read_timeout(read_timeout);
     if let Some(proxy) = proxy {
         let url = proxy_url(proxy);
         let proxy = reqwest::Proxy::all(&url).map_err(|error| {
@@ -569,6 +597,30 @@ mod tests {
     use zip::write::SimpleFileOptions;
 
     use super::*;
+
+    /// A server that takes the connection and then says nothing ends the
+    /// download with an error naming the URL once the read timeout passes,
+    /// instead of hanging the launch that asked for the driver.
+    #[tokio::test]
+    async fn a_server_that_stops_answering_ends_the_download() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let silent = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            // Held open, never answered.
+            tokio::time::sleep(Duration::from_secs(30)).await;
+            drop(stream);
+        });
+
+        let client = http_client_with(None, Duration::from_millis(300)).unwrap();
+        let url = format!("http://{address}/listing.json");
+        let fetched = tokio::time::timeout(Duration::from_secs(10), fetch_json(&client, &url))
+            .await
+            .expect("the read timeout ends the request");
+        let error = fetched.unwrap_err().to_string();
+        assert!(error.contains(&url), "{error}");
+        silent.abort();
+    }
 
     fn last_known_good() -> Value {
         json!({

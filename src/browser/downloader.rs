@@ -34,7 +34,9 @@ pub async fn download_chrome_driver() -> Result<PathBuf, SeleniumBaseError> {
 pub async fn download_chrome_driver_for(major: Option<u32>) -> Result<PathBuf, SeleniumBaseError> {
     let platform = platform_label()?;
     crate::install_tls_provider();
-    let client = Client::new();
+    // Timeouts on connecting and on a stalled transfer, so a dead network
+    // ends the download with an error instead of hanging it.
+    let client = crate::browser::chrome_for_testing::http_client(None)?;
     let download_url = match major {
         None => {
             let listing = fetch_version_info(&client, STABLE_LISTING).await?;
