@@ -638,6 +638,11 @@ work, `docs/parity.md` the per-API status).
 
 ### Fixed
 
+- **The MCP client never leaves the server it started running.** When the handshake fails or
+  times out, `McpClient` (and `sbrs-mcp tools|call|batch --connect`) kills the program it
+  started before returning, and `close` gives it 5 s to exit, then kills it; before, the kill ran
+  in a background task that a busy or shutting-down runtime could skip, leaving the program
+  running and the command waiting on its output.
 - **Downloads and DevTools connections no longer hang forever.** Driver and browser downloads
   (`chrome_for_testing::http_client`, `downloader::download_chrome_driver`) and
   `pdf::extract_text_from_url` give up after 30 s without a connection or 60 s without data
