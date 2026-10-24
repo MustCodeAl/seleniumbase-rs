@@ -3070,6 +3070,16 @@ const completionSpec: Fig.Spec = {
       ],
     },
     {
+      name: "recorder",
+      description: "Launch the Recorder, a terminal app (needs a build with the `tui` feature).",
+      options: [
+        {
+          name: ["-h", "--help"],
+          description: "Print help",
+        },
+      ],
+    },
+    {
       name: "run-scenario",
       description: "Run a scenario file, the way to do several steps in one browser, and write an optional dashboard.",
       options: [

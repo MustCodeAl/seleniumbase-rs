@@ -2161,6 +2161,18 @@ Python's `sbase mkrec` (also `codegen` and `record`). Starts a browser in Record
     complete file type=path:rs
     example "sbrs mkrec new_test.rs --url seleniumbase.io/demo_page"
 }
+cmd recorder help_heading="Record and replay" help="Launch the Recorder, a terminal app (needs a build with the `tui` feature)." {
+    long_help #"""
+Launch the Recorder, a terminal app (needs a build with the `tui` feature).
+
+A form for the file name, the start page, the browser and the output format, and three actions. Record hands the terminal to `sbrs mkrec` and takes it back when the recording is over; Run starts the recorded test (`cargo test --test NAME`); Replay runs `recordings/NAME_rec.json` in a fresh browser (`sbrs replay`). `--url`, `--browser`, `--uc`, `--cdp`, `--ee`, `--rec-behave`, `--rec-sb-mgr` and `--rec-sb-cdp` fill the form in when the app starts.
+
+Python's `sbase recorder` opens a Tkinter window; this one runs in the terminal.
+"""#
+    flag "-h --help" help="Print help" action=help builtin=#true
+    example "sbrs recorder"
+    example "sbrs recorder --uc --url seleniumbase.io"
+}
 cmd run-scenario help_heading=Tests help="Run a scenario file, the way to do several steps in one browser, and write an optional dashboard." {
     flag --file help="Scenario file to run" required=#true {
         arg <FILE>

@@ -108,6 +108,7 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs print-pdf`](#sbrs-print-pdf) | Print a page to PDF and save it to disk. |
 | [`sbrs prompt`](#sbrs-prompt) | Print one short line for a shell prompt: the installed Chrome's major version and whether a matching chromedriver is at hand. |
 | [`sbrs proxy`](#sbrs-proxy) | Run a small forward proxy on this machine (HTTP and CONNECT, no authentication). |
+| [`sbrs recorder`](#sbrs-recorder) | Launch the Recorder, a terminal app (needs a build with the `tui` feature). |
 | [`sbrs remove-local-storage-item`](#sbrs-remove-local-storage-item) | Remove a local storage entry by key. |
 | [`sbrs replay`](#sbrs-replay) | Replay a recorded action file (recordings/NAME_rec.json) against a fresh browser. |
 | [`sbrs report`](#sbrs-report) | Finish a test run and write its reports, or show the runs of a results database. |
@@ -3286,6 +3287,23 @@ The port to listen on; 0 picks a free one.
 
 ```bash Examples
 sbrs proxy --port 8899
+```
+
+## sbrs recorder
+
+Launch the Recorder, a terminal app (needs a build with the `tui` feature).
+
+A form for the file name, the start page, the browser and the output format, and three actions. Record hands the terminal to `sbrs mkrec` and takes it back when the recording is over; Run starts the recorded test (`cargo test --test NAME`); Replay runs `recordings/NAME_rec.json` in a fresh browser (`sbrs replay`). `--url`, `--browser`, `--uc`, `--cdp`, `--ee`, `--rec-behave`, `--rec-sb-mgr` and `--rec-sb-cdp` fill the form in when the app starts.
+
+Python's `sbase recorder` opens a Tkinter window; this one runs in the terminal.
+
+```bash Usage
+sbrs recorder
+```
+
+```bash Examples
+sbrs recorder
+sbrs recorder --uc --url seleniumbase.io
 ```
 
 ## sbrs remove-local-storage-item
