@@ -545,6 +545,15 @@ work, `docs/parity.md` the per-API status).
 
 ### Fixed
 
+- **Downloads and DevTools connections no longer hang forever.** Driver and browser downloads
+  (`chrome_for_testing::http_client`, `downloader::download_chrome_driver`) and
+  `pdf::extract_text_from_url` give up after 30 s without a connection or 60 s without data
+  (`CONNECT_TIMEOUT`, `READ_TIMEOUT`); the DevTools WebSocket handshake of a launch or attach gives
+  up after 30 s, and `sb_cdp::Browser::connect` reads `/json/version` within the options' startup
+  timeout. Each error names the URL or endpoint.
+- **`BrowserSession::driver` says why it has no driver** after `quit()` or a `reconnect` that
+  could not start the new browser, instead of a bare `unwrap` on `None`.
+
 - **A message stays at most 0.75 s on a virtual display too:** `post_message` and its relatives
   cut the time when nobody watches, which is a headless browser or a headed one on Xvfb (Python:
   `self.headless or self.xvfb`); a headed browser on Xvfb kept the long time before.
