@@ -155,6 +155,20 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   context a plugin stops on its way out is closed. The WebDriver engine, the network hooks and the
   test and task hooks are not wired yet.
 
+- **Plugins watch and steer the network on the pure CDP engine (feature `plugins`).** When a
+  plugin declares network rules, `intercept` filters or `observe` filters, each tab gets a router
+  that owns its `Fetch` domain: Chrome pauses only what the union of the filters names (and every
+  request while `Page::intercept` runs or a proxy asks for a password). `on_request` and the
+  blocking rules fail a request with `BlockedByClient` (the event `cdp.plugin.request.failed`
+  starts its reason with the plugin's name; a decision that takes ten seconds fails the request),
+  the headers of the rules are added, and `on_response` hears the status, the type and, up to the
+  filter's `max_body`, the body. The rules of `Page::intercept` run first: one that blocks or
+  answers a request settles it, a plugin's block beats everything else, and a rule's headers beat
+  the plugins'. Proxy password prompts are still answered. A router that dies turns `Fetch` off, so
+  no request stays paused. Tabs a page opens itself and iframes in other processes are not routed.
+  Nothing else changes for programs without plugins.
+
+
 - **Recorder Mode on `BaseCase`.** With `BrowserConfig::with_recorder_mode(true)` (`--rec`,
   `--rec-print`, `--rec-behave`, `--rec-sb-mgr`, `--rec-sb-cdp` and `SB_RECORDER` and friends),
   `quit()` writes what a person did in the browser as `recordings/<stem>_rec.rs`,
@@ -555,6 +569,15 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   gives the line.
 
 ### Fixed
+
+- **Downloads and DevTools connections no longer hang forever.** Driver and browser downloads
+  (`chrome_for_testing::http_client`, `downloader::download_chrome_driver`) and
+  `pdf::extract_text_from_url` give up after 30 s without a connection or 60 s without data
+  (`CONNECT_TIMEOUT`, `READ_TIMEOUT`); the DevTools WebSocket handshake of a launch or attach gives
+  up after 30 s, and `sb_cdp::Browser::connect` reads `/json/version` within the options' startup
+  timeout. Each error names the URL or endpoint.
+- **`BrowserSession::driver` says why it has no driver** after `quit()` or a `reconnect` that
+  could not start the new browser, instead of a bare `unwrap` on `None`.
 
 - **A message stays at most 0.75 s on a virtual display too:** `post_message` and its relatives
   cut the time when nobody watches, which is a headless browser or a headed one on Xvfb (Python:
