@@ -40,6 +40,7 @@
 use std::fmt;
 use std::future::Future;
 use std::path::PathBuf;
+use std::process::Stdio;
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
@@ -48,11 +49,11 @@ use rmcp::handler::client::ClientHandler;
 use rmcp::model::{ClientConfig, ProgressNotificationParam};
 use rmcp::service::{NotificationContext, RoleClient, RunningService, ServiceError};
 use rmcp::transport::streamable_http_client::StreamableHttpClientTransportConfig;
-use rmcp::transport::{IntoTransport, StreamableHttpClientTransport, TokioChildProcess};
+use rmcp::transport::{IntoTransport, StreamableHttpClientTransport};
 use rmcp::ServiceExt;
 use serde::Serialize;
 use serde_json::{json, Map, Value};
-use tokio::process::Command;
+use tokio::process::{Child, Command};
 
 use crate::error::SeleniumBaseError;
 
@@ -62,6 +63,13 @@ const PROTOCOL_VERSION: &str = "2025-06-18";
 
 /// How long [`McpClient::close`] waits for the transport to wind down.
 const CLOSE_GRACE: Duration = Duration::from_secs(10);
+
+/// How long [`McpClient::close`] lets a child process exit on its own, once its standard input
+/// is closed, before it kills it.
+const CHILD_GRACE: Duration = Duration::from_secs(5);
+
+/// How long the wait for a child process that was killed may take.
+const KILL_GRACE: Duration = Duration::from_secs(5);
 
 /// Where an MCP server is.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -281,6 +289,10 @@ pub struct McpClient {
     label: String,
     timeout: Duration,
     progress: ProgressSlot,
+    /// The program of a [`Target::Spawn`] server, which this client ends when it closes or is
+    /// dropped. It is killed by the drop of its handle, with one system call, not by a task
+    /// that a runtime shut down at that moment could drop unpolled.
+    child: Option<Child>,
 }
 
 impl fmt::Debug for McpClient {
@@ -345,14 +357,37 @@ impl McpClient {
             }
             Target::Spawn { program, args, env } => {
                 let mut command = Command::new(&program);
-                command.args(&args).envs(env);
-                let transport = TokioChildProcess::new(command).map_err(|error| {
+                command
+                    .args(&args)
+                    .envs(env)
+                    .stdin(Stdio::piped())
+                    .stdout(Stdio::piped())
+                    .kill_on_drop(true);
+                let mut child = command.spawn().map_err(|error| {
                     SeleniumBaseError::mcp(
                         &label,
                         format!("cannot start {}: {error}", program.display()),
                     )
                 })?;
-                Self::connect_with(&label, transport, timeout).await
+                let (Some(stdin), Some(stdout)) = (child.stdin.take(), child.stdout.take()) else {
+                    end_child(&mut child, Duration::ZERO).await;
+                    return Err(SeleniumBaseError::mcp(
+                        &label,
+                        "cannot start: the program has no standard input or output".to_owned(),
+                    ));
+                };
+                match Self::connect_with(&label, (stdout, stdin), timeout).await {
+                    Ok(mut client) => {
+                        client.child = Some(child);
+                        Ok(client)
+                    }
+                    Err(error) => {
+                        // The handshake failed or ran out of time, and the program may be
+                        // running still: end it now, before this call returns.
+                        end_child(&mut child, Duration::ZERO).await;
+                        Err(error)
+                    }
+                }
             }
         }
     }
@@ -392,6 +427,7 @@ impl McpClient {
             label: label.to_owned(),
             timeout,
             progress,
+            child: None,
         })
     }
 
@@ -624,10 +660,23 @@ impl McpClient {
     }
 
     /// Ends the session: tells the server (an HTTP session is deleted, which closes the
-    /// browser the server made for it) and ends a child process. Waits at most ten seconds.
+    /// browser the server made for it) and ends a child process: it is given five seconds to
+    /// exit once its standard input is closed, then killed. Waits at most ten seconds for the
+    /// transport, and the five of the child process on top.
     pub async fn close(mut self) {
         // A transport that is already gone has nothing left to close.
         drop(tokio::time::timeout(CLOSE_GRACE, self.service.close()).await);
+        if let Some(mut child) = self.child.take() {
+            end_child(&mut child, CHILD_GRACE).await;
+        }
+    }
+}
+
+/// Ends a child process whose standard input is closed: waits up to `grace` for it to exit on
+/// its own, then kills it and waits for it to be gone.
+async fn end_child(child: &mut Child, grace: Duration) {
+    if tokio::time::timeout(grace, child.wait()).await.is_err() {
+        drop(tokio::time::timeout(KILL_GRACE, child.kill()).await);
     }
 }
 
@@ -752,5 +801,133 @@ mod tests {
         assert_eq!(read.text, "done");
         assert_eq!(read.structured, None);
         assert_eq!(read.images.len(), 0);
+    }
+
+    /// A target that never answers the handshake: `sleep` for a duration no other process has
+    /// (`tag` tells the tests apart), so that `ps` finds this child and only this one.
+    #[cfg(unix)]
+    fn silent_child(tag: u32) -> (Target, String) {
+        let marker = format!("{}.{}", 200 + tag, std::process::id());
+        let target = Target::Spawn {
+            program: PathBuf::from("sleep"),
+            args: vec![marker.clone()],
+            env: Vec::new(),
+        };
+        (target, marker)
+    }
+
+    /// Whether a process with `marker` in its command line is alive. A process that was killed
+    /// but not yet reaped has no command line any more, so it counts as gone.
+    #[cfg(unix)]
+    fn alive(marker: &str) -> bool {
+        let listing = std::process::Command::new("ps")
+            .args(["-axww", "-o", "command="])
+            .output()
+            .expect("run ps");
+        String::from_utf8_lossy(&listing.stdout)
+            .lines()
+            .any(|line| line.contains(marker))
+    }
+
+    /// Waits up to ten seconds for the process with `marker` to be gone, and kills it if it is
+    /// not, so that a failing test does not leave it running for minutes.
+    #[cfg(unix)]
+    fn gone_soon(marker: &str) -> bool {
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        while alive(marker) && std::time::Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        let gone = !alive(marker);
+        if !gone {
+            drop(
+                std::process::Command::new("pkill")
+                    .args(["-f", marker])
+                    .status(),
+            );
+        }
+        gone
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_child_that_does_not_exit_is_killed_after_the_grace() {
+        let (_, marker) = silent_child(3);
+        let mut child = Command::new("sleep")
+            .arg(&marker)
+            .kill_on_drop(true)
+            .spawn()
+            .expect("start sleep");
+
+        let began = std::time::Instant::now();
+        end_child(&mut child, Duration::from_millis(200)).await;
+        let took = began.elapsed();
+
+        assert!(took < Duration::from_secs(30), "ending it took {took:?}");
+        assert!(
+            child.try_wait().expect("ask for its status").is_some(),
+            "the child was reaped"
+        );
+        assert!(gone_soon(&marker), "the child was left running");
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_child_that_exits_by_itself_is_not_killed() {
+        let mut child = Command::new("true")
+            .kill_on_drop(true)
+            .spawn()
+            .expect("start true");
+
+        end_child(&mut child, Duration::from_secs(30)).await;
+
+        let status = child.try_wait().expect("ask for its status");
+        assert_eq!(status.map(|status| status.success()), Some(true));
+    }
+
+    /// Connects to a child that never answers, on `runtime`, and shuts the runtime down the
+    /// moment the call returns, as `sbrs-mcp` does: the tasks that are left never run. The
+    /// call must give up at its timeout of one second, and the child must be dead then.
+    #[cfg(unix)]
+    fn connect_to_a_silent_child(runtime: tokio::runtime::Runtime, tag: u32) {
+        let (target, marker) = silent_child(tag);
+
+        let began = std::time::Instant::now();
+        let result = runtime.block_on(McpClient::connect(target, Duration::from_secs(1)));
+        runtime.shutdown_background();
+        let took = began.elapsed();
+
+        let error = result.expect_err("sleep does not speak MCP").to_string();
+        assert!(error.contains("handshake"), "{error}");
+        assert!(
+            took < Duration::from_secs(30),
+            "connect took {took:?} for a timeout of 1 s"
+        );
+        assert!(
+            gone_soon(&marker),
+            "the child was left running after {took:?}"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_child_that_never_answers_is_ended_even_when_no_task_gets_to_run() {
+        // On a runtime with one thread, a task spawned by the failed connect runs only while
+        // something is blocked on the runtime, which nothing is after `block_on` returns: the
+        // case of a machine so busy that the worker threads of a larger runtime do not get
+        // to run before the program exits.
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("build the runtime");
+
+        connect_to_a_silent_child(runtime, 1);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_child_that_never_answers_is_ended_on_the_runtime_the_command_line_uses() {
+        let runtime = tokio::runtime::Runtime::new().expect("build the runtime");
+
+        connect_to_a_silent_child(runtime, 2);
     }
 }

@@ -566,15 +566,21 @@ async fn a_url_nobody_listens_on_exits_3() {
 #[cfg(unix)]
 #[tokio::test]
 async fn a_slow_server_is_given_up_on_at_the_timeout() {
-    // A program that never answers the handshake.
+    // A program that never answers the handshake and stays on for two minutes. The command has
+    // to end it: it holds the standard error that the test reads to the end, so a command that
+    // leaves it running is not done for two minutes (it was, once, when the machine was so busy
+    // that the task that killed the program never ran before the command exited). The bound is
+    // measured from just before the call, and sits far from the one second of the timeout, so
+    // that a busy machine does not trip it, and far from the two minutes, so that a program
+    // left running does.
     let run = timeout(
-        Duration::from_secs(30),
+        Duration::from_secs(40),
         sbrs_mcp(
             &[
                 "tools",
                 "--connect",
                 "/bin/sleep",
-                "--connect-arg=30",
+                "--connect-arg=120",
                 "--timeout",
                 "1",
             ],
