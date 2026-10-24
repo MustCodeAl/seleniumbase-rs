@@ -111,7 +111,8 @@ binaries with `cargo install --path crates/cli`.
 - The stealth layer's gates, BoringSSL build (cmake) and Chrome tests live in
   the seleniumbase-rs-stealth repository, not here.
 - Publishing: gate the exact commit, `git fetch`, confirm `origin/main` has not
-  moved, fast-forward push `"$C:refs/heads/main"`, then check local equals
+  moved, fast-forward push `"${C}:refs/heads/main"` (in zsh `"$C:refs"` reads as the `:r`
+  modifier and pushes nothing), then check local equals
   remote. No force-push. Commits carry no `Co-Authored-By` or Claude attribution.
 
 ## Conventions
