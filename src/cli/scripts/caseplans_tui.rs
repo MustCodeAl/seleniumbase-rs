@@ -268,6 +268,14 @@ impl CasePlans {
         }
     }
 
+    /// The same app with the list narrowed to the ids that contain `filter`, as if it had been
+    /// typed after `/` (the filter box itself is closed).
+    pub(crate) fn with_filter(mut self, filter: &str) -> Self {
+        self.filter = filter.to_owned();
+        self.settle_cursor();
+        self
+    }
+
     /// The indexes of the entries the filter lets through.
     fn visible(&self) -> Vec<usize> {
         let query = self.filter.to_lowercase();
@@ -846,15 +854,19 @@ pub(crate) fn perform(base: &Path, target: &Path, effect: Effect) -> Option<Msg>
 }
 
 /// Runs the Case Plans Generator over the tests under `target` (a folder or a
-/// file; `.` for the project in the current folder) until the user quits.
+/// file; `.` for the project in the current folder) until the user quits. With a `filter`
+/// the list starts narrowed to the test ids that contain it, as if it were typed after `/`.
 ///
 /// # Errors
 ///
 /// Returns the error of listing the tests or of the terminal.
-pub fn run(target: &Path) -> io::Result<()> {
+pub fn run(target: &Path, filter: Option<&str>) -> io::Result<()> {
     let base = std::env::current_dir()?;
     let tests = scan(&base, target)?;
     let mut app = CasePlans::new(tests, &target.display().to_string());
+    if let Some(filter) = filter {
+        app = app.with_filter(filter);
+    }
     super::tui_kit::run(&mut app, |effect| perform(&base, target, effect))
 }
 
@@ -891,6 +903,29 @@ mod tests {
             ("tests/login.rs::invalid", false),
             ("examples/demo.rs", true),
         ])
+    }
+
+    #[test]
+    fn a_filter_given_at_the_start_narrows_the_list_without_opening_the_filter_box() {
+        let app = sample().with_filter("LOGIN");
+
+        let ids: Vec<&str> = app
+            .visible()
+            .into_iter()
+            .map(|at| app.entries[at].id.as_str())
+            .collect();
+        assert_eq!(ids, ["tests/login.rs::valid", "tests/login.rs::invalid"]);
+        assert!(!app.filtering, "the box is closed, as after Enter");
+        assert_eq!(app.cursor, 0);
+    }
+
+    #[test]
+    fn a_filter_that_matches_nothing_leaves_an_empty_list_and_a_cursor_in_range() {
+        let app = sample().with_filter("zzz");
+
+        assert!(app.visible().is_empty());
+        assert_eq!(app.cursor, 0);
+        assert_eq!(app.entries.len(), 4, "the tests are all still known");
     }
 
     fn press(app: &mut CasePlans, input: Input) -> Vec<Effect> {

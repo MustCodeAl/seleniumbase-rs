@@ -3,7 +3,7 @@
 
 use std::{
     io::{self, stdout, Stdout},
-    path::Path,
+    path::{Path, PathBuf},
     process::{Command, Output},
     time::Duration,
 };
@@ -53,22 +53,43 @@ struct App {
     filter: String,
     filter_mode: bool,
     popup: Option<Popup>,
+    /// Where the tests were asked for; `None` is `tests/` and `examples/` of the current folder.
+    path: Option<PathBuf>,
 }
 
 impl App {
-    fn new() -> io::Result<Self> {
-        let mut items = Vec::new();
-        discover_tests(Path::new("tests"), TestKind::Test, &mut items)?;
-        discover_tests(Path::new("examples"), TestKind::Example, &mut items)?;
-        let filtered: Vec<usize> = (0..items.len()).collect();
-        Ok(Self {
+    fn new(path: Option<&Path>, filter: Option<&str>) -> io::Result<Self> {
+        let items = find_tests(path)?;
+        let mut app = Self {
+            filtered: (0..items.len()).collect(),
             items,
-            filtered,
             selected: 0,
-            filter: String::new(),
+            filter: filter.unwrap_or_default().to_owned(),
             filter_mode: false,
             popup: None,
-        })
+            path: path.map(Path::to_path_buf),
+        };
+        app.apply_filter();
+        Ok(app)
+    }
+
+    /// Looks for the tests again, keeping the path, the filter and the place in the list.
+    fn refresh(&mut self) -> io::Result<()> {
+        self.items = find_tests(self.path.as_deref())?;
+        self.apply_filter();
+        Ok(())
+    }
+
+    /// The folder Cargo runs in: the one named on the command line, or the folder of the file
+    /// named. Cargo finds the package from there. `None` is the current folder.
+    fn workdir(&self) -> Option<&Path> {
+        let path = self.path.as_deref()?;
+        if path.is_file() {
+            path.parent()
+                .filter(|folder| !folder.as_os_str().is_empty())
+        } else {
+            Some(path)
+        }
     }
 
     fn is_empty(&self) -> bool {
@@ -109,6 +130,56 @@ impl App {
     }
 }
 
+/// The tests and examples the menu lists.
+///
+/// Without a path, those of `tests/` and `examples/` in the current folder. With one, either
+/// the single Rust file named, or the files of the folder named: its `tests/` and `examples/`
+/// when it is a project, else the Rust files in it, which are run as integration tests.
+fn find_tests(path: Option<&Path>) -> io::Result<Vec<TestItem>> {
+    let mut items = Vec::new();
+    let Some(path) = path else {
+        discover_tests(Path::new("tests"), TestKind::Test, &mut items)?;
+        discover_tests(Path::new("examples"), TestKind::Example, &mut items)?;
+        return Ok(items);
+    };
+    if path.is_file() {
+        let stem = path
+            .file_stem()
+            .and_then(|stem| stem.to_str())
+            .filter(|_| path.extension().and_then(|ext| ext.to_str()) == Some("rs"))
+            .ok_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    format!("{} is not a Rust file", path.display()),
+                )
+            })?;
+        let kind = kind_in(path.parent().unwrap_or_else(|| Path::new("")));
+        items.push(TestItem {
+            name: stem.to_owned(),
+            kind,
+        });
+    } else if path.is_dir() {
+        for folder in super::discovery::test_folders(path) {
+            discover_tests(&folder, kind_in(&folder), &mut items)?;
+        }
+    } else {
+        return Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            format!("{} is not a folder or a file", path.display()),
+        ));
+    }
+    Ok(items)
+}
+
+/// What the Rust files of `folder` are: examples when it is named `examples`, else tests.
+fn kind_in(folder: &Path) -> TestKind {
+    if folder.file_name().is_some_and(|name| name == "examples") {
+        TestKind::Example
+    } else {
+        TestKind::Test
+    }
+}
+
 /// Adds the `*.rs` files of `dir` to `out`, sorted by name: the order of
 /// `read_dir` depends on the file system, and a menu that reshuffles itself on
 /// every refresh is hard to use.
@@ -127,12 +198,15 @@ fn discover_tests(dir: &Path, kind: TestKind, out: &mut Vec<TestItem>) -> io::Re
 /// Runs the item with Cargo and describes the outcome. Failing to start Cargo
 /// at all (not installed, not on `PATH`) is an outcome too, shown in the popup
 /// like a failed test, rather than an error that closes the menu.
-fn run_test(item: &TestItem) -> Popup {
-    run_test_with("cargo", item)
+fn run_test(item: &TestItem, workdir: Option<&Path>) -> Popup {
+    run_test_with("cargo", item, workdir)
 }
 
-fn run_test_with(program: &str, item: &TestItem) -> Popup {
+fn run_test_with(program: &str, item: &TestItem, workdir: Option<&Path>) -> Popup {
     let mut cmd = Command::new(program);
+    if let Some(workdir) = workdir {
+        cmd.current_dir(workdir);
+    }
     match item.kind {
         TestKind::Test => cmd.args(["test", "--test", &item.name]),
         TestKind::Example => cmd.args(["run", "--example", &item.name]),
@@ -205,12 +279,20 @@ fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> io::Re
     Ok(())
 }
 
-pub fn run_commander() -> io::Result<()> {
+/// Runs the Commander until the user quits.
+///
+/// It lists the tests and examples under `path` (a project folder, a folder of test files or
+/// one test file; `None` is `tests/` and `examples/` of the current folder), with the list
+/// narrowed to the names that contain `filter`. The folder is read before the terminal is
+/// taken over, so a path that is not there is an error on the screen the user is looking at.
+///
+/// # Errors
+///
+/// Returns the error of listing the tests, or of the terminal.
+pub fn run_commander(path: Option<&Path>, filter: Option<&str>) -> io::Result<()> {
+    let mut app = App::new(path, filter)?;
     let mut terminal = setup_terminal()?;
-    let result = (|| -> io::Result<()> {
-        let mut app = App::new()?;
-        run_app(&mut terminal, &mut app)
-    })();
+    let result = run_app(&mut terminal, &mut app);
     restore_terminal(&mut terminal)?;
     result
 }
@@ -272,14 +354,15 @@ fn handle_key(app: &mut App, key: event::KeyEvent) -> io::Result<bool> {
             KeyCode::Down | KeyCode::Char('j') => app.move_selection(1),
             KeyCode::Up | KeyCode::Char('k') => app.move_selection(-1),
             KeyCode::Char('r') | KeyCode::Char('R') => {
-                *app = App::new()?;
+                app.refresh()?;
             }
             KeyCode::Char('/') | KeyCode::Char('f') => {
                 app.filter_mode = true;
             }
             KeyCode::Enter => {
                 if let Some(item) = app.selected_item() {
-                    app.popup = Some(run_test(item));
+                    let popup = run_test(item, app.workdir());
+                    app.popup = Some(popup);
                 }
             }
             _ => {}
@@ -432,9 +515,144 @@ mod tests {
             items,
             selected: 0,
             filter: String::new(),
+            path: None,
             filter_mode: false,
             popup: None,
         }
+    }
+
+    /// A project folder: two tests, a notes file that is not a test, and one example.
+    fn project() -> tempfile::TempDir {
+        let dir = tempfile::tempdir().unwrap();
+        for file in [
+            "tests/login.rs",
+            "tests/about.rs",
+            "tests/notes.txt",
+            "examples/demo.rs",
+        ] {
+            let path = dir.path().join(file);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, "").unwrap();
+        }
+        dir
+    }
+
+    fn listed(app: &App) -> Vec<(&str, TestKind)> {
+        app.items
+            .iter()
+            .map(|item| (item.name.as_str(), item.kind))
+            .collect()
+    }
+
+    fn shown(app: &App) -> Vec<&str> {
+        app.filtered
+            .iter()
+            .map(|&at| app.items[at].name.as_str())
+            .collect()
+    }
+
+    #[test]
+    fn a_project_folder_lists_its_tests_and_its_examples() {
+        let dir = project();
+
+        let app = App::new(Some(dir.path()), None).unwrap();
+
+        assert_eq!(
+            listed(&app),
+            [
+                ("about", TestKind::Test),
+                ("login", TestKind::Test),
+                ("demo", TestKind::Example)
+            ]
+        );
+        assert_eq!(app.workdir(), Some(dir.path()));
+    }
+
+    #[test]
+    fn a_folder_of_test_files_is_listed_as_tests_and_one_named_examples_as_examples() {
+        let plain = tempfile::tempdir().unwrap();
+        for name in ["b.rs", "a.rs"] {
+            std::fs::write(plain.path().join(name), "").unwrap();
+        }
+        let app = App::new(Some(plain.path()), None).unwrap();
+        assert_eq!(listed(&app), [("a", TestKind::Test), ("b", TestKind::Test)]);
+
+        let project = project();
+        let examples = project.path().join("examples");
+        let app = App::new(Some(examples.as_path()), None).unwrap();
+        assert_eq!(listed(&app), [("demo", TestKind::Example)]);
+    }
+
+    #[test]
+    fn one_file_is_one_item_and_cargo_runs_in_its_folder() {
+        let dir = project();
+        let test = dir.path().join("tests/login.rs");
+        let example = dir.path().join("examples/demo.rs");
+
+        let app = App::new(Some(test.as_path()), None).unwrap();
+        assert_eq!(listed(&app), [("login", TestKind::Test)]);
+        assert_eq!(app.workdir(), test.parent());
+
+        let app = App::new(Some(example.as_path()), None).unwrap();
+        assert_eq!(listed(&app), [("demo", TestKind::Example)]);
+    }
+
+    #[test]
+    fn without_a_path_cargo_runs_where_sbrs_was_started() {
+        assert_eq!(app(&["a"]).workdir(), None);
+    }
+
+    #[test]
+    fn a_path_that_is_not_there_or_not_rust_is_refused_with_the_name_in_the_message() {
+        let dir = project();
+        let missing = dir.path().join("nope");
+        let notes = dir.path().join("tests/notes.txt");
+
+        let error = App::new(Some(missing.as_path()), None).err().unwrap();
+        assert_eq!(error.kind(), io::ErrorKind::NotFound);
+        assert!(error.to_string().contains("nope"), "{error}");
+
+        let error = App::new(Some(notes.as_path()), None).err().unwrap();
+        assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+        assert!(error.to_string().contains("not a Rust file"), "{error}");
+    }
+
+    #[test]
+    fn the_filter_given_at_the_start_narrows_the_list_and_survives_a_refresh() {
+        let dir = project();
+        let mut app = App::new(Some(dir.path()), Some("lo")).unwrap();
+        assert_eq!(app.filter, "lo");
+        assert_eq!(shown(&app), ["login"]);
+
+        std::fs::write(dir.path().join("tests/logout.rs"), "").unwrap();
+        app.refresh().unwrap();
+
+        assert_eq!(app.filter, "lo");
+        assert_eq!(shown(&app), ["login", "logout"]);
+    }
+
+    #[test]
+    fn a_filter_that_matches_nothing_leaves_an_empty_list_not_an_error() {
+        let dir = project();
+
+        let app = App::new(Some(dir.path()), Some("zzz")).unwrap();
+
+        assert!(app.filtered.is_empty());
+        assert!(app.selected_item().is_none());
+        assert_eq!(app.items.len(), 3, "the tests are all still known");
+    }
+
+    #[test]
+    fn cargo_is_started_in_the_folder_of_the_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let missing = dir.path().join("no-such-folder");
+
+        // A folder that is not there cannot be entered, so the failure is the popup's "could
+        // not run": the run was asked to start there.
+        let popup = run_test_with("cargo", &item("login"), Some(missing.as_path()));
+
+        assert!(!popup.success);
+        assert!(popup.title.contains("could not run"), "{}", popup.title);
     }
 
     fn press(app: &mut App, code: KeyCode, modifiers: KeyModifiers) -> bool {
@@ -565,7 +783,7 @@ mod tests {
 
     #[test]
     fn a_missing_cargo_is_reported_in_the_popup_not_as_an_error() {
-        let popup = run_test_with("sbase-no-such-program-7f3a", &item("login"));
+        let popup = run_test_with("sbase-no-such-program-7f3a", &item("login"), None);
 
         assert!(!popup.success);
         assert!(popup.title.contains("could not run"), "{}", popup.title);

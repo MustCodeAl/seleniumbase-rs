@@ -55,6 +55,8 @@ mod failure;
 
 mod fig;
 mod fingerprint;
+mod info;
+
 mod proxy;
 mod recorder_flags;
 
@@ -294,13 +296,13 @@ struct GridArgs {
     #[usage(long, value_name = "HOST_OR_URL", value_hint = usage::ValueHint::Other)]
     hub: Option<String>,
     /// Close sessions that have been idle this many seconds.
-    #[usage(long, value_name = "SECONDS", value_hint = usage::ValueHint::Other)]
+    #[usage(long = "timeout", value_name = "SECONDS", value_hint = usage::ValueHint::Other)]
     session_timeout: Option<u64>,
     /// How many seconds `start` waits for the Grid to become ready.
     #[usage(long, value_name = "SECONDS", default = "60", value_hint = usage::ValueHint::Other)]
     wait: u64,
     /// Log at INFO instead of WARNING.
-    #[usage(long = "grid-verbose", bool_value)]
+    #[usage(short = 'v', long = "verbose", bool_value)]
     verbose: bool,
     /// Start even if something already accepts connections on the port.
     #[usage(long, bool_value)]
@@ -1352,6 +1354,14 @@ enum Commands {
         example = "sbrs options --markdown"
     )]
     Options(browser_flags::OptionsArgs),
+    /// List the common methods of the test API, as they are called on `sb`.
+    ///
+    /// Python SeleniumBase's `sbase methods` in Rust spelling: the methods most tests use
+    /// (`sb.open(url)`, `sb.click(selector)`, `sb.assert_text(text, selector)`, ...), each
+    /// with what it does. The whole API is in `cargo doc --open`, and docs/parity.md maps
+    /// Python's names to it.
+    #[usage(help_heading = "Info and setup", example = "sbrs methods")]
+    Methods,
 
     /// Start, stop, restart or check a Selenium Grid hub.
     ///
@@ -1359,17 +1369,21 @@ enum Commands {
     /// downloaded_drivers/ (`sbrs download server` saves one there). This command downloads
     /// nothing. The
     /// process record and log are kept in a folder of your own (SB_GRID_DIR).
+    #[usage(alias = "grid_hub")]
     #[usage(
         help_heading = "Drivers, grid and servers",
-        example = "sbrs grid-hub start"
+        example = "sbrs grid-hub start",
+        example = "sbrs grid_hub start -v --timeout 120"
     )]
     GridHub(GridArgs),
     /// Start, stop, restart or check a Selenium Grid node.
     ///
     /// A node registers with the hub named by `--hub`, or with this machine's.
+    #[usage(alias = "grid_node")]
     #[usage(
         help_heading = "Drivers, grid and servers",
-        example = "sbrs grid-node start"
+        example = "sbrs grid-node start",
+        example = "sbrs grid-node start --hub 127.0.0.1"
     )]
     GridNode(GridArgs),
     /// Write the actions of a JSON scenario in another language.
@@ -1448,19 +1462,55 @@ enum Commands {
         #[usage(long, bool_value)]
         force: bool,
     },
-    /// Launch the interactive commander (needs a build with the `tui` feature).
-    #[usage(help_heading = "Tests", example = "sbrs commander")]
-    Commander,
+    /// Launch the Commander, a terminal app (needs a build with the `tui` feature).
+    ///
+    /// Lists the tests and examples under PATH and runs the one you pick with `cargo test
+    /// --test NAME` or `cargo run --example NAME`, then shows the end of the output. PATH is a
+    /// project folder, a folder of test files or one test file; by default the `tests/` and
+    /// `examples/` folders of the current folder. `-k FILTER` starts with the list narrowed to
+    /// the names that contain FILTER, as `/` does in the app.
+    ///
+    /// Python's `gui` is the same command, and its window is a terminal app here.
+
+    #[usage(alias = "gui")]
+    #[usage(
+        help_heading = "Tests",
+        example = "sbrs commander",
+        example = "sbrs gui tests -k login"
+    )]
+    Commander {
+        /// A project folder, a folder of test files, or one test file.
+        #[usage(value_hint = usage::ValueHint::AnyPath)]
+        #[cfg_attr(
+            not(feature = "tui"),
+            expect(dead_code, reason = "only the terminal app reads it")
+        )]
+        path: Option<String>,
+        /// Start with the list narrowed to the names that contain FILTER.
+        #[usage(short = 'k', value_name = "FILTER", value_hint = usage::ValueHint::Other)]
+        #[cfg_attr(
+            not(feature = "tui"),
+            expect(dead_code, reason = "only the terminal app reads it")
+        )]
+        filter: Option<String>,
+    },
     /// Launch the Case Plans Generator, a terminal app (needs a build with the `tui` feature).
     ///
     /// Lists the tests under PATH and creates, edits and saves a case plan for
     /// each, `case_plans/<test>.md` next to its file, and writes a summary of the
     /// plans to `case_summary.md`. PATH is a folder of tests or one test file;
-    /// by default the `tests/` and `examples/` folders of the current folder.
+    /// by default the `tests/` and `examples/` folders of the current folder. `-k FILTER`
+    /// starts with the list narrowed to the tests whose id contains FILTER, as `/` does in
+    /// the app.
     ///
     /// The Python command opens a Tkinter window; this one runs in the terminal.
     #[usage(alias = "case-plans")]
-    #[usage(help_heading = "Tests", example = "sbrs caseplans --starter")]
+    #[usage(alias = "case_plans")]
+    #[usage(
+        help_heading = "Tests",
+        example = "sbrs caseplans --starter",
+        example = "sbrs case_plans tests -k login"
+    )]
     Caseplans {
         /// A folder of tests, or one test file.
         #[usage(value_hint = usage::ValueHint::AnyPath)]
@@ -1469,6 +1519,14 @@ enum Commands {
             expect(dead_code, reason = "only the terminal app reads it")
         )]
         path: Option<String>,
+        /// Start with the list narrowed to the tests whose id contains FILTER.
+        #[usage(short = 'k', value_name = "FILTER", value_hint = usage::ValueHint::Other, conflicts("--starter"))]
+        #[cfg_attr(
+            not(feature = "tui"),
+            expect(dead_code, reason = "only the terminal app reads it")
+        )]
+        filter: Option<String>,
+
         /// Write the starter checklist `CASE_PLANS.md` instead; this needs no
         /// `tui` feature.
         #[usage(long, bool_value, conflicts("path"))]
@@ -1862,6 +1920,7 @@ impl Commands {
             | Self::Encrypt { .. }
             | Self::Decrypt { .. }
             | Self::Doctor
+            | Self::Methods
             | Self::Prompt(_)
             | Self::Install { .. }
             | Self::Test(_)
@@ -1872,7 +1931,7 @@ impl Commands {
             | Self::Translate { .. }
             | Self::Mkdir { .. }
             | Self::Mkfile { .. }
-            | Self::Commander
+            | Self::Commander { .. }
             | Self::Caseplans { .. }
             | Self::BehaveGui { .. }
             | Self::Print { .. }
@@ -3079,6 +3138,11 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             print!("{}", behave_options::render());
             return Ok(());
         }
+        Commands::Methods => {
+            print!("{}", info::methods_listing());
+            return Ok(());
+        }
+
         Commands::Prompt(options) => return run_prompt(options).await,
         Commands::Plugin(plugin) => return run_plugin(&plugin.command, &args),
         // The subcommands that start no browser end here; `capture` goes on to start one.
@@ -3750,19 +3814,21 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         | Commands::Proxy(_)
         | Commands::Download(_)
         | Commands::BehaveOptions
+        | Commands::Methods
         | Commands::Options(_)
         | Commands::Devtools { .. } => {
             unreachable!("these commands return before browser configuration")
         }
         #[cfg(feature = "tui")]
-        Commands::Commander => {
-            if let Err(e) = sb_commander::run_commander() {
+        Commands::Commander { path, filter } => {
+            let target = path.as_deref().map(Path::new);
+            if let Err(e) = sb_commander::run_commander(target, filter.as_deref()) {
                 eprintln!("Failed to run commander: {}", e);
                 std::process::exit(1);
             }
         }
         #[cfg(not(feature = "tui"))]
-        Commands::Commander => no_terminal_ui(),
+        Commands::Commander { .. } => no_terminal_ui(),
         // The file-writing commands below hand their error to `main`, which
         // prints `error: ...` and exits with the status of its kind (6 for a
         // local file), instead of printing it here and exiting with 0.
@@ -3772,9 +3838,9 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             println!("Generated {}", path.display());
         }
         #[cfg(feature = "tui")]
-        Commands::Caseplans { path, .. } => {
+        Commands::Caseplans { path, filter, .. } => {
             let target = PathBuf::from(path.as_deref().unwrap_or("."));
-            if let Err(e) = caseplans_tui::run(&target) {
+            if let Err(e) = caseplans_tui::run(&target, filter.as_deref()) {
                 eprintln!("Failed to run the case plans generator: {}", e);
                 std::process::exit(1);
             }

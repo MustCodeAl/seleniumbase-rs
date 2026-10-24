@@ -18,7 +18,7 @@
 
 - Start a hub, waiting longer for it to become ready, and close sessions that have been idle for a while:
 
-`sbrs grid-hub start --wait {{seconds}} --session-timeout {{seconds}}`
+`sbrs grid-hub start --wait {{seconds}} --timeout {{seconds}}`
 
 - Start a hub and pass more arguments to the Selenium Server:
 
