@@ -180,6 +180,7 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ### Added
 
+- Features `plugin-batcher` and `plugin-crawler` (both in `plugins-builtin` and in the CLI): the batcher runs many jobs with bounded concurrency, retries and a resume file; the crawler follows a site's links and reports broken pages and console errors. The plugins come from plugins rev 2002f07.
 - **Fingerprint tools on the MCP servers.** `capture_fingerprint` reads what the running browser
   shows a page (the reading of `sbrs fingerprint capture`, with progress) and can save it as a
   file; `compare_fingerprint` says whether the browser presents a fingerprint, a file or a preset
