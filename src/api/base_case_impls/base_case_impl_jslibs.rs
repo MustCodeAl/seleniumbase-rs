@@ -323,22 +323,6 @@ impl BaseCase {
     }
 
 
-    /// Injects a small CSS snippet to customize IntroJS highlight colors.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SeleniumBaseError::InvalidConfig`] if a colour is not a plain
-    /// CSS value (for example `#336699` or `rgb(10, 20, 30)`); one that could
-    /// end the declaration is refused rather than injected.
-    pub async fn set_introjs_colors(&self, background: &str, border: &str) -> Result<(), SeleniumBaseError> {
-        let css = format!(
-            ".introjs-helperLayer {{ background: {} !important; border-color: {} !important; }}",
-            css_value("the IntroJS background colour", background)?,
-            css_value("the IntroJS border colour", border)?
-        );
-        self.add_css_style(&css).await
-    }
-
     /// Sets how Messenger draws its messages and where they appear, as
     /// Python's `set_messenger_theme(theme, location, max_messages)` does:
     /// one of the themes (`flat`, `future`, `block`, `air`, `ice`), one of six

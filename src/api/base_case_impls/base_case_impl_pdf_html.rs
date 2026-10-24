@@ -87,15 +87,8 @@ impl BaseCase {
         Ok(BeautifulSoup::parse(&source))
     }
 
-    /// Creates a tour and assigns a visual theme.
-    pub async fn create_tour_with_theme(
-        &mut self,
-        name: &str,
-        theme: TourTheme,
-    ) -> Result<(), SeleniumBaseError> {
-        self.tour = Some(crate::api::tour::Tour::new(name).with_theme(theme));
-        Ok(())
-    }
+
+    
 
     /// Full-screens the browser window.
     pub async fn fullscreen_window(&self) -> Result<(), SeleniumBaseError> {

@@ -24,7 +24,7 @@ use crate::api::recorder::{
     RecordingFormat, RecordingOptions, RecordingTarget, SavedRecording,
 };
 use crate::api::run_settings::{PauseKind, RunSettings, HEADLESS_MESSAGE_CAP};
-use crate::api::tour::{Tour, TourTheme};
+use crate::api::tour::Tour;
 use crate::artifacts::{artifact_path, ensure_latest_logs_dir};
 use crate::browser::config::{whole_seconds, BrowserConfig};
 #[cfg(feature = "playwright")]
@@ -48,8 +48,13 @@ pub struct BaseCase {
     recorder: Arc<Mutex<ActionRecorder>>,
     /// Index into the recorder marking where the active recording window began.
     recording_start: Option<usize>,
-    tour: Option<Tour>,
+    /// The tours, by name (`default` when none is given).
+    tours: std::collections::BTreeMap<String, Tour>,
     deferred: DeferredAsserts,
+    /// The colours of the buttons of IntroJS tours, from
+    /// [`BaseCase::set_introjs_colors`]. Kept per case (Python keeps them
+    /// process-wide).
+    introjs_colors: IntroJsColors,
     /// The presentations, by name (`default` when none is given).
     presentations: std::collections::BTreeMap<String, crate::api::presentation::Presentation>,
     /// The charts, by name (`default` when none is given).
@@ -148,7 +153,8 @@ impl BaseCase {
             config,
             recorder: Arc::new(Mutex::new(ActionRecorder::default())),
             recording_start: None,
-            tour: None,
+            tours: std::collections::BTreeMap::new(),
+            introjs_colors: IntroJsColors::default(),
             deferred: DeferredAsserts::default(),
             presentations: std::collections::BTreeMap::new(),
             charts: std::collections::BTreeMap::new(),
@@ -2367,46 +2373,6 @@ impl BaseCase {
     }
 
     // --- Tour Helpers ---
-
-    pub async fn create_tour(&mut self, name: &str) -> Result<(), SeleniumBaseError> {
-        self.tour = Some(Tour::new(name));
-        Ok(())
-    }
-
-    pub async fn add_tour_step(
-        &mut self,
-        message: &str,
-        target: Option<&str>,
-    ) -> Result<(), SeleniumBaseError> {
-        match self.tour.as_mut() {
-            Some(tour) => {
-                tour.add_step(message, target);
-                Ok(())
-            }
-            None => Err(SeleniumBaseError::InvalidConfig(
-                "No tour created. Call create_tour first.".to_owned(),
-            )),
-        }
-    }
-
-    pub async fn play_tour(&mut self) -> Result<(), SeleniumBaseError> {
-        let tour = self
-            .tour
-            .take()
-            .ok_or_else(|| SeleniumBaseError::InvalidConfig("No tour created.".to_owned()))?;
-        let result = tour.play(self).await;
-        self.tour = Some(tour);
-        result
-    }
-
-    pub async fn export_tour(&self, filename: &str) -> Result<(), SeleniumBaseError> {
-        match self.tour.as_ref() {
-            Some(tour) => tour.export_html(filename),
-            None => Err(SeleniumBaseError::InvalidConfig(
-                "No tour created.".to_owned(),
-            )),
-        }
-    }
 
     // --- Visual Testing ---
 
