@@ -13,554 +13,554 @@ unknown_flags error
 args_override_self #false
 subcommand_required #true
 flagset test-options {
-    flag --browser help="The browser to run: chrome, edge, firefox, brave, ..." help_heading="Browser and page options" {
+    flag --browser help="The browser to run: chrome, edge, firefox, brave, ... (SB_BROWSER)" help_heading="Browser and page options" {
         arg <BROWSER> {
             choices strict=#false chrome chromium edge firefox brave comet opera safari ie cft chs
         }
     }
-    flag --headless help="Run without a visible window (Chrome's new headless mode)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --headless help="Run without a visible window (Chrome's new headless mode) (SB_HEADLESS)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         alias --headless2 hide=#true
         arg "[HEADLESS]" required=#false {
             choices "true" "false"
         }
     }
-    flag --binary-location help="The browser binary to run" help_heading="Browser and page options" {
+    flag --binary-location help="The browser binary to run (SB_CHROME_BIN)" help_heading="Browser and page options" {
         alias --bl hide=#true
         arg <PATH>
     }
-    flag --proxy help="The proxy server: HOST:PORT or USER:PASS@HOST:PORT" help_heading="Browser and page options" {
+    flag --proxy help="The proxy server: HOST:PORT or USER:PASS@HOST:PORT (SB_PROXY)" help_heading="Browser and page options" {
         alias --proxy-server --proxy-string hide=#true
         arg <VALUE>
     }
-    flag --user-data-dir help="The browser profile folder" help_heading="Browser and page options" {
+    flag --user-data-dir help="The browser profile folder (SB_USER_DATA_DIR)" help_heading="Browser and page options" {
         arg <DIR>
     }
-    flag --extension-dir help="Unpacked extension folders to load, separated by commas" help_heading="Browser and page options" {
+    flag --extension-dir help="Unpacked extension folders to load, separated by commas (SB_EXTENSION_DIR)" help_heading="Browser and page options" {
         arg <DIR>
     }
-    flag --locale help="The browser locale" help_heading="Browser and page options" {
+    flag --locale help="The browser locale (SB_LOCALE)" help_heading="Browser and page options" {
         arg <VALUE>
     }
-    flag --user-agent help="The user agent string" help_heading="Browser and page options" {
+    flag --user-agent help="The user agent string (SB_USER_AGENT)" help_heading="Browser and page options" {
         alias --agent hide=#true
         arg <VALUE>
     }
-    flag --mode help="The driver mode: webdriver, cdp or uc" help_heading="Browser and page options" {
+    flag --mode help="The driver mode: webdriver, cdp or uc (SB_MODE)" help_heading="Browser and page options" {
         arg <MODE> {
             choices webdriver cdp uc
         }
     }
-    flag --ad-block help="Block the requests of ad and tracker hosts" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --ad-block help="Block the requests of ad and tracker hosts (SB_AD_BLOCK)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         alias --adblock --block-ads hide=#true
         arg "[AD_BLOCK]" required=#false {
             choices "true" "false"
         }
     }
-    flag --reuse-session help="Share browsers among the tests of the run" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --reuse-session help="Share browsers among the tests of the run (SB_REUSE_SESSION)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         alias --rs hide=#true
         arg "[REUSE_SESSION]" required=#false {
             choices "true" "false"
         }
     }
-    flag --reuse-class-session help="Share a browser among the tests of one module" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --reuse-class-session help="Share a browser among the tests of one module (SB_REUSE_CLASS_SESSION)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         alias --rcs hide=#true
         arg "[REUSE_CLASS_SESSION]" required=#false {
             choices "true" "false"
         }
     }
-    flag --mobile help="Emulate a mobile phone" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --mobile help="Emulate a mobile phone (SB_MOBILE)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         alias --mobile-emulator hide=#true
         arg "[MOBILE]" required=#false {
             choices "true" "false"
         }
     }
-    flag --proxy-pac-url help="A proxy auto-config URL" help_heading="Browser and page options" {
+    flag --proxy-pac-url help="A proxy auto-config URL (SB_PROXY_PAC_URL)" help_heading="Browser and page options" {
         alias --pac-url hide=#true
         arg <URL>
     }
-    flag --esc-end help="End the current test when ESC is pressed in the browser" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --esc-end help="End the current test when ESC is pressed in the browser (SB_ESC_END)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         alias --ee hide=#true
         arg "[ESC_END]" required=#false {
             choices "true" "false"
         }
     }
-    flag --rec-sb-cdp help="Write recordings as pure CDP code" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --rec-sb-cdp help="Write recordings as pure CDP code (SB_REC_SB_CDP)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         arg "[REC_SB_CDP]" required=#false {
             choices "true" "false"
         }
     }
-    flag --fingerprint help="A fingerprint file every browser presents" help_heading="Browser and page options" {
+    flag --fingerprint help="A fingerprint file every browser presents (SB_FINGERPRINT)" help_heading="Browser and page options" {
         arg <PATH>
     }
-    flag --start-page help="The page every browser opens first" help_heading="Browser and page options" {
+    flag --start-page help="The page every browser opens first (SB_START_PAGE)" help_heading="Browser and page options" {
         alias --url hide=#true
         arg <URL>
     }
-    flag --settings-file help="The settings file to read instead of sbase_config.toml" help_heading="Browser and page options" {
+    flag --settings-file help="The settings file to read instead of sbase_config.toml (SB_SETTINGS_FILE)" help_heading="Browser and page options" {
         alias --settings hide=#true
         arg <PATH>
     }
-    flag --chrome help="Run Chrome" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --chrome help="Run Chrome (SB_BROWSER=chrome)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         arg "[CHROME]" required=#false {
             choices "true" "false"
         }
     }
-    flag --edge help="Run Edge" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --edge help="Run Edge (SB_BROWSER=edge)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         arg "[EDGE]" required=#false {
             choices "true" "false"
         }
     }
-    flag --firefox help="Run Firefox" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --firefox help="Run Firefox (SB_BROWSER=firefox)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         arg "[FIREFOX]" required=#false {
             choices "true" "false"
         }
     }
-    flag --brave help="Run Brave" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --brave help="Run Brave (SB_BROWSER=brave)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         arg "[BRAVE]" required=#false {
             choices "true" "false"
         }
     }
-    flag --comet help="Run Comet" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --comet help="Run Comet (SB_BROWSER=comet)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         arg "[COMET]" required=#false {
             choices "true" "false"
         }
     }
-    flag --opera help="Run Opera" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --opera help="Run Opera (SB_BROWSER=opera)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         arg "[OPERA]" required=#false {
             choices "true" "false"
         }
     }
-    flag --safari help="Run Safari" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --safari help="Run Safari (SB_BROWSER=safari)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         arg "[SAFARI]" required=#false {
             choices "true" "false"
         }
     }
-    flag --ie help="Run Internet Explorer" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --ie help="Run Internet Explorer (SB_BROWSER=ie)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         arg "[IE]" required=#false {
             choices "true" "false"
         }
     }
-    flag --cft help="Run Chrome for Testing" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --cft help="Run Chrome for Testing (SB_BROWSER=cft)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         arg "[CFT]" required=#false {
             choices "true" "false"
         }
     }
-    flag --chs help="Run chrome-headless-shell" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --chs help="Run chrome-headless-shell (SB_BROWSER=chs)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         arg "[CHS]" required=#false {
             choices "true" "false"
         }
     }
-    flag --chromium help="Run Chromium" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --chromium help="Run Chromium (SB_BROWSER=chromium)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         alias --use-chromium hide=#true
         arg "[CHROMIUM]" required=#false {
             choices "true" "false"
         }
     }
-    flag --headed help="Run with a visible window" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --headed help="Run with a visible window (SB_HEADLESS=false)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         alias --gui hide=#true
         arg "[HEADED]" required=#false {
             choices "true" "false"
         }
     }
-    flag --uc help="Run in undetected-chromedriver mode" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --uc help="Run in undetected-chromedriver mode (SB_MODE=uc)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         alias --undetected --undetectable hide=#true
         arg "[UC]" required=#false {
             choices "true" "false"
         }
     }
-    flag --headless1 help="Run headless with chrome-headless-shell (Chrome's old headless mode)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --headless1 help="Run headless with chrome-headless-shell (Chrome's old headless mode) (SB_HEADLESS1)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         arg "[HEADLESS1]" required=#false {
             choices "true" "false"
         }
     }
-    flag --locale-code help="The browser language code, such as fr or ar_eg" help_heading="Browser and page options" {
+    flag --locale-code help="The browser language code, such as fr or ar_eg (SB_LOCALE_CODE)" help_heading="Browser and page options" {
         arg <VALUE>
     }
-    flag --server help="The Selenium Grid server to connect to" help_heading="Browser and page options" {
+    flag --server help="The Selenium Grid server to connect to (SB_SERVER)" help_heading="Browser and page options" {
         arg <VALUE>
     }
-    flag --port help="The port of the Selenium Grid server" help_heading="Browser and page options" {
+    flag --port help="The port of the Selenium Grid server (SB_PORT)" help_heading="Browser and page options" {
         arg <VALUE>
     }
-    flag --protocol help="The protocol of the Selenium Grid server: http or https" help_heading="Browser and page options" {
+    flag --protocol help="The protocol of the Selenium Grid server: http or https (SB_PROTOCOL)" help_heading="Browser and page options" {
         arg <VALUE>
     }
-    flag --chromium-arg help="Extra Chromium switches, separated by commas" help_heading="Browser and page options" {
+    flag --chromium-arg help="Extra Chromium switches, separated by commas (SB_CHROMIUM_ARG)" help_heading="Browser and page options" {
         arg <VALUE>
     }
-    flag --dark-mode help="Force Chrome's dark theme on web pages" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --dark-mode help="Force Chrome's dark theme on web pages (SB_DARK_MODE)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         alias --dark hide=#true
         arg "[DARK_MODE]" required=#false {
             choices "true" "false"
         }
     }
-    flag --devtools help="Open the developer tools with each tab (headed only)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --devtools help="Open the developer tools with each tab (headed only) (SB_DEVTOOLS)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         alias --open-devtools hide=#true
         arg "[DEVTOOLS]" required=#false {
             choices "true" "false"
         }
     }
-    flag --disable-features help="Chromium features to switch off, separated by commas" help_heading="Browser and page options" {
+    flag --disable-features help="Chromium features to switch off, separated by commas (SB_DISABLE_FEATURES)" help_heading="Browser and page options" {
         arg <VALUE>
     }
-    flag --disable-gpu help="Switch the GPU off" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --disable-gpu help="Switch the GPU off (SB_DISABLE_GPU)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         arg "[DISABLE_GPU]" required=#false {
             choices "true" "false"
         }
     }
-    flag --disable-ws help="Switch web security off" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --disable-ws help="Switch web security off (SB_DISABLE_WS)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         alias --dws --disable-web-security hide=#true
         arg "[DISABLE_WS]" required=#false {
             choices "true" "false"
         }
     }
-    flag --guest-mode help="Open the browser as a guest" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --guest-mode help="Open the browser as a guest (SB_GUEST_MODE)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         alias --guest hide=#true
         arg "[GUEST_MODE]" required=#false {
             choices "true" "false"
         }
     }
-    flag --incognito help="Open the browser in an incognito window" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --incognito help="Open the browser in an incognito window (SB_INCOGNITO)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         alias --incognito-mode hide=#true
         arg "[INCOGNITO]" required=#false {
             choices "true" "false"
         }
     }
-    flag --host-resolver-rules help="Chromium rules that map host names to addresses" help_heading="Browser and page options" {
+    flag --host-resolver-rules help="Chromium rules that map host names to addresses (SB_HOST_RESOLVER_RULES)" help_heading="Browser and page options" {
         arg <VALUE>
     }
-    flag --no-sandbox help="Start Chromium without its sandbox" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --no-sandbox help="Start Chromium without its sandbox (SB_NO_SANDBOX)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         arg "[NO_SANDBOX]" required=#false {
             choices "true" "false"
         }
     }
-    flag --swiftshader help="Render with SwiftShader, a software WebGL renderer" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --swiftshader help="Render with SwiftShader, a software WebGL renderer (SB_SWIFTSHADER)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         arg "[SWIFTSHADER]" required=#false {
             choices "true" "false"
         }
     }
-    flag --enable-3d-apis help="Keep the GPU on in a headless session, for WebGL" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --enable-3d-apis help="Keep the GPU on in a headless session, for WebGL (SB_ENABLE_3D_APIS)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         arg "[ENABLE_3D_APIS]" required=#false {
             choices "true" "false"
         }
     }
-    flag --maximize help="Maximize the browser window" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --maximize help="Maximize the browser window (SB_MAXIMIZE)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         alias --maximize-window --fullscreen hide=#true
         arg "[MAXIMIZE]" required=#false {
             choices "true" "false"
         }
     }
-    flag --block-images help="Do not load images" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --block-images help="Do not load images (SB_BLOCK_IMAGES)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         arg "[BLOCK_IMAGES]" required=#false {
             choices "true" "false"
         }
     }
-    flag --disable-js help="Turn JavaScript off" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --disable-js help="Turn JavaScript off (SB_DISABLE_JS)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         arg "[DISABLE_JS]" required=#false {
             choices "true" "false"
         }
     }
-    flag --disable-cookies help="Refuse every cookie" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --disable-cookies help="Refuse every cookie (SB_DISABLE_COOKIES)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         arg "[DISABLE_COOKIES]" required=#false {
             choices "true" "false"
         }
     }
-    flag --do-not-track help="Send the DNT: 1 header" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --do-not-track help="Send the DNT: 1 header (SB_DO_NOT_TRACK)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         arg "[DO_NOT_TRACK]" required=#false {
             choices "true" "false"
         }
     }
-    flag --external-pdf help="Download PDF files instead of showing them" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --external-pdf help="Download PDF files instead of showing them (SB_EXTERNAL_PDF)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         arg "[EXTERNAL_PDF]" required=#false {
             choices "true" "false"
         }
     }
-    flag --enable-sync help="Leave Chrome Sync on" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --enable-sync help="Leave Chrome Sync on (SB_ENABLE_SYNC)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         arg "[ENABLE_SYNC]" required=#false {
             choices "true" "false"
         }
     }
-    flag --disable-csp help="Strip the Content Security Policy from every response" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --disable-csp help="Strip the Content Security Policy from every response (SB_DISABLE_CSP)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         alias --dcsp --no-csp hide=#true
         arg "[DISABLE_CSP]" required=#false {
             choices "true" "false"
         }
     }
-    flag --use-auto-ext help="Keep Chrome's automation extension" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --use-auto-ext help="Keep Chrome's automation extension (SB_USE_AUTO_EXT)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         alias --auto-ext hide=#true
         arg "[USE_AUTO_EXT]" required=#false {
             choices "true" "false"
         }
     }
-    flag --proxy-driver help="Download the driver through the proxy" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --proxy-driver help="Download the driver through the proxy (SB_PROXY_DRIVER)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         arg "[PROXY_DRIVER]" required=#false {
             choices "true" "false"
         }
     }
-    flag --page-load-strategy help="How long a navigation waits: normal, eager or none" help_heading="Browser and page options" {
+    flag --page-load-strategy help="How long a navigation waits: normal, eager or none (SB_PAGE_LOAD_STRATEGY)" help_heading="Browser and page options" {
         alias --pls hide=#true
         arg <STRATEGY> {
             choices normal eager none
         }
     }
-    flag --window-size help="The window size: WIDTH,HEIGHT" help_heading="Browser and page options" {
+    flag --window-size help="The window size: WIDTH,HEIGHT (SB_WINDOW_SIZE)" help_heading="Browser and page options" {
         arg <VALUE>
     }
-    flag --window-position help="The window position: X,Y" help_heading="Browser and page options" {
+    flag --window-position help="The window position: X,Y (SB_WINDOW_POSITION)" help_heading="Browser and page options" {
         arg <VALUE>
     }
-    flag --device-metrics help="Emulate a phone screen: WIDTH,HEIGHT,PIXEL_RATIO" help_heading="Browser and page options" {
+    flag --device-metrics help="Emulate a phone screen: WIDTH,HEIGHT,PIXEL_RATIO (SB_DEVICE_METRICS)" help_heading="Browser and page options" {
         alias --metrics hide=#true
         arg <VALUE>
     }
-    flag --proxy-bypass-list help="Hosts that skip the proxy" help_heading="Browser and page options" {
+    flag --proxy-bypass-list help="Hosts that skip the proxy (SB_PROXY_BYPASS_LIST)" help_heading="Browser and page options" {
         arg <VALUE>
     }
-    flag --driver-version help="The driver version: a number, latest, stable, beta, ..." help_heading="Browser and page options" {
+    flag --driver-version help="The driver version: a number, latest, stable, beta, ... (SB_DRIVER_VERSION)" help_heading="Browser and page options" {
         arg <VALUE>
     }
-    flag --cap-file help="A JSON file of capabilities to add to the session's" help_heading="Browser and page options" {
+    flag --cap-file help="A JSON file of capabilities to add to the session's (SB_CAP_FILE)" help_heading="Browser and page options" {
         arg <PATH>
     }
-    flag --cap-string help="A JSON object of capabilities to add to the session's" help_heading="Browser and page options" {
+    flag --cap-string help="A JSON object of capabilities to add to the session's (SB_CAP_STRING)" help_heading="Browser and page options" {
         arg <VALUE>
     }
-    flag --extension-zip help="Extension .zip or .crx files to load, separated by commas" help_heading="Browser and page options" {
+    flag --extension-zip help="Extension .zip or .crx files to load, separated by commas (SB_EXTENSION_ZIP)" help_heading="Browser and page options" {
         alias --crx hide=#true
         arg <VALUE>
     }
-    flag --firefox-arg help="Firefox arguments, separated by commas" help_heading="Browser and page options" {
+    flag --firefox-arg help="Firefox arguments, separated by commas (SB_FIREFOX_ARG)" help_heading="Browser and page options" {
         arg <VALUE>
     }
-    flag --firefox-pref help="Firefox preferences, NAME:VALUE separated by commas" help_heading="Browser and page options" {
+    flag --firefox-pref help="Firefox preferences, NAME:VALUE separated by commas (SB_FIREFOX_PREF)" help_heading="Browser and page options" {
         arg <VALUE>
     }
-    flag --xvfb help="Open a virtual display for a headed browser on Linux" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --xvfb help="Open a virtual display for a headed browser on Linux (SB_XVFB)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         arg "[XVFB]" required=#false {
             choices "true" "false"
         }
     }
-    flag --xvfb-metrics help="The virtual display size: WIDTH,HEIGHT" help_heading="Browser and page options" {
+    flag --xvfb-metrics help="The virtual display size: WIDTH,HEIGHT (SB_XVFB_METRICS)" help_heading="Browser and page options" {
         arg <VALUE>
     }
-    flag --remote-debug help="Open Chrome's remote debugger on port 9222" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --remote-debug help="Open Chrome's remote debugger on port 9222 (SB_REMOTE_DEBUG)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         alias --remote-debugger hide=#true
         arg "[REMOTE_DEBUG]" required=#false {
             choices "true" "false"
         }
     }
-    flag --log-cdp-events help="Log the DevTools Protocol events" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --log-cdp-events help="Log the DevTools Protocol events (SB_LOG_CDP_EVENTS)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         alias --log-cdp hide=#true
         arg "[LOG_CDP_EVENTS]" required=#false {
             choices "true" "false"
         }
     }
-    flag --uc-cdp-events help="Log the DevTools Protocol events in undetected mode" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --uc-cdp-events help="Log the DevTools Protocol events in undetected mode (SB_UC_CDP_EVENTS)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         alias --uc-cdp hide=#true
         arg "[UC_CDP_EVENTS]" required=#false {
             choices "true" "false"
         }
     }
-    flag --demo help="Highlight each element and pause after an action" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --demo help="Highlight each element and pause after an action (SB_DEMO)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         alias --demo-mode hide=#true
         arg "[DEMO]" required=#false {
             choices "true" "false"
         }
     }
-    flag --slow help="Pause briefly after each action" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --slow help="Pause briefly after each action (SB_SLOW)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         alias --slow-mode --slowmo hide=#true
         arg "[SLOW]" required=#false {
             choices "true" "false"
         }
     }
-    flag --demo-sleep help="Seconds to pause after each action in demo mode" help_heading="Browser and page options" {
+    flag --demo-sleep help="Seconds to pause after each action in demo mode (SB_DEMO_SLEEP)" help_heading="Browser and page options" {
         arg <SECONDS>
     }
-    flag --message-duration help="Seconds a message stays on the page" help_heading="Browser and page options" {
+    flag --message-duration help="Seconds a message stays on the page (SB_MESSAGE_DURATION)" help_heading="Browser and page options" {
         arg <SECONDS>
     }
-    flag --skip-js-waits help="Do not wait for the page's JavaScript to settle" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --skip-js-waits help="Do not wait for the page's JavaScript to settle (SB_SKIP_JS_WAITS)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         alias --sjw hide=#true
         arg "[SKIP_JS_WAITS]" required=#false {
             choices "true" "false"
         }
     }
-    flag --highlights help="How many times to flash a highlighted element" help_heading="Browser and page options" {
+    flag --highlights help="How many times to flash a highlighted element (SB_HIGHLIGHTS)" help_heading="Browser and page options" {
         arg <COUNT>
     }
-    flag --interval help="Seconds between the steps of a tour or presentation" help_heading="Browser and page options" {
+    flag --interval help="Seconds between the steps of a tour or presentation (SB_INTERVAL)" help_heading="Browser and page options" {
         arg <SECONDS>
     }
-    flag --verify-delay help="Seconds to wait before each MasterQA verification" help_heading="Browser and page options" {
+    flag --verify-delay help="Seconds to wait before each MasterQA verification (SB_VERIFY_DELAY)" help_heading="Browser and page options" {
         arg <SECONDS>
     }
-    flag --check-js help="Check each page for JavaScript errors after it opens" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --check-js help="Check each page for JavaScript errors after it opens (SB_CHECK_JS)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         arg "[CHECK_JS]" required=#false {
             choices "true" "false"
         }
     }
-    flag --wait-for-angularjs help="Wait for AngularJS after opening a page and clicking" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --wait-for-angularjs help="Wait for AngularJS after opening a page and clicking (SB_WAIT_FOR_ANGULARJS)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         alias --wfa hide=#true
         arg "[WAIT_FOR_ANGULARJS]" required=#false {
             choices "true" "false"
         }
     }
-    flag --disable-beforeunload help="Remove the beforeunload prompt after each page opens" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --disable-beforeunload help="Remove the beforeunload prompt after each page opens (SB_DISABLE_BEFOREUNLOAD)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         arg "[DISABLE_BEFOREUNLOAD]" required=#false {
             choices "true" "false"
         }
     }
-    flag --visual-baseline help="Set the visual baselines again instead of comparing" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --visual-baseline help="Set the visual baselines again instead of comparing (SB_VISUAL_BASELINE)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         arg "[VISUAL_BASELINE]" required=#false {
             choices "true" "false"
         }
     }
-    flag --crumbs help="Delete the cookies when a reused browser is handed to the next test" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
+    flag --crumbs help="Delete the cookies when a reused browser is handed to the next test (SB_CRUMBS)" help_heading="Browser and page options" require_equals=#true value_optional=#true default_missing="true" {
         arg "[CRUMBS]" required=#false {
             choices "true" "false"
         }
     }
-    flag --timeout-multiplier help="Multiply the default waits by this number" help_heading="Browser and page options" {
+    flag --timeout-multiplier help="Multiply the default waits by this number (SB_TIMEOUT_MULTIPLIER)" help_heading="Browser and page options" {
         arg <VALUE>
     }
-    flag --rec-sleep help="Keep the sleeps of a recording" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+    flag --rec-sleep help="Keep the sleeps of a recording (SB_REC_SLEEP)" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
         alias --record-sleep hide=#true
         arg "[REC_SLEEP]" required=#false {
             choices "true" "false"
         }
     }
-    flag --env help="The environment the tests run against: qa, staging, production, ..." help_heading="Test data" {
+    flag --env help="The environment the tests run against: qa, staging, production, ... (SB_ENV)" help_heading="Test data" {
         arg <ENV> {
             choices strict=#false qa rc staging develop production performance replica fedramp offline online master remote legacy local alpha beta demo gdpr main test gov new old uat
         }
     }
-    flag --account help="A free account name for the tests" help_heading="Test data" {
+    flag --account help="A free account name for the tests (SB_ACCOUNT)" help_heading="Test data" {
         arg <VALUE>
     }
-    flag --data help="Free test data" help_heading="Test data" {
+    flag --data help="Free test data (SB_DATA)" help_heading="Test data" {
         arg <VALUE>
     }
-    flag --var1 help="A free variable for the tests" help_heading="Test data" {
+    flag --var1 help="A free variable for the tests (SB_VAR1)" help_heading="Test data" {
         arg <VALUE>
     }
-    flag --var2 help="A free variable for the tests" help_heading="Test data" {
+    flag --var2 help="A free variable for the tests (SB_VAR2)" help_heading="Test data" {
         arg <VALUE>
     }
-    flag --var3 help="A free variable for the tests" help_heading="Test data" {
+    flag --var3 help="A free variable for the tests (SB_VAR3)" help_heading="Test data" {
         arg <VALUE>
     }
-    flag --variables help="A dictionary of values: JSON or a Python dictionary literal" help_heading="Test data" {
+    flag --variables help="A dictionary of values: JSON or a Python dictionary literal (SB_VARIABLES)" help_heading="Test data" {
         arg <VALUE>
     }
-    flag --pdb help="Stop in a post-mortem prompt when a test fails" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+    flag --pdb help="Stop in a post-mortem prompt when a test fails (SB_PDB)" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
         arg "[PDB]" required=#false {
             choices "true" "false"
         }
     }
-    flag --trace help="Stop in a prompt before each test's body" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+    flag --trace help="Stop in a prompt before each test's body (SB_TRACE)" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
         arg "[TRACE]" required=#false {
             choices "true" "false"
         }
     }
-    flag --final-debug help="Stop in a prompt after each test, before the browser quits" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+    flag --final-debug help="Stop in a prompt after each test, before the browser quits (SB_FINAL_DEBUG)" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
         alias --fdebug --final-trace --ftrace hide=#true
         arg "[FINAL_DEBUG]" required=#false {
             choices "true" "false"
         }
     }
-    flag --reruns help="Run a failing test again this many times" help_heading="Test run, debugging and reports" {
+    flag --reruns help="Run a failing test again this many times (SB_RERUNS)" help_heading="Test run, debugging and reports" {
         arg <COUNT>
     }
-    flag --reruns-delay help="Seconds to wait between reruns" help_heading="Test run, debugging and reports" {
+    flag --reruns-delay help="Seconds to wait between reruns (SB_RERUNS_DELAY)" help_heading="Test run, debugging and reports" {
         arg <SECONDS>
     }
-    flag --time-limit help="Fail a test that runs longer than this many seconds" help_heading="Test run, debugging and reports" {
+    flag --time-limit help="Fail a test that runs longer than this many seconds (SB_TIME_LIMIT)" help_heading="Test run, debugging and reports" {
         alias --timelimit hide=#true
         arg <SECONDS>
     }
-    flag --runner help="The test runner: cargo or nextest" help_heading="Test run, debugging and reports" {
+    flag --runner help="The test runner: cargo or nextest (SB_TEST_RUNNER)" help_heading="Test run, debugging and reports" {
         arg <RUNNER> {
             choices cargo nextest
         }
     }
-    flag --screenshot help="Save a screenshot of passing tests too" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+    flag --screenshot help="Save a screenshot of passing tests too (SB_SAVE_SCREENSHOT)" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
         alias --save-screenshot --ss hide=#true
         arg "[SCREENSHOT]" required=#false {
             choices "true" "false"
         }
     }
-    flag --no-screenshot help="Save no screenshot of failing tests" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+    flag --no-screenshot help="Save no screenshot of failing tests (SB_NO_SCREENSHOT)" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
         alias --ns hide=#true
         arg "[NO_SCREENSHOT]" required=#false {
             choices "true" "false"
         }
     }
-    flag --list-fail-page help="Print the URL of the page a failing test ended on" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+    flag --list-fail-page help="Print the URL of the page a failing test ended on (SB_LIST_FAIL_PAGE)" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
         alias --list-fail-pages --lfp hide=#true
         arg "[LIST_FAIL_PAGE]" required=#false {
             choices "true" "false"
         }
     }
-    flag --archive-logs help="Keep the old latest_logs folder in archived_logs" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+    flag --archive-logs help="Keep the old latest_logs folder in archived_logs (SB_ARCHIVE_LOGS)" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
         arg "[ARCHIVE_LOGS]" required=#false {
             choices "true" "false"
         }
     }
-    flag --archive-downloads help="Keep the old downloaded_files folder in archived_files" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+    flag --archive-downloads help="Keep the old downloaded_files folder in archived_files (SB_ARCHIVE_DOWNLOADS)" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
         arg "[ARCHIVE_DOWNLOADS]" required=#false {
             choices "true" "false"
         }
     }
-    flag --dashboard help="Write the results dashboard" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+    flag --dashboard help="Write the results dashboard (SB_DASHBOARD)" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
         arg "[DASHBOARD]" required=#false {
             choices "true" "false"
         }
     }
-    flag --dash-title help="The dashboard's title" help_heading="Test run, debugging and reports" {
+    flag --dash-title help="The dashboard's title (SB_DASH_TITLE)" help_heading="Test run, debugging and reports" {
         arg <VALUE>
     }
-    flag --html help="Write an HTML report to this file" help_heading="Test run, debugging and reports" {
+    flag --html help="Write an HTML report to this file (SB_HTML)" help_heading="Test run, debugging and reports" {
         arg <PATH>
     }
-    flag --junit-xml help="Write a JUnit XML report to this file" help_heading="Test run, debugging and reports" {
+    flag --junit-xml help="Write a JUnit XML report to this file (SB_JUNIT_XML)" help_heading="Test run, debugging and reports" {
         alias --junitxml hide=#true
         arg <PATH>
     }
-    flag --alluredir help="Write Allure results to this folder" help_heading="Test run, debugging and reports" {
+    flag --alluredir help="Write Allure results to this folder (SB_ALLURE_DIR)" help_heading="Test run, debugging and reports" {
         alias --allure-dir hide=#true
         arg <PATH>
     }
-    flag --with-db-reporting help="Record each test's outcome in the results database" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+    flag --with-db-reporting help="Record each test's outcome in the results database (SB_WITH_DB_REPORTING)" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
         arg "[WITH_DB_REPORTING]" required=#false {
             choices "true" "false"
         }
     }
-    flag --database-env help="Which results database to use" help_heading="Test run, debugging and reports" {
+    flag --database-env help="Which results database to use (SB_DATABASE_ENV)" help_heading="Test run, debugging and reports" {
         arg <VALUE>
     }
-    flag --with-s3-logging help="Upload each test's logs to S3" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+    flag --with-s3-logging help="Upload each test's logs to S3 (SB_WITH_S3_LOGGING)" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
         arg "[WITH_S3_LOGGING]" required=#false {
             choices "true" "false"
         }
     }
-    flag --rec help="Record the browser actions as a test" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+    flag --rec help="Record the browser actions as a test (SB_RECORDER)" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
         alias --record --recorder --codegen hide=#true
         arg "[REC]" required=#false {
             choices "true" "false"
         }
     }
-    flag --rec-behave help="Also write the recording as a Gherkin feature" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+    flag --rec-behave help="Also write the recording as a Gherkin feature (SB_REC_BEHAVE)" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
         alias --rec-gherkin hide=#true
         arg "[REC_BEHAVE]" required=#false {
             choices "true" "false"
         }
     }
-    flag --rec-print help="Print the recording when the test ends" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+    flag --rec-print help="Print the recording when the test ends (SB_REC_PRINT)" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
         arg "[REC_PRINT]" required=#false {
             choices "true" "false"
         }
     }
-    flag --rec-sb-mgr help="Write the recording as a script" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
+    flag --rec-sb-mgr help="Write the recording as a script (SB_REC_SB_MGR)" help_heading="Test run, debugging and reports" require_equals=#true value_optional=#true default_missing="true" {
         arg "[REC_SB_MGR]" required=#false {
             choices "true" "false"
         }
@@ -627,7 +627,7 @@ flagset test-options {
 flag --webdriver help="WebDriver server URL (default: SB_WEBDRIVER_URL, else http://localhost:4444)" global=#true {
     arg <URL>
 }
-flag --browser help="Browser engine to launch (default: chrome, or the config file's)" global=#true {
+flag --browser help="Browser engine to launch (SB_BROWSER; default: chrome, or the config file's)" global=#true {
     arg <BROWSER> {
         choices {
             choice chrome
@@ -644,82 +644,82 @@ flag --browser help="Browser engine to launch (default: chrome, or the config fi
         }
     }
 }
-flag --headed help="Run the browser in headed mode" global=#true bool_value=#true {
+flag --headed help="Run the browser in headed mode (SB_HEADLESS=false)" global=#true bool_value=#true {
     alias --gui hide=#true
 }
-flag --headless help="Run the browser in headless mode" global=#true bool_value=#true {
+flag --headless help="Run the browser in headless mode (SB_HEADLESS)" global=#true bool_value=#true {
     alias --headless2 hide=#true
 }
-flag --cdp help="Enable Chrome DevTools Protocol mode" global=#true bool_value=#true
-flag --uc help="Enable undetected-chromedriver style evasions" global=#true bool_value=#true {
+flag --cdp help="Enable Chrome DevTools Protocol mode (SB_MODE=cdp)" global=#true bool_value=#true
+flag --uc help="Enable undetected-chromedriver style evasions (SB_MODE=uc)" global=#true bool_value=#true {
     alias --undetected --undetectable hide=#true
 }
-flag --user-agent help="Override the default user agent string" global=#true {
+flag --user-agent help="Override the default user agent string (SB_USER_AGENT)" global=#true {
     arg <USER_AGENT>
 }
-flag "-a --agent" help="Alias for --user-agent" global=#true {
+flag "-a --agent" help="Alias for --user-agent (SB_USER_AGENT)" global=#true {
     arg <AGENT>
 }
-flag --locale help="Locale string for the browser context" global=#true {
+flag --locale help="Locale string for the browser context (SB_LOCALE)" global=#true {
     arg <LOCALE>
 }
-flag "--start-page --url --start_page" help="Page the browser opens first, Python's --start-page (aliases --url and --start_page)" global=#true {
+flag "--start-page --url --start_page" help="Page the browser opens first, Python's --start-page (SB_START_PAGE; aliases --url and --start_page)" global=#true {
     long_help #"""
-Page the browser opens first, Python's --start-page (aliases --url and --start_page)
+Page the browser opens first, Python's --start-page (SB_START_PAGE; aliases --url and --start_page)
 
 Every command starts its own browser and closes it at the end, so a command that acts on a page (get-text, click, screenshot, assert-element, ...) acts on this one: `sbrs --url https://example.com get-text --css p`. A bare host gets `https://` and a local file becomes a `file://` URL. The command line wins over SB_START_PAGE, which wins over the `start_page` key of the settings file. Commands that open a URL of their own (open, smoke, download-file, print-pdf, pdf-text, assert-pdf-text, record) refuse it.
 """#
     arg <URL>
 }
-flag "--save-screenshot --save_screenshot" help="Save a screenshot to latest_logs/ just before the browser closes, and print its path" global=#true bool_value=#true {
+flag "--save-screenshot --save_screenshot" help="Save a screenshot to latest_logs/ just before the browser closes, and print its path (SB_SAVE_SCREENSHOT)" global=#true bool_value=#true {
     long_help #"""
-Save a screenshot to latest_logs/ just before the browser closes, and print its path
+Save a screenshot to latest_logs/ just before the browser closes, and print its path (SB_SAVE_SCREENSHOT)
 
 Python's `--save-screenshot`. A command that acts on the page (click, type, ...) also prints where it ended up as `Now at: <url> (<title>)`.
 """#
 }
-flag --ad-block help="Refuse the requests of ad and tracker hosts (Chromium WebDriver sessions)" global=#true bool_value=#true {
+flag --ad-block help="Refuse the requests of ad and tracker hosts (SB_AD_BLOCK; Chromium WebDriver sessions)" global=#true bool_value=#true {
     alias --adblock --block-ads hide=#true
 }
-flag --proxy help="Proxy (host:port or scheme://host:port); with --proxy-list, a name from the list" global=#true {
+flag --proxy help="Proxy (SB_PROXY; host:port or scheme://host:port); with --proxy-list, a name from the list" global=#true {
     alias --proxy-server --proxy-string hide=#true
     arg <PROXY>
 }
-flag --proxy-list help="File of proxies to choose from; without --proxy a random one is used" global=#true {
+flag --proxy-list help="File of proxies to choose from; without --proxy a random one is used (SB_PROXY_LIST)" global=#true {
     arg <FILE>
 }
-flag --proxy-pac-url help="URL to a proxy auto-config (PAC) file" global=#true {
+flag --proxy-pac-url help="URL to a proxy auto-config (PAC) file (SB_PROXY_PAC_URL)" global=#true {
     alias --pac-url hide=#true
     arg <PROXY_PAC_URL>
 }
-flag --user-data-dir help="Path to a persistent browser user-data directory" global=#true {
+flag --user-data-dir help="Path to a persistent browser user-data directory (SB_USER_DATA_DIR)" global=#true {
     arg <USER_DATA_DIR>
 }
-flag --extension-dir help="Path to an unpacked extension directory" global=#true {
+flag --extension-dir help="Path to an unpacked extension directory (SB_EXTENSION_DIR)" global=#true {
     arg <EXTENSION_DIR>
 }
 flag "--reuse-session --reuse_session --rs" help="Share browsers among the tests of the run (SB_REUSE_SESSION)" global=#true bool_value=#true
 flag "--rcs --reuse-class-session --reuse_class_session" help="Share a browser among the tests of one Rust module (SB_REUSE_CLASS_SESSION)" global=#true bool_value=#true
-flag --mobile help="Use a mobile device emulation profile" global=#true bool_value=#true {
+flag --mobile help="Use a mobile device emulation profile (SB_MOBILE)" global=#true bool_value=#true {
     alias --mobile-emulator hide=#true
 }
-flag "--esc-end --esc_end --ee" help="End the current test when ESC is pressed in the browser" global=#true bool_value=#true
-flag "--rec-sb-cdp --rec_sb_cdp" help="Write recordings as pure CDP code (sb_cdp Page and Locator calls)" global=#true bool_value=#true
-flag "-c --config" help="Path to a TOML/JSON settings file" global=#true {
+flag "--esc-end --esc_end --ee" help="End the current test when ESC is pressed in the browser (SB_ESC_END)" global=#true bool_value=#true
+flag "--rec-sb-cdp --rec_sb_cdp" help="Write recordings as pure CDP code (SB_REC_SB_CDP; sb_cdp Page and Locator calls)" global=#true bool_value=#true
+flag "-c --config" help="Path to a TOML/JSON settings file (SB_SETTINGS_FILE)" global=#true {
     alias --settings-file --settings hide=#true
     arg <CONFIG>
 }
-flag --fingerprint help="Make every browser the command starts present the fingerprint in FILE" global=#true {
+flag --fingerprint help="Make every browser the command starts present the fingerprint in FILE (SB_FINGERPRINT)" global=#true {
     long_help #"""
-Make every browser the command starts present the fingerprint in FILE
+Make every browser the command starts present the fingerprint in FILE (SB_FINGERPRINT)
 
 The file is the fingerprint JSON that `sbrs fingerprint capture` and `export` write. A Chromium browser then runs in the CDP mode unless --uc or another mode is given. The command line wins over SB_FINGERPRINT, which wins over the [fingerprint] table of the settings file. The user agent, language and proxy named by their own options win over the fingerprint's.
 """#
     arg <FILE>
 }
-flag --plugin help="Turn on a built-in plugin in the browsers the command starts (repeatable)" global=#true var=#true {
+flag --plugin help="Turn on a built-in plugin in the browsers the command starts (SB_PLUGINS; repeatable)" global=#true var=#true {
     long_help #"""
-Turn on a built-in plugin in the browsers the command starts (repeatable)
+Turn on a built-in plugin in the browsers the command starts (SB_PLUGINS; repeatable)
 
 Adds to the plugins the settings file (the [plugins] table) and SB_PLUGINS turn on. Precedence, highest first: the command line, then SB_PLUGINS (which replaces the names the file enables), then the settings file. `sbrs plugin list` shows the plugins this build has. `sbrs test` passes the names on to the tests as SB_PLUGINS.
 """#
@@ -733,335 +733,335 @@ Quote the whole option so the shell keeps the quotes of a string: --plugin-opt '
 """#
     arg "<NAME.KEY=VALUE>"
 }
-flag --binary-location help="The browser binary to run" global=#true help_heading="Browser options" {
+flag --binary-location help="The browser binary to run (SB_CHROME_BIN)" global=#true help_heading="Browser options" {
     alias --bl hide=#true
     arg <PATH>
 }
-flag --mode help="The driver mode: webdriver, cdp or uc" global=#true help_heading="Browser options" {
+flag --mode help="The driver mode: webdriver, cdp or uc (SB_MODE)" global=#true help_heading="Browser options" {
     arg <VALUE>
 }
-flag --chrome help="Run Chrome" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --chrome help="Run Chrome (SB_BROWSER=chrome)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     arg "[CHROME]" required=#false {
         choices "true" "false"
     }
 }
-flag --edge help="Run Edge" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --edge help="Run Edge (SB_BROWSER=edge)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     arg "[EDGE]" required=#false {
         choices "true" "false"
     }
 }
-flag --firefox help="Run Firefox" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --firefox help="Run Firefox (SB_BROWSER=firefox)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     arg "[FIREFOX]" required=#false {
         choices "true" "false"
     }
 }
-flag --brave help="Run Brave" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --brave help="Run Brave (SB_BROWSER=brave)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     arg "[BRAVE]" required=#false {
         choices "true" "false"
     }
 }
-flag --comet help="Run Comet" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --comet help="Run Comet (SB_BROWSER=comet)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     arg "[COMET]" required=#false {
         choices "true" "false"
     }
 }
-flag --opera help="Run Opera" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --opera help="Run Opera (SB_BROWSER=opera)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     arg "[OPERA]" required=#false {
         choices "true" "false"
     }
 }
-flag --safari help="Run Safari" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --safari help="Run Safari (SB_BROWSER=safari)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     arg "[SAFARI]" required=#false {
         choices "true" "false"
     }
 }
-flag --ie help="Run Internet Explorer" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --ie help="Run Internet Explorer (SB_BROWSER=ie)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     arg "[IE]" required=#false {
         choices "true" "false"
     }
 }
-flag --cft help="Run Chrome for Testing" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --cft help="Run Chrome for Testing (SB_BROWSER=cft)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     arg "[CFT]" required=#false {
         choices "true" "false"
     }
 }
-flag --chs help="Run chrome-headless-shell" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --chs help="Run chrome-headless-shell (SB_BROWSER=chs)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     arg "[CHS]" required=#false {
         choices "true" "false"
     }
 }
-flag --chromium help="Run Chromium" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --chromium help="Run Chromium (SB_BROWSER=chromium)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     alias --use-chromium hide=#true
     arg "[CHROMIUM]" required=#false {
         choices "true" "false"
     }
 }
-flag --headless1 help="Run headless with chrome-headless-shell (Chrome's old headless mode)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --headless1 help="Run headless with chrome-headless-shell (Chrome's old headless mode) (SB_HEADLESS1)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     arg "[HEADLESS1]" required=#false {
         choices "true" "false"
     }
 }
-flag --locale-code help="The browser language code, such as fr or ar_eg" global=#true help_heading="Browser options" {
+flag --locale-code help="The browser language code, such as fr or ar_eg (SB_LOCALE_CODE)" global=#true help_heading="Browser options" {
     arg <VALUE>
 }
-flag --server help="The Selenium Grid server to connect to" global=#true help_heading="Browser options" {
+flag --server help="The Selenium Grid server to connect to (SB_SERVER)" global=#true help_heading="Browser options" {
     arg <VALUE>
 }
-flag --port help="The port of the Selenium Grid server" global=#true help_heading="Browser options" {
+flag --port help="The port of the Selenium Grid server (SB_PORT)" global=#true help_heading="Browser options" {
     arg <VALUE>
 }
-flag --protocol help="The protocol of the Selenium Grid server: http or https" global=#true help_heading="Browser options" {
+flag --protocol help="The protocol of the Selenium Grid server: http or https (SB_PROTOCOL)" global=#true help_heading="Browser options" {
     arg <VALUE>
 }
-flag --chromium-arg help="Extra Chromium switches, separated by commas" global=#true help_heading="Browser options" {
+flag --chromium-arg help="Extra Chromium switches, separated by commas (SB_CHROMIUM_ARG)" global=#true help_heading="Browser options" {
     arg <VALUE>
 }
-flag --dark-mode help="Force Chrome's dark theme on web pages" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --dark-mode help="Force Chrome's dark theme on web pages (SB_DARK_MODE)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     alias --dark hide=#true
     arg "[DARK_MODE]" required=#false {
         choices "true" "false"
     }
 }
-flag --devtools help="Open the developer tools with each tab (headed only)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --devtools help="Open the developer tools with each tab (headed only) (SB_DEVTOOLS)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     alias --open-devtools hide=#true
     arg "[DEVTOOLS]" required=#false {
         choices "true" "false"
     }
 }
-flag --disable-features help="Chromium features to switch off, separated by commas" global=#true help_heading="Browser options" {
+flag --disable-features help="Chromium features to switch off, separated by commas (SB_DISABLE_FEATURES)" global=#true help_heading="Browser options" {
     arg <VALUE>
 }
-flag --disable-gpu help="Switch the GPU off" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --disable-gpu help="Switch the GPU off (SB_DISABLE_GPU)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     arg "[DISABLE_GPU]" required=#false {
         choices "true" "false"
     }
 }
-flag --disable-ws help="Switch web security off" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --disable-ws help="Switch web security off (SB_DISABLE_WS)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     alias --dws --disable-web-security hide=#true
     arg "[DISABLE_WS]" required=#false {
         choices "true" "false"
     }
 }
-flag --guest-mode help="Open the browser as a guest" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --guest-mode help="Open the browser as a guest (SB_GUEST_MODE)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     alias --guest hide=#true
     arg "[GUEST_MODE]" required=#false {
         choices "true" "false"
     }
 }
-flag --incognito help="Open the browser in an incognito window" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --incognito help="Open the browser in an incognito window (SB_INCOGNITO)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     alias --incognito-mode hide=#true
     arg "[INCOGNITO]" required=#false {
         choices "true" "false"
     }
 }
-flag --host-resolver-rules help="Chromium rules that map host names to addresses" global=#true help_heading="Browser options" {
+flag --host-resolver-rules help="Chromium rules that map host names to addresses (SB_HOST_RESOLVER_RULES)" global=#true help_heading="Browser options" {
     arg <VALUE>
 }
-flag --no-sandbox help="Start Chromium without its sandbox" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --no-sandbox help="Start Chromium without its sandbox (SB_NO_SANDBOX)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     arg "[NO_SANDBOX]" required=#false {
         choices "true" "false"
     }
 }
-flag --swiftshader help="Render with SwiftShader, a software WebGL renderer" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --swiftshader help="Render with SwiftShader, a software WebGL renderer (SB_SWIFTSHADER)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     arg "[SWIFTSHADER]" required=#false {
         choices "true" "false"
     }
 }
-flag --enable-3d-apis help="Keep the GPU on in a headless session, for WebGL" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --enable-3d-apis help="Keep the GPU on in a headless session, for WebGL (SB_ENABLE_3D_APIS)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     arg "[ENABLE_3D_APIS]" required=#false {
         choices "true" "false"
     }
 }
-flag --maximize help="Maximize the browser window" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --maximize help="Maximize the browser window (SB_MAXIMIZE)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     alias --maximize-window --fullscreen hide=#true
     arg "[MAXIMIZE]" required=#false {
         choices "true" "false"
     }
 }
-flag --block-images help="Do not load images" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --block-images help="Do not load images (SB_BLOCK_IMAGES)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     arg "[BLOCK_IMAGES]" required=#false {
         choices "true" "false"
     }
 }
-flag --disable-js help="Turn JavaScript off" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --disable-js help="Turn JavaScript off (SB_DISABLE_JS)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     arg "[DISABLE_JS]" required=#false {
         choices "true" "false"
     }
 }
-flag --disable-cookies help="Refuse every cookie" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --disable-cookies help="Refuse every cookie (SB_DISABLE_COOKIES)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     arg "[DISABLE_COOKIES]" required=#false {
         choices "true" "false"
     }
 }
-flag --do-not-track help="Send the DNT: 1 header" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --do-not-track help="Send the DNT: 1 header (SB_DO_NOT_TRACK)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     arg "[DO_NOT_TRACK]" required=#false {
         choices "true" "false"
     }
 }
-flag --external-pdf help="Download PDF files instead of showing them" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --external-pdf help="Download PDF files instead of showing them (SB_EXTERNAL_PDF)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     arg "[EXTERNAL_PDF]" required=#false {
         choices "true" "false"
     }
 }
-flag --enable-sync help="Leave Chrome Sync on" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --enable-sync help="Leave Chrome Sync on (SB_ENABLE_SYNC)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     arg "[ENABLE_SYNC]" required=#false {
         choices "true" "false"
     }
 }
-flag --disable-csp help="Strip the Content Security Policy from every response" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --disable-csp help="Strip the Content Security Policy from every response (SB_DISABLE_CSP)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     alias --dcsp --no-csp hide=#true
     arg "[DISABLE_CSP]" required=#false {
         choices "true" "false"
     }
 }
-flag --use-auto-ext help="Keep Chrome's automation extension" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --use-auto-ext help="Keep Chrome's automation extension (SB_USE_AUTO_EXT)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     alias --auto-ext hide=#true
     arg "[USE_AUTO_EXT]" required=#false {
         choices "true" "false"
     }
 }
-flag --proxy-driver help="Download the driver through the proxy" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --proxy-driver help="Download the driver through the proxy (SB_PROXY_DRIVER)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     arg "[PROXY_DRIVER]" required=#false {
         choices "true" "false"
     }
 }
-flag --page-load-strategy help="How long a navigation waits: normal, eager or none" global=#true help_heading="Browser options" {
+flag --page-load-strategy help="How long a navigation waits: normal, eager or none (SB_PAGE_LOAD_STRATEGY)" global=#true help_heading="Browser options" {
     alias --pls hide=#true
     arg <STRATEGY> {
         choices normal eager none
     }
 }
-flag --window-size help="The window size: WIDTH,HEIGHT" global=#true help_heading="Browser options" {
+flag --window-size help="The window size: WIDTH,HEIGHT (SB_WINDOW_SIZE)" global=#true help_heading="Browser options" {
     arg <VALUE>
 }
-flag --window-position help="The window position: X,Y" global=#true help_heading="Browser options" {
+flag --window-position help="The window position: X,Y (SB_WINDOW_POSITION)" global=#true help_heading="Browser options" {
     arg <VALUE>
 }
-flag --device-metrics help="Emulate a phone screen: WIDTH,HEIGHT,PIXEL_RATIO" global=#true help_heading="Browser options" {
+flag --device-metrics help="Emulate a phone screen: WIDTH,HEIGHT,PIXEL_RATIO (SB_DEVICE_METRICS)" global=#true help_heading="Browser options" {
     alias --metrics hide=#true
     arg <VALUE>
 }
-flag --proxy-bypass-list help="Hosts that skip the proxy" global=#true help_heading="Browser options" {
+flag --proxy-bypass-list help="Hosts that skip the proxy (SB_PROXY_BYPASS_LIST)" global=#true help_heading="Browser options" {
     arg <VALUE>
 }
-flag --driver-version help="The driver version: a number, latest, stable, beta, ..." global=#true help_heading="Browser options" {
+flag --driver-version help="The driver version: a number, latest, stable, beta, ... (SB_DRIVER_VERSION)" global=#true help_heading="Browser options" {
     arg <VALUE>
 }
-flag --cap-file help="A JSON file of capabilities to add to the session's" global=#true help_heading="Browser options" {
+flag --cap-file help="A JSON file of capabilities to add to the session's (SB_CAP_FILE)" global=#true help_heading="Browser options" {
     arg <PATH>
 }
-flag --cap-string help="A JSON object of capabilities to add to the session's" global=#true help_heading="Browser options" {
+flag --cap-string help="A JSON object of capabilities to add to the session's (SB_CAP_STRING)" global=#true help_heading="Browser options" {
     arg <VALUE>
 }
-flag --extension-zip help="Extension .zip or .crx files to load, separated by commas" global=#true help_heading="Browser options" {
+flag --extension-zip help="Extension .zip or .crx files to load, separated by commas (SB_EXTENSION_ZIP)" global=#true help_heading="Browser options" {
     alias --crx hide=#true
     arg <VALUE>
 }
-flag --firefox-arg help="Firefox arguments, separated by commas" global=#true help_heading="Browser options" {
+flag --firefox-arg help="Firefox arguments, separated by commas (SB_FIREFOX_ARG)" global=#true help_heading="Browser options" {
     arg <VALUE>
 }
-flag --firefox-pref help="Firefox preferences, NAME:VALUE separated by commas" global=#true help_heading="Browser options" {
+flag --firefox-pref help="Firefox preferences, NAME:VALUE separated by commas (SB_FIREFOX_PREF)" global=#true help_heading="Browser options" {
     arg <VALUE>
 }
-flag --xvfb help="Open a virtual display for a headed browser on Linux" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --xvfb help="Open a virtual display for a headed browser on Linux (SB_XVFB)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     arg "[XVFB]" required=#false {
         choices "true" "false"
     }
 }
-flag --xvfb-metrics help="The virtual display size: WIDTH,HEIGHT" global=#true help_heading="Browser options" {
+flag --xvfb-metrics help="The virtual display size: WIDTH,HEIGHT (SB_XVFB_METRICS)" global=#true help_heading="Browser options" {
     arg <VALUE>
 }
-flag --remote-debug help="Open Chrome's remote debugger on port 9222" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --remote-debug help="Open Chrome's remote debugger on port 9222 (SB_REMOTE_DEBUG)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     alias --remote-debugger hide=#true
     arg "[REMOTE_DEBUG]" required=#false {
         choices "true" "false"
     }
 }
-flag --log-cdp-events help="Log the DevTools Protocol events" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --log-cdp-events help="Log the DevTools Protocol events (SB_LOG_CDP_EVENTS)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     alias --log-cdp hide=#true
     arg "[LOG_CDP_EVENTS]" required=#false {
         choices "true" "false"
     }
 }
-flag --uc-cdp-events help="Log the DevTools Protocol events in undetected mode" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --uc-cdp-events help="Log the DevTools Protocol events in undetected mode (SB_UC_CDP_EVENTS)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     alias --uc-cdp hide=#true
     arg "[UC_CDP_EVENTS]" required=#false {
         choices "true" "false"
     }
 }
-flag --demo help="Highlight each element and pause after an action" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --demo help="Highlight each element and pause after an action (SB_DEMO)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     alias --demo-mode hide=#true
     arg "[DEMO]" required=#false {
         choices "true" "false"
     }
 }
-flag --slow help="Pause briefly after each action" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --slow help="Pause briefly after each action (SB_SLOW)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     alias --slow-mode --slowmo hide=#true
     arg "[SLOW]" required=#false {
         choices "true" "false"
     }
 }
-flag --demo-sleep help="Seconds to pause after each action in demo mode" global=#true help_heading="Browser options" {
+flag --demo-sleep help="Seconds to pause after each action in demo mode (SB_DEMO_SLEEP)" global=#true help_heading="Browser options" {
     arg <SECONDS>
 }
-flag --message-duration help="Seconds a message stays on the page" global=#true help_heading="Browser options" {
+flag --message-duration help="Seconds a message stays on the page (SB_MESSAGE_DURATION)" global=#true help_heading="Browser options" {
     arg <SECONDS>
 }
-flag --skip-js-waits help="Do not wait for the page's JavaScript to settle" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --skip-js-waits help="Do not wait for the page's JavaScript to settle (SB_SKIP_JS_WAITS)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     alias --sjw hide=#true
     arg "[SKIP_JS_WAITS]" required=#false {
         choices "true" "false"
     }
 }
-flag --highlights help="How many times to flash a highlighted element" global=#true help_heading="Browser options" {
+flag --highlights help="How many times to flash a highlighted element (SB_HIGHLIGHTS)" global=#true help_heading="Browser options" {
     arg <COUNT>
 }
-flag --interval help="Seconds between the steps of a tour or presentation" global=#true help_heading="Browser options" {
+flag --interval help="Seconds between the steps of a tour or presentation (SB_INTERVAL)" global=#true help_heading="Browser options" {
     arg <SECONDS>
 }
-flag --verify-delay help="Seconds to wait before each MasterQA verification" global=#true help_heading="Browser options" {
+flag --verify-delay help="Seconds to wait before each MasterQA verification (SB_VERIFY_DELAY)" global=#true help_heading="Browser options" {
     arg <SECONDS>
 }
-flag --check-js help="Check each page for JavaScript errors after it opens" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --check-js help="Check each page for JavaScript errors after it opens (SB_CHECK_JS)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     arg "[CHECK_JS]" required=#false {
         choices "true" "false"
     }
 }
-flag --wait-for-angularjs help="Wait for AngularJS after opening a page and clicking" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --wait-for-angularjs help="Wait for AngularJS after opening a page and clicking (SB_WAIT_FOR_ANGULARJS)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     alias --wfa hide=#true
     arg "[WAIT_FOR_ANGULARJS]" required=#false {
         choices "true" "false"
     }
 }
-flag --disable-beforeunload help="Remove the beforeunload prompt after each page opens" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --disable-beforeunload help="Remove the beforeunload prompt after each page opens (SB_DISABLE_BEFOREUNLOAD)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     arg "[DISABLE_BEFOREUNLOAD]" required=#false {
         choices "true" "false"
     }
 }
-flag --visual-baseline help="Set the visual baselines again instead of comparing" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --visual-baseline help="Set the visual baselines again instead of comparing (SB_VISUAL_BASELINE)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     arg "[VISUAL_BASELINE]" required=#false {
         choices "true" "false"
     }
 }
-flag --crumbs help="Delete the cookies when a reused browser is handed to the next test" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
+flag --crumbs help="Delete the cookies when a reused browser is handed to the next test (SB_CRUMBS)" global=#true help_heading="Browser options" require_equals=#true value_optional=#true default_missing="true" {
     arg "[CRUMBS]" required=#false {
         choices "true" "false"
     }
 }
-flag --timeout-multiplier help="Multiply the default waits by this number" global=#true help_heading="Browser options" {
+flag --timeout-multiplier help="Multiply the default waits by this number (SB_TIMEOUT_MULTIPLIER)" global=#true help_heading="Browser options" {
     arg <VALUE>
 }
-flag "--rec --recorder --record --codegen" help="Record the browser actions as a test" global=#true help_heading="Recorder options" bool_value=#true {
+flag "--rec --recorder --record --codegen" help="Record the browser actions as a test (SB_RECORDER)" global=#true help_heading="Recorder options" bool_value=#true {
     long_help #"""
-Record the browser actions as a test
+Record the browser actions as a test (SB_RECORDER)
 
 Python's `--rec`. Every test that runs writes `recordings/NAME_rec.rs` when its browser quits; `sb.recorder_breakpoint("...")` pauses a test so the actions can be done by hand. `sbrs test` runs the tests one at a time while it is on.
 """#
 }
-flag "--rec-print --rec_print" help="Print the recording when the test ends" global=#true help_heading="Recorder options" bool_value=#true
-flag "--rec-behave --rec_behave --rec-gherkin" help="Also write the recording as a Gherkin feature" global=#true help_heading="Recorder options" bool_value=#true
-flag "--rec-sb-mgr --rec_sb_mgr" help="Write the recording as a script, not a test" global=#true help_heading="Recorder options" bool_value=#true
-flag "--rec-sleep --record-sleep --rec_sleep --record_sleep" help="Keep the sleeps of the recording" global=#true help_heading="Recorder options" bool_value=#true
+flag "--rec-print --rec_print" help="Print the recording when the test ends (SB_REC_PRINT)" global=#true help_heading="Recorder options" bool_value=#true
+flag "--rec-behave --rec_behave --rec-gherkin" help="Also write the recording as a Gherkin feature (SB_REC_BEHAVE)" global=#true help_heading="Recorder options" bool_value=#true
+flag "--rec-sb-mgr --rec_sb_mgr" help="Write the recording as a script, not a test (SB_REC_SB_MGR)" global=#true help_heading="Recorder options" bool_value=#true
+flag "--rec-sleep --record-sleep --rec_sleep --record_sleep" help="Keep the sleeps of the recording (SB_REC_SLEEP)" global=#true help_heading="Recorder options" bool_value=#true
 flag "-h --help" help="Print help" action=help builtin=#true
 flag "-V --version" help="Print version" action=version builtin=#true
 complete url type=url
@@ -1332,7 +1332,7 @@ cmd patch-chrome help_heading="Drivers, grid and servers" help="Patch a Chrome/C
     flag --path help="Path to the Chrome/Chromium binary" required=#true {
         arg <PATH>
     }
-    flag --cache-dir help="Directory where patched binaries are cached" {
+    flag --cache-dir help="Directory where patched binaries are cached (SB_PATCH_CACHE_DIR)" {
         arg <CACHE_DIR>
     }
     flag "-h --help" help="Print help" action=help builtin=#true
@@ -1418,17 +1418,17 @@ Finish the test run of the current folder and write its reports.
 
 A plain `cargo test` leaves the live dashboard running, because the standard test harness cannot tell when the last test has ended. This command ends the run: the tests that started and never ended become unreported, the dashboard, the HTML report and the JUnit XML are written a last time, the logs are archived when asked, and the results go to the results database when `with_db_reporting` is on. `sbrs test` does the same by itself. The run is the one in `SB_REPORT_ROOT`, or in the current folder; the flags replace the settings the run was started with.
 """#
-        flag --dashboard help="Write the live dashboard (dashboard.html) in its final form." bool_value=#true
-        flag --dash-title help="The dashboard's title; an underscore stands for a space." {
+        flag --dashboard help="Write the live dashboard (dashboard.html) in its final form (SB_DASHBOARD)." bool_value=#true
+        flag --dash-title help="The dashboard's title; an underscore stands for a space (SB_DASH_TITLE)." {
             arg <TITLE>
         }
-        flag --html help="Write an HTML report to this file." {
+        flag --html help="Write an HTML report to this file (SB_HTML)." {
             arg <PATH>
         }
-        flag --junit-xml help="Write a JUnit XML report to this file." {
+        flag --junit-xml help="Write a JUnit XML report to this file (SB_JUNIT_XML)." {
             arg <PATH>
         }
-        flag --archive-logs help="Keep the logs of the run in archived_logs/ instead of deleting them later." bool_value=#true
+        flag --archive-logs help="Keep the logs of the run in archived_logs/ instead of deleting them later (SB_ARCHIVE_LOGS)." bool_value=#true
         flag --show-report help="Open the HTML report or the dashboard in a browser window and wait until it is closed." bool_value=#true
         flag --json help="Print what was done as JSON instead of the `-----` lines." bool_value=#true
         flag "-h --help" help="Print help" action=help builtin=#true
@@ -1807,7 +1807,7 @@ Every option of Python SeleniumBase's pytest plugin is a flag of `test`, in each
     flag -m help="Select tests by marker, as pytest's -m. A marker is a module name: `-m smoke` runs the tests in `mod smoke`." {
         arg <EXPR>
     }
-    flag "-n --threads" help="How many tests run at once, as pytest-xdist's -n: a number or `auto`." {
+    flag "-n --threads" help="How many tests run at once, as pytest-xdist's -n: a number or `auto` (SB_THREADS)." {
         arg <N|auto>
     }
     flag "-s --no-capture" help="Show what the tests print as they run (pytest's -s)." bool_value=#true {
@@ -1843,10 +1843,17 @@ cmd options help_heading="Info and setup" help="List the browser options: each f
     long_help #"""
 List the browser options: each flag, its `SB_*` variable and its key in the settings file.
 
-The same options can be set in the settings file, in the environment and with these flags; the command line wins over the environment, which wins over the file. `--markdown` prints the table for the documentation, and `--all` adds the options of the test run (`sbrs test`).
+The same options can be set in the settings file, in the environment and with these flags; the command line wins over the environment, which wins over the file. `--env` lists the environment variables instead, those of `sbrs-mcp` too. `--markdown` prints the table for the documentation, and `--all` adds the options of the test run (`sbrs test`).
 """#
     flag --markdown help="Print a Markdown table, for the documentation." bool_value=#true
     flag --all help="Also list the options of the test run (`sbrs test`)." bool_value=#true
+    flag --env help="List the environment variables `sbrs` and `sbrs-mcp` read instead of the options." bool_value=#true {
+        long_help #"""
+List the environment variables `sbrs` and `sbrs-mcp` read instead of the options.
+
+One line for each variable: who reads it, the flag that sets the same thing, what it is when it is not set, and what it sets. `--markdown` prints the table for the documentation. The table is made from the option table and the list of the other variables, so it names every variable the command lines read.
+"""#
+    }
     flag "-h --help" help="Print help" action=help builtin=#true
     example "sbrs options"
     example "sbrs options --markdown"

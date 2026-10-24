@@ -149,7 +149,7 @@ WebDriver server URL (default: SB_WEBDRIVER_URL, else http://localhost:4444)
 
 <ParamField query="--browser <BROWSER>" type="string">
 
-Browser engine to launch (default: chrome, or the config file's)
+Browser engine to launch (SB_BROWSER; default: chrome, or the config file's)
 
 One of: `chrome`, `chromium`, `edge`, `firefox`, `brave`, `comet`, `opera`, `safari`, `ie`, `cft`, `chs`
 
@@ -157,7 +157,7 @@ One of: `chrome`, `chromium`, `edge`, `firefox`, `brave`, `comet`, `opera`, `saf
 
 <ParamField query="--headed" type="boolean">
 
-Run the browser in headed mode
+Run the browser in headed mode (SB_HEADLESS=false)
 
 Also: `--gui`
 
@@ -165,7 +165,7 @@ Also: `--gui`
 
 <ParamField query="--headless" type="boolean">
 
-Run the browser in headless mode
+Run the browser in headless mode (SB_HEADLESS)
 
 Also: `--headless2`
 
@@ -173,13 +173,13 @@ Also: `--headless2`
 
 <ParamField query="--cdp" type="boolean">
 
-Enable Chrome DevTools Protocol mode
+Enable Chrome DevTools Protocol mode (SB_MODE=cdp)
 
 </ParamField>
 
 <ParamField query="--uc" type="boolean">
 
-Enable undetected-chromedriver style evasions
+Enable undetected-chromedriver style evasions (SB_MODE=uc)
 
 Also: `--undetected`, `--undetectable`
 
@@ -187,13 +187,13 @@ Also: `--undetected`, `--undetectable`
 
 <ParamField query="--user-agent <USER_AGENT>" type="string">
 
-Override the default user agent string
+Override the default user agent string (SB_USER_AGENT)
 
 </ParamField>
 
 <ParamField query="--agent <AGENT>" type="string">
 
-Alias for --user-agent
+Alias for --user-agent (SB_USER_AGENT)
 
 Also: `-a`
 
@@ -201,13 +201,13 @@ Also: `-a`
 
 <ParamField query="--locale <LOCALE>" type="string">
 
-Locale string for the browser context
+Locale string for the browser context (SB_LOCALE)
 
 </ParamField>
 
 <ParamField query="--start-page <URL>" type="string">
 
-Page the browser opens first, Python's --start-page (aliases --url and --start_page)
+Page the browser opens first, Python's --start-page (SB_START_PAGE; aliases --url and --start_page)
 
 Every command starts its own browser and closes it at the end, so a command that acts on a page (get-text, click, screenshot, assert-element, ...) acts on this one: `sbrs --url https://example.com get-text --css p`. A bare host gets `https://` and a local file becomes a `file://` URL. The command line wins over SB_START_PAGE, which wins over the `start_page` key of the settings file. Commands that open a URL of their own (open, smoke, download-file, print-pdf, pdf-text, assert-pdf-text, record) refuse it.
 
@@ -217,7 +217,7 @@ Also: `--url`, `--start_page`
 
 <ParamField query="--save-screenshot" type="boolean">
 
-Save a screenshot to latest_logs/ just before the browser closes, and print its path
+Save a screenshot to latest_logs/ just before the browser closes, and print its path (SB_SAVE_SCREENSHOT)
 
 Python's `--save-screenshot`. A command that acts on the page (click, type, ...) also prints where it ended up as `Now at: <url> (<title>)`.
 
@@ -227,7 +227,7 @@ Also: `--save_screenshot`
 
 <ParamField query="--ad-block" type="boolean">
 
-Refuse the requests of ad and tracker hosts (Chromium WebDriver sessions)
+Refuse the requests of ad and tracker hosts (SB_AD_BLOCK; Chromium WebDriver sessions)
 
 Also: `--adblock`, `--block-ads`
 
@@ -235,7 +235,7 @@ Also: `--adblock`, `--block-ads`
 
 <ParamField query="--proxy <PROXY>" type="string">
 
-Proxy (host:port or scheme://host:port); with --proxy-list, a name from the list
+Proxy (SB_PROXY; host:port or scheme://host:port); with --proxy-list, a name from the list
 
 Also: `--proxy-server`, `--proxy-string`
 
@@ -243,13 +243,13 @@ Also: `--proxy-server`, `--proxy-string`
 
 <ParamField query="--proxy-list <FILE>" type="string">
 
-File of proxies to choose from; without --proxy a random one is used
+File of proxies to choose from; without --proxy a random one is used (SB_PROXY_LIST)
 
 </ParamField>
 
 <ParamField query="--proxy-pac-url <PROXY_PAC_URL>" type="string">
 
-URL to a proxy auto-config (PAC) file
+URL to a proxy auto-config (PAC) file (SB_PROXY_PAC_URL)
 
 Also: `--pac-url`
 
@@ -257,13 +257,13 @@ Also: `--pac-url`
 
 <ParamField query="--user-data-dir <USER_DATA_DIR>" type="string">
 
-Path to a persistent browser user-data directory
+Path to a persistent browser user-data directory (SB_USER_DATA_DIR)
 
 </ParamField>
 
 <ParamField query="--extension-dir <EXTENSION_DIR>" type="string">
 
-Path to an unpacked extension directory
+Path to an unpacked extension directory (SB_EXTENSION_DIR)
 
 </ParamField>
 
@@ -285,7 +285,7 @@ Also: `--reuse-class-session`, `--reuse_class_session`
 
 <ParamField query="--mobile" type="boolean">
 
-Use a mobile device emulation profile
+Use a mobile device emulation profile (SB_MOBILE)
 
 Also: `--mobile-emulator`
 
@@ -293,7 +293,7 @@ Also: `--mobile-emulator`
 
 <ParamField query="--esc-end" type="boolean">
 
-End the current test when ESC is pressed in the browser
+End the current test when ESC is pressed in the browser (SB_ESC_END)
 
 Also: `--esc_end`, `--ee`
 
@@ -301,7 +301,7 @@ Also: `--esc_end`, `--ee`
 
 <ParamField query="--rec-sb-cdp" type="boolean">
 
-Write recordings as pure CDP code (sb_cdp Page and Locator calls)
+Write recordings as pure CDP code (SB_REC_SB_CDP; sb_cdp Page and Locator calls)
 
 Also: `--rec_sb_cdp`
 
@@ -309,7 +309,7 @@ Also: `--rec_sb_cdp`
 
 <ParamField query="--config <CONFIG>" type="string">
 
-Path to a TOML/JSON settings file
+Path to a TOML/JSON settings file (SB_SETTINGS_FILE)
 
 Also: `--settings-file`, `--settings`, `-c`
 
@@ -317,7 +317,7 @@ Also: `--settings-file`, `--settings`, `-c`
 
 <ParamField query="--fingerprint <FILE>" type="string">
 
-Make every browser the command starts present the fingerprint in FILE
+Make every browser the command starts present the fingerprint in FILE (SB_FINGERPRINT)
 
 The file is the fingerprint JSON that `sbrs fingerprint capture` and `export` write. A Chromium browser then runs in the CDP mode unless --uc or another mode is given. The command line wins over SB_FINGERPRINT, which wins over the [fingerprint] table of the settings file. The user agent, language and proxy named by their own options win over the fingerprint's.
 
@@ -325,7 +325,7 @@ The file is the fingerprint JSON that `sbrs fingerprint capture` and `export` wr
 
 <ParamField query="--plugin <NAME>" type="string[]">
 
-Turn on a built-in plugin in the browsers the command starts (repeatable)
+Turn on a built-in plugin in the browsers the command starts (SB_PLUGINS; repeatable)
 
 Adds to the plugins the settings file (the [plugins] table) and SB_PLUGINS turn on. Precedence, highest first: the command line, then SB_PLUGINS (which replaces the names the file enables), then the settings file. `sbrs plugin list` shows the plugins this build has. `sbrs test` passes the names on to the tests as SB_PLUGINS.
 
@@ -341,7 +341,7 @@ Quote the whole option so the shell keeps the quotes of a string: --plugin-opt '
 
 <ParamField query="--binary-location <PATH>" type="string">
 
-The browser binary to run
+The browser binary to run (SB_CHROME_BIN)
 
 Also: `--bl`
 
@@ -349,13 +349,13 @@ Also: `--bl`
 
 <ParamField query="--mode <VALUE>" type="string">
 
-The driver mode: webdriver, cdp or uc
+The driver mode: webdriver, cdp or uc (SB_MODE)
 
 </ParamField>
 
 <ParamField query="--chrome [CHROME]" type="string">
 
-Run Chrome
+Run Chrome (SB_BROWSER=chrome)
 
 One of: `true`, `false`
 
@@ -363,7 +363,7 @@ One of: `true`, `false`
 
 <ParamField query="--edge [EDGE]" type="string">
 
-Run Edge
+Run Edge (SB_BROWSER=edge)
 
 One of: `true`, `false`
 
@@ -371,7 +371,7 @@ One of: `true`, `false`
 
 <ParamField query="--firefox [FIREFOX]" type="string">
 
-Run Firefox
+Run Firefox (SB_BROWSER=firefox)
 
 One of: `true`, `false`
 
@@ -379,7 +379,7 @@ One of: `true`, `false`
 
 <ParamField query="--brave [BRAVE]" type="string">
 
-Run Brave
+Run Brave (SB_BROWSER=brave)
 
 One of: `true`, `false`
 
@@ -387,7 +387,7 @@ One of: `true`, `false`
 
 <ParamField query="--comet [COMET]" type="string">
 
-Run Comet
+Run Comet (SB_BROWSER=comet)
 
 One of: `true`, `false`
 
@@ -395,7 +395,7 @@ One of: `true`, `false`
 
 <ParamField query="--opera [OPERA]" type="string">
 
-Run Opera
+Run Opera (SB_BROWSER=opera)
 
 One of: `true`, `false`
 
@@ -403,7 +403,7 @@ One of: `true`, `false`
 
 <ParamField query="--safari [SAFARI]" type="string">
 
-Run Safari
+Run Safari (SB_BROWSER=safari)
 
 One of: `true`, `false`
 
@@ -411,7 +411,7 @@ One of: `true`, `false`
 
 <ParamField query="--ie [IE]" type="string">
 
-Run Internet Explorer
+Run Internet Explorer (SB_BROWSER=ie)
 
 One of: `true`, `false`
 
@@ -419,7 +419,7 @@ One of: `true`, `false`
 
 <ParamField query="--cft [CFT]" type="string">
 
-Run Chrome for Testing
+Run Chrome for Testing (SB_BROWSER=cft)
 
 One of: `true`, `false`
 
@@ -427,7 +427,7 @@ One of: `true`, `false`
 
 <ParamField query="--chs [CHS]" type="string">
 
-Run chrome-headless-shell
+Run chrome-headless-shell (SB_BROWSER=chs)
 
 One of: `true`, `false`
 
@@ -435,7 +435,7 @@ One of: `true`, `false`
 
 <ParamField query="--chromium [CHROMIUM]" type="string">
 
-Run Chromium
+Run Chromium (SB_BROWSER=chromium)
 
 Also: `--use-chromium`
 
@@ -445,7 +445,7 @@ One of: `true`, `false`
 
 <ParamField query="--headless1 [HEADLESS1]" type="string">
 
-Run headless with chrome-headless-shell (Chrome's old headless mode)
+Run headless with chrome-headless-shell (Chrome's old headless mode) (SB_HEADLESS1)
 
 One of: `true`, `false`
 
@@ -453,37 +453,37 @@ One of: `true`, `false`
 
 <ParamField query="--locale-code <VALUE>" type="string">
 
-The browser language code, such as fr or ar_eg
+The browser language code, such as fr or ar_eg (SB_LOCALE_CODE)
 
 </ParamField>
 
 <ParamField query="--server <VALUE>" type="string">
 
-The Selenium Grid server to connect to
+The Selenium Grid server to connect to (SB_SERVER)
 
 </ParamField>
 
 <ParamField query="--port <VALUE>" type="string">
 
-The port of the Selenium Grid server
+The port of the Selenium Grid server (SB_PORT)
 
 </ParamField>
 
 <ParamField query="--protocol <VALUE>" type="string">
 
-The protocol of the Selenium Grid server: http or https
+The protocol of the Selenium Grid server: http or https (SB_PROTOCOL)
 
 </ParamField>
 
 <ParamField query="--chromium-arg <VALUE>" type="string">
 
-Extra Chromium switches, separated by commas
+Extra Chromium switches, separated by commas (SB_CHROMIUM_ARG)
 
 </ParamField>
 
 <ParamField query="--dark-mode [DARK_MODE]" type="string">
 
-Force Chrome's dark theme on web pages
+Force Chrome's dark theme on web pages (SB_DARK_MODE)
 
 Also: `--dark`
 
@@ -493,7 +493,7 @@ One of: `true`, `false`
 
 <ParamField query="--devtools [DEVTOOLS]" type="string">
 
-Open the developer tools with each tab (headed only)
+Open the developer tools with each tab (headed only) (SB_DEVTOOLS)
 
 Also: `--open-devtools`
 
@@ -503,13 +503,13 @@ One of: `true`, `false`
 
 <ParamField query="--disable-features <VALUE>" type="string">
 
-Chromium features to switch off, separated by commas
+Chromium features to switch off, separated by commas (SB_DISABLE_FEATURES)
 
 </ParamField>
 
 <ParamField query="--disable-gpu [DISABLE_GPU]" type="string">
 
-Switch the GPU off
+Switch the GPU off (SB_DISABLE_GPU)
 
 One of: `true`, `false`
 
@@ -517,7 +517,7 @@ One of: `true`, `false`
 
 <ParamField query="--disable-ws [DISABLE_WS]" type="string">
 
-Switch web security off
+Switch web security off (SB_DISABLE_WS)
 
 Also: `--dws`, `--disable-web-security`
 
@@ -527,7 +527,7 @@ One of: `true`, `false`
 
 <ParamField query="--guest-mode [GUEST_MODE]" type="string">
 
-Open the browser as a guest
+Open the browser as a guest (SB_GUEST_MODE)
 
 Also: `--guest`
 
@@ -537,7 +537,7 @@ One of: `true`, `false`
 
 <ParamField query="--incognito [INCOGNITO]" type="string">
 
-Open the browser in an incognito window
+Open the browser in an incognito window (SB_INCOGNITO)
 
 Also: `--incognito-mode`
 
@@ -547,13 +547,13 @@ One of: `true`, `false`
 
 <ParamField query="--host-resolver-rules <VALUE>" type="string">
 
-Chromium rules that map host names to addresses
+Chromium rules that map host names to addresses (SB_HOST_RESOLVER_RULES)
 
 </ParamField>
 
 <ParamField query="--no-sandbox [NO_SANDBOX]" type="string">
 
-Start Chromium without its sandbox
+Start Chromium without its sandbox (SB_NO_SANDBOX)
 
 One of: `true`, `false`
 
@@ -561,7 +561,7 @@ One of: `true`, `false`
 
 <ParamField query="--swiftshader [SWIFTSHADER]" type="string">
 
-Render with SwiftShader, a software WebGL renderer
+Render with SwiftShader, a software WebGL renderer (SB_SWIFTSHADER)
 
 One of: `true`, `false`
 
@@ -569,7 +569,7 @@ One of: `true`, `false`
 
 <ParamField query="--enable-3d-apis [ENABLE_3D_APIS]" type="string">
 
-Keep the GPU on in a headless session, for WebGL
+Keep the GPU on in a headless session, for WebGL (SB_ENABLE_3D_APIS)
 
 One of: `true`, `false`
 
@@ -577,7 +577,7 @@ One of: `true`, `false`
 
 <ParamField query="--maximize [MAXIMIZE]" type="string">
 
-Maximize the browser window
+Maximize the browser window (SB_MAXIMIZE)
 
 Also: `--maximize-window`, `--fullscreen`
 
@@ -587,7 +587,7 @@ One of: `true`, `false`
 
 <ParamField query="--block-images [BLOCK_IMAGES]" type="string">
 
-Do not load images
+Do not load images (SB_BLOCK_IMAGES)
 
 One of: `true`, `false`
 
@@ -595,7 +595,7 @@ One of: `true`, `false`
 
 <ParamField query="--disable-js [DISABLE_JS]" type="string">
 
-Turn JavaScript off
+Turn JavaScript off (SB_DISABLE_JS)
 
 One of: `true`, `false`
 
@@ -603,7 +603,7 @@ One of: `true`, `false`
 
 <ParamField query="--disable-cookies [DISABLE_COOKIES]" type="string">
 
-Refuse every cookie
+Refuse every cookie (SB_DISABLE_COOKIES)
 
 One of: `true`, `false`
 
@@ -611,7 +611,7 @@ One of: `true`, `false`
 
 <ParamField query="--do-not-track [DO_NOT_TRACK]" type="string">
 
-Send the DNT: 1 header
+Send the DNT: 1 header (SB_DO_NOT_TRACK)
 
 One of: `true`, `false`
 
@@ -619,7 +619,7 @@ One of: `true`, `false`
 
 <ParamField query="--external-pdf [EXTERNAL_PDF]" type="string">
 
-Download PDF files instead of showing them
+Download PDF files instead of showing them (SB_EXTERNAL_PDF)
 
 One of: `true`, `false`
 
@@ -627,7 +627,7 @@ One of: `true`, `false`
 
 <ParamField query="--enable-sync [ENABLE_SYNC]" type="string">
 
-Leave Chrome Sync on
+Leave Chrome Sync on (SB_ENABLE_SYNC)
 
 One of: `true`, `false`
 
@@ -635,7 +635,7 @@ One of: `true`, `false`
 
 <ParamField query="--disable-csp [DISABLE_CSP]" type="string">
 
-Strip the Content Security Policy from every response
+Strip the Content Security Policy from every response (SB_DISABLE_CSP)
 
 Also: `--dcsp`, `--no-csp`
 
@@ -645,7 +645,7 @@ One of: `true`, `false`
 
 <ParamField query="--use-auto-ext [USE_AUTO_EXT]" type="string">
 
-Keep Chrome's automation extension
+Keep Chrome's automation extension (SB_USE_AUTO_EXT)
 
 Also: `--auto-ext`
 
@@ -655,7 +655,7 @@ One of: `true`, `false`
 
 <ParamField query="--proxy-driver [PROXY_DRIVER]" type="string">
 
-Download the driver through the proxy
+Download the driver through the proxy (SB_PROXY_DRIVER)
 
 One of: `true`, `false`
 
@@ -663,7 +663,7 @@ One of: `true`, `false`
 
 <ParamField query="--page-load-strategy <STRATEGY>" type="string">
 
-How long a navigation waits: normal, eager or none
+How long a navigation waits: normal, eager or none (SB_PAGE_LOAD_STRATEGY)
 
 Also: `--pls`
 
@@ -673,19 +673,19 @@ One of: `normal`, `eager`, `none`
 
 <ParamField query="--window-size <VALUE>" type="string">
 
-The window size: WIDTH,HEIGHT
+The window size: WIDTH,HEIGHT (SB_WINDOW_SIZE)
 
 </ParamField>
 
 <ParamField query="--window-position <VALUE>" type="string">
 
-The window position: X,Y
+The window position: X,Y (SB_WINDOW_POSITION)
 
 </ParamField>
 
 <ParamField query="--device-metrics <VALUE>" type="string">
 
-Emulate a phone screen: WIDTH,HEIGHT,PIXEL_RATIO
+Emulate a phone screen: WIDTH,HEIGHT,PIXEL_RATIO (SB_DEVICE_METRICS)
 
 Also: `--metrics`
 
@@ -693,31 +693,31 @@ Also: `--metrics`
 
 <ParamField query="--proxy-bypass-list <VALUE>" type="string">
 
-Hosts that skip the proxy
+Hosts that skip the proxy (SB_PROXY_BYPASS_LIST)
 
 </ParamField>
 
 <ParamField query="--driver-version <VALUE>" type="string">
 
-The driver version: a number, latest, stable, beta, ...
+The driver version: a number, latest, stable, beta, ... (SB_DRIVER_VERSION)
 
 </ParamField>
 
 <ParamField query="--cap-file <PATH>" type="string">
 
-A JSON file of capabilities to add to the session's
+A JSON file of capabilities to add to the session's (SB_CAP_FILE)
 
 </ParamField>
 
 <ParamField query="--cap-string <VALUE>" type="string">
 
-A JSON object of capabilities to add to the session's
+A JSON object of capabilities to add to the session's (SB_CAP_STRING)
 
 </ParamField>
 
 <ParamField query="--extension-zip <VALUE>" type="string">
 
-Extension .zip or .crx files to load, separated by commas
+Extension .zip or .crx files to load, separated by commas (SB_EXTENSION_ZIP)
 
 Also: `--crx`
 
@@ -725,19 +725,19 @@ Also: `--crx`
 
 <ParamField query="--firefox-arg <VALUE>" type="string">
 
-Firefox arguments, separated by commas
+Firefox arguments, separated by commas (SB_FIREFOX_ARG)
 
 </ParamField>
 
 <ParamField query="--firefox-pref <VALUE>" type="string">
 
-Firefox preferences, NAME:VALUE separated by commas
+Firefox preferences, NAME:VALUE separated by commas (SB_FIREFOX_PREF)
 
 </ParamField>
 
 <ParamField query="--xvfb [XVFB]" type="string">
 
-Open a virtual display for a headed browser on Linux
+Open a virtual display for a headed browser on Linux (SB_XVFB)
 
 One of: `true`, `false`
 
@@ -745,13 +745,13 @@ One of: `true`, `false`
 
 <ParamField query="--xvfb-metrics <VALUE>" type="string">
 
-The virtual display size: WIDTH,HEIGHT
+The virtual display size: WIDTH,HEIGHT (SB_XVFB_METRICS)
 
 </ParamField>
 
 <ParamField query="--remote-debug [REMOTE_DEBUG]" type="string">
 
-Open Chrome's remote debugger on port 9222
+Open Chrome's remote debugger on port 9222 (SB_REMOTE_DEBUG)
 
 Also: `--remote-debugger`
 
@@ -761,7 +761,7 @@ One of: `true`, `false`
 
 <ParamField query="--log-cdp-events [LOG_CDP_EVENTS]" type="string">
 
-Log the DevTools Protocol events
+Log the DevTools Protocol events (SB_LOG_CDP_EVENTS)
 
 Also: `--log-cdp`
 
@@ -771,7 +771,7 @@ One of: `true`, `false`
 
 <ParamField query="--uc-cdp-events [UC_CDP_EVENTS]" type="string">
 
-Log the DevTools Protocol events in undetected mode
+Log the DevTools Protocol events in undetected mode (SB_UC_CDP_EVENTS)
 
 Also: `--uc-cdp`
 
@@ -781,7 +781,7 @@ One of: `true`, `false`
 
 <ParamField query="--demo [DEMO]" type="string">
 
-Highlight each element and pause after an action
+Highlight each element and pause after an action (SB_DEMO)
 
 Also: `--demo-mode`
 
@@ -791,7 +791,7 @@ One of: `true`, `false`
 
 <ParamField query="--slow [SLOW]" type="string">
 
-Pause briefly after each action
+Pause briefly after each action (SB_SLOW)
 
 Also: `--slow-mode`, `--slowmo`
 
@@ -801,19 +801,19 @@ One of: `true`, `false`
 
 <ParamField query="--demo-sleep <SECONDS>" type="string">
 
-Seconds to pause after each action in demo mode
+Seconds to pause after each action in demo mode (SB_DEMO_SLEEP)
 
 </ParamField>
 
 <ParamField query="--message-duration <SECONDS>" type="string">
 
-Seconds a message stays on the page
+Seconds a message stays on the page (SB_MESSAGE_DURATION)
 
 </ParamField>
 
 <ParamField query="--skip-js-waits [SKIP_JS_WAITS]" type="string">
 
-Do not wait for the page's JavaScript to settle
+Do not wait for the page's JavaScript to settle (SB_SKIP_JS_WAITS)
 
 Also: `--sjw`
 
@@ -823,25 +823,25 @@ One of: `true`, `false`
 
 <ParamField query="--highlights <COUNT>" type="string">
 
-How many times to flash a highlighted element
+How many times to flash a highlighted element (SB_HIGHLIGHTS)
 
 </ParamField>
 
 <ParamField query="--interval <SECONDS>" type="string">
 
-Seconds between the steps of a tour or presentation
+Seconds between the steps of a tour or presentation (SB_INTERVAL)
 
 </ParamField>
 
 <ParamField query="--verify-delay <SECONDS>" type="string">
 
-Seconds to wait before each MasterQA verification
+Seconds to wait before each MasterQA verification (SB_VERIFY_DELAY)
 
 </ParamField>
 
 <ParamField query="--check-js [CHECK_JS]" type="string">
 
-Check each page for JavaScript errors after it opens
+Check each page for JavaScript errors after it opens (SB_CHECK_JS)
 
 One of: `true`, `false`
 
@@ -849,7 +849,7 @@ One of: `true`, `false`
 
 <ParamField query="--wait-for-angularjs [WAIT_FOR_ANGULARJS]" type="string">
 
-Wait for AngularJS after opening a page and clicking
+Wait for AngularJS after opening a page and clicking (SB_WAIT_FOR_ANGULARJS)
 
 Also: `--wfa`
 
@@ -859,7 +859,7 @@ One of: `true`, `false`
 
 <ParamField query="--disable-beforeunload [DISABLE_BEFOREUNLOAD]" type="string">
 
-Remove the beforeunload prompt after each page opens
+Remove the beforeunload prompt after each page opens (SB_DISABLE_BEFOREUNLOAD)
 
 One of: `true`, `false`
 
@@ -867,7 +867,7 @@ One of: `true`, `false`
 
 <ParamField query="--visual-baseline [VISUAL_BASELINE]" type="string">
 
-Set the visual baselines again instead of comparing
+Set the visual baselines again instead of comparing (SB_VISUAL_BASELINE)
 
 One of: `true`, `false`
 
@@ -875,7 +875,7 @@ One of: `true`, `false`
 
 <ParamField query="--crumbs [CRUMBS]" type="string">
 
-Delete the cookies when a reused browser is handed to the next test
+Delete the cookies when a reused browser is handed to the next test (SB_CRUMBS)
 
 One of: `true`, `false`
 
@@ -883,13 +883,13 @@ One of: `true`, `false`
 
 <ParamField query="--timeout-multiplier <VALUE>" type="string">
 
-Multiply the default waits by this number
+Multiply the default waits by this number (SB_TIMEOUT_MULTIPLIER)
 
 </ParamField>
 
 <ParamField query="--rec" type="boolean">
 
-Record the browser actions as a test
+Record the browser actions as a test (SB_RECORDER)
 
 Python's `--rec`. Every test that runs writes `recordings/NAME_rec.rs` when its browser quits; `sb.recorder_breakpoint("...")` pauses a test so the actions can be done by hand. `sbrs test` runs the tests one at a time while it is on.
 
@@ -899,7 +899,7 @@ Also: `--recorder`, `--record`, `--codegen`
 
 <ParamField query="--rec-print" type="boolean">
 
-Print the recording when the test ends
+Print the recording when the test ends (SB_REC_PRINT)
 
 Also: `--rec_print`
 
@@ -907,7 +907,7 @@ Also: `--rec_print`
 
 <ParamField query="--rec-behave" type="boolean">
 
-Also write the recording as a Gherkin feature
+Also write the recording as a Gherkin feature (SB_REC_BEHAVE)
 
 Also: `--rec_behave`, `--rec-gherkin`
 
@@ -915,7 +915,7 @@ Also: `--rec_behave`, `--rec-gherkin`
 
 <ParamField query="--rec-sb-mgr" type="boolean">
 
-Write the recording as a script, not a test
+Write the recording as a script, not a test (SB_REC_SB_MGR)
 
 Also: `--rec_sb_mgr`
 
@@ -923,7 +923,7 @@ Also: `--rec_sb_mgr`
 
 <ParamField query="--rec-sleep" type="boolean">
 
-Keep the sleeps of the recording
+Keep the sleeps of the recording (SB_REC_SLEEP)
 
 Also: `--record-sleep`, `--rec_sleep`, `--record_sleep`
 
@@ -3017,10 +3017,10 @@ sbrs open https://example.com
 
 List the browser options: each flag, its `SB_*` variable and its key in the settings file.
 
-The same options can be set in the settings file, in the environment and with these flags; the command line wins over the environment, which wins over the file. `--markdown` prints the table for the documentation, and `--all` adds the options of the test run (`sbrs test`).
+The same options can be set in the settings file, in the environment and with these flags; the command line wins over the environment, which wins over the file. `--env` lists the environment variables instead, those of `sbrs-mcp` too. `--markdown` prints the table for the documentation, and `--all` adds the options of the test run (`sbrs test`).
 
 ```bash Usage
-sbrs options [--markdown] [--all]
+sbrs options [FLAGS]
 ```
 
 **Flags**
@@ -3034,6 +3034,14 @@ Print a Markdown table, for the documentation.
 <ParamField query="--all" type="boolean">
 
 Also list the options of the test run (`sbrs test`).
+
+</ParamField>
+
+<ParamField query="--env" type="boolean">
+
+List the environment variables `sbrs` and `sbrs-mcp` read instead of the options.
+
+One line for each variable: who reads it, the flag that sets the same thing, what it is when it is not set, and what it sets. `--markdown` prints the table for the documentation. The table is made from the option table and the list of the other variables, so it names every variable the command lines read.
 
 </ParamField>
 
@@ -3060,7 +3068,7 @@ Path to the Chrome/Chromium binary
 
 <ParamField query="--cache-dir <CACHE_DIR>" type="string">
 
-Directory where patched binaries are cached
+Directory where patched binaries are cached (SB_PATCH_CACHE_DIR)
 
 </ParamField>
 
@@ -3411,31 +3419,31 @@ sbrs report finish [FLAGS]
 
 <ParamField query="--dashboard" type="boolean">
 
-Write the live dashboard (dashboard.html) in its final form.
+Write the live dashboard (dashboard.html) in its final form (SB_DASHBOARD).
 
 </ParamField>
 
 <ParamField query="--dash-title <TITLE>" type="string">
 
-The dashboard's title; an underscore stands for a space.
+The dashboard's title; an underscore stands for a space (SB_DASH_TITLE).
 
 </ParamField>
 
 <ParamField query="--html <PATH>" type="string">
 
-Write an HTML report to this file.
+Write an HTML report to this file (SB_HTML).
 
 </ParamField>
 
 <ParamField query="--junit-xml <PATH>" type="string">
 
-Write a JUnit XML report to this file.
+Write a JUnit XML report to this file (SB_JUNIT_XML).
 
 </ParamField>
 
 <ParamField query="--archive-logs" type="boolean">
 
-Keep the logs of the run in archived_logs/ instead of deleting them later.
+Keep the logs of the run in archived_logs/ instead of deleting them later (SB_ARCHIVE_LOGS).
 
 </ParamField>
 
@@ -3741,7 +3749,7 @@ Select tests by marker, as pytest's -m. A marker is a module name: `-m smoke` ru
 
 <ParamField query="--threads <N|auto>" type="string">
 
-How many tests run at once, as pytest-xdist's -n: a number or `auto`.
+How many tests run at once, as pytest-xdist's -n: a number or `auto` (SB_THREADS).
 
 Also: `-n`
 
@@ -3777,7 +3785,7 @@ Open the HTML report or the dashboard in a browser window when the tests end, an
 
 <ParamField query="--browser <BROWSER>" type="string">
 
-The browser to run: chrome, edge, firefox, brave, ...
+The browser to run: chrome, edge, firefox, brave, ... (SB_BROWSER)
 
 One of: `chrome`, `chromium`, `edge`, `firefox`, `brave`, `comet`, `opera`, `safari`, `ie`, `cft`, `chs`
 
@@ -3785,7 +3793,7 @@ One of: `chrome`, `chromium`, `edge`, `firefox`, `brave`, `comet`, `opera`, `saf
 
 <ParamField query="--headless [HEADLESS]" type="string">
 
-Run without a visible window (Chrome's new headless mode)
+Run without a visible window (Chrome's new headless mode) (SB_HEADLESS)
 
 Also: `--headless2`
 
@@ -3795,7 +3803,7 @@ One of: `true`, `false`
 
 <ParamField query="--binary-location <PATH>" type="string">
 
-The browser binary to run
+The browser binary to run (SB_CHROME_BIN)
 
 Also: `--bl`
 
@@ -3803,7 +3811,7 @@ Also: `--bl`
 
 <ParamField query="--proxy <VALUE>" type="string">
 
-The proxy server: HOST:PORT or USER:PASS@HOST:PORT
+The proxy server: HOST:PORT or USER:PASS@HOST:PORT (SB_PROXY)
 
 Also: `--proxy-server`, `--proxy-string`
 
@@ -3811,25 +3819,25 @@ Also: `--proxy-server`, `--proxy-string`
 
 <ParamField query="--user-data-dir <DIR>" type="string">
 
-The browser profile folder
+The browser profile folder (SB_USER_DATA_DIR)
 
 </ParamField>
 
 <ParamField query="--extension-dir <DIR>" type="string">
 
-Unpacked extension folders to load, separated by commas
+Unpacked extension folders to load, separated by commas (SB_EXTENSION_DIR)
 
 </ParamField>
 
 <ParamField query="--locale <VALUE>" type="string">
 
-The browser locale
+The browser locale (SB_LOCALE)
 
 </ParamField>
 
 <ParamField query="--user-agent <VALUE>" type="string">
 
-The user agent string
+The user agent string (SB_USER_AGENT)
 
 Also: `--agent`
 
@@ -3837,7 +3845,7 @@ Also: `--agent`
 
 <ParamField query="--mode <MODE>" type="string">
 
-The driver mode: webdriver, cdp or uc
+The driver mode: webdriver, cdp or uc (SB_MODE)
 
 One of: `webdriver`, `cdp`, `uc`
 
@@ -3845,7 +3853,7 @@ One of: `webdriver`, `cdp`, `uc`
 
 <ParamField query="--ad-block [AD_BLOCK]" type="string">
 
-Block the requests of ad and tracker hosts
+Block the requests of ad and tracker hosts (SB_AD_BLOCK)
 
 Also: `--adblock`, `--block-ads`
 
@@ -3855,7 +3863,7 @@ One of: `true`, `false`
 
 <ParamField query="--reuse-session [REUSE_SESSION]" type="string">
 
-Share browsers among the tests of the run
+Share browsers among the tests of the run (SB_REUSE_SESSION)
 
 Also: `--rs`
 
@@ -3865,7 +3873,7 @@ One of: `true`, `false`
 
 <ParamField query="--reuse-class-session [REUSE_CLASS_SESSION]" type="string">
 
-Share a browser among the tests of one module
+Share a browser among the tests of one module (SB_REUSE_CLASS_SESSION)
 
 Also: `--rcs`
 
@@ -3875,7 +3883,7 @@ One of: `true`, `false`
 
 <ParamField query="--mobile [MOBILE]" type="string">
 
-Emulate a mobile phone
+Emulate a mobile phone (SB_MOBILE)
 
 Also: `--mobile-emulator`
 
@@ -3885,7 +3893,7 @@ One of: `true`, `false`
 
 <ParamField query="--proxy-pac-url <URL>" type="string">
 
-A proxy auto-config URL
+A proxy auto-config URL (SB_PROXY_PAC_URL)
 
 Also: `--pac-url`
 
@@ -3893,7 +3901,7 @@ Also: `--pac-url`
 
 <ParamField query="--esc-end [ESC_END]" type="string">
 
-End the current test when ESC is pressed in the browser
+End the current test when ESC is pressed in the browser (SB_ESC_END)
 
 Also: `--ee`
 
@@ -3903,7 +3911,7 @@ One of: `true`, `false`
 
 <ParamField query="--rec-sb-cdp [REC_SB_CDP]" type="string">
 
-Write recordings as pure CDP code
+Write recordings as pure CDP code (SB_REC_SB_CDP)
 
 One of: `true`, `false`
 
@@ -3911,13 +3919,13 @@ One of: `true`, `false`
 
 <ParamField query="--fingerprint <PATH>" type="string">
 
-A fingerprint file every browser presents
+A fingerprint file every browser presents (SB_FINGERPRINT)
 
 </ParamField>
 
 <ParamField query="--start-page <URL>" type="string">
 
-The page every browser opens first
+The page every browser opens first (SB_START_PAGE)
 
 Also: `--url`
 
@@ -3925,7 +3933,7 @@ Also: `--url`
 
 <ParamField query="--settings-file <PATH>" type="string">
 
-The settings file to read instead of sbase_config.toml
+The settings file to read instead of sbase_config.toml (SB_SETTINGS_FILE)
 
 Also: `--settings`
 
@@ -3933,7 +3941,7 @@ Also: `--settings`
 
 <ParamField query="--chrome [CHROME]" type="string">
 
-Run Chrome
+Run Chrome (SB_BROWSER=chrome)
 
 One of: `true`, `false`
 
@@ -3941,7 +3949,7 @@ One of: `true`, `false`
 
 <ParamField query="--edge [EDGE]" type="string">
 
-Run Edge
+Run Edge (SB_BROWSER=edge)
 
 One of: `true`, `false`
 
@@ -3949,7 +3957,7 @@ One of: `true`, `false`
 
 <ParamField query="--firefox [FIREFOX]" type="string">
 
-Run Firefox
+Run Firefox (SB_BROWSER=firefox)
 
 One of: `true`, `false`
 
@@ -3957,7 +3965,7 @@ One of: `true`, `false`
 
 <ParamField query="--brave [BRAVE]" type="string">
 
-Run Brave
+Run Brave (SB_BROWSER=brave)
 
 One of: `true`, `false`
 
@@ -3965,7 +3973,7 @@ One of: `true`, `false`
 
 <ParamField query="--comet [COMET]" type="string">
 
-Run Comet
+Run Comet (SB_BROWSER=comet)
 
 One of: `true`, `false`
 
@@ -3973,7 +3981,7 @@ One of: `true`, `false`
 
 <ParamField query="--opera [OPERA]" type="string">
 
-Run Opera
+Run Opera (SB_BROWSER=opera)
 
 One of: `true`, `false`
 
@@ -3981,7 +3989,7 @@ One of: `true`, `false`
 
 <ParamField query="--safari [SAFARI]" type="string">
 
-Run Safari
+Run Safari (SB_BROWSER=safari)
 
 One of: `true`, `false`
 
@@ -3989,7 +3997,7 @@ One of: `true`, `false`
 
 <ParamField query="--ie [IE]" type="string">
 
-Run Internet Explorer
+Run Internet Explorer (SB_BROWSER=ie)
 
 One of: `true`, `false`
 
@@ -3997,7 +4005,7 @@ One of: `true`, `false`
 
 <ParamField query="--cft [CFT]" type="string">
 
-Run Chrome for Testing
+Run Chrome for Testing (SB_BROWSER=cft)
 
 One of: `true`, `false`
 
@@ -4005,7 +4013,7 @@ One of: `true`, `false`
 
 <ParamField query="--chs [CHS]" type="string">
 
-Run chrome-headless-shell
+Run chrome-headless-shell (SB_BROWSER=chs)
 
 One of: `true`, `false`
 
@@ -4013,7 +4021,7 @@ One of: `true`, `false`
 
 <ParamField query="--chromium [CHROMIUM]" type="string">
 
-Run Chromium
+Run Chromium (SB_BROWSER=chromium)
 
 Also: `--use-chromium`
 
@@ -4023,7 +4031,7 @@ One of: `true`, `false`
 
 <ParamField query="--headed [HEADED]" type="string">
 
-Run with a visible window
+Run with a visible window (SB_HEADLESS=false)
 
 Also: `--gui`
 
@@ -4033,7 +4041,7 @@ One of: `true`, `false`
 
 <ParamField query="--uc [UC]" type="string">
 
-Run in undetected-chromedriver mode
+Run in undetected-chromedriver mode (SB_MODE=uc)
 
 Also: `--undetected`, `--undetectable`
 
@@ -4043,7 +4051,7 @@ One of: `true`, `false`
 
 <ParamField query="--headless1 [HEADLESS1]" type="string">
 
-Run headless with chrome-headless-shell (Chrome's old headless mode)
+Run headless with chrome-headless-shell (Chrome's old headless mode) (SB_HEADLESS1)
 
 One of: `true`, `false`
 
@@ -4051,37 +4059,37 @@ One of: `true`, `false`
 
 <ParamField query="--locale-code <VALUE>" type="string">
 
-The browser language code, such as fr or ar_eg
+The browser language code, such as fr or ar_eg (SB_LOCALE_CODE)
 
 </ParamField>
 
 <ParamField query="--server <VALUE>" type="string">
 
-The Selenium Grid server to connect to
+The Selenium Grid server to connect to (SB_SERVER)
 
 </ParamField>
 
 <ParamField query="--port <VALUE>" type="string">
 
-The port of the Selenium Grid server
+The port of the Selenium Grid server (SB_PORT)
 
 </ParamField>
 
 <ParamField query="--protocol <VALUE>" type="string">
 
-The protocol of the Selenium Grid server: http or https
+The protocol of the Selenium Grid server: http or https (SB_PROTOCOL)
 
 </ParamField>
 
 <ParamField query="--chromium-arg <VALUE>" type="string">
 
-Extra Chromium switches, separated by commas
+Extra Chromium switches, separated by commas (SB_CHROMIUM_ARG)
 
 </ParamField>
 
 <ParamField query="--dark-mode [DARK_MODE]" type="string">
 
-Force Chrome's dark theme on web pages
+Force Chrome's dark theme on web pages (SB_DARK_MODE)
 
 Also: `--dark`
 
@@ -4091,7 +4099,7 @@ One of: `true`, `false`
 
 <ParamField query="--devtools [DEVTOOLS]" type="string">
 
-Open the developer tools with each tab (headed only)
+Open the developer tools with each tab (headed only) (SB_DEVTOOLS)
 
 Also: `--open-devtools`
 
@@ -4101,13 +4109,13 @@ One of: `true`, `false`
 
 <ParamField query="--disable-features <VALUE>" type="string">
 
-Chromium features to switch off, separated by commas
+Chromium features to switch off, separated by commas (SB_DISABLE_FEATURES)
 
 </ParamField>
 
 <ParamField query="--disable-gpu [DISABLE_GPU]" type="string">
 
-Switch the GPU off
+Switch the GPU off (SB_DISABLE_GPU)
 
 One of: `true`, `false`
 
@@ -4115,7 +4123,7 @@ One of: `true`, `false`
 
 <ParamField query="--disable-ws [DISABLE_WS]" type="string">
 
-Switch web security off
+Switch web security off (SB_DISABLE_WS)
 
 Also: `--dws`, `--disable-web-security`
 
@@ -4125,7 +4133,7 @@ One of: `true`, `false`
 
 <ParamField query="--guest-mode [GUEST_MODE]" type="string">
 
-Open the browser as a guest
+Open the browser as a guest (SB_GUEST_MODE)
 
 Also: `--guest`
 
@@ -4135,7 +4143,7 @@ One of: `true`, `false`
 
 <ParamField query="--incognito [INCOGNITO]" type="string">
 
-Open the browser in an incognito window
+Open the browser in an incognito window (SB_INCOGNITO)
 
 Also: `--incognito-mode`
 
@@ -4145,13 +4153,13 @@ One of: `true`, `false`
 
 <ParamField query="--host-resolver-rules <VALUE>" type="string">
 
-Chromium rules that map host names to addresses
+Chromium rules that map host names to addresses (SB_HOST_RESOLVER_RULES)
 
 </ParamField>
 
 <ParamField query="--no-sandbox [NO_SANDBOX]" type="string">
 
-Start Chromium without its sandbox
+Start Chromium without its sandbox (SB_NO_SANDBOX)
 
 One of: `true`, `false`
 
@@ -4159,7 +4167,7 @@ One of: `true`, `false`
 
 <ParamField query="--swiftshader [SWIFTSHADER]" type="string">
 
-Render with SwiftShader, a software WebGL renderer
+Render with SwiftShader, a software WebGL renderer (SB_SWIFTSHADER)
 
 One of: `true`, `false`
 
@@ -4167,7 +4175,7 @@ One of: `true`, `false`
 
 <ParamField query="--enable-3d-apis [ENABLE_3D_APIS]" type="string">
 
-Keep the GPU on in a headless session, for WebGL
+Keep the GPU on in a headless session, for WebGL (SB_ENABLE_3D_APIS)
 
 One of: `true`, `false`
 
@@ -4175,7 +4183,7 @@ One of: `true`, `false`
 
 <ParamField query="--maximize [MAXIMIZE]" type="string">
 
-Maximize the browser window
+Maximize the browser window (SB_MAXIMIZE)
 
 Also: `--maximize-window`, `--fullscreen`
 
@@ -4185,7 +4193,7 @@ One of: `true`, `false`
 
 <ParamField query="--block-images [BLOCK_IMAGES]" type="string">
 
-Do not load images
+Do not load images (SB_BLOCK_IMAGES)
 
 One of: `true`, `false`
 
@@ -4193,7 +4201,7 @@ One of: `true`, `false`
 
 <ParamField query="--disable-js [DISABLE_JS]" type="string">
 
-Turn JavaScript off
+Turn JavaScript off (SB_DISABLE_JS)
 
 One of: `true`, `false`
 
@@ -4201,7 +4209,7 @@ One of: `true`, `false`
 
 <ParamField query="--disable-cookies [DISABLE_COOKIES]" type="string">
 
-Refuse every cookie
+Refuse every cookie (SB_DISABLE_COOKIES)
 
 One of: `true`, `false`
 
@@ -4209,7 +4217,7 @@ One of: `true`, `false`
 
 <ParamField query="--do-not-track [DO_NOT_TRACK]" type="string">
 
-Send the DNT: 1 header
+Send the DNT: 1 header (SB_DO_NOT_TRACK)
 
 One of: `true`, `false`
 
@@ -4217,7 +4225,7 @@ One of: `true`, `false`
 
 <ParamField query="--external-pdf [EXTERNAL_PDF]" type="string">
 
-Download PDF files instead of showing them
+Download PDF files instead of showing them (SB_EXTERNAL_PDF)
 
 One of: `true`, `false`
 
@@ -4225,7 +4233,7 @@ One of: `true`, `false`
 
 <ParamField query="--enable-sync [ENABLE_SYNC]" type="string">
 
-Leave Chrome Sync on
+Leave Chrome Sync on (SB_ENABLE_SYNC)
 
 One of: `true`, `false`
 
@@ -4233,7 +4241,7 @@ One of: `true`, `false`
 
 <ParamField query="--disable-csp [DISABLE_CSP]" type="string">
 
-Strip the Content Security Policy from every response
+Strip the Content Security Policy from every response (SB_DISABLE_CSP)
 
 Also: `--dcsp`, `--no-csp`
 
@@ -4243,7 +4251,7 @@ One of: `true`, `false`
 
 <ParamField query="--use-auto-ext [USE_AUTO_EXT]" type="string">
 
-Keep Chrome's automation extension
+Keep Chrome's automation extension (SB_USE_AUTO_EXT)
 
 Also: `--auto-ext`
 
@@ -4253,7 +4261,7 @@ One of: `true`, `false`
 
 <ParamField query="--proxy-driver [PROXY_DRIVER]" type="string">
 
-Download the driver through the proxy
+Download the driver through the proxy (SB_PROXY_DRIVER)
 
 One of: `true`, `false`
 
@@ -4261,7 +4269,7 @@ One of: `true`, `false`
 
 <ParamField query="--page-load-strategy <STRATEGY>" type="string">
 
-How long a navigation waits: normal, eager or none
+How long a navigation waits: normal, eager or none (SB_PAGE_LOAD_STRATEGY)
 
 Also: `--pls`
 
@@ -4271,19 +4279,19 @@ One of: `normal`, `eager`, `none`
 
 <ParamField query="--window-size <VALUE>" type="string">
 
-The window size: WIDTH,HEIGHT
+The window size: WIDTH,HEIGHT (SB_WINDOW_SIZE)
 
 </ParamField>
 
 <ParamField query="--window-position <VALUE>" type="string">
 
-The window position: X,Y
+The window position: X,Y (SB_WINDOW_POSITION)
 
 </ParamField>
 
 <ParamField query="--device-metrics <VALUE>" type="string">
 
-Emulate a phone screen: WIDTH,HEIGHT,PIXEL_RATIO
+Emulate a phone screen: WIDTH,HEIGHT,PIXEL_RATIO (SB_DEVICE_METRICS)
 
 Also: `--metrics`
 
@@ -4291,31 +4299,31 @@ Also: `--metrics`
 
 <ParamField query="--proxy-bypass-list <VALUE>" type="string">
 
-Hosts that skip the proxy
+Hosts that skip the proxy (SB_PROXY_BYPASS_LIST)
 
 </ParamField>
 
 <ParamField query="--driver-version <VALUE>" type="string">
 
-The driver version: a number, latest, stable, beta, ...
+The driver version: a number, latest, stable, beta, ... (SB_DRIVER_VERSION)
 
 </ParamField>
 
 <ParamField query="--cap-file <PATH>" type="string">
 
-A JSON file of capabilities to add to the session's
+A JSON file of capabilities to add to the session's (SB_CAP_FILE)
 
 </ParamField>
 
 <ParamField query="--cap-string <VALUE>" type="string">
 
-A JSON object of capabilities to add to the session's
+A JSON object of capabilities to add to the session's (SB_CAP_STRING)
 
 </ParamField>
 
 <ParamField query="--extension-zip <VALUE>" type="string">
 
-Extension .zip or .crx files to load, separated by commas
+Extension .zip or .crx files to load, separated by commas (SB_EXTENSION_ZIP)
 
 Also: `--crx`
 
@@ -4323,19 +4331,19 @@ Also: `--crx`
 
 <ParamField query="--firefox-arg <VALUE>" type="string">
 
-Firefox arguments, separated by commas
+Firefox arguments, separated by commas (SB_FIREFOX_ARG)
 
 </ParamField>
 
 <ParamField query="--firefox-pref <VALUE>" type="string">
 
-Firefox preferences, NAME:VALUE separated by commas
+Firefox preferences, NAME:VALUE separated by commas (SB_FIREFOX_PREF)
 
 </ParamField>
 
 <ParamField query="--xvfb [XVFB]" type="string">
 
-Open a virtual display for a headed browser on Linux
+Open a virtual display for a headed browser on Linux (SB_XVFB)
 
 One of: `true`, `false`
 
@@ -4343,13 +4351,13 @@ One of: `true`, `false`
 
 <ParamField query="--xvfb-metrics <VALUE>" type="string">
 
-The virtual display size: WIDTH,HEIGHT
+The virtual display size: WIDTH,HEIGHT (SB_XVFB_METRICS)
 
 </ParamField>
 
 <ParamField query="--remote-debug [REMOTE_DEBUG]" type="string">
 
-Open Chrome's remote debugger on port 9222
+Open Chrome's remote debugger on port 9222 (SB_REMOTE_DEBUG)
 
 Also: `--remote-debugger`
 
@@ -4359,7 +4367,7 @@ One of: `true`, `false`
 
 <ParamField query="--log-cdp-events [LOG_CDP_EVENTS]" type="string">
 
-Log the DevTools Protocol events
+Log the DevTools Protocol events (SB_LOG_CDP_EVENTS)
 
 Also: `--log-cdp`
 
@@ -4369,7 +4377,7 @@ One of: `true`, `false`
 
 <ParamField query="--uc-cdp-events [UC_CDP_EVENTS]" type="string">
 
-Log the DevTools Protocol events in undetected mode
+Log the DevTools Protocol events in undetected mode (SB_UC_CDP_EVENTS)
 
 Also: `--uc-cdp`
 
@@ -4379,7 +4387,7 @@ One of: `true`, `false`
 
 <ParamField query="--demo [DEMO]" type="string">
 
-Highlight each element and pause after an action
+Highlight each element and pause after an action (SB_DEMO)
 
 Also: `--demo-mode`
 
@@ -4389,7 +4397,7 @@ One of: `true`, `false`
 
 <ParamField query="--slow [SLOW]" type="string">
 
-Pause briefly after each action
+Pause briefly after each action (SB_SLOW)
 
 Also: `--slow-mode`, `--slowmo`
 
@@ -4399,19 +4407,19 @@ One of: `true`, `false`
 
 <ParamField query="--demo-sleep <SECONDS>" type="string">
 
-Seconds to pause after each action in demo mode
+Seconds to pause after each action in demo mode (SB_DEMO_SLEEP)
 
 </ParamField>
 
 <ParamField query="--message-duration <SECONDS>" type="string">
 
-Seconds a message stays on the page
+Seconds a message stays on the page (SB_MESSAGE_DURATION)
 
 </ParamField>
 
 <ParamField query="--skip-js-waits [SKIP_JS_WAITS]" type="string">
 
-Do not wait for the page's JavaScript to settle
+Do not wait for the page's JavaScript to settle (SB_SKIP_JS_WAITS)
 
 Also: `--sjw`
 
@@ -4421,25 +4429,25 @@ One of: `true`, `false`
 
 <ParamField query="--highlights <COUNT>" type="string">
 
-How many times to flash a highlighted element
+How many times to flash a highlighted element (SB_HIGHLIGHTS)
 
 </ParamField>
 
 <ParamField query="--interval <SECONDS>" type="string">
 
-Seconds between the steps of a tour or presentation
+Seconds between the steps of a tour or presentation (SB_INTERVAL)
 
 </ParamField>
 
 <ParamField query="--verify-delay <SECONDS>" type="string">
 
-Seconds to wait before each MasterQA verification
+Seconds to wait before each MasterQA verification (SB_VERIFY_DELAY)
 
 </ParamField>
 
 <ParamField query="--check-js [CHECK_JS]" type="string">
 
-Check each page for JavaScript errors after it opens
+Check each page for JavaScript errors after it opens (SB_CHECK_JS)
 
 One of: `true`, `false`
 
@@ -4447,7 +4455,7 @@ One of: `true`, `false`
 
 <ParamField query="--wait-for-angularjs [WAIT_FOR_ANGULARJS]" type="string">
 
-Wait for AngularJS after opening a page and clicking
+Wait for AngularJS after opening a page and clicking (SB_WAIT_FOR_ANGULARJS)
 
 Also: `--wfa`
 
@@ -4457,7 +4465,7 @@ One of: `true`, `false`
 
 <ParamField query="--disable-beforeunload [DISABLE_BEFOREUNLOAD]" type="string">
 
-Remove the beforeunload prompt after each page opens
+Remove the beforeunload prompt after each page opens (SB_DISABLE_BEFOREUNLOAD)
 
 One of: `true`, `false`
 
@@ -4465,7 +4473,7 @@ One of: `true`, `false`
 
 <ParamField query="--visual-baseline [VISUAL_BASELINE]" type="string">
 
-Set the visual baselines again instead of comparing
+Set the visual baselines again instead of comparing (SB_VISUAL_BASELINE)
 
 One of: `true`, `false`
 
@@ -4473,7 +4481,7 @@ One of: `true`, `false`
 
 <ParamField query="--crumbs [CRUMBS]" type="string">
 
-Delete the cookies when a reused browser is handed to the next test
+Delete the cookies when a reused browser is handed to the next test (SB_CRUMBS)
 
 One of: `true`, `false`
 
@@ -4481,13 +4489,13 @@ One of: `true`, `false`
 
 <ParamField query="--timeout-multiplier <VALUE>" type="string">
 
-Multiply the default waits by this number
+Multiply the default waits by this number (SB_TIMEOUT_MULTIPLIER)
 
 </ParamField>
 
 <ParamField query="--rec-sleep [REC_SLEEP]" type="string">
 
-Keep the sleeps of a recording
+Keep the sleeps of a recording (SB_REC_SLEEP)
 
 Also: `--record-sleep`
 
@@ -4497,7 +4505,7 @@ One of: `true`, `false`
 
 <ParamField query="--env <ENV>" type="string">
 
-The environment the tests run against: qa, staging, production, ...
+The environment the tests run against: qa, staging, production, ... (SB_ENV)
 
 One of: `qa`, `rc`, `staging`, `develop`, `production`, `performance`, `replica`, `fedramp`, `offline`, `online`, `master`, `remote`, `legacy`, `local`, `alpha`, `beta`, `demo`, `gdpr`, `main`, `test`, `gov`, `new`, `old`, `uat`
 
@@ -4505,43 +4513,43 @@ One of: `qa`, `rc`, `staging`, `develop`, `production`, `performance`, `replica`
 
 <ParamField query="--account <VALUE>" type="string">
 
-A free account name for the tests
+A free account name for the tests (SB_ACCOUNT)
 
 </ParamField>
 
 <ParamField query="--data <VALUE>" type="string">
 
-Free test data
+Free test data (SB_DATA)
 
 </ParamField>
 
 <ParamField query="--var1 <VALUE>" type="string">
 
-A free variable for the tests
+A free variable for the tests (SB_VAR1)
 
 </ParamField>
 
 <ParamField query="--var2 <VALUE>" type="string">
 
-A free variable for the tests
+A free variable for the tests (SB_VAR2)
 
 </ParamField>
 
 <ParamField query="--var3 <VALUE>" type="string">
 
-A free variable for the tests
+A free variable for the tests (SB_VAR3)
 
 </ParamField>
 
 <ParamField query="--variables <VALUE>" type="string">
 
-A dictionary of values: JSON or a Python dictionary literal
+A dictionary of values: JSON or a Python dictionary literal (SB_VARIABLES)
 
 </ParamField>
 
 <ParamField query="--pdb [PDB]" type="string">
 
-Stop in a post-mortem prompt when a test fails
+Stop in a post-mortem prompt when a test fails (SB_PDB)
 
 One of: `true`, `false`
 
@@ -4549,7 +4557,7 @@ One of: `true`, `false`
 
 <ParamField query="--trace [TRACE]" type="string">
 
-Stop in a prompt before each test's body
+Stop in a prompt before each test's body (SB_TRACE)
 
 One of: `true`, `false`
 
@@ -4557,7 +4565,7 @@ One of: `true`, `false`
 
 <ParamField query="--final-debug [FINAL_DEBUG]" type="string">
 
-Stop in a prompt after each test, before the browser quits
+Stop in a prompt after each test, before the browser quits (SB_FINAL_DEBUG)
 
 Also: `--fdebug`, `--final-trace`, `--ftrace`
 
@@ -4567,19 +4575,19 @@ One of: `true`, `false`
 
 <ParamField query="--reruns <COUNT>" type="string">
 
-Run a failing test again this many times
+Run a failing test again this many times (SB_RERUNS)
 
 </ParamField>
 
 <ParamField query="--reruns-delay <SECONDS>" type="string">
 
-Seconds to wait between reruns
+Seconds to wait between reruns (SB_RERUNS_DELAY)
 
 </ParamField>
 
 <ParamField query="--time-limit <SECONDS>" type="string">
 
-Fail a test that runs longer than this many seconds
+Fail a test that runs longer than this many seconds (SB_TIME_LIMIT)
 
 Also: `--timelimit`
 
@@ -4587,7 +4595,7 @@ Also: `--timelimit`
 
 <ParamField query="--runner <RUNNER>" type="string">
 
-The test runner: cargo or nextest
+The test runner: cargo or nextest (SB_TEST_RUNNER)
 
 One of: `cargo`, `nextest`
 
@@ -4595,7 +4603,7 @@ One of: `cargo`, `nextest`
 
 <ParamField query="--screenshot [SCREENSHOT]" type="string">
 
-Save a screenshot of passing tests too
+Save a screenshot of passing tests too (SB_SAVE_SCREENSHOT)
 
 Also: `--save-screenshot`, `--ss`
 
@@ -4605,7 +4613,7 @@ One of: `true`, `false`
 
 <ParamField query="--no-screenshot [NO_SCREENSHOT]" type="string">
 
-Save no screenshot of failing tests
+Save no screenshot of failing tests (SB_NO_SCREENSHOT)
 
 Also: `--ns`
 
@@ -4615,7 +4623,7 @@ One of: `true`, `false`
 
 <ParamField query="--list-fail-page [LIST_FAIL_PAGE]" type="string">
 
-Print the URL of the page a failing test ended on
+Print the URL of the page a failing test ended on (SB_LIST_FAIL_PAGE)
 
 Also: `--list-fail-pages`, `--lfp`
 
@@ -4625,7 +4633,7 @@ One of: `true`, `false`
 
 <ParamField query="--archive-logs [ARCHIVE_LOGS]" type="string">
 
-Keep the old latest_logs folder in archived_logs
+Keep the old latest_logs folder in archived_logs (SB_ARCHIVE_LOGS)
 
 One of: `true`, `false`
 
@@ -4633,7 +4641,7 @@ One of: `true`, `false`
 
 <ParamField query="--archive-downloads [ARCHIVE_DOWNLOADS]" type="string">
 
-Keep the old downloaded_files folder in archived_files
+Keep the old downloaded_files folder in archived_files (SB_ARCHIVE_DOWNLOADS)
 
 One of: `true`, `false`
 
@@ -4641,7 +4649,7 @@ One of: `true`, `false`
 
 <ParamField query="--dashboard [DASHBOARD]" type="string">
 
-Write the results dashboard
+Write the results dashboard (SB_DASHBOARD)
 
 One of: `true`, `false`
 
@@ -4649,19 +4657,19 @@ One of: `true`, `false`
 
 <ParamField query="--dash-title <VALUE>" type="string">
 
-The dashboard's title
+The dashboard's title (SB_DASH_TITLE)
 
 </ParamField>
 
 <ParamField query="--html <PATH>" type="string">
 
-Write an HTML report to this file
+Write an HTML report to this file (SB_HTML)
 
 </ParamField>
 
 <ParamField query="--junit-xml <PATH>" type="string">
 
-Write a JUnit XML report to this file
+Write a JUnit XML report to this file (SB_JUNIT_XML)
 
 Also: `--junitxml`
 
@@ -4669,7 +4677,7 @@ Also: `--junitxml`
 
 <ParamField query="--alluredir <PATH>" type="string">
 
-Write Allure results to this folder
+Write Allure results to this folder (SB_ALLURE_DIR)
 
 Also: `--allure-dir`
 
@@ -4677,7 +4685,7 @@ Also: `--allure-dir`
 
 <ParamField query="--with-db-reporting [WITH_DB_REPORTING]" type="string">
 
-Record each test's outcome in the results database
+Record each test's outcome in the results database (SB_WITH_DB_REPORTING)
 
 One of: `true`, `false`
 
@@ -4685,13 +4693,13 @@ One of: `true`, `false`
 
 <ParamField query="--database-env <VALUE>" type="string">
 
-Which results database to use
+Which results database to use (SB_DATABASE_ENV)
 
 </ParamField>
 
 <ParamField query="--with-s3-logging [WITH_S3_LOGGING]" type="string">
 
-Upload each test's logs to S3
+Upload each test's logs to S3 (SB_WITH_S3_LOGGING)
 
 One of: `true`, `false`
 
@@ -4699,7 +4707,7 @@ One of: `true`, `false`
 
 <ParamField query="--rec [REC]" type="string">
 
-Record the browser actions as a test
+Record the browser actions as a test (SB_RECORDER)
 
 Also: `--record`, `--recorder`, `--codegen`
 
@@ -4709,7 +4717,7 @@ One of: `true`, `false`
 
 <ParamField query="--rec-behave [REC_BEHAVE]" type="string">
 
-Also write the recording as a Gherkin feature
+Also write the recording as a Gherkin feature (SB_REC_BEHAVE)
 
 Also: `--rec-gherkin`
 
@@ -4719,7 +4727,7 @@ One of: `true`, `false`
 
 <ParamField query="--rec-print [REC_PRINT]" type="string">
 
-Print the recording when the test ends
+Print the recording when the test ends (SB_REC_PRINT)
 
 One of: `true`, `false`
 
@@ -4727,7 +4735,7 @@ One of: `true`, `false`
 
 <ParamField query="--rec-sb-mgr [REC_SB_MGR]" type="string">
 
-Write the recording as a script
+Write the recording as a script (SB_REC_SB_MGR)
 
 One of: `true`, `false`
 

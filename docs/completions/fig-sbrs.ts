@@ -573,7 +573,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--cache-dir",
-          description: "Directory where patched binaries are cached",
+          description: "Directory where patched binaries are cached (SB_PATCH_CACHE_DIR)",
           args: {
             name: "cache_dir",
             template: "folders",
@@ -682,18 +682,18 @@ const completionSpec: Fig.Spec = {
           options: [
             {
               name: "--dashboard",
-              description: "Write the live dashboard (dashboard.html) in its final form.",
+              description: "Write the live dashboard (dashboard.html) in its final form (SB_DASHBOARD).",
             },
             {
               name: "--dash-title",
-              description: "The dashboard's title; an underscore stands for a space.",
+              description: "The dashboard's title; an underscore stands for a space (SB_DASH_TITLE).",
               args: {
                 name: "title",
               },
             },
             {
               name: "--html",
-              description: "Write an HTML report to this file.",
+              description: "Write an HTML report to this file (SB_HTML).",
               args: {
                 name: "path",
                 template: "filepaths",
@@ -701,7 +701,7 @@ const completionSpec: Fig.Spec = {
             },
             {
               name: "--junit-xml",
-              description: "Write a JUnit XML report to this file.",
+              description: "Write a JUnit XML report to this file (SB_JUNIT_XML).",
               args: {
                 name: "path",
                 template: "filepaths",
@@ -709,7 +709,7 @@ const completionSpec: Fig.Spec = {
             },
             {
               name: "--archive-logs",
-              description: "Keep the logs of the run in archived_logs/ instead of deleting them later.",
+              description: "Keep the logs of the run in archived_logs/ instead of deleting them later (SB_ARCHIVE_LOGS).",
             },
             {
               name: "--show-report",
@@ -1487,7 +1487,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["-n", "--threads"],
-          description: "How many tests run at once, as pytest-xdist's -n: a number or `auto`.",
+          description: "How many tests run at once, as pytest-xdist's -n: a number or `auto` (SB_THREADS).",
           args: {
             name: "n|auto",
           },
@@ -1510,7 +1510,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--browser",
-          description: "The browser to run: chrome, edge, firefox, brave, ...",
+          description: "The browser to run: chrome, edge, firefox, brave, ... (SB_BROWSER)",
           args: {
             name: "browser",
             suggestions: ["chrome", "chromium", "edge", "firefox", "brave", "comet", "opera", "safari", "ie", "cft", "chs"],
@@ -1518,7 +1518,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--headless", "--headless2"],
-          description: "Run without a visible window (Chrome's new headless mode)",
+          description: "Run without a visible window (Chrome's new headless mode) (SB_HEADLESS)",
           args: {
             name: "headless",
             isOptional: true,
@@ -1527,7 +1527,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--binary-location", "--bl"],
-          description: "The browser binary to run",
+          description: "The browser binary to run (SB_CHROME_BIN)",
           args: {
             name: "path",
             template: "filepaths",
@@ -1535,14 +1535,14 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--proxy", "--proxy-server", "--proxy-string"],
-          description: "The proxy server: HOST:PORT or USER:PASS@HOST:PORT",
+          description: "The proxy server: HOST:PORT or USER:PASS@HOST:PORT (SB_PROXY)",
           args: {
             name: "value",
           },
         },
         {
           name: "--user-data-dir",
-          description: "The browser profile folder",
+          description: "The browser profile folder (SB_USER_DATA_DIR)",
           args: {
             name: "dir",
             template: "folders",
@@ -1550,7 +1550,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--extension-dir",
-          description: "Unpacked extension folders to load, separated by commas",
+          description: "Unpacked extension folders to load, separated by commas (SB_EXTENSION_DIR)",
           args: {
             name: "dir",
             template: "folders",
@@ -1558,21 +1558,21 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--locale",
-          description: "The browser locale",
+          description: "The browser locale (SB_LOCALE)",
           args: {
             name: "value",
           },
         },
         {
           name: ["--user-agent", "--agent"],
-          description: "The user agent string",
+          description: "The user agent string (SB_USER_AGENT)",
           args: {
             name: "value",
           },
         },
         {
           name: "--mode",
-          description: "The driver mode: webdriver, cdp or uc",
+          description: "The driver mode: webdriver, cdp or uc (SB_MODE)",
           args: {
             name: "mode",
             suggestions: ["webdriver", "cdp", "uc"],
@@ -1580,7 +1580,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--ad-block", "--adblock", "--block-ads"],
-          description: "Block the requests of ad and tracker hosts",
+          description: "Block the requests of ad and tracker hosts (SB_AD_BLOCK)",
           args: {
             name: "ad_block",
             isOptional: true,
@@ -1589,7 +1589,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--reuse-session", "--rs"],
-          description: "Share browsers among the tests of the run",
+          description: "Share browsers among the tests of the run (SB_REUSE_SESSION)",
           args: {
             name: "reuse_session",
             isOptional: true,
@@ -1598,7 +1598,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--reuse-class-session", "--rcs"],
-          description: "Share a browser among the tests of one module",
+          description: "Share a browser among the tests of one module (SB_REUSE_CLASS_SESSION)",
           args: {
             name: "reuse_class_session",
             isOptional: true,
@@ -1607,7 +1607,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--mobile", "--mobile-emulator"],
-          description: "Emulate a mobile phone",
+          description: "Emulate a mobile phone (SB_MOBILE)",
           args: {
             name: "mobile",
             isOptional: true,
@@ -1616,14 +1616,14 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--proxy-pac-url", "--pac-url"],
-          description: "A proxy auto-config URL",
+          description: "A proxy auto-config URL (SB_PROXY_PAC_URL)",
           args: {
             name: "url",
           },
         },
         {
           name: ["--esc-end", "--ee"],
-          description: "End the current test when ESC is pressed in the browser",
+          description: "End the current test when ESC is pressed in the browser (SB_ESC_END)",
           args: {
             name: "esc_end",
             isOptional: true,
@@ -1632,7 +1632,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--rec-sb-cdp",
-          description: "Write recordings as pure CDP code",
+          description: "Write recordings as pure CDP code (SB_REC_SB_CDP)",
           args: {
             name: "rec_sb_cdp",
             isOptional: true,
@@ -1641,7 +1641,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--fingerprint",
-          description: "A fingerprint file every browser presents",
+          description: "A fingerprint file every browser presents (SB_FINGERPRINT)",
           args: {
             name: "path",
             template: "filepaths",
@@ -1649,14 +1649,14 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--start-page", "--url"],
-          description: "The page every browser opens first",
+          description: "The page every browser opens first (SB_START_PAGE)",
           args: {
             name: "url",
           },
         },
         {
           name: ["--settings-file", "--settings"],
-          description: "The settings file to read instead of sbase_config.toml",
+          description: "The settings file to read instead of sbase_config.toml (SB_SETTINGS_FILE)",
           args: {
             name: "path",
             template: "filepaths",
@@ -1664,7 +1664,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--chrome",
-          description: "Run Chrome",
+          description: "Run Chrome (SB_BROWSER=chrome)",
           args: {
             name: "chrome",
             isOptional: true,
@@ -1673,7 +1673,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--edge",
-          description: "Run Edge",
+          description: "Run Edge (SB_BROWSER=edge)",
           args: {
             name: "edge",
             isOptional: true,
@@ -1682,7 +1682,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--firefox",
-          description: "Run Firefox",
+          description: "Run Firefox (SB_BROWSER=firefox)",
           args: {
             name: "firefox",
             isOptional: true,
@@ -1691,7 +1691,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--brave",
-          description: "Run Brave",
+          description: "Run Brave (SB_BROWSER=brave)",
           args: {
             name: "brave",
             isOptional: true,
@@ -1700,7 +1700,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--comet",
-          description: "Run Comet",
+          description: "Run Comet (SB_BROWSER=comet)",
           args: {
             name: "comet",
             isOptional: true,
@@ -1709,7 +1709,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--opera",
-          description: "Run Opera",
+          description: "Run Opera (SB_BROWSER=opera)",
           args: {
             name: "opera",
             isOptional: true,
@@ -1718,7 +1718,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--safari",
-          description: "Run Safari",
+          description: "Run Safari (SB_BROWSER=safari)",
           args: {
             name: "safari",
             isOptional: true,
@@ -1727,7 +1727,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--ie",
-          description: "Run Internet Explorer",
+          description: "Run Internet Explorer (SB_BROWSER=ie)",
           args: {
             name: "ie",
             isOptional: true,
@@ -1736,7 +1736,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--cft",
-          description: "Run Chrome for Testing",
+          description: "Run Chrome for Testing (SB_BROWSER=cft)",
           args: {
             name: "cft",
             isOptional: true,
@@ -1745,7 +1745,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--chs",
-          description: "Run chrome-headless-shell",
+          description: "Run chrome-headless-shell (SB_BROWSER=chs)",
           args: {
             name: "chs",
             isOptional: true,
@@ -1754,7 +1754,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--chromium", "--use-chromium"],
-          description: "Run Chromium",
+          description: "Run Chromium (SB_BROWSER=chromium)",
           args: {
             name: "chromium",
             isOptional: true,
@@ -1763,7 +1763,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--headed", "--gui"],
-          description: "Run with a visible window",
+          description: "Run with a visible window (SB_HEADLESS=false)",
           args: {
             name: "headed",
             isOptional: true,
@@ -1772,7 +1772,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--uc", "--undetected", "--undetectable"],
-          description: "Run in undetected-chromedriver mode",
+          description: "Run in undetected-chromedriver mode (SB_MODE=uc)",
           args: {
             name: "uc",
             isOptional: true,
@@ -1781,7 +1781,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--headless1",
-          description: "Run headless with chrome-headless-shell (Chrome's old headless mode)",
+          description: "Run headless with chrome-headless-shell (Chrome's old headless mode) (SB_HEADLESS1)",
           args: {
             name: "headless1",
             isOptional: true,
@@ -1790,42 +1790,42 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--locale-code",
-          description: "The browser language code, such as fr or ar_eg",
+          description: "The browser language code, such as fr or ar_eg (SB_LOCALE_CODE)",
           args: {
             name: "value",
           },
         },
         {
           name: "--server",
-          description: "The Selenium Grid server to connect to",
+          description: "The Selenium Grid server to connect to (SB_SERVER)",
           args: {
             name: "value",
           },
         },
         {
           name: "--port",
-          description: "The port of the Selenium Grid server",
+          description: "The port of the Selenium Grid server (SB_PORT)",
           args: {
             name: "value",
           },
         },
         {
           name: "--protocol",
-          description: "The protocol of the Selenium Grid server: http or https",
+          description: "The protocol of the Selenium Grid server: http or https (SB_PROTOCOL)",
           args: {
             name: "value",
           },
         },
         {
           name: "--chromium-arg",
-          description: "Extra Chromium switches, separated by commas",
+          description: "Extra Chromium switches, separated by commas (SB_CHROMIUM_ARG)",
           args: {
             name: "value",
           },
         },
         {
           name: ["--dark-mode", "--dark"],
-          description: "Force Chrome's dark theme on web pages",
+          description: "Force Chrome's dark theme on web pages (SB_DARK_MODE)",
           args: {
             name: "dark_mode",
             isOptional: true,
@@ -1834,7 +1834,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--devtools", "--open-devtools"],
-          description: "Open the developer tools with each tab (headed only)",
+          description: "Open the developer tools with each tab (headed only) (SB_DEVTOOLS)",
           args: {
             name: "devtools",
             isOptional: true,
@@ -1843,14 +1843,14 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--disable-features",
-          description: "Chromium features to switch off, separated by commas",
+          description: "Chromium features to switch off, separated by commas (SB_DISABLE_FEATURES)",
           args: {
             name: "value",
           },
         },
         {
           name: "--disable-gpu",
-          description: "Switch the GPU off",
+          description: "Switch the GPU off (SB_DISABLE_GPU)",
           args: {
             name: "disable_gpu",
             isOptional: true,
@@ -1859,7 +1859,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--disable-ws", "--dws", "--disable-web-security"],
-          description: "Switch web security off",
+          description: "Switch web security off (SB_DISABLE_WS)",
           args: {
             name: "disable_ws",
             isOptional: true,
@@ -1868,7 +1868,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--guest-mode", "--guest"],
-          description: "Open the browser as a guest",
+          description: "Open the browser as a guest (SB_GUEST_MODE)",
           args: {
             name: "guest_mode",
             isOptional: true,
@@ -1877,7 +1877,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--incognito", "--incognito-mode"],
-          description: "Open the browser in an incognito window",
+          description: "Open the browser in an incognito window (SB_INCOGNITO)",
           args: {
             name: "incognito",
             isOptional: true,
@@ -1886,14 +1886,14 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--host-resolver-rules",
-          description: "Chromium rules that map host names to addresses",
+          description: "Chromium rules that map host names to addresses (SB_HOST_RESOLVER_RULES)",
           args: {
             name: "value",
           },
         },
         {
           name: "--no-sandbox",
-          description: "Start Chromium without its sandbox",
+          description: "Start Chromium without its sandbox (SB_NO_SANDBOX)",
           args: {
             name: "no_sandbox",
             isOptional: true,
@@ -1902,7 +1902,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--swiftshader",
-          description: "Render with SwiftShader, a software WebGL renderer",
+          description: "Render with SwiftShader, a software WebGL renderer (SB_SWIFTSHADER)",
           args: {
             name: "swiftshader",
             isOptional: true,
@@ -1911,7 +1911,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--enable-3d-apis",
-          description: "Keep the GPU on in a headless session, for WebGL",
+          description: "Keep the GPU on in a headless session, for WebGL (SB_ENABLE_3D_APIS)",
           args: {
             name: "enable_3d_apis",
             isOptional: true,
@@ -1920,7 +1920,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--maximize", "--maximize-window", "--fullscreen"],
-          description: "Maximize the browser window",
+          description: "Maximize the browser window (SB_MAXIMIZE)",
           args: {
             name: "maximize",
             isOptional: true,
@@ -1929,7 +1929,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--block-images",
-          description: "Do not load images",
+          description: "Do not load images (SB_BLOCK_IMAGES)",
           args: {
             name: "block_images",
             isOptional: true,
@@ -1938,7 +1938,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--disable-js",
-          description: "Turn JavaScript off",
+          description: "Turn JavaScript off (SB_DISABLE_JS)",
           args: {
             name: "disable_js",
             isOptional: true,
@@ -1947,7 +1947,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--disable-cookies",
-          description: "Refuse every cookie",
+          description: "Refuse every cookie (SB_DISABLE_COOKIES)",
           args: {
             name: "disable_cookies",
             isOptional: true,
@@ -1956,7 +1956,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--do-not-track",
-          description: "Send the DNT: 1 header",
+          description: "Send the DNT: 1 header (SB_DO_NOT_TRACK)",
           args: {
             name: "do_not_track",
             isOptional: true,
@@ -1965,7 +1965,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--external-pdf",
-          description: "Download PDF files instead of showing them",
+          description: "Download PDF files instead of showing them (SB_EXTERNAL_PDF)",
           args: {
             name: "external_pdf",
             isOptional: true,
@@ -1974,7 +1974,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--enable-sync",
-          description: "Leave Chrome Sync on",
+          description: "Leave Chrome Sync on (SB_ENABLE_SYNC)",
           args: {
             name: "enable_sync",
             isOptional: true,
@@ -1983,7 +1983,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--disable-csp", "--dcsp", "--no-csp"],
-          description: "Strip the Content Security Policy from every response",
+          description: "Strip the Content Security Policy from every response (SB_DISABLE_CSP)",
           args: {
             name: "disable_csp",
             isOptional: true,
@@ -1992,7 +1992,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--use-auto-ext", "--auto-ext"],
-          description: "Keep Chrome's automation extension",
+          description: "Keep Chrome's automation extension (SB_USE_AUTO_EXT)",
           args: {
             name: "use_auto_ext",
             isOptional: true,
@@ -2001,7 +2001,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--proxy-driver",
-          description: "Download the driver through the proxy",
+          description: "Download the driver through the proxy (SB_PROXY_DRIVER)",
           args: {
             name: "proxy_driver",
             isOptional: true,
@@ -2010,7 +2010,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--page-load-strategy", "--pls"],
-          description: "How long a navigation waits: normal, eager or none",
+          description: "How long a navigation waits: normal, eager or none (SB_PAGE_LOAD_STRATEGY)",
           args: {
             name: "strategy",
             suggestions: ["normal", "eager", "none"],
@@ -2018,42 +2018,42 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--window-size",
-          description: "The window size: WIDTH,HEIGHT",
+          description: "The window size: WIDTH,HEIGHT (SB_WINDOW_SIZE)",
           args: {
             name: "value",
           },
         },
         {
           name: "--window-position",
-          description: "The window position: X,Y",
+          description: "The window position: X,Y (SB_WINDOW_POSITION)",
           args: {
             name: "value",
           },
         },
         {
           name: ["--device-metrics", "--metrics"],
-          description: "Emulate a phone screen: WIDTH,HEIGHT,PIXEL_RATIO",
+          description: "Emulate a phone screen: WIDTH,HEIGHT,PIXEL_RATIO (SB_DEVICE_METRICS)",
           args: {
             name: "value",
           },
         },
         {
           name: "--proxy-bypass-list",
-          description: "Hosts that skip the proxy",
+          description: "Hosts that skip the proxy (SB_PROXY_BYPASS_LIST)",
           args: {
             name: "value",
           },
         },
         {
           name: "--driver-version",
-          description: "The driver version: a number, latest, stable, beta, ...",
+          description: "The driver version: a number, latest, stable, beta, ... (SB_DRIVER_VERSION)",
           args: {
             name: "value",
           },
         },
         {
           name: "--cap-file",
-          description: "A JSON file of capabilities to add to the session's",
+          description: "A JSON file of capabilities to add to the session's (SB_CAP_FILE)",
           args: {
             name: "path",
             template: "filepaths",
@@ -2061,35 +2061,35 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--cap-string",
-          description: "A JSON object of capabilities to add to the session's",
+          description: "A JSON object of capabilities to add to the session's (SB_CAP_STRING)",
           args: {
             name: "value",
           },
         },
         {
           name: ["--extension-zip", "--crx"],
-          description: "Extension .zip or .crx files to load, separated by commas",
+          description: "Extension .zip or .crx files to load, separated by commas (SB_EXTENSION_ZIP)",
           args: {
             name: "value",
           },
         },
         {
           name: "--firefox-arg",
-          description: "Firefox arguments, separated by commas",
+          description: "Firefox arguments, separated by commas (SB_FIREFOX_ARG)",
           args: {
             name: "value",
           },
         },
         {
           name: "--firefox-pref",
-          description: "Firefox preferences, NAME:VALUE separated by commas",
+          description: "Firefox preferences, NAME:VALUE separated by commas (SB_FIREFOX_PREF)",
           args: {
             name: "value",
           },
         },
         {
           name: "--xvfb",
-          description: "Open a virtual display for a headed browser on Linux",
+          description: "Open a virtual display for a headed browser on Linux (SB_XVFB)",
           args: {
             name: "xvfb",
             isOptional: true,
@@ -2098,14 +2098,14 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--xvfb-metrics",
-          description: "The virtual display size: WIDTH,HEIGHT",
+          description: "The virtual display size: WIDTH,HEIGHT (SB_XVFB_METRICS)",
           args: {
             name: "value",
           },
         },
         {
           name: ["--remote-debug", "--remote-debugger"],
-          description: "Open Chrome's remote debugger on port 9222",
+          description: "Open Chrome's remote debugger on port 9222 (SB_REMOTE_DEBUG)",
           args: {
             name: "remote_debug",
             isOptional: true,
@@ -2114,7 +2114,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--log-cdp-events", "--log-cdp"],
-          description: "Log the DevTools Protocol events",
+          description: "Log the DevTools Protocol events (SB_LOG_CDP_EVENTS)",
           args: {
             name: "log_cdp_events",
             isOptional: true,
@@ -2123,7 +2123,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--uc-cdp-events", "--uc-cdp"],
-          description: "Log the DevTools Protocol events in undetected mode",
+          description: "Log the DevTools Protocol events in undetected mode (SB_UC_CDP_EVENTS)",
           args: {
             name: "uc_cdp_events",
             isOptional: true,
@@ -2132,7 +2132,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--demo", "--demo-mode"],
-          description: "Highlight each element and pause after an action",
+          description: "Highlight each element and pause after an action (SB_DEMO)",
           args: {
             name: "demo",
             isOptional: true,
@@ -2141,7 +2141,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--slow", "--slow-mode", "--slowmo"],
-          description: "Pause briefly after each action",
+          description: "Pause briefly after each action (SB_SLOW)",
           args: {
             name: "slow",
             isOptional: true,
@@ -2150,21 +2150,21 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--demo-sleep",
-          description: "Seconds to pause after each action in demo mode",
+          description: "Seconds to pause after each action in demo mode (SB_DEMO_SLEEP)",
           args: {
             name: "seconds",
           },
         },
         {
           name: "--message-duration",
-          description: "Seconds a message stays on the page",
+          description: "Seconds a message stays on the page (SB_MESSAGE_DURATION)",
           args: {
             name: "seconds",
           },
         },
         {
           name: ["--skip-js-waits", "--sjw"],
-          description: "Do not wait for the page's JavaScript to settle",
+          description: "Do not wait for the page's JavaScript to settle (SB_SKIP_JS_WAITS)",
           args: {
             name: "skip_js_waits",
             isOptional: true,
@@ -2173,28 +2173,28 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--highlights",
-          description: "How many times to flash a highlighted element",
+          description: "How many times to flash a highlighted element (SB_HIGHLIGHTS)",
           args: {
             name: "count",
           },
         },
         {
           name: "--interval",
-          description: "Seconds between the steps of a tour or presentation",
+          description: "Seconds between the steps of a tour or presentation (SB_INTERVAL)",
           args: {
             name: "seconds",
           },
         },
         {
           name: "--verify-delay",
-          description: "Seconds to wait before each MasterQA verification",
+          description: "Seconds to wait before each MasterQA verification (SB_VERIFY_DELAY)",
           args: {
             name: "seconds",
           },
         },
         {
           name: "--check-js",
-          description: "Check each page for JavaScript errors after it opens",
+          description: "Check each page for JavaScript errors after it opens (SB_CHECK_JS)",
           args: {
             name: "check_js",
             isOptional: true,
@@ -2203,7 +2203,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--wait-for-angularjs", "--wfa"],
-          description: "Wait for AngularJS after opening a page and clicking",
+          description: "Wait for AngularJS after opening a page and clicking (SB_WAIT_FOR_ANGULARJS)",
           args: {
             name: "wait_for_angularjs",
             isOptional: true,
@@ -2212,7 +2212,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--disable-beforeunload",
-          description: "Remove the beforeunload prompt after each page opens",
+          description: "Remove the beforeunload prompt after each page opens (SB_DISABLE_BEFOREUNLOAD)",
           args: {
             name: "disable_beforeunload",
             isOptional: true,
@@ -2221,7 +2221,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--visual-baseline",
-          description: "Set the visual baselines again instead of comparing",
+          description: "Set the visual baselines again instead of comparing (SB_VISUAL_BASELINE)",
           args: {
             name: "visual_baseline",
             isOptional: true,
@@ -2230,7 +2230,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--crumbs",
-          description: "Delete the cookies when a reused browser is handed to the next test",
+          description: "Delete the cookies when a reused browser is handed to the next test (SB_CRUMBS)",
           args: {
             name: "crumbs",
             isOptional: true,
@@ -2239,14 +2239,14 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--timeout-multiplier",
-          description: "Multiply the default waits by this number",
+          description: "Multiply the default waits by this number (SB_TIMEOUT_MULTIPLIER)",
           args: {
             name: "value",
           },
         },
         {
           name: ["--rec-sleep", "--record-sleep"],
-          description: "Keep the sleeps of a recording",
+          description: "Keep the sleeps of a recording (SB_REC_SLEEP)",
           args: {
             name: "rec_sleep",
             isOptional: true,
@@ -2255,7 +2255,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--env",
-          description: "The environment the tests run against: qa, staging, production, ...",
+          description: "The environment the tests run against: qa, staging, production, ... (SB_ENV)",
           args: {
             name: "env",
             suggestions: ["qa", "rc", "staging", "develop", "production", "performance", "replica", "fedramp", "offline", "online", "master", "remote", "legacy", "local", "alpha", "beta", "demo", "gdpr", "main", "test", "gov", "new", "old", "uat"],
@@ -2263,49 +2263,49 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--account",
-          description: "A free account name for the tests",
+          description: "A free account name for the tests (SB_ACCOUNT)",
           args: {
             name: "value",
           },
         },
         {
           name: "--data",
-          description: "Free test data",
+          description: "Free test data (SB_DATA)",
           args: {
             name: "value",
           },
         },
         {
           name: "--var1",
-          description: "A free variable for the tests",
+          description: "A free variable for the tests (SB_VAR1)",
           args: {
             name: "value",
           },
         },
         {
           name: "--var2",
-          description: "A free variable for the tests",
+          description: "A free variable for the tests (SB_VAR2)",
           args: {
             name: "value",
           },
         },
         {
           name: "--var3",
-          description: "A free variable for the tests",
+          description: "A free variable for the tests (SB_VAR3)",
           args: {
             name: "value",
           },
         },
         {
           name: "--variables",
-          description: "A dictionary of values: JSON or a Python dictionary literal",
+          description: "A dictionary of values: JSON or a Python dictionary literal (SB_VARIABLES)",
           args: {
             name: "value",
           },
         },
         {
           name: "--pdb",
-          description: "Stop in a post-mortem prompt when a test fails",
+          description: "Stop in a post-mortem prompt when a test fails (SB_PDB)",
           args: {
             name: "pdb",
             isOptional: true,
@@ -2314,7 +2314,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--trace",
-          description: "Stop in a prompt before each test's body",
+          description: "Stop in a prompt before each test's body (SB_TRACE)",
           args: {
             name: "trace",
             isOptional: true,
@@ -2323,7 +2323,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--final-debug", "--fdebug", "--final-trace", "--ftrace"],
-          description: "Stop in a prompt after each test, before the browser quits",
+          description: "Stop in a prompt after each test, before the browser quits (SB_FINAL_DEBUG)",
           args: {
             name: "final_debug",
             isOptional: true,
@@ -2332,28 +2332,28 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--reruns",
-          description: "Run a failing test again this many times",
+          description: "Run a failing test again this many times (SB_RERUNS)",
           args: {
             name: "count",
           },
         },
         {
           name: "--reruns-delay",
-          description: "Seconds to wait between reruns",
+          description: "Seconds to wait between reruns (SB_RERUNS_DELAY)",
           args: {
             name: "seconds",
           },
         },
         {
           name: ["--time-limit", "--timelimit"],
-          description: "Fail a test that runs longer than this many seconds",
+          description: "Fail a test that runs longer than this many seconds (SB_TIME_LIMIT)",
           args: {
             name: "seconds",
           },
         },
         {
           name: "--runner",
-          description: "The test runner: cargo or nextest",
+          description: "The test runner: cargo or nextest (SB_TEST_RUNNER)",
           args: {
             name: "runner",
             suggestions: ["cargo", "nextest"],
@@ -2361,7 +2361,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--screenshot", "--save-screenshot", "--ss"],
-          description: "Save a screenshot of passing tests too",
+          description: "Save a screenshot of passing tests too (SB_SAVE_SCREENSHOT)",
           args: {
             name: "screenshot",
             isOptional: true,
@@ -2370,7 +2370,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--no-screenshot", "--ns"],
-          description: "Save no screenshot of failing tests",
+          description: "Save no screenshot of failing tests (SB_NO_SCREENSHOT)",
           args: {
             name: "no_screenshot",
             isOptional: true,
@@ -2379,7 +2379,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--list-fail-page", "--list-fail-pages", "--lfp"],
-          description: "Print the URL of the page a failing test ended on",
+          description: "Print the URL of the page a failing test ended on (SB_LIST_FAIL_PAGE)",
           args: {
             name: "list_fail_page",
             isOptional: true,
@@ -2388,7 +2388,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--archive-logs",
-          description: "Keep the old latest_logs folder in archived_logs",
+          description: "Keep the old latest_logs folder in archived_logs (SB_ARCHIVE_LOGS)",
           args: {
             name: "archive_logs",
             isOptional: true,
@@ -2397,7 +2397,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--archive-downloads",
-          description: "Keep the old downloaded_files folder in archived_files",
+          description: "Keep the old downloaded_files folder in archived_files (SB_ARCHIVE_DOWNLOADS)",
           args: {
             name: "archive_downloads",
             isOptional: true,
@@ -2406,7 +2406,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--dashboard",
-          description: "Write the results dashboard",
+          description: "Write the results dashboard (SB_DASHBOARD)",
           args: {
             name: "dashboard",
             isOptional: true,
@@ -2415,14 +2415,14 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--dash-title",
-          description: "The dashboard's title",
+          description: "The dashboard's title (SB_DASH_TITLE)",
           args: {
             name: "value",
           },
         },
         {
           name: "--html",
-          description: "Write an HTML report to this file",
+          description: "Write an HTML report to this file (SB_HTML)",
           args: {
             name: "path",
             template: "filepaths",
@@ -2430,7 +2430,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--junit-xml", "--junitxml"],
-          description: "Write a JUnit XML report to this file",
+          description: "Write a JUnit XML report to this file (SB_JUNIT_XML)",
           args: {
             name: "path",
             template: "filepaths",
@@ -2438,7 +2438,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--alluredir", "--allure-dir"],
-          description: "Write Allure results to this folder",
+          description: "Write Allure results to this folder (SB_ALLURE_DIR)",
           args: {
             name: "path",
             template: "filepaths",
@@ -2446,7 +2446,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--with-db-reporting",
-          description: "Record each test's outcome in the results database",
+          description: "Record each test's outcome in the results database (SB_WITH_DB_REPORTING)",
           args: {
             name: "with_db_reporting",
             isOptional: true,
@@ -2455,14 +2455,14 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--database-env",
-          description: "Which results database to use",
+          description: "Which results database to use (SB_DATABASE_ENV)",
           args: {
             name: "value",
           },
         },
         {
           name: "--with-s3-logging",
-          description: "Upload each test's logs to S3",
+          description: "Upload each test's logs to S3 (SB_WITH_S3_LOGGING)",
           args: {
             name: "with_s3_logging",
             isOptional: true,
@@ -2471,7 +2471,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--rec", "--record", "--recorder", "--codegen"],
-          description: "Record the browser actions as a test",
+          description: "Record the browser actions as a test (SB_RECORDER)",
           args: {
             name: "rec",
             isOptional: true,
@@ -2480,7 +2480,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: ["--rec-behave", "--rec-gherkin"],
-          description: "Also write the recording as a Gherkin feature",
+          description: "Also write the recording as a Gherkin feature (SB_REC_BEHAVE)",
           args: {
             name: "rec_behave",
             isOptional: true,
@@ -2489,7 +2489,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--rec-print",
-          description: "Print the recording when the test ends",
+          description: "Print the recording when the test ends (SB_REC_PRINT)",
           args: {
             name: "rec_print",
             isOptional: true,
@@ -2498,7 +2498,7 @@ const completionSpec: Fig.Spec = {
         },
         {
           name: "--rec-sb-mgr",
-          description: "Write the recording as a script",
+          description: "Write the recording as a script (SB_REC_SB_MGR)",
           args: {
             name: "rec_sb_mgr",
             isOptional: true,
@@ -2545,6 +2545,10 @@ const completionSpec: Fig.Spec = {
         {
           name: "--all",
           description: "Also list the options of the test run (`sbrs test`).",
+        },
+        {
+          name: "--env",
+          description: "List the environment variables `sbrs` and `sbrs-mcp` read instead of the options.",
         },
         {
           name: ["-h", "--help"],
@@ -3672,7 +3676,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--browser",
-      description: "Browser engine to launch (default: chrome, or the config file's)",
+      description: "Browser engine to launch (SB_BROWSER; default: chrome, or the config file's)",
       isPersistent: true,
       args: {
         name: "browser",
@@ -3681,27 +3685,27 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: ["--headed", "--gui"],
-      description: "Run the browser in headed mode",
+      description: "Run the browser in headed mode (SB_HEADLESS=false)",
       isPersistent: true,
     },
     {
       name: ["--headless", "--headless2"],
-      description: "Run the browser in headless mode",
+      description: "Run the browser in headless mode (SB_HEADLESS)",
       isPersistent: true,
     },
     {
       name: "--cdp",
-      description: "Enable Chrome DevTools Protocol mode",
+      description: "Enable Chrome DevTools Protocol mode (SB_MODE=cdp)",
       isPersistent: true,
     },
     {
       name: ["--uc", "--undetected", "--undetectable"],
-      description: "Enable undetected-chromedriver style evasions",
+      description: "Enable undetected-chromedriver style evasions (SB_MODE=uc)",
       isPersistent: true,
     },
     {
       name: "--user-agent",
-      description: "Override the default user agent string",
+      description: "Override the default user agent string (SB_USER_AGENT)",
       isPersistent: true,
       args: {
         name: "user_agent",
@@ -3709,7 +3713,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: ["-a", "--agent"],
-      description: "Alias for --user-agent",
+      description: "Alias for --user-agent (SB_USER_AGENT)",
       isPersistent: true,
       args: {
         name: "agent",
@@ -3717,7 +3721,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--locale",
-      description: "Locale string for the browser context",
+      description: "Locale string for the browser context (SB_LOCALE)",
       isPersistent: true,
       args: {
         name: "locale",
@@ -3725,7 +3729,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: ["--start-page", "--url", "--start_page"],
-      description: "Page the browser opens first, Python's --start-page (aliases --url and --start_page)",
+      description: "Page the browser opens first, Python's --start-page (SB_START_PAGE; aliases --url and --start_page)",
       isPersistent: true,
       args: {
         name: "url",
@@ -3733,17 +3737,17 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: ["--save-screenshot", "--save_screenshot"],
-      description: "Save a screenshot to latest_logs/ just before the browser closes, and print its path",
+      description: "Save a screenshot to latest_logs/ just before the browser closes, and print its path (SB_SAVE_SCREENSHOT)",
       isPersistent: true,
     },
     {
       name: ["--ad-block", "--adblock", "--block-ads"],
-      description: "Refuse the requests of ad and tracker hosts (Chromium WebDriver sessions)",
+      description: "Refuse the requests of ad and tracker hosts (SB_AD_BLOCK; Chromium WebDriver sessions)",
       isPersistent: true,
     },
     {
       name: ["--proxy", "--proxy-server", "--proxy-string"],
-      description: "Proxy (host:port or scheme://host:port); with --proxy-list, a name from the list",
+      description: "Proxy (SB_PROXY; host:port or scheme://host:port); with --proxy-list, a name from the list",
       isPersistent: true,
       args: {
         name: "proxy",
@@ -3751,7 +3755,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--proxy-list",
-      description: "File of proxies to choose from; without --proxy a random one is used",
+      description: "File of proxies to choose from; without --proxy a random one is used (SB_PROXY_LIST)",
       isPersistent: true,
       args: {
         name: "file",
@@ -3760,7 +3764,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: ["--proxy-pac-url", "--pac-url"],
-      description: "URL to a proxy auto-config (PAC) file",
+      description: "URL to a proxy auto-config (PAC) file (SB_PROXY_PAC_URL)",
       isPersistent: true,
       args: {
         name: "proxy_pac_url",
@@ -3768,7 +3772,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--user-data-dir",
-      description: "Path to a persistent browser user-data directory",
+      description: "Path to a persistent browser user-data directory (SB_USER_DATA_DIR)",
       isPersistent: true,
       args: {
         name: "user_data_dir",
@@ -3777,7 +3781,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--extension-dir",
-      description: "Path to an unpacked extension directory",
+      description: "Path to an unpacked extension directory (SB_EXTENSION_DIR)",
       isPersistent: true,
       args: {
         name: "extension_dir",
@@ -3796,22 +3800,22 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: ["--mobile", "--mobile-emulator"],
-      description: "Use a mobile device emulation profile",
+      description: "Use a mobile device emulation profile (SB_MOBILE)",
       isPersistent: true,
     },
     {
       name: ["--esc-end", "--esc_end", "--ee"],
-      description: "End the current test when ESC is pressed in the browser",
+      description: "End the current test when ESC is pressed in the browser (SB_ESC_END)",
       isPersistent: true,
     },
     {
       name: ["--rec-sb-cdp", "--rec_sb_cdp"],
-      description: "Write recordings as pure CDP code (sb_cdp Page and Locator calls)",
+      description: "Write recordings as pure CDP code (SB_REC_SB_CDP; sb_cdp Page and Locator calls)",
       isPersistent: true,
     },
     {
       name: ["-c", "--config", "--settings-file", "--settings"],
-      description: "Path to a TOML/JSON settings file",
+      description: "Path to a TOML/JSON settings file (SB_SETTINGS_FILE)",
       isPersistent: true,
       args: {
         name: "config",
@@ -3820,7 +3824,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--fingerprint",
-      description: "Make every browser the command starts present the fingerprint in FILE",
+      description: "Make every browser the command starts present the fingerprint in FILE (SB_FINGERPRINT)",
       isPersistent: true,
       args: {
         name: "file",
@@ -3829,7 +3833,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--plugin",
-      description: "Turn on a built-in plugin in the browsers the command starts (repeatable)",
+      description: "Turn on a built-in plugin in the browsers the command starts (SB_PLUGINS; repeatable)",
       isRepeatable: true,
       isPersistent: true,
       args: {
@@ -3847,7 +3851,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: ["--binary-location", "--bl"],
-      description: "The browser binary to run",
+      description: "The browser binary to run (SB_CHROME_BIN)",
       isPersistent: true,
       args: {
         name: "path",
@@ -3856,7 +3860,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--mode",
-      description: "The driver mode: webdriver, cdp or uc",
+      description: "The driver mode: webdriver, cdp or uc (SB_MODE)",
       isPersistent: true,
       args: {
         name: "value",
@@ -3864,7 +3868,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--chrome",
-      description: "Run Chrome",
+      description: "Run Chrome (SB_BROWSER=chrome)",
       isPersistent: true,
       args: {
         name: "chrome",
@@ -3874,7 +3878,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--edge",
-      description: "Run Edge",
+      description: "Run Edge (SB_BROWSER=edge)",
       isPersistent: true,
       args: {
         name: "edge",
@@ -3884,7 +3888,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--firefox",
-      description: "Run Firefox",
+      description: "Run Firefox (SB_BROWSER=firefox)",
       isPersistent: true,
       args: {
         name: "firefox",
@@ -3894,7 +3898,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--brave",
-      description: "Run Brave",
+      description: "Run Brave (SB_BROWSER=brave)",
       isPersistent: true,
       args: {
         name: "brave",
@@ -3904,7 +3908,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--comet",
-      description: "Run Comet",
+      description: "Run Comet (SB_BROWSER=comet)",
       isPersistent: true,
       args: {
         name: "comet",
@@ -3914,7 +3918,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--opera",
-      description: "Run Opera",
+      description: "Run Opera (SB_BROWSER=opera)",
       isPersistent: true,
       args: {
         name: "opera",
@@ -3924,7 +3928,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--safari",
-      description: "Run Safari",
+      description: "Run Safari (SB_BROWSER=safari)",
       isPersistent: true,
       args: {
         name: "safari",
@@ -3934,7 +3938,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--ie",
-      description: "Run Internet Explorer",
+      description: "Run Internet Explorer (SB_BROWSER=ie)",
       isPersistent: true,
       args: {
         name: "ie",
@@ -3944,7 +3948,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--cft",
-      description: "Run Chrome for Testing",
+      description: "Run Chrome for Testing (SB_BROWSER=cft)",
       isPersistent: true,
       args: {
         name: "cft",
@@ -3954,7 +3958,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--chs",
-      description: "Run chrome-headless-shell",
+      description: "Run chrome-headless-shell (SB_BROWSER=chs)",
       isPersistent: true,
       args: {
         name: "chs",
@@ -3964,7 +3968,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: ["--chromium", "--use-chromium"],
-      description: "Run Chromium",
+      description: "Run Chromium (SB_BROWSER=chromium)",
       isPersistent: true,
       args: {
         name: "chromium",
@@ -3974,7 +3978,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--headless1",
-      description: "Run headless with chrome-headless-shell (Chrome's old headless mode)",
+      description: "Run headless with chrome-headless-shell (Chrome's old headless mode) (SB_HEADLESS1)",
       isPersistent: true,
       args: {
         name: "headless1",
@@ -3984,7 +3988,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--locale-code",
-      description: "The browser language code, such as fr or ar_eg",
+      description: "The browser language code, such as fr or ar_eg (SB_LOCALE_CODE)",
       isPersistent: true,
       args: {
         name: "value",
@@ -3992,7 +3996,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--server",
-      description: "The Selenium Grid server to connect to",
+      description: "The Selenium Grid server to connect to (SB_SERVER)",
       isPersistent: true,
       args: {
         name: "value",
@@ -4000,7 +4004,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--port",
-      description: "The port of the Selenium Grid server",
+      description: "The port of the Selenium Grid server (SB_PORT)",
       isPersistent: true,
       args: {
         name: "value",
@@ -4008,7 +4012,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--protocol",
-      description: "The protocol of the Selenium Grid server: http or https",
+      description: "The protocol of the Selenium Grid server: http or https (SB_PROTOCOL)",
       isPersistent: true,
       args: {
         name: "value",
@@ -4016,7 +4020,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--chromium-arg",
-      description: "Extra Chromium switches, separated by commas",
+      description: "Extra Chromium switches, separated by commas (SB_CHROMIUM_ARG)",
       isPersistent: true,
       args: {
         name: "value",
@@ -4024,7 +4028,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: ["--dark-mode", "--dark"],
-      description: "Force Chrome's dark theme on web pages",
+      description: "Force Chrome's dark theme on web pages (SB_DARK_MODE)",
       isPersistent: true,
       args: {
         name: "dark_mode",
@@ -4034,7 +4038,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: ["--devtools", "--open-devtools"],
-      description: "Open the developer tools with each tab (headed only)",
+      description: "Open the developer tools with each tab (headed only) (SB_DEVTOOLS)",
       isPersistent: true,
       args: {
         name: "devtools",
@@ -4044,7 +4048,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--disable-features",
-      description: "Chromium features to switch off, separated by commas",
+      description: "Chromium features to switch off, separated by commas (SB_DISABLE_FEATURES)",
       isPersistent: true,
       args: {
         name: "value",
@@ -4052,7 +4056,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--disable-gpu",
-      description: "Switch the GPU off",
+      description: "Switch the GPU off (SB_DISABLE_GPU)",
       isPersistent: true,
       args: {
         name: "disable_gpu",
@@ -4062,7 +4066,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: ["--disable-ws", "--dws", "--disable-web-security"],
-      description: "Switch web security off",
+      description: "Switch web security off (SB_DISABLE_WS)",
       isPersistent: true,
       args: {
         name: "disable_ws",
@@ -4072,7 +4076,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: ["--guest-mode", "--guest"],
-      description: "Open the browser as a guest",
+      description: "Open the browser as a guest (SB_GUEST_MODE)",
       isPersistent: true,
       args: {
         name: "guest_mode",
@@ -4082,7 +4086,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: ["--incognito", "--incognito-mode"],
-      description: "Open the browser in an incognito window",
+      description: "Open the browser in an incognito window (SB_INCOGNITO)",
       isPersistent: true,
       args: {
         name: "incognito",
@@ -4092,7 +4096,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--host-resolver-rules",
-      description: "Chromium rules that map host names to addresses",
+      description: "Chromium rules that map host names to addresses (SB_HOST_RESOLVER_RULES)",
       isPersistent: true,
       args: {
         name: "value",
@@ -4100,7 +4104,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--no-sandbox",
-      description: "Start Chromium without its sandbox",
+      description: "Start Chromium without its sandbox (SB_NO_SANDBOX)",
       isPersistent: true,
       args: {
         name: "no_sandbox",
@@ -4110,7 +4114,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--swiftshader",
-      description: "Render with SwiftShader, a software WebGL renderer",
+      description: "Render with SwiftShader, a software WebGL renderer (SB_SWIFTSHADER)",
       isPersistent: true,
       args: {
         name: "swiftshader",
@@ -4120,7 +4124,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--enable-3d-apis",
-      description: "Keep the GPU on in a headless session, for WebGL",
+      description: "Keep the GPU on in a headless session, for WebGL (SB_ENABLE_3D_APIS)",
       isPersistent: true,
       args: {
         name: "enable_3d_apis",
@@ -4130,7 +4134,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: ["--maximize", "--maximize-window", "--fullscreen"],
-      description: "Maximize the browser window",
+      description: "Maximize the browser window (SB_MAXIMIZE)",
       isPersistent: true,
       args: {
         name: "maximize",
@@ -4140,7 +4144,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--block-images",
-      description: "Do not load images",
+      description: "Do not load images (SB_BLOCK_IMAGES)",
       isPersistent: true,
       args: {
         name: "block_images",
@@ -4150,7 +4154,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--disable-js",
-      description: "Turn JavaScript off",
+      description: "Turn JavaScript off (SB_DISABLE_JS)",
       isPersistent: true,
       args: {
         name: "disable_js",
@@ -4160,7 +4164,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--disable-cookies",
-      description: "Refuse every cookie",
+      description: "Refuse every cookie (SB_DISABLE_COOKIES)",
       isPersistent: true,
       args: {
         name: "disable_cookies",
@@ -4170,7 +4174,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--do-not-track",
-      description: "Send the DNT: 1 header",
+      description: "Send the DNT: 1 header (SB_DO_NOT_TRACK)",
       isPersistent: true,
       args: {
         name: "do_not_track",
@@ -4180,7 +4184,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--external-pdf",
-      description: "Download PDF files instead of showing them",
+      description: "Download PDF files instead of showing them (SB_EXTERNAL_PDF)",
       isPersistent: true,
       args: {
         name: "external_pdf",
@@ -4190,7 +4194,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--enable-sync",
-      description: "Leave Chrome Sync on",
+      description: "Leave Chrome Sync on (SB_ENABLE_SYNC)",
       isPersistent: true,
       args: {
         name: "enable_sync",
@@ -4200,7 +4204,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: ["--disable-csp", "--dcsp", "--no-csp"],
-      description: "Strip the Content Security Policy from every response",
+      description: "Strip the Content Security Policy from every response (SB_DISABLE_CSP)",
       isPersistent: true,
       args: {
         name: "disable_csp",
@@ -4210,7 +4214,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: ["--use-auto-ext", "--auto-ext"],
-      description: "Keep Chrome's automation extension",
+      description: "Keep Chrome's automation extension (SB_USE_AUTO_EXT)",
       isPersistent: true,
       args: {
         name: "use_auto_ext",
@@ -4220,7 +4224,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--proxy-driver",
-      description: "Download the driver through the proxy",
+      description: "Download the driver through the proxy (SB_PROXY_DRIVER)",
       isPersistent: true,
       args: {
         name: "proxy_driver",
@@ -4230,7 +4234,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: ["--page-load-strategy", "--pls"],
-      description: "How long a navigation waits: normal, eager or none",
+      description: "How long a navigation waits: normal, eager or none (SB_PAGE_LOAD_STRATEGY)",
       isPersistent: true,
       args: {
         name: "strategy",
@@ -4239,7 +4243,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--window-size",
-      description: "The window size: WIDTH,HEIGHT",
+      description: "The window size: WIDTH,HEIGHT (SB_WINDOW_SIZE)",
       isPersistent: true,
       args: {
         name: "value",
@@ -4247,7 +4251,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--window-position",
-      description: "The window position: X,Y",
+      description: "The window position: X,Y (SB_WINDOW_POSITION)",
       isPersistent: true,
       args: {
         name: "value",
@@ -4255,7 +4259,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: ["--device-metrics", "--metrics"],
-      description: "Emulate a phone screen: WIDTH,HEIGHT,PIXEL_RATIO",
+      description: "Emulate a phone screen: WIDTH,HEIGHT,PIXEL_RATIO (SB_DEVICE_METRICS)",
       isPersistent: true,
       args: {
         name: "value",
@@ -4263,7 +4267,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--proxy-bypass-list",
-      description: "Hosts that skip the proxy",
+      description: "Hosts that skip the proxy (SB_PROXY_BYPASS_LIST)",
       isPersistent: true,
       args: {
         name: "value",
@@ -4271,7 +4275,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--driver-version",
-      description: "The driver version: a number, latest, stable, beta, ...",
+      description: "The driver version: a number, latest, stable, beta, ... (SB_DRIVER_VERSION)",
       isPersistent: true,
       args: {
         name: "value",
@@ -4279,7 +4283,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--cap-file",
-      description: "A JSON file of capabilities to add to the session's",
+      description: "A JSON file of capabilities to add to the session's (SB_CAP_FILE)",
       isPersistent: true,
       args: {
         name: "path",
@@ -4288,7 +4292,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--cap-string",
-      description: "A JSON object of capabilities to add to the session's",
+      description: "A JSON object of capabilities to add to the session's (SB_CAP_STRING)",
       isPersistent: true,
       args: {
         name: "value",
@@ -4296,7 +4300,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: ["--extension-zip", "--crx"],
-      description: "Extension .zip or .crx files to load, separated by commas",
+      description: "Extension .zip or .crx files to load, separated by commas (SB_EXTENSION_ZIP)",
       isPersistent: true,
       args: {
         name: "value",
@@ -4304,7 +4308,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--firefox-arg",
-      description: "Firefox arguments, separated by commas",
+      description: "Firefox arguments, separated by commas (SB_FIREFOX_ARG)",
       isPersistent: true,
       args: {
         name: "value",
@@ -4312,7 +4316,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--firefox-pref",
-      description: "Firefox preferences, NAME:VALUE separated by commas",
+      description: "Firefox preferences, NAME:VALUE separated by commas (SB_FIREFOX_PREF)",
       isPersistent: true,
       args: {
         name: "value",
@@ -4320,7 +4324,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--xvfb",
-      description: "Open a virtual display for a headed browser on Linux",
+      description: "Open a virtual display for a headed browser on Linux (SB_XVFB)",
       isPersistent: true,
       args: {
         name: "xvfb",
@@ -4330,7 +4334,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--xvfb-metrics",
-      description: "The virtual display size: WIDTH,HEIGHT",
+      description: "The virtual display size: WIDTH,HEIGHT (SB_XVFB_METRICS)",
       isPersistent: true,
       args: {
         name: "value",
@@ -4338,7 +4342,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: ["--remote-debug", "--remote-debugger"],
-      description: "Open Chrome's remote debugger on port 9222",
+      description: "Open Chrome's remote debugger on port 9222 (SB_REMOTE_DEBUG)",
       isPersistent: true,
       args: {
         name: "remote_debug",
@@ -4348,7 +4352,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: ["--log-cdp-events", "--log-cdp"],
-      description: "Log the DevTools Protocol events",
+      description: "Log the DevTools Protocol events (SB_LOG_CDP_EVENTS)",
       isPersistent: true,
       args: {
         name: "log_cdp_events",
@@ -4358,7 +4362,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: ["--uc-cdp-events", "--uc-cdp"],
-      description: "Log the DevTools Protocol events in undetected mode",
+      description: "Log the DevTools Protocol events in undetected mode (SB_UC_CDP_EVENTS)",
       isPersistent: true,
       args: {
         name: "uc_cdp_events",
@@ -4368,7 +4372,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: ["--demo", "--demo-mode"],
-      description: "Highlight each element and pause after an action",
+      description: "Highlight each element and pause after an action (SB_DEMO)",
       isPersistent: true,
       args: {
         name: "demo",
@@ -4378,7 +4382,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: ["--slow", "--slow-mode", "--slowmo"],
-      description: "Pause briefly after each action",
+      description: "Pause briefly after each action (SB_SLOW)",
       isPersistent: true,
       args: {
         name: "slow",
@@ -4388,7 +4392,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--demo-sleep",
-      description: "Seconds to pause after each action in demo mode",
+      description: "Seconds to pause after each action in demo mode (SB_DEMO_SLEEP)",
       isPersistent: true,
       args: {
         name: "seconds",
@@ -4396,7 +4400,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--message-duration",
-      description: "Seconds a message stays on the page",
+      description: "Seconds a message stays on the page (SB_MESSAGE_DURATION)",
       isPersistent: true,
       args: {
         name: "seconds",
@@ -4404,7 +4408,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: ["--skip-js-waits", "--sjw"],
-      description: "Do not wait for the page's JavaScript to settle",
+      description: "Do not wait for the page's JavaScript to settle (SB_SKIP_JS_WAITS)",
       isPersistent: true,
       args: {
         name: "skip_js_waits",
@@ -4414,7 +4418,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--highlights",
-      description: "How many times to flash a highlighted element",
+      description: "How many times to flash a highlighted element (SB_HIGHLIGHTS)",
       isPersistent: true,
       args: {
         name: "count",
@@ -4422,7 +4426,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--interval",
-      description: "Seconds between the steps of a tour or presentation",
+      description: "Seconds between the steps of a tour or presentation (SB_INTERVAL)",
       isPersistent: true,
       args: {
         name: "seconds",
@@ -4430,7 +4434,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--verify-delay",
-      description: "Seconds to wait before each MasterQA verification",
+      description: "Seconds to wait before each MasterQA verification (SB_VERIFY_DELAY)",
       isPersistent: true,
       args: {
         name: "seconds",
@@ -4438,7 +4442,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--check-js",
-      description: "Check each page for JavaScript errors after it opens",
+      description: "Check each page for JavaScript errors after it opens (SB_CHECK_JS)",
       isPersistent: true,
       args: {
         name: "check_js",
@@ -4448,7 +4452,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: ["--wait-for-angularjs", "--wfa"],
-      description: "Wait for AngularJS after opening a page and clicking",
+      description: "Wait for AngularJS after opening a page and clicking (SB_WAIT_FOR_ANGULARJS)",
       isPersistent: true,
       args: {
         name: "wait_for_angularjs",
@@ -4458,7 +4462,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--disable-beforeunload",
-      description: "Remove the beforeunload prompt after each page opens",
+      description: "Remove the beforeunload prompt after each page opens (SB_DISABLE_BEFOREUNLOAD)",
       isPersistent: true,
       args: {
         name: "disable_beforeunload",
@@ -4468,7 +4472,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--visual-baseline",
-      description: "Set the visual baselines again instead of comparing",
+      description: "Set the visual baselines again instead of comparing (SB_VISUAL_BASELINE)",
       isPersistent: true,
       args: {
         name: "visual_baseline",
@@ -4478,7 +4482,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--crumbs",
-      description: "Delete the cookies when a reused browser is handed to the next test",
+      description: "Delete the cookies when a reused browser is handed to the next test (SB_CRUMBS)",
       isPersistent: true,
       args: {
         name: "crumbs",
@@ -4488,7 +4492,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "--timeout-multiplier",
-      description: "Multiply the default waits by this number",
+      description: "Multiply the default waits by this number (SB_TIMEOUT_MULTIPLIER)",
       isPersistent: true,
       args: {
         name: "value",
@@ -4496,27 +4500,27 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: ["--rec", "--recorder", "--record", "--codegen"],
-      description: "Record the browser actions as a test",
+      description: "Record the browser actions as a test (SB_RECORDER)",
       isPersistent: true,
     },
     {
       name: ["--rec-print", "--rec_print"],
-      description: "Print the recording when the test ends",
+      description: "Print the recording when the test ends (SB_REC_PRINT)",
       isPersistent: true,
     },
     {
       name: ["--rec-behave", "--rec_behave", "--rec-gherkin"],
-      description: "Also write the recording as a Gherkin feature",
+      description: "Also write the recording as a Gherkin feature (SB_REC_BEHAVE)",
       isPersistent: true,
     },
     {
       name: ["--rec-sb-mgr", "--rec_sb_mgr"],
-      description: "Write the recording as a script, not a test",
+      description: "Write the recording as a script, not a test (SB_REC_SB_MGR)",
       isPersistent: true,
     },
     {
       name: ["--rec-sleep", "--record-sleep", "--rec_sleep", "--record_sleep"],
-      description: "Keep the sleeps of the recording",
+      description: "Keep the sleeps of the recording (SB_REC_SLEEP)",
       isPersistent: true,
     },
     {
