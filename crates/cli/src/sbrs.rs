@@ -233,6 +233,19 @@ struct PromptArgs {
     verbose: bool,
 }
 
+// The options of `sbrs doctor`. (A struct of its own for the reason `PromptArgs` is one; plain
+// comments, not docs: a doc comment on this struct would be help text.)
+#[derive(Debug, usage::Args)]
+#[usage(args_override_self = false)]
+struct DoctorArgs {
+    #[usage(
+        long,
+        bool_value,
+        help = "Print the problems found but exit with 0 (the default exits with 1 when the browser is missing or the chromedriver does not match it)"
+    )]
+    warn_only: bool,
+}
+
 // The `plugin` command: it holds only its own subcommands. (Plain comments, not docs: a
 // doc comment on this struct would be help text.)
 #[derive(Debug, usage::Args)]
@@ -987,8 +1000,15 @@ enum Commands {
     )]
     Report(args::report::ReportArgs),
     /// Run a diagnostic check on the environment and configuration.
+    ///
+    /// Prints the settings in effect, the browser found, the patch cache and the chromedriver
+    /// found, with a hint for anything that needs a fix. Exits with status 1 when no browser
+    /// is found (or the one SB_CHROME_BIN names does not exist) or when the chromedriver does
+    /// not match the installed Chrome, and with 0 otherwise. A chromedriver that is not found
+    /// is only a hint, since the pure CDP engine needs none. --warn-only prints the same and
+    /// always exits with 0.
     #[usage(help_heading = "Info and setup", example = "sbrs doctor")]
-    Doctor,
+    Doctor(DoctorArgs),
     /// Print one short line for a shell prompt: the installed Chrome's major
     /// version and whether a matching chromedriver is at hand.
     ///
@@ -1946,7 +1966,7 @@ impl Commands {
             | Self::PatchChrome { .. }
             | Self::Encrypt { .. }
             | Self::Decrypt { .. }
-            | Self::Doctor
+            | Self::Doctor(_)
             | Self::Methods
             | Self::Prompt(_)
             | Self::Install { .. }
@@ -2427,9 +2447,32 @@ fn context(doing: &str, error: std::io::Error) -> std::io::Error {
     std::io::Error::new(error.kind(), format!("failed to {doing}: {error}"))
 }
 
-async fn run_doctor() -> Result<(), Box<dyn std::error::Error>> {
+/// What `sbrs doctor` found wrong, each problem with how to fix it: the error that gives the
+/// command a failing exit status (1, "a check failed") unless `--warn-only` is given.
+#[derive(Debug)]
+struct DoctorFailed {
+    problems: Vec<String>,
+}
+
+impl std::fmt::Display for DoctorFailed {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let count = self.problems.len();
+        let noun = if count == 1 { "problem" } else { "problems" };
+        write!(f, "sbrs doctor found {count} {noun}")?;
+        for problem in &self.problems {
+            write!(f, "\n  - {problem}")?;
+        }
+        Ok(())
+    }
+}
+
+impl std::error::Error for DoctorFailed {}
+
+async fn run_doctor(options: &DoctorArgs) -> Result<(), Box<dyn std::error::Error>> {
     println!("seleniumbase-rs environment diagnostics");
     println!("========================================");
+    // What is wrong, one sentence each with its fix: they decide the exit status.
+    let mut failures: Vec<String> = Vec::new();
 
     let (runtime, problems) = RuntimeConfig::from_env_lenient();
     for problem in &problems {
@@ -2475,10 +2518,20 @@ async fn run_doctor() -> Result<(), Box<dyn std::error::Error>> {
         Some(path) => {
             println!("  Configured path missing: {}", path.display());
             println!("  Hint: set SB_CHROME_BIN to a valid Chrome/Chromium executable");
+            failures.push(format!(
+                "the browser at {} does not exist: set SB_CHROME_BIN to a valid Chrome or \
+                 Chromium executable",
+                path.display()
+            ));
         }
         None => {
             println!("  Not found");
             println!("  Hint: install Google Chrome/Chromium or set SB_CHROME_BIN");
+            failures.push(
+                "no Chrome or Chromium was found: install Google Chrome or Chromium, or set \
+                 SB_CHROME_BIN to its executable"
+                    .to_owned(),
+            );
         }
     }
 
@@ -2518,8 +2571,8 @@ async fn run_doctor() -> Result<(), Box<dyn std::error::Error>> {
         assets::DriverLookup::Found(path) => {
             println!("  Found: {}", path.display());
             let driver = binary_major(&path).await;
-            let browser = match find_system_chrome() {
-                Some(chrome) => binary_major(&chrome).await,
+            let browser = match &chrome_bin {
+                Some(chrome) => binary_major(chrome).await,
                 None => None,
             };
             match (driver, browser) {
@@ -2528,6 +2581,11 @@ async fn run_doctor() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 (Some(driver), Some(browser)) => {
                     println!("  Version: {driver}, but Chrome is {browser}");
+                    failures.push(format!(
+                        "chromedriver {driver} cannot drive Chrome {browser}: a chromedriver only \
+                         drives its own Chrome version, so run `sbrs install` to fetch the \
+                         matching one"
+                    ));
                     println!(
                         "  Hint: a chromedriver only drives its own Chrome version; \
                          run `sbrs install` to fetch the matching one"
@@ -2563,6 +2621,17 @@ async fn run_doctor() -> Result<(), Box<dyn std::error::Error>> {
         assets::DriverLookup::NotFound => {
             println!("  Not found in {}/ or on PATH", assets::DRIVERS_DIR);
             println!("  Hint: run `sbrs install` or set CHROMEDRIVER_PATH");
+        }
+    }
+
+    if !failures.is_empty() {
+        if !options.warn_only {
+            return Err(Box::new(DoctorFailed { problems: failures }));
+        }
+        println!();
+        println!("Problems (--warn-only: the exit status stays 0)");
+        for failure in &failures {
+            println!("  - {failure}");
         }
     }
 
@@ -3720,8 +3789,8 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             let plain = decrypt_with_passphrase(&token, &passphrase).map_err(wrong_passphrase)?;
             println!("{plain}");
         }
-        Commands::Doctor => {
-            run_doctor().await?;
+        Commands::Doctor(options) => {
+            run_doctor(&options).await?;
         }
         Commands::AssertTextVisible { css, text } => {
             let mut sb = BaseCase::new(config).await?;

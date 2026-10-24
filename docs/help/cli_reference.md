@@ -1595,9 +1595,19 @@ sbrs --url https://example.com dismiss-alert
 
 Run a diagnostic check on the environment and configuration.
 
+Prints the settings in effect, the browser found, the patch cache and the chromedriver found, with a hint for anything that needs a fix. Exits with status 1 when no browser is found (or the one SB_CHROME_BIN names does not exist) or when the chromedriver does not match the installed Chrome, and with 0 otherwise. A chromedriver that is not found is only a hint, since the pure CDP engine needs none. --warn-only prints the same and always exits with 0.
+
 ```bash Usage
-sbrs doctor
+sbrs doctor [--warn-only]
 ```
+
+**Flags**
+
+<ParamField query="--warn-only" type="boolean">
+
+Print the problems found but exit with 0 (the default exits with 1 when the browser is missing or the chromedriver does not match it)
+
+</ParamField>
 
 ```bash Examples
 sbrs doctor

@@ -738,6 +738,10 @@ const completionSpec: Fig.Spec = {
       description: "Run a diagnostic check on the environment and configuration.",
       options: [
         {
+          name: "--warn-only",
+          description: "Print the problems found but exit with 0 (the default exits with 1 when the browser is missing or the chromedriver does not match it)",
+        },
+        {
           name: ["-h", "--help"],
           description: "Print help",
         },

@@ -119,7 +119,7 @@ fn a_crate_error_says_what_to_do_and_exits_with_its_category() {
 }
 
 fn doctor_in(dir: &std::path::Path, chromedriver_path: Option<&str>) -> String {
-    let mut command = sbrs(&["doctor"]);
+    let mut command = sbrs(&["doctor", "--warn-only"]);
     // An empty PATH, so a chromedriver installed on this machine cannot be found.
     command
         .current_dir(dir)

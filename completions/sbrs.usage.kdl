@@ -1438,7 +1438,13 @@ A plain `cargo test` leaves the live dashboard running, because the standard tes
     }
     example "sbrs report finish --html report.html"
 }
-cmd doctor help_heading="Info and setup" help="Run a diagnostic check on the environment and configuration." {
+cmd doctor help_heading="Info and setup" help="Run a diagnostic check on the environment and configuration." args_override_self=#false {
+    long_help #"""
+Run a diagnostic check on the environment and configuration.
+
+Prints the settings in effect, the browser found, the patch cache and the chromedriver found, with a hint for anything that needs a fix. Exits with status 1 when no browser is found (or the one SB_CHROME_BIN names does not exist) or when the chromedriver does not match the installed Chrome, and with 0 otherwise. A chromedriver that is not found is only a hint, since the pure CDP engine needs none. --warn-only prints the same and always exits with 0.
+"""#
+    flag --warn-only help="Print the problems found but exit with 0 (the default exits with 1 when the browser is missing or the chromedriver does not match it)" bool_value=#true
     flag "-h --help" help="Print help" action=help builtin=#true
     example "sbrs doctor"
 }
