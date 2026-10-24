@@ -55,6 +55,19 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   `RunFilter`) and `examples/behave_feature.rs` are gone: a feature file is now a cargo test with
   `#[scenario]` and the `bdd::sb` fixture (see Added).
 - **A recorded `goto` is written as `sb.goto(..)`**, its own BaseCase call, not `sb.open(..)`.
+- **`sbrs record` and `sbrs export-recording` are removed.** `record` is now an alias of `mkrec`
+  (a file name, not a URL), and every recording is written as `recordings/<stem>_rec.json` too,
+  which `sbrs replay` reads. The typed-line recorders (`sb_recorder::&#123;start_recorder,
+  run_recorder, record_live_session, run_live_session, make_recorder_file&#125;`), the starter
+  template, and the live capture of `RecorderSession` (`install`, `drain`, `poll`, `goto`,
+  `click`, `type_text`, `assert_text`, `Poll`) are gone; `RecorderSession` stays as the JSON/YAML
+  container (`from_actions`, `save`, `load`, `replay`). `sbrs mkrec` takes the file as its
+  argument, not `--file`, and `--url` is the global start page.
+- **`BaseCase::save_recorded_actions(filename)` is `save_recording_json(filename)`;
+  `save_recorded_actions()` is Python's** (it keeps the actions of the tab for a test that changes
+  origin in the same tab). `ReplayReport` has `skipped_names`, and `assert_title` and `assert_url`
+  replay exactly.
+
 
 - **`Settings::screenshot_dir` and `SB_SCREENSHOT_DIR` are removed.** The library read neither;
   a settings file that still has the key loads as before.
@@ -108,6 +121,25 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   give `future`, so a `MessengerLocation` alone, for `set_messenger_theme`, keeps the future theme.
 
 ### Added
+
+- **Recorder Mode on `BaseCase`.** With `BrowserConfig::with_recorder_mode(true)` (`--rec`,
+  `--rec-print`, `--rec-behave`, `--rec-sb-mgr`, `--rec-sb-cdp` and `SB_RECORDER` and friends),
+  `quit()` writes what a person did in the browser as `recordings/<stem>_rec.rs`,
+  `recordings/<stem>_rec.json` and, with `--rec-behave`, `recordings/features/<stem>_rec.feature`.
+  `activate_recorder`, `recorder_breakpoint`, `wait_for_recorder_end`, `finish_recording`,
+  `set_recording_target` and `save_recorded_actions` (Python's meaning) drive it; the `sb` fixture
+  names a recording after its test; `get_recorder_js` returns Python's recorder script.
+- **`sbrs mkrec FILE.rs` (also `codegen` and `record`)** is Python's `sbase mkrec`: it starts a
+  browser in Recorder Mode (`--url` opens the first page), waits for `c` at the breakpoint or for
+  SHIFT+ESC with `--ee`, writes the recording under `recordings/`, shows it with line numbers and
+  copies it to FILE (`--overwrite` replaces an existing file, `--behave` also writes the feature,
+  `--rec-sb-mgr` and `--rec-sb-cdp` write a script or pure CDP code; a file in a subfolder is
+  allowed). Ctrl-C saves what was recorded.
+- **`--rec`, `--rec-print`, `--rec-behave`, `--rec-sb-mgr` and `--rec-sleep` are global flags of
+  `sbrs`** (with Python's aliases). `sbrs --rec test` hands them to the tests as `SB_*` variables
+  and runs the tests one at a time, saying so when `-n` asks for more.
+- **`sbrs replay` prints the names of the actions it skipped** next to the count.
+
 
 - **SeleniumBase's built-in Gherkin steps (feature `bdd`).** All 98 step actions of SeleniumBase
   4.56.2 (its 669 wordings, in double or single quotes, under Given, When and Then) are steps of
