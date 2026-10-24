@@ -121,14 +121,51 @@ pub(crate) fn deactivate_test_logs(thread: std::thread::ThreadId, dir: &Path) {
 ///
 /// Returns [`SeleniumBaseError::Io`] if the folder cannot be created.
 pub fn ensure_test_logs_dir() -> Result<PathBuf, SeleniumBaseError> {
+    ensure_active_or_latest(active_test_logs(None))
+}
+
+/// Creates the folder for the files of the test called `test_id` and returns
+/// its path, as [`ensure_test_logs_dir`] does for the test on this thread.
+///
+/// A recorder may be recording the test on another thread than the one that
+/// asks: a Gherkin scenario's recorder runs on the scenario's own thread, and
+/// the steps run elsewhere. So the folder of a recorded test whose id is
+/// `test_id` is found on any thread (the one on this thread first); with no such
+/// test, the folder of the test recorded on this thread is the answer, and
+/// [`ensure_latest_logs_dir`] when there is none.
+///
+/// The id is the last part of the folder's path, which is what a
+/// [`TestRecorder`](crate::core::test_run::TestRecorder) names it after.
+///
+/// # Errors
+///
+/// Returns [`SeleniumBaseError::Io`] if the folder cannot be created.
+pub fn ensure_test_logs_dir_for(test_id: &str) -> Result<PathBuf, SeleniumBaseError> {
+    ensure_active_or_latest(active_test_logs(Some(test_id)))
+}
+
+/// The folder of the recorded test called `test_id` (on any thread, the
+/// calling thread's first), else the folder of the test recorded on the calling
+/// thread. `None` as `test_id` asks for the calling thread's test only.
+fn active_test_logs(test_id: Option<&str>) -> Option<PathBuf> {
     let thread = std::thread::current().id();
     let active = ACTIVE_TEST_LOGS
         .lock()
-        .unwrap_or_else(PoisonError::into_inner)
-        .iter()
-        .rev()
-        .find(|(owner, _)| *owner == thread)
-        .map(|(_, folder)| folder.clone());
+        .unwrap_or_else(PoisonError::into_inner);
+    let named = |own_thread: bool| {
+        let id = test_id?;
+        active.iter().rev().find(|(owner, folder)| {
+            (!own_thread || *owner == thread) && folder.file_name().is_some_and(|name| name == id)
+        })
+    };
+    named(true)
+        .or_else(|| named(false))
+        .or_else(|| active.iter().rev().find(|(owner, _)| *owner == thread))
+        .map(|(_, folder)| folder.clone())
+}
+
+/// Creates `active` and returns it; `latest_logs` when there is none.
+fn ensure_active_or_latest(active: Option<PathBuf>) -> Result<PathBuf, SeleniumBaseError> {
     match active {
         Some(dir) => {
             ensure_dir(&dir)?;
@@ -452,6 +489,67 @@ pub async fn write_new_file(
     )))
 }
 
+/// What the tests need to play a recorder: a folder marked as the one of a
+/// running test, on this thread or on another, until the guard is dropped.
+#[cfg(test)]
+pub(crate) mod test_support {
+    use std::path::Path;
+    use std::sync::mpsc;
+    use std::thread::{self, JoinHandle, ThreadId};
+
+    /// A folder that is active for a thread as long as the guard lives.
+    pub(crate) struct Active {
+        /// The thread the folder is active for.
+        pub(crate) thread: ThreadId,
+        /// Ends the thread that holds the folder, when there is one.
+        stop: Option<(mpsc::Sender<()>, JoinHandle<()>)>,
+        dir: std::path::PathBuf,
+    }
+
+    impl Active {
+        /// Makes `dir` the folder of the test on the calling thread.
+        pub(crate) fn here(dir: &Path) -> Self {
+            Self {
+                thread: super::activate_test_logs(dir),
+                stop: None,
+                dir: dir.to_path_buf(),
+            }
+        }
+
+        /// Makes `dir` the folder of a test on a thread of its own, as a
+        /// scenario's recorder does.
+        pub(crate) fn elsewhere(dir: &Path) -> Self {
+            let (stop, stopped) = mpsc::channel::<()>();
+            let (ready, started) = mpsc::channel();
+            let folder = dir.to_path_buf();
+            let holder = thread::spawn(move || {
+                let thread = super::activate_test_logs(&folder);
+                ready.send(thread).expect("the test is waiting");
+                // Wait for the guard to be dropped (the sender is gone).
+                let _ = stopped.recv();
+                super::deactivate_test_logs(thread, &folder);
+            });
+            Self {
+                thread: started.recv().expect("the thread activates the folder"),
+                stop: Some((stop, holder)),
+                dir: dir.to_path_buf(),
+            }
+        }
+    }
+
+    impl Drop for Active {
+        fn drop(&mut self) {
+            match self.stop.take() {
+                Some((stop, holder)) => {
+                    drop(stop);
+                    let _ = holder.join();
+                }
+                None => super::deactivate_test_logs(self.thread, &self.dir),
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
@@ -594,6 +692,78 @@ mod tests {
 
         assert!(matches!(error, SeleniumBaseError::Io(_)), "{error:?}");
         assert!(error.to_string().contains("failed to create"), "{error}");
+    }
+
+    /// An id no other test uses, so tests that share the registry of active
+    /// folders (it is one for the whole process) cannot see each other.
+    fn unique_id(name: &str) -> String {
+        format!("artifacts-{name}-{:?}", std::thread::current().id())
+            .replace(|c: char| !c.is_ascii_alphanumeric() && c != '-', "_")
+    }
+
+    #[test]
+    fn the_folder_of_a_test_recorded_on_another_thread_is_found_by_its_id() {
+        let root = tempfile::tempdir().unwrap();
+        let id = unique_id("elsewhere");
+        let folder = root.path().join(&id);
+        let _recorded = test_support::Active::elsewhere(&folder);
+
+        // The calling thread records nothing, so only the id leads to it.
+        assert_eq!(active_test_logs(None), None);
+        assert_eq!(active_test_logs(Some(&id)), Some(folder.clone()));
+        assert_eq!(ensure_test_logs_dir_for(&id).unwrap(), folder);
+        assert!(folder.is_dir(), "the folder is made when it is asked for");
+    }
+
+    #[test]
+    fn the_folder_of_this_thread_answers_when_no_id_matches() {
+        let root = tempfile::tempdir().unwrap();
+        let folder = root.path().join(unique_id("here"));
+        let _recorded = test_support::Active::here(&folder);
+
+        assert_eq!(active_test_logs(None), Some(folder.clone()));
+        assert_eq!(
+            active_test_logs(Some("an-id-nothing-records")),
+            Some(folder.clone())
+        );
+        assert_eq!(ensure_test_logs_dir().unwrap(), folder);
+    }
+
+    #[test]
+    fn a_folder_that_matches_the_id_beats_the_one_of_this_thread() {
+        let root = tempfile::tempdir().unwrap();
+        let own = root.path().join(unique_id("own"));
+        let id = unique_id("named");
+        let named = root.path().join(&id);
+        let _own = test_support::Active::here(&own);
+        let _named = test_support::Active::elsewhere(&named);
+
+        assert_eq!(active_test_logs(None), Some(own));
+        assert_eq!(active_test_logs(Some(&id)), Some(named));
+    }
+
+    #[test]
+    fn the_folder_of_this_thread_wins_when_two_tests_share_an_id() {
+        let root = tempfile::tempdir().unwrap();
+        let id = unique_id("shared");
+        let other = root.path().join("a").join(&id);
+        let own = root.path().join("b").join(&id);
+        let _other = test_support::Active::elsewhere(&other);
+        let _own = test_support::Active::here(&own);
+
+        assert_eq!(active_test_logs(Some(&id)), Some(own));
+    }
+
+    #[test]
+    fn a_test_that_has_ended_leaves_no_folder_behind() {
+        let root = tempfile::tempdir().unwrap();
+        let id = unique_id("ended");
+        let folder = root.path().join(&id);
+        drop(test_support::Active::elsewhere(&folder));
+        drop(test_support::Active::here(&folder));
+
+        assert_eq!(active_test_logs(Some(&id)), None);
+        assert_eq!(active_test_logs(None), None);
     }
 
     #[tokio::test]
