@@ -31,6 +31,7 @@ mod devtools;
 mod export;
 mod failure;
 mod host;
+mod http;
 mod journal;
 mod pagetools;
 
@@ -53,6 +54,10 @@ pub use failure::FailureReport;
 pub use host::{
     Closeable, Ctx, Host, Session, Settings, Started, OUTPUT_DIR_VAR, UNTRUSTED_META_KEY,
     UNTRUSTED_NOTICE,
+};
+pub use http::{
+    serve_http, HttpOptions, HttpServer, DEFAULT_IDLE, DEFAULT_LISTEN, DEFAULT_MAX_SESSIONS,
+    DEFAULT_PATH, TOKEN_VAR,
 };
 pub use progress::{Progress, ProgressSink, ProgressUpdate};
 pub use prompts::{PromptArg, PromptDef, Render};
