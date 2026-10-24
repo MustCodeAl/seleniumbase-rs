@@ -143,6 +143,13 @@ work, `docs/parity.md` the per-API status).
   copies it to FILE (`--overwrite` replaces an existing file, `--behave` also writes the feature,
   `--rec-sb-mgr` and `--rec-sb-cdp` write a script or pure CDP code; a file in a subfolder is
   allowed). Ctrl-C saves what was recorded.
+- **`sbrs recorder`** is Python's Recorder Desktop App as a terminal app (feature `tui`; without
+  it, a hint and status 2): a form for the file, the start URL, the browser, Stealth Mode, the
+  output format and `--ee`, with Record (runs `sbrs mkrec` with the terminal handed to it), Run
+  (`cargo test --test NAME`) and Replay (`sbrs replay recordings/NAME_rec.json`), and a Demo Mode
+  box for the last two. `--url`, `--browser`, `--uc`, `--ee`, `--rec-behave` and the like fill the
+  form in at the start. The `tui_kit` terminal apps gain `suspend`, which hands the terminal to a
+  child process and repaints when it ends.
 - **`--rec`, `--rec-print`, `--rec-behave`, `--rec-sb-mgr` and `--rec-sleep` are global flags of
   `sbrs`** (with Python's aliases). `sbrs --rec test` hands them to the tests as `SB_*` variables
   and runs the tests one at a time, saying so when `-n` asks for more.
