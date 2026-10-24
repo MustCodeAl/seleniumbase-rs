@@ -10,6 +10,16 @@ work, `docs/parity.md` the per-API status).
 
 ### Breaking
 
+- **`sbrs mkfile` and `sbrs mkdir` write tests on the rstest `sb` fixture.** The default test of
+  `mkfile` is `#[rstest]` with the `sb` fixture (feature `testing`); the old
+  `run_browser_test` closure is `--cm`. `--bc` writes a `BaseCase` made and quit by hand, `--dc`
+  the pure CDP `sb_cdp` fixture and `--dm` pure CDP by hand; `--cf` is refused (class fixtures
+  are not ported). `--en`, `--zh`, ... localise the strings, `-r/--rec` adds a
+  `recorder_breakpoint`, `--uc` and `--cdp` write a basic UC Mode or pure CDP test, and `--url`
+  takes a bare host and makes the test basic. `mkdir` no longer writes `helpers.rs`; it writes a
+  `#[case]` test and a pure CDP test, and takes `--gha` (a GitHub Actions workflow in
+  `.github/workflows/` of the current folder) and `--bdd` (a Gherkin scenario on the built-in steps).
+
 - **The highlight family and Demo Mode work as in Python.** `highlight`, `highlight_click`,
   `highlight_type` (now through `update_text`), `highlight_if_visible`, `highlight_elements` and
   `flash` return call builders with Python's keywords (`.loops(2).scroll(false)`; plain `.await`
