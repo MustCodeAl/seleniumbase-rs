@@ -22,3 +22,6 @@ visual_baseline/
 
 # Screenshots, page sources and charts the examples and tests save
 latest_logs/
+
+# The run the processes of a test session share (sbrs test, the sb fixture)
+.sbrs_run/
