@@ -12,7 +12,7 @@ happened.
 
 <Visibility for="agents">
 
-Summary for AI exports: enable the feature `testing` and add `rstest` and `tokio` (features `macros`, `rt`) as dev-dependencies. Write `#[rstest] #[tokio::test] async fn name(sb: Sb) -> Result<()> { sb.run(async |sb| { ... }).await }` with `use seleniumbase_rs::testing::{sb, Sb}`. The body is an async closure over `&mut BaseCase`; it may run again (reruns), so it must not consume what it captures. Settings come from the settings file, `SB_SETTINGS_FILE` and `SB_*` variables. Test data is read with `sb.data()`, `sb.env()`, `sb.account()`, `sb.var1()`, `sb.variables()`. A failure leaves `latest_logs/<test id>/screenshot.png`, `page_source.html` and `basic_test_info.txt`.
+Summary for AI exports: enable the feature `testing` and add `rstest` and `tokio` (features `macros`, `rt`) as dev-dependencies. Write `#[rstest] #[tokio::test] async fn name(sb: Sb) -> Result<()> { sb.run(async |sb| { ... }).await }` with `use seleniumbase_rs::testing::{sb, Sb}`. The body is an async closure over `&mut BaseCase`; it may run again (reruns), so it must not consume what it captures. Settings come from the settings file, `SB_SETTINGS_FILE` and `SB_*` variables. Test data is read with `sb.data()`, `sb.env()`, `sb.account()`, `sb.var1()`, `sb.variables()`. A failure leaves `latest_logs/<test id>/screenshot.png`, `page_source.html` and `basic_test_info.txt`. Reports are off until asked: `sbrs test --dashboard --html PATH --junit-xml PATH --alluredir DIR` (or `SB_DASHBOARD`, `SB_HTML`, `SB_JUNIT_XML`, `SB_ALLURE_DIR`) writes `dashboard.html`, an HTML report, JUnit XML and Allure results (the Allure results need the feature `allure`); a plain `cargo test` with one of them on leaves the dashboard live until `sbrs report finish`.
 
 </Visibility>
 
@@ -129,6 +129,146 @@ latest_logs/cart.checkout.renders/
 The test id is the test binary, the module path and the function, joined with
 `.`; an rstest case adds its name. It is also `sb.test_id()`. The folder is
 written again by each attempt, so after a rerun it holds the last failure.
+
+## Reports of a run
+
+A run can write a dashboard, an HTML report, JUnit XML and Allure results. All
+are off until you ask. Each is an option of `sbrs test`, an `SB_*` variable and
+a key of the `[test]` table of the settings file; a flag wins over the variable,
+and the variable over the file.
+
+| Option | Variable | Writes | Needs |
+|---|---|---|---|
+| `--dashboard` | `SB_DASHBOARD` | `dashboard.html`: live while the tests run, the final page when the run ends | |
+| `--dash-title TITLE` | `SB_DASH_TITLE` | the title of the dashboard and the report | |
+| `--html PATH` | `SB_HTML` | one self-contained HTML report | |
+| `--junit-xml PATH` (or `--junitxml`) | `SB_JUNIT_XML` | JUnit XML, for CI systems | |
+| `--alluredir DIR` (or `--allure-dir`) | `SB_ALLURE_DIR` | Allure 2 results | the feature `allure` of `seleniumbase-rs` in the tested crate |
+| `--show-report` | none | nothing: opens the HTML report (else the dashboard) in a browser window and waits until it is closed | `--html` or `--dashboard` |
+
+A relative path is under the run's folder, the folder `sbrs test` was started in.
+`--with-db-reporting` records the run in a results database, which
+`sbrs report history` reads; see [Results Database and Encrypted
+Profiles](/tutorials/results_and_profiles). `--archive-logs` keeps the old
+`latest_logs/` in `archived_logs/`.
+
+### With sbrs test
+
+```bash
+sbrs test --dashboard --html report.html --junit-xml report.xml --alluredir allure-results
+```
+
+`sbrs test` opens the run before Cargo (it empties `latest_logs/`, or archives
+it with `--archive-logs`), prints where the dashboard is when `--dashboard` is
+on, runs the tests, ends the run and prints where the reports went, in the
+lines pytest prints:
+
+```text
+Dashboard: file:///path/to/project/dashboard.html
+*************************************************
+...the output of cargo test...
+----- Generated html report: file:///path/to/project/report.html -----
+----- generated xml file: /path/to/project/report.xml -----
+----- Latest Logs dir: /path/to/project/latest_logs/ -----
+```
+
+When a test failed or never reported, a `----- Dashboard = file://... -----`
+line comes first. The exit status is Cargo's, or 1 when a report you asked for
+could not be written. The test processes write the Allure results as each test
+ends, so `sbrs` has no line for them: open the folder with
+`allure serve allure-results`.
+
+### With a plain cargo test
+
+```bash
+SB_DASHBOARD=1 SB_HTML=report.html SB_JUNIT_XML=report.xml cargo test --features testing
+sbrs report finish
+```
+
+With any of these on, the `sb`, `sb_cdp` and Gherkin fixtures record every test
+in one run shared by all the test binaries of that `cargo test` (or nextest) run.
+A test is untested on the dashboard while it runs, and each test that ends
+rewrites the reports, so they are complete after every test. The standard test
+harness cannot tell when the last test has ended, so the dashboard stays live
+(it refreshes itself every 12 seconds) until you run `sbrs report finish`. It
+ends the run in `SB_REPORT_ROOT`, else in the current folder: tests that
+started and never ended become unreported, the reports are written a last time,
+and the logs are archived when asked. In a folder with no run it prints a
+message and exits with status 1.
+
+| Flag of `sbrs report finish` | Effect |
+|---|---|
+| `--dashboard`, `--dash-title TITLE`, `--html PATH`, `--junit-xml PATH`, `--archive-logs` | replace the setting the run was started with |
+| `--show-report` | open the HTML report or the dashboard and wait until it is closed |
+| `--json` | print what was done as JSON instead of the `-----` lines |
+
+`--json` prints `summary` (`total`, `passed`, `failed`, `skipped`, `untested`,
+`unreported`, `duration_secs`), `dashboard`, `html`, `junit_xml`, `archived`,
+`logs_dir`, `database_run` and `warnings`. There is no `--alluredir` here: the
+Allure results are already written.
+
+### What each output holds
+
+**Dashboard.** `dashboard.html` in the run's folder follows the layout of
+Python SeleniumBase's: a pie chart, a row of counts (`Failed`, `Skipped`,
+`Passed`, `Untested`, `Total`) and a table of `Result`, `Test`, `Duration` and
+`Links`, with a `Details` column for the error of a failed test. `Logs` and
+`Data` lead to `latest_logs/` and to the test's own folder in it. While the run
+is live the page refreshes itself and says it is awaiting results; when the run
+ends the same file is the final report, with every test that never reported
+shown as `UNREPORTED`. The page needs no script and no network.
+
+**HTML report.** One self-contained page for a finished run: a summary line and
+the same table. It has the pie chart only when the dashboard is on too. When a
+run ends, the report is also kept as `last_report.html` in the run's folder.
+
+**JUnit XML.** One `testsuite` per test binary (or per feature file of a
+Gherkin scenario) and one `testcase` per test. A failure is a `failure`, a skip
+a `skipped`, and a test that never ended an `error` of type `unreported`. A
+failed test's `system-out` names the page it ended on and its evidence files
+as `[[ATTACHMENT|path]]` lines, the form the Jenkins attachments plugin reads.
+The shape of the file, with values as an illustration:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites name="sbrs" tests="3" failures="1" errors="0" skipped="1" time="6.120" timestamp="2026-10-24T09:30:00.000000">
+  <testsuite name="login_chrome" errors="0" failures="1" skipped="1" tests="3" time="6.120" timestamp="2026-10-24T09:30:00.000000" hostname="ci-1">
+    <testcase classname="login_chrome.tests" name="test_login" time="1.204"/>
+    <testcase classname="login_chrome.tests" name="test_wrong_password" time="4.916">
+      <failure message="..." type="...">...</failure>
+      <system-out>Last Page: https://example.com/login
+[[ATTACHMENT|/path/to/project/latest_logs/login_chrome.tests.test_wrong_password/screenshot.png]]</system-out>
+    </testcase>
+    <testcase classname="login_chrome.tests" name="test_sso" time="0.000">
+      <skipped message="..."/>
+    </testcase>
+  </testsuite>
+</testsuites>
+```
+
+**Allure results.** Add the feature to the tested crate, then give the folder:
+
+```toml
+[dev-dependencies]
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", features = ["testing", "allure"] }
+```
+
+Each test attempt writes a `<uuid>-result.json` (status, durations, labels,
+the failure message and trace), the screenshot, page source and test info of a
+failure as attachments, and `environment.properties` when it is missing:
+
+```text
+allure-results/
+  <uuid>-result.json
+  <uuid>-screenshot-attachment.png
+  <uuid>-page_source-attachment.html
+  <uuid>-basic_test_info-attachment.txt
+  environment.properties
+```
+
+`allure serve allure-results` shows the run. A rerun is a new attempt with the same
+history id, which Allure shows as a retry. The feature adds no dependency.
+
 
 ## Debug prompts
 

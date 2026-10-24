@@ -348,7 +348,8 @@ Only options you actually pass are exported (`SB_HEADLESS`, `SB_BROWSER`,
 `SB_MODE`, `SB_PROXY`, ...), so the config file and your own `SB_*` variables
 still apply to everything else. A test sees them when it loads its settings
 with `Settings::load()`. `-n` becomes `--test-threads`, and the exit status
-is Cargo's.
+is Cargo's. `--dashboard`, `--html`, `--junit-xml` and `--alluredir` write the
+reports of the run; see [Reports of a run](/tutorials/writing_tests#reports-of-a-run).
 
 ## Proxies from a list
 
