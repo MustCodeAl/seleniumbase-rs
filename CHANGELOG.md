@@ -100,6 +100,11 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- **The plugin API is 0.1.3** (`seleniumbase-rs-plugins` rev `5f68042f`): the hooks for
+  navigation, contexts, the network, tests and tasks, and the guard that holds each plugin to the
+  capabilities it declares. The pure CDP engine calls the navigation, context and close hooks
+  (see the next entries); the network, test and task hooks follow.
+
 - **Recorder Mode on `BaseCase`.** With `BrowserConfig::with_recorder_mode(true)` (`--rec`,
   `--rec-print`, `--rec-behave`, `--rec-sb-mgr`, `--rec-sb-cdp` and `SB_RECORDER` and friends),
   `quit()` writes what a person did in the browser as `recordings/<stem>_rec.rs`,

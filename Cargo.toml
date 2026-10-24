@@ -134,8 +134,8 @@ image = { version = "0.25", optional = true, default-features = false, features 
 # `Plugin` a built-in implements is not the one this crate calls.
 # `tests/plugin_features.rs` fails when they differ. A plugin crate added with
 # `cargo add --git` needs the same `--rev` (see docs/tutorials/plugins.md).
-seleniumbase-rs-plugin = { version = "0.1", git = "https://github.com/MustCodeAl/seleniumbase-rs-plugins", rev = "628991af0e6c5711298e3bd3692dc2974887401a", optional = true }
-seleniumbase-rs-plugins-builtin = { version = "0.1", git = "https://github.com/MustCodeAl/seleniumbase-rs-plugins", rev = "628991af0e6c5711298e3bd3692dc2974887401a", optional = true }
+seleniumbase-rs-plugin = { version = "0.1", git = "https://github.com/MustCodeAl/seleniumbase-rs-plugins", rev = "5f68042fb20b391162f59ebc4ba83c70f03b566d", optional = true }
+seleniumbase-rs-plugins-builtin = { version = "0.1", git = "https://github.com/MustCodeAl/seleniumbase-rs-plugins", rev = "5f68042fb20b391162f59ebc4ba83c70f03b566d", optional = true }
 # `visual`: structural similarity (SSIM) between a screenshot and its baseline.
 # MIT; no default features; brings rayon and itertools, and `image` without
 # defaults (the PNG codec comes from the `image` line above).
