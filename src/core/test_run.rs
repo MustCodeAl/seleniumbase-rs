@@ -592,6 +592,19 @@ pub struct FinalizeOutcome {
     pub warnings: Vec<String>,
 }
 
+/// What [`TestRun::finish`] did.
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub struct RunFinish {
+    /// What finalizing the run did; a database that could not be written is
+    /// one of its warnings.
+    pub outcome: FinalizeOutcome,
+    /// The number of the run in the results database, when
+    /// `with_db_reporting` wrote it.
+    #[cfg(feature = "turso")]
+    pub database_run: Option<crate::storage::RunId>,
+}
+
 /// The files one rewrite of the outputs produced.
 #[derive(Default)]
 struct Written {
@@ -905,6 +918,10 @@ impl TestRun {
         let Some(mut run) = read_run_file(&dir)? else {
             return Err(self.no_run());
         };
+        if matches!(event, Event::Start { .. }) {
+            // A test that starts after the run was finalized takes the run up again.
+            run.finalized_at = None;
+        }
         append_event(&dir, event)?;
         run.updated_at = now_string();
         let snapshot = fold(&run, &read_events(&dir)?, &self.root);
@@ -1003,6 +1020,43 @@ impl TestRun {
             }
         }
         Ok(Some(run))
+    }
+
+    /// Finishes the run: [`finalize`](Self::finalize), then, when
+    /// `with_db_reporting` is on, the import of its results into the results
+    /// database. The database is written here and nowhere else, so call this
+    /// from the one process that ends the run (`sbrs test`, `sbrs report
+    /// finish`).
+    ///
+    /// A database that cannot be written is a warning in the outcome, as a
+    /// report that cannot be written is.
+    ///
+    /// # Errors
+    ///
+    /// As [`finalize`](Self::finalize).
+    pub async fn finish(&self) -> Result<RunFinish> {
+        let mut outcome = self.finalize()?;
+        #[cfg(feature = "turso")]
+        let database_run = match self.record_to_database().await {
+            Ok(run) => run,
+            Err(error) => {
+                outcome.warnings.push(format!("results database: {error}"));
+                None
+            }
+        };
+        #[cfg(not(feature = "turso"))]
+        if self.settings.with_db_reporting {
+            outcome.warnings.push(
+                "with_db_reporting is on, but seleniumbase-rs was built without the \"turso\" \
+                 feature; add features = [\"turso\"] to its dependency"
+                    .to_owned(),
+            );
+        }
+        Ok(RunFinish {
+            outcome,
+            #[cfg(feature = "turso")]
+            database_run,
+        })
     }
 
     /// Ends the run: tests that started and never ended become unreported, the
@@ -1374,17 +1428,25 @@ impl Drop for TestRecorder {
 // The `sb` fixture
 // ---------------------------------------------------------------------------
 
-/// Records every attempt the `sb` fixture makes, when registered with
-/// `Sb::finalizer` (or `SbCdp::finalizer`).
+/// Records every test of the `sb` fixture in a run. The fixture registers it
+/// with `Sb::finalizer` when reports are on.
 ///
-/// The fixture's lifecycle takes the evidence of a failure itself, so this only
-/// records the outcome: it links the evidence that is in the test's folder and
-/// finishes the recorder. A run shows a test only once its attempt has ended.
+/// - [`begin`](crate::testing::Finalizer::begin) starts the test in the run,
+///   so a live dashboard shows it as untested while it runs;
+/// - the last attempt (a pass, a skip, or a failure with no rerun left) ends
+///   it with its result, and an attempt that failed and will be run again
+///   records nothing;
+/// - the fixture's lifecycle takes the evidence of a failure itself, so this
+///   only links what is in the test's folder.
+///
+/// A finalizer that never heard `begin` starts the test when its last attempt
+/// ends.
 #[cfg(feature = "testing")]
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct RunFinalizer {
     run: Arc<TestRun>,
     test: TestId,
+    recorder: Mutex<Option<TestRecorder>>,
 }
 
 #[cfg(feature = "testing")]
@@ -1393,35 +1455,56 @@ impl RunFinalizer {
     /// the test's id is read ([`TestId::current`] on the test's own thread).
     #[must_use]
     pub fn new(run: Arc<TestRun>, test: TestId) -> Self {
-        Self { run, test }
+        Self {
+            run,
+            test,
+            recorder: Mutex::new(None),
+        }
     }
-}
 
-#[cfg(feature = "testing")]
-#[async_trait::async_trait]
-impl crate::testing::Finalizer for RunFinalizer {
-    async fn finish(
+    fn start(&self) -> Option<TestRecorder> {
+        match self.run.start(self.test.clone()) {
+            Ok(recorder) => Some(recorder),
+            Err(error) => {
+                tracing::warn!(%error, test = %self.test.display, "the test was not recorded");
+                None
+            }
+        }
+    }
+
+    /// Ends the test with how `end` ended, looking at `page` when there is one.
+    async fn settle(
         &self,
         end: &crate::testing::AttemptEnd<'_>,
-        page: &dyn crate::common::debug_prompt::PromptPage,
+        page: Option<&dyn crate::common::debug_prompt::PromptPage>,
     ) {
         use crate::testing::Outcome;
 
-        let mut recorder = match self.run.start(self.test.clone()) {
-            Ok(recorder) => recorder,
-            Err(error) => {
-                tracing::warn!(%error, test = %self.test.display, "the test was not recorded");
-                return;
-            }
+        // An attempt that failed and will be run again is not the test's result.
+        if matches!(end.outcome, Outcome::Failed(_)) && end.attempt < end.attempts {
+            return;
+        }
+        let begun = self
+            .recorder
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .take();
+        let Some(mut recorder) = begun.or_else(|| {
+            let mut recorder = self.start()?;
+            // The attempt took `end.duration`; the recorder only just started.
+            recorder.started = Instant::now()
+                .checked_sub(end.duration)
+                .unwrap_or_else(Instant::now);
+            Some(recorder)
+        }) else {
+            return;
         };
-        // The attempt took `end.duration`; the recorder only just started.
-        recorder.started = Instant::now()
-            .checked_sub(end.duration)
-            .unwrap_or_else(Instant::now);
         let finished = match &end.outcome {
             Outcome::Failed(error) => {
-                let url = within(page.url()).await;
-                let title = within(page.title()).await;
+                let (url, title) = match page {
+                    Some(page) => (within(page.url()).await, within(page.title()).await),
+                    None => (None, None),
+                };
                 recorder.note_failure(error, url, title);
                 recorder.finish_with(Ended::Failed(error))
             }
@@ -1437,6 +1520,29 @@ impl crate::testing::Finalizer for RunFinalizer {
         if let Err(error) = finished {
             tracing::warn!(%error, test = %self.test.display, "the test was not recorded");
         }
+    }
+}
+
+#[cfg(feature = "testing")]
+#[async_trait::async_trait]
+impl crate::testing::Finalizer for RunFinalizer {
+    async fn begin(&self, _test_id: &str) {
+        let recorder = self.start();
+        // A handle that runs its test twice starts it again; the recorder of
+        // the first run, if it is still here, ends as unreported.
+        *self.recorder.lock().unwrap_or_else(PoisonError::into_inner) = recorder;
+    }
+
+    async fn finish(
+        &self,
+        end: &crate::testing::AttemptEnd<'_>,
+        page: &dyn crate::common::debug_prompt::PromptPage,
+    ) {
+        self.settle(end, Some(page)).await;
+    }
+
+    async fn launch_failed(&self, end: &crate::testing::AttemptEnd<'_>) {
+        self.settle(end, None).await;
     }
 }
 
@@ -1526,6 +1632,66 @@ mod finalizer_tests {
         assert_eq!(failure.url.as_deref(), Some("https://a.test/"));
         assert_eq!(failure.title.as_deref(), Some("A"));
         assert_eq!(results[2].message, "no browser");
+    }
+
+    #[tokio::test]
+    async fn a_started_test_is_untested_until_its_last_attempt_ends() {
+        let root = tempfile::tempdir().unwrap();
+        let run = run(root.path());
+        let finalizer = RunFinalizer::new(Arc::clone(&run), TestId::named("f::flaky"));
+        finalizer.begin("f.flaky").await;
+        let status = || run.snapshot().unwrap().results[0].status;
+        assert_eq!(status(), TestStatus::Untested);
+
+        let error = SeleniumBaseError::AssertionFailed("flaky".to_owned());
+        let first = AttemptEnd {
+            attempt: 1,
+            attempts: 2,
+            ..end(Outcome::Failed(&error))
+        };
+        finalizer.finish(&first, &Fake).await;
+        assert_eq!(
+            status(),
+            TestStatus::Untested,
+            "a failed attempt with a rerun left is not the result"
+        );
+        let second = AttemptEnd {
+            attempt: 2,
+            attempts: 2,
+            ..end(Outcome::Passed)
+        };
+        finalizer.finish(&second, &Fake).await;
+        assert_eq!(status(), TestStatus::Passed);
+        assert_eq!(run.snapshot().unwrap().results.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn a_browser_that_did_not_start_ends_the_test_as_failed() {
+        let root = tempfile::tempdir().unwrap();
+        let run = run(root.path());
+        let finalizer = RunFinalizer::new(Arc::clone(&run), TestId::named("f::no_browser"));
+        finalizer.begin("f.no_browser").await;
+        let error = SeleniumBaseError::BrowserLaunch {
+            binary: "chrome".to_owned(),
+            reason: "no display".to_owned(),
+        };
+        finalizer.launch_failed(&end(Outcome::Failed(&error))).await;
+
+        let results = run.snapshot().unwrap().results;
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].status, TestStatus::Failed);
+        assert!(results[0].message.contains("no display"), "{results:?}");
+    }
+
+    #[test]
+    fn a_test_that_starts_after_the_run_was_finalized_reopens_it() {
+        let root = tempfile::tempdir().unwrap();
+        let run = run(root.path());
+        run.finalize().unwrap();
+        assert!(run.snapshot().unwrap().finished);
+        let recorder = run.start(TestId::named("f::late")).unwrap();
+        assert!(!run.snapshot().unwrap().finished);
+        recorder.finish(&Ok(())).unwrap();
     }
 
     #[tokio::test]
