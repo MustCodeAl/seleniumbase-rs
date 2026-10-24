@@ -71,7 +71,7 @@ pub const DEFAULT_PATH: &str = "/mcp";
 pub const DEFAULT_MAX_SESSIONS: usize = 4;
 
 /// How long a session may stay silent before the server ends it.
-pub const DEFAULT_IDLE: Duration = Duration::from_secs(900);
+pub const DEFAULT_IDLE: Duration = Duration::from_mins(15);
 
 /// The environment variable `sbrs-mcp` reads the bearer token from.
 pub const TOKEN_VAR: &str = "SB_MCP_TOKEN";
@@ -761,12 +761,14 @@ impl HttpServer {
     }
 }
 
-/// Serves `profile` over streamable HTTP until SIGINT or SIGTERM, then closes
-/// every session's browser. The one line `sbrs-mcp: listening on
-/// http://ADDR/PATH (server NAME)` goes to standard error once the listener is
-/// bound.
+/// Serves `profile` over streamable HTTP until SIGINT or SIGTERM.
 ///
-/// A signal ends the server cleanly, with `Ok(())`.
+/// Once the listener is bound, the one line `sbrs-mcp: listening on
+/// http://ADDR/PATH (server NAME)` goes to standard error. A signal ends the
+/// server cleanly, with `Ok(())`. Every session's browser is closed first, within
+/// the grace period of [`timeout_from_env`].
+///
+/// Options that fail [`HttpOptions::validate`] are refused before anything is bound.
 ///
 /// # Errors
 ///
@@ -1113,7 +1115,7 @@ mod tests {
         assert_eq!(defaults.listen, addr(LOCAL));
         assert_eq!(defaults.path, "/mcp");
         assert_eq!(defaults.max_sessions, 4);
-        assert_eq!(defaults.idle, Duration::from_secs(900));
+        assert_eq!(defaults.idle, Duration::from_mins(15));
         assert_eq!(defaults.exposure_warning(), None);
     }
 
