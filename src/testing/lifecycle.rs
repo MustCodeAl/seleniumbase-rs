@@ -32,6 +32,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
+#[cfg(feature = "plugins")]
+use seleniumbase_rs_plugin::{PageHandle, PluginSet, TestInfo, TestOutcome, TestVerdict};
 use tokio::time::Instant;
 
 use super::deadline::{exceeded_message, Deadline};
@@ -196,6 +198,15 @@ impl Plan {
     }
 }
 
+/// The plugins of an attempt's browser, and its tab, for the test hooks.
+#[cfg(feature = "plugins")]
+pub(crate) struct TestPlugins<'a> {
+    /// The plugins the browser was launched with.
+    pub set: &'a PluginSet,
+    /// The tab the test ran on; it is still open when the hooks run.
+    pub page: &'a dyn PageHandle,
+}
+
 /// The open browser of one attempt, as the lifecycle needs it.
 ///
 /// The case is also the page the evidence and the prompts look at.
@@ -218,6 +229,15 @@ pub(crate) trait TestCase: PromptPage + Send {
     /// Counts `paused`, the time a person spent at a prompt, out of the
     /// case's own time limit.
     fn extend_clock(&mut self, _paused: Duration) {}
+
+    /// The plugins of the case's browser and the tab they may look at, when it has plugins.
+    ///
+    /// The lifecycle tells them when the attempt starts and ends (the plugin API's test hooks).
+    /// A case on an engine that cannot host plugins keeps the default, `None`.
+    #[cfg(feature = "plugins")]
+    fn test_plugins(&self) -> Option<TestPlugins<'_>> {
+        None
+    }
 }
 
 /// Asks a person what to do at a debug prompt.
@@ -367,6 +387,9 @@ impl Lifecycle<'_> {
             &mut case,
             async |case: &mut C| {
                 case.prepare(plan).await?;
+                #[cfg(feature = "plugins")]
+                self.plugins_test_start(&*case).await;
+
                 if plan.trace {
                     self.pause_before_body(case, &deadline).await?;
                 }
@@ -471,31 +494,107 @@ impl Lifecycle<'_> {
         attempt: u32,
     ) -> Result<()> {
         let plan = self.plan;
-        let outcome = match ended {
-            Ok(()) => Outcome::Passed,
-            Err(error) if error.is_skipped() => Outcome::Skipped(error),
-            Err(error) => Outcome::Failed(error),
-        };
-        if matches!(outcome, Outcome::Passed) && plan.save_screenshot && !plan.no_screenshot {
-            evidence::take_pass(&plan.logs_dir, &self.subject(started), &*case).await;
+        // The plugins have their say on a test that passed, while the page is still open. A
+        // verdict that fails it makes it a failure like any other: evidence, the report line
+        // and the rerun all see it.
+        #[cfg(feature = "plugins")]
+        let plugin_failure = self.plugin_verdict(&*case, ended).await;
+        #[cfg(not(feature = "plugins"))]
+        let plugin_failure: Option<SeleniumBaseError> = None;
+        if let Some(error) = &plugin_failure {
+            self.take_failure(&*case, error, started, attempt >= plan.attempts())
+                .await;
         }
-        if plan.final_debug {
-            let message = "The test is over; the browser is still open.";
-            if let Err(error) = self.ask(&*case, PromptKind::FinalTrace, message).await {
-                tracing::warn!(%error, "the final prompt failed");
+        {
+            let outcome = match (&plugin_failure, ended) {
+                (Some(error), _) => Outcome::Failed(error),
+                (None, Ok(())) => Outcome::Passed,
+                (None, Err(error)) if error.is_skipped() => Outcome::Skipped(error),
+                (None, Err(error)) => Outcome::Failed(error),
+            };
+            if matches!(outcome, Outcome::Passed) && plan.save_screenshot && !plan.no_screenshot {
+                evidence::take_pass(&plan.logs_dir, &self.subject(started), &*case).await;
+            }
+            if plan.final_debug {
+                let message = "The test is over; the browser is still open.";
+                if let Err(error) = self.ask(&*case, PromptKind::FinalTrace, message).await {
+                    tracing::warn!(%error, "the final prompt failed");
+                }
+            }
+            let end = AttemptEnd {
+                test_id: &plan.test_id,
+                attempt,
+                attempts: plan.attempts(),
+                outcome,
+                duration: started.elapsed(),
+            };
+            for finalizer in self.finalizers {
+                finalizer.finish(&end, &*case).await;
             }
         }
-        let end = AttemptEnd {
-            test_id: &plan.test_id,
-            attempt,
-            attempts: plan.attempts(),
-            outcome,
-            duration: started.elapsed(),
-        };
-        for finalizer in self.finalizers {
-            finalizer.finish(&end, &*case).await;
+        let closed = case.close().await;
+        match plugin_failure {
+            None => closed,
+            Some(failure) => Err(match closed {
+                Ok(()) => failure,
+                Err(cleanup) => SeleniumBaseError::test_lifecycle(format!(
+                    "{failure}; cleanup failed with '{cleanup}'"
+                )),
+            }),
         }
-        case.close().await
+    }
+
+    /// The test as the plugins name it.
+    #[cfg(feature = "plugins")]
+    fn test_info(&self) -> TestInfo {
+        TestInfo::new(self.plan.display.clone())
+    }
+
+    /// Tells the plugins of the case's browser that the test starts.
+    #[cfg(feature = "plugins")]
+    async fn plugins_test_start<C: TestCase>(&self, case: &C) {
+        if let Some(plugins) = case.test_plugins() {
+            crate::plugin_host::test_start(plugins.set, &self.test_info()).await;
+        }
+    }
+
+    /// Asks the plugins of the case's browser what they make of the finished attempt, with the
+    /// page still open. The failure that turns a passed attempt into a failed one, when a plugin
+    /// says so; a verdict on an attempt that already failed or skipped is only logged, because
+    /// that attempt's own error is the better answer.
+    #[cfg(feature = "plugins")]
+    async fn plugin_verdict<C: TestCase>(
+        &self,
+        case: &C,
+        ended: &Result<()>,
+    ) -> Option<SeleniumBaseError> {
+        let plugins = case.test_plugins()?;
+        let outcome = match ended {
+            Ok(()) => TestOutcome::Passed,
+            Err(error) if error.is_skipped() => TestOutcome::Skipped,
+            Err(error) => TestOutcome::Failed(error.to_string()),
+        };
+        let verdict = crate::plugin_host::test_end(
+            plugins.set,
+            &self.test_info(),
+            &outcome,
+            Some(plugins.page),
+        )
+        .await;
+        match (verdict, ended) {
+            (TestVerdict::Fail(message), Ok(())) => Some(SeleniumBaseError::AssertionFailed(
+                format!("a plugin failed the test: {message}"),
+            )),
+            (TestVerdict::Fail(message), Err(_)) => {
+                tracing::info!(
+                    test = %self.plan.test_id,
+                    %message,
+                    "a plugin would fail the test, which did not pass anyway"
+                );
+                None
+            }
+            _ => None,
+        }
     }
 }
 

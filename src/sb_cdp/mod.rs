@@ -83,7 +83,7 @@ pub(crate) mod messenger;
 mod mock;
 mod page;
 #[cfg(feature = "plugins")]
-mod plugin_hooks;
+pub(crate) mod plugin_hooks;
 #[cfg(feature = "plugins")]
 mod plugin_network;
 mod pool;

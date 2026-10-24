@@ -15,17 +15,22 @@
 //! [`before_close`] ahead of `on_close`, and [`deliver_event`] for the protocol
 //! events a plugin named. The handles open tabs and contexts for plugins
 //! ([`BrowserLink`], [`ContextLink`]), and what they open goes through the same
-//! hooks. The network hooks run in the router of `plugin_network`; the test and task hooks are not wired yet.
+//! hooks. The network hooks run in the router of `plugin_network`, a plugin's task runs through
+//! [`run_task`], and the test hooks are called by the test lifecycle (`plugin_host::test_end`).
 
 use std::collections::HashMap;
+use std::panic::AssertUnwindSafe;
 use std::sync::Mutex as StdMutex;
 
+use futures_util::FutureExt as _;
 use seleniumbase_rs_plugin::{
     async_trait, BrowserFamily, BrowserHandle, BrowserId, ContextHandle, ContextId,
     ContextSettings, Engine, HostInfo, LaunchContext, LaunchSettings, LoadedExtension, NavOrigin,
     NavOutcome, Navigation, PageHandle, PageId, PluginError, PluginSet, ProfileView, ProtocolEvent,
     Result as PluginResult,
 };
+use seleniumbase_rs_plugin::{Prompt, Sink, TaskContext};
+
 use serde_json::{json, Value};
 
 use super::browser::Browser;
@@ -274,6 +279,53 @@ pub(super) async fn deliver_event(browser: &Browser, event: CdpEvent) {
             "a plugin failed on the protocol event {{protocol_event}}: {{error}}",
         );
     }
+}
+
+/// Runs the task of the plugin `name` on `browser`.
+///
+/// The plugin gets the browser as it sees it in a hook (only what its
+/// capabilities allow, but free to navigate and open tabs), the `input`, a
+/// `sink` for its results, the clock of the set and a `prompt` for asking a
+/// person. The browser stays open: closing it, which runs `before_close` and
+/// `on_close`, is the caller's.
+///
+/// # Errors
+///
+/// [`SeleniumBaseError::Plugin`] naming the plugin when it has no task or does
+/// not hold the capability for one, when the task fails, and when it panics.
+pub(crate) async fn run_task(
+    browser: &Browser,
+    name: &str,
+    input: &Value,
+    sink: &dyn Sink,
+    prompt: &dyn Prompt,
+) -> Result<Value, SeleniumBaseError> {
+    let plugins = &browser.inner().options.plugins;
+    let named = |error: PluginError| SeleniumBaseError::plugin(name, error.to_string());
+    let task = plugins.task(name).map_err(named)?;
+    let clock = plugins
+        .clock()
+        .or_else(|| crate::plugin_host::timed(plugins.clone()).clock())
+        .ok_or_else(|| SeleniumBaseError::plugin(name, "the plugin set has no clock"))?;
+    let link = BrowserLink { browser };
+    let guarded = plugins.guarded_browser(name, &link).map_err(named)?;
+    let cx = TaskContext::new(&guarded, input, sink, plugins, &clock, prompt);
+    match AssertUnwindSafe(task.run(&cx)).catch_unwind().await {
+        Ok(result) => result.map_err(named),
+        Err(payload) => Err(SeleniumBaseError::plugin(
+            name,
+            format!("its task panicked: {}", panic_text(payload.as_ref())),
+        )),
+    }
+}
+
+/// The text of a panic payload, when it is text.
+fn panic_text(payload: &(dyn std::any::Any + Send)) -> &str {
+    payload
+        .downcast_ref::<&str>()
+        .copied()
+        .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+        .unwrap_or("(not text)")
 }
 
 /// Runs a navigation the program asked for through the plugins: each

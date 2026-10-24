@@ -17,6 +17,8 @@ use async_trait::async_trait;
 use serde_json::Value;
 
 use super::deadline::Deadline;
+#[cfg(feature = "plugins")]
+use super::lifecycle::TestPlugins;
 use super::lifecycle::{say_on_stderr, Finalizer, Lifecycle, Plan, TerminalPrompter, TestCase};
 use super::report::{self, Reporting};
 use crate::api::recorder::RecordingTarget;
@@ -491,6 +493,15 @@ impl PromptPage for CdpCase {
 impl TestCase for CdpCase {
     async fn close(&mut self) -> Result<()> {
         CdpCase::close(self).await
+    }
+
+    #[cfg(feature = "plugins")]
+    fn test_plugins(&self) -> Option<TestPlugins<'_>> {
+        let set = &self.browser.inner().options.plugins;
+        (!set.is_empty()).then_some(TestPlugins {
+            set,
+            page: &self.page,
+        })
     }
 }
 

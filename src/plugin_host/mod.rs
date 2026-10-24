@@ -16,6 +16,10 @@
 //!   `Registry::with(Descriptor::of::<P>())` and [`build_with`], or goes into a
 //!   set directly with `PluginSet::with`.
 //!
+//! Two more jobs belong to the host: [`run_task`] runs the task of a plugin on a browser it
+//! launches (`sbrs plugin run NAME`), and [`test_start`] / [`test_end`] are the entry the test
+//! lifecycle calls so that plugins hear when a test starts and ends and may fail it.
+//!
 //! An unknown name, options for a plugin that is not enabled, options the
 //! plugin does not accept, and a name enabled twice are all errors
 //! ([`SeleniumBaseError::Plugin`]) before any browser starts. Nothing is
@@ -41,7 +45,12 @@ use crate::error::SeleniumBaseError;
 
 pub(crate) mod convert;
 pub(crate) mod guard;
+mod task;
+mod test_hooks;
 mod timer;
+
+pub use task::{check_task, run_task, run_task_on, run_task_until};
+pub use test_hooks::{test_end, test_start};
 
 pub(crate) use timer::timed;
 
