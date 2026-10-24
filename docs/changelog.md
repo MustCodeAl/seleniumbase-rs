@@ -35,6 +35,27 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ### Breaking
 
+- **The last helpers that dropped Python's keyword arguments take them as call builders.**
+  `click_nth_visible_element(selector, number)` counts from 1, as in Python, and a number of 0 is
+  an `InvalidConfig` error instead of clicking the first element (`.timeout(..)`, `.scroll(..)`);
+  `hover_and_double_click` and `hover_and_js_click` take the hover selector and the click
+  selector (`.timeout(..)`); `press_up_arrow`, `press_down_arrow`, `press_left_arrow` and
+  `press_right_arrow` take `.selector(..)` (default `body`) and `.times(..)`; `scroll_up` and
+  `scroll_down` scroll by `.amount(..)` percent of the window's height (25 by default, not 400
+  pixels); `drag_and_drop_with_offset(selector, x, y)` drags the element itself, where it took a
+  source and a target; `wait_for_attribute` and `wait_for_attribute_not_present` lose their
+  positional timeout for `.value(..)` and `.timeout(..)`; `click_with_offset` and
+  `double_click_with_offset` take any numbers and lose the `center` argument for `.mark(..)`,
+  `.timeout(..)`, `.center(..)` and `.scroll(..)`; `open_new_tab` and `open_new_window` take
+  `.switch_to(..)`; `add_cookie(&cookie_dict)` takes the W3C cookie object that `get_cookies`
+  returns, with `.expiry(..)`, instead of a name and a value; `get_domain_url(url)` is a pure
+  function of its argument and no longer reads the current URL; `download_file(url)` and
+  `save_file_as(url, new_file_name)` fetch the URL over HTTP into a folder
+  (`.destination_folder(..)`), as in Python. The browser-tab `download_file(url, filename,
+  timeout)` is now `download_file_in_browser`, and the byte-writing `save_file_as(data,
+  filename)` is gone (use `save_data_as`). Added: `get_google_auth_password`, an alias of
+  `get_mfa_code`.
+
 - **Website tours work as in Python.** `create_tour`, `create_shepherd_tour`,
   `create_bootstrap_tour`, `create_driverjs_tour`, `create_hopscotch_tour`,
   `create_introjs_tour`, `add_tour_step`, `play_tour` (also `start_tour`) and `export_tour` take
