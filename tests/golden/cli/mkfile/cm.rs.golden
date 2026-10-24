@@ -15,7 +15,7 @@ async fn cm() -> Result<()> {
     run_browser_test(Settings::load()?.to_browser_config(), async |sb| {
         sb.open("https://example.com").await?;
         sb.assert_title("Example Domain").await?;
-        sb.assert_text("Example Domain", "h1").await?;
+        sb.assert_text("This domain is for use in", "p").await?;
         Ok(())
     })
     .await

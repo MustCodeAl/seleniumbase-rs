@@ -29,7 +29,7 @@ async fn my_first_test(sb: Sb) -> Result<()> {
     sb.run(async |sb| {
         sb.open(\"https://example.com\").await?;
         sb.assert_title(\"Example Domain\").await?;
-        sb.assert_text(\"Example Domain\", \"h1\").await
+        sb.assert_text(\"This domain is for use in\", \"p\").await
     })
     .await
 }
@@ -44,17 +44,17 @@ use seleniumbase_rs::testing::{sb, Sb};
 use seleniumbase_rs::Result;
 
 #[rstest]
-#[case(\"https://example.com\", \"Example Domain\")]
-#[case(\"https://example.org\", \"Example Domain\")]
+#[case(\"https://example.com\", \"This domain is for use in\")]
+#[case(\"https://example.org\", \"This domain is for use in\")]
 #[tokio::test]
-async fn every_page_has_its_heading(
+async fn every_page_says_what_it_is_for(
     sb: Sb,
     #[case] page: &str,
-    #[case] heading: &str,
+    #[case] notice: &str,
 ) -> Result<()> {
     sb.run(async |sb| {
         sb.open(page).await?;
-        sb.assert_text(heading, \"h1\").await
+        sb.assert_text(notice, \"p\").await
     })
     .await
 }
@@ -70,13 +70,13 @@ use seleniumbase_rs::Result;
 
 #[rstest]
 #[tokio::test]
-async fn heading_over_cdp(sb_cdp: SbCdp) -> Result<()> {
+async fn notice_over_cdp(sb_cdp: SbCdp) -> Result<()> {
     sb_cdp
         .run(async |page| {
             page.goto(\"https://example.com\").await?;
-            page.locator(\"h1\")
+            page.locator(\"p\")
                 .expect()
-                .to_contain_text(\"Example Domain\")
+                .to_contain_text(\"This domain is for use in\")
                 .await
         })
         .await
@@ -105,7 +105,7 @@ Feature: Example Domain
   Scenario: Open a page
     Given Open \"https://example.com\"
     Then Assert title \"Example Domain\"
-    And Assert text \"Example Domain\" in \"h1\"
+    And Assert text \"This domain is for use in\" in \"p\"
 ";
 
 /// The workflow; `<TARGET>` is the suite's test target.
@@ -300,6 +300,7 @@ impl Suite {
     fn readme(&self) -> String {
         let target = self.target();
         let path = &self.name;
+        let version = env!("CARGO_PKG_VERSION");
         let (features, tokio_features, bdd_dependencies) = if self.bdd {
             (
                 "\"testing\", \"bdd\"",
@@ -370,11 +371,12 @@ cargo test --test {target}
 ```
 
 The tests need Chrome, and a matching chromedriver unless they are pure CDP;
-`sbrs doctor` checks both. Your crate also needs the libraries the tests use:
+`sbrs doctor` checks both. Your crate also needs the libraries the tests use
+(seleniumbase-rs is on GitHub, not on crates.io):
 
 ```toml
 [dev-dependencies]
-seleniumbase-rs = {{ version = \"0.6\", features = [{features}] }}
+seleniumbase-rs = {{ git = \"https://github.com/MustCodeAl/seleniumbase-rs\", tag = \"v{version}\", features = [{features}] }}
 rstest = \"0.26\"
 {bdd_dependencies}tokio = {{ version = \"1\", features = [{tokio_features}] }}
 ```
@@ -507,7 +509,9 @@ mod tests {
         );
         assert!(workflow.contains("${{ always() }}"), "{workflow}");
         assert!(contents(&suite.files(), "README.md").contains("GitHub Actions"));
-        assert!(!contents(&Suite::new("x").unwrap().files(), "README.md").contains("GitHub"));
+        assert!(
+            !contents(&Suite::new("x").unwrap().files(), "README.md").contains("GitHub Actions")
+        );
     }
 
     #[test]
@@ -542,6 +546,44 @@ mod tests {
         );
         assert!(readme.contains("cargo test --test ui-flows"), "{readme}");
         assert!(readme.contains("rstest = \"0.26\""), "{readme}");
+    }
+
+    /// example.com dropped its `<h1>` in 2026, so a generated test that selected one
+    /// failed on its first run: the examples assert the paragraph, which both the old
+    /// and the new page have.
+    #[test]
+    fn the_example_tests_do_not_select_the_h1_example_com_no_longer_serves() {
+        for bdd in [false, true] {
+            for (name, source) in Suite::new("ui").unwrap().bdd(bdd).files() {
+                if name.extension() == Some("rs") || name.extension() == Some("feature") {
+                    assert!(
+                        !source.contains("\"h1\""),
+                        "{name} selects an h1:\n{source}"
+                    );
+                }
+            }
+        }
+        let files = Suite::new("ui").unwrap().bdd(true).files();
+        assert!(
+            contents(&files, "my_first_test.rs")
+                .contains("assert_text(\"This domain is for use in\", \"p\")"),
+            "the first test asserts the paragraph"
+        );
+        assert!(contents(&files, "example.feature")
+            .contains("Assert text \"This domain is for use in\" in \"p\""),);
+    }
+
+    /// The library is not on crates.io, so the README of a generated suite must name the
+    /// GitHub tag of this release: `version = "0.6"` cannot be resolved.
+    #[test]
+    fn the_readme_depends_on_the_github_tag_not_on_crates_io() {
+        let readme = contents(&Suite::new("ui").unwrap().files(), "README.md");
+        let tag = format!(
+            "seleniumbase-rs = {{ git = \"https://github.com/MustCodeAl/seleniumbase-rs\", tag = \"v{}\"",
+            env!("CARGO_PKG_VERSION")
+        );
+        assert!(readme.contains(&tag), "{readme}");
+        assert!(!readme.contains("seleniumbase-rs = { version"), "{readme}");
     }
 
     #[test]

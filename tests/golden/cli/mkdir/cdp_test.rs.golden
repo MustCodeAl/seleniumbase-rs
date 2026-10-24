@@ -7,13 +7,13 @@ use seleniumbase_rs::Result;
 
 #[rstest]
 #[tokio::test]
-async fn heading_over_cdp(sb_cdp: SbCdp) -> Result<()> {
+async fn notice_over_cdp(sb_cdp: SbCdp) -> Result<()> {
     sb_cdp
         .run(async |page| {
             page.goto("https://example.com").await?;
-            page.locator("h1")
+            page.locator("p")
                 .expect()
-                .to_contain_text("Example Domain")
+                .to_contain_text("This domain is for use in")
                 .await
         })
         .await

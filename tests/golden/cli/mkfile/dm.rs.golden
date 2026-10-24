@@ -24,9 +24,9 @@ async fn dm() -> Result<()> {
 
 async fn steps(page: &Page) -> Result<()> {
     page.goto("https://example.com").await?;
-    page.locator("h1")
+    page.locator("p")
         .expect()
-        .to_contain_text("Example Domain")
+        .to_contain_text("This domain is for use in")
         .await?;
     Ok(())
 }

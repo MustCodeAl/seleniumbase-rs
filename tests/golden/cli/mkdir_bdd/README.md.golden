@@ -21,11 +21,12 @@ cargo test --test mkdir_bdd
 ```
 
 The tests need Chrome, and a matching chromedriver unless they are pure CDP;
-`sbrs doctor` checks both. Your crate also needs the libraries the tests use:
+`sbrs doctor` checks both. Your crate also needs the libraries the tests use
+(seleniumbase-rs is on GitHub, not on crates.io):
 
 ```toml
 [dev-dependencies]
-seleniumbase-rs = { version = "0.6", features = ["testing", "bdd"] }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.6.0", features = ["testing", "bdd"] }
 rstest = "0.26"
 rstest-bdd = "0.6"
 rstest-bdd-macros = "0.6"

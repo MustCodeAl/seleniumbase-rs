@@ -6,17 +6,17 @@ use seleniumbase_rs::testing::{sb, Sb};
 use seleniumbase_rs::Result;
 
 #[rstest]
-#[case("https://example.com", "Example Domain")]
-#[case("https://example.org", "Example Domain")]
+#[case("https://example.com", "This domain is for use in")]
+#[case("https://example.org", "This domain is for use in")]
 #[tokio::test]
-async fn every_page_has_its_heading(
+async fn every_page_says_what_it_is_for(
     sb: Sb,
     #[case] page: &str,
-    #[case] heading: &str,
+    #[case] notice: &str,
 ) -> Result<()> {
     sb.run(async |sb| {
         sb.open(page).await?;
-        sb.assert_text(heading, "h1").await
+        sb.assert_text(notice, "p").await
     })
     .await
 }

@@ -26,6 +26,11 @@ const EXAMPLE_URL: &str = "https://example.com";
 /// What the recorder breakpoint tells the person who records.
 const RECORDER_MESSAGE: &str = "Click what you want to test, then press c here";
 
+/// What example.com's paragraph starts with, in the old page ("illustrative
+/// examples in documents") and the 2026 one ("documentation examples"). The
+/// page lost its `<h1>`, so the example tests assert this text in a `p`.
+const EXAMPLE_NOTICE: &str = "This domain is for use in";
+
 /// The shape of a generated test: Python's syntax formats, as they are in Rust.
 ///
 /// # Examples
@@ -422,11 +427,12 @@ impl TestFile {
         match (self.language, cdp) {
             (None, false) => vec![
                 "sb.assert_title(\"Example Domain\").await?;".to_owned(),
-                "sb.assert_text(\"Example Domain\", \"h1\").await?;".to_owned(),
+                format!("sb.assert_text({EXAMPLE_NOTICE:?}, \"p\").await?;"),
             ],
             (None, true) => vec![
-                "page.locator(\"h1\")\n    .expect()\n    .to_contain_text(\"Example Domain\")\n    .await?;"
-                    .to_owned(),
+                format!(
+                    "page.locator(\"p\")\n    .expect()\n    .to_contain_text({EXAMPLE_NOTICE:?})\n    .await?;"
+                ),
             ],
             (Some(_), false) => vec![
                 format!("sb.type_text(\"input\", {goodbye:?}).await?;"),
@@ -658,6 +664,29 @@ mod tests {
         );
         assert!(source.contains("cargo test --test login"), "{source}");
         assert!(source.contains("feature `testing`"), "{source}");
+    }
+
+    /// example.com dropped its `<h1>` in 2026: a default test that selected one failed on
+    /// its first run, in every syntax. The paragraph is in the old and the new page.
+    #[test]
+    fn no_default_test_selects_the_h1_example_com_no_longer_serves() {
+        for syntax in [
+            Syntax::Fixture,
+            Syntax::BaseCase,
+            Syntax::ContextManager,
+            Syntax::CdpFixture,
+            Syntax::CdpManager,
+        ] {
+            let source = file("shape").syntax(syntax).unwrap().render();
+            assert!(
+                !source.contains("\"h1\""),
+                "{syntax:?} selects an h1:\n{source}"
+            );
+            assert!(
+                source.contains("This domain is for use in"),
+                "{syntax:?} does not assert the paragraph:\n{source}"
+            );
+        }
     }
 
     #[test]
