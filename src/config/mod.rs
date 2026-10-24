@@ -1,5 +1,6 @@
 pub mod ad_block_list;
 pub mod browser_options;
+pub mod env_vars;
 
 mod launch_map;
 pub mod plugins;

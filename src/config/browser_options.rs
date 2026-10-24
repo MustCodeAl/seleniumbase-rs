@@ -264,7 +264,7 @@ pub fn applies_to(row: &OptionSpec) -> &'static str {
 
 /// The flags of a row as the listing writes them: the canonical flag, the value it takes
 /// and the aliases; `-` for an option that has no flag.
-fn flag_cell(row: &OptionSpec) -> String {
+pub(crate) fn flag_cell(row: &OptionSpec) -> String {
     if !row.kind.is_flag() {
         return "-".to_owned();
     }
@@ -319,7 +319,7 @@ pub fn render_options(all: bool) -> String {
                 variable_cell(row).to_owned(),
                 key_cell(row),
                 applies_to(row).to_owned(),
-                row.help.to_owned(),
+                row.description().to_owned(),
             ]
         })
         .collect();
@@ -381,7 +381,7 @@ pub fn render_options_markdown(all: bool) -> String {
             code(variable_cell(row)),
             code(&key_cell(row)),
             applies_to(row),
-            row.help.replace('|', "\\|"),
+            row.description().replace('|', "\\|"),
         );
     }
     out

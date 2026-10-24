@@ -668,14 +668,19 @@ impl Settings {
     /// mode, and for a window width without a height (or the other way round)
     /// or one of zero pixels.
     pub fn validate(&self) -> Result<(), SeleniumBaseError> {
-        self.browser
-            .parse::<Browser>()
-            .map_err(|e| SeleniumBaseError::InvalidConfig(format!("browser: {e}")))?;
+        self.browser.parse::<Browser>().map_err(|e| {
+            SeleniumBaseError::InvalidConfig(format!(
+                "browser: {e} (set by --browser, SB_BROWSER or the settings file)"
+            ))
+        })?;
         self.check_launch_values()?;
 
         if let Some(mode) = &self.mode {
-            mode.parse::<DriverMode>()
-                .map_err(|e| SeleniumBaseError::InvalidConfig(format!("mode: {e}")))?;
+            mode.parse::<DriverMode>().map_err(|e| {
+                SeleniumBaseError::InvalidConfig(format!(
+                    "mode: {e} (set by --mode, SB_MODE or the settings file)"
+                ))
+            })?;
         }
         match (self.window_width, self.window_height) {
             (None, None) => {}
@@ -938,7 +943,10 @@ impl Settings {
             None => Self::default(),
         };
         let (settings, from_variables) = Self::apply_overrides_lenient(from_file, var);
-        problems.extend(from_variables);
+        problems.extend(from_variables.into_iter().map(|problem| SettingsProblem {
+            source: problem.source.clone(),
+            error: named(problem),
+        }));
         if let Err(error) = settings.validate() {
             problems.push(SettingsProblem {
                 source: "validation".to_owned(),
@@ -1049,7 +1057,7 @@ impl Settings {
     ) -> Result<Self, SeleniumBaseError> {
         let (settings, problems) = Self::apply_overrides_lenient(settings, var);
         if let Some(problem) = problems.into_iter().next() {
-            return Err(problem.error);
+            return Err(named(problem));
         }
         settings.validate()?;
         // Plugins that cannot run are an error here, not a silent omission.
@@ -1099,7 +1107,7 @@ impl Settings {
         let mut problems = Vec::new();
         crate::config::test_options::apply_env(self, &var, &mut problems);
         if let Some(problem) = problems.into_iter().next() {
-            return Err(problem.error);
+            return Err(named(problem));
         }
         self.validate()
     }
@@ -1148,6 +1156,23 @@ pub struct SettingsProblem {
     pub error: SeleniumBaseError,
 }
 
+/// The error of `problem`, saying which variable (and which flag) it came from when its text
+/// does not: `SB_HEADLESS (--headless): cannot parse bool: maybe`.
+fn named(problem: SettingsProblem) -> SeleniumBaseError {
+    let SettingsProblem { source, error } = problem;
+    let SeleniumBaseError::InvalidConfig(text) = &error else {
+        return error;
+    };
+    if !source.starts_with("SB_") || text.contains(&source) {
+        return error;
+    }
+    let flag = crate::config::test_options::TEST_OPTIONS
+        .iter()
+        .find(|row| row.env == source && row.kind.is_flag() && row.kind.reads_env())
+        .map_or_else(String::new, |row| format!(" (--{})", row.long));
+    SeleniumBaseError::InvalidConfig(format!("{source}{flag}: {text}"))
+}
+
 pub(crate) fn parse_bool(value: &str) -> Result<bool, SeleniumBaseError> {
     match value.to_lowercase().as_str() {
         "true" | "1" | "yes" | "on" => Ok(true),
@@ -1162,6 +1187,30 @@ pub(crate) fn parse_bool(value: &str) -> Result<bool, SeleniumBaseError> {
 mod tests {
     use super::*;
     use std::io::Write;
+
+    #[test]
+    fn a_refused_variable_is_named_with_its_flag() {
+        let refused = |name: &'static str, value: &str| {
+            Settings::default()
+                .apply_options(&[(name, value.to_owned())])
+                .unwrap_err()
+                .to_string()
+        };
+
+        let error = refused("SB_HEADLESS", "maybe");
+        assert!(
+            error.contains("SB_HEADLESS (--headless): cannot parse bool: maybe"),
+            "{error}"
+        );
+        // A variable with no flag of its own is named alone.
+        let error = refused("SB_TIMEOUT", "soon");
+        assert!(error.contains("SB_TIMEOUT: "), "{error}");
+        // A name or a mode is checked after the settings are read, and says where it was set.
+        let error = refused("SB_BROWSER", "chrom");
+        assert!(error.contains("SB_BROWSER"), "{error}");
+        let error = refused("SB_MODE", "stealth");
+        assert!(error.contains("SB_MODE"), "{error}");
+    }
 
     #[test]
     fn default_settings_are_sensible() {
