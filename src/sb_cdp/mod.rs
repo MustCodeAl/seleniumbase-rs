@@ -84,6 +84,8 @@ mod mock;
 mod page;
 #[cfg(feature = "plugins")]
 mod plugin_hooks;
+#[cfg(feature = "plugins")]
+mod plugin_network;
 mod pool;
 mod proxy_auth;
 mod session_store;

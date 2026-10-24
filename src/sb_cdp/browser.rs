@@ -233,6 +233,10 @@ pub(crate) struct Inner {
     /// plugin's `BrowserHandle::extensions` answers.
     #[cfg(feature = "plugins")]
     loaded_extensions: StdMutex<Vec<(String, PathBuf)>>,
+    /// The network router of each tab session, started when the plugins
+    /// declare network interest (see `plugin_network`).
+    #[cfg(feature = "plugins")]
+    pub(super) routers: StdMutex<HashMap<String, Arc<super::plugin_network::NetRouter>>>,
 }
 
 impl Drop for Inner {
@@ -622,6 +626,8 @@ impl Browser {
                 tab_contexts: StdMutex::new(HashMap::new()),
                 #[cfg(feature = "plugins")]
                 loaded_extensions: StdMutex::new(Vec::new()),
+                #[cfg(feature = "plugins")]
+                routers: StdMutex::new(HashMap::new()),
             }),
         }
     }
@@ -863,14 +869,7 @@ impl Browser {
         // answered from its very first request.
         if let Some(credentials) = context.and_then(|context| context.credentials) {
             self.inner.auth.register(&session, credentials.clone());
-            self.inner
-                .client
-                .send(
-                    "Fetch.enable",
-                    json!({ "handleAuthRequests": true, "patterns": [{ "urlPattern": "*" }] }),
-                    Some(&session),
-                )
-                .await?;
+            self.enable_tab_proxy_login(&session).await?;
             self.ensure_proxy_auth();
         }
         let page = Page::new(self.clone(), id.into(), session, DEFAULT_TIMEOUT);
@@ -936,6 +935,26 @@ impl Browser {
         locked(&self.inner.loaded_extensions).clone()
     }
 
+    /// The network router of a tab, when the plugins declare network interest.
+    #[cfg(feature = "plugins")]
+    pub(super) fn plugin_router(
+        &self,
+        session: &str,
+    ) -> Option<Arc<super::plugin_network::NetRouter>> {
+        locked(&self.inner.routers).get(session).cloned()
+    }
+
+    /// Turns `Fetch` on for a tab behind a proxy of its own, so its password
+    /// prompts reach the responder of [`ensure_proxy_auth`](Self::ensure_proxy_auth).
+    /// A tab with a plugin router gets its patterns from the router.
+    async fn enable_tab_proxy_login(&self, session: &str) -> Result<(), SeleniumBaseError> {
+        #[cfg(feature = "plugins")]
+        if let Some(router) = self.plugin_router(session) {
+            return router.apply().await;
+        }
+        Self::enable_proxy_login(&self.inner.client, session).await
+    }
+
     /// Hands the protocol events the plugins named to their
     /// `on_protocol_event`, until the browser closes or goes away.
     ///
@@ -973,6 +992,13 @@ impl Browser {
             self.inner.auth.forget(&session);
             #[cfg(feature = "plugins")]
             self.inner.plugin_blocked.forget(&session);
+            #[cfg(feature = "plugins")]
+            {
+                let router = locked(&self.inner.routers).remove(&*session);
+                if let Some(router) = router {
+                    router.shutdown();
+                }
+            }
         }
     }
 
@@ -1071,6 +1097,11 @@ impl Browser {
             )
             .await?;
         }
+        // After the library's own use of `Fetch`, so the router's patterns are
+        // the ones that stay (see `plugin_network`).
+        #[cfg(feature = "plugins")]
+        super::plugin_network::start_router(self, target, session).await?;
+
         // Last, so a plugin sees the tab as the library left it and may
         // change any of it.
         #[cfg(feature = "plugins")]

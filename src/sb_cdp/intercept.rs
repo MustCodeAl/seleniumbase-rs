@@ -46,7 +46,7 @@ use super::Page;
 use crate::error::SeleniumBaseError;
 
 /// The most requests an [`Interception`] remembers.
-const LOG_LIMIT: usize = 10_000;
+pub(super) const LOG_LIMIT: usize = 10_000;
 
 /// What kind of resource a request is for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -289,7 +289,14 @@ impl Rule {
             && (self.types.is_empty() || self.types.contains(&request.resource_type))
     }
 
-    fn outcome(&self) -> Outcome {
+    /// Whether the rule settles the request without the network: it blocks it
+    /// or answers it itself.
+    #[cfg(feature = "plugins")]
+    pub(super) fn is_final(&self) -> bool {
+        matches!(self.action, Action::Block | Action::Fulfill(_))
+    }
+
+    pub(super) fn outcome(&self) -> Outcome {
         match self.action {
             Action::Block => Outcome::Blocked,
             Action::Fulfill(_) => Outcome::Fulfilled,
@@ -341,6 +348,10 @@ pub struct Interception {
     page: Page,
     task: Option<JoinHandle<()>>,
     log: Arc<Mutex<Vec<Seen>>>,
+    /// The tab's plugin router when the rules run inside it, and which of its
+    /// attachments is ours.
+    #[cfg(feature = "plugins")]
+    router: Option<(Arc<super::plugin_network::NetRouter>, u64)>,
 }
 
 impl Page {
@@ -353,6 +364,19 @@ impl Page {
     ///
     /// Returns [`SeleniumBaseError::CdpDriver`] if the browser refuses.
     pub async fn intercept(&self, rules: Vec<Rule>) -> Result<Interception, SeleniumBaseError> {
+        // A tab whose plugins watch the network has a router that owns its
+        // `Fetch`: the rules run inside it, in front of the plugins.
+        #[cfg(feature = "plugins")]
+        if let Some(router) = self.browser().plugin_router(self.session_id()) {
+            let (log, generation) = router.attach_user(rules).await?;
+            return Ok(Interception {
+                page: self.clone(),
+                task: None,
+                log,
+                router: Some((router, generation)),
+            });
+        }
+
         // Listen before enabling, so no request is missed.
         let mut events = self.events();
         let auth = self.browser().proxy_auth();
@@ -387,30 +411,8 @@ impl Page {
                 let rule = rules.iter().find(|rule| rule.matches(&request));
                 let outcome = rule.map_or(Outcome::Continued, Rule::outcome);
 
-                let answered = match rule.map(|rule| &rule.action) {
-                    Some(Action::Block) => {
-                        page.execute(
-                            "Fetch.failRequest",
-                            json!({ "requestId": request_id, "errorReason": "BlockedByClient" }),
-                        )
-                        .await
-                    }
-                    Some(Action::Fulfill(response)) => {
-                        page.execute("Fetch.fulfillRequest", fulfill_params(request_id, response))
-                            .await
-                    }
-                    Some(Action::Modify(changes)) => {
-                        page.execute(
-                            "Fetch.continueRequest",
-                            modify_params(request_id, &request, changes),
-                        )
-                        .await
-                    }
-                    None => {
-                        page.execute("Fetch.continueRequest", json!({ "requestId": request_id }))
-                            .await
-                    }
-                };
+                let (method, params) = answer(request_id, &request, rule, &BTreeMap::new());
+                let answered = page.execute(method, params).await;
                 if let Err(error) = answered {
                     tracing::warn!(url = %request.url, %error, "could not answer an intercepted request");
                 }
@@ -425,6 +427,8 @@ impl Page {
         Ok(Interception {
             page: self.clone(),
             task: Some(task),
+            #[cfg(feature = "plugins")]
+            router: None,
             log,
         })
     }
@@ -465,12 +469,28 @@ impl Interception {
         if let Some(task) = self.task.take() {
             task.abort();
         }
+        #[cfg(feature = "plugins")]
+        if let Some((router, generation)) = self.router.take() {
+            return router.detach_user(generation).await;
+        }
+
         self.page.end_interception().await
     }
 }
 
 impl Drop for Interception {
     fn drop(&mut self) {
+        #[cfg(feature = "plugins")]
+        if let Some((router, generation)) = self.router.take() {
+            if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+                runtime.spawn(async move {
+                    // The tab may already be gone; there is nothing to report to.
+                    let _ = router.detach_user(generation).await;
+                });
+            }
+            return;
+        }
+
         let Some(task) = self.task.take() else { return };
         task.abort();
         let page = self.page.clone();
@@ -483,7 +503,7 @@ impl Drop for Interception {
     }
 }
 
-fn parse_request(request: &Value, resource_type: &Value) -> Request {
+pub(super) fn parse_request(request: &Value, resource_type: &Value) -> Request {
     Request {
         url: request["url"].as_str().unwrap_or_default().to_owned(),
         method: request["method"].as_str().unwrap_or("GET").to_owned(),
@@ -498,6 +518,52 @@ fn parse_request(request: &Value, resource_type: &Value) -> Request {
             })
             .unwrap_or_default(),
     }
+}
+
+/// The command that answers a paused request: what `rule` does to it, or
+/// sending it on, with the headers in `extra` added first. A header the rule
+/// sets or removes itself keeps the rule's say; `extra` only fills in.
+pub(super) fn answer(
+    request_id: &str,
+    request: &Request,
+    rule: Option<&Rule>,
+    extra: &BTreeMap<String, String>,
+) -> (&'static str, Value) {
+    match rule.map(|rule| &rule.action) {
+        Some(Action::Block) => (
+            "Fetch.failRequest",
+            json!({ "requestId": request_id, "errorReason": "BlockedByClient" }),
+        ),
+        Some(Action::Fulfill(response)) => {
+            ("Fetch.fulfillRequest", fulfill_params(request_id, response))
+        }
+        Some(Action::Modify(changes)) => (
+            "Fetch.continueRequest",
+            modify_params(request_id, request, &with_extra(changes, extra)),
+        ),
+        None if extra.is_empty() => ("Fetch.continueRequest", json!({ "requestId": request_id })),
+        None => (
+            "Fetch.continueRequest",
+            modify_params(request_id, request, &with_extra(&Changes::default(), extra)),
+        ),
+    }
+}
+
+/// `changes` with the headers of `extra` set, except those `changes` sets or
+/// removes itself.
+fn with_extra(changes: &Changes, extra: &BTreeMap<String, String>) -> Changes {
+    let mut merged = changes.clone();
+    for (name, value) in extra {
+        let decided = changes
+            .set_headers
+            .keys()
+            .chain(&changes.remove_headers)
+            .any(|own| own.eq_ignore_ascii_case(name));
+        if !decided {
+            merged.set_headers.insert(name.clone(), value.clone());
+        }
+    }
+    merged
 }
 
 fn fulfill_params(request_id: &str, response: &Response) -> Value {
