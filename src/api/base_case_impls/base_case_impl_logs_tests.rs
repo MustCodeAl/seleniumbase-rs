@@ -165,10 +165,10 @@ mod tests_to_logs {
         let driver = page();
         let sb = driver.base_case().await;
 
-        let path = sb.save_file_as(b"bytes", "named.bin").unwrap();
+        let path = sb.create_folder("named_in_logs").unwrap();
 
         assert_ne!(path.parent(), Some(folder.as_path()), "{path:?}");
         assert!(path.parent().is_some_and(|dir| dir.ends_with("latest_logs")));
-        std::fs::remove_file(&path).unwrap();
+        std::fs::remove_dir(&path).unwrap();
     }
 }

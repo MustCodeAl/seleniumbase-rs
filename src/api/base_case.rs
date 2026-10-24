@@ -16,6 +16,8 @@ use crate::api::deferred::DeferredAsserts;
 use crate::api::html::BeautifulSoup;
 use crate::api::jqc::JqcDefaults;
 use crate::api::master_qa::MasterQaSession;
+use crate::api::misc_calls::{scroll_distance, AddCookie, OpenNewTab, Scroll};
+
 use crate::api::page_scripts::{self, TextMatch};
 #[cfg(feature = "pdf")]
 use crate::api::pdf;
@@ -715,21 +717,38 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Executes the `open_new_window` action.
+    /// Opens a new browser tab and switches to it, as Python's
+    /// `open_new_window(switch_to=True)` does; the keyword is
+    /// [`OpenNewTab::switch_to`]. Opening a window you do not switch to leaves
+    /// it without the plugin hooks described below until you switch to it and
+    /// call [`apply_plugins_to_window`](Self::apply_plugins_to_window).
     ///
     /// With browser plugins (feature `plugins`), the new window gets their
     /// packages and `on_page_created`, as the first window did.
-    pub async fn open_new_window(&mut self) -> Result<(), SeleniumBaseError> {
+    pub fn open_new_window(&mut self) -> OpenNewTab<'_> {
+        OpenNewTab::new(self)
+    }
+
+    /// The work of [`open_new_window`](Self::open_new_window) and
+    /// [`open_new_tab`](Self::open_new_tab).
+    pub(crate) async fn run_open_new_window(
+        &mut self,
+        switch_to: bool,
+    ) -> Result<(), SeleniumBaseError> {
         self.execute_script("window.open('');").await?;
+        if !switch_to {
+            return Ok(());
+        }
         self.switch_to_newest_window().await?;
         #[cfg(feature = "plugins")]
         self.session.apply_plugins_to_window().await?;
         Ok(())
     }
 
-    /// Executes the `open_new_tab` action.
-    pub async fn open_new_tab(&mut self) -> Result<(), SeleniumBaseError> {
-        self.open_new_window().await // Essentially the same in modern browsers
+    /// Opens a new browser tab; the same call as
+    /// [`open_new_window`](Self::open_new_window), as in Python.
+    pub fn open_new_tab(&mut self) -> OpenNewTab<'_> {
+        OpenNewTab::new(self)
     }
 
     /// Opens a new tab, switches to it, and navigates to `url`.
@@ -1949,10 +1968,74 @@ impl BaseCase {
             .map_err(SeleniumBaseError::WebDriver)
     }
 
-    /// Executes the `add_cookie` action.
-    pub async fn add_cookie(&self, name: &str, value: &str) -> Result<(), SeleniumBaseError> {
+    /// Adds a cookie, given as the W3C cookie object that
+    /// [`get_cookies`](Self::get_cookies) returns, as Python's
+    /// `add_cookie(cookie_dict, expiry=False)` does. The keyword is
+    /// [`AddCookie::expiry`]; see [`AddCookie`] for what the call does to the
+    /// cookie before it goes in.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use seleniumbase_rs::api::base_case::BaseCase;
+    /// # async fn demo(sb: &BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    /// let cookie = serde_json::json!({ "name": "session", "value": "abc123", "path": "/" });
+    /// sb.add_cookie(&cookie).await?;
+    /// sb.add_cookie(&cookie).expiry(true).await?; // expires in a day
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidConfig`] if `cookie_dict` is not an
+    /// object with a string `name` and `value`, and the browser's error if it
+    /// refuses the cookie.
+    pub fn add_cookie<'a>(&'a self, cookie_dict: &'a Value) -> AddCookie<'a> {
+        AddCookie::new(self, cookie_dict)
+    }
+
+    /// The work of [`add_cookie`](Self::add_cookie).
+    pub(crate) async fn run_add_cookie(
+        &self,
+        cookie_dict: &Value,
+        expiry: CookieExpiry,
+    ) -> Result<(), SeleniumBaseError> {
+        let invalid = || {
+            SeleniumBaseError::InvalidConfig(
+                "a cookie is an object with a string \"name\" and a string \"value\"".to_owned(),
+            )
+        };
+        let Value::Object(fields) = cookie_dict else {
+            return Err(invalid());
+        };
+        let (Some(name), Some(value)) = (
+            fields.get("name").and_then(Value::as_str),
+            fields.get("value").and_then(Value::as_str),
+        ) else {
+            return Err(invalid());
+        };
+        let mut fields = fields.clone();
+        // Only a cookie with a domain needs to know which page it is added from.
+        let origin = if fields.contains_key("domain") {
+            let url = self.session.driver().current_url().await?;
+            origin_of_url(url.as_str())?
+        } else {
+            String::new()
+        };
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_or(0, |since| {
+                i64::try_from(since.as_secs()).unwrap_or(i64::MAX)
+            });
+        prepare_cookie(&mut fields, &origin, expiry, now);
+        let cookie: thirtyfour::cookie::Cookie = serde_json::from_value(Value::Object(fields))
+            .map_err(|e| {
+                SeleniumBaseError::InvalidConfig(format!("this cookie cannot be used: {e}"))
+            })?;
         self.record("add_cookie", Some(name), Some(value));
-        self.session.add_cookie(name, value).await
+        self.session.driver().add_cookie(cookie).await?;
+        Ok(())
     }
 
     /// Executes the `get_cookie` action.
@@ -2567,14 +2650,31 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Scroll up by 400 pixels.
-    pub async fn scroll_up(&self) -> Result<(), SeleniumBaseError> {
-        self.scroll_by_y(-400).await
+    /// Scrolls up by a percentage of the window's height (25 by default), as Python's
+    /// `scroll_up(amount=25)` does; the keyword is [`Scroll::amount`].
+    pub fn scroll_up(&self) -> Scroll<'_> {
+        Scroll::new(self, true)
     }
 
-    /// Scroll down by 400 pixels.
-    pub async fn scroll_down(&self) -> Result<(), SeleniumBaseError> {
-        self.scroll_by_y(400).await
+    /// Scrolls down by a percentage of the window's height (25 by default), as Python's
+    /// `scroll_down(amount=25)` does; the keyword is [`Scroll::amount`].
+    pub fn scroll_down(&self) -> Scroll<'_> {
+        Scroll::new(self, false)
+    }
+
+    /// The work of [`scroll_up`](Self::scroll_up) and [`scroll_down`](Self::scroll_down):
+    /// scrolls by `amount` percent of the window's height.
+    pub(crate) async fn run_scroll(&self, up: bool, amount: f64) -> Result<(), SeleniumBaseError> {
+        if !amount.is_finite() {
+            return Err(SeleniumBaseError::InvalidConfig(format!(
+                "the scroll amount must be a number, got {amount}"
+            )));
+        }
+        let (_, height) = self.get_window_size().await?;
+        let pixels = scroll_distance(f64::from(height), amount, up);
+        self.execute_script(&format!("window.scrollBy(0, {pixels});"))
+            .await?;
+        Ok(())
     }
 
     /// Click the element matching the given XPath.
@@ -2790,20 +2890,21 @@ impl BaseCase {
         })
     }
 
-    /// Extract the domain (scheme, host and a port that is not the scheme's
-    /// default) from the current URL: `http://localhost:8080` for
-    /// `http://localhost:8080/a/b?c=d`.
-    pub async fn get_domain_url(&mut self) -> Result<String, SeleniumBaseError> {
-        let url = self.get_current_url().await?;
-        reqwest::Url::parse(&url)
-            .map_err(|e| SeleniumBaseError::InvalidConfig(e.to_string()))
-            .map(|u| {
-                let host = u.host_str().unwrap_or("");
-                match u.port() {
-                    Some(port) => format!("{}://{host}:{port}", u.scheme()),
-                    None => format!("{}://{host}", u.scheme()),
-                }
-            })
+    /// Extracts the domain (scheme, host and a port that is not the scheme's
+    /// default) from `url`, as Python's `get_domain_url(url)` does: `http://localhost:8080` for
+    /// `http://localhost:8080/a/b?c=d`. A string that is not an http(s) URL comes back as is.
+    pub fn get_domain_url(&self, url: &str) -> Result<String, SeleniumBaseError> {
+        if !(url.starts_with("http://") || url.starts_with("https://")) {
+            return Ok(url.to_owned());
+        }
+        let parsed = reqwest::Url::parse(url).map_err(|e| {
+            SeleniumBaseError::InvalidConfig(format!("'{url}' is not a valid URL: {e}"))
+        })?;
+        let host = parsed.host_str().unwrap_or("");
+        Ok(match parsed.port() {
+            Some(port) => format!("{}://{host}:{port}", parsed.scheme()),
+            None => format!("{}://{host}", parsed.scheme()),
+        })
     }
 
     /// Convert a simple XPath expression to an approximate CSS selector.
@@ -2913,6 +3014,16 @@ impl BaseCase {
     /// [time limit](Self::set_time_limit).
     fn default_wait_secs(&self) -> u64 {
         self.effective_timeout(self.run_settings.scale_timeout(self.timeout_secs))
+    }
+
+    /// The seconds a wait with the optional per-call `timeout` lasts: the
+    /// timeout rounded up, or the case's default timeout when the call named
+    /// none. Both are cut short by `--time-limit`.
+    pub(crate) fn wait_secs(&self, timeout: Option<Duration>) -> u64 {
+        timeout.map_or_else(
+            || self.default_wait_secs(),
+            |timeout| self.effective_timeout(crate::api::demo::whole_seconds_up(timeout)),
+        )
     }
 
     /// Return whether `text` exactly matches the visible text of the element.
@@ -3323,6 +3434,9 @@ include!("base_case_impls/base_case_impl_highlight_tests.rs");
 include!("base_case_impls/base_case_impl_cdp_tests.rs");
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_mouse_tests.rs");
+#[cfg(test)]
+include!("base_case_impls/base_case_impl_misc_calls_tests.rs");
+
 #[cfg(all(test, feature = "playwright"))]
 include!("base_case_impls/base_case_impl_playwright_tests.rs");
 #[cfg(test)]

@@ -1238,6 +1238,9 @@ mod tests {
                     .last()
                     .map(|segment| segment.ident.to_string())
                     .unwrap_or_default(),
+                // `x: impl Into<f64>` takes any number literal.
+                syn::Type::ImplTrait(_) => "impl Into".to_owned(),
+
                 _ => "other".to_owned(),
             }
         }
@@ -1289,7 +1292,7 @@ mod tests {
         match shape {
             Shape::NoArgs | Shape::Seconds | Shape::TabUrl => (None, None),
             Shape::Target | Shape::TargetDiscarded | Shape::TargetSeconds => (Some("#t"), None),
-            Shape::TargetValue | Shape::ValueTarget => (Some("#t"), Some("v")),
+            Shape::TargetValue | Shape::ValueTarget | Shape::Cookie => (Some("#t"), Some("v")),
             Shape::TargetPair => (Some("#t"), Some("name=content")),
             Shape::Size => (Some("800,600"), None),
             Shape::TargetOffset => (Some("#t"), Some("5, -7")),
@@ -1390,6 +1393,9 @@ mod tests {
                     "u8" | "u16" | "u32" | "u64" | "usize" | "i8" | "i16" | "i32" | "i64"
                     | "isize" => kind == "integer",
                     "f64" => kind == "float",
+                    "impl Into" => kind == "integer" || kind == "float",
+                    "&Value" => matches!(argument, syn::Expr::Reference(_)),
+
                     "bool" => kind == "bool",
                     _ => false,
                 };
@@ -1464,7 +1470,7 @@ mod tests {
         );
         assert_eq!(
             call("click_with_offset", Some("#a"), Some("10, -4")).unwrap(),
-            "sb.click_with_offset(\"#a\", 10, -4, false).await?;"
+            "sb.click_with_offset(\"#a\", 10, -4).await?;"
         );
         assert_eq!(
             call(
@@ -1473,7 +1479,7 @@ mod tests {
                 Some("10, -4, center")
             )
             .unwrap(),
-            "sb.double_click_with_offset(\"#a\", 10, -4, true).await?;"
+            "sb.double_click_with_offset(\"#a\", 10, -4).center(true).await?;"
         );
         assert_eq!(
             call("select_option_by_index", Some("#s"), Some("2")).unwrap(),
@@ -1518,7 +1524,7 @@ mod tests {
             "// skipped: unknown action \"levitate\"",
             "// skipped: click has no target",
             "// skipped: type_text has no value",
-            "// skipped: drag_and_drop_with_offset: the recording keeps the two selectors",
+            "// skipped: drag_and_drop_with_offset: the recording keeps the selector",
             "// skipped: set_window_size: width \"wide\" is not a whole number",
             "// skipped: assert_attribute: value \"no equals sign\" is not name=content",
             "sb.click(\"#fine\").await?;",

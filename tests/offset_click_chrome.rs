@@ -34,18 +34,22 @@ async fn case() -> BaseCase {
 async fn an_offset_counts_from_the_top_left_corner_unless_it_says_centre() {
     let mut sb = case().await;
 
-    sb.click_with_offset("#box", 10, 5, false).await.unwrap();
+    sb.click_with_offset("#box", 10, 5).await.unwrap();
     assert_eq!(sb.get_text("#out").await.unwrap(), "10,5");
 
     // From the centre of a 200 x 100 box, (0, 0) is (100, 50) in the box.
-    sb.click_with_offset("#box", 0, 0, true).await.unwrap();
-    assert_eq!(sb.get_text("#out").await.unwrap(), "100,50");
-    sb.click_with_offset("#box", -20, 10, true).await.unwrap();
-    assert_eq!(sb.get_text("#out").await.unwrap(), "80,60");
-
-    sb.double_click_with_offset("#box", 30, 40, false)
+    sb.click_with_offset("#box", 0, 0)
+        .center(true)
         .await
         .unwrap();
+    assert_eq!(sb.get_text("#out").await.unwrap(), "100,50");
+    sb.click_with_offset("#box", -20, 10)
+        .center(true)
+        .await
+        .unwrap();
+    assert_eq!(sb.get_text("#out").await.unwrap(), "80,60");
+
+    sb.double_click_with_offset("#box", 30, 40).await.unwrap();
     assert_eq!(sb.get_text("#out").await.unwrap(), "30,40");
 
     sb.quit().await.unwrap();

@@ -37,7 +37,8 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
     sb.open(&url).await?;
 
     // ---- Cookies ----
-    sb.add_cookie("session", "abc123").await?;
+    sb.add_cookie(&serde_json::json!({ "name": "session", "value": "abc123" }))
+        .await?;
     let cookie = sb.get_cookie("session").await?;
     ensure(cookie.value == "abc123", "the cookie keeps its value")?;
     println!("cookie: {}={}", cookie.name, cookie.value);

@@ -50,6 +50,7 @@ rust = "BaseCase::ad_block"
 [basecase."add_cookie"]
 status = "implemented"
 rust = "BaseCase::add_cookie"
+note = "Takes the W3C cookie object that get_cookies returns (a serde_json::Value), and refuses one without a string name and value. The keyword expiry is the builder method .expiry(..), a bool as in Python or a CookieExpiry."
 
 [basecase."add_cookies"]
 status = "implemented"
@@ -351,7 +352,7 @@ rust = "BaseCase::click_link_text"
 [basecase."click_nth_visible_element"]
 status = "implemented"
 rust = "BaseCase::click_nth_visible_element"
-divergence = "Counts from 0; Python counts from 1."
+note = "Counts from 1 as in Python; a number of 0 is an InvalidConfig error. The keywords are the builder methods .timeout(..) and .scroll(..)."
 
 [basecase."click_partial_link"]
 status = "implemented"
@@ -369,7 +370,7 @@ rust = "BaseCase::click_visible_elements"
 status = "implemented"
 rust = "BaseCase::click_with_offset"
 note = "The offset is from the element's top-left corner, or from its centre when `center` is true, as in Python."
-divergence = "Takes whole-pixel offsets (Python takes numbers), and no `mark`, `timeout` or `scroll` arguments; it waits for the element to be displayed for the default timeout. In demo mode it outlines the element but draws no dot."
+divergence = "A fractional offset is rounded up to whole pixels, and `mark` draws its dot only on a canvas (on by default in demo mode). The keywords are the builder methods .mark(..), .timeout(..), .center(..) and .scroll(..)."
 
 [basecase."click_xpath"]
 status = "implemented"
@@ -559,12 +560,12 @@ rust = "BaseCase::double_click"
 status = "implemented"
 rust = "BaseCase::double_click_with_offset"
 note = "The offset is from the element's top-left corner, or from its centre when `center` is true, as in Python."
-divergence = "Takes whole-pixel offsets (Python takes numbers), and no `mark`, `timeout` or `scroll` arguments; it waits for the element to be displayed for the default timeout."
+divergence = "A fractional offset is rounded up to whole pixels, and `mark` draws its dot only on a canvas (on by default in demo mode). The keywords are the builder methods .mark(..), .timeout(..), .center(..) and .scroll(..)."
 
 [basecase."download_file"]
 status = "implemented"
 rust = "BaseCase::download_file"
-divergence = "Opens the URL in a browser tab and waits for the browser to save it, taking a file name and timeout; Python fetches it over HTTP into a folder."
+divergence = "Fails on a status that is not a success (Python saves the error page), names the file after the last segment of the URL's path without its query, and refuses a name that is not a plain file name. The keyword is the builder method .destination_folder(..). Opening a URL in a browser tab and waiting for the browser to save it is BaseCase::download_file_in_browser, which Python does not have."
 
 [basecase."drag_and_drop"]
 status = "implemented"
@@ -573,6 +574,7 @@ rust = "BaseCase::drag_and_drop"
 [basecase."drag_and_drop_with_offset"]
 status = "implemented"
 rust = "BaseCase::drag_and_drop_with_offset"
+note = "Drags the element itself by (x, y) pixels; the keyword is the builder method .timeout(..)."
 
 [basecase."enter_mfa_code"]
 status = "implemented"
@@ -750,6 +752,7 @@ rust = "BaseCase::get_data_from_downloaded_file"
 [basecase."get_domain_url"]
 status = "implemented"
 rust = "BaseCase::get_domain_url"
+note = "A pure function of its argument, as in Python: a string that is not an http(s) URL comes back as it is. The scheme's own default port is dropped."
 
 [basecase."get_downloaded_files"]
 status = "implemented"
@@ -776,9 +779,9 @@ status = "implemented"
 rust = "BaseCase::get_google_auth_code"
 
 [basecase."get_google_auth_password"]
-status = "composed"
-rust = "BaseCase::get_mfa_code"
-note = "Same TOTP computation."
+status = "implemented"
+rust = "BaseCase::get_google_auth_password"
+note = "An alias of get_mfa_code, as in Python."
 
 [basecase."get_gui_element_center"]
 status = "implemented"
@@ -1025,10 +1028,12 @@ rust = "BaseCase::hover_and_click"
 [basecase."hover_and_double_click"]
 status = "implemented"
 rust = "BaseCase::hover_and_double_click"
+note = "Takes the two selectors, as in Python; the keyword is the builder method .timeout(..)."
 
 [basecase."hover_and_js_click"]
 status = "implemented"
 rust = "BaseCase::hover_and_js_click"
+note = "Takes the two selectors, as in Python; the keyword is the builder method .timeout(..)."
 
 [basecase."hover_element"]
 status = "implemented"
@@ -1244,11 +1249,12 @@ rust = "BaseCase::open_if_not_url"
 [basecase."open_new_tab"]
 status = "implemented"
 rust = "BaseCase::open_new_tab"
-divergence = "Always switches to the new tab; Python has a switch_to option."
+note = "The keyword switch_to is the builder method .switch_to(..); with false the tab opens and the current one stays current (the browser plugins' hooks do not run for it until you switch to it)."
 
 [basecase."open_new_window"]
 status = "implemented"
 rust = "BaseCase::open_new_window"
+note = "The same call as open_new_tab; the keyword switch_to is the builder method .switch_to(..)."
 
 [basecase."open_start_page"]
 status = "implemented"
@@ -1285,7 +1291,7 @@ note = "Returns a PostMessage builder whose duration() and pause() are Python's 
 [basecase."press_down_arrow"]
 status = "implemented"
 rust = "BaseCase::press_down_arrow"
-divergence = "Presses the Down arrow once on the element that has focus; Python's takes a selector (default body) and a repeat count."
+note = "Python's selector (default body) and times are the builder methods .selector(..) and .times(..)."
 
 [basecase."press_keys"]
 status = "implemented"
@@ -1295,17 +1301,17 @@ divergence = "Takes the CSS selector and the text, like Python, and types the te
 [basecase."press_left_arrow"]
 status = "implemented"
 rust = "BaseCase::press_left_arrow"
-divergence = "Presses the Left arrow once on the element that has focus; Python's takes a selector (default body) and a repeat count."
+note = "Python's selector (default body) and times are the builder methods .selector(..) and .times(..)."
 
 [basecase."press_right_arrow"]
 status = "implemented"
 rust = "BaseCase::press_right_arrow"
-divergence = "Presses the Right arrow once on the element that has focus; Python's takes a selector (default body) and a repeat count."
+note = "Python's selector (default body) and times are the builder methods .selector(..) and .times(..)."
 
 [basecase."press_up_arrow"]
 status = "implemented"
 rust = "BaseCase::press_up_arrow"
-divergence = "Presses the Up arrow once on the element that has focus; Python's takes a selector (default body) and a repeat count."
+note = "Python's selector (default body) and times are the builder methods .selector(..) and .times(..)."
 
 [basecase."print_to_pdf"]
 status = "implemented"
@@ -1434,6 +1440,7 @@ rust = "BaseCase::save_element_as_image_file"
 [basecase."save_file_as"]
 status = "implemented"
 rust = "BaseCase::save_file_as"
+divergence = "Fetches the URL like download_file and saves it as a plain file name; the keyword is the builder method .destination_folder(..). The old form that wrote bytes to the logs folder is gone (save_data_as writes text)."
 
 [basecase."save_page_source"]
 status = "implemented"
@@ -1470,7 +1477,7 @@ rust = "BaseCase::scroll_by_y"
 [basecase."scroll_down"]
 status = "implemented"
 rust = "BaseCase::scroll_down"
-divergence = "Takes no amount; Python scrolls by a percentage of the window height."
+note = "Python's amount (default 25) is the builder method .amount(..): a percentage of the window's height."
 
 [basecase."scroll_into_view"]
 status = "implemented"
@@ -1499,7 +1506,7 @@ rust = "BaseCase::scroll_to_y"
 [basecase."scroll_up"]
 status = "implemented"
 rust = "BaseCase::scroll_up"
-divergence = "Takes no amount; Python scrolls by a percentage of the window height."
+note = "Python's amount (default 25) is the builder method .amount(..): a percentage of the window's height."
 
 [basecase."select"]
 status = "implemented"
@@ -1804,10 +1811,12 @@ rust = "BaseCase::wait_for_any_of_elements_visible"
 [basecase."wait_for_attribute"]
 status = "implemented"
 rust = "BaseCase::wait_for_attribute"
+note = "The keywords are the builder methods .value(..) and .timeout(..); the timeout is the case's timeout by default. Returns nothing (Python returns the element)."
 
 [basecase."wait_for_attribute_not_present"]
 status = "implemented"
 rust = "BaseCase::wait_for_attribute_not_present"
+note = "The keywords are the builder methods .value(..) and .timeout(..); the timeout is the case's timeout by default."
 
 [basecase."wait_for_element"]
 status = "implemented"

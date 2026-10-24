@@ -4179,7 +4179,10 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 .to_string();
 
             let mut sb = BaseCase::new(config).await?;
-            let downloaded = match sb.download_file(&url, &browser_name, timeout).await {
+            let downloaded = match sb
+                .download_file_in_browser(&url, &browser_name, timeout)
+                .await
+            {
                 Ok(path) => {
                     if path != dest {
                         if let Some(parent) = dest.parent() {

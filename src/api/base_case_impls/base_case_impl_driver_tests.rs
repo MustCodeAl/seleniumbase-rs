@@ -615,7 +615,7 @@ mod tests_wait_errors {
     async fn an_attribute_that_never_appears_times_out() {
         let driver = mock_page("", false, json!(false));
         let mut sb = driver.base_case().await;
-        let message = timed_out(sb.wait_for_attribute("#app", "data-ready", 0).await);
+        let message = timed_out(sb.wait_for_attribute("#app", "data-ready").timeout(Duration::ZERO).await);
         assert!(
             message.contains("#app") && message.contains("data-ready"),
             "{message}"
@@ -623,7 +623,7 @@ mod tests_wait_errors {
 
         let driver = driver_with_answer(true);
         let mut sb = driver.base_case().await;
-        sb.wait_for_attribute("#app", "data-ready", 0)
+        sb.wait_for_attribute("#app", "data-ready").timeout(Duration::ZERO)
             .await
             .unwrap();
     }
@@ -633,7 +633,7 @@ mod tests_wait_errors {
         let driver = mock_page("", false, json!(true));
         let mut sb = driver.base_case().await;
         let message = timed_out(
-            sb.wait_for_attribute_not_present("#app", "data-busy", 0)
+            sb.wait_for_attribute_not_present("#app", "data-busy").timeout(Duration::ZERO)
                 .await,
         );
         assert!(
@@ -643,7 +643,7 @@ mod tests_wait_errors {
 
         let driver = driver_with_answer(false);
         let mut sb = driver.base_case().await;
-        sb.wait_for_attribute_not_present("#app", "data-busy", 0)
+        sb.wait_for_attribute_not_present("#app", "data-busy").timeout(Duration::ZERO)
             .await
             .unwrap();
     }
@@ -727,7 +727,7 @@ mod tests_wait_errors {
         let name = format!("sbrs-never-downloaded-{}.bin", std::process::id());
 
         let message = timed_out(
-            sb.download_file("https://example.test/file.bin", &name, 0)
+            sb.download_file_in_browser("https://example.test/file.bin", &name, 0)
                 .await,
         );
 

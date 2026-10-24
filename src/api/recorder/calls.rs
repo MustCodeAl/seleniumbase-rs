@@ -47,6 +47,9 @@ pub(super) enum Shape {
     Size,
     /// The value is `x, y`: `sb.method(target, x, y)`.
     TargetOffset,
+    /// The target is the cookie's name and the value its value:
+    /// `sb.method(&serde_json::json!({ "name": target, "value": value }))`.
+    Cookie,
     /// The value is a whole number: `sb.method(target, n)`.
     TargetIndex,
     /// `let _ = sb.method(target).await?;`: the result is not needed.
@@ -161,8 +164,15 @@ macro_rules! replay_call {
     }};
     (TargetOffset, $sb:ident, $p:ident, $m:ident) => {{
         let (target, x, y, center) = $p.offset()?;
-        ran($sb.$m(target, x, y, center).await)?
+        ran($sb.$m(target, x as f64, y as f64).center(center).await)?
     }};
+    (Cookie, $sb:ident, $p:ident, $m:ident) => {{
+        let name = $p.target()?;
+        let value = $p.text()?;
+        let cookie = serde_json::json!({ "name": name, "value": value });
+        ran($sb.$m(&cookie).await)?
+    }};
+
     (TargetIndex, $sb:ident, $p:ident, $m:ident) => {{
         let (target, index) = $p.index()?;
         ran($sb.$m(target, index).await)?
@@ -226,7 +236,7 @@ recorded_calls! {
     refresh(NoArgs) [Cdp];
     delete_all_cookies(NoArgs) [Cdp];
     delete_cookie(Target);
-    add_cookie(TargetValue);
+    add_cookie(Cookie);
     double_click(Target) [Cdp];
     context_click(Target) [Cdp];
     click_with_offset(TargetOffset) [Cdp];
@@ -327,11 +337,11 @@ pub(super) const ALIASES: &[(&str, &str)] = &[
 pub(super) const UNEXPORTABLE: &[(&str, &str)] = &[
     (
         "drag_and_drop_with_offset",
-        "the recording keeps the two selectors but not the offset",
+        "the recording keeps the selector but not the offset",
     ),
     (
         "download_file",
-        "BaseCase::download_file takes a url, a file name and a timeout here, not Python's url and folder",
+        "a recorded download does not say which folder the file went to",
     ),
     (
         "save_as_pdf_to_logs",
@@ -524,6 +534,9 @@ pub(super) fn rust_call(action: &RecordedAction) -> Result<String, String> {
         });
     };
 
+    // The builder methods after the call: `sb.click_with_offset(..).center(true)`.
+    let mut keywords = "";
+
     let (method, args) = match shape {
         Shape::NoArgs => (*method, String::new()),
         // `open_new_tab` remembers the page it opened.
@@ -564,8 +577,20 @@ pub(super) fn rust_call(action: &RecordedAction) -> Result<String, String> {
         }
         Shape::TargetOffset => {
             let (target, x, y, center) = parts.offset()?;
-            (*method, format!("{}, {x}, {y}, {center}", literal(target)))
+            if center {
+                keywords = ".center(true)";
+            }
+            (*method, format!("{}, {x}, {y}", literal(target)))
         }
+        Shape::Cookie => (
+            *method,
+            format!(
+                "&serde_json::json!({{ \"name\": {}, \"value\": {} }})",
+                literal(parts.target()?),
+                text_argument(parts.value()?)
+            ),
+        ),
+
         Shape::TargetIndex => {
             let (target, index) = parts.index()?;
             (*method, format!("{}, {index}", literal(target)))
@@ -581,7 +606,7 @@ pub(super) fn rust_call(action: &RecordedAction) -> Result<String, String> {
     } else {
         ""
     };
-    Ok(format!("{discard}sb.{method}({args}).await?;"))
+    Ok(format!("{discard}sb.{method}({args}){keywords}.await?;"))
 }
 
 /// A call's outcome as the replay reports it: nothing, or the reason.

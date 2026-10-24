@@ -87,8 +87,8 @@ async fn test_recording(sb: Sb) -> Result<()> {
         sb.deferred_assert_non_empty_text("#n").await?;
         sb.assert_text_not_visible("Gone", "#g").await?;
         sb.assert_exact_text_not_visible("Gone", "#g").await?;
-        // skipped: download_file: BaseCase::download_file takes a url, a file name and a timeout here, not Python's url and folder
-        // skipped: download_file: BaseCase::download_file takes a url, a file name and a timeout here, not Python's url and folder
+        // skipped: download_file: a recorded download does not say which folder the file went to
+        // skipped: download_file: a recorded download does not say which folder the file went to
         sb.assert_downloaded_file("f.zip").await?;
         sb.enter_mfa_code("#mfa", "JBSWY3DPEHPK3PXP").await?;
         sb.set_value("#range", "7").await?;
@@ -100,8 +100,8 @@ async fn test_recording(sb: Sb) -> Result<()> {
         sb.switch_to_parent_frame().await?;
         sb.switch_to_default_content().await?;
         sb.goto("https://a.test/widgets").await?;
-        sb.click_with_offset("#cv", 11, 21, false).await?;
-        sb.click_with_offset("#cv", 5, 3, false).await?;
+        sb.click_with_offset("#cv", 11, 21).await?;
+        sb.click_with_offset("#cv", 5, 3).await?;
         sb.hover_and_click(".menu", ".menu .item").await?;
         sb.hover_and_click(".menu2", ".menu2 .item").await?;
         sb.drag_and_drop("#drag", "#drop").await?;

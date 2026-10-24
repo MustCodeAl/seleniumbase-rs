@@ -8,6 +8,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use thirtyfour::WebElement;
 
+use crate::api::misc_calls::{
+    ClickWithOffset, DownloadFile, DragByOffset, OffsetOptions, WaitForAttribute,
+};
+
 /// Escape a string for safe use inside a single-quoted JavaScript literal,
 /// without the quotes. Only [`BaseCase::jq_format`] needs this shape; a page
 /// script puts a caller's text in with [`crate::js_code::quote`], which
@@ -34,6 +38,45 @@ fn offset_from_center((x, y): (i64, i64), (width, height): (f64, f64), center: b
         (y as f64 - height / 2.0) as i64,
     )
 }
+
+/// A click offset in whole pixels, as Python gives it to the driver: rounded up
+/// when it counts from the top-left corner (`math.ceil`), and cut to a whole
+/// number by the driver when it counts from the centre.
+fn whole_pixels(offset: f64, center: bool) -> i64 {
+    if center {
+        offset as i64
+    } else {
+        offset.ceil() as i64
+    }
+}
+
+/// How long [`fetch_bytes`] waits for a server, as Python's download does
+/// (`timeout=5`) but for the whole exchange and with more patience.
+const FETCH_BYTES_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// The body of `url`, fetched with the user agent `agent`; redirects are
+/// followed.
+///
+/// # Errors
+///
+/// Returns [`SeleniumBaseError::Network`] if the request fails or the answer
+/// is not a success status.
+async fn fetch_bytes(url: &str, agent: &str) -> Result<Vec<u8>, SeleniumBaseError> {
+    let failed = |e: reqwest::Error| SeleniumBaseError::network(url, 0, e.to_string());
+    crate::install_tls_provider();
+    let client = reqwest::Client::builder()
+        .timeout(FETCH_BYTES_TIMEOUT)
+        .user_agent(agent)
+        .build()
+        .map_err(failed)?;
+    let response = client.get(url).send().await.map_err(failed)?;
+    let status = response.status();
+    if !status.is_success() {
+        return Err(SeleniumBaseError::network(url, status.as_u16(), status.to_string()));
+    }
+    Ok(response.bytes().await.map_err(failed)?.to_vec())
+}
+
 
 /// Generate a TOTP code for the given base32-encoded secret at `timestamp`.
 fn generate_totp(secret: &str, timestamp: u64) -> Result<String, SeleniumBaseError> {
@@ -635,44 +678,87 @@ impl BaseCase {
         }
     }
 
-    /// Waits up to `timeout_secs` for the attribute `attribute` to be present.
+    /// Waits for the element `selector` picks to have the attribute `attribute`,
+    /// as Python's `wait_for_attribute(selector, attribute, value=None, by,
+    /// timeout=None)` does. The keywords are [`WaitForAttribute::value`] (the
+    /// value it must have; without one the attribute only has to exist) and
+    /// [`WaitForAttribute::timeout`] (default: the case's timeout).
     ///
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::WaitTimeout`] naming the attribute and the
     /// selector if it is still absent after the timeout.
-    pub async fn wait_for_attribute(
-        &mut self,
+    pub fn wait_for_attribute<'a>(
+        &'a mut self,
+        selector: &'a str,
+        attribute: &'a str,
+    ) -> WaitForAttribute<'a> {
+        WaitForAttribute::new(self, selector, attribute, false)
+    }
+    
+    /// The work of [`wait_for_attribute`](Self::wait_for_attribute) and
+    /// [`wait_for_attribute_not_present`](Self::wait_for_attribute_not_present).
+    pub(crate) async fn run_wait_for_attribute(
+        &self,
         css: &str,
         attribute: &str,
-        timeout_secs: u64,
+        value: Option<&str>,
+        timeout: Option<Duration>,
+        absent: bool,
     ) -> Result<(), SeleniumBaseError> {
-        poll_until_true(
-            self.effective_timeout(timeout_secs),
-            format!("Attribute '{attribute}' was not present on '{css}'"),
-            || self.is_attribute_present(css, attribute),
-        )
+        let seconds = self.wait_secs(timeout);
+        let with = value.map_or_else(String::new, |value| format!(" with the value '{value}'"));
+        let failure = if absent {
+            format!("Attribute '{attribute}'{with} was still present on '{css}'")
+        } else {
+            format!("Attribute '{attribute}'{with} was not present on '{css}'")
+        };
+        poll_until_true(seconds, failure, || async {
+            Ok(self.attribute_matches(css, attribute, value).await? != absent)
+        })
         .await
     }
+    
+    /// Whether the element `css` picks has the attribute `attribute` and, if
+    /// `value` is given, that value of it.
+    async fn attribute_matches(
+        &self,
+        css: &str,
+        attribute: &str,
+        value: Option<&str>,
+    ) -> Result<bool, SeleniumBaseError> {
+        let wanted = value.map_or_else(|| "null".to_owned(), quote);
+        let script = format!(
+            "var el = document.querySelector({}); \
+             if (!el || !el.hasAttribute({})) {{ return false; }} \
+             var wanted = {wanted}; \
+             return wanted === null || el.getAttribute({}) === wanted;",
+            quote(css),
+            quote(attribute),
+            quote(attribute)
+        );
+        match self.execute_script(&script).await? {
+            Value::Bool(v) => Ok(v),
+            _ => Ok(false),
+        }
+    }
 
-    /// Waits up to `timeout_secs` for the attribute `attribute` to be absent.
+    /// Waits until the element `selector` picks no longer has the attribute
+    /// `attribute` (with the value [`WaitForAttribute::value`] names, if one is
+    /// given), as Python's `wait_for_attribute_not_present(selector, attribute,
+    /// value=None, by, timeout=None)` does. The keywords are those of
+    /// [`wait_for_attribute`](Self::wait_for_attribute).
     ///
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::WaitTimeout`] naming the attribute and the
     /// selector if it is still present after the timeout.
-    pub async fn wait_for_attribute_not_present(
-        &mut self,
-        css: &str,
-        attribute: &str,
-        timeout_secs: u64,
-    ) -> Result<(), SeleniumBaseError> {
-        poll_until_true(
-            self.effective_timeout(timeout_secs),
-            format!("Attribute '{attribute}' was still present on '{css}'"),
-            || async { Ok(!self.is_attribute_present(css, attribute).await?) },
-        )
-        .await
+    pub fn wait_for_attribute_not_present<'a>(
+        &'a mut self,
+        selector: &'a str,
+        attribute: &'a str,
+    ) -> WaitForAttribute<'a> {
+        WaitForAttribute::new(self, selector, attribute, true)
     }
 
     // ========================================================================
@@ -1032,6 +1118,13 @@ impl BaseCase {
         self.get_totp_code(secret)
     }
 
+    /// Alias for `get_totp_code`: Python's `get_google_auth_password(totp_key)`
+    /// is the same call as its `get_mfa_code`.
+    pub fn get_google_auth_password(&self, totp_key: &str) -> Result<String, SeleniumBaseError> {
+        self.get_mfa_code(totp_key)
+    }
+
+
     /// Generates a TOTP code for `secret`, types it into `css` and presses
     /// Enter, as Python's `enter_mfa_code(selector, totp_key)` does (it types
     /// the code followed by a newline).
@@ -1129,21 +1222,74 @@ impl BaseCase {
     ///
     /// Returns [`SeleniumBaseError::WaitTimeout`] naming the file if it has not
     /// arrived after the timeout; the first tab is current again either way.
-    pub async fn download_file(
+    pub async fn download_file_in_browser(
         &mut self,
         url: &str,
         filename: &str,
         timeout_secs: u64,
+    ) -> Result<PathBuf, SeleniumBaseError> { let original = self.get_current_window_handle().await?;
+    self.session.switch_to_new_window().await?;
+    self.open(url).await?;
+    let expected = crate::artifacts::confined_path(&default_download_dir(), filename)?;
+    let waited = wait_for_file(&expected, self.effective_timeout(timeout_secs)).await;
+    let returned = self.session.switch_to_window(&original).await;
+    waited?;
+    returned?;
+    Ok(expected) }
+    
+    /// Fetches `file_url` with the browser's user agent and saves the body in the
+    /// downloads folder (`./downloaded_files`), under the last part of the URL's
+    /// path, as Python's `download_file(file_url, destination_folder=None)` does.
+    /// Returns the path of the file. The keyword is
+    /// [`DownloadFile::destination_folder`].
+    ///
+    /// This is a plain HTTP request that sends no cookies of the page. To have
+    /// the browser itself download a file, use
+    /// [`download_file_in_browser`](Self::download_file_in_browser).
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use seleniumbase_rs::api::base_case::BaseCase;
+    /// # async fn demo(sb: &BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    /// let path = sb.download_file("https://example.com/report.csv").await?;
+    /// let copy = sb
+    ///     .download_file("https://example.com/report.csv")
+    ///     .destination_folder("out")
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::Network`] if the request fails or the answer
+    /// is not a success status, and an error if the file name is not a plain one
+    /// or the file cannot be written.
+    pub fn download_file<'a>(&'a self, file_url: &'a str) -> DownloadFile<'a> {
+        DownloadFile::new(self, file_url)
+    }
+    
+    /// The work of [`download_file`](Self::download_file) and
+    /// [`save_file_as`](Self::save_file_as): the file is saved as `new_name`, or
+    /// under the last part of the URL's path.
+    pub(crate) async fn run_download(
+        &self,
+        file_url: &str,
+        new_name: Option<&str>,
+        folder: Option<&Path>,
     ) -> Result<PathBuf, SeleniumBaseError> {
-        let original = self.get_current_window_handle().await?;
-        self.session.switch_to_new_window().await?;
-        self.open(url).await?;
-        let expected = crate::artifacts::confined_path(&default_download_dir(), filename)?;
-        let waited = wait_for_file(&expected, self.effective_timeout(timeout_secs)).await;
-        let returned = self.session.switch_to_window(&original).await;
-        waited?;
-        returned?;
-        Ok(expected)
+        let name = match new_name {
+            Some(name) => name.to_owned(),
+            None => crate::cli::commands::download_file_name(file_url),
+        };
+        let folder = folder.map_or_else(default_download_dir, Path::to_path_buf);
+        let path = crate::artifacts::confined_path(&folder, &name)?;
+        let agent = self.get_user_agent().await?;
+        let body = fetch_bytes(file_url, &agent).await?;
+        fs::create_dir_all(&folder)?;
+        fs::write(&path, body)?;
+        Ok(path)
     }
 
     // ========================================================================
@@ -1248,9 +1394,13 @@ impl BaseCase {
     // Interaction with offsets
     // ========================================================================
 
-    /// Clicks `css` at the offset `(x, y)` in pixels, as Python's
-    /// `click_with_offset(selector, x, y, center=...)` does: `(0, 0)` is the
-    /// top-left corner of the element, or with `center` its centre. Waits for
+    /// Clicks `selector` at the offset `(x, y)` in pixels, as Python's
+    /// `click_with_offset(selector, x, y, by, mark=None, timeout=None,
+    /// center=None, scroll=True)` does: `(0, 0)` is the
+    /// top-left corner of the element, or with [`ClickWithOffset::center`] its
+    /// centre. The other keywords are [`ClickWithOffset::mark`],
+    /// [`ClickWithOffset::timeout`] and [`ClickWithOffset::scroll`]. The offset
+    /// may be fractional; it is rounded up to whole pixels. Waits for
     /// the element to be displayed.
     ///
     /// WebDriver measures an offset from the centre of the element. This
@@ -1262,28 +1412,41 @@ impl BaseCase {
     ///
     /// Returns [`SeleniumBaseError::WaitTimeout`] if the element does not show
     /// up and the WebDriver error if the offset is outside the page.
-    pub async fn click_with_offset(
-        &mut self,
-        css: &str,
-        x: i64,
-        y: i64,
-        center: bool,
-    ) -> Result<(), SeleniumBaseError> {
-        self.click_at_offset("click_with_offset", css, (x, y), center, false)
-            .await
+    pub fn click_with_offset<'a>(
+        &'a mut self,
+        selector: &'a str,
+        x: impl Into<f64>,
+        y: impl Into<f64>,
+    ) -> ClickWithOffset<'a> {
+        ClickWithOffset::new(self, selector, (x.into(), y.into()), false)
     }
 
-    /// Double-clicks `css` at the offset `(x, y)`; see
+    /// Double-clicks `selector` at the offset `(x, y)`; see
     /// [`click_with_offset`](Self::click_with_offset) for what `(0, 0)` is.
-    pub async fn double_click_with_offset(
+    pub fn double_click_with_offset<'a>(
+        &'a mut self,
+        selector: &'a str,
+        x: impl Into<f64>,
+        y: impl Into<f64>,
+    ) -> ClickWithOffset<'a> {
+        ClickWithOffset::new(self, selector, (x.into(), y.into()), true)
+    }
+    
+    /// The work of [`click_with_offset`](Self::click_with_offset) and
+    /// [`double_click_with_offset`](Self::double_click_with_offset).
+    pub(crate) async fn run_click_with_offset(
         &mut self,
         css: &str,
-        x: i64,
-        y: i64,
-        center: bool,
+        offset: (f64, f64),
+        double: bool,
+        options: OffsetOptions,
     ) -> Result<(), SeleniumBaseError> {
-        self.click_at_offset("double_click_with_offset", css, (x, y), center, true)
-            .await
+        let action = if double {
+            "double_click_with_offset"
+        } else {
+            "click_with_offset"
+        };
+        self.click_at_offset(action, css, offset, double, options).await
     }
 
     /// The click behind [`click_with_offset`](Self::click_with_offset) and
@@ -1294,12 +1457,20 @@ impl BaseCase {
         &mut self,
         action: &str,
         css: &str,
-        (x, y): (i64, i64),
-        center: bool,
+        (x, y): (f64, f64),
         double: bool,
+        options: OffsetOptions,
     ) -> Result<(), SeleniumBaseError> {
+        if !x.is_finite() || !y.is_finite() {
+            return Err(SeleniumBaseError::InvalidConfig(format!(
+                "the offset must be numbers, got ({x}, {y})"
+            )));
+        }
         let by = Selector::auto(css).to_by()?;
-        self.await_ready(css, Ready::Visible).await?;
+        let seconds = self.wait_secs(options.timeout);
+        self.await_ready_within(css, Ready::Visible, seconds).await?;
+        let center = options.center.unwrap_or(false);
+        let (x, y) = (whole_pixels(x, center), whole_pixels(y, center));
         let offset = if center {
             format!("{x}, {y}, center")
         } else {
@@ -1308,11 +1479,37 @@ impl BaseCase {
         self.record(action, Some(css), Some(&offset));
         self.demo_highlight(css).await?;
         let element = self.session.find(by).await?;
-        // Python scrolls first: the offset is measured from the centre of the
-        // part of the element in view, so an element below the fold or taller
-        // than the window must be where the click lands before it is measured.
-        element.scroll_into_view().await?;
+        if options.scroll {
+            // Python scrolls first: the offset is measured from the centre of the
+            // part of the element in view, so an element below the fold or taller
+            // than the window must be where the click lands before it is measured.
+            element.scroll_into_view().await?;
+        }
         let size = element.rect().await?;
+        if options
+            .mark
+            .unwrap_or_else(|| self.run_settings.demo_mode())
+        {
+            // Python's dot: two squares drawn on the 2D context of a canvas.
+            let (dot_x, dot_y) = if center {
+                (
+                    size.width / 2.0 + x as f64 - 3.0,
+                    size.height / 2.0 + y as f64 - 3.0,
+                )
+            } else {
+                (x as f64 - 3.0, y as f64 - 3.0)
+            };
+            let script = format!(
+                "var canvas = document.querySelector({}); \
+                 if (!canvas || !canvas.getContext) {{ return false; }} \
+                 var ctx = canvas.getContext('2d'); \
+                 ctx.fillStyle = '#F8F808'; ctx.fillRect({dot_x}, {dot_y}, 7, 7); \
+                 ctx.fillStyle = '#F80808'; ctx.fillRect({dot_x} + 1, {dot_y} + 1, 5, 5); \
+                 return true;",
+                quote(css)
+            );
+            self.execute_script(&script).await?;
+        }
         let (from_x, from_y) = offset_from_center((x, y), (size.width, size.height), center);
         let chain = self
             .session
@@ -1329,23 +1526,42 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Drags `source_css` to `target_css` with an optional target offset.
-    pub async fn drag_and_drop_with_offset(
-        &mut self,
-        source_css: &str,
-        target_css: &str,
+    /// Drags the element `selector` picks by `x` pixels right and `y` pixels
+    /// down, as Python's `drag_and_drop_with_offset(selector, x, y, by,
+    /// timeout=None)` does. The keyword is [`DragByOffset::timeout`]. Waits for
+    /// the element to be visible.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::WaitTimeout`] if the element does not show
+    /// up and the WebDriver error if the drag fails.
+    pub fn drag_and_drop_with_offset<'a>(
+        &'a mut self,
+        selector: &'a str,
         x: i64,
         y: i64,
+    ) -> DragByOffset<'a> {
+        DragByOffset::new(self, selector, x, y)
+    }
+    
+    /// The work of [`drag_and_drop_with_offset`](Self::drag_and_drop_with_offset).
+    pub(crate) async fn run_drag_by_offset(
+        &mut self,
+        css: &str,
+        x: i64,
+        y: i64,
+        timeout: Option<Duration>,
     ) -> Result<(), SeleniumBaseError> {
-        self.record("drag_and_drop_with_offset", Some(source_css), Some(target_css));
-        let source_by = Selector::auto(source_css).to_by()?;
-        let target_by = Selector::auto(target_css).to_by()?;
-        let _source = self.session.find(source_by).await?;
-        let target = self.session.find(target_by).await?;
+        let by = Selector::auto(css).to_by()?;
+        let seconds = self.wait_secs(timeout);
+        self.await_ready_within(css, Ready::Visible, seconds).await?;
+        self.record("drag_and_drop_with_offset", Some(css), None);
+        self.demo_highlight(css).await?;
+        let element = self.session.find(by).await?;
         self.session
             .driver()
             .action_chain()
-            .drag_and_drop_element_by_offset(&target, x, y)
+            .drag_and_drop_element_by_offset(&element, x, y)
             .perform()
             .await
             .map_err(SeleniumBaseError::WebDriver)?;

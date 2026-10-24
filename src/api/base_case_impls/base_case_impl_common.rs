@@ -1064,12 +1064,22 @@ mod tests_with_a_driver {
     }
 
     #[tokio::test]
-    async fn the_domain_url_keeps_the_port() {
-        let driver = MockWebDriver::start(json!({}), |request| match method_and_path(request) {
-            ("GET", "/url") => Reply::Value(json!("http://localhost:8080/a/b?c=d#e")),
-            _ => Reply::Value(Value::Null),
-        });
-        let mut sb = driver.base_case().await;
-        assert_eq!(sb.get_domain_url().await.unwrap(), "http://localhost:8080");
+    async fn the_domain_url_is_a_pure_function_of_its_argument() {
+        let sb = BaseCase::without_session(crate::browser::config::BrowserConfig::default());
+        for (url, domain) in [
+            ("http://localhost:8080/a/b?c=d#e", "http://localhost:8080"),
+            (
+                "https://blog.xkcd.com/2014/07/22/what-if-book-tour/",
+                "https://blog.xkcd.com",
+            ),
+            ("https://example.com", "https://example.com"),
+            // The scheme's own port is not kept.
+            ("https://example.com:443/x", "https://example.com"),
+            // Python hands back what is not an http(s) URL as it is.
+            ("about:blank", "about:blank"),
+            ("file:///tmp/a.html", "file:///tmp/a.html"),
+        ] {
+            assert_eq!(sb.get_domain_url(url).unwrap(), domain, "{url}");
+        }
     }
 }
