@@ -130,6 +130,20 @@ work, `docs/parity.md` the per-API status).
   context a plugin stops on its way out is closed. The WebDriver engine, the network hooks and the
   test and task hooks are not wired yet.
 
+- **Plugins watch and steer the network on the pure CDP engine (feature `plugins`).** When a
+  plugin declares network rules, `intercept` filters or `observe` filters, each tab gets a router
+  that owns its `Fetch` domain: Chrome pauses only what the union of the filters names (and every
+  request while `Page::intercept` runs or a proxy asks for a password). `on_request` and the
+  blocking rules fail a request with `BlockedByClient` (the event `cdp.plugin.request.failed`
+  starts its reason with the plugin's name; a decision that takes ten seconds fails the request),
+  the headers of the rules are added, and `on_response` hears the status, the type and, up to the
+  filter's `max_body`, the body. The rules of `Page::intercept` run first: one that blocks or
+  answers a request settles it, a plugin's block beats everything else, and a rule's headers beat
+  the plugins'. Proxy password prompts are still answered. A router that dies turns `Fetch` off, so
+  no request stays paused. Tabs a page opens itself and iframes in other processes are not routed.
+  Nothing else changes for programs without plugins.
+
+
 - **Recorder Mode on `BaseCase`.** With `BrowserConfig::with_recorder_mode(true)` (`--rec`,
   `--rec-print`, `--rec-behave`, `--rec-sb-mgr`, `--rec-sb-cdp` and `SB_RECORDER` and friends),
   `quit()` writes what a person did in the browser as `recordings/<stem>_rec.rs`,
