@@ -191,9 +191,10 @@ pub(crate) fn run<M: Machine>(
                 });
                 drawn?;
                 // The terminal was left and entered again (`suspend`): what it
-                // shows is not what was drawn last, so draw every cell again.
+                // shows is not what was drawn last, so start from a new terminal
+                // that knows nothing of it and draw every cell again.
                 if REPAINT.swap(false, Ordering::Relaxed) {
-                    screen.terminal.clear()?;
+                    screen.terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
                 }
             }
             Event::Resize(width, height) => machine.resize(width, height),
