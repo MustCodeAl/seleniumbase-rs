@@ -402,9 +402,22 @@ work, `docs/parity.md` the per-API status).
 - **An MCP client in the library and on the command line.** New cargo feature `mcp-client` (on by
   default in the command line crate) and the module `mcp::client`: `McpClient::connect(Target,
   timeout)` over a child process's stdio or streamable HTTP, then `list_tools`, `call`,
-  `list_resources`, `read_resource`, `list_prompts` and `get_prompt`. `sbrs-mcp` gains the
+  `list_resources`, `read_resource`, `list_prompts` and `get_prompt`; a tool that fails is a
+  `CallOutcome` with `is_error`, a request the server refuses (no such tool, resource or prompt)
+  is `SeleniumBaseError::InvalidConfig` with the server's "did you mean" text, and a broken
+  transport, a wrong token or a timeout is `SeleniumBaseError::Mcp`. `sbrs-mcp` gains the
   commands `tools`, `call`, `resources`, `read`, `prompts`, `prompt` and `batch`, so a person, a
-  script or an AI agent with only a shell can use any tool of the servers.
+  script or an AI agent with only a shell can use any tool of the servers, or of any other MCP
+  server: `sbrs-mcp call find_api --arg query=click` (no flag starts the `dev` server),
+  `--server cdp|driver|sb|dev` starts this program as that server, `--connect PROGRAM` any
+  stdio server, and `--url http://127.0.0.1:8931/mcp` a running one (token in `SB_MCP_TOKEN` or
+  `--token-file`; `SB_MCP_URL` is the default URL). Arguments are a JSON object, `--json -`
+  (standard input) or `--arg KEY=VALUE`; `--raw` prints the structured result as one line,
+  `--out DIR` saves images, `--progress` prints progress. A command is its own MCP session, so
+  `batch` (one JSON call per line) runs several in one session, which is how a browser started
+  by one call is there for the next. Exit status: 0 worked, 1 the tool reported a failure, 2 a
+  mistake in what was typed (a bad flag or argument, an unknown tool), 3 the server could not
+  be reached or broke the protocol.
 
 
 
