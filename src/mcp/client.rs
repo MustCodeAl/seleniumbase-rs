@@ -82,6 +82,8 @@ pub enum Target {
         program: PathBuf,
         /// Its arguments.
         args: Vec<String>,
+        /// Variables to set for it, besides the ones it inherits.
+        env: Vec<(String, String)>,
     },
 }
 
@@ -92,7 +94,7 @@ impl Target {
     pub fn label(&self) -> String {
         match self {
             Self::Http { url, .. } => url.clone(),
-            Self::Spawn { program, args } => {
+            Self::Spawn { program, args, .. } => {
                 let mut label = program.display().to_string();
                 for arg in args {
                     label.push(' ');
@@ -297,6 +299,17 @@ fn text_of(value: &Value, key: &str) -> Option<String> {
     value.get(key).and_then(Value::as_str).map(str::to_owned)
 }
 
+/// Why the handshake failed, in words: rmcp's own text names its transport types.
+fn connect_failure(error: &dyn fmt::Display) -> String {
+    let text = error.to_string();
+    if text.contains("Auth required") {
+        return "cannot connect: the server asks for a bearer token, and none was given or the \
+                one given was not accepted"
+            .to_owned();
+    }
+    format!("cannot connect: {text}")
+}
+
 fn client_info() -> ClientConfig {
     let info = json!({
         "protocolVersion": PROTOCOL_VERSION,
@@ -329,9 +342,9 @@ impl McpClient {
                 let transport = StreamableHttpClientTransport::from_config(config);
                 Self::connect_with(&label, transport, timeout).await
             }
-            Target::Spawn { program, args } => {
+            Target::Spawn { program, args, env } => {
                 let mut command = Command::new(&program);
-                command.args(&args);
+                command.args(&args).envs(env);
                 let transport = TokioChildProcess::new(command).map_err(|error| {
                     SeleniumBaseError::mcp(
                         &label,
@@ -372,7 +385,7 @@ impl McpClient {
                     format!("no answer to the handshake within {} s", timeout.as_secs()),
                 )
             })?
-            .map_err(|error| SeleniumBaseError::mcp(label, format!("cannot connect: {error}")))?;
+            .map_err(|error| SeleniumBaseError::mcp(label, connect_failure(&error)))?;
         Ok(Self {
             service,
             label: label.to_owned(),
@@ -702,6 +715,7 @@ mod tests {
         let spawn = Target::Spawn {
             program: PathBuf::from("/bin/server"),
             args: vec!["--server".to_owned(), "dev".to_owned()],
+            env: Vec::new(),
         };
         assert_eq!(spawn.label(), "/bin/server --server dev");
     }

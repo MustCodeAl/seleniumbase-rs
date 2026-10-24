@@ -116,6 +116,11 @@ async fn tools_with_no_flags_start_the_dev_server_and_list_its_tools() {
     assert_ok(&run);
     assert!(run.stdout.contains("find_api"), "{}", run.stdout);
     assert!(run.stdout.contains("explain_error"), "{}", run.stdout);
+    assert!(
+        run.stderr.is_empty(),
+        "the server it starts logs at warn: {}",
+        run.stderr
+    );
 }
 
 #[tokio::test]
@@ -531,6 +536,12 @@ async fn a_server_with_a_token_needs_it_and_a_missing_one_exits_3() {
         without.stderr
     );
     assert!(!without.stderr.contains(TOKEN));
+    assert!(
+        without.stderr.contains("asks for a bearer token"),
+        "{}",
+        without.stderr
+    );
+
     assert_eq!(wrong.code, Some(3), "{}", wrong.stderr);
     assert!(
         !wrong.stderr.contains("not-the-token"),

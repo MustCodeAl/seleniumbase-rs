@@ -81,6 +81,7 @@ impl Connect {
             return Ok(Target::Spawn {
                 program: PathBuf::from(program),
                 args: self.connect_arg.clone(),
+                env: Vec::new(),
             });
         }
         if let Some(server) = self.server {
@@ -123,7 +124,15 @@ fn spawn_self(profile: Profile) -> Result<Target, SeleniumBaseError> {
     Ok(Target::Spawn {
         program,
         args: vec!["--server".to_owned(), profile.name().to_owned()],
+        // The server logs every request at `info`, which is noise on a command line; an
+        // `SB_LOG_LEVEL` of the caller still wins, because the child inherits it.
+        env: vec![("SB_LOG_LEVEL".to_owned(), log_level())],
     })
+}
+
+/// The `SB_LOG_LEVEL` for a server this program starts: the caller's own, else `warn`.
+fn log_level() -> String {
+    std::env::var("SB_LOG_LEVEL").unwrap_or_else(|_| "warn".to_owned())
 }
 
 // The options of `tools`. (Plain comments, not docs.)
@@ -537,6 +546,7 @@ mod tests {
             Target::Spawn {
                 program: PathBuf::from("/bin/server"),
                 args: vec!["--stdio".to_owned()],
+                env: Vec::new(),
             }
         );
         let own = Connect {
