@@ -5500,12 +5500,14 @@ status = "not-applicable"
 reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--verify-delay"]
-status = "planned"
-note = "RunSettings::with_verify_delay holds the delay (500 ms by default), but MasterQaSession::verify does not wait for it yet."
+status = "implemented"
+rust = "RunSettings::with_verify_delay"
+note = "MasterQA::verify waits this long (500 ms by default) before it shows each box. The terminal MasterQaSession::verify does not."
 
 [options_pytest."--verify_delay"]
-status = "planned"
-note = "RunSettings::with_verify_delay holds the delay (500 ms by default), but MasterQaSession::verify does not wait for it yet."
+status = "implemented"
+rust = "RunSettings::with_verify_delay"
+note = "MasterQA::verify waits this long (500 ms by default) before it shows each box. The terminal MasterQaSession::verify does not."
 
 [options_pytest."--visual-baseline"]
 status = "implemented"

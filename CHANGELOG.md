@@ -28,6 +28,15 @@ work, `docs/parity.md` the per-API status).
   every action is highlighted first and passed assertions flash and announce themselves;
   `activate_demo_mode` takes `&mut self` and no longer adds click dots, `deactivate_demo_mode` no
   longer reloads the page, and `--slow` now scrolls.
+- **`MasterQA` is Python's MasterQA, a wrapper that owns the case.** `MasterQA::new(sb)?` derefs
+  to `BaseCase`; `verify("Is it blue?").await?` (and `verify_default()`) wait `--verify-delay`,
+  pop up a jquery-confirm box with YES / PASS and NO / FAIL, record the answer and, on a failure,
+  `failed_check_N.png`; where nobody watches they print Python's warning once and return
+  `Ok(None)`. `finish(error).await?` writes `results_table.csv` and `report.html`, moves
+  `latest_report/` to `archived_reports/log_<epoch>/`, opens the page and returns the case and a
+  `MasterQaReport`. The stateless `MasterQA::verify(question)` is gone: the terminal prompt is
+  `MasterQaSession::verify`. `RunSettings::with_verify_delay` is now read.
+
 - **An unknown key in the settings file is an error.** `unknown setting "blok_images" in
   sbase_config.toml` names it (and `sbrs options` lists the options), and two spellings of one
   key (`dark` and `dark_mode`) are refused; `Settings.chromium_arg` is an `Option<ArgList>`.
