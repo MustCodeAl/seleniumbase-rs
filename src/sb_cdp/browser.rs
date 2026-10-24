@@ -224,6 +224,15 @@ pub(crate) struct Inner {
     /// plugins already told the browser closed.
     #[cfg(feature = "plugins")]
     plugins_open: AtomicBool,
+    /// The browser context each tab was opened in, by tab id, for the tabs
+    /// opened in a context of their own: what a plugin's `PageHandle::context`
+    /// answers.
+    #[cfg(feature = "plugins")]
+    tab_contexts: StdMutex<HashMap<String, String>>,
+    /// The extensions the launch loaded, as (id, folder), in load order: what a
+    /// plugin's `BrowserHandle::extensions` answers.
+    #[cfg(feature = "plugins")]
+    loaded_extensions: StdMutex<Vec<(String, PathBuf)>>,
 }
 
 impl Drop for Inner {
@@ -366,10 +375,14 @@ impl Browser {
             // extensions of a launch apart.
             if let Some(id) = loaded["id"].as_str() {
                 locked(&self.inner.extension_ids).push(id.to_owned());
+                #[cfg(feature = "plugins")]
+                locked(&self.inner.loaded_extensions).push((id.to_owned(), dir.clone()));
             }
         }
         #[cfg(feature = "plugins")]
-        super::plugin_hooks::on_browser(&self.inner.options.plugins, &self.inner.client).await?;
+        super::plugin_hooks::on_browser(&self.inner.options.plugins, self).await?;
+        #[cfg(feature = "plugins")]
+        self.forward_protocol_events();
         // Downloads go to ./downloaded_files until a folder is chosen, as in
         // SeleniumBase; done before the first page loads, which may be a file.
         let page = self.default_page().await?;
@@ -459,10 +472,12 @@ impl Browser {
             options,
         );
         #[cfg(feature = "plugins")]
-        super::plugin_hooks::on_browser(&browser.inner.options.plugins, &browser.inner.client)
-            .await?;
+        super::plugin_hooks::on_browser(&browser.inner.options.plugins, &browser).await?;
         #[cfg(feature = "plugins")]
         browser.inner.plugins_open.store(true, Ordering::SeqCst);
+        #[cfg(feature = "plugins")]
+        browser.forward_protocol_events();
+
         Ok(browser)
     }
 
@@ -601,6 +616,10 @@ impl Browser {
                 plugin_blocked: super::plugin_hooks::BlockedUrls::default(),
                 #[cfg(feature = "plugins")]
                 plugins_open: AtomicBool::new(false),
+                #[cfg(feature = "plugins")]
+                tab_contexts: StdMutex::new(HashMap::new()),
+                #[cfg(feature = "plugins")]
+                loaded_extensions: StdMutex::new(Vec::new()),
             }),
         }
     }
@@ -817,10 +836,18 @@ impl Browser {
         let id = response["targetId"].as_str().ok_or_else(|| {
             SeleniumBaseError::cdp_driver("Target.createTarget returned no targetId")
         })?;
+        // Known before the plugins see the tab, so their handle names its context.
+        #[cfg(feature = "plugins")]
+        if let Some(context) = &context {
+            locked(&self.inner.tab_contexts).insert(id.to_owned(), context.id.to_owned());
+        }
+
         let session = match self.session_for(id).await {
             Ok(session) => session,
             Err(error) => {
                 if matches!(error, SeleniumBaseError::Plugin { .. }) {
+                    self.forget_page(id);
+
                     // A tab its plugins did not prepare is neither handed out
                     // nor left open.
                     let _ = self
@@ -846,7 +873,17 @@ impl Browser {
         }
         let page = Page::new(self.clone(), id.into(), session, DEFAULT_TIMEOUT);
         if let Some(url) = url {
-            page.goto(url).await?;
+            if let Err(error) = page.goto(url).await {
+                if matches!(error, SeleniumBaseError::Plugin { .. }) {
+                    // A tab a plugin stopped on its way to its first page is
+                    // neither handed out nor left open.
+                    let _ = self
+                        .execute("Target.closeTarget", json!({ "targetId": id }))
+                        .await;
+                    self.forget_page(id);
+                }
+                return Err(error);
+            }
         }
         Ok(page)
     }
@@ -884,9 +921,52 @@ impl Browser {
         Ok(session)
     }
 
+    /// The id of the browser context a tab was opened in, when it was opened
+    /// in a context of its own.
+    #[cfg(feature = "plugins")]
+    pub(super) fn tab_context(&self, tab: &str) -> Option<String> {
+        locked(&self.inner.tab_contexts).get(tab).cloned()
+    }
+
+    /// The unpacked extensions the launch loaded, as (id, folder), in load order.
+    #[cfg(feature = "plugins")]
+    pub(super) fn loaded_extensions(&self) -> Vec<(String, PathBuf)> {
+        locked(&self.inner.loaded_extensions).clone()
+    }
+
+    /// Hands the protocol events the plugins named to their
+    /// `on_protocol_event`, until the browser closes or goes away.
+    ///
+    /// The task holds the browser weakly: a program that drops its last handle
+    /// still ends the browser.
+    #[cfg(feature = "plugins")]
+    fn forward_protocol_events(&self) {
+        let names = self.inner.options.plugins.protocol_events();
+        if names.is_empty() {
+            return;
+        }
+        let mut events = self.inner.client.events();
+        let inner = Arc::downgrade(&self.inner);
+        let task = tokio::spawn(async move {
+            while let Some(event) = events.next().await {
+                if !names.contains(&event.method) {
+                    continue;
+                }
+                let Some(inner) = inner.upgrade() else {
+                    break;
+                };
+                super::plugin_hooks::deliver_event(&Browser { inner }, event).await;
+            }
+        });
+        locked(&self.inner.tasks).push(task);
+    }
+
     /// Forgets a closed tab's session.
     pub(crate) fn forget_page(&self, id: &str) {
         let removed = locked(&self.inner.sessions).remove(id);
+        #[cfg(feature = "plugins")]
+        locked(&self.inner.tab_contexts).remove(id);
+
         if let Some(session) = removed {
             self.inner.auth.forget(&session);
             #[cfg(feature = "plugins")]
@@ -994,9 +1074,7 @@ impl Browser {
         #[cfg(feature = "plugins")]
         super::plugin_hooks::on_page_created(
             &self.inner.options.plugins,
-            client,
-            session,
-            &self.inner.plugin_blocked,
+            &Page::new(self.clone(), target.into(), session.into(), DEFAULT_TIMEOUT),
         )
         .await?;
         Ok(())
@@ -1253,7 +1331,7 @@ impl Browser {
     /// Closes the browser if this handle launched it.
     ///
     /// A browser attached with [`connect`](Self::connect) is left running.
-    /// The plugins' `on_close` hooks run first, once; their errors are logged,
+    /// The plugins' `before_close` and `on_close` hooks run first, once; their errors are logged,
     /// not returned.
     ///
     /// # Errors
@@ -1262,6 +1340,9 @@ impl Browser {
     pub async fn close(&self) -> Result<(), SeleniumBaseError> {
         #[cfg(feature = "plugins")]
         if self.inner.plugins_open.swap(false, Ordering::SeqCst) {
+            // While the browser still answers, so a plugin can save state.
+            super::plugin_hooks::before_close(self).await;
+
             super::plugin_hooks::on_close(&self.inner.options.plugins).await;
         }
         let tasks: Vec<_> = locked(&self.inner.tasks).drain(..).collect();

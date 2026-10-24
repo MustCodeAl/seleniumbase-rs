@@ -18,6 +18,8 @@ use crate::error::SeleniumBaseError;
 use crate::utilities::retry::{poll_until, RetryPolicy};
 use crate::utils::selectors::SelectorBuf;
 use crate::utils::urls::normalize_page_url;
+#[cfg(feature = "plugins")]
+use seleniumbase_rs_plugin::NavOrigin;
 
 /// The page helper library, injected into every document.
 pub(crate) const HELPER_JS: &str = include_str!("helper.js");
@@ -296,6 +298,12 @@ impl Page {
 
     /// Navigates to `url` and waits for the page to load.
     ///
+    /// With plugins (feature `plugins`), each plugin's `before_navigate` runs
+    /// first and may cancel the navigation (an `Err` of
+    /// [`SeleniumBaseError::Plugin`], with nothing sent to the browser) or send
+    /// it to another address; `after_navigate` sees how it ended.
+
+    ///
     /// A URL without a scheme is opened over HTTPS.
     ///
     /// # Errors
@@ -304,6 +312,35 @@ impl Page {
     /// the page, and [`SeleniumBaseError::WaitTimeout`] if it takes too long.
     pub async fn goto(&self, url: impl AsRef<str>) -> Result<(), SeleniumBaseError> {
         let url = normalize_page_url(url.as_ref())?;
+        #[cfg(feature = "plugins")]
+        if !self.browser.inner().options.plugins.is_empty() {
+            return super::plugin_hooks::navigate(self, url, NavOrigin::Program).await;
+        }
+        self.load(url).await
+    }
+
+    /// [`goto`](Self::goto) for a navigation that `origin` asked for, such as
+    /// an MCP client: a plugin's `before_navigate` sees who it was.
+    ///
+    /// # Errors
+    ///
+    /// As [`goto`](Self::goto).
+    #[cfg(feature = "plugins")]
+    pub(crate) async fn goto_from(
+        &self,
+        url: impl AsRef<str>,
+        origin: NavOrigin,
+    ) -> Result<(), SeleniumBaseError> {
+        let url = normalize_page_url(url.as_ref())?;
+        if self.browser.inner().options.plugins.is_empty() {
+            return self.load(url).await;
+        }
+        super::plugin_hooks::navigate(self, url, origin).await
+    }
+
+    /// Sends the navigation and waits for the load event. The plugins' hooks
+    /// have already run, or there are none.
+    pub(super) async fn load(&self, url: String) -> Result<(), SeleniumBaseError> {
         // Listen first: the load event can arrive before the command returns.
         let mut events = self.events();
         let response = self.execute("Page.navigate", json!({ "url": url })).await?;

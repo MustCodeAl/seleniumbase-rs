@@ -41,6 +41,9 @@ use crate::error::SeleniumBaseError;
 
 pub(crate) mod convert;
 pub(crate) mod guard;
+mod timer;
+
+pub(crate) use timer::timed;
 
 /// The cargo features that add a built-in plugin, for messages.
 const BUILTIN_FEATURES: &str = "plugin-shield, plugin-block-resources, plugin-crx \

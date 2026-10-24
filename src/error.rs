@@ -191,6 +191,12 @@ impl From<seleniumbase_rs_plugin::PluginError> for SeleniumBaseError {
             | PluginError::Hook { plugin, .. }
             | PluginError::Unsupported { plugin, .. }
             | PluginError::Capability { plugin, .. } => plugin.clone(),
+            // A navigation a plugin cancelled, a hook that panicked, and a
+            // handle used inside the hook it would run again.
+            PluginError::NavigationCancelled { plugin, .. }
+            | PluginError::Panicked { plugin, .. }
+            | PluginError::Reentrant { plugin, .. } => plugin.clone(),
+
             // The plugin that declares the conflict.
             PluginError::Conflict { a, .. } => a.clone(),
             // The plugin that tried to change what another one sealed.

@@ -8,17 +8,29 @@
 //! browser's own connection, so a plugin never names a type of this crate.
 //! A [`Page`] is a [`PageHandle`] too, so a program can hand one of its tabs
 //! to code written against the plugin API.
+//!
+//! Since plugin API 0.1.3 the engine also calls [`navigate`] around
+//! [`Page::goto`] (`before_navigate`, `after_navigate`), [`before_context`],
+//! [`on_context_created`] and [`on_context_closed`] around a context's life,
+//! [`before_close`] ahead of `on_close`, and [`deliver_event`] for the protocol
+//! events a plugin named. The handles open tabs and contexts for plugins
+//! ([`BrowserLink`], [`ContextLink`]), and what they open goes through the same
+//! hooks. The network, test and task hooks are not wired here yet.
 
 use std::collections::HashMap;
 use std::sync::Mutex as StdMutex;
 
 use seleniumbase_rs_plugin::{
-    async_trait, BrowserFamily, BrowserHandle, Engine, HostInfo, LaunchContext, LaunchSettings,
-    PageHandle, PluginError, PluginSet, ProfileView, Result as PluginResult,
+    async_trait, BrowserFamily, BrowserHandle, BrowserId, ContextHandle, ContextId,
+    ContextSettings, Engine, HostInfo, LaunchContext, LaunchSettings, LoadedExtension, NavOrigin,
+    NavOutcome, Navigation, PageHandle, PageId, PluginError, PluginSet, ProfileView, ProtocolEvent,
+    Result as PluginResult,
 };
 use serde_json::{json, Value};
 
-use super::client::Client;
+use super::browser::Browser;
+use super::client::{CdpEvent, Client};
+use super::context::{BrowserContext, ContextOptions};
 use super::launch::{LaunchOptions, Proxy};
 use super::page::Page;
 use super::sync::locked;
@@ -59,7 +71,7 @@ pub(super) fn for_attach(
     plugins: &PluginSet,
     version: &Value,
 ) -> Result<PluginSet, SeleniumBaseError> {
-    let plugins = plugins.for_launch();
+    let plugins = crate::plugin_host::timed(plugins.for_launch());
     plugins.check_with(&connect_context(version), &HOST)?;
     Ok(plugins)
 }
@@ -173,7 +185,7 @@ pub(super) async fn before_launch(
     if options.plugins.is_empty() {
         return Ok(options);
     }
-    options.plugins = options.plugins.for_launch();
+    options.plugins = crate::plugin_host::timed(options.plugins.for_launch());
     let plugins = options.plugins.clone();
     plugins.check_with(&launch_context(options.is_headless(), false), &HOST)?;
     let mut settings = settings_of(&options);
@@ -183,43 +195,35 @@ pub(super) async fn before_launch(
     Ok(options)
 }
 
-/// Tells the plugins the browser behind `client` runs.
+/// Tells the plugins the browser runs.
 ///
 /// # Errors
 ///
 /// [`SeleniumBaseError::Plugin`] for the first hook that fails.
 pub(super) async fn on_browser(
     plugins: &PluginSet,
-    client: &Client,
+    browser: &Browser,
 ) -> Result<(), SeleniumBaseError> {
     if plugins.is_empty() {
         return Ok(());
     }
-    Ok(plugins.on_browser(&BrowserLink { client }).await?)
+    Ok(plugins.on_browser(&BrowserLink { browser }).await?)
 }
 
-/// Adds the plugins' packages to the tab attached as `session` and calls
-/// their `on_page_created`.
+/// Adds the plugins' packages to the tab `page` and calls their
+/// `on_page_created`.
 ///
 /// # Errors
 ///
 /// [`SeleniumBaseError::Plugin`] for the first package or hook that fails.
 pub(super) async fn on_page_created(
     plugins: &PluginSet,
-    client: &Client,
-    session: &str,
-    blocked: &BlockedUrls,
+    page: &Page,
 ) -> Result<(), SeleniumBaseError> {
     if plugins.is_empty() {
         return Ok(());
     }
-    Ok(plugins
-        .on_page_created(&TabLink {
-            client,
-            session,
-            blocked,
-        })
-        .await?)
+    Ok(plugins.on_page_created(page).await?)
 }
 
 /// Tells the plugins the browser closes, and logs the hooks that fail: a
@@ -235,15 +239,186 @@ pub(super) async fn on_close(plugins: &PluginSet) {
     }
 }
 
+/// Tells the plugins the browser is about to close, while it still answers
+/// commands, and logs the hooks that fail: a browser closes whatever its
+/// plugins say.
+pub(super) async fn before_close(browser: &Browser) {
+    let plugins = &browser.inner().options.plugins;
+    if plugins.is_empty() {
+        return;
+    }
+    for error in plugins.before_close(&BrowserLink { browser }).await {
+        tracing::event!(
+            name: "cdp.plugin.before_close.failed",
+            tracing::Level::WARN,
+            error = %error,
+            "a plugin failed before the browser closed: {{error}}",
+        );
+    }
+}
+
+/// Gives a protocol event to the plugins that named it, and logs the hooks
+/// that fail.
+pub(super) async fn deliver_event(browser: &Browser, event: CdpEvent) {
+    let plugins = &browser.inner().options.plugins;
+    let event = ProtocolEvent::new(event.method, event.params);
+    for error in plugins
+        .on_protocol_event(&BrowserLink { browser }, &event)
+        .await
+    {
+        tracing::event!(
+            name: "cdp.plugin.protocol_event.failed",
+            tracing::Level::WARN,
+            protocol_event = %event.method,
+            error = %error,
+            "a plugin failed on the protocol event {{protocol_event}}: {{error}}",
+        );
+    }
+}
+
+/// Runs a navigation the program asked for through the plugins: each
+/// `before_navigate` may let it go on, send it to another address or cancel
+/// it, and every `after_navigate` sees how it ended.
+///
+/// # Errors
+///
+/// [`SeleniumBaseError::Plugin`] when a plugin cancels the navigation or its
+/// hook fails (nothing is sent to the browser then), and what the navigation
+/// itself returns.
+pub(super) async fn navigate(
+    page: &Page,
+    url: String,
+    origin: NavOrigin,
+) -> Result<(), SeleniumBaseError> {
+    let plugins = &page.browser().inner().options.plugins;
+    let navigation = plugins
+        .before_navigate(page, &Navigation::new(url, origin))
+        .await?;
+    let result = page.load(navigation.url.clone()).await;
+    let outcome = outcome_of(page, navigation.url, &result).await;
+    for error in plugins.after_navigate(page, &outcome).await {
+        tracing::event!(
+            name: "cdp.plugin.after_navigate.failed",
+            tracing::Level::WARN,
+            error = %error,
+            "a plugin failed after a navigation: {{error}}",
+        );
+    }
+    result
+}
+
+/// How a navigation to `url` ended, as the plugins are told.
+async fn outcome_of(
+    page: &Page,
+    url: String,
+    result: &Result<(), SeleniumBaseError>,
+) -> NavOutcome {
+    match result {
+        Err(SeleniumBaseError::Navigation { reason, .. }) => {
+            NavOutcome::new(url).failed(reason.clone())
+        }
+        Err(error) => NavOutcome::new(url).failed(error.to_string()),
+        Ok(()) => match document_status(page).await {
+            Some(status) => NavOutcome::new(url).status(status),
+            None => NavOutcome::new(url),
+        },
+    }
+}
+
+/// The HTTP status of the document the tab loaded, when the browser reports it
+/// (`responseStatus` of the navigation timing entry).
+async fn document_status(page: &Page) -> Option<u16> {
+    let answer = page
+        .execute(
+            "Runtime.evaluate",
+            json!({
+                "expression": "(performance.getEntriesByType('navigation')[0] || {}).responseStatus || 0",
+                "returnByValue": true,
+            }),
+        )
+        .await
+        .ok()?;
+    let status = u16::try_from(answer["result"]["value"].as_u64()?).ok()?;
+    (status > 0).then_some(status)
+}
+
+/// Lets the plugins change the options of a context about to be made.
+///
+/// # Errors
+///
+/// [`SeleniumBaseError::Plugin`] for the first hook that fails or rule that
+/// is broken (no context is made then), and
+/// [`SeleniumBaseError::InvalidConfig`] when a plugin set a proxy that cannot
+/// be parsed.
+pub(super) async fn before_context(
+    browser: &Browser,
+    options: ContextOptions,
+) -> Result<ContextOptions, SeleniumBaseError> {
+    let plugins = &browser.inner().options.plugins;
+    if plugins.is_empty() {
+        return Ok(options);
+    }
+    let mut settings = options.settings();
+    plugins.before_context(&mut settings).await?;
+    options.with_settings(settings)
+}
+
+/// Tells the plugins a context exists. When one of them stops it, the context
+/// is disposed of, so it is neither handed out nor left open.
+///
+/// # Errors
+///
+/// [`SeleniumBaseError::Plugin`] for the first hook that fails.
+pub(super) async fn on_context_created(
+    browser: &Browser,
+    context: &BrowserContext,
+) -> Result<(), SeleniumBaseError> {
+    let plugins = &browser.inner().options.plugins;
+    if plugins.is_empty() {
+        return Ok(());
+    }
+    let link = ContextLink::new(context.clone());
+    if let Err(error) = plugins.on_context_created(&link).await {
+        if let Err(failure) = context.dispose().await {
+            tracing::event!(
+                name: "cdp.plugin.context.dispose_failed",
+                tracing::Level::WARN,
+                error = %failure,
+                "a context a plugin stopped could not be disposed of: {{error}}",
+            );
+        }
+        return Err(error.into());
+    }
+    Ok(())
+}
+
+/// Tells the plugins the context `id` is gone, and logs the hooks that fail.
+pub(super) async fn on_context_closed(browser: &Browser, id: &str) {
+    let plugins = &browser.inner().options.plugins;
+    if plugins.is_empty() {
+        return;
+    }
+    for error in plugins.on_context_closed(&ContextId::new(id)).await {
+        tracing::event!(
+            name: "cdp.plugin.context.closed_failed",
+            tracing::Level::WARN,
+            error = %error,
+            "a plugin failed when a context closed: {{error}}",
+        );
+    }
+}
+
 /// A protocol failure, as a plugin's hook sees it.
 fn refused(error: &SeleniumBaseError) -> PluginError {
     PluginError::other(error.to_string())
 }
 
-/// The browser, as plugins see it: browser-level commands on its connection.
+/// The browser, as plugins see it: browser-level commands on its connection,
+/// and the tabs and contexts it opens for them. What a plugin opens goes
+/// through the same hooks as what the program opens.
 #[derive(Debug)]
 struct BrowserLink<'a> {
-    client: &'a Client,
+    browser: &'a Browser,
 }
 
 #[async_trait]
@@ -256,10 +431,85 @@ impl BrowserHandle for BrowserLink<'_> {
         BrowserFamily::Chromium
     }
 
+    fn id(&self) -> BrowserId {
+        BrowserId::new(format!(
+            "cdp:{}:{}",
+            self.browser.debugging_host(),
+            self.browser.debugging_port()
+        ))
+    }
+
+    fn extensions(&self) -> Vec<LoadedExtension> {
+        self.browser
+            .loaded_extensions()
+            .into_iter()
+            .map(|(id, path)| LoadedExtension::new(id, path))
+            .collect()
+    }
+
+    async fn new_context<'a>(
+        &'a self,
+        settings: ContextSettings,
+    ) -> PluginResult<Box<dyn ContextHandle + 'a>> {
+        let options = ContextOptions::from_settings(settings).map_err(|error| refused(&error))?;
+        let context = self
+            .browser
+            .new_context_with(options)
+            .await
+            .map_err(|error| refused(&error))?;
+        Ok(Box::new(ContextLink::new(context)))
+    }
+
+    async fn new_page<'a>(&'a self, url: Option<&str>) -> PluginResult<Box<dyn PageHandle + 'a>> {
+        let page = match url {
+            Some(url) => self.browser.new_page_at(url).await,
+            None => self.browser.new_page().await,
+        }
+        .map_err(|error| refused(&error))?;
+        Ok(Box::new(page))
+    }
+
     async fn send(&self, method: &str, params: Value) -> PluginResult<Value> {
         guard::refuse_interception(method)?;
-        self.client
-            .send(method, params, None)
+        self.browser
+            .execute(method, params)
+            .await
+            .map_err(|error| refused(&error))
+    }
+}
+
+/// A browser context, as plugins see it.
+#[derive(Debug)]
+struct ContextLink {
+    context: BrowserContext,
+    id: ContextId,
+}
+
+impl ContextLink {
+    fn new(context: BrowserContext) -> Self {
+        let id = ContextId::new(context.id());
+        Self { context, id }
+    }
+}
+
+#[async_trait]
+impl ContextHandle for ContextLink {
+    fn id(&self) -> &ContextId {
+        &self.id
+    }
+
+    async fn new_page<'a>(&'a self, url: Option<&str>) -> PluginResult<Box<dyn PageHandle + 'a>> {
+        let page = match url {
+            Some(url) => self.context.new_page_at(url).await,
+            None => self.context.new_page().await,
+        }
+        .map_err(|error| refused(&error))?;
+        Ok(Box::new(page))
+    }
+
+    async fn dispose(&self) -> PluginResult<()> {
+        self.context
+            .dispose()
             .await
             .map_err(|error| refused(&error))
     }
@@ -326,6 +576,17 @@ impl TabLink<'_> {
             .map_err(|error| refused(&error))
     }
 
+    /// Blocks the requests that match `patterns`, in addition to what the
+    /// library and the other plugins block in this tab: the tab's list is the
+    /// union of them all (see [`BlockedUrls`]).
+    async fn block_urls(&self, patterns: &[String]) -> PluginResult<()> {
+        // The list only takes effect while the Network domain is on.
+        self.command("Network.enable", json!({})).await?;
+        self.command(guard::SET_BLOCKED_URLS, json!({ "urls": patterns }))
+            .await?;
+        Ok(())
+    }
+
     /// Runs `Runtime.evaluate` with `params` and returns the value, or the
     /// exception the script threw as an error.
     async fn run(&self, params: Value) -> PluginResult<Value> {
@@ -375,11 +636,14 @@ impl PageHandle for TabLink<'_> {
 }
 
 /// A tab, as the plugin API sees it: what [`TabLink`] does, on the tab's own
-/// protocol session.
+/// protocol session, and the typed methods of the handle.
 ///
 /// The trait's `evaluate` and `add_init_script` differ from the methods of
 /// the same names on [`Page`]: `add_init_script` here also runs the script in
 /// the current document, as the plugin API asks, and returns no identifier.
+/// `navigate` is [`Page::goto`], so the navigation hooks run for it as for
+/// the program's own navigations (the plugin API refuses it inside
+/// `before_navigate`, where it would run them again).
 #[async_trait]
 impl PageHandle for Page {
     fn engine(&self) -> Engine {
@@ -396,6 +660,32 @@ impl PageHandle for Page {
 
     async fn evaluate(&self, expression: &str) -> PluginResult<Value> {
         PageHandle::evaluate(&self.tab_link(), expression).await
+    }
+
+    fn id(&self) -> PageId {
+        PageId::new(Page::id(self))
+    }
+
+    fn context(&self) -> Option<ContextId> {
+        self.browser()
+            .tab_context(Page::id(self))
+            .map(ContextId::new)
+    }
+
+    async fn url(&self) -> PluginResult<String> {
+        Page::url(self).await.map_err(|error| refused(&error))
+    }
+
+    async fn navigate(&self, url: &str) -> PluginResult<()> {
+        self.goto(url).await.map_err(|error| refused(&error))
+    }
+
+    async fn block_urls(&self, patterns: &[String]) -> PluginResult<()> {
+        self.tab_link().block_urls(patterns).await
+    }
+
+    async fn close(&self) -> PluginResult<()> {
+        Page::close(self).await.map_err(|error| refused(&error))
     }
 }
 

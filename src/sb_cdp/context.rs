@@ -21,6 +21,8 @@
 //! ```
 
 use std::fmt;
+#[cfg(feature = "plugins")]
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use serde_json::json;
@@ -77,6 +79,58 @@ impl ContextOptions {
     }
 }
 
+/// How plugins see the options of a context (feature `plugins`).
+#[cfg(feature = "plugins")]
+impl ContextOptions {
+    /// The settings `before_context` shows the plugins: the proxy as its server
+    /// only, so a password in the options is not shown to them.
+    pub(super) fn settings(&self) -> seleniumbase_rs_plugin::ContextSettings {
+        let mut settings = seleniumbase_rs_plugin::ContextSettings::new();
+        settings.proxy = self.proxy.as_ref().map(|proxy| proxy.server().to_owned());
+        settings.bypass.clone_from(&self.bypass);
+        settings
+    }
+
+    /// These options with the settings the plugins returned. A proxy they left
+    /// as it was keeps its password.
+    ///
+    /// # Errors
+    ///
+    /// [`SeleniumBaseError::InvalidConfig`] when a plugin set a proxy that
+    /// cannot be parsed.
+    pub(super) fn with_settings(
+        mut self,
+        settings: seleniumbase_rs_plugin::ContextSettings,
+    ) -> Result<Self, SeleniumBaseError> {
+        if settings.proxy.as_deref() != self.proxy.as_ref().map(Proxy::server) {
+            self.proxy = settings
+                .proxy
+                .as_deref()
+                .map(Proxy::parse)
+                .transpose()
+                .map_err(|error| {
+                    // The proxy itself is not shown: it may carry a password.
+                    SeleniumBaseError::invalid_config(format!(
+                        "the proxy a plugin set for a context is not valid ({error})"
+                    ))
+                })?;
+        }
+        self.bypass = settings.bypass;
+        Ok(self)
+    }
+
+    /// The options for a context a plugin asked a browser handle to make.
+    ///
+    /// # Errors
+    ///
+    /// As [`with_settings`](Self::with_settings).
+    pub(super) fn from_settings(
+        settings: seleniumbase_rs_plugin::ContextSettings,
+    ) -> Result<Self, SeleniumBaseError> {
+        Self::default().with_settings(settings)
+    }
+}
+
 /// The proxy a context routes its tabs through, and the hosts that skip it.
 ///
 /// Kept by the browser so that plain HTTP requests made on behalf of a tab can
@@ -101,6 +155,10 @@ pub struct BrowserContext {
     credentials: Option<Credentials>,
     /// The tabs opened through this handle, so disposing can forget them.
     pages: Arc<Mutex<Vec<String>>>,
+    /// Set once the plugins have been told the context is gone, so that
+    /// every handle to it tells them once.
+    #[cfg(feature = "plugins")]
+    gone: Arc<AtomicBool>,
 }
 
 impl fmt::Debug for BrowserContext {
@@ -129,10 +187,34 @@ impl Browser {
     /// Creates an isolated [`BrowserContext`] set up as `options` describe,
     /// for example one whose tabs all go through their own proxy.
     ///
+    /// With plugins (feature `plugins`), each plugin that holds the `contexts`
+    /// capability may change the proxy first (`before_context`) and is told
+    /// when the context exists (`on_context_created`); when one of them
+    /// stops it, the context is disposed of and the error is returned.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::CdpDriver`] if the browser refuses, and
+    /// [`SeleniumBaseError::Plugin`] when a plugin refuses.
+    pub async fn new_context_with(
+        &self,
+        options: ContextOptions,
+    ) -> Result<BrowserContext, SeleniumBaseError> {
+        #[cfg(feature = "plugins")]
+        let options = super::plugin_hooks::before_context(self, options).await?;
+        let context = self.create_context(options).await?;
+        #[cfg(feature = "plugins")]
+        super::plugin_hooks::on_context_created(self, &context).await?;
+        Ok(context)
+    }
+
+    /// Creates an isolated [`BrowserContext`] set up as `options` describe,
+    /// for example one whose tabs all go through their own proxy.
+    ///
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::CdpDriver`] if the browser refuses.
-    pub async fn new_context_with(
+    async fn create_context(
         &self,
         options: ContextOptions,
     ) -> Result<BrowserContext, SeleniumBaseError> {
@@ -167,6 +249,8 @@ impl Browser {
                 .and_then(Proxy::credentials)
                 .map(|(user, pass)| (user.to_owned(), pass.to_owned())),
             pages: Arc::new(Mutex::new(Vec::new())),
+            #[cfg(feature = "plugins")]
+            gone: Arc::new(AtomicBool::new(false)),
         })
     }
 }
@@ -243,6 +327,12 @@ impl BrowserContext {
             self.browser.forget_page(&id);
         }
         locked(&self.browser.inner().context_routes).remove(&*self.id);
+        // Told once, when the browser confirms the context is gone.
+        #[cfg(feature = "plugins")]
+        if outcome.is_ok() && !self.gone.swap(true, Ordering::SeqCst) {
+            super::plugin_hooks::on_context_closed(&self.browser, &self.id).await;
+        }
+
         outcome
     }
 }

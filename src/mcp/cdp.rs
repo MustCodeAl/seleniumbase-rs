@@ -859,9 +859,28 @@ async fn get_page_info(ctx: Ctx<Cdp>, _args: Args) -> Result<Output, ToolError> 
 // Navigation
 // ----------------------------------------------------------------------
 
+/// Navigates for the `navigate` tool. With plugins (feature `plugins`) their
+/// `before_navigate` hooks see an MCP client as who asked.
+#[cfg(feature = "plugins")]
+async fn navigate_for_client(
+    page: &crate::sb_cdp::Page,
+    url: &str,
+) -> Result<(), SeleniumBaseError> {
+    page.goto_from(url, seleniumbase_rs_plugin::NavOrigin::Mcp)
+        .await
+}
+
+#[cfg(not(feature = "plugins"))]
+async fn navigate_for_client(
+    page: &crate::sb_cdp::Page,
+    url: &str,
+) -> Result<(), SeleniumBaseError> {
+    page.goto(url).await
+}
+
 async fn open_url(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
     let url = args.str("url")?;
-    ctx.session().await?.page.goto(url).await?;
+    navigate_for_client(&ctx.session().await?.page, url).await?;
     Ok(format!("Navigated to {url}").into())
 }
 
