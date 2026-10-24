@@ -675,7 +675,10 @@ fn every_declared_output_schema_is_an_object_whose_required_fields_exist() {
             }
         }
     }
-    assert_eq!(declared, 15, "five page tools on each of three servers");
+    assert_eq!(
+        declared, 26,
+        "five page tools and three fingerprint tools on each of three servers, and two more on sb"
+    );
 }
 
 #[test]

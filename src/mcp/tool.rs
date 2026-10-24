@@ -193,6 +193,12 @@ impl Args {
         self.0.get(name).filter(|value| !value.is_null())
     }
 
+    /// The raw JSON value of an argument, for the ones that are objects or lists.
+    /// A `null` counts as absent.
+    pub(crate) fn value(&self, name: &str) -> Option<&Value> {
+        self.get(name)
+    }
+
     /// A required string.
     ///
     /// # Errors

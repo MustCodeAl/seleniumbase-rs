@@ -217,6 +217,18 @@ impl Cdp {
     }
 }
 
+impl super::fingerprint::CaptureSession for Cdp {
+    async fn navigate_to(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
+        navigate_for_client(&self.page, url).await
+    }
+
+    async fn capture_now(
+        &mut self,
+    ) -> Result<crate::stealth::capture::CapturedFingerprint, SeleniumBaseError> {
+        self.page.capture_fingerprint().await
+    }
+}
+
 impl Closeable for Cdp {
     async fn close(self) {
         // The server is shutting down; there is nobody left to report to.
@@ -231,6 +243,7 @@ pub fn host(settings: Settings) -> Host<Cdp> {
     tools.extend(devtools::tools());
     tools.extend(devtools::environment_tools());
     tools.extend(super::pagetools::tools());
+    tools.extend(super::fingerprint::tools());
     Host::new(SERVER_NAME, INSTRUCTIONS, tools, settings)
         .with_probe(devtools::probe::<Cdp>)
         .with_refs(super::pagetools::verify::<Cdp>)
@@ -292,6 +305,12 @@ fn tools() -> Vec<ToolDef<Cdp>> {
                 .optional(
                     "proxy",
                     Prop::string("SERVER:PORT or USER:PASS@SERVER:PORT"),
+                )
+                .optional("fingerprint", super::fingerprint::launch_inline_prop())
+                .optional("fingerprint_path", super::fingerprint::launch_path_prop())
+                .optional(
+                    "fingerprint_preset",
+                    super::fingerprint::launch_preset_prop(),
                 ),
             start_browser,
         ),
@@ -782,6 +801,11 @@ async fn start_browser(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
         .incognito(args.bool_or("incognito", false)?)
         .guest(args.bool_or("guest", false)?)
         .ad_block(args.bool_or("ad_block", false)?);
+    // Applied first: the settings made below replace the fingerprint's own.
+    let fingerprint = super::fingerprint::start_fingerprint(&args, ctx.settings())?;
+    if let Some(fingerprint) = &fingerprint {
+        options = options.fingerprint(fingerprint);
+    }
     if let Some(url) = &url {
         options = options.url(url.as_str());
     }
@@ -806,10 +830,14 @@ async fn start_browser(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
         .await?;
     Ok(match started {
         Started::Created => format!(
-            "Started Pure CDP Mode browser (url={}, headless={headless}, use_chromium={use_chromium})",
+            "Started Pure CDP Mode browser (url={}, headless={headless}, use_chromium={use_chromium}).{}",
             url.as_deref().unwrap_or("none"),
+            super::fingerprint::applied(fingerprint.as_ref()),
         ),
-        Started::AlreadyRunning => "A browser session is already running.".to_owned(),
+        Started::AlreadyRunning => format!(
+            "A browser session is already running.{}",
+            super::fingerprint::ignored(fingerprint.as_ref())
+        ),
     }
     .into())
 }

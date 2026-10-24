@@ -49,6 +49,12 @@ impl Prop {
         Self::of("integer", description)
     }
 
+    /// A JSON object.
+    #[must_use]
+    pub fn object(description: &str) -> Self {
+        Self::of("object", description)
+    }
+
     /// A true or false value.
     #[must_use]
     pub fn boolean(description: &str) -> Self {

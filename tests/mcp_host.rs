@@ -821,7 +821,12 @@ fn every_prompt_names_only_tools_its_server_has() {
         );
         assert_eq!(
             names,
-            ["write_test", "debug_failure", "extract_data"],
+            [
+                "write_test",
+                "debug_failure",
+                "extract_data",
+                "check_fingerprint"
+            ],
             "{server}"
         );
     }
@@ -857,7 +862,15 @@ async fn prompts_are_listed_with_their_arguments() {
         .iter()
         .map(|prompt| prompt["name"].as_str().unwrap())
         .collect();
-    assert_eq!(names, ["write_test", "debug_failure", "extract_data"]);
+    assert_eq!(
+        names,
+        [
+            "write_test",
+            "debug_failure",
+            "extract_data",
+            "check_fingerprint"
+        ]
+    );
     let write_test = &prompts[0];
     assert_eq!(write_test["title"], "Write a test");
     let arguments = write_test["arguments"].as_array().expect("arguments");
@@ -936,7 +949,10 @@ fn the_tools_that_return_page_text_are_marked_untrusted() {
             "read_page_text",
             "extract_links",
             "extract_tables",
-            "extract_forms"
+            "extract_forms",
+            "capture_fingerprint",
+            "compare_fingerprint",
+            "explain_fingerprint"
         ]
     );
     assert_eq!(
@@ -948,7 +964,10 @@ fn the_tools_that_return_page_text_are_marked_untrusted() {
             "read_page_text",
             "extract_links",
             "extract_tables",
-            "extract_forms"
+            "extract_forms",
+            "capture_fingerprint",
+            "compare_fingerprint",
+            "explain_fingerprint"
         ]
     );
     assert_eq!(
@@ -962,7 +981,10 @@ fn the_tools_that_return_page_text_are_marked_untrusted() {
             "read_page_text",
             "extract_links",
             "extract_tables",
-            "extract_forms"
+            "extract_forms",
+            "capture_fingerprint",
+            "compare_fingerprint",
+            "explain_fingerprint"
         ]
     );
     assert!(dev::host(settings()).untrusted_tool_names().is_empty());

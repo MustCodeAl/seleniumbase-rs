@@ -102,13 +102,16 @@ const UPSTREAM_CDP_TOOLS: [&str; 24] = [
 ];
 
 /// The tools this crate adds for developing, debugging and testing.
-const DEVELOPER_TOOLS: [&str; 14] = [
+const DEVELOPER_TOOLS: [&str; 17] = [
     "extract_forms",
     "extract_links",
     "extract_tables",
     "page_snapshot",
     "read_page_text",
     "audit_page",
+    "capture_fingerprint",
+    "compare_fingerprint",
+    "explain_fingerprint",
     "capture_debug_bundle",
     "diagnose_environment",
     "diagnose_selector",

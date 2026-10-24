@@ -41,6 +41,7 @@ pub fn host(settings: Settings) -> Host<BaseCase> {
     tools.extend(devtools::tools_named(&DEBUG_TOOLS));
     tools.extend(devtools::environment_tools());
     tools.extend(super::pagetools::tools());
+    tools.extend(super::fingerprint::tools());
     Host::new(SERVER_NAME, INSTRUCTIONS, tools, settings)
         .with_probe(devtools::probe::<BaseCase>)
         .with_refs(super::pagetools::verify::<BaseCase>)

@@ -30,6 +30,8 @@
 mod devtools;
 mod export;
 mod failure;
+mod fingerprint;
+
 mod host;
 mod http;
 mod journal;

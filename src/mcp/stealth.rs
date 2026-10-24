@@ -6,7 +6,7 @@
 
 use serde_json::json;
 
-use super::support::{json_output, nonempty};
+use super::support::json_output;
 use super::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};
 use crate::stealth::fingerprint::Fingerprint;
 use crate::{ChromedriverPatcher, EnginePatch};
@@ -31,7 +31,7 @@ fn preset(args: &Args) -> Result<Fingerprint, ToolError> {
 /// The stealth tools, for a server whose session type is `S`.
 pub(super) fn tools<S: Send + 'static>() -> Vec<ToolDef<S>> {
     let by_preset = || Schema::new().required("preset", preset_prop());
-    vec![
+    Vec::from([
         ToolDef::new(
             "patch_chromedriver",
             "Patch Chromedriver",
@@ -62,27 +62,8 @@ pub(super) fn tools<S: Send + 'static>() -> Vec<ToolDef<S>> {
             Schema::new(),
             list_fingerprint_presets::<S>,
         ),
-        ToolDef::new(
-            "build_fingerprint",
-            "Build Fingerprint",
-            "Build a fingerprint profile from a preset, optionally overriding its user agent \
-             and screen size.",
-            Effect::Inspect,
-            by_preset()
-                .optional(
-                    "user_agent",
-                    Prop::string("Replace the preset's user agent"),
-                )
-                .optional(
-                    "screen_width",
-                    Prop::integer("Replace the screen width").min(1.0),
-                )
-                .optional(
-                    "screen_height",
-                    Prop::integer("Replace the screen height").min(1.0),
-                ),
-            build_fingerprint::<S>,
-        ),
+        ToolDef::new("build_fingerprint", "Build Fingerprint", "Build a fingerprint profile from a preset or a random identity (random, seed, os), optionally overriding its user agent \
+         and screen size.", Effect::Inspect, super::fingerprint::build_schema(), build_fingerprint::<S>),
         ToolDef::new(
             "get_stealth_bootstrap_script",
             "Get Stealth Bootstrap Script",
@@ -103,16 +84,9 @@ pub(super) fn tools<S: Send + 'static>() -> Vec<ToolDef<S>> {
             Schema::new(),
             list_evasion_providers::<S>,
         ),
-        ToolDef::new(
-            "validate_fingerprint",
-            "Validate Fingerprint",
-            "Check a preset's fingerprint for internal contradictions and report errors and \
-             warnings.",
-            Effect::Inspect,
-            by_preset(),
-            validate_fingerprint::<S>,
-        ),
-    ]
+        ToolDef::new("validate_fingerprint", "Validate Fingerprint", "Check a fingerprint (given, from a file or a preset) for internal contradictions and report errors and \
+         warnings.", Effect::Inspect, super::fingerprint::source_schema(), validate_fingerprint::<S>),
+    ])
 }
 
 async fn patch_chromedriver<S>(_ctx: Ctx<S>, args: Args) -> Result<Output, ToolError> {
@@ -131,30 +105,11 @@ async fn list_fingerprint_presets<S>(_ctx: Ctx<S>, _args: Args) -> Result<Output
     json_output(PRESETS)
 }
 
-async fn build_fingerprint<S>(_ctx: Ctx<S>, args: Args) -> Result<Output, ToolError> {
-    let fingerprint = preset(&args)?;
-    let mut builder = fingerprint.to_builder();
-    if let Some(user_agent) = nonempty(&args, "user_agent")? {
-        builder = builder.user_agent(user_agent);
-    }
-    let current = fingerprint.screen().value().copied().unwrap_or_default();
-    let mut size = [current.width, current.height];
-    let mut changed = false;
-    for (name, slot) in [("screen_width", 0), ("screen_height", 1)] {
-        if let Some(value) = args.opt_usize(name)? {
-            size[slot] = u32::try_from(value)
-                .ok()
-                .ok_or_else(|| ToolError::invalid(name, "too large"))?;
-            changed = true;
-        }
-    }
-    if changed {
-        builder = builder.screen(size[0], size[1]);
-    }
-    let fingerprint = builder
-        .build()
-        .map_err(|error| ToolError::invalid("fingerprint", error.to_string()))?;
-    json_output(fingerprint)
+async fn build_fingerprint<S: Send + 'static>(
+    ctx: Ctx<S>,
+    args: Args,
+) -> Result<Output, ToolError> {
+    super::fingerprint::build(ctx.settings(), &args)
 }
 
 async fn get_stealth_bootstrap_script<S>(_ctx: Ctx<S>, args: Args) -> Result<Output, ToolError> {
@@ -165,8 +120,12 @@ async fn list_evasion_providers<S>(_ctx: Ctx<S>, _args: Args) -> Result<Output, 
     json_output(crate::session_registry(&Fingerprint::default()).provider_names())
 }
 
-async fn validate_fingerprint<S>(_ctx: Ctx<S>, args: Args) -> Result<Output, ToolError> {
-    Ok(coherence_report(&preset(&args)?).into())
+async fn validate_fingerprint<S: Send + 'static>(
+    ctx: Ctx<S>,
+    args: Args,
+) -> Result<Output, ToolError> {
+    let fingerprint = super::fingerprint::fingerprint_arg(&args, ctx.settings())?;
+    Ok(coherence_report(&fingerprint).into())
 }
 
 /// What `Fingerprint::validate` finds in `fingerprint`: whether it is

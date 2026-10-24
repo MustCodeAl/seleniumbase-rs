@@ -131,7 +131,9 @@ const UPSTREAM_SB_TOOLS: [&str; 88] = [
 ];
 
 /// The stealth tools this crate adds to the `sb` server.
-const STEALTH_TOOLS: [&str; 7] = [
+const STEALTH_TOOLS: [&str; 9] = [
+    "diff_fingerprints",
+    "patch_fingerprint",
     "build_fingerprint",
     "get_stealth_bootstrap_script",
     "list_engine_spoofing_args",
@@ -159,7 +161,10 @@ fn sorted(mut names: Vec<&'static str>) -> Vec<&'static str> {
 /// The debugging tools the `driver` server shares with `sb`: the same
 /// definitions, registered by name, so that a model that drives with `Driver()`
 /// can also look at the page and the session.
-const DRIVER_DEBUG_TOOLS: [&str; 13] = [
+const DRIVER_DEBUG_TOOLS: [&str; 16] = [
+    "capture_fingerprint",
+    "compare_fingerprint",
+    "explain_fingerprint",
     "extract_forms",
     "extract_links",
     "extract_tables",
@@ -186,7 +191,7 @@ fn the_driver_server_offers_the_tools_of_the_python_driver_server_plus_the_debug
         .collect();
     expected.sort_unstable();
     assert_eq!(offered, expected);
-    assert_eq!(offered.len(), 39);
+    assert_eq!(offered.len(), 42);
 }
 
 #[test]
@@ -229,7 +234,10 @@ async fn the_driver_servers_debugging_tools_need_a_started_browser_like_the_sb_s
 }
 
 /// The tools this crate adds for developing, debugging and testing.
-const DEVELOPER_TOOLS: [&str; 14] = [
+const DEVELOPER_TOOLS: [&str; 17] = [
+    "capture_fingerprint",
+    "compare_fingerprint",
+    "explain_fingerprint",
     "extract_forms",
     "extract_links",
     "extract_tables",
