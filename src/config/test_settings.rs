@@ -210,6 +210,13 @@ pub struct TestSettings {
     pub dashboard: bool,
     /// The dashboard's title (`SB_DASH_TITLE`).
     pub dash_title: Option<String>,
+    /// Write an HTML report to this file (`SB_HTML`, `--html`).
+    pub html: Option<PathBuf>,
+    /// Write a JUnit XML report to this file (`SB_JUNIT_XML`, `--junit-xml`).
+    pub junit_xml: Option<PathBuf>,
+    /// Write Allure results to this folder (`SB_ALLURE_DIR`, `--alluredir`).
+    pub allure_dir: Option<PathBuf>,
+
     /// Record each outcome in the results database (`SB_WITH_DB_REPORTING`).
     pub with_db_reporting: bool,
     /// Which database of `databases` to use (`SB_DATABASE_ENV`).

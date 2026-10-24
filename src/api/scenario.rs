@@ -3,7 +3,7 @@
 //! A [`Scenario`] is a portable list of high-level browser actions described in
 //! JSON. [`run_scenario`] replays those actions against a [`BaseCase`] and
 //! produces a [`RunSummary`] that can be rendered to HTML with
-//! [`write_dashboard_html`].
+//! [`write_dashboard`].
 //!
 //! Each step names its action with an `action` field in snake case, and the
 //! rest of its fields are that action's arguments:
@@ -41,6 +41,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::api::base_case::BaseCase;
+use crate::core::dashboard::PageOptions;
+use crate::core::report_helper::{RunSnapshot, TestResult, TestStatus};
 use crate::error::SeleniumBaseError;
 use crate::utils::translate::scenario::scenario_to_english;
 
@@ -65,12 +67,43 @@ pub struct RunSummary {
     /// Human-readable error messages for failed steps. Each starts with the
     /// step's position and action, such as `step 3 (click): ...`.
     pub errors: Vec<String>,
+    /// How long the run took, in seconds.
+    pub duration_secs: f64,
 }
 
 impl RunSummary {
     /// Whether every step passed.
     pub fn is_success(&self) -> bool {
         self.failed_steps == 0
+    }
+
+    /// The run as the single test the dashboard shows: the scenario, which
+    /// passed, or failed with its failed steps as the message.
+    #[must_use]
+    pub fn snapshot(&self) -> RunSnapshot {
+        let (status, message) = if self.is_success() {
+            (
+                TestStatus::Passed,
+                format!("{} of {} steps passed", self.passed_steps, self.total_steps),
+            )
+        } else {
+            (
+                TestStatus::Failed,
+                format!(
+                    "{} of {} steps failed\n{}",
+                    self.failed_steps,
+                    self.total_steps,
+                    self.errors.join("\n")
+                ),
+            )
+        };
+        let result = TestResult::new(
+            self.scenario_name.clone(),
+            status,
+            self.duration_secs,
+            message,
+        );
+        RunSnapshot::from_results("Scenario Dashboard", vec![result])
     }
 }
 
@@ -408,6 +441,7 @@ pub async fn run_scenario(
 }
 
 async fn run_steps(runner: &mut impl StepRunner, scenario: &Scenario) -> RunSummary {
+    let started = std::time::Instant::now();
     let mut passed_steps = 0_usize;
     let mut errors = Vec::new();
 
@@ -424,74 +458,46 @@ async fn run_steps(runner: &mut impl StepRunner, scenario: &Scenario) -> RunSumm
         passed_steps,
         failed_steps: scenario.steps.len().saturating_sub(passed_steps),
         errors,
+        duration_secs: started.elapsed().as_secs_f64(),
     }
 }
 
-/// Writes a simple HTML dashboard report for `summary` to `path`.
+/// Writes the dashboard of a scenario run to `path`: the page of
+/// [`core::dashboard`](crate::core::dashboard) that a test run gets, with one
+/// row, the scenario.
 ///
-/// The scenario's name and the error messages are escaped, so they are shown
+/// The row is `PASS`, or `FAIL` with the failed steps as its message. The
+/// scenario's name and the messages are escaped by the page, so they are shown
 /// as written.
 ///
 /// # Errors
 ///
 /// Returns [`SeleniumBaseError::InvalidConfig`] naming the path if the file
 /// cannot be written.
-pub fn write_dashboard_html<P: AsRef<std::path::Path>>(
+pub fn write_dashboard<P: AsRef<std::path::Path>>(
     summary: &RunSummary,
     path: P,
 ) -> Result<(), SeleniumBaseError> {
-    let error_list = summary
-        .errors
-        .iter()
-        .map(|e| format!("<li>{}</li>", html_escape(e)))
-        .collect::<String>();
-    let html = format!(
-        r#"<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>Dashboard: {name}</title>
-<style>
-body {{ font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }}
-.card {{ background: #fff; padding: 24px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 720px; margin: 0 auto; }}
-h1 {{ margin-top: 0; }}
-.metric {{ font-size: 1.2em; margin: 8px 0; }}
-.pass {{ color: green; }}
-.fail {{ color: red; }}
-ul {{ margin-top: 8px; }}
-</style>
-</head>
-<body>
-<div class="card">
-<h1>Scenario Dashboard</h1>
-<p class="metric"><strong>Name:</strong> {name}</p>
-<p class="metric"><strong>Total steps:</strong> {total}</p>
-<p class="metric pass"><strong>Passed:</strong> {passed}</p>
-<p class="metric fail"><strong>Failed:</strong> {failed}</p>
-<h2>Errors</h2>
-<ul>{errors}</ul>
-</div>
-</body>
-</html>"#,
-        name = html_escape(&summary.scenario_name),
-        total = summary.total_steps,
-        passed = summary.passed_steps,
-        failed = summary.failed_steps,
-        errors = error_list
-    );
-    std::fs::write(path.as_ref(), html).map_err(|e| {
+    let path = path.as_ref();
+    let run = summary.snapshot();
+    let options = PageOptions {
+        title: run.title.clone(),
+        live: false,
+        pie: true,
+        page_dir: path
+            .parent()
+            .filter(|dir| !dir.as_os_str().is_empty())
+            .map_or_else(
+                || std::path::PathBuf::from("."),
+                std::path::Path::to_path_buf,
+            ),
+    };
+    crate::core::dashboard::write_dashboard(path, &run, &options).map_err(|e| {
         SeleniumBaseError::InvalidConfig(format!(
             "failed to write dashboard '{}': {e}",
-            path.as_ref().display()
+            path.display()
         ))
     })
-}
-
-fn html_escape(text: &str) -> String {
-    text.replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
 }
 
 #[cfg(test)]
@@ -701,7 +707,7 @@ mod tests {
     }
 
     #[test]
-    fn the_dashboard_shows_the_counts_and_escapes_what_it_was_given() {
+    fn the_dashboard_is_the_shared_page_with_one_row_and_escapes_what_it_was_given() {
         let summary = RunSummary {
             scenario_name: "<b>login</b> & \"more\"".to_owned(),
             total_steps: 3,
@@ -711,28 +717,54 @@ mod tests {
                 "step 2 (click): <script>alert(1)</script>".to_owned(),
                 "step 3 (open): a & b".to_owned(),
             ],
+            duration_secs: 1.5,
         };
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("dashboard.html");
-        write_dashboard_html(&summary, &path).unwrap();
+        write_dashboard(&summary, &path).unwrap();
         let html = std::fs::read_to_string(&path).unwrap();
 
-        assert!(html
-            .contains("<title>Dashboard: &lt;b&gt;login&lt;/b&gt; &amp; &quot;more&quot;</title>"));
-        assert!(html.contains("<strong>Total steps:</strong> 3"));
-        assert!(html.contains("<strong>Passed:</strong> 1"));
-        assert!(html.contains("<strong>Failed:</strong> 2"));
-        assert!(html.contains("<li>step 2 (click): &lt;script&gt;alert(1)&lt;/script&gt;</li>"));
-        assert!(html.contains("<li>step 3 (open): a &amp; b</li>"));
+        assert!(html.contains("Scenario Dashboard"), "{html}");
+        assert!(html.contains("&lt;b&gt;login&lt;/b&gt;"), "{html}");
+        assert!(html.contains("FAIL"), "{html}");
+        assert!(html.contains("2 of 3 steps failed"), "{html}");
+        assert!(html.contains("step 3 (open): a &amp; b"), "{html}");
+        assert!(html.contains("<svg"), "the shared page draws the pie");
+        assert!(
+            !html.contains("http-equiv=\"refresh\""),
+            "a scenario run is finished: {html}"
+        );
         assert!(!html.contains("<script>alert"), "{html}");
     }
 
     #[test]
+    fn a_passing_scenario_is_one_passing_row() {
+        let summary = RunSummary {
+            scenario_name: "login".to_owned(),
+            total_steps: 2,
+            passed_steps: 2,
+            duration_secs: 0.25,
+            ..RunSummary::default()
+        };
+        let run = summary.snapshot();
+
+        assert_eq!(run.results.len(), 1);
+        assert_eq!(run.results[0].status, TestStatus::Passed);
+        assert_eq!(run.results[0].message, "2 of 2 steps passed");
+        assert!(run.finished);
+    }
+
+    #[test]
     fn a_dashboard_that_cannot_be_written_names_the_path() {
-        let error = write_dashboard_html(&RunSummary::default(), "/no-such-folder-for-test/d.html")
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("file.txt");
+        std::fs::write(&file, "x").unwrap();
+        let path = file.join("d.html");
+
+        let error = write_dashboard(&RunSummary::default(), &path)
             .unwrap_err()
             .to_string();
-        assert!(error.contains("/no-such-folder-for-test/d.html"), "{error}");
+        assert!(error.contains("d.html"), "{error}");
     }
 
     /// Replays a scenario against a real Chrome through chromedriver.

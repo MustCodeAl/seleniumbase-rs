@@ -125,10 +125,10 @@ fn stderr_console() -> Console {
 /// | `db` | `SB_REPORT_DB` |
 /// | `database_env` | `SB_DATABASE_ENV` |
 ///
-/// The options that are also options of `sbrs test` (everything but `html`,
-/// `junit_xml`, `allure_dir` and `db`) are read from the `[test]` table, where
-/// the option table of [`config::test_options`](crate::config::test_options)
-/// keeps them; a `[report]` table can turn them on too.
+/// The options that are also options of `sbrs test` (everything but `db`) are
+/// read from the `[test]` table, where the option table of
+/// [`config::test_options`](crate::config::test_options) keeps them; a
+/// `[report]` table can set them too.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ReportSettings {
@@ -181,13 +181,19 @@ impl ReportSettings {
         Self {
             dashboard: test.dashboard || table.dashboard,
             dash_title: test.dash_title.clone().or_else(|| table.dash_title.clone()),
-            html: path("SB_HTML", table.html.as_deref()),
-            junit_xml: path("SB_JUNIT_XML", table.junit_xml.as_deref()),
+            html: path("SB_HTML", test.html.as_deref().or(table.html.as_deref())),
+            junit_xml: path(
+                "SB_JUNIT_XML",
+                test.junit_xml.as_deref().or(table.junit_xml.as_deref()),
+            ),
             archive_logs: test.archive_logs || table.archive_logs,
             list_fail_pages: test.list_fail_page || table.list_fail_pages,
             save_screenshot: test.save_screenshot || table.save_screenshot,
             no_screenshot: test.no_screenshot || table.no_screenshot,
-            allure_dir: path("SB_ALLURE_DIR", table.allure_dir.as_deref()),
+            allure_dir: path(
+                "SB_ALLURE_DIR",
+                test.allure_dir.as_deref().or(table.allure_dir.as_deref()),
+            ),
             with_db_reporting: test.with_db_reporting || table.with_db_reporting,
             db: path("SB_REPORT_DB", table.db.as_deref()).or_else(|| {
                 // `--database-env` picks one of the databases of the `[test.databases]` table.

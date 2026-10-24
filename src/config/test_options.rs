@@ -490,6 +490,10 @@ macro_rules! sb_test_options {
             (test.archive_downloads, "archive-downloads", [], [], "SB_ARCHIVE_DOWNLOADS", [switch], "Keep the old downloaded_files folder in archived_files"),
             (test.dashboard, "dashboard", [], [], "SB_DASHBOARD", [switch], "Write the results dashboard"),
             (test.dash_title, "dash-title", [], [], "SB_DASH_TITLE", [value(Text)], "The dashboard's title"),
+            (test.html, "html", [], [], "SB_HTML", [value(Path)], "Write an HTML report to this file"),
+            (test.junit_xml, "junit-xml", ["junitxml"], [], "SB_JUNIT_XML", [value(Path)], "Write a JUnit XML report to this file"),
+            (test.allure_dir, "alluredir", ["allure-dir"], [], "SB_ALLURE_DIR", [value(Path)], "Write Allure results to this folder"),
+
             (test.with_db_reporting, "with-db-reporting", [], [], "SB_WITH_DB_REPORTING", [switch], "Record each test's outcome in the results database"),
             (test.database_env, "database-env", [], [], "SB_DATABASE_ENV", [value(Text)], "Which results database to use"),
             (test.with_s3_logging, "with-s3-logging", [], [], "SB_WITH_S3_LOGGING", [switch], "Upload each test's logs to S3"),
