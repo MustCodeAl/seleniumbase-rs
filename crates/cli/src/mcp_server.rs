@@ -51,6 +51,7 @@ use std::str::FromStr;
 
 use seleniumbase_rs::cli::plugin_cmd::PluginChoice;
 use seleniumbase_rs::cli::scripts::rich_helper;
+use seleniumbase_rs::config::env_vars;
 use seleniumbase_rs::mcp::{self, HttpOptions, Profile, DEFAULT_LISTEN, TOKEN_VAR};
 use seleniumbase_rs::{init_tracing_from_runtime, RuntimeConfig, SeleniumBaseError};
 
@@ -76,10 +77,10 @@ use mcp_cmd::Command;
     args_conflicts_with_subcommands
 )]
 struct Cli {
-    /// Which toolset to serve: cdp, driver, sb or dev (development tools, no browser).
-    #[usage(long, default = "sb")]
-    server: Profile,
-    /// Give every browser the server starts a built-in plugin (repeatable)
+    /// Which toolset to serve: cdp, driver, sb (the default) or dev (development tools, no browser) (SB_MCP_SERVER)
+    #[usage(long)]
+    server: Option<Profile>,
+    /// Give every browser the server starts a built-in plugin (SB_PLUGINS; repeatable)
     ///
     /// The operator chooses; no tool argument adds a plugin. Adds to the plugins the
     /// [plugins] table of the settings file (sbase_config.toml in the folder the server runs
@@ -96,42 +97,42 @@ struct Cli {
     /// must be turned on by --plugin, SB_PLUGINS or the file.
     #[usage(long, value_name = "NAME.KEY=VALUE")]
     plugin_opt: Vec<String>,
-    /// How to serve: stdio (the default) or http (streamable HTTP)
+    /// How to serve: stdio (the default) or http (streamable HTTP) (SB_MCP_TRANSPORT)
     ///
     /// With http, each MCP session gets a browser of its own and the server prints one line
     /// to standard error, `sbrs-mcp: listening on http://ADDR/PATH (server NAME)`. `--listen`
     /// alone implies http.
     #[usage(long, value_name = "stdio|http")]
     transport: Option<Transport>,
-    /// Serve over HTTP on this IP address and port (default 127.0.0.1:8931; implies --transport http)
+    /// Serve over HTTP on this IP address and port (default 127.0.0.1:8931; implies --transport http; SB_MCP_LISTEN)
     ///
     /// Port 0 picks a free port. Any address that is not loopback needs a token (SB_MCP_TOKEN or
     /// --token-file), and the server then logs a warning: it speaks plain HTTP, so put TLS in
     /// front of it.
     #[usage(long, value_name = "ADDR")]
     listen: Option<String>,
-    /// The URL path of the HTTP endpoint (default /mcp)
+    /// The URL path of the HTTP endpoint (default /mcp; SB_MCP_PATH)
     #[usage(long, value_name = "PATH")]
     path: Option<String>,
-    /// Read the bearer token for HTTP clients from this file (default: SB_MCP_TOKEN)
+    /// Read the bearer token for HTTP clients from this file (SB_MCP_TOKEN_FILE; default: SB_MCP_TOKEN)
     ///
     /// There is no flag that takes the token itself: a command line can be read by every user
     /// of the machine. The file wins over SB_MCP_TOKEN. Keep it readable by you only.
     #[usage(long, value_name = "FILE")]
     token_file: Option<String>,
-    /// Let a browser page from this origin use the HTTP endpoint (repeatable)
+    /// Let a browser page from this origin use the HTTP endpoint (SB_MCP_ALLOW_ORIGIN; repeatable)
     ///
     /// ORIGIN is scheme://host[:port]. Pages from localhost and requests that carry no Origin
     /// header (every client that is not a browser) are always let in.
     #[usage(long, value_name = "ORIGIN")]
     allow_origin: Vec<String>,
-    /// Accept this name in the Host header of HTTP requests, besides localhost (repeatable)
+    /// Accept this name in the Host header of HTTP requests, besides localhost (SB_MCP_ALLOW_HOST; repeatable)
     ///
     /// HOST is a name or an IP address, optionally followed by :PORT. Needed when the server is
     /// reached by a name or from another machine.
     #[usage(long, value_name = "HOST")]
     allow_host: Vec<String>,
-    /// The most MCP sessions, and so browsers, the HTTP server holds at once (default 4)
+    /// The most MCP sessions, and so browsers, the HTTP server holds at once (default 4; SB_MCP_MAX_SESSIONS)
     #[usage(long, value_name = "N")]
     max_sessions: Option<usize>,
 
@@ -181,13 +182,20 @@ impl FromStr for Transport {
 ///
 /// Checked now, so that a mistake stops the server before it listens and exits with
 /// status 2 like every other mistake in what the operator typed.
-fn http_options(cli: &Cli) -> Result<Option<HttpOptions>, SeleniumBaseError> {
-    let http = match cli.transport {
+fn http_options(
+    cli: &Cli,
+    environment: &Environment,
+) -> Result<Option<HttpOptions>, SeleniumBaseError> {
+    // A flag wins over its variable.
+    let transport = cli.transport.or(environment.transport);
+    let http = match transport {
         Some(Transport::Http) => true,
         Some(Transport::Stdio) => false,
-        None => cli.listen.is_some(),
+        None => cli.listen.is_some() || environment.listen.is_some(),
     };
     if !http {
+        // Only the flags of the command line count here: a variable set for the HTTP
+        // transport must not stop the stdio one.
         let flags_of_http = cli.listen.is_some()
             || cli.path.is_some()
             || cli.token_file.is_some()
@@ -205,44 +213,114 @@ fn http_options(cli: &Cli) -> Result<Option<HttpOptions>, SeleniumBaseError> {
     let mut options = HttpOptions::default();
     if let Some(listen) = &cli.listen {
         options.listen = parse_listen(listen)?;
+    } else if let Some(listen) = environment.listen {
+        options.listen = listen;
     }
-    if let Some(path) = &cli.path {
+    if let Some(path) = cli.path.as_ref().or(environment.path.as_ref()) {
         options.path.clone_from(path);
     }
-    options.allow_origins.clone_from(&cli.allow_origin);
-    options.allow_hosts.clone_from(&cli.allow_host);
-    if let Some(max) = cli.max_sessions {
+    options.allow_origins = if cli.allow_origin.is_empty() {
+        environment.allow_origin.clone()
+    } else {
+        cli.allow_origin.clone()
+    };
+    options.allow_hosts = if cli.allow_host.is_empty() {
+        environment.allow_host.clone()
+    } else {
+        cli.allow_host.clone()
+    };
+    if let Some(max) = cli.max_sessions.or(environment.max_sessions) {
         options.max_sessions = max;
     }
-    options.token = http_token(cli.token_file.as_deref())?;
+    let token_file = cli
+        .token_file
+        .as_deref()
+        .map(|file| (file, "--token-file"))
+        .or_else(|| {
+            environment
+                .token_file
+                .as_deref()
+                .map(|file| (file, "SB_MCP_TOKEN_FILE"))
+        });
+    options.token = http_token(token_file)?;
     options.validate()?;
     Ok(Some(options))
 }
 
 /// `IP:PORT`, or an IP address alone for the default port.
 fn parse_listen(text: &str) -> Result<SocketAddr, SeleniumBaseError> {
+    socket_address(text).ok_or_else(|| {
+        SeleniumBaseError::invalid_config(format!("--listen {text:?} is not {ADDRESS_HINT}"))
+    })
+}
+
+/// What `--listen` and `SB_MCP_LISTEN` take.
+const ADDRESS_HINT: &str = "an IP address with a port, such as 127.0.0.1:8931 or [::1]:8931";
+
+/// `IP:PORT`, or an IP address alone for the default port.
+fn socket_address(text: &str) -> Option<SocketAddr> {
     if let Ok(addr) = text.parse::<SocketAddr>() {
-        return Ok(addr);
+        return Some(addr);
     }
-    if let Ok(ip) = text.parse::<IpAddr>() {
-        return Ok(SocketAddr::new(ip, DEFAULT_LISTEN.port()));
+    text.parse::<IpAddr>()
+        .ok()
+        .map(|ip| SocketAddr::new(ip, DEFAULT_LISTEN.port()))
+}
+
+/// The `SB_MCP_*` variables. Each stands for the flag of `sbrs-mcp` that it names, and the
+/// command line wins over it.
+#[derive(Debug, Default)]
+struct Environment {
+    server: Option<Profile>,
+    transport: Option<Transport>,
+    listen: Option<SocketAddr>,
+    path: Option<String>,
+    token_file: Option<String>,
+    allow_origin: Vec<String>,
+    allow_host: Vec<String>,
+    max_sessions: Option<usize>,
+}
+
+impl Environment {
+    /// Reads the variables.
+    ///
+    /// # Errors
+    ///
+    /// A variable that cannot be used is an error that names it and its flag, so that the
+    /// program ends with status 2 before it listens, like a mistake on the command line.
+    fn read() -> Result<Self, SeleniumBaseError> {
+        let listen = env_vars::text("SB_MCP_LISTEN")
+            .map(|text| {
+                socket_address(&text).ok_or_else(|| {
+                    env_vars::refusal("SB_MCP_LISTEN", &text, &format!("not {ADDRESS_HINT}"))
+                })
+            })
+            .transpose()?;
+        Ok(Self {
+            server: env_vars::parse("SB_MCP_SERVER")?,
+            transport: env_vars::parse("SB_MCP_TRANSPORT")?,
+            listen,
+            path: env_vars::text("SB_MCP_PATH"),
+            token_file: env_vars::text("SB_MCP_TOKEN_FILE"),
+            allow_origin: env_vars::list("SB_MCP_ALLOW_ORIGIN"),
+            allow_host: env_vars::list("SB_MCP_ALLOW_HOST"),
+            max_sessions: env_vars::parse("SB_MCP_MAX_SESSIONS")?,
+        })
     }
-    Err(SeleniumBaseError::invalid_config(format!(
-        "--listen {text:?} is not an IP address with a port, such as 127.0.0.1:8931 or [::1]:8931"
-    )))
 }
 
 /// The bearer token: the first line of `--token-file`, else `SB_MCP_TOKEN`, else none.
-fn http_token(file: Option<&str>) -> Result<Option<String>, SeleniumBaseError> {
-    if let Some(file) = file {
+fn http_token(file: Option<(&str, &str)>) -> Result<Option<String>, SeleniumBaseError> {
+    // `how` is what named the file: the flag or its variable.
+    if let Some((file, how)) = file {
         let text = std::fs::read_to_string(file).map_err(|error| {
-            SeleniumBaseError::invalid_config(format!("cannot read --token-file {file}: {error}"))
+            SeleniumBaseError::invalid_config(format!("cannot read {how} {file}: {error}"))
         })?;
         warn_if_shared(file);
         let token = text.trim();
         if token.is_empty() {
             return Err(SeleniumBaseError::invalid_config(format!(
-                "--token-file {file} is empty"
+                "{how} {file} is empty"
             )));
         }
         return Ok(Some(token.to_owned()));
@@ -280,7 +358,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         rich_helper::print_error_report(&error);
         std::process::exit(i32::from(error.exit_code()))
     });
-    let http = http_options(&cli).unwrap_or_else(|error| exit_with(&error));
+    let environment = Environment::read().unwrap_or_else(|error| exit_with(&error));
+    let server = cli.server.or(environment.server).unwrap_or(Profile::Sb);
+    let http = http_options(&cli, &environment).unwrap_or_else(|error| exit_with(&error));
     let serving_http = http.is_some();
     let settings = mcp::Settings::from_env().with_plugin_selection(choice.selection().clone());
     let runtime = tokio::runtime::Runtime::new()?;
@@ -294,8 +374,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         choice.log();
         match http {
-            Some(options) => mcp::serve_http(cli.server, settings, options).await,
-            None => mcp::serve_with(cli.server, settings).await,
+            Some(options) => mcp::serve_http(server, settings, options).await,
+            None => mcp::serve_with(server, settings).await,
         }
     });
     // Standard input is read on a blocking thread that only a closed pipe can
@@ -310,4 +390,92 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
     Ok(outcome?)
+}
+
+#[cfg(test)]
+mod tests {
+    use seleniumbase_rs::config::env_vars::{flag_variable, EXTRA_VARIABLES};
+
+    use super::*;
+
+    /// A flag of the usage spec of `sbrs-mcp`: the command path, its long spellings and its help.
+    fn spec_flags() -> Vec<(String, Vec<String>, String)> {
+        fn walk(
+            path: &str,
+            command: &usage_lib::SpecCommand,
+            out: &mut Vec<(String, Vec<String>, String)>,
+        ) {
+            for flag in &command.flags {
+                out.push((
+                    path.to_owned(),
+                    flag.long.clone(),
+                    flag.help.clone().unwrap_or_default(),
+                ));
+            }
+            for sub in command.subcommands.values() {
+                walk(&format!("{path} {}", sub.name), sub, out);
+            }
+        }
+        let spec: usage_lib::Spec = Cli::to_kdl().parse().expect("the usage spec parses");
+        let mut out = Vec::new();
+        walk(&spec.bin, &spec.cmd, &mut out);
+        out
+    }
+
+    /// The flag of a variable says so in its help, and every flag that the registry lists for
+    /// `sbrs-mcp` exists.
+    #[test]
+    fn the_server_flags_with_a_variable_name_it_in_their_help() {
+        let flags = spec_flags();
+        let mut named = 0;
+        for (path, longs, help) in &flags {
+            for variable in longs.iter().filter_map(|long| flag_variable(path, long)) {
+                assert!(
+                    help.contains(variable),
+                    "`{path} --{}` is set by {variable}, but its help does not say so: {help}",
+                    longs.join("/--")
+                );
+                named += 1;
+            }
+        }
+        assert!(named >= 9, "only {named} flags have a variable");
+        for extra in EXTRA_VARIABLES {
+            for spelled in extra
+                .flags
+                .iter()
+                .filter(|spelled| spelled.starts_with("sbrs-mcp "))
+            {
+                let (path, long) = spelled.rsplit_once(' ').expect("a command and a flag");
+                let long = long.trim_start_matches('-');
+                assert!(
+                    flags
+                        .iter()
+                        .any(|(known, longs, _)| known == path && longs.iter().any(|l| l == long)),
+                    "{spelled} ({}) is no flag of the server",
+                    extra.name
+                );
+            }
+        }
+    }
+
+    /// Every flag of the server that decides how it serves has a variable.
+    #[test]
+    fn every_serving_flag_has_a_variable() {
+        for (path, longs, _) in spec_flags()
+            .iter()
+            .filter(|(path, _, _)| path == "sbrs-mcp")
+        {
+            if longs
+                .iter()
+                .any(|l| l == "help" || l == "version" || l == "plugin-opt")
+            {
+                continue;
+            }
+            assert!(
+                longs.iter().any(|long| flag_variable(path, long).is_some()),
+                "--{} has no variable",
+                longs.join("/--")
+            );
+        }
+    }
 }

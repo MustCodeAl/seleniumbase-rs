@@ -30,6 +30,12 @@ fn command(args: &[&str], env: &[(&str, &str)]) -> Command {
         .env("SB_SHUTDOWN_TIMEOUT_SECS", "5")
         .stdin(Stdio::null())
         .kill_on_drop(true);
+    // Nor may any other SB_MCP_* variable of the host: they stand for flags.
+    for (name, _) in std::env::vars_os() {
+        if name.to_string_lossy().starts_with("SB_MCP_") {
+            command.env_remove(name);
+        }
+    }
     for (name, value) in env {
         command.env(name, value);
     }

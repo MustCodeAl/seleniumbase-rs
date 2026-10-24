@@ -76,7 +76,7 @@ pub struct InstallArgs {
     /// The name of the browser entry; the development entry is NAME-dev.
     #[usage(long, value_name = "NAME", default = "seleniumbase")]
     name: String,
-    /// The folder the tools write their files to (default: sbrs-mcp in your data folder).
+    /// The folder the tools write their files to (SB_MCP_OUTPUT_DIR; default: sbrs-mcp in your data folder).
     ///
     /// Registered as SB_MCP_OUTPUT_DIR and created now.
     #[usage(long, value_name = "DIR", value_hint = usage::ValueHint::AnyPath)]
