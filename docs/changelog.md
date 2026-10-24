@@ -35,6 +35,16 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ### Breaking
 
+- **`sbrs mkfile` and `sbrs mkdir` write tests on the rstest `sb` fixture.** The default test of
+  `mkfile` is `#[rstest]` with the `sb` fixture (feature `testing`); the old
+  `run_browser_test` closure is `--cm`. `--bc` writes a `BaseCase` made and quit by hand, `--dc`
+  the pure CDP `sb_cdp` fixture and `--dm` pure CDP by hand; `--cf` is refused (class fixtures
+  are not ported). `--en`, `--zh`, ... localise the strings, `-r/--rec` adds a
+  `recorder_breakpoint`, `--uc` and `--cdp` write a basic UC Mode or pure CDP test, and `--url`
+  takes a bare host and makes the test basic. `mkdir` no longer writes `helpers.rs`; it writes a
+  `#[case]` test and a pure CDP test, and takes `--gha` (a GitHub Actions workflow in
+  `.github/workflows/` of the current folder) and `--bdd` (a Gherkin scenario on the built-in steps).
+
 - **The highlight family and Demo Mode work as in Python.** `highlight`, `highlight_click`,
   `highlight_type` (now through `update_text`), `highlight_if_visible`, `highlight_elements` and
   `flash` return call builders with Python's keywords (`.loops(2).scroll(false)`; plain `.await`
@@ -125,6 +135,26 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ### Added
 
+- **The plugin API is 0.1.3** (`seleniumbase-rs-plugins` rev `5f68042f`): the hooks for
+  navigation, contexts, the network, tests and tasks, and the guard that holds each plugin to the
+  capabilities it declares. The pure CDP engine calls the navigation, context and close hooks
+  (see the next entries); the network, test and task hooks follow.
+
+- **Plugins steer navigation and contexts on the pure CDP engine (feature `plugins`).** `Page::goto`
+  (so `goto_if_not_url`, `open_target`, the MCP `navigate` tool with the MCP origin, and a plugin's
+  own `PageHandle::navigate`) asks each plugin's `before_navigate`, which may cancel it (a
+  `SeleniumBaseError::Plugin` naming the plugin, with nothing sent to the browser) or redirect it,
+  and tells `after_navigate` the status or the failure; `Browser::new_context_with` runs
+  `before_context` (the proxy and bypass list a plugin sets reach `Target.createBrowserContext`) and
+  `on_context_created` (a context a plugin stops is disposed of), and `BrowserContext::dispose`
+  tells `on_context_closed` once; `Browser::close` runs `before_close` while the browser still
+  answers, then `on_close`; the protocol events a plugin names reach `on_protocol_event`. The
+  browser, context and tab handles now implement `id`, `extensions`, `new_context`, `new_page`,
+  `context`, `navigate`, `block_urls` (the tab blocks the union of every caller's patterns) and
+  `close`, and a plugin set gets a tokio timer so the time limits of its hooks apply. A tab or
+  context a plugin stops on its way out is closed. The WebDriver engine, the network hooks and the
+  test and task hooks are not wired yet.
+
 - **Recorder Mode on `BaseCase`.** With `BrowserConfig::with_recorder_mode(true)` (`--rec`,
   `--rec-print`, `--rec-behave`, `--rec-sb-mgr`, `--rec-sb-cdp` and `SB_RECORDER` and friends),
   `quit()` writes what a person did in the browser as `recordings/<stem>_rec.rs`,
@@ -138,6 +168,13 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   copies it to FILE (`--overwrite` replaces an existing file, `--behave` also writes the feature,
   `--rec-sb-mgr` and `--rec-sb-cdp` write a script or pure CDP code; a file in a subfolder is
   allowed). Ctrl-C saves what was recorded.
+- **`sbrs recorder`** is Python's Recorder Desktop App as a terminal app (feature `tui`; without
+  it, a hint and status 2): a form for the file, the start URL, the browser, Stealth Mode, the
+  output format and `--ee`, with Record (runs `sbrs mkrec` with the terminal handed to it), Run
+  (`cargo test --test NAME`) and Replay (`sbrs replay recordings/NAME_rec.json`), and a Demo Mode
+  box for the last two. `--url`, `--browser`, `--uc`, `--ee`, `--rec-behave` and the like fill the
+  form in at the start. The `tui_kit` terminal apps gain `suspend`, which hands the terminal to a
+  child process and repaints when it ends.
 - **`--rec`, `--rec-print`, `--rec-behave`, `--rec-sb-mgr` and `--rec-sleep` are global flags of
   `sbrs`** (with Python's aliases). `sbrs --rec test` hands them to the tests as `SB_*` variables
   and runs the tests one at a time, saying so when `-n` asks for more.
@@ -527,6 +564,14 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   still set it.
 - **`Settings::screenshot_dir` and `SB_SCREENSHOT_DIR` are removed.** The library read neither;
   a settings file that still has the key loads as before.
+- **The `*_to_logs` helpers write into the running test's own folder.** `save_screenshot_to_logs`,
+  `save_page_source_to_logs`, `save_recording_to_logs`, `save_as_html_to_logs`,
+  `save_teardown_screenshot`, `save_as_pdf_to_logs`, `save_data_to_logs` and `append_data_to_logs`
+  write to `latest_logs/<test id>/` while a test run records the test, as Python's do, also when
+  the recorder runs on another thread (a Gherkin scenario's does):
+  `artifacts::ensure_test_logs_dir_for(test_id)` finds the folder by the test's id. Without a
+  recorder they still write to `latest_logs`, and the helpers that take a file name
+  (`save_screenshot`, `save_file_as`, `save_data_as`, ...) keep the flat folder.
 
 </Update>
 
