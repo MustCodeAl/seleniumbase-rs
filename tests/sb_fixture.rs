@@ -176,7 +176,10 @@ async fn a_failing_test_leaves_the_three_files_and_closes_the_browser() {
     );
     assert_eq!(std::fs::read(folder.join("screenshot.png")).unwrap(), PNG);
     let info = std::fs::read_to_string(folder.join("basic_test_info.txt")).unwrap();
-    assert!(info.starts_with(&id), "{info}");
+    assert!(
+        info.starts_with("sb_fixture::a_failing_test_leaves_the_three"),
+        "the display id first: {info}"
+    );
     assert!(info.contains("Last Page: https://shop.test/cart"), "{info}");
     assert!(
         info.contains("Exception: assertion failed: the cart is empty"),

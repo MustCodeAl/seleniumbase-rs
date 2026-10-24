@@ -37,7 +37,7 @@ use tokio::time::Instant;
 use super::deadline::{exceeded_message, Deadline};
 use super::evidence::{self, Subject};
 use crate::api::runner::{drive_with, Ended};
-use crate::artifacts::LATEST_LOGS_DIR;
+use crate::artifacts::{logs_root, LATEST_LOGS_DIR};
 use crate::common::debug_prompt::{DebugPrompt, PromptKind, PromptOutcome, PromptPage};
 use crate::config::settings::Settings;
 use crate::error::{Result, SeleniumBaseError};
@@ -78,10 +78,26 @@ pub struct AttemptEnd<'a> {
 /// A finalizer never changes how the test ends and has no error to return:
 /// log what goes wrong. Register one with `Sb::finalizer` or
 /// `SbCdp::finalizer`.
+///
+/// Per test a finalizer hears [`begin`](Finalizer::begin) once, then
+/// [`finish`](Finalizer::finish) for every attempt, or
+/// [`launch_failed`](Finalizer::launch_failed) for an attempt whose browser
+/// did not start. An attempt that failed and will be run again has
+/// `attempt < attempts`; the last attempt is the test's result.
+
 #[async_trait]
 pub trait Finalizer: Send + Sync {
+    /// Called once per test, before its first attempt starts a browser: the
+    /// run shows the test as running from here on.
+    async fn begin(&self, _test_id: &str) {}
+
     /// Called once per attempt, after the evidence and before the browser closes.
     async fn finish(&self, end: &AttemptEnd<'_>, page: &dyn PromptPage);
+
+    /// Called instead of [`finish`](Self::finish) for an attempt whose browser
+    /// did not start, so there is no page to look at. `end.outcome` is the
+    /// launch error as a failure.
+    async fn launch_failed(&self, _end: &AttemptEnd<'_>) {}
 }
 
 /// The run configuration of one test, read once from the settings.
@@ -89,6 +105,10 @@ pub trait Finalizer: Send + Sync {
 pub(crate) struct Plan {
     /// The id of the test; it names the evidence folder.
     pub test_id: String,
+    /// The name a report shows, and the first line of the info file; the id
+    /// when the test has no other name.
+    pub display: String,
+
     /// How many times a failed test is run again (`--reruns`).
     pub reruns: u32,
     /// How long to wait between attempts (`--reruns-delay`).
@@ -147,6 +167,7 @@ impl Plan {
         };
         Ok(Self {
             test_id: test_id.to_owned(),
+            display: test_id.to_owned(),
             reruns: test.reruns,
             reruns_delay: seconds("reruns_delay", test.reruns_delay)?,
             time_limit: test
@@ -161,7 +182,7 @@ impl Plan {
             no_screenshot: test.no_screenshot,
             list_fail_page: test.list_fail_page,
             recorder: test.recorder,
-            logs_dir: PathBuf::from(LATEST_LOGS_DIR),
+            logs_dir: logs_root().join(LATEST_LOGS_DIR),
             browser: settings.browser.clone(),
             headless: settings.headless || settings.headless1,
             driver,
@@ -284,6 +305,10 @@ impl Lifecycle<'_> {
         L: AsyncFn(u32) -> Result<C>,
         B: AsyncFn(&mut C) -> Result<()>,
     {
+        for finalizer in self.finalizers {
+            finalizer.begin(&self.plan.test_id).await;
+        }
+
         let attempts = self.plan.attempts();
         let mut attempt = 1;
         loop {
@@ -318,7 +343,21 @@ impl Lifecycle<'_> {
         let started = Instant::now();
         let mut case = match launch(attempt).await {
             Ok(case) => case,
-            Err(error) => return Finished::Launch(error),
+            Err(error) => {
+                {
+                    let end = AttemptEnd {
+                        test_id: &plan.test_id,
+                        attempt,
+                        attempts: plan.attempts(),
+                        outcome: Outcome::Failed(&error),
+                        duration: started.elapsed(),
+                    };
+                    for finalizer in self.finalizers {
+                        finalizer.launch_failed(&end).await;
+                    }
+                }
+                return Finished::Launch(error);
+            }
         };
         case.name_test(&plan.test_id);
         let deadline = Deadline::new(plan.time_limit);
@@ -353,6 +392,8 @@ impl Lifecycle<'_> {
     fn subject(&self, started: Instant) -> Subject<'_> {
         Subject {
             test_id: &self.plan.test_id,
+            display: &self.plan.display,
+
             browser: &self.plan.browser,
             headless: self.plan.headless,
             driver: self.plan.driver,
@@ -462,7 +503,6 @@ impl Lifecycle<'_> {
 mod tests {
     use std::collections::HashSet;
     use std::panic::AssertUnwindSafe;
-    use std::path::Path;
     use std::sync::atomic::{AtomicU32, Ordering};
     use std::sync::Mutex;
 
@@ -471,7 +511,7 @@ mod tests {
 
     use super::*;
     use crate::config::test_settings::TestSettings;
-    use crate::testing::evidence::{BASIC_INFO_FILE, PAGE_SOURCE_FILE, SCREENSHOT_FILE};
+    use crate::core::log_helper::{BASIC_INFO_FILE, PAGE_SOURCE_FILE, SCREENSHOT_FILE};
 
     /// What happened, in order, across the cases of one test.
     #[derive(Default)]
@@ -598,6 +638,8 @@ mod tests {
             Self {
                 plan: Plan {
                     test_id: "fake.test".to_owned(),
+                    display: "fake::test".to_owned(),
+
                     reruns: 0,
                     reruns_delay: Duration::ZERO,
                     time_limit: None,
@@ -887,6 +929,55 @@ mod tests {
         assert_eq!(rig.events.all()[0], "launch 1");
     }
 
+    /// Notes the start of a test and the attempts whose browser did not start.
+    struct Starts(Arc<Events>);
+
+    #[async_trait]
+    impl Finalizer for Starts {
+        async fn begin(&self, test_id: &str) {
+            self.0.push(format!("begin {test_id}"));
+        }
+        async fn finish(&self, end: &AttemptEnd<'_>, _page: &dyn PromptPage) {
+            self.0
+                .push(format!("finish {}/{}", end.attempt, end.attempts));
+        }
+        async fn launch_failed(&self, end: &AttemptEnd<'_>) {
+            let Outcome::Failed(error) = &end.outcome else {
+                return;
+            };
+            self.0.push(format!(
+                "launch failed {}/{}: {error}",
+                end.attempt, end.attempts
+            ));
+        }
+    }
+
+    #[tokio::test]
+    async fn a_finalizer_hears_the_start_once_and_every_launch_that_fails() {
+        let mut rig = Rig::new();
+        rig.plan.reruns = 1;
+        rig.launch_fails_first = true;
+        rig.finalizers = vec![Arc::new(Starts(Arc::clone(&rig.events))) as Arc<dyn Finalizer>];
+        let result = rig.run(async |_: &mut FakeCase| Ok(())).await;
+        assert!(result.is_ok(), "{result:?}");
+        let events = rig.events.all();
+        assert_eq!(events[0], "begin fake.test", "before the first launch");
+        let heard: Vec<&String> = events
+            .iter()
+            .filter(|event| {
+                event.starts_with("begin")
+                    || event.starts_with("finish")
+                    || event.starts_with("launch failed")
+            })
+            .collect();
+        assert_eq!(heard.len(), 3, "{heard:?}");
+        assert!(
+            heard[1].starts_with("launch failed 1/2: failed to launch browser binary 'chrome'"),
+            "{heard:?}"
+        );
+        assert_eq!(heard[2], "finish 2/2");
+    }
+
     #[tokio::test]
     async fn a_failed_close_fails_a_passing_test() {
         let mut rig = Rig::new();
@@ -1070,7 +1161,8 @@ mod tests {
         assert!(plan.save_screenshot && plan.no_screenshot && plan.list_fail_page);
         assert_eq!(plan.browser, "edge");
         assert!(plan.headless);
-        assert_eq!(plan.logs_dir, Path::new(LATEST_LOGS_DIR));
+        assert_eq!(plan.logs_dir, logs_root().join(LATEST_LOGS_DIR));
+        assert_eq!(plan.display, "a.b", "the id until the caller names it");
     }
 
     #[test]

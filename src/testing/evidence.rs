@@ -12,29 +12,24 @@
 //! (the browser crashed, the tab is gone) is logged and the files that could
 //! be taken are still written.
 
+use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use chrono::{DateTime, Local};
-
 use crate::common::debug_prompt::{folder_name, PromptPage};
+use crate::core::log_helper::{
+    log_page_source, log_screenshot, log_test_failure_data, FailureInfo,
+};
+use crate::core::report_helper::FailureDetails;
 use crate::error::SeleniumBaseError;
-
-/// The screenshot of the page.
-pub(crate) const SCREENSHOT_FILE: &str = "screenshot.png";
-/// The HTML of the page.
-pub(crate) const PAGE_SOURCE_FILE: &str = "page_source.html";
-/// The test id, last page, duration, browser, time and error.
-pub(crate) const BASIC_INFO_FILE: &str = "basic_test_info.txt";
-
-/// The rule above and below the header of the info file.
-const RULE: &str = "--------------------------------------------------------------------";
 
 /// What the lifecycle knows about the attempt, for the info file.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Subject<'a> {
     /// The id of the test; it names the folder.
     pub test_id: &'a str,
+    /// The name a report shows; the first line of the info file.
+    pub display: &'a str,
     /// The browser as configured: `chrome`, `firefox`, ...
     pub browser: &'a str,
     /// Whether the browser ran without a window.
@@ -63,7 +58,8 @@ pub(crate) fn test_folder(root: &Path, test_id: &str) -> PathBuf {
 }
 
 /// Takes the evidence of a failed attempt from `page`. `screenshot` is false
-/// for `--no-screenshot`.
+/// for `--no-screenshot`. The files are written by the `log_helper` writers,
+/// so they have the layout Python's do.
 pub(crate) async fn take_failure(
     root: &Path,
     subject: &Subject<'_>,
@@ -81,14 +77,17 @@ pub(crate) async fn take_failure(
     }
     take_source(page, &mut taken).await;
     let version = browser_version(subject.browser, page).await;
-    let info = render_info(
-        subject,
-        version.as_deref(),
-        taken.last_page.as_deref(),
-        error,
-        Local::now(),
-    );
-    put(&mut taken, BASIC_INFO_FILE, info.as_bytes()).await;
+    let info = FailureInfo {
+        test_id: subject.display.to_owned(),
+        last_page: taken.last_page.clone(),
+        duration: subject.duration,
+        browser: Some(browser_label(subject, version.as_deref())),
+        driver: Some(subject.driver.to_owned()),
+        traceback: FailureDetails::from_error(error).detail,
+        exception: error.to_string(),
+    };
+    let written = log_test_failure_data(&taken.folder, &info);
+    note(&mut taken, "basic_test_info.txt", written);
     taken
 }
 
@@ -98,6 +97,7 @@ pub(crate) async fn take_pass(root: &Path, subject: &Subject<'_>, page: &dyn Pro
         folder: test_folder(root, subject.test_id),
         ..Taken::default()
     };
+    taken.last_page = page.url().await.ok();
     take_screenshot(page, &mut taken).await;
     take_source(page, &mut taken).await;
     taken
@@ -105,66 +105,41 @@ pub(crate) async fn take_pass(root: &Path, subject: &Subject<'_>, page: &dyn Pro
 
 async fn take_screenshot(page: &dyn PromptPage, taken: &mut Taken) {
     match page.screenshot_png().await {
-        Ok(png) => put(taken, SCREENSHOT_FILE, &png).await,
+        Ok(png) => {
+            let written = log_screenshot(&taken.folder, &png);
+            note(taken, "screenshot.png", written);
+        }
         Err(error) => tracing::warn!(%error, "no screenshot of the page was taken"),
     }
 }
 
 async fn take_source(page: &dyn PromptPage, taken: &mut Taken) {
     match page.page_source().await {
-        Ok(html) => put(taken, PAGE_SOURCE_FILE, html.as_bytes()).await,
+        Ok(html) => {
+            let written = log_page_source(&taken.folder, taken.last_page.as_deref(), &html);
+            note(taken, "page_source.html", written);
+        }
         Err(error) => tracing::warn!(%error, "the page source was not taken"),
     }
 }
 
-/// Writes one file into the test's folder, which is created first. A failure
-/// is logged: evidence never fails a test.
-async fn put(taken: &mut Taken, name: &str, bytes: &[u8]) {
-    let path = taken.folder.join(name);
-    let written = async {
-        tokio::fs::create_dir_all(&taken.folder).await?;
-        tokio::fs::write(&path, bytes).await
-    }
-    .await;
+/// Keeps the path of a file that was written. A failure is logged: evidence
+/// never fails a test.
+fn note(taken: &mut Taken, what: &str, written: io::Result<PathBuf>) {
     match written {
-        Ok(()) => taken.files.push(path),
-        Err(error) => tracing::warn!(%error, path = %path.display(), "evidence was not written"),
+        Ok(path) => taken.files.push(path),
+        Err(error) => tracing::warn!(%error, file = what, "evidence was not written"),
     }
 }
 
-/// The text of `basic_test_info.txt`.
-fn render_info(
-    subject: &Subject<'_>,
-    version: Option<&str>,
-    last_page: Option<&str>,
-    error: &SeleniumBaseError,
-    now: DateTime<Local>,
-) -> String {
+/// The browser line of the info file: `Chrome 120.0.6099.109 / headless`.
+fn browser_label(subject: &Subject<'_>, version: Option<&str>) -> String {
     let headless = if subject.headless { " / headless" } else { "" };
     let name = capitalized(subject.browser);
-    let browser = match version {
+    match version {
         Some(version) => format!("{name} {version}{headless}"),
         None => format!("{name}{headless}"),
-    };
-    let lines = [
-        subject.test_id.to_owned(),
-        RULE.to_owned(),
-        format!("Last Page: {}", last_page.unwrap_or("(Unknown Page)")),
-        format!(" Duration: {:.2}s", subject.duration.as_secs_f64()),
-        format!("  Browser: {browser}"),
-        format!("   Driver: {}", subject.driver),
-        format!("Timestamp: {}  (Unix Timestamp)", now.timestamp()),
-        format!("     Date: {}", now.format("%A, %d %B %Y")),
-        format!(
-            "     Time: {}  (UTC{})",
-            now.format("%I:%M:%S %p"),
-            now.format("%:z")
-        ),
-        RULE.to_owned(),
-        format!("Exception: {error}"),
-        String::new(),
-    ];
-    lines.join("\n")
+    }
 }
 
 /// `chrome` as `Chrome`.
@@ -205,6 +180,9 @@ mod tests {
     use serde_json::{json, Value};
 
     use super::*;
+    use crate::core::log_helper::{BASIC_INFO_FILE, PAGE_SOURCE_FILE, SCREENSHOT_FILE};
+
+    const RULE: &str = "--------------------------------------------------------------------";
 
     /// A page with fixed answers; an `Err` message makes that answer fail.
     struct FakePage {
@@ -251,6 +229,7 @@ mod tests {
     fn subject(test_id: &str) -> Subject<'_> {
         Subject {
             test_id,
+            display: test_id,
             browser: "chrome",
             headless: true,
             driver: "WebDriver",
@@ -287,7 +266,12 @@ mod tests {
             std::fs::read(folder.join(SCREENSHOT_FILE)).unwrap(),
             b"\x89PNG-bytes"
         );
-        assert_eq!(read(&folder.join(PAGE_SOURCE_FILE)), "<html>login</html>");
+        let source = read(&folder.join(PAGE_SOURCE_FILE));
+        assert!(source.contains("<html>login</html>"), "{source}");
+        assert!(
+            source.contains("<base href"),
+            "the saved page finds its assets"
+        );
         let info = read(&folder.join(BASIC_INFO_FILE));
         let lines: Vec<&str> = info.lines().collect();
         assert_eq!(lines[0], "login.valid_login");
@@ -299,7 +283,10 @@ mod tests {
         assert!(lines[6].starts_with("Timestamp: "), "{info}");
         assert!(lines[6].ends_with("(Unix Timestamp)"), "{info}");
         assert_eq!(lines[9], RULE);
-        assert_eq!(lines[10], "Exception: assertion failed: boom");
+        assert_eq!(lines[10], "Traceback:");
+        assert_eq!(lines[11], "  assertion failed: boom");
+        assert_eq!(lines[12], "Exception: assertion failed: boom");
+        assert!(info.contains("\r\n"), "Python's file has CRLF line ends");
         assert_eq!(taken.files.len(), 3);
     }
 
