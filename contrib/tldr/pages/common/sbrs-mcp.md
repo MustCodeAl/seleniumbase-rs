@@ -48,3 +48,28 @@
 - List the clients, where each keeps its config, whether it is on this machine, and what is registered:
 
 `sbrs-mcp clients`
+
+- List the tools of an MCP server, as a client (with no server flag this program starts its `dev` server; `--url` reaches a running one, the token comes from `SB_MCP_TOKEN` or `--token-file`):
+
+`sbrs-mcp tools {{[--server cdp|driver|sb|dev|--url http://127.0.0.1:8931/mcp]}}`
+
+- Show one tool with the JSON Schema of its arguments:
+
+`sbrs-mcp tools {{find_api}}`
+
+- Call a tool with a JSON object, with `--arg KEY=VALUE` options, or with JSON on `stdin` (exit status: 0 worked, 1 the tool failed, 2 a mistake in what you typed, 3 the server could not be reached):
+
+`sbrs-mcp call {{find_api}} '{{{"query":"click"}}}'`
+
+- Call a tool and print its structured result as one line of JSON:
+
+`sbrs-mcp call --raw {{find_api}} --arg {{query=click}}`
+
+- Run several calls in one session, one JSON object per line (a browser one call starts is there for the next):
+
+`sbrs-mcp batch --server {{cdp}} < {{calls.jsonl}}`
+
+- List and read the resources, and list and render the prompts, of a server:
+
+`sbrs-mcp {{resources|read sbrs://journal|prompts|prompt write_test --arg url=https://example.com --arg goal=login}} --server {{cdp}}`
+

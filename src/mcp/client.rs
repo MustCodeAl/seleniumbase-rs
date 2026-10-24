@@ -366,7 +366,7 @@ impl McpClient {
         };
         let service = tokio::time::timeout(timeout, handler.serve(transport))
             .await
-            .map_err(|_| {
+            .map_err(|_elapsed| {
                 SeleniumBaseError::mcp(
                     label,
                     format!("no answer to the handshake within {} s", timeout.as_secs()),
@@ -736,6 +736,6 @@ mod tests {
         assert!(!read.is_error);
         assert_eq!(read.text, "done");
         assert_eq!(read.structured, None);
-        assert!(read.images.is_empty());
+        assert_eq!(read.images.len(), 0);
     }
 }
