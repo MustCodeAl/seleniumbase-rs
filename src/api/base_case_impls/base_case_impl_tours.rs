@@ -455,7 +455,7 @@ impl BaseCase {
             .ok_or_else(|| tours::missing_tour(name))?;
         let script = tour.export_script(name, url, &self.introjs_colors);
         std::fs::create_dir_all(folder)?;
-        let path = folder.join(filename);
+        let path = crate::artifacts::confined_path(folder, filename)?;
         std::fs::write(&path, script)?;
         println!("\n>>> [{}] was saved!\n", path.display());
         Ok(path)

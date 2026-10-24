@@ -849,7 +849,6 @@ fn read_task_input_from(
 /// Where the results of `sbrs plugin run` go: one JSON value per line, on standard output or in
 /// the file `--out` names. Every line is flushed, so a task that is stopped leaves what it found.
 #[cfg(feature = "plugins")]
-
 pub struct JsonlSink {
     out: std::sync::Mutex<Box<dyn std::io::Write + Send>>,
 }
