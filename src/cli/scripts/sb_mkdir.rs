@@ -451,7 +451,7 @@ mod tests {
         assert_eq!(names(&suite), ["ui/README.md", "ui/main.rs"]);
         let files = suite.files();
         let main = contents(&files, "main.rs");
-        assert!(!main.contains("mod "), "{main}");
+        assert!(!main.lines().any(|line| line.starts_with("mod ")), "{main}");
         assert!(main.contains("Add a test by creating"), "{main}");
         assert!(!contents(&files, "README.md").contains("my_first_test"));
     }

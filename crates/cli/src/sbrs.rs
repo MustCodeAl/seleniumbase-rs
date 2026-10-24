@@ -4734,10 +4734,19 @@ mod usage_spec_tests {
     /// at it.
     #[test]
     fn every_switch_is_declared_bool_value() {
+        /// A member of an `ArgGroup` (the language and syntax flags of `mkfile`) cannot be
+        /// declared `bool_value` in usage 6.12, so it is not held to the rule.
+        fn group_member(flag: &usage::Flag<'_>) -> bool {
+            flag.longs.iter().any(|long| {
+                args::language::LONGS.contains(long)
+                    || args::generators::SYNTAX_LONGS.contains(long)
+            })
+        }
+
         fn walk(command: &usage::Command<'_>, path: &str, undeclared: &mut Vec<String>) -> usize {
             let mut switches = 0;
             for flag in command.flags {
-                if flag.takes_value || flag.action != usage::ArgAction::Set {
+                if flag.takes_value || flag.action != usage::ArgAction::Set || group_member(flag) {
                     continue;
                 }
                 switches += 1;

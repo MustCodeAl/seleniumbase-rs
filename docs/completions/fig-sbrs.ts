@@ -2769,6 +2769,14 @@ const completionSpec: Fig.Spec = {
           description: "Create only the scaffolding, with no example tests.",
         },
         {
+          name: "--gha",
+          description: "Also write a GitHub Actions workflow, .github/workflows/sbrs-tests.yml, here.",
+        },
+        {
+          name: "--bdd",
+          description: "Also write a Gherkin scenario that runs on the built-in steps (needs the bdd feature).",
+        },
+        {
           name: "--force",
           description: "Replace generated files that already exist.",
         },
@@ -2791,7 +2799,7 @@ const completionSpec: Fig.Spec = {
       options: [
         {
           name: "--url",
-          description: "Page the test opens (default: https://example.com).",
+          description: "Page the test opens (default: https://example.com). A bare host such as wikipedia.org gets https://; the test is then the basic one.",
           args: {
             name: "url",
           },
@@ -2801,8 +2809,84 @@ const completionSpec: Fig.Spec = {
           description: "Leave the test body empty: it only opens the page.",
         },
         {
+          name: ["-r", "--rec", "--record", "--recorder"],
+          description: "Add a recorder breakpoint for Recorder Mode (also --record, --recorder).",
+        },
+        {
+          name: "--uc",
+          description: "UC Mode: the run_browser_test closure with the UC driver, a basic body and English.",
+        },
+        {
+          name: "--cdp",
+          description: "Pure CDP: the sb_cdp fixture, a basic body and English.",
+        },
+        {
           name: "--force",
           description: "Replace the file if it already exists.",
+        },
+        {
+          name: "--en",
+          description: "English strings",
+        },
+        {
+          name: "--zh",
+          description: "Chinese strings",
+        },
+        {
+          name: "--nl",
+          description: "Dutch strings",
+        },
+        {
+          name: "--fr",
+          description: "French strings",
+        },
+        {
+          name: "--it",
+          description: "Italian strings",
+        },
+        {
+          name: "--ja",
+          description: "Japanese strings",
+        },
+        {
+          name: "--ko",
+          description: "Korean strings",
+        },
+        {
+          name: "--pt",
+          description: "Portuguese strings",
+        },
+        {
+          name: "--ru",
+          description: "Russian strings",
+        },
+        {
+          name: "--es",
+          description: "Spanish strings",
+        },
+        {
+          name: "--pf",
+          description: "The rstest `sb` fixture (the default)",
+        },
+        {
+          name: "--bc",
+          description: "The BaseCase made and quit by hand",
+        },
+        {
+          name: "--cm",
+          description: "A closure run by run_browser_test",
+        },
+        {
+          name: "--dc",
+          description: "The pure CDP `sb_cdp` fixture",
+        },
+        {
+          name: "--dm",
+          description: "A pure CDP browser launched and closed by hand",
+        },
+        {
+          name: "--cf",
+          description: "Not ported: class fixtures have no Rust form (use --pf)",
         },
         {
           name: ["-h", "--help"],

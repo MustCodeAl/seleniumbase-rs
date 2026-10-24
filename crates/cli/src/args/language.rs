@@ -30,6 +30,12 @@ macro_rules! language_flags {
             )*
         }
 
+        /// The long names of the members, for the test that every switch is a `bool_value`:
+        /// usage 6.12 does not let a group member say so.
+        #[cfg(test)]
+        pub(crate) const LONGS: &[&str] = &[$($short, $long, $capital),*];
+
+
         impl LanguageFlag {
             /// The language the flag asks for.
             pub(crate) const fn language(self) -> Language {

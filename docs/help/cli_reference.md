@@ -2709,8 +2709,10 @@ Create a folder with a runnable browser-test suite.
 
 Names are relative to the current directory and use letters, digits, `_`, `-` and `.`, with `/` between folders. Nothing is overwritten unless `--force` is given.
 
+The folder is one Cargo test target (`tests/<folder>/main.rs`) with example tests that use the rstest `sb` fixture, a parameterized test and a pure CDP test. `--bdd` adds a Gherkin scenario that runs on the built-in steps, and `--gha` a GitHub Actions workflow in `.github/workflows/` of the current folder.
+
 ```bash Usage
-sbrs mkdir [-b --basic] [--force] <DIR>
+sbrs mkdir [FLAGS] <DIR>
 ```
 
 **Arguments**
@@ -2728,6 +2730,18 @@ Folder to create, for example `tests/ui`.
 Create only the scaffolding, with no example tests.
 
 Also: `-b`
+
+</ParamField>
+
+<ParamField query="--gha" type="boolean">
+
+Also write a GitHub Actions workflow, .github/workflows/sbrs-tests.yml, here.
+
+</ParamField>
+
+<ParamField query="--bdd" type="boolean">
+
+Also write a Gherkin scenario that runs on the built-in steps (needs the bdd feature).
 
 </ParamField>
 
@@ -2749,6 +2763,8 @@ Create a browser-test file.
 
 The name follows the same rules as `mkdir`; `.rs` is added when missing. An existing file is never overwritten unless `--force` is given.
 
+The test uses the rstest `sb` fixture unless a syntax flag says otherwise: `--pf` (the default), `--bc` (a BaseCase made and quit by hand), `--cm` (the run_browser_test closure), `--dc` (the pure CDP `sb_cdp` fixture) or `--dm` (a pure CDP browser launched by hand). A language flag (`--en`, `--zh`, `--nl`, `--fr`, `--it`, `--ja`, `--ko`, `--pt`, `--ru`, `--es`) localises the strings it types and expects. `--rec` adds a recorder breakpoint for Recorder Mode, and `--uc` and `--cdp` write a basic test for UC Mode and for pure CDP.
+
 ```bash Usage
 sbrs mkfile [FLAGS] <FILE>
 ```
@@ -2765,7 +2781,7 @@ File to create, for example `tests/login.rs`.
 
 <ParamField query="--url <URL>" type="string">
 
-Page the test opens (default: https://example.com).
+Page the test opens (default: https://example.com). A bare host such as wikipedia.org gets https://; the test is then the basic one.
 
 </ParamField>
 
@@ -2777,9 +2793,125 @@ Also: `-b`
 
 </ParamField>
 
+<ParamField query="--rec" type="boolean">
+
+Add a recorder breakpoint for Recorder Mode (also --record, --recorder).
+
+Also: `--record`, `--recorder`, `-r`
+
+</ParamField>
+
+<ParamField query="--uc" type="boolean">
+
+UC Mode: the run_browser_test closure with the UC driver, a basic body and English.
+
+</ParamField>
+
+<ParamField query="--cdp" type="boolean">
+
+Pure CDP: the sb_cdp fixture, a basic body and English.
+
+</ParamField>
+
 <ParamField query="--force" type="boolean">
 
 Replace the file if it already exists.
+
+</ParamField>
+
+<ParamField query="--en" type="boolean">
+
+English strings
+
+</ParamField>
+
+<ParamField query="--zh" type="boolean">
+
+Chinese strings
+
+</ParamField>
+
+<ParamField query="--nl" type="boolean">
+
+Dutch strings
+
+</ParamField>
+
+<ParamField query="--fr" type="boolean">
+
+French strings
+
+</ParamField>
+
+<ParamField query="--it" type="boolean">
+
+Italian strings
+
+</ParamField>
+
+<ParamField query="--ja" type="boolean">
+
+Japanese strings
+
+</ParamField>
+
+<ParamField query="--ko" type="boolean">
+
+Korean strings
+
+</ParamField>
+
+<ParamField query="--pt" type="boolean">
+
+Portuguese strings
+
+</ParamField>
+
+<ParamField query="--ru" type="boolean">
+
+Russian strings
+
+</ParamField>
+
+<ParamField query="--es" type="boolean">
+
+Spanish strings
+
+</ParamField>
+
+<ParamField query="--pf" type="boolean">
+
+The rstest `sb` fixture (the default)
+
+</ParamField>
+
+<ParamField query="--bc" type="boolean">
+
+The BaseCase made and quit by hand
+
+</ParamField>
+
+<ParamField query="--cm" type="boolean">
+
+A closure run by run_browser_test
+
+</ParamField>
+
+<ParamField query="--dc" type="boolean">
+
+The pure CDP `sb_cdp` fixture
+
+</ParamField>
+
+<ParamField query="--dm" type="boolean">
+
+A pure CDP browser launched and closed by hand
+
+</ParamField>
+
+<ParamField query="--cf" type="boolean">
+
+Not ported: class fixtures have no Rust form (use --pf)
 
 </ParamField>
 

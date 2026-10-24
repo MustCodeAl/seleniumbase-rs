@@ -1977,35 +1977,90 @@ Rewrites each step's `action` (`click`, `open`, ...) with the translation dictio
     complete file type=path:json
     example "sbrs translate scenario.json zh --print"
 }
-cmd mkdir help_heading="Files and generators" help="Create a folder with a runnable browser-test suite." {
+cmd mkdir help_heading="Files and generators" help="Create a folder with a runnable browser-test suite." args_override_self=#false {
     long_help #"""
 Create a folder with a runnable browser-test suite.
 
 Names are relative to the current directory and use letters, digits, `_`, `-` and `.`, with `/` between folders. Nothing is overwritten unless `--force` is given.
+
+The folder is one Cargo test target (`tests/<folder>/main.rs`) with example tests that use the rstest `sb` fixture, a parameterized test and a pure CDP test. `--bdd` adds a Gherkin scenario that runs on the built-in steps, and `--gha` a GitHub Actions workflow in `.github/workflows/` of the current folder.
 """#
     flag "-b --basic" help="Create only the scaffolding, with no example tests." bool_value=#true
+    flag --gha help="Also write a GitHub Actions workflow, .github/workflows/sbrs-tests.yml, here." bool_value=#true
+    flag --bdd help="Also write a Gherkin scenario that runs on the built-in steps (needs the bdd feature)." bool_value=#true
     flag --force help="Replace generated files that already exist." bool_value=#true
     flag "-h --help" help="Print help" action=help builtin=#true
     arg <DIR> help="Folder to create, for example `tests/ui`."
     complete dir type=dir
     example "sbrs mkdir ui_tests"
 }
-cmd mkfile help_heading="Files and generators" help="Create a browser-test file." {
+cmd mkfile help_heading="Files and generators" help="Create a browser-test file." args_override_self=#false {
     alias new
     long_help #"""
 Create a browser-test file.
 
 The name follows the same rules as `mkdir`; `.rs` is added when missing. An existing file is never overwritten unless `--force` is given.
+
+The test uses the rstest `sb` fixture unless a syntax flag says otherwise: `--pf` (the default), `--bc` (a BaseCase made and quit by hand), `--cm` (the run_browser_test closure), `--dc` (the pure CDP `sb_cdp` fixture) or `--dm` (a pure CDP browser launched by hand). A language flag (`--en`, `--zh`, `--nl`, `--fr`, `--it`, `--ja`, `--ko`, `--pt`, `--ru`, `--es`) localises the strings it types and expects. `--rec` adds a recorder breakpoint for Recorder Mode, and `--uc` and `--cdp` write a basic test for UC Mode and for pure CDP.
 """#
-    flag --url help="Page the test opens (default: https://example.com)." {
+    flag --url help="Page the test opens (default: https://example.com). A bare host such as wikipedia.org gets https://; the test is then the basic one." {
         arg <URL>
     }
     flag "-b --basic" help="Leave the test body empty: it only opens the page." bool_value=#true
+    flag "-r --rec" help="Add a recorder breakpoint for Recorder Mode (also --record, --recorder)." bool_value=#true {
+        alias --record --recorder hide=#true
+    }
+    flag --uc help="UC Mode: the run_browser_test closure with the UC driver, a basic body and English." bool_value=#true
+    flag --cdp help="Pure CDP: the sb_cdp fixture, a basic body and English." bool_value=#true
     flag --force help="Replace the file if it already exists." bool_value=#true
+    flag --en help="English strings"
+    flag --english hide=#true
+    flag --English hide=#true
+    flag --zh help="Chinese strings"
+    flag --chinese hide=#true
+    flag --Chinese hide=#true
+    flag --nl help="Dutch strings"
+    flag --dutch hide=#true
+    flag --Dutch hide=#true
+    flag --fr help="French strings"
+    flag --french hide=#true
+    flag --French hide=#true
+    flag --it help="Italian strings"
+    flag --italian hide=#true
+    flag --Italian hide=#true
+    flag --ja help="Japanese strings"
+    flag --japanese hide=#true
+    flag --Japanese hide=#true
+    flag --ko help="Korean strings"
+    flag --korean hide=#true
+    flag --Korean hide=#true
+    flag --pt help="Portuguese strings"
+    flag --portuguese hide=#true
+    flag --Portuguese hide=#true
+    flag --ru help="Russian strings"
+    flag --russian hide=#true
+    flag --Russian hide=#true
+    flag --es help="Spanish strings"
+    flag --spanish hide=#true
+    flag --Spanish hide=#true
+    flag --pf help="The rstest `sb` fixture (the default)"
+    flag --pytest-fixture hide=#true
+    flag --bc help="The BaseCase made and quit by hand"
+    flag --basecase hide=#true
+    flag --cm help="A closure run by run_browser_test"
+    flag --context-manager hide=#true
+    flag --dc help="The pure CDP `sb_cdp` fixture"
+    flag --driver-context hide=#true
+    flag --dm help="A pure CDP browser launched and closed by hand"
+    flag --driver-manager hide=#true
+    flag --cf help="Not ported: class fixtures have no Rust form (use --pf)"
+    flag --class-fixture hide=#true
     flag "-h --help" help="Print help" action=help builtin=#true
     arg <FILE> help="File to create, for example `tests/login.rs`."
     complete file type=path:rs
     complete url type=url
+    group language "--en" "--english" "--English" "--zh" "--chinese" "--Chinese" "--nl" "--dutch" "--Dutch" "--fr" "--french" "--French" "--it" "--italian" "--Italian" "--ja" "--japanese" "--Japanese" "--ko" "--korean" "--Korean" "--pt" "--portuguese" "--Portuguese" "--ru" "--russian" "--Russian" "--es" "--spanish" "--Spanish"
+    group syntax "--pf" "--pytest-fixture" "--bc" "--basecase" "--cm" "--context-manager" "--dc" "--driver-context" "--dm" "--driver-manager" "--cf" "--class-fixture"
     example "sbrs mkfile tests/login.rs"
 }
 cmd commander help_heading=Tests help="Launch the Commander, a terminal app (needs a build with the `tui` feature)." {

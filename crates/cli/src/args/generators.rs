@@ -46,6 +46,24 @@ pub(crate) enum SyntaxFlag {
     ClassFixture,
 }
 
+/// The long names of the members, for the test that every switch is a `bool_value`: usage 6.12
+/// does not let a group member say so, hence `--pf=false` reads as `--pf`.
+#[cfg(test)]
+pub(crate) const SYNTAX_LONGS: &[&str] = &[
+    "pf",
+    "pytest-fixture",
+    "bc",
+    "basecase",
+    "cm",
+    "context-manager",
+    "dc",
+    "driver-context",
+    "dm",
+    "driver-manager",
+    "cf",
+    "class-fixture",
+];
+
 impl SyntaxFlag {
     /// The syntax the flag asks for, or `None` for the class fixtures, which Rust has no form of.
     pub(crate) const fn syntax(self) -> Option<Syntax> {
