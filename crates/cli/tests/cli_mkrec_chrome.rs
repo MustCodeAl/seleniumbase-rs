@@ -22,11 +22,18 @@ const PAGE: &str = r##"<!doctype html><title>Self-driving</title>
 <h1 id="title">Recorder fixture</h1>
 <button id="go" type="button" onclick="document.title='clicked'">Go</button>
 <script>
-setTimeout(() => document.getElementById('go').click(), 1000);
+// The Recorder keeps a click as a mouse down and a mouse up on the same element.
+setTimeout(() => {
+  const go = document.getElementById('go');
+  for (const type of ['mousedown', 'mouseup', 'click']) {
+    go.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }));
+  }
+}, 1000);
 setTimeout(() => setInterval(() => {
-  document.dispatchEvent(new KeyboardEvent('keydown', {
-    key: 'Escape', code: 'Escape', keyCode: 27, which: 27, shiftKey: true, bubbles: true,
-  }));
+  // The Recorder's listener wants a Shift key down, then Escape.
+  for (const key of ['Shift', 'Escape']) {
+    document.dispatchEvent(new KeyboardEvent('keydown', { key, code: key, bubbles: true }));
+  }
 }, 500), 2000);
 </script>
 "##;
@@ -38,10 +45,16 @@ fn finish_within(mut child: std::process::Child, limit: Duration) -> Output {
         if child.try_wait().expect("poll sbrs").is_some() {
             return child.wait_with_output().expect("collect output");
         }
-        assert!(
-            start.elapsed() < limit,
-            "sbrs mkrec did not end in {limit:?}"
-        );
+        if start.elapsed() >= limit {
+            // Ask it to stop (it closes its browser), so a failed run leaves nothing behind.
+            let _ = std::process::Command::new("kill")
+                .args(["-TERM", &child.id().to_string()])
+                .status();
+            std::thread::sleep(Duration::from_secs(10));
+            let _ = child.kill();
+            let _ = child.wait();
+            panic!("sbrs mkrec did not end in {limit:?}");
+        }
         std::thread::sleep(Duration::from_millis(100));
     }
 }
