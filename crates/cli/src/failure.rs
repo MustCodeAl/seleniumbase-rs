@@ -39,13 +39,12 @@ const DEFAULT_WIDTH: usize = 80;
 
 /// The help headings of the commands, in the order the compact root page lists them. A heading
 /// that is not here follows them in the order the commands declare it.
-const HEADING_ORDER: [&str; 8] = [
+const HEADING_ORDER: [&str; 7] = [
     "Page commands",
     "Files and generators",
     "Record and replay",
     "Tests",
     "Drivers, grid and servers",
-    "Import and convert",
     "Security",
     "Info and setup",
 ];

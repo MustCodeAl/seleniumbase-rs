@@ -1626,7 +1626,7 @@ enum Commands {
     },
     /// Convert common SeleniumBase or Selenium Python code into a Rust test.
     #[usage(
-        help_heading = "Import and convert",
+        help_heading = "Files and generators",
         example = "sbrs import-python login.py --output tests/login.rs"
     )]
     ImportPython {
@@ -1651,7 +1651,7 @@ enum Commands {
     /// Convert Playwright tests or a script (JavaScript, TypeScript or Python) into Rust tests for the pure CDP engine.
     #[usage(alias = "import-pw")]
     #[usage(
-        help_heading = "Import and convert",
+        help_heading = "Files and generators",
         example = "sbrs import-playwright login.spec.ts --output tests/login.rs"
     )]
     ImportPlaywright {
@@ -1675,7 +1675,7 @@ enum Commands {
     /// Convert Puppeteer scripts or tests (JavaScript, TypeScript) or a Chrome Recorder JSON export into Rust tests for the pure CDP engine.
     #[usage(alias = "import-pptr")]
     #[usage(
-        help_heading = "Import and convert",
+        help_heading = "Files and generators",
         example = "sbrs import-puppeteer login.js --output tests/login.rs"
     )]
     ImportPuppeteer {

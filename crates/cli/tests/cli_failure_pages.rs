@@ -111,7 +111,6 @@ fn an_unknown_command_prints_the_commands_by_group_and_the_error() {
         "Record and replay:",
         "Tests:",
         "Drivers, grid and servers:",
-        "Import and convert:",
         "Security:",
         "Info and setup:",
     ] {

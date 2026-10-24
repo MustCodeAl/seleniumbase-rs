@@ -2133,7 +2133,7 @@ cmd completions help_heading="Info and setup" help="Generate a completion script
     }
     example "sbrs completions zsh"
 }
-cmd import-python help_heading="Import and convert" help="Convert common SeleniumBase or Selenium Python code into a Rust test." {
+cmd import-python help_heading="Files and generators" help="Convert common SeleniumBase or Selenium Python code into a Rust test." {
     flag "-o --output" help="Output file for the generated Rust test" {
         arg <OUTPUT>
     }
@@ -2156,7 +2156,7 @@ cmd import-python help_heading="Import and convert" help="Convert common Seleniu
     complete test_name type=none
     example "sbrs import-python login.py --output tests/login.rs"
 }
-cmd import-playwright help_heading="Import and convert" help="Convert Playwright tests or a script (JavaScript, TypeScript or Python) into Rust tests for the pure CDP engine." {
+cmd import-playwright help_heading="Files and generators" help="Convert Playwright tests or a script (JavaScript, TypeScript or Python) into Rust tests for the pure CDP engine." {
     alias import-pw
     flag "-o --output" help="Output file for the generated Rust tests" {
         arg <OUTPUT>
@@ -2180,7 +2180,7 @@ cmd import-playwright help_heading="Import and convert" help="Convert Playwright
     complete test_name type=none
     example "sbrs import-playwright login.spec.ts --output tests/login.rs"
 }
-cmd import-puppeteer help_heading="Import and convert" help="Convert Puppeteer scripts or tests (JavaScript, TypeScript) or a Chrome Recorder JSON export into Rust tests for the pure CDP engine." {
+cmd import-puppeteer help_heading="Files and generators" help="Convert Puppeteer scripts or tests (JavaScript, TypeScript) or a Chrome Recorder JSON export into Rust tests for the pure CDP engine." {
     alias import-pptr
     flag "-o --output" help="Output file for the generated Rust tests" {
         arg <OUTPUT>
