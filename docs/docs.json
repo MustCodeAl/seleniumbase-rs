@@ -438,6 +438,19 @@
                 ]
               },
               {
+                "product": "Stealth API: mimic",
+                "icon": "masks-theater",
+                "description": "HttpSession, the MITM proxy, StealthSession and the impersonating client",
+                "groups": [
+                  {
+                    "group": "Stealth API: mimic",
+                    "pages": [
+                      "stealth/api/mimic"
+                    ]
+                  }
+                ]
+              },
+              {
                 "product": "Tauri plugin API",
                 "icon": "window-maximize",
                 "description": "The plugin's WebDriver endpoint",
