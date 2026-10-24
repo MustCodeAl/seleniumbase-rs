@@ -677,6 +677,33 @@ async fn a_later_interception_keeps_its_rules_when_an_earlier_one_stops() {
 // Response stage
 // ----------------------------------------------------------------------
 
+#[tokio::test(start_paused = true)]
+async fn a_browser_that_does_not_know_continue_response_still_gets_its_response_resumed() {
+    let log = Log::default();
+    let plugins = PluginSet::new()
+        .with(observer(&log, [Capability::NetObserve], 10))
+        .unwrap();
+    let (_browser, _page, mock) = launch(plugins).await;
+    mock.fail(
+        "Fetch.continueResponse",
+        "'Fetch.continueResponse' wasn't found",
+    );
+
+    pause_response(
+        &mock,
+        "R1",
+        "https://a.test/data.json",
+        200,
+        "application/json",
+    );
+    settle().await;
+
+    assert_eq!(
+        only(&mock, "Fetch.continueRequest"),
+        json!({ "requestId": "R1" })
+    );
+}
+
 fn observer(log: &Log, caps: impl IntoIterator<Item = Capability>, max_body: usize) -> Net {
     Net::new("watcher", log).caps(caps).interest(
         NetworkInterest::none().observe(RequestFilter::any().url("*.json").max_body(max_body)),

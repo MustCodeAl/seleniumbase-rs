@@ -360,6 +360,12 @@ impl Page {
     /// Rules are tried in order and the first match wins. A page can have one
     /// interception at a time; starting another replaces the first.
     ///
+    /// When the browser was launched with plugins that watch the network, the
+    /// rules run in front of them. A rule that blocks or answers a request
+    /// settles it, and the plugins are not asked. A request the rules let go
+    /// reaches the plugins: a block by any of them fails it, and the headers
+    /// their rules add go under the ones a [`modify`](Rule::modify) rule sets.
+    ///
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::CdpDriver`] if the browser refuses.
@@ -620,6 +626,80 @@ fn modify_params(request_id: &str, request: &Request, changes: &Changes) -> Valu
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn sent_headers(params: &Value) -> BTreeMap<String, String> {
+        params["headers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|header| {
+                (
+                    header["name"].as_str().unwrap().to_owned(),
+                    header["value"].as_str().unwrap().to_owned(),
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn extra_headers_fill_in_but_never_undo_what_a_rule_decided() {
+        let extra = BTreeMap::from([
+            ("X-Plugin".to_owned(), "p".to_owned()),
+            ("x-both".to_owned(), "p".to_owned()),
+            ("X-Gone".to_owned(), "p".to_owned()),
+        ]);
+        let rule = Rule::modify()
+            .set_header("X-Both", "u")
+            .remove_header("x-gone");
+        let page = request("https://a.test/", "GET", ResourceType::Fetch);
+
+        let (method, params) = answer("R1", &page, Some(&rule), &extra);
+
+        assert_eq!(method, "Fetch.continueRequest");
+        assert_eq!(
+            sent_headers(&params),
+            BTreeMap::from([
+                ("Accept".to_owned(), "*/*".to_owned()),
+                ("X-Both".to_owned(), "u".to_owned()),
+                ("X-Plugin".to_owned(), "p".to_owned()),
+            ])
+        );
+    }
+
+    #[test]
+    fn a_request_with_no_rule_and_no_extra_headers_is_sent_on_as_it_is() {
+        let page = request("https://a.test/", "GET", ResourceType::Fetch);
+
+        let (method, params) = answer("R1", &page, None, &BTreeMap::new());
+        assert_eq!(
+            (method, params),
+            ("Fetch.continueRequest", json!({ "requestId": "R1" }))
+        );
+
+        let extra = BTreeMap::from([("X-Run".to_owned(), "42".to_owned())]);
+        let (_, params) = answer("R1", &page, None, &extra);
+        assert_eq!(sent_headers(&params)["X-Run"], "42");
+        assert_eq!(sent_headers(&params)["Accept"], "*/*");
+    }
+
+    #[test]
+    fn a_rule_that_blocks_or_answers_ignores_the_extra_headers() {
+        let page = request("https://a.test/", "GET", ResourceType::Fetch);
+        let extra = BTreeMap::from([("X-Run".to_owned(), "42".to_owned())]);
+
+        let (blocked, _) = answer("R1", &page, Some(&Rule::block()), &extra);
+        let (answered, _) = answer(
+            "R1",
+            &page,
+            Some(&Rule::fulfill(Response::new(204, ""))),
+            &extra,
+        );
+
+        assert_eq!(
+            (blocked, answered),
+            ("Fetch.failRequest", "Fetch.fulfillRequest")
+        );
+    }
 
     fn request(url: &str, method: &str, kind: ResourceType) -> Request {
         Request {

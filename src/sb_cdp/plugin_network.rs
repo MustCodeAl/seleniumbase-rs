@@ -229,14 +229,21 @@ impl NetRouter {
     /// Takes the rules of `generation` away (the rules of a later
     /// interception stay) and narrows the patterns back.
     pub(super) async fn detach_user(&self, generation: u64) -> Result<(), SeleniumBaseError> {
-        {
-            let mut user = locked(&self.user);
-            if user.as_ref().map(|user| user.generation) != Some(generation) {
-                return Ok(());
-            }
-            *user = None;
+        if !self.forget_user(generation) {
+            return Ok(());
         }
         self.apply().await
+    }
+
+    /// Drops the rules of `generation`; `false` when other rules have taken
+    /// their place.
+    fn forget_user(&self, generation: u64) -> bool {
+        let mut user = locked(&self.user);
+        if user.as_ref().map(|user| user.generation) != Some(generation) {
+            return false;
+        }
+        *user = None;
+        true
     }
 
     /// Stops the router's tasks without touching the tab, for a tab that is
@@ -399,8 +406,26 @@ impl NetRouter {
             }
             self.deliver(&response).await;
         }
-        self.send("Fetch.continueResponse", json!({ "requestId": request_id }))
+        self.release_response(request_id).await;
+    }
+
+    /// Lets a paused response go on unchanged. `Fetch.continueResponse` is
+    /// the command for it; a browser that does not know it is asked with
+    /// `Fetch.continueRequest`, which also resumes a response, so nothing
+    /// stays paused.
+    async fn release_response(&self, request_id: &str) {
+        let released = self
+            .client
+            .send(
+                "Fetch.continueResponse",
+                json!({ "requestId": request_id }),
+                Some(&self.tab.session),
+            )
             .await;
+        if released.is_err() {
+            self.send("Fetch.continueRequest", json!({ "requestId": request_id }))
+                .await;
+        }
     }
 
     /// The body of the paused response, cut to `cap`, and whether it was cut.

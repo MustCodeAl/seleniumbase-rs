@@ -15,7 +15,7 @@
 //! [`before_close`] ahead of `on_close`, and [`deliver_event`] for the protocol
 //! events a plugin named. The handles open tabs and contexts for plugins
 //! ([`BrowserLink`], [`ContextLink`]), and what they open goes through the same
-//! hooks. The network, test and task hooks are not wired here yet.
+//! hooks. The network hooks run in the router of `plugin_network`; the test and task hooks are not wired yet.
 
 use std::collections::HashMap;
 use std::sync::Mutex as StdMutex;
