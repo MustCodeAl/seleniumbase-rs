@@ -194,3 +194,64 @@ fn the_file_writing_options_work_in_every_build() {
     assert!(output.status.success(), "{}", stderr(&output));
     assert!(dir.path().join("CASE_PLANS.md").is_file());
 }
+
+#[test]
+fn the_help_lists_recorder_as_a_terminal_app_that_needs_the_tui_feature() {
+    let dir = tempfile::tempdir().expect("temp dir");
+
+    let list = sbrs(dir.path(), &["--help"]);
+    assert!(list.status.success(), "{}", stderr(&list));
+    assert!(stdout(&list).contains("recorder"), "{}", stdout(&list));
+
+    let help = sbrs(dir.path(), &["recorder", "--help"]);
+    assert!(help.status.success(), "{}", stderr(&help));
+    let help = flat(&stdout(&help));
+    assert!(help.contains("`tui` feature"), "{help}");
+    assert!(help.contains("terminal app"), "{help}");
+    for word in ["Record", "Run", "Replay", "sbrs mkrec", "sbrs replay"] {
+        assert!(help.contains(word), "the help names {word}:\n{help}");
+    }
+}
+
+#[cfg(not(feature = "tui"))]
+#[test]
+fn without_the_tui_feature_recorder_exits_with_status_2_and_a_hint() {
+    let dir = tempfile::tempdir().expect("temp dir");
+
+    // The options that fill in the form change nothing: the app is not there.
+    for args in [
+        vec!["recorder"],
+        vec!["--uc", "recorder"],
+        vec!["recorder", "--url", "example.com", "--ee"],
+        vec!["--browser", "edge", "--rec-behave", "recorder"],
+    ] {
+        let output = sbrs(dir.path(), &args);
+
+        assert_eq!(
+            output.status.code(),
+            Some(2),
+            "{args:?}: {}",
+            stderr(&output)
+        );
+        let hint = stderr(&output);
+        assert!(
+            hint.contains("built without the terminal UI"),
+            "{args:?}: {hint}"
+        );
+        assert!(
+            hint.contains(
+                "cargo install --git https://github.com/MustCodeAl/seleniumbase-rs \
+                 seleniumbase-rs-cli --features tui"
+            ),
+            "{args:?}: the hint says how to get the feature: {hint}"
+        );
+        // Nothing on stdout, no escape sequence on either stream: the alternate
+        // screen and raw mode were never entered, and no browser was started.
+        assert!(stdout(&output).is_empty(), "{args:?}: {}", stdout(&output));
+        assert!(!hint.contains('\x1b'), "{args:?}: {hint}");
+    }
+    assert!(
+        std::fs::read_dir(dir.path()).unwrap().next().is_none(),
+        "nothing was written"
+    );
+}

@@ -1594,6 +1594,22 @@ enum Commands {
         )]
         behave: bool,
     },
+    /// Launch the Recorder, a terminal app (needs a build with the `tui` feature).
+    ///
+    /// A form for the file name, the start page, the browser and the output format, and three
+    /// actions. Record hands the terminal to `sbrs mkrec` and takes it back when the recording is
+    /// over; Run starts the recorded test (`cargo test --test NAME`); Replay runs
+    /// `recordings/NAME_rec.json` in a fresh browser (`sbrs replay`). `--url`, `--browser`,
+    /// `--uc`, `--cdp`, `--ee`, `--rec-behave`, `--rec-sb-mgr` and `--rec-sb-cdp` fill the form in
+    /// when the app starts.
+    ///
+    /// Python's `sbase recorder` opens a Tkinter window; this one runs in the terminal.
+    #[usage(
+        help_heading = "Record and replay",
+        example = "sbrs recorder",
+        example = "sbrs recorder --uc --url seleniumbase.io"
+    )]
+    Recorder,
     /// Run a scenario file, the way to do several steps in one browser, and write an optional dashboard.
     #[usage(
         help_heading = "Tests",
@@ -1916,6 +1932,7 @@ impl Commands {
             | Self::Mkdir(_)
             | Self::Mkfile(_)
             | Self::Commander { .. }
+            | Self::Recorder
             | Self::Caseplans { .. }
             | Self::BehaveGui { .. }
             | Self::Print { .. }
@@ -2309,6 +2326,27 @@ fn run_translate(
     Ok(())
 }
 
+/// `sbrs recorder`: the Recorder terminal app. The options of the command line that name what
+/// its form asks for (the page, the browser, Stealth Mode, how the recording ends and what it is
+/// written as) are the form's first answers, as Python's app reads them from its command line.
+#[cfg(feature = "tui")]
+fn run_recorder_app(args: &Cli) -> Result<(), Box<dyn std::error::Error>> {
+    let start = recorder_tui::Start {
+        url: args.start_page.clone(),
+        browser: args.browser.map(|browser| browser.name().to_owned()),
+        uc: args.uc || args.cdp,
+        esc_end: args.esc_end,
+        behave: args.recorder.rec_behave,
+        sb_mgr: args.recorder.rec_sb_mgr,
+        sb_cdp: args.rec_sb_cdp,
+    };
+    if let Err(e) = recorder_tui::run(&start) {
+        eprintln!("Failed to run the recorder: {e}");
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
 /// What the commands that are terminal apps do in a build without the `tui`
 /// feature: say how to get it, and leave the terminal alone.
 #[cfg(not(feature = "tui"))]
@@ -2668,7 +2706,10 @@ async fn execute() -> Result<(), Box<dyn std::error::Error>> {
     let args = parse_command_line();
     let stops_itself = matches!(
         args.command,
-        Commands::Mkrec { .. } | Commands::Devtools { .. } | Commands::Proxy(_)
+        Commands::Mkrec { .. }
+            | Commands::Recorder
+            | Commands::Devtools { .. }
+            | Commands::Proxy(_)
     );
     // `encrypt` and `decrypt` with no argument on a terminal prompt in a loop and handle
     // Ctrl-C themselves (`Exiting...`, status 0).
@@ -3109,6 +3150,10 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
 
         Commands::Devtools { .. } => return run_devtools(&args).await,
+        #[cfg(feature = "tui")]
+        Commands::Recorder => return run_recorder_app(&args),
+        #[cfg(not(feature = "tui"))]
+        Commands::Recorder => no_terminal_ui(),
         Commands::Options(options) => {
             print!("{}", browser_flags::options_listing(options));
             return Ok(());
@@ -3786,7 +3831,8 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         | Commands::BehaveOptions
         | Commands::Methods
         | Commands::Options(_)
-        | Commands::Devtools { .. } => {
+        | Commands::Devtools { .. }
+        | Commands::Recorder => {
             unreachable!("these commands return before browser configuration")
         }
         #[cfg(feature = "tui")]
@@ -4319,6 +4365,93 @@ mod recorder_cli_tests {
             Commands::Mkrec { .. }
         ));
         assert!(try_parse_checked(&["sbrs", "mkrec", "t.rs", "--duration", "5"]).is_err());
+    }
+
+    #[test]
+    fn the_recorder_is_a_terminal_app_that_starts_no_browser() {
+        let cli = parse(&["sbrs", "recorder"]);
+
+        assert!(matches!(cli.command, Commands::Recorder));
+        assert!(!cli.command.launches_browser());
+        assert!(!cli.command.opens_own_url() && !cli.command.needs_page());
+        assert!(try_parse_checked(&["sbrs", "recorder", "extra"]).is_err());
+    }
+
+    #[test]
+    fn the_recorder_takes_the_options_that_fill_in_its_form() {
+        let after = parse(&[
+            "sbrs",
+            "recorder",
+            "--url",
+            "example.test",
+            "--browser",
+            "brave",
+            "--uc",
+            "--ee",
+            "--rec-behave",
+        ]);
+        assert_eq!(after.start_page.as_deref(), Some("example.test"));
+        assert!(matches!(after.browser, Some(BrowserArg::Brave)));
+        assert!(after.uc && after.esc_end && after.recorder.rec_behave);
+
+        let before = parse(&["sbrs", "--cdp", "--rec-sb-cdp", "recorder"]);
+        assert!(before.cdp && before.rec_sb_cdp);
+    }
+
+    #[test]
+    fn the_command_lines_the_recorder_app_starts_are_accepted() {
+        // The list of every flag the app can add to `mkrec` is pinned by the
+        // tests of `recorder_tui`; here the parser takes it.
+        let record = parse(&[
+            "sbrs",
+            "mkrec",
+            "new_recording.rs",
+            "--url=https://seleniumbase.io/demo_page",
+            "--headed",
+            "--browser=brave",
+            "--uc",
+            "--ee",
+            "--rec-sb-mgr",
+            "--overwrite",
+            "--behave",
+        ]);
+        assert!(matches!(
+            record.command,
+            Commands::Mkrec {
+                overwrite: true,
+                behave: true,
+                ..
+            }
+        ));
+        assert_eq!(
+            record.start_page.as_deref(),
+            Some("https://seleniumbase.io/demo_page")
+        );
+        assert!(record.headed && record.uc && record.esc_end && record.recorder.rec_sb_mgr);
+        assert!(matches!(record.browser, Some(BrowserArg::Brave)));
+
+        let cdp = parse(&[
+            "sbrs",
+            "mkrec",
+            "x.rs",
+            "--url=https://example.test",
+            "--headed",
+            "--browser=chrome",
+            "--rec-sb-cdp",
+        ]);
+        assert!(cdp.rec_sb_cdp && !cdp.uc);
+
+        let replay = parse(&[
+            "sbrs",
+            "replay",
+            "recordings/x_rec.json",
+            "--headed",
+            "--browser=chrome",
+            "--uc",
+            "--demo",
+        ]);
+        assert!(matches!(replay.command, Commands::Replay { .. }));
+        assert!(replay.headed && replay.uc);
     }
 }
 
