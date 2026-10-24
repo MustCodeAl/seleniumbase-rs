@@ -236,14 +236,16 @@ pub fn extract_text_from_bytes(bytes: &[u8]) -> Result<String, SeleniumBaseError
 ///
 /// Returns [`SeleniumBaseError::Download`] if the request fails, the server
 /// answers with an error status, or the file is larger than
-/// [`MAX_DOWNLOAD_BYTES`]; otherwise see [`PdfReader::from_bytes`].
+/// [`MAX_DOWNLOAD_BYTES`], or when the server cannot be reached or stops sending (the timeouts of [`http_client`](crate::browser::chrome_for_testing::http_client)); otherwise see [`PdfReader::from_bytes`].
 pub async fn extract_text_from_url(url: &str) -> Result<String, SeleniumBaseError> {
     let download = |reason: String| SeleniumBaseError::Download {
         url: url.to_owned(),
         reason,
     };
     crate::install_tls_provider();
-    let mut response = reqwest::get(url)
+    let mut response = crate::browser::chrome_for_testing::http_client(None)?
+        .get(url)
+        .send()
         .await
         .map_err(|error| download(error.to_string()))?;
     if !response.status().is_success() {
