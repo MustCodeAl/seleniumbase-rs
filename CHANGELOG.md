@@ -502,6 +502,15 @@ work, `docs/parity.md` the per-API status).
   still set it.
 - **`Settings::screenshot_dir` and `SB_SCREENSHOT_DIR` are removed.** The library read neither;
   a settings file that still has the key loads as before.
+- **The `*_to_logs` helpers write into the running test's own folder.** `save_screenshot_to_logs`,
+  `save_page_source_to_logs`, `save_recording_to_logs`, `save_as_html_to_logs`,
+  `save_teardown_screenshot`, `save_as_pdf_to_logs`, `save_data_to_logs` and `append_data_to_logs`
+  write to `latest_logs/<test id>/` while a test run records the test, as Python's do, also when
+  the recorder runs on another thread (a Gherkin scenario's does):
+  `artifacts::ensure_test_logs_dir_for(test_id)` finds the folder by the test's id. Without a
+  recorder they still write to `latest_logs`, and the helpers that take a file name
+  (`save_screenshot`, `save_file_as`, `save_data_as`, ...) keep the flat folder.
+
 
 ## [0.6.0] - 2026-10-23
 
