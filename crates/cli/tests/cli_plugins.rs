@@ -128,6 +128,8 @@ fn plugin_list_shows_every_builtin_plugin_and_none_is_on_by_default() {
         ("crx", "extension"),
         ("fetcher", "core"),
         ("extractor", "core"),
+        ("batcher", "environment"),
+        ("crawler", "testing"),
     ] {
         let columns = row(&text, name);
         assert_eq!(columns[1], category, "{name}");
@@ -215,29 +217,47 @@ fn plugin_info_shows_what_a_plugin_declares() {
 }
 
 #[test]
-fn plugin_info_shows_what_the_fetcher_and_the_extractor_declare() {
-    for (name, capabilities, options) in [
+fn plugin_info_shows_what_the_task_plugins_declare() {
+    for (name, category, capabilities) in [
         (
             "fetcher",
+            "core",
             &["page.evaluate", "net.intercept", "net.observe", "task"][..],
-            "[plugins.fetcher]",
         ),
         (
             "extractor",
+            "core",
             &["page.evaluate", "page.navigate", "task"][..],
-            "[plugins.extractor]",
+        ),
+        (
+            "batcher",
+            "environment",
+            &["contexts", "page.evaluate", "page.navigate", "task"][..],
+        ),
+        (
+            "crawler",
+            "testing",
+            &[
+                "net.observe",
+                "page.evaluate",
+                "page.navigate",
+                "task",
+                "test.hooks",
+            ][..],
         ),
     ] {
+        let category = format!("category      {category}");
+        let options = format!("[plugins.{name}]");
         let output = in_a_new_folder(&[], &["plugin", "info", name]);
 
         assert!(output.status.success(), "{name}: {}", stderr(&output));
         let text = stdout(&output);
         assert!(text.starts_with(&format!("{name} ")), "{text}");
         for expected in [
-            "category      core",
+            category.as_str(),
             "enabled       no",
             "a Chromium-based browser",
-            options,
+            options.as_str(),
         ]
         .into_iter()
         .chain(capabilities.iter().copied())
@@ -350,6 +370,25 @@ fn the_webdriver_engine_refuses_the_extractor_because_it_cannot_host_a_task() {
 }
 
 #[test]
+fn the_webdriver_engine_refuses_the_batcher_and_the_crawler_because_they_cannot_host_a_task() {
+    for name in ["batcher", "crawler"] {
+        let run = against_a_fake_server(None, &[], &["--plugin", name], &OPEN);
+
+        assert!(!run.output.status.success(), "{name}: {}", run.stderr());
+        assert!(run.stderr().contains(name), "{name}: {}", run.stderr());
+        assert!(
+            run.stderr().contains("WebDriver"),
+            "{name}: {}",
+            run.stderr()
+        );
+        assert!(
+            run.driver.chrome_args().is_none(),
+            "{name}: no browser was started"
+        );
+    }
+}
+
+#[test]
 fn the_webdriver_engine_refuses_the_fetcher_because_it_cannot_host_a_task_or_intercept_requests() {
     let run = against_a_fake_server(None, &[], &["--plugin", "fetcher"], &OPEN);
 
@@ -359,10 +398,12 @@ fn the_webdriver_engine_refuses_the_fetcher_because_it_cannot_host_a_task_or_int
 }
 
 #[test]
-fn a_misspelt_option_of_the_fetcher_or_the_extractor_stops_the_run_before_a_browser_starts() {
+fn a_misspelt_option_of_a_task_plugin_stops_the_run_before_a_browser_starts() {
     for (option, name) in [
         (r#"fetcher.captur=["*/api/*"]"#, "fetcher"),
         ("extractor.min_repeat=3", "extractor"),
+        ("batcher.concurency=3", "batcher"),
+        ("crawler.max_dept=2", "crawler"),
     ] {
         let run = against_a_fake_server(
             None,
@@ -911,7 +952,7 @@ fn devtools_gives_the_plugins_to_the_browser_it_launches() {
 
 #[cfg(unix)]
 #[test]
-fn devtools_gives_the_fetcher_and_the_extractor_to_the_browser_it_launches() {
+fn devtools_gives_the_task_plugins_to_the_browser_it_launches() {
     // The pure CDP engine provides every capability, `net.intercept` included, which the
     // WebDriver engine refuses; the set is accepted and the browser starts.
     let chrome = fake_chrome::FakeChrome::new();
@@ -920,7 +961,16 @@ fn devtools_gives_the_fetcher_and_the_extractor_to_the_browser_it_launches() {
         &chrome,
         None,
         &[],
-        &["--plugin", "fetcher", "--plugin", "extractor"],
+        &[
+            "--plugin",
+            "fetcher",
+            "--plugin",
+            "extractor",
+            "--plugin",
+            "batcher",
+            "--plugin",
+            "crawler",
+        ],
     );
 
     assert!(
@@ -1037,8 +1087,8 @@ fn plugin_run_refuses_a_plugin_without_a_task_before_any_browser_starts() {
 }
 
 #[test]
-fn plugin_run_offers_the_tasks_of_the_fetcher_and_the_extractor() {
-    // Both tell the user which plugins have a task; this also shows that the registry builds
+fn plugin_run_offers_the_tasks_of_the_task_plugins() {
+    // Each tells the user which plugins have a task; this also shows that the registry builds
     // them from their default options, which the listing needs.
     for refused in ["no-such-plugin", "shield"] {
         let output = in_a_new_folder(&[], &["plugin", "run", refused]);
@@ -1046,7 +1096,7 @@ fn plugin_run_offers_the_tasks_of_the_fetcher_and_the_extractor() {
         let text = stderr(&output);
         assert_eq!(output.status.code(), Some(2), "{refused}: {text}");
         assert!(
-            text.contains("plugins with a task: fetcher, extractor"),
+            text.contains("plugins with a task: fetcher, extractor, batcher, crawler"),
             "{refused}: {text}"
         );
     }

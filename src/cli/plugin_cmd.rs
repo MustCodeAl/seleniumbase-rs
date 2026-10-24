@@ -37,7 +37,8 @@ use crate::error::SeleniumBaseError;
 /// What a build without the built-in plugins says, in place of a list.
 const NO_PLUGINS: &str = "this build has no built-in plugin; rebuild with \
                           --features plugins-builtin (or one of plugin-shield, \
-                          plugin-block-resources, plugin-crx, plugin-fetcher, plugin-extractor)";
+                          plugin-block-resources, plugin-crx, plugin-fetcher, plugin-extractor, \
+                          plugin-batcher, plugin-crawler)";
 
 /// Checks `selection` the way a command line program should before it starts a
 /// browser: this build can run plugins, every name is one it has, and the

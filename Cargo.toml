@@ -134,8 +134,8 @@ image = { version = "0.25", optional = true, default-features = false, features 
 # `Plugin` a built-in implements is not the one this crate calls.
 # `tests/plugin_features.rs` fails when they differ. A plugin crate added with
 # `cargo add --git` needs the same `--rev` (see docs/tutorials/plugins.md).
-seleniumbase-rs-plugin = { version = "0.1", git = "https://github.com/MustCodeAl/seleniumbase-rs-plugins", rev = "d26367c896c718a5c44ff6d91eee07b2aabc9802", optional = true }
-seleniumbase-rs-plugins-builtin = { version = "0.1", git = "https://github.com/MustCodeAl/seleniumbase-rs-plugins", rev = "d26367c896c718a5c44ff6d91eee07b2aabc9802", optional = true }
+seleniumbase-rs-plugin = { version = "0.1", git = "https://github.com/MustCodeAl/seleniumbase-rs-plugins", rev = "2002f07b4ed295f2e04540184f4fdd2176542bca", optional = true }
+seleniumbase-rs-plugins-builtin = { version = "0.1", git = "https://github.com/MustCodeAl/seleniumbase-rs-plugins", rev = "2002f07b4ed295f2e04540184f4fdd2176542bca", optional = true }
 # `visual`: structural similarity (SSIM) between a screenshot and its baseline.
 # MIT; no default features; brings rayon and itertools, and `image` without
 # defaults (the PNG codec comes from the `image` line above).
@@ -199,8 +199,10 @@ plugin-block-resources = ["plugins", "dep:seleniumbase-rs-plugins-builtin", "sel
 plugin-crx = ["plugins", "dep:seleniumbase-rs-plugins-builtin", "seleniumbase-rs-plugins-builtin/crx"]
 plugin-fetcher = ["plugins", "dep:seleniumbase-rs-plugins-builtin", "seleniumbase-rs-plugins-builtin/fetcher"]
 plugin-extractor = ["plugins", "dep:seleniumbase-rs-plugins-builtin", "seleniumbase-rs-plugins-builtin/extractor"]
+plugin-batcher = ["plugins", "dep:seleniumbase-rs-plugins-builtin", "seleniumbase-rs-plugins-builtin/batcher"]
+plugin-crawler = ["plugins", "dep:seleniumbase-rs-plugins-builtin", "seleniumbase-rs-plugins-builtin/crawler"]
 # Every built-in plugin.
-plugins-builtin = ["plugin-shield", "plugin-block-resources", "plugin-crx", "plugin-fetcher", "plugin-extractor"]
+plugins-builtin = ["plugin-shield", "plugin-block-resources", "plugin-crx", "plugin-fetcher", "plugin-extractor", "plugin-batcher", "plugin-crawler"]
 # Visual regression testing (`visual::VisualBaseline`,
 # `BaseCase::assert_visual_match`): screenshots compared with a saved baseline
 # by structural similarity, with a diff image on a mismatch. Pure Rust.
