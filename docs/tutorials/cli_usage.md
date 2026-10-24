@@ -404,16 +404,16 @@ key.
 
 ## Read a results database
 
-With the `turso` feature (`cargo build --features turso`), `sbrs report` reads
+With the `turso` feature (`cargo build --features turso`), `sbrs report history` reads
 the database a `ResultStore` writes. See
 [Results Database and Encrypted Profiles](/tutorials/results_and_profiles).
 
 ```bash
-sbrs report --db reports/results.db            # the latest runs
-sbrs report --db reports/results.db --run 12   # one run's results
-sbrs report --db reports/results.db --run 12 --failed
-sbrs report --db reports/results.db --flaky    # pass-and-fail across recent runs
-sbrs report --json                             # machine-readable; any of the above
+sbrs report history --db reports/results.db            # the latest runs
+sbrs report history --db reports/results.db --run 12   # one run's results
+sbrs report history --db reports/results.db --run 12 --failed
+sbrs report history --db reports/results.db --flaky    # pass-and-fail across recent runs
+sbrs report history --json                             # machine-readable; any of the above
 ```
 
 The path can also come from `SB_REPORT_DB`. A path that does not exist is an

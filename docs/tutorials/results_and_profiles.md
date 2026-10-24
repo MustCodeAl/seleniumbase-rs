@@ -35,7 +35,7 @@ seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", featu
 
 <Visibility for="agents">
 
-Summary for AI exports: with the `turso` feature, `ResultStore` keeps test runs and results in a local Turso file (`start_run`, `record_outcome`, `runs`, `flaky_tests`), `sbrs report --db <file>` reads it, and `ProfileVault` stores browser profiles sealed with AES-256-GCM under a passphrase-derived key. Nothing is sent over the network.
+Summary for AI exports: with the `turso` feature, `ResultStore` keeps test runs and results in a local Turso file (`start_run`, `record_outcome`, `runs`, `flaky_tests`), `sbrs report history --db <file>` reads it, and `ProfileVault` stores browser profiles sealed with AES-256-GCM under a passphrase-derived key. Nothing is sent over the network.
 
 </Visibility>
 
@@ -104,10 +104,10 @@ Build the CLI with the feature, and read a database without writing any code:
 
 ```bash Terminal
 cargo build --features turso
-sbrs report --db reports/results.db            # the latest runs, newest first
-sbrs report --db reports/results.db --run 12   # one run, with failure messages
-sbrs report --db reports/results.db --flaky
-sbrs report --db reports/results.db --json
+sbrs report history --db reports/results.db            # the latest runs, newest first
+sbrs report history --db reports/results.db --run 12   # one run, with failure messages
+sbrs report history --db reports/results.db --flaky
+sbrs report history --db reports/results.db --json
 ```
 
 ## Encrypted profiles

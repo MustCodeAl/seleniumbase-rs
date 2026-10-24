@@ -4417,16 +4417,18 @@ status = "not-applicable"
 reason = "Downloads go to the OS Downloads folder (BaseCase::get_downloads_folder) and are never cleared, so there is no project downloaded_files folder to archive; moving the user's Downloads would be unsafe."
 
 [options_pytest."--archive-logs"]
-status = "not-applicable"
-reason = "This crate never deletes latest_logs/ (artifacts::ensure_latest_logs_dir only creates it), so there are no deleted old logs to archive instead."
+status = "implemented"
+rust = "TestRun::open"
+note = "When a run starts, `latest_logs/` is moved to `archived_logs/logs_<unix time>/` (with the run files) instead of being deleted: `sbrs test --archive-logs`, `SB_ARCHIVE_LOGS=1` or `archive_logs` in the `[test]` table."
 
 [options_pytest."--archive_downloads"]
 status = "not-applicable"
 reason = "Downloads go to the OS Downloads folder (BaseCase::get_downloads_folder) and are never cleared, so there is no project downloaded_files folder to archive; moving the user's Downloads would be unsafe."
 
 [options_pytest."--archive_logs"]
-status = "not-applicable"
-reason = "This crate never deletes latest_logs/ (artifacts::ensure_latest_logs_dir only creates it), so there are no deleted old logs to archive instead."
+status = "implemented"
+rust = "TestRun::open"
+note = "When a run starts, `latest_logs/` is moved to `archived_logs/logs_<unix time>/` (with the run files) instead of being deleted: `sbrs test --archive-logs`, `SB_ARCHIVE_LOGS=1` or `archive_logs` in the `[test]` table."
 
 [options_pytest."--auto-ext"]
 status = "implemented"
@@ -4567,16 +4569,19 @@ status = "implemented"
 rust = "BrowserConfig::with_dark_mode"
 
 [options_pytest."--dash-title"]
-status = "not-applicable"
-reason = "Sets the title of the pytest session dashboard page; write_dashboard_html takes its title from the scenario's name."
+status = "implemented"
+rust = "ReportSettings::title"
+note = "The title of dashboard.html and of the HTML report: `sbrs test --dash-title`, `SB_DASH_TITLE` or `dash_title` in the `[test]` table; an underscore stands for a space."
 
 [options_pytest."--dash_title"]
-status = "not-applicable"
-reason = "Sets the title of the pytest session dashboard page; write_dashboard_html takes its title from the scenario's name."
+status = "implemented"
+rust = "ReportSettings::title"
+note = "The title of dashboard.html and of the HTML report: `sbrs test --dash-title`, `SB_DASH_TITLE` or `dash_title` in the `[test]` table; an underscore stands for a space."
 
 [options_pytest."--dashboard"]
-status = "not-applicable"
-reason = "Turns on the live dashboard.html that the pytest session rewrites during a run; a scenario run writes a static report with write_dashboard_html instead."
+status = "implemented"
+rust = "sbrs test"
+note = "`sbrs test --dashboard` prints `Dashboard: file://...` and writes dashboard.html in the folder it runs in: live (it refreshes every 12 seconds and says `Awaiting results...`) while the tests run, and final when the run ends. `SB_DASHBOARD=1 cargo test` writes it too and leaves it live until `sbrs report finish`. `sbrs run-scenario --dashboard` renders the same page with one row."
 
 [options_pytest."--data"]
 status = "not-applicable"

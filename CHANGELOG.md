@@ -186,6 +186,24 @@ work, `docs/parity.md` the per-API status).
   `basic_test_info.txt` is now written by the `log_helper` writers (CRLF, traceback section, the
   display id on the first line).
 
+- **`sbrs test` reports, and `sbrs report finish`.** `sbrs test` opens the run before Cargo
+  (clearing `latest_logs`, or archiving it with `--archive-logs`), gives it to the test processes
+  as `SB_RUN_ID` and `SB_REPORT_ROOT`, prints `Dashboard: file://...` and a line of `*`, and after
+  Cargo ends the run and prints pytest's lines (`----- Dashboard = ... -----`, `Generated html
+  report`, `generated xml file`, `Latest Logs dir`). New flags: `--html PATH`, `--junit-xml PATH`
+  and `--alluredir DIR` (rows of the option table, so also `SB_HTML`, `SB_JUNIT_XML`,
+  `SB_ALLURE_DIR` and keys of the `[test]` table) and `--show-report`, which opens a headed Chrome
+  on the report and waits until its window is closed; a relative path is the run's folder's. The
+  exit status is Cargo's, or 1 when a report that was asked for could not be written;
+  `--with-db-reporting` in a build without the `turso` feature is refused with status 2.
+  **Breaking:** `sbrs report` is now `sbrs report history` (feature `turso`), and `sbrs report
+  finish [--dashboard] [--dash-title] [--html] [--junit-xml] [--archive-logs] [--show-report]
+  [--json]` ends the run a plain `cargo test` left going (exit 1 and a message when the folder has
+  no run). `sbrs run-scenario --dashboard` writes the shared dashboard page with one row;
+  `api::scenario::write_dashboard_html` is replaced by `write_dashboard`, and `RunSummary` has a
+  `duration_secs`.
+
+
 - **Gherkin scenarios as cargo tests (feature `bdd`).** `testing::bdd::{sb, sb_cdp, SbCase,
   SbCdpCase}` run a feature file's scenarios through rstest-bdd 0.6: `#[scenario(path = ..)]` on
   an async test that takes `#[future(awt)] sb: SbCase`, and `#[given]`/`#[when]`/`#[then]` steps
