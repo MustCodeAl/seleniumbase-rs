@@ -2990,12 +2990,12 @@ divergence = "Gherkin scenarios are rstest-bdd tests run by `cargo test`, so `-q
 [cli."case-plans"]
 status = "implemented"
 rust = "sbrs caseplans"
-note = "Alias of caseplans upstream; terminal UI instead of Tkinter, as for `sbrs caseplans`, and `sbrs case-plans` is an alias of it here too."
+note = "Alias of caseplans upstream; terminal UI instead of Tkinter, as for `sbrs caseplans`, and `sbrs case-plans` (and `sbrs case_plans`) is an alias of it here too."
 
 [cli."caseplans"]
 status = "implemented"
 rust = "sbrs caseplans"
-note = "Terminal UI instead of Tkinter (feature `tui`): lists the Rust test functions under a folder, creates, edits and saves `case_plans/<test>.md` for each and writes `case_summary.md`; without `tui` it prints a hint and exits with status 2, as `sbrs commander` does. `--starter` keeps the earlier command that writes a fixed CASE_PLANS.md checklist."
+note = "Terminal UI instead of Tkinter (feature `tui`): lists the Rust test functions under a folder, creates, edits and saves `case_plans/<test>.md` for each and writes `case_summary.md`; without `tui` it prints a hint and exits with status 2, as `sbrs commander` does. `--starter` keeps the earlier command that writes a fixed CASE_PLANS.md checklist. `-k FILTER` starts with the list narrowed to the test ids that contain FILTER, as `/` does in the app."
 divergence = "Python lists what pytest collects (`file.py::Class::method`); here the test functions are found by reading the files, so a `#[test]` inside a string looks like a test. Plans and the summary are written with LF line ends, not CRLF."
 
 [cli."codegen"]
@@ -3006,6 +3006,8 @@ note = "`sbrs record URL -o FILE` writes the recorded actions as a JSON or YAML 
 [cli."commander"]
 status = "implemented"
 rust = "sbrs commander"
+note = "`sbrs commander [PATH] [-k FILTER]`, also `sbrs gui`: a terminal menu (feature `tui`) that lists the tests and examples under PATH (a project folder, a folder of test files or one test file; by default `tests/` and `examples/`) and runs the one you pick with Cargo. `-k` starts with the list narrowed to the names that contain FILTER, as `/` does in the app; without `tui` it prints a hint and exits with status 2."
+divergence = "Python's `-k` is a pytest expression and its `-m` a marker; here `-k` is a plain substring of the test's name (`sbrs test -k` has the pytest expression)."
 
 [cli."convert"]
 status = "implemented"
@@ -3039,17 +3041,17 @@ divergence = "No `--path`: the driver stays in downloaded_drivers/ and is not co
 [cli."grid-hub"]
 status = "implemented"
 rust = "sbrs grid-hub"
-note = "start, stop, restart and status; needs a Selenium Server jar you supply and Java, and downloads nothing."
+note = "start, stop, restart and status; needs a Selenium Server jar you supply and Java, and downloads nothing. Python's options are `-v/--verbose` and `--timeout SECONDS` (not imposed when left out), and `sbrs grid_hub` is accepted."
 
 [cli."grid-node"]
 status = "implemented"
 rust = "sbrs grid-node"
-note = "start, stop, restart and status; registers with the hub named by --hub."
+note = "start, stop, restart and status; registers with the hub named by --hub. `-v/--verbose`, `--timeout SECONDS` and the name `sbrs grid_node` are Python's."
 
 [cli."gui"]
-status = "composed"
+status = "implemented"
 rust = "sbrs commander"
-note = "Python's `gui` is the same test runner as `commander`."
+note = "An alias of `commander`, as in Python: `sbrs gui [PATH] [-k FILTER]`; a terminal app instead of a window."
 
 [cli."gui-behave"]
 status = "implemented"
@@ -3072,8 +3074,10 @@ note = "`sbrs install chromedriver|geckodriver|edgedriver [VERSION]`; with no ar
 divergence = "No `--path`: the driver stays in downloaded_drivers/ and is not copied to a folder on the PATH."
 
 [cli."methods"]
-status = "not-applicable"
-reason = "Lists Python methods; use `cargo doc` or docs/parity.md for the Rust API."
+status = "implemented"
+rust = "sbrs methods"
+note = "Prints the 43 common test methods in Rust spelling (`sb.open(url)`, `sb.type_text(selector, text)`, ...) with what each does; a test checks every one against the `basecase` rows of this file."
+divergence = "Python's list is of `self.` calls in a TestCase; this one is of the async `BaseCase` methods, so the Rust name of a renamed method is shown (`type` is `type_text`). The whole API is `cargo doc` and docs/parity.md."
 
 [cli."mkchart"]
 status = "implemented"
@@ -3106,8 +3110,10 @@ status = "not-applicable"
 reason = "Python's objectify rewrites the selectors of a Python test file into page-object variables, like extract-objects and inject-objects, and there is no Python source to rewrite here. `sbrs objectify` only writes a starter page_object.rs."
 
 [cli."options"]
-status = "not-applicable"
-reason = "Lists pytest options; Rust settings are fields of BrowserConfig and RuntimeConfig."
+status = "implemented"
+rust = "sbrs options"
+note = "Lists the browser options: each flag, its `SB_*` variable and its settings-file key (`--markdown` for the documentation, `--all` to add the options of `sbrs test`)."
+divergence = "Python lists pytest's options; the options here are the rows of one table that is also the global `sbrs` flags, the `SB_*` variables and the settings file."
 
 [cli."print"]
 status = "implemented"

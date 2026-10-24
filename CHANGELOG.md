@@ -63,6 +63,9 @@ work, `docs/parity.md` the per-API status).
   `ChartSeries::add_data_point(i32)` and `Presentation::new(title)` are replaced.
 - **`sbrs install` needs a driver name**, as in Python: `sbrs install` alone prints the
   install page and exits with status 2 instead of installing chromedriver.
+- **`sbrs grid-hub` and `grid-node` take Python's option names.** `-v/--verbose` replaces
+  `--grid-verbose` and `--timeout SECONDS` replaces `--session-timeout`; the earlier names are
+  usage errors (status 2). The timeout is still not imposed: left out, Selenium's own applies.
 - **`Browser` and `DriverVersion` have new variants.** `Browser::Remote` (`--browser=remote`) and
   `DriverVersion::{Keep, Previous}`: a `match` on either needs the new arms.
   `BrowserConfig::with_grid` returns a `Result`, because an empty server name is an error.
@@ -115,6 +118,14 @@ work, `docs/parity.md` the per-API status).
   and runs the tests one at a time, saying so when `-n` asks for more.
 - **`sbrs replay` prints the names of the actions it skipped** next to the count.
 
+
+- **`sbrs methods`, and Python's other names for the terminal apps and the grid.** `sbrs
+  methods` lists the 43 common test methods as they are called on `sb` (a test checks each against
+  `parity/api.toml`). `sbrs gui` is `sbrs commander`, and `sbrs case_plans` is `sbrs caseplans`;
+  both take an optional PATH (a project folder, a folder of test files or one test file; the
+  Commander runs Cargo in it) and `-k FILTER`, which starts with the list narrowed to the names
+  that contain FILTER, as `/` does in the app. `sbrs grid_hub` and `grid_node` are
+  `grid-hub` and `grid-node`.
 
 - **SeleniumBase's built-in Gherkin steps (feature `bdd`).** All 98 step actions of SeleniumBase
   4.56.2 (its 669 wordings, in double or single quotes, under Given, When and Then) are steps of
