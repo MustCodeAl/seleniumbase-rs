@@ -101,7 +101,11 @@ impl Connect {
         }
         Ok(Target::Http {
             url: url.to_owned(),
-            bearer: crate::http_token(self.token_file.as_deref())?,
+            bearer: crate::http_token(
+                self.token_file
+                    .as_deref()
+                    .map(|file| (file, "--token-file")),
+            )?,
         })
     }
 
