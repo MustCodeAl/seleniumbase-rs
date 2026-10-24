@@ -63,10 +63,10 @@ Design rules that apply to everything below:
    timeout variants are still to do; the MCP layer passes its own timeout by
    waiting first.
 3. **BaseCase semantic differences (documented; decide which to remove).**
-   Eighteen are recorded as `divergence` notes in `parity/api.toml` and shown
-   in `docs/parity.md`: `click_nth_visible_element` counts from 0, `scroll_up`
-   and `scroll_down` take no amount, `open_new_tab` always switches,
-   and `download_file` goes through the browser. The argument order of
+   The rest are recorded as `divergence` notes in `parity/api.toml` and shown
+   in `docs/parity.md`. `click_nth_visible_element` (now 1-based), `scroll_up`
+   and `scroll_down` (an amount), `open_new_tab` (`switch_to`) and the arrow keys
+   take Python's keywords, and `download_file` fetches over HTTP. The argument order of
    `assert_text`, `assert_exact_text` and `wait_for_text`, the cookie helpers
    (`saved_cookies/<name>.txt`), `find_text`, the deferred and delayed checks,
    the multi-driver methods and the title and URL macros no longer differ from

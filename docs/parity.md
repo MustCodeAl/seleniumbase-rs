@@ -18,7 +18,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 
 | Surface | Total | implemented | composed | not-applicable | planned |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| [BaseCase methods](#basecase-methods) | 453 | 443 | 3 | 7 | 0 |
+| [BaseCase methods](#basecase-methods) | 453 | 444 | 2 | 7 | 0 |
 | [Driver methods](#driver-methods) | 79 | 77 | 2 | 0 | 0 |
 | [CDP Mode methods](#cdp-mode-methods) | 215 | 15 | 186 | 14 | 0 |
 | [Command-line commands](#command-line-commands) | 36 | 27 | 5 | 4 | 0 |
@@ -44,7 +44,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `activate_messenger` | implemented | `BaseCase::activate_messenger` |  |
 | `activate_recorder` | implemented | `BaseCase::activate_recorder` |  |
 | `ad_block` | implemented | `BaseCase::ad_block` |  |
-| `add_cookie` | implemented | `BaseCase::add_cookie` |  |
+| `add_cookie` | implemented | `BaseCase::add_cookie` | Takes the W3C cookie object that get_cookies returns (a serde_json::Value), and refuses one without a string name and value. The keyword expiry is the builder method .expiry(..), a bool as in Python or a CookieExpiry. |
 | `add_cookies` | implemented | `BaseCase::add_cookies` |  |
 | `add_css_link` | implemented | `BaseCase::add_css_link` |  |
 | `add_css_style` | implemented | `BaseCase::add_css_style` |  |
@@ -117,11 +117,11 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `click_if_visible` | implemented | `BaseCase::click_if_visible` | Differs: Looks once, like Python's default `timeout=0`; `click_if_visible_with_timeout(selector, Duration)` waits for the element. There is no `scroll` argument. |
 | `click_link` | implemented | `BaseCase::click_link` |  |
 | `click_link_text` | implemented | `BaseCase::click_link_text` |  |
-| `click_nth_visible_element` | implemented | `BaseCase::click_nth_visible_element` | Differs: Counts from 0; Python counts from 1. |
+| `click_nth_visible_element` | implemented | `BaseCase::click_nth_visible_element` | Counts from 1 as in Python; a number of 0 is an InvalidConfig error. The keywords are the builder methods .timeout(..) and .scroll(..). |
 | `click_partial_link` | implemented | `BaseCase::click_partial_link` |  |
 | `click_partial_link_text` | implemented | `BaseCase::click_partial_link_text` |  |
 | `click_visible_elements` | implemented | `BaseCase::click_visible_elements` |  |
-| `click_with_offset` | implemented | `BaseCase::click_with_offset` | The offset is from the element's top-left corner, or from its centre when `center` is true, as in Python. Differs: Takes whole-pixel offsets (Python takes numbers), and no `mark`, `timeout` or `scroll` arguments; it waits for the element to be displayed for the default timeout. In demo mode it outlines the element but draws no dot. |
+| `click_with_offset` | implemented | `BaseCase::click_with_offset` | The offset is from the element's top-left corner, or from its centre when `center` is true, as in Python. Differs: A fractional offset is rounded up to whole pixels, and `mark` draws its dot only on a canvas (on by default in demo mode). The keywords are the builder methods .mark(..), .timeout(..), .center(..) and .scroll(..). |
 | `click_xpath` | implemented | `BaseCase::click_xpath` |  |
 | `console_log_script` | implemented | `BaseCase::console_log_script` |  |
 | `console_log_string` | implemented | `BaseCase::console_log_string` |  |
@@ -166,10 +166,10 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `dismiss_alert` | implemented | `BaseCase::dismiss_alert` |  |
 | `display_chart` | implemented | `BaseCase::display_chart` |  |
 | `double_click` | implemented | `BaseCase::double_click` |  |
-| `double_click_with_offset` | implemented | `BaseCase::double_click_with_offset` | The offset is from the element's top-left corner, or from its centre when `center` is true, as in Python. Differs: Takes whole-pixel offsets (Python takes numbers), and no `mark`, `timeout` or `scroll` arguments; it waits for the element to be displayed for the default timeout. |
-| `download_file` | implemented | `BaseCase::download_file` | Differs: Opens the URL in a browser tab and waits for the browser to save it, taking a file name and timeout; Python fetches it over HTTP into a folder. |
+| `double_click_with_offset` | implemented | `BaseCase::double_click_with_offset` | The offset is from the element's top-left corner, or from its centre when `center` is true, as in Python. Differs: A fractional offset is rounded up to whole pixels, and `mark` draws its dot only on a canvas (on by default in demo mode). The keywords are the builder methods .mark(..), .timeout(..), .center(..) and .scroll(..). |
+| `download_file` | implemented | `BaseCase::download_file` | Differs: Fails on a status that is not a success (Python saves the error page), names the file after the last segment of the URL's path without its query, and refuses a name that is not a plain file name. The keyword is the builder method .destination_folder(..). Opening a URL in a browser tab and waiting for the browser to save it is BaseCase::download_file_in_browser, which Python does not have. |
 | `drag_and_drop` | implemented | `BaseCase::drag_and_drop` |  |
-| `drag_and_drop_with_offset` | implemented | `BaseCase::drag_and_drop_with_offset` |  |
+| `drag_and_drop_with_offset` | implemented | `BaseCase::drag_and_drop_with_offset` | Drags the element itself by (x, y) pixels; the keyword is the builder method .timeout(..). |
 | `enter_mfa_code` | implemented | `BaseCase::enter_mfa_code` |  |
 | `enter_totp_code` | implemented | `BaseCase::enter_totp_code` |  |
 | `evaluate` | implemented | `BaseCase::evaluate` |  |
@@ -210,14 +210,14 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `get_cookies` | implemented | `BaseCase::get_cookies` | Differs: Returns a serde_json::Value. |
 | `get_current_url` | implemented | `BaseCase::get_current_url` |  |
 | `get_data_from_downloaded_file` | implemented | `BaseCase::get_data_from_downloaded_file` |  |
-| `get_domain_url` | implemented | `BaseCase::get_domain_url` |  |
+| `get_domain_url` | implemented | `BaseCase::get_domain_url` | A pure function of its argument, as in Python: a string that is not an http(s) URL comes back as it is. The scheme's own default port is dropped. |
 | `get_downloaded_files` | implemented | `BaseCase::get_downloaded_files` |  |
 | `get_downloads_folder` | implemented | `BaseCase::get_downloads_folder` |  |
 | `get_element` | implemented | `BaseCase::get_element` |  |
 | `get_element_at_x_y` | implemented | `BaseCase::get_element_at_x_y` |  |
 | `get_file_data` | implemented | `BaseCase::get_file_data` |  |
 | `get_google_auth_code` | implemented | `BaseCase::get_google_auth_code` |  |
-| `get_google_auth_password` | composed | `BaseCase::get_mfa_code` | Same TOTP computation. |
+| `get_google_auth_password` | implemented | `BaseCase::get_google_auth_password` | An alias of get_mfa_code, as in Python. |
 | `get_gui_element_center` | implemented | `BaseCase::get_gui_element_center` |  |
 | `get_gui_element_rect` | implemented | `BaseCase::get_gui_element_rect` |  |
 | `get_html` | implemented | `BaseCase::get_html` |  |
@@ -277,8 +277,8 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `highlight_update_text` | implemented | `BaseCase::highlight_update_text` |  |
 | `hover` | implemented | `BaseCase::hover` |  |
 | `hover_and_click` | implemented | `BaseCase::hover_and_click` |  |
-| `hover_and_double_click` | implemented | `BaseCase::hover_and_double_click` |  |
-| `hover_and_js_click` | implemented | `BaseCase::hover_and_js_click` |  |
+| `hover_and_double_click` | implemented | `BaseCase::hover_and_double_click` | Takes the two selectors, as in Python; the keyword is the builder method .timeout(..). |
+| `hover_and_js_click` | implemented | `BaseCase::hover_and_js_click` | Takes the two selectors, as in Python; the keyword is the builder method .timeout(..). |
 | `hover_element` | implemented | `BaseCase::hover_element` |  |
 | `hover_on_element` | implemented | `BaseCase::hover_on_element` |  |
 | `hover_over_element` | implemented | `BaseCase::hover_over_element` |  |
@@ -331,8 +331,8 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `open` | implemented | `BaseCase::open` |  |
 | `open_html_file` | implemented | `BaseCase::open_html_file` |  |
 | `open_if_not_url` | implemented | `BaseCase::open_if_not_url` |  |
-| `open_new_tab` | implemented | `BaseCase::open_new_tab` | Differs: Always switches to the new tab; Python has a switch_to option. |
-| `open_new_window` | implemented | `BaseCase::open_new_window` |  |
+| `open_new_tab` | implemented | `BaseCase::open_new_tab` | The keyword switch_to is the builder method .switch_to(..); with false the tab opens and the current one stays current (the browser plugins' hooks do not run for it until you switch to it). |
+| `open_new_window` | implemented | `BaseCase::open_new_window` | The same call as open_new_tab; the keyword switch_to is the builder method .switch_to(..). |
 | `open_start_page` | implemented | `BaseCase::open_start_page` |  |
 | `open_url` | implemented | `BaseCase::open_url` |  |
 | `play_tour` | implemented | `BaseCase::play_tour` |  |
@@ -340,11 +340,11 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `post_message` | implemented | `BaseCase::post_message` | Returns a PostMessage builder whose duration(), pause() and style() are Python's keyword arguments: `sb.post_message(text).duration(d).pause(false).style(MessageStyle::Error).await?`. Posts with Messenger, loading it first when the page lacks it. The message is HTML, as in Python; it stays for the duration, else the run's message duration, 0.75 s at most where nobody watches (headless or xvfb), and the call waits for it plus 0.15 s unless pause is false. When Messenger cannot be loaded the message is printed (` * INFO message: text`) and the call still pauses, as in Python; showing a message never fails the test. |
 | `post_message_and_highlight` | implemented | `BaseCase::post_message_and_highlight` | Differs: Posts the message as a success message without waiting for it, then highlights the element; Python highlights first and posts the message once the element has been outlined. |
 | `post_success_message` | implemented | `BaseCase::post_success_message` | Returns a PostMessage builder whose duration() and pause() are Python's keyword arguments: `sb.post_success_message(text).duration(d).pause(false).await?`. Posts with Messenger (the future theme), as post_message does with the style fixed to success. |
-| `press_down_arrow` | implemented | `BaseCase::press_down_arrow` | Differs: Presses the Down arrow once on the element that has focus; Python's takes a selector (default body) and a repeat count. |
+| `press_down_arrow` | implemented | `BaseCase::press_down_arrow` | Python's selector (default body) and times are the builder methods .selector(..) and .times(..). |
 | `press_keys` | implemented | `BaseCase::press_keys` | Differs: Takes the CSS selector and the text, like Python, and types the text one key at a time with a trailing newline pressing Enter; it has no timeout argument (use set_timeout). BaseCase::press_key presses one named key on whatever has focus. |
-| `press_left_arrow` | implemented | `BaseCase::press_left_arrow` | Differs: Presses the Left arrow once on the element that has focus; Python's takes a selector (default body) and a repeat count. |
-| `press_right_arrow` | implemented | `BaseCase::press_right_arrow` | Differs: Presses the Right arrow once on the element that has focus; Python's takes a selector (default body) and a repeat count. |
-| `press_up_arrow` | implemented | `BaseCase::press_up_arrow` | Differs: Presses the Up arrow once on the element that has focus; Python's takes a selector (default body) and a repeat count. |
+| `press_left_arrow` | implemented | `BaseCase::press_left_arrow` | Python's selector (default body) and times are the builder methods .selector(..) and .times(..). |
+| `press_right_arrow` | implemented | `BaseCase::press_right_arrow` | Python's selector (default body) and times are the builder methods .selector(..) and .times(..). |
+| `press_up_arrow` | implemented | `BaseCase::press_up_arrow` | Python's selector (default body) and times are the builder methods .selector(..) and .times(..). |
 | `print_to_pdf` | implemented | `BaseCase::print_to_pdf` |  |
 | `print_unique_links_with_status_codes` | implemented | `BaseCase::print_unique_links_with_status_codes` |  |
 | `process_deferred_asserts` | implemented | `BaseCase::process_deferred_asserts` |  |
@@ -375,7 +375,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `save_data_as` | implemented | `BaseCase::save_data_as` |  |
 | `save_data_to_logs` | implemented | `BaseCase::save_data_to_logs` |  |
 | `save_element_as_image_file` | implemented | `BaseCase::save_element_as_image_file` |  |
-| `save_file_as` | implemented | `BaseCase::save_file_as` |  |
+| `save_file_as` | implemented | `BaseCase::save_file_as` | Differs: Fetches the URL like download_file and saves it as a plain file name; the keyword is the builder method .destination_folder(..). The old form that wrote bytes to the logs folder is gone (save_data_as writes text). |
 | `save_page_source` | implemented | `BaseCase::save_page_source` |  |
 | `save_page_source_to_logs` | implemented | `BaseCase::save_page_source_to_logs` |  |
 | `save_presentation` | implemented | `BaseCase::save_presentation` |  |
@@ -384,14 +384,14 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `save_screenshot_to_logs` | implemented | `BaseCase::save_screenshot_to_logs` |  |
 | `save_teardown_screenshot` | implemented | `BaseCase::save_teardown_screenshot` |  |
 | `scroll_by_y` | implemented | `BaseCase::scroll_by_y` |  |
-| `scroll_down` | implemented | `BaseCase::scroll_down` | Differs: Takes no amount; Python scrolls by a percentage of the window height. |
+| `scroll_down` | implemented | `BaseCase::scroll_down` | Python's amount (default 25) is the builder method .amount(..): a percentage of the window's height. |
 | `scroll_into_view` | implemented | `BaseCase::scroll_into_view` |  |
 | `scroll_to` | implemented | `BaseCase::scroll_to` |  |
 | `scroll_to_bottom` | implemented | `BaseCase::scroll_to_bottom` |  |
 | `scroll_to_element` | implemented | `BaseCase::scroll_to_element` |  |
 | `scroll_to_top` | implemented | `BaseCase::scroll_to_top` |  |
 | `scroll_to_y` | implemented | `BaseCase::scroll_to_y` |  |
-| `scroll_up` | implemented | `BaseCase::scroll_up` | Differs: Takes no amount; Python scrolls by a percentage of the window height. |
+| `scroll_up` | implemented | `BaseCase::scroll_up` | Python's amount (default 25) is the builder method .amount(..): a percentage of the window's height. |
 | `select` | implemented | `BaseCase::select` |  |
 | `select_all` | implemented | `BaseCase::select_all` |  |
 | `select_if_unselected` | implemented | `BaseCase::select_if_unselected` |  |
@@ -462,8 +462,8 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `wait_for_angularjs` | implemented | `BaseCase::wait_for_angularjs` |  |
 | `wait_for_any_of_elements_present` | implemented | `BaseCase::wait_for_any_of_elements_present` |  |
 | `wait_for_any_of_elements_visible` | implemented | `BaseCase::wait_for_any_of_elements_visible` |  |
-| `wait_for_attribute` | implemented | `BaseCase::wait_for_attribute` |  |
-| `wait_for_attribute_not_present` | implemented | `BaseCase::wait_for_attribute_not_present` |  |
+| `wait_for_attribute` | implemented | `BaseCase::wait_for_attribute` | The keywords are the builder methods .value(..) and .timeout(..); the timeout is the case's timeout by default. Returns nothing (Python returns the element). |
+| `wait_for_attribute_not_present` | implemented | `BaseCase::wait_for_attribute_not_present` | The keywords are the builder methods .value(..) and .timeout(..); the timeout is the case's timeout by default. |
 | `wait_for_element` | implemented | `BaseCase::wait_for_element` |  |
 | `wait_for_element_absent` | implemented | `BaseCase::wait_for_element_absent` |  |
 | `wait_for_element_clickable` | implemented | `BaseCase::wait_for_element_clickable` |  |
