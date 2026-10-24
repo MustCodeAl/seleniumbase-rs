@@ -37,6 +37,9 @@ type Reply = oneshot::Receiver<Result<Value, String>>;
 /// seconds; navigation has its own, separate limit.
 const COMMAND_TIMEOUT: Duration = Duration::from_secs(30);
 
+/// How long the WebSocket handshake with a DevTools endpoint may take.
+pub(crate) const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
+
 /// Capacity of the event channel. A subscriber that falls this far behind
 /// misses events rather than slowing the reader task down.
 const EVENT_BACKLOG: usize = 1024;
@@ -175,14 +178,29 @@ impl std::fmt::Debug for WsLink {
 impl Client {
     /// Connects to a DevTools WebSocket such as
     /// `ws://127.0.0.1:9222/devtools/browser/<id>`.
+    ///
+    /// Gives up after [`CONNECT_TIMEOUT`] when the endpoint takes the
+    /// connection but never finishes the handshake.
     pub(crate) async fn connect(ws_url: &str) -> Result<Self, SeleniumBaseError> {
+        Self::connect_within(ws_url, CONNECT_TIMEOUT).await
+    }
+
+    /// [`connect`](Self::connect) with the handshake bounded by `timeout`.
+    async fn connect_within(ws_url: &str, timeout: Duration) -> Result<Self, SeleniumBaseError> {
         let config = WebSocketConfig::default()
             .max_message_size(Some(MAX_MESSAGE_BYTES))
             .max_frame_size(Some(MAX_MESSAGE_BYTES));
         let connecting = connect_async_with_config(ws_url, Some(config), false);
-        let (stream, _) = connecting.await.map_err(|e| {
-            SeleniumBaseError::cdp_driver(format!("WebSocket connect to {ws_url} failed: {e}"))
-        })?;
+        let (stream, _) = tokio::time::timeout(timeout, connecting)
+            .await
+            .map_err(|_elapsed| {
+                SeleniumBaseError::cdp_driver(format!(
+                    "WebSocket connect to {ws_url} got no handshake within {timeout:?}"
+                ))
+            })?
+            .map_err(|e| {
+                SeleniumBaseError::cdp_driver(format!("WebSocket connect to {ws_url} failed: {e}"))
+            })?;
         let (sink, source) = stream.split();
         let pending: Pending = Arc::new(StdMutex::new(HashMap::new()));
         let (events, _) = broadcast::channel(EVENT_BACKLOG);
@@ -468,6 +486,34 @@ fn dispatch(value: &Value, pending: &Pending, events: &broadcast::Sender<CdpEven
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// An endpoint that takes the connection but never answers the handshake
+    /// ends the connect with an error naming it, instead of hanging the
+    /// launch or the attach.
+    #[tokio::test]
+    async fn a_handshake_that_never_comes_is_given_up() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("ws://{}/devtools/browser/x", listener.local_addr().unwrap());
+        let silent = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            tokio::time::sleep(Duration::from_secs(30)).await;
+            drop(stream);
+        });
+        let connected = tokio::time::timeout(
+            Duration::from_secs(10),
+            Client::connect_within(&url, Duration::from_millis(300)),
+        )
+        .await
+        .expect("the handshake timeout ends the connect");
+        let error = connected
+            .expect_err("no client without a handshake")
+            .to_string();
+        assert!(
+            error.contains(&url) && error.contains("handshake"),
+            "{error}"
+        );
+        silent.abort();
+    }
 
     fn pending_with(id: u64) -> (Pending, oneshot::Receiver<Result<Value, String>>) {
         let (tx, rx) = oneshot::channel();

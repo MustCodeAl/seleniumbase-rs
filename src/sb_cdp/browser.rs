@@ -447,15 +447,20 @@ impl Browser {
         options: LaunchOptions,
     ) -> Result<Self, SeleniumBaseError> {
         crate::install_tls_provider();
-        let version: Value = reqwest::get(format!(
-            "http://{}/json/version",
-            devtools_authority(host, port)
-        ))
-        .await
-        .map_err(|e| SeleniumBaseError::cdp_driver(format!("cannot reach {host}:{port}: {e}")))?
-        .json()
-        .await
-        .map_err(|e| SeleniumBaseError::cdp_driver(format!("bad /json/version reply: {e}")))?;
+        let version: Value = reqwest::Client::builder()
+            .timeout(options.startup_timeout)
+            .build()
+            .map_err(|e| SeleniumBaseError::cdp_driver(format!("cannot reach {host}:{port}: {e}")))?
+            .get(format!(
+                "http://{}/json/version",
+                devtools_authority(host, port)
+            ))
+            .send()
+            .await
+            .map_err(|e| SeleniumBaseError::cdp_driver(format!("cannot reach {host}:{port}: {e}")))?
+            .json()
+            .await
+            .map_err(|e| SeleniumBaseError::cdp_driver(format!("bad /json/version reply: {e}")))?;
         let ws_url = version["webSocketDebuggerUrl"]
             .as_str()
             .ok_or_else(|| SeleniumBaseError::cdp_driver("no webSocketDebuggerUrl advertised"))?
@@ -1396,6 +1401,40 @@ impl Browser {
         #[cfg(any(test, feature = "test-util"))]
         self.inner.client.mark_closed();
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod attach_tests {
+    use super::*;
+
+    /// A DevTools port that takes the connection but never answers ends the
+    /// attach with an error naming the address once the startup timeout
+    /// passes, instead of hanging.
+    #[tokio::test]
+    async fn an_endpoint_that_never_answers_is_given_up() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let silent = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            tokio::time::sleep(Duration::from_secs(30)).await;
+            drop(stream);
+        });
+        let options = LaunchOptions::builder()
+            .startup_timeout(Duration::from_millis(300))
+            .build()
+            .unwrap();
+        let attached = tokio::time::timeout(
+            Duration::from_secs(10),
+            Browser::attach("127.0.0.1", port, options),
+        )
+        .await
+        .expect("the startup timeout ends the attach");
+        let error = attached
+            .expect_err("no browser without an answer")
+            .to_string();
+        assert!(error.contains(&format!("127.0.0.1:{port}")), "{error}");
+        silent.abort();
     }
 }
 
