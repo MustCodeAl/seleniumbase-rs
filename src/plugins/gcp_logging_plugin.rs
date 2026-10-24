@@ -69,7 +69,11 @@ impl GcpLoggingPlugin {
         })?;
 
         crate::install_tls_provider();
-        let client = Client::new();
+        // A stalled connection or upload gives up instead of hanging the test's teardown.
+        let client = Client::builder()
+            .connect_timeout(std::time::Duration::from_secs(30))
+            .read_timeout(std::time::Duration::from_secs(120))
+            .build()?;
         let response = client
             .post(url.as_str())
             .header("Authorization", format!("Bearer {}", token))

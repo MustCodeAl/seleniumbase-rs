@@ -1053,7 +1053,13 @@ pub(super) async fn download_file(ctx: Ctx<BaseCase>, args: Args) -> Result<Outp
     let path = ctx.settings().output_path(Some(folder), &name)?;
 
     crate::install_tls_provider();
-    let mut response = reqwest::get(parsed.clone())
+    let mut response = reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(30))
+        .read_timeout(std::time::Duration::from_secs(60))
+        .build()
+        .map_err(|e| SeleniumBaseError::download(url, e.to_string()))?
+        .get(parsed.clone())
+        .send()
         .await
         .and_then(reqwest::Response::error_for_status)
         .map_err(|e| SeleniumBaseError::download(url, e.to_string()))?;
