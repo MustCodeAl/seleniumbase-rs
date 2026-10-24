@@ -35,6 +35,21 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ### Breaking
 
+- **Website tours work as in Python.** `create_tour`, `create_shepherd_tour`,
+  `create_bootstrap_tour`, `create_driverjs_tour`, `create_hopscotch_tour`,
+  `create_introjs_tour`, `add_tour_step`, `play_tour` (also `start_tour`) and `export_tour` take
+  Python's keywords as call builders (`sb.add_tour_step("Hi").selector("#a").title("T").await?`,
+  `sb.play_tour().interval(Duration::from_secs(3)).await?`), tours have names and coexist, and
+  the default theme is IntroJS. The five libraries (Shepherd with its looks, Bootstrap Tour,
+  DriverJS, Hopscotch, IntroJS) come from Python's CDNs; `play_tour` waits until the tour ends, the
+  window closes or the page is left, checks the first step's element for 7 s, autoplays with an
+  interval (or `--interval`), and returns at once where nobody watches. `export_tour` writes a
+  JavaScript file for a browser console to `tours_exported/` and returns its path.
+  `set_introjs_colors(Option<&str>, Option<&str>)` validates hex colours as Python does and
+  belongs to the case. `create_tour_with_theme`, `TourTheme::SeleniumBase`, the HTML-outline export
+  and `Tour::play` are removed.
+
+
 - **`sbrs mkfile` and `sbrs mkdir` write tests on the rstest `sb` fixture.** The default test of
   `mkfile` is `#[rstest]` with the `sb` fixture (feature `testing`); the old
   `run_browser_test` closure is `--cm`. `--bc` writes a `BaseCase` made and quit by hand, `--dc`
@@ -192,6 +207,24 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   the plugins'. Proxy password prompts are still answered. A router that dies turns `Fetch` off, so
   no request stays paused. Tabs a page opens itself and iframes in other processes are not routed.
   Nothing else changes for programs without plugins.
+
+
+- **Plugins run tasks and hear the tests (feature `plugins`).** `sbrs plugin run NAME` runs the
+  task of a plugin on a browser it starts (the plugin is turned on by the name; `--plugin` and
+  `--plugin-opt` shape the others): the input is `--input FILE` (or `-`), the results are JSON
+  lines on standard output or in `--out FILE`, the summary goes to standard error, Ctrl-C stops the
+  task and closes the browser (exit status 130), and a name with no task is a usage error that
+  lists the plugins that have one. The library half is `plugin_host::run_task` (also
+  `run_task_until` and `run_task_on` for a browser you have) and, for the command, `plugin_cmd`
+  (`task_launch_options`, `read_task_input`, `JsonlSink`, `TerminalPrompt`). The `cdp` MCP server
+  gets `run_plugin_task {name, input, plugins, headless}`, which runs a task of a plugin the
+  operator enabled on a browser of its own and returns its summary and first results as progress
+  and answer; a task that needs a person at the keyboard fails there with the way to run it.
+  Tests on the pure CDP engine (`SbCdp`) now call the plugins' `on_test_start` after the browser is
+  up and `on_test_end` with the tab still open, for every attempt: a plugin that returns
+  `TestVerdict::Fail` makes a test that passed fail with the plugins' messages (and the evidence a
+  failure gets), and `plugin_host::test_start` and `test_end` are the entry for a runner of your
+  own. The WebDriver engine hosts neither.
 
 
 - **Recorder Mode on `BaseCase`.** With `BrowserConfig::with_recorder_mode(true)` (`--rec`,

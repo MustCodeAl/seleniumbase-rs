@@ -22,7 +22,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | [Driver methods](#driver-methods) | 79 | 77 | 2 | 0 | 0 |
 | [CDP Mode methods](#cdp-mode-methods) | 215 | 15 | 186 | 14 | 0 |
 | [Command-line commands](#command-line-commands) | 36 | 27 | 5 | 4 | 0 |
-| [pytest options](#pytest-options) | 263 | 163 | 60 | 37 | 3 |
+| [pytest options](#pytest-options) | 263 | 165 | 60 | 37 | 1 |
 | [`SB()` arguments](#sb()-arguments) | 107 | 75 | 16 | 15 | 1 |
 | [`Driver()` arguments](#driver()-arguments) | 74 | 60 | 11 | 3 | 0 |
 | [MCP: CDP server](#mcp-cdp-server) | 24 | 24 | 0 | 0 | 0 |
@@ -1082,8 +1082,8 @@ Python `--option` flags.
 | `--var2` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--var3` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--variables` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
-| `--verify-delay` | planned |  | RunSettings::with_verify_delay holds the delay (500 ms by default), but MasterQaSession::verify does not wait for it yet. |
-| `--verify_delay` | planned |  | RunSettings::with_verify_delay holds the delay (500 ms by default), but MasterQaSession::verify does not wait for it yet. |
+| `--verify-delay` | implemented | `RunSettings::with_verify_delay` | MasterQA::verify waits this long (500 ms by default) before it shows each box. The terminal MasterQaSession::verify does not. |
+| `--verify_delay` | implemented | `RunSettings::with_verify_delay` | MasterQA::verify waits this long (500 ms by default) before it shows each box. The terminal MasterQaSession::verify does not. |
 | `--visual-baseline` | implemented | `RunSettings::with_visual_baseline_reset` | check_window saves the page's structure as the new baseline instead of comparing. |
 | `--visual_baseline` | implemented | `RunSettings::with_visual_baseline_reset` | check_window saves the page's structure as the new baseline instead of comparing. |
 | `--wait-for-angularjs` | implemented | `RunSettings::with_wait_for_angularjs` | After every page load and after BaseCase::click the page is waited on for up to 2 s while AngularJS has requests in flight; a page without AngularJS does not wait. Skipped by skip-js-waits on page loads. |
