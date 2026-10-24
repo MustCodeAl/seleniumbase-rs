@@ -16,6 +16,7 @@
 //! let target = Target::Spawn {
 //!     program: PathBuf::from("sbrs-mcp"),
 //!     args: vec!["--server".into(), "dev".into()],
+//!     env: Vec::new(),
 //! };
 //! let client = McpClient::connect(target, Duration::from_secs(60)).await?;
 //! let outcome = client
