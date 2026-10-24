@@ -119,6 +119,22 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- **Fingerprint tools on the MCP servers.** `capture_fingerprint` reads what the running browser
+  shows a page (the reading of `sbrs fingerprint capture`, with progress) and can save it as a
+  file; `compare_fingerprint` says whether the browser presents a fingerprint, a file or a preset
+  (`presents` and `verified`, the differences, and the settings no page can read, which never
+  count as matches); `explain_fingerprint` lists the signs of automation a detection script
+  finds, how loudly a detector reacts and what to change. They are on the `cdp`, `driver` and
+  `sb` servers, mark their output untrusted and declare output schemas. The `sb` server gains
+  `diff_fingerprints` and `patch_fingerprint` (an RFC 7386 merge patch); `build_fingerprint`
+  takes `random`, `seed`, `os` and `save_to` (the identity `sbrs fingerprint export` writes for
+  the same seed); `validate_fingerprint` takes a `fingerprint`, a `path` or a `preset`.
+  `start_browser` takes `fingerprint`, `fingerprint_path` or `fingerprint_preset` and applies it
+  as the browser starts (on `driver` and `sb` in undetected mode, Chromium browsers only). A
+  proxy password is shown as `***`; a saved file keeps it and is private to its owner. The
+  `check_fingerprint` prompt walks a model through capture, compare and explain.
+
+
 - **The plugin API is 0.1.3** (`seleniumbase-rs-plugins` rev `5f68042f`): the hooks for
   navigation, contexts, the network, tests and tasks, and the guard that holds each plugin to the
   capabilities it declares. The pure CDP engine calls the navigation, context and close hooks
