@@ -895,13 +895,7 @@ mod tests {
     #[test]
     fn the_report_flags_are_the_variables_of_their_rows() {
         assert_eq!(
-            env(&[
-                "--html",
-                "a.html",
-                "--junitxml=b.xml",
-                "--alluredir",
-                "out"
-            ]),
+            env(&["--html", "a.html", "--junitxml=b.xml", "--alluredir", "out"]),
             [
                 pair("SB_HTML", "a.html"),
                 pair("SB_JUNIT_XML", "b.xml"),
@@ -963,10 +957,10 @@ mod tests {
     fn db_reporting_needs_a_build_with_turso() {
         let error = plan(&["--with-db-reporting"]).unwrap_err();
         assert!(
-            format!("{error:?}").contains("--with-db-reporting needs sbrs built with the turso feature"),
+            format!("{error:?}")
+                .contains("--with-db-reporting needs sbrs built with the turso feature"),
             "{error:?}"
         );
-
     }
 
     #[test]
