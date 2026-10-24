@@ -252,6 +252,8 @@ impl Inner {
     /// Runs the plugins' `on_close` on the current runtime when the last handle
     /// goes without [`Browser::close`]. A drop cannot wait, so the hooks run
     /// after it, while the process is being killed.
+    /// The browser no longer answers then, so `before_close` runs only in
+    /// [`Browser::close`].
     fn close_plugins_in_background(&mut self) {
         let plugins = &self.options.plugins;
         if !std::mem::replace(self.plugins_open.get_mut(), false) || plugins.is_empty() {

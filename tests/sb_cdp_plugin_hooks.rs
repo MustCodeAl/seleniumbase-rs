@@ -864,3 +864,122 @@ async fn the_protocol_events_a_plugin_named_reach_it_and_no_others() {
     );
     browser.close().await.unwrap();
 }
+
+// ----------------------------------------------------------------------
+// Order, and what a redirect may not do
+// ----------------------------------------------------------------------
+
+/// Sends every navigation to a local file, which a redirect may not do.
+struct FileRedirector;
+
+#[async_trait]
+impl Plugin for FileRedirector {
+    fn name(&self) -> &str {
+        "file-redirector"
+    }
+
+    fn metadata(&self) -> Metadata {
+        Metadata::new(Category::Core).capability(Capability::PageNavigate)
+    }
+
+    async fn before_navigate(
+        &self,
+        _page: &dyn PageHandle,
+        _navigation: &Navigation,
+    ) -> PluginResult<NavDecision> {
+        Ok(NavDecision::Redirect("file:///etc/passwd".into()))
+    }
+}
+
+#[tokio::test]
+async fn a_redirect_to_a_file_is_refused_and_nothing_is_sent() {
+    let mock = MockCtrl::new();
+    let browser = launch(PluginSet::new().with(FileRedirector).unwrap(), &mock).await;
+    let page = browser.default_page().await.unwrap();
+
+    let error = page.goto("https://ok.example/").await.unwrap_err();
+
+    assert!(
+        matches!(&error, SeleniumBaseError::Plugin { plugin, reason }
+            if plugin == "file-redirector" && reason.contains("refused")),
+        "{error:?}"
+    );
+    assert!(navigations(&mock).is_empty());
+}
+
+/// Writes down where in a context's life each of its hooks runs.
+struct Ordered {
+    name: &'static str,
+    log: Log,
+}
+
+#[async_trait]
+impl Plugin for Ordered {
+    fn name(&self) -> &str {
+        self.name
+    }
+
+    fn metadata(&self) -> Metadata {
+        Metadata::new(Category::Core).capability(Capability::Contexts)
+    }
+
+    async fn before_context(&self, _settings: &mut ContextSettings) -> PluginResult<()> {
+        note(&self.log, format!("{} before_context", self.name));
+        Ok(())
+    }
+
+    async fn on_context_created(&self, _context: &dyn ContextHandle) -> PluginResult<()> {
+        note(&self.log, format!("{} on_context_created", self.name));
+        Ok(())
+    }
+
+    async fn on_context_closed(&self, _id: &ContextId) -> PluginResult<()> {
+        note(&self.log, format!("{} on_context_closed", self.name));
+        Ok(())
+    }
+}
+
+#[tokio::test]
+async fn the_context_hooks_run_in_plugin_order_around_the_browsers_own_commands() {
+    let log = Log::default();
+    let mock = MockCtrl::new();
+    let creating = log.clone();
+    mock.on("Target.createBrowserContext", move |_| {
+        note(&creating, "browser creates the context");
+        Ok(json!({ "browserContextId": "C1" }))
+    });
+    let disposing = log.clone();
+    mock.on("Target.disposeBrowserContext", move |_| {
+        note(&disposing, "browser disposes of the context");
+        Ok(json!({}))
+    });
+    let plugins = PluginSet::new()
+        .with(Ordered {
+            name: "first",
+            log: log.clone(),
+        })
+        .unwrap()
+        .with(Ordered {
+            name: "second",
+            log: log.clone(),
+        })
+        .unwrap();
+    let browser = launch(plugins, &mock).await;
+
+    let context = browser.new_context().await.unwrap();
+    context.dispose().await.unwrap();
+
+    assert_eq!(
+        entries(&log),
+        [
+            "first before_context",
+            "second before_context",
+            "browser creates the context",
+            "first on_context_created",
+            "second on_context_created",
+            "browser disposes of the context",
+            "first on_context_closed",
+            "second on_context_closed",
+        ]
+    );
+}

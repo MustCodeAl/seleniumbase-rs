@@ -324,7 +324,7 @@ impl Page {
     /// # Errors
     ///
     /// As [`goto`](Self::goto).
-    #[cfg(feature = "plugins")]
+    #[cfg(all(feature = "plugins", any(test, feature = "mcp-server")))]
     pub(crate) async fn goto_from(
         &self,
         url: impl AsRef<str>,

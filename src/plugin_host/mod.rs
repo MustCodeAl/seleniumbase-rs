@@ -94,7 +94,7 @@ pub fn build_with(
     registry: &Registry,
     selection: &PluginSelection,
 ) -> Result<PluginSet, SeleniumBaseError> {
-    add_selection(PluginSet::strict(), registry, selection)
+    add_selection(PluginSet::strict(), registry, selection).map(timed)
 }
 
 /// Adds the plugins `selection` names to `set`, after those it holds.
