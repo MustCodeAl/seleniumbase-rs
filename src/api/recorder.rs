@@ -1789,8 +1789,6 @@ mod tests {
 
     // ---- Gherkin -------------------------------------------------------------
 
-    use crate::browser::config::BrowserConfig;
-
     fn gherkin_recorder() -> ActionRecorder {
         let mut recorder = ActionRecorder::default();
         recorder.record("open", Some("https://example.com"), None);
