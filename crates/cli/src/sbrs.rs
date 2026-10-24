@@ -5,7 +5,9 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use seleniumbase_rs::api::recorder::{RecordedAction, RecorderSession};
+use seleniumbase_rs::api::scenario::{run_scenario, write_dashboard, Scenario};
 use seleniumbase_rs::artifacts::{artifact_path, ensure_latest_logs_dir};
+use seleniumbase_rs::browser::driver_version::binary_major;
 #[cfg(feature = "pdf")]
 use seleniumbase_rs::cli::commands::looks_like_pdf;
 use seleniumbase_rs::cli::commands::{
@@ -25,9 +27,6 @@ use seleniumbase_rs::common::encryption::{decrypt_with_passphrase, encrypt_with_
 use seleniumbase_rs::common::shutdown::{
     cleanup_within, drain_cleanups, run_until_shutdown, timeout_from_env, Outcome, Shutdown,
 };
-// use seleniumbase_rs::dashboard::write_dashboard_html;
-use seleniumbase_rs::api::scenario::{run_scenario, write_dashboard_html, Scenario};
-use seleniumbase_rs::browser::driver_version::binary_major;
 use seleniumbase_rs::config::plugins::PluginSelection;
 use seleniumbase_rs::config::proxy_list::ProxyList;
 use seleniumbase_rs::config::settings::{Settings, SettingsOverrides};
@@ -61,13 +60,15 @@ mod proxy;
 mod recorder_flags;
 
 mod browser_flags;
+#[cfg(feature = "turso")]
+mod history;
 #[cfg(test)]
 mod reference;
-#[cfg(feature = "turso")]
 mod report;
 mod strict;
 
 mod test_args;
+mod test_session;
 
 use failure::ArgumentError;
 use fingerprint::{FingerprintArgs, FingerprintCommand};
@@ -949,34 +950,18 @@ enum Commands {
         #[usage(value_hint = usage::ValueHint::Other)]
         token: Option<String>,
     },
-    /// Show the test runs recorded in a results database.
+    /// Finish a test run and write its reports, or show the runs of a results database.
     ///
-    /// Lists the latest runs; `--run` shows one run's results and `--flaky`
-    /// the tests that both pass and fail across recent runs. The database is
-    /// the one a `ResultStore` writes: pass its path with `--db` or set
-    /// SB_REPORT_DB (default: reports/results.db).
-    #[cfg(feature = "turso")]
-    #[usage(help_heading = "Info and setup", example = "sbrs report --limit 10")]
-    Report {
-        /// Path of the results database.
-        #[usage(long, value_hint = usage::ValueHint::AnyPath)]
-        db: Option<PathBuf>,
-        /// Show the results of this run.
-        #[usage(long, conflicts("--flaky"))]
-        run: Option<seleniumbase_rs::storage::RunId>,
-        /// With --run, show only the tests that failed.
-        #[usage(long, bool_value, requires("--run"))]
-        failed: bool,
-        /// Show tests that both pass and fail across the latest runs.
-        #[usage(long, bool_value)]
-        flaky: bool,
-        /// How many runs to list, or to examine for flaky tests.
-        #[usage(long, default = "20")]
-        limit: usize,
-        /// Print JSON instead of a table.
-        #[usage(long, bool_value)]
-        json: bool,
-    },
+    /// `sbrs report finish` ends the run of the current folder: the dashboard, the HTML report
+    /// and the JUnit XML are written a last time. Use it after a plain `cargo test`, which
+    /// leaves the live dashboard going; `sbrs test` finishes its run by itself. `sbrs report
+    /// history` lists the runs recorded in a results database (a build with the `turso`
+    /// feature).
+    #[usage(
+        help_heading = "Info and setup",
+        example = "sbrs report finish --html report.html"
+    )]
+    Report(args::report::ReportArgs),
     /// Run a diagnostic check on the environment and configuration.
     #[usage(help_heading = "Info and setup", example = "sbrs doctor")]
     Doctor,
@@ -1333,6 +1318,15 @@ enum Commands {
     /// test again, and `--archive-logs` keeps the old latest_logs folder, which a run
     /// otherwise empties. `-c FILE` (or `--settings-file`) names the settings file the
     /// tests read.
+    ///
+    /// `sbrs test` starts the run of the tests before Cargo and ends it after: `--dashboard`
+    /// writes dashboard.html (live while the tests run), `--html PATH` and `--junit-xml PATH`
+    /// write a report, `--alluredir DIR` Allure results (the tested crate needs the library's
+    /// `allure` feature), `--show-report` opens the report in a browser window and waits until
+    /// it is closed, and `--with-db-reporting` records the run in the results database. The
+    /// exit status is Cargo's, or 1 when a report could not be written. After a plain `cargo
+    /// test` use `sbrs report finish`.
+
     #[usage(
         help_heading = "Tests",
         example = "sbrs test login",
@@ -1945,7 +1939,7 @@ impl Commands {
             | Self::Devtools { .. }
             | Self::Plugin(_) => false,
             #[cfg(feature = "turso")]
-            Self::Report { .. } => false,
+            Self::Report(_) => false,
             _ => true,
         }
     }
@@ -3120,6 +3114,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Commands::GridNode(grid) => return run_grid(GridRole::Node, grid).await,
         Commands::Proxy(proxy) => return proxy::run(proxy).await,
         Commands::Download(download) => return run_download(&download.command).await,
+        Commands::Report(report) => return report::run(report).await,
 
         Commands::Encrypt { text: None } if crypto::prompts() => {
             return crypto::interactive(crypto::Kind::Encrypt).await;
@@ -3568,17 +3563,6 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             let plain = decrypt_with_passphrase(&token, &passphrase).map_err(wrong_passphrase)?;
             println!("{plain}");
         }
-        #[cfg(feature = "turso")]
-        Commands::Report {
-            db,
-            run,
-            failed,
-            flaky,
-            limit,
-            json,
-        } => {
-            report::run(db, run, failed, flaky, limit, json).await?;
-        }
         Commands::Doctor => {
             run_doctor().await?;
         }
@@ -3801,7 +3785,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 forwarded.push(("SB_PLUGINS".to_owned(), selection.to_list()));
             }
             let plan = test.plan(&settings, forwarded, args.config.as_deref())?;
-            let code = plan.execute()?;
+            let code = plan.execute().await?;
             if code != 0 {
                 std::process::exit(code);
             }
@@ -3813,6 +3797,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         | Commands::GridNode(_)
         | Commands::Proxy(_)
         | Commands::Download(_)
+        | Commands::Report(_)
         | Commands::BehaveOptions
         | Commands::Methods
         | Commands::Options(_)
@@ -3916,12 +3901,12 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             let summary = run_scenario(&mut sb, &scenario).await?;
 
             if let Some(dashboard_path) = dashboard.as_deref() {
-                write_dashboard_html(&summary, dashboard_path)?;
+                write_dashboard(&summary, dashboard_path)?;
                 println!("Dashboard written: {dashboard_path}");
             } else {
                 let logs_dir = ensure_latest_logs_dir()?;
                 let dashboard_path = artifact_path(&logs_dir, "dashboard", "html");
-                write_dashboard_html(&summary, &dashboard_path)?;
+                write_dashboard(&summary, &dashboard_path)?;
                 println!("Dashboard written: {}", dashboard_path.display());
             }
 

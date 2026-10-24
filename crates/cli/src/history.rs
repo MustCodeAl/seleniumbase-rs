@@ -1,4 +1,4 @@
-//! `sbrs report`: reading a results database from the command line.
+//! `sbrs report history`: reading a results database from the command line.
 
 use std::path::PathBuf;
 
@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 /// Where results are read from when neither `--db` nor `SB_REPORT_DB` is set.
 const DEFAULT_DB: &str = "reports/results.db";
 
-pub async fn run(
+pub(crate) async fn run(
     db: Option<PathBuf>,
     run: Option<RunId>,
     failed: bool,

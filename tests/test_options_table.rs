@@ -5,9 +5,9 @@
 use seleniumbase_rs::config::test_options::{find_option, OptionKind, TEST_OPTIONS};
 
 /// Rows of the table that have no entry in `options_pytest` or `options_sb`: the pytest and
-/// plugin options (`--pdb`, `--reruns`, ...), the options only `sbrs` has (`--runner`) and the
+/// plugin options (`--pdb`, `--reruns`, `--html`, `--junit-xml`, `--alluredir`), the options only `sbrs` has (`--runner`) and the
 /// settings that have a variable but no Python option (`SB_TIMEOUT`).
-const NOT_IN_THE_MANIFEST: [&str; 13] = [
+const NOT_IN_THE_MANIFEST: [&str; 16] = [
     "pdb",
     "trace",
     "reruns",
@@ -21,6 +21,9 @@ const NOT_IN_THE_MANIFEST: [&str; 13] = [
     "remote-webdriver-timeout",
     "fingerprint",
     "mode",
+    "html",
+    "junit-xml",
+    "alluredir",
 ];
 
 fn manifest() -> toml::Table {

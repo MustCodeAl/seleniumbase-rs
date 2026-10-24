@@ -15,7 +15,7 @@
 //! and under each of Python's aliases.
 
 use std::ffi::OsString;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::Duration;
 
@@ -26,9 +26,11 @@ use seleniumbase_rs::cli::scripts::run_logs;
 use seleniumbase_rs::config::settings::Settings;
 use seleniumbase_rs::config::test_options::find_option;
 use seleniumbase_rs::config::test_settings::TestData;
+use seleniumbase_rs::core::test_run::ReportSettings;
 use seleniumbase_rs::SeleniumBaseError;
 
 use crate::failure::ArgumentError;
+use crate::test_session::{self, Session};
 
 /// Builds `TestOptions`, one flag for each row of the option table, and
 /// `TestOptions::env`, which turns the flags that were given into `SB_*`
@@ -331,6 +333,10 @@ pub(crate) struct TestArgs {
     /// After the tests, run every example of the packages with `cargo run --example`.
     #[usage(long = "all-scripts", bool_value)]
     pub(crate) all_scripts: bool,
+    /// Open the HTML report or the dashboard in a browser window when the tests end, and wait
+    /// until the window is closed.
+    #[usage(long = "show-report", bool_value)]
+    pub(crate) show_report: bool,
     #[usage(flatten)]
     pub(crate) options: TestOptions,
     /// Arguments for the test harness, after `--` (for example --exact).
@@ -402,7 +408,36 @@ pub(crate) struct Plan {
     pub(crate) archive_downloads: bool,
     /// Run every example after the tests.
     pub(crate) all_scripts: Option<AllScripts>,
+    /// The run of the tests, which `sbrs test` opens before Cargo and finishes after it. None
+    /// for a listing and for an example, which are no test run.
+    pub(crate) report: Option<ReportPlan>,
 }
+
+/// The run of a `sbrs test`, as planned.
+#[derive(Debug)]
+pub(crate) struct ReportPlan {
+    /// What the run writes and keeps.
+    pub(crate) settings: ReportSettings,
+    /// The id the processes of the tests find the run by (`SB_RUN_ID`).
+    pub(crate) run_id: String,
+    /// Open the report in a browser window when the run ends.
+    pub(crate) show_report: bool,
+}
+
+/// The variables of the options that decide what a run writes and keeps.
+const REPORT_VARIABLES: [&str; 11] = [
+    "SB_DASHBOARD",
+    "SB_DASH_TITLE",
+    "SB_HTML",
+    "SB_JUNIT_XML",
+    "SB_ALLURE_DIR",
+    "SB_ARCHIVE_LOGS",
+    "SB_LIST_FAIL_PAGE",
+    "SB_SAVE_SCREENSHOT",
+    "SB_NO_SCREENSHOT",
+    "SB_WITH_DB_REPORTING",
+    "SB_DATABASE_ENV",
+];
 
 /// How `--all-scripts` runs the examples.
 #[derive(Debug)]
@@ -456,6 +491,8 @@ impl TestArgs {
                     value.clone()
                 }
                 "SB_SETTINGS_FILE" => continue,
+                // The tests run in their package's folder, so a relative path would move.
+                "SB_HTML" | "SB_JUNIT_XML" | "SB_ALLURE_DIR" => absolute_text(value),
                 _ => value.clone(),
             };
             exported.push(((*name).to_owned(), value));
@@ -559,6 +596,17 @@ impl TestArgs {
             run = run.env("SB_SETTINGS_FILE", path.display().to_string());
         }
 
+        let report = if self.collect_only || example {
+            None
+        } else {
+            let report = self.report_plan(settings, &exported)?;
+            let root = std::path::absolute(".").map_err(|e| argument_error(e.to_string()))?;
+            run = run
+                .env(test_session::RUN_ID_VARIABLE, &report.run_id)
+                .env(test_session::ROOT_VARIABLE, root.display().to_string());
+            Some(report)
+        };
+
         let time_limit = flag("SB_TIME_LIMIT")
             .and_then(|text| text.trim().parse::<f64>().ok())
             .or(settings.test.time_limit)
@@ -581,8 +629,54 @@ impl TestArgs {
             archive_logs: on("SB_ARCHIVE_LOGS", settings.test.archive_logs),
             archive_downloads: on("SB_ARCHIVE_DOWNLOADS", settings.test.archive_downloads),
             all_scripts,
+            report,
         })
     }
+
+    /// The run of the tests: what the reports flags and the settings ask it to write.
+    fn report_plan(
+        &self,
+        settings: &Settings,
+        exported: &[(String, String)],
+    ) -> Result<ReportPlan, ArgumentError> {
+        let given: Vec<(&str, String)> = exported
+            .iter()
+            .filter(|(name, _)| REPORT_VARIABLES.contains(&name.as_str()))
+            .map(|(name, value)| (name.as_str(), value.clone()))
+            .collect();
+        let mut with_flags = settings.clone();
+        with_flags
+            .apply_options(&given)
+            .map_err(|e| argument_error(plain(e)))?;
+        // A flag beats the variable of the same name, which beats the settings file.
+        let report = ReportSettings::from_settings_with(&with_flags, |name| {
+            given
+                .iter()
+                .rev()
+                .find(|(var, _)| *var == name)
+                .map(|(_, value)| value.clone())
+                .or_else(|| std::env::var(name).ok())
+        });
+        if report.with_db_reporting && !cfg!(feature = "turso") {
+            return Err(argument_error(
+                "--with-db-reporting needs sbrs built with the turso feature: \
+                 cargo install --path crates/cli --features turso",
+            ));
+        }
+        if self.show_report && report.html.is_none() && !report.dashboard {
+            return Err(argument_error("--show-report needs --html or --dashboard"));
+        }
+        Ok(ReportPlan {
+            settings: report,
+            run_id: test_session::new_run_id(),
+            show_report: self.show_report,
+        })
+    }
+}
+
+/// `text` as an absolute path, or as it is when the working directory cannot be read.
+fn absolute_text(text: &str) -> String {
+    std::path::absolute(text).map_or_else(|_| text.to_owned(), |path| path.display().to_string())
 }
 
 impl Plan {
@@ -591,37 +685,76 @@ impl Plan {
     /// # Errors
     ///
     /// Returns the error of the folder reset or of starting `cargo`.
-    pub(crate) fn execute(&self) -> Result<i32, Box<dyn std::error::Error>> {
+    pub(crate) async fn execute(&self) -> Result<i32, Box<dyn std::error::Error>> {
         let cwd = std::env::current_dir()?;
         let dirs = if self.example {
-            vec![cwd]
+            vec![cwd.clone()]
         } else {
             run_logs::package_dirs(&cwd)
         };
         if self.list {
             return self.list_tests();
         }
-        self.reset_folders(&dirs)?;
-        let status = self.run.status()?;
-        let mut code = status.code().unwrap_or(1);
-        if let Some(all) = &self.all_scripts {
-            let failed = Self::run_examples(all, &dirs)?;
-            if failed && code == 0 {
-                code = 1;
+        // The run clears or archives the `latest_logs` of the working directory itself.
+        let session = self
+            .report
+            .as_ref()
+            .map(|report| {
+                Session::start(cwd.clone(), report.run_id.clone(), report.settings.clone())
+            })
+            .transpose()?;
+        self.reset_folders(&dirs, session.as_ref().map(|_| cwd.as_path()))?;
+        if let Some(banner) = session.as_ref().and_then(Session::banner) {
+            println!("{banner}");
+        }
+        let status = self.run.status();
+        let mut code = status
+            .as_ref()
+            .map_or(1, |status| status.code().unwrap_or(1));
+        if status.is_ok() {
+            if let Some(all) = &self.all_scripts {
+                let failed = Self::run_examples(all, &dirs)?;
+                if failed && code == 0 {
+                    code = 1;
+                }
             }
         }
+        if let Some(session) = session {
+            let closing = session.finish().await;
+            closing.print();
+            if code == 0 && closing.report_missing {
+                code = 1;
+            }
+            let show = self
+                .report
+                .as_ref()
+                .is_some_and(|report| report.show_report);
+            if let (true, Some(page)) = (show, &closing.page) {
+                if let Err(error) = test_session::show_report(page).await {
+                    eprintln!("warning: --show-report: {error}");
+                }
+            }
+        }
+        status?;
         Ok(code)
     }
 
     /// Empties `latest_logs/` and `downloaded_files/` of each package, or moves them to
     /// the archives, as Python does at the start of a run.
-    fn reset_folders(&self, dirs: &[PathBuf]) -> std::io::Result<()> {
+    fn reset_folders(&self, dirs: &[PathBuf], run_root: Option<&Path>) -> std::io::Result<()> {
         let stamp = run_logs::unix_stamp();
+        let run_root = run_root.and_then(|root| std::fs::canonicalize(root).ok());
         for dir in dirs {
-            if let run_logs::Reset::Archived(to) =
-                run_logs::reset_logs(dir, self.archive_logs, stamp)?
-            {
-                eprintln!("Archived the logs of {} in {}", dir.display(), to.display());
+            // The logs of the folder a run was opened in are the run's to clear or archive.
+            let is_run_root = run_root
+                .as_deref()
+                .is_some_and(|root| std::fs::canonicalize(dir).is_ok_and(|dir| dir == root));
+            if !is_run_root {
+                if let run_logs::Reset::Archived(to) =
+                    run_logs::reset_logs(dir, self.archive_logs, stamp)?
+                {
+                    eprintln!("Archived the logs of {} in {}", dir.display(), to.display());
+                }
             }
             if let run_logs::Reset::Archived(to) =
                 run_logs::reset_downloads(dir, self.archive_downloads, stamp)?
@@ -757,6 +890,83 @@ mod tests {
     #[test]
     fn options_that_do_nothing_are_accepted() {
         assert!(env(&["--fast", "--with-selenium", "--is-pytest"]).is_empty());
+    }
+
+    #[test]
+    fn the_report_flags_are_the_variables_of_their_rows() {
+        assert_eq!(
+            env(&[
+                "--html",
+                "a.html",
+                "--junitxml=b.xml",
+                "--alluredir",
+                "out"
+            ]),
+            [
+                pair("SB_HTML", "a.html"),
+                pair("SB_JUNIT_XML", "b.xml"),
+                pair("SB_ALLURE_DIR", "out")
+            ]
+        );
+    }
+
+    #[test]
+    fn a_test_run_is_planned_with_its_reports_and_handed_to_cargo() {
+        let plan = plan(&["--dashboard", "--html", "r.html", "--dash-title", "A_B"]).unwrap();
+
+        let report = plan.report.as_ref().expect("a test run has a run");
+        assert!(report.settings.dashboard);
+        assert_eq!(report.settings.title(), "A B");
+        assert_eq!(
+            report.settings.html,
+            Some(std::path::absolute("r.html").unwrap()),
+            "the tests run in their package's folder, so the path is made absolute"
+        );
+        assert!(report.run_id.starts_with("sbrs-"), "{}", report.run_id);
+        let env_of = |name: &str| {
+            plan.run
+                .command()
+                .get_envs()
+                .find(|(key, _)| *key == name)
+                .and_then(|(_, value)| value.map(|v| v.to_string_lossy().into_owned()))
+        };
+        assert_eq!(env_of("SB_RUN_ID"), Some(report.run_id.clone()));
+        assert_eq!(
+            env_of("SB_REPORT_ROOT").map(PathBuf::from),
+            Some(std::env::current_dir().unwrap())
+        );
+    }
+
+    #[test]
+    fn a_listing_or_an_example_is_no_run() {
+        assert!(plan(&["--co", "--dashboard"]).unwrap().report.is_none());
+        assert!(plan(&["--example", "demo", "--dashboard"])
+            .unwrap()
+            .report
+            .is_none());
+        assert!(plan(&["--dashboard"]).unwrap().report.is_some());
+    }
+
+    #[test]
+    fn show_report_needs_a_report_to_show() {
+        let error = plan(&["--show-report"]).unwrap_err();
+        assert!(
+            format!("{error:?}").contains("--show-report needs --html or --dashboard"),
+            "{error:?}"
+        );
+        assert!(plan(&["--show-report", "--dashboard"]).is_ok());
+        assert!(plan(&["--show-report", "--html", "r.html"]).is_ok());
+    }
+
+    #[test]
+    #[cfg(not(feature = "turso"))]
+    fn db_reporting_needs_a_build_with_turso() {
+        let error = plan(&["--with-db-reporting"]).unwrap_err();
+        assert!(
+            format!("{error:?}").contains("--with-db-reporting needs sbrs built with the turso feature"),
+            "{error:?}"
+        );
+
     }
 
     #[test]

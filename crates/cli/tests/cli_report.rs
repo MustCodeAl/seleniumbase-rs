@@ -1,4 +1,4 @@
-//! `sbrs report`, run as the real binary against a database made with the
+//! `sbrs report history`, run as the real binary against a database made with the
 //! library. Needs the `turso` feature: `cargo test --features turso`.
 
 #![cfg(feature = "turso")]
@@ -46,7 +46,7 @@ async fn database(path: &Path) {
 fn sbrs(args: &[&str], db: Option<&Path>) -> Output {
     let mut command = Command::new(SBASE);
     command
-        .args(["report"])
+        .args(["report", "history"])
         .args(args)
         .env_remove("SB_REPORT_DB");
     if let Some(db) = db {
@@ -139,7 +139,7 @@ async fn the_database_can_come_from_the_environment() {
     database(&db).await;
 
     let output = Command::new(SBASE)
-        .arg("report")
+        .args(["report", "history"])
         .env("SB_REPORT_DB", &db)
         .output()
         .unwrap();

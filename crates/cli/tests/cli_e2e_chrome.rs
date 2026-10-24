@@ -381,6 +381,10 @@ fn a_scenario_runs_and_leaves_a_dashboard_and_a_recording_replays() {
     assert!(ran.status.success(), "{}", stderr(&ran));
     let dashboard = std::fs::read_to_string(dir.path().join("dash.html")).expect("a dashboard");
     assert!(dashboard.contains("fixture"), "{dashboard}");
+    // The page of a test run, with one row: the scenario.
+    for part in ["Scenario Dashboard", "PASS", "<svg"] {
+        assert!(dashboard.contains(part), "{part} in {dashboard}");
+    }
 
     let failing = dir.path().join("failing.json");
     std::fs::write(
