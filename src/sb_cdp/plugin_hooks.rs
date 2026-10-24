@@ -1110,3 +1110,64 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod navigation_origin_tests {
+    use std::sync::{Arc, Mutex};
+
+    use seleniumbase_rs_plugin::{async_trait, NavDecision, Plugin};
+
+    use super::*;
+
+    /// Writes down who asked for each navigation.
+    struct Origins(Arc<Mutex<Vec<String>>>);
+
+    #[async_trait]
+    impl Plugin for Origins {
+        fn name(&self) -> &'static str {
+            "origins"
+        }
+
+        async fn before_navigate(
+            &self,
+            _page: &dyn PageHandle,
+            navigation: &Navigation,
+        ) -> PluginResult<NavDecision> {
+            self.0
+                .lock()
+                .unwrap()
+                .push(format!("{:?} {}", navigation.origin, navigation.url));
+            Ok(NavDecision::Continue)
+        }
+    }
+
+    #[tokio::test]
+    async fn the_origin_of_a_navigation_is_who_asked_for_it() {
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let mock = crate::sb_cdp::mock::MockCtrl::new();
+        let options = LaunchOptions::builder()
+            .headless(true)
+            .plugins(PluginSet::new().with(Origins(Arc::clone(&seen))).unwrap())
+            .build()
+            .unwrap();
+        let browser = Browser::launch_mocked(options, &mock).await.unwrap();
+        let page = browser.default_page().await.unwrap();
+
+        page.goto("https://a.example/").await.unwrap();
+        page.goto_from("https://b.example/", NavOrigin::Mcp)
+            .await
+            .unwrap();
+        PageHandle::navigate(&page, "https://c.example/")
+            .await
+            .unwrap();
+
+        assert_eq!(
+            *seen.lock().unwrap(),
+            [
+                "Program https://a.example/",
+                "Mcp https://b.example/",
+                "Program https://c.example/",
+            ]
+        );
+    }
+}

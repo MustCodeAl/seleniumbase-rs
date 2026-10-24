@@ -302,7 +302,6 @@ impl Page {
     /// first and may cancel the navigation (an `Err` of
     /// [`SeleniumBaseError::Plugin`], with nothing sent to the browser) or send
     /// it to another address; `after_navigate` sees how it ended.
-
     ///
     /// A URL without a scheme is opened over HTTPS.
     ///

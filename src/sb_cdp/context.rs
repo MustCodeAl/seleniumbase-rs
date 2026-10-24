@@ -422,3 +422,69 @@ mod route_tests {
         );
     }
 }
+
+#[cfg(all(test, feature = "plugins"))]
+mod settings_tests {
+    use seleniumbase_rs_plugin::ContextSettings;
+
+    use super::*;
+
+    fn with_password() -> ContextOptions {
+        ContextOptions::new()
+            .proxy(Proxy::parse("alice:s3cret@proxy.example:8080").expect("a valid proxy"))
+            .bypass("*.internal.example")
+    }
+
+    #[test]
+    fn plugins_see_the_proxy_server_and_never_its_password() {
+        let settings = with_password().settings();
+
+        assert_eq!(settings.proxy.as_deref(), Some("proxy.example:8080"));
+        assert_eq!(settings.bypass, ["*.internal.example"]);
+        assert!(!format!("{settings:?}").contains("s3cret"));
+    }
+
+    #[test]
+    fn settings_left_alone_keep_the_proxys_password() {
+        let options = with_password();
+
+        let back = options
+            .clone()
+            .with_settings(options.settings())
+            .expect("unchanged settings");
+
+        assert_eq!(back, options);
+        assert!(back.proxy.as_ref().is_some_and(Proxy::has_credentials));
+    }
+
+    #[test]
+    fn a_proxy_a_plugin_sets_replaces_the_options_and_a_broken_one_is_an_error() {
+        let settings = ContextSettings::new()
+            .proxy("socks5://bob:pw@10.0.0.1:1080")
+            .bypass(["a.example"]);
+
+        let options = ContextOptions::from_settings(settings).expect("a valid proxy");
+
+        let proxy = options.proxy.as_ref().expect("the proxy");
+        assert_eq!(proxy.server(), "socks5://10.0.0.1:1080");
+        assert_eq!(proxy.credentials(), Some(("bob", "pw")));
+        assert_eq!(options.bypass, ["a.example"]);
+
+        let error = ContextOptions::from_settings(ContextSettings::new().proxy("user:pass@"))
+            .expect_err("a proxy that cannot be parsed");
+        assert!(
+            matches!(error, SeleniumBaseError::InvalidConfig(_)),
+            "{error:?}"
+        );
+    }
+
+    #[test]
+    fn a_plugin_can_remove_the_proxy() {
+        let mut settings = with_password().settings();
+        settings.proxy = None;
+
+        let options = with_password().with_settings(settings).expect("no proxy");
+
+        assert!(options.proxy.is_none());
+    }
+}
