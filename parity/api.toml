@@ -4530,8 +4530,8 @@ note = "chrome-headless-shell, downloaded into downloaded_drivers/chs/ when miss
 
 [options_pytest."--codegen"]
 status = "composed"
-rust = "RecorderSession::install"
-note = "`RecorderSession::install(&sb)` injects the page recorder, so clicks and typing done by hand in the browser are captured; `drain(&mut sb)` collects them, and `ActionRecorder::to_rust_test` or `save_recording_as_test` writes the test. Nothing is saved when the test ends. BaseCase::start_recording only marks where the log of the test's own BaseCase calls begins."
+rust = "BrowserConfig::with_recorder_mode"
+note = "Recorder Mode (`--rec`, `SB_RECORDER`, `BrowserConfig::with_recorder_mode`) runs Python's page recorder in every tab; when the test quits, the actions are processed as Python does and written to `recordings/<test>_rec.rs` (an rstest test on the `sb` fixture) and `.json`, with `.feature` under `--rec-behave`. `sbrs mkrec` (aliases `codegen`, `record`) records from the command line."
 
 [options_pytest."--comet"]
 status = "implemented"
@@ -5172,8 +5172,8 @@ divergence = "Python quits the class's browser when the next class starts (setUp
 
 [options_pytest."--rec"]
 status = "composed"
-rust = "RecorderSession::install"
-note = "`RecorderSession::install(&sb)` injects the page recorder, so clicks and typing done by hand in the browser are captured; `drain(&mut sb)` collects them, and `ActionRecorder::to_rust_test` or `save_recording_as_test` writes the test. Nothing is saved when the test ends. BaseCase::start_recording only marks where the log of the test's own BaseCase calls begins."
+rust = "BrowserConfig::with_recorder_mode"
+note = "Recorder Mode (`--rec`, `SB_RECORDER`, `BrowserConfig::with_recorder_mode`) runs Python's page recorder in every tab; when the test quits, the actions are processed as Python does and written to `recordings/<test>_rec.rs` (an rstest test on the `sb` fixture) and `.json`, with `.feature` under `--rec-behave`. `sbrs mkrec` (aliases `codegen`, `record`) records from the command line."
 
 [options_pytest."--rec-behave"]
 status = "implemented"
@@ -5208,8 +5208,8 @@ note = "BaseCase::sleep goes into the recording, and the generated Rust calls sb
 
 [options_pytest."--record"]
 status = "composed"
-rust = "RecorderSession::install"
-note = "`RecorderSession::install(&sb)` injects the page recorder, so clicks and typing done by hand in the browser are captured; `drain(&mut sb)` collects them, and `ActionRecorder::to_rust_test` or `save_recording_as_test` writes the test. Nothing is saved when the test ends. BaseCase::start_recording only marks where the log of the test's own BaseCase calls begins."
+rust = "BrowserConfig::with_recorder_mode"
+note = "Recorder Mode (`--rec`, `SB_RECORDER`, `BrowserConfig::with_recorder_mode`) runs Python's page recorder in every tab; when the test quits, the actions are processed as Python does and written to `recordings/<test>_rec.rs` (an rstest test on the `sb` fixture) and `.json`, with `.feature` under `--rec-behave`. `sbrs mkrec` (aliases `codegen`, `record`) records from the command line."
 
 [options_pytest."--record-sleep"]
 status = "implemented"
@@ -5218,8 +5218,8 @@ note = "BaseCase::sleep goes into the recording, and the generated Rust calls sb
 
 [options_pytest."--recorder"]
 status = "composed"
-rust = "RecorderSession::install"
-note = "`RecorderSession::install(&sb)` injects the page recorder, so clicks and typing done by hand in the browser are captured; `drain(&mut sb)` collects them, and `ActionRecorder::to_rust_test` or `save_recording_as_test` writes the test. Nothing is saved when the test ends. BaseCase::start_recording only marks where the log of the test's own BaseCase calls begins."
+rust = "BrowserConfig::with_recorder_mode"
+note = "Recorder Mode (`--rec`, `SB_RECORDER`, `BrowserConfig::with_recorder_mode`) runs Python's page recorder in every tab; when the test quits, the actions are processed as Python does and written to `recordings/<test>_rec.rs` (an rstest test on the `sb` fixture) and `.json`, with `.feature` under `--rec-behave`. `sbrs mkrec` (aliases `codegen`, `record`) records from the command line."
 
 [options_pytest."--remote-debug"]
 status = "implemented"

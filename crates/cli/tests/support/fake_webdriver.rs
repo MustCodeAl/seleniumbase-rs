@@ -115,10 +115,11 @@ fn answer(mut stream: TcpStream, seen: &Mutex<Vec<Seen>>, recorded: &str) {
         ("GET", "/element/e1/displayed" | "/element/e1/enabled") => json!(true),
         ("GET", "/title") => json!("Fake page"),
         ("GET", "/url") => json!("https://example.test/"),
-        // The windows and the page script of a Recorder session.
-        ("GET", "/window/handles") if recording => json!(["H1"]),
-        ("GET", "/window") if recording => json!("H1"),
-        ("POST", "/goog/cdp/execute") if recording => json!({}),
+        // The windows and the DevTools call every session may need (`--rec-sb-cdp` turns
+        // Recorder Mode on), then the page script of a Recorder session.
+        ("GET", "/window/handles") => json!(["H1"]),
+        ("GET", "/window") => json!("H1"),
+        ("POST", "/goog/cdp/execute") => json!({}),
         ("POST", "/execute/sync") if recording => {
             let script = body["script"].as_str().unwrap_or_default();
             if script.contains("getItem('recorded_actions')") {

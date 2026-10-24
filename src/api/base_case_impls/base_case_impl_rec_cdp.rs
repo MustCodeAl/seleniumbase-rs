@@ -37,6 +37,10 @@ mod tests_rec_sb_cdp {
         let driver = MockWebDriver::start(json!({}), |request| {
             match (request.method.as_str(), request.path.as_str()) {
                 ("POST", "/element") => Reply::Value(element("e1")),
+                // `rec_sb_cdp` turns Recorder Mode on, which reads the page's URL first.
+                ("GET", "/url") => Reply::Value(json!("about:blank")),
+                ("GET", "/window") => Reply::Value(json!("H1")),
+                ("GET", "/window/handles") => Reply::Value(json!(["H1"])),
                 ("GET", "/element/e1/displayed" | "/element/e1/enabled") => {
                     Reply::Value(json!(true))
                 }
