@@ -202,6 +202,20 @@ work, `docs/parity.md` the per-API status).
   own. The WebDriver engine hosts neither.
 
 
+- **Every setting of `sbrs` and `sbrs-mcp` has an `SB_*` variable, and `--help` names it.** The
+  help of each flag ends with its variable (`(SB_DARK_MODE)`, `(SB_MODE=uc)` for a shorthand), made
+  from the option table so a new row has it too, and `sbrs options --env` (`--markdown`) lists every
+  variable the command lines read with its flag and default (`seleniumbase_rs::config::env_vars`
+  is the list). A flag still wins over its variable, which wins over the settings file. New
+  variables: `SB_PROXY_LIST` (`--proxy-list`), `SB_SAVE_SCREENSHOT` (the global `--save-screenshot`),
+  `SB_PATCH_CACHE_DIR` (`patch-chrome --cache-dir`), and for `sbrs-mcp` `SB_MCP_SERVER`,
+  `SB_MCP_TRANSPORT`, `SB_MCP_LISTEN`, `SB_MCP_PATH`, `SB_MCP_TOKEN_FILE`, `SB_MCP_ALLOW_ORIGIN`,
+  `SB_MCP_ALLOW_HOST` and `SB_MCP_MAX_SESSIONS`; a variable for HTTP never stops the stdio server.
+  A variable that cannot be used ends the program with status 2 and names the variable and its
+  flag (`SB_HEADLESS (--headless): cannot parse bool: maybe`). The `help` of every row of
+  `TEST_OPTIONS` that has a variable now ends with it (`OptionSpec::description` gives the text
+  without it).
+
 - **Recorder Mode on `BaseCase`.** With `BrowserConfig::with_recorder_mode(true)` (`--rec`,
   `--rec-print`, `--rec-behave`, `--rec-sb-mgr`, `--rec-sb-cdp` and `SB_RECORDER` and friends),
   `quit()` writes what a person did in the browser as `recordings/<stem>_rec.rs`,
