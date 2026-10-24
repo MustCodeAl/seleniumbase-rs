@@ -184,6 +184,24 @@ work, `docs/parity.md` the per-API status).
   Nothing else changes for programs without plugins.
 
 
+- **Plugins run tasks and hear the tests (feature `plugins`).** `sbrs plugin run NAME` runs the
+  task of a plugin on a browser it starts (the plugin is turned on by the name; `--plugin` and
+  `--plugin-opt` shape the others): the input is `--input FILE` (or `-`), the results are JSON
+  lines on standard output or in `--out FILE`, the summary goes to standard error, Ctrl-C stops the
+  task and closes the browser (exit status 130), and a name with no task is a usage error that
+  lists the plugins that have one. The library half is `plugin_host::run_task` (also
+  `run_task_until` and `run_task_on` for a browser you have) and, for the command, `plugin_cmd`
+  (`task_launch_options`, `read_task_input`, `JsonlSink`, `TerminalPrompt`). The `cdp` MCP server
+  gets `run_plugin_task {name, input, plugins, headless}`, which runs a task of a plugin the
+  operator enabled on a browser of its own and returns its summary and first results as progress
+  and answer; a task that needs a person at the keyboard fails there with the way to run it.
+  Tests on the pure CDP engine (`SbCdp`) now call the plugins' `on_test_start` after the browser is
+  up and `on_test_end` with the tab still open, for every attempt: a plugin that returns
+  `TestVerdict::Fail` makes a test that passed fail with the plugins' messages (and the evidence a
+  failure gets), and `plugin_host::test_start` and `test_end` are the entry for a runner of your
+  own. The WebDriver engine hosts neither.
+
+
 - **Recorder Mode on `BaseCase`.** With `BrowserConfig::with_recorder_mode(true)` (`--rec`,
   `--rec-print`, `--rec-behave`, `--rec-sb-mgr`, `--rec-sb-cdp` and `SB_RECORDER` and friends),
   `quit()` writes what a person did in the browser as `recordings/<stem>_rec.rs`,
