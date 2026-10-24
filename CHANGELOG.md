@@ -675,6 +675,17 @@ work, `docs/parity.md` the per-API status).
   `artifacts::ensure_test_logs_dir_for(test_id)` finds the folder by the test's id. Without a
   recorder they still write to `latest_logs`, and the helpers that take a file name
   (`save_screenshot`, `save_file_as`, `save_data_as`, ...) keep the flat folder.
+- **A `main` that returns `Result<(), SeleniumBaseError>` fails with a readable message.** `{:?}`
+  of a `SeleniumBaseError` printed the derived `ElementNotFound { selector: ... }` and lost the
+  hint; it now prints the message and, on the next line, `hint: ...` (the README quick start
+  fails like `sbrs` does). `{:#?}` prints a structured form: category, message, hint, exit code
+  and whether the error is transient.
+- **`sbrs doctor` exits with 1 when something is wrong.** A browser that is missing (none found,
+  or the path `SB_CHROME_BIN` names does not exist) and a chromedriver that does not match the
+  installed Chrome are reported on standard error with their fix, after the report; the exit
+  status was 0 whatever it found. `--warn-only` prints the problems and exits with 0, as before.
+  A chromedriver that is not found stays a hint, and the version check now looks at
+  `SB_CHROME_BIN` when it is set.
 
 
 ## [0.6.0] - 2026-10-23
