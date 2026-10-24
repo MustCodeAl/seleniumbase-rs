@@ -71,6 +71,127 @@ impl BaseCase {
     }
 }
 
+/// How often MasterQA asks whether the person has answered the `confirm` box
+/// it falls back to (Python: 0.05 s).
+const MASTERQA_ALERT_POLL: Duration = Duration::from_millis(50);
+
+/// How long the `confirm` box is given to open before it is looked for
+/// (Python: 0.05 s).
+const MASTERQA_ALERT_SETTLE: Duration = Duration::from_millis(50);
+
+// What the checks of a MasterQA run need from the case: the dialog, its
+// fallback and the facts a result row records. The wrapper that keeps count
+// of the checks is [`MasterQA`](crate::api::master_qa::MasterQA).
+impl BaseCase {
+    /// Shows MasterQA's check number `count`, asking `question`, and waits
+    /// for the person's verdict: `true` for YES / PASS, `false` for NO / FAIL.
+    ///
+    /// The page is waited for first. The box is a jquery-confirm dialog
+    /// ([`jqc::masterqa_dialog_script`]); when the page cannot load
+    /// jquery-confirm, the question is asked with the browser's own
+    /// `confirm` box instead, as Python does.
+    pub(crate) async fn masterqa_ask(
+        &mut self,
+        count: usize,
+        question: &str,
+    ) -> Result<bool, SeleniumBaseError> {
+        self.wait_for_ready_state_complete().await?;
+        let script = jqc::masterqa_dialog_script(count, question);
+        match self.run_jqc_dialog(&script, jqc::FOCUS_BOX).await {
+            Ok(answer) => Ok(answer.button == jqc::MASTERQA_PASS),
+            Err(SeleniumBaseError::Download { .. }) => {
+                self.masterqa_confirm(question, crate::api::master_qa::MAX_IDLE_TIME_BEFORE_QUIT)
+                    .await
+            }
+            Err(error) => Err(error),
+        }
+    }
+
+    /// Asks `question` with the browser's `confirm` box and waits for the
+    /// person to answer it. If nobody answers for `max_idle`, the browser is
+    /// quit and the wait fails, as Python's does.
+    ///
+    /// The box is opened from a timer, so that the script call returns before
+    /// it opens: a WebDriver server answers a script that opens a box with
+    /// "unexpected alert open". While the box is open only the alert commands
+    /// are used on the page.
+    pub(crate) async fn masterqa_confirm(
+        &mut self,
+        question: &str,
+        max_idle: Duration,
+    ) -> Result<bool, SeleniumBaseError> {
+        let script = format!(
+            "window.master_qa_result = null; \
+             setTimeout(function () {{ \
+             window.master_qa_result = confirm({}) ? {} : {}; }}, 0); return true;",
+            quote(question),
+            quote(jqc::MASTERQA_PASS),
+            quote(jqc::MASTERQA_FAIL),
+        );
+        self.execute_script(&script).await?;
+        tokio::time::sleep(MASTERQA_ALERT_SETTLE).await;
+
+        let deadline = std::time::Instant::now() + max_idle;
+        loop {
+            match self.get_alert_text().await {
+                // Python lets any alert that is not the question pass.
+                Ok(text) if !text.contains('?') => break,
+                Ok(_) => {}
+                Err(_) => break,
+            }
+            if std::time::Instant::now() >= deadline {
+                let _ = self.quit().await;
+                let seconds = if max_idle.subsec_nanos() == 0 {
+                    max_idle.as_secs().to_string()
+                } else {
+                    max_idle.as_secs_f64().to_string()
+                };
+                return Err(SeleniumBaseError::WaitTimeout(format!(
+                    "{seconds} seconds passed without human action! Stopping..."
+                )));
+            }
+            tokio::time::sleep(MASTERQA_ALERT_POLL).await;
+        }
+        let result = self.execute_script("return window.master_qa_result").await?;
+        Ok(result.as_str() == Some(jqc::MASTERQA_PASS))
+    }
+
+    /// The address of the page, as a result row records it: the current URL,
+    /// or the page's own idea of it when the driver cannot say.
+    pub(crate) async fn masterqa_page_url(&self) -> String {
+        match self.get_current_url().await {
+            Ok(url) => url,
+            Err(_) => self
+                .execute_script("return document.URL")
+                .await
+                .ok()
+                .and_then(|url| url.as_str().map(str::to_owned))
+                .unwrap_or_default(),
+        }
+    }
+
+    /// The name of the browser as a result row records it (`chrome`).
+    pub(crate) fn masterqa_browser(&self) -> &'static str {
+        self.config.browser.name()
+    }
+
+    /// Closes the second window, if another one was opened, and goes back to
+    /// the first, as Python's MasterQA does after an error. It does what it
+    /// can and ignores a failure.
+    pub(crate) async fn masterqa_close_extra_window(&mut self) {
+        let Ok(handles) = self.get_all_window_handles().await else {
+            return;
+        };
+        if handles.len() < 2 {
+            return;
+        }
+        let _ = self.switch_to_window(&handles[1]).await;
+        let _ = self.close_window().await;
+        let _ = self.switch_to_window(&handles[0]).await;
+    }
+}
+
+
 #[cfg(test)]
 mod tests_masterqa {
     use super::*;

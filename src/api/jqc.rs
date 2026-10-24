@@ -82,7 +82,7 @@ const FORM_HTML: &str = concat!(
 );
 
 /// Focuses the box of a button dialog.
-const FOCUS_BOX: &str = "document.querySelector('.jconfirm-box').focus();";
+pub(crate) const FOCUS_BOX: &str = "document.querySelector('.jconfirm-box').focus();";
 
 /// Focuses the input of a text or form dialog.
 const FOCUS_INPUT: &str = "document.querySelector('.jconfirm-box input.jqc_input').focus();";
@@ -705,6 +705,41 @@ fn form_dialog_script(message: &str, buttons: &[ResolvedButton], style: &JqcDefa
          e.preventDefault(); {trigger} }});"
     );
     dialog_script(message, style, true, &entries, &on_ready)
+}
+
+/// What MasterQA's YES / PASS button stores as the answer.
+pub(crate) const MASTERQA_PASS: &str = "Success!";
+
+/// What MasterQA's NO / FAIL button stores as the answer.
+pub(crate) const MASTERQA_FAIL: &str = "Failure!";
+
+/// The script that opens MasterQA's check number `count`, asking `question`
+/// (HTML), as Python's `MasterQA.__jq_confirm_dialog` does: a 32.5% wide
+/// `bootstrap` box with a green YES / PASS button (keys `y`, `p`, `1`) and a
+/// red NO / FAIL button (keys `n`, `f`, `2`).
+///
+/// The buttons store [`MASTERQA_PASS`] or [`MASTERQA_FAIL`] the way every
+/// dialog stores its answer.
+pub(crate) fn masterqa_dialog_script(count: usize, question: &str) -> String {
+    let title = format!(
+        "<center><font color=\"#7700bb\">{} #{count}:</font></center><hr>\
+         <font color=\"#0066ff\">{question}</font>",
+        crate::api::master_qa::DEFAULT_VALIDATION_TITLE
+    );
+    format!(
+        "window.__sbJqcAnswer = null; \
+         jconfirm({{ boxWidth: '32.5%', useBootstrap: false, containerFluid: false, \
+         animationBounce: 1, type: 'default', theme: 'bootstrap', typeAnimated: true, \
+         animation: 'scale', draggable: true, dragWindowGap: 1, container: 'body', \
+         title: {title}, content: '', buttons: {{ \
+         pass_button: {{ btnClass: 'btn-green', text: 'YES / PASS', keys: ['y', 'p', '1'], \
+         action: {pass} }}, \
+         fail_button: {{ btnClass: 'btn-red', text: 'NO / FAIL', keys: ['n', 'f', '2'], \
+         action: {fail} }} }} }});",
+        title = quote(&title),
+        pass = action_script(MASTERQA_PASS, false),
+        fail = action_script(MASTERQA_FAIL, false),
+    )
 }
 
 /// The kind of dialog a call opens.

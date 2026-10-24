@@ -15,7 +15,7 @@ use tracing::{debug, info, instrument};
 use crate::api::deferred::DeferredAsserts;
 use crate::api::html::BeautifulSoup;
 use crate::api::jqc::JqcDefaults;
-use crate::api::master_qa::{MasterQA, MasterQaSession};
+use crate::api::master_qa::MasterQaSession;
 use crate::api::page_scripts::{self, TextMatch};
 #[cfg(feature = "pdf")]
 use crate::api::pdf;
@@ -2503,8 +2503,10 @@ impl BaseCase {
 
     // --- MasterQA Integration ---
 
+    /// Asks `statement` in the terminal and fails the test unless the answer is yes. For a box in
+    /// the browser, see [`MasterQA`](crate::api::master_qa::MasterQA).
     pub async fn verify(&mut self, statement: &str) -> Result<(), SeleniumBaseError> {
-        if !MasterQA::verify(statement) {
+        if !MasterQaSession::new("Standalone verification").verify(statement) {
             return Err(SeleniumBaseError::AssertionFailed(format!(
                 "Manual QA verification failed for: {statement}"
             )));
