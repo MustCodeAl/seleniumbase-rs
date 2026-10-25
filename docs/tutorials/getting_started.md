@@ -161,6 +161,8 @@ settings most programs touch (all are in `seleniumbase_rs::BrowserConfig`):
 | Headless | `with_headless(bool)` | `true` |
 | Engine mode | `with_mode(DriverMode)` | `DriverMode::WebDriver` (`Cdp` and `Uc` add DevTools helpers and anti-detection) |
 | WebDriver endpoint | `with_webdriver_url(url)` | `http://localhost:4444` |
+| Existing Chromium debugger | `with_cdp_url(url)` | none; attach over HTTP or a browser WebSocket without starting a browser or driver |
+| Tauri CDP discovery | `with_cdp_discovery(bool)` | `false`; discover through the authenticated `webdriver_url` |
 | Browser binary | `with_browser_binary_path(path)` | none (`from_env` reads `SB_CHROME_BIN`) |
 | Proxy | `with_proxy(spec)` or `with_proxy_pac_url(url)` | none |
 | User agent, locale | `with_user_agent(ua)`, `with_locale("de-DE")` | none |
@@ -170,6 +172,10 @@ settings most programs touch (all are in `seleniumbase_rs::BrowserConfig`):
 | Reuse browsers between tests | `with_reuse_session(bool)` | `false` |
 | Extra Chromium arguments | `with_extra_args([..])`, `push_extra_arg(arg)` | none |
 | Fingerprint | `with_fingerprint(Fingerprint)` | none; see [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth) |
+
+An explicit `cdp_url` takes precedence over discovery. Direct attachments use
+`BaseCase::cdp_*` methods; the app keeps running after `quit()`. See the
+[Tauri CDP reference](/ecosystem/tauri-api/cdp) for configuration and limits.
 
 Two constructors build the starting point. `BrowserConfig::default()` uses the
 defaults above and reads no environment variable. `BrowserConfig::from_env()`

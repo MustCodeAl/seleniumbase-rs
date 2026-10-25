@@ -60,6 +60,15 @@ credentials never shows its password in `Debug`, `Display` or the command line.
 
 ## Locators
 
+For an already-running CEF/WebView2 app, use
+`LaunchOptions::builder().cdp_url(endpoint).build()?` with `Browser::launch`.
+It reuses the existing connection path and prepares existing windows without
+starting a process. `.fingerprint(&fingerprint)` applies the same evasion and
+native CDP override pipeline; attach-compatible plugins use the existing
+`.plugins(set)` builder (feature `plugins`). Closing leaves the app running.
+HTTP debugger URLs, browser WebSockets and authenticated Tauri discovery are
+covered in the [CDP reference](/ecosystem/tauri-api/cdp).
+
 A [`Locator`] describes elements; it does not hold them. Every action finds the
 element again and waits for it, so it keeps working when the page re-renders.
 

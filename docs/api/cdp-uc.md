@@ -12,6 +12,12 @@ Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...)
 
 ## CDP / UC helpers
 
+An [external Chromium attachment](/ecosystem/tauri-api/cdp) reports
+`is_cdp_mode_active()` as true. `activate_cdp_mode()` enables Page and Network
+without enabling Runtime or the other detectable domains. Use `cdp_*` methods
+or the attached pure `Page`; the WebDriver/UC-specific helpers below retain
+their existing engine requirements.
+
 | Method | Description |
 |--------|-------------|
 | `activate_cdp_mode()` | Enables CDP domains. |

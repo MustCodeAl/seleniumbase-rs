@@ -300,6 +300,13 @@ browser's headless state read from its user agent; then `on_browser` runs, and
 every tab the library attaches to gets the packages and `on_page_created`.
 Nothing is launched, so `before_launch` does not run.
 
+For URL-based attachment with a fingerprint, use the existing launch builder
+with `.cdp_url(endpoint).fingerprint(&fingerprint).plugins(plugins)` and call
+`Browser::launch`. The host performs the same attach checks, prepares existing
+windows, and runs the usual page and close hooks. `BrowserConfig::with_plugins`
+also carries its set into a direct CDP session through `browser_config`.
+See [Tauri CDP attachment](/ecosystem/tauri-api/cdp).
+
 ## BrowserConfig::with_plugins
 
 <Badge color="green">fn</Badge> `seleniumbase_rs::BrowserConfig::with_plugins`
