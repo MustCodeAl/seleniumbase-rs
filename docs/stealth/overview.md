@@ -8,7 +8,9 @@ sidebarTitle: "Overview"
 <Note>
 
 This tutorial moved here from seleniumbase-rs on 2026-10-15, when the stealth
-layer became its own crates. Paths now name `seleniumbase_rs_codec`,
+layer became its own crates. You can depend on the unified root facade crate
+`seleniumbase-rs-stealth` (which re-exports `seleniumbase_rs` alongside
+`codec`, `scrape` and `mimic`), or directly on `seleniumbase_rs_codec`,
 `seleniumbase_rs_scrape` and `seleniumbase_rs_mimic`; the examples run with
 `cargo run -p <crate> --example <name>` in the
 [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
