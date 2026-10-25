@@ -453,13 +453,14 @@
               {
                 "product": "Tauri plugin API",
                 "icon": "window-maximize",
-                "description": "The plugin's WebDriver endpoint",
+                "description": "WebDriver routes and Chromium CDP discovery",
                 "groups": [
                   {
                     "group": "Tauri plugin API",
                     "pages": [
                       "ecosystem/tauri-api/overview",
                       "ecosystem/tauri-api/status",
+                      "ecosystem/tauri-api/cdp",
                       "ecosystem/tauri-api/sessions",
                       "ecosystem/tauri-api/timeouts",
                       "ecosystem/tauri-api/navigation",

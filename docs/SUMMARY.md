@@ -108,6 +108,7 @@ hidden: true
   - [Tauri plugin](ecosystem/tauri.md)
     - [Tauri WebDriver API](ecosystem/tauri-api/overview.md)
     - [Status](ecosystem/tauri-api/status.md)
+    - [Chromium CDP](ecosystem/tauri-api/cdp.md)
     - [Sessions](ecosystem/tauri-api/sessions.md)
     - [Timeouts](ecosystem/tauri-api/timeouts.md)
     - [Navigation](ecosystem/tauri-api/navigation.md)

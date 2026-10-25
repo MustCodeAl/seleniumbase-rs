@@ -1,13 +1,18 @@
 ---
 title: "Tauri WebDriver API"
 sidebarTitle: "Overview"
-description: "The W3C WebDriver endpoint that tauri-plugin-sbrs-automation serves inside a Tauri app: base URL, token, request and reply format, error codes, and every command group."
+description: "The Tauri plugin's WebDriver endpoint and Chromium CDP discovery: authentication, replies, errors, command groups, and CEF/WebView2 configuration."
 ---
 
 The [Tauri plugin](/ecosystem/tauri) serves a subset of W3C WebDriver over HTTP
 from inside your app. `BaseCase`, `sbrs` and any other WebDriver client speak it
 for you; these pages document each route as the plugin's code answers it, with
 raw HTTP requests you can send with cURL.
+
+Apps that own CEF or use WebView2 can also expose a Chromium debugger. The
+authenticated [CDP discovery and configuration reference](/ecosystem/tauri-api/cdp)
+covers `GET /cdp`, `CdpStealthConfig`, fingerprint stealth and client plugins.
+CDP commands go directly to Chromium through the pure engine.
 
 <RequestExample>
 
@@ -224,9 +229,12 @@ Cookies are left out on purpose: on macOS the app's page is
 `tauri://localhost`, where WKWebView keeps no cookies at all (`document.cookie`
 reads back empty after a write).
 
+These limits describe the WebDriver bridge. The optional
+[CDP connection](/ecosystem/tauri-api/cdp) uses Chromium's own protocol.
+
 ## Badges
 
-Every command was written against the W3C specification and is checked by the
+The WebDriver commands follow the W3C specification and are checked by the
 plugin's unit tests. On the pages that follow,
 <Badge color="green" icon="apple" stroke>Verified on macOS</Badge> marks a
 command driven in a real app (the `tauri-profile-manager` example, macOS,
@@ -242,6 +250,12 @@ yet.
 <Card color="#1a85d4" title="Status" icon="heart-pulse" href="/ecosystem/tauri-api/status">
 
 `GET /status`: whether the endpoint answers.
+
+</Card>
+
+<Card color="#1a85d4" title="Chromium CDP" icon="code" href="/ecosystem/tauri-api/cdp">
+
+`GET /cdp`, CEF/WebView2 startup configuration, stealth and client plugins.
 
 </Card>
 
@@ -329,6 +343,7 @@ Elements are `{"element-6066-11e4-a52e-4f735466cecf": "<id>"}`. One session at a
 time; session routes start with `/session/{sessionId}`.
 
 - `GET /status`
+- `GET /cdp` (no session; configured loopback Chromium debugger or disabled)
 - `POST /session`; `DELETE /session/{sessionId}`
 - `GET /timeouts`; `POST /timeouts`
 - `POST /url`; `GET /url`; `GET /title`; `POST /back`; `POST /forward`; `POST /refresh`; `GET /source`
