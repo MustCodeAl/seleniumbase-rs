@@ -6,7 +6,7 @@ description: "API reference of seleniumbase-rs-mimic: browser-identical TLS and 
 
 <Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: mimic</Badge>
 
-`seleniumbase-rs-mimic` (library `seleniumbase_rs_mimic`, in `crates/mimic` of
+`seleniumbase_rs_stealth::mimic` (implemented by `seleniumbase-rs-mimic` in `crates/mimic` of
 [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth))
 sends requests that look like a measured Chrome on the wire: the same TLS
 `ClientHello`, the same HTTP/2 start, and the same header names, order and
@@ -23,8 +23,8 @@ refused, not approximated. Only Chrome 155 on macOS is measured today; see
 <RequestExample>
 
 ```rust Carry a browser's session on in plain HTTP
-use seleniumbase_rs::sb_cdp::Page;
-use seleniumbase_rs_mimic::http_session::{HttpOptions, HttpSession};
+use seleniumbase_rs_stealth::sb_cdp::Page;
+use seleniumbase_rs_stealth::mimic::http_session::{HttpOptions, HttpSession};
 
 async fn orders(page: Page) -> Result<(), Box<dyn std::error::Error>> {
     let session = HttpSession::from_page(&page, None, HttpOptions::new()).await?;
@@ -40,23 +40,22 @@ async fn orders(page: Page) -> Result<(), Box<dyn std::error::Error>> {
 
 ## Depend on it
 
+Use the unified root facade from Git:
+
 ```toml Cargo.toml
 [dependencies]
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs" }
-seleniumbase-rs-mimic = { git = "https://github.com/MustCodeAl/seleniumbase-rs-stealth" }
+seleniumbase-rs-stealth = { git = "https://github.com/MustCodeAl/seleniumbase-rs-stealth", features = ["mimic"] }
 ```
 
-Write `seleniumbase-rs` by its plain git URL, exactly as above, so Cargo resolves
-it to the commit the crate uses and types such as `sb_cdp::Page` match. The
-crate depends on [`seleniumbase-rs-codec`](/stealth/api/codec) and
-[`seleniumbase-rs-scrape`](/stealth/api/scrape), and on wreq (a pinned release
-candidate), `btls` and `tokio-btls` (BoringSSL), hyper, tokio, `ring` and
-`tracing`. Building BoringSSL needs `cmake` and a C compiler.
+Enable `mimic` for this module and its BoringSSL-backed TLS/HTTP2
+impersonation. It needs cmake and a C/C++ toolchain. `scrape`, `codec` and the
+core API remain available through the same dependency.
 
 ## Features
 
-The crate declares no Cargo features. Its own tests turn on `test-util` of the
-core.
+The public `mimic` module requires the facade's `mimic` feature, disabled by
+default. The implementation crate has no Cargo features; its own tests enable
+`test-util` of the core.
 
 ## Module map
 

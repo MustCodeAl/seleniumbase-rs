@@ -16,10 +16,10 @@ around it.
 </Note>
 
 ```rust
-use seleniumbase_rs_scrape::egress::geo::CountryCode;
-use seleniumbase_rs_scrape::runtime::browser_scraper::BrowserScraper;
+use seleniumbase_rs_stealth::scrape::egress::geo::CountryCode;
+use seleniumbase_rs_stealth::scrape::runtime::browser_scraper::BrowserScraper;
 
-# async fn demo() -> Result<(), seleniumbase_rs_scrape::error::ScrapeError> {
+# async fn demo() -> Result<(), seleniumbase_rs_stealth::scrape::error::ScrapeError> {
 let mut scraper = BrowserScraper::builder()
     .with_geo_proxies([("http://user:pass@de.proxy.example:8080", CountryCode::new("DE")?)])?
     .with_max_challenge_attempts(4)

@@ -6,7 +6,7 @@ description: "The measured browser tables of seleniumbase-rs-codec: Emulation, P
 
 <Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: codec</Badge>
 
-`seleniumbase_rs_codec::emulation` holds every wire value the stealth layer
+`seleniumbase_rs_stealth::codec::emulation` holds every wire value the stealth layer
 imitates. Each one was measured from a real browser by a capture tool
 (`capture_tls`, `capture_hints`, `capture_h2`) and stored as JSON under
 `crates/codec/src/measured`. The files are embedded with `include_str!`, parsed
@@ -18,9 +18,9 @@ holds `chrome-155-macos.json`. How the files are made and refreshed is in
 <RequestExample>
 
 ```rust Look up a measured browser
-use seleniumbase_rs::stealth::fingerprint::OsType;
-use seleniumbase_rs_codec::emulation::{self, EmulationError};
-use seleniumbase_rs_codec::BrowserKind;
+use seleniumbase_rs_stealth::stealth::fingerprint::OsType;
+use seleniumbase_rs_stealth::codec::emulation::{self, EmulationError};
+use seleniumbase_rs_stealth::codec::BrowserKind;
 
 fn main() -> Result<(), EmulationError> {
     let chrome = emulation::get(BrowserKind::Chrome, OsType::Macos)?;
@@ -33,16 +33,16 @@ fn main() -> Result<(), EmulationError> {
 ```
 
 ```rust An unmeasured system is refused
-use seleniumbase_rs::stealth::fingerprint::OsType;
-use seleniumbase_rs_codec::emulation::{self, EmulationError};
-use seleniumbase_rs_codec::BrowserKind;
+use seleniumbase_rs_stealth::stealth::fingerprint::OsType;
+use seleniumbase_rs_stealth::codec::emulation::{self, EmulationError};
+use seleniumbase_rs_stealth::codec::BrowserKind;
 
 let windows = emulation::get(BrowserKind::Chrome, OsType::Windows);
 assert!(matches!(windows, Err(EmulationError::NotMeasured { .. })));
 ```
 
 ```rust A table of your own
-use seleniumbase_rs_codec::emulation::Emulation;
+use seleniumbase_rs_stealth::codec::emulation::Emulation;
 
 fn load(text: &str) -> Result<Emulation, Box<dyn std::error::Error>> {
     Ok(Emulation::from_json("my-browser.json", text)?)
@@ -85,7 +85,7 @@ pub struct Emulation {
 
 One measured browser on one operating system: everything a client must send to
 look like it. `OsType` and `ClientHints` are the core's
-(`seleniumbase_rs::stealth::fingerprint`).
+(`seleniumbase_rs_stealth::stealth::fingerprint`).
 
 <ResponseField name="kind" type="BrowserKind" required>
 

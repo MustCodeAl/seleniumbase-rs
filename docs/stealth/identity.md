@@ -14,7 +14,7 @@ and converts to and from CDP cookies. Every function that needs the time takes
 `now` in seconds since the Unix epoch.
 
 ```rust
-use seleniumbase_rs_scrape::jar::store::{CookieJar, SiteContext};
+use seleniumbase_rs_stealth::scrape::jar::store::{CookieJar, SiteContext};
 use url::Url;
 
 # fn demo() -> Result<(), Box<dyn std::error::Error>> {
@@ -54,10 +54,10 @@ hints each origin asked for, the clearances found in the jar, and the egress
 those cookies were earned through.
 
 ```rust
-use seleniumbase_rs_scrape::passport::identity::{EmulationRef, StealthIdentity};
-use seleniumbase_rs_scrape::runtime::identity_file;
-use seleniumbase_rs::stealth::fingerprint::{Fingerprint, OsType};
-use seleniumbase_rs_codec::BrowserKind;
+use seleniumbase_rs_stealth::scrape::passport::identity::{EmulationRef, StealthIdentity};
+use seleniumbase_rs_stealth::scrape::runtime::identity_file;
+use seleniumbase_rs_stealth::stealth::fingerprint::{Fingerprint, OsType};
+use seleniumbase_rs_stealth::codec::BrowserKind;
 
 # async fn demo(now: u64) -> Result<(), Box<dyn std::error::Error>> {
 let fingerprint = Fingerprint::randomized_with_major(OsType::Macos, 7, 155);
@@ -117,9 +117,9 @@ between plain HTTP and the browser, as a pure function of the mode, the identity
 the site's state and the time:
 
 ```rust
-use seleniumbase_rs_scrape::challenge::mitigation::Mode;
-use seleniumbase_rs_scrape::passport::identity::StealthIdentity;
-use seleniumbase_rs_scrape::passport::policy::{SessionPolicy, Transition};
+use seleniumbase_rs_stealth::scrape::challenge::mitigation::Mode;
+use seleniumbase_rs_stealth::scrape::passport::identity::StealthIdentity;
+use seleniumbase_rs_stealth::scrape::passport::policy::{SessionPolicy, Transition};
 
 # fn demo(identity: &StealthIdentity, now: u64) {
 let policy = SessionPolicy {

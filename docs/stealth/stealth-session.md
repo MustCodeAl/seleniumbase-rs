@@ -2,6 +2,10 @@
 title: "StealthSession"
 ---
 
+Examples importing `seleniumbase_rs_stealth::mimic` require the facade's
+`mimic` feature. See the [single-dependency setup](/stealth/overview#which-crate-to-depend-on);
+this feature builds BoringSSL and needs cmake and a C/C++ toolchain.
+
 <Badge color="blue">Crate: mimic</Badge>
 
 `mimic::stealth_session::StealthSession` joins the pieces. It presents one
@@ -16,8 +20,8 @@ and moves between them by the policies:
   handshake. A clearance earned here is valid in the other mode.
 
 ```rust
-use seleniumbase_rs_mimic::StealthSession;
-use seleniumbase_rs_scrape::CountryCode;
+use seleniumbase_rs_stealth::mimic::StealthSession;
+use seleniumbase_rs_stealth::scrape::CountryCode;
 
 # async fn demo() -> Result<(), Box<dyn std::error::Error>> {
 let mut session = StealthSession::builder()
@@ -206,7 +210,7 @@ yourself when you know more than the answers show:
 - Leave both alone for ordinary fetching; `fetch` escalates and demotes on its own.
 
 ```rust
-use seleniumbase_rs_mimic::StealthSession;
+use seleniumbase_rs_stealth::mimic::StealthSession;
 
 # async fn login_then_scrape(password: &str) -> Result<(), Box<dyn std::error::Error>> {
 let mut session = StealthSession::builder().build().await?;

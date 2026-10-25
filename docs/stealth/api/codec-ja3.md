@@ -6,7 +6,7 @@ description: "JA3 and the peetprint in seleniumbase-rs-codec: Ja3, Ja3Field, Ja3
 
 <Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: codec</Badge>
 
-`seleniumbase_rs_codec::ja3` parses and renders JA3 strings with GREASE removed,
+`seleniumbase_rs_stealth::codec::ja3` parses and renders JA3 strings with GREASE removed,
 so that a custom JA3 can be checked and replayed. JA3 is the Salesforce TLS client
 fingerprint: five comma-separated fields (handshake version, cipher suites,
 extensions, supported groups, point formats), each a dash-separated list of
@@ -25,7 +25,7 @@ a client ([JA4](/stealth/api/codec-ja4)).
 <RequestExample>
 
 ```rust JA3 of a measured hello
-use seleniumbase_rs_codec::ja3::Ja3;
+use seleniumbase_rs_stealth::codec::ja3::Ja3;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // The JA3 of one hello Chrome 155 on macOS sent to the capture tool.
@@ -39,7 +39,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 ```rust Peetprint of the same hello
-use seleniumbase_rs_codec::ja3::Peetprint;
+use seleniumbase_rs_stealth::codec::ja3::Peetprint;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let peet = Peetprint::parse(
@@ -54,8 +54,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 ```rust From a parsed hello
-use seleniumbase_rs_codec::client_hello::ClientHello;
-use seleniumbase_rs_codec::ja3::{Ja3, Peetprint};
+use seleniumbase_rs_stealth::codec::client_hello::ClientHello;
+use seleniumbase_rs_stealth::codec::ja3::{Ja3, Peetprint};
 
 fn fingerprints(hello: &ClientHello) -> (String, String) {
     (Ja3::of(hello).to_string(), Peetprint::of(hello).to_string())
@@ -255,7 +255,7 @@ with it. Do not use it for anything that needs collision resistance.
 <Badge color="blue" shape="pill">struct</Badge>
 
 ```rust
-// seleniumbase_rs_codec::ja3::peetprint, re-exported as ja3::Peetprint and at the root
+// seleniumbase_rs_stealth::codec::ja3::peetprint, re-exported as ja3::Peetprint and at the root
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Peetprint {
     pub versions: Vec<Slot>,

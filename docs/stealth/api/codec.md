@@ -6,7 +6,7 @@ description: "API reference of seleniumbase-rs-codec: the pure wire formats of t
 
 <Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: codec</Badge>
 
-`seleniumbase-rs-codec` (library `seleniumbase_rs_codec`, in `crates/codec` of the
+`seleniumbase_rs_stealth::codec` (implemented by `seleniumbase-rs-codec` in `crates/codec` of the
 [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
 repository) holds the wire formats of the stealth layer. It is pure: no sockets,
 no clock, no files, and `#![forbid(unsafe_code)]`. Every parser bounds its input
@@ -18,8 +18,8 @@ entry, Chrome 155.0.8059.40 on macOS. The guide that explains these formats is
 <RequestExample>
 
 ```rust The measured Chrome
-use seleniumbase_rs::stealth::fingerprint::OsType;
-use seleniumbase_rs_codec::{get_emulation, BrowserKind, EmulationError};
+use seleniumbase_rs_stealth::stealth::fingerprint::OsType;
+use seleniumbase_rs_stealth::codec::{get_emulation, BrowserKind, EmulationError};
 
 fn main() -> Result<(), EmulationError> {
     let chrome = get_emulation(BrowserKind::Chrome, OsType::Macos)?;
@@ -29,7 +29,7 @@ fn main() -> Result<(), EmulationError> {
 ```
 
 ```rust Parse wire strings
-use seleniumbase_rs_codec::{Akamai, Ja3, Ja4};
+use seleniumbase_rs_stealth::codec::{Akamai, Ja3, Ja4};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let akamai: Akamai = "1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p".parse()?;
@@ -52,22 +52,21 @@ Chrome 155.0.8059.40 t13d1517h2_8daaf6152771_cb7bf5808d99
 
 ## Depend on it
 
-The crate is not on crates.io. Cargo finds it inside the repository by its
-package name:
+Use the unified root facade from Git:
 
 ```toml Cargo.toml
 [dependencies]
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs" }
-seleniumbase-rs-codec = { git = "https://github.com/MustCodeAl/seleniumbase-rs-stealth" }
+seleniumbase-rs-stealth = { git = "https://github.com/MustCodeAl/seleniumbase-rs-stealth" }
 ```
 
-Write `seleniumbase-rs` by its plain git URL, as above (no `branch`, `tag` or
-`rev`): the codec takes the core the same way, so Cargo resolves both to one
-commit and types such as `OsType` and `ClientHints` match. Its other
-dependencies are `ring`, `serde`, `serde_json` and `thiserror`; there is no
-BoringSSL here.
+The default facade features expose `codec`, `scrape`, `fingerprint`, `sb_cdp`
+and `stealth`, without BoringSSL or cmake. Import all types through
+`seleniumbase_rs_stealth`; no separate core or implementation dependency is needed.
 
 ## Features
+
+The facade enables `codec` through its default `scrape` feature. The following
+test-support feature belongs to the implementation crate, not the facade.
 
 <ParamField body="test-fixtures" type="feature" default="off">
 
@@ -95,8 +94,8 @@ crate has no default features.
 
 ## Re-exports at the root
 
-The main types are re-exported, so `seleniumbase_rs_codec::Ja4` is
-`seleniumbase_rs_codec::ja4::Ja4`. Two enums are both called `SpecError` in their
+The main types are re-exported, so `seleniumbase_rs_stealth::codec::Ja4` is
+`seleniumbase_rs_stealth::codec::ja4::Ja4`. Two enums are both called `SpecError` in their
 modules, and three lookups of `emulation` have short names, so they are renamed:
 
 | Root name | Item |

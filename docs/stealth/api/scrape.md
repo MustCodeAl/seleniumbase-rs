@@ -6,7 +6,7 @@ description: "API reference of seleniumbase-rs-scrape: stealth scraping without 
 
 <Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: scrape</Badge>
 
-`seleniumbase-rs-scrape` (library `seleniumbase_rs_scrape`, in `crates/scrape` of
+`seleniumbase_rs_stealth::scrape` (implemented by `seleniumbase-rs-scrape` in `crates/scrape` of
 [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth))
 does stealth scraping without TLS spoofing, over the pure CDP engine of
 seleniumbase-rs (`sb_cdp`). Its pure modules hold challenge detection and the
@@ -21,7 +21,7 @@ capture tools. It builds no BoringSSL and runs wherever Chrome does. The guides 
 <RequestExample>
 
 ```rust A scraper behind a German proxy
-use seleniumbase_rs_scrape::{BrowserScraper, CountryCode, ScrapeError};
+use seleniumbase_rs_stealth::scrape::{BrowserScraper, CountryCode, ScrapeError};
 
 async fn run() -> Result<(), ScrapeError> {
     let mut scraper = BrowserScraper::builder()
@@ -39,22 +39,22 @@ async fn run() -> Result<(), ScrapeError> {
 
 ## Depend on it
 
+Use the unified root facade from Git:
+
 ```toml Cargo.toml
 [dependencies]
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs" }
-seleniumbase-rs-scrape = { git = "https://github.com/MustCodeAl/seleniumbase-rs-stealth" }
+seleniumbase-rs-stealth = { git = "https://github.com/MustCodeAl/seleniumbase-rs-stealth" }
 ```
 
-Write `seleniumbase-rs` by its plain git URL, exactly as above, so Cargo resolves
-it to the commit the crate uses and types such as `sb_cdp::Browser` and
-`Fingerprint` match. The crate depends on
-[`seleniumbase-rs-codec`](/stealth/api/codec), and uses tokio, `psl` (the Public
-Suffix List), `url`, `chrono`, `tracing` and `tracing-subscriber`.
+The default facade features expose `codec`, `scrape`, `fingerprint`, `sb_cdp`
+and `stealth`, without BoringSSL or cmake. Import all types through
+`seleniumbase_rs_stealth`; no separate core or implementation dependency is needed.
 
 ## Features
 
-The crate declares no Cargo features. Its own tests turn on `test-util` of the core
-and `test-fixtures` of the codec.
+The facade enables `scrape` and `codec` by default. The implementation crate
+declares no Cargo features; its own tests enable `test-util` of the core and
+`test-fixtures` of the codec.
 
 ## Module map
 

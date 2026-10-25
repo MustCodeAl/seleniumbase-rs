@@ -155,6 +155,12 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- **Unified stealth facade setup in the documentation.** Stealth guides and API
+  examples use one `seleniumbase-rs-stealth` Git dependency and its re-exported
+  core, fingerprint, codec and scrape APIs. TLS/HTTP2 impersonation is opt-in
+  with `features = ["mimic"]`; default setup needs no BoringSSL or cmake.
+  Removed split-dependency/version-alignment instructions and refreshed the
+  hosted Doc7 changelog from this source.
 - **Direct CDP attachment for app-owned Chromium (CEF/WebView2).**
   `LaunchOptionsBuilder::cdp_url` and `BrowserConfig::with_cdp_url` reuse the
   existing browser attachment, identity and plugin pipelines without starting
@@ -2241,10 +2247,9 @@ A breaking release: the experimental stealth scraping layer leaves this crate.
   `seleniumbase-rs-wire` (was the module `wire`), `seleniumbase-rs-scrape` (was
   the feature `scrape`) and `seleniumbase-rs-impersonate` (was the feature
   `impersonate`), which build on the public API of this crate and stay
-  experimental. Depend on them by git, for example
-  `seleniumbase-rs-scrape = { git = "https://github.com/MustCodeAl/seleniumbase-rs-stealth" }`,
-  and give `seleniumbase-rs` by its plain git URL next to them so both resolve to
-  one commit ([Stealth Scraping](docs/tutorials/stealth_scraping.md)).
+  experimental. Current installation uses the unified root facade
+  `seleniumbase-rs-stealth`; see the updated
+  [Stealth Scraping setup](docs/tutorials/stealth_scraping.md).
 - With the layer go the optional dependencies `psl`, `wreq`, `btls`,
   `tokio-btls`, `brotli`, `hyper`, `hyper-util` and `http-body-util`; the
   examples `capture_tls`, `capture_hints`, `capture_h2`, `cookie_jar`,

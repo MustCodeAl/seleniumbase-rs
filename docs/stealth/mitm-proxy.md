@@ -3,6 +3,10 @@ title: "TLS Server and MitmProxy"
 sidebarTitle: "MitmProxy"
 ---
 
+Examples importing `seleniumbase_rs_stealth::mimic` require the facade's
+`mimic` feature. See the [single-dependency setup](/stealth/overview#which-crate-to-depend-on);
+this feature builds BoringSSL and needs cmake and a C/C++ toolchain.
+
 <Badge color="orange">Experimental</Badge>
 
 <Visibility for="agents">
@@ -23,7 +27,7 @@ handshake and refuses the connection when the client's <Tooltip tip="Server Name
 
 ```rust
 use std::time::SystemTime;
-use seleniumbase_rs_mimic::tls_server::{
+use seleniumbase_rs_stealth::mimic::tls_server::{
     accept, acceptor, EphemeralCa, ALPN_HTTP1, DEFAULT_HANDSHAKE_TIMEOUT,
 };
 
@@ -102,10 +106,10 @@ flowchart LR
 use std::sync::Arc;
 use std::time::Duration;
 
-use seleniumbase_rs_mimic::{ImpersonationProfile, MitmOptions, MitmProxy};
-use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
-use seleniumbase_rs_scrape::NoopEventSink;
-use seleniumbase_rs_codec::BrowserKind;
+use seleniumbase_rs_stealth::mimic::{ImpersonationProfile, MitmOptions, MitmProxy};
+use seleniumbase_rs_stealth::sb_cdp::{Browser, LaunchOptions};
+use seleniumbase_rs_stealth::scrape::NoopEventSink;
+use seleniumbase_rs_stealth::codec::BrowserKind;
 
 # async fn demo() -> Result<(), Box<dyn std::error::Error>> {
 let profile = ImpersonationProfile::measured(BrowserKind::Chrome)?;
@@ -396,8 +400,8 @@ does not share the default context's (measured). Before a WebSocket in a context
 behind the proxy, load the priming page in its first tab:
 
 ```rust
-use seleniumbase_rs_mimic::MitmProxy;
-use seleniumbase_rs::sb_cdp::{Browser, ContextOptions};
+use seleniumbase_rs_stealth::mimic::MitmProxy;
+use seleniumbase_rs_stealth::sb_cdp::{Browser, ContextOptions};
 
 # async fn demo(browser: Browser, mitm: MitmProxy) -> Result<(), Box<dyn std::error::Error>> {
 let context = browser

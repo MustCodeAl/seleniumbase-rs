@@ -44,7 +44,9 @@ The modules `wire`, `scrape` and `impersonate` were removed in 0.3.0. They are
 the crates `seleniumbase-rs-codec`, `seleniumbase-rs-scrape` and
 `seleniumbase-rs-mimic` of
 [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
-now, which build on the public items of `sb_cdp` and `stealth` listed here.
+now. Use the unified `seleniumbase-rs-stealth` facade to access their `codec`,
+`scrape` and optional `mimic` modules alongside all of the core public API,
+including `sb_cdp` and `stealth`. See the [single-dependency setup](/stealth/overview#which-crate-to-depend-on).
 
 </Note>
 
