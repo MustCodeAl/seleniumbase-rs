@@ -321,6 +321,98 @@ page, so a test can start one as soon as the endpoint answers
 `examples/tauri-profile-manager/src-tauri/tests/e2e_automation.rs` in
 seleniumbase-rs.
 
+## App-owned Chromium: CEF and WebView2
+
+An app that bundles CEF on macOS/Linux, or uses WebView2 on Windows, can expose
+Chromium's loopback CDP debugger and use the pure `sb_cdp` engine. The app owns
+and initializes its runtime. System WKWebView and WebKitGTK do not speak CDP;
+their existing WebDriver integration above continues to work.
+
+Enable the automation plugin's `cdp` Cargo feature (Rust 1.99). It uses a pinned
+Git dependency on `seleniumbase-rs` for `engine_spoofing_args()`, so the engine
+stealth switches have a single source. Before any threads or runtime initialization:
+
+```rust
+use tauri_plugin_sbrs_automation::cdp::CdpStealthConfig;
+
+fn main() {
+    let config = CdpStealthConfig::default().debugging_port(9222);
+    // SAFETY: main has not started threads or initialized the runtime.
+    let args = unsafe { config.apply_env() };
+    // CEF: pass `args` to your app's CEF initialization before opening windows.
+    // WebView2: apply_env sets WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS before startup.
+    // Continue with the app's existing runtime and automation plugin initialization.
+}
+```
+
+`SBRS_CDP_PORT` selects the default port (9222 when unset/invalid). The helper
+respects `SBRS_AUTOMATION=0` and the plugin's debug/release gate. It always binds
+debugging to `127.0.0.1`; extra arguments cannot replace the debugging switches.
+The returned arguments include the canonical engine stealth flags unless
+`.stealth_args(false)` is set. Binary patches cannot be applied to an already-running app.
+
+Connect from the test with a fingerprint, including native CDP spoofing if desired:
+
+```rust
+use seleniumbase_rs::{BaseCase, BrowserConfig, Fingerprint};
+
+# async fn test() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+let fingerprint = Fingerprint::windows_desktop()
+    .to_builder().native_spoofing(true).build()?;
+let config = BrowserConfig::default()
+    .with_webdriver_url("http://127.0.0.1:4445/your-token/")
+    .with_cdp_discovery(true)
+    .with_fingerprint(fingerprint);
+let mut sb = BaseCase::new(config).await?;
+let title = sb.cdp_get_title().await?;
+sb.cdp_click("#save").await?;
+sb.quit().await?; // Detaches; the Tauri app keeps running.
+# Ok(())
+# }
+```
+
+Direct CDP sessions use the existing `BaseCase::cdp_*` methods rather than
+WebDriver element handles. The full `Page` and `Browser` API is available through
+`BrowserSession::pure_cdp_page()`, or start the pure browser directly:
+
+```rust
+use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
+
+# async fn test() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+let options = LaunchOptions::builder()
+    .cdp_url("http://127.0.0.1:9222") // Or ws://.../devtools/browser/<id>.
+    .fingerprint(&seleniumbase_rs::Fingerprint::windows_desktop())
+    .build()?;
+let browser = Browser::launch(options).await?; // Attaches; launches no process.
+let page = browser.default_page().await?;
+page.locator("#save").click().await?;
+// The existing CdpDriver can also drive this browser with CdpDriver::attach(browser).
+browser.close().await?;
+# Ok(())
+# }
+```
+
+`BrowserConfig::with_cdp_url` bypasses discovery; it takes HTTP or browser
+WebSocket URLs. An authenticated plugin URL is also accepted. For discovery,
+`GET /<token>/cdp` returns `value.cdpEnabled`, `value.cdpPort`, and `value.cdpUrl`
+(null when disabled). It reports configuration, not debugger readiness. The
+route has the existing token and Origin guards; it does not authenticate the
+separate loopback Chromium socket. Discovery rejects redirects and endpoints
+outside loopback. `/status` keeps its existing response.
+
+With the `plugins` feature, use the existing `BrowserConfig::with_plugins` or
+`LaunchOptionsBuilder::plugins`. Attachment runs `on_browser`, packages and
+`on_page_created` for each existing window, and normal page/browser hooks
+afterwards. Launch-only plugins are refused by the existing attach checks;
+`before_launch` is not run. Fingerprints use `session_script` and
+`safe_cdp_overrides`, including `native_spoofing` overrides. The script is
+registered with `Page.addScriptToEvaluateOnNewDocument` and `runImmediately`
+so already-open contexts receive it too. Launch flags and profile settings
+must be configured in the app before CEF/WebView2 starts.
+
+This path is verified against mock HTTP/CDP servers. CEF and WebView2 have not
+been tested on a real app in this change.
+
 ## Settings
 
 The plugin reads these environment variables once, when the app starts.

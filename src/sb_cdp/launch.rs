@@ -182,6 +182,7 @@ pub(crate) enum ProfileMode {
 )]
 pub struct LaunchOptions {
     pub(crate) url: Option<String>,
+    pub(crate) cdp_url: Option<Redacted>,
     pub(crate) headless: Option<bool>,
     pub(crate) source: BrowserSource,
     pub(crate) mode: ProfileMode,
@@ -240,6 +241,12 @@ impl Default for LaunchOptions {
 }
 
 impl LaunchOptions {
+    /// The external debugger or authenticated Tauri discovery URL, if set.
+    #[must_use]
+    pub fn cdp_url(&self) -> Option<&str> {
+        self.cdp_url.as_ref().map(|url| url.0.as_str())
+    }
+
     /// Starts building launch options.
     #[must_use]
     pub fn builder() -> LaunchOptionsBuilder {
@@ -432,7 +439,7 @@ fn feature_list(own: &[&str], extra: &[String]) -> String {
 
 /// A string that never prints itself, for a proxy URL that may hold a password.
 #[derive(Clone)]
-struct Redacted(String);
+pub(crate) struct Redacted(String);
 
 impl fmt::Debug for Redacted {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -454,6 +461,7 @@ fn proxy_of(fingerprint: &Fingerprint) -> Option<String> {
 )]
 pub struct LaunchOptionsBuilder {
     url: Option<String>,
+    cdp_url: Option<Redacted>,
     headless: Option<bool>,
     use_chromium: bool,
     executable_path: Option<PathBuf>,
@@ -498,6 +506,7 @@ impl Default for LaunchOptionsBuilder {
     fn default() -> Self {
         Self {
             url: None,
+            cdp_url: None,
             headless: None,
             use_chromium: false,
             executable_path: None,
@@ -538,6 +547,26 @@ impl Default for LaunchOptionsBuilder {
 }
 
 impl LaunchOptionsBuilder {
+    /// Attaches instead of launching, reusing the existing connection pipeline.
+    /// Accepts an HTTP debugger, a browser WebSocket, or an authenticated Tauri
+    /// plugin URL. Launch-only settings cannot change an already-running app.
+    /// The fingerprint and attach-compatible plugins apply to existing tabs.
+    ///
+    /// ```no_run
+    /// use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
+    /// # async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    /// let options = LaunchOptions::builder().cdp_url("http://127.0.0.1:9222").build()?;
+    /// let browser = Browser::launch(options).await?;
+    /// browser.close().await?; // The external app keeps running.
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[must_use]
+    pub fn cdp_url(mut self, url: impl Into<String>) -> Self {
+        self.cdp_url = Some(Redacted(url.into()));
+        self
+    }
+
     /// Sets Chrome's WebRTC IP-handling policy, the same flag a `Fingerprint`
     /// applies. Chrome's own behaviour is kept unless this is called.
     ///
@@ -973,6 +1002,7 @@ impl LaunchOptionsBuilder {
         };
         LaunchOptions {
             url: self.url,
+            cdp_url: self.cdp_url,
             headless: self.headless,
             source,
             mode,

@@ -155,6 +155,14 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- **Direct CDP attachment for app-owned Chromium (CEF/WebView2).**
+  `LaunchOptionsBuilder::cdp_url` and `BrowserConfig::with_cdp_url` reuse the
+  existing browser attachment, identity and plugin pipelines without starting
+  Chrome or WebDriver. `with_cdp_discovery(true)` discovers the loopback debugger
+  through the authenticated Tauri plugin URL. Existing windows receive the
+  evasion registry script immediately and on future documents, plus fingerprint
+  CDP overrides. `BaseCase::cdp_*`, `BrowserSession::pure_cdp_page` and the
+  existing `CdpDriver::attach` expose the connected app. Closing leaves the app running.
 - Features `plugin-batcher` and `plugin-crawler` (both in `plugins-builtin` and in the CLI): the batcher runs many jobs with bounded concurrency, retries and a resume file; the crawler follows a site's links and reports broken pages and console errors. The plugins come from plugins rev 2002f07.
 - **Fingerprint tools on the MCP servers.** `capture_fingerprint` reads what the running browser
   shows a page (the reading of `sbrs fingerprint capture`, with progress) and can save it as a

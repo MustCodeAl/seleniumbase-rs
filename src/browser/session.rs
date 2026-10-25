@@ -41,6 +41,8 @@ use crate::utilities::retry::{poll_until, RetryPolicy};
 pub struct BrowserSession {
     driver: Option<WebDriver>,
     cdp: Option<CdpClient>,
+    /// A tab of an external Chromium app, reached without WebDriver.
+    external_page: Option<crate::sb_cdp::Page>,
     driver_process: Option<DriverProcess>,
     /// The virtual screen of a headed Linux session; dropped, and so stopped,
     /// after the driver.
@@ -76,7 +78,8 @@ impl BrowserSession {
     ///
     /// # Panics
     ///
-    /// After [`quit`](Self::quit), or after a [`reconnect`](Self::reconnect)
+    /// On a direct CDP attachment (use `cdp_*` or [`pure_cdp_page`](Self::pure_cdp_page)),
+    /// after [`quit`](Self::quit), or after a [`reconnect`](Self::reconnect)
     /// that could not start the new browser: the session then has no driver
     /// and a new one must be started.
     pub fn driver(&self) -> &WebDriver {
@@ -98,6 +101,9 @@ impl BrowserSession {
     /// closes a browser that was started.
     #[instrument(skip(config))]
     pub async fn connect(config: BrowserConfig) -> Result<Self, SeleniumBaseError> {
+        if config.cdp_url.is_some() || config.cdp_discovery {
+            return Self::connect_cdp(&config).await;
+        }
         #[cfg(feature = "plugins")]
         if !config.plugins().is_empty() {
             return Self::connect_with_plugins(config).await;
@@ -111,6 +117,9 @@ impl BrowserSession {
     /// Starts a browser for `config` and connects to it, whatever its reuse
     /// setting says.
     pub(crate) async fn connect_new(mut config: BrowserConfig) -> Result<Self, SeleniumBaseError> {
+        if config.cdp_url.is_some() || config.cdp_discovery {
+            return Self::connect_cdp(&config).await;
+        }
         info!(browser = ?config.browser, headless = config.headless, "connecting browser session");
         // Everything that can be refused is, before a browser starts.
         config.validate()?;
@@ -143,6 +152,7 @@ impl BrowserSession {
         let mut session = Self {
             driver: Some(driver),
             cdp,
+            external_page: None,
             driver_process,
             virtual_display,
             mobile: mobile_commands(&config),
@@ -184,6 +194,7 @@ impl BrowserSession {
         Ok(Self {
             driver: Some(driver),
             cdp,
+            external_page: None,
             driver_process: None,
             virtual_display: None,
             ad_block,
@@ -320,6 +331,7 @@ impl BrowserSession {
         Self {
             driver: None,
             cdp: None,
+            external_page: None,
             driver_process: None,
             virtual_display: None,
             ad_block: Vec::new(),
@@ -332,11 +344,59 @@ impl BrowserSession {
         }
     }
 
+    /// Connects through the pure engine's existing config, identity and plugin bridge.
+    async fn connect_cdp(config: &BrowserConfig) -> Result<Self, SeleniumBaseError> {
+        config.validate()?;
+        if config.reuse_session || config.recorder_mode() {
+            return Err(SeleniumBaseError::invalid_config(
+                "direct CDP attachment does not support WebDriver session reuse or Recorder Mode",
+            ));
+        }
+        let options = crate::sb_cdp::LaunchOptions::builder()
+            .browser_config(config)
+            .build()?;
+        let browser = crate::sb_cdp::Browser::launch(options).await?;
+        let page = match browser.default_page().await {
+            Ok(page) => page,
+            Err(error) => {
+                browser.close().await?;
+                return Err(error);
+            }
+        };
+        let mut session = Self::disconnected();
+        session.external_page = Some(page);
+        Ok(session)
+    }
+
+    /// The pure CDP tab of an external attachment, or `None` for WebDriver.
+    /// Provides the full page/browser API, including attach-compatible plugins.
+    ///
+    /// ```no_run
+    /// use seleniumbase_rs::{BrowserConfig, BrowserSession};
+    /// # async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    /// let mut session = BrowserSession::connect(
+    ///     BrowserConfig::default().with_cdp_url("http://127.0.0.1:9222")
+    /// ).await?;
+    /// if let Some(page) = session.pure_cdp_page() {
+    ///     page.locator("#save").click().await?;
+    /// }
+    /// session.quit().await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[must_use]
+    pub fn pure_cdp_page(&self) -> Option<&crate::sb_cdp::Page> {
+        self.external_page.as_ref()
+    }
+
     /// Navigates to `url`.
     ///
     /// On Firefox and Safari, the scripts browser plugins added for every
     /// document run again in the new one (feature `plugins`).
     pub async fn goto(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = &self.external_page {
+            return page.goto(url).await;
+        }
         self.driver().goto(url).await?;
         #[cfg(feature = "plugins")]
         if let Some(plugins) = &self.plugins {
@@ -365,12 +425,18 @@ impl BrowserSession {
 
     /// Returns the current page title.
     pub async fn current_title(&self) -> Result<String, SeleniumBaseError> {
+        if let Some(page) = &self.external_page {
+            return page.title().await;
+        }
         let title = self.driver().title().await?;
         Ok(title)
     }
 
     /// Returns the current page URL as a string.
     pub async fn current_url(&self) -> Result<String, SeleniumBaseError> {
+        if let Some(page) = &self.external_page {
+            return page.url().await;
+        }
         let url = self.driver().current_url().await?;
         Ok(url.as_str().to_owned())
     }
@@ -871,6 +937,11 @@ impl BrowserSession {
 
     /// Executes arbitrary JavaScript and returns the result.
     pub async fn execute_script(&self, script: &str) -> Result<Value, SeleniumBaseError> {
+        if let Some(page) = &self.external_page {
+            return page
+                .evaluate(format!("(function() {{\n{script}\n}}).call(window)"))
+                .await;
+        }
         let ret = self.driver().execute(script, Vec::new()).await?;
         Ok(ret.json().clone())
     }
@@ -893,6 +964,12 @@ impl BrowserSession {
     ///
     /// [`CdpClient::enable_default_domains`]: crate::stealth::cdp::CdpClient::enable_default_domains
     pub async fn activate_cdp_mode(&self) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = &self.external_page {
+            for method in crate::stealth::cdp::DEFAULT_DOMAIN_COMMANDS {
+                page.execute(method, json!({})).await?;
+            }
+            return Ok(());
+        }
         let cdp = self.cdp_client()?;
         cdp.enable_default_domains()
             .await
@@ -902,6 +979,9 @@ impl BrowserSession {
 
     /// Executes a CDP command without parameters.
     pub async fn execute_cdp(&self, method: &str) -> Result<Value, SeleniumBaseError> {
+        if self.external_page.is_some() {
+            return self.execute_cdp_with_params(method, json!({})).await;
+        }
         let cdp = self.cdp_client()?;
         cdp.execute(method).await
     }
@@ -912,6 +992,9 @@ impl BrowserSession {
         method: &str,
         params: Value,
     ) -> Result<Value, SeleniumBaseError> {
+        if let Some(page) = &self.external_page {
+            return page.execute(method, params).await;
+        }
         let cdp = self.cdp_client()?;
         cdp.execute_with_params(method, params).await
     }
@@ -1228,6 +1311,9 @@ impl BrowserSession {
     /// open, for the next test.
     #[instrument(skip(self))]
     pub async fn quit(&mut self) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = self.external_page.take() {
+            return page.browser().close().await;
+        }
         if let Some(lease) = self.reuse.take() {
             info!("giving the browser back for reuse");
             self.keep_browser_open();

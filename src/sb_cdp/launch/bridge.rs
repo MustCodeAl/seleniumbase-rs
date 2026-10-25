@@ -54,7 +54,9 @@ pub(super) fn unused_settings(config: &BrowserConfig) -> Vec<&'static str> {
     note(!launch.extension_archives.is_empty(), "extension_archives");
     note(launch.ad_block_list.is_some(), "ad_block_list");
     note(
-        !config.webdriver_url.is_empty() && !config.is_default_webdriver_url(),
+        !config.cdp_discovery
+            && !config.webdriver_url.is_empty()
+            && !config.is_default_webdriver_url(),
         "webdriver_url",
     );
     for switch in &launch.switches {
@@ -134,6 +136,14 @@ impl LaunchOptionsBuilder {
             tracing::debug!("not used by the pure CDP engine: {}", unused.join(", "));
         }
         let launch = &config.launch;
+
+        if let Some(url) = &config.cdp_url {
+            self = self.cdp_url(url);
+        } else if config.cdp_discovery {
+            self = self.cdp_url(&config.webdriver_url);
+        }
+        #[cfg(feature = "plugins")]
+        self.plugins.clone_from(config.plugins());
 
         self = self.headless(config.headless).ad_block(config.ad_block);
         if let Some(path) = &config.browser_binary_path {

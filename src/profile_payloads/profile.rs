@@ -1234,6 +1234,8 @@ impl ProfileParams {
         let fingerprint = self.to_fingerprint();
         let mut config = BrowserConfig {
             webdriver_url: container_url.into(),
+            cdp_url: None,
+            cdp_discovery: false,
             browser: self.browser(),
             headless: self.is_headless,
             mode,

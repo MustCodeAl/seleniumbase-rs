@@ -175,6 +175,14 @@ impl std::str::FromStr for DriverMode {
 #[derive(Clone, Deserialize, PartialEq, Serialize)]
 pub struct BrowserConfig {
     pub webdriver_url: String,
+    /// Attach the pure CDP engine to this HTTP or browser WebSocket URL.
+    /// An authenticated Tauri plugin URL discovers its debugger via `/cdp`.
+    /// `BaseCase` uses its `cdp_*` methods; no local browser or driver is started.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cdp_url: Option<String>,
+    /// Discover CDP through `webdriver_url` (the authenticated Tauri plugin URL).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub cdp_discovery: bool,
     pub browser: Browser,
     pub headless: bool,
     pub mode: DriverMode,
@@ -280,7 +288,16 @@ impl std::fmt::Debug for BrowserConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use crate::stealth::options::without_credentials;
         f.debug_struct("BrowserConfig")
-            .field("webdriver_url", &without_credentials(&self.webdriver_url))
+            .field(
+                "webdriver_url",
+                &if self.cdp_discovery {
+                    "<configured>".to_owned()
+                } else {
+                    without_credentials(&self.webdriver_url)
+                },
+            )
+            .field("cdp_url", &self.cdp_url.as_ref().map(|_| "<configured>"))
+            .field("cdp_discovery", &self.cdp_discovery)
             .field("browser", &self.browser)
             .field("headless", &self.headless)
             .field("mode", &self.mode)
@@ -331,6 +348,8 @@ impl BrowserConfig {
     fn from_runtime_config(runtime: &crate::config::RuntimeConfig) -> Self {
         Self {
             webdriver_url: runtime.webdriver_url.clone(),
+            cdp_url: None,
+            cdp_discovery: false,
             browser: Browser::Chrome,
             headless: true,
             mode: DriverMode::WebDriver,
@@ -381,6 +400,34 @@ impl BrowserConfig {
     /// `SB_WEBDRIVER_URL` for [`from_env`](Self::from_env).
     pub fn with_webdriver_url(mut self, url: impl Into<String>) -> Self {
         self.webdriver_url = url.into();
+        self
+    }
+
+    /// Attaches directly to an existing Chromium debugger, without WebDriver.
+    /// Use `BaseCase::cdp_*` methods, or `LaunchOptionsBuilder::browser_config`.
+    ///
+    /// ```
+    /// use seleniumbase_rs::BrowserConfig;
+    /// let config = BrowserConfig::default().with_cdp_url("http://127.0.0.1:9222");
+    /// assert!(config.cdp_url.is_some());
+    /// ```
+    pub fn with_cdp_url(mut self, url: impl Into<String>) -> Self {
+        self.cdp_url = Some(url.into());
+        self
+    }
+
+    /// Opts into the Tauri plugin's authenticated `GET <webdriver_url>/cdp`.
+    /// An explicit `cdp_url` takes precedence. No WebDriver session is created.
+    ///
+    /// ```
+    /// use seleniumbase_rs::BrowserConfig;
+    /// let config = BrowserConfig::default()
+    ///     .with_webdriver_url("http://127.0.0.1:4445/example-token/")
+    ///     .with_cdp_discovery(true);
+    /// assert!(config.cdp_discovery);
+    /// ```
+    pub fn with_cdp_discovery(mut self, enabled: bool) -> Self {
+        self.cdp_discovery = enabled;
         self
     }
 
@@ -616,7 +663,10 @@ impl BrowserConfig {
     }
 
     pub fn is_cdp_enabled(&self) -> bool {
-        self.mode == DriverMode::Cdp || self.mode == DriverMode::Uc
+        self.cdp_url.is_some()
+            || self.cdp_discovery
+            || self.mode == DriverMode::Cdp
+            || self.mode == DriverMode::Uc
     }
 
     pub fn is_uc_enabled(&self) -> bool {

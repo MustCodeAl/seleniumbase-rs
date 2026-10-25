@@ -1009,6 +1009,8 @@ impl Settings {
         launch.set(LaunchSwitch::RecSbCdp, self.rec_sb_cdp);
         launch.reuse_class = self.reuse_class_session.then_some(ReuseClass::TestModule);
         BrowserConfig {
+            cdp_url: None,
+            cdp_discovery: false,
             webdriver_url: self
                 .webdriver_url
                 .clone()

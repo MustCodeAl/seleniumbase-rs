@@ -295,6 +295,16 @@ impl Browser {
     /// launch with [`SeleniumBaseError::Plugin`], and the launch is not
     /// retried.
     pub async fn launch(options: LaunchOptions) -> Result<Self, SeleniumBaseError> {
+        if let Some(address) = options.cdp_url().map(str::to_owned) {
+            let browser = Self::attach_endpoint(&address, options).await?;
+            // Tauri windows may already be loaded: prepare every existing tab
+            // through the same identity and plugin path used for new tabs.
+            if let Err(error) = browser.pages().await {
+                browser.close().await?;
+                return Err(error);
+            }
+            return Ok(browser);
+        }
         #[cfg(feature = "plugins")]
         let options = super::plugin_hooks::before_launch(options).await?;
         let launched = Self::launch_retrying(&options).await;
@@ -446,25 +456,41 @@ impl Browser {
         port: u16,
         options: LaunchOptions,
     ) -> Result<Self, SeleniumBaseError> {
-        crate::install_tls_provider();
-        let version: Value = reqwest::Client::builder()
-            .timeout(options.startup_timeout)
-            .build()
-            .map_err(|e| SeleniumBaseError::cdp_driver(format!("cannot reach {host}:{port}: {e}")))?
-            .get(format!(
-                "http://{}/json/version",
-                devtools_authority(host, port)
-            ))
-            .send()
-            .await
-            .map_err(|e| SeleniumBaseError::cdp_driver(format!("cannot reach {host}:{port}: {e}")))?
-            .json()
-            .await
-            .map_err(|e| SeleniumBaseError::cdp_driver(format!("bad /json/version reply: {e}")))?;
-        let ws_url = version["webSocketDebuggerUrl"]
-            .as_str()
-            .ok_or_else(|| SeleniumBaseError::cdp_driver("no webSocketDebuggerUrl advertised"))?
-            .to_owned();
+        Self::attach_endpoint(
+            &format!("http://{}", devtools_authority(host, port)),
+            options,
+        )
+        .await
+    }
+
+    /// The common attachment path for host/port, HTTP and WebSocket clients.
+    async fn attach_endpoint(
+        address: &str,
+        options: LaunchOptions,
+    ) -> Result<Self, SeleniumBaseError> {
+        let (endpoint, version) =
+            super::endpoint::resolve(address, options.startup_timeout).await?;
+        let http = url::Url::parse(endpoint.http_url())
+            .map_err(|_error| SeleniumBaseError::cdp_driver("invalid resolved DevTools address"))?;
+        let host = http
+            .host_str()
+            .ok_or_else(|| SeleniumBaseError::cdp_driver("missing DevTools host"))?;
+        let port = http
+            .port_or_known_default()
+            .ok_or_else(|| SeleniumBaseError::cdp_driver("missing DevTools port"))?;
+        let ws_url = endpoint.websocket_url().to_owned();
+        let client = Arc::new(Client::connect(&ws_url).await.map_err(|_error| {
+            SeleniumBaseError::cdp_driver("cannot connect to debugger WebSocket")
+        })?);
+        #[cfg(feature = "plugins")]
+        let version = if version.get("User-Agent").is_none() {
+            let actual = client.send("Browser.getVersion", json!({}), None).await?;
+            json!({ "User-Agent": actual["userAgent"] })
+        } else {
+            version
+        };
+        #[cfg(not(feature = "plugins"))]
+        let _ = version;
         // Each attach is a launch of its own for the plugins: a set shared by
         // several browsers gets fresh instances of the per-launch ones.
         #[cfg(feature = "plugins")]
@@ -472,7 +498,6 @@ impl Browser {
             plugins: super::plugin_hooks::for_attach(&options.plugins, &version)?,
             ..options
         };
-        let client = Arc::new(Client::connect(&ws_url).await?);
         let browser = Self::from_parts(
             client,
             None,
@@ -1045,12 +1070,18 @@ impl Browser {
         let mut blocked: Vec<String> = Vec::new();
         if let Some(identity) = &self.inner.options.identity {
             for (method, params) in identity.tab_commands() {
+                let mut params = params.clone();
+                if self.inner.options.cdp_url().is_some()
+                    && method == "Page.addScriptToEvaluateOnNewDocument"
+                {
+                    params["runImmediately"] = json!(true);
+                }
                 client
                     .send(method, params.clone(), Some(session))
                     .await
                     .map_err(|error| super::identity::refused(method, &error))?;
                 if method == "Network.setBlockedURLs" {
-                    add_blocked(&mut blocked, params);
+                    add_blocked(&mut blocked, &params);
                 }
             }
             // Permissions belong to a browser context, and which one this tab

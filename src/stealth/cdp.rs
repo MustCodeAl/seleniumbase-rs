@@ -18,7 +18,7 @@ use thirtyfour::extensions::cdp::ChromeDevTools;
 ///
 /// None of the [`DETECTABLE_DOMAINS`] may be added: each is an automation tell
 /// (see the method's documentation).
-const DEFAULT_DOMAIN_COMMANDS: [&str; 2] = ["Page.enable", "Network.enable"];
+pub(crate) const DEFAULT_DOMAIN_COMMANDS: [&str; 2] = ["Page.enable", "Network.enable"];
 
 /// The protocol domains whose `enable` command makes the browser show a page
 /// that something is driving it.
