@@ -209,6 +209,88 @@ let config = BrowserConfig::default()
 `--disable-blink-features=AutomationControlled` and disables background
 networking and default apps.
 
+## Cloudflare challenges
+
+Cloudflare stands in front of some sites with a "Just a moment..." interstitial
+that runs checks in the browser before it lets a request through. In UC mode you
+reach such a page the same way you reach any other, but a challenge can appear
+mid-navigation, so the helpers that open a URL with a fresh session are meant for
+it.
+
+<Warning>
+
+Cloudflare is not a widget you can pass on demand. UC mode lowers the signals
+that trigger a challenge; it does not answer one. A challenge that asks for a
+real interactive proof (a Turnstile checkbox, a managed challenge with a puzzle,
+or an interactive "Verify you are human" step) is not solved by UC mode alone,
+and a clearance cookie obtained this way lasts only as long as Cloudflare's
+policy allows.
+
+</Warning>
+
+### Open a challenge page with a fresh session
+
+`uc_open_with_reconnect(url)` reconnects the WebDriver session and then opens the
+URL; `uc_open_with_disconnect(url)` quits the session, connects a new one with the
+same config, then opens the URL. Both give the challenge a clean session, which is
+what Cloudflare's checks expect:
+
+<Tabs>
+
+<Tab title="Rust" icon="code">
+
+```rust,no_run
+use seleniumbase_rs::{BaseCase, BrowserConfig, DriverMode};
+
+# async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+let mut sb = BaseCase::new(
+    BrowserConfig::default()
+        .with_mode(DriverMode::Uc)
+        .with_headless(false),
+).await?;
+
+sb.uc_open_with_reconnect("https://example.com/protected").await?;
+// The interstitial runs its checks in the browser; wait for the page behind it.
+sb.wait_for_element_visible("#content", 30).await?;
+# sb.quit().await?;
+# Ok(())
+# }
+```
+
+</Tab>
+
+<Tab title="Command line" icon="terminal">
+
+```bash
+sbrs --uc --headed open https://example.com/protected
+```
+
+There is no command-line equivalent of the reconnect helpers; use the library
+call when a challenge needs a fresh session.
+
+</Tab>
+
+</Tabs>
+
+### If the challenge shows a Turnstile checkbox
+
+A Cloudflare Turnstile widget is a click helper case: `solve_captcha()` presses
+the widget's checkbox and returns the kind it tried.
+
+```rust,no_run
+# use seleniumbase_rs::sb_cdp::Captcha;
+# use seleniumbase_rs::{BaseCase, SeleniumBaseError};
+# async fn demo(sb: &mut BaseCase) -> Result<(), SeleniumBaseError> {
+assert_eq!(sb.solve_captcha().await?, Some(Captcha::Turnstile));
+# Ok(())
+# }
+```
+
+`solve_captcha` is a click helper, not a solver, and Cloudflare may follow with a
+harder challenge. [Testing pages with a CAPTCHA](/tutorials/captcha_testing)
+covers what it does and its limits; [How CAPTCHAs work](/concepts/captchas)
+explains why the page behind the challenge, not the click, decides the outcome.
+
 ## Still detected?
 
 If a site still flags the browser, combine all layers:
