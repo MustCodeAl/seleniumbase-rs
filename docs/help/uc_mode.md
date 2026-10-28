@@ -125,6 +125,36 @@ let config = BrowserConfig::default()
     .with_extra_args(engine_spoofing_args());
 ```
 
+## Cloudflare challenges
+
+Cloudflare stands in front of some sites with a "Just a moment..." interstitial
+that runs checks in the browser. UC mode reaches such a page like any other, but
+the challenge can appear mid-navigation, so open it with a fresh session:
+
+```rust,no_run
+# use seleniumbase_rs::BaseCase;
+# async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+sb.uc_open_with_reconnect("https://example.com/protected").await?;
+# Ok(())
+# }
+```
+
+`uc_open_with_reconnect(url)` reconnects the session and then opens the URL;
+`uc_open_with_disconnect(url)` quits the session and connects a new one with the
+same config first.
+
+<Warning>
+
+UC mode lowers the signals that trigger a challenge; it does not answer one. A
+challenge that asks for a real interactive proof (a Turnstile checkbox, a managed
+challenge with a puzzle, or an interactive "Verify you are human" step) is not
+solved by UC mode alone. If the page shows a Turnstile checkbox, `solve_captcha()`
+presses it and returns `Some(Captcha::Turnstile)`, but it is a click helper, not
+a solver, and Cloudflare may follow with a harder challenge. See
+[Testing pages with a CAPTCHA](/tutorials/captcha_testing) for its limits.
+
+</Warning>
+
 ## Still detected?
 
 If a site still flags the browser:
