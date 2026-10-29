@@ -332,7 +332,7 @@ impl Lifecycle<'_> {
         let attempts = self.plan.attempts();
         let mut attempt = 1;
         loop {
-            let finished = self.attempt(attempt, &launch, &body).await;
+            let finished = Box::pin(self.attempt(attempt, &launch, &body)).await;
             if let (Some(error), true) = (finished.error(), attempt < attempts) {
                 attempt += 1;
                 (self.say)(&format!(
@@ -361,7 +361,7 @@ impl Lifecycle<'_> {
     {
         let plan = self.plan;
         let started = Instant::now();
-        let mut case = match launch(attempt).await {
+        let mut case = match Box::pin(launch(attempt)).await {
             Ok(case) => case,
             Err(error) => {
                 {
@@ -393,9 +393,12 @@ impl Lifecycle<'_> {
                 if plan.trace {
                     self.pause_before_body(case, &deadline).await?;
                 }
+                // The body is boxed so that its future is not part of this one: a
+                // long test otherwise makes rustc overflow its query depth limit
+                // when it lays out the test's future.
                 tokio::select! {
                     biased;
-                    result = body(case) => result,
+                    result = Box::pin(body(case)) => result,
                     () = deadline.expired() => Err(SeleniumBaseError::test_lifecycle(
                         exceeded_message(deadline.limit().unwrap_or_default()),
                     )),

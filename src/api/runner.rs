@@ -173,7 +173,10 @@ pub(crate) async fn drive_with<C>(
     evidence: impl AsyncFnOnce(&C, &SeleniumBaseError),
     close: impl AsyncFnOnce(&mut C, &Result<()>) -> Result<()>,
 ) -> Ended {
-    let (test_result, panic) = match AssertUnwindSafe(test(&mut *case)).catch_unwind().await {
+    // Each closure's future is boxed, so it is not laid out inside this one:
+    // nested in a test's future they made rustc overflow its query depth limit.
+    let running = Box::pin(test(&mut *case));
+    let (test_result, panic) = match AssertUnwindSafe(running).catch_unwind().await {
         Ok(result) => (result, None),
         Err(payload) => {
             let error = SeleniumBaseError::TestLifecycle(format!(
@@ -186,10 +189,10 @@ pub(crate) async fn drive_with<C>(
     if let Err(error) = &test_result {
         // A skipped test did not fail: nothing to take evidence of.
         if !error.is_skipped() {
-            evidence(&*case, error).await;
+            Box::pin(evidence(&*case, error)).await;
         }
     }
-    let cleanup_result = close(&mut *case, &test_result).await;
+    let cleanup_result = Box::pin(close(&mut *case, &test_result)).await;
     Ended {
         outcome: combine_outcomes(test_result, cleanup_result),
         panic,
