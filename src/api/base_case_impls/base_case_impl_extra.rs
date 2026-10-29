@@ -583,7 +583,7 @@ impl BaseCase {
         poll_until_found(self.default_wait_secs(), what, || {
             let by = by.clone();
             async move {
-                let Ok(element) = self.session.driver().find(by).await else {
+                let Ok(element) = self.session.webdriver()?.find(by).await else {
                     return Ok(Polled::Pending { seen: None });
                 };
                 if !element.is_displayed().await.unwrap_or(false) {
@@ -634,8 +634,7 @@ impl BaseCase {
             "var el = arguments[0]; if (el && el.setAttribute) el.setAttribute('{}', '1');",
             mark_attr
         );
-        self.session
-            .driver()
+        self.session.webdriver()?
             .execute(&script, vec![result.clone()])
             .await
             .map_err(SeleniumBaseError::WebDriver)?;
@@ -643,9 +642,7 @@ impl BaseCase {
         match self.session.find(by).await {
             Ok(el) => {
                 // Remove the marker attribute.
-                let _ = self
-                    .session
-                    .driver()
+                let _ = self.session.webdriver()?
                     .execute(
                         "arguments[0].removeAttribute(arguments[1]);",
                         vec![el.to_json()?, Value::String(mark_attr)],
@@ -940,9 +937,7 @@ impl BaseCase {
 
     /// Returns all open window/tab handles.
     pub async fn get_all_window_handles(&self) -> Result<Vec<String>, SeleniumBaseError> {
-        let handles = self
-            .session
-            .driver()
+        let handles = self.session.webdriver()?
             .windows()
             .await
             .map_err(SeleniumBaseError::WebDriver)?;
@@ -951,9 +946,7 @@ impl BaseCase {
 
     /// Returns the handle of the currently focused window/tab.
     pub async fn get_current_window_handle(&self) -> Result<String, SeleniumBaseError> {
-        let handle = self
-            .session
-            .driver()
+        let handle = self.session.webdriver()?
             .window()
             .await
             .map_err(SeleniumBaseError::WebDriver)?;
@@ -983,8 +976,7 @@ impl BaseCase {
 
     /// Focuses the current browser window.
     pub(crate) async fn focus_window(&self) -> Result<(), SeleniumBaseError> {
-        self.session
-            .driver()
+        self.session.webdriver()?
             .execute("window.focus();", vec![])
             .await
             .map_err(SeleniumBaseError::WebDriver)?;
@@ -1511,9 +1503,7 @@ impl BaseCase {
             self.execute_script(&script).await?;
         }
         let (from_x, from_y) = offset_from_center((x, y), (size.width, size.height), center);
-        let chain = self
-            .session
-            .driver()
+        let chain = self.session.webdriver()?
             .action_chain()
             .move_to_element_with_offset(&element, from_x, from_y);
         let chain = if double {
@@ -1558,8 +1548,7 @@ impl BaseCase {
         self.record("drag_and_drop_with_offset", Some(css), None);
         self.demo_highlight(css).await?;
         let element = self.session.find(by).await?;
-        self.session
-            .driver()
+        self.session.webdriver()?
             .action_chain()
             .drag_and_drop_element_by_offset(&element, x, y)
             .perform()
@@ -1571,7 +1560,7 @@ impl BaseCase {
 
     /// Clicks a sequence of elements in order.
     pub async fn click_chain(&mut self, css_list: &[&str]) -> Result<(), SeleniumBaseError> {
-        let mut chain = self.session.driver().action_chain();
+        let mut chain = self.session.webdriver()?.action_chain();
         for css in css_list {
             let by = Selector::auto(css).to_by()?;
             let element = self.session.find(by).await?;
@@ -1607,7 +1596,7 @@ impl BaseCase {
             format!("None of the selectors [{}] was present", css_list.join(", ")),
             || async {
                 for by in &locators {
-                    let found = self.session.driver().find_all(by.clone()).await?;
+                    let found = self.session.webdriver()?.find_all(by.clone()).await?;
                     if let Some(element) = found.into_iter().next() {
                         return Ok(Polled::Found(element));
                     }
@@ -1633,7 +1622,7 @@ impl BaseCase {
             self.effective_timeout(timeout_secs),
             format!("Link text '{text}' was not present"),
             || async {
-                let links = self.session.driver().find_all(By::LinkText(text)).await?;
+                let links = self.session.webdriver()?.find_all(By::LinkText(text)).await?;
                 Ok(first_found(links))
             },
         )
@@ -1655,9 +1644,7 @@ impl BaseCase {
             self.effective_timeout(timeout_secs),
             format!("Partial link text '{text}' was not present"),
             || async {
-                let links = self
-                    .session
-                    .driver()
+                let links = self.session.webdriver()?
                     .find_all(By::PartialLinkText(text))
                     .await?;
                 Ok(first_found(links))
@@ -1700,7 +1687,7 @@ impl BaseCase {
             self.effective_timeout(timeout_secs),
             format!("Title did not contain '{substring}'"),
             || async {
-                let title = self.session.driver().title().await?;
+                let title = self.session.webdriver()?.title().await?;
                 Ok(if title.contains(substring) {
                     Polled::Found(())
                 } else {

@@ -13,7 +13,7 @@ fn cookie_header<'a>(cookies: impl IntoIterator<Item = (&'a str, &'a str)>) -> S
 impl BaseCase {
     /// Deletes all cookies for the current domain.
     pub async fn clear_all_cookies(&self) -> Result<(), SeleniumBaseError> {
-        self.session.driver().delete_all_cookies().await.map_err(SeleniumBaseError::WebDriver)
+        self.session.webdriver()?.delete_all_cookies().await.map_err(SeleniumBaseError::WebDriver)
     }
 
     /// Clears all local storage.
@@ -38,7 +38,7 @@ impl BaseCase {
     ///
     /// Returns the WebDriver error if the cookies cannot be read.
     pub async fn get_cookie_string(&self) -> Result<String, SeleniumBaseError> {
-        let cookies = self.session.driver().get_all_cookies().await?;
+        let cookies = self.session.webdriver()?.get_all_cookies().await?;
         Ok(cookie_header(
             cookies
                 .iter()

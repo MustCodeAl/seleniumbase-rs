@@ -163,9 +163,7 @@ impl BaseCase {
         script: &str,
         element: &thirtyfour::WebElement,
     ) -> Result<Value, SeleniumBaseError> {
-        let returned = self
-            .session
-            .driver()
+        let returned = self.session.webdriver()?
             .execute(script, vec![element.to_json()?])
             .await?;
         Ok(returned.json().clone())
@@ -262,7 +260,7 @@ impl BaseCase {
         limit: usize,
     ) -> Result<(), SeleniumBaseError> {
         let by = Selector::auto(demo::highlight_target(css)).to_by()?;
-        let elements = self.session.driver().find_all(by).await?;
+        let elements = self.session.webdriver()?.find_all(by).await?;
         let loops = self.highlight_loops(loops, DEFAULT_HIGHLIGHT_LOOPS);
         let mut count = 0_usize;
         for element in elements {

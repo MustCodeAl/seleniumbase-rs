@@ -483,15 +483,15 @@ impl BaseCase {
 
     /// Returns the current browser window position as `(x, y)`.
     pub async fn get_window_position(&self) -> Result<(i64, i64), SeleniumBaseError> {
-        let rect = self.session.driver().get_window_rect().await?;
+        let rect = self.session.webdriver()?.get_window_rect().await?;
         Ok((rect.x, rect.y))
     }
 
     /// Moves the browser window to `(x, y)`.
     pub async fn set_window_position(&self, x: u32, y: u32) -> Result<(), SeleniumBaseError> {
-        let rect = self.session.driver().get_window_rect().await?;
+        let rect = self.session.webdriver()?.get_window_rect().await?;
         self.session
-            .driver()
+            .webdriver()?
             .set_window_rect(
                 x.into(),
                 y.into(),
@@ -505,20 +505,20 @@ impl BaseCase {
 
     /// Closes the current browser window or tab.
     pub async fn close_window(&mut self) -> Result<(), SeleniumBaseError> {
-        self.session.driver().close_window().await?;
+        self.session.webdriver()?.close_window().await?;
         Ok(())
     }
 
     /// Switches the context to the parent frame.
     pub async fn switch_to_parent_frame(&mut self) -> Result<(), SeleniumBaseError> {
-        self.session.driver().enter_parent_frame().await?;
+        self.session.webdriver()?.enter_parent_frame().await?;
         Ok(())
     }
 
     /// Returns `true` if `css` is visible on the page.
     pub async fn is_element_visible(&self, css: &str) -> Result<bool, SeleniumBaseError> {
         let by = Selector::auto(css).to_by()?;
-        match self.session.driver().find(by).await {
+        match self.session.webdriver()?.find(by).await {
             Ok(elem) => Ok(elem.is_displayed().await.unwrap_or(false)),
             Err(_) => Ok(false),
         }
@@ -527,7 +527,7 @@ impl BaseCase {
     /// Returns `true` if `text` is visible inside the element selected by `css`.
     pub async fn is_text_visible(&self, text: &str, css: &str) -> Result<bool, SeleniumBaseError> {
         let by = Selector::auto(css).to_by()?;
-        match self.session.driver().find(by).await {
+        match self.session.webdriver()?.find(by).await {
             Ok(elem) => {
                 if !elem.is_displayed().await.unwrap_or(false) {
                     return Ok(false);
@@ -557,7 +557,7 @@ impl BaseCase {
                     css, timeout
                 )));
             }
-            match self.session.driver().find(by.clone()).await {
+            match self.session.webdriver()?.find(by.clone()).await {
                 Ok(elem) => {
                     if !elem.is_displayed().await.unwrap_or(true) {
                         return Ok(());
@@ -597,7 +597,7 @@ impl BaseCase {
     /// Returns the browser's error, or [`SeleniumBaseError::InvalidConfig`] if
     /// the file cannot be written.
     pub async fn save_cookies_to_path(&self, path: &Path) -> Result<(), SeleniumBaseError> {
-        let cookies = self.session.driver().get_all_cookies().await?;
+        let cookies = self.session.webdriver()?.get_all_cookies().await?;
         let json = serde_json::to_string_pretty(&cookies).map_err(|e| {
             SeleniumBaseError::InvalidConfig(format!("Failed to serialize cookies: {e}"))
         })?;
@@ -668,7 +668,7 @@ impl BaseCase {
         };
         // As Python does, let the page finish loading before the cookies go in.
         self.wait_for_ready_state_complete().await?;
-        let url = self.session.driver().current_url().await?;
+        let url = self.session.webdriver()?.current_url().await?;
         let origin = origin_of_url(url.as_str())?;
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -690,7 +690,7 @@ impl BaseCase {
                         path.display()
                     ))
                 })?;
-            self.session.driver().add_cookie(cookie).await?;
+            self.session.webdriver()?.add_cookie(cookie).await?;
         }
         Ok(())
     }
@@ -770,10 +770,10 @@ impl BaseCase {
 
     /// Executes the `switch_to_default_window` action.
     pub async fn switch_to_default_window(&mut self) -> Result<(), SeleniumBaseError> {
-        let handles = self.session.driver().windows().await?;
+        let handles = self.session.webdriver()?.windows().await?;
         if let Some(first) = handles.first() {
             self.session
-                .driver()
+                .webdriver()?
                 .switch_to_window(first.clone())
                 .await?;
         }
@@ -782,9 +782,12 @@ impl BaseCase {
 
     /// Executes the `switch_to_newest_window` action.
     pub async fn switch_to_newest_window(&mut self) -> Result<(), SeleniumBaseError> {
-        let handles = self.session.driver().windows().await?;
+        let handles = self.session.webdriver()?.windows().await?;
         if let Some(last) = handles.last() {
-            self.session.driver().switch_to_window(last.clone()).await?;
+            self.session
+                .webdriver()?
+                .switch_to_window(last.clone())
+                .await?;
         }
         Ok(())
     }
@@ -853,7 +856,7 @@ impl BaseCase {
         let start = std::time::Instant::now();
         let timeout_dur = Duration::from_secs(self.effective_timeout(timeout));
         loop {
-            if self.session.driver().find(by.clone()).await.is_ok() {
+            if self.session.webdriver()?.find(by.clone()).await.is_ok() {
                 return Ok(());
             }
             if start.elapsed() > timeout_dur {
@@ -1423,7 +1426,7 @@ impl BaseCase {
         let by = Selector::auto(css).to_by()?;
         let deadline = tokio::time::Instant::now() + Duration::from_secs(timeout_secs);
         loop {
-            let seen = match self.session.driver().find(by.clone()).await {
+            let seen = match self.session.webdriver()?.find(by.clone()).await {
                 Ok(element) if element.is_displayed().await.unwrap_or(false) => {
                     element.text().await.ok()
                 }
@@ -1461,7 +1464,8 @@ impl BaseCase {
         let by = Selector::auto(expected).to_by().ok()?;
         let shown = self
             .session
-            .driver()
+            .webdriver()
+            .ok()?
             .find(by)
             .await
             .ok()?
@@ -2018,7 +2022,7 @@ impl BaseCase {
         let mut fields = fields.clone();
         // Only a cookie with a domain needs to know which page it is added from.
         let origin = if fields.contains_key("domain") {
-            let url = self.session.driver().current_url().await?;
+            let url = self.session.webdriver()?.current_url().await?;
             origin_of_url(url.as_str())?
         } else {
             String::new()
@@ -2034,7 +2038,7 @@ impl BaseCase {
                 SeleniumBaseError::InvalidConfig(format!("this cookie cannot be used: {e}"))
             })?;
         self.record("add_cookie", Some(name), Some(value));
-        self.session.driver().add_cookie(cookie).await?;
+        self.session.webdriver()?.add_cookie(cookie).await?;
         Ok(())
     }
 
@@ -2237,7 +2241,7 @@ impl BaseCase {
         self.record("add_text", Some(css), Some(text));
         self.demo_highlight(css).await?;
         let before = self.demo_page_before().await;
-        let elem = self.session.driver().find(by).await?;
+        let elem = self.session.webdriver()?.find(by).await?;
         elem.send_keys(text).await?;
         self.demo_pause_after(before).await;
         Ok(())
@@ -2263,7 +2267,7 @@ impl BaseCase {
     /// Executes the `click_visible_elements` action.
     pub async fn click_visible_elements(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         let by = Selector::auto(css).to_by()?;
-        let elems = self.session.driver().find_all(by).await?;
+        let elems = self.session.webdriver()?.find_all(by).await?;
         for elem in elems {
             if elem.is_displayed().await.unwrap_or(false) {
                 elem.click().await?;
@@ -2283,8 +2287,8 @@ impl BaseCase {
                     timeout
                 )));
             }
-            if self.session.driver().get_alert_text().await.is_ok() {
-                self.session.driver().accept_alert().await?;
+            if self.session.webdriver()?.get_alert_text().await.is_ok() {
+                self.session.webdriver()?.accept_alert().await?;
                 return Ok(());
             }
             tokio::time::sleep(Duration::from_millis(50)).await;
@@ -2302,8 +2306,8 @@ impl BaseCase {
                     timeout
                 )));
             }
-            if self.session.driver().get_alert_text().await.is_ok() {
-                self.session.driver().dismiss_alert().await?;
+            if self.session.webdriver()?.get_alert_text().await.is_ok() {
+                self.session.webdriver()?.dismiss_alert().await?;
                 return Ok(());
             }
             tokio::time::sleep(Duration::from_millis(50)).await;
@@ -2313,7 +2317,7 @@ impl BaseCase {
     /// Executes the `is_link_text_visible` action.
     pub async fn is_link_text_visible(&self, link_text: &str) -> Result<bool, SeleniumBaseError> {
         let by = Selector::LinkText(link_text).to_by()?;
-        match self.session.driver().find(by).await {
+        match self.session.webdriver()?.find(by).await {
             Ok(elem) => Ok(elem.is_displayed().await.unwrap_or(false)),
             Err(_) => Ok(false),
         }
@@ -2325,7 +2329,7 @@ impl BaseCase {
         partial_link_text: &str,
     ) -> Result<bool, SeleniumBaseError> {
         let by = Selector::PartialLinkText(partial_link_text).to_by()?;
-        match self.session.driver().find(by).await {
+        match self.session.webdriver()?.find(by).await {
             Ok(elem) => Ok(elem.is_displayed().await.unwrap_or(false)),
             Err(_) => Ok(false),
         }
@@ -2353,7 +2357,7 @@ impl BaseCase {
         let by = Selector::PartialLinkText(partial_link_text).to_by()?;
         self.record("click_partial_link_text", Some(partial_link_text), None);
         let before = self.demo_page_before().await;
-        self.session.driver().find(by).await?.click().await?;
+        self.session.webdriver()?.find(by).await?.click().await?;
         self.demo_pause_after(before).await;
         Ok(())
     }
@@ -2370,7 +2374,7 @@ impl BaseCase {
 
         let by = Selector::auto(css).to_by()?;
         self.record("human_type", Some(css), Some(text));
-        let elem = self.session.driver().find(by).await?;
+        let elem = self.session.webdriver()?.find(by).await?;
         elem.click().await?; // Focus the field
 
         let behavior = self
@@ -2392,7 +2396,7 @@ impl BaseCase {
     pub async fn human_click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         let by = Selector::auto(css).to_by()?;
         self.record("human_click", Some(css), None);
-        let elem = self.session.driver().find(by).await?;
+        let elem = self.session.webdriver()?.find(by).await?;
 
         let mut rng = rand::rng();
         let pre_delay = rng.random_range(100..=300);
@@ -2617,7 +2621,7 @@ impl BaseCase {
 
     /// Minimize the browser window.
     pub async fn minimize_window(&self) -> Result<(), SeleniumBaseError> {
-        self.session.driver().minimize_window().await?;
+        self.session.webdriver()?.minimize_window().await?;
         self.demo_pause(PauseKind::Short).await;
         Ok(())
     }
@@ -2631,7 +2635,7 @@ impl BaseCase {
         height: u32,
     ) -> Result<(), SeleniumBaseError> {
         self.session
-            .driver()
+            .webdriver()?
             .set_window_rect(x, y, width, height)
             .await?;
         self.demo_pause(PauseKind::Short).await;
@@ -2952,7 +2956,7 @@ impl BaseCase {
 
     /// Return whether a JavaScript alert is currently present.
     pub async fn is_alert_present(&self) -> Result<bool, SeleniumBaseError> {
-        Ok(self.session.driver().get_alert_text().await.is_ok())
+        Ok(self.session.webdriver()?.get_alert_text().await.is_ok())
     }
 
     /// Get the browser user agent string.
@@ -2979,7 +2983,7 @@ impl BaseCase {
     /// Return whether the element is clickable (visible and enabled).
     pub async fn is_element_clickable(&self, css: &str) -> Result<bool, SeleniumBaseError> {
         let by = Selector::auto(css).to_by()?;
-        match self.session.driver().find(by).await {
+        match self.session.webdriver()?.find(by).await {
             Ok(elem) => Ok(elem.is_displayed().await.unwrap_or(false)
                 && elem.is_enabled().await.unwrap_or(false)),
             Err(_) => Ok(false),
@@ -3033,7 +3037,7 @@ impl BaseCase {
         css: &str,
     ) -> Result<bool, SeleniumBaseError> {
         let by = Selector::auto(css).to_by()?;
-        match self.session.driver().find(by).await {
+        match self.session.webdriver()?.find(by).await {
             Ok(elem) => Ok(elem.is_displayed().await.unwrap_or(false)
                 && elem.text().await.unwrap_or_default().trim() == text.trim()),
             Err(_) => Ok(false),
@@ -3043,7 +3047,7 @@ impl BaseCase {
     /// Return whether the element has any non-empty visible text.
     pub async fn is_non_empty_text_visible(&self, css: &str) -> Result<bool, SeleniumBaseError> {
         let by = Selector::auto(css).to_by()?;
-        match self.session.driver().find(by).await {
+        match self.session.webdriver()?.find(by).await {
             Ok(elem) => {
                 let text = elem.text().await.unwrap_or_default();
                 Ok(elem.is_displayed().await.unwrap_or(false) && !text.trim().is_empty())
@@ -3109,7 +3113,7 @@ impl BaseCase {
     /// Return the inner text of the element.
     pub async fn get_text_content(&mut self, css: &str) -> Result<String, SeleniumBaseError> {
         let by = Selector::auto(css).to_by()?;
-        let elem = self.session.driver().find(by).await?;
+        let elem = self.session.webdriver()?.find(by).await?;
         Ok(elem.text().await.unwrap_or_default())
     }
 
@@ -3127,7 +3131,7 @@ impl BaseCase {
     pub async fn press_keys(&self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
         self.await_ready(css, Ready::Present).await?;
         let by = Selector::auto(css).to_by()?;
-        let element = self.session.driver().find(by).await?;
+        let element = self.session.webdriver()?.find(by).await?;
         self.demo_highlight(css).await?;
         let (body, enter) = split_trailing_enter(text);
         for key in body.chars() {
@@ -3172,7 +3176,7 @@ impl BaseCase {
             }
         };
         self.session
-            .driver()
+            .webdriver()?
             .action_chain()
             .send_keys(key.value().to_string())
             .perform()

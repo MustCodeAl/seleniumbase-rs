@@ -31,7 +31,7 @@ impl BaseCase {
     /// Clicks the first `<a>` element whose full visible text equals `text`.
     pub async fn click_link(&mut self, text: &str) -> Result<(), SeleniumBaseError> {
         self.record("click_link", Some(text), None);
-        let element = self.session.driver().find(By::LinkText(text)).await?;
+        let element = self.session.webdriver()?.find(By::LinkText(text)).await?;
         let before = self.demo_page_before().await;
         element.click().await.map_err(SeleniumBaseError::WebDriver)?;
         self.demo_pause_after(before).await;
@@ -41,7 +41,7 @@ impl BaseCase {
     /// Clicks the first `<a>` element whose visible text contains `text`.
     pub async fn click_partial_link(&mut self, text: &str) -> Result<(), SeleniumBaseError> {
         self.record("click_partial_link", Some(text), None);
-        let element = self.session.driver().find(By::PartialLinkText(text)).await?;
+        let element = self.session.webdriver()?.find(By::PartialLinkText(text)).await?;
         let before = self.demo_page_before().await;
         element.click().await.map_err(SeleniumBaseError::WebDriver)?;
         self.demo_pause_after(before).await;
@@ -57,7 +57,7 @@ impl BaseCase {
     /// Returns the WebDriver error if the lookup itself fails; a link that is
     /// simply absent is `Ok(false)`.
     pub async fn is_link_text_present(&self, text: &str) -> Result<bool, SeleniumBaseError> {
-        let links = self.session.driver().find_all(By::LinkText(text)).await?;
+        let links = self.session.webdriver()?.find_all(By::LinkText(text)).await?;
         Ok(!links.is_empty())
     }
 
@@ -71,9 +71,7 @@ impl BaseCase {
     /// Returns the WebDriver error if the lookup itself fails; a link that is
     /// simply absent is `Ok(false)`.
     pub async fn is_partial_link_text_present(&self, text: &str) -> Result<bool, SeleniumBaseError> {
-        let links = self
-            .session
-            .driver()
+        let links = self.session.webdriver()?
             .find_all(By::PartialLinkText(text))
             .await?;
         Ok(!links.is_empty())
@@ -140,7 +138,7 @@ impl BaseCase {
         text: &str,
         attribute: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
-        let el = self.session.driver().find(By::LinkText(text)).await?;
+        let el = self.session.webdriver()?.find(By::LinkText(text)).await?;
         el.attr(attribute).await.map_err(SeleniumBaseError::WebDriver)
     }
 
@@ -159,7 +157,7 @@ impl BaseCase {
         text: &str,
         attribute: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
-        let el = self.session.driver().find(By::PartialLinkText(text)).await?;
+        let el = self.session.webdriver()?.find(By::PartialLinkText(text)).await?;
         el.attr(attribute).await.map_err(SeleniumBaseError::WebDriver)
     }
 

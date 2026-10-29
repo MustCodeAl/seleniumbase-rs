@@ -92,7 +92,7 @@ impl BaseCase {
 
     /// Full-screens the browser window.
     pub async fn fullscreen_window(&self) -> Result<(), SeleniumBaseError> {
-        self.session.driver().fullscreen_window().await?;
+        self.session.webdriver()?.fullscreen_window().await?;
         Ok(())
     }
 
@@ -144,7 +144,7 @@ impl BaseCase {
     /// WebDriver error if the browser has no log to read (only Chromium-based
     /// browsers do).
     pub async fn assert_no_js_errors(&self) -> Result<(), SeleniumBaseError> {
-        let entries = self.session.driver().browser_log().await?;
+        let entries = self.session.webdriver()?.browser_log().await?;
         let errors = severe_js_errors(&entries);
         if errors.is_empty() {
             let message = demo::label_message("ASSERT NO JS ERRORS");
@@ -156,7 +156,7 @@ impl BaseCase {
             .map(|entry| entry.message.as_str())
             .collect::<Vec<_>>()
             .join("\n");
-        let url = match self.session.driver().current_url().await {
+        let url = match self.session.webdriver()?.current_url().await {
             Ok(url) => url.to_string(),
             Err(_) => "the page".to_owned(),
         };
