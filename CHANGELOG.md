@@ -695,6 +695,20 @@ work, `docs/parity.md` the per-API status).
 
 ### Fixed
 
+- **Recorder Mode no longer writes the frames of a page as pages to open.** The page script went
+  into every frame, and a frame of the same origin shares the top frame's sessionStorage, so a
+  reCAPTCHA page recorded `goto` steps for `about:blank`, `about:srcdoc` and the widget's
+  `anchor` and `bframe` addresses and `click` steps for its tiles and verify button (SeleniumBase
+  4.56.2's own `--rec` does the same on such a page). The script now records the top frame only
+  and runs once for each document; a click into a reCAPTCHA, hCaptcha, Turnstile or DataDome frame
+  is one comment in every output form (`// skipped: captcha (recaptcha): solve it by hand or use
+  sb.solve_captcha()`) and opens no tab; an open of `about:blank`, `data:` or `chrome:` is skipped;
+  an empty `about:blank` frame is not a step. A page that a `window.open` tab loads is recorded
+  (the tab's copied sessionStorage made the watcher think the script had run there). A `goto` of
+  Google's `/sorry/` bot check or of an address with query parameters that change at every visit
+  (`ei`, `sxsrf`, `ved`, `gs_lp`, ...) keeps its address and ends with a `// note:`. New tabs stay
+  a `click` and a `goto_if_not_url`, as in Python (it writes no tab switch).
+
 - **The MCP client never leaves the server it started running.** When the handshake fails or
   times out, `McpClient` (and `sbrs-mcp tools|call|batch --connect`) kills the program it
   started before returning, and `close` gives it 5 s to exit, then kills it; before, the kill ran
