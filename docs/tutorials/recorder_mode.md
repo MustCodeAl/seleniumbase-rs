@@ -80,6 +80,62 @@ The feature has the steps `Open "url"`, `Click "selector"`,
 step becomes a `# skipped:` comment. No test file that binds the feature to step functions is
 written yet. The pure CDP output is described [below](#pure-cdp-code---rec-sb-cdp).
 
+## Frames, CAPTCHAs and new tabs
+
+The page script records the top frame of a tab, as Python's Recorder does, so a
+recording holds the pages you opened and what you did on them. What it cannot
+or should not write down is handled like this:
+
+- **A frame is not a page.** The load of a frame (an ad, a payment form, an
+  empty `about:blank` frame, a CAPTCHA) is never a `goto`, and an
+  `about:blank`, `about:srcdoc` or `data:` address is never opened by the test.
+  A frame of the same origin as the page used to leave a `goto` for its own
+  address in the recording; the page script now leaves every frame at once.
+- **You switch to a frame by clicking into it.** When the focus moves into a
+  frame, the test gets `sb.switch_to_frame("iframe#pay")`. A frame with an
+  address is also opened in a new tab, so that what you do there is recorded
+  (this is how Python does it). A frame with no address (inline, `srcdoc`)
+  shows its content in the page; an empty frame, or one the page cannot read,
+  is not a step. What you do inside a frame without leaving it is not seen by
+  the page script.
+- **A CAPTCHA is one comment.** A click into a reCAPTCHA, hCaptcha, Cloudflare
+  Turnstile or DataDome frame is not a step and opens no tab. The test gets one
+  line for each run of them:
+
+  ```rust,ignore
+  // skipped: captcha (recaptcha): solve it by hand or use sb.solve_captcha()
+  ```
+
+  The pure CDP form says `page.solve_captcha()`, and a Gherkin feature has the
+  same words after `# skipped:`. `BaseCase::solve_captcha` clicks the first
+  supported widget on the page; whether the site accepts the answer is up to
+  the site.
+- **A new tab is not a tab switch.** As in Python, the pages of every tab are
+  one list: a link that opens a tab is a `click`, and the page it opened
+  follows as `goto_if_not_url(..)`. A test that must go back to the first tab
+  does it by hand.
+- **An address that a replay may not get through keeps its address** and gets a
+  note after the call: Google's `/sorry/` bot-check page (its address works
+  once), and an address with query parameters that change at every visit (`ei`,
+  `sxsrf`, `ved`, `gs_lp`, `gs_lcrp`, `sca_esv`, `sca_upv`, `uact`, `iflsig`).
+
+  ```rust,ignore
+  sb.goto("https://www.google.com/search?q=rust&ei=abc&ved=0").await?; // note: the query has parameters that change at every visit (ei, ved); remove them if the page refuses a replay
+  ```
+
+  An address that a click or Enter led to is cut at the first `&` after `?q=`,
+  as in Python.
+- **Selectors** are the page script's, which are Python's: an `id`
+  (`input#email`), else the first unique attribute of a list that starts with
+  `name` and the test attributes (`data-testid`, `data-cy`, ...) and goes on
+  with `title`, `aria-label`, `href` and `placeholder`
+  (`button[data-testid="save"]`, `a[aria-label="Help"]`), else the tag with
+  its text (`button:contains("Save changes")`), else the shortest path of
+  `nth-of-type` (`body ul li:nth-of-type(2) div`). A page whose elements have
+  none of these gets paths; add a `data-testid` to the page, or edit the
+  recorded selector.
+
+
 ## Recorder Mode in a test
 
 Any test can run in Recorder Mode. The recorder script goes into every page,
