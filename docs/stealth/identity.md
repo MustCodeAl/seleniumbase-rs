@@ -137,8 +137,8 @@ back to HTTP after a solve, and a preference for HTTP. `after_fetch` turns an
 `Action::Escalate` seen in HTTP mode into an escalation and a solved challenge in
 the browser into a demotion when the identity now holds a clearance. The tables
 are in the module documentation. `BrowserScraper` stays in the browser and never
-applies them. [`HttpSession`](/stealth/http-session#httpsession) offers `preflight` and `assess` for a
-caller that runs its own loop, and [`StealthSession`](/stealth/stealth-session#stealthsession) applies
+applies them. [`HttpSession`](/stealth/http-session) offers `preflight` and `assess` for a
+caller that runs its own loop, and [`StealthSession`](/stealth/stealth-session) applies
 them for you.
 
 ```mermaid

@@ -13,7 +13,7 @@ this feature builds BoringSSL and needs cmake and a C/C++ toolchain.
 cookies it earned and the <Tooltip tip="The exit address a request leaves through: one of your proxies, or the direct connection.">egress</Tooltip> they were earned through) in one of two modes
 and moves between them by the policies:
 
-- `Mode::Http`: an [`HttpSession`](/stealth/http-session#httpsession) sends the requests. It is fast
+- `Mode::Http`: an [`HttpSession`](/stealth/http-session) sends the requests. It is fast
   and cheap, with the measured handshake and headers.
 - `Mode::Browser`: a real Chrome sends them, behind a
   [`MitmProxy`](/stealth/mitm-proxy#mitmproxy) that replays each request with the same measured
