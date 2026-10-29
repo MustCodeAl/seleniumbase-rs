@@ -12,8 +12,10 @@ const RECORDER_ACTIVE: &str = "Recorder Mode ACTIVE. [ESC]: Pause. [~`]: Resume.
 /// The page's record of what a person did (see `RECORDER_JS`).
 const RECORDED_ACTIONS_SCRIPT: &str = "return sessionStorage.getItem('recorded_actions');";
 
-/// `"yes"` once the page script has run in this tab's origin.
-const RECORDER_ACTIVATED_SCRIPT: &str = "return sessionStorage.getItem('recorder_activated');";
+/// `"yes"` once the page script has run in this document. A tab that a page
+/// opened with `window.open` starts with a copy of the opener's sessionStorage,
+/// which says `"yes"` before the script has run in the new document.
+const RECORDER_ACTIVATED_SCRIPT: &str = "return document.__sbRecorderRan === true ? sessionStorage.getItem('recorder_activated') : null;";
 
 /// One breakpoint prompt at a time, however many tests run in parallel.
 static RECORDER_BREAKPOINT_GATE: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
