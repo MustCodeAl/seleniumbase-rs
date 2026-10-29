@@ -1,12 +1,13 @@
 //! External Chromium attachment and Tauri discovery over real mock HTTP/WS sockets.
 
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use futures_util::{SinkExt, StreamExt};
 use seleniumbase_rs::api::cdp_driver::CdpDriver;
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
-use seleniumbase_rs::{BaseCase, BrowserConfig, Fingerprint};
+use seleniumbase_rs::{BaseCase, BrowserConfig, BrowserSession, Fingerprint, SeleniumBaseError};
 use serde_json::{json, Value};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
@@ -18,11 +19,20 @@ struct AttachServer {
     websocket: String,
     calls: Arc<Mutex<Vec<Value>>>,
     requests: Arc<Mutex<Vec<String>>>,
+    /// How many DevTools WebSocket connections the server accepted.
+    connections: Arc<AtomicUsize>,
+
     tasks: Vec<JoinHandle<()>>,
 }
 
 impl AttachServer {
     async fn start(discovery: Option<Value>) -> Self {
+        Self::start_advertising(discovery, None).await
+    }
+
+    /// A server whose `/json/version` advertises `advertised` instead of its
+    /// own browser WebSocket, as a misbehaving or hostile debugger would.
+    async fn start_advertising(discovery: Option<Value>, advertised: Option<String>) -> Self {
         let ws_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let websocket = format!(
             "ws://{}/devtools/browser/tauri",
@@ -30,8 +40,11 @@ impl AttachServer {
         );
         let calls = Arc::new(Mutex::new(Vec::new()));
         let recorded = calls.clone();
+        let connections = Arc::new(AtomicUsize::new(0));
+        let counted = connections.clone();
         let ws_task = tokio::spawn(async move {
             while let Ok((stream, _)) = ws_listener.accept().await {
+                counted.fetch_add(1, Ordering::SeqCst);
                 let mut socket = tokio_tungstenite::accept_async(stream).await.unwrap();
                 while let Some(Ok(Message::Text(text))) = socket.next().await {
                     let call: Value = serde_json::from_str(&text).unwrap();
@@ -40,6 +53,8 @@ impl AttachServer {
                             { "targetId": "T1", "type": "page", "url": "https://tauri.localhost/", "title": "Tauri" },
                             { "targetId": "T2", "type": "page", "url": "https://tauri.localhost/settings", "title": "Settings" }
                         ] }),
+                        "Target.createTarget" => json!({ "targetId": "T3" }),
+
                         "Target.attachToTarget" => {
                             json!({ "sessionId": format!("S{}", call["params"]["targetId"].as_str().unwrap()) })
                         }
@@ -70,7 +85,8 @@ impl AttachServer {
         });
         let http_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let http = format!("http://{}", http_listener.local_addr().unwrap());
-        let ws_url = websocket.clone();
+        let http_port = http_listener.local_addr().unwrap().port().to_string();
+        let ws_url = advertised.map_or_else(|| websocket.clone(), |url| url.replace("{http_port}", &http_port));
         let requests = Arc::new(Mutex::new(Vec::new()));
         let paths = requests.clone();
         let http_task = tokio::spawn(async move {
@@ -96,6 +112,8 @@ impl AttachServer {
             websocket,
             calls,
             requests,
+            connections,
+
             tasks: vec![ws_task, http_task],
         }
     }
@@ -121,10 +139,22 @@ fn fingerprint() -> Fingerprint {
         .unwrap()
 }
 
+/// The host app's second window (target `T2`, session `ST2`) is not the one the
+/// automation selected, so nothing is sent to it, and nothing attaches to it.
+fn assert_second_window_untouched(server: &AttachServer) {
+    let calls = server.calls();
+    assert!(
+        !calls.iter().any(|call| call["sessionId"] == "ST2"
+            || (call["method"] == "Target.attachToTarget" && call["params"]["targetId"] == "T2")),
+        "the app's other window was touched: {calls:#?}"
+    );
+}
+
+
 fn assert_identity(server: &AttachServer) {
     let calls = server.calls();
     let source = seleniumbase_rs::stealth::evasions::session_script(&fingerprint());
-    for session in ["ST1", "ST2"] {
+    for session in ["ST1"] {
         assert!(
             calls.iter().any(
                 |call| call["method"] == "Page.addScriptToEvaluateOnNewDocument"
@@ -148,6 +178,8 @@ fn assert_identity(server: &AttachServer) {
             );
         }
     }
+    assert_second_window_untouched(server);
+
     assert!(!calls
         .iter()
         .any(|call| call["method"] == "Target.createTarget" || call["method"] == "Browser.close"));
@@ -164,7 +196,7 @@ async fn attaches_without_launching_and_reuses_the_existing_driver() {
         .build()
         .unwrap();
     let browser = Browser::launch(options).await.unwrap();
-    assert_identity(&server);
+    assert!(server.calls().is_empty(), "attaching must send nothing to the app");
     let mut driver = CdpDriver::new();
     driver.attach(browser.clone()).await.unwrap();
     assert_eq!(
@@ -177,7 +209,7 @@ async fn attaches_without_launching_and_reuses_the_existing_driver() {
 }
 
 #[tokio::test]
-async fn websocket_attachment_also_prepares_existing_windows() {
+async fn websocket_attachment_prepares_only_the_window_that_is_selected() {
     let server = AttachServer::start(None).await;
     let options = LaunchOptions::builder()
         .cdp_url(&server.websocket)
@@ -185,6 +217,8 @@ async fn websocket_attachment_also_prepares_existing_windows() {
         .build()
         .unwrap();
     let browser = Browser::launch(options).await.unwrap();
+    assert!(server.calls().is_empty(), "attaching must send nothing to the app");
+    browser.default_page().await.unwrap();
     assert_identity(&server);
     browser.close().await.unwrap();
     assert!(server.requests.lock().unwrap().is_empty());
@@ -256,6 +290,333 @@ fn config_is_additive_and_passed_through_the_existing_builder() {
     assert!(!format!("{discovery:?}").contains("app-token"));
 }
 
+fn sent(server: &AttachServer, method: &str) -> Vec<Value> {
+    server
+        .calls()
+        .into_iter()
+        .filter(|call| call["method"] == method)
+        .collect()
+}
+
+fn attached_options(server: &AttachServer) -> LaunchOptions {
+    LaunchOptions::builder()
+        .cdp_url(&server.http)
+        .fingerprint(&fingerprint())
+        .build()
+        .unwrap()
+}
+
+/// The reply of a Tauri plugin that points at `debugger`.
+fn tauri_discovery(debugger: &AttachServer) -> Value {
+    let port = url::Url::parse(&debugger.http).unwrap().port().unwrap();
+    json!({ "value": { "cdpEnabled": true, "cdpPort": port, "cdpUrl": debugger.http } })
+}
+
+/// A loopback HTTP server that answers every request with `response` as it is.
+async fn canned_http(response: Vec<u8>) -> (String, JoinHandle<()>) {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let task = tokio::spawn(async move {
+        while let Ok((mut stream, _)) = listener.accept().await {
+            let mut request = Vec::new();
+            while !request.ends_with(b"\r\n\r\n") {
+                match stream.read_u8().await {
+                    Ok(byte) => request.push(byte),
+                    Err(_) => break,
+                }
+            }
+            let _ = stream.write_all(&response).await;
+            let _ = stream.shutdown().await;
+        }
+    });
+    (base, task)
+}
+
+#[tokio::test]
+async fn attaching_leaves_every_window_of_the_app_alone_until_one_is_picked() {
+    let server = AttachServer::start(None).await;
+    let browser = Browser::launch(attached_options(&server)).await.unwrap();
+    assert!(server.calls().is_empty(), "{:#?}", server.calls());
+
+    // Listing the windows reads them and prepares none.
+    assert_eq!(browser.list_pages().await.unwrap().len(), 2);
+    assert!(sent(&server, "Target.attachToTarget").is_empty());
+
+    // Picking one by its id prepares that one and no other.
+    browser.page("T2").await.unwrap();
+    let attached = sent(&server, "Target.attachToTarget");
+    assert_eq!(attached.len(), 1, "{attached:#?}");
+    assert_eq!(attached[0]["params"]["targetId"], "T2");
+    assert!(!server
+        .calls()
+        .iter()
+        .any(|call| call["sessionId"] == "ST1"));
+    browser.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn a_tab_the_automation_opens_is_prepared_and_the_apps_windows_are_not() {
+    let server = AttachServer::start(None).await;
+    let browser = Browser::launch(attached_options(&server)).await.unwrap();
+    let _page = browser.new_page().await.unwrap();
+
+    let calls = server.calls();
+    assert!(
+        calls
+            .iter()
+            .any(|call| call["method"] == "Network.setUserAgentOverride"
+                && call["sessionId"] == "ST3"),
+        "the new tab gets the fingerprint: {calls:#?}"
+    );
+    assert!(
+        !calls
+            .iter()
+            .any(|call| call["sessionId"] == "ST1" || call["sessionId"] == "ST2"),
+        "the app's windows were touched: {calls:#?}"
+    );
+    browser.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn closing_an_attached_browser_detaches_its_sessions_and_leaves_the_app_open() {
+    let server = AttachServer::start(None).await;
+    let browser = Browser::launch(attached_options(&server)).await.unwrap();
+    let page = browser.default_page().await.unwrap();
+    let _opened = browser.new_page().await.unwrap();
+    browser.close().await.unwrap();
+
+    let mut detached: Vec<String> = sent(&server, "Target.detachFromTarget")
+        .iter()
+        .map(|call| call["params"]["sessionId"].as_str().unwrap().to_owned())
+        .collect();
+    detached.sort();
+    assert_eq!(detached, ["ST1", "ST3"]);
+    for method in ["Browser.close", "Target.closeTarget"] {
+        assert!(sent(&server, method).is_empty(), "{method} was sent");
+    }
+    assert!(!browser.is_connected());
+
+    // Every handle of the closed browser fails, instead of driving the app.
+    let error = browser.new_page().await.unwrap_err();
+    assert!(
+        matches!(error, SeleniumBaseError::BrowserDisconnected { .. }),
+        "{error:?}"
+    );
+    let error = page.title().await.unwrap_err().to_string();
+    assert!(error.contains("closed"), "{error}");
+    // A second close is harmless.
+    browser.close().await.unwrap();
+}
+
+#[test]
+fn a_proxy_cannot_be_set_on_an_attached_browser() {
+    let url = "http://127.0.0.1:9222";
+    for builder in [
+        LaunchOptions::builder()
+            .cdp_url(url)
+            .proxy("http://alice:hunter2@proxy.example:3128"),
+        LaunchOptions::builder()
+            .cdp_url(url)
+            .proxy("http://proxy.example:3128"),
+        LaunchOptions::builder()
+            .cdp_url(url)
+            .proxy_pac_url("http://pac.example/proxy.pac"),
+    ] {
+        let error = builder.build().unwrap_err();
+        let text = error.to_string();
+        assert!(
+            matches!(error, SeleniumBaseError::InvalidConfig(_)) && text.contains("proxy"),
+            "{text}"
+        );
+        assert!(!text.contains("hunter2") && !text.contains("alice"), "{text}");
+    }
+    // The same settings are fine for a browser the library launches.
+    LaunchOptions::builder()
+        .proxy("http://alice:hunter2@proxy.example:3128")
+        .build()
+        .unwrap();
+}
+
+#[tokio::test]
+async fn base_case_refuses_a_proxy_on_an_attached_app_before_it_connects() {
+    let server = AttachServer::start(None).await;
+    let config = BrowserConfig::default()
+        .with_cdp_url(&server.http)
+        .with_proxy("alice:hunter2@proxy.example:3128");
+    let error = BaseCase::new(config).await.err().expect("a proxy is refused");
+    assert!(
+        matches!(error, SeleniumBaseError::InvalidConfig(_)),
+        "{error:?}"
+    );
+    assert!(!error.to_string().contains("hunter2"), "{error}");
+    assert!(server.calls().is_empty());
+    assert_eq!(server.connections.load(Ordering::SeqCst), 0);
+}
+
+#[test]
+fn a_user_agent_or_locale_needs_a_fingerprint_on_an_attached_browser() {
+    let url = "http://127.0.0.1:9222";
+    for builder in [
+        LaunchOptions::builder().cdp_url(url).user_agent("Custom/1.0"),
+        LaunchOptions::builder().cdp_url(url).lang("de-DE"),
+    ] {
+        let error = builder.build().unwrap_err();
+        assert!(
+            matches!(&error, SeleniumBaseError::InvalidConfig(text) if text.contains("fingerprint")),
+            "{error:?}"
+        );
+    }
+    // A fingerprint applies its own user agent and locale to the tabs it prepares.
+    LaunchOptions::builder()
+        .cdp_url(url)
+        .fingerprint(&fingerprint())
+        .build()
+        .unwrap();
+    // A browser the library launches takes both as command-line flags.
+    LaunchOptions::builder()
+        .user_agent("Custom/1.0")
+        .lang("de-DE")
+        .build()
+        .unwrap();
+}
+
+#[tokio::test]
+async fn base_case_refuses_a_user_agent_on_an_attached_app_before_it_connects() {
+    let server = AttachServer::start(None).await;
+    let mut config = BrowserConfig::default().with_cdp_url(&server.http);
+    config.user_agent = Some("Custom/1.0".to_owned());
+    let error = BaseCase::new(config).await.err().expect("refused");
+    assert!(
+        matches!(error, SeleniumBaseError::InvalidConfig(_)),
+        "{error:?}"
+    );
+    assert_eq!(server.connections.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn reconnect_attaches_to_the_same_endpoint_and_starts_no_driver() {
+    let server = AttachServer::start(None).await;
+    let mut config = BrowserConfig::default()
+        .with_cdp_url(&server.http)
+        .with_fingerprint(fingerprint());
+    // Were a driver started, it would be a local chromedriver: not here.
+    config.auto_start_driver = false;
+    let mut case = BaseCase::new(config).await.unwrap();
+    assert_eq!(server.connections.load(Ordering::SeqCst), 1);
+
+    case.reconnect().await.unwrap();
+
+    assert_eq!(server.connections.load(Ordering::SeqCst), 2);
+    assert!(case.is_cdp_mode_active());
+    assert_eq!(case.cdp_get_title().await.unwrap(), "Tauri window");
+    // The first attachment was let go before the second began.
+    assert!(!sent(&server, "Target.detachFromTarget").is_empty());
+    case.quit().await.unwrap();
+    assert!(!sent(&server, "Target.detachFromTarget").is_empty());
+}
+
+#[tokio::test]
+async fn a_webdriver_call_on_a_cdp_attachment_is_an_error_not_a_panic() {
+    let server = AttachServer::start(None).await;
+    let config = BrowserConfig::default().with_cdp_url(&server.http);
+    let mut session = BrowserSession::connect(config.clone()).await.unwrap();
+    for error in [
+        session.back().await.unwrap_err(),
+        session.forward().await.unwrap_err(),
+        session.refresh().await.unwrap_err(),
+        session.page_source().await.unwrap_err(),
+        session
+            .click(thirtyfour::By::Css("#go"))
+            .await
+            .unwrap_err(),
+    ] {
+        assert!(
+            matches!(&error, SeleniumBaseError::Unsupported(text) if text.contains("CDP")),
+            "{error:?}"
+        );
+    }
+    let mut case = BaseCase::with_session(config, session);
+    let error = case.click("#go").await.unwrap_err();
+    assert!(
+        !matches!(error, SeleniumBaseError::SessionNotStarted),
+        "{error:?}"
+    );
+    case.quit().await.unwrap();
+}
+
+#[tokio::test]
+async fn a_discovered_debugger_must_advertise_its_own_loopback_endpoint() {
+    let elsewhere = AttachServer::start(None).await;
+    for advertised in [
+        // Another loopback debugger.
+        elsewhere.websocket.clone(),
+        // The discovered port, on a host that is not this machine.
+        "ws://example.com:{http_port}/devtools/browser/x".to_owned(),
+    ] {
+        let debugger = AttachServer::start_advertising(None, Some(advertised)).await;
+        let plugin = AttachServer::start(Some(tauri_discovery(&debugger))).await;
+        let options = LaunchOptions::builder()
+            .cdp_url(format!("{}/app-token/", plugin.http))
+            .startup_timeout(Duration::from_secs(2))
+            .build()
+            .unwrap();
+        let error = Browser::launch(options).await.unwrap_err().to_string();
+        assert!(error.contains("outside"), "{error}");
+        assert!(!error.contains("app-token"), "{error}");
+    }
+    assert_eq!(elsewhere.connections.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn an_oversized_discovery_reply_is_refused_not_buffered() {
+    const HEAD: &str = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n";
+    // One reply announces a huge body and sends none; the other sends an
+    // endless-looking one with no length at all.
+    let announced = format!("{HEAD}Content-Length: 200000000\r\nConnection: close\r\n\r\n");
+    let mut unannounced = format!("{HEAD}Connection: close\r\n\r\n{{\"pad\":\"").into_bytes();
+    unannounced.extend(std::iter::repeat(b' ').take(3 << 20));
+    for reply in [announced.into_bytes(), unannounced] {
+        let (base, task) = canned_http(reply).await;
+        for address in [base.clone(), format!("{base}/app-token/")] {
+            let options = LaunchOptions::builder()
+                .cdp_url(address)
+                .startup_timeout(Duration::from_secs(2))
+                .build()
+                .unwrap();
+            let error = tokio::time::timeout(Duration::from_secs(10), Browser::launch(options))
+                .await
+                .expect("the size limit ends the attach")
+                .unwrap_err()
+                .to_string();
+            assert!(error.contains("too large"), "{error}");
+            assert!(!error.contains("app-token"), "{error}");
+        }
+        task.abort();
+    }
+}
+
+#[tokio::test]
+async fn discovery_errors_name_the_failing_step_and_the_http_status() {
+    let reply = b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+    let (base, task) = canned_http(reply.to_vec()).await;
+    for (address, step) in [
+        (format!("{base}/app-token/"), "Tauri discovery"),
+        (base.clone(), "version probe"),
+    ] {
+        let options = LaunchOptions::builder()
+            .cdp_url(address)
+            .startup_timeout(Duration::from_secs(2))
+            .build()
+            .unwrap();
+        let error = Browser::launch(options).await.unwrap_err().to_string();
+        assert!(error.contains(step), "{error}");
+        assert!(error.contains("404"), "{error}");
+        assert!(!error.contains("app-token"), "{error}");
+    }
+    task.abort();
+}
+
+
 #[cfg(feature = "plugins")]
 mod plugins {
     use super::*;
@@ -312,8 +673,8 @@ mod plugins {
             .with_plugins(set);
         let mut case = BaseCase::new(config).await.unwrap();
         assert_identity(&server);
-        assert_eq!(*log.lock().unwrap(), ["browser", "page", "page"]);
-        for session in ["ST1", "ST2"] {
+        assert_eq!(*log.lock().unwrap(), ["browser", "page"]);
+        for session in ["ST1"] {
             for needle in ["tauriPluginStealth", "tauriPluginHook"] {
                 let calls = server.calls();
                 for (method, field) in [
@@ -343,7 +704,7 @@ mod plugins {
         case.quit().await.unwrap();
         assert_eq!(
             *log.lock().unwrap(),
-            ["browser", "page", "page", "navigate", "close"]
+            ["browser", "page", "navigate", "close"]
         );
         assert_identity(&server);
     }
