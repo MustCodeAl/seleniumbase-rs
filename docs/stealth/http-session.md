@@ -164,7 +164,7 @@ refuses a value out of range before a client exists.
   in one call (`Fetched { reply, verdict }`); `session.preflight(url, &identity,
   state, &rules)` asks, before a request, whether the identity's clearance is
   about to end so that the browser should take the URL first. They are the
-  pieces of your own loop; [`StealthSession`](/stealth/stealth-session#stealthsession) is that loop.
+  pieces of your own loop; [`StealthSession`](/stealth/stealth-session) is that loop.
 
   ```rust
   use seleniumbase_rs_stealth::mimic::http_session::{Attempt, Rules};
