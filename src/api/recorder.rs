@@ -69,6 +69,14 @@ pub const SHIFT_ESC_JS: &str = include_str!("recorder/js/shift_esc.js");
 /// Python wraps the script in `window.onload = function() { ... }`; this adds
 /// a `load` listener instead, so a page that sets its own `onload` neither
 /// loses it nor removes the recorder.
+///
+/// The browser runs the script in every frame of a page, but the script
+/// records the top frame only, as Python's Recorder does (its extension has no
+/// `all_frames`): the load of a frame is not a page to open, and what a person
+/// does in a frame is seen from the top frame, where the focus leaves the page.
+/// A CAPTCHA widget (reCAPTCHA, hCaptcha, Turnstile) in a frame is one
+/// `captcha` action instead, which the generators write as a comment.
+
 pub fn recorder_injection() -> String {
     format!(
         "if (!document.__sbRecorderHooked) {{ document.__sbRecorderHooked = true; \
@@ -955,6 +963,64 @@ fn is_yaml_path(path: &Path) -> bool {
 mod tests {
     use super::calls::{Shape, CALLS, UNEXPORTABLE};
     use super::*;
+
+    #[test]
+    fn the_page_script_records_the_top_frame_of_a_document_once() {
+        // The browser's new-document hook runs the script in every frame, and
+        // the tab watcher may run it again in a page that is still loading;
+        // both guards come before the script defines or records anything.
+        let top_frame = RECORDER_JS
+            .find("if (window.self !== window.top) return;")
+            .expect("the script leaves a frame at once");
+        let once = RECORDER_JS
+            .find("if (document.__sbRecorderRan === true) return;")
+            .expect("the script runs once for each document");
+        let first_definition = RECORDER_JS
+            .find("var cssPathById")
+            .expect("the script defines its selectors");
+        assert!(top_frame < once && once < first_definition);
+        // A CAPTCHA frame is one `captcha` action, not a step or a tab.
+        assert!(RECORDER_JS.contains("['captcha', provider, window.location.origin, d_now]"));
+        // The wrapper for the new-document hook carries the same script.
+        assert!(recorder_injection().contains(RECORDER_JS));
+    }
+
+    #[test]
+
+    fn a_captcha_is_a_comment_in_every_form_of_the_output() {
+        let mut recorder = ActionRecorder::default();
+        recorder.record("goto", Some("https://a.test/"), None);
+        recorder.record("captcha", Some("recaptcha"), None);
+        recorder.record("click", Some("#after"), None);
+        let note = "skipped: captcha (recaptcha): solve it by hand or use";
+
+        let script = recorder.to_rust_script();
+        assert!(
+            script.contains(&format!("// {note} sb.solve_captcha()")),
+            "{script}"
+        );
+        assert!(script.contains("sb.click(\"#after\")"), "{script}");
+        syn::parse_file(&script).expect("a comment leaves a valid program");
+
+        let test = recorder.to_rstest_test("test_x", false);
+        assert!(
+            test.contains(&format!("// {note} sb.solve_captcha()")),
+            "{test}"
+        );
+
+        let cdp = recorder.to_cdp_script();
+        assert!(
+            cdp.contains(&format!("// {note} page.solve_captcha()")),
+            "{cdp}"
+        );
+        syn::parse_file(&cdp).expect("a comment leaves a valid program");
+
+        let feature = recorder.to_gherkin_scenario("F", "S", false);
+        assert!(
+            feature.contains(&format!("# {note} sb.solve_captcha()")),
+            "{feature}"
+        );
+    }
 
     fn sample_recorder() -> ActionRecorder {
         let mut recorder = ActionRecorder::default();

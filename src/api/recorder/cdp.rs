@@ -13,7 +13,7 @@
 
 use std::collections::BTreeSet;
 
-use super::calls::{canonical_name, number, offset_parts, rust_call};
+use super::calls::{canonical_name, captcha_note, number, offset_parts, rust_call, CAPTCHA};
 use super::{line, literal, RecordedAction};
 
 /// A recorded action as pure CDP code.
@@ -255,6 +255,8 @@ pub(super) fn cdp_call(action: &RecordedAction) -> Result<CdpCall, String> {
                 number::<i64>(name, "y offset", y)?
             )))
         }
+        CAPTCHA => Err(captcha_note(target, "page.solve_captcha()")),
+
         "sleep" => {
             let text = need_value()?;
             let seconds = text

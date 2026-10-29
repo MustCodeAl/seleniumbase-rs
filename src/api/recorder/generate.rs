@@ -10,6 +10,7 @@
 
 use serde_json::Value;
 
+use super::calls::CAPTCHA;
 use super::raw::{text, RawAction};
 use super::{keep_secrets, RecordedAction, SECRET_PLACEHOLDER};
 
@@ -125,6 +126,12 @@ fn typed(row: &RawAction) -> String {
 /// `type_text` into `press_keys`, as Python's `--uc` output does. The
 /// timestamp of each action is the time the page recorded.
 ///
+/// A `captcha` action (the page script saw a person work a CAPTCHA widget in a
+/// frame; its argument is the provider) is the action `captcha`, once for each
+/// run of them. It has no call: the generators write it as a comment that says
+/// to solve the widget by hand or with `solve_captcha`.
+///
+
 /// A text typed into a password field (the page script marks it) is
 /// [`SECRET_PLACEHOLDER`] instead, unless `SB_REC_KEEP_SECRETS=true`.
 ///
@@ -144,7 +151,19 @@ fn typed(row: &RawAction) -> String {
 /// assert_eq!(actions[1].value.as_deref(), Some("rust\n"));
 /// ```
 pub fn to_actions(sorted: &[RawAction], uc: bool) -> Vec<RecordedAction> {
-    sorted.iter().filter_map(|row| action(row, uc)).collect()
+    let mut actions: Vec<RecordedAction> = Vec::new();
+    for action in sorted.iter().filter_map(|row| action(row, uc)) {
+        // A person who works a CAPTCHA widget makes several of these in a
+        // row; the test needs one note about it.
+        let again = action.name == CAPTCHA
+            && actions
+                .last()
+                .is_some_and(|last| last.name == CAPTCHA && last.target == action.target);
+        if !again {
+            actions.push(action);
+        }
+    }
+    actions
 }
 
 /// The call one processed action makes, if it makes one.
@@ -280,6 +299,10 @@ fn action(row: &RawAction, uc: bool) -> Option<RecordedAction> {
         } else {
             "check_if_unchecked"
         }),
+        // The page script saw a person use a CAPTCHA widget: the provider is
+        // the argument. The generators write a comment for it.
+        "captcha" => on(CAPTCHA),
+
         _ => return None,
     })
 }
@@ -353,6 +376,13 @@ fn gherkin_step(action: &RecordedAction) -> Result<String, String> {
         })
     };
     Ok(match name {
+        CAPTCHA => {
+            return Err(super::calls::captcha_note(
+                target,
+                "sb.solve_captcha() in a step of your own",
+            ))
+        }
+
         "goto" => one("Open")?,
         "goto_if_not_url" => one("Open if not")?,
         "click" => one("Click")?,
@@ -533,6 +563,13 @@ mod tests {
     use super::*;
     use serde_json::json;
 
+    fn named(rows: &[RawAction]) -> Vec<String> {
+        to_actions(rows, false)
+            .into_iter()
+            .map(|a| format!("{}:{}", a.name, a.target.unwrap_or_default()))
+            .collect()
+    }
+
     fn raw(kind: &str, arg: Value, detail: Value) -> RawAction {
         RawAction::new(kind, arg, detail, 1)
     }
@@ -553,6 +590,33 @@ mod tests {
     }
 
     #[test]
+    fn a_captcha_is_one_action_for_each_run_of_them() {
+        let widget = |provider: &str| raw("captcha", json!(provider), json!("https://a.test"));
+        let rows = vec![
+            raw("click", json!("#a"), json!("")),
+            widget("recaptcha"),
+            widget("recaptcha"),
+            // An action that makes no call does not break the run.
+            raw("_skip", json!("x"), json!("")),
+            widget("recaptcha"),
+            widget("hcaptcha"),
+            raw("click", json!("#b"), json!("")),
+            widget("recaptcha"),
+        ];
+        assert_eq!(
+            named(&rows),
+            [
+                "click:#a",
+                "captcha:recaptcha",
+                "captcha:hcaptcha",
+                "click:#b",
+                "captcha:recaptcha"
+            ]
+        );
+    }
+
+    #[test]
+
     fn opens_become_goto_and_goto_if_not_url_with_the_url_decoded() {
         expect(
             raw("begin", json!("o"), json!("https://a.test/a%20b?q=%C3%A9")),
