@@ -183,6 +183,9 @@ pub(crate) enum ProfileMode {
 pub struct LaunchOptions {
     pub(crate) url: Option<String>,
     pub(crate) cdp_url: Option<Redacted>,
+    /// The window to drive when attaching: a target id, or part of its URL.
+    pub(crate) cdp_target: Option<String>,
+
     pub(crate) headless: Option<bool>,
     pub(crate) source: BrowserSource,
     pub(crate) mode: ProfileMode,
@@ -245,6 +248,14 @@ impl LaunchOptions {
     #[must_use]
     pub fn cdp_url(&self) -> Option<&str> {
         self.cdp_url.as_ref().map(|url| url.0.as_str())
+    }
+
+    /// The window an attached browser is asked to drive, if one was named with
+    /// [`cdp_target`](LaunchOptionsBuilder::cdp_target): a target id, or part
+    /// of the window's URL.
+    #[must_use]
+    pub fn cdp_target(&self) -> Option<&str> {
+        self.cdp_target.as_deref()
     }
 
     /// Starts building launch options.
@@ -463,6 +474,8 @@ pub struct LaunchOptionsBuilder {
     url: Option<String>,
     cdp_url: Option<Redacted>,
     headless: Option<bool>,
+    cdp_target: Option<String>,
+
     use_chromium: bool,
     executable_path: Option<PathBuf>,
     incognito: bool,
@@ -508,6 +521,8 @@ impl Default for LaunchOptionsBuilder {
             url: None,
             cdp_url: None,
             headless: None,
+            cdp_target: None,
+
             use_chromium: false,
             executable_path: None,
             incognito: false,
@@ -550,7 +565,15 @@ impl LaunchOptionsBuilder {
     /// Attaches instead of launching, reusing the existing connection pipeline.
     /// Accepts an HTTP debugger, a browser WebSocket, or an authenticated Tauri
     /// plugin URL. Launch-only settings cannot change an already-running app.
-    /// The fingerprint and attach-compatible plugins apply to existing tabs.
+    /// The fingerprint and attach-compatible plugins apply to the windows the
+    /// automation opens or picks, and to no other window of the app (see
+    /// [`cdp_target`](Self::cdp_target)).
+    ///
+    /// The browser belongs to the app, so what cannot be applied to it is
+    /// refused by [`build`](Self::build) with
+    /// [`SeleniumBaseError::InvalidConfig`]: a proxy or PAC file (a
+    /// fingerprint's proxy too), and a user agent or locale without a
+    /// fingerprint, which applies both to the windows it prepares.
     ///
     /// ```no_run
     /// use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
@@ -564,6 +587,33 @@ impl LaunchOptionsBuilder {
     #[must_use]
     pub fn cdp_url(mut self, url: impl Into<String>) -> Self {
         self.cdp_url = Some(Redacted(url.into()));
+        self
+    }
+
+    /// Names the window to drive when attaching with
+    /// [`cdp_url`](Self::cdp_url): a target id, or part of the window's URL.
+    ///
+    /// An app can own several windows, and only the one that is picked gets
+    /// the fingerprint and the plugins. Without a target the first window is
+    /// the one. Has no effect on a browser the library launches.
+    ///
+    /// ```no_run
+    /// use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
+    /// # async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    /// let options = LaunchOptions::builder()
+    ///     .cdp_url("http://127.0.0.1:9222")
+    ///     .cdp_target("/settings")
+    ///     .build()?;
+    /// let browser = Browser::launch(options).await?;
+    /// let settings = browser.select_page("/settings").await?; // The other windows are left alone.
+    /// # drop(settings);
+    /// browser.close().await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[must_use]
+    pub fn cdp_target(mut self, target: impl Into<String>) -> Self {
+        self.cdp_target = Some(target.into());
         self
     }
 
@@ -926,6 +976,9 @@ impl LaunchOptionsBuilder {
                  use one of them",
             ));
         }
+        if self.cdp_url.is_some() {
+            self.check_attachable()?;
+        }
         let pac = self
             .proxy_pac_url
             .as_ref()
@@ -952,6 +1005,34 @@ impl LaunchOptionsBuilder {
         #[cfg(not(feature = "plugins"))]
         let this = self;
         Ok(this.assemble(proxy, pac))
+    }
+
+    /// Refuses what a browser that is only attached to cannot be given.
+    ///
+    /// The browser is the app's. A proxy would need a launch flag (and a login
+    /// would turn on request interception in every tab with nothing to answer
+    /// it, hanging the app's own requests). A user agent or locale given as a
+    /// launch flag would be dropped without a word, so it is only taken when a
+    /// fingerprint (or a phone, for the user agent) applies it to the tabs that
+    /// are prepared.
+    fn check_attachable(&self) -> Result<(), SeleniumBaseError> {
+        if self.proxy.is_some() || self.proxy_pac_url.is_some() {
+            return Err(SeleniumBaseError::invalid_config(
+                "a proxy cannot be set on an attached browser: it belongs to the app, whose \
+                 network settings are not changed (this covers a PAC file and the proxy of a \
+                 fingerprint); set the proxy where the app starts its browser",
+            ));
+        }
+        let phone = self.mobile || self.device_metrics.is_some();
+        let unapplied_agent = self.user_agent.is_some() && !phone;
+        if self.identity.is_none() && (unapplied_agent || self.lang.is_some()) {
+            return Err(SeleniumBaseError::invalid_config(
+                "a user agent or locale needs a fingerprint on an attached browser: they are \
+                 launch flags, which cannot reach a running app, and a fingerprint applies \
+                 both to the windows it prepares",
+            ));
+        }
+        Ok(())
     }
 
     /// Adds the plugins named with `plugins_named` and `plugin_selection` to
@@ -1003,6 +1084,8 @@ impl LaunchOptionsBuilder {
         LaunchOptions {
             url: self.url,
             cdp_url: self.cdp_url,
+            cdp_target: self.cdp_target,
+
             headless: self.headless,
             source,
             mode,
