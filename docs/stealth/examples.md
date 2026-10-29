@@ -14,9 +14,12 @@ this repository. Clone the stealth one and run them from its workspace root.
 
 <Info>
 
-The "shop" of `http_session` and `stealth_session` is a stand-in written for
-the examples, in the mimic crate's example support code. It is not any
-vendor's challenge, and getting past it says nothing about a real service.
+That site, the "shop" of `http_session` and `stealth_session`, is a stand-in
+written for the examples. On this site it used to be named
+`examples/stealth_support/shop.rs`; in the stealth repository it is the mimic
+crate's example support code (`crates/mimic/examples/stealth_support/shop.rs`).
+It is not any vendor's challenge, and getting past it says nothing about a
+real service.
 
 </Info>
 
