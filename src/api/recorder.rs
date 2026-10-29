@@ -76,7 +76,6 @@ pub const SHIFT_ESC_JS: &str = include_str!("recorder/js/shift_esc.js");
 /// does in a frame is seen from the top frame, where the focus leaves the page.
 /// A CAPTCHA widget (reCAPTCHA, hCaptcha, Turnstile) in a frame is one
 /// `captcha` action instead, which the generators write as a comment.
-
 pub fn recorder_injection() -> String {
     format!(
         "if (!document.__sbRecorderHooked) {{ document.__sbRecorderHooked = true; \

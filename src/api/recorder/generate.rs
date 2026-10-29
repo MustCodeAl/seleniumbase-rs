@@ -131,7 +131,6 @@ fn typed(row: &RawAction) -> String {
 /// run of them. It has no call: the generators write it as a comment that says
 /// to solve the widget by hand or with `solve_captcha`.
 ///
-
 /// A text typed into a password field (the page script marks it) is
 /// [`SECRET_PLACEHOLDER`] instead, unless `SB_REC_KEEP_SECRETS=true`.
 ///
