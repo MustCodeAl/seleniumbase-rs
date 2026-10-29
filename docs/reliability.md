@@ -247,8 +247,9 @@ match sb.assert_text_visible("Welcome!", "body").await {
 The files go to the `latest_logs` folder of the working directory, named
 `screenshot_<milliseconds>.png` and `page_source_<milliseconds>.html`. The
 `sbrs screenshot` and `sbrs save-source` commands write the same files, but
-each starts its own fresh browser, so they capture a blank page, not your test's
-failing one.
+each starts its own fresh browser, so they capture the start page you give them
+(`sbrs --url https://example.com screenshot`; without one they refuse to run),
+not your test's failing page.
 
 <Warning>
 

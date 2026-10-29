@@ -173,7 +173,7 @@ Sets one option of a plugin. `VALUE` is a TOML value, so a string is written wit
 ```sh Terminal
 sbrs --plugin shield open https://example.com
 sbrs --plugin shield --plugin-opt 'shield.level="strict"' open https://example.com
-sbrs --plugin block-resources --plugin-opt 'block-resources.preset="media"' screenshot
+sbrs --plugin block-resources --plugin-opt 'block-resources.preset="media"' --url https://example.com screenshot
 sbrs --plugin shield --plugin-opt 'shield.extra_block_hosts=["tracker.example"]' devtools
 ```
 

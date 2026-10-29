@@ -22,7 +22,7 @@ files, and more. This page covers the most common workflows.
 
 <Visibility for="agents">
 
-Summary for AI exports: `sbrs` is the command line of the `seleniumbase-rs-cli` package (`cargo install --path crates/cli`). Global options such as `--uc`, `--cdp`, `--headless`, `--browser`, `--proxy` and `--proxy-list` go before the subcommand. Commands on this page include `open`, `smoke`, `cdp`, `devtools`, `plugin`, `screenshot`, `save-source`, `assert-element`, `wait-for-text`, `patch-chromedriver`, `patch-chrome`, `doctor`, `install`, `prompt`, `test`, `encrypt`, `decrypt`, `report`, `run-scenario`, `mkfile`, `mkdir`, `import-python`, `import-playwright`, `import-puppeteer` and `completions`. Every command and flag is in the [CLI reference](/help/cli_reference).
+Summary for AI exports: `sbrs` is the command line of the `seleniumbase-rs-cli` package (`cargo install --path crates/cli`). Global options such as `--uc`, `--cdp`, `--headless`, `--browser`, `--proxy` and `--proxy-list` go before the subcommand. A command that acts on a page needs a start page: `--url URL`, `SB_START_PAGE` or the `start_page` key of the settings file; without one it stops with status 2. Commands on this page include `open`, `smoke`, `cdp`, `devtools`, `plugin`, `screenshot`, `save-source`, `assert-element`, `wait-for-text`, `patch-chromedriver`, `patch-chrome`, `doctor`, `install`, `prompt`, `test`, `encrypt`, `decrypt`, `report`, `run-scenario`, `mkfile`, `mkdir`, `import-python`, `import-playwright`, `import-puppeteer` and `completions`. Every command and flag is in the [CLI reference](/help/cli_reference).
 
 </Visibility>
 
@@ -97,20 +97,33 @@ wins over the file. They apply to every command that starts a browser and to
 `sbrs devtools`. A mistake stops the command with exit status 2 before a browser
 starts. See [Choosing plugins](/plugins/selecting).
 
+## Give a command its page
+
+Every `sbrs` command starts a fresh browser and quits it at the end, so a command
+that acts on a page needs a start page: `--url` (also `--start-page` and
+`--start_page`), `SB_START_PAGE`, or the `start_page` key of the settings file.
+Without one it stops with status 2 before a browser starts. Commands that open a
+URL of their own (`open`, `smoke`, `download-file`, `print-pdf`, `pdf-text`,
+`assert-pdf-text`) take it as an argument and refuse `--url`.
+
 ## Save artifacts
 
 ```bash
-./target/debug/sbrs screenshot
-./target/debug/sbrs save-source
+./target/debug/sbrs --url https://seleniumbase.io screenshot
+./target/debug/sbrs --url https://seleniumbase.io save-source
+./target/debug/sbrs --url https://seleniumbase.io --save-screenshot get-title
 ```
 
 ## Assertions and waits
 
 ```bash
-./target/debug/sbrs open https://seleniumbase.io
-./target/debug/sbrs assert-element --css "body"
-./target/debug/sbrs wait-for-text --css "body" --text "SeleniumBase" --timeout 15
+./target/debug/sbrs --url https://seleniumbase.io assert-element --css "body"
+./target/debug/sbrs --url https://seleniumbase.io wait-for-text --css "body" --text "SeleniumBase" --timeout 15
 ```
+
+Several steps in one browser are `run-scenario`, `deferred` and the MCP server.
+There is no `go-back`, `refresh` or `switch-to-window` command: one that only
+changes the state of a browser that is thrown away has no effect you could see.
 
 ## Patch chromedriver
 

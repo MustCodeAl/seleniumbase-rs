@@ -577,9 +577,9 @@ std::fs::write("heading.png", page.locator("h1").screenshot().await?)?;
 
 </Tabs>
 
-`sbrs screenshot` and `sbrs save-source` start a new browser and capture it
-before any page is open, so they do not help with a page. Use one of the code
-tabs.
+`sbrs screenshot` and `sbrs save-source` start a new browser and capture the
+start page you give them (`sbrs --url https://example.com screenshot`), so they
+do not help with a page your test reached. Use one of the code tabs.
 
 ### Print a page to PDF
 
@@ -639,8 +639,8 @@ sbrs --headless print-pdf https://example.com -o example.pdf
 `download_file_in_browser` opens the address in a new tab, waits up to the given
 number of seconds for the file, and goes back to the first tab. The assertions
 wait up to the default timeout for a file that is still being written. All of
-them look in `get_downloads_folder()`: the system's Downloads folder, or the
-working directory when the system names none.
+them look in `get_downloads_folder()`: the `downloaded_files` folder of the
+working directory, as in Python SeleniumBase.
 
 `download_file` is the plain HTTP form, as in Python: it fetches the address
 with the browser's user agent, sends none of the page's cookies, and saves the
@@ -666,10 +666,13 @@ println!("downloads go to {}", sb.get_downloads_folder().display());
 
 <Warning>
 
-The WebDriver engine does not tell the browser where to save. If the browser
-saves somewhere other than `get_downloads_folder()`, the wait of
-`download_file_in_browser` or of an assertion ends in a timeout. The pure CDP
-engine sets the folder itself.
+A browser the library launches is told to save into `get_downloads_folder()`:
+the WebDriver engine asks for it in the session's capabilities (a download
+preference you set yourself wins), and the pure CDP engine sends
+`Browser.setDownloadBehavior` at launch. If your own preferences make the browser
+save somewhere else, or the library only attaches to a browser that keeps its own
+settings, the wait of `download_file_in_browser` or of an assertion ends in a
+timeout.
 
 </Warning>
 

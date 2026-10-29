@@ -20,7 +20,7 @@ Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...)
 | `download_file_in_browser(url, filename, timeout_secs)` | Navigates to `url` in a new tab, waits up to `timeout_secs` for `filename` in the downloads folder, returns to the first tab and returns the file's `PathBuf`. This is the browser-tab download that `download_file` used to be. |
 | `save_data_as(data, filename)` | Writes the text `data` to `filename` in the logs directory, replacing the file. |
 | `print_to_pdf(filename)` | Saves the current page as a PDF. |
-| `get_downloads_folder()` | Returns the default downloads directory. |
+| `get_downloads_folder()` | Returns the downloads directory, `downloaded_files` in the working directory. |
 | `get_downloaded_files()` | Returns a list of downloaded file names. |
 | `is_downloaded_file_present(filename)` | Returns true if the file exists in downloads. |
 | `assert_downloaded_file(filename)` | Waits up to the default timeout for the file, then fails if it is not present. |
