@@ -155,6 +155,13 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- **The rest of the stealth section is organized as a reading order, with the
+  existing text kept.** The sidebar and `docs/SUMMARY.md` now run tutorial,
+  overview, wire formats, identity, `BrowserScraper`, `HttpSession`, `MitmProxy`,
+  `StealthSession`, examples, limits. Each topic page gains the re-export it can
+  be imported through and links to the pages beside it. `BrowserScraper` also
+  gains the builder table and the locale move. Nothing already on those pages was
+  removed.
 - **The stealth scraping guide now matches the facade, without dropping the
   feature catalogue.** The tutorial picks a tool, shows the one Git dependency
   and a `BrowserScraper` fetch through the `scrape` re-export, and states what

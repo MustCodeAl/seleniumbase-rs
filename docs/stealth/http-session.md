@@ -230,6 +230,13 @@ refused. The rest of `HttpSession` is tested against loopback sites
 
 ## Next steps
 
+`HttpSession`, `HttpOptions`, `HttpReply` and `HttpError` are re-exported at
+`seleniumbase_rs_stealth::mimic`, which is what the example above imports. The
+module path `mimic::http_session::HttpSession` is the same type. Five names that
+would clash at the root are renamed there: `Attempt`, `Fetched`, `Rules`,
+`Verdict` and `Headers` become `HttpAttempt`, `HttpFetched`, `HttpRules`,
+`HttpVerdict` and `ReplyHeaders`. The original names stay in `http_session`.
+
 <Columns cols={2}>
 
 <Card color="#1a85d4" title="Identity" icon="id-card" href="/stealth/identity">
@@ -241,6 +248,18 @@ Identity, session policy, the cookie jar and challenge detection.
 <Card color="#199f43" title="StealthSession" icon="shuffle" href="/stealth/stealth-session">
 
 The loop built from `fetch`, `assess` and `preflight`.
+
+</Card>
+
+<Card color="#1ca1c7" title="MitmProxy" icon="shield" href="/stealth/mitm-proxy">
+
+The loopback proxy that gives a real Chrome this same handshake.
+
+</Card>
+
+<Card color="#d5a910" title="Limits" icon="triangle-exclamation" href="/stealth/limits">
+
+The handshake gaps this session sends, and what each `HttpError` means.
 
 </Card>
 
