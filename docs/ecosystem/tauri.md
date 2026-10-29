@@ -204,6 +204,14 @@ e2e = ["dep:tauri-plugin-sbrs-automation"]
 tauri-plugin-sbrs-automation = { git = "https://github.com/MustCodeAl/tauri-plugin-sbrs-automation", optional = true }
 ```
 
+An app that bundles its own Chromium (CEF, or WebView2 on Windows) and wants
+the pure CDP engine also turns on the plugin's `cdp` Cargo feature, in the same
+optional dependency (see [App-owned Chromium](#app-owned-chromium-cef-and-webview2)):
+
+```toml src-tauri/Cargo.toml
+tauri-plugin-sbrs-automation = { git = "https://github.com/MustCodeAl/tauri-plugin-sbrs-automation", optional = true, features = ["cdp"] }
+```
+
 </Step>
 
 <Step title="Register it" icon="plug">
@@ -328,7 +336,19 @@ Chromium's loopback CDP debugger and use the pure `sb_cdp` engine. The app owns
 and initializes its runtime. System WKWebView and WebKitGTK do not speak CDP;
 their existing WebDriver integration above continues to work.
 
-Enable the automation plugin's `cdp` Cargo feature (Rust 1.99). It uses a pinned
+Enable the automation plugin's `cdp` Cargo feature (Rust 1.99), in the same
+optional dependency that the `e2e` feature turns on, so a release build has
+neither:
+
+```toml src-tauri/Cargo.toml
+[features]
+e2e = ["dep:tauri-plugin-sbrs-automation"]
+
+[dependencies]
+tauri-plugin-sbrs-automation = { git = "https://github.com/MustCodeAl/tauri-plugin-sbrs-automation", optional = true, features = ["cdp"] }
+```
+
+The feature uses a pinned
 Git dependency on `seleniumbase-rs` for `engine_spoofing_args()`, so the engine
 stealth switches have a single source. Before any threads or runtime initialization:
 
@@ -386,11 +406,17 @@ let options = LaunchOptions::builder()
 let browser = Browser::launch(options).await?; // Attaches; launches no process.
 let page = browser.default_page().await?;
 page.locator("#save").click().await?;
-// The existing CdpDriver can also drive this browser with CdpDriver::attach(browser).
+// A CdpDriver value can also drive it: `driver.attach(browser).await?`.
 browser.close().await?;
 # Ok(())
 # }
 ```
+
+Attaching never changes the app's other windows: only the window you pick (or
+open) gets the fingerprint, and a proxy, or a user agent or locale without a
+fingerprint, is refused because the app owns its network and profile settings.
+`close()` and `quit()` detach what they attached and leave the app running. See
+[what attaching changes in the app](/ecosystem/tauri-api/cdp#what-attaching-changes-in-the-app).
 
 `BrowserConfig::with_cdp_url` bypasses discovery; it takes HTTP or browser
 WebSocket URLs. An authenticated plugin URL is also accepted. For discovery,
@@ -401,9 +427,11 @@ separate loopback Chromium socket. Discovery rejects redirects and endpoints
 outside loopback. `/status` keeps its existing response.
 
 With the `plugins` feature, use the existing `BrowserConfig::with_plugins` or
-`LaunchOptionsBuilder::plugins`. Attachment runs `on_browser`, packages and
-`on_page_created` for each existing window, and normal page/browser hooks
-afterwards. Launch-only plugins are refused by the existing attach checks;
+`LaunchOptionsBuilder::plugins`. Attachment runs `on_browser`; packages and
+`on_page_created` run for each window the automation opens or picks, and normal
+page/browser hooks afterwards. The app's other windows are left untouched: pick
+the one to drive with `BrowserConfig::with_cdp_target` (a target id or part of
+its URL) or `Browser::select_page`. Launch-only plugins are refused by the existing attach checks;
 `before_launch` is not run. Fingerprints use `session_script` and
 `safe_cdp_overrides`, including `native_spoofing` overrides. The script is
 registered with `Page.addScriptToEvaluateOnNewDocument` and `runImmediately`
@@ -617,6 +645,19 @@ WebDriver's "execute script" is for. So it is guarded:
 - requests from web pages (any request with an `Origin` header) are refused.
 
 Keep it behind a Cargo feature that release builds do not enable.
+
+</Warning>
+
+<Warning>
+
+With the `cdp` feature, the app also opens Chromium's raw debug socket
+(`--remote-debugging-port`, CEF or WebView2). **That socket has no
+authentication**: any process on the machine that can reach
+`127.0.0.1:{port}` can drive every window of the app, read its pages and run
+script in them, without the token. The token guards the plugin's discovery
+route only. Turn `cdp` and the debugging port on in debug and test builds
+only; they must be off in release builds (leave `SBRS_CDP_PORT` unset and build
+without the `e2e` feature).
 
 </Warning>
 

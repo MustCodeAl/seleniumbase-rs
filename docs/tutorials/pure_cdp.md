@@ -142,8 +142,11 @@ A cross-origin frame cannot be entered from page script, so it matches nothing.
 `page.cookies()` (`all`, `set`, `clear`, `header`, `save`, `load`),
 `page.local_storage()` / `page.session_storage()`, `page.window()` and
 `page.emulation()` (timezone, locale, geolocation, user agent, offline).
-`browser.new_page`, `pages`, `newest_page` and `page.bring_to_front` manage
-tabs. Cookie values are redacted in `Debug`.
+`browser.new_page`, `pages`, `newest_page`, `select_page` (a target id or part
+of a URL) and `page.bring_to_front` manage tabs. On a browser attached with
+`cdp_url`, `select_page` and `page(id)` prepare only the tab they return, and
+`pages()` prepares every one of the app's tabs. Cookie values are redacted in
+`Debug`.
 
 ## Downloads
 

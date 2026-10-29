@@ -146,15 +146,57 @@ System WKWebView and WebKitGTK use the WebDriver bridge instead of CDP.
 | `LaunchOptionsBuilder::cdp_url(url)` | `Browser::launch(options)` attaches without launching a process. |
 | `LaunchOptionsBuilder::browser_config(&config)` | Carries CDP selection, fingerprint and plugins into the pure engine. |
 | `BrowserSession::pure_cdp_page()` | Access the full attached `Page` and its `Browser`. |
-| `CdpDriver::attach(browser)` | Use the existing driver with the attached browser. |
+| `CdpDriver::attach(&mut self, browser)` | An instance method, not a static call: `let mut driver = CdpDriver::new(); driver.attach(browser).await?;` drives the attached browser's first window. |
+| `BrowserConfig::with_cdp_target(window)` | The window `BaseCase` drives: a target id or part of its URL. Without it, the first window. |
+| `Browser::select_page(window)` | The same choice on a `Browser`: a target id, else the first window whose URL contains the text. |
 
 Use `BaseCase::cdp_*` methods for the directly attached page. Fingerprints use
 the existing evasion provider registry for future documents and already-open
 contexts, plus native CDP overrides when `native_spoofing` is enabled.
 `with_plugins(...)` or `LaunchOptionsBuilder::plugins(...)` enables the existing
 attach-compatible plugin hooks and packages (feature `plugins`). Launch-only
-plugins are refused, and `before_launch` is not called. Closing the connection
-leaves the app running.
+plugins are refused, and `before_launch` is not called.
+
+### What attaching changes in the app
+
+The browser belongs to the app, so attaching must not break or take over its
+windows:
+
+- **Only the windows you pick are prepared.** Attaching sends nothing to any
+  window. The fingerprint, emulation and plugins reach a window when the
+  automation opens it (`new_page`, `new_window`) or picks it: `default_page()`
+  (the first window), `page(id)`, `select_page(id_or_url_part)`,
+  `BrowserConfig::with_cdp_target(...)` for `BaseCase`, or `pages()`, which
+  asks for every window. `list_pages()` only lists them. The app's other
+  windows are left as they are.
+- **A proxy is refused.** The app's network settings are not the test's to
+  change, so `proxy`, `proxy_pac_url` and a fingerprint's proxy make the build
+  fail with `SeleniumBaseError::InvalidConfig` (the login is never printed).
+  Configure the proxy in the app before it starts.
+- **A user agent or locale needs a fingerprint.** On their own they are launch
+  flags, which cannot reach a running app, so they are refused. A fingerprint
+  applies its own user agent and locale to the windows it prepares.
+- **Closing detaches.** `Browser::close()` detaches every session it opened
+  (`Target.detachFromTarget`), which ends the emulation, script injections and
+  request interception of those windows, and resets the permissions and the
+  download behaviour it set. It never sends `Browser.close` and never closes
+  the app's windows. Every handle of that browser fails with a
+  browser-disconnected error afterwards. Script that already ran in a page
+  stays until the page navigates.
+- **`reconnect()` re-attaches** to the endpoint in the configuration; it does
+  not start a browser or a driver.
+
+WebDriver-only helpers return `SeleniumBaseError::Unsupported` on such a
+session instead of panicking (see [CDP and UC helpers](/api/cdp-uc)).
+
+<Warning>
+
+The Chromium debug socket itself is **not authenticated**: any process on the
+machine that can reach `127.0.0.1:{port}` can drive every window of the app.
+The plugin's token guards discovery only. Enable it in debug and test builds,
+never in a release build.
+
+</Warning>
 
 See the [Tauri setup guide](/ecosystem/tauri#app-owned-chromium-cef-and-webview2)
 for complete client examples. Launch flags and binary patches must be applied
