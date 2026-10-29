@@ -10,7 +10,7 @@ use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
 use seleniumbase_rs::{BaseCase, BrowserConfig, BrowserSession, Fingerprint, SeleniumBaseError};
 use serde_json::{json, Value};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpListener;
+use tokio::net::{TcpListener, TcpStream};
 use tokio::task::JoinHandle;
 use tokio_tungstenite::tungstenite::Message;
 
@@ -33,78 +33,32 @@ impl AttachServer {
     /// A server whose `/json/version` advertises `advertised` instead of its
     /// own browser WebSocket, as a misbehaving or hostile debugger would.
     async fn start_advertising(discovery: Option<Value>, advertised: Option<String>) -> Self {
-        let ws_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let websocket = format!(
-            "ws://{}/devtools/browser/tauri",
-            ws_listener.local_addr().unwrap()
+        // One port serves both, as a real DevTools endpoint does.
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let http = format!("http://{address}");
+        let websocket = format!("ws://{address}/devtools/browser/tauri");
+        let port = address.port().to_string();
+        let ws_url = advertised.map_or_else(
+            || websocket.clone(),
+            |url| url.replace("{http_port}", &port),
         );
         let calls = Arc::new(Mutex::new(Vec::new()));
-        let recorded = calls.clone();
-        let connections = Arc::new(AtomicUsize::new(0));
-        let counted = connections.clone();
-        let ws_task = tokio::spawn(async move {
-            while let Ok((stream, _)) = ws_listener.accept().await {
-                counted.fetch_add(1, Ordering::SeqCst);
-                let mut socket = tokio_tungstenite::accept_async(stream).await.unwrap();
-                while let Some(Ok(Message::Text(text))) = socket.next().await {
-                    let call: Value = serde_json::from_str(&text).unwrap();
-                    let result = match call["method"].as_str().unwrap() {
-                        "Target.getTargets" => json!({ "targetInfos": [
-                            { "targetId": "T1", "type": "page", "url": "https://tauri.localhost/", "title": "Tauri" },
-                            { "targetId": "T2", "type": "page", "url": "https://tauri.localhost/settings", "title": "Settings" }
-                        ] }),
-                        "Target.createTarget" => json!({ "targetId": "T3" }),
-
-                        "Target.attachToTarget" => {
-                            json!({ "sessionId": format!("S{}", call["params"]["targetId"].as_str().unwrap()) })
-                        }
-                        "Target.getTargetInfo" => {
-                            json!({ "targetInfo": { "browserContextId": "app" } })
-                        }
-                        "Page.addScriptToEvaluateOnNewDocument" => json!({ "identifier": "init" }),
-                        "Runtime.evaluate" => {
-                            json!({ "result": { "type": "string", "value": "Tauri window" } })
-                        }
-                        "Browser.getVersion" => json!({ "userAgent": "Chrome/155.0.0.0" }),
-                        _ => json!({}),
-                    };
-                    recorded.lock().unwrap().push(call.clone());
-                    let mut reply = json!({ "id": call["id"], "result": result });
-                    if let Some(session) = call.get("sessionId") {
-                        reply["sessionId"] = session.clone();
-                    }
-                    if socket
-                        .send(Message::Text(reply.to_string().into()))
-                        .await
-                        .is_err()
-                    {
-                        break;
-                    }
-                }
-            }
-        });
-        let http_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let http = format!("http://{}", http_listener.local_addr().unwrap());
-        let http_port = http_listener.local_addr().unwrap().port().to_string();
-        let ws_url = advertised.map_or_else(|| websocket.clone(), |url| url.replace("{http_port}", &http_port));
         let requests = Arc::new(Mutex::new(Vec::new()));
-        let paths = requests.clone();
-        let http_task = tokio::spawn(async move {
-            while let Ok((mut stream, _)) = http_listener.accept().await {
-                let mut bytes = Vec::new();
-                while !bytes.ends_with(b"\r\n\r\n") {
-                    bytes.push(stream.read_u8().await.unwrap());
-                }
-                let request = String::from_utf8(bytes).unwrap();
-                let path = request.split_whitespace().nth(1).unwrap();
-                paths.lock().unwrap().push(path.to_owned());
-                let body = if path == "/app-token/cdp" {
-                    discovery.clone().unwrap_or(json!({ "value": { "cdpEnabled": false, "cdpPort": null, "cdpUrl": null } }))
-                } else if path == "/json/version" {
-                    json!({ "webSocketDebuggerUrl": ws_url, "User-Agent": "Chrome/155.0.0.0" })
-                } else { json!({}) }.to_string();
-                let reply = format!("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len());
-                stream.write_all(reply.as_bytes()).await.unwrap();
+        let connections = Arc::new(AtomicUsize::new(0));
+        let (recorded, paths, counted) = (calls.clone(), requests.clone(), connections.clone());
+        let task = tokio::spawn(async move {
+            while let Ok((stream, _)) = listener.accept().await {
+                let (discovery, ws_url) = (discovery.clone(), ws_url.clone());
+                let (recorded, paths, counted) = (recorded.clone(), paths.clone(), counted.clone());
+                tokio::spawn(async move {
+                    if wants_websocket(&stream).await {
+                        counted.fetch_add(1, Ordering::SeqCst);
+                        serve_websocket(stream, recorded).await;
+                    } else {
+                        serve_http(stream, paths, discovery, ws_url).await;
+                    }
+                });
             }
         });
         Self {
@@ -113,14 +67,99 @@ impl AttachServer {
             calls,
             requests,
             connections,
-
-            tasks: vec![ws_task, http_task],
+            tasks: vec![task],
         }
     }
 
     fn calls(&self) -> Vec<Value> {
         self.calls.lock().unwrap().clone()
     }
+}
+
+/// Whether the request waiting on `stream` asks for a WebSocket upgrade. The
+/// request is only peeked at, so the handshake or the HTTP reply still reads it.
+async fn wants_websocket(stream: &TcpStream) -> bool {
+    let mut buffer = [0_u8; 2048];
+    for _ in 0..200 {
+        let read = stream.peek(&mut buffer).await.unwrap_or(0);
+        let head = String::from_utf8_lossy(&buffer[..read]).to_ascii_lowercase();
+        if head.contains("\r\n\r\n") {
+            return head.contains("upgrade: websocket");
+        }
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+    false
+}
+
+/// Answers the browser-level DevTools commands of one WebSocket connection,
+/// recording each.
+async fn serve_websocket(stream: TcpStream, recorded: Arc<Mutex<Vec<Value>>>) {
+    let mut socket = tokio_tungstenite::accept_async(stream).await.unwrap();
+    while let Some(Ok(Message::Text(text))) = socket.next().await {
+        let call: Value = serde_json::from_str(&text).unwrap();
+        let result = match call["method"].as_str().unwrap() {
+            "Target.getTargets" => json!({ "targetInfos": [
+                { "targetId": "T1", "type": "page", "url": "https://tauri.localhost/", "title": "Tauri" },
+                { "targetId": "T2", "type": "page", "url": "https://tauri.localhost/settings", "title": "Settings" }
+            ] }),
+            "Target.createTarget" => json!({ "targetId": "T3" }),
+            "Target.attachToTarget" => {
+                json!({ "sessionId": format!("S{}", call["params"]["targetId"].as_str().unwrap()) })
+            }
+            "Target.getTargetInfo" => {
+                json!({ "targetInfo": { "browserContextId": "app" } })
+            }
+            "Page.addScriptToEvaluateOnNewDocument" => json!({ "identifier": "init" }),
+            "Runtime.evaluate" => {
+                json!({ "result": { "type": "string", "value": "Tauri window" } })
+            }
+            "Browser.getVersion" => json!({ "userAgent": "Chrome/155.0.0.0" }),
+            _ => json!({}),
+        };
+        recorded.lock().unwrap().push(call.clone());
+        let mut reply = json!({ "id": call["id"], "result": result });
+        if let Some(session) = call.get("sessionId") {
+            reply["sessionId"] = session.clone();
+        }
+        if socket
+            .send(Message::Text(reply.to_string().into()))
+            .await
+            .is_err()
+        {
+            break;
+        }
+    }
+}
+
+/// Answers one HTTP request: the plugin's `/app-token/cdp` discovery and the
+/// debugger's `/json/version`.
+async fn serve_http(
+    mut stream: TcpStream,
+    paths: Arc<Mutex<Vec<String>>>,
+    discovery: Option<Value>,
+    ws_url: String,
+) {
+    let mut bytes = Vec::new();
+    while !bytes.ends_with(b"\r\n\r\n") {
+        match stream.read_u8().await {
+            Ok(byte) => bytes.push(byte),
+            Err(_) => return,
+        }
+    }
+    let request = String::from_utf8(bytes).unwrap();
+    let path = request.split_whitespace().nth(1).unwrap();
+    paths.lock().unwrap().push(path.to_owned());
+    let body = if path == "/app-token/cdp" {
+        discovery
+            .unwrap_or(json!({ "value": { "cdpEnabled": false, "cdpPort": null, "cdpUrl": null } }))
+    } else if path == "/json/version" {
+        json!({ "webSocketDebuggerUrl": ws_url, "User-Agent": "Chrome/155.0.0.0" })
+    } else {
+        json!({})
+    }
+    .to_string();
+    let reply = format!("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len());
+    let _ = stream.write_all(reply.as_bytes()).await;
 }
 
 impl Drop for AttachServer {
@@ -149,7 +188,6 @@ fn assert_second_window_untouched(server: &AttachServer) {
         "the app's other window was touched: {calls:#?}"
     );
 }
-
 
 fn assert_identity(server: &AttachServer) {
     let calls = server.calls();
@@ -196,7 +234,10 @@ async fn attaches_without_launching_and_reuses_the_existing_driver() {
         .build()
         .unwrap();
     let browser = Browser::launch(options).await.unwrap();
-    assert!(server.calls().is_empty(), "attaching must send nothing to the app");
+    assert!(
+        server.calls().is_empty(),
+        "attaching must send nothing to the app"
+    );
     let mut driver = CdpDriver::new();
     driver.attach(browser.clone()).await.unwrap();
     assert_eq!(
@@ -217,7 +258,13 @@ async fn websocket_attachment_prepares_only_the_window_that_is_selected() {
         .build()
         .unwrap();
     let browser = Browser::launch(options).await.unwrap();
-    assert!(server.calls().is_empty(), "attaching must send nothing to the app");
+    assert!(
+        server
+            .calls()
+            .iter()
+            .all(|call| call["method"] == "Browser.getVersion"),
+        "only the browser's version is read"
+    );
     browser.default_page().await.unwrap();
     assert_identity(&server);
     browser.close().await.unwrap();
@@ -347,10 +394,7 @@ async fn attaching_leaves_every_window_of_the_app_alone_until_one_is_picked() {
     let attached = sent(&server, "Target.attachToTarget");
     assert_eq!(attached.len(), 1, "{attached:#?}");
     assert_eq!(attached[0]["params"]["targetId"], "T2");
-    assert!(!server
-        .calls()
-        .iter()
-        .any(|call| call["sessionId"] == "ST1"));
+    assert!(!server.calls().iter().any(|call| call["sessionId"] == "ST1"));
     browser.close().await.unwrap();
 }
 
@@ -428,7 +472,10 @@ fn a_proxy_cannot_be_set_on_an_attached_browser() {
             matches!(error, SeleniumBaseError::InvalidConfig(_)) && text.contains("proxy"),
             "{text}"
         );
-        assert!(!text.contains("hunter2") && !text.contains("alice"), "{text}");
+        assert!(
+            !text.contains("hunter2") && !text.contains("alice"),
+            "{text}"
+        );
     }
     // The same settings are fine for a browser the library launches.
     LaunchOptions::builder()
@@ -443,7 +490,10 @@ async fn base_case_refuses_a_proxy_on_an_attached_app_before_it_connects() {
     let config = BrowserConfig::default()
         .with_cdp_url(&server.http)
         .with_proxy("alice:hunter2@proxy.example:3128");
-    let error = BaseCase::new(config).await.err().expect("a proxy is refused");
+    let error = BaseCase::new(config)
+        .await
+        .err()
+        .expect("a proxy is refused");
     assert!(
         matches!(error, SeleniumBaseError::InvalidConfig(_)),
         "{error:?}"
@@ -457,7 +507,9 @@ async fn base_case_refuses_a_proxy_on_an_attached_app_before_it_connects() {
 fn a_user_agent_or_locale_needs_a_fingerprint_on_an_attached_browser() {
     let url = "http://127.0.0.1:9222";
     for builder in [
-        LaunchOptions::builder().cdp_url(url).user_agent("Custom/1.0"),
+        LaunchOptions::builder()
+            .cdp_url(url)
+            .user_agent("Custom/1.0"),
         LaunchOptions::builder().cdp_url(url).lang("de-DE"),
     ] {
         let error = builder.build().unwrap_err();
@@ -525,10 +577,7 @@ async fn a_webdriver_call_on_a_cdp_attachment_is_an_error_not_a_panic() {
         session.forward().await.unwrap_err(),
         session.refresh().await.unwrap_err(),
         session.page_source().await.unwrap_err(),
-        session
-            .click(thirtyfour::By::Css("#go"))
-            .await
-            .unwrap_err(),
+        session.click(thirtyfour::By::Css("#go")).await.unwrap_err(),
     ] {
         assert!(
             matches!(&error, SeleniumBaseError::Unsupported(text) if text.contains("CDP")),
@@ -574,7 +623,7 @@ async fn an_oversized_discovery_reply_is_refused_not_buffered() {
     // endless-looking one with no length at all.
     let announced = format!("{HEAD}Content-Length: 200000000\r\nConnection: close\r\n\r\n");
     let mut unannounced = format!("{HEAD}Connection: close\r\n\r\n{{\"pad\":\"").into_bytes();
-    unannounced.extend(std::iter::repeat(b' ').take(3 << 20));
+    unannounced.extend(std::iter::repeat_n(b' ', 3 << 20));
     for reply in [announced.into_bytes(), unannounced] {
         let (base, task) = canned_http(reply).await;
         for address in [base.clone(), format!("{base}/app-token/")] {
@@ -616,6 +665,97 @@ async fn discovery_errors_name_the_failing_step_and_the_http_status() {
     task.abort();
 }
 
+#[tokio::test]
+async fn a_window_is_picked_by_its_target_id_or_by_part_of_its_url() {
+    let server = AttachServer::start(None).await;
+    let browser = Browser::launch(attached_options(&server)).await.unwrap();
+
+    browser.select_page("/settings").await.unwrap();
+    let attached = sent(&server, "Target.attachToTarget");
+    assert_eq!(attached.len(), 1, "{attached:#?}");
+    assert_eq!(attached[0]["params"]["targetId"], "T2");
+
+    // A target id takes precedence over URL text, and a window already picked
+    // is not attached to again.
+    browser.select_page("T2").await.unwrap();
+    assert_eq!(sent(&server, "Target.attachToTarget").len(), 1);
+    assert_second_window_is_the_only_one_touched(&server);
+
+    let error = browser.select_page("nothing-has-this").await.unwrap_err();
+    assert!(
+        matches!(&error, SeleniumBaseError::CdpDriver(text) if text.contains("nothing-has-this")),
+        "{error:?}"
+    );
+    let error = browser.select_page("").await.unwrap_err();
+    assert!(
+        matches!(error, SeleniumBaseError::InvalidConfig(_)),
+        "{error:?}"
+    );
+    browser.close().await.unwrap();
+}
+
+/// Nothing was sent to the app's first window (target `T1`, session `ST1`).
+fn assert_second_window_is_the_only_one_touched(server: &AttachServer) {
+    let calls = server.calls();
+    assert!(
+        !calls.iter().any(|call| call["sessionId"] == "ST1"
+            || (call["method"] == "Target.attachToTarget" && call["params"]["targetId"] == "T1")),
+        "the app's first window was touched: {calls:#?}"
+    );
+}
+
+#[tokio::test]
+async fn base_case_drives_the_window_named_in_the_configuration() {
+    let server = AttachServer::start(None).await;
+    let config = BrowserConfig::default()
+        .with_cdp_url(&server.http)
+        .with_cdp_target("/settings")
+        .with_fingerprint(fingerprint());
+    let mut case = BaseCase::new(config).await.unwrap();
+    assert_eq!(case.cdp_get_title().await.unwrap(), "Tauri window");
+    assert_second_window_is_the_only_one_touched(&server);
+    assert!(sent(&server, "Network.setUserAgentOverride")
+        .iter()
+        .all(|call| call["sessionId"] == "ST2"));
+    case.quit().await.unwrap();
+}
+
+#[test]
+fn the_window_to_drive_survives_a_round_trip_through_serde_and_the_builder() {
+    let config = BrowserConfig::default()
+        .with_cdp_url("http://127.0.0.1:9222")
+        .with_cdp_target("/settings");
+    let again: BrowserConfig =
+        serde_json::from_value(serde_json::to_value(&config).unwrap()).unwrap();
+    assert_eq!(again.cdp_target.as_deref(), Some("/settings"));
+    let options = LaunchOptions::builder()
+        .browser_config(&again)
+        .build()
+        .unwrap();
+    assert_eq!(options.cdp_target(), Some("/settings"));
+    // A configuration written before the setting existed has none.
+    let mut old = serde_json::to_value(BrowserConfig::default()).unwrap();
+    assert!(old.as_object_mut().unwrap().remove("cdp_target").is_none());
+    let old: BrowserConfig = serde_json::from_value(old).unwrap();
+    assert_eq!(old.cdp_target, None);
+}
+
+#[tokio::test]
+async fn closing_resets_what_the_automation_set_for_the_whole_browser() {
+    let server = AttachServer::start(None).await;
+    let browser = Browser::launch(attached_options(&server)).await.unwrap();
+    let downloads = tempfile::tempdir().unwrap();
+    browser.grant_all_permissions().await.unwrap();
+    browser.set_download_dir(downloads.path()).await.unwrap();
+    assert!(sent(&server, "Browser.resetPermissions").is_empty());
+
+    browser.close().await.unwrap();
+
+    assert_eq!(sent(&server, "Browser.resetPermissions").len(), 1);
+    let behaviour = sent(&server, "Browser.setDownloadBehavior");
+    assert_eq!(behaviour.len(), 2, "{behaviour:#?}");
+    assert_eq!(behaviour[1]["params"]["behavior"], "default");
+}
 
 #[cfg(feature = "plugins")]
 mod plugins {

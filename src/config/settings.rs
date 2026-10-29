@@ -1011,6 +1011,8 @@ impl Settings {
         BrowserConfig {
             cdp_url: None,
             cdp_discovery: false,
+            cdp_target: None,
+
             webdriver_url: self
                 .webdriver_url
                 .clone()

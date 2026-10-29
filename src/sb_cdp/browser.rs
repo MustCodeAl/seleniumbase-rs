@@ -2,7 +2,6 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-#[cfg(feature = "plugins")]
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::Duration;
@@ -204,6 +203,14 @@ pub(crate) struct Inner {
     pub(crate) options: LaunchOptions,
     /// Tab id to the protocol session attached to it.
     sessions: StdMutex<HashMap<String, Arc<str>>>,
+    /// Whether this handle only attached to a browser it did not start (the
+    /// host app's, for `connect` and `cdp_url`): closing it detaches and
+    /// restores instead of ending the process.
+    attached: AtomicBool,
+    /// The browser contexts this handle granted permissions in (`None` is the
+    /// default context), which closing an attached browser resets.
+    granted_contexts: StdMutex<Vec<Option<String>>>,
+
     tasks: StdMutex<Vec<JoinHandle<()>>>,
     /// Who answers which proxy's password prompts.
     pub(super) auth: Arc<ProxyAuth>,
@@ -296,14 +303,10 @@ impl Browser {
     /// retried.
     pub async fn launch(options: LaunchOptions) -> Result<Self, SeleniumBaseError> {
         if let Some(address) = options.cdp_url().map(str::to_owned) {
-            let browser = Self::attach_endpoint(&address, options).await?;
-            // Tauri windows may already be loaded: prepare every existing tab
-            // through the same identity and plugin path used for new tabs.
-            if let Err(error) = browser.pages().await {
-                browser.close().await?;
-                return Err(error);
-            }
-            return Ok(browser);
+            // The browser is the app's, so attaching prepares none of its
+            // windows. A window is prepared when the automation opens it
+            // (`new_page`) or picks it (`default_page`, `page`, `select_page`).
+            return Self::attach_endpoint(&address, options).await;
         }
         #[cfg(feature = "plugins")]
         let options = super::plugin_hooks::before_launch(options).await?;
@@ -507,6 +510,7 @@ impl Browser {
             ws_url,
             options,
         );
+        browser.inner.attached.store(true, Ordering::SeqCst);
         #[cfg(feature = "plugins")]
         super::plugin_hooks::on_browser(&browser.inner.options.plugins, &browser).await?;
         #[cfg(feature = "plugins")]
@@ -644,6 +648,9 @@ impl Browser {
                 ws_url,
                 options,
                 sessions: StdMutex::new(HashMap::new()),
+                attached: AtomicBool::new(false),
+                granted_contexts: StdMutex::new(Vec::new()),
+
                 tasks: StdMutex::new(Vec::new()),
                 download_dir: StdMutex::new(None),
                 context_routes: StdMutex::new(HashMap::new()),
@@ -776,7 +783,10 @@ impl Browser {
             .unwrap_or_default())
     }
 
-    /// Returns a handle to every open tab.
+    /// Returns a handle to every open tab, attaching to and preparing each.
+    ///
+    /// On a browser that belongs to an app, this reaches all of the app's
+    /// windows; [`select_page`](Self::select_page) picks one instead.
     ///
     /// # Errors
     ///
@@ -792,6 +802,9 @@ impl Browser {
     }
 
     /// Returns the first tab, creating a blank one if the browser has none.
+    ///
+    /// Only that tab is prepared: on a browser attached with a `cdp_url`, the
+    /// app's other windows are left alone.
     ///
     /// # Errors
     ///
@@ -927,6 +940,37 @@ impl Browser {
     pub async fn page(&self, id: &str) -> Result<Page, SeleniumBaseError> {
         let session = self.session_for(id).await?;
         Ok(Page::new(self.clone(), id.into(), session, DEFAULT_TIMEOUT))
+    }
+
+    /// Picks one of the open tabs and attaches to that one only.
+    ///
+    /// `selector` is a target id, as [`list_pages`](Self::list_pages) reports
+    /// it, or else part of a tab's URL: the first tab whose URL contains it is
+    /// taken. This is how to choose a window of an app that owns several,
+    /// leaving the others as they are.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidConfig`] for an empty selector, and
+    /// [`SeleniumBaseError::CdpDriver`] if no tab matches or the tab cannot be
+    /// attached to.
+    pub async fn select_page(&self, selector: &str) -> Result<Page, SeleniumBaseError> {
+        if selector.is_empty() {
+            return Err(SeleniumBaseError::invalid_config(
+                "a tab selector (a target id or part of a URL) cannot be empty",
+            ));
+        }
+        let tabs = self.list_pages().await?;
+        let chosen = tabs
+            .iter()
+            .find(|tab| tab.id == selector)
+            .or_else(|| tabs.iter().find(|tab| tab.url.contains(selector)))
+            .ok_or_else(|| {
+                SeleniumBaseError::cdp_driver(format!(
+                    "no open tab has the target id or URL text {selector:?}"
+                ))
+            })?;
+        self.page(&chosen.id).await
     }
 
     /// The protocol session attached to a tab, attaching if needed.
@@ -1097,6 +1141,7 @@ impl Browser {
                         .map_err(|error| {
                             super::identity::refused("Browser.grantPermissions", &error)
                         })?;
+                    self.note_grant(context);
                 }
             }
         }
@@ -1284,6 +1329,7 @@ impl Browser {
         let names: Vec<_> = permissions.iter().map(|p| p.name()).collect();
         self.execute("Browser.grantPermissions", json!({ "permissions": names }))
             .await?;
+        self.note_grant(None);
         Ok(())
     }
 
@@ -1307,6 +1353,7 @@ impl Browser {
             json!({ "permissions": names, "origin": origin }),
         )
         .await?;
+        self.note_grant(None);
         Ok(())
     }
 
@@ -1397,9 +1444,62 @@ impl Browser {
             .unwrap_or_else(|| PathBuf::from(DEFAULT_DOWNLOAD_DIR))
     }
 
+    /// Gives an attached browser back as it was found: detaches every session
+    /// this handle attached, and resets what it set browser-wide. Best effort,
+    /// because a window the app already closed has nothing left to detach.
+    async fn release_attached(&self) {
+        let client = &self.inner.client;
+        let sessions: Vec<(String, Arc<str>)> = locked(&self.inner.sessions)
+            .iter()
+            .map(|(target, session)| (target.clone(), Arc::clone(session)))
+            .collect();
+        for (tab, session) in sessions {
+            let detach = client.send(
+                "Target.detachFromTarget",
+                json!({ "sessionId": &*session }),
+                None,
+            );
+            if let Ok(Err(error)) = tokio::time::timeout(GRACEFUL_CLOSE, detach).await {
+                tracing::debug!(%tab, %error, "a session could not be detached");
+            }
+            self.forget_page(&tab);
+        }
+        let contexts = std::mem::take(&mut *locked(&self.inner.granted_contexts));
+        for context in contexts {
+            let params = context
+                .as_deref()
+                .map_or_else(|| json!({}), |id| json!({ "browserContextId": id }));
+            let reset = self.execute("Browser.resetPermissions", params);
+            let _ = tokio::time::timeout(GRACEFUL_CLOSE, reset).await;
+        }
+        if locked(&self.inner.download_dir).take().is_some() {
+            let default = self.execute(
+                "Browser.setDownloadBehavior",
+                json!({ "behavior": "default" }),
+            );
+            let _ = tokio::time::timeout(GRACEFUL_CLOSE, default).await;
+        }
+    }
+
+    /// Remembers that permissions were granted in `context` (`None` is the
+    /// default context), so that closing an attached browser resets them.
+    fn note_grant(&self, context: Option<&str>) {
+        let mut granted = locked(&self.inner.granted_contexts);
+        if !granted.iter().any(|known| known.as_deref() == context) {
+            granted.push(context.map(str::to_owned));
+        }
+    }
+
     /// Closes the browser if this handle launched it.
     ///
-    /// A browser attached with [`connect`](Self::connect) is left running.
+    /// A browser attached with [`connect`](Self::connect) (or a `cdp_url`) is
+    /// left running and nothing of it is closed: `Browser.close` is never
+    /// sent. Every session this handle attached is detached
+    /// (`Target.detachFromTarget`), which ends the emulation, injected scripts
+    /// and request interception those sessions set, and the permissions and
+    /// download behaviour this handle set are reset. Afterwards every handle of
+    /// this browser fails with [`SeleniumBaseError::BrowserDisconnected`]. A
+    /// script that already ran in a page stays until the page navigates.
     /// The plugins' `before_close` and `on_close` hooks run first, once; their errors are logged,
     /// not returned.
     ///
@@ -1418,6 +1518,10 @@ impl Browser {
         for task in tasks {
             task.abort();
         }
+        if self.inner.attached.load(Ordering::SeqCst) {
+            self.release_attached().await;
+        }
+
         if let Some(mut child) = self.inner.process.lock().await.take() {
             // Ask politely first so the profile is flushed, then insist.
             let _ = tokio::time::timeout(GRACEFUL_CLOSE, self.execute("Browser.close", json!({})))
@@ -1429,8 +1533,7 @@ impl Browser {
                 let _ = child.kill().await;
             }
         }
-        #[cfg(any(test, feature = "test-util"))]
-        self.inner.client.mark_closed();
+        self.inner.client.close().await;
         Ok(())
     }
 }

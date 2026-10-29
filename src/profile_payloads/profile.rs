@@ -1236,6 +1236,8 @@ impl ProfileParams {
             webdriver_url: container_url.into(),
             cdp_url: None,
             cdp_discovery: false,
+            cdp_target: None,
+
             browser: self.browser(),
             headless: self.is_headless,
             mode,

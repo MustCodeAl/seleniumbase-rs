@@ -9,7 +9,7 @@
 //! (with the `test-util` feature) a scripted [`MockCtrl`](super::MockCtrl).
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::Duration;
 
@@ -39,6 +39,9 @@ const COMMAND_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// How long the WebSocket handshake with a DevTools endpoint may take.
 pub(crate) const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// How long [`Client::close`] waits for the browser to take the close frame.
+const CLOSE_TIMEOUT: Duration = Duration::from_secs(2);
 
 /// Capacity of the event channel. A subscriber that falls this far behind
 /// misses events rather than slowing the reader task down.
@@ -152,6 +155,8 @@ impl Events {
 #[derive(Debug)]
 pub(crate) struct Client {
     link: Link,
+    /// Set by [`close`](Self::close): every later command fails at once.
+    closed: AtomicBool,
 }
 
 #[derive(Debug)]
@@ -206,6 +211,8 @@ impl Client {
         let (events, _) = broadcast::channel(EVENT_BACKLOG);
         let reader = tokio::spawn(read_loop(source, Arc::clone(&pending), events.clone()));
         Ok(Self {
+            closed: AtomicBool::new(false),
+
             link: Link::Ws(WsLink {
                 sink: Mutex::new(sink),
                 pending,
@@ -219,6 +226,8 @@ impl Client {
     #[cfg(any(test, feature = "test-util"))]
     pub(crate) fn mocked(ctrl: super::mock::MockCtrl) -> Self {
         Self {
+            closed: AtomicBool::new(false),
+
             link: Link::Mock(ctrl),
         }
     }
@@ -246,6 +255,7 @@ impl Client {
         params: Value,
         session_id: Option<&str>,
     ) -> Result<Value, SeleniumBaseError> {
+        self.ensure_open()?;
         match &self.link {
             Link::Ws(ws) => ws.send(method, params, session_id).await,
             #[cfg(any(test, feature = "test-util"))]
@@ -268,6 +278,7 @@ impl Client {
         commands: Vec<(&str, Value)>,
         session_id: Option<&str>,
     ) -> Result<Vec<Value>, SeleniumBaseError> {
+        self.ensure_open()?;
         match &self.link {
             Link::Ws(ws) => ws.send_ordered(commands, session_id).await,
             #[cfg(any(test, feature = "test-util"))]
@@ -292,18 +303,42 @@ impl Client {
     /// Whether the connection is still usable.
     pub(crate) fn is_open(&self) -> bool {
         match &self.link {
-            Link::Ws(ws) => !ws.reader.is_finished(),
+            Link::Ws(ws) => !ws.reader.is_finished() && !self.closed.load(Ordering::SeqCst),
             #[cfg(any(test, feature = "test-util"))]
             Link::Mock(ctrl) => !ctrl.is_disconnected(),
         }
     }
 
-    /// Marks a mocked connection as closed; a real one closes with its process.
-    #[cfg(any(test, feature = "test-util"))]
-    pub(crate) fn mark_closed(&self) {
-        if let Link::Mock(ctrl) = &self.link {
-            ctrl.disconnect();
+    /// Ends the connection: every later command fails with
+    /// [`SeleniumBaseError::BrowserDisconnected`], and the browser drops the
+    /// sessions this client attached. Closing twice is harmless.
+    pub(crate) async fn close(&self) {
+        self.closed.store(true, Ordering::SeqCst);
+        match &self.link {
+            Link::Ws(ws) => {
+                // A close frame ends the browser's sessions for this client:
+                // what they changed (emulation, injected scripts, request
+                // interception) goes with them. A peer that does not answer
+                // is not waited for.
+                let closing = async { ws.sink.lock().await.close().await };
+                let _ = tokio::time::timeout(CLOSE_TIMEOUT, closing).await;
+                ws.reader.abort();
+                // Whatever still waits for an answer learns the connection is gone.
+                locked(&ws.pending).clear();
+            }
+            #[cfg(any(test, feature = "test-util"))]
+            Link::Mock(ctrl) => ctrl.disconnect(),
         }
+    }
+
+    /// Fails once [`close`](Self::close) has run.
+    fn ensure_open(&self) -> Result<(), SeleniumBaseError> {
+        if self.closed.load(Ordering::SeqCst) {
+            return Err(SeleniumBaseError::browser_disconnected(
+                "the browser handle was closed",
+            ));
+        }
+        Ok(())
     }
 }
 

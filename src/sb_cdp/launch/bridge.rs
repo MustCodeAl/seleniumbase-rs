@@ -113,6 +113,12 @@ impl LaunchOptionsBuilder {
     /// ones read here; the fingerprint is applied last, so settings made
     /// before it win over it.
     ///
+    /// With a `cdp_url` the browser is attached to, not launched, and only
+    /// what can reach a running app is taken: a proxy, a PAC file, and a user
+    /// agent or locale without a fingerprint make [`build`](Self::build) fail
+    /// with [`InvalidConfig`](SeleniumBaseError::InvalidConfig), instead of
+    /// being dropped without a word.
+    ///
     /// # Examples
     ///
     /// ```
@@ -144,6 +150,10 @@ impl LaunchOptionsBuilder {
         }
         #[cfg(feature = "plugins")]
         self.plugins.clone_from(config.plugins());
+
+        if let Some(target) = &config.cdp_target {
+            self = self.cdp_target(target);
+        }
 
         self = self.headless(config.headless).ad_block(config.ad_block);
         if let Some(path) = &config.browser_binary_path {

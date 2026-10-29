@@ -183,6 +183,13 @@ pub struct BrowserConfig {
     /// Discover CDP through `webdriver_url` (the authenticated Tauri plugin URL).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub cdp_discovery: bool,
+    /// The window `BaseCase` drives on a direct CDP attachment: a target id,
+    /// or part of the window's URL. An app can own several windows and only
+    /// the one that is picked is prepared (fingerprint, plugins); without a
+    /// target it is the first.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cdp_target: Option<String>,
+
     pub browser: Browser,
     pub headless: bool,
     pub mode: DriverMode,
@@ -298,6 +305,7 @@ impl std::fmt::Debug for BrowserConfig {
             )
             .field("cdp_url", &self.cdp_url.as_ref().map(|_| "<configured>"))
             .field("cdp_discovery", &self.cdp_discovery)
+            .field("cdp_target", &self.cdp_target)
             .field("browser", &self.browser)
             .field("headless", &self.headless)
             .field("mode", &self.mode)
@@ -350,6 +358,8 @@ impl BrowserConfig {
             webdriver_url: runtime.webdriver_url.clone(),
             cdp_url: None,
             cdp_discovery: false,
+            cdp_target: None,
+
             browser: Browser::Chrome,
             headless: true,
             mode: DriverMode::WebDriver,
@@ -428,6 +438,23 @@ impl BrowserConfig {
     /// ```
     pub fn with_cdp_discovery(mut self, enabled: bool) -> Self {
         self.cdp_discovery = enabled;
+        self
+    }
+
+    /// Picks the window `BaseCase` drives on a direct CDP attachment
+    /// ([`with_cdp_url`](Self::with_cdp_url), [`with_cdp_discovery`](Self::with_cdp_discovery)):
+    /// a target id, or part of the window's URL. The app's other windows are
+    /// left as they are. Without it the first window is driven.
+    ///
+    /// ```
+    /// use seleniumbase_rs::BrowserConfig;
+    /// let config = BrowserConfig::default()
+    ///     .with_cdp_url("http://127.0.0.1:9222")
+    ///     .with_cdp_target("/settings");
+    /// assert_eq!(config.cdp_target.as_deref(), Some("/settings"));
+    /// ```
+    pub fn with_cdp_target(mut self, target: impl Into<String>) -> Self {
+        self.cdp_target = Some(target.into());
         self
     }
 
