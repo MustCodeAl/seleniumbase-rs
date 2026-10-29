@@ -256,14 +256,14 @@
             "group": "Stealth scraping",
             "icon": "spider",
             "pages": [
-              "stealth/overview",
               "tutorials/stealth_scraping",
-              "stealth/stealth-session",
+              "stealth/overview",
+              "stealth/wire-formats",
+              "stealth/identity",
               "stealth/browser-scraper",
               "stealth/http-session",
-              "stealth/identity",
               "stealth/mitm-proxy",
-              "stealth/wire-formats",
+              "stealth/stealth-session",
               "stealth/examples",
               "stealth/limits"
             ]

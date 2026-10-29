@@ -343,3 +343,25 @@ cannot send what you asked for, and sending something close would be a different
 fingerprint from the one you named.
 
 </Info>
+
+## Where these types live
+
+The parsers and the measured table are `seleniumbase_rs_stealth::codec`, on by
+default. `ImpersonationProfile`, `CustomProfileBuilder` and
+`impersonation_client` are re-exported at `seleniumbase_rs_stealth::mimic`, which
+needs `features = ["mimic"]`. The module paths used above
+(`mimic::client`, `codec::tls_spec`) are the same types. The item pages are
+[codec](/stealth/api/codec), [Emulation](/stealth/api/codec-emulation),
+[TlsSpec](/stealth/api/codec-tls-spec) and [mimic](/stealth/api/mimic).
+
+<Columns cols={2}>
+
+<Card title="HttpSession" icon="network-wired" color="#a631be" href="/stealth/http-session">
+  The client this page builds, carrying a browser's cookies.
+</Card>
+
+<Card title="Examples" icon="play" color="#693acf" href="/stealth/examples">
+  `custom_profile` and the three capture tools, and what each needs.
+</Card>
+
+</Columns>

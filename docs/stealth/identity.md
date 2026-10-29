@@ -187,3 +187,28 @@ guarantee: sites change their pages, and no solver here promises to pass any
 service.
 
 </Warning>
+
+## How these types are imported
+
+`CookieJar`, `StealthIdentity`, `SessionPolicy`, `MitigationPolicy`, `Detection`,
+`ChallengeKind` and `CountryCode` are re-exported at
+`seleniumbase_rs_stealth::scrape`, so `use seleniumbase_rs_stealth::scrape::CookieJar`
+is the same type as the module paths used above. `identity_file` is not
+re-exported: it stays `scrape::runtime::identity_file`. An identity file written
+before fingerprint API v2, in the flat layout (`screen_width`, `flags`), no longer
+loads. `identity_file::load` reports it as a corrupt file and names no value from
+it. Make a new identity.
+
+## Where to go next
+
+<Columns cols={2}>
+
+<Card title="BrowserScraper" icon="globe" color="#1a85d4" href="/stealth/browser-scraper">
+  The loop that stores these cookies and rotates this identity.
+</Card>
+
+<Card title="HttpSession" icon="network-wired" color="#a631be" href="/stealth/http-session">
+  The same jar, carried on plain HTTP. Needs `mimic`.
+</Card>
+
+</Columns>

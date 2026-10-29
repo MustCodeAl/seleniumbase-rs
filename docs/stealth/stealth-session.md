@@ -281,3 +281,32 @@ is what the page sees while the proxy stays. The shop is a stand-in written for
 the test: no vendor's challenge was run.
 
 </Check>
+
+## How this type is imported
+
+`StealthSession`, `StealthSessionBuilder`, `StealthFetch` and `StealthError` are
+re-exported at `seleniumbase_rs_stealth::mimic`. The module path
+`mimic::stealth_session::StealthSession` is the same type. The feature is
+`mimic`; without it the module does not exist.
+
+## Where to go next
+
+<Columns cols={2}>
+
+<Card title="HttpSession" icon="network-wired" color="#a631be" href="/stealth/http-session">
+  The plain HTTP leg of this session, on its own.
+</Card>
+
+<Card title="MitmProxy" icon="shield" color="#1ca1c7" href="/stealth/mitm-proxy">
+  The proxy the browser leg launches behind.
+</Card>
+
+<Card title="BrowserScraper" icon="globe" color="#1a85d4" href="/stealth/browser-scraper">
+  The same loop with no TLS spoofing and no BoringSSL.
+</Card>
+
+<Card title="Limits" icon="triangle-exclamation" color="#d5a910" href="/stealth/limits">
+  What a session refuses, and what was never checked against a live service.
+</Card>
+
+</Columns>

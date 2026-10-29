@@ -180,6 +180,25 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ### Added
 
+- **The rest of the stealth section is organized as a reading order, with the
+  existing text kept.** The sidebar and `docs/SUMMARY.md` now run tutorial,
+  overview, wire formats, identity, `BrowserScraper`, `HttpSession`, `MitmProxy`,
+  `StealthSession`, examples, limits. Each topic page gains the re-export it can
+  be imported through and links to the pages beside it. `BrowserScraper` also
+  gains the builder table and the locale move. Nothing already on those pages was
+  removed.
+- **The stealth scraping guide now matches the facade, without dropping the
+  feature catalogue.** The tutorial picks a tool, shows the one Git dependency
+  and a `BrowserScraper` fetch through the `scrape` re-export, and states what
+  is measured and refused. The overview keeps the feature descriptions (the
+  round trip, `MitmProxy`, `HttpSession`, `StealthSession`, the CDP client, the
+  in-page overrides, challenge defaults, the proxy pool, identity rotation,
+  the state store, events, human-like input, and the TLS pins) and adds the
+  map and the dependency above them. The examples page lists the eight programs
+  under `crates/<crate>/examples/` in the stealth repository and still names
+  the shop stand-in. The moved banners name the crates as they are now
+  (`seleniumbase-rs-codec`, `-scrape`, `-mimic`). Checked against
+  seleniumbase-rs-stealth `0eb20629`.
 - **Unified stealth facade setup in the documentation.** Stealth guides and API
   examples use one `seleniumbase-rs-stealth` Git dependency and its re-exported
   core, fingerprint, codec and scrape APIs. TLS/HTTP2 impersonation is opt-in

@@ -490,12 +490,38 @@ that has the pin and no proxy. The origin in these tests is a server of the test
 not a live site.
 
 Only the first test compares the browser with the measured
-persona, so only it skips on a system that is not measured. The others are about
-the proxy's own rules and run on any Chrome or Chromium; one whose major is not
-the measured one is started with the profile's user agent, because the proxy
-refuses a request that claims another Chrome major. Run that way on linux/arm64
-with Debian's Chromium 154 (`docker/Dockerfile.verify`, headless, no sandbox),
-the seven ran and passed and the persona test skipped; before the split every
-test of the file skipped there.
+  persona, so only it skips on a system that is not measured. The others are about
+  the proxy's own rules and run on any Chrome or Chromium; one whose major is not
+  the measured one is started with the profile's user agent, because the proxy
+  refuses a request that claims another Chrome major. Run that way on linux/arm64
+  with Debian's Chromium 154 (`docker/Dockerfile.verify`, headless, no sandbox),
+  the seven ran and passed and the persona test skipped; before the split every
+  test of the file skipped there.
 
 </Check>
+
+## How these types are imported
+
+`MitmProxy`, `MitmOptions`, `MitmStats`, `MitmError`, `EphemeralCa`, `CaOptions`,
+`Leaf` and `TlsServerError` are re-exported at `seleniumbase_rs_stealth::mimic`.
+The module paths used above (`mimic::mitm`, `mimic::tls_server`) are the same
+types. The feature is `mimic`; without it the module does not exist, and the first
+build compiles BoringSSL.
+
+## Where to go next
+
+<Columns cols={2}>
+
+<Card title="StealthSession" icon="shuffle" color="#d32a61" href="/stealth/stealth-session">
+  The session that launches this proxy for you and moves cookies back to HTTP.
+</Card>
+
+<Card title="HttpSession" icon="network-wired" color="#a631be" href="/stealth/http-session">
+  The same handshake, with no browser and no proxy.
+</Card>
+
+<Card title="Limits" icon="triangle-exclamation" color="#d5a910" href="/stealth/limits">
+  The gaps the origin sees, because the origin sees this proxy and not Chrome.
+</Card>
+
+</Columns>

@@ -211,3 +211,24 @@ Verified against commit `4184e74` and the re-exports added after it, by reading
 described here. The code samples were checked against the signatures in those
 files; they were not compiled or run for this check. The real-Chrome tests named
 here are `#[ignore]`d and were not run for this check.
+
+A later read of `seleniumbase-rs-stealth` at `0eb20629` (`src/lib.rs`,
+`crates/scrape/src/lib.rs`, `crates/mimic/src/lib.rs`, `crates/scrape/src/error.rs`)
+confirmed the same refusals and added `ScrapeError::Fingerprint`, which a locale
+move or a rotation returns when the core refuses to build the next fingerprint.
+The handshake gaps, the measured browser and the "not checked against a live
+service" limit were unchanged.
+
+## Where to go next
+
+<Columns cols={2}>
+
+<Card title="A first fetch" icon="play" color="#199f43" href="/tutorials/stealth_scraping">
+  Pick a tool, depend on the facade, and run `BrowserScraper`.
+</Card>
+
+<Card title="Overview" icon="layer-group" color="#d47628" href="/stealth/overview">
+  What each piece does, and which page spells it out.
+</Card>
+
+</Columns>

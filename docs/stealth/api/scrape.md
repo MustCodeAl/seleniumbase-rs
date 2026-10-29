@@ -93,6 +93,12 @@ declares no Cargo features; its own tests enable `test-util` of the core and
 
 ## Guides
 
-The item-by-item pages for this crate are still being written. Until then, the
-[BrowserScraper guide](/stealth/browser-scraper) and the
-[runnable examples](/stealth/examples) show it in use.
+The call-by-call behaviour is on [BrowserScraper](/stealth/browser-scraper),
+including the builder table. The jar, the identity file and the decision table
+are on [Identity and cookies](/stealth/identity). The programs are on
+[Runnable examples](/stealth/examples). The item-by-item pages for the pure
+modules (`challenge`, `egress`, `jar`, `passport`, `ledger`) are still being
+written; until then the re-export table above is the list of what
+`seleniumbase_rs_stealth::scrape` exports, and the crate's rustdoc
+(`cargo doc -p seleniumbase-rs-scrape --open` in the stealth repository) has the
+rest.
