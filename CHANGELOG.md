@@ -709,6 +709,31 @@ work, `docs/parity.md` the per-API status).
   (`ei`, `sxsrf`, `ved`, `gs_lp`, ...) keeps its address and ends with a `// note:`. New tabs stay
   a `click` and a `goto_if_not_url`, as in Python (it writes no tab switch).
 
+- **Attaching to an app-owned Chromium no longer breaks or hijacks the host app.** The browser
+  belongs to the app (a Tauri window on CEF or WebView2), so:
+  - `Browser::launch` with a `cdp_url` attaches to and prepares no window. The fingerprint,
+    emulation and plugins reach a window when the automation opens it (`new_page`) or picks it
+    (`default_page`, `page`, the new `Browser::select_page`, or `BrowserConfig::with_cdp_target`
+    / `LaunchOptionsBuilder::cdp_target` for `BaseCase`); `list_pages` only lists. Before, every
+    page target was prepared, including the app's own windows.
+  - A proxy, a PAC file or a fingerprint's proxy is refused with `InvalidConfig`; a login used to
+    turn on request interception in every tab with nothing to answer it, so the app's requests
+    hung. A user agent or locale without a fingerprint is refused too, where it was dropped.
+  - `Browser::close` on an attached browser detaches every session it attached
+    (`Target.detachFromTarget`), resets the permissions and the download behaviour it set, never
+    sends `Browser.close`, and makes every handle of that browser fail with `BrowserDisconnected`.
+  - `BrowserSession::reconnect` (`BaseCase::reconnect`) on a direct CDP attachment attaches to the
+    endpoint of the configuration again; it started a local chromedriver and Chrome before, and
+    `quit` then skipped stopping them.
+  - `BrowserSession::webdriver()` is new: the session and `BaseCase` methods that need a
+    WebDriver return `Unsupported` (naming the CDP attachment) or `SessionNotStarted` instead of
+    panicking. `driver()` still panics; the recorder helpers still call it.
+  - After Tauri discovery the advertised WebSocket must be `ws://` on the loopback host and the
+    discovered port, discovery and version replies are capped at 1 MiB, and an error names the
+    step (`Tauri discovery`, `DevTools version probe`) and the HTTP status without the token.
+  - The Tauri pages say that the raw Chromium debug socket is unauthenticated, that the plugin's
+    `cdp` Cargo feature turns it on, and that both must be off in release builds.
+
 - **The MCP client never leaves the server it started running.** When the handshake fails or
   times out, `McpClient` (and `sbrs-mcp tools|call|batch --connect`) kills the program it
   started before returning, and `close` gives it 5 s to exit, then kills it; before, the kill ran
