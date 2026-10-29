@@ -155,6 +155,14 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- **The stealth scraping guide now matches the facade.** The tutorial picks a
+  tool, shows the one Git dependency and a `BrowserScraper` fetch through the
+  `scrape` re-export, and states what is measured and refused. The overview is a
+  map of the topic pages instead of a second copy of them. The examples page
+  lists the eight programs under `crates/<crate>/examples/` in the stealth
+  repository, and the moved banners name the crates as they are now
+  (`seleniumbase-rs-codec`, `-scrape`, `-mimic`). Checked against
+  seleniumbase-rs-stealth `0eb20629`.
 - **Unified stealth facade setup in the documentation.** Stealth guides and API
   examples use one `seleniumbase-rs-stealth` Git dependency and its re-exported
   core, fingerprint, codec and scrape APIs. TLS/HTTP2 impersonation is opt-in

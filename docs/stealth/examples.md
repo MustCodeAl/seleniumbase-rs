@@ -5,16 +5,18 @@ sidebarTitle: "Examples"
 
 <Badge color="orange">Experimental</Badge>
 
-Five small programs in `examples/` run the layers on your own machine. None of them
-reaches the outside network or targets a third-party site, and none tries to pass a
-real detection service: each one needs nothing, or starts its own site on
-`127.0.0.1`.
+Eight programs under `crates/<crate>/examples/` in the
+[stealth repository](https://github.com/MustCodeAl/seleniumbase-rs-stealth) run
+the layers on your own machine. None of them reaches the outside network or
+targets a third-party site, and none tries to pass a real detection service:
+each one needs nothing, or starts its own site on `127.0.0.1`. They are not in
+this repository. Clone the stealth one and run them from its workspace root.
 
 <Info>
 
-That site, the "shop" of `http_session` and `stealth_session`
-(`examples/stealth_support/shop.rs`), is a stand-in written for the examples. It is
-not any vendor's challenge, and getting past it says nothing about a real service.
+The "shop" of `http_session` and `stealth_session` is a stand-in written for
+the examples, in the mimic crate's example support code. It is not any
+vendor's challenge, and getting past it says nothing about a real service.
 
 </Info>
 
@@ -24,13 +26,15 @@ Summary for AI exports: `cookie_jar` and `browser_scraper` belong to the `scrape
 
 </Visibility>
 
-| Example | Feature | Needs | What it shows |
+| Example | Crate | Needs | What it shows |
 |---|---|---|---|
-| `examples/cookie_jar.rs` | `scrape` | Nothing | Made-up `Set-Cookie` headers into the [cookie jar](/stealth/identity#the-cookie-jar): which are stored, which are refused and why, and the `Cookie` header for five requests. |
-| `examples/custom_profile.rs` | `mimic` | `cmake`; Chrome 155 on macOS | The measured profile, with an Akamai string and a JA3 laid over it with `CustomProfileBuilder`, and four inputs the stack [refuses](/stealth/wire-formats#what-is-refused). |
-| `examples/http_session.rs` | `mimic` | `cmake`; Chrome 155 on macOS | An [`HttpSession`](/stealth/http-session#httpsession) fetching from a loopback TLS shop, its jar carrying the cookie the shop sets, and the <Tooltip tip="A fingerprint of the TLS ClientHello, as FoxIO defines it." cta="Wire formats" href="/stealth/wire-formats#reading-the-wire-formats">JA4</Tooltip> the shop saw next to the measured one. |
-| `examples/stealth_session.rs` | `mimic` | `cmake`; Chrome 155 on macOS, installed | A [`StealthSession`](/stealth/stealth-session#stealthsession) that meets a challenge over HTTP, goes to a headless Chrome behind the proxy, comes back, and prints its changes of mode. |
-| `examples/browser_scraper.rs` | `scrape` | A Chrome | A [`BrowserScraper`](/stealth/browser-scraper#browserscraper) detecting and solving the same kind of challenge in a headless Chrome. |
+| `cookie_jar` | `scrape` | Nothing | Made-up `Set-Cookie` headers into the [cookie jar](/stealth/identity#the-cookie-jar): which are stored, which are refused and why, and the `Cookie` header for five requests. |
+| `browser_scraper` | `scrape` | A Chrome | A [`BrowserScraper`](/stealth/browser-scraper) detecting and solving the same kind of challenge in a headless Chrome. |
+| `capture_tls`, `capture_hints` | `scrape` | A headed Chrome | Re-measure the local Chrome into `crates/codec/src/measured`. They write the repository. |
+| `custom_profile` | `mimic` | `cmake`; Chrome 155 on macOS | The measured profile, with an Akamai string and a JA3 laid over it with `CustomProfileBuilder`, and four inputs the stack [refuses](/stealth/wire-formats#what-is-refused). |
+| `http_session` | `mimic` | `cmake`; Chrome 155 on macOS | An [`HttpSession`](/stealth/http-session) fetching from a loopback TLS shop, its jar carrying the cookie the shop sets, and the <Tooltip tip="A fingerprint of the TLS ClientHello, as FoxIO defines it." cta="Wire formats" href="/stealth/wire-formats#reading-the-wire-formats">JA4</Tooltip> the shop saw next to the measured one. |
+| `stealth_session` | `mimic` | `cmake`; Chrome 155 on macOS, installed | A [`StealthSession`](/stealth/stealth-session) that meets a challenge over HTTP, goes to a headless Chrome behind the proxy, comes back, and prints its changes of mode. |
+| `capture_h2` | `mimic` | `cmake`; a headed Chrome | The HTTP/2 capture. Run `capture_tls` and `capture_hints` first. |
 
 ```text
 cargo run -p seleniumbase-rs-scrape      --example cookie_jar
@@ -47,7 +51,7 @@ message on any system but macOS: they do not borrow the values of another system
 `stealth_session` also needs the installed Chrome to be the measured major, or it is
 refused before it loads a page. The two that drive Chrome should run one at a time,
 and not beside another Chrome-driving program. The `mimic` ones start from the
-[feature costs](/stealth/overview#two-features); the first build compiles BoringSSL.
+[unified setup](/stealth/overview#which-crate-to-depend-on); the first build compiles BoringSSL.
 
 </Warning>
 
