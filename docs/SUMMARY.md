@@ -33,7 +33,6 @@ hidden: true
   - [UC Mode reference](help/uc_mode.md)
   - [Playwright Mode](help/playwright_mode.md)
   - [Fingerprint & Stealth Profiles](tutorials/fingerprint_stealth.md)
-  - [Stealth Scraping](tutorials/stealth_scraping.md)
   - [Binary Patching](tutorials/binary_patching.md)
 - [Shadow DOM](tutorials/shadow_dom.md)
 - [Recorder Mode](tutorials/recorder_mode.md)
