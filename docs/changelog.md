@@ -35,6 +35,20 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ### Breaking
 
+- **Breaking: `switch_to_frame`, `frame_switch`, `switch_to_window` and `switch_to_alert` take
+  and return what Python's do.** `switch_to_frame(frame)` takes the `id` or the `name` of a frame
+  (`switch_to_frame("iframeResult")`), a selector or a position (`switch_to_frame(0)`), tried in
+  that order, and waits for the frame (`.timeout(..)`, `.invisible(..)`); a frame found by a
+  selector now has to be displayed, as in Python. `frame_switch(frame)` no longer only enters the
+  frame: `frame_switch(frame).run(async |sb| { .. }).await?` runs the closure in the frame and
+  returns to the parent frame when it ends, also when it fails. `switch_to_window(window)` takes a
+  handle or an index (`0` the first tab, `-1` the newest) and waits for the window
+  (`.timeout(..)`). `switch_to_alert()` waits for the alert and returns an `Alert` with `text()`,
+  `accept()`, `dismiss()` and `send_keys(text)`; `wait_for_and_switch_to_alert` returns it too.
+  All four are call builders, so `.await` still runs them. The frame and window examples of
+  `parity/examples.toml` now pass.
+
+
 - **Breaking: the library's `stealth` module is now `evasion`.** `seleniumbase_rs::stealth::...`
   is `seleniumbase_rs::evasion::...` (the folder `src/stealth/` is `src/evasion/`), and the old
   path is gone with no alias. The root re-exports (`Fingerprint`, `StealthPolicy`,
