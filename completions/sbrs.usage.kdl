@@ -1752,6 +1752,27 @@ cmd uc-type help_heading="Page commands" help="Perform UC-mode typing into an el
     complete text type=none
     example "sbrs --uc --url https://example.com uc-type --css '#q' --text hello"
 }
+cmd solve-captcha help_heading="Page commands" help="Solve the CAPTCHA on the page and check that it cleared." {
+    long_help #"""
+Solve the CAPTCHA on the page and check that it cleared.
+
+Finds a Turnstile, reCAPTCHA, hCaptcha, Friendly Captcha or DataDome widget (in the page, its shadow roots and readable frames), waits for it to stand still, presses it along a human pointer path and waits for the page to show a result, pressing again up to three times if the page could show one and did not. It then checks what you expect of the page: text of the site's own page and a clearance cookie.
+"""#
+    flag --expect-text help="Text that must be on the page afterwards (any letter case)" {
+        arg <EXPECT_TEXT>
+    }
+    flag --expect-cookie help="Cookie the browser must hold afterwards, such as cf_clearance" {
+        arg <EXPECT_COOKIE>
+    }
+    flag --wait help="Seconds to wait for the expected text" default="30" {
+        arg <WAIT>
+    }
+    flag "-h --help" help="Print help" action=help builtin=#true
+    complete expect_text type=none
+    complete expect_cookie type=none
+    complete wait type=none
+    example "sbrs --uc --url https://nowsecure.nl solve-captcha --expect-text nowsecure --expect-cookie cf_clearance"
+}
 cmd install help_heading="Drivers, grid and servers" help="Download a driver or a browser into ./downloaded_drivers/ (Python's `sbrs get`)." {
     alias get
     long_help #"""
