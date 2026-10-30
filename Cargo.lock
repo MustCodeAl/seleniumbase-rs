@@ -5949,7 +5949,7 @@ dependencies = [
 [[package]]
 name = "seleniumbase-rs-plugin"
 version = "0.1.3"
-source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=2bd20ee8fadcd0ba35f26c8f551728e21ef9b229#2bd20ee8fadcd0ba35f26c8f551728e21ef9b229"
+source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=fea3634e2ebcaafce63a244df8d4adb53e3ec002#fea3634e2ebcaafce63a244df8d4adb53e3ec002"
 dependencies = [
  "async-trait",
  "serde",
@@ -5960,7 +5960,7 @@ dependencies = [
 [[package]]
 name = "seleniumbase-rs-plugin-batcher"
 version = "0.1.3"
-source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=2bd20ee8fadcd0ba35f26c8f551728e21ef9b229#2bd20ee8fadcd0ba35f26c8f551728e21ef9b229"
+source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=fea3634e2ebcaafce63a244df8d4adb53e3ec002#fea3634e2ebcaafce63a244df8d4adb53e3ec002"
 dependencies = [
  "futures-util",
  "seleniumbase-rs-plugin",
@@ -5971,7 +5971,7 @@ dependencies = [
 [[package]]
 name = "seleniumbase-rs-plugin-block-resources"
 version = "0.1.3"
-source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=2bd20ee8fadcd0ba35f26c8f551728e21ef9b229#2bd20ee8fadcd0ba35f26c8f551728e21ef9b229"
+source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=fea3634e2ebcaafce63a244df8d4adb53e3ec002#fea3634e2ebcaafce63a244df8d4adb53e3ec002"
 dependencies = [
  "seleniumbase-rs-plugin",
  "serde_json",
@@ -5980,7 +5980,7 @@ dependencies = [
 [[package]]
 name = "seleniumbase-rs-plugin-browser"
 version = "0.1.3"
-source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=2bd20ee8fadcd0ba35f26c8f551728e21ef9b229#2bd20ee8fadcd0ba35f26c8f551728e21ef9b229"
+source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=fea3634e2ebcaafce63a244df8d4adb53e3ec002#fea3634e2ebcaafce63a244df8d4adb53e3ec002"
 dependencies = [
  "seleniumbase-rs-plugin",
  "seleniumbase-rs-plugin-crx",
@@ -5992,7 +5992,7 @@ dependencies = [
 [[package]]
 name = "seleniumbase-rs-plugin-crawler"
 version = "0.1.3"
-source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=2bd20ee8fadcd0ba35f26c8f551728e21ef9b229#2bd20ee8fadcd0ba35f26c8f551728e21ef9b229"
+source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=fea3634e2ebcaafce63a244df8d4adb53e3ec002#fea3634e2ebcaafce63a244df8d4adb53e3ec002"
 dependencies = [
  "seleniumbase-rs-plugin",
  "serde",
@@ -6002,7 +6002,7 @@ dependencies = [
 [[package]]
 name = "seleniumbase-rs-plugin-crx"
 version = "0.1.3"
-source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=2bd20ee8fadcd0ba35f26c8f551728e21ef9b229#2bd20ee8fadcd0ba35f26c8f551728e21ef9b229"
+source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=fea3634e2ebcaafce63a244df8d4adb53e3ec002#fea3634e2ebcaafce63a244df8d4adb53e3ec002"
 dependencies = [
  "seleniumbase-rs-plugin",
  "serde_json",
@@ -6013,7 +6013,7 @@ dependencies = [
 [[package]]
 name = "seleniumbase-rs-plugin-extractor"
 version = "0.1.3"
-source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=2bd20ee8fadcd0ba35f26c8f551728e21ef9b229#2bd20ee8fadcd0ba35f26c8f551728e21ef9b229"
+source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=fea3634e2ebcaafce63a244df8d4adb53e3ec002#fea3634e2ebcaafce63a244df8d4adb53e3ec002"
 dependencies = [
  "seleniumbase-rs-plugin",
  "serde",
@@ -6023,7 +6023,7 @@ dependencies = [
 [[package]]
 name = "seleniumbase-rs-plugin-fetcher"
 version = "0.1.3"
-source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=2bd20ee8fadcd0ba35f26c8f551728e21ef9b229#2bd20ee8fadcd0ba35f26c8f551728e21ef9b229"
+source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=fea3634e2ebcaafce63a244df8d4adb53e3ec002#fea3634e2ebcaafce63a244df8d4adb53e3ec002"
 dependencies = [
  "seleniumbase-rs-plugin",
  "serde",
@@ -6033,7 +6033,7 @@ dependencies = [
 [[package]]
 name = "seleniumbase-rs-plugin-imap"
 version = "0.1.3"
-source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=2bd20ee8fadcd0ba35f26c8f551728e21ef9b229#2bd20ee8fadcd0ba35f26c8f551728e21ef9b229"
+source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=fea3634e2ebcaafce63a244df8d4adb53e3ec002#fea3634e2ebcaafce63a244df8d4adb53e3ec002"
 dependencies = [
  "async-imap",
  "futures-util",
@@ -6050,7 +6050,7 @@ dependencies = [
 [[package]]
 name = "seleniumbase-rs-plugin-shield"
 version = "0.1.3"
-source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=2bd20ee8fadcd0ba35f26c8f551728e21ef9b229#2bd20ee8fadcd0ba35f26c8f551728e21ef9b229"
+source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=fea3634e2ebcaafce63a244df8d4adb53e3ec002#fea3634e2ebcaafce63a244df8d4adb53e3ec002"
 dependencies = [
  "seleniumbase-rs-plugin",
  "serde",
@@ -6060,7 +6060,7 @@ dependencies = [
 [[package]]
 name = "seleniumbase-rs-plugin-tor"
 version = "0.1.3"
-source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=2bd20ee8fadcd0ba35f26c8f551728e21ef9b229#2bd20ee8fadcd0ba35f26c8f551728e21ef9b229"
+source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=fea3634e2ebcaafce63a244df8d4adb53e3ec002#fea3634e2ebcaafce63a244df8d4adb53e3ec002"
 dependencies = [
  "ring",
  "seleniumbase-rs-plugin",
@@ -6072,7 +6072,7 @@ dependencies = [
 [[package]]
 name = "seleniumbase-rs-plugins-builtin"
 version = "0.1.3"
-source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=2bd20ee8fadcd0ba35f26c8f551728e21ef9b229#2bd20ee8fadcd0ba35f26c8f551728e21ef9b229"
+source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=fea3634e2ebcaafce63a244df8d4adb53e3ec002#fea3634e2ebcaafce63a244df8d4adb53e3ec002"
 dependencies = [
  "seleniumbase-rs-plugin",
  "seleniumbase-rs-plugin-batcher",

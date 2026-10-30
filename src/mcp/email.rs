@@ -237,9 +237,10 @@ mod tests {
     use seleniumbase_rs_plugins_builtin::imap::{wait_for, MailSource, RawMail};
 
     use super::*;
+    use crate::plugin_host::test_variable::with_password_set;
 
-    /// A variable cargo sets for every test run, standing for the password variable.
-    const SET_VARIABLE: &str = "CARGO_PKG_NAME";
+    /// The password variable of the tests, set only in the child of `with_password_set`.
+    const SET_VARIABLE: &str = crate::plugin_host::test_variable::NAME;
 
     fn args(v: &Value) -> Args {
         Args::new(v.as_object().cloned().expect("an object"))
@@ -365,40 +366,62 @@ mod tests {
 
     #[test]
     fn the_wait_is_the_options_timeout_unless_the_call_asks_for_another() {
-        let timeout = |requested| {
-            build(&selection(), requested)
-                .unwrap()
-                .config()
-                .timeout_secs
-        };
-        assert_eq!(timeout(None), 90, "the plugin's own option");
-        assert_eq!(timeout(Some(7)), 7);
-        assert_eq!(timeout(Some(MAX_TIMEOUT_SECS)), MAX_TIMEOUT_SECS);
-        assert_eq!(timeout(Some(u64::MAX)), MAX_TIMEOUT_SECS, "capped");
+        with_password_set(
+            module_path!(),
+            "the_wait_is_the_options_timeout_unless_the_call_asks_for_another",
+            || {
+                let timeout = |requested| {
+                    build(&selection(), requested)
+                        .unwrap()
+                        .config()
+                        .timeout_secs
+                };
+                assert_eq!(timeout(None), 90, "the plugin's own option");
+                assert_eq!(timeout(Some(7)), 7);
+                assert_eq!(timeout(Some(MAX_TIMEOUT_SECS)), MAX_TIMEOUT_SECS);
+                assert_eq!(timeout(Some(u64::MAX)), MAX_TIMEOUT_SECS, "capped");
+            },
+        );
     }
 
     #[test]
     fn a_call_keeps_every_other_option_of_the_operator() {
-        let imap = build(&selection(), Some(7)).unwrap();
-        let config = imap.config();
-        assert_eq!(config.host, "imap.example.test");
-        assert_eq!(config.user, "me@example.test");
-        assert_eq!(config.password_env, SET_VARIABLE);
-        assert_eq!(config.port, 993);
-        assert_eq!(config.mailbox, "INBOX");
+        with_password_set(
+            module_path!(),
+            "a_call_keeps_every_other_option_of_the_operator",
+            || {
+                let imap = build(&selection(), Some(7)).unwrap();
+                let config = imap.config();
+                assert_eq!(config.host, "imap.example.test");
+                assert_eq!(config.user, "me@example.test");
+                assert_eq!(config.password_env, SET_VARIABLE);
+                assert_eq!(config.port, 993);
+                assert_eq!(config.mailbox, "INBOX");
+            },
+        );
     }
 
     #[test]
     fn what_the_plugin_refuses_is_an_error_in_its_own_words_without_a_prefix() {
         let mut unset = options();
-        unset["password_env"] = json!("SBRS_IMAP_UNIT_TEST_UNSET");
+        unset["password_env"] = json!("IMAP_UNIT_TEST_UNSET");
         let unset = PluginSelection::new()
             .enable(PLUGIN)
             .with_options(PLUGIN, unset);
         let text = message_of(&build(&unset, None).expect_err("refused"));
-        assert!(text.contains("SBRS_IMAP_UNIT_TEST_UNSET"), "{text}");
+        assert!(text.contains("IMAP_UNIT_TEST_UNSET"), "{text}");
         assert!(text.contains("password_env"), "{text}");
         assert!(!text.contains("plugin configuration:"), "{text}");
+
+        // A name outside IMAP_, MAIL_ and SB_ is refused, so a settings file cannot point the
+        // plugin at a variable that holds another secret; the variable is not read.
+        let mut other = options();
+        other["password_env"] = json!("GITHUB_TOKEN");
+        let other = PluginSelection::new()
+            .enable(PLUGIN)
+            .with_options(PLUGIN, other);
+        let text = message_of(&build(&other, None).expect_err("refused"));
+        assert!(text.contains("starting with IMAP_, MAIL_ or SB_"), "{text}");
 
         let no_host = PluginSelection::new()
             .enable(PLUGIN)

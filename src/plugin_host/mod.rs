@@ -47,6 +47,8 @@ pub(crate) mod convert;
 pub(crate) mod guard;
 mod task;
 mod test_hooks;
+#[cfg(all(test, feature = "plugin-imap"))]
+pub(crate) mod test_variable;
 mod timer;
 
 pub use task::{check_task, run_task, run_task_on, run_task_until};
@@ -522,56 +524,73 @@ mod tests {
     #[cfg(feature = "plugin-imap")]
     #[test]
     fn the_builtin_registry_builds_imap_and_says_what_is_wrong_with_its_options() {
-        assert!(builtin_registry().names().contains(&"imap"));
-        let wrong = |options: Value| {
-            build(
-                &PluginSelection::new()
-                    .enable("imap")
-                    .with_options("imap", options),
-            )
-            .unwrap_err()
-        };
+        crate::plugin_host::test_variable::with_password_set(
+            module_path!(),
+            "the_builtin_registry_builds_imap_and_says_what_is_wrong_with_its_options",
+            || {
+                assert!(builtin_registry().names().contains(&"imap"));
+                let wrong = |options: Value| {
+                    build(
+                        &PluginSelection::new()
+                            .enable("imap")
+                            .with_options("imap", options),
+                    )
+                    .unwrap_err()
+                };
 
-        // `host` has no default: the plugin's own message, under the plugin's name.
-        let error = build(&PluginSelection::new().enable("imap")).unwrap_err();
-        assert!(
-            matches!(&error, SeleniumBaseError::Plugin { plugin, .. } if plugin == "imap"),
-            "{error:?}"
-        );
-        assert!(
-            error.to_string().contains("imap: `host` is required"),
-            "{error}"
-        );
+                // `host` has no default: the plugin's own message, under the plugin's name.
+                let error = build(&PluginSelection::new().enable("imap")).unwrap_err();
+                assert!(
+                    matches!(&error, SeleniumBaseError::Plugin { plugin, .. } if plugin == "imap"),
+                    "{error:?}"
+                );
+                assert!(
+                    error.to_string().contains("imap: `host` is required"),
+                    "{error}"
+                );
 
-        // The variable `password_env` names must be set when the plugin is built, and the
-        // message names it (never a value).
-        let error = wrong(json!({
-            "host": "imap.example.com",
-            "user": "me@example.com",
-            "password_env": "SBRS_IMAP_TEST_UNSET_VARIABLE",
-        }));
-        let text = error.to_string();
-        assert!(text.contains("SBRS_IMAP_TEST_UNSET_VARIABLE"), "{text}");
-        assert!(text.contains("password_env"), "{text}");
+                // The variable `password_env` names must be set when the plugin is built, and the
+                // message names it (never a value).
+                let error = wrong(json!({
+                    "host": "imap.example.com",
+                    "user": "me@example.com",
+                    "password_env": "IMAP_TEST_UNSET_VARIABLE",
+                }));
+                let text = error.to_string();
+                assert!(text.contains("IMAP_TEST_UNSET_VARIABLE"), "{text}");
+                assert!(text.contains("password_env"), "{text}");
 
-        // The password is not an option.
-        let error = wrong(json!({ "host": "imap.example.com", "password": "hunter2" }));
-        assert!(
-            error.to_string().contains("unknown option `password`"),
-            "{error}"
-        );
+                // A name that does not start with IMAP_, MAIL_ or SB_ is refused whatever it holds, so a
+                // settings file cannot point the plugin at a variable that holds another secret; the
+                // variable is not read.
+                let text = wrong(json!({
+                    "host": "imap.example.com",
+                    "user": "me@example.com",
+                    "password_env": "GITHUB_TOKEN",
+                }))
+                .to_string();
+                assert!(text.contains("starting with IMAP_, MAIL_ or SB_"), "{text}");
 
-        // With a variable that is set (`PATH` is, wherever a test runs) the plugin builds;
-        // nothing connects until a wait starts.
-        let good = PluginSelection::new().enable("imap").with_options(
-            "imap",
-            json!({
-                "host": "imap.example.com",
-                "user": "me@example.com",
-                "password_env": "PATH",
-            }),
+                // The password is not an option.
+                let error = wrong(json!({ "host": "imap.example.com", "password": "hunter2" }));
+                assert!(
+                    error.to_string().contains("unknown option `password`"),
+                    "{error}"
+                );
+
+                // With a variable that is set (the child process of the test has one) the plugin builds;
+                // nothing connects until a wait starts.
+                let good = PluginSelection::new().enable("imap").with_options(
+                    "imap",
+                    json!({
+                        "host": "imap.example.com",
+                        "user": "me@example.com",
+                        "password_env": crate::plugin_host::test_variable::NAME,
+                    }),
+                );
+                assert_eq!(build(&good).unwrap().names(), ["imap"]);
+            },
         );
-        assert_eq!(build(&good).unwrap().names(), ["imap"]);
     }
 
     #[cfg(feature = "plugin-tor")]

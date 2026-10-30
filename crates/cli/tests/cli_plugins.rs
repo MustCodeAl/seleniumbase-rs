@@ -319,25 +319,25 @@ fn the_imap_plugin_names_a_password_variable_that_is_not_set() {
             "--plugin-opt",
             r#"imap.user="me@example.test""#,
             "--plugin-opt",
-            r#"imap.password_env="SBRS_IMAP_CLI_TEST_UNSET""#,
+            r#"imap.password_env="IMAP_CLI_TEST_UNSET""#,
         ],
         &OPEN,
     );
 
     assert_eq!(run.output.status.code(), Some(2), "{}", run.stderr());
     let message = run.stderr();
-    assert!(message.contains("SBRS_IMAP_CLI_TEST_UNSET"), "{message}");
+    assert!(message.contains("IMAP_CLI_TEST_UNSET"), "{message}");
     assert!(message.contains("password_env"), "{message}");
     assert!(run.driver.chrome_args().is_none(), "no browser was started");
 }
 
 #[test]
-fn the_webdriver_engine_refuses_the_imap_plugin_because_it_cannot_host_a_task() {
-    // Options and variable are fine (`SBRS_IMAP_CLI_PASSWORD` is set for the run); the engine is
-    // what refuses, before it starts a browser and before anything connects.
+fn the_imap_plugin_refuses_a_password_variable_that_is_not_an_imap_mail_or_sb_name() {
+    // The password goes to `host`, so a settings file must not be able to name a variable that
+    // holds another secret. The variable is set here, and the refusal comes before it is read.
     let run = against_a_fake_server(
         None,
-        &[("SBRS_IMAP_CLI_PASSWORD", "not-a-real-password")],
+        &[("GITHUB_TOKEN", "not-a-real-token")],
         &[
             "--plugin",
             "imap",
@@ -346,7 +346,40 @@ fn the_webdriver_engine_refuses_the_imap_plugin_because_it_cannot_host_a_task() 
             "--plugin-opt",
             r#"imap.user="me@example.test""#,
             "--plugin-opt",
-            r#"imap.password_env="SBRS_IMAP_CLI_PASSWORD""#,
+            r#"imap.password_env="GITHUB_TOKEN""#,
+        ],
+        &OPEN,
+    );
+
+    assert_eq!(run.output.status.code(), Some(2), "{}", run.stderr());
+    let message = run.stderr();
+    assert!(
+        message.contains("starting with IMAP_, MAIL_ or SB_"),
+        "{message}"
+    );
+    assert!(
+        !message.contains("not-a-real-token"),
+        "the value is never printed: {message}"
+    );
+    assert!(run.driver.chrome_args().is_none(), "no browser was started");
+}
+
+#[test]
+fn the_webdriver_engine_refuses_the_imap_plugin_because_it_cannot_host_a_task() {
+    // Options and variable are fine (`IMAP_CLI_PASSWORD` is set for the run); the engine is
+    // what refuses, before it starts a browser and before anything connects.
+    let run = against_a_fake_server(
+        None,
+        &[("IMAP_CLI_PASSWORD", "not-a-real-password")],
+        &[
+            "--plugin",
+            "imap",
+            "--plugin-opt",
+            r#"imap.host="imap.example.test""#,
+            "--plugin-opt",
+            r#"imap.user="me@example.test""#,
+            "--plugin-opt",
+            r#"imap.password_env="IMAP_CLI_PASSWORD""#,
         ],
         &OPEN,
     );
