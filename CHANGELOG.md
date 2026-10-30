@@ -162,6 +162,18 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- **Rules for writing reliable browser tests with the crate, for people and for AI coding
+  assistants.** `AGENTS.md` gains the section "Writing browser tests with seleniumbase-rs": fifteen
+  rules (the `sb` and `sb_cdp` fixtures own the browser, imports only from `seleniumbase_rs`, stable
+  selectors, no fixed sleeps, retrying assertions, scoped queries, no stale handles, cleanup on every
+  path, bounded evidence in `latest_logs/<test id>/`, one `BrowserPool` lease or `BrowserContext` per
+  concurrent flow, headless through `SB_HEADLESS`, a body safe to run twice, raw protocol calls in one
+  helper, tests of page-driving code on `Browser::new_mocked()`, credentials from the run). They adapt
+  the checklist that thirtyfour publishes for generated tests to this crate's API. The page
+  [Reliable Browser Tests](docs/tutorials/reliable_tests.md) explains each rule with a do and an
+  avoid, and lists what the crate cannot enforce yet (no strict single match, no scoped query on
+  `BaseCase`, no hard time limit outside the fixtures). `CLAUDE.md` points to both.
+
 - **A project that uses `seleniumbase-rs` lists `seleniumbase-rs` and imports nothing else.** The
   crate re-exports what its API takes, returns or expands to: `seleniumbase_rs::drivers` (the
   WebDriver types: `By`, `WebElement`, `DesiredCapabilities`, `Key`, `Cookie`, `NetworkConditions`,
