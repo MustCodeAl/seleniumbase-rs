@@ -449,7 +449,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `switch_to_window` | implemented | `BaseCase::switch_to_window` | Differs: Takes a window handle only. Python also takes an index (0 for the first tab, -1 for the newest): use switch_to_tab(index) or switch_to_newest_tab. Found by examples/test_window_switching.py (parity/examples.toml). |
 | `tearDown` | not-applicable |  | unittest/pytest harness plumbing; the Rust runner (api::runner) owns the lifecycle. |
 | `tearDownClass` | not-applicable |  | unittest/pytest harness plumbing; the Rust runner (api::runner) owns the lifecycle. |
-| `type` | composed | `BaseCase::type_text` | One canonical name: Rust has type_text only. Differs: Types with clear plus send_keys and returns at once. Python waits for the element to be clickable, scrolls to it, clears it with 42 backspaces, and waits for document.readyState to be complete after the keys. Typed straight after a click that loads a page (saucedemo.com's checkout form in examples/my_first_test.py), the text is often lost here and never in Python. A ::shadow selector is not read (see get_text). |
+| `type` | composed | `BaseCase::type_text` | One canonical name: Rust has type_text only. Differs: Types with clear plus send_keys and returns at once. Python waits for the element to be clickable, scrolls to it, clears it with 42 backspaces, and waits for document.readyState to be complete after the keys. A ::shadow selector is not read (see get_text). |
 | `uncheck_if_checked` | implemented | `BaseCase::uncheck_if_checked` | Differs: As check_if_unchecked: no fallback for a checkbox at zero opacity. |
 | `unselect_if_selected` | implemented | `BaseCase::unselect_if_selected` |  |
 | `update_text` | implemented | `BaseCase::update_text` |  |
@@ -784,7 +784,7 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `switch_to_tab` | composed | `Browser::pages` | Pick a page from `browser.pages()`; Rust holds a Page per tab, so there is no current tab to switch. |
 | `switch_to_window` | composed | `Browser::pages` | Pick a page from `browser.pages()`; Rust holds a Page per tab, so there is no current window to switch. |
 | `tile_windows` | composed | `Window::set_bounds` | Python tiles the browser windows with the CDP driver. Compute each tile's x, y, width and height and call set_bounds on each window; there is no one-call tiler. |
-| `type` | implemented | `Locator::type_text` | `page.locator(selector).type_text(text)` clears the field, then types the text one key at a time, as Python's `type` does. `fill(text)` inserts it in one step; `send_keys(text)` appends. Differs: Typed straight after a click that loads a page (saucedemo.com's checkout form in examples/cdp_mode/raw_cdp_swag.py), the text is lost in most runs here; Python's sb_cdp type is not (see the WebDriver type row). |
+| `type` | implemented | `Locator::type_text` | `page.locator(selector).type_text(text)` clears the field, then types the text one key at a time, as Python's `type` does. `fill(text)` inserts it in one step; `send_keys(text)` appends. |
 | `uncheck_if_checked` | composed | `Locator::uncheck` | Call `page.locator(selector).uncheck(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `unselect_if_selected` | composed | `Locator::set_checked` | `page.locator(selector).set_checked(false)`. |
 | `wait_for_any_of_elements_present` | composed | `Page::wait_for_any` | `page.wait_for_any(..)` waits until one of several locators is ready and says which one (an index), not its selector. |

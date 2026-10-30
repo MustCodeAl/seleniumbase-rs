@@ -39,7 +39,7 @@ sites = [
   "data: and about:blank pages",
   "chrome://downloads/",
 ]
-tests = "34 ports; the last full run passed 19 and failed 15"
+tests = "34 ports; the last full run passed 19 and failed 15, before my_first_test and raw_cdp_swag were fixed (both pass now)"
 
 # ---------------------------------------------------------------------------
 # WebDriver engine (BaseCase)
@@ -48,12 +48,12 @@ tests = "34 ports; the last full run passed 19 and failed 15"
 [[example]]
 python = "my_first_test.py"
 rust_test = "base_case::my_first_test"
-status = "fail"
+status = "pass"
 mismatches = [
-  "type_text loses text typed straight after a click that loads a page: on saucedemo.com's checkout form first-name, last-name and zip end up empty or cut ('Seleniu'), so `continue` never leaves step one and assert_text('Checkout: Overview') times out. The port failed in about 6 of 10 runs; Python passed 6 of 6 (about 2 s each). Adding any pause between the fields made the Rust run pass.",
-  "Python's update_text waits for the element to be clickable, scrolls to it, clears with 42 backspaces and waits for document.readyState to be complete after the keys; type_text clears and sends keys at once.",
+  "Fixed (finding kept): the port failed in about 6 of 10 runs because the keys typed into saucedemo.com's checkout form never reached the page, and cdp::raw_cdp_swag in about 9 of 10. It was not a timing race in type_text. The login uses saucedemo's password secret_sauce, which Chrome knows as a leaked one; Chrome then shows a data-breach prompt, a part of the browser, and while it is up the browser takes the keyboard (Input.dispatchKeyEvent is answered at once and the page sees no key; waiting longer made it worse, never better). Python starts Chrome with profile.password_manager_leak_detection (and two more password preferences) off; this crate did not. Both engines now do, as Python does (tests/password_prompt_chrome.rs).",
+  "Python's update_text waits for the element to be clickable, scrolls to it, clears with 42 backspaces and waits for document.readyState to be complete after the keys; type_text clears and sends keys at once. That difference is real but was not the cause.",
 ]
-next = "bug lane: type_text/click race after a page-loading click: wait for readyState complete after typing, as update_text does, and check the value that landed (WebDriver and pure CDP, see cdp::raw_cdp_swag)"
+next = ""
 
 [[example]]
 python = "test_demo_site.py"
@@ -335,11 +335,11 @@ next = ""
 [[example]]
 python = "cdp_mode/raw_cdp_swag.py"
 rust_test = "cdp::raw_cdp_swag"
-status = "fail"
+status = "pass"
 mismatches = [
-  "Locator::type_text loses the text typed into saucedemo.com's checkout form (as base_case::my_first_test): continue never leaves step one, so button#finish is not found. It failed in about 9 of 10 runs.",
+  "Fixed (finding kept): Locator::type_text lost the text typed into saucedemo.com's checkout form in about 9 of 10 runs, for the reason given at my_first_test.py: Chrome's data-breach prompt for the leaked login password took the keyboard. The launch now turns that check off, as Python does.",
 ]
-next = "bug lane: type_text/click race after a page-loading click (see my_first_test.py)"
+next = ""
 
 [[example]]
 python = "cdp_mode/raw_handle_alerts.py"
