@@ -82,6 +82,8 @@ use crate::BaseCase;
 mod session;
 pub mod steps;
 
+pub use ::rstest_bdd_macros::{given, scenario, scenarios, then, when};
+
 use session::{Launch, Scenario};
 
 /// The plan of a scenario's test, after the settings are checked.

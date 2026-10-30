@@ -55,9 +55,17 @@ mod fixture;
 mod lifecycle;
 mod report;
 
+/// The `rstest` crate under its own name. What `#[rstest]` and `#[fixture]` expand to
+/// starts with `rstest::`, which resolves here when a test file imports
+/// `seleniumbase_rs::testing::rstest`; it is not meant to be named.
+#[doc(hidden)]
+pub use ::rstest;
+/// rstest's attribute for a fixture of your own, so a test file needs one import.
+pub use ::rstest::fixture;
+/// rstest's attribute for a test that asks for fixtures (`#[rstest]`), so a test crate
+/// needs no `rstest` line in its manifest: `use seleniumbase_rs::testing::rstest;`.
+pub use ::rstest::rstest;
 pub use fixture::{sb, sb_cdp, Sb, SbCdp};
 pub use lifecycle::{AttemptEnd, Finalizer, Outcome};
-/// rstest's attribute for a fixture of your own, so a test file needs one import.
-pub use rstest::fixture;
 
 pub(crate) use deadline::Deadline;

@@ -1962,7 +1962,7 @@ impl BaseCase {
     pub async fn get_shadow_root(
         &mut self,
         css: &str,
-    ) -> Result<thirtyfour::WebElement, SeleniumBaseError> {
+    ) -> Result<crate::drivers::WebElement, SeleniumBaseError> {
         self.record("get_shadow_root", Some(css), None);
         let by = Selector::auto(css).to_by()?;
         let element = self.session.wait_for_element(by, 10).await?;
@@ -2046,7 +2046,7 @@ impl BaseCase {
     pub async fn get_cookie(
         &self,
         name: &str,
-    ) -> Result<thirtyfour::cookie::Cookie, SeleniumBaseError> {
+    ) -> Result<crate::drivers::Cookie, SeleniumBaseError> {
         self.session.get_cookie(name).await
     }
 
@@ -2156,7 +2156,7 @@ impl BaseCase {
     pub async fn find_element(
         &mut self,
         css: &str,
-    ) -> Result<thirtyfour::WebElement, SeleniumBaseError> {
+    ) -> Result<crate::drivers::WebElement, SeleniumBaseError> {
         self.record("find_element", Some(css), None);
         let by = Selector::auto_by(css)?;
         self.session.wait_for_element(by, 10).await
@@ -2166,7 +2166,7 @@ impl BaseCase {
     pub async fn find_elements(
         &mut self,
         css: &str,
-    ) -> Result<Vec<thirtyfour::WebElement>, SeleniumBaseError> {
+    ) -> Result<Vec<crate::drivers::WebElement>, SeleniumBaseError> {
         self.record("find_elements", Some(css), None);
         let by = Selector::auto_by(css)?;
         self.session.find_elements(by).await
@@ -3355,7 +3355,7 @@ impl BaseCase {
     pub async fn get_element(
         &mut self,
         css: &str,
-    ) -> Result<thirtyfour::WebElement, SeleniumBaseError> {
+    ) -> Result<crate::drivers::WebElement, SeleniumBaseError> {
         self.find_element(css).await
     }
 
@@ -3363,7 +3363,7 @@ impl BaseCase {
     pub async fn locator(
         &mut self,
         css: &str,
-    ) -> Result<thirtyfour::WebElement, SeleniumBaseError> {
+    ) -> Result<crate::drivers::WebElement, SeleniumBaseError> {
         self.find_element(css).await
     }
 

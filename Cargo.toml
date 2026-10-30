@@ -3,7 +3,7 @@
 # that depends on the library compiles no command-line parser, completion
 # generator or binary-only dependency.
 [workspace]
-members = ["crates/cli"]
+members = ["crates/cli", "crates/own-imports"]
 # A plain `cargo build`, `cargo test` or `cargo run --bin sbrs` at the root covers
 # both packages, as it did when the binaries were part of the library. Use
 # `-p seleniumbase-rs` for the library alone.
