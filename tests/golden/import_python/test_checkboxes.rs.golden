@@ -1,0 +1,33 @@
+//! Converted from Python by `sbrs import-python`. Run it with `cargo test --test test_checkboxes`
+//! when this file is in your crate's `tests/` folder; `SB_HEADLESS=true` runs it
+//! without a window. A comment marks each statement it could not convert.
+
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
+
+#[rstest]
+#[tokio::test]
+async fn test_checkboxes(sb: Sb) -> Result<()> {
+    sb.run(async |sb| {
+        sb.goto("https://seleniumbase.io/w3schools/checkboxes").await?;
+        sb.click("button#runbtn").await?;
+        sb.switch_to_frame("iframeResult").await?;
+        let checkbox = "input#vehicle2";
+        let selected = sb.is_selected(checkbox).await?;
+        sb.assert_false(selected)?;
+        sb.click(checkbox).await?;
+        let selected_2 = sb.is_selected(checkbox).await?;
+        sb.assert_true(selected_2)?;
+        sb.goto("https://seleniumbase.io/w3schools/radio_buttons").await?;
+        sb.click("button#runbtn").await?;
+        sb.switch_to_frame("iframeResult").await?;
+        let option_button = "input#css";
+        let selected_3 = sb.is_selected(option_button).await?;
+        sb.assert_false(selected_3)?;
+        sb.click(option_button).await?;
+        let selected_4 = sb.is_selected(option_button).await?;
+        sb.assert_true(selected_4)?;
+        Ok(())
+    })
+    .await
+}

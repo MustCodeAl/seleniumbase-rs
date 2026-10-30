@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 use regex::Regex;
 
+use crate::utilities::importer::pyconv;
 use crate::utils::selectors::is_xpath_selector;
 
 /// Python API family used by the input file.
@@ -73,41 +74,17 @@ enum Action {
     Click(String),
     ClickLink(String),
     ClickPartialLink(String),
-    TypeText(String, String),
     Clear(String),
     Submit(String),
-    Hover(String),
-    AssertElement(String),
-    AssertText(String, String),
-    AssertExactText(String, String),
-    AssertTextNotVisible(String, String),
-    AssertExactTextNotVisible(String, String),
-    WaitText(String, String, u64),
-    WaitExactText(String, String, u64),
-    DeferredElement(String),
-    DeferredText(String, String),
-    DeferredExactText(String, String),
-    ProcessDeferred,
-    EnterMfaCode(String, String),
     AddText(String, String),
     AssertTitle(String),
     AssertTitleContains(String),
-    AssertUrl(String),
-    AssertUrlContains(String),
     GetText(String),
     GetAttribute(String, String),
-    Check(String),
-    Uncheck(String),
-    DoubleClick(String),
-    RightClick(String),
-    WaitVisible(String, u64),
-    WaitPresent(String, u64),
-    SelectText(String, String),
     Maximize,
     Back,
     Forward,
     Refresh,
-    Sleep(f64),
     Todo(usize, String),
 }
 
@@ -125,6 +102,14 @@ enum Locator {
 /// source-located `TODO` comments and diagnostics.
 pub fn import_python(source: &str, options: &ImportOptions) -> ImportResult {
     let detected_source = detect_source(source, options.source);
+    if detected_source == PythonSource::SeleniumBase {
+        let converted = pyconv::convert(source, &options.test_name);
+        return ImportResult {
+            rust: converted.rust,
+            diagnostics: converted.diagnostics,
+            detected_source,
+        };
+    }
     let mut diagnostics = Vec::new();
     let mut elements = HashMap::new();
     let mut actions = Vec::new();
@@ -135,13 +120,7 @@ pub fn import_python(source: &str, options: &ImportOptions) -> ImportResult {
             continue;
         }
 
-        let action = match detected_source {
-            PythonSource::SeleniumBase => parse_seleniumbase(trimmed, line),
-            PythonSource::Selenium => parse_selenium(trimmed, line, &mut elements),
-            PythonSource::Auto => unreachable!("auto source is resolved before parsing"),
-        };
-
-        match action {
+        match parse_selenium(trimmed, line, &mut elements) {
             ParseOutcome::Action(action) => actions.push(action),
             ParseOutcome::Element(name, locator) => {
                 elements.insert(name, locator);
@@ -208,115 +187,6 @@ fn should_ignore(statement: &str) -> bool {
         || statement.starts_with("class ")
         || statement.starts_with("with SB(")
         || statement == "pass"
-}
-
-fn parse_seleniumbase(statement: &str, line: usize) -> ParseOutcome {
-    let Some((method, args)) = method_call(statement, &["self", "sb"]) else {
-        return ParseOutcome::Unsupported(format!(
-            "unsupported SeleniumBase statement: {}",
-            one_line(statement)
-        ));
-    };
-    let args = split_args(&args);
-
-    match method.as_str() {
-        "open" | "visit" | "get" => one_string(&args, Action::Open),
-        "click" => one_string(&args, Action::Click),
-        "click_link" | "click_link_text" => one_string(&args, Action::ClickLink),
-        "click_partial_link_text" => one_string(&args, Action::ClickPartialLink),
-        "double_click" | "double_click_element" => one_string(&args, Action::DoubleClick),
-        "right_click" | "right_click_element" => one_string(&args, Action::RightClick),
-        // Python's `send_keys` is `add_text`: it does not clear the field.
-        "type" | "type_text" | "update_text" => selector_and_text(
-            &args,
-            &["selector", "text", "by", "timeout", "retry"],
-            Action::TypeText,
-        ),
-        "add_text" | "send_keys" => selector_and_text(
-            &args,
-            &["selector", "text", "by", "timeout"],
-            Action::AddText,
-        ),
-        "enter_mfa_code" => selector_and_text(
-            &args,
-            &["selector", "totp_key", "by", "timeout"],
-            Action::EnterMfaCode,
-        ),
-        "clear" => one_string(&args, Action::Clear),
-        "submit" => one_string(&args, Action::Submit),
-        "hover" | "hover_on_element" => one_string(&args, Action::Hover),
-        "check_if_unchecked" | "check" => one_string(&args, Action::Check),
-        "uncheck_if_checked" | "uncheck" => one_string(&args, Action::Uncheck),
-        "assert_element" | "assert_element_visible" => {
-            selector_only(&args, &["selector", "by", "timeout"], Action::AssertElement)
-        }
-        // The selector is `body` when the Python call leaves it out.
-        "assert_text" | "assert_text_visible" => {
-            text_call(&args, false, |text, css, _| Action::AssertText(text, css))
-        }
-        "assert_exact_text" => text_call(&args, false, |text, css, _| {
-            Action::AssertExactText(text, css)
-        }),
-        "assert_text_not_visible" => text_call(&args, false, |text, css, _| {
-            Action::AssertTextNotVisible(text, css)
-        }),
-        "assert_exact_text_not_visible" => text_call(&args, false, |text, css, _| {
-            Action::AssertExactTextNotVisible(text, css)
-        }),
-        "wait_for_text" | "wait_for_text_visible" => {
-            text_call(&args, true, |text, css, timeout| {
-                Action::WaitText(text, css, timeout.unwrap_or(DEFAULT_WAIT_SECONDS))
-            })
-        }
-        "wait_for_exact_text" | "wait_for_exact_text_visible" => {
-            text_call(&args, true, |text, css, timeout| {
-                Action::WaitExactText(text, css, timeout.unwrap_or(DEFAULT_WAIT_SECONDS))
-            })
-        }
-        "deferred_assert_element" | "delayed_assert_element" => selector_only(
-            &args,
-            &["selector", "by", "timeout", "fs"],
-            Action::DeferredElement,
-        ),
-        "deferred_assert_text" | "delayed_assert_text" => text_call_with(
-            &args,
-            &["text", "selector", "by", "timeout", "fs"],
-            Action::DeferredText,
-        ),
-        "deferred_assert_exact_text" | "delayed_assert_exact_text" => text_call_with(
-            &args,
-            &["text", "selector", "by", "timeout", "fs"],
-            Action::DeferredExactText,
-        ),
-        "process_deferred_asserts" | "process_delayed_asserts" => {
-            ParseOutcome::Action(Action::ProcessDeferred)
-        }
-        "assert_title" => one_string(&args, Action::AssertTitle),
-        "assert_title_contains" => one_string(&args, Action::AssertTitleContains),
-        "assert_url" => one_string(&args, Action::AssertUrl),
-        "assert_url_contains" => one_string(&args, Action::AssertUrlContains),
-        "get_text" => one_string(&args, Action::GetText),
-        "get_attribute" => two_strings(&args, Action::GetAttribute),
-        "wait_for_element_visible" => wait_action(&args, true),
-        "wait_for_element_present" => wait_action(&args, false),
-        "select_option_by_text" => two_strings(&args, Action::SelectText),
-        "maximize_window" => ParseOutcome::Action(Action::Maximize),
-        "go_back" => ParseOutcome::Action(Action::Back),
-        "go_forward" => ParseOutcome::Action(Action::Forward),
-        "refresh_page" | "refresh" => ParseOutcome::Action(Action::Refresh),
-        // `Duration::from_secs_f64` panics on a negative or non-finite number.
-        "sleep" => match args
-            .first()
-            .and_then(|value| value.parse::<f64>().ok())
-            .filter(|seconds| seconds.is_finite() && *seconds >= 0.0)
-        {
-            Some(seconds) => ParseOutcome::Action(Action::Sleep(seconds)),
-            None => invalid_arguments(line, &method),
-        },
-        _ => ParseOutcome::Unsupported(format!(
-            "SeleniumBase method '{method}' needs manual migration"
-        )),
-    }
 }
 
 fn parse_selenium(
@@ -502,252 +372,6 @@ fn parse_locator(input: &str) -> Result<Locator, String> {
     }
 }
 
-fn method_call(statement: &str, receivers: &[&str]) -> Option<(String, String)> {
-    for receiver in receivers {
-        let prefix = format!("{receiver}.");
-        let Some(rest) = statement.strip_prefix(&prefix) else {
-            continue;
-        };
-        let open = rest.find('(')?;
-        if !rest.ends_with(')') {
-            return None;
-        }
-        return Some((
-            rest[..open].to_owned(),
-            rest[open + 1..rest.len() - 1].to_owned(),
-        ));
-    }
-    None
-}
-
-/// How long a wait lasts when the Python call gives no timeout, in seconds.
-const DEFAULT_WAIT_SECONDS: u64 = 10;
-
-/// The text of `value` if it is a Python string literal.
-fn literal(value: Option<&str>, name: &str) -> Result<String, String> {
-    let value = value.ok_or_else(|| format!("the '{name}' argument is missing"))?;
-    python_string(value).ok_or_else(|| format!("'{name}' must be a string literal"))
-}
-
-/// Whether `by` is the CSS strategy, the one `BaseCase` assumes for a
-/// selector that does not start like XPath.
-fn check_by(by: Option<&str>) -> Result<(), String> {
-    match by {
-        None => Ok(()),
-        Some(by)
-            if python_string(by).as_deref() == Some("css selector")
-                || by.trim() == "By.CSS_SELECTOR" =>
-        {
-            Ok(())
-        }
-        Some(by) => Err(format!(
-            "by={by} needs manual migration: BaseCase reads a selector that starts with '/' or '(' as XPath"
-        )),
-    }
-}
-
-/// `name=value` as a keyword argument of a call, if `arg` is one.
-fn keyword(arg: &str) -> Option<(&str, &str)> {
-    let (name, value) = arg.split_once('=')?;
-    let name = name.trim();
-    let is_name = !name.is_empty()
-        && !name.starts_with(|c: char| c.is_ascii_digit())
-        && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
-    (is_name && !value.starts_with('=')).then_some((name, value.trim()))
-}
-
-/// The arguments of a call matched with the names of Python's parameters:
-/// positional ones in order, keyword ones (`name=value`) by name.
-fn bind<'a>(args: &'a [String], names: &[&str]) -> Result<Vec<Option<&'a str>>, String> {
-    let mut bound: Vec<Option<&str>> = vec![None; names.len()];
-    let mut next = 0;
-    for arg in args {
-        let index = match keyword(arg) {
-            Some((key, _)) => names
-                .iter()
-                .position(|name| *name == key)
-                .ok_or_else(|| format!("the argument '{key}' is not supported"))?,
-            None => {
-                next += 1;
-                next - 1
-            }
-        };
-        if index >= names.len() {
-            return Err("too many arguments".to_owned());
-        }
-        if bound[index].is_some() {
-            return Err(format!("'{}' is given twice", names[index]));
-        }
-        bound[index] = Some(keyword(arg).map_or(arg.as_str(), |(_, value)| value));
-    }
-    Ok(bound)
-}
-
-/// The outcome of a call whose arguments were read into an action, or the
-/// reason they could not be.
-fn outcome(result: Result<Action, String>) -> ParseOutcome {
-    result.map_or_else(ParseOutcome::Invalid, ParseOutcome::Action)
-}
-
-/// The selector argument of a call, `body` when it is left out.
-fn selector_or_body(value: Option<&str>) -> Result<String, String> {
-    value.map_or_else(
-        || Ok("body".to_owned()),
-        |selector| literal(Some(selector), "selector"),
-    )
-}
-
-/// A text call like Python's `assert_text(text, selector="body", by, timeout)`:
-/// the text, the selector (`body` when it is left out) and, when
-/// `timeout_allowed`, the timeout in seconds.
-fn text_call(
-    args: &[String],
-    timeout_allowed: bool,
-    action: impl FnOnce(String, String, Option<u64>) -> Action,
-) -> ParseOutcome {
-    outcome(
-        text_arguments(args, timeout_allowed)
-            .map(|(text, css, timeout)| action(text, css, timeout)),
-    )
-}
-
-fn text_arguments(
-    args: &[String],
-    timeout_allowed: bool,
-) -> Result<(String, String, Option<u64>), String> {
-    let bound = bind(args, &["text", "selector", "by", "timeout"])?;
-    let text = literal(bound[0], "text")?;
-    let selector = selector_or_body(bound[1])?;
-    check_by(bound[2])?;
-    let timeout = match bound[3] {
-        None => None,
-        Some(timeout) if timeout_allowed => Some(
-            timeout
-                .parse::<u64>()
-                .map_err(|_| "the timeout must be a whole number of seconds".to_owned())?,
-        ),
-        Some(_) => {
-            return Err(
-                "a timeout needs manual migration: the assertion waits for the \
-                        default timeout (set_timeout)"
-                    .to_owned(),
-            )
-        }
-    };
-    Ok((text, selector, timeout))
-}
-
-/// A deferred text call: `names` are the Python parameters, the text first
-/// and the selector second (`body` when it is left out). The timeout and the
-/// `fs` flag cannot be carried over.
-fn text_call_with(
-    args: &[String],
-    names: &[&str],
-    action: impl FnOnce(String, String) -> Action,
-) -> ParseOutcome {
-    outcome(deferred_text_arguments(args, names).map(|(text, css)| action(text, css)))
-}
-
-fn deferred_text_arguments(args: &[String], names: &[&str]) -> Result<(String, String), String> {
-    let bound = bind(args, names)?;
-    let text = literal(bound[0], "text")?;
-    let selector = selector_or_body(bound[1])?;
-    check_by(bound[2])?;
-    if bound[3..].iter().any(Option::is_some) {
-        return Err("the timeout and fs arguments need manual migration".to_owned());
-    }
-    Ok((text, selector))
-}
-
-/// A call that takes a selector (its first parameter) and nothing that Rust
-/// can carry over: `by` must be CSS and there must be no timeout.
-fn selector_only(
-    args: &[String],
-    names: &[&str],
-    action: impl FnOnce(String) -> Action,
-) -> ParseOutcome {
-    outcome(selector_arguments(args, names).map(action))
-}
-
-fn selector_arguments(args: &[String], names: &[&str]) -> Result<String, String> {
-    let bound = bind(args, names)?;
-    let selector = literal(bound[0], "selector")?;
-    check_by(bound[1])?;
-    if bound[2..].iter().any(Option::is_some) {
-        return Err("the timeout and fs arguments need manual migration".to_owned());
-    }
-    Ok(selector)
-}
-
-/// A call like Python's `type(selector, text, by, timeout)`: a selector and a
-/// string, then arguments Rust cannot carry over.
-fn selector_and_text(
-    args: &[String],
-    names: &[&str],
-    action: impl FnOnce(String, String) -> Action,
-) -> ParseOutcome {
-    outcome(selector_text_arguments(args, names).map(|(selector, text)| action(selector, text)))
-}
-
-fn selector_text_arguments(args: &[String], names: &[&str]) -> Result<(String, String), String> {
-    let bound = bind(args, names)?;
-    let selector = literal(bound[0], "selector")?;
-    let text = literal(bound[1], names[1])?;
-    check_by(bound[2])?;
-    if bound[3..].iter().any(Option::is_some) {
-        return Err("the timeout and retry arguments need manual migration".to_owned());
-    }
-    Ok((selector, text))
-}
-
-fn one_string(args: &[String], action: impl FnOnce(String) -> Action) -> ParseOutcome {
-    match args.first().and_then(|arg| python_string(arg)) {
-        Some(value) => ParseOutcome::Action(action(value)),
-        None => ParseOutcome::Invalid("expected a string literal argument".to_owned()),
-    }
-}
-
-fn two_strings(args: &[String], action: impl FnOnce(String, String) -> Action) -> ParseOutcome {
-    match (
-        args.first().and_then(|arg| python_string(arg)),
-        args.get(1).and_then(|arg| python_string(arg)),
-    ) {
-        (Some(first), Some(second)) => ParseOutcome::Action(action(first, second)),
-        _ => ParseOutcome::Invalid("expected two string literal arguments".to_owned()),
-    }
-}
-
-fn wait_action(args: &[String], visible: bool) -> ParseOutcome {
-    outcome(wait_arguments(args).map(|(selector, timeout)| {
-        if visible {
-            Action::WaitVisible(selector, timeout)
-        } else {
-            Action::WaitPresent(selector, timeout)
-        }
-    }))
-}
-
-/// Python's `wait_for_element_visible(selector, by="css selector", timeout)`:
-/// the timeout is the third parameter, so it is given by keyword.
-fn wait_arguments(args: &[String]) -> Result<(String, u64), String> {
-    let bound = bind(args, &["selector", "by", "timeout"])?;
-    let selector = literal(bound[0], "selector")?;
-    check_by(bound[1])?;
-    let timeout = match bound[2] {
-        None => DEFAULT_WAIT_SECONDS,
-        Some(timeout) => timeout
-            .parse::<u64>()
-            .map_err(|_| "the timeout must be a whole number of seconds".to_owned())?,
-    };
-    Ok((selector, timeout))
-}
-
-fn invalid_arguments(line: usize, method: &str) -> ParseOutcome {
-    ParseOutcome::Invalid(format!(
-        "invalid literal arguments for '{method}' at line {line}"
-    ))
-}
-
 fn statements(source: &str) -> Vec<(usize, String)> {
     let mut result = Vec::new();
     let mut current = String::new();
@@ -885,21 +509,8 @@ fn python_string(input: &str) -> Option<String> {
 }
 
 fn render_test(test_name: &str, actions: &[Action]) -> String {
-    let mut output = String::from(
-        "use seleniumbase_rs::{run_browser_test, tokio, BrowserConfig};\n\n#[tokio::test]\n",
-    );
-    output.push_str(&format!(
-        "async fn {}() -> seleniumbase_rs::Result<()> {{\n",
-        rust_identifier(test_name)
-    ));
-    output.push_str("    run_browser_test(BrowserConfig::default(), async |sb| {\n");
-    for action in actions {
-        output.push_str("        ");
-        output.push_str(&render_action(action));
-        output.push('\n');
-    }
-    output.push_str("        Ok(())\n    }).await\n}\n");
-    output
+    let lines: Vec<String> = actions.iter().map(render_action).collect();
+    pyconv::render_lines(test_name, &lines)
 }
 
 fn render_action(action: &Action) -> String {
@@ -910,70 +521,21 @@ fn render_action(action: &Action) -> String {
         Action::ClickPartialLink(text) => {
             format!("sb.click_partial_link_text({text:?}).await?;")
         }
-        Action::TypeText(css, text) => format!("sb.type_text({css:?}, {text:?}).await?;"),
         Action::Clear(css) => format!("sb.clear({css:?}).await?;"),
         Action::Submit(css) => format!("sb.submit({css:?}).await?;"),
-        Action::Hover(css) => format!("sb.hover({css:?}).await?;"),
-        Action::AssertElement(css) => format!("sb.assert_element({css:?}).await?;"),
-        Action::AssertText(text, css) => format!("sb.assert_text({text:?}, {css:?}).await?;"),
-        Action::AssertExactText(text, css) => {
-            format!("sb.assert_exact_text({text:?}, {css:?}).await?;")
-        }
-        Action::AssertTextNotVisible(text, css) => {
-            format!("sb.assert_text_not_visible({text:?}, {css:?}).await?;")
-        }
-        Action::AssertExactTextNotVisible(text, css) => {
-            format!("sb.assert_exact_text_not_visible({text:?}, {css:?}).await?;")
-        }
-        Action::WaitText(text, css, timeout) => {
-            format!("sb.wait_for_text({text:?}, {css:?}, {timeout}).await?;")
-        }
-        Action::WaitExactText(text, css, timeout) => {
-            format!("sb.wait_for_exact_text({text:?}, {css:?}, {timeout}).await?;")
-        }
-        Action::DeferredElement(css) => format!("sb.deferred_assert_element({css:?}).await?;"),
-        Action::DeferredText(text, css) => {
-            format!("sb.deferred_assert_text({text:?}, {css:?}).await?;")
-        }
-        Action::DeferredExactText(text, css) => {
-            format!("sb.deferred_assert_exact_text({text:?}, {css:?}).await?;")
-        }
-        Action::ProcessDeferred => "sb.process_deferred_asserts().await?;".to_owned(),
-        Action::EnterMfaCode(css, secret) => {
-            format!("sb.enter_mfa_code({css:?}, {secret:?}).await?;")
-        }
         Action::AddText(css, text) => format!("sb.add_text({css:?}, {text:?}).await?;"),
         Action::AssertTitle(title) => format!("sb.assert_title({title:?}).await?;"),
         Action::AssertTitleContains(title) => {
             format!("sb.assert_title_contains({title:?}).await?;")
         }
-        Action::AssertUrl(url) => format!("sb.assert_url({url:?}).await?;"),
-        Action::AssertUrlContains(url) => format!("sb.assert_url_contains({url:?}).await?;"),
         Action::GetText(css) => format!("let _text = sb.get_text({css:?}).await?;"),
         Action::GetAttribute(css, attr) => {
             format!("let _value = sb.get_attribute({css:?}, {attr:?}).await?;")
-        }
-        Action::Check(css) => format!("sb.check_if_unchecked({css:?}).await?;"),
-        Action::Uncheck(css) => format!("sb.uncheck_if_checked({css:?}).await?;"),
-        Action::DoubleClick(css) => format!("sb.double_click({css:?}).await?;"),
-        Action::RightClick(css) => format!("sb.right_click({css:?}).await?;"),
-        Action::WaitVisible(css, timeout) => {
-            format!("sb.wait_for_element_visible({css:?}, {timeout}).await?;")
-        }
-        Action::WaitPresent(css, timeout) => {
-            format!("sb.wait_for_element_present({css:?}, {timeout}).await?;")
-        }
-        Action::SelectText(css, text) => {
-            format!("sb.select_option_by_text({css:?}, {text:?}).await?;")
         }
         Action::Maximize => "sb.maximize_window().await?;".to_owned(),
         Action::Back => "sb.go_back().await?;".to_owned(),
         Action::Forward => "sb.go_forward().await?;".to_owned(),
         Action::Refresh => "sb.refresh().await?;".to_owned(),
-        Action::Sleep(seconds) => {
-            // `{:?}` keeps the decimal point (`1.0`), which a float literal needs.
-            format!("tokio::time::sleep(std::time::Duration::from_secs_f64({seconds:?})).await;")
-        }
         Action::Todo(line, message) => {
             format!("// TODO(source line {line}): {}", one_line(message))
         }
@@ -992,26 +554,603 @@ fn one_line(value: &str) -> String {
     value.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-fn rust_identifier(value: &str) -> String {
-    let mut output = String::new();
-    for (index, character) in value.chars().enumerate() {
-        let valid = character == '_' || character.is_ascii_alphanumeric();
-        let character = if valid { character } else { '_' };
-        if index == 0 && character.is_ascii_digit() {
-            output.push('_');
-        }
-        output.push(character.to_ascii_lowercase());
-    }
-    if output.is_empty() {
-        "imported_python_test".to_owned()
-    } else {
-        output
-    }
-}
+// Compile check. `cargo test --doc --features testing` builds what the importer
+// writes for the Python examples exactly as a user's crate would, so a mapping
+// that drifts from the API fails here. Each golden is a module of its own, as
+// every file is a test target. The Python files are beside them, and
+// `pyconv::tests` checks that the importer still writes these goldens.
+#[cfg(all(doctest, feature = "testing"))]
+#[doc = concat!(
+    "```no_run,test_harness\n",
+    "mod handle_alert_test {\n",
+    include_str!("../../tests/golden/import_python/handle_alert_test.rs.golden"),
+    "}\n",
+    "mod iframe_tests {\n",
+    include_str!("../../tests/golden/import_python/iframe_tests.rs.golden"),
+    "}\n",
+    "mod my_first_test {\n",
+    include_str!("../../tests/golden/import_python/my_first_test.rs.golden"),
+    "}\n",
+    "mod raw_basic_cdp {\n",
+    include_str!("../../tests/golden/import_python/raw_basic_cdp.rs.golden"),
+    "}\n",
+    "mod raw_cdp_swag {\n",
+    include_str!("../../tests/golden/import_python/raw_cdp_swag.rs.golden"),
+    "}\n",
+    "mod raw_cdp_tabs {\n",
+    include_str!("../../tests/golden/import_python/raw_cdp_tabs.rs.golden"),
+    "}\n",
+    "mod raw_cdp_xpath {\n",
+    include_str!("../../tests/golden/import_python/raw_cdp_xpath.rs.golden"),
+    "}\n",
+    "mod raw_demo_site {\n",
+    include_str!("../../tests/golden/import_python/raw_demo_site.rs.golden"),
+    "}\n",
+    "mod raw_drag_and_drop {\n",
+    include_str!("../../tests/golden/import_python/raw_drag_and_drop.rs.golden"),
+    "}\n",
+    "mod shadow_root_test {\n",
+    include_str!("../../tests/golden/import_python/shadow_root_test.rs.golden"),
+    "}\n",
+    "mod test_assert_elements {\n",
+    include_str!("../../tests/golden/import_python/test_assert_elements.rs.golden"),
+    "}\n",
+    "mod test_checkboxes {\n",
+    include_str!("../../tests/golden/import_python/test_checkboxes.rs.golden"),
+    "}\n",
+    "mod test_coffee_cart {\n",
+    include_str!("../../tests/golden/import_python/test_coffee_cart.rs.golden"),
+    "}\n",
+    "mod test_contains_selector {\n",
+    include_str!("../../tests/golden/import_python/test_contains_selector.rs.golden"),
+    "}\n",
+    "mod test_cycle_elements {\n",
+    include_str!("../../tests/golden/import_python/test_cycle_elements.rs.golden"),
+    "}\n",
+    "mod test_deferred_asserts {\n",
+    include_str!("../../tests/golden/import_python/test_deferred_asserts.rs.golden"),
+    "}\n",
+    "mod test_demo_site {\n",
+    include_str!("../../tests/golden/import_python/test_demo_site.rs.golden"),
+    "}\n",
+    "mod test_double_click {\n",
+    include_str!("../../tests/golden/import_python/test_double_click.rs.golden"),
+    "}\n",
+    "mod test_drag_and_drop {\n",
+    include_str!("../../tests/golden/import_python/test_drag_and_drop.rs.golden"),
+    "}\n",
+    "mod test_highlight_elements {\n",
+    include_str!("../../tests/golden/import_python/test_highlight_elements.rs.golden"),
+    "}\n",
+    "mod test_select_options {\n",
+    include_str!("../../tests/golden/import_python/test_select_options.rs.golden"),
+    "}\n",
+    "mod test_shadow_dom {\n",
+    include_str!("../../tests/golden/import_python/test_shadow_dom.rs.golden"),
+    "}\n",
+    "mod test_simple_login {\n",
+    include_str!("../../tests/golden/import_python/test_simple_login.rs.golden"),
+    "}\n",
+    "mod test_tinymce {\n",
+    include_str!("../../tests/golden/import_python/test_tinymce.rs.golden"),
+    "}\n",
+    "mod test_todomvc {\n",
+    include_str!("../../tests/golden/import_python/test_todomvc.rs.golden"),
+    "}\n",
+    "mod test_url_asserts {\n",
+    include_str!("../../tests/golden/import_python/test_url_asserts.rs.golden"),
+    "}\n",
+    "mod test_window_switching {\n",
+    include_str!("../../tests/golden/import_python/test_window_switching.rs.golden"),
+    "}\n",
+    "mod xpath_test {\n",
+    include_str!("../../tests/golden/import_python/xpath_test.rs.golden"),
+    "}\n",
+    "fn main() {}\n```"
+)]
+struct ImportGoldensCompile;
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The Rust for the statements `body` inside one test method of a
+    /// `BaseCase` class.
+    fn in_class(body: &str) -> ImportResult {
+        let mut source = String::from(
+            "from seleniumbase import BaseCase\n\n\nclass T(BaseCase):\n    def test_x(self):\n",
+        );
+        for line in body.lines() {
+            source.push_str("        ");
+            source.push_str(line);
+            source.push('\n');
+        }
+        import_python(&source, &ImportOptions::default())
+    }
+
+    #[test]
+    fn print_of_an_f_string_is_one_println_and_a_text_index_is_parsed() {
+        let result = in_class(
+            "name = \"x\"\n\
+             print(f\"Hello {name}\")\n\
+             indexes = [\"0\", \"1\"]\n\
+             for i in indexes:\n\
+             \x20   self.select_option_by_index(\"#s\", i)",
+        );
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert_has(
+            &result,
+            &[
+                "println!(\"Hello {}\", name);",
+                "sb.select_option_by_index(\"#s\", i.parse().expect(\"a whole number\")).await?;",
+            ],
+        );
+    }
+
+    #[test]
+    fn assert_in_follows_the_membership_trait() {
+        let result = in_class(
+            "title = self.get_title()\n\
+             self.assert_in(\"jq\", title.lower())\n\
+             self.assert_in(\"a\", [\"a\", \"b\"])",
+        );
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert_has(
+            &result,
+            &[
+                "sb.assert_in(\"jq\", &title.to_lowercase())?;",
+                "sb.assert_in(\"a\".to_owned(), &[\"a\", \"b\"].map(String::from).to_vec())?;",
+            ],
+        );
+    }
+
+    #[test]
+    fn a_timeout_of_wait_for_element_and_an_attribute_of_the_options_are_builder_methods() {
+        let result = in_class(
+            "self.wait_for_element(\"#a\", timeout=3)\n\
+             self.get_select_options(\"#s\", attribute=\"value\")",
+        );
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert_has(
+            &result,
+            &[
+                "sb.wait_for_element(\"#a\").timeout(std::time::Duration::from_secs(3)).await?;",
+                "sb.get_select_options(\"#s\").attribute(\"value\").await?;",
+            ],
+        );
+    }
+
+    #[test]
+    fn pure_cdp_assertions_are_rust_assertions() {
+        let result = import_python(
+            "from seleniumbase import sb_cdp\n\
+             sb = sb_cdp.Chrome()\n\
+             sb.assert_true(sb.is_selected(\"#a\"))\n\
+             sb.assert_false(sb.is_selected(\"#a\"))\n\
+             sb.assert_equal(sb.get_text(\"h1\"), \"Hi\")",
+            &ImportOptions::default(),
+        );
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert_has(
+            &result,
+            &[
+                "let selected = page.locator(\"#a\").is_selected().await?;",
+                "assert!(selected);",
+                "assert!(!selected_2);",
+                "assert_eq!(text.as_str(), \"Hi\");",
+            ],
+        );
+    }
+
+    #[test]
+    fn a_name_whose_assignment_was_not_converted_is_a_warning_when_it_is_used() {
+        let result = in_class("name = self.no_such_method()\nself.click(name)");
+        assert!(result.is_complete(), "{:?}", result.diagnostics);
+        assert_eq!(result.diagnostics.len(), 2, "{:?}", result.diagnostics);
+    }
+
+    #[test]
+    fn while_loops_are_translated_and_an_unknown_with_block_keeps_its_body() {
+        let result = in_class(
+            "n = 0\n\
+             while n < 3:\n\
+             \x20   self.click(\"#a\")\n\
+             \x20   n += 1\n\
+             with self.assert_raises(Exception):\n\
+             \x20   self.click(\"#b\")",
+        );
+        assert_eq!(result.diagnostics.len(), 1, "{:?}", result.diagnostics);
+        assert_has(
+            &result,
+            &[
+                "let mut n = 0;",
+                "while n < 3 {",
+                "n += 1;",
+                "sb.click(\"#b\").await?;",
+            ],
+        );
+    }
+
+    #[test]
+    fn several_tests_keep_their_python_names() {
+        let result = import_python(
+            "from seleniumbase import BaseCase\n\n\n\
+             class T(BaseCase):\n\
+             \x20   def test_a(self):\n\
+             \x20       self.open(\"https://a.test\")\n\n\
+             \x20   def test_b(self):\n\
+             \x20       self.open(\"https://b.test\")\n",
+            &ImportOptions::default(),
+        );
+        assert_has(
+            &result,
+            &["async fn test_a(sb: Sb)", "async fn test_b(sb: Sb)"],
+        );
+    }
+
+    #[test]
+    fn a_file_the_lexer_cannot_read_is_one_error_and_a_valid_shell() {
+        let result = import_python(
+            "self.open(\"https://a.test)\n",
+            &ImportOptions {
+                source: PythonSource::SeleniumBase,
+                ..Default::default()
+            },
+        );
+        assert!(!result.is_complete());
+        assert_has(&result, &["TODO(source line 1): could not read the file"]);
+        syn::parse_file(&result.rust).unwrap();
+    }
+
+    /// The example of `docs/python-migration.md`.
+    #[test]
+    fn the_docs_example_converts_as_shown() {
+        let python = r##"from seleniumbase import BaseCase
+
+class LoginTest(BaseCase):
+    def test_login(self):
+        user = "alice"
+        self.open("https://example.com/login")
+        self.type("#username", user)
+        self.type("#password", "secret")
+        self.click("#submit")
+        self.assert_text(f"Welcome, {user}")
+"##;
+        let result = import_python(
+            python,
+            &ImportOptions {
+                source: PythonSource::Auto,
+                test_name: "login_test".to_owned(),
+            },
+        );
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert_eq!(
+            result.rust,
+            r##"//! Converted from Python by `sbrs import-python`. Run it with `cargo test --test login_test`
+//! when this file is in your crate's `tests/` folder; `SB_HEADLESS=true` runs it
+//! without a window. A comment marks each statement it could not convert.
+
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
+
+#[rstest]
+#[tokio::test]
+async fn login_test(sb: Sb) -> Result<()> {
+    sb.run(async |sb| {
+        let user = "alice";
+        sb.open("https://example.com/login").await?;
+        sb.type_text("#username", user).await?;
+        sb.type_text("#password", "secret").await?;
+        sb.click("#submit").await?;
+        sb.assert_text(&format!("Welcome, {}", user), "html").await?;
+        Ok(())
+    })
+    .await
+}
+"##
+        );
+    }
+
+    /// Fails with the whole output when a line is missing.
+    fn assert_has(result: &ImportResult, lines: &[&str]) {
+        for line in lines {
+            assert!(
+                result.rust.contains(line),
+                "missing `{line}` in:\n{}\n{:?}",
+                result.rust,
+                result.diagnostics
+            );
+        }
+    }
+
+    #[test]
+    fn gap6_the_test_is_the_rstest_sb_fixture_form_mkfile_writes() {
+        let result = in_class("self.open(\"https://example.test\")");
+        assert_has(
+            &result,
+            &[
+                "use seleniumbase_rs::testing::{rstest, sb, Sb};",
+                "use seleniumbase_rs::{tokio, Result};",
+                "#[rstest]\n#[tokio::test]\nasync fn imported_python_test(sb: Sb) -> Result<()> {",
+                "    sb.run(async |sb| {",
+                "        sb.open(\"https://example.test\").await?;",
+                "        Ok(())\n    })\n    .await\n}",
+            ],
+        );
+        assert!(!result.rust.contains("BrowserConfig"), "{}", result.rust);
+        assert!(!result.rust.contains("run_browser_test"), "{}", result.rust);
+    }
+
+    #[test]
+    fn gap6_a_docstring_becomes_a_module_comment_and_main_is_dropped_silently() {
+        let source = "\"\"\"A complete end-to-end test.\"\"\"\n\
+                      from seleniumbase import BaseCase\n\
+                      BaseCase.main(__name__, __file__)\n\n\n\
+                      class T(BaseCase):\n\
+                      \x20   def test_x(self):\n\
+                      \x20       self.open(\"https://example.test\")\n\n\n\
+                      if __name__ == \"__main__\":\n\
+                      \x20   print(\"run me with pytest\")\n";
+        let result = import_python(source, &ImportOptions::default());
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert!(
+            result.rust.starts_with("//! A complete end-to-end test."),
+            "{}",
+            result.rust
+        );
+        assert!(!result.rust.contains("TODO"), "{}", result.rust);
+    }
+
+    #[test]
+    fn gap1_methods_with_a_rust_equal_are_mapped_and_not_left_as_todos() {
+        let result = in_class(
+            "self.goto(\"https://example.test\")\n\
+             self.switch_to_frame(\"#f\")\n\
+             self.switch_to_default_content()\n\
+             self.switch_to_parent_frame()\n\
+             self.switch_to_window(0)\n\
+             self.open_new_window()\n\
+             self.highlight(\"h2\")\n\
+             self.js_click(\"a#go\")\n\
+             self.set_value(\"input#s\", \"100\")\n\
+             self.drag_and_drop(\"#a\", \"#b\")\n\
+             self.hover_and_click(\"#a\", \"#b\")\n\
+             self.assert_link_text(\"Home\")\n\
+             self.assert_element_not_visible(\"img\")\n\
+             self.click_visible_elements(\"input.c\")\n\
+             self.select_option_by_value(\"#s\", \"x\")\n\
+             self.select_option_by_index(\"#s\", 2)\n\
+             self.post_message(\"hi\")\n\
+             self.wait_for_ready_state_complete()\n\
+             self.clear_local_storage()\n\
+             self.activate_demo_mode()",
+        );
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert_has(
+            &result,
+            &[
+                "sb.goto(\"https://example.test\").await?;",
+                "sb.switch_to_frame(\"#f\").await?;",
+                "sb.switch_to_default_content().await?;",
+                "sb.switch_to_parent_frame().await?;",
+                "sb.switch_to_window(0).await?;",
+                "sb.open_new_window().await?;",
+                "sb.highlight(\"h2\").await?;",
+                "sb.js_click(\"a#go\").await?;",
+                "sb.set_value(\"input#s\", \"100\").await?;",
+                "sb.drag_and_drop(\"#a\", \"#b\").await?;",
+                "sb.hover_and_click(\"#a\", \"#b\").await?;",
+                "sb.assert_link_text(\"Home\").await?;",
+                "sb.assert_element_not_visible(\"img\").await?;",
+                "sb.click_visible_elements(\"input.c\").await?;",
+                "sb.select_option_by_value(\"#s\", \"x\").await?;",
+                "sb.select_option_by_index(\"#s\", 2).await?;",
+                "sb.post_message(\"hi\").await?;",
+                "sb.wait_for_ready_state_complete().await?;",
+                "sb.clear_local_storage().await?;",
+                "sb.activate_demo_mode().await?;",
+            ],
+        );
+    }
+
+    #[test]
+    fn gap1_waits_and_asserts_with_defaults_are_filled_in() {
+        let result = in_class(
+            "self.wait_for_element(\"#c\")\n\
+             self.assert_true(self.is_element_visible(\"img\"))\n\
+             self.assert_false(self.is_text_visible(\"gone\"))\n\
+             self.assert_elements(\"h1\", \"h2\")\n\
+             self.sleep(1)",
+        );
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert_has(
+            &result,
+            &[
+                "sb.wait_for_element(\"#c\").await?;",
+                "let element_visible = sb.is_element_visible(\"img\").await?;",
+                "sb.assert_true(element_visible)?;",
+                "let text_visible = sb.is_text_visible(\"gone\", \"html\").await?;",
+                "sb.assert_false(text_visible)?;",
+                "sb.assert_elements(&[\"h1\", \"h2\"]).await?;",
+                "sb.sleep(1.0).await;",
+            ],
+        );
+    }
+
+    #[test]
+    fn gap2_variables_f_strings_and_concatenations_pass_through() {
+        let result = in_class(
+            "checkbox = \"input#vehicle2\"\n\
+             self.click(checkbox)\n\
+             base = \"https://example.test\"\n\
+             self.open(base + \"/login\")\n\
+             self.open(f\"{base}/home\")\n\
+             self.click('a[href*=\"%s\"]' % checkbox)\n\
+             title = self.get_title()\n\
+             self.assert_true(\"login\" in title.lower())",
+        );
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert_has(
+            &result,
+            &[
+                "let checkbox = \"input#vehicle2\";",
+                "sb.click(checkbox).await?;",
+                "let base = \"https://example.test\";",
+                "sb.open(&format!(\"{}/login\", base)).await?;",
+                "sb.open(&format!(\"{}/home\", base)).await?;",
+                "sb.click(&format!(\"a[href*=\\\"{}\\\"]\", checkbox)).await?;",
+                "let title = sb.get_title().await?;",
+                "title.to_lowercase().contains(\"login\")",
+            ],
+        );
+    }
+
+    #[test]
+    fn gap2_an_expression_that_cannot_be_translated_is_a_todo_not_an_error() {
+        let result = in_class("self.click(some_module.selector_for(3))");
+        assert!(result.is_complete(), "{:?}", result.diagnostics);
+        assert_eq!(result.diagnostics.len(), 1, "{:?}", result.diagnostics);
+        assert_has(&result, &["TODO(source line 6)"]);
+    }
+
+    #[test]
+    fn gap3_for_if_try_with_and_assignments_are_translated() {
+        let result = in_class(
+            "texts = [\"a\", \"b\"]\n\
+             for index, text in enumerate(texts):\n\
+             \x20   self.select_option_by_text(\"#s\", text)\n\
+             \x20   self.assert_text(text, \"#out\")\n\
+             if self.is_element_visible(\"#x\"):\n\
+             \x20   self.click(\"#x\")\n\
+             elif self.is_element_visible(\"#y\"):\n\
+             \x20   self.click(\"#y\")\n\
+             else:\n\
+             \x20   self.click(\"#z\")\n\
+             try:\n\
+             \x20   self.hover_and_click(\"#a\", \"#b\")\n\
+             except Exception:\n\
+             \x20   self.hover_and_js_click(\"#a\", \"#b\")\n\
+             with self.frame_switch(\"iframe\"):\n\
+             \x20   self.click(\"h2\")\n\
+             \x20   self.assert_text(\"Hi\", \"h2\")",
+        );
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert_has(
+            &result,
+            &[
+                "for (index, text) in texts.iter().enumerate() {",
+                "sb.select_option_by_text(\"#s\", text).await?;",
+                "let element_visible = sb.is_element_visible(\"#x\").await?;",
+                "if element_visible {",
+                "} else {",
+                "let attempt: Result<()> = async {",
+                "sb.hover_and_click(\"#a\", \"#b\").await?;",
+                "if attempt.is_err() {",
+                "sb.hover_and_js_click(\"#a\", \"#b\").await?;",
+                "sb.frame_switch(\"iframe\")",
+                ".run(async |sb| {",
+                "sb.assert_text(\"Hi\", \"h2\").await?;",
+            ],
+        );
+    }
+
+    #[test]
+    fn gap3_parameterized_tests_become_rstest_cases_and_set_up_runs_first() {
+        let source = "from parameterized import parameterized\n\
+                      from seleniumbase import BaseCase\n\n\n\
+                      class TodoMVC(BaseCase):\n\
+                      \x20   def setUp(self):\n\
+                      \x20       super().setUp()\n\
+                      \x20       self.open_new_window()\n\n\
+                      \x20   def tearDown(self):\n\
+                      \x20       self.save_teardown_screenshot()\n\
+                      \x20       super().tearDown()\n\n\
+                      \x20   @parameterized.expand([[\"jquery\"], [\"react\"]])\n\
+                      \x20   def test_todomvc(self, framework):\n\
+                      \x20       self.goto(\"https://todomvc.com/\")\n\
+                      \x20       self.click('a[href*=\"examples/%s/dist\"]' % framework)\n";
+        let result = import_python(source, &ImportOptions::default());
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert_has(
+            &result,
+            &[
+                "#[rstest]\n#[case(\"jquery\")]\n#[case(\"react\")]\n#[tokio::test]",
+                "async fn imported_python_test(sb: Sb, #[case] framework: &str) -> Result<()> {",
+                "sb.open_new_window().await?;\n        sb.goto(\"https://todomvc.com/\").await?;",
+                "sb.save_teardown_screenshot().await?;",
+            ],
+        );
+    }
+
+    #[test]
+    fn gap3_an_if_whose_condition_cannot_be_translated_does_not_run_its_body() {
+        let result = in_class("if self.headed:\n    self.activate_demo_mode()");
+        assert_eq!(result.diagnostics.len(), 1, "{:?}", result.diagnostics);
+        assert_has(&result, &["TODO(source line 6)", "if false {"]);
+    }
+
+    #[test]
+    fn gap4_a_text_assertion_without_a_selector_looks_at_html() {
+        let result = in_class("self.assert_text(\"Checkout: Overview\")");
+        assert_has(
+            &result,
+            &["sb.assert_text(\"Checkout: Overview\", \"html\").await?;"],
+        );
+    }
+
+    #[test]
+    fn gap5_with_sb_and_sb_cdp_scripts_become_fixture_tests() {
+        let with_sb = import_python(
+            "from seleniumbase import SB\n\nwith SB(uc=True, test=True) as sb:\n    sb.open(\"https://example.test\")\n    sb.click(\"#go\")\n",
+            &ImportOptions::default(),
+        );
+        assert!(with_sb.diagnostics.is_empty(), "{:?}", with_sb.diagnostics);
+        assert_has(
+            &with_sb,
+            &[
+                "async fn imported_python_test(sb: Sb) -> Result<()> {",
+                "sb.click(\"#go\").await?;",
+                "// SB(uc=True, test=True)",
+            ],
+        );
+
+        let cdp = import_python(
+            "from seleniumbase import sb_cdp\n\nsb = sb_cdp.Chrome()\nsb.goto(\"https://example.test\")\nsb.type(\"#q\", \"rust\")\nsb.assert_text(\"Results\", \"h1\")\nsb.assert_element(\"img\")\nsb.highlight(\"#q\")\nsb.quit()\n",
+            &ImportOptions::default(),
+        );
+        assert!(cdp.diagnostics.is_empty(), "{:?}", cdp.diagnostics);
+        assert_has(
+            &cdp,
+            &[
+                "use seleniumbase_rs::testing::{rstest, sb_cdp, SbCdp};",
+                "async fn imported_python_test(sb_cdp: SbCdp) -> Result<()> {",
+                "sb_cdp\n        .run(async |page| {",
+                "page.goto(\"https://example.test\").await?;",
+                "page.locator(\"#q\").type_text(\"rust\").await?;",
+                "page.locator(\"h1\").expect().to_contain_text(\"Results\").await?;",
+                "page.locator(\"img\").expect().to_be_visible().await?;",
+                "page.locator(\"#q\").flash().await?;",
+            ],
+        );
+        assert!(!cdp.rust.contains("quit"), "{}", cdp.rust);
+    }
+
+    #[test]
+    fn gap5_activate_cdp_mode_in_a_with_sb_block_is_a_pure_cdp_test() {
+        let result = import_python(
+            "from seleniumbase import SB\n\nwith SB(uc=True) as sb:\n    sb.activate_cdp_mode()\n    sb.goto(\"https://example.test\")\n    sb.click(\"#go\")\n",
+            &ImportOptions::default(),
+        );
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert_has(
+            &result,
+            &[
+                "sb_cdp: SbCdp",
+                "page.goto(\"https://example.test\").await?;",
+                "page.locator(\"#go\").click().await?;",
+            ],
+        );
+    }
 
     #[test]
     fn imports_seleniumbase_test() {
@@ -1037,7 +1176,7 @@ class LoginTests(BaseCase):
         assert!(result
             .rust
             .contains("sb.assert_text(\"Welcome\", \"main\")"));
-        assert!(result.rust.contains("run_browser_test"));
+        assert!(result.rust.contains("sb.run(async |sb| {"));
     }
 
     #[test]
@@ -1117,7 +1256,7 @@ driver.find_element(By.XPATH, "//a[text()='Home']").click()
         let source = r##"
 self.open("https://example.test")
 self.assert_url_contains("example")
-self.check("#agree")
+self.check_if_unchecked("#agree")
 self.double_click("#submit")
 "##;
         let result = import_python(
@@ -1145,7 +1284,7 @@ self.double_click("#submit")
         assert!(result.is_complete(), "{:?}", result.diagnostics);
         for seconds in ["1.0", "0.5", "2.0"] {
             assert!(
-                result.rust.contains(&format!("from_secs_f64({seconds})")),
+                result.rust.contains(&format!("sb.sleep({seconds}).await;")),
                 "{seconds}: {}",
                 result.rust
             );
@@ -1247,11 +1386,11 @@ _ = header.get_attribute("data-id")
         );
         assert!(result.is_complete(), "{:?}", result.diagnostics);
         for line in [
-            "sb.assert_text(\"Welcome\", \"body\").await?;",
-            "sb.assert_exact_text(\"Hi\", \"body\").await?;",
-            "sb.assert_text(\"Shown\", \"body\").await?;",
-            "sb.assert_text_not_visible(\"Gone\", \"body\").await?;",
-            "sb.deferred_assert_text(\"Terms\", \"body\").await?;",
+            "sb.assert_text(\"Welcome\", \"html\").await?;",
+            "sb.assert_exact_text(\"Hi\", \"html\").await?;",
+            "sb.assert_text(\"Shown\", \"html\").await?;",
+            "sb.assert_text_not_visible(\"Gone\", \"html\").await?;",
+            "sb.deferred_assert_text(\"Terms\", \"html\").await?;",
         ] {
             assert!(result.rust.contains(line), "{line}\n{}", result.rust);
         }
@@ -1292,7 +1431,7 @@ _ = header.get_attribute("data-id")
         assert!(result.is_complete(), "{:?}", result.diagnostics);
         for line in [
             "sb.wait_for_text(\"Ready\", \"#s\", 10).await?;",
-            "sb.wait_for_text(\"Ready\", \"body\", 10).await?;",
+            "sb.wait_for_text(\"Ready\", \"html\", 10).await?;",
             "sb.wait_for_exact_text(\"Ready\", \"#s\", 4).await?;",
             "sb.wait_for_element_visible(\"#w\", 7).await?;",
             "sb.wait_for_element_present(\"#p\", 10).await?;",

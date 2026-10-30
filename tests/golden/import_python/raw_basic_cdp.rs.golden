@@ -1,0 +1,41 @@
+//! Converted from Python by `sbrs import-python`. Run it with `cargo test --test raw_basic_cdp`
+//! when this file is in your crate's `tests/` folder; `SB_HEADLESS=true` runs it
+//! without a window. A comment marks each statement it could not convert.
+
+use seleniumbase_rs::testing::{rstest, sb_cdp, SbCdp};
+use seleniumbase_rs::{tokio, Result};
+
+#[rstest]
+#[tokio::test]
+async fn raw_basic_cdp(sb_cdp: SbCdp) -> Result<()> {
+    sb_cdp
+        .run(async |page| {
+            page.goto("https://seleniumbase.io/simple/login").await?;
+            page.locator("#username").type_text("demo_user").await?;
+            page.locator("#password").type_text("secret_pass").await?;
+            page.locator("a:contains(\"Sign in\")").click().await?;
+            page.locator("h1").expect().to_have_text("Welcome!").await?;
+            page.locator("img#image1").expect().to_be_visible().await?;
+            page.locator("#image1").flash().await?;
+            let top_nav = page.locator("div.topnav");
+            let links = top_nav.locator("a").all_waiting().await?;
+            for nav_item in &links {
+                let text = nav_item.text().await?;
+                println!("{}", text);
+            }
+            // TODO(source line 15): SeleniumBase CDP method 'save_as_pdf_to_logs' needs manual migration
+            //     sb.save_as_pdf_to_logs()
+            // TODO(source line 16): SeleniumBase CDP method 'save_screenshot_to_logs' needs manual migration
+            //     sb.save_screenshot_to_logs()
+            // TODO(source line 17): SeleniumBase CDP method 'save_page_source_to_logs' needs manual migration
+            //     sb.save_page_source_to_logs()
+            // TODO(source line 18): SeleniumBase CDP method 'save_data_to_logs' needs manual migration
+            //     sb.save_data_to_logs("Extra data for logs")
+            // TODO(source line 19): SeleniumBase CDP method 'append_data_to_logs' needs manual migration
+            //     sb.append_data_to_logs("Add data for logs")
+            page.locator("link=Sign out").click().await?;
+            page.locator("#top_message").expect().to_contain_text("signed out").await?;
+            Ok(())
+        })
+        .await
+}

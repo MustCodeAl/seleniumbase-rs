@@ -1,0 +1,22 @@
+from seleniumbase import sb_cdp
+
+sb = sb_cdp.Chrome()
+sb.goto("https://seleniumbase.io/simple/login")
+sb.type("#username", "demo_user")
+sb.type("#password", "secret_pass")
+sb.click('a:contains("Sign in")')
+sb.assert_exact_text("Welcome!", "h1")
+sb.assert_element("img#image1")
+sb.highlight("#image1")
+top_nav = sb.find_element("div.topnav")
+links = top_nav.query_selector_all("a")
+for nav_item in links:
+    print(nav_item.text)
+sb.save_as_pdf_to_logs()
+sb.save_screenshot_to_logs()
+sb.save_page_source_to_logs()
+sb.save_data_to_logs("Extra data for logs")
+sb.append_data_to_logs("Add data for logs")
+sb.click_link("Sign out")
+sb.assert_text("signed out", "#top_message")
+sb.quit()

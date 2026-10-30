@@ -1,0 +1,35 @@
+//! Piercing through shadow-root elements with the "::shadow" selector.
+//! To confirm that "::shadow" works, print text and assert exact text.
+
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
+
+#[rstest]
+#[tokio::test]
+async fn shadow_root_test(sb: Sb) -> Result<()> {
+    sb.run(async |sb| {
+        // TODO(source line 9): `self.recorder_mode` has no Rust equal
+        //     self.recorder_mode or not self.is_chromium()
+        if false {
+            sb.goto_if_not_url("about:blank").await?;
+            println!("\n  Unsupported mode for this test.");
+            sb.skip_test("Unsupported mode for this test.")?;
+        }
+        sb.goto("https://seleniumbase.io/other/shadow_dom").await?;
+        println!();
+        sb.click("button.tab_1").await?;
+        let text = sb.get_text("fancy-tabs::shadow #panels").await?;
+        println!("{}", text);
+        sb.assert_exact_text("Content Panel 1", "fancy-tabs::shadow #panels").await?;
+        sb.click("button.tab_2").await?;
+        let text_2 = sb.get_text("fancy-tabs::shadow #panels").await?;
+        println!("{}", text_2);
+        sb.assert_exact_text("Content Panel 2", "fancy-tabs::shadow #panels").await?;
+        sb.click("button.tab_3").await?;
+        let text_3 = sb.get_text("fancy-tabs::shadow #panels").await?;
+        println!("{}", text_3);
+        sb.assert_exact_text("Content Panel 3", "fancy-tabs::shadow #panels").await?;
+        Ok(())
+    })
+    .await
+}

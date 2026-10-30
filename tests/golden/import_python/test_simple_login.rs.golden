@@ -1,0 +1,24 @@
+//! Converted from Python by `sbrs import-python`. Run it with `cargo test --test test_simple_login`
+//! when this file is in your crate's `tests/` folder; `SB_HEADLESS=true` runs it
+//! without a window. A comment marks each statement it could not convert.
+
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
+
+#[rstest]
+#[tokio::test]
+async fn test_simple_login(sb: Sb) -> Result<()> {
+    sb.run(async |sb| {
+        sb.goto("https://seleniumbase.io/simple/login").await?;
+        sb.type_text("#username", "demo_user").await?;
+        sb.type_text("#password", "secret_pass").await?;
+        sb.click("a:contains(\"Sign in\")").await?;
+        sb.assert_exact_text("Welcome!", "h1").await?;
+        sb.assert_element("img#image1").await?;
+        sb.highlight("#image1").await?;
+        sb.click_link("Sign out").await?;
+        sb.assert_text("signed out", "#top_message").await?;
+        Ok(())
+    })
+    .await
+}

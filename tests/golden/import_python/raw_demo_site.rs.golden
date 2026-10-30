@@ -1,0 +1,82 @@
+//! Example of using various CDP Mode commands.
+
+use seleniumbase_rs::sb_cdp::{SelectBy};
+use seleniumbase_rs::testing::{rstest, sb_cdp, SbCdp};
+use seleniumbase_rs::{tokio, Result};
+
+#[rstest]
+#[tokio::test]
+async fn raw_demo_site(sb_cdp: SbCdp) -> Result<()> {
+    sb_cdp
+        .run(async |page| {
+            // SB(uc=True, test=True, fast=True): the browser settings come from the SB_* variables and the settings file
+            page.goto("https://seleniumbase.io/demo_page").await?;
+            // Assert various things
+            page.expect().to_have_title("Web Testing Page").await?;
+            page.locator("tbody#tbodyId").expect().to_be_visible().await?;
+            page.locator("h1").expect().to_contain_text("Demo Page").await?;
+            // Type text into various text fields and then assert
+            page.locator("#myTextInput").type_text("This is Automated").await?;
+            page.locator("textarea.area1").type_text("Testing Time!\n").await?;
+            page.locator("[name=\"preText2\"]").type_text("Typing Text!").await?;
+            page.locator("#myTextInput").expect().to_contain_text("This is Automated").await?;
+            page.locator("textarea.area1").expect().to_contain_text("Testing Time!\n").await?;
+            page.locator("[name=\"preText2\"]").expect().to_contain_text("Typing Text!").await?;
+            // Hover & click a dropdown element and assert results
+            page.locator("h3").expect().to_contain_text("Automation Practice").await?;
+            page.locator("#myDropdown").hover().await?; page.locator("#dropOption2").click().await?;
+            page.locator("h3").expect().to_contain_text("Link Two Selected").await?;
+            // Click a button and then verify the expected results
+            page.locator("#pText").expect().to_contain_text("This Text is Green").await?;
+            page.locator("button:contains(\"Click Me\")").click().await?;
+            page.locator("#pText").expect().to_contain_text("This Text is Purple").await?;
+            // Verify that a slider control updates a progress bar
+            page.locator("progress[value=\"50\"]").expect().to_be_visible().await?;
+            page.locator("input#mySlider").set_value("100").await?;
+            page.locator("progress[value=\"100\"]").expect().to_be_visible().await?;
+            // Verify that a "select" option updates a meter bar
+            page.locator("meter[value=\"0.25\"]").expect().to_be_visible().await?;
+            page.locator("#mySelect").select_option(SelectBy::Text("Set to 75%")).await?;
+            page.locator("meter[value=\"0.75\"]").expect().to_be_visible().await?;
+            // Verify that clicking a radio button selects it
+            let selected = page.locator("#radioButton2").is_selected().await?;
+            assert!(!selected);
+            page.locator("#radioButton2").click().await?;
+            let selected_2 = page.locator("#radioButton2").is_selected().await?;
+            assert!(selected_2);
+            // Verify that clicking a checkbox makes it selected
+            page.locator("img#logo").expect().not().to_be_visible().await?;
+            let selected_3 = page.locator("#checkBox1").is_selected().await?;
+            assert!(!selected_3);
+            page.locator("#checkBox1").click().await?;
+            let selected_4 = page.locator("#checkBox1").is_selected().await?;
+            assert!(selected_4);
+            page.locator("img#logo").expect().to_be_visible().await?;
+            // Verify clicking on multiple elements with one call
+            let selected_5 = page.locator("#checkBox2").is_selected().await?;
+            assert!(!selected_5);
+            let selected_6 = page.locator("#checkBox3").is_selected().await?;
+            assert!(!selected_6);
+            let selected_7 = page.locator("#checkBox4").is_selected().await?;
+            assert!(!selected_7);
+            for element in page.locator("input.checkBoxClassB").visible().all_waiting().await? { element.click().await?; };
+            let selected_8 = page.locator("#checkBox2").is_selected().await?;
+            assert!(selected_8);
+            let selected_9 = page.locator("#checkBox3").is_selected().await?;
+            assert!(selected_9);
+            let selected_10 = page.locator("#checkBox4").is_selected().await?;
+            assert!(selected_10);
+            // Verify Drag and Drop
+            page.locator("div#drop2 img#logo").expect().not().to_be_visible().await?;
+            page.locator("img#logo").drag_to(&page.locator("div#drop2")).await?;
+            page.locator("div#drop2 img#logo").expect().to_be_visible().await?;
+            // Click inside an iframe and test highlighting
+            page.locator("iframe#myFrame3").flash().await?;
+            tokio::time::sleep(std::time::Duration::from_secs_f64(0.5)).await;
+            page.locator("iframe#myFrame3").locator(".fBox").click().await?;
+            tokio::time::sleep(std::time::Duration::from_secs_f64(0.5)).await;
+            page.locator("iframe#myFrame3").flash().await?;
+            Ok(())
+        })
+        .await
+}
