@@ -42,6 +42,14 @@ const GONE: &[(&str, &str)] = &[
         "features = [\"impersonate\"",
         "the seleniumbase-rs-stealth repository",
     ),
+    // The library's `stealth` module is `evasion` (the facade crate keeps its name).
+    ("seleniumbase_rs::stealth", "seleniumbase_rs::evasion"),
+    (
+        "seleniumbase_rs_stealth::stealth",
+        "seleniumbase_rs_stealth::evasion",
+    ),
+    ("crate::stealth", "crate::evasion"),
+    ("src/stealth", "src/evasion"),
     // The Playwright feature is `playwright` (the dependency is still rustwright).
     ("--features rustwright", "--features playwright"),
     ("features = [\"rustwright\"", "features = [\"playwright\"]"),
