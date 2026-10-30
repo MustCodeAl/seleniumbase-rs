@@ -31,7 +31,7 @@ use crate::artifacts::{artifact_path, ensure_latest_logs_dir};
 use crate::browser::config::{whole_seconds, BrowserConfig};
 #[cfg(feature = "playwright")]
 use crate::browser::playwright::PlaywrightSession;
-use crate::browser::session::BrowserSession;
+use crate::browser::session::{shown_text, BrowserSession};
 use crate::error::SeleniumBaseError;
 use crate::js_code::quote;
 use crate::utils::selectors::{css_to_xpath, Selector};
@@ -532,7 +532,7 @@ impl BaseCase {
                 if !elem.is_displayed().await.unwrap_or(false) {
                     return Ok(false);
                 }
-                let elem_text = elem.text().await.unwrap_or_default();
+                let elem_text = shown_text(&elem).await.unwrap_or_default();
                 Ok(elem_text.contains(text))
             }
             Err(_) => Ok(false),
@@ -1428,7 +1428,7 @@ impl BaseCase {
         loop {
             let seen = match self.session.webdriver()?.find(by.clone()).await {
                 Ok(element) if element.is_displayed().await.unwrap_or(false) => {
-                    element.text().await.ok()
+                    shown_text(&element).await.ok()
                 }
                 _ => None,
             };
@@ -3039,7 +3039,7 @@ impl BaseCase {
         let by = Selector::auto(css).to_by()?;
         match self.session.webdriver()?.find(by).await {
             Ok(elem) => Ok(elem.is_displayed().await.unwrap_or(false)
-                && elem.text().await.unwrap_or_default().trim() == text.trim()),
+                && shown_text(&elem).await.unwrap_or_default().trim() == text.trim()),
             Err(_) => Ok(false),
         }
     }
@@ -3429,6 +3429,9 @@ include!("base_case_impls/base_case_impl_driver_tests.rs");
 include!("base_case_impls/base_case_impl_text_tests.rs");
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_element_tests.rs");
+#[cfg(test)]
+include!("base_case_impls/base_case_impl_form_tests.rs");
+
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_demo_tests.rs");
 #[cfg(test)]

@@ -173,7 +173,8 @@ impl LocatorExpect {
         .await
     }
 
-    /// Passes when the visible text, trimmed, equals `expected`.
+    /// Passes when the visible text, trimmed, equals `expected`. For an
+    /// `<input>` or a `<textarea>` the text is its value, as in Python.
     ///
     /// # Errors
     ///
@@ -186,7 +187,8 @@ impl LocatorExpect {
         .await
     }
 
-    /// Passes when the visible text contains `fragment`.
+    /// Passes when the visible text contains `fragment`. For an `<input>` or
+    /// a `<textarea>` the text is its value, as in Python.
     ///
     /// # Errors
     ///

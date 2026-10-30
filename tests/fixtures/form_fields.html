@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Form fields</title>
+  <style>
+    /* A styled toggle, as TodoMVC has: the checkbox is there but at zero opacity. */
+    ul.todo-list { list-style: none; padding: 0; margin: 0; }
+    ul.todo-list li { position: relative; height: 40px; }
+    ul.todo-list li input.toggle {
+      position: absolute; top: 0; left: 0; width: 40px; height: 40px; margin: 0;
+      opacity: 0;
+    }
+    ul.todo-list li label { display: block; margin-left: 50px; line-height: 40px; }
+    #hidden-box { display: none; }
+  </style>
+</head>
+<body>
+  <h1>Form fields</h1>
+  <p id="plain">Plain text</p>
+
+  <!-- Text in fields -->
+  <input id="name" type="text">
+  <textarea id="notes" rows="3"></textarea>
+
+  <!-- Select: the chosen option has a value but the select has no value attribute -->
+  <select id="pick">
+    <option value="v1">One</option>
+    <option value="v2" selected>Two</option>
+    <option value="v3">Three</option>
+  </select>
+
+  <!-- Radio buttons -->
+  <input id="radio-a" type="radio" name="choice" value="a">
+  <input id="radio-b" type="radio" name="choice" value="b" checked>
+
+  <!-- Checkboxes: two at zero opacity, one not displayed at all -->
+  <ul class="todo-list">
+    <li><input class="toggle" type="checkbox"><label>Buy milk</label></li>
+    <li><input class="toggle" type="checkbox" checked><label>Walk the dog</label></li>
+  </ul>
+  <input id="hidden-box" type="checkbox">
+
+  <!-- Clicks -->
+  <nav><a id="coffee" href="#coffee-page">Coffee Cart</a></nav>
+  <button id="covered" style="display: none">Hidden button</button>
+  <p id="clicked"></p>
+
+  <!-- A range input whose page listens for the mouse, as the demo page does -->
+  <input id="slider" type="range" min="0" max="100" value="50">
+  <progress id="bar" value="50" max="100"></progress>
+
+  <!-- A form that Enter submits -->
+  <form id="search-form"><input id="search" type="text"></form>
+  <p id="submitted"></p>
+
+  <script>
+    function log(what) {
+      document.getElementById("clicked").textContent += what + ";";
+    }
+    document.getElementById("coffee").addEventListener("click", function (event) {
+      event.preventDefault();
+      log("coffee");
+    });
+    document.getElementById("covered").addEventListener("click", function () {
+      log("covered");
+    });
+    document.getElementById("hidden-box").addEventListener("click", function () {
+      log("hidden-box");
+    });
+    document.querySelectorAll("input.toggle").forEach(function (box, index) {
+      box.addEventListener("click", function () {
+        log("toggle" + index);
+      });
+    });
+    document.getElementById("slider").addEventListener("mousemove", function () {
+      document.getElementById("bar").value = this.value;
+    });
+    document.getElementById("search-form").addEventListener("submit", function (event) {
+      event.preventDefault();
+      document.getElementById("submitted").textContent =
+        "submitted:" + document.getElementById("search").value;
+    });
+    // A button that only appears after a moment.
+    setTimeout(function () {
+      var late = document.createElement("button");
+      late.id = "late";
+      late.textContent = "Late button";
+      late.addEventListener("click", function () {
+        log("late");
+      });
+      document.body.appendChild(late);
+    }, 1500);
+  </script>
+</body>
+</html>

@@ -248,7 +248,7 @@ rust = "BaseCase::assert_raises"
 [basecase."assert_text"]
 status = "implemented"
 rust = "BaseCase::assert_text"
-divergence = "Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_text for a timeout of its own). It reads the element's rendered text, so an <input> or <textarea> never matches by its value, as it does in Python (found by examples/test_demo_site.py); a ::shadow selector is not read (see get_text)."
+divergence = "Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_text for a timeout of its own). Like Python it compares the value of an <input> or <textarea>; a ::shadow selector is not read (see get_text)."
 
 [basecase."assert_text_not_visible"]
 status = "implemented"
@@ -2020,8 +2020,7 @@ reason = "Rust has assert!, assert_eq! and friends."
 [cdp."assert_text"]
 status = "composed"
 rust = "LocatorExpect::to_contain_text"
-divergence = "Reads the rendered text, so an <input> or <textarea> never matches by its value, where Python's assert_text does. Found by examples/cdp_mode/raw_demo_site.py."
-note = "Assert with `page.locator(selector).expect().to_contain_text(..)`; add `.not()` to negate and `.timeout(d)` to set the wait. A failed expectation returns an error where Python raises AssertionError."
+note = "Assert with `page.locator(selector).expect().to_contain_text(..)` (the text of an <input> or <textarea> is its value, as in Python); add `.not()` to negate and `.timeout(d)` to set the wait. A failed expectation returns an error where Python raises AssertionError."
 
 [cdp."assert_text_not_visible"]
 status = "composed"

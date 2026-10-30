@@ -369,14 +369,16 @@ impl Locator {
             .unwrap_or_default())
     }
 
-    /// The rendered text of the first match.
+    /// The rendered text of the first match, or the value of an `<input>` or
+    /// `<textarea>`, which have no rendered text (Python's `get_text` and
+    /// `text_all` read the value too).
     ///
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::ElementNotFound`] if nothing matches in time.
     pub async fn text(&self) -> Result<String, SeleniumBaseError> {
         self.wait_present().await?;
-        let value = self.with_element("return __sbcdp.textOf(el);").await?;
+        let value = self.with_element("return __sbcdp.fieldText(el);").await?;
         Ok(value.as_str().unwrap_or_default().to_owned())
     }
 

@@ -802,6 +802,14 @@ work, `docs/parity.md` the per-API status).
 
 ### Fixed
 
+- **The text checks read the value of an `<input>` or a `<textarea>`, as Python's do.**
+  `assert_text`, `assert_exact_text`, `is_text_visible`, `is_exact_text_visible`,
+  `wait_for_text` and `wait_for_text_visible` compared the rendered text, which is empty for a
+  field, so `assert_text("This is Automated", "#myTextInput")` failed after typing it. On the
+  pure CDP engine `Locator::text` (and so `expect().to_have_text` and `to_contain_text`) reads
+  the value too, as Python's `text_all` does.
+
+
 - **Recorder Mode no longer writes the frames of a page as pages to open.** The page script went
   into every frame, and a frame of the same origin shares the top frame's sessionStorage, so a
   reCAPTCHA page recorded `goto` steps for `about:blank`, `about:srcdoc` and the widget's

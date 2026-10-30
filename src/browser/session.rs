@@ -964,7 +964,7 @@ impl BrowserSession {
             RetryPolicy::webdriver(),
             || async {
                 match self.webdriver().ok()?.find(locator.clone()).await {
-                    Ok(element) => match element.text().await {
+                    Ok(element) => match shown_text(&element).await {
                         Ok(text) if text.contains(expected_substring) => Some(()),
                         _ => None,
                     },
@@ -1617,6 +1617,18 @@ fn timed_out(what: String, timeout_secs: u64) -> SeleniumBaseError {
         Some(Duration::from_secs(timeout_secs)),
     )
 }
+
+/// The text Python's text checks compare for `element`: the value of an
+/// `<input>` or a `<textarea>`, whose rendered text is empty, and the rendered
+/// text of any other element.
+pub(crate) async fn shown_text(element: &WebElement) -> Result<String, SeleniumBaseError> {
+    let tag = element.tag_name().await.unwrap_or_default();
+    if tag.eq_ignore_ascii_case("input") || tag.eq_ignore_ascii_case("textarea") {
+        return Ok(element.prop("value").await?.unwrap_or_default());
+    }
+    Ok(element.text().await?)
+}
+
 
 fn validate_mode_support(config: &BrowserConfig) -> Result<(), SeleniumBaseError> {
     if config.is_cdp_enabled() && !config.browser.is_chromium_based() {
