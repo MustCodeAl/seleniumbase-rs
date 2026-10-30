@@ -1724,6 +1724,9 @@ fn session_capabilities(
         config.browser,
         &crate::browser::downloads::downloads_dir(),
     );
+    // Chrome's password prompts take the keyboard from the page, so they stay
+    // off, as in Python; what the capabilities the caller gave name wins.
+    crate::browser::password_prompts::ask_for_quiet_passwords_in(&mut caps, config.browser);
     // Recorder Mode polls the page while a person works in it: a dialog the
     // person has not answered must stay open, not be dismissed by the next
     // command (chromedriver's default is to dismiss it and fail the command).

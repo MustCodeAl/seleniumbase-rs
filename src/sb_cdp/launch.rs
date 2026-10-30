@@ -1206,9 +1206,7 @@ pub(crate) async fn launch(options: &LaunchOptions) -> Result<LaunchedBrowser, S
         let tmp = tempfile::Builder::new().prefix("sb-cdp-").tempdir()?;
         (tmp.path().to_path_buf(), Some(tmp))
     };
-    if !options.prefs.is_empty() {
-        write_preferences(&profile_dir, &options.prefs)?;
-    }
+    write_profile_preferences(&profile_dir, profile.is_some(), &options.prefs)?;
     let endpoint_file = profile_dir.join("DevToolsActivePort");
     // A stale file from an earlier run would be read as the new endpoint.
     let _ = std::fs::remove_file(&endpoint_file);
@@ -1328,6 +1326,32 @@ pub(crate) fn write_preferences(
         merge_at(&mut current, &path, value);
     }
     std::fs::write(&file, serde_json::to_vec(&Value::Object(current))?)?;
+    Ok(())
+}
+
+/// Writes the preferences a browser starts with into `profile_dir`.
+///
+/// `own_profile` says the profile is a throwaway one this launch made. Such a
+/// profile first gets the library's defaults, which keep Chrome's password
+/// prompts from taking the keyboard from the page (see
+/// [`password_prompts`](crate::browser::password_prompts)); then `prefs`, the
+/// ones the caller set, which win. A profile the caller named is the caller's:
+/// only `prefs` go into it, and nothing is written when there are none.
+pub(crate) fn write_profile_preferences(
+    profile_dir: &Path,
+    own_profile: bool,
+    prefs: &Map<String, Value>,
+) -> Result<(), SeleniumBaseError> {
+    if own_profile {
+        write_preferences(
+            profile_dir,
+            &crate::browser::password_prompts::preferences(),
+        )?;
+    }
+    if !prefs.is_empty() {
+        write_preferences(profile_dir, prefs)?;
+    }
+
     Ok(())
 }
 
@@ -1759,6 +1783,52 @@ mod tests {
             "{error:?}"
         );
         assert_eq!(std::fs::read_to_string(&file).unwrap(), "not json");
+    }
+
+    fn password_prompts_are_off(written: &Value) -> bool {
+        written["profile"]["password_manager_leak_detection"] == false
+            && written["profile"]["password_manager_enabled"] == false
+            && written["credentials_enable_service"] == false
+    }
+
+    #[test]
+    fn a_throwaway_profile_starts_with_the_password_prompts_off() {
+        let profile = tempfile::tempdir().unwrap();
+        write_profile_preferences(profile.path(), true, &Map::new()).unwrap();
+        let written = read_preferences(profile.path());
+        assert!(password_prompts_are_off(&written), "{written}");
+    }
+
+    #[test]
+    fn the_callers_preferences_win_over_the_defaults_and_sit_beside_them() {
+        let profile = tempfile::tempdir().unwrap();
+        let options = LaunchOptions::builder()
+            .preference("profile.password_manager_leak_detection", true)
+            .preference("intl.accept_languages", "de-DE")
+            .build()
+            .unwrap();
+        write_profile_preferences(profile.path(), true, &options.prefs).unwrap();
+        let written = read_preferences(profile.path());
+        assert_eq!(written["profile"]["password_manager_leak_detection"], true);
+        assert_eq!(written["profile"]["password_manager_enabled"], false);
+        assert_eq!(written["credentials_enable_service"], false);
+        assert_eq!(written["intl"]["accept_languages"], "de-DE");
+    }
+
+    #[test]
+    fn a_profile_the_caller_named_is_left_as_it_is() {
+        let profile = tempfile::tempdir().unwrap();
+        write_profile_preferences(profile.path(), false, &Map::new()).unwrap();
+        assert!(
+            !profile.path().join("Default").join("Preferences").exists(),
+            "nothing is written into a profile the caller owns"
+        );
+
+        let mut prefs = Map::new();
+        prefs.insert("intl.accept_languages".to_owned(), json!("de-DE"));
+        write_profile_preferences(profile.path(), false, &prefs).unwrap();
+        let written = read_preferences(profile.path());
+        assert_eq!(written, json!({ "intl": { "accept_languages": "de-DE" } }));
     }
 
     #[test]

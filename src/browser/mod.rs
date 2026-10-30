@@ -13,6 +13,7 @@ pub mod driver_install;
 pub mod driver_version;
 pub mod launcher;
 pub mod options;
+pub(crate) mod password_prompts;
 #[cfg(feature = "plugins")]
 mod plugin_hooks;
 mod proxy_auth;
