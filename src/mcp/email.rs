@@ -103,7 +103,6 @@ fn schema() -> Schema {
 
 /// A call's arguments, checked.
 #[derive(Debug)]
-
 struct Request {
     query: Query,
     /// The wait asked for, in seconds, already at most [`MAX_TIMEOUT_SECS`].
