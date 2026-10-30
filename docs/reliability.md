@@ -35,7 +35,7 @@ The safest way to write a Tokio test is with `run_browser_test`. It creates a
 body returns an error:
 
 ```rust,no_run tests/example_domain.rs
-use seleniumbase_rs::{run_browser_test, BrowserConfig, Result};
+use seleniumbase_rs::{run_browser_test, tokio, BrowserConfig, Result};
 
 #[tokio::test]
 async fn example_domain() -> Result<()> {

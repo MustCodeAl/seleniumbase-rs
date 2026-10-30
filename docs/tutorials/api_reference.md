@@ -100,9 +100,9 @@ call with `?` (`sleep` is an exception: it cannot fail).
 | Actions (`click`, `type_text`, `open`, `set_attribute`, ...) and assertions | `()`: nothing, or an error |
 | `get_text`, `get_title`, `get_current_url` and the like | `String` |
 | `get_attribute(selector, attr)`, `get_property(selector, prop)` | `Option<String>`: `None` when it is not set |
-| `find_element(selector)` | an element: a `thirtyfour::WebElement` handle to the first match, found within 10 seconds |
-| `find_elements(selector)` | `Vec<thirtyfour::WebElement>`: every match, possibly none |
-| `execute_script(script)` | `serde_json::Value`: what the script returned |
+| `find_element(selector)` | an element: a `drivers::WebElement` handle to the first match, found within 10 seconds |
+| `find_elements(selector)` | `Vec<drivers::WebElement>`: every match, possibly none |
+| `execute_script(script)` | `seleniumbase_rs::json::Value`: what the script returned |
 | `save_screenshot(filename)` | `PathBuf`: where the file was written |
 
 An element handle is the WebDriver engine's own type. Keep the selector

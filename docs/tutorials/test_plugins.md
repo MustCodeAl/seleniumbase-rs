@@ -156,8 +156,7 @@ plugins.finished("checkout", std::time::Duration::ZERO, &outcome).await;
 Implement `TestPlugin`. Every hook is optional and returns a `Result`:
 
 ```rust
-use async_trait::async_trait;
-use seleniumbase_rs::plugins::observer::{PageEvidence, TestPlugin};
+use seleniumbase_rs::plugins::observer::{async_trait, PageEvidence, TestPlugin};
 use seleniumbase_rs::SeleniumBaseError;
 
 struct SlackOnFailure;

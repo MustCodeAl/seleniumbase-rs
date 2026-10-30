@@ -144,7 +144,7 @@ Turn it on with `sbrs --rec test`, which hands the flags to the tests as `SB_*`
 variables and runs them one at a time, with `SB_RECORDER=true`, or in code:
 
 ```rust,no_run
-use seleniumbase_rs::{BaseCase, BrowserConfig};
+use seleniumbase_rs::{tokio, BaseCase, BrowserConfig};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -228,7 +228,7 @@ want to capture and then export it. If you want only part of a run,
 actions recorded since then.
 
 ```rust,no_run
-use seleniumbase_rs::{BaseCase, BrowserConfig};
+use seleniumbase_rs::{tokio, BaseCase, BrowserConfig};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -298,6 +298,7 @@ recording above the program is:
 
 ```rust,ignore
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
+use seleniumbase_rs::tokio;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

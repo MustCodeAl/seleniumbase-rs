@@ -695,7 +695,7 @@ scripts, extensions, or future anti-detect injection features.
 
 ```rust
 use seleniumbase_rs::profile_payloads::ProfileParams;
-use serde_json::json;
+use seleniumbase_rs::json::json;
 
 let raw = json!({
     "name": "custom-profile",
@@ -717,7 +717,7 @@ let raw = json!({
     }
 });
 
-let params: ProfileParams = serde_json::from_value(raw).unwrap();
+let params: ProfileParams = seleniumbase_rs::json::from_value(raw).unwrap();
 let config = params.to_browser_config("http://localhost:4444");
 
 let mut sb = seleniumbase_rs::BaseCase::new(config).await.unwrap();

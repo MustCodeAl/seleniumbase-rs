@@ -945,7 +945,7 @@ Diagnostics (1):
 - line 6, warning: SeleniumBase method 'do_magic' needs manual migration
 
 === Rust test example ===
-use seleniumbase_rs::{BrowserConfig, run_browser_test};
+use seleniumbase_rs::{run_browser_test, tokio, BrowserConfig};
 
 #[tokio::test]
 async fn example() -> seleniumbase_rs::Result<()> {

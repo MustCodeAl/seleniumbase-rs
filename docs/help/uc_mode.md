@@ -34,7 +34,7 @@ Set the driver mode to `Uc` in `BrowserConfig`:
 <Tab title="Rust" icon="code">
 
 ```rust,no_run
-use seleniumbase_rs::{BaseCase, BrowserConfig, DriverMode};
+use seleniumbase_rs::{tokio, BaseCase, BrowserConfig, DriverMode};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

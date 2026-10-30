@@ -494,7 +494,7 @@ assert!(result.issues.iter().all(|issue| !seo_rules.contains(&issue.rule.as_str(
 <Tab title="Pure CDP engine" icon="bolt">
 
 ```rust,ignore src/main.rs
-use serde_json::Value;
+use seleniumbase_rs::json::Value;
 
 page.goto("https://example.com/shoes/trail-runner").await?;
 assert!(page.title().await?.contains("Trail Runner"));

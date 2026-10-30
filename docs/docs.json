@@ -146,6 +146,7 @@
             "pages": [
               "README",
               "tutorials/getting_started",
+              "imports",
               "building",
               "help/common_problems"
             ]

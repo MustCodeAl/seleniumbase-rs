@@ -65,7 +65,7 @@ one (`create_pie_chart`, `create_bar_chart`, `create_line_chart`,
 `save_chart`). Each `create_*_chart` call replaces the current chart:
 
 ```rust,no_run
-use seleniumbase_rs::{BaseCase, BrowserConfig};
+use seleniumbase_rs::{tokio, BaseCase, BrowserConfig};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -89,7 +89,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## Multi-series chart
 
 ```rust,no_run
-use seleniumbase_rs::{BaseCase, BrowserConfig};
+use seleniumbase_rs::{tokio, BaseCase, BrowserConfig};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

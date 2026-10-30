@@ -26,9 +26,13 @@ The crate root exposes the following modules:
 | `common` | Decorators, obfuscation, and shared exception types. |
 | `config` | Settings, proxy lists, and ad-block lists. |
 | `core` | Test result records and the JSON and HTML reports made from them. |
+| `drivers` | The WebDriver types the API takes or returns (`By`, `WebElement`, `DesiredCapabilities`, `Key`, `Cookie`, `NetworkConditions`, ...), so a project needs no `thirtyfour` line. See [Imports and dependencies](/imports). |
+
 | `error` | `SeleniumBaseError` and the `Result<T>` alias. |
 | `evasion` | Undetected-chrome options, evasions, the evasion **provider registry**, fingerprint profiles, humanization helpers, binary patcher, and CDP reactor. `session_registry` (the registry the Pure CDP engine runs) is <Badge color="orange">Experimental</Badge>: it serves the stealth layer, which lives in [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth) since 0.3.0. |
 | `js_code` | `quote`, which turns a Rust string into a JavaScript string literal for the scripts the crate builds. |
+| `json` | `json!`, `Value` and the parsing functions of `serde_json` that the API uses, so a project needs no `serde_json` line. |
+
 | `macros` | `#[macro_export]` convenience macros (also re-exported at the crate root). |
 | `mcp` | MCP servers (`cdp`, `driver`, `sb`) and the types to build more: `Host`, `ToolDef`, `Args`, `Output`, `ToolError`. Behind the `mcp-server` feature. |
 | `profile_payloads` | External browser profile payload parsing and conversion. |
@@ -87,7 +91,7 @@ mentions an engine's own types:
 | Trait | Responsibility |
 |---|---|
 | `BrowserApi` | Navigation and lifecycle: `open`, `quit`, `refresh`, `go_back`, `go_forward`, `get_title`, `get_url`. |
-| `ElementApi` | Interacting with elements: `click`, `double_click`, `type_text`, `get_text`, `get_attribute`. (Holding an element handle is engine-specific: `BaseCase::find_element` returns a `thirtyfour::WebElement`, a `Page` offers `locator(..)`.) |
+| `ElementApi` | Interacting with elements: `click`, `double_click`, `type_text`, `get_text`, `get_attribute`. (Holding an element handle is engine-specific: `BaseCase::find_element` returns a `drivers::WebElement`, a `Page` offers `locator(..)`.) |
 | `AssertionApi` | Test assertions: `assert_title`, `assert_element`, `assert_text`, `assert_no_js_errors`. |
 | `ScreenshotApi` | Screenshot capture: `save_screenshot`, `screenshot_as_png`. |
 

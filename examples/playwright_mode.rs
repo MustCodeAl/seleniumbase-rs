@@ -29,7 +29,7 @@ mod local_site;
 async fn main() -> seleniumbase_rs::Result<()> {
     use local_site::{Site, DEMO_PATH};
     use seleniumbase_rs::artifacts::ensure_latest_logs_dir;
-    use seleniumbase_rs::{BaseCase, BrowserConfig, SeleniumBaseError};
+    use seleniumbase_rs::{tokio, BaseCase, BrowserConfig, SeleniumBaseError};
 
     let url = Site::serve_demo()?.url(DEMO_PATH);
 

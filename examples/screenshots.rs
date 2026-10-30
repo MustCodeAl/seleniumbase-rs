@@ -28,7 +28,9 @@ use std::fs;
 use std::path::Path;
 
 use local_site::{Site, DEMO_PATH};
-use seleniumbase_rs::{run_browser_test, BaseCase, BrowserConfig, Result, SeleniumBaseError};
+use seleniumbase_rs::{
+    run_browser_test, tokio, BaseCase, BrowserConfig, Result, SeleniumBaseError,
+};
 
 const PNG_SIGNATURE: &[u8] = b"\x89PNG\r\n\x1a\n";
 

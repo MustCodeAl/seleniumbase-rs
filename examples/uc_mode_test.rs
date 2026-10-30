@@ -24,7 +24,7 @@
 mod local_site;
 
 use local_site::{ensure, Site, DEMO_PATH};
-use seleniumbase_rs::{BaseCase, BrowserConfig, DriverMode, Result};
+use seleniumbase_rs::{tokio, BaseCase, BrowserConfig, DriverMode, Result};
 
 /// The automation markers a page can read.
 #[derive(Debug)]

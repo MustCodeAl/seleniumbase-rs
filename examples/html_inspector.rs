@@ -29,7 +29,7 @@ mod local_site;
 
 use local_site::{ensure, Site};
 use seleniumbase_rs::api::html_inspector::{HtmlInspector, InspectionResult, InspectionSeverity};
-use seleniumbase_rs::{run_browser_test, BaseCase, BrowserConfig, Result};
+use seleniumbase_rs::{run_browser_test, tokio, BaseCase, BrowserConfig, Result};
 
 /// Everything wrong with this page is on purpose.
 const FLAWED_PAGE: &str = r#"<html>

@@ -429,7 +429,7 @@ browser.close().await?;
 <Tab title="WebDriver engine" icon="plug">
 
 ```rust,ignore src/main.rs
-use serde_json::json;
+use seleniumbase_rs::json::json;
 
 sb.open("https://example.com").await?;
 sb.wait_for_ready_state_complete().await?;

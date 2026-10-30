@@ -78,8 +78,8 @@ From Rust, call `seleniumbase_rs::utilities::importer::import_puppeteer`.
 <Tip>
 
 Run the generated tests headless with `SB_HEADLESS=true cargo test`. They need
-`seleniumbase-rs` and `tokio` with the `macros`, `rt-multi-thread` and `time`
-features.
+`seleniumbase-rs` alone: it re-exports the Tokio runtime
+(`seleniumbase_rs::tokio`), which the generated files import.
 
 </Tip>
 

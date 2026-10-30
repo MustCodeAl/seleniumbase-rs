@@ -144,9 +144,8 @@ fn the_default_output_is_one_rstest_test_that_uses_the_sb_fixture() {
         ("assert_text", Some("h1"), Some("Demo Page")),
     ]);
     let expected = "\
-use rstest::rstest;
-use seleniumbase_rs::testing::{sb, Sb};
-use seleniumbase_rs::Result;
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
 
 #[rstest]
 #[tokio::test]

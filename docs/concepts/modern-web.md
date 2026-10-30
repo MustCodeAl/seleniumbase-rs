@@ -257,7 +257,7 @@ the browser provides that answers instantly.
   commands yourself with `Page::execute`:
 
 ```rust,ignore src/main.rs
-use serde_json::json;
+use seleniumbase_rs::json::json;
 
 page.execute("WebAuthn.enable", json!({})).await?;
 page.execute(
@@ -603,7 +603,7 @@ general pieces that these tests are built from.
   nothing leaked.
 
 ```rust,ignore src/main.rs
-use serde_json::json;
+use seleniumbase_rs::json::json;
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
 
 let browser = Browser::launch(LaunchOptions::builder().headless(true).build()?).await?;

@@ -490,7 +490,7 @@ or `Font`) and *what to do*:
 
 ```rust,ignore src/main.rs
 use seleniumbase_rs::sb_cdp::{ResourceType, Response, Rule};
-use serde_json::json;
+use seleniumbase_rs::json::json;
 
 let interception = page
     .intercept(vec![

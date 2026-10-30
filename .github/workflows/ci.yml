@@ -20,9 +20,11 @@ concurrency:
 # upstream monorepo, which does not exist here, so its path filter matched
 # nothing and it never ran.)
 #
-# The workspace has two packages: the library `seleniumbase-rs` at the root and
-# the command line `seleniumbase-rs-cli` in `crates/cli`. `default-members` names
-# both, so a plain `cargo build`, `cargo test` or `cargo clippy` covers both.
+# The workspace has three packages: the library `seleniumbase-rs` at the root, the
+# command line `seleniumbase-rs-cli` in `crates/cli` and the tests-only
+# `seleniumbase-rs-own-imports` in `crates/own-imports`. `default-members` names the
+# first two, so a plain `cargo build`, `cargo test` or `cargo clippy` covers both;
+# the `library` job runs the third.
 # Features that only the library defines (`s3`, `playwright`, ...) apply to the
 # library; the command line forwards the ones it needs.
 
@@ -221,6 +223,14 @@ jobs:
 
       - name: Run Clippy
         run: cargo clippy -p seleniumbase-rs --all-targets -- -D warnings
+
+      # `crates/own-imports` lists only seleniumbase-rs (and rstest-bdd). Its tests and the
+      # doctest over the golden files of `sbrs mkfile`, `sbrs mkdir` and the recorder import
+      # nothing else, so a re-export that stops working, or a generator that writes an
+      # import of another crate, fails here. It is not a default member.
+      - name: Imports resolve for a crate that lists only seleniumbase-rs
+        run: cargo test -p seleniumbase-rs-own-imports
+
 
       # The command line turns `pdf` on by default, so the matrix above never runs
       # the tests that expect a build without it (the exit status 2 and the hint).

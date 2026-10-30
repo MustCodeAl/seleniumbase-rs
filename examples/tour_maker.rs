@@ -28,7 +28,7 @@ use std::time::Duration;
 
 use local_site::{ensure, Site, DEMO_PATH};
 use seleniumbase_rs::api::tour::{ShepherdTheme, TourAlignment};
-use seleniumbase_rs::{run_browser_test, BaseCase, BrowserConfig, Result};
+use seleniumbase_rs::{run_browser_test, tokio, BaseCase, BrowserConfig, Result};
 
 #[tokio::main]
 async fn main() -> Result<()> {
