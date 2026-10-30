@@ -6,6 +6,104 @@
 // Included (for tests only) at the end of `base_case.rs` like the files beside
 // it.
 
+mod tests_form_toggles {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+
+    use super::webdriver_support::{element, MockWebDriver, Reply};
+    use serde_json::{json, Value};
+
+    /// A page whose only element is the unchecked checkbox `#box`. It is
+    /// displayed only once a script has raised its opacity from 0 to 0.001
+    /// (as TodoMVC's toggle needs), unless `stays_hidden`: then it has
+    /// `display: none` and nothing but a script can click it.
+    fn toggle_page(stays_hidden: bool) -> MockWebDriver {
+        let raised = Arc::new(AtomicBool::new(false));
+        MockWebDriver::start(json!({}), move |request| {
+            let known = request.body["value"].as_str() == Some("#box");
+            match (request.method.as_str(), request.path.as_str()) {
+                ("POST", "/element") if known => Reply::Value(element("box")),
+                ("POST", "/element") => Reply::Error(404, "no such element"),
+                ("POST", "/elements") if known => Reply::Value(json!([element("box")])),
+                ("POST", "/elements") => Reply::Value(json!([])),
+                ("GET", "/element/box/property/checked") => Reply::Value(json!("false")),
+                ("GET", "/element/box/displayed") => {
+                    Reply::Value(json!(raised.load(Ordering::SeqCst) && !stays_hidden))
+                }
+                ("GET", "/element/box/enabled") => Reply::Value(json!(true)),
+                ("POST", "/execute/sync") => {
+                    let script = request.body["script"].as_str().unwrap_or_default();
+                    if script.contains("0.001") {
+                        raised.store(true, Ordering::SeqCst);
+                    }
+                    Reply::Value(json!(""))
+                }
+                _ => Reply::Value(Value::Null),
+            }
+        })
+    }
+
+    /// The scripts the driver ran, oldest first.
+    fn scripts(driver: &MockWebDriver) -> Vec<String> {
+        driver
+            .requests("/execute/sync")
+            .into_iter()
+            .filter_map(|request| request.body["script"].as_str().map(str::to_owned))
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn a_checkbox_at_zero_opacity_is_clicked_after_its_opacity_is_raised() {
+        // Python raises the opacity a little, clicks, and puts it back.
+        let driver = toggle_page(false);
+        let mut sb = driver.base_case().await;
+        sb.set_timeout(1).await.unwrap();
+
+        sb.check_if_unchecked("#box").await.unwrap();
+
+        assert_eq!(driver.requests("/element/box/click").len(), 1);
+        let scripts = scripts(&driver);
+        let raised = scripts.iter().position(|script| script.contains("0.001"));
+        let restored = scripts.iter().rposition(|script| script.contains("style.opacity"));
+        assert!(raised.is_some(), "the opacity was not raised: {scripts:?}");
+        assert!(restored > raised, "the opacity was not put back: {scripts:?}");
+    }
+
+    #[tokio::test]
+    async fn a_checkbox_that_stays_hidden_is_clicked_with_a_script() {
+        let driver = toggle_page(true);
+        let mut sb = driver.base_case().await;
+        sb.set_timeout(1).await.unwrap();
+
+        sb.check_if_unchecked("#box").await.unwrap();
+
+        assert!(driver.requests("/element/box/click").is_empty());
+        let scripts = scripts(&driver);
+        assert!(
+            scripts.iter().any(|script| script.contains(".click()")),
+            "no script clicked the box: {scripts:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn unchecking_a_checkbox_that_is_not_checked_does_nothing() {
+        let driver = MockWebDriver::start(json!({}), |request| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("POST", "/element") => Reply::Value(element("box")),
+                ("GET", "/element/box/property/checked") => Reply::Value(json!("false")),
+                _ => Reply::Value(Value::Null),
+            }
+        });
+        let mut sb = driver.base_case().await;
+
+        sb.uncheck_if_checked("#box").await.unwrap();
+
+        assert!(driver.requests("/element/box/click").is_empty());
+        assert!(driver.requests("/execute/sync").is_empty());
+    }
+}
+
+
 mod tests_form_attributes {
     use super::SeleniumBaseError;
 

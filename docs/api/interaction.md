@@ -44,7 +44,7 @@ Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...)
 | `js_type(selector, text)` | Types via JavaScript. |
 | `highlight_click(selector)` | Highlights then clicks. |
 | `highlight_type(selector, text)` | Highlights then types. |
-| `check_if_unchecked(selector)` | Checks a checkbox/radio only if unchecked. |
+| `check_if_unchecked(selector)` | Checks a checkbox/radio only if unchecked. A box that is not displayed (a styled switch at zero opacity, or `display: none`) is clicked after its opacity is raised a little, or with a script, as in Python. |
 | `uncheck_if_checked(selector)` | Unchecks a checkbox only if checked. |
 | `is_checked(selector)` | Returns true if the element is checked. |
 | `choose_file(selector, path)` | Sets a file input value. |

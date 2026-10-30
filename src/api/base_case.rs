@@ -701,21 +701,84 @@ impl BaseCase {
         Ok(is_checked.as_deref() == Some("true"))
     }
 
-    /// Executes the `check_if_unchecked` action.
+    /// Checks a checkbox or radio button if it is not checked, as Python's
+    /// `check_if_unchecked` does.
+    ///
+    /// A box that is not displayed, such as the toggle of a styled list (TodoMVC)
+    /// at zero opacity, is clicked as Python clicks it: the element's opacity is
+    /// raised a little so that the click can reach it, and put back after; a
+    /// box that is still not displayed, because it has `display: none`, is
+    /// clicked with a script.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the element is missing or cannot be clicked.
     pub async fn check_if_unchecked(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         if !self.is_checked(css).await? {
-            self.click(css).await?;
-        }
+                    self.click_toggle(css).await?;
+                }
         Ok(())
     }
 
-    /// Executes the `uncheck_if_checked` action.
+    /// Unchecks a checkbox if it is checked, as Python's `uncheck_if_checked`
+    /// does. A box that is not displayed is clicked as
+    /// [`check_if_unchecked`](Self::check_if_unchecked) clicks it.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the element is missing or cannot be clicked.
     pub async fn uncheck_if_checked(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         if self.is_checked(css).await? {
-            self.click(css).await?;
-        }
+                    self.click_toggle(css).await?;
+                }
         Ok(())
     }
+
+    /// Clicks a checkbox or radio button, the way Python's `check_if_unchecked`
+    /// and `uncheck_if_checked` click one that may not be displayed.
+    ///
+    /// A displayed box gets a click. Otherwise its opacity is set to 0.001,
+    /// which makes a switch that sits at zero opacity clickable, and a box that
+    /// is displayed then is clicked and one that is not (`display: none`) is
+    /// clicked with a script. The opacity is put back after.
+    async fn click_toggle(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        if self.is_element_visible(css).await? {
+            return self.click(css).await;
+        }
+        self.await_ready(css, Ready::Present).await?;
+        let by = Selector::auto(css).to_by()?;
+        let driver = self.session.webdriver()?.clone();
+        let element = driver.find(by).await?;
+        let opacity = driver
+            .execute(
+                "return arguments[0].style.opacity;",
+                vec![element.to_json()?],
+            )
+            .await
+            .ok()
+            .and_then(|ret| ret.json().as_str().map(str::to_owned))
+            .unwrap_or_default();
+        // Change the opacity a bit to let the click succeed.
+        let _ = driver
+            .execute(
+                "arguments[0].style.opacity = '0.001';",
+                vec![element.to_json()?],
+            )
+            .await;
+        let clicked = if self.is_element_visible(css).await? {
+            self.click(css).await
+        } else {
+            self.session.js_click_element(&element).await
+        };
+        let _ = driver
+            .execute(
+                "arguments[0].style.opacity = arguments[1];",
+                vec![element.to_json()?, Value::String(opacity)],
+            )
+            .await;
+        clicked
+    }
+
 
     /// Opens a new browser tab and switches to it, as Python's
     /// `open_new_window(switch_to=True)` does; the keyword is

@@ -673,6 +673,23 @@ impl BrowserSession {
     }
 
 
+    /// Clicks `element` with a script (`element.click()`), which reaches an
+    /// element that is not displayed or that another element covers.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the driver fails.
+    pub(crate) async fn js_click_element(
+        &self,
+        element: &WebElement,
+    ) -> Result<(), SeleniumBaseError> {
+        self.webdriver()?
+            .execute("arguments[0].click();", vec![element.to_json()?])
+            .await?;
+        Ok(())
+    }
+
+
     /// WebDriver interaction: `get_property`.
     pub async fn get_property(
         &mut self,

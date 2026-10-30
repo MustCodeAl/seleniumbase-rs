@@ -299,7 +299,6 @@ rust = "BaseCase::bring_to_front"
 [basecase."check_if_unchecked"]
 status = "implemented"
 rust = "BaseCase::check_if_unchecked"
-divergence = "Clicks a checkbox that is not checked and waits for it to be clickable. Python also handles a checkbox at zero opacity (a styled switch, like TodoMVC's toggle) by raising its opacity or clicking with JavaScript; here that times out. Found by examples/test_todomvc.py."
 
 [basecase."check_window"]
 status = "implemented"
@@ -1776,7 +1775,6 @@ divergence = "Types with clear plus send_keys and returns at once. Python waits 
 [basecase."uncheck_if_checked"]
 status = "implemented"
 rust = "BaseCase::uncheck_if_checked"
-divergence = "As check_if_unchecked: no fallback for a checkbox at zero opacity."
 
 [basecase."unselect_if_selected"]
 status = "implemented"

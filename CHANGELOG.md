@@ -820,6 +820,13 @@ work, `docs/parity.md` the per-API status).
   attribute, or an element that is not a `<select>`, is an error.
 
 
+- **`check_if_unchecked` and `uncheck_if_checked` work on a checkbox at zero opacity.** TodoMVC's
+  toggles, and every styled switch, are at zero opacity, which WebDriver counts as not
+  displayed, so the click waited its whole timeout and failed. As in Python, the box's opacity is
+  raised to 0.001 for the click and put back after; a box that is still not displayed
+  (`display: none`) is clicked with a script.
+
+
 - **Recorder Mode no longer writes the frames of a page as pages to open.** The page script went
   into every frame, and a frame of the same origin shares the top frame's sessionStorage, so a
   reCAPTCHA page recorded `goto` steps for `about:blank`, `about:srcdoc` and the widget's

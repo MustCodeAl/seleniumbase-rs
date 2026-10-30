@@ -178,4 +178,41 @@ async fn get_select_options_gives_the_text_the_value_or_the_index_of_each_option
 }
 
 
+#[tokio::test]
+#[ignore = "requires a local Chrome and chromedriver"]
+async fn checkboxes_at_zero_opacity_or_not_displayed_can_be_checked_and_unchecked() -> Result<()> {
+    let url = serve();
+    run_browser_test(headless(), async |sb| {
+        sb.open(&url).await?;
+        sb.set_timeout(2).await?;
+        let first = "ul.todo-list li:nth-child(1) input.toggle";
+        let second = "ul.todo-list li:nth-child(2) input.toggle";
+
+        // TodoMVC's toggle is at zero opacity: Python raises the opacity a
+        // little and clicks it.
+        sb.check_if_unchecked(first).await?;
+        assert!(sb.is_checked(first).await?);
+        // Already checked: no second click.
+        sb.check_if_unchecked(first).await?;
+        sb.uncheck_if_checked(second).await?;
+        assert!(!sb.is_checked(second).await?);
+        // A box that is not displayed at all is clicked with a script.
+        sb.check_if_unchecked("#hidden-box").await?;
+        assert!(sb.is_checked("#hidden-box").await?);
+
+        assert_eq!(
+            sb.get_text("#clicked").await?,
+            "toggle0;toggle1;hidden-box;"
+        );
+        // The opacity is put back to what the stylesheet says.
+        let opacity = sb
+            .execute_script("return document.querySelector('ul.todo-list input.toggle').style.opacity;")
+            .await?;
+        assert_eq!(opacity, "");
+        Ok(())
+    })
+    .await
+}
+
+
 // The tests of the other form-field behaviours follow.
