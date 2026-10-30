@@ -1010,6 +1010,13 @@ work, `docs/parity.md` the per-API status).
   status was 0 whatever it found. `--warn-only` prints the problems and exits with 0, as before.
   A chromedriver that is not found stays a hint, and the version check now looks at
   `SB_CHROME_BIN` when it is set.
+- **The recorder helpers return an error on a session with no WebDriver, not a panic.** Recorder
+  Mode at start-up (`BaseCase::new` with `with_recorder_mode(true)` and `with_cdp_url(..)`), the
+  watch of `recorder_breakpoint` and the tab harvest of `finish_recording` read the windows with
+  `BrowserSession::driver()`, which panics where there is no WebDriver (a direct CDP attachment, or
+  a session that was quit). They use `webdriver()` now and fail with `Unsupported`, or
+  `SessionNotStarted` after `quit`; the watch loop treats such a session as one with no window
+  left.
 
 
 ## [0.6.0] - 2026-10-23
