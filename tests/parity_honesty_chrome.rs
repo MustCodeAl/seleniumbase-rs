@@ -253,7 +253,8 @@ async fn find_text_waits_for_visible_text_and_ignores_hidden_text() {
 async fn bring_to_front_and_highlight_change_and_restore_the_element_style() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = open(
-        "data:text/html,<html><body><button id=\"b\" style=\"position:relative\">b</button></body></html>",
+        "data:text/html,<html><body><button id=\"b\" \
+         style=\"position:relative;box-shadow:1px 1px 2px green\">b</button></body></html>",
     )
     .await;
 
@@ -264,20 +265,68 @@ async fn bring_to_front_and_highlight_change_and_restore_the_element_style() {
         .expect("z");
     assert_eq!(z, "999999");
 
-    sb.highlight("#b").await.expect("highlight");
-    let during = sb
-        .execute_script("return document.querySelector('#b').style.outline;")
+    // Python's `highlight` does not draw an outline. It plays a box-shadow
+    // animation (grey, then red, purple, blue, green and olive, once per loop),
+    // waits until the animation has ended and puts the element's own box shadow
+    // back (`js_utils.highlight_element_with_js`, `o_bs`). So the shadow can only
+    // be seen while the call runs: a page-side observer records every box shadow
+    // the button wears, and the call is checked to have left nothing behind.
+    let before = sb
+        .execute_script("return document.querySelector('#b').style.cssText;")
         .await
-        .expect("outline");
+        .expect("the style before");
+    let own_shadow = sb
+        .execute_script("return document.querySelector('#b').style.boxShadow;")
+        .await
+        .expect("the box shadow before");
     assert!(
-        during.as_str().unwrap_or("").contains("magenta"),
-        "{during}"
+        own_shadow
+            .as_str()
+            .is_some_and(|shadow| shadow.contains("1px 1px 2px")),
+        "the button has a box shadow of its own: {own_shadow}"
     );
-    tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+    sb.execute_script(
+        "var b = document.querySelector('#b'); window.__shadows = []; \
+         new MutationObserver(function () { window.__shadows.push(b.style.boxShadow); }) \
+         .observe(b, { attributes: true, attributeFilter: ['style'] }); return true;",
+    )
+    .await
+    .expect("watch the style");
+
+    sb.highlight("#b")
+        .loops(1)
+        .scroll(false)
+        .await
+        .expect("highlight");
+
+    let seen = sb
+        .execute_script("return window.__shadows;")
+        .await
+        .expect("the shadows seen");
+    let seen: Vec<&str> = seen
+        .as_array()
+        .expect("a list of shadows")
+        .iter()
+        .filter_map(|shadow| shadow.as_str())
+        .collect();
+    assert!(
+        seen.iter().any(|shadow| shadow.contains("0px 0px 6px 6px")),
+        "the highlight draws a box shadow while it runs: {seen:?}"
+    );
+    assert_eq!(
+        seen.last().copied(),
+        own_shadow.as_str(),
+        "the last box shadow is the button's own, put back: {seen:?}"
+    );
     let after = sb
+        .execute_script("return document.querySelector('#b').style.cssText;")
+        .await
+        .expect("the style after");
+    assert_eq!(after, before, "the style is as it was before the highlight");
+    let outline = sb
         .execute_script("return document.querySelector('#b').style.outline;")
         .await
         .expect("outline");
-    assert_eq!(after, "", "the outline is restored");
+    assert_eq!(outline, "", "a highlight draws no outline");
     sb.quit().await.expect("quit");
 }
