@@ -260,7 +260,7 @@ impl BaseCase {
         limit: usize,
     ) -> Result<(), SeleniumBaseError> {
         let by = Selector::auto(demo::highlight_target(css)).to_by()?;
-        let elements = self.session.webdriver()?.find_all(by).await?;
+        let elements = self.session.find_all(by).await?;
         let loops = self.highlight_loops(loops, DEFAULT_HIGHLIGHT_LOOPS);
         let mut count = 0_usize;
         for element in elements {

@@ -190,8 +190,7 @@ impl BaseCase {
         self.await_ready_within(selector, Ready::Present, seconds)
             .await?;
         self.demo_highlight(selector).await?;
-        let element = self.session.webdriver()?
-            .find(Selector::auto(selector).to_by()?)
+        let element = self.session.find(Selector::auto(selector).to_by()?)
             .await?;
         if !self.run_settings.demo_mode() && !self.run_settings.slow_mode() {
             element.scroll_into_view().await?;

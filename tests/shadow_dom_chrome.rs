@@ -74,7 +74,8 @@ async fn the_regular_methods_read_a_shadow_selector() -> Result<()> {
 
         sb.assert_element("app-shell::shadow #title").await?;
         sb.assert_element_present("app-shell::shadow #go").await?;
-        sb.assert_text("App shell", "app-shell::shadow #title").await?;
+        sb.assert_text("App shell", "app-shell::shadow #title")
+            .await?;
         // Python also reads the combinator with a space before it.
         sb.assert_exact_text("App shell", "app-shell ::shadow #title")
             .await?;
@@ -95,14 +96,21 @@ async fn the_regular_methods_read_a_shadow_selector() -> Result<()> {
 
         assert!(sb.is_element_present("app-shell::shadow #go").await?);
         assert!(sb.is_element_visible("app-shell::shadow #go").await?);
-        assert!(!sb.is_element_visible("app-shell::shadow #hidden-button").await?);
-        assert!(sb.is_element_present("app-shell::shadow #hidden-button").await?);
+        assert!(
+            !sb.is_element_visible("app-shell::shadow #hidden-button")
+                .await?
+        );
+        assert!(
+            sb.is_element_present("app-shell::shadow #hidden-button")
+                .await?
+        );
         assert!(!sb.is_element_present("app-shell::shadow #nope").await?);
         assert!(
             sb.is_text_visible("Hello", "app-shell::shadow #greeting")
                 .await?
         );
-        sb.wait_for_element_visible("app-shell::shadow #go", 2).await?;
+        sb.wait_for_element_visible("app-shell::shadow #go", 2)
+            .await?;
         sb.wait_for_element_present("app-shell::shadow #hidden-button", 2)
             .await?;
 
@@ -143,7 +151,10 @@ async fn a_chain_crosses_three_shadow_roots() -> Result<()> {
                 .as_deref(),
             Some("hi")
         );
-        assert_eq!(sb.find_elements("app-shell::shadow li.item").await?.len(), 2);
+        assert_eq!(
+            sb.find_elements("app-shell::shadow li.item").await?.len(),
+            2
+        );
         Ok(())
     })
     .await
@@ -325,10 +336,9 @@ async fn the_cdp_engine_reads_a_shadow_selector() -> Result<()> {
     assert_eq!(
         page.locator("app-shell")
             .locator("user-card::shadow span.badge")
-            .text()
-            .await
-            .ok(),
-        None,
+            .count()
+            .await?,
+        0,
         "user-card is inside the shadow root of app-shell, not in its light DOM"
     );
     assert_eq!(
@@ -351,8 +361,17 @@ async fn the_cdp_engine_reads_a_shadow_selector() -> Result<()> {
 
     assert!(!page.locator("app-shell::shadow #nope").exists().await?);
     assert!(!page.locator("#light::shadow #go").exists().await?);
-    assert!(!page.locator("app-shell::shadow #hidden-button").is_visible().await?);
-    assert!(page.locator("app-shell::shadow #hidden-button").exists().await?);
+    assert!(
+        !page
+            .locator("app-shell::shadow #hidden-button")
+            .is_visible()
+            .await?
+    );
+    assert!(
+        page.locator("app-shell::shadow #hidden-button")
+            .exists()
+            .await?
+    );
 
     // A selector that ends on a shadow root is refused.
     let error = page

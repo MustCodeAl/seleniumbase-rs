@@ -20,6 +20,7 @@
 use thirtyfour::By;
 
 use crate::error::SeleniumBaseError;
+use crate::utils::shadow::{is_shadow_selector, shadow_chain};
 
 /// A selector that borrows its text, with its kind decided.
 ///
@@ -182,6 +183,13 @@ impl<'a> Selector<'a> {
                 return Self::LinkText(rest);
             }
         }
+        // The engines cut a selector that crosses a shadow root into pieces
+        // when they look the element up, and read each piece's kind then: the
+        // first may be XPath, the others are CSS.
+        if is_shadow_selector(selector) {
+            return Self::Css(selector);
+        }
+
         if is_xpath_selector(selector) {
             return Self::XPath(selector);
         }
@@ -210,6 +218,14 @@ impl<'a> Selector<'a> {
     /// or contains only whitespace.
     pub fn to_by(self) -> Result<By, SeleniumBaseError> {
         match self {
+            // A selector that crosses a shadow root stays whole: the session
+            // cuts it into pieces and finds each in its own root. A selector
+            // that cannot be cut is refused here, before anything waits.
+            Self::Css(value) if is_shadow_selector(value) => {
+                shadow_chain(value)?;
+                Ok(By::Css(value.to_owned()))
+            }
+
             Self::Css(value) if value.contains(CONTAINS_PSEUDO) && !value.trim().is_empty() => {
                 Ok(match contains_to_xpath(value) {
                     Some(xpath) => By::XPath(xpath),

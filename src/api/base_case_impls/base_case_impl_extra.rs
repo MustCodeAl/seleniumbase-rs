@@ -593,7 +593,7 @@ impl BaseCase {
         poll_until_found(self.default_wait_secs(), what, || {
             let by = by.clone();
             async move {
-                let Ok(element) = self.session.webdriver()?.find(by).await else {
+                let Ok(element) = self.session.find(by).await else {
                     return Ok(Polled::Pending { seen: None });
                 };
                 if !element.is_displayed().await.unwrap_or(false) {
@@ -1629,7 +1629,7 @@ impl BaseCase {
             format!("None of the selectors [{}] was present", css_list.join(", ")),
             || async {
                 for by in &locators {
-                    let found = self.session.webdriver()?.find_all(by.clone()).await?;
+                    let found = self.session.find_all(by.clone()).await?;
                     if let Some(element) = found.into_iter().next() {
                         return Ok(Polled::Found(element));
                     }
