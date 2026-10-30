@@ -950,7 +950,7 @@ async fn a_value_turns_its_dimension_on() -> Result<(), FingerprintError> {
 Use `run_browser_test` from `src/api/runner.rs`:
 
 ```rust Browser lifecycle test
-use seleniumbase_rs::{run_browser_test, BrowserConfig};
+use seleniumbase_rs::{run_browser_test, tokio, BrowserConfig};
 
 #[tokio::test]
 async fn example_test() -> seleniumbase_rs::Result<()> {

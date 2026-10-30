@@ -95,6 +95,10 @@ test.describe('shop', () => {
 ```
 
 ```rust,ignore Rust
+use seleniumbase_rs::sb_cdp::Browser;
+use seleniumbase_rs::tokio;
+use seleniumbase_rs::utils::selectors::SelectorBuf;
+
 #[tokio::test]
 async fn shop_orders() -> Result<(), Box<dyn std::error::Error>> {
     let browser = Browser::launch(support::launch_options()?).await?;
