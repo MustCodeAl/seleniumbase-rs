@@ -53,6 +53,8 @@ pub use task::{check_task, run_task, run_task_on, run_task_until};
 pub use test_hooks::{test_end, test_start};
 
 pub(crate) use timer::timed;
+#[cfg(all(feature = "plugin-imap", feature = "mcp-server"))]
+pub(crate) use timer::TokioTimer;
 
 /// The cargo features that add a built-in plugin, for messages.
 const BUILTIN_FEATURES: &str = "plugin-shield, plugin-block-resources, plugin-crx, \

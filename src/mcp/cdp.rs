@@ -245,6 +245,12 @@ pub fn host(settings: Settings) -> Host<Cdp> {
     tools.extend(super::pagetools::tools());
     tools.extend(super::fingerprint::tools());
     tools.push(plugin_task_tool());
+    // `wait_for_email` exists only for an operator who turned the imap plugin on with options.
+    #[cfg(feature = "plugin-imap")]
+    if super::email::offered(settings.plugin_selection()) {
+        tools.push(super::email::tool::<Cdp>());
+    }
+
     Host::new(SERVER_NAME, INSTRUCTIONS, tools, settings)
         .with_probe(devtools::probe::<Cdp>)
         .with_refs(super::pagetools::verify::<Cdp>)
