@@ -39,7 +39,8 @@ use seleniumbase_rs::{tokio, Result};
 async fn valid_login(sb: Sb) -> Result<()> {
     sb.run(async |sb| {
         sb.open("https://example.com/login").await?;
-        sb.type_text("#user", sb.account().unwrap_or("demo")).await?;
+        let user = sb.account().unwrap_or("demo").to_owned();
+        sb.type_text("#user", &user).await?;
         sb.assert_title("Example Domain").await
     })
     .await
