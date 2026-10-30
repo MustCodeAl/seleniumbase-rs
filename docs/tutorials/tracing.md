@@ -165,7 +165,9 @@ sequence, is what you get:
 
 The banners that `sbrs mkrec` prints on standard output (`* RECORDING initialized:`,
 `>>> RECORDING SAVED as:`, `*** RECORDING COPIED to:`) follow the same rule for
-standard output and use the colours of `sbase mkrec`. In your own code, the module
+standard output and use the colours of `sbase mkrec`. The
+[debug prompts](/tutorials/writing_tests#debug-prompts) (`--pdb`, `--trace`, `breakpoint`) follow the
+same rule for standard error. In your own code, the module
 `seleniumbase_rs::common::color` holds the decision (`use_color`) and the palette
 (`Style`, `palette`) that the log lines and the banners use.
 
