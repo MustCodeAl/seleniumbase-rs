@@ -301,7 +301,7 @@ pub(super) fn program(actions: &[RecordedAction], entry: &str) -> String {
     }
     let names = imports.into_iter().collect::<Vec<_>>().join(", ");
     format!(
-        "use seleniumbase_rs::sb_cdp::{{{names}}};\n\n\
+        "use seleniumbase_rs::sb_cdp::{{{names}}};\nuse seleniumbase_rs::tokio;\n\n\
          {entry} -> Result<(), Box<dyn std::error::Error>> {{\n    \
          let browser = Browser::launch(LaunchOptions::builder().build()?).await?;\n    \
          let page = browser.default_page().await?;\n\
@@ -916,6 +916,7 @@ mod tests {
     fn the_script_launches_a_browser_replays_the_actions_and_closes_it() {
         let script = sample().to_cdp_script();
         let want = r##"use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, State};
+use seleniumbase_rs::tokio;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -941,7 +942,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         recorder.record("open", Some("https://example.com"), None);
         let script = recorder.to_cdp_script();
         assert!(
-            script.starts_with("use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};\n\n"),
+            script.starts_with("use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};\nuse seleniumbase_rs::tokio;\n\n"),
             "{script}"
         );
         assert!(!script.contains("skipped"), "{script}");

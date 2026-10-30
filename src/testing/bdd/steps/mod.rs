@@ -17,8 +17,10 @@
 //!
 //! ```rust,ignore
 //! // tests/login.rs: no step code at all.
-//! use rstest_bdd_macros::scenario;
-//! use seleniumbase_rs::testing::bdd::{sb, SbCase};
+//! use seleniumbase_rs::testing::bdd::{sb, scenario, SbCase};
+//! use seleniumbase_rs::testing::rstest;
+//! use seleniumbase_rs::tokio;
+
 //!
 //! #[scenario(path = "tests/features/login.feature", name = "Valid login")]
 //! #[tokio::test(flavor = "multi_thread")]

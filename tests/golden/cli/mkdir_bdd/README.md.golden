@@ -21,16 +21,15 @@ cargo test --test mkdir_bdd
 ```
 
 The tests need Chrome, and a matching chromedriver unless they are pure CDP;
-`sbrs doctor` checks both. Your crate also needs the libraries the tests use
-(seleniumbase-rs is on GitHub, not on crates.io):
+`sbrs doctor` checks both. Your crate needs only seleniumbase-rs, which re-exports
+the rstest attribute, the Tokio runtime and the Gherkin macros the tests use. It is on
+GitHub, not on crates.io:
 
 ```toml
 [dev-dependencies]
 seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.6.0", features = ["testing", "bdd"] }
-rstest = "0.26"
+# The Gherkin macros read this crate from the manifest; no test names it.
 rstest-bdd = "0.6"
-rstest-bdd-macros = "0.6"
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 
 ## Settings

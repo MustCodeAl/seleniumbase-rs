@@ -22,10 +22,14 @@
 //! ```
 //!
 //! ```rust,ignore
-//! // tests/login.rs (the test crate depends on rstest, rstest-bdd and
-//! // rstest-bdd-macros, and on seleniumbase-rs with the features `testing` and `bdd`)
-//! use rstest_bdd_macros::{given, scenario, then, when};
-//! use seleniumbase_rs::testing::bdd::{sb, SbCase};
+//! // tests/login.rs. The test crate depends on seleniumbase-rs with the features
+//! // `testing` and `bdd`, and on rstest-bdd, which the macros read from the manifest
+//! // (no file names it).
+
+//! use seleniumbase_rs::testing::bdd::{given, sb, scenario, then, when, SbCase};
+//! use seleniumbase_rs::testing::rstest; // the `scenario` attribute expands to `rstest::` paths
+//! use seleniumbase_rs::tokio;
+
 //! // `Result` is written out in full: the steps' macros name `std`'s `Result`.
 //!
 //! #[scenario(path = "tests/features/login.feature", name = "Valid login")]
@@ -55,7 +59,7 @@
 //!   is the case's own limit (the next open, wait or action fails once it has
 //!   run out), not a hard stop: a step cannot be dropped halfway.
 //! - A failed step or assertion panics, and that is how the fixture learns
-//!   the scenario failed. A skipped scenario (`rstest_bdd::skip!`) is a pass
+//!   the scenario failed. A skipped scenario (the `skip!` macro) is a pass
 //!   as far as the evidence goes.
 //! - The scenario function must be `async` and take the fixture with
 //!   `#[future(awt)]`; rstest-bdd 0.6 cannot combine `harness = ...` with an
@@ -82,6 +86,7 @@ use crate::BaseCase;
 mod session;
 pub mod steps;
 
+pub use ::rstest_bdd::skip;
 pub use ::rstest_bdd_macros::{given, scenario, scenarios, then, when};
 
 use session::{Launch, Scenario};

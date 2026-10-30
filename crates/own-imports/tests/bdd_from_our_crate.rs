@@ -4,7 +4,7 @@
 //! If the macro re-exports did not carry everything the macros expand to, this file would
 //! not compile. The steps use a plain counter, not a browser, so the test runs anywhere.
 
-use seleniumbase_rs::testing::bdd::{given, scenario, then, when};
+use seleniumbase_rs::testing::bdd::{given, scenario, skip, then, when};
 use seleniumbase_rs::testing::{fixture, rstest};
 
 /// What the steps of a scenario share.
@@ -36,6 +36,13 @@ fn i_add_twice(counter: &mut Counter, n: u32) {
 #[then("the counter holds {n:u32}")]
 fn the_counter_holds(counter: &Counter, n: u32) {
     assert_eq!(counter.value, n);
+}
+
+/// A step that ends its scenario early with `skip!`, which the module re-exports too. No
+/// scenario of this file uses it; the file only has to compile.
+#[then("the counter is left unchecked")]
+fn the_counter_is_left_unchecked() {
+    skip!("on purpose");
 }
 
 #[scenario(

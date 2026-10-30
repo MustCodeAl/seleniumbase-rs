@@ -469,7 +469,9 @@ mod tests {
         assert!(saved.added);
         assert_eq!(saved.json, folder.join("shop_rec_test_two.json"));
         let code = std::fs::read_to_string(&saved.code).unwrap();
-        assert_eq!(code.matches("use rstest::rstest;").count(), 1, "{code}");
+        let prelude = "use seleniumbase_rs::testing::{rstest, sb, Sb};";
+        assert_eq!(code.matches(prelude).count(), 1, "{code}");
+        assert!(!code.contains("use rstest::"), "{code}");
         assert!(code.contains("async fn test_one("), "{code}");
         assert!(code.contains("async fn test_two("), "{code}");
         assert!(text(&out).contains("RECORDING ADDED to:"));

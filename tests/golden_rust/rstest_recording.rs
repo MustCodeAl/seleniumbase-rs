@@ -1,6 +1,5 @@
-use rstest::rstest;
-use seleniumbase_rs::testing::{sb, Sb};
-use seleniumbase_rs::Result;
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
 use seleniumbase_rs::api::recorder::recorded_secret;
 
 #[rstest]
