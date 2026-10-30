@@ -775,13 +775,23 @@ pub(super) fn render_listing(
 /// `> file(line)` and a newline, with the file magenta and the line cyan as in
 /// pdbp, and ` test body` before the newline when the pause is the `run` call
 /// that holds the test (the kinds that are not a breakpoint).
-pub(super) fn spot_header(kind: PromptKind, file: &str, line: u32, color: bool) -> String {
+fn spot_header(kind: PromptKind, file: &str, line: u32, color: bool) -> String {
     format!(
         "> {}({}){}\n",
         FILE_NAME.paint(sanitize(file), color),
         LINE_NUMBER.paint(line, color),
         if body_kind(kind) { " test body" } else { "" }
     )
+}
+
+/// The header alone, for the `w` command: the file where it was found when it
+/// can be read, else as the compiler recorded it.
+pub(super) fn where_header(kind: PromptKind, spot: &SourceSpot, color: bool) -> String {
+    let file = Source::read(spot).map_or_else(
+        || spot.file().to_owned(),
+        |source| source.path().display().to_string(),
+    );
+    spot_header(kind, &file, spot.line(), color)
 }
 
 /// The header and the listing of a pause, ending with a blank line; empty

@@ -101,7 +101,7 @@ use crate::error::SeleniumBaseError;
 
 mod render;
 
-use render::{code_block, spot_header};
+use render::{code_block, where_header};
 pub use render::{Failure, Scene, SourceSpot};
 
 /// The environment variable that turns `breakpoint()` off: `0`, `false`, `no`
@@ -558,10 +558,12 @@ fn banner(
     }
     text.push('\n');
     text.push_str(&test_line(test_id, page, color));
+
+    text.push_str(&code_block(kind, scene, false, color));
+    // Under the code and next to the prompt, where pdbp prints the exception.
     if let Some(failure) = scene.failure() {
         text.push_str(&failure_lines(failure, color));
     }
-    text.push_str(&code_block(kind, scene, false, color));
     if kind.invites_manual_actions() {
         text.push_str("Perform your manual actions in the browser now.\n");
     }
@@ -648,7 +650,7 @@ fn where_text(
     color: bool,
 ) -> String {
     let mut text = match scene.spot() {
-        Some(spot) => spot_header(kind, spot.file(), spot.line(), color),
+        Some(spot) => where_header(kind, spot, color),
         None => format!("{NO_POSITION}\n"),
     };
     text.push_str(&test_line(test_id, page, color));
@@ -1503,8 +1505,6 @@ mod tests {
             "".to_owned(),
             "[POST MORTEM]: Paused at login page setup.".to_owned(),
             "  test:  login.valid_login   page: https://example.com/login  \"Login\"".to_owned(),
-            "  error: element not found: #go (strategy: css)".to_owned(),
-            "  step:  element not found   selector #go".to_owned(),
             format!("> {path}(2) test body"),
             "   2         sb.run(async |sb| {".to_owned(),
             "   3             sb.open(\"https://example.com/login\").await?;".to_owned(),
@@ -1513,6 +1513,8 @@ mod tests {
             "   6             Ok(())".to_owned(),
             "   7         })".to_owned(),
             "".to_owned(),
+            "  error: element not found: #go (strategy: css)".to_owned(),
+            "  step:  element not found   selector #go".to_owned(),
             "Commands: c continue | r retry | s screenshot | src page source | u url | js <expr> | l list | w where | dt devtools | q quit | h help".to_owned(),
             "Type 'c' and press [ENTER] to continue execution: ".to_owned(),
         ]
