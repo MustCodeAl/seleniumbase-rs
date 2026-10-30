@@ -13,6 +13,11 @@
 //! `DOM.*` command is sent at all; elements are found by running
 //! `document.querySelector` through `Runtime.evaluate`.
 //!
+//! The one exception is `DOM.describeNode` of a frame element, which names the
+//! frame to enter when a page script cannot read into it; it needs no domain
+//! (see `KNOWN_DOM_SENDERS`).
+
+//!
 //! These tests drive the whole launch-and-navigate flow against a scripted
 //! browser and read back every command it received, so a new call that enables
 //! one of the five domains, or sends a `DOM.*` command, fails here. Two last
@@ -382,7 +387,64 @@ async fn contexts_interception_and_human_input_enable_none_of_them() {
     assert_nothing_detectable(&mock, "context");
 }
 
+#[tokio::test(start_paused = true)]
+async fn entering_a_frame_enables_none_of_them_and_sends_one_dom_command() {
+    let (_browser, page, mock) = quick_page().await;
+    // A page whose `iframe#f` the page script cannot read into: the chain that
+    // names it asks for the frame to be entered, and the frame answers as a
+    // page with one visible element does.
+    mock.on("Runtime.evaluate", |params| {
+        let expression = params["expression"].as_str().unwrap_or_default();
+        Ok(if expression.contains("__sbcdp.blockedSteps(") {
+            value(json!([1]))
+        } else if expression.contains("__sbcdp.blockedFrame(") {
+            json!({ "result": { "type": "object", "subtype": "node", "objectId": "frame" } })
+        } else if expression.contains("iframe#f") {
+            json!({ "exceptionDetails": { "exception": { "description": "Error: sbcdp:frames" } } })
+        } else {
+            one_visible_element(expression)
+        })
+    });
+    mock.reply("DOM.describeNode", json!({ "node": { "frameId": "F2" } }));
+    // A frame of the tab's own process, then one of another process.
+    mock.reply(
+        "Page.createIsolatedWorld",
+        json!({ "executionContextId": 7 }),
+    );
+    page.locator("iframe#f")
+        .locator("#b")
+        .click()
+        .await
+        .unwrap();
+    mock.fail("Page.createIsolatedWorld", "No frame for given id found");
+    mock.reply("Target.attachToTarget", json!({ "sessionId": "S2" }));
+    page.locator("iframe#f")
+        .locator("#b")
+        .type_text("typed")
+        .await
+        .unwrap();
+
+    assert!(!mock.calls_to("Page.createIsolatedWorld").is_empty());
+    assert!(!mock.calls_to("Target.attachToTarget").is_empty());
+    for domain in FORBIDDEN {
+        let method = format!("{domain}.enable");
+        assert!(mock.calls_to(&method).is_empty(), "{method} was sent");
+    }
+    let calls = mock.calls();
+    assert!(calls.iter().all(|call| !is_detectable_enable(&call.method)));
+    let dom: Vec<_> = calls
+        .iter()
+        .filter(|call| is_dom_command(&call.method))
+        .map(|call| call.method.as_str())
+        .collect();
+    assert!(
+        !dom.is_empty() && dom.iter().all(|method| *method == "DOM.describeNode"),
+        "only DOM.describeNode may be sent to enter a frame: {dom:?}"
+    );
+}
+
 // ----------------------------------------------------------------------
+
 // The sources
 // ----------------------------------------------------------------------
 
@@ -397,12 +459,24 @@ const KNOWN_SENDERS: [(&str, &str, usize); 0] = [];
 /// now asks the page through `Runtime.evaluate`. Adding an entry here is a
 /// decision, not a convenience.
 ///
+/// `DOM.describeNode` in `src/sb_cdp/frames.rs` names the frame behind a frame
+/// element, which a `Locator` has to know to enter a frame its page script
+/// cannot read into (another origin, a `data:` URL, a sandbox, another site).
+/// It is the one `DOM` command that needs no domain: the protocol says it
+/// "does not require domain to be enabled" and "does not start tracking any
+/// objects", it takes the object `Runtime.evaluate` returned instead of a node
+/// id, and it is sent only for a frame the page script could not enter. The
+/// test `entering_a_frame_enables_none_of_them` holds it to that.
+///
+
 /// The one entry is not sent by this crate: it is text the Playwright and
 /// Puppeteer importers write into the test they generate, in the helper that
 /// fills a file input. A page cannot set a file input's files from script, so
 /// `setInputFiles` and `uploadFile` have no `Runtime.evaluate` equivalent.
-const KNOWN_DOM_SENDERS: [(&str, &str, usize); 1] =
-    [("src/utilities/importer/emit.rs", "DOM.setFileInputFiles", 1)];
+const KNOWN_DOM_SENDERS: [(&str, &str, usize); 2] = [
+    ("src/utilities/importer/emit.rs", "DOM.setFileInputFiles", 1),
+    ("src/sb_cdp/frames.rs", "DOM.describeNode", 1),
+];
 
 fn rust_files(dir: &Path, found: &mut Vec<PathBuf>) {
     for entry in fs::read_dir(dir).unwrap() {
