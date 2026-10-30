@@ -53,8 +53,8 @@ const FIXTURE: &str = r##"<!doctype html>
   }, 600);
 </script></body></html>"##;
 
-/// A page of frames. `srcdoc` frames share the page's origin, so they can be
-/// entered; the third frame is served from another port, so it cannot.
+/// A page of frames. `srcdoc` frames share the page's origin, so a script can read them;
+/// the third frame is served from another port, so a script cannot, and the locator enters it through the protocol.
 const FRAMES: &str = r##"<!doctype html>
 <html><head><title>Frames</title></head>
 <body>
@@ -519,7 +519,7 @@ async fn locators_reach_into_same_origin_frames_and_clicks_land_through_the_fram
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
-async fn frames_nest_and_a_cross_origin_frame_is_empty_rather_than_an_error() {
+async fn frames_nest_and_a_cross_origin_frame_is_entered_through_the_protocol() {
     let (browser, page, base) = open().await;
     page.goto(format!("{base}/frames")).await.unwrap();
 
@@ -532,10 +532,12 @@ async fn frames_nest_and_a_cross_origin_frame_is_empty_rather_than_an_error() {
         .unwrap();
     assert_eq!(page.title().await.unwrap(), "clicked-deep");
 
-    // The foreign frame cannot be entered, so nothing matches inside it.
+    // A script of the page cannot read the foreign frame, so the locator enters
+    // it through the protocol (more in tests/sb_cdp_frames_chrome.rs).
     let foreign = page.locator("#foreign").locator("#secret");
-    assert_eq!(foreign.count().await.unwrap(), 0);
-    assert!(!foreign.exists().await.unwrap());
+    assert_eq!(foreign.count().await.unwrap(), 1);
+    assert!(foreign.exists().await.unwrap());
+    assert_eq!(foreign.text().await.unwrap(), "Foreign");
 
     // The frame element itself is still an ordinary element.
     assert!(page.locator("#foreign").is_visible().await.unwrap());
