@@ -160,12 +160,23 @@ run inside the frame does not see the parent. In WebDriver you **switch into**
 the frame, work there, and switch back out.
 
 ```rust,ignore src/main.rs
-sb.switch_to_frame("iframe#payment").await?;     // the selector names the frame element
+sb.switch_to_frame("iframe#payment").await?;     // a selector names the frame element
 sb.type_text("#card", "4242 4242 4242 4242").await?;
+sb.switch_to_default_content().await?;           // back to the top document
+
+// The same, written so the frame cannot be left open: the closure runs in the
+// frame, and the case goes back to the parent when it ends, also when it fails.
+sb.frame_switch("payment")                        // the id or the name of the frame
+    .run(async |sb| sb.type_text("#card", "4242 4242 4242 4242").await)
+    .await?;
 ```
 
-`BaseCase::switch_to_frame(css)` switches into the frame that `css` selects, and
-`switch_to_frame_of_element` does the same for an element you already hold. A
+`BaseCase::switch_to_frame` takes what Python's does: a CSS or XPath selector, the
+`id` or the `name` of the frame (`switch_to_frame("iframeResult")`), or its
+position in the document (`switch_to_frame(0)`). It waits for the frame, for the
+case's timeout or `.timeout(Duration)`. `frame_switch` is Python's
+`with self.frame_switch(frame):` block, and `switch_to_frame_of_element` enters the
+frame that holds an element you already hold. A
 cross-site frame is also drawn by a separate browser process (see
 [browser architecture](/concepts/browser-architecture#site-isolation-and-the-sandbox)),
 which is why the DevTools Protocol treats it as its own target.
