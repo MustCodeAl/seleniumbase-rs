@@ -88,6 +88,16 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   `#[case]` test and a pure CDP test, and takes `--gha` (a GitHub Actions workflow in
   `.github/workflows/` of the current folder) and `--bdd` (a Gherkin scenario on the built-in steps).
 
+- **`sbrs mkpres`, `mkchart`, `print`, `translate` and `convert` take Python's arguments.**
+  `mkpres FILE` and `mkchart FILE` write a Rust test on the rstest `sb` fixture that builds the
+  three-slide deck or the chart slide with the presentation and chart API (they wrote an HTML
+  file before, and `--file` is gone), with `--en`, `--zh`, ... for the text of the slides and
+  `--force` to replace a file. `print FILE` takes the file as an argument, shows it unchanged
+  and numbers the lines with `-n`. `translate FILE --es` takes the language as Python's flag
+  (the positional language is gone) and `-p`, `-o`, `-c` and `-n`. New: `convert FILE.py` turns
+  a Selenium IDE export into `FILE_SB.rs` and keeps the original.
+
+
 - **The highlight family and Demo Mode work as in Python.** `highlight`, `highlight_click`,
   `highlight_type` (now through `update_text`), `highlight_if_visible`, `highlight_elements` and
   `flash` return call builders with Python's keywords (`.loops(2).scroll(false)`; plain `.await`
