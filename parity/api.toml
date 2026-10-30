@@ -2346,7 +2346,7 @@ note = "Raw protocol call: `page.execute(..)` with `Page.getNavigationHistory`."
 [cdp."get_nested_element"]
 status = "composed"
 rust = "Locator::locator"
-note = "Call `page.locator(selector).locator(..)`; the Locator holds the selector, so it is not an argument of the call."
+note = "Call `page.locator(selector).locator(..)`; the Locator holds the selector, so it is not an argument of the call. It finds an element inside a frame of any origin, as `nested_click` does."
 
 [cdp."get_origin"]
 status = "implemented"
@@ -2652,8 +2652,7 @@ note = "`page.locator(selector).click()` waits for the element, scrolls it into 
 [cdp."nested_click"]
 status = "composed"
 rust = "Locator::locator"
-divergence = "Reaches same-origin frames only. The iframe#myFrame3 of the demo page has a data: URL as its src, another origin, and `page.locator(\"iframe#myFrame3\").locator(\".fBox\")` finds nothing where Python's nested_click clicks it. Found by examples/cdp_mode/raw_demo_site.py."
-note = "Call `page.locator(selector).locator(..)`; the Locator holds the selector, so it is not an argument of the call."
+note = "Call `page.locator(selector).locator(..)`; the Locator holds the selector, so it is not an argument of the call. The frame may be of any origin: a script of the page cannot read a `data:` frame, a sandboxed one or a frame of another site, so the locator enters it through the protocol (an execution context for a frame of the tab's process, a session of its own for an out-of-process frame), and a click lands through the frame's offset."
 
 [cdp."open"]
 status = "composed"

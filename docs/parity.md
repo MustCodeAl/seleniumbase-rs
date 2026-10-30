@@ -665,7 +665,7 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `get_locale_code` | implemented | `Page::locale_code` | `page.locale_code()` is `navigator.language`, or the first of `navigator.languages` when that is empty. |
 | `get_mfa_code` | composed | `BaseCase::get_mfa_code` | BaseCase::get_mfa_code computes the TOTP code and needs no browser; it is a method of the WebDriver-engine BaseCase. |
 | `get_navigation_history` | composed | `Page::execute` | Raw protocol call: `page.execute(..)` with `Page.getNavigationHistory`. |
-| `get_nested_element` | composed | `Locator::locator` | Call `page.locator(selector).locator(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `get_nested_element` | composed | `Locator::locator` | Call `page.locator(selector).locator(..)`; the Locator holds the selector, so it is not an argument of the call. It finds an element inside a frame of any origin, as `nested_click` does. |
 | `get_origin` | implemented | `Page::origin` | `page.origin()` is `window.location.origin`. |
 | `get_page_source` | composed | `Page::content` | `page.content()` returns the page's HTML. |
 | `get_page_title` | composed | `Page::title` | `page.title()`. |
@@ -726,7 +726,7 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `medimize` | composed | `Window::restore` | `page.window().restore()` returns the window to its normal state. |
 | `minimize` | composed | `Window::minimize` | `page.window().minimize()`. |
 | `mouse_click` | composed | `Locator::click` | `page.locator(selector).click()` waits for the element, scrolls it into view and clicks its centre with real mouse events. `page.mouse().click(point)` clicks at coordinates instead. |
-| `nested_click` | composed | `Locator::locator` | Call `page.locator(selector).locator(..)`; the Locator holds the selector, so it is not an argument of the call. Differs: Reaches same-origin frames only. The iframe#myFrame3 of the demo page has a data: URL as its src, another origin, and `page.locator("iframe#myFrame3").locator(".fBox")` finds nothing where Python's nested_click clicks it. Found by examples/cdp_mode/raw_demo_site.py. |
+| `nested_click` | composed | `Locator::locator` | Call `page.locator(selector).locator(..)`; the Locator holds the selector, so it is not an argument of the call. The frame may be of any origin: a script of the page cannot read a `data:` frame, a sandboxed one or a frame of another site, so the locator enters it through the protocol (an execution context for a frame of the tab's process, a session of its own for an out-of-process frame), and a click lands through the frame's offset. |
 | `open` | composed | `Page::goto` | A method of the Page that sb.cdp drives: `page.goto(..)`. |
 | `open_new_tab` | composed | `Browser::new_page` | A method of the Browser, not of one page: `browser.new_page()` opens a blank tab and `browser.new_page_at(url)` one on a URL. |
 | `open_new_window` | composed | `Browser::new_window` | A method of the Browser, not of one page: `browser.new_window()` opens a blank window and `browser.new_window_at(url)` one on a URL. |

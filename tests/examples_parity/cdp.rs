@@ -21,7 +21,7 @@ use crate::support::{cdp_options, run_cdp_port};
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/demo_page"]
 async fn raw_demo_site() -> Result<()> {
-    run_cdp_port(async |page, mismatches| {
+    run_cdp_port(async |page, _mismatches| {
         page.goto("https://seleniumbase.io/demo_page").await?;
 
         // Assert various things
@@ -150,19 +150,12 @@ async fn raw_demo_site() -> Result<()> {
 
         // Click inside an iframe and test highlighting
         page.locator("iframe#myFrame3").flash().await?;
-        if let Err(error) = page
-            .locator("iframe#myFrame3")
+        // The frame's src is a data: URL, another origin than the page's: the
+        // locator enters it through the protocol.
+        page.locator("iframe#myFrame3")
             .locator(".fBox")
             .click()
-            .await
-        {
-            // The frame's src is a data: URL, so it is another origin than the
-            // page, and the pure CDP engine reaches same-origin frames only.
-            mismatches.note(
-                "nested_click into an iframe whose src is a data: URL",
-                error,
-            );
-        }
+            .await?;
         page.locator("iframe#myFrame3").flash().await
     })
     .await

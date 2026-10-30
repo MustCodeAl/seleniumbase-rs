@@ -262,11 +262,9 @@ next = ""
 [[example]]
 python = "cdp_mode/raw_demo_site.py"
 rust_test = "cdp::raw_demo_site"
-status = "fail"
-mismatches = [
-  "nested_click('iframe#myFrame3', '.fBox'): the demo page's iframe has a data: URL as its src (another origin), and the Locator reaches same-origin frames only, so page.locator('iframe#myFrame3').locator('.fBox') finds nothing",
-]
-next = "bug lane: frames of another origin in the pure CDP engine (the other mismatch of this example, expect().to_contain_text on an <input>, is fixed); parity row: cdp nested_click divergence (done)"
+status = "pass"
+mismatches = []
+next = ""
 
 [[example]]
 python = "cdp_mode/raw_cdp_tabs.py (and raw_tab_switching.py)"
