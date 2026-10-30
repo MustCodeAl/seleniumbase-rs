@@ -217,6 +217,30 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ### Added
 
+- **`sbrs extract-objects`, `inject-objects`, `objectify` and `revert-objects` work on Rust test
+  files.** They are Python's page-object commands (`sbase extract-objects FILE.py`, ...): the
+  string literals that are the selector argument of a `BaseCase` call (`click`, `type_text`,
+  `assert_text`, `drag_and_drop`, ...) become constants of a module of `page_objects.rs` next to
+  the test, one module for each URL that the test `open`s (`page_objects::example_com_login::USER`).
+  `inject-objects` writes that path in place of the literal and declares `mod page_objects;`,
+  `-c` appends the selector as a `// "#user"` comment to each changed line, and `revert-objects
+  [-c]` gives the original file back byte for byte, also with CRLF line endings. The underscore
+  spellings (`extract_objects`, ...) are accepted. `sbrs objectify` takes a file now: the starter
+  `page_object.rs` it used to write is gone. Constants are named with the words of the selector
+  and grouped by page, where Python writes `css_N` in one `Page` class; `parity/api.toml` lists
+  the differences. A test compiles an injected test and its `page_objects.rs` against the real
+  API (`tests/cli_objects_compile`).
+
+- **Feature `plugin-browser` (in `plugins-builtin` and in the CLI): the built-in `browser`
+  plugin loads extensions into the Chromium browser a program starts.** `extension_zip` takes
+  `.zip` and `.crx` files and `extension_dir` unpacked folders, with the meaning of Python
+  SeleniumBase's `--extension-zip` and `--extension-dir`; `sbrs --plugin browser` turns it on
+  (`sbrs plugin list` shows it in the category `extension`). It declares that it cannot share a
+  set with `crx`, so naming both is refused before a browser starts, with ``plugin `browser`
+  cannot be combined with plugin `crx` ``. The options for waiting for the extensions' workers and
+  for saved sessions are not implemented yet and are refused as unknown options. The plugins
+  come from plugins rev 1a327ec.
+
 - **Rules for writing reliable browser tests with the crate, for people and for AI coding
   assistants.** `AGENTS.md` gains the section "Writing browser tests with seleniumbase-rs": fifteen
   rules (the `sb` and `sb_cdp` fixtures own the browser, imports only from `seleniumbase_rs`, stable

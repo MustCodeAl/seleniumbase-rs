@@ -102,6 +102,6 @@ takes or returns), `error`, `evasion`, `js_code`, `json` (`json!` and `Value`), 
 `utilities`, `utils`; and, behind features, `mcp` (`mcp-server`), `ocr` (`ocr`),
 `plugin_api` (`plugins`, the browser plugin API), `builtin_plugins` (any of
 `plugin-shield`, `plugin-block-resources`, `plugin-crx`, `plugin-fetcher`,
-`plugin-extractor`, `plugin-batcher`, `plugin-crawler` or `plugins-builtin`: the
+`plugin-extractor`, `plugin-batcher`, `plugin-crawler`, `plugin-browser` or `plugins-builtin`: the
 official plugins and their `registry()`, see [Choosing plugins](/plugins/selecting)),
 `storage` (`turso`) and `visual` (`visual`).

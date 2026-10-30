@@ -89,7 +89,7 @@ Version 0.6.0 is the current release (see `CHANGELOG.md`); what follows is what 
    the earlier file-writing commands are `caseplans --starter` and
    `behave-gui --new`. The Behave Commander runs scenarios with the built-in
    steps only, since steps written in Rust cannot be loaded into `sbrs`.
-   `objectify` is not applicable (it rewrites Python source) and `mkrec` is
+   `objectify`, `extract-objects`, `inject-objects` and `revert-objects` move the selectors of a Rust test into `page_objects.rs` and back, and `mkrec` is
    `sbrs mkrec`, with `codegen` and `record` as aliases. `sbrs` now exits with status 6 and prints the cause when
    one of the file-writing commands fails.
 6. **pytest-style options and settings.** Compare the Python `--option` list

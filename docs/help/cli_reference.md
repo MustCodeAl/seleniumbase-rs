@@ -57,6 +57,7 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs download-file`](#sbrs-download-file) | Download a file from a URL (browser download with an HTTP fallback). |
 | [`sbrs drag-and-drop`](#sbrs-drag-and-drop) | Drag one element onto another. |
 | [`sbrs encrypt`](#sbrs-encrypt) | Encrypt text with a passphrase (AES-256-GCM); read from stdin if TEXT is omitted. |
+| [`sbrs extract-objects`](#sbrs-extract-objects) | Move the selectors of a Rust test into page objects in `page_objects.rs`. |
 | [`sbrs fingerprint`](#sbrs-fingerprint) | Capture, write, check and compare browser fingerprints. |
 | [`sbrs fingerprint capture`](#sbrs-fingerprint-capture) | Read the fingerprint of a real browser and write it as a fingerprint file. |
 | [`sbrs fingerprint check`](#sbrs-fingerprint-check) | Check that a fingerprint file loads and is coherent. |
@@ -83,6 +84,7 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs import-playwright`](#sbrs-import-playwright) | Convert Playwright tests or a script (JavaScript, TypeScript or Python) into Rust tests for the pure CDP engine. |
 | [`sbrs import-puppeteer`](#sbrs-import-puppeteer) | Convert Puppeteer scripts or tests (JavaScript, TypeScript) or a Chrome Recorder JSON export into Rust tests for the pure CDP engine. |
 | [`sbrs import-python`](#sbrs-import-python) | Convert common SeleniumBase or Selenium Python code into a Rust test. |
+| [`sbrs inject-objects`](#sbrs-inject-objects) | Replace the selectors of a Rust test with the page objects of `page_objects.rs`. |
 | [`sbrs install`](#sbrs-install) | Download a driver or a browser into ./downloaded_drivers/ (Python's `sbrs get`). |
 | [`sbrs is-checked`](#sbrs-is-checked) | Print whether a checkbox is checked. |
 | [`sbrs is-element-visible`](#sbrs-is-element-visible) | Print whether an element is visible. |
@@ -96,7 +98,7 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs mkfile`](#sbrs-mkfile) | Create a browser-test file. |
 | [`sbrs mkpres`](#sbrs-mkpres) | Create a test that builds a slide deck. |
 | [`sbrs mkrec`](#sbrs-mkrec) | Create a new test file with the Recorder: record your actions in a browser, then save them as a test. |
-| [`sbrs objectify`](#sbrs-objectify) | Objectify a test recording. |
+| [`sbrs objectify`](#sbrs-objectify) | Turn the selectors of a Rust test into page objects: extract-objects, then inject-objects. |
 | [`sbrs open`](#sbrs-open) | Open a URL in the browser. |
 | [`sbrs options`](#sbrs-options) | List the browser options: each flag, its `SB_*` variable and its key in the settings file. |
 | [`sbrs patch-chrome`](#sbrs-patch-chrome) | Patch a Chrome/Chromium binary for native-level spoofing. |
@@ -115,6 +117,7 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs replay`](#sbrs-replay) | Replay a recorded action file (recordings/NAME_rec.json) against a fresh browser. |
 | [`sbrs report`](#sbrs-report) | Finish a test run and write its reports, or show the runs of a results database. |
 | [`sbrs report finish`](#sbrs-report-finish) | Finish the test run of the current folder and write its reports. |
+| [`sbrs revert-objects`](#sbrs-revert-objects) | Put the selectors back where a Rust test uses page objects. |
 | [`sbrs run-scenario`](#sbrs-run-scenario) | Run a scenario file, the way to do several steps in one browser, and write an optional dashboard. |
 | [`sbrs save-cookies`](#sbrs-save-cookies) | Save browser cookies to a JSON file. |
 | [`sbrs save-source`](#sbrs-save-source) | Save the current page source to a file. |
@@ -1769,6 +1772,30 @@ The text to encrypt.
 sbrs encrypt 'my secret'
 ```
 
+## sbrs extract-objects
+
+Also: `extract_objects`
+
+Move the selectors of a Rust test into page objects in `page_objects.rs`.
+
+Python's `sbase extract-objects`, for a Rust test. FILE is read for the string literals that are the selector of a call (`sb.click("#go")`, `sb.type_text("#user", "ada")`, `sb.assert_text("Hi", "h1")`, `sb.drag_and_drop(".a", ".b")`; `sbrs methods` lists the common calls), and each one becomes a constant of a module of `page_objects.rs` in the folder of FILE: one module for each page that the test opens, named with the words of its URL (`pub mod example_com_login`, and `page` before any `open`), one constant for each selector, named with the words of the selector (`pub const USER: &str = "#user";`, `_2` after a name that is taken). A `page_objects.rs` that is there is added to; one that `sbrs` did not write is refused. FILE is not changed: `inject-objects` does that.
+
+```bash Usage
+sbrs extract-objects <FILE>
+```
+
+**Arguments**
+
+<ParamField path="FILE" type="string" required>
+
+The Rust test file whose selectors become page objects.
+
+</ParamField>
+
+```bash Examples
+sbrs extract-objects tests/login.rs
+```
+
 ## sbrs fingerprint
 
 Capture, write, check and compare browser fingerprints.
@@ -2539,6 +2566,40 @@ Name of the generated test function
 sbrs import-python login.py --output tests/login.rs
 ```
 
+## sbrs inject-objects
+
+Also: `inject_objects`
+
+Replace the selectors of a Rust test with the page objects of `page_objects.rs`.
+
+Python's `sbase inject-objects`, for a Rust test. Every selector of FILE that has a page object (made by `extract-objects`) is written as `page_objects::<page>::NAME`, and `mod page_objects;` is declared above the first item of the file. A selector that has no page object stays as it is. With `-c`, the selector is added as a comment at the end of each line that changed, as `// "#user"`.
+
+```bash Usage
+sbrs inject-objects [-c --comments] <FILE>
+```
+
+**Arguments**
+
+<ParamField path="FILE" type="string" required>
+
+The Rust test file whose selectors are replaced by page objects.
+
+</ParamField>
+
+**Flags**
+
+<ParamField query="--comments" type="boolean">
+
+Add the selector as a comment, such as `// "#user"`, at the end of each line it replaced.
+
+Also: `-c`
+
+</ParamField>
+
+```bash Examples
+sbrs inject-objects tests/login.rs -c
+```
+
 ## sbrs install
 
 Also: `get`
@@ -3165,14 +3226,34 @@ sbrs mkrec new_test.rs --url seleniumbase.io/demo_page
 
 ## sbrs objectify
 
-Objectify a test recording.
+Turn the selectors of a Rust test into page objects: extract-objects, then inject-objects.
+
+Python's `sbase objectify`, for a Rust test: FILE is read as `extract-objects` reads it, the page objects are written to `page_objects.rs` next to it, and the selectors of FILE are replaced by them as `inject-objects` does (`-c` adds the selector as a comment to each line that changes). `revert-objects` undoes it. This replaces the starter `page_object.rs` that `sbrs objectify` used to write.
 
 ```bash Usage
-sbrs objectify
+sbrs objectify [-c --comments] <FILE>
 ```
 
+**Arguments**
+
+<ParamField path="FILE" type="string" required>
+
+The Rust test file whose selectors are replaced by page objects.
+
+</ParamField>
+
+**Flags**
+
+<ParamField query="--comments" type="boolean">
+
+Add the selector as a comment, such as `// "#user"`, at the end of each line it replaced.
+
+Also: `-c`
+
+</ParamField>
+
 ```bash Examples
-sbrs objectify
+sbrs objectify tests/login.rs -c
 ```
 
 ## sbrs open
@@ -3655,6 +3736,40 @@ Print what was done as JSON instead of the `-----` lines.
 
 ```bash Examples
 sbrs report finish --html report.html --junit-xml report.xml
+```
+
+## sbrs revert-objects
+
+Also: `revert_objects`
+
+Put the selectors back where a Rust test uses page objects.
+
+Python's `sbase revert-objects`, for a Rust test: the undo of `inject-objects`. Every `page_objects::<page>::NAME` of FILE is replaced by the selector it stands for, and the `mod page_objects;` line goes when the file uses no page object any more. Extract, inject and revert give the original file back byte for byte. With `-c` the comments that `inject-objects -c` appended are taken off as well (Python's `-c` keeps them); without it they stay. `page_objects.rs` is kept.
+
+```bash Usage
+sbrs revert-objects [-c --comments] <FILE>
+```
+
+**Arguments**
+
+<ParamField path="FILE" type="string" required>
+
+The Rust test file whose page objects are replaced by their selectors.
+
+</ParamField>
+
+**Flags**
+
+<ParamField query="--comments" type="boolean">
+
+Also take off the comments that `inject-objects -c` appended to the lines it changed.
+
+Also: `-c`
+
+</ParamField>
+
+```bash Examples
+sbrs revert-objects tests/login.rs -c
 ```
 
 ## sbrs run-scenario
