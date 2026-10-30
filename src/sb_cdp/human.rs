@@ -24,13 +24,186 @@
 //! # }
 //! ```
 
+use std::future::Future;
+
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+
+use serde_json::json;
 
 use super::sync::locked;
 use super::{Button, Key, Locator, Page, Point, Rect};
 use crate::error::SeleniumBaseError;
 use crate::stealth::behavior::{Behavior, Humanizer, KeyAction, Step};
+
+/// The pointer events a person's click or drag is made of.
+///
+/// A seam shared by the Pure CDP [`Page`] and the WebDriver `BaseCase`, so
+/// that both play the same plans (see [`plan_click`] and [`plan_drag`]).
+/// `held` is whether the primary button is down while the pointer moves.
+pub(crate) trait PointerSink {
+    /// Moves the pointer to `at`.
+    fn pointer_move(
+        &self,
+        at: Point,
+        held: bool,
+    ) -> impl Future<Output = Result<(), SeleniumBaseError>> + Send;
+    /// Presses the primary button at `at`.
+    fn pointer_down(&self, at: Point)
+        -> impl Future<Output = Result<(), SeleniumBaseError>> + Send;
+    /// Releases the primary button at `at`.
+    fn pointer_up(&self, at: Point) -> impl Future<Output = Result<(), SeleniumBaseError>> + Send;
+}
+
+impl PointerSink for Page {
+    async fn pointer_move(&self, at: Point, held: bool) -> Result<(), SeleniumBaseError> {
+        if held {
+            self.execute(
+                "Input.dispatchMouseEvent",
+                json!({
+                    "type": "mouseMoved", "x": at.x, "y": at.y,
+                    "button": "left", "buttons": 1, "clickCount": 0,
+                }),
+            )
+            .await?;
+            Ok(())
+        } else {
+            self.mouse().move_to(at).await
+        }
+    }
+
+    async fn pointer_down(&self, at: Point) -> Result<(), SeleniumBaseError> {
+        self.mouse().down(at, Button::Left).await
+    }
+
+    async fn pointer_up(&self, at: Point) -> Result<(), SeleniumBaseError> {
+        self.mouse().up(at, Button::Left).await
+    }
+}
+
+/// A planned click: travel to the target, rest on it, press, hold, release.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct ClickPlan {
+    /// The pointer's way to the landing point.
+    pub(crate) path: Vec<Step>,
+    /// Where the button goes down and up: near the aim, not exactly on it.
+    pub(crate) landing: Point,
+    /// How long the pointer rests on the target before the press.
+    pub(crate) rest: Duration,
+    /// How long the button stays down.
+    pub(crate) dwell: Duration,
+}
+
+/// A planned drag: travel to the handle, rest, press, drag along a path,
+/// let go.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct DragPlan {
+    /// The approach to the handle.
+    pub(crate) approach: Vec<Step>,
+    /// Where the button goes down.
+    pub(crate) press: Point,
+    /// How long the pointer rests on the handle before the press.
+    pub(crate) rest: Duration,
+    /// The way from the handle to the end, button held.
+    pub(crate) stroke: Vec<Step>,
+    /// Where the button comes up.
+    pub(crate) release: Point,
+    /// How long the pointer stays at the end before the button comes up.
+    pub(crate) hold: Duration,
+}
+
+/// Plans a click on a target of about `tolerance` pixels across, centred on
+/// `aim`, for a pointer now at `from`.
+///
+/// The landing point is normally distributed around `aim` and kept inside the
+/// target, so two clicks differ.
+pub(crate) fn plan_click(
+    person: &mut Humanizer,
+    from: Point,
+    aim: Point,
+    tolerance: f64,
+) -> ClickPlan {
+    let landing = person.target_point(Rect {
+        x: aim.x - tolerance / 2.0,
+        y: aim.y - tolerance / 2.0,
+        width: tolerance,
+        height: tolerance,
+    });
+    ClickPlan {
+        path: person.mouse_path(from, landing, tolerance),
+        landing,
+        rest: person.reaction(),
+        dwell: person.click_dwell(),
+    }
+}
+
+/// Plans a drag of a handle at `press` to `release`, for a pointer now at
+/// `from`.
+pub(crate) fn plan_drag(
+    person: &mut Humanizer,
+    from: Point,
+    press: Point,
+    release: Point,
+    tolerance: f64,
+) -> DragPlan {
+    let start = person.target_point(Rect {
+        x: press.x - tolerance / 2.0,
+        y: press.y - tolerance / 2.0,
+        width: tolerance,
+        height: tolerance,
+    });
+    DragPlan {
+        approach: person.mouse_path(from, start, tolerance),
+        press: start,
+        rest: person.reaction(),
+        stroke: person.mouse_path(start, release, tolerance),
+        release,
+        hold: person.click_dwell(),
+    }
+}
+
+/// Plays pointer moves on the planned timeline: each is due a planned wait
+/// after the one before it, and the time the browser takes to take one in
+/// does not push the rest back, so a long path does not become a slow one.
+async fn play_steps<P: PointerSink>(
+    sink: &P,
+    steps: &[Step],
+    held: bool,
+) -> Result<(), SeleniumBaseError> {
+    let start = tokio::time::Instant::now();
+    let mut due = Duration::ZERO;
+    for step in steps {
+        due += step.wait;
+        tokio::time::sleep_until(start + due).await;
+        sink.pointer_move(step.at, held).await?;
+    }
+    Ok(())
+}
+
+/// Plays a [`ClickPlan`] out on `sink`.
+pub(crate) async fn play_click<P: PointerSink>(
+    sink: &P,
+    plan: &ClickPlan,
+) -> Result<(), SeleniumBaseError> {
+    play_steps(sink, &plan.path, false).await?;
+    tokio::time::sleep(plan.rest).await;
+    sink.pointer_down(plan.landing).await?;
+    tokio::time::sleep(plan.dwell).await;
+    sink.pointer_up(plan.landing).await
+}
+
+/// Plays a [`DragPlan`] out on `sink`.
+pub(crate) async fn play_drag<P: PointerSink>(
+    sink: &P,
+    plan: &DragPlan,
+) -> Result<(), SeleniumBaseError> {
+    play_steps(sink, &plan.approach, false).await?;
+    tokio::time::sleep(plan.rest).await;
+    sink.pointer_down(plan.press).await?;
+    play_steps(sink, &plan.stroke, true).await?;
+    tokio::time::sleep(plan.hold).await;
+    sink.pointer_up(plan.release).await
+}
 
 /// A person at a [`Page`]'s mouse and keyboard.
 ///
@@ -112,6 +285,55 @@ impl Human {
         mouse.down(point, Button::Left).await?;
         tokio::time::sleep(dwell).await;
         mouse.up(point, Button::Left).await
+    }
+
+    /// Moves to a point near `aim` along a human path, rests on it for a
+    /// moment, then presses and releases the primary button.
+    ///
+    /// `tolerance` is how big the target is, in pixels: the button goes down
+    /// at a point normally distributed around `aim` and kept within a square of
+    /// that size, and a small target takes longer to reach. Returns the point
+    /// that was pressed. Use it where the target is not an element of the page
+    /// that a [`Locator`] can name, such as the box inside a frame from another
+    /// origin.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::CdpDriver`] if the browser rejects the
+    /// input.
+    pub async fn click_at(&self, aim: Point, tolerance: f64) -> Result<Point, SeleniumBaseError> {
+        let from = self.pointer().await?;
+        let plan = {
+            let mut state = locked(&self.state);
+            plan_click(&mut state.person, from, aim, tolerance)
+        };
+        play_click(&self.page, &plan).await?;
+        locked(&self.state).pointer = Some(plan.landing);
+        Ok(plan.landing)
+    }
+
+    /// Drags a handle from a point near `press` to `release` along human paths:
+    /// the pointer travels to the handle, rests, presses, moves with the
+    /// button held and lets go.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::CdpDriver`] if the browser rejects the
+    /// input.
+    pub async fn drag(
+        &self,
+        press: Point,
+        release: Point,
+        tolerance: f64,
+    ) -> Result<(), SeleniumBaseError> {
+        let from = self.pointer().await?;
+        let plan = {
+            let mut state = locked(&self.state);
+            plan_drag(&mut state.person, from, press, release, tolerance)
+        };
+        play_drag(&self.page, &plan).await?;
+        locked(&self.state).pointer = Some(plan.release);
+        Ok(())
     }
 
     /// Clicks the element, then types `text` into it at a human pace.

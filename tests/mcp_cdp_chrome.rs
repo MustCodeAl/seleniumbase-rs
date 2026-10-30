@@ -278,7 +278,10 @@ async fn solving_a_captcha_clicks_where_the_checkbox_is_with_a_trusted_event() {
     let (host, _base) = started(dir.path()).await;
 
     let answer = text_of(&host, "solve_captcha", json!({})).await;
-    assert_eq!(answer, "Attempted to solve a Cloudflare Turnstile CAPTCHA.");
+    assert!(
+        answer.starts_with("Attempted to solve a Cloudflare Turnstile CAPTCHA: "),
+        "{answer}"
+    );
 
     let hit = json_of(
         &host,
@@ -288,8 +291,9 @@ async fn solving_a_captcha_clicks_where_the_checkbox_is_with_a_trusted_event() {
     .await;
     let x = hit[0].as_i64().unwrap();
     let y = hit[1].as_i64().unwrap();
-    assert!((x - 28).abs() <= 1, "pressed {x}px from the left edge");
-    assert!((y - 33).abs() <= 1, "pressed {y}px from the top edge");
+    // A person does not hit the same pixel twice: within a few pixels of the checkbox.
+    assert!((x - 28).abs() <= 6, "pressed {x}px from the left edge");
+    assert!((y - 33).abs() <= 6, "pressed {y}px from the top edge");
     assert_eq!(hit[2], true, "the click must be a trusted event");
 
     text_of(&host, "close_browser", json!({})).await;

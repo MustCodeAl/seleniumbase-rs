@@ -2081,6 +2081,7 @@ note = "`page.locator(selector).click_and_hold(Duration::from_secs(2))` scrolls 
 status = "composed"
 rust = "Page::solve_captcha"
 note = "A method of the Page that sb.cdp drives: `page.solve_captcha(..)`."
+divergence = "The same as `solve_captcha`: ours waits for the widget to stand still, presses along a human path and checks the result, pressing again only when the page can show a result and did not."
 
 [cdp."click_if_visible"]
 status = "implemented"
@@ -2888,6 +2889,7 @@ reason = "Use tokio::time::sleep."
 status = "composed"
 rust = "Page::solve_captcha"
 note = "A method of the Page that sb.cdp drives: `page.solve_captcha(..)`."
+divergence = "Python presses at a fixed offset (25, 32) and returns without checking what happened; ours finds the widget in the page, its open shadow roots and the frames it may read, waits for it to stand still, presses within a few pixels of the left-edge checkbox along a human pointer path, and checks the result (a token in the response field, the clearance cookie, a page with no widget). It presses again, up to three times with a growing, spread-out wait, only when the page can show a result and did not, and then fails with `SeleniumBaseError::Captcha`; `solve_captcha_with(&SolveOptions)` says what showed it cleared. Python rewrites `center` and `right` in the page's classes and styles to `left` so that the widget moves to the corner; ours leaves the page alone. Neither reads a closed shadow root."
 
 [cdp."stop"]
 status = "composed"

@@ -954,8 +954,13 @@ pub(super) async fn activate_cdp_mode(ctx: Ctx<BaseCase>, args: Args) -> Result<
 }
 
 pub(super) async fn solve_captcha(ctx: Ctx<BaseCase>, _args: Args) -> Result<Output, ToolError> {
-    Ok(match ctx.session().await?.solve_captcha().await? {
-        Some(kind) => format!("Attempted to solve a {kind} CAPTCHA."),
+    let solved = ctx
+        .session()
+        .await?
+        .solve_captcha_with(&crate::sb_cdp::SolveOptions::default())
+        .await?;
+    Ok(match solved {
+        Some(solved) => format!("Attempted to solve a {} CAPTCHA: {solved}.", solved.captcha),
         None => "No supported CAPTCHA was found on the page.".to_owned(),
     }
     .into())

@@ -581,15 +581,26 @@ fn futures_are_send(browser: &Browser, page: &Page, locator: &Locator) {
 
 /// The page script that finds a widget answers with its kind and box.
 fn script_captcha(mock: &MockCtrl, found: Value) {
+    // The first reading of the response field is taken before the press and
+    // finds it empty; every later one finds the token the press produced.
+    let mut readings = 0;
     mock.on("Runtime.evaluate", move |params| {
         let expression = params["expression"].as_str().unwrap_or_default();
-        Ok(
-            if expression.contains("querySelectorAll(selectors[kind])") {
-                value(found.clone())
-            } else {
-                value(Value::Null)
-            },
-        )
+        Ok(if expression.contains("pending: pending() }") {
+            value(json!({ "widget": found.clone(), "pending": false }))
+        } else if expression.contains("const k = DATA.kinds") {
+            readings += 1;
+            value(json!({
+                "fields": 1, "filled": readings > 1, "success": false,
+                "widget": true, "pending": false, "epoch": "doc",
+            }))
+        } else if expression.contains("__sbCaptcha = Math.random") {
+            value(json!("doc"))
+        } else if expression.contains("window.innerWidth") {
+            value(json!([1000.0, 800.0]))
+        } else {
+            value(Value::Null)
+        })
     });
 }
 
@@ -608,24 +619,28 @@ async fn solving_a_checkbox_captcha_clicks_near_its_left_edge_at_mid_height() {
         solved.map(|kind| kind.to_string()),
         Some("Cloudflare Turnstile".to_owned())
     );
-    let events: Vec<_> = mock
-        .calls_to("Input.dispatchMouseEvent")
-        .into_iter()
-        .map(|call| {
-            (
-                call.params["type"].as_str().unwrap().to_owned(),
-                call.params["x"].as_f64().unwrap(),
-                call.params["y"].as_f64().unwrap(),
-            )
-        })
-        .collect();
-    assert!(
-        events.contains(&("mousePressed".to_owned(), 128.0, 232.5)),
-        "{events:?}"
-    );
-    assert!(
-        events.contains(&("mouseReleased".to_owned(), 128.0, 232.5)),
-        "{events:?}"
+    let at = |kind: &str| {
+        mock.calls_to("Input.dispatchMouseEvent")
+            .into_iter()
+            .filter(|call| call.params["type"] == kind)
+            .map(|call| {
+                (
+                    call.params["x"].as_f64().unwrap(),
+                    call.params["y"].as_f64().unwrap(),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    // A person lands within a few pixels of the checkbox, not on one pixel.
+    let pressed = at("mousePressed");
+    assert_eq!(pressed.len(), 1, "one press");
+    let (x, y) = pressed[0];
+    assert!((x - 128.0).abs() <= 6.0, "pressed at x = {x}");
+    assert!((y - 232.5).abs() <= 6.0, "pressed at y = {y}");
+    assert_eq!(
+        at("mouseReleased"),
+        pressed,
+        "released where it was pressed"
     );
 }
 
@@ -640,16 +655,42 @@ async fn solving_a_slider_captcha_drags_across_the_widget() {
 
     page.solve_captcha().await.unwrap();
 
-    let xs: Vec<f64> = mock
-        .calls_to("Input.dispatchMouseEvent")
-        .into_iter()
-        .map(|call| call.params["x"].as_f64().unwrap())
+    let events = mock.calls_to("Input.dispatchMouseEvent");
+    let kinds: Vec<&str> = events
+        .iter()
+        .map(|call| call.params["type"].as_str().unwrap())
         .collect();
-    assert_eq!(xs.first(), Some(&30.0), "starts at the handle");
-    assert_eq!(xs.last(), Some(&370.0), "ends at the far side");
+    let press = kinds
+        .iter()
+        .position(|kind| *kind == "mousePressed")
+        .unwrap();
+    let release = kinds
+        .iter()
+        .position(|kind| *kind == "mouseReleased")
+        .unwrap();
+    assert!(press < release, "the button goes down before it comes up");
+    let handle = events[press].params["x"].as_f64().unwrap();
     assert!(
-        xs.windows(2).all(|pair| pair[0] <= pair[1]),
-        "the pointer only moves forward: {xs:?}"
+        (handle - 30.0).abs() <= 6.0,
+        "starts at the handle, x = {handle}"
+    );
+    assert_eq!(
+        events[release].params["x"].as_f64(),
+        Some(370.0),
+        "ends at the far side"
+    );
+    let held = events[press + 1..release]
+        .iter()
+        .filter(|call| call.params["buttons"] == 1)
+        .count();
+    assert_eq!(
+        held,
+        release - press - 1,
+        "every move in between holds the button"
+    );
+    assert!(
+        held > 5,
+        "the handle is dragged in many small moves, not one jump"
     );
 }
 

@@ -96,8 +96,9 @@ mod webrtc;
 
 #[doc(inline)]
 pub use browser::Browser;
+pub(crate) use captcha::{solve as solve_captcha, Surface as CaptchaSurface};
 #[doc(inline)]
-pub use captcha::Captcha;
+pub use captcha::{Captcha, Evidence, SolveOptions, Solved};
 #[doc(inline)]
 pub use client::{CdpEvent, Events};
 #[doc(inline)]
@@ -114,6 +115,7 @@ pub use har::{
 };
 #[doc(inline)]
 pub use human::Human;
+pub(crate) use human::PointerSink;
 #[doc(inline)]
 pub use inject::{InitScriptId, TagSource};
 #[doc(inline)]
