@@ -123,6 +123,7 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs set-local-storage-item`](#sbrs-set-local-storage-item) | Set a local storage key/value pair. |
 | [`sbrs smoke`](#sbrs-smoke) | Run a smoke test against a URL. |
 | [`sbrs smooth-scroll-to`](#sbrs-smooth-scroll-to) | Smoothly scroll an element into view. |
+| [`sbrs solve-captcha`](#sbrs-solve-captcha) | Solve the CAPTCHA on the page and check that it cleared. |
 | [`sbrs test`](#sbrs-test) | Run the project's tests, or one example, through Cargo or cargo-nextest. |
 | [`sbrs translate`](#sbrs-translate) | Write the actions of a JSON scenario in another language. |
 | [`sbrs type-alert-text`](#sbrs-type-alert-text) | Type text into the prompt that the page opens when it loads. |
@@ -3689,6 +3690,40 @@ CSS selector for the target element
 
 ```bash Examples
 sbrs --url https://example.com smooth-scroll-to --css footer
+```
+
+## sbrs solve-captcha
+
+Solve the CAPTCHA on the page and check that it cleared.
+
+Finds a Turnstile, reCAPTCHA, hCaptcha, Friendly Captcha or DataDome widget (in the page, its shadow roots and readable frames), waits for it to stand still, presses it along a human pointer path and waits for the page to show a result, pressing again up to three times if the page could show one and did not. It then checks what you expect of the page: text of the site's own page and a clearance cookie. Needs `--cdp` or `--uc`.
+
+```bash Usage
+sbrs solve-captcha [FLAGS]
+```
+
+**Flags**
+
+<ParamField query="--expect-text <EXPECT_TEXT>" type="string">
+
+Text that must be on the page afterwards (any letter case)
+
+</ParamField>
+
+<ParamField query="--expect-cookie <EXPECT_COOKIE>" type="string">
+
+Cookie the browser must hold afterwards, such as cf_clearance
+
+</ParamField>
+
+<ParamField query="--wait <WAIT>" type="string" default="30">
+
+Seconds to wait for the expected text
+
+</ParamField>
+
+```bash Examples
+sbrs --uc --url https://nowsecure.nl solve-captcha --expect-text nowsecure --expect-cookie cf_clearance
 ```
 
 ## sbrs test

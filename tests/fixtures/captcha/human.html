@@ -1,0 +1,92 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>A widget that watches the pointer</title>
+<!--
+  A Turnstile-like widget that clears only for a pointer that moves like a
+  hand. It judges the trusted mouse events that the page itself saw, so the
+  verdict is of what a real site would see:
+
+    - enough trusted moves in the last 2.5 s before the press (the pointer
+      travelled; it did not appear on the box);
+    - no single jump of more than 150 px between two moves;
+    - the path bows away from the straight line between its ends;
+    - the gaps between moves are not all alike (a machine's constant rate);
+    - the pointer rests on the box for a moment before the press (40 ms to
+      2 s), and the button is held for 30 to 500 ms.
+
+  window.__verdict holds the reasons, for the test's failure message.
+-->
+<style>
+  body { font: 15px sans-serif; margin: 0; }
+  #w { position: relative; width: 300px; height: 65px; margin: 300px 0 0 420px;
+    border: 1px solid #ccc; background: #fafafa; }
+  #box { position: absolute; left: 12px; top: 20px; width: 24px; height: 24px;
+    box-sizing: border-box; border: 2px solid #888; background: #fff; }
+  #label { position: absolute; left: 52px; top: 24px; font-size: 13px; }
+</style>
+<script src="/cdn-cgi/challenge-platform/h/b/orchestrate/chl_page/v1"></script>
+<div id="w" class="cf-turnstile" data-sitekey="1x00000000000000000000AA">
+  <div id="box"></div><div id="label">Verify you are human</div>
+  <input type="hidden" name="cf-turnstile-response" value="">
+</div>
+<p id="status" style="position:fixed;right:8px;top:8px">waiting</p>
+<script>
+  const moves = [];
+  let downAt = 0;
+  window.__verdict = { problems: ['no press yet'] };
+
+  addEventListener('mousemove', (e) => {
+    if (e.isTrusted) moves.push({ t: e.timeStamp, x: e.clientX, y: e.clientY });
+  }, true);
+
+  function judge(pressedAt) {
+    const problems = [];
+    const recent = moves.filter((m) => m.t <= pressedAt && pressedAt - m.t < 2500);
+    if (recent.length < 8) problems.push('only ' + recent.length + ' trusted moves');
+    let jump = 0;
+    for (let i = 1; i < recent.length; i++) {
+      jump = Math.max(jump, Math.hypot(recent[i].x - recent[i - 1].x, recent[i].y - recent[i - 1].y));
+    }
+    if (jump > 150) problems.push('a jump of ' + Math.round(jump) + 'px');
+    if (recent.length >= 2) {
+      const a = recent[0], b = recent[recent.length - 1];
+      const chord = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+      let bow = 0;
+      for (const p of recent) {
+        bow = Math.max(bow, Math.abs((b.x - a.x) * (a.y - p.y) - (a.x - p.x) * (b.y - a.y)) / chord);
+      }
+      if (bow < 1) problems.push('a straight path (bow ' + bow.toFixed(2) + 'px)');
+      const gaps = [];
+      for (let i = 1; i < recent.length; i++) gaps.push(recent[i].t - recent[i - 1].t);
+      const mean = gaps.reduce((s, g) => s + g, 0) / gaps.length;
+      const sd = Math.sqrt(gaps.reduce((s, g) => s + (g - mean) * (g - mean), 0) / gaps.length);
+      if (gaps.length > 3 && sd < 0.5) problems.push('a constant rate (sd ' + sd.toFixed(2) + 'ms)');
+    }
+    const rest = recent.length ? pressedAt - recent[recent.length - 1].t : Infinity;
+    if (rest < 40) problems.push('pressed ' + Math.round(rest) + 'ms after the last move');
+    if (rest > 2000) problems.push('pressed ' + Math.round(rest) + 'ms after the last move');
+    return problems;
+  }
+
+  const box = document.getElementById('box');
+  box.addEventListener('mousedown', (e) => {
+    if (!e.isTrusted) return;
+    downAt = e.timeStamp;
+    window.__verdict = { problems: judge(e.timeStamp), moves: moves.length };
+  });
+  box.addEventListener('click', (e) => {
+    if (!e.isTrusted) return;
+    const held = e.timeStamp - downAt;
+    const problems = window.__verdict.problems.slice();
+    if (held < 30 || held > 500) problems.push('held for ' + Math.round(held) + 'ms');
+    window.__verdict = { problems, held, moves: moves.length };
+    if (problems.length === 0) {
+      document.querySelector('[name=cf-turnstile-response]').value = 'TOKEN-' + Date.now();
+      document.body.dataset.cleared = '1';
+      document.getElementById('status').textContent = 'cleared';
+      box.style.background = '#cfc';
+    } else {
+      document.getElementById('label').textContent = 'Failed: ' + problems[0];
+    }
+  });
+</script>

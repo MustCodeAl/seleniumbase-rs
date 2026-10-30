@@ -149,8 +149,16 @@ UC mode lowers the signals that trigger a challenge; it does not answer one. A
 challenge that asks for a real interactive proof (a Turnstile checkbox, a managed
 challenge with a puzzle, or an interactive "Verify you are human" step) is not
 solved by UC mode alone. If the page shows a Turnstile checkbox, `solve_captcha()`
-presses it and returns `Some(Captcha::Turnstile)`, but it is a click helper, not
-a solver, and Cloudflare may follow with a harder challenge. See
+finds it (also in a shadow root), waits for it to stand still, presses it along a
+human pointer path, checks that the page shows it cleared (a token, the
+`cf_clearance` cookie, a page with no widget) and presses again if not, then
+returns `Some(Captcha::Turnstile)`. It is not a solver of puzzles, and
+Cloudflare may follow with a harder challenge. To see what it did, call
+`solve_captcha_with(&SolveOptions::new().success_marker("..."))`. From the
+command line, `sbrs --uc --url https://example.com/protected solve-captcha
+--expect-cookie cf_clearance` does it and checks the cookie. See
+[How CAPTCHAs work](/concepts/captchas) for the steps and the opt-in live check
+against https://nowsecure.nl, and
 [Testing pages with a CAPTCHA](/tutorials/captcha_testing) for its limits.
 
 </Warning>

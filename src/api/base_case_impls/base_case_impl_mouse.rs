@@ -2,6 +2,51 @@
 
 use crate::api::misc_calls::{Arrow, ClickNth, HoverAndClick, HoverClick, PressArrow};
 
+/// The pointer events a CAPTCHA press is made of, sent over the DevTools
+/// Protocol, so this needs a Chromium browser.
+impl crate::sb_cdp::PointerSink for BaseCase {
+    async fn pointer_move(
+        &self,
+        at: crate::sb_cdp::Point,
+        held: bool,
+    ) -> Result<(), SeleniumBaseError> {
+        self.dispatch_mouse("mouseMoved", at.x, at.y, u8::from(held))
+            .await
+    }
+
+    async fn pointer_down(&self, at: crate::sb_cdp::Point) -> Result<(), SeleniumBaseError> {
+        self.dispatch_mouse("mousePressed", at.x, at.y, 1).await
+    }
+
+    async fn pointer_up(&self, at: crate::sb_cdp::Point) -> Result<(), SeleniumBaseError> {
+        self.dispatch_mouse("mouseReleased", at.x, at.y, 0).await
+    }
+}
+
+/// What the CAPTCHA solver reads: the page through a script, the cookies of
+/// the browser.
+impl crate::sb_cdp::CaptchaSurface for BaseCase {
+    async fn eval(&self, script: &str) -> Result<serde_json::Value, SeleniumBaseError> {
+        self.execute_script(&format!("return {script};")).await
+    }
+
+    async fn cookie_names(&self) -> Result<Vec<String>, SeleniumBaseError> {
+        let cookies = self.get_cookies().await?;
+        let list = cookies.get("cookies").unwrap_or(&cookies);
+        Ok(list
+            .as_array()
+            .map(|cookies| {
+                cookies
+                    .iter()
+                    .filter_map(|cookie| cookie.get("name").and_then(serde_json::Value::as_str))
+                    .map(str::to_owned)
+                    .collect()
+            })
+            .unwrap_or_default())
+    }
+}
+
+
 impl BaseCase {
     /// Clicks the currently focused element.
     pub async fn click_active_element(&self) -> Result<(), SeleniumBaseError> {
@@ -101,7 +146,7 @@ impl BaseCase {
     ) -> HoverAndClick<'a> {
         HoverAndClick::new(self, hover_selector, click_selector, HoverClick::Js)
     }
-    
+
     /// The work of [`click_nth_visible_element`](Self::click_nth_visible_element).
     pub(crate) async fn run_click_nth(
         &mut self,
@@ -130,7 +175,7 @@ impl BaseCase {
         element.click().await?;
         Ok(())
     }
-    
+
     /// The work of the four `press_*_arrow` calls.
     pub(crate) async fn run_press_arrow(
         &self,
@@ -166,7 +211,7 @@ impl BaseCase {
         }
         Ok(())
     }
-    
+
     /// The work of [`hover_and_double_click`](Self::hover_and_double_click) and
     /// [`hover_and_js_click`](Self::hover_and_js_click).
     pub(crate) async fn run_hover_and_click(
@@ -226,46 +271,42 @@ impl BaseCase {
     ///
     /// Checkbox widgets (Cloudflare Turnstile, reCAPTCHA, hCaptcha, Friendly
     /// Captcha) are clicked and the DataDome slider is dragged, using trusted
-    /// mouse events sent over the DevTools Protocol, so this needs a Chromium
-    /// browser. Returns the widget that was attempted, or `None` if the page
-    /// shows no supported widget. Whether the site then accepts the challenge
+    /// mouse events sent over the DevTools Protocol, so this needs a Chromium browser in
+    /// the CDP or UC mode (else it fails with `Unsupported`). Returns the widget, or `None` if the
+    /// page shows no supported widget. The widget is found in shadow roots and
+    /// readable frames, pressed along a human path once it stands still, and
+    /// checked for a result (a token in its response field, the clearance
+    /// cookie, a page with no widget); the steps are those of
+    /// [`Page::solve_captcha`](crate::sb_cdp::Page::solve_captcha), which this
+    /// shares. A widget that could show a result and did not is pressed again,
+    /// up to three times. Whether the site then accepts the challenge
     /// is up to the site; check the page afterwards.
     ///
     /// # Errors
     ///
-    /// Returns an error if the page script or a DevTools command fails.
+    /// Returns [`SeleniumBaseError::Captcha`] if the widget was pressed the
+    /// allowed number of times and the page never showed it cleared, and an
+    /// error if the page script or a DevTools command fails.
     pub async fn solve_captcha(
         &self,
     ) -> Result<Option<crate::sb_cdp::Captcha>, SeleniumBaseError> {
-        use crate::sb_cdp::Captcha;
+        Ok(self
+            .solve_captcha_with(&crate::sb_cdp::SolveOptions::default())
+            .await?
+            .map(|solved| solved.captcha))
+    }
 
-        let found = self
-            .execute_script(&format!("return {};", Captcha::locate_script()))
-            .await?;
-        let Some((kind, area)) = Captcha::parse_located(&found) else {
-            return Ok(None);
-        };
-
-        let plan = kind.plan(area);
-        self.dispatch_mouse("mouseMoved", plan.press.x, plan.press.y, 0).await?;
-        self.sleep(0.15).await;
-        match plan.release {
-            None => self.cdp_mouse_click(plan.press.x, plan.press.y).await?,
-            Some(release) => {
-                self.dispatch_mouse("mousePressed", plan.press.x, plan.press.y, 1).await?;
-                // Move in steps: a slider ignores a jump from end to end.
-                const STEPS: u32 = 12;
-                for step in 1..=STEPS {
-                    let along = f64::from(step) / f64::from(STEPS);
-                    let x = plan.press.x + (release.x - plan.press.x) * along;
-                    let y = plan.press.y + (release.y - plan.press.y) * along;
-                    self.dispatch_mouse("mouseMoved", x, y, 1).await?;
-                    self.sleep(0.02).await;
-                }
-                self.dispatch_mouse("mouseReleased", release.x, release.y, 0).await?;
-            }
-        }
-        Ok(Some(kind))
+    /// Like [`solve_captcha`](Self::solve_captcha), with the settings of
+    /// `options`, and says what was done and what showed it worked.
+    ///
+    /// # Errors
+    ///
+    /// See [`solve_captcha`](Self::solve_captcha).
+    pub async fn solve_captcha_with(
+        &self,
+        options: &crate::sb_cdp::SolveOptions,
+    ) -> Result<Option<crate::sb_cdp::Solved>, SeleniumBaseError> {
+        crate::sb_cdp::solve_captcha(self, options).await
     }
 
     /// Sends one raw mouse event; `buttons` is the DevTools button bitmask.

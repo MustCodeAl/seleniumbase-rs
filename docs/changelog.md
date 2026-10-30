@@ -180,6 +180,24 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ### Added
 
+- **`solve_captcha` finds the widget wherever it is, waits for it, presses like a hand and
+  checks the result.** The widget is looked for in the page, its open shadow roots and the frames
+  it may read, by the id and title Cloudflare gives its frame as well as by address; a page that
+  carries the signs of a challenge but has not drawn the widget yet is waited for; the widget is
+  pressed once it has stood still. The pointer travels a curved, timed path from where it was,
+  rests on the box, holds the button, and lands within a few pixels of the left-edge checkbox. The
+  result is then read (the response field, the clearance cookie, a page with no widget, an
+  optional `SolveOptions::success_marker`), and a widget that could show a result and did not is
+  pressed again, up to three times, after a growing, spread-out wait; then
+  `SeleniumBaseError::Captcha` says what was seen. `Page::solve_captcha_with` and
+  `BaseCase::solve_captcha_with` take `SolveOptions` and answer `Solved` (the widget, the presses,
+  the `Evidence`, the time); both engines run one solver. `Human::click_at` and `Human::drag`
+  press and drag at a point. On seven local fixtures in a headless Chrome (a frame from another
+  origin, a shadow root, a late widget, a moving widget, a second verified check, a pointer judge,
+  an interstitial that sets a clearance cookie), five trials each, 9 of 35 cleared before and 35
+  of 35 after. `sbrs solve-captcha` runs it from the command line, and the opt-in test
+  `captcha_live_chrome` (with `SB_LIVE_SITES=1`) checks https://nowsecure.nl in both engines.
+
 - **Terminal output looks like Python SeleniumBase's: coloured levels, quiet by default.** Log lines
   on a terminal are `12:34:56  INFO browser::session: message key=value`, with the level coloured,
   the time, the module path and the field names dim, and file paths and tests or steps

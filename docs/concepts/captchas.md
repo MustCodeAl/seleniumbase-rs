@@ -10,9 +10,10 @@ description: "What CAPTCHAs are and why sites use them: text and image challenge
 programs. Today most of the "test" is invisible: the vendor scores the visit
 from many signals, and only a doubtful score shows a puzzle. The honest way to
 test a page with a CAPTCHA is to use the vendor's **test keys** or a test
-environment where the challenge is off. The library's `solve_captcha` is a
-click helper for widgets that ask for a click or a drag. It is not a solver, and
-it works only when the site accepts the click.
+environment where the challenge is off. The library's `solve_captcha` presses
+widgets that ask for a click or a drag, along a human pointer path, and checks
+that the page shows them cleared. It is not a solver of puzzles, and it works
+only when the site accepts the press.
 
 </Info>
 
@@ -176,48 +177,135 @@ check configurable, not by trying to win a score.
 ## How seleniumbase-rs handles CAPTCHAs
 
 The library has one narrow feature. It is described here as it is in the code
-(`src/sb_cdp/captcha.rs`).
+(`src/sb_cdp/captcha.rs` and the folder beside it).
 
-`Page::solve_captcha()` in the pure CDP engine (and `BaseCase::solve_captcha()`
-in the WebDriver engine) does the following:
+`Page::solve_captcha()` in the pure CDP engine and `BaseCase::solve_captcha()`
+in the WebDriver engine (in its `cdp` or `uc` mode, which have the DevTools
+connection the pointer events go over) run **the same solver**, one step after
+the other:
 
-1. It runs a short script that looks for the first visible widget among five
-   kinds, in this order: Cloudflare Turnstile, reCAPTCHA, hCaptcha, Friendly
-   Captcha and DataDome. Each kind is recognised by the address of its frame or
-   by its container class. That is the `Captcha` enum.
-2. It scrolls the widget to the middle of the viewport.
-3. With trusted mouse events (the same path as `Page::mouse()`), it moves the
-   pointer to where these widgets draw their control, waits 150 ms, and either
-   **clicks** (a checkbox, a fixed distance from the widget's left edge, at
-   half its height) or, for the DataDome slider, **drags** across the widget's
-   width.
-4. It returns the kind it tried, or `None` if the page shows no supported widget.
+1. **Locate.** One script looks for the first visible widget among five kinds,
+   in this order: Cloudflare Turnstile, reCAPTCHA, hCaptcha, Friendly Captcha
+   and DataDome (the `Captcha` enum). It looks in the page, in open shadow
+   roots and in the frames whose content the page may read. A frame from
+   another origin is a box: it is found and measured, but its inside is not
+   read. A frame is recognised by its address and, for Turnstile, by the id and
+   title Cloudflare gives it, so a page that serves the frame from elsewhere is
+   still found; a container class is the next choice. A form checkbox that is
+   not part of a challenge is never a candidate. A page that carries the signs
+   of a Cloudflare challenge (its `orchestrate` script, `#challenge-stage`, the
+   challenge frame, the title "Just a moment...") and has not drawn the widget
+   yet is waited for, 6 s by default; a page with no sign of one answers `None`
+   at once.
+2. **Settle.** The widget is scrolled to the middle of the viewport and read
+   again and again until it has stood still, in view, for 240 ms. A page that
+   animates a widget in, or lays it out late, moves a widget that was read once.
+3. **Press.** The pointer travels from where it was along a curved path whose
+   speed rises and falls (the time is Fitts's law: far and small targets take
+   longer), rests on the box for a moment, holds the button for a few tens of
+   milliseconds, and lands within a few pixels of the checkbox, which these
+   widgets draw against the left edge. For the DataDome slider it presses the
+   handle and drags with the button held. The events are trusted, the same path
+   as `Page::mouse()`.
+4. **Check.** The widgets live in frames whose insides cannot be read, so the
+   solver reads what the page can show: a token in the widget's response field
+   (`cf-turnstile-response`, `g-recaptcha-response`, `h-captcha-response`, ...),
+   the vendor's clearance cookie (`cf_clearance`, `datadome`), a page that was
+   replaced by one with no widget, a widget that stayed gone for two readings, a
+   success state in a widget the page may read, or an expression you give with
+   `SolveOptions::success_marker`.
+5. **Retry.** If the page could show a result (it has a response field, or a
+   marker was given) and did not within 5 s, the widget is pressed again after a
+   wait that starts at 600 ms, doubles, is spread by a quarter either way and is
+   capped at 8 s: up to three presses. Then `SeleniumBaseError::Captcha` says
+   what was seen. A page that cannot show a result is pressed once and reported
+   as not verified, because pressing a widget that has already worked can reset
+   it. The widget is never pressed again while it is still verifying.
+
+It returns the kind it tried, or `None` if the page shows no supported widget.
+`solve_captcha_with(&SolveOptions)` returns a `Solved` instead: the widget, the
+number of presses, the `Evidence` that showed it cleared (`None` when nothing
+could), and the time it took.
 
 ```rust,ignore src/main.rs
 use seleniumbase_rs::sb_cdp::Captcha;
 
+use std::time::Duration;
+use seleniumbase_rs::sb_cdp::SolveOptions;
+
 match page.solve_captcha().await? {
-    Some(kind) => println!("tried a {kind} widget"), // Display gives "Cloudflare Turnstile", "reCAPTCHA", ...
+    Some(kind) => println!("cleared a {kind} widget"), // Display gives "Cloudflare Turnstile", "reCAPTCHA", ...
     None => println!("no supported widget on the page"),
 }
-// Then check the page: did the token field fill, did the form move on?
+
+// The same, saying how the page showed it worked, with the site's own marker:
+let options = SolveOptions::new()
+    .locate_timeout(Duration::from_secs(10))
+    .success_marker("document.querySelector('#welcome')");
+if let Some(solved) = page.solve_captcha_with(&options).await? {
+    println!("{solved}"); // "cleared after 1 press: the success marker became true"
+}
 ```
 
 What it does **not** do, and says so in its own documentation:
 
 - It does not read or answer a puzzle. It never looks at pictures or audio.
-- It cannot see inside the widget, because these widgets live in cross-origin
-  frames. It presses where the widget normally draws its control.
-- It does not know whether the click was accepted. That is up to the vendor and
-  the site, and "a harder challenge may follow". The caller must check the page
-  afterwards.
+- It cannot see inside a widget that lives in a cross-origin frame or a closed
+  shadow root. It presses where the widget normally draws its control, and
+  reads what the page shows afterwards.
+- It cannot tell that a click was accepted when the page shows nothing: with no
+  response field and no marker, the answer is `Solved::evidence == None`, which
+  means "pressed once, not verified". The vendor and the site decide what the
+  press means, and "a harder challenge may follow".
+- It does not change the page. Python's version rewrites `center` and `right` in
+  the page's classes and styles to `left`; this one only looks.
 
-The same function is the MCP tool `solve_captcha` in both the `cdp` and the
+The same solver is the MCP tool `solve_captcha` in both the `cdp` and the
 WebDriver servers. Its description says the same: it tries to pass a widget "by
 clicking its checkbox (Cloudflare Turnstile, reCAPTCHA, hCaptcha, FriendlyCaptcha)
 or dragging its slider (DataDome)", does nothing if none is found, and success is
-not guaranteed. It answers `Attempted to solve a ... CAPTCHA.` or `No supported
-CAPTCHA was found on the page.`
+not guaranteed. It answers `Attempted to solve a ... CAPTCHA: ` and what happened
+(`cleared after 1 press: the response field holds a token`, or `pressed (1 press);
+nothing on the page shows whether it cleared`), or `No supported CAPTCHA was
+found on the page.` From the command line, `sbrs solve-captcha` does the same on
+the page that `--url` opens.
+
+### How it is tested, and how to check it on a live site
+
+The solver is tested against imitation widgets served from two loopback origins
+(`tests/fixtures/captcha/`): a widget in a frame from another origin, one in a
+shadow root, one that appears late, one that is still moving when it first shows,
+a checkbox at the left edge of a 300x65 box with an ordinary form checkbox
+beside it, a widget that clears only after a second, verified check, a page that
+judges the pointer's path and the pause before the press, and an interstitial
+that answers a `cf_clearance` cookie and the site's own page. The headless
+Chrome tests are `tests/sb_cdp_captcha_chrome.rs` and, for the WebDriver engine,
+`tests/captcha_basecase_chrome.rs`; the logic (the retries, the waiting, the
+evidence) is also tested without a browser, against a scripted tab.
+
+A fixture can show that a path works, not that a real site accepts it. Whether
+the solver passes a real Cloudflare page is for a person to check, on purpose:
+[nowsecure.nl](https://nowsecure.nl) is a public bot-detection test page. The
+check passes when the site's own page loads (not merely when no challenge is
+seen), a Turnstile on the way is cleared, and a `cf_clearance` cookie is held
+afterwards. It is an `#[ignore]`d test that also does nothing unless
+`SB_LIVE_SITES=1`, for the pure CDP engine and for the UC (WebDriver) engine:
+
+```bash
+SB_LIVE_SITES=1 cargo test --test captcha_live_chrome -- --ignored --test-threads=1 --nocapture
+```
+
+or one command line with the `sbrs` binary (the UC engine):
+
+```bash
+sbrs --uc --url https://nowsecure.nl solve-captcha --expect-text nowsecure --expect-cookie cf_clearance
+```
+
+The test runs headless unless `SB_HEADED=1`; add `--headed` to the command
+line to watch a window. `SB_LIVE_URL` replaces the address, and `SB_LIVE_MARKER` (a script
+expression that is true on the site's own page) replaces the default marker if
+the page changes. If a run fails, keep the printed report: it is what to turn
+into a fixture that reproduces the gap.
 
 The other parts of the library that bear on CAPTCHAs are the general ones: a
 real, trusted browser with a coherent fingerprint is judged better than an
