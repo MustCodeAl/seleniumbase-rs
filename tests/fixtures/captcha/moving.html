@@ -1,0 +1,42 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>A widget that moves</title>
+<!--
+  A tall page whose widget sits far below the fold and, once it is in view,
+  slides to another place over 900 ms (a layout that settles late, or an
+  animated entrance). A solver that measures the widget while it moves, or
+  before it has started to, presses where it no longer is.
+-->
+<style>
+  body { font: 15px sans-serif; margin: 0; height: 3000px; position: relative; }
+  #mover { position: absolute; top: 1800px; left: 40px; width: 300px; height: 65px;
+    transition: transform 0.9s ease-in-out; }
+  iframe { border: 0; }
+</style>
+<script src="/cdn-cgi/challenge-platform/h/b/orchestrate/chl_page/v1"></script>
+<h1 style="margin:24px">Scroll down</h1>
+<div id="mover" class="cf-turnstile" data-sitekey="1x00000000000000000000AA">
+  <iframe id="cf-chl-widget-m1" title="Widget containing a Cloudflare security challenge"
+    width="300" height="65" src="FAR/w"></iframe>
+  <input type="hidden" name="cf-turnstile-response" value="">
+</div>
+<p id="status" style="position:fixed;right:8px;top:8px">waiting</p>
+<script>
+  window.__clicks = [];
+  // The slide starts when the widget first comes into view.
+  const observer = new IntersectionObserver((entries) => {
+    if (!entries.some((entry) => entry.isIntersecting)) return;
+    observer.disconnect();
+    document.getElementById('mover').style.transform = 'translate(380px, -120px)';
+  });
+  observer.observe(document.getElementById('mover'));
+  addEventListener('message', (event) => {
+    const data = event.data || {};
+    if (data.sbFixture === 'click') window.__clicks.push(data);
+    if (data.sbFixture === 'token') {
+      document.querySelector('[name=cf-turnstile-response]').value = data.value;
+      document.body.dataset.cleared = '1';
+      document.getElementById('status').textContent = 'cleared';
+    }
+  });
+</script>

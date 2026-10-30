@@ -1,0 +1,40 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Turnstile in a cross-origin frame</title>
+<!--
+  An imitation Turnstile: a .cf-turnstile div with a frame to a second origin
+  (FAR). The frame is named as Cloudflare names its own (id and title), but its
+  address is a local one, so no real site is contacted. The page learns of the
+  result through postMessage and fills the response field, as the real script
+  does. Query: ?widget=<query string for the frame>, e.g. ?widget=fail=1.
+-->
+<style>
+  body { font: 15px sans-serif; margin: 24px; }
+  .cf-turnstile { width: 300px; height: 65px; }
+  iframe { border: 0; }
+</style>
+<h1>Sign in</h1>
+<form id="f">
+  <input type="text" name="user" value="ada">
+  <div class="cf-turnstile" data-sitekey="1x00000000000000000000AA">
+    <iframe id="cf-chl-widget-i1" title="Widget containing a Cloudflare security challenge"
+      width="300" height="65" src="FAR/w"></iframe>
+    <input type="hidden" name="cf-turnstile-response" value="">
+  </div>
+  <button type="submit" id="send">Send</button>
+</form>
+<p id="status">waiting</p>
+<script>
+  window.__clicks = [];
+  const widget = new URLSearchParams(location.search).get('widget');
+  if (widget) document.querySelector('iframe').src += '?' + widget;
+  addEventListener('message', (event) => {
+    const data = event.data || {};
+    if (data.sbFixture === 'click') window.__clicks.push(data);
+    if (data.sbFixture === 'token') {
+      document.querySelector('[name=cf-turnstile-response]').value = data.value;
+      document.body.dataset.cleared = '1';
+      document.getElementById('status').textContent = 'cleared';
+    }
+  });
+</script>
