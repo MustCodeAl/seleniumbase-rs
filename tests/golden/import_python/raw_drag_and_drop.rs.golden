@@ -1,0 +1,49 @@
+//! Converted from Python by `sbrs import-python`. Run it with `cargo test --test raw_drag_and_drop`
+//! when this file is in your crate's `tests/` folder; `SB_HEADLESS=true` runs it
+//! without a window. A comment marks each statement it could not convert.
+
+use seleniumbase_rs::sb_cdp::{Scroll};
+use seleniumbase_rs::testing::{rstest, sb_cdp, SbCdp};
+use seleniumbase_rs::{tokio, Result};
+
+#[rstest]
+#[tokio::test]
+async fn raw_drag_and_drop_1(sb_cdp: SbCdp) -> Result<()> {
+    sb_cdp
+        .run(async |page| {
+            // SB(uc=True, test=True, incognito=True, fast=True): the browser settings come from the SB_* variables and the settings file
+            page.goto("https://seleniumbase.io/other/drag_and_drop").await?;
+            page.locator("#div1 img#drag1").expect().not().to_be_visible().await?;
+            page.locator("#drag1").drag_to(&page.locator("#div1")).await?;
+            page.locator("#div1 img#drag1").expect().to_be_visible().await?;
+            tokio::time::sleep(std::time::Duration::from_secs_f64(1.0)).await;
+            Ok(())
+        })
+        .await
+}
+
+#[rstest]
+#[tokio::test]
+async fn raw_drag_and_drop_2(sb_cdp: SbCdp) -> Result<()> {
+    sb_cdp
+        .run(async |page| {
+            // SB(uc=True, test=True, incognito=True, fast=True): the browser settings come from the SB_* variables and the settings file
+            page.goto("https://jqueryui.com/draggable/").await?;
+            // TODO(source line 14): SeleniumBase CDP method 'switch_to_frame' needs manual migration
+            //     sb.switch_to_frame("iframe")
+            // TODO(source line 15): a tuple is assigned only from a tuple written out
+            //     x, y = sb.get_gui_element_center("#draggable")
+            // TODO(source line 16): SeleniumBase CDP method 'switch_to_default_content' needs manual migration
+            //     sb.switch_to_default_content()
+            page.scroll(Scroll::Top).await?;
+            // TODO(source line 18): SeleniumBase CDP method 'gui_drag_drop_points' needs manual migration
+            //     sb.gui_drag_drop_points(x, y, x + 180, y + 90)
+            // TODO(source line 19): SeleniumBase CDP method 'gui_drag_drop_points' needs manual migration
+            //     sb.gui_drag_drop_points(x + 180, y + 90, x + 60, y + 120)
+            // TODO(source line 20): SeleniumBase CDP method 'gui_drag_drop_points' needs manual migration
+            //     sb.gui_drag_drop_points(x + 60, y + 120, x + 40, y + 40)
+            tokio::time::sleep(std::time::Duration::from_secs_f64(1.0)).await;
+            Ok(())
+        })
+        .await
+}

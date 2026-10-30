@@ -235,7 +235,9 @@ fn terminal_width() -> usize {
 }
 
 /// The compact root page: the usage line and the command names under their help headings,
-/// wrapped to `width`, with no logo and no descriptions.
+/// wrapped to `width`, with no logo and no descriptions. The hint line follows the last group
+/// with no blank line between, which keeps the page, a blank line and the error within thirty
+/// lines.
 pub(crate) fn root_page(spec: &Spec<'_>, width: usize) -> String {
     let mut groups: Vec<(&str, Vec<&str>)> = Vec::new();
     for meta in spec.root.subcommands.iter().filter(|meta| !meta.hide) {
@@ -258,9 +260,9 @@ pub(crate) fn root_page(spec: &Spec<'_>, width: usize) -> String {
         names.sort_unstable();
         page.push_str(&wrapped(&format!("{heading}:"), &names, width));
     }
-    let _ = write!(
+    let _ = writeln!(
         page,
-        "\nRun '{PROGRAM} help <COMMAND>' for one command, '{PROGRAM} --help' for everything.\n"
+        "Run '{PROGRAM} help <COMMAND>' for one command, '{PROGRAM} --help' for everything."
     );
     page
 }

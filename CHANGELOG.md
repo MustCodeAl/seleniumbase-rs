@@ -10,6 +10,24 @@ work, `docs/parity.md` the per-API status).
 
 ### Breaking
 
+- **Breaking: `sbrs import-python` reads the Python as Python and writes the `sb` fixture form.**
+  The SeleniumBase reading is a parser and a translator (no longer a regex per line): it maps
+  every `implemented` method of `parity/api.toml` whose Rust call is mechanical (about 330, from
+  `goto`, `switch_to_frame`, `with self.frame_switch(..)`, `highlight`, `js_click`, `set_value`,
+  `drag_and_drop` and `hover_and_*` to `assert_true`, `assert_equal`, `assert_in`,
+  `assert_attribute`, `wait_for_element`, `post_message` and `skip`), passes variables, f-strings,
+  `%` formatting and `+` through as Rust, translates `for`, `if`/`elif`/`else`, `while`,
+  `try`/`except`, assignments, `@parameterized.expand` (as `#[case]`s) and `setUp`/`tearDown`,
+  finds each test of a file (one Rust test per `def test_*`), and writes a text assertion
+  without a selector as `html`, Python's default (it was `body`). The output is the rstest `sb`
+  fixture test that `sbrs mkfile` writes, with the docstring as the module comment and
+  `BaseCase.main(..)` and `if __name__ == "__main__"` dropped, instead of
+  `run_browser_test(BrowserConfig::default(), ..)`. A script that uses `sb_cdp.Chrome()`, CDP Mode
+  or `sb.cdp.*` becomes a pure CDP test (`sb_cdp: SbCdp`, `Page` and `Locator` calls). The 22
+  examples and 6 CDP scripts of `parity/examples.toml` convert with 0 errors and 30 warnings in
+  all (310 warnings and 21 errors before), and their output is compiled as a doctest.
+
+
 - **Breaking: `assert_in`, `wait_for_element` and `is_selected` take Python's shape.**
   `assert_in(first, second)` and `assert_not_in` assert `first in second` as Python does: the
   container is borrowed and is a slice, an array or a `Vec` (membership) or a string (substring
@@ -199,6 +217,30 @@ work, `docs/parity.md` the per-API status).
   slots its content is now the slotted text, as WebDriver's element text gives it. Python's CDP
   mode has no `::shadow` selector, so this goes beyond it. A page script cannot enter a closed
   root; the WebDriver engine can.
+
+- **`sbrs extract-objects`, `inject-objects`, `objectify` and `revert-objects` work on Rust test
+  files.** They are Python's page-object commands (`sbase extract-objects FILE.py`, ...): the
+  string literals that are the selector argument of a `BaseCase` call (`click`, `type_text`,
+  `assert_text`, `drag_and_drop`, ...) become constants of a module of `page_objects.rs` next to
+  the test, one module for each URL that the test `open`s (`page_objects::example_com_login::USER`).
+  `inject-objects` writes that path in place of the literal and declares `mod page_objects;`,
+  `-c` appends the selector as a `// "#user"` comment to each changed line, and `revert-objects
+  [-c]` gives the original file back byte for byte, also with CRLF line endings. The underscore
+  spellings (`extract_objects`, ...) are accepted. `sbrs objectify` takes a file now: the starter
+  `page_object.rs` it used to write is gone. Constants are named with the words of the selector
+  and grouped by page, where Python writes `css_N` in one `Page` class; `parity/api.toml` lists
+  the differences. A test compiles an injected test and its `page_objects.rs` against the real
+  API (`tests/cli_objects_compile`).
+
+- **Feature `plugin-browser` (in `plugins-builtin` and in the CLI): the built-in `browser`
+  plugin loads extensions into the Chromium browser a program starts.** `extension_zip` takes
+  `.zip` and `.crx` files and `extension_dir` unpacked folders, with the meaning of Python
+  SeleniumBase's `--extension-zip` and `--extension-dir`; `sbrs --plugin browser` turns it on
+  (`sbrs plugin list` shows it in the category `extension`). It declares that it cannot share a
+  set with `crx`, so naming both is refused before a browser starts, with ``plugin `browser`
+  cannot be combined with plugin `crx` ``. The options for waiting for the extensions' workers and
+  for saved sessions are not implemented yet and are refused as unknown options. The plugins
+  come from plugins rev 1a327ec.
 
 - **Rules for writing reliable browser tests with the crate, for people and for AI coding
   assistants.** `AGENTS.md` gains the section "Writing browser tests with seleniumbase-rs": fifteen
@@ -828,6 +870,13 @@ work, `docs/parity.md` the per-API status).
   capitals) and still pauses, as Python does; it does not fail the test. `api::messages::fallback_line`
   gives the line.
 
+### Removed
+
+- **The starter page object template.** `src/cli/scripts/templates/page_object.tpl` and
+  `tests/cli_templates.rs`, the test that compiled it against `BaseCase`, are gone. `sbrs
+  objectify` writes the selectors of a test to `page_objects.rs` and no longer writes a starter
+  `page_object.rs`, so nothing read the template.
+
 ### Fixed
 
 - **A pure CDP `Locator` enters a frame of any origin, so Python's `nested_click` works.**
@@ -1012,6 +1061,13 @@ work, `docs/parity.md` the per-API status).
   status was 0 whatever it found. `--warn-only` prints the problems and exits with 0, as before.
   A chromedriver that is not found stays a hint, and the version check now looks at
   `SB_CHROME_BIN` when it is set.
+- **The recorder helpers return an error on a session with no WebDriver, not a panic.** Recorder
+  Mode at start-up (`BaseCase::new` with `with_recorder_mode(true)` and `with_cdp_url(..)`), the
+  watch of `recorder_breakpoint` and the tab harvest of `finish_recording` read the windows with
+  `BrowserSession::driver()`, which panics where there is no WebDriver (a direct CDP attachment, or
+  a session that was quit). They use `webdriver()` now and fail with `Unsupported`, or
+  `SessionNotStarted` after `quit`; the watch loop treats such a session as one with no window
+  left.
 
 
 ## [0.6.0] - 2026-10-23

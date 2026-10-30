@@ -1,0 +1,20 @@
+//! Assert that multiple elements are present or visible:
+//! HTML Presence: assert_elements_present()
+//! HTML Visibility: assert_elements() <> assert_elements_visible()
+
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
+
+#[rstest]
+#[tokio::test]
+async fn test_assert_elements(sb: Sb) -> Result<()> {
+    sb.run(async |sb| {
+        sb.goto("https://seleniumbase.io/demo_page").await?;
+        sb.assert_elements_present(&["head", "style", "script"]).await?;
+        sb.assert_elements(&["h1", "h2", "h3"]).await?;
+        let my_list = ["#myDropdown", "#myButton", "#mySlider"].map(String::from).to_vec();
+        sb.assert_elements(&my_list.iter().map(String::as_str).collect::<Vec<_>>()).await?;
+        Ok(())
+    })
+    .await
+}

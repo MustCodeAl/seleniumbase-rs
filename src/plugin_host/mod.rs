@@ -6,7 +6,7 @@
 //! through a [`Registry`]:
 //!
 //! * [`builtin_registry`] holds the official plugins whose cargo feature is on
-//!   (`plugin-shield`, `plugin-block-resources`, `plugin-crx`, `plugin-fetcher`, `plugin-extractor`, or
+//!   (`plugin-shield`, `plugin-block-resources`, `plugin-crx`, `plugin-fetcher`, `plugin-extractor`, `plugin-batcher`, `plugin-crawler`, `plugin-browser`, or
 //!   `plugins-builtin` for all of them). A build with none has an empty
 //!   registry, and every name is then unknown.
 //! * [`build`] and [`build_with`] return a *strict* [`PluginSet`]: it refuses a
@@ -56,7 +56,8 @@ pub(crate) use timer::timed;
 
 /// The cargo features that add a built-in plugin, for messages.
 const BUILTIN_FEATURES: &str = "plugin-shield, plugin-block-resources, plugin-crx, \
-                                plugin-fetcher, plugin-extractor, plugin-batcher, plugin-crawler \
+                                plugin-fetcher, plugin-extractor, plugin-batcher, plugin-crawler, \
+                                plugin-browser \
                                 (plugins-builtin turns them all on)";
 
 /// The built-in plugins this build contains, by name.
@@ -72,6 +73,7 @@ pub fn builtin_registry() -> Registry {
         feature = "plugin-extractor",
         feature = "plugin-batcher",
         feature = "plugin-crawler",
+        feature = "plugin-browser",
         feature = "plugin-crx"
     ))]
     {
@@ -84,6 +86,7 @@ pub fn builtin_registry() -> Registry {
         feature = "plugin-extractor",
         feature = "plugin-batcher",
         feature = "plugin-crawler",
+        feature = "plugin-browser",
         feature = "plugin-crx"
     )))]
     {
@@ -359,6 +362,7 @@ mod tests {
             "plugin-extractor",
             "plugin-batcher",
             "plugin-crawler",
+            "plugin-browser",
         ] {
             assert!(text.contains(feature), "{feature} in {text}");
         }
@@ -486,6 +490,60 @@ mod tests {
         assert!(error.to_string().contains("shield"), "{error}");
     }
 
+    #[cfg(feature = "plugin-browser")]
+    #[test]
+    fn the_builtin_registry_builds_browser_with_its_options() {
+        assert!(builtin_registry().names().contains(&"browser"));
+
+        let selection = PluginSelection::new()
+            .enable("browser")
+            .with_options("browser", json!({ "extension_dir": ["my-extension"] }));
+        assert_eq!(build(&selection).unwrap().names(), ["browser"]);
+
+        // An option the plugin does not have yet is refused, not ignored.
+        let bad = PluginSelection::new()
+            .enable("browser")
+            .with_options("browser", json!({ "wait_for_workers": true }));
+        let error = build(&bad).unwrap_err();
+        assert!(
+            matches!(&error, SeleniumBaseError::Plugin { plugin, .. } if plugin == "browser"),
+            "{error:?}"
+        );
+    }
+
+    #[cfg(all(feature = "plugin-crx", feature = "plugin-browser"))]
+    #[test]
+    fn crx_and_browser_build_together_but_the_launch_check_refuses_the_pair() {
+        let context = seleniumbase_rs_plugin::LaunchContext {
+            engine: seleniumbase_rs_plugin::Engine::Cdp,
+            family: seleniumbase_rs_plugin::BrowserFamily::Chromium,
+            headless: true,
+            connecting: false,
+        };
+        for names in [["crx", "browser"], ["browser", "crx"]] {
+            let selection = PluginSelection::new()
+                .enable(names[0])
+                .enable(names[1])
+                .with_options("crx", json!({ "files": [] }));
+
+            // Naming both is not an error of the name list: the set is built.
+            let set = build(&selection).unwrap();
+            assert_eq!(set.names(), names);
+
+            // The check every launch makes refuses it, naming both plugins.
+            let error = SeleniumBaseError::from(set.check(&context).unwrap_err());
+            assert!(
+                matches!(&error, SeleniumBaseError::Plugin { plugin, .. } if plugin == "browser"),
+                "{error:?}"
+            );
+            let text = error.to_string();
+            assert!(
+                text.contains("`browser` cannot be combined with plugin `crx`"),
+                "{text}"
+            );
+        }
+    }
+
     #[cfg(all(
         feature = "plugin-shield",
         feature = "plugin-block-resources",
@@ -493,10 +551,11 @@ mod tests {
         feature = "plugin-extractor",
         feature = "plugin-batcher",
         feature = "plugin-crawler",
+        feature = "plugin-browser",
         feature = "plugin-crx"
     ))]
     #[test]
-    fn plugins_builtin_knows_the_seven_official_plugins() {
+    fn plugins_builtin_knows_the_eight_official_plugins() {
         let mut names = builtin_registry().names();
         names.sort_unstable();
         assert_eq!(
@@ -504,6 +563,7 @@ mod tests {
             [
                 "batcher",
                 "block-resources",
+                "browser",
                 "crawler",
                 "crx",
                 "extractor",
@@ -520,6 +580,7 @@ mod tests {
         feature = "plugin-extractor",
         feature = "plugin-batcher",
         feature = "plugin-crawler",
+        feature = "plugin-browser",
         feature = "plugin-crx"
     )))]
     #[test]

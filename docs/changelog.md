@@ -31,9 +31,27 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ## All releases
 
-<Update label="Unreleased" description="Next release" tags={["New", "Fix"]}>
+<Update label="Unreleased" description="Next release" tags={["New", "Fix", "Breaking"]}>
 
 ### Breaking
+
+- **Breaking: `sbrs import-python` reads the Python as Python and writes the `sb` fixture form.**
+  The SeleniumBase reading is a parser and a translator (no longer a regex per line): it maps
+  every `implemented` method of `parity/api.toml` whose Rust call is mechanical (about 330, from
+  `goto`, `switch_to_frame`, `with self.frame_switch(..)`, `highlight`, `js_click`, `set_value`,
+  `drag_and_drop` and `hover_and_*` to `assert_true`, `assert_equal`, `assert_in`,
+  `assert_attribute`, `wait_for_element`, `post_message` and `skip`), passes variables, f-strings,
+  `%` formatting and `+` through as Rust, translates `for`, `if`/`elif`/`else`, `while`,
+  `try`/`except`, assignments, `@parameterized.expand` (as `#[case]`s) and `setUp`/`tearDown`,
+  finds each test of a file (one Rust test per `def test_*`), and writes a text assertion
+  without a selector as `html`, Python's default (it was `body`). The output is the rstest `sb`
+  fixture test that `sbrs mkfile` writes, with the docstring as the module comment and
+  `BaseCase.main(..)` and `if __name__ == "__main__"` dropped, instead of
+  `run_browser_test(BrowserConfig::default(), ..)`. A script that uses `sb_cdp.Chrome()`, CDP Mode
+  or `sb.cdp.*` becomes a pure CDP test (`sb_cdp: SbCdp`, `Page` and `Locator` calls). The 22
+  examples and 6 CDP scripts of `parity/examples.toml` convert with 0 errors and 30 warnings in
+  all (310 warnings and 21 errors before), and their output is compiled as a doctest.
+
 
 - **Breaking: `assert_in`, `wait_for_element` and `is_selected` take Python's shape.**
   `assert_in(first, second)` and `assert_not_in` assert `first in second` as Python does: the
@@ -216,6 +234,38 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   give `future`, so a `MessengerLocation` alone, for `set_messenger_theme`, keeps the future theme.
 
 ### Added
+
+- **The pure CDP engine reads `::shadow` selectors.** `page.locator("my-app::shadow button")`
+  finds the button in the open shadow root of `my-app`, one `::shadow` for each root, in every
+  method of the locator and so in its waits and expectations; a step of a chain reads it too, and
+  a selector that ends on `::shadow` is an `InvalidSelector`. The text of a container that only
+  slots its content is now the slotted text, as WebDriver's element text gives it. Python's CDP
+  mode has no `::shadow` selector, so this goes beyond it. A page script cannot enter a closed
+  root; the WebDriver engine can.
+
+- **`sbrs extract-objects`, `inject-objects`, `objectify` and `revert-objects` work on Rust test
+  files.** They are Python's page-object commands (`sbase extract-objects FILE.py`, ...): the
+  string literals that are the selector argument of a `BaseCase` call (`click`, `type_text`,
+  `assert_text`, `drag_and_drop`, ...) become constants of a module of `page_objects.rs` next to
+  the test, one module for each URL that the test `open`s (`page_objects::example_com_login::USER`).
+  `inject-objects` writes that path in place of the literal and declares `mod page_objects;`,
+  `-c` appends the selector as a `// "#user"` comment to each changed line, and `revert-objects
+  [-c]` gives the original file back byte for byte, also with CRLF line endings. The underscore
+  spellings (`extract_objects`, ...) are accepted. `sbrs objectify` takes a file now: the starter
+  `page_object.rs` it used to write is gone. Constants are named with the words of the selector
+  and grouped by page, where Python writes `css_N` in one `Page` class; `parity/api.toml` lists
+  the differences. A test compiles an injected test and its `page_objects.rs` against the real
+  API (`tests/cli_objects_compile`).
+
+- **Feature `plugin-browser` (in `plugins-builtin` and in the CLI): the built-in `browser`
+  plugin loads extensions into the Chromium browser a program starts.** `extension_zip` takes
+  `.zip` and `.crx` files and `extension_dir` unpacked folders, with the meaning of Python
+  SeleniumBase's `--extension-zip` and `--extension-dir`; `sbrs --plugin browser` turns it on
+  (`sbrs plugin list` shows it in the category `extension`). It declares that it cannot share a
+  set with `crx`, so naming both is refused before a browser starts, with ``plugin `browser`
+  cannot be combined with plugin `crx` ``. The options for waiting for the extensions' workers and
+  for saved sessions are not implemented yet and are refused as unknown options. The plugins
+  come from plugins rev 1a327ec.
 
 - **Rules for writing reliable browser tests with the crate, for people and for AI coding
   assistants.** `AGENTS.md` gains the section "Writing browser tests with seleniumbase-rs": fifteen
@@ -845,7 +895,36 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   capitals) and still pauses, as Python does; it does not fail the test. `api::messages::fallback_line`
   gives the line.
 
+### Removed
+
+- **The starter page object template.** `src/cli/scripts/templates/page_object.tpl` and
+  `tests/cli_templates.rs`, the test that compiled it against `BaseCase`, are gone. `sbrs
+  objectify` writes the selectors of a test to `page_objects.rs` and no longer writes a starter
+  `page_object.rs`, so nothing read the template.
+
 ### Fixed
+
+- **Every method that takes a selector reads `::shadow`, as Python's do, and waits.**
+  `click("my-app::shadow button")`, `type_text`, `get_text`, `get_attribute`, `assert_element`,
+  `assert_text`, `assert_exact_text`, `is_element_visible`, `wait_for_element_visible`,
+  `find_elements` and the rest of the WebDriver engine's methods were an error for such a selector,
+  and only the `shadow_*` methods read it. The session now cuts the selector at each `::shadow`
+  and looks for each piece in the shadow root of the host before it (`BrowserSession::find` and
+  `find_all`, which every lookup goes through), so the waits and assertions see it too, and a
+  closed root is entered, as Python's Selenium does (`utils::shadow::is_shadow_selector` and
+  `shadow_chain` are the same cut). A selector that ends on `::shadow` is an `InvalidSelector`
+  error at once, with Python's message, instead of waiting for the timeout.
+  `base_case::test_shadow_dom` and `base_case::shadow_root_test` of `parity/examples.toml` pass.
+- **`shadow_get_text` gives the text as the browser shows it.** It read `textContent`, so a
+  container that only slots its content (the panel of `fancy-tabs::shadow #panels`) gave an empty
+  string where Python's `get_text` gives `Content Panel 1`. It reads the element's text through
+  the driver, as `get_text` does, and waits for the element to be displayed; a field still gives
+  its value.
+- **`assert_shadow_text` and `assert_shadow_element` wait, and so do the other `shadow_*`
+  methods.** They looked once and failed on a text that arrives a moment after the page
+  (`chrome://downloads/` shows "No search results found" a moment after the typing), where Python's
+  `assert_text` waits. They now wait for the case's timeout (`set_timeout`); `assert_shadow_text`
+  is `assert_text` and `assert_shadow_element` is `assert_element_present`.
 
 - **The text checks read the value of an `<input>` or a `<textarea>`, as Python's do.**
   `assert_text`, `assert_exact_text`, `is_text_visible`, `is_exact_text_visible`,
@@ -981,6 +1060,13 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   status was 0 whatever it found. `--warn-only` prints the problems and exits with 0, as before.
   A chromedriver that is not found stays a hint, and the version check now looks at
   `SB_CHROME_BIN` when it is set.
+- **The recorder helpers return an error on a session with no WebDriver, not a panic.** Recorder
+  Mode at start-up (`BaseCase::new` with `with_recorder_mode(true)` and `with_cdp_url(..)`), the
+  watch of `recorder_breakpoint` and the tab harvest of `finish_recording` read the windows with
+  `BrowserSession::driver()`, which panics where there is no WebDriver (a direct CDP attachment, or
+  a session that was quit). They use `webdriver()` now and fail with `Unsupported`, or
+  `SessionNotStarted` after `quit`; the watch loop treats such a session as one with no window
+  left.
 
 </Update>
 

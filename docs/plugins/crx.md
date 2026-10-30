@@ -77,7 +77,15 @@ described in the [Browser Plugins guide](/tutorials/plugins#when-the-hooks-run).
 
 The plugin is named `crx`. It requires a Chromium browser that the plugin set
 starts itself (`Requirements::CHROMIUM_ONLY | Requirements::LAUNCH_ONLY`), so it
-cannot be used with a browser attached by `connect_with_plugins`.
+cannot be used with a browser attached by `connect_with_plugins`. It declares
+`host.fs.write:temp`, to unpack into the temporary folder, so a settings file in
+the current folder cannot turn it on by itself: name it with `--plugin crx` or
+`SB_PLUGINS=crx` ([why](/plugins/selecting#what-a-project-file-may-not-turn-on-alone)).
+
+It cannot share a set with the built-in `browser` plugin, which also loads
+extensions (from `.zip` and `.crx` files and unpacked folders): `browser`
+declares the conflict, and the check every launch makes refuses the pair. Use
+one of them.
 
 ## Errors
 

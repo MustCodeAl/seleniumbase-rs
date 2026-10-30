@@ -1041,19 +1041,47 @@ in [Debugging](/contributing/debugging).
 
 ## Python importer architecture
 
-`utilities::python_importer` is a conservative static converter for common
-SeleniumBase and Selenium WebDriver Python statements. It uses a balanced
-statement and argument scanner plus targeted patterns. It deliberately avoids
-executing Python or guessing dynamic values.
+`utilities::python_importer` is a conservative static converter for Python
+SeleniumBase and Selenium WebDriver tests. It never executes Python and never
+guesses a dynamic value. `import_python` is the entry point and has two readings:
 
-The importer separates parsing from rendering through typed actions and
-locators. Unsupported statements produce source-located diagnostics and
-compiling `TODO` comments. Keep that behavior when adding mappings: uncertain
-conversion must remain visible rather than silently changing test semantics.
+- The SeleniumBase reading (`utilities/importer/pyconv/`) parses the file with a
+  small Python parser (`parse.rs`, on the lexer the Playwright importer shares)
+  into the statements and expressions of `ast.rs`, finds the tests (`units.rs`:
+  classes with `test*` methods, `test*` functions, `with SB(...)` blocks and
+  scripts) and translates each (`stmt.rs` for statements, `expr.rs` for values and
+  calls, `cdp.rs` for CDP Mode and `sb_cdp.Chrome()` scripts, which become pure CDP
+  tests). `mod.rs` writes the file in the rstest `sb` fixture form that
+  `sbrs mkfile` writes.
+- The Selenium reading (`driver.find_element(...)`) is the older line scanner of
+  `python_importer.rs`; it writes into the same fixture form.
 
-Add unit tests for both SeleniumBase and Selenium forms when introducing a new
-mapping. Generated tests should use `run_browser_test` and remain valid Rust
-even when diagnostics are present.
+The Python methods and their Rust calls are one table, `table.rs`, made of the
+hand-written entries and `generated.rs`, which `pyconv::tests` writes from the
+signatures of `BaseCase`, the `implemented` rows of `parity/api.toml` and the
+Python parameters of `parity/upstream-api.json`
+(`SB_UPDATE_GENERATED=1 cargo test -p seleniumbase-rs --lib the_generated_table`
+writes it again). A test checks every entry against the real signature (argument
+count and kinds, `async`, `Result`, call builders and their methods) and against
+the parity row, so a `BaseCase` change that breaks a mapping fails a test. The
+`FIX-ASSERTS` shapes of `assert_in`, `wait_for_element` and `get_select_options`
+are in the table; adjust the table, not the translator, when a signature moves.
+
+`tests/golden/import_python/` holds the Python examples of
+`parity/examples.toml` and what the importer writes for each. A test checks the
+importer still writes the `.rs.golden` files (`SB_UPDATE_GOLDENS=1` writes them
+again) and that every `sb.method(..)` call in them is a `BaseCase` method with that
+many arguments; a `cfg(doctest)` item in `python_importer.rs` compiles all of them
+as a user's crate would (`cargo test -p seleniumbase-rs --features testing --doc
+ImportGoldensCompile`).
+
+Unsupported statements produce source-located diagnostics and compiling `TODO`
+comments. Keep that behavior when adding mappings: uncertain conversion must
+remain visible rather than silently changing test semantics. A statement the
+importer does not read is a warning; a call it knows but cannot write as the
+Python wrote it (an argument Rust has no equal for, a value of the wrong kind,
+an undefined name) is an error. Add a unit test for each new mapping, and a
+golden when it changes what an example becomes.
 
 ## MCP server
 

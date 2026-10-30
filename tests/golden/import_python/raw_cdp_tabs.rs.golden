@@ -1,0 +1,27 @@
+//! Converted from Python by `sbrs import-python`. Run it with `cargo test --test raw_cdp_tabs`
+//! when this file is in your crate's `tests/` folder; `SB_HEADLESS=true` runs it
+//! without a window. A comment marks each statement it could not convert.
+
+use seleniumbase_rs::testing::{rstest, sb_cdp, SbCdp};
+use seleniumbase_rs::{tokio, Result};
+
+#[rstest]
+#[tokio::test]
+async fn raw_cdp_tabs(sb_cdp: SbCdp) -> Result<()> {
+    sb_cdp
+        .run(async |page| {
+            page.goto("data:text/html,<h1>Page A</h1>").await?;
+            page.locator("html").expect().to_contain_text("Page A").await?;
+            let page = page.browser().new_page().await?;
+            page.goto("data:text/html,<h1>Page B</h1>").await?;
+            page.locator("html").expect().to_contain_text("Page B").await?;
+            let page = page.browser().pages().await?.remove(0);
+            page.locator("html").expect().to_contain_text("Page A").await?;
+            page.locator("html").expect().not().to_contain_text("Page B").await?;
+            let page = page.browser().pages().await?.remove(1);
+            page.locator("html").expect().to_contain_text("Page B").await?;
+            page.locator("html").expect().not().to_contain_text("Page A").await?;
+            Ok(())
+        })
+        .await
+}

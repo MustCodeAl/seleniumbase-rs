@@ -1,0 +1,65 @@
+//! Shadow DOM test.
+//! First download files from PyPI.
+//! Then search for them on a multi-layered Shadow DOM page.
+//! This uses the "::shadow" selector for piercing shadow-root elements.
+//! Here's the URL that contains Shadow DOM: chrome://downloads/
+
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
+
+// TODO(source line 11): the helper method 'download_tar_file_from_pypi' needs manual migration
+
+#[rstest]
+#[tokio::test]
+async fn test_shadow_dom(sb: Sb) -> Result<()> {
+    sb.run(async |sb| {
+        // TODO(source line 22): `self.browser` has no Rust equal
+        //     not self.browser == "chrome" or self.headless or self.recorder_mode
+        if false {
+            sb.goto_if_not_url("about:blank").await?;
+            println!("\n  Unsupported mode for this test.");
+            sb.skip_test("Unsupported mode for this test.")?;
+        }
+        // Download Python package files from PyPI
+        // TODO(source line 28): SeleniumBase method 'download_tar_file_from_pypi' needs manual migration
+        //     file_name_1 = self.download_tar_file_from_pypi("sbase")
+        // TODO(source line 29): SeleniumBase method 'download_tar_file_from_pypi' needs manual migration
+        //     file_name_2 = self.download_tar_file_from_pypi("seleniumbase")
+        // TODO(source line 30): SeleniumBase method 'assert_downloaded_file' needs manual migration
+        //     self.assert_downloaded_file(file_name_1, browser=True)
+        // TODO(source line 31): SeleniumBase method 'assert_downloaded_file' needs manual migration
+        //     self.assert_downloaded_file(file_name_2, browser=True)
+        // Navigate to the Chrome downloads page.
+        sb.goto("chrome://downloads/").await?;
+        // Shadow DOM selectors
+        let search_icon = "downloads-manager::shadow downloads-toolbar::shadow cr-toolbar::shadow cr-toolbar-search-field::shadow cr-icon-button";
+        let search_input = "downloads-manager::shadow downloads-toolbar::shadow cr-toolbar::shadow cr-toolbar-search-field::shadow #searchInput";
+        let clear_search_icon = "downloads-manager::shadow downloads-toolbar::shadow cr-toolbar::shadow cr-toolbar-search-field::shadow #clearSearch";
+        let file_link = "downloads-manager::shadow downloads-item::shadow #fileLink";
+        let remove_button = "downloads-manager::shadow #downloadsList downloads-item::shadow #quick-remove";
+        let no_downloads_area = "downloads-manager::shadow #no-downloads";
+        sb.assert_element(search_icon).await?;
+        sb.type_text(search_input, "sbase").await?;
+        // TODO(source line 63): 'file_name_1' is not defined because its assignment was not converted
+        //     self.assert_text(file_name_1, file_link)
+        let text = sb.get_text(file_link).await?;
+        println!("{}", format!("\n  Download 1: {}", text));
+        sb.type_text(search_input, "seleniumbase").await?;
+        // TODO(source line 66): 'file_name_2' is not defined because its assignment was not converted
+        //     self.assert_text(file_name_2, file_link)
+        let text_2 = sb.get_text(file_link).await?;
+        println!("{}", format!("  Download 2: {}", text_2));
+        sb.click(clear_search_icon).await?;
+        sb.type_text(search_input, "fake-file.zzz").await?;
+        sb.assert_text("No search results found", no_downloads_area).await?;
+        sb.click(clear_search_icon).await?;
+        sb.assert_element(remove_button).await?;
+        // Delete the downloaded files from the [Downloads Folder]
+        // TODO(source line 75): 'file_name_1' is not defined because its assignment was not converted
+        //     self.delete_downloaded_file_if_present(file_name_1, browser=True)
+        // TODO(source line 76): 'file_name_2' is not defined because its assignment was not converted
+        //     self.delete_downloaded_file_if_present(file_name_2, browser=True)
+        Ok(())
+    })
+    .await
+}

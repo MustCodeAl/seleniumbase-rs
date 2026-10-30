@@ -130,8 +130,10 @@ Related methods on `BaseCase`:
 
 - `display_chart()` saves the chart to a temporary `chart.html` and opens it in
   the test's browser, returning the path.
-- `extract_chart()` returns the chart as a JSON string with the title, type,
-  labels and datasets.
+- `extract_chart()` returns the chart as an HTML string, not JSON: a `<canvas>`
+  and the script that draws it, after the `<script src>` that loads Chart.js
+  (left out when the chart was created with `.libs(false)`). Put it on a page of
+  your own or on a slide; `.chart_name(..)` picks the chart.
 
 `sbrs mkchart tests/chart.rs` writes a test to edit by hand: it builds a pie
 chart of six data points, takes its HTML with `extract_chart()` and shows it on

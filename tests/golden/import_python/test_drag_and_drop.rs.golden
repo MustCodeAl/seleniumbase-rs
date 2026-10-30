@@ -1,0 +1,35 @@
+//! Test drag_and_drop() on different pages.
+
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
+
+#[rstest]
+#[tokio::test]
+async fn test_drag_and_drop(sb: Sb) -> Result<()> {
+    sb.run(async |sb| {
+        sb.goto("https://seleniumbase.io/other/drag_and_drop").await?;
+        sb.assert_element_not_visible("#div1 img#drag1").await?;
+        sb.drag_and_drop("#drag1", "#div1").await?;
+        sb.assert_element("#div1 img#drag1").await?;
+        sb.sleep(0.8).await;
+        Ok(())
+    })
+    .await
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_w3schools_drag_and_drop(sb: Sb) -> Result<()> {
+    sb.run(async |sb| {
+        sb.goto("https://seleniumbase.io/w3schools/drag_drop").await?;
+        sb.assert_url_contains("drag_drop").await?;
+        sb.click("button#runbtn").await?;
+        sb.switch_to_frame("iframeResult").await?;
+        sb.assert_element_not_visible("#div1 img#drag1").await?;
+        sb.drag_and_drop("#drag1", "#div1").await?;
+        sb.assert_element("#div1 img#drag1").await?;
+        sb.sleep(0.8).await;
+        Ok(())
+    })
+    .await
+}

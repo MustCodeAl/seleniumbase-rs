@@ -93,7 +93,7 @@ impl BaseCase {
         self.recording.clock_offset_ms = browser - local;
         self.recording.window_count = self
             .session
-            .driver()
+            .webdriver()?
             .windows()
             .await
             .map_or(0, |handles| handles.len());
@@ -106,7 +106,7 @@ impl BaseCase {
     /// per window. It goes through the driver's DevTools passthrough, which
     /// works in every [`DriverMode`](crate::browser::config::DriverMode).
     async fn register_recorder_script(&mut self) -> Result<(), SeleniumBaseError> {
-        let handle = self.session.driver().window().await?.to_string();
+        let handle = self.current_window_handle().await?;
         if !self.recording.registered.insert(handle) {
             return Ok(());
         }
@@ -118,6 +118,13 @@ impl BaseCase {
             )
             .await?;
         Ok(())
+    }
+
+    /// The handle of the window the WebDriver is on. An error, not a panic,
+    /// where the session has no WebDriver (a direct CDP attachment, or a
+    /// session that was quit): [`BrowserSession::webdriver`] says which.
+    async fn current_window_handle(&self) -> Result<String, SeleniumBaseError> {
+        Ok(self.session.webdriver()?.window().await?.to_string())
     }
 
     /// Runs the page script in the document that is loaded now, unless it has
@@ -245,7 +252,12 @@ impl BaseCase {
     /// page in the middle of a navigation, makes the look end early, and the
     /// next one tries again.
     async fn watch_tick(&mut self) -> bool {
-        let handles = match self.session.driver().windows().await {
+        // Without a WebDriver (a direct CDP attachment, or a session that was
+        // quit) there is no window to watch: the watch is over.
+        let Ok(driver) = self.session.webdriver() else {
+            return true;
+        };
+        let handles = match driver.windows().await {
             Ok(handles) => handles,
             Err(error) => return !alert_is_open(&error.to_string()),
         };
@@ -254,7 +266,7 @@ impl BaseCase {
         };
         if handles.len() != self.recording.window_count {
             self.recording.window_count = handles.len();
-            let _ = self.session.driver().switch_to_window(newest.clone()).await;
+            let _ = driver.switch_to_window(newest.clone()).await;
         }
         let Ok(url) = self.get_current_url().await else {
             return false;
@@ -266,10 +278,10 @@ impl BaseCase {
             let _ = self.register_recorder_script().await;
             let _ = self.run_recorder_script().await;
             if let (Ok(handle), Ok(actions)) = (
-                self.session.driver().window().await,
+                self.current_window_handle().await,
                 self.recorded_actions_on_active_tab().await,
             ) {
-                self.recording.cache.insert(handle.to_string(), actions);
+                self.recording.cache.insert(handle, actions);
             }
         }
         false
@@ -407,23 +419,20 @@ impl BaseCase {
     /// record kept then, and the tabs saved by
     /// [`save_recorded_actions`](Self::save_recorded_actions). Also the
     /// origins of the tabs that were read.
-    async fn harvest_tabs(&mut self) -> (Vec<RawAction>, Vec<String>) {
+    ///
+    /// Fails when the session has no WebDriver (see
+    /// [`BrowserSession::webdriver`]).
+    async fn harvest_tabs(&mut self) -> Result<(Vec<RawAction>, Vec<String>), SeleniumBaseError> {
         let mut actions = Vec::new();
         let mut origins = Vec::new();
         let handles: Vec<String> = self
             .session
-            .driver()
+            .webdriver()?
             .windows()
             .await
             .map(|handles| handles.iter().map(ToString::to_string).collect())
             .unwrap_or_default();
-        let current = self
-            .session
-            .driver()
-            .window()
-            .await
-            .ok()
-            .map(|handle| handle.to_string());
+        let current = self.current_window_handle().await.ok();
         let mut order: Vec<String> = current
             .iter()
             .filter(|handle| handles.contains(handle))
@@ -467,7 +476,7 @@ impl BaseCase {
         }
         actions.extend(self.recording.stash.iter().cloned());
         origins.extend(self.recording.stash_origins.iter().cloned());
-        (actions, origins)
+        Ok((actions, origins))
     }
 
     /// Python's tear-down processing: reads the recording of every tab,
@@ -483,12 +492,15 @@ impl BaseCase {
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::Io`] when a file cannot be written.
+    /// Returns [`SeleniumBaseError::Unsupported`] on a direct CDP attachment
+    /// and [`SeleniumBaseError::SessionNotStarted`] on a session that was quit
+    /// or never started, which have no WebDriver to read the tabs from.
     pub async fn finish_recording(&mut self) -> Result<Option<SavedRecording>, SeleniumBaseError> {
         if !self.recording.on || self.recording.finished {
             return Ok(None);
         }
         self.recording.finished = true;
-        let (mut raw, origins) = self.harvest_tabs().await;
+        let (mut raw, origins) = self.harvest_tabs().await?;
         let fallback_origin = origins.first().cloned().unwrap_or_default();
         let extras = crate::api::recorder::extra_raw_actions(
             &self.recorded_actions()?,
@@ -885,5 +897,42 @@ mod tests_recorder_mode {
         assert!(String::from_utf8(out)
             .unwrap()
             .contains("input closed: continuing"));
+    }
+
+    /// A case whose session has no WebDriver, as a direct CDP attachment
+    /// (`cdp_url`) or a session that was quit has none, and Recorder Mode asked for.
+    fn without_a_webdriver() -> BaseCase {
+        BaseCase::with_session(
+            BrowserConfig::default().with_recorder_mode(true),
+            BrowserSession::disconnected(),
+        )
+    }
+
+    #[tokio::test]
+    async fn starting_the_recorder_without_a_webdriver_is_an_error_not_a_panic() {
+        let mut sb = without_a_webdriver();
+        let error = sb.start_recorder().await.unwrap_err();
+        assert!(
+            matches!(error, SeleniumBaseError::SessionNotStarted),
+            "{error:?}"
+        );
+        assert!(!sb.recording.on, "Recorder Mode did not start");
+    }
+
+    #[tokio::test]
+    async fn finishing_a_recording_without_a_webdriver_is_an_error_not_a_panic() {
+        let mut sb = without_a_webdriver();
+        sb.recording.on = true;
+        let error = sb.finish_recording().await.unwrap_err();
+        assert!(
+            matches!(error, SeleniumBaseError::SessionNotStarted),
+            "{error:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn the_watch_without_a_webdriver_ends_instead_of_panicking() {
+        let mut sb = without_a_webdriver();
+        assert!(sb.watch_tick().await, "there is no window to watch");
     }
 }

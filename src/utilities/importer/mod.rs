@@ -48,6 +48,7 @@ mod emit;
 mod lexer;
 mod parser;
 mod program;
+pub(crate) mod pyconv;
 mod recorder;
 mod selector;
 mod translate;

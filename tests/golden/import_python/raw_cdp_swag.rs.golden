@@ -1,0 +1,30 @@
+//! Converted from Python by `sbrs import-python`. Run it with `cargo test --test raw_cdp_swag`
+//! when this file is in your crate's `tests/` folder; `SB_HEADLESS=true` runs it
+//! without a window. A comment marks each statement it could not convert.
+
+use seleniumbase_rs::testing::{rstest, sb_cdp, SbCdp};
+use seleniumbase_rs::{tokio, Result};
+
+#[rstest]
+#[tokio::test]
+async fn raw_cdp_swag(sb_cdp: SbCdp) -> Result<()> {
+    sb_cdp
+        .run(async |page| {
+            page.goto("https://www.saucedemo.com").await?;
+            page.locator("#user-name").type_text("standard_user").await?;
+            page.locator("#password").type_text("secret_sauce\n").await?;
+            page.locator("div.inventory_list").expect().to_be_visible().await?;
+            page.locator("button[name*=\"backpack\"]").click().await?;
+            page.locator("#shopping_cart_container a").click().await?;
+            page.locator("div.cart_item").expect().to_contain_text("Backpack").await?;
+            page.locator("button#checkout").click().await?;
+            page.locator("input#first-name").type_text("SeleniumBase").await?;
+            page.locator("input#last-name").type_text("Automation").await?;
+            page.locator("input#postal-code").type_text("77123").await?;
+            page.locator("input#continue").click().await?;
+            page.locator("button#finish").click().await?;
+            page.locator("html").expect().to_contain_text("Thank you for your order!").await?;
+            Ok(())
+        })
+        .await
+}

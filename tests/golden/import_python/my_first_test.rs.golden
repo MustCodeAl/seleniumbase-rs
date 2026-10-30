@@ -1,0 +1,35 @@
+//! A complete end-to-end test for an e-commerce website.
+
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
+
+#[rstest]
+#[tokio::test]
+async fn my_first_test(sb: Sb) -> Result<()> {
+    sb.run(async |sb| {
+        sb.goto("https://www.saucedemo.com").await?;
+        sb.type_text("#user-name", "standard_user").await?;
+        sb.type_text("#password", "secret_sauce\n").await?;
+        sb.assert_element("div.inventory_list").await?;
+        sb.assert_exact_text("Products", "span.title").await?;
+        sb.click("button[name*=\"backpack\"]").await?;
+        sb.click("#shopping_cart_container a").await?;
+        sb.assert_exact_text("Your Cart", "span.title").await?;
+        sb.assert_text("Backpack", "div.cart_item").await?;
+        sb.click("button#checkout").await?;
+        sb.type_text("#first-name", "SeleniumBase").await?;
+        sb.type_text("#last-name", "Automation").await?;
+        sb.type_text("#postal-code", "77123").await?;
+        sb.click("input#continue").await?;
+        sb.assert_text("Checkout: Overview", "html").await?;
+        sb.assert_text("Backpack", "div.cart_item").await?;
+        sb.assert_text("29.99", "div.inventory_item_price").await?;
+        sb.click("button#finish").await?;
+        sb.assert_exact_text("Thank you for your order!", "h2").await?;
+        sb.assert_element("img[alt=\"Pony Express\"]").await?;
+        sb.js_click("a#logout_sidebar_link").await?;
+        sb.assert_element("div#login_button_container").await?;
+        Ok(())
+    })
+    .await
+}

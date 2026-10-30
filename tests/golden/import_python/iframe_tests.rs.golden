@@ -1,0 +1,88 @@
+//! Use SeleniumBase methods to interact with iframes.
+
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
+
+#[rstest]
+#[tokio::test]
+async fn test_iframe_basics(sb: Sb) -> Result<()> {
+    sb.run(async |sb| {
+        sb.goto("https://seleniumbase.io/w3schools/iframes.html").await?;
+        sb.assert_title("iframe Testing").await?;
+        sb.click("button#runbtn").await?;
+        sb.switch_to_frame("iframeResult").await?; // Enter the iframe
+        sb.assert_text("HTML Iframes", "h2").await?;
+        sb.switch_to_frame("[title*=\"Iframe\"]").await?; // Enter iframe inside iframe
+        sb.assert_text("This page is displayed in an iframe", "h1").await?;
+        sb.switch_to_parent_frame().await?; // Exit only the inner iframe
+        sb.assert_text("Use CSS width & height to specify", "p").await?;
+        sb.switch_to_frame("[title*=\"Iframe\"]").await?; // Enter iframe inside iframe
+        sb.assert_text("seleniumbase.io/w3schools/iframes", "a").await?;
+        sb.switch_to_default_content().await?; // Exit all iframes
+        sb.click("button#runbtn").await?;
+        sb.switch_to_frame("iframeResult").await?; // Go back inside 1st iframe
+        sb.highlight("iframe[title=\"Iframe Example\"]").await?;
+        Ok(())
+    })
+    .await
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_iframes_with_context_manager(sb: Sb) -> Result<()> {
+    sb.run(async |sb| {
+        sb.goto("https://seleniumbase.io/w3schools/iframes.html").await?;
+        sb.assert_title("iframe Testing").await?;
+        sb.click("button#runbtn").await?;
+        sb.frame_switch("iframeResult")
+            .run(async |sb| {
+                sb.assert_text("HTML Iframes", "h2").await?;
+                sb.frame_switch("[title*=\"Iframe\"]")
+                    .run(async |sb| {
+                        sb.assert_text("This page is displayed in an iframe", "h1").await?;
+                        Ok(())
+                    })
+                    .await?;
+                sb.assert_text("Use CSS width & height to specify", "p").await?;
+                sb.frame_switch("[title*=\"Iframe\"]")
+                    .run(async |sb| {
+                        sb.assert_text("seleniumbase.io/w3schools/iframes", "a").await?;
+                        Ok(())
+                    })
+                    .await?;
+                Ok(())
+            })
+            .await?;
+        sb.click("button#runbtn").await?;
+        sb.frame_switch("iframeResult")
+            .run(async |sb| {
+                sb.highlight("iframe[title=\"Iframe Example\"]").await?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
+    })
+    .await
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_set_content_to_frame(sb: Sb) -> Result<()> {
+    sb.run(async |sb| {
+        sb.goto("https://seleniumbase.io/w3schools/iframes.html").await?;
+        sb.assert_title("iframe Testing").await?;
+        sb.click("button#runbtn").await?;
+        sb.set_content_to_frame("iframeResult").await?;
+        sb.highlight("iframe[title=\"Iframe Example\"]").await?;
+        sb.set_content_to_frame("iframe").await?;
+        sb.assert_element_not_visible("iframe").await?;
+        sb.highlight("body").await?;
+        sb.set_content_to_parent().await?;
+        sb.highlight("iframe[title=\"Iframe Example\"]").await?;
+        sb.set_content_to_default().await?;
+        sb.click("button#runbtn").await?;
+        sb.highlight("#iframeResult").await?;
+        Ok(())
+    })
+    .await
+}

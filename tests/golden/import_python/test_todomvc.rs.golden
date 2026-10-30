@@ -1,0 +1,43 @@
+//! Converted from Python by `sbrs import-python`. Run it with `cargo test --test test_todomvc`
+//! when this file is in your crate's `tests/` folder; `SB_HEADLESS=true` runs it
+//! without a window. A comment marks each statement it could not convert.
+
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
+
+#[rstest]
+#[case("jquery")]
+#[case("react")]
+#[case("vue")]
+#[tokio::test]
+async fn test_todomvc(sb: Sb, #[case] framework: &str) -> Result<()> {
+    sb.run(async |sb| {
+        sb.open_new_window().await?;
+        sb.goto("https://todomvc.com/").await?;
+        sb.clear_local_storage().await?;
+        sb.click(&format!("a[href*=\"examples/{}/dist\"]", framework)).await?;
+        sb.assert_element("section.todoapp").await?;
+        sb.assert_text("todos", "header h1").await?;
+        sb.wait_for_ready_state_complete().await?;
+        let title = sb.get_title().await?;
+        sb.assert_in(framework, &title.to_lowercase())?;
+        let new_todo_input = "input.new-todo";
+        let todo_count_span = "span.todo-count";
+        sb.wait_for_ready_state_complete().await?;
+        sb.type_text(new_todo_input, "Learn Python\n").await?;
+        sb.type_text(new_todo_input, "Learn JavaScript\n").await?;
+        sb.type_text(new_todo_input, "Learn SeleniumBase\n").await?;
+        sb.assert_text("3 items left", todo_count_span).await?;
+        sb.check_if_unchecked("ul.todo-list li input").await?;
+        sb.check_if_unchecked("ul.todo-list li:nth-of-type(2) input").await?;
+        sb.check_if_unchecked("ul.todo-list li:nth-of-type(3) input").await?;
+        sb.assert_text("0 items left", todo_count_span).await?;
+        sb.click("button.clear-completed").await?;
+        sb.assert_element_not_visible(todo_count_span).await?;
+        sb.save_teardown_screenshot().await?;
+        // TODO(source line 13): `self.driver` has no Rust equal
+        //     self.driver.close()
+        Ok(())
+    })
+    .await
+}

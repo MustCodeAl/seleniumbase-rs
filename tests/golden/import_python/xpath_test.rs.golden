@@ -1,0 +1,19 @@
+//! Test that SeleniumBase can autodetect and use xpath selectors.
+
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
+
+#[rstest]
+#[tokio::test]
+async fn xpath_test(sb: Sb) -> Result<()> {
+    sb.run(async |sb| {
+        sb.goto("https://seleniumbase.io/demo_page").await?;
+        sb.assert_element("//h1[(text()=\"Demo Page\")]").await?;
+        sb.type_text("//*[@id=\"myTextInput\"]", "XPath Test!").await?;
+        sb.click("//button[starts-with(text(),\"Click Me\")]").await?;
+        sb.assert_element("//button[contains(., \"Purple\")]").await?;
+        sb.assert_text("SeleniumBase", "//table/tbody/tr[1]/td[2]/h2").await?;
+        Ok(())
+    })
+    .await
+}

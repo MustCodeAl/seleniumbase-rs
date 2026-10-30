@@ -3038,7 +3038,7 @@ divergence = "Python's `-k` is a pytest expression and its `-m` a marker; here `
 status = "implemented"
 rust = "sbrs convert"
 note = "`sbrs convert FILE.py [--force]` reads a Selenium IDE or Katalon Recorder export (Selenium WebDriver code) with the Selenium reading of `import_python` and writes `FILE_SB.rs` next to it; the original is kept. An existing output is refused without `--force`. What it cannot convert stays a `TODO` and is listed on standard error; the exit status is 1 when a statement could not be read at all."
-divergence = "Python's convert writes `FILE_SB.py`, a SeleniumBase class; this writes a Rust test (`run_browser_test`) named after the file."
+divergence = "Python's convert writes `FILE_SB.py`, a SeleniumBase class; this writes a Rust test in the rstest `sb` fixture form that `sbrs mkfile` writes, named after the file."
 
 [cli."decrypt"]
 status = "implemented"
@@ -3056,8 +3056,10 @@ rust = "sbrs encrypt"
 divergence = "AES-256-GCM under a PBKDF2 key from SB_ENCRYPTION_KEY (asked once, without echo, when it is not set and standard input is a terminal), not Python's fixed-key obfuscation; tokens are not interchangeable."
 
 [cli."extract-objects"]
-status = "not-applicable"
-reason = "Edits the structure of Python test files."
+status = "implemented"
+rust = "sbrs extract-objects"
+note = "`sbrs extract-objects FILE.rs` (also `extract_objects`) writes the string literals that are the selector argument of a `BaseCase` call (`click`, `type_text`, `assert_text`, `drag_and_drop`, ...; the lists are `SELECTOR_FIRST`, `SELECTOR_SECOND` and `TWO_SELECTORS` in `src/cli/scripts/sb_objectify.rs`) as constants of a module of `page_objects.rs` next to FILE, one module for each URL that the test opens. Running it again adds only what is new."
+divergence = "Python scans a SeleniumBase `self.` test line by line with regular expressions and writes every selector as `css_N` in one `Page` class of page_objects.py in the current folder; this reads a Rust test with a tokenizer (comments and strings are not code), groups the selectors by the page that was opened, names a constant with the words of its selector and writes page_objects.rs next to the file. A page_objects.rs that `sbrs` did not write is refused, not extended, and a test with no selector makes no file (Python writes one)."
 
 [cli."get"]
 status = "implemented"
@@ -3091,8 +3093,10 @@ rust = "usage"
 note = "Provided by the argument parser."
 
 [cli."inject-objects"]
-status = "not-applicable"
-reason = "Edits the structure of Python test files."
+status = "implemented"
+rust = "sbrs inject-objects"
+note = "`sbrs inject-objects FILE.rs [-c|--comments]` (also `inject_objects`) replaces each selector literal that has a page object in the page_objects.rs next to FILE by `page_objects::<page>::NAME` (with a `super::` for each inline module the call is in) and declares `mod page_objects;` above the first item of the file. `-c` appends the selector as a `// selector` comment to each changed line."
+divergence = "Python adds a `from .page_objects import Page` line and writes `Page.css_N`; this declares a module and writes a path. A selector without a page object is left as it is, and without a page_objects.rs the command fails and says to run `extract-objects` (Python writes a default file and replaces nothing)."
 
 [cli."install"]
 status = "implemented"
@@ -3137,8 +3141,10 @@ rust = "sbrs encrypt"
 note = "Alias of encrypt upstream, as here: `sbrs obfuscate` is accepted. It encrypts a string, not a source file. Tokens are AES-256-GCM under SB_ENCRYPTION_KEY, read from the environment or asked once without echo on a terminal, and do not interchange with Python's. With no argument on a terminal it prompts in a loop as Python does (text and verification without echo; Ctrl-C prints Exiting... and exits 0)."
 
 [cli."objectify"]
-status = "not-applicable"
-reason = "Python's objectify rewrites the selectors of a Python test file into page-object variables, like extract-objects and inject-objects, and there is no Python source to rewrite here. `sbrs objectify` only writes a starter page_object.rs."
+status = "implemented"
+rust = "sbrs objectify"
+note = "`sbrs objectify FILE.rs [-c|--comments]` is `extract-objects` followed by `inject-objects` on the same file, as in Python. `revert-objects` undoes it."
+divergence = "Replaces the earlier `sbrs objectify`, which took no file and wrote a starter page_object.rs. See `extract-objects` and `inject-objects` for how the names, the page grouping and the comments differ from Python's."
 
 [cli."options"]
 status = "implemented"
@@ -3168,8 +3174,10 @@ note = "Python's Recorder Desktop App as a terminal app (build with the `tui` fe
 divergence = "Python opens a Tkinter window that stays open while the recording runs in another process, and its Playback buttons run the Python file. Here Record suspends the terminal UI until `mkrec` ends (the person types `c` and Enter in that terminal, or presses SHIFT+ESC with `--ee`), because `mkrec` reads the terminal; Run needs the test in `tests/` or `examples/` (cargo runs a test by its file name) and Replay needs no compile. The file is a `.rs` name, and it is not asked before overwriting: Overwrite is a box, ticked to begin with, as in Python."
 
 [cli."revert-objects"]
-status = "not-applicable"
-reason = "Edits the structure of Python test files."
+status = "implemented"
+rust = "sbrs revert-objects"
+note = "`sbrs revert-objects FILE.rs [-c|--comments]` (also `revert_objects`) puts the selector literal back for every `page_objects::<page>::NAME` of FILE and removes the `mod page_objects;` line when the file uses no page object any more. Extract, inject and revert give the original file back byte for byte, with and without `-c`, and with CRLF line endings."
+divergence = "In Python `-c` keeps the comments that objectify added; here `-c` takes off the `// selector` comments that `inject-objects -c` appended, so the round trip is exact, and without `-c` they stay. page_objects.rs is kept, as in Python."
 
 [cli."translate"]
 status = "implemented"

@@ -69,6 +69,11 @@ sbrs mkpres tests/deck.rs --es                     # a test that builds a three-
 sbrs mkchart tests/chart.rs --ja                   # a test that shows a chart on a slide
 sbrs print tests/login.rs -n                       # a file, with line numbers
 sbrs convert login.py                              # a Selenium IDE export into login_SB.rs
+sbrs objectify tests/login.rs                      # selectors into page_objects.rs, used in the test
+sbrs extract-objects tests/login.rs                # only write page_objects.rs
+sbrs inject-objects tests/login.rs -c              # only use the page objects, a comment per line
+sbrs revert-objects tests/login.rs -c              # back to the selectors, byte for byte
+
 ```
 
 ## Bring tests from other tools

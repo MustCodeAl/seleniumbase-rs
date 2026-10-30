@@ -1,0 +1,34 @@
+//! Test double_click() after switching into iframes.
+
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
+
+#[rstest]
+#[tokio::test]
+async fn test_switch_to_frame_and_double_click(sb: Sb) -> Result<()> {
+    sb.run(async |sb| {
+        sb.goto("https://seleniumbase.io/w3schools/double_click").await?;
+        sb.assert_title("Double Click Testing").await?;
+        sb.click("button#runbtn").await?;
+        sb.switch_to_frame("iframe#iframeResult").await?;
+        sb.double_click("[ondblclick=\"myFunction()\"]").await?;
+        sb.assert_text("Hello World", "#demo").await?;
+        Ok(())
+    })
+    .await
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_switch_to_frame_of_element_and_double_click(sb: Sb) -> Result<()> {
+    sb.run(async |sb| {
+        sb.goto("https://seleniumbase.io/w3schools/double_click").await?;
+        sb.assert_title("Double Click Testing").await?;
+        sb.click("button#runbtn").await?;
+        sb.switch_to_frame_of_element("[ondblclick=\"myFunction()\"]").await?;
+        sb.double_click("[ondblclick=\"myFunction()\"]").await?;
+        sb.assert_text("Hello World", "#demo").await?;
+        Ok(())
+    })
+    .await
+}
