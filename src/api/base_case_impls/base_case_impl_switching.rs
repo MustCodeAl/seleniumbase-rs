@@ -24,27 +24,37 @@ impl BaseCase {
     ) -> Result<bool, SeleniumBaseError> {
         let driver = self.session.webdriver()?;
         let locator = match frame {
-            FrameRef::Index(index) => return Ok(driver.enter_frame(*index).await.is_ok()),
+            FrameRef::Index(index) => {
+                return match driver.enter_frame(*index).await {
+                    Ok(()) => Ok(true),
+                    Err(error) => Err(SeleniumBaseError::WebDriver(error)),
+                };
+            }
             FrameRef::Locator(locator) => locator,
         };
+        // A frame that is there but cannot be entered (a sandboxed one, say) is
+        // retried like a missing one, and the timeout says why it was refused.
+        let mut refusal = None;
         for attribute in ["id", "name"] {
             let lookup = By::Css(frame_with_attribute(attribute, locator));
             if let Ok(found) = driver.find(lookup).await {
-                if found.enter_frame().await.is_ok() {
-                    return Ok(true);
+                match found.enter_frame().await {
+                    Ok(()) => return Ok(true),
+                    Err(error) => refusal = Some(error),
                 }
             }
         }
-        let Ok(by) = Selector::auto(locator).to_by() else {
-            return Ok(false);
-        };
-        let Ok(found) = driver.find(by).await else {
-            return Ok(false);
-        };
-        if !invisible && !found.is_displayed().await.unwrap_or(false) {
-            return Ok(false);
+        if let Ok(by) = Selector::auto(locator).to_by() {
+            if let Ok(found) = driver.find(by).await {
+                if invisible || found.is_displayed().await.unwrap_or(false) {
+                    match found.enter_frame().await {
+                        Ok(()) => return Ok(true),
+                        Err(error) => refusal = Some(error),
+                    }
+                }
+            }
         }
-        Ok(found.enter_frame().await.is_ok())
+        refusal.map_or(Ok(false), |error| Err(SeleniumBaseError::WebDriver(error)))
     }
 
     /// The Python-shaped `switch_to_frame`: waits for `frame`, then enters it.

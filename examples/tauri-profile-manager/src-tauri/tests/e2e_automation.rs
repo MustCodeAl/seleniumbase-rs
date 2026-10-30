@@ -331,7 +331,10 @@ async fn frames(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
     );
     sb.assert_element("#e2e-twice").await?;
 
-    let sealed = sb.switch_to_frame("#e2e-sealed").await;
+    let sealed = sb
+        .switch_to_frame("#e2e-sealed")
+        .timeout(std::time::Duration::from_secs(2))
+        .await;
     let refusal = sealed
         .expect_err("a sandboxed frame was entered")
         .to_string();

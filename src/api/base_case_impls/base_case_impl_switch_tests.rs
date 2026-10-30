@@ -16,6 +16,8 @@ mod tests_switching {
         id: &'static str,
         name: &'static str,
         displayed: bool,
+        /// Whether the driver refuses to enter the frame (a sandboxed one).
+        sealed: bool,
         inner: Vec<FakeFrame>,
     }
 
@@ -25,8 +27,14 @@ mod tests_switching {
                 id,
                 name,
                 displayed: true,
+                sealed: false,
                 inner: Vec::new(),
             }
+        }
+
+        fn sealed(mut self) -> Self {
+            self.sealed = true;
+            self
         }
 
         fn hidden(mut self) -> Self {
@@ -179,6 +187,9 @@ mod tests_switching {
         /// Enters the frame at `index` of this document.
         fn enter(&mut self, index: Option<usize>) -> Reply {
             match index {
+                Some(index) if self.here().get(index).is_some_and(|frame| frame.sealed) => {
+                    Reply::Error(404, "no such frame")
+                }
                 Some(index) if index < self.here().len() => {
                     self.path.push(index);
                     Reply::Value(Value::Null)
@@ -466,6 +477,26 @@ mod tests_switching {
             .map(|action| action.name.clone())
             .collect();
         assert_eq!(names, ["switch_to_frame", "switch_to_parent_frame"]);
+    }
+
+    #[tokio::test]
+    async fn a_frame_that_cannot_be_entered_is_retried_and_the_timeout_says_why() {
+        let (driver, fake) = start(vec![FakeFrame::new("sealed", "").sealed()]);
+        let mut sb = driver.base_case().await;
+
+        let error = sb
+            .switch_to_frame("sealed")
+            .timeout(Duration::from_secs(1))
+            .await
+            .expect_err("the driver refuses the frame");
+
+        assert!(
+            matches!(&error, SeleniumBaseError::WaitTimeout(message)
+                if message.contains("Frame {sealed} was not visible after 1s")
+                    && message.contains("last error")),
+            "{error:?}"
+        );
+        assert_eq!(path(&fake), Vec::<usize>::new());
     }
 
     /// A fake browser with the windows `w1`, `w2` and `w3`.
