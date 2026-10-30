@@ -68,8 +68,9 @@ embedded data are read-only and open-world false.
   Python is parsed, not run. The input is capped at 256 KiB.
 - **`scaffold`** calls `Suite::files()` and `TestFile::render()`, the same
   templates the commands write, through the same name validation
-  (`RelativeName`). `sbrs mkchart` and `sbrs mkpres` write HTML straight to a
-  file and have no renderer, so they are not offered.
+  (`RelativeName`). `sbrs mkchart` and `sbrs mkpres` write Rust tests of their
+  own (`ChartFile::render`, `PresentationFile::render`), not a `TestFile`, so
+  they are not offered.
 - **`cli_help`** reads `completions/sbrs.usage.kdl`, embedded: the usage spec the
   `usage` derives write from the declarations of the command line. A test of the
   CLI crate fails when it is stale, so it cannot drift from the parser, and

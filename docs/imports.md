@@ -90,8 +90,8 @@ The crate `crates/own-imports` in the repository lists `seleniumbase-rs` and
 `rstest-bdd` and nothing else. Its tests import only `seleniumbase_rs`: an
 `#[rstest]` test with a fixture, a Gherkin scenario, `#[tokio::main]` and
 `#[tokio::test]`, the `drivers` and `json` types, and `#[async_trait]`. A
-doctest compiles the golden files of `sbrs mkfile`, `sbrs mkdir` and the
-recorder there, so a generator that wrote an import of another crate fails
+doctest compiles the golden files of `sbrs mkfile`, `sbrs mkdir`, `sbrs mkpres`,
+`sbrs mkchart` and the recorder there, so a generator that wrote an import of another crate fails
 `cargo test -p seleniumbase-rs-own-imports`. `cargo test --test docs_current`
 fails when a page gains a `use thirtyfour`, `use rstest`, `use rstest_bdd` or
 `use serde_json` line outside the pages that the table above names.

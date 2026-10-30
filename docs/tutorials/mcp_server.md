@@ -992,8 +992,8 @@ async fn login() -> Result<()> {
 Run it with `cargo test --test login` when the file is in your crate's tests/ folder. ...
 ```
 
-`sbrs mkchart` and `sbrs mkpres` write an HTML file straight to disk and have no
-renderer, so `scaffold` does not offer them.
+`sbrs mkchart` and `sbrs mkpres` write test files of their own (a chart slide and
+a slide deck), which `scaffold` does not offer.
 
 ### `cli_help`
 

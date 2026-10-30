@@ -133,8 +133,11 @@ Related methods on `BaseCase`:
 - `extract_chart()` returns the chart as a JSON string with the title, type,
   labels and datasets.
 
-`sbrs mkchart --file results.html` writes a small fixed example chart (a
-Passed/Failed/Skipped bar chart) to edit by hand.
+`sbrs mkchart tests/chart.rs` writes a test to edit by hand: it builds a pie
+chart of six data points, takes its HTML with `extract_chart()` and shows it on
+the slide of a presentation. A language flag (`--es`, `--ja`, ...) writes the
+labels in that language, and `--force` replaces a file that exists. See the
+[CLI reference](/help/cli_reference).
 
 ## Troubleshooting
 

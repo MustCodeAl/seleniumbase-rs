@@ -1,6 +1,6 @@
 //! No code: the tests of this crate are the point. See `Cargo.toml`.
 //!
-//! The doctest below compiles the files that `sbrs mkdir`, `sbrs mkfile` and the recorder
+//! The doctest below compiles the files that `sbrs mkdir`, `mkfile`, `mkpres`, `mkchart` and the recorder
 //! write, in a crate whose manifest lists `seleniumbase-rs` and nothing else a test names.
 //! They are the golden files of the library (`tests/golden_rust/`, `tests/golden/cli/`), so
 //! a generator that wrote a `use` of another crate would fail here. The block is `no_run`:
@@ -51,6 +51,19 @@
     "mod mkfile_dm {\n",
     include_str!("../../../tests/golden/cli/mkfile/dm.rs.golden"),
     "}\n",
+    "mod mkpres_deck {\n",
+    include_str!("../../../tests/golden/cli/mkpres/deck.rs.golden"),
+    "}\n",
+    "mod mkpres_deck_zh {\n",
+    include_str!("../../../tests/golden/cli/mkpres/deck_zh.rs.golden"),
+    "}\n",
+    "mod mkchart_chart {\n",
+    include_str!("../../../tests/golden/cli/mkchart/chart.rs.golden"),
+    "}\n",
+    "mod mkchart_chart_ja {\n",
+    include_str!("../../../tests/golden/cli/mkchart/chart_ja.rs.golden"),
+    "}\n",
+
     "fn main() {}\n```"
 )]
 struct GeneratedCodeCompiles;
