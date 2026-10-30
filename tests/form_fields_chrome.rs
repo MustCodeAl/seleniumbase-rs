@@ -163,6 +163,57 @@ async fn get_attribute_falls_back_to_the_dom_property() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
+async fn get_attribute_gives_what_a_field_holds_now_not_the_value_of_its_markup() -> Result<()> {
+    let url = serve();
+    run_browser_test(headless(), async |sb| {
+        sb.open(&url).await?;
+        sb.set_timeout(1).await?;
+
+        // Before any typing the property is the markup's text.
+        assert_eq!(
+            sb.get_attribute("#prefilled", "value").await?.as_deref(),
+            Some("")
+        );
+        assert_eq!(
+            sb.get_attribute("#greeting", "value").await?.as_deref(),
+            Some("Hello")
+        );
+
+        // After typing, the markup still says value="" and value="Hello"; the
+        // driver's attribute command keeps answering with those, Selenium's
+        // `get_attribute` with what the field holds.
+        sb.type_text("#prefilled", "typed").await?;
+        sb.type_text("#greeting", "Goodbye").await?;
+        assert_eq!(
+            sb.get_attribute("#prefilled", "value").await?.as_deref(),
+            Some("typed")
+        );
+        assert_eq!(
+            sb.get_attribute("#greeting", "value").await?.as_deref(),
+            Some("Goodbye")
+        );
+        sb.assert_attribute("#prefilled", "value", "typed").await?;
+        assert!(sb
+            .assert_attribute("#prefilled", "value", "")
+            .await
+            .is_err());
+
+        // `checked` is in the markup of the second box; once the user clears
+        // it the property says no, and so does `get_attribute`.
+        let walk = "ul.todo-list li:nth-child(2) input.toggle";
+        assert_eq!(
+            sb.get_attribute(walk, "checked").await?.as_deref(),
+            Some("true")
+        );
+        sb.uncheck_if_checked(walk).await?;
+        assert_eq!(sb.get_attribute(walk, "checked").await?, None);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+#[ignore = "requires a local Chrome and chromedriver"]
 async fn get_select_options_gives_the_text_the_value_or_the_index_of_each_option() -> Result<()> {
     let url = serve();
     run_browser_test(headless(), async |sb| {

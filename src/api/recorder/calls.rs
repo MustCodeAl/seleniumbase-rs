@@ -758,6 +758,16 @@ mod tests {
                     Reply::Value(json!({ "x": 10.0, "y": 20.0, "width": 100.0, "height": 50.0 }))
                 }
 
+                // Selenium's `getAttribute` page script, which `get_attribute`
+                // runs in place of the driver's attribute command.
+                ("POST", "/execute/sync")
+                    if request.body["script"]
+                        .as_str()
+                        .is_some_and(|script| script.contains("/* getAttribute */")) =>
+                {
+                    Reply::Value(json!("/x"))
+                }
+
                 ("GET", path) if path.contains("/attribute/") || path.contains("/property/") => {
                     Reply::Value(json!("/x"))
                 }
@@ -973,8 +983,8 @@ mod tests {
                 "assert_attribute",
                 Some("#a"),
                 Some("href=/x"),
-                "GET",
-                "/element/e1/attribute/href",
+                "POST",
+                "/execute/sync",
             ),
             ("open_new_tab", None, None, "POST", "/execute/sync"),
             (

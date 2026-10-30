@@ -347,19 +347,41 @@ mod tests_form_attributes {
     /// `value` attribute, but the DOM property `value` says "v2". The page
     /// script that reads a property answers "v2".
     fn select_page() -> MockWebDriver {
-        MockWebDriver::start(json!({}), |request| {
-            let known = request.body["value"].as_str() == Some("#pick");
-            match (request.method.as_str(), request.path.as_str()) {
-                ("POST", "/element") if known => Reply::Value(element("pick")),
-                ("POST", "/element") => Reply::Error(404, "no such element"),
-                ("POST", "/elements") if known => Reply::Value(json!([element("pick")])),
-                ("POST", "/elements") => Reply::Value(json!([])),
-                ("GET", "/element/pick/attribute/id") => Reply::Value(json!("pick")),
-                ("POST", "/execute/sync") => Reply::Value(json!("v2")),
-                _ => Reply::Value(Value::Null),
-            }
-        })
-    }
+            MockWebDriver::start(json!({}), |request| {
+                let known = request.body["value"].as_str() == Some("#pick");
+                match (request.method.as_str(), request.path.as_str()) {
+                    ("POST", "/element") if known => Reply::Value(element("pick")),
+                    ("POST", "/element") => Reply::Error(404, "no such element"),
+                    ("POST", "/elements") if known => Reply::Value(json!([element("pick")])),
+                    ("POST", "/elements") => Reply::Value(json!([])),
+                    // The page script of Selenium's `getAttribute`: the `id` is an
+                    // attribute, `value` a property only.
+                    ("POST", "/execute/sync") => Reply::Value(match request.body["args"][1].as_str() {
+                        Some("id") => json!("pick"),
+                        _ => json!("v2"),
+                    }),
+                    _ => Reply::Value(Value::Null),
+                }
+            })
+        }
+        /// A page with `<input id=name value="">`: its markup attribute is empty,
+        /// the user has typed "typed" into it since, so the DOM property says
+        /// "typed". The attribute endpoint says what the markup has; the page
+        /// script of Selenium's `getAttribute` says what the property has.
+        fn typed_page() -> MockWebDriver {
+            MockWebDriver::start(json!({}), |request| {
+                let known = request.body["value"].as_str() == Some("#name");
+                match (request.method.as_str(), request.path.as_str()) {
+                    ("POST", "/element") if known => Reply::Value(element("name")),
+                    ("POST", "/element") => Reply::Error(404, "no such element"),
+                    ("POST", "/elements") if known => Reply::Value(json!([element("name")])),
+                    ("POST", "/elements") => Reply::Value(json!([])),
+                    ("GET", "/element/name/attribute/value") => Reply::Value(json!("")),
+                    ("POST", "/execute/sync") => Reply::Value(json!("typed")),
+                    _ => Reply::Value(Value::Null),
+                }
+            })
+        }
 
     /// The number in an option's element id (`o2` is 2).
     fn option_number(id: &str) -> usize {
@@ -370,37 +392,40 @@ mod tests_form_attributes {
     /// values v1, v2 and v3. Their `index` is a property only: the page script
     /// that reads it answers for the option it is given.
     fn options_page() -> MockWebDriver {
-        MockWebDriver::start(json!({}), |request| {
-            let known = request.body["value"].as_str() == Some("#pick");
-            let element_id = request.path.split('/').nth(2).unwrap_or_default();
-            let option = option_number(element_id);
-            match (request.method.as_str(), request.path.as_str()) {
-                ("POST", "/element") if known => Reply::Value(element("pick")),
-                ("POST", "/element") => Reply::Error(404, "no such element"),
-                ("POST", "/elements") if known => Reply::Value(json!([element("pick")])),
-                ("POST", "/elements") => Reply::Value(json!([])),
-                ("GET", "/element/pick/name") => Reply::Value(json!("select")),
-                ("POST", "/element/pick/elements") => {
-                    Reply::Value(json!([element("o1"), element("o2"), element("o3")]))
+            MockWebDriver::start(json!({}), |request| {
+                let known = request.body["value"].as_str() == Some("#pick");
+                let element_id = request.path.split('/').nth(2).unwrap_or_default();
+                let option = option_number(element_id);
+                match (request.method.as_str(), request.path.as_str()) {
+                    ("POST", "/element") if known => Reply::Value(element("pick")),
+                    ("POST", "/element") => Reply::Error(404, "no such element"),
+                    ("POST", "/elements") if known => Reply::Value(json!([element("pick")])),
+                    ("POST", "/elements") => Reply::Value(json!([])),
+                    ("GET", "/element/pick/name") => Reply::Value(json!("select")),
+                    ("POST", "/element/pick/elements") => {
+                        Reply::Value(json!([element("o1"), element("o2"), element("o3")]))
+                    }
+                    ("GET", path) if path.ends_with("/text") => {
+                        Reply::Value(json!(["", "One", "Two", "Three"][option]))
+                    }
+                    // Selenium's `getAttribute` script, run for the option the
+                    // call names: `value` is the option's attribute, `index` its
+                    // property only.
+                    ("POST", "/execute/sync") => {
+                        let option = request.body["args"][0]
+                            .as_object()
+                            .and_then(|reference| reference.values().next())
+                            .and_then(Value::as_str)
+                            .map_or(0, option_number);
+                        Reply::Value(match request.body["args"][1].as_str() {
+                            Some("value") => json!(format!("v{option}")),
+                            _ => json!((option - 1).to_string()),
+                        })
+                    }
+                    _ => Reply::Value(Value::Null),
                 }
-                ("GET", path) if path.ends_with("/text") => {
-                    Reply::Value(json!(["", "One", "Two", "Three"][option]))
-                }
-                ("GET", path) if path.ends_with("/attribute/value") => {
-                    Reply::Value(json!(format!("v{option}")))
-                }
-                ("POST", "/execute/sync") => {
-                    let option = request.body["args"][0]
-                        .as_object()
-                        .and_then(|reference| reference.values().next())
-                        .and_then(Value::as_str)
-                        .map_or(0, option_number);
-                    Reply::Value(json!((option - 1).to_string()))
-                }
-                _ => Reply::Value(Value::Null),
-            }
-        })
-    }
+            })
+        }
 
     #[tokio::test]
     async fn get_select_options_gives_the_text_the_value_or_the_index_of_each_option() {
@@ -441,41 +466,57 @@ mod tests_form_attributes {
 
 
     /// The property-reading scripts the driver was asked to run.
-    fn property_reads(driver: &MockWebDriver) -> Vec<Value> {
-        driver
-            .requests("/execute/sync")
-            .into_iter()
-            .filter(|request| {
-                request.body["script"]
-                    .as_str()
-                    .is_some_and(|script| script.contains("arguments[0][arguments[1]]"))
-            })
-            .map(|request| request.body["args"][1].clone())
-            .collect()
-    }
+    fn attribute_reads(driver: &MockWebDriver) -> Vec<Value> {
+            driver
+                .requests("/execute/sync")
+                .into_iter()
+                .filter(|request| {
+                    request.body["script"]
+                        .as_str()
+                        .is_some_and(|script| script.contains("/* getAttribute */"))
+                })
+                .map(|request| request.body["args"][1].clone())
+                .collect()
+        }
 
     #[tokio::test]
-    async fn get_attribute_falls_back_to_the_dom_property() {
-        // Selenium's `get_attribute` gives the DOM property when the element
-        // has no such attribute: the chosen value of a `<select>`.
-        let driver = select_page();
-        let mut sb = driver.base_case().await;
-
-        let value = sb.get_attribute("#pick", "value").await.unwrap();
-        assert_eq!(value.as_deref(), Some("v2"));
-        sb.assert_attribute("#pick", "value", "v2").await.unwrap();
-        assert_eq!(property_reads(&driver), [json!("value"), json!("value")]);
-    }
+    async fn get_attribute_gives_the_property_of_an_element_with_no_such_attribute() {
+            // Selenium's `get_attribute` gives the DOM property when the element
+            // has no such attribute: the chosen value of a `<select>`. The page
+            // script of Selenium's atom does the reading; the driver's attribute
+            // endpoint is not asked.
+            let driver = select_page();
+            let mut sb = driver.base_case().await;
+    
+            assert_eq!(value.as_deref(), Some("v2"));
+            sb.assert_attribute("#pick", "value", "v2").await.unwrap();
+            assert_eq!(attribute_reads(&driver), [json!("value"), json!("value")]);
+            assert!(driver.requests("/element/pick/attribute/value").is_empty());
+        }
 
     #[tokio::test]
-    async fn an_attribute_that_is_there_is_not_looked_up_as_a_property() {
-        let driver = select_page();
-        let mut sb = driver.base_case().await;
-
-        let id = sb.get_attribute("#pick", "id").await.unwrap();
-        assert_eq!(id.as_deref(), Some("pick"));
-        assert!(property_reads(&driver).is_empty());
-    }
+    async fn get_attribute_gives_the_current_value_not_the_attribute_of_the_markup() {
+            // The markup says `value=""`; the user has typed "typed" since. The
+            // W3C attribute endpoint answers with the stale markup attribute, and
+            // Selenium's `get_attribute` with the property.
+            let driver = typed_page();
+            let mut sb = driver.base_case().await;
+    
+            let value = sb.get_attribute("#name", "value").await.unwrap();
+            sb.assert_attribute("#name", "value", "typed").await.unwrap();
+            assert!(driver.requests("/element/name/attribute/value").is_empty());
+            let reads = driver.requests("/execute/sync");
+            assert_eq!(reads.len(), 2, "{reads:?}");
+            assert_eq!(reads[0].body["args"][1], json!("value"));
+        }
+    
+        #[tokio::test]
+        async fn an_attribute_that_is_there_is_read_by_the_same_script() {
+            let mut sb = driver.base_case().await;
+    
+            let id = sb.get_attribute("#pick", "id").await.unwrap();
+            assert_eq!(id.as_deref(), Some("pick"));
+            assert_eq!(attribute_reads(&driver), [json!("id")]);
 }
 
 
