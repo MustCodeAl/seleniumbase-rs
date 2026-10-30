@@ -26,6 +26,7 @@
 //! it with `Sb::finalizer`), and [`TestCase::prepare`] runs before the body
 //! (the recorder installs itself there when [`Plan::recorder`] is set).
 
+use std::cell::Cell;
 use std::io::Write as _;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -40,7 +41,9 @@ use super::deadline::{exceeded_message, Deadline};
 use super::evidence::{self, Subject};
 use crate::api::runner::{drive_with, Ended};
 use crate::artifacts::{logs_root, LATEST_LOGS_DIR};
-use crate::common::debug_prompt::{DebugPrompt, PromptKind, PromptOutcome, PromptPage};
+use crate::common::debug_prompt::{
+    DebugPrompt, Failure, PromptKind, PromptOutcome, PromptPage, Scene, SourceSpot,
+};
 use crate::config::settings::Settings;
 use crate::error::{Result, SeleniumBaseError};
 
@@ -147,6 +150,9 @@ pub(crate) struct Plan {
     pub headless: bool,
     /// What drives the browser, for the info file.
     pub driver: &'static str,
+    /// The `run` call that holds the test, for the source listing of a debug
+    /// prompt. `None` when the test does not come through `Sb::run`.
+    pub spot: Option<SourceSpot>,
 }
 
 impl Plan {
@@ -187,6 +193,7 @@ impl Plan {
             logs_dir: logs_root().join(LATEST_LOGS_DIR),
             browser: settings.browser.clone(),
             headless: settings.headless || settings.headless1,
+            spot: None,
             driver,
         })
     }
@@ -250,6 +257,7 @@ pub(crate) trait Prompter: Send + Sync {
         test_id: &str,
         message: &str,
         page: &dyn PromptPage,
+        scene: &Scene,
     ) -> Result<PromptOutcome>;
 }
 
@@ -267,15 +275,16 @@ impl Prompter for TerminalPrompter {
         test_id: &str,
         message: &str,
         page: &dyn PromptPage,
+        scene: &Scene,
     ) -> Result<PromptOutcome> {
         let Some(mut prompt) = DebugPrompt::from_terminal() else {
             tracing::warn!(
-                prompt = kind.label(),
-                "debug prompt skipped: standard input is not a terminal (run with --test-threads 1 and --nocapture in a terminal to pause)"
-            );
+                    prompt = kind.label(),
+                    "debug prompt skipped: standard input is not a terminal (run with --test-threads 1 and --nocapture in a terminal to pause)"
+                );
             return Ok(PromptOutcome::Continue);
         };
-        prompt.pause(kind, test_id, message, page).await
+        prompt.pause_in(kind, test_id, message, page, scene).await
     }
 }
 
@@ -290,15 +299,21 @@ pub(crate) fn say_on_stderr(text: &str) {
 enum Finished {
     /// The browser did not start.
     Launch(SeleniumBaseError),
-    /// The test ran and its browser was closed.
-    Ran(Ended),
+    /// The test ran and its browser was closed; the flag says a person asked
+    /// at the post-mortem prompt for another attempt.
+    Ran(Ended, bool),
 }
 
 impl Finished {
+    /// Whether a person asked at the post-mortem prompt to run the test again.
+    fn retry(&self) -> bool {
+        matches!(self, Self::Ran(_, true))
+    }
+
     fn error(&self) -> Option<&SeleniumBaseError> {
         match self {
             Self::Launch(error) => Some(error),
-            Self::Ran(ended) => ended.outcome().as_ref().err(),
+            Self::Ran(ended, _) => ended.outcome().as_ref().err(),
         }
     }
 }
@@ -329,12 +344,15 @@ impl Lifecycle<'_> {
             finalizer.begin(&self.plan.test_id).await;
         }
 
-        let attempts = self.plan.attempts();
+        let mut attempts = self.plan.attempts();
         let mut attempt = 1;
         loop {
             let finished = Box::pin(self.attempt(attempt, &launch, &body)).await;
-            if let (Some(error), true) = (finished.error(), attempt < attempts) {
+            if let (Some(error), true) = (finished.error(), attempt < attempts || finished.retry())
+            {
                 attempt += 1;
+                // A retry asked for at the post-mortem prompt goes past the reruns.
+                attempts = attempts.max(attempt);
                 (self.say)(&format!(
                     "RERUN {} (attempt {attempt} of {attempts}) after: {error}\n",
                     self.plan.test_id
@@ -348,7 +366,7 @@ impl Lifecycle<'_> {
             }
             return match finished {
                 Finished::Launch(error) => Err(error),
-                Finished::Ran(ended) => ended.finish(),
+                Finished::Ran(ended, _) => ended.finish(),
             };
         }
     }
@@ -368,7 +386,7 @@ impl Lifecycle<'_> {
                     let end = AttemptEnd {
                         test_id: &plan.test_id,
                         attempt,
-                        attempts: plan.attempts(),
+                        attempts: plan.attempts().max(attempt),
                         outcome: Outcome::Failed(&error),
                         duration: started.elapsed(),
                     };
@@ -383,6 +401,8 @@ impl Lifecycle<'_> {
         let deadline = Deadline::new(plan.time_limit);
         case.attach_deadline(Arc::clone(&deadline));
         let last = attempt >= plan.attempts();
+        // Set when a person types `r` at the post-mortem prompt.
+        let retry = Cell::new(false);
         let ended = drive_with(
             &mut case,
             async |case: &mut C| {
@@ -405,14 +425,14 @@ impl Lifecycle<'_> {
                 }
             },
             async |case: &C, error: &SeleniumBaseError| {
-                self.take_failure(case, error, started, last).await;
+                self.take_failure(case, error, started, last, &retry).await;
             },
             async |case: &mut C, ended: &Result<()>| {
-                self.finish(case, ended, started, attempt).await
+                self.finish(case, ended, started, attempt, &retry).await
             },
         )
         .await;
-        Finished::Ran(ended)
+        Finished::Ran(ended, retry.get())
     }
 
     fn subject(&self, started: Instant) -> Subject<'_> {
@@ -437,12 +457,17 @@ impl Lifecycle<'_> {
         let hold = deadline.suspend();
         let paused_at = Instant::now();
         let outcome = self
-            .ask(&*case, PromptKind::Trace, "About to run the test body.")
+            .ask(
+                &*case,
+                PromptKind::Trace,
+                "About to run the test body.",
+                None,
+            )
             .await;
         drop(hold);
         case.extend_clock(paused_at.elapsed());
         match outcome? {
-            PromptOutcome::Continue => Ok(()),
+            PromptOutcome::Continue | PromptOutcome::Retry => Ok(()),
             PromptOutcome::Quit => Err(SeleniumBaseError::test_lifecycle(
                 "stopped at the debug prompt",
             )),
@@ -454,9 +479,14 @@ impl Lifecycle<'_> {
         page: &dyn PromptPage,
         kind: PromptKind,
         message: &str,
+        failure: Option<&SeleniumBaseError>,
     ) -> Result<PromptOutcome> {
+        let mut scene = self.plan.spot.clone().map(Scene::at).unwrap_or_default();
+        if let Some(error) = failure {
+            scene = scene.with_failure(Failure::from_error(error));
+        }
         self.prompter
-            .pause(kind, &self.plan.test_id, message, page)
+            .pause(kind, &self.plan.test_id, message, page, &scene)
             .await
     }
 
@@ -467,6 +497,7 @@ impl Lifecycle<'_> {
         error: &SeleniumBaseError,
         started: Instant,
         last: bool,
+        retry: &Cell<bool>,
     ) {
         let plan = self.plan;
         let taken = evidence::take_failure(
@@ -481,9 +512,18 @@ impl Lifecycle<'_> {
             (self.say)(&format!("\n=> Fail Page: {page}\n"));
         }
         if plan.pdb && last {
-            let message = format!("The test failed: {error}");
-            if let Err(error) = self.ask(case, PromptKind::PostMortem, &message).await {
-                tracing::warn!(%error, "the post-mortem prompt failed");
+            match self
+                .ask(
+                    case,
+                    PromptKind::PostMortem,
+                    "The test failed.",
+                    Some(error),
+                )
+                .await
+            {
+                Ok(PromptOutcome::Retry) => retry.set(true),
+                Ok(_) => {}
+                Err(error) => tracing::warn!(%error, "the post-mortem prompt failed"),
             }
         }
     }
@@ -495,6 +535,7 @@ impl Lifecycle<'_> {
         ended: &Result<()>,
         started: Instant,
         attempt: u32,
+        retry: &Cell<bool>,
     ) -> Result<()> {
         let plan = self.plan;
         // The plugins have their say on a test that passed, while the page is still open. A
@@ -505,7 +546,7 @@ impl Lifecycle<'_> {
         #[cfg(not(feature = "plugins"))]
         let plugin_failure: Option<SeleniumBaseError> = None;
         if let Some(error) = &plugin_failure {
-            self.take_failure(&*case, error, started, attempt >= plan.attempts())
+            self.take_failure(&*case, error, started, attempt >= plan.attempts(), retry)
                 .await;
         }
         {
@@ -520,14 +561,18 @@ impl Lifecycle<'_> {
             }
             if plan.final_debug {
                 let message = "The test is over; the browser is still open.";
-                if let Err(error) = self.ask(&*case, PromptKind::FinalTrace, message).await {
+                if let Err(error) = self
+                    .ask(&*case, PromptKind::FinalTrace, message, None)
+                    .await
+                {
                     tracing::warn!(%error, "the final prompt failed");
                 }
             }
             let end = AttemptEnd {
                 test_id: &plan.test_id,
                 attempt,
-                attempts: plan.attempts(),
+                // A retry asked for at the prompt makes one more attempt than the plan allows.
+                attempts: plan.attempts().max(attempt + u32::from(retry.get())),
                 outcome,
                 duration: started.elapsed(),
             };
@@ -680,6 +725,10 @@ mod tests {
     struct ScriptedPrompter {
         asked: Mutex<Vec<PromptKind>>,
         quit_at: Option<PromptKind>,
+        /// Asked to retry, the first time this kind of prompt comes.
+        retry_at: Option<PromptKind>,
+        /// The scene each prompt was shown.
+        scenes: Mutex<Vec<(PromptKind, Scene)>>,
     }
 
     #[async_trait]
@@ -690,12 +739,17 @@ mod tests {
             _test_id: &str,
             _message: &str,
             _page: &dyn PromptPage,
+            scene: &Scene,
         ) -> Result<PromptOutcome> {
+            let first = !self.asked.lock().unwrap().contains(&kind);
             self.asked.lock().unwrap().push(kind);
+            self.scenes.lock().unwrap().push((kind, scene.clone()));
             // A person at the prompt takes five seconds.
             tokio::time::sleep(Duration::from_secs(5)).await;
             Ok(if self.quit_at == Some(kind) {
                 PromptOutcome::Quit
+            } else if self.retry_at == Some(kind) && first {
+                PromptOutcome::Retry
             } else {
                 PromptOutcome::Continue
             })
@@ -756,12 +810,15 @@ mod tests {
                     browser: "chrome".to_owned(),
                     headless: true,
                     driver: "Fake",
+                    spot: None,
                 },
                 events: Arc::clone(&events),
                 said: Mutex::new(String::new()),
                 prompter: ScriptedPrompter {
                     asked: Mutex::new(Vec::new()),
                     quit_at: None,
+                    retry_at: None,
+                    scenes: Mutex::new(Vec::new()),
                 },
                 finalizers: vec![Arc::new(Notes(events)) as Arc<dyn Finalizer>],
                 close_fails: false,
@@ -1225,6 +1282,105 @@ mod tests {
             .events
             .all()
             .contains(&"prepare recorder=true".to_owned()));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn the_prompts_are_shown_the_run_call_and_the_post_mortem_the_failure() {
+        let mut rig = Rig::new();
+        rig.plan.trace = true;
+        rig.plan.pdb = true;
+        rig.plan.spot = Some(SourceSpot::new("tests/login.rs", 6, 5));
+
+        let _ = rig
+            .run(async |_: &mut FakeCase| {
+                Err(SeleniumBaseError::ElementNotFound {
+                    selector: "#go".to_owned(),
+                    strategy: "css".to_owned(),
+                })
+            })
+            .await;
+
+        let scenes = rig.prompter.scenes.lock().unwrap();
+        assert_eq!(scenes.len(), 2, "the trace and the post-mortem");
+        let (trace_kind, trace) = &scenes[0];
+        assert_eq!(*trace_kind, PromptKind::Trace);
+        assert_eq!(trace.spot().map(SourceSpot::line), Some(6));
+        assert!(trace.failure().is_none(), "nothing has failed yet");
+        let (post_mortem_kind, post_mortem) = &scenes[1];
+        assert_eq!(*post_mortem_kind, PromptKind::PostMortem);
+        assert_eq!(post_mortem.spot().map(SourceSpot::line), Some(6));
+        assert_eq!(
+            post_mortem.failure().and_then(Failure::selector),
+            Some("#go")
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_test_that_does_not_come_through_run_has_no_place_to_list() {
+        let mut rig = Rig::new();
+        rig.plan.pdb = true;
+
+        let _ = rig.run(async |_: &mut FakeCase| fails("x")).await;
+
+        let scenes = rig.prompter.scenes.lock().unwrap();
+        assert!(scenes[0].1.spot().is_none());
+        assert!(scenes[0].1.failure().is_some());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn r_at_the_post_mortem_prompt_runs_the_test_once_more_past_the_reruns() {
+        let mut rig = Rig::new();
+        rig.plan.pdb = true;
+        rig.prompter.retry_at = Some(PromptKind::PostMortem);
+        let runs = AtomicU32::new(0);
+
+        let result = rig
+            .run(async |_: &mut FakeCase| {
+                if runs.fetch_add(1, Ordering::SeqCst) == 0 {
+                    fails("the first run")
+                } else {
+                    Ok(())
+                }
+            })
+            .await;
+
+        assert!(result.is_ok(), "{result:?}");
+        assert_eq!(runs.load(Ordering::SeqCst), 2);
+        assert_eq!(
+            rig.prompts(),
+            [PromptKind::PostMortem],
+            "the second run passed: no second post-mortem"
+        );
+        let said = rig.said.lock().unwrap().clone();
+        assert!(
+            said.starts_with("RERUN fake.test (attempt 2 of 2) after: "),
+            "{said}"
+        );
+        let events = rig.events.all();
+        assert!(
+            events.contains(&"finalizer fake.test 1/2 failed https://fake.test/page".to_owned()),
+            "the first attempt is not the last: {events:?}"
+        );
+        assert!(
+            events.contains(&"finalizer fake.test 2/2 passed https://fake.test/page".to_owned()),
+            "{events:?}"
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_retry_that_fails_again_is_a_post_mortem_again() {
+        let mut rig = Rig::new();
+        rig.plan.pdb = true;
+        rig.prompter.retry_at = Some(PromptKind::PostMortem);
+
+        let result = rig.run(async |_: &mut FakeCase| fails("still")).await;
+
+        assert!(result.is_err());
+        assert_eq!(
+            rig.prompts(),
+            [PromptKind::PostMortem, PromptKind::PostMortem],
+            "the retry is the last attempt, so it ends at the prompt as well"
+        );
     }
 
     fn settings_with(test: TestSettings) -> Settings {

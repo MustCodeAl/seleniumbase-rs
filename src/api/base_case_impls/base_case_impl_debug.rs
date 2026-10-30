@@ -35,6 +35,15 @@ impl BaseCase {
     /// the browser meanwhile. The time spent at the prompt is added to the
     /// [time limit](Self::set_time_limit).
     ///
+    /// The banner is coloured and lists the code around the call, as pdbp does
+    /// for Python: the call is marked `->`, `l` and `ll` list more of the test
+    /// and `w` says where the pause is. `p <expr>` and `pp <expr>` print a
+    /// value and `dt` names the address of Chrome's DevTools. Colour is left
+    /// out when standard error is not a terminal or `NO_COLOR` is set.
+    ///
+    /// This is a plain function that returns a future, not an `async fn`, so
+    /// that `#[track_caller]` can record where it was called from.
+    ///
     /// The pause is skipped, with a warning in the log, when standard input
     /// is not a terminal (CI, a pipe, `cargo nextest`), and silently when the
     /// environment variable `SB_BREAKPOINTS` is `0`, so a breakpoint left in a
@@ -56,17 +65,29 @@ impl BaseCase {
     /// Returns [`SeleniumBaseError::TestLifecycle`] when the person quits the
     /// prompt (`q`), and [`SeleniumBaseError::Io`] when the terminal cannot be
     /// read or written.
-    pub async fn breakpoint(&mut self, message: &str) -> Result<(), SeleniumBaseError> {
-        let Some(mut prompt) = crate::common::debug_prompt::breakpoint_prompt() else {
-            return Ok(());
-        };
-        self.pause_at(
-            &mut prompt,
-            crate::common::debug_prompt::PromptKind::Breakpoint,
-            message,
-        )
-        .await
-    }
+    #[track_caller]
+        pub fn breakpoint<'a>(
+            &'a mut self,
+            message: &'a str,
+        ) -> impl std::future::Future<Output = Result<(), SeleniumBaseError>> + 'a {
+            // Not an `async fn`: the attribute above does not apply to one, and the
+            // place of the call is what the listing at the prompt shows.
+            let scene = crate::common::debug_prompt::Scene::at(
+                crate::common::debug_prompt::SourceSpot::caller(),
+            );
+            async move {
+                let Some(mut prompt) = crate::common::debug_prompt::breakpoint_prompt() else {
+                    return Ok(());
+                };
+                self.pause_at(
+                    &mut prompt,
+                    crate::common::debug_prompt::PromptKind::Breakpoint,
+                    message,
+                    &scene,
+                )
+                .await
+            }
+        }
 
     /// Pauses at `prompt` as `kind`, adds the time spent there to the time
     /// limit, and turns a quit into an error.
@@ -75,6 +96,7 @@ impl BaseCase {
         prompt: &mut crate::common::debug_prompt::DebugPrompt<I, W>,
         kind: crate::common::debug_prompt::PromptKind,
         message: &str,
+        scene: &crate::common::debug_prompt::Scene,
     ) -> Result<(), SeleniumBaseError>
     where
         I: crate::common::debug_prompt::LineInput,
@@ -89,10 +111,11 @@ impl BaseCase {
         #[cfg(feature = "testing")]
         let _clock_stopped = self.deadline.as_ref().map(|deadline| deadline.suspend());
 
-        let outcome = prompt.pause(kind, &test_id, message, &*self).await;
+        let outcome = prompt.pause_in(kind, &test_id, message, &*self, scene).await;
         self.extend_time_limit(started.elapsed());
         match outcome? {
-            crate::common::debug_prompt::PromptOutcome::Continue => Ok(()),
+            crate::common::debug_prompt::PromptOutcome::Continue
+            | crate::common::debug_prompt::PromptOutcome::Retry => Ok(()),
             crate::common::debug_prompt::PromptOutcome::Quit => Err(
                 SeleniumBaseError::test_lifecycle("stopped at the debug prompt"),
             ),
@@ -150,7 +173,7 @@ mod debug_prompt_tests {
         sb.set_time_limit(1).unwrap();
         let mut at_prompt = prompt(vec!["c"], Duration::from_millis(1200), logs.path());
 
-        sb.pause_at(&mut at_prompt, PromptKind::Breakpoint, "wait for a person")
+        sb.pause_at(&mut at_prompt, PromptKind::Breakpoint, "wait for a person", &crate::common::debug_prompt::Scene::default())
             .await
             .unwrap();
 
@@ -166,7 +189,7 @@ mod debug_prompt_tests {
         let mut sb = driver.base_case().await;
         let mut at_prompt = prompt(vec!["c"], Duration::ZERO, logs.path());
 
-        sb.pause_at(&mut at_prompt, PromptKind::Breakpoint, "m")
+        sb.pause_at(&mut at_prompt, PromptKind::Breakpoint, "m", &crate::common::debug_prompt::Scene::default())
             .await
             .unwrap();
 
@@ -181,8 +204,7 @@ mod debug_prompt_tests {
         sb.set_time_limit(60).unwrap();
         let mut at_prompt = prompt(vec!["q"], Duration::from_millis(50), logs.path());
 
-        let error = sb
-            .pause_at(&mut at_prompt, PromptKind::Breakpoint, "m")
+        let error = sb.pause_at(&mut at_prompt, PromptKind::Breakpoint, "m", &crate::common::debug_prompt::Scene::default())
             .await
             .unwrap_err();
 
@@ -215,7 +237,7 @@ mod debug_prompt_tests {
             logs.path(),
         );
 
-        sb.pause_at(&mut at_prompt, PromptKind::Breakpoint, "look")
+        sb.pause_at(&mut at_prompt, PromptKind::Breakpoint, "look", &crate::common::debug_prompt::Scene::default())
             .await
             .unwrap();
 
@@ -225,7 +247,7 @@ mod debug_prompt_tests {
             text.contains("page: https://example.com/login  \"Login\""),
             "{text}"
         );
-        assert!(text.contains("> 2\n"), "the js value: {text}");
+        assert!(text.contains("(Sb+) 2\n"), "the js value: {text}");
         let folder = logs.path().join("login.valid_login");
         assert_eq!(std::fs::read(folder.join("breakpoint_1.png")).unwrap(), PNG);
         assert_eq!(
@@ -254,7 +276,7 @@ mod debug_prompt_tests {
         let mut sb = driver.base_case().await;
         let mut at_prompt = prompt(vec!["u", "s", "src", "c"], Duration::ZERO, logs.path());
 
-        sb.pause_at(&mut at_prompt, PromptKind::Breakpoint, "look")
+        sb.pause_at(&mut at_prompt, PromptKind::Breakpoint, "look", &crate::common::debug_prompt::Scene::default())
             .await
             .unwrap();
 

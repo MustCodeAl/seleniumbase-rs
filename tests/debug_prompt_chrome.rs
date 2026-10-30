@@ -77,7 +77,7 @@ async fn check(page: &dyn PromptPage, address: &str) {
         text.contains("\"Debug Page\"\n"),
         "js document.title: {text}"
     );
-    assert!(text.contains("> 42\n"), "js 6 * 7: {text}");
+    assert!(text.contains("(Sb+) 42\n"), "js 6 * 7: {text}");
     let folder = logs.path().join("debug_prompt_chrome.real_page");
     let png = std::fs::read(folder.join("breakpoint_1.png")).expect("a screenshot");
     assert!(
