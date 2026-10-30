@@ -1752,7 +1752,7 @@ cmd uc-type help_heading="Page commands" help="Perform UC-mode typing into an el
     complete text type=none
     example "sbrs --uc --url https://example.com uc-type --css '#q' --text hello"
 }
-cmd solve-captcha help_heading="Page commands" help="Solve the CAPTCHA on the page and check that it cleared." {
+cmd solve-captcha help_heading=Security help="Solve the CAPTCHA on the page and check that it cleared." {
     long_help #"""
 Solve the CAPTCHA on the page and check that it cleared.
 

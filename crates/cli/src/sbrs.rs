@@ -1325,7 +1325,7 @@ enum Commands {
     /// three times if the page could show one and did not. It then checks what you expect of the
     /// page: text of the site's own page and a clearance cookie. Needs `--cdp` or `--uc`.
     #[usage(
-        help_heading = "Page commands",
+        help_heading = "Security",
         example = "sbrs --uc --url https://nowsecure.nl solve-captcha --expect-text nowsecure --expect-cookie cf_clearance"
     )]
     SolveCaptcha {
