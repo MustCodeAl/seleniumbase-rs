@@ -6,7 +6,7 @@
 //! through a [`Registry`]:
 //!
 //! * [`builtin_registry`] holds the official plugins whose cargo feature is on
-//!   (`plugin-shield`, `plugin-block-resources`, `plugin-crx`, `plugin-fetcher`, `plugin-extractor`, `plugin-batcher`, `plugin-crawler`, `plugin-browser`, `plugin-imap`, or
+//!   (`plugin-shield`, `plugin-block-resources`, `plugin-crx`, `plugin-fetcher`, `plugin-extractor`, `plugin-batcher`, `plugin-crawler`, `plugin-browser`, `plugin-imap`, `plugin-tor`, or
 //!   `plugins-builtin` for all of them). A build with none has an empty
 //!   registry, and every name is then unknown.
 //! * [`build`] and [`build_with`] return a *strict* [`PluginSet`]: it refuses a
@@ -59,7 +59,7 @@ pub(crate) use timer::TokioTimer;
 /// The cargo features that add a built-in plugin, for messages.
 const BUILTIN_FEATURES: &str = "plugin-shield, plugin-block-resources, plugin-crx, \
                                 plugin-fetcher, plugin-extractor, plugin-batcher, plugin-crawler, \
-                                plugin-browser, plugin-imap \
+                                plugin-browser, plugin-imap, plugin-tor \
                                 (plugins-builtin turns them all on)";
 
 /// The built-in plugins this build contains, by name.
@@ -77,6 +77,7 @@ pub fn builtin_registry() -> Registry {
         feature = "plugin-crawler",
         feature = "plugin-browser",
         feature = "plugin-imap",
+        feature = "plugin-tor",
         feature = "plugin-crx"
     ))]
     {
@@ -91,6 +92,7 @@ pub fn builtin_registry() -> Registry {
         feature = "plugin-crawler",
         feature = "plugin-browser",
         feature = "plugin-imap",
+        feature = "plugin-tor",
         feature = "plugin-crx"
     )))]
     {
@@ -368,6 +370,7 @@ mod tests {
             "plugin-crawler",
             "plugin-browser",
             "plugin-imap",
+            "plugin-tor",
         ] {
             assert!(text.contains(feature), "{feature} in {text}");
         }
@@ -571,6 +574,84 @@ mod tests {
         assert_eq!(build(&good).unwrap().names(), ["imap"]);
     }
 
+    #[cfg(feature = "plugin-tor")]
+    #[test]
+    fn the_builtin_registry_builds_tor_and_refuses_an_address_that_is_not_loopback() {
+        assert!(builtin_registry().names().contains(&"tor"));
+
+        // Every option has a default, so the plugin builds with none; nothing connects until a
+        // browser launches.
+        let bare = build(&PluginSelection::new().enable("tor")).unwrap();
+        assert_eq!(bare.names(), ["tor"]);
+
+        let wrong = |options: Value| {
+            build(
+                &PluginSelection::new()
+                    .enable("tor")
+                    .with_options("tor", options),
+            )
+            .unwrap_err()
+        };
+
+        let error = wrong(json!({ "socks": "10.0.0.5:9050" }));
+        assert!(
+            matches!(&error, SeleniumBaseError::Plugin { plugin, .. } if plugin == "tor"),
+            "{error:?}"
+        );
+        let text = error.to_string();
+        assert!(
+            text.contains("`socks` must be a loopback address"),
+            "{text}"
+        );
+        assert!(text.contains("10.0.0.5:9050"), "{text}");
+
+        // A control port needs its authentication, and a password is never an option.
+        let text = wrong(json!({ "control": "127.0.0.1:9051" })).to_string();
+        assert!(text.contains("control_auth"), "{text}");
+        let text = wrong(json!({ "password": "hunter2" })).to_string();
+        assert!(text.contains("unknown option `password`"), "{text}");
+    }
+
+    #[cfg(feature = "plugin-tor")]
+    #[test]
+    fn tor_is_for_a_chromium_browser_the_program_starts() {
+        use seleniumbase_rs_plugin::{BrowserFamily, Engine, HostInfo, LaunchContext};
+
+        let set = build(&PluginSelection::new().enable("tor")).unwrap();
+        let launch = |family, connecting| LaunchContext {
+            engine: Engine::Cdp,
+            family,
+            headless: true,
+            connecting,
+        };
+
+        set.check(&launch(BrowserFamily::Chromium, false)).unwrap();
+        // Firefox cannot be routed this way, and a browser that is already running has its
+        // proxy set: both are refused before anything starts.
+        for (family, connecting) in [
+            (BrowserFamily::Firefox, false),
+            (BrowserFamily::Chromium, true),
+        ] {
+            let error =
+                SeleniumBaseError::from(set.check(&launch(family, connecting)).unwrap_err());
+            assert!(
+                matches!(&error, SeleniumBaseError::Plugin { plugin, .. } if plugin == "tor"),
+                "{family:?} connecting={connecting}: {error:?}"
+            );
+        }
+
+        // The CDP engine gives the plugin what it needs; the WebDriver engine offers no browser
+        // contexts, which the circuits of each context rest on, and is refused for that.
+        let webdriver = HostInfo::webdriver(BrowserFamily::Chromium);
+        let context = launch(BrowserFamily::Chromium, false);
+        set.check_with(&context, &HostInfo::cdp()).unwrap();
+        let error = set.check_with(&context, &webdriver).unwrap_err();
+        assert!(
+            matches!(&error, PluginError::Unsupported { capability, .. } if capability == "contexts"),
+            "{error:?}"
+        );
+    }
+
     #[cfg(all(feature = "plugin-crx", feature = "plugin-browser"))]
     #[test]
     fn crx_and_browser_build_together_but_the_launch_check_refuses_the_pair() {
@@ -613,10 +694,11 @@ mod tests {
         feature = "plugin-crawler",
         feature = "plugin-browser",
         feature = "plugin-imap",
+        feature = "plugin-tor",
         feature = "plugin-crx"
     ))]
     #[test]
-    fn plugins_builtin_knows_the_nine_official_plugins() {
+    fn plugins_builtin_knows_the_ten_official_plugins() {
         let mut names = builtin_registry().names();
         names.sort_unstable();
         assert_eq!(
@@ -630,7 +712,8 @@ mod tests {
                 "extractor",
                 "fetcher",
                 "imap",
-                "shield"
+                "shield",
+                "tor"
             ]
         );
     }
@@ -644,6 +727,7 @@ mod tests {
         feature = "plugin-crawler",
         feature = "plugin-browser",
         feature = "plugin-imap",
+        feature = "plugin-tor",
         feature = "plugin-crx"
     )))]
     #[test]

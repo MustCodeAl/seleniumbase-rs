@@ -132,6 +132,7 @@ fn plugin_list_shows_every_builtin_plugin_and_none_is_on_by_default() {
         ("crawler", "testing"),
         ("browser", "extension"),
         ("imap", "testing"),
+        ("tor", "privacy"),
     ] {
         let columns = row(&text, name);
         assert_eq!(columns[1], category, "{name}");
@@ -362,7 +363,69 @@ fn the_webdriver_engine_refuses_the_imap_plugin_because_it_cannot_host_a_task() 
 }
 
 #[test]
+fn plugin_info_shows_what_the_tor_plugin_declares() {
+    let output = in_a_new_folder(&[], &["plugin", "info", "tor"]);
 
+    assert!(output.status.success(), "{}", stderr(&output));
+    let text = stdout(&output);
+    assert!(text.starts_with("tor "), "name and version first: {text}");
+    for expected in [
+        "category      privacy",
+        "enabled       no",
+        "Routes the browser through a local Tor daemon",
+        // It sets the proxy and the network settings of the launch, makes contexts, and dials
+        // only the loopback addresses of the Tor daemon the operator runs.
+        "launch.proxy",
+        "launch.network",
+        "launch.prefs",
+        "contexts",
+        "host.net:loopback",
+        "--plugin-opt 'tor.KEY=VALUE'",
+        "[plugins.tor]",
+    ] {
+        assert!(text.contains(expected), "{expected:?} in:\n{text}");
+    }
+}
+
+#[test]
+fn the_tor_plugin_refuses_a_socks_address_that_is_not_loopback_before_a_browser_starts() {
+    // Nothing is routed to a Tor daemon on another machine: the option is refused at once, and
+    // nothing connects anywhere.
+    let run = against_a_fake_server(
+        None,
+        &[],
+        &[
+            "--plugin",
+            "tor",
+            "--plugin-opt",
+            r#"tor.socks="10.0.0.5:9050""#,
+        ],
+        &OPEN,
+    );
+
+    assert_eq!(run.output.status.code(), Some(2), "{}", run.stderr());
+    let message = run.stderr();
+    assert!(
+        message.contains("tor: `socks` must be a loopback address"),
+        "{message}"
+    );
+    assert!(message.contains("10.0.0.5:9050"), "{message}");
+    assert!(run.driver.chrome_args().is_none(), "no browser was started");
+}
+
+#[test]
+fn a_webdriver_server_sbrs_attaches_to_is_refused_by_the_tor_plugin_before_tor_is_looked_for() {
+    // `--webdriver URL` attaches to a WebDriver server that is already running, whose proxy the
+    // program cannot set. The check refuses it before any hook runs: nothing looks for Tor.
+    let run = against_a_fake_server(None, &[], &["--plugin", "tor"], &OPEN);
+
+    assert!(!run.output.status.success(), "{}", run.stderr());
+    assert!(run.stderr().contains("tor"), "{}", run.stderr());
+    assert!(run.stderr().contains("attaches to"), "{}", run.stderr());
+    assert!(run.driver.chrome_args().is_none(), "no browser was started");
+}
+
+#[test]
 fn plugin_info_shows_the_options_in_effect_and_whether_the_plugin_is_on() {
     let output = in_a_new_folder(
         &[],

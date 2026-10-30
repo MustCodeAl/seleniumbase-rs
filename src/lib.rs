@@ -104,7 +104,7 @@ pub mod ocr;
 pub use seleniumbase_rs_plugin as plugin_api;
 /// The built-in plugins, one cargo feature each (`plugin-shield`,
 /// `plugin-block-resources`, `plugin-crx`, `plugin-fetcher`, `plugin-extractor`,
-/// `plugin-batcher`, `plugin-crawler`, `plugin-browser`, `plugin-imap`; `plugins-builtin` for all): the
+/// `plugin-batcher`, `plugin-crawler`, `plugin-browser`, `plugin-imap`, `plugin-tor`; `plugins-builtin` for all): the
 /// crate `seleniumbase-rs-plugins-builtin`, with each plugin's own types and
 /// its `registry()`. Most programs enable them by name instead; see
 /// [`plugin_host`].
@@ -117,6 +117,7 @@ pub use seleniumbase_rs_plugin as plugin_api;
     feature = "plugin-crawler",
     feature = "plugin-browser",
     feature = "plugin-imap",
+    feature = "plugin-tor",
     feature = "plugin-crx"
 ))]
 pub use seleniumbase_rs_plugins_builtin as builtin_plugins;
