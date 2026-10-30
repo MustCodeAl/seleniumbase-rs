@@ -3,6 +3,8 @@ title: "Contributing to SeleniumBase-rs"
 sidebarTitle: "Contributing"
 ---
 
+{/* layout-tree-component:start */}
+
 export const LayoutTree = ({ children }) => (
   <div className="not-prose layout-tree" style={{ margin: "1.25rem 0", fontFamily: "var(--font-sans)", fontSize: "14px", color: "var(--text-secondary)" }}>
     <style>{`
@@ -105,6 +107,8 @@ export const layoutIconColor = (name) => {
 export const LayoutFile = ({ name, note, highlight = false }) => (
   <LayoutRow icon={<span className={highlight ? "" : "lt-ic-" + layoutIconColor(name)} style={{ display: "flex" }}><LayoutFileIcon /></span>} name={name} note={note} highlight={highlight} />
 )
+
+{/* layout-tree-component:end */}
 
 Thank you for helping make `seleniumbase-rs` a powerful, idiomatic Rust
 browser-automation framework. Whether you are fixing a bug, adding a new stealth
@@ -299,41 +303,129 @@ prompt that runs the checks, is in
 
 ## Project Layout
 
+{/* layout-tree:start */}
+
 <LayoutTree>
-<LayoutDir name="seleniumbase-rs" open>
-<LayoutDir name="src" open>
-<LayoutFile name="lib.rs" highlight note="Crate root and public re-exports" />
-<LayoutDir name="api" note="BaseCase (base_case.rs, base_case_impls/), capability traits, recorder, scenario, run_settings, charts, tours" />
-<LayoutDir name="browser" note="BrowserConfig, launcher, session, options/, driver matching" />
-<LayoutDir name="sb_cdp" note="The pure CDP engine: Browser, Page, Locator, pool, mock" />
-<LayoutDir name="stealth" note="Fingerprint, evasion providers, humanize, patcher, reactor" />
-<LayoutDir name="mcp" note="MCP servers: cdp, driver, sb; developer tools in devtools.rs" />
-<LayoutDir name="cli" note="the library half of sbrs: commands.rs, scaffold.rs, scripts/" />
-<LayoutDir name="testing" note="the rstest sb fixtures; bdd/: Gherkin through rstest-bdd" />
-<LayoutDir name="plugins" note="Reporting and logging plugins" />
-<LayoutDir name="config" note="Settings, runtime config, proxy and ad-block lists" />
-<LayoutDir name="core" note="report_helper: test result records" />
-<LayoutDir name="common" note="Graceful shutdown, encryption, obfuscation" />
-<LayoutDir name="storage" note="turso feature: ResultStore, ProfileVault" />
-<LayoutDir name="utilities" note="RetryPolicy, the grid server, Selenium Grid and IDE, the Python importer" />
-<LayoutDir name="utils" note="Selectors, shadow DOM, URLs, geometry, extensions, translations" />
-<LayoutDir name="profile_payloads" note="Parses external browser-profile JSON into a Fingerprint" />
+<LayoutDir name="seleniumbase-rs" open note="the workspace root">
+<LayoutFile name="Cargo.toml" highlight note="the workspace and the library package: version, rust-version 1.99, features" />
+<LayoutFile name="Cargo.lock" note="the locked dependency versions" />
+<LayoutFile name="rust-toolchain.toml" note="pins Rust 1.99 with clippy and rustfmt" />
+<LayoutDir name="src" open note="the library (no binary): both engines, the MCP tools, the library half of the command line">
+<LayoutFile name="lib.rs" highlight note="the crate root and its public re-exports" />
 <LayoutFile name="error.rs" highlight note="SeleniumBaseError: hints, exit codes, selector advice" />
+<LayoutDir name="api" note="BaseCase (base_case.rs, base_case_impls/), the capability traits, recorder, scenario, charts, tours" />
+<LayoutDir name="browser" note="BrowserConfig, the launcher, the WebDriver session, driver access and downloads" />
+<LayoutDir name="sb_cdp" note="the pure CDP engine: Browser, Page, Locator, pool, mock" />
+<LayoutDir name="evasion" note="fingerprints, evasion providers, humanize, binary patching and the CDP reactor" />
+<LayoutDir name="mcp" note="the MCP servers cdp, driver, sb and dev, and their tools" />
+<LayoutDir name="cli" note="the library half of sbrs, with no parser: commands.rs, scaffold.rs, scripts/" />
+<LayoutDir name="testing" note="the rstest sb fixtures; bdd/: Gherkin through rstest-bdd" />
+<LayoutDir name="plugins" note="reporting and logging plugins" />
+<LayoutDir name="plugin_host" note="turns plugin names and options into a PluginSet (feature plugins)" />
+<LayoutDir name="config" note="settings, runtime config, proxy and ad-block lists" />
+<LayoutDir name="core" note="test result records and the Allure, JUnit and dashboard writers" />
+<LayoutDir name="common" note="graceful shutdown, encryption, obfuscation, test ids, the debug prompt" />
+<LayoutDir name="storage" note="ResultStore and ProfileVault (feature turso)" />
+<LayoutDir name="utilities" note="RetryPolicy, the grid server, Selenium Grid and IDE, the Python importer" />
+<LayoutDir name="utils" note="selectors, shadow DOM, URLs, geometry, bundled extensions, translations" />
+<LayoutDir name="profile_payloads" note="parses external browser-profile JSON into a Fingerprint" />
+<LayoutDir name="resources" note="files the crate manages on disk, such as downloaded browser drivers" />
+<LayoutDir name="js_code" note="building blocks for the JavaScript the crate sends to a page" />
+<LayoutFile name="artifacts.rs" note="where the files of a test run go (latest_logs) and how they are named" />
+<LayoutFile name="drivers.rs" note="the WebDriver types behind BaseCase, under this crate's name" />
+<LayoutFile name="json.rs" note="JSON values and json!, under this crate's name" />
+<LayoutFile name="macros.rs" note="convenience macros for tests, such as sb_test!" />
+<LayoutFile name="ocr.rs" note="reading text from screenshots (feature ocr)" />
+<LayoutFile name="tracing_util.rs" note="tracing initialization helpers" />
+<LayoutFile name="visual.rs" note="feature visual: VisualBaseline, screenshot baselines compared by SSIM" />
 </LayoutDir>
-<LayoutDir name="crates" open>
-<LayoutDir name="cli" open note="Package seleniumbase-rs-cli: the sbrs and sbrs-mcp binaries">
-<LayoutDir name="src" note="sbrs.rs (usage derives), fig.rs, report.rs, mcp_server.rs" />
-<LayoutDir name="tests" note="Every test that runs the real sbrs or sbrs-mcp binary" />
+<LayoutDir name="crates" open note="the workspace members besides the library">
+<LayoutDir name="cli" open note="the package seleniumbase-rs-cli: the sbrs and sbrs-mcp binaries">
+<LayoutFile name="Cargo.toml" note="default features: pdf, mcp-server, mcp-client, plugins-builtin" />
+<LayoutDir name="src" open>
+<LayoutFile name="sbrs.rs" highlight note="the sbrs command line" />
+<LayoutFile name="mcp_server.rs" highlight note="the sbrs-mcp server" />
+<LayoutFile name="fig.rs" note="the Fig completion spec" />
+<LayoutFile name="report.rs" note="sbrs report" />
+<LayoutFile name="reference.rs" note="renders docs/help/cli_reference.md from the usage spec" />
+<LayoutFile name="strict.rs" note="refuses, with status 2, what the parser is too loose about" />
+<LayoutDir name="mcp_install" note="sbrs-mcp install, uninstall and clients" />
 </LayoutDir>
+<LayoutDir name="tests" note="every test that runs the real sbrs or sbrs-mcp binary" />
 </LayoutDir>
-<LayoutDir name="tests" note="Integration tests of the library (tests/golden is compiled in)" />
-<LayoutDir name="benches" note="cpu, cdp_latency" />
-<LayoutDir name="examples" note="Runnable examples" />
-<LayoutDir name="parity" note="api.toml: the status of every Python API" />
-<LayoutDir name="docs" note="mdBook sources, help pages, design/ notes" />
-<LayoutFile name="CLAUDE.md" note="The module map for coding assistants" />
+<LayoutDir name="own-imports" note="tests that import only seleniumbase_rs: the proof that its re-exports work" />
+</LayoutDir>
+<LayoutDir name="tests" note="integration tests of the library">
+<LayoutDir name="golden" note="compiled into the library" />
+<LayoutDir name="support" note="shared with crates/cli/tests" />
+<LayoutFile name="sb_cdp_mock.rs" note="the pure CDP API against a mocked browser" />
+<LayoutFile name="sb_cdp_chrome.rs" note="the same against a real Chrome, ignored by default" />
+<LayoutFile name="browser_smoke.rs" note="the WebDriver path against a real Chrome, ignored by default" />
+</LayoutDir>
+<LayoutDir name="benches" note="the benchmarks">
+<LayoutFile name="cdp_latency.rs" note="the pure CDP engine against a real Chrome" />
+<LayoutFile name="cpu.rs" note="the library's own work, no browser" />
+</LayoutDir>
+<LayoutDir name="examples" note="runnable examples">
+<LayoutDir name="tauri-profile-manager" note="has its own manifest and is not part of the workspace" />
+</LayoutDir>
+<LayoutDir name="docs" note="the pages of this site">
+<LayoutFile name="docs.json" note="the Docs7 navigation and settings" />
+<LayoutFile name="SUMMARY.md" note="the mdBook table of contents" />
+<LayoutDir name="tutorials" note="step-by-step guides" />
+<LayoutDir name="help" note="help pages" />
+<LayoutDir name="design" note="design notes" />
+<LayoutDir name="adr" note="architecture decision records" />
+</LayoutDir>
+<LayoutDir name="parity" note="the Python parity manifests">
+<LayoutFile name="api.toml" note="the status of every Python SeleniumBase API" />
+<LayoutFile name="upstream.toml" note="the upstream version this crate tracks" />
+</LayoutDir>
+<LayoutDir name="completions" note="the usage spec of sbrs">
+<LayoutFile name="sbrs.usage.kdl" note="generated from crates/cli/src/sbrs.rs" />
+</LayoutDir>
+<LayoutDir name="schemas" note="JSON Schemas">
+<LayoutFile name="fingerprint.schema.json" note="the schema of a Fingerprint file" />
+</LayoutDir>
+<LayoutDir name="contrib" note="files that are not part of the crate">
+<LayoutDir name="tldr" note="draft tldr-pages entries for sbrs, kept to propose upstream" />
+</LayoutDir>
+<LayoutDir name="scripts" note="helper scripts">
+<LayoutFile name="check-consumers.sh" note="just contracts: checks what the repositories that build on this crate use" />
+</LayoutDir>
+<LayoutDir name="tools" note="scripts for the docs and the parity manifests">
+<LayoutDir name="mdx-check" note="just mdx: builds every docs page as Docs7 does" />
+<LayoutDir name="parity" note="extracts, seeds and renders the parity manifest (docs/parity.md)" />
+<LayoutDir name="layout_tree" note="the tree component that docs_layout_tree.py copies onto the pages" />
+<LayoutFile name="docs_layout_tree.py" note="just layout-tree: writes the layout trees of the docs pages" />
+<LayoutFile name="docs7_changelog.py" note="writes docs/changelog.md from CHANGELOG.md" />
+</LayoutDir>
+<LayoutDir name="docker" note="the Linux verification image (Dockerfile.verify, verify-linux.sh) and firefox-check/" />
+<LayoutDir name=".config" note="configuration of tools">
+<LayoutFile name="nextest.toml" note="the nextest configuration and its chrome test group" />
+</LayoutDir>
+<LayoutDir name=".github" note="GitHub Actions">
+<LayoutDir name="workflows" note="ci, docker, completions, release and upstream-watch" />
+</LayoutDir>
+<LayoutDir name=".warp" note="the Warp terminal">
+<LayoutDir name="workflows" note="the Warp workflows for sbrs" />
+</LayoutDir>
+<LayoutFile name="Dockerfile" note="the sbrs image; its skeleton step lists every target" />
+<LayoutFile name="Makefile" note="make targets" />
+<LayoutFile name="justfile" note="just recipes" />
+<LayoutFile name="mise.toml" note="tools and tasks for mise" />
+<LayoutFile name="deny.toml" note="the cargo-deny policy" />
+<LayoutFile name="clippy.toml" note="clippy settings" />
+<LayoutFile name="rust-analyzer.toml" note="settings for rust-analyzer" />
+<LayoutFile name="book.toml" note="the mdBook configuration" />
+<LayoutFile name="README.md" />
+<LayoutFile name="CHANGELOG.md" note="what changed in each release" />
+<LayoutFile name="ROADMAP.md" note="what is done and what is missing" />
+<LayoutFile name="CLAUDE.md" note="the module map for coding assistants" />
 </LayoutDir>
 </LayoutTree>
+
+{/* layout-tree:end */}
 
 ## Architecture at a Glance
 

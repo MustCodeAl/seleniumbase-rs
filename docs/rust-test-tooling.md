@@ -3,6 +3,8 @@ title: "Writing Browser Tests"
 sidebarTitle: "Write a test"
 ---
 
+{/* layout-tree-component:start */}
+
 export const LayoutTree = ({ children }) => (
   <div className="not-prose layout-tree" style={{ margin: "1.25rem 0", fontFamily: "var(--font-sans)", fontSize: "14px", color: "var(--text-secondary)" }}>
     <style>{`
@@ -105,6 +107,8 @@ export const layoutIconColor = (name) => {
 export const LayoutFile = ({ name, note, highlight = false }) => (
   <LayoutRow icon={<span className={highlight ? "" : "lt-ic-" + layoutIconColor(name)} style={{ display: "flex" }}><LayoutFileIcon /></span>} name={name} note={note} highlight={highlight} />
 )
+
+{/* layout-tree-component:end */}
 
 `seleniumbase-rs` does not ship its own test runner. Instead, it integrates with
 standard Rust tooling: `#[tokio::test]`, `cargo test`, `cargo nextest run`, and
