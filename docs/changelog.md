@@ -235,6 +235,16 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ### Added
 
+- **Contract tests for the repositories that build on this crate.** `tests/contract_stealth.rs`,
+  `contract_companion.rs`, `contract_plugins.rs`, `contract_tauri.rs` and
+  `crates/cli/tests/contract_homebrew.rs` hold, for each of them, the items it imports from here
+  and the calls it makes, as it makes them, so a change to an item a consumer uses breaks a test
+  here that names the consumer. `scripts/check-consumers.sh` (`just contracts`) reads the sibling
+  checkouts and fails, naming the path, when one uses something its contract file does not list;
+  `--check-build` also compiles each consumer against this checkout, for a release. The plugin
+  pin in `Cargo.toml` is checked there too (both lines the same `rev`, an ancestor of the plugins
+  repository's `main`). See `docs/contributing/consumers.md`.
+
 - **The pure CDP engine reads `::shadow` selectors.** `page.locator("my-app::shadow button")`
   finds the button in the open shadow root of `my-app`, one `::shadow` for each root, in every
   method of the locator and so in its waits and expectations; a step of a chain reads it too, and
