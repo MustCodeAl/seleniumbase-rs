@@ -22,7 +22,7 @@ steps are Rust functions that use the same `sb` API as any other test.
 
 <Visibility for="agents">
 
-Summary for AI exports: enable the features `testing` and `bdd`; depend on `rstest`, `rstest-bdd` and `rstest-bdd-macros` in the test crate. A scenario is `#[scenario(path = "...", name = "...")] #[tokio::test(flavor = "multi_thread")] async fn name(#[future(awt)] sb: SbCase) {}` with `use seleniumbase_rs::testing::bdd::{sb, SbCase}`; steps are `#[given]`, `#[when]`, `#[then]` async functions taking `sb: &mut SbCase`. A failed step panics; the fixture then writes `latest_logs/<test id>/` and closes the browser. `sb_cdp: SbCdpCase` is the pure CDP version. `harness = ...` cannot be used with an async scenario in rstest-bdd 0.6.
+Summary for AI exports: enable the features `testing` and `bdd`; the test crate also lists `rstest-bdd` (its macros read it from the manifest; no file names it) and nothing else, because the macros, the `rstest` attribute and the Tokio runtime are re-exported. A scenario is `#[scenario(path = "...", name = "...")] #[tokio::test(flavor = "multi_thread")] async fn name(#[future(awt)] sb: SbCase) {}` with `use seleniumbase_rs::testing::bdd::{given, scenario, sb, then, when, SbCase}`, `use seleniumbase_rs::testing::rstest` and `use seleniumbase_rs::tokio`; steps are `#[given]`, `#[when]`, `#[then]` async functions taking `sb: &mut SbCase`. A failed step panics; the fixture then writes `latest_logs/<test id>/` and closes the browser. `sb_cdp: SbCdpCase` is the pure CDP version. `harness = ...` cannot be used with an async scenario in rstest-bdd 0.6.
 
 </Visibility>
 
@@ -31,11 +31,15 @@ Summary for AI exports: enable the features `testing` and `bdd`; depend on `rste
 ```toml Cargo.toml
 [dev-dependencies]
 seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", features = ["testing", "bdd"] }
-rstest = "0.26"
+# The Gherkin macros look this crate up in the manifest of the crate they expand in
+# and panic when it is missing. No file below names it.
 rstest-bdd = "0.6"
-rstest-bdd-macros = "0.6"
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
+
+The step and scenario macros, the `rstest` attribute they expand to and the Tokio
+runtime all come from `seleniumbase_rs`, so the `use` lines below name no other
+crate. `rstest-bdd` is the one line that cannot go: see
+[Imports and dependencies](/imports#the-lines-that-stay).
 
 ## A feature, its steps and its scenario
 
@@ -60,8 +64,10 @@ Feature: Login
 ```
 
 ```rust tests/login.rs
-use rstest_bdd_macros::{given, scenario, then, when};
-use seleniumbase_rs::testing::bdd::{sb, SbCase};
+use seleniumbase_rs::testing::bdd::{given, sb, scenario, then, when, SbCase};
+// The `scenario` attribute expands to paths that start with `rstest::`.
+use seleniumbase_rs::testing::rstest;
+use seleniumbase_rs::tokio;
 // `Result` is written out in full below: the steps' macros name `std`'s `Result`.
 
 #[scenario(path = "tests/features/login.feature", name = "Valid login")]

@@ -137,7 +137,7 @@ graph LR
 opens one. A value you set in code is final: no variable or file changes it later.
 
 ```rust,no_run tests/headed.rs
-use seleniumbase_rs::{run_browser_test, BrowserConfig, Result};
+use seleniumbase_rs::{run_browser_test, tokio, BrowserConfig, Result};
 
 #[tokio::test]
 async fn shows_the_title() -> Result<()> {
@@ -163,6 +163,7 @@ launch.
 
 ```rust,no_run src/main.rs
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
+use seleniumbase_rs::tokio;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -427,7 +428,7 @@ unless you pass another `VirtualDisplay`:
 
 ```rust,no_run tests/headed_on_a_server.rs
 use seleniumbase_rs::browser::options::VirtualDisplay;
-use seleniumbase_rs::{run_browser_test, BrowserConfig, Result};
+use seleniumbase_rs::{run_browser_test, tokio, BrowserConfig, Result};
 
 #[tokio::test]
 async fn runs_headed_on_a_server() -> Result<()> {
@@ -745,10 +746,10 @@ sb.click("button[type=submit]").await?;
 The pure CDP engine has no upload method. The programs that
 `sbrs import-playwright` and `sbrs import-puppeteer` write add a helper that
 focuses the input and hands it to `DOM.setFileInputFiles` with `page.execute`.
-The same steps, with `serde_json` in your `Cargo.toml`:
+The same steps:
 
 ```rust Upload
-use serde_json::json;
+use seleniumbase_rs::json::json;
 
 page.locator("input[type=file]").focus().await?;
 let input = page
@@ -828,7 +829,7 @@ page.locator("#delete").click().await?;
 <Tab title="BaseCase (WebDriver)" icon="code">
 
 `execute_script` runs the script as the body of a function, so `return` the
-value you want. It comes back as a `serde_json::Value`.
+value you want. It comes back as a `seleniumbase_rs::json::Value`.
 
 ```rust JavaScript
 let title = sb.execute_script("return document.title;").await?;
@@ -841,7 +842,7 @@ println!("{} has {} links", title.as_str().unwrap_or_default(), links);
 <Tab title="Pure CDP" icon="bolt">
 
 `evaluate` takes an expression, waits for a promise, and returns a
-`serde_json::Value`. `evaluate_as` turns the result into a Rust type. A `return`
+`seleniumbase_rs::json::Value`. `evaluate_as` turns the result into a Rust type. A `return`
 at the start of the last line is dropped, so a WebDriver-style script works too.
 
 ```rust JavaScript

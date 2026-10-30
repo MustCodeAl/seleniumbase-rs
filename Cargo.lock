@@ -5839,6 +5839,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "seleniumbase-rs-own-imports"
+version = "0.6.0"
+dependencies = [
+ "rstest-bdd",
+ "seleniumbase-rs",
+]
+
+[[package]]
 name = "seleniumbase-rs-plugin"
 version = "0.1.3"
 source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=2002f07b4ed295f2e04540184f4fdd2176542bca#2002f07b4ed295f2e04540184f4fdd2176542bca"

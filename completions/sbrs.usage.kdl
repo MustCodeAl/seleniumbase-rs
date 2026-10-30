@@ -1992,24 +1992,54 @@ A node registers with the hub named by `--hub`, or with this machine's.
     example "sbrs grid-node start"
     example "sbrs grid-node start --hub 127.0.0.1"
 }
-cmd translate help_heading="Files and generators" help="Write the actions of a JSON scenario in another language." {
+cmd translate help_heading="Files and generators" help="Write the actions of a JSON scenario in another language." args_override_self=#false {
     long_help #"""
 Write the actions of a JSON scenario in another language.
 
 Rewrites each step's `action` (`click`, `open`, ...) with the translation dictionary and changes nothing else in the file; the steps keep running, because a scenario can be read in any of the languages. Python SeleniumBase translates Python test files; a Rust test is compiled code, so this translates the portable JSON scenario instead.
+
+The language is a flag, `--en`, `--zh`, `--nl`, `--fr`, `--it`, `--ja`, `--ko`, `--pt`, `--ru` or `--es` (also by name: `--spanish`). The action is `-p`/`--print` (the default), `-o`/`--overwrite` or `-c`/`--copy`; `-p` may go with one of the other two. `-n` numbers the printed lines.
 """#
-    flag "-p --print" help="Print the translation and write nothing (the default)." bool_value=#true {
-        conflicts --overwrite --copy
-    }
+    flag --en help="English strings"
+    flag --english hide=#true
+    flag --English hide=#true
+    flag --zh help="Chinese strings"
+    flag --chinese hide=#true
+    flag --Chinese hide=#true
+    flag --nl help="Dutch strings"
+    flag --dutch hide=#true
+    flag --Dutch hide=#true
+    flag --fr help="French strings"
+    flag --french hide=#true
+    flag --French hide=#true
+    flag --it help="Italian strings"
+    flag --italian hide=#true
+    flag --Italian hide=#true
+    flag --ja help="Japanese strings"
+    flag --japanese hide=#true
+    flag --Japanese hide=#true
+    flag --ko help="Korean strings"
+    flag --korean hide=#true
+    flag --Korean hide=#true
+    flag --pt help="Portuguese strings"
+    flag --portuguese hide=#true
+    flag --Portuguese hide=#true
+    flag --ru help="Russian strings"
+    flag --russian hide=#true
+    flag --Russian hide=#true
+    flag --es help="Spanish strings"
+    flag --spanish hide=#true
+    flag --Spanish hide=#true
+    flag "-p --print" help="Print the translation (the default when no other action is given). With -o or -c it is printed as well as written." bool_value=#true
     flag "-o --overwrite" help="Replace the file with the translation." conflicts=--copy bool_value=#true
     flag "-c --copy" help="Write the translation to a new file next to it, such as `login_es.json`." bool_value=#true
+    flag "-n --line-numbers" help="Put the line number in front of every printed line." bool_value=#true
     flag "-h --help" help="Print help" action=help builtin=#true
     arg <FILE> help="The scenario file."
-    arg <LANGUAGE> help="The language: a code (en, zh, nl, fr, it, ja, ko, pt, ru, es) or its English name." {
-        choices strict=#false en zh nl fr it ja ko pt ru es
-    }
     complete file type=path:json
-    example "sbrs translate scenario.json zh --print"
+    group language "--en" "--english" "--English" "--zh" "--chinese" "--Chinese" "--nl" "--dutch" "--Dutch" "--fr" "--french" "--French" "--it" "--italian" "--Italian" "--ja" "--japanese" "--Japanese" "--ko" "--korean" "--Korean" "--pt" "--portuguese" "--Portuguese" "--ru" "--russian" "--Russian" "--es" "--spanish" "--Spanish" required=#true
+    example "sbrs translate scenario.json --zh -p -n"
+    example "sbrs translate scenario.json --es --copy"
 }
 cmd mkdir help_heading="Files and generators" help="Create a folder with a runnable browser-test suite." args_override_self=#false {
     long_help #"""
@@ -2152,33 +2182,119 @@ A scenario is matched to the test your project binds to it with rstest-bdd: one 
     complete path type=path:feature
     example "sbrs behave-gui features"
 }
-cmd print help_heading="Files and generators" help="Print a file." {
-    flag --file help="File path to print" required=#true {
-        arg <FILE>
-    }
+cmd print help_heading="Files and generators" help="Print a file, with a line number in front of every line if you ask for it." args_override_self=#false {
+    long_help #"""
+Print a file, with a line number in front of every line if you ask for it.
+
+The text is shown as it is: there is no syntax highlighting (Python's `sbase print` has it), and bytes that are not UTF-8 are shown as U+FFFD.
+"""#
+    flag "-n --line-numbers" help="Put the line number in front of every line." bool_value=#true
     flag "-h --help" help="Print help" action=help builtin=#true
+    arg <FILE> help="File to print."
     complete file type=path
-    example "sbrs print --file tests/login.rs"
+    example "sbrs print tests/login.rs -n"
 }
 cmd objectify help_heading="Files and generators" help="Objectify a test recording." {
     flag "-h --help" help="Print help" action=help builtin=#true
     example "sbrs objectify"
 }
-cmd mkpres help_heading="Files and generators" help="Create an HTML presentation." {
-    flag --file help="Output HTML presentation path" required=#true {
-        arg <FILE>
-    }
+cmd mkpres help_heading="Files and generators" help="Create a test that builds a slide deck." args_override_self=#false {
+    long_help #"""
+Create a test that builds a slide deck.
+
+The name follows the same rules as `mkfile`; `.rs` is added when missing. The test uses the rstest `sb` fixture and builds three slides with `create_presentation`, `add_slide` and `begin_presentation` (theme `serif`, transition `slide`). A language flag (`--en`, `--zh`, `--nl`, `--fr`, `--it`, `--ja`, `--ko`, `--pt`, `--ru`, `--es`) writes the text of the slides in that language. An existing file is never overwritten unless `--force` is given.
+"""#
+    flag --force help="Replace the file if it already exists." bool_value=#true
+    flag --en help="English strings"
+    flag --english hide=#true
+    flag --English hide=#true
+    flag --zh help="Chinese strings"
+    flag --chinese hide=#true
+    flag --Chinese hide=#true
+    flag --nl help="Dutch strings"
+    flag --dutch hide=#true
+    flag --Dutch hide=#true
+    flag --fr help="French strings"
+    flag --french hide=#true
+    flag --French hide=#true
+    flag --it help="Italian strings"
+    flag --italian hide=#true
+    flag --Italian hide=#true
+    flag --ja help="Japanese strings"
+    flag --japanese hide=#true
+    flag --Japanese hide=#true
+    flag --ko help="Korean strings"
+    flag --korean hide=#true
+    flag --Korean hide=#true
+    flag --pt help="Portuguese strings"
+    flag --portuguese hide=#true
+    flag --Portuguese hide=#true
+    flag --ru help="Russian strings"
+    flag --russian hide=#true
+    flag --Russian hide=#true
+    flag --es help="Spanish strings"
+    flag --spanish hide=#true
+    flag --Spanish hide=#true
     flag "-h --help" help="Print help" action=help builtin=#true
-    complete file type=path:html,htm
-    example "sbrs mkpres --file deck.html"
+    arg <FILE> help="File to create, for example `tests/deck.rs`."
+    complete file type=path:rs
+    group language "--en" "--english" "--English" "--zh" "--chinese" "--Chinese" "--nl" "--dutch" "--Dutch" "--fr" "--french" "--French" "--it" "--italian" "--Italian" "--ja" "--japanese" "--Japanese" "--ko" "--korean" "--Korean" "--pt" "--portuguese" "--Portuguese" "--ru" "--russian" "--Russian" "--es" "--spanish" "--Spanish"
+    example "sbrs mkpres tests/deck.rs --es"
 }
-cmd mkchart help_heading="Files and generators" help="Create an HTML chart." {
-    flag --file help="Output HTML chart path" required=#true {
-        arg <FILE>
-    }
+cmd mkchart help_heading="Files and generators" help="Create a test that shows a chart on a slide." args_override_self=#false {
+    long_help #"""
+Create a test that shows a chart on a slide.
+
+As `mkpres`, with a pie chart made by `create_pie_chart` and `add_data_point` and put on a slide with `extract_chart` (theme `sky`, transition `slide`).
+"""#
+    flag --force help="Replace the file if it already exists." bool_value=#true
+    flag --en help="English strings"
+    flag --english hide=#true
+    flag --English hide=#true
+    flag --zh help="Chinese strings"
+    flag --chinese hide=#true
+    flag --Chinese hide=#true
+    flag --nl help="Dutch strings"
+    flag --dutch hide=#true
+    flag --Dutch hide=#true
+    flag --fr help="French strings"
+    flag --french hide=#true
+    flag --French hide=#true
+    flag --it help="Italian strings"
+    flag --italian hide=#true
+    flag --Italian hide=#true
+    flag --ja help="Japanese strings"
+    flag --japanese hide=#true
+    flag --Japanese hide=#true
+    flag --ko help="Korean strings"
+    flag --korean hide=#true
+    flag --Korean hide=#true
+    flag --pt help="Portuguese strings"
+    flag --portuguese hide=#true
+    flag --Portuguese hide=#true
+    flag --ru help="Russian strings"
+    flag --russian hide=#true
+    flag --Russian hide=#true
+    flag --es help="Spanish strings"
+    flag --spanish hide=#true
+    flag --Spanish hide=#true
     flag "-h --help" help="Print help" action=help builtin=#true
-    complete file type=path:html,htm
-    example "sbrs mkchart --file chart.html"
+    arg <FILE> help="File to create, for example `tests/chart.rs`."
+    complete file type=path:rs
+    group language "--en" "--english" "--English" "--zh" "--chinese" "--Chinese" "--nl" "--dutch" "--Dutch" "--fr" "--french" "--French" "--it" "--italian" "--Italian" "--ja" "--japanese" "--Japanese" "--ko" "--korean" "--Korean" "--pt" "--portuguese" "--Portuguese" "--ru" "--russian" "--Russian" "--es" "--spanish" "--Spanish"
+    example "sbrs mkchart tests/chart.rs --ja"
+}
+cmd convert help_heading="Files and generators" help="Convert an exported Selenium WebDriver test (Python) into a Rust test." args_override_self=#false {
+    long_help #"""
+Convert an exported Selenium WebDriver test (Python) into a Rust test.
+
+Python's `sbase convert` for a Selenium IDE or Katalon Recorder export: reads FILE.py as Selenium WebDriver code and writes FILE_SB.rs next to it. The original is kept, and an existing FILE_SB.rs is never replaced unless `--force` is given. What could not be converted stays as a `TODO` in the file and is listed on standard error; if a statement could not be read at all the exit status is 1. `import-python` converts any Python source and writes where you say.
+"""#
+    flag --force help="Replace the converted file if it already exists." bool_value=#true
+    flag "-h --help" help="Print help" action=help builtin=#true
+    arg <FILE> help="The exported Selenium WebDriver test (a Selenium IDE or Katalon Recorder export)."
+    complete file type=path:py
+    example "sbrs convert login.py"
 }
 cmd mkrec help_heading="Record and replay" help="Create a new test file with the Recorder: record your actions in a browser, then save them as a test." {
     alias codegen

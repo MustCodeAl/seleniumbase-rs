@@ -1,9 +1,8 @@
 //! A pure CDP test: Chrome is driven over the DevTools Protocol, so no
 //! chromedriver is needed. `page` is the first tab.
 
-use rstest::rstest;
-use seleniumbase_rs::testing::{sb_cdp, SbCdp};
-use seleniumbase_rs::Result;
+use seleniumbase_rs::testing::{rstest, sb_cdp, SbCdp};
+use seleniumbase_rs::{tokio, Result};
 
 #[rstest]
 #[tokio::test]

@@ -37,7 +37,10 @@
 use std::fmt;
 use std::time::{Duration, Instant};
 
-use async_trait::async_trait;
+/// The `async_trait` attribute that [`TestPlugin`] and [`PageEvidence`] are written
+/// with, so an implementation needs no `async-trait` line in its manifest:
+/// `use seleniumbase_rs::plugins::observer::async_trait;`.
+pub use async_trait::async_trait;
 
 use crate::api::runner::{close_browser, drive, CdpCase};
 use crate::error::{Result, SeleniumBaseError};

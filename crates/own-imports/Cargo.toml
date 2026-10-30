@@ -1,0 +1,24 @@
+# A crate that depends on seleniumbase-rs and on nothing else but a test runtime. Its tests
+# import only `seleniumbase_rs::...`, which proves that the paths the docs, the examples and
+# the generated code teach (`seleniumbase_rs::drivers`, `::json`, `::testing::rstest`,
+# `::testing::bdd::{given, when, then, scenario}`) compile for a user who never lists
+# thirtyfour, serde_json, rstest or rstest-bdd in a manifest.
+#
+# Nothing here is shipped: the crate has no code of its own.
+[package]
+name = "seleniumbase-rs-own-imports"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Tests that compile with only seleniumbase-rs imported: the proof that its re-exports work."
+repository.workspace = true
+publish = false
+
+[dev-dependencies]
+seleniumbase-rs = { path = "../..", features = ["testing", "bdd", "test-util"] }
+# The Gherkin macros (`given`, `scenario`, ... re-exported by `seleniumbase_rs::testing::bdd`)
+# look the runtime crate up in the manifest of the crate they expand in (through
+# proc-macro-crate) and panic when it is missing, so this line cannot be dropped. No test
+# file names it.
+rstest-bdd = "0.6"

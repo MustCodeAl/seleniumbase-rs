@@ -280,6 +280,8 @@ pub(super) fn render(tool: Tool, tests: &[TestOut], file_todos: &[Line], needs: 
         } else {
             let _ = writeln!(out, "use seleniumbase_rs::sb_cdp::{names};");
         }
+        out.push_str("use seleniumbase_rs::tokio;\n");
+
         if needs.selector_buf {
             out.push_str("use seleniumbase_rs::utils::selectors::SelectorBuf;\n");
         }

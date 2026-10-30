@@ -486,7 +486,7 @@ fn mkfile_then_print_shows_the_file_that_was_written() {
         stdout(&made)
     );
 
-    let printed = run(dir.path(), &["print", "--file", "tests/login.rs"]);
+    let printed = run(dir.path(), &["print", "tests/login.rs"]);
     assert!(printed.status.success(), "{}", stderr(&printed));
     let on_disk = std::fs::read_to_string(dir.path().join("tests/login.rs")).unwrap();
     assert_eq!(stdout(&printed).trim_end(), on_disk.trim_end());

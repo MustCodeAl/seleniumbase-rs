@@ -1,4 +1,5 @@
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Scroll, SelectBy, State};
+use seleniumbase_rs::tokio;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

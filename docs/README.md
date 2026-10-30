@@ -71,13 +71,14 @@ cd my_first_test
 
 <Step title="Add the dependencies" icon="box">
 
-The crate is installed from git (it is not on crates.io). `tokio` runs the async
-code.
+The crate is installed from git (it is not on crates.io). It is the only
+dependency: it re-exports the Tokio runtime that runs the async code
+(`seleniumbase_rs::tokio`), so the examples need no other crate. See
+[Imports and dependencies](/imports) for what else it re-exports.
 
 ```toml Cargo.toml
 [dependencies]
 seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs" }
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 
 </Step>
@@ -93,6 +94,7 @@ driver; `BaseCase` uses WebDriver and starts `chromedriver` for you.
 
 ```rust,no_run src/main.rs
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
+use seleniumbase_rs::tokio;
 
 #[tokio::main]
 async fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
@@ -115,7 +117,7 @@ async fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 <Tab title="BaseCase (WebDriver)" icon="flask">
 
 ```rust,no_run src/main.rs
-use seleniumbase_rs::{BaseCase, BrowserConfig, DriverMode};
+use seleniumbase_rs::{tokio, BaseCase, BrowserConfig, DriverMode};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

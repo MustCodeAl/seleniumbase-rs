@@ -137,9 +137,8 @@ impl Config {
 /// evidence of a failure, the debug prompts.
 ///
 /// ```no_run
-/// use rstest::rstest;
-/// use seleniumbase_rs::testing::{sb, Sb};
-/// use seleniumbase_rs::Result;
+/// use seleniumbase_rs::testing::{rstest, sb, Sb};
+/// use seleniumbase_rs::{tokio, Result};
 ///
 /// #[rstest]
 /// #[tokio::test]
@@ -302,9 +301,8 @@ impl Sb {
 /// [`Page`].
 ///
 /// ```no_run
-/// use rstest::rstest;
-/// use seleniumbase_rs::testing::{sb_cdp, SbCdp};
-/// use seleniumbase_rs::Result;
+/// use seleniumbase_rs::testing::{rstest, sb_cdp, SbCdp};
+/// use seleniumbase_rs::{tokio, Result};
 ///
 /// #[rstest]
 /// #[tokio::test]
@@ -474,9 +472,8 @@ impl SbCdp {
 /// function made with `#[rstest]`.
 ///
 /// ```no_run
-/// use rstest::rstest;
-/// use seleniumbase_rs::testing::{sb, Sb};
-/// use seleniumbase_rs::Result;
+/// use seleniumbase_rs::testing::{rstest, sb, Sb};
+/// use seleniumbase_rs::{tokio, Result};
 ///
 /// #[rstest]
 /// #[tokio::test]

@@ -5,33 +5,17 @@
 //! recordings in `tests/fixtures/recorder`, run through the Recorder Mode
 //! pipeline, plus a typed password. A test here keeps the file equal to the
 //! generator's output (run it with `SB_UPDATE_GOLDEN=1` to write the file
-//! again). Including it as a module makes the compiler check every call in it:
-//! that the method exists on `BaseCase`, takes those arguments, and that the
-//! imports exist. The generated test is not run: it would start a browser.
+//! again). The doctest `RstestRecordingCompiles` in `src/api/recorder.rs` compiles the
+//! file as a user's crate would: the compiler checks that each method exists on
+//! `BaseCase`, takes those arguments, and that the imports exist. It is `no_run`: the
+//! test would start a browser.
+
 #![cfg(feature = "testing")]
-// The generated test is never called.
-#![allow(dead_code, unused_imports)]
 
 use std::fs;
 use std::path::Path;
 
 use seleniumbase_rs::api::recorder::{ActionRecorder, RawAction, RecordedAction};
-
-mod generated {
-    // `#[tokio::test]` in the generated code would run the test. Here the path
-    // `tokio::test` is `tokio::main`, which turns the test into a plain
-    // function that nothing calls, and the rest of the file is compiled as it is.
-    // Only the names the generated code uses count as used.
-
-    mod tokio {
-        pub use ::tokio::main as test;
-        pub use ::tokio::*;
-    }
-
-    // `include!`, not `mod`: rustfmt follows a `mod` and would rewrap the
-    // generated lines, which the generator does not.
-    include!("golden_rust/rstest_recording.rs");
-}
 
 fn recording() -> ActionRecorder {
     let mut actions: Vec<RecordedAction> = Vec::new();
@@ -74,6 +58,8 @@ fn the_golden_file_is_what_the_generator_writes() {
         "run with SB_UPDATE_GOLDEN=1 to write {} again",
         path.display()
     );
+    assert!(generated.contains("use seleniumbase_rs::testing::{rstest, sb, Sb};"));
+    assert!(!generated.contains("use rstest::"), "{generated}");
     assert!(generated.contains("sb.run(async |sb| {"));
     assert!(generated.contains("recorded_secret()?"));
 }

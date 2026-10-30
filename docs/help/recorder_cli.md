@@ -86,7 +86,7 @@ methods such as `open`, `click`, or `type_text`, the action is appended to the
 recorder:
 
 ```rust,no_run
-use seleniumbase_rs::{BaseCase, BrowserConfig};
+use seleniumbase_rs::{tokio, BaseCase, BrowserConfig};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

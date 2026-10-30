@@ -54,7 +54,7 @@ APIs retain their feature gates.
 | Item | What it is |
 |---|---|
 | `RetryPolicy` | Fields `max_attempts`, `base_delay`, `backoff_factor`, `max_delay`. `RetryPolicy::default()` is 3 attempts, 200 ms, factor 2.0, at most 5 s. Presets: `webdriver()` (3, 250 ms, 3 s), `network()` (5, 500 ms, 10 s), `seleniumbase()` (6, 1 s, 32 s, as Python's `retry_on_exception`), `every(interval)` (a fixed interval that never gives up, for `poll_until`). `attempts()` is never below 1, `delay_for_attempt(n)` is zero for the first attempt, and `retry(..)` and `retry_blocking(..)` run an operation again, with backoff, while a predicate says the error is worth retrying. `utilities::retry` also has `poll_until` and `RateLimiter`. |
-| `Selector` | A borrowed selector with its kind decided: `LinkText`, `PartialLinkText`, `Css`, `XPath`, `Id`. `Selector::auto(text)` guesses from the start of the string: `link=`, `link_text=`, `text=` is exact link text; `partial_link=`, `partial_link_text=`, `partial_text=`, `p_link=`, `p_link_text=`, `p_text=` is partial link text; `/`, `./`, `../`, `(` or an XPath axis such as `parent::` is XPath; anything else is CSS. `to_by()` and `auto_by(text)` return a `thirtyfour::By` and fail with `InvalidSelector` for empty text. The pure CDP engine uses the owned twin `utils::selectors::SelectorBuf`. |
+| `Selector` | A borrowed selector with its kind decided: `LinkText`, `PartialLinkText`, `Css`, `XPath`, `Id`. `Selector::auto(text)` guesses from the start of the string: `link=`, `link_text=`, `text=` is exact link text; `partial_link=`, `partial_link_text=`, `partial_text=`, `p_link=`, `p_link_text=`, `p_text=` is partial link text; `/`, `./`, `../`, `(` or an XPath axis such as `parent::` is XPath; anything else is CSS. `to_by()` and `auto_by(text)` return a `drivers::By` and fail with `InvalidSelector` for empty text. The pure CDP engine uses the owned twin `utils::selectors::SelectorBuf`. |
 | `init_tracing()`, `init_tracing_json()` | Install the global `tracing` subscriber (text or JSON) and bridge `log`. They read `RUST_LOG` (default `info`) and ignore a second call. |
 | `init_tracing_with_filter(filter)`, `init_tracing_json_with_filter(filter)` | The same with an `EnvFilter` string; an unparsable filter falls back to `RUST_LOG`, then `info`. The process environment is not changed. |
 | `init_tracing_from_runtime(&RuntimeConfig)` | Uses `SB_LOG_LEVEL` and `SB_LOG_FORMAT`; without a valid `SB_LOG_LEVEL` the filter is `RUST_LOG`, then `info`. |
@@ -93,7 +93,10 @@ diagnostic.
 ### Modules
 
 The remaining public API sits in modules: `api`, `artifacts`, `behave`,
-`browser`, `cli`, `common`, `config`, `core`, `error`, `evasion`, `js_code`, `macros`,
+`browser`, `cli`, `common`, `config`, `core`, `drivers` (the WebDriver types the API
+takes or returns), `error`, `evasion`, `js_code`, `json` (`json!` and `Value`), `macros`,
+`tokio` (the runtime, re-exported so `#[tokio::main]` needs no `tokio` line; see
+[Imports and dependencies](/imports)),
 `plugins` (test-reporting plugins), `profile_payloads`, `resources`,
 `sb_cdp` (the [pure CDP engine](/tutorials/pure_cdp)), `tracing_util`,
 `utilities`, `utils`; and, behind features, `mcp` (`mcp-server`), `ocr` (`ocr`),

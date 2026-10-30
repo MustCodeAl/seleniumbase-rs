@@ -19,7 +19,7 @@
 mod local_site;
 
 use local_site::{Site, DEMO_PATH};
-use seleniumbase_rs::{BaseCase, BrowserConfig, Result};
+use seleniumbase_rs::{tokio, BaseCase, BrowserConfig, Result};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -86,7 +86,7 @@ async fn snippets(sb: &mut BaseCase, site: &Site) -> Result<()> {
     // 8. Cookies
     // ------------------------------------------------------------------
     // Cookies need a real origin, which is why the page is served over HTTP.
-    sb.add_cookie(&serde_json::json!({ "name": "session", "value": "abc123" }))
+    sb.add_cookie(&seleniumbase_rs::json::json!({ "name": "session", "value": "abc123" }))
         .await?;
     let session = sb.get_cookie("session").await?;
     println!("session cookie: {}={}", session.name, session.value);

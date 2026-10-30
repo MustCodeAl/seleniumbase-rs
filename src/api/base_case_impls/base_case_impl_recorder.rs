@@ -784,7 +784,8 @@ mod tests_recorder_mode {
             code.contains("async fn test_one(") && code.contains("async fn test_two("),
             "{code}"
         );
-        assert_eq!(code.matches("use rstest::rstest;").count(), 1, "{code}");
+        let prelude = "use seleniumbase_rs::testing::{rstest, sb, Sb};";
+        assert_eq!(code.matches(prelude).count(), 1, "{code}");
         let _ = std::fs::remove_dir_all(&folder);
     }
 

@@ -25,6 +25,8 @@ fix a line here when the code stops matching it. Human contributors want
   *Build and check* and one cargo command at a time.
 - Commit small, one concern per commit; a bug fix comes with a test that fails
   without it.
+- Writing browser tests *with* the crate (not changing it): follow the rules in
+  `AGENTS.md`; `docs/tutorials/reliable_tests.md` explains each one.
 
 ## What this is
 
@@ -77,6 +79,9 @@ public API of this crate: keep items it imports public (`evasion::randomize`,
 | `plugin_host/` | `plugins` feature: turns plugin names and options (`[plugins]`, `SB_PLUGINS`, `--plugin`) into a `PluginSet` (`convert.rs`, `guard.rs`). |
 | `storage/` | `turso` feature: `ResultStore`, `ProfileVault`. |
 | `visual.rs` | `visual` feature: `VisualBaseline` (screenshot baselines compared by SSIM, `check`, `check_page`), behind `BaseCase::assert_visual_match`. Not `check_window`, which compares the HTML layout. |
+| `drivers.rs`, `json.rs`, `tokio` | Re-exports of the third-party items the API takes, returns or expands to (`thirtyfour`'s `By` and `WebElement`, `serde_json`'s `json!` and `Value`, the Tokio crate), so docs, examples and generated code import only `seleniumbase_rs::...`. `testing::rstest` and `testing::bdd::{given, scenario, ...}` do the same for the test macros. A new generator or page imports through these paths and writes no import line for rstest, tokio, thirtyfour or serde_json; `tests/docs_current.rs` and the doctest of `crates/own-imports` fail when it does. `docs/imports.md` lists the lines that must stay. |
+| `crates/own-imports/` | Tests-only package, not a default member: its manifest lists `seleniumbase-rs` and `rstest-bdd` and nothing else, so its tests and its doctest over the golden files prove the re-exports and the generated code compile for a crate that imports only `seleniumbase_rs`. Run it with `cargo test -p seleniumbase-rs-own-imports`; the Dockerfile skeleton copies its manifest. |
+
 | rest | `error.rs` (`SeleniumBaseError`), `macros.rs`, `artifacts.rs`, `core/` (`test_run`, `report_helper`, `log_helper`, and the `dashboard`, `junit` and `allure` reports), `js_code/`, `resources/`, `ocr.rs` (`ocr` feature), `tracing_util.rs` (the crate logs with `tracing`). |
 
 Elsewhere: `tests/` (integration tests of the library; `tests/golden` is compiled into the

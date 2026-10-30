@@ -65,7 +65,7 @@ one (`create_pie_chart`, `create_bar_chart`, `create_line_chart`,
 `save_chart`). Each `create_*_chart` call replaces the current chart:
 
 ```rust,no_run
-use seleniumbase_rs::{BaseCase, BrowserConfig};
+use seleniumbase_rs::{tokio, BaseCase, BrowserConfig};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -89,7 +89,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## Multi-series chart
 
 ```rust,no_run
-use seleniumbase_rs::{BaseCase, BrowserConfig};
+use seleniumbase_rs::{tokio, BaseCase, BrowserConfig};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -133,8 +133,11 @@ Related methods on `BaseCase`:
 - `extract_chart()` returns the chart as a JSON string with the title, type,
   labels and datasets.
 
-`sbrs mkchart --file results.html` writes a small fixed example chart (a
-Passed/Failed/Skipped bar chart) to edit by hand.
+`sbrs mkchart tests/chart.rs` writes a test to edit by hand: it builds a pie
+chart of six data points, takes its HTML with `extract_chart()` and shows it on
+the slide of a presentation. A language flag (`--es`, `--ja`, ...) writes the
+labels in that language, and `--force` replaces a file that exists. See the
+[CLI reference](/help/cli_reference).
 
 ## Troubleshooting
 

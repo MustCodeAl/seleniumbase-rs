@@ -19,9 +19,8 @@ const WORKFLOW_PATH: &str = ".github/workflows/sbrs-tests.yml";
 const MY_FIRST_TEST: &str = "\
 //! The first example test. Copy it to start your own.
 
-use rstest::rstest;
-use seleniumbase_rs::testing::{sb, Sb};
-use seleniumbase_rs::Result;
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
 
 #[rstest]
 #[tokio::test]
@@ -39,9 +38,8 @@ const PARAMETERIZED_TEST: &str = "\
 //! A parameterized test: each `#[case]` is a test of its own, with its own
 //! browser and its own folder of evidence when it fails.
 
-use rstest::rstest;
-use seleniumbase_rs::testing::{sb, Sb};
-use seleniumbase_rs::Result;
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
 
 #[rstest]
 #[case(\"https://example.com\", \"This domain is for use in\")]
@@ -64,9 +62,8 @@ const CDP_TEST: &str = "\
 //! A pure CDP test: Chrome is driven over the DevTools Protocol, so no
 //! chromedriver is needed. `page` is the first tab.
 
-use rstest::rstest;
-use seleniumbase_rs::testing::{sb_cdp, SbCdp};
-use seleniumbase_rs::Result;
+use seleniumbase_rs::testing::{rstest, sb_cdp, SbCdp};
+use seleniumbase_rs::{tokio, Result};
 
 #[rstest]
 #[tokio::test]
@@ -89,8 +86,9 @@ const BDD_TEST: &str = "\
 //! steps are the library's built-in ones. Needs the feature `bdd` of
 //! `seleniumbase-rs`.
 
-use rstest_bdd_macros::scenario;
-use seleniumbase_rs::testing::bdd::{sb, SbCase};
+use seleniumbase_rs::testing::bdd::{sb, scenario, SbCase};
+use seleniumbase_rs::testing::rstest;
+use seleniumbase_rs::tokio;
 
 <SCENARIO>
 #[tokio::test(flavor = \"multi_thread\")]
@@ -301,14 +299,13 @@ impl Suite {
         let target = self.target();
         let path = &self.name;
         let version = env!("CARGO_PKG_VERSION");
-        let (features, tokio_features, bdd_dependencies) = if self.bdd {
+        let (features, bdd_dependencies) = if self.bdd {
             (
                 "\"testing\", \"bdd\"",
-                "\"macros\", \"rt-multi-thread\"",
-                "rstest-bdd = \"0.6\"\nrstest-bdd-macros = \"0.6\"\n",
+                "\n# The Gherkin macros read this crate from the manifest; no test names it.\nrstest-bdd = \"0.6\"",
             )
         } else {
-            ("\"testing\"", "\"macros\", \"rt\"", "")
+            ("\"testing\"", "")
         };
         let mut rows = String::new();
         for (module, description) in [
@@ -371,14 +368,13 @@ cargo test --test {target}
 ```
 
 The tests need Chrome, and a matching chromedriver unless they are pure CDP;
-`sbrs doctor` checks both. Your crate also needs the libraries the tests use
-(seleniumbase-rs is on GitHub, not on crates.io):
+`sbrs doctor` checks both. Your crate needs only seleniumbase-rs, which re-exports
+the rstest attribute, the Tokio runtime and the Gherkin macros the tests use. It is on
+GitHub, not on crates.io:
 
 ```toml
 [dev-dependencies]
-seleniumbase-rs = {{ git = \"https://github.com/MustCodeAl/seleniumbase-rs\", tag = \"v{version}\", features = [{features}] }}
-rstest = \"0.26\"
-{bdd_dependencies}tokio = {{ version = \"1\", features = [{tokio_features}] }}
+seleniumbase-rs = {{ git = \"https://github.com/MustCodeAl/seleniumbase-rs\", tag = \"v{version}\", features = [{features}] }}{bdd_dependencies}
 ```
 
 ## Settings
@@ -482,7 +478,7 @@ mod tests {
             readme.contains("features = [\"testing\", \"bdd\"]"),
             "{readme}"
         );
-        assert!(readme.contains("rstest-bdd-macros"), "{readme}");
+        assert!(readme.contains("rstest-bdd = \"0.6\"") && !readme.contains("rstest-bdd-macros"));
     }
 
     #[test]
@@ -545,7 +541,10 @@ mod tests {
             "{readme}"
         );
         assert!(readme.contains("cargo test --test ui-flows"), "{readme}");
-        assert!(readme.contains("rstest = \"0.26\""), "{readme}");
+        assert!(
+            !readme.contains("rstest = ") && !readme.contains("tokio = "),
+            "{readme}"
+        );
     }
 
     /// example.com dropped its `<h1>` in 2026, so a generated test that selected one

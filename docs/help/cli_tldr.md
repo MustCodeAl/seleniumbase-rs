@@ -58,7 +58,17 @@ sbrs test --example NAME                           # examples/NAME.rs instead of
 sbrs mkrec tests/login.rs --url example.com        # type c and Enter at the prompt to finish
 sbrs replay recordings/login_rec.json
 sbrs run-scenario --file login.json --dashboard dashboard.html
-sbrs translate login.json es --copy                # writes login_es.json
+sbrs translate login.json --es --copy              # writes login_es.json
+sbrs translate login.json --zh -p -n               # prints the Chinese scenario with line numbers
+```
+
+## Generate and show files
+
+```bash
+sbrs mkpres tests/deck.rs --es                     # a test that builds a three-slide deck
+sbrs mkchart tests/chart.rs --ja                   # a test that shows a chart on a slide
+sbrs print tests/login.rs -n                       # a file, with line numbers
+sbrs convert login.py                              # a Selenium IDE export into login_SB.rs
 ```
 
 ## Bring tests from other tools
