@@ -8,7 +8,7 @@ sidebarTitle: "Overview"
 <Note>
 
 Use the facade crate `seleniumbase-rs-stealth`, and only that. It re-exports
-this crate (including `sb_cdp` and `stealth`) plus `codec` and `scrape` by
+this crate (including `sb_cdp` and `evasion`) plus `codec` and `scrape` by
 default, and `mimic` when you ask for it. `cargo run -p <crate> --example
 <name>` runs an example inside the
 [stealth repository](https://github.com/MustCodeAl/seleniumbase-rs-stealth),
@@ -30,7 +30,7 @@ with a first fetch, is the [tutorial](/tutorials/stealth_scraping).
 
 <Visibility for="agents">
 
-Summary for AI exports: depend on the `seleniumbase-rs-stealth` facade by Git, and on nothing else from this layer. It re-exports the core API (`sb_cdp`, `stealth`, `fingerprint`) and exposes `codec` and `scrape` by default, without BoringSSL or cmake. Enable `features = ["mimic"]` for `mimic::{HttpSession, MitmProxy, StealthSession}` and TLS/HTTP2 impersonation. Import `scrape::BrowserScraper` from the facade; the deep path `scrape::runtime::browser_scraper` is unnecessary. Wire impersonation is experimental and measured only for Chrome 155.0.8059.40 on macOS (captured 2026-10-11). An unmeasured pair is `NotMeasured`, not a guess. The single-page source in the stealth repository is `docs/tutorial.md`.
+Summary for AI exports: depend on the `seleniumbase-rs-stealth` facade by Git, and on nothing else from this layer. It re-exports the core API (`sb_cdp`, `evasion`, `fingerprint`) and exposes `codec` and `scrape` by default, without BoringSSL or cmake. Enable `features = ["mimic"]` for `mimic::{HttpSession, MitmProxy, StealthSession}` and TLS/HTTP2 impersonation. Import `scrape::BrowserScraper` from the facade; the deep path `scrape::runtime::browser_scraper` is unnecessary. Wire impersonation is experimental and measured only for Chrome 155.0.8059.40 on macOS (captured 2026-10-11). An unmeasured pair is `NotMeasured`, not a guess. The single-page source in the stealth repository is `docs/tutorial.md`.
 
 </Visibility>
 
@@ -172,7 +172,7 @@ through `Runtime.evaluate`. The `scrape` crate adds only `Network`.
 
 ### Stealth overrides in the page
 
-A set of built-in evasion providers (`seleniumbase_rs_stealth::stealth::providers`)
+A set of built-in evasion providers (`seleniumbase_rs_stealth::evasion::providers`)
 writes one script that runs before any page script
 (`Page.addScriptToEvaluateOnNewDocument`), applied by `Page::apply_fingerprint`
 or `LaunchOptionsBuilder::fingerprint`. Replaced methods go on their prototype
@@ -233,7 +233,7 @@ was removed because a call on a shared reference would have compiled, dropped
 the `Result` and left the fingerprint in its real locale.
 
 ```rust
-use seleniumbase_rs_stealth::stealth::fingerprint::{Fingerprint, OsType};
+use seleniumbase_rs_stealth::evasion::fingerprint::{Fingerprint, OsType};
 use seleniumbase_rs_stealth::scrape::egress::geo::{Locale, LocaleExt};
 
 # fn demo() -> Result<(), Box<dyn std::error::Error>> {
@@ -345,7 +345,7 @@ seleniumbase-rs-stealth = { git = "https://github.com/MustCodeAl/seleniumbase-rs
 ```
 
 The default `scrape` feature also enables `codec`. No BoringSSL or cmake.
-`sb_cdp`, `stealth` and `fingerprint` come from the re-exported core.
+`sb_cdp`, `evasion` and `fingerprint` come from the re-exported core.
 
 </Tab>
 <Tab title="TLS and HTTP/2 impersonation" icon="lock">
@@ -406,7 +406,7 @@ them. It is not a list of dependencies to add.
 
 `mimic` depends on `scrape`, which depends on `codec`; all three depend on
 this crate, and they need some items here to stay public (`sb_cdp`,
-`stealth::randomize`). All three declare `#![forbid(unsafe_code)]`. They are
+`evasion::randomize`). All three declare `#![forbid(unsafe_code)]`. They are
 MIT; BoringSSL carries its own licences. This crate's own HTTP uses `reqwest`
 with `rustls`, and the CDP engine talks to Chrome over a plain WebSocket.
 

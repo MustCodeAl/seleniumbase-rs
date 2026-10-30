@@ -18,7 +18,7 @@ holds `chrome-155-macos.json`. How the files are made and refreshed is in
 <RequestExample>
 
 ```rust Look up a measured browser
-use seleniumbase_rs_stealth::stealth::fingerprint::OsType;
+use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
 use seleniumbase_rs_stealth::codec::emulation::{self, EmulationError};
 use seleniumbase_rs_stealth::codec::BrowserKind;
 
@@ -33,7 +33,7 @@ fn main() -> Result<(), EmulationError> {
 ```
 
 ```rust An unmeasured system is refused
-use seleniumbase_rs_stealth::stealth::fingerprint::OsType;
+use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
 use seleniumbase_rs_stealth::codec::emulation::{self, EmulationError};
 use seleniumbase_rs_stealth::codec::BrowserKind;
 
@@ -85,7 +85,7 @@ pub struct Emulation {
 
 One measured browser on one operating system: everything a client must send to
 look like it. `OsType` and `ClientHints` are the core's
-(`seleniumbase_rs_stealth::stealth::fingerprint`).
+(`seleniumbase_rs_stealth::evasion::fingerprint`).
 
 <ResponseField name="kind" type="BrowserKind" required>
 

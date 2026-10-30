@@ -93,9 +93,9 @@ diagnostic.
 ### Modules
 
 The remaining public API sits in modules: `api`, `artifacts`, `behave`,
-`browser`, `cli`, `common`, `config`, `core`, `error`, `js_code`, `macros`,
+`browser`, `cli`, `common`, `config`, `core`, `error`, `evasion`, `js_code`, `macros`,
 `plugins` (test-reporting plugins), `profile_payloads`, `resources`,
-`sb_cdp` (the [pure CDP engine](/tutorials/pure_cdp)), `stealth`, `tracing_util`,
+`sb_cdp` (the [pure CDP engine](/tutorials/pure_cdp)), `tracing_util`,
 `utilities`, `utils`; and, behind features, `mcp` (`mcp-server`), `ocr` (`ocr`),
 `plugin_api` (`plugins`, the browser plugin API), `builtin_plugins` (any of
 `plugin-shield`, `plugin-block-resources`, `plugin-crx`, `plugin-fetcher`,

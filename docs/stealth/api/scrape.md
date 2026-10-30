@@ -47,7 +47,7 @@ seleniumbase-rs-stealth = { git = "https://github.com/MustCodeAl/seleniumbase-rs
 ```
 
 The default facade features expose `codec`, `scrape`, `fingerprint`, `sb_cdp`
-and `stealth`, without BoringSSL or cmake. Import all types through
+and `evasion`, without BoringSSL or cmake. Import all types through
 `seleniumbase_rs_stealth`; no separate core or implementation dependency is needed.
 
 ## Features

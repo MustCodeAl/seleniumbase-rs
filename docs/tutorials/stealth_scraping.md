@@ -15,7 +15,7 @@ do not look for `wire`, `scrape` or `impersonate` on `seleniumbase_rs`.
 
 <Visibility for="agents">
 
-Summary for AI exports: one Git dependency, `seleniumbase-rs-stealth`. The facade re-exports the core API (`sb_cdp`, `stealth`, `fingerprint`) and, by default, `codec` and `scrape`. Enable `features = ["mimic"]` for BoringSSL-backed TLS/HTTP2 impersonation. Import `scrape::BrowserScraper` and `mimic::{HttpSession, MitmProxy, StealthSession}` from `seleniumbase_rs_stealth`; do not add `seleniumbase-rs` or the implementation crates as separate dependencies, and do not use the deep path `scrape::runtime::browser_scraper`. UC mode in this crate is a different path: it lowers in-browser automation signals and does not impersonate TLS. `BrowserScraper` drives a real Chrome and does no TLS spoofing. `HttpSession` and `StealthSession` need `mimic` and refuse any browser/OS pair that was not measured. Only Chrome 155 on macOS is measured. The single-page source in the stealth repository is `docs/tutorial.md`.
+Summary for AI exports: one Git dependency, `seleniumbase-rs-stealth`. The facade re-exports the core API (`sb_cdp`, `evasion`, `fingerprint`) and, by default, `codec` and `scrape`. Enable `features = ["mimic"]` for BoringSSL-backed TLS/HTTP2 impersonation. Import `scrape::BrowserScraper` and `mimic::{HttpSession, MitmProxy, StealthSession}` from `seleniumbase_rs_stealth`; do not add `seleniumbase-rs` or the implementation crates as separate dependencies, and do not use the deep path `scrape::runtime::browser_scraper`. UC mode in this crate is a different path: it lowers in-browser automation signals and does not impersonate TLS. `BrowserScraper` drives a real Chrome and does no TLS spoofing. `HttpSession` and `StealthSession` need `mimic` and refuse any browser/OS pair that was not measured. Only Chrome 155 on macOS is measured. The single-page source in the stealth repository is `docs/tutorial.md`.
 
 </Visibility>
 
@@ -133,7 +133,7 @@ is worse than a refusal.
 ```rust
 use seleniumbase_rs_stealth::codec::emulation::{self, EmulationError};
 use seleniumbase_rs_stealth::codec::BrowserKind;
-use seleniumbase_rs_stealth::stealth::fingerprint::OsType;
+use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
 
 # fn demo() -> Result<(), EmulationError> {
 let chrome = emulation::get(BrowserKind::Chrome, OsType::Macos)?;

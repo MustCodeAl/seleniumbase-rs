@@ -162,7 +162,7 @@ was. `EgressLocale::localize` takes the time zone its egress reported. This is t
 move `rotate_egress` makes when the new proxy is in another country.
 
 ```rust
-use seleniumbase_rs_stealth::stealth::fingerprint::{Fingerprint, OsType};
+use seleniumbase_rs_stealth::evasion::fingerprint::{Fingerprint, OsType};
 use seleniumbase_rs_stealth::scrape::egress::geo::{Locale, LocaleExt};
 
 # fn demo() -> Result<(), Box<dyn std::error::Error>> {

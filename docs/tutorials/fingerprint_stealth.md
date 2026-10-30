@@ -48,7 +48,7 @@ seleniumbase-rs-stealth = { git = "https://github.com/MustCodeAl/seleniumbase-rs
 ```
 
 Its default features include `codec` and `scrape`, without BoringSSL or cmake.
-It re-exports the core browser API, `sb_cdp`, `stealth` and `fingerprint`, so the
+It re-exports the core browser API, `sb_cdp`, `evasion` and `fingerprint`, so the
 examples need no separate core dependency. Examples using `#[tokio::main]`
 also need Tokio's runtime and macros in the application. Add the facade's
 `mimic` feature only for [TLS/HTTP2 impersonation](/stealth/overview#which-crate-to-depend-on).
@@ -103,7 +103,7 @@ about it. The value and the intent are one field, so they cannot disagree.
 other, so a time zone cannot be "off" by accident.
 
 ```rust
-use seleniumbase_rs_stealth::stealth::fingerprint::{CanvasNoise, Fingerprint, Spoof, StealthPolicy};
+use seleniumbase_rs_stealth::evasion::fingerprint::{CanvasNoise, Fingerprint, Spoof, StealthPolicy};
 
 let fp = Fingerprint::builder()
     .timezone("Europe/Berlin")
@@ -113,7 +113,7 @@ let fp = Fingerprint::builder()
     .policy(StealthPolicy::balanced())
     .canvas_noise(CanvasNoise::Random)
     .build()?;
-# Ok::<(), seleniumbase_rs_stealth::stealth::fingerprint::FingerprintError>(())
+# Ok::<(), seleniumbase_rs_stealth::evasion::fingerprint::FingerprintError>(())
 ```
 
 The random position is a spot in Berlin, because the time zone is a `Value`.
@@ -128,7 +128,7 @@ use seleniumbase_rs_stealth::Fingerprint;
 let fp = Fingerprint::windows_desktop();
 let tokyo = fp.to_builder().timezone("Asia/Tokyo").build()?;
 assert_eq!(tokyo.timezone().as_str(), Some("Asia/Tokyo"));
-# Ok::<(), seleniumbase_rs_stealth::stealth::fingerprint::FingerprintError>(())
+# Ok::<(), seleniumbase_rs_stealth::evasion::fingerprint::FingerprintError>(())
 ```
 
 ## Fingerprint presets
@@ -154,7 +154,7 @@ that claimed one would stand out. `validate()` warns about a time zone without a
 position only when the policy grants permissions, which hands pages the real
 position. All six presets
 validate without errors or warnings; `tests/mcp_webdriver.rs` and the unit tests
-of `stealth::fingerprint` check it. A preset holds no `Random`, so it is the same
+of `evasion::fingerprint` check it. A preset holds no `Random`, so it is the same
 every time and its canvas noise is the same on every launch.
 
 Use the `fingerprint!` macro for shorter syntax. `safari` is an alias for `ios`,
@@ -270,7 +270,7 @@ let fp = Fingerprint::builder()
     .geolocation((40.7128, -74.0060))
     .media_device_counts(1, 1, 2) // audio inputs, audio outputs, video inputs
     .build()?;
-# Ok::<(), seleniumbase_rs_stealth::stealth::fingerprint::FingerprintError>(())
+# Ok::<(), seleniumbase_rs_stealth::evasion::fingerprint::FingerprintError>(())
 ```
 
 There is no flag to flip afterwards, and none to set. Giving a value is the
@@ -341,7 +341,7 @@ claim: a preset policy never changes a setting's state, and the two can be given
 in any order.
 
 ```rust
-use seleniumbase_rs_stealth::stealth::fingerprint::{CanvasNoise, Fingerprint, StealthPolicy};
+use seleniumbase_rs_stealth::evasion::fingerprint::{CanvasNoise, Fingerprint, StealthPolicy};
 
 let fp = Fingerprint::builder()
     .canvas_noise(CanvasNoise::Low)        // a shortcut, applied after the base...
@@ -350,7 +350,7 @@ let fp = Fingerprint::builder()
     .with_policy(|p| p.disable_csp(true))   // any change, in order
     .build()?;
 assert!(fp.policy().chrome_runtime && fp.policy().disable_csp);
-# Ok::<(), seleniumbase_rs_stealth::stealth::fingerprint::FingerprintError>(())
+# Ok::<(), seleniumbase_rs_stealth::evasion::fingerprint::FingerprintError>(())
 ```
 
 | Preset | What it is |
@@ -431,7 +431,7 @@ let fp = Fingerprint::builder()
     .geolocation((40.7580, -73.9855))
     .native_spoofing(true)
     .build()?;
-# Ok::<(), seleniumbase_rs_stealth::stealth::fingerprint::FingerprintError>(())
+# Ok::<(), seleniumbase_rs_stealth::evasion::fingerprint::FingerprintError>(())
 ```
 
 When `native_spoofing` is true:
@@ -790,14 +790,14 @@ errors and no warnings for every OS, for seeds 0 to 1499 and ten edge seeds
 ## Humanized input
 
 Detectors look for input that is too regular. The
-`stealth::behavior` module plans input that is not: curved
+`evasion::behavior` module plans input that is not: curved
 pointer paths with a bell-shaped speed profile, Fitts's-law timing, tremor and
 overshoot, and Gaussian typing with word and sentence pauses. It is pure and
 seedable:
 
 ```rust
 use seleniumbase_rs_stealth::sb_cdp::Point;
-use seleniumbase_rs_stealth::stealth::behavior::{Behavior, Humanizer};
+use seleniumbase_rs_stealth::evasion::behavior::{Behavior, Humanizer};
 
 # fn main() -> Result<(), seleniumbase_rs_stealth::SeleniumBaseError> {
 let mut person = Humanizer::new(Behavior::builder().typing_wpm(70.0).seed(7).build()?);
@@ -820,7 +820,7 @@ behaviour.
 
 <Tip>
 
-The older `stealth::humanize` helpers (`bezier_mouse_path`,
+The older `evasion::humanize` helpers (`bezier_mouse_path`,
 `keystroke_delays`) remain, but they sample a Bézier curve at evenly spaced
 parameter values and draw delays uniformly between two bounds; prefer
 `behavior`.
@@ -975,7 +975,7 @@ automation markers:
 ---
 
 This page was brought up to date with the change that makes a setting one `Spoof`
-and moves the behaviour into the `StealthPolicy` by reading `src/stealth/**`,
+and moves the behaviour into the `StealthPolicy` by reading `src/evasion/**`,
 `src/sb_cdp/{identity,launch}.rs`, `src/browser/{config,session,playwright}.rs`,
 `src/profile_payloads/**`, `src/mcp/stealth.rs` and `src/macros.rs` again. The code examples were compiled
 against that source as a test of the crate; the tables were checked against the

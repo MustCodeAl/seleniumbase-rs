@@ -191,7 +191,7 @@ paced like a person's, for pages that watch how input arrives:
 
 ```rust,no_run
 use seleniumbase_rs::sb_cdp::Page;
-use seleniumbase_rs::stealth::behavior::Behavior;
+use seleniumbase_rs::evasion::behavior::Behavior;
 
 # async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 let person = page.human(Behavior::builder().typing_wpm(65.0).typo_rate(0.02).build()?);
@@ -218,7 +218,7 @@ person.scroll_by(600.0).await?;
 Everything is still trusted DevTools input; only the timing and the path
 differ. It is slower than `locator.click()` by design. `Behavior::builder()
 .seed(n)` makes the randomness reproducible. The planning is a pure module,
-`stealth::behavior`, usable on its own.
+`evasion::behavior`, usable on its own.
 
 ## Messages in the page
 
@@ -344,7 +344,7 @@ rules can set or remove headers, change the URL or method, and replace the body.
 
 <Note>
 
-`stealth::reactor::CdpReactor` is the older, browser-wide alternative: it adds
+`evasion::reactor::CdpReactor` is the older, browser-wide alternative: it adds
 headers to every request from every tab. Prefer `page.intercept` unless you
 want exactly that.
 

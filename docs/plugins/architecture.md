@@ -191,7 +191,7 @@ A plugin's `Fetch.*` command, and the older `Network.setRequestInterception` tha
 
 <Accordion title="7. Two lists of refused switches" icon="circle-check">
 
-A test reads `FORBIDDEN_SWITCHES` of `src/stealth/evasions.rs` and fails if one is missing from `seleniumbase_rs_plugin::switch_policy::REFUSED_SWITCHES`.
+A test reads `FORBIDDEN_SWITCHES` of `src/evasion/evasions.rs` and fails if one is missing from `seleniumbase_rs_plugin::switch_policy::REFUSED_SWITCHES`.
 
 </Accordion>
 

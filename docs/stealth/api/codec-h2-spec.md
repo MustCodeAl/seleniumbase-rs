@@ -42,7 +42,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 ```rust The measured HTTP/2 start
-use seleniumbase_rs_stealth::stealth::fingerprint::OsType;
+use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
 use seleniumbase_rs_stealth::codec::emulation;
 use seleniumbase_rs_stealth::codec::BrowserKind;
 

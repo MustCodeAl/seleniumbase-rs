@@ -188,7 +188,7 @@ sequenceDiagram
 
 ```rust
 use std::collections::HashMap;
-use seleniumbase_rs::stealth::reactor::CdpReactor;
+use seleniumbase_rs::evasion::reactor::CdpReactor;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

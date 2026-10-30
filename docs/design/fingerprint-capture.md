@@ -26,11 +26,11 @@ second file format.
 
 ## What a capture reads
 
-One embedded script (`src/stealth/js/capture.js`) reads, in the page, what a
+One embedded script (`src/evasion/js/capture.js`) reads, in the page, what a
 detection script could read. The same script runs on both engines: the pure CDP
 engine evaluates it as an `async` function (`Page::capture_fingerprint`), the
 WebDriver engine runs it as an asynchronous script (`BaseCase::capture_fingerprint`).
-Rust maps the answer in `stealth::capture`, in one place, so both engines produce the
+Rust maps the answer in `evasion::capture`, in one place, so both engines produce the
 same fingerprint from the same readings.
 
 | Reading | Setting it answers |
@@ -63,7 +63,7 @@ checks, never applied.
 ## Library
 
 ```rust
-// stealth::capture
+// evasion::capture
 pub struct CapturedFingerprint { pub fingerprint: Fingerprint, pub unmapped: Map<String, Value>, pub probe: ProbeInfo }
 pub struct ProbeInfo { pub url: String, pub captured_at: String, pub browser_version: Option<String> }
 CapturedFingerprint::from_probe(raw: &Value, captured_at: impl Into<String>) -> Result<Self, SeleniumBaseError>
@@ -72,7 +72,7 @@ CapturedFingerprint::from_probe(raw: &Value, captured_at: impl Into<String>) -> 
 Page::capture_fingerprint(&self) -> Result<CapturedFingerprint, SeleniumBaseError>      // sb_cdp
 BaseCase::capture_fingerprint(&self) -> Result<CapturedFingerprint, SeleniumBaseError>  // WebDriver
 
-// stealth::fingerprint
+// evasion::fingerprint
 Fingerprint::load(path) / save(path) -> Result<_, SeleniumBaseError>   // save is atomic
 Fingerprint::from_json(&str) / to_json_pretty(&self)
 Fingerprint::diff(&self, other: &Fingerprint) -> Vec<SettingDiff>      // SettingDiff { setting, expected, actual }

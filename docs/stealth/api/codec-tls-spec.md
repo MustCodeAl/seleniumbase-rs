@@ -25,7 +25,7 @@ in [Wire formats](/stealth/wire-formats#what-is-refused).
 <RequestExample>
 
 ```rust Fingerprints of the measured spec
-use seleniumbase_rs_stealth::stealth::fingerprint::OsType;
+use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
 use seleniumbase_rs_stealth::codec::emulation;
 use seleniumbase_rs_stealth::codec::BrowserKind;
 

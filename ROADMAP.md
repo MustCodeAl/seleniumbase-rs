@@ -31,7 +31,7 @@ Design rules that apply to everything below:
 | Turso storage (`turso` feature) | `ResultStore` and `sbrs report` for test-run history and flaky tests; `ProfileVault` for encrypted profiles. |
 | Browser pool | `BrowserPool`, `Lease`, `BrowserContext`, `SessionStore`: bounded, fair, isolated, recycled, with in-memory session sharing. Verified on real Chrome. |
 | WebRTC leak shield | `Page::webrtc_report`, `Page::shield_webrtc`, `LaunchOptionsBuilder::{shield_webrtc, webrtc_policy}` (the existing `WebRtcPolicy`). Verified on real Chrome. |
-| Behavioural stealth engine | `stealth::behavior` (pure, seedable) and `Page::human` (click, type, scroll at a human pace). Verified on real Chrome. |
+| Behavioural stealth engine | `evasion::behavior` (pure, seedable) and `Page::human` (click, type, scroll at a human pace). Verified on real Chrome. |
 | Profile randomisation | `Fingerprint::randomized(os, seed)`: a coherent identity (WebGL, hardware, locale, time zone, Client Hints, noise seed) for all five `OsType`s that passes `validate()` for every seed tried (1,500 per OS plus edge cases). Not yet run against a real fingerprinting page. |
 | Pure CDP engine (`sb_cdp`) | `Browser`, `Page`, `Locator`, input, cookies/storage/window/emulation, retrying assertions, mock browser, CAPTCHA solving, same-origin frames (`page.locator("#frame").locator("button")`). Verified on real Chrome (`tests/sb_cdp_chrome.rs`). |
 | MCP `cdp` server | The 24 tools of the Python server, 17 developer tools and 2 that only this engine has (`get_devtools_endpoint`, `run_plugin_task`), mock-tested (`tests/mcp_cdp.rs`) and verified on real Chrome (`tests/mcp_cdp_chrome.rs`). |
@@ -166,7 +166,7 @@ step 2.
 
 ### Five architecture improvements
 
-1. **Behavioural stealth engine (done).** `stealth::behavior` plans curved
+1. **Behavioural stealth engine (done).** `evasion::behavior` plans curved
    pointer paths (Fitts's law, minimum-jerk speed, tremor, overshoot) and
    Gaussian typing with optional typos; `Page::human` plays them on a page.
    Still to do: a WebDriver `human_click` with a real pointer path (needs a
@@ -272,14 +272,14 @@ macro would show up here wrongly; check before deleting.
 
 ### Audit of the files untouched since 2026-08-04
 
-Two read-only audits covered `src/api/**`, `src/stealth/*`,
+Two read-only audits covered `src/api/**`, `src/evasion/*`,
 `src/profile_payloads`, `tracing_util.rs` and `src/utilities`. **Every item
 below was found by reading the code; none was run or confirmed against Chrome**,
 so check each with a test before fixing it.
 
 Fixed and tested (these were confirmed by reading and are covered by unit
 tests): a payload's Chrome switches that run programs, load code or reroute
-traffic are refused (`stealth::evasions::permitted_switch`, applied to the
+traffic are refused (`evasion::evasions::permitted_switch`, applied to the
 WebDriver, Playwright and profile paths); `folder_id` can no longer leave
 `./profile-data`; start pages are limited to five web pages; derived `Debug`
 on `StealthOptions` and both `ProxyConfig` types no longer prints proxy
@@ -301,7 +301,7 @@ Fixed since, with tests: `master_qa.rs` no longer treats closed input as "yes"
 comment's apostrophes, and no longer mistakes a Selenium script that mentions
 `seleniumbase.io` for a SeleniumBase one; the Selenium IDE reader handles
 multi-line rows and entities; `tracing_util` builds its filter instead of
-changing `RUST_LOG`; `stealth/cdp.rs` reports a failed click or domain enable
+changing `RUST_LOG`; `evasion/cdp.rs` reports a failed click or domain enable
 instead of returning `Ok` (WebDriver path, not run against a real driver); the
 tour export writes valid CSS and escapes the tour's name; the chromedriver
 patcher keeps its first `.orig` backup, replaces the binary with a rename
@@ -337,7 +337,7 @@ Open, most serious first:
   set; the patched Chrome copy is written non-atomically and probably cannot
   start on macOS or Linux because only the executable is copied (unverified).
 - `uc.rs`: non-configurable `defineProperty` calls outside `try`.
-- Providers (`stealth/providers/builtin.rs`): the font check mishandles
+- Providers (`evasion/providers/builtin.rs`): the font check mishandles
   shorthand such as `12px Arial`; the timezone provider patches only
   `Intl.DateTimeFormat`, so `getTimezoneOffset` disagrees; canvas and audio
   noise differ on every read despite the "deterministic" claim; page-visible
@@ -378,7 +378,7 @@ WebSocket and HTTP/1.1 details, measuring more systems, the known `btls` and
 where the crates `seleniumbase-rs-codec`, `seleniumbase-rs-scrape` and
 `seleniumbase-rs-mimic` live. The design history is
 `docs/design/stealth_parity_plan.md`. What stays here is keeping the public
-items those crates import (`sb_cdp`, `stealth::randomize`) stable.
+items those crates import (`sb_cdp`, `evasion::randomize`) stable.
 
 ## 7. Plugin framework (in progress)
 

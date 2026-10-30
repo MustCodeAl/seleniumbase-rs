@@ -39,7 +39,7 @@ fn main() -> Result<(), seleniumbase_rs_stealth::codec::header_spec::HeaderSpecE
 ```
 
 ```rust The measured priority table
-use seleniumbase_rs_stealth::stealth::fingerprint::OsType;
+use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
 use seleniumbase_rs_stealth::codec::emulation;
 use seleniumbase_rs_stealth::codec::BrowserKind;
 

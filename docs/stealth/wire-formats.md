@@ -28,7 +28,7 @@ uses for WebSocket), the HTTP/2 start, the header lists and their order, the
 client hints, and where it came from:
 
 ```rust
-use seleniumbase_rs_stealth::stealth::fingerprint::OsType;
+use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
 use seleniumbase_rs_stealth::codec::emulation::{self, EmulationError};
 use seleniumbase_rs_stealth::codec::BrowserKind;
 

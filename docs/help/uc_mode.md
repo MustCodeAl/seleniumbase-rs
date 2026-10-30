@@ -96,7 +96,7 @@ cargo run --bin sbrs -- patch-chromedriver --path /path/to/chromedriver
 <Tab title="From Rust" icon="code">
 
 ```rust,no_run
-use seleniumbase_rs::stealth::patcher::patch_chromedriver;
+use seleniumbase_rs::evasion::patcher::patch_chromedriver;
 
 # fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 patch_chromedriver("/path/to/chromedriver")?;

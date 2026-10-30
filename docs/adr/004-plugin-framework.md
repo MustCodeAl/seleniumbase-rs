@@ -32,7 +32,7 @@ third-party crate change how a browser starts or what every page gets:
 | Today | What it covers | What it cannot do |
 |---|---|---|
 | `plugins::observer::TestPlugin` | Test started, failed (with the page), finished | Change launch options; see pages as they open |
-| `stealth::providers::EvasionProvider` | JavaScript added to every document by the stealth layer | Anything outside the stealth bootstrap script |
+| `evasion::providers::EvasionProvider` | JavaScript added to every document by the stealth layer | Anything outside the stealth bootstrap script |
 | `LaunchOptions` flags (`ad_block`, `shield_webrtc`, `identity`) | Fixed built-in behaviours | New behaviours without changing this crate |
 
 The Chrome extension in

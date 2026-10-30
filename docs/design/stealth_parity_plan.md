@@ -123,16 +123,16 @@ Deviations from the plan that the code made. The plan's text above was not rewri
 | 6 | `CloudScraper` builder (`with_geo_proxies`, `proxy_strategy`, `with_max_challenge_attempts`, `with_state_store`, `with_event_sink`), `solve_challenge` | `scrape::adapters::browser_scraper::BrowserScraper` (no MITM), `impersonate::StealthSession` (with MITM) | `Browser`, `Page`, `BrowserContext`, `ContextOptions::proxy`, `Page::{solve_captcha, human}`, `Lease::save_session` | builders, fetch/detect/mitigate loop, clearance wait |
 | 7 | `rotate_profile()`: new fingerprint, same MITM port and egress | `BrowserScraper::rotate_profile`, `StealthSession::rotate_profile` | `Browser::launch`, `LaunchOptionsBuilder::fingerprint`, `Page::apply_fingerprint` | relaunch rules (§3.13) |
 | 8 | Challenge `detect` and `MitigationPolicy` deciding an `Action` | `domain::{challenge, markers, mitigation}` | `sb_cdp::Captcha` (widget evidence), `RetryPolicy::delay_for_attempt` (backoff) | markers, `Detection`, decision table |
-| 9 | Proxy pool with `RotationStrategy` | `domain::{proxy_pool, egress}` | `sb_cdp::Proxy::parse` (password-free `Debug`), `stealth::humanize::Rng` | strategies, health, quarantine |
+| 9 | Proxy pool with `RotationStrategy` | `domain::{proxy_pool, egress}` | `sb_cdp::Proxy::parse` (password-free `Debug`), `evasion::humanize::Rng` | strategies, health, quarantine |
 | 10 | `CountryCode`, `Locale` table, `GeoResolver` port, locale led by the egress country and applied over CDP | `domain::geo`, `adapters::cdp::apply_locale` | `randomize.rs` `REGIONS` (moved into `LOCALES`), `Page::apply_fingerprint`, `Emulation::{locale, timezone, geolocation}` | `CountryCode`, `LOCALES`, `StaticGeoResolver` |
 | 11 | `DomainState` + `StateStore` (memory; redb under `persistence`) | `domain::state`, `adapters::json_store` | `SessionStore`'s `Arc<Mutex<BTreeMap>>` shape, `sb_cdp::sync::locked`, `RateLimiter` (per-site pacing) | `JsonStateStore` (atomic file) instead of redb |
 | 12 | `ScraperEvent` + `EventSink` (`Noop`, `Log`); credentials redacted before logs, events and state | `domain::{events, redact}`, `adapters::tracing_sink` | redacting `Debug` of `Proxy`, `ProxyConfig`, `Cookie`, `Session` | `RedactedUrl`, `Secret`, `TracingEventSink`, `CollectingEventSink` |
-| 13 | Stealth injection JS (navigator, WebGL, Canvas, Audio) | `stealth::providers` (exists) | 29 builtin providers, `SB_PREAMBLE` native-shape helpers, `Identity::of` | `session_registry()` (§3.14) |
+| 13 | Stealth injection JS (navigator, WebGL, Canvas, Audio) | `evasion::providers` (exists) | 29 builtin providers, `SB_PREAMBLE` native-shape helpers, `Identity::of` | `session_registry()` (§3.14) |
 | 14 | Interactive solver (Turnstile click) | `sb_cdp::captcha` (exists) | `Page::solve_captcha`, `Captcha::ALL` | `adapters::cdp::wait_for_clearance` |
-| 15 | Human behaviour (Bezier mouse, keystroke jitter) | exists | `humanize::{bezier_mouse_path, keystroke_delays}`, `stealth::behavior`, `sb_cdp::Human` | - |
+| 15 | Human behaviour (Bezier mouse, keystroke jitter) | exists | `humanize::{bezier_mouse_path, keystroke_delays}`, `evasion::behavior`, `sb_cdp::Human` | - |
 | 16 | Dual-mode `StealthSession`/`StealthIdentity`; re-escalate on a fresh challenge or a near-expiry clearance | `impersonate::{stealth_session, http_session}`, `domain::{identity, session_policy, cookie_jar}` | unreviewed draft `.claude/worktrees/agent-adf311134dafc0ac4/src/sb_cdp/handoff.rs`: UA parsing, `Accept-Language`, body limits, cookie sync-back (its wreq-util preset table is dropped) | RFC 6265 jar, identity serde, mode state machine |
 | 17 | Measurement tools (`capture_fingerprint`, `capture_h2`, `capture_hints`, `emulation_roundtrip`) | `adapters::capture`, `impersonate::capture_h2`, `examples/capture_*.rs`, `tests/impersonate_wire.rs` | `LaunchOptionsBuilder::arg` (`--host-resolver-rules`), `Page::evaluate`, `Browser::execute("Browser.getVersion")` | ClientHello and H2 frame readers, JA3/JA4/Akamai |
-| 18 | Hardening: never `Runtime/DOM/Log/Debugger/Profiler.enable`; screen via `setDeviceMetricsOverride` 0x0; `userAgentData` only in secure contexts; no plugins/mimeTypes/pdfViewerEnabled/connection hooks; seeded noise; pipe transport | `stealth::{cdp, providers}`, `sb_cdp::identity`, audit tests | noise is already a pure function of (seed, index) | drop `Runtime.enable` in `src/stealth/cdp.rs:61`, hygiene and audit tests; pipe deferred (§6) |
+| 18 | Hardening: never `Runtime/DOM/Log/Debugger/Profiler.enable`; screen via `setDeviceMetricsOverride` 0x0; `userAgentData` only in secure contexts; no plugins/mimeTypes/pdfViewerEnabled/connection hooks; seeded noise; pipe transport | `evasion::{cdp, providers}`, `sb_cdp::identity`, audit tests | noise is already a pure function of (seed, index) | drop `Runtime.enable` in `src/evasion/cdp.rs:61`, hygiene and audit tests; pipe deferred (§6) |
 | 19 | Long-lived browser (their idle-timeout bug) | `BrowserScraper` + test | no idle timeout anywhere (`BrowserPool` has only `acquire_timeout`) | idle-browser test, named lifetime constants |
 | 20 | (ours) custom JA3 and Akamai strings | `wire::{ja3, akamai, tls_spec, h2_spec}`, `impersonate::client::CustomProfileBuilder` | - | parse, reproducibility check, wire round trip |
 
@@ -161,9 +161,9 @@ Deviations from the plan that the code made. The plan's text above was not rewri
 ```text
 src/lib.rs (mod lines, lint block: WP0; re-exports: WP19)   src/sb_cdp/mod.rs (`pub(crate) mod sync`): WP0
 src/sb_cdp/{context,browser}.rs: WP13, only to port the worktree's ContextRoute
-src/stealth/{randomize,fingerprint}.rs: WP1, additive (LOCALES source, randomized_with_major,
+src/evasion/{randomize,fingerprint}.rs: WP1, additive (LOCALES source, randomized_with_major,
     ClientHints.wow64 / form_factors with serde default)
-src/stealth/cdp.rs, src/stealth/providers/{mod,builtin}.rs, src/sb_cdp/identity.rs: WP17
+src/evasion/cdp.rs, src/evasion/providers/{mod,builtin}.rs, src/sb_cdp/identity.rs: WP17
 src/scrape/  (feature "scrape")      mod.rs WP0 (re-exports WP19), error.rs WP13 (ScrapeError)
   domain/    (pure, enforced)        mod.rs WP0
     redact egress geo proxy_pool                                WP1
@@ -849,12 +849,12 @@ dropped, `DomainState` kept. A launched browser lives until we close it: no idle
 
 ### 3.14 Hardening hooks (WP17)
 
-`stealth::providers::session_registry(fp: &Fingerprint) -> EvasionRegistry`: the default registry
+`evasion::providers::session_registry(fp: &Fingerprint) -> EvasionRegistry`: the default registry
 without `PluginsProvider` and `ConnectionProvider`; a test checks the assembled script never names
 `plugins`, `mimeTypes`, `pdfViewerEnabled` or `connection`. `ClientHintsProvider` returns early when
 `!isSecureContext`. `sb_cdp::identity` sends the screen through
 `Emulation.setDeviceMetricsOverride { width: 0, height: 0, screenWidth, screenHeight, ... }`.
-`stealth::cdp::enable_default_domains` stops sending `Runtime.enable`.
+`evasion::cdp::enable_default_domains` stops sending `Runtime.enable`.
 
 ## 4. Tests and gates
 
@@ -937,7 +937,7 @@ design and audits. Size: S up to 400 lines with tests, M 400-900, L 900-1600. Bu
 | 14 | http_session (salvage the worktree draft, drop wreq-util) | WP4 jar, WP12 client, WP13 `adapters::cdp` | 4, 8, 12, 13 | M | sonnet | B |
 | 15 | mitm (connect, forward, upstream), `tests/impersonate_mitm.rs` | `ProxyAuth`, `LaunchOptionsBuilder::proxy`, shutdown, hyper | 1, 8, 10, 11, 12 | L | opus | B + chrome |
 | 16 | stealth_session, `tests/stealth_session.rs` | WP13, WP14, WP15, WP17 | 13, 14, 15, 17 | L | sonnet | B + chrome |
-| 17 | hardening: `stealth/cdp.rs`, `providers/{mod,builtin}.rs`, `sb_cdp/identity.rs`, hygiene and audit tests | `MockCtrl::calls_to`, `EvasionRegistry` | 0 | M | sonnet | test + chrome |
+| 17 | hardening: `evasion/cdp.rs`, `providers/{mod,builtin}.rs`, `sb_cdp/identity.rs`, hygiene and audit tests | `MockCtrl::calls_to`, `EvasionRegistry` | 0 | M | sonnet | test + chrome |
 | 18 | split-role security review. Pass 1 after WP4, 8, 10 (cookies, identity files, CA); pass 2 after WP14-16 (MITM, credentials, egress stickiness); audit, deny, ripsecrets; may patch only a reviewed package's files after it merged | - | see scope | M | opus | B |
 | 19 | re-exports in `scrape/mod.rs`, `impersonate/mod.rs`, `lib.rs`; `docs/tutorials/stealth_scraping.md`; fix `fingerprint_stealth.md` lines 529-530 ("not implemented", "consider wreq-util"); ROADMAP; full `--all-targets` clippy per feature, doctests, audit, deny | - | all | S | haiku | test + B |
 

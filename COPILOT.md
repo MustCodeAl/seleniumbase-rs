@@ -31,7 +31,7 @@ last raised. Raise it deliberately and keep the `msrv` CI job and the
 | `src/api/` | `BaseCase` and capability traits (`BrowserApi`, `ElementApi`, `AssertionApi`, `ScreenshotApi`). |
 | `src/api/base_case_impls/` | Modular `BaseCase` method implementations. |
 | `src/browser/` | `BrowserConfig`, `BrowserSession`, `PlaywrightSession`, launcher/downloader. |
-| `src/stealth/` | Anti-detection: CDP wrappers, evasions, fingerprint profiles, binary patcher, reactor. |
+| `src/evasion/` | Anti-detection: CDP wrappers, evasions, fingerprint profiles, binary patcher, reactor. |
 | `src/profile_payloads/` | External browser profile JSON parsing and conversion. |
 | `src/macros.rs` | User-facing macros (`selector!`, `sb_test!`, `sb_click!`, `fingerprint!`, etc.). |
 | `src/testing/` | Feature `testing`: the rstest `sb` and `sb_cdp` fixtures for `cargo test` (reruns, time limit, evidence on failure, debug prompts); `testing/bdd` (feature `bdd`) runs Gherkin scenarios through rstest-bdd. |
@@ -49,7 +49,7 @@ last raised. Raise it deliberately and keep the `msrv` CI job and the
 - **Error type**: `crate::Result<T>` is an alias for `Result<T, SeleniumBaseError>`.
 - **Async runtime**: Tokio. Tests use `#[tokio::test]`.
 - **Selectors**: Use `crate::Selector` (CSS, XPath, Id, LinkText, PartialLinkText).
-- **Stealth additions**: Add JS evasions to `src/stealth/evasions.rs`, flags to `src/stealth/fingerprint.rs`, launch args to `src/stealth/options.rs` or `src/stealth/patcher.rs::engine_spoofing_args`, and expose via crate root if user-facing.
+- **Stealth additions**: Add JS evasions to `src/evasion/evasions.rs`, flags to `src/evasion/fingerprint.rs`, launch args to `src/evasion/options.rs` or `src/evasion/patcher.rs::engine_spoofing_args`, and expose via crate root if user-facing.
 - **Macros**: `#[macro_export]` so they live at the crate root. Import as `use seleniumbase_rs::{selector, sb_click, ...};`.
 - **MCP tools**: Add a `ToolDef` in `src/mcp/` (see "Adding an MCP Tool" in `CONTRIBUTING.md`).
 - **Documentation**: Every public API needs a rustdoc example. Every new feature needs a tutorial or help page and an entry in `docs/SUMMARY.md`.

@@ -56,7 +56,7 @@ those cookies were earned through.
 ```rust
 use seleniumbase_rs_stealth::scrape::passport::identity::{EmulationRef, StealthIdentity};
 use seleniumbase_rs_stealth::scrape::runtime::identity_file;
-use seleniumbase_rs_stealth::stealth::fingerprint::{Fingerprint, OsType};
+use seleniumbase_rs_stealth::evasion::fingerprint::{Fingerprint, OsType};
 use seleniumbase_rs_stealth::codec::BrowserKind;
 
 # async fn demo(now: u64) -> Result<(), Box<dyn std::error::Error>> {

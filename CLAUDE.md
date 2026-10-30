@@ -45,14 +45,14 @@ experimental stealth layer (wire formats, `BrowserScraper`, `HttpSession`,
 moved out in 0.3.0 to the workspace
 [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
 (crates `seleniumbase-rs-codec`, `-scrape`, `-mimic`), which uses only the
-public API of this crate: keep items it imports public (`stealth::randomize`,
+public API of this crate: keep items it imports public (`evasion::randomize`,
 `sb_cdp`).
 
 ## Two engines
 
 | Engine | Where | Notes |
 |---|---|---|
-| WebDriver (thirtyfour) | `src/browser/`, `src/api/` (`BaseCase`) | Classic Selenium API plus the stealth/UC layer in `src/stealth/`. |
+| WebDriver (thirtyfour) | `src/browser/`, `src/api/` (`BaseCase`) | Classic Selenium API plus the stealth/UC layer in `src/evasion/`. |
 | Pure CDP, no driver | `src/sb_cdp/` | Talks to Chrome directly. `Browser`, `Page`, `Locator`, `BrowserContext`, `BrowserPool`, `SessionStore`, `Identity`, request interception, a mock transport (`Browser::new_mocked`, `MockCtrl`) for tests without Chrome. |
 
 ## Module map (`src/`)
@@ -62,7 +62,7 @@ public API of this crate: keep items it imports public (`stealth::randomize`,
 | `api/` | `BaseCase` (`base_case.rs`) and the capability traits in `traits.rs` (`BrowserApi`, `ElementApi`, `AssertionApi`, `ScreenshotApi`, selectors passed as `css: &str`). `base_case_impls/` splits its methods by theme (`_dom`, `_nav`, `_mouse`, `_storage`, `_tours`, ...). Also `recorder`, `scenario`, `presentation`, `master_qa`, `chart`, `tour`, `pdf`, `html`, `html_inspector`, `dialog`, `gui`, `cdp_driver`/`cdp_page`, `runner` (`run_browser_test`). |
 | `browser/` | `BrowserConfig`/`Browser`/`DriverMode` (`config.rs`), `BrowserSession` (`session.rs`), `launcher`, `driver_access` (repairs and runs drivers), `driver_install` (geckodriver and msedgedriver), `driver_version` (matches chromedriver to Chrome), `downloader`, `downloads` (the `downloaded_files` folder browsers are told to save into), `reuse` (reused sessions, `--crumbs`), `options/` (typed launch settings: Chromium switches, mobile mode), `playwright`. |
 | `sb_cdp/` | The pure CDP engine: `browser`, `page`, `locator`, `context`, `client` (protocol), `launch` (`LaunchOptionsBuilder`), `pool` (`BrowserPool`, `PoolOptions`), `session_store`, `state` (`Cookie`, storage), `identity` (`Identity`), `intercept`, `input`, `human`, `captcha`, `download` (`Page::download_file`, `download_by_click`, `save_file_as`, `assert_downloaded_file`), `breakpoint` (`Page::breakpoint`), `capture` (`Page::capture_fingerprint`), `proxy_auth`, `webrtc`, `har` (`Page::start_har`, `HarRecorder`, the HAR 1.2 serde types), `expect`, `mock`, `helper.js`. Held to the pedantic lint set. |
-| `stealth/` | `fingerprint.rs` (`Fingerprint`, one `Spoof` per setting, `ProxyConfig`, `ClientHints`), `spoof.rs`, `settings.rs` (value types), `policy.rs` (`StealthPolicy`), `providers/` (`EvasionRegistry`, `default_registry`, `builtin.rs`), `randomize`, `capture` (`CapturedFingerprint`: reading a real browser's fingerprint), `fingerprint/` (parts of `fingerprint.rs`: `compare`, `file`, `schema`), `behavior` and `humanize` (human-like input), `patcher` (Chrome/chromedriver binary patching), `reactor`, `uc`, `evasions` (launch flags), `options`, `cdp` (DevTools wrapper for WebDriver), `js/`. |
+| `evasion/` | `fingerprint.rs` (`Fingerprint`, one `Spoof` per setting, `ProxyConfig`, `ClientHints`), `spoof.rs`, `settings.rs` (value types), `policy.rs` (`StealthPolicy`), `providers/` (`EvasionRegistry`, `default_registry`, `builtin.rs`), `randomize`, `capture` (`CapturedFingerprint`: reading a real browser's fingerprint), `fingerprint/` (parts of `fingerprint.rs`: `compare`, `file`, `schema`), `behavior` and `humanize` (human-like input), `patcher` (Chrome/chromedriver binary patching), `reactor`, `uc`, `evasions` (launch flags), `options`, `cdp` (DevTools wrapper for WebDriver), `js/`. |
 | `profile_payloads/` | Parses external browser-profile JSON into a `Fingerprint`. |
 | `mcp/` | MCP servers `cdp`, `driver`, `sb` and `dev` (`tool`, `host`, `webdriver`, `cdp`, `devtools`, `stealth`, `schema`; `dev/` is the server with no browser: `find_api`, `parity_lookup`, `python_to_rust`, `scaffold`, `cli_help`, plugins, `install_driver`, `explain_error`, `check_config`, `check_fingerprint`, `diagnose_environment`; `api_index.json` is the index `find_api` searches and `spec.rs` reads the `sbrs` usage spec); started by `crates/cli/src/mcp_server.rs`. Held to the pedantic lint set. |
 | `cli/` | The library half of the command line, with no parser: `commands.rs`, `devtools.rs`, `fingerprint_cmd.rs` (`sbrs fingerprint`), `plugin_cmd.rs` (`sbrs plugin list|info`, the check of `--plugin` names and options), `prompt.rs`, `scaffold.rs`, `scripts/` (`sb_grid`, `sb_mkdir`, `sb_mkfile`, `sb_recorder`, `sb_commander` needs `tui`, ...). |
