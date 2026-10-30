@@ -4,7 +4,7 @@
 //! so it cannot drift from them without a test failing. Other tools, such as the
 //! companion browser extension, validate files against the committed copy.
 //!
-//! `SB_UPDATE_SCHEMAS=1 cargo test -p seleniumbase-rs --lib stealth::fingerprint::schema`
+//! `SB_UPDATE_SCHEMAS=1 cargo test -p seleniumbase-rs --lib evasion::fingerprint::schema`
 //! rewrites the file after a change to a setting.
 
 use std::collections::BTreeMap;
@@ -152,7 +152,7 @@ fn the_committed_schema_is_the_schema_of_the_types() {
     assert!(
         committed == text,
         "schemas/fingerprint.schema.json is out of date with the types. Rewrite it with:\n  \
-         SB_UPDATE_SCHEMAS=1 cargo test -p seleniumbase-rs --lib stealth::fingerprint::schema"
+         SB_UPDATE_SCHEMAS=1 cargo test -p seleniumbase-rs --lib evasion::fingerprint::schema"
     );
 }
 

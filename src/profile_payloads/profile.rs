@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::browser::config::{Browser, BrowserConfig, DriverMode};
 use crate::error::SeleniumBaseError;
-use crate::evasion::fingerprint as stealth_fp;
+use crate::evasion::fingerprint as evasion_fp;
 use crate::evasion::fingerprint::{
     AudioNoise, CanvasNoise, Fingerprint, FingerprintBuilder, Geolocation, MediaDeviceSpec,
     MediaDevices, OsType, QuicMode, ScreenSize, Spoof, StealthPolicy, WebGl, WebRtcAddresses,
@@ -255,7 +255,7 @@ pub struct CmdParam {
 }
 
 /// The proxy section of a payload. [`ProfileParams::to_fingerprint`] turns it
-/// into the [`ProxyConfig`](stealth_fp::ProxyConfig) of a [`Fingerprint`].
+/// into the [`ProxyConfig`](evasion_fp::ProxyConfig) of a [`Fingerprint`].
 #[derive(Clone, Default, Deserialize, Serialize)]
 pub struct ProfileProxy {
     #[serde(rename = "type")]
@@ -700,7 +700,7 @@ fn parse_ports(s: &str) -> Option<Vec<u16>> {
     (!ports.is_empty()).then_some(ports)
 }
 
-fn parse_proxy_url(s: &str) -> Option<stealth_fp::ProxyConfig> {
+fn parse_proxy_url(s: &str) -> Option<evasion_fp::ProxyConfig> {
     let parsed = url::Url::parse(s.trim()).ok()?;
     let scheme = parsed.scheme();
     if !matches!(scheme, "socks5" | "http" | "https") {
@@ -719,7 +719,7 @@ fn parse_proxy_url(s: &str) -> Option<stealth_fp::ProxyConfig> {
     });
     let username = Some(parsed.username().to_string()).filter(|s| !s.is_empty());
     let password = parsed.password().map(|p| p.to_string());
-    Some(stealth_fp::ProxyConfig {
+    Some(evasion_fp::ProxyConfig {
         r#type: scheme.to_string(),
         host,
         port,
@@ -769,7 +769,7 @@ impl ProfileParams {
     /// The payload keeps its own format. Each flag is a keyword or a literal
     /// value of its key, and the nested sections (`navigator`, `screen`, ...)
     /// hold values. Every key reads the same words, and each setting ends up
-    /// in one of the four states of a [`Spoof`](stealth_fp::Spoof). The words,
+    /// in one of the four states of a [`Spoof`](evasion_fp::Spoof). The words,
     /// the literal format of each key and the keys that differ are in one table,
     /// in `docs/tutorials/fingerprint_stealth.md`.
     ///
@@ -1146,7 +1146,7 @@ impl ProfileParams {
             .parameters
             .proxy
             .as_ref()
-            .map(|p| stealth_fp::ProxyConfig {
+            .map(|p| evasion_fp::ProxyConfig {
                 r#type: p.proxy_type.clone(),
                 host: p.host.clone(),
                 port: p.port,
@@ -1246,7 +1246,7 @@ impl ProfileParams {
             proxy: fingerprint
                 .proxy()
                 .value()
-                .map(stealth_fp::ProxyConfig::to_url),
+                .map(evasion_fp::ProxyConfig::to_url),
             proxy_pac_url: None,
             user_data_dir: self.user_data_dir(),
             extension_dir: None,
@@ -1303,7 +1303,7 @@ impl ProfileParams {
         self.to_fingerprint()
             .proxy()
             .value()
-            .map(stealth_fp::ProxyConfig::to_url)
+            .map(evasion_fp::ProxyConfig::to_url)
     }
 
     /// Per-profile persistent data directory when `storage.is_local` is true.
@@ -1553,7 +1553,7 @@ mod tests {
         assert!(!shown.contains("hunter2"), "{shown}");
         assert!(shown.contains("proxy.example"), "{shown}");
         // The fingerprint's own proxy type hides it too.
-        let fp = stealth_fp::ProxyConfig {
+        let fp = evasion_fp::ProxyConfig {
             r#type: "http".into(),
             host: "h".into(),
             port: 1,

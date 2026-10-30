@@ -461,7 +461,7 @@ fn build_user_agent_metadata(fp: &Fingerprint, ua: &str) -> Option<serde_json::V
     // on Windows says `Windows` there, never `Win32`.
     let platform = client_hints_platform(fp.os_type());
     // The platform versions in the format Chrome reports them, as in the tables
-    // `Fingerprint::randomized` draws from (`stealth::randomize`): `10.0.0`,
+    // `Fingerprint::randomized` draws from (`evasion::randomize`): `10.0.0`,
     // the value Microsoft documents for Windows 10 2004 to 22H2; macOS 27.0.1
     // as Chrome 155 reported it on a Mac; Android 14 as `14.0.0`; and iOS 26.0,
     // the release of the Safari 26.0 preset.

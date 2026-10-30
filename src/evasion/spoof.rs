@@ -191,7 +191,7 @@ impl<T: Serialize> Serialize for Spoof<T> {
 }
 
 /// The JSON Schema of a setting: a keyword, `null`, or the value. Only the library's
-/// own tests write schemas (see `stealth::fingerprint::schema`).
+/// own tests write schemas (see `evasion::fingerprint::schema`).
 #[cfg(test)]
 impl<T: schemars::JsonSchema> schemars::JsonSchema for Spoof<T> {
     fn inline_schema() -> bool {
