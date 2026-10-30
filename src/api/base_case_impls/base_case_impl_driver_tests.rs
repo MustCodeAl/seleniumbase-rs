@@ -158,16 +158,17 @@ mod tests_page_scripts {
     }
 
     #[tokio::test]
-    async fn js_click_keeps_the_selector_inside_its_string() {
+    async fn js_click_keeps_the_selector_out_of_its_script() {
         let driver = quiet_driver();
         let mut sb = driver.base_case().await;
         for css in HOSTILE {
-            sb.js_click(css).await.unwrap();
-            assert_inert(
-                &last_script(&driver),
-                "document.querySelector(S).click();",
-                &[css],
-            );
+            if css.is_empty() {
+                            // An empty selector is refused before a script is sent.
+                            sb.js_click(css).await.unwrap_err();
+                            continue;
+                        }
+                        sb.js_click(css).await.unwrap();
+            assert_inert(&last_script(&driver), "arguments[0].click();", &[]);
         }
     }
 

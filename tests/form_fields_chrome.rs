@@ -215,4 +215,31 @@ async fn checkboxes_at_zero_opacity_or_not_displayed_can_be_checked_and_unchecke
 }
 
 
+#[tokio::test]
+#[ignore = "requires a local Chrome and chromedriver"]
+async fn js_click_reads_contains_and_xpath_selectors_and_waits_for_the_element() -> Result<()> {
+    let url = serve();
+    run_browser_test(headless(), async |sb| {
+        sb.open(&url).await?;
+        sb.set_timeout(4).await?;
+
+        // `:contains()` and XPath: document.querySelector reads neither.
+        sb.js_click("nav a:contains(\"Coffee Cart\")").await?;
+        sb.js_click("//a[@id='coffee']").await?;
+        // A button the page adds after a moment: js_click waits for it.
+        assert!(!sb.is_element_present("#late").await?);
+        sb.js_click("#late").await?;
+        // An element that is not displayed can be clicked with a script.
+        sb.js_click("#covered").await?;
+
+        assert_eq!(
+            sb.get_text("#clicked").await?,
+            "coffee;coffee;late;covered;"
+        );
+        Ok(())
+    })
+    .await
+}
+
+
 // The tests of the other form-field behaviours follow.

@@ -2126,15 +2126,27 @@ impl BaseCase {
         self.session.delete_cookie(name).await
     }
 
-    /// Executes the `js_click` action.
+    /// Clicks the element selected by `css` with JavaScript, which also reaches
+    /// an element that is hidden or that another element covers, as Python's
+    /// `js_click` does.
+    ///
+    /// `css` is any selector this crate reads: CSS, `:contains()`, XPath, link
+    /// text. The element is waited for up to the default timeout
+    /// ([`set_timeout`](Self::set_timeout)), but not for it to be displayed.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::WaitTimeout`] if no element matches in time.
     pub async fn js_click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
-        self.record("js_click", Some(css), None);
-        self.demo_highlight(css).await?;
-        let script = format!("document.querySelector({}).click();", quote(css));
-        self.execute_script(&script).await?;
-        self.demo_pause(PauseKind::Full).await;
-        Ok(())
-    }
+            self.record("js_click", Some(css), None);
+            let by = Selector::auto(css).to_by()?;
+            self.await_ready(css, Ready::Present).await?;
+            self.demo_highlight(css).await?;
+            let element = self.session.webdriver()?.find(by).await?;
+            self.session.js_click_element(&element).await?;
+            self.demo_pause(PauseKind::Full).await;
+            Ok(())
+        }
 
     /// Executes the `js_type` action.
     pub async fn js_type(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {

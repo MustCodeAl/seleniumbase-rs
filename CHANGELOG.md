@@ -827,6 +827,14 @@ work, `docs/parity.md` the per-API status).
   (`display: none`) is clicked with a script.
 
 
+- **`js_click` reads every selector syntax and waits for its element, as Python's does.** It ran
+  `document.querySelector(css).click()`, so `js_click("nav a:contains(\"Coffee Cart\")")` and an
+  XPath selector were an "invalid selector" error and an element that was not there yet was a
+  script error. It now waits (up to the default timeout) for the element, found by the driver
+  as `click` finds it, and clicks that element with a script. An empty selector is an
+  `InvalidSelector` error before any script is sent.
+
+
 - **Recorder Mode no longer writes the frames of a page as pages to open.** The page script went
   into every frame, and a frame of the same origin shares the top frame's sessionStorage, so a
   reCAPTCHA page recorded `goto` steps for `about:blank`, `about:srcdoc` and the widget's

@@ -40,7 +40,7 @@ Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...)
 | `select_option_by_text(selector, text)` | Selects by visible text. |
 | `select_option_by_value(selector, value)` | Selects by value. |
 | `select_option_by_index(selector, index)` | Selects by zero-based index and fires `input` and `change`; fails if there is no such option. |
-| `js_click(selector)` | Clicks via JavaScript. |
+| `js_click(selector)` | Clicks via JavaScript, so it also reaches a hidden or covered element. Reads every selector syntax (CSS, `:contains()`, XPath) and waits for the element to be in the page. |
 | `js_type(selector, text)` | Types via JavaScript. |
 | `highlight_click(selector)` | Highlights then clicks. |
 | `highlight_type(selector, text)` | Highlights then types. |

@@ -6,6 +6,82 @@
 // Included (for tests only) at the end of `base_case.rs` like the files beside
 // it.
 
+mod tests_form_clicks {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+
+    use super::webdriver_support::{element, MockWebDriver, Reply};
+    use super::SeleniumBaseError;
+    use serde_json::{json, Value};
+
+    /// A driver that has no element for the first `missing` lookups and the
+    /// element `e1` after that.
+    fn late_element(missing: usize) -> MockWebDriver {
+        let lookups = Arc::new(AtomicUsize::new(0));
+        MockWebDriver::start(json!({}), move |request| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("POST", "/element") => {
+                    if lookups.fetch_add(1, Ordering::SeqCst) < missing {
+                        Reply::Error(404, "no such element")
+                    } else {
+                        Reply::Value(element("e1"))
+                    }
+                }
+                ("POST", "/elements") => Reply::Value(json!([element("e1")])),
+                _ => Reply::Value(Value::Null),
+            }
+        })
+    }
+
+    #[tokio::test]
+    async fn js_click_reads_every_selector_syntax_and_clicks_the_element_it_found() {
+        // `document.querySelector` cannot read `:contains()` or XPath; the
+        // element is found by the driver and handed to the script.
+        let driver = late_element(0);
+        let mut sb = driver.base_case().await;
+
+        let selectors = [
+            ("a:contains(\"Coffee Cart\")", "xpath"),
+            ("//a[@id='coffee']", "xpath"),
+            ("#coffee", "css selector"),
+        ];
+        for (css, using) in selectors {
+            sb.js_click(css).await.unwrap();
+
+            let find = driver.requests("/element").pop().expect("a lookup");
+            assert_eq!(find.body["using"], using, "{css}");
+            let script = driver.requests("/execute/sync").pop().expect("a script");
+            assert_eq!(script.body["script"], "arguments[0].click();", "{css}");
+            let clicked = script.body["args"][0].as_object().and_then(|r| r.values().next());
+            assert_eq!(clicked, Some(&json!("e1")), "{css}");
+        }
+    }
+
+    #[tokio::test]
+    async fn js_click_waits_for_an_element_that_is_not_there_yet() {
+        let driver = late_element(3);
+        let mut sb = driver.base_case().await;
+        sb.set_timeout(10).await.unwrap();
+
+        sb.js_click("#late").await.unwrap();
+
+        assert_eq!(driver.requests("/execute/sync").len(), 1);
+    }
+
+    #[tokio::test]
+    async fn js_click_on_an_element_that_never_comes_times_out() {
+        let driver = late_element(usize::MAX);
+        let mut sb = driver.base_case().await;
+        sb.set_timeout(1).await.unwrap();
+
+        let error = sb.js_click("#never").await.unwrap_err();
+
+        assert!(matches!(error, SeleniumBaseError::WaitTimeout(_)), "{error:?}");
+        assert!(driver.requests("/execute/sync").is_empty());
+    }
+}
+
+
 mod tests_form_toggles {
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Arc;

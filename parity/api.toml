@@ -1182,7 +1182,7 @@ rust = "BaseCase::jquery_update_text"
 [basecase."js_click"]
 status = "implemented"
 rust = "BaseCase::js_click"
-divergence = "Runs document.querySelector(css).click(): a :contains() or XPath selector is an error (Python converts them) and the element is not waited for. Found by examples/test_url_asserts.py."
+divergence = "Takes no by, all_matches, timeout or scroll arguments (the wait is the default timeout, see set_timeout; js_click_all clicks every match); it does not scroll a visible element into view first, and it does not switch to a window the click opened."
 
 [basecase."js_click_all"]
 status = "implemented"
