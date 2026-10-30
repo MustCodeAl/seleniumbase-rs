@@ -35,6 +35,24 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ### Breaking
 
+- **Breaking: `sbrs import-python` reads the Python as Python and writes the `sb` fixture form.**
+  The SeleniumBase reading is a parser and a translator (no longer a regex per line): it maps
+  every `implemented` method of `parity/api.toml` whose Rust call is mechanical (about 330, from
+  `goto`, `switch_to_frame`, `with self.frame_switch(..)`, `highlight`, `js_click`, `set_value`,
+  `drag_and_drop` and `hover_and_*` to `assert_true`, `assert_equal`, `assert_in`,
+  `assert_attribute`, `wait_for_element`, `post_message` and `skip`), passes variables, f-strings,
+  `%` formatting and `+` through as Rust, translates `for`, `if`/`elif`/`else`, `while`,
+  `try`/`except`, assignments, `@parameterized.expand` (as `#[case]`s) and `setUp`/`tearDown`,
+  finds each test of a file (one Rust test per `def test_*`), and writes a text assertion
+  without a selector as `html`, Python's default (it was `body`). The output is the rstest `sb`
+  fixture test that `sbrs mkfile` writes, with the docstring as the module comment and
+  `BaseCase.main(..)` and `if __name__ == "__main__"` dropped, instead of
+  `run_browser_test(BrowserConfig::default(), ..)`. A script that uses `sb_cdp.Chrome()`, CDP Mode
+  or `sb.cdp.*` becomes a pure CDP test (`sb_cdp: SbCdp`, `Page` and `Locator` calls). The 22
+  examples and 6 CDP scripts of `parity/examples.toml` convert with 0 errors and 30 warnings in
+  all (310 warnings and 21 errors before), and their output is compiled as a doctest.
+
+
 - **Breaking: `assert_in`, `wait_for_element` and `is_selected` take Python's shape.**
   `assert_in(first, second)` and `assert_not_in` assert `first in second` as Python does: the
   container is borrowed and is a slice, an array or a `Vec` (membership) or a string (substring
