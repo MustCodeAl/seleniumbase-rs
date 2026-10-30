@@ -35,6 +35,13 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ### Breaking
 
+- **Breaking: the library's `stealth` module is now `evasion`.** `seleniumbase_rs::stealth::...`
+  is `seleniumbase_rs::evasion::...` (the folder `src/stealth/` is `src/evasion/`), and the old
+  path is gone with no alias. The root re-exports (`Fingerprint`, `StealthPolicy`,
+  `EvasionProvider`, ...), the type names, the feature names and the MCP tool names keep the
+  word stealth. The `seleniumbase_rs_stealth::...` crates are unchanged (`codec`, `scrape`,
+  `mimic`); the facade re-exports the renamed module as `seleniumbase_rs_stealth::evasion`.
+
 - **The last helpers that dropped Python's keyword arguments take them as call builders.**
   `click_nth_visible_element(selector, number)` counts from 1, as in Python, and a number of 0 is
   an `InvalidConfig` error instead of clicking the first element (`.timeout(..)`, `.scroll(..)`);

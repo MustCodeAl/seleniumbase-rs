@@ -17,7 +17,6 @@ work, `docs/parity.md` the per-API status).
   word stealth. The `seleniumbase_rs_stealth::...` crates are unchanged (`codec`, `scrape`,
   `mimic`); the facade re-exports the renamed module as `seleniumbase_rs_stealth::evasion`.
 
-
 - **The last helpers that dropped Python's keyword arguments take them as call builders.**
   `click_nth_visible_element(selector, number)` counts from 1, as in Python, and a number of 0 is
   an `InvalidConfig` error instead of clicking the first element (`.timeout(..)`, `.scroll(..)`);
