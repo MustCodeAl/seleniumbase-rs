@@ -94,9 +94,17 @@ filter, it is `info`.
 
 <ParamField path="NO_COLOR" type="any value">
 
-Turns colour off. Colour is used only when standard error is a terminal.
+Turns colour off (an empty value does not count). Colour is used only when
+standard error is a terminal and `TERM` is not `dumb`; a pipe, a file and
+`SB_LOG_FORMAT=json` are always plain.
 
 </ParamField>
+
+On a terminal a line reads `12:34:56  INFO browser::session: message path=/tmp/x`,
+with a coloured level, a dim time and module path, and file paths and steps
+highlighted. By default it has no span context (`new:connect:`), no crate name and no
+milliseconds; choosing a filter with `SB_LOG_LEVEL` or `RUST_LOG` brings them back.
+[Tracing and logs](/tutorials/tracing#what-a-log-line-looks-like) shows both forms.
 
 <CodeGroup>
 

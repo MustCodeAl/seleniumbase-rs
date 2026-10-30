@@ -186,8 +186,10 @@ properties are worth knowing.
 - **Standard error, never standard output.** Standard output is for what a program
   produces: the answer of an `sbrs` command, or the JSON-RPC messages of
   `sbrs-mcp`, which a log line would break.
-- **Colour only on a terminal.** It is used only when standard error is a terminal
-  and `NO_COLOR` is not set.
+- **Colour only on a terminal.** It is used only when standard error is a terminal,
+  `NO_COLOR` is not set and `TERM` is not `dumb`; JSON logs are never coloured. By
+  default a line has no span context (`new:connect:`); `RUST_LOG` or `SB_LOG_LEVEL`
+  brings it back.
 - **Old `log` records are kept.** The `log` crate's records are bridged into
   `tracing`, so libraries that use it show up too.
 - **A second call is ignored.** Initialising twice in one process is harmless.

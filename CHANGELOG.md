@@ -173,6 +173,19 @@ work, `docs/parity.md` the per-API status).
   of 35 after. `sbrs solve-captcha` runs it from the command line, and the opt-in test
   `captcha_live_chrome` (with `SB_LIVE_SITES=1`) checks https://nowsecure.nl in both engines.
 
+- **Terminal output looks like Python SeleniumBase's: coloured levels, quiet by default.** Log lines
+  on a terminal are `12:34:56  INFO browser::session: message key=value`, with the level coloured,
+  the time, the module path and the field names dim, and file paths and tests or steps
+  highlighted; the `new:connect:` span context, the crate name and the milliseconds appear only
+  when a filter was chosen (`RUST_LOG`, `SB_LOG_LEVEL`). The `sbrs mkrec` banners (`* RECORDING
+  initialized:`, `>>> RECORDING SAVED as:`, `*** RECORDING COPIED to:`, `*** BEHAVE RECORDING at:`,
+  `ERROR:`) and the label of the `[RECORDER BREAKPOINT]` prompt use the colorama pairs of
+  `sbase mkrec`. Colour is used only when the stream is a terminal, `NO_COLOR` is unset and `TERM`
+  is not `dumb`; a pipe, a file and `SB_LOG_FORMAT=json` stay plain. One new module,
+  `common::color` (`Style`, `palette`, `use_color`, `banner`), holds the decision and the colours
+  for the debug prompts to reuse. `RecordingOptions` and `MkrecOptions` gain a `color` field, off
+  by default.
+
 - **The rest of the stealth section is organized as a reading order, with the
   existing text kept.** The sidebar and `docs/SUMMARY.md` now run tutorial,
   overview, wire formats, identity, `BrowserScraper`, `HttpSession`, `MitmProxy`,

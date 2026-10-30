@@ -1,3 +1,4 @@
+pub mod color;
 pub mod debug_prompt;
 pub mod encryption;
 pub mod obfuscate;

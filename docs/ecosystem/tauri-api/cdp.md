@@ -23,22 +23,35 @@ curl -s "http://127.0.0.1:4445/$TOKEN/cdp" -H 'Origin: null'
 
 <ResponseExample>
 
-```json 200 Configured
+```json 200 Ready
 {
   "value": {
     "cdpEnabled": true,
-    "cdpPort": 9222,
-    "cdpUrl": "http://127.0.0.1:9222"
+    "cdpPort": 53412,
+    "cdpUrl": "http://127.0.0.1:53412",
+    "cdpState": "ready"
   }
 }
 ```
 
-```json 200 Not configured
+```json 200 Not answering yet
 {
   "value": {
     "cdpEnabled": false,
     "cdpPort": null,
-    "cdpUrl": null
+    "cdpUrl": null,
+    "cdpState": "unreachable"
+  }
+}
+```
+
+```json 200 Disabled
+{
+  "value": {
+    "cdpEnabled": false,
+    "cdpPort": null,
+    "cdpUrl": null,
+    "cdpState": "disabled"
   }
 }
 ```
@@ -49,11 +62,15 @@ curl -s "http://127.0.0.1:4445/$TOKEN/cdp" -H 'Origin: null'
 
 <Badge color="blue">GET</Badge> `/cdp`
 
-No WebDriver session is needed. The route reports configuration, not whether
-Chromium has finished starting. It is available without the `cdp` Cargo feature;
-that feature enables the Rust configuration helper below. A valid
-`SBRS_CDP_PORT` is an integer from 1 to 65535. Absent, invalid or zero, CDP is
-reported as disabled. The existing automation gate still controls the server.
+No WebDriver session is needed. The port comes from the launch settings below
+(`CdpStealthConfig`, feature `cdp`) in the same process, read once when the
+plugin starts; the environment of a parent process never sets it. The route
+names that port only while Chromium answers `GET /json/version` there (it waits
+up to one second): before Chromium has started, or while something else holds
+the port, `cdpState` is `unreachable` and no port is named, so a client that
+starts the app retries until it is `ready`. Without the `cdp` feature, or with
+automation off, the route answers `disabled`. The existing automation gate
+still controls the server.
 
 <ResponseField name="value" type="object" required>
 
@@ -61,19 +78,27 @@ reported as disabled. The existing automation gate still controls the server.
 
 <ResponseField name="cdpEnabled" type="boolean" required>
 
-Whether automation is enabled and `SBRS_CDP_PORT` names a valid nonzero port.
+True only when `cdpState` is `ready`.
 
 </ResponseField>
 
 <ResponseField name="cdpPort" type="integer | null" required>
 
-The configured debugging port, or `null` when disabled.
+The debugging port while Chromium answers on it, else `null`.
 
 </ResponseField>
 
 <ResponseField name="cdpUrl" type="string | null" required>
 
-`http://127.0.0.1:{cdpPort}`, or `null` when disabled.
+`http://127.0.0.1:{cdpPort}`, else `null`.
+
+</ResponseField>
+
+<ResponseField name="cdpState" type="string" required>
+
+`disabled` (no debugging port was turned on), `unreachable` (a port was turned
+on but no Chromium debugger answers there yet, or another program holds it), or
+`ready`.
 
 </ResponseField>
 
@@ -87,45 +112,56 @@ The configured debugging port, or `null` when disabled.
 | 403 | `unknown error` | Any `Origin` header, including `null` or an empty value. |
 | 404 | `unknown command` | Wrong token, or a method other than `GET`. |
 
-The token guards discovery; it is not authentication for the separate Chromium
-socket. Both listeners must stay on loopback. The [status response](/ecosystem/tauri-api/status)
+The probe confirms that a Chromium debugger listens on the port, not that the
+browser is the app's own: another browser that took the port between the
+plugin's choice and Chromium's start would pass. The token guards discovery; it
+is not authentication for the separate Chromium socket. Both listeners must stay on loopback. The [status response](/ecosystem/tauri-api/status)
 keeps its existing `ready` and `message` fields.
 
 ## Rust configuration: CdpStealthConfig
 
-Enable the plugin's `cdp` feature with Rust 1.99. The helper calls the existing
-`seleniumbase_rs::stealth::engine_spoofing_args()` through a pinned Git dependency.
+Enable the plugin's `cdp` feature. It adds no dependency: the few stealth flags
+are kept in the plugin, so its minimum Rust version stays 1.88.
 
 | Public field | Type | Default |
 |---|---|---|
-| `debugging_port` | `u16` | Valid nonzero `SBRS_CDP_PORT`, otherwise 9222. An explicit zero also uses 9222 when arguments are built. |
-| `stealth_args` | `bool` | `true`: include the canonical engine stealth switches. |
-| `extra_args` | `Vec<String>` | Empty. Trusted additional Chromium arguments. |
+| `debugging_port` | `Option<u16>` | A valid nonzero `SBRS_CDP_PORT`, else `None`: a free loopback port, the same for the life of the process. A port that is asked for and already in use turns nothing on. |
+| `stealth_args` | `bool` | `false`. Opt in to five flags that hide `navigator.webdriver` and stop background throttling; none of them turns off a protection of the app's browser (site isolation, the popup blocker and the encryption of stored data stay on). |
+| `extra_args` | `Vec<String>` | Empty. Trusted additional Chromium arguments; the debugging switches are reserved. |
 
 | Method | Result and behavior |
 |---|---|
 | `CdpStealthConfig::default()` | Creates the default configuration. |
-| `debugging_port(self, port: u16) -> Self` | Selects the local debugging port. |
-| `stealth_args(self, enabled: bool) -> Self` | Toggles canonical stealth arguments. |
+| `debugging_port(self, port: u16) -> Self` | A fixed local port; zero asks for a free one, as `None` does. The port must be free when the arguments are built. |
+| `stealth_args(self, enabled: bool) -> Self` | Opts in to (or out of) the stealth flags. Off by default. |
 | `arg(self, arg: impl Into<String>) -> Self` | Appends an additional argument. |
-| `chromium_args(&self) -> Vec<String>` | Returns debugging switches, optional canonical stealth switches, then additional arguments. |
-| `unsafe apply_env(&self) -> Vec<String>` | Sets `SBRS_CDP_PORT`, appends WebView2 arguments, and returns arguments for CEF initialization. |
+| `chromium_args(&self) -> Vec<String>` | The loopback debugging switches, the opt-in stealth flags, then the additional arguments; nothing at all when the automation gate is off. |
+| `port(&self) -> Option<u16>` | The port these settings use, for an app that turns on CEF's remote debugging itself; `None` when the gate is off or the port asked for is in use. |
+| `unsafe apply_env(&self) -> Vec<String>` | Appends the arguments to `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS` and returns them for CEF initialization; changes nothing when the gate is off. |
+| `cdp::enabled_port() -> Option<u16>` | The port the launch settings turned on in this process, which the plugin reports. |
 
-`chromium_args()` always includes `--remote-debugging-port={port}` and
-`--remote-debugging-address=127.0.0.1`. Additional arguments containing
-`remote-debugging-`, `edge-webview-switches` or a NUL byte are ignored.
+With the automation gate on (a debug build, or `SBRS_AUTOMATION` set to `1`,
+`true` or `on`; any other value turns it off), `chromium_args()` includes
+`--remote-debugging-port={port}` and `--remote-debugging-address=127.0.0.1`.
+Additional arguments that mention `remote-debugging-`, `remote-allow-origins`
+or `edge-webview-switches`, in any case and with any prefix (`--`, `-`, `/`),
+or that contain a NUL byte, are dropped.
 
 Call `apply_env()` before any threads or runtime initialization. Its safety
 contract requires exclusive access to the process environment. It respects
 the existing automation gate and returns an empty vector without changes when
-that gate is off. Existing WebView2 arguments are preserved; conflicting pipe
-or nested WebView2 switches also cause it to return an empty vector.
+that gate is off. Existing WebView2 arguments are preserved; reserved switches
+in them, or a value that is not valid Unicode, make it return an empty vector.
+`WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS` stays in the environment, because
+WebView2 reads it when it creates its environment: remove it with
+`Command::env_remove` for a child process that must not inherit it.
 
 ```rust
 use tauri_plugin_sbrs_automation::cdp::CdpStealthConfig;
 
 fn main() {
-    let config = CdpStealthConfig::default().debugging_port(9222);
+    // A free loopback port; `.stealth_args(true)` opts in to the stealth flags.
+    let config = CdpStealthConfig::default();
     // SAFETY: no threads or runtime have been started in this process.
     let args = unsafe { config.apply_env() };
     // Pass args to your app's CEF initialization before creating windows.

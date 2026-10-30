@@ -14,6 +14,7 @@ tracing in your own tests.
 **What you will learn**
 
 - How to set log levels with `RUST_LOG`.
+- What a log line looks like, and when it has colour.
 - How `SB_*` environment variables configure runtime behavior.
 - How spans and structured errors help diagnose failures.
 - How to use tracing in your own async code.
@@ -22,7 +23,7 @@ tracing in your own tests.
 
 <Visibility for="agents">
 
-Summary for AI exports: control verbosity with `RUST_LOG`, for example `RUST_LOG=seleniumbase_rs=debug cargo test`. `sbrs` and `sbrs-mcp` also read `SB_LOG_LEVEL` and `SB_LOG_FORMAT` (`pretty` or `json`); without a valid `SB_LOG_LEVEL` they use `RUST_LOG`, then `info`. In your own program call `init_tracing()`. Error events carry `error.category`, `error.transient` and `error.hint`; `ResultExt::log_err` logs an error and passes it through. `full-tracing` adds timing histograms.
+Summary for AI exports: control verbosity with `RUST_LOG`, for example `RUST_LOG=seleniumbase_rs=debug cargo test`. `sbrs` and `sbrs-mcp` also read `SB_LOG_LEVEL` and `SB_LOG_FORMAT` (`pretty` or `json`); without a valid `SB_LOG_LEVEL` they use `RUST_LOG`, then `info`. In your own program call `init_tracing()`. On a terminal a log line is `12:34:56  INFO module: message key=value` with a coloured level and dim context; the span context (`new:connect:`), the crate name and the milliseconds show only when `SB_LOG_LEVEL` or `RUST_LOG` chose a filter. There is no colour when standard error is not a terminal, with `NO_COLOR` set, with `TERM=dumb` or with `SB_LOG_FORMAT=json`; `seleniumbase_rs::common::color` holds the decision and the palette. Error events carry `error.category`, `error.transient` and `error.hint`; `ResultExt::log_err` logs an error and passes it through. `full-tracing` adds timing histograms.
 
 </Visibility>
 
@@ -74,7 +75,13 @@ The tracing filter (`debug`, `seleniumbase_rs=debug,info`). Unset, blank or inva
 
 <ParamField body="SB_LOG_FORMAT" type="string" default="pretty">
 
-`pretty` or `json` output.
+`pretty` (a readable, coloured line on a terminal) or `json` (one object per line, never coloured). See [What a log line looks like](#what-a-log-line-looks-like).
+
+</ParamField>
+
+<ParamField body="NO_COLOR" type="any value">
+
+Turns colour off for log lines and banners. An empty value does not count. Colour is also off when the stream is not a terminal and when `TERM` is `dumb`.
 
 </ParamField>
 
@@ -110,6 +117,59 @@ warning that names the variable. A program that builds the configuration itself
 can do the same with `RuntimeConfig::from_env_lenient()`, which returns the
 configuration and the list of problems.
 
+## What a log line looks like
+
+On a terminal, an event is one line, in the spirit of Python SeleniumBase's console
+output:
+
+```text
+12:34:56  INFO api::base_case: creating BaseCase browser=Chrome headless=true
+12:34:58  INFO browser::driver_access: repaired a driver the system would not start path=downloaded_drivers/chromedriver
+12:35:01  WARN sbrs: ignored an invalid SB_* variable, its default is used problem=invalid configuration: SB_SHUTDOWN_TIMEOUT_SECS: invalid digit found in string
+```
+
+- The time, the module path (without the crate name) and the field names are dim.
+- The level has its own colour: red `ERROR`, yellow `WARN`, green `INFO`, blue `DEBUG`,
+  magenta `TRACE`.
+- The values of file and folder fields (`path`, `dest`, `source`, `file`, `dir`, and
+  names ending in `_path`, `_file` or `_dir`) are cyan; the values of `test`, `step`,
+  `scenario` and `action` are bold magenta.
+- Text that came from outside, such as a page title in a message, has its control
+  characters replaced, so a page cannot send an escape sequence to your terminal.
+
+### Quiet by default, detailed when you ask
+
+By default a line leaves out what makes a terminal noisy: the span context that
+`#[instrument]` puts in front of every line logged inside a function (`new:connect:`),
+the crate name in front of the module path and the fraction of the second.
+Choosing a filter, with `SB_LOG_LEVEL` or `RUST_LOG`, is asking for detail, and the
+line shows all of it:
+
+```text
+12:35:01.482  INFO new:connect: seleniumbase_rs::browser::session: browser session connected
+```
+
+```bash Terminal
+SB_LOG_LEVEL=info sbrs --headless smoke https://example.com
+```
+
+### When there is no colour
+
+Colour is used only when standard error is a terminal. The same line, with no escape
+sequence, is what you get:
+
+- when standard error is a pipe or a file, as in `sbrs ... 2> run.log` or in CI;
+- when `NO_COLOR` is set to anything but an empty value ([no-color.org](https://no-color.org));
+- when `TERM` is `dumb`;
+- with `SB_LOG_FORMAT=json`, which writes one JSON object per line and never colours.
+
+The banners that `sbrs mkrec` prints on standard output (`* RECORDING initialized:`,
+`>>> RECORDING SAVED as:`, `*** RECORDING COPIED to:`) follow the same rule for
+standard output and use the colours of `sbase mkrec`. In your own code, the module
+`seleniumbase_rs::common::color` holds the decision (`use_color`) and the palette
+(`Style`, `palette`) that the log lines and the banners use.
+
+
 ## Spans in the library
 
 Key `BaseCase` and `BrowserSession` methods are instrumented with `tracing`
@@ -122,10 +182,12 @@ spans so you can see where time is spent:
 
 Example output:
 
+With a filter chosen (`SB_LOG_LEVEL=info`) the span context is shown in front of each line:
+
 ```text
-INFO  seleniumbase_rs::api::base_case: new basecase browser=Chrome mode=Uc
-DEBUG seleniumbase_rs::api::base_case: opening url=https://example.com
-INFO  seleniumbase_rs::api::base_case: quit
+12:34:56.101  INFO new: seleniumbase_rs::api::base_case: creating BaseCase browser=Chrome headless=true
+12:34:56.934  INFO new:connect: seleniumbase_rs::browser::session: browser session connected
+12:34:56.950  INFO new:open{url="https://example.com"}: seleniumbase_rs::api::base_case: opening url url=https://example.com
 ```
 
 ## Using tracing in your own tests
