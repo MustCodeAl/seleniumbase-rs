@@ -39,14 +39,50 @@ use crate::evasion::cdp::*; /* CdpClient */
 use crate::evasion::uc;
 use crate::utilities::retry::{poll_until, RetryPolicy};
 
-/// A page script that reads the DOM property `arguments[1]` of the element
-/// `arguments[0]` as text: the property when it is a string, a number or
-/// `true`, and `null` for `undefined`, `null`, `false`, an object or a
-/// function.
-const PROPERTY_AS_TEXT: &str = "const value = arguments[0][arguments[1]]; \
-    if (value === undefined || value === null || value === false \
-        || typeof value === 'object' || typeof value === 'function') { return null; } \
-    return String(value);";
+/// Selenium's `getAttribute` as a page script, a port of its atom: the value of
+/// `arguments[1]` on the element `arguments[0]`, the DOM property first (what a
+/// field holds now, not the `value=""` of its markup) and the attribute where the
+/// property is missing, an object or a function; `selected`, `checked` and the
+/// other boolean attributes give `"true"` or `null`. The `/* getAttribute */`
+/// marker tells tests which script this is.
+
+const GET_ATTRIBUTE: &str = "/* getAttribute */ \
+    const element = arguments[0]; const name = String(arguments[1]).toLowerCase(); \
+    const alias = { class: 'className', readonly: 'readOnly' }; \
+    const booleans = ['allowfullscreen', 'allowpaymentrequest', 'allowusermedia', 'async', \
+        'autofocus', 'autoplay', 'checked', 'compact', 'complete', 'controls', 'declare', \
+        'default', 'defaultchecked', 'defaultselected', 'defer', 'disabled', 'ended', \
+        'formnovalidate', 'hidden', 'indeterminate', 'iscontenteditable', 'ismap', \
+        'itemscope', 'loop', 'multiple', 'muted', 'nohref', 'nomodule', 'noresize', \
+        'noshade', 'novalidate', 'nowrap', 'open', 'paused', 'playsinline', 'pubdate', \
+        'readonly', 'required', 'reversed', 'scoped', 'seamless', 'seeking', 'selected', \
+        'truespeed', 'typemustmatch', 'willvalidate']; \
+    const tag = element.tagName ? element.tagName.toUpperCase() : ''; \
+    const attribute = element.getAttribute(name); \
+    if (name === 'style') { \
+        return element.style ? (typeof element.style === 'string' ? element.style \
+            : element.style.cssText) : null; \
+    } \
+    const selectable = tag === 'OPTION' || (tag === 'INPUT' \
+        && ['checkbox', 'radio'].includes(String(element.type).toLowerCase())); \
+    if ((name === 'selected' || name === 'checked') && selectable) { \
+        return (tag === 'OPTION' ? element.selected : element.checked) ? 'true' : null; \
+    } \
+    if ((tag === 'IMG' && name === 'src') || (tag === 'A' && name === 'href')) { \
+        return attribute ? String(element[name]) : attribute; \
+    } \
+    if (name === 'spellcheck') { \
+        const lower = attribute === null ? null : attribute.toLowerCase(); \
+        return lower === 'false' || lower === 'true' ? lower : String(element[name]); \
+    } \
+    const key = alias[name] || String(arguments[1]); \
+    if (booleans.includes(name)) { return attribute !== null || !!element[key] ? 'true' : null; } \
+    if (name === 'value' && tag === 'LI') { return attribute; } \
+    let property; \
+    try { property = element[key]; } catch (error) { property = undefined; } \
+    if (property === undefined || property === null \
+        || typeof property === 'object' || typeof property === 'function') { return attribute; } \
+    return String(property);";
 
 /// Owns a WebDriver session, optional CDP client, and optional auto-started driver process.
 pub struct BrowserSession {
@@ -649,14 +685,15 @@ impl BrowserSession {
     }
 
     /// The value of `name` on `element`, as Selenium's `get_attribute` gives it:
-    /// the attribute if the element has it, and otherwise the DOM property of
-    /// that name as text. A `<select>` has no `value` attribute, but its
-    /// property says which option is chosen; an `<option>` has an `index`
-    /// property and no such attribute.
+    /// the DOM property of that name if the element has one (so the text typed
+    /// into an input, not the `value=""` its markup has), and otherwise the attribute.
+    /// A `<select>` has no `value` attribute, but its property says which option
+    /// is chosen; an `<option>` has an `index` property and no such attribute.
     ///
-    /// A property that is `false`, missing, an object or a function gives
-    /// `None`, so `selected` and `disabled` are `"true"` or `None`, as in
-    /// Selenium.
+    /// The page script is Selenium's atom, as Python's `get_attribute` runs it, not
+    /// the driver's attribute command, which answers with the markup's attribute
+    /// alone. `selected`, `checked` and the other boolean attributes are `"true"`
+    /// or `None`, as in Selenium.
     ///
     /// # Errors
     ///
@@ -666,14 +703,11 @@ impl BrowserSession {
         element: &WebElement,
         name: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
-        if let Some(attribute) = element.attr(name).await? {
-            return Ok(Some(attribute));
-        }
-        let property = self
+        let value = self
             .webdriver()?
-            .execute(PROPERTY_AS_TEXT, vec![element.to_json()?, json!(name)])
+            .execute(GET_ATTRIBUTE, vec![element.to_json()?, json!(name)])
             .await?;
-        Ok(property.json().as_str().map(str::to_owned))
+        Ok(value.json().as_str().map(str::to_owned))
     }
 
     /// Clicks `element` with a script (`element.click()`), which reaches an
