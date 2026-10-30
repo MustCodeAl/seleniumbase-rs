@@ -80,7 +80,7 @@ or `SB_PLUGINS`, as [explained below](#what-a-project-file-may-not-turn-on-alone
 
 `imap` waits for a verification mail in a mailbox you own (or a test inbox) and
 reads its code or link. It needs a host, a user and the NAME of the environment
-variable that holds the password (`password_env`, never the password itself),
+variable that holds the password (`password_env`, never the password itself, and a name that starts with `IMAP_`, `MAIL_` or `SB_`),
 for example `[plugins.imap]` with `host`, `user` and `password_env`. It only
 reads: the mailbox is opened read only and nothing is sent, deleted or marked.
 It is a task plugin, so it works with the pure CDP engine only and the

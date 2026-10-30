@@ -24,7 +24,7 @@ plugin.
 
 <Visibility for="agents">
 
-Summary for AI exports: imap is a built-in task plugin (feature `plugin-imap`, name `imap`) that waits for an email in an IMAP mailbox and extracts its one-time code or link. Options live in `[plugins.imap]`: `host`, `user` and `password_env` are required (`password_env` is the NAME of an environment variable that holds the password or app password, never the password itself), `port` (993), `mailbox` (`INBOX`), `poll_secs` (5, 1 to 300) and `timeout_secs` (120, 1 to 3600). The connection is IMAPS with a verified certificate, read only. The task `wait_for_email` takes `{from?, subject_contains?, since_secs?, extract?}` and records `{from, subject, date, code?, link?, text}`. Run it with `sbrs plugin run imap --input FILE`. With `sbrs-mcp --server cdp --plugin imap` the server also has the tool `wait_for_email`. It is CDP only and read only, and email content is untrusted. It has never run against a real mail server.
+Summary for AI exports: imap is a built-in task plugin (feature `plugin-imap`, name `imap`) that waits for an email in an IMAP mailbox and extracts its one-time code or link. Options live in `[plugins.imap]`: `host`, `user` and `password_env` are required (`password_env` is the NAME of an environment variable that holds the password or app password, never the password itself, and the name must start with `IMAP_`, `MAIL_` or `SB_`), `port` (993), `mailbox` (`INBOX`), `poll_secs` (5, 1 to 300) and `timeout_secs` (120, 1 to 3600). The connection is IMAPS with a verified certificate, read only. The task `wait_for_email` takes `{from?, subject_contains?, since_secs?, extract?}` and records `{from, subject, date, code?, link?, text}`. Run it with `sbrs plugin run imap --input FILE`. With `sbrs-mcp --server cdp --plugin imap` the server also has the tool `wait_for_email`. It is CDP only and read only, and email content is untrusted. It has never run against a real mail server.
 
 </Visibility>
 
@@ -104,6 +104,14 @@ refused. The variable must be set when the plugin is built, so a mistake stops
 message names the variable, never its value. For a provider that has them, use an
 app password.
 
+The name must also **start with `IMAP_`, `MAIL_` or `SB_`**. The password is sent
+to `host`, so a settings file that comes with a cloned project must not be able to
+point the plugin at a variable that holds some other secret, such as
+`GITHUB_TOKEN`. Any other name is refused when the plugin is built, with a message
+that names the rule, and the variable is not read. The message repeats the name
+only when it looks like a variable name (capitals, digits and `_`), so a password
+pasted into the option is not printed back.
+
 </Warning>
 
 ## The task
@@ -164,7 +172,7 @@ The login name.
 
 <ParamField body="password_env" type="string" required>
 
-The NAME of the environment variable that holds the password.
+The NAME of the environment variable that holds the password. It must start with `IMAP_`, `MAIL_` or `SB_` (capitals, as written), see [the warning above](#turn-it-on).
 
 </ParamField>
 

@@ -868,7 +868,7 @@ time your client waits for a tool.
 </Warning>
 
 The operator's options are checked when the server starts, the password
-variable included: a server whose `password_env` names a variable that is not set
+variable included (its name must start with `IMAP_`, `MAIL_` or `SB_`): a server whose `password_env` names a variable that is not set
 does not start. The wait itself has run against a scripted mailbox and against a
 refused loopback connection; it has not been run against a real mail server.
 

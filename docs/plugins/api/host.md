@@ -118,7 +118,7 @@ The library's default features are empty. The command-line package
 `seleniumbase-rs-cli` has `plugins-builtin` among its defaults and passes
 `plugins` and each `plugin-*` through. Both plugin dependencies come from
 `https://github.com/MustCodeAl/seleniumbase-rs-plugins` at
-`rev = "2bd20ee8fadcd0ba35f26c8f551728e21ef9b229"` (version `0.1`).
+`rev = "fea3634e2ebcaafce63a244df8d4adb53e3ec002"` (version `0.1`).
 
 ## plugin_api
 

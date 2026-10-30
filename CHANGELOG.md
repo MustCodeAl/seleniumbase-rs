@@ -218,7 +218,9 @@ work, `docs/parity.md` the per-API status).
   connection is IMAPS with a verified certificate and the mailbox is read only (`BODY.PEEK`), so
   nothing is sent, deleted or marked. It is a task plugin, so only the pure CDP engine hosts it.
   It is in `plugins-builtin`, `sbrs plugin list` and `sbrs plugin info imap`, and the plugins
-  repository is at `2bd20ee8`. It has never run against a real mail server. See `docs/plugins/imap.md`.
+  repository is at `fea3634e`. The name in `password_env` must start with `IMAP_`, `MAIL_` or `SB_`,
+  so that a settings file cannot point the plugin at a variable that holds another secret. It has
+  never run against a real mail server. See `docs/plugins/imap.md`.
 
 - **`wait_for_email`, an MCP tool of the `cdp` server (feature `plugin-imap`).** When the operator
   turned the imap plugin on with its options (`sbrs-mcp --server cdp --plugin imap --plugin-opt
