@@ -61,7 +61,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `append_data_to_logs` | implemented | `BaseCase::append_data_to_logs` |  |
 | `assert_any_of_elements_present` | implemented | `BaseCase::assert_any_of_elements_present` |  |
 | `assert_any_of_elements_visible` | implemented | `BaseCase::assert_any_of_elements_visible` |  |
-| `assert_attribute` | implemented | `BaseCase::assert_attribute` |  |
+| `assert_attribute` | implemented | `BaseCase::assert_attribute` | Differs: Compares get_attribute, which returns the HTML attribute. On a &lt;select&gt; or an &lt;input&gt; whose value changed it sees none, where Python (Selenium reads the DOM property) sees the chosen or typed value. Found by examples/test_select_options.py. |
 | `assert_attribute_not_present` | implemented | `BaseCase::assert_attribute_not_present` |  |
 | `assert_data_in_downloaded_file` | implemented | `BaseCase::assert_data_in_downloaded_file` |  |
 | `assert_downloaded_file` | implemented | `BaseCase::assert_downloaded_file` | Differs: Waits for the default timeout (set_timeout), not a per-call one, and takes no browser flag. It looks in ./downloaded_files (browser::downloads::downloads_dir), where a launched browser is told to save, as Python does. |
@@ -76,10 +76,10 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `assert_elements_present` | implemented | `BaseCase::assert_elements_present` |  |
 | `assert_elements_visible` | implemented | `BaseCase::assert_elements_visible` |  |
 | `assert_equal` | implemented | `BaseCase::assert_equal` |  |
-| `assert_exact_text` | implemented | `BaseCase::assert_exact_text` | Differs: Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_exact_text for a timeout of its own). |
+| `assert_exact_text` | implemented | `BaseCase::assert_exact_text` | Differs: Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_exact_text for a timeout of its own). A ::shadow selector is not read (see get_text). |
 | `assert_exact_text_not_visible` | implemented | `BaseCase::assert_exact_text_not_visible` | Differs: Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_exact_text_not_visible for a timeout of its own). |
 | `assert_false` | implemented | `BaseCase::assert_false` |  |
-| `assert_in` | implemented | `BaseCase::assert_in` |  |
+| `assert_in` | implemented | `BaseCase::assert_in` | Differs: assert_in(item, &[item]) tests membership of a slice. Python's assert_in(first, second) is also a substring test for strings, as in assert_in(framework, title.lower()). Found by examples/test_todomvc.py. |
 | `assert_link` | implemented | `BaseCase::assert_link` |  |
 | `assert_link_status_code_is_not_404` | implemented | `BaseCase::assert_link_status_code_is_not_404` |  |
 | `assert_link_text` | implemented | `BaseCase::assert_link_text` |  |
@@ -92,7 +92,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `assert_partial_link_text` | implemented | `BaseCase::assert_partial_link_text` |  |
 | `assert_pdf_text` | implemented | `BaseCase::assert_pdf_text` |  |
 | `assert_raises` | implemented | `BaseCase::assert_raises` |  |
-| `assert_text` | implemented | `BaseCase::assert_text` | Differs: Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_text for a timeout of its own). |
+| `assert_text` | implemented | `BaseCase::assert_text` | Differs: Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_text for a timeout of its own). It reads the element's rendered text, so an &lt;input&gt; or &lt;textarea&gt; never matches by its value, as it does in Python (found by examples/test_demo_site.py); a ::shadow selector is not read (see get_text). |
 | `assert_text_not_visible` | implemented | `BaseCase::assert_text_not_visible` | Differs: Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_text_not_visible for a timeout of its own). |
 | `assert_text_visible` | implemented | `BaseCase::assert_text_visible` | Differs: Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_text_visible for a timeout of its own). |
 | `assert_title` | implemented | `BaseCase::assert_title` |  |
@@ -104,14 +104,14 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `block_ads` | implemented | `BaseCase::block_ads` |  |
 | `bring_active_window_to_front` | implemented | `BaseCase::bring_active_window_to_front` |  |
 | `bring_to_front` | implemented | `BaseCase::bring_to_front` |  |
-| `check_if_unchecked` | implemented | `BaseCase::check_if_unchecked` |  |
+| `check_if_unchecked` | implemented | `BaseCase::check_if_unchecked` | Differs: Clicks a checkbox that is not checked and waits for it to be clickable. Python also handles a checkbox at zero opacity (a styled switch, like TodoMVC's toggle) by raising its opacity or clicking with JavaScript; here that times out. Found by examples/test_todomvc.py. |
 | `check_window` | implemented | `BaseCase::check_window` | Differs: Saves and compares the page's tag structure as Python does: visual_baseline/&lt;test&gt;/&lt;name&gt; holds page_url.txt, baseline.png and tags_level_1.txt to tags_level_3.txt, with one entry for each tag below &lt;body&gt; (the tag names, then the sorted attribute names, then the attribute values), a level of 0 is a dry run, and a page on another domain fails. Differs: Rust has no test id, so &lt;test&gt; is the name given with BaseCase::with_test_name (sb_test! does) or else the name of the running thread (the test's name under cargo test); the screenshot is of the window, not of &lt;body&gt;, and is not compared; the page source is parsed by the scraper crate, not html.parser; the baseline, check_domain and full_diff arguments are not ported, nor is the side-by-side report Python writes for a level-0 difference; level is a u8 and anything but 0, 1, 2 or 3 is an InvalidConfig error. |
 | `choose_file` | implemented | `BaseCase::choose_file` |  |
 | `clear` | implemented | `BaseCase::clear` |  |
 | `clear_all_cookies` | implemented | `BaseCase::clear_all_cookies` |  |
 | `clear_local_storage` | implemented | `BaseCase::clear_local_storage` |  |
 | `clear_session_storage` | implemented | `BaseCase::clear_session_storage` |  |
-| `click` | implemented | `BaseCase::click` | Differs: Takes CSS or XPath; there is no per-call timeout argument (use set_timeout). |
+| `click` | implemented | `BaseCase::click` | Differs: Takes CSS or XPath; there is no per-call timeout argument (use set_timeout). A ::shadow selector is not read (see get_text). |
 | `click_active_element` | implemented | `BaseCase::click_active_element` |  |
 | `click_chain` | implemented | `BaseCase::click_chain` |  |
 | `click_if_visible` | implemented | `BaseCase::click_if_visible` | Differs: Looks once, like Python's default `timeout=0`; `click_if_visible_with_timeout(selector, Duration)` waits for the element. There is no `scroll` argument. |
@@ -191,14 +191,14 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `find_visible_elements` | implemented | `BaseCase::find_visible_elements` |  |
 | `flash` | implemented | `BaseCase::flash` |  |
 | `focus` | implemented | `BaseCase::focus` |  |
-| `frame_switch` | implemented | `BaseCase::frame_switch` |  |
+| `frame_switch` | implemented | `BaseCase::frame_switch` | Differs: Only enters the frame. Python's frame_switch is a context manager that returns to the parent frame when its block ends: call switch_to_parent_frame. It takes a selector, not a frame id or name (see switch_to_frame). Found by examples/iframe_tests.py. |
 | `generate_referral` | implemented | `BaseCase::generate_referral` | A real click-through: it opens start_page (an empty string means the current page), builds a link to destination_page in it with a script and clicks it, so the destination receives a Referer header. With a selector, that element is clicked on the destination page too. Differs: Builds the link with DOM calls and quotes the URL, where Python pastes it into markup; waits for the destination's readyState after the click, where Python only pauses 0.15 s. An invalid page is SeleniumBaseError::Parse, checked before the browser is touched. |
 | `generate_referral_chain` | implemented | `BaseCase::generate_referral_chain` | Takes a slice of pages. Builds and clicks a link to each page in turn, starting from the page the browser is on, so each page after the first sees the one before it as its Referer. Differs: Fewer than two pages is SeleniumBaseError::InvalidConfig and an invalid page is SeleniumBaseError::Parse, both before the first click (Python raises plain exceptions). |
 | `generate_traffic` | implemented | `BaseCase::generate_traffic` | Runs generate_referral `loops` times (a u32), with a 0.05 s pause after each. |
 | `generate_traffic_chain` | implemented | `BaseCase::generate_traffic_chain` | Runs generate_referral_chain `loops` times (a u32), with a 0.05 s pause after each. |
 | `get` | implemented | `BaseCase::get` |  |
 | `get_active_element_css` | implemented | `BaseCase::get_active_element_css` |  |
-| `get_attribute` | implemented | `BaseCase::get_attribute` |  |
+| `get_attribute` | implemented | `BaseCase::get_attribute` | Differs: Returns the HTML attribute. Python (Selenium) falls back to the DOM property, so get_attribute(select, "value") is the chosen value there and None here; use get_property. Found by examples/test_select_options.py. |
 | `get_beautiful_soup` | implemented | `BaseCase::get_beautiful_soup` |  |
 | `get_browser_downloads_folder` | implemented | `BaseCase::get_browser_downloads_folder` |  |
 | `get_chrome_version` | implemented | `BaseCase::get_chrome_version` |  |
@@ -246,11 +246,11 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `get_recorded_console_logs` | implemented | `BaseCase::get_recorded_console_logs` |  |
 | `get_saved_cookies` | implemented | `BaseCase::get_saved_cookies` |  |
 | `get_screen_rect` | implemented | `BaseCase::get_screen_rect` |  |
-| `get_select_options` | implemented | `BaseCase::get_select_options` |  |
+| `get_select_options` | implemented | `BaseCase::get_select_options` | Differs: Returns the option texts only. Python's attribute argument ("text", "index", "value" or None for the elements) is missing. Found by examples/test_select_options.py. |
 | `get_session_storage_item` | implemented | `BaseCase::get_session_storage_item` |  |
 | `get_session_storage_items` | implemented | `BaseCase::get_session_storage_items` |  |
 | `get_session_storage_keys` | implemented | `BaseCase::get_session_storage_keys` |  |
-| `get_text` | implemented | `BaseCase::get_text` |  |
+| `get_text` | implemented | `BaseCase::get_text` | Differs: A ::shadow selector (host::shadow inner) works in every Python method; here only the shadow_* methods (shadow_click, shadow_type, shadow_get_text, assert_shadow_text) read it, and they do not wait. shadow_get_text reads textContent, so a container that only slots its content gives an empty string where Python gives the rendered text. Found by examples/shadow_root_test.py and test_shadow_dom.py. |
 | `get_text_content` | implemented | `BaseCase::get_text_content` |  |
 | `get_title` | implemented | `BaseCase::get_title` |  |
 | `get_totp_code` | implemented | `BaseCase::get_totp_code` |  |
@@ -313,7 +313,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `jquery_click_all` | implemented | `BaseCase::jquery_click_all` |  |
 | `jquery_type` | implemented | `BaseCase::jquery_type` |  |
 | `jquery_update_text` | implemented | `BaseCase::jquery_update_text` |  |
-| `js_click` | implemented | `BaseCase::js_click` |  |
+| `js_click` | implemented | `BaseCase::js_click` | Differs: Runs document.querySelector(css).click(): a :contains() or XPath selector is an error (Python converts them) and the element is not waited for. Found by examples/test_url_asserts.py. |
 | `js_click_all` | implemented | `BaseCase::js_click_all` |  |
 | `js_click_if_present` | implemented | `BaseCase::js_click_if_present` |  |
 | `js_click_if_visible` | implemented | `BaseCase::js_click_if_visible` |  |
@@ -419,7 +419,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `set_text` | implemented | `BaseCase::set_text` | Differs: Sets the value of an input or textarea (firing input and change) or the textContent of any other element, as Python does; it presses no Enter for a trailing newline, and the selector is CSS. |
 | `set_text_content` | implemented | `BaseCase::set_text_content` | Differs: Same as set_text, as in Python; the selector is CSS and there is no scroll argument. |
 | `set_time_limit` | implemented | `BaseCase::set_time_limit` | Once the test has run longer than the limit (counted from creating the BaseCase), its next open, readiness wait or element action fails with a time-limit error; waits are cut to the time left. It is kept apart from the default wait that set_default_timeout changes. |
-| `set_value` | implemented | `BaseCase::set_value` |  |
+| `set_value` | implemented | `BaseCase::set_value` | Differs: Only sets the value. On a range input Python also fires a mousemove event so the page's listeners run (the demo page's progress bar does not follow here), and a trailing newline presses Enter there. Found by examples/test_demo_site.py. |
 | `set_window_position` | implemented | `BaseCase::set_window_position` |  |
 | `set_window_rect` | implemented | `BaseCase::set_window_rect` | Differs: Takes (x, y, width, height) with unsigned sizes. |
 | `set_window_size` | implemented | `BaseCase::set_window_size` |  |
@@ -434,23 +434,23 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `start_recording_console_logs` | implemented | `BaseCase::start_recording_console_logs` |  |
 | `start_tour` | implemented | `BaseCase::start_tour` |  |
 | `submit` | implemented | `BaseCase::submit` |  |
-| `switch_to_alert` | implemented | `BaseCase::switch_to_alert` |  |
+| `switch_to_alert` | implemented | `BaseCase::switch_to_alert` | Differs: Returns nothing, where Python returns the alert (`alert.text` in examples/handle_alert_test.py): read the text with get_alert_text. |
 | `switch_to_default_content` | implemented | `BaseCase::switch_to_default_content` |  |
 | `switch_to_default_driver` | implemented | `BaseCase::switch_to_default_driver` |  |
 | `switch_to_default_tab` | implemented | `BaseCase::switch_to_default_tab` |  |
 | `switch_to_default_window` | implemented | `BaseCase::switch_to_default_window` |  |
 | `switch_to_driver` | implemented | `BaseCase::switch_to_driver` | Differs: Takes a DriverId, where Python takes the driver object. |
-| `switch_to_frame` | implemented | `BaseCase::switch_to_frame` |  |
+| `switch_to_frame` | implemented | `BaseCase::switch_to_frame` | Differs: The argument is a selector. Python also takes the id or name of a frame, as in switch_to_frame("iframeResult"); here that is read as a tag name and finds nothing (use "#iframeResult"). Found by examples/iframe_tests.py, test_checkboxes.py and test_drag_and_drop.py. |
 | `switch_to_frame_of_element` | implemented | `BaseCase::switch_to_frame_of_element` | Differs: Returns the frame's name, else its id, else an empty string, or None when the element is in the current document. Looks one level down, as Python does. |
 | `switch_to_newest_tab` | implemented | `BaseCase::switch_to_newest_tab` |  |
 | `switch_to_newest_window` | implemented | `BaseCase::switch_to_newest_window` |  |
 | `switch_to_parent_frame` | implemented | `BaseCase::switch_to_parent_frame` |  |
 | `switch_to_tab` | implemented | `BaseCase::switch_to_tab` |  |
-| `switch_to_window` | implemented | `BaseCase::switch_to_window` |  |
+| `switch_to_window` | implemented | `BaseCase::switch_to_window` | Differs: Takes a window handle only. Python also takes an index (0 for the first tab, -1 for the newest): use switch_to_tab(index) or switch_to_newest_tab. Found by examples/test_window_switching.py (parity/examples.toml). |
 | `tearDown` | not-applicable |  | unittest/pytest harness plumbing; the Rust runner (api::runner) owns the lifecycle. |
 | `tearDownClass` | not-applicable |  | unittest/pytest harness plumbing; the Rust runner (api::runner) owns the lifecycle. |
-| `type` | composed | `BaseCase::type_text` | One canonical name: Rust has type_text only. |
-| `uncheck_if_checked` | implemented | `BaseCase::uncheck_if_checked` |  |
+| `type` | composed | `BaseCase::type_text` | One canonical name: Rust has type_text only. Differs: Types with clear plus send_keys and returns at once. Python waits for the element to be clickable, scrolls to it, clears it with 42 backspaces, and waits for document.readyState to be complete after the keys. Typed straight after a click that loads a page (saucedemo.com's checkout form in examples/my_first_test.py), the text is often lost here and never in Python. A ::shadow selector is not read (see get_text). |
+| `uncheck_if_checked` | implemented | `BaseCase::uncheck_if_checked` | Differs: As check_if_unchecked: no fallback for a checkbox at zero opacity. |
 | `unselect_if_selected` | implemented | `BaseCase::unselect_if_selected` |  |
 | `update_text` | implemented | `BaseCase::update_text` |  |
 | `visit` | implemented | `BaseCase::visit` |  |
@@ -464,7 +464,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `wait_for_any_of_elements_visible` | implemented | `BaseCase::wait_for_any_of_elements_visible` |  |
 | `wait_for_attribute` | implemented | `BaseCase::wait_for_attribute` | The keywords are the builder methods .value(..) and .timeout(..); the timeout is the case's timeout by default. Returns nothing (Python returns the element). |
 | `wait_for_attribute_not_present` | implemented | `BaseCase::wait_for_attribute_not_present` | The keywords are the builder methods .value(..) and .timeout(..); the timeout is the case's timeout by default. |
-| `wait_for_element` | implemented | `BaseCase::wait_for_element` |  |
+| `wait_for_element` | implemented | `BaseCase::wait_for_element` | Differs: The timeout (seconds) is a required argument; Python's is optional. Found by examples/test_deferred_asserts.py. |
 | `wait_for_element_absent` | implemented | `BaseCase::wait_for_element_absent` |  |
 | `wait_for_element_clickable` | implemented | `BaseCase::wait_for_element_clickable` |  |
 | `wait_for_element_not_present` | implemented | `BaseCase::wait_for_element_not_present` |  |
@@ -600,7 +600,7 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `assert_in` | not-applicable |  | Rust has assert!, assert_eq! and friends. |
 | `assert_not_equal` | not-applicable |  | Rust has assert!, assert_eq! and friends. |
 | `assert_not_in` | not-applicable |  | Rust has assert!, assert_eq! and friends. |
-| `assert_text` | composed | `LocatorExpect::to_contain_text` | Assert with `page.locator(selector).expect().to_contain_text(..)`; add `.not()` to negate and `.timeout(d)` to set the wait. A failed expectation returns an error where Python raises AssertionError. |
+| `assert_text` | composed | `LocatorExpect::to_contain_text` | Assert with `page.locator(selector).expect().to_contain_text(..)`; add `.not()` to negate and `.timeout(d)` to set the wait. A failed expectation returns an error where Python raises AssertionError. Differs: Reads the rendered text, so an &lt;input&gt; or &lt;textarea&gt; never matches by its value, where Python's assert_text does. Found by examples/cdp_mode/raw_demo_site.py. |
 | `assert_text_not_visible` | composed | `LocatorExpect::to_contain_text` | `page.locator(selector).expect().not().to_contain_text(text)`; the wait is the expect timeout. |
 | `assert_title` | composed | `PageExpect::to_have_title` | Assert with `page.expect().to_have_title(..)`; add `.not()` to negate and `.timeout(d)` to set the wait. A failed expectation returns an error where Python raises AssertionError. |
 | `assert_title_contains` | composed | `PageExpect::to_contain_title` | Assert with `page.expect().to_contain_title(..)`; add `.not()` to negate and `.timeout(d)` to set the wait. A failed expectation returns an error where Python raises AssertionError. |
@@ -726,7 +726,7 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `medimize` | composed | `Window::restore` | `page.window().restore()` returns the window to its normal state. |
 | `minimize` | composed | `Window::minimize` | `page.window().minimize()`. |
 | `mouse_click` | composed | `Locator::click` | `page.locator(selector).click()` waits for the element, scrolls it into view and clicks its centre with real mouse events. `page.mouse().click(point)` clicks at coordinates instead. |
-| `nested_click` | composed | `Locator::locator` | Call `page.locator(selector).locator(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `nested_click` | composed | `Locator::locator` | Call `page.locator(selector).locator(..)`; the Locator holds the selector, so it is not an argument of the call. Differs: Reaches same-origin frames only. The iframe#myFrame3 of the demo page has a data: URL as its src, another origin, and `page.locator("iframe#myFrame3").locator(".fBox")` finds nothing where Python's nested_click clicks it. Found by examples/cdp_mode/raw_demo_site.py. |
 | `open` | composed | `Page::goto` | A method of the Page that sb.cdp drives: `page.goto(..)`. |
 | `open_new_tab` | composed | `Browser::new_page` | A method of the Browser, not of one page: `browser.new_page()` opens a blank tab and `browser.new_page_at(url)` one on a URL. |
 | `open_new_window` | composed | `Browser::new_window` | A method of the Browser, not of one page: `browser.new_window()` opens a blank window and `browser.new_window_at(url)` one on a URL. |
@@ -784,7 +784,7 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `switch_to_tab` | composed | `Browser::pages` | Pick a page from `browser.pages()`; Rust holds a Page per tab, so there is no current tab to switch. |
 | `switch_to_window` | composed | `Browser::pages` | Pick a page from `browser.pages()`; Rust holds a Page per tab, so there is no current window to switch. |
 | `tile_windows` | composed | `Window::set_bounds` | Python tiles the browser windows with the CDP driver. Compute each tile's x, y, width and height and call set_bounds on each window; there is no one-call tiler. |
-| `type` | implemented | `Locator::type_text` | `page.locator(selector).type_text(text)` clears the field, then types the text one key at a time, as Python's `type` does. `fill(text)` inserts it in one step; `send_keys(text)` appends. |
+| `type` | implemented | `Locator::type_text` | `page.locator(selector).type_text(text)` clears the field, then types the text one key at a time, as Python's `type` does. `fill(text)` inserts it in one step; `send_keys(text)` appends. Differs: Typed straight after a click that loads a page (saucedemo.com's checkout form in examples/cdp_mode/raw_cdp_swag.py), the text is lost in most runs here; Python's sb_cdp type is not (see the WebDriver type row). |
 | `uncheck_if_checked` | composed | `Locator::uncheck` | Call `page.locator(selector).uncheck(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `unselect_if_selected` | composed | `Locator::set_checked` | `page.locator(selector).set_checked(false)`. |
 | `wait_for_any_of_elements_present` | composed | `Page::wait_for_any` | `page.wait_for_any(..)` waits until one of several locators is ready and says which one (an index), not its selector. |

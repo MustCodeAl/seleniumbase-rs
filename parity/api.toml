@@ -119,6 +119,7 @@ rust = "BaseCase::assert_any_of_elements_visible"
 [basecase."assert_attribute"]
 status = "implemented"
 rust = "BaseCase::assert_attribute"
+divergence = "Compares get_attribute, which returns the HTML attribute. On a <select> or an <input> whose value changed it sees none, where Python (Selenium reads the DOM property) sees the chosen or typed value. Found by examples/test_select_options.py."
 
 [basecase."assert_attribute_not_present"]
 status = "implemented"
@@ -180,7 +181,7 @@ rust = "BaseCase::assert_equal"
 [basecase."assert_exact_text"]
 status = "implemented"
 rust = "BaseCase::assert_exact_text"
-divergence = "Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_exact_text for a timeout of its own)."
+divergence = "Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_exact_text for a timeout of its own). A ::shadow selector is not read (see get_text)."
 
 [basecase."assert_exact_text_not_visible"]
 status = "implemented"
@@ -194,6 +195,7 @@ rust = "BaseCase::assert_false"
 [basecase."assert_in"]
 status = "implemented"
 rust = "BaseCase::assert_in"
+divergence = "assert_in(item, &[item]) tests membership of a slice. Python's assert_in(first, second) is also a substring test for strings, as in assert_in(framework, title.lower()). Found by examples/test_todomvc.py."
 
 [basecase."assert_link"]
 status = "implemented"
@@ -246,7 +248,7 @@ rust = "BaseCase::assert_raises"
 [basecase."assert_text"]
 status = "implemented"
 rust = "BaseCase::assert_text"
-divergence = "Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_text for a timeout of its own)."
+divergence = "Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_text for a timeout of its own). It reads the element's rendered text, so an <input> or <textarea> never matches by its value, as it does in Python (found by examples/test_demo_site.py); a ::shadow selector is not read (see get_text)."
 
 [basecase."assert_text_not_visible"]
 status = "implemented"
@@ -297,6 +299,7 @@ rust = "BaseCase::bring_to_front"
 [basecase."check_if_unchecked"]
 status = "implemented"
 rust = "BaseCase::check_if_unchecked"
+divergence = "Clicks a checkbox that is not checked and waits for it to be clickable. Python also handles a checkbox at zero opacity (a styled switch, like TodoMVC's toggle) by raising its opacity or clicking with JavaScript; here that times out. Found by examples/test_todomvc.py."
 
 [basecase."check_window"]
 status = "implemented"
@@ -326,7 +329,7 @@ rust = "BaseCase::clear_session_storage"
 [basecase."click"]
 status = "implemented"
 rust = "BaseCase::click"
-divergence = "Takes CSS or XPath; there is no per-call timeout argument (use set_timeout)."
+divergence = "Takes CSS or XPath; there is no per-call timeout argument (use set_timeout). A ::shadow selector is not read (see get_text)."
 
 [basecase."click_active_element"]
 status = "implemented"
@@ -669,6 +672,7 @@ rust = "BaseCase::focus"
 [basecase."frame_switch"]
 status = "implemented"
 rust = "BaseCase::frame_switch"
+divergence = "Only enters the frame. Python's frame_switch is a context manager that returns to the parent frame when its block ends: call switch_to_parent_frame. It takes a selector, not a frame id or name (see switch_to_frame). Found by examples/iframe_tests.py."
 
 [basecase."generate_referral"]
 status = "implemented"
@@ -703,6 +707,7 @@ rust = "BaseCase::get_active_element_css"
 [basecase."get_attribute"]
 status = "implemented"
 rust = "BaseCase::get_attribute"
+divergence = "Returns the HTML attribute. Python (Selenium) falls back to the DOM property, so get_attribute(select, \"value\") is the chosen value there and None here; use get_property. Found by examples/test_select_options.py."
 
 [basecase."get_beautiful_soup"]
 status = "implemented"
@@ -902,6 +907,7 @@ rust = "BaseCase::get_screen_rect"
 [basecase."get_select_options"]
 status = "implemented"
 rust = "BaseCase::get_select_options"
+divergence = "Returns the option texts only. Python's attribute argument (\"text\", \"index\", \"value\" or None for the elements) is missing. Found by examples/test_select_options.py."
 
 [basecase."get_session_storage_item"]
 status = "implemented"
@@ -918,6 +924,7 @@ rust = "BaseCase::get_session_storage_keys"
 [basecase."get_text"]
 status = "implemented"
 rust = "BaseCase::get_text"
+divergence = "A ::shadow selector (host::shadow inner) works in every Python method; here only the shadow_* methods (shadow_click, shadow_type, shadow_get_text, assert_shadow_text) read it, and they do not wait. shadow_get_text reads textContent, so a container that only slots its content gives an empty string where Python gives the rendered text. Found by examples/shadow_root_test.py and test_shadow_dom.py."
 
 [basecase."get_text_content"]
 status = "implemented"
@@ -1176,6 +1183,7 @@ rust = "BaseCase::jquery_update_text"
 [basecase."js_click"]
 status = "implemented"
 rust = "BaseCase::js_click"
+divergence = "Runs document.querySelector(css).click(): a :contains() or XPath selector is an error (Python converts them) and the element is not waited for. Found by examples/test_url_asserts.py."
 
 [basecase."js_click_all"]
 status = "implemented"
@@ -1633,6 +1641,7 @@ note = "Once the test has run longer than the limit (counted from creating the B
 [basecase."set_value"]
 status = "implemented"
 rust = "BaseCase::set_value"
+divergence = "Only sets the value. On a range input Python also fires a mousemove event so the page's listeners run (the demo page's progress bar does not follow here), and a trailing newline presses Enter there. Found by examples/test_demo_site.py."
 
 [basecase."set_window_position"]
 status = "implemented"
@@ -1696,6 +1705,7 @@ rust = "BaseCase::submit"
 [basecase."switch_to_alert"]
 status = "implemented"
 rust = "BaseCase::switch_to_alert"
+divergence = "Returns nothing, where Python returns the alert (`alert.text` in examples/handle_alert_test.py): read the text with get_alert_text."
 
 [basecase."switch_to_default_content"]
 status = "implemented"
@@ -1721,6 +1731,7 @@ divergence = "Takes a DriverId, where Python takes the driver object."
 [basecase."switch_to_frame"]
 status = "implemented"
 rust = "BaseCase::switch_to_frame"
+divergence = "The argument is a selector. Python also takes the id or name of a frame, as in switch_to_frame(\"iframeResult\"); here that is read as a tag name and finds nothing (use \"#iframeResult\"). Found by examples/iframe_tests.py, test_checkboxes.py and test_drag_and_drop.py."
 
 [basecase."switch_to_frame_of_element"]
 status = "implemented"
@@ -1746,6 +1757,7 @@ rust = "BaseCase::switch_to_tab"
 [basecase."switch_to_window"]
 status = "implemented"
 rust = "BaseCase::switch_to_window"
+divergence = "Takes a window handle only. Python also takes an index (0 for the first tab, -1 for the newest): use switch_to_tab(index) or switch_to_newest_tab. Found by examples/test_window_switching.py (parity/examples.toml)."
 
 [basecase."tearDown"]
 status = "not-applicable"
@@ -1759,10 +1771,12 @@ reason = "unittest/pytest harness plumbing; the Rust runner (api::runner) owns t
 status = "composed"
 rust = "BaseCase::type_text"
 note = "One canonical name: Rust has type_text only."
+divergence = "Types with clear plus send_keys and returns at once. Python waits for the element to be clickable, scrolls to it, clears it with 42 backspaces, and waits for document.readyState to be complete after the keys. Typed straight after a click that loads a page (saucedemo.com's checkout form in examples/my_first_test.py), the text is often lost here and never in Python. A ::shadow selector is not read (see get_text)."
 
 [basecase."uncheck_if_checked"]
 status = "implemented"
 rust = "BaseCase::uncheck_if_checked"
+divergence = "As check_if_unchecked: no fallback for a checkbox at zero opacity."
 
 [basecase."unselect_if_selected"]
 status = "implemented"
@@ -1821,6 +1835,7 @@ note = "The keywords are the builder methods .value(..) and .timeout(..); the ti
 [basecase."wait_for_element"]
 status = "implemented"
 rust = "BaseCase::wait_for_element"
+divergence = "The timeout (seconds) is a required argument; Python's is optional. Found by examples/test_deferred_asserts.py."
 
 [basecase."wait_for_element_absent"]
 status = "implemented"
@@ -2005,6 +2020,7 @@ reason = "Rust has assert!, assert_eq! and friends."
 [cdp."assert_text"]
 status = "composed"
 rust = "LocatorExpect::to_contain_text"
+divergence = "Reads the rendered text, so an <input> or <textarea> never matches by its value, where Python's assert_text does. Found by examples/cdp_mode/raw_demo_site.py."
 note = "Assert with `page.locator(selector).expect().to_contain_text(..)`; add `.not()` to negate and `.timeout(d)` to set the wait. A failed expectation returns an error where Python raises AssertionError."
 
 [cdp."assert_text_not_visible"]
@@ -2638,6 +2654,7 @@ note = "`page.locator(selector).click()` waits for the element, scrolls it into 
 [cdp."nested_click"]
 status = "composed"
 rust = "Locator::locator"
+divergence = "Reaches same-origin frames only. The iframe#myFrame3 of the demo page has a data: URL as its src, another origin, and `page.locator(\"iframe#myFrame3\").locator(\".fBox\")` finds nothing where Python's nested_click clicks it. Found by examples/cdp_mode/raw_demo_site.py."
 note = "Call `page.locator(selector).locator(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."open"]
@@ -2930,6 +2947,7 @@ note = "Python tiles the browser windows with the CDP driver. Compute each tile'
 status = "implemented"
 rust = "Locator::type_text"
 note = "`page.locator(selector).type_text(text)` clears the field, then types the text one key at a time, as Python's `type` does. `fill(text)` inserts it in one step; `send_keys(text)` appends."
+divergence = "Typed straight after a click that loads a page (saucedemo.com's checkout form in examples/cdp_mode/raw_cdp_swag.py), the text is lost in most runs here; Python's sb_cdp type is not (see the WebDriver type row)."
 
 [cdp."uncheck_if_checked"]
 status = "composed"
