@@ -1043,7 +1043,7 @@ A build without the feature `plugins-builtin` says so and names it, instead of
 listing nothing:
 
 ```text
-No plugins: this build has no built-in plugin; rebuild with --features plugins-builtin (or one of plugin-shield, plugin-block-resources, plugin-crx).
+No plugins: this build has no built-in plugin; rebuild with --features plugins-builtin (or one of plugin-shield, plugin-block-resources, plugin-crx, plugin-fetcher, plugin-extractor, plugin-batcher, plugin-crawler, plugin-browser).
 ```
 
 ### `install_driver`

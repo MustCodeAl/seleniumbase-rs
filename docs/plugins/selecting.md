@@ -25,7 +25,7 @@ a plugin; a build with it reads them and leaves the selection to the program.
 
 <Visibility for="agents">
 
-Summary for AI exports: the official plugins (`shield`, `block-resources`, `crx`, `fetcher`, `extractor`, `batcher`, `crawler`) are turned on by name, with no code. On the command line, `--plugin NAME` and `--plugin-opt NAME.KEY=VALUE` are global options, so they go before the command or after it, and both repeat (`sbrs --plugin shield open https://example.com`); `VALUE` is a TOML value, so `'shield.level="strict"'` is quoted. Other sources are `SB_PLUGINS=shield,block-resources` and `enable = [...]` in the `[plugins]` table of `sbase_config.toml`. Precedence, highest first: the command line, `SB_PLUGINS`, the settings file. In Rust, turn on the feature (`plugin-shield`, `plugin-block-resources`, `plugin-crx`, `plugin-fetcher`, `plugin-extractor`, `plugin-batcher`, `plugin-crawler` or `plugins-builtin`) and use `plugins_named` or `plugin_selection`. A wrong name or option stops the run before a browser starts, with exit status 2. `sbrs plugin list` and `sbrs plugin info NAME` show the plugins and what they may do.
+Summary for AI exports: the official plugins (`shield`, `block-resources`, `crx`, `fetcher`, `extractor`, `batcher`, `crawler`, `browser`) are turned on by name, with no code. On the command line, `--plugin NAME` and `--plugin-opt NAME.KEY=VALUE` are global options, so they go before the command or after it, and both repeat (`sbrs --plugin shield open https://example.com`); `VALUE` is a TOML value, so `'shield.level="strict"'` is quoted. Other sources are `SB_PLUGINS=shield,block-resources` and `enable = [...]` in the `[plugins]` table of `sbase_config.toml`. Precedence, highest first: the command line, `SB_PLUGINS`, the settings file. In Rust, turn on the feature (`plugin-shield`, `plugin-block-resources`, `plugin-crx`, `plugin-fetcher`, `plugin-extractor`, `plugin-batcher`, `plugin-crawler`, `plugin-browser` or `plugins-builtin`) and use `plugins_named` or `plugin_selection`. A wrong name or option stops the run before a browser starts, with exit status 2. `sbrs plugin list` and `sbrs plugin info NAME` show the plugins and what they may do.
 
 </Visibility>
 
@@ -54,6 +54,7 @@ Summary for AI exports: the official plugins (`shield`, `block-resources`, `crx`
 | `plugin-extractor` | `plugins`, and the [extractor](https://github.com/MustCodeAl/seleniumbase-rs-plugins/tree/main/plugins/extractor) plugin: find and extract structured data from pages |
 | `plugin-batcher` | `plugins`, and the [batcher](https://github.com/MustCodeAl/seleniumbase-rs-plugins/tree/main/plugins/batcher) plugin: a task that runs many jobs with bounded concurrency, retries and a resume file |
 | `plugin-crawler` | `plugins`, and the [crawler](https://github.com/MustCodeAl/seleniumbase-rs-plugins/tree/main/plugins/crawler) plugin: a task that follows a site's links and reports broken pages and console errors |
+| `plugin-browser` | `plugins`, and the [browser](https://github.com/MustCodeAl/seleniumbase-rs-plugins/tree/main/plugins/browser) plugin: loads extensions from `.zip` and `.crx` files and unpacked folders; it cannot be used together with `crx` |
 | `plugins-builtin` | All of the above |
 
 A build compiles only the plugin crates it asks for: `plugin-shield` does not
@@ -61,6 +62,18 @@ also compile the CRX unpacker. The plugins live in the
 [plugins repository](https://github.com/MustCodeAl/seleniumbase-rs-plugins), and
 this crate depends on two crates from it, the API and the aggregator of the
 built-in plugins.
+
+<Note>
+
+`browser` and `crx` both load extensions, and `browser` declares that it cannot
+share a set with `crx`: naming both builds the set, and the check every launch
+makes refuses it with ``plugin `browser` cannot be combined with plugin `crx` ``,
+before a browser starts. Name one of them. `browser` takes `extension_zip` (`.zip`
+or `.crx` files) and `extension_dir` (unpacked folders). Its worker-wait and session
+options (`wait_for_workers`, `session` and the like) are not implemented yet and are
+refused as unknown options, not ignored.
+
+</Note>
 
 <Warning>
 
@@ -353,7 +366,7 @@ status 2 (the status `sbrs` gives every value that does not parse):
 
 `plugins-builtin` is a default feature of `seleniumbase-rs-cli`, as `pdf` and
 `mcp-server` are, and the release workflow builds with it. The package also
-passes `plugins`, `plugin-shield`, `plugin-block-resources` and `plugin-crx`
+passes `plugins` and every `plugin-*` feature (`plugin-browser` among them)
 through to the library. A build with `--no-default-features` has no plugin
 support and **fails closed**: `--plugin`, a `[plugins]` table, or `SB_PLUGINS`
 naming a plugin stops a browser command with status 2 and the text

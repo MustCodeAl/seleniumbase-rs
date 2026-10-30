@@ -82,7 +82,7 @@ let plugins = plugin_host::build_with(&registry, &selection)?;
 <ResponseExample>
 
 ```text Unknown name
-plugin error: no plugin named `sheild` is available (known: shield, block-resources, crx). The built-in plugins are cargo features of seleniumbase-rs: plugin-shield, plugin-block-resources, plugin-crx, plugin-fetcher, plugin-extractor, plugin-batcher, plugin-crawler (plugins-builtin turns them all on). A plugin from another crate is added with PluginSet::with, or by name through Registry::with(Descriptor::of::<P>()) and plugin_host::build_with
+plugin error: no plugin named `sheild` is available (known: shield, block-resources, crx). The built-in plugins are cargo features of seleniumbase-rs: plugin-shield, plugin-block-resources, plugin-crx, plugin-fetcher, plugin-extractor, plugin-batcher, plugin-crawler, plugin-browser (plugins-builtin turns them all on). A plugin from another crate is added with PluginSet::with, or by name through Registry::with(Descriptor::of::<P>()) and plugin_host::build_with
 ```
 
 ```text Named twice
@@ -109,13 +109,14 @@ plugin error: options were given for `shield`, which is not in `enable` ([plugin
 | `plugin-extractor` | `plugins`, and `seleniumbase-rs-plugins-builtin/extractor` |
 | `plugin-batcher` | `plugins`, and `seleniumbase-rs-plugins-builtin/batcher` |
 | `plugin-crawler` | `plugins`, and `seleniumbase-rs-plugins-builtin/crawler` |
+| `plugin-browser` | `plugins`, and `seleniumbase-rs-plugins-builtin/browser` |
 | `plugins-builtin` | every `plugin-*` feature above |
 
 The library's default features are empty. The command-line package
 `seleniumbase-rs-cli` has `plugins-builtin` among its defaults and passes
 `plugins` and each `plugin-*` through. Both plugin dependencies come from
 `https://github.com/MustCodeAl/seleniumbase-rs-plugins` at
-`rev = "628991af0e6c5711298e3bd3692dc2974887401a"` (version `0.1`).
+`rev = "1a327ecb58caf6f6b745b5a91aadd1ea51f6fcc1"` (version `0.1`).
 
 ## plugin_api
 
@@ -137,14 +138,14 @@ with `seleniumbase_rs::plugins`, the test-reporting plugins.
 <Badge color="gray">mod</Badge> <Badge color="gray" stroke>re-export</Badge> `seleniumbase_rs::builtin_plugins`
 
 ```rust
-#[cfg(any(feature = "plugin-shield", feature = "plugin-block-resources", feature = "plugin-crx"))]
+#[cfg(any(feature = "plugin-shield", feature = "plugin-block-resources", feature = "plugin-crx", feature = "plugin-fetcher", feature = "plugin-extractor", feature = "plugin-batcher", feature = "plugin-crawler", feature = "plugin-browser"))]
 pub use seleniumbase_rs_plugins_builtin as builtin_plugins;
 ```
 
 The crate `seleniumbase-rs-plugins-builtin`: its `registry()` (the built-in
-plugins whose feature is on, in the order `shield`, `block-resources`, `crx`),
+plugins whose feature is on, in the order `shield`, `block-resources`, `crx`, `fetcher`, `extractor`, `batcher`, `crawler`, `browser`),
 a module per plugin with that plugin's own types (`shield`, `block_resources`,
-`crx`), and re-exports of `Descriptor`, `PluginSpec` and `Registry`. Most
+`crx`, `fetcher`, `extractor`, `batcher`, `crawler`, `browser`), and re-exports of `Descriptor`, `PluginSpec` and `Registry`. Most
 programs enable the built-in plugins by name instead. The `wasm` plugin host is
 not in it: it needs the path of a module, so it is added with
 `PluginSet::with`.
