@@ -187,6 +187,24 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ### Added
 
+- **A project that uses `seleniumbase-rs` lists `seleniumbase-rs` and imports nothing else.** The
+  crate re-exports what its API takes, returns or expands to: `seleniumbase_rs::drivers` (the
+  WebDriver types: `By`, `WebElement`, `DesiredCapabilities`, `Key`, `Cookie`, `NetworkConditions`,
+  ...; `get_shadow_root`, `find_element` and `get_cookie` are written with them), `seleniumbase_rs::json`
+  (`json!`, `Value`, `from_value`, ...), `seleniumbase_rs::tokio` (the runtime, so `#[tokio::main]` and
+  `#[tokio::test]` need no `tokio` line), `seleniumbase_rs::testing::{rstest, fixture}`,
+  `seleniumbase_rs::testing::bdd::{given, when, then, scenario, scenarios, skip}` and
+  `seleniumbase_rs::plugins::observer::async_trait`. The attribute macros expand to paths that start
+  with `tokio::` and `rstest::`, which resolve to the imports. Gherkin tests still list
+  `rstest-bdd` in `Cargo.toml` (its macros read the manifest and take no crate path), but no file
+  names it. The code that `sbrs mkfile`, `sbrs mkdir`, the recorder and the Python and Playwright
+  importers write, the README, the examples and the documentation use these paths; the README that
+  `sbrs mkdir` writes lists `seleniumbase-rs` alone (plus `rstest-bdd` for Gherkin). The new crate
+  `crates/own-imports` proves it: its manifest lists only `seleniumbase-rs` and `rstest-bdd`, its
+  tests import nothing else, and a doctest compiles every golden file there. The page
+  [Imports and dependencies](/imports) lists the lines that stay and why, and
+  `tests/docs_current.rs` fails when a page gains a `use thirtyfour`, `use rstest`, `use rstest_bdd`,
+  `use serde_json`, `use tokio` or `use async_trait` outside the pages that must name them.
 - **A fingerprint's stealth for a webview an app embeds, with no debugging port.**
   `sb_cdp::StealthPlan::new(&fingerprint)` holds the init script (`init_script()`) and the
   ordered protocol overrides (`overrides()`; `commands()` is both, as
@@ -197,8 +215,6 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   wait for each answer, and it opens no tabs. `Page::apply_fingerprint` now asks for the tab's
   browser context only when the fingerprint grants a permission. See
   [the Tauri guide](/ecosystem/tauri#stealth-inside-the-app-with-no-debugging-port).
-
-
 - **`solve_captcha` finds the widget wherever it is, waits for it, presses like a hand and
   checks the result.** The widget is looked for in the page, its open shadow roots and the frames
   it may read, by the id and title Cloudflare gives its frame as well as by address; a page that
