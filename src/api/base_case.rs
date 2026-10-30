@@ -1079,7 +1079,6 @@ impl BaseCase {
     /// # Ok(())
     /// # }
     /// ```
-
     pub fn switch_to_frame(&mut self, frame: impl Into<FrameRef>) -> SwitchToFrame<'_> {
         SwitchToFrame::new(self, frame.into())
     }
@@ -1811,7 +1810,6 @@ impl BaseCase {
     /// # Ok(())
     /// # }
     /// ```
-
     pub fn switch_to_window(&self, window: impl Into<WindowRef>) -> SwitchToWindow<'_> {
         SwitchToWindow::new(self, window.into())
     }

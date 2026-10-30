@@ -1012,7 +1012,6 @@ impl BaseCase {
     /// # Ok(())
     /// # }
     /// ```
-
     pub fn frame_switch(&mut self, frame: impl Into<FrameRef>) -> FrameSwitch<'_> {
         FrameSwitch::new(self, frame.into())
     }
