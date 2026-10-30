@@ -30,6 +30,8 @@ use crate::browser::options::{
 use crate::browser::plugin_hooks::{self, SessionPlugins};
 use crate::browser::proxy_auth::{self, ProxyAuthSidecar};
 use crate::browser::reuse::{self, Lease, ReuseKey, SessionAddress};
+use crate::browser::shadow_find;
+
 use crate::browser::virtual_display::{self, XvfbProcess};
 use crate::config::ad_block_list::{AdBlockList, MAX_URL_PATTERNS};
 use crate::error::SeleniumBaseError;
@@ -488,14 +490,14 @@ impl BrowserSession {
 
     /// Clicks the element located by `locator`.
     pub async fn click(&mut self, locator: By) -> Result<(), SeleniumBaseError> {
-        let element = self.webdriver()?.find(locator).await?;
+        let element = self.find(locator).await?;
         element.click().await?;
         Ok(())
     }
 
     /// Clears and types `text` into the element located by `locator`.
     pub async fn type_text(&mut self, locator: By, text: &str) -> Result<(), SeleniumBaseError> {
-        let element = self.webdriver()?.find(locator).await?;
+        let element = self.find(locator).await?;
         element.clear().await?;
         element.send_keys(text).await?;
         Ok(())
@@ -503,14 +505,14 @@ impl BrowserSession {
 
     /// Clears the value of the element located by `locator`.
     pub async fn clear(&mut self, locator: By) -> Result<(), SeleniumBaseError> {
-        let element = self.webdriver()?.find(locator).await?;
+        let element = self.find(locator).await?;
         element.clear().await?;
         Ok(())
     }
 
     /// Submits the form containing the element located by `locator`.
     pub async fn submit(&mut self, locator: By) -> Result<(), SeleniumBaseError> {
-        let element = self.webdriver()?.find(locator).await?;
+        let element = self.find(locator).await?;
         let element_json = element.to_json()?;
         // Form submit via script
         self.webdriver()?
@@ -521,13 +523,13 @@ impl BrowserSession {
 
     /// Returns the visible text of the element located by `locator`.
     pub async fn text(&self, locator: By) -> Result<String, SeleniumBaseError> {
-        let element = self.webdriver()?.find(locator).await?;
+        let element = self.find(locator).await?;
         Ok(element.text().await?)
     }
 
     /// Hovers over the element located by `locator`.
     pub async fn hover(&mut self, locator: By) -> Result<(), SeleniumBaseError> {
-        let element = self.webdriver()?.find(locator).await?;
+        let element = self.find(locator).await?;
         self.webdriver()?
             .action_chain()
             .move_to_element_center(&element)
@@ -542,7 +544,7 @@ impl BrowserSession {
         locator: By,
         text: &str,
     ) -> Result<(), SeleniumBaseError> {
-        let element = self.webdriver()?.find(locator).await?;
+        let element = self.find(locator).await?;
         let select = thirtyfour::components::SelectElement::new(&element).await?;
         select.select_by_visible_text(text).await?;
         Ok(())
@@ -554,7 +556,7 @@ impl BrowserSession {
         locator: By,
         value: &str,
     ) -> Result<(), SeleniumBaseError> {
-        let element = self.webdriver()?.find(locator).await?;
+        let element = self.find(locator).await?;
         let select = thirtyfour::components::SelectElement::new(&element).await?;
         select.select_by_value(value).await?;
         Ok(())
@@ -562,7 +564,7 @@ impl BrowserSession {
 
     /// Switches context into the frame located by `locator`.
     pub async fn switch_to_frame(&mut self, locator: By) -> Result<(), SeleniumBaseError> {
-        let element = self.webdriver()?.find(locator).await?;
+        let element = self.find(locator).await?;
         element.enter_frame().await?;
         Ok(())
     }
@@ -579,8 +581,8 @@ impl BrowserSession {
         source_locator: By,
         target_locator: By,
     ) -> Result<(), SeleniumBaseError> {
-        let source = self.webdriver()?.find(source_locator).await?;
-        let target = self.webdriver()?.find(target_locator).await?;
+        let source = self.find(source_locator).await?;
+        let target = self.find(target_locator).await?;
         self.webdriver()?
             .action_chain()
             .drag_and_drop_element(&source, &target)
@@ -594,15 +596,18 @@ impl BrowserSession {
         Ok(self.webdriver()?.source().await?)
     }
 
-    /// Returns the first element matching `locator`.
-    pub async fn find(&mut self, locator: By) -> Result<WebElement, SeleniumBaseError> {
-        let element = self.webdriver()?.find(locator).await?;
-        Ok(element)
+    /// Returns the first element matching `locator`. A CSS locator that crosses
+    /// shadow roots (`host::shadow inner`) is looked up through each host's shadow
+    /// root, and every lookup of the session goes through here.
+    pub async fn find(&self, locator: By) -> Result<WebElement, SeleniumBaseError> {
+        shadow_find::find(self.webdriver()?, locator).await
     }
 
-    /// Returns all elements matching `locator`.
+    /// Returns all elements matching `locator`, which may cross shadow roots as
+    /// [`find`](Self::find) says. A host that is missing or has no shadow root
+    /// gives an empty list.
     pub async fn find_all(&self, locator: By) -> Result<Vec<WebElement>, SeleniumBaseError> {
-        Ok(self.webdriver()?.find_all(locator).await?)
+        shadow_find::find_all(self.webdriver()?, locator).await
     }
 
     /// WebDriver interaction: `element_present`.
@@ -627,7 +632,7 @@ impl BrowserSession {
         poll_until(
             Duration::from_secs(timeout_secs),
             RetryPolicy::webdriver(),
-            || async { self.webdriver().ok()?.find(locator.clone()).await.ok() },
+            || async { self.find(locator.clone()).await.ok() },
         )
         .await
         .ok_or_else(|| timed_out(format!("element {locator}"), timeout_secs))
@@ -639,7 +644,7 @@ impl BrowserSession {
         locator: By,
         attribute_name: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
-        let element = self.webdriver()?.find(locator).await?;
+        let element = self.find(locator).await?;
         self.attribute_or_property(&element, attribute_name).await
     }
 
@@ -693,7 +698,7 @@ impl BrowserSession {
         locator: By,
         property_name: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
-        let element = self.webdriver()?.find(locator).await?;
+        let element = self.find(locator).await?;
         Ok(element.prop(property_name).await?)
     }
 
@@ -714,7 +719,7 @@ impl BrowserSession {
             Duration::from_secs(timeout_secs),
             RetryPolicy::webdriver(),
             || async {
-                match self.webdriver().ok()?.find(locator.clone()).await {
+                match self.find(locator.clone()).await {
                     Ok(element) if element.is_displayed().await.unwrap_or(false) => Some(element),
                     _ => None,
                 }
@@ -741,7 +746,7 @@ impl BrowserSession {
             Duration::from_secs(timeout_secs),
             RetryPolicy::webdriver(),
             || async {
-                match self.webdriver().ok()?.find(locator.clone()).await {
+                match self.find(locator.clone()).await {
                     Ok(element)
                         if element.is_displayed().await.unwrap_or(false)
                             && element.is_enabled().await.unwrap_or(false) =>
@@ -829,11 +834,7 @@ impl BrowserSession {
 
     /// Returns `true` if the element located by `locator` is enabled.
     pub async fn is_enabled(&self, locator: By) -> Result<bool, SeleniumBaseError> {
-        let element = self
-            .webdriver()?
-            .find(locator)
-            .await
-            .map_err(SeleniumBaseError::WebDriver)?;
+        let element = self.find(locator).await?;
         element
             .is_enabled()
             .await
@@ -842,11 +843,7 @@ impl BrowserSession {
 
     /// Returns `true` if the element located by `locator` is selected.
     pub async fn is_selected(&self, locator: By) -> Result<bool, SeleniumBaseError> {
-        let element = self
-            .webdriver()?
-            .find(locator)
-            .await
-            .map_err(SeleniumBaseError::WebDriver)?;
+        let element = self.find(locator).await?;
         element
             .is_selected()
             .await
@@ -855,7 +852,7 @@ impl BrowserSession {
 
     /// WebDriver interaction: `is_displayed`.
     pub async fn is_displayed(&self, locator: By) -> Result<bool, SeleniumBaseError> {
-        if let Ok(element) = self.webdriver()?.find(locator).await {
+        if let Ok(element) = self.find(locator).await {
             element
                 .is_displayed()
                 .await
@@ -941,10 +938,7 @@ impl BrowserSession {
         &self,
         locator: thirtyfour::By,
     ) -> Result<Vec<thirtyfour::WebElement>, SeleniumBaseError> {
-        self.webdriver()?
-            .find_all(locator)
-            .await
-            .map_err(SeleniumBaseError::WebDriver)
+        self.find_all(locator).await
     }
 
     /// Opens and switches to a new browser window/tab.
@@ -986,7 +980,7 @@ impl BrowserSession {
             Duration::from_secs(timeout_secs),
             RetryPolicy::webdriver(),
             || async {
-                match self.webdriver().ok()?.find_all(locator.clone()).await {
+                match self.find_all(locator.clone()).await {
                     Ok(elements) if elements.is_empty() => Some(()),
                     Err(_) => Some(()),
                     _ => None,
@@ -1016,7 +1010,7 @@ impl BrowserSession {
             Duration::from_secs(timeout_secs),
             RetryPolicy::webdriver(),
             || async {
-                match self.webdriver().ok()?.find(locator.clone()).await {
+                match self.find(locator.clone()).await {
                     Ok(element) => match shown_text(&element).await {
                         Ok(text) if text.contains(expected_substring) => Some(()),
                         _ => None,

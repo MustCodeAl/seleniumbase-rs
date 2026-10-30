@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Shadow DOM fixture</title>
+<style>
+  body { font-family: sans-serif; }
+  fancy-tabs { display: block; }
+</style>
+</head>
+<body>
+<h1 id="light">Shadow DOM fixture</h1>
+
+<!-- Three levels: app-shell holds user-card, which holds badge-pill. -->
+<app-shell></app-shell>
+
+<!-- The text sits in the light DOM; the shadow tree only slots it, so the
+     panel's textContent is empty and its rendered text is the slotted text. -->
+<fancy-tabs><section id="panel-1">Content Panel 1</section></fancy-tabs>
+
+<!-- The shadow root arrives after a moment. -->
+<late-host></late-host>
+
+<!-- A closed root: the page script cannot reach it, WebDriver can. -->
+<closed-host></closed-host>
+
+<script>
+  customElements.define("badge-pill", class extends HTMLElement {
+    connectedCallback() {
+      this.attachShadow({ mode: "open" }).innerHTML =
+        '<b class="pill" data-tier="gold">Gold</b>';
+    }
+  });
+
+  customElements.define("user-card", class extends HTMLElement {
+    connectedCallback() {
+      this.attachShadow({ mode: "open" }).innerHTML =
+        '<span class="badge" data-role="admin">Admin</span>' +
+        '<input class="note" type="text">' +
+        '<badge-pill></badge-pill>';
+    }
+  });
+
+  customElements.define("app-shell", class extends HTMLElement {
+    connectedCallback() {
+      const root = this.attachShadow({ mode: "open" });
+      root.innerHTML =
+        '<h2 id="title">App shell</h2>' +
+        '<input id="name" type="text" placeholder="name">' +
+        '<button id="go" data-kind="primary">Go</button>' +
+        '<p id="greeting"></p>' +
+        '<p id="status">Loading</p>' +
+        '<button id="hidden-button" style="display: none">Hidden</button>' +
+        '<ul><li class="item">one</li><li class="item">two</li></ul>' +
+        '<user-card></user-card>';
+      root.getElementById("go").addEventListener("click", () => {
+        root.getElementById("greeting").textContent =
+          "Hello, " + root.getElementById("name").value;
+      });
+      // The status changes a moment after the page loads.
+      setTimeout(() => { root.getElementById("status").textContent = "Ready"; }, 800);
+    }
+  });
+
+  customElements.define("fancy-tabs", class extends HTMLElement {
+    connectedCallback() {
+      this.attachShadow({ mode: "open" }).innerHTML =
+        '<div id="tabs"><slot name="tab"></slot></div>' +
+        '<div id="panels"><slot id="slot"></slot></div>';
+    }
+  });
+
+  customElements.define("late-host", class extends HTMLElement {
+    connectedCallback() {
+      setTimeout(() => {
+        this.attachShadow({ mode: "open" }).innerHTML =
+          '<p id="late">Arrived</p>';
+      }, 800);
+    }
+  });
+
+  customElements.define("closed-host", class extends HTMLElement {
+    connectedCallback() {
+      this.attachShadow({ mode: "closed" }).innerHTML =
+        '<p id="secret">Closed text</p>';
+    }
+  });
+</script>
+</body>
+</html>

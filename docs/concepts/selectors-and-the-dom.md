@@ -121,8 +121,9 @@ outside do not reach in, and a normal selector stops at the host, because the
 shadow tree is not part of the main one.
 
 - An **open** shadow root can be entered by script (`element.shadowRoot`).
-- A **closed** shadow root cannot be entered from page script, and not by
-  WebDriver or CDP either: it hides its contents from every script.
+- A **closed** shadow root cannot be entered from page script. The browser
+  driver can still hand it out, so the WebDriver engine reaches it, as Python
+  does; the pure CDP engine, which works through page scripts, does not.
 - Content passed in from outside appears through **slots**.
 
 ```html
@@ -135,13 +136,14 @@ shadow tree is not part of the main one.
 Search boxes, date pickers, video players and design systems from large
 companies are often built this way. How each tool crosses the boundary:
 
-- The **WebDriver engine** adds a piercing combinator, `::shadow`, as in
-  `sb.shadow_click("my-app ::shadow button")`. The selector
-  `my-app ::shadow .form ::shadow input` is split at each `::shadow`, and a
-  script walks from the document into each host's shadow root in turn. Only
-  **open** shadow roots can be entered.
-- The **pure CDP engine** has no shadow-piercing selector in this version. To
-  reach into a shadow root there, run a script with `Page::evaluate`.
+- Both engines read a piercing combinator, `::shadow`, in every selector, as in
+  `sb.click("my-app::shadow button")`. The selector
+  `my-app ::shadow .form ::shadow input` is split at each `::shadow`, and the
+  search walks from the document into each host's shadow root in turn. The
+  **WebDriver engine** asks the browser driver for each root, which also gives
+  **closed** ones, as Python does. The **pure CDP engine** (`page.locator`)
+  walks the roots in its page script and can enter **open** roots only; Python's
+  CDP mode has no such selector.
 - The [companion extension](/ecosystem/browser-extension) records a click on a
   shadow element as a click on the shadow **host**, because that is what an
   outside selector can name.

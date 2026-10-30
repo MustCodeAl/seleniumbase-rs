@@ -5,173 +5,9 @@
 //! this crate does not do what the Python call does; `parity/examples.toml`
 //! lists them all.
 
-use seleniumbase_rs::{run_browser_test, BaseCase, Result};
+use seleniumbase_rs::{run_browser_test, Result};
 
-use crate::support::{headless, run_port, Mismatches};
-
-// The helpers below try the Python call as this crate spells it. When it
-// fails they note the step and carry on with the nearest composition, so one
-// run lists every difference of an example (see `Mismatches`). Once a step is
-// noted the Python call is not tried again: it would only wait for its
-// timeout once more.
-
-/// The note for `::shadow` in the regular methods. The helpers below share it.
-const SHADOW: &str = "::shadow selectors in the regular methods (get_text, assert_exact_text, \
-                      assert_element, type_text, assert_text, click)";
-
-/// Python's `get_text("host::shadow inner")`.
-async fn shadow_text(
-    sb: &mut BaseCase,
-    mismatches: &mut Mismatches,
-    selector: &str,
-) -> Result<String> {
-    if !mismatches.knows(SHADOW) {
-        match sb.get_text(selector).await {
-            Ok(text) => return Ok(text),
-            Err(error) => mismatches.note(SHADOW, error),
-        }
-    }
-    let text = sb.shadow_get_text(selector).await?;
-    if !text.trim().is_empty() {
-        return Ok(text);
-    }
-    // A container that only slots its content has no text of its own.
-    mismatches.note(
-        "shadow_get_text on a container of slotted content (it reads textContent, Python the rendered text)",
-        "it returned an empty string",
-    );
-    rendered_shadow_text(sb, selector).await
-}
-
-/// Python's `assert_exact_text(text, "host::shadow inner")`.
-async fn assert_shadow_exact(
-    sb: &mut BaseCase,
-    mismatches: &mut Mismatches,
-    expected: &str,
-    selector: &str,
-) -> Result<()> {
-    if !mismatches.knows(SHADOW) {
-        match sb.assert_exact_text(expected, selector).await {
-            Ok(()) => return Ok(()),
-            Err(error) => mismatches.note(SHADOW, error),
-        }
-    }
-    let text = shadow_text(sb, mismatches, selector).await?;
-    sb.assert_equal(text.trim(), expected.trim())
-}
-
-/// Python's `assert_element("host::shadow inner")`.
-async fn shadow_assert_element(
-    sb: &mut BaseCase,
-    mismatches: &mut Mismatches,
-    selector: &str,
-) -> Result<()> {
-    if !mismatches.knows(SHADOW) {
-        match sb.assert_element(selector).await {
-            Ok(()) => return Ok(()),
-            Err(error) => mismatches.note(SHADOW, error),
-        }
-    }
-    sb.assert_shadow_element(selector).await
-}
-
-/// Python's `type("host::shadow inner", text)`.
-async fn shadow_type(
-    sb: &mut BaseCase,
-    mismatches: &mut Mismatches,
-    selector: &str,
-    text: &str,
-) -> Result<()> {
-    if !mismatches.knows(SHADOW) {
-        match sb.type_text(selector, text).await {
-            Ok(()) => return Ok(()),
-            Err(error) => mismatches.note(SHADOW, error),
-        }
-    }
-    sb.shadow_type(selector, text).await
-}
-
-/// Python's `assert_text(text, "host::shadow inner")`.
-async fn shadow_assert_text(
-    sb: &mut BaseCase,
-    mismatches: &mut Mismatches,
-    text: &str,
-    selector: &str,
-) -> Result<()> {
-    if !mismatches.knows(SHADOW) {
-        match sb.assert_text(text, selector).await {
-            Ok(()) => return Ok(()),
-            Err(error) => mismatches.note(SHADOW, error),
-        }
-    }
-    if sb.assert_shadow_text(text, selector).await.is_ok() {
-        return Ok(());
-    }
-    // Python's assert_text waits for the text to appear; assert_shadow_text
-    // looks once.
-    for _ in 0..40 {
-        sb.sleep(0.25).await;
-        if sb.assert_shadow_text(text, selector).await.is_ok() {
-            mismatches.note(
-                "assert_shadow_text looks once (Python's assert_text waits for the text)",
-                "the text was not there at the first look",
-            );
-            return Ok(());
-        }
-    }
-    sb.assert_shadow_text(text, selector).await
-}
-
-/// Python's `click("host::shadow inner")`.
-async fn shadow_click(
-    sb: &mut BaseCase,
-    mismatches: &mut Mismatches,
-    selector: &str,
-) -> Result<()> {
-    if !mismatches.knows(SHADOW) {
-        match sb.click(selector).await {
-            Ok(()) => return Ok(()),
-            Err(error) => mismatches.note(SHADOW, error),
-        }
-    }
-    sb.shadow_click(selector).await
-}
-
-/// The rendered text (`innerText`) of the element that a `host::shadow inner`
-/// selector names, found by a script that enters each open shadow root.
-async fn rendered_shadow_text(sb: &mut BaseCase, selector: &str) -> Result<String> {
-    // The text of the element, or else of the visible nodes that its slots
-    // show: the browser's innerText stops at a slot.
-    let script = format!(
-        "{} if (!el) return '';\
-         if (el.innerText) return el.innerText;\
-         var parts = [];\
-         for (const slot of el.querySelectorAll('slot')) {{\
-             for (const node of slot.assignedNodes({{flatten: true}})) {{\
-                 if (node.nodeType === 1 && node.getClientRects().length) parts.push(node.innerText);\
-             }}\
-         }}\
-         return parts.join('');",
-        shadow_find_script(selector)?
-    );
-    let text = sb.execute_script(&script).await?;
-    Ok(text.as_str().unwrap_or_default().to_owned())
-}
-
-/// A script that finds the element a `host::shadow inner` selector names, in
-/// the variable `el` (`null` when there is none), entering each open shadow
-/// root.
-fn shadow_find_script(selector: &str) -> Result<String> {
-    Ok(format!(
-        "var root = document, el = null;\
-         for (const part of {}.split('::shadow')) {{\
-             el = root.querySelector(part.trim());\
-             if (!el) break;\
-             root = el.shadowRoot || el;\
-         }}",
-        serde_json::to_string(selector)?
-    ))
-}
+use crate::support::{headless, run_port};
 
 // ---------------------------------------------------------------------------
 // my_first_test.py
@@ -598,38 +434,23 @@ async fn test_select_options() -> Result<()> {
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/other/shadow_dom"]
 async fn shadow_root_test() -> Result<()> {
-    run_port(async |sb, mismatches| {
+    run_port(async |sb, _| {
         sb.goto("https://seleniumbase.io/other/shadow_dom").await?;
         sb.click("button.tab_1").await?;
-        let panel = shadow_text(sb, mismatches, "fancy-tabs::shadow #panels").await?;
+        let panel = sb.get_text("fancy-tabs::shadow #panels").await?;
         println!("{panel}");
-        assert_shadow_exact(
-            sb,
-            mismatches,
-            "Content Panel 1",
-            "fancy-tabs::shadow #panels",
-        )
-        .await?;
+        sb.assert_exact_text("Content Panel 1", "fancy-tabs::shadow #panels")
+            .await?;
         sb.click("button.tab_2").await?;
-        let panel = shadow_text(sb, mismatches, "fancy-tabs::shadow #panels").await?;
+        let panel = sb.get_text("fancy-tabs::shadow #panels").await?;
         println!("{panel}");
-        assert_shadow_exact(
-            sb,
-            mismatches,
-            "Content Panel 2",
-            "fancy-tabs::shadow #panels",
-        )
-        .await?;
+        sb.assert_exact_text("Content Panel 2", "fancy-tabs::shadow #panels")
+            .await?;
         sb.click("button.tab_3").await?;
-        let panel = shadow_text(sb, mismatches, "fancy-tabs::shadow #panels").await?;
+        let panel = sb.get_text("fancy-tabs::shadow #panels").await?;
         println!("{panel}");
-        assert_shadow_exact(
-            sb,
-            mismatches,
-            "Content Panel 3",
-            "fancy-tabs::shadow #panels",
-        )
-        .await
+        sb.assert_exact_text("Content Panel 3", "fancy-tabs::shadow #panels")
+            .await
     })
     .await
 }
@@ -645,7 +466,7 @@ async fn shadow_root_test() -> Result<()> {
 #[tokio::test]
 #[ignore = "real headless Chrome; opens chrome://downloads/ (the Python test skips headless)"]
 async fn test_shadow_dom() -> Result<()> {
-    run_port(async |sb, mismatches| {
+    run_port(async |sb, _| {
         sb.goto("chrome://downloads/").await?;
 
         // Shadow DOM selectors
@@ -657,10 +478,11 @@ async fn test_shadow_dom() -> Result<()> {
      cr-toolbar::shadow cr-toolbar-search-field::shadow #clearSearch";
         let no_downloads_area = "downloads-manager::shadow #no-downloads";
 
-        shadow_assert_element(sb, mismatches, search_icon).await?;
-        shadow_type(sb, mismatches, search_input, "fake-file.zzz").await?;
-        shadow_assert_text(sb, mismatches, "No search results found", no_downloads_area).await?;
-        shadow_click(sb, mismatches, clear_search_icon).await
+        sb.assert_element(search_icon).await?;
+        sb.type_text(search_input, "fake-file.zzz").await?;
+        sb.assert_text("No search results found", no_downloads_area)
+            .await?;
+        sb.click(clear_search_icon).await
     })
     .await
 }

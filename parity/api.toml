@@ -181,7 +181,7 @@ rust = "BaseCase::assert_equal"
 [basecase."assert_exact_text"]
 status = "implemented"
 rust = "BaseCase::assert_exact_text"
-divergence = "Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_exact_text for a timeout of its own). A ::shadow selector is not read (see get_text)."
+divergence = "Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_exact_text for a timeout of its own)."
 
 [basecase."assert_exact_text_not_visible"]
 status = "implemented"
@@ -248,7 +248,7 @@ rust = "BaseCase::assert_raises"
 [basecase."assert_text"]
 status = "implemented"
 rust = "BaseCase::assert_text"
-divergence = "Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_text for a timeout of its own). Like Python it compares the value of an <input> or <textarea>; a ::shadow selector is not read (see get_text)."
+divergence = "Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_text for a timeout of its own). Like Python it compares the value of an <input> or <textarea>."
 
 [basecase."assert_text_not_visible"]
 status = "implemented"
@@ -328,7 +328,7 @@ rust = "BaseCase::clear_session_storage"
 [basecase."click"]
 status = "implemented"
 rust = "BaseCase::click"
-divergence = "Takes CSS or XPath; there is no per-call timeout argument (use set_timeout). A ::shadow selector is not read (see get_text)."
+divergence = "Takes CSS or XPath; there is no per-call timeout argument (use set_timeout)."
 
 [basecase."click_active_element"]
 status = "implemented"
@@ -923,7 +923,7 @@ rust = "BaseCase::get_session_storage_keys"
 [basecase."get_text"]
 status = "implemented"
 rust = "BaseCase::get_text"
-divergence = "A ::shadow selector (host::shadow inner) works in every Python method; here only the shadow_* methods (shadow_click, shadow_type, shadow_get_text, assert_shadow_text) read it, and they do not wait. shadow_get_text reads textContent, so a container that only slots its content gives an empty string where Python gives the rendered text. Found by examples/shadow_root_test.py and test_shadow_dom.py."
+note = "A ::shadow selector (host::shadow inner) is read by this method and by every other that takes a selector, as in Python: the element is waited for, closed roots are entered, and the text is what the browser shows (a container that only slots its content gives the slotted text). shadow_get_text and the other shadow_* methods are the same lookups."
 
 [basecase."get_text_content"]
 status = "implemented"
@@ -1771,7 +1771,7 @@ reason = "unittest/pytest harness plumbing; the Rust runner (api::runner) owns t
 status = "composed"
 rust = "BaseCase::type_text"
 note = "One canonical name: Rust has type_text only."
-divergence = "Types with clear plus send_keys and returns at once. Python waits for the element to be clickable, scrolls to it, clears it with 42 backspaces, and waits for document.readyState to be complete after the keys. A ::shadow selector is not read (see get_text)."
+divergence = "Types with clear plus send_keys and returns at once. Python waits for the element to be clickable, scrolls to it, clears it with 42 backspaces, and waits for document.readyState to be complete after the keys."
 
 [basecase."uncheck_if_checked"]
 status = "implemented"

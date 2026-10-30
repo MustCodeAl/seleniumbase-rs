@@ -1,5 +1,16 @@
-//! Shadow DOM selector piercing for the WebDriver engine.
+//! Shadow DOM selectors: telling them apart, and cutting them into pieces.
 //!
+//! [`is_shadow_selector`] says whether a selector crosses a shadow root the
+//! way Python SeleniumBase does, and [`shadow_chain`] cuts it into the pieces
+//! the engines look up one root at a time. The WebDriver engine does that for
+//! every method that takes a selector (so `sb.click("my-app::shadow button")`
+//! works, and waits), and reaches closed roots too; the pure CDP engine does it
+//! in its page script, for open roots.
+//!
+//! The older helpers below, [`split_shadow_selector`] and the `build_shadow_*`
+//! functions, are for scripts of your own.
+//!
+
 //! A selector such as `my-app ::shadow .form ::shadow input` names an element
 //! that sits inside two shadow roots. [`split_shadow_selector`] cuts it at each
 //! `::shadow` combinator, and the `build_shadow_*` functions turn the pieces
@@ -11,7 +22,7 @@
 //! `Runtime.evaluate`. Every fragment and value is put in with
 //! [`js_code::quote`](crate::js_code::quote), never pasted between quotes.
 //!
-//! Only open shadow roots can be entered; a closed root makes the walk end on
+//! These scripts enter only open shadow roots; a closed root makes the walk end on
 //! `null` and the script report that the element was not found.
 //!
 //! # Examples
@@ -27,11 +38,94 @@
 //! assert!(script.contains(r#"el.shadowRoot.querySelector("button.save")"#));
 //! ```
 
+use crate::error::SeleniumBaseError;
+
 use crate::js_code::quote;
 
 /// The piercing combinator that separates a host from the selector inside its
 /// shadow root.
 const COMBINATOR: &str = "::shadow";
+
+/// What Python SeleniumBase says of a selector that ends on the combinator.
+const ENDS_ON_ROOT: &str = "A Shadow DOM selector cannot end on a shadow root element! \
+                            End the selector with an element inside the shadow root!";
+
+/// The byte offsets of the combinators in `selector`: a `::shadow` that is
+/// followed by white space or by the end of the text, which is how Python
+/// SeleniumBase reads it (`"::shadow "`). A `::shadow` glued to a name, such
+/// as the XPath step `parent::shadow-host`, is not one.
+fn combinators(selector: &str) -> impl Iterator<Item = usize> + '_ {
+    selector.match_indices(COMBINATOR).filter_map(|(at, _)| {
+        let after = selector[at + COMBINATOR.len()..].chars().next();
+        after.is_none_or(char::is_whitespace).then_some(at)
+    })
+}
+
+/// Whether `selector` crosses a shadow root: it holds the `::shadow`
+/// combinator, followed by white space or the end of the text.
+///
+/// This is Python SeleniumBase's `"::shadow " in selector`, the test every
+/// method that takes a selector makes before it looks the element up.
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::utils::shadow::is_shadow_selector;
+///
+/// assert!(is_shadow_selector("my-app::shadow button"));
+/// assert!(is_shadow_selector("my-app ::shadow button"));
+/// assert!(is_shadow_selector("my-app ::shadow")); // refused when it is used
+/// assert!(!is_shadow_selector("div > button"));
+/// assert!(!is_shadow_selector("//a/parent::shadow-host"));
+/// ```
+#[must_use]
+pub fn is_shadow_selector(selector: &str) -> bool {
+    combinators(selector).next().is_some()
+}
+
+/// The selectors of a shadow-crossing `selector`, one for each root it
+/// enters: the first is looked for in the document, each of the others in the
+/// shadow root of the element the one before it found.
+///
+/// A selector without the combinator is one piece. Like Python SeleniumBase,
+/// this refuses a selector that ends on a shadow root, and it refuses an empty
+/// piece, which Python would pass on to the browser.
+///
+/// # Errors
+///
+/// [`SeleniumBaseError::InvalidSelector`] if the selector ends on the
+/// combinator or has an empty piece.
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::utils::shadow::shadow_chain;
+///
+/// assert_eq!(
+///     shadow_chain("my-app ::shadow .form::shadow input")?,
+///     ["my-app", ".form", "input"]
+/// );
+/// assert!(shadow_chain("my-app ::shadow").is_err());
+/// # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
+/// ```
+pub fn shadow_chain(selector: &str) -> Result<Vec<String>, SeleniumBaseError> {
+    if selector.trim_end().ends_with(COMBINATOR) {
+        return Err(SeleniumBaseError::InvalidSelector(ENDS_ON_ROOT.to_owned()));
+    }
+    let mut pieces = Vec::new();
+    let mut start = 0;
+    for at in combinators(selector) {
+        pieces.push(selector[start..at].trim());
+        start = at + COMBINATOR.len();
+    }
+    pieces.push(selector[start..].trim());
+    if pieces.iter().any(|piece| piece.is_empty()) {
+        return Err(SeleniumBaseError::InvalidSelector(format!(
+            "a Shadow DOM selector needs an element before and after each ::shadow: {selector}"
+        )));
+    }
+    Ok(pieces.into_iter().map(str::to_owned).collect())
+}
 
 /// Splits a selector on the `::shadow` piercing combinator.
 ///
@@ -132,6 +226,60 @@ pub fn build_shadow_attribute(fragments: &[String], attribute: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_combinator_is_one_that_python_reads() {
+        for selector in [
+            "app::shadow input",
+            "app ::shadow input",
+            "app ::shadow\tinput",
+            "app ::shadow\ninput",
+            "app ::shadow",
+            "a ::shadow b ::shadow c",
+        ] {
+            assert!(is_shadow_selector(selector), "{selector:?}");
+        }
+        for selector in [
+            "",
+            "div.card > a",
+            "a::shadowinput",
+            "//a/parent::shadow-host",
+            "a::before",
+            "::shado w",
+        ] {
+            assert!(!is_shadow_selector(selector), "{selector:?}");
+        }
+    }
+
+    #[test]
+    fn a_chain_has_a_piece_for_each_root() {
+        assert_eq!(shadow_chain("input").unwrap(), ["input"]);
+        assert_eq!(shadow_chain("app::shadow input").unwrap(), ["app", "input"]);
+        assert_eq!(
+            shadow_chain("app ::shadow  .form\n::shadow input[name='a b']").unwrap(),
+            ["app", ".form", "input[name='a b']"]
+        );
+        // The XPath step is not a combinator, so it stays in its piece.
+        assert_eq!(
+            shadow_chain("//a/parent::shadow-host::shadow b").unwrap(),
+            ["//a/parent::shadow-host", "b"]
+        );
+    }
+
+    #[test]
+    fn a_chain_refuses_what_python_refuses() {
+        for selector in ["app ::shadow", "app ::shadow  ", "a ::shadow b ::shadow"] {
+            let error = shadow_chain(selector).unwrap_err().to_string();
+            assert!(
+                error.contains("cannot end on a shadow root"),
+                "{selector:?}: {error}"
+            );
+        }
+        for selector in ["::shadow input", "a ::shadow ::shadow b", " ::shadow b"] {
+            let error = shadow_chain(selector).unwrap_err().to_string();
+            assert!(error.contains("before and after"), "{selector:?}: {error}");
+        }
+    }
 
     fn fragments(parts: &[&str]) -> Vec<String> {
         parts.iter().map(|part| (*part).to_owned()).collect()

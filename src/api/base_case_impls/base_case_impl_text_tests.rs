@@ -377,35 +377,23 @@ mod tests_text_argument_order {
 
     #[tokio::test]
     async fn assert_shadow_text_takes_the_text_first_and_the_selector_second() {
-        // It used to take (selector, text). The page script answers with the
-        // text of the shadow element; the selector must reach the script and
-        // the expected text must not.
-        let driver = MockWebDriver::start(json!({}), |request| {
-            match (request.method.as_str(), request.path.as_str()) {
-                ("POST", "/execute/sync") => Reply::Value(json!("Welcome")),
-                _ => Reply::Value(Value::Null),
-            }
-        });
-        let sb = driver.base_case().await;
+        // It used to take (selector, text). It is `assert_text` for a selector
+        // that may cross shadow roots, so the order is the same.
+        let driver = welcome_page();
+        let mut sb = driver.base_case().await;
+        sb.set_timeout(0).await.unwrap();
 
-        sb.assert_shadow_text("Welcome", "app-root ::shadow h1")
+        sb.assert_shadow_text("Welcome", "h1")
             .await
-            .expect("the shadow element says Welcome");
-        let script = driver
-            .requests("/execute/sync")
-            .last()
-            .and_then(|request| request.body["script"].as_str().map(str::to_owned))
-            .expect("a script was sent");
-        assert!(script.contains("app-root") && script.contains("h1"), "{script}");
-        assert!(!script.contains("Welcome"), "{script}");
+            .expect("the heading says Welcome");
 
         // The old order is a different expectation: the text is not the selector.
         let message = sb
-            .assert_shadow_text("app-root ::shadow h1", "Welcome")
+            .assert_shadow_text("h1", "Welcome")
             .await
-            .expect_err("the shadow element does not say that")
+            .expect_err("no element is called Welcome")
             .to_string();
-        assert!(message.contains("Welcome") && message.contains("app-root"), "{message}");
+        assert!(message.contains("Welcome") && message.contains("h1"), "{message}");
     }
 
     #[tokio::test]

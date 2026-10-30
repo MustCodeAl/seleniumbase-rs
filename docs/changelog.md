@@ -217,6 +217,14 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ### Added
 
+- **The pure CDP engine reads `::shadow` selectors.** `page.locator("my-app::shadow button")`
+  finds the button in the open shadow root of `my-app`, one `::shadow` for each root, in every
+  method of the locator and so in its waits and expectations; a step of a chain reads it too, and
+  a selector that ends on `::shadow` is an `InvalidSelector`. The text of a container that only
+  slots its content is now the slotted text, as WebDriver's element text gives it. Python's CDP
+  mode has no `::shadow` selector, so this goes beyond it. A page script cannot enter a closed
+  root; the WebDriver engine can.
+
 - **`sbrs extract-objects`, `inject-objects`, `objectify` and `revert-objects` work on Rust test
   files.** They are Python's page-object commands (`sbase extract-objects FILE.py`, ...): the
   string literals that are the selector argument of a `BaseCase` call (`click`, `type_text`,
@@ -870,6 +878,28 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   gives the line.
 
 ### Fixed
+
+- **Every method that takes a selector reads `::shadow`, as Python's do, and waits.**
+  `click("my-app::shadow button")`, `type_text`, `get_text`, `get_attribute`, `assert_element`,
+  `assert_text`, `assert_exact_text`, `is_element_visible`, `wait_for_element_visible`,
+  `find_elements` and the rest of the WebDriver engine's methods were an error for such a selector,
+  and only the `shadow_*` methods read it. The session now cuts the selector at each `::shadow`
+  and looks for each piece in the shadow root of the host before it (`BrowserSession::find` and
+  `find_all`, which every lookup goes through), so the waits and assertions see it too, and a
+  closed root is entered, as Python's Selenium does (`utils::shadow::is_shadow_selector` and
+  `shadow_chain` are the same cut). A selector that ends on `::shadow` is an `InvalidSelector`
+  error at once, with Python's message, instead of waiting for the timeout.
+  `base_case::test_shadow_dom` and `base_case::shadow_root_test` of `parity/examples.toml` pass.
+- **`shadow_get_text` gives the text as the browser shows it.** It read `textContent`, so a
+  container that only slots its content (the panel of `fancy-tabs::shadow #panels`) gave an empty
+  string where Python's `get_text` gives `Content Panel 1`. It reads the element's text through
+  the driver, as `get_text` does, and waits for the element to be displayed; a field still gives
+  its value.
+- **`assert_shadow_text` and `assert_shadow_element` wait, and so do the other `shadow_*`
+  methods.** They looked once and failed on a text that arrives a moment after the page
+  (`chrome://downloads/` shows "No search results found" a moment after the typing), where Python's
+  `assert_text` waits. They now wait for the case's timeout (`set_timeout`); `assert_shadow_text`
+  is `assert_text` and `assert_shadow_element` is `assert_element_present`.
 
 - **The text checks read the value of an `<input>` or a `<textarea>`, as Python's do.**
   `assert_text`, `assert_exact_text`, `is_text_visible`, `is_exact_text_visible`,

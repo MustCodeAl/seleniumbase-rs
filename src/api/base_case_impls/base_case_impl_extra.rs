@@ -593,7 +593,7 @@ impl BaseCase {
         poll_until_found(self.default_wait_secs(), what, || {
             let by = by.clone();
             async move {
-                let Ok(element) = self.session.webdriver()?.find(by).await else {
+                let Ok(element) = self.session.find(by).await else {
                     return Ok(Polled::Pending { seen: None });
                 };
                 if !element.is_displayed().await.unwrap_or(false) {
@@ -674,6 +674,13 @@ impl BaseCase {
         css: &str,
         attribute: &str,
     ) -> Result<bool, SeleniumBaseError> {
+        if self.is_shadow_selector(css) {
+            // A script's querySelector cannot cross a shadow root; the session can.
+            let Ok(element) = self.session.find(Selector::auto(css).to_by()?).await else {
+                return Ok(false);
+            };
+            return Ok(element.attr(attribute).await?.is_some());
+        }
         let script = format!(
             "var el = document.querySelector({}); return !!(el && el.hasAttribute({}));",
             quote(css),
@@ -1629,7 +1636,7 @@ impl BaseCase {
             format!("None of the selectors [{}] was present", css_list.join(", ")),
             || async {
                 for by in &locators {
-                    let found = self.session.webdriver()?.find_all(by.clone()).await?;
+                    let found = self.session.find_all(by.clone()).await?;
                     if let Some(element) = found.into_iter().next() {
                         return Ok(Polled::Found(element));
                     }
