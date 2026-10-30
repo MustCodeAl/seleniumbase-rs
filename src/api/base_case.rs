@@ -16,7 +16,7 @@ use crate::api::deferred::DeferredAsserts;
 use crate::api::html::BeautifulSoup;
 use crate::api::jqc::JqcDefaults;
 use crate::api::master_qa::MasterQaSession;
-use crate::api::misc_calls::{scroll_distance, AddCookie, OpenNewTab, Scroll};
+use crate::api::misc_calls::{scroll_distance, AddCookie, GetSelectOptions, OpenNewTab, Scroll};
 
 use crate::api::page_scripts::{self, TextMatch};
 #[cfg(feature = "pdf")]
@@ -1245,7 +1245,14 @@ impl BaseCase {
         self.wait_for_element_visible(css, timeout_secs).await
     }
 
-    /// Returns the value of `attribute` on the element `css`, if present.
+    /// Returns the value of `attribute_name` on the element `css`, if there is
+    /// one: the HTML attribute, and when the element has none the DOM property
+    /// of that name, as Selenium's (and so Python's) `get_attribute` does. So
+    /// the `value` of a `<select>` is the chosen option's value, and the
+    /// `value` of an `<input>` is what was typed into it. A property that is
+    /// `false` (`selected`, `disabled`) gives `None`.
+    ///
+    /// Python raises when there is no such attribute; this returns `None`.
     pub async fn get_attribute(
         &mut self,
         css: &str,
@@ -2836,20 +2843,60 @@ impl BaseCase {
         self.assert_no_404_errors().await
     }
 
-    /// Return all visible text options for a `<select>` element.
-    pub async fn get_select_options(
-        &mut self,
-        css: &str,
-    ) -> Result<Vec<String>, SeleniumBaseError> {
-        let by = Selector::auto(css).to_by()?;
-        let element = self.session.wait_for_element(by, 10).await?;
-        let select = thirtyfour::components::SelectElement::new(&element).await?;
-        let mut options = Vec::new();
-        for opt in select.options().await? {
-            options.push(opt.text().await.unwrap_or_default());
+    /// The options of a `<select>` element, each as its text, as Python's
+    /// `get_select_options(dropdown_selector, attribute="text", by,
+    /// timeout=None)` gives them.
+    ///
+    /// The keywords are [`attribute`](GetSelectOptions::attribute) (`"text"` by
+    /// default, or `"value"` or `"index"`, which are read the way
+    /// [`get_attribute`](Self::get_attribute) reads them) and
+    /// [`timeout`](GetSelectOptions::timeout). Python's `attribute=None`, which
+    /// gives the option elements, has no equal here.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidConfig`] for any other attribute, and
+    /// an error if the element is missing or is not a `<select>`.
+    pub fn get_select_options<'a>(&'a mut self, css: &'a str) -> GetSelectOptions<'a> {
+            GetSelectOptions::new(self, css)
         }
-        Ok(options)
-    }
+    
+        /// The work of [`get_select_options`](Self::get_select_options).
+        pub(crate) async fn run_get_select_options(
+            &mut self,
+            css: &str,
+            attribute: &str,
+            timeout: Option<Duration>,
+        ) -> Result<Vec<String>, SeleniumBaseError> {
+            if !matches!(attribute, "text" | "index" | "value") {
+                return Err(SeleniumBaseError::InvalidConfig(format!(
+                    "The attribute must be \"text\", \"index\" or \"value\", not \"{attribute}\""
+                )));
+            }
+            let by = Selector::auto(css).to_by()?;
+            let seconds = self.wait_secs(timeout);
+            let element = self.session.wait_for_element(by, seconds).await?;
+        let tag = element.tag_name().await?;
+        if !tag.eq_ignore_ascii_case("select") {
+            return Err(SeleniumBaseError::InvalidConfig(format!(
+                "Element tag_name for get_select_options must be \"select\", not \"{tag}\""
+            )));
+        }
+
+            let select = thirtyfour::components::SelectElement::new(&element).await?;
+            let mut options = Vec::new();
+            for option in select.options().await? {
+                options.push(if attribute == "text" {
+                    option.text().await.unwrap_or_default()
+                } else {
+                    self.session
+                        .attribute_or_property(&option, attribute)
+                        .await?
+                        .unwrap_or_default()
+                });
+            }
+            Ok(options)
+        }
 
     /// Set the `value` property of the element.
     pub async fn set_value(&mut self, css: &str, value: &str) -> Result<(), SeleniumBaseError> {

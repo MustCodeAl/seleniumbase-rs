@@ -119,7 +119,7 @@ rust = "BaseCase::assert_any_of_elements_visible"
 [basecase."assert_attribute"]
 status = "implemented"
 rust = "BaseCase::assert_attribute"
-divergence = "Compares get_attribute, which returns the HTML attribute. On a <select> or an <input> whose value changed it sees none, where Python (Selenium reads the DOM property) sees the chosen or typed value. Found by examples/test_select_options.py."
+divergence = "Takes the value (Python's is optional, and then the attribute only has to exist) and reads the attribute once after the element is there, where Python waits up to SMALL_TIMEOUT for it (use wait_for_attribute). Like Python it sees the DOM property when the element has no such attribute."
 
 [basecase."assert_attribute_not_present"]
 status = "implemented"
@@ -707,7 +707,7 @@ rust = "BaseCase::get_active_element_css"
 [basecase."get_attribute"]
 status = "implemented"
 rust = "BaseCase::get_attribute"
-divergence = "Returns the HTML attribute. Python (Selenium) falls back to the DOM property, so get_attribute(select, \"value\") is the chosen value there and None here; use get_property. Found by examples/test_select_options.py."
+divergence = "Returns None when the element has neither the attribute nor a DOM property of that name that is set, where Python raises (its hard_fail=False returns None); has no timeout, by or hard_fail arguments (the wait is the default timeout, see set_timeout)."
 
 [basecase."get_beautiful_soup"]
 status = "implemented"
@@ -907,7 +907,7 @@ rust = "BaseCase::get_screen_rect"
 [basecase."get_select_options"]
 status = "implemented"
 rust = "BaseCase::get_select_options"
-divergence = "Returns the option texts only. Python's attribute argument (\"text\", \"index\", \"value\" or None for the elements) is missing. Found by examples/test_select_options.py."
+divergence = "Takes Python's attribute (\"text\" by default, \"index\" or \"value\") and timeout as call-builder keywords, .attribute(..) and .timeout(..), and returns Vec<String>. Python's attribute=None, which gives the option elements, has no equal; the by argument is the selector's own prefix."
 
 [basecase."get_session_storage_item"]
 status = "implemented"

@@ -233,7 +233,9 @@ Each method waits for its element first.
 - `type_text(css, text)` types into the field (it waits until the element is
   visible), and `clear(css)` empties it.
 - `select_option_by_text(css, text)` and `select_option_by_value(css, value)`
-  choose an `option` of a real `select`; `get_select_options` lists them.
+  choose an `option` of a real `select`; `get_select_options` lists them (their
+  text, or `.attribute("value")` or `.attribute("index")`), and
+  `get_attribute(css, "value")` gives the chosen value.
 - `check_if_unchecked(css)` and `uncheck_if_checked(css)` click a checkbox only
   when needed, and `is_checked(css)` reads its state.
 - `choose_file(css, file_path)` waits for the element (up to 10 seconds), turns

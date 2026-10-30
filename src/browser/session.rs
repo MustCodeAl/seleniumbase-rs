@@ -37,6 +37,16 @@ use crate::evasion::cdp::*; /* CdpClient */
 use crate::evasion::uc;
 use crate::utilities::retry::{poll_until, RetryPolicy};
 
+/// A page script that reads the DOM property `arguments[1]` of the element
+/// `arguments[0]` as text: the property when it is a string, a number or
+/// `true`, and `null` for `undefined`, `null`, `false`, an object or a
+/// function.
+const PROPERTY_AS_TEXT: &str = "const value = arguments[0][arguments[1]]; \
+    if (value === undefined || value === null || value === false \
+        || typeof value === 'object' || typeof value === 'function') { return null; } \
+    return String(value);";
+
+
 /// Owns a WebDriver session, optional CDP client, and optional auto-started driver process.
 pub struct BrowserSession {
     driver: Option<WebDriver>,
@@ -631,8 +641,37 @@ impl BrowserSession {
         attribute_name: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
         let element = self.webdriver()?.find(locator).await?;
-        Ok(element.attr(attribute_name).await?)
+        self.attribute_or_property(&element, attribute_name).await
     }
+
+    /// The value of `name` on `element`, as Selenium's `get_attribute` gives it:
+    /// the attribute if the element has it, and otherwise the DOM property of
+    /// that name as text. A `<select>` has no `value` attribute, but its
+    /// property says which option is chosen; an `<option>` has an `index`
+    /// property and no such attribute.
+    ///
+    /// A property that is `false`, missing, an object or a function gives
+    /// `None`, so `selected` and `disabled` are `"true"` or `None`, as in
+    /// Selenium.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the driver fails.
+    pub(crate) async fn attribute_or_property(
+        &self,
+        element: &WebElement,
+        name: &str,
+    ) -> Result<Option<String>, SeleniumBaseError> {
+        if let Some(attribute) = element.attr(name).await? {
+            return Ok(Some(attribute));
+        }
+        let property = self
+            .webdriver()?
+            .execute(PROPERTY_AS_TEXT, vec![element.to_json()?, json!(name)])
+            .await?;
+        Ok(property.json().as_str().map(str::to_owned))
+    }
+
 
     /// WebDriver interaction: `get_property`.
     pub async fn get_property(

@@ -125,4 +125,57 @@ async fn cdp_expectations_read_the_value_of_an_input_and_a_textarea() -> Result<
     Ok(())
 }
 
+#[tokio::test]
+#[ignore = "requires a local Chrome and chromedriver"]
+async fn get_attribute_falls_back_to_the_dom_property() -> Result<()> {
+    let url = serve();
+    run_browser_test(headless(), async |sb| {
+        sb.open(&url).await?;
+        sb.set_timeout(1).await?;
+
+        // A select has no value attribute: Selenium gives the chosen value.
+        let chosen = sb.get_attribute("#pick", "value").await?;
+        assert_eq!(chosen.as_deref(), Some("v2"));
+        sb.assert_attribute("#pick", "value", "v2").await?;
+        assert!(sb.assert_attribute("#pick", "value", "v1").await.is_err());
+
+        // An input's value attribute is what the page wrote; its value is
+        // what was typed.
+        sb.type_text("#name", "typed").await?;
+        let typed = sb.get_attribute("#name", "value").await?;
+        assert_eq!(typed.as_deref(), Some("typed"));
+
+        // An attribute the element has is what the call returns.
+        assert_eq!(sb.get_attribute("#pick", "id").await?.as_deref(), Some("pick"));
+        // A boolean property that is false is no attribute, as in Selenium.
+        let unselected = sb.get_attribute("#pick option[value=\"v1\"]", "selected").await?;
+        assert_eq!(unselected, None);
+        assert_eq!(sb.get_attribute("#pick", "data-missing").await?, None);
+        Ok(())
+    })
+    .await
+}
+
+
+#[tokio::test]
+#[ignore = "requires a local Chrome and chromedriver"]
+async fn get_select_options_gives_the_text_the_value_or_the_index_of_each_option() -> Result<()> {
+    let url = serve();
+    run_browser_test(headless(), async |sb| {
+        sb.open(&url).await?;
+        assert_eq!(sb.get_select_options("#pick").await?, ["One", "Two", "Three"]);
+        let values = sb.get_select_options("#pick").attribute("value").await?;
+        assert_eq!(values, ["v1", "v2", "v3"]);
+        let indexes = sb.get_select_options("#pick").attribute("index").await?;
+        assert_eq!(indexes, ["0", "1", "2"]);
+        assert!(sb.get_select_options("#pick").attribute("title").await.is_err());
+        // Not a select.
+        sb.set_timeout(1).await?;
+        assert!(sb.get_select_options("#name").await.is_err());
+        Ok(())
+    })
+    .await
+}
+
+
 // The tests of the other form-field behaviours follow.

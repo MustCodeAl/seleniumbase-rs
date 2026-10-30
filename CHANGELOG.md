@@ -810,6 +810,16 @@ work, `docs/parity.md` the per-API status).
   the value too, as Python's `text_all` does.
 
 
+- **`get_attribute` and `assert_attribute` see the DOM property, as Selenium's do, and
+  `get_select_options` takes Python's `attribute`.** When an element has no attribute of that
+  name, `get_attribute` gives the property: `get_attribute("#mySelect", "value")` is the chosen
+  option's value (it was `None`), and an `<option>`'s `index` works. A property that is `false`
+  (`selected`, `disabled`) is still `None`. `get_select_options(css)` is now a call builder with
+  `.attribute("value")` / `.attribute("index")` (`"text"` by default) and `.timeout(..)`; an
+  existing `get_select_options(css).await?` call compiles and behaves as before, and any other
+  attribute, or an element that is not a `<select>`, is an error.
+
+
 - **Recorder Mode no longer writes the frames of a page as pages to open.** The page script went
   into every frame, and a frame of the same origin shares the top frame's sessionStorage, so a
   reCAPTCHA page recorded `goto` steps for `about:blank`, `about:srcdoc` and the widget's
