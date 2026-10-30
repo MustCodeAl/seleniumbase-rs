@@ -336,7 +336,7 @@ Chromium's loopback CDP debugger and use the pure `sb_cdp` engine. The app owns
 and initializes its runtime. System WKWebView and WebKitGTK do not speak CDP;
 their existing WebDriver integration above continues to work.
 
-Enable the automation plugin's `cdp` Cargo feature (Rust 1.99), in the same
+Enable the automation plugin's `cdp` Cargo feature, in the same
 optional dependency that the `e2e` feature turns on, so a release build has
 neither:
 
@@ -348,15 +348,14 @@ e2e = ["dep:tauri-plugin-sbrs-automation"]
 tauri-plugin-sbrs-automation = { git = "https://github.com/MustCodeAl/tauri-plugin-sbrs-automation", optional = true, features = ["cdp"] }
 ```
 
-The feature uses a pinned
-Git dependency on `seleniumbase-rs` for `engine_spoofing_args()`, so the engine
-stealth switches have a single source. Before any threads or runtime initialization:
+The feature adds no dependency. Before any threads or runtime initialization:
 
 ```rust
 use tauri_plugin_sbrs_automation::cdp::CdpStealthConfig;
 
 fn main() {
-    let config = CdpStealthConfig::default().debugging_port(9222);
+    // A free loopback port; `.stealth_args(true)` opts in to the stealth flags.
+    let config = CdpStealthConfig::default();
     // SAFETY: main has not started threads or initialized the runtime.
     let args = unsafe { config.apply_env() };
     // CEF: pass `args` to your app's CEF initialization before opening windows.
@@ -365,11 +364,15 @@ fn main() {
 }
 ```
 
-`SBRS_CDP_PORT` selects the default port (9222 when unset/invalid). The helper
-respects `SBRS_AUTOMATION=0` and the plugin's debug/release gate. It always binds
-debugging to `127.0.0.1`; extra arguments cannot replace the debugging switches.
-The returned arguments include the canonical engine stealth flags unless
-`.stealth_args(false)` is set. Binary patches cannot be applied to an already-running app.
+Without `SBRS_CDP_PORT` the helper picks a free loopback port, the same for the
+life of the process; a port that is asked for and already in use turns nothing
+on. It produces nothing unless the plugin's automation gate is on (a debug build,
+or `SBRS_AUTOMATION` set to `1`, `true` or `on`), always binds debugging to
+`127.0.0.1`, and extra arguments cannot replace the debugging switches. The
+stealth flags are opt-in (`.stealth_args(true)`) and leave the app's browser
+protections on. Discovery names the port once Chromium answers on it, so a test
+that starts the app retries until it does. Binary patches cannot be applied to
+an already-running app.
 
 Connect from the test with a fingerprint, including native CDP spoofing if desired:
 
