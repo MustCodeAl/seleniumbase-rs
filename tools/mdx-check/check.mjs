@@ -8,6 +8,9 @@
 //   (`/tutorials/selectors`), in Markdown links and in component `href`s alike.
 // - The front matter has a title.
 // - Every page is in the navigation of docs.json, and every page there exists.
+// - The copy of the tree component on a page, and every layout tree between its markers, is
+//   the one tools/docs_layout_tree.py prints (CONTRIBUTING.md at the root included);
+//   `just layout-tree` writes them again.
 //
 // Usage: just mdx  (or: bun tools/mdx-check/check.mjs docs)
 import { compile } from "@mdx-js/mdx";
@@ -15,7 +18,9 @@ import remarkFrontmatter from "remark-frontmatter";
 import remarkGfm from "remark-gfm";
 import { visit } from "unist-util-visit";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { execFileSync } from "node:child_process";
+import { join, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const root = process.argv[2] ?? "docs";
 const SKIP = new Set(["SUMMARY.md"]); // mdBook's table of contents, not a Docs7 page
@@ -171,8 +176,63 @@ function navPages(config) {
   return found;
 }
 
+// The layout trees. A page's copy of the tree component, and a layout tree between its
+// markers, must be what tools/docs_layout_tree.py prints; `just layout-tree` writes them again.
+const LAYOUT_SCRIPT = fileURLToPath(new URL("../docs_layout_tree.py", import.meta.url));
+const COMPONENT_MARKERS = ["{/* layout-tree-component:start */}", "{/* layout-tree-component:end */}"];
+const TREE_MARKERS = ["{/* layout-tree:start */}", "{/* layout-tree:end */}"];
+const TEXT_TREE_MARKERS = ["<!-- layout-tree:start -->", "<!-- layout-tree:end -->"];
+
+// The canonical blocks. The script refuses (and says why) when the tree it describes no
+// longer matches the repository.
+function canonicalLayout() {
+  const print = (kind) => execFileSync("python3", ["-I", LAYOUT_SCRIPT, "--print", kind], {
+    encoding: "utf8", stdio: ["ignore", "pipe", "pipe"],
+  }).replace(/\n$/, "");
+  return { component: print("component"), tree: print("mdx"), text: print("md") };
+}
+
+// [line, message] for each way the layout trees of one page differ from the canonical ones.
+function layoutProblems(raw, canon) {
+  const problems = [];
+  const lineOf = (index) => raw.slice(0, index).split("\n").length;
+  const block = (markers, body, what) => {
+    const start = raw.indexOf(markers[0]);
+    if (start < 0) return;
+    const close = raw.indexOf(markers[1], start);
+    if (close < 0) { problems.push([lineOf(start), `${markers[0]} has no ${markers[1]}`]); return; }
+    const found = raw.slice(start, close + markers[1].length).split("\n");
+    const wanted = `${markers[0]}\n\n${body}\n\n${markers[1]}`.split("\n");
+    let n = 0;
+    while (n < found.length && n < wanted.length && found[n] === wanted[n]) n++;
+    if (n < found.length || n < wanted.length) {
+      problems.push([lineOf(start) + n, `${what} differs from the canonical one at line ${n + 1} of its block (just layout-tree writes it again)`]);
+    }
+  };
+  block(COMPONENT_MARKERS, canon.component, "the tree component");
+  block(TREE_MARKERS, canon.tree, "the layout tree");
+  block(TEXT_TREE_MARKERS, canon.text, "the layout tree");
+  const defines = raw.indexOf("export const LayoutTree");
+  if (defines >= 0 && !raw.includes(COMPONENT_MARKERS[0]) && !raw.includes(canon.component)) {
+    problems.push([lineOf(defines), "the tree component is not the canonical one in tools/layout_tree/component.mdx (python3 -I tools/docs_layout_tree.py --adopt PAGE puts it between markers)"]);
+  }
+  const uses = raw.indexOf("<LayoutTree");
+  if (uses >= 0 && defines < 0) {
+    problems.push([lineOf(uses), "the page uses <LayoutTree> but does not define it (the tree component is in tools/layout_tree/component.mdx)"]);
+  }
+  return problems;
+}
+
 let bad = 0;
 const files = pages(root);
+let canon = null;
+try {
+  canon = canonicalLayout();
+} catch (e) {
+  bad++;
+  console.log(`tools/docs_layout_tree.py: ${String(e.stderr || e.message).trim()}`);
+}
+
 for (const file of files) {
   const raw = readFileSync(file, "utf8");
   const problems = [];
@@ -188,10 +248,19 @@ for (const file of files) {
     const column = e.column ?? e.place?.column ?? e.position?.start?.column ?? "?";
     problems.push(`${line}:${column}: does not compile: ${String(e.reason ?? e.message).split("\n")[0]}`);
   }
+  if (canon) for (const [line, message] of layoutProblems(raw, canon)) problems.push(`${line}:1: ${message}`);
   if (problems.length) {
     bad++;
     for (const p of problems) console.log(`${file}:${p}`);
   }
+}
+
+// CONTRIBUTING.md at the repository root is read on GitHub, not on Docs7, but it holds the text tree.
+const rootDoc = resolve(root, "..", "CONTRIBUTING.md");
+if (canon && existsSync(rootDoc)) {
+  const found = layoutProblems(readFileSync(rootDoc, "utf8"), canon);
+  for (const [line, message] of found) console.log(`${relative(process.cwd(), rootDoc)}:${line}:1: ${message}`);
+  if (found.length) bad++;
 }
 
 const configPath = join(root, "docs.json");
