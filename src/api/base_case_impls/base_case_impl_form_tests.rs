@@ -6,6 +6,79 @@
 // Included (for tests only) at the end of `base_case.rs` like the files beside
 // it.
 
+mod tests_form_signatures {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+    use std::time::Duration;
+
+    use super::webdriver_support::{element, MockWebDriver, Reply};
+    use super::SeleniumBaseError;
+    use serde_json::{json, Value};
+
+    /// A page with a selected radio button `#on` and an unselected one `#off`,
+    /// and a button `#late` that is in the page only from its `after`-th
+    /// lookup on.
+    fn page(after: usize) -> MockWebDriver {
+        let lookups = Arc::new(AtomicUsize::new(0));
+        MockWebDriver::start(json!({}), move |request| {
+            let selector = request.body["value"].as_str();
+            match (request.method.as_str(), request.path.as_str(), selector) {
+                ("POST", "/element", Some("#on")) => Reply::Value(element("on")),
+                ("POST", "/element", Some("#off")) => Reply::Value(element("off")),
+                ("POST", "/element", Some("#late")) => {
+                    if lookups.fetch_add(1, Ordering::SeqCst) < after {
+                        Reply::Error(404, "no such element")
+                    } else {
+                        Reply::Value(element("late"))
+                    }
+                }
+                ("POST", "/element", _) => Reply::Error(404, "no such element"),
+                ("GET", "/element/on/selected", _) => Reply::Value(json!(true)),
+                ("GET", "/element/off/selected", _) => Reply::Value(json!(false)),
+                ("GET", "/element/late/displayed", _) => Reply::Value(json!(true)),
+                _ => Reply::Value(Value::Null),
+            }
+        })
+    }
+
+    #[tokio::test]
+    async fn a_selection_is_asserted_in_one_expression_as_python_writes_it() {
+        // Python: self.assert_true(self.is_selected(selector)). Both take
+        // `&self`, so the case is borrowed twice at once; with `&mut self` on
+        // `is_selected` this does not compile.
+        let driver = page(0);
+        let sb = driver.base_case().await;
+
+        sb.assert_true(sb.is_selected("#on").await.unwrap()).unwrap();
+        sb.assert_false(sb.is_selected("#off").await.unwrap()).unwrap();
+    }
+
+    #[tokio::test]
+    async fn wait_for_element_takes_no_timeout_and_waits_for_the_default_one() {
+        let driver = page(3);
+        let mut sb = driver.base_case().await;
+        sb.set_timeout(10).await.unwrap();
+
+        sb.wait_for_element("#late").await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn the_timeout_of_a_wait_for_element_replaces_the_default() {
+        let driver = page(usize::MAX);
+        let mut sb = driver.base_case().await;
+        sb.set_timeout(30).await.unwrap();
+
+        let error = sb
+            .wait_for_element("#late")
+            .timeout(Duration::ZERO)
+            .await
+            .unwrap_err();
+
+        assert!(matches!(error, SeleniumBaseError::WaitTimeout(_)), "{error:?}");
+    }
+}
+
+
 mod tests_form_set_value {
     use super::webdriver_support::{element, MockWebDriver, Reply};
     use serde_json::{json, Value};

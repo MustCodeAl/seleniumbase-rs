@@ -54,7 +54,7 @@ sb_steps! {
 
     /// Waits for an element to be visible.
     fn wait_for_element(sb, selector: String) {
-        sb.wait_for_element(&selector, WAIT_SECONDS).await
+        sb.wait_for_element(&selector).timeout(std::time::Duration::from_secs(WAIT_SECONDS)).await
     }
         "Wait for {selector:string} to be visible", "Wait for element {selector:string}",
         "User waits for {selector:string} to be visible", "User waits for element {selector:string}";

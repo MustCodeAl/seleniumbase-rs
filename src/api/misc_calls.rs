@@ -425,6 +425,52 @@ impl<'a> IntoFuture for WaitForAttribute<'a> {
     }
 }
 
+/// Python's `wait_for_element(selector, by, timeout=None)`: wait until the
+/// element is displayed.
+///
+/// It comes from [`BaseCase::wait_for_element`]. The one keyword is
+/// [`timeout`](Self::timeout), how long to wait (default: the case's timeout,
+/// see [`BaseCase::set_timeout`]).
+#[must_use = "nothing happens until the call is awaited"]
+pub struct WaitForElement<'a> {
+    sb: &'a BaseCase,
+    selector: &'a str,
+    timeout: Option<Duration>,
+}
+
+impl<'a> WaitForElement<'a> {
+    pub(crate) fn new(sb: &'a BaseCase, selector: &'a str) -> Self {
+        Self {
+            sb,
+            selector,
+            timeout: None,
+        }
+    }
+
+    /// How long to wait. Python's `timeout`.
+    pub fn timeout(mut self, timeout: Duration) -> Self {
+        self.timeout = Some(timeout);
+        self
+    }
+}
+
+impl<'a> IntoFuture for WaitForElement<'a> {
+    type Output = Result<(), SeleniumBaseError>;
+    type IntoFuture = CallFuture<'a, ()>;
+
+    fn into_future(self) -> Self::IntoFuture {
+        Box::pin(async move {
+            let Self {
+                sb,
+                selector,
+                timeout,
+            } = self;
+            sb.run_wait_for_element(selector, timeout).await
+        })
+    }
+}
+
+
 /// Python's `get_select_options(dropdown_selector, attribute="text", by,
 /// timeout=None)`: the options of a `<select>`, each as its text or as one of
 /// its attributes.

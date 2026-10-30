@@ -15,8 +15,11 @@ use tracing::{debug, info, instrument};
 use crate::api::deferred::DeferredAsserts;
 use crate::api::html::BeautifulSoup;
 use crate::api::jqc::JqcDefaults;
+use crate::api::membership::Contains;
 use crate::api::master_qa::MasterQaSession;
-use crate::api::misc_calls::{scroll_distance, AddCookie, GetSelectOptions, OpenNewTab, Scroll};
+use crate::api::misc_calls::{
+    scroll_distance, AddCookie, GetSelectOptions, OpenNewTab, Scroll, WaitForElement,
+};
 
 use crate::api::page_scripts::{self, TextMatch};
 #[cfg(feature = "pdf")]
@@ -1301,18 +1304,27 @@ impl BaseCase {
             .await
     }
 
-    /// Waits up to `timeout_secs` for the element `css` to be displayed. The
+    /// Waits for the element `css` to be displayed, for up to the default
+    /// timeout ([`set_timeout`](Self::set_timeout)) or the
+    /// [`timeout`](WaitForElement::timeout) of the call, as Python's
+    /// `wait_for_element(selector, by, timeout=None)` does. The
     /// same as [`wait_for_element_visible`](Self::wait_for_element_visible), as
     /// in Python, where `wait_for_element` is its alias; use
     /// [`wait_for_element_present`](Self::wait_for_element_present) for an
     /// element that only has to be in the DOM.
-    pub async fn wait_for_element(
-        &self,
-        css: &str,
-        timeout_secs: u64,
-    ) -> Result<(), SeleniumBaseError> {
-        self.wait_for_element_visible(css, timeout_secs).await
-    }
+    pub fn wait_for_element<'a>(&'a self, css: &'a str) -> WaitForElement<'a> {
+            WaitForElement::new(self, css)
+        }
+    
+        /// The work of [`wait_for_element`](Self::wait_for_element).
+        pub(crate) async fn run_wait_for_element(
+            &self,
+            css: &str,
+            timeout: Option<Duration>,
+        ) -> Result<(), SeleniumBaseError> {
+            self.wait_for_element_visible(css, self.wait_secs(timeout))
+                .await
+        }
 
     /// Returns the value of `attribute_name` on the element `css`, if there is
     /// one: the HTML attribute, and when the element has none the DOM property
@@ -1871,10 +1883,10 @@ impl BaseCase {
     }
 
     /// Executes the `is_selected` action.
-    pub async fn is_selected(&mut self, css: &str) -> Result<bool, SeleniumBaseError> {
-        let by = Selector::auto(css).to_by()?;
-        self.session.is_selected(by).await
-    }
+    pub async fn is_selected(&self, css: &str) -> Result<bool, SeleniumBaseError> {
+            let by = Selector::auto(css).to_by()?;
+            self.session.is_selected(by).await
+        }
 
     /// Executes the `is_displayed` action.
     pub async fn is_displayed(&mut self, css: &str) -> Result<bool, SeleniumBaseError> {

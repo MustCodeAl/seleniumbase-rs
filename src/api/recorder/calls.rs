@@ -296,7 +296,7 @@ recorded_calls! {
     set_content_to_frame(Target);
     set_content_to_default(NoArgs);
     set_content_to_parent(NoArgs);
-    wait_for_element(TargetSeconds) [Cdp];
+    wait_for_element(Target) [Cdp];
     assert_element(Target) [Cdp];
     assert_element_present(Target) [Cdp];
     assert_element_not_visible(Target) [Cdp];

@@ -932,7 +932,7 @@ async fn test_deferred_asserts() -> Result<()> {
     run_browser_test(headless(), async |sb| {
         sb.goto("https://xkcd.com/993/").await?;
         // MISMATCH: wait_for_element needs its timeout; Python's is optional.
-        sb.wait_for_element("#comic", 10).await?;
+        sb.wait_for_element("#comic").await?;
         sb.deferred_assert_element("img[alt=\"Brand Identity\"]")
             .await?;
         sb.deferred_assert_element("img[alt=\"Rocket Ship\"]")
@@ -1094,7 +1094,7 @@ async fn test_highlight_elements_highlight_inputs() -> Result<()> {
 async fn test_tinymce() -> Result<()> {
     run_browser_test(headless(), async |sb| {
         sb.goto("https://seleniumbase.io/tinymce/").await?;
-        sb.wait_for_element("div.mce-container-body", 10).await?;
+        sb.wait_for_element("div.mce-container-body").await?;
         sb.click("span:contains(\"File\")").await?;
         sb.click("span:contains(\"New document\")").await?;
         sb.click("span:contains(\"Paragraph\")").await?;

@@ -195,7 +195,7 @@ rust = "BaseCase::assert_false"
 [basecase."assert_in"]
 status = "implemented"
 rust = "BaseCase::assert_in"
-divergence = "assert_in(item, &[item]) tests membership of a slice. Python's assert_in(first, second) is also a substring test for strings, as in assert_in(framework, title.lower()). Found by examples/test_todomvc.py."
+divergence = "Like Python's assertIn it asserts `first in second`, with the container borrowed: assert_in(item, &[a, b]) tests an element of a slice, an array or a Vec, and assert_in(\"ell\", \"hello\") or assert_in('e', &title) a substring or a character of a string (see api::membership::Contains). Takes no msg argument; a dict, a set or a tuple is not a container here."
 
 [basecase."assert_link"]
 status = "implemented"
@@ -1833,7 +1833,7 @@ note = "The keywords are the builder methods .value(..) and .timeout(..); the ti
 [basecase."wait_for_element"]
 status = "implemented"
 rust = "BaseCase::wait_for_element"
-divergence = "The timeout (seconds) is a required argument; Python's is optional. Found by examples/test_deferred_asserts.py."
+divergence = "Python's timeout is the call-builder keyword .timeout(Duration), and without it the wait lasts the case's default timeout (set_timeout); it returns nothing where Python returns the element (use find_element)."
 
 [basecase."wait_for_element_absent"]
 status = "implemented"

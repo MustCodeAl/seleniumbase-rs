@@ -10,6 +10,16 @@ work, `docs/parity.md` the per-API status).
 
 ### Breaking
 
+- **Breaking: `assert_in`, `wait_for_element` and `is_selected` take Python's shape.**
+  `assert_in(first, second)` and `assert_not_in` assert `first in second` as Python does: the
+  container is borrowed and is a slice, an array or a `Vec` (membership) or a string (substring
+  or character), so `sb.assert_in("jquery", &title.to_lowercase())` works where it only took
+  `&[T]` (the trait is `api::membership::Contains`). `wait_for_element(selector)` takes no
+  timeout and is a call builder with `.timeout(Duration)` like its neighbours (it was
+  `wait_for_element(selector, seconds)`; the recorder now writes `sb.wait_for_element("#a")`).
+  `is_selected` takes `&self`, so `sb.assert_true(sb.is_selected("#a").await?)` borrows.
+
+
 - **Breaking: the library's `stealth` module is now `evasion`.** `seleniumbase_rs::stealth::...`
   is `seleniumbase_rs::evasion::...` (the folder `src/stealth/` is `src/evasion/`), and the old
   path is gone with no alias. The root re-exports (`Fingerprint`, `StealthPolicy`,
