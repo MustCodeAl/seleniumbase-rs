@@ -17,6 +17,9 @@ use crate::api::html::BeautifulSoup;
 use crate::api::jqc::JqcDefaults;
 use crate::api::master_qa::MasterQaSession;
 use crate::api::misc_calls::{scroll_distance, AddCookie, OpenNewTab, Scroll};
+use crate::api::switching::{
+    Alert, FrameRef, FrameSwitch, SwitchToAlert, SwitchToFrame, SwitchToWindow, WindowRef,
+};
 
 use crate::api::page_scripts::{self, TextMatch};
 #[cfg(feature = "pdf")]
@@ -1047,11 +1050,38 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Switches context into the frame selected by `css`.
-    pub async fn switch_to_frame(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
-        let by = Selector::auto(css).to_by()?;
-        self.record("switch_to_frame", Some(css), None);
-        self.session.switch_to_frame(by).await
+    /// Waits for a frame and switches into it. Corresponds to Python's `switch_to_frame`.
+    ///
+    /// `frame` is a selector (CSS or XPath), the `id` or the `name` of the frame, or its
+    /// position among the frames of the current document (`0` is the first). A text is
+    /// tried as an `id`, then as a `name`, then as a selector, as Python does; a selector
+    /// needs a frame that is displayed. The call waits for the frame for the case's
+    /// timeout. Python's keyword arguments are builder methods:
+    /// [`timeout`](SwitchToFrame::timeout) and [`invisible`](SwitchToFrame::invisible).
+    ///
+    /// Leave the frame with [`switch_to_parent_frame`](Self::switch_to_parent_frame) or
+    /// [`switch_to_default_content`](Self::switch_to_default_content), or use
+    /// [`frame_switch`](Self::frame_switch), which leaves it for you.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::WaitTimeout`] if no such frame appears in time.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # async fn demo(sb: &mut seleniumbase_rs::BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    /// sb.switch_to_frame("iframeResult").await?;                   // an id or a name
+    /// sb.assert_text("HTML Iframes", "h2").await?;
+    /// sb.switch_to_frame("iframe[title*=\"Iframe\"]").await?;       // a selector, one level down
+    /// sb.switch_to_default_content().await?;
+    /// sb.switch_to_frame(0).await?;                                // the first frame
+    /// # Ok(())
+    /// # }
+    /// ```
+
+    pub fn switch_to_frame(&mut self, frame: impl Into<FrameRef>) -> SwitchToFrame<'_> {
+        SwitchToFrame::new(self, frame.into())
     }
 
     /// Switches context back to the top-level document.
@@ -1758,10 +1788,32 @@ impl BaseCase {
         self.session.get_window_size().await
     }
 
-    /// Executes the `switch_to_window` action.
-    pub async fn switch_to_window(&self, handle: &str) -> Result<(), SeleniumBaseError> {
-        self.record("switch_to_window", Some(handle), None);
-        self.session.switch_to_window(handle).await
+    /// Waits for a window and switches to it. Corresponds to Python's `switch_to_window`.
+    ///
+    /// `window` is a window handle, or the position of the window among the open ones:
+    /// `0` is the first tab, `1` the second and `-1` the newest (see [`WindowRef`]). The
+    /// call waits for the window for the case's timeout, or for
+    /// [`timeout`](SwitchToWindow::timeout), as Python's `timeout` does.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::WaitTimeout`] if no such window is open in time.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # async fn demo(sb: &mut seleniumbase_rs::BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    /// sb.open_new_window().await?;
+    /// sb.switch_to_window(0).await?;                  // back to the first tab
+    /// sb.switch_to_window(-1).await?;                 // the newest tab
+    /// let handles = sb.get_all_window_handles().await?;
+    /// sb.switch_to_window(&handles[0]).await?;        // a handle
+    /// # Ok(())
+    /// # }
+    /// ```
+
+    pub fn switch_to_window(&self, window: impl Into<WindowRef>) -> SwitchToWindow<'_> {
+        SwitchToWindow::new(self, window.into())
     }
 
     /// Double-clicks the element selected by `css`.
@@ -3407,6 +3459,8 @@ include!("base_case_impls/base_case_impl_drivers.rs");
 include!("base_case_impls/base_case_impl_mouse.rs");
 include!("base_case_impls/base_case_impl_highlight.rs");
 include!("base_case_impls/base_case_impl_alerts.rs");
+include!("base_case_impls/base_case_impl_switching.rs");
+
 include!("base_case_impls/base_case_impl_browser.rs");
 include!("base_case_impls/base_case_impl_nav.rs");
 include!("base_case_impls/base_case_impl_media.rs");
@@ -3447,5 +3501,8 @@ include!("base_case_impls/base_case_impl_playwright_tests.rs");
 include!("base_case_impls/base_case_impl_traffic_tests.rs");
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_frame_tests.rs");
+#[cfg(test)]
+include!("base_case_impls/base_case_impl_switch_tests.rs");
+
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_logs_tests.rs");

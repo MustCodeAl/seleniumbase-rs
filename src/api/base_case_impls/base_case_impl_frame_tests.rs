@@ -102,6 +102,8 @@ mod tests_frame_swap {
                     }
                 }
                 ("GET", "/element/e1/property/src") => Reply::Value(json!(self.frame_src)),
+                ("GET", "/element/e1/displayed") => Reply::Value(json!(true)),
+
                 ("POST", "/frame") => {
                     self.in_frame = !request.body["id"].is_null();
                     Reply::Value(Value::Null)

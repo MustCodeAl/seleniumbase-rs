@@ -15,6 +15,8 @@
 //! | [`chart`], [`presentation`] | Chart.js and reveal.js pages |
 //! | [`tour`], [`master_qa`] | Website tours and manual verification sessions |
 //! | [`call`] | [`CallFuture`](call::CallFuture), the future of a call that takes Python's keyword arguments |
+//! | [`switching`] | The calls that switch into frames, windows and alerts: [`FrameRef`](switching::FrameRef), [`WindowRef`](switching::WindowRef) and the [`Alert`](switching::Alert) handle |
+
 //! | [`demo`], [`messages`], [`jqc`] | Demo mode and the highlight family, Messenger alerts and jquery-confirm dialog boxes |
 //!
 //! Some modules are behind Cargo features, because they pull in platform
@@ -52,6 +54,8 @@ pub mod recorder;
 pub mod run_settings;
 pub mod runner;
 pub mod scenario;
+pub mod switching;
+
 pub mod tour;
 pub mod traits;
 
