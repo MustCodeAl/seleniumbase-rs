@@ -76,7 +76,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `assert_elements_present` | implemented | `BaseCase::assert_elements_present` |  |
 | `assert_elements_visible` | implemented | `BaseCase::assert_elements_visible` |  |
 | `assert_equal` | implemented | `BaseCase::assert_equal` |  |
-| `assert_exact_text` | implemented | `BaseCase::assert_exact_text` | Differs: Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_exact_text for a timeout of its own). A ::shadow selector is not read (see get_text). |
+| `assert_exact_text` | implemented | `BaseCase::assert_exact_text` | Differs: Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_exact_text for a timeout of its own). |
 | `assert_exact_text_not_visible` | implemented | `BaseCase::assert_exact_text_not_visible` | Differs: Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_exact_text_not_visible for a timeout of its own). |
 | `assert_false` | implemented | `BaseCase::assert_false` |  |
 | `assert_in` | implemented | `BaseCase::assert_in` | Differs: Like Python's assertIn it asserts `first in second`, with the container borrowed: assert_in(item, &[a, b]) tests an element of a slice, an array or a Vec, and assert_in("ell", "hello") or assert_in('e', &title) a substring or a character of a string (see api::membership::Contains). Takes no msg argument; a dict, a set or a tuple is not a container here. |
@@ -92,7 +92,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `assert_partial_link_text` | implemented | `BaseCase::assert_partial_link_text` |  |
 | `assert_pdf_text` | implemented | `BaseCase::assert_pdf_text` |  |
 | `assert_raises` | implemented | `BaseCase::assert_raises` |  |
-| `assert_text` | implemented | `BaseCase::assert_text` | Differs: Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_text for a timeout of its own). Like Python it compares the value of an &lt;input&gt; or &lt;textarea&gt;; a ::shadow selector is not read (see get_text). |
+| `assert_text` | implemented | `BaseCase::assert_text` | Differs: Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_text for a timeout of its own). Like Python it compares the value of an &lt;input&gt; or &lt;textarea&gt;. |
 | `assert_text_not_visible` | implemented | `BaseCase::assert_text_not_visible` | Differs: Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_text_not_visible for a timeout of its own). |
 | `assert_text_visible` | implemented | `BaseCase::assert_text_visible` | Differs: Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_text_visible for a timeout of its own). |
 | `assert_title` | implemented | `BaseCase::assert_title` |  |
@@ -111,7 +111,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `clear_all_cookies` | implemented | `BaseCase::clear_all_cookies` |  |
 | `clear_local_storage` | implemented | `BaseCase::clear_local_storage` |  |
 | `clear_session_storage` | implemented | `BaseCase::clear_session_storage` |  |
-| `click` | implemented | `BaseCase::click` | Differs: Takes CSS or XPath; there is no per-call timeout argument (use set_timeout). A ::shadow selector is not read (see get_text). |
+| `click` | implemented | `BaseCase::click` | Differs: Takes CSS or XPath; there is no per-call timeout argument (use set_timeout). |
 | `click_active_element` | implemented | `BaseCase::click_active_element` |  |
 | `click_chain` | implemented | `BaseCase::click_chain` |  |
 | `click_if_visible` | implemented | `BaseCase::click_if_visible` | Differs: Looks once, like Python's default `timeout=0`; `click_if_visible_with_timeout(selector, Duration)` waits for the element. There is no `scroll` argument. |
@@ -250,7 +250,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `get_session_storage_item` | implemented | `BaseCase::get_session_storage_item` |  |
 | `get_session_storage_items` | implemented | `BaseCase::get_session_storage_items` |  |
 | `get_session_storage_keys` | implemented | `BaseCase::get_session_storage_keys` |  |
-| `get_text` | implemented | `BaseCase::get_text` | Differs: A ::shadow selector (host::shadow inner) works in every Python method; here only the shadow_* methods (shadow_click, shadow_type, shadow_get_text, assert_shadow_text) read it, and they do not wait. shadow_get_text reads textContent, so a container that only slots its content gives an empty string where Python gives the rendered text. Found by examples/shadow_root_test.py and test_shadow_dom.py. |
+| `get_text` | implemented | `BaseCase::get_text` | A ::shadow selector (host::shadow inner) is read by this method and by every other that takes a selector, as in Python: the element is waited for, closed roots are entered, and the text is what the browser shows (a container that only slots its content gives the slotted text). shadow_get_text and the other shadow_* methods are the same lookups. |
 | `get_text_content` | implemented | `BaseCase::get_text_content` |  |
 | `get_title` | implemented | `BaseCase::get_title` |  |
 | `get_totp_code` | implemented | `BaseCase::get_totp_code` |  |
@@ -449,7 +449,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `switch_to_window` | implemented | `BaseCase::switch_to_window` | A call builder: the window is a handle or an index (an i32: 0 for the first tab, -1 for the newest, any negative number counts from the end as a Python list index does); it waits for the window, for the case's timeout or .timeout(Duration). |
 | `tearDown` | not-applicable |  | unittest/pytest harness plumbing; the Rust runner (api::runner) owns the lifecycle. |
 | `tearDownClass` | not-applicable |  | unittest/pytest harness plumbing; the Rust runner (api::runner) owns the lifecycle. |
-| `type` | composed | `BaseCase::type_text` | One canonical name: Rust has type_text only. Differs: Types with clear plus send_keys and returns at once. Python waits for the element to be clickable, scrolls to it, clears it with 42 backspaces, and waits for document.readyState to be complete after the keys. A ::shadow selector is not read (see get_text). |
+| `type` | composed | `BaseCase::type_text` | One canonical name: Rust has type_text only. Differs: Types with clear plus send_keys and returns at once. Python waits for the element to be clickable, scrolls to it, clears it with 42 backspaces, and waits for document.readyState to be complete after the keys. |
 | `uncheck_if_checked` | implemented | `BaseCase::uncheck_if_checked` |  |
 | `unselect_if_selected` | implemented | `BaseCase::unselect_if_selected` |  |
 | `update_text` | implemented | `BaseCase::update_text` |  |
