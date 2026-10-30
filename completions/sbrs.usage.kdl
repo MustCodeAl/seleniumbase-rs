@@ -2194,9 +2194,55 @@ The text is shown as it is: there is no syntax highlighting (Python's `sbase pri
     complete file type=path
     example "sbrs print tests/login.rs -n"
 }
-cmd objectify help_heading="Files and generators" help="Objectify a test recording." {
+cmd extract-objects help_heading="Files and generators" help="Move the selectors of a Rust test into page objects in `page_objects.rs`." args_override_self=#false {
+    alias extract_objects
+    long_help #"""
+Move the selectors of a Rust test into page objects in `page_objects.rs`.
+
+Python's `sbase extract-objects`, for a Rust test. FILE is read for the string literals that are the selector of a call (`sb.click("#go")`, `sb.type_text("#user", "ada")`, `sb.assert_text("Hi", "h1")`, `sb.drag_and_drop(".a", ".b")`; `sbrs methods` lists the common calls), and each one becomes a constant of a module of `page_objects.rs` in the folder of FILE: one module for each page that the test opens, named with the words of its URL (`pub mod example_com_login`, and `page` before any `open`), one constant for each selector, named with the words of the selector (`pub const USER: &str = "#user";`, `_2` after a name that is taken). A `page_objects.rs` that is there is added to; one that `sbrs` did not write is refused. FILE is not changed: `inject-objects` does that.
+"""#
     flag "-h --help" help="Print help" action=help builtin=#true
-    example "sbrs objectify"
+    arg <FILE> help="The Rust test file whose selectors become page objects."
+    complete file type=path:rs
+    example "sbrs extract-objects tests/login.rs"
+}
+cmd inject-objects help_heading="Files and generators" help="Replace the selectors of a Rust test with the page objects of `page_objects.rs`." args_override_self=#false {
+    alias inject_objects
+    long_help #"""
+Replace the selectors of a Rust test with the page objects of `page_objects.rs`.
+
+Python's `sbase inject-objects`, for a Rust test. Every selector of FILE that has a page object (made by `extract-objects`) is written as `page_objects::<page>::NAME`, and `mod page_objects;` is declared above the first item of the file. A selector that has no page object stays as it is. With `-c`, the selector is added as a comment at the end of each line that changed, as `// "#user"`.
+"""#
+    flag "-c --comments" help="Add the selector as a comment, such as `// \"#user\"`, at the end of each line it replaced." bool_value=#true
+    flag "-h --help" help="Print help" action=help builtin=#true
+    arg <FILE> help="The Rust test file whose selectors are replaced by page objects."
+    complete file type=path:rs
+    example "sbrs inject-objects tests/login.rs -c"
+}
+cmd revert-objects help_heading="Files and generators" help="Put the selectors back where a Rust test uses page objects." args_override_self=#false {
+    alias revert_objects
+    long_help #"""
+Put the selectors back where a Rust test uses page objects.
+
+Python's `sbase revert-objects`, for a Rust test: the undo of `inject-objects`. Every `page_objects::<page>::NAME` of FILE is replaced by the selector it stands for, and the `mod page_objects;` line goes when the file uses no page object any more. Extract, inject and revert give the original file back byte for byte. With `-c` the comments that `inject-objects -c` appended are taken off as well (Python's `-c` keeps them); without it they stay. `page_objects.rs` is kept.
+"""#
+    flag "-c --comments" help="Also take off the comments that `inject-objects -c` appended to the lines it changed." bool_value=#true
+    flag "-h --help" help="Print help" action=help builtin=#true
+    arg <FILE> help="The Rust test file whose page objects are replaced by their selectors."
+    complete file type=path:rs
+    example "sbrs revert-objects tests/login.rs -c"
+}
+cmd objectify help_heading="Files and generators" help="Turn the selectors of a Rust test into page objects: extract-objects, then inject-objects." args_override_self=#false {
+    long_help #"""
+Turn the selectors of a Rust test into page objects: extract-objects, then inject-objects.
+
+Python's `sbase objectify`, for a Rust test: FILE is read as `extract-objects` reads it, the page objects are written to `page_objects.rs` next to it, and the selectors of FILE are replaced by them as `inject-objects` does (`-c` adds the selector as a comment to each line that changes). `revert-objects` undoes it. This replaces the starter `page_object.rs` that `sbrs objectify` used to write.
+"""#
+    flag "-c --comments" help="Add the selector as a comment, such as `// \"#user\"`, at the end of each line it replaced." bool_value=#true
+    flag "-h --help" help="Print help" action=help builtin=#true
+    arg <FILE> help="The Rust test file whose selectors are replaced by page objects."
+    complete file type=path:rs
+    example "sbrs objectify tests/login.rs -c"
 }
 cmd mkpres help_heading="Files and generators" help="Create a test that builds a slide deck." args_override_self=#false {
     long_help #"""
