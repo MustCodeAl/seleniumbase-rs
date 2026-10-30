@@ -274,9 +274,65 @@ history id, which Allure shows as a retry. The feature adds no dependency.
 
 `trace` stops before the body, `pdb` after a failed last attempt (a
 post-mortem, the browser still open), and `final_debug` after every test,
-before the browser closes. Each prompt reads `c` to continue, `s` for a
-screenshot, `src` for the page source, `u` for the address, `js <expression>`
-and `q` to quit. Python's stepping commands (`n`, `s`, `r`) have no equivalent.
+before the browser closes. `sb.breakpoint("message")` pauses the same way
+anywhere in a body. The prompts look and read like
+[pdbp](https://github.com/mdmintz/pdbp) (`Pdb+`), the debugger Python
+SeleniumBase uses for `--pdb`, `--trace` and `breakpoint()`: a coloured label,
+the code around the pause as a numbered listing, and short commands.
+
+```text
+[POST MORTEM]: The test failed.
+  test:  login.valid_login   page: https://example.com/login  "Login"
+> /work/shop/tests/login.rs(6) test body
+   6         sb.run(async |sb| {
+   7             sb.open("https://example.com/login").await?;
+   8             sb.type_text("#user", "demo").await?;
+   9  >>         sb.click("#go").await?;
+  10             Ok(())
+  11         })
+
+  error: element not found: #go (strategy: css selector)
+  step:  element not found   selector #go
+Commands: c continue | r retry | s screenshot | src page source | u url | js <expr> | l list | w where | dt devtools | q quit | h help
+Type 'c' and press [ENTER] to continue execution:
+```
+
+**The code.** A breakpoint lists the lines around its call and marks the call
+with `->`. `trace`, `pdb` and `final_debug` list the body of the
+`sb.run(async |sb| { .. })` call that holds the test (the place of that call is
+recorded for you). A returned error carries no line number, so after a failure
+the prompt marks with `>>` the lines of the body that name the selector or the
+address the error is about, and the `error:` and `step:` lines under the
+listing say what failed, with the selector and the address highlighted. The
+file is looked for under the working directory and the folders above the
+package; when it is not there the prompt says so and goes on.
+
+| Command | What it does |
+|---|---|
+| `c`, `continue` | Goes on with the test. |
+| `r`, `retry` | After a failure only: runs the test again with a new browser, once more than `reruns` allows. |
+| `s`, `screenshot` | Saves the viewport as `breakpoint_<n>.png` in `latest_logs/<test id>/`. |
+| `src`, `source` | Saves the page's HTML as `page_source_<n>.html` there. |
+| `u`, `url` | Shows the page's address and title. |
+| `js <expr>`, `pp <expr>` | Evaluates a JavaScript expression in the page and shows its value, indented. |
+| `p <expr>` | The same, on one line. |
+| `l`, `list` | Lists the code around the pause again, after other output has pushed it away. |
+| `ll`, `longlist` | Lists more of it. |
+| `w`, `where` | Shows where in the test the pause is, and the test and the page. |
+| `dt`, `devtools` | Shows the address of Chrome's DevTools for the tab (the pure CDP engine; the WebDriver one has none to point at). It does not open a window. |
+| `q`, `quit` | Stops the test. |
+| `h`, `help`, `?` | Lists the commands. |
+
+**Colour.** The prompt paints only when standard error is a terminal,
+`NO_COLOR` is unset or empty and `TERM` is not `dumb`. A pipe, a file or a CI
+capture gets the same text without escape sequences, and so does
+`NO_COLOR=1`. Whatever comes from the page (its address, its title, the value
+of `js`) or from a file is cleaned of control characters before it reaches the
+terminal, so a page cannot move your cursor or set your window title.
+
+Python's stepping commands (`n`, `s`, `u`, `d`) have no equivalent, and `s`
+saves a screenshot where pdbp steps in. The listing is not redrawn after
+every command, as pdbp's sticky mode is: type `l` to see it again.
 
 <Warning>
 A prompt needs a terminal: run `cargo test -- --test-threads 1 --nocapture`.

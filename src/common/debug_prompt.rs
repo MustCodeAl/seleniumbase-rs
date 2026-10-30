@@ -10,10 +10,28 @@
 //! ```text
 //! [BREAKPOINT]: Paused at login page setup.
 //!   test:  login.valid_login   page: https://example.com/login  "Login"
+//! > tests/login.rs(11)
+//!    ...
+//!    9             sb.type_text("#user", "demo").await?;
+//!   10             sb.click("#go").await?;
+//!   11  ->         sb.breakpoint("Paused at login page setup.").await?;
+//!   12             Ok(())
+//!
+
 //! Perform your manual actions in the browser now.
-//! Commands: c continue | s screenshot | src page source | u url | js <expr> | q quit | h help
+//! Commands: c continue | s screenshot | src page source | u url | js <expr> | l list | w where | dt devtools | q quit | h help
 //! Type 'c' and press [ENTER] to continue execution:
 //! ```
+//!
+//! The look is pdbp's (the debugger Python SeleniumBase uses for `--pdb` and
+//! `--trace`): a coloured label, the code around the pause as a numbered
+//! listing with `->` on the current line, and short commands (`c`, `l`, `ll`,
+//! `w`, `p`, `pp`, `q`, `h`). A post-mortem adds the error and the step it was
+//! about, with its selector and address highlighted, and marks the lines of
+//! the test that name them with `>>`. Colour is on only when standard error is
+//! a terminal, `NO_COLOR` is unset or empty and `TERM` is not `dumb`; anything
+//! else gets the same text without escape sequences, and text that came from
+//! the page or the file never reaches the terminal as a control sequence.
 //!
 //! The text goes to the raw standard error handle, not through `eprintln!`, so
 //! the output capture of `cargo test` does not hide it. Several tests running
@@ -77,7 +95,14 @@ use serde_json::Value;
 use tokio::io::AsyncWriteExt;
 
 use crate::artifacts::LATEST_LOGS_DIR;
+use crate::common::color::{palette, sanitize, use_color, Color, Style};
+
 use crate::error::SeleniumBaseError;
+
+mod render;
+
+use render::{code_block, where_header};
+pub use render::{Failure, Scene, SourceSpot};
 
 /// The environment variable that turns `breakpoint()` off: `0`, `false`, `no`
 /// or `off`, as Python's `PYTHONBREAKPOINT=0` does.
@@ -91,11 +116,18 @@ const MAX_FOLDER_LEN: usize = 120;
 const MAX_NUMBERED_FILES: u32 = 10_000;
 
 /// The prompt that asks for the next command.
-const COMMAND_PROMPT: &str = "> ";
+const COMMAND_PROMPT: &str = "(Sb+) ";
 
 /// The command summary every banner ends with.
 const COMMANDS: &str =
-    "Commands: c continue | s screenshot | src page source | u url | js <expr> | q quit | h help";
+    "Commands: c continue | s screenshot | src page source | u url | js <expr> | l list | w where | dt devtools | q quit | h help";
+
+/// The same after a failure, where `r` runs the test again.
+const POST_MORTEM_COMMANDS: &str =
+    "Commands: c continue | r retry | s screenshot | src page source | u url | js <expr> | l list | w where | dt devtools | q quit | h help";
+
+/// What `l` and `w` say when the pause has no place in the test's source.
+const NO_POSITION: &str = "the source position of this pause is not known";
 
 /// One prompt at a time, whichever runtime or test asks.
 static TURN: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
@@ -141,6 +173,10 @@ impl PromptKind {
 pub enum PromptOutcome {
     /// Go on with the test: `c`, `continue`, or the end of the input.
     Continue,
+    /// Run the test again with a new browser: `r` or `retry`, offered only at
+    /// the [`PromptKind::PostMortem`] prompt.
+    Retry,
+
     /// Stop the test: `q` or `quit`.
     Quit,
 }
@@ -186,6 +222,16 @@ pub trait PromptPage: Sync {
     ///
     /// Returns the browser's error when the script throws.
     async fn evaluate(&self, expression: &str) -> Result<Value, SeleniumBaseError>;
+
+    /// The address of Chrome's DevTools front end for this tab, or `None`
+    /// where the browser has no DevTools endpoint to point at (the default).
+    ///
+    /// # Errors
+    ///
+    /// Returns the browser's error when the endpoint cannot be asked.
+    async fn devtools_url(&self) -> Result<Option<String>, SeleniumBaseError> {
+        Ok(None)
+    }
 }
 
 /// Where a prompt reads the person's answers from, one line at a time.
@@ -256,6 +302,8 @@ pub struct DebugPrompt<I, W> {
     input: I,
     output: W,
     logs_dir: PathBuf,
+    /// Whether the text is painted. Off for anything that is not a terminal.
+    color: bool,
 }
 
 impl DebugPrompt<TerminalInput, io::Stderr> {
@@ -264,9 +312,9 @@ impl DebugPrompt<TerminalInput, io::Stderr> {
     /// a warning and goes on, so a test never hangs.
     #[must_use]
     pub fn from_terminal() -> Option<Self> {
-        io::stdin()
-            .is_terminal()
-            .then(|| Self::new(TerminalInput(()), io::stderr()))
+        io::stdin().is_terminal().then(|| {
+            Self::new(TerminalInput(()), io::stderr()).with_color(use_color(&io::stderr()))
+        })
     }
 }
 
@@ -287,6 +335,7 @@ impl<I: LineInput, W: Write + Send> DebugPrompt<I, W> {
             input,
             output,
             logs_dir: PathBuf::from(LATEST_LOGS_DIR),
+            color: false,
         }
     }
 
@@ -294,6 +343,19 @@ impl<I: LineInput, W: Write + Send> DebugPrompt<I, W> {
     #[must_use]
     pub fn with_logs_dir(mut self, dir: impl Into<PathBuf>) -> Self {
         self.logs_dir = dir.into();
+        self
+    }
+
+    /// Paints the banner, the code and the prompt when `on` is set.
+    ///
+    /// A prompt starts plain. [`from_terminal`](DebugPrompt::from_terminal)
+    /// turns colour on only when standard error is a terminal, `NO_COLOR` is
+    /// unset or empty and `TERM` is not `dumb` (see
+    /// [`use_color`](crate::common::color::use_color)); a script or a test
+    /// that wants to see the escape sequences asks for them here.
+    #[must_use]
+    pub fn with_color(mut self, on: bool) -> Self {
+        self.color = on;
         self
     }
 
@@ -326,9 +388,38 @@ impl<I: LineInput, W: Write + Send> DebugPrompt<I, W> {
         message: &str,
         page: &dyn PromptPage,
     ) -> Result<PromptOutcome, SeleniumBaseError> {
+        self.pause_in(kind, test_id, message, page, &Scene::default())
+            .await
+    }
+
+    /// Pauses as [`pause`](Self::pause) does, and shows `scene` with the
+    /// banner: the place in the test's source as a numbered listing, and the
+    /// failure that led to a post-mortem.
+    ///
+    /// Besides the commands of [`pause`](Self::pause) the prompt reads `p
+    /// <expr>` and `pp <expr>` (print a value on one line, or indented), `l`
+    /// and `ll` (list the code again, or more of it), `w` (where the pause
+    /// is), `dt` (the address of Chrome's DevTools for the tab) and, at a
+    /// [`PromptKind::PostMortem`] prompt, `r` (run the test again; the
+    /// outcome is [`PromptOutcome::Retry`]).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::Io`] when the input cannot be read or the
+    /// output cannot be written.
+    pub async fn pause_in(
+        &mut self,
+        kind: PromptKind,
+        test_id: &str,
+        message: &str,
+        page: &dyn PromptPage,
+        scene: &Scene,
+    ) -> Result<PromptOutcome, SeleniumBaseError> {
         let _turn = TURN.lock().await;
         let folder = self.logs_dir.join(folder_name(test_id));
-        let banner = banner(kind, test_id, message, &page_line(page).await);
+        let color = self.color;
+        let info = PageInfo::read(page).await;
+        let banner = banner(kind, test_id, message, &info, scene, color);
         self.say(&banner)?;
         let outcome = loop {
             let Some(line) = self.input.read_line().await? else {
@@ -338,34 +429,57 @@ impl<I: LineInput, W: Write + Send> DebugPrompt<I, W> {
             match parse(&line) {
                 Command::Continue => break PromptOutcome::Continue,
                 Command::Quit => break PromptOutcome::Quit,
+                Command::Retry if kind == PromptKind::PostMortem => break PromptOutcome::Retry,
+                Command::Retry => {
+                    self.say("retry is only possible after a failed test (--pdb)\n")?;
+                }
                 Command::Screenshot => {
                     let report = save_screenshot(page, &folder).await;
-                    self.say(&format!("{report}\n"))?;
+                    self.say(&format!("{}\n", sanitize(&report)))?;
                 }
                 Command::Source => {
                     let report = save_source(page, &folder).await;
-                    self.say(&format!("{report}\n"))?;
+                    self.say(&format!("{}\n", sanitize(&report)))?;
                 }
                 Command::Url => {
-                    let line = page_line(page).await;
-                    self.say(&format!("{line}\n"))?;
+                    let info = PageInfo::read(page).await;
+                    self.say(&format!("{}\n", info.line(color)))?;
                 }
                 Command::Js(expression) => {
-                    let report = evaluate(page, expression).await;
+                    let report = evaluate(page, expression, true).await;
                     self.say(&format!("{report}\n"))?;
                 }
-                Command::JsUsage => self.say("usage: js <expression>\n")?,
-                Command::Help => self.say(&help())?,
+                Command::Print(expression) => {
+                    let report = evaluate(page, expression, false).await;
+                    self.say(&format!("{report}\n"))?;
+                }
+                Command::JsUsage => {
+                    self.say("usage: js <expression>   (p and pp take an expression too)\n")?;
+                }
+                Command::List => self.say(&listing(kind, scene, false, color))?,
+                Command::LongList => self.say(&listing(kind, scene, true, color))?,
+                Command::Where => {
+                    let info = PageInfo::read(page).await;
+                    self.say(&where_text(kind, test_id, &info, scene, color))?;
+                }
+                Command::Devtools => {
+                    let report = devtools_report(page, color).await;
+                    self.say(&report)?;
+                }
+                Command::Help => self.say(&help(kind, color))?,
                 Command::Empty => {}
                 Command::Unknown(word) => {
-                    self.say(&format!("unknown command '{word}'; h shows the commands\n"))?;
+                    self.say(&format!(
+                        "unknown command '{}'; h shows the commands\n",
+                        sanitize(word)
+                    ))?;
                 }
             }
-            self.say(COMMAND_PROMPT)?;
+            self.say(&Style::PLAIN.bold().paint(COMMAND_PROMPT, color))?;
         };
         if kind == PromptKind::RecorderBreakpoint && outcome == PromptOutcome::Continue {
             let report = save_screenshot(page, &folder).await;
-            self.say(&format!("{report}\n"))?;
+            self.say(&format!("{}\n", sanitize(&report)))?;
         }
         Ok(outcome)
     }
@@ -382,12 +496,20 @@ impl<I: LineInput, W: Write + Send> DebugPrompt<I, W> {
 #[derive(Debug, Eq, PartialEq)]
 enum Command<'a> {
     Continue,
+    Retry,
     Quit,
     Screenshot,
     Source,
     Url,
+    /// `js <expr>` and `pp <expr>`: the value, indented.
     Js(&'a str),
+    /// `p <expr>`: the value on one line.
+    Print(&'a str),
     JsUsage,
+    List,
+    LongList,
+    Where,
+    Devtools,
     Help,
     Empty,
     Unknown(&'a str),
@@ -401,48 +523,192 @@ fn parse(line: &str) -> Command<'_> {
         .map_or((line, ""), |(word, rest)| (word, rest.trim()));
     match word.to_ascii_lowercase().as_str() {
         "" => Command::Empty,
-        "c" | "continue" => Command::Continue,
+        "c" | "cont" | "continue" => Command::Continue,
         "q" | "quit" => Command::Quit,
+        "r" | "retry" => Command::Retry,
         "s" | "screenshot" => Command::Screenshot,
         "src" | "source" => Command::Source,
         "u" | "url" => Command::Url,
-        "js" if rest.is_empty() => Command::JsUsage,
-        "js" => Command::Js(rest),
+        "js" | "p" | "pp" if rest.is_empty() => Command::JsUsage,
+        "js" | "pp" => Command::Js(rest),
+        "p" => Command::Print(rest),
+        "l" | "list" => Command::List,
+        "ll" | "longlist" => Command::LongList,
+        "w" | "where" => Command::Where,
+        "dt" | "devtools" => Command::Devtools,
         "h" | "help" | "?" => Command::Help,
         _ => Command::Unknown(word),
     }
 }
 
 /// The text a pause starts with, ending at the prompt for the first command.
-fn banner(kind: PromptKind, test_id: &str, message: &str, page: &str) -> String {
-    let mut text = format!("\n[{}]", kind.label());
+fn banner(
+    kind: PromptKind,
+    test_id: &str,
+    message: &str,
+    page: &PageInfo,
+    scene: &Scene,
+    color: bool,
+) -> String {
+    let mut text = String::from("\n");
+    text.push_str(&label_style(kind).paint(format!("[{}]", kind.label()), color));
     if !message.is_empty() {
         text.push_str(": ");
-        text.push_str(message);
+        text.push_str(&sanitize(message));
     }
-    text.push_str(&format!("\n  test:  {test_id}   {page}\n"));
+    text.push('\n');
+    text.push_str(&test_line(test_id, page, color));
+
+    text.push_str(&code_block(kind, scene, false, color));
+    // Under the code and next to the prompt, where pdbp prints the exception.
+    if let Some(failure) = scene.failure() {
+        text.push_str(&failure_lines(failure, color));
+    }
     if kind.invites_manual_actions() {
         text.push_str("Perform your manual actions in the browser now.\n");
     }
-    text.push_str(COMMANDS);
+    text.push_str(&palette::DIM.paint(commands(kind), color));
     text.push_str("\nType 'c' and press [ENTER] to continue execution: ");
     text
 }
 
-/// The answer to `h`.
-fn help() -> String {
+/// The commands line of a banner or of `h`.
+const fn commands(kind: PromptKind) -> &'static str {
+    match kind {
+        PromptKind::PostMortem => POST_MORTEM_COMMANDS,
+        _ => COMMANDS,
+    }
+}
+
+/// The style of the `[LABEL]` that starts a banner: the colorama pair of the
+/// recorder's `[RECORDER BREAKPOINT]`, and white on red for a post-mortem, as
+/// pdbp marks the line of a failure.
+const fn label_style(kind: PromptKind) -> Style {
+    match kind {
+        PromptKind::PostMortem => Style::PLAIN.fg(Color::LightWhite).on(Color::Red).bold(),
+        _ => palette::BANNER_LABEL,
+    }
+}
+
+/// The test and the page, as the second line of a banner.
+fn test_line(test_id: &str, page: &PageInfo, color: bool) -> String {
     format!(
-        "{COMMANDS}\n  c, continue   go on with the test\n  s, screenshot save the viewport as breakpoint_<n>.png\n  src, source   save the page's HTML as page_source_<n>.html\n  u, url        show the page's address and title\n  js <expr>     evaluate a JavaScript expression and show its value\n  q, quit       stop the test\n{COMMAND_PROMPT}"
+        "  {}  {}   {}\n",
+        palette::DIM.paint("test:", color),
+        palette::STEP.paint(sanitize(test_id), color),
+        page.line(color)
     )
 }
 
-/// `page: <url>  "<title>"`, or why the page cannot be asked.
-async fn page_line(page: &dyn PromptPage) -> String {
-    match (page.url().await, page.title().await) {
-        (Ok(url), Ok(title)) => format!("page: {url}  \"{title}\""),
-        (Ok(url), Err(_)) => format!("page: {url}"),
-        (Err(error), _) => format!("page: (unavailable: {error})"),
+/// The lines that say what failed: the error, and the step it was about with
+/// its selector and address highlighted.
+fn failure_lines(failure: &Failure, color: bool) -> String {
+    let mut text = format!(
+        "  {} {}\n",
+        palette::DIM.paint("error:", color),
+        palette::ERROR.paint(sanitize(failure.message()), color)
+    );
+    if failure.selector().is_some() || failure.url().is_some() {
+        text.push_str(&format!(
+            "  {}  {}",
+            palette::DIM.paint("step:", color),
+            palette::WARNING.paint(sanitize(failure.label()), color)
+        ));
+        if let Some(selector) = failure.selector() {
+            text.push_str(&format!(
+                "   selector {}",
+                palette::STEP.paint(sanitize(selector), color)
+            ));
+        }
+        if let Some(url) = failure.url() {
+            text.push_str(&format!(
+                "   url {}",
+                palette::PATH.paint(sanitize(url), color)
+            ));
+        }
+        text.push('\n');
     }
+    text
+}
+
+/// The answer to `l` and `ll`: the code of the scene, or why there is none.
+fn listing(kind: PromptKind, scene: &Scene, long: bool, color: bool) -> String {
+    let block = code_block(kind, scene, long, color);
+    if block.is_empty() {
+        format!("{NO_POSITION}\n")
+    } else {
+        block
+    }
+}
+
+/// The answer to `w`: where the pause is, and the test and page.
+fn where_text(
+    kind: PromptKind,
+    test_id: &str,
+    page: &PageInfo,
+    scene: &Scene,
+    color: bool,
+) -> String {
+    let mut text = match scene.spot() {
+        Some(spot) => where_header(kind, spot, color),
+        None => format!("{NO_POSITION}\n"),
+    };
+    text.push_str(&test_line(test_id, page, color));
+    text
+}
+
+/// The answer to `dt`.
+async fn devtools_report(page: &dyn PromptPage, color: bool) -> String {
+    match page.devtools_url().await {
+        Ok(Some(url)) => format!(
+            "DevTools: {}\nOpen it in a Chrome window; the prompt does not open one.\n",
+            palette::PATH.paint(sanitize(&url), color)
+        ),
+        Ok(None) => "DevTools is not reachable from this browser: the pure CDP engine (sb_cdp) has an endpoint to point at, and `sbrs devtools` starts a browser that has one.\n".to_owned(),
+        Err(error) => format!("could not look for DevTools: {}\n", sanitize(&error.to_string())),
+    }
+}
+
+/// What the page answered when the prompt asked for its address and title.
+struct PageInfo {
+    /// The address, or why the page cannot be asked.
+    url: Result<String, String>,
+    /// The title, when it could be read.
+    title: Option<String>,
+}
+
+impl PageInfo {
+    async fn read(page: &dyn PromptPage) -> Self {
+        let url = page.url().await.map_err(|error| error.to_string());
+        let title = page.title().await.ok();
+        Self { url, title }
+    }
+
+    /// `page: <url>  "<title>"`, or why the page cannot be asked.
+    fn line(&self, color: bool) -> String {
+        match (&self.url, &self.title) {
+            (Ok(url), Some(title)) => format!(
+                "page: {}  {}",
+                palette::PATH.paint(sanitize(url), color),
+                palette::DIM.paint(format!("\"{}\"", sanitize(title)), color)
+            ),
+            (Ok(url), None) => format!("page: {}", palette::PATH.paint(sanitize(url), color)),
+            (Err(error), _) => format!("page: (unavailable: {})", sanitize(error)),
+        }
+    }
+}
+
+/// The answer to `h`.
+fn help(kind: PromptKind, color: bool) -> String {
+    let mut text = format!("{}\n", palette::DIM.paint(commands(kind), color));
+    text.push_str("  c, continue   go on with the test\n");
+    if kind == PromptKind::PostMortem {
+        text.push_str("  r, retry      run the test again with a new browser\n");
+    }
+    text.push_str(
+        "  s, screenshot save the viewport as breakpoint_<n>.png\n  src, source   save the page's HTML as page_source_<n>.html\n  u, url        show the page's address and title\n  js <expr>     evaluate a JavaScript expression and show its value\n  pp <expr>     the same as js\n  p <expr>      the same, on one line\n  l, list       list the code around the pause again\n  ll, longlist  list more of it\n  w, where      show where in the test the pause is\n  dt, devtools  show the address of Chrome's DevTools for this tab\n  q, quit       stop the test\n",
+    );
+    text
 }
 
 /// Saves the viewport as `breakpoint_<n>.png` in `folder`; what to tell the
@@ -470,13 +736,18 @@ async fn save_source(page: &dyn PromptPage, folder: &Path) -> String {
 }
 
 /// The value of `expression` as JSON, or the error; what to tell the person.
-async fn evaluate(page: &dyn PromptPage, expression: &str) -> String {
+async fn evaluate(page: &dyn PromptPage, expression: &str, pretty: bool) -> String {
     // A trailing `;` is fine at a prompt, but not inside `return (..)`.
     let expression = expression.trim_end_matches(|c: char| c == ';' || c.is_whitespace());
-    match page.evaluate(expression).await {
-        Ok(value) => serde_json::to_string_pretty(&value).unwrap_or_else(|_| value.to_string()),
+    let text = match page.evaluate(expression).await {
+        Ok(value) if pretty => {
+            serde_json::to_string_pretty(&value).unwrap_or_else(|_| value.to_string())
+        }
+        Ok(value) => value.to_string(),
         Err(error) => format!("error: {error}"),
-    }
+    };
+    // The value came from the page, and JSON leaves some control characters alone.
+    sanitize(&text)
 }
 
 /// Writes `bytes` to the first of `<stem>_1.<extension>`, `<stem>_2...` in `dir`
@@ -629,6 +900,8 @@ mod tests {
             match expression {
                 "1 + 1" => Ok(serde_json::json!(2)),
                 "document.title" => Ok(serde_json::json!("Login")),
+                "obj" => Ok(serde_json::json!({ "a": 1, "b": [1, 2] })),
+
                 other => Err(browser_error(&format!("ReferenceError: {other}"))),
             }
         }
@@ -886,7 +1159,7 @@ mod tests {
             ["evaluate 1 + 1", "evaluate document.title", "evaluate nope"]
         );
         assert!(text.contains("execution: 2\n"), "{text}");
-        assert!(text.contains("> \"Login\"\n"), "{text}");
+        assert!(text.contains("(Sb+) \"Login\"\n"), "{text}");
         assert!(
             text.contains("error: ") && text.contains("ReferenceError: nope"),
             "{text}"
@@ -1033,6 +1306,480 @@ mod tests {
         assert_eq!(parse("?"), Command::Help);
         assert_eq!(parse("   "), Command::Empty);
         assert_eq!(parse("go now"), Command::Unknown("go"));
+        // The short forms pdbp users type.
+        assert_eq!(parse("r"), Command::Retry);
+        assert_eq!(parse("retry"), Command::Retry);
+        assert_eq!(parse("l"), Command::List);
+        assert_eq!(parse("ll"), Command::LongList);
+        assert_eq!(parse("w"), Command::Where);
+        assert_eq!(parse("where"), Command::Where);
+        assert_eq!(parse("dt"), Command::Devtools);
+        assert_eq!(parse("p 1 + 1"), Command::Print("1 + 1"));
+        assert_eq!(parse("pp obj"), Command::Js("obj"));
+        assert_eq!(parse("p"), Command::JsUsage);
+        assert_eq!(parse("pp"), Command::JsUsage);
+    }
+
+    // ---- the frame, the source listing and the short commands ----
+
+    /// A page with fixed answers, for the commands that only read.
+    struct StubPage {
+        url: String,
+        title: String,
+        devtools: Option<String>,
+    }
+
+    impl StubPage {
+        fn new(url: &str, title: &str) -> Self {
+            Self {
+                url: url.to_owned(),
+                title: title.to_owned(),
+                devtools: None,
+            }
+        }
+    }
+
+    #[async_trait]
+    impl PromptPage for StubPage {
+        async fn url(&self) -> Result<String, SeleniumBaseError> {
+            Ok(self.url.clone())
+        }
+
+        async fn title(&self) -> Result<String, SeleniumBaseError> {
+            Ok(self.title.clone())
+        }
+
+        async fn screenshot_png(&self) -> Result<Vec<u8>, SeleniumBaseError> {
+            Ok(Vec::new())
+        }
+
+        async fn page_source(&self) -> Result<String, SeleniumBaseError> {
+            Ok(String::new())
+        }
+
+        async fn evaluate(&self, _expression: &str) -> Result<Value, SeleniumBaseError> {
+            Ok(Value::Null)
+        }
+
+        async fn devtools_url(&self) -> Result<Option<String>, SeleniumBaseError> {
+            Ok(self.devtools.clone())
+        }
+    }
+
+    /// The test of the docs' example, nine lines.
+    const TEST_SOURCE: [&str; 9] = [
+        "async fn login(sb: Sb) -> Result<()> {",
+        "    sb.run(async |sb| {",
+        "        sb.open(\"https://example.com/login\").await?;",
+        "        sb.type_text(\"#user\", \"demo\").await?;",
+        "        sb.click(\"#go\").await?;",
+        "        Ok(())",
+        "    })",
+        "    .await",
+        "}",
+    ];
+
+    /// Writes `lines` to a file in `dir` and returns a scene pointing at its
+    /// line `line`, with the file's path.
+    fn scene_in(dir: &Path, lines: &[String], line: u32) -> (Scene, String) {
+        let file = dir.join("login.rs");
+        std::fs::write(&file, lines.join("\n")).unwrap();
+        let path = file.to_str().unwrap().to_owned();
+        (Scene::at(SourceSpot::new(path.clone(), line, 1)), path)
+    }
+
+    fn numbered(count: usize) -> Vec<String> {
+        (1..=count)
+            .map(|n| format!("let step_{n} = {n};"))
+            .collect()
+    }
+
+    fn the_test() -> Vec<String> {
+        TEST_SOURCE.iter().map(|line| (*line).to_owned()).collect()
+    }
+
+    /// Runs `script` against `page` with `scene`, with colour on or off.
+    async fn run_in(
+        script: &str,
+        kind: PromptKind,
+        page: &dyn PromptPage,
+        scene: &Scene,
+        color: bool,
+    ) -> (PromptOutcome, String) {
+        let logs = tempfile::tempdir().unwrap();
+        let mut prompt = prompt(script, logs.path()).with_color(color);
+        let outcome = prompt
+            .pause_in(
+                kind,
+                "login.valid_login",
+                "Paused at login page setup.",
+                page,
+                scene,
+            )
+            .await
+            .unwrap();
+        (outcome, written(&prompt))
+    }
+
+    #[tokio::test]
+    async fn the_plain_banner_of_a_breakpoint_lists_the_code_around_the_call() {
+        let dir = tempfile::tempdir().unwrap();
+        let (scene, path) = scene_in(dir.path(), &numbered(10), 8);
+
+        let (_, text) = run_in(
+            "c\n",
+            PromptKind::Breakpoint,
+            &FakePage::new(),
+            &scene,
+            false,
+        )
+        .await;
+
+        let expected = [
+            "".to_owned(),
+            "[BREAKPOINT]: Paused at login page setup.".to_owned(),
+            "  test:  login.valid_login   page: https://example.com/login  \"Login\"".to_owned(),
+            format!("> {path}(8)"),
+            "   ...".to_owned(),
+            "   3     let step_3 = 3;".to_owned(),
+            "   4     let step_4 = 4;".to_owned(),
+            "   5     let step_5 = 5;".to_owned(),
+            "   6     let step_6 = 6;".to_owned(),
+            "   7     let step_7 = 7;".to_owned(),
+            "   8  -> let step_8 = 8;".to_owned(),
+            "   9     let step_9 = 9;".to_owned(),
+            "  10     let step_10 = 10;".to_owned(),
+            "".to_owned(),
+            "Perform your manual actions in the browser now.".to_owned(),
+            "Commands: c continue | s screenshot | src page source | u url | js <expr> | l list | w where | dt devtools | q quit | h help".to_owned(),
+            "Type 'c' and press [ENTER] to continue execution: ".to_owned(),
+        ]
+        .join("\n");
+        assert_eq!(text, expected);
+    }
+
+    #[tokio::test]
+    async fn the_coloured_banner_paints_the_label_the_test_the_page_and_the_commands() {
+        let (outcome, text) = run_in(
+            "c\n",
+            PromptKind::Breakpoint,
+            &FakePage::new(),
+            &Scene::default(),
+            true,
+        )
+        .await;
+
+        assert_eq!(outcome, PromptOutcome::Continue);
+        let expected = [
+            "",
+            // The label is the colorama pair of the recorder's breakpoint.
+            "\x1b[34;106m[BREAKPOINT]\x1b[0m: Paused at login page setup.",
+            "  \x1b[2mtest:\x1b[0m  \x1b[1;35mlogin.valid_login\x1b[0m   page: \x1b[36mhttps://example.com/login\x1b[0m  \x1b[2m\"Login\"\x1b[0m",
+            "Perform your manual actions in the browser now.",
+            "\x1b[2mCommands: c continue | s screenshot | src page source | u url | js <expr> | l list | w where | dt devtools | q quit | h help\x1b[0m",
+            "Type 'c' and press [ENTER] to continue execution: ",
+        ]
+        .join("\n");
+        assert_eq!(text, expected);
+    }
+
+    #[tokio::test]
+    async fn a_post_mortem_names_the_error_the_step_and_marks_the_failing_line() {
+        let dir = tempfile::tempdir().unwrap();
+        let (scene, path) = scene_in(dir.path(), &the_test(), 2);
+        let scene = scene.with_failure(Failure::from_error(&SeleniumBaseError::ElementNotFound {
+            selector: "#go".to_owned(),
+            strategy: "css".to_owned(),
+        }));
+
+        let (_, text) = run_in(
+            "c\n",
+            PromptKind::PostMortem,
+            &FakePage::new(),
+            &scene,
+            false,
+        )
+        .await;
+
+        let expected = [
+            "".to_owned(),
+            "[POST MORTEM]: Paused at login page setup.".to_owned(),
+            "  test:  login.valid_login   page: https://example.com/login  \"Login\"".to_owned(),
+            format!("> {path}(2) test body"),
+            "   2         sb.run(async |sb| {".to_owned(),
+            "   3             sb.open(\"https://example.com/login\").await?;".to_owned(),
+            "   4             sb.type_text(\"#user\", \"demo\").await?;".to_owned(),
+            "   5  >>         sb.click(\"#go\").await?;".to_owned(),
+            "   6             Ok(())".to_owned(),
+            "   7         })".to_owned(),
+            "".to_owned(),
+            "  error: element not found: #go (strategy: css)".to_owned(),
+            "  step:  element not found   selector #go".to_owned(),
+            "Commands: c continue | r retry | s screenshot | src page source | u url | js <expr> | l list | w where | dt devtools | q quit | h help".to_owned(),
+            "Type 'c' and press [ENTER] to continue execution: ".to_owned(),
+        ]
+        .join("\n");
+        assert_eq!(text, expected);
+    }
+
+    #[tokio::test]
+    async fn the_coloured_post_mortem_highlights_the_error_the_selector_and_the_address() {
+        let scene =
+            Scene::default().with_failure(Failure::from_error(&SeleniumBaseError::Navigation {
+                url: "https://example.com/gone".to_owned(),
+                reason: "net::ERR_NAME_NOT_RESOLVED".to_owned(),
+            }));
+
+        let (_, text) = run_in(
+            "c\n",
+            PromptKind::PostMortem,
+            &FakePage::new(),
+            &scene,
+            true,
+        )
+        .await;
+
+        assert!(
+            text.contains("\x1b[1;97;41m[POST MORTEM]\x1b[0m: "),
+            "white on red: {text:?}"
+        );
+        assert!(
+            text.contains("\x1b[1;31mnavigation to 'https://example.com/gone' failed: net::ERR_NAME_NOT_RESOLVED\x1b[0m"),
+            "the error is bold red: {text:?}"
+        );
+        assert!(
+            text.contains("url \x1b[36mhttps://example.com/gone\x1b[0m"),
+            "the address is cyan: {text:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn l_lists_the_code_again_and_ll_lists_more_of_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let (scene, path) = scene_in(dir.path(), &numbered(100), 50);
+
+        let (_, text) = run_in(
+            "l\nll\nc\n",
+            PromptKind::Breakpoint,
+            &FakePage::new(),
+            &scene,
+            false,
+        )
+        .await;
+
+        assert_eq!(
+            text.matches(&format!("> {path}(50)\n")).count(),
+            3,
+            "the banner, l and ll each show the code: {text}"
+        );
+        assert_eq!(
+            text.matches("  45     let step_45 = 45;\n").count(),
+            3,
+            "five lines before the call, three times"
+        );
+        assert_eq!(
+            text.matches("  25     let step_25 = 25;\n").count(),
+            1,
+            "only ll reaches that far"
+        );
+        assert!(text.contains("  50  -> let step_50 = 50;\n"), "{text}");
+    }
+
+    #[tokio::test]
+    async fn l_without_a_known_place_says_so_and_goes_on() {
+        let (outcome, text) = run_in(
+            "l\nw\nc\n",
+            PromptKind::Breakpoint,
+            &FakePage::new(),
+            &Scene::default(),
+            false,
+        )
+        .await;
+
+        assert_eq!(outcome, PromptOutcome::Continue);
+        assert_eq!(
+            text.matches("the source position of this pause is not known")
+                .count(),
+            2,
+            "l and w: {text}"
+        );
+    }
+
+    #[tokio::test]
+    async fn w_shows_where_the_pause_is_and_on_which_page() {
+        let dir = tempfile::tempdir().unwrap();
+        let (scene, path) = scene_in(dir.path(), &numbered(10), 8);
+
+        let (_, text) = run_in(
+            "w\nc\n",
+            PromptKind::Breakpoint,
+            &FakePage::new(),
+            &scene,
+            false,
+        )
+        .await;
+
+        let after_banner = text.split("continue execution: ").nth(1).unwrap();
+        assert_eq!(
+            after_banner,
+            format!(
+                "> {path}(8)\n  test:  login.valid_login   page: https://example.com/login  \"Login\"\n(Sb+) "
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn p_prints_one_line_and_pp_and_js_print_it_indented() {
+        let (_, text) = run_in(
+            "p obj\npp obj\njs obj\nc\n",
+            PromptKind::Breakpoint,
+            &FakePage::new(),
+            &Scene::default(),
+            false,
+        )
+        .await;
+
+        assert_eq!(
+            text.matches("{\"a\":1,\"b\":[1,2]}\n").count(),
+            1,
+            "p is compact: {text}"
+        );
+        assert_eq!(
+            text.matches("{\n  \"a\": 1,\n  \"b\": [\n    1,\n    2\n  ]\n}\n")
+                .count(),
+            2,
+            "pp and js are pretty: {text}"
+        );
+    }
+
+    #[tokio::test]
+    async fn r_retries_after_a_failure_and_only_then() {
+        let (outcome, _) = run_in(
+            "r\n",
+            PromptKind::PostMortem,
+            &FakePage::new(),
+            &Scene::default(),
+            false,
+        )
+        .await;
+        assert_eq!(outcome, PromptOutcome::Retry);
+
+        let (outcome, text) = run_in(
+            "retry\nc\n",
+            PromptKind::Breakpoint,
+            &FakePage::new(),
+            &Scene::default(),
+            false,
+        )
+        .await;
+        assert_eq!(outcome, PromptOutcome::Continue);
+        assert!(
+            text.contains("retry is only possible after a failed test (--pdb)"),
+            "{text}"
+        );
+    }
+
+    #[tokio::test]
+    async fn dt_prints_the_devtools_address_or_says_there_is_none() {
+        let mut page = StubPage::new("https://example.com/", "Example");
+        let (_, none) = run_in(
+            "dt\nc\n",
+            PromptKind::Breakpoint,
+            &page,
+            &Scene::default(),
+            false,
+        )
+        .await;
+        assert!(
+            none.contains("DevTools is not reachable from this browser"),
+            "{none}"
+        );
+
+        page.devtools = Some(
+            "http://127.0.0.1:9222/devtools/inspector.html?ws=127.0.0.1:9222/devtools/page/AB"
+                .to_owned(),
+        );
+        let (_, some) = run_in(
+            "devtools\nc\n",
+            PromptKind::Breakpoint,
+            &page,
+            &Scene::default(),
+            false,
+        )
+        .await;
+        assert!(
+            some.contains("DevTools: http://127.0.0.1:9222/devtools/inspector.html?ws=127.0.0.1:9222/devtools/page/AB\n"),
+            "{some}"
+        );
+    }
+
+    #[tokio::test]
+    async fn the_prompt_after_a_command_is_the_sb_prompt() {
+        let (_, text) = run_in(
+            "u\nc\n",
+            PromptKind::Breakpoint,
+            &FakePage::new(),
+            &Scene::default(),
+            false,
+        )
+        .await;
+        assert!(text.ends_with("\n(Sb+) "), "{text:?}");
+
+        let (_, coloured) = run_in(
+            "u\nc\n",
+            PromptKind::Breakpoint,
+            &FakePage::new(),
+            &Scene::default(),
+            true,
+        )
+        .await;
+        assert!(coloured.ends_with("\n\x1b[1m(Sb+) \x1b[0m"), "{coloured:?}");
+    }
+
+    #[tokio::test]
+    async fn plain_output_never_holds_an_escape_even_for_hostile_text() {
+        let page = StubPage::new("https://x.test/\x1b[2J", "T\x1b]0;pwned\x07");
+        let scene = Scene::at(SourceSpot::new("gone.rs", 1, 1)).with_failure(Failure::from_error(
+            &SeleniumBaseError::AssertionFailed("a\x1b[31mb".to_owned()),
+        ));
+
+        let (_, text) = run_in("u\nw\nl\nc\n", PromptKind::PostMortem, &page, &scene, false).await;
+
+        assert!(!text.contains('\x1b') && !text.contains('\x07'), "{text:?}");
+    }
+
+    #[tokio::test]
+    async fn coloured_output_holds_only_the_prompts_own_escapes() {
+        let page = StubPage::new("https://x.test/\x1b[2J", "T\x1b]0;pwned\x07");
+        let scene = Scene::at(SourceSpot::new("gone.rs", 1, 1)).with_failure(Failure::from_error(
+            &SeleniumBaseError::AssertionFailed("a\x1b[31mb".to_owned()),
+        ));
+
+        let (_, text) = run_in("u\nc\n", PromptKind::PostMortem, &page, &scene, true).await;
+
+        assert!(!text.contains("\x1b[2J"), "{text:?}");
+        assert!(!text.contains("\x1b]0;"), "{text:?}");
+        assert!(!text.contains('\x07'), "{text:?}");
+        assert!(text.contains("\u{fffd}"), "replaced, not dropped: {text:?}");
+    }
+
+    #[tokio::test]
+    async fn a_prompt_made_with_new_is_plain_until_colour_is_asked_for() {
+        let logs = tempfile::tempdir().unwrap();
+        let scene = Scene::default();
+        let mut plain = prompt("c\n", logs.path());
+        plain
+            .pause_in(PromptKind::Trace, "t", "m", &FakePage::new(), &scene)
+            .await
+            .unwrap();
+        let mut painted = prompt("c\n", logs.path()).with_color(true);
+        painted
+            .pause_in(PromptKind::Trace, "t", "m", &FakePage::new(), &scene)
+            .await
+            .unwrap();
+
+        assert!(!written(&plain).contains('\x1b'));
+        assert!(written(&painted).contains('\x1b'));
     }
 
     /// Two prompts started together both finish, one turn after the other:

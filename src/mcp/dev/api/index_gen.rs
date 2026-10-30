@@ -147,6 +147,28 @@ fn owner_of(ty: &Type) -> Option<String> {
     }
 }
 
+/// Whether calling the method gives a future to await: it is an `async fn`,
+/// or it returns `impl Future`, as the calls that record where they were
+/// called from do (`#[track_caller]` does not apply to an `async fn`).
+fn is_async(sig: &syn::Signature) -> bool {
+    if sig.asyncness.is_some() {
+        return true;
+    }
+    let syn::ReturnType::Type(_, ty) = &sig.output else {
+        return false;
+    };
+    let Type::ImplTrait(opaque) = ty.as_ref() else {
+        return false;
+    };
+    opaque.bounds.iter().any(|bound| {
+        matches!(
+            bound,
+            syn::TypeParamBound::Trait(bound)
+                if bound.path.segments.last().is_some_and(|segment| segment.ident == "Future")
+        )
+    })
+}
+
 fn collect(
     items: &[Item],
     source: &Source<'_>,
@@ -186,7 +208,7 @@ fn collect(
                         engine: engine.to_owned(),
                         signature,
                         doc: first_paragraph(&method.attrs),
-                        is_async: method.sig.asyncness.is_some(),
+                        is_async: is_async(&method.sig),
                         file: file.to_owned(),
                         feature: cfg_feature(&method.attrs).or_else(|| impl_feature.clone()),
                     });
@@ -337,6 +359,20 @@ impl BaseCase {
             "pub const fn short<'a, T: Clone>(x: &'a T) -> Option<&'a T> where T: Sized"
         );
         assert!(!entries[1].is_async);
+    }
+
+    #[test]
+    fn a_method_that_returns_a_future_counts_as_async() {
+        let source = r"
+impl BaseCase {
+    #[track_caller]
+    pub fn pause<'a>(&'a self) -> impl std::future::Future<Output = ()> + 'a { async {} }
+    pub fn numbers(&self) -> impl Iterator<Item = u8> { std::iter::empty() }
+}
+";
+        let entries = indexed(source, &["BaseCase"]);
+        assert!(entries[0].is_async, "{:?}", entries[0]);
+        assert!(!entries[1].is_async, "{:?}", entries[1]);
     }
 
     #[test]

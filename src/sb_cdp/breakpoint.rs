@@ -11,7 +11,8 @@ use serde_json::Value;
 
 use super::Page;
 use crate::common::debug_prompt::{
-    breakpoint_prompt, DebugPrompt, LineInput, PromptKind, PromptOutcome, PromptPage,
+    breakpoint_prompt, DebugPrompt, LineInput, PromptKind, PromptOutcome, PromptPage, Scene,
+    SourceSpot,
 };
 use crate::common::test_id::current_test_id;
 use crate::error::SeleniumBaseError;
@@ -37,6 +38,17 @@ impl PromptPage for Page {
     async fn evaluate(&self, expression: &str) -> Result<Value, SeleniumBaseError> {
         Page::evaluate(self, expression).await
     }
+
+    /// The front end Chrome serves on the debugging port, for this tab.
+    async fn devtools_url(&self) -> Result<Option<String>, SeleniumBaseError> {
+        let endpoint = self.browser().devtools_endpoint();
+        let http = endpoint.http_url();
+        let authority = http.strip_prefix("http://").unwrap_or(http);
+        Ok(Some(format!(
+            "{http}/devtools/inspector.html?ws={authority}/devtools/page/{}",
+            self.id()
+        )))
+    }
 }
 
 impl Page {
@@ -47,6 +59,16 @@ impl Page {
     /// `latest_logs/<test id>/`, `u` shows the address and title, `js <expr>`
     /// evaluates an expression, `q` stops the test and `h` lists these. Work in
     /// the browser meanwhile.
+    ///
+    /// The banner is coloured and lists the code around the call, as pdbp does
+    /// for Python: the call is marked `->`, `l` and `ll` list more of the test
+    /// and `w` says where the pause is. `p <expr>` and `pp <expr>` print a
+    /// value and `dt` prints the address of Chrome's DevTools for this tab.
+    /// Colour is left out when standard error is not a terminal or `NO_COLOR`
+    /// is set.
+    ///
+    /// This is a plain function that returns a future, not an `async fn`, so
+    /// that `#[track_caller]` can record where it was called from.
     ///
     /// The pause is skipped, with a warning in the log, when standard input
     /// is not a terminal (CI, a pipe, `cargo nextest`), and silently when the
@@ -73,12 +95,21 @@ impl Page {
     /// Returns [`SeleniumBaseError::TestLifecycle`] when the person quits the
     /// prompt (`q`), and [`SeleniumBaseError::Io`] when the terminal cannot be
     /// read or written.
-    pub async fn breakpoint(&self, message: &str) -> Result<(), SeleniumBaseError> {
-        let Some(mut prompt) = breakpoint_prompt() else {
-            return Ok(());
-        };
-        self.pause_at(&mut prompt, PromptKind::Breakpoint, message)
-            .await
+    #[track_caller]
+    pub fn breakpoint<'a>(
+        &'a self,
+        message: &'a str,
+    ) -> impl std::future::Future<Output = Result<(), SeleniumBaseError>> + 'a {
+        // Not an `async fn`: the attribute above does not apply to one, and the
+        // place of the call is what the listing at the prompt shows.
+        let scene = Scene::at(SourceSpot::caller());
+        async move {
+            let Some(mut prompt) = breakpoint_prompt() else {
+                return Ok(());
+            };
+            self.pause_at(&mut prompt, PromptKind::Breakpoint, message, &scene)
+                .await
+        }
     }
 
     /// Pauses at `prompt` as `kind` and turns a quit into an error.
@@ -87,16 +118,17 @@ impl Page {
         prompt: &mut DebugPrompt<I, W>,
         kind: PromptKind,
         message: &str,
+        scene: &Scene,
     ) -> Result<(), SeleniumBaseError>
     where
         I: LineInput,
         W: Write + Send,
     {
         match prompt
-            .pause(kind, &current_test_id(), message, self)
+            .pause_in(kind, &current_test_id(), message, self, scene)
             .await?
         {
-            PromptOutcome::Continue => Ok(()),
+            PromptOutcome::Continue | PromptOutcome::Retry => Ok(()),
             PromptOutcome::Quit => Err(SeleniumBaseError::test_lifecycle(
                 "stopped at the debug prompt",
             )),
@@ -141,9 +173,14 @@ mod tests {
         let logs = tempfile::tempdir().unwrap();
         let mut prompt = at_prompt("u\ns\nsrc\njs document.title\nc\n", logs.path());
 
-        page.pause_at(&mut prompt, PromptKind::Breakpoint, "look")
-            .await
-            .unwrap();
+        page.pause_at(
+            &mut prompt,
+            PromptKind::Breakpoint,
+            "look",
+            &Scene::default(),
+        )
+        .await
+        .unwrap();
 
         let text = String::from_utf8_lossy(prompt.output()).into_owned();
         assert!(text.contains("[BREAKPOINT]: look"), "{text}");
@@ -175,7 +212,7 @@ mod tests {
         let mut prompt = at_prompt("q\n", logs.path());
 
         let error = page
-            .pause_at(&mut prompt, PromptKind::Breakpoint, "m")
+            .pause_at(&mut prompt, PromptKind::Breakpoint, "m", &Scene::default())
             .await
             .unwrap_err();
 

@@ -194,6 +194,25 @@ work, `docs/parity.md` the per-API status).
   for the debug prompts to reuse. `RecordingOptions` and `MkrecOptions` gain a `color` field, off
   by default.
 
+- **The debug prompts look and read like pdbp, the debugger Python SeleniumBase uses.** `--pdb`,
+  `--trace`, `--final-debug` and `sb.breakpoint(..)` print a coloured label, the test and the page
+  (address cyan, title dim), and the code around the pause as a numbered listing with `->` on the
+  current line: a breakpoint lists the lines around its call, the other prompts list the body of the
+  `sb.run(..)` call that holds the test, and after a failure the lines that name the failing
+  selector or address are marked `>>`, with `error:` and `step:` lines under the listing (the
+  selector and the address highlighted). New short commands: `l` and `ll` (list the code again, or
+  more of it), `w` (where), `p` and `pp` (print a value on one line, or indented), `dt` (Chrome's
+  DevTools address for the tab, on the pure CDP engine) and, after a failure, `r` (run the test
+  again with a new browser, past `reruns`); the prompt after a command is `(Sb+) `. Colour follows
+  `common::color`: a terminal, `NO_COLOR` unset or empty and `TERM` not `dumb`; anything else gets
+  the same text without escape sequences, and text from the page or the file is stripped of control
+  characters. New public items: `DebugPrompt::with_color` and `pause_in`, `Scene`, `SourceSpot`,
+  `Failure`, `PromptOutcome::Retry` and the defaulted `PromptPage::devtools_url`. `breakpoint` and
+  `Sb::run`, `SbCdp::run` and `SbCdp::run_with_browser` are now plain functions that return a future
+  (`#[track_caller]` does not apply to an `async fn`), so a call is still awaited as before; the dev
+  server's index keeps listing them as async. A prompt that was written for the old
+  `PromptOutcome` must also match `Retry`.
+
 - **The rest of the stealth section is organized as a reading order, with the
   existing text kept.** The sidebar and `docs/SUMMARY.md` now run tutorial,
   overview, wire formats, identity, `BrowserScraper`, `HttpSession`, `MitmProxy`,
