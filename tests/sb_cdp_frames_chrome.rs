@@ -54,8 +54,7 @@ impl Site {
     /// The page with the frames: the `data:` frame carries the frame page
     /// itself, and so does the `srcdoc` one.
     fn index(&self) -> String {
-        let data =
-            base64::engine::general_purpose::STANDARD.encode(FRAME.replace("{WHO}", "data"));
+        let data = base64::engine::general_purpose::STANDARD.encode(FRAME.replace("{WHO}", "data"));
         let srcdoc = escape_attribute(&FRAME.replace("{WHO}", "srcdoc"));
         INDEX
             .replace("{DATA}", &data)
@@ -158,7 +157,11 @@ async fn works_inside(page: &Page, frame: &str, who: &str) {
     assert!(inside("#btn").is_visible().await.unwrap(), "{frame}");
     assert_eq!(inside("#btn").count().await.unwrap(), 1, "{frame}");
     assert!(inside("#btn").exists().await.unwrap(), "{frame}");
-    assert_eq!(inside("#btn").info().await.unwrap().tag, "button", "{frame}");
+    assert_eq!(
+        inside("#btn").info().await.unwrap().tag,
+        "button",
+        "{frame}"
+    );
 
     // A real click, twice: the frame's own script logs each one.
     inside("#btn").click().await.unwrap();
@@ -170,7 +173,10 @@ async fn works_inside(page: &Page, frame: &str, who: &str) {
     );
 
     // Typing and filling reach the field of the frame.
-    inside("#field").type_text("typed in a frame").await.unwrap();
+    inside("#field")
+        .type_text("typed in a frame")
+        .await
+        .unwrap();
     assert_eq!(
         inside("#field").text().await.unwrap(),
         "typed in a frame",

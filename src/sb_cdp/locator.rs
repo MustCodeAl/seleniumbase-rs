@@ -1,6 +1,8 @@
 //! The [`Locator`]: a lazy, auto-waiting handle to elements on a page.
 
 use std::fmt;
+use std::future::Future;
+use std::pin::Pin;
 use std::time::Duration;
 
 use base64::Engine as _;
@@ -8,6 +10,7 @@ use serde::Serialize;
 use serde_json::{json, Value};
 
 use super::expect::LocatorExpect;
+use super::frames::{is_frame_gone, is_frames_request, Scope};
 use super::input::{Button, Key};
 use super::page::Page;
 use super::types::{ElementInfo, Point, Rect, SelectBy, State};
@@ -35,6 +38,19 @@ impl Step {
             last: false,
         }
     }
+}
+
+/// How many frames a locator enters one inside the other, at most.
+const MAX_FRAME_DEPTH: usize = 8;
+
+/// How many times a locator looks again when a frame goes away (navigates or
+/// closes) while it is being entered.
+const FRAME_ATTEMPTS: usize = 3;
+
+/// The frame a chain reaches into, and what is left of the chain inside it.
+struct Located {
+    scope: Scope,
+    chain: Vec<Step>,
 }
 
 /// Finds elements on a page, lazily, and acts on them.
@@ -203,11 +219,152 @@ impl Locator {
 
     /// Runs `body` with the first match bound to `el`.
     async fn with_element(&self, body: &str) -> Result<Value, SeleniumBaseError> {
-        let script = format!(
-            "(() => {{ const el = __sbcdp.one({}); {body} }})()",
-            self.chain_json()?
-        );
-        self.page.eval_labelled(&self.to_string(), &script).await
+        let (value, _) = self.run_element(body, false).await?;
+        Ok(value)
+    }
+
+    /// The script that binds the first match of the chain `chain` (JSON) to `el`
+    /// and runs `body`.
+    fn element_script(chain: &str, body: &str) -> String {
+        format!("(() => {{ const el = __sbcdp.one({chain}); {body} }})()")
+    }
+
+    /// [`with_element`](Self::with_element), and, when `origin` is set, where the
+    /// frame the element is in starts in the tab's viewport, for a frame the
+    /// page script cannot see out of (zero for any other).
+    async fn run_element(
+        &self,
+        body: &str,
+        origin: bool,
+    ) -> Result<(Value, Point), SeleniumBaseError> {
+        self.eval(
+            |chain| Self::element_script(chain, body),
+            || Err(SeleniumBaseError::element_not_found(self.to_string())),
+            origin,
+        )
+        .await
+    }
+
+    /// Runs the script `build` makes for this locator's chain (JSON).
+    ///
+    /// The page helper searches the frames it can read into, those of the page's
+    /// own origin. When the chain matches nothing there and goes through a frame
+    /// it cannot read into, the helper says so, and the frame is entered through
+    /// the protocol (see the `frames` module): the script runs in the first frame
+    /// the rest of the chain matches in. `empty` is the answer when it matches in
+    /// none. With `origin`, the answer also holds where that frame's content
+    /// starts in the tab's viewport.
+    async fn eval(
+        &self,
+        build: impl Fn(&str) -> String,
+        empty: impl FnOnce() -> Result<Value, SeleniumBaseError>,
+        origin: bool,
+    ) -> Result<(Value, Point), SeleniumBaseError> {
+        let label = self.to_string();
+        match self
+            .page
+            .eval_labelled(&label, &build(&self.chain_json()?))
+            .await
+        {
+            Err(error) if is_frames_request(&error) => {}
+            other => return other.map(|value| (value, Point::default())),
+        }
+        let mut gone = None;
+        for _ in 0..FRAME_ATTEMPTS {
+            match self.in_frame(&label, &build, origin).await {
+                Ok(Some(found)) => return Ok(found),
+                Ok(None) => return empty().map(|value| (value, Point::default())),
+                Err(error) if is_frame_gone(&error) => gone = Some(error),
+                Err(error) => return Err(error),
+            }
+        }
+        Err(gone.unwrap_or_else(|| {
+            SeleniumBaseError::cdp_driver("a frame changed while the locator entered it")
+        }))
+    }
+
+    /// One try at [`eval`](Self::eval) inside a frame: `None` if the chain
+    /// matches in no frame.
+    async fn in_frame(
+        &self,
+        label: &str,
+        build: &impl Fn(&str) -> String,
+        origin: bool,
+    ) -> Result<Option<(Value, Point)>, SeleniumBaseError> {
+        let Some(found) = self
+            .locate(self.page.main_scope(), self.chain.clone(), 0)
+            .await?
+        else {
+            return Ok(None);
+        };
+        let ran = async {
+            if origin {
+                self.page.reveal_scope(&found.scope).await?;
+            }
+            let script = build(&serde_json::to_string(&found.chain)?);
+            let value = self.page.eval_in(&found.scope, label, &script).await?;
+            let at = if origin {
+                self.page.scope_origin(&found.scope).await?
+            } else {
+                Point::default()
+            };
+            Ok::<_, SeleniumBaseError>((value, at))
+        }
+        .await;
+        if matches!(&ran, Err(error) if is_frame_gone(error)) {
+            self.page.forget_scope(&found.scope);
+        }
+        self.page.release_scope(&found.scope).await;
+        ran.map(Some)
+    }
+
+    /// Finds the first frame, in the page order of the frames the helper could not
+    /// read into, in which the chain `chain` (what is left of this locator's, from
+    /// the step that searches inside the frame) matches something; looks inside
+    /// those frames in turn, as far as `MAX_FRAME_DEPTH`.
+    fn locate(
+        &self,
+        scope: Scope,
+        chain: Vec<Step>,
+        depth: usize,
+    ) -> Pin<Box<dyn Future<Output = Result<Option<Located>, SeleniumBaseError>> + Send + '_>> {
+        Box::pin(async move {
+            if depth >= MAX_FRAME_DEPTH {
+                return Ok(None);
+            }
+            let label = self.to_string();
+            let chain_json = serde_json::to_string(&chain)?;
+            let steps = self.page.blocked_steps(&scope, &label, &chain_json).await?;
+            for (index, step) in steps.into_iter().enumerate() {
+                let Some(object) = self.page.frame_element(&scope, &chain_json, index).await?
+                else {
+                    continue;
+                };
+                let Some(inside) = self.page.enter_frame(&scope, object).await? else {
+                    continue;
+                };
+                let rest = chain.get(step..).unwrap_or_default().to_vec();
+                let probe = format!("__sbcdp.resolve({}).length", serde_json::to_string(&rest)?);
+                match self.page.eval_in(&inside, &label, &probe).await {
+                    Ok(count) if count.as_u64().unwrap_or_default() > 0 => {
+                        return Ok(Some(Located {
+                            scope: inside,
+                            chain: rest,
+                        }));
+                    }
+                    Ok(_) => {}
+                    Err(error) if is_frames_request(&error) => {
+                        if let Some(found) = self.locate(inside.clone(), rest, depth + 1).await? {
+                            return Ok(Some(found));
+                        }
+                    }
+                    Err(error) if is_frame_gone(&error) => self.page.forget_scope(&inside),
+                    Err(error) => return Err(error),
+                }
+                self.page.release_holder(&inside).await;
+            }
+            Ok(None)
+        })
     }
 
     /// How many elements match right now. Does not wait.
@@ -216,11 +373,11 @@ impl Locator {
     ///
     /// Returns [`SeleniumBaseError::InvalidSelector`] if the selector is invalid.
     pub async fn count(&self) -> Result<usize, SeleniumBaseError> {
-        let count = self
-            .page
-            .eval_labelled(
-                &self.to_string(),
-                &format!("__sbcdp.resolve({}).length", self.chain_json()?),
+        let (count, _) = self
+            .eval(
+                |chain| format!("__sbcdp.resolve({chain}).length"),
+                || Ok(json!(0)),
+                false,
             )
             .await?;
         Ok(count
@@ -231,19 +388,17 @@ impl Locator {
 
     /// Whether the locator is currently in `state`. Does not wait.
     pub(crate) async fn is_in_state(&self, state: State) -> Result<bool, SeleniumBaseError> {
-        let probe = match state {
-            State::Present => format!("__sbcdp.resolve({}).length > 0", self.chain_json()?),
-            State::Absent => format!("__sbcdp.resolve({}).length === 0", self.chain_json()?),
-            State::Visible => format!(
-                "__sbcdp.resolve({}).some(__sbcdp.visible)",
-                self.chain_json()?
-            ),
-            State::Hidden => format!(
-                "!__sbcdp.resolve({}).some(__sbcdp.visible)",
-                self.chain_json()?
-            ),
+        let probe = |chain: &str| match state {
+            State::Present => format!("__sbcdp.resolve({chain}).length > 0"),
+            State::Absent => format!("__sbcdp.resolve({chain}).length === 0"),
+            State::Visible => format!("__sbcdp.resolve({chain}).some(__sbcdp.visible)"),
+            State::Hidden => format!("!__sbcdp.resolve({chain}).some(__sbcdp.visible)"),
         };
-        Ok(self.page.eval_labelled(&self.to_string(), &probe).await? == Value::Bool(true))
+        // A frame the page script cannot read into that holds no match: nothing
+        // is there, and nothing is visible.
+        let none = matches!(state, State::Absent | State::Hidden);
+        let (answer, _) = self.eval(probe, || Ok(Value::Bool(none)), false).await?;
+        Ok(answer == Value::Bool(true))
     }
 
     /// Waits until the locator reaches `state`.
@@ -297,10 +452,11 @@ impl Locator {
     /// Scrolls the first match into view and returns where its centre is.
     pub(super) async fn actionable_center(&self) -> Result<Point, SeleniumBaseError> {
         self.wait_actionable().await?;
-        let center = self.with_element("return __sbcdp.center(el);").await?;
+        let (center, origin) = self.run_element("return __sbcdp.center(el);", true).await?;
+
         Ok(Point {
-            x: center["x"].as_f64().unwrap_or_default(),
-            y: center["y"].as_f64().unwrap_or_default(),
+            x: center["x"].as_f64().unwrap_or_default() + origin.x,
+            y: center["y"].as_f64().unwrap_or_default() + origin.y,
         })
     }
 
@@ -356,11 +512,11 @@ impl Locator {
     ///
     /// Returns [`SeleniumBaseError::InvalidSelector`] if the selector is invalid.
     pub async fn infos(&self) -> Result<Vec<ElementInfo>, SeleniumBaseError> {
-        let value = self
-            .page
-            .eval_labelled(
-                &self.to_string(),
-                &format!("__sbcdp.resolve({}).map(__sbcdp.info)", self.chain_json()?),
+        let (value, _) = self
+            .eval(
+                |chain| format!("__sbcdp.resolve({chain}).map(__sbcdp.info)"),
+                || Ok(json!([])),
+                false,
             )
             .await?;
         Ok(value
@@ -767,15 +923,14 @@ impl Locator {
     ) -> Result<(), SeleniumBaseError> {
         let name = serde_json::to_string(name.as_ref())?;
         let value = serde_json::to_string(value.as_ref())?;
-        self.page
-            .eval_labelled(
-                &self.to_string(),
-                &format!(
-                    "__sbcdp.resolve({}).forEach(e => e.setAttribute({name}, {value}))",
-                    self.chain_json()?
-                ),
-            )
-            .await?;
+        self.eval(
+            |chain| {
+                format!("__sbcdp.resolve({chain}).forEach(e => e.setAttribute({name}, {value}))")
+            },
+            || Ok(Value::Null),
+            false,
+        )
+        .await?;
         Ok(())
     }
 
@@ -785,15 +940,12 @@ impl Locator {
     ///
     /// Returns [`SeleniumBaseError::InvalidSelector`] if the selector is invalid.
     pub async fn remove(&self) -> Result<(), SeleniumBaseError> {
-        self.page
-            .eval_labelled(
-                &self.to_string(),
-                &format!(
-                    "__sbcdp.resolve({}).forEach(e => e.remove())",
-                    self.chain_json()?
-                ),
-            )
-            .await?;
+        self.eval(
+            |chain| format!("__sbcdp.resolve({chain}).forEach(e => e.remove())"),
+            || Ok(Value::Null),
+            false,
+        )
+        .await?;
         Ok(())
     }
 

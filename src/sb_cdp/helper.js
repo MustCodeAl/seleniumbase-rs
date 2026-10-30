@@ -36,10 +36,18 @@
 
   // Where to search for a step whose scope is `scope`. A frame is searched
   // inside its own document, which lets `locator("#frame").locator("button")`
-  // reach into it. A cross-origin frame cannot be entered; it has no matches.
-  function rootOf(scope) {
+  // reach into it. A frame whose document a script cannot read (another origin,
+  // a data: URL, a sandbox) has no matches here: it is noted in `blocked`, with
+  // the step that was to search it, for the Rust side to enter through the
+  // protocol (see `resolve`).
+  let blocked = [];
+
+  function rootOf(scope, step) {
     if (scope.nodeType === 1 && (scope.tagName === "IFRAME" || scope.tagName === "FRAME")) {
-      try { return scope.contentDocument; } catch (e) { return null; }
+      let doc = null;
+      try { doc = scope.contentDocument; } catch (e) { doc = null; }
+      if (!doc) blocked.push({ step, el: scope });
+      return doc;
     }
     return scope;
   }
@@ -78,8 +86,8 @@
   }
 
 
-  function query(selector, scope) {
-    const root = rootOf(scope);
+  function query(selector, scope, step) {
+    const root = rootOf(scope, step);
     if (!root) return [];
     switch (selector.kind) {
       case "css":
@@ -112,21 +120,45 @@
   }
 
   // Every element the chain currently matches, in document order per step.
-  function resolve(chain) {
+  function search(chain) {
+    blocked = [];
     let scopes = [document];
-    for (const step of chain) {
+    chain.forEach((step, index) => {
       const found = new Set();
       for (const scope of scopes) {
-        for (const el of query(step.selector, scope)) found.add(el);
+        for (const el of query(step.selector, scope, index)) found.add(el);
       }
       let matches = Array.from(found);
       if (step.visible) matches = matches.filter(visible);
       if (step.last) matches = matches.slice(-1);
       else if (step.nth !== null && step.nth !== undefined) matches = matches.slice(step.nth, step.nth + 1);
       scopes = matches;
-    }
+    });
     return scopes;
   }
+
+    // Every element the chain currently matches, in document order per step. When
+    // it matches nothing and some frame on its way could not be entered, the
+    // answer is not "nothing" yet: the Rust side enters those frames through the
+    // protocol, so this throws `sbcdp:frames` for it to take over.
+    function resolve(chain) {
+      const found = search(chain);
+      if (found.length === 0 && blocked.length > 0) throw new Error("sbcdp:frames");
+      return found;
+    }
+
+    // For each frame the last search could not enter, the index of the chain step
+    // from which the search goes on inside it.
+    function blockedSteps(chain) {
+      search(chain);
+      return blocked.map((b) => b.step);
+    }
+
+    // The `index`-th frame the search could not enter, or null.
+    function blockedFrame(chain, index) {
+      search(chain);
+      return blocked[index] ? blocked[index].el : null;
+    }
 
   function one(chain) {
     const els = resolve(chain);
@@ -195,18 +227,44 @@
     const top = el.ownerDocument.elementFromPoint(localX, localY);
     const covered = !!top && top !== el && !el.contains(top);
     // Mouse events use top-level viewport coordinates, so add the offset of
-    // every frame the element sits in.
-    let x = localX;
-    let y = localY;
-    let view = el.ownerDocument.defaultView;
+    // every frame the element sits in. A frame this script cannot see out of
+    // (another origin) is added by the Rust side, with `frameOrigin`.
+    const offset = windowOffset(el.ownerDocument.defaultView);
+    return { x: localX + offset.x, y: localY + offset.y, covered };
+  }
+
+  // Where the content of a frame starts, in the viewport of the document that
+  // holds the frame element: past its border and its padding.
+  function contentOrigin(frame) {
+    const r = frame.getBoundingClientRect();
+    const style = frame.ownerDocument.defaultView.getComputedStyle(frame);
+    return {
+      x: r.left + frame.clientLeft + (parseFloat(style.paddingLeft) || 0),
+      y: r.top + frame.clientTop + (parseFloat(style.paddingTop) || 0),
+    };
+  }
+
+  // How far the top-left corner of a window's viewport is from the top-level
+  // viewport: the sum over the frame elements it sits in, as far as they can be
+  // read (`frameElement` is null across origins).
+  function windowOffset(view) {
+    let x = 0;
+    let y = 0;
     while (view && view.frameElement) {
-      const frame = view.frameElement;
-      const f = frame.getBoundingClientRect();
-      x += f.left + frame.clientLeft;
-      y += f.top + frame.clientTop;
+      const origin = contentOrigin(view.frameElement);
+      x += origin.x;
+      y += origin.y;
       view = view.parent;
     }
-    return { x, y, covered };
+    return { x, y };
+  }
+
+  // Where the content of the frame element `frame` starts in the viewport of the
+  // window its document is in, or of the top level when it can be read out to it.
+  function frameOrigin(frame) {
+    const origin = contentOrigin(frame);
+    const outer = windowOffset(frame.ownerDocument.defaultView);
+    return { x: origin.x + outer.x, y: origin.y + outer.y };
   }
 
   // Sets a value through the native setter, so controlled inputs in React and
@@ -272,7 +330,8 @@
   });
 
   window.__sbcdp = {
-    resolve, one, visible, info, center, setValue, focus, selectOption, flash,
+    resolve, one, visible, info, center, frameOrigin, blockedSteps, blockedFrame,
+    setValue, focus, selectOption, flash,
     textOf, fieldText, rectOf, attrs, errors,
   };
 })();

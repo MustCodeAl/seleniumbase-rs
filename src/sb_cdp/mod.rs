@@ -77,6 +77,7 @@ mod context;
 mod download;
 mod endpoint;
 mod expect;
+mod frames;
 #[cfg(feature = "gui")]
 pub mod gui_captcha;
 mod har;

@@ -11,6 +11,7 @@ use serde_json::{json, Value};
 
 use super::browser::Browser;
 use super::client::Events;
+use super::frames::Scope;
 use super::locator::Locator;
 use super::sync::locked;
 use super::types::{PageInfo, ScreenRect, Scroll, State};
@@ -220,28 +221,69 @@ impl Page {
         label: &str,
         expression: &str,
     ) -> Result<Value, SeleniumBaseError> {
-        match self.eval_once(label, expression).await {
+        self.eval_in(&self.main_scope(), label, expression).await
+    }
+
+    /// [`eval_labelled`](Self::eval_labelled) in `scope`: the tab's own frame, or
+    /// a frame the page script cannot read into (see the `frames` module).
+    pub(super) async fn eval_in(
+        &self,
+        scope: &Scope,
+        label: &str,
+        expression: &str,
+    ) -> Result<Value, SeleniumBaseError> {
+        match self.eval_once(scope, label, expression).await {
             Err(SeleniumBaseError::CdpDriver(message))
                 if message.contains("__sbcdp is not defined") =>
             {
-                self.execute("Runtime.evaluate", json!({ "expression": HELPER_JS }))
-                    .await?;
-                self.eval_once(label, expression).await
+                self.send_in(
+                    scope,
+                    "Runtime.evaluate",
+                    scope.in_context(json!({ "expression": HELPER_JS })),
+                )
+                .await?;
+                self.eval_once(scope, label, expression).await
             }
             other => other,
         }
     }
 
-    async fn eval_once(&self, label: &str, expression: &str) -> Result<Value, SeleniumBaseError> {
+    /// Sends a protocol command to the session of `scope`, which is this tab's
+    /// or one of its out-of-process frames'.
+    pub(super) async fn send_in(
+        &self,
+        scope: &Scope,
+        method: &str,
+        params: Value,
+    ) -> Result<Value, SeleniumBaseError> {
+        self.browser
+            .inner()
+            .client
+            .send(method, params, Some(scope.session()))
+            .await
+    }
+
+    /// The protocol session this tab is attached through, as a shared handle.
+    pub(super) fn session_handle(&self) -> Arc<str> {
+        Arc::clone(&self.session)
+    }
+
+    async fn eval_once(
+        &self,
+        scope: &Scope,
+        label: &str,
+        expression: &str,
+    ) -> Result<Value, SeleniumBaseError> {
         let response = self
-            .execute(
+            .send_in(
+                scope,
                 "Runtime.evaluate",
-                json!({
+                scope.in_context(json!({
                     "expression": expression,
                     "returnByValue": true,
                     "awaitPromise": true,
                     "userGesture": true,
-                }),
+                })),
             )
             .await?;
         if let Some(details) = response.get("exceptionDetails") {
@@ -924,7 +966,7 @@ fn is_same_page(current: &str, wanted: &str) -> bool {
 }
 
 /// Whether an error just means a navigation replaced the page mid-command.
-fn is_navigation_race(message: &str) -> bool {
+pub(super) fn is_navigation_race(message: &str) -> bool {
     message.contains("Execution context was destroyed")
         || message.contains("Cannot find context")
         || message.contains("Inspected target navigated")

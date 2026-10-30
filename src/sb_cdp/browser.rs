@@ -208,6 +208,10 @@ pub(crate) struct Inner {
     pub(crate) options: LaunchOptions,
     /// Tab id to the protocol session attached to it.
     sessions: StdMutex<HashMap<String, Arc<str>>>,
+    /// Out-of-process frame id to the protocol session attached to it, for
+    /// the frames a locator entered (a frame's id is its target's id).
+    frame_sessions: StdMutex<HashMap<String, Arc<str>>>,
+
     /// Whether this handle only attached to a browser it did not start (the
     /// host app's, for `connect` and `cdp_url`): closing it detaches and
     /// restores instead of ending the process.
@@ -721,6 +725,8 @@ impl Browser {
                 ws_url,
                 options,
                 sessions: StdMutex::new(HashMap::new()),
+                frame_sessions: StdMutex::new(HashMap::new()),
+
                 attached: AtomicBool::new(false),
                 granted_contexts: StdMutex::new(Vec::new()),
 
@@ -1053,6 +1059,60 @@ impl Browser {
                 ))
             })?;
         self.page(&chosen.id).await
+    }
+
+    /// The protocol session attached to the out-of-process frame `frame_id`,
+    /// attaching on first use, or `None` if there is no such target: the frame
+    /// is in the tab's own process, is gone, or the browser is a channel that
+    /// reaches one page only.
+    pub(super) async fn frame_session(
+        &self,
+        frame_id: &str,
+    ) -> Result<Option<Arc<str>>, SeleniumBaseError> {
+        if self.inner.client.is_channel() {
+            return Ok(None);
+        }
+        let known = locked(&self.inner.frame_sessions).get(frame_id).cloned();
+        if known.is_some() {
+            return Ok(known);
+        }
+        for listed in [false, true] {
+            if listed {
+                // Chrome makes the DevTools host of an out-of-process frame when
+                // something asks for the list of targets, and a frame it has no
+                // host for yet cannot be attached to.
+                self.execute("Target.getTargets", json!({})).await?;
+            }
+            let attached = self
+                .execute(
+                    "Target.attachToTarget",
+                    json!({ "targetId": frame_id, "flatten": true }),
+                )
+                .await;
+            match attached {
+                Ok(attached) => {
+                    let session: Arc<str> = attached["sessionId"]
+                        .as_str()
+                        .ok_or_else(|| {
+                            SeleniumBaseError::cdp_driver("attach returned no sessionId")
+                        })?
+                        .into();
+                    locked(&self.inner.frame_sessions)
+                        .insert(frame_id.to_owned(), Arc::clone(&session));
+                    return Ok(Some(session));
+                }
+                Err(SeleniumBaseError::CdpDriver(message))
+                    if message.contains("No target with given id") => {}
+                Err(other) => return Err(other),
+            }
+        }
+        Ok(None)
+    }
+
+    /// Drops the session remembered for the out-of-process frame `frame_id`,
+    /// so the next use attaches again.
+    pub(super) fn forget_frame_session(&self, frame_id: &str) {
+        locked(&self.inner.frame_sessions).remove(frame_id);
     }
 
     /// The protocol session attached to a tab, attaching if needed.
