@@ -33,7 +33,7 @@ is the user guide: it shows how to attach a set to a browser.
 Every plugin is its own crate. The official ones also ship with seleniumbase-rs
 behind a cargo feature each (`plugin-shield`, `plugin-block-resources`,
 `plugin-crx`, `plugin-fetcher`, `plugin-extractor`, `plugin-batcher`,
-`plugin-crawler`, or `plugins-builtin` for all) and are switched on by name; see
+`plugin-crawler`, `plugin-browser`, or `plugins-builtin` for all) and are switched on by name; see
 [Choosing plugins](/plugins/selecting). The prebuilt `sbrs` and `sbrs-mcp` have all of
 them compiled in: `sbrs --plugin shield open https://example.com`, and
 `sbrs plugin list` shows them. Add the crate of one yourself to use it in code;

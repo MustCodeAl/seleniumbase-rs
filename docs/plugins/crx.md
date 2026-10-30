@@ -79,6 +79,11 @@ The plugin is named `crx`. It requires a Chromium browser that the plugin set
 starts itself (`Requirements::CHROMIUM_ONLY | Requirements::LAUNCH_ONLY`), so it
 cannot be used with a browser attached by `connect_with_plugins`.
 
+It cannot share a set with the built-in `browser` plugin, which also loads
+extensions (from `.zip` and `.crx` files and unpacked folders): `browser`
+declares the conflict, and the check every launch makes refuses the pair. Use
+one of them.
+
 ## Errors
 
 An unreadable file or an archive that cannot be unpacked stops the launch with

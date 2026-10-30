@@ -130,6 +130,7 @@ fn plugin_list_shows_every_builtin_plugin_and_none_is_on_by_default() {
         ("extractor", "core"),
         ("batcher", "environment"),
         ("crawler", "testing"),
+        ("browser", "extension"),
     ] {
         let columns = row(&text, name);
         assert_eq!(columns[1], category, "{name}");
@@ -395,6 +396,40 @@ fn the_webdriver_engine_refuses_the_fetcher_because_it_cannot_host_a_task_or_int
     assert!(!run.output.status.success(), "{}", run.stderr());
     assert!(run.stderr().contains("fetcher"), "{}", run.stderr());
     assert!(run.stderr().contains("WebDriver"), "{}", run.stderr());
+}
+
+#[test]
+fn naming_crx_and_browser_together_is_refused_before_a_browser_starts() {
+    // `browser` declares that it cannot share a set with `crx`. The names build a set; the check
+    // every launch makes refuses the pair, whichever name comes first, and names both plugins.
+    for names in [["crx", "browser"], ["browser", "crx"]] {
+        let run = against_a_fake_server(
+            None,
+            &[],
+            &[
+                "--plugin",
+                names[0],
+                "--plugin",
+                names[1],
+                "--plugin-opt",
+                "crx.files=[]",
+            ],
+            &OPEN,
+        );
+
+        assert!(!run.output.status.success(), "{names:?}: {}", run.stderr());
+        let message = run.stderr();
+        assert!(
+            message.contains("cannot be combined"),
+            "{names:?}: {message}"
+        );
+        assert!(message.contains("`browser`"), "{names:?}: {message}");
+        assert!(message.contains("`crx`"), "{names:?}: {message}");
+        assert!(
+            run.driver.chrome_args().is_none(),
+            "{names:?}: no browser session was started"
+        );
+    }
 }
 
 #[test]

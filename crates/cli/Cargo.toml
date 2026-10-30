@@ -79,6 +79,7 @@ plugin-fetcher = ["plugins", "seleniumbase-rs/plugin-fetcher"]
 plugin-extractor = ["plugins", "seleniumbase-rs/plugin-extractor"]
 plugin-batcher = ["plugins", "seleniumbase-rs/plugin-batcher"]
 plugin-crawler = ["plugins", "seleniumbase-rs/plugin-crawler"]
+plugin-browser = ["plugins", "seleniumbase-rs/plugin-browser"]
 plugins-builtin = ["plugins", "seleniumbase-rs/plugins-builtin"]
 # `sbrs pdf-text` and `sbrs assert-pdf-text`.
 pdf = ["seleniumbase-rs/pdf"]
