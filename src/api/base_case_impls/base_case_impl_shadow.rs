@@ -166,6 +166,8 @@ mod tests_shadow {
                     Reply::Value(json!(true))
                 }
                 ("GET", "/element/go/enabled") => Reply::Value(json!(true)),
+                ("GET", "/element/go/attribute/data-kind") => Reply::Value(json!("primary")),
+
                 _ => Reply::Value(Value::Null),
             }
         })
@@ -238,6 +240,36 @@ mod tests_shadow {
     }
 
     #[tokio::test]
+    async fn an_attribute_check_reads_a_shadow_selector_like_the_others() {
+        let driver = page(|_| "Welcome");
+        let mut sb = driver.base_case().await;
+        sb.set_timeout(1).await.unwrap();
+
+        assert!(sb
+            .is_attribute_present("app-root::shadow #go", "data-kind")
+            .await
+            .unwrap());
+        assert!(!sb
+            .is_attribute_present("app-root::shadow #go", "data-nope")
+            .await
+            .unwrap());
+        assert!(!sb
+            .is_attribute_present("app-root::shadow #nope", "data-kind")
+            .await
+            .unwrap());
+        assert!(!sb
+            .is_attribute_present("p::shadow #go", "data-kind")
+            .await
+            .unwrap());
+        assert!(driver.requests("/execute/sync").iter().all(|request| {
+            request.body["script"]
+                .as_str()
+                .is_some_and(|script| script.contains("shadowRoot"))
+        }));
+    }
+
+    #[tokio::test]
+
     async fn a_host_without_a_shadow_root_is_not_found_and_does_not_hang() {
         let driver = page(|_| "Welcome");
         let mut sb = driver.base_case().await;

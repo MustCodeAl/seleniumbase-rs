@@ -109,6 +109,19 @@ async fn the_regular_methods_read_a_shadow_selector() -> Result<()> {
             sb.is_text_visible("Hello", "app-shell::shadow #greeting")
                 .await?
         );
+        assert!(
+            sb.is_attribute_present("app-shell::shadow #go", "data-kind")
+                .await?
+        );
+        assert!(
+            !sb.is_attribute_present("app-shell::shadow #go", "data-nope")
+                .await?
+        );
+        assert!(
+            !sb.is_attribute_present("app-shell::shadow #nope", "data-kind")
+                .await?
+        );
+
         sb.wait_for_element_visible("app-shell::shadow #go", 2)
             .await?;
         sb.wait_for_element_present("app-shell::shadow #hidden-button", 2)
