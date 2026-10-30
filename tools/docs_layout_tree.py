@@ -89,7 +89,7 @@ LAYOUT = D(
       D("cli", "the library half of sbrs, with no parser: commands.rs, scaffold.rs, scripts/"),
       D("testing", "the rstest sb fixtures; bdd/: Gherkin through rstest-bdd"),
       D("plugins", "reporting and logging plugins"),
-      D("plugin_host", "turns plugin names and options into a PluginSet (feature plugins)"),
+      D("plugin_host", "resolves plugin names to a PluginSet (feature plugins); the plugins are in the seleniumbase-rs-plugins repository"),
       D("config", "settings, runtime config, proxy and ad-block lists"),
       D("core", "test result records and the Allure, JUnit and dashboard writers"),
       D("common", "graceful shutdown, encryption, obfuscation, test ids, the debug prompt"),

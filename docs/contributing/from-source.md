@@ -307,7 +307,7 @@ both, so a plain `cargo build` or `cargo test` at the root covers both.
 <LayoutDir name="cli" note="the library half of sbrs, with no parser: commands.rs, scaffold.rs, scripts/" />
 <LayoutDir name="testing" note="the rstest sb fixtures; bdd/: Gherkin through rstest-bdd" />
 <LayoutDir name="plugins" note="reporting and logging plugins" />
-<LayoutDir name="plugin_host" note="turns plugin names and options into a PluginSet (feature plugins)" />
+<LayoutDir name="plugin_host" note="resolves plugin names to a PluginSet (feature plugins); the plugins are in the seleniumbase-rs-plugins repository" />
 <LayoutDir name="config" note="settings, runtime config, proxy and ad-block lists" />
 <LayoutDir name="core" note="test result records and the Allure, JUnit and dashboard writers" />
 <LayoutDir name="common" note="graceful shutdown, encryption, obfuscation, test ids, the debug prompt" />
