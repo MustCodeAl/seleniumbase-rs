@@ -63,6 +63,16 @@ work, `docs/parity.md` the per-API status).
   `#[case]` test and a pure CDP test, and takes `--gha` (a GitHub Actions workflow in
   `.github/workflows/` of the current folder) and `--bdd` (a Gherkin scenario on the built-in steps).
 
+- **`sbrs mkpres`, `mkchart`, `print`, `translate` and `convert` take Python's arguments.**
+  `mkpres FILE` and `mkchart FILE` write a Rust test on the rstest `sb` fixture that builds the
+  three-slide deck or the chart slide with the presentation and chart API (they wrote an HTML
+  file before, and `--file` is gone), with `--en`, `--zh`, ... for the text of the slides and
+  `--force` to replace a file. `print FILE` takes the file as an argument, shows it unchanged
+  and numbers the lines with `-n`. `translate FILE --es` takes the language as Python's flag
+  (the positional language is gone) and `-p`, `-o`, `-c` and `-n`. New: `convert FILE.py` turns
+  a Selenium IDE export into `FILE_SB.rs` and keeps the original.
+
+
 - **The highlight family and Demo Mode work as in Python.** `highlight`, `highlight_click`,
   `highlight_type` (now through `update_text`), `highlight_if_visible`, `highlight_elements` and
   `flash` return call builders with Python's keywords (`.loops(2).scroll(false)`; plain `.await`
@@ -162,6 +172,36 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- **Rules for writing reliable browser tests with the crate, for people and for AI coding
+  assistants.** `AGENTS.md` gains the section "Writing browser tests with seleniumbase-rs": fifteen
+  rules (the `sb` and `sb_cdp` fixtures own the browser, imports only from `seleniumbase_rs`, stable
+  selectors, no fixed sleeps, retrying assertions, scoped queries, no stale handles, cleanup on every
+  path, bounded evidence in `latest_logs/<test id>/`, one `BrowserPool` lease or `BrowserContext` per
+  concurrent flow, headless through `SB_HEADLESS`, a body safe to run twice, raw protocol calls in one
+  helper, tests of page-driving code on `Browser::new_mocked()`, credentials from the run). They adapt
+  the checklist that thirtyfour publishes for generated tests to this crate's API. The page
+  [Reliable Browser Tests](docs/tutorials/reliable_tests.md) explains each rule with a do and an
+  avoid, and lists what the crate cannot enforce yet (no strict single match, no scoped query on
+  `BaseCase`, no hard time limit outside the fixtures). `CLAUDE.md` points to both.
+
+- **A project that uses `seleniumbase-rs` lists `seleniumbase-rs` and imports nothing else.** The
+  crate re-exports what its API takes, returns or expands to: `seleniumbase_rs::drivers` (the
+  WebDriver types: `By`, `WebElement`, `DesiredCapabilities`, `Key`, `Cookie`, `NetworkConditions`,
+  ...; `get_shadow_root`, `find_element` and `get_cookie` are written with them), `seleniumbase_rs::json`
+  (`json!`, `Value`, `from_value`, ...), `seleniumbase_rs::tokio` (the runtime, so `#[tokio::main]` and
+  `#[tokio::test]` need no `tokio` line), `seleniumbase_rs::testing::{rstest, fixture}`,
+  `seleniumbase_rs::testing::bdd::{given, when, then, scenario, scenarios, skip}` and
+  `seleniumbase_rs::plugins::observer::async_trait`. The attribute macros expand to paths that start
+  with `tokio::` and `rstest::`, which resolve to the imports. Gherkin tests still list
+  `rstest-bdd` in `Cargo.toml` (its macros read the manifest and take no crate path), but no file
+  names it. The code that `sbrs mkfile`, `sbrs mkdir`, the recorder and the Python and Playwright
+  importers write, the README, the examples and the documentation use these paths; the README that
+  `sbrs mkdir` writes lists `seleniumbase-rs` alone (plus `rstest-bdd` for Gherkin). The new crate
+  `crates/own-imports` proves it: its manifest lists only `seleniumbase-rs` and `rstest-bdd`, its
+  tests import nothing else, and a doctest compiles every golden file there. The page
+  [Imports and dependencies](docs/imports.md) lists the lines that stay and why, and
+  `tests/docs_current.rs` fails when a page gains a `use thirtyfour`, `use rstest`, `use rstest_bdd`,
+  `use serde_json`, `use tokio` or `use async_trait` outside the pages that must name them.
 - **A fingerprint's stealth for a webview an app embeds, with no debugging port.**
   `sb_cdp::StealthPlan::new(&fingerprint)` holds the init script (`init_script()`) and the
   ordered protocol overrides (`overrides()`; `commands()` is both, as
@@ -172,8 +212,6 @@ work, `docs/parity.md` the per-API status).
   wait for each answer, and it opens no tabs. `Page::apply_fingerprint` now asks for the tab's
   browser context only when the fingerprint grants a permission. See
   [the Tauri guide](docs/ecosystem/tauri.md#stealth-inside-the-app-with-no-debugging-port).
-
-
 - **`solve_captcha` finds the widget wherever it is, waits for it, presses like a hand and
   checks the result.** The widget is looked for in the page, its open shadow roots and the frames
   it may read, by the id and title Cloudflare gives its frame as well as by address; a page that

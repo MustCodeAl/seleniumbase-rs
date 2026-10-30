@@ -34,7 +34,7 @@ is headless, reads no environment variables, and starts a chromedriver for you
 when none is running at the default WebDriver URL.
 
 ```rust,no_run
-use seleniumbase_rs::{BaseCase, BrowserConfig, DriverMode};
+use seleniumbase_rs::{tokio, BaseCase, BrowserConfig, DriverMode};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -190,7 +190,7 @@ page) and has given back, and `BaseCase::quit`, `run_browser_test` or dropping
 the case gives it back open instead of closing it:
 
 ```rust,no_run
-use seleniumbase_rs::{run_browser_test, BrowserConfig};
+use seleniumbase_rs::{run_browser_test, tokio, BrowserConfig};
 
 #[tokio::test]
 async fn login_page_loads() -> seleniumbase_rs::Result<()> {

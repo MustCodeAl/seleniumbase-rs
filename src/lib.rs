@@ -51,8 +51,10 @@ pub mod cli;
 pub mod common;
 pub mod config;
 pub mod core;
+pub mod drivers;
 pub mod error;
 pub mod js_code;
+pub mod json;
 pub mod macros;
 // The Microsoft Pragmatic Rust Guidelines lint set, held to for this module.
 #[cfg(feature = "mcp-server")]
@@ -169,6 +171,14 @@ pub mod utils;
     unused_lifetimes
 )]
 pub mod visual;
+
+/// The Tokio runtime this crate runs on, under its own name, so a program or a test needs
+/// no `tokio` line in its manifest: `use seleniumbase_rs::tokio;` and then
+/// `#[tokio::main]` or `#[tokio::test]`. The attribute macros expand to paths that start
+/// with `tokio::`, which resolve to this import. It has the features this crate
+/// enables (`macros`, `rt-multi-thread`, `time`, `signal`, `sync`, `process`, `net`,
+/// `io-util` and `fs`); a program that needs another one lists `tokio` itself.
+pub use tokio;
 
 pub use api::base_case::{BaseCase, CookieExpiry, DriverId};
 pub use api::chart::{Chart, ChartType};

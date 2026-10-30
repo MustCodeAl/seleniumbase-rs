@@ -2770,8 +2770,48 @@ const completionSpec: Fig.Spec = {
       description: "Write the actions of a JSON scenario in another language.",
       options: [
         {
+          name: "--en",
+          description: "English strings",
+        },
+        {
+          name: "--zh",
+          description: "Chinese strings",
+        },
+        {
+          name: "--nl",
+          description: "Dutch strings",
+        },
+        {
+          name: "--fr",
+          description: "French strings",
+        },
+        {
+          name: "--it",
+          description: "Italian strings",
+        },
+        {
+          name: "--ja",
+          description: "Japanese strings",
+        },
+        {
+          name: "--ko",
+          description: "Korean strings",
+        },
+        {
+          name: "--pt",
+          description: "Portuguese strings",
+        },
+        {
+          name: "--ru",
+          description: "Russian strings",
+        },
+        {
+          name: "--es",
+          description: "Spanish strings",
+        },
+        {
           name: ["-p", "--print"],
-          description: "Print the translation and write nothing (the default).",
+          description: "Print the translation (the default when no other action is given). With -o or -c it is printed as well as written.",
         },
         {
           name: ["-o", "--overwrite"],
@@ -2780,6 +2820,10 @@ const completionSpec: Fig.Spec = {
         {
           name: ["-c", "--copy"],
           description: "Write the translation to a new file next to it, such as `login_es.json`.",
+        },
+        {
+          name: ["-n", "--line-numbers"],
+          description: "Put the line number in front of every printed line.",
         },
         {
           name: ["-h", "--help"],
@@ -2791,11 +2835,6 @@ const completionSpec: Fig.Spec = {
           name: "file",
           description: "The scenario file.",
           template: "filepaths",
-        },
-        {
-          name: "language",
-          description: "The language: a code (en, zh, nl, fr, it, ja, ko, pt, ru, es) or its English name.",
-          suggestions: ["en", "zh", "nl", "fr", "it", "ja", "ko", "pt", "ru", "es"],
         },
       ],
     },
@@ -3018,20 +3057,22 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "print",
-      description: "Print a file.",
+      description: "Print a file, with a line number in front of every line if you ask for it.",
       options: [
         {
-          name: "--file",
-          description: "File path to print",
-          isRequired: true,
-          args: {
-            name: "file",
-            template: "filepaths",
-          },
+          name: ["-n", "--line-numbers"],
+          description: "Put the line number in front of every line.",
         },
         {
           name: ["-h", "--help"],
           description: "Print help",
+        },
+      ],
+      args: [
+        {
+          name: "file",
+          description: "File to print.",
+          template: "filepaths",
         },
       ],
     },
@@ -3047,39 +3088,144 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "mkpres",
-      description: "Create an HTML presentation.",
+      description: "Create a test that builds a slide deck.",
       options: [
         {
-          name: "--file",
-          description: "Output HTML presentation path",
-          isRequired: true,
-          args: {
-            name: "file",
-            template: "filepaths",
-          },
+          name: "--force",
+          description: "Replace the file if it already exists.",
+        },
+        {
+          name: "--en",
+          description: "English strings",
+        },
+        {
+          name: "--zh",
+          description: "Chinese strings",
+        },
+        {
+          name: "--nl",
+          description: "Dutch strings",
+        },
+        {
+          name: "--fr",
+          description: "French strings",
+        },
+        {
+          name: "--it",
+          description: "Italian strings",
+        },
+        {
+          name: "--ja",
+          description: "Japanese strings",
+        },
+        {
+          name: "--ko",
+          description: "Korean strings",
+        },
+        {
+          name: "--pt",
+          description: "Portuguese strings",
+        },
+        {
+          name: "--ru",
+          description: "Russian strings",
+        },
+        {
+          name: "--es",
+          description: "Spanish strings",
         },
         {
           name: ["-h", "--help"],
           description: "Print help",
         },
       ],
+      args: [
+        {
+          name: "file",
+          description: "File to create, for example `tests/deck.rs`.",
+          template: "filepaths",
+        },
+      ],
     },
     {
       name: "mkchart",
-      description: "Create an HTML chart.",
+      description: "Create a test that shows a chart on a slide.",
       options: [
         {
-          name: "--file",
-          description: "Output HTML chart path",
-          isRequired: true,
-          args: {
-            name: "file",
-            template: "filepaths",
-          },
+          name: "--force",
+          description: "Replace the file if it already exists.",
+        },
+        {
+          name: "--en",
+          description: "English strings",
+        },
+        {
+          name: "--zh",
+          description: "Chinese strings",
+        },
+        {
+          name: "--nl",
+          description: "Dutch strings",
+        },
+        {
+          name: "--fr",
+          description: "French strings",
+        },
+        {
+          name: "--it",
+          description: "Italian strings",
+        },
+        {
+          name: "--ja",
+          description: "Japanese strings",
+        },
+        {
+          name: "--ko",
+          description: "Korean strings",
+        },
+        {
+          name: "--pt",
+          description: "Portuguese strings",
+        },
+        {
+          name: "--ru",
+          description: "Russian strings",
+        },
+        {
+          name: "--es",
+          description: "Spanish strings",
         },
         {
           name: ["-h", "--help"],
           description: "Print help",
+        },
+      ],
+      args: [
+        {
+          name: "file",
+          description: "File to create, for example `tests/chart.rs`.",
+          template: "filepaths",
+        },
+      ],
+    },
+    {
+      name: "convert",
+      description: "Convert an exported Selenium WebDriver test (Python) into a Rust test.",
+      options: [
+        {
+          name: "--force",
+          description: "Replace the converted file if it already exists.",
+        },
+        {
+          name: ["-h", "--help"],
+          description: "Print help",
+        },
+      ],
+      args: [
+        {
+          name: "file",
+          description: "The exported Selenium WebDriver test (a Selenium IDE or Katalon Recorder export).",
+          template: "filepaths",
         },
       ],
     },

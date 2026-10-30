@@ -153,7 +153,7 @@ Or apply them through `StealthOptions`:
 ```rust
 use seleniumbase_rs::evasion::options::StealthOptions;
 use seleniumbase_rs::engine_spoofing_args;
-use thirtyfour::{DesiredCapabilities, BrowserCapabilitiesHelper};
+use seleniumbase_rs::drivers::{BrowserCapabilitiesHelper, DesiredCapabilities};
 
 # fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 let mut opts = StealthOptions::default();

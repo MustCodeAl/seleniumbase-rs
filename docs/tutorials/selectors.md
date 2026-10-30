@@ -4,7 +4,7 @@ sidebarTitle: "Selectors"
 ---
 
 Selectors are the addresses your tests use to find elements on the page.
-`seleniumbase-rs` accepts several formats and converts them into `thirtyfour::By`
+`seleniumbase-rs` accepts several formats and converts them into `drivers::By`
 locators automatically. Choosing the right selector is one of the most important
 things you can do for test maintainability.
 
@@ -136,8 +136,10 @@ sb.shadow_click("app-shell ::shadow nav-menu ::shadow a[href='/settings']").awai
 For full control, fetch a shadow root as a `WebElement` and search inside it:
 
 ```rust
+use seleniumbase_rs::drivers::By;
+
 let root = sb.get_shadow_root("my-app").await?;
-let button = root.find(thirtyfour::prelude::By::Css("button")).await?;
+let button = root.find(By::Css("button")).await?;
 button.click().await?;
 ```
 

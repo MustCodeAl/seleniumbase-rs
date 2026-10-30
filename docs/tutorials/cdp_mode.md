@@ -44,7 +44,7 @@ Summary for AI exports: `DriverMode::Cdp` still uses WebDriver for the session a
 Set the driver mode to `Cdp`:
 
 ```rust
-use seleniumbase_rs::{BaseCase, BrowserConfig, DriverMode};
+use seleniumbase_rs::{tokio, BaseCase, BrowserConfig, DriverMode};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -143,18 +143,18 @@ For operations not covered by the helpers, send raw CDP commands through the
 underlying session:
 
 ```rust
-use serde_json::json;
+use seleniumbase_rs::json::{json, to_string_pretty, Value};
 
 sb.activate_cdp_mode().await?;
 
-let version: serde_json::Value = sb.execute_cdp("Browser.getVersion").await?;
-println!("{}", serde_json::to_string_pretty(&version)?);
+let version: Value = sb.execute_cdp("Browser.getVersion").await?;
+println!("{}", to_string_pretty(&version)?);
 
 sb.execute_cdp_with_params("Network.setCacheDisabled", json!({"cacheDisabled": true})).await?;
 ```
 
 `execute_cdp` sends a command with no parameters. `execute_cdp_with_params`
-accepts a `serde_json::Value` object of parameters.
+accepts a JSON object of parameters (a `seleniumbase_rs::json::Value`).
 
 ## Common raw CDP commands
 
@@ -189,6 +189,7 @@ sequenceDiagram
 ```rust
 use std::collections::HashMap;
 use seleniumbase_rs::evasion::reactor::CdpReactor;
+use seleniumbase_rs::tokio;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -213,7 +214,7 @@ overrides. It returns a reactor handle you can stop later with `stop()`.
 Throttle the connection through CDP to simulate slow networks:
 
 ```rust
-use thirtyfour::extensions::cdp::NetworkConditions;
+use seleniumbase_rs::drivers::NetworkConditions;
 
 let mut conditions = NetworkConditions::new();
 conditions.offline = false;

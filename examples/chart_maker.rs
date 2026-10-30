@@ -18,7 +18,7 @@
 use std::fs;
 
 use seleniumbase_rs::artifacts::ensure_latest_logs_dir;
-use seleniumbase_rs::{BaseCase, BrowserConfig, Result, SeleniumBaseError};
+use seleniumbase_rs::{tokio, BaseCase, BrowserConfig, Result, SeleniumBaseError};
 
 #[tokio::main]
 async fn main() -> Result<()> {

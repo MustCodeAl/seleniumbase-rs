@@ -34,7 +34,6 @@ use seleniumbase_rs::utilities::grid_server::{default_state_dir, GridRole};
 use seleniumbase_rs::utilities::importer::{
     import_playwright, import_puppeteer, ScriptImportOptions, ScriptLanguage,
 };
-use seleniumbase_rs::utils::translate::Language;
 use seleniumbase_rs::{
     import_python, init_tracing_from_runtime, BaseCase, Browser, ChromeBinaryPatcher,
     ChromedriverPatcher, DriverMode, EnginePatch, ImportOptions, ImportSeverity, PythonSource,
@@ -1452,35 +1451,17 @@ enum Commands {
     /// because a scenario can be read in any of the languages. Python
     /// SeleniumBase translates Python test files; a Rust test is compiled code,
     /// so this translates the portable JSON scenario instead.
+    ///
+    /// The language is a flag, `--en`, `--zh`, `--nl`, `--fr`, `--it`, `--ja`, `--ko`,
+    /// `--pt`, `--ru` or `--es` (also by name: `--spanish`). The action is `-p`/`--print`
+    /// (the default), `-o`/`--overwrite` or `-c`/`--copy`; `-p` may go with one of the other
+    /// two. `-n` numbers the printed lines.
     #[usage(
         help_heading = "Files and generators",
-        example = "sbrs translate scenario.json zh --print"
+        example = "sbrs translate scenario.json --zh -p -n",
+        example = "sbrs translate scenario.json --es --copy"
     )]
-    Translate {
-        /// The scenario file.
-        #[usage(value_hint = usage::ValueHint::FilePath, extensions("json"))]
-        file: PathBuf,
-        /// The language: a code (en, zh, nl, fr, it, ja, ko, pt, ru, es) or its
-        /// English name.
-        #[usage(
-            choices("en", "zh", "nl", "fr", "it", "ja", "ko", "pt", "ru", "es"),
-            choices_strict = false
-        )]
-        language: Language,
-        /// Print the translation and write nothing (the default).
-        #[usage(short, long, bool_value, conflicts("--overwrite", "--copy"))]
-        #[expect(
-            dead_code,
-            reason = "printing is the default; the flag only conflicts with the others"
-        )]
-        print: bool,
-        /// Replace the file with the translation.
-        #[usage(short, long, bool_value, conflicts("--copy"))]
-        overwrite: bool,
-        /// Write the translation to a new file next to it, such as `login_es.json`.
-        #[usage(short, long, bool_value)]
-        copy: bool,
-    },
+    Translate(args::content::TranslateArgs),
     /// Create a folder with a runnable browser-test suite.
     ///
     /// Names are relative to the current directory and use letters, digits, `_`,
@@ -1607,36 +1588,53 @@ enum Commands {
         #[usage(long, bool_value, conflicts("path"))]
         new: bool,
     },
-    /// Print a file.
+    /// Print a file, with a line number in front of every line if you ask for it.
+    ///
+    /// The text is shown as it is: there is no syntax highlighting (Python's `sbase print`
+    /// has it), and bytes that are not UTF-8 are shown as U+FFFD.
     #[usage(
         help_heading = "Files and generators",
-        example = "sbrs print --file tests/login.rs"
+        example = "sbrs print tests/login.rs -n"
     )]
-    Print {
-        #[usage(long, value_hint = usage::ValueHint::FilePath, help = "File path to print")]
-        file: String,
-    },
+    Print(args::content::PrintArgs),
     /// Objectify a test recording.
     #[usage(help_heading = "Files and generators", example = "sbrs objectify")]
     Objectify,
-    /// Create an HTML presentation.
+    /// Create a test that builds a slide deck.
+    ///
+    /// The name follows the same rules as `mkfile`; `.rs` is added when missing. The test
+    /// uses the rstest `sb` fixture and builds three slides with `create_presentation`,
+    /// `add_slide` and `begin_presentation` (theme `serif`, transition `slide`). A language
+    /// flag (`--en`, `--zh`, `--nl`, `--fr`, `--it`, `--ja`, `--ko`, `--pt`, `--ru`, `--es`)
+    /// writes the text of the slides in that language. An existing file is never overwritten
+    /// unless `--force` is given.
     #[usage(
         help_heading = "Files and generators",
-        example = "sbrs mkpres --file deck.html"
+        example = "sbrs mkpres tests/deck.rs --es"
     )]
-    Mkpres {
-        #[usage(long, value_hint = usage::ValueHint::FilePath, extensions("html", "htm"), help = "Output HTML presentation path")]
-        file: String,
-    },
-    /// Create an HTML chart.
+    Mkpres(args::content::MkpresArgs),
+    /// Create a test that shows a chart on a slide.
+    ///
+    /// As `mkpres`, with a pie chart made by `create_pie_chart` and `add_data_point` and put
+    /// on a slide with `extract_chart` (theme `sky`, transition `slide`).
     #[usage(
         help_heading = "Files and generators",
-        example = "sbrs mkchart --file chart.html"
+        example = "sbrs mkchart tests/chart.rs --ja"
     )]
-    Mkchart {
-        #[usage(long, value_hint = usage::ValueHint::FilePath, extensions("html", "htm"), help = "Output HTML chart path")]
-        file: String,
-    },
+    Mkchart(args::content::MkchartArgs),
+    /// Convert an exported Selenium WebDriver test (Python) into a Rust test.
+    ///
+    /// Python's `sbase convert` for a Selenium IDE or Katalon Recorder export: reads FILE.py
+    /// as Selenium WebDriver code and writes FILE_SB.rs next to it. The original is kept, and
+    /// an existing FILE_SB.rs is never replaced unless `--force` is given. What could not be
+    /// converted stays as a `TODO` in the file and is listed on standard error; if a
+    /// statement could not be read at all the exit status is 1. `import-python` converts
+    /// any Python source and writes where you say.
+    #[usage(
+        help_heading = "Files and generators",
+        example = "sbrs convert login.py"
+    )]
+    Convert(args::content::ConvertArgs),
     /// Create a new test file with the Recorder: record your actions in a browser, then save them as a test.
     ///
     /// Python's `sbase mkrec` (also `codegen` and `record`). Starts a browser in Recorder
@@ -2048,17 +2046,18 @@ impl Commands {
             | Self::GridNode(_)
             | Self::Proxy(_)
             | Self::Download(_)
-            | Self::Translate { .. }
+            | Self::Translate(_)
+            | Self::Convert(_)
             | Self::Mkdir(_)
             | Self::Mkfile(_)
             | Self::Commander { .. }
             | Self::Recorder
             | Self::Caseplans { .. }
             | Self::BehaveGui { .. }
-            | Self::Print { .. }
+            | Self::Print(_)
             | Self::Objectify
-            | Self::Mkpres { .. }
-            | Self::Mkchart { .. }
+            | Self::Mkpres(_)
+            | Self::Mkchart(_)
             | Self::Completions { .. }
             | Self::ImportPython { .. }
             | Self::ImportPlaywright { .. }
@@ -2418,31 +2417,6 @@ async fn run_grid(role: GridRole, args: &GridArgs) -> Result<(), Box<dyn std::er
     command.extra_args = args.extra_args.clone();
     for line in sb_grid::run(&command).await? {
         println!("{line}");
-    }
-    Ok(())
-}
-
-/// Runs `translate` and prints what happened: the scenario for a print, the
-/// file written otherwise, and a note on the actions it did not know.
-fn run_translate(
-    command: &sb_translate::TranslateCommand,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let report = sb_translate::run(command)?;
-    match &report.written {
-        Some(path) => println!(
-            "Wrote {} ({} steps in {})",
-            path.display(),
-            report.translated,
-            command.language
-        ),
-        None => print!("{}", report.text),
-    }
-    if !report.unknown.is_empty() {
-        eprintln!(
-            "sbrs: left {} unknown action(s) as they were: {}",
-            report.unknown.len(),
-            report.unknown.join(", ")
-        );
     }
     Ok(())
 }
@@ -3390,26 +3364,27 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             );
             return Ok(());
         }
-        Commands::Translate {
-            file,
-            language,
-            overwrite,
-            copy,
-            ..
-        } => {
-            let action = if *overwrite {
-                sb_translate::TranslateAction::Overwrite
-            } else if *copy {
-                sb_translate::TranslateAction::Copy
-            } else {
-                sb_translate::TranslateAction::Print
-            };
-            return run_translate(&sb_translate::TranslateCommand {
-                file: file.clone(),
-                language: *language,
-                action,
-            });
+        Commands::Mkpres(mkpres) => {
+            report_created(
+                mkpres
+                    .presentation_file()
+                    .and_then(|deck| deck.create(&here(mkpres.force)))
+                    .map(|path| vec![path]),
+            );
+            return Ok(());
         }
+        Commands::Mkchart(mkchart) => {
+            report_created(
+                mkchart
+                    .chart_file()
+                    .and_then(|chart| chart.create(&here(mkchart.force)))
+                    .map(|path| vec![path]),
+            );
+            return Ok(());
+        }
+        Commands::Translate(translate) => return translate.run(),
+        Commands::Print(print) => return print.run(),
+        Commands::Convert(convert) => return convert.run(),
         Commands::GridHub(grid) => return run_grid(GridRole::Hub, grid).await,
         Commands::GridNode(grid) => return run_grid(GridRole::Node, grid).await,
         Commands::Proxy(proxy) => return proxy::run(proxy).await,
@@ -4109,7 +4084,11 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::Mkdir(_)
         | Commands::Mkfile(_)
-        | Commands::Translate { .. }
+        | Commands::Mkpres(_)
+        | Commands::Mkchart(_)
+        | Commands::Translate(_)
+        | Commands::Print(_)
+        | Commands::Convert(_)
         | Commands::GridHub(_)
         | Commands::GridNode(_)
         | Commands::Proxy(_)
@@ -4165,24 +4144,10 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
         #[cfg(not(feature = "tui"))]
         Commands::BehaveGui { .. } => no_terminal_ui(),
-        Commands::Print { file } => {
-            let content =
-                sb_print::print_file(&file).map_err(|e| context(&format!("read {file}"), e))?;
-            println!("{}", content);
-        }
         Commands::Objectify => {
             let path = sb_objectify::objectify_page()
                 .map_err(|e| context("generate the page object", e))?;
             println!("Generated {}", path.display());
-        }
-        Commands::Mkpres { file } => {
-            let path = sb_mkpres::make_presentation(&file)
-                .map_err(|e| context("create the presentation", e))?;
-            println!("Created presentation at {}", path.display());
-        }
-        Commands::Mkchart { file } => {
-            let path = sb_mkchart::make_chart(&file).map_err(|e| context("create the chart", e))?;
-            println!("Created chart at {}", path.display());
         }
         Commands::Mkrec {
             file,

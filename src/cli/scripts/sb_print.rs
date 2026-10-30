@@ -21,6 +21,30 @@ pub fn print_file(filename: &str) -> std::io::Result<String> {
     Ok(String::from_utf8_lossy(&bytes).into_owned())
 }
 
+/// `text` with its line number in front of every line, as `sbrs print -n` shows it.
+///
+/// The numbers start at 1 and are right-aligned to the width of the last one, then a
+/// space and the line. Every line of the result ends with a newline, also the last one,
+/// and `\r\n` becomes `\n`. Text with no line gives an empty string.
+///
+/// ```
+/// use seleniumbase_rs::cli::scripts::sb_print::number_lines;
+///
+/// assert_eq!(number_lines("a\nb\n"), "1 a\n2 b\n");
+/// let ten: String = (1..=10).map(|n| format!("line {n}\n")).collect();
+/// assert!(number_lines(&ten).starts_with(" 1 line 1\n 2 line 2\n"));
+/// assert!(number_lines(&ten).ends_with("10 line 10\n"));
+/// ```
+#[must_use]
+pub fn number_lines(text: &str) -> String {
+    let width = text.lines().count().to_string().len();
+    let mut numbered = String::with_capacity(text.len() + text.lines().count() * (width + 1));
+    for (index, line) in text.lines().enumerate() {
+        numbered.push_str(&format!("{:>width$} {line}\n", index + 1));
+    }
+    numbered
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -45,5 +69,22 @@ mod tests {
         let error = print_file(missing.to_str().unwrap()).unwrap_err();
 
         assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
+    }
+
+    #[test]
+    fn numbers_start_at_one_and_line_up_to_the_width_of_the_last() {
+        assert_eq!(number_lines("a\nb\n"), "1 a\n2 b\n");
+        let hundred: String = (1..=100).map(|n| format!("l{n}\n")).collect();
+        let numbered = number_lines(&hundred);
+        assert!(numbered.starts_with("  1 l1\n  2 l2\n"), "{numbered}");
+        assert!(numbered.contains("\n 10 l10\n"), "{numbered}");
+        assert!(numbered.ends_with("100 l100\n"), "{numbered}");
+    }
+
+    #[test]
+    fn a_missing_last_newline_is_added_and_empty_text_has_no_lines() {
+        assert_eq!(number_lines("only"), "1 only\n");
+        assert_eq!(number_lines(""), "");
+        assert_eq!(number_lines("a\r\n\r\nb"), "1 a\n2 \n3 b\n");
     }
 }

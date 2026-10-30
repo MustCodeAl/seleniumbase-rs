@@ -885,8 +885,9 @@ fn python_string(input: &str) -> Option<String> {
 }
 
 fn render_test(test_name: &str, actions: &[Action]) -> String {
-    let mut output =
-        String::from("use seleniumbase_rs::{BrowserConfig, run_browser_test};\n\n#[tokio::test]\n");
+    let mut output = String::from(
+        "use seleniumbase_rs::{run_browser_test, tokio, BrowserConfig};\n\n#[tokio::test]\n",
+    );
     output.push_str(&format!(
         "async fn {}() -> seleniumbase_rs::Result<()> {{\n",
         rust_identifier(test_name)

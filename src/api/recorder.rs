@@ -192,7 +192,7 @@ impl ActionRecorder {
     /// the program is never silent.
     pub fn to_rust_script(&self) -> String {
         let mut out = String::from(
-            "use seleniumbase_rs::{BaseCase, BrowserConfig};\n\n#[tokio::main]\nasync fn main() -> Result<(), Box<dyn std::error::Error>> {\n    let mut sb = BaseCase::new(BrowserConfig::default()).await?;\n",
+            "use seleniumbase_rs::{tokio, BaseCase, BrowserConfig};\n\n#[tokio::main]\nasync fn main() -> Result<(), Box<dyn std::error::Error>> {\n    let mut sb = BaseCase::new(BrowserConfig::default()).await?;\n",
         );
         self.write_actions(&mut out);
         out.push_str("    sb.quit().await?;\n    Ok(())\n}\n");
@@ -205,8 +205,9 @@ impl ActionRecorder {
     /// generated.
     pub fn to_rust_test(&self, test_name: &str) -> String {
         let fn_name = rust_identifier(test_name);
-        let mut out =
-            String::from("use seleniumbase_rs::{BaseCase, BrowserConfig};\n\n#[tokio::test]\n");
+        let mut out = String::from(
+            "use seleniumbase_rs::{tokio, BaseCase, BrowserConfig};\n\n#[tokio::test]\n",
+        );
         out.push_str(&format!(
             "async fn {}() -> Result<(), Box<dyn std::error::Error>> {{\n    let mut sb = BaseCase::new(BrowserConfig::default()).await?;\n",
             fn_name
@@ -629,10 +630,12 @@ pub const SECRET_PLACEHOLDER: &str = "{{SB_RECORDED_SECRET}}";
 pub const SECRET_VARIABLE: &str = "SB_RECORDED_SECRET";
 
 /// The lines every generated rstest test starts with: the `rstest` attribute
-/// and the `sb` fixture with its handle. They are in one place so that a
+/// the `sb` fixture with its handle and the Tokio runtime behind `#[tokio::test]`,
+/// all imported from `seleniumbase_rs` so a project needs no `rstest` or `tokio`
+/// line in its manifest. They are in one place so that a
 /// change of the fixture's path is a change here.
 pub const RSTEST_PRELUDE: &str =
-    "use rstest::rstest;\nuse seleniumbase_rs::testing::{sb, Sb};\nuse seleniumbase_rs::Result;\n";
+    "use seleniumbase_rs::testing::{rstest, sb, Sb};\nuse seleniumbase_rs::{tokio, Result};\n";
 
 /// The password a recording stands for, read from `SB_RECORDED_SECRET`
 /// ([`SECRET_VARIABLE`]): what a generated test types in place of a password
@@ -957,6 +960,18 @@ fn is_yaml_path(path: &Path) -> bool {
         .and_then(|ext| ext.to_str())
         .is_some_and(|ext| ext.eq_ignore_ascii_case("yaml") || ext.eq_ignore_ascii_case("yml"))
 }
+
+// Compile check. `cargo test --doc --features testing` builds the rstest test that
+// `to_rstest_test` writes (`tests/golden_rust/rstest_recording.rs`, kept equal to the
+// generator's output by `tests/recorder_rstest_compiles.rs`) as a user's crate would,
+// and does not run it: it would start a browser.
+#[cfg(all(doctest, feature = "testing"))]
+#[doc = concat!(
+    "```no_run,test_harness\n",
+    include_str!("../../tests/golden_rust/rstest_recording.rs"),
+    "\nfn main() {}\n```"
+)]
+struct RstestRecordingCompiles;
 
 #[cfg(test)]
 mod tests {

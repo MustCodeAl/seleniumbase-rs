@@ -198,7 +198,7 @@ class LoginTest(BaseCase):
 ```
 
 ```rust tests/login_test.rs
-use seleniumbase_rs::{BrowserConfig, run_browser_test};
+use seleniumbase_rs::{run_browser_test, tokio, BrowserConfig};
 
 #[tokio::test]
 async fn login_test() -> seleniumbase_rs::Result<()> {

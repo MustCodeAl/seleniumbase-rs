@@ -12,7 +12,7 @@ happened.
 
 <Visibility for="agents">
 
-Summary for AI exports: enable the feature `testing` and add `rstest` and `tokio` (features `macros`, `rt`) as dev-dependencies. Write `#[rstest] #[tokio::test] async fn name(sb: Sb) -> Result<()> { sb.run(async |sb| { ... }).await }` with `use seleniumbase_rs::testing::{sb, Sb}`. The body is an async closure over `&mut BaseCase`; it may run again (reruns), so it must not consume what it captures. Settings come from the settings file, `SB_SETTINGS_FILE` and `SB_*` variables. Test data is read with `sb.data()`, `sb.env()`, `sb.account()`, `sb.var1()`, `sb.variables()`. A failure leaves `latest_logs/<test id>/screenshot.png`, `page_source.html` and `basic_test_info.txt`. Reports are off until asked: `sbrs test --dashboard --html PATH --junit-xml PATH --alluredir DIR` (or `SB_DASHBOARD`, `SB_HTML`, `SB_JUNIT_XML`, `SB_ALLURE_DIR`) writes `dashboard.html`, an HTML report, JUnit XML and Allure results (the Allure results need the feature `allure`); a plain `cargo test` with one of them on leaves the dashboard live until `sbrs report finish`.
+Summary for AI exports: enable the feature `testing`; it is the only dev-dependency, because it re-exports the `rstest` attribute and the Tokio runtime. Write `#[rstest] #[tokio::test] async fn name(sb: Sb) -> Result<()> { sb.run(async |sb| { ... }).await }` with `use seleniumbase_rs::testing::{rstest, sb, Sb}` and `use seleniumbase_rs::{tokio, Result}`. The body is an async closure over `&mut BaseCase`; it may run again (reruns), so it must not consume what it captures. Settings come from the settings file, `SB_SETTINGS_FILE` and `SB_*` variables. Test data is read with `sb.data()`, `sb.env()`, `sb.account()`, `sb.var1()`, `sb.variables()`. A failure leaves `latest_logs/<test id>/screenshot.png`, `page_source.html` and `basic_test_info.txt`. Reports are off until asked: `sbrs test --dashboard --html PATH --junit-xml PATH --alluredir DIR` (or `SB_DASHBOARD`, `SB_HTML`, `SB_JUNIT_XML`, `SB_ALLURE_DIR`) writes `dashboard.html`, an HTML report, JUnit XML and Allure results (the Allure results need the feature `allure`); a plain `cargo test` with one of them on leaves the dashboard live until `sbrs report finish`.
 
 </Visibility>
 
@@ -21,23 +21,26 @@ Summary for AI exports: enable the feature `testing` and add `rstest` and `tokio
 ```toml
 [dev-dependencies]
 seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", features = ["testing"] }
-rstest = "0.26"
-tokio = { version = "1", features = ["macros", "rt"] }
 ```
+
+That one line is the whole list. `seleniumbase_rs::testing::rstest` is the `#[rstest]`
+attribute and `seleniumbase_rs::tokio` the Tokio runtime behind `#[tokio::test]`;
+both attributes expand to paths that start with `rstest::` and `tokio::`, which resolve to
+those two imports. [Imports and dependencies](/imports) has the full list.
 
 ## A test
 
 ```rust
-use rstest::rstest;
-use seleniumbase_rs::testing::{sb, Sb};
-use seleniumbase_rs::Result;
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
 
 #[rstest]
 #[tokio::test]
 async fn valid_login(sb: Sb) -> Result<()> {
     sb.run(async |sb| {
         sb.open("https://example.com/login").await?;
-        sb.type_text("#user", sb.account().unwrap_or("demo")).await?;
+        let user = sb.account().unwrap_or("demo").to_owned();
+        sb.type_text("#user", &user).await?;
         sb.assert_title("Example Domain").await
     })
     .await

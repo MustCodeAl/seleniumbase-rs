@@ -17,7 +17,7 @@ four small `async_trait` traits (defined in `src/api/traits.rs`). Both engines
 implement all four: `BaseCase` (WebDriver) and `sb_cdp::Page` (pure CDP). A helper
 written over the traits runs on either engine. None of them names an engine
 type; to keep an element handle, use `BaseCase::find_element` (a
-`thirtyfour::WebElement`) or `Page::locator(..)`. Every method returns
+`drivers::WebElement`) or `Page::locator(..)`. Every method returns
 `seleniumbase_rs::Result<T>`. Selector strings are the same on both engines:
 CSS by default, XPath for `//...`, link text for `link=...` (see the
 [Selectors guide](/tutorials/selectors)).

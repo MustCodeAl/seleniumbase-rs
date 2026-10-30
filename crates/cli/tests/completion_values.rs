@@ -91,7 +91,10 @@ fn a_file_is_completed_by_the_kind_the_command_takes() {
         ("sbrs load-cookies --file ", "\u{1}extensions\tjson"),
         ("sbrs translate ", "\u{1}extensions\tjson"),
         ("sbrs --config ", "\u{1}extensions\ttoml\tjson"),
-        ("sbrs print --file ", "\u{1}files"),
+        ("sbrs print ", "\u{1}files"),
+        ("sbrs mkpres ", "\u{1}extensions\trs"),
+        ("sbrs mkchart ", "\u{1}extensions\trs"),
+        ("sbrs convert ", "\u{1}extensions\tpy"),
         ("sbrs --proxy-list ", "\u{1}files"),
         ("sbrs choose-file input ", "\u{1}files"),
         ("sbrs mkdir ", "\u{1}dirs"),
@@ -141,14 +144,22 @@ fn install_offers_the_drivers_and_then_the_versions() {
 }
 
 #[test]
-fn translate_offers_the_language_codes_after_the_file() {
-    let languages = complete("sbrs translate scenario.json ");
-    for code in ["en", "zh", "es", "ja"] {
-        assert!(languages.iter().any(|word| word == code), "{languages:?}");
+fn translate_offers_the_language_flags_and_the_actions_after_the_file() {
+    let flags = complete("sbrs translate scenario.json --");
+    for flag in [
+        "--en",
+        "--zh",
+        "--es",
+        "--ja",
+        "--print",
+        "--overwrite",
+        "--copy",
+    ] {
+        assert!(flags.iter().any(|word| word == flag), "{flag}: {flags:?}");
     }
     assert!(
-        languages.iter().all(|word| !word.starts_with('\u{1}')),
-        "no file names: {languages:?}"
+        flags.iter().all(|word| !word.starts_with('\u{1}')),
+        "no file names: {flags:?}"
     );
 }
 

@@ -348,7 +348,7 @@ machine's own pointer; test widgets do not need it (see
 use std::time::Duration;
 
 use seleniumbase_rs::sb_cdp::{Browser, Captcha, LaunchOptions, Page, State};
-use seleniumbase_rs::SeleniumBaseError;
+use seleniumbase_rs::{tokio, SeleniumBaseError};
 
 /// Presses `widget` and returns the token that lands in the hidden field
 /// `field`.
@@ -449,7 +449,7 @@ is hidden, and `get_value` reads the live `value` property of an element whether
 or not it is visible:
 
 ```rust,no_run
-use seleniumbase_rs::{run_browser_test, BaseCase, BrowserConfig, Result, SeleniumBaseError};
+use seleniumbase_rs::{run_browser_test, tokio, BaseCase, BrowserConfig, Result, SeleniumBaseError};
 
 /// Waits up to `seconds` for the hidden field `css` to hold a token.
 async fn wait_for_token(sb: &mut BaseCase, css: &str, seconds: u32) -> Result<String> {

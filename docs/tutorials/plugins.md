@@ -178,7 +178,7 @@ write.
 use seleniumbase_rs::plugin_api::{
     async_trait, BrowserHandle, LaunchSettings, Package, PageHandle, Plugin, PluginError, Result,
 };
-use serde_json::json;
+use seleniumbase_rs::json::json;
 
 /// Germany, everywhere: the language, the time zone, and a page script.
 struct German;
@@ -278,7 +278,7 @@ browser was sent. With the `German` plugin above:
 ```rust,no_run
 use seleniumbase_rs::plugin_api::PluginSet;
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, MockCtrl};
-use serde_json::json;
+use seleniumbase_rs::json::json;
 
 # async fn demo() -> Result<(), Box<dyn std::error::Error>> {
 let mock = MockCtrl::new();
@@ -381,7 +381,7 @@ help, such as signing in. It returns a summary.
 use seleniumbase_rs::plugin_api::{
     async_trait, Capability, Category, Metadata, Plugin, Result, Task, TaskContext,
 };
-use serde_json::{json, Value};
+use seleniumbase_rs::json::{json, Value};
 
 struct Titles;
 

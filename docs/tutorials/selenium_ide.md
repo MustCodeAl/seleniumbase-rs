@@ -49,7 +49,7 @@ let commands = parse_ide_html(html)?;
 ## Replay commands with BaseCase
 
 ```rust src/main.rs
-use seleniumbase_rs::{BaseCase, BrowserConfig};
+use seleniumbase_rs::{tokio, BaseCase, BrowserConfig};
 use seleniumbase_rs::utilities::selenium_ide::parse_ide_file;
 
 #[tokio::main]

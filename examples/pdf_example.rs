@@ -22,7 +22,7 @@
 mod local_site;
 
 use local_site::{Site, DEMO_PATH};
-use seleniumbase_rs::{run_browser_test, BaseCase, BrowserConfig, DriverMode, Result};
+use seleniumbase_rs::{run_browser_test, tokio, BaseCase, BrowserConfig, DriverMode, Result};
 
 #[tokio::main]
 async fn main() -> Result<()> {

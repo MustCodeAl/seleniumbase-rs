@@ -29,7 +29,9 @@
 mod local_site;
 
 use local_site::{Site, DEMO_PATH};
-use seleniumbase_rs::{run_browser_test, BaseCase, BrowserConfig, Result, SeleniumBaseError};
+use seleniumbase_rs::{
+    run_browser_test, tokio, BaseCase, BrowserConfig, Result, SeleniumBaseError,
+};
 
 const TITLE: &str = "Demo page manual verification";
 

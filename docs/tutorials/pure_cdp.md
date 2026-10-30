@@ -323,7 +323,7 @@ use seleniumbase_rs::sb_cdp::{Page, ResourceType, Response, Rule};
 let interception = page
     .intercept(vec![
         Rule::block().resource_type(ResourceType::Image).resource_type(ResourceType::Font),
-        Rule::fulfill(Response::json(200, &serde_json::json!({ "plan": "pro" }))).url("*/api/account"),
+        Rule::fulfill(Response::json(200, &seleniumbase_rs::json::json!({ "plan": "pro" }))).url("*/api/account"),
         Rule::modify().set_header("X-Test-Run", "42").url("https://example.com/*"),
     ])
     .await?;
@@ -393,7 +393,7 @@ finishes loading, binary ones as base64, and one over the limit is left out
 with a `comment` saying so. The limit goes up to 64 MiB (`MAX_CONTENT_BYTES`),
 because each body comes back whole in one DevTools message. `Har` and its
 parts are serde types, so a saved HAR reads back with
-`serde_json::from_str::<Har>`.
+`seleniumbase_rs::json::from_str::<Har>`.
 
 A cross-site iframe (an ad, a video player, a captcha) runs in a target of its
 own, which reports its requests on its own session. The recorder attaches to
@@ -681,7 +681,7 @@ handler you register, so you can test what your code sends:
 
 ```rust,ignore
 let (browser, mock) = Browser::new_mocked();
-mock.reply("Runtime.evaluate", serde_json::json!({ "result": { "value": "Example" } }));
+mock.reply("Runtime.evaluate", seleniumbase_rs::json::json!({ "result": { "value": "Example" } }));
 let page = browser.default_page().await?;
 assert_eq!(page.title().await?, "Example");
 assert!(!mock.calls_to("Runtime.evaluate").is_empty());

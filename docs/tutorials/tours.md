@@ -20,7 +20,7 @@ and can be shared or embedded in test reports.
 ## Basic tour
 
 ```rust src/main.rs
-use seleniumbase_rs::{BaseCase, BrowserConfig, TourTheme};
+use seleniumbase_rs::{tokio, BaseCase, BrowserConfig, TourTheme};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

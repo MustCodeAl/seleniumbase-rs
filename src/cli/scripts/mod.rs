@@ -3,6 +3,8 @@ pub mod behave_options;
 pub mod run;
 pub mod run_filter;
 pub mod run_logs;
+pub mod sb_convert;
+
 pub mod sb_grid;
 pub mod sb_install;
 pub mod sb_mkdir;

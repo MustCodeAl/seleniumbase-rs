@@ -14,7 +14,7 @@ traditional CSS or XPath search.
 
 - How `::shadow` selectors work.
 - How to chain shadow roots.
-- How to query shadow roots directly with `WebDriver`/`thirtyfour` APIs.
+- How to query shadow roots directly with the `WebElement` methods.
 - The limits of shadow-DOM automation.
 
 </Info>
@@ -75,15 +75,16 @@ for el in elements {
 }
 ```
 
-These elements are ordinary `thirtyfour::WebElement` handles, so you can call
-any supported method on them after retrieval.
+These elements are ordinary `seleniumbase_rs::drivers::WebElement` handles, so
+you can call any supported method on them after retrieval.
 
 ## Query the shadow root directly
 
-For complex logic, fetch the shadow root and use `thirtyfour` APIs directly:
+For complex logic, fetch the shadow root and call the `WebElement` methods on it
+directly:
 
 ```rust
-use thirtyfour::By;
+use seleniumbase_rs::drivers::By;
 
 let root = sb.get_shadow_root("my-app").await?;
 let button = root.find(By::Css("button")).await?;

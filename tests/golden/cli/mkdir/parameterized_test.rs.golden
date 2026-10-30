@@ -1,9 +1,8 @@
 //! A parameterized test: each `#[case]` is a test of its own, with its own
 //! browser and its own folder of evidence when it fails.
 
-use rstest::rstest;
-use seleniumbase_rs::testing::{sb, Sb};
-use seleniumbase_rs::Result;
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
 
 #[rstest]
 #[case("https://example.com", "This domain is for use in")]

@@ -2,8 +2,9 @@
 //! steps are the library's built-in ones. Needs the feature `bdd` of
 //! `seleniumbase-rs`.
 
-use rstest_bdd_macros::scenario;
-use seleniumbase_rs::testing::bdd::{sb, SbCase};
+use seleniumbase_rs::testing::bdd::{sb, scenario, SbCase};
+use seleniumbase_rs::testing::rstest;
+use seleniumbase_rs::tokio;
 
 #[scenario(
     path = "tests/golden/cli/mkdir_bdd/features/example.feature",

@@ -20,7 +20,7 @@
 mod local_site;
 
 use local_site::{Site, DEMO_PATH};
-use seleniumbase_rs::{BaseCase, BrowserConfig, Result};
+use seleniumbase_rs::{tokio, BaseCase, BrowserConfig, Result};
 
 #[tokio::main]
 async fn main() -> Result<()> {
