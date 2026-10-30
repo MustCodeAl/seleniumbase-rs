@@ -239,10 +239,11 @@ test depends on there being exactly one, say so.
 // The container is part of the selector.
 sb.click(r#"#cart [data-sku="B-7"] .remove"#).await?;
 
-// Inside an iframe: enter it, act, come back.
-sb.switch_to_frame("#payment").await?;
-sb.click("button.pay").await?;
-sb.switch_to_default_content().await?;
+// Inside an iframe: the closure runs in the frame, and the case comes back
+// out of it when the closure ends, also when it fails.
+sb.frame_switch("#payment")
+    .run(async |sb| sb.click("button.pay").await)
+    .await?;
 
 // Inside an open shadow root.
 sb.shadow_click("my-app ::shadow button").await?;

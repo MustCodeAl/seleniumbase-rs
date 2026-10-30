@@ -37,6 +37,15 @@ use crate::evasion::cdp::*; /* CdpClient */
 use crate::evasion::uc;
 use crate::utilities::retry::{poll_until, RetryPolicy};
 
+/// A page script that reads the DOM property `arguments[1]` of the element
+/// `arguments[0]` as text: the property when it is a string, a number or
+/// `true`, and `null` for `undefined`, `null`, `false`, an object or a
+/// function.
+const PROPERTY_AS_TEXT: &str = "const value = arguments[0][arguments[1]]; \
+    if (value === undefined || value === null || value === false \
+        || typeof value === 'object' || typeof value === 'function') { return null; } \
+    return String(value);";
+
 /// Owns a WebDriver session, optional CDP client, and optional auto-started driver process.
 pub struct BrowserSession {
     driver: Option<WebDriver>,
@@ -631,7 +640,51 @@ impl BrowserSession {
         attribute_name: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
         let element = self.webdriver()?.find(locator).await?;
-        Ok(element.attr(attribute_name).await?)
+        self.attribute_or_property(&element, attribute_name).await
+    }
+
+    /// The value of `name` on `element`, as Selenium's `get_attribute` gives it:
+    /// the attribute if the element has it, and otherwise the DOM property of
+    /// that name as text. A `<select>` has no `value` attribute, but its
+    /// property says which option is chosen; an `<option>` has an `index`
+    /// property and no such attribute.
+    ///
+    /// A property that is `false`, missing, an object or a function gives
+    /// `None`, so `selected` and `disabled` are `"true"` or `None`, as in
+    /// Selenium.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the driver fails.
+    pub(crate) async fn attribute_or_property(
+        &self,
+        element: &WebElement,
+        name: &str,
+    ) -> Result<Option<String>, SeleniumBaseError> {
+        if let Some(attribute) = element.attr(name).await? {
+            return Ok(Some(attribute));
+        }
+        let property = self
+            .webdriver()?
+            .execute(PROPERTY_AS_TEXT, vec![element.to_json()?, json!(name)])
+            .await?;
+        Ok(property.json().as_str().map(str::to_owned))
+    }
+
+    /// Clicks `element` with a script (`element.click()`), which reaches an
+    /// element that is not displayed or that another element covers.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the driver fails.
+    pub(crate) async fn js_click_element(
+        &self,
+        element: &WebElement,
+    ) -> Result<(), SeleniumBaseError> {
+        self.webdriver()?
+            .execute("arguments[0].click();", vec![element.to_json()?])
+            .await?;
+        Ok(())
     }
 
     /// WebDriver interaction: `get_property`.
@@ -964,7 +1017,7 @@ impl BrowserSession {
             RetryPolicy::webdriver(),
             || async {
                 match self.webdriver().ok()?.find(locator.clone()).await {
-                    Ok(element) => match element.text().await {
+                    Ok(element) => match shown_text(&element).await {
                         Ok(text) if text.contains(expected_substring) => Some(()),
                         _ => None,
                     },
@@ -1616,6 +1669,17 @@ fn timed_out(what: String, timeout_secs: u64) -> SeleniumBaseError {
         format!("timed out waiting for {what}"),
         Some(Duration::from_secs(timeout_secs)),
     )
+}
+
+/// The text Python's text checks compare for `element`: the value of an
+/// `<input>` or a `<textarea>`, whose rendered text is empty, and the rendered
+/// text of any other element.
+pub(crate) async fn shown_text(element: &WebElement) -> Result<String, SeleniumBaseError> {
+    let tag = element.tag_name().await.unwrap_or_default();
+    if tag.eq_ignore_ascii_case("input") || tag.eq_ignore_ascii_case("textarea") {
+        return Ok(element.prop("value").await?.unwrap_or_default());
+    }
+    Ok(element.text().await?)
 }
 
 fn validate_mode_support(config: &BrowserConfig) -> Result<(), SeleniumBaseError> {

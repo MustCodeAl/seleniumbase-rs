@@ -314,35 +314,45 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Asserts that `item` is contained in `container`.
-    pub fn assert_in<T: PartialEq + std::fmt::Debug>(
-        &self,
-        item: T,
-        container: &[T],
-    ) -> Result<(), SeleniumBaseError> {
-        if !container.contains(&item) {
-            return Err(SeleniumBaseError::AssertionFailed(format!(
-                "Expected {:?} to be in {:?}",
-                item, container
-            )));
+    /// Asserts that `item` is in `container`, as Python's `assert_in(first,
+    /// second)` asserts `first in second`: an element of a slice, an array or a
+    /// `Vec`, or a substring (or a character) of a string. See [`Contains`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::AssertionFailed`] naming both when it is
+    /// not.
+    pub fn assert_in<I, C>(&self, item: I, container: &C) -> Result<(), SeleniumBaseError>
+        where
+            I: std::fmt::Debug,
+            C: ?Sized + std::fmt::Debug + Contains<I>,
+        {
+            if !container.holds(&item) {
+                return Err(SeleniumBaseError::AssertionFailed(format!(
+                    "Expected {item:?} to be in {container:?}"
+                )));
+            }
+            Ok(())
         }
-        Ok(())
-    }
 
-    /// Asserts that `item` is not contained in `container`.
-    pub fn assert_not_in<T: PartialEq + std::fmt::Debug>(
-        &self,
-        item: T,
-        container: &[T],
-    ) -> Result<(), SeleniumBaseError> {
-        if container.contains(&item) {
-            return Err(SeleniumBaseError::AssertionFailed(format!(
-                "Expected {:?} to not be in {:?}",
-                item, container
-            )));
+    /// Asserts that `item` is not in `container`: the other way round from
+    /// [`assert_in`](Self::assert_in).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::AssertionFailed`] naming both when it is.
+    pub fn assert_not_in<I, C>(&self, item: I, container: &C) -> Result<(), SeleniumBaseError>
+        where
+            I: std::fmt::Debug,
+            C: ?Sized + std::fmt::Debug + Contains<I>,
+        {
+            if container.holds(&item) {
+                return Err(SeleniumBaseError::AssertionFailed(format!(
+                    "Expected {item:?} to not be in {container:?}"
+                )));
+            }
+            Ok(())
         }
-        Ok(())
-    }
 
     /// Asserts that `value` is an instance of the type named by `type_name`.
     ///
@@ -987,10 +997,33 @@ impl BaseCase {
     // Frame helpers
     // ========================================================================
 
-    /// Switches context into the frame located by `css`.
-    pub async fn frame_switch(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
-        let by = Selector::auto(css).to_by()?;
-        self.session.switch_to_frame(by).await
+    /// Switches into a frame for a block of steps and leaves it after. Corresponds to
+    /// Python's `with self.frame_switch(frame):`.
+    ///
+    /// The frame is given as for [`switch_to_frame`](Self::switch_to_frame). The call waits
+    /// until [`FrameSwitch::run`] is awaited with the steps to do inside the frame, which
+    /// replace the body of Python's `with` block. The case goes back to the parent frame when
+    /// the steps end, also when they fail, so a frame cannot be left open by mistake.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # async fn demo(sb: &mut seleniumbase_rs::BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    /// sb.frame_switch("iframeResult")
+    ///     .run(async |sb| {
+    ///         sb.assert_text("HTML Iframes", "h2").await?;
+    ///         sb.frame_switch("iframe[title*=\"Iframe\"]")
+    ///             .run(async |sb| sb.assert_text("This page is displayed in an iframe", "h1").await)
+    ///             .await
+    ///     })
+    ///     .await?;
+    /// // Back in the top document.
+    /// sb.click("button#runbtn").await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn frame_switch(&mut self, frame: impl Into<FrameRef>) -> FrameSwitch<'_> {
+        FrameSwitch::new(self, frame.into())
     }
 
     /// Switches into the `<iframe>` or `<frame>` that holds the element `css`

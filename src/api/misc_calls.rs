@@ -425,6 +425,108 @@ impl<'a> IntoFuture for WaitForAttribute<'a> {
     }
 }
 
+/// Python's `wait_for_element(selector, by, timeout=None)`: wait until the
+/// element is displayed.
+///
+/// It comes from [`BaseCase::wait_for_element`]. The one keyword is
+/// [`timeout`](Self::timeout), how long to wait (default: the case's timeout,
+/// see [`BaseCase::set_timeout`]).
+#[must_use = "nothing happens until the call is awaited"]
+pub struct WaitForElement<'a> {
+    sb: &'a BaseCase,
+    selector: &'a str,
+    timeout: Option<Duration>,
+}
+
+impl<'a> WaitForElement<'a> {
+    pub(crate) fn new(sb: &'a BaseCase, selector: &'a str) -> Self {
+        Self {
+            sb,
+            selector,
+            timeout: None,
+        }
+    }
+
+    /// How long to wait. Python's `timeout`.
+    pub fn timeout(mut self, timeout: Duration) -> Self {
+        self.timeout = Some(timeout);
+        self
+    }
+}
+
+impl<'a> IntoFuture for WaitForElement<'a> {
+    type Output = Result<(), SeleniumBaseError>;
+    type IntoFuture = CallFuture<'a, ()>;
+
+    fn into_future(self) -> Self::IntoFuture {
+        Box::pin(async move {
+            let Self {
+                sb,
+                selector,
+                timeout,
+            } = self;
+            sb.run_wait_for_element(selector, timeout).await
+        })
+    }
+}
+
+/// Python's `get_select_options(dropdown_selector, attribute="text", by,
+/// timeout=None)`: the options of a `<select>`, each as its text or as one of
+/// its attributes.
+///
+/// It comes from [`BaseCase::get_select_options`]. The keywords are
+/// [`attribute`](Self::attribute) (`"text"` by default, or `"value"` or
+/// `"index"`) and [`timeout`](Self::timeout) (default: the case's timeout).
+#[must_use = "nothing happens until the call is awaited"]
+pub struct GetSelectOptions<'a> {
+    sb: &'a mut BaseCase,
+    selector: &'a str,
+    attribute: &'a str,
+    timeout: Option<Duration>,
+}
+
+impl<'a> GetSelectOptions<'a> {
+    pub(crate) fn new(sb: &'a mut BaseCase, selector: &'a str) -> Self {
+        Self {
+            sb,
+            selector,
+            attribute: "text",
+            timeout: None,
+        }
+    }
+
+    /// What to read of each option: `"text"`, `"value"` or `"index"`. Python's
+    /// `attribute`.
+    pub fn attribute(mut self, attribute: &'a str) -> Self {
+        self.attribute = attribute;
+        self
+    }
+
+    /// How long to wait for the `<select>`. Python's `timeout`.
+    pub fn timeout(mut self, timeout: Duration) -> Self {
+        self.timeout = Some(timeout);
+        self
+    }
+}
+
+impl<'a> IntoFuture for GetSelectOptions<'a> {
+    type Output = Result<Vec<String>, SeleniumBaseError>;
+    type IntoFuture = CallFuture<'a, Vec<String>>;
+
+    fn into_future(self) -> Self::IntoFuture {
+        Box::pin(async move {
+            let Self {
+                sb,
+                selector,
+                attribute,
+                timeout,
+            } = self;
+            sb.run_get_select_options(selector, attribute, timeout)
+                .await
+        })
+    }
+}
+
 /// Python's `click_with_offset(selector, x, y, by, mark=None, timeout=None,
 /// center=None, scroll=True)` and `double_click_with_offset(...)`: click an
 /// element at an offset in pixels. `(0, 0)` is the top-left corner of the

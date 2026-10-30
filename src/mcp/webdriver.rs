@@ -82,8 +82,7 @@ fn whole_seconds(timeout: Duration) -> u64 {
 
 /// Waits up to `timeout` for `selector` to be visible.
 async fn ready(case: &BaseCase, selector: &str, timeout: Duration) -> Result<(), ToolError> {
-    case.wait_for_element(selector, whole_seconds(timeout))
-        .await?;
+    case.wait_for_element(selector).timeout(timeout).await?;
     Ok(())
 }
 
@@ -375,7 +374,7 @@ pub(super) async fn is_text_visible(ctx: Ctx<BaseCase>, args: Args) -> Result<Ou
 
 pub(super) async fn is_selected(ctx: Ctx<BaseCase>, args: Args) -> Result<Output, ToolError> {
     let selector = args.str("selector")?;
-    let mut case = ctx.session().await?;
+    let case = ctx.session().await?;
     Ok(Output::Json(Value::Bool(case.is_selected(selector).await?)))
 }
 

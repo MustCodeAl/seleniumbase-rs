@@ -1309,6 +1309,29 @@ mod tests {
                 }
             }
         }
+        /// `impl Into<X>` as `impl Into<X>` when `X` is a frame or a window
+        /// (they take a text or an integer), and as `impl Into` otherwise:
+        /// `x: impl Into<f64>` takes any number literal.
+        fn impl_name(implementation: &syn::TypeImplTrait) -> String {
+            let argument = implementation.bounds.iter().find_map(|bound| {
+                let syn::TypeParamBound::Trait(bound) = bound else {
+                    return None;
+                };
+                let segment = bound.path.segments.last()?;
+                let syn::PathArguments::AngleBracketed(arguments) = &segment.arguments else {
+                    return None;
+                };
+                match arguments.args.first()? {
+                    syn::GenericArgument::Type(ty) => Some(type_name(ty)),
+                    _ => None,
+                }
+            });
+            match argument.as_deref() {
+                Some(name @ ("FrameRef" | "WindowRef")) => format!("impl Into<{name}>"),
+                _ => "impl Into".to_owned(),
+            }
+        }
+
         fn type_name(ty: &syn::Type) -> String {
             match ty {
                 syn::Type::Reference(reference) => format!("&{}", type_name(&reference.elem)),
@@ -1319,7 +1342,7 @@ mod tests {
                     .map(|segment| segment.ident.to_string())
                     .unwrap_or_default(),
                 // `x: impl Into<f64>` takes any number literal.
-                syn::Type::ImplTrait(_) => "impl Into".to_owned(),
+                syn::Type::ImplTrait(implementation) => impl_name(implementation),
 
                 _ => "other".to_owned(),
             }
@@ -1474,6 +1497,10 @@ mod tests {
                     | "isize" => kind == "integer",
                     "f64" => kind == "float",
                     "impl Into" => kind == "integer" || kind == "float",
+                    "impl Into<FrameRef>" | "impl Into<WindowRef>" => {
+                        kind == "string" || kind == "integer"
+                    }
+
                     "&Value" => matches!(argument, syn::Expr::Reference(_)),
 
                     "bool" => kind == "bool",

@@ -104,6 +104,15 @@
     return el.innerText !== undefined ? el.innerText : (el.textContent || "");
   }
 
+  // The text a text check compares, as Python's `text_all` gives it: the value
+  // of an input or a textarea, which have no rendered text, and the rendered
+  // text of any other element.
+  function fieldText(el) {
+    if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") return el.value;
+    return textOf(el);
+  }
+
+
   function attrs(el) {
     const out = {};
     for (const a of el.attributes) out[a.name] = a.value;
@@ -218,6 +227,6 @@
 
   window.__sbcdp = {
     resolve, one, visible, info, center, setValue, focus, selectOption, flash,
-    textOf, rectOf, attrs, errors,
+    textOf, fieldText, rectOf, attrs, errors,
   };
 })();

@@ -15,6 +15,8 @@
 //! | [`chart`], [`presentation`] | Chart.js and reveal.js pages |
 //! | [`tour`], [`master_qa`] | Website tours and manual verification sessions |
 //! | [`call`] | [`CallFuture`](call::CallFuture), the future of a call that takes Python's keyword arguments |
+//! | [`membership`] | [`Contains`](membership::Contains), what `assert_in` can look in: a list or a string |
+//! | [`switching`] | The calls that switch into frames, windows and alerts: [`FrameRef`](switching::FrameRef), [`WindowRef`](switching::WindowRef) and the [`Alert`](switching::Alert) handle |
 //! | [`demo`], [`messages`], [`jqc`] | Demo mode and the highlight family, Messenger alerts and jquery-confirm dialog boxes |
 //!
 //! Some modules are behind Cargo features, because they pull in platform
@@ -42,6 +44,7 @@ pub mod html;
 pub mod html_inspector;
 pub mod jqc;
 pub mod master_qa;
+pub mod membership;
 pub mod messages;
 pub mod misc_calls;
 pub(crate) mod page_scripts;
@@ -52,6 +55,8 @@ pub mod recorder;
 pub mod run_settings;
 pub mod runner;
 pub mod scenario;
+pub mod switching;
+
 pub mod tour;
 pub mod traits;
 

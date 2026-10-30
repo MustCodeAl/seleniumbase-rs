@@ -20,7 +20,8 @@ Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...)
 | `is_selected(selector)` | Returns true if the element is selected. |
 | `is_text_visible(text, selector)` | Returns true if text visible. |
 | `get_text(selector)` | Returns element text. |
-| `get_attribute(selector, attr)` | Returns attribute value. |
+| `get_attribute(selector, attr)` | Returns the attribute value; when the element has no such attribute, its DOM property of that name, as Selenium does (the chosen `value` of a `<select>`, what was typed into an `<input>`). `None` when neither is set. |
+| `get_select_options(selector)` | Returns the options of a `<select>` as text. `.attribute("value")` or `.attribute("index")` reads those of each option instead; `.timeout(..)` sets the wait. |
 | `get_property(selector, prop)` | Returns property value. |
 | `get_shadow_root(selector)` | Returns the shadow root. |
 | `find_element(selector)` | Returns a `WebElement` handle. |
