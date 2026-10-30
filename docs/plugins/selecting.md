@@ -25,7 +25,7 @@ a plugin; a build with it reads them and leaves the selection to the program.
 
 <Visibility for="agents">
 
-Summary for AI exports: the official plugins (`shield`, `block-resources`, `crx`, `fetcher`, `extractor`, `batcher`, `crawler`, `browser`) are turned on by name, with no code. On the command line, `--plugin NAME` and `--plugin-opt NAME.KEY=VALUE` are global options, so they go before the command or after it, and both repeat (`sbrs --plugin shield open https://example.com`); `VALUE` is a TOML value, so `'shield.level="strict"'` is quoted. Other sources are `SB_PLUGINS=shield,block-resources` and `enable = [...]` in the `[plugins]` table of `sbase_config.toml`. Precedence, highest first: the command line, `SB_PLUGINS`, the settings file. In Rust, turn on the feature (`plugin-shield`, `plugin-block-resources`, `plugin-crx`, `plugin-fetcher`, `plugin-extractor`, `plugin-batcher`, `plugin-crawler`, `plugin-browser` or `plugins-builtin`) and use `plugins_named` or `plugin_selection`. A wrong name or option stops the run before a browser starts, with exit status 2. `sbrs plugin list` and `sbrs plugin info NAME` show the plugins and what they may do.
+Summary for AI exports: the official plugins (`shield`, `block-resources`, `crx`, `fetcher`, `extractor`, `batcher`, `crawler`, `browser`, `imap`, `tor`) are turned on by name, with no code. On the command line, `--plugin NAME` and `--plugin-opt NAME.KEY=VALUE` are global options, so they go before the command or after it, and both repeat (`sbrs --plugin shield open https://example.com`); `VALUE` is a TOML value, so `'shield.level="strict"'` is quoted. Other sources are `SB_PLUGINS=shield,block-resources` and `enable = [...]` in the `[plugins]` table of `sbase_config.toml`. Precedence, highest first: the command line, `SB_PLUGINS`, the settings file. In Rust, turn on the feature (`plugin-shield`, `plugin-block-resources`, `plugin-crx`, `plugin-fetcher`, `plugin-extractor`, `plugin-batcher`, `plugin-crawler`, `plugin-browser`, `plugin-imap`, `plugin-tor` or `plugins-builtin`) and use `plugins_named` or `plugin_selection`. A wrong name or option stops the run before a browser starts, with exit status 2. `sbrs plugin list` and `sbrs plugin info NAME` show the plugins and what they may do.
 
 </Visibility>
 
@@ -55,6 +55,8 @@ Summary for AI exports: the official plugins (`shield`, `block-resources`, `crx`
 | `plugin-batcher` | `plugins`, and the [batcher](https://github.com/MustCodeAl/seleniumbase-rs-plugins/tree/main/plugins/batcher) plugin: a task that runs many jobs with bounded concurrency, retries and a resume file |
 | `plugin-crawler` | `plugins`, and the [crawler](https://github.com/MustCodeAl/seleniumbase-rs-plugins/tree/main/plugins/crawler) plugin: a task that follows a site's links and reports broken pages and console errors |
 | `plugin-browser` | `plugins`, and the [browser](https://github.com/MustCodeAl/seleniumbase-rs-plugins/tree/main/plugins/browser) plugin: loads extensions from `.zip` and `.crx` files and unpacked folders; it cannot be used together with `crx` |
+| `plugin-imap` | `plugins`, and the [imap](/plugins/imap) plugin: a task that waits for a verification mail in a mailbox you own and reads its code or link; read only, and the pure CDP engine only. With `sbrs-mcp` it also gives the `cdp` server the tool `wait_for_email` |
+| `plugin-tor` | `plugins`, and the [tor](/plugins/tor) plugin: routes the browser through a Tor SOCKS listener you run yourself, with circuits of their own for each browser context; a browser the program starts on the pure CDP engine only |
 | `plugins-builtin` | All of the above |
 
 A build compiles only the plugin crates it asks for: `plugin-shield` does not
@@ -75,6 +77,17 @@ refused as unknown options, not ignored. Both declare `host.fs.write:temp`
 (`browser` also `host.fs.read`, for the paths it is given), so a settings file
 in the current folder cannot turn either on by itself: name it with `--plugin`
 or `SB_PLUGINS`, as [explained below](#what-a-project-file-may-not-turn-on-alone).
+
+`imap` waits for a verification mail in a mailbox you own (or a test inbox) and
+reads its code or link. It needs a host, a user and the NAME of the environment
+variable that holds the password (`password_env`, never the password itself),
+for example `[plugins.imap]` with `host`, `user` and `password_env`. It only
+reads: the mailbox is opened read only and nothing is sent, deleted or marked.
+It is a task plugin, so it works with the pure CDP engine only and the
+WebDriver engine refuses it. See [imap](/plugins/imap). `tor` routes a browser
+the program starts through a Tor SOCKS listener you run yourself and never
+installs or starts one; see [tor](/plugins/tor). Both declare `host.net`, so a
+settings file in the current folder cannot turn either on by itself.
 
 </Note>
 
@@ -451,5 +464,5 @@ report the same mistakes with exit status 2 (see
   operator allowed), a `list_plugins` tool and `run_plugin_task`.
 - A list of the options a plugin accepts in `sbrs plugin info`; the plugin API
   does not describe options yet.
-- The other official plugins of the design (tor, fetcher, extractor, browser,
+- The other official plugins of the design (fetcher, extractor, browser,
   batcher, crawler).

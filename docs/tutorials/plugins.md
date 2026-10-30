@@ -57,7 +57,7 @@ seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag =
 
 The official plugins are features of their own (`plugin-shield`,
 `plugin-block-resources`, `plugin-crx`, `plugin-fetcher`, `plugin-extractor`,
-`plugin-batcher`, `plugin-crawler`, `plugin-browser`, and `plugins-builtin` for all of them),
+`plugin-batcher`, `plugin-crawler`, `plugin-browser`, `plugin-imap`, `plugin-tor`, and `plugins-builtin` for all of them),
 turned on by name in the settings file, in `SB_PLUGINS`, in a builder call, or
 on the command line (`sbrs --plugin shield open https://example.com`, with the
 plugins compiled into the prebuilt `sbrs` and `sbrs-mcp`): see

@@ -92,6 +92,8 @@ hidden: true
   - [Choosing plugins](plugins/selecting.md)
   - [Writing your own plugin](plugins/writing-your-own.md)
   - [shield](plugins/shield.md)
+  - [imap](plugins/imap.md)
+  - [tor](plugins/tor.md)
   - [block-resources](plugins/block-resources.md)
   - [crx](plugins/crx.md)
   - [wasm](plugins/wasm.md)

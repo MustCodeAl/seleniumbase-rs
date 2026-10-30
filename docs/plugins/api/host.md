@@ -82,7 +82,7 @@ let plugins = plugin_host::build_with(&registry, &selection)?;
 <ResponseExample>
 
 ```text Unknown name
-plugin error: no plugin named `sheild` is available (known: shield, block-resources, crx). The built-in plugins are cargo features of seleniumbase-rs: plugin-shield, plugin-block-resources, plugin-crx, plugin-fetcher, plugin-extractor, plugin-batcher, plugin-crawler, plugin-browser (plugins-builtin turns them all on). A plugin from another crate is added with PluginSet::with, or by name through Registry::with(Descriptor::of::<P>()) and plugin_host::build_with
+plugin error: no plugin named `sheild` is available (known: shield, block-resources, crx). The built-in plugins are cargo features of seleniumbase-rs: plugin-shield, plugin-block-resources, plugin-crx, plugin-fetcher, plugin-extractor, plugin-batcher, plugin-crawler, plugin-browser, plugin-imap, plugin-tor (plugins-builtin turns them all on). A plugin from another crate is added with PluginSet::with, or by name through Registry::with(Descriptor::of::<P>()) and plugin_host::build_with
 ```
 
 ```text Named twice
@@ -110,13 +110,15 @@ plugin error: options were given for `shield`, which is not in `enable` ([plugin
 | `plugin-batcher` | `plugins`, and `seleniumbase-rs-plugins-builtin/batcher` |
 | `plugin-crawler` | `plugins`, and `seleniumbase-rs-plugins-builtin/crawler` |
 | `plugin-browser` | `plugins`, and `seleniumbase-rs-plugins-builtin/browser` |
+| `plugin-imap` | `plugins`, and `seleniumbase-rs-plugins-builtin/imap`; with `mcp-server` it also adds the tool `wait_for_email` to the `cdp` server |
+| `plugin-tor` | `plugins`, and `seleniumbase-rs-plugins-builtin/tor` |
 | `plugins-builtin` | every `plugin-*` feature above |
 
 The library's default features are empty. The command-line package
 `seleniumbase-rs-cli` has `plugins-builtin` among its defaults and passes
 `plugins` and each `plugin-*` through. Both plugin dependencies come from
 `https://github.com/MustCodeAl/seleniumbase-rs-plugins` at
-`rev = "1a327ecb58caf6f6b745b5a91aadd1ea51f6fcc1"` (version `0.1`).
+`rev = "2bd20ee8fadcd0ba35f26c8f551728e21ef9b229"` (version `0.1`).
 
 ## plugin_api
 
@@ -138,12 +140,12 @@ with `seleniumbase_rs::plugins`, the test-reporting plugins.
 <Badge color="gray">mod</Badge> <Badge color="gray" stroke>re-export</Badge> `seleniumbase_rs::builtin_plugins`
 
 ```rust
-#[cfg(any(feature = "plugin-shield", feature = "plugin-block-resources", feature = "plugin-crx", feature = "plugin-fetcher", feature = "plugin-extractor", feature = "plugin-batcher", feature = "plugin-crawler", feature = "plugin-browser"))]
+#[cfg(any(feature = "plugin-shield", feature = "plugin-block-resources", feature = "plugin-crx", feature = "plugin-fetcher", feature = "plugin-extractor", feature = "plugin-batcher", feature = "plugin-crawler", feature = "plugin-browser", feature = "plugin-imap", feature = "plugin-tor"))]
 pub use seleniumbase_rs_plugins_builtin as builtin_plugins;
 ```
 
 The crate `seleniumbase-rs-plugins-builtin`: its `registry()` (the built-in
-plugins whose feature is on, in the order `shield`, `block-resources`, `crx`, `fetcher`, `extractor`, `batcher`, `crawler`, `browser`),
+plugins whose feature is on, in the order `shield`, `block-resources`, `crx`, `fetcher`, `extractor`, `batcher`, `crawler`, `browser`, `imap`, `tor`),
 a module per plugin with that plugin's own types (`shield`, `block_resources`,
 `crx`, `fetcher`, `extractor`, `batcher`, `crawler`, `browser`), and re-exports of `Descriptor`, `PluginSpec` and `Registry`. Most
 programs enable the built-in plugins by name instead. The `wasm` plugin host is
