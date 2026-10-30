@@ -835,6 +835,14 @@ work, `docs/parity.md` the per-API status).
   `InvalidSelector` error before any script is sent.
 
 
+- **`set_value` fires `mousemove` on a range input and presses Enter for a trailing newline, as
+  in Python.** It only set the value, so the demo page's progress bar did not follow the slider
+  and `set_value("#search", "text\n")` left the form unsubmitted with the newline in the value.
+  A range input now gets a `mousemove` event after the value is set; a value ending in `\n` is
+  set without it and Enter is pressed in the field. The element is found with the driver, so
+  `:contains()` and XPath selectors work, and the value travels as a script argument.
+
+
 - **Recorder Mode no longer writes the frames of a page as pages to open.** The page script went
   into every frame, and a frame of the same origin shares the top frame's sessionStorage, so a
   reCAPTCHA page recorded `goto` steps for `about:blank`, `about:srcdoc` and the widget's

@@ -41,6 +41,12 @@ use thirtyfour::common::keys::Key;
 use thirtyfour::extensions::cdp::NetworkConditions;
 use thirtyfour::prelude::By;
 
+/// The page script of [`BaseCase::set_value`]: sets the value of the element
+/// `arguments[0]` to `arguments[1]` and answers the element's `type` attribute.
+const SET_VALUE_SCRIPT: &str =
+    "arguments[0].value = arguments[1]; return arguments[0].getAttribute('type');";
+
+
 /// How much longer than the message lasts Python's `post_message` waits.
 const MESSAGE_SETTLE: Duration = Duration::from_millis(150);
 
@@ -2973,19 +2979,51 @@ impl BaseCase {
             Ok(options)
         }
 
-    /// Set the `value` property of the element.
+    /// Sets the `value` property of the element `css` with a script, as
+    /// Python's `set_value` does: no key events fire, so it is fast and does not
+    /// trigger a page that listens for keys.
+    ///
+    /// A value that ends with a newline presses Enter in the element, and the
+    /// newline is not part of the value. On a range input (a slider) a
+    /// `mousemove` event is fired after the value is set, because the page's
+    /// listeners often run on the mouse; that is what moves a progress bar.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::WaitTimeout`] if the element does not appear
+    /// in time.
     pub async fn set_value(&mut self, css: &str, value: &str) -> Result<(), SeleniumBaseError> {
-        self.await_ready(css, Ready::Present).await?;
-        self.demo_highlight(css).await?;
-        let script = format!(
-            "document.querySelector({}).value = {};",
-            quote(css),
-            quote(value)
-        );
-        self.execute_script(&script).await?;
-        self.demo_pause(PauseKind::Full).await;
-        Ok(())
-    }
+            let by = Selector::auto(css).to_by()?;
+            self.await_ready(css, Ready::Present).await?;
+            self.demo_highlight(css).await?;
+            let (value, enter) = match value.strip_suffix('\n') {
+                Some(value) => (value, true),
+                None => (value, false),
+            };
+            let driver = self.session.webdriver()?.clone();
+            let element = driver.find(by).await?;
+            let kind = driver
+                .execute(
+                    SET_VALUE_SCRIPT,
+                    vec![element.to_json()?, Value::String(value.to_owned())],
+                )
+                .await?;
+            if enter {
+                element
+                    .send_keys(Key::Return.value().to_string())
+                    .await?;
+            } else if kind.json().as_str() == Some("range") {
+                // Some sliders need a mouse event to run their listeners.
+                let _ = driver
+                    .execute(
+                        "arguments[0].dispatchEvent(new Event('mousemove'));",
+                        vec![element.to_json()?],
+                    )
+                    .await;
+            }
+            self.demo_pause(PauseKind::Full).await;
+            Ok(())
+        }
 
     /// Sets the text of the element `css` with a script: the `value` of an
     /// `<input>` or `<textarea>` (firing `input` and `change`, as a user's

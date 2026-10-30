@@ -318,13 +318,19 @@ mod tests_page_scripts {
             "var e=document.querySelector(S); if(e) e.parentNode.removeChild(e);",
             [css]
         );
-        assert_script!(
-            driver,
-            value,
-            sb.set_value(&format!("input[value='{value}']"), value),
-            "document.querySelector(S).value = S;",
-            [&format!("input[value='{value}']"), value]
-        );
+        for value in HOSTILE {
+                    // The value travels as an argument of a fixed script.
+                    sb.set_value(&format!("input[value='{value}']"), value)
+                        .await
+                        .unwrap();
+                    assert_inert(
+                        &last_script(&driver),
+                        "arguments[0].value = arguments[1]; return arguments[0].getAttribute(S);",
+                        &["type"],
+                    );
+                    let sent = driver.requests("/execute/sync").pop().expect("a script");
+                    assert_eq!(sent.body["args"][1], *value);
+                }
         for css in [HOSTILE[0], HOSTILE[4]] {
             sb.smooth_scroll_to(css).await.unwrap();
             assert_inert(

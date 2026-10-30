@@ -242,4 +242,28 @@ async fn js_click_reads_contains_and_xpath_selectors_and_waits_for_the_element()
 }
 
 
+#[tokio::test]
+#[ignore = "requires a local Chrome and chromedriver"]
+async fn set_value_moves_the_mouse_over_a_range_input_and_presses_enter_for_a_newline() -> Result<()>
+{
+    let url = serve();
+    run_browser_test(headless(), async |sb| {
+        sb.open(&url).await?;
+        sb.set_timeout(2).await?;
+
+        // The page's progress bar follows the slider on `mousemove` only.
+        sb.assert_element("progress[value=\"50\"]").await?;
+        sb.set_value("input#slider", "100").await?;
+        sb.assert_element("progress[value=\"100\"]").await?;
+
+        // A trailing newline presses Enter in the field: the form is submitted
+        // with the text, not with the newline.
+        sb.set_value("#search", "query\n").await?;
+        sb.assert_exact_text("submitted:query", "#submitted").await?;
+        Ok(())
+    })
+    .await
+}
+
+
 // The tests of the other form-field behaviours follow.

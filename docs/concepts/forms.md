@@ -242,6 +242,11 @@ Each method waits for its element first.
   the path into an absolute one and sends it to the `input type="file"`. A path
   that does not exist is an error, `File not found`, before anything is sent.
 - `submit(css)` submits the form that contains the selected element.
+- `set_value(css, value)` sets the value with a script, with no key events, as in
+  Python. A value that ends with a newline presses Enter in the field (the newline is
+  not part of the value), and on a range input a `mousemove` event follows, which is
+  what moves a progress bar that listens to the slider.
+
 
 ```rust,ignore src/main.rs
 sb.type_text("#email", "ada@example.com").await?;

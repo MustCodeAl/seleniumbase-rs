@@ -1640,7 +1640,7 @@ note = "Once the test has run longer than the limit (counted from creating the B
 [basecase."set_value"]
 status = "implemented"
 rust = "BaseCase::set_value"
-divergence = "Only sets the value. On a range input Python also fires a mousemove event so the page's listeners run (the demo page's progress bar does not follow here), and a trailing newline presses Enter there. Found by examples/test_demo_site.py."
+divergence = "Takes no by, timeout or scroll arguments (the wait is the default timeout, see set_timeout) and does not scroll the element into view."
 
 [basecase."set_window_position"]
 status = "implemented"

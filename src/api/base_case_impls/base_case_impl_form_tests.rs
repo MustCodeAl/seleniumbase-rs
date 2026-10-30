@@ -6,6 +6,90 @@
 // Included (for tests only) at the end of `base_case.rs` like the files beside
 // it.
 
+mod tests_form_set_value {
+    use super::webdriver_support::{element, MockWebDriver, Reply};
+    use serde_json::{json, Value};
+
+    /// A page whose only element is an `<input>` of type `kind`: the script
+    /// that sets its value answers the type.
+    fn input_page(kind: &'static str) -> MockWebDriver {
+        MockWebDriver::start(json!({}), move |request| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("POST", "/element") => Reply::Value(element("e1")),
+                ("POST", "/elements") => Reply::Value(json!([element("e1")])),
+                ("POST", "/execute/sync") => {
+                    let script = request.body["script"].as_str().unwrap_or_default();
+                    if script.contains("getAttribute('type')") {
+                        Reply::Value(json!(kind))
+                    } else {
+                        Reply::Value(Value::Null)
+                    }
+                }
+                _ => Reply::Value(Value::Null),
+            }
+        })
+    }
+
+    /// The scripts the driver ran that fire a `mousemove` event.
+    fn mouse_moves(driver: &MockWebDriver) -> usize {
+        driver
+            .requests("/execute/sync")
+            .iter()
+            .filter(|request| request.body["script"].as_str().is_some_and(|s| s.contains("mousemove")))
+            .count()
+    }
+
+    #[tokio::test]
+    async fn set_value_on_a_range_input_fires_a_mousemove_event() {
+        // The page's listeners (a progress bar) run on the mouse, not on the
+        // value: Python fires `mousemove` after it sets a range input.
+        let driver = input_page("range");
+        let mut sb = driver.base_case().await;
+
+        sb.set_value("#slider", "100").await.unwrap();
+
+        assert_eq!(mouse_moves(&driver), 1);
+        let set = &driver.requests("/execute/sync")[0];
+        assert_eq!(set.body["args"][1], "100");
+    }
+
+    #[tokio::test]
+    async fn set_value_on_a_text_input_fires_no_mouse_event() {
+        let driver = input_page("text");
+        let mut sb = driver.base_case().await;
+
+        sb.set_value("#name", "hello").await.unwrap();
+
+        assert_eq!(mouse_moves(&driver), 0);
+    }
+
+    #[tokio::test]
+    async fn a_trailing_newline_presses_enter_and_is_not_part_of_the_value() {
+        let driver = input_page("text");
+        let mut sb = driver.base_case().await;
+
+        sb.set_value("#search", "query\n").await.unwrap();
+
+        let set = &driver.requests("/execute/sync")[0];
+        assert_eq!(set.body["args"][1], "query");
+        let keys = driver.requests("/element/e1/value");
+        assert_eq!(keys.len(), 1, "Enter was not pressed once");
+        assert_eq!(keys[0].body["text"], "\u{e006}");
+    }
+
+    #[tokio::test]
+    async fn a_range_input_set_with_a_newline_presses_enter_and_not_the_mouse() {
+        let driver = input_page("range");
+        let mut sb = driver.base_case().await;
+
+        sb.set_value("#slider", "7\n").await.unwrap();
+
+        assert_eq!(driver.requests("/element/e1/value").len(), 1);
+        assert_eq!(mouse_moves(&driver), 0);
+    }
+}
+
+
 mod tests_form_clicks {
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
