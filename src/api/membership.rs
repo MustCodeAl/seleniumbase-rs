@@ -107,7 +107,9 @@ mod tests {
         sb.assert_in("backbone", &title.to_lowercase()).unwrap();
         sb.assert_in("ell", "hello").unwrap();
         sb.assert_in(String::from("lo"), "hello").unwrap();
-        sb.assert_in(&String::from("lo"), "hello").unwrap();
+        let lo = String::from("lo");
+        sb.assert_in(&lo, "hello").unwrap();
+        sb.assert_in(lo, "hello").unwrap();
         sb.assert_in('e', "hello").unwrap();
         sb.assert_in("hello", "hello").unwrap();
 
