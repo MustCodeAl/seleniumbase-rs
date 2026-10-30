@@ -11,6 +11,13 @@
 //! | `partial_link=`, `partial_link_text=`, `partial_text=`, `p_link=`, `p_link_text=`, `p_text=` | link text, containing |
 //! | anything else | CSS |
 //!
+//! A selector that crosses shadow roots, such as `my-app::shadow button`, is
+//! CSS as a whole, whatever its first piece looks like: the engines cut it at
+//! each `::shadow` (see [`utils::shadow`](crate::utils::shadow)) and read the
+//! first piece as any selector, and the others as CSS inside the shadow root
+//! of the element before them. One that ends on `::shadow` is refused.
+
+//!
 //! [`Selector`] borrows the string, [`SelectorBuf`] owns it and is what the
 //! Pure CDP engine ([`sb_cdp`](crate::sb_cdp)) sends to the page already
 //! tagged with its kind. Use the explicit constructors ([`SelectorBuf::css`],
@@ -1040,6 +1047,48 @@ mod tests {
             SelectorBuf::from("a:contains(\"open"),
             SelectorBuf::css("a:contains(\"open")
         );
+    }
+
+    #[test]
+    fn a_selector_that_crosses_a_shadow_root_is_css_and_stays_whole() {
+        for selector in [
+            "my-app::shadow button",
+            "my-app ::shadow .form ::shadow input",
+            // The first piece may be XPath: the pieces are read when the
+            // element is looked up.
+            "//my-app::shadow button",
+            "button:contains(\"Go\")::shadow a",
+        ] {
+            assert_eq!(Selector::auto(selector), Selector::Css(selector));
+            assert_eq!(SelectorBuf::from(selector), SelectorBuf::css(selector));
+            let by = Selector::auto(selector).to_by().unwrap();
+            assert_eq!(format!("{by}"), format!("CSS({selector})"));
+        }
+    }
+
+    #[test]
+    fn a_selector_that_ends_on_a_shadow_root_is_refused_by_every_method() {
+        for selector in [
+            "my-app ::shadow",
+            "my-app::shadow",
+            "a ::shadow b ::shadow  ",
+        ] {
+            let error = Selector::auto(selector).to_by().unwrap_err();
+            assert!(
+                matches!(&error, SeleniumBaseError::InvalidSelector(m)
+                    if m.contains("cannot end on a shadow root")),
+                "{selector:?}: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_name_that_only_starts_with_shadow_is_no_shadow_selector() {
+        assert_eq!(
+            Selector::auto("//a/parent::shadow-host"),
+            Selector::XPath("//a/parent::shadow-host")
+        );
+        assert_eq!(Selector::auto("a::shadowed"), Selector::Css("a::shadowed"));
     }
 
     #[test]

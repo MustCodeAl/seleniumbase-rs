@@ -1,5 +1,16 @@
-//! Shadow DOM selector piercing for the WebDriver engine.
+//! Shadow DOM selectors: telling them apart, and cutting them into pieces.
 //!
+//! [`is_shadow_selector`] says whether a selector crosses a shadow root the
+//! way Python SeleniumBase does, and [`shadow_chain`] cuts it into the pieces
+//! the engines look up one root at a time. The WebDriver engine does that for
+//! every method that takes a selector (so `sb.click("my-app::shadow button")`
+//! works, and waits), and reaches closed roots too; the pure CDP engine does it
+//! in its page script, for open roots.
+//!
+//! The older helpers below, [`split_shadow_selector`] and the `build_shadow_*`
+//! functions, are for scripts of your own.
+//!
+
 //! A selector such as `my-app ::shadow .form ::shadow input` names an element
 //! that sits inside two shadow roots. [`split_shadow_selector`] cuts it at each
 //! `::shadow` combinator, and the `build_shadow_*` functions turn the pieces
@@ -11,7 +22,7 @@
 //! `Runtime.evaluate`. Every fragment and value is put in with
 //! [`js_code::quote`](crate::js_code::quote), never pasted between quotes.
 //!
-//! Only open shadow roots can be entered; a closed root makes the walk end on
+//! These scripts enter only open shadow roots; a closed root makes the walk end on
 //! `null` and the script report that the element was not found.
 //!
 //! # Examples
