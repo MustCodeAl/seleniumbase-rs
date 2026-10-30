@@ -606,13 +606,21 @@ that could leave the logs directory.
 ## CAPTCHAs
 
 `page.solve_captcha()` attempts a Cloudflare Turnstile, reCAPTCHA, hCaptcha,
-Friendly Captcha or DataDome widget with trusted mouse events and returns which
-one it tried.
+Friendly Captcha or DataDome widget with trusted mouse events along a human
+pointer path, and returns which one it tried. It finds the widget in the page,
+its open shadow roots and the frames it may read, waits for it to stand still,
+checks that the page shows it cleared (a token in the response field, the
+`cf_clearance` cookie, a page with no widget) and presses it again, up to three
+times, if the page could show a result and did not; then it fails with
+`SeleniumBaseError::Captcha`. `page.solve_captcha_with(&SolveOptions::new()...)`
+returns a `Solved` that says how many presses it took and what showed it worked.
+[How CAPTCHAs work](/concepts/captchas) has the steps.
 
 <Note>
 
-The widgets live in cross-origin frames, so success is up to the site: check the
-page afterwards.
+The widgets live in cross-origin frames, so success is up to the site: when the
+page has no response field and you give no `success_marker`, the answer is "not
+verified", and the page is yours to check.
 
 </Note>
 

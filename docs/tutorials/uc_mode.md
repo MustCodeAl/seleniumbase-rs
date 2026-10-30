@@ -274,22 +274,73 @@ call when a challenge needs a fresh session.
 
 ### If the challenge shows a Turnstile checkbox
 
-A Cloudflare Turnstile widget is a click helper case: `solve_captcha()` presses
-the widget's checkbox and returns the kind it tried.
+A Cloudflare Turnstile widget is a case for `solve_captcha()`. It finds the
+widget (also in a shadow root, and by the id and title Cloudflare gives its
+frame), waits for it to stand still, presses its checkbox along a human pointer
+path, checks that the page shows it cleared (a token in the response field, the
+`cf_clearance` cookie, a page with no widget) and presses again, up to three
+times, if it did not. It returns the kind it cleared.
 
 ```rust,no_run
-# use seleniumbase_rs::sb_cdp::Captcha;
+# use seleniumbase_rs::sb_cdp::{Captcha, SolveOptions};
 # use seleniumbase_rs::{BaseCase, SeleniumBaseError};
 # async fn demo(sb: &mut BaseCase) -> Result<(), SeleniumBaseError> {
 assert_eq!(sb.solve_captcha().await?, Some(Captcha::Turnstile));
+
+// Or say what counts as the site's own page, and see what was done:
+let options = SolveOptions::new().success_marker("document.querySelector('#welcome')");
+if let Some(solved) = sb.solve_captcha_with(&options).await? {
+    println!("{solved}");
+}
 # Ok(())
 # }
 ```
 
-`solve_captcha` is a click helper, not a solver, and Cloudflare may follow with a
-harder challenge. [Testing pages with a CAPTCHA](/tutorials/captcha_testing)
-covers what it does and its limits; [How CAPTCHAs work](/concepts/captchas)
-explains why the page behind the challenge, not the click, decides the outcome.
+It fails with `SeleniumBaseError::Captcha`, saying what it saw, when the page
+could show a result and never did. It is not a solver of puzzles, and Cloudflare
+may follow with a harder challenge. [Testing pages with a
+CAPTCHA](/tutorials/captcha_testing) covers what it does and its limits;
+[How CAPTCHAs work](/concepts/captchas) explains why the page behind the
+challenge, not the click, decides the outcome, and how the solver is tested.
+
+#### Checking it on https://nowsecure.nl yourself
+
+nowsecure.nl is a public bot-detection test page behind Cloudflare. Whether the
+solver passes it is for you to check, on purpose; the library's own tests only
+use local imitation pages. The check passes when the site's own page loads, a
+Turnstile on the way is cleared and a `cf_clearance` cookie is held afterwards.
+
+<Tabs>
+
+<Tab title="Command line" icon="terminal">
+
+```bash
+sbrs --uc --url https://nowsecure.nl solve-captcha --expect-text nowsecure --expect-cookie cf_clearance
+```
+
+It exits with status 0 when the text and the cookie are there, and with status 1
+and a message when they are not. Add `--headed` to watch a window.
+
+</Tab>
+
+<Tab title="Test" icon="vial">
+
+```bash
+SB_LIVE_SITES=1 cargo test --test captcha_live_chrome -- --ignored --test-threads=1 --nocapture
+```
+
+The test is `#[ignore]`d and does nothing unless `SB_LIVE_SITES=1`. It runs the
+pure CDP engine and this UC engine in turn, and prints what the solver reported,
+the page title and the cookies it found. `SB_HEADED=1` shows a window,
+`SB_LIVE_URL` replaces the address and `SB_LIVE_MARKER` is a script expression
+that is true on the site's own page, if that page changes.
+
+</Tab>
+
+</Tabs>
+
+If a run fails, keep the printed lines: they are what to turn into a fixture in
+`tests/fixtures/captcha/` that reproduces the gap.
 
 ## Still detected?
 

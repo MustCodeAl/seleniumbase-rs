@@ -1413,6 +1413,37 @@ const completionSpec: Fig.Spec = {
       ],
     },
     {
+      name: "solve-captcha",
+      description: "Solve the CAPTCHA on the page and check that it cleared.",
+      options: [
+        {
+          name: "--expect-text",
+          description: "Text that must be on the page afterwards (any letter case)",
+          args: {
+            name: "expect_text",
+          },
+        },
+        {
+          name: "--expect-cookie",
+          description: "Cookie the browser must hold afterwards, such as cf_clearance",
+          args: {
+            name: "expect_cookie",
+          },
+        },
+        {
+          name: "--wait",
+          description: "Seconds to wait for the expected text",
+          args: {
+            name: "wait",
+          },
+        },
+        {
+          name: ["-h", "--help"],
+          description: "Print help",
+        },
+      ],
+    },
+    {
       name: ["install", "get"],
       description: "Download a driver or a browser into ./downloaded_drivers/ (Python's `sbrs get`).",
       options: [

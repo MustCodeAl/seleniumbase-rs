@@ -312,19 +312,31 @@ behind it, so the token is what a test can check:
 
 `Page::solve_captcha()` (and `BaseCase::solve_captcha()`, which does the same
 over chromedriver) looks for the first visible widget among Cloudflare Turnstile,
-reCAPTCHA, hCaptcha, Friendly Captcha and DataDome, in that order, scrolls it to
-the middle of the window, and presses 28 pixels in from its left edge at half its
-height with trusted mouse events (the DataDome slider is pressed 30 pixels in
-and dragged to 30 pixels from the right edge). The widgets live in cross-origin
-frames whose insides it cannot inspect, so it does not know whether the click
-was accepted. It returns `Some(Captcha::...)` for the widget it pressed, `None`
-when no supported widget is visible yet, and an error when the script that looks
-for the widget fails or the browser refuses the input. The script can fail
-while the page is still navigating ("Execution context was destroyed"), so such
-an error need not end a test that has just submitted a form or followed a link:
-wait for the page to load and call it again. Because `None` is what you get
-before the widget has drawn, wait for the widget first, and check the token
-afterwards.
+reCAPTCHA, hCaptcha, Friendly Captcha and DataDome, in that order, in the page,
+its open shadow roots and the frames it may read; scrolls it to the middle of the
+window and waits until it has stood still; then moves a trusted pointer to it
+along a curved, timed path, rests on the box and presses within a few pixels of
+the checkbox, 28 pixels in from the widget's left edge at half its height (the
+DataDome slider is pressed 30 pixels in and dragged to 30 pixels from the right
+edge). The widgets live in cross-origin frames whose insides it cannot inspect,
+so it reads what your page shows instead: a token in the widget's hidden
+response field, the clearance cookie, or a page that moved on to one with no
+widget. If the page has the field and no token comes within five seconds it
+presses again after a short, growing wait, up to three presses, and then fails
+with `SeleniumBaseError::Captcha`. A page with no response field cannot show a
+result, so the widget is pressed once and the answer is "not verified" (see
+`solve_captcha_with` and `Solved::evidence`; pass `SolveOptions::success_marker`
+to name something your page shows when it worked).
+
+It returns `Some(Captcha::...)` for the widget it pressed, `None` when no
+supported widget is visible and the page shows no sign of one on its way (a page
+that is marked as a challenge but has not drawn the widget yet is waited for, up
+to `SolveOptions::locate_timeout`, 6 seconds by default), and an error when the
+script that looks for the widget fails or the browser refuses the input. The
+script can fail while the page is still navigating ("Execution context was
+destroyed"), so such an error need not end a test that has just submitted a form
+or followed a link: wait for the page to load and call it again. Wait for the
+widget's frame first, as the listings below do, and check the token afterwards.
 
 With the `gui` feature, `Page::gui_click_captcha()` makes the same press with the
 machine's own pointer; test widgets do not need it (see
@@ -338,34 +350,27 @@ use std::time::Duration;
 use seleniumbase_rs::sb_cdp::{Browser, Captcha, LaunchOptions, Page, State};
 use seleniumbase_rs::SeleniumBaseError;
 
-/// Presses `widget` until the hidden field `field` holds a token, and returns
-/// the token.
+/// Presses `widget` and returns the token that lands in the hidden field
+/// `field`.
 ///
 /// The widget's frame can be on screen before the checkbox inside it has
-/// drawn, and a press that early is lost. `solve_captcha` cannot tell, so each
-/// press gets five seconds to produce a token, and the widget is pressed again
-/// if none came.
+/// drawn, and a press that early is lost. `solve_captcha` knows: it reads the
+/// widget's response field, waits up to five seconds for a token after each
+/// press, and presses again (up to three times) when none came. It fails with
+/// `SeleniumBaseError::Captcha` if none ever does.
 async fn press_until_token(
     page: &Page,
     widget: Captcha,
     field: &str,
 ) -> Result<String, SeleniumBaseError> {
+    assert_eq!(page.solve_captcha().await?, Some(widget));
     // Truthy once the field holds a token; the `?.` keeps it from throwing
     // before the field exists.
     let token = format!("document.querySelector('{field}')?.value");
-    let short = page.with_timeout(Duration::from_secs(5));
-    for _ in 0..3 {
-        assert_eq!(page.solve_captcha().await?, Some(widget));
-        match short.wait_for_function(&token).await {
-            Ok(()) => return page.evaluate_as(&token).await,
-            // No token: the press came too early, so press again.
-            Err(SeleniumBaseError::WaitTimeout(_)) => {}
-            Err(other) => return Err(other),
-        }
-    }
-    Err(SeleniumBaseError::WaitTimeout(format!(
-        "no token in {field} after three presses"
-    )))
+    page.with_timeout(Duration::from_secs(5))
+        .wait_for_function(&token)
+        .await?;
+    page.evaluate_as(&token).await
 }
 
 #[tokio::test]
@@ -571,7 +576,7 @@ challenge:
 
 **Likely cause.** The wrong site key (not a test key), or the click came before the widget was ready.
 
-**Fix.** Press again after a few seconds, as `press_until_token` does; check the key in the page source; take a screenshot (`save_screenshot`) to see the widget.
+**Fix.** `solve_captcha` already presses again (up to three presses) when the token field stays empty, and fails with `SeleniumBaseError::Captcha` if it never fills: raise the attempts or `SolveOptions::verify_timeout` if the widget is slow; check the key in the page source; take a screenshot (`save_screenshot`) to see the widget.
 
 </Accordion>
 
