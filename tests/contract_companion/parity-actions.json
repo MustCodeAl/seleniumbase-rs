@@ -1,0 +1,12 @@
+[
+  { "name": "open", "target": "https://example.com/a?b=1&c=\"d\"" },
+  { "name": "click", "target": "#go" },
+  { "name": "type_text", "target": "input[name=\"q\"]", "value": "hello \"world\"\\n\nsecond line" },
+  { "name": "select_option_by_text", "target": "#color", "value": "Green" },
+  { "name": "check_if_unchecked", "target": "#agree" },
+  { "name": "uncheck_if_checked", "target": "#agree" },
+  { "name": "double_click", "target": "//div[@id=\"row\"]" },
+  { "name": "hover", "target": "[data-testid=\"menu\"]" },
+  { "name": "click", "target": "link=Sign in" },
+  { "name": "type_text", "target": "#q", "value": "tab\there \u202e bidi \u0000 nul \u001b esc" }
+]

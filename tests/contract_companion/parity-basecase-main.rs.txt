@@ -1,0 +1,18 @@
+use seleniumbase_rs::{BaseCase, BrowserConfig};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut sb = BaseCase::new(BrowserConfig::default()).await?;
+    sb.open("https://example.com/a?b=1&c=\"d\"").await?;
+    sb.click("#go").await?;
+    sb.type_text("input[name=\"q\"]", "hello \"world\"\\n\nsecond line").await?;
+    sb.select_option_by_text("#color", "Green").await?;
+    sb.check_if_unchecked("#agree").await?;
+    sb.uncheck_if_checked("#agree").await?;
+    sb.double_click("//div[@id=\"row\"]").await?;
+    sb.hover("[data-testid=\"menu\"]").await?;
+    sb.click("link=Sign in").await?;
+    sb.type_text("#q", "tab\there \u{202e} bidi \0 nul \u{1b} esc").await?;
+    sb.quit().await?;
+    Ok(())
+}
