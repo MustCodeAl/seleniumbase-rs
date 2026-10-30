@@ -40,7 +40,6 @@ impl Mismatches {
         dead_code,
         reason = "no port notes a mismatch since frames of another origin work"
     )]
-
     pub fn note(&mut self, step: &str, error: impl std::fmt::Display) {
         println!("MISMATCH {step}: {error}");
         if !self.knows(step) {
@@ -54,7 +53,6 @@ impl Mismatches {
         dead_code,
         reason = "only `note` asks, and no port calls it at the moment"
     )]
-
     pub fn knows(&self, step: &str) -> bool {
         self.0.iter().any(|known| known.starts_with(step))
     }

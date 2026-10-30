@@ -444,7 +444,6 @@ async fn entering_a_frame_enables_none_of_them_and_sends_one_dom_command() {
 }
 
 // ----------------------------------------------------------------------
-
 // The sources
 // ----------------------------------------------------------------------
 
@@ -468,7 +467,6 @@ const KNOWN_SENDERS: [(&str, &str, usize); 0] = [];
 /// id, and it is sent only for a frame the page script could not enter. The
 /// test `entering_a_frame_enables_none_of_them` holds it to that.
 ///
-
 /// The one entry is not sent by this crate: it is text the Playwright and
 /// Puppeteer importers write into the test they generate, in the helper that
 /// fills a file input. A page cannot set a file input's files from script, so

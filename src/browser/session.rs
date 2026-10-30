@@ -45,7 +45,6 @@ use crate::utilities::retry::{poll_until, RetryPolicy};
 /// property is missing, an object or a function; `selected`, `checked` and the
 /// other boolean attributes give `"true"` or `null`. The `/* getAttribute */`
 /// marker tells tests which script this is.
-
 const GET_ATTRIBUTE: &str = "/* getAttribute */ \
     const element = arguments[0]; const name = String(arguments[1]).toLowerCase(); \
     const alias = { class: 'className', readonly: 'readOnly' }; \

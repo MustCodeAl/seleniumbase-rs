@@ -32,7 +32,6 @@ const WORLD: &str = "sbcdp";
 /// most a quarter of a second, so a frame that is never drawn does not hang the
 /// click. A click is placed by what the browser drew last, so scrolling a frame
 /// is followed by a wait for the draw.
-
 const AFTER_DRAW: &str = "new Promise((resolve) => { \
     setTimeout(resolve, 250); \
     requestAnimationFrame(() => requestAnimationFrame(resolve)); \

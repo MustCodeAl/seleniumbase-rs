@@ -172,7 +172,6 @@ impl Locator {
     /// # Ok(())
     /// # }
     /// ```
-
     #[must_use]
     pub fn locator(&self, selector: impl Into<SelectorBuf>) -> Self {
         let mut next = self.clone();
