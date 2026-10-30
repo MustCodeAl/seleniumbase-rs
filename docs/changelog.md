@@ -180,6 +180,19 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ### Added
 
+- **Terminal output looks like Python SeleniumBase's: coloured levels, quiet by default.** Log lines
+  on a terminal are `12:34:56  INFO browser::session: message key=value`, with the level coloured,
+  the time, the module path and the field names dim, and file paths and tests or steps
+  highlighted; the `new:connect:` span context, the crate name and the milliseconds appear only
+  when a filter was chosen (`RUST_LOG`, `SB_LOG_LEVEL`). The `sbrs mkrec` banners (`* RECORDING
+  initialized:`, `>>> RECORDING SAVED as:`, `*** RECORDING COPIED to:`, `*** BEHAVE RECORDING at:`,
+  `ERROR:`) and the label of the `[RECORDER BREAKPOINT]` prompt use the colorama pairs of
+  `sbase mkrec`. Colour is used only when the stream is a terminal, `NO_COLOR` is unset and `TERM`
+  is not `dumb`; a pipe, a file and `SB_LOG_FORMAT=json` stay plain. One new module,
+  `common::color` (`Style`, `palette`, `use_color`, `banner`), holds the decision and the colours
+  for the debug prompts to reuse. `RecordingOptions` and `MkrecOptions` gain a `color` field, off
+  by default.
+
 - **The rest of the stealth section is organized as a reading order, with the
   existing text kept.** The sidebar and `docs/SUMMARY.md` now run tutorial,
   overview, wire formats, identity, `BrowserScraper`, `HttpSession`, `MitmProxy`,
@@ -719,6 +732,45 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   gives the line.
 
 ### Fixed
+
+- **Recorder Mode no longer writes the frames of a page as pages to open.** The page script went
+  into every frame, and a frame of the same origin shares the top frame's sessionStorage, so a
+  reCAPTCHA page recorded `goto` steps for `about:blank`, `about:srcdoc` and the widget's
+  `anchor` and `bframe` addresses and `click` steps for its tiles and verify button (SeleniumBase
+  4.56.2's own `--rec` does the same on such a page). The script now records the top frame only
+  and runs once for each document; a click into a reCAPTCHA, hCaptcha, Turnstile or DataDome frame
+  is one comment in every output form (`// skipped: captcha (recaptcha): solve it by hand or use
+  sb.solve_captcha()`) and opens no tab; an open of `about:blank`, `data:` or `chrome:` is skipped;
+  an empty `about:blank` frame is not a step. A page that a `window.open` tab loads is recorded
+  (the tab's copied sessionStorage made the watcher think the script had run there). A `goto` of
+  Google's `/sorry/` bot check or of an address with query parameters that change at every visit
+  (`ei`, `sxsrf`, `ved`, `gs_lp`, ...) keeps its address and ends with a `// note:`. New tabs stay
+  a `click` and a `goto_if_not_url`, as in Python (it writes no tab switch).
+
+- **Attaching to an app-owned Chromium no longer breaks or hijacks the host app.** The browser
+  belongs to the app (a Tauri window on CEF or WebView2), so:
+  - `Browser::launch` with a `cdp_url` attaches to and prepares no window. The fingerprint,
+    emulation and plugins reach a window when the automation opens it (`new_page`) or picks it
+    (`default_page`, `page`, the new `Browser::select_page`, or `BrowserConfig::with_cdp_target`
+    / `LaunchOptionsBuilder::cdp_target` for `BaseCase`); `list_pages` only lists. Before, every
+    page target was prepared, including the app's own windows.
+  - A proxy, a PAC file or a fingerprint's proxy is refused with `InvalidConfig`; a login used to
+    turn on request interception in every tab with nothing to answer it, so the app's requests
+    hung. A user agent or locale without a fingerprint is refused too, where it was dropped.
+  - `Browser::close` on an attached browser detaches every session it attached
+    (`Target.detachFromTarget`), resets the permissions and the download behaviour it set, never
+    sends `Browser.close`, and makes every handle of that browser fail with `BrowserDisconnected`.
+  - `BrowserSession::reconnect` (`BaseCase::reconnect`) on a direct CDP attachment attaches to the
+    endpoint of the configuration again; it started a local chromedriver and Chrome before, and
+    `quit` then skipped stopping them.
+  - `BrowserSession::webdriver()` is new: the session and `BaseCase` methods that need a
+    WebDriver return `Unsupported` (naming the CDP attachment) or `SessionNotStarted` instead of
+    panicking. `driver()` still panics; the recorder helpers still call it.
+  - After Tauri discovery the advertised WebSocket must be `ws://` on the loopback host and the
+    discovered port, discovery and version replies are capped at 1 MiB, and an error names the
+    step (`Tauri discovery`, `DevTools version probe`) and the HTTP status without the token.
+  - The Tauri pages say that the raw Chromium debug socket is unauthenticated, that the plugin's
+    `cdp` Cargo feature turns it on, and that both must be off in release builds.
 
 - **The MCP client never leaves the server it started running.** When the handshake fails or
   times out, `McpClient` (and `sbrs-mcp tools|call|batch --connect`) kills the program it
