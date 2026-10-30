@@ -32,8 +32,8 @@ use serde_json::{json, Value};
 
 use super::Page;
 use crate::error::SeleniumBaseError;
-use crate::stealth::evasions::{safe_cdp_overrides, session_script};
-use crate::stealth::fingerprint::Fingerprint;
+use crate::evasion::evasions::{safe_cdp_overrides, session_script};
+use crate::evasion::fingerprint::Fingerprint;
 
 /// The override that grants permissions. It is browser-wide, so it needs the
 /// context of the tab it is for and is sent separately.
@@ -144,7 +144,7 @@ impl Page {
     /// Hints, language, time zone, screen size, location, and so on. The page
     /// that is open now keeps its old identity until it navigates or reloads.
     ///
-    /// The script is the [session registry](crate::stealth::providers::session_registry)'s,
+    /// The script is the [session registry](crate::evasion::providers::session_registry)'s,
     /// which leaves `navigator.plugins`, `mimeTypes`, `pdfViewerEnabled` and
     /// `navigator.connection` to the browser, and defines `userAgentData` only
     /// in a secure context. A desktop persona's screen is sent as
@@ -203,9 +203,9 @@ pub(super) fn refused(method: &str, error: &SeleniumBaseError) -> SeleniumBaseEr
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::stealth::evasions::{raw_overrides, CREDENTIAL_HEADER_METHOD};
-    use crate::stealth::fingerprint::{OsType, ProxyConfig, Spoof};
-    use crate::stealth::providers::{session_registry, EvasionContext};
+    use crate::evasion::evasions::{raw_overrides, CREDENTIAL_HEADER_METHOD};
+    use crate::evasion::fingerprint::{OsType, ProxyConfig, Spoof};
+    use crate::evasion::providers::{session_registry, EvasionContext};
 
     fn methods(identity: &Identity) -> Vec<&str> {
         identity
@@ -253,7 +253,7 @@ mod tests {
         assert_eq!(owned.find(source), None, "a name Chrome answers for itself");
         assert_ne!(
             source,
-            crate::stealth::evasions::bootstrap_script(&fingerprint),
+            crate::evasion::evasions::bootstrap_script(&fingerprint),
             "the default script spoofs them"
         );
     }
@@ -429,7 +429,7 @@ mod launch_tests {
     use std::path::Path;
 
     use super::super::LaunchOptions;
-    use crate::stealth::fingerprint::{OsType, ProxyConfig, Spoof};
+    use crate::evasion::fingerprint::{OsType, ProxyConfig, Spoof};
 
     use super::*;
 

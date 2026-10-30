@@ -1,7 +1,7 @@
 //! JavaScript anti-detection / fingerprint spoofing payloads.
 //!
 //! The functions in this module build self-contained IIFE scripts from a
-//! [`Fingerprint`](crate::stealth::fingerprint::Fingerprint). The returned
+//! [`Fingerprint`](crate::evasion::fingerprint::Fingerprint). The returned
 //! strings are suitable for:
 //!
 //! * `Page.addScriptToEvaluateOnNewDocument` via CDP (injected before any page
@@ -18,16 +18,16 @@ use std::collections::HashMap;
 
 use base64::Engine;
 
-use crate::stealth::fingerprint::{
+use crate::evasion::fingerprint::{
     BrandVersion, Dimension, Fingerprint, OsType, QuicMode, WebRtcPolicy,
 };
-use crate::stealth::providers::{default_registry, session_registry, EvasionContext};
-use crate::stealth::randomize::{chromium_hints, edge_hints, PRESET_CHROMIUM_MAJOR};
+use crate::evasion::providers::{default_registry, session_registry, EvasionContext};
+use crate::evasion::randomize::{chromium_hints, edge_hints, PRESET_CHROMIUM_MAJOR};
 
 /// Generates a single combined bootstrap script for the given fingerprint.
 ///
-/// This delegates to the [provider registry](crate::stealth::providers), which
-/// assembles every applicable [`EvasionProvider`](crate::stealth::providers::EvasionProvider)
+/// This delegates to the [provider registry](crate::evasion::providers), which
+/// assembles every applicable [`EvasionProvider`](crate::evasion::providers::EvasionProvider)
 /// in priority order. The returned script is wrapped in an IIFE and modifies
 /// prototype-level properties so spoofed values survive `getOwnPropertyNames`
 /// scans and re-define attempts by page scripts.
@@ -41,7 +41,7 @@ pub fn bootstrap_script(fp: &Fingerprint) -> String {
 
 /// The script a session that drives a real Chrome runs before any page script.
 ///
-/// It is the [session registry](crate::stealth::providers::session_registry)'s:
+/// It is the [session registry](crate::evasion::providers::session_registry)'s:
 /// [`bootstrap_script`] without the providers for `navigator.plugins`,
 /// `mimeTypes`, `pdfViewerEnabled` and `navigator.connection`, which Chrome
 /// answers for itself. The pure CDP engine and the WebDriver sessions both use
@@ -556,7 +556,7 @@ fn major_of(version: &str) -> Option<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::stealth::fingerprint::{Fingerprint, FingerprintBuilder, Spoof};
+    use crate::evasion::fingerprint::{Fingerprint, FingerprintBuilder, Spoof};
 
     fn built(builder: FingerprintBuilder) -> Fingerprint {
         builder.build().expect("the builder builds")

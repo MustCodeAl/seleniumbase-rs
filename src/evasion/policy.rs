@@ -1,9 +1,9 @@
 //! The injection policy of a fingerprint: behaviour that is not a per-setting
 //! value.
 //!
-//! A [`Fingerprint`](crate::stealth::fingerprint::Fingerprint) holds two kinds
+//! A [`Fingerprint`](crate::evasion::fingerprint::Fingerprint) holds two kinds
 //! of things. The settings (a time zone, a screen, a position) are what the
-//! browser should *claim*, one [`Spoof`](crate::stealth::spoof::Spoof) each. The
+//! browser should *claim*, one [`Spoof`](crate::evasion::spoof::Spoof) each. The
 //! [`StealthPolicy`] is *how* the claims are delivered and which protections run
 //! beside them: whether `Function.prototype.toString` is masked, whether canvas
 //! reads are noised, whether permissions are granted up front, which ports are
@@ -13,7 +13,7 @@
 //! It is given to the fingerprint builder, in any order against the settings.
 //!
 //! ```
-//! use seleniumbase_rs::stealth::fingerprint::{CanvasNoise, StealthPolicy};
+//! use seleniumbase_rs::evasion::fingerprint::{CanvasNoise, StealthPolicy};
 //!
 //! let policy = StealthPolicy::balanced().canvas_noise(CanvasNoise::Random);
 //! assert_eq!(policy.canvas_noise, CanvasNoise::Random);
@@ -90,14 +90,14 @@ impl AudioNoise {
 ///
 /// The fields can be read; a policy is changed by the methods of the same
 /// names, which take and return the policy, or through the builder
-/// ([`FingerprintBuilder::policy`](crate::stealth::fingerprint::FingerprintBuilder::policy),
-/// [`with_policy`](crate::stealth::fingerprint::FingerprintBuilder::with_policy)
+/// ([`FingerprintBuilder::policy`](crate::evasion::fingerprint::FingerprintBuilder::policy),
+/// [`with_policy`](crate::evasion::fingerprint::FingerprintBuilder::with_policy)
 /// and its shortcuts).
 ///
 /// # Examples
 ///
 /// ```
-/// use seleniumbase_rs::stealth::fingerprint::{CanvasNoise, StealthPolicy};
+/// use seleniumbase_rs::evasion::fingerprint::{CanvasNoise, StealthPolicy};
 ///
 /// let policy = StealthPolicy::balanced()
 ///     .canvas_noise(CanvasNoise::Low)

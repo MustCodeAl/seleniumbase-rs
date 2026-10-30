@@ -319,7 +319,7 @@ fn problems(file: &Value) -> Vec<String> {
 
 #[test]
 fn every_preset_a_drawn_identity_and_a_capture_is_valid_against_the_schema() {
-    use crate::stealth::fingerprint::OsType;
+    use crate::evasion::fingerprint::OsType;
 
     let mut files = vec![
         Fingerprint::windows_desktop(),
@@ -347,7 +347,7 @@ fn every_preset_a_drawn_identity_and_a_capture_is_valid_against_the_schema() {
     ] {
         let raw: Value = serde_json::from_str(fixture).unwrap();
         let captured =
-            crate::stealth::capture::CapturedFingerprint::from_probe(&raw, "2026-10-18T12:00:00Z")
+            crate::evasion::capture::CapturedFingerprint::from_probe(&raw, "2026-10-18T12:00:00Z")
                 .unwrap();
         files.push(captured.fingerprint);
     }

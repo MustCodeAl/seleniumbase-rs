@@ -19,14 +19,14 @@ use std::net::TcpListener;
 use std::thread;
 use std::time::Duration;
 
-use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Page};
-use seleniumbase_rs::stealth::evasions::bootstrap_script;
-use seleniumbase_rs::stealth::fingerprint::{
+use seleniumbase_rs::evasion::evasions::bootstrap_script;
+use seleniumbase_rs::evasion::fingerprint::{
     AudioNoise, BatteryProfile, ConnectionProfile, Fingerprint, FingerprintBuilder,
 };
-use seleniumbase_rs::stealth::providers::{
+use seleniumbase_rs::evasion::providers::{
     builtin, EvasionConfig, EvasionContext, EvasionProvider, EvasionRegistry,
 };
+use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Page};
 use seleniumbase_rs::OsType;
 use serde_json::{json, Value};
 

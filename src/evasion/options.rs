@@ -9,13 +9,13 @@ use crate::browser::options::{
     LocaleCode,
 };
 use crate::error::SeleniumBaseError;
-use crate::stealth::fingerprint::Fingerprint;
+use crate::evasion::fingerprint::Fingerprint;
 use thirtyfour::common::capabilities::chromium::ChromiumLikeCapabilities;
 use thirtyfour::LoggingPrefsLogLevel;
 
 /// The user agent a phone-emulating session reports when the caller names none:
 /// Chrome on Android in its frozen format (release 10, model `K`), claiming
-/// [`PRESET_CHROMIUM_MAJOR`](crate::stealth::randomize::PRESET_CHROMIUM_MAJOR),
+/// [`PRESET_CHROMIUM_MAJOR`](crate::evasion::randomize::PRESET_CHROMIUM_MAJOR),
 /// which a test holds it to.
 pub use crate::browser::options::MOBILE_USER_AGENT;
 
@@ -151,7 +151,7 @@ impl StealthOptions {
         let fingerprint_args = self
             .fingerprint
             .as_ref()
-            .map(crate::stealth::evasions::launch_args)
+            .map(crate::evasion::evasions::launch_args)
             .unwrap_or_default();
         let set_by_fingerprint =
             |switch: &str| fingerprint_args.iter().any(|arg| arg.starts_with(switch));
@@ -450,7 +450,7 @@ mod tests {
 
     #[test]
     fn the_mobile_user_agent_claims_the_preset_major_in_chromes_frozen_format() {
-        let major = crate::stealth::randomize::PRESET_CHROMIUM_MAJOR;
+        let major = crate::evasion::randomize::PRESET_CHROMIUM_MAJOR;
         assert_eq!(
             MOBILE_USER_AGENT,
             format!(
@@ -534,7 +534,7 @@ mod tests {
 
     #[test]
     fn a_switch_the_fingerprint_sets_is_sent_once_and_with_the_fingerprints_value() {
-        let fingerprint = Fingerprint::randomized(crate::stealth::fingerprint::OsType::Windows, 4);
+        let fingerprint = Fingerprint::randomized(crate::evasion::fingerprint::OsType::Windows, 4);
         let opts = StealthOptions {
             user_agent: Some("MyAgent/1.0".to_owned()),
             locale: Some("fr-FR".to_owned()),

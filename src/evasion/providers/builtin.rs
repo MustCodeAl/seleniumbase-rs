@@ -18,7 +18,7 @@
 //!   before.
 
 use super::{EvasionContext, EvasionProvider, SB_PREAMBLE};
-use crate::stealth::fingerprint::{
+use crate::evasion::fingerprint::{
     languages_for_locale, AudioNoise, CanvasNoise, Dimension, Fingerprint, Geolocation,
     AUDIO_SEED_MASK,
 };
@@ -643,7 +643,7 @@ impl EvasionProvider for WebglProvider {
 
 /// Canvas noise on `toDataURL` / `toBlob` / `getImageData`.
 ///
-/// Runs for every [`CanvasNoise`](crate::stealth::fingerprint::CanvasNoise)
+/// Runs for every [`CanvasNoise`](crate::evasion::fingerprint::CanvasNoise)
 /// of the policy that adds noise: `Persistent` uses the profile seed, `Random`
 /// a fresh seed for each generated script, and `Low` touches about one pixel in
 /// eight.
@@ -1429,7 +1429,7 @@ impl EvasionProvider for ClientHintsProvider {
                     .to_owned(),
             );
         };
-        let brand_json = |list: &[crate::stealth::fingerprint::BrandVersion]| {
+        let brand_json = |list: &[crate::evasion::fingerprint::BrandVersion]| {
             list.iter()
                 .map(|b| {
                     format!(
@@ -1492,7 +1492,7 @@ impl EvasionProvider for ClientHintsProvider {
 /// the fingerprint is applied over the DevTools protocol,
 /// `Emulation.setTimezoneOverride` already changes all of them in the browser
 /// itself and this provider is not needed (see
-/// [`StealthPolicy::native_spoofing`](crate::stealth::fingerprint::StealthPolicy::native_spoofing)).
+/// [`StealthPolicy::native_spoofing`](crate::evasion::fingerprint::StealthPolicy::native_spoofing)).
 #[derive(Clone, Copy, Debug, Default)]
 pub struct TimezoneProvider;
 
@@ -1805,7 +1805,7 @@ impl EvasionProvider for IframeProvider {
 /// page is running in a controllable environment. This provider does not
 /// change the return value's API surface; it only ensures the shadow root is
 /// reachable via `element.shadowRoot`. It runs unless
-/// [`StealthPolicy::open_shadow_roots`](crate::stealth::fingerprint::StealthPolicy::open_shadow_roots)
+/// [`StealthPolicy::open_shadow_roots`](crate::evasion::fingerprint::StealthPolicy::open_shadow_roots)
 /// is turned off.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct AttachShadowProvider;
@@ -1911,7 +1911,7 @@ impl EvasionProvider for TrackerBlockProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::stealth::fingerprint::{
+    use crate::evasion::fingerprint::{
         BatteryProfile, BrandVersion, ClientHints, ConnectionProfile, Fingerprint,
         FingerprintBuilder, Geolocation, MediaDevices, Spoof, StealthPolicy, WebRtcAddresses,
     };
@@ -1932,12 +1932,12 @@ mod tests {
     /// A fingerprint that makes every provider apply.
     fn everything() -> Fingerprint {
         windows_with(|b| {
-            b.audio_noise(crate::stealth::fingerprint::AudioNoise::Persistent)
+            b.audio_noise(crate::evasion::fingerprint::AudioNoise::Persistent)
                 .media_devices((1, 1, 1))
                 .policy(StealthPolicy::max())
                 .fonts(["Arial"])
                 .geolocation((1.0, 2.0))
-                .webgl(crate::stealth::fingerprint::WebGl::new("V", "R").ids("0x10de", "0x1f91"))
+                .webgl(crate::evasion::fingerprint::WebGl::new("V", "R").ids("0x10de", "0x1f91"))
                 .webrtc(("203.0.113.9", "10.0.0.2"))
                 .client_hints(ClientHints {
                     brands: vec![BrandVersion::new("Chromium", "124")],
@@ -1993,7 +1993,7 @@ mod tests {
 
     #[test]
     fn a_webgl_half_that_is_not_given_stays_the_browsers_own() {
-        let fp = windows_with(|b| b.webgl(crate::stealth::fingerprint::WebGl::renderer_only("R")));
+        let fp = windows_with(|b| b.webgl(crate::evasion::fingerprint::WebGl::renderer_only("R")));
         let script = WebglProvider.script(&ctx_for(&fp)).unwrap();
         assert!(script.contains("const vendor = null;"), "{script}");
         assert!(script.contains("const renderer = 'R';"), "{script}");
@@ -2052,18 +2052,18 @@ mod tests {
     #[test]
     fn audio_noise_is_seeded_unless_it_is_random() {
         let with = |noise| windows_with(|b| b.audio_noise(noise));
-        let persistent = with(crate::stealth::fingerprint::AudioNoise::Persistent);
+        let persistent = with(crate::evasion::fingerprint::AudioNoise::Persistent);
         assert_eq!(
             AudioNoiseProvider.script(&ctx_for(&persistent)),
             AudioNoiseProvider.script(&ctx_for(&persistent))
         );
-        let random = with(crate::stealth::fingerprint::AudioNoise::Random);
+        let random = with(crate::evasion::fingerprint::AudioNoise::Random);
         assert_ne!(
             AudioNoiseProvider.script(&ctx_for(&random)),
             AudioNoiseProvider.script(&ctx_for(&random))
         );
         assert!(
-            !AudioNoiseProvider.applies(&with(crate::stealth::fingerprint::AudioNoise::Natural))
+            !AudioNoiseProvider.applies(&with(crate::evasion::fingerprint::AudioNoise::Natural))
         );
     }
 
@@ -2111,7 +2111,7 @@ mod tests {
         // The old noise advanced a shared generator on every read; a stateless
         // hash is what makes two reads agree.
         let fp =
-            windows_with(|b| b.audio_noise(crate::stealth::fingerprint::AudioNoise::Persistent));
+            windows_with(|b| b.audio_noise(crate::evasion::fingerprint::AudioNoise::Persistent));
         for provider in [
             &CanvasNoiseProvider as &dyn EvasionProvider,
             &AudioNoiseProvider,

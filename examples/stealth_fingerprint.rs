@@ -38,7 +38,7 @@
 #[cfg(feature = "playwright")]
 mod local_site;
 
-use seleniumbase_rs::stealth::evasions::{bootstrap_script, launch_args};
+use seleniumbase_rs::evasion::evasions::{bootstrap_script, launch_args};
 use seleniumbase_rs::{
     CanvasNoise, Dimension, Fingerprint, OsType, Result, SeleniumBaseError, Spoof, StealthPolicy,
 };

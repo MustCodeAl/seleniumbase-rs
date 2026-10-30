@@ -1,6 +1,6 @@
 //! The four states of one fingerprint setting.
 //!
-//! A [`Fingerprint`](crate::stealth::fingerprint::Fingerprint) setting is not
+//! A [`Fingerprint`](crate::evasion::fingerprint::Fingerprint) setting is not
 //! a value plus a flag that says whether to use it. It is one [`Spoof`], and the
 //! state says everything: leave the browser's own value, draw a random one, use
 //! this one, or turn the API off.
@@ -8,7 +8,7 @@
 //! # Examples
 //!
 //! ```
-//! use seleniumbase_rs::stealth::spoof::Spoof;
+//! use seleniumbase_rs::evasion::spoof::Spoof;
 //!
 //! // A plain value is `Value`, so passing one is all the intent there is.
 //! let zone: Spoof<String> = "Europe/Berlin".into();
@@ -27,7 +27,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 /// One fingerprint setting: what the browser should report for it.
 ///
 /// `Random` is resolved when a fingerprint is built (see
-/// [`FingerprintBuilder::build`](crate::stealth::fingerprint::FingerprintBuilder::build)),
+/// [`FingerprintBuilder::build`](crate::evasion::fingerprint::FingerprintBuilder::build)),
 /// so a built fingerprint holds `Natural`, `Value` or `Off`.
 ///
 /// In JSON a `Spoof` is `"natural"`, `"random"`, `"off"` or the value itself;

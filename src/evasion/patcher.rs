@@ -8,7 +8,7 @@
 //! Typical usage:
 //!
 //! ```ignore
-//! use seleniumbase_rs::stealth::patcher::{ChromedriverPatcher, EnginePatch};
+//! use seleniumbase_rs::evasion::patcher::{ChromedriverPatcher, EnginePatch};
 //!
 //! ChromedriverPatcher::new("chromedriver")
 //!     .patch(EnginePatch::all())?;

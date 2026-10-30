@@ -28,8 +28,8 @@ use seleniumbase_rs::common::shutdown::{
 use seleniumbase_rs::config::plugins::PluginSelection;
 use seleniumbase_rs::config::proxy_list::ProxyList;
 use seleniumbase_rs::config::settings::{Settings, SettingsOverrides};
+use seleniumbase_rs::evasion::patcher::find_system_chrome;
 use seleniumbase_rs::resources::assets;
-use seleniumbase_rs::stealth::patcher::find_system_chrome;
 use seleniumbase_rs::utilities::grid_server::{default_state_dir, GridRole};
 use seleniumbase_rs::utilities::importer::{
     import_playwright, import_puppeteer, ScriptImportOptions, ScriptLanguage,
@@ -3839,7 +3839,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             after.finish(&mut sb).await?;
         }
         Commands::PatchChromedriver { path } => {
-            seleniumbase_rs::stealth::patcher::patch_chromedriver(&path)?;
+            seleniumbase_rs::evasion::patcher::patch_chromedriver(&path)?;
             println!("Successfully patched chromedriver binary at: {path}");
         }
         Commands::PatchChrome { path, cache_dir } => {

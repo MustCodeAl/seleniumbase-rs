@@ -12,16 +12,16 @@
 ///
 /// The body awaits, so it must run inside an `async` function. The two engines
 /// wrap it differently:
-/// [`capture_expression`](crate::stealth::capture::capture_expression) for the
+/// [`capture_expression`](crate::evasion::capture::capture_expression) for the
 /// pure CDP engine and
-/// [`capture_async_script`](crate::stealth::capture::capture_async_script) for
-/// WebDriver. [`CapturedFingerprint::from_probe`](crate::stealth::capture::CapturedFingerprint::from_probe)
+/// [`capture_async_script`](crate::evasion::capture::capture_async_script) for
+/// WebDriver. [`CapturedFingerprint::from_probe`](crate::evasion::capture::CapturedFingerprint::from_probe)
 /// reads what it returns.
 ///
 /// # Examples
 ///
 /// ```
-/// use seleniumbase_rs::stealth::js::capture_js::get_capture_js;
+/// use seleniumbase_rs::evasion::js::capture_js::get_capture_js;
 ///
 /// assert!(get_capture_js().contains("getHighEntropyValues"));
 /// ```

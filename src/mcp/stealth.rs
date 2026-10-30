@@ -8,7 +8,7 @@ use serde_json::json;
 
 use super::support::json_output;
 use super::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};
-use crate::stealth::fingerprint::Fingerprint;
+use crate::evasion::fingerprint::Fingerprint;
 use crate::{ChromedriverPatcher, EnginePatch};
 
 const PRESETS: [&str; 6] = ["windows", "edge", "macos", "linux", "android", "ios"];
@@ -113,7 +113,7 @@ async fn build_fingerprint<S: Send + 'static>(
 }
 
 async fn get_stealth_bootstrap_script<S>(_ctx: Ctx<S>, args: Args) -> Result<Output, ToolError> {
-    Ok(crate::stealth::evasions::session_script(&preset(&args)?).into())
+    Ok(crate::evasion::evasions::session_script(&preset(&args)?).into())
 }
 
 async fn list_evasion_providers<S>(_ctx: Ctx<S>, _args: Args) -> Result<Output, ToolError> {

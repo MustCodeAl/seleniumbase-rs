@@ -14,7 +14,7 @@
 //!
 //! ```no_run
 //! use seleniumbase_rs::sb_cdp::Page;
-//! use seleniumbase_rs::stealth::behavior::Behavior;
+//! use seleniumbase_rs::evasion::behavior::Behavior;
 //!
 //! # async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 //! let person = page.human(Behavior::builder().typing_wpm(65.0).build()?);
@@ -34,7 +34,7 @@ use serde_json::json;
 use super::sync::locked;
 use super::{Button, Key, Locator, Page, Point, Rect};
 use crate::error::SeleniumBaseError;
-use crate::stealth::behavior::{Behavior, Humanizer, KeyAction, Step};
+use crate::evasion::behavior::{Behavior, Humanizer, KeyAction, Step};
 
 /// The pointer events a person's click or drag is made of.
 ///
@@ -339,7 +339,7 @@ impl Human {
     /// Clicks the element, then types `text` into it at a human pace.
     ///
     /// A newline presses Enter and a tab presses Tab. With a non-zero
-    /// [`typo_rate`](crate::stealth::behavior::BehaviorBuilder::typo_rate),
+    /// [`typo_rate`](crate::evasion::behavior::BehaviorBuilder::typo_rate),
     /// some letters are typed wrong and corrected; the field always ends up
     /// holding exactly `text` (plus what it held before).
     ///

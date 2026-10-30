@@ -10,7 +10,7 @@ use crate::browser::options::{
 use crate::browser::reuse::ReuseClass;
 use crate::config::ad_block_list::AdBlockList;
 use crate::error::SeleniumBaseError;
-use crate::stealth::fingerprint::Fingerprint;
+use crate::evasion::fingerprint::Fingerprint;
 
 /// Supported browser types.
 ///
@@ -293,7 +293,7 @@ pub(crate) fn whole_seconds(timeout: std::time::Duration) -> u64 {
 // them.
 impl std::fmt::Debug for BrowserConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use crate::stealth::options::without_credentials;
+        use crate::evasion::options::without_credentials;
         f.debug_struct("BrowserConfig")
             .field(
                 "webdriver_url",
@@ -575,7 +575,7 @@ impl BrowserConfig {
     /// Its launch arguments go to every Chromium-based session. In the
     /// [`Cdp`](DriverMode::Cdp) and [`Uc`](DriverMode::Uc) modes the session
     /// also installs its page script (the
-    /// [session script](crate::stealth::evasions::session_script)) and sends
+    /// [session script](crate::evasion::evasions::session_script)) and sends
     /// its protocol overrides through DevTools; the plain
     /// [`WebDriver`](DriverMode::WebDriver) mode sends the launch arguments only.
     /// What a fingerprint switches on is decided by the settings it holds and
@@ -1140,7 +1140,7 @@ impl BrowserConfig {
     /// [`BrowserSession::remote_debug_address`](crate::browser::session::BrowserSession::remote_debug_address).
     pub fn with_remote_debug(mut self, on: bool) -> Self {
         self.launch.remote_debug_port =
-            on.then_some(crate::stealth::options::DEFAULT_REMOTE_DEBUG_PORT);
+            on.then_some(crate::evasion::options::DEFAULT_REMOTE_DEBUG_PORT);
         self.launch.remote_debug_any_port = on;
         self
     }

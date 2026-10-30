@@ -28,10 +28,10 @@ use tokio::time::{sleep, Instant};
 
 use super::{script, Captcha, Evidence, SolveOptions, Solved};
 use crate::error::SeleniumBaseError;
+use crate::evasion::behavior::Humanizer;
+use crate::evasion::humanize::Rng;
 use crate::sb_cdp::human::{plan_click, plan_drag, play_click, play_drag, PointerSink};
 use crate::sb_cdp::{Point, Rect};
-use crate::stealth::behavior::Humanizer;
-use crate::stealth::humanize::Rng;
 
 /// The longest gap between two readings of the page while verifying.
 const POLL: Duration = Duration::from_millis(150);
@@ -479,7 +479,7 @@ mod tests {
     use serde_json::json;
 
     use super::*;
-    use crate::stealth::behavior::Behavior;
+    use crate::evasion::behavior::Behavior;
 
     /// One thing the solver did to the scripted tab.
     #[derive(Debug, Clone, PartialEq)]

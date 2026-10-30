@@ -14,7 +14,7 @@ use serde_json::Value;
 
 use super::{Page, Point, Rect};
 use crate::error::SeleniumBaseError;
-use crate::stealth::behavior::Behavior;
+use crate::evasion::behavior::Behavior;
 
 mod engine;
 mod script;

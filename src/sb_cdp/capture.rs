@@ -23,8 +23,8 @@
 
 use super::Page;
 use crate::error::SeleniumBaseError;
-use crate::stealth::capture::{capture_expression, timestamp, CapturedFingerprint};
-use crate::stealth::fingerprint::{Fingerprint, FingerprintComparison};
+use crate::evasion::capture::{capture_expression, timestamp, CapturedFingerprint};
+use crate::evasion::fingerprint::{Fingerprint, FingerprintComparison};
 
 impl Page {
     /// Reads what this tab shows a page, as a [`CapturedFingerprint`].

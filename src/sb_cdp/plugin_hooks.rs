@@ -1067,7 +1067,7 @@ mod tests {
     fn the_policy_the_options_already_have_is_shown_to_plugins_and_kept() {
         let mut options = options(
             LaunchOptions::builder()
-                .webrtc_policy(crate::stealth::fingerprint::WebRtcPolicy::PublicInterfaceOnly),
+                .webrtc_policy(crate::evasion::fingerprint::WebRtcPolicy::PublicInterfaceOnly),
         );
 
         let settings = settings_of(&options);
@@ -1079,7 +1079,7 @@ mod tests {
 
         assert_eq!(
             options.webrtc,
-            Some(crate::stealth::fingerprint::WebRtcPolicy::PublicInterfaceOnly)
+            Some(crate::evasion::fingerprint::WebRtcPolicy::PublicInterfaceOnly)
         );
     }
 

@@ -490,7 +490,7 @@ async fn the_bootstrap_and_the_provider_list_are_the_ones_a_browser_session_runs
     .unwrap();
     assert_eq!(
         script.as_text(),
-        Some(seleniumbase_rs::stealth::evasions::session_script(&fingerprint).as_str()),
+        Some(seleniumbase_rs::evasion::evasions::session_script(&fingerprint).as_str()),
         "the script a session runs, not the one for a browser without plugins"
     );
 

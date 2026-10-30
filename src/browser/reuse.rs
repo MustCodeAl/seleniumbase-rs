@@ -89,7 +89,7 @@ use crate::browser::launcher::DriverProcess;
 use crate::browser::session::BrowserSession;
 use crate::browser::virtual_display::XvfbProcess;
 use crate::error::SeleniumBaseError;
-use crate::stealth::cdp::CdpClient;
+use crate::evasion::cdp::CdpClient;
 
 /// The environment variable that sets [`idle_timeout`], in whole seconds.
 pub const IDLE_TIMEOUT_VAR: &str = "SB_REUSE_IDLE_SECS";

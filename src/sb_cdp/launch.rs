@@ -21,8 +21,8 @@ use crate::browser::virtual_display::{self, XvfbProcess};
 
 use crate::common::orphan_guard::OrphanGuard;
 use crate::error::SeleniumBaseError;
-use crate::stealth::fingerprint::{Dimension, Fingerprint, ProxyConfig, WebRtcPolicy};
-use crate::stealth::patcher::find_system_chrome;
+use crate::evasion::fingerprint::{Dimension, Fingerprint, ProxyConfig, WebRtcPolicy};
+use crate::evasion::patcher::find_system_chrome;
 
 mod bridge;
 mod builders;

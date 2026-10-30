@@ -177,7 +177,7 @@ fn misplaced_setting(text: &str) -> Option<(String, serde_json::Value)> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::stealth::fingerprint::Spoof;
+    use crate::evasion::fingerprint::Spoof;
 
     fn presets() -> Vec<(&'static str, Fingerprint)> {
         vec![
@@ -206,7 +206,7 @@ mod tests {
     #[test]
     fn a_drawn_identity_survives_a_save_and_a_load_with_its_infinite_battery_times() {
         let dir = tempfile::tempdir().unwrap();
-        let drawn = Fingerprint::randomized(crate::stealth::fingerprint::OsType::Macos, 99);
+        let drawn = Fingerprint::randomized(crate::evasion::fingerprint::OsType::Macos, 99);
         let path = dir.path().join("drawn.json");
 
         drawn.save(&path).unwrap();

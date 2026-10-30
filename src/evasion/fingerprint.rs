@@ -17,13 +17,13 @@
 //! A fingerprint is built once, with [`Fingerprint::builder()`], and not
 //! changed afterwards. To change one, take [`to_builder`](Fingerprint::to_builder)
 //! and build again. Hand the result to
-//! [`StealthOptions`](crate::stealth::options::StealthOptions), to a
+//! [`StealthOptions`](crate::evasion::options::StealthOptions), to a
 //! [`BrowserConfig`](crate::BrowserConfig) or to the pure CDP launch options.
 //!
 //! # Example
 //!
 //! ```rust
-//! use seleniumbase_rs::stealth::fingerprint::{
+//! use seleniumbase_rs::evasion::fingerprint::{
 //!     CanvasNoise, Fingerprint, Spoof, StealthPolicy,
 //! };
 //!
@@ -41,7 +41,7 @@
 //! // The random position is a spot in Berlin, because the time zone is given.
 //! let place = fp.geolocation().value().expect("a drawn position");
 //! assert!((place.latitude - 52.5).abs() < 0.5);
-//! # Ok::<(), seleniumbase_rs::stealth::fingerprint::FingerprintError>(())
+//! # Ok::<(), seleniumbase_rs::evasion::fingerprint::FingerprintError>(())
 //! ```
 
 use std::collections::HashMap;
@@ -720,7 +720,7 @@ macro_rules! accessors {
 /// # Examples
 ///
 /// ```
-/// use seleniumbase_rs::stealth::fingerprint::{Fingerprint, Spoof};
+/// use seleniumbase_rs::evasion::fingerprint::{Fingerprint, Spoof};
 ///
 /// let fp = Fingerprint::windows_desktop();
 /// assert_eq!(fp.screen().value().map(|s| s.width), Some(1920));
@@ -729,7 +729,7 @@ macro_rules! accessors {
 /// let wider = fp.to_builder().screen(2560, 1440).build()?;
 /// assert_eq!(wider.screen().value().map(|s| s.width), Some(2560));
 /// assert!(wider.hardware_concurrency().is_value());
-/// # Ok::<(), seleniumbase_rs::stealth::fingerprint::FingerprintError>(())
+/// # Ok::<(), seleniumbase_rs::evasion::fingerprint::FingerprintError>(())
 /// ```
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
@@ -914,12 +914,12 @@ impl Fingerprint {
     /// # Examples
     ///
     /// ```
-    /// use seleniumbase_rs::stealth::fingerprint::{Dimension, Fingerprint};
+    /// use seleniumbase_rs::evasion::fingerprint::{Dimension, Fingerprint};
     ///
     /// let fp = Fingerprint::builder().timezone("Europe/Berlin").build()?;
     /// assert!(fp.is_masked(Dimension::Timezone));
     /// assert!(!fp.is_masked(Dimension::Screen));
-    /// # Ok::<(), seleniumbase_rs::stealth::fingerprint::FingerprintError>(())
+    /// # Ok::<(), seleniumbase_rs::evasion::fingerprint::FingerprintError>(())
     /// ```
     #[must_use]
     pub fn is_masked(&self, dimension: Dimension) -> bool {
@@ -1507,7 +1507,7 @@ macro_rules! setters {
 /// # Examples
 ///
 /// ```
-/// use seleniumbase_rs::stealth::fingerprint::{
+/// use seleniumbase_rs::evasion::fingerprint::{
 ///     Dimension, Fingerprint, Spoof, StealthPolicy,
 /// };
 ///
@@ -1524,7 +1524,7 @@ macro_rules! setters {
 /// // An `Off` where it means nothing is an error that names the setting.
 /// let refused = Fingerprint::builder().timezone(Spoof::Off).build();
 /// assert!(refused.is_err());
-/// # Ok::<(), seleniumbase_rs::stealth::fingerprint::FingerprintError>(())
+/// # Ok::<(), seleniumbase_rs::evasion::fingerprint::FingerprintError>(())
 /// ```
 #[derive(Clone, Debug, Default)]
 pub struct FingerprintBuilder {

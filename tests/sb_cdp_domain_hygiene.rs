@@ -29,11 +29,11 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use seleniumbase_rs::api::cdp_driver::CdpDriver;
+use seleniumbase_rs::evasion::behavior::Behavior;
+use seleniumbase_rs::evasion::cdp::{is_detectable_enable, DETECTABLE_DOMAINS};
 use seleniumbase_rs::sb_cdp::{
     Browser, Cookie, Key, MockCtrl, Page, Point, ResourceType, Rule, SelectBy,
 };
-use seleniumbase_rs::stealth::behavior::Behavior;
-use seleniumbase_rs::stealth::cdp::{is_detectable_enable, DETECTABLE_DOMAINS};
 use seleniumbase_rs::{Fingerprint, OsType, ProxyConfig};
 use serde_json::{json, Value};
 

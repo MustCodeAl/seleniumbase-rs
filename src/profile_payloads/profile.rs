@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::browser::config::{Browser, BrowserConfig, DriverMode};
 use crate::error::SeleniumBaseError;
-use crate::stealth::fingerprint as stealth_fp;
-use crate::stealth::fingerprint::{
+use crate::evasion::fingerprint as stealth_fp;
+use crate::evasion::fingerprint::{
     AudioNoise, CanvasNoise, Fingerprint, FingerprintBuilder, Geolocation, MediaDeviceSpec,
     MediaDevices, OsType, QuicMode, ScreenSize, Spoof, StealthPolicy, WebGl, WebRtcAddresses,
     WebRtcPolicy,
@@ -1361,9 +1361,9 @@ impl ProfileParams {
     ///
     /// Switches that run programs, load code, open remote control or move
     /// traffic are left out; see
-    /// [`permitted_switch`](crate::stealth::evasions::permitted_switch).
+    /// [`permitted_switch`](crate::evasion::evasions::permitted_switch).
     pub fn extra_args(&self) -> Vec<String> {
-        crate::stealth::evasions::switches_to_args(
+        crate::evasion::evasions::switches_to_args(
             self.parameters
                 .fingerprint
                 .cmd_params
@@ -1400,7 +1400,7 @@ impl ProfileParams {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::stealth::fingerprint::Dimension;
+    use crate::evasion::fingerprint::Dimension;
     use serde_json::json;
 
     #[test]

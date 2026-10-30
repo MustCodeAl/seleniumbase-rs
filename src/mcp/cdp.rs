@@ -224,7 +224,7 @@ impl super::fingerprint::CaptureSession for Cdp {
 
     async fn capture_now(
         &mut self,
-    ) -> Result<crate::stealth::capture::CapturedFingerprint, SeleniumBaseError> {
+    ) -> Result<crate::evasion::capture::CapturedFingerprint, SeleniumBaseError> {
         self.page.capture_fingerprint().await
     }
 }

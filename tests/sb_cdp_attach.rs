@@ -191,7 +191,7 @@ fn assert_second_window_untouched(server: &AttachServer) {
 
 fn assert_identity(server: &AttachServer) {
     let calls = server.calls();
-    let source = seleniumbase_rs::stealth::evasions::session_script(&fingerprint());
+    let source = seleniumbase_rs::evasion::evasions::session_script(&fingerprint());
     for session in ["ST1"] {
         assert!(
             calls.iter().any(

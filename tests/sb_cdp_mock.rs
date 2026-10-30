@@ -10,8 +10,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+use seleniumbase_rs::evasion::providers::{session_registry, EvasionContext};
 use seleniumbase_rs::sb_cdp::{Browser, Cookie, Key, Locator, MockCtrl, Page, SelectBy, State};
-use seleniumbase_rs::stealth::providers::{session_registry, EvasionContext};
 use seleniumbase_rs::{
     AssertionApi, BrowserApi, ElementApi, Fingerprint, OsType, ProxyConfig, ScreenshotApi,
     SeleniumBaseError,

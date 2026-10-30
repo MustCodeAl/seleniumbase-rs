@@ -12,11 +12,11 @@ use std::net::TcpListener;
 use std::thread;
 use std::time::Duration;
 
+use seleniumbase_rs::evasion::behavior::Behavior;
 use seleniumbase_rs::sb_cdp::{
     Browser, BrowserPool, ContextOptions, Cookie, LaunchOptions, Outcome, Page, PoolOptions, Proxy,
     Response, Rule, SelectBy, State,
 };
-use seleniumbase_rs::stealth::behavior::Behavior;
 use seleniumbase_rs::SeleniumBaseError;
 use seleniumbase_rs::{Fingerprint, OsType};
 use serde_json::json;
@@ -1432,7 +1432,7 @@ async fn the_cdc_cleanup_script_runs_twice_and_removes_the_property() {
         let response = page
             .execute(
                 "Runtime.evaluate",
-                json!({ "expression": seleniumbase_rs::stealth::uc::CLEAR_CDC_SCRIPT,
+                json!({ "expression": seleniumbase_rs::evasion::uc::CLEAR_CDC_SCRIPT,
                         "returnByValue": true }),
             )
             .await

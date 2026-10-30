@@ -1,7 +1,7 @@
 use serde_json::json;
 
 use crate::error::SeleniumBaseError;
-use crate::stealth::cdp::CdpClient;
+use crate::evasion::cdp::CdpClient;
 
 /// Comprehensive undetected-chrome (UC) stealth script injected into every new document.
 ///

@@ -17,8 +17,8 @@ use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::thread;
 
+use seleniumbase_rs::evasion::capture::capture_expression;
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Page};
-use seleniumbase_rs::stealth::capture::capture_expression;
 use seleniumbase_rs::{BrowserType, Fingerprint, Spoof};
 
 const PAGE: &str = "<!doctype html><title>capture</title><p>capture</p>";

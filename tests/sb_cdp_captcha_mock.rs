@@ -13,8 +13,8 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+use seleniumbase_rs::evasion::behavior::Behavior;
 use seleniumbase_rs::sb_cdp::{Browser, Captcha, Evidence, MockCtrl, Page, Point, SolveOptions};
-use seleniumbase_rs::stealth::behavior::Behavior;
 use seleniumbase_rs::SeleniumBaseError;
 use serde_json::{json, Value};
 use tokio::time::Instant;

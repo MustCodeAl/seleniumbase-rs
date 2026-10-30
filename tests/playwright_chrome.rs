@@ -19,7 +19,7 @@ use std::thread;
 use seleniumbase_rs::browser::config::BrowserConfig;
 use seleniumbase_rs::browser::playwright::PlaywrightSession;
 use seleniumbase_rs::error::SeleniumBaseError;
-use seleniumbase_rs::stealth::fingerprint::Fingerprint;
+use seleniumbase_rs::evasion::fingerprint::Fingerprint;
 use serde_json::json;
 
 const PAGE: &str = "<!doctype html><html><head><title>Playwright</title></head>\

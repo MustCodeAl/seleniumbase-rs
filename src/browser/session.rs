@@ -33,8 +33,8 @@ use crate::browser::reuse::{self, Lease, ReuseKey, SessionAddress};
 use crate::browser::virtual_display::{self, XvfbProcess};
 use crate::config::ad_block_list::{AdBlockList, MAX_URL_PATTERNS};
 use crate::error::SeleniumBaseError;
-use crate::stealth::cdp::*; /* CdpClient */
-use crate::stealth::uc;
+use crate::evasion::cdp::*; /* CdpClient */
+use crate::evasion::uc;
 use crate::utilities::retry::{poll_until, RetryPolicy};
 
 /// Owns a WebDriver session, optional CDP client, and optional auto-started driver process.
@@ -1008,10 +1008,10 @@ impl BrowserSession {
     /// The Runtime domain stays off on purpose: enabling it is a well-known
     /// bot-detection tell. See [`CdpClient::enable_default_domains`].
     ///
-    /// [`CdpClient::enable_default_domains`]: crate::stealth::cdp::CdpClient::enable_default_domains
+    /// [`CdpClient::enable_default_domains`]: crate::evasion::cdp::CdpClient::enable_default_domains
     pub async fn activate_cdp_mode(&self) -> Result<(), SeleniumBaseError> {
         if let Some(page) = &self.external_page {
-            for method in crate::stealth::cdp::DEFAULT_DOMAIN_COMMANDS {
+            for method in crate::evasion::cdp::DEFAULT_DOMAIN_COMMANDS {
                 page.execute(method, json!({})).await?;
             }
             return Ok(());
@@ -1172,7 +1172,7 @@ impl BrowserSession {
 
     /// Applies an optional [`Fingerprint`] to the active session.
     ///
-    /// The script is [`session_script`](crate::stealth::evasions::session_script),
+    /// The script is [`session_script`](crate::evasion::evasions::session_script),
     /// the one the pure CDP engine runs. When CDP is available it is registered via
     /// `Page.addScriptToEvaluateOnNewDocument` and CDP overrides (screen size,
     /// geolocation, timezone, UA) are issued. Otherwise the script is executed
@@ -1854,8 +1854,8 @@ async fn apply_window_rect(
 
 /// The init script that makes a WebDriver session match `fp`: the same one the
 /// pure CDP engine runs, since both drive a real Chrome.
-fn fingerprint_script(fp: &crate::stealth::fingerprint::Fingerprint) -> String {
-    crate::stealth::evasions::session_script(fp)
+fn fingerprint_script(fp: &crate::evasion::fingerprint::Fingerprint) -> String {
+    crate::evasion::evasions::session_script(fp)
 }
 
 /// The protocol commands, after the init script, that make a WebDriver session
@@ -1864,8 +1864,8 @@ fn fingerprint_script(fp: &crate::stealth::fingerprint::Fingerprint) -> String {
 /// The `Proxy-Authorization` header a fingerprint with a proxy password can ask
 /// for is left out: set through `Network.setExtraHTTPHeaders` it would reach
 /// every site the browser visits, and hand the proxy's login to all of them.
-fn fingerprint_overrides(fp: &crate::stealth::fingerprint::Fingerprint) -> Vec<(String, Value)> {
-    crate::stealth::evasions::safe_cdp_overrides(fp)
+fn fingerprint_overrides(fp: &crate::evasion::fingerprint::Fingerprint) -> Vec<(String, Value)> {
+    crate::evasion::evasions::safe_cdp_overrides(fp)
 }
 
 /// The URL patterns of the `Network.setBlockedURLs` commands in `commands`,
@@ -2184,7 +2184,7 @@ async fn patch_chrome_binary_if_needed(
     let runtime = crate::config::RuntimeConfig::from_env_lenient().0;
     let source = runtime
         .chrome_bin
-        .or_else(crate::stealth::patcher::find_system_chrome)
+        .or_else(crate::evasion::patcher::find_system_chrome)
         .ok_or_else(|| {
             SeleniumBaseError::invalid_config(
                 "native_spoofing requires a Chrome/Chromium binary but none was found. \
@@ -2197,11 +2197,11 @@ async fn patch_chrome_binary_if_needed(
     tracing::info!(source = %source_str, "native_spoofing enabled: patching chrome binary");
 
     let patched = tokio::task::spawn_blocking(move || {
-        let mut patcher = crate::stealth::patcher::ChromeBinaryPatcher::new(source);
+        let mut patcher = crate::evasion::patcher::ChromeBinaryPatcher::new(source);
         if let Some(cache) = runtime.patch_cache_dir {
             patcher = patcher.with_cache_dir(cache);
         }
-        patcher.patch(crate::stealth::patcher::EnginePatch::chrome_binary())
+        patcher.patch(crate::evasion::patcher::EnginePatch::chrome_binary())
     })
     .await
     .map_err(|e| {
@@ -2217,14 +2217,14 @@ fn apply_chromium_capabilities<C: ChromiumLikeCapabilities>(
     caps: &mut C,
     config: &BrowserConfig,
 ) -> Result<(), SeleniumBaseError> {
-    crate::stealth::options::StealthOptions::from(config).apply_to(caps)
+    crate::evasion::options::StealthOptions::from(config).apply_to(caps)
 }
 
 #[cfg(test)]
 mod fingerprint_tests {
     use super::*;
-    use crate::stealth::evasions::{raw_overrides, CREDENTIAL_HEADER_METHOD};
-    use crate::stealth::fingerprint::{Fingerprint, OsType, ProxyConfig};
+    use crate::evasion::evasions::{raw_overrides, CREDENTIAL_HEADER_METHOD};
+    use crate::evasion::fingerprint::{Fingerprint, OsType, ProxyConfig};
 
     fn with_proxy_login() -> Fingerprint {
         Fingerprint::randomized(OsType::Linux, 3)
@@ -2269,8 +2269,8 @@ mod fingerprint_tests {
         let script = fingerprint_script(&fingerprint);
         assert_eq!(
             script,
-            crate::stealth::providers::session_registry(&fingerprint).bootstrap(
-                &crate::stealth::providers::EvasionContext::new(&fingerprint)
+            crate::evasion::providers::session_registry(&fingerprint).bootstrap(
+                &crate::evasion::providers::EvasionContext::new(&fingerprint)
             )
         );
         assert!(
@@ -2688,7 +2688,7 @@ mod ad_block_tests {
 
     #[test]
     fn the_trackers_of_a_fingerprint_go_with_the_ad_block_list() {
-        use crate::stealth::fingerprint::Fingerprint;
+        use crate::evasion::fingerprint::Fingerprint;
 
         let fingerprint = Fingerprint::builder()
             .block_trackers(true)
@@ -2715,7 +2715,7 @@ mod ad_block_tests {
 
     #[test]
     fn the_block_keeps_what_the_fingerprint_blocks_where_the_fingerprint_is_applied() {
-        let fingerprint = crate::stealth::fingerprint::Fingerprint::builder()
+        let fingerprint = crate::evasion::fingerprint::Fingerprint::builder()
             .blocked_ports(vec![9222])
             .build()
             .expect("the builder builds");

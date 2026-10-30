@@ -9,7 +9,7 @@
 //! # Adding a new evasion
 //!
 //! 1. Implement [`EvasionProvider`] for a unit struct in
-//!    [`builtin`](crate::stealth::providers::builtin) (or your own crate).
+//!    [`builtin`](crate::evasion::providers::builtin) (or your own crate).
 //! 2. Return the JavaScript from [`EvasionProvider::script`]; use
 //!    [`EvasionContext::escape`] for text and [`EvasionContext::number`] for
 //!    numbers when substituting values from the fingerprint. Patch
@@ -40,8 +40,8 @@
 //! # Example
 //!
 //! ```rust
-//! use seleniumbase_rs::stealth::fingerprint::Fingerprint;
-//! use seleniumbase_rs::stealth::providers::{default_registry, EvasionContext};
+//! use seleniumbase_rs::evasion::fingerprint::Fingerprint;
+//! use seleniumbase_rs::evasion::providers::{default_registry, EvasionContext};
 //!
 //! let fp = Fingerprint::windows_desktop();
 //! let ctx = EvasionContext::new(&fp);
@@ -51,7 +51,7 @@
 
 pub mod builtin;
 
-use crate::stealth::fingerprint::Fingerprint;
+use crate::evasion::fingerprint::Fingerprint;
 
 /// JavaScript that puts the shared `sb` helpers in scope for a snippet.
 ///
@@ -119,7 +119,7 @@ impl<'a> EvasionContext<'a> {
     /// # Examples
     ///
     /// ```
-    /// use seleniumbase_rs::stealth::providers::EvasionContext;
+    /// use seleniumbase_rs::evasion::providers::EvasionContext;
     ///
     /// assert_eq!(EvasionContext::escape("it's"), "it\\'s");
     /// ```
@@ -142,7 +142,7 @@ impl<'a> EvasionContext<'a> {
     /// # Examples
     ///
     /// ```
-    /// use seleniumbase_rs::stealth::providers::EvasionContext;
+    /// use seleniumbase_rs::evasion::providers::EvasionContext;
     ///
     /// assert_eq!(EvasionContext::number(1.5), "1.5");
     /// assert_eq!(EvasionContext::number(f64::INFINITY), "Infinity");
@@ -299,8 +299,8 @@ pub const SESSION_OMITTED_PROVIDERS: [&str; 2] = ["plugins", "connection"];
 /// # Examples
 ///
 /// ```rust
-/// use seleniumbase_rs::stealth::fingerprint::Fingerprint;
-/// use seleniumbase_rs::stealth::providers::{session_registry, EvasionContext};
+/// use seleniumbase_rs::evasion::fingerprint::Fingerprint;
+/// use seleniumbase_rs::evasion::providers::{session_registry, EvasionContext};
 ///
 /// let fp = Fingerprint::windows_desktop();
 /// let script = session_registry(&fp).bootstrap(&EvasionContext::new(&fp));
@@ -618,7 +618,7 @@ mod tests {
     // Hardening: what a session leaves to the browser
     // ------------------------------------------------------------------
 
-    use crate::stealth::fingerprint::{
+    use crate::evasion::fingerprint::{
         AudioNoise, BatteryProfile, BrandVersion, CanvasNoise, ClientHints, ConnectionProfile,
         FingerprintBuilder, SpeechVoice, Spoof, StealthPolicy,
     };

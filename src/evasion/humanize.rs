@@ -8,7 +8,7 @@
 //! # Example
 //!
 //! ```rust
-//! use seleniumbase_rs::stealth::humanize::{bezier_mouse_path, Point};
+//! use seleniumbase_rs::evasion::humanize::{bezier_mouse_path, Point};
 //!
 //! let path = bezier_mouse_path(Point::new(0.0, 0.0), Point::new(100.0, 40.0), 16, 7);
 //! assert_eq!(path.len(), 16);
@@ -56,7 +56,7 @@ impl Rng {
     /// code is compiled, so this cannot panic at run time.
     ///
     /// ```
-    /// use seleniumbase_rs::stealth::humanize::Rng;
+    /// use seleniumbase_rs::evasion::humanize::Rng;
     ///
     /// let mut rng = Rng::new(7);
     /// let colour = rng.pick(&["red", "green", "blue"]);

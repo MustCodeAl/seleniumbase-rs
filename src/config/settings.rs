@@ -12,7 +12,7 @@ use crate::config::test_settings::TestSettings;
 use crate::core::test_run::ReportSettings;
 
 use crate::error::SeleniumBaseError;
-use crate::stealth::fingerprint::Fingerprint;
+use crate::evasion::fingerprint::Fingerprint;
 
 /// The variable that names the fingerprint file to apply to every browser.
 pub const FINGERPRINT_ENV: &str = "SB_FINGERPRINT";

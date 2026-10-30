@@ -9,9 +9,9 @@
 //! and hand the answer to [`CapturedFingerprint::from_probe`], which maps it in
 //! one place, so both engines give the same fingerprint for the same browser.
 //!
-//! A setting the page answered is a [`Value`](crate::stealth::spoof::Spoof::Value),
-//! or [`Off`](crate::stealth::spoof::Spoof::Off) for an API that is not there. A
-//! setting it could not answer stays [`Natural`](crate::stealth::spoof::Spoof::Natural),
+//! A setting the page answered is a [`Value`](crate::evasion::spoof::Spoof::Value),
+//! or [`Off`](crate::evasion::spoof::Spoof::Off) for an API that is not there. A
+//! setting it could not answer stays [`Natural`](crate::evasion::spoof::Spoof::Natural),
 //! and says why in [`CapturedFingerprint::unmapped`] under `unanswered`. The
 //! result is the ordinary v2 [`Fingerprint`], so
 //! [`save`](Fingerprint::save) writes the one file format every tool reads.
@@ -19,7 +19,7 @@
 //! # Examples
 //!
 //! ```
-//! use seleniumbase_rs::stealth::capture::CapturedFingerprint;
+//! use seleniumbase_rs::evasion::capture::CapturedFingerprint;
 //! use serde_json::json;
 //!
 //! // What the script returned for a page (shortened).
@@ -824,7 +824,7 @@ fn note_unanswered(unanswered: &mut Map<String, Value>, setting: &str, reason: O
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::stealth::fingerprint::{Dimension, OsType};
+    use crate::evasion::fingerprint::{Dimension, OsType};
 
     const CHROME_MACOS: &str =
         include_str!("../../tests/fixtures/fingerprint/probe_chrome_macos.json");

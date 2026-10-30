@@ -11,9 +11,9 @@ use std::hint::black_box;
 use std::time::{Duration, Instant};
 
 use seleniumbase_rs::api::html_inspector::HtmlInspector;
+use seleniumbase_rs::evasion::behavior::{Behavior, Humanizer};
+use seleniumbase_rs::evasion::evasions::bootstrap_script;
 use seleniumbase_rs::sb_cdp::Point;
-use seleniumbase_rs::stealth::behavior::{Behavior, Humanizer};
-use seleniumbase_rs::stealth::evasions::bootstrap_script;
 use seleniumbase_rs::utils::selectors::Selector;
 use seleniumbase_rs::{Fingerprint, OsType};
 

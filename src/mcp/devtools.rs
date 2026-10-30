@@ -969,7 +969,7 @@ async fn diagnose_environment<S: Send + 'static>(
         Err(_) => "busy: another call is using it",
     };
 
-    let chrome = crate::stealth::patcher::find_system_chrome();
+    let chrome = crate::evasion::patcher::find_system_chrome();
     let chrome_major = match &chrome {
         Some(path) => binary_major(path).await,
         None => None,

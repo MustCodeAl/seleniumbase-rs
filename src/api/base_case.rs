@@ -2365,12 +2365,12 @@ impl BaseCase {
     /// Types `text` character by character at a human rhythm.
     ///
     /// Intervals are Gaussian with pauses at word and sentence boundaries (see
-    /// [`stealth::behavior`](crate::stealth::behavior)). The pace comes from the
-    /// fingerprint's [`HumanizeConfig`](crate::stealth::HumanizeConfig) when the
+    /// [`evasion::behavior`](crate::evasion::behavior)). The pace comes from the
+    /// fingerprint's [`HumanizeConfig`](crate::evasion::HumanizeConfig) when the
     /// configuration has one, and is a typical typist's otherwise. For pointer
     /// paths as well as typing, use [`sb_cdp::Page::human`](crate::sb_cdp::Page::human).
     pub async fn human_type(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
-        use crate::stealth::behavior::{Behavior, Humanizer, KeyAction};
+        use crate::evasion::behavior::{Behavior, Humanizer, KeyAction};
 
         let by = Selector::auto(css).to_by()?;
         self.record("human_type", Some(css), Some(text));
@@ -2454,7 +2454,7 @@ impl BaseCase {
     // --- JS Code Execution Helpers ---
 
     pub async fn execute_active_css_js(&mut self) -> Result<(), SeleniumBaseError> {
-        let js = crate::stealth::js::active_css_js::get_active_css_js();
+        let js = crate::evasion::js::active_css_js::get_active_css_js();
         self.execute_script(js).await?;
         Ok(())
     }

@@ -7,7 +7,7 @@
 //! obvious tuple, so a builder call reads like the thing it sets:
 //!
 //! ```
-//! use seleniumbase_rs::stealth::fingerprint::{Fingerprint, Spoof};
+//! use seleniumbase_rs::evasion::fingerprint::{Fingerprint, Spoof};
 //!
 //! let fp = Fingerprint::builder()
 //!     .screen(1920, 1080)
@@ -15,7 +15,7 @@
 //!     .webgl(("Google Inc. (NVIDIA)", "ANGLE (NVIDIA, GeForce RTX 4070)"))
 //!     .webrtc(Spoof::Off)
 //!     .build()?;
-//! # Ok::<(), seleniumbase_rs::stealth::fingerprint::FingerprintError>(())
+//! # Ok::<(), seleniumbase_rs::evasion::fingerprint::FingerprintError>(())
 //! ```
 
 use serde::{Deserialize, Serialize};

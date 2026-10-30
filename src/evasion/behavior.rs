@@ -23,7 +23,7 @@
 //!
 //! ```
 //! use seleniumbase_rs::sb_cdp::Point;
-//! use seleniumbase_rs::stealth::behavior::{Behavior, Humanizer};
+//! use seleniumbase_rs::evasion::behavior::{Behavior, Humanizer};
 //!
 //! # fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 //! let behavior = Behavior::builder().typing_wpm(70.0).seed(7).build()?;

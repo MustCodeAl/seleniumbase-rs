@@ -16,7 +16,7 @@
 /// # Examples
 ///
 /// ```
-/// use seleniumbase_rs::stealth::js::active_css_js::get_active_css_js;
+/// use seleniumbase_rs::evasion::js::active_css_js::get_active_css_js;
 ///
 /// let script = get_active_css_js();
 /// assert!(script.trim_end().ends_with("return sbBestSelector(document.activeElement);"));

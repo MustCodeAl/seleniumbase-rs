@@ -37,7 +37,7 @@ pub const DETECTABLE_DOMAINS: [&str; 5] = ["Runtime", "DOM", "Log", "Debugger", 
 /// # Examples
 ///
 /// ```
-/// use seleniumbase_rs::stealth::cdp::is_detectable_enable;
+/// use seleniumbase_rs::evasion::cdp::is_detectable_enable;
 ///
 /// assert!(is_detectable_enable("Runtime.enable"));
 /// assert!(!is_detectable_enable("Runtime.evaluate"));

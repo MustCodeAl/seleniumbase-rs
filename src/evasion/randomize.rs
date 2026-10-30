@@ -2061,7 +2061,7 @@ mod tests {
             OsType::Android,
             OsType::Ios,
         ] {
-            let fp = crate::stealth::fingerprint::Fingerprint::randomized(os, 1);
+            let fp = crate::evasion::fingerprint::Fingerprint::randomized(os, 1);
             assert_eq!(fp.os_type(), os);
             assert!(fp.validate().is_coherent());
         }
@@ -2071,7 +2071,7 @@ mod tests {
     fn the_noise_seed_of_an_identity_is_the_seed_it_was_drawn_from() {
         for os in [OsType::Windows, OsType::Ios] {
             for seed in [0, 3, 42, u64::MAX] {
-                let fp = crate::stealth::fingerprint::Fingerprint::randomized(os, seed);
+                let fp = crate::evasion::fingerprint::Fingerprint::randomized(os, seed);
                 assert_eq!(fp.seed(), seed, "{os:?}");
             }
         }

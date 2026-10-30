@@ -1,6 +1,6 @@
 // Reads what this page can see of the browser and returns it as a plain object.
 //
-// Written as the body of an async function (see `stealth::capture`). Every reading is
+// Written as the body of an async function (see `evasion::capture`). Every reading is
 // guarded on its own, so one that throws or never answers costs that reading and
 // nothing else: the reason goes to `errors`. An API that the browser does not have is
 // `{ supported: false }`; an API that only a secure context has, asked in an insecure

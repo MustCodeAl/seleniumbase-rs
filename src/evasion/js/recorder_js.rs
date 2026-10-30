@@ -12,7 +12,7 @@
 /// # Examples
 ///
 /// ```
-/// use seleniumbase_rs::stealth::js::recorder_js::get_recorder_js;
+/// use seleniumbase_rs::evasion::js::recorder_js::get_recorder_js;
 ///
 /// assert!(get_recorder_js().contains("recorded_actions"));
 /// ```

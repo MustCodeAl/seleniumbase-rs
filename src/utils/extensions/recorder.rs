@@ -9,7 +9,7 @@
 /// [`extract_extension`](super::extract_extension) to load it into Chrome.
 ///
 /// For a recorder that needs no extension, see
-/// [`get_recorder_js`](crate::stealth::js::recorder_js::get_recorder_js).
+/// [`get_recorder_js`](crate::evasion::js::recorder_js::get_recorder_js).
 ///
 /// # Examples
 ///

@@ -36,8 +36,8 @@ use super::{Args, Ctx, Effect, Output, Prop, Schema, Settings, ToolDef, ToolErro
 use crate::api::base_case::BaseCase;
 use crate::cli::fingerprint_cmd::{self, ExportSource, PRESET_NAMES};
 use crate::error::SeleniumBaseError;
-use crate::stealth::capture::CapturedFingerprint;
-use crate::stealth::fingerprint::{Fingerprint, FingerprintComparison, OsType};
+use crate::evasion::capture::CapturedFingerprint;
+use crate::evasion::fingerprint::{Fingerprint, FingerprintComparison, OsType};
 
 /// The systems a random identity can claim.
 const OS_NAMES: [&str; 5] = ["windows", "macos", "linux", "android", "ios"];

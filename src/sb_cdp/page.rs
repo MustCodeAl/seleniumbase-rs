@@ -604,7 +604,7 @@ impl Page {
         // The script is the body of a function, ending in `return`.
         let script = format!(
             "(function () {{\n{}\n}})()",
-            crate::stealth::js::active_css_js::get_active_css_js()
+            crate::evasion::js::active_css_js::get_active_css_js()
         );
         self.string_of(&script).await
     }

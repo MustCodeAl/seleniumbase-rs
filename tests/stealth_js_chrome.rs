@@ -1,4 +1,4 @@
-//! The page scripts in `stealth::js`, and the proxy-auth extension's
+//! The page scripts in `evasion::js`, and the proxy-auth extension's
 //! background script, against a real Chrome.
 //!
 //! Until these tests existed, none of this JavaScript had ever been parsed or
@@ -20,8 +20,8 @@ use std::thread;
 use std::time::Duration;
 
 use base64::Engine as _;
+use seleniumbase_rs::evasion::js::active_css_js::get_active_css_js;
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Page};
-use seleniumbase_rs::stealth::js::active_css_js::get_active_css_js;
 use seleniumbase_rs::utils::extensions::{
     extract_extension, get_ad_block_bytes, get_disable_csp_bytes, get_recorder_bytes,
     get_sbase_ext_bytes, proxy_auth_background_js, write_proxy_auth_extension,
