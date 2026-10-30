@@ -36,7 +36,7 @@ const SETTINGS_VARS: [&str; 6] = [
 fn sbrs(args: &[&str]) -> Output {
     let mut command = Command::new(SBASE);
     command
-        .arg("--headless")
+        .args(["--headless", "--cdp"])
         .args(args)
         .env_remove("NO_COLOR")
         .env_remove("RUST_LOG")
@@ -70,7 +70,11 @@ fn solve_captcha_clears_the_interstitial_and_checks_the_page_and_the_cookie() {
     ]);
 
     let stdout = text(&output.stdout);
-    assert!(output.status.success(), "{stdout}\n{}", text(&output.stderr));
+    assert!(
+        output.status.success(),
+        "{stdout}\n{}",
+        text(&output.stderr)
+    );
     assert!(
         stdout.contains("Solved a Cloudflare Turnstile CAPTCHA"),
         "{stdout}"
@@ -112,7 +116,11 @@ fn solve_captcha_on_a_page_without_a_widget_says_so() {
     let output = sbrs(&["--url", &url, "solve-captcha"]);
 
     let stdout = text(&output.stdout);
-    assert!(output.status.success(), "{stdout}\n{}", text(&output.stderr));
+    assert!(
+        output.status.success(),
+        "{stdout}\n{}",
+        text(&output.stderr)
+    );
     assert!(
         stdout.contains("No supported CAPTCHA was found on the page."),
         "{stdout}"

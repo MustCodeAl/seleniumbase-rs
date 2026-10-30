@@ -1323,7 +1323,7 @@ enum Commands {
     /// page, its shadow roots and readable frames), waits for it to stand still, presses it
     /// along a human pointer path and waits for the page to show a result, pressing again up to
     /// three times if the page could show one and did not. It then checks what you expect of the
-    /// page: text of the site's own page and a clearance cookie.
+    /// page: text of the site's own page and a clearance cookie. Needs `--cdp` or `--uc`.
     #[usage(
         help_heading = "Page commands",
         example = "sbrs --uc --url https://nowsecure.nl solve-captcha --expect-text nowsecure --expect-cookie cf_clearance"
@@ -1973,6 +1973,12 @@ async fn solve_captcha_and_expect(
     expect_cookie: Option<&str>,
     wait: u64,
 ) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    if !sb.is_cdp_mode_active() {
+        return Err(seleniumbase_rs::SeleniumBaseError::Unsupported(
+            "solve-captcha presses with DevTools input events: add --cdp or --uc".to_owned(),
+        ));
+    }
+
     let options = seleniumbase_rs::sb_cdp::SolveOptions::default();
     match sb.solve_captcha_with(&options).await? {
         Some(solved) => println!("Solved a {} CAPTCHA: {solved}", solved.captcha),

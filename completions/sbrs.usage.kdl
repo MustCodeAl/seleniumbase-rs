@@ -1756,7 +1756,7 @@ cmd solve-captcha help_heading="Page commands" help="Solve the CAPTCHA on the pa
     long_help #"""
 Solve the CAPTCHA on the page and check that it cleared.
 
-Finds a Turnstile, reCAPTCHA, hCaptcha, Friendly Captcha or DataDome widget (in the page, its shadow roots and readable frames), waits for it to stand still, presses it along a human pointer path and waits for the page to show a result, pressing again up to three times if the page could show one and did not. It then checks what you expect of the page: text of the site's own page and a clearance cookie.
+Finds a Turnstile, reCAPTCHA, hCaptcha, Friendly Captcha or DataDome widget (in the page, its shadow roots and readable frames), waits for it to stand still, presses it along a human pointer path and waits for the page to show a result, pressing again up to three times if the page could show one and did not. It then checks what you expect of the page: text of the site's own page and a clearance cookie. Needs `--cdp` or `--uc`.
 """#
     flag --expect-text help="Text that must be on the page afterwards (any letter case)" {
         arg <EXPECT_TEXT>

@@ -3696,7 +3696,7 @@ sbrs --url https://example.com smooth-scroll-to --css footer
 
 Solve the CAPTCHA on the page and check that it cleared.
 
-Finds a Turnstile, reCAPTCHA, hCaptcha, Friendly Captcha or DataDome widget (in the page, its shadow roots and readable frames), waits for it to stand still, presses it along a human pointer path and waits for the page to show a result, pressing again up to three times if the page could show one and did not. It then checks what you expect of the page: text of the site's own page and a clearance cookie.
+Finds a Turnstile, reCAPTCHA, hCaptcha, Friendly Captcha or DataDome widget (in the page, its shadow roots and readable frames), waits for it to stand still, presses it along a human pointer path and waits for the page to show a result, pressing again up to three times if the page could show one and did not. It then checks what you expect of the page: text of the site's own page and a clearance cookie. Needs `--cdp` or `--uc`.
 
 ```bash Usage
 sbrs solve-captcha [FLAGS]

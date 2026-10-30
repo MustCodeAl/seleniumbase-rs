@@ -146,7 +146,7 @@ impl BaseCase {
     ) -> HoverAndClick<'a> {
         HoverAndClick::new(self, hover_selector, click_selector, HoverClick::Js)
     }
-    
+
     /// The work of [`click_nth_visible_element`](Self::click_nth_visible_element).
     pub(crate) async fn run_click_nth(
         &mut self,
@@ -175,7 +175,7 @@ impl BaseCase {
         element.click().await?;
         Ok(())
     }
-    
+
     /// The work of the four `press_*_arrow` calls.
     pub(crate) async fn run_press_arrow(
         &self,
@@ -211,7 +211,7 @@ impl BaseCase {
         }
         Ok(())
     }
-    
+
     /// The work of [`hover_and_double_click`](Self::hover_and_double_click) and
     /// [`hover_and_js_click`](Self::hover_and_js_click).
     pub(crate) async fn run_hover_and_click(
@@ -271,9 +271,9 @@ impl BaseCase {
     ///
     /// Checkbox widgets (Cloudflare Turnstile, reCAPTCHA, hCaptcha, Friendly
     /// Captcha) are clicked and the DataDome slider is dragged, using trusted
-    /// mouse events sent over the DevTools Protocol, so this needs a Chromium
-    /// browser. Returns the widget that was attempted, or `None` if the page
-    /// shows no supported widget. The widget is found in shadow roots and
+    /// mouse events sent over the DevTools Protocol, so this needs a Chromium browser in
+    /// the CDP or UC mode (else it fails with `Unsupported`). Returns the widget, or `None` if the
+    /// page shows no supported widget. The widget is found in shadow roots and
     /// readable frames, pressed along a human path once it stands still, and
     /// checked for a result (a token in its response field, the clearance
     /// cookie, a page with no widget); the steps are those of
@@ -288,26 +288,26 @@ impl BaseCase {
     /// allowed number of times and the page never showed it cleared, and an
     /// error if the page script or a DevTools command fails.
     pub async fn solve_captcha(
-            &self,
-        ) -> Result<Option<crate::sb_cdp::Captcha>, SeleniumBaseError> {
-            Ok(self
-                .solve_captcha_with(&crate::sb_cdp::SolveOptions::default())
-                .await?
-                .map(|solved| solved.captcha))
-        }
-    
-        /// Like [`solve_captcha`](Self::solve_captcha), with the settings of
-        /// `options`, and says what was done and what showed it worked.
-        ///
-        /// # Errors
-        ///
-        /// See [`solve_captcha`](Self::solve_captcha).
-        pub async fn solve_captcha_with(
-            &self,
-            options: &crate::sb_cdp::SolveOptions,
-        ) -> Result<Option<crate::sb_cdp::Solved>, SeleniumBaseError> {
-            crate::sb_cdp::solve_captcha(self, options).await
-        }
+        &self,
+    ) -> Result<Option<crate::sb_cdp::Captcha>, SeleniumBaseError> {
+        Ok(self
+            .solve_captcha_with(&crate::sb_cdp::SolveOptions::default())
+            .await?
+            .map(|solved| solved.captcha))
+    }
+
+    /// Like [`solve_captcha`](Self::solve_captcha), with the settings of
+    /// `options`, and says what was done and what showed it worked.
+    ///
+    /// # Errors
+    ///
+    /// See [`solve_captcha`](Self::solve_captcha).
+    pub async fn solve_captcha_with(
+        &self,
+        options: &crate::sb_cdp::SolveOptions,
+    ) -> Result<Option<crate::sb_cdp::Solved>, SeleniumBaseError> {
+        crate::sb_cdp::solve_captcha(self, options).await
+    }
 
     /// Sends one raw mouse event; `buttons` is the DevTools button bitmask.
     async fn dispatch_mouse(
