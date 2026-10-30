@@ -852,6 +852,13 @@ work, `docs/parity.md` the per-API status).
   capitals) and still pauses, as Python does; it does not fail the test. `api::messages::fallback_line`
   gives the line.
 
+### Removed
+
+- **The starter page object template.** `src/cli/scripts/templates/page_object.tpl` and
+  `tests/cli_templates.rs`, the test that compiled it against `BaseCase`, are gone. `sbrs
+  objectify` writes the selectors of a test to `page_objects.rs` and no longer writes a starter
+  `page_object.rs`, so nothing read the template.
+
 ### Fixed
 
 - **Every method that takes a selector reads `::shadow`, as Python's do, and waits.**
