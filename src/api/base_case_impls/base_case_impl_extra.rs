@@ -670,27 +670,27 @@ impl BaseCase {
 
     /// Returns true if the element `css` has the attribute `attribute`.
     pub async fn is_attribute_present(
-            &self,
-            css: &str,
-            attribute: &str,
-        ) -> Result<bool, SeleniumBaseError> {
-            if self.is_shadow_selector(css) {
-                // A script's querySelector cannot cross a shadow root; the session can.
-                let Ok(element) = self.session.find(Selector::auto(css).to_by()?).await else {
-                    return Ok(false);
-                };
-                return Ok(element.attr(attribute).await?.is_some());
-            }
-            let script = format!(
-                "var el = document.querySelector({}); return !!(el && el.hasAttribute({}));",
-                quote(css),
-                quote(attribute)
-            );
-            match self.execute_script(&script).await? {
-                Value::Bool(v) => Ok(v),
-                _ => Ok(false),
-            }
+        &self,
+        css: &str,
+        attribute: &str,
+    ) -> Result<bool, SeleniumBaseError> {
+        if self.is_shadow_selector(css) {
+            // A script's querySelector cannot cross a shadow root; the session can.
+            let Ok(element) = self.session.find(Selector::auto(css).to_by()?).await else {
+                return Ok(false);
+            };
+            return Ok(element.attr(attribute).await?.is_some());
         }
+        let script = format!(
+            "var el = document.querySelector({}); return !!(el && el.hasAttribute({}));",
+            quote(css),
+            quote(attribute)
+        );
+        match self.execute_script(&script).await? {
+            Value::Bool(v) => Ok(v),
+            _ => Ok(false),
+        }
+    }
 
     /// Waits for the element `selector` picks to have the attribute `attribute`,
     /// as Python's `wait_for_attribute(selector, attribute, value=None, by,

@@ -596,12 +596,16 @@ impl BrowserSession {
         Ok(self.webdriver()?.source().await?)
     }
 
-    /// Returns the first element matching `locator`.
+    /// Returns the first element matching `locator`. A CSS locator that crosses
+    /// shadow roots (`host::shadow inner`) is looked up through each host's shadow
+    /// root, and every lookup of the session goes through here.
     pub async fn find(&self, locator: By) -> Result<WebElement, SeleniumBaseError> {
         shadow_find::find(self.webdriver()?, locator).await
     }
 
-    /// Returns all elements matching `locator`.
+    /// Returns all elements matching `locator`, which may cross shadow roots as
+    /// [`find`](Self::find) says. A host that is missing or has no shadow root
+    /// gives an empty list.
     pub async fn find_all(&self, locator: By) -> Result<Vec<WebElement>, SeleniumBaseError> {
         shadow_find::find_all(self.webdriver()?, locator).await
     }

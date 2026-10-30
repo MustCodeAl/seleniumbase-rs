@@ -377,24 +377,24 @@ mod tests_text_argument_order {
 
     #[tokio::test]
     async fn assert_shadow_text_takes_the_text_first_and_the_selector_second() {
-            // It used to take (selector, text). It is `assert_text` for a selector
-            // that may cross shadow roots, so the order is the same.
-            let driver = welcome_page();
-            let mut sb = driver.base_case().await;
-            sb.set_timeout(0).await.unwrap();
-    
-            sb.assert_shadow_text("Welcome", "h1")
-                .await
-                .expect("the heading says Welcome");
-    
-            // The old order is a different expectation: the text is not the selector.
-            let message = sb
-                .assert_shadow_text("h1", "Welcome")
-                .await
-                .expect_err("no element is called Welcome")
-                .to_string();
-            assert!(message.contains("Welcome") && message.contains("h1"), "{message}");
-        }
+        // It used to take (selector, text). It is `assert_text` for a selector
+        // that may cross shadow roots, so the order is the same.
+        let driver = welcome_page();
+        let mut sb = driver.base_case().await;
+        sb.set_timeout(0).await.unwrap();
+
+        sb.assert_shadow_text("Welcome", "h1")
+            .await
+            .expect("the heading says Welcome");
+
+        // The old order is a different expectation: the text is not the selector.
+        let message = sb
+            .assert_shadow_text("h1", "Welcome")
+            .await
+            .expect_err("no element is called Welcome")
+            .to_string();
+        assert!(message.contains("Welcome") && message.contains("h1"), "{message}");
+    }
 
     #[tokio::test]
     async fn wait_takes_whole_or_fractional_seconds() {
