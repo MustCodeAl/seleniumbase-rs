@@ -3,5 +3,6 @@ doc-valid-idents = [
     "DevTools", "WebSocket", "SeleniumBase", "WebDriver", "XPath", "JavaScript",
     "TypeScript", "WebRTC", "WebGL", "OpenTelemetry", "ChromeDriver", "SQLite",
     "GitHub", "macOS", "iOS", "mDNS", "TOTP", "CDP", "IANA", "PDF", "URL", "HTML",
+    "WebView2", "WebKitGTK", "WKWebView",
     "..",
 ]

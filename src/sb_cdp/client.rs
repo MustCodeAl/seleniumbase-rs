@@ -5,7 +5,8 @@
 //! broadcasts everything else as an event, so commands issued from different
 //! tabs never block one another.
 //!
-//! The connection is an enum rather than a trait: either a real socket, or
+//! The connection is an enum rather than a trait: a real socket, a channel the
+//! caller carries ([`CdpTransport`](super::CdpTransport), page-scoped), or
 //! (with the `test-util` feature) a scripted [`MockCtrl`](super::MockCtrl).
 
 use std::collections::HashMap;
@@ -27,9 +28,9 @@ use super::sync::locked;
 use crate::error::SeleniumBaseError;
 
 type Ws = WebSocketStream<MaybeTlsStream<TcpStream>>;
-type Pending = Arc<StdMutex<HashMap<u64, oneshot::Sender<Result<Value, String>>>>>;
+pub(super) type Pending = Arc<StdMutex<HashMap<u64, oneshot::Sender<Result<Value, String>>>>>;
 /// Where one command's response arrives.
-type Reply = oneshot::Receiver<Result<Value, String>>;
+pub(super) type Reply = oneshot::Receiver<Result<Value, String>>;
 
 /// How long a single protocol command may take before it is abandoned.
 ///
@@ -162,6 +163,7 @@ pub(crate) struct Client {
 #[derive(Debug)]
 enum Link {
     Ws(WsLink),
+    Channel(super::channel::ChannelLink),
     #[cfg(any(test, feature = "test-util"))]
     Mock(super::mock::MockCtrl),
 }
@@ -232,10 +234,30 @@ impl Client {
         }
     }
 
+    /// A connection over a page-scoped channel the caller carries, and the
+    /// inbox its answers and events go into.
+    pub(crate) fn over_channel(
+        transport: impl super::channel::CdpTransport,
+    ) -> (Self, super::channel::CdpInbox) {
+        let (link, inbox) = super::channel::ChannelLink::new(transport);
+        let client = Self {
+            closed: AtomicBool::new(false),
+            link: Link::Channel(link),
+        };
+        (client, inbox)
+    }
+
+    /// Whether this connection is a page-scoped channel rather than a
+    /// browser endpoint.
+    pub(crate) fn is_channel(&self) -> bool {
+        matches!(self.link, Link::Channel(_))
+    }
+
     /// Subscribes to protocol events from every tab.
     pub(crate) fn events(&self) -> Events {
         let rx = match &self.link {
             Link::Ws(ws) => ws.events.subscribe(),
+            Link::Channel(channel) => channel.subscribe(),
             #[cfg(any(test, feature = "test-util"))]
             Link::Mock(ctrl) => ctrl.subscribe(),
         };
@@ -258,6 +280,7 @@ impl Client {
         self.ensure_open()?;
         match &self.link {
             Link::Ws(ws) => ws.send(method, params, session_id).await,
+            Link::Channel(channel) => channel.send(method, params, session_id).await,
             #[cfg(any(test, feature = "test-util"))]
             Link::Mock(ctrl) => ctrl
                 .handle(method, &params, session_id)
@@ -281,6 +304,7 @@ impl Client {
         self.ensure_open()?;
         match &self.link {
             Link::Ws(ws) => ws.send_ordered(commands, session_id).await,
+            Link::Channel(channel) => channel.send_ordered(commands, session_id).await,
             #[cfg(any(test, feature = "test-util"))]
             Link::Mock(ctrl) => {
                 let mut results = Vec::with_capacity(commands.len());
@@ -304,6 +328,7 @@ impl Client {
     pub(crate) fn is_open(&self) -> bool {
         match &self.link {
             Link::Ws(ws) => !ws.reader.is_finished() && !self.closed.load(Ordering::SeqCst),
+            Link::Channel(channel) => channel.is_open() && !self.closed.load(Ordering::SeqCst),
             #[cfg(any(test, feature = "test-util"))]
             Link::Mock(ctrl) => !ctrl.is_disconnected(),
         }
@@ -325,6 +350,12 @@ impl Client {
                 ws.reader.abort();
                 // Whatever still waits for an answer learns the connection is gone.
                 locked(&ws.pending).clear();
+            }
+            Link::Channel(channel) => {
+                // A channel has no close frame, so what this client set in
+                // the page (overrides, injected scripts) stays: the page is
+                // the app's. Commands still waiting fail now.
+                channel.close();
             }
             #[cfg(any(test, feature = "test-util"))]
             Link::Mock(ctrl) => ctrl.disconnect(),
@@ -433,22 +464,7 @@ impl WsLink {
 
     /// Waits for the response to a command that has been written.
     async fn finish(&self, id: u64, method: &str, rx: Reply) -> Result<Value, SeleniumBaseError> {
-        match tokio::time::timeout(COMMAND_TIMEOUT, rx).await {
-            Ok(Ok(Ok(result))) => Ok(result),
-            Ok(Ok(Err(message))) => Err(SeleniumBaseError::cdp_driver(format!(
-                "{method}: {message}"
-            ))),
-            Ok(Err(_)) => Err(SeleniumBaseError::browser_disconnected(format!(
-                "connection closed while waiting for {method}"
-            ))),
-            Err(_) => {
-                self.forget(id);
-                Err(SeleniumBaseError::wait_timeout(
-                    format!("protocol command {method}"),
-                    Some(COMMAND_TIMEOUT),
-                ))
-            }
-        }
+        await_reply(&self.pending, id, method, rx).await
     }
 
     fn forget(&self, id: u64) {
@@ -459,6 +475,33 @@ impl WsLink {
 impl Drop for WsLink {
     fn drop(&mut self) {
         self.reader.abort();
+    }
+}
+
+/// Waits for the answer to command `id`, which has been handed over, for at
+/// most [`COMMAND_TIMEOUT`]. A command that times out is forgotten, so a late
+/// answer is dropped.
+pub(super) async fn await_reply(
+    pending: &Pending,
+    id: u64,
+    method: &str,
+    rx: Reply,
+) -> Result<Value, SeleniumBaseError> {
+    match tokio::time::timeout(COMMAND_TIMEOUT, rx).await {
+        Ok(Ok(Ok(result))) => Ok(result),
+        Ok(Ok(Err(message))) => Err(SeleniumBaseError::cdp_driver(format!(
+            "{method}: {message}"
+        ))),
+        Ok(Err(_)) => Err(SeleniumBaseError::browser_disconnected(format!(
+            "connection closed while waiting for {method}"
+        ))),
+        Err(_) => {
+            locked(pending).remove(&id);
+            Err(SeleniumBaseError::wait_timeout(
+                format!("protocol command {method}"),
+                Some(COMMAND_TIMEOUT),
+            ))
+        }
     }
 }
 
@@ -490,7 +533,7 @@ async fn read_loop(
 
 /// Routes one decoded message: a response completes its request, anything with
 /// a `method` is an event.
-fn dispatch(value: &Value, pending: &Pending, events: &broadcast::Sender<CdpEvent>) {
+pub(super) fn dispatch(value: &Value, pending: &Pending, events: &broadcast::Sender<CdpEvent>) {
     if let Some(id) = value.get("id").and_then(Value::as_u64) {
         let waiter = locked(pending).remove(&id);
         if let Some(tx) = waiter {

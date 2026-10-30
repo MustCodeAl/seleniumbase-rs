@@ -12,6 +12,7 @@ use tokio::process::Child;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
+use super::channel::{CdpInbox, CdpTransport, CHANNEL_SESSION, CHANNEL_TARGET};
 use super::client::{Client, Events};
 use super::launch::{launch, LaunchOptions};
 use super::page::{Page, DEFAULT_TIMEOUT};
@@ -29,6 +30,10 @@ const GRACEFUL_CLOSE: Duration = Duration::from_secs(3);
 
 /// Where the DevTools endpoint of a browser this process launched listens.
 const LOCAL_HOST: &str = "127.0.0.1";
+
+/// The DevTools address a browser over a caller's channel reports: it has
+/// none, so the address names a host that never resolves.
+const CHANNEL_WS_URL: &str = "ws://channel.invalid/devtools/page/channel";
 
 /// The DevTools address a mocked browser reports.
 #[cfg(any(test, feature = "test-util"))]
@@ -553,6 +558,74 @@ impl Browser {
         Ok(self)
     }
 
+    /// Drives a page over a DevTools channel the caller carries, such as the
+    /// in-process one of a webview an app embeds; see [`CdpTransport`].
+    ///
+    /// Commands leave through `transport`; the browser's answers and events
+    /// must be given to the returned [`CdpInbox`]. Nothing is sent until the
+    /// browser is used, so wire the inbox first. The channel is page-scoped:
+    /// [`default_page`](Self::default_page) is its page, prepared the way the
+    /// library prepares every tab it drives, and its commands go out with no
+    /// `sessionId`. [`execute`](Self::execute) also reaches that page's agent.
+    ///
+    /// Such a browser opens no tabs and no browser contexts (those need the
+    /// browser target), has no DevTools endpoint (the port is `0`), and
+    /// [`close`](Self::close) only ends the channel: the page is the app's,
+    /// and what was set in it stays.
+    ///
+    /// # Examples
+    ///
+    /// A transport that hands every command to a task standing in for the
+    /// embedder's channel (CEF's DevTools message observer, WebView2's
+    /// completion handlers), which answers through the inbox:
+    ///
+    /// ```
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    /// use seleniumbase_rs::sb_cdp::{Browser, CdpRequest, TransportError};
+    /// use serde_json::json;
+    /// use tokio::sync::mpsc;
+    ///
+    /// let (outgoing, mut agent) = mpsc::unbounded_channel::<CdpRequest>();
+    /// let (browser, inbox) =
+    ///     Browser::over_channel(move |request: CdpRequest| -> Result<(), TransportError> {
+    ///         outgoing.send(request).map_err(|_| "the webview is gone".into())
+    ///     });
+    /// tokio::spawn(async move {
+    ///     while let Some(request) = agent.recv().await {
+    ///         // A real channel hands `request.to_json()` to the browser and
+    ///         // gives what comes back to `inbox.deliver` or `inbox.respond`.
+    ///         inbox.respond(request.id, Ok(json!({ "result": { "value": 2 } })));
+    ///     }
+    /// });
+    ///
+    /// let answer = browser
+    ///     .execute("Runtime.evaluate", json!({ "expression": "1 + 1" }))
+    ///     .await?;
+    /// assert_eq!(answer["result"]["value"], 2);
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// [`CdpTransport`]: super::CdpTransport
+    /// [`CdpInbox`]: super::CdpInbox
+    #[must_use]
+    pub fn over_channel(transport: impl CdpTransport) -> (Self, CdpInbox) {
+        let (client, inbox) = Client::over_channel(transport);
+        let browser = Self::from_parts(
+            Arc::new(client),
+            None,
+            None,
+            None,
+            (LOCAL_HOST.to_owned(), 0),
+            CHANNEL_WS_URL.to_owned(),
+            LaunchOptions::default(),
+        );
+        // The page is the app's: closing gives it back instead of ending it.
+        browser.inner.attached.store(true, Ordering::SeqCst);
+        (browser, inbox)
+    }
+
     /// Creates a browser that talks to a scripted mock instead of Chrome.
     ///
     /// For testing code that drives pages. The returned [`MockCtrl`] scripts
@@ -766,6 +839,9 @@ impl Browser {
     ///
     /// Returns [`SeleniumBaseError::CdpDriver`] if the browser cannot be queried.
     pub async fn list_pages(&self) -> Result<Vec<PageInfo>, SeleniumBaseError> {
+        if self.inner.client.is_channel() {
+            return Ok(vec![self.channel_page_info().await?]);
+        }
         let response = self.execute("Target.getTargets", json!({})).await?;
         Ok(response["targetInfos"]
             .as_array()
@@ -875,6 +951,12 @@ impl Browser {
         window: bool,
         context: Option<ContextTarget<'_>>,
     ) -> Result<Page, SeleniumBaseError> {
+        if self.inner.client.is_channel() {
+            return Err(SeleniumBaseError::cdp_driver(
+                "a browser over a DevTools channel drives the one page the channel reaches; \
+                 it cannot open tabs or windows",
+            ));
+        }
         // Open blank and navigate once attached. Creating the tab at the URL
         // would start loading before anything is listening, and a fresh tab's
         // blank document already reports "complete", so waiting on it can
@@ -976,8 +1058,18 @@ impl Browser {
     /// The protocol session attached to a tab, attaching if needed.
     async fn session_for(&self, id: &str) -> Result<Arc<str>, SeleniumBaseError> {
         let known = locked(&self.inner.sessions).get(id).cloned();
-        let session = if let Some(session) = known {
-            session
+        if let Some(session) = known {
+            return Ok(session);
+        }
+        let session: Arc<str> = if self.inner.client.is_channel() {
+            // The channel reaches its page directly: there is nothing to
+            // attach to, only the page to prepare.
+            if id != CHANNEL_TARGET {
+                return Err(SeleniumBaseError::cdp_driver(format!(
+                        "a browser over a DevTools channel has the one page {CHANNEL_TARGET:?}, not {id:?}"
+                    )));
+            }
+            CHANNEL_SESSION.into()
         } else {
             let response = self
                 .execute(
@@ -985,15 +1077,37 @@ impl Browser {
                     json!({ "targetId": id, "flatten": true }),
                 )
                 .await?;
-            let session: Arc<str> = response["sessionId"]
+            response["sessionId"]
                 .as_str()
                 .ok_or_else(|| SeleniumBaseError::cdp_driver("attach returned no sessionId"))?
-                .into();
-            self.prepare_session(id, &session).await?;
-            locked(&self.inner.sessions).insert(id.to_owned(), Arc::clone(&session));
-            session
+                .into()
         };
+        self.prepare_session(id, &session).await?;
+        locked(&self.inner.sessions).insert(id.to_owned(), Arc::clone(&session));
         Ok(session)
+    }
+
+    /// The one page a channel reaches, as [`list_pages`](Self::list_pages)
+    /// reports it. Its address and title come from the page itself.
+    async fn channel_page_info(&self) -> Result<PageInfo, SeleniumBaseError> {
+        let answer = self
+            .inner
+            .client
+            .send(
+                "Runtime.evaluate",
+                json!({
+                    "expression": "({ url: location.href, title: document.title })",
+                    "returnByValue": true,
+                }),
+                Some(CHANNEL_SESSION),
+            )
+            .await?;
+        let page = &answer["result"]["value"];
+        Ok(PageInfo {
+            id: CHANNEL_TARGET.to_owned(),
+            url: page["url"].as_str().unwrap_or_default().to_owned(),
+            title: page["title"].as_str().unwrap_or_default().to_owned(),
+        })
     }
 
     /// The id of the browser context a tab was opened in, when it was opened
@@ -1454,6 +1568,12 @@ impl Browser {
             .map(|(target, session)| (target.clone(), Arc::clone(session)))
             .collect();
         for (tab, session) in sessions {
+            if client.is_channel() && &*session == CHANNEL_SESSION {
+                // The channel's page was never attached through a session, so
+                // there is nothing to detach.
+                self.forget_page(&tab);
+                continue;
+            }
             let detach = client.send(
                 "Target.detachFromTarget",
                 json!({ "sessionId": &*session }),

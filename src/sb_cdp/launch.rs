@@ -12,7 +12,7 @@ use serde_json::{Map, Value};
 use tempfile::TempDir;
 use tokio::process::{Child, Command};
 
-use super::identity::Identity;
+use super::identity::StealthPlan;
 use crate::browser::options::{
     chrome_preferences, emulated_phone, DeviceMetrics, LaunchSwitch, PacUrl, ProxyBypassList,
     VirtualDisplay, MOBILE_USER_AGENT,
@@ -200,7 +200,7 @@ pub struct LaunchOptions {
     pub(crate) webrtc: Option<WebRtcPolicy>,
     pub(crate) shield_webrtc: bool,
     /// What every tab is made to look like, if a fingerprint was given.
-    pub(crate) identity: Option<Arc<Identity>>,
+    pub(crate) identity: Option<Arc<StealthPlan>>,
     pub(crate) extra_args: Vec<String>,
     /// Unpacked extension folders, loaded over the protocol once the browser runs.
     pub(crate) extensions: Vec<PathBuf>,
@@ -490,7 +490,7 @@ pub struct LaunchOptionsBuilder {
     no_sandbox: bool,
     webrtc: Option<WebRtcPolicy>,
     shield_webrtc: bool,
-    identity: Option<Arc<Identity>>,
+    identity: Option<Arc<StealthPlan>>,
     extra_args: Vec<String>,
     extensions: Vec<PathBuf>,
     prefs: Map<String, Value>,
@@ -646,7 +646,7 @@ impl LaunchOptionsBuilder {
     /// is applied and what is deliberately left out.
     #[must_use]
     pub fn fingerprint(mut self, fingerprint: &Fingerprint) -> Self {
-        self.identity = Some(Arc::new(Identity::of(fingerprint)));
+        self.identity = Some(Arc::new(StealthPlan::new(fingerprint)));
         if self.user_agent.is_none() {
             self.user_agent = fingerprint.user_agent().value().cloned();
         }
