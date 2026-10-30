@@ -880,6 +880,20 @@ work, `docs/parity.md` the per-API status).
   capitals) and still pauses, as Python does; it does not fail the test. `api::messages::fallback_line`
   gives the line.
 
+### Changed
+
+- **The layout trees of the docs pages come from one source.** The tree of the repository was
+  copied by hand into `CONTRIBUTING.md`, `docs/CONTRIBUTING.md`, `docs/DEVELOPER_GUIDE.md` and
+  `docs/contributing/from-source.md`, and the copies had drifted (`stealth/` for `evasion/`, a
+  `behave/` folder that is gone, no `plugin_host/`, `resources/` or `crates/own-imports`, the
+  command line's default features without `mcp-client`). `tools/docs_layout_tree.py` now writes
+  one tree into all four, checked against the files git tracks, so it cannot name a path that is
+  gone or leave out a new folder of `src/` or `crates/`. The seven `export const` definitions
+  of the tree component, copied onto thirteen pages, are one file, `tools/layout_tree/component.mdx`,
+  between markers on twelve of them. `just layout-tree` writes the pages again, and `just mdx`
+  fails, naming the page and the line, when a copy differs.
+
+
 ### Removed
 
 - **The starter page object template.** `src/cli/scripts/templates/page_object.tpl` and
