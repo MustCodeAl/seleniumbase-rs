@@ -159,7 +159,7 @@ Colour is used only when standard error is a terminal. The same line, with no es
 sequence, is what you get:
 
 - when standard error is a pipe or a file, as in `sbrs ... 2> run.log` or in CI;
-- when `NO_COLOR` is set to anything but an empty value (<https://no-color.org>);
+- when `NO_COLOR` is set to anything but an empty value ([no-color.org](https://no-color.org));
 - when `TERM` is `dumb`;
 - with `SB_LOG_FORMAT=json`, which writes one JSON object per line and never colours.
 
