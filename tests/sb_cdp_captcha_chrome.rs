@@ -27,7 +27,7 @@ mod captcha_site;
 use std::time::{Duration, Instant};
 
 use captcha_site::Site;
-use seleniumbase_rs::sb_cdp::{Browser, Captcha, LaunchOptions, Page};
+use seleniumbase_rs::sb_cdp::{Browser, Captcha, Evidence, LaunchOptions, Page, SolveOptions};
 use seleniumbase_rs::SeleniumBaseError;
 
 /// How long a test waits for the page to show it cleared.
@@ -200,6 +200,87 @@ async fn an_interstitial_clears_to_the_real_page_with_a_clearance_cookie() {
         cookies.iter().any(|cookie| cookie.name == "cf_clearance"),
         "no cf_clearance cookie among {:?}",
         cookies.iter().map(|c| c.name.as_str()).collect::<Vec<_>>()
+    );
+    browser.close().await.expect("Chrome closes");
+}
+
+#[tokio::test]
+#[ignore = "starts a headless Chrome"]
+async fn the_report_says_what_showed_the_widget_cleared() {
+    let site = Site::start();
+    let (browser, page) = launch().await;
+
+    open(&page, &site, "/iframe").await;
+    let solved = page
+        .solve_captcha_with(&SolveOptions::default())
+        .await
+        .expect("solve_captcha_with")
+        .expect("a widget");
+    assert_eq!(solved.captcha, Captcha::Turnstile);
+    assert_eq!(solved.attempts, 1, "{solved}");
+    assert_eq!(solved.evidence, Some(Evidence::Token), "{solved}");
+
+    // A second look at the cleared page presses nothing: it is already clear.
+    let again = page
+        .solve_captcha_with(&SolveOptions::default())
+        .await
+        .expect("solve_captcha_with")
+        .expect("a widget");
+    assert_eq!(again.attempts, 0, "{again}");
+    assert_eq!(again.evidence, Some(Evidence::Token), "{again}");
+
+    // The interstitial leaves the page for the site's own, with the cookie.
+    open(&page, &site, "/interstitial").await;
+    let solved = page
+        .solve_captcha_with(&SolveOptions::default())
+        .await
+        .expect("solve_captcha_with")
+        .expect("a widget");
+    assert!(
+        matches!(
+            solved.evidence,
+            Some(Evidence::Cookie | Evidence::Navigated | Evidence::Token)
+        ),
+        "{solved}"
+    );
+    browser.close().await.expect("Chrome closes");
+}
+
+#[tokio::test]
+#[ignore = "starts a headless Chrome"]
+async fn a_widget_that_never_clears_fails_with_the_typed_error() {
+    let site = Site::start();
+    let (browser, page) = launch().await;
+    open(&page, &site, "/iframe?widget=fail=99").await;
+
+    let options = SolveOptions::new()
+        .attempts(2)
+        .verify_timeout(Duration::from_secs(2))
+        .backoff(Duration::from_millis(200));
+    let error = page
+        .solve_captcha_with(&options)
+        .await
+        .expect_err("the widget never clears");
+
+    match &error {
+        SeleniumBaseError::Captcha {
+            captcha,
+            attempts,
+            reason,
+        } => {
+            assert_eq!(captcha, "Cloudflare Turnstile");
+            assert_eq!(*attempts, 2);
+            assert!(reason.contains("response field"), "{reason}");
+        }
+        other => panic!("expected a CAPTCHA error, got {other:?}"),
+    }
+    let clicks: u32 = page
+        .evaluate_as("window.__clicks.filter((c) => c.inside && c.armed).length")
+        .await
+        .expect("click count");
+    assert_eq!(
+        clicks, 2,
+        "one press for each attempt, none while verifying"
     );
     browser.close().await.expect("Chrome closes");
 }
