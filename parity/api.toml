@@ -1772,7 +1772,7 @@ reason = "unittest/pytest harness plumbing; the Rust runner (api::runner) owns t
 status = "composed"
 rust = "BaseCase::type_text"
 note = "One canonical name: Rust has type_text only."
-divergence = "Types with clear plus send_keys and returns at once. Python waits for the element to be clickable, scrolls to it, clears it with 42 backspaces, and waits for document.readyState to be complete after the keys. Typed straight after a click that loads a page (saucedemo.com's checkout form in examples/my_first_test.py), the text is often lost here and never in Python. A ::shadow selector is not read (see get_text)."
+divergence = "Types with clear plus send_keys and returns at once. Python waits for the element to be clickable, scrolls to it, clears it with 42 backspaces, and waits for document.readyState to be complete after the keys. A ::shadow selector is not read (see get_text)."
 
 [basecase."uncheck_if_checked"]
 status = "implemented"
@@ -2948,7 +2948,6 @@ note = "Python tiles the browser windows with the CDP driver. Compute each tile'
 status = "implemented"
 rust = "Locator::type_text"
 note = "`page.locator(selector).type_text(text)` clears the field, then types the text one key at a time, as Python's `type` does. `fill(text)` inserts it in one step; `send_keys(text)` appends."
-divergence = "Typed straight after a click that loads a page (saucedemo.com's checkout form in examples/cdp_mode/raw_cdp_swag.py), the text is lost in most runs here; Python's sb_cdp type is not (see the WebDriver type row)."
 
 [cdp."uncheck_if_checked"]
 status = "composed"

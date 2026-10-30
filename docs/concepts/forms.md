@@ -295,8 +295,17 @@ page.locator("#terms").check().await?;
 
 The pure CDP engine starts Chrome with `--password-store=basic` and
 `--use-mock-keychain`, which stops macOS from asking for keychain access on
-launch. That removes one prompt; saved-password and autofill prompts still
-depend on the profile, so use a fresh one.
+launch. It also turns off Chrome's leaked-password check, its password manager
+and the offer to save a login (the preferences
+`profile.password_manager_leak_detection`, `profile.password_manager_enabled`
+and `credentials_enable_service`), as Python SeleniumBase does, and a
+WebDriver session asks for the same. Without that, logging in with a password
+on Chrome's list of leaked ones (saucedemo.com's `secret_sauce` is one) makes
+the browser show a "data breach" prompt of its own, and while it is up the
+browser takes the keyboard: `type_text` returns `Ok` and the field stays empty,
+however long you wait. A profile you name with `user_data_dir` keeps its own
+preferences; turn those off there with `LaunchOptions::builder().preference(..)`.
+Autofill prompts still depend on the profile, so use a fresh one.
 
 </Tip>
 

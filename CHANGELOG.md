@@ -816,6 +816,19 @@ work, `docs/parity.md` the per-API status).
 
 ### Fixed
 
+- **Typing no longer loses its text after a login with a leaked password.** On saucedemo.com's
+  checkout form (its password, `secret_sauce`, is on Chrome's list of leaked ones) the fields
+  stayed empty or kept only the first characters, in both engines, with `type_text` returning
+  `Ok`: Chrome shows a "data breach" prompt of its own, and while it is up the browser takes the
+  keyboard from the page. Waiting before typing does not help (the prompt stays), so this was no
+  timing race in `type_text`. Python starts Chrome with `profile.password_manager_leak_detection`,
+  `profile.password_manager_enabled` and `credentials_enable_service` off; a WebDriver session
+  now asks for them in its capabilities (a preference the caller set wins) and the pure CDP
+  engine writes them into the throwaway profile it starts (a `user_data_dir` profile is left as
+  it is, as Python leaves it). `base_case::my_first_test` and `cdp::raw_cdp_swag` of the
+  example ports pass again.
+
+
 - **Recorder Mode no longer writes the frames of a page as pages to open.** The page script went
   into every frame, and a frame of the same origin shares the top frame's sessionStorage, so a
   reCAPTCHA page recorded `goto` steps for `about:blank`, `about:srcdoc` and the widget's
