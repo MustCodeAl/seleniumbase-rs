@@ -44,12 +44,46 @@
     return scope;
   }
 
+  // A CSS selector that crosses shadow roots, `host::shadow inner`, the way
+  // Python SeleniumBase reads it in the WebDriver engine: it is cut at each
+  // `::shadow` that is followed by white space or ends the text, the first
+  // piece is looked for in `root`, and each of the others in the open shadow
+  // root of every element the piece before it matched. A closed root cannot be
+  // entered from a page script. A selector without the combinator is one
+  // plain `querySelectorAll`.
+  const SHADOW = /::shadow(?=\s|$)/;
+  function cssQuery(value, root) {
+    if (!SHADOW.test(value)) return Array.from(root.querySelectorAll(value));
+    const pieces = value.split(SHADOW).map((piece) => piece.trim());
+    if (pieces[pieces.length - 1] === "") {
+      throw new Error("sbcdp:bad-selector:A Shadow DOM selector cannot end on a shadow root element! " +
+        "End the selector with an element inside the shadow root!");
+    }
+    if (pieces.some((piece) => piece === "")) {
+      throw new Error("sbcdp:bad-selector:a Shadow DOM selector needs an element before and after each ::shadow");
+    }
+    let scopes = [root];
+    let matches = [];
+    pieces.forEach((piece, i) => {
+      const found = new Set();
+      for (const scope of scopes) {
+        for (const el of scope.querySelectorAll(piece)) found.add(el);
+      }
+      matches = Array.from(found);
+      scopes = i < pieces.length - 1
+        ? matches.filter((el) => el.shadowRoot).map((el) => el.shadowRoot)
+        : [];
+    });
+    return matches;
+  }
+
+
   function query(selector, scope) {
     const root = rootOf(scope);
     if (!root) return [];
     switch (selector.kind) {
       case "css":
-        return Array.from(root.querySelectorAll(selector.value));
+        return cssQuery(selector.value, root);
       case "xpath":
         return xpath(selector.value, root);
       case "link_text": {
@@ -101,8 +135,20 @@
   }
 
   function textOf(el) {
-    return el.innerText !== undefined ? el.innerText : (el.textContent || "");
-  }
+      const own = el.innerText !== undefined ? el.innerText : (el.textContent || "");
+      if (own !== "" || !el.querySelectorAll) return own;
+      // innerText stops at a slot, so a container that only slots its content
+      // has none of its own, though the page shows the slotted text in it (and
+      // WebDriver's element text reports it). Read it from the nodes that the
+      // slots show.
+      let shown = "";
+      for (const slot of el.querySelectorAll("slot")) {
+        for (const node of slot.assignedNodes({ flatten: true })) {
+          shown += node.nodeType === 1 && node.innerText !== undefined ? node.innerText : (node.textContent || "");
+        }
+      }
+      return shown;
+    }
 
   // The text a text check compares, as Python's `text_all` gives it: the value
   // of an input or a textarea, which have no rendered text, and the rendered
