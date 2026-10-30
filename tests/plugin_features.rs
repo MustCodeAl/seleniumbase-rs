@@ -185,6 +185,7 @@ fn each_builtin_plugin_has_a_feature_that_turns_on_exactly_its_own_crate() {
         "batcher",
         "crawler",
         "browser",
+        "imap",
     ] {
         assert_eq!(
             feature(&manifest, &format!("plugin-{plugin}")),
@@ -206,7 +207,8 @@ fn each_builtin_plugin_has_a_feature_that_turns_on_exactly_its_own_crate() {
             "plugin-extractor",
             "plugin-batcher",
             "plugin-crawler",
-            "plugin-browser"
+            "plugin-browser",
+            "plugin-imap"
         ],
         "plugins-builtin is all of them"
     );

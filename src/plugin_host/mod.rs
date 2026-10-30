@@ -6,7 +6,7 @@
 //! through a [`Registry`]:
 //!
 //! * [`builtin_registry`] holds the official plugins whose cargo feature is on
-//!   (`plugin-shield`, `plugin-block-resources`, `plugin-crx`, `plugin-fetcher`, `plugin-extractor`, `plugin-batcher`, `plugin-crawler`, `plugin-browser`, or
+//!   (`plugin-shield`, `plugin-block-resources`, `plugin-crx`, `plugin-fetcher`, `plugin-extractor`, `plugin-batcher`, `plugin-crawler`, `plugin-browser`, `plugin-imap`, or
 //!   `plugins-builtin` for all of them). A build with none has an empty
 //!   registry, and every name is then unknown.
 //! * [`build`] and [`build_with`] return a *strict* [`PluginSet`]: it refuses a
@@ -57,7 +57,7 @@ pub(crate) use timer::timed;
 /// The cargo features that add a built-in plugin, for messages.
 const BUILTIN_FEATURES: &str = "plugin-shield, plugin-block-resources, plugin-crx, \
                                 plugin-fetcher, plugin-extractor, plugin-batcher, plugin-crawler, \
-                                plugin-browser \
+                                plugin-browser, plugin-imap \
                                 (plugins-builtin turns them all on)";
 
 /// The built-in plugins this build contains, by name.
@@ -74,6 +74,7 @@ pub fn builtin_registry() -> Registry {
         feature = "plugin-batcher",
         feature = "plugin-crawler",
         feature = "plugin-browser",
+        feature = "plugin-imap",
         feature = "plugin-crx"
     ))]
     {
@@ -87,6 +88,7 @@ pub fn builtin_registry() -> Registry {
         feature = "plugin-batcher",
         feature = "plugin-crawler",
         feature = "plugin-browser",
+        feature = "plugin-imap",
         feature = "plugin-crx"
     )))]
     {
@@ -363,6 +365,7 @@ mod tests {
             "plugin-batcher",
             "plugin-crawler",
             "plugin-browser",
+            "plugin-imap",
         ] {
             assert!(text.contains(feature), "{feature} in {text}");
         }
@@ -511,6 +514,61 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "plugin-imap")]
+    #[test]
+    fn the_builtin_registry_builds_imap_and_says_what_is_wrong_with_its_options() {
+        assert!(builtin_registry().names().contains(&"imap"));
+        let wrong = |options: Value| {
+            build(
+                &PluginSelection::new()
+                    .enable("imap")
+                    .with_options("imap", options),
+            )
+            .unwrap_err()
+        };
+
+        // `host` has no default: the plugin's own message, under the plugin's name.
+        let error = build(&PluginSelection::new().enable("imap")).unwrap_err();
+        assert!(
+            matches!(&error, SeleniumBaseError::Plugin { plugin, .. } if plugin == "imap"),
+            "{error:?}"
+        );
+        assert!(
+            error.to_string().contains("imap: `host` is required"),
+            "{error}"
+        );
+
+        // The variable `password_env` names must be set when the plugin is built, and the
+        // message names it (never a value).
+        let error = wrong(json!({
+            "host": "imap.example.com",
+            "user": "me@example.com",
+            "password_env": "SBRS_IMAP_TEST_UNSET_VARIABLE",
+        }));
+        let text = error.to_string();
+        assert!(text.contains("SBRS_IMAP_TEST_UNSET_VARIABLE"), "{text}");
+        assert!(text.contains("password_env"), "{text}");
+
+        // The password is not an option.
+        let error = wrong(json!({ "host": "imap.example.com", "password": "hunter2" }));
+        assert!(
+            error.to_string().contains("unknown option `password`"),
+            "{error}"
+        );
+
+        // With a variable that is set (`PATH` is, wherever a test runs) the plugin builds;
+        // nothing connects until a wait starts.
+        let good = PluginSelection::new().enable("imap").with_options(
+            "imap",
+            json!({
+                "host": "imap.example.com",
+                "user": "me@example.com",
+                "password_env": "PATH",
+            }),
+        );
+        assert_eq!(build(&good).unwrap().names(), ["imap"]);
+    }
+
     #[cfg(all(feature = "plugin-crx", feature = "plugin-browser"))]
     #[test]
     fn crx_and_browser_build_together_but_the_launch_check_refuses_the_pair() {
@@ -552,10 +610,11 @@ mod tests {
         feature = "plugin-batcher",
         feature = "plugin-crawler",
         feature = "plugin-browser",
+        feature = "plugin-imap",
         feature = "plugin-crx"
     ))]
     #[test]
-    fn plugins_builtin_knows_the_eight_official_plugins() {
+    fn plugins_builtin_knows_the_nine_official_plugins() {
         let mut names = builtin_registry().names();
         names.sort_unstable();
         assert_eq!(
@@ -568,6 +627,7 @@ mod tests {
                 "crx",
                 "extractor",
                 "fetcher",
+                "imap",
                 "shield"
             ]
         );
@@ -581,6 +641,7 @@ mod tests {
         feature = "plugin-batcher",
         feature = "plugin-crawler",
         feature = "plugin-browser",
+        feature = "plugin-imap",
         feature = "plugin-crx"
     )))]
     #[test]

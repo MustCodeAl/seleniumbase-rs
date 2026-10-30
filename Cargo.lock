@@ -226,6 +226,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bfdc70193dadb9d7287fa4b633f15f90c876915b31f6af17da307fc59c9859a8"
 
 [[package]]
+name = "async-channel"
+version = "1.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "81953c529336010edd6d8e358f886d9581267795c61b19475b71314bffa46d35"
+dependencies = [
+ "concurrent-queue",
+ "event-listener 2.5.3",
+ "futures-core",
+]
+
+[[package]]
+name = "async-channel"
+version = "2.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "924ed96dd52d1b75e9c1a3e6275715fd320f5f9439fb5a4a11fa51f4221158d2"
+dependencies = [
+ "concurrent-queue",
+ "event-listener-strategy",
+ "futures-core",
+ "pin-project-lite",
+]
+
+[[package]]
 name = "async-compression"
 version = "0.4.50"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -238,12 +261,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-imap"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f97b87216c9f0ccc63c516263169085fa34bba25633f6d96c6a9b9ca1fd5f70a"
+dependencies = [
+ "async-channel 2.5.0",
+ "async-compression",
+ "base64 0.23.1",
+ "bytes",
+ "chrono",
+ "futures-util",
+ "imap-proto",
+ "log",
+ "nom 8.0.0",
+ "pin-project",
+ "pin-utils",
+ "self_cell",
+ "stop-token",
+ "thiserror 1.0.69",
+ "tokio",
+]
+
+[[package]]
 name = "async-lock"
 version = "3.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "290f7f2596bd5b78a9fec8088ccd89180d7f9f55b94b0576823bbbdc72ee8311"
 dependencies = [
- "event-listener",
+ "event-listener 5.4.2",
  "event-listener-strategy",
  "pin-project-lite",
 ]
@@ -1624,6 +1670,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e9c71c2167ca323c882b99918929403426e2373ea17242ff5653e0d5e1058be"
 
 [[package]]
+name = "encodify"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e95d6e27686e1d6991a3077f4dbec9d33d18903466d234165ad86cd08c3ebc79"
+dependencies = [
+ "memchr",
+ "simdutf8",
+]
+
+[[package]]
 name = "encoding_rs"
 version = "0.8.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1734,6 +1790,12 @@ dependencies = [
 
 [[package]]
 name = "event-listener"
+version = "2.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
+
+[[package]]
+name = "event-listener"
 version = "5.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5a23add41df1562121a9393cb065eab5146a1242410f23a644851e90cfd669d2"
@@ -1748,7 +1810,7 @@ version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8be9f3dfaaffdae2972880079a491a1a8bb7cbed0b8dd7a347f668b4150a3b93"
 dependencies = [
- "event-listener",
+ "event-listener 5.4.2",
  "pin-project-lite",
 ]
 
@@ -2284,6 +2346,17 @@ dependencies = [
  "allocator-api2 0.2.21",
  "equivalent",
  "foldhash",
+]
+
+[[package]]
+name = "hashify"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "66f5a65bf7824ada2de4a2cf9fa0981dabffc5392bb8550767c3c3d71ed52e4d"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.7",
 ]
 
 [[package]]
@@ -2829,6 +2902,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "imap-proto"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ccf963d57074747b455398a1763d174da80bcaba6f51e3671a82252b531a68b"
+dependencies = [
+ "nom 8.0.0",
+]
+
+[[package]]
 name = "indexmap"
 version = "2.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3305,6 +3387,18 @@ checksum = "b367b50a9be9a5d3b5718c1da74e5d6b9c17647f89752ee2562a470cc3c4eb1a"
 dependencies = [
  "nix 0.30.1",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "mail-parser"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "908e05ffd2f281e4494cdb77552e6df2dc1476da22af811685b37773d415b2df"
+dependencies = [
+ "encodify",
+ "hashify",
+ "memchr",
+ "simdutf8",
 ]
 
 [[package]]
@@ -4189,6 +4283,12 @@ name = "pin-project-lite"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd"
+
+[[package]]
+name = "pin-utils"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13bee6c73da26345c729282832b60b0363cf3dd9f4bfd81d8551b7a1c889a113"
 
 [[package]]
 name = "pkg-config"
@@ -5849,7 +5949,7 @@ dependencies = [
 [[package]]
 name = "seleniumbase-rs-plugin"
 version = "0.1.3"
-source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=1a327ecb58caf6f6b745b5a91aadd1ea51f6fcc1#1a327ecb58caf6f6b745b5a91aadd1ea51f6fcc1"
+source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=98be02c85b155f7dadc380c848965c58a4e7f698#98be02c85b155f7dadc380c848965c58a4e7f698"
 dependencies = [
  "async-trait",
  "serde",
@@ -5860,7 +5960,7 @@ dependencies = [
 [[package]]
 name = "seleniumbase-rs-plugin-batcher"
 version = "0.1.3"
-source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=1a327ecb58caf6f6b745b5a91aadd1ea51f6fcc1#1a327ecb58caf6f6b745b5a91aadd1ea51f6fcc1"
+source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=98be02c85b155f7dadc380c848965c58a4e7f698#98be02c85b155f7dadc380c848965c58a4e7f698"
 dependencies = [
  "futures-util",
  "seleniumbase-rs-plugin",
@@ -5871,7 +5971,7 @@ dependencies = [
 [[package]]
 name = "seleniumbase-rs-plugin-block-resources"
 version = "0.1.3"
-source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=1a327ecb58caf6f6b745b5a91aadd1ea51f6fcc1#1a327ecb58caf6f6b745b5a91aadd1ea51f6fcc1"
+source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=98be02c85b155f7dadc380c848965c58a4e7f698#98be02c85b155f7dadc380c848965c58a4e7f698"
 dependencies = [
  "seleniumbase-rs-plugin",
  "serde_json",
@@ -5880,7 +5980,7 @@ dependencies = [
 [[package]]
 name = "seleniumbase-rs-plugin-browser"
 version = "0.1.3"
-source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=1a327ecb58caf6f6b745b5a91aadd1ea51f6fcc1#1a327ecb58caf6f6b745b5a91aadd1ea51f6fcc1"
+source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=98be02c85b155f7dadc380c848965c58a4e7f698#98be02c85b155f7dadc380c848965c58a4e7f698"
 dependencies = [
  "seleniumbase-rs-plugin",
  "seleniumbase-rs-plugin-crx",
@@ -5892,7 +5992,7 @@ dependencies = [
 [[package]]
 name = "seleniumbase-rs-plugin-crawler"
 version = "0.1.3"
-source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=1a327ecb58caf6f6b745b5a91aadd1ea51f6fcc1#1a327ecb58caf6f6b745b5a91aadd1ea51f6fcc1"
+source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=98be02c85b155f7dadc380c848965c58a4e7f698#98be02c85b155f7dadc380c848965c58a4e7f698"
 dependencies = [
  "seleniumbase-rs-plugin",
  "serde",
@@ -5902,7 +6002,7 @@ dependencies = [
 [[package]]
 name = "seleniumbase-rs-plugin-crx"
 version = "0.1.3"
-source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=1a327ecb58caf6f6b745b5a91aadd1ea51f6fcc1#1a327ecb58caf6f6b745b5a91aadd1ea51f6fcc1"
+source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=98be02c85b155f7dadc380c848965c58a4e7f698#98be02c85b155f7dadc380c848965c58a4e7f698"
 dependencies = [
  "seleniumbase-rs-plugin",
  "serde_json",
@@ -5913,7 +6013,7 @@ dependencies = [
 [[package]]
 name = "seleniumbase-rs-plugin-extractor"
 version = "0.1.3"
-source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=1a327ecb58caf6f6b745b5a91aadd1ea51f6fcc1#1a327ecb58caf6f6b745b5a91aadd1ea51f6fcc1"
+source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=98be02c85b155f7dadc380c848965c58a4e7f698#98be02c85b155f7dadc380c848965c58a4e7f698"
 dependencies = [
  "seleniumbase-rs-plugin",
  "serde",
@@ -5923,7 +6023,7 @@ dependencies = [
 [[package]]
 name = "seleniumbase-rs-plugin-fetcher"
 version = "0.1.3"
-source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=1a327ecb58caf6f6b745b5a91aadd1ea51f6fcc1#1a327ecb58caf6f6b745b5a91aadd1ea51f6fcc1"
+source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=98be02c85b155f7dadc380c848965c58a4e7f698#98be02c85b155f7dadc380c848965c58a4e7f698"
 dependencies = [
  "seleniumbase-rs-plugin",
  "serde",
@@ -5931,9 +6031,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "seleniumbase-rs-plugin-imap"
+version = "0.1.3"
+source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=98be02c85b155f7dadc380c848965c58a4e7f698#98be02c85b155f7dadc380c848965c58a4e7f698"
+dependencies = [
+ "async-imap",
+ "futures-util",
+ "mail-parser",
+ "rustls",
+ "seleniumbase-rs-plugin",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-rustls",
+ "webpki-roots 1.0.10",
+]
+
+[[package]]
 name = "seleniumbase-rs-plugin-shield"
 version = "0.1.3"
-source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=1a327ecb58caf6f6b745b5a91aadd1ea51f6fcc1#1a327ecb58caf6f6b745b5a91aadd1ea51f6fcc1"
+source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=98be02c85b155f7dadc380c848965c58a4e7f698#98be02c85b155f7dadc380c848965c58a4e7f698"
 dependencies = [
  "seleniumbase-rs-plugin",
  "serde",
@@ -5943,7 +6060,7 @@ dependencies = [
 [[package]]
 name = "seleniumbase-rs-plugins-builtin"
 version = "0.1.3"
-source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=1a327ecb58caf6f6b745b5a91aadd1ea51f6fcc1#1a327ecb58caf6f6b745b5a91aadd1ea51f6fcc1"
+source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=98be02c85b155f7dadc380c848965c58a4e7f698#98be02c85b155f7dadc380c848965c58a4e7f698"
 dependencies = [
  "seleniumbase-rs-plugin",
  "seleniumbase-rs-plugin-batcher",
@@ -5953,6 +6070,7 @@ dependencies = [
  "seleniumbase-rs-plugin-crx",
  "seleniumbase-rs-plugin-extractor",
  "seleniumbase-rs-plugin-fetcher",
+ "seleniumbase-rs-plugin-imap",
  "seleniumbase-rs-plugin-shield",
 ]
 
@@ -6310,6 +6428,18 @@ name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
+name = "stop-token"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af91f480ee899ab2d9f8435bfdfc14d08a5754bd9d3fef1f1a1c23336aad6c8b"
+dependencies = [
+ "async-channel 1.9.0",
+ "cfg-if",
+ "futures-core",
+ "pin-project-lite",
+]
 
 [[package]]
 name = "string_cache"

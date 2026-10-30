@@ -131,6 +131,7 @@ fn plugin_list_shows_every_builtin_plugin_and_none_is_on_by_default() {
         ("batcher", "environment"),
         ("crawler", "testing"),
         ("browser", "extension"),
+        ("imap", "testing"),
     ] {
         let columns = row(&text, name);
         assert_eq!(columns[1], category, "{name}");
@@ -269,6 +270,99 @@ fn plugin_info_shows_what_the_task_plugins_declare() {
 }
 
 #[test]
+fn plugin_info_shows_what_the_imap_plugin_declares() {
+    let output = in_a_new_folder(&[], &["plugin", "info", "imap"]);
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    let text = stdout(&output);
+    assert!(text.starts_with("imap "), "name and version first: {text}");
+    for expected in [
+        "category      testing",
+        "enabled       no",
+        "Waits for an email over IMAP",
+        // It dials the host the operator names, and runs as a task.
+        "host.net:any",
+        "task",
+        "--plugin-opt 'imap.KEY=VALUE'",
+        "[plugins.imap]",
+    ] {
+        assert!(text.contains(expected), "{expected:?} in:\n{text}");
+    }
+}
+
+#[test]
+fn the_imap_plugin_without_a_host_stops_the_run_before_a_browser_starts() {
+    let run = against_a_fake_server(None, &[], &["--plugin", "imap"], &OPEN);
+
+    assert_eq!(run.output.status.code(), Some(2), "{}", run.stderr());
+    assert!(
+        run.stderr().contains("imap: `host` is required"),
+        "{}",
+        run.stderr()
+    );
+    assert!(run.driver.chrome_args().is_none(), "no browser was started");
+}
+
+#[test]
+fn the_imap_plugin_names_a_password_variable_that_is_not_set() {
+    // The password is read from the variable `password_env` names, and the run stops, naming
+    // the variable and never a value, when it is not set.
+    let run = against_a_fake_server(
+        None,
+        &[],
+        &[
+            "--plugin",
+            "imap",
+            "--plugin-opt",
+            r#"imap.host="imap.example.test""#,
+            "--plugin-opt",
+            r#"imap.user="me@example.test""#,
+            "--plugin-opt",
+            r#"imap.password_env="SBRS_IMAP_CLI_TEST_UNSET""#,
+        ],
+        &OPEN,
+    );
+
+    assert_eq!(run.output.status.code(), Some(2), "{}", run.stderr());
+    let message = run.stderr();
+    assert!(message.contains("SBRS_IMAP_CLI_TEST_UNSET"), "{message}");
+    assert!(message.contains("password_env"), "{message}");
+    assert!(run.driver.chrome_args().is_none(), "no browser was started");
+}
+
+#[test]
+fn the_webdriver_engine_refuses_the_imap_plugin_because_it_cannot_host_a_task() {
+    // Options and variable are fine (`SBRS_IMAP_CLI_PASSWORD` is set for the run); the engine is
+    // what refuses, before it starts a browser and before anything connects.
+    let run = against_a_fake_server(
+        None,
+        &[("SBRS_IMAP_CLI_PASSWORD", "not-a-real-password")],
+        &[
+            "--plugin",
+            "imap",
+            "--plugin-opt",
+            r#"imap.host="imap.example.test""#,
+            "--plugin-opt",
+            r#"imap.user="me@example.test""#,
+            "--plugin-opt",
+            r#"imap.password_env="SBRS_IMAP_CLI_PASSWORD""#,
+        ],
+        &OPEN,
+    );
+
+    assert!(!run.output.status.success(), "{}", run.stderr());
+    assert!(run.stderr().contains("imap"), "{}", run.stderr());
+    assert!(run.stderr().contains("WebDriver"), "{}", run.stderr());
+    assert!(
+        !run.stderr().contains("not-a-real-password"),
+        "the password is never printed: {}",
+        run.stderr()
+    );
+    assert!(run.driver.chrome_args().is_none(), "no browser was started");
+}
+
+#[test]
+
 fn plugin_info_shows_the_options_in_effect_and_whether_the_plugin_is_on() {
     let output = in_a_new_folder(
         &[],
