@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Frames</title>
+  <style>
+    body { margin: 0; font-family: sans-serif; }
+    /* A border and padding, so the content of a frame does not start where its
+       element does. */
+    iframe { display: block; width: 420px; height: 150px; margin: 20px 30px;
+             border: 3px solid #336; padding: 4px; }
+    .spacer { height: 700px; }
+  </style>
+</head>
+<body>
+  <h1 id="title">Frames</h1>
+  <!-- The frame of the page's own origin: the helper reaches it from a script. -->
+  <iframe id="same" src="/frame.html"></iframe>
+  <!-- A data: URL is an opaque origin, as the demo page's iframe#myFrame3 is. -->
+  <iframe id="data" src="data:text/html;base64,{DATA}"></iframe>
+  <iframe id="srcdoc" srcdoc="{SRCDOC}"></iframe>
+  <!-- Another origin, the same site: it shares the page's process. -->
+  <iframe id="cross" src="http://127.0.0.1:{P2}/frame.html"></iframe>
+  <!-- The page's own origin with a sandbox: an opaque origin, and the same process. -->
+  <iframe id="sandboxed" sandbox="allow-scripts" src="/frame.html"></iframe>
+  <div class="spacer"></div>
+  <!-- Another site: Chrome runs it in a process of its own. -->
+  <iframe id="oopif" src="http://localhost:{P2}/frame.html"></iframe>
+  <!-- A frame of another site with a frame of the page's site in it. -->
+  <iframe id="nested" src="http://localhost:{P2}/outer.html" style="height: 260px"></iframe>
+  <p id="below">The end</p>
+</body>
+</html>
