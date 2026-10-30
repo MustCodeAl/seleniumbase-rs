@@ -71,7 +71,10 @@ makes refuses it with ``plugin `browser` cannot be combined with plugin `crx` ``
 before a browser starts. Name one of them. `browser` takes `extension_zip` (`.zip`
 or `.crx` files) and `extension_dir` (unpacked folders). Its worker-wait and session
 options (`wait_for_workers`, `session` and the like) are not implemented yet and are
-refused as unknown options, not ignored.
+refused as unknown options, not ignored. Both declare `host.fs.write:temp`
+(`browser` also `host.fs.read`, for the paths it is given), so a settings file
+in the current folder cannot turn either on by itself: name it with `--plugin`
+or `SB_PLUGINS`, as [explained below](#what-a-project-file-may-not-turn-on-alone).
 
 </Note>
 
@@ -250,10 +253,11 @@ error: invalid configuration: plugin `tunnel` asks for launch.proxy, which the s
 `--plugin NAME`, `SB_PLUGINS` and a file named with `--config` count as the
 person choosing. The other powers a plugin can declare (`launch.args`,
 `launch.network`, `launch.extensions`, `page.script`, `cdp:*`) are not held back:
-the settings file can already set an extension folder itself. Of the three built-in
-plugins, `crx` declares one: `host.fs.write:temp`, to unpack an extension into
-the temporary folder. So a settings file in the current folder cannot turn
-`crx` on by itself; name it with `--plugin crx` or `SB_PLUGINS=crx`. A settings file of
+the settings file can already set an extension folder itself. Of the plugins
+that load extensions, `crx` declares one: `host.fs.write:temp`, to unpack an
+extension into the temporary folder, and `browser` declares it too. So a settings
+file in the current folder cannot turn `crx` or `browser` on by itself; name it
+with `--plugin crx` or `SB_PLUGINS=crx` (`browser` likewise). A settings file of
 the person (in their home folder), which would be trusted like `--config`, is
 not built yet.
 
