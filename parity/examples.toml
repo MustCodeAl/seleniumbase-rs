@@ -39,7 +39,7 @@ sites = [
   "data: and about:blank pages",
   "chrome://downloads/",
 ]
-tests = "34 ports; the last full run passed 19 and failed 15"
+tests = "34 ports; the last full run passed 19 and failed 15; since then lane fix-asserts made test_demo_site, test_select_options, test_todomvc_{jquery,react,vue} and test_url_asserts pass (the others were not run again, so the totals are the full run's)"
 
 # ---------------------------------------------------------------------------
 # WebDriver engine (BaseCase)
@@ -58,13 +58,9 @@ next = "bug lane: type_text/click race after a page-loading click: wait for read
 [[example]]
 python = "test_demo_site.py"
 rust_test = "base_case::test_demo_site"
-status = "fail"
-mismatches = [
-  "assert_text(text, '#myTextInput') on an <input> or <textarea> never matches: it reads the rendered text, which is empty; Python reads the value (three asserts of the example)",
-  "set_value('input#mySlider', '100') only sets the value; Python also fires a mousemove event for a range input, so the page's progress bar stays at 50 here",
-  "is_selected takes &mut self, so assert_true(is_selected(..)) does not borrow-check; the port binds the bool first",
-]
-next = "bug lane: assert_text/assert_exact_text read the value of an input or textarea; set_value fires mousemove on a range input (and Enter on a trailing newline)"
+status = "pass"
+mismatches = []
+next = ""
 
 [[example]]
 python = "iframe_tests.py::test_iframe_basics"
@@ -129,13 +125,9 @@ next = "bug lane: switch_to_frame by frame id or name (see iframe_tests.py)"
 [[example]]
 python = "test_select_options.py"
 rust_test = "base_case::test_select_options"
-status = "fail"
-mismatches = [
-  "get_select_options(css) returns the option texts only; Python's attribute argument ('text', 'index', 'value') is missing. The port builds the index and value lists from the option elements.",
-  "get_attribute('#mySelect', 'value') is None; Python (Selenium) falls back to the DOM property and returns the chosen value. The port uses get_property.",
-  "assert_attribute('#mySelect', 'value', v) compares the same HTML attribute and fails; Python compares the chosen value",
-]
-next = "bug lane: get_attribute falls back to the DOM property; get_select_options gets its attribute argument; parity row: get_attribute, assert_attribute, get_select_options divergences (done)"
+status = "pass"
+mismatches = []
+next = ""
 
 [[example]]
 python = "test_shadow_dom.py"
@@ -191,20 +183,16 @@ next = "bug lane: switch_to_frame by frame id or name (see iframe_tests.py)"
 [[example]]
 python = "test_url_asserts.py"
 rust_test = "base_case::test_url_asserts"
-status = "fail"
-mismatches = [
-  "js_click('nav a:contains(\"Coffee Cart\")') is an invalid selector error (it runs document.querySelector); Python converts :contains() and XPath selectors and waits for the element. The port uses click, which does read :contains().",
-]
-next = "bug lane: js_click reads :contains() and XPath selectors and waits for the element; parity row: js_click divergence (done)"
+status = "pass"
+mismatches = []
+next = ""
 
 [[example]]
 python = "test_deferred_asserts.py"
 rust_test = "base_case::test_deferred_asserts"
 status = "pass"
-mismatches = [
-  "wait_for_element needs its timeout argument (wait_for_element('#comic', 10)); Python's is optional",
-]
-next = "parity row: wait_for_element divergence (done)"
+mismatches = []
+next = ""
 
 [[example]]
 python = "handle_alert_test.py"
@@ -227,27 +215,23 @@ next = ""
 [[example]]
 python = "test_todomvc.py::test_todomvc_1_jquery"
 rust_test = "base_case::test_todomvc_jquery"
-status = "fail"
-mismatches = [
-  "check_if_unchecked('ul.todo-list li input') times out waiting for the checkbox to be clickable: TodoMVC's toggle sits at zero opacity. Python raises the opacity a little, or clicks with JavaScript. The port clicks with js_click and the rest passes.",
-  "assert_in(framework, title.lower()) is a substring test in Python; assert_in(item, &[item]) tests slice membership only. The port uses assert_true(title.contains(..)).",
-  "open_new_window and clear_local_storage work as in Python",
-]
-next = "bug lane: check_if_unchecked/uncheck_if_checked handle a checkbox at zero opacity; parity row: check_if_unchecked, uncheck_if_checked, assert_in divergences (done)"
+status = "pass"
+mismatches = []
+next = ""
 
 [[example]]
 python = "test_todomvc.py::test_todomvc_2_react"
 rust_test = "base_case::test_todomvc_react"
-status = "fail"
-mismatches = ["as test_todomvc_jquery: check_if_unchecked on a zero-opacity checkbox"]
-next = "bug lane: see test_todomvc_jquery"
+status = "pass"
+mismatches = []
+next = ""
 
 [[example]]
 python = "test_todomvc.py::test_todomvc_3_vue"
 rust_test = "base_case::test_todomvc_vue"
-status = "fail"
-mismatches = ["as test_todomvc_jquery: check_if_unchecked on a zero-opacity checkbox"]
-next = "bug lane: see test_todomvc_jquery"
+status = "pass"
+mismatches = []
+next = ""
 
 [[example]]
 python = "xpath_test.py"
@@ -293,10 +277,9 @@ python = "cdp_mode/raw_demo_site.py"
 rust_test = "cdp::raw_demo_site"
 status = "fail"
 mismatches = [
-  "expect().to_contain_text on an <input> or <textarea> reads the rendered text and fails; Python's assert_text reads the value. The port reads the value with a script.",
   "nested_click('iframe#myFrame3', '.fBox'): the demo page's iframe has a data: URL as its src (another origin), and the Locator reaches same-origin frames only, so page.locator('iframe#myFrame3').locator('.fBox') finds nothing",
 ]
-next = "bug lane: Locator text for form fields; frames of another origin in the pure CDP engine; parity row: cdp assert_text and nested_click divergences (done)"
+next = "bug lane: frames of another origin in the pure CDP engine (the other mismatch of this example, expect().to_contain_text on an <input>, is fixed); parity row: cdp nested_click divergence (done)"
 
 [[example]]
 python = "cdp_mode/raw_cdp_tabs.py (and raw_tab_switching.py)"
