@@ -135,11 +135,39 @@ page.locator("#payment").locator("button.pay").click().await?;
 # }
 ```
 
-Same-origin frames nest to any depth and clicks land at the right pixel.
+Frames nest to any depth, and clicks land at the right pixel. Python's
+`sb.cdp.nested_click(parent_selector, selector)`, which clicks inside an iframe,
+is the same nested locator, and so are typing and reading:
+
+```rust,no_run
+# use seleniumbase_rs::sb_cdp::Page;
+# async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+// Python: sb.cdp.nested_click("iframe#myFrame3", ".fBox")
+page.locator("iframe#myFrame3").locator(".fBox").click().await?;
+page.locator("iframe#myFrame3").locator("input").fill("typed in the frame").await?;
+# Ok(())
+# }
+```
+
+It makes no difference where the frame comes from: the page's own origin, an
+`srcdoc` frame, a `data:` URL (the demo page's `iframe#myFrame3`), a sandboxed
+frame, a frame of another origin or of another site.
+
+A script on the page can read a frame of its own origin only. For any other
+frame the locator asks the browser, one frame at a time: a frame that runs in
+the tab's own process gets an execution context of its own, and a frame of
+another site, which Chrome runs in a process of its own, gets a protocol session
+of its own. The rest of the locator is then run there, and a click is placed
+from where the frame sits in the page, after the frame has been scrolled into
+view. None of this switches on a protocol domain a page can feel
+(`Runtime.enable` and the like are still never sent).
 
 <Warning>
 
-A cross-origin frame cannot be entered from page script, so it matches nothing.
+Frames the page script can read are searched together. When the first part of
+a locator matches several frames it cannot read, the locator uses the first one
+that holds a match, and `count()`, `exists()` and the rest answer for that
+frame only.
 
 </Warning>
 

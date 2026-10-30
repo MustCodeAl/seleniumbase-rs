@@ -99,7 +99,7 @@ call with `?` (`sleep` is an exception: it cannot fail).
 |---|---|
 | Actions (`click`, `type_text`, `open`, `set_attribute`, ...) and assertions | `()`: nothing, or an error |
 | `get_text`, `get_title`, `get_current_url` and the like | `String` |
-| `get_attribute(selector, attr)`, `get_property(selector, prop)` | `Option<String>`: `None` when it is not set (`get_attribute` falls back to the DOM property, as Selenium does) |
+| `get_attribute(selector, attr)`, `get_property(selector, prop)` | `Option<String>`: `None` when it is not set (`get_attribute` goes by the DOM property first, as Selenium does: what was typed, not the `value=""` of the markup) |
 | `find_element(selector)` | an element: a `drivers::WebElement` handle to the first match, found within 10 seconds |
 | `find_elements(selector)` | `Vec<drivers::WebElement>`: every match, possibly none |
 | `execute_script(script)` | `seleniumbase_rs::json::Value`: what the script returned |

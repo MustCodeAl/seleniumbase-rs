@@ -20,7 +20,7 @@ Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...)
 | `is_selected(selector)` | Returns true if the element is selected. |
 | `is_text_visible(text, selector)` | Returns true if text visible. |
 | `get_text(selector)` | Returns element text. |
-| `get_attribute(selector, attr)` | Returns the attribute value; when the element has no such attribute, its DOM property of that name, as Selenium does (the chosen `value` of a `<select>`, what was typed into an `<input>`). `None` when neither is set. |
+| `get_attribute(selector, attr)` | Returns what Selenium's `get_attribute` returns: the DOM property of that name when the element has one (what was typed into an `<input>`, not the `value=""` its markup holds; the chosen `value` of a `<select>`; the resolved `href` or `src` of a link or an image), and otherwise the attribute. `checked`, `selected` and the other boolean attributes are `"true"` or `None` by what the element is now. `None` when neither is set. |
 | `get_select_options(selector)` | Returns the options of a `<select>` as text. `.attribute("value")` or `.attribute("index")` reads those of each option instead; `.timeout(..)` sets the wait. |
 | `get_property(selector, prop)` | Returns property value. |
 | `get_shadow_root(selector)` | Returns the shadow root of the element as a `WebElement`. Every selector, in this table and elsewhere, may cross shadow roots (`host::shadow inner`): see the [Shadow DOM guide](/tutorials/shadow_dom). |

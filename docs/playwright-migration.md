@@ -207,7 +207,7 @@ page.locator(r#"[data-testid="total"]"#);
 | `getByTestId(id)` | `[data-testid="id"]` |
 | `.first()`, `.last()`, `.nth(i)` | `.first()`, `.last()`, `.nth(i)` |
 | `.filter({ hasText })` | `.locator(SelectorBuf::has_text(text))` |
-| `frameLocator(css).locator(css)` | `page.locator(frame).locator(css)`: the engine searches inside same-origin frames |
+| `frameLocator(css).locator(css)` | `page.locator(frame).locator(css)`: the engine searches inside frames of any origin, `data:` and sandboxed frames and frames of another site included |
 
 The text matches follow Playwright: whitespace collapsed, and without `exact`
 a substring match that ignores case (ASCII letters only, since it is done in

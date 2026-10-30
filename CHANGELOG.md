@@ -830,6 +830,32 @@ work, `docs/parity.md` the per-API status).
 
 ### Fixed
 
+- **A pure CDP `Locator` enters a frame of any origin, so Python's `nested_click` works.**
+  `page.locator("iframe#myFrame3").locator(".fBox").click()` found nothing in the demo page's
+  `data:` iframe, because the page helper reads a frame's document, which a script may do for a
+  frame of the page's own origin only. When a chain matches nothing and a frame on its way is
+  closed to the script, the helper now says so (`sbcdp:frames`) and the locator enters the frame
+  through the protocol: `DOM.describeNode` names the frame behind the frame element,
+  `Page.createIsolatedWorld` gives a frame of the tab's own process (a `data:` frame, a sandboxed
+  one, another origin of the same site) an execution context to run the rest of the chain in, and
+  a frame of another site, which Chrome runs in a process of its own, is attached to
+  (`Target.attachToTarget`, once per frame) and gets the script on its own session. Frames nest, a
+  click lands at the frame's offset plus the point in it (border and padding included, the frame
+  scrolled into view and drawn first), and typing, `fill`, `count`, `exists`, `text`, `infos`,
+  `set_attribute` and the rest work inside. A page whose frames a script can read costs the same
+  one script per call as before. `DOM.describeNode` is the one `DOM` command the engine sends: it
+  needs no enabled domain (`tests/sb_cdp_domain_hygiene.rs` holds it to that). When the first
+  part of a locator matches several frames the script cannot read, the first that holds a match
+  is used. The last mismatch of `cdp::raw_demo_site` in `parity/examples.toml` is gone, and the
+  `nested_click` row of `parity/api.toml` no longer differs.
+- **WebDriver `get_attribute` gives what an element holds now, as Selenium's does.** For
+  `<input value="">` it kept returning `""` after typing, because the driver's attribute command
+  answers with the markup's attribute alone, and `checked` stayed `"true"` after a box was
+  cleared. `BrowserSession::attribute_or_property` now runs a port of Selenium's `getAttribute`
+  atom: the DOM property first, then the attribute; `selected`, `checked` and the other boolean
+  attributes are `"true"` or `None` by what the element is now; `href` and `src` of links and
+  images are resolved. `assert_attribute`, `shadow_get_attribute` and `get_select_options` read
+  through it.
 - **Every method that takes a selector reads `::shadow`, as Python's do, and waits.**
   `click("my-app::shadow button")`, `type_text`, `get_text`, `get_attribute`, `assert_element`,
   `assert_text`, `assert_exact_text`, `is_element_visible`, `wait_for_element_visible`,
