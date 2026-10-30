@@ -26,6 +26,7 @@ use std::process::Stdio;
 use std::thread;
 use std::time::{Duration, Instant};
 
+use seleniumbase_rs::mcp::{UNTRUSTED_META_KEY, UNTRUSTED_NOTICE};
 use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, ChildStdout, Command};
@@ -98,6 +99,8 @@ struct Reply {
     is_error: bool,
     text: String,
     structured: Value,
+    /// Whether the result carries the `_meta` marker of untrusted page content.
+    marked_untrusted: bool,
 }
 
 impl Reply {
@@ -114,6 +117,7 @@ impl Reply {
         Self {
             tool: tool.to_owned(),
             is_error: result["isError"] == json!(true),
+            marked_untrusted: result["_meta"][UNTRUSTED_META_KEY] == json!(true),
             text,
             structured: result
                 .get("structuredContent")
@@ -136,6 +140,30 @@ impl Reply {
             self.tool, self.text
         );
         self
+    }
+
+    /// The text of the reply of a tool that returns page content, which the
+    /// server leads with the untrusted-content notice and marks in `_meta`
+    /// (`UNTRUSTED_NOTICE`, `UNTRUSTED_META_KEY`). Both are checked, and what
+    /// follows the notice line is returned.
+    fn untrusted(self) -> String {
+        let reply = self.ok();
+        assert!(
+            reply.marked_untrusted,
+            "{} is not marked as untrusted content: {}",
+            reply.tool, reply.text
+        );
+        let lead = format!("{UNTRUSTED_NOTICE}\n");
+        reply
+            .text
+            .strip_prefix(&lead)
+            .unwrap_or_else(|| {
+                panic!(
+                    "{} does not start with the untrusted-content notice: {}",
+                    reply.tool, reply.text
+                )
+            })
+            .to_owned()
     }
 
     /// The text of the reply read as JSON.
@@ -297,6 +325,12 @@ impl Client {
     /// The text of a tool that must work.
     async fn text(&mut self, tool: &str, arguments: Value) -> String {
         self.call(tool, arguments).await.ok().text
+    }
+
+    /// The text of a tool that must work and returns page content: the notice
+    /// line is asserted (see [`Reply::untrusted`]) and left out.
+    async fn untrusted_text(&mut self, tool: &str, arguments: Value) -> String {
+        self.call(tool, arguments).await.untrusted()
     }
 
     /// The JSON answer of a tool that must work.
@@ -1054,7 +1088,8 @@ async fn the_sb_server_runs_a_whole_session_over_stdio() {
     assert_eq!(info["title"], "Stdio Fixture", "{info}");
     assert_eq!(mcp.text("get_title", json!({})).await, "Stdio Fixture");
     assert_eq!(
-        mcp.text("get_text", json!({ "selector": "h1" })).await,
+        mcp.untrusted_text("get_text", json!({ "selector": "h1" }))
+            .await,
         "Shop"
     );
     // The cookie list works in a session with no DevTools connection, as it does with one.
@@ -1094,7 +1129,7 @@ async fn the_driver_server_runs_a_session_in_undetected_mode_and_leaves_cleanly(
     assert_eq!(mcp.text("get_title", json!({})).await, "Stdio Fixture");
     assert_eq!(mcp.text("get_current_url", json!({})).await, base);
     assert_eq!(
-        mcp.text("get_text", json!({ "selector": "#order label" }))
+        mcp.untrusted_text("get_text", json!({ "selector": "#order label" }))
             .await,
         "Email"
     );

@@ -93,6 +93,31 @@ mod tests_highlight {
     }
 
     #[tokio::test]
+    async fn a_highlight_changes_nothing_on_the_element_but_its_box_shadow() {
+        let driver = page();
+        let sb = watched(&driver, RunSettings::default()).await;
+        sb.highlight("#a").await.unwrap();
+
+        // Python's `highlight` draws no outline and sets no other style: it cycles
+        // the box shadow and puts the element's own one back, all in one script
+        // that returns once the animation has ended. So a page can see the shadow
+        // only while the call runs, and a real browser shows nothing after it.
+        let script = &scripts(&driver)[0];
+        assert!(!script.contains("outline"), "{script}");
+        assert!(!script.contains("cssText"), "{script}");
+        let assigned: Vec<&str> = script.split("el.style.").skip(1).collect();
+        assert!(assigned.len() >= 3, "the script sets the shadow: {script}");
+        assert!(
+            assigned.iter().all(|rest| rest.starts_with("boxShadow")),
+            "only the box shadow is touched: {script}"
+        );
+        assert!(
+            script.contains("el.style.boxShadow = original;"),
+            "the element's own shadow is put back: {script}"
+        );
+    }
+
+    #[tokio::test]
     async fn the_keywords_change_the_animation() {
         let driver = page();
         let sb = watched(&driver, RunSettings::default()).await;
