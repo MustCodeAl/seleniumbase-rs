@@ -230,7 +230,7 @@ try {
   canon = canonicalLayout();
 } catch (e) {
   bad++;
-  console.log(`tools/docs_layout_tree.py: ${String(e.stderr || e.message).trim()}`);
+  console.log(String(e.stderr || `tools/docs_layout_tree.py: ${e.message}`).trim());
 }
 
 for (const file of files) {
