@@ -180,7 +180,10 @@ driver.quit()
 
         let error = convert(&input, false).unwrap_err().to_string();
 
-        assert!(error.contains("login_SB.rs") && error.contains("--force"), "{error}");
+        assert!(
+            error.contains("login_SB.rs") && error.contains("--force"),
+            "{error}"
+        );
         assert_eq!(fs::read_to_string(&output).unwrap(), "mine");
 
         let report = convert(&input, true).unwrap();
@@ -193,7 +196,10 @@ driver.quit()
         let text = dir.path().join("notes.txt");
         fs::write(&text, EXPORT).unwrap();
         let error = convert(&text, false).unwrap_err().to_string();
-        assert!(error.contains("notes.txt") && error.contains(".py"), "{error}");
+        assert!(
+            error.contains("notes.txt") && error.contains(".py"),
+            "{error}"
+        );
 
         let missing = dir.path().join("none.py");
         let error = convert(&missing, false).unwrap_err().to_string();

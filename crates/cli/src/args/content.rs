@@ -82,7 +82,10 @@ impl PrintArgs {
     /// A failure to read it carries the file's name and has the status of a local file error.
     pub(crate) fn run(&self) -> Result<(), Box<dyn Error>> {
         let text = sb_print::print_file(&self.file).map_err(|error| {
-            std::io::Error::new(error.kind(), format!("failed to read {}: {error}", self.file))
+            std::io::Error::new(
+                error.kind(),
+                format!("failed to read {}: {error}", self.file),
+            )
         })?;
         if self.numbers {
             print!("{}", sb_print::number_lines(&text));
@@ -258,7 +261,11 @@ mod tests {
             force: false,
             language: None,
         };
-        assert!(plain.presentation_file().unwrap().render().contains("Hello"));
+        assert!(plain
+            .presentation_file()
+            .unwrap()
+            .render()
+            .contains("Hello"));
         assert!(MkpresArgs {
             file: "../deck".to_owned(),
             ..plain

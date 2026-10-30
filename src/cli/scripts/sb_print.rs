@@ -45,7 +45,6 @@ pub fn number_lines(text: &str) -> String {
     numbered
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -88,5 +87,4 @@ mod tests {
         assert_eq!(number_lines(""), "");
         assert_eq!(number_lines("a\r\n\r\nb"), "1 a\n2 \n3 b\n");
     }
-
 }
