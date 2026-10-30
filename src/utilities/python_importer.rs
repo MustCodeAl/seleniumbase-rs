@@ -802,6 +802,55 @@ mod tests {
         syn::parse_file(&result.rust).unwrap();
     }
 
+    /// The example of `docs/python-migration.md`.
+    #[test]
+    fn the_docs_example_converts_as_shown() {
+        let python = r##"from seleniumbase import BaseCase
+
+class LoginTest(BaseCase):
+    def test_login(self):
+        user = "alice"
+        self.open("https://example.com/login")
+        self.type("#username", user)
+        self.type("#password", "secret")
+        self.click("#submit")
+        self.assert_text(f"Welcome, {user}")
+"##;
+        let result = import_python(
+            python,
+            &ImportOptions {
+                source: PythonSource::Auto,
+                test_name: "login_test".to_owned(),
+            },
+        );
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert_eq!(
+            result.rust,
+            r##"//! Converted from Python by `sbrs import-python`. Run it with `cargo test --test login_test`
+//! when this file is in your crate's `tests/` folder; `SB_HEADLESS=true` runs it
+//! without a window. Search for `TODO` to find what was not converted.
+
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
+
+#[rstest]
+#[tokio::test]
+async fn login_test(sb: Sb) -> Result<()> {
+    sb.run(async |sb| {
+        let user = "alice";
+        sb.open("https://example.com/login").await?;
+        sb.type_text("#username", user).await?;
+        sb.type_text("#password", "secret").await?;
+        sb.click("#submit").await?;
+        sb.assert_text(&format!("Welcome, {}", user), "html").await?;
+        Ok(())
+    })
+    .await
+}
+"##
+        );
+    }
+
     /// Fails with the whole output when a line is missing.
     fn assert_has(result: &ImportResult, lines: &[&str]) {
         for line in lines {

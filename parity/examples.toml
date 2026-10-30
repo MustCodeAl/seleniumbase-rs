@@ -340,29 +340,66 @@ next = ""
 [[converter]]
 gap = "Python methods that have a Rust equal are left as a TODO comment ('needs manual migration')"
 seen_in = "every file: goto (the first line of all of them), switch_to_frame, switch_to_default_content, switch_to_parent_frame, switch_to_window, open_new_window, get_new_driver, highlight, js_click, set_value, drag_and_drop, hover_and_click, hover_and_js_click, click_visible_elements, assert_link_text, assert_element_not_visible, assert_true, assert_false, assert_equal, assert_in, assert_attribute, select_option_by_value, select_option_by_index, wait_for_element, wait_for_ready_state_complete, clear_local_storage, post_message, activate_demo_mode, set_content_to_frame/parent/default, skip, goto_if_not_url. Every one of them is `implemented` in parity/api.toml."
-next = "bug lane: map them in the converter (the line is dropped from the test, so the generated test runs without them and may pass or fail for the wrong reason)"
+fixed = "FIX-CONVERTER: every `implemented` row whose Rust call takes strings, numbers and booleans is mapped (about 330 methods: the hand-written table in src/utilities/importer/pyconv/table.rs and the part written from parity/api.toml, the signatures of BaseCase and parity/upstream-api.json into generated.rs). Tests check each entry against the real signature and the parity row, and the output for the 28 files below is compiled as a doctest."
+before_after = [
+  "warnings and errors per file, before -> after (22 SeleniumBase examples, then the 6 cdp_mode scripts); 310 warnings and 21 errors -> 30 warnings and 0 errors",
+  "my_first_test.py: 4 warnings -> 0",
+  "test_demo_site.py: 41 warnings -> 2 (the dropped timeout of hover_and_click, `self.headed`)",
+  "iframe_tests.py: 26 warnings -> 0",
+  "test_window_switching.py: 9 warnings -> 0",
+  "test_coffee_cart.py: 3 warnings -> 0",
+  "test_assert_elements.py: 7 warnings -> 0",
+  "test_checkboxes.py: 11 warnings and 2 errors -> 0",
+  "test_select_options.py: 21 warnings and 1 error -> 0",
+  "test_shadow_dom.py: 28 warnings and 11 errors -> 10 warnings (the helper method, `self.browser`, `self.headless`, `self.recorder_mode`, and what depends on the helper's result)",
+  "shadow_root_test.py: 11 warnings -> 1 (`self.recorder_mode`)",
+  "test_double_click.py: 6 warnings -> 0",
+  "test_drag_and_drop.py: 9 warnings -> 0",
+  "test_url_asserts.py: 3 warnings -> 0",
+  "test_deferred_asserts.py: 5 warnings -> 1 (@pytest.mark.expected_failure)",
+  "handle_alert_test.py: 12 warnings -> 2 (`self.browser`, `self.driver`)",
+  "test_tinymce.py: 13 warnings and 1 error -> 1 (`self.headless`)",
+  "test_todomvc.py: 15 warnings and 6 errors -> 1 (`self.driver` in tearDown)",
+  "xpath_test.py: 3 warnings -> 0",
+  "test_simple_login.py: 3 warnings -> 0",
+  "test_contains_selector.py: 3 warnings -> 0",
+  "test_cycle_elements.py: 3 warnings -> 0",
+  "test_highlight_elements.py: 6 warnings -> 1 (`self.headed`)",
+  "cdp_mode/raw_demo_site.py: 22 warnings -> 0",
+  "cdp_mode/raw_cdp_tabs.py: 7 warnings -> 0",
+  "cdp_mode/raw_cdp_xpath.py: 7 warnings -> 0",
+  "cdp_mode/raw_basic_cdp.py: 13 warnings -> 5 (save_as_pdf_to_logs, save_screenshot_to_logs, save_page_source_to_logs, save_data_to_logs, append_data_to_logs)",
+  "cdp_mode/raw_drag_and_drop.py: 13 warnings -> 6 (switch_to_frame and switch_to_default_content on a pure CDP page, get_gui_element_center, gui_drag_drop_points)",
+  "cdp_mode/raw_cdp_swag.py: 6 warnings -> 0",
+]
+next = "left over: the conditions on the run (`self.headed`, `self.headless`, `self.browser`, `self.recorder_mode`) and on the driver have no Rust equal and keep their body under `if false` with a TODO; a pure CDP page has no frame switch and no save_*_to_logs call"
 
 [[converter]]
 gap = "A call whose argument is a variable is an error: 'expected a string literal argument' / 'selector must be a string literal' / 'expected two string literal arguments'; the command exits with 1 and says 'completed with errors', yet the file is written"
 seen_in = "test_checkboxes.py (checkbox = 'input#vehicle2'; is_selected(checkbox)), test_select_options.py, test_shadow_dom.py (11 errors), test_tinymce.py, test_todomvc.py (6 errors)"
-next = "bug lane: track simple string assignments, f-strings and % formatting, or emit the variable as a Rust let"
+fixed = "FIX-CONVERTER: Python names, f-strings, `%` formatting, `+` of strings, lists of strings, `len`, `str`, `.lower()` and the like are passed through as Rust expressions (`let checkbox = \"input#vehicle2\";`, `sb.click(&format!(\"a[href*=\\\"{}\\\"]\", framework))`); a call that awaits and is used as a value is written to a `let` first. An expression it cannot translate is a TODO and a warning, not an error. The errors left are a known call with an argument Rust cannot take (a timeout of an assertion, `by=` that is not CSS) or a name that is not defined."
+next = ""
 
 [[converter]]
 gap = "Python control flow and assignments are dropped, not translated: `x = self.get_text(..)`, `for ... in enumerate(..)`, `if self.headed:`, `try/except`, `with self.frame_switch(..)`, `with` blocks of any kind, `@parameterized.expand`, setUp/tearDown, `self.skip(..)`"
 seen_in = "test_select_options.py, test_demo_site.py, iframe_tests.py (the body of each `with` is emitted flat, so the frame is entered and never left), test_todomvc.py, test_shadow_dom.py, test_tinymce.py"
-next = "bug lane: emit the statements it cannot translate as a compile_error!-style stub or a failing todo!(), not a comment between running statements"
+fixed = "FIX-CONVERTER: assignments (`let`, or an assignment to the outer variable, which becomes `mut`), `for` over a list, `enumerate` or `range`, `if`/`elif`/`else`, `while`, `try`/`except` (an async block, the first handler runs on an error), `with self.frame_switch(..)` (`sb.frame_switch(..).run(async |sb| { .. }).await?`, so the frame is left), `@parameterized.expand` and `pytest.mark.parametrize` (`#[case]`s) and setUp/tearDown (at the start and end of each test body). A condition it cannot translate keeps its body under `if false` with a TODO; any other `with` block is flattened with a warning."
+next = "a tearDown runs after the steps, so not when a step fails (the docs say so)"
 
 [[converter]]
 gap = "A text assertion without a selector gets 'body'; Python's default selector is 'html' (so assert_text of the <title> or <head> text would differ)"
 seen_in = "my_first_test.py (assert_text('Checkout: Overview')), test_window_switching.py"
-next = "bug lane: use 'html'"
+fixed = "FIX-CONVERTER: the default is `html`, for assert_text, assert_exact_text, assert_text_not_visible, the waits for text, the deferred text assertions and is_text_visible."
+next = ""
 
 [[converter]]
 gap = "Scripts that are not a BaseCase class are not understood: `sb = sb_cdp.Chrome()`, `with SB(uc=True, test=True) as sb:`, `sb.activate_cdp_mode()`, `sb.cdp.*`; the output is WebDriver BaseCase code with a TODO for goto, and the sb_cdp steps are not mapped to the pure CDP Page/Locator"
 seen_in = "all six files of cdp_mode/ that were tried (7 to 22 warnings each)"
-next = "bug lane: a --cdp / sb_cdp source mode that writes run_cdp_test with page.locator(..)"
+fixed = "FIX-CONVERTER: `with SB(...) as sb:` is the `sb` fixture test (the options of SB(..) stay in a comment: they are settings now), and a script that uses `sb_cdp.Chrome()`, `sb.activate_cdp_mode()` or `sb.cdp.*` is a pure CDP test (`sb_cdp: SbCdp`, `page.locator(..)` calls, the calls of the recorder's pure CDP generator and of tests/examples_parity/cdp.rs). `def main()` scripts and `if __name__ == \"__main__\"` are read too."
+next = ""
 
 [[converter]]
 gap = "The generated test is not headless and not #[ignore]d: `run_browser_test(BrowserConfig::default(), ..)` opens a visible Chrome when run, and the module docstring and `BaseCase.main(__name__, __file__)` are reported as unsupported statements"
 seen_in = "every file"
-next = "bug lane: BrowserConfig::default().with_headless(..) or a --headless flag, #[ignore = \"starts a real Chrome\"], and ignore the docstring and BaseCase.main line"
+fixed = "FIX-CONVERTER: the test is the rstest `sb` fixture form that `sbrs mkfile` writes (`#[rstest] #[tokio::test] async fn name(sb: Sb)`; it reads SB_HEADLESS and the settings file, as every fixture test does). mkfile does not `#[ignore]` its tests, so neither does the importer. The docstring is the module comment and `BaseCase.main(..)` and the `__main__` block are dropped without a diagnostic."
+next = ""

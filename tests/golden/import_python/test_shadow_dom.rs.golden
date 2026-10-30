@@ -55,9 +55,9 @@ async fn test_shadow_dom(sb: Sb) -> Result<()> {
         sb.click(clear_search_icon).await?;
         sb.assert_element(remove_button).await?;
         // Delete the downloaded files from the [Downloads Folder]
-        // TODO(source line 75): SeleniumBase method 'delete_downloaded_file_if_present' needs manual migration
+        // TODO(source line 75): 'file_name_1' is not defined because its assignment was not converted
         //     self.delete_downloaded_file_if_present(file_name_1, browser=True)
-        // TODO(source line 76): SeleniumBase method 'delete_downloaded_file_if_present' needs manual migration
+        // TODO(source line 76): 'file_name_2' is not defined because its assignment was not converted
         //     self.delete_downloaded_file_if_present(file_name_2, browser=True)
         Ok(())
     })

@@ -229,7 +229,7 @@ pub(super) const WAIT_TIMEOUT: P = P {
     fill: Fill::Default("10"),
 };
 
-const fn call(
+pub(super) const fn call(
     py: &'static [&'static str],
     rust: &'static str,
     params: &'static [P],
@@ -262,7 +262,10 @@ const fn get(
 
 /// The Python method `name` (or an alias of it) and its Rust call.
 pub(super) fn lookup(name: &str) -> Option<&'static Call> {
-    TABLE.iter().find(|entry| entry.py.contains(&name))
+    TABLE
+        .iter()
+        .chain(super::generated::GENERATED.iter())
+        .find(|entry| entry.py.contains(&name))
 }
 
 /// Python's text selector: `html` when left out.

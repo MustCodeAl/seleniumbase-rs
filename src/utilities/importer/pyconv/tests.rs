@@ -16,12 +16,18 @@ use super::table::{Fill, Flow, Ret, K, TABLE};
 struct Sig {
     /// The parameter types, `self` left out.
     params: Vec<String>,
+    /// The parameter names.
+    names: Vec<String>,
+    /// It is `pub`.
+    public: bool,
     /// It is an `async fn`.
     asyncness: bool,
     /// The name of its return type (`Result`, `bool`, `()`).
     ret: String,
     /// The name of the first type argument of the return type.
     inner: String,
+    /// The return type written out (`Result<Option<String>>`).
+    ret_text: String,
 }
 
 fn rust_files(dir: &Path, found: &mut Vec<PathBuf>) {
@@ -117,32 +123,70 @@ fn basecase_signatures() -> HashMap<String, Sig> {
                 let syn::ImplItem::Fn(function) = member else {
                     continue;
                 };
-                let params = function
-                    .sig
-                    .inputs
-                    .iter()
-                    .filter_map(|argument| match argument {
-                        syn::FnArg::Typed(typed) => Some(type_name(&typed.ty)),
-                        syn::FnArg::Receiver(_) => None,
-                    })
-                    .collect();
-                let (ret, inner) = match &function.sig.output {
-                    syn::ReturnType::Default => ("()".to_owned(), String::new()),
-                    syn::ReturnType::Type(_, ty) => (type_name(ty), first_argument(ty)),
+                let mut params = Vec::new();
+                let mut names = Vec::new();
+                for argument in &function.sig.inputs {
+                    if let syn::FnArg::Typed(typed) = argument {
+                        params.push(type_name(&typed.ty));
+                        names.push(match &*typed.pat {
+                            syn::Pat::Ident(ident) => ident.ident.to_string(),
+                            _ => "_".to_owned(),
+                        });
+                    }
+                }
+                let (ret, inner, ret_text) = match &function.sig.output {
+                    syn::ReturnType::Default => ("()".to_owned(), String::new(), "()".to_owned()),
+                    syn::ReturnType::Type(_, ty) => {
+                        (type_name(ty), first_argument(ty), type_text(ty))
+                    }
                 };
                 methods.insert(
                     function.sig.ident.to_string(),
                     Sig {
                         params,
+                        names,
+                        public: matches!(function.vis, syn::Visibility::Public(_)),
                         asyncness: function.sig.asyncness.is_some(),
                         ret,
                         inner,
+                        ret_text,
                     },
                 );
             }
         }
     }
     methods
+}
+
+/// A type written out: `Result<Option<String>>`, `&str`, `()`.
+fn type_text(ty: &syn::Type) -> String {
+    match ty {
+        syn::Type::Reference(reference) => format!("&{}", type_text(&reference.elem)),
+        syn::Type::Tuple(tuple) if tuple.elems.is_empty() => "()".to_owned(),
+        syn::Type::Path(path) => {
+            let Some(segment) = path.path.segments.last() else {
+                return String::new();
+            };
+            let name = segment.ident.to_string();
+            let syn::PathArguments::AngleBracketed(arguments) = &segment.arguments else {
+                return name;
+            };
+            let inner: Vec<String> = arguments
+                .args
+                .iter()
+                .filter_map(|argument| match argument {
+                    syn::GenericArgument::Type(ty) => Some(type_text(ty)),
+                    _ => None,
+                })
+                .collect();
+            if inner.is_empty() {
+                name
+            } else {
+                format!("{name}<{}>", inner.join(", "))
+            }
+        }
+        _ => "other".to_owned(),
+    }
 }
 
 /// The methods of every other type with an inherent `impl` in `src/api`: the
@@ -182,6 +226,227 @@ fn builder_methods() -> &'static HashMap<String, std::collections::HashSet<Strin
         }
         types
     })
+}
+
+// ---------------------------------------------------------------------------
+// The generated table
+// ---------------------------------------------------------------------------
+
+/// The table constructor of a parameter of this Rust type, for the Python
+/// parameter `py`.
+fn param_source(py: &str, rust_type: &str) -> Option<String> {
+    Some(match rust_type {
+        "&str" => format!("s({py:?})"),
+        "u8" | "u16" | "u32" | "u64" | "usize" | "i8" | "i16" | "i32" | "i64" | "isize" => {
+            format!("n({py:?})")
+        }
+        "f64" => format!("f({py:?})"),
+        "bool" => format!("b({py:?})"),
+        "impl Into<FrameRef>" => format!("typed({py:?}, K::Frame)"),
+        "impl Into<WindowRef>" => format!("typed({py:?}, K::Window)"),
+        _ => return None,
+    })
+}
+
+/// The first type argument of `Result<T, E>` as written: `T`.
+fn first_type_argument(text: &str) -> &str {
+    let Some(rest) = text.strip_prefix("Result<") else {
+        return "";
+    };
+    let mut depth = 0_usize;
+    for (index, c) in rest.char_indices() {
+        match c {
+            '<' => depth += 1,
+            '>' if depth == 0 => return &rest[..index],
+            '>' => depth -= 1,
+            ',' if depth == 0 => return &rest[..index],
+            _ => {}
+        }
+    }
+    rest
+}
+
+/// The `Ret` of a call whose `Result` holds `inner`.
+fn ret_source(inner: &str) -> &'static str {
+    match inner {
+        "()" => "Ret::Unit",
+        "String" => "Ret::Str",
+        "bool" => "Ret::Bool",
+        "Option<String>" => "Ret::OptStr",
+        "Vec<String>" => "Ret::ListStr",
+        _ => "Ret::Other",
+    }
+}
+
+/// The calls of `generated.rs`: every `implemented` row of the parity
+/// manifest that the hand-written table leaves out and whose Rust call is
+/// mechanical (public, `Result`, and parameters of the kinds the table knows),
+/// with the Python parameters of `parity/upstream-api.json` in their order.
+/// The Python parameters Rust has no argument for are `omit`ted (an error when
+/// given), `by` and `timeout` are dropped, a Rust timeout takes the Python one.
+fn generated_source() -> String {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let methods = basecase_signatures();
+    let manifest = std::fs::read_to_string(root.join("parity/api.toml"))
+        .unwrap()
+        .parse::<toml::Table>()
+        .unwrap();
+    let rows = manifest["basecase"].as_table().unwrap();
+    let upstream: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(root.join("parity/upstream-api.json")).unwrap(),
+    )
+    .unwrap();
+    let mut python: HashMap<String, Vec<String>> = HashMap::new();
+    for method in upstream["basecase"].as_array().unwrap() {
+        let name = method["name"].as_str().unwrap().to_owned();
+        let params = method["params"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|param| param.as_str().map(str::to_owned))
+            .collect();
+        python.insert(name, params);
+    }
+    let handwritten: std::collections::HashSet<&str> = TABLE
+        .iter()
+        .flat_map(|entry| entry.py.iter().copied())
+        .collect();
+
+    let mut entries = std::collections::BTreeMap::new();
+    'rows: for (py, row) in rows {
+        let Some(row) = row.as_table() else {
+            continue;
+        };
+        if row.get("status").and_then(|status| status.as_str()) != Some("implemented")
+            || row.contains_key("divergence")
+            || handwritten.contains(py.as_str())
+        {
+            continue;
+        }
+        let Some(rust) = row
+            .get("rust")
+            .and_then(|rust| rust.as_str())
+            .and_then(|rust| rust.strip_prefix("BaseCase::"))
+        else {
+            continue;
+        };
+        let (Some(sig), Some(py_params)) = (methods.get(rust), python.get(py)) else {
+            continue;
+        };
+        if !sig.public
+            || sig.ret != "Result"
+            || py_params.iter().any(|param| param.starts_with('*'))
+        {
+            continue;
+        }
+        let flow = if sig.asyncness {
+            "Flow::Await"
+        } else {
+            "Flow::Try"
+        };
+        let ret = ret_source(first_type_argument(&sig.ret_text));
+
+        let is_ancillary =
+            |param: &str| param == "by" || param.ends_with("_by") || param == "timeout";
+        let main: Vec<&str> = py_params
+            .iter()
+            .map(String::as_str)
+            .filter(|param| !is_ancillary(param))
+            .collect();
+        let mut next_main = 0;
+        let mut last_index: Option<usize> = None;
+        let mut roles: HashMap<&str, String> = HashMap::new();
+        for (name, rust_type) in sig.names.iter().zip(&sig.params) {
+            let (python_name, source) = if name.contains("timeout") && kind_fits(K::Int, rust_type)
+            {
+                if !py_params.iter().any(|param| param == "timeout") {
+                    continue 'rows;
+                }
+                ("timeout", "WAIT_TIMEOUT".to_owned())
+            } else {
+                let Some(&python_name) = main.get(next_main) else {
+                    continue 'rows;
+                };
+                next_main += 1;
+                let Some(source) = param_source(python_name, rust_type) else {
+                    continue 'rows;
+                };
+                (python_name, source)
+            };
+            let index = py_params
+                .iter()
+                .position(|param| param == python_name)
+                .unwrap();
+            if last_index.is_some_and(|last| last >= index) {
+                continue 'rows;
+            }
+            last_index = Some(index);
+            roles.insert(python_name, source);
+        }
+        let params: Vec<String> = py_params
+            .iter()
+            .map(|param| {
+                if let Some(source) = roles.get(param.as_str()) {
+                    source.clone()
+                } else if param == "by" {
+                    "BY".to_owned()
+                } else if param.ends_with("_by") {
+                    format!("by_named({param:?})")
+                } else if param == "timeout" {
+                    "TIMEOUT".to_owned()
+                } else {
+                    format!("omit({param:?})")
+                }
+            })
+            .collect();
+        entries.insert(
+            py.clone(),
+            format!(
+                "    call(&[{py:?}], {rust:?}, &[{}], {flow}, {ret}),\n",
+                params.join(", ")
+            ),
+        );
+    }
+
+    let mut text = String::from(
+        "//! Calls of the table that `pyconv::tests` writes out from the signatures of\n\
+         //! `BaseCase`, the `implemented` rows of `parity/api.toml` and the Python\n\
+         //! parameters of `parity/upstream-api.json`: the ones the hand-written table\n\
+         //! leaves out and whose Rust call is mechanical. Write it again with\n\
+         //! `SB_UPDATE_GENERATED=1 cargo test -p seleniumbase-rs --lib the_generated_table`.\n\
+         \n\
+         #[allow(unused_imports)]\n\
+         use super::table::{\n\
+         \x20   b, by_named, call, f, n, omit, s, typed, Call, Flow, Ret, BY, K, TIMEOUT, WAIT_TIMEOUT,\n\
+         };\n\
+         \n\
+         /// The generated calls.\n\
+         pub(super) static GENERATED: &[Call] = &[\n",
+    );
+    for line in entries.values() {
+        text.push_str(line);
+    }
+    text.push_str("];\n");
+    text
+}
+
+#[test]
+fn the_generated_table_is_current() {
+    let text = generated_source();
+    let path =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("src/utilities/importer/pyconv/generated.rs");
+    if std::env::var_os("SB_UPDATE_GENERATED").is_some() {
+        std::fs::write(&path, &text).unwrap();
+        return;
+    }
+    assert!(
+        std::fs::read_to_string(&path).unwrap() == text,
+        "generated.rs is stale: write it again with SB_UPDATE_GENERATED=1"
+    );
+    assert!(
+        text.matches("    call(").count() > 20,
+        "the generator found almost nothing; is it broken?"
+    );
 }
 
 /// A method that is not `async` and gives back a call builder, which is
@@ -229,7 +494,7 @@ fn every_table_entry_is_a_basecase_method_taking_those_arguments() {
         methods.len()
     );
     let mut problems = Vec::new();
-    for entry in TABLE {
+    for entry in TABLE.iter().chain(super::generated::GENERATED.iter()) {
         let py = entry.py[0];
         let Some(sig) = methods.get(entry.rust) else {
             problems.push(format!("{py}: BaseCase has no method `{}`", entry.rust));
@@ -322,7 +587,7 @@ fn every_python_name_is_an_implemented_row_of_the_parity_manifest() {
     let rows = manifest["basecase"].as_table().unwrap();
     let methods = basecase_signatures();
     let mut problems = Vec::new();
-    for entry in TABLE {
+    for entry in TABLE.iter().chain(super::generated::GENERATED.iter()) {
         for name in entry.py {
             let Some(row) = rows.get(*name).and_then(|row| row.as_table()) else {
                 problems.push(format!(
@@ -367,7 +632,7 @@ fn every_python_name_is_an_implemented_row_of_the_parity_manifest() {
 #[test]
 fn the_table_has_no_python_name_twice() {
     let mut seen = std::collections::HashSet::new();
-    for entry in TABLE {
+    for entry in TABLE.iter().chain(super::generated::GENERATED.iter()) {
         for name in entry.py {
             assert!(seen.insert(*name), "{name} is in the table twice");
         }
@@ -537,6 +802,42 @@ fn the_goldens_are_what_the_converter_writes() {
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
 
+/// `parity/examples.toml` parses, and each of its `[[converter]]` findings says
+/// what was fixed; its counts are those of the goldens.
+#[test]
+fn the_converter_findings_of_the_examples_manifest_say_what_was_fixed() {
+    let text =
+        std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("parity/examples.toml"))
+            .unwrap();
+    let manifest = text.parse::<toml::Table>().unwrap();
+    let findings = manifest["converter"].as_array().unwrap();
+    assert_eq!(findings.len(), 6);
+    for finding in findings {
+        for key in ["gap", "seen_in", "fixed", "next"] {
+            assert!(
+                finding.get(key).is_some_and(toml::Value::is_str),
+                "{finding:?} has no `{key}`"
+            );
+        }
+    }
+    // Every golden example has a line in the per-file counts.
+    let counts = findings[0]["before_after"].as_array().unwrap();
+    for entry in std::fs::read_dir(golden_dir()).unwrap() {
+        let path = entry.unwrap().path();
+        if path.extension().is_some_and(|ext| ext == "py") {
+            let name = path.file_name().unwrap().to_string_lossy().into_owned();
+            assert!(
+                counts
+                    .iter()
+                    .filter_map(toml::Value::as_str)
+                    .any(|line| line.starts_with(&format!("{name}:"))
+                        || line.starts_with(&format!("cdp_mode/{name}:"))),
+                "{name} is missing from before_after"
+            );
+        }
+    }
+}
+
 /// The upstream examples `parity/examples.toml` is about, relative to its
 /// `examples/` folder.
 const UPSTREAM_EXAMPLES: &[&str] = &[
@@ -584,7 +885,10 @@ fn the_upstream_examples_convert_when_they_are_at_hand() {
     };
     let out = std::env::var_os("SBRS_CONVERT_OUT").map(PathBuf::from);
     for name in UPSTREAM_EXAMPLES {
-        let path = Path::new(&root).join(name);
+        // The upstream folder has `cdp_mode/` below it; the golden folder is flat.
+        let flat = Path::new(&root).join(Path::new(name).file_name().unwrap());
+        let nested = Path::new(&root).join(name);
+        let path = if nested.exists() { nested } else { flat };
         let source = std::fs::read_to_string(&path).unwrap();
         let stem = Path::new(name).file_stem().unwrap().to_string_lossy();
         let result = import_python(

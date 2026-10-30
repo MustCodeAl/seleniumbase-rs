@@ -25,6 +25,8 @@
 mod ast;
 mod cdp;
 mod expr;
+#[rustfmt::skip]
+mod generated;
 mod parse;
 mod stmt;
 mod table;

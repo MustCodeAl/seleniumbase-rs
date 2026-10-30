@@ -282,33 +282,33 @@ impl<'a> Tr<'a> {
             return;
         }
         let comments = self.comments;
-        for comment in comments {
-            if comment.line > self.comment_floor && comment.line < before {
-                let text = comment_text(&comment.text);
-                self.emit(text);
+        // The comments are in line order: skip to the first one past the floor.
+        let first = comments.partition_point(|comment| comment.line <= self.comment_floor);
+        for comment in &comments[first..] {
+            if comment.line >= before {
+                break;
             }
+            let text = comment_text(&comment.text);
+            self.emit(text);
         }
         self.comment_floor = self.comment_floor.max(before.saturating_sub(1));
     }
 
     /// Appends the comment that trails code on `line` to the last line written.
     pub(super) fn trailing_comment(&mut self, line: usize) {
-        if !self.with_comments {
+        if !self.with_comments || !self.code_lines.contains(&line) || line <= self.comment_floor {
             return;
         }
         let comments = self.comments;
-        let found = comments.iter().find(|comment| {
-            comment.line == line
-                && comment.line > self.comment_floor
-                && self.code_lines.contains(&comment.line)
-        });
-        if let Some(comment) = found {
-            if let Some((_, text)) = self.out.last_mut() {
-                text.push(' ');
-                text.push_str(&comment_text(&comment.text));
-            }
-            self.comment_floor = self.comment_floor.max(line);
+        let first = comments.partition_point(|comment| comment.line < line);
+        let Some(comment) = comments.get(first).filter(|comment| comment.line == line) else {
+            return;
+        };
+        if let Some((_, text)) = self.out.last_mut() {
+            text.push(' ');
+            text.push_str(&comment_text(&comment.text));
         }
+        self.comment_floor = self.comment_floor.max(line);
     }
 }
 

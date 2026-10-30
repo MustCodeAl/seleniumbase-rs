@@ -525,9 +525,13 @@ Convert a SeleniumBase or Selenium WebDriver Python file:
   --output ./tests/login_test.rs
 ```
 
+Each Python test becomes an `#[rstest]` test on the `sb` fixture, the form
+`sbrs mkfile` writes (a script that drives CDP Mode becomes a pure CDP test).
 Use `--source selenium-base` or `--source selenium` to override automatic
 detection. Use `--test-name user_can_log_in` to choose the generated function
-name. Unsupported statements are retained as `TODO` comments and diagnostics.
+name when the file holds one test. Unsupported statements are retained as
+`TODO` comments and diagnostics; [Migrate Python
+Tests](/python-migration) lists what is converted.
 
 <Warning>
 

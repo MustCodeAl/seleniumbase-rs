@@ -3039,7 +3039,7 @@ divergence = "Python's `-k` is a pytest expression and its `-m` a marker; here `
 status = "implemented"
 rust = "sbrs convert"
 note = "`sbrs convert FILE.py [--force]` reads a Selenium IDE or Katalon Recorder export (Selenium WebDriver code) with the Selenium reading of `import_python` and writes `FILE_SB.rs` next to it; the original is kept. An existing output is refused without `--force`. What it cannot convert stays a `TODO` and is listed on standard error; the exit status is 1 when a statement could not be read at all."
-divergence = "Python's convert writes `FILE_SB.py`, a SeleniumBase class; this writes a Rust test (`run_browser_test`) named after the file."
+divergence = "Python's convert writes `FILE_SB.py`, a SeleniumBase class; this writes a Rust test in the rstest `sb` fixture form that `sbrs mkfile` writes, named after the file."
 
 [cli."decrypt"]
 status = "implemented"
