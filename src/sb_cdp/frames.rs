@@ -28,16 +28,15 @@ use crate::error::SeleniumBaseError;
 /// The name of the isolated world made in a frame of the tab's own process.
 const WORLD: &str = "sbcdp";
 
-/// Scrolls the frame element it is called on into view, and waits for the
-/// browser to draw the result (two animation frames, at most a quarter of a
-/// second), because a click is placed by what the browser last drew.
-const REVEAL: &str = "function () { \
-    this.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' }); \
-    return new Promise((resolve) => { \
-        setTimeout(resolve, 250); \
-        requestAnimationFrame(() => requestAnimationFrame(resolve)); \
-    }); \
-}";
+/// A promise that settles after the browser has drawn: two animation frames, at
+/// most a quarter of a second, so a frame that is never drawn does not hang the
+/// click. A click is placed by what the browser drew last, so scrolling a frame
+/// is followed by a wait for the draw.
+
+const AFTER_DRAW: &str = "new Promise((resolve) => { \
+    setTimeout(resolve, 250); \
+    requestAnimationFrame(() => requestAnimationFrame(resolve)); \
+})";
 
 /// Where a script runs: a protocol session, the execution context in it (the
 /// main world of the session's page or frame when there is none), and, for a
@@ -257,17 +256,43 @@ impl Page {
             holders.push(holder);
             at = &holder.outer;
         }
+        let reveal = format!(
+            "function () {{ \
+                this.scrollIntoView({{ block: 'center', inline: 'center', behavior: 'instant' }}); \
+                return {AFTER_DRAW}; \
+            }}"
+        );
         for holder in holders.into_iter().rev() {
             self.send_in(
                 &holder.outer,
                 "Runtime.callFunctionOn",
                 json!({
                     "objectId": holder.object,
-                    "functionDeclaration": REVEAL,
+                    "functionDeclaration": reveal,
                     "awaitPromise": true,
                 }),
             )
             .await?;
+        }
+        Ok(())
+    }
+
+    /// Waits until the browser has drawn `scope` and every frame around it, after
+    /// a script scrolled something in them: the point of a click is placed by what
+    /// was drawn last.
+    pub(super) async fn settle_scope(&self, scope: &Scope) -> Result<(), SeleniumBaseError> {
+        let mut at = Some(scope);
+        while let Some(here) = at {
+            self.send_in(
+                here,
+                "Runtime.evaluate",
+                here.in_context(json!({
+                    "expression": AFTER_DRAW,
+                    "awaitPromise": true,
+                })),
+            )
+            .await?;
+            at = here.holder().map(|holder| &holder.outer);
         }
         Ok(())
     }

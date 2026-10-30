@@ -155,6 +155,24 @@ impl Locator {
     }
 
     /// Searches *inside* the elements this locator matches.
+    ///
+    /// Where those elements are frames (`iframe`, `frame`), it searches the
+    /// frame's own document, whatever its origin: a frame of the page's own
+    /// origin is read by the page script, and a `data:` frame, a sandboxed one,
+    /// a frame of another origin or of another site is entered through the
+    /// protocol. This is Python's `nested_click(parent, selector)` and
+    /// `get_nested_element`. When several frames the page script cannot read
+    /// match the locator so far, the first that holds a match is used.
+    ///
+    /// ```no_run
+    /// # use seleniumbase_rs::sb_cdp::Page;
+    /// # async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    /// // Python: sb.cdp.nested_click("iframe#myFrame3", ".fBox")
+    /// page.locator("iframe#myFrame3").locator(".fBox").click().await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+
     #[must_use]
     pub fn locator(&self, selector: impl Into<SelectorBuf>) -> Self {
         let mut next = self.clone();
@@ -304,6 +322,8 @@ impl Locator {
             let script = build(&serde_json::to_string(&found.chain)?);
             let value = self.page.eval_in(&found.scope, label, &script).await?;
             let at = if origin {
+                self.page.settle_scope(&found.scope).await?;
+
                 self.page.scope_origin(&found.scope).await?
             } else {
                 Point::default()
