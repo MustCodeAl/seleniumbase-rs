@@ -217,6 +217,16 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ### Added
 
+- **Feature `plugin-browser` (in `plugins-builtin` and in the CLI): the built-in `browser`
+  plugin loads extensions into the Chromium browser a program starts.** `extension_zip` takes
+  `.zip` and `.crx` files and `extension_dir` unpacked folders, with the meaning of Python
+  SeleniumBase's `--extension-zip` and `--extension-dir`; `sbrs --plugin browser` turns it on
+  (`sbrs plugin list` shows it in the category `extension`). It declares that it cannot share a
+  set with `crx`, so naming both is refused before a browser starts, with ``plugin `browser`
+  cannot be combined with plugin `crx` ``. The options for waiting for the extensions' workers and
+  for saved sessions are not implemented yet and are refused as unknown options. The plugins
+  come from plugins rev 1a327ec.
+
 - **Rules for writing reliable browser tests with the crate, for people and for AI coding
   assistants.** `AGENTS.md` gains the section "Writing browser tests with seleniumbase-rs": fifteen
   rules (the `sb` and `sb_cdp` fixtures own the browser, imports only from `seleniumbase_rs`, stable
