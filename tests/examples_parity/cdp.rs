@@ -8,19 +8,57 @@
 //! `page.locator(selector)` returns.
 
 use seleniumbase_rs::api::runner::run_cdp_test;
-use seleniumbase_rs::sb_cdp::SelectBy;
+use seleniumbase_rs::sb_cdp::{Page, SelectBy};
 use seleniumbase_rs::Result;
 
-use crate::support::cdp_options;
+use crate::support::{cdp_options, run_cdp_port, Mismatches};
 
 // ---------------------------------------------------------------------------
+// Steps shared by the ports
+// ---------------------------------------------------------------------------
+
+/// Python's `assert_text(text, selector)` on an `<input>` or `<textarea>`,
+/// whose text is its value. Tries `expect().to_contain_text`, the equal this
+/// crate lists for it, and when that fails reads the value with a script.
+async fn field_text(
+    page: &Page,
+    mismatches: &mut Mismatches,
+    selector: &str,
+    expected: &str,
+) -> Result<()> {
+    const STEP: &str = "assert_text on an input or a textarea (Python reads its value)";
+    if !mismatches.knows(STEP) {
+        match page
+            .locator(selector)
+            .expect()
+            .to_contain_text(expected)
+            .await
+        {
+            Ok(()) => return Ok(()),
+            Err(error) => mismatches.note(STEP, error),
+        }
+    }
+    let script = format!(
+        "return document.querySelector({}).value;",
+        serde_json::to_string(selector)?
+    );
+    let value = page.evaluate(&script).await?;
+    assert!(
+        value.as_str().is_some_and(|value| value.contains(expected)),
+        "{selector} holds {value}, not {expected:?}"
+    );
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+
 // cdp_mode/raw_demo_site.py
 // ---------------------------------------------------------------------------
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/demo_page"]
 async fn raw_demo_site() -> Result<()> {
-    run_cdp_test(cdp_options(), async |page| {
+    run_cdp_port(async |page, mismatches| {
         page.goto("https://seleniumbase.io/demo_page").await?;
 
         // Assert various things
@@ -29,7 +67,10 @@ async fn raw_demo_site() -> Result<()> {
             .expect()
             .to_be_visible()
             .await?;
-        page.locator("h1").expect().to_contain_text("Demo Page").await?;
+        page.locator("h1")
+            .expect()
+            .to_contain_text("Demo Page")
+            .await?;
 
         // Type text into various text fields and then assert
         page.locator("#myTextInput")
@@ -41,18 +82,9 @@ async fn raw_demo_site() -> Result<()> {
         page.locator("[name=\"preText2\"]")
             .type_text("Typing Text!")
             .await?;
-        page.locator("#myTextInput")
-            .expect()
-            .to_contain_text("This is Automated")
-            .await?;
-        page.locator("textarea.area1")
-            .expect()
-            .to_contain_text("Testing Time!\n")
-            .await?;
-        page.locator("[name=\"preText2\"]")
-            .expect()
-            .to_contain_text("Typing Text!")
-            .await?;
+        field_text(page, mismatches, "#myTextInput", "This is Automated").await?;
+        field_text(page, mismatches, "textarea.area1", "Testing Time!\n").await?;
+        field_text(page, mismatches, "[name=\"preText2\"]", "Typing Text!").await?;
 
         // Hover & click a dropdown element and assert results
         page.locator("h3")
@@ -71,7 +103,9 @@ async fn raw_demo_site() -> Result<()> {
             .expect()
             .to_contain_text("This Text is Green")
             .await?;
-        page.locator("button:contains(\"Click Me\")").click().await?;
+        page.locator("button:contains(\"Click Me\")")
+            .click()
+            .await?;
         page.locator("#pText")
             .expect()
             .to_contain_text("This Text is Purple")
@@ -144,10 +178,19 @@ async fn raw_demo_site() -> Result<()> {
 
         // Click inside an iframe and test highlighting
         page.locator("iframe#myFrame3").flash().await?;
-        page.locator("iframe#myFrame3")
+        if let Err(error) = page
+            .locator("iframe#myFrame3")
             .locator(".fBox")
             .click()
-            .await?;
+            .await
+        {
+            // The frame's src is a data: URL, so it is another origin than the
+            // page, and the pure CDP engine reaches same-origin frames only.
+            mismatches.note(
+                "nested_click into an iframe whose src is a data: URL",
+                error,
+            );
+        }
         page.locator("iframe#myFrame3").flash().await
     })
     .await
@@ -162,23 +205,39 @@ async fn raw_demo_site() -> Result<()> {
 async fn raw_cdp_tabs() -> Result<()> {
     run_cdp_test(cdp_options(), async |first| {
         first.goto("data:text/html,<h1>Page A</h1>").await?;
-        first.locator("html").expect().to_contain_text("Page A").await?;
+        first
+            .locator("html")
+            .expect()
+            .to_contain_text("Page A")
+            .await?;
         // open_new_tab() makes the new tab the active one in Python; here the
         // new tab is a Page of its own.
         let second = first.browser().new_page().await?;
         second.goto("data:text/html,<h1>Page B</h1>").await?;
-        second.locator("html").expect().to_contain_text("Page B").await?;
+        second
+            .locator("html")
+            .expect()
+            .to_contain_text("Page B")
+            .await?;
         // switch_to_tab(0) is the first of the browser's pages.
         let tabs = first.browser().pages().await?;
         assert_eq!(tabs.len(), 2);
-        tabs[0].locator("html").expect().to_contain_text("Page A").await?;
+        tabs[0]
+            .locator("html")
+            .expect()
+            .to_contain_text("Page A")
+            .await?;
         tabs[0]
             .locator("html")
             .expect()
             .not()
             .to_contain_text("Page B")
             .await?;
-        tabs[1].locator("html").expect().to_contain_text("Page B").await?;
+        tabs[1]
+            .locator("html")
+            .expect()
+            .to_contain_text("Page B")
+            .await?;
         tabs[1]
             .locator("html")
             .expect()
@@ -297,8 +356,12 @@ async fn raw_drag_and_drop() -> Result<()> {
 async fn raw_cdp_swag() -> Result<()> {
     run_cdp_test(cdp_options(), async |page| {
         page.goto("https://www.saucedemo.com").await?;
-        page.locator("#user-name").type_text("standard_user").await?;
-        page.locator("#password").type_text("secret_sauce\n").await?;
+        page.locator("#user-name")
+            .type_text("standard_user")
+            .await?;
+        page.locator("#password")
+            .type_text("secret_sauce\n")
+            .await?;
         page.locator("div.inventory_list")
             .expect()
             .to_be_visible()
@@ -326,4 +389,3 @@ async fn raw_cdp_swag() -> Result<()> {
     })
     .await
 }
-

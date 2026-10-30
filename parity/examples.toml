@@ -1,0 +1,396 @@
+# How well this crate runs the real examples of Python SeleniumBase.
+#
+# Each [[example]] is one Python test (or one file with a single test) from the
+# upstream `examples/` folder, ported to `tests/examples_parity_chrome.rs` and
+# run headless on a real Chrome. The Python side was run too, headless, with
+# `pytest examples/<file> --headless`: every one of them passed, except the
+# ones that skip themselves in headless mode (test_tinymce, test_shadow_dom) and
+# test_deferred_asserts, which is marked `expected_failure` and fails on purpose.
+#
+# status
+#   pass     the port passed with the same calls (or the nearest composition
+#            listed under `mismatches`, which also work as a parity to-do list)
+#   fail     the port failed; `mismatches` says why. A port tries the Python
+#            call as this crate spells it, notes the step when it fails, runs
+#            the nearest composition, and fails at the end, so the list is
+#            every difference of the example and not only the first
+#   skipped  not ported; `mismatches` says why
+# next
+#   "bug lane: ..."   a behaviour to fix in src/
+#   "parity row: ..." a row of parity/api.toml (done in this lane when it says so)
+#   ""                nothing to do
+#
+# Re-run:
+#   cargo test --features "mcp-server test-util testing" --test examples_parity_chrome \
+#       -- --ignored --test-threads=1
+# The pages are public demo pages, so a failure can be the network: run the
+# test again before calling it a mismatch.
+
+[run]
+date = "2026-10-30"
+chrome = "156.0.8078.48 (headless)"
+python_seleniumbase = "4.56.2 (pip), examples from the pinned upstream checkout"
+crate = "seleniumbase-rs 0.6.0 (tracks upstream 4.55.2)"
+sites = [
+  "seleniumbase.io (demo_page, w3schools, coffee, simple/login, other/shadow_dom, drag_and_drop, tinymce, help_docs)",
+  "saucedemo.com",
+  "todomvc.com",
+  "xkcd.com",
+  "data: and about:blank pages",
+  "chrome://downloads/",
+]
+tests = "34 ports; the last full run passed 19 and failed 15"
+
+# ---------------------------------------------------------------------------
+# WebDriver engine (BaseCase)
+# ---------------------------------------------------------------------------
+
+[[example]]
+python = "my_first_test.py"
+rust_test = "base_case::my_first_test"
+status = "fail"
+mismatches = [
+  "type_text loses text typed straight after a click that loads a page: on saucedemo.com's checkout form first-name, last-name and zip end up empty or cut ('Seleniu'), so `continue` never leaves step one and assert_text('Checkout: Overview') times out. The port failed in about 6 of 10 runs; Python passed 6 of 6 (about 2 s each). Adding any pause between the fields made the Rust run pass.",
+  "Python's update_text waits for the element to be clickable, scrolls to it, clears with 42 backspaces and waits for document.readyState to be complete after the keys; type_text clears and sends keys at once.",
+]
+next = "bug lane: type_text/click race after a page-loading click: wait for readyState complete after typing, as update_text does, and check the value that landed (WebDriver and pure CDP, see cdp::raw_cdp_swag)"
+
+[[example]]
+python = "test_demo_site.py"
+rust_test = "base_case::test_demo_site"
+status = "fail"
+mismatches = [
+  "assert_text(text, '#myTextInput') on an <input> or <textarea> never matches: it reads the rendered text, which is empty; Python reads the value (three asserts of the example)",
+  "set_value('input#mySlider', '100') only sets the value; Python also fires a mousemove event for a range input, so the page's progress bar stays at 50 here",
+  "is_selected takes &mut self, so assert_true(is_selected(..)) does not borrow-check; the port binds the bool first",
+]
+next = "bug lane: assert_text/assert_exact_text read the value of an input or textarea; set_value fires mousemove on a range input (and Enter on a trailing newline)"
+
+[[example]]
+python = "iframe_tests.py::test_iframe_basics"
+rust_test = "base_case::iframe_tests_iframe_basics"
+status = "fail"
+mismatches = [
+  "switch_to_frame('iframeResult') reads the argument as a CSS tag name and finds nothing (no such element); Python takes the id or name of a frame as well as a selector. The port goes on with '#iframeResult' and passes the rest.",
+]
+next = "bug lane: switch_to_frame (and frame_switch) accept a frame id or name; parity row: switch_to_frame divergence (done)"
+
+[[example]]
+python = "iframe_tests.py::test_iframes_with_context_manager"
+rust_test = "base_case::iframe_tests_iframes_with_context_manager"
+status = "fail"
+mismatches = [
+  "frame_switch('iframeResult') finds no frame, as switch_to_frame does (a frame id)",
+  "frame_switch only enters the frame; Python's is a context manager that returns to the parent frame when the `with` block ends. The port ends each block with switch_to_parent_frame.",
+]
+next = "bug lane: frame_switch by frame id or name, and a scoped form that leaves the frame (a closure, or a guard); parity row: frame_switch divergence (done)"
+
+[[example]]
+python = "iframe_tests.py::test_set_content_to_frame"
+rust_test = "base_case::iframe_tests_set_content_to_frame"
+status = "pass"
+mismatches = []
+next = ""
+
+[[example]]
+python = "test_window_switching.py"
+rust_test = "base_case::test_window_switching"
+status = "pass"
+mismatches = [
+  "switch_to_window takes a window handle only; Python's switch_to_window(0) and (-1) take an index. The port uses switch_to_tab(0) and switch_to_newest_tab.",
+]
+next = "parity row: switch_to_window divergence (done); bug lane: let switch_to_window take an index or alias switch_to_tab"
+
+[[example]]
+python = "test_coffee_cart.py"
+rust_test = "base_case::test_coffee_cart"
+status = "pass"
+mismatches = []
+next = ""
+
+[[example]]
+python = "test_assert_elements.py"
+rust_test = "base_case::test_assert_elements"
+status = "pass"
+mismatches = [
+  "assert_elements and assert_elements_present take a slice where Python takes varargs or a list (a call shape, not a behaviour)",
+]
+next = ""
+
+[[example]]
+python = "test_checkboxes.py"
+rust_test = "base_case::test_checkboxes"
+status = "fail"
+mismatches = [
+  "switch_to_frame('iframeResult') by frame id, as in iframe_tests.py; the port goes on with '#iframeResult' and the checkbox and radio button steps pass",
+]
+next = "bug lane: switch_to_frame by frame id or name (see iframe_tests.py)"
+
+[[example]]
+python = "test_select_options.py"
+rust_test = "base_case::test_select_options"
+status = "fail"
+mismatches = [
+  "get_select_options(css) returns the option texts only; Python's attribute argument ('text', 'index', 'value') is missing. The port builds the index and value lists from the option elements.",
+  "get_attribute('#mySelect', 'value') is None; Python (Selenium) falls back to the DOM property and returns the chosen value. The port uses get_property.",
+  "assert_attribute('#mySelect', 'value', v) compares the same HTML attribute and fails; Python compares the chosen value",
+]
+next = "bug lane: get_attribute falls back to the DOM property; get_select_options gets its attribute argument; parity row: get_attribute, assert_attribute, get_select_options divergences (done)"
+
+[[example]]
+python = "test_shadow_dom.py"
+rust_test = "base_case::test_shadow_dom"
+status = "fail"
+mismatches = [
+  "Partial port: the Python test skips itself in headless mode, and its first half downloads two packages from pypi.org (not a site made for automation tests). The port keeps the second half, the five levels of ::shadow selectors on chrome://downloads/.",
+  "A ::shadow selector in assert_element, type, assert_text and click is an error; Python reads it in every method. The shadow_* methods (assert_shadow_element, shadow_type, assert_shadow_text, shadow_click) reach the same elements.",
+  "assert_shadow_text looks once and does not wait; Python's assert_text waits for the text (the downloads page shows 'No search results found' a moment after the typing)",
+]
+next = "bug lane: ::shadow selectors in the regular methods, which wait; parity row: get_text divergence (done)"
+
+[[example]]
+python = "shadow_root_test.py"
+rust_test = "base_case::shadow_root_test"
+status = "fail"
+mismatches = [
+  "get_text('fancy-tabs::shadow #panels') and assert_exact_text with the same selector wait their timeout and fail: ::shadow is not read by the regular methods (shadow_get_text and assert_shadow_text are the equals)",
+  "shadow_get_text('fancy-tabs::shadow #panels') returns '' because it reads textContent and the panel text sits in slotted light DOM; Python's get_text returns 'Content Panel 1'. The port reads the rendered text of the slotted nodes with a script.",
+]
+next = "bug lane: ::shadow in get_text/assert_exact_text/click/type, and the rendered text across slots; parity row: get_text divergence (done)"
+
+[[example]]
+python = "test_double_click.py::test_switch_to_frame_and_double_click"
+rust_test = "base_case::test_double_click_switch_to_frame_and_double_click"
+status = "pass"
+mismatches = []
+next = ""
+
+[[example]]
+python = "test_double_click.py::test_switch_to_frame_of_element_and_double_click"
+rust_test = "base_case::test_double_click_switch_to_frame_of_element_and_double_click"
+status = "pass"
+mismatches = []
+next = ""
+
+[[example]]
+python = "test_drag_and_drop.py::test_drag_and_drop"
+rust_test = "base_case::test_drag_and_drop_drag_and_drop"
+status = "pass"
+mismatches = []
+next = ""
+
+[[example]]
+python = "test_drag_and_drop.py::test_w3schools_drag_and_drop"
+rust_test = "base_case::test_drag_and_drop_w3schools_drag_and_drop"
+status = "fail"
+mismatches = [
+  "switch_to_frame('iframeResult') by frame id; the drag and drop inside the frame passes once the port uses '#iframeResult'",
+]
+next = "bug lane: switch_to_frame by frame id or name (see iframe_tests.py)"
+
+[[example]]
+python = "test_url_asserts.py"
+rust_test = "base_case::test_url_asserts"
+status = "fail"
+mismatches = [
+  "js_click('nav a:contains(\"Coffee Cart\")') is an invalid selector error (it runs document.querySelector); Python converts :contains() and XPath selectors and waits for the element. The port uses click, which does read :contains().",
+]
+next = "bug lane: js_click reads :contains() and XPath selectors and waits for the element; parity row: js_click divergence (done)"
+
+[[example]]
+python = "test_deferred_asserts.py"
+rust_test = "base_case::test_deferred_asserts"
+status = "pass"
+mismatches = [
+  "wait_for_element needs its timeout argument (wait_for_element('#comic', 10)); Python's is optional",
+]
+next = "parity row: wait_for_element divergence (done)"
+
+[[example]]
+python = "handle_alert_test.py"
+rust_test = "base_case::handle_alert_test"
+status = "pass"
+mismatches = [
+  "switch_to_alert returns nothing; Python returns the alert and the example reads alert.text. The port reads the text with get_alert_text.",
+]
+next = "parity row: switch_to_alert divergence (done)"
+
+[[example]]
+python = "test_tinymce.py"
+rust_test = "base_case::test_tinymce"
+status = "pass"
+mismatches = [
+  "The Python test skips itself in headless mode; the port runs the steps anyway and they pass headless",
+]
+next = ""
+
+[[example]]
+python = "test_todomvc.py::test_todomvc_1_jquery"
+rust_test = "base_case::test_todomvc_jquery"
+status = "fail"
+mismatches = [
+  "check_if_unchecked('ul.todo-list li input') times out waiting for the checkbox to be clickable: TodoMVC's toggle sits at zero opacity. Python raises the opacity a little, or clicks with JavaScript. The port clicks with js_click and the rest passes.",
+  "assert_in(framework, title.lower()) is a substring test in Python; assert_in(item, &[item]) tests slice membership only. The port uses assert_true(title.contains(..)).",
+  "open_new_window and clear_local_storage work as in Python",
+]
+next = "bug lane: check_if_unchecked/uncheck_if_checked handle a checkbox at zero opacity; parity row: check_if_unchecked, uncheck_if_checked, assert_in divergences (done)"
+
+[[example]]
+python = "test_todomvc.py::test_todomvc_2_react"
+rust_test = "base_case::test_todomvc_react"
+status = "fail"
+mismatches = ["as test_todomvc_jquery: check_if_unchecked on a zero-opacity checkbox"]
+next = "bug lane: see test_todomvc_jquery"
+
+[[example]]
+python = "test_todomvc.py::test_todomvc_3_vue"
+rust_test = "base_case::test_todomvc_vue"
+status = "fail"
+mismatches = ["as test_todomvc_jquery: check_if_unchecked on a zero-opacity checkbox"]
+next = "bug lane: see test_todomvc_jquery"
+
+[[example]]
+python = "xpath_test.py"
+rust_test = "base_case::xpath_test"
+status = "pass"
+mismatches = []
+next = ""
+
+[[example]]
+python = "test_simple_login.py"
+rust_test = "base_case::test_simple_login"
+status = "pass"
+mismatches = []
+next = ""
+
+[[example]]
+python = "test_contains_selector.py"
+rust_test = "base_case::test_contains_selector"
+status = "pass"
+mismatches = []
+next = ""
+
+[[example]]
+python = "test_cycle_elements.py"
+rust_test = "base_case::test_cycle_elements_with_tab_and_press_enter"
+status = "pass"
+mismatches = []
+next = ""
+
+[[example]]
+python = "test_highlight_elements.py"
+rust_test = "base_case::test_highlight_elements_highlight_inputs"
+status = "pass"
+mismatches = []
+next = ""
+
+# ---------------------------------------------------------------------------
+# Pure CDP engine (sb_cdp)
+# ---------------------------------------------------------------------------
+
+[[example]]
+python = "cdp_mode/raw_demo_site.py"
+rust_test = "cdp::raw_demo_site"
+status = "fail"
+mismatches = [
+  "expect().to_contain_text on an <input> or <textarea> reads the rendered text and fails; Python's assert_text reads the value. The port reads the value with a script.",
+  "nested_click('iframe#myFrame3', '.fBox'): the demo page's iframe has a data: URL as its src (another origin), and the Locator reaches same-origin frames only, so page.locator('iframe#myFrame3').locator('.fBox') finds nothing",
+]
+next = "bug lane: Locator text for form fields; frames of another origin in the pure CDP engine; parity row: cdp assert_text and nested_click divergences (done)"
+
+[[example]]
+python = "cdp_mode/raw_cdp_tabs.py (and raw_tab_switching.py)"
+rust_test = "cdp::raw_cdp_tabs"
+status = "pass"
+mismatches = [
+  "No active tab: open_new_tab/switch_to_tab become Browser::new_page and Browser::pages()[i]; each Page is bound to its tab. The `sb.cdp` form of raw_tab_switching.py is the same steps and is not ported separately.",
+]
+next = ""
+
+[[example]]
+python = "cdp_mode/raw_cdp_xpath.py (and raw_xpath.py)"
+rust_test = "cdp::raw_cdp_xpath"
+status = "pass"
+mismatches = []
+next = ""
+
+[[example]]
+python = "cdp_mode/raw_basic_cdp.py"
+rust_test = "cdp::raw_basic_cdp"
+status = "pass"
+mismatches = [
+  "save_as_pdf_to_logs, save_screenshot_to_logs and save_page_source_to_logs are page.pdf(), page.screenshot() and page.content(): the bytes are returned, nothing is written to a logs folder; save_data_to_logs and append_data_to_logs have no equal (not-applicable in parity/api.toml)",
+]
+next = ""
+
+[[example]]
+python = "cdp_mode/raw_drag_and_drop.py"
+rust_test = "cdp::raw_drag_and_drop"
+status = "pass"
+mismatches = [
+  "Only the first block is ported. The second block drags on jqueryui.com (not a site made for automation tests) with gui_drag_drop_points, which moves the real mouse.",
+]
+next = ""
+
+[[example]]
+python = "cdp_mode/raw_cdp_swag.py"
+rust_test = "cdp::raw_cdp_swag"
+status = "fail"
+mismatches = [
+  "Locator::type_text loses the text typed into saucedemo.com's checkout form (as base_case::my_first_test): continue never leaves step one, so button#finish is not found. It failed in about 9 of 10 runs.",
+]
+next = "bug lane: type_text/click race after a page-loading click (see my_first_test.py)"
+
+[[example]]
+python = "cdp_mode/raw_handle_alerts.py"
+rust_test = ""
+status = "skipped"
+mismatches = [
+  "The example answers the JavaScript dialogs with uc_gui_press_key and uc_gui_write, which press real keys of the desktop (pyautogui); the run must not touch the keyboard of the machine. A CDP dialog handler would be a different test.",
+]
+next = ""
+
+[[example]]
+python = "cdp_mode/raw_cdp_shadow.py"
+rust_test = ""
+status = "skipped"
+mismatches = [
+  "Runs on seleniumbase.io/apps/turnstile and calls solve_captcha: a Cloudflare Turnstile page, which the lane does not open. The local fake-captcha fixtures (tests/fixtures/captcha) are covered by tests/sb_cdp_captcha_chrome.rs.",
+]
+next = ""
+
+# ---------------------------------------------------------------------------
+# What `sbrs import-python` did with them (sbrs 0.6.0)
+# ---------------------------------------------------------------------------
+# Run on each file as `sbrs import-python FILE -o OUT --test-name NAME`. The
+# warnings and errors per file are in the notes of each [[converter]] entry.
+
+[[converter]]
+gap = "Python methods that have a Rust equal are left as a TODO comment ('needs manual migration')"
+seen_in = "every file: goto (the first line of all of them), switch_to_frame, switch_to_default_content, switch_to_parent_frame, switch_to_window, open_new_window, get_new_driver, highlight, js_click, set_value, drag_and_drop, hover_and_click, hover_and_js_click, click_visible_elements, assert_link_text, assert_element_not_visible, assert_true, assert_false, assert_equal, assert_in, assert_attribute, select_option_by_value, select_option_by_index, wait_for_element, wait_for_ready_state_complete, clear_local_storage, post_message, activate_demo_mode, set_content_to_frame/parent/default, skip, goto_if_not_url. Every one of them is `implemented` in parity/api.toml."
+next = "bug lane: map them in the converter (the line is dropped from the test, so the generated test runs without them and may pass or fail for the wrong reason)"
+
+[[converter]]
+gap = "A call whose argument is a variable is an error: 'expected a string literal argument' / 'selector must be a string literal' / 'expected two string literal arguments'; the command exits with 1 and says 'completed with errors', yet the file is written"
+seen_in = "test_checkboxes.py (checkbox = 'input#vehicle2'; is_selected(checkbox)), test_select_options.py, test_shadow_dom.py (11 errors), test_tinymce.py, test_todomvc.py (6 errors)"
+next = "bug lane: track simple string assignments, f-strings and % formatting, or emit the variable as a Rust let"
+
+[[converter]]
+gap = "Python control flow and assignments are dropped, not translated: `x = self.get_text(..)`, `for ... in enumerate(..)`, `if self.headed:`, `try/except`, `with self.frame_switch(..)`, `with` blocks of any kind, `@parameterized.expand`, setUp/tearDown, `self.skip(..)`"
+seen_in = "test_select_options.py, test_demo_site.py, iframe_tests.py (the body of each `with` is emitted flat, so the frame is entered and never left), test_todomvc.py, test_shadow_dom.py, test_tinymce.py"
+next = "bug lane: emit the statements it cannot translate as a compile_error!-style stub or a failing todo!(), not a comment between running statements"
+
+[[converter]]
+gap = "A text assertion without a selector gets 'body'; Python's default selector is 'html' (so assert_text of the <title> or <head> text would differ)"
+seen_in = "my_first_test.py (assert_text('Checkout: Overview')), test_window_switching.py"
+next = "bug lane: use 'html'"
+
+[[converter]]
+gap = "Scripts that are not a BaseCase class are not understood: `sb = sb_cdp.Chrome()`, `with SB(uc=True, test=True) as sb:`, `sb.activate_cdp_mode()`, `sb.cdp.*`; the output is WebDriver BaseCase code with a TODO for goto, and the sb_cdp steps are not mapped to the pure CDP Page/Locator"
+seen_in = "all six files of cdp_mode/ that were tried (7 to 22 warnings each)"
+next = "bug lane: a --cdp / sb_cdp source mode that writes run_cdp_test with page.locator(..)"
+
+[[converter]]
+gap = "The generated test is not headless and not #[ignore]d: `run_browser_test(BrowserConfig::default(), ..)` opens a visible Chrome when run, and the module docstring and `BaseCase.main(__name__, __file__)` are reported as unsupported statements"
+seen_in = "every file"
+next = "bug lane: BrowserConfig::default().with_headless(..) or a --headless flag, #[ignore = \"starts a real Chrome\"], and ignore the docstring and BaseCase.main line"

@@ -7,7 +7,313 @@
 
 use seleniumbase_rs::{run_browser_test, BaseCase, Result};
 
-use crate::support::headless;
+use crate::support::{headless, run_port, Mismatches};
+
+// The helpers below try the Python call as this crate spells it. When it
+// fails they note the step and carry on with the nearest composition, so one
+// run lists every difference of an example (see `Mismatches`). Once a step is
+// noted the Python call is not tried again: it would only wait for its
+// timeout once more.
+
+/// Python's `switch_to_frame(frame)`: `frame` is a selector, or the id or the
+/// name of a frame, as in `switch_to_frame("iframeResult")`.
+async fn enter_frame(sb: &mut BaseCase, mismatches: &mut Mismatches, frame: &str) -> Result<()> {
+    const STEP: &str = "switch_to_frame with the id or the name of a frame";
+    if !mismatches.knows(STEP) {
+        match sb.switch_to_frame(frame).await {
+            Ok(()) => return Ok(()),
+            Err(error) => mismatches.note(STEP, error),
+        }
+    }
+    sb.switch_to_frame(&format!("#{frame}")).await
+}
+
+/// Python's `frame_switch(frame)`, which takes a frame id or name as well.
+async fn enter_frame_switch(
+    sb: &mut BaseCase,
+    mismatches: &mut Mismatches,
+    frame: &str,
+) -> Result<()> {
+    const STEP: &str = "frame_switch with the id or the name of a frame";
+    if !mismatches.knows(STEP) {
+        match sb.frame_switch(frame).await {
+            Ok(()) => return Ok(()),
+            Err(error) => mismatches.note(STEP, error),
+        }
+    }
+    sb.frame_switch(&format!("#{frame}")).await
+}
+
+/// Python's `assert_text(text, css)` on an `<input>` or `<textarea>`, whose
+/// text is its value.
+async fn assert_field_text(
+    sb: &mut BaseCase,
+    mismatches: &mut Mismatches,
+    text: &str,
+    css: &str,
+) -> Result<()> {
+    const STEP: &str = "assert_text on an input or a textarea (Python reads its value)";
+    if !mismatches.knows(STEP) {
+        match sb.assert_text(text, css).await {
+            Ok(()) => return Ok(()),
+            Err(error) => mismatches.note(STEP, error),
+        }
+    }
+    let value = sb.get_property(css, "value").await?.unwrap_or_default();
+    sb.assert_true(value.contains(text))
+}
+
+/// Python's `get_attribute(select, "value")`: the value of the chosen option.
+async fn select_value(
+    sb: &mut BaseCase,
+    mismatches: &mut Mismatches,
+    css: &str,
+) -> Result<Option<String>> {
+    let value = sb.get_attribute(css, "value").await?;
+    if value.is_some() {
+        return Ok(value);
+    }
+    mismatches.note(
+        "get_attribute(select, \"value\") (Python gives the chosen value)",
+        "it returned None",
+    );
+    sb.get_property(css, "value").await
+}
+
+/// Python's `js_click(css)` with a `:contains()` selector.
+async fn js_click_or_click(
+    sb: &mut BaseCase,
+    mismatches: &mut Mismatches,
+    css: &str,
+) -> Result<()> {
+    if let Err(error) = sb.js_click(css).await {
+        mismatches.note("js_click with a :contains() selector", error);
+        sb.click(css).await?;
+    }
+    Ok(())
+}
+
+/// Python's `check_if_unchecked(css)` on a checkbox that sits at zero
+/// opacity, as a styled one does.
+async fn check_if_unchecked(
+    sb: &mut BaseCase,
+    mismatches: &mut Mismatches,
+    css: &str,
+) -> Result<()> {
+    const STEP: &str = "check_if_unchecked on a checkbox with zero opacity";
+    if !mismatches.knows(STEP) {
+        match sb.check_if_unchecked(css).await {
+            Ok(()) => return Ok(()),
+            Err(error) => mismatches.note(STEP, error),
+        }
+    }
+    if !sb.is_checked(css).await? {
+        sb.js_click(css).await?;
+    }
+    Ok(())
+}
+
+/// The note for `::shadow` in the regular methods. The helpers below share it.
+const SHADOW: &str = "::shadow selectors in the regular methods (get_text, assert_exact_text, \
+                      assert_element, type_text, assert_text, click)";
+
+/// Python's `get_text("host::shadow inner")`.
+async fn shadow_text(
+    sb: &mut BaseCase,
+    mismatches: &mut Mismatches,
+    selector: &str,
+) -> Result<String> {
+    if !mismatches.knows(SHADOW) {
+        match sb.get_text(selector).await {
+            Ok(text) => return Ok(text),
+            Err(error) => mismatches.note(SHADOW, error),
+        }
+    }
+    let text = sb.shadow_get_text(selector).await?;
+    if !text.trim().is_empty() {
+        return Ok(text);
+    }
+    // A container that only slots its content has no text of its own.
+    mismatches.note(
+        "shadow_get_text on a container of slotted content (it reads textContent, Python the rendered text)",
+        "it returned an empty string",
+    );
+    rendered_shadow_text(sb, selector).await
+}
+
+/// Python's `assert_exact_text(text, "host::shadow inner")`.
+async fn assert_shadow_exact(
+    sb: &mut BaseCase,
+    mismatches: &mut Mismatches,
+    expected: &str,
+    selector: &str,
+) -> Result<()> {
+    if !mismatches.knows(SHADOW) {
+        match sb.assert_exact_text(expected, selector).await {
+            Ok(()) => return Ok(()),
+            Err(error) => mismatches.note(SHADOW, error),
+        }
+    }
+    let text = shadow_text(sb, mismatches, selector).await?;
+    sb.assert_equal(text.trim(), expected.trim())
+}
+
+/// Python's `assert_element("host::shadow inner")`.
+async fn shadow_assert_element(
+    sb: &mut BaseCase,
+    mismatches: &mut Mismatches,
+    selector: &str,
+) -> Result<()> {
+    if !mismatches.knows(SHADOW) {
+        match sb.assert_element(selector).await {
+            Ok(()) => return Ok(()),
+            Err(error) => mismatches.note(SHADOW, error),
+        }
+    }
+    sb.assert_shadow_element(selector).await
+}
+
+/// Python's `type("host::shadow inner", text)`.
+async fn shadow_type(
+    sb: &mut BaseCase,
+    mismatches: &mut Mismatches,
+    selector: &str,
+    text: &str,
+) -> Result<()> {
+    if !mismatches.knows(SHADOW) {
+        match sb.type_text(selector, text).await {
+            Ok(()) => return Ok(()),
+            Err(error) => mismatches.note(SHADOW, error),
+        }
+    }
+    sb.shadow_type(selector, text).await
+}
+
+/// Python's `assert_text(text, "host::shadow inner")`.
+async fn shadow_assert_text(
+    sb: &mut BaseCase,
+    mismatches: &mut Mismatches,
+    text: &str,
+    selector: &str,
+) -> Result<()> {
+    if !mismatches.knows(SHADOW) {
+        match sb.assert_text(text, selector).await {
+            Ok(()) => return Ok(()),
+            Err(error) => mismatches.note(SHADOW, error),
+        }
+    }
+    if sb.assert_shadow_text(text, selector).await.is_ok() {
+        return Ok(());
+    }
+    // Python's assert_text waits for the text to appear; assert_shadow_text
+    // looks once.
+    for _ in 0..40 {
+        sb.sleep(0.25).await;
+        if sb.assert_shadow_text(text, selector).await.is_ok() {
+            mismatches.note(
+                "assert_shadow_text looks once (Python's assert_text waits for the text)",
+                "the text was not there at the first look",
+            );
+            return Ok(());
+        }
+    }
+    sb.assert_shadow_text(text, selector).await
+}
+
+/// Python's `click("host::shadow inner")`.
+async fn shadow_click(
+    sb: &mut BaseCase,
+    mismatches: &mut Mismatches,
+    selector: &str,
+) -> Result<()> {
+    if !mismatches.knows(SHADOW) {
+        match sb.click(selector).await {
+            Ok(()) => return Ok(()),
+            Err(error) => mismatches.note(SHADOW, error),
+        }
+    }
+    sb.shadow_click(selector).await
+}
+
+/// The rendered text (`innerText`) of the element that a `host::shadow inner`
+/// selector names, found by a script that enters each open shadow root.
+async fn rendered_shadow_text(sb: &mut BaseCase, selector: &str) -> Result<String> {
+    // The text of the element, or else of the visible nodes that its slots
+    // show: the browser's innerText stops at a slot.
+    let script = format!(
+        "{} if (!el) return '';\
+         if (el.innerText) return el.innerText;\
+         var parts = [];\
+         for (const slot of el.querySelectorAll('slot')) {{\
+             for (const node of slot.assignedNodes({{flatten: true}})) {{\
+                 if (node.nodeType === 1 && node.getClientRects().length) parts.push(node.innerText);\
+             }}\
+         }}\
+         return parts.join('');",
+        shadow_find_script(selector)?
+    );
+    let text = sb.execute_script(&script).await?;
+    Ok(text.as_str().unwrap_or_default().to_owned())
+}
+
+/// A script that finds the element a `host::shadow inner` selector names, in
+/// the variable `el` (`null` when there is none), entering each open shadow
+/// root.
+fn shadow_find_script(selector: &str) -> Result<String> {
+    Ok(format!(
+        "var root = document, el = null;\
+         for (const part of {}.split('::shadow')) {{\
+             el = root.querySelector(part.trim());\
+             if (!el) break;\
+             root = el.shadowRoot || el;\
+         }}",
+        serde_json::to_string(selector)?
+    ))
+}
+
+/// Python's `set_value(css, value)` on a range input whose listeners need a
+/// mouse event: Python fires `mousemove` after it. `effect` is what the page
+/// shows once its listeners ran.
+async fn set_slider(
+    sb: &mut BaseCase,
+    mismatches: &mut Mismatches,
+    css: &str,
+    value: &str,
+    effect: &str,
+) -> Result<()> {
+    sb.set_value(css, value).await?;
+    if sb.assert_element(effect).await.is_ok() {
+        return Ok(());
+    }
+    mismatches.note(
+        "set_value on a range input (Python also fires a mousemove event)",
+        format!("{effect} did not appear"),
+    );
+    let fire = format!(
+        "document.querySelector({}).dispatchEvent(new Event('mousemove'));",
+        serde_json::to_string(css)?
+    );
+    sb.execute_script(&fire).await?;
+    sb.assert_element(effect).await
+}
+
+/// Python's `assert_attribute(css, "value", value)` on a `<select>`.
+async fn assert_select_value(
+    sb: &mut BaseCase,
+    mismatches: &mut Mismatches,
+    css: &str,
+    value: &str,
+) -> Result<()> {
+    if sb.assert_attribute(css, "value", value).await.is_ok() {
+        return Ok(());
+    }
+    mismatches.note(
+        "assert_attribute(select, \"value\") (Python compares the chosen value)",
+        "it saw no value",
+    );
+    let chosen = sb.get_property(css, "value").await?;
+    sb.assert_equal(chosen.as_deref(), Some(value))
+}
 
 /// Python's `self.assert_true(self.is_selected(css))` (or `assert_false`).
 ///
@@ -21,7 +327,6 @@ async fn assert_selected(sb: &mut BaseCase, css: &str, expected: bool) -> Result
         sb.assert_false(selected)
     }
 }
-
 
 // ---------------------------------------------------------------------------
 // my_first_test.py
@@ -66,7 +371,7 @@ async fn my_first_test() -> Result<()> {
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/demo_page"]
 async fn test_demo_site() -> Result<()> {
-    run_browser_test(headless(), async |sb| {
+    run_port(async |sb, mismatches| {
         // Open a web page in the active browser window
         sb.goto("https://seleniumbase.io/demo_page").await?;
 
@@ -83,13 +388,17 @@ async fn test_demo_site() -> Result<()> {
         sb.type_text("#myTextInput", "This is Automated").await?;
         sb.type_text("textarea.area1", "Testing Time!\n").await?;
         sb.type_text("[name=\"preText2\"]", "Typing Text!").await?;
-        sb.assert_text("This is Automated", "#myTextInput").await?;
-        sb.assert_text("Testing Time!\n", "textarea.area1").await?;
-        sb.assert_text("Typing Text!", "[name=\"preText2\"]").await?;
+        assert_field_text(sb, mismatches, "This is Automated", "#myTextInput").await?;
+        assert_field_text(sb, mismatches, "Testing Time!\n", "textarea.area1").await?;
+        assert_field_text(sb, mismatches, "Typing Text!", "[name=\"preText2\"]").await?;
 
         // Hover & click a dropdown element and assert results
         sb.assert_text("Automation Practice", "h3").await?;
-        if sb.hover_and_click("#myDropdown", "#dropOption2").await.is_err() {
+        if sb
+            .hover_and_click("#myDropdown", "#dropOption2")
+            .await
+            .is_err()
+        {
             // Someone probably moved the mouse while the test ran
             sb.hover_and_js_click("#myDropdown", "#dropOption2").await?;
         }
@@ -105,7 +414,14 @@ async fn test_demo_site() -> Result<()> {
 
         // Verify that a slider control updates a progress bar
         sb.assert_element("progress[value=\"50\"]").await?;
-        sb.set_value("input#mySlider", "100").await?;
+        set_slider(
+            sb,
+            mismatches,
+            "input#mySlider",
+            "100",
+            "progress[value=\"100\"]",
+        )
+        .await?;
         sb.assert_element("progress[value=\"100\"]").await?;
 
         // Verify that a "select" option updates a meter bar
@@ -188,12 +504,12 @@ async fn test_demo_site() -> Result<()> {
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/w3schools/iframes.html"]
 async fn iframe_tests_iframe_basics() -> Result<()> {
-    run_browser_test(headless(), async |sb| {
+    run_port(async |sb, mismatches| {
         sb.goto("https://seleniumbase.io/w3schools/iframes.html")
             .await?;
         sb.assert_title("iframe Testing").await?;
         sb.click("button#runbtn").await?;
-        sb.switch_to_frame("iframeResult").await?; // Enter the iframe
+        enter_frame(sb, mismatches, "iframeResult").await?; // Enter the iframe
         sb.assert_text("HTML Iframes", "h2").await?;
         sb.switch_to_frame("[title*=\"Iframe\"]").await?; // Enter iframe inside iframe
         sb.assert_text("This page is displayed in an iframe", "h1")
@@ -206,7 +522,7 @@ async fn iframe_tests_iframe_basics() -> Result<()> {
             .await?;
         sb.switch_to_default_content().await?; // Exit all iframes
         sb.click("button#runbtn").await?;
-        sb.switch_to_frame("iframeResult").await?; // Go back inside 1st iframe
+        enter_frame(sb, mismatches, "iframeResult").await?; // Go back inside 1st iframe
         sb.highlight("iframe[title=\"Iframe Example\"]").await
     })
     .await
@@ -215,7 +531,7 @@ async fn iframe_tests_iframe_basics() -> Result<()> {
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/w3schools/iframes.html"]
 async fn iframe_tests_iframes_with_context_manager() -> Result<()> {
-    run_browser_test(headless(), async |sb| {
+    run_port(async |sb, mismatches| {
         sb.goto("https://seleniumbase.io/w3schools/iframes.html")
             .await?;
         sb.assert_title("iframe Testing").await?;
@@ -223,7 +539,7 @@ async fn iframe_tests_iframes_with_context_manager() -> Result<()> {
         // MISMATCH: Python's frame_switch is a context manager that returns to
         // the parent frame when the `with` block ends. frame_switch here only
         // enters the frame, so each block ends with switch_to_parent_frame.
-        sb.frame_switch("iframeResult").await?;
+        enter_frame_switch(sb, mismatches, "iframeResult").await?;
         sb.assert_text("HTML Iframes", "h2").await?;
         sb.frame_switch("[title*=\"Iframe\"]").await?;
         sb.assert_text("This page is displayed in an iframe", "h1")
@@ -237,7 +553,7 @@ async fn iframe_tests_iframes_with_context_manager() -> Result<()> {
         sb.switch_to_parent_frame().await?;
         sb.switch_to_parent_frame().await?;
         sb.click("button#runbtn").await?;
-        sb.frame_switch("iframeResult").await?;
+        enter_frame_switch(sb, mismatches, "iframeResult").await?;
         sb.highlight("iframe[title=\"Iframe Example\"]").await?;
         sb.switch_to_parent_frame().await
     })
@@ -352,11 +668,11 @@ async fn test_assert_elements() -> Result<()> {
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/w3schools pages"]
 async fn test_checkboxes() -> Result<()> {
-    run_browser_test(headless(), async |sb| {
+    run_port(async |sb, mismatches| {
         sb.goto("https://seleniumbase.io/w3schools/checkboxes")
             .await?;
         sb.click("button#runbtn").await?;
-        sb.switch_to_frame("iframeResult").await?;
+        enter_frame(sb, mismatches, "iframeResult").await?;
         let checkbox = "input#vehicle2";
         assert_selected(sb, checkbox, false).await?;
         sb.click(checkbox).await?;
@@ -364,7 +680,7 @@ async fn test_checkboxes() -> Result<()> {
         sb.goto("https://seleniumbase.io/w3schools/radio_buttons")
             .await?;
         sb.click("button#runbtn").await?;
-        sb.switch_to_frame("iframeResult").await?;
+        enter_frame(sb, mismatches, "iframeResult").await?;
         let option_button = "input#css";
         assert_selected(sb, option_button, false).await?;
         sb.click(option_button).await?;
@@ -380,7 +696,7 @@ async fn test_checkboxes() -> Result<()> {
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/demo_page"]
 async fn test_select_options() -> Result<()> {
-    run_browser_test(headless(), async |sb| {
+    run_port(async |sb, mismatches| {
         sb.goto("https://seleniumbase.io/demo_page").await?;
 
         let expected_option_texts = ["Set to 25%", "Set to 50%", "Set to 75%", "Set to 100%"]
@@ -400,28 +716,37 @@ async fn test_select_options() -> Result<()> {
         let mut option_values = Vec::new();
         for nth in 1..=option_texts.len() {
             let option = format!("select#mySelect option:nth-of-type({nth})");
-            option_values.push(sb.get_attribute(&option, "value").await?.unwrap_or_default());
+            option_values.push(
+                sb.get_attribute(&option, "value")
+                    .await?
+                    .unwrap_or_default(),
+            );
         }
         sb.assert_equal(&option_values, &expected_option_values)?;
 
         for (index, option_text) in option_texts.iter().enumerate() {
             sb.select_option_by_text("#mySelect", option_text).await?;
-            let selected_value = sb.get_attribute("#mySelect", "value").await?;
-            sb.assert_equal(selected_value.as_deref(), Some(option_values[index].as_str()))?;
+            let selected_value = select_value(sb, mismatches, "#mySelect").await?;
+            sb.assert_equal(
+                selected_value.as_deref(),
+                Some(option_values[index].as_str()),
+            )?;
         }
 
         for (index, option_value) in option_values.iter().enumerate() {
             sb.select_option_by_value("#mySelect", option_value).await?;
-            let selected_value = sb.get_attribute("#mySelect", "value").await?;
-            sb.assert_equal(selected_value.as_deref(), Some(option_values[index].as_str()))?;
+            let selected_value = select_value(sb, mismatches, "#mySelect").await?;
+            sb.assert_equal(
+                selected_value.as_deref(),
+                Some(option_values[index].as_str()),
+            )?;
         }
 
         for (index, option_index) in option_indexes.iter().enumerate() {
             sb.select_option_by_index("#mySelect", option_index.parse().unwrap_or(0))
                 .await?;
             // assert_attribute() combines get_attribute() and assert_equal()
-            sb.assert_attribute("#mySelect", "value", &option_values[index])
-                .await?;
+            assert_select_value(sb, mismatches, "#mySelect", &option_values[index]).await?;
         }
         Ok(())
     })
@@ -435,20 +760,38 @@ async fn test_select_options() -> Result<()> {
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/other/shadow_dom"]
 async fn shadow_root_test() -> Result<()> {
-    run_browser_test(headless(), async |sb| {
+    run_port(async |sb, mismatches| {
         sb.goto("https://seleniumbase.io/other/shadow_dom").await?;
         sb.click("button.tab_1").await?;
-        println!("{}", sb.get_text("fancy-tabs::shadow #panels").await?);
-        sb.assert_exact_text("Content Panel 1", "fancy-tabs::shadow #panels")
-            .await?;
+        let panel = shadow_text(sb, mismatches, "fancy-tabs::shadow #panels").await?;
+        println!("{panel}");
+        assert_shadow_exact(
+            sb,
+            mismatches,
+            "Content Panel 1",
+            "fancy-tabs::shadow #panels",
+        )
+        .await?;
         sb.click("button.tab_2").await?;
-        println!("{}", sb.get_text("fancy-tabs::shadow #panels").await?);
-        sb.assert_exact_text("Content Panel 2", "fancy-tabs::shadow #panels")
-            .await?;
+        let panel = shadow_text(sb, mismatches, "fancy-tabs::shadow #panels").await?;
+        println!("{panel}");
+        assert_shadow_exact(
+            sb,
+            mismatches,
+            "Content Panel 2",
+            "fancy-tabs::shadow #panels",
+        )
+        .await?;
         sb.click("button.tab_3").await?;
-        println!("{}", sb.get_text("fancy-tabs::shadow #panels").await?);
-        sb.assert_exact_text("Content Panel 3", "fancy-tabs::shadow #panels")
-            .await
+        let panel = shadow_text(sb, mismatches, "fancy-tabs::shadow #panels").await?;
+        println!("{panel}");
+        assert_shadow_exact(
+            sb,
+            mismatches,
+            "Content Panel 3",
+            "fancy-tabs::shadow #panels",
+        )
+        .await
     })
     .await
 }
@@ -464,23 +807,22 @@ async fn shadow_root_test() -> Result<()> {
 #[tokio::test]
 #[ignore = "real headless Chrome; opens chrome://downloads/ (the Python test skips headless)"]
 async fn test_shadow_dom() -> Result<()> {
-    run_browser_test(headless(), async |sb| {
+    run_port(async |sb, mismatches| {
         sb.goto("chrome://downloads/").await?;
 
         // Shadow DOM selectors
         let search_icon = "downloads-manager::shadow downloads-toolbar::shadow \
-             cr-toolbar::shadow cr-toolbar-search-field::shadow cr-icon-button";
+     cr-toolbar::shadow cr-toolbar-search-field::shadow cr-icon-button";
         let search_input = "downloads-manager::shadow downloads-toolbar::shadow \
-             cr-toolbar::shadow cr-toolbar-search-field::shadow #searchInput";
+     cr-toolbar::shadow cr-toolbar-search-field::shadow #searchInput";
         let clear_search_icon = "downloads-manager::shadow downloads-toolbar::shadow \
-             cr-toolbar::shadow cr-toolbar-search-field::shadow #clearSearch";
+     cr-toolbar::shadow cr-toolbar-search-field::shadow #clearSearch";
         let no_downloads_area = "downloads-manager::shadow #no-downloads";
 
-        sb.assert_element(search_icon).await?;
-        sb.type_text(search_input, "fake-file.zzz").await?;
-        sb.assert_text("No search results found", no_downloads_area)
-            .await?;
-        sb.click(clear_search_icon).await
+        shadow_assert_element(sb, mismatches, search_icon).await?;
+        shadow_type(sb, mismatches, search_input, "fake-file.zzz").await?;
+        shadow_assert_text(sb, mismatches, "No search results found", no_downloads_area).await?;
+        shadow_click(sb, mismatches, clear_search_icon).await
     })
     .await
 }
@@ -542,12 +884,12 @@ async fn test_drag_and_drop_drag_and_drop() -> Result<()> {
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/w3schools/drag_drop"]
 async fn test_drag_and_drop_w3schools_drag_and_drop() -> Result<()> {
-    run_browser_test(headless(), async |sb| {
+    run_port(async |sb, mismatches| {
         sb.goto("https://seleniumbase.io/w3schools/drag_drop")
             .await?;
         sb.assert_url_contains("drag_drop").await?;
         sb.click("button#runbtn").await?;
-        sb.switch_to_frame("iframeResult").await?;
+        enter_frame(sb, mismatches, "iframeResult").await?;
         sb.assert_element_not_visible("#div1 img#drag1").await?;
         sb.drag_and_drop("#drag1", "#div1").await?;
         sb.assert_element("#div1 img#drag1").await?;
@@ -564,13 +906,13 @@ async fn test_drag_and_drop_w3schools_drag_and_drop() -> Result<()> {
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/help_docs/how_it_works"]
 async fn test_url_asserts() -> Result<()> {
-    run_browser_test(headless(), async |sb| {
+    run_port(async |sb, mismatches| {
         sb.goto("https://seleniumbase.io/help_docs/how_it_works/")
             .await?;
         sb.assert_url("https://seleniumbase.io/help_docs/how_it_works/")
             .await?;
         sb.assert_title_contains("How it Works").await?;
-        sb.js_click("nav a:contains(\"Coffee Cart\")").await?;
+        js_click_or_click(sb, mismatches, "nav a:contains(\"Coffee Cart\")").await?;
         sb.assert_url_contains("/coffee").await?;
         sb.assert_title("Coffee Cart").await
     })
@@ -636,8 +978,8 @@ async fn handle_alert_test() -> Result<()> {
         sb.execute_script("window.prompt(\"My Prompt\",\"defaultText\");")
             .await?;
         sb.sleep(1.0).await; // Not needed (Lets you see the alert pop up)
-        // MISMATCH: switch_to_alert returns nothing; Python returns the alert
-        // and the example reads `alert.text`. get_alert_text is the nearest.
+                             // MISMATCH: switch_to_alert returns nothing; Python returns the alert
+                             // and the example reads `alert.text`. get_alert_text is the nearest.
         sb.switch_to_alert().await?;
         let text = sb.get_alert_text().await?;
         sb.assert_equal(text.as_str(), "My Prompt")?; // Not input field
@@ -788,7 +1130,7 @@ async fn test_tinymce() -> Result<()> {
 /// The body of `test_todomvc(framework)`, with the `setUp` that opens a new
 /// window and the `tearDown` that closes it.
 async fn todomvc(framework: &str) -> Result<()> {
-    run_browser_test(headless(), async |sb| {
+    run_port(async |sb, mismatches| {
         sb.open_new_window().await?;
         sb.goto("https://todomvc.com/").await?;
         sb.clear_local_storage().await?;
@@ -808,11 +1150,9 @@ async fn todomvc(framework: &str) -> Result<()> {
         sb.type_text(new_todo_input, "Learn JavaScript\n").await?;
         sb.type_text(new_todo_input, "Learn SeleniumBase\n").await?;
         sb.assert_text("3 items left", todo_count_span).await?;
-        sb.check_if_unchecked("ul.todo-list li input").await?;
-        sb.check_if_unchecked("ul.todo-list li:nth-of-type(2) input")
-            .await?;
-        sb.check_if_unchecked("ul.todo-list li:nth-of-type(3) input")
-            .await?;
+        check_if_unchecked(sb, mismatches, "ul.todo-list li input").await?;
+        check_if_unchecked(sb, mismatches, "ul.todo-list li:nth-of-type(2) input").await?;
+        check_if_unchecked(sb, mismatches, "ul.todo-list li:nth-of-type(3) input").await?;
         sb.assert_text("0 items left", todo_count_span).await?;
         sb.click("button.clear-completed").await?;
         sb.assert_element_not_visible(todo_count_span).await
@@ -837,4 +1177,3 @@ async fn test_todomvc_react() -> Result<()> {
 async fn test_todomvc_vue() -> Result<()> {
     todomvc("vue").await
 }
-
