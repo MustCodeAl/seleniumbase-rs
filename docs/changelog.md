@@ -187,6 +187,18 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ### Added
 
+- **A fingerprint's stealth for a webview an app embeds, with no debugging port.**
+  `sb_cdp::StealthPlan::new(&fingerprint)` holds the init script (`init_script()`) and the
+  ordered protocol overrides (`overrides()`; `commands()` is both, as
+  `Page::apply_fingerprint` and `LaunchOptionsBuilder::fingerprint` send them, now from this one
+  plan). `Browser::over_channel(transport)` drives a page over a DevTools channel the caller
+  carries (a `CdpTransport` out, a `CdpInbox` back), such as CEF's or WebView2's in-process one:
+  the channel's page is `default_page()`, its commands carry no `sessionId`, ordered commands
+  wait for each answer, and it opens no tabs. `Page::apply_fingerprint` now asks for the tab's
+  browser context only when the fingerprint grants a permission. See
+  [the Tauri guide](/ecosystem/tauri#stealth-inside-the-app-with-no-debugging-port).
+
+
 - **`solve_captcha` finds the widget wherever it is, waits for it, presses like a hand and
   checks the result.** The widget is looked for in the page, its open shadow roots and the frames
   it may read, by the id and title Cloudflare gives its frame as well as by address; a page that
