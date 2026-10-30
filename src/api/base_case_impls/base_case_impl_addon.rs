@@ -114,9 +114,7 @@ impl BaseCase {
     ) -> Result<String, SeleniumBaseError> {
         self.require_firefox("install_addon")?;
         let path = addon_path(path)?;
-        let reply = self
-            .session
-            .driver()
+        let reply = self.session.webdriver()?
             .cmd(GeckoAddonCommand::Install { path, temporary })
             .await?;
         Ok(reply.value::<String>()?)
@@ -138,8 +136,7 @@ impl BaseCase {
                     .to_owned(),
             ));
         }
-        self.session
-            .driver()
+        self.session.webdriver()?
             .cmd(GeckoAddonCommand::Uninstall { id: id.to_owned() })
             .await?;
         Ok(())

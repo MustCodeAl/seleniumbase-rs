@@ -6,7 +6,7 @@ description: "IANA names of the TLS and HTTP/2 ids in seleniumbase-rs-codec (Reg
 
 <Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: codec</Badge>
 
-`seleniumbase_rs_codec::ids` names the TLS and HTTP/2 values a browser
+`seleniumbase_rs_stealth::codec::ids` names the TLS and HTTP/2 values a browser
 fingerprint is built from, and seeds what BoringSSL can emit in a client hello.
 Each registry is a `Registry`: a static table of `(id, IANA name)` rows, looked up
 in both directions. The `BORINGSSL_*` slices list the ids BoringSSL can emit; the
@@ -19,7 +19,7 @@ the wire really carries.
 <RequestExample>
 
 ```rust Look up names
-use seleniumbase_rs_codec::ids::{is_grease, CIPHER_SUITES, EXTENSIONS, GROUPS};
+use seleniumbase_rs_stealth::codec::ids::{is_grease, CIPHER_SUITES, EXTENSIONS, GROUPS};
 
 fn main() {
     println!("{:?}", CIPHER_SUITES.name(0x1301));

@@ -22,7 +22,7 @@ browser, interacts with a page, asserts on the result, and cleans up.
 
 <Visibility for="agents">
 
-Summary for AI exports: add `seleniumbase-rs` and `tokio` to `Cargo.toml`, build a `BrowserConfig`, create `BaseCase::new(config).await?`, call `open`, `click`, `type_text` and the `assert_*` methods, then `quit`. Rust 1.99 or newer and a Chromium-based browser are required.
+Summary for AI exports: add `seleniumbase-rs` to `Cargo.toml` (it re-exports the Tokio runtime as `seleniumbase_rs::tokio`), build a `BrowserConfig`, create `BaseCase::new(config).await?`, call `open`, `click`, `type_text` and the `assert_*` methods, then `quit`. Rust 1.99 or newer and a Chromium-based browser are required.
 
 </Visibility>
 
@@ -58,17 +58,18 @@ cd my_first_test
 
 <Step title="Add the dependencies" icon="box">
 
-Open `Cargo.toml` and add the dependencies:
+Open `Cargo.toml` and add the dependency:
 
 ```toml Cargo.toml
 [dependencies]
 seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs" }
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 
 <Note>
 
-The `tokio` runtime is required because `BaseCase` methods are async.
+`BaseCase` methods are async, so the program needs the Tokio runtime. The crate
+re-exports it as `seleniumbase_rs::tokio`, which is why the program below needs
+no `tokio` line in `Cargo.toml`. See [Imports and dependencies](/imports).
 
 </Note>
 
@@ -85,7 +86,7 @@ The `tokio` runtime is required because `BaseCase` methods are async.
 Replace the contents of `src/main.rs` with the following program:
 
 ```rust,no_run src/main.rs
-use seleniumbase_rs::{BaseCase, BrowserConfig, DriverMode};
+use seleniumbase_rs::{tokio, BaseCase, BrowserConfig, DriverMode};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -161,6 +162,8 @@ settings most programs touch (all are in `seleniumbase_rs::BrowserConfig`):
 | Headless | `with_headless(bool)` | `true` |
 | Engine mode | `with_mode(DriverMode)` | `DriverMode::WebDriver` (`Cdp` and `Uc` add DevTools helpers and anti-detection) |
 | WebDriver endpoint | `with_webdriver_url(url)` | `http://localhost:4444` |
+| Existing Chromium debugger | `with_cdp_url(url)` | none; attach over HTTP or a browser WebSocket without starting a browser or driver |
+| Tauri CDP discovery | `with_cdp_discovery(bool)` | `false`; discover through the authenticated `webdriver_url` |
 | Browser binary | `with_browser_binary_path(path)` | none (`from_env` reads `SB_CHROME_BIN`) |
 | Proxy | `with_proxy(spec)` or `with_proxy_pac_url(url)` | none |
 | User agent, locale | `with_user_agent(ua)`, `with_locale("de-DE")` | none |
@@ -170,6 +173,10 @@ settings most programs touch (all are in `seleniumbase_rs::BrowserConfig`):
 | Reuse browsers between tests | `with_reuse_session(bool)` | `false` |
 | Extra Chromium arguments | `with_extra_args([..])`, `push_extra_arg(arg)` | none |
 | Fingerprint | `with_fingerprint(Fingerprint)` | none; see [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth) |
+
+An explicit `cdp_url` takes precedence over discovery. Direct attachments use
+`BaseCase::cdp_*` methods; the app keeps running after `quit()`. See the
+[Tauri CDP reference](/ecosystem/tauri-api/cdp) for configuration and limits.
 
 Two constructors build the starting point. `BrowserConfig::default()` uses the
 defaults above and reads no environment variable. `BrowserConfig::from_env()`
@@ -242,7 +249,7 @@ screenshot, and closes the browser even if an assertion fails
 (`run_browser_test` always calls `quit`).
 
 ```rust,no_run src/main.rs
-use seleniumbase_rs::{init_tracing, run_browser_test, BrowserConfig};
+use seleniumbase_rs::{init_tracing, run_browser_test, tokio, BrowserConfig};
 
 const PAGE: &str = r#"<!doctype html>
 <title>Greeter</title>
@@ -279,11 +286,12 @@ the error is printed and the exit status is non-zero.
 ## The same page without a driver
 
 The pure CDP engine (`seleniumbase_rs::sb_cdp`) talks to Chrome directly, so
-there is no chromedriver to download or start. It uses the same `tokio`
-dependency:
+there is no chromedriver to download or start. It runs on the same Tokio
+runtime:
 
 ```rust,no_run src/main.rs
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
+use seleniumbase_rs::tokio;
 
 #[tokio::main]
 async fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
@@ -312,7 +320,7 @@ For real test suites, use the test harness:
 
 ```rust,no_run tests/login.rs
 // tests/login.rs
-use seleniumbase_rs::{run_browser_test, BrowserConfig, DriverMode, Result};
+use seleniumbase_rs::{run_browser_test, tokio, BrowserConfig, DriverMode, Result};
 
 #[tokio::test]
 async fn login_succeeds() -> Result<()> {

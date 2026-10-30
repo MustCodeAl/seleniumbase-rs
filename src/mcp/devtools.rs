@@ -969,7 +969,7 @@ async fn diagnose_environment<S: Send + 'static>(
         Err(_) => "busy: another call is using it",
     };
 
-    let chrome = crate::stealth::patcher::find_system_chrome();
+    let chrome = crate::evasion::patcher::find_system_chrome();
     let chrome_major = match &chrome {
         Some(path) => binary_major(path).await,
         None => None,
@@ -1059,7 +1059,7 @@ const LOW_DISK: u64 = 1024 * 1024 * 1024;
 /// The cargo features that change what this library can do, with whether this
 /// build has each. A feature that is off makes the calls that need it fail
 /// with an error that names it.
-const FEATURES: [(&str, bool); 20] = [
+const FEATURES: [(&str, bool); 22] = [
     ("mcp-server", cfg!(feature = "mcp-server")),
     ("test-util", cfg!(feature = "test-util")),
     ("plugins", cfg!(feature = "plugins")),
@@ -1071,6 +1071,8 @@ const FEATURES: [(&str, bool); 20] = [
     ("plugin-crx", cfg!(feature = "plugin-crx")),
     ("plugin-fetcher", cfg!(feature = "plugin-fetcher")),
     ("plugin-extractor", cfg!(feature = "plugin-extractor")),
+    ("plugin-batcher", cfg!(feature = "plugin-batcher")),
+    ("plugin-crawler", cfg!(feature = "plugin-crawler")),
     ("plugins-builtin", cfg!(feature = "plugins-builtin")),
     ("pdf", cfg!(feature = "pdf")),
     ("visual", cfg!(feature = "visual")),

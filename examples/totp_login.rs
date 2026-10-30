@@ -28,7 +28,9 @@
 mod local_site;
 
 use local_site::{ensure, Site};
-use seleniumbase_rs::{run_browser_test, BaseCase, BrowserConfig, Result, SeleniumBaseError};
+use seleniumbase_rs::{
+    run_browser_test, tokio, BaseCase, BrowserConfig, Result, SeleniumBaseError,
+};
 
 /// The base32 form of the ASCII key `12345678901234567890`, the shared secret
 /// in the RFC 4226 and RFC 6238 test vectors. It is public.

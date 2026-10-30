@@ -1,5 +1,7 @@
 // Screenshot, PDF, and file helpers.
 
+use crate::api::misc_calls::SaveFileAs;
+
 impl BaseCase {
     /// Saves a full-page screenshot to the logs directory.
     ///
@@ -36,19 +38,24 @@ impl BaseCase {
         let dir = ensure_latest_logs_dir()?;
         let path = crate::artifacts::confined_path(&dir, filename)?;
         let by = Selector::auto(css).to_by()?;
-        let element = self.session.driver().find(by).await?;
+        let element = self.session.webdriver()?.find(by).await?;
         element.screenshot(&path).await.map_err(SeleniumBaseError::WebDriver)?;
         Ok(path)
     }
 
-    /// Saves `data` to `filename` in the logs directory.
+    /// Fetches `file_url` and saves it as `new_file_name`, as Python's
+    /// `save_file_as(file_url, new_file_name, destination_folder=None)` does:
+    /// [`download_file`](Self::download_file) under a name of your choosing.
+    /// Returns the path of the file. The keyword is
+    /// [`SaveFileAs::destination_folder`].
     ///
-    /// `filename` must be a plain file name, as for [`Self::save_screenshot`].
-    pub fn save_file_as(&self, data: &[u8], filename: &str) -> Result<PathBuf, SeleniumBaseError> {
-        let dir = ensure_latest_logs_dir()?;
-        let path = crate::artifacts::confined_path(&dir, filename)?;
-        fs::write(&path, data)?;
-        Ok(path)
+    /// `new_file_name` must be a plain file name, as for [`Self::save_screenshot`].
+    pub fn save_file_as<'a>(
+        &'a self,
+        file_url: &'a str,
+        new_file_name: &'a str,
+    ) -> SaveFileAs<'a> {
+        SaveFileAs::new(self, file_url, new_file_name)
     }
 
     /// Reads the contents of a file from the logs directory.

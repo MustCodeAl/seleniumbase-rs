@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en-US">
+<meta charset="utf-8">
+<title>Just a moment...</title>
+<!--
+  An imitation Cloudflare interstitial, served by the local fixture server.
+  The widget is in the middle of the page inside #challenge-stage, in a frame
+  from a second origin. When the frame reports a token the page moves to
+  /cleared, which answers with a cf_clearance-like cookie and the "real" page.
+  No real challenge site is contacted.
+-->
+<style>
+  body { font: 15px sans-serif; margin: 0; text-align: center; }
+  #challenge-stage { margin: 120px auto 0; width: 600px; }
+  .cf-turnstile-wrapper { width: 300px; height: 65px; margin: 0 auto; }
+  iframe { border: 0; }
+</style>
+<script src="/cdn-cgi/challenge-platform/h/b/orchestrate/chl_page/v1"></script>
+<h1>example.test</h1>
+<p>Verify you are human by completing the action below.</p>
+<form id="challenge-form" action="/cleared" method="get">
+  <input type="hidden" name="cf-turnstile-response" value="">
+</form>
+<div id="challenge-stage">
+  <div style="display: grid">
+    <div>
+      <div class="cf-turnstile-wrapper">
+        <iframe id="cf-chl-widget-c1" title="Widget containing a Cloudflare security challenge"
+          width="300" height="65" src="FAR/w?verify=700"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="footer"><div class="clearfix"><span class="ray-id">Ray ID: <code>fixture0000</code></span></div></div>
+<script>
+  window.__clicks = [];
+  addEventListener('message', (event) => {
+    const data = event.data || {};
+    if (data.sbFixture === 'click') window.__clicks.push(data);
+    if (data.sbFixture === 'token') {
+      document.querySelector('[name=cf-turnstile-response]').value = data.value;
+      setTimeout(() => location.replace('/cleared'), 300);
+    }
+  });
+</script>
+</html>

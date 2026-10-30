@@ -147,6 +147,15 @@ generated code reads it from an environment variable instead (`RECORDED_PASSWORD
 
 </Info>
 
+<Note>
+
+The Rust the extension writes is for seleniumbase-rs 0.5.0. `Locator::type_text` empties a field before it types,
+so a recorded field is typed with that call alone; the text assertions take the text first; and the page report
+copies as the `Fingerprint` that 0.5.0 reads (one object for the screen, the WebGL strings and the device counts).
+The end-to-end tests compile every export against tag `v0.5.0`.
+
+</Note>
+
 <Visibility for="agents">
 
 Summary for AI exports: build the extension with `bun install` and `bun run build`, then load `dist/chrome` (Chrome, Edge) or `dist/firefox`. The recorder exports a seleniumbase-rs pure CDP Rust test, a BaseCase Rust test or a Chrome DevTools Recorder JSON file; the inspector shows selectors and the page's fingerprint. Nothing is sent anywhere.
@@ -190,6 +199,7 @@ You need [Bun](https://bun.sh) (`mise install` sets everything up).
 ```sh Terminal
 bun install
 bun run build          # dist/chrome, dist/firefox, and a zip of each
+bun run build:e2e      # the same, plus dist/chrome-e2e and dist/firefox-e2e for the end-to-end tests
 ```
 
 </Step>
@@ -245,12 +255,22 @@ reports: Safari has no `sidePanel` and no DevTools Recorder, and may treat optio
 ## Develop
 
 ```sh Terminal
-mise run build       # or: bun run scripts/build.ts
-mise run test        # bun test: selectors, code generators, steps, manifests, build output
-bun run typecheck    # tsc --noEmit, strict, on the tooling and on the extension sources
-mise run lint        # manifest rules, then web-ext lint on both dists
+bun run typecheck    # tsc over src/ (the extension) and over scripts/ and tests/ (the Bun side)
+bun run lint         # typecheck, the source rules, the manifest rules, then web-ext lint on dist/firefox
+bun test             # selectors, code generators, steps, manifests, build output
 mise run e2e         # a real Chrome driven from Rust (see "End-to-end tests" below)
 ```
+
+`mise run build`, `test`, `typecheck` and `lint` run the same commands.
+
+Every source file under `src/`, `scripts/` and `tests/` is TypeScript with `strict`, `noUncheckedIndexedAccess` and
+`exactOptionalPropertyTypes` (`tsconfig.json`; `src/tsconfig.json` checks the extension without Bun's globals).
+`tsc` only checks: Bun runs and bundles the TypeScript itself, and the build writes plain `.js` files into
+`dist/<browser>/`, where the manifests and the html pages name them. Imports name the `.ts` file
+(`import { rustStr } from "./rust.ts"`), and so does a `feature.json` (`"background": "background.ts"`). The
+WebExtension types are `@types/chrome`; the code is written against `ext` (`src/shared/api.ts`), typed as Chrome's
+namespace, which Firefox's `browser` matches for the calls made here. There are no runtime dependencies. `any`
+needs a `// any: <why>` comment, and `bun run lint` fails without one.
 
 ## Layout and extension points
 
@@ -288,9 +308,11 @@ mise run e2e         # a real Chrome driven from Rust (see "End-to-end tests" be
     <LayoutDir name="ui" note="the panel (popup, side panel, sidebar) and its views" />
     <LayoutDir name="bridge" note="placeholder: a disabled feature waiting for its code" />
     <LayoutDir name="converter" note="placeholder: a disabled feature waiting for its code" />
+    <LayoutFile name="env.d.ts" note="the globals the build defines (__BROWSER__) and the content scripts leave on window" />
   </LayoutDir>
   <LayoutDir name="scripts" open>
     <LayoutFile name="build.ts" highlight note="src/ to dist/<browser>/ and zips" />
+    <LayoutFile name="lint.ts" note="the source rules (rules.ts), the manifest rules, web-ext lint" />
   </LayoutDir>
   <LayoutDir name="tests" note="bun test" />
   <LayoutDir name="e2e" note="a Rust crate that loads dist/chrome-e2e into Chrome" />
@@ -300,10 +322,11 @@ mise run e2e         # a real Chrome driven from Rust (see "End-to-end tests" be
 `"enabled": false` is skipped) and, for each browser it lists (`"browsers"`, both by default):
 
 * bundles `background` (a module) into the one background bundle, after `src/background/index.ts`;
-* bundles each file of `scripts` on its own, as a classic script, to `dist/<browser>/<feature>/<file>`
+* bundles each file of `scripts` on its own, as a classic script, to `dist/<browser>/<feature>/<file>.js`
   (content scripts, page scripts, a DevTools page script);
 * bundles `panelViews` (a module that calls `registerView` from `src/ui/registry.ts`) into the panel;
-* copies every other file (html, css, images) as it is, except `feature.json`, `*.md`, files starting with `_`;
+* copies every other file (html, css, images) as it is, except `feature.json`, `*.md`, files starting with `_`
+  and source files (`.ts` and `.js` are bundled, never copied);
 * merges `manifest` (and `chrome` / `firefox`) into that browser's manifest. Arrays are joined without
   repeats, objects are merged, and two different values for one key stop the build, so features cannot
   silently override one another.
@@ -320,15 +343,17 @@ injects its scripts into the tab you point it at (`activeTab`), or into any tab 
 `ext.runtime.sendMessage`; a content script does the same; the background talks to a content script with
 `ext.tabs.sendMessage`. A feature adds a type from its background module:
 
-```js
+```ts
 import { registerHandler, broadcast } from "../background/router.ts";
 registerHandler("bridge/connect", async (message, sender) => ({ connected: true }), "ui"); // "ui" | "content" | "any"
 ```
 
-The router refuses a message from the wrong kind of sender. After a change, `broadcast(MSG.STATE_CHANGED, { area })`
-makes the panel's `ctx.onChange(area, fn)` run. Anything a feature keeps goes through `src/background/store.ts`
-(`local` survives a restart, `session` does not), and the background must not hold state in memory: the browser
-stops and starts it.
+A handler gets the message with every field `unknown` (a message is data from another context, so the handler
+checks the fields it reads), and the panel's `ctx.call(type, payload)` is typed by the reply table `Replies` in
+`protocol.ts`. The router refuses a message from the wrong kind of sender. After a change,
+`broadcast(MSG.STATE_CHANGED, { area })` makes the panel's `ctx.onChange(area, fn)` run. Anything a feature keeps
+goes through `src/background/store.ts` (`local` survives a restart, `session` does not), and the background must
+not hold state in memory: the browser stops and starts it.
 
 ### Placeholder features
 
@@ -401,11 +426,12 @@ the side panel and the DevTools Recorder's Export menu were not).
 
 ## End-to-end tests
 
-A Rust crate (`sbrs-companion-e2e`) that loads the built extension into a real Chrome (and Edge) through
-seleniumbase-rs's pure CDP engine, and a shell check that loads it into a real Firefox in Docker.
+A Rust crate (`sbrs-companion-e2e`, built against seleniumbase-rs `v0.5.0`) that loads the built extension into a
+real Chrome (and Edge) through seleniumbase-rs's pure CDP engine, and a shell check that loads it into a real
+Firefox in Docker.
 
 ```sh Terminal
-bun run scripts/build.ts --e2e      # dist/chrome, dist/firefox, dist/chrome-e2e, dist/firefox-e2e
+bun run build:e2e                   # dist/chrome, dist/firefox, dist/chrome-e2e, dist/firefox-e2e
 cd e2e
 export CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0
 cargo test --test e2e                                       # parity with ActionRecorder; no browser

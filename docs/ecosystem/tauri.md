@@ -204,6 +204,14 @@ e2e = ["dep:tauri-plugin-sbrs-automation"]
 tauri-plugin-sbrs-automation = { git = "https://github.com/MustCodeAl/tauri-plugin-sbrs-automation", optional = true }
 ```
 
+An app that bundles its own Chromium (CEF, or WebView2 on Windows) and wants
+the pure CDP engine also turns on the plugin's `cdp` Cargo feature, in the same
+optional dependency (see [App-owned Chromium](#app-owned-chromium-cef-and-webview2)):
+
+```toml src-tauri/Cargo.toml
+tauri-plugin-sbrs-automation = { git = "https://github.com/MustCodeAl/tauri-plugin-sbrs-automation", optional = true, features = ["cdp"] }
+```
+
 </Step>
 
 <Step title="Register it" icon="plug">
@@ -320,6 +328,192 @@ page, so a test can start one as soon as the endpoint answers
 `GET /secret/status`. For a test that starts the app itself, see
 `examples/tauri-profile-manager/src-tauri/tests/e2e_automation.rs` in
 seleniumbase-rs.
+
+## App-owned Chromium: CEF and WebView2
+
+An app that bundles CEF on macOS/Linux, or uses WebView2 on Windows, can expose
+Chromium's loopback CDP debugger and use the pure `sb_cdp` engine. The app owns
+and initializes its runtime. System WKWebView and WebKitGTK do not speak CDP;
+their existing WebDriver integration above continues to work.
+
+Enable the automation plugin's `cdp` Cargo feature, in the same
+optional dependency that the `e2e` feature turns on, so a release build has
+neither:
+
+```toml src-tauri/Cargo.toml
+[features]
+e2e = ["dep:tauri-plugin-sbrs-automation"]
+
+[dependencies]
+tauri-plugin-sbrs-automation = { git = "https://github.com/MustCodeAl/tauri-plugin-sbrs-automation", optional = true, features = ["cdp"] }
+```
+
+The feature adds no dependency. Before any threads or runtime initialization:
+
+```rust
+use tauri_plugin_sbrs_automation::cdp::CdpStealthConfig;
+
+fn main() {
+    // A free loopback port; `.stealth_args(true)` opts in to the stealth flags.
+    let config = CdpStealthConfig::default();
+    // SAFETY: main has not started threads or initialized the runtime.
+    let args = unsafe { config.apply_env() };
+    // CEF: pass `args` to your app's CEF initialization before opening windows.
+    // WebView2: apply_env sets WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS before startup.
+    // Continue with the app's existing runtime and automation plugin initialization.
+}
+```
+
+Without `SBRS_CDP_PORT` the helper picks a free loopback port, the same for the
+life of the process; a port that is asked for and already in use turns nothing
+on. It produces nothing unless the plugin's automation gate is on (a debug build,
+or `SBRS_AUTOMATION` set to `1`, `true` or `on`), always binds debugging to
+`127.0.0.1`, and extra arguments cannot replace the debugging switches. The
+stealth flags are opt-in (`.stealth_args(true)`) and leave the app's browser
+protections on. Discovery names the port once Chromium answers on it, so a test
+that starts the app retries until it does. Binary patches cannot be applied to
+an already-running app.
+
+Connect from the test with a fingerprint, including native CDP spoofing if desired:
+
+```rust
+use seleniumbase_rs::{BaseCase, BrowserConfig, Fingerprint};
+
+# async fn test() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+let fingerprint = Fingerprint::windows_desktop()
+    .to_builder().native_spoofing(true).build()?;
+let config = BrowserConfig::default()
+    .with_webdriver_url("http://127.0.0.1:4445/your-token/")
+    .with_cdp_discovery(true)
+    .with_fingerprint(fingerprint);
+let mut sb = BaseCase::new(config).await?;
+let title = sb.cdp_get_title().await?;
+sb.cdp_click("#save").await?;
+sb.quit().await?; // Detaches; the Tauri app keeps running.
+# Ok(())
+# }
+```
+
+Direct CDP sessions use the existing `BaseCase::cdp_*` methods rather than
+WebDriver element handles. The full `Page` and `Browser` API is available through
+`BrowserSession::pure_cdp_page()`, or start the pure browser directly:
+
+```rust
+use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
+
+# async fn test() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+let options = LaunchOptions::builder()
+    .cdp_url("http://127.0.0.1:9222") // Or ws://.../devtools/browser/<id>.
+    .fingerprint(&seleniumbase_rs::Fingerprint::windows_desktop())
+    .build()?;
+let browser = Browser::launch(options).await?; // Attaches; launches no process.
+let page = browser.default_page().await?;
+page.locator("#save").click().await?;
+// A CdpDriver value can also drive it: `driver.attach(browser).await?`.
+browser.close().await?;
+# Ok(())
+# }
+```
+
+Attaching never changes the app's other windows: only the window you pick (or
+open) gets the fingerprint, and a proxy, or a user agent or locale without a
+fingerprint, is refused because the app owns its network and profile settings.
+`close()` and `quit()` detach what they attached and leave the app running. See
+[what attaching changes in the app](/ecosystem/tauri-api/cdp#what-attaching-changes-in-the-app).
+
+`BrowserConfig::with_cdp_url` bypasses discovery; it takes HTTP or browser
+WebSocket URLs. An authenticated plugin URL is also accepted. For discovery,
+`GET /<token>/cdp` returns `value.cdpEnabled`, `value.cdpPort`, and `value.cdpUrl`
+(null when disabled). It reports configuration, not debugger readiness. The
+route has the existing token and Origin guards; it does not authenticate the
+separate loopback Chromium socket. Discovery rejects redirects and endpoints
+outside loopback. `/status` keeps its existing response.
+
+With the `plugins` feature, use the existing `BrowserConfig::with_plugins` or
+`LaunchOptionsBuilder::plugins`. Attachment runs `on_browser`; packages and
+`on_page_created` run for each window the automation opens or picks, and normal
+page/browser hooks afterwards. The app's other windows are left untouched: pick
+the one to drive with `BrowserConfig::with_cdp_target` (a target id or part of
+its URL) or `Browser::select_page`. Launch-only plugins are refused by the existing attach checks;
+`before_launch` is not run. Fingerprints use `session_script` and
+`safe_cdp_overrides`, including `native_spoofing` overrides. The script is
+registered with `Page.addScriptToEvaluateOnNewDocument` and `runImmediately`
+so already-open contexts receive it too. Launch flags and profile settings
+must be configured in the app before CEF/WebView2 starts.
+
+This path is verified against mock HTTP/CDP servers. CEF and WebView2 have not
+been tested on a real app in this change.
+
+### Stealth inside the app, with no debugging port
+
+The debugger above is for tests. An app that wants its own embedded browser to
+carry a fingerprint in a shipped build needs no port at all. The library splits
+a fingerprint's stealth into a `StealthPlan` that any channel can carry, and
+`Browser::over_channel` drives a page over a DevTools channel the app already
+has inside its own process.
+
+- `StealthPlan::new(&fingerprint)` holds the init script (`plan.init_script()`),
+  which has to run in every document, frames included, before the page's own
+  scripts, and the protocol overrides (`plan.overrides()`, in order):
+  `Network.enable`, then the user agent with its Client Hints
+  (`Network.setUserAgentOverride` with `userAgentMetadata`), locale, time zone,
+  geolocation, screen metrics and the other overrides the fingerprint asks for.
+  `Page::apply_fingerprint` and `LaunchOptionsBuilder::fingerprint` send the
+  same plan: `plan.commands()` is the script as
+  `Page.addScriptToEvaluateOnNewDocument`, then the overrides. A permission
+  grant (`plan.permission_grant(..)`) is browser-wide and is not among them.
+- `Browser::over_channel(transport)` returns a browser and a `CdpInbox`. The
+  transport (a `CdpTransport`, or a closure that takes a `CdpRequest`) hands each
+  command to the channel without waiting for its answer. The app gives what
+  comes back to `inbox.respond(id, ..)` and `inbox.event(..)`, or raw protocol
+  text to `inbox.deliver(..)`, and calls `inbox.close()` when the webview goes
+  away. `browser.default_page()` is the channel's page, with the `Page` API:
+  `goto`, locators, `human` input.
+
+```rust
+use seleniumbase_rs::sb_cdp::{Browser, CdpRequest, StealthPlan, TransportError};
+use seleniumbase_rs::{Fingerprint, OsType};
+
+# async fn stealth() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+let plan = StealthPlan::new(&Fingerprint::randomized(OsType::Windows, 7));
+// 1. While building the webview: its initialization script, for all frames.
+let script: &str = plan.init_script();
+# let _ = script;
+// 2. Once it exists: the overrides, through the webview's own channel.
+let (browser, inbox) = Browser::over_channel(|request: CdpRequest| -> Result<(), TransportError> {
+    // Hand `request` to CEF or WebView2 here; route the answer to `inbox`.
+#   let _ = request;
+    Ok(())
+});
+# let _ = inbox;
+for (method, params) in plan.overrides() {
+    browser.execute(method, params.clone()).await?;
+}
+# Ok(())
+# }
+```
+
+| Runtime | The init script | The overrides |
+|---|---|---|
+| CEF (`tauri-runtime-cef`) | the webview's initialization script | `send_dev_tools_message`, answered through `on_dev_tools_protocol` |
+| WebView2 (Windows) | the webview's initialization script | `CallDevToolsProtocolMethod`, events through DevTools event receivers |
+| WKWebView (macOS), WebKitGTK (Linux) | the webview's initialization script | none: these webviews speak no DevTools Protocol |
+
+The channel reaches one page. Such a browser opens no tabs or browser contexts,
+`Browser.*` commands (permission grants among them) are not available, and
+`close()` ends only the channel: what was set in the page stays, since the page
+is the app's. Commands that must run in order are handed over one answer at a
+time, because WebView2 may run what it was given out of order. The overrides
+reach the page after the webview exists, so open it at a page of the app's own
+and go to the outside site once they are applied.
+
+The automation plugin's `stealth` feature does this for a Tauri app: the
+builder extension for the script, and bridges for the CEF and WebView2 channels
+(see its README). There, as here, the channel opens no port and no listener; the
+`cdp` feature's launch flags and debugging port stay opt-in and for tests only.
+This path is tested against an in-memory channel; it has not run in a real CEF
+or WebView2 app.
+
 
 ## Settings
 
@@ -525,6 +719,19 @@ WebDriver's "execute script" is for. So it is guarded:
 - requests from web pages (any request with an `Origin` header) are refused.
 
 Keep it behind a Cargo feature that release builds do not enable.
+
+</Warning>
+
+<Warning>
+
+With the `cdp` feature, the app also opens Chromium's raw debug socket
+(`--remote-debugging-port`, CEF or WebView2). **That socket has no
+authentication**: any process on the machine that can reach
+`127.0.0.1:{port}` can drive every window of the app, read its pages and run
+script in them, without the token. The token guards the plugin's discovery
+route only. Turn `cdp` and the debugging port on in debug and test builds
+only; they must be off in release builds (leave `SBRS_CDP_PORT` unset and build
+without the `e2e` feature).
 
 </Warning>
 

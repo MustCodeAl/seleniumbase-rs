@@ -6,7 +6,7 @@ description: "Akamai HTTP/2 fingerprint strings in seleniumbase-rs-codec: Akamai
 
 <Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: codec</Badge>
 
-`seleniumbase_rs_codec::akamai` parses and renders Akamai HTTP/2 fingerprint
+`seleniumbase_rs_stealth::codec::akamai` parses and renders Akamai HTTP/2 fingerprint
 strings, in the format of Akamai's public whitepaper on passive HTTP/2
 fingerprinting: four sections separated by `|`.
 
@@ -30,7 +30,7 @@ given client stack can emit is a separate question, answered by
 <RequestExample>
 
 ```rust Parse the measured Chrome string
-use seleniumbase_rs_codec::akamai::{Akamai, Pseudo};
+use seleniumbase_rs_stealth::codec::akamai::{Akamai, Pseudo};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // The Akamai string measured from Chrome 155 on macOS.
@@ -45,7 +45,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 ```rust A refusal names the entry
-use seleniumbase_rs_codec::akamai::{Akamai, AkamaiError};
+use seleniumbase_rs_stealth::codec::akamai::{Akamai, AkamaiError};
 
 let bad = Akamai::parse("1:1;2:0;1:2|0|0|m,a,s,p");
 assert_eq!(bad, Err(AkamaiError::DuplicateSetting(1)));

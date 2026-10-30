@@ -51,6 +51,14 @@
 //! backed by a scripted [`MockCtrl`], so code that drives pages can be tested
 //! without launching Chrome.
 //!
+//! # A webview embedded in an app
+//!
+//! An app that embeds Chromium (CEF, or WebView2 on Windows) reaches its
+//! webview's DevTools agent through a channel in its own process, with no
+//! debugging port. [`Browser::over_channel`] drives that page through a
+//! [`CdpTransport`] the app implements, and [`StealthPlan`] gives it a
+//! fingerprint's script and overrides to send.
+//!
 //! # Coming from SeleniumBase
 //!
 //! The Python `sb.cdp` API is a flat set of methods that each take a selector.
@@ -63,6 +71,7 @@ mod breakpoint;
 mod browser;
 mod captcha;
 mod capture;
+mod channel;
 mod client;
 mod context;
 mod download;
@@ -96,8 +105,11 @@ mod webrtc;
 
 #[doc(inline)]
 pub use browser::Browser;
+pub(crate) use captcha::{solve as solve_captcha, Surface as CaptchaSurface};
 #[doc(inline)]
-pub use captcha::Captcha;
+pub use captcha::{Captcha, Evidence, SolveOptions, Solved};
+#[doc(inline)]
+pub use channel::{CdpInbox, CdpRequest, CdpTransport, TransportError};
 #[doc(inline)]
 pub use client::{CdpEvent, Events};
 #[doc(inline)]
@@ -114,6 +126,9 @@ pub use har::{
 };
 #[doc(inline)]
 pub use human::Human;
+pub(crate) use human::PointerSink;
+#[doc(inline)]
+pub use identity::StealthPlan;
 #[doc(inline)]
 pub use inject::{InitScriptId, TagSource};
 #[doc(inline)]

@@ -4,11 +4,11 @@
 //! `tests/` folder. It needs Chrome and a matching chromedriver (`sbrs doctor`
 //! checks both). `SB_HEADLESS=true` runs it without a window.
 //!
-//! Your crate's dev-dependencies are `seleniumbase-rs` and `tokio` (features
-//! `macros` and `rt`).
+//! Your crate's only dev-dependency is `seleniumbase-rs`; the Tokio runtime comes
+//! from it (`use seleniumbase_rs::tokio;`).
 
 use seleniumbase_rs::config::settings::Settings;
-use seleniumbase_rs::{run_browser_test, Result};
+use seleniumbase_rs::{run_browser_test, tokio, Result};
 
 #[tokio::test]
 async fn cm() -> Result<()> {

@@ -604,8 +604,8 @@ fn to_cdp_cookie(cookie: &BrowserCookie) -> Cookie {
 
 #[cfg(test)]
 mod tests {
+    use seleniumbase_rs::evasion::evasions::session_script;
     use seleniumbase_rs::sb_cdp::MockCtrl;
-    use seleniumbase_rs::stealth::evasions::session_script;
     use seleniumbase_rs::{Fingerprint, OsType, ProxyConfig};
 
     use super::*;

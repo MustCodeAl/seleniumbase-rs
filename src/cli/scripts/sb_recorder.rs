@@ -15,6 +15,8 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use crate::api::recorder::SavedRecording;
+use crate::common::color::{banner, palette};
+
 use crate::common::shutdown::{Shutdown, Signal};
 use crate::{BaseCase, BrowserConfig, SeleniumBaseError};
 
@@ -50,6 +52,12 @@ pub struct MkrecOptions {
     pub behave: bool,
     /// How long `esc_end` waits for SHIFT+ESC.
     pub limit: Duration,
+    /// Colour the banners (`* RECORDING initialized:`, `*** RECORDING
+    /// COPIED to:`, ...) with the colours of Python's `sbase mkrec`. Off by
+    /// default; the command line turns it on when standard output is a
+    /// terminal that allows colour
+    /// ([`use_color`](crate::common::color::use_color)).
+    pub color: bool,
 }
 
 impl MkrecOptions {
@@ -70,6 +78,7 @@ impl MkrecOptions {
             esc_end: false,
             behave: false,
             limit: SHIFT_ESC_LIMIT,
+            color: false,
         }
     }
 
@@ -236,7 +245,11 @@ pub async fn run_mkrec(
     out: &mut dyn Write,
 ) -> Result<MkrecOutcome, SeleniumBaseError> {
     options.check().map_err(SeleniumBaseError::InvalidConfig)?;
-    writeln!(out, "\n* RECORDING initialized: {}\n", options.file)?;
+    writeln!(
+        out,
+        "\n{}\n",
+        initialized_banner(&options.file, options.color)
+    )?;
     out.flush()?;
 
     // The recording prints the code file, as `sbase print FILE -n` does for
@@ -283,10 +296,10 @@ pub async fn run_mkrec(
         });
     };
     let copied_to = copy_recording(&saved.code, &options.file)?;
-    writeln!(out, "\n*** RECORDING COPIED to: {}\n", options.file)?;
+    writeln!(out, "\n{}\n", copied_banner(&options.file, options.color))?;
     if let Some(feature) = &saved.feature {
         print_numbered(out, feature)?;
-        writeln!(out, "\n*** BEHAVE RECORDING at: {}\n", feature.display())?;
+        writeln!(out, "\n{}\n", behave_banner(feature, options.color))?;
     }
     out.flush()?;
     Ok(MkrecOutcome {
@@ -294,6 +307,56 @@ pub async fn run_mkrec(
         copied_to: Some(copied_to),
         interrupted,
     })
+}
+
+/// `ERROR: MESSAGE`, all of it in Python's `c5` (red on light yellow) when
+/// `color` is set: what `sbrs mkrec` prints for a bad file name or when
+/// nothing was recorded.
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::cli::scripts::sb_recorder::error_banner;
+///
+/// assert_eq!(error_banner("Invalid file name!", false), "ERROR: Invalid file name!");
+/// ```
+#[must_use]
+pub fn error_banner(message: &str, color: bool) -> String {
+    palette::BANNER_FILE.paint(format!("ERROR: {message}"), color)
+}
+
+/// `* RECORDING initialized: FILE`: the label in Python's `c0` (blue on light
+/// cyan) and the file name in `c1` (red on light yellow).
+fn initialized_banner(file: &str, color: bool) -> String {
+    banner(
+        "* RECORDING initialized:",
+        palette::BANNER_LABEL,
+        "",
+        file,
+        color,
+    )
+}
+
+/// `*** RECORDING COPIED to: FILE`: the stars in Python's `c2` and the file name in `c1`.
+fn copied_banner(file: &str, color: bool) -> String {
+    banner(
+        "***",
+        palette::BANNER_MARK,
+        " RECORDING COPIED to:",
+        file,
+        color,
+    )
+}
+
+/// `*** BEHAVE RECORDING at: PATH`, coloured like [`copied_banner`].
+fn behave_banner(feature: &Path, color: bool) -> String {
+    banner(
+        "***",
+        palette::BANNER_MARK,
+        " BEHAVE RECORDING at:",
+        &feature.display().to_string(),
+        color,
+    )
 }
 
 /// Copies the recording `code` over `file`, making the folders of `file`.
@@ -391,6 +454,59 @@ mod tests {
     }
 
     #[test]
+    fn the_banners_are_plain_text_without_colour() {
+        assert_eq!(
+            initialized_banner("new_test.rs", false),
+            "* RECORDING initialized: new_test.rs"
+        );
+        assert_eq!(
+            copied_banner("new_test.rs", false),
+            "*** RECORDING COPIED to: new_test.rs"
+        );
+        assert_eq!(
+            behave_banner(Path::new("recordings/features/x_rec.feature"), false),
+            "*** BEHAVE RECORDING at: recordings/features/x_rec.feature"
+        );
+    }
+
+    #[test]
+    fn the_banners_use_the_colours_of_sbase_mkrec() {
+        // Python: c0 = blue on light cyan, c1 = red on light yellow,
+        // c2 = light red on light yellow.
+        assert_eq!(
+            initialized_banner("new_test.rs", true),
+            "\x1b[34;106m* RECORDING initialized:\x1b[0m \x1b[31;103mnew_test.rs\x1b[0m"
+        );
+        assert_eq!(
+            copied_banner("new_test.rs", true),
+            "\x1b[91;103m***\x1b[0m RECORDING COPIED to: \x1b[31;103mnew_test.rs\x1b[0m"
+        );
+        assert_eq!(
+            behave_banner(Path::new("recordings/features/x_rec.feature"), true),
+            "\x1b[91;103m***\x1b[0m BEHAVE RECORDING at: \x1b[31;103mrecordings/features/x_rec.feature\x1b[0m"
+        );
+    }
+
+    #[test]
+    fn an_error_is_the_whole_message_in_the_colours_of_c5() {
+        assert_eq!(
+            error_banner("File name must end with \".rs\"!", false),
+            "ERROR: File name must end with \".rs\"!"
+        );
+        assert_eq!(
+            error_banner("Invalid file name!", true),
+            "\x1b[31;103mERROR: Invalid file name!\x1b[0m"
+        );
+    }
+
+    #[test]
+
+    fn colour_is_off_unless_the_caller_asks_for_it() {
+        assert!(!MkrecOptions::new("x.rs").color);
+    }
+
+    #[test]
+
     fn a_feature_is_shown_with_line_numbers() {
         let dir = tempfile::tempdir().unwrap();
         let feature = dir.path().join("x_rec.feature");

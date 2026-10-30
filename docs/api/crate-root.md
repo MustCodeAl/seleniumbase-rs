@@ -14,17 +14,21 @@ Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...)
 
 Everything below is importable as `seleniumbase_rs::Name` (from `src/lib.rs`).
 Items marked with a feature need that Cargo feature; the default feature set
-is empty.
+is empty. For stealth and scraping, the unified `seleniumbase-rs-stealth`
+facade re-exports this core API alongside `fingerprint`, `codec`, `scrape` and
+optional `mimic`. Use `seleniumbase_rs_stealth` paths with the
+[single dependency](/stealth/overview#which-crate-to-depend-on). Optional core
+APIs retain their feature gates.
 
 ### Browser, configuration and test runner
 
 | Item | What it is |
 |---|---|
-| `BaseCase` | The WebDriver-engine test case; every method in the tables above. `BaseCase::new(config).await` connects, `BaseCase::without_session(config)` does not. |
+| `BaseCase` | The browser test case. `BaseCase::new(config).await` connects; `BaseCase::without_session(config)` does not. WebDriver is the default; `with_cdp_url` or `with_cdp_discovery` attaches the pure engine for `cdp_*` methods without starting a driver. |
 | `BrowserConfig` | The session configuration. Fields and `with_*` builders are listed in [Getting Started](/tutorials/getting_started#configuration). `BrowserConfig::default()` reads no environment variables; `BrowserConfig::from_env()` returns `Result<BrowserConfig>` and honours the `SB_*` variables. |
 | `Browser` | Enum of browsers: `Chrome` (default), `Chromium`, `Edge`, `Firefox`, `Brave`, `Comet`, `Opera`, `Safari`, `InternetExplorer`, `ChromeForTesting`, `ChromeHeadlessShell`. It parses from text such as `chrome`, `edge`, `ie`, `cft`, `chs` (`FromStr`). `is_chromium_based()` and `name()` are `const fn`s. |
 | `DriverMode` | `WebDriver` (default), `Cdp` or `Uc` (undetected mode). |
-| `BrowserSession` | Owns the WebDriver session, an optional CDP client and an optional auto-started driver process. `BrowserSession::connect(config).await` is what `BaseCase::new` calls. |
+| `BrowserSession` | Owns a WebDriver session or a directly attached pure CDP page. `BrowserSession::connect(config).await` is what `BaseCase::new` calls. `pure_cdp_page() -> Option<&sb_cdp::Page>` exposes the attached page and its browser; it returns `None` for WebDriver. |
 | `RunSettings`, `PauseKind` | Run-wide behaviour, Python's `--demo`, `--slow`, `--demo-sleep`, `--message-duration`, `--skip-js-waits`, `--record-sleep`, `--visual-baseline`, `--highlights`, `--interval`, `--verify-delay`, `--check-js`, `--wfa`, `--disable-beforeunload` and `--timeout-multiplier`: built with `RunSettings::default().with_slow_mode(true)` and the other `with_*` methods, given with `BrowserConfig::with_run_settings` or `BaseCase::set_run_settings`. The default changes nothing. `pause_for(PauseKind::Full \| Short)` is the pause after an action: full when the page changed, 1/3.4 of it otherwise in demo mode. |
 | `Settings`, `SettingsOverrides` | The settings file (TOML or JSON) and the `SB_*` variables: `Settings::load()` reads both, `load_from(path)` one file; `validate()` refuses an unknown browser or mode; `to_browser_config()` makes the `BrowserConfig`. `plugins` is the `[plugins]` table (with `SB_PLUGINS`). `SettingsOverrides::apply(&mut settings)` lays command-line values over them. |
 | `DriverId` | Names one browser of a `BaseCase`: `DriverId::DEFAULT` for the one it started with, or the id `get_new_driver` returned; `index()` is its position. It stays the same browser while the case lives. |
@@ -50,7 +54,7 @@ is empty.
 | Item | What it is |
 |---|---|
 | `RetryPolicy` | Fields `max_attempts`, `base_delay`, `backoff_factor`, `max_delay`. `RetryPolicy::default()` is 3 attempts, 200 ms, factor 2.0, at most 5 s. Presets: `webdriver()` (3, 250 ms, 3 s), `network()` (5, 500 ms, 10 s), `seleniumbase()` (6, 1 s, 32 s, as Python's `retry_on_exception`), `every(interval)` (a fixed interval that never gives up, for `poll_until`). `attempts()` is never below 1, `delay_for_attempt(n)` is zero for the first attempt, and `retry(..)` and `retry_blocking(..)` run an operation again, with backoff, while a predicate says the error is worth retrying. `utilities::retry` also has `poll_until` and `RateLimiter`. |
-| `Selector` | A borrowed selector with its kind decided: `LinkText`, `PartialLinkText`, `Css`, `XPath`, `Id`. `Selector::auto(text)` guesses from the start of the string: `link=`, `link_text=`, `text=` is exact link text; `partial_link=`, `partial_link_text=`, `partial_text=`, `p_link=`, `p_link_text=`, `p_text=` is partial link text; `/`, `./`, `../`, `(` or an XPath axis such as `parent::` is XPath; anything else is CSS. `to_by()` and `auto_by(text)` return a `thirtyfour::By` and fail with `InvalidSelector` for empty text. The pure CDP engine uses the owned twin `utils::selectors::SelectorBuf`. |
+| `Selector` | A borrowed selector with its kind decided: `LinkText`, `PartialLinkText`, `Css`, `XPath`, `Id`. `Selector::auto(text)` guesses from the start of the string: `link=`, `link_text=`, `text=` is exact link text; `partial_link=`, `partial_link_text=`, `partial_text=`, `p_link=`, `p_link_text=`, `p_text=` is partial link text; `/`, `./`, `../`, `(` or an XPath axis such as `parent::` is XPath; anything else is CSS. `to_by()` and `auto_by(text)` return a `drivers::By` and fail with `InvalidSelector` for empty text. The pure CDP engine uses the owned twin `utils::selectors::SelectorBuf`. |
 | `init_tracing()`, `init_tracing_json()` | Install the global `tracing` subscriber (text or JSON) and bridge `log`. They read `RUST_LOG` (default `info`) and ignore a second call. |
 | `init_tracing_with_filter(filter)`, `init_tracing_json_with_filter(filter)` | The same with an `EnvFilter` string; an unparsable filter falls back to `RUST_LOG`, then `info`. The process environment is not changed. |
 | `init_tracing_from_runtime(&RuntimeConfig)` | Uses `SB_LOG_LEVEL` and `SB_LOG_FORMAT`; without a valid `SB_LOG_LEVEL` the filter is `RUST_LOG`, then `info`. |
@@ -89,11 +93,15 @@ diagnostic.
 ### Modules
 
 The remaining public API sits in modules: `api`, `artifacts`, `behave`,
-`browser`, `cli`, `common`, `config`, `core`, `error`, `js_code`, `macros`,
+`browser`, `cli`, `common`, `config`, `core`, `drivers` (the WebDriver types the API
+takes or returns), `error`, `evasion`, `js_code`, `json` (`json!` and `Value`), `macros`,
+`tokio` (the runtime, re-exported so `#[tokio::main]` needs no `tokio` line; see
+[Imports and dependencies](/imports)),
 `plugins` (test-reporting plugins), `profile_payloads`, `resources`,
-`sb_cdp` (the [pure CDP engine](/tutorials/pure_cdp)), `stealth`, `tracing_util`,
+`sb_cdp` (the [pure CDP engine](/tutorials/pure_cdp)), `tracing_util`,
 `utilities`, `utils`; and, behind features, `mcp` (`mcp-server`), `ocr` (`ocr`),
 `plugin_api` (`plugins`, the browser plugin API), `builtin_plugins` (any of
-`plugin-shield`, `plugin-block-resources`, `plugin-crx` or `plugins-builtin`: the
+`plugin-shield`, `plugin-block-resources`, `plugin-crx`, `plugin-fetcher`,
+`plugin-extractor`, `plugin-batcher`, `plugin-crawler` or `plugins-builtin`: the
 official plugins and their `registry()`, see [Choosing plugins](/plugins/selecting)),
 `storage` (`turso`) and `visual` (`visual`).

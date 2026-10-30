@@ -4,7 +4,7 @@
 use seleniumbase_rs_plugin::WebRtcPolicy as ApiPolicy;
 
 use crate::error::SeleniumBaseError;
-use crate::stealth::fingerprint::WebRtcPolicy;
+use crate::evasion::fingerprint::WebRtcPolicy;
 
 /// This crate's WebRTC policy as the plugin API names it.
 pub(crate) fn webrtc_to_api(policy: WebRtcPolicy) -> ApiPolicy {

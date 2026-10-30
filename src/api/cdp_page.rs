@@ -110,6 +110,9 @@ impl<'a> CdpPage<'a> {
 
     /// Navigates to `url` via `Page.navigate`.
     pub async fn open(&self, url: &str) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = self.session.pure_cdp_page() {
+            return page.goto(url).await;
+        }
         self.execute("Page.navigate", json!({"url": url})).await?;
         Ok(())
     }

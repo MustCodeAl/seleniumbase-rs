@@ -22,11 +22,17 @@ Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...)
 
 ## Script execution and DOM modification
 
+On a [direct CDP attachment](/ecosystem/tauri-api/cdp), `execute_script()` runs
+the script as a function body with `window` as `this` and returns its result.
+`is_connected()` uses that transport too. Callback-style
+`execute_async_script()` remains WebDriver-specific. For screenshots on a
+direct attachment, use `cdp_screenshot()` or the pure `Page` screenshot API.
+
 | Method | Description |
 |--------|-------------|
 | `execute_script(script)` | Executes JavaScript and returns the result. |
 | `execute_async_script(script)` | Executes asynchronous JavaScript. |
-| `safe_execute_script(script, default)` | Executes JavaScript; on an error returns `default` (a `serde_json::Value`) instead of failing. |
+| `safe_execute_script(script, default)` | Executes JavaScript; on an error returns `default` (a `seleniumbase_rs::json::Value`) instead of failing. |
 | `evaluate(script)` | Alias for `execute_script`. |
 | `set_attribute(selector, attr, value)` | Sets an element attribute. |
 | `remove_attribute(selector, attr)` | Removes an element attribute. |

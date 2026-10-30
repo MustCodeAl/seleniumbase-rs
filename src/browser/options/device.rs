@@ -10,7 +10,7 @@ use crate::error::SeleniumBaseError;
 
 /// The user agent a phone-emulating session reports when the caller names none:
 /// Chrome on Android in its frozen format (release 10, model `K`), claiming
-/// [`PRESET_CHROMIUM_MAJOR`](crate::stealth::randomize::PRESET_CHROMIUM_MAJOR),
+/// [`PRESET_CHROMIUM_MAJOR`](crate::evasion::randomize::PRESET_CHROMIUM_MAJOR),
 /// which a test holds it to.
 ///
 /// Python SeleniumBase names a Pixel 7 XL here; this crate keeps its own

@@ -492,7 +492,7 @@ Launch and session plumbing:
 - `launcher.rs` — chromedriver discovery, startup, and `StealthOptions` application.
 - `playwright.rs` — optional Playwright-backed session adapter.
 
-### `src/stealth/`
+### `src/evasion/`
 
 Anti-detection layer:
 
@@ -674,28 +674,28 @@ whenever a patch targets a new driver version.
 <Step title="A new JavaScript evasion" icon="code">
 
 If the change is a new JavaScript evasion, add a provider in
-`src/stealth/providers/builtin.rs` and register it in `all()`.
+`src/evasion/providers/builtin.rs` and register it in `all()`.
 
 </Step>
 
 <Step title="Launch arguments" icon="terminal">
 
 If it changes launch arguments, update `StealthOptions::apply_to` in
-`src/stealth/options.rs` or add a helper such as `engine_spoofing_args()` in
-`src/stealth/patcher.rs`.
+`src/evasion/options.rs` or add a helper such as `engine_spoofing_args()` in
+`src/evasion/patcher.rs`.
 
 </Step>
 
 <Step title="Binary patches" icon="microchip">
 
 If it patches the binary, add an `EnginePatch` in
-`src/stealth/patcher.rs`.
+`src/evasion/patcher.rs`.
 
 </Step>
 
 <Step title="Re-export" icon="share-from-square">
 
-Re-export new public types from `src/stealth/mod.rs` and `src/lib.rs`.
+Re-export new public types from `src/evasion/mod.rs` and `src/lib.rs`.
 
 </Step>
 

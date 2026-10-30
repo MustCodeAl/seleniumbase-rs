@@ -144,6 +144,61 @@ export SB_PROXY=http://proxy:8080
 export SB_THREADS=4
 ```
 
+### Variables of `sbrs` and `sbrs-mcp`
+
+The table above is the keys of the settings file. The two command lines read more:
+every setting of `sbrs` has an `SB_*` variable, and `sbrs-mcp` has `SB_MCP_*`
+variables for its own flags. The `--help` of a flag ends with its variable
+(`(SB_DARK_MODE)`, or `(SB_MODE=uc)` for a shorthand flag). To see them all, with
+who reads each one, the flag that sets the same thing, its default and what it sets:
+
+```bash
+sbrs options --env
+sbrs options --env --markdown
+```
+
+`--markdown` prints the table for documentation. The list is made from the option
+table and the list of the other variables, so it names every variable the command
+lines read.
+
+**Order.** A flag wins over its variable, which wins over the settings file, which
+wins over the default. A variable that is empty or blank counts as unset.
+
+**A bad value stops the program.** A variable that cannot be used ends `sbrs` or
+`sbrs-mcp` with status 2, before a browser starts or the server listens, and the
+message names the variable and the flag it stands for:
+
+```text
+SB_HEADLESS (--headless): cannot parse bool: maybe
+```
+
+A few variables only warn, such as a `SB_LOG_FORMAT` that is neither `pretty` nor
+`json`: it is reported and the default is used.
+
+Variables that are not keys of the settings file include these (the rest are in
+`sbrs options --env`):
+
+| Variable | Flag | Default | What it sets |
+| --- | --- | --- | --- |
+| `SB_PROXY_LIST` | `sbrs --proxy-list` | none | A file of proxies to choose from; without a proxy a random one is used |
+| `SB_SAVE_SCREENSHOT` | `sbrs --save-screenshot` | off | Save a screenshot to `latest_logs/` just before the browser closes, and print its path |
+| `SB_PATCH_CACHE_DIR` | `sbrs patch-chrome --cache-dir` | the user cache folder | The folder that holds patched browser binaries |
+| `SB_MCP_SERVER` | `sbrs-mcp --server` | `sb` | Which toolset the MCP server serves: `cdp`, `driver`, `sb` or `dev` |
+| `SB_MCP_TRANSPORT` | `sbrs-mcp --transport` | `stdio`, or `http` when a listen address is given | How the server talks to its client: `stdio` or `http` |
+| `SB_MCP_LISTEN` | `sbrs-mcp --listen` | `127.0.0.1:8931` for http | The IP address and port of the HTTP endpoint; setting it serves over HTTP |
+| `SB_MCP_PATH` | `sbrs-mcp --path` | `/mcp` | The URL path of the HTTP endpoint |
+| `SB_MCP_TOKEN` | none | none | The bearer token the HTTP endpoint asks for; an address that is not loopback needs one |
+| `SB_MCP_TOKEN_FILE` | `sbrs-mcp --token-file` | none | A file that holds the bearer token; it wins over `SB_MCP_TOKEN` |
+| `SB_MCP_ALLOW_ORIGIN` | `sbrs-mcp --allow-origin` | none | Origins (`scheme://host[:port]`) of browser pages that may use the HTTP endpoint, separated by commas |
+| `SB_MCP_ALLOW_HOST` | `sbrs-mcp --allow-host` | none | Host names accepted in the `Host` header besides localhost, separated by commas |
+| `SB_MCP_MAX_SESSIONS` | `sbrs-mcp --max-sessions` | `4` | The most MCP sessions, and so browsers, the HTTP server holds at once |
+| `SB_MCP_OUTPUT_DIR` | `sbrs-mcp install --output-dir` | `./mcp_output` | The folder the tools of the MCP server write their files to |
+| `SB_MCP_URL` | `--url` of the `sbrs-mcp` client commands | none | The server that `tools`, `call` and the other client commands connect to when no flag names one (not in the `options --env` list) |
+
+See [MCP servers](/tutorials/mcp_server#calling-tools-from-a-shell) for the client
+commands and the `--url` and `--token-file` flags.
+
+
 ## Runtime environment variables
 
 In addition to `Settings`, the crate reads `SB_*` runtime configuration for
@@ -176,7 +231,18 @@ then `info`.
 
 <ParamField body="SB_LOG_FORMAT" type="string" default="pretty">
 
-`pretty` or `json` output.
+`pretty` (a readable line, coloured on a terminal) or `json` (one object per line, never
+coloured). Anything else is reported and the default is used.
+
+</ParamField>
+
+<ParamField body="NO_COLOR" type="any value">
+
+Turns colour off for the log lines, for the banners of `sbrs mkrec` and for the
+[debug prompts](/tutorials/writing_tests#debug-prompts) (`--pdb`, `--trace`, `breakpoint`)
+([no-color.org](https://no-color.org)). An empty value does not count. Colour is used only when the
+stream (standard error for logs and prompts, standard output for banners) is a terminal and `TERM`
+is not `dumb`.
 
 </ParamField>
 

@@ -76,6 +76,7 @@ cargo run --bin sbrs -- --headless smoke https://seleniumbase.io --title-contain
 
 ```rust
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
+use seleniumbase_rs::tokio;
 
 #[tokio::main]
 async fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
@@ -112,13 +113,17 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-r
 See [Install without a checkout](./docs/building.md#install-without-a-checkout)
 (the prebuilt release archives wait for the release workflow's first run).
 
-**The library:** add the crate from GitHub (it is not on crates.io), with Tokio
-to run it. It carries no command-line code; `sbrs` is the separate package above:
+**The library:** add the crate from GitHub (it is not on crates.io). It carries no
+command-line code; `sbrs` is the separate package above. It is the only dependency
+the examples need: the Tokio runtime (`seleniumbase_rs::tokio`), the WebDriver types
+(`seleniumbase_rs::drivers`), JSON values (`seleniumbase_rs::json`) and the test
+attributes (`seleniumbase_rs::testing`) are re-exported, so a `use` line in this
+documentation names `seleniumbase_rs` and never another crate. The
+[imports page](./docs/imports.md) lists the exceptions and why.
 
 ```toml
 [dependencies]
 seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.6.0" }
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 
 Turn on optional features as you need them (see [Feature flags](#feature-flags)):
@@ -230,10 +235,13 @@ recipe.
 
 ### Recorder and low-code scenarios
 
-Record interactions from the CLI:
+Record interactions from the CLI (`sbrs mkrec`, also `record` and `codegen`, starts a
+browser in Recorder Mode and writes the test when you type `c` and press Enter;
+`sbrs replay` plays the saved action file):
 
 ```bash
-cargo run --bin sbrs -- recorder --output my_test.rs
+cargo run --bin sbrs -- mkrec my_test.rs --url https://seleniumbase.io/demo_page
+cargo run --bin sbrs -- replay recordings/my_test_rec.json
 ```
 
 Or write a JSON scenario and run it:
@@ -253,16 +261,21 @@ The `sbrs` binary supports one-off browser commands, admin utilities, code
 generation, and shell completions.
 
 ```bash
-# Browser one-offs
+# Browser one-offs (every command starts a fresh browser and quits it)
 cargo run --bin sbrs -- --uc open https://seleniumbase.io
 cargo run --bin sbrs -- --uc smoke https://seleniumbase.io --title-contains SeleniumBase
-cargo run --bin sbrs -- screenshot
-cargo run --bin sbrs -- save-source
+
+# A command that acts on a page needs a start page: --url (or SB_START_PAGE)
+cargo run --bin sbrs -- --url https://seleniumbase.io screenshot
+cargo run --bin sbrs -- --url https://seleniumbase.io save-source
 
 # Assertions and waits
-cargo run --bin sbrs -- open https://seleniumbase.io
-cargo run --bin sbrs -- assert-element --css "body"
-cargo run --bin sbrs -- wait-for-text --css "body" --text "SeleniumBase" --timeout 15
+cargo run --bin sbrs -- --url https://seleniumbase.io assert-element --css "body"
+cargo run --bin sbrs -- --url https://seleniumbase.io wait-for-text --css "body" --text "SeleniumBase" --timeout 15
+
+# Capture a browser's fingerprint, then present it in any command
+cargo run --bin sbrs -- fingerprint capture https://seleniumbase.io -o fp.json
+cargo run --bin sbrs -- --fingerprint fp.json --url https://seleniumbase.io get-title
 
 # Admin / binary patching
 cargo run --bin sbrs -- patch-chromedriver --path /path/to/chromedriver
@@ -292,7 +305,7 @@ See [CLI Usage](./docs/tutorials/cli_usage.md) for every command and option.
 | Stealth options | `cargo run --example stealth_options` |
 | Engine patching | `cargo run --example engine_patching` |
 | Macros demo | `cargo run --example macros_demo` |
-| Recorder | `cargo run --bin sbrs -- recorder --output my_test.rs` |
+| Recorder | `cargo run --bin sbrs -- mkrec my_test.rs --url https://seleniumbase.io/demo_page` |
 | Screenshots & source | `cargo run --example screenshots` |
 | PDF parsing | `cargo run --example pdf_example` |
 | Cookies & storage | `cargo run --example cookies_storage` |
@@ -317,7 +330,7 @@ See also [`examples/tauri-profile-manager`](./examples/tauri-profile-manager) fo
 ### CDP page automation
 
 ```rust
-use seleniumbase_rs::{BaseCase, BrowserConfig, DriverMode};
+use seleniumbase_rs::{tokio, BaseCase, BrowserConfig, DriverMode};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

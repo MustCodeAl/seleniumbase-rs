@@ -5,11 +5,12 @@
 //! broadcasts everything else as an event, so commands issued from different
 //! tabs never block one another.
 //!
-//! The connection is an enum rather than a trait: either a real socket, or
+//! The connection is an enum rather than a trait: a real socket, a channel the
+//! caller carries ([`CdpTransport`](super::CdpTransport), page-scoped), or
 //! (with the `test-util` feature) a scripted [`MockCtrl`](super::MockCtrl).
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::Duration;
 
@@ -27,9 +28,9 @@ use super::sync::locked;
 use crate::error::SeleniumBaseError;
 
 type Ws = WebSocketStream<MaybeTlsStream<TcpStream>>;
-type Pending = Arc<StdMutex<HashMap<u64, oneshot::Sender<Result<Value, String>>>>>;
+pub(super) type Pending = Arc<StdMutex<HashMap<u64, oneshot::Sender<Result<Value, String>>>>>;
 /// Where one command's response arrives.
-type Reply = oneshot::Receiver<Result<Value, String>>;
+pub(super) type Reply = oneshot::Receiver<Result<Value, String>>;
 
 /// How long a single protocol command may take before it is abandoned.
 ///
@@ -39,6 +40,9 @@ const COMMAND_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// How long the WebSocket handshake with a DevTools endpoint may take.
 pub(crate) const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// How long [`Client::close`] waits for the browser to take the close frame.
+const CLOSE_TIMEOUT: Duration = Duration::from_secs(2);
 
 /// Capacity of the event channel. A subscriber that falls this far behind
 /// misses events rather than slowing the reader task down.
@@ -152,11 +156,14 @@ impl Events {
 #[derive(Debug)]
 pub(crate) struct Client {
     link: Link,
+    /// Set by [`close`](Self::close): every later command fails at once.
+    closed: AtomicBool,
 }
 
 #[derive(Debug)]
 enum Link {
     Ws(WsLink),
+    Channel(super::channel::ChannelLink),
     #[cfg(any(test, feature = "test-util"))]
     Mock(super::mock::MockCtrl),
 }
@@ -206,6 +213,8 @@ impl Client {
         let (events, _) = broadcast::channel(EVENT_BACKLOG);
         let reader = tokio::spawn(read_loop(source, Arc::clone(&pending), events.clone()));
         Ok(Self {
+            closed: AtomicBool::new(false),
+
             link: Link::Ws(WsLink {
                 sink: Mutex::new(sink),
                 pending,
@@ -219,14 +228,36 @@ impl Client {
     #[cfg(any(test, feature = "test-util"))]
     pub(crate) fn mocked(ctrl: super::mock::MockCtrl) -> Self {
         Self {
+            closed: AtomicBool::new(false),
+
             link: Link::Mock(ctrl),
         }
+    }
+
+    /// A connection over a page-scoped channel the caller carries, and the
+    /// inbox its answers and events go into.
+    pub(crate) fn over_channel(
+        transport: impl super::channel::CdpTransport,
+    ) -> (Self, super::channel::CdpInbox) {
+        let (link, inbox) = super::channel::ChannelLink::new(transport);
+        let client = Self {
+            closed: AtomicBool::new(false),
+            link: Link::Channel(link),
+        };
+        (client, inbox)
+    }
+
+    /// Whether this connection is a page-scoped channel rather than a
+    /// browser endpoint.
+    pub(crate) fn is_channel(&self) -> bool {
+        matches!(self.link, Link::Channel(_))
     }
 
     /// Subscribes to protocol events from every tab.
     pub(crate) fn events(&self) -> Events {
         let rx = match &self.link {
             Link::Ws(ws) => ws.events.subscribe(),
+            Link::Channel(channel) => channel.subscribe(),
             #[cfg(any(test, feature = "test-util"))]
             Link::Mock(ctrl) => ctrl.subscribe(),
         };
@@ -246,8 +277,10 @@ impl Client {
         params: Value,
         session_id: Option<&str>,
     ) -> Result<Value, SeleniumBaseError> {
+        self.ensure_open()?;
         match &self.link {
             Link::Ws(ws) => ws.send(method, params, session_id).await,
+            Link::Channel(channel) => channel.send(method, params, session_id).await,
             #[cfg(any(test, feature = "test-util"))]
             Link::Mock(ctrl) => ctrl
                 .handle(method, &params, session_id)
@@ -268,8 +301,10 @@ impl Client {
         commands: Vec<(&str, Value)>,
         session_id: Option<&str>,
     ) -> Result<Vec<Value>, SeleniumBaseError> {
+        self.ensure_open()?;
         match &self.link {
             Link::Ws(ws) => ws.send_ordered(commands, session_id).await,
+            Link::Channel(channel) => channel.send_ordered(commands, session_id).await,
             #[cfg(any(test, feature = "test-util"))]
             Link::Mock(ctrl) => {
                 let mut results = Vec::with_capacity(commands.len());
@@ -292,18 +327,49 @@ impl Client {
     /// Whether the connection is still usable.
     pub(crate) fn is_open(&self) -> bool {
         match &self.link {
-            Link::Ws(ws) => !ws.reader.is_finished(),
+            Link::Ws(ws) => !ws.reader.is_finished() && !self.closed.load(Ordering::SeqCst),
+            Link::Channel(channel) => channel.is_open() && !self.closed.load(Ordering::SeqCst),
             #[cfg(any(test, feature = "test-util"))]
             Link::Mock(ctrl) => !ctrl.is_disconnected(),
         }
     }
 
-    /// Marks a mocked connection as closed; a real one closes with its process.
-    #[cfg(any(test, feature = "test-util"))]
-    pub(crate) fn mark_closed(&self) {
-        if let Link::Mock(ctrl) = &self.link {
-            ctrl.disconnect();
+    /// Ends the connection: every later command fails with
+    /// [`SeleniumBaseError::BrowserDisconnected`], and the browser drops the
+    /// sessions this client attached. Closing twice is harmless.
+    pub(crate) async fn close(&self) {
+        self.closed.store(true, Ordering::SeqCst);
+        match &self.link {
+            Link::Ws(ws) => {
+                // A close frame ends the browser's sessions for this client:
+                // what they changed (emulation, injected scripts, request
+                // interception) goes with them. A peer that does not answer
+                // is not waited for.
+                let closing = async { ws.sink.lock().await.close().await };
+                let _ = tokio::time::timeout(CLOSE_TIMEOUT, closing).await;
+                ws.reader.abort();
+                // Whatever still waits for an answer learns the connection is gone.
+                locked(&ws.pending).clear();
+            }
+            Link::Channel(channel) => {
+                // A channel has no close frame, so what this client set in
+                // the page (overrides, injected scripts) stays: the page is
+                // the app's. Commands still waiting fail now.
+                channel.close();
+            }
+            #[cfg(any(test, feature = "test-util"))]
+            Link::Mock(ctrl) => ctrl.disconnect(),
         }
+    }
+
+    /// Fails once [`close`](Self::close) has run.
+    fn ensure_open(&self) -> Result<(), SeleniumBaseError> {
+        if self.closed.load(Ordering::SeqCst) {
+            return Err(SeleniumBaseError::browser_disconnected(
+                "the browser handle was closed",
+            ));
+        }
+        Ok(())
     }
 }
 
@@ -398,22 +464,7 @@ impl WsLink {
 
     /// Waits for the response to a command that has been written.
     async fn finish(&self, id: u64, method: &str, rx: Reply) -> Result<Value, SeleniumBaseError> {
-        match tokio::time::timeout(COMMAND_TIMEOUT, rx).await {
-            Ok(Ok(Ok(result))) => Ok(result),
-            Ok(Ok(Err(message))) => Err(SeleniumBaseError::cdp_driver(format!(
-                "{method}: {message}"
-            ))),
-            Ok(Err(_)) => Err(SeleniumBaseError::browser_disconnected(format!(
-                "connection closed while waiting for {method}"
-            ))),
-            Err(_) => {
-                self.forget(id);
-                Err(SeleniumBaseError::wait_timeout(
-                    format!("protocol command {method}"),
-                    Some(COMMAND_TIMEOUT),
-                ))
-            }
-        }
+        await_reply(&self.pending, id, method, rx).await
     }
 
     fn forget(&self, id: u64) {
@@ -424,6 +475,33 @@ impl WsLink {
 impl Drop for WsLink {
     fn drop(&mut self) {
         self.reader.abort();
+    }
+}
+
+/// Waits for the answer to command `id`, which has been handed over, for at
+/// most [`COMMAND_TIMEOUT`]. A command that times out is forgotten, so a late
+/// answer is dropped.
+pub(super) async fn await_reply(
+    pending: &Pending,
+    id: u64,
+    method: &str,
+    rx: Reply,
+) -> Result<Value, SeleniumBaseError> {
+    match tokio::time::timeout(COMMAND_TIMEOUT, rx).await {
+        Ok(Ok(Ok(result))) => Ok(result),
+        Ok(Ok(Err(message))) => Err(SeleniumBaseError::cdp_driver(format!(
+            "{method}: {message}"
+        ))),
+        Ok(Err(_)) => Err(SeleniumBaseError::browser_disconnected(format!(
+            "connection closed while waiting for {method}"
+        ))),
+        Err(_) => {
+            locked(pending).remove(&id);
+            Err(SeleniumBaseError::wait_timeout(
+                format!("protocol command {method}"),
+                Some(COMMAND_TIMEOUT),
+            ))
+        }
     }
 }
 
@@ -455,7 +533,7 @@ async fn read_loop(
 
 /// Routes one decoded message: a response completes its request, anything with
 /// a `method` is an event.
-fn dispatch(value: &Value, pending: &Pending, events: &broadcast::Sender<CdpEvent>) {
+pub(super) fn dispatch(value: &Value, pending: &Pending, events: &broadcast::Sender<CdpEvent>) {
     if let Some(id) = value.get("id").and_then(Value::as_u64) {
         let waiter = locked(pending).remove(&id);
         if let Some(tx) = waiter {

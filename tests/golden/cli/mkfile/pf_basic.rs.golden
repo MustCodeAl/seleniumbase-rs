@@ -4,12 +4,11 @@
 //! `tests/` folder. It needs Chrome and a matching chromedriver (`sbrs doctor`
 //! checks both). `SB_HEADLESS=true` runs it without a window.
 //!
-//! Your crate's dev-dependencies are `seleniumbase-rs` (feature `testing`),
-//! `rstest` and `tokio` (features `macros` and `rt`).
+//! Your crate's only dev-dependency is `seleniumbase-rs` (feature `testing`): the
+//! rstest attribute, the fixtures and the Tokio runtime come from it.
 
-use rstest::rstest;
-use seleniumbase_rs::testing::{sb, Sb};
-use seleniumbase_rs::Result;
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
 
 #[rstest]
 #[tokio::test]

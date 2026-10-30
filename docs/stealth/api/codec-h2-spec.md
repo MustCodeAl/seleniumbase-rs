@@ -6,7 +6,7 @@ description: "The HTTP/2 profile in seleniumbase-rs-codec: H2Spec (alias Http2Sp
 
 <Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: codec</Badge>
 
-`seleniumbase_rs_codec::h2_spec` describes the start of an HTTP/2 connection that
+`seleniumbase_rs_stealth::codec::h2_spec` describes the start of an HTTP/2 connection that
 a client should reproduce: the SETTINGS entries and their order, the connection
 `WINDOW_UPDATE`, the PRIORITY frames, the priority fields of the first HEADERS
 frame, and the order of the pseudo-headers. An `H2Spec` is built from bytes
@@ -27,8 +27,8 @@ stack cannot emit, as of `wreq-proto` 0.2.6:
 <RequestExample>
 
 ```rust From an Akamai string
-use seleniumbase_rs_codec::akamai::Akamai;
-use seleniumbase_rs_codec::h2_spec::{H2Spec, SpecError};
+use seleniumbase_rs_stealth::codec::akamai::Akamai;
+use seleniumbase_rs_stealth::codec::h2_spec::{H2Spec, SpecError};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let akamai: Akamai = "1:4096;2:0;4:1048576|983041|0|m,a,s,p".parse()?;
@@ -42,9 +42,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 ```rust The measured HTTP/2 start
-use seleniumbase_rs::stealth::fingerprint::OsType;
-use seleniumbase_rs_codec::emulation;
-use seleniumbase_rs_codec::BrowserKind;
+use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
+use seleniumbase_rs_stealth::codec::emulation;
+use seleniumbase_rs_stealth::codec::BrowserKind;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let chrome = emulation::get(BrowserKind::Chrome, OsType::Macos)?;

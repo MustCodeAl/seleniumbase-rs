@@ -1,0 +1,33 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Turnstile in a shadow root</title>
+<!--
+  The widget is inside the OPEN shadow root of a custom element, so
+  document.querySelector cannot see it. Real Turnstile pages mount the widget
+  the same way (inside a shadow root); the frame is from a second origin.
+-->
+<style> body { font: 15px sans-serif; margin: 24px; } </style>
+<h1>Shadow DOM widget</h1>
+<form id="f">
+  <x-captcha id="host"></x-captcha>
+  <input type="hidden" name="cf-turnstile-response" value="">
+</form>
+<p id="status">waiting</p>
+<script>
+  window.__clicks = [];
+  const root = document.getElementById('host').attachShadow({ mode: 'open' });
+  root.innerHTML =
+    '<style>.cf-turnstile{width:300px;height:65px;margin:40px 0 0 90px}iframe{border:0}</style>' +
+    '<div class="cf-turnstile"><iframe id="cf-chl-widget-s1" ' +
+    'title="Widget containing a Cloudflare security challenge" ' +
+    'width="300" height="65" src="FAR/w"></iframe></div>';
+  addEventListener('message', (event) => {
+    const data = event.data || {};
+    if (data.sbFixture === 'click') window.__clicks.push(data);
+    if (data.sbFixture === 'token') {
+      document.querySelector('[name=cf-turnstile-response]').value = data.value;
+      document.body.dataset.cleared = '1';
+      document.getElementById('status').textContent = 'cleared';
+    }
+  });
+</script>

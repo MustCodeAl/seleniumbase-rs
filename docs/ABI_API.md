@@ -8,7 +8,7 @@ guarantees that apply, and how to integrate the crate with foreign code.
 
 <Visibility for="agents">
 
-Summary for AI exports: the crate root re-exports `BaseCase`, `BrowserConfig`, `Browser`, `DriverMode`, `BrowserSession`, `Selector`, `Fingerprint`, `StealthPolicy`, the capability traits `BrowserApi`, `ElementApi`, `AssertionApi` and `ScreenshotApi`, `run_browser_test`, `Result` and `SeleniumBaseError`. Rust has no stable ABI: treat the API as source-compatible only, and use a C shim for foreign code. The crate follows Semantic Versioning, but as a `0.x` crate its minor releases may break the API, so pin the version. `stealth::providers::session_registry` is experimental.
+Summary for AI exports: the crate root re-exports `BaseCase`, `BrowserConfig`, `Browser`, `DriverMode`, `BrowserSession`, `Selector`, `Fingerprint`, `StealthPolicy`, the capability traits `BrowserApi`, `ElementApi`, `AssertionApi` and `ScreenshotApi`, `run_browser_test`, `Result` and `SeleniumBaseError`. Rust has no stable ABI: treat the API as source-compatible only, and use a C shim for foreign code. The crate follows Semantic Versioning, but as a `0.x` crate its minor releases may break the API, so pin the version. `evasion::providers::session_registry` is experimental.
 
 </Visibility>
 
@@ -26,15 +26,19 @@ The crate root exposes the following modules:
 | `common` | Decorators, obfuscation, and shared exception types. |
 | `config` | Settings, proxy lists, and ad-block lists. |
 | `core` | Test result records and the JSON and HTML reports made from them. |
+| `drivers` | The WebDriver types the API takes or returns (`By`, `WebElement`, `DesiredCapabilities`, `Key`, `Cookie`, `NetworkConditions`, ...), so a project needs no `thirtyfour` line. See [Imports and dependencies](/imports). |
+
 | `error` | `SeleniumBaseError` and the `Result<T>` alias. |
+| `evasion` | Undetected-chrome options, evasions, the evasion **provider registry**, fingerprint profiles, humanization helpers, binary patcher, and CDP reactor. `session_registry` (the registry the Pure CDP engine runs) is <Badge color="orange">Experimental</Badge>: it serves the stealth layer, which lives in [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth) since 0.3.0. |
 | `js_code` | `quote`, which turns a Rust string into a JavaScript string literal for the scripts the crate builds. |
+| `json` | `json!`, `Value` and the parsing functions of `serde_json` that the API uses, so a project needs no `serde_json` line. |
+
 | `macros` | `#[macro_export]` convenience macros (also re-exported at the crate root). |
 | `mcp` | MCP servers (`cdp`, `driver`, `sb`) and the types to build more: `Host`, `ToolDef`, `Args`, `Output`, `ToolError`. Behind the `mcp-server` feature. |
 | `profile_payloads` | External browser profile payload parsing and conversion. |
 | `plugins` | Cloud/logging plugin interfaces. |
 | `resources` | Where downloaded browser drivers live and how a chromedriver is found. |
 | `sb_cdp` | Pure CDP engine: `Browser`, `Page`, `Locator`, input, human-paced input, cookies/storage/window/emulation, retrying expectations, CAPTCHA solving, isolated `BrowserContext`s, a `BrowserPool` with an in-memory `SessionStore`, and (with `test-util`) a mock browser. |
-| `stealth` | Undetected-chrome options, evasions, the evasion **provider registry**, fingerprint profiles, humanization helpers, binary patcher, and CDP reactor. `session_registry` (the registry the Pure CDP engine runs) is <Badge color="orange">Experimental</Badge>: it serves the stealth layer, which lives in [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth) since 0.3.0. |
 | `utilities` | Selenium IDE, Grid, and Python-to-Rust importer. |
 | `utils` | Selectors, shadow DOM helpers, translations, and extension builders. |
 
@@ -44,7 +48,9 @@ The modules `wire`, `scrape` and `impersonate` were removed in 0.3.0. They are
 the crates `seleniumbase-rs-codec`, `seleniumbase-rs-scrape` and
 `seleniumbase-rs-mimic` of
 [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
-now, which build on the public items of `sb_cdp` and `stealth` listed here.
+now. Use the unified `seleniumbase-rs-stealth` facade to access their `codec`,
+`scrape` and optional `mimic` modules alongside all of the core public API,
+including `sb_cdp` and `evasion`. See the [single-dependency setup](/stealth/overview#which-crate-to-depend-on).
 
 </Note>
 
@@ -85,7 +91,7 @@ mentions an engine's own types:
 | Trait | Responsibility |
 |---|---|
 | `BrowserApi` | Navigation and lifecycle: `open`, `quit`, `refresh`, `go_back`, `go_forward`, `get_title`, `get_url`. |
-| `ElementApi` | Interacting with elements: `click`, `double_click`, `type_text`, `get_text`, `get_attribute`. (Holding an element handle is engine-specific: `BaseCase::find_element` returns a `thirtyfour::WebElement`, a `Page` offers `locator(..)`.) |
+| `ElementApi` | Interacting with elements: `click`, `double_click`, `type_text`, `get_text`, `get_attribute`. (Holding an element handle is engine-specific: `BaseCase::find_element` returns a `drivers::WebElement`, a `Page` offers `locator(..)`.) |
 | `AssertionApi` | Test assertions: `assert_title`, `assert_element`, `assert_text`, `assert_no_js_errors`. |
 | `ScreenshotApi` | Screenshot capture: `save_screenshot`, `screenshot_as_png`. |
 
@@ -241,7 +247,7 @@ fn read_config(path: &str) -> Result<String> {
 
 <Warning>
 
-**`stealth::providers::session_registry` is not yet a stable API.** It serves the
+**`evasion::providers::session_registry` is not yet a stable API.** It serves the
 experimental stealth layer of seleniumbase-rs-stealth: its names and behaviour may
 change in any release, even a patch release, as measurements and reviews come in.
 

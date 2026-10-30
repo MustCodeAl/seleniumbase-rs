@@ -2,7 +2,6 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-#[cfg(feature = "plugins")]
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::Duration;
@@ -13,6 +12,7 @@ use tokio::process::Child;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
+use super::channel::{CdpInbox, CdpTransport, CHANNEL_SESSION, CHANNEL_TARGET};
 use super::client::{Client, Events};
 use super::launch::{launch, LaunchOptions};
 use super::page::{Page, DEFAULT_TIMEOUT};
@@ -30,6 +30,10 @@ const GRACEFUL_CLOSE: Duration = Duration::from_secs(3);
 
 /// Where the DevTools endpoint of a browser this process launched listens.
 const LOCAL_HOST: &str = "127.0.0.1";
+
+/// The DevTools address a browser over a caller's channel reports: it has
+/// none, so the address names a host that never resolves.
+const CHANNEL_WS_URL: &str = "ws://channel.invalid/devtools/page/channel";
 
 /// The DevTools address a mocked browser reports.
 #[cfg(any(test, feature = "test-util"))]
@@ -204,6 +208,14 @@ pub(crate) struct Inner {
     pub(crate) options: LaunchOptions,
     /// Tab id to the protocol session attached to it.
     sessions: StdMutex<HashMap<String, Arc<str>>>,
+    /// Whether this handle only attached to a browser it did not start (the
+    /// host app's, for `connect` and `cdp_url`): closing it detaches and
+    /// restores instead of ending the process.
+    attached: AtomicBool,
+    /// The browser contexts this handle granted permissions in (`None` is the
+    /// default context), which closing an attached browser resets.
+    granted_contexts: StdMutex<Vec<Option<String>>>,
+
     tasks: StdMutex<Vec<JoinHandle<()>>>,
     /// Who answers which proxy's password prompts.
     pub(super) auth: Arc<ProxyAuth>,
@@ -295,6 +307,12 @@ impl Browser {
     /// launch with [`SeleniumBaseError::Plugin`], and the launch is not
     /// retried.
     pub async fn launch(options: LaunchOptions) -> Result<Self, SeleniumBaseError> {
+        if let Some(address) = options.cdp_url().map(str::to_owned) {
+            // The browser is the app's, so attaching prepares none of its
+            // windows. A window is prepared when the automation opens it
+            // (`new_page`) or picks it (`default_page`, `page`, `select_page`).
+            return Self::attach_endpoint(&address, options).await;
+        }
         #[cfg(feature = "plugins")]
         let options = super::plugin_hooks::before_launch(options).await?;
         let launched = Self::launch_retrying(&options).await;
@@ -446,25 +464,41 @@ impl Browser {
         port: u16,
         options: LaunchOptions,
     ) -> Result<Self, SeleniumBaseError> {
-        crate::install_tls_provider();
-        let version: Value = reqwest::Client::builder()
-            .timeout(options.startup_timeout)
-            .build()
-            .map_err(|e| SeleniumBaseError::cdp_driver(format!("cannot reach {host}:{port}: {e}")))?
-            .get(format!(
-                "http://{}/json/version",
-                devtools_authority(host, port)
-            ))
-            .send()
-            .await
-            .map_err(|e| SeleniumBaseError::cdp_driver(format!("cannot reach {host}:{port}: {e}")))?
-            .json()
-            .await
-            .map_err(|e| SeleniumBaseError::cdp_driver(format!("bad /json/version reply: {e}")))?;
-        let ws_url = version["webSocketDebuggerUrl"]
-            .as_str()
-            .ok_or_else(|| SeleniumBaseError::cdp_driver("no webSocketDebuggerUrl advertised"))?
-            .to_owned();
+        Self::attach_endpoint(
+            &format!("http://{}", devtools_authority(host, port)),
+            options,
+        )
+        .await
+    }
+
+    /// The common attachment path for host/port, HTTP and WebSocket clients.
+    async fn attach_endpoint(
+        address: &str,
+        options: LaunchOptions,
+    ) -> Result<Self, SeleniumBaseError> {
+        let (endpoint, version) =
+            super::endpoint::resolve(address, options.startup_timeout).await?;
+        let http = url::Url::parse(endpoint.http_url())
+            .map_err(|_error| SeleniumBaseError::cdp_driver("invalid resolved DevTools address"))?;
+        let host = http
+            .host_str()
+            .ok_or_else(|| SeleniumBaseError::cdp_driver("missing DevTools host"))?;
+        let port = http
+            .port_or_known_default()
+            .ok_or_else(|| SeleniumBaseError::cdp_driver("missing DevTools port"))?;
+        let ws_url = endpoint.websocket_url().to_owned();
+        let client = Arc::new(Client::connect(&ws_url).await.map_err(|_error| {
+            SeleniumBaseError::cdp_driver("cannot connect to debugger WebSocket")
+        })?);
+        #[cfg(feature = "plugins")]
+        let version = if version.get("User-Agent").is_none() {
+            let actual = client.send("Browser.getVersion", json!({}), None).await?;
+            json!({ "User-Agent": actual["userAgent"] })
+        } else {
+            version
+        };
+        #[cfg(not(feature = "plugins"))]
+        let _ = version;
         // Each attach is a launch of its own for the plugins: a set shared by
         // several browsers gets fresh instances of the per-launch ones.
         #[cfg(feature = "plugins")]
@@ -472,7 +506,6 @@ impl Browser {
             plugins: super::plugin_hooks::for_attach(&options.plugins, &version)?,
             ..options
         };
-        let client = Arc::new(Client::connect(&ws_url).await?);
         let browser = Self::from_parts(
             client,
             None,
@@ -482,6 +515,7 @@ impl Browser {
             ws_url,
             options,
         );
+        browser.inner.attached.store(true, Ordering::SeqCst);
         #[cfg(feature = "plugins")]
         super::plugin_hooks::on_browser(&browser.inner.options.plugins, &browser).await?;
         #[cfg(feature = "plugins")]
@@ -522,6 +556,74 @@ impl Browser {
         inner.auth = Arc::new(ProxyAuth::new(Some(credentials)));
         self.answer_proxy_in_every_tab().await?;
         Ok(self)
+    }
+
+    /// Drives a page over a DevTools channel the caller carries, such as the
+    /// in-process one of a webview an app embeds; see [`CdpTransport`].
+    ///
+    /// Commands leave through `transport`; the browser's answers and events
+    /// must be given to the returned [`CdpInbox`]. Nothing is sent until the
+    /// browser is used, so wire the inbox first. The channel is page-scoped:
+    /// [`default_page`](Self::default_page) is its page, prepared the way the
+    /// library prepares every tab it drives, and its commands go out with no
+    /// `sessionId`. [`execute`](Self::execute) also reaches that page's agent.
+    ///
+    /// Such a browser opens no tabs and no browser contexts (those need the
+    /// browser target), has no DevTools endpoint (the port is `0`), and
+    /// [`close`](Self::close) only ends the channel: the page is the app's,
+    /// and what was set in it stays.
+    ///
+    /// # Examples
+    ///
+    /// A transport that hands every command to a task standing in for the
+    /// embedder's channel (CEF's DevTools message observer, WebView2's
+    /// completion handlers), which answers through the inbox:
+    ///
+    /// ```
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    /// use seleniumbase_rs::sb_cdp::{Browser, CdpRequest, TransportError};
+    /// use serde_json::json;
+    /// use tokio::sync::mpsc;
+    ///
+    /// let (outgoing, mut agent) = mpsc::unbounded_channel::<CdpRequest>();
+    /// let (browser, inbox) =
+    ///     Browser::over_channel(move |request: CdpRequest| -> Result<(), TransportError> {
+    ///         outgoing.send(request).map_err(|_| "the webview is gone".into())
+    ///     });
+    /// tokio::spawn(async move {
+    ///     while let Some(request) = agent.recv().await {
+    ///         // A real channel hands `request.to_json()` to the browser and
+    ///         // gives what comes back to `inbox.deliver` or `inbox.respond`.
+    ///         inbox.respond(request.id, Ok(json!({ "result": { "value": 2 } })));
+    ///     }
+    /// });
+    ///
+    /// let answer = browser
+    ///     .execute("Runtime.evaluate", json!({ "expression": "1 + 1" }))
+    ///     .await?;
+    /// assert_eq!(answer["result"]["value"], 2);
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// [`CdpTransport`]: super::CdpTransport
+    /// [`CdpInbox`]: super::CdpInbox
+    #[must_use]
+    pub fn over_channel(transport: impl CdpTransport) -> (Self, CdpInbox) {
+        let (client, inbox) = Client::over_channel(transport);
+        let browser = Self::from_parts(
+            Arc::new(client),
+            None,
+            None,
+            None,
+            (LOCAL_HOST.to_owned(), 0),
+            CHANNEL_WS_URL.to_owned(),
+            LaunchOptions::default(),
+        );
+        // The page is the app's: closing gives it back instead of ending it.
+        browser.inner.attached.store(true, Ordering::SeqCst);
+        (browser, inbox)
     }
 
     /// Creates a browser that talks to a scripted mock instead of Chrome.
@@ -619,6 +721,9 @@ impl Browser {
                 ws_url,
                 options,
                 sessions: StdMutex::new(HashMap::new()),
+                attached: AtomicBool::new(false),
+                granted_contexts: StdMutex::new(Vec::new()),
+
                 tasks: StdMutex::new(Vec::new()),
                 download_dir: StdMutex::new(None),
                 context_routes: StdMutex::new(HashMap::new()),
@@ -734,6 +839,9 @@ impl Browser {
     ///
     /// Returns [`SeleniumBaseError::CdpDriver`] if the browser cannot be queried.
     pub async fn list_pages(&self) -> Result<Vec<PageInfo>, SeleniumBaseError> {
+        if self.inner.client.is_channel() {
+            return Ok(vec![self.channel_page_info().await?]);
+        }
         let response = self.execute("Target.getTargets", json!({})).await?;
         Ok(response["targetInfos"]
             .as_array()
@@ -751,7 +859,10 @@ impl Browser {
             .unwrap_or_default())
     }
 
-    /// Returns a handle to every open tab.
+    /// Returns a handle to every open tab, attaching to and preparing each.
+    ///
+    /// On a browser that belongs to an app, this reaches all of the app's
+    /// windows; [`select_page`](Self::select_page) picks one instead.
     ///
     /// # Errors
     ///
@@ -767,6 +878,9 @@ impl Browser {
     }
 
     /// Returns the first tab, creating a blank one if the browser has none.
+    ///
+    /// Only that tab is prepared: on a browser attached with a `cdp_url`, the
+    /// app's other windows are left alone.
     ///
     /// # Errors
     ///
@@ -837,6 +951,12 @@ impl Browser {
         window: bool,
         context: Option<ContextTarget<'_>>,
     ) -> Result<Page, SeleniumBaseError> {
+        if self.inner.client.is_channel() {
+            return Err(SeleniumBaseError::cdp_driver(
+                "a browser over a DevTools channel drives the one page the channel reaches; \
+                 it cannot open tabs or windows",
+            ));
+        }
         // Open blank and navigate once attached. Creating the tab at the URL
         // would start loading before anything is listening, and a fresh tab's
         // blank document already reports "complete", so waiting on it can
@@ -904,11 +1024,52 @@ impl Browser {
         Ok(Page::new(self.clone(), id.into(), session, DEFAULT_TIMEOUT))
     }
 
+    /// Picks one of the open tabs and attaches to that one only.
+    ///
+    /// `selector` is a target id, as [`list_pages`](Self::list_pages) reports
+    /// it, or else part of a tab's URL: the first tab whose URL contains it is
+    /// taken. This is how to choose a window of an app that owns several,
+    /// leaving the others as they are.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidConfig`] for an empty selector, and
+    /// [`SeleniumBaseError::CdpDriver`] if no tab matches or the tab cannot be
+    /// attached to.
+    pub async fn select_page(&self, selector: &str) -> Result<Page, SeleniumBaseError> {
+        if selector.is_empty() {
+            return Err(SeleniumBaseError::invalid_config(
+                "a tab selector (a target id or part of a URL) cannot be empty",
+            ));
+        }
+        let tabs = self.list_pages().await?;
+        let chosen = tabs
+            .iter()
+            .find(|tab| tab.id == selector)
+            .or_else(|| tabs.iter().find(|tab| tab.url.contains(selector)))
+            .ok_or_else(|| {
+                SeleniumBaseError::cdp_driver(format!(
+                    "no open tab has the target id or URL text {selector:?}"
+                ))
+            })?;
+        self.page(&chosen.id).await
+    }
+
     /// The protocol session attached to a tab, attaching if needed.
     async fn session_for(&self, id: &str) -> Result<Arc<str>, SeleniumBaseError> {
         let known = locked(&self.inner.sessions).get(id).cloned();
-        let session = if let Some(session) = known {
-            session
+        if let Some(session) = known {
+            return Ok(session);
+        }
+        let session: Arc<str> = if self.inner.client.is_channel() {
+            // The channel reaches its page directly: there is nothing to
+            // attach to, only the page to prepare.
+            if id != CHANNEL_TARGET {
+                return Err(SeleniumBaseError::cdp_driver(format!(
+                        "a browser over a DevTools channel has the one page {CHANNEL_TARGET:?}, not {id:?}"
+                    )));
+            }
+            CHANNEL_SESSION.into()
         } else {
             let response = self
                 .execute(
@@ -916,15 +1077,37 @@ impl Browser {
                     json!({ "targetId": id, "flatten": true }),
                 )
                 .await?;
-            let session: Arc<str> = response["sessionId"]
+            response["sessionId"]
                 .as_str()
                 .ok_or_else(|| SeleniumBaseError::cdp_driver("attach returned no sessionId"))?
-                .into();
-            self.prepare_session(id, &session).await?;
-            locked(&self.inner.sessions).insert(id.to_owned(), Arc::clone(&session));
-            session
+                .into()
         };
+        self.prepare_session(id, &session).await?;
+        locked(&self.inner.sessions).insert(id.to_owned(), Arc::clone(&session));
         Ok(session)
+    }
+
+    /// The one page a channel reaches, as [`list_pages`](Self::list_pages)
+    /// reports it. Its address and title come from the page itself.
+    async fn channel_page_info(&self) -> Result<PageInfo, SeleniumBaseError> {
+        let answer = self
+            .inner
+            .client
+            .send(
+                "Runtime.evaluate",
+                json!({
+                    "expression": "({ url: location.href, title: document.title })",
+                    "returnByValue": true,
+                }),
+                Some(CHANNEL_SESSION),
+            )
+            .await?;
+        let page = &answer["result"]["value"];
+        Ok(PageInfo {
+            id: CHANNEL_TARGET.to_owned(),
+            url: page["url"].as_str().unwrap_or_default().to_owned(),
+            title: page["title"].as_str().unwrap_or_default().to_owned(),
+        })
     }
 
     /// The id of the browser context a tab was opened in, when it was opened
@@ -1045,12 +1228,18 @@ impl Browser {
         let mut blocked: Vec<String> = Vec::new();
         if let Some(identity) = &self.inner.options.identity {
             for (method, params) in identity.tab_commands() {
+                let mut params = params.clone();
+                if self.inner.options.cdp_url().is_some()
+                    && method == "Page.addScriptToEvaluateOnNewDocument"
+                {
+                    params["runImmediately"] = json!(true);
+                }
                 client
                     .send(method, params.clone(), Some(session))
                     .await
                     .map_err(|error| super::identity::refused(method, &error))?;
                 if method == "Network.setBlockedURLs" {
-                    add_blocked(&mut blocked, params);
+                    add_blocked(&mut blocked, &params);
                 }
             }
             // Permissions belong to a browser context, and which one this tab
@@ -1066,6 +1255,7 @@ impl Browser {
                         .map_err(|error| {
                             super::identity::refused("Browser.grantPermissions", &error)
                         })?;
+                    self.note_grant(context);
                 }
             }
         }
@@ -1253,6 +1443,7 @@ impl Browser {
         let names: Vec<_> = permissions.iter().map(|p| p.name()).collect();
         self.execute("Browser.grantPermissions", json!({ "permissions": names }))
             .await?;
+        self.note_grant(None);
         Ok(())
     }
 
@@ -1276,6 +1467,7 @@ impl Browser {
             json!({ "permissions": names, "origin": origin }),
         )
         .await?;
+        self.note_grant(None);
         Ok(())
     }
 
@@ -1366,9 +1558,68 @@ impl Browser {
             .unwrap_or_else(|| PathBuf::from(DEFAULT_DOWNLOAD_DIR))
     }
 
+    /// Gives an attached browser back as it was found: detaches every session
+    /// this handle attached, and resets what it set browser-wide. Best effort,
+    /// because a window the app already closed has nothing left to detach.
+    async fn release_attached(&self) {
+        let client = &self.inner.client;
+        let sessions: Vec<(String, Arc<str>)> = locked(&self.inner.sessions)
+            .iter()
+            .map(|(target, session)| (target.clone(), Arc::clone(session)))
+            .collect();
+        for (tab, session) in sessions {
+            if client.is_channel() && &*session == CHANNEL_SESSION {
+                // The channel's page was never attached through a session, so
+                // there is nothing to detach.
+                self.forget_page(&tab);
+                continue;
+            }
+            let detach = client.send(
+                "Target.detachFromTarget",
+                json!({ "sessionId": &*session }),
+                None,
+            );
+            if let Ok(Err(error)) = tokio::time::timeout(GRACEFUL_CLOSE, detach).await {
+                tracing::debug!(%tab, %error, "a session could not be detached");
+            }
+            self.forget_page(&tab);
+        }
+        let contexts = std::mem::take(&mut *locked(&self.inner.granted_contexts));
+        for context in contexts {
+            let params = context
+                .as_deref()
+                .map_or_else(|| json!({}), |id| json!({ "browserContextId": id }));
+            let reset = self.execute("Browser.resetPermissions", params);
+            let _ = tokio::time::timeout(GRACEFUL_CLOSE, reset).await;
+        }
+        if locked(&self.inner.download_dir).take().is_some() {
+            let default = self.execute(
+                "Browser.setDownloadBehavior",
+                json!({ "behavior": "default" }),
+            );
+            let _ = tokio::time::timeout(GRACEFUL_CLOSE, default).await;
+        }
+    }
+
+    /// Remembers that permissions were granted in `context` (`None` is the
+    /// default context), so that closing an attached browser resets them.
+    fn note_grant(&self, context: Option<&str>) {
+        let mut granted = locked(&self.inner.granted_contexts);
+        if !granted.iter().any(|known| known.as_deref() == context) {
+            granted.push(context.map(str::to_owned));
+        }
+    }
+
     /// Closes the browser if this handle launched it.
     ///
-    /// A browser attached with [`connect`](Self::connect) is left running.
+    /// A browser attached with [`connect`](Self::connect) (or a `cdp_url`) is
+    /// left running and nothing of it is closed: `Browser.close` is never
+    /// sent. Every session this handle attached is detached
+    /// (`Target.detachFromTarget`), which ends the emulation, injected scripts
+    /// and request interception those sessions set, and the permissions and
+    /// download behaviour this handle set are reset. Afterwards every handle of
+    /// this browser fails with [`SeleniumBaseError::BrowserDisconnected`]. A
+    /// script that already ran in a page stays until the page navigates.
     /// The plugins' `before_close` and `on_close` hooks run first, once; their errors are logged,
     /// not returned.
     ///
@@ -1387,6 +1638,10 @@ impl Browser {
         for task in tasks {
             task.abort();
         }
+        if self.inner.attached.load(Ordering::SeqCst) {
+            self.release_attached().await;
+        }
+
         if let Some(mut child) = self.inner.process.lock().await.take() {
             // Ask politely first so the profile is flushed, then insist.
             let _ = tokio::time::timeout(GRACEFUL_CLOSE, self.execute("Browser.close", json!({})))
@@ -1398,8 +1653,7 @@ impl Browser {
                 let _ = child.kill().await;
             }
         }
-        #[cfg(any(test, feature = "test-util"))]
-        self.inner.client.mark_closed();
+        self.inner.client.close().await;
         Ok(())
     }
 }

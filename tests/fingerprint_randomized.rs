@@ -5,8 +5,8 @@
 
 use std::collections::BTreeSet;
 
-use seleniumbase_rs::stealth::fingerprint::{Geolocation, Spoof};
-use seleniumbase_rs::stealth::randomize::known_full_version;
+use seleniumbase_rs::evasion::fingerprint::{Geolocation, Spoof};
+use seleniumbase_rs::evasion::randomize::known_full_version;
 use seleniumbase_rs::{default_registry, Dimension, EvasionContext, Fingerprint, OsType};
 
 const ALL_OS: [OsType; 5] = [

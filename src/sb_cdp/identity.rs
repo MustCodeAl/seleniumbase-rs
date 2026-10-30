@@ -6,7 +6,9 @@
 //! page can read; and a set of protocol overrides changes what the browser
 //! itself reports and sends. [`Page::apply_fingerprint`] does both for one tab,
 //! and [`LaunchOptionsBuilder::fingerprint`](super::LaunchOptionsBuilder::fingerprint)
-//! does it for every tab a browser opens.
+//! does it for every tab a browser opens. Both send a [`StealthPlan`], which
+//! holds the script and the commands apart from any connection, so an app
+//! can carry them to a webview it embeds over a channel of its own.
 //!
 //! # Examples
 //!
@@ -32,12 +34,16 @@ use serde_json::{json, Value};
 
 use super::Page;
 use crate::error::SeleniumBaseError;
-use crate::stealth::evasions::{safe_cdp_overrides, session_script};
-use crate::stealth::fingerprint::Fingerprint;
+use crate::evasion::evasions::{safe_cdp_overrides, session_script};
+use crate::evasion::fingerprint::Fingerprint;
 
 /// The override that grants permissions. It is browser-wide, so it needs the
 /// context of the tab it is for and is sent separately.
 const PERMISSIONS: &str = "Browser.grantPermissions";
+
+/// The command that installs a script to run in every new document before
+/// the page's own scripts.
+const INIT_SCRIPT_COMMAND: &str = "Page.addScriptToEvaluateOnNewDocument";
 
 /// The override that sets what the screen and the pixel ratio read as.
 const DEVICE_METRICS: &str = "Emulation.setDeviceMetricsOverride";
@@ -64,30 +70,69 @@ fn session_metrics(overrides: &Value) -> Value {
     })
 }
 
-/// What it takes to make a tab match a fingerprint, worked out once.
+/// What it takes to give a page the identity of a [`Fingerprint`], worked out
+/// once, whatever carries the commands to the browser.
+///
+/// A plan has two parts. The [init script](Self::init_script) rewrites what
+/// the page's own scripts can read; it has to run in every document, frames
+/// included, before any script of the page. The [overrides](Self::overrides)
+/// are DevTools Protocol commands that change what the browser itself reports
+/// and sends: user agent and Client Hints, language, time zone, screen,
+/// location and the hardware a page can probe.
+///
+/// [`Page::apply_fingerprint`] and
+/// [`LaunchOptionsBuilder::fingerprint`](super::LaunchOptionsBuilder::fingerprint)
+/// send all of it, [`commands`](Self::commands), over the browser's DevTools
+/// connection. A webview embedded in an app can install the init script its
+/// own way, such as Tauri's `initialization_script_for_all_frames`, and send
+/// only the overrides through its in-process DevTools channel
+/// ([`Browser::over_channel`](super::Browser::over_channel)).
+///
+/// The `Proxy-Authorization` header a fingerprint with a proxy password can
+/// ask for is never part of a plan: it would reach every site the page visits.
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::sb_cdp::StealthPlan;
+/// use seleniumbase_rs::{Fingerprint, OsType};
+///
+/// let plan = StealthPlan::new(&Fingerprint::randomized(OsType::Windows, 42));
+///
+/// assert!(plan.init_script().contains("navigator"));
+/// let overrides: Vec<&str> = plan.overrides().map(|(method, _)| method).collect();
+/// assert_eq!(overrides[0], "Network.enable");
+/// assert!(overrides.contains(&"Network.setUserAgentOverride"));
+/// assert!(overrides.contains(&"Emulation.setTimezoneOverride"));
+/// assert_eq!(plan.commands().count(), overrides.len() + 1);
+/// ```
 #[derive(Clone)]
-pub(crate) struct Identity {
-    /// Commands for the tab itself, in the order they are sent.
+pub struct StealthPlan {
+    /// Commands for the page's own session, in the order they are sent: the
+    /// init script first, as `Page.addScriptToEvaluateOnNewDocument`.
     tab: Vec<(String, Value)>,
-    /// Permissions to grant in the tab's browser context, if any.
+    /// Permissions to grant in the page's browser context, if any.
     permissions: Option<Vec<String>>,
 }
 
-impl fmt::Debug for Identity {
+impl fmt::Debug for StealthPlan {
     /// Counts instead of printing: the bootstrap script is thousands of lines.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Identity")
+        f.debug_struct("StealthPlan")
             .field("tab_commands", &self.tab.len())
             .field("permissions", &self.permissions.as_ref().map(Vec::len))
             .finish()
     }
 }
 
-impl Identity {
-    pub(crate) fn of(fingerprint: &Fingerprint) -> Self {
+impl StealthPlan {
+    /// Works out the plan for `fingerprint`: the same script and commands
+    /// whether a WebSocket or an in-process channel carries them.
+    #[must_use]
+    pub fn new(fingerprint: &Fingerprint) -> Self {
         let mut tab = vec![
             (
-                "Page.addScriptToEvaluateOnNewDocument".to_owned(),
+                INIT_SCRIPT_COMMAND.to_owned(),
                 json!({ "source": session_script(fingerprint) }),
             ),
             // Some overrides, such as the blocked URLs, only take effect once
@@ -115,14 +160,53 @@ impl Identity {
         Self { tab, permissions }
     }
 
+    /// The script that makes the page's own scripts read the fingerprint.
+    ///
+    /// Run it in every document, main frame and frames alike, before any
+    /// script of the page: what a page script reads before it ran is the
+    /// browser's own answer.
+    #[must_use]
+    pub fn init_script(&self) -> &str {
+        self.tab
+            .first()
+            .and_then(|(_, params)| params["source"].as_str())
+            .unwrap_or_default()
+    }
+
+    /// Every command for the page's own protocol session, in the order to
+    /// send them: the [init script](Self::init_script) as
+    /// `Page.addScriptToEvaluateOnNewDocument`, then the
+    /// [overrides](Self::overrides). This is what
+    /// [`Page::apply_fingerprint`] sends.
+    pub fn commands(&self) -> impl ExactSizeIterator<Item = (&str, &Value)> + '_ {
+        self.tab
+            .iter()
+            .map(|(method, params)| (method.as_str(), params))
+    }
+
+    /// The commands after the init script, in order: `Network.enable`, then
+    /// the overrides sorted by command name.
+    ///
+    /// What a page still needs when its init script is installed another way,
+    /// as an embedded webview's initialization script is. Each one is for the
+    /// page's own session; none of them is browser-wide.
+    pub fn overrides(&self) -> impl ExactSizeIterator<Item = (&str, &Value)> + '_ {
+        self.commands().skip(1)
+    }
+
     /// The commands for the tab's own protocol session, in order.
     pub(crate) fn tab_commands(&self) -> &[(String, Value)] {
         &self.tab
     }
 
-    /// The parameters of the permission grant for a tab in `context`, if the
-    /// fingerprint asks for one.
-    pub(crate) fn permission_grant(&self, context: Option<&str>) -> Option<Value> {
+    /// The parameters of `Browser.grantPermissions` for a page in the browser
+    /// context `context` (`None` for the default one), if the fingerprint
+    /// grants any.
+    ///
+    /// Permissions belong to a browser context rather than to a page, so the
+    /// grant is a browser-wide command: send it on the browser's own session.
+    #[must_use]
+    pub fn permission_grant(&self, context: Option<&str>) -> Option<Value> {
         let names = self
             .permissions
             .as_ref()
@@ -144,7 +228,7 @@ impl Page {
     /// Hints, language, time zone, screen size, location, and so on. The page
     /// that is open now keeps its old identity until it navigates or reloads.
     ///
-    /// The script is the [session registry](crate::stealth::providers::session_registry)'s,
+    /// The script is the [session registry](crate::evasion::providers::session_registry)'s,
     /// which leaves `navigator.plugins`, `mimeTypes`, `pdfViewerEnabled` and
     /// `navigator.connection` to the browser, and defines `userAgentData` only
     /// in a secure context. A desktop persona's screen is sent as
@@ -165,14 +249,18 @@ impl Page {
         &self,
         fingerprint: &Fingerprint,
     ) -> Result<(), SeleniumBaseError> {
-        let identity = Identity::of(fingerprint);
-        for (method, params) in identity.tab_commands() {
+        let plan = StealthPlan::new(fingerprint);
+        for (method, params) in plan.commands() {
             self.execute(method, params.clone())
                 .await
                 .map_err(|error| refused(method, &error))?;
         }
-        if let Some(grant) = identity.permission_grant(self.browser_context_id().await?.as_deref())
-        {
+        // Which context the tab is in is asked only when the fingerprint
+        // grants something in it.
+        if plan.permission_grant(None).is_none() {
+            return Ok(());
+        }
+        if let Some(grant) = plan.permission_grant(self.browser_context_id().await?.as_deref()) {
             self.browser()
                 .execute(PERMISSIONS, grant)
                 .await
@@ -203,11 +291,11 @@ pub(super) fn refused(method: &str, error: &SeleniumBaseError) -> SeleniumBaseEr
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::stealth::evasions::{raw_overrides, CREDENTIAL_HEADER_METHOD};
-    use crate::stealth::fingerprint::{OsType, ProxyConfig, Spoof};
-    use crate::stealth::providers::{session_registry, EvasionContext};
+    use crate::evasion::evasions::{raw_overrides, CREDENTIAL_HEADER_METHOD};
+    use crate::evasion::fingerprint::{OsType, ProxyConfig, Spoof};
+    use crate::evasion::providers::{session_registry, EvasionContext};
 
-    fn methods(identity: &Identity) -> Vec<&str> {
+    fn methods(identity: &StealthPlan) -> Vec<&str> {
         identity
             .tab_commands()
             .iter()
@@ -217,7 +305,7 @@ mod tests {
 
     #[test]
     fn the_script_comes_first_then_the_network_domain_then_the_overrides() {
-        let identity = Identity::of(&Fingerprint::randomized(OsType::Windows, 7));
+        let identity = StealthPlan::new(&Fingerprint::randomized(OsType::Windows, 7));
 
         let methods = methods(&identity);
 
@@ -229,7 +317,7 @@ mod tests {
     }
 
     /// The parameters of the `method` command in `identity`, if it has one.
-    fn params_of<'a>(identity: &'a Identity, method: &str) -> Option<&'a Value> {
+    fn params_of<'a>(identity: &'a StealthPlan, method: &str) -> Option<&'a Value> {
         identity
             .tab_commands()
             .iter()
@@ -241,7 +329,7 @@ mod tests {
     fn the_script_is_the_sessions_and_leaves_plugins_and_connection_to_the_browser() {
         let fingerprint = Fingerprint::randomized(OsType::Windows, 7);
 
-        let identity = Identity::of(&fingerprint);
+        let identity = StealthPlan::new(&fingerprint);
 
         let source = identity.tab_commands()[0].1["source"].as_str().unwrap();
         assert_eq!(
@@ -253,7 +341,7 @@ mod tests {
         assert_eq!(owned.find(source), None, "a name Chrome answers for itself");
         assert_ne!(
             source,
-            crate::stealth::evasions::bootstrap_script(&fingerprint),
+            crate::evasion::evasions::bootstrap_script(&fingerprint),
             "the default script spoofs them"
         );
     }
@@ -268,7 +356,7 @@ mod tests {
         let screen = fingerprint.screen().value().unwrap();
         let (width, height) = (screen.width, screen.height);
 
-        let identity = Identity::of(&fingerprint);
+        let identity = StealthPlan::new(&fingerprint);
 
         assert_eq!(
             params_of(&identity, DEVICE_METRICS),
@@ -289,7 +377,7 @@ mod tests {
         let screen = fingerprint.screen().value().unwrap();
         let (width, height) = (screen.width, screen.height);
 
-        let identity = Identity::of(&fingerprint);
+        let identity = StealthPlan::new(&fingerprint);
 
         let sent = params_of(&identity, DEVICE_METRICS).expect("a device metrics override");
         assert_eq!(sent["width"], width);
@@ -301,7 +389,7 @@ mod tests {
 
     #[test]
     fn a_fingerprint_without_a_screen_sends_no_metrics() {
-        let identity = Identity::of(&Fingerprint::default());
+        let identity = StealthPlan::new(&Fingerprint::default());
 
         assert!(params_of(&identity, DEVICE_METRICS).is_none());
     }
@@ -310,11 +398,11 @@ mod tests {
     fn the_overrides_are_in_a_stable_order() {
         let fingerprint = Fingerprint::randomized(OsType::Macos, 99);
 
-        let first: Vec<_> = methods(&Identity::of(&fingerprint))
+        let first: Vec<_> = methods(&StealthPlan::new(&fingerprint))
             .into_iter()
             .map(str::to_owned)
             .collect();
-        let again: Vec<_> = methods(&Identity::of(&fingerprint))
+        let again: Vec<_> = methods(&StealthPlan::new(&fingerprint))
             .into_iter()
             .map(str::to_owned)
             .collect();
@@ -343,7 +431,7 @@ mod tests {
         // The WebDriver path would send it; confirm the source does ask for it.
         assert!(raw_overrides(&fingerprint).contains_key(CREDENTIAL_HEADER_METHOD));
 
-        let identity = Identity::of(&fingerprint);
+        let identity = StealthPlan::new(&fingerprint);
 
         assert!(!methods(&identity).contains(&CREDENTIAL_HEADER_METHOD));
         let everything = format!(
@@ -363,7 +451,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let identity = Identity::of(&fingerprint);
+        let identity = StealthPlan::new(&fingerprint);
 
         assert!(
             !methods(&identity).contains(&PERMISSIONS),
@@ -391,7 +479,7 @@ mod tests {
             .build()
             .unwrap();
 
-        assert!(Identity::of(&fingerprint)
+        assert!(StealthPlan::new(&fingerprint)
             .permission_grant(Some("CTX1"))
             .is_none());
     }
@@ -405,7 +493,7 @@ mod tests {
             .unwrap();
         assert!(fingerprint.geolocation().is_value());
 
-        let grant = Identity::of(&fingerprint)
+        let grant = StealthPlan::new(&fingerprint)
             .permission_grant(Some("CTX1"))
             .expect("a grant for the position");
 
@@ -416,11 +504,56 @@ mod tests {
     fn debug_output_stays_short_and_secret_free() {
         let shown = format!(
             "{:?}",
-            Identity::of(&Fingerprint::randomized(OsType::Windows, 1))
+            StealthPlan::new(&Fingerprint::randomized(OsType::Windows, 1))
         );
 
         assert!(shown.len() < 200, "{shown}");
         assert!(shown.contains("tab_commands"));
+    }
+
+    #[test]
+    fn the_init_script_is_what_the_first_command_installs() {
+        let plan = StealthPlan::new(&Fingerprint::randomized(OsType::Linux, 4));
+
+        let (method, params) = plan.commands().next().expect("a first command");
+
+        assert_eq!(method, "Page.addScriptToEvaluateOnNewDocument");
+        assert_eq!(params["source"].as_str(), Some(plan.init_script()));
+        assert!(plan.init_script().contains("navigator"));
+    }
+
+    #[test]
+    fn the_overrides_are_every_command_after_the_script_in_order() {
+        let plan = StealthPlan::new(&Fingerprint::randomized(OsType::Windows, 8));
+
+        let all: Vec<(&str, &Value)> = plan.commands().collect();
+        let overrides: Vec<(&str, &Value)> = plan.overrides().collect();
+
+        assert_eq!(overrides.len(), all.len() - 1);
+        assert_eq!(overrides, all[1..]);
+        assert!(overrides
+            .iter()
+            .all(|(method, _)| *method != "Page.addScriptToEvaluateOnNewDocument"));
+        assert!(
+            overrides
+                .iter()
+                .all(|(method, _)| !method.starts_with("Browser.")),
+            "nothing browser-wide is among the page's overrides"
+        );
+    }
+
+    #[test]
+    fn the_public_commands_are_the_ones_the_launch_path_sends() {
+        let plan = StealthPlan::new(&Fingerprint::randomized(OsType::Macos, 3));
+
+        let public: Vec<(&str, &Value)> = plan.commands().collect();
+        let internal: Vec<(&str, &Value)> = plan
+            .tab_commands()
+            .iter()
+            .map(|(method, params)| (method.as_str(), params))
+            .collect();
+
+        assert_eq!(public, internal);
     }
 }
 
@@ -429,7 +562,7 @@ mod launch_tests {
     use std::path::Path;
 
     use super::super::LaunchOptions;
-    use crate::stealth::fingerprint::{OsType, ProxyConfig, Spoof};
+    use crate::evasion::fingerprint::{OsType, ProxyConfig, Spoof};
 
     use super::*;
 

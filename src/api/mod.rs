@@ -43,6 +43,7 @@ pub mod html_inspector;
 pub mod jqc;
 pub mod master_qa;
 pub mod messages;
+pub mod misc_calls;
 pub(crate) mod page_scripts;
 #[cfg(feature = "pdf")]
 pub mod pdf;

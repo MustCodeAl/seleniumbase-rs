@@ -176,7 +176,15 @@ fn feature(manifest: &Table, name: &str) -> Vec<String> {
 fn each_builtin_plugin_has_a_feature_that_turns_on_exactly_its_own_crate() {
     let manifest = read_table("Cargo.toml");
 
-    for plugin in ["shield", "block-resources", "crx", "fetcher", "extractor"] {
+    for plugin in [
+        "shield",
+        "block-resources",
+        "crx",
+        "fetcher",
+        "extractor",
+        "batcher",
+        "crawler",
+    ] {
         assert_eq!(
             feature(&manifest, &format!("plugin-{plugin}")),
             [
@@ -194,7 +202,9 @@ fn each_builtin_plugin_has_a_feature_that_turns_on_exactly_its_own_crate() {
             "plugin-block-resources",
             "plugin-crx",
             "plugin-fetcher",
-            "plugin-extractor"
+            "plugin-extractor",
+            "plugin-batcher",
+            "plugin-crawler"
         ],
         "plugins-builtin is all of them"
     );

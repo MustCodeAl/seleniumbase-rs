@@ -27,6 +27,7 @@
 use std::path::PathBuf;
 
 use seleniumbase_rs::artifacts::ensure_latest_logs_dir;
+use seleniumbase_rs::tokio;
 
 /// What happened to one backend.
 #[cfg_attr(

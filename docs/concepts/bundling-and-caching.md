@@ -417,7 +417,7 @@ The library does not decide cache policy; it gives you the browser's controls.
 <Tab title="WebDriver engine" icon="plug">
 
 ```rust,ignore src/main.rs
-use serde_json::json;
+use seleniumbase_rs::json::json;
 
 sb.clear_browser_cache().await?;
 sb.execute_cdp_with_params("Network.setCacheDisabled", json!({ "cacheDisabled": true }))
@@ -430,7 +430,7 @@ sb.open("https://example.com/").await?;
 <Tab title="Pure CDP engine" icon="bolt">
 
 ```rust,ignore src/main.rs
-use serde_json::json;
+use seleniumbase_rs::json::json;
 
 page.execute("Network.setCacheDisabled", json!({ "cacheDisabled": true }))
     .await?;

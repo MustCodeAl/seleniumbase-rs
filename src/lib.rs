@@ -51,8 +51,10 @@ pub mod cli;
 pub mod common;
 pub mod config;
 pub mod core;
+pub mod drivers;
 pub mod error;
 pub mod js_code;
+pub mod json;
 pub mod macros;
 // The Microsoft Pragmatic Rust Guidelines lint set, held to for this module.
 #[cfg(feature = "mcp-server")]
@@ -101,7 +103,8 @@ pub mod ocr;
 #[cfg(feature = "plugins")]
 pub use seleniumbase_rs_plugin as plugin_api;
 /// The built-in plugins, one cargo feature each (`plugin-shield`,
-/// `plugin-block-resources`, `plugin-crx`, `plugin-fetcher`, `plugin-extractor`; `plugins-builtin` for all): the
+/// `plugin-block-resources`, `plugin-crx`, `plugin-fetcher`, `plugin-extractor`,
+/// `plugin-batcher`, `plugin-crawler`; `plugins-builtin` for all): the
 /// crate `seleniumbase-rs-plugins-builtin`, with each plugin's own types and
 /// its `registry()`. Most programs enable them by name instead; see
 /// [`plugin_host`].
@@ -110,6 +113,8 @@ pub use seleniumbase_rs_plugin as plugin_api;
     feature = "plugin-block-resources",
     feature = "plugin-fetcher",
     feature = "plugin-extractor",
+    feature = "plugin-batcher",
+    feature = "plugin-crawler",
     feature = "plugin-crx"
 ))]
 pub use seleniumbase_rs_plugins_builtin as builtin_plugins;
@@ -124,6 +129,7 @@ pub mod resources;
 #[cfg(feature = "turso")]
 pub mod storage;
 // The Microsoft Pragmatic Rust Guidelines lint set, held to for this module.
+pub mod evasion;
 #[warn(
     clippy::pedantic,
     clippy::allow_attributes_without_reason,
@@ -139,7 +145,6 @@ pub mod storage;
     unused_lifetimes
 )]
 pub mod sb_cdp;
-pub mod stealth;
 /// The `sb` and `sb_cdp` fixtures for `cargo test` with the per-test lifecycle:
 /// the run configuration, reruns, a time limit, evidence of a failure and the debug
 /// prompts (feature `testing`).
@@ -167,6 +172,14 @@ pub mod utils;
 )]
 pub mod visual;
 
+/// The Tokio runtime this crate runs on, under its own name, so a program or a test needs
+/// no `tokio` line in its manifest: `use seleniumbase_rs::tokio;` and then
+/// `#[tokio::main]` or `#[tokio::test]`. The attribute macros expand to paths that start
+/// with `tokio::`, which resolve to this import. It has the features this crate
+/// enables (`macros`, `rt-multi-thread`, `time`, `signal`, `sync`, `process`, `net`,
+/// `io-util` and `fs`); a program that needs another one lists `tokio` itself.
+pub use tokio;
+
 pub use api::base_case::{BaseCase, CookieExpiry, DriverId};
 pub use api::chart::{Chart, ChartType};
 #[cfg(feature = "gui")]
@@ -182,19 +195,19 @@ pub use common::tls::install_tls_provider;
 pub use config::settings::{Settings, SettingsOverrides};
 pub use config::{LogFormat, RuntimeConfig};
 pub use error::{Result, ResultExt, SeleniumBaseError};
-pub use stealth::capture::CapturedFingerprint;
-pub use stealth::fingerprint::{
+pub use evasion::capture::CapturedFingerprint;
+pub use evasion::fingerprint::{
     AudioNoise, BatteryProfile, BrandVersion, BrowserType, CanvasNoise, ClientHints,
     CoherenceReport, ConnectionProfile, Dimension, Fingerprint, FingerprintBuilder,
     FingerprintComparison, FingerprintError, Geolocation, HumanizeConfig, MediaDevices, OsType,
     ProxyConfig, QuicMode, ScreenSize, SettingDiff, SpeechVoice, Spoof, StealthPolicy, WebGl,
     WebRtcAddresses, WebRtcPolicy,
 };
-pub use stealth::providers::{
+pub use evasion::providers::{
     default_registry, session_registry, EvasionConfig, EvasionContext, EvasionProvider,
     EvasionRegistry, SESSION_OMITTED_PROVIDERS,
 };
-pub use stealth::{
+pub use evasion::{
     engine_spoofing_args, find_system_chrome, ChromeBinaryPatcher, ChromedriverPatcher, EnginePatch,
 };
 pub use tracing_util::{

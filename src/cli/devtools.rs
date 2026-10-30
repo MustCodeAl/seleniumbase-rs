@@ -12,8 +12,8 @@ use std::path::PathBuf;
 
 use crate::config::plugins::PluginSelection;
 use crate::error::SeleniumBaseError;
+use crate::evasion::fingerprint::Fingerprint;
 use crate::sb_cdp::{DevToolsEndpoint, LaunchOptions};
-use crate::stealth::fingerprint::Fingerprint;
 
 /// The port `sbrs devtools` asks Chrome to listen on when none is given: the
 /// one the MCP servers' documentation uses.

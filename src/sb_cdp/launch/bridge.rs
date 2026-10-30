@@ -54,7 +54,9 @@ pub(super) fn unused_settings(config: &BrowserConfig) -> Vec<&'static str> {
     note(!launch.extension_archives.is_empty(), "extension_archives");
     note(launch.ad_block_list.is_some(), "ad_block_list");
     note(
-        !config.webdriver_url.is_empty() && !config.is_default_webdriver_url(),
+        !config.cdp_discovery
+            && !config.webdriver_url.is_empty()
+            && !config.is_default_webdriver_url(),
         "webdriver_url",
     );
     for switch in &launch.switches {
@@ -111,6 +113,12 @@ impl LaunchOptionsBuilder {
     /// ones read here; the fingerprint is applied last, so settings made
     /// before it win over it.
     ///
+    /// With a `cdp_url` the browser is attached to, not launched, and only
+    /// what can reach a running app is taken: a proxy, a PAC file, and a user
+    /// agent or locale without a fingerprint make [`build`](Self::build) fail
+    /// with [`InvalidConfig`](SeleniumBaseError::InvalidConfig), instead of
+    /// being dropped without a word.
+    ///
     /// # Examples
     ///
     /// ```
@@ -134,6 +142,18 @@ impl LaunchOptionsBuilder {
             tracing::debug!("not used by the pure CDP engine: {}", unused.join(", "));
         }
         let launch = &config.launch;
+
+        if let Some(url) = &config.cdp_url {
+            self = self.cdp_url(url);
+        } else if config.cdp_discovery {
+            self = self.cdp_url(&config.webdriver_url);
+        }
+        #[cfg(feature = "plugins")]
+        self.plugins.clone_from(config.plugins());
+
+        if let Some(target) = &config.cdp_target {
+            self = self.cdp_target(target);
+        }
 
         self = self.headless(config.headless).ad_block(config.ad_block);
         if let Some(path) = &config.browser_binary_path {

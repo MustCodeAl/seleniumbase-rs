@@ -6,8 +6,8 @@
 
 #![cfg(feature = "test-util")]
 
+use seleniumbase_rs::evasion::behavior::Behavior;
 use seleniumbase_rs::sb_cdp::{Browser, MockCtrl, Page, Point};
-use seleniumbase_rs::stealth::behavior::Behavior;
 use serde_json::{json, Value};
 use tokio::time::Instant;
 

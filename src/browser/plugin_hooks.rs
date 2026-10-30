@@ -29,10 +29,10 @@ use thirtyfour::WebDriver;
 use crate::browser::config::{Browser, BrowserConfig};
 use crate::browser::options::{FirefoxOptions, FirefoxPreference};
 use crate::error::SeleniumBaseError;
+use crate::evasion::cdp::CdpClient;
+use crate::evasion::options::without_credentials;
 use crate::plugin_host::{convert, guard};
 use crate::sb_cdp::sync::locked;
-use crate::stealth::cdp::CdpClient;
-use crate::stealth::options::without_credentials;
 
 /// The plugin API's family of `browser`.
 ///

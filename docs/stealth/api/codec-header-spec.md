@@ -25,9 +25,9 @@ on what the request is for, so it is looked up by the `Sec-Fetch-Dest` value wit
 <RequestExample>
 
 ```rust Render a captured list
-use seleniumbase_rs_codec::header_spec::{HeaderIdentity, HeaderSpec, RequestShape};
+use seleniumbase_rs_stealth::codec::header_spec::{HeaderIdentity, HeaderSpec, RequestShape};
 
-fn main() -> Result<(), seleniumbase_rs_codec::header_spec::HeaderSpecError> {
+fn main() -> Result<(), seleniumbase_rs_stealth::codec::header_spec::HeaderSpecError> {
     let captured = [("Accept", "*/*"), ("User-Agent", "Agent/1.0"), ("Host", "example.test")];
     let spec = HeaderSpec::from_captured(&captured, &captured)?;
     let identity = HeaderIdentity::new("Agent/2.0");
@@ -39,9 +39,9 @@ fn main() -> Result<(), seleniumbase_rs_codec::header_spec::HeaderSpecError> {
 ```
 
 ```rust The measured priority table
-use seleniumbase_rs::stealth::fingerprint::OsType;
-use seleniumbase_rs_codec::emulation;
-use seleniumbase_rs_codec::BrowserKind;
+use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
+use seleniumbase_rs_stealth::codec::emulation;
+use seleniumbase_rs_stealth::codec::BrowserKind;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let chrome = emulation::get(BrowserKind::Chrome, OsType::Macos)?;

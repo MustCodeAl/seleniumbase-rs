@@ -4,17 +4,16 @@
 //! `tests/` folder. It needs Chrome and a matching chromedriver (`sbrs doctor`
 //! checks both). `SB_HEADLESS=true` runs it without a window.
 //!
-//! Your crate's dev-dependencies are `seleniumbase-rs` (feature `testing`),
-//! `rstest` and `tokio` (features `macros` and `rt`).
+//! Your crate's only dev-dependency is `seleniumbase-rs` (feature `testing`): the
+//! rstest attribute, the fixtures and the Tokio runtime come from it.
 //!
 //! It pauses at `recorder_breakpoint` in Recorder Mode, where you click through
 //! the page by hand. Run it with `SB_RECORDER=true cargo test --test pf_rec --
 //! --nocapture`; the recorded steps are written to `recordings/`.
 
-use rstest::rstest;
 use seleniumbase_rs::api::recorder::recorder_breakpoint;
-use seleniumbase_rs::testing::{sb, Sb};
-use seleniumbase_rs::Result;
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
 
 #[rstest]
 #[tokio::test]

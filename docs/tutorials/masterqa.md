@@ -27,7 +27,7 @@ Summary for AI exports: call `sb.start_qa_session(title)`, run automated steps, 
 ## Start a MasterQA session
 
 ```rust,no_run
-use seleniumbase_rs::{BaseCase, BrowserConfig};
+use seleniumbase_rs::{tokio, BaseCase, BrowserConfig};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

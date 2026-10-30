@@ -82,7 +82,7 @@ let plugins = plugin_host::build_with(&registry, &selection)?;
 <ResponseExample>
 
 ```text Unknown name
-plugin error: no plugin named `sheild` is available (known: shield, block-resources, crx). The built-in plugins are cargo features of seleniumbase-rs: plugin-shield, plugin-block-resources, plugin-crx (plugins-builtin turns them all on). A plugin from another crate is added with PluginSet::with, or by name through Registry::with(Descriptor::of::<P>()) and plugin_host::build_with
+plugin error: no plugin named `sheild` is available (known: shield, block-resources, crx). The built-in plugins are cargo features of seleniumbase-rs: plugin-shield, plugin-block-resources, plugin-crx, plugin-fetcher, plugin-extractor, plugin-batcher, plugin-crawler (plugins-builtin turns them all on). A plugin from another crate is added with PluginSet::with, or by name through Registry::with(Descriptor::of::<P>()) and plugin_host::build_with
 ```
 
 ```text Named twice
@@ -105,7 +105,11 @@ plugin error: options were given for `shield`, which is not in `enable` ([plugin
 | `plugin-shield` | `plugins`, and `seleniumbase-rs-plugins-builtin/shield` |
 | `plugin-block-resources` | `plugins`, and `seleniumbase-rs-plugins-builtin/block-resources` |
 | `plugin-crx` | `plugins`, and `seleniumbase-rs-plugins-builtin/crx` |
-| `plugins-builtin` | `plugin-shield`, `plugin-block-resources` and `plugin-crx` |
+| `plugin-fetcher` | `plugins`, and `seleniumbase-rs-plugins-builtin/fetcher` |
+| `plugin-extractor` | `plugins`, and `seleniumbase-rs-plugins-builtin/extractor` |
+| `plugin-batcher` | `plugins`, and `seleniumbase-rs-plugins-builtin/batcher` |
+| `plugin-crawler` | `plugins`, and `seleniumbase-rs-plugins-builtin/crawler` |
+| `plugins-builtin` | every `plugin-*` feature above |
 
 The library's default features are empty. The command-line package
 `seleniumbase-rs-cli` has `plugins-builtin` among its defaults and passes
@@ -295,6 +299,13 @@ attaching (`connecting: true`, so a `LAUNCH_ONLY` plugin refuses), against the
 browser's headless state read from its user agent; then `on_browser` runs, and
 every tab the library attaches to gets the packages and `on_page_created`.
 Nothing is launched, so `before_launch` does not run.
+
+For URL-based attachment with a fingerprint, use the existing launch builder
+with `.cdp_url(endpoint).fingerprint(&fingerprint).plugins(plugins)` and call
+`Browser::launch`. The host performs the same attach checks, prepares existing
+windows, and runs the usual page and close hooks. `BrowserConfig::with_plugins`
+also carries its set into a direct CDP session through `browser_config`.
+See [Tauri CDP attachment](/ecosystem/tauri-api/cdp).
 
 ## BrowserConfig::with_plugins
 

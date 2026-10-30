@@ -3,6 +3,10 @@ title: "Wire Formats and Impersonation"
 sidebarTitle: "Wire formats"
 ---
 
+Examples importing `seleniumbase_rs_stealth::mimic` require the facade's
+`mimic` feature. See the [single-dependency setup](/stealth/overview#which-crate-to-depend-on);
+this feature builds BoringSSL and needs cmake and a C/C++ toolchain.
+
 <Badge color="orange">Experimental</Badge>
 
 <Visibility for="agents">
@@ -24,9 +28,9 @@ uses for WebSocket), the HTTP/2 start, the header lists and their order, the
 client hints, and where it came from:
 
 ```rust
-use seleniumbase_rs::stealth::fingerprint::OsType;
-use seleniumbase_rs_codec::emulation::{self, EmulationError};
-use seleniumbase_rs_codec::BrowserKind;
+use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
+use seleniumbase_rs_stealth::codec::emulation::{self, EmulationError};
+use seleniumbase_rs_stealth::codec::BrowserKind;
 
 # fn demo() -> Result<(), EmulationError> {
 let chrome = emulation::get(BrowserKind::Chrome, OsType::Macos)?;
@@ -170,9 +174,9 @@ Only JA4 itself is implemented. JA4H, JA4S, JA4X and the other JA4+ methods carr
 a different licence and are not part of this crate.
 
 ```rust
-use seleniumbase_rs_codec::akamai::Akamai;
-use seleniumbase_rs_codec::ja3::Ja3;
-use seleniumbase_rs_codec::ja4::Ja4;
+use seleniumbase_rs_stealth::codec::akamai::Akamai;
+use seleniumbase_rs_stealth::codec::ja3::Ja3;
+use seleniumbase_rs_stealth::codec::ja4::Ja4;
 
 # fn demo() -> Result<(), Box<dyn std::error::Error>> {
 // The Akamai string measured from Chrome 155 on macOS.
@@ -210,11 +214,11 @@ BoringSSL and wreq stack can send it, and names what it cannot.
 The `mimic` crate turns a measured profile into a wreq client:
 
 ```rust
-use seleniumbase_rs_mimic::client::{
+use seleniumbase_rs_stealth::mimic::client::{
     impersonation_client, ImpersonationProfile, WireProtocol,
 };
-use seleniumbase_rs_codec::header_spec::RequestShape;
-use seleniumbase_rs_codec::BrowserKind;
+use seleniumbase_rs_stealth::codec::header_spec::RequestShape;
+use seleniumbase_rs_stealth::codec::BrowserKind;
 
 # async fn demo() -> Result<(), Box<dyn std::error::Error>> {
 let profile = ImpersonationProfile::measured(BrowserKind::Chrome)?;
@@ -243,7 +247,7 @@ let response = request.send().await?;
 - The profile carries the measured TLS without its known gaps (see
   [Limits](/stealth/limits#limits)) and keeps extension permutation on, as Chrome does.
 - Cookies, redirects, body limits and the hand-over from a browser are not part
-  of this client. That is what [`HttpSession`](/stealth/http-session#httpsession) is for.
+  of this client. That is what [`HttpSession`](/stealth/http-session) is for.
 
 Other ways to get a profile: `ImpersonationProfile::for_system(kind, os)`,
 `ImpersonationProfile::from_fingerprint(&fp)` (a Chromium identity that claims
@@ -259,7 +263,7 @@ the base: a JA3 has no signature algorithms, an Akamai string has no HEADERS
 priority, a header list has no TLS.
 
 ```rust
-use seleniumbase_rs_mimic::client::ImpersonationProfile;
+use seleniumbase_rs_stealth::mimic::client::ImpersonationProfile;
 
 # fn demo() -> Result<(), Box<dyn std::error::Error>> {
 let profile = ImpersonationProfile::custom()
@@ -314,8 +318,8 @@ For example, a JA3 that adds `trust_anchors` and a signature algorithm BoringSSL
 cannot write:
 
 ```rust
-use seleniumbase_rs_mimic::client::{ImpersonateError, ImpersonationProfile};
-use seleniumbase_rs_codec::tls_spec::SpecError;
+use seleniumbase_rs_stealth::mimic::client::{ImpersonateError, ImpersonationProfile};
+use seleniumbase_rs_stealth::codec::tls_spec::SpecError;
 
 # fn demo(ja3_with_trust_anchors: &str) {
 let refused = ImpersonationProfile::custom().ja3(ja3_with_trust_anchors);
@@ -339,3 +343,25 @@ cannot send what you asked for, and sending something close would be a different
 fingerprint from the one you named.
 
 </Info>
+
+## Where these types live
+
+The parsers and the measured table are `seleniumbase_rs_stealth::codec`, on by
+default. `ImpersonationProfile`, `CustomProfileBuilder` and
+`impersonation_client` are re-exported at `seleniumbase_rs_stealth::mimic`, which
+needs `features = ["mimic"]`. The module paths used above
+(`mimic::client`, `codec::tls_spec`) are the same types. The item pages are
+[codec](/stealth/api/codec), [Emulation](/stealth/api/codec-emulation),
+[TlsSpec](/stealth/api/codec-tls-spec) and [mimic](/stealth/api/mimic).
+
+<Columns cols={2}>
+
+<Card title="HttpSession" icon="network-wired" color="#a631be" href="/stealth/http-session">
+  The client this page builds, carrying a browser's cookies.
+</Card>
+
+<Card title="Examples" icon="play" color="#693acf" href="/stealth/examples">
+  `custom_profile` and the three capture tools, and what each needs.
+</Card>
+
+</Columns>

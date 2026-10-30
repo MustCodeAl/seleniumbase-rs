@@ -34,7 +34,7 @@ Set the driver mode to `Uc` in `BrowserConfig`:
 <Tab title="Rust" icon="code">
 
 ```rust,no_run
-use seleniumbase_rs::{BaseCase, BrowserConfig, DriverMode};
+use seleniumbase_rs::{tokio, BaseCase, BrowserConfig, DriverMode};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -96,7 +96,7 @@ cargo run --bin sbrs -- patch-chromedriver --path /path/to/chromedriver
 <Tab title="From Rust" icon="code">
 
 ```rust,no_run
-use seleniumbase_rs::stealth::patcher::patch_chromedriver;
+use seleniumbase_rs::evasion::patcher::patch_chromedriver;
 
 # fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 patch_chromedriver("/path/to/chromedriver")?;
@@ -124,6 +124,44 @@ let config = BrowserConfig::default()
     .with_mode(DriverMode::Uc)
     .with_extra_args(engine_spoofing_args());
 ```
+
+## Cloudflare challenges
+
+Cloudflare stands in front of some sites with a "Just a moment..." interstitial
+that runs checks in the browser. UC mode reaches such a page like any other, but
+the challenge can appear mid-navigation, so open it with a fresh session:
+
+```rust,no_run
+# use seleniumbase_rs::BaseCase;
+# async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+sb.uc_open_with_reconnect("https://example.com/protected").await?;
+# Ok(())
+# }
+```
+
+`uc_open_with_reconnect(url)` reconnects the session and then opens the URL;
+`uc_open_with_disconnect(url)` quits the session and connects a new one with the
+same config first.
+
+<Warning>
+
+UC mode lowers the signals that trigger a challenge; it does not answer one. A
+challenge that asks for a real interactive proof (a Turnstile checkbox, a managed
+challenge with a puzzle, or an interactive "Verify you are human" step) is not
+solved by UC mode alone. If the page shows a Turnstile checkbox, `solve_captcha()`
+finds it (also in a shadow root), waits for it to stand still, presses it along a
+human pointer path, checks that the page shows it cleared (a token, the
+`cf_clearance` cookie, a page with no widget) and presses again if not, then
+returns `Some(Captcha::Turnstile)`. It is not a solver of puzzles, and
+Cloudflare may follow with a harder challenge. To see what it did, call
+`solve_captcha_with(&SolveOptions::new().success_marker("..."))`. From the
+command line, `sbrs --uc --url https://example.com/protected solve-captcha
+--expect-cookie cf_clearance` does it and checks the cookie. See
+[How CAPTCHAs work](/concepts/captchas) for the steps and the opt-in live check
+against https://nowsecure.nl, and
+[Testing pages with a CAPTCHA](/tutorials/captcha_testing) for its limits.
+
+</Warning>
 
 ## Still detected?
 

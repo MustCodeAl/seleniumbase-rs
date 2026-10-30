@@ -6,7 +6,7 @@ description: "The TLS ClientHello parser of seleniumbase-rs-codec: ClientHello, 
 
 <Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: codec</Badge>
 
-`seleniumbase_rs_codec::client_hello` parses a captured TLS `ClientHello`
+`seleniumbase_rs_stealth::codec::client_hello` parses a captured TLS `ClientHello`
 incrementally, from the record header onwards, without trusting its lengths.
 `ClientHello::needed_len` tells a capture loop how many bytes make up the first
 handshake message while it is still arriving, and `ClientHello::parse` decodes the
@@ -18,7 +18,7 @@ received; the JA3, JA4 and spec builders strip them.
 <RequestExample>
 
 ```rust A capture loop
-use seleniumbase_rs_codec::client_hello::{ClientHello, ClientHelloError};
+use seleniumbase_rs_stealth::codec::client_hello::{ClientHello, ClientHelloError};
 
 /// `buf` holds the bytes read from the socket so far.
 fn try_parse(buf: &[u8]) -> Result<Option<ClientHello>, ClientHelloError> {
@@ -30,7 +30,7 @@ fn try_parse(buf: &[u8]) -> Result<Option<ClientHello>, ClientHelloError> {
 ```
 
 ```rust Read the typed fields
-use seleniumbase_rs_codec::client_hello::{ext_id, without_grease, ClientHello};
+use seleniumbase_rs_stealth::codec::client_hello::{ext_id, without_grease, ClientHello};
 
 fn describe(hello: &ClientHello) {
     println!("SNI {:?}", hello.sni);

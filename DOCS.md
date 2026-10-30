@@ -169,10 +169,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 `seleniumbase-rs` comes with a powerful CLI tool named `sbrs` to record scripts, run scenarios, and perform quick interactions.
 
 ### Recording a Script
-Translates your browser actions into a ready-to-run Rust script:
+Translates your browser actions into a ready-to-run Rust script. Type `c` and press Enter in the terminal to end the recording:
 ```bash
-sbrs record --url https://wikipedia.org --output my_test.rs
+sbrs mkrec my_test.rs --url https://wikipedia.org
 ```
+The test is written to `my_test.rs` and the actions to `recordings/my_test_rec.json`, which `sbrs replay` plays back.
 
 ### Running JSON Scenarios
 ```bash
@@ -181,10 +182,12 @@ sbrs run-scenario --file tests/login_flow.json
 
 ### Quick Commands
 ```bash
-sbrs open --url https://rust-lang.org
-sbrs click --css "#get-started"
-sbrs human-type --css "#search" --text "Concurrency"
+sbrs open https://rust-lang.org
+sbrs --url https://rust-lang.org human-click --css "#get-started"
+sbrs --url https://rust-lang.org human-type --css "#search" --text "Concurrency"
 ```
+
+Each of these starts its own browser and closes it at the end. A command that acts on a page needs a start page, given with `--url`; `open` takes its URL as an argument instead.
 
 ---
 
@@ -288,9 +291,12 @@ Use arrow keys to navigate discovered tests, press Enter to run them, and `q` to
 Record browser actions and export them as a Rust test:
 
 ```bash
-sbrs mkrec my_test.rs
+sbrs mkrec my_test.rs --url https://example.com
+sbrs replay recordings/my_test_rec.json
 sbrs recorder
 ```
+
+`sbrs recorder` runs the same steps from a form in the terminal and needs a build with the `tui` feature.
 
 ## MCP Server
 
@@ -301,8 +307,10 @@ clients over stdio:
 cargo build --release --bin sbrs-mcp --features mcp-server
 ```
 
-Choose a toolset with `--server cdp|driver|sb`. The browser starts when
-`start_browser` is called, so clients can list tools without a running browser.
+Choose a toolset with `--server cdp|driver|sb|dev` (`dev` starts no browser).
+`sbrs-mcp install CLIENT` registers the browser server and the `dev` server with
+an MCP client. The browser starts when `start_browser` is called, so clients can
+list tools without a running browser.
 The toolsets cover navigation, page metadata, element interaction, waits and
 assertions, cookies and storage, tabs and windows, CAPTCHA solving, saving pages,
 and JavaScript execution. See the

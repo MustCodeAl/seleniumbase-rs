@@ -27,7 +27,9 @@
 mod local_site;
 
 use local_site::{Site, DEMO_PATH};
-use seleniumbase_rs::{run_browser_test, BaseCase, BrowserConfig, Result, SeleniumBaseError};
+use seleniumbase_rs::{
+    run_browser_test, tokio, BaseCase, BrowserConfig, Result, SeleniumBaseError,
+};
 use std::time::Duration;
 
 /// The demo page's text box, or the search box on Google's home page.

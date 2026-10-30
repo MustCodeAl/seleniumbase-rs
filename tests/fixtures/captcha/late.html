@@ -1,0 +1,40 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>A widget that appears late</title>
+<!--
+  Nothing is on the page when it loads except the challenge script (the marker
+  a real challenge page carries). The widget is added 1000 ms later, and the
+  frame ignores presses for 600 ms after it loads (its box has not drawn yet),
+  so a solver that presses the moment the frame appears loses its press.
+-->
+<style>
+  body { font: 15px sans-serif; margin: 24px; }
+  .cf-turnstile { width: 300px; height: 65px; }
+  iframe { border: 0; }
+</style>
+<script src="/cdn-cgi/challenge-platform/h/b/orchestrate/chl_page/v1"></script>
+<h1>Checking your browser</h1>
+<form id="f">
+  <div id="slot"></div>
+  <input type="hidden" name="cf-turnstile-response" value="">
+</form>
+<p id="status">waiting</p>
+<script>
+  window.__clicks = [];
+  setTimeout(() => {
+    document.getElementById('slot').innerHTML =
+      '<div class="cf-turnstile" data-sitekey="1x00000000000000000000AA">' +
+      '<iframe id="cf-chl-widget-l1" ' +
+      'title="Widget containing a Cloudflare security challenge" ' +
+      'width="300" height="65" src="FAR/w?arm=600"></iframe></div>';
+  }, 1000);
+  addEventListener('message', (event) => {
+    const data = event.data || {};
+    if (data.sbFixture === 'click') window.__clicks.push(data);
+    if (data.sbFixture === 'token') {
+      document.querySelector('[name=cf-turnstile-response]').value = data.value;
+      document.body.dataset.cleared = '1';
+      document.getElementById('status').textContent = 'cleared';
+    }
+  });
+</script>

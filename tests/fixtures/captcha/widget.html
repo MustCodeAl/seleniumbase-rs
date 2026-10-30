@@ -1,0 +1,74 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Fake challenge widget</title>
+<!--
+  The inside of an imitation Turnstile widget: the page of the frame, served
+  from a second origin so the parent page cannot read it. It is 300x65 and the
+  checkbox sits against the LEFT edge (12..36 px across, 20..44 px down), as the
+  real one does, so a press at the middle of the frame misses it.
+
+  Query string:
+    arm=<ms>     the box ignores presses for this long after the frame loads
+                 (a frame that is on screen before its box has drawn)
+    fail=<n>     the first n verifications end in "try again"; the next one
+                 succeeds (a widget that needs a second, verified check)
+    verify=<ms>  how long a verification takes (default 500)
+
+  A press that lands outside the box, is not trusted, or comes while the box
+  is not armed is recorded and ignored. A press while a verification runs
+  restarts it, as a real widget can be reset by a second click.
+-->
+<style>
+  html, body { margin: 0; width: 300px; height: 65px; overflow: hidden;
+    font: 13px sans-serif; background: #fafafa; }
+  #box { position: absolute; left: 12px; top: 20px; width: 24px; height: 24px;
+    box-sizing: border-box; border: 2px solid #888; background: #fff; }
+  #box.spin { border-color: #f90; }
+  #box.error { border-color: #c00; }
+  #label { position: absolute; left: 52px; top: 24px; }
+  #success-icon { display: none; position: absolute; left: 15px; top: 20px;
+    color: #080; font-size: 22px; }
+  body.done #success-icon { display: block; }
+</style>
+<div id="box"></div>
+<div id="label">Verify you are human</div>
+<div id="success-icon">&#10003;</div>
+<script>
+  const query = new URLSearchParams(location.search);
+  const armedAt = performance.now() + Number(query.get('arm') || 0);
+  const verifyMs = Number(query.get('verify') || 500);
+  let failsLeft = Number(query.get('fail') || 0);
+  let state = 'idle';
+  let timer = null;
+
+  function report(detail) {
+    parent.postMessage(Object.assign({ sbFixture: 'click' }, detail), '*');
+  }
+
+  addEventListener('click', (event) => {
+    const r = document.getElementById('box').getBoundingClientRect();
+    const inside = event.clientX >= r.left && event.clientX <= r.right &&
+      event.clientY >= r.top && event.clientY <= r.bottom;
+    const armed = performance.now() >= armedAt;
+    report({ x: event.clientX, y: event.clientY, trusted: event.isTrusted,
+      inside, armed, state });
+    if (!event.isTrusted || !inside || !armed || state === 'done') return;
+
+    clearTimeout(timer);
+    state = 'verifying';
+    document.getElementById('box').className = 'spin';
+    timer = setTimeout(() => {
+      if (failsLeft > 0) {
+        failsLeft -= 1;
+        state = 'idle';
+        document.getElementById('box').className = 'error';
+        document.getElementById('label').textContent = 'Error. Try again.';
+        return;
+      }
+      state = 'done';
+      document.body.className = 'done';
+      document.getElementById('box').className = '';
+      parent.postMessage({ sbFixture: 'token', value: 'TOKEN-' + Date.now() }, '*');
+    }, verifyMs);
+  });
+</script>

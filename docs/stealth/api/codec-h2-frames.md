@@ -6,7 +6,7 @@ description: "HTTP/2 frame reading in seleniumbase-rs-codec: read_preface, Prefa
 
 <Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: codec</Badge>
 
-`seleniumbase_rs_codec::h2_frames` reads the HTTP/2 connection preface, SETTINGS,
+`seleniumbase_rs_stealth::codec::h2_frames` reads the HTTP/2 connection preface, SETTINGS,
 PRIORITY and the first HEADERS frame from captured bytes. A capture tool listens
 for a client, collects the bytes it sends, and asks after each read. When the
 first request's header block is complete, the result holds everything an Akamai
@@ -23,7 +23,7 @@ in `h2_frames::huffman`.
 <RequestExample>
 
 ```rust Read more until the request is complete
-use seleniumbase_rs_codec::h2_frames::{
+use seleniumbase_rs_stealth::codec::h2_frames::{
     encode_frame, frame_type, read_preface, H2CaptureError, CLIENT_PREFACE,
 };
 
@@ -36,7 +36,7 @@ fn main() -> Result<(), H2CaptureError> {
 ```
 
 ```rust A capture loop with PrefaceReader
-use seleniumbase_rs_codec::h2_frames::{H2CaptureError, PrefaceReader};
+use seleniumbase_rs_stealth::codec::h2_frames::{H2CaptureError, PrefaceReader};
 
 /// Called with the whole buffer after every socket read.
 fn on_read(reader: &mut PrefaceReader, buf: &[u8]) -> Result<(), H2CaptureError> {
@@ -51,7 +51,7 @@ fn on_read(reader: &mut PrefaceReader, buf: &[u8]) -> Result<(), H2CaptureError>
 ```
 
 ```rust Decode a header block
-use seleniumbase_rs_codec::h2_frames::hpack::{HpackDecoder, HpackError, DEFAULT_TABLE_SIZE};
+use seleniumbase_rs_stealth::codec::h2_frames::hpack::{HpackDecoder, HpackError, DEFAULT_TABLE_SIZE};
 
 fn names(block: &[u8]) -> Result<Vec<String>, HpackError> {
     let mut decoder = HpackDecoder::new(DEFAULT_TABLE_SIZE);

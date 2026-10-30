@@ -10,6 +10,34 @@ work, `docs/parity.md` the per-API status).
 
 ### Breaking
 
+- **Breaking: the library's `stealth` module is now `evasion`.** `seleniumbase_rs::stealth::...`
+  is `seleniumbase_rs::evasion::...` (the folder `src/stealth/` is `src/evasion/`), and the old
+  path is gone with no alias. The root re-exports (`Fingerprint`, `StealthPolicy`,
+  `EvasionProvider`, ...), the type names, the feature names and the MCP tool names keep the
+  word stealth. The `seleniumbase_rs_stealth::...` crates are unchanged (`codec`, `scrape`,
+  `mimic`); the facade re-exports the renamed module as `seleniumbase_rs_stealth::evasion`.
+
+- **The last helpers that dropped Python's keyword arguments take them as call builders.**
+  `click_nth_visible_element(selector, number)` counts from 1, as in Python, and a number of 0 is
+  an `InvalidConfig` error instead of clicking the first element (`.timeout(..)`, `.scroll(..)`);
+  `hover_and_double_click` and `hover_and_js_click` take the hover selector and the click
+  selector (`.timeout(..)`); `press_up_arrow`, `press_down_arrow`, `press_left_arrow` and
+  `press_right_arrow` take `.selector(..)` (default `body`) and `.times(..)`; `scroll_up` and
+  `scroll_down` scroll by `.amount(..)` percent of the window's height (25 by default, not 400
+  pixels); `drag_and_drop_with_offset(selector, x, y)` drags the element itself, where it took a
+  source and a target; `wait_for_attribute` and `wait_for_attribute_not_present` lose their
+  positional timeout for `.value(..)` and `.timeout(..)`; `click_with_offset` and
+  `double_click_with_offset` take any numbers and lose the `center` argument for `.mark(..)`,
+  `.timeout(..)`, `.center(..)` and `.scroll(..)`; `open_new_tab` and `open_new_window` take
+  `.switch_to(..)`; `add_cookie(&cookie_dict)` takes the W3C cookie object that `get_cookies`
+  returns, with `.expiry(..)`, instead of a name and a value; `get_domain_url(url)` is a pure
+  function of its argument and no longer reads the current URL; `download_file(url)` and
+  `save_file_as(url, new_file_name)` fetch the URL over HTTP into a folder
+  (`.destination_folder(..)`), as in Python. The browser-tab `download_file(url, filename,
+  timeout)` is now `download_file_in_browser`, and the byte-writing `save_file_as(data,
+  filename)` is gone (use `save_data_as`). Added: `get_google_auth_password`, an alias of
+  `get_mfa_code`.
+
 - **Website tours work as in Python.** `create_tour`, `create_shepherd_tour`,
   `create_bootstrap_tour`, `create_driverjs_tour`, `create_hopscotch_tour`,
   `create_introjs_tour`, `add_tour_step`, `play_tour` (also `start_tour`) and `export_tour` take
@@ -134,6 +162,120 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- **A project that uses `seleniumbase-rs` lists `seleniumbase-rs` and imports nothing else.** The
+  crate re-exports what its API takes, returns or expands to: `seleniumbase_rs::drivers` (the
+  WebDriver types: `By`, `WebElement`, `DesiredCapabilities`, `Key`, `Cookie`, `NetworkConditions`,
+  ...; `get_shadow_root`, `find_element` and `get_cookie` are written with them), `seleniumbase_rs::json`
+  (`json!`, `Value`, `from_value`, ...), `seleniumbase_rs::tokio` (the runtime, so `#[tokio::main]` and
+  `#[tokio::test]` need no `tokio` line), `seleniumbase_rs::testing::{rstest, fixture}`,
+  `seleniumbase_rs::testing::bdd::{given, when, then, scenario, scenarios, skip}` and
+  `seleniumbase_rs::plugins::observer::async_trait`. The attribute macros expand to paths that start
+  with `tokio::` and `rstest::`, which resolve to the imports. Gherkin tests still list
+  `rstest-bdd` in `Cargo.toml` (its macros read the manifest and take no crate path), but no file
+  names it. The code that `sbrs mkfile`, `sbrs mkdir`, the recorder and the Python and Playwright
+  importers write, the README, the examples and the documentation use these paths; the README that
+  `sbrs mkdir` writes lists `seleniumbase-rs` alone (plus `rstest-bdd` for Gherkin). The new crate
+  `crates/own-imports` proves it: its manifest lists only `seleniumbase-rs` and `rstest-bdd`, its
+  tests import nothing else, and a doctest compiles every golden file there. The page
+  [Imports and dependencies](docs/imports.md) lists the lines that stay and why, and
+  `tests/docs_current.rs` fails when a page gains a `use thirtyfour`, `use rstest`, `use rstest_bdd`,
+  `use serde_json`, `use tokio` or `use async_trait` outside the pages that must name them.
+- **A fingerprint's stealth for a webview an app embeds, with no debugging port.**
+  `sb_cdp::StealthPlan::new(&fingerprint)` holds the init script (`init_script()`) and the
+  ordered protocol overrides (`overrides()`; `commands()` is both, as
+  `Page::apply_fingerprint` and `LaunchOptionsBuilder::fingerprint` send them, now from this one
+  plan). `Browser::over_channel(transport)` drives a page over a DevTools channel the caller
+  carries (a `CdpTransport` out, a `CdpInbox` back), such as CEF's or WebView2's in-process one:
+  the channel's page is `default_page()`, its commands carry no `sessionId`, ordered commands
+  wait for each answer, and it opens no tabs. `Page::apply_fingerprint` now asks for the tab's
+  browser context only when the fingerprint grants a permission. See
+  [the Tauri guide](docs/ecosystem/tauri.md#stealth-inside-the-app-with-no-debugging-port).
+- **`solve_captcha` finds the widget wherever it is, waits for it, presses like a hand and
+  checks the result.** The widget is looked for in the page, its open shadow roots and the frames
+  it may read, by the id and title Cloudflare gives its frame as well as by address; a page that
+  carries the signs of a challenge but has not drawn the widget yet is waited for; the widget is
+  pressed once it has stood still. The pointer travels a curved, timed path from where it was,
+  rests on the box, holds the button, and lands within a few pixels of the left-edge checkbox. The
+  result is then read (the response field, the clearance cookie, a page with no widget, an
+  optional `SolveOptions::success_marker`), and a widget that could show a result and did not is
+  pressed again, up to three times, after a growing, spread-out wait; then
+  `SeleniumBaseError::Captcha` says what was seen. `Page::solve_captcha_with` and
+  `BaseCase::solve_captcha_with` take `SolveOptions` and answer `Solved` (the widget, the presses,
+  the `Evidence`, the time); both engines run one solver. `Human::click_at` and `Human::drag`
+  press and drag at a point. On seven local fixtures in a headless Chrome (a frame from another
+  origin, a shadow root, a late widget, a moving widget, a second verified check, a pointer judge,
+  an interstitial that sets a clearance cookie), five trials each, 9 of 35 cleared before and 35
+  of 35 after. `sbrs solve-captcha` runs it from the command line, and the opt-in test
+  `captcha_live_chrome` (with `SB_LIVE_SITES=1`) checks https://nowsecure.nl in both engines.
+
+- **Terminal output looks like Python SeleniumBase's: coloured levels, quiet by default.** Log lines
+  on a terminal are `12:34:56  INFO browser::session: message key=value`, with the level coloured,
+  the time, the module path and the field names dim, and file paths and tests or steps
+  highlighted; the `new:connect:` span context, the crate name and the milliseconds appear only
+  when a filter was chosen (`RUST_LOG`, `SB_LOG_LEVEL`). The `sbrs mkrec` banners (`* RECORDING
+  initialized:`, `>>> RECORDING SAVED as:`, `*** RECORDING COPIED to:`, `*** BEHAVE RECORDING at:`,
+  `ERROR:`) and the label of the `[RECORDER BREAKPOINT]` prompt use the colorama pairs of
+  `sbase mkrec`. Colour is used only when the stream is a terminal, `NO_COLOR` is unset and `TERM`
+  is not `dumb`; a pipe, a file and `SB_LOG_FORMAT=json` stay plain. One new module,
+  `common::color` (`Style`, `palette`, `use_color`, `banner`), holds the decision and the colours
+  for the debug prompts to reuse. `RecordingOptions` and `MkrecOptions` gain a `color` field, off
+  by default.
+
+- **The debug prompts look and read like pdbp, the debugger Python SeleniumBase uses.** `--pdb`,
+  `--trace`, `--final-debug` and `sb.breakpoint(..)` print a coloured label, the test and the page
+  (address cyan, title dim), and the code around the pause as a numbered listing with `->` on the
+  current line: a breakpoint lists the lines around its call, the other prompts list the body of the
+  `sb.run(..)` call that holds the test, and after a failure the lines that name the failing
+  selector or address are marked `>>`, with `error:` and `step:` lines under the listing (the
+  selector and the address highlighted). New short commands: `l` and `ll` (list the code again, or
+  more of it), `w` (where), `p` and `pp` (print a value on one line, or indented), `dt` (Chrome's
+  DevTools address for the tab, on the pure CDP engine) and, after a failure, `r` (run the test
+  again with a new browser, past `reruns`); the prompt after a command is `(Sb+) `. Colour follows
+  `common::color`: a terminal, `NO_COLOR` unset or empty and `TERM` not `dumb`; anything else gets
+  the same text without escape sequences, and text from the page or the file is stripped of control
+  characters. New public items: `DebugPrompt::with_color` and `pause_in`, `Scene`, `SourceSpot`,
+  `Failure`, `PromptOutcome::Retry` and the defaulted `PromptPage::devtools_url`. `breakpoint` and
+  `Sb::run`, `SbCdp::run` and `SbCdp::run_with_browser` are now plain functions that return a future
+  (`#[track_caller]` does not apply to an `async fn`), so a call is still awaited as before; the dev
+  server's index keeps listing them as async. A prompt that was written for the old
+  `PromptOutcome` must also match `Retry`.
+
+- **The rest of the stealth section is organized as a reading order, with the
+  existing text kept.** The sidebar and `docs/SUMMARY.md` now run tutorial,
+  overview, wire formats, identity, `BrowserScraper`, `HttpSession`, `MitmProxy`,
+  `StealthSession`, examples, limits. Each topic page gains the re-export it can
+  be imported through and links to the pages beside it. `BrowserScraper` also
+  gains the builder table and the locale move. Nothing already on those pages was
+  removed.
+- **The stealth scraping guide now matches the facade, without dropping the
+  feature catalogue.** The tutorial picks a tool, shows the one Git dependency
+  and a `BrowserScraper` fetch through the `scrape` re-export, and states what
+  is measured and refused. The overview keeps the feature descriptions (the
+  round trip, `MitmProxy`, `HttpSession`, `StealthSession`, the CDP client, the
+  in-page overrides, challenge defaults, the proxy pool, identity rotation,
+  the state store, events, human-like input, and the TLS pins) and adds the
+  map and the dependency above them. The examples page lists the eight programs
+  under `crates/<crate>/examples/` in the stealth repository and still names
+  the shop stand-in. The moved banners name the crates as they are now
+  (`seleniumbase-rs-codec`, `-scrape`, `-mimic`). Checked against
+  seleniumbase-rs-stealth `0eb20629`.
+- **Unified stealth facade setup in the documentation.** Stealth guides and API
+  examples use one `seleniumbase-rs-stealth` Git dependency and its re-exported
+  core, fingerprint, codec and scrape APIs. TLS/HTTP2 impersonation is opt-in
+  with `features = ["mimic"]`; default setup needs no BoringSSL or cmake.
+  Removed split-dependency/version-alignment instructions and refreshed the
+  hosted Doc7 changelog from this source.
+- **Direct CDP attachment for app-owned Chromium (CEF/WebView2).**
+  `LaunchOptionsBuilder::cdp_url` and `BrowserConfig::with_cdp_url` reuse the
+  existing browser attachment, identity and plugin pipelines without starting
+  Chrome or WebDriver. `with_cdp_discovery(true)` discovers the loopback debugger
+  through the authenticated Tauri plugin URL. Existing windows receive the
+  evasion registry script immediately and on future documents, plus fingerprint
+  CDP overrides. `BaseCase::cdp_*`, `BrowserSession::pure_cdp_page` and the
+  existing `CdpDriver::attach` expose the connected app. Closing leaves the app running.
+  The Doc7 Tauri API reference documents discovery and configuration alongside
+  the existing WebDriver routes.
+- Features `plugin-batcher` and `plugin-crawler` (both in `plugins-builtin` and in the CLI): the batcher runs many jobs with bounded concurrency, retries and a resume file; the crawler follows a site's links and reports broken pages and console errors. The plugins come from plugins rev 2002f07.
 - **Fingerprint tools on the MCP servers.** `capture_fingerprint` reads what the running browser
   shows a page (the reading of `sbrs fingerprint capture`, with progress) and can save it as a
   file; `compare_fingerprint` says whether the browser presents a fingerprint, a file or a preset
@@ -637,6 +779,45 @@ work, `docs/parity.md` the per-API status).
   gives the line.
 
 ### Fixed
+
+- **Recorder Mode no longer writes the frames of a page as pages to open.** The page script went
+  into every frame, and a frame of the same origin shares the top frame's sessionStorage, so a
+  reCAPTCHA page recorded `goto` steps for `about:blank`, `about:srcdoc` and the widget's
+  `anchor` and `bframe` addresses and `click` steps for its tiles and verify button (SeleniumBase
+  4.56.2's own `--rec` does the same on such a page). The script now records the top frame only
+  and runs once for each document; a click into a reCAPTCHA, hCaptcha, Turnstile or DataDome frame
+  is one comment in every output form (`// skipped: captcha (recaptcha): solve it by hand or use
+  sb.solve_captcha()`) and opens no tab; an open of `about:blank`, `data:` or `chrome:` is skipped;
+  an empty `about:blank` frame is not a step. A page that a `window.open` tab loads is recorded
+  (the tab's copied sessionStorage made the watcher think the script had run there). A `goto` of
+  Google's `/sorry/` bot check or of an address with query parameters that change at every visit
+  (`ei`, `sxsrf`, `ved`, `gs_lp`, ...) keeps its address and ends with a `// note:`. New tabs stay
+  a `click` and a `goto_if_not_url`, as in Python (it writes no tab switch).
+
+- **Attaching to an app-owned Chromium no longer breaks or hijacks the host app.** The browser
+  belongs to the app (a Tauri window on CEF or WebView2), so:
+  - `Browser::launch` with a `cdp_url` attaches to and prepares no window. The fingerprint,
+    emulation and plugins reach a window when the automation opens it (`new_page`) or picks it
+    (`default_page`, `page`, the new `Browser::select_page`, or `BrowserConfig::with_cdp_target`
+    / `LaunchOptionsBuilder::cdp_target` for `BaseCase`); `list_pages` only lists. Before, every
+    page target was prepared, including the app's own windows.
+  - A proxy, a PAC file or a fingerprint's proxy is refused with `InvalidConfig`; a login used to
+    turn on request interception in every tab with nothing to answer it, so the app's requests
+    hung. A user agent or locale without a fingerprint is refused too, where it was dropped.
+  - `Browser::close` on an attached browser detaches every session it attached
+    (`Target.detachFromTarget`), resets the permissions and the download behaviour it set, never
+    sends `Browser.close`, and makes every handle of that browser fail with `BrowserDisconnected`.
+  - `BrowserSession::reconnect` (`BaseCase::reconnect`) on a direct CDP attachment attaches to the
+    endpoint of the configuration again; it started a local chromedriver and Chrome before, and
+    `quit` then skipped stopping them.
+  - `BrowserSession::webdriver()` is new: the session and `BaseCase` methods that need a
+    WebDriver return `Unsupported` (naming the CDP attachment) or `SessionNotStarted` instead of
+    panicking. `driver()` still panics; the recorder helpers still call it.
+  - After Tauri discovery the advertised WebSocket must be `ws://` on the loopback host and the
+    discovered port, discovery and version replies are capped at 1 MiB, and an error names the
+    step (`Tauri discovery`, `DevTools version probe`) and the HTTP status without the token.
+  - The Tauri pages say that the raw Chromium debug socket is unauthenticated, that the plugin's
+    `cdp` Cargo feature turns it on, and that both must be off in release builds.
 
 - **The MCP client never leaves the server it started running.** When the handshake fails or
   times out, `McpClient` (and `sbrs-mcp tools|call|batch --connect`) kills the program it
@@ -2209,10 +2390,9 @@ A breaking release: the experimental stealth scraping layer leaves this crate.
   `seleniumbase-rs-wire` (was the module `wire`), `seleniumbase-rs-scrape` (was
   the feature `scrape`) and `seleniumbase-rs-impersonate` (was the feature
   `impersonate`), which build on the public API of this crate and stay
-  experimental. Depend on them by git, for example
-  `seleniumbase-rs-scrape = { git = "https://github.com/MustCodeAl/seleniumbase-rs-stealth" }`,
-  and give `seleniumbase-rs` by its plain git URL next to them so both resolve to
-  one commit ([Stealth Scraping](docs/tutorials/stealth_scraping.md)).
+  experimental. Current installation uses the unified root facade
+  `seleniumbase-rs-stealth`; see the updated
+  [Stealth Scraping setup](docs/tutorials/stealth_scraping.md).
 - With the layer go the optional dependencies `psl`, `wreq`, `btls`,
   `tokio-btls`, `brotli`, `hyper`, `hyper-util` and `http-body-util`; the
   examples `capture_tls`, `capture_hints`, `capture_h2`, `cookie_jar`,

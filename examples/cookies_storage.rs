@@ -24,7 +24,7 @@
 mod local_site;
 
 use local_site::{ensure, Site, DEMO_PATH};
-use seleniumbase_rs::{run_browser_test, BaseCase, BrowserConfig, CookieExpiry, Result};
+use seleniumbase_rs::{run_browser_test, tokio, BaseCase, BrowserConfig, CookieExpiry, Result};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -37,7 +37,8 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
     sb.open(&url).await?;
 
     // ---- Cookies ----
-    sb.add_cookie("session", "abc123").await?;
+    sb.add_cookie(&seleniumbase_rs::json::json!({ "name": "session", "value": "abc123" }))
+        .await?;
     let cookie = sb.get_cookie("session").await?;
     ensure(cookie.value == "abc123", "the cookie keeps its value")?;
     println!("cookie: {}={}", cookie.name, cookie.value);

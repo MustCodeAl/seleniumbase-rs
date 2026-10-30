@@ -12,7 +12,7 @@ use crate::config::test_settings::TestSettings;
 use crate::core::test_run::ReportSettings;
 
 use crate::error::SeleniumBaseError;
-use crate::stealth::fingerprint::Fingerprint;
+use crate::evasion::fingerprint::Fingerprint;
 
 /// The variable that names the fingerprint file to apply to every browser.
 pub const FINGERPRINT_ENV: &str = "SB_FINGERPRINT";
@@ -1009,6 +1009,10 @@ impl Settings {
         launch.set(LaunchSwitch::RecSbCdp, self.rec_sb_cdp);
         launch.reuse_class = self.reuse_class_session.then_some(ReuseClass::TestModule);
         BrowserConfig {
+            cdp_url: None,
+            cdp_discovery: false,
+            cdp_target: None,
+
             webdriver_url: self
                 .webdriver_url
                 .clone()

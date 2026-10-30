@@ -435,17 +435,13 @@ pub(super) async fn click_nth_visible_element(
     let selector = args.str("selector")?;
     let number = args
         .opt_usize("number")?
-        .and_then(|number| number.checked_sub(1))
+        .filter(|number| *number >= 1)
         .ok_or_else(|| ToolError::invalid("number", "counts from 1"))?;
     ctx.session()
         .await?
         .click_nth_visible_element(selector, number)
         .await?;
-    Ok(format!(
-        "Clicked visible element #{} matching {selector}",
-        number + 1
-    )
-    .into())
+    Ok(format!("Clicked visible element #{number} matching {selector}").into())
 }
 
 pub(super) async fn click_link(ctx: Ctx<BaseCase>, args: Args) -> Result<Output, ToolError> {
@@ -909,11 +905,7 @@ pub(super) async fn minimize_window(ctx: Ctx<BaseCase>, _args: Args) -> Result<O
 pub(super) async fn open_new_tab(ctx: Ctx<BaseCase>, args: Args) -> Result<Output, ToolError> {
     let switch_to = args.bool_or("switch_to", true)?;
     let mut case = ctx.session().await?;
-    let before = case.get_current_window_handle().await?;
-    case.open_new_tab().await?;
-    if !switch_to {
-        case.switch_to_window(&before).await?;
-    }
+    case.open_new_tab().switch_to(switch_to).await?;
     Ok(format!("Opened new tab (switch_to={switch_to})").into())
 }
 
@@ -962,8 +954,13 @@ pub(super) async fn activate_cdp_mode(ctx: Ctx<BaseCase>, args: Args) -> Result<
 }
 
 pub(super) async fn solve_captcha(ctx: Ctx<BaseCase>, _args: Args) -> Result<Output, ToolError> {
-    Ok(match ctx.session().await?.solve_captcha().await? {
-        Some(kind) => format!("Attempted to solve a {kind} CAPTCHA."),
+    let solved = ctx
+        .session()
+        .await?
+        .solve_captcha_with(&crate::sb_cdp::SolveOptions::default())
+        .await?;
+    Ok(match solved {
+        Some(solved) => format!("Attempted to solve a {} CAPTCHA: {solved}.", solved.captcha),
         None => "No supported CAPTCHA was found on the page.".to_owned(),
     }
     .into())

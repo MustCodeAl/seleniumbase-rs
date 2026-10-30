@@ -2,6 +2,10 @@
 title: "StealthSession"
 ---
 
+Examples importing `seleniumbase_rs_stealth::mimic` require the facade's
+`mimic` feature. See the [single-dependency setup](/stealth/overview#which-crate-to-depend-on);
+this feature builds BoringSSL and needs cmake and a C/C++ toolchain.
+
 <Badge color="blue">Crate: mimic</Badge>
 
 `mimic::stealth_session::StealthSession` joins the pieces. It presents one
@@ -9,15 +13,15 @@ title: "StealthSession"
 cookies it earned and the <Tooltip tip="The exit address a request leaves through: one of your proxies, or the direct connection.">egress</Tooltip> they were earned through) in one of two modes
 and moves between them by the policies:
 
-- `Mode::Http`: an [`HttpSession`](/stealth/http-session#httpsession) sends the requests. It is fast
+- `Mode::Http`: an [`HttpSession`](/stealth/http-session) sends the requests. It is fast
   and cheap, with the measured handshake and headers.
 - `Mode::Browser`: a real Chrome sends them, behind a
   [`MitmProxy`](/stealth/mitm-proxy#mitmproxy) that replays each request with the same measured
   handshake. A clearance earned here is valid in the other mode.
 
 ```rust
-use seleniumbase_rs_mimic::StealthSession;
-use seleniumbase_rs_scrape::CountryCode;
+use seleniumbase_rs_stealth::mimic::StealthSession;
+use seleniumbase_rs_stealth::scrape::CountryCode;
 
 # async fn demo() -> Result<(), Box<dyn std::error::Error>> {
 let mut session = StealthSession::builder()
@@ -206,7 +210,7 @@ yourself when you know more than the answers show:
 - Leave both alone for ordinary fetching; `fetch` escalates and demotes on its own.
 
 ```rust
-use seleniumbase_rs_mimic::StealthSession;
+use seleniumbase_rs_stealth::mimic::StealthSession;
 
 # async fn login_then_scrape(password: &str) -> Result<(), Box<dyn std::error::Error>> {
 let mut session = StealthSession::builder().build().await?;
@@ -277,3 +281,32 @@ is what the page sees while the proxy stays. The shop is a stand-in written for
 the test: no vendor's challenge was run.
 
 </Check>
+
+## How this type is imported
+
+`StealthSession`, `StealthSessionBuilder`, `StealthFetch` and `StealthError` are
+re-exported at `seleniumbase_rs_stealth::mimic`. The module path
+`mimic::stealth_session::StealthSession` is the same type. The feature is
+`mimic`; without it the module does not exist.
+
+## Where to go next
+
+<Columns cols={2}>
+
+<Card title="HttpSession" icon="network-wired" color="#a631be" href="/stealth/http-session">
+  The plain HTTP leg of this session, on its own.
+</Card>
+
+<Card title="MitmProxy" icon="shield" color="#1ca1c7" href="/stealth/mitm-proxy">
+  The proxy the browser leg launches behind.
+</Card>
+
+<Card title="BrowserScraper" icon="globe" color="#1a85d4" href="/stealth/browser-scraper">
+  The same loop with no TLS spoofing and no BoringSSL.
+</Card>
+
+<Card title="Limits" icon="triangle-exclamation" color="#d5a910" href="/stealth/limits">
+  What a session refuses, and what was never checked against a live service.
+</Card>
+
+</Columns>

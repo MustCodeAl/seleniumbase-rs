@@ -107,7 +107,7 @@ impl PlaywrightSession {
         let fingerprint_script = config
             .fingerprint
             .as_ref()
-            .map(crate::stealth::evasions::bootstrap_script);
+            .map(crate::evasion::evasions::bootstrap_script);
 
         let (browser, page) = tokio::task::spawn_blocking(move || {
             let browser = chromium().launch(options).map_err(|e| {
@@ -320,7 +320,7 @@ fn chrome_args(config: &BrowserConfig) -> Vec<String> {
     }
     if let Some(fingerprint) = config.fingerprint.as_ref() {
         args.extend(
-            crate::stealth::evasions::launch_args(fingerprint)
+            crate::evasion::evasions::launch_args(fingerprint)
                 .into_iter()
                 .filter(|arg| SANDBOX_OFF_BY_DEFAULT || !is_sandbox_off(arg)),
         );
@@ -406,7 +406,7 @@ fn classify_playwright_element_error(
 mod tests {
     use super::*;
     use crate::browser::options::WindowSize;
-    use crate::stealth::fingerprint::Fingerprint;
+    use crate::evasion::fingerprint::Fingerprint;
 
     fn config() -> BrowserConfig {
         BrowserConfig::default()

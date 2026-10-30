@@ -4,11 +4,11 @@
 
 impl BaseCase {
     /// Reads what the browser shows the page it has open, as a
-    /// [`CapturedFingerprint`](crate::stealth::capture::CapturedFingerprint).
+    /// [`CapturedFingerprint`](crate::evasion::capture::CapturedFingerprint).
     ///
     /// Runs the capture script as one asynchronous script (WebDriver's *Execute
     /// Async Script*) and maps its readings to a
-    /// [`Fingerprint`](crate::stealth::fingerprint::Fingerprint) with the same code the
+    /// [`Fingerprint`](crate::evasion::fingerprint::Fingerprint) with the same code the
     /// pure CDP engine uses ([`Page::capture_fingerprint`](crate::sb_cdp::Page::capture_fingerprint)),
     /// so a browser gives the same fingerprint through either. The script asks for no
     /// permission and changes nothing in the page.
@@ -41,21 +41,21 @@ impl BaseCase {
     /// ```
     pub async fn capture_fingerprint(
         &self,
-    ) -> Result<crate::stealth::capture::CapturedFingerprint, SeleniumBaseError> {
+    ) -> Result<crate::evasion::capture::CapturedFingerprint, SeleniumBaseError> {
         let readings = self
             .session
-            .execute_async_script(&crate::stealth::capture::capture_async_script())
+            .execute_async_script(&crate::evasion::capture::capture_async_script())
             .await?;
-        crate::stealth::capture::CapturedFingerprint::from_probe(
+        crate::evasion::capture::CapturedFingerprint::from_probe(
             &readings,
-            crate::stealth::capture::timestamp(),
+            crate::evasion::capture::timestamp(),
         )
     }
 
     /// Whether the browser presents `expected`: captures what the page shows and compares
     /// it with the fingerprint.
     ///
-    /// See [`Fingerprint::compare_to`](crate::stealth::fingerprint::Fingerprint::compare_to)
+    /// See [`Fingerprint::compare_to`](crate::evasion::fingerprint::Fingerprint::compare_to)
     /// for what is compared and what is listed as unverifiable. A WebDriver session
     /// without `DriverMode::Uc` or `DriverMode::Cdp` applies only the launch arguments of a
     /// fingerprint, so the comparison of such a session lists what the page does not show.
@@ -65,8 +65,8 @@ impl BaseCase {
     /// As [`capture_fingerprint`](Self::capture_fingerprint).
     pub async fn compare_fingerprint(
         &self,
-        expected: &crate::stealth::fingerprint::Fingerprint,
-    ) -> Result<crate::stealth::fingerprint::FingerprintComparison, SeleniumBaseError> {
+        expected: &crate::evasion::fingerprint::Fingerprint,
+    ) -> Result<crate::evasion::fingerprint::FingerprintComparison, SeleniumBaseError> {
         let captured = self.capture_fingerprint().await?;
         Ok(expected.compare_to(&captured.fingerprint))
     }
@@ -76,7 +76,7 @@ impl BaseCase {
 mod tests_fingerprint_capture {
     use super::webdriver_support::{MockWebDriver, Reply};
     use super::*;
-    use crate::stealth::fingerprint::{Fingerprint, OsType};
+    use crate::evasion::fingerprint::{Fingerprint, OsType};
     use serde_json::json;
 
     const CHROME_MACOS: &str = include_str!("../../../tests/fixtures/fingerprint/probe_chrome_macos.json");
@@ -122,7 +122,7 @@ mod tests_fingerprint_capture {
 
         let through_webdriver = sb.capture_fingerprint().await.unwrap();
         let direct =
-            crate::stealth::capture::CapturedFingerprint::from_probe(&raw, "any time").unwrap();
+            crate::evasion::capture::CapturedFingerprint::from_probe(&raw, "any time").unwrap();
 
         assert_eq!(through_webdriver.fingerprint, direct.fingerprint);
         assert_eq!(through_webdriver.unmapped, direct.unmapped);

@@ -25,7 +25,7 @@
 mod local_site;
 
 use local_site::{Site, DEMO_PATH};
-use seleniumbase_rs::{run_browser_test, BrowserConfig, Result, SeleniumBaseError};
+use seleniumbase_rs::{run_browser_test, tokio, BrowserConfig, Result, SeleniumBaseError};
 
 #[tokio::main]
 async fn main() -> Result<()> {

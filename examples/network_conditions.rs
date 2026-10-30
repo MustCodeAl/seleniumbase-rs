@@ -33,10 +33,12 @@ mod local_site;
 use std::time::{Duration, Instant};
 
 use local_site::{Site, DEMO_PATH};
+use seleniumbase_rs::tokio;
+
+use seleniumbase_rs::drivers::{ConnectionType, NetworkConditions};
 use seleniumbase_rs::{
     run_browser_test, BaseCase, BrowserConfig, DriverMode, Result, SeleniumBaseError,
 };
-use thirtyfour::extensions::cdp::{ConnectionType, NetworkConditions};
 
 /// Every request waits this long before its response starts to arrive.
 const ADDED_LATENCY_MS: u32 = 400;

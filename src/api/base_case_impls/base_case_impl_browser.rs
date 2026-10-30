@@ -171,7 +171,7 @@ impl BaseCase {
     /// Returns [`SeleniumBaseError::Unsupported`] if the session reports no
     /// driver version, as a Firefox session does not.
     pub fn get_chromedriver_version(&self) -> Result<String, SeleniumBaseError> {
-        let capabilities = serde_json::to_value(self.session.driver().capabilities())?;
+        let capabilities = serde_json::to_value(self.session.webdriver()?.capabilities())?;
         driver_version_from_capabilities(&capabilities).ok_or_else(|| {
             SeleniumBaseError::Unsupported(
                 "this session's driver did not report a version".to_owned(),

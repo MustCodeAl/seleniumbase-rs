@@ -387,7 +387,7 @@ watches how input arrives. See [Detection and spoofing](/concepts/detection) and
 the glossary entry [Human-paced input](/glossary#human-paced-input).
 
 ```rust,ignore src/main.rs
-use seleniumbase_rs::stealth::behavior::Behavior;
+use seleniumbase_rs::evasion::behavior::Behavior;
 
 let person = page.human(Behavior::builder().typing_wpm(65.0).build()?);
 person.type_text(&page.locator("#search"), "rust cdp").await?;

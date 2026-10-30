@@ -187,7 +187,7 @@ audio_seed}`. `CanvasNoiseMode` becomes `CanvasNoise`
 ## The example that must compile
 
 ```rust Version 2
-use seleniumbase_rs::stealth::fingerprint::{CanvasNoise, Fingerprint, Spoof, StealthPolicy};
+use seleniumbase_rs::evasion::fingerprint::{CanvasNoise, Fingerprint, Spoof, StealthPolicy};
 
 let fp = Fingerprint::builder()
     .timezone("Europe/Berlin")
@@ -210,14 +210,14 @@ The random position is a spot near Berlin, because the time zone is `Value`.
 ```mermaid
 flowchart LR
     A["Operating system<br/>explicit, else the one the user agent names, else Windows"] --> B["Place<br/>region of a Value time zone, else of a Value locale, else drawn"]
-    B --> C["One seeded draw<br/>stealth::randomize"]
+    B --> C["One seeded draw<br/>evasion::randomize"]
     C --> D["Every Random setting<br/>locale, position, graphics adapter, ..."]
 ```
 
 `build()` works out the operating system (the explicit one, else the one the
 user agent names, else Windows), then the place: the region of a `Value` time
 zone, else of a `Value` locale, else a drawn one. Every `Random` setting is taken
-from one seeded draw of that machine and that place (`stealth::randomize`), so a
+from one seeded draw of that machine and that place (`evasion::randomize`), so a
 random locale agrees with a `Value` time zone, a random position is inside that
 time zone's main city, and a random graphics adapter is one the operating system
 reports. `build()` returns `FingerprintError` when no coherent value exists (a
@@ -257,7 +257,7 @@ policy. The full table is in
 <Accordion title="Value types" icon="cube">
 
 The value types are `ScreenSize`, `Geolocation`, `WebGl`, `WebRtcAddresses` and
-`MediaDevices` (`stealth/settings.rs`); each converts from the obvious tuple.
+`MediaDevices` (`evasion/settings.rs`); each converts from the obvious tuple.
 `languages` and `accept_languages` stay comma-separated strings, `fonts` is a
 `Spoof<Vec<String>>`, and Web Bluetooth is a `Spoof<bool>` (`true`: an adapter,
 `false`: none, `Off`: no API).

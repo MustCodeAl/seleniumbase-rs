@@ -56,7 +56,8 @@ pub(crate) use timer::timed;
 
 /// The cargo features that add a built-in plugin, for messages.
 const BUILTIN_FEATURES: &str = "plugin-shield, plugin-block-resources, plugin-crx, \
-                                plugin-fetcher, plugin-extractor (plugins-builtin turns them all on)";
+                                plugin-fetcher, plugin-extractor, plugin-batcher, plugin-crawler \
+                                (plugins-builtin turns them all on)";
 
 /// The built-in plugins this build contains, by name.
 ///
@@ -69,6 +70,8 @@ pub fn builtin_registry() -> Registry {
         feature = "plugin-block-resources",
         feature = "plugin-fetcher",
         feature = "plugin-extractor",
+        feature = "plugin-batcher",
+        feature = "plugin-crawler",
         feature = "plugin-crx"
     ))]
     {
@@ -79,6 +82,8 @@ pub fn builtin_registry() -> Registry {
         feature = "plugin-block-resources",
         feature = "plugin-fetcher",
         feature = "plugin-extractor",
+        feature = "plugin-batcher",
+        feature = "plugin-crawler",
         feature = "plugin-crx"
     )))]
     {
@@ -352,6 +357,8 @@ mod tests {
             "plugin-crx",
             "plugin-fetcher",
             "plugin-extractor",
+            "plugin-batcher",
+            "plugin-crawler",
         ] {
             assert!(text.contains(feature), "{feature} in {text}");
         }
@@ -484,15 +491,25 @@ mod tests {
         feature = "plugin-block-resources",
         feature = "plugin-fetcher",
         feature = "plugin-extractor",
+        feature = "plugin-batcher",
+        feature = "plugin-crawler",
         feature = "plugin-crx"
     ))]
     #[test]
-    fn plugins_builtin_knows_the_five_official_plugins() {
+    fn plugins_builtin_knows_the_seven_official_plugins() {
         let mut names = builtin_registry().names();
         names.sort_unstable();
         assert_eq!(
             names,
-            ["block-resources", "crx", "extractor", "fetcher", "shield"]
+            [
+                "batcher",
+                "block-resources",
+                "crawler",
+                "crx",
+                "extractor",
+                "fetcher",
+                "shield"
+            ]
         );
     }
 
@@ -501,6 +518,8 @@ mod tests {
         feature = "plugin-block-resources",
         feature = "plugin-fetcher",
         feature = "plugin-extractor",
+        feature = "plugin-batcher",
+        feature = "plugin-crawler",
         feature = "plugin-crx"
     )))]
     #[test]

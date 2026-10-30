@@ -433,7 +433,7 @@ Whatever the typed API does not cover, you can send by name. The reply's
 `result` comes back as JSON.
 
 ```rust,ignore src/main.rs
-use serde_json::json;
+use seleniumbase_rs::json::json;
 
 let reply = page
     .execute("Runtime.evaluate", json!({ "expression": "document.title", "returnByValue": true }))

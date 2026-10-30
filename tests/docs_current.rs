@@ -42,6 +42,14 @@ const GONE: &[(&str, &str)] = &[
         "features = [\"impersonate\"",
         "the seleniumbase-rs-stealth repository",
     ),
+    // The library's `stealth` module is `evasion` (the facade crate keeps its name).
+    ("seleniumbase_rs::stealth", "seleniumbase_rs::evasion"),
+    (
+        "seleniumbase_rs_stealth::stealth",
+        "seleniumbase_rs_stealth::evasion",
+    ),
+    ("crate::stealth", "crate::evasion"),
+    ("src/stealth", "src/evasion"),
     // The Playwright feature is `playwright` (the dependency is still rustwright).
     ("--features rustwright", "--features playwright"),
     ("features = [\"rustwright\"", "features = [\"playwright\"]"),
@@ -100,7 +108,65 @@ const GONE: &[(&str, &str)] = &[
     ("Settings::from_toml", "Settings::from_file"),
     ("Locator::click_at", "click_with_offset(x, y, false)"),
     ("assert_visible!", "sb_assert_visible!"),
+    // Third-party crates the docs import through `seleniumbase_rs` (docs/imports.md). The
+    // pages that must still name them are in `ALLOWED`.
+    ("use thirtyfour", "seleniumbase_rs::drivers"),
+    ("thirtyfour::prelude::By", "seleniumbase_rs::drivers::By"),
+    (
+        "use rstest::",
+        "seleniumbase_rs::testing::{fixture, rstest}",
+    ),
+    ("use rstest_bdd::", "seleniumbase_rs::testing::bdd"),
+    ("use rstest_bdd_macros", "seleniumbase_rs::testing::bdd"),
+    ("use serde_json", "seleniumbase_rs::json"),
+    ("serde_json::json!(", "seleniumbase_rs::json::json!"),
+    ("use tokio", "seleniumbase_rs::tokio"),
+    (
+        "use async_trait",
+        "seleniumbase_rs::plugins::observer::async_trait",
+    ),
 ];
+
+/// Pages that may keep a spelling of `GONE` because they cannot import it from
+/// `seleniumbase_rs`, each with its reason (the table in `docs/imports.md` says the same):
+///
+/// - the plugin pages describe crates that depend on `seleniumbase-rs-plugin`, never on
+///   this crate, so `serde_json`, `tokio` and `async_trait` come from their own manifest;
+/// - the stealth pages are the API of another repository (`seleniumbase-rs-stealth`);
+/// - the contributor pages show the library's own code, which depends on all of them.
+const ALLOWED: &[(&str, &[&str])] = &[
+    (
+        "use serde_json",
+        &[
+            "docs/plugins/",
+            "docs/stealth/",
+            "docs/tutorials/stealth_scraping.md",
+            "docs/contributing/",
+            "docs/DEVELOPER_GUIDE.md",
+            "docs/CONTRIBUTING.md",
+            "CONTRIBUTING.md",
+        ],
+    ),
+    ("serde_json::json!(", &["docs/stealth/"]),
+    ("use async_trait", &["docs/plugins/"]),
+    ("use tokio", &["docs/plugins/", "docs/ecosystem/"]),
+    (
+        "use rstest::",
+        &[
+            "docs/contributing/",
+            "docs/DEVELOPER_GUIDE.md",
+            "docs/CONTRIBUTING.md",
+            "CONTRIBUTING.md",
+        ],
+    ),
+];
+
+/// Whether the page `rel` may keep the spelling `gone`.
+fn allowed(rel: &str, gone: &str) -> bool {
+    ALLOWED
+        .iter()
+        .any(|(spelling, pages)| *spelling == gone && pages.iter().any(|p| rel.starts_with(p)))
+}
 
 /// Files and folders that describe the past on purpose.
 const EXEMPT: &[&str] = &[
@@ -108,6 +174,8 @@ const EXEMPT: &[&str] = &[
     "docs/changelog.md",
     "docs/design/",
     "docs/adr/",
+    // The page that explains the imports names the spellings it replaces.
+    "docs/imports.md",
 ];
 
 /// Whether `line` names `gone`.
@@ -193,7 +261,7 @@ fn the_docs_name_no_removed_api_crate_feature_or_install_line() {
         let text = fs::read_to_string(&page).unwrap_or_default();
         for (number, line) in text.lines().enumerate() {
             for (gone, now) in GONE {
-                if names(line, gone) {
+                if names(line, gone) && !allowed(&rel, gone) {
                     found.push(format!(
                         "{rel}:{}: `{gone}` is gone; now: {now}",
                         number + 1
@@ -218,6 +286,28 @@ fn a_name_is_not_found_inside_a_longer_identifier() {
     assert!(names("builder.with_flags(x)", "with_flags("));
     assert!(names("sb.assert_visible!(a)", "assert_visible!"));
     assert!(!names("sb_assert_visible!(a)", "assert_visible!"));
+}
+
+#[test]
+fn a_page_keeps_a_third_party_import_only_where_it_must() {
+    // A plugin crate has no `seleniumbase_rs` to import from; a tutorial has.
+    assert!(allowed("docs/plugins/api/handles.md", "use serde_json"));
+    assert!(!allowed("docs/tutorials/cdp_mode.md", "use serde_json"));
+    // Nothing allows a `use thirtyfour` anywhere.
+    assert!(!allowed("docs/plugins/overview.md", "use thirtyfour"));
+    // The import is what is gone; the type's name in prose is not.
+    assert!(names("use thirtyfour::By;", "use thirtyfour"));
+    assert!(!names(
+        "`thirtyfour::WebElement` is the type",
+        "use thirtyfour"
+    ));
+    assert!(names("use rstest::rstest;", "use rstest::"));
+    assert!(!names("use rstest_bdd_macros::scenario;", "use rstest::"));
+    assert!(names(
+        "use rstest_bdd_macros::scenario;",
+        "use rstest_bdd_macros"
+    ));
+    assert!(names("use rstest_bdd::skip;", "use rstest_bdd::"));
 }
 
 #[test]

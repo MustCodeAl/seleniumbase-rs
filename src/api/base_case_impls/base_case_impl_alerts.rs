@@ -7,7 +7,7 @@ impl BaseCase {
     ///
     /// Returns a WebDriver error if no alert is open.
     pub async fn switch_to_alert(&self) -> Result<(), SeleniumBaseError> {
-        self.session.driver().get_alert_text().await.map_err(SeleniumBaseError::WebDriver)?;
+        self.session.webdriver()?.get_alert_text().await.map_err(SeleniumBaseError::WebDriver)?;
         Ok(())
     }
 

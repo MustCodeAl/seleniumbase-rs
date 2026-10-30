@@ -1031,7 +1031,7 @@ See [The Model Context Protocol](/concepts/mcp#how-mcp-messages-travel).
 
 <Badge color="gray">CLI</Badge>
 
-A hand-written JSON file of steps that `sbrs run-scenario --file` runs, for CI smoke checks or for authors who do not write Rust. It is not the action file that `sbrs record` writes.
+A hand-written JSON file of steps that `sbrs run-scenario --file` runs, for CI smoke checks or for authors who do not write Rust. It is not the action file that `sbrs mkrec` writes.
 
 See [Syntax Formats](/help/syntax_formats).
 
@@ -1451,7 +1451,7 @@ See [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth#the-policy).
 
 <Badge color="green">Testing</Badge>
 
-A tool that captures your clicks, typing and navigations in a browser and turns them into a JSON action file or a Rust test. `sbrs record URL -o actions.json` records and `sbrs replay` runs the file again; from code, `BaseCase` records the actions it performs.
+A tool that captures your clicks, typing and navigations in a browser and turns them into a Rust test and a JSON action file. `sbrs mkrec FILE.rs` records and `sbrs replay recordings/NAME_rec.json` runs the JSON file again; from code, `BaseCase` records the actions it performs.
 
 See [Recorder Mode Guide](/tutorials/recorder_mode).
 
@@ -1959,7 +1959,7 @@ See [First-party and third-party](/concepts/sessions-and-state#first-party-and-t
 
 <Badge color="blue">Engine</Badge>
 
-The Rust WebDriver client library that the WebDriver engine is built on. Selectors become `thirtyfour::By` values, and elements are `thirtyfour::WebElement` handles.
+The Rust WebDriver client library that the WebDriver engine is built on. Selectors become `drivers::By` values, and elements are `drivers::WebElement` handles.
 
 See [How it compares](/comparison).
 

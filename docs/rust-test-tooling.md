@@ -138,7 +138,7 @@ Use `run_browser_test` to guarantee cleanup. It creates a `BaseCase`, runs your
 async test body, and then calls `quit` even when the body fails:
 
 ```rust
-use seleniumbase_rs::{run_browser_test, BrowserConfig, Result};
+use seleniumbase_rs::{run_browser_test, tokio, BrowserConfig, Result};
 
 #[tokio::test]
 async fn user_can_open_the_home_page() -> Result<()> {
@@ -211,7 +211,7 @@ pub async fn login(sb: &mut BaseCase, user: &str, pass: &str) -> Result<()> {
 }
 ```
 
-`BaseCase::find_element` is still there when you want the `thirtyfour::WebElement`
+`BaseCase::find_element` is still there when you want the `drivers::WebElement`
 handle.
 
 </View>
@@ -232,7 +232,7 @@ async fn fill_email<E: ElementApi>(sb: &mut E, email: &str) -> Result<(), seleni
 
 Both `BaseCase` (WebDriver) and `sb_cdp::Page` (Pure CDP) implement the traits,
 so the same helper runs on either. `ElementApi` no longer has `find_element`,
-because its `thirtyfour::WebElement` return type tied the trait to WebDriver.
+because its `drivers::WebElement` return type tied the trait to WebDriver.
 
 </View>
 
@@ -288,7 +288,7 @@ each test its own browser process and reduces shared-state bugs.
 For tests that need special configuration, build a `BrowserConfig` directly:
 
 ```rust
-use seleniumbase_rs::{BrowserConfig, DriverMode, run_browser_test, Result};
+use seleniumbase_rs::{run_browser_test, tokio, BrowserConfig, DriverMode, Result};
 
 #[tokio::test]
 async fn uc_smoke_test() -> Result<()> {

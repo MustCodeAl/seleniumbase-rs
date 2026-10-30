@@ -1,0 +1,43 @@
+<!doctype html>
+<html>
+<head><title>Frames home</title>
+<style>
+  body { margin: 0; font: 14px sans-serif; }
+  .frame { position: absolute; width: 240px; height: 60px; border: 1px solid #888; }
+  #same { left: 20px; top: 460px; }
+  #far { left: 300px; top: 460px; }
+  #inline { left: 20px; top: 560px; }
+  #blank { left: 300px; top: 560px; }
+  #captcha { left: 20px; top: 660px; width: 304px; height: 160px; }
+  #captcha-far { left: 400px; top: 660px; width: 304px; height: 160px; }
+  .swatch { width: 30px; height: 20px; background: #ccc; }
+</style>
+</head>
+<body>
+<h1 id="title">Frames home</h1>
+
+<!-- Elements the selector tests click: an id, a name, a data-testid, an
+     aria-label, a text, and elements that have none of them. -->
+<form action="/search" method="get" onsubmit="return false">
+  <input id="email-field" type="text" value="">
+  <input name="q" type="text" value="">
+  <button type="button" data-testid="search-go">Go</button>
+  <a aria-label="Open the help page" href="/help">Help</a>
+  <button type="button" class="primary action">Save changes</button>
+</form>
+<div class="wrap"><div><p><span class="plain note">Just some text</span></p></div></div>
+<ul class="swatches"><li><div class="swatch"></div></li><li><div class="swatch"></div></li></ul>
+
+<a id="redirect-link" href="/redirect">Redirect chain</a>
+<a id="popup-link" href="FAR/popup" target="_blank">Popup on the far origin</a>
+<a id="popup-near-link" href="/popup" target="_blank">Popup on the same origin</a>
+<button id="popup-js" type="button" onclick="window.open('/popup')">window.open</button>
+
+<iframe id="same" class="frame" src="/inner"></iframe>
+<iframe id="far" class="frame" src="FAR/inner"></iframe>
+<iframe id="inline" class="frame" srcdoc="<body style='margin:0'><button id='inline-btn' style='display:block;width:100%;height:100%'>Inline</button></body>"></iframe>
+<iframe id="blank" class="frame" src="about:blank"></iframe>
+<iframe id="captcha" title="reCAPTCHA" src="/recaptcha/api2/anchor"></iframe>
+<iframe id="captcha-far" title="hCaptcha" src="FAR/recaptcha/enterprise/bframe"></iframe>
+</body>
+</html>

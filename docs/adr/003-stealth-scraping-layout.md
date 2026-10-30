@@ -3,7 +3,7 @@ title: "ADR 003: Stealth Scraping Layout"
 sidebarTitle: "003: Stealth scraping layout"
 ---
 
-> **Moved:** on 2026-10-15 (version 0.3.0) this code moved to [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth) (crates `seleniumbase-rs-wire`, `-scrape`, `-impersonate`); the paths below are the ones it had here.
+> **Moved:** on 2026-10-15 (version 0.3.0) this code moved to [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth). It shipped there first as `seleniumbase-rs-wire`, `-scrape` and `-impersonate`; those crates are now `seleniumbase-rs-codec`, `seleniumbase-rs-scrape` and `seleniumbase-rs-mimic`, behind the `seleniumbase-rs-stealth` facade. The paths below are the ones the code had in this repository. The current guide is [Stealth scraping](/stealth/overview).
 
 ## Status
 Accepted (2026-10-11). `HttpSession`, `MitmProxy` and `StealthSession` have since been merged into the

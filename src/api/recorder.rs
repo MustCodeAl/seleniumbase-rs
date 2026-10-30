@@ -69,6 +69,13 @@ pub const SHIFT_ESC_JS: &str = include_str!("recorder/js/shift_esc.js");
 /// Python wraps the script in `window.onload = function() { ... }`; this adds
 /// a `load` listener instead, so a page that sets its own `onload` neither
 /// loses it nor removes the recorder.
+///
+/// The browser runs the script in every frame of a page, but the script
+/// records the top frame only, as Python's Recorder does (its extension has no
+/// `all_frames`): the load of a frame is not a page to open, and what a person
+/// does in a frame is seen from the top frame, where the focus leaves the page.
+/// A CAPTCHA widget (reCAPTCHA, hCaptcha, Turnstile) in a frame is one
+/// `captcha` action instead, which the generators write as a comment.
 pub fn recorder_injection() -> String {
     format!(
         "if (!document.__sbRecorderHooked) {{ document.__sbRecorderHooked = true; \
@@ -185,7 +192,7 @@ impl ActionRecorder {
     /// the program is never silent.
     pub fn to_rust_script(&self) -> String {
         let mut out = String::from(
-            "use seleniumbase_rs::{BaseCase, BrowserConfig};\n\n#[tokio::main]\nasync fn main() -> Result<(), Box<dyn std::error::Error>> {\n    let mut sb = BaseCase::new(BrowserConfig::default()).await?;\n",
+            "use seleniumbase_rs::{tokio, BaseCase, BrowserConfig};\n\n#[tokio::main]\nasync fn main() -> Result<(), Box<dyn std::error::Error>> {\n    let mut sb = BaseCase::new(BrowserConfig::default()).await?;\n",
         );
         self.write_actions(&mut out);
         out.push_str("    sb.quit().await?;\n    Ok(())\n}\n");
@@ -198,8 +205,9 @@ impl ActionRecorder {
     /// generated.
     pub fn to_rust_test(&self, test_name: &str) -> String {
         let fn_name = rust_identifier(test_name);
-        let mut out =
-            String::from("use seleniumbase_rs::{BaseCase, BrowserConfig};\n\n#[tokio::test]\n");
+        let mut out = String::from(
+            "use seleniumbase_rs::{tokio, BaseCase, BrowserConfig};\n\n#[tokio::test]\n",
+        );
         out.push_str(&format!(
             "async fn {}() -> Result<(), Box<dyn std::error::Error>> {{\n    let mut sb = BaseCase::new(BrowserConfig::default()).await?;\n",
             fn_name
@@ -622,10 +630,12 @@ pub const SECRET_PLACEHOLDER: &str = "{{SB_RECORDED_SECRET}}";
 pub const SECRET_VARIABLE: &str = "SB_RECORDED_SECRET";
 
 /// The lines every generated rstest test starts with: the `rstest` attribute
-/// and the `sb` fixture with its handle. They are in one place so that a
+/// the `sb` fixture with its handle and the Tokio runtime behind `#[tokio::test]`,
+/// all imported from `seleniumbase_rs` so a project needs no `rstest` or `tokio`
+/// line in its manifest. They are in one place so that a
 /// change of the fixture's path is a change here.
 pub const RSTEST_PRELUDE: &str =
-    "use rstest::rstest;\nuse seleniumbase_rs::testing::{sb, Sb};\nuse seleniumbase_rs::Result;\n";
+    "use seleniumbase_rs::testing::{rstest, sb, Sb};\nuse seleniumbase_rs::{tokio, Result};\n";
 
 /// The password a recording stands for, read from `SB_RECORDED_SECRET`
 /// ([`SECRET_VARIABLE`]): what a generated test types in place of a password
@@ -951,10 +961,80 @@ fn is_yaml_path(path: &Path) -> bool {
         .is_some_and(|ext| ext.eq_ignore_ascii_case("yaml") || ext.eq_ignore_ascii_case("yml"))
 }
 
+// Compile check. `cargo test --doc --features testing` builds the rstest test that
+// `to_rstest_test` writes (`tests/golden_rust/rstest_recording.rs`, kept equal to the
+// generator's output by `tests/recorder_rstest_compiles.rs`) as a user's crate would,
+// and does not run it: it would start a browser.
+#[cfg(all(doctest, feature = "testing"))]
+#[doc = concat!(
+    "```no_run,test_harness\n",
+    include_str!("../../tests/golden_rust/rstest_recording.rs"),
+    "\nfn main() {}\n```"
+)]
+struct RstestRecordingCompiles;
+
 #[cfg(test)]
 mod tests {
     use super::calls::{Shape, CALLS, UNEXPORTABLE};
     use super::*;
+
+    #[test]
+    fn the_page_script_records_the_top_frame_of_a_document_once() {
+        // The browser's new-document hook runs the script in every frame, and
+        // the tab watcher may run it again in a page that is still loading;
+        // both guards come before the script defines or records anything.
+        let top_frame = RECORDER_JS
+            .find("if (window.self !== window.top) return;")
+            .expect("the script leaves a frame at once");
+        let once = RECORDER_JS
+            .find("if (document.__sbRecorderRan === true) return;")
+            .expect("the script runs once for each document");
+        let first_definition = RECORDER_JS
+            .find("var cssPathById")
+            .expect("the script defines its selectors");
+        assert!(top_frame < once && once < first_definition);
+        // A CAPTCHA frame is one `captcha` action, not a step or a tab.
+        assert!(RECORDER_JS.contains("['captcha', provider, window.location.origin, d_now]"));
+        // The wrapper for the new-document hook carries the same script.
+        assert!(recorder_injection().contains(RECORDER_JS));
+    }
+
+    #[test]
+
+    fn a_captcha_is_a_comment_in_every_form_of_the_output() {
+        let mut recorder = ActionRecorder::default();
+        recorder.record("goto", Some("https://a.test/"), None);
+        recorder.record("captcha", Some("recaptcha"), None);
+        recorder.record("click", Some("#after"), None);
+        let note = "skipped: captcha (recaptcha): solve it by hand or use";
+
+        let script = recorder.to_rust_script();
+        assert!(
+            script.contains(&format!("// {note} sb.solve_captcha()")),
+            "{script}"
+        );
+        assert!(script.contains("sb.click(\"#after\")"), "{script}");
+        syn::parse_file(&script).expect("a comment leaves a valid program");
+
+        let test = recorder.to_rstest_test("test_x", false);
+        assert!(
+            test.contains(&format!("// {note} sb.solve_captcha()")),
+            "{test}"
+        );
+
+        let cdp = recorder.to_cdp_script();
+        assert!(
+            cdp.contains(&format!("// {note} page.solve_captcha()")),
+            "{cdp}"
+        );
+        syn::parse_file(&cdp).expect("a comment leaves a valid program");
+
+        let feature = recorder.to_gherkin_scenario("F", "S", false);
+        assert!(
+            feature.contains(&format!("# {note} sb.solve_captcha()")),
+            "{feature}"
+        );
+    }
 
     fn sample_recorder() -> ActionRecorder {
         let mut recorder = ActionRecorder::default();
@@ -1238,6 +1318,9 @@ mod tests {
                     .last()
                     .map(|segment| segment.ident.to_string())
                     .unwrap_or_default(),
+                // `x: impl Into<f64>` takes any number literal.
+                syn::Type::ImplTrait(_) => "impl Into".to_owned(),
+
                 _ => "other".to_owned(),
             }
         }
@@ -1289,7 +1372,7 @@ mod tests {
         match shape {
             Shape::NoArgs | Shape::Seconds | Shape::TabUrl => (None, None),
             Shape::Target | Shape::TargetDiscarded | Shape::TargetSeconds => (Some("#t"), None),
-            Shape::TargetValue | Shape::ValueTarget => (Some("#t"), Some("v")),
+            Shape::TargetValue | Shape::ValueTarget | Shape::Cookie => (Some("#t"), Some("v")),
             Shape::TargetPair => (Some("#t"), Some("name=content")),
             Shape::Size => (Some("800,600"), None),
             Shape::TargetOffset => (Some("#t"), Some("5, -7")),
@@ -1390,6 +1473,9 @@ mod tests {
                     "u8" | "u16" | "u32" | "u64" | "usize" | "i8" | "i16" | "i32" | "i64"
                     | "isize" => kind == "integer",
                     "f64" => kind == "float",
+                    "impl Into" => kind == "integer" || kind == "float",
+                    "&Value" => matches!(argument, syn::Expr::Reference(_)),
+
                     "bool" => kind == "bool",
                     _ => false,
                 };
@@ -1464,7 +1550,7 @@ mod tests {
         );
         assert_eq!(
             call("click_with_offset", Some("#a"), Some("10, -4")).unwrap(),
-            "sb.click_with_offset(\"#a\", 10, -4, false).await?;"
+            "sb.click_with_offset(\"#a\", 10, -4).await?;"
         );
         assert_eq!(
             call(
@@ -1473,7 +1559,7 @@ mod tests {
                 Some("10, -4, center")
             )
             .unwrap(),
-            "sb.double_click_with_offset(\"#a\", 10, -4, true).await?;"
+            "sb.double_click_with_offset(\"#a\", 10, -4).center(true).await?;"
         );
         assert_eq!(
             call("select_option_by_index", Some("#s"), Some("2")).unwrap(),
@@ -1518,7 +1604,7 @@ mod tests {
             "// skipped: unknown action \"levitate\"",
             "// skipped: click has no target",
             "// skipped: type_text has no value",
-            "// skipped: drag_and_drop_with_offset: the recording keeps the two selectors",
+            "// skipped: drag_and_drop_with_offset: the recording keeps the selector",
             "// skipped: set_window_size: width \"wide\" is not a whole number",
             "// skipped: assert_attribute: value \"no equals sign\" is not name=content",
             "sb.click(\"#fine\").await?;",

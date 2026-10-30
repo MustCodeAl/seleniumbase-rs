@@ -47,6 +47,9 @@ pub(super) enum Shape {
     Size,
     /// The value is `x, y`: `sb.method(target, x, y)`.
     TargetOffset,
+    /// The target is the cookie's name and the value its value:
+    /// `sb.method(&serde_json::json!({ "name": target, "value": value }))`.
+    Cookie,
     /// The value is a whole number: `sb.method(target, n)`.
     TargetIndex,
     /// `let _ = sb.method(target).await?;`: the result is not needed.
@@ -161,8 +164,15 @@ macro_rules! replay_call {
     }};
     (TargetOffset, $sb:ident, $p:ident, $m:ident) => {{
         let (target, x, y, center) = $p.offset()?;
-        ran($sb.$m(target, x, y, center).await)?
+        ran($sb.$m(target, x as f64, y as f64).center(center).await)?
     }};
+    (Cookie, $sb:ident, $p:ident, $m:ident) => {{
+        let name = $p.target()?;
+        let value = $p.text()?;
+        let cookie = serde_json::json!({ "name": name, "value": value });
+        ran($sb.$m(&cookie).await)?
+    }};
+
     (TargetIndex, $sb:ident, $p:ident, $m:ident) => {{
         let (target, index) = $p.index()?;
         ran($sb.$m(target, index).await)?
@@ -226,7 +236,7 @@ recorded_calls! {
     refresh(NoArgs) [Cdp];
     delete_all_cookies(NoArgs) [Cdp];
     delete_cookie(Target);
-    add_cookie(TargetValue);
+    add_cookie(Cookie);
     double_click(Target) [Cdp];
     context_click(Target) [Cdp];
     click_with_offset(TargetOffset) [Cdp];
@@ -327,11 +337,11 @@ pub(super) const ALIASES: &[(&str, &str)] = &[
 pub(super) const UNEXPORTABLE: &[(&str, &str)] = &[
     (
         "drag_and_drop_with_offset",
-        "the recording keeps the two selectors but not the offset",
+        "the recording keeps the selector but not the offset",
     ),
     (
         "download_file",
-        "BaseCase::download_file takes a url, a file name and a timeout here, not Python's url and folder",
+        "a recorded download does not say which folder the file went to",
     ),
     (
         "save_as_pdf_to_logs",
@@ -507,10 +517,78 @@ impl<'a> Parts<'a> {
     }
 }
 
+/// The name a CAPTCHA widget is recorded under. The page script writes one
+/// `captcha` action, whose target is the provider, when a person works a
+/// widget in a frame: the widget is a cross-site frame the recording cannot
+/// see into, and its tiles and buttons are not steps of the test.
+pub(super) const CAPTCHA: &str = "captcha";
+
+/// What every generator writes, after `// skipped:`, for a `captcha` action:
+/// there is no call to write, and the person is told how to go on. `solver` is
+/// the call that tries the widget in the form being written.
+pub(super) fn captcha_note(provider: Option<&str>, solver: &str) -> String {
+    // The provider comes from the page; only its letters can reach a comment.
+    let provider: String = provider
+        .unwrap_or("")
+        .chars()
+        .filter(char::is_ascii_alphanumeric)
+        .collect();
+    let provider = if provider.is_empty() {
+        String::new()
+    } else {
+        format!(" ({provider})")
+    };
+    format!("{CAPTCHA}{provider}: solve it by hand or use {solver}")
+}
+
+/// Query parameters a site writes anew for each visit. An address recorded
+/// with them may answer differently, or be refused, when it is opened again.
+const VOLATILE_QUERY: [&str; 9] = [
+    "ei", "sxsrf", "ved", "gs_lp", "gs_lcrp", "sca_esv", "sca_upv", "uact", "iflsig",
+];
+
+/// A note to write after the call that opens `url`, if the address is one that
+/// a replay may not get through: Google's `/sorry/` bot check, or an address
+/// with query parameters that change at every visit. Python records both
+/// as they are seen (it cuts a search address at the first `&` only when a
+/// click or Enter led to it), so the address stays and the note says why it
+/// may fail.
+fn url_note(url: &str) -> Option<String> {
+    let rest = url.split_once("://").map_or(url, |(_, rest)| rest);
+    let (location, query) = rest.split_once('?').unwrap_or((rest, ""));
+    let path = location.find('/').map_or("", |at| &location[at..]);
+    let query = query.split('#').next().unwrap_or("");
+    let mut names: Vec<&str> = Vec::new();
+    for pair in query.split('&') {
+        let name = pair.split('=').next().unwrap_or("");
+        if VOLATILE_QUERY.contains(&name) && !names.contains(&name) {
+            names.push(name);
+        }
+    }
+    let mut notes: Vec<String> = Vec::new();
+    if path.starts_with("/sorry/") {
+        notes.push(
+            "a bot-check page (/sorry/): its address works once, so a replay cannot get past it"
+                .to_owned(),
+        );
+    }
+    if !names.is_empty() {
+        notes.push(format!(
+            "the query has parameters that change at every visit ({}); remove them if the page refuses a replay",
+            names.join(", ")
+        ));
+    }
+    (!notes.is_empty()).then(|| format!(" // note: {}", notes.join("; ")))
+}
+
 /// The line of Rust that replays `action`, or why there is none.
 pub(super) fn rust_call(action: &RecordedAction) -> Result<String, String> {
     let parts = Parts::of(action);
     let name = parts.name;
+    if name == CAPTCHA {
+        return Err(captcha_note(parts.target, "sb.solve_captcha()"));
+    }
+
     if let Some((_, reason)) = UNEXPORTABLE
         .iter()
         .find(|(unexportable, _)| *unexportable == name)
@@ -523,6 +601,9 @@ pub(super) fn rust_call(action: &RecordedAction) -> Result<String, String> {
             None => format!("unknown action {:?}", action.name),
         });
     };
+
+    // The builder methods after the call: `sb.click_with_offset(..).center(true)`.
+    let mut keywords = "";
 
     let (method, args) = match shape {
         Shape::NoArgs => (*method, String::new()),
@@ -564,8 +645,20 @@ pub(super) fn rust_call(action: &RecordedAction) -> Result<String, String> {
         }
         Shape::TargetOffset => {
             let (target, x, y, center) = parts.offset()?;
-            (*method, format!("{}, {x}, {y}, {center}", literal(target)))
+            if center {
+                keywords = ".center(true)";
+            }
+            (*method, format!("{}, {x}, {y}", literal(target)))
         }
+        Shape::Cookie => (
+            *method,
+            format!(
+                "&serde_json::json!({{ \"name\": {}, \"value\": {} }})",
+                literal(parts.target()?),
+                text_argument(parts.value()?)
+            ),
+        ),
+
         Shape::TargetIndex => {
             let (target, index) = parts.index()?;
             (*method, format!("{}, {index}", literal(target)))
@@ -575,13 +668,19 @@ pub(super) fn rust_call(action: &RecordedAction) -> Result<String, String> {
             return Ok(format!("sb.{method}({:?}).await;", parts.seconds()?));
         }
     };
-
     let discard = if *shape == Shape::TargetDiscarded {
         "let _ = "
     } else {
         ""
     };
-    Ok(format!("{discard}sb.{method}({args}).await?;"))
+    // A page that a replay may not get through says so after its call.
+    let note = match (method, parts.target) {
+        ("goto" | "goto_if_not_url" | "open", Some(url)) => url_note(url).unwrap_or_default(),
+        _ => String::new(),
+    };
+    Ok(format!(
+        "{discard}sb.{method}({args}){keywords}.await?;{note}"
+    ))
 }
 
 /// A call's outcome as the replay reports it: nothing, or the reason.
@@ -1030,6 +1129,54 @@ mod tests {
     }
 
     #[test]
+    fn a_captcha_is_a_comment_that_names_the_solver() {
+        let captcha = RecordedAction::new("captcha", Some("recaptcha"), None);
+        assert_eq!(
+            rust_call(&captcha),
+            Err("captcha (recaptcha): solve it by hand or use sb.solve_captcha()".to_owned())
+        );
+        // No provider: no parentheses.
+        let bare = RecordedAction::new("captcha", None, None);
+        assert_eq!(
+            rust_call(&bare),
+            Err("captcha: solve it by hand or use sb.solve_captcha()".to_owned())
+        );
+        // The provider comes from the page: only its letters reach a comment.
+        let hostile = RecordedAction::new("captcha", Some("x\n}; evil()"), None);
+        let note = rust_call(&hostile).unwrap_err();
+        assert!(!note.contains('\n') && !note.contains(';'), "{note}");
+        // It is no call to replay: the table does not know it.
+        assert!(CALLS.iter().all(|(known, _, _)| *known != CAPTCHA));
+    }
+
+    #[test]
+    fn a_bot_check_page_and_changing_query_parameters_get_a_note_after_the_call() {
+        let goto = |url: &str| rust_call(&RecordedAction::new("goto", Some(url), None)).unwrap();
+        assert_eq!(
+            goto("https://a.test/search?q=rust"),
+            "sb.goto(\"https://a.test/search?q=rust\").await?;"
+        );
+        let sorry = goto("https://www.google.com/sorry/index?continue=https://a.test/&q=EgR");
+        assert!(
+            sorry.contains(".await?; // note: a bot-check page (/sorry/)"),
+            "{sorry}"
+        );
+        let search =
+            goto("https://www.google.com/search?q=rust&sca_esv=1&ei=2&sxsrf=3&ved=4&ei=5#top");
+        assert!(
+            search.ends_with("(sca_esv, ei, sxsrf, ved); remove them if the page refuses a replay"),
+            "{search}"
+        );
+        // Only the opens carry the note, and `sorry` in a query is not the path.
+        let click = rust_call(&RecordedAction::new("click", Some("a[href*=ei]"), None)).unwrap();
+        assert!(!click.contains("note"), "{click}");
+        assert_eq!(url_note("https://a.test/x?sorry=/sorry/&other=1"), None);
+        let both = url_note("https://a.test/sorry/x?ved=1").unwrap();
+        assert!(both.contains("/sorry/") && both.contains("ved"), "{both}");
+    }
+
+    #[test]
+
     fn the_table_marks_what_the_generators_have_a_form_of() {
         assert_eq!(marks("open"), [Mark::Cdp, Mark::GherkinOpen]);
         assert_eq!(gherkin_mark("goto_if_not_url"), Some(Mark::GherkinOpen));

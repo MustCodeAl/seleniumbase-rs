@@ -9,6 +9,7 @@
 //! which a guard could not see.
 
 use std::fmt;
+use std::future::Future;
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
@@ -23,7 +24,7 @@ use super::lifecycle::{say_on_stderr, Finalizer, Lifecycle, Plan, TerminalPrompt
 use super::report::{self, Reporting};
 use crate::api::recorder::RecordingTarget;
 use crate::api::runner::{close_browser, CdpCase};
-use crate::common::debug_prompt::PromptPage;
+use crate::common::debug_prompt::{PromptPage, SourceSpot};
 use crate::config::settings::Settings;
 use crate::config::test_settings::TestData;
 use crate::core::log_helper::TestId;
@@ -136,9 +137,8 @@ impl Config {
 /// evidence of a failure, the debug prompts.
 ///
 /// ```no_run
-/// use rstest::rstest;
-/// use seleniumbase_rs::testing::{sb, Sb};
-/// use seleniumbase_rs::Result;
+/// use seleniumbase_rs::testing::{rstest, sb, Sb};
+/// use seleniumbase_rs::{tokio, Result};
 ///
 /// #[rstest]
 /// #[tokio::test]
@@ -245,6 +245,12 @@ impl Sb {
     /// Launches a WebDriver browser, runs `test` on it with every behaviour
     /// of the run configuration, and closes it.
     ///
+    /// The place of this call in your file is what the debug prompts
+    /// (`trace`, `pdb` and `final_debug`) list: they show the body that starts
+    /// here, and a post-mortem marks the lines that name the failing selector
+    /// or address. This is a plain function that returns a future, so that
+    /// `#[track_caller]` can record the place.
+    ///
     /// The test is an async closure, `async |sb| { .. }`; it is called again
     /// when the test fails and `reruns` allow, so it must not consume what it
     /// captures. A test that panics fails like one that returns `Err`, and the
@@ -254,11 +260,22 @@ impl Sb {
     ///
     /// Returns the settings' error, the browser's launch error, the test's
     /// error (of its last attempt), the time limit's error, or the cleanup's.
-    pub async fn run<F>(&self, test: F) -> Result<()>
+    #[track_caller]
+    pub fn run<'a, F>(&'a self, test: F) -> impl Future<Output = Result<()>> + 'a
+    where
+        F: AsyncFn(&mut BaseCase) -> Result<()> + 'a,
+    {
+        // Not an `async fn`: the attribute above does not apply to one, and the
+        // place of this call is what the debug prompts list.
+        self.run_at(SourceSpot::caller(), test)
+    }
+
+    async fn run_at<F>(&self, spot: SourceSpot, test: F) -> Result<()>
     where
         F: AsyncFn(&mut BaseCase) -> Result<()>,
     {
-        let plan = self.config.plan("WebDriver")?;
+        let mut plan = self.config.plan("WebDriver")?;
+        plan.spot = Some(spot);
         let browser = self.config.settings()?.to_browser_config();
         let test_id = self.config.test.id.clone();
 
@@ -284,9 +301,8 @@ impl Sb {
 /// [`Page`].
 ///
 /// ```no_run
-/// use rstest::rstest;
-/// use seleniumbase_rs::testing::{sb_cdp, SbCdp};
-/// use seleniumbase_rs::Result;
+/// use seleniumbase_rs::testing::{rstest, sb_cdp, SbCdp};
+/// use seleniumbase_rs::{tokio, Result};
 ///
 /// #[rstest]
 /// #[tokio::test]
@@ -395,16 +411,23 @@ impl SbCdp {
     /// # Errors
     ///
     /// As [`Sb::run`].
-    pub async fn run<F>(&self, test: F) -> Result<()>
+    #[track_caller]
+    pub fn run<'a, F>(&'a self, test: F) -> impl Future<Output = Result<()>> + 'a
     where
-        F: AsyncFn(&Page) -> Result<()>,
+        F: AsyncFn(&Page) -> Result<()> + 'a,
     {
-        let settings = self.config.settings()?;
-        self.run_on(
-            async || Browser::launch(settings.to_launch_options()?).await,
-            test,
-        )
-        .await
+        // Not an `async fn`: the attribute above does not apply to one, and the
+        // place of this call is what the debug prompts list.
+        let spot = SourceSpot::caller();
+        async move {
+            let settings = self.config.settings()?;
+            self.run_on(
+                spot,
+                async || Browser::launch(settings.to_launch_options()?).await,
+                test,
+            )
+            .await
+        }
     }
 
     /// [`run`](Self::run) on the browser `launch` makes (once per attempt),
@@ -415,20 +438,26 @@ impl SbCdp {
     ///
     /// As [`run`](Self::run).
     #[cfg(any(test, feature = "test-util"))]
-    pub async fn run_with_browser<L, F>(&self, launch: L, test: F) -> Result<()>
+    #[track_caller]
+    pub fn run_with_browser<'a, L, F>(
+        &'a self,
+        launch: L,
+        test: F,
+    ) -> impl Future<Output = Result<()>> + 'a
     where
-        L: AsyncFn() -> Result<Browser>,
-        F: AsyncFn(&Page) -> Result<()>,
+        L: AsyncFn() -> Result<Browser> + 'a,
+        F: AsyncFn(&Page) -> Result<()> + 'a,
     {
-        self.run_on(launch, test).await
+        self.run_on(SourceSpot::caller(), launch, test)
     }
 
-    async fn run_on<L, F>(&self, launch: L, test: F) -> Result<()>
+    async fn run_on<L, F>(&self, spot: SourceSpot, launch: L, test: F) -> Result<()>
     where
         L: AsyncFn() -> Result<Browser>,
         F: AsyncFn(&Page) -> Result<()>,
     {
-        let plan = self.config.plan("CDP (no driver)")?;
+        let mut plan = self.config.plan("CDP (no driver)")?;
+        plan.spot = Some(spot);
         self.config
             .run(
                 plan,
@@ -443,9 +472,8 @@ impl SbCdp {
 /// function made with `#[rstest]`.
 ///
 /// ```no_run
-/// use rstest::rstest;
-/// use seleniumbase_rs::testing::{sb, Sb};
-/// use seleniumbase_rs::Result;
+/// use seleniumbase_rs::testing::{rstest, sb, Sb};
+/// use seleniumbase_rs::{tokio, Result};
 ///
 /// #[rstest]
 /// #[tokio::test]

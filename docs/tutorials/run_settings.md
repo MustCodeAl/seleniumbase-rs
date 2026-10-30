@@ -140,7 +140,7 @@ so `run_browser_test` and `Plugins::run_browser_test`) starts with the
 ```rust,no_run
 use std::time::Duration;
 
-use seleniumbase_rs::{run_browser_test, BrowserConfig, Result, RunSettings};
+use seleniumbase_rs::{run_browser_test, tokio, BrowserConfig, Result, RunSettings};
 
 #[tokio::test]
 async fn login_for_a_demo() -> Result<()> {

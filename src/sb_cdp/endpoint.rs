@@ -7,7 +7,191 @@
 //! `--cdp-endpoint`, and both accept the HTTP address `http://127.0.0.1:PORT`.
 //! [`DevToolsEndpoint`] holds the addresses and writes those configs.
 
+use crate::error::SeleniumBaseError;
 use serde_json::{json, Value};
+
+/// Resolves the existing attach path, including Tauri's authenticated discovery.
+pub(super) async fn resolve(
+    address: &str,
+    timeout: std::time::Duration,
+) -> Result<(DevToolsEndpoint, Value), SeleniumBaseError> {
+    crate::install_tls_provider();
+    let mut url = parse_address(address)?;
+    if matches!(url.scheme(), "ws" | "wss") {
+        let http_scheme = if url.scheme() == "wss" {
+            "https"
+        } else {
+            "http"
+        };
+        let mut http = url.clone();
+        http.set_scheme(http_scheme)
+            .map_err(|()| SeleniumBaseError::cdp_driver("invalid debugger scheme"))?;
+        http.set_path("");
+        http.set_query(None);
+        return Ok((
+            DevToolsEndpoint::new(http.as_str(), url.as_str()),
+            json!({}),
+        ));
+    }
+    let client = reqwest::Client::builder()
+        .timeout(timeout)
+        .redirect(reqwest::redirect::Policy::none())
+        .no_proxy()
+        .build()
+        .map_err(|_error| {
+            SeleniumBaseError::cdp_driver("cannot build debugger discovery client")
+        })?;
+    // A non-root path identifies the plugin's token URL. Never send that token
+    // in a version probe, a redirect, a proxy request, or an error message.
+    let discovered = !matches!(url.path(), "" | "/" | "/json/version");
+    if discovered {
+        url = discover_tauri(&client, &url).await?;
+    }
+    let mut version_url = url.clone();
+    version_url.set_path("/json/version");
+    let version = get_json(&client, &version_url, "DevTools version probe").await?;
+    let ws = version["webSocketDebuggerUrl"]
+        .as_str()
+        .ok_or_else(|| SeleniumBaseError::cdp_driver("no webSocketDebuggerUrl advertised"))?;
+    let websocket = parse_address(ws)?;
+    if !matches!(websocket.scheme(), "ws" | "wss") {
+        return Err(SeleniumBaseError::cdp_driver(
+            "debugger did not advertise a WebSocket",
+        ));
+    }
+    // The plugin vouched for one loopback endpoint. What that endpoint
+    // advertises must stay on it: the same port, on this machine, in the clear.
+    if discovered
+        && (websocket.scheme() != "ws"
+            || !is_loopback(&websocket)
+            || websocket.port_or_known_default() != url.port_or_known_default())
+    {
+        return Err(SeleniumBaseError::cdp_driver(
+            "Tauri advertised a debugger WebSocket outside its loopback CDP endpoint",
+        ));
+    }
+    url.set_path("");
+    Ok((
+        DevToolsEndpoint::new(url.as_str(), websocket.as_str()),
+        version,
+    ))
+}
+
+/// Validates an address without putting a discovery token into diagnostics.
+fn parse_address(address: &str) -> Result<url::Url, SeleniumBaseError> {
+    let url = url::Url::parse(address)
+        .map_err(|_error| SeleniumBaseError::invalid_config("invalid CDP endpoint URL"))?;
+    if !matches!(url.scheme(), "http" | "https" | "ws" | "wss")
+        || url.host_str().is_none()
+        || !url.username().is_empty()
+        || url.password().is_some()
+        || url.fragment().is_some()
+        || url.port_or_known_default() == Some(0)
+    {
+        return Err(SeleniumBaseError::invalid_config(
+            "CDP requires an HTTP or WebSocket endpoint without credentials or a fragment",
+        ));
+    }
+    Ok(url)
+}
+
+/// Fetches local debugging metadata. Query strings (and their tokens) stay private.
+async fn get_json(
+    client: &reqwest::Client,
+    url: &url::Url,
+    step: &str,
+) -> Result<Value, SeleniumBaseError> {
+    let location = format!(
+        "{}:{}",
+        url.host_str().unwrap_or_default(),
+        url.port_or_known_default().unwrap_or_default()
+    );
+    // A `reqwest` error prints the full URL, token included, so none is
+    // passed on: the step, the address and the cause are named instead.
+    let failed =
+        |cause: &str| SeleniumBaseError::cdp_driver(format!("{step} at {location} {cause}"));
+    let mut response = client.get(url.clone()).send().await.map_err(|error| {
+        failed(if error.is_timeout() {
+            "timed out"
+        } else if error.is_connect() {
+            "could not connect"
+        } else {
+            "failed"
+        })
+    })?;
+    let status = response.status();
+    if !status.is_success() {
+        return Err(failed(&format!("answered HTTP {status}")));
+    }
+    let too_large = || {
+        failed(&format!(
+            "answered with a body that is too large (over {MAX_REPLY_BYTES} bytes)"
+        ))
+    };
+    if response
+        .content_length()
+        .is_some_and(|length| length > MAX_REPLY_BYTES)
+    {
+        return Err(too_large());
+    }
+    let mut body = Vec::new();
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|_error| failed("broke off while answering"))?
+    {
+        if (body.len() + chunk.len()) as u64 > MAX_REPLY_BYTES {
+            return Err(too_large());
+        }
+        body.extend_from_slice(&chunk);
+    }
+    serde_json::from_slice(&body).map_err(|_error| failed("answered with invalid JSON"))
+}
+
+/// The plugin only advertises its loopback CDP endpoint; follow no arbitrary URL.
+async fn discover_tauri(
+    client: &reqwest::Client,
+    base: &url::Url,
+) -> Result<url::Url, SeleniumBaseError> {
+    if !is_loopback(base) || base.scheme() != "http" || base.query().is_some() {
+        return Err(SeleniumBaseError::invalid_config(
+            "Tauri CDP discovery requires a loopback HTTP plugin URL",
+        ));
+    }
+    let mut discovery = base.clone();
+    discovery.set_path(&format!("{}/cdp", base.path().trim_end_matches('/')));
+    let reply = get_json(client, &discovery, "Tauri discovery").await?;
+    let value = &reply["value"];
+    if value["cdpEnabled"] != true {
+        return Err(SeleniumBaseError::cdp_driver(
+            "Tauri CDP is disabled; configure Chromium debugging in the app first",
+        ));
+    }
+    let endpoint = value["cdpUrl"]
+        .as_str()
+        .ok_or_else(|| SeleniumBaseError::cdp_driver("Tauri did not advertise cdpUrl"))?;
+    let endpoint = parse_address(endpoint)?;
+    if !is_loopback(&endpoint)
+        || endpoint.scheme() != "http"
+        || !matches!(endpoint.path(), "" | "/")
+        || endpoint.query().is_some()
+        || value["cdpPort"].as_u64() != endpoint.port().map(u64::from)
+    {
+        return Err(SeleniumBaseError::cdp_driver(
+            "Tauri advertised an invalid loopback CDP endpoint",
+        ));
+    }
+    Ok(endpoint)
+}
+
+/// Whether `url` names this machine, in the spellings the plugin uses.
+fn is_loopback(url: &url::Url) -> bool {
+    matches!(url.host_str(), Some("127.0.0.1" | "localhost" | "[::1]"))
+}
+
+/// The most a discovery or version reply may weigh. Both are a few hundred
+/// bytes; the limit keeps a hostile or broken endpoint from filling memory.
+const MAX_REPLY_BYTES: u64 = 1 << 20;
 
 /// The `chrome-devtools-mcp` release (npm, by Google) the generated configs run.
 ///

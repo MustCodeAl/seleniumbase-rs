@@ -60,6 +60,15 @@ credentials never shows its password in `Debug`, `Display` or the command line.
 
 ## Locators
 
+For an already-running CEF/WebView2 app, use
+`LaunchOptions::builder().cdp_url(endpoint).build()?` with `Browser::launch`.
+It reuses the existing connection path and prepares existing windows without
+starting a process. `.fingerprint(&fingerprint)` applies the same evasion and
+native CDP override pipeline; attach-compatible plugins use the existing
+`.plugins(set)` builder (feature `plugins`). Closing leaves the app running.
+HTTP debugger URLs, browser WebSockets and authenticated Tauri discovery are
+covered in the [CDP reference](/ecosystem/tauri-api/cdp).
+
 A [`Locator`] describes elements; it does not hold them. Every action finds the
 element again and waits for it, so it keeps working when the page re-renders.
 
@@ -133,8 +142,11 @@ A cross-origin frame cannot be entered from page script, so it matches nothing.
 `page.cookies()` (`all`, `set`, `clear`, `header`, `save`, `load`),
 `page.local_storage()` / `page.session_storage()`, `page.window()` and
 `page.emulation()` (timezone, locale, geolocation, user agent, offline).
-`browser.new_page`, `pages`, `newest_page` and `page.bring_to_front` manage
-tabs. Cookie values are redacted in `Debug`.
+`browser.new_page`, `pages`, `newest_page`, `select_page` (a target id or part
+of a URL) and `page.bring_to_front` manage tabs. On a browser attached with
+`cdp_url`, `select_page` and `page(id)` prepare only the tab they return, and
+`pages()` prepares every one of the app's tabs. Cookie values are redacted in
+`Debug`.
 
 ## Downloads
 
@@ -179,7 +191,7 @@ paced like a person's, for pages that watch how input arrives:
 
 ```rust,no_run
 use seleniumbase_rs::sb_cdp::Page;
-use seleniumbase_rs::stealth::behavior::Behavior;
+use seleniumbase_rs::evasion::behavior::Behavior;
 
 # async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 let person = page.human(Behavior::builder().typing_wpm(65.0).typo_rate(0.02).build()?);
@@ -206,7 +218,7 @@ person.scroll_by(600.0).await?;
 Everything is still trusted DevTools input; only the timing and the path
 differ. It is slower than `locator.click()` by design. `Behavior::builder()
 .seed(n)` makes the randomness reproducible. The planning is a pure module,
-`stealth::behavior`, usable on its own.
+`evasion::behavior`, usable on its own.
 
 ## Messages in the page
 
@@ -311,7 +323,7 @@ use seleniumbase_rs::sb_cdp::{Page, ResourceType, Response, Rule};
 let interception = page
     .intercept(vec![
         Rule::block().resource_type(ResourceType::Image).resource_type(ResourceType::Font),
-        Rule::fulfill(Response::json(200, &serde_json::json!({ "plan": "pro" }))).url("*/api/account"),
+        Rule::fulfill(Response::json(200, &seleniumbase_rs::json::json!({ "plan": "pro" }))).url("*/api/account"),
         Rule::modify().set_header("X-Test-Run", "42").url("https://example.com/*"),
     ])
     .await?;
@@ -332,7 +344,7 @@ rules can set or remove headers, change the URL or method, and replace the body.
 
 <Note>
 
-`stealth::reactor::CdpReactor` is the older, browser-wide alternative: it adds
+`evasion::reactor::CdpReactor` is the older, browser-wide alternative: it adds
 headers to every request from every tab. Prefer `page.intercept` unless you
 want exactly that.
 
@@ -381,7 +393,7 @@ finishes loading, binary ones as base64, and one over the limit is left out
 with a `comment` saying so. The limit goes up to 64 MiB (`MAX_CONTENT_BYTES`),
 because each body comes back whole in one DevTools message. `Har` and its
 parts are serde types, so a saved HAR reads back with
-`serde_json::from_str::<Har>`.
+`seleniumbase_rs::json::from_str::<Har>`.
 
 A cross-site iframe (an ad, a video player, a captcha) runs in a target of its
 own, which reports its requests on its own session. The recorder attaches to
@@ -594,13 +606,21 @@ that could leave the logs directory.
 ## CAPTCHAs
 
 `page.solve_captcha()` attempts a Cloudflare Turnstile, reCAPTCHA, hCaptcha,
-Friendly Captcha or DataDome widget with trusted mouse events and returns which
-one it tried.
+Friendly Captcha or DataDome widget with trusted mouse events along a human
+pointer path, and returns which one it tried. It finds the widget in the page,
+its open shadow roots and the frames it may read, waits for it to stand still,
+checks that the page shows it cleared (a token in the response field, the
+`cf_clearance` cookie, a page with no widget) and presses it again, up to three
+times, if the page could show a result and did not; then it fails with
+`SeleniumBaseError::Captcha`. `page.solve_captcha_with(&SolveOptions::new()...)`
+returns a `Solved` that says how many presses it took and what showed it worked.
+[How CAPTCHAs work](/concepts/captchas) has the steps.
 
 <Note>
 
-The widgets live in cross-origin frames, so success is up to the site: check the
-page afterwards.
+The widgets live in cross-origin frames, so success is up to the site: when the
+page has no response field and you give no `success_marker`, the answer is "not
+verified", and the page is yours to check.
 
 </Note>
 
@@ -661,7 +681,7 @@ handler you register, so you can test what your code sends:
 
 ```rust,ignore
 let (browser, mock) = Browser::new_mocked();
-mock.reply("Runtime.evaluate", serde_json::json!({ "result": { "value": "Example" } }));
+mock.reply("Runtime.evaluate", seleniumbase_rs::json::json!({ "result": { "value": "Example" } }));
 let page = browser.default_page().await?;
 assert_eq!(page.title().await?, "Example");
 assert!(!mock.calls_to("Runtime.evaluate").is_empty());

@@ -141,6 +141,18 @@ pub enum SeleniumBaseError {
     #[error("GUI input error: {0}")]
     Gui(String),
 
+    /// A CAPTCHA widget was found and pressed but the page never showed it
+    /// cleared.
+    #[error("{captcha} was not cleared after {attempts} attempt(s): {reason}")]
+    Captcha {
+        /// The widget, such as `Cloudflare Turnstile`.
+        captcha: String,
+        /// How many times it was pressed.
+        attempts: u32,
+        /// What was seen instead of a cleared widget.
+        reason: String,
+    },
+
     /// Screenshot capture failed.
     #[error("screenshot error: {0}")]
     Screenshot(String),
@@ -428,6 +440,16 @@ impl SeleniumBaseError {
         Self::Gui(reason.into())
     }
 
+    /// Construct a CAPTCHA error: `captcha` was pressed `attempts` times and
+    /// the page never showed it cleared, for `reason`.
+    pub fn captcha(captcha: impl Into<String>, attempts: u32, reason: impl Into<String>) -> Self {
+        Self::Captcha {
+            captcha: captcha.into(),
+            attempts,
+            reason: reason.into(),
+        }
+    }
+
     // ------------------------------------------------------------------
     // Inspection helpers
     // ------------------------------------------------------------------
@@ -485,6 +507,8 @@ impl SeleniumBaseError {
             Self::AssertionFailed(_) => "assertion_failed",
             Self::Unsupported(_) => "unsupported",
             Self::Gui(_) => "gui",
+            Self::Captcha { .. } => "captcha",
+
             Self::Screenshot(_) => "screenshot",
             Self::Pdf(_) => "pdf",
             Self::Authentication(_) => "authentication",
@@ -533,7 +557,7 @@ impl SeleniumBaseError {
     /// | 2 | the input was wrong | `invalid_config`, `invalid_selector`, `parse`, `json`, `unsupported`, `python_migration` |
     /// | 3 | an element could not be used | `element_not_found`, `element_not_interactable`, `stale_element`, `wait_timeout` |
     /// | 4 | the browser or its driver failed | `browser_launch`, `browser_disconnected`, `session_not_started`, `webdriver`, `cdp_driver`, `playwright`, `patcher`, `stealth`, `gui`, `screenshot`, `pdf`, `plugin` |
-    /// | 5 | the network or a site failed | `navigation`, `network`, `download`, `authentication` |
+    /// | 5 | the network or a site failed | `navigation`, `network`, `download`, `authentication`, `captcha` |
     /// | 6 | a local file or database failed | `io`, `database` |
     /// | 7 | the MCP server failed | `mcp` |
     ///
@@ -577,6 +601,7 @@ impl SeleniumBaseError {
             Self::Navigation { .. }
             | Self::Network { .. }
             | Self::Download { .. }
+            | Self::Captcha { .. }
             | Self::Authentication(_) => 5,
             Self::Io(_) | Self::Database(_) => 6,
             Self::Mcp { .. } => 7,
@@ -698,6 +723,16 @@ impl SeleniumBaseError {
                  build features. DevTools features need a Chromium-based browser; other methods \
                  name the crate feature they need in their documentation."
                 .to_owned(),
+            Self::Captcha {
+                captcha, attempts, ..
+            } => format!(
+                "The {captcha} widget was found and pressed {attempts} time(s), but the page \
+                 never showed it cleared. A harder challenge may have followed, the site may \
+                 refuse this browser, or the press may have missed the box: watch a headed run, \
+                 give SolveOptions more attempts or a longer verify_timeout, or finish the \
+                 widget by hand."
+            ),
+
             Self::Gui(_) => "Desktop input could not be sent. The program may lack the \
                  accessibility (input) permission, or there may be no display: grant the \
                  permission, or run where a display is available."

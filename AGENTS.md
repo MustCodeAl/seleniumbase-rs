@@ -10,7 +10,7 @@ disagree, this file and `CLAUDE.md` win.
 `seleniumbase-rs` is a Rust port of Python SeleniumBase 4.55.2 and of its MCP
 server (crate `seleniumbase-rs`, MIT, Rust 1.99, not on crates.io). Two engines:
 WebDriver (`src/browser`, `src/api`, built on `thirtyfour`) and a pure CDP engine
-(`src/sb_cdp`). Stealth lives in `src/stealth`; MCP servers in `src/mcp`. The
+(`src/sb_cdp`). Stealth lives in `src/evasion`; MCP servers in `src/mcp`. The
 library has no binary: the CLI (`sbrs`, `sbrs-mcp`) is the workspace package
 `seleniumbase-rs-cli` in `crates/cli` (helpers in the library's `src/cli`).
 Optional features of the library are off by default. The experimental
@@ -79,6 +79,10 @@ cargo check --features turso --all-targets
 - **After changing the command line** (`crates/cli/src/sbrs.rs`), write the
   generated `completions/sbrs.usage.kdl` and `docs/help/cli_reference.md` again with
   `SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec`.
+- **After changing a public method of `BaseCase` or the pure CDP engine**, write
+  `src/mcp/dev/api_index.json` (what the `dev` MCP server's `find_api` searches)
+  again with `SB_UPDATE_API_INDEX=1 cargo test -p seleniumbase-rs --features
+  mcp-server api_index`; a test fails when it is stale.
 - **Update the docs and `CHANGELOG.md`** with the change.
 
 ## Honesty rules
@@ -120,8 +124,12 @@ written script on macOS is normal: warm it once in tests that fake executables.
 If you are driving a browser rather than editing the crate, use the MCP servers
 (`sbrs-mcp --server cdp`): page inspection, selector diagnosis, console
 and network views, an accessibility audit, a debug bundle, and an export of the
-session as a Rust test. The workflow is in
-`docs/tutorials/vibe_coding.md`; `llms.txt` lists the docs worth reading.
+session as a Rust test. Load the browserless `dev` server next to it
+(`sbrs-mcp --server dev`): it finds API methods, converts Python tests, explains
+`sbrs` commands, errors and settings, and installs drivers. `sbrs-mcp install
+claude-code` (or `codex`, `cursor`, ...) registers both servers with a client. The
+workflow is in `docs/tutorials/vibe_coding.md`; `llms.txt` lists the docs worth
+reading.
 
 ## Done means
 

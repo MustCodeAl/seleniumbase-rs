@@ -33,14 +33,16 @@ use crate::browser::reuse::{self, Lease, ReuseKey, SessionAddress};
 use crate::browser::virtual_display::{self, XvfbProcess};
 use crate::config::ad_block_list::{AdBlockList, MAX_URL_PATTERNS};
 use crate::error::SeleniumBaseError;
-use crate::stealth::cdp::*; /* CdpClient */
-use crate::stealth::uc;
+use crate::evasion::cdp::*; /* CdpClient */
+use crate::evasion::uc;
 use crate::utilities::retry::{poll_until, RetryPolicy};
 
 /// Owns a WebDriver session, optional CDP client, and optional auto-started driver process.
 pub struct BrowserSession {
     driver: Option<WebDriver>,
     cdp: Option<CdpClient>,
+    /// A tab of an external Chromium app, reached without WebDriver.
+    external_page: Option<crate::sb_cdp::Page>,
     driver_process: Option<DriverProcess>,
     /// The virtual screen of a headed Linux session; dropped, and so stopped,
     /// after the driver.
@@ -76,14 +78,43 @@ impl BrowserSession {
     ///
     /// # Panics
     ///
-    /// After [`quit`](Self::quit), or after a [`reconnect`](Self::reconnect)
+    /// On a direct CDP attachment (use `cdp_*` or [`pure_cdp_page`](Self::pure_cdp_page)),
+    /// after [`quit`](Self::quit), or after a [`reconnect`](Self::reconnect)
     /// that could not start the new browser: the session then has no driver
     /// and a new one must be started.
     pub fn driver(&self) -> &WebDriver {
         self.driver.as_ref().expect(
-            "the browser session has no WebDriver: it was quit, or a reconnect could not \
-                 start a new browser; start a new session",
+            "the browser session has no WebDriver: it was quit, it is a direct CDP \
+                     attachment, or a reconnect could not start a new browser; \
+                     `webdriver()` returns an error instead of panicking",
         )
+    }
+
+    /// The session's WebDriver, or an error where [`driver`](Self::driver)
+    /// panics.
+    ///
+    /// Every WebDriver-backed method of the session, and of `BaseCase`, goes
+    /// through this, so a session without a driver answers them with an error.
+    ///
+    /// # Errors
+    ///
+    /// [`SeleniumBaseError::Unsupported`], naming the engine, on a direct CDP
+    /// attachment (`cdp_url` or `cdp_discovery`): the driver does not exist
+    /// there, so use the `cdp_*` methods or
+    /// [`pure_cdp_page`](Self::pure_cdp_page).
+    /// [`SeleniumBaseError::SessionNotStarted`] after [`quit`](Self::quit), or
+    /// after a [`reconnect`](Self::reconnect) that could not start the new
+    /// browser.
+    pub fn webdriver(&self) -> Result<&WebDriver, SeleniumBaseError> {
+        match self.driver.as_ref() {
+            Some(driver) => Ok(driver),
+            None if self.external_page.is_some() => Err(SeleniumBaseError::Unsupported(
+                "this needs the WebDriver engine, but the session is a direct CDP attachment \
+                     (cdp_url): use the cdp_* methods or pure_cdp_page()"
+                    .to_owned(),
+            )),
+            None => Err(SeleniumBaseError::SessionNotStarted),
+        }
     }
 
     /// Starts a browser for `config` and connects to it, or, with
@@ -98,6 +129,9 @@ impl BrowserSession {
     /// closes a browser that was started.
     #[instrument(skip(config))]
     pub async fn connect(config: BrowserConfig) -> Result<Self, SeleniumBaseError> {
+        if config.cdp_url.is_some() || config.cdp_discovery {
+            return Self::connect_cdp(&config).await;
+        }
         #[cfg(feature = "plugins")]
         if !config.plugins().is_empty() {
             return Self::connect_with_plugins(config).await;
@@ -111,6 +145,9 @@ impl BrowserSession {
     /// Starts a browser for `config` and connects to it, whatever its reuse
     /// setting says.
     pub(crate) async fn connect_new(mut config: BrowserConfig) -> Result<Self, SeleniumBaseError> {
+        if config.cdp_url.is_some() || config.cdp_discovery {
+            return Self::connect_cdp(&config).await;
+        }
         info!(browser = ?config.browser, headless = config.headless, "connecting browser session");
         // Everything that can be refused is, before a browser starts.
         config.validate()?;
@@ -143,6 +180,7 @@ impl BrowserSession {
         let mut session = Self {
             driver: Some(driver),
             cdp,
+            external_page: None,
             driver_process,
             virtual_display,
             mobile: mobile_commands(&config),
@@ -184,6 +222,7 @@ impl BrowserSession {
         Ok(Self {
             driver: Some(driver),
             cdp,
+            external_page: None,
             driver_process: None,
             virtual_display: None,
             ad_block,
@@ -320,6 +359,7 @@ impl BrowserSession {
         Self {
             driver: None,
             cdp: None,
+            external_page: None,
             driver_process: None,
             virtual_display: None,
             ad_block: Vec::new(),
@@ -332,59 +372,121 @@ impl BrowserSession {
         }
     }
 
+    /// Connects through the pure engine's existing config, identity and plugin bridge.
+    async fn connect_cdp(config: &BrowserConfig) -> Result<Self, SeleniumBaseError> {
+        config.validate()?;
+        if config.reuse_session || config.recorder_mode() {
+            return Err(SeleniumBaseError::invalid_config(
+                "direct CDP attachment does not support WebDriver session reuse or Recorder Mode",
+            ));
+        }
+        let options = crate::sb_cdp::LaunchOptions::builder()
+            .browser_config(config)
+            .build()?;
+        let target = options.cdp_target().map(str::to_owned);
+
+        let browser = crate::sb_cdp::Browser::launch(options).await?;
+        // Only the window that is picked is prepared: the app's others are
+        // left as they are.
+        let picked = match &target {
+            Some(target) => browser.select_page(target).await,
+            None => browser.default_page().await,
+        };
+        let page = match picked {
+            Ok(page) => page,
+            Err(error) => {
+                browser.close().await?;
+                return Err(error);
+            }
+        };
+        let mut session = Self::disconnected();
+        session.external_page = Some(page);
+        Ok(session)
+    }
+
+    /// The pure CDP tab of an external attachment, or `None` for WebDriver.
+    /// Provides the full page/browser API, including attach-compatible plugins.
+    ///
+    /// ```no_run
+    /// use seleniumbase_rs::{BrowserConfig, BrowserSession};
+    /// # async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    /// let mut session = BrowserSession::connect(
+    ///     BrowserConfig::default().with_cdp_url("http://127.0.0.1:9222")
+    /// ).await?;
+    /// if let Some(page) = session.pure_cdp_page() {
+    ///     page.locator("#save").click().await?;
+    /// }
+    /// session.quit().await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[must_use]
+    pub fn pure_cdp_page(&self) -> Option<&crate::sb_cdp::Page> {
+        self.external_page.as_ref()
+    }
+
     /// Navigates to `url`.
     ///
     /// On Firefox and Safari, the scripts browser plugins added for every
     /// document run again in the new one (feature `plugins`).
     pub async fn goto(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
-        self.driver().goto(url).await?;
+        if let Some(page) = &self.external_page {
+            return page.goto(url).await;
+        }
+        self.webdriver()?.goto(url).await?;
         #[cfg(feature = "plugins")]
         if let Some(plugins) = &self.plugins {
-            plugins.after_navigation(self.driver()).await?;
+            plugins.after_navigation(self.webdriver()?).await?;
         }
         Ok(())
     }
 
     /// Navigates back in browser history.
     pub async fn back(&self) -> Result<(), SeleniumBaseError> {
-        self.driver().back().await?;
+        self.webdriver()?.back().await?;
         Ok(())
     }
 
     /// Navigates forward in browser history.
     pub async fn forward(&self) -> Result<(), SeleniumBaseError> {
-        self.driver().forward().await?;
+        self.webdriver()?.forward().await?;
         Ok(())
     }
 
     /// Reloads the current page.
     pub async fn refresh(&self) -> Result<(), SeleniumBaseError> {
-        self.driver().refresh().await?;
+        self.webdriver()?.refresh().await?;
         Ok(())
     }
 
     /// Returns the current page title.
     pub async fn current_title(&self) -> Result<String, SeleniumBaseError> {
-        let title = self.driver().title().await?;
+        if let Some(page) = &self.external_page {
+            return page.title().await;
+        }
+        let title = self.webdriver()?.title().await?;
         Ok(title)
     }
 
     /// Returns the current page URL as a string.
     pub async fn current_url(&self) -> Result<String, SeleniumBaseError> {
-        let url = self.driver().current_url().await?;
+        if let Some(page) = &self.external_page {
+            return page.url().await;
+        }
+        let url = self.webdriver()?.current_url().await?;
         Ok(url.as_str().to_owned())
     }
 
     /// Clicks the element located by `locator`.
     pub async fn click(&mut self, locator: By) -> Result<(), SeleniumBaseError> {
-        let element = self.driver().find(locator).await?;
+        let element = self.webdriver()?.find(locator).await?;
         element.click().await?;
         Ok(())
     }
 
     /// Clears and types `text` into the element located by `locator`.
     pub async fn type_text(&mut self, locator: By, text: &str) -> Result<(), SeleniumBaseError> {
-        let element = self.driver().find(locator).await?;
+        let element = self.webdriver()?.find(locator).await?;
         element.clear().await?;
         element.send_keys(text).await?;
         Ok(())
@@ -392,17 +494,17 @@ impl BrowserSession {
 
     /// Clears the value of the element located by `locator`.
     pub async fn clear(&mut self, locator: By) -> Result<(), SeleniumBaseError> {
-        let element = self.driver().find(locator).await?;
+        let element = self.webdriver()?.find(locator).await?;
         element.clear().await?;
         Ok(())
     }
 
     /// Submits the form containing the element located by `locator`.
     pub async fn submit(&mut self, locator: By) -> Result<(), SeleniumBaseError> {
-        let element = self.driver().find(locator).await?;
+        let element = self.webdriver()?.find(locator).await?;
         let element_json = element.to_json()?;
         // Form submit via script
-        self.driver()
+        self.webdriver()?
             .execute("arguments[0].closest('form').submit()", vec![element_json])
             .await?;
         Ok(())
@@ -410,14 +512,14 @@ impl BrowserSession {
 
     /// Returns the visible text of the element located by `locator`.
     pub async fn text(&self, locator: By) -> Result<String, SeleniumBaseError> {
-        let element = self.driver().find(locator).await?;
+        let element = self.webdriver()?.find(locator).await?;
         Ok(element.text().await?)
     }
 
     /// Hovers over the element located by `locator`.
     pub async fn hover(&mut self, locator: By) -> Result<(), SeleniumBaseError> {
-        let element = self.driver().find(locator).await?;
-        self.driver()
+        let element = self.webdriver()?.find(locator).await?;
+        self.webdriver()?
             .action_chain()
             .move_to_element_center(&element)
             .perform()
@@ -431,7 +533,7 @@ impl BrowserSession {
         locator: By,
         text: &str,
     ) -> Result<(), SeleniumBaseError> {
-        let element = self.driver().find(locator).await?;
+        let element = self.webdriver()?.find(locator).await?;
         let select = thirtyfour::components::SelectElement::new(&element).await?;
         select.select_by_visible_text(text).await?;
         Ok(())
@@ -443,7 +545,7 @@ impl BrowserSession {
         locator: By,
         value: &str,
     ) -> Result<(), SeleniumBaseError> {
-        let element = self.driver().find(locator).await?;
+        let element = self.webdriver()?.find(locator).await?;
         let select = thirtyfour::components::SelectElement::new(&element).await?;
         select.select_by_value(value).await?;
         Ok(())
@@ -451,14 +553,14 @@ impl BrowserSession {
 
     /// Switches context into the frame located by `locator`.
     pub async fn switch_to_frame(&mut self, locator: By) -> Result<(), SeleniumBaseError> {
-        let element = self.driver().find(locator).await?;
+        let element = self.webdriver()?.find(locator).await?;
         element.enter_frame().await?;
         Ok(())
     }
 
     /// Switches context back to the top-level document.
     pub async fn switch_to_default_content(&mut self) -> Result<(), SeleniumBaseError> {
-        self.driver().enter_default_frame().await?;
+        self.webdriver()?.enter_default_frame().await?;
         Ok(())
     }
 
@@ -468,9 +570,9 @@ impl BrowserSession {
         source_locator: By,
         target_locator: By,
     ) -> Result<(), SeleniumBaseError> {
-        let source = self.driver().find(source_locator).await?;
-        let target = self.driver().find(target_locator).await?;
-        self.driver()
+        let source = self.webdriver()?.find(source_locator).await?;
+        let target = self.webdriver()?.find(target_locator).await?;
+        self.webdriver()?
             .action_chain()
             .drag_and_drop_element(&source, &target)
             .perform()
@@ -480,18 +582,18 @@ impl BrowserSession {
 
     /// Returns the full HTML source of the current page.
     pub async fn page_source(&self) -> Result<String, SeleniumBaseError> {
-        Ok(self.driver().source().await?)
+        Ok(self.webdriver()?.source().await?)
     }
 
     /// Returns the first element matching `locator`.
     pub async fn find(&mut self, locator: By) -> Result<WebElement, SeleniumBaseError> {
-        let element = self.driver().find(locator).await?;
+        let element = self.webdriver()?.find(locator).await?;
         Ok(element)
     }
 
     /// Returns all elements matching `locator`.
     pub async fn find_all(&self, locator: By) -> Result<Vec<WebElement>, SeleniumBaseError> {
-        Ok(self.driver().find_all(locator).await?)
+        Ok(self.webdriver()?.find_all(locator).await?)
     }
 
     /// WebDriver interaction: `element_present`.
@@ -511,10 +613,12 @@ impl BrowserSession {
         locator: By,
         timeout_secs: u64,
     ) -> Result<WebElement, SeleniumBaseError> {
+        self.webdriver()?;
+
         poll_until(
             Duration::from_secs(timeout_secs),
             RetryPolicy::webdriver(),
-            || async { self.driver().find(locator.clone()).await.ok() },
+            || async { self.webdriver().ok()?.find(locator.clone()).await.ok() },
         )
         .await
         .ok_or_else(|| timed_out(format!("element {locator}"), timeout_secs))
@@ -526,7 +630,7 @@ impl BrowserSession {
         locator: By,
         attribute_name: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
-        let element = self.driver().find(locator).await?;
+        let element = self.webdriver()?.find(locator).await?;
         Ok(element.attr(attribute_name).await?)
     }
 
@@ -536,7 +640,7 @@ impl BrowserSession {
         locator: By,
         property_name: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
-        let element = self.driver().find(locator).await?;
+        let element = self.webdriver()?.find(locator).await?;
         Ok(element.prop(property_name).await?)
     }
 
@@ -551,11 +655,13 @@ impl BrowserSession {
         locator: By,
         timeout_secs: u64,
     ) -> Result<WebElement, SeleniumBaseError> {
+        self.webdriver()?;
+
         poll_until(
             Duration::from_secs(timeout_secs),
             RetryPolicy::webdriver(),
             || async {
-                match self.driver().find(locator.clone()).await {
+                match self.webdriver().ok()?.find(locator.clone()).await {
                     Ok(element) if element.is_displayed().await.unwrap_or(false) => Some(element),
                     _ => None,
                 }
@@ -576,11 +682,13 @@ impl BrowserSession {
         locator: By,
         timeout_secs: u64,
     ) -> Result<WebElement, SeleniumBaseError> {
+        self.webdriver()?;
+
         poll_until(
             Duration::from_secs(timeout_secs),
             RetryPolicy::webdriver(),
             || async {
-                match self.driver().find(locator.clone()).await {
+                match self.webdriver().ok()?.find(locator.clone()).await {
                     Ok(element)
                         if element.is_displayed().await.unwrap_or(false)
                             && element.is_enabled().await.unwrap_or(false) =>
@@ -597,7 +705,7 @@ impl BrowserSession {
 
     /// WebDriver interaction: `execute_async_script`.
     pub async fn execute_async_script(&self, script: &str) -> Result<Value, SeleniumBaseError> {
-        self.driver()
+        self.webdriver()?
             .execute_async(script, vec![])
             .await
             .map_err(SeleniumBaseError::WebDriver)
@@ -606,7 +714,7 @@ impl BrowserSession {
 
     /// WebDriver interaction: `maximize_window`.
     pub async fn maximize_window(&self) -> Result<(), SeleniumBaseError> {
-        self.driver()
+        self.webdriver()?
             .maximize_window()
             .await
             .map_err(SeleniumBaseError::WebDriver)
@@ -614,7 +722,7 @@ impl BrowserSession {
 
     /// WebDriver interaction: `set_window_size`.
     pub async fn set_window_size(&self, width: u32, height: u32) -> Result<(), SeleniumBaseError> {
-        self.driver()
+        self.webdriver()?
             .set_window_rect(0, 0, width, height)
             .await
             .map_err(SeleniumBaseError::WebDriver)
@@ -623,7 +731,7 @@ impl BrowserSession {
     /// Returns the current window size as `(width, height)`.
     pub async fn get_window_size(&self) -> Result<(u32, u32), SeleniumBaseError> {
         let rect = self
-            .driver()
+            .webdriver()?
             .get_window_rect()
             .await
             .map_err(SeleniumBaseError::WebDriver)?;
@@ -636,7 +744,7 @@ impl BrowserSession {
     /// [`apply_ad_block`](Self::apply_ad_block).
     pub async fn switch_to_window(&self, handle: &str) -> Result<(), SeleniumBaseError> {
         let h = thirtyfour::common::types::WindowHandle::from(handle.to_string());
-        self.driver()
+        self.webdriver()?
             .switch_to_window(h)
             .await
             .map_err(SeleniumBaseError::WebDriver)?;
@@ -647,7 +755,7 @@ impl BrowserSession {
     /// Double-clicks the element located by `locator`.
     pub async fn double_click(&self, locator: By) -> Result<(), SeleniumBaseError> {
         let element = self.wait_for_element_clickable(locator.clone(), 10).await?;
-        self.driver()
+        self.webdriver()?
             .action_chain()
             .double_click_element(&element)
             .perform()
@@ -658,7 +766,7 @@ impl BrowserSession {
     /// Right-clicks the element located by `locator`.
     pub async fn context_click(&self, locator: By) -> Result<(), SeleniumBaseError> {
         let element = self.wait_for_element_clickable(locator.clone(), 10).await?;
-        self.driver()
+        self.webdriver()?
             .action_chain()
             .context_click_element(&element)
             .perform()
@@ -669,7 +777,7 @@ impl BrowserSession {
     /// Returns `true` if the element located by `locator` is enabled.
     pub async fn is_enabled(&self, locator: By) -> Result<bool, SeleniumBaseError> {
         let element = self
-            .driver()
+            .webdriver()?
             .find(locator)
             .await
             .map_err(SeleniumBaseError::WebDriver)?;
@@ -682,7 +790,7 @@ impl BrowserSession {
     /// Returns `true` if the element located by `locator` is selected.
     pub async fn is_selected(&self, locator: By) -> Result<bool, SeleniumBaseError> {
         let element = self
-            .driver()
+            .webdriver()?
             .find(locator)
             .await
             .map_err(SeleniumBaseError::WebDriver)?;
@@ -694,7 +802,7 @@ impl BrowserSession {
 
     /// WebDriver interaction: `is_displayed`.
     pub async fn is_displayed(&self, locator: By) -> Result<bool, SeleniumBaseError> {
-        if let Ok(element) = self.driver().find(locator).await {
+        if let Ok(element) = self.webdriver()?.find(locator).await {
             element
                 .is_displayed()
                 .await
@@ -706,7 +814,7 @@ impl BrowserSession {
 
     /// WebDriver interaction: `switch_to_alert_accept`.
     pub async fn switch_to_alert_accept(&self) -> Result<(), SeleniumBaseError> {
-        self.driver()
+        self.webdriver()?
             .accept_alert()
             .await
             .map_err(SeleniumBaseError::WebDriver)
@@ -714,7 +822,7 @@ impl BrowserSession {
 
     /// WebDriver interaction: `switch_to_alert_dismiss`.
     pub async fn switch_to_alert_dismiss(&self) -> Result<(), SeleniumBaseError> {
-        self.driver()
+        self.webdriver()?
             .dismiss_alert()
             .await
             .map_err(SeleniumBaseError::WebDriver)
@@ -722,7 +830,7 @@ impl BrowserSession {
 
     /// WebDriver interaction: `get_alert_text`.
     pub async fn get_alert_text(&self) -> Result<String, SeleniumBaseError> {
-        self.driver()
+        self.webdriver()?
             .get_alert_text()
             .await
             .map_err(SeleniumBaseError::WebDriver)
@@ -730,7 +838,7 @@ impl BrowserSession {
 
     /// WebDriver interaction: `type_alert_text`.
     pub async fn type_alert_text(&self, text: &str) -> Result<(), SeleniumBaseError> {
-        self.driver()
+        self.webdriver()?
             .send_alert_text(text)
             .await
             .map_err(SeleniumBaseError::WebDriver)
@@ -739,7 +847,7 @@ impl BrowserSession {
     /// WebDriver interaction: `add_cookie`.
     pub async fn add_cookie(&self, name: &str, value: &str) -> Result<(), SeleniumBaseError> {
         let cookie = thirtyfour::cookie::Cookie::new(name, value);
-        self.driver()
+        self.webdriver()?
             .add_cookie(cookie)
             .await
             .map_err(SeleniumBaseError::WebDriver)?;
@@ -751,7 +859,7 @@ impl BrowserSession {
         &self,
         name: &str,
     ) -> Result<thirtyfour::cookie::Cookie, SeleniumBaseError> {
-        self.driver()
+        self.webdriver()?
             .get_named_cookie(name)
             .await
             .map_err(SeleniumBaseError::WebDriver)
@@ -759,7 +867,7 @@ impl BrowserSession {
 
     /// WebDriver interaction: `delete_cookie`.
     pub async fn delete_cookie(&self, name: &str) -> Result<(), SeleniumBaseError> {
-        self.driver()
+        self.webdriver()?
             .delete_cookie(name)
             .await
             .map_err(SeleniumBaseError::WebDriver)?;
@@ -768,7 +876,7 @@ impl BrowserSession {
 
     /// WebDriver interaction: `delete_all_cookies`.
     pub async fn delete_all_cookies(&self) -> Result<(), SeleniumBaseError> {
-        self.driver()
+        self.webdriver()?
             .delete_all_cookies()
             .await
             .map_err(SeleniumBaseError::WebDriver)?;
@@ -780,7 +888,7 @@ impl BrowserSession {
         &self,
         locator: thirtyfour::By,
     ) -> Result<Vec<thirtyfour::WebElement>, SeleniumBaseError> {
-        self.driver()
+        self.webdriver()?
             .find_all(locator)
             .await
             .map_err(SeleniumBaseError::WebDriver)
@@ -793,11 +901,11 @@ impl BrowserSession {
     /// `plugins`) give it their packages and `on_page_created`.
     pub async fn switch_to_new_window(&self) -> Result<(), SeleniumBaseError> {
         let handle = self
-            .driver()
+            .webdriver()?
             .new_window()
             .await
             .map_err(SeleniumBaseError::WebDriver)?;
-        self.driver()
+        self.webdriver()?
             .switch_to_window(handle)
             .await
             .map_err(SeleniumBaseError::WebDriver)?;
@@ -819,11 +927,13 @@ impl BrowserSession {
         locator: By,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
+        self.webdriver()?;
+
         poll_until(
             Duration::from_secs(timeout_secs),
             RetryPolicy::webdriver(),
             || async {
-                match self.driver().find_all(locator.clone()).await {
+                match self.webdriver().ok()?.find_all(locator.clone()).await {
                     Ok(elements) if elements.is_empty() => Some(()),
                     Err(_) => Some(()),
                     _ => None,
@@ -847,11 +957,13 @@ impl BrowserSession {
         expected_substring: &str,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
+        self.webdriver()?;
+
         poll_until(
             Duration::from_secs(timeout_secs),
             RetryPolicy::webdriver(),
             || async {
-                match self.driver().find(locator.clone()).await {
+                match self.webdriver().ok()?.find(locator.clone()).await {
                     Ok(element) => match element.text().await {
                         Ok(text) if text.contains(expected_substring) => Some(()),
                         _ => None,
@@ -871,19 +983,24 @@ impl BrowserSession {
 
     /// Executes arbitrary JavaScript and returns the result.
     pub async fn execute_script(&self, script: &str) -> Result<Value, SeleniumBaseError> {
-        let ret = self.driver().execute(script, Vec::new()).await?;
+        if let Some(page) = &self.external_page {
+            return page
+                .evaluate(format!("(function() {{\n{script}\n}}).call(window)"))
+                .await;
+        }
+        let ret = self.webdriver()?.execute(script, Vec::new()).await?;
         Ok(ret.json().clone())
     }
 
     /// Captures a screenshot and writes it to `path`.
     pub async fn screenshot(&self, path: &Path) -> Result<(), SeleniumBaseError> {
-        self.driver().screenshot(path).await?;
+        self.webdriver()?.screenshot(path).await?;
         Ok(())
     }
 
     /// Captures a screenshot and returns the raw PNG bytes.
     pub async fn screenshot_as_png(&self) -> Result<Vec<u8>, SeleniumBaseError> {
-        Ok(self.driver().screenshot_as_png().await?)
+        Ok(self.webdriver()?.screenshot_as_png().await?)
     }
 
     /// Enables the Page and Network CDP domains.
@@ -891,8 +1008,14 @@ impl BrowserSession {
     /// The Runtime domain stays off on purpose: enabling it is a well-known
     /// bot-detection tell. See [`CdpClient::enable_default_domains`].
     ///
-    /// [`CdpClient::enable_default_domains`]: crate::stealth::cdp::CdpClient::enable_default_domains
+    /// [`CdpClient::enable_default_domains`]: crate::evasion::cdp::CdpClient::enable_default_domains
     pub async fn activate_cdp_mode(&self) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = &self.external_page {
+            for method in crate::evasion::cdp::DEFAULT_DOMAIN_COMMANDS {
+                page.execute(method, json!({})).await?;
+            }
+            return Ok(());
+        }
         let cdp = self.cdp_client()?;
         cdp.enable_default_domains()
             .await
@@ -902,6 +1025,9 @@ impl BrowserSession {
 
     /// Executes a CDP command without parameters.
     pub async fn execute_cdp(&self, method: &str) -> Result<Value, SeleniumBaseError> {
+        if self.external_page.is_some() {
+            return self.execute_cdp_with_params(method, json!({})).await;
+        }
         let cdp = self.cdp_client()?;
         cdp.execute(method).await
     }
@@ -912,6 +1038,9 @@ impl BrowserSession {
         method: &str,
         params: Value,
     ) -> Result<Value, SeleniumBaseError> {
+        if let Some(page) = &self.external_page {
+            return page.execute(method, params).await;
+        }
         let cdp = self.cdp_client()?;
         cdp.execute_with_params(method, params).await
     }
@@ -930,7 +1059,7 @@ impl BrowserSession {
         if let Ok(cdp) = self.cdp_client() {
             return cdp.clear_cookies().await;
         }
-        self.driver()
+        self.webdriver()?
             .delete_all_cookies()
             .await
             .map_err(SeleniumBaseError::WebDriver)
@@ -945,7 +1074,7 @@ impl BrowserSession {
             return cdp.get_cookies().await;
         }
         let cookies = self
-            .driver()
+            .webdriver()?
             .get_all_cookies()
             .await
             .map_err(SeleniumBaseError::WebDriver)?;
@@ -964,7 +1093,7 @@ impl BrowserSession {
     ///
     /// Returns the driver's error when it keeps no `performance` log.
     pub async fn cdp_events(&self) -> Result<Vec<CdpEvent>, SeleniumBaseError> {
-        let entries = self.driver().get_log("performance").await?;
+        let entries = self.webdriver()?.get_log("performance").await?;
         Ok(entries
             .iter()
             .filter_map(|entry| CdpEvent::from_log_message(&entry.message, entry.timestamp))
@@ -1032,7 +1161,7 @@ impl BrowserSession {
         self.apply_fingerprint(config).await?;
         // Also patch the current document for pages already loaded.
         let _ = self
-            .driver()
+            .webdriver()?
             .execute(
                 "Object.defineProperty(navigator,'webdriver',{get:()=>undefined});",
                 Vec::new(),
@@ -1043,7 +1172,7 @@ impl BrowserSession {
 
     /// Applies an optional [`Fingerprint`] to the active session.
     ///
-    /// The script is [`session_script`](crate::stealth::evasions::session_script),
+    /// The script is [`session_script`](crate::evasion::evasions::session_script),
     /// the one the pure CDP engine runs. When CDP is available it is registered via
     /// `Page.addScriptToEvaluateOnNewDocument` and CDP overrides (screen size,
     /// geolocation, timezone, UA) are issued. Otherwise the script is executed
@@ -1061,7 +1190,7 @@ impl BrowserSession {
                 cdp.execute_with_params(&method, params).await.ok();
             }
         } else {
-            let _ = self.driver().execute(&script, Vec::new()).await?;
+            let _ = self.webdriver()?.execute(&script, Vec::new()).await?;
         }
         Ok(())
     }
@@ -1174,12 +1303,43 @@ impl BrowserSession {
     /// hear it close, and the new browser goes through the hooks as
     /// [`connect`](Self::connect) describes, `before_launch` starting again
     /// from `config`.
+    ///
+    /// A direct CDP attachment (`cdp_url` or `cdp_discovery`) is attached to
+    /// again, at the same endpoint: the old attachment is detached, the app
+    /// keeps running, and no browser or driver is ever started.
     pub async fn reconnect(&mut self, config: &BrowserConfig) -> Result<(), SeleniumBaseError> {
+        if self.external_page.is_some() {
+            return self.reconnect_cdp(config).await;
+        }
         #[cfg(feature = "plugins")]
         if self.plugins.is_some() || !config.plugins().is_empty() {
             return self.reconnect_with_plugins(config).await;
         }
         self.reconnect_plain(config).await
+    }
+
+    /// [`reconnect`](Self::reconnect) for a direct CDP attachment: the old
+    /// attachment is let go, its sessions detached with the app left running,
+    /// and the endpoint of `config` is attached to again. The browser is the
+    /// app's and there is no driver, so nothing is ever launched.
+    ///
+    /// A reconnect that fails leaves the session without a page, as a
+    /// WebDriver reconnect that fails leaves it without a driver.
+    async fn reconnect_cdp(&mut self, config: &BrowserConfig) -> Result<(), SeleniumBaseError> {
+        if config.cdp_url.is_none() && !config.cdp_discovery {
+            return Err(SeleniumBaseError::invalid_config(
+                "a direct CDP attachment reconnects to the endpoint of its configuration: \
+                     set cdp_url or cdp_discovery",
+            ));
+        }
+        // The old window is let go first, so the plugins hear it close before
+        // the new attachment starts and no window is prepared twice.
+        if let Some(page) = self.external_page.take() {
+            page.browser().close().await?;
+        }
+        let mut fresh = Self::connect_cdp(config).await?;
+        self.external_page = fresh.external_page.take();
+        Ok(())
     }
 
     /// [`reconnect`](Self::reconnect) without running plugin hooks.
@@ -1228,6 +1388,9 @@ impl BrowserSession {
     /// open, for the next test.
     #[instrument(skip(self))]
     pub async fn quit(&mut self) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = self.external_page.take() {
+            return page.browser().close().await;
+        }
         if let Some(lease) = self.reuse.take() {
             info!("giving the browser back for reuse");
             self.keep_browser_open();
@@ -1311,7 +1474,7 @@ impl BrowserSession {
     /// fails.
     pub async fn apply_plugins_to_window(&self) -> Result<(), SeleniumBaseError> {
         match &self.plugins {
-            Some(plugins) => plugins.prepare_window(self.driver()).await,
+            Some(plugins) => plugins.prepare_window(self.webdriver()?).await,
             None => Ok(()),
         }
     }
@@ -1346,7 +1509,7 @@ impl BrowserSession {
         family: seleniumbase_rs_plugin::BrowserFamily,
     ) -> Result<(), SeleniumBaseError> {
         let capabilities =
-            serde_json::to_value(self.driver().handle().capabilities()).unwrap_or(Value::Null);
+            serde_json::to_value(self.webdriver()?.handle().capabilities()).unwrap_or(Value::Null);
         if let Err(error) = plugin_hooks::check_server(plugins, family, &capabilities) {
             if let Err(quit) = self.quit().await {
                 tracing::warn!(
@@ -1379,7 +1542,7 @@ impl BrowserSession {
             }
         }
         let plugins = plugins.with_blocked(blocked);
-        let started = plugins.start(self.driver()).await;
+        let started = plugins.start(self.webdriver()?).await;
         self.plugins = Some(plugins);
         if let Err(error) = started {
             if let Err(quit) = self.quit().await {
@@ -1691,8 +1854,8 @@ async fn apply_window_rect(
 
 /// The init script that makes a WebDriver session match `fp`: the same one the
 /// pure CDP engine runs, since both drive a real Chrome.
-fn fingerprint_script(fp: &crate::stealth::fingerprint::Fingerprint) -> String {
-    crate::stealth::evasions::session_script(fp)
+fn fingerprint_script(fp: &crate::evasion::fingerprint::Fingerprint) -> String {
+    crate::evasion::evasions::session_script(fp)
 }
 
 /// The protocol commands, after the init script, that make a WebDriver session
@@ -1701,8 +1864,8 @@ fn fingerprint_script(fp: &crate::stealth::fingerprint::Fingerprint) -> String {
 /// The `Proxy-Authorization` header a fingerprint with a proxy password can ask
 /// for is left out: set through `Network.setExtraHTTPHeaders` it would reach
 /// every site the browser visits, and hand the proxy's login to all of them.
-fn fingerprint_overrides(fp: &crate::stealth::fingerprint::Fingerprint) -> Vec<(String, Value)> {
-    crate::stealth::evasions::safe_cdp_overrides(fp)
+fn fingerprint_overrides(fp: &crate::evasion::fingerprint::Fingerprint) -> Vec<(String, Value)> {
+    crate::evasion::evasions::safe_cdp_overrides(fp)
 }
 
 /// The URL patterns of the `Network.setBlockedURLs` commands in `commands`,
@@ -2021,7 +2184,7 @@ async fn patch_chrome_binary_if_needed(
     let runtime = crate::config::RuntimeConfig::from_env_lenient().0;
     let source = runtime
         .chrome_bin
-        .or_else(crate::stealth::patcher::find_system_chrome)
+        .or_else(crate::evasion::patcher::find_system_chrome)
         .ok_or_else(|| {
             SeleniumBaseError::invalid_config(
                 "native_spoofing requires a Chrome/Chromium binary but none was found. \
@@ -2034,11 +2197,11 @@ async fn patch_chrome_binary_if_needed(
     tracing::info!(source = %source_str, "native_spoofing enabled: patching chrome binary");
 
     let patched = tokio::task::spawn_blocking(move || {
-        let mut patcher = crate::stealth::patcher::ChromeBinaryPatcher::new(source);
+        let mut patcher = crate::evasion::patcher::ChromeBinaryPatcher::new(source);
         if let Some(cache) = runtime.patch_cache_dir {
             patcher = patcher.with_cache_dir(cache);
         }
-        patcher.patch(crate::stealth::patcher::EnginePatch::chrome_binary())
+        patcher.patch(crate::evasion::patcher::EnginePatch::chrome_binary())
     })
     .await
     .map_err(|e| {
@@ -2054,14 +2217,14 @@ fn apply_chromium_capabilities<C: ChromiumLikeCapabilities>(
     caps: &mut C,
     config: &BrowserConfig,
 ) -> Result<(), SeleniumBaseError> {
-    crate::stealth::options::StealthOptions::from(config).apply_to(caps)
+    crate::evasion::options::StealthOptions::from(config).apply_to(caps)
 }
 
 #[cfg(test)]
 mod fingerprint_tests {
     use super::*;
-    use crate::stealth::evasions::{raw_overrides, CREDENTIAL_HEADER_METHOD};
-    use crate::stealth::fingerprint::{Fingerprint, OsType, ProxyConfig};
+    use crate::evasion::evasions::{raw_overrides, CREDENTIAL_HEADER_METHOD};
+    use crate::evasion::fingerprint::{Fingerprint, OsType, ProxyConfig};
 
     fn with_proxy_login() -> Fingerprint {
         Fingerprint::randomized(OsType::Linux, 3)
@@ -2106,8 +2269,8 @@ mod fingerprint_tests {
         let script = fingerprint_script(&fingerprint);
         assert_eq!(
             script,
-            crate::stealth::providers::session_registry(&fingerprint).bootstrap(
-                &crate::stealth::providers::EvasionContext::new(&fingerprint)
+            crate::evasion::providers::session_registry(&fingerprint).bootstrap(
+                &crate::evasion::providers::EvasionContext::new(&fingerprint)
             )
         );
         assert!(
@@ -2525,7 +2688,7 @@ mod ad_block_tests {
 
     #[test]
     fn the_trackers_of_a_fingerprint_go_with_the_ad_block_list() {
-        use crate::stealth::fingerprint::Fingerprint;
+        use crate::evasion::fingerprint::Fingerprint;
 
         let fingerprint = Fingerprint::builder()
             .block_trackers(true)
@@ -2552,7 +2715,7 @@ mod ad_block_tests {
 
     #[test]
     fn the_block_keeps_what_the_fingerprint_blocks_where_the_fingerprint_is_applied() {
-        let fingerprint = crate::stealth::fingerprint::Fingerprint::builder()
+        let fingerprint = crate::evasion::fingerprint::Fingerprint::builder()
             .blocked_ports(vec![9222])
             .build()
             .expect("the builder builds");

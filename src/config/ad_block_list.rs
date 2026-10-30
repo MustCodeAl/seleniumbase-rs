@@ -442,7 +442,7 @@ fn normalize_host(raw: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::stealth::fingerprint::default_tracker_hosts;
+    use crate::evasion::fingerprint::default_tracker_hosts;
 
     #[test]
     fn a_host_blocks_itself_and_its_subdomains() {

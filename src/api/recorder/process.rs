@@ -116,6 +116,8 @@ pub fn process(raw: Vec<RawAction>, start_ms: i64, origins_to_save: &[String]) -
     }
     let mut rows: Vec<RawAction> = by_key.into_values().collect();
 
+    skip_opens_of_internal_pages(&mut rows);
+
     rename_skipped_opens(&mut rows);
     skip_opens_after_a_skipped_open(&mut rows);
     fold_checkbox_clicks(&mut rows);
@@ -187,6 +189,33 @@ pub fn add_parent_frame_switches(tab: &mut Vec<RawAction>) {
                 origin,
                 time,
             ));
+        }
+    }
+}
+
+/// Addresses that are not a page of the test: what a blank frame or a popup
+/// that has not loaded yet shows.
+const INTERNAL_SCHEMES: [&str; 5] = ["about:", "data:", "chrome:", "edge:", "javascript:"];
+
+/// Whether `url` is an internal address such as `about:blank`.
+fn is_internal_page(url: &str) -> bool {
+    let url = url.trim_start();
+    INTERNAL_SCHEMES.iter().any(|scheme| {
+        url.get(..scheme.len())
+            .is_some_and(|head| head.eq_ignore_ascii_case(scheme))
+    })
+}
+
+/// An open of `about:blank` (or `data:`, `chrome:`, ...) is skipped: it is
+/// what a popup shows before it has a page, or what a frame shows, and a
+/// replay that went there would leave the page the test is on. Python never
+/// records these because its page script runs in the top frame only and its
+/// `activate_recorder` refuses such a page; the sessionStorage a popup copies
+/// from its opener can hold one.
+fn skip_opens_of_internal_pages(rows: &mut [RawAction]) {
+    for row in rows {
+        if is_open(&row.kind) && is_internal_page(text(&row.detail)) {
+            "_skip".clone_into(&mut row.kind);
         }
     }
 }
@@ -722,6 +751,33 @@ mod tests {
 
     fn kinds(rows: &[RawAction]) -> Vec<&str> {
         rows.iter().map(|row| row.kind.as_str()).collect()
+    }
+
+    #[test]
+    fn an_open_of_about_blank_or_another_internal_page_is_skipped() {
+        let internal = [
+            "about:blank",
+            "about:srcdoc",
+            "ABOUT:blank",
+            "chrome://newtab/",
+            "edge://settings/",
+            "data:text/html,x",
+            "javascript:void(0)",
+        ];
+        for (n, url) in internal.iter().enumerate() {
+            let time = i64::try_from(n).unwrap() + 2;
+            let raw = vec![
+                open("begin", "https://a.test/", 1),
+                row("click", json!("#go"), json!(""), 1000),
+                open("_url_", url, 1000 + time),
+            ];
+            let rows = process(raw, 0, &[]);
+            assert_eq!(kinds(&rows), ["begin", "click", "_skip"], "{url}");
+        }
+        // Only the address's own scheme counts.
+        assert!(!is_internal_page("https://a.test/about:blank"));
+        assert!(!is_internal_page(""));
+        assert!(is_internal_page("  about:blank"));
     }
 
     /// `build(gap)` makes the actions with `gap` ms between the two that the

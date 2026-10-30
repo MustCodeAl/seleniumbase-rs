@@ -1,8 +1,17 @@
 ---
 title: "BrowserScraper"
+sidebarTitle: "BrowserScraper"
 ---
 
 <Badge color="blue">Crate: scrape</Badge>
+
+<Note>
+
+`BrowserScraper` is re-exported at `seleniumbase_rs_stealth::scrape`. The path
+`scrape::runtime::browser_scraper::BrowserScraper` is the same type. Use either.
+`ScrapeError` and `CountryCode` are re-exported beside it. No BoringSSL.
+
+</Note>
 
 `scrape::runtime::browser_scraper::BrowserScraper` drives one real Chrome through
 the pure CDP engine.
@@ -16,10 +25,10 @@ around it.
 </Note>
 
 ```rust
-use seleniumbase_rs_scrape::egress::geo::CountryCode;
-use seleniumbase_rs_scrape::runtime::browser_scraper::BrowserScraper;
+use seleniumbase_rs_stealth::scrape::egress::geo::CountryCode;
+use seleniumbase_rs_stealth::scrape::runtime::browser_scraper::BrowserScraper;
 
-# async fn demo() -> Result<(), seleniumbase_rs_scrape::error::ScrapeError> {
+# async fn demo() -> Result<(), seleniumbase_rs_stealth::scrape::error::ScrapeError> {
 let mut scraper = BrowserScraper::builder()
     .with_geo_proxies([("http://user:pass@de.proxy.example:8080", CountryCode::new("DE")?)])?
     .with_max_challenge_attempts(4)
@@ -140,3 +149,92 @@ deadline in the scraper: it can sit unused for as long as the process lives and
 be used again.
 
 </Warning>
+
+## Moving a fingerprint to a locale
+
+A built `Fingerprint` is read through accessors and never changed: every setting is
+one `Spoof` (`Natural`, `Random`, `Value` or `Off`) of the core's fingerprint API,
+and a change builds the next fingerprint. The locale helpers follow that.
+`LocaleExt::localize` and `EgressLocale::localize` return the fingerprint moved to
+the locale (language list, `Accept-Language`, time zone and a position near the
+city, a function of the fingerprint's seed) and leave the one they were given as it
+was. `EgressLocale::localize` takes the time zone its egress reported. This is the
+move `rotate_egress` makes when the new proxy is in another country.
+
+```rust
+use seleniumbase_rs_stealth::evasion::fingerprint::{Fingerprint, OsType};
+use seleniumbase_rs_stealth::scrape::egress::geo::{Locale, LocaleExt};
+
+# fn demo() -> Result<(), Box<dyn std::error::Error>> {
+let fingerprint = Fingerprint::randomized_with_major(OsType::Macos, 7, 155);
+let german = Locale::by_tag("de-DE").ok_or("no such locale")?;
+
+let moved = german.localize(&fingerprint)?;
+
+assert_eq!(moved.locale().as_str(), Some("de-DE"));
+assert_eq!(moved.timezone().as_str(), Some("Europe/Berlin"));
+assert_eq!(moved.user_agent(), fingerprint.user_agent());
+# Ok(())
+# }
+```
+
+Every other setting is kept, and a fingerprint that denies geolocation
+(`Spoof::Off`) keeps denying it instead of being handed a position. The move
+fails with `ScrapeError::Fingerprint` (`FingerprintError` for `LocaleExt`) when the
+core refuses to build the result; a fingerprint that was built before does not
+cause that. To change anything else, start from `fingerprint.to_builder()`, change
+it and call `build()?`.
+
+## The builder
+
+`BrowserScraper::builder()` returns a `BrowserScraperBuilder`. Every setting has
+a default, so `builder().build().await?` is a working scraper: Chrome, no proxy,
+state in memory, events on `tracing`, three attempts, a 30 second solve timeout
+(`DEFAULT_SOLVE_TIMEOUT`), and a profile drawn from a random seed. Unless
+`fingerprint` is set, `build` starts a headless Chrome once to learn the installed
+major and closes it before starting the browser it keeps.
+
+| Method | Default | What it sets |
+|---|---|---|
+| `launch_options` | the platform's | Applied first. A user agent set here wins over the fingerprint's. |
+| `with_geo_proxies` | none | `(spec, country)` pairs. A bad spec is `ScrapeError::Egress` and never echoes the password. |
+| `proxy_strategy` | `RoundRobin` | Also `Random { seed }`, `LeastFailures`, `StickyPerSite`. |
+| `with_max_challenge_attempts` | 3 | Zero is read as one. The default gives up before the profile ladder starts. |
+| `mitigation` | `MitigationPolicy::default()` | When to rotate and how long to cool down. The attempts above still win. |
+| `with_state_store` | in memory | `JsonStateStore::open(path)` for the file. |
+| `with_event_sink` | `TracingEventSink` | `CollectingEventSink` keeps the newest events. |
+| `geo_resolver` | `StaticGeoResolver` | The built-in locale table. No IP lookup ships. |
+| `per_site_rate` | none | At most `calls` fetches of one site in `window`. |
+| `seed` | random | Same seed, same first profile. Each rotation derives the next seed. |
+| `fingerprint` | drawn from the seed | Skips the version probe. A rotation replaces it. |
+| `session_store` | empty | Where `save_session` writes, to share a login with a `BrowserPool`. |
+| `solve_timeout` | 30 s | How long a solved challenge is waited for. |
+| `clock` | the system clock | Seconds since the Unix epoch. Tests replace it. |
+
+`egress_switch` and `launcher` replace the defaults (`ContextProxySwitch`,
+`ChromeLauncher`). A program does not need to set them. `build` returns
+`ScrapeError::Browser` when no browser starts and `ScrapeError::Geo` when an
+egress's country has no locale. The methods and the fields of `BrowserFetch`
+are on [the API page](/stealth/api/scrape#re-exports-at-the-root).
+
+## Where to go next
+
+<Columns cols={2}>
+
+<Card title="Identity and cookies" icon="cookie" color="#199f43" href="/stealth/identity">
+  The jar, the identity file, and the decision table `fetch` follows.
+</Card>
+
+<Card title="HttpSession" icon="network-wired" color="#a631be" href="/stealth/http-session">
+  Carry the cookies this scraper earned as plain HTTP. Needs `mimic`.
+</Card>
+
+<Card title="StealthSession" icon="shuffle" color="#d32a61" href="/stealth/stealth-session">
+  The same loop, with plain HTTP as the first move.
+</Card>
+
+<Card title="Limits" icon="triangle-exclamation" color="#d5a910" href="/stealth/limits">
+  What a fetch refuses, and what each `ScrapeError` means.
+</Card>
+
+</Columns>

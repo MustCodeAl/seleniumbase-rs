@@ -1,17 +1,17 @@
 //! One list of refused browser switches (ADR 005, follow-up 7).
 //!
-//! `stealth::evasions` refuses some switches from a fingerprint payload, and
+//! `evasion::evasions` refuses some switches from a fingerprint payload, and
 //! the plugin API refuses a list of its own to every plugin
 //! (`switch_policy::REFUSED_SWITCHES`). A switch the payload code refuses and
 //! the plugin code lets through would be a way around the first list, so the
 //! first must be a subset of the second. The payload list is a private
-//! constant in `src/stealth/evasions.rs`; these tests read it from the source
+//! constant in `src/evasion/evasions.rs`; these tests read it from the source
 //! text, which they do not change.
 
 #![cfg(feature = "plugins")]
 
+use seleniumbase_rs::evasion::evasions::permitted_switch;
 use seleniumbase_rs::plugin_api::switch_policy::REFUSED_SWITCHES;
-use seleniumbase_rs::stealth::evasions::permitted_switch;
 
 /// The names in the `FORBIDDEN_SWITCHES` constant of `source`.
 ///
@@ -41,7 +41,7 @@ fn forbidden_in(source: &str) -> Vec<String> {
 
 #[test]
 fn the_payload_list_is_read_whole() {
-    let found = forbidden_in(include_str!("../src/stealth/evasions.rs"));
+    let found = forbidden_in(include_str!("../src/evasion/evasions.rs"));
 
     assert!(
         found.len() >= 15,
@@ -60,7 +60,7 @@ fn the_payload_list_is_read_whole() {
 
 #[test]
 fn every_switch_a_payload_may_not_set_is_refused_to_plugins_too() {
-    let found = forbidden_in(include_str!("../src/stealth/evasions.rs"));
+    let found = forbidden_in(include_str!("../src/evasion/evasions.rs"));
 
     let missing: Vec<&String> = found
         .iter()

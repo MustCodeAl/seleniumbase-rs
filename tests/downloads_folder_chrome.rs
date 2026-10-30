@@ -101,7 +101,7 @@ async fn a_webdriver_download_lands_in_downloaded_files() {
     assert_eq!(sb.get_downloads_folder(), folder);
 
     let saved = sb
-        .download_file(
+        .download_file_in_browser(
             &format!("{base}/files/from-webdriver.csv"),
             "from-webdriver.csv",
             20,

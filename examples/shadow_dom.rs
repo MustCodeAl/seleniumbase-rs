@@ -28,7 +28,7 @@
 mod local_site;
 
 use local_site::{ensure, Site};
-use seleniumbase_rs::{run_browser_test, BaseCase, BrowserConfig, Result};
+use seleniumbase_rs::{run_browser_test, tokio, BaseCase, BrowserConfig, Result};
 
 const PAGE: &str = r#"<!doctype html>
 <html lang="en">

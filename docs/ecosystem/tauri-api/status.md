@@ -77,6 +77,9 @@ Always `true`.
 
 **Errors**
 
+CDP configuration is reported separately by [GET /cdp](/ecosystem/tauri-api/cdp).
+This status response does not indicate whether a Chromium debugger is ready.
+
 | Status | `error` | When |
 |---|---|---|
 | 404 | `unknown command` | The path does not start with the token. |

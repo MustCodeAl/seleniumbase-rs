@@ -6,7 +6,7 @@ description: "The TLS profile in seleniumbase-rs-codec: TlsSpec, Alps, KnownGap 
 
 <Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: codec</Badge>
 
-`seleniumbase_rs_codec::tls_spec` holds the TLS specification a client should
+`seleniumbase_rs_stealth::codec::tls_spec` holds the TLS specification a client should
 reproduce. A `TlsSpec` is a whole TLS profile as plain data: the ids a
 `ClientHello` carries and the content of the extensions that have any.
 `TlsSpec::from_client_hello` records it from a parsed hello. A caller can layer a
@@ -25,9 +25,9 @@ in [Wire formats](/stealth/wire-formats#what-is-refused).
 <RequestExample>
 
 ```rust Fingerprints of the measured spec
-use seleniumbase_rs::stealth::fingerprint::OsType;
-use seleniumbase_rs_codec::emulation;
-use seleniumbase_rs_codec::BrowserKind;
+use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
+use seleniumbase_rs_stealth::codec::emulation;
+use seleniumbase_rs_stealth::codec::BrowserKind;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let chrome = emulation::get(BrowserKind::Chrome, OsType::Macos)?;
@@ -42,8 +42,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 ```rust Overlay a custom JA3
-use seleniumbase_rs_codec::ja3::Ja3;
-use seleniumbase_rs_codec::tls_spec::{SpecError, TlsSpec};
+use seleniumbase_rs_stealth::codec::ja3::Ja3;
+use seleniumbase_rs_stealth::codec::tls_spec::{SpecError, TlsSpec};
 
 fn with_custom_ja3(base: &TlsSpec, text: &str) -> Result<TlsSpec, Box<dyn std::error::Error>> {
     let ja3 = Ja3::parse(text)?;

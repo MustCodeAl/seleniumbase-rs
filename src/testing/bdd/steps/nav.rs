@@ -70,7 +70,7 @@ sb_steps! {
     /// Downloads a URL into the downloads folder.
     fn download_file(sb, file: String) {
         let name = file_name_of(&file);
-        sb.download_file(&file, &name, DOWNLOAD_SECONDS).await.map(drop)
+        sb.download_file_in_browser(&file, &name, DOWNLOAD_SECONDS).await.map(drop)
     }
         "Download {file:string} to downloads", "Download file {file:string} to downloads",
         "User downloads {file:string} to downloads";
@@ -78,7 +78,7 @@ sb_steps! {
     /// Downloads a URL, then copies the file into a folder.
     fn download_file_to_destination(sb, file: String, destination: String) {
         let name = file_name_of(&file);
-        let downloaded = sb.download_file(&file, &name, DOWNLOAD_SECONDS).await?;
+        let downloaded = sb.download_file_in_browser(&file, &name, DOWNLOAD_SECONDS).await?;
         std::fs::create_dir_all(&destination)?;
         std::fs::copy(&downloaded, std::path::Path::new(&destination).join(&name))?;
         Ok(())

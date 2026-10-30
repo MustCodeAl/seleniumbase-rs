@@ -2,6 +2,10 @@
 title: "HttpSession"
 ---
 
+Examples importing `seleniumbase_rs_stealth::mimic` require the facade's
+`mimic` feature. See the [single-dependency setup](/stealth/overview#which-crate-to-depend-on);
+this feature builds BoringSSL and needs cmake and a C/C++ toolchain.
+
 <Badge color="orange">Experimental</Badge>
 
 `mimic::http_session::HttpSession` sends plain HTTP requests that look like
@@ -20,8 +24,8 @@ Summary for AI exports: `HttpSession` (crate `seleniumbase-rs-mimic`) sends plai
 </Visibility>
 
 ```rust
-use seleniumbase_rs_mimic::{HttpOptions, HttpSession};
-use seleniumbase_rs::sb_cdp::Page;
+use seleniumbase_rs_stealth::mimic::{HttpOptions, HttpSession};
+use seleniumbase_rs_stealth::sb_cdp::Page;
 
 # async fn demo(page: Page) -> Result<(), Box<dyn std::error::Error>> {
 let session = HttpSession::from_page(&page, None, HttpOptions::new()).await?;
@@ -71,8 +75,8 @@ Both refuse, before any request, what would contradict the measured handshake:
 is reported there.
 
 ```rust
-use seleniumbase_rs_mimic::{HttpSession, Method};
-use seleniumbase_rs_codec::header_spec::RequestShape;
+use seleniumbase_rs_stealth::mimic::{HttpSession, Method};
+use seleniumbase_rs_stealth::codec::header_spec::RequestShape;
 
 # async fn demo(session: HttpSession) -> Result<(), Box<dyn std::error::Error>> {
 let reply = session
@@ -160,12 +164,12 @@ refuses a value out of range before a client exists.
   in one call (`Fetched { reply, verdict }`); `session.preflight(url, &identity,
   state, &rules)` asks, before a request, whether the identity's clearance is
   about to end so that the browser should take the URL first. They are the
-  pieces of your own loop; [`StealthSession`](/stealth/stealth-session#stealthsession) is that loop.
+  pieces of your own loop; [`StealthSession`](/stealth/stealth-session) is that loop.
 
   ```rust
-  use seleniumbase_rs_mimic::http_session::{Attempt, Rules};
-  use seleniumbase_rs_mimic::HttpSession;
-  use seleniumbase_rs_scrape::StealthIdentity;
+  use seleniumbase_rs_stealth::mimic::http_session::{Attempt, Rules};
+  use seleniumbase_rs_stealth::mimic::HttpSession;
+  use seleniumbase_rs_stealth::scrape::StealthIdentity;
 
   # async fn demo(session: HttpSession, identity: StealthIdentity) -> Result<(), Box<dyn std::error::Error>> {
   let fetched = session
@@ -226,6 +230,13 @@ refused. The rest of `HttpSession` is tested against loopback sites
 
 ## Next steps
 
+`HttpSession`, `HttpOptions`, `HttpReply` and `HttpError` are re-exported at
+`seleniumbase_rs_stealth::mimic`, which is what the example above imports. The
+module path `mimic::http_session::HttpSession` is the same type. Five names that
+would clash at the root are renamed there: `Attempt`, `Fetched`, `Rules`,
+`Verdict` and `Headers` become `HttpAttempt`, `HttpFetched`, `HttpRules`,
+`HttpVerdict` and `ReplyHeaders`. The original names stay in `http_session`.
+
 <Columns cols={2}>
 
 <Card color="#1a85d4" title="Identity" icon="id-card" href="/stealth/identity">
@@ -237,6 +248,18 @@ Identity, session policy, the cookie jar and challenge detection.
 <Card color="#199f43" title="StealthSession" icon="shuffle" href="/stealth/stealth-session">
 
 The loop built from `fetch`, `assess` and `preflight`.
+
+</Card>
+
+<Card color="#1ca1c7" title="MitmProxy" icon="shield" href="/stealth/mitm-proxy">
+
+The loopback proxy that gives a real Chrome this same handshake.
+
+</Card>
+
+<Card color="#d5a910" title="Limits" icon="triangle-exclamation" href="/stealth/limits">
+
+The handshake gaps this session sends, and what each `HttpError` means.
 
 </Card>
 

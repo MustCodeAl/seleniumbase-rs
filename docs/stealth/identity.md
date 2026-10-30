@@ -14,7 +14,7 @@ and converts to and from CDP cookies. Every function that needs the time takes
 `now` in seconds since the Unix epoch.
 
 ```rust
-use seleniumbase_rs_scrape::jar::store::{CookieJar, SiteContext};
+use seleniumbase_rs_stealth::scrape::jar::store::{CookieJar, SiteContext};
 use url::Url;
 
 # fn demo() -> Result<(), Box<dyn std::error::Error>> {
@@ -54,10 +54,10 @@ hints each origin asked for, the clearances found in the jar, and the egress
 those cookies were earned through.
 
 ```rust
-use seleniumbase_rs_scrape::passport::identity::{EmulationRef, StealthIdentity};
-use seleniumbase_rs_scrape::runtime::identity_file;
-use seleniumbase_rs::stealth::fingerprint::{Fingerprint, OsType};
-use seleniumbase_rs_codec::BrowserKind;
+use seleniumbase_rs_stealth::scrape::passport::identity::{EmulationRef, StealthIdentity};
+use seleniumbase_rs_stealth::scrape::runtime::identity_file;
+use seleniumbase_rs_stealth::evasion::fingerprint::{Fingerprint, OsType};
+use seleniumbase_rs_stealth::codec::BrowserKind;
 
 # async fn demo(now: u64) -> Result<(), Box<dyn std::error::Error>> {
 let fingerprint = Fingerprint::randomized_with_major(OsType::Macos, 7, 155);
@@ -117,9 +117,9 @@ between plain HTTP and the browser, as a pure function of the mode, the identity
 the site's state and the time:
 
 ```rust
-use seleniumbase_rs_scrape::challenge::mitigation::Mode;
-use seleniumbase_rs_scrape::passport::identity::StealthIdentity;
-use seleniumbase_rs_scrape::passport::policy::{SessionPolicy, Transition};
+use seleniumbase_rs_stealth::scrape::challenge::mitigation::Mode;
+use seleniumbase_rs_stealth::scrape::passport::identity::StealthIdentity;
+use seleniumbase_rs_stealth::scrape::passport::policy::{SessionPolicy, Transition};
 
 # fn demo(identity: &StealthIdentity, now: u64) {
 let policy = SessionPolicy {
@@ -137,8 +137,8 @@ back to HTTP after a solve, and a preference for HTTP. `after_fetch` turns an
 `Action::Escalate` seen in HTTP mode into an escalation and a solved challenge in
 the browser into a demotion when the identity now holds a clearance. The tables
 are in the module documentation. `BrowserScraper` stays in the browser and never
-applies them. [`HttpSession`](/stealth/http-session#httpsession) offers `preflight` and `assess` for a
-caller that runs its own loop, and [`StealthSession`](/stealth/stealth-session#stealthsession) applies
+applies them. [`HttpSession`](/stealth/http-session) offers `preflight` and `assess` for a
+caller that runs its own loop, and [`StealthSession`](/stealth/stealth-session) applies
 them for you.
 
 ```mermaid
@@ -187,3 +187,28 @@ guarantee: sites change their pages, and no solver here promises to pass any
 service.
 
 </Warning>
+
+## How these types are imported
+
+`CookieJar`, `StealthIdentity`, `SessionPolicy`, `MitigationPolicy`, `Detection`,
+`ChallengeKind` and `CountryCode` are re-exported at
+`seleniumbase_rs_stealth::scrape`, so `use seleniumbase_rs_stealth::scrape::CookieJar`
+is the same type as the module paths used above. `identity_file` is not
+re-exported: it stays `scrape::runtime::identity_file`. An identity file written
+before fingerprint API v2, in the flat layout (`screen_width`, `flags`), no longer
+loads. `identity_file::load` reports it as a corrupt file and names no value from
+it. Make a new identity.
+
+## Where to go next
+
+<Columns cols={2}>
+
+<Card title="BrowserScraper" icon="globe" color="#1a85d4" href="/stealth/browser-scraper">
+  The loop that stores these cookies and rotates this identity.
+</Card>
+
+<Card title="HttpSession" icon="network-wired" color="#a631be" href="/stealth/http-session">
+  The same jar, carried on plain HTTP. Needs `mimic`.
+</Card>
+
+</Columns>

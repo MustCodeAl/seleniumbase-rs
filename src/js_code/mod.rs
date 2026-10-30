@@ -2,7 +2,7 @@
 //!
 //! Most of the JavaScript the crate runs is written where it is used: the Pure
 //! CDP engine's page helper is `src/sb_cdp/helper.js`, the stealth scripts are
-//! under `src/stealth/js`, and the WebDriver `BaseCase` builds short scripts
+//! under `src/evasion/js`, and the WebDriver `BaseCase` builds short scripts
 //! on the fly (for example the shadow DOM walkers in
 //! [`utils::shadow`](crate::utils::shadow)). What they share is this: a value
 //! that came from a caller, such as a selector, a piece of text or an attribute

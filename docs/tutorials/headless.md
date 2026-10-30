@@ -73,7 +73,7 @@ Run headed when someone has to see or use the window:
   element and pauses after each action so you can follow along (see
   [Run settings](/tutorials/run_settings)). `with_esc_end(true)` lets the person
   watching press ESC in the browser to end the test.
-- **Recording.** `sbrs record` saves the clicks and typing you do in the browser.
+- **Recording.** `sbrs mkrec` saves the clicks and typing you do in the browser.
   Like the other `sbrs` browser commands, it is headed by default.
 - **Clicking with the system pointer.** `Page::gui_click_captcha` and
   `Page::gui_captcha_plan` (feature `gui`) refuse a headless browser, because it
@@ -137,7 +137,7 @@ graph LR
 opens one. A value you set in code is final: no variable or file changes it later.
 
 ```rust,no_run tests/headed.rs
-use seleniumbase_rs::{run_browser_test, BrowserConfig, Result};
+use seleniumbase_rs::{run_browser_test, tokio, BrowserConfig, Result};
 
 #[tokio::test]
 async fn shows_the_title() -> Result<()> {
@@ -163,6 +163,7 @@ launch.
 
 ```rust,no_run src/main.rs
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
+use seleniumbase_rs::tokio;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -427,7 +428,7 @@ unless you pass another `VirtualDisplay`:
 
 ```rust,no_run tests/headed_on_a_server.rs
 use seleniumbase_rs::browser::options::VirtualDisplay;
-use seleniumbase_rs::{run_browser_test, BrowserConfig, Result};
+use seleniumbase_rs::{run_browser_test, tokio, BrowserConfig, Result};
 
 #[tokio::test]
 async fn runs_headed_on_a_server() -> Result<()> {
@@ -577,9 +578,9 @@ std::fs::write("heading.png", page.locator("h1").screenshot().await?)?;
 
 </Tabs>
 
-`sbrs screenshot` and `sbrs save-source` start a new browser and capture it
-before any page is open, so they do not help with a page. Use one of the code
-tabs.
+`sbrs screenshot` and `sbrs save-source` start a new browser and capture the
+start page you give them (`sbrs --url https://example.com screenshot`), so they
+do not help with a page your test reached. Use one of the code tabs.
 
 ### Print a page to PDF
 
@@ -636,14 +637,27 @@ sbrs --headless print-pdf https://example.com -o example.pdf
 
 <Tab title="BaseCase (WebDriver)" icon="code">
 
-`download_file` opens the address in a new tab, waits up to the given number of
-seconds for the file, and goes back to the first tab. The assertions wait up to
-the default timeout for a file that is still being written. All of them look in
-`get_downloads_folder()`: the system's Downloads folder, or the working
-directory when the system names none.
+`download_file_in_browser` opens the address in a new tab, waits up to the given
+number of seconds for the file, and goes back to the first tab. The assertions
+wait up to the default timeout for a file that is still being written. All of
+them look in `get_downloads_folder()`: the `downloaded_files` folder of the
+working directory, as in Python SeleniumBase.
+
+`download_file` is the plain HTTP form, as in Python: it fetches the address
+with the browser's user agent, sends none of the page's cookies, and saves the
+body in `get_downloads_folder()` under the last part of the address, or in the
+folder that `.destination_folder(..)` names. `save_file_as(url, new_file_name)`
+does the same under a name of your choosing. Both return the file's `PathBuf`.
 
 ```rust Downloads
-let path = sb.download_file("https://example.com/report.csv", "report.csv", 30).await?;
+let fetched = sb.download_file("https://example.com/report.csv").await?;
+let copy = sb
+    .download_file("https://example.com/report.csv")
+    .destination_folder("reports")
+    .await?;
+let path = sb
+    .download_file_in_browser("https://example.com/report.csv", "report.csv", 30)
+    .await?;
 
 sb.click("a#export").await?;
 sb.assert_downloaded_file("export.csv").await?;
@@ -653,9 +667,13 @@ println!("downloads go to {}", sb.get_downloads_folder().display());
 
 <Warning>
 
-The WebDriver engine does not tell the browser where to save. If the browser
-saves somewhere other than `get_downloads_folder()`, the wait ends in a timeout.
-The pure CDP engine sets the folder itself.
+A browser the library launches is told to save into `get_downloads_folder()`:
+the WebDriver engine asks for it in the session's capabilities (a download
+preference you set yourself wins), and the pure CDP engine sends
+`Browser.setDownloadBehavior` at launch. If your own preferences make the browser
+save somewhere else, or the library only attaches to a browser that keeps its own
+settings, the wait of `download_file_in_browser` or of an assertion ends in a
+timeout.
 
 </Warning>
 
@@ -728,10 +746,10 @@ sb.click("button[type=submit]").await?;
 The pure CDP engine has no upload method. The programs that
 `sbrs import-playwright` and `sbrs import-puppeteer` write add a helper that
 focuses the input and hands it to `DOM.setFileInputFiles` with `page.execute`.
-The same steps, with `serde_json` in your `Cargo.toml`:
+The same steps:
 
 ```rust Upload
-use serde_json::json;
+use seleniumbase_rs::json::json;
 
 page.locator("input[type=file]").focus().await?;
 let input = page
@@ -811,7 +829,7 @@ page.locator("#delete").click().await?;
 <Tab title="BaseCase (WebDriver)" icon="code">
 
 `execute_script` runs the script as the body of a function, so `return` the
-value you want. It comes back as a `serde_json::Value`.
+value you want. It comes back as a `seleniumbase_rs::json::Value`.
 
 ```rust JavaScript
 let title = sb.execute_script("return document.title;").await?;
@@ -824,7 +842,7 @@ println!("{} has {} links", title.as_str().unwrap_or_default(), links);
 <Tab title="Pure CDP" icon="bolt">
 
 `evaluate` takes an expression, waits for a promise, and returns a
-`serde_json::Value`. `evaluate_as` turns the result into a Rust type. A `return`
+`seleniumbase_rs::json::Value`. `evaluate_as` turns the result into a Rust type. A `return`
 at the start of the last line is dropped, so a WebDriver-style script works too.
 
 ```rust JavaScript
@@ -989,7 +1007,7 @@ These need a window on a screen, or a person in front of it:
 | Demo mode, slow mode and the messages of `post_message` | They still run, but nobody sees them, so they only slow the run; a message stays at most 0.75 s | Screenshots, or a headed run |
 | `with_esc_end(true)` | It ends the test when a person presses ESC in the window | A headed run |
 | Native dialogs (`api::dialog`, `choose_file_dialog`) | They open the desktop's own dialogs and wait for a person | Leave them out of unattended runs |
-| `sbrs record` | It saves the clicks and typing a person does in the window | A headed run |
+| `sbrs mkrec` | It saves the clicks and typing a person does in the window | A headed run |
 | Browser plugins with `Requirements::HEADFUL` | They refuse a headless launch | A headed run, or no such plugin |
 
 On a Linux server, run the headed browser on a virtual display with

@@ -12,8 +12,10 @@ const RECORDER_ACTIVE: &str = "Recorder Mode ACTIVE. [ESC]: Pause. [~`]: Resume.
 /// The page's record of what a person did (see `RECORDER_JS`).
 const RECORDED_ACTIONS_SCRIPT: &str = "return sessionStorage.getItem('recorded_actions');";
 
-/// `"yes"` once the page script has run in this tab's origin.
-const RECORDER_ACTIVATED_SCRIPT: &str = "return sessionStorage.getItem('recorder_activated');";
+/// `"yes"` once the page script has run in this document. A tab that a page
+/// opened with `window.open` starts with a copy of the opener's sessionStorage,
+/// which says `"yes"` before the script has run in the new document.
+const RECORDER_ACTIVATED_SCRIPT: &str = "return document.__sbRecorderRan === true ? sessionStorage.getItem('recorder_activated') : null;";
 
 /// One breakpoint prompt at a time, however many tests run in parallel.
 static RECORDER_BREAKPOINT_GATE: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
@@ -344,6 +346,8 @@ impl BaseCase {
         self.recorder_breakpoint_with(
             message,
             &mut std::io::stderr(),
+            crate::common::color::use_color(&std::io::stderr()),
+
             crate::common::debug_prompt::read_stdin_line,
         )
         .await
@@ -355,6 +359,8 @@ impl BaseCase {
         &mut self,
         message: &str,
         out: &mut dyn std::io::Write,
+        color: bool,
+
         read_line: R,
     ) -> Result<(), SeleniumBaseError>
     where
@@ -376,6 +382,8 @@ impl BaseCase {
             read_line,
             async || self.watch_tick().await,
             crate::api::recorder::WATCH_TICK,
+            color,
+
         )
         .await?;
         self.extend_time_limit(started.elapsed());
@@ -509,11 +517,13 @@ impl BaseCase {
             RecordingFormat::Test
         };
         let options = RecordingOptions {
-            format,
-            behave: self.config.rec_behave(),
-            print: self.config.rec_print(),
-            uc,
-        };
+                    format,
+                    behave: self.config.rec_behave(),
+                    print: self.config.rec_print(),
+                    uc,
+                    // The banner goes to standard output, which may be a terminal.
+                    color: crate::common::color::use_color(&std::io::stdout()),
+                };
         let saved = crate::api::recorder::write_recording(
             &recorder.actions,
             &target,
@@ -774,7 +784,8 @@ mod tests_recorder_mode {
             code.contains("async fn test_one(") && code.contains("async fn test_two("),
             "{code}"
         );
-        assert_eq!(code.matches("use rstest::rstest;").count(), 1, "{code}");
+        let prelude = "use seleniumbase_rs::testing::{rstest, sb, Sb};";
+        assert_eq!(code.matches(prelude).count(), 1, "{code}");
         let _ = std::fs::remove_dir_all(&folder);
     }
 
@@ -845,7 +856,7 @@ mod tests_recorder_mode {
         let driver = browser(vec![tab("w1", "https://a.test/", Value::Null)], now());
         let mut sb = BaseCase::new(config(&driver)).await.unwrap();
         let mut out = Vec::new();
-        sb.recorder_breakpoint_with("now", &mut out, typed(&["x", "c"]))
+        sb.recorder_breakpoint_with("now", &mut out, false, typed(&["x", "c"]))
             .await
             .unwrap();
         let said = String::from_utf8(out).unwrap();
@@ -861,15 +872,14 @@ mod tests_recorder_mode {
         let driver = browser(vec![tab("w1", "https://a.test/", Value::Null)], now());
         let mut sb = BaseCase::new(config(&driver)).await.unwrap();
         let mut out = Vec::new();
-        let quit = sb
-            .recorder_breakpoint_with("now", &mut out, typed(&["q"]))
+        let quit = sb.recorder_breakpoint_with("now", &mut out, false, typed(&["q"]))
             .await;
         assert!(
             matches!(quit, Err(SeleniumBaseError::Skipped(_))),
             "{quit:?}"
         );
         let mut out = Vec::new();
-        sb.recorder_breakpoint_with("again", &mut out, typed(&[]))
+        sb.recorder_breakpoint_with("again", &mut out, false, typed(&[]))
             .await
             .unwrap();
         assert!(String::from_utf8(out)

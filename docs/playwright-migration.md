@@ -115,8 +115,8 @@ get `_2`, `_3`. Hooks are inlined into every test of their group, in order. A
 skipped test gets `#[ignore = "..."]`. The file ends with a `support` module:
 `launch_options()`, which runs headless when `SB_HEADLESS` says so (as the rest
 of this crate does), and the few helpers the tests use. The generated tests
-need `seleniumbase-rs` and `tokio` with the `macros`, `rt-multi-thread` and
-`time` features. Run them headless with `SB_HEADLESS=true cargo test`.
+need `seleniumbase-rs` alone: it re-exports the Tokio runtime
+(`seleniumbase_rs::tokio`), which the generated files import. Run them headless with `SB_HEADLESS=true cargo test`.
 
 ## The mappings
 
@@ -282,7 +282,7 @@ let shown = page.locator("#toast").is_visible().await?;
 | `isVisible()`, `isHidden()`, `isChecked()`, `isEnabled()`, `isDisabled()` | `.is_visible()`, `!...is_visible()`, ... | `bool` |
 | `count()` | `.count()` | `usize` |
 | `title()`, `url()` | `page.title()`, `page.url()` | `String` |
-| `evaluate(...)` | `page.evaluate(...)` | `serde_json::Value` |
+| `evaluate(...)` | `page.evaluate(...)` | `seleniumbase_rs::json::Value` |
 
 ### Expectations
 

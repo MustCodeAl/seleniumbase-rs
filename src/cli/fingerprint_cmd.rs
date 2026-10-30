@@ -10,9 +10,9 @@ use std::fmt::Write as _;
 use std::path::Path;
 
 use crate::error::SeleniumBaseError;
-use crate::stealth::capture::CapturedFingerprint;
-use crate::stealth::fingerprint::{Fingerprint, OsType};
-use crate::stealth::humanize::Rng;
+use crate::evasion::capture::CapturedFingerprint;
+use crate::evasion::fingerprint::{Fingerprint, OsType};
+use crate::evasion::humanize::Rng;
 
 /// The names `export --preset` takes, in the order `presets` lists them. `safari` is
 /// also read, as the name of the `ios` preset.
@@ -312,7 +312,7 @@ pub fn diff_report(
 ///
 /// ```
 /// use seleniumbase_rs::cli::fingerprint_cmd::capture_summary;
-/// use seleniumbase_rs::stealth::capture::CapturedFingerprint;
+/// use seleniumbase_rs::evasion::capture::CapturedFingerprint;
 /// use serde_json::json;
 ///
 /// let readings = json!({
@@ -385,7 +385,7 @@ pub fn capture_summary(captured: &CapturedFingerprint) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::stealth::fingerprint::BrowserType;
+    use crate::evasion::fingerprint::BrowserType;
     use serde_json::json;
 
     fn written(fingerprint: &Fingerprint) -> (tempfile::TempDir, std::path::PathBuf) {

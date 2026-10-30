@@ -139,7 +139,7 @@ seleniumbase-rs/
 │   │                          # traits, recorder, scenario, run_settings, charts, tours
 │   ├── browser/               # BrowserConfig, launcher, session, options/, driver matching
 │   ├── sb_cdp/                # The pure CDP engine: Browser, Page, Locator, pool, mock
-│   ├── stealth/               # Fingerprint, evasion providers, humanize, patcher, reactor
+│   ├── evasion/               # Fingerprint, evasion providers, humanize, patcher, reactor
 │   ├── mcp/                   # MCP servers: cdp, driver, sb; developer tools in devtools.rs
 │   ├── cli/                   # the library half of sbrs: commands.rs, scaffold.rs, scripts/
 │   ├── testing/               # the rstest sb fixtures; bdd/: Gherkin through rstest-bdd
@@ -334,11 +334,11 @@ MCP server) exists here or has a stated reason why not.
 The stealth layer uses a provider registry. `evasions::bootstrap_script(fp)` is
 a thin wrapper over the registry.
 
-1. Open `src/stealth/providers/builtin.rs` and implement `EvasionProvider`:
+1. Open `src/evasion/providers/builtin.rs` and implement `EvasionProvider`:
 
 ```rust
-use seleniumbase_rs::stealth::providers::{EvasionContext, EvasionProvider};
-use seleniumbase_rs::stealth::fingerprint::Dimension;
+use seleniumbase_rs::evasion::providers::{EvasionContext, EvasionProvider};
+use seleniumbase_rs::evasion::fingerprint::Dimension;
 
 pub struct MyEvasionProvider;
 
@@ -353,7 +353,7 @@ impl EvasionProvider for MyEvasionProvider {
         100
     }
 
-    fn applies(&self, fp: &crate::stealth::fingerprint::Fingerprint) -> bool {
+    fn applies(&self, fp: &crate::evasion::fingerprint::Fingerprint) -> bool {
         // The one predicate: on when the fingerprint holds a value for the
         // dimension, or its flag says Mask; off when the flag says Natural.
         fp.is_masked(Dimension::Navigator)
@@ -388,14 +388,14 @@ before any other provider runs.
 
 A setting is what the browser claims (one `Spoof<T>` field of `Fingerprint`); a
 policy field is how the claims are delivered (a field of `StealthPolicy` in
-`src/stealth/policy.rs`).
+`src/evasion/policy.rs`).
 
 For a setting:
 
-1. Add the field to `Fields` in `src/stealth/fingerprint.rs`, with its default
+1. Add the field to `Fields` in `src/evasion/fingerprint.rs`, with its default
    in `impl Default for Fields` and `#[serde(skip_serializing_if = "Spoof::is_natural")]`,
    and a read accessor in the `accessors!` list of `Fingerprint`. If its value is
-   not a plain type, add the value type to `src/stealth/settings.rs` with a
+   not a plain type, add the value type to `src/evasion/settings.rs` with a
    conversion from the obvious tuple.
 2. Add its setter to the `setters!` list of `FingerprintBuilder`, and its name to
    `has_random` and `without_random`. Decide whether it has an off state: if not,
@@ -489,7 +489,7 @@ External profile payloads are parsed in `src/profile_payloads/profile.rs`.
 `ChromedriverPatcher` modifies a local chromedriver binary to help evade
 binary-signature detection.
 
-- Patches are defined as `EnginePatch` structs in `src/stealth/patcher.rs`.
+- Patches are defined as `EnginePatch` structs in `src/evasion/patcher.rs`.
 - Each patch has a human-readable `id`, byte sequence search/replace, and
   optional marker detection.
 - Add new patches to `ChromedriverPatcher::default_patches()`.

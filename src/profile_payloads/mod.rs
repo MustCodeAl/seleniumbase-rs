@@ -13,7 +13,7 @@
 //! would leave `./profile-data`.
 //!
 //! [`BrowserConfig`]: crate::browser::config::BrowserConfig
-//! [`Fingerprint`]: crate::stealth::fingerprint::Fingerprint
+//! [`Fingerprint`]: crate::evasion::fingerprint::Fingerprint
 //! [`BaseCase`]: crate::BaseCase
 //!
 //! # Examples

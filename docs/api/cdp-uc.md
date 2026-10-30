@@ -12,6 +12,15 @@ Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...)
 
 ## CDP / UC helpers
 
+An [external Chromium attachment](/ecosystem/tauri-api/cdp) reports
+`is_cdp_mode_active()` as true. `activate_cdp_mode()` enables Page and Network
+without enabling Runtime or the other detectable domains. Use `cdp_*` methods
+or the attached pure `Page`. The WebDriver-backed and UC-specific helpers below
+have no driver to use on such a session: they return
+`SeleniumBaseError::Unsupported`, whose message names the CDP attachment,
+instead of panicking. `reconnect()` re-attaches to the same endpoint and never
+starts a local browser or driver.
+
 | Method | Description |
 |--------|-------------|
 | `activate_cdp_mode()` | Enables CDP domains. |

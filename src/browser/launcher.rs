@@ -23,7 +23,7 @@ use crate::browser::driver_version::{binary_major, fit, Fit};
 use crate::browser::options::{DriverVersion, LaunchSwitch};
 use crate::common::orphan_guard::OrphanGuard;
 use crate::error::SeleniumBaseError;
-use crate::stealth::patcher::find_system_chrome;
+use crate::evasion::patcher::find_system_chrome;
 
 /// A running WebDriver process launched by the crate.
 ///

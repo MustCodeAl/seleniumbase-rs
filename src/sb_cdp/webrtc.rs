@@ -37,7 +37,7 @@ use serde_json::json;
 
 use super::Page;
 use crate::error::SeleniumBaseError;
-use crate::stealth::fingerprint::WebRtcPolicy;
+use crate::evasion::fingerprint::WebRtcPolicy;
 
 /// The Chrome flag that applies `policy` to every tab.
 pub(crate) fn chrome_flag(policy: WebRtcPolicy) -> &'static str {

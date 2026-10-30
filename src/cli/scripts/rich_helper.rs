@@ -110,9 +110,7 @@ impl Stream {
 /// ```
 #[must_use]
 pub fn color_allowed(is_terminal: bool, no_color: Option<&OsStr>, term: Option<&OsStr>) -> bool {
-    is_terminal
-        && no_color.is_none_or(OsStr::is_empty)
-        && term.is_none_or(|term| term != OsStr::new("dumb"))
+    crate::common::color::color_allowed(is_terminal, no_color, term)
 }
 
 /// Whether messages to `stream` should be coloured right now.
@@ -131,15 +129,7 @@ pub fn use_color(stream: Stream) -> bool {
 /// program (a page title, a server's error body) must not reach one as is.
 #[must_use]
 pub fn sanitize(text: &str) -> String {
-    text.chars()
-        .map(|c| {
-            if c.is_control() && c != '\n' && c != '\t' {
-                char::REPLACEMENT_CHARACTER
-            } else {
-                c
-            }
-        })
-        .collect()
+    crate::common::color::sanitize(text)
 }
 
 /// Formats `text` as a message of the given kind, with its tag in front.

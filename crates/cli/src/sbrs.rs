@@ -28,8 +28,8 @@ use seleniumbase_rs::common::shutdown::{
 use seleniumbase_rs::config::plugins::PluginSelection;
 use seleniumbase_rs::config::proxy_list::ProxyList;
 use seleniumbase_rs::config::settings::{Settings, SettingsOverrides};
+use seleniumbase_rs::evasion::patcher::find_system_chrome;
 use seleniumbase_rs::resources::assets;
-use seleniumbase_rs::stealth::patcher::find_system_chrome;
 use seleniumbase_rs::utilities::grid_server::{default_state_dir, GridRole};
 use seleniumbase_rs::utilities::importer::{
     import_playwright, import_puppeteer, ScriptImportOptions, ScriptLanguage,
@@ -1316,6 +1316,26 @@ enum Commands {
         #[usage(long, value_hint = usage::ValueHint::Other, help = "Text to type in UC mode")]
         text: String,
     },
+    /// Solve the CAPTCHA on the page and check that it cleared.
+    ///
+    /// Finds a Turnstile, reCAPTCHA, hCaptcha, Friendly Captcha or DataDome widget (in the
+    /// page, its shadow roots and readable frames), waits for it to stand still, presses it
+    /// along a human pointer path and waits for the page to show a result, pressing again up to
+    /// three times if the page could show one and did not. It then checks what you expect of the
+    /// page: text of the site's own page and a clearance cookie. Needs `--cdp` or `--uc`.
+    #[usage(
+        help_heading = "Security",
+        example = "sbrs --uc --url https://nowsecure.nl solve-captcha --expect-text nowsecure --expect-cookie cf_clearance"
+    )]
+    SolveCaptcha {
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "Text that must be on the page afterwards (any letter case)")]
+        expect_text: Option<String>,
+        #[usage(long, value_hint = usage::ValueHint::Other, help = "Cookie the browser must hold afterwards, such as cf_clearance")]
+        expect_cookie: Option<String>,
+        #[usage(long, default = "30", value_hint = usage::ValueHint::Other, help = "Seconds to wait for the expected text")]
+        wait: u64,
+    },
+
     /// Download a driver or a browser into ./downloaded_drivers/ (Python's `sbrs get`).
     ///
     /// Without a version, chromedriver and edgedriver are the drivers for the
@@ -1939,6 +1959,59 @@ fn navigable_url(url: &str) -> Result<String, Box<dyn std::error::Error>> {
     }
 }
 
+/// Solves the CAPTCHA on the open page, then checks what the caller expects of the page
+/// after it.
+///
+/// Prints what the solver did. `expect_text` (any letter case) must be in the text of the
+/// page within `wait` seconds, which is how a run shows that the site's own page loaded and
+/// not only that the challenge went away. `expect_cookie` must be among the browser's cookies.
+async fn solve_captcha_and_expect(
+    sb: &BaseCase,
+    expect_text: Option<&str>,
+    expect_cookie: Option<&str>,
+    wait: u64,
+) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    if !sb.is_cdp_mode_active() {
+        return Err(seleniumbase_rs::SeleniumBaseError::Unsupported(
+            "solve-captcha presses with DevTools input events: add --cdp or --uc".to_owned(),
+        ));
+    }
+
+    let options = seleniumbase_rs::sb_cdp::SolveOptions::default();
+    match sb.solve_captcha_with(&options).await? {
+        Some(solved) => println!("Solved a {} CAPTCHA: {solved}", solved.captcha),
+        None => println!("No supported CAPTCHA was found on the page."),
+    }
+    if let Some(text) = expect_text {
+        let needle = serde_json::to_string(&text.to_lowercase())?;
+        let script = format!(
+            "return !!document.body && document.body.innerText.toLowerCase().includes({needle});"
+        );
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(wait);
+        while sb.execute_script(&script).await? != Value::Bool(true) {
+            if std::time::Instant::now() >= deadline {
+                return Err(seleniumbase_rs::SeleniumBaseError::AssertionFailed(
+                    format!(
+                        "the text '{text}' is not on the page {wait} seconds after the CAPTCHA"
+                    ),
+                ));
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+        }
+        println!("The page shows '{text}'.");
+    }
+    if let Some(name) = expect_cookie {
+        let cookies = sb.get_cookies().await?.to_string();
+        if !cookies.contains(&format!("\"{name}\"")) {
+            return Err(seleniumbase_rs::SeleniumBaseError::AssertionFailed(
+                format!("the browser holds no cookie named '{name}'"),
+            ));
+        }
+        println!("The browser holds the cookie '{name}'.");
+    }
+    Ok(())
+}
+
 /// Writes `bytes` to `path`, creating the folder it names first.
 fn write_creating_parent(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     if let Some(parent) = path.parent() {
@@ -2082,6 +2155,7 @@ impl Commands {
                 | Self::SmoothScrollTo { .. }
                 | Self::UcClick { .. }
                 | Self::UcType { .. }
+                | Self::SolveCaptcha { .. }
                 | Self::ClickPartialLinkText { .. }
         )
     }
@@ -3740,7 +3814,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             after.finish(&mut sb).await?;
         }
         Commands::PatchChromedriver { path } => {
-            seleniumbase_rs::stealth::patcher::patch_chromedriver(&path)?;
+            seleniumbase_rs::evasion::patcher::patch_chromedriver(&path)?;
             println!("Successfully patched chromedriver binary at: {path}");
         }
         Commands::PatchChrome { path, cache_dir } => {
@@ -3961,6 +4035,23 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             println!("UC typed into '{}'", css);
             after.finish(&mut sb).await?;
         }
+        Commands::SolveCaptcha {
+            expect_text,
+            expect_cookie,
+            wait,
+        } => {
+            let mut sb = BaseCase::new(config).await?;
+            let outcome = solve_captcha_and_expect(
+                &sb,
+                expect_text.as_deref(),
+                expect_cookie.as_deref(),
+                wait,
+            )
+            .await;
+            after.finish(&mut sb).await?;
+            outcome?;
+        }
+
         Commands::Install {
             driver,
             version,
@@ -4067,16 +4158,24 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             options.overwrite = overwrite;
             options.esc_end = args.esc_end;
             options.behave = behave;
+            // Python colours these banners (`c0` to `c5`) except on Linux; here they are
+            // coloured on a terminal that allows it, and plain in a pipe or with NO_COLOR.
+            options.color = seleniumbase_rs::common::color::use_color(&std::io::stdout());
+            let stderr_color = seleniumbase_rs::common::color::use_color(&std::io::stderr());
+
             // Refuse a bad name before a browser starts.
             if let Err(message) = options.check() {
-                eprintln!("ERROR: {message}");
+                eprintln!("{}", sb_recorder::error_banner(&message, stderr_color));
                 std::process::exit(1);
             }
             let outcome = sb_recorder::run_mkrec(config, &options, &mut std::io::stdout()).await?;
             if outcome.copied_to.is_none() {
                 eprintln!(
-                    "ERROR: nothing was recorded, so {} was not written",
-                    options.file
+                    "{}",
+                    sb_recorder::error_banner(
+                        &format!("nothing was recorded, so {} was not written", options.file),
+                        stderr_color,
+                    )
                 );
                 std::process::exit(1);
             }
@@ -4144,7 +4243,10 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 .to_string();
 
             let mut sb = BaseCase::new(config).await?;
-            let downloaded = match sb.download_file(&url, &browser_name, timeout).await {
+            let downloaded = match sb
+                .download_file_in_browser(&url, &browser_name, timeout)
+                .await
+            {
                 Ok(path) => {
                     if path != dest {
                         if let Some(parent) = dest.parent() {

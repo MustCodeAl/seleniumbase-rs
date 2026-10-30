@@ -397,6 +397,45 @@ the failures, and both engines log each one at `WARN`
 (`cdp.plugin.close.failed`, `webdriver.plugin.close.failed`). Use it to clean
 up, such as deleting temporary folders.
 
+## Hooks added in 0.1.3
+
+<Badge color="green">fn</Badge> <Badge color="gray" stroke>provided</Badge>
+
+Every one has a default body, so a plugin written for 0.1.0 compiles and
+behaves as before. A hook behind a capability reaches only plugins whose
+`metadata()` holds it. When and where each runs, with examples, is in
+[More hooks](/tutorials/plugins#more-hooks).
+
+```rust
+fn network(&self) -> NetworkInterest;                 // rules and filters; default: none
+fn protocol_events(&self) -> &[&str];                 // DevTools events for on_protocol_event
+fn task(&self) -> Option<&dyn Task>;                  // needs Capability::Task
+fn job_runner(&self) -> Option<&dyn JobRunner>;
+
+async fn before_context(&self, settings: &mut ContextSettings) -> Result<()>;      // Capability::Contexts
+async fn on_context_created(&self, context: &dyn ContextHandle) -> Result<()>;     // Capability::Contexts
+async fn on_context_closed(&self, id: &ContextId) -> Result<()>;                   // Capability::Contexts
+async fn before_navigate(&self, page: &dyn PageHandle, navigation: &Navigation)
+    -> Result<NavDecision>;                                                        // redirect: Capability::PageNavigate
+async fn after_navigate(&self, page: &dyn PageHandle, outcome: &NavOutcome) -> Result<()>;
+async fn on_request(&self, request: &RequestView) -> Result<RequestDecision>;     // Capability::NetIntercept
+async fn on_response(&self, response: &ResponseView<'_>) -> Result<()>;           // Capability::NetObserve
+async fn on_protocol_event(&self, browser: &dyn BrowserHandle, event: &ProtocolEvent)
+    -> Result<()>;
+async fn before_close(&self, browser: &dyn BrowserHandle) -> Result<()>;
+async fn on_test_start(&self, test: &TestInfo) -> Result<()>;                      // Capability::TestHooks
+async fn on_test_end(&self, test: &TestInfo, outcome: &TestOutcome, page: Option<&dyn PageHandle>)
+    -> Result<TestVerdict>;                                                        // Capability::TestHooks
+```
+
+An error from `before_context`, `on_context_created` or `before_navigate` stops
+what it guards, and one from `on_request` blocks the request; the others are
+logged. A panic in any hook, old or new, becomes `PluginError::Panicked`, and a
+set with a timer (`PluginSet::with_timer`) ends a hook that runs past its limit
+with `PluginError::Timeout`. The full reference, with every type above, is the
+crate's rustdoc (`cargo doc -p seleniumbase-rs-plugin --open`).
+
+
 ## Result
 
 <Badge color="gray">type</Badge> `seleniumbase_rs_plugin::Result`

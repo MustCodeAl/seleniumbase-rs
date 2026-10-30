@@ -1,6 +1,6 @@
 //! What the installed Chrome really reports in its Client Hints, read through
 //! the Pure CDP engine and compared with what the stealth tables claim for the
-//! same major (`stealth::randomize::chromium_hints` and
+//! same major (`evasion::randomize::chromium_hints` and
 //! `KNOWN_FULL_VERSIONS`).
 //!
 //! This is the measurement behind the rows marked `MeasuredOnMac`. It needs a
@@ -18,8 +18,8 @@ use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::thread;
 
+use seleniumbase_rs::evasion::randomize::{chromium_hints, known_full_version, FullVersionSource};
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
-use seleniumbase_rs::stealth::randomize::{chromium_hints, known_full_version, FullVersionSource};
 use serde_json::Value;
 
 const PAGE: &str = "<!doctype html><title>hints</title><p>client hints</p>";

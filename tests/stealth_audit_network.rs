@@ -27,8 +27,8 @@
 
 use std::time::{Duration, Instant};
 
+use seleniumbase_rs::evasion::fingerprint::Fingerprint;
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Page};
-use seleniumbase_rs::stealth::fingerprint::Fingerprint;
 use seleniumbase_rs::OsType;
 use serde_json::Value;
 

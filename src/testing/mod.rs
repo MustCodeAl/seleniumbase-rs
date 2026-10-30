@@ -24,9 +24,8 @@
 
 //!
 //! ```no_run
-//! use rstest::rstest;
-//! use seleniumbase_rs::testing::{sb, Sb};
-//! use seleniumbase_rs::Result;
+//! use seleniumbase_rs::testing::{rstest, sb, Sb};
+//! use seleniumbase_rs::{tokio, Result};
 //!
 //! #[rstest]
 //! #[tokio::test]
@@ -40,6 +39,12 @@
 //! }
 //! ```
 //!
+//! A test crate lists `seleniumbase-rs` (feature `testing`) and no other dependency: the
+//! `rstest` attribute comes from here, and so does the Tokio runtime
+//! (`seleniumbase_rs::tokio`). Both attributes expand to paths that start with `rstest::`
+//! and `tokio::`, which resolve to those imports.
+//!
+
 //! `sb_cdp: SbCdp` is the same for the pure CDP engine, with a
 //! [`Page`](crate::sb_cdp::Page) in place of the `BaseCase`. Per-test
 //! overrides, the Rust form of Python's `SB(...)` arguments, go through
@@ -55,9 +60,17 @@ mod fixture;
 mod lifecycle;
 mod report;
 
+/// The `rstest` crate under its own name. What `#[rstest]` and `#[fixture]` expand to
+/// starts with `rstest::`, which resolves here when a test file imports
+/// `seleniumbase_rs::testing::rstest`; it is not meant to be named.
+#[doc(hidden)]
+pub use ::rstest;
+/// rstest's attribute for a fixture of your own, so a test file needs one import.
+pub use ::rstest::fixture;
+/// rstest's attribute for a test that asks for fixtures (`#[rstest]`), so a test crate
+/// needs no `rstest` line in its manifest: `use seleniumbase_rs::testing::rstest;`.
+pub use ::rstest::rstest;
 pub use fixture::{sb, sb_cdp, Sb, SbCdp};
 pub use lifecycle::{AttemptEnd, Finalizer, Outcome};
-/// rstest's attribute for a fixture of your own, so a test file needs one import.
-pub use rstest::fixture;
 
 pub(crate) use deadline::Deadline;

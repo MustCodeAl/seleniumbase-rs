@@ -16,8 +16,14 @@ Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...)
 |--------|-------------|
 | `BaseCase::new(config).await` | Creates and connects a browser session from a `BrowserConfig`. |
 | `BaseCase::without_session(config)` | Creates a `BaseCase` without connecting a driver (used by some runners). |
-| `sb.quit().await` | Closes the browser and ends the session. |
+| `sb.quit().await` | Ends the session; closes a browser it launched, or detaches from an external app and leaves it running. |
 | `sb.reconnect().await` | Replaces the WebDriver session while keeping the driver process. |
+
+For a [direct CDP attachment](/ecosystem/tauri-api/cdp), use `cdp_*` methods or
+`BrowserSession::pure_cdp_page()` for the full page API. `reconnect()` remains a
+WebDriver operation; to attach afresh, call `quit()` and create a new case with
+the same remote configuration. WebDriver session reuse and Recorder Mode are
+refused for direct attachments.
 
 <Warning>
 

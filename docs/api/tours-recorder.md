@@ -38,7 +38,14 @@ See the [Tours](/tutorials/tours) and [Charts](/tutorials/charts) pages for deta
 | `export_recording_as_rust()` | Returns recorded actions as Rust source (pure CDP code when `rec_sb_cdp()` is on). |
 | `export_recording_as_cdp_rust()` | Returns recorded actions as a pure CDP program (`Page` and `Locator` calls). |
 | `save_recording_to_logs()` | Saves the recording as JSON and Rust source. |
-| `save_recorded_actions(path)` | Saves recorded actions to a JSON file. |
+| `save_recording_json(filename)` | Saves recorded actions to a JSON file in the logs directory. |
+| `recorder_breakpoint(message)` | Pauses the test so a person can do the manual part in the browser (Recorder Mode). |
+| `wait_for_recorder_end(limit)` | Waits for SHIFT+ESC in the browser, for every window to close, or for `limit`. |
+| `set_recording_target(stem, feature, scenario)` | Names the files Recorder Mode writes under `recordings/`. |
+| `finish_recording()` | Writes the Recorder Mode files now; `quit` does it otherwise. |
+| `save_recorded_actions()` | Python's: keeps what the page recorded in this tab, for a test that goes to another origin in the same tab. |
+
+See [Recorder Mode](/tutorials/recorder_mode) for `sbrs mkrec`, the output formats and replay.
 
 ## Utility / misc helpers
 

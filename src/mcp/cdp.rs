@@ -224,7 +224,7 @@ impl super::fingerprint::CaptureSession for Cdp {
 
     async fn capture_now(
         &mut self,
-    ) -> Result<crate::stealth::capture::CapturedFingerprint, SeleniumBaseError> {
+    ) -> Result<crate::evasion::capture::CapturedFingerprint, SeleniumBaseError> {
         self.page.capture_fingerprint().await
     }
 }
@@ -1794,8 +1794,12 @@ async fn manage_tabs(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
 
 async fn solve_captcha(ctx: Ctx<Cdp>, _args: Args) -> Result<Output, ToolError> {
     let session = ctx.session().await?;
-    Ok(match session.page.solve_captcha().await? {
-        Some(kind) => format!("Attempted to solve a {kind} CAPTCHA."),
+    let solved = session
+        .page
+        .solve_captcha_with(&crate::sb_cdp::SolveOptions::default())
+        .await?;
+    Ok(match solved {
+        Some(solved) => format!("Attempted to solve a {} CAPTCHA: {solved}.", solved.captcha),
         None => "No supported CAPTCHA was found on the page.".to_owned(),
     }
     .into())

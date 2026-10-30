@@ -259,8 +259,8 @@ mod tests_offset_clicks {
         let driver = page(100.0);
         let mut sb = driver.base_case().await;
 
-        sb.click_with_offset("#a", 10, 5, false).await.unwrap();
-        sb.click_with_offset("#a", 10, 5, true).await.unwrap();
+        sb.click_with_offset("#a", 10, 5).await.unwrap();
+        sb.click_with_offset("#a", 10, 5).center(true).await.unwrap();
 
         assert_eq!(moved_to(&driver), [(-40, -15), (10, 5)]);
         assert_eq!(pointer_actions(&driver, "pointerDown").len(), 2);
@@ -271,7 +271,7 @@ mod tests_offset_clicks {
         let driver = page(100.0);
         let mut sb = driver.base_case().await;
 
-        sb.double_click_with_offset("#a", 10, 5, false)
+        sb.double_click_with_offset("#a", 10, 5)
             .await
             .unwrap();
 
@@ -283,8 +283,8 @@ mod tests_offset_clicks {
     async fn the_recording_says_where_the_offset_counts_from() {
         let driver = page(100.0);
         let mut sb = driver.base_case().await;
-        sb.click_with_offset("#a", 10, -5, false).await.unwrap();
-        sb.double_click_with_offset("#a", 1, 2, true).await.unwrap();
+        sb.click_with_offset("#a", 10, -5).await.unwrap();
+        sb.double_click_with_offset("#a", 1, 2).center(true).await.unwrap();
 
         let recorded = sb.recorded_actions().unwrap();
         let offsets: Vec<_> = recorded
@@ -306,11 +306,11 @@ mod tests_offset_clicks {
         }
         let script = recorder.to_rust_script();
         assert!(
-            script.contains("sb.click_with_offset(\"#a\", 10, -5, false).await?;"),
+            script.contains("sb.click_with_offset(\"#a\", 10, -5).await?;"),
             "{script}"
         );
         assert!(
-            script.contains("sb.double_click_with_offset(\"#a\", 1, 2, true).await?;"),
+            script.contains("sb.double_click_with_offset(\"#a\", 1, 2).center(true).await?;"),
             "{script}"
         );
     }

@@ -460,12 +460,12 @@ impl TestFile {
         };
         let dependencies = match self.syntax {
             Syntax::Fixture | Syntax::CdpFixture => {
-                "Your crate's dev-dependencies are `seleniumbase-rs` (feature `testing`),\n\
-                 //! `rstest` and `tokio` (features `macros` and `rt`)."
+                "Your crate's only dev-dependency is `seleniumbase-rs` (feature `testing`): the\n\
+                 //! rstest attribute, the fixtures and the Tokio runtime come from it."
             }
             _ => {
-                "Your crate's dev-dependencies are `seleniumbase-rs` and `tokio` (features\n\
-                 //! `macros` and `rt`)."
+                "Your crate's only dev-dependency is `seleniumbase-rs`; the Tokio runtime comes\n\
+                 //! from it (`use seleniumbase_rs::tokio;`)."
             }
         };
         let recorder = if self.recorder {
@@ -505,9 +505,8 @@ impl TestFile {
             Syntax::Fixture => {
                 let steps = indented(&steps, 2);
                 format!(
-                    r"use rstest::rstest;
-{recorder_import}use seleniumbase_rs::testing::{{sb, Sb}};
-use seleniumbase_rs::Result;
+                    r"{recorder_import}use seleniumbase_rs::testing::{{rstest, sb, Sb}};
+use seleniumbase_rs::{{tokio, Result}};
 
 #[rstest]
 #[tokio::test]
@@ -524,7 +523,7 @@ async fn {fn_name}(sb: Sb) -> Result<()> {{
                 let steps = indented(&steps, 1);
                 format!(
                     r"{recorder_import}use seleniumbase_rs::config::settings::Settings;
-use seleniumbase_rs::{{BaseCase, Result}};
+use seleniumbase_rs::{{tokio, BaseCase, Result}};
 
 #[tokio::test]
 async fn {fn_name}() -> Result<()> {{
@@ -559,7 +558,7 @@ async fn steps(sb: &mut BaseCase) -> Result<()> {{
                 };
                 format!(
                     r"{recorder_import}use seleniumbase_rs::config::settings::Settings;
-use seleniumbase_rs::{{run_browser_test, {mode_import}Result}};
+use seleniumbase_rs::{{run_browser_test, tokio, {mode_import}Result}};
 
 #[tokio::test]
 async fn {fn_name}() -> Result<()> {{
@@ -574,9 +573,8 @@ async fn {fn_name}() -> Result<()> {{
             Syntax::CdpFixture => {
                 let steps = indented(&steps, 3);
                 format!(
-                    r"use rstest::rstest;
-use seleniumbase_rs::testing::{{sb_cdp, SbCdp}};
-use seleniumbase_rs::Result;
+                    r"use seleniumbase_rs::testing::{{rstest, sb_cdp, SbCdp}};
+use seleniumbase_rs::{{tokio, Result}};
 
 #[rstest]
 #[tokio::test]
@@ -595,7 +593,7 @@ async fn {fn_name}(sb_cdp: SbCdp) -> Result<()> {{
                 format!(
                     r"use seleniumbase_rs::config::settings::Settings;
 use seleniumbase_rs::sb_cdp::{{Browser, Page}};
-use seleniumbase_rs::Result;
+use seleniumbase_rs::{{tokio, Result}};
 
 #[tokio::test]
 async fn {fn_name}() -> Result<()> {{
@@ -649,7 +647,8 @@ mod tests {
     #[test]
     fn the_default_test_is_the_rstest_fixture_and_asserts_what_example_com_serves() {
         let source = file("login").render();
-        assert!(source.contains("use rstest::rstest;"), "{source}");
+        assert!(source.contains("testing::{rstest, sb, Sb}"), "{source}");
+        assert!(source.contains("use seleniumbase_rs::{tokio, Result};"));
         assert!(
             source.contains("async fn login(sb: Sb) -> Result<()>"),
             "{source}"

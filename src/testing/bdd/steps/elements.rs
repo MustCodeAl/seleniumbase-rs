@@ -171,7 +171,7 @@ sb_steps! {
 
     /// Clicks an element at an offset from its top left corner.
     fn click_with_offset(sb, selector: String, px: i64, py: i64) {
-        sb.click_with_offset(&selector, px, py, false).await
+        sb.click_with_offset(&selector, px as f64, py as f64).await
     }
         "Click {selector:string} at ({px:i64},{py:i64})",
         "Click {selector:string} at ({px:i64}, {py:i64})",

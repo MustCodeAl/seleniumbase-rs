@@ -20,13 +20,13 @@ use crate::config::plugins::PluginSelection;
 use crate::config::settings::Settings;
 use crate::config::RuntimeConfig;
 use crate::error::SeleniumBaseError;
+use crate::evasion::fingerprint::Fingerprint;
 use crate::mcp::devtools::redact_setting;
 use crate::mcp::failure::FailureReport;
 use crate::mcp::stealth::coherence_report;
 use crate::mcp::support::{json_output, nonempty};
 use crate::mcp::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};
 use crate::profile_payloads::ProfileParams;
-use crate::stealth::fingerprint::Fingerprint;
 
 /// The common-problems page.
 const COMMON_PROBLEMS: &str = include_str!("../../../docs/help/common_problems.md");

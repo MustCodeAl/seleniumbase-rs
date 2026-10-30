@@ -2,11 +2,27 @@
 //
 // A port of `recorder_js` from SeleniumBase 4.56.2
 // (seleniumbase/js_code/recorder_js.py, MIT licence, Michael Mintz), kept
-// as it is except for one block in `saveRecordedActions` (marked SBRS): an
+// as it is except for the blocks marked SBRS (it records the top frame only; a
+// CAPTCHA frame is one 'captcha' action; a blank frame is not opened). One is
+// in `saveRecordedActions`: an
 // `input` action typed into a password field gets a fifth element, 'secret'.
 //
 // It stores `[kind, a, b, Date.now()]` actions in `document.recorded_actions`
 // and mirrors them to sessionStorage `recorded_actions`.
+// SBRS: the script records the top frame only, as Python's Recorder does (its
+// extension has no `all_frames`, and `activate_recorder` runs the script in the
+// top document). Page.addScriptToEvaluateOnNewDocument runs it in every frame
+// too, and a frame of the same origin shares the top frame's sessionStorage:
+// its load would be written down as a page to open and its clicks as steps.
+// What a person does in a frame is seen from the top frame, by the 'blur'
+// handler below.
+if (window.self !== window.top) return;
+// SBRS: once for each document. The browser's new-document hook and a tab
+// watcher may both run the script in a page that is still loading.
+if (document.__sbRecorderRan === true) return;
+document.__sbRecorderRan = true;
+
+
 var cssPathById = function(el) {
     if (!(el instanceof Element)) return;
     var path = [];
@@ -112,6 +128,29 @@ function isGen(str) {
 function tagName(el) {
     return el.tagName.toLowerCase();
 };
+// SBRS: which CAPTCHA widget a frame holds ('' for any other frame). The
+// widgets are cross-site frames the recorder cannot see into, and a person
+// who answers one is not writing a test step.
+function sbCaptchaProvider(el) {
+    var src = '', title = '';
+    try {
+        src = (el.getAttribute('src') || '').toLowerCase();
+        title = (el.getAttribute('title') || '').toLowerCase();
+    } catch (sberr) { return ''; }
+    if (/\/recaptcha\//.test(src) || src.includes('recaptcha.net') ||
+        title.includes('recaptcha')) return 'recaptcha';
+    if (src.includes('hcaptcha.com') || title.includes('hcaptcha') ||
+        el.hasAttribute('data-hcaptcha-widget-id')) return 'hcaptcha';
+    if (src.includes('challenges.cloudflare.com') ||
+        title.includes('cloudflare security challenge')) return 'turnstile';
+    if (src.includes('captcha-delivery.com')) return 'datadome';
+    return '';
+};
+// SBRS: a frame whose address is not a page: `about:blank`, `about:srcdoc`.
+function sbBlankSrc(src) {
+    return /^\s*(about:|javascript:)/i.test(src);
+};
+
 function turnIntoParentAsNeeded(el) {
     if (tagName(el) == 'span' || tagName(el) == 'i') {
         if (tagName(el.parentElement) == 'button') {
@@ -385,6 +424,27 @@ window.addEventListener('blur', () => {
     const d_now = Date.now();
     const d_now2 = d_now + 1;
     const doc_t = document.title;
+    // SBRS: a CAPTCHA widget is not recorded, switched to or opened in a tab
+    // of its own. One 'captcha' action says it was used (the generators write
+    // a comment for it), once for each run of them.
+    if (tagName(el) === 'iframe' &&
+        sessionStorage.getItem('pause_recorder') !== 'yes')
+    {
+        const provider = sbCaptchaProvider(el);
+        if (provider) {
+            const ra_n = document.recorded_actions.length;
+            if (ra_n === 0 ||
+                document.recorded_actions[ra_n-1][0] !== 'captcha' ||
+                document.recorded_actions[ra_n-1][1] !== provider)
+            {
+                document.recorded_actions.push(
+                    ['captcha', provider, window.location.origin, d_now]);
+                saveRecordedActions();
+            }
+            return;
+        }
+    }
+
     skip_open = false;
     if (tagName(el) === 'iframe' &&
         doc_t.startsWith('iframe') &&
@@ -393,11 +453,21 @@ window.addEventListener('blur', () => {
         const selector = getBestSelector(el);
         const el_cw = el.contentWindow;
         origin = window.location.origin;
-        if (el.hasAttribute('src') && el.getAttribute('src').length > 0) {
+        if (el.hasAttribute('src') && el.getAttribute('src').length > 0 &&
+            !sbBlankSrc(el.getAttribute('src'))) {
             if (el.src.startsWith('data:')) return;
             skip_open = true; window.open(el.src, "_blank");
         }
-        else document.body.innerHTML = el_cw.document.body.innerHTML;
+        else {
+            // SBRS: a frame with no address (inline, about:blank) shows its
+            // content in this document; one that is empty or that this page
+            // cannot read has nothing to record, and is not a step.
+            try {
+                if (!el_cw.document.body ||
+                    el_cw.document.body.innerHTML.trim().length === 0) return;
+                document.body.innerHTML = el_cw.document.body.innerHTML;
+            } catch (sberr) { return; }
+        }
         window.focus();
         document.recorded_actions.push(['sw_fr', selector, origin, d_now]);
         if (skip_open)

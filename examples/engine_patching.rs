@@ -23,7 +23,7 @@
 
 use std::fs;
 
-use seleniumbase_rs::stealth::evasions::bootstrap_script;
+use seleniumbase_rs::evasion::evasions::bootstrap_script;
 use seleniumbase_rs::{
     engine_spoofing_args, ChromedriverPatcher, EnginePatch, Fingerprint, Result, SeleniumBaseError,
 };

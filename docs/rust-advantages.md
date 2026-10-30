@@ -48,6 +48,7 @@ browsers between tasks:
 
 ```rust,ignore src/main.rs
 use seleniumbase_rs::sb_cdp::{BrowserPool, LaunchOptions, PoolOptions};
+use seleniumbase_rs::tokio;
 
 #[tokio::main]
 async fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
