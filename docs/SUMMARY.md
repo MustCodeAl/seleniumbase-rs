@@ -128,6 +128,7 @@ hidden: true
 - [Developer Guide](DEVELOPER_GUIDE.md)
   - [Build from source](contributing/from-source.md)
 - [Releasing](contributing/releasing.md)
+  - [Consumer contracts](contributing/consumers.md)
   - [Debugging](contributing/debugging.md)
   - [Benchmarking](contributing/benchmarking.md)
   - [Syncing with upstream](UPSTREAM_SYNC.md)
