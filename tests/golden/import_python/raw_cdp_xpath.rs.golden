@@ -1,0 +1,26 @@
+//! Test that CDP Mode can use XPath selectors.
+
+use seleniumbase_rs::testing::{rstest, sb_cdp, SbCdp};
+use seleniumbase_rs::{tokio, Result};
+
+#[rstest]
+#[tokio::test]
+async fn raw_cdp_xpath(sb_cdp: SbCdp) -> Result<()> {
+    sb_cdp
+        .run(async |page| {
+            page.goto("https://seleniumbase.io/demo_page").await?;
+            page.locator("//input[@id=\"myTextInput\"]").flash().await?;
+            page.locator("//*[@id=\"myTextInput\"]").type_text("XPath Test!").await?;
+            page.locator("//input[@name=\"text\" or @name=\"preText2\"]").type_text("Xpath Here!").await?;
+            tokio::time::sleep(std::time::Duration::from_secs_f64(0.5)).await;
+            page.locator("//button[contains(text(),\"(Green)\")]").flash().await?;
+            page.locator("//button[starts-with(text(),\"Click Me\")]").click().await?;
+            page.locator("//button[contains(., \"Purple\")]").expect().to_be_visible().await?;
+            tokio::time::sleep(std::time::Duration::from_secs_f64(0.5)).await;
+            page.locator("//table/tbody/tr/td/h3").flash().await?;
+            page.locator("//table/tbody/tr[1]/td[2]/h2").flash().await?;
+            page.locator("//table//h2").expect().to_contain_text("SeleniumBase").await?;
+            Ok(())
+        })
+        .await
+}

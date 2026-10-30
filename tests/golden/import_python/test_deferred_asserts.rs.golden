@@ -1,0 +1,29 @@
+//! This test shows the use of SeleniumBase deferred asserts.
+//! Deferred asserts won't raise exceptions from failures until
+//! process_deferred_asserts() is called, or the test completes.
+
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
+
+// TODO(source line 10): the decorator @pytest.mark.expected_failure is not converted
+
+#[rstest]
+#[tokio::test]
+async fn test_deferred_asserts(sb: Sb) -> Result<()> {
+    sb.run(async |sb| {
+        sb.goto("https://xkcd.com/993/").await?;
+        sb.wait_for_element("#comic").await?;
+        println!("\n(This test should fail)");
+        sb.deferred_assert_element("img[alt=\"Brand Identity\"]").await?;
+        sb.deferred_assert_element("img[alt=\"Rocket Ship\"]").await?; // Will Fail
+        sb.deferred_assert_element("#comicmap").await?;
+        sb.deferred_assert_text("Fake Item", "ul.comicNav").await?; // Will Fail
+        sb.deferred_assert_text("Random", "ul.comicNav").await?;
+        sb.deferred_assert_element("a[name=\"Super Fake !!!\"]").await?; // Will Fail
+        sb.deferred_assert_exact_text("Brand Identity", "#ctitle").await?;
+        sb.deferred_assert_exact_text("Fake Food", "#comic").await?; // Will Fail
+        sb.process_deferred_asserts().await?;
+        Ok(())
+    })
+    .await
+}

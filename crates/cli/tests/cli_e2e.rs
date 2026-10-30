@@ -208,9 +208,9 @@ fn import_python_writes_a_rust_test_that_parses() {
     assert!(output.status.success(), "{}", stderr(&output));
     let rust = stdout(&output);
     let file = syn::parse_file(&rust).unwrap_or_else(|error| panic!("{error}:\n{rust}"));
-    assert_eq!(file.items.len(), 2, "a `use` and the test:\n{rust}");
+    assert_eq!(file.items.len(), 3, "two `use` items and the test:\n{rust}");
     assert!(
-        rust.contains("#[tokio::test]\nasync fn login_test()"),
+        rust.contains("#[rstest]\n#[tokio::test]\nasync fn login_test(sb: Sb)"),
         "{rust}"
     );
     assert!(

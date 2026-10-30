@@ -145,6 +145,45 @@ fn basecase_signatures() -> HashMap<String, Sig> {
     methods
 }
 
+/// The methods of every other type with an inherent `impl` in `src/api`: the
+/// call builders (`GetSelectOptions::attribute`).
+fn builder_methods() -> &'static HashMap<String, std::collections::HashSet<String>> {
+    static METHODS: std::sync::OnceLock<HashMap<String, std::collections::HashSet<String>>> =
+        std::sync::OnceLock::new();
+    METHODS.get_or_init(|| {
+        let mut files = Vec::new();
+        rust_files(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("src/api"),
+            &mut files,
+        );
+        let mut types: HashMap<String, std::collections::HashSet<String>> = HashMap::new();
+        for file in files {
+            let source = std::fs::read_to_string(&file).unwrap();
+            let Ok(syntax) = syn::parse_file(&source) else {
+                continue;
+            };
+            for item in syntax.items {
+                let syn::Item::Impl(implementation) = item else {
+                    continue;
+                };
+                if implementation.trait_.is_some() {
+                    continue;
+                }
+                let name = type_name(&implementation.self_ty);
+                for member in implementation.items {
+                    if let syn::ImplItem::Fn(function) = member {
+                        types
+                            .entry(name.clone())
+                            .or_default()
+                            .insert(function.sig.ident.to_string());
+                    }
+                }
+            }
+        }
+        types
+    })
+}
+
 /// A method that is not `async` and gives back a call builder, which is
 /// awaited (`sb.switch_to_frame("x").await?`).
 fn is_builder(sig: &Sig) -> bool {
@@ -199,7 +238,7 @@ fn every_table_entry_is_a_basecase_method_taking_those_arguments() {
         let given: Vec<K> = entry
             .params
             .iter()
-            .filter(|param| !matches!(param.fill, Fill::Drop | Fill::Omit))
+            .filter(|param| !matches!(param.fill, Fill::Drop | Fill::Omit | Fill::Chain(_)))
             .map(|param| param.kind)
             .collect();
         if given.len() != sig.params.len() {
@@ -220,6 +259,24 @@ fn every_table_entry_is_a_basecase_method_taking_those_arguments() {
             }
         }
         let builder = is_builder(sig);
+        for param in entry.params {
+            if let Fill::Chain(template) = param.fill {
+                let method = template
+                    .trim_start_matches('.')
+                    .split('(')
+                    .next()
+                    .unwrap_or_default();
+                let has = builder_methods()
+                    .get(&sig.ret)
+                    .is_some_and(|methods| methods.contains(method));
+                if !has {
+                    problems.push(format!(
+                        "{py}: `{}` returns {}, which has no method `{method}`",
+                        entry.rust, sig.ret
+                    ));
+                }
+            }
+        }
 
         let is_async = entry.flow != Flow::Try;
         if sig.asyncness != is_async && !builder {
@@ -246,7 +303,7 @@ fn every_table_entry_is_a_basecase_method_taking_those_arguments() {
             Ret::ListStr => sig.inner == "Vec",
             Ret::Unit | Ret::Alert | Ret::Other => true,
         };
-        if !inner_ok {
+        if !inner_ok && !builder {
             problems.push(format!(
                 "{py}: `{}` gives back {}, the table says {:?}",
                 entry.rust, sig.inner, entry.ret
@@ -320,6 +377,244 @@ fn the_table_has_no_python_name_twice() {
 // ---------------------------------------------------------------------------
 // The parser
 // ---------------------------------------------------------------------------
+
+/// The `sb.method(args)` calls of generated Rust, checked against `BaseCase`
+/// the way the recorder checks the calls it writes: the method exists, takes
+/// that many arguments, and a literal argument is of a kind the parameter
+/// takes.
+struct SbCalls<'a> {
+    methods: &'a HashMap<String, Sig>,
+    problems: Vec<String>,
+    calls: usize,
+}
+
+impl<'ast> syn::visit::Visit<'ast> for SbCalls<'_> {
+    fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
+        let on_sb = matches!(&*call.receiver, syn::Expr::Path(path) if path.path.is_ident("sb"));
+        // `sb.run(..)` is the fixture's, the one call that is not BaseCase's.
+        if on_sb && call.method != "run" {
+            self.calls += 1;
+            let name = call.method.to_string();
+            match self.methods.get(&name) {
+                None => self
+                    .problems
+                    .push(format!("BaseCase has no method `{name}`")),
+                Some(sig) if sig.params.len() != call.args.len() => self.problems.push(format!(
+                    "`{name}` takes {} argument(s) {:?}, the call passes {}",
+                    sig.params.len(),
+                    sig.params,
+                    call.args.len()
+                )),
+                Some(sig) => {
+                    for (param, argument) in sig.params.iter().zip(&call.args) {
+                        let kind = literal_kind(argument);
+                        let fits = match param.as_str() {
+                            "&str" => kind != "integer" && kind != "float" && kind != "bool",
+                            "u8" | "u16" | "u32" | "u64" | "usize" | "i8" | "i16" | "i32"
+                            | "i64" | "isize" => {
+                                kind != "string" && kind != "float" && kind != "bool"
+                            }
+                            "f64" => kind != "string" && kind != "bool",
+                            "bool" => kind != "string" && kind != "integer" && kind != "float",
+                            "impl Into<FrameRef>" | "impl Into<WindowRef>" => {
+                                kind != "float" && kind != "bool"
+                            }
+                            _ => true,
+                        };
+                        if !fits {
+                            self.problems.push(format!(
+                                "`{name}` wants a {param}, the call passes a {kind}"
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+        syn::visit::visit_expr_method_call(self, call);
+    }
+}
+
+/// The kind of a literal argument; `other` for anything else.
+fn literal_kind(expr: &syn::Expr) -> &'static str {
+    match expr {
+        syn::Expr::Lit(literal) => match &literal.lit {
+            syn::Lit::Str(_) => "string",
+            syn::Lit::Int(_) => "integer",
+            syn::Lit::Float(_) => "float",
+            syn::Lit::Bool(_) => "bool",
+            _ => "other",
+        },
+        syn::Expr::Unary(unary) => literal_kind(&unary.expr),
+        _ => "other",
+    }
+}
+
+#[test]
+fn every_call_the_goldens_make_on_sb_is_a_basecase_method_taking_those_arguments() {
+    use syn::visit::Visit;
+    let methods = basecase_signatures();
+    let mut visitor = SbCalls {
+        methods: &methods,
+        problems: Vec::new(),
+        calls: 0,
+    };
+    for entry in std::fs::read_dir(golden_dir()).unwrap() {
+        let path = entry.unwrap().path();
+        if !path.to_string_lossy().ends_with(".rs.golden") {
+            continue;
+        }
+        let file = syn::parse_file(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        visitor.visit_file(&file);
+    }
+    assert!(
+        visitor.calls > 300,
+        "read only {} calls; is the oracle broken?",
+        visitor.calls
+    );
+    assert!(
+        visitor.problems.is_empty(),
+        "{}",
+        visitor.problems.join("\n")
+    );
+}
+
+/// `tests/golden/import_python`: the Python examples and what the importer
+/// writes for each.
+fn golden_dir() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/golden/import_python")
+}
+
+/// The converter's output for every Python file of the golden folder is the
+/// `.rs.golden` file beside it, and none has an error. The goldens are
+/// compiled against the API by the `cfg(doctest)` item of `python_importer`.
+/// `SB_UPDATE_GOLDENS=1` writes them again.
+#[test]
+fn the_goldens_are_what_the_converter_writes() {
+    use crate::utilities::python_importer::{
+        import_python, ImportOptions, ImportSeverity, PythonSource,
+    };
+    let mut sources: Vec<PathBuf> = std::fs::read_dir(golden_dir())
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| path.extension().is_some_and(|ext| ext == "py"))
+        .collect();
+    sources.sort();
+    assert!(
+        sources.len() >= 28,
+        "the golden folder holds {} Python files",
+        sources.len()
+    );
+    let update = std::env::var_os("SB_UPDATE_GOLDENS").is_some();
+    let mut problems = Vec::new();
+    for path in sources {
+        let stem = path.file_stem().unwrap().to_string_lossy().into_owned();
+        let source = std::fs::read_to_string(&path).unwrap();
+        let result = import_python(
+            &source,
+            &ImportOptions {
+                source: PythonSource::Auto,
+                test_name: stem.clone(),
+            },
+        );
+        if result
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.severity == ImportSeverity::Error)
+        {
+            problems.push(format!("{stem}: {:?}", result.diagnostics));
+        }
+        syn::parse_file(&result.rust).unwrap_or_else(|error| panic!("{stem}: {error}"));
+        let golden = path.with_extension("rs.golden");
+        if update {
+            std::fs::write(&golden, &result.rust).unwrap();
+        } else if std::fs::read_to_string(&golden).ok().as_deref() != Some(result.rust.as_str()) {
+            problems.push(format!(
+                "{stem}: {} is not what the converter writes",
+                golden.display()
+            ));
+        }
+    }
+    assert!(problems.is_empty(), "{}", problems.join("\n"));
+}
+
+/// The upstream examples `parity/examples.toml` is about, relative to its
+/// `examples/` folder.
+const UPSTREAM_EXAMPLES: &[&str] = &[
+    "my_first_test.py",
+    "test_demo_site.py",
+    "iframe_tests.py",
+    "test_window_switching.py",
+    "test_coffee_cart.py",
+    "test_assert_elements.py",
+    "test_checkboxes.py",
+    "test_select_options.py",
+    "test_shadow_dom.py",
+    "shadow_root_test.py",
+    "test_double_click.py",
+    "test_drag_and_drop.py",
+    "test_url_asserts.py",
+    "test_deferred_asserts.py",
+    "handle_alert_test.py",
+    "test_tinymce.py",
+    "test_todomvc.py",
+    "xpath_test.py",
+    "test_simple_login.py",
+    "test_contains_selector.py",
+    "test_cycle_elements.py",
+    "test_highlight_elements.py",
+    "cdp_mode/raw_demo_site.py",
+    "cdp_mode/raw_cdp_tabs.py",
+    "cdp_mode/raw_cdp_xpath.py",
+    "cdp_mode/raw_basic_cdp.py",
+    "cdp_mode/raw_drag_and_drop.py",
+    "cdp_mode/raw_cdp_swag.py",
+];
+
+/// Converts the upstream examples and prints the warnings and errors of each;
+/// with `SBRS_CONVERT_OUT` set it also writes the Rust files there. It does
+/// nothing unless `SBRS_UPSTREAM_EXAMPLES` names the upstream `examples/`
+/// folder (`cargo test ... upstream_examples -- --nocapture`).
+#[test]
+fn the_upstream_examples_convert_when_they_are_at_hand() {
+    use crate::utilities::python_importer::{
+        import_python, ImportOptions, ImportSeverity, PythonSource,
+    };
+    let Some(root) = std::env::var_os("SBRS_UPSTREAM_EXAMPLES") else {
+        return;
+    };
+    let out = std::env::var_os("SBRS_CONVERT_OUT").map(PathBuf::from);
+    for name in UPSTREAM_EXAMPLES {
+        let path = Path::new(&root).join(name);
+        let source = std::fs::read_to_string(&path).unwrap();
+        let stem = Path::new(name).file_stem().unwrap().to_string_lossy();
+        let result = import_python(
+            &source,
+            &ImportOptions {
+                source: PythonSource::Auto,
+                test_name: stem.to_string(),
+            },
+        );
+        let count = |severity| {
+            result
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.severity == severity)
+                .count()
+        };
+        println!(
+            "{name}: {} warning(s), {} error(s)",
+            count(ImportSeverity::Warning),
+            count(ImportSeverity::Error)
+        );
+        for diagnostic in &result.diagnostics {
+            println!("    line {}: {}", diagnostic.line, diagnostic.message);
+        }
+        if let Some(out) = &out {
+            std::fs::create_dir_all(out).unwrap();
+            std::fs::write(out.join(format!("{stem}.rs")), &result.rust).unwrap();
+        }
+    }
+}
 
 fn parse(source: &str) -> Vec<super::ast::Stmt> {
     parse_module(source).unwrap().stmts

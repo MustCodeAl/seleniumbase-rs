@@ -159,6 +159,8 @@ impl Tr<'_> {
                     self.receivers.insert(name.clone());
                     return;
                 }
+                self.failed.insert(name.clone());
+
                 let val = match self.value(value, false) {
                     Ok(val) if val.ty != Ty::Unit => val,
                     Ok(_) => {
@@ -172,6 +174,8 @@ impl Tr<'_> {
                     }
                 };
                 self.flush_notes(stmt.line);
+                self.failed.remove(name);
+
                 self.bind_name(name, val.code, val.ty);
             }
             [Expr::Tuple(names)] => self.assign_tuple(stmt, names, value),

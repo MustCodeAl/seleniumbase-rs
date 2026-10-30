@@ -40,6 +40,10 @@ pub(super) enum Fill {
     Drop,
     /// Rust has no such argument: giving it is an error.
     Omit,
+    /// A method of the call builder the Rust call returns: the template, with
+    /// `{}` for the argument, is chained after the call
+    /// (`sb.wait_for_element("#a").timeout(..).await?`).
+    Chain(&'static str),
 }
 
 /// One Python parameter.
@@ -194,6 +198,22 @@ pub(super) const fn typed(name: &'static str, kind: K) -> P {
         fill: Fill::Required,
     }
 }
+
+/// A parameter that is a method of the call builder.
+pub(super) const fn chain(name: &'static str, kind: K, template: &'static str) -> P {
+    P {
+        name,
+        kind,
+        fill: Fill::Chain(template),
+    }
+}
+
+/// The timeout of a call builder, in whole seconds.
+pub(super) const CHAIN_TIMEOUT: P = chain(
+    "timeout",
+    K::Int,
+    ".timeout(std::time::Duration::from_secs({}))",
+);
 
 /// The timeout of a call, dropped with a warning.
 pub(super) const TIMEOUT: P = drop("timeout");
@@ -589,7 +609,7 @@ pub(super) static TABLE: &[Call] = &[
     act(
         &["wait_for_element"],
         "wait_for_element",
-        &[s("selector"), BY, WAIT_TIMEOUT],
+        &[s("selector"), BY, CHAIN_TIMEOUT],
     ),
     act(
         &["wait_for_element_visible"],
@@ -643,7 +663,12 @@ pub(super) static TABLE: &[Call] = &[
     get(
         &["get_select_options"],
         "get_select_options",
-        &[s("selector"), omit("attribute")],
+        &[
+            s("dropdown_selector"),
+            chain("attribute", K::Str, ".attribute({})"),
+            by_named("dropdown_by"),
+            CHAIN_TIMEOUT,
+        ],
         Ret::ListStr,
     ),
     get(

@@ -156,6 +156,9 @@ pub(super) struct Tr<'a> {
     pub(super) source: &'a str,
     /// Warnings about the statement being translated (dropped arguments).
     pub(super) notes: Vec<String>,
+    /// The Python names whose assignment was not converted, so a later use is
+    /// a consequence and not a new error.
+    pub(super) failed: HashSet<String>,
 }
 
 impl<'a> Tr<'a> {
@@ -183,6 +186,7 @@ impl<'a> Tr<'a> {
             with_comments: true,
             taken: HashSet::new(),
             notes: Vec::new(),
+            failed: HashSet::new(),
 
             source,
         }
@@ -375,26 +379,65 @@ pub(super) fn rust_ident(name: &str) -> String {
 
 /// Python source for a simple expression, for a comment.
 pub(super) fn py_repr(expr: &Expr) -> String {
+    use super::ast::{Arg, BinOp, UnOp};
+    let join = |items: &[Expr]| items.iter().map(py_repr).collect::<Vec<_>>().join(", ");
     match expr {
         Expr::Name(name) => name.clone(),
         Expr::Str(text) => format!("{text:?}"),
+        Expr::FStr(_) => "f\"...\"".to_owned(),
         Expr::Num { text, .. } => text.clone(),
         Expr::Bool(true) => "True".to_owned(),
         Expr::Bool(false) => "False".to_owned(),
         Expr::None => "None".to_owned(),
+        Expr::List(items) => format!("[{}]", join(items)),
+        Expr::Tuple(items) => format!("({})", join(items)),
+        Expr::Dict(_) => "{...}".to_owned(),
         Expr::Attr(base, name) => format!("{}.{name}", py_repr(base)),
         Expr::Call(func, args) => {
             let args: Vec<String> = args
                 .iter()
                 .map(|arg| match arg {
-                    super::ast::Arg::Pos(value) => py_repr(value),
-                    super::ast::Arg::Kw(name, value) => format!("{name}={}", py_repr(value)),
-                    super::ast::Arg::Spread(text) => text.clone(),
+                    Arg::Pos(value) => py_repr(value),
+                    Arg::Kw(name, value) => format!("{name}={}", py_repr(value)),
+                    Arg::Spread(text) => text.clone(),
                 })
                 .collect();
             format!("{}({})", py_repr(func), args.join(", "))
         }
+        Expr::Index(base, index) => format!("{}[{}]", py_repr(base), py_repr(index)),
+        Expr::Unary(UnOp::Not, operand) => format!("not {}", py_repr(operand)),
+        Expr::Unary(UnOp::Neg, operand) => format!("-{}", py_repr(operand)),
+        Expr::Unary(UnOp::Pos, operand) => format!("+{}", py_repr(operand)),
+        Expr::Binary(left, op, right) => {
+            let symbol = match op {
+                BinOp::Add => "+",
+                BinOp::Sub => "-",
+                BinOp::Mul => "*",
+                BinOp::Div => "/",
+                BinOp::FloorDiv => "//",
+                BinOp::Mod => "%",
+                BinOp::And => "and",
+                BinOp::Or => "or",
+                BinOp::Eq => "==",
+                BinOp::Ne => "!=",
+                BinOp::Lt => "<",
+                BinOp::Le => "<=",
+                BinOp::Gt => ">",
+                BinOp::Ge => ">=",
+                BinOp::In => "in",
+                BinOp::NotIn => "not in",
+                BinOp::Is => "is",
+                BinOp::IsNot => "is not",
+                BinOp::Other => "?",
+            };
+            format!("{} {symbol} {}", py_repr(left), py_repr(right))
+        }
+        Expr::IfExp(test, then, orelse) => format!(
+            "{} if {} else {}",
+            py_repr(then),
+            py_repr(test),
+            py_repr(orelse)
+        ),
         Expr::Other(text) => text.clone(),
-        _ => "...".to_owned(),
     }
 }

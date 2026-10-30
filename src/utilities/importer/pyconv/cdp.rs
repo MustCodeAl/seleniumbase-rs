@@ -6,7 +6,7 @@
 //! (`tests/examples_parity/cdp.rs`) uses, so they are known to compile.
 
 use super::ast::{Arg, Expr};
-use super::expr::{bind, Rendered};
+use super::expr::{bind, compare_operand, Rendered};
 use super::table::{by_named, n, omit, s, sd, Fill, ASSERT_TIMEOUT, BY, HTML, K, P, TIMEOUT};
 use super::tr::{quote, Skip, TResult, Tr, Ty, Val};
 
@@ -353,6 +353,9 @@ impl Tr<'_> {
                     _ => Ok(Rendered::plain("", Ty::Unit)),
                 };
             }
+            "assert_true" | "assert_false" | "assert_equal" | "assert_not_equal" | "assert_in"
+            | "assert_not_in" => return self.cdp_assert(method, args),
+
             "click_link" | "click_link_text" => return self.cdp_link("link=", args),
             "click_partial_link" | "click_partial_link_text" => {
                 return self.cdp_link("p_link=", args);
@@ -404,6 +407,42 @@ impl Tr<'_> {
             ty: entry.ty.clone(),
             awaits,
         })
+    }
+
+    /// `assert_true`, `assert_equal` and `assert_in` as Rust assertions: the
+    /// pure CDP engine has no `sb` to call them on.
+    fn cdp_assert(&mut self, method: &str, args: &[Arg]) -> TResult<Rendered> {
+        let code = match method {
+            "assert_true" | "assert_false" => {
+                let [Arg::Pos(test)] = args else {
+                    return Err(Skip::error(format!("{method} takes one value")));
+                };
+                let condition = self.condition(test)?;
+                if method == "assert_true" {
+                    format!("assert!({})", condition.code)
+                } else {
+                    format!("assert!(!{})", condition.operand())
+                }
+            }
+            "assert_equal" | "assert_not_equal" => {
+                let (first, second) = Self::two_values(args, method)?;
+                let a = compare_operand(&self.expr(first)?)?;
+                let b = compare_operand(&self.expr(second)?)?;
+                let name = if method == "assert_equal" {
+                    "assert_eq"
+                } else {
+                    "assert_ne"
+                };
+                format!("{name}!({a}, {b})")
+            }
+            "assert_in" | "assert_not_in" => {
+                let (first, second) = Self::two_values(args, method)?;
+                let found = self.membership(first, second, method == "assert_not_in")?;
+                format!("assert!({})", found.code)
+            }
+            _ => return Err(Skip::warn(format!("{method} is not translated"))),
+        };
+        Ok(Rendered::plain(code, Ty::Unit))
     }
 
     /// The selector of `find_element(selector)`.

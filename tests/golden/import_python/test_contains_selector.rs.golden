@@ -1,0 +1,19 @@
+//! TAG:contains("TEXT") is a special, non-standard CSS Selector
+//! that gets converted to XPath: '//TAG[contains(., "TEXT")]'
+//! before it's used by Selenium calls. Also part of jQuery.
+
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
+
+#[rstest]
+#[tokio::test]
+async fn test_contains_selector(sb: Sb) -> Result<()> {
+    sb.run(async |sb| {
+        sb.goto("https://xkcd.com/2207/").await?;
+        sb.assert_element("div.box div:contains(\"Math Work\")").await?;
+        sb.click("a:contains(\"Next\")").await?;
+        sb.assert_element("div div:contains(\"Drone Fishing\")").await?;
+        Ok(())
+    })
+    .await
+}

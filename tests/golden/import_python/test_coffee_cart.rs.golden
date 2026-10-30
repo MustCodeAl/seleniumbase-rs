@@ -1,0 +1,29 @@
+//! Use SeleniumBase to test the Coffee Cart App.
+
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
+
+#[rstest]
+#[tokio::test]
+async fn test_coffee_cart(sb: Sb) -> Result<()> {
+    sb.run(async |sb| {
+        sb.goto("https://seleniumbase.io/coffee/").await?;
+        sb.assert_title("Coffee Cart").await?;
+        sb.assert_element("button:contains(\"Total: $0.00\")").await?;
+        sb.click("div[data-sb=\"Cappuccino\"]").await?;
+        sb.assert_exact_text("cart (1)", "a[aria-label=\"Cart page\"]").await?;
+        sb.click("div[data-sb=\"Flat-White\"]").await?;
+        sb.assert_exact_text("cart (2)", "a[aria-label=\"Cart page\"]").await?;
+        sb.click("div[data-sb=\"Cafe-Latte\"]").await?;
+        sb.assert_exact_text("cart (3)", "a[aria-label=\"Cart page\"]").await?;
+        sb.click("a[aria-label=\"Cart page\"]").await?;
+        sb.assert_exact_text("Total: $53.00", "button.pay").await?;
+        sb.click("button.pay").await?;
+        sb.type_text("input#name", "Selenium Coffee").await?;
+        sb.type_text("input#email", "test@test.test").await?;
+        sb.click("button#submit-payment").await?;
+        sb.assert_text("Thanks for your purchase.", "#app .success").await?;
+        Ok(())
+    })
+    .await
+}

@@ -261,6 +261,10 @@ fn render(doc: Option<&str>, test_name: &str, todos: &[String], tests: &[Written
         testing.join(", ")
     ));
     out.push_str("use seleniumbase_rs::{tokio, Result};\n");
+    if !todos.is_empty() {
+        out.push('\n');
+    }
+
     for todo in todos {
         out.push_str(todo);
         out.push('\n');

@@ -1,0 +1,28 @@
+//! Sometimes tests open new tabs/windows, and you'll need
+//! to switch to them first in order to interact with them.
+//! The starting window is window(0). Then increments by 1.
+
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
+
+#[rstest]
+#[tokio::test]
+async fn test_window_switching(sb: Sb) -> Result<()> {
+    sb.run(async |sb| {
+        sb.goto("about:blank").await?;
+        sb.get_new_driver().await?;
+        sb.goto("data:text/html,<h1>Page A</h1>").await?;
+        sb.assert_text("Page A", "html").await?;
+        sb.open_new_window().await?;
+        sb.goto("data:text/html,<h1>Page B</h1>").await?;
+        sb.assert_text("Page B", "html").await?;
+        sb.switch_to_window(0).await?;
+        sb.assert_text("Page A", "html").await?;
+        sb.assert_text_not_visible("Page B", "html").await?;
+        sb.switch_to_window(-1).await?;
+        sb.assert_text("Page B", "html").await?;
+        sb.assert_text_not_visible("Page A", "html").await?;
+        Ok(())
+    })
+    .await
+}

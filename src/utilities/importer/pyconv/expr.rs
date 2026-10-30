@@ -147,7 +147,7 @@ fn hint_for(method: &str) -> &str {
 }
 
 /// The operand of a comparison that `assert_equal` takes.
-fn compare_operand(value: &Val) -> TResult<String> {
+pub(super) fn compare_operand(value: &Val) -> TResult<String> {
     match value.ty {
         Ty::Str => Ok(value.code.clone()),
         Ty::String => Ok(format!("{}.as_str()", value.operand())),
@@ -263,6 +263,12 @@ impl Tr<'_> {
         if let Some(var) = self.var(name) {
             return Ok(Val::new(var.rust.clone(), var.ty.clone()));
         }
+        if self.failed.contains(name) {
+            return Err(Skip::warn(format!(
+                "'{name}' is not defined because its assignment was not converted"
+            )));
+        }
+
         Err(Skip::error(format!("the name '{name}' is not defined")))
     }
 
@@ -576,7 +582,7 @@ impl Tr<'_> {
         Ok(format_pieces(pieces))
     }
 
-    fn membership(&mut self, left: &Expr, right: &Expr, negate: bool) -> TResult<Val> {
+    pub(super) fn membership(&mut self, left: &Expr, right: &Expr, negate: bool) -> TResult<Val> {
         let item = self.expr(left)?;
         let container = self.expr(right)?;
         let needle = Self::str_code(&item, left)?;
@@ -665,13 +671,18 @@ impl Tr<'_> {
             K::Str => self.str_arg(expr),
             K::Int => {
                 let value = self.expr(expr)?;
-                if value.ty == Ty::Int {
-                    Ok(value.code)
-                } else {
-                    Err(Skip::error(format!(
+                match value.ty {
+                    Ty::Int => Ok(value.code),
+                    // Python's `select_option_by_index(sel, "2")` reads the text
+                    // as a number.
+                    Ty::Str | Ty::String => Ok(format!(
+                        "{}.parse().expect(\"a whole number\")",
+                        value.operand()
+                    )),
+                    _ => Err(Skip::error(format!(
                         "expected a whole number but found {}",
                         py_repr(expr)
-                    )))
+                    ))),
                 }
             }
             K::Float => self.float_arg(expr),
@@ -745,14 +756,25 @@ impl Tr<'_> {
         params: &[P],
         bound: &Bound<'_>,
     ) -> TResult<Vec<String>> {
+        Ok(self.rust_arguments_chained(params, bound)?.0)
+    }
+
+    /// The Rust arguments of a call, and the methods to chain after the call
+    /// when it returns a call builder.
+    pub(super) fn rust_arguments_chained(
+        &mut self,
+        params: &[P],
+        bound: &Bound<'_>,
+    ) -> TResult<(Vec<String>, String)> {
         let mut out = Vec::new();
+        let mut chain = String::new();
         for (param, given) in params.iter().zip(&bound.slots) {
             match param.fill {
                 Fill::Omit => {
                     if given.is_some() {
                         return Err(Skip::error(if param.name == "timeout" {
                             "a timeout needs manual migration: the assertion waits for the \
-                             default timeout (set_timeout)"
+                                 default timeout (set_timeout)"
                                 .to_owned()
                         } else {
                             format!("the '{}' argument needs manual migration", param.name)
@@ -766,10 +788,16 @@ impl Tr<'_> {
                         } else {
                             self.notes.push(format!(
                                 "the '{}' argument is dropped: the Rust call waits for the \
-                                 default timeout",
+                                     default timeout",
                                 param.name
                             ));
                         }
+                    }
+                }
+                Fill::Chain(template) => {
+                    if let Some(value) = given {
+                        let code = self.argument(param.kind, value)?;
+                        chain.push_str(&template.replace("{}", &code));
                     }
                 }
                 Fill::Required => {
@@ -788,7 +816,7 @@ impl Tr<'_> {
                 Fill::Rest => out.push(self.rest_argument(&bound.rest)?),
             }
         }
-        Ok(out)
+        Ok((out, chain))
     }
 
     /// `self.method` or `self.cdp.method`: the method name.
@@ -840,12 +868,13 @@ impl Tr<'_> {
     /// A call from the table.
     fn table_call(&mut self, call: &Call, args: &[Arg]) -> TResult<Rendered> {
         let bound = bind(call.params, args)?;
-        let rust_args = self.rust_arguments(call.params, &bound)?.join(", ");
+        let (rust_args, chain) = self.rust_arguments_chained(call.params, &bound)?;
+        let rust_args = rust_args.join(", ");
         let name = call.rust;
         let (mut code, awaits) = match call.flow {
-            Flow::Await => (format!("sb.{name}({rust_args}).await?"), true),
-            Flow::AwaitInfallible => (format!("sb.{name}({rust_args}).await"), true),
-            Flow::Try => (format!("sb.{name}({rust_args})?"), false),
+            Flow::Await => (format!("sb.{name}({rust_args}){chain}.await?"), true),
+            Flow::AwaitInfallible => (format!("sb.{name}({rust_args}){chain}.await"), true),
+            Flow::Try => (format!("sb.{name}({rust_args}){chain}?"), false),
         };
         let ty = match call.ret {
             Ret::Unit => Ty::Unit,
@@ -863,7 +892,7 @@ impl Tr<'_> {
     }
 
     /// The two positional arguments of `assert_equal(first, second)`.
-    fn two_values<'e>(args: &'e [Arg], name: &str) -> TResult<(&'e Expr, &'e Expr)> {
+    pub(super) fn two_values<'e>(args: &'e [Arg], name: &str) -> TResult<(&'e Expr, &'e Expr)> {
         let mut positional = Vec::new();
         for arg in args {
             match arg {
@@ -907,26 +936,31 @@ impl Tr<'_> {
         let (first, second) = Self::two_values(args, method)?;
         let item = self.expr(first)?;
         let container = self.expr(second)?;
-        let needle = Self::str_code(&item, first)?;
-        let found = match &container.ty {
-            Ty::Str | Ty::String => format!("{}.contains({needle})", container.operand()),
-            Ty::List(element) if element.is_text() => format!(
-                "{}.iter().any(|item| item == {needle})",
-                container.operand()
-            ),
+        // `assert_in(item, &container)`: a substring of a string, or an
+        // element of a list of strings, which holds `String`s.
+        let item_code = match (&container.ty, &item.ty) {
+            (Ty::Str | Ty::String, Ty::Str | Ty::String) => Self::str_code(&item, first)?,
+            (Ty::List(element), Ty::Str) if element.is_text() => {
+                format!("{}.to_owned()", item.operand())
+            }
+            (Ty::List(element), Ty::String) if element.is_text() => {
+                format!("{}.clone()", item.operand())
+            }
             _ => {
                 return Err(Skip::warn(format!(
                     "{method} is translated on a string or a list of strings"
                 )));
             }
         };
-        let found = if method == "assert_not_in" {
-            format!("!{found}")
-        } else {
-            found
-        };
         Ok(Rendered::plain(
-            format!("sb.assert_true({found})?"),
+            format!(
+                "sb.{method}({item_code}, {})?",
+                if container.ty == Ty::Str {
+                    container.code.clone()
+                } else {
+                    format!("&{}", container.operand())
+                }
+            ),
             Ty::Unit,
         ))
     }
@@ -980,6 +1014,18 @@ impl Tr<'_> {
                     }
                     match value {
                         Expr::Str(text) => pieces.push(Piece::Lit(text.clone())),
+                        Expr::FStr(parts) => {
+                            for part in parts {
+                                match part {
+                                    FPart::Lit(text) => pieces.push(Piece::Lit(text.clone())),
+                                    FPart::Expr(inner) => {
+                                        let value = self.expr(inner)?;
+                                        pieces.push(Piece::Arg(value));
+                                    }
+                                }
+                            }
+                        }
+
                         other => {
                             let value = self.expr(other)?;
                             pieces.push(Piece::Arg(value));

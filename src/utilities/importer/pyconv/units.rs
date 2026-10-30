@@ -72,7 +72,7 @@ pub(super) fn discover(stmts: &[Stmt]) -> Found {
                     .dotted()
                     .is_some_and(|path| path == ["BaseCase", "main"]) => {}
             StmtKind::If { test, .. } if is_main_check(test) => {}
-            StmtKind::ClassDef(class) => class_units(class, stmt.line, &mut found),
+            StmtKind::ClassDef(class) => class_units(class, &mut found),
             StmtKind::FuncDef(def) => function_unit(def, stmt.line, &mut found),
             StmtKind::With { items, body } if sb_context(items).is_some() => {
                 let (args, receiver) = sb_context(items).unwrap_or_default();
@@ -187,7 +187,7 @@ fn script_unit(
 }
 
 /// The test methods of a class, with its `setUp` and `tearDown`.
-fn class_units(class: &ClassDef, line: usize, found: &mut Found) {
+fn class_units(class: &ClassDef, found: &mut Found) {
     let mut prologue = Vec::new();
     let mut epilogue = Vec::new();
     for stmt in &class.body {
@@ -199,11 +199,10 @@ fn class_units(class: &ClassDef, line: usize, found: &mut Found) {
             }
         }
     }
-    let mut tests = 0;
+
     for stmt in &class.body {
         match &stmt.kind {
             StmtKind::FuncDef(def) if def.name.starts_with("test") => {
-                tests += 1;
                 let mut unit = method_unit(def, stmt.line, found);
                 if let Some(unit) = unit.as_mut() {
                     unit.prologue = prologue.clone();
@@ -236,7 +235,6 @@ fn class_units(class: &ClassDef, line: usize, found: &mut Found) {
             _ => {}
         }
     }
-    let _ = (line, tests);
 }
 
 /// A test method as a unit.

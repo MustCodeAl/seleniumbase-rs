@@ -554,6 +554,102 @@ fn one_line(value: &str) -> String {
     value.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
+// Compile check. `cargo test --doc --features testing` builds what the importer
+// writes for the Python examples exactly as a user's crate would, so a mapping
+// that drifts from the API fails here. Each golden is a module of its own, as
+// every file is a test target. The Python files are beside them, and
+// `pyconv::tests` checks that the importer still writes these goldens.
+#[cfg(all(doctest, feature = "testing"))]
+#[doc = concat!(
+    "```no_run,test_harness\n",
+    "mod handle_alert_test {\n",
+    include_str!("../../tests/golden/import_python/handle_alert_test.rs.golden"),
+    "}\n",
+    "mod iframe_tests {\n",
+    include_str!("../../tests/golden/import_python/iframe_tests.rs.golden"),
+    "}\n",
+    "mod my_first_test {\n",
+    include_str!("../../tests/golden/import_python/my_first_test.rs.golden"),
+    "}\n",
+    "mod raw_basic_cdp {\n",
+    include_str!("../../tests/golden/import_python/raw_basic_cdp.rs.golden"),
+    "}\n",
+    "mod raw_cdp_swag {\n",
+    include_str!("../../tests/golden/import_python/raw_cdp_swag.rs.golden"),
+    "}\n",
+    "mod raw_cdp_tabs {\n",
+    include_str!("../../tests/golden/import_python/raw_cdp_tabs.rs.golden"),
+    "}\n",
+    "mod raw_cdp_xpath {\n",
+    include_str!("../../tests/golden/import_python/raw_cdp_xpath.rs.golden"),
+    "}\n",
+    "mod raw_demo_site {\n",
+    include_str!("../../tests/golden/import_python/raw_demo_site.rs.golden"),
+    "}\n",
+    "mod raw_drag_and_drop {\n",
+    include_str!("../../tests/golden/import_python/raw_drag_and_drop.rs.golden"),
+    "}\n",
+    "mod shadow_root_test {\n",
+    include_str!("../../tests/golden/import_python/shadow_root_test.rs.golden"),
+    "}\n",
+    "mod test_assert_elements {\n",
+    include_str!("../../tests/golden/import_python/test_assert_elements.rs.golden"),
+    "}\n",
+    "mod test_checkboxes {\n",
+    include_str!("../../tests/golden/import_python/test_checkboxes.rs.golden"),
+    "}\n",
+    "mod test_coffee_cart {\n",
+    include_str!("../../tests/golden/import_python/test_coffee_cart.rs.golden"),
+    "}\n",
+    "mod test_contains_selector {\n",
+    include_str!("../../tests/golden/import_python/test_contains_selector.rs.golden"),
+    "}\n",
+    "mod test_cycle_elements {\n",
+    include_str!("../../tests/golden/import_python/test_cycle_elements.rs.golden"),
+    "}\n",
+    "mod test_deferred_asserts {\n",
+    include_str!("../../tests/golden/import_python/test_deferred_asserts.rs.golden"),
+    "}\n",
+    "mod test_demo_site {\n",
+    include_str!("../../tests/golden/import_python/test_demo_site.rs.golden"),
+    "}\n",
+    "mod test_double_click {\n",
+    include_str!("../../tests/golden/import_python/test_double_click.rs.golden"),
+    "}\n",
+    "mod test_drag_and_drop {\n",
+    include_str!("../../tests/golden/import_python/test_drag_and_drop.rs.golden"),
+    "}\n",
+    "mod test_highlight_elements {\n",
+    include_str!("../../tests/golden/import_python/test_highlight_elements.rs.golden"),
+    "}\n",
+    "mod test_select_options {\n",
+    include_str!("../../tests/golden/import_python/test_select_options.rs.golden"),
+    "}\n",
+    "mod test_shadow_dom {\n",
+    include_str!("../../tests/golden/import_python/test_shadow_dom.rs.golden"),
+    "}\n",
+    "mod test_simple_login {\n",
+    include_str!("../../tests/golden/import_python/test_simple_login.rs.golden"),
+    "}\n",
+    "mod test_tinymce {\n",
+    include_str!("../../tests/golden/import_python/test_tinymce.rs.golden"),
+    "}\n",
+    "mod test_todomvc {\n",
+    include_str!("../../tests/golden/import_python/test_todomvc.rs.golden"),
+    "}\n",
+    "mod test_url_asserts {\n",
+    include_str!("../../tests/golden/import_python/test_url_asserts.rs.golden"),
+    "}\n",
+    "mod test_window_switching {\n",
+    include_str!("../../tests/golden/import_python/test_window_switching.rs.golden"),
+    "}\n",
+    "mod xpath_test {\n",
+    include_str!("../../tests/golden/import_python/xpath_test.rs.golden"),
+    "}\n",
+    "fn main() {}\n```"
+)]
+struct ImportGoldensCompile;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -570,6 +666,140 @@ mod tests {
             source.push('\n');
         }
         import_python(&source, &ImportOptions::default())
+    }
+
+    #[test]
+    fn print_of_an_f_string_is_one_println_and_a_text_index_is_parsed() {
+        let result = in_class(
+            "name = \"x\"\n\
+             print(f\"Hello {name}\")\n\
+             indexes = [\"0\", \"1\"]\n\
+             for i in indexes:\n\
+             \x20   self.select_option_by_index(\"#s\", i)",
+        );
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert_has(
+            &result,
+            &[
+                "println!(\"Hello {}\", name);",
+                "sb.select_option_by_index(\"#s\", i.parse().expect(\"a whole number\")).await?;",
+            ],
+        );
+    }
+
+    #[test]
+    fn assert_in_follows_the_membership_trait() {
+        let result = in_class(
+            "title = self.get_title()\n\
+             self.assert_in(\"jq\", title.lower())\n\
+             self.assert_in(\"a\", [\"a\", \"b\"])",
+        );
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert_has(
+            &result,
+            &[
+                "sb.assert_in(\"jq\", &title.to_lowercase())?;",
+                "sb.assert_in(\"a\".to_owned(), &[\"a\", \"b\"].map(String::from).to_vec())?;",
+            ],
+        );
+    }
+
+    #[test]
+    fn a_timeout_of_wait_for_element_and_an_attribute_of_the_options_are_builder_methods() {
+        let result = in_class(
+            "self.wait_for_element(\"#a\", timeout=3)\n\
+             self.get_select_options(\"#s\", attribute=\"value\")",
+        );
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert_has(
+            &result,
+            &[
+                "sb.wait_for_element(\"#a\").timeout(std::time::Duration::from_secs(3)).await?;",
+                "sb.get_select_options(\"#s\").attribute(\"value\").await?;",
+            ],
+        );
+    }
+
+    #[test]
+    fn pure_cdp_assertions_are_rust_assertions() {
+        let result = import_python(
+            "from seleniumbase import sb_cdp\n\
+             sb = sb_cdp.Chrome()\n\
+             sb.assert_true(sb.is_selected(\"#a\"))\n\
+             sb.assert_false(sb.is_selected(\"#a\"))\n\
+             sb.assert_equal(sb.get_text(\"h1\"), \"Hi\")",
+            &ImportOptions::default(),
+        );
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert_has(
+            &result,
+            &[
+                "let selected = page.locator(\"#a\").is_selected().await?;",
+                "assert!(selected);",
+                "assert!(!selected_2);",
+                "assert_eq!(text.as_str(), \"Hi\");",
+            ],
+        );
+    }
+
+    #[test]
+    fn a_name_whose_assignment_was_not_converted_is_a_warning_when_it_is_used() {
+        let result = in_class("name = self.no_such_method()\nself.click(name)");
+        assert!(result.is_complete(), "{:?}", result.diagnostics);
+        assert_eq!(result.diagnostics.len(), 2, "{:?}", result.diagnostics);
+    }
+
+    #[test]
+    fn while_loops_are_translated_and_an_unknown_with_block_keeps_its_body() {
+        let result = in_class(
+            "n = 0\n\
+             while n < 3:\n\
+             \x20   self.click(\"#a\")\n\
+             \x20   n += 1\n\
+             with self.assert_raises(Exception):\n\
+             \x20   self.click(\"#b\")",
+        );
+        assert_eq!(result.diagnostics.len(), 1, "{:?}", result.diagnostics);
+        assert_has(
+            &result,
+            &[
+                "let mut n = 0;",
+                "while n < 3 {",
+                "n += 1;",
+                "sb.click(\"#b\").await?;",
+            ],
+        );
+    }
+
+    #[test]
+    fn several_tests_keep_their_python_names() {
+        let result = import_python(
+            "from seleniumbase import BaseCase\n\n\n\
+             class T(BaseCase):\n\
+             \x20   def test_a(self):\n\
+             \x20       self.open(\"https://a.test\")\n\n\
+             \x20   def test_b(self):\n\
+             \x20       self.open(\"https://b.test\")\n",
+            &ImportOptions::default(),
+        );
+        assert_has(
+            &result,
+            &["async fn test_a(sb: Sb)", "async fn test_b(sb: Sb)"],
+        );
+    }
+
+    #[test]
+    fn a_file_the_lexer_cannot_read_is_one_error_and_a_valid_shell() {
+        let result = import_python(
+            "self.open(\"https://a.test)\n",
+            &ImportOptions {
+                source: PythonSource::SeleniumBase,
+                ..Default::default()
+            },
+        );
+        assert!(!result.is_complete());
+        assert_has(&result, &["TODO(source line 1): could not read the file"]);
+        syn::parse_file(&result.rust).unwrap();
     }
 
     /// Fails with the whole output when a line is missing.
@@ -687,7 +917,7 @@ mod tests {
         assert_has(
             &result,
             &[
-                "sb.wait_for_element(\"#c\", 10).await?;",
+                "sb.wait_for_element(\"#c\").await?;",
                 "let element_visible = sb.is_element_visible(\"img\").await?;",
                 "sb.assert_true(element_visible)?;",
                 "let text_visible = sb.is_text_visible(\"gone\", \"html\").await?;",

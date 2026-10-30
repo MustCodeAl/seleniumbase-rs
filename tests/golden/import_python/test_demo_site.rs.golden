@@ -1,0 +1,131 @@
+//! Converted from Python by `sbrs import-python`. Run it with `cargo test --test test_demo_site`
+//! when this file is in your crate's `tests/` folder; `SB_HEADLESS=true` runs it
+//! without a window. Search for `TODO` to find what was not converted.
+
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
+
+#[rstest]
+#[tokio::test]
+async fn test_demo_site(sb: Sb) -> Result<()> {
+    sb.run(async |sb| {
+        // Open a web page in the active browser window
+        sb.goto("https://seleniumbase.io/demo_page").await?;
+        // Assert the title of the current web page
+        sb.assert_title("Web Testing Page").await?;
+        // Assert that an element is visible on the page
+        sb.assert_element("tbody#tbodyId").await?;
+        // Assert that a text substring appears in an element
+        sb.assert_text("Demo Page", "h1").await?;
+        // Type text into various text fields and then assert
+        sb.type_text("#myTextInput", "This is Automated").await?;
+        sb.type_text("textarea.area1", "Testing Time!\n").await?;
+        sb.type_text("[name=\"preText2\"]", "Typing Text!").await?;
+        sb.assert_text("This is Automated", "#myTextInput").await?;
+        sb.assert_text("Testing Time!\n", "textarea.area1").await?;
+        sb.assert_text("Typing Text!", "[name=\"preText2\"]").await?;
+        // Hover & click a dropdown element and assert results
+        sb.assert_text("Automation Practice", "h3").await?;
+        let attempt: Result<()> = async {
+            sb.hover_and_click("#myDropdown", "#dropOption2").await?;
+            Ok(())
+        }.await;
+        if attempt.is_err() {
+            // Someone probably moved the mouse while the test ran
+            sb.hover_and_js_click("#myDropdown", "#dropOption2").await?;
+        }
+        sb.assert_text("Link Two Selected", "h3").await?;
+        // Click a button and then verify the expected results
+        sb.assert_text("This Text is Green", "#pText").await?;
+        sb.click("button:contains(\"Click Me\")").await?;
+        sb.assert_text("This Text is Purple", "#pText").await?;
+        // Assert that the given SVG is visible on the page
+        sb.assert_element("svg[name=\"svgName\"]").await?;
+        // Verify that a slider control updates a progress bar
+        sb.assert_element("progress[value=\"50\"]").await?;
+        sb.set_value("input#mySlider", "100").await?;
+        sb.assert_element("progress[value=\"100\"]").await?;
+        // Verify that a "select" option updates a meter bar
+        sb.assert_element("meter[value=\"0.25\"]").await?;
+        sb.select_option_by_text("#mySelect", "Set to 75%").await?;
+        sb.assert_element("meter[value=\"0.75\"]").await?;
+        // Assert an element located inside an iframe
+        let element_visible = sb.is_element_visible("img").await?;
+        sb.assert_false(element_visible)?;
+        sb.switch_to_frame("#myFrame1").await?;
+        let element_visible_2 = sb.is_element_visible("img").await?;
+        sb.assert_true(element_visible_2)?;
+        sb.switch_to_default_content().await?;
+        // Assert text located inside an iframe
+        let text_visible = sb.is_text_visible("iFrame Text", "html").await?;
+        sb.assert_false(text_visible)?;
+        sb.switch_to_frame("#myFrame2").await?;
+        let text_visible_2 = sb.is_text_visible("iFrame Text", "html").await?;
+        sb.assert_true(text_visible_2)?;
+        sb.switch_to_default_content().await?;
+        // Verify that clicking a radio button selects it
+        let selected = sb.is_selected("#radioButton2").await?;
+        sb.assert_false(selected)?;
+        sb.click("#radioButton2").await?;
+        let selected_2 = sb.is_selected("#radioButton2").await?;
+        sb.assert_true(selected_2)?;
+        // Verify that clicking a checkbox makes it selected
+        sb.assert_element_not_visible("img#logo").await?;
+        let selected_3 = sb.is_selected("#checkBox1").await?;
+        sb.assert_false(selected_3)?;
+        sb.click("#checkBox1").await?;
+        let selected_4 = sb.is_selected("#checkBox1").await?;
+        sb.assert_true(selected_4)?;
+        sb.assert_element("img#logo").await?;
+        // Verify clicking on multiple elements with one call
+        let selected_5 = sb.is_selected("#checkBox2").await?;
+        sb.assert_false(selected_5)?;
+        let selected_6 = sb.is_selected("#checkBox3").await?;
+        sb.assert_false(selected_6)?;
+        let selected_7 = sb.is_selected("#checkBox4").await?;
+        sb.assert_false(selected_7)?;
+        sb.click_visible_elements("input.checkBoxClassB").await?;
+        let selected_8 = sb.is_selected("#checkBox2").await?;
+        sb.assert_true(selected_8)?;
+        let selected_9 = sb.is_selected("#checkBox3").await?;
+        sb.assert_true(selected_9)?;
+        let selected_10 = sb.is_selected("#checkBox4").await?;
+        sb.assert_true(selected_10)?;
+        // Verify that clicking an iframe checkbox selects it
+        let element_visible_3 = sb.is_element_visible(".fBox").await?;
+        sb.assert_false(element_visible_3)?;
+        sb.switch_to_frame("#myFrame3").await?;
+        let element_visible_4 = sb.is_element_visible(".fBox").await?;
+        sb.assert_true(element_visible_4)?;
+        let selected_11 = sb.is_selected(".fBox").await?;
+        sb.assert_false(selected_11)?;
+        sb.click(".fBox").await?;
+        let selected_12 = sb.is_selected(".fBox").await?;
+        sb.assert_true(selected_12)?;
+        sb.switch_to_default_content().await?;
+        // Verify Drag and Drop
+        sb.assert_element_not_visible("div#drop2 img#logo").await?;
+        sb.drag_and_drop("img#logo", "div#drop2").await?;
+        sb.assert_element("div#drop2 img#logo").await?;
+        // Assert link text
+        sb.assert_link_text("seleniumbase.com").await?;
+        sb.assert_link_text("SeleniumBase on GitHub").await?;
+        sb.assert_link_text("seleniumbase.io").await?;
+        // Click link text
+        sb.click_link("SeleniumBase Demo Page").await?;
+        // Assert exact text
+        sb.assert_exact_text("Demo Page", "h1").await?;
+        // Highlight a page element (Also asserts visibility)
+        sb.highlight("h2").await?;
+        // Actions with Demo Mode enabled
+        // TODO(source line 116): `self.headed` has no Rust equal
+        //     self.headed
+        if false {
+            sb.activate_demo_mode().await?;
+        }
+        sb.type_text("input", "Have a Nice Day!").await?;
+        sb.assert_text("SeleniumBase", "h2").await?;
+        Ok(())
+    })
+    .await
+}
