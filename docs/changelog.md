@@ -35,6 +35,20 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ### Breaking
 
+- **Breaking: `switch_to_frame`, `frame_switch`, `switch_to_window` and `switch_to_alert` take
+  and return what Python's do.** `switch_to_frame(frame)` takes the `id` or the `name` of a frame
+  (`switch_to_frame("iframeResult")`), a selector or a position (`switch_to_frame(0)`), tried in
+  that order, and waits for the frame (`.timeout(..)`, `.invisible(..)`); a frame found by a
+  selector now has to be displayed, as in Python. `frame_switch(frame)` no longer only enters the
+  frame: `frame_switch(frame).run(async |sb| { .. }).await?` runs the closure in the frame and
+  returns to the parent frame when it ends, also when it fails. `switch_to_window(window)` takes a
+  handle or an index (`0` the first tab, `-1` the newest) and waits for the window
+  (`.timeout(..)`). `switch_to_alert()` waits for the alert and returns an `Alert` with `text()`,
+  `accept()`, `dismiss()` and `send_keys(text)`; `wait_for_and_switch_to_alert` returns it too.
+  All four are call builders, so `.await` still runs them. The frame and window examples of
+  `parity/examples.toml` now pass.
+
+
 - **Breaking: the library's `stealth` module is now `evasion`.** `seleniumbase_rs::stealth::...`
   is `seleniumbase_rs::evasion::...` (the folder `src/stealth/` is `src/evasion/`), and the old
   path is gone with no alias. The root re-exports (`Fingerprint`, `StealthPolicy`,
@@ -826,6 +840,19 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   gives the line.
 
 ### Fixed
+
+- **Typing no longer loses its text after a login with a leaked password.** On saucedemo.com's
+  checkout form (its password, `secret_sauce`, is on Chrome's list of leaked ones) the fields
+  stayed empty or kept only the first characters, in both engines, with `type_text` returning
+  `Ok`: Chrome shows a "data breach" prompt of its own, and while it is up the browser takes the
+  keyboard from the page. Waiting before typing does not help (the prompt stays), so this was no
+  timing race in `type_text`. Python starts Chrome with `profile.password_manager_leak_detection`,
+  `profile.password_manager_enabled` and `credentials_enable_service` off; a WebDriver session
+  now asks for them in its capabilities (a preference the caller set wins) and the pure CDP
+  engine writes them into the throwaway profile it starts (a `user_data_dir` profile is left as
+  it is, as Python leaves it). `base_case::my_first_test` and `cdp::raw_cdp_swag` of the
+  example ports pass again.
+
 
 - **Recorder Mode no longer writes the frames of a page as pages to open.** The page script went
   into every frame, and a frame of the same origin shares the top frame's sessionStorage, so a

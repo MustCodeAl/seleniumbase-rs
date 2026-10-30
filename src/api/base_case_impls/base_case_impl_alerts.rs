@@ -1,17 +1,30 @@
 // Alert helpers.
 
 impl BaseCase {
-    /// Switches focus to the active alert/confirm/prompt.
+    /// Waits for an alert, confirm box or prompt and returns a handle on it.
+    /// Corresponds to Python's `switch_to_alert`.
     ///
     /// # Errors
     ///
-    /// Returns a WebDriver error if no alert is open.
-    pub async fn switch_to_alert(&self) -> Result<(), SeleniumBaseError> {
-        self.session.webdriver()?.get_alert_text().await.map_err(SeleniumBaseError::WebDriver)?;
-        Ok(())
+    /// Returns [`SeleniumBaseError::WaitTimeout`] if no alert opens in time.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # async fn demo(sb: &mut seleniumbase_rs::BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    /// sb.execute_script("window.prompt(\"My Prompt\", \"text\");").await?;
+    /// let alert = sb.switch_to_alert().await?;
+    /// sb.assert_equal(alert.text().await?.as_str(), "My Prompt")?;
+    /// alert.dismiss().await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn switch_to_alert(&self) -> SwitchToAlert<'_> {
+        SwitchToAlert::new(self)
     }
 
-    /// Waits up to `timeout_secs` for an alert, then switches to it.
+    /// Waits up to `timeout_secs` for an alert and returns a handle on it, as
+    /// [`switch_to_alert`](Self::switch_to_alert) does with its own timeout.
     ///
     /// # Errors
     ///
@@ -19,13 +32,8 @@ impl BaseCase {
     pub async fn wait_for_and_switch_to_alert(
         &self,
         timeout_secs: u64,
-    ) -> Result<(), SeleniumBaseError> {
-        poll_until_true(
-            self.effective_timeout(timeout_secs),
-            "No alert appeared".to_owned(),
-            || self.is_alert_present(),
-        )
-        .await?;
-        self.switch_to_alert().await
+    ) -> Result<Alert, SeleniumBaseError> {
+        self.run_switch_to_alert(Some(Duration::from_secs(timeout_secs)))
+            .await
     }
 }

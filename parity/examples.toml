@@ -39,7 +39,7 @@ sites = [
   "data: and about:blank pages",
   "chrome://downloads/",
 ]
-tests = "34 ports; the last full run passed 19 and failed 15; since then lane fix-asserts made test_demo_site, test_select_options, test_todomvc_{jquery,react,vue} and test_url_asserts pass (the others were not run again, so the totals are the full run's)"
+tests = "34 ports; the last full run passed 19 and failed 15. Since then my_first_test and raw_cdp_swag were fixed (Chrome's leaked-password prompt) and the four ports that failed on frames (iframe_tests x2, test_checkboxes, w3schools drag and drop) pass after the switch_to_frame, frame_switch, switch_to_window and switch_to_alert fixes, and test_demo_site, test_select_options, test_todomvc_{jquery,react,vue} and test_url_asserts pass after the assertion and form-field fixes; the ports were not all run again"
 
 # ---------------------------------------------------------------------------
 # WebDriver engine (BaseCase)
@@ -48,12 +48,12 @@ tests = "34 ports; the last full run passed 19 and failed 15; since then lane fi
 [[example]]
 python = "my_first_test.py"
 rust_test = "base_case::my_first_test"
-status = "fail"
+status = "pass"
 mismatches = [
-  "type_text loses text typed straight after a click that loads a page: on saucedemo.com's checkout form first-name, last-name and zip end up empty or cut ('Seleniu'), so `continue` never leaves step one and assert_text('Checkout: Overview') times out. The port failed in about 6 of 10 runs; Python passed 6 of 6 (about 2 s each). Adding any pause between the fields made the Rust run pass.",
-  "Python's update_text waits for the element to be clickable, scrolls to it, clears with 42 backspaces and waits for document.readyState to be complete after the keys; type_text clears and sends keys at once.",
+  "Fixed (finding kept): the port failed in about 6 of 10 runs because the keys typed into saucedemo.com's checkout form never reached the page, and cdp::raw_cdp_swag in about 9 of 10. It was not a timing race in type_text. The login uses saucedemo's password secret_sauce, which Chrome knows as a leaked one; Chrome then shows a data-breach prompt, a part of the browser, and while it is up the browser takes the keyboard (Input.dispatchKeyEvent is answered at once and the page sees no key; waiting longer made it worse, never better). Python starts Chrome with profile.password_manager_leak_detection (and two more password preferences) off; this crate did not. Both engines now do, as Python does (tests/password_prompt_chrome.rs).",
+  "Python's update_text waits for the element to be clickable, scrolls to it, clears with 42 backspaces and waits for document.readyState to be complete after the keys; type_text clears and sends keys at once. That difference is real but was not the cause.",
 ]
-next = "bug lane: type_text/click race after a page-loading click: wait for readyState complete after typing, as update_text does, and check the value that landed (WebDriver and pure CDP, see cdp::raw_cdp_swag)"
+next = ""
 
 [[example]]
 python = "test_demo_site.py"
@@ -65,21 +65,18 @@ next = ""
 [[example]]
 python = "iframe_tests.py::test_iframe_basics"
 rust_test = "base_case::iframe_tests_iframe_basics"
-status = "fail"
-mismatches = [
-  "switch_to_frame('iframeResult') reads the argument as a CSS tag name and finds nothing (no such element); Python takes the id or name of a frame as well as a selector. The port goes on with '#iframeResult' and passes the rest.",
-]
-next = "bug lane: switch_to_frame (and frame_switch) accept a frame id or name; parity row: switch_to_frame divergence (done)"
+status = "pass"
+mismatches = []
+next = ""
 
 [[example]]
 python = "iframe_tests.py::test_iframes_with_context_manager"
 rust_test = "base_case::iframe_tests_iframes_with_context_manager"
-status = "fail"
+status = "pass"
 mismatches = [
-  "frame_switch('iframeResult') finds no frame, as switch_to_frame does (a frame id)",
-  "frame_switch only enters the frame; Python's is a context manager that returns to the parent frame when the `with` block ends. The port ends each block with switch_to_parent_frame.",
+  "Python's `with self.frame_switch(..):` block is a closure here, sb.frame_switch(frame).run(async |sb| { .. }).await?, which leaves the frame when it ends (a call shape, not a behaviour)",
 ]
-next = "bug lane: frame_switch by frame id or name, and a scoped form that leaves the frame (a closure, or a guard); parity row: frame_switch divergence (done)"
+next = ""
 
 [[example]]
 python = "iframe_tests.py::test_set_content_to_frame"
@@ -92,10 +89,8 @@ next = ""
 python = "test_window_switching.py"
 rust_test = "base_case::test_window_switching"
 status = "pass"
-mismatches = [
-  "switch_to_window takes a window handle only; Python's switch_to_window(0) and (-1) take an index. The port uses switch_to_tab(0) and switch_to_newest_tab.",
-]
-next = "parity row: switch_to_window divergence (done); bug lane: let switch_to_window take an index or alias switch_to_tab"
+mismatches = []
+next = ""
 
 [[example]]
 python = "test_coffee_cart.py"
@@ -116,11 +111,9 @@ next = ""
 [[example]]
 python = "test_checkboxes.py"
 rust_test = "base_case::test_checkboxes"
-status = "fail"
-mismatches = [
-  "switch_to_frame('iframeResult') by frame id, as in iframe_tests.py; the port goes on with '#iframeResult' and the checkbox and radio button steps pass",
-]
-next = "bug lane: switch_to_frame by frame id or name (see iframe_tests.py)"
+status = "pass"
+mismatches = []
+next = ""
 
 [[example]]
 python = "test_select_options.py"
@@ -174,11 +167,9 @@ next = ""
 [[example]]
 python = "test_drag_and_drop.py::test_w3schools_drag_and_drop"
 rust_test = "base_case::test_drag_and_drop_w3schools_drag_and_drop"
-status = "fail"
-mismatches = [
-  "switch_to_frame('iframeResult') by frame id; the drag and drop inside the frame passes once the port uses '#iframeResult'",
-]
-next = "bug lane: switch_to_frame by frame id or name (see iframe_tests.py)"
+status = "pass"
+mismatches = []
+next = ""
 
 [[example]]
 python = "test_url_asserts.py"
@@ -198,10 +189,8 @@ next = ""
 python = "handle_alert_test.py"
 rust_test = "base_case::handle_alert_test"
 status = "pass"
-mismatches = [
-  "switch_to_alert returns nothing; Python returns the alert and the example reads alert.text. The port reads the text with get_alert_text.",
-]
-next = "parity row: switch_to_alert divergence (done)"
+mismatches = []
+next = ""
 
 [[example]]
 python = "test_tinymce.py"
@@ -318,11 +307,11 @@ next = ""
 [[example]]
 python = "cdp_mode/raw_cdp_swag.py"
 rust_test = "cdp::raw_cdp_swag"
-status = "fail"
+status = "pass"
 mismatches = [
-  "Locator::type_text loses the text typed into saucedemo.com's checkout form (as base_case::my_first_test): continue never leaves step one, so button#finish is not found. It failed in about 9 of 10 runs.",
+  "Fixed (finding kept): Locator::type_text lost the text typed into saucedemo.com's checkout form in about 9 of 10 runs, for the reason given at my_first_test.py: Chrome's data-breach prompt for the leaked login password took the keyboard. The launch now turns that check off, as Python does.",
 ]
-next = "bug lane: type_text/click race after a page-loading click (see my_first_test.py)"
+next = ""
 
 [[example]]
 python = "cdp_mode/raw_handle_alerts.py"

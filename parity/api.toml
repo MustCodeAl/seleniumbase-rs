@@ -671,7 +671,7 @@ rust = "BaseCase::focus"
 [basecase."frame_switch"]
 status = "implemented"
 rust = "BaseCase::frame_switch"
-divergence = "Only enters the frame. Python's frame_switch is a context manager that returns to the parent frame when its block ends: call switch_to_parent_frame. It takes a selector, not a frame id or name (see switch_to_frame). Found by examples/iframe_tests.py."
+note = "A call builder with a closure in place of the `with` block: sb.frame_switch(frame).run(async |sb| steps).await? enters the frame (an id, a name, a selector or a position, as switch_to_frame takes it), runs the closure and returns to the parent frame, also when the closure fails (Python's block leaves the frame only when it ends without an exception). The keyword timeout is the builder method .timeout(Duration)."
 
 [basecase."generate_referral"]
 status = "implemented"
@@ -1704,7 +1704,7 @@ rust = "BaseCase::submit"
 [basecase."switch_to_alert"]
 status = "implemented"
 rust = "BaseCase::switch_to_alert"
-divergence = "Returns nothing, where Python returns the alert (`alert.text` in examples/handle_alert_test.py): read the text with get_alert_text."
+note = "A call builder that waits for the alert (the case's timeout, or .timeout(Duration)) and returns an Alert (api::switching::Alert), as Python returns the alert: alert.text() for `alert.text`, then accept(), dismiss() and send_keys(text). The case's accept_alert, dismiss_alert, get_alert_text and type_alert_text work on the same alert."
 
 [basecase."switch_to_default_content"]
 status = "implemented"
@@ -1730,7 +1730,8 @@ divergence = "Takes a DriverId, where Python takes the driver object."
 [basecase."switch_to_frame"]
 status = "implemented"
 rust = "BaseCase::switch_to_frame"
-divergence = "The argument is a selector. Python also takes the id or name of a frame, as in switch_to_frame(\"iframeResult\"); here that is read as a tag name and finds nothing (use \"#iframeResult\"). Found by examples/iframe_tests.py, test_checkboxes.py and test_drag_and_drop.py."
+note = "A call builder: the frame is a text (an id, a name or a CSS or XPath selector, tried in that order as Python does) or a position (a u16, 0 for the first frame); the keywords are .timeout(Duration) and .invisible(bool)."
+divergence = "Python also takes a web element as the frame: use a selector, or switch_to_frame_of_element. Python scrolls to a visible frame first and waits for document.readyState to be complete before and after the switch; this does not."
 
 [basecase."switch_to_frame_of_element"]
 status = "implemented"
@@ -1756,7 +1757,7 @@ rust = "BaseCase::switch_to_tab"
 [basecase."switch_to_window"]
 status = "implemented"
 rust = "BaseCase::switch_to_window"
-divergence = "Takes a window handle only. Python also takes an index (0 for the first tab, -1 for the newest): use switch_to_tab(index) or switch_to_newest_tab. Found by examples/test_window_switching.py (parity/examples.toml)."
+note = "A call builder: the window is a handle or an index (an i32: 0 for the first tab, -1 for the newest, any negative number counts from the end as a Python list index does); it waits for the window, for the case's timeout or .timeout(Duration)."
 
 [basecase."tearDown"]
 status = "not-applicable"
@@ -1770,7 +1771,7 @@ reason = "unittest/pytest harness plumbing; the Rust runner (api::runner) owns t
 status = "composed"
 rust = "BaseCase::type_text"
 note = "One canonical name: Rust has type_text only."
-divergence = "Types with clear plus send_keys and returns at once. Python waits for the element to be clickable, scrolls to it, clears it with 42 backspaces, and waits for document.readyState to be complete after the keys. Typed straight after a click that loads a page (saucedemo.com's checkout form in examples/my_first_test.py), the text is often lost here and never in Python. A ::shadow selector is not read (see get_text)."
+divergence = "Types with clear plus send_keys and returns at once. Python waits for the element to be clickable, scrolls to it, clears it with 42 backspaces, and waits for document.readyState to be complete after the keys. A ::shadow selector is not read (see get_text)."
 
 [basecase."uncheck_if_checked"]
 status = "implemented"
@@ -2944,7 +2945,6 @@ note = "Python tiles the browser windows with the CDP driver. Compute each tile'
 status = "implemented"
 rust = "Locator::type_text"
 note = "`page.locator(selector).type_text(text)` clears the field, then types the text one key at a time, as Python's `type` does. `fill(text)` inserts it in one step; `send_keys(text)` appends."
-divergence = "Typed straight after a click that loads a page (saucedemo.com's checkout form in examples/cdp_mode/raw_cdp_swag.py), the text is lost in most runs here; Python's sb_cdp type is not (see the WebDriver type row)."
 
 [cdp."uncheck_if_checked"]
 status = "composed"

@@ -16,7 +16,8 @@ Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...)
 |--------|-------------|
 | `accept_alert()` | Accepts the current alert. |
 | `dismiss_alert()` | Dismisses the current alert. |
-| `switch_to_alert()` | Focuses the current alert. |
+| `switch_to_alert()` | Waits for an alert, confirm box or prompt and returns an `Alert` with `text()`, `accept()`, `dismiss()` and `send_keys(text)`. Builder method: `.timeout(duration)`. |
+| `wait_for_and_switch_to_alert(timeout_secs)` | The same with a timeout in seconds. |
 | `is_alert_present()` | Returns true if an alert is present. |
 | `get_alert_text()` | Returns the alert text. |
 | `type_alert_text(text)` | Types into a prompt alert. |

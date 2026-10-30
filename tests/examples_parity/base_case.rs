@@ -15,35 +15,6 @@ use crate::support::{headless, run_port, Mismatches};
 // noted the Python call is not tried again: it would only wait for its
 // timeout once more.
 
-/// Python's `switch_to_frame(frame)`: `frame` is a selector, or the id or the
-/// name of a frame, as in `switch_to_frame("iframeResult")`.
-async fn enter_frame(sb: &mut BaseCase, mismatches: &mut Mismatches, frame: &str) -> Result<()> {
-    const STEP: &str = "switch_to_frame with the id or the name of a frame";
-    if !mismatches.knows(STEP) {
-        match sb.switch_to_frame(frame).await {
-            Ok(()) => return Ok(()),
-            Err(error) => mismatches.note(STEP, error),
-        }
-    }
-    sb.switch_to_frame(&format!("#{frame}")).await
-}
-
-/// Python's `frame_switch(frame)`, which takes a frame id or name as well.
-async fn enter_frame_switch(
-    sb: &mut BaseCase,
-    mismatches: &mut Mismatches,
-    frame: &str,
-) -> Result<()> {
-    const STEP: &str = "frame_switch with the id or the name of a frame";
-    if !mismatches.knows(STEP) {
-        match sb.frame_switch(frame).await {
-            Ok(()) => return Ok(()),
-            Err(error) => mismatches.note(STEP, error),
-        }
-    }
-    sb.frame_switch(&format!("#{frame}")).await
-}
-
 /// The note for `::shadow` in the regular methods. The helpers below share it.
 const SHADOW: &str = "::shadow selectors in the regular methods (get_text, assert_exact_text, \
                       assert_element, type_text, assert_text, click)";
@@ -372,12 +343,12 @@ async fn test_demo_site() -> Result<()> {
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/w3schools/iframes.html"]
 async fn iframe_tests_iframe_basics() -> Result<()> {
-    run_port(async |sb, mismatches| {
+    run_browser_test(headless(), async |sb| {
         sb.goto("https://seleniumbase.io/w3schools/iframes.html")
             .await?;
         sb.assert_title("iframe Testing").await?;
         sb.click("button#runbtn").await?;
-        enter_frame(sb, mismatches, "iframeResult").await?; // Enter the iframe
+        sb.switch_to_frame("iframeResult").await?; // Enter the iframe
         sb.assert_text("HTML Iframes", "h2").await?;
         sb.switch_to_frame("[title*=\"Iframe\"]").await?; // Enter iframe inside iframe
         sb.assert_text("This page is displayed in an iframe", "h1")
@@ -390,7 +361,7 @@ async fn iframe_tests_iframe_basics() -> Result<()> {
             .await?;
         sb.switch_to_default_content().await?; // Exit all iframes
         sb.click("button#runbtn").await?;
-        enter_frame(sb, mismatches, "iframeResult").await?; // Go back inside 1st iframe
+        sb.switch_to_frame("iframeResult").await?; // Go back inside 1st iframe
         sb.highlight("iframe[title=\"Iframe Example\"]").await
     })
     .await
@@ -399,31 +370,36 @@ async fn iframe_tests_iframe_basics() -> Result<()> {
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/w3schools/iframes.html"]
 async fn iframe_tests_iframes_with_context_manager() -> Result<()> {
-    run_port(async |sb, mismatches| {
+    run_browser_test(headless(), async |sb| {
         sb.goto("https://seleniumbase.io/w3schools/iframes.html")
             .await?;
         sb.assert_title("iframe Testing").await?;
         sb.click("button#runbtn").await?;
-        // MISMATCH: Python's frame_switch is a context manager that returns to
-        // the parent frame when the `with` block ends. frame_switch here only
-        // enters the frame, so each block ends with switch_to_parent_frame.
-        enter_frame_switch(sb, mismatches, "iframeResult").await?;
-        sb.assert_text("HTML Iframes", "h2").await?;
-        sb.frame_switch("[title*=\"Iframe\"]").await?;
-        sb.assert_text("This page is displayed in an iframe", "h1")
+        // Python: `with self.frame_switch(...):` blocks. Each closure runs in
+        // the frame, which is left when it ends.
+        sb.frame_switch("iframeResult")
+            .run(async |sb| {
+                sb.assert_text("HTML Iframes", "h2").await?;
+                sb.frame_switch("[title*=\"Iframe\"]")
+                    .run(async |sb| {
+                        sb.assert_text("This page is displayed in an iframe", "h1")
+                            .await
+                    })
+                    .await?;
+                sb.assert_text("Use CSS width & height to specify", "p")
+                    .await?;
+                sb.frame_switch("[title*=\"Iframe\"]")
+                    .run(async |sb| {
+                        sb.assert_text("seleniumbase.io/w3schools/iframes", "a")
+                            .await
+                    })
+                    .await
+            })
             .await?;
-        sb.switch_to_parent_frame().await?;
-        sb.assert_text("Use CSS width & height to specify", "p")
-            .await?;
-        sb.frame_switch("[title*=\"Iframe\"]").await?;
-        sb.assert_text("seleniumbase.io/w3schools/iframes", "a")
-            .await?;
-        sb.switch_to_parent_frame().await?;
-        sb.switch_to_parent_frame().await?;
         sb.click("button#runbtn").await?;
-        enter_frame_switch(sb, mismatches, "iframeResult").await?;
-        sb.highlight("iframe[title=\"Iframe Example\"]").await?;
-        sb.switch_to_parent_frame().await
+        sb.frame_switch("iframeResult")
+            .run(async |sb| sb.highlight("iframe[title=\"Iframe Example\"]").await)
+            .await
     })
     .await
 }
@@ -465,13 +441,10 @@ async fn test_window_switching() -> Result<()> {
         sb.open_new_window().await?;
         sb.goto("data:text/html,<h1>Page B</h1>").await?;
         sb.assert_text("Page B", "html").await?;
-        // MISMATCH: switch_to_window takes only a window handle. Python takes
-        // an index too (0 for the first tab, -1 for the newest). The nearest
-        // are switch_to_tab(index) and switch_to_newest_tab.
-        sb.switch_to_tab(0).await?;
+        sb.switch_to_window(0).await?;
         sb.assert_text("Page A", "html").await?;
         sb.assert_text_not_visible("Page B", "html").await?;
-        sb.switch_to_newest_tab().await?;
+        sb.switch_to_window(-1).await?;
         sb.assert_text("Page B", "html").await?;
         sb.assert_text_not_visible("Page A", "html").await
     })
@@ -536,11 +509,11 @@ async fn test_assert_elements() -> Result<()> {
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/w3schools pages"]
 async fn test_checkboxes() -> Result<()> {
-    run_port(async |sb, mismatches| {
+    run_browser_test(headless(), async |sb| {
         sb.goto("https://seleniumbase.io/w3schools/checkboxes")
             .await?;
         sb.click("button#runbtn").await?;
-        enter_frame(sb, mismatches, "iframeResult").await?;
+        sb.switch_to_frame("iframeResult").await?;
         let checkbox = "input#vehicle2";
         sb.assert_false(sb.is_selected(checkbox).await?)?;
         sb.click(checkbox).await?;
@@ -548,7 +521,7 @@ async fn test_checkboxes() -> Result<()> {
         sb.goto("https://seleniumbase.io/w3schools/radio_buttons")
             .await?;
         sb.click("button#runbtn").await?;
-        enter_frame(sb, mismatches, "iframeResult").await?;
+        sb.switch_to_frame("iframeResult").await?;
         let option_button = "input#css";
         sb.assert_false(sb.is_selected(option_button).await?)?;
         sb.click(option_button).await?;
@@ -749,12 +722,12 @@ async fn test_drag_and_drop_drag_and_drop() -> Result<()> {
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/w3schools/drag_drop"]
 async fn test_drag_and_drop_w3schools_drag_and_drop() -> Result<()> {
-    run_port(async |sb, mismatches| {
+    run_browser_test(headless(), async |sb| {
         sb.goto("https://seleniumbase.io/w3schools/drag_drop")
             .await?;
         sb.assert_url_contains("drag_drop").await?;
         sb.click("button#runbtn").await?;
-        enter_frame(sb, mismatches, "iframeResult").await?;
+        sb.switch_to_frame("iframeResult").await?;
         sb.assert_element_not_visible("#div1 img#drag1").await?;
         sb.drag_and_drop("#drag1", "#div1").await?;
         sb.assert_element("#div1 img#drag1").await?;
@@ -842,11 +815,8 @@ async fn handle_alert_test() -> Result<()> {
         sb.execute_script("window.prompt(\"My Prompt\",\"defaultText\");")
             .await?;
         sb.sleep(1.0).await; // Not needed (Lets you see the alert pop up)
-                             // MISMATCH: switch_to_alert returns nothing; Python returns the alert
-                             // and the example reads `alert.text`. get_alert_text is the nearest.
-        sb.switch_to_alert().await?;
-        let text = sb.get_alert_text().await?;
-        sb.assert_equal(text.as_str(), "My Prompt")?; // Not input field
+        let alert = sb.switch_to_alert().await?;
+        sb.assert_equal(alert.text().await?.as_str(), "My Prompt")?; // Not input field
         sb.dismiss_alert().await?;
         sb.sleep(1.0).await; // Not needed (Lets you see the alert go away)
         sb.assert_false(sb.is_alert_present().await?)
@@ -973,11 +943,13 @@ async fn test_tinymce() -> Result<()> {
         let image_url = "https://seleniumbase.github.io/img/sb_logo_10.png";
         sb.type_text("input.mce-textbox", &format!("{image_url}\n"))
             .await?;
-        sb.frame_switch("iframe").await?;
-        sb.click("h2").await?;
-        sb.post_message("Automate anything with SeleniumBase!")
+        sb.frame_switch("iframe")
+            .run(async |sb| {
+                sb.click("h2").await?;
+                sb.post_message("Automate anything with SeleniumBase!")
+                    .await
+            })
             .await?;
-        sb.switch_to_parent_frame().await?;
         sb.click("span:contains(\"File\")").await?;
         sb.click("span:contains(\"Preview\")").await?;
         sb.switch_to_frame("iframe[sandbox=\"allow-scripts\"]")

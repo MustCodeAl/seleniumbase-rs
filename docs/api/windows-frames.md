@@ -14,14 +14,15 @@ Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...)
 
 | Method | Description |
 |--------|-------------|
-| `switch_to_frame(selector)` | Enters a frame. |
+| `switch_to_frame(frame)` | Waits for a frame and enters it. `frame` is a selector (CSS or XPath), the `id` or the `name` of the frame, or its position (`0` for the first), as in Python. Builder methods: `.timeout(duration)`, `.invisible(bool)`. |
+| `frame_switch(frame).run(steps)` | Python's `with self.frame_switch(frame):`. Enters the frame, runs the closure `steps` (`async \|sb\| { .. }`) in it and returns to the parent frame afterwards, also when the closure fails. Builder method: `.timeout(duration)`. |
 | `switch_to_default_content()` | Returns to top document. |
 | `switch_to_parent_frame()` | Goes to parent frame. |
 | `set_content_to_frame(frame)` | Replaces the page with the content of an iframe on it, selected or named (an iframe with a web `src` opens in a new tab instead). |
 | `switch_to_frame_of_element(selector)` | Enters the frame that holds the element; `None` if it is in this document. |
 | `set_content_to_default()` | Brings back the page `set_content_to_frame` replaced; with nothing swapped, leaves the current frame like `switch_to_default_content`. |
 | `set_content_to_parent()` | Undoes the last `set_content_to_frame`; with nothing swapped, like `switch_to_parent_frame`. |
-| `switch_to_window(handle)` | Switches to a window. |
+| `switch_to_window(window)` | Waits for a window and switches to it. `window` is a handle, or an index: `0` for the first tab, `-1` for the newest, any negative number counts from the end. Builder method: `.timeout(duration)`. |
 | `switch_to_new_window()` | Opens and switches to new window. |
 | `switch_to_newest_window()` | Switches to the most recently opened window. |
 | `switch_to_default_window()` | Switches back to the original window. |

@@ -87,7 +87,7 @@ fn firefox_preferences(dir: &Path) -> Map<String, Value> {
 /// Adds to `options` (the `goog:chromeOptions`, `ms:edgeOptions` or
 /// `moz:firefoxOptions` object) the `preferences` that its `prefs` does not
 /// name yet.
-fn add_missing_preferences(options: &mut Value, preferences: Map<String, Value>) {
+pub(crate) fn add_missing_preferences(options: &mut Value, preferences: Map<String, Value>) {
     if !options.is_object() {
         *options = json!({});
     }
