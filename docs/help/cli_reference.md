@@ -46,6 +46,7 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs click-visible-elements`](#sbrs-click-visible-elements) | Click all visible elements matching a selector. |
 | [`sbrs commander`](#sbrs-commander) | Launch the Commander, a terminal app (needs a build with the `tui` feature). |
 | [`sbrs completions`](#sbrs-completions) | Generate a completion script for a supported shell, or a Fig spec. |
+| [`sbrs convert`](#sbrs-convert) | Convert an exported Selenium WebDriver test (Python) into a Rust test. |
 | [`sbrs decrypt`](#sbrs-decrypt) | Decrypt a token made by `sbrs encrypt`; read from stdin if TOKEN is omitted. Python's `sbrs unobfuscate` is the same command. |
 | [`sbrs deferred`](#sbrs-deferred) | Run several assertions, then report every failure at once. |
 | [`sbrs devtools`](#sbrs-devtools) | Launch Chrome with an open DevTools endpoint and print MCP client configs. |
@@ -90,10 +91,10 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs is-text-visible`](#sbrs-is-text-visible) | Print whether the expected text is visible in an element. |
 | [`sbrs load-cookies`](#sbrs-load-cookies) | Load browser cookies from a JSON file. |
 | [`sbrs methods`](#sbrs-methods) | List the common methods of the test API, as they are called on `sb`. |
-| [`sbrs mkchart`](#sbrs-mkchart) | Create an HTML chart. |
+| [`sbrs mkchart`](#sbrs-mkchart) | Create a test that shows a chart on a slide. |
 | [`sbrs mkdir`](#sbrs-mkdir) | Create a folder with a runnable browser-test suite. |
 | [`sbrs mkfile`](#sbrs-mkfile) | Create a browser-test file. |
-| [`sbrs mkpres`](#sbrs-mkpres) | Create an HTML presentation. |
+| [`sbrs mkpres`](#sbrs-mkpres) | Create a test that builds a slide deck. |
 | [`sbrs mkrec`](#sbrs-mkrec) | Create a new test file with the Recorder: record your actions in a browser, then save them as a test. |
 | [`sbrs objectify`](#sbrs-objectify) | Objectify a test recording. |
 | [`sbrs open`](#sbrs-open) | Open a URL in the browser. |
@@ -105,7 +106,7 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs plugin info`](#sbrs-plugin-info) | Show what one plugin declares and what it may do. |
 | [`sbrs plugin list`](#sbrs-plugin-list) | List the built-in plugins of this build, and whether they are on. |
 | [`sbrs plugin run`](#sbrs-plugin-run) | Run the task of a plugin on a browser it starts, and write its results as JSON lines. |
-| [`sbrs print`](#sbrs-print) | Print a file. |
+| [`sbrs print`](#sbrs-print) | Print a file, with a line number in front of every line if you ask for it. |
 | [`sbrs print-pdf`](#sbrs-print-pdf) | Print a page to PDF and save it to disk. |
 | [`sbrs prompt`](#sbrs-prompt) | Print one short line for a shell prompt: the installed Chrome's major version and whether a matching chromedriver is at hand. |
 | [`sbrs proxy`](#sbrs-proxy) | Run a small forward proxy on this machine (HTTP and CONNECT, no authentication). |
@@ -1494,6 +1495,36 @@ One of: `bash`, `zsh`, `fish`, `elvish`, `powershell`, `fig`, `usage`
 sbrs completions zsh
 ```
 
+## sbrs convert
+
+Convert an exported Selenium WebDriver test (Python) into a Rust test.
+
+Python's `sbase convert` for a Selenium IDE or Katalon Recorder export: reads FILE.py as Selenium WebDriver code and writes FILE_SB.rs next to it. The original is kept, and an existing FILE_SB.rs is never replaced unless `--force` is given. What could not be converted stays as a `TODO` in the file and is listed on standard error; if a statement could not be read at all the exit status is 1. `import-python` converts any Python source and writes where you say.
+
+```bash Usage
+sbrs convert [--force] <FILE>
+```
+
+**Arguments**
+
+<ParamField path="FILE" type="string" required>
+
+The exported Selenium WebDriver test (a Selenium IDE or Katalon Recorder export).
+
+</ParamField>
+
+**Flags**
+
+<ParamField query="--force" type="boolean">
+
+Replace the converted file if it already exists.
+
+</ParamField>
+
+```bash Examples
+sbrs convert login.py
+```
+
 ## sbrs decrypt
 
 Also: `unobfuscate`
@@ -2698,22 +2729,92 @@ sbrs methods
 
 ## sbrs mkchart
 
-Create an HTML chart.
+Create a test that shows a chart on a slide.
+
+As `mkpres`, with a pie chart made by `create_pie_chart` and `add_data_point` and put on a slide with `extract_chart` (theme `sky`, transition `slide`).
 
 ```bash Usage
-sbrs mkchart <--file <FILE>>
+sbrs mkchart [FLAGS] <FILE>
 ```
+
+**Arguments**
+
+<ParamField path="FILE" type="string" required>
+
+File to create, for example `tests/chart.rs`.
+
+</ParamField>
 
 **Flags**
 
-<ParamField query="--file <FILE>" type="string" required>
+<ParamField query="--force" type="boolean">
 
-Output HTML chart path
+Replace the file if it already exists.
+
+</ParamField>
+
+<ParamField query="--en" type="boolean">
+
+English strings
+
+</ParamField>
+
+<ParamField query="--zh" type="boolean">
+
+Chinese strings
+
+</ParamField>
+
+<ParamField query="--nl" type="boolean">
+
+Dutch strings
+
+</ParamField>
+
+<ParamField query="--fr" type="boolean">
+
+French strings
+
+</ParamField>
+
+<ParamField query="--it" type="boolean">
+
+Italian strings
+
+</ParamField>
+
+<ParamField query="--ja" type="boolean">
+
+Japanese strings
+
+</ParamField>
+
+<ParamField query="--ko" type="boolean">
+
+Korean strings
+
+</ParamField>
+
+<ParamField query="--pt" type="boolean">
+
+Portuguese strings
+
+</ParamField>
+
+<ParamField query="--ru" type="boolean">
+
+Russian strings
+
+</ParamField>
+
+<ParamField query="--es" type="boolean">
+
+Spanish strings
 
 </ParamField>
 
 ```bash Examples
-sbrs mkchart --file chart.html
+sbrs mkchart tests/chart.rs --ja
 ```
 
 ## sbrs mkdir
@@ -2934,22 +3035,92 @@ sbrs mkfile tests/login.rs
 
 ## sbrs mkpres
 
-Create an HTML presentation.
+Create a test that builds a slide deck.
+
+The name follows the same rules as `mkfile`; `.rs` is added when missing. The test uses the rstest `sb` fixture and builds three slides with `create_presentation`, `add_slide` and `begin_presentation` (theme `serif`, transition `slide`). A language flag (`--en`, `--zh`, `--nl`, `--fr`, `--it`, `--ja`, `--ko`, `--pt`, `--ru`, `--es`) writes the text of the slides in that language. An existing file is never overwritten unless `--force` is given.
 
 ```bash Usage
-sbrs mkpres <--file <FILE>>
+sbrs mkpres [FLAGS] <FILE>
 ```
+
+**Arguments**
+
+<ParamField path="FILE" type="string" required>
+
+File to create, for example `tests/deck.rs`.
+
+</ParamField>
 
 **Flags**
 
-<ParamField query="--file <FILE>" type="string" required>
+<ParamField query="--force" type="boolean">
 
-Output HTML presentation path
+Replace the file if it already exists.
+
+</ParamField>
+
+<ParamField query="--en" type="boolean">
+
+English strings
+
+</ParamField>
+
+<ParamField query="--zh" type="boolean">
+
+Chinese strings
+
+</ParamField>
+
+<ParamField query="--nl" type="boolean">
+
+Dutch strings
+
+</ParamField>
+
+<ParamField query="--fr" type="boolean">
+
+French strings
+
+</ParamField>
+
+<ParamField query="--it" type="boolean">
+
+Italian strings
+
+</ParamField>
+
+<ParamField query="--ja" type="boolean">
+
+Japanese strings
+
+</ParamField>
+
+<ParamField query="--ko" type="boolean">
+
+Korean strings
+
+</ParamField>
+
+<ParamField query="--pt" type="boolean">
+
+Portuguese strings
+
+</ParamField>
+
+<ParamField query="--ru" type="boolean">
+
+Russian strings
+
+</ParamField>
+
+<ParamField query="--es" type="boolean">
+
+Spanish strings
 
 </ParamField>
 
 ```bash Examples
-sbrs mkpres --file deck.html
+sbrs mkpres tests/deck.rs --es
 ```
 
 ## sbrs mkrec
@@ -3223,22 +3394,34 @@ sbrs plugin run crawler --input crawl.json --out found.jsonl
 
 ## sbrs print
 
-Print a file.
+Print a file, with a line number in front of every line if you ask for it.
+
+The text is shown as it is: there is no syntax highlighting (Python's `sbase print` has it), and bytes that are not UTF-8 are shown as U+FFFD.
 
 ```bash Usage
-sbrs print <--file <FILE>>
+sbrs print [-n --line-numbers] <FILE>
 ```
+
+**Arguments**
+
+<ParamField path="FILE" type="string" required>
+
+File to print.
+
+</ParamField>
 
 **Flags**
 
-<ParamField query="--file <FILE>" type="string" required>
+<ParamField query="--line-numbers" type="boolean">
 
-File path to print
+Put the line number in front of every line.
+
+Also: `-n`
 
 </ParamField>
 
 ```bash Examples
-sbrs print --file tests/login.rs
+sbrs print tests/login.rs -n
 ```
 
 ## sbrs print-pdf
@@ -4797,8 +4980,10 @@ Write the actions of a JSON scenario in another language.
 
 Rewrites each step's `action` (`click`, `open`, ...) with the translation dictionary and changes nothing else in the file; the steps keep running, because a scenario can be read in any of the languages. Python SeleniumBase translates Python test files; a Rust test is compiled code, so this translates the portable JSON scenario instead.
 
+The language is a flag, `--en`, `--zh`, `--nl`, `--fr`, `--it`, `--ja`, `--ko`, `--pt`, `--ru` or `--es` (also by name: `--spanish`). The action is `-p`/`--print` (the default), `-o`/`--overwrite` or `-c`/`--copy`; `-p` may go with one of the other two. `-n` numbers the printed lines.
+
 ```bash Usage
-sbrs translate [FLAGS] <FILE> <LANGUAGE>
+sbrs translate [FLAGS] <FILE>
 ```
 
 **Arguments**
@@ -4809,19 +4994,71 @@ The scenario file.
 
 </ParamField>
 
-<ParamField path="LANGUAGE" type="string" required>
+**Flags**
 
-The language: a code (en, zh, nl, fr, it, ja, ko, pt, ru, es) or its English name.
+<ParamField query="--en" type="boolean">
 
-One of: `en`, `zh`, `nl`, `fr`, `it`, `ja`, `ko`, `pt`, `ru`, `es`
+English strings
 
 </ParamField>
 
-**Flags**
+<ParamField query="--zh" type="boolean">
+
+Chinese strings
+
+</ParamField>
+
+<ParamField query="--nl" type="boolean">
+
+Dutch strings
+
+</ParamField>
+
+<ParamField query="--fr" type="boolean">
+
+French strings
+
+</ParamField>
+
+<ParamField query="--it" type="boolean">
+
+Italian strings
+
+</ParamField>
+
+<ParamField query="--ja" type="boolean">
+
+Japanese strings
+
+</ParamField>
+
+<ParamField query="--ko" type="boolean">
+
+Korean strings
+
+</ParamField>
+
+<ParamField query="--pt" type="boolean">
+
+Portuguese strings
+
+</ParamField>
+
+<ParamField query="--ru" type="boolean">
+
+Russian strings
+
+</ParamField>
+
+<ParamField query="--es" type="boolean">
+
+Spanish strings
+
+</ParamField>
 
 <ParamField query="--print" type="boolean">
 
-Print the translation and write nothing (the default).
+Print the translation (the default when no other action is given). With -o or -c it is printed as well as written.
 
 Also: `-p`
 
@@ -4843,8 +5080,17 @@ Also: `-c`
 
 </ParamField>
 
+<ParamField query="--line-numbers" type="boolean">
+
+Put the line number in front of every printed line.
+
+Also: `-n`
+
+</ParamField>
+
 ```bash Examples
-sbrs translate scenario.json zh --print
+sbrs translate scenario.json --zh -p -n
+sbrs translate scenario.json --es --copy
 ```
 
 ## sbrs type-alert-text
