@@ -408,20 +408,43 @@ fn generated_source() -> String {
         );
     }
 
-    let mut text = String::from(
+    // Import what the entries use.
+    let body: String = entries.values().map(String::as_str).collect();
+    let used: std::collections::HashSet<&str> = body
+        .split(|c: char| !(c.is_alphanumeric() || c == '_'))
+        .collect();
+    let imports: Vec<&str> = [
+        "b",
+        "by_named",
+        "call",
+        "f",
+        "n",
+        "omit",
+        "s",
+        "typed",
+        "Call",
+        "Flow",
+        "Ret",
+        "BY",
+        "K",
+        "TIMEOUT",
+        "WAIT_TIMEOUT",
+    ]
+    .into_iter()
+    .filter(|name| matches!(*name, "call" | "Call") || used.contains(name))
+    .collect();
+    let mut text = format!(
         "//! Calls of the table that `pyconv::tests` writes out from the signatures of\n\
-         //! `BaseCase`, the `implemented` rows of `parity/api.toml` and the Python\n\
-         //! parameters of `parity/upstream-api.json`: the ones the hand-written table\n\
-         //! leaves out and whose Rust call is mechanical. Write it again with\n\
-         //! `SB_UPDATE_GENERATED=1 cargo test -p seleniumbase-rs --lib the_generated_table`.\n\
-         \n\
-         #[allow(unused_imports)]\n\
-         use super::table::{\n\
-         \x20   b, by_named, call, f, n, omit, s, typed, Call, Flow, Ret, BY, K, TIMEOUT, WAIT_TIMEOUT,\n\
-         };\n\
-         \n\
-         /// The generated calls.\n\
-         pub(super) static GENERATED: &[Call] = &[\n",
+             //! `BaseCase`, the `implemented` rows of `parity/api.toml` and the Python\n\
+             //! parameters of `parity/upstream-api.json`: the ones the hand-written table\n\
+             //! leaves out and whose Rust call is mechanical. Write it again with\n\
+             //! `SB_UPDATE_GENERATED=1 cargo test -p seleniumbase-rs --lib the_generated_table`.\n\
+             \n\
+             use super::table::{{{}}};\n\
+             \n\
+             /// The generated calls.\n\
+             pub(super) static GENERATED: &[Call] = &[\n",
+        imports.join(", ")
     );
     for line in entries.values() {
         text.push_str(line);

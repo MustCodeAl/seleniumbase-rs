@@ -570,7 +570,7 @@ fn convert_writes_the_rust_test_next_to_the_export_and_keeps_the_export() {
     let rust = read(dir.path(), "login_SB.rs");
     assert!(rust.contains("https://example.test/login"), "{rust}");
     assert!(rust.contains("sb.click(\"button\")"), "{rust}");
-    assert!(rust.contains("async fn login()"), "{rust}");
+    assert!(rust.contains("async fn login(sb: Sb)"), "{rust}");
     assert!(!rust.contains("TODO"), "{rust}");
     assert_parses(&rust, "login_SB.rs");
     assert_own_imports(&rust, "login_SB.rs");
@@ -590,7 +590,7 @@ fn convert_writes_into_the_folder_of_the_export() {
         printed.trim(),
         format!("Created {}", native("exports/checkout_SB.rs"))
     );
-    assert!(read(dir.path(), "exports/checkout_SB.rs").contains("async fn checkout()"));
+    assert!(read(dir.path(), "exports/checkout_SB.rs").contains("async fn checkout(sb: Sb)"));
 }
 
 #[test]

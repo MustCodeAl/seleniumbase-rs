@@ -828,7 +828,7 @@ class LoginTest(BaseCase):
             result.rust,
             r##"//! Converted from Python by `sbrs import-python`. Run it with `cargo test --test login_test`
 //! when this file is in your crate's `tests/` folder; `SB_HEADLESS=true` runs it
-//! without a window. Search for `TODO` to find what was not converted.
+//! without a window. A comment marks each statement it could not convert.
 
 use seleniumbase_rs::testing::{rstest, sb, Sb};
 use seleniumbase_rs::{tokio, Result};

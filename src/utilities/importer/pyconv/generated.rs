@@ -4,10 +4,7 @@
 //! leaves out and whose Rust call is mechanical. Write it again with
 //! `SB_UPDATE_GENERATED=1 cargo test -p seleniumbase-rs --lib the_generated_table`.
 
-#[allow(unused_imports)]
-use super::table::{
-    b, by_named, call, f, n, omit, s, typed, Call, Flow, Ret, BY, K, TIMEOUT, WAIT_TIMEOUT,
-};
+use super::table::{call, n, omit, s, Call, Flow, Ret, BY, TIMEOUT, WAIT_TIMEOUT};
 
 /// The generated calls.
 pub(super) static GENERATED: &[Call] = &[

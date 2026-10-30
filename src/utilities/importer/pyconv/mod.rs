@@ -227,7 +227,7 @@ fn render(doc: Option<&str>, test_name: &str, todos: &[String], tests: &[Written
         _ => out.push_str(&format!(
             "//! Converted from Python by `sbrs import-python`. Run it with `cargo test --test {test_name}`\n\
              //! when this file is in your crate's `tests/` folder; `SB_HEADLESS=true` runs it\n\
-             //! without a window. Search for `TODO` to find what was not converted.\n"
+             //! without a window. A comment marks each statement it could not convert.\n"
         )),
     }
     out.push('\n');

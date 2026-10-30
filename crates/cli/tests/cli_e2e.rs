@@ -234,7 +234,7 @@ fn import_python_writes_a_rust_test_that_parses() {
     assert!(written.status.success(), "{}", stderr(&written));
     assert!(stdout(&written).is_empty(), "{}", stdout(&written));
     let saved = std::fs::read_to_string(dir.path().join("out.rs")).unwrap();
-    assert!(saved.contains("async fn renamed()"), "{saved}");
+    assert!(saved.contains("async fn renamed(sb: Sb)"), "{saved}");
     syn::parse_file(&saved).unwrap();
 }
 
