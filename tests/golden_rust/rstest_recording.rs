@@ -52,7 +52,7 @@ async fn test_recording(sb: Sb) -> Result<()> {
         sb.jquery_click_all(".qall").await?;
         sb.assert_element_present("#e").await?;
         sb.assert_element_not_visible("#gone").await?;
-        sb.wait_for_element("#slow", 10).await?;
+        sb.wait_for_element("#slow").await?;
         sb.assert_non_empty_text("#nonempty").await?;
         sb.assert_link_text("Home").await?;
         sb.assert_title("Title").await?;

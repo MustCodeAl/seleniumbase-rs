@@ -53,7 +53,7 @@ mod tests_element_semantics {
                 0 => sb.assert_element("#a").await,
                 1 => sb.assert_element_visible("#a").await,
                 2 => sb.assert_elements(&["#a"]).await,
-                _ => sb.wait_for_element("#a", 5).await,
+                _ => sb.wait_for_element("#a").timeout(Duration::from_secs(5)).await,
             }
             .unwrap_or_else(|error| panic!("check {check}: {error:?}"));
         }
@@ -68,7 +68,7 @@ mod tests_element_semantics {
         sb.assert_element("#a").await.unwrap_err();
         sb.assert_element_visible("#a").await.unwrap_err();
         sb.assert_elements(&["#a"]).await.unwrap_err();
-        sb.wait_for_element("#a", 0).await.unwrap_err();
+        sb.wait_for_element("#a").timeout(Duration::ZERO).await.unwrap_err();
         // ... but it is present.
         sb.assert_element_present("#a").await.unwrap();
         sb.assert_elements_present(&["#a"]).await.unwrap();

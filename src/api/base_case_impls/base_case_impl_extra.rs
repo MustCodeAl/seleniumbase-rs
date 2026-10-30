@@ -314,35 +314,45 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Asserts that `item` is contained in `container`.
-    pub fn assert_in<T: PartialEq + std::fmt::Debug>(
-        &self,
-        item: T,
-        container: &[T],
-    ) -> Result<(), SeleniumBaseError> {
-        if !container.contains(&item) {
-            return Err(SeleniumBaseError::AssertionFailed(format!(
-                "Expected {:?} to be in {:?}",
-                item, container
-            )));
+    /// Asserts that `item` is in `container`, as Python's `assert_in(first,
+    /// second)` asserts `first in second`: an element of a slice, an array or a
+    /// `Vec`, or a substring (or a character) of a string. See [`Contains`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::AssertionFailed`] naming both when it is
+    /// not.
+    pub fn assert_in<I, C>(&self, item: I, container: &C) -> Result<(), SeleniumBaseError>
+        where
+            I: std::fmt::Debug,
+            C: ?Sized + std::fmt::Debug + Contains<I>,
+        {
+            if !container.holds(&item) {
+                return Err(SeleniumBaseError::AssertionFailed(format!(
+                    "Expected {item:?} to be in {container:?}"
+                )));
+            }
+            Ok(())
         }
-        Ok(())
-    }
 
-    /// Asserts that `item` is not contained in `container`.
-    pub fn assert_not_in<T: PartialEq + std::fmt::Debug>(
-        &self,
-        item: T,
-        container: &[T],
-    ) -> Result<(), SeleniumBaseError> {
-        if container.contains(&item) {
-            return Err(SeleniumBaseError::AssertionFailed(format!(
-                "Expected {:?} to not be in {:?}",
-                item, container
-            )));
+    /// Asserts that `item` is not in `container`: the other way round from
+    /// [`assert_in`](Self::assert_in).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::AssertionFailed`] naming both when it is.
+    pub fn assert_not_in<I, C>(&self, item: I, container: &C) -> Result<(), SeleniumBaseError>
+        where
+            I: std::fmt::Debug,
+            C: ?Sized + std::fmt::Debug + Contains<I>,
+        {
+            if container.holds(&item) {
+                return Err(SeleniumBaseError::AssertionFailed(format!(
+                    "Expected {item:?} to not be in {container:?}"
+                )));
+            }
+            Ok(())
         }
-        Ok(())
-    }
 
     /// Asserts that `value` is an instance of the type named by `type_name`.
     ///

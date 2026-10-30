@@ -10,6 +10,14 @@ work, `docs/parity.md` the per-API status).
 
 ### Breaking
 
+- **Breaking: `assert_in`, `wait_for_element` and `is_selected` take Python's shape.**
+  `assert_in(first, second)` and `assert_not_in` assert `first in second` as Python does: the
+  container is borrowed and is a slice, an array or a `Vec` (membership) or a string (substring
+  or character), so `sb.assert_in("jquery", &title.to_lowercase())` works where it only took
+  `&[T]` (the trait is `api::membership::Contains`). `wait_for_element(selector)` takes no
+  timeout and is a call builder with `.timeout(Duration)` like its neighbours (it was
+  `wait_for_element(selector, seconds)`; the recorder now writes `sb.wait_for_element("#a")`).
+  `is_selected` takes `&self`, so `sb.assert_true(sb.is_selected("#a").await?)` borrows.
 - **Breaking: `switch_to_frame`, `frame_switch`, `switch_to_window` and `switch_to_alert` take
   and return what Python's do.** `switch_to_frame(frame)` takes the `id` or the `name` of a frame
   (`switch_to_frame("iframeResult")`), a selector or a position (`switch_to_frame(0)`), tried in
@@ -22,8 +30,6 @@ work, `docs/parity.md` the per-API status).
   `accept()`, `dismiss()` and `send_keys(text)`; `wait_for_and_switch_to_alert` returns it too.
   All four are call builders, so `.await` still runs them. The frame and window examples of
   `parity/examples.toml` now pass.
-
-
 - **Breaking: the library's `stealth` module is now `evasion`.** `seleniumbase_rs::stealth::...`
   is `seleniumbase_rs::evasion::...` (the folder `src/stealth/` is `src/evasion/`), and the old
   path is gone with no alias. The root re-exports (`Fingerprint`, `StealthPolicy`,
@@ -816,6 +822,37 @@ work, `docs/parity.md` the per-API status).
 
 ### Fixed
 
+- **The text checks read the value of an `<input>` or a `<textarea>`, as Python's do.**
+  `assert_text`, `assert_exact_text`, `is_text_visible`, `is_exact_text_visible`,
+  `wait_for_text` and `wait_for_text_visible` compared the rendered text, which is empty for a
+  field, so `assert_text("This is Automated", "#myTextInput")` failed after typing it. On the
+  pure CDP engine `Locator::text` (and so `expect().to_have_text` and `to_contain_text`) reads
+  the value too, as Python's `text_all` does.
+- **`get_attribute` and `assert_attribute` see the DOM property, as Selenium's do, and
+  `get_select_options` takes Python's `attribute`.** When an element has no attribute of that
+  name, `get_attribute` gives the property: `get_attribute("#mySelect", "value")` is the chosen
+  option's value (it was `None`), and an `<option>`'s `index` works. A property that is `false`
+  (`selected`, `disabled`) is still `None`. `get_select_options(css)` is now a call builder with
+  `.attribute("value")` / `.attribute("index")` (`"text"` by default) and `.timeout(..)`; an
+  existing `get_select_options(css).await?` call compiles and behaves as before, and any other
+  attribute, or an element that is not a `<select>`, is an error.
+- **`check_if_unchecked` and `uncheck_if_checked` work on a checkbox at zero opacity.** TodoMVC's
+  toggles, and every styled switch, are at zero opacity, which WebDriver counts as not
+  displayed, so the click waited its whole timeout and failed. As in Python, the box's opacity is
+  raised to 0.001 for the click and put back after; a box that is still not displayed
+  (`display: none`) is clicked with a script.
+- **`js_click` reads every selector syntax and waits for its element, as Python's does.** It ran
+  `document.querySelector(css).click()`, so `js_click("nav a:contains(\"Coffee Cart\")")` and an
+  XPath selector were an "invalid selector" error and an element that was not there yet was a
+  script error. It now waits (up to the default timeout) for the element, found by the driver
+  as `click` finds it, and clicks that element with a script. An empty selector is an
+  `InvalidSelector` error before any script is sent.
+- **`set_value` fires `mousemove` on a range input and presses Enter for a trailing newline, as
+  in Python.** It only set the value, so the demo page's progress bar did not follow the slider
+  and `set_value("#search", "text\n")` left the form unsubmitted with the newline in the value.
+  A range input now gets a `mousemove` event after the value is set; a value ending in `\n` is
+  set without it and Enter is pressed in the field. The element is found with the driver, so
+  `:contains()` and XPath selectors work, and the value travels as a script argument.
 - **Typing no longer loses its text after a login with a leaked password.** On saucedemo.com's
   checkout form (its password, `secret_sauce`, is on Chrome's list of leaked ones) the fields
   stayed empty or kept only the first characters, in both engines, with `type_text` returning
@@ -827,8 +864,6 @@ work, `docs/parity.md` the per-API status).
   engine writes them into the throwaway profile it starts (a `user_data_dir` profile is left as
   it is, as Python leaves it). `base_case::my_first_test` and `cdp::raw_cdp_swag` of the
   example ports pass again.
-
-
 - **Recorder Mode no longer writes the frames of a page as pages to open.** The page script went
   into every frame, and a frame of the same origin shares the top frame's sessionStorage, so a
   reCAPTCHA page recorded `goto` steps for `about:blank`, `about:srcdoc` and the widget's

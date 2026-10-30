@@ -119,7 +119,7 @@ rust = "BaseCase::assert_any_of_elements_visible"
 [basecase."assert_attribute"]
 status = "implemented"
 rust = "BaseCase::assert_attribute"
-divergence = "Compares get_attribute, which returns the HTML attribute. On a <select> or an <input> whose value changed it sees none, where Python (Selenium reads the DOM property) sees the chosen or typed value. Found by examples/test_select_options.py."
+divergence = "Takes the value (Python's is optional, and then the attribute only has to exist) and reads the attribute once after the element is there, where Python waits up to SMALL_TIMEOUT for it (use wait_for_attribute). Like Python it sees the DOM property when the element has no such attribute."
 
 [basecase."assert_attribute_not_present"]
 status = "implemented"
@@ -195,7 +195,7 @@ rust = "BaseCase::assert_false"
 [basecase."assert_in"]
 status = "implemented"
 rust = "BaseCase::assert_in"
-divergence = "assert_in(item, &[item]) tests membership of a slice. Python's assert_in(first, second) is also a substring test for strings, as in assert_in(framework, title.lower()). Found by examples/test_todomvc.py."
+divergence = "Like Python's assertIn it asserts `first in second`, with the container borrowed: assert_in(item, &[a, b]) tests an element of a slice, an array or a Vec, and assert_in(\"ell\", \"hello\") or assert_in('e', &title) a substring or a character of a string (see api::membership::Contains). Takes no msg argument; a dict, a set or a tuple is not a container here."
 
 [basecase."assert_link"]
 status = "implemented"
@@ -248,7 +248,7 @@ rust = "BaseCase::assert_raises"
 [basecase."assert_text"]
 status = "implemented"
 rust = "BaseCase::assert_text"
-divergence = "Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_text for a timeout of its own). It reads the element's rendered text, so an <input> or <textarea> never matches by its value, as it does in Python (found by examples/test_demo_site.py); a ::shadow selector is not read (see get_text)."
+divergence = "Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_text for a timeout of its own). Like Python it compares the value of an <input> or <textarea>; a ::shadow selector is not read (see get_text)."
 
 [basecase."assert_text_not_visible"]
 status = "implemented"
@@ -299,7 +299,6 @@ rust = "BaseCase::bring_to_front"
 [basecase."check_if_unchecked"]
 status = "implemented"
 rust = "BaseCase::check_if_unchecked"
-divergence = "Clicks a checkbox that is not checked and waits for it to be clickable. Python also handles a checkbox at zero opacity (a styled switch, like TodoMVC's toggle) by raising its opacity or clicking with JavaScript; here that times out. Found by examples/test_todomvc.py."
 
 [basecase."check_window"]
 status = "implemented"
@@ -707,7 +706,7 @@ rust = "BaseCase::get_active_element_css"
 [basecase."get_attribute"]
 status = "implemented"
 rust = "BaseCase::get_attribute"
-divergence = "Returns the HTML attribute. Python (Selenium) falls back to the DOM property, so get_attribute(select, \"value\") is the chosen value there and None here; use get_property. Found by examples/test_select_options.py."
+divergence = "Returns None when the element has neither the attribute nor a DOM property of that name that is set, where Python raises (its hard_fail=False returns None); has no timeout, by or hard_fail arguments (the wait is the default timeout, see set_timeout)."
 
 [basecase."get_beautiful_soup"]
 status = "implemented"
@@ -907,7 +906,7 @@ rust = "BaseCase::get_screen_rect"
 [basecase."get_select_options"]
 status = "implemented"
 rust = "BaseCase::get_select_options"
-divergence = "Returns the option texts only. Python's attribute argument (\"text\", \"index\", \"value\" or None for the elements) is missing. Found by examples/test_select_options.py."
+divergence = "Takes Python's attribute (\"text\" by default, \"index\" or \"value\") and timeout as call-builder keywords, .attribute(..) and .timeout(..), and returns Vec<String>. Python's attribute=None, which gives the option elements, has no equal; the by argument is the selector's own prefix."
 
 [basecase."get_session_storage_item"]
 status = "implemented"
@@ -1183,7 +1182,7 @@ rust = "BaseCase::jquery_update_text"
 [basecase."js_click"]
 status = "implemented"
 rust = "BaseCase::js_click"
-divergence = "Runs document.querySelector(css).click(): a :contains() or XPath selector is an error (Python converts them) and the element is not waited for. Found by examples/test_url_asserts.py."
+divergence = "Takes no by, all_matches, timeout or scroll arguments (the wait is the default timeout, see set_timeout; js_click_all clicks every match); it does not scroll a visible element into view first, and it does not switch to a window the click opened."
 
 [basecase."js_click_all"]
 status = "implemented"
@@ -1641,7 +1640,7 @@ note = "Once the test has run longer than the limit (counted from creating the B
 [basecase."set_value"]
 status = "implemented"
 rust = "BaseCase::set_value"
-divergence = "Only sets the value. On a range input Python also fires a mousemove event so the page's listeners run (the demo page's progress bar does not follow here), and a trailing newline presses Enter there. Found by examples/test_demo_site.py."
+divergence = "Takes no by, timeout or scroll arguments (the wait is the default timeout, see set_timeout) and does not scroll the element into view."
 
 [basecase."set_window_position"]
 status = "implemented"
@@ -1777,7 +1776,6 @@ divergence = "Types with clear plus send_keys and returns at once. Python waits 
 [basecase."uncheck_if_checked"]
 status = "implemented"
 rust = "BaseCase::uncheck_if_checked"
-divergence = "As check_if_unchecked: no fallback for a checkbox at zero opacity."
 
 [basecase."unselect_if_selected"]
 status = "implemented"
@@ -1836,7 +1834,7 @@ note = "The keywords are the builder methods .value(..) and .timeout(..); the ti
 [basecase."wait_for_element"]
 status = "implemented"
 rust = "BaseCase::wait_for_element"
-divergence = "The timeout (seconds) is a required argument; Python's is optional. Found by examples/test_deferred_asserts.py."
+divergence = "Python's timeout is the call-builder keyword .timeout(Duration), and without it the wait lasts the case's default timeout (set_timeout); it returns nothing where Python returns the element (use find_element)."
 
 [basecase."wait_for_element_absent"]
 status = "implemented"
@@ -2021,8 +2019,7 @@ reason = "Rust has assert!, assert_eq! and friends."
 [cdp."assert_text"]
 status = "composed"
 rust = "LocatorExpect::to_contain_text"
-divergence = "Reads the rendered text, so an <input> or <textarea> never matches by its value, where Python's assert_text does. Found by examples/cdp_mode/raw_demo_site.py."
-note = "Assert with `page.locator(selector).expect().to_contain_text(..)`; add `.not()` to negate and `.timeout(d)` to set the wait. A failed expectation returns an error where Python raises AssertionError."
+note = "Assert with `page.locator(selector).expect().to_contain_text(..)` (the text of an <input> or <textarea> is its value, as in Python); add `.not()` to negate and `.timeout(d)` to set the wait. A failed expectation returns an error where Python raises AssertionError."
 
 [cdp."assert_text_not_visible"]
 status = "composed"

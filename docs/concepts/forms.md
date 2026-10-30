@@ -233,13 +233,20 @@ Each method waits for its element first.
 - `type_text(css, text)` types into the field (it waits until the element is
   visible), and `clear(css)` empties it.
 - `select_option_by_text(css, text)` and `select_option_by_value(css, value)`
-  choose an `option` of a real `select`; `get_select_options` lists them.
+  choose an `option` of a real `select`; `get_select_options` lists them (their
+  text, or `.attribute("value")` or `.attribute("index")`), and
+  `get_attribute(css, "value")` gives the chosen value.
 - `check_if_unchecked(css)` and `uncheck_if_checked(css)` click a checkbox only
   when needed, and `is_checked(css)` reads its state.
 - `choose_file(css, file_path)` waits for the element (up to 10 seconds), turns
   the path into an absolute one and sends it to the `input type="file"`. A path
   that does not exist is an error, `File not found`, before anything is sent.
 - `submit(css)` submits the form that contains the selected element.
+- `set_value(css, value)` sets the value with a script, with no key events, as in
+  Python. A value that ends with a newline presses Enter in the field (the newline is
+  not part of the value), and on a range input a `mousemove` event follows, which is
+  what moves a progress bar that listens to the slider.
+
 
 ```rust,ignore src/main.rs
 sb.type_text("#email", "ada@example.com").await?;

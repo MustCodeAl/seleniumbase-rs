@@ -14,6 +14,8 @@ Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...)
 
 | Method | Description |
 |--------|-------------|
+| `wait_for_element(selector)` | Waits for element visible (Python's alias of `wait_for_element_visible`), for the default timeout; `.timeout(Duration)` sets another. |
+
 | `wait_for_element_present(selector, timeout)` | Waits for element in DOM. |
 | `wait_for_element_visible(selector, timeout)` | Waits for element visible. |
 | `wait_for_element_not_visible(selector, timeout)` | Waits for element invisible. |
@@ -50,7 +52,7 @@ See [Waits and Assertions](/tutorials/waits_assertions) for detailed examples.
 | `assert_any_of_elements_visible(selectors)` | Asserts at least one selector is visible. |
 | `assert_equal(first, second)` | Asserts two values are equal. |
 | `assert_not_equal(first, second)` | Asserts two values are not equal. |
-| `assert_in(item, container)` | Asserts `item` is in `container`. |
+| `assert_in(item, &container)` | Asserts `item` is in `container`, as Python's `first in second`: an element of a slice, array or `Vec` (`assert_in(2, &[1, 2, 3])`), or a substring or character of a string (`assert_in("ell", "hello")`). |
 | `assert_not_in(item, container)` | Asserts `item` is not in `container`. |
 | `assert_true(value)` | Asserts `value` is true. |
 | `assert_false(value)` | Asserts `value` is false. |

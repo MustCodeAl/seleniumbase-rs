@@ -398,7 +398,7 @@ async fn expectation_failures_say_what_was_expected_and_what_was_seen() {
     let (page, mock) = quick_page().await;
     mock.on("Runtime.evaluate", |params| {
         let expression = params["expression"].as_str().unwrap_or_default();
-        Ok(if expression.contains("textOf(") {
+        Ok(if expression.contains("fieldText(") {
             value(json!("  Goodbye  "))
         } else {
             value(json!(true))
