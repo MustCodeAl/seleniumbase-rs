@@ -9,6 +9,8 @@ use std::future::Future;
 use std::io::{self, Write};
 use std::time::Duration;
 
+use crate::common::color::palette;
+
 /// How often the browser is looked at while the prompt waits.
 pub(crate) const WATCH_TICK: Duration = Duration::from_millis(500);
 
@@ -43,9 +45,10 @@ fn answer(line: &str) -> Answer {
 }
 
 /// The text of the prompt.
-pub(crate) fn prompt_text(message: &str) -> String {
+pub(crate) fn prompt_text(message: &str, color: bool) -> String {
+    let label = palette::BANNER_LABEL.paint("[RECORDER BREAKPOINT]", color);
     format!(
-        "\n[RECORDER BREAKPOINT]: {message}\nPerform your manual actions in the browser now.\n\
+        "\n{label}: {message}\nPerform your manual actions in the browser now.\n\
          Type 'c' and press [ENTER] to continue execution: "
     )
 }
@@ -68,13 +71,14 @@ pub(crate) async fn run_prompt<R, F>(
     mut read_line: R,
     mut tick: impl AsyncFnMut() -> bool,
     interval: Duration,
+    color: bool,
 ) -> io::Result<BreakpointExit>
 where
     R: FnMut() -> F,
     F: Future<Output = io::Result<Option<String>>>,
 {
     let ask = |out: &mut dyn Write| -> io::Result<()> {
-        out.write_all(prompt_text(message).as_bytes())?;
+        out.write_all(prompt_text(message, color).as_bytes())?;
         out.flush()
     };
     ask(out)?;
@@ -146,6 +150,7 @@ mod tests {
                 ticks_until_over.is_some_and(|limit| ticks >= limit)
             },
             Duration::from_millis(10),
+            false,
         )
         .await
         .unwrap();
@@ -153,6 +158,24 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn the_label_is_coloured_only_when_asked() {
+        let plain = prompt_text("look", false);
+        assert!(
+            plain.starts_with("\n[RECORDER BREAKPOINT]: look\nPerform your manual actions"),
+            "{plain:?}"
+        );
+        assert!(!plain.contains('\x1b'), "{plain:?}");
+        // The label in Python's `c0`, blue on light cyan; the rest is plain.
+        let coloured = prompt_text("look", true);
+        assert!(
+            coloured.starts_with("\n\x1b[34;106m[RECORDER BREAKPOINT]\x1b[0m: look\nPerform"),
+            "{coloured:?}"
+        );
+        assert!(coloured.ends_with("continue execution: "), "{coloured:?}");
+    }
+
+    #[tokio::test]
+
     async fn c_continues_and_the_prompt_names_the_message() {
         let (exit, said, ticks) = run(&["c"], None).await;
         assert_eq!(exit, BreakpointExit::Continue);

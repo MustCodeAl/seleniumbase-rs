@@ -21,6 +21,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
 use super::{check_file_name, rust_identifier, ActionRecorder, RecordedAction, RecorderSession};
+use crate::common::color::{banner, palette};
+
 use crate::SeleniumBaseError;
 
 /// The folder the recordings go to, as in Python.
@@ -146,6 +148,10 @@ pub struct RecordingOptions {
     pub print: bool,
     /// Python's `--uc` output: the test starts in CDP mode.
     pub uc: bool,
+    /// Colour the `RECORDING SAVED as:` banner the way Python does. Off by
+    /// default: the caller that owns the stream decides, usually with
+    /// [`use_color`](crate::common::color::use_color).
+    pub color: bool,
 }
 
 /// The files [`write_recording`] wrote.
@@ -253,13 +259,13 @@ pub fn write_recording(
     RecorderSession::from_actions(actions.to_vec()).save(&json)?;
 
     let verb = if added { "ADDED to" } else { "SAVED as" };
-    announce(out, &format!(">>> RECORDING {verb}: {}", code.display()))?;
+    announce(out, verb, &code, options.color)?;
 
     let feature = if options.behave {
         let path = folder.join("features").join(format!("{stem}_rec.feature"));
         let appended = write_feature(&path, &recorder, target, options.uc, added)?;
         let verb = if appended { "ADDED to" } else { "SAVED as" };
-        announce(out, &format!(">>> RECORDING {verb}: {}", path.display()))?;
+        announce(out, verb, &path, options.color)?;
         Some(path)
     } else {
         None
@@ -277,13 +283,23 @@ pub fn write_recording(
 }
 
 /// The message, then a line of `*` as long as it (at most the terminal's width).
-fn announce(out: &mut dyn Write, message: &str) -> std::io::Result<()> {
+fn announce(out: &mut dyn Write, verb: &str, path: &Path, color: bool) -> std::io::Result<()> {
+    let shown = path.display().to_string();
     let width = std::env::var("COLUMNS")
         .ok()
         .and_then(|columns| columns.trim().parse::<usize>().ok())
         .filter(|columns| *columns > 0)
         .unwrap_or(80);
-    let stars = "*".repeat(message.chars().count().min(width));
+    // As long as the message without its colours, so a colour never changes the length.
+    let plain_length = ">>> RECORDING : ".len() + verb.chars().count() + shown.chars().count();
+    let stars = "*".repeat(plain_length.min(width));
+    let message = banner(
+        ">>>",
+        palette::BANNER_MARK,
+        &format!(" RECORDING {verb}:"),
+        &shown,
+        color,
+    );
     writeln!(out, "\n{message}\n{stars}")
 }
 
@@ -524,6 +540,52 @@ mod tests {
     }
 
     #[test]
+    fn the_saved_banner_is_coloured_like_pythons_when_asked() {
+        let folder = temp("color");
+        let target = RecordingTarget::new("tint", "Tint", "test_tint").in_folder(&folder);
+        let mut out = Vec::new();
+        let options = RecordingOptions {
+            color: true,
+            ..RecordingOptions::default()
+        };
+        let saved =
+            write_recording(&actions("https://a.test"), &target, &options, &mut out).unwrap();
+
+        let said = text(&out);
+        let path = saved.code.display();
+        // `>>>` light red on light yellow, the path red on light yellow: the
+        // colorama pairs of `sbase mkrec`. The words between are plain.
+        let line =
+            format!("\x1b[91;103m>>>\x1b[0m RECORDING SAVED as: \x1b[31;103m{path}\x1b[0m\n");
+        assert!(said.contains(&line), "{said:?}");
+        // The line of stars under it is plain.
+        let stars = said.split(&line).nth(1).unwrap().lines().next().unwrap();
+        assert!(
+            stars.starts_with("****") && stars.chars().all(|c| c == '*'),
+            "{stars:?}"
+        );
+        let _ = std::fs::remove_dir_all(&folder);
+    }
+
+    #[test]
+    fn without_colour_the_banner_and_the_numbered_code_are_plain() {
+        let folder = temp("nocolor");
+        let target = RecordingTarget::new("plain", "Plain", "test_plain").in_folder(&folder);
+        let mut out = Vec::new();
+        let options = RecordingOptions {
+            print: true,
+            ..RecordingOptions::default()
+        };
+        write_recording(&actions("https://a.test"), &target, &options, &mut out).unwrap();
+
+        let said = text(&out);
+        assert!(!said.contains('\x1b'), "{said:?}");
+        assert!(said.contains(">>> RECORDING SAVED as: "), "{said}");
+        let _ = std::fs::remove_dir_all(&folder);
+    }
+
+    #[test]
+
     fn a_stem_that_leaves_the_folder_is_refused() {
         let target = RecordingTarget::new("../x", "X", "t").in_folder(temp("bad"));
         let error = write_recording(&[], &target, &RecordingOptions::default(), &mut Vec::new())

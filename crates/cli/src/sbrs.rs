@@ -4102,16 +4102,24 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             options.overwrite = overwrite;
             options.esc_end = args.esc_end;
             options.behave = behave;
+            // Python colours these banners (`c0` to `c5`) except on Linux; here they are
+            // coloured on a terminal that allows it, and plain in a pipe or with NO_COLOR.
+            options.color = seleniumbase_rs::common::color::use_color(&std::io::stdout());
+            let stderr_color = seleniumbase_rs::common::color::use_color(&std::io::stderr());
+
             // Refuse a bad name before a browser starts.
             if let Err(message) = options.check() {
-                eprintln!("ERROR: {message}");
+                eprintln!("{}", sb_recorder::error_banner(&message, stderr_color));
                 std::process::exit(1);
             }
             let outcome = sb_recorder::run_mkrec(config, &options, &mut std::io::stdout()).await?;
             if outcome.copied_to.is_none() {
                 eprintln!(
-                    "ERROR: nothing was recorded, so {} was not written",
-                    options.file
+                    "{}",
+                    sb_recorder::error_banner(
+                        &format!("nothing was recorded, so {} was not written", options.file),
+                        stderr_color,
+                    )
                 );
                 std::process::exit(1);
             }
