@@ -3023,6 +3023,8 @@ divergence = "Python's `-k` is a pytest expression and its `-m` a marker; here `
 [cli."convert"]
 status = "implemented"
 rust = "sbrs convert"
+note = "`sbrs convert FILE.py [--force]` reads a Selenium IDE or Katalon Recorder export (Selenium WebDriver code) with the Selenium reading of `import_python` and writes `FILE_SB.rs` next to it; the original is kept. An existing output is refused without `--force`. What it cannot convert stays a `TODO` and is listed on standard error; the exit status is 1 when a statement could not be read at all."
+divergence = "Python's convert writes `FILE_SB.py`, a SeleniumBase class; this writes a Rust test (`run_browser_test`) named after the file."
 
 [cli."decrypt"]
 status = "implemented"
@@ -3093,6 +3095,8 @@ divergence = "Python's list is of `self.` calls in a TestCase; this one is of th
 [cli."mkchart"]
 status = "implemented"
 rust = "sbrs mkchart"
+note = "`sbrs mkchart FILE [--en|--zh|--nl|--fr|--it|--ja|--ko|--pt|--ru|--es] [--force]` writes a Rust test (the rstest `sb` fixture) that builds a pie chart with `create_pie_chart` and `add_data_point` (six points), takes it with `extract_chart` and shows it on a slide of a `sky`/`slide` presentation, with Python's labels in the chosen language."
+divergence = "Python writes a SeleniumBase class and prints the file; this writes a Rust test and says `Created FILE`. The method names stay English in every language. Python's French and Russian lists of chart kinds lack the commas between the names; the generated comment has them."
 
 [cli."mkdir"]
 status = "implemented"
@@ -3105,6 +3109,8 @@ rust = "sbrs mkfile"
 [cli."mkpres"]
 status = "implemented"
 rust = "sbrs mkpres"
+note = "`sbrs mkpres FILE [--en|--zh|--nl|--fr|--it|--ja|--ko|--pt|--ru|--es] [--force]` writes a Rust test (the rstest `sb` fixture) that builds a three-slide deck with `create_presentation` (theme `serif`, transition `slide`), `add_slide` and `begin_presentation`, with Python's slide text in the chosen language."
+divergence = "Python writes a SeleniumBase class and prints the file; this writes a Rust test and says `Created FILE`. The method names stay English in every language, and the images are the `.image(...)` of a slide, not an `<img>` tag in its text."
 
 [cli."mkrec"]
 status = "composed"
@@ -3129,6 +3135,8 @@ divergence = "Python lists pytest's options; the options here are the rows of on
 [cli."print"]
 status = "implemented"
 rust = "sbrs print"
+note = "`sbrs print FILE [-n|--line-numbers]` shows the file as it is; `-n` puts the line number in front of every line, right-aligned to the width of the last one."
+divergence = "Python highlights the syntax with rich, wraps long Python lines and replaces tabs by four spaces; this prints the text unchanged (bytes that are not UTF-8 show as U+FFFD)."
 
 [cli."proxy"]
 status = "implemented"
@@ -3152,8 +3160,8 @@ reason = "Edits the structure of Python test files."
 [cli."translate"]
 status = "implemented"
 rust = "sbrs translate"
-note = "sbrs translate FILE LANGUAGE [--print|--overwrite|--copy] rewrites the action of every step of a JSON scenario with the translation dictionary; Scenario::from_json reads actions in any of the ten languages."
-divergence = "Python translates the method calls of a Python test file. A Rust test is compiled code with English method names, so the file translated here is the JSON scenario. The language is a positional argument, not a --zh style flag."
+note = "sbrs translate FILE --LANG [-p|--print] [-o|--overwrite] [-c|--copy] [-n|--line-numbers] rewrites the action of every step of a JSON scenario with the translation dictionary; Scenario::from_json reads actions in any of the ten languages. LANG is Python's language flag (--zh, --chinese or --Chinese, ...) and is required; the action is print by default, -p may go with -o or -c, and -c writes FILE_LANG.json."
+divergence = "Python translates the method calls of a Python test file. A Rust test is compiled code with English method names, so the file translated here is the JSON scenario."
 
 [cli."unobfuscate"]
 status = "composed"
