@@ -231,7 +231,17 @@ then `info`.
 
 <ParamField body="SB_LOG_FORMAT" type="string" default="pretty">
 
-`pretty` or `json` output.
+`pretty` (a readable line, coloured on a terminal) or `json` (one object per line, never
+coloured). Anything else is reported and the default is used.
+
+</ParamField>
+
+<ParamField body="NO_COLOR" type="any value">
+
+Turns colour off for the log lines and for the banners of `sbrs mkrec`
+(<https://no-color.org>). An empty value does not count. Colour is used only when the
+stream (standard error for logs, standard output for banners) is a terminal and `TERM` is
+not `dumb`.
 
 </ParamField>
 
