@@ -333,7 +333,7 @@ impl ChannelLink {
         await_reply(&self.shared.pending, id, method, rx).await
     }
 
-    /// Hands every command over in order, then waits for the answers in order.
+    /// Sends the commands in order, each after the answer to the one before.
     pub(super) async fn send_ordered(
         &self,
         commands: Vec<(&str, Value)>,
