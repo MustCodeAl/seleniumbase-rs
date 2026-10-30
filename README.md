@@ -352,8 +352,8 @@ For raw CDP commands, call `execute_cdp` or `execute_cdp_with_params` after
 ### Shadow DOM piercing
 
 ```rust
-sb.shadow_click("my-app ::shadow button").await?;
-sb.shadow_type("my-app ::shadow input", "hello").await?;
+sb.click("my-app::shadow button").await?;
+sb.type_text("my-app::shadow input", "hello").await?;
 ```
 
 ### Native dialogs

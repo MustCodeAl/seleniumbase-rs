@@ -106,28 +106,34 @@ assert_eq!(s1, Selector::Css("#submit"));
 
 ## Shadow DOM
 
-Web Components often hide markup inside Shadow DOM trees. `seleniumbase-rs` can
-pierce through **open** shadow roots with the `::shadow` combinator.
+Web Components often hide markup inside Shadow DOM trees. Every method that
+takes a selector reads the `::shadow` combinator, as Python SeleniumBase does,
+and waits for the element like any other.
 
 ```rust
-sb.shadow_click("my-app ::shadow button").await?;
-sb.shadow_type("my-app ::shadow input", "hello").await?;
-let text = sb.shadow_get_text("my-app ::shadow div.result").await?;
+sb.click("my-app::shadow button").await?;
+sb.type_text("my-app::shadow input", "hello").await?;
+sb.assert_text("hello", "my-app::shadow div.result").await?;
+let text = sb.get_text("my-app::shadow div.result").await?;
 ```
 
 Each `::shadow` fragment moves the search context into the shadow root of the
 preceding element. You can chain them for nested Web Components:
 
 ```rust
-sb.shadow_click("app-shell ::shadow nav-menu ::shadow a[href='/settings']").await?;
+sb.click("app-shell::shadow nav-menu::shadow a[href='/settings']").await?;
 ```
+
+The pure CDP engine reads the same selectors in `page.locator(...)`. See the
+[Shadow DOM guide](/tutorials/shadow_dom) for the details.
 
 ### Limitations
 
 <Warning>
 
-- Only **open** shadow roots are accessible. Closed shadow roots cannot be
-  pierced by WebDriver or CDP.
+- The WebDriver engine enters open and closed shadow roots; the pure CDP engine
+  enters open ones only.
+- A selector must end on an element inside the last shadow root.
 - CSS selectors inside a shadow root must match the local DOM; they do not leak
   out to the parent tree.
 

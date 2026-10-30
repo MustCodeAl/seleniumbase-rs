@@ -1725,7 +1725,7 @@ See [Settings and Global Configuration](/tutorials/settings_and_config).
 
 <Badge color="blue">Engine</Badge>
 
-A tree of elements hidden inside a web component. `BaseCase` searches inside open shadow roots with the `::shadow` combinator, as in `my-app ::shadow button`; only open shadow roots can be reached.
+A tree of elements hidden inside a web component. Every selector of `BaseCase` (and of the pure CDP engine's `page.locator`) can enter shadow roots with the `::shadow` combinator, as in `my-app::shadow button`. `BaseCase` enters closed roots too; the pure CDP engine enters open roots only.
 
 See [Shadow DOM Guide](/tutorials/shadow_dom).
 

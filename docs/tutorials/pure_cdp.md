@@ -86,6 +86,12 @@ A CSS selector may use SeleniumBase's `button:contains("Sign in")`, which runs a
 XPath. To find any element by its text, use
 `SelectorBuf::containing_text("Sign in", Some("button"))` (with `None` for the
 tag, the innermost elements holding the text); a `text=` prefix means link text.
+A CSS selector may cross shadow roots with `::shadow`, as in
+`"my-app::shadow .form::shadow input"`: the first piece is searched in the page
+(or in the matches of the step), each of the others in the open shadow root of
+every element the piece before it matched, and a selector that ends on
+`::shadow` is an `InvalidSelector`. Python's CDP mode has no such selector; see
+the [Shadow DOM guide](/tutorials/shadow_dom).
 
 Reading: `text`, `html`, `attribute`, `count`, `info`, `bounding_box` (from the
 top of the document), `viewport_rect` (from the window, as Python's

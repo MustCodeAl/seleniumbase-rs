@@ -216,12 +216,14 @@ let value = sb.cdp_evaluate("document.title").await?;
 
 ## Shadow DOM Selectors
 
-Pierce through closed shadow trees with the `::shadow` combinator:
+Pierce through shadow trees, open or closed, with the `::shadow` combinator.
+Every method that takes a selector reads it, as in Python SeleniumBase, and
+waits for the element:
 
 ```rust
-sb.shadow_click("my-app ::shadow .button").await?;
-sb.shadow_type("my-app ::shadow form ::shadow input", "value").await?;
-let text = sb.shadow_get_text("my-app ::shadow .label").await?;
+sb.click("my-app::shadow .button").await?;
+sb.type_text("my-app::shadow form::shadow input", "value").await?;
+let text = sb.get_text("my-app::shadow .label").await?;
 ```
 
 ## HTML Inspector

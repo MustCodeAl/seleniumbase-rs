@@ -3,15 +3,17 @@
 //! A normal selector stops at a shadow root, so `#submit` finds nothing when
 //! the button lives inside `<my-app>`'s shadow tree. Writing `::shadow` between
 //! the host and the selector inside it walks into the shadow root, and
-//! `shadow_click`, `shadow_type`, `shadow_get_text` and `shadow_get_attribute`
-//! accept such selectors, one `::shadow` for each root crossed:
+//! `click`, `type_text`, `get_text`, `get_attribute` and every other method
+//! that takes a selector accept such selectors, as in Python SeleniumBase, one
+//! `::shadow` for each root crossed (`shadow_click` and its siblings do the
+//! same lookups):
 //!
 //! ```text
 //! my-app ::shadow button#submit                 one shadow root
 //! my-app ::shadow user-card ::shadow .badge     two shadow roots
 //! ```
 //!
-//! Only **open** shadow roots can be entered. The example serves a page with
+//! The WebDriver engine enters closed shadow roots too. The example serves a page with
 //! one, types into it, clicks inside it, reads text from two levels down, and
 //! checks each result.
 //!
@@ -69,24 +71,25 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
         "#submit is hidden from a normal selector",
     )?;
 
-    // ...but the piercing selector can.
-    sb.shadow_type("my-app ::shadow #name", "SeleniumBase")
-        .await?;
-    sb.shadow_click("my-app ::shadow button#submit").await?;
+    // ...but the piercing selector can, in every method that takes a selector.
+    sb.type_text("my-app::shadow #name", "SeleniumBase").await?;
+    sb.click("my-app::shadow button#submit").await?;
 
-    let greeting = sb.shadow_get_text("my-app ::shadow .greeting").await?;
+    let greeting = sb.get_text("my-app::shadow .greeting").await?;
     println!("greeting: {greeting}");
     ensure(
         greeting == "Hello, SeleniumBase!",
         "the greeting names the visitor",
     )?;
+    sb.assert_exact_text("Hello, SeleniumBase!", "my-app ::shadow .greeting")
+        .await?;
 
     // Two roots deep.
     let badge = sb
-        .shadow_get_text("my-app ::shadow user-card ::shadow .badge")
+        .get_text("my-app::shadow user-card::shadow .badge")
         .await?;
     let role = sb
-        .shadow_get_attribute("my-app ::shadow user-card ::shadow .badge", "data-role")
+        .get_attribute("my-app::shadow user-card::shadow .badge", "data-role")
         .await?;
     println!("badge: {badge} (role {role:?})");
     ensure(

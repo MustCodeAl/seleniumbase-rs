@@ -245,8 +245,8 @@ sb.frame_switch("#payment")
     .run(async |sb| sb.click("button.pay").await)
     .await?;
 
-// Inside an open shadow root.
-sb.shadow_click("my-app ::shadow button").await?;
+// Inside a shadow root: every method reads `::shadow`, and waits.
+sb.click("my-app::shadow button").await?;
 ```
 
 ```rust Do (pure CDP)

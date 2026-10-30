@@ -23,7 +23,7 @@ Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...)
 | `get_attribute(selector, attr)` | Returns the attribute value; when the element has no such attribute, its DOM property of that name, as Selenium does (the chosen `value` of a `<select>`, what was typed into an `<input>`). `None` when neither is set. |
 | `get_select_options(selector)` | Returns the options of a `<select>` as text. `.attribute("value")` or `.attribute("index")` reads those of each option instead; `.timeout(..)` sets the wait. |
 | `get_property(selector, prop)` | Returns property value. |
-| `get_shadow_root(selector)` | Returns the shadow root. |
+| `get_shadow_root(selector)` | Returns the shadow root of the element as a `WebElement`. Every selector, in this table and elsewhere, may cross shadow roots (`host::shadow inner`): see the [Shadow DOM guide](/tutorials/shadow_dom). |
 | `find_element(selector)` | Returns a `WebElement` handle. |
 | `find_elements(selector)` | Returns all matching `WebElement` handles. |
 | `get_unique_links()` | Returns unique `href` values from the page. |

@@ -82,10 +82,11 @@ reach in. A shadow root is **open** (reachable from script as
 
 **Why it matters.** A selector such as `my-app input` stops at `my-app` and never
 finds the input inside. Search boxes, date pickers, video players and design
-systems from large companies are often built this way. The WebDriver engine of
-seleniumbase-rs pierces open shadow roots with a `::shadow` combinator; the
-pure CDP engine has no such syntax in this version, so you reach in with a
-script. Closed roots cannot be entered at all. Details and examples are in
+systems from large companies are often built this way. Both engines of
+seleniumbase-rs pierce shadow roots with a `::shadow` combinator in any
+selector (`my-app::shadow input`). The WebDriver engine asks the browser driver
+for each root and so enters closed roots too; the pure CDP engine works through
+page scripts and enters open roots only. Details and examples are in
 [Selectors and the DOM](/concepts/selectors-and-the-dom#shadow-dom-and-web-components).
 
 ## WebSockets and Server-Sent Events
