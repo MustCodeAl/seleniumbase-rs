@@ -130,7 +130,7 @@ feature needs, see [Building and installing](/building).
 
 <Visibility for="agents">
 
-Summary for AI exports: clone https://github.com/MustCodeAl/seleniumbase-rs. You need Rust 1.99 (`rust-toolchain.toml` pins it, with clippy and rustfmt) and a C compiler. Set `CARGO_BUILD_JOBS=2 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0`. The checks are `cargo fmt --all -- --check`, `cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings` and `cargo test --features "mcp-server test-util"`. Tests that need a real Chrome are the `#[ignore]`d `*_chrome.rs` files plus `browser_smoke`: run them one binary at a time with `-- --ignored`. The library has no default features; the command line `crates/cli` turns on `pdf`, `mcp-server` and `plugins-builtin`.
+Summary for AI exports: clone https://github.com/MustCodeAl/seleniumbase-rs. You need Rust 1.99 (`rust-toolchain.toml` pins it, with clippy and rustfmt) and a C compiler. Set `CARGO_BUILD_JOBS=2 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0`. The checks are `cargo fmt --all -- --check`, `cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings` and `cargo test --features "mcp-server test-util"`. Tests that need a real Chrome are the `#[ignore]`d `*_chrome.rs` files plus `browser_smoke`: run them one binary at a time with `-- --ignored`. The library has no default features; the command line `crates/cli` turns on `pdf`, `mcp-server`, `mcp-client` and `plugins-builtin`.
 
 </Visibility>
 
@@ -444,7 +444,7 @@ cargo build --release --locked --bin sbrs-mcp
 | Package | On by default | Notes |
 |---|---|---|
 | `seleniumbase-rs` (the library) | nothing | Every feature is opt-in: `gui`, `tui`, `turso`, `playwright`, `plugins`, `ocr`, `visual`, `pdf`, `mcp-server`, `s3`, `azure`, `gcp`, `test-util`, `full-tracing`, `tokio-console` and more. |
-| `seleniumbase-rs-cli` (`sbrs`, `sbrs-mcp`) | `pdf`, `mcp-server`, `plugins-builtin` | Forwards `tui`, `gui` and `turso` to the library, and also `plugins`, the `plugin-*` features, `test-util`, `full-tracing` and `tokio-console`. |
+| `seleniumbase-rs-cli` (`sbrs`, `sbrs-mcp`) | `pdf`, `mcp-server`, `mcp-client`, `plugins-builtin` | Forwards `tui`, `gui` and `turso` to the library, and also `plugins`, the `plugin-*` features, `test-util`, `full-tracing` and `tokio-console`. |
 
 <Note>
 
