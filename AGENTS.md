@@ -3,7 +3,9 @@
 Instructions for AI coding agents working in this repository (any tool that reads
 `AGENTS.md`). Humans want `CONTRIBUTING.md`. `CLAUDE.md` is the longer module map
 and the rules for Claude Code; `COPILOT.md` is the short Copilot guide. If they
-disagree, this file and `CLAUDE.md` win.
+disagree, this file and `CLAUDE.md` win. If you write browser tests *with* this
+crate rather than change it, go to "Writing browser tests with seleniumbase-rs"
+below.
 
 ## What this is
 
@@ -130,6 +132,110 @@ session as a Rust test. Load the browserless `dev` server next to it
 claude-code` (or `codex`, `cursor`, ...) registers both servers with a client. The
 workflow is in `docs/tutorials/vibe_coding.md`; `llms.txt` lists the docs worth
 reading.
+
+## Writing browser tests with seleniumbase-rs
+
+For an assistant that writes tests *with* this crate, in a user's project or in
+`examples/` and `docs/`; the rules above are for changing the crate. They follow
+the checklist that thirtyfour publishes as
+[Reliable AI-Generated Tests](https://github.com/stevepryde/thirtyfour/blob/main/docs/src/getting-started/reliable-tests.md),
+written for this crate's API. `docs/tutorials/reliable_tests.md` explains each rule
+with a do and an avoid. If you are not sure a method exists, ask the `dev` MCP
+server (`find_api`) before you write the call.
+
+1. **The fixture owns the browser.** With the feature `testing`, a test asks for
+   `sb: Sb` (WebDriver) or `sb_cdp: SbCdp` (pure CDP) and puts its steps in
+   `sb.run(async |sb| { .. })` or `sb_cdp.run(async |page| { .. })`, which
+   launches the browser, reruns when configured, keeps evidence and closes the
+   browser on every path. Without the feature use `run_browser_test` or `run_cdp_test`. Never call
+   `BaseCase::new` or `Browser::launch` in a test body without a close that
+   cannot be skipped.
+
+   ```rust
+   use seleniumbase_rs::testing::{rstest, sb, Sb};
+   use seleniumbase_rs::{tokio, Result};
+
+   #[rstest]
+   #[tokio::test]
+   async fn cart_shows_the_total(sb: Sb) -> Result<()> {
+       sb.run(async |sb| {
+           sb.open("https://shop.example.com/cart").await?;
+           sb.assert_text("$42.00", "#total").await
+       })
+       .await
+   }
+   ```
+
+2. **Import from `seleniumbase_rs` only.** Start a file with
+   `use seleniumbase_rs::tokio;` (or add `tokio` to the braces of the import
+   you have) before `#[tokio::main]` or `#[tokio::test]`. The manifest of a test
+   crate lists `seleniumbase-rs` (feature `testing`) and nothing else; see
+   `docs/imports.md`.
+3. **Use selectors the application owns:** `#id`, `[data-testid="total"]`,
+   `link=Sign in`. Not `:nth-child`, generated class names or long paths.
+4. **Never sleep to wait.** No `sb.sleep(..)`, no `tokio::time::sleep`, no poll
+   loop. Actions and assertions already wait (10 seconds by default). For the
+   rest: `sb.wait_for_element_visible("#toast", 10)`,
+   `sb.wait_for_text("Saved", "#status", 10)`,
+   `sb.wait_for_element_absent(".spinner", 10)`; pure CDP
+   `page.locator(".spinner").wait_for(State::Absent)`.
+5. **Assert with the retrying assertions:** `sb.assert_text(text, selector)` (text
+   first), `assert_exact_text`, `assert_element`, `assert_title`; pure CDP
+   `locator.expect().to_have_text(..)`. Not `get_text` plus `assert_eq!`: it reads
+   once. End every call with `?`.
+6. **Scope the query and know how many match.** A selector or a `Locator` acts on
+   the first match and there is no strict mode. Put the container in the selector
+   (`#cart [data-sku="B-7"] .remove`, not `.remove`); `switch_to_frame(..)` before
+   an iframe and `switch_to_default_content()` after; pure CDP chains
+   `page.locator("#cart").locator(".remove")`. When exactly one must match,
+   `page.locator("#checkout").expect().to_have_count(1)`.
+7. **Find again, do not hold elements.** Pass selector strings, which find the
+   element again on each call, or keep a `Locator`. A `WebElement` from
+   `find_element` goes stale when the page re-renders.
+8. **Cleanup runs on every path.** Do not call `quit` inside `sb.run` or
+   `run_browser_test`. A `Browser` you launch is closed before you return the
+   outcome, so a failed step cannot skip it:
+
+   ```rust
+   let outcome = steps(&page).await;
+   browser.close().await?; // whether the steps passed or failed
+   outcome
+   ```
+
+   A pool lease is `release().await`d and the pool `close().await`d the same way.
+9. **Keep the failure evidence bounded.** The fixture writes
+   `latest_logs/<test id>/screenshot.png`, `page_source.html` and
+   `basic_test_info.txt`. Add to it with `sb.save_screenshot_to_logs()` and
+   `sb.save_page_source_to_logs()`. Never print page source or put it in a
+   message. A HAR has no bodies unless you ask; cap them with
+   `HarOptions::new().content(true).max_content_bytes(256 * 1024)`. Set
+   `SB_TIME_LIMIT` so that a hung test ends.
+10. **One browser, context or lease per concurrent flow.** Do not run two flows
+    on one tab or one `Page`. Use `BrowserPool::acquire()` per flow (a `Lease` is an
+    isolated context and a tab) or `browser.new_context()`.
+11. **Headless in CI, set outside the code:** `SB_HEADLESS=true cargo test`. The
+    fixtures read it. Do not write `.with_headless(false)` or `.headless(false)`
+    in a committed test.
+12. **Write a body that is safe to run twice.** `SB_RERUNS` calls the closure
+    again, so it must not move out of what it captures (`for p in &paths`, not
+    `for p in paths`) and must not rely on what an earlier attempt left behind.
+    Do not swallow an error (`let _ =`) or weaken an assertion to get a green run.
+13. **Keep raw protocol calls in one helper.** `Page::execute`,
+    `Browser::execute` and `BaseCase::execute_cdp_cmd` are Chromium only: put them
+    in one module and gate the tests that need them behind a Cargo feature of the
+    test crate or `#[ignore = "needs Chrome DevTools"]`. The crate has no WebDriver
+    BiDi API.
+14. **Test page-driving code without Chrome.** With the feature `test-util`,
+    `Browser::new_mocked()` and `sb_cdp.run_with_browser(..)` run a test on a
+    scripted browser. Launch a real browser only for what needs one.
+15. **Credentials and data come from the run,** not from the file:
+    `sb.account()`, `sb.data()`, `sb.variables()` (`SB_ACCOUNT`, `SB_DATA`,
+    `SB_VARIABLES`). No literal password, token or account name in a test.
+
+Where the crate cannot enforce a rule (no strict single match, no scoped query on
+`BaseCase`, no hard time limit outside the fixtures, nothing that refuses a
+sleep), the page lists it under "What the crate cannot enforce yet".
+
 
 ## Done means
 
