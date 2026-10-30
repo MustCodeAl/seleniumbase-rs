@@ -46,7 +46,6 @@ const PROPERTY_AS_TEXT: &str = "const value = arguments[0][arguments[1]]; \
         || typeof value === 'object' || typeof value === 'function') { return null; } \
     return String(value);";
 
-
 /// Owns a WebDriver session, optional CDP client, and optional auto-started driver process.
 pub struct BrowserSession {
     driver: Option<WebDriver>,
@@ -672,7 +671,6 @@ impl BrowserSession {
         Ok(property.json().as_str().map(str::to_owned))
     }
 
-
     /// Clicks `element` with a script (`element.click()`), which reaches an
     /// element that is not displayed or that another element covers.
     ///
@@ -688,7 +686,6 @@ impl BrowserSession {
             .await?;
         Ok(())
     }
-
 
     /// WebDriver interaction: `get_property`.
     pub async fn get_property(
@@ -1684,7 +1681,6 @@ pub(crate) async fn shown_text(element: &WebElement) -> Result<String, SeleniumB
     }
     Ok(element.text().await?)
 }
-
 
 fn validate_mode_support(config: &BrowserConfig) -> Result<(), SeleniumBaseError> {
     if config.is_cdp_enabled() && !config.browser.is_chromium_based() {

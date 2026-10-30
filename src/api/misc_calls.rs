@@ -470,7 +470,6 @@ impl<'a> IntoFuture for WaitForElement<'a> {
     }
 }
 
-
 /// Python's `get_select_options(dropdown_selector, attribute="text", by,
 /// timeout=None)`: the options of a `<select>`, each as its text or as one of
 /// its attributes.
@@ -522,11 +521,11 @@ impl<'a> IntoFuture for GetSelectOptions<'a> {
                 attribute,
                 timeout,
             } = self;
-            sb.run_get_select_options(selector, attribute, timeout).await
+            sb.run_get_select_options(selector, attribute, timeout)
+                .await
         })
     }
 }
-
 
 /// Python's `click_with_offset(selector, x, y, by, mark=None, timeout=None,
 /// center=None, scroll=True)` and `double_click_with_offset(...)`: click an

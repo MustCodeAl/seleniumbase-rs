@@ -15,8 +15,8 @@ use tracing::{debug, info, instrument};
 use crate::api::deferred::DeferredAsserts;
 use crate::api::html::BeautifulSoup;
 use crate::api::jqc::JqcDefaults;
-use crate::api::membership::Contains;
 use crate::api::master_qa::MasterQaSession;
+use crate::api::membership::Contains;
 use crate::api::misc_calls::{
     scroll_distance, AddCookie, GetSelectOptions, OpenNewTab, Scroll, WaitForElement,
 };
@@ -48,7 +48,6 @@ use thirtyfour::prelude::By;
 /// `arguments[0]` to `arguments[1]` and answers the element's `type` attribute.
 const SET_VALUE_SCRIPT: &str =
     "arguments[0].value = arguments[1]; return arguments[0].getAttribute('type');";
-
 
 /// How much longer than the message lasts Python's `post_message` waits.
 const MESSAGE_SETTLE: Duration = Duration::from_millis(150);
@@ -724,8 +723,8 @@ impl BaseCase {
     /// Returns an error if the element is missing or cannot be clicked.
     pub async fn check_if_unchecked(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         if !self.is_checked(css).await? {
-                    self.click_toggle(css).await?;
-                }
+            self.click_toggle(css).await?;
+        }
         Ok(())
     }
 
@@ -738,8 +737,8 @@ impl BaseCase {
     /// Returns an error if the element is missing or cannot be clicked.
     pub async fn uncheck_if_checked(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         if self.is_checked(css).await? {
-                    self.click_toggle(css).await?;
-                }
+            self.click_toggle(css).await?;
+        }
         Ok(())
     }
 
@@ -787,7 +786,6 @@ impl BaseCase {
             .await;
         clicked
     }
-
 
     /// Opens a new browser tab and switches to it, as Python's
     /// `open_new_window(switch_to=True)` does; the keyword is
@@ -1313,18 +1311,18 @@ impl BaseCase {
     /// [`wait_for_element_present`](Self::wait_for_element_present) for an
     /// element that only has to be in the DOM.
     pub fn wait_for_element<'a>(&'a self, css: &'a str) -> WaitForElement<'a> {
-            WaitForElement::new(self, css)
-        }
-    
-        /// The work of [`wait_for_element`](Self::wait_for_element).
-        pub(crate) async fn run_wait_for_element(
-            &self,
-            css: &str,
-            timeout: Option<Duration>,
-        ) -> Result<(), SeleniumBaseError> {
-            self.wait_for_element_visible(css, self.wait_secs(timeout))
-                .await
-        }
+        WaitForElement::new(self, css)
+    }
+
+    /// The work of [`wait_for_element`](Self::wait_for_element).
+    pub(crate) async fn run_wait_for_element(
+        &self,
+        css: &str,
+        timeout: Option<Duration>,
+    ) -> Result<(), SeleniumBaseError> {
+        self.wait_for_element_visible(css, self.wait_secs(timeout))
+            .await
+    }
 
     /// Returns the value of `attribute_name` on the element `css`, if there is
     /// one: the HTML attribute, and when the element has none the DOM property
@@ -1882,11 +1880,17 @@ impl BaseCase {
         self.session.is_enabled(by).await
     }
 
-    /// Executes the `is_selected` action.
+    /// Whether the option, checkbox or radio button `css` selects is selected,
+    /// as Python's `is_selected` says. It takes `&self`, so it can sit inside
+    /// another call on the case, as in Python's `self.assert_true(self.is_selected(..))`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the element is missing.
     pub async fn is_selected(&self, css: &str) -> Result<bool, SeleniumBaseError> {
-            let by = Selector::auto(css).to_by()?;
-            self.session.is_selected(by).await
-        }
+        let by = Selector::auto(css).to_by()?;
+        self.session.is_selected(by).await
+    }
 
     /// Executes the `is_displayed` action.
     pub async fn is_displayed(&mut self, css: &str) -> Result<bool, SeleniumBaseError> {
@@ -2156,15 +2160,15 @@ impl BaseCase {
     ///
     /// Returns [`SeleniumBaseError::WaitTimeout`] if no element matches in time.
     pub async fn js_click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
-            self.record("js_click", Some(css), None);
-            let by = Selector::auto(css).to_by()?;
-            self.await_ready(css, Ready::Present).await?;
-            self.demo_highlight(css).await?;
-            let element = self.session.webdriver()?.find(by).await?;
-            self.session.js_click_element(&element).await?;
-            self.demo_pause(PauseKind::Full).await;
-            Ok(())
-        }
+        self.record("js_click", Some(css), None);
+        let by = Selector::auto(css).to_by()?;
+        self.await_ready(css, Ready::Present).await?;
+        self.demo_highlight(css).await?;
+        let element = self.session.webdriver()?.find(by).await?;
+        self.session.js_click_element(&element).await?;
+        self.demo_pause(PauseKind::Full).await;
+        Ok(())
+    }
 
     /// Executes the `js_type` action.
     pub async fn js_type(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
@@ -2951,24 +2955,24 @@ impl BaseCase {
     /// Returns [`SeleniumBaseError::InvalidConfig`] for any other attribute, and
     /// an error if the element is missing or is not a `<select>`.
     pub fn get_select_options<'a>(&'a mut self, css: &'a str) -> GetSelectOptions<'a> {
-            GetSelectOptions::new(self, css)
+        GetSelectOptions::new(self, css)
+    }
+
+    /// The work of [`get_select_options`](Self::get_select_options).
+    pub(crate) async fn run_get_select_options(
+        &mut self,
+        css: &str,
+        attribute: &str,
+        timeout: Option<Duration>,
+    ) -> Result<Vec<String>, SeleniumBaseError> {
+        if !matches!(attribute, "text" | "index" | "value") {
+            return Err(SeleniumBaseError::InvalidConfig(format!(
+                "The attribute must be \"text\", \"index\" or \"value\", not \"{attribute}\""
+            )));
         }
-    
-        /// The work of [`get_select_options`](Self::get_select_options).
-        pub(crate) async fn run_get_select_options(
-            &mut self,
-            css: &str,
-            attribute: &str,
-            timeout: Option<Duration>,
-        ) -> Result<Vec<String>, SeleniumBaseError> {
-            if !matches!(attribute, "text" | "index" | "value") {
-                return Err(SeleniumBaseError::InvalidConfig(format!(
-                    "The attribute must be \"text\", \"index\" or \"value\", not \"{attribute}\""
-                )));
-            }
-            let by = Selector::auto(css).to_by()?;
-            let seconds = self.wait_secs(timeout);
-            let element = self.session.wait_for_element(by, seconds).await?;
+        let by = Selector::auto(css).to_by()?;
+        let seconds = self.wait_secs(timeout);
+        let element = self.session.wait_for_element(by, seconds).await?;
         let tag = element.tag_name().await?;
         if !tag.eq_ignore_ascii_case("select") {
             return Err(SeleniumBaseError::InvalidConfig(format!(
@@ -2976,20 +2980,20 @@ impl BaseCase {
             )));
         }
 
-            let select = thirtyfour::components::SelectElement::new(&element).await?;
-            let mut options = Vec::new();
-            for option in select.options().await? {
-                options.push(if attribute == "text" {
-                    option.text().await.unwrap_or_default()
-                } else {
-                    self.session
-                        .attribute_or_property(&option, attribute)
-                        .await?
-                        .unwrap_or_default()
-                });
-            }
-            Ok(options)
+        let select = thirtyfour::components::SelectElement::new(&element).await?;
+        let mut options = Vec::new();
+        for option in select.options().await? {
+            options.push(if attribute == "text" {
+                option.text().await.unwrap_or_default()
+            } else {
+                self.session
+                    .attribute_or_property(&option, attribute)
+                    .await?
+                    .unwrap_or_default()
+            });
         }
+        Ok(options)
+    }
 
     /// Sets the `value` property of the element `css` with a script, as
     /// Python's `set_value` does: no key events fire, so it is fast and does not
@@ -3005,37 +3009,35 @@ impl BaseCase {
     /// Returns [`SeleniumBaseError::WaitTimeout`] if the element does not appear
     /// in time.
     pub async fn set_value(&mut self, css: &str, value: &str) -> Result<(), SeleniumBaseError> {
-            let by = Selector::auto(css).to_by()?;
-            self.await_ready(css, Ready::Present).await?;
-            self.demo_highlight(css).await?;
-            let (value, enter) = match value.strip_suffix('\n') {
-                Some(value) => (value, true),
-                None => (value, false),
-            };
-            let driver = self.session.webdriver()?.clone();
-            let element = driver.find(by).await?;
-            let kind = driver
+        let by = Selector::auto(css).to_by()?;
+        self.await_ready(css, Ready::Present).await?;
+        self.demo_highlight(css).await?;
+        let (value, enter) = match value.strip_suffix('\n') {
+            Some(value) => (value, true),
+            None => (value, false),
+        };
+        let driver = self.session.webdriver()?.clone();
+        let element = driver.find(by).await?;
+        let kind = driver
+            .execute(
+                SET_VALUE_SCRIPT,
+                vec![element.to_json()?, Value::String(value.to_owned())],
+            )
+            .await?;
+        if enter {
+            element.send_keys(Key::Return.value().to_string()).await?;
+        } else if kind.json().as_str() == Some("range") {
+            // Some sliders need a mouse event to run their listeners.
+            let _ = driver
                 .execute(
-                    SET_VALUE_SCRIPT,
-                    vec![element.to_json()?, Value::String(value.to_owned())],
+                    "arguments[0].dispatchEvent(new Event('mousemove'));",
+                    vec![element.to_json()?],
                 )
-                .await?;
-            if enter {
-                element
-                    .send_keys(Key::Return.value().to_string())
-                    .await?;
-            } else if kind.json().as_str() == Some("range") {
-                // Some sliders need a mouse event to run their listeners.
-                let _ = driver
-                    .execute(
-                        "arguments[0].dispatchEvent(new Event('mousemove'));",
-                        vec![element.to_json()?],
-                    )
-                    .await;
-            }
-            self.demo_pause(PauseKind::Full).await;
-            Ok(())
+                .await;
         }
+        self.demo_pause(PauseKind::Full).await;
+        Ok(())
+    }
 
     /// Sets the text of the element `css` with a script: the `value` of an
     /// `<input>` or `<textarea>` (firing `input` and `change`, as a user's

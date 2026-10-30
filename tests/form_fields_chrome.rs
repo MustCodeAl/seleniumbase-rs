@@ -146,9 +146,14 @@ async fn get_attribute_falls_back_to_the_dom_property() -> Result<()> {
         assert_eq!(typed.as_deref(), Some("typed"));
 
         // An attribute the element has is what the call returns.
-        assert_eq!(sb.get_attribute("#pick", "id").await?.as_deref(), Some("pick"));
+        assert_eq!(
+            sb.get_attribute("#pick", "id").await?.as_deref(),
+            Some("pick")
+        );
         // A boolean property that is false is no attribute, as in Selenium.
-        let unselected = sb.get_attribute("#pick option[value=\"v1\"]", "selected").await?;
+        let unselected = sb
+            .get_attribute("#pick option[value=\"v1\"]", "selected")
+            .await?;
         assert_eq!(unselected, None);
         assert_eq!(sb.get_attribute("#pick", "data-missing").await?, None);
         Ok(())
@@ -156,19 +161,25 @@ async fn get_attribute_falls_back_to_the_dom_property() -> Result<()> {
     .await
 }
 
-
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
 async fn get_select_options_gives_the_text_the_value_or_the_index_of_each_option() -> Result<()> {
     let url = serve();
     run_browser_test(headless(), async |sb| {
         sb.open(&url).await?;
-        assert_eq!(sb.get_select_options("#pick").await?, ["One", "Two", "Three"]);
+        assert_eq!(
+            sb.get_select_options("#pick").await?,
+            ["One", "Two", "Three"]
+        );
         let values = sb.get_select_options("#pick").attribute("value").await?;
         assert_eq!(values, ["v1", "v2", "v3"]);
         let indexes = sb.get_select_options("#pick").attribute("index").await?;
         assert_eq!(indexes, ["0", "1", "2"]);
-        assert!(sb.get_select_options("#pick").attribute("title").await.is_err());
+        assert!(sb
+            .get_select_options("#pick")
+            .attribute("title")
+            .await
+            .is_err());
         // Not a select.
         sb.set_timeout(1).await?;
         assert!(sb.get_select_options("#name").await.is_err());
@@ -176,7 +187,6 @@ async fn get_select_options_gives_the_text_the_value_or_the_index_of_each_option
     })
     .await
 }
-
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
@@ -206,14 +216,15 @@ async fn checkboxes_at_zero_opacity_or_not_displayed_can_be_checked_and_unchecke
         );
         // The opacity is put back to what the stylesheet says.
         let opacity = sb
-            .execute_script("return document.querySelector('ul.todo-list input.toggle').style.opacity;")
+            .execute_script(
+                "return document.querySelector('ul.todo-list input.toggle').style.opacity;",
+            )
             .await?;
         assert_eq!(opacity, "");
         Ok(())
     })
     .await
 }
-
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
@@ -241,7 +252,6 @@ async fn js_click_reads_contains_and_xpath_selectors_and_waits_for_the_element()
     .await
 }
 
-
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
 async fn set_value_moves_the_mouse_over_a_range_input_and_presses_enter_for_a_newline() -> Result<()>
@@ -259,11 +269,11 @@ async fn set_value_moves_the_mouse_over_a_range_input_and_presses_enter_for_a_ne
         // A trailing newline presses Enter in the field: the form is submitted
         // with the text, not with the newline.
         sb.set_value("#search", "query\n").await?;
-        sb.assert_exact_text("submitted:query", "#submitted").await?;
+        sb.assert_exact_text("submitted:query", "#submitted")
+            .await?;
         Ok(())
     })
     .await
 }
-
 
 // The tests of the other form-field behaviours follow.
