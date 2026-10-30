@@ -7,5 +7,6 @@ pub(crate) mod content;
 
 pub(crate) mod generators;
 pub(crate) mod language;
+pub(crate) mod objects;
 pub(crate) mod report;
 pub(crate) mod tools;

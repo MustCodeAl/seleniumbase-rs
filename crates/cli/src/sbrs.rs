@@ -1597,9 +1597,62 @@ enum Commands {
         example = "sbrs print tests/login.rs -n"
     )]
     Print(args::content::PrintArgs),
-    /// Objectify a test recording.
-    #[usage(help_heading = "Files and generators", example = "sbrs objectify")]
-    Objectify,
+    /// Move the selectors of a Rust test into page objects in `page_objects.rs`.
+    ///
+    /// Python's `sbase extract-objects`, for a Rust test. FILE is read for the string literals
+    /// that are the selector of a call (`sb.click("#go")`, `sb.type_text("#user", "ada")`,
+    /// `sb.assert_text("Hi", "h1")`, `sb.drag_and_drop(".a", ".b")`; `sbrs methods` lists the
+    /// common calls), and each one becomes a constant of a module of `page_objects.rs` in the
+    /// folder of FILE: one module for each page that the test opens, named with the words of
+    /// its URL (`pub mod example_com_login`, and `page` before any `open`), one constant for
+    /// each selector, named with the words of the selector (`pub const USER: &str = "#user";`,
+    /// `_2` after a name that is taken). A `page_objects.rs` that is there is added to; one that
+    /// `sbrs` did not write is refused. FILE is not changed: `inject-objects` does that.
+    #[usage(alias = "extract_objects")]
+    #[usage(
+        help_heading = "Files and generators",
+        example = "sbrs extract-objects tests/login.rs"
+    )]
+    ExtractObjects(args::objects::ExtractObjectsArgs),
+    /// Replace the selectors of a Rust test with the page objects of `page_objects.rs`.
+    ///
+    /// Python's `sbase inject-objects`, for a Rust test. Every selector of FILE that has a
+    /// page object (made by `extract-objects`) is written as `page_objects::<page>::NAME`, and
+    /// `mod page_objects;` is declared above the first item of the file. A selector that has
+    /// no page object stays as it is. With `-c`, the selector is added as a comment at the end
+    /// of each line that changed, as `// "#user"`.
+    #[usage(alias = "inject_objects")]
+    #[usage(
+        help_heading = "Files and generators",
+        example = "sbrs inject-objects tests/login.rs -c"
+    )]
+    InjectObjects(args::objects::InjectObjectsArgs),
+    /// Put the selectors back where a Rust test uses page objects.
+    ///
+    /// Python's `sbase revert-objects`, for a Rust test: the undo of `inject-objects`. Every
+    /// `page_objects::<page>::NAME` of FILE is replaced by the selector it stands for, and the
+    /// `mod page_objects;` line goes when the file uses no page object any more. Extract,
+    /// inject and revert give the original file back byte for byte. With `-c` the comments
+    /// that `inject-objects -c` appended are taken off as well (Python's `-c` keeps them);
+    /// without it they stay. `page_objects.rs` is kept.
+    #[usage(alias = "revert_objects")]
+    #[usage(
+        help_heading = "Files and generators",
+        example = "sbrs revert-objects tests/login.rs -c"
+    )]
+    RevertObjects(args::objects::RevertObjectsArgs),
+    /// Turn the selectors of a Rust test into page objects: extract-objects, then inject-objects.
+    ///
+    /// Python's `sbase objectify`, for a Rust test: FILE is read as `extract-objects` reads it,
+    /// the page objects are written to `page_objects.rs` next to it, and the selectors of FILE
+    /// are replaced by them as `inject-objects` does (`-c` adds the selector as a comment to
+    /// each line that changes). `revert-objects` undoes it. This replaces the starter
+    /// `page_object.rs` that `sbrs objectify` used to write.
+    #[usage(
+        help_heading = "Files and generators",
+        example = "sbrs objectify tests/login.rs -c"
+    )]
+    Objectify(args::objects::InjectObjectsArgs),
     /// Create a test that builds a slide deck.
     ///
     /// The name follows the same rules as `mkfile`; `.rs` is added when missing. The test
@@ -2055,7 +2108,10 @@ impl Commands {
             | Self::Caseplans { .. }
             | Self::BehaveGui { .. }
             | Self::Print(_)
-            | Self::Objectify
+            | Self::ExtractObjects(_)
+            | Self::InjectObjects(_)
+            | Self::Objectify(_)
+            | Self::RevertObjects(_)
             | Self::Mkpres(_)
             | Self::Mkchart(_)
             | Self::Completions { .. }
@@ -3385,6 +3441,11 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Commands::Translate(translate) => return translate.run(),
         Commands::Print(print) => return print.run(),
         Commands::Convert(convert) => return convert.run(),
+        Commands::ExtractObjects(objects) => return objects.run(),
+        Commands::InjectObjects(objects) => return objects.inject(),
+        Commands::Objectify(objects) => return objects.objectify(),
+        Commands::RevertObjects(objects) => return objects.run(),
+
         Commands::GridHub(grid) => return run_grid(GridRole::Hub, grid).await,
         Commands::GridNode(grid) => return run_grid(GridRole::Node, grid).await,
         Commands::Proxy(proxy) => return proxy::run(proxy).await,
@@ -4089,6 +4150,9 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         | Commands::Translate(_)
         | Commands::Print(_)
         | Commands::Convert(_)
+        | Commands::ExtractObjects(_)
+        | Commands::InjectObjects(_)
+        | Commands::RevertObjects(_)
         | Commands::GridHub(_)
         | Commands::GridNode(_)
         | Commands::Proxy(_)
@@ -4144,10 +4208,8 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
         #[cfg(not(feature = "tui"))]
         Commands::BehaveGui { .. } => no_terminal_ui(),
-        Commands::Objectify => {
-            let path = sb_objectify::objectify_page()
-                .map_err(|e| context("generate the page object", e))?;
-            println!("Generated {}", path.display());
+        Commands::Objectify(_) => {
+            unreachable!("objectify returns before browser configuration")
         }
         Commands::Mkrec {
             file,

@@ -3077,12 +3077,82 @@ const completionSpec: Fig.Spec = {
       ],
     },
     {
-      name: "objectify",
-      description: "Objectify a test recording.",
+      name: ["extract-objects", "extract_objects"],
+      description: "Move the selectors of a Rust test into page objects in `page_objects.rs`.",
       options: [
         {
           name: ["-h", "--help"],
           description: "Print help",
+        },
+      ],
+      args: [
+        {
+          name: "file",
+          description: "The Rust test file whose selectors become page objects.",
+          template: "filepaths",
+        },
+      ],
+    },
+    {
+      name: ["inject-objects", "inject_objects"],
+      description: "Replace the selectors of a Rust test with the page objects of `page_objects.rs`.",
+      options: [
+        {
+          name: ["-c", "--comments"],
+          description: "Add the selector as a comment, such as `// \"#user\"`, at the end of each line it replaced.",
+        },
+        {
+          name: ["-h", "--help"],
+          description: "Print help",
+        },
+      ],
+      args: [
+        {
+          name: "file",
+          description: "The Rust test file whose selectors are replaced by page objects.",
+          template: "filepaths",
+        },
+      ],
+    },
+    {
+      name: ["revert-objects", "revert_objects"],
+      description: "Put the selectors back where a Rust test uses page objects.",
+      options: [
+        {
+          name: ["-c", "--comments"],
+          description: "Also take off the comments that `inject-objects -c` appended to the lines it changed.",
+        },
+        {
+          name: ["-h", "--help"],
+          description: "Print help",
+        },
+      ],
+      args: [
+        {
+          name: "file",
+          description: "The Rust test file whose page objects are replaced by their selectors.",
+          template: "filepaths",
+        },
+      ],
+    },
+    {
+      name: "objectify",
+      description: "Turn the selectors of a Rust test into page objects: extract-objects, then inject-objects.",
+      options: [
+        {
+          name: ["-c", "--comments"],
+          description: "Add the selector as a comment, such as `// \"#user\"`, at the end of each line it replaced.",
+        },
+        {
+          name: ["-h", "--help"],
+          description: "Print help",
+        },
+      ],
+      args: [
+        {
+          name: "file",
+          description: "The Rust test file whose selectors are replaced by page objects.",
+          template: "filepaths",
         },
       ],
     },

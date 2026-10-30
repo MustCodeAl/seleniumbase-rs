@@ -1,5 +1,5 @@
 //! The `sbrs` commands that write starter files (`mkchart`, `mkpres`,
-//! `objectify`, `caseplans --starter`, `behave-gui --new`), `sbrs print` and `sbrs convert`,
+//! `caseplans --starter`, `behave-gui --new`), `sbrs print` and `sbrs convert`,
 //! run as the real binary in a scratch folder.
 //!
 //! `caseplans` and `behave-gui` on their own are terminal apps (feature `tui`);
@@ -65,10 +65,8 @@ fn finish_within(mut child: std::process::Child, limit: Duration) -> Option<Outp
 #[test]
 fn the_starter_file_commands_do_not_replace_a_file_that_is_there() {
     // (arguments, the file they write, what the success line says)
-    let generators: [(&[&str], &str, &str); 2] = [
-        (&["objectify"], "page_object.rs", "Generated"),
-        (&["caseplans", "--starter"], "CASE_PLANS.md", "Generated"),
-    ];
+    let generators: [(&[&str], &str, &str); 1] =
+        [(&["caseplans", "--starter"], "CASE_PLANS.md", "Generated")];
     for (args, file, success) in generators {
         let dir = tempfile::tempdir().expect("temp dir");
 
