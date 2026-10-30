@@ -310,7 +310,7 @@ behind it, so the token is what a test can check:
 
 ### What `solve_captcha` does
 
-`Page::solve_captcha()` (and `BaseCase::solve_captcha()`, which does the same
+`Page::solve_captcha()` (and `BaseCase::solve_captcha()` in the `cdp` or `uc` mode, which does the same
 over chromedriver) looks for the first visible widget among Cloudflare Turnstile,
 reCAPTCHA, hCaptcha, Friendly Captcha and DataDome, in that order, in the page,
 its open shadow roots and the frames it may read; scrolls it to the middle of the

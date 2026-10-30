@@ -180,7 +180,9 @@ The library has one narrow feature. It is described here as it is in the code
 (`src/sb_cdp/captcha.rs` and the folder beside it).
 
 `Page::solve_captcha()` in the pure CDP engine and `BaseCase::solve_captcha()`
-in the WebDriver engine run **the same solver**, one step after the other:
+in the WebDriver engine (in its `cdp` or `uc` mode, which have the DevTools
+connection the pointer events go over) run **the same solver**, one step after
+the other:
 
 1. **Locate.** One script looks for the first visible widget among five kinds,
    in this order: Cloudflare Turnstile, reCAPTCHA, hCaptcha, Friendly Captcha
