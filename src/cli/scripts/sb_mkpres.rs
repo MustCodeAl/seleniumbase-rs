@@ -183,13 +183,12 @@ pub(crate) fn test_source(
          //! you close the window. With `SB_HEADLESS=true` nobody watches, so nothing is\n\
          //! shown or saved.\n\
          //!\n\
-         //! Your crate's dev-dependencies are `seleniumbase-rs` (feature `testing`),\n\
-         //! `rstest` and `tokio` (features `macros` and `rt`).\n\
+         //! Your crate's only dev-dependency is `seleniumbase-rs` (feature `testing`): the\n\
+         //! rstest attribute, the fixtures and the Tokio runtime come from it.\n\
          \n\
-         use rstest::rstest;\n\
          {extra_use}\
-         use seleniumbase_rs::testing::{{sb, Sb}};\n\
-         use seleniumbase_rs::Result;\n\
+         use seleniumbase_rs::testing::{{rstest, sb, Sb}};\n\
+         use seleniumbase_rs::{{tokio, Result}};\n\
          \n\
          #[rstest]\n\
          #[tokio::test]\n\
@@ -272,9 +271,7 @@ impl PresentationFile {
         let stem = self.name.file_stem();
         let html = format!("{stem}.html");
         let slide = |content: String, image: Option<&str>| {
-            let mut parts = vec![
-                format!("sb.add_slide({})", literal(&content)),
-            ];
+            let mut parts = vec![format!("sb.add_slide({})", literal(&content))];
             if let Some(image) = image {
                 parts.push(format!(".image({})", literal(image)));
             }
@@ -348,9 +345,9 @@ mod tests {
     fn the_deck_is_built_with_the_presentation_api_and_the_rstest_fixture() {
         let source = file("deck").render();
         for part in [
-            "use rstest::rstest;",
+            "use seleniumbase_rs::testing::{rstest, sb, Sb};",
             "use seleniumbase_rs::api::presentation::{PresentationTheme, Transition};",
-            "use seleniumbase_rs::testing::{sb, Sb};",
+            "use seleniumbase_rs::{tokio, Result};",
             "async fn deck(sb: Sb) -> Result<()> {",
             "sb.create_presentation()\n            .theme(PresentationTheme::Serif)\n            .transition(Transition::Slide)\n            .await?;",
             "<h1>Hello</h1><hr /><br /><p>Press Right Arrow</p>",
@@ -362,6 +359,23 @@ mod tests {
             assert!(source.contains(part), "no {part:?} in:\n{source}");
         }
         assert_eq!(source.matches("sb.add_slide(").count(), 3, "{source}");
+    }
+
+    #[test]
+    fn the_file_imports_only_from_seleniumbase_rs() {
+        for language in LANGUAGES {
+            let source = file("deck").language(language).render();
+            for line in source.lines().filter(|line| line.starts_with("use ")) {
+                assert!(
+                    line.starts_with("use seleniumbase_rs::"),
+                    "{language:?}: {line:?} imports another crate:\n{source}"
+                );
+            }
+            assert!(
+                source.contains("only dev-dependency is `seleniumbase-rs`"),
+                "{language:?}: {source}"
+            );
+        }
     }
 
     #[test]
@@ -393,7 +407,10 @@ mod tests {
         assert_eq!(named.name(), "my-deck.rs");
         let source = named.render();
         assert!(source.contains("async fn my_deck(sb: Sb)"), "{source}");
-        assert!(source.contains("saved_presentations/my-deck.html"), "{source}");
+        assert!(
+            source.contains("saved_presentations/my-deck.html"),
+            "{source}"
+        );
         assert!(source.contains("filename(\"my-deck.html\")"), "{source}");
         assert!(PresentationFile::new("../deck").is_err());
         assert!(PresentationFile::new("deck.py").is_err());

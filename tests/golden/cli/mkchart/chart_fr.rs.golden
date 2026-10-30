@@ -1,0 +1,43 @@
+//! Test de présentation de graphique généré par `sbrs mkchart`.
+//!
+//! Run it with `cargo test --test chart_fr` when this file is in your crate's
+//! `tests/` folder. It needs Chrome and a matching chromedriver (`sbrs doctor`
+//! checks both). The chart slide opens in the browser (saved as
+//! `saved_presentations/chart_fr.html`) and plays until its last slide, or until
+//! you close the window. With `SB_HEADLESS=true` nobody watches, so nothing is
+//! shown or saved.
+//!
+//! Your crate's only dev-dependency is `seleniumbase-rs` (feature `testing`): the
+//! rstest attribute, the fixtures and the Tokio runtime come from it.
+
+use seleniumbase_rs::api::presentation::{PresentationTheme, Transition};
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
+
+#[rstest]
+#[tokio::test]
+async fn chart_fr(sb: Sb) -> Result<()> {
+    sb.run(async |sb| {
+        sb.create_presentation()
+            .theme(PresentationTheme::Sky)
+            .transition(Transition::Slide)
+            .await?;
+
+        // Sélectionner option => "secteurs", "barres", "colonnes", "linéaire", "aires"
+        // Call the matching method: create_pie_chart, create_bar_chart,
+        // create_column_chart, create_line_chart or create_area_chart.
+        sb.create_pie_chart().title("Chart 1").await?;
+        sb.add_data_point("Objet A", 36.0).await?;
+        sb.add_data_point("Objet B", 33.0).await?;
+        sb.add_data_point("Objet C", 27.0).await?;
+        sb.add_data_point("Objet D", 21.0).await?;
+        sb.add_data_point("Objet E", 18.0).await?;
+        sb.add_data_point("Objet F", 15.0).await?;
+        let chart = sb.extract_chart().await?;
+        sb.add_slide(&format!("<p>Chart Demo</p>{chart}")).await?;
+
+        sb.begin_presentation().filename("chart_fr.html").await?;
+        Ok(())
+    })
+    .await
+}

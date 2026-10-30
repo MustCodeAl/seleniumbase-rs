@@ -21,7 +21,14 @@ use crate::cli::scaffold::{RelativeName, Scaffold, ScaffoldError};
 use crate::utils::translate::Language;
 
 /// The data points of the example chart: the suffix of the label and the value.
-const POINTS: [(&str, u32); 6] = [("A", 36), ("B", 33), ("C", 27), ("D", 21), ("E", 18), ("F", 15)];
+const POINTS: [(&str, u32); 6] = [
+    ("A", 36),
+    ("B", 33),
+    ("C", 27),
+    ("D", 21),
+    ("E", 18),
+    ("F", 15),
+];
 
 /// The words a language changes in a generated chart test.
 struct Words {
@@ -257,9 +264,35 @@ mod tests {
     }
 
     #[test]
+    fn the_file_imports_only_from_seleniumbase_rs() {
+        for language in LANGUAGES {
+            let source = file("chart").language(language).render();
+            for line in source.lines().filter(|line| line.starts_with("use ")) {
+                assert!(
+                    line.starts_with("use seleniumbase_rs::"),
+                    "{language:?}: {line:?} imports another crate:\n{source}"
+                );
+            }
+            for part in [
+                "use seleniumbase_rs::testing::{rstest, sb, Sb};",
+                "use seleniumbase_rs::{tokio, Result};",
+                "only dev-dependency is `seleniumbase-rs`",
+            ] {
+                assert!(
+                    source.contains(part),
+                    "{language:?}: no {part:?}:\n{source}"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn a_language_changes_the_labels_and_the_comment_only() {
         let source = file("chart").language(Language::Chinese).render();
-        assert!(source.contains("sb.add_data_point(\"目的 A\", 36.0)"), "{source}");
+        assert!(
+            source.contains("sb.add_data_point(\"目的 A\", 36.0)"),
+            "{source}"
+        );
         assert!(source.contains("// 选择选项 => \"饼图\""), "{source}");
         assert!(source.starts_with("//! 由 `sbrs mkchart` 生成的图表演示文稿测试。\n"));
         assert!(source.contains("sb.create_pie_chart()"), "{source}");
@@ -271,7 +304,11 @@ mod tests {
         for language in LANGUAGES {
             let source = file("chart").language(language).render();
             syn::parse_file(&source).unwrap_or_else(|e| panic!("{language:?}: {e}\n{source}"));
-            assert_eq!(source.matches("sb.add_data_point(").count(), 6, "{language:?}");
+            assert_eq!(
+                source.matches("sb.add_data_point(").count(),
+                6,
+                "{language:?}"
+            );
         }
     }
 
