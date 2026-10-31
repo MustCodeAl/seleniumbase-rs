@@ -1,10 +1,10 @@
 # sbrs replay
 
 > Replay a recorded action file against a fresh browser session.
-> Exits with status 1 if a step fails. See also: `sbrs record`.
+> Exits with status 1 if a step fails. See also: `sbrs mkrec`.
 > More information: <https://mustcodeal-seleniumbase-rs.docs7.io/tutorials/recorder_mode>.
 
-- Replay an action file made by `sbrs record`:
+- Replay an action file made by `sbrs mkrec`:
 
 `sbrs replay {{path/to/actions.json}}`
 

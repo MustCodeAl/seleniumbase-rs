@@ -1,15 +1,15 @@
 ---
 name: Record browser actions with sbrs
-command: "sbrs record {{url}} -o {{output}}"
+command: "sbrs mkrec {{file}} --url {{url}}"
 tags: ["sbrs", "seleniumbase-rs", "recorder"]
-description: Opens the page, records what you do, and writes the actions as JSON or YAML.
+description: Opens the page in Recorder Mode, records what you do, and writes the test (the actions go to recordings/NAME_rec.json, which sbrs replay plays).
 arguments:
   - name: url
     description: The page to start on
     default_value: https://seleniumbase.io
-  - name: output
-    description: The action file to write (.json or .yaml)
-    default_value: actions.json
+  - name: file
+    description: The test file to create (FILE.rs)
+    default_value: tests/new_test.rs
 source_url: "https://github.com/MustCodeAl/seleniumbase-rs"
 author: seleniumbase-rs
 shells: []
