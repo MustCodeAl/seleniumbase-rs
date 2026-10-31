@@ -119,6 +119,15 @@ fn reply(request: &Seen, page: &Mutex<String>) -> Reply {
         ("GET", ["element", _, "selected"]) => json!(false),
         ("GET", ["element", _, "text"]) => json!("Hello World"),
         ("GET", ["element", _, "attribute" | "property", _]) => json!("btn"),
+        // Selenium's `getAttribute` page script, which `get_attribute` runs in
+        // place of the driver's attribute command.
+        ("POST", ["execute", "sync"])
+            if request.body["script"]
+                .as_str()
+                .is_some_and(|script| script.contains("/* getAttribute */")) =>
+        {
+            json!("btn")
+        }
         ("GET", ["element", _, "rect"]) => json!({"x": 0, "y": 0, "width": 80, "height": 20}),
         ("POST", ["window", "new"]) => json!({"handle": "h2", "type": "tab"}),
         ("GET", ["window", "handles"]) => json!(["h1", "h2"]),

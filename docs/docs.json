@@ -158,6 +158,7 @@
               "best-practices",
               "rust-test-tooling",
               "tutorials/writing_tests",
+              "tutorials/debug_modes",
               "tutorials/reliable_tests",
               "tutorials/behave",
               "tutorials/selectors",
@@ -195,6 +196,7 @@
             "pages": [
               "tutorials/settings_and_config",
               "help/customizing_test_runs",
+              "help/test_options",
               "tutorials/run_settings",
               "tutorials/headless",
               "tutorials/browser_profiles",

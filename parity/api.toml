@@ -4424,39 +4424,44 @@ rust = "BrowserConfig::with_window_size"
 note = "Chrome's `--window-size`; a Firefox window is resized once it runs."
 
 [options_pytest."--account"]
-status = "not-applicable"
-reason = "Hands a free-text account string to pytest tests as sb.account; a Rust test reads its own values from std::env or a fixture file."
+status = "implemented"
+rust = "TestData::account"
+note = "`sbrs test --account`, `SB_ACCOUNT` or `account` in the `[test]` table; a test reads it with `sb.account()`."
 
 [options_pytest."--ad-block"]
-status = "composed"
-rust = "BrowserConfig::ad_block"
+status = "implemented"
+rust = "Settings::ad_block"
 note = "`sbrs --ad-block` sets BrowserConfig::ad_block. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_pytest."--ad_block"]
-status = "composed"
-rust = "BrowserConfig::ad_block"
+status = "implemented"
+rust = "Settings::ad_block"
 note = "A Python spelling of --ad-block; `sbrs` takes --ad-block, and BrowserConfig::ad_block is the same setting. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_pytest."--adblock"]
-status = "composed"
-rust = "BrowserConfig::ad_block"
+status = "implemented"
+rust = "Settings::ad_block"
 note = "A Python spelling of --ad-block; `sbrs` takes --ad-block, and BrowserConfig::ad_block is the same setting. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_pytest."--agent"]
-status = "composed"
-rust = "BrowserConfig::user_agent"
+status = "implemented"
+rust = "Settings::user_agent"
+note = "An alias of --user-agent: `sbrs test --agent`, `SB_USER_AGENT` or `user_agent` in the settings file."
 
 [options_pytest."--all-scripts"]
-status = "not-applicable"
-reason = "Makes pytest collect SB(), DriverContext() and Driver() scripts as tests; cargo test runs only #[test] functions, so there is no collection phase to extend."
+status = "implemented"
+rust = "sbrs test"
+note = "`sbrs test --all-scripts` runs `cargo run --example NAME` for each example of the tested packages after the tests, with the environment of the tests; an example whose `required-features` are off is skipped, each gets 300 seconds (or `SB_TIME_LIMIT`), and the run fails when one failed. Python collects scripts as tests; here an example is a Cargo target."
 
 [options_pytest."--all_scripts"]
-status = "not-applicable"
-reason = "Makes pytest collect SB(), DriverContext() and Driver() scripts as tests; cargo test runs only #[test] functions, so there is no collection phase to extend."
+status = "implemented"
+rust = "sbrs test"
+note = "A Python spelling of --all-scripts; `sbrs test` takes both."
 
 [options_pytest."--archive-downloads"]
-status = "not-applicable"
-reason = "Downloads go to the OS Downloads folder (BaseCase::get_downloads_folder) and are never cleared, so there is no project downloaded_files folder to archive; moving the user's Downloads would be unsafe."
+status = "implemented"
+rust = "TestSettings::archive_downloads"
+note = "`sbrs test --archive-downloads`, `SB_ARCHIVE_DOWNLOADS` or `archive_downloads` in the `[test]` table: when a run starts, `downloaded_files/` of each tested package is moved to `archived_files/downloads_<unix time>/` instead of being emptied. Only `sbrs test` does it (never for `--co`), and the operating system's Downloads folder is never touched."
 
 [options_pytest."--archive-logs"]
 status = "implemented"
@@ -4464,8 +4469,9 @@ rust = "TestRun::open"
 note = "When a run starts, `latest_logs/` is moved to `archived_logs/logs_<unix time>/` (with the run files) instead of being deleted: `sbrs test --archive-logs`, `SB_ARCHIVE_LOGS=1` or `archive_logs` in the `[test]` table."
 
 [options_pytest."--archive_downloads"]
-status = "not-applicable"
-reason = "Downloads go to the OS Downloads folder (BaseCase::get_downloads_folder) and are never cleared, so there is no project downloaded_files folder to archive; moving the user's Downloads would be unsafe."
+status = "implemented"
+rust = "TestSettings::archive_downloads"
+note = "A Python spelling of --archive-downloads; `sbrs test` takes both."
 
 [options_pytest."--archive_logs"]
 status = "implemented"
@@ -4478,20 +4484,22 @@ rust = "BrowserConfig::with_automation_extension"
 note = "Sets `useAutomationExtension` to true. Upstream marks the option deprecated. Chromium only."
 
 [options_pytest."--binary-location"]
-status = "composed"
-rust = "BrowserConfig::browser_binary_path"
+status = "implemented"
+rust = "Settings::chrome_bin"
+note = "`sbrs test --binary-location`, `SB_CHROME_BIN` or `chrome_bin` in the settings file."
 
 [options_pytest."--binary_location"]
 status = "implemented"
 rust = "BrowserConfig::with_binary_location"
 
 [options_pytest."--bl"]
-status = "composed"
-rust = "BrowserConfig::browser_binary_path"
+status = "implemented"
+rust = "Settings::chrome_bin"
+note = "An alias of --binary-location."
 
 [options_pytest."--block-ads"]
-status = "composed"
-rust = "BrowserConfig::ad_block"
+status = "implemented"
+rust = "Settings::ad_block"
 note = "A Python spelling of --ad-block; `sbrs` takes --ad-block, and BrowserConfig::ad_block is the same setting. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_pytest."--block-images"]
@@ -4500,8 +4508,8 @@ rust = "BrowserConfig::with_block_images"
 note = "Chrome's content-setting preference (`prefs` of `goog:chromeOptions`), or Firefox's `permissions.default.image`."
 
 [options_pytest."--block_ads"]
-status = "composed"
-rust = "BrowserConfig::ad_block"
+status = "implemented"
+rust = "Settings::ad_block"
 note = "A Python spelling of --ad-block; `sbrs` takes --ad-block, and BrowserConfig::ad_block is the same setting. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_pytest."--block_images"]
@@ -4556,14 +4564,14 @@ rust = "RunSettings::with_check_js"
 note = "After every page load (open, go_back, go_forward, refresh, wait_for_ready_state_complete) the browser log is checked for severe JavaScript errors, on a Chromium browser. Skipped by skip-js-waits."
 
 [options_pytest."--chrome"]
-status = "composed"
-rust = "BrowserConfig::browser"
-note = "Choose the Browser variant."
+status = "implemented"
+rust = "Settings::browser"
+note = "`sbrs test --chrome` is `SB_BROWSER=chrome`; two browser flags that choose different values are refused. Chooses the Browser variant."
 
 [options_pytest."--chromium"]
-status = "composed"
-rust = "BrowserConfig::browser"
-note = "Choose the Browser variant."
+status = "implemented"
+rust = "Settings::browser"
+note = "`sbrs test --chromium` (also `--use-chromium`) is `SB_BROWSER=chromium`. Chooses the Browser variant."
 
 [options_pytest."--chromium-arg"]
 status = "implemented"
@@ -4579,8 +4587,8 @@ rust = "BrowserConfig::browser"
 note = "chrome-headless-shell, downloaded into downloaded_drivers/chs/ when missing; it cannot run UC mode."
 
 [options_pytest."--codegen"]
-status = "composed"
-rust = "BrowserConfig::with_recorder_mode"
+status = "implemented"
+rust = "TestSettings::recorder"
 note = "Recorder Mode (`--rec`, `SB_RECORDER`, `BrowserConfig::with_recorder_mode`) runs Python's page recorder in every tab; when the test quits, the actions are processed as Python does and written to `recordings/<test>_rec.rs` (an rstest test on the `sb` fixture) and `.json`, with `.feature` under `--rec-behave`. `sbrs mkrec` (aliases `codegen`, `record`) records from the command line."
 
 [options_pytest."--comet"]
@@ -4589,8 +4597,8 @@ rust = "BrowserConfig::browser"
 note = "Run with chromedriver; the program is found in Comet's install locations or on the PATH (the Linux location is a guess)."
 
 [options_pytest."--crumbs"]
-status = "composed"
-rust = "BaseCase::delete_all_cookies"
+status = "implemented"
+rust = "Settings::crumbs"
 note = "SB_CRUMBS=1 or `browser::reuse::set_crumbs(true)` (process-wide, as the idle timeout is): with --reuse-session or --rcs, a browser handed to the next test has every cookie deleted (Network.clearBrowserCookies on Chromium, WebDriver's delete-all elsewhere). Without it the cookies stay, as in Python; the other windows are still closed, the page's local and session storage cleared and the page set to about:blank. Without reuse every test has a new browser and no cookies; call delete_all_cookies to clear them within a test. Mock WebDriver tests in browser::reuse check both paths, and tests/crumbs_chrome.rs (ignored) checks them in Chrome."
 
 [options_pytest."--crx"]
@@ -4626,16 +4634,19 @@ rust = "sbrs test"
 note = "`sbrs test --dashboard` prints `Dashboard: file://...` and writes dashboard.html in the folder it runs in: live (it refreshes every 12 seconds and says `Awaiting results...`) while the tests run, and final when the run ends. `SB_DASHBOARD=1 cargo test` writes it too and leaves it live until `sbrs report finish`. `sbrs run-scenario --dashboard` renders the same page with one row."
 
 [options_pytest."--data"]
-status = "not-applicable"
-reason = "Passes one free-text string through the pytest command line as self.data; a Rust test reads its own values from std::env or a fixture file."
+status = "implemented"
+rust = "TestData::data"
+note = "`sbrs test --data`, `SB_DATA` or `data` in the `[test]` table; a test reads it with `sb.data()`."
 
 [options_pytest."--database-env"]
-status = "not-applicable"
-reason = "Picks which MySQL reporting database --with-db-reporting writes to; ResultStore is a local database opened from a path the caller gives, so there are no named environments."
+status = "implemented"
+rust = "TestSettings::database_env"
+note = "`sbrs test --database-env`, `SB_DATABASE_ENV` or `database_env` in the `[test]` table picks the entry of the `[test.databases]` table (a name and the path of a local database file) that --with-db-reporting writes to. Python picks a MySQL database."
 
 [options_pytest."--database_env"]
-status = "not-applicable"
-reason = "Picks which MySQL reporting database --with-db-reporting writes to; ResultStore is a local database opened from a path the caller gives, so there are no named environments."
+status = "implemented"
+rust = "TestSettings::database_env"
+note = "A Python spelling of --database-env; `sbrs test` takes both."
 
 [options_pytest."--dcsp"]
 status = "implemented"
@@ -4776,8 +4787,8 @@ status = "implemented"
 rust = "BrowserConfig::with_disable_ws"
 
 [options_pytest."--edge"]
-status = "composed"
-rust = "BrowserConfig::browser"
+status = "implemented"
+rust = "Settings::browser"
 note = "Choose Browser::Edge. The session starts msedgedriver itself, from downloaded_drivers/ or the PATH when it fits the installed Edge, else downloaded for that Edge from msedgedriver.microsoft.com; options go in ms:edgeOptions."
 
 [options_pytest."--ee"]
@@ -4798,11 +4809,11 @@ note = "Chrome Sync is switched off with `--disable-sync` unless this is set."
 
 [options_pytest."--enable-web-security"]
 status = "not-applicable"
-reason = "Python adds --disable-web-security unless this is set. A Rust session never adds it, so web security is already on and there is nothing to enable."
+reason = "Accepted and ignored by `sbrs test`. Python adds --disable-web-security unless this is set. A Rust session never adds it unless --disable-ws asks, so web security is already on and there is nothing to enable."
 
 [options_pytest."--enable-ws"]
 status = "not-applicable"
-reason = "Python adds --disable-web-security unless this is set. A Rust session never adds it, so web security is already on and there is nothing to enable."
+reason = "Accepted and ignored by `sbrs test`. Python adds --disable-web-security unless this is set. A Rust session never adds it unless --disable-ws asks, so web security is already on and there is nothing to enable."
 
 [options_pytest."--enable_3d_apis"]
 status = "implemented"
@@ -4816,11 +4827,12 @@ note = "Chrome Sync is switched off with `--disable-sync` unless this is set."
 
 [options_pytest."--enable_ws"]
 status = "not-applicable"
-reason = "Python adds --disable-web-security unless this is set. A Rust session never adds it, so web security is already on and there is nothing to enable."
+reason = "Accepted and ignored by `sbrs test`. Python adds --disable-web-security unless this is set. A Rust session never adds it unless --disable-ws asks, so web security is already on and there is nothing to enable."
 
 [options_pytest."--env"]
-status = "not-applicable"
-reason = "Names the test environment (qa, prod, ...) for the pytest plugin; this crate takes per-deploy configuration from SB_* environment variables (RuntimeConfig) instead."
+status = "implemented"
+rust = "TestData::env"
+note = "`sbrs test --env`, `SB_ENV` or `env` in the `[test]` table; one of Python's 24 choices in any letter case (`TestData::parse_env`), and another value exits with status 2 naming them. A test reads it with `sb.env()`, which is `test` when none was given."
 
 [options_pytest."--esc-end"]
 status = "implemented"
@@ -4864,31 +4876,34 @@ note = "Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disab
 
 [options_pytest."--fast"]
 status = "not-applicable"
-reason = "Python 4.55.2 reads --fast only in CDP mode, where it skips the 0.2 s wait after a click and the wait after opening a page; demo mode never checks it. This crate's CDP engine makes neither wait, so there is nothing to skip, so RunSettings has no setting for it."
+reason = "Accepted and ignored by `sbrs test`. Python 4.55.2 reads --fast only in CDP mode, where it skips the 0.2 s wait after a click and the wait after opening a page; demo mode never checks it. This crate's CDP engine makes neither wait, so there is nothing to skip, so RunSettings has no setting for it."
 
 [options_pytest."--fast-mode"]
 status = "not-applicable"
-reason = "Python 4.55.2 reads --fast only in CDP mode, where it skips the 0.2 s wait after a click and the wait after opening a page; demo mode never checks it. This crate's CDP engine makes neither wait, so there is nothing to skip, so RunSettings has no setting for it."
+reason = "Accepted and ignored by `sbrs test`. Python 4.55.2 reads --fast only in CDP mode, where it skips the 0.2 s wait after a click and the wait after opening a page; demo mode never checks it. This crate's CDP engine makes neither wait, so there is nothing to skip, so RunSettings has no setting for it."
 
 [options_pytest."--fast_mode"]
 status = "not-applicable"
-reason = "Python 4.55.2 reads --fast only in CDP mode, where it skips the 0.2 s wait after a click and the wait after opening a page; demo mode never checks it. This crate's CDP engine makes neither wait, so there is nothing to skip, so RunSettings has no setting for it."
+reason = "Accepted and ignored by `sbrs test`. Python 4.55.2 reads --fast only in CDP mode, where it skips the 0.2 s wait after a click and the wait after opening a page; demo mode never checks it. This crate's CDP engine makes neither wait, so there is nothing to skip, so RunSettings has no setting for it."
 
 [options_pytest."--fdebug"]
-status = "not-applicable"
-reason = "Drops into Python's pdb at the end of each test; Rust has no pdb. Attach a debugger, or open Chrome's debugger with BrowserConfig::with_remote_debug."
+status = "implemented"
+rust = "TestSettings::final_debug"
+note = "A spelling of --final-debug; see there."
 
 [options_pytest."--final-debug"]
-status = "not-applicable"
-reason = "Drops into Python's pdb at the end of each test; Rust has no pdb. Attach a debugger, or open Chrome's debugger with BrowserConfig::with_remote_debug."
+status = "implemented"
+rust = "TestSettings::final_debug"
+note = "`sbrs test --final-debug` (also `--ftrace`, `--fdebug`, `--final-trace`), `SB_FINAL_DEBUG` or `final_debug` in the `[test]` table: after each attempt the `sb` and `sb_cdp` fixtures pause in a `[FINAL TRACE]` prompt with the browser open (`common::debug_prompt`), where Python drops into pdbp. It needs a terminal and the cargo runner; `sbrs test` then runs one test at a time with its output shown."
 
 [options_pytest."--final-trace"]
-status = "not-applicable"
-reason = "Starts Python's pdb trace at the end of each test; Rust has no pdb. Attach a debugger, or open Chrome's debugger with BrowserConfig::with_remote_debug."
+status = "implemented"
+rust = "TestSettings::final_debug"
+note = "A spelling of --final-debug; see there."
 
 [options_pytest."--firefox"]
-status = "composed"
-rust = "BrowserConfig::browser"
+status = "implemented"
+rust = "Settings::browser"
 note = "Choose Browser::Firefox. The session starts geckodriver itself, from downloaded_drivers/ or the PATH, else the newest release downloaded from GitHub; options go in moz:firefoxOptions."
 
 [options_pytest."--firefox-arg"]
@@ -4912,13 +4927,14 @@ rust = "FirefoxOptions::add_preferences"
 note = "Comma-separated NAME:VALUE; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`."
 
 [options_pytest."--ftrace"]
-status = "not-applicable"
-reason = "Starts Python's pdb trace at the end of each test; Rust has no pdb. Attach a debugger, or open Chrome's debugger with BrowserConfig::with_remote_debug."
+status = "implemented"
+rust = "TestSettings::final_debug"
+note = "A spelling of --final-debug; see there."
 
 [options_pytest."--fullscreen"]
-status = "composed"
-rust = "BaseCase::maximize_window"
-note = "Alias of --maximize upstream. Call `maximize_window()` once the session has started; it works for Firefox too. A session always starts with a --window-size, so --start-maximized alone is not relied on."
+status = "implemented"
+rust = "Settings::maximize"
+note = "Alias of --maximize upstream: `sbrs test --fullscreen`, `SB_MAXIMIZE` or `maximize` in the settings file. A headed Chromium window starts with --start-maximized and no --window-size; Firefox and Safari are maximized once they are running. A headless session ignores it."
 
 [options_pytest."--guest"]
 status = "implemented"
@@ -4933,14 +4949,14 @@ status = "implemented"
 rust = "BrowserConfig::with_guest_mode"
 
 [options_pytest."--gui"]
-status = "composed"
-rust = "BrowserConfig::headless"
-note = "Headed is headless = false."
+status = "implemented"
+rust = "Settings::headless"
+note = "An alias of --headed: `sbrs test --gui` is `SB_HEADLESS=false`. Headed is headless = false."
 
 [options_pytest."--headed"]
-status = "composed"
-rust = "BrowserConfig::headless"
-note = "Headed is headless = false."
+status = "implemented"
+rust = "Settings::headless"
+note = "`sbrs test --headed` is `SB_HEADLESS=false`. Headed is headless = false."
 
 [options_pytest."--headless"]
 status = "implemented"
@@ -4957,8 +4973,9 @@ rust = "BrowserConfig::with_headless2"
 note = "`headless = true` launches Chrome's new headless mode (`--headless=new`), which is what headless2 asks for."
 
 [options_pytest."--highlights"]
-status = "planned"
-note = "RunSettings::with_highlights holds the count (zero is unset, 4 is the default), but BaseCase::highlight does not read it yet."
+status = "implemented"
+rust = "RunSettings::with_highlights"
+note = "`sbrs test --highlights`, `SB_HIGHLIGHTS` or `highlights` in the settings file: the number of loops every highlight plays. When it is set it wins over the count a call names (as in Python); BaseCase::highlight reads it."
 
 [options_pytest."--host-resolver-rules"]
 status = "implemented"
@@ -4992,35 +5009,40 @@ note = "Zero is unset. play_tour (the tour moves on by itself), save_presentatio
 
 [options_pytest."--is-pytest"]
 status = "not-applicable"
-reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
+reason = "Accepted and ignored by `sbrs test`: an internal pytest flag; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--is_pytest"]
 status = "not-applicable"
-reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
+reason = "Accepted and ignored by `sbrs test`: an internal pytest flag; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--lfp"]
-status = "not-applicable"
-reason = "A pytest report hook that prints the URL of each failing test; a Rust test prints BaseCase::get_current_url itself when it fails."
+status = "implemented"
+rust = "TestSettings::list_fail_page"
+note = "A spelling of --list-fail-page; see there."
 
 [options_pytest."--list-fail-page"]
-status = "not-applicable"
-reason = "A pytest report hook that prints the URL of each failing test; a Rust test prints BaseCase::get_current_url itself when it fails."
+status = "implemented"
+rust = "TestSettings::list_fail_page"
+note = "`sbrs test --list-fail-page` (also `--list-fail-pages`, `--lfp`), `SB_LIST_FAIL_PAGE` or `list_fail_page` in the `[test]` table: a failing test of the `sb` and `sb_cdp` fixtures prints `=> Fail Page: <url>`, the page it ended on."
 
 [options_pytest."--list-fail-pages"]
-status = "not-applicable"
-reason = "A pytest report hook that prints the URL of each failing test; a Rust test prints BaseCase::get_current_url itself when it fails."
+status = "implemented"
+rust = "TestSettings::list_fail_page"
+note = "A spelling of --list-fail-page; see there."
 
 [options_pytest."--locale"]
 status = "implemented"
 rust = "BrowserConfig::locale"
 
 [options_pytest."--locale-code"]
-status = "composed"
-rust = "BrowserConfig::locale"
+status = "implemented"
+rust = "Settings::locale_code"
+note = "`sbrs test --locale-code`, `SB_LOCALE_CODE` or `locale_code` in the settings file: a language code such as fr or ar_eg; it wins over --locale."
 
 [options_pytest."--locale_code"]
-status = "composed"
-rust = "BrowserConfig::locale"
+status = "implemented"
+rust = "Settings::locale_code"
+note = "A Python spelling of --locale-code; `sbrs test` takes both."
 
 [options_pytest."--log-cdp"]
 status = "implemented"
@@ -5034,7 +5056,7 @@ note = "Asks the driver to keep the performance log; read it with `BrowserSessio
 
 [options_pytest."--log-path"]
 status = "not-applicable"
-reason = "Deprecated upstream and no longer editable: logs always go to latest_logs/, as artifacts::ensure_latest_logs_dir does here."
+reason = "Accepted and ignored by `sbrs test`. Deprecated upstream and no longer editable: logs always go to latest_logs/, as artifacts::ensure_latest_logs_dir does here."
 
 [options_pytest."--log_cdp"]
 status = "implemented"
@@ -5048,7 +5070,7 @@ note = "Asks the driver to keep the performance log; read it with `BrowserSessio
 
 [options_pytest."--log_path"]
 status = "not-applicable"
-reason = "Deprecated upstream and no longer editable: logs always go to latest_logs/, as artifacts::ensure_latest_logs_dir does here."
+reason = "Accepted and ignored by `sbrs test`. Deprecated upstream and no longer editable: logs always go to latest_logs/, as artifacts::ensure_latest_logs_dir does here."
 
 [options_pytest."--maximize"]
 status = "implemented"
@@ -5056,14 +5078,14 @@ rust = "BrowserConfig::with_maximize"
 note = "A headed Chromium window starts with --start-maximized and no --window-size; Firefox and Safari are maximized once they are running. A headless session ignores it."
 
 [options_pytest."--maximize-window"]
-status = "composed"
-rust = "BaseCase::maximize_window"
-note = "Call `maximize_window()` once the session has started; it works for Firefox too. A session always starts with a --window-size, so --start-maximized alone is not relied on."
+status = "implemented"
+rust = "Settings::maximize"
+note = "An alias of --maximize; see there."
 
 [options_pytest."--maximize_window"]
-status = "composed"
-rust = "BaseCase::maximize_window"
-note = "Call `maximize_window()` once the session has started; it works for Firefox too. A session always starts with a --window-size, so --start-maximized alone is not relied on."
+status = "implemented"
+rust = "Settings::maximize"
+note = "An alias of --maximize; see there."
 
 [options_pytest."--message-duration"]
 status = "implemented"
@@ -5086,24 +5108,22 @@ status = "implemented"
 rust = "BrowserConfig::mobile"
 
 [options_pytest."--mobile-emulator"]
-status = "composed"
-rust = "BrowserConfig::mobile"
+status = "implemented"
+rust = "Settings::mobile"
 note = "Give the screen with `with_device_metrics`."
 
 [options_pytest."--mobile_emulator"]
-status = "composed"
-rust = "BrowserConfig::mobile"
+status = "implemented"
+rust = "Settings::mobile"
 note = "Give the screen with `with_device_metrics`."
 
 [options_pytest."--multi-proxy"]
-status = "composed"
-rust = "LaunchOptionsBuilder::proxy"
-note = "Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine logs in to one through a DevTools client beside chromedriver (Chrome and Edge, a driver on this machine; a remote grid with a login is refused)."
+status = "not-applicable"
+reason = "Accepted and ignored by `sbrs test`: each pure CDP browser answers its own proxy login over the protocol (LaunchOptionsBuilder::proxy), so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine logs in to one through a DevTools client beside chromedriver (Chrome and Edge, a driver on this machine; a remote grid with a login is refused)."
 
 [options_pytest."--multi_proxy"]
-status = "composed"
-rust = "LaunchOptionsBuilder::proxy"
-note = "Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine logs in to one through a DevTools client beside chromedriver (Chrome and Edge, a driver on this machine; a remote grid with a login is refused)."
+status = "not-applicable"
+reason = "Accepted and ignored by `sbrs test`: each pure CDP browser answers its own proxy login over the protocol (LaunchOptionsBuilder::proxy), so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine logs in to one through a DevTools client beside chromedriver (Chrome and Edge, a driver on this machine; a remote grid with a login is refused)."
 
 [options_pytest."--no-csp"]
 status = "implemented"
@@ -5115,8 +5135,9 @@ status = "implemented"
 rust = "BrowserConfig::with_no_sandbox"
 
 [options_pytest."--no-screenshot"]
-status = "not-applicable"
-reason = "Nothing to turn off: this crate saves a screenshot only when a test or ScreenshotOnFailurePlugin asks for one."
+status = "implemented"
+rust = "TestSettings::no_screenshot"
+note = "`sbrs test --no-screenshot` (also `--ns`), `SB_NO_SCREENSHOT` or `no_screenshot` in the `[test]` table: the evidence of a failing test (`latest_logs/<test id>/`) has no screenshot.png, only the page source and the test info. It wins over --screenshot, as in Python."
 
 [options_pytest."--no_csp"]
 status = "implemented"
@@ -5128,12 +5149,14 @@ status = "implemented"
 rust = "BrowserConfig::with_no_sandbox"
 
 [options_pytest."--no_screenshot"]
-status = "not-applicable"
-reason = "Nothing to turn off: this crate saves a screenshot only when a test or ScreenshotOnFailurePlugin asks for one."
+status = "implemented"
+rust = "TestSettings::no_screenshot"
+note = "A Python spelling of --no-screenshot; `sbrs test` takes both."
 
 [options_pytest."--ns"]
-status = "not-applicable"
-reason = "Nothing to turn off: this crate saves a screenshot only when a test or ScreenshotOnFailurePlugin asks for one."
+status = "implemented"
+rust = "TestSettings::no_screenshot"
+note = "A spelling of --no-screenshot; see there."
 
 [options_pytest."--open-devtools"]
 status = "implemented"
@@ -5149,8 +5172,8 @@ rust = "BrowserConfig::browser"
 note = "Run with operadriver, which must be in downloaded_drivers/ or on the PATH; nothing downloads it."
 
 [options_pytest."--pac-url"]
-status = "composed"
-rust = "BrowserConfig::proxy_pac_url"
+status = "implemented"
+rust = "Settings::proxy_pac_url"
 note = "USERNAME:PASSWORD@URL works for Chrome and Edge on a driver this machine runs: a DevTools client answers the proxy login. A remote grid with a login is refused; Firefox refuses it too."
 
 [options_pytest."--page-load-strategy"]
@@ -5199,13 +5222,13 @@ rust = "BrowserConfig::proxy_pac_url"
 divergence = "The URL must end in .pac, with a login before it or in it. Chrome is never given the login, and a WebDriver session does not answer the PAC login yet, so it does not authenticate there; Firefox refuses a login with Python's message."
 
 [options_pytest."--proxy-server"]
-status = "composed"
-rust = "BrowserConfig::proxy"
+status = "implemented"
+rust = "Settings::proxy"
 note = "SERVER:PORT only. A WebDriver session hands the address to Chrome as a flag, Chrome ignores credentials in it, and the engine does not answer the proxy's login request, so USER:PASS@SERVER:PORT does not log in. For a proxy that needs a password use the pure CDP engine (LaunchOptionsBuilder::proxy)."
 
 [options_pytest."--proxy-string"]
-status = "composed"
-rust = "BrowserConfig::proxy"
+status = "implemented"
+rust = "Settings::proxy"
 note = "SERVER:PORT only. A WebDriver session hands the address to Chrome as a flag, Chrome ignores credentials in it, and the engine does not answer the proxy's login request, so USER:PASS@SERVER:PORT does not log in. For a proxy that needs a password use the pure CDP engine (LaunchOptionsBuilder::proxy)."
 
 [options_pytest."--proxy_bypass_list"]
@@ -5225,8 +5248,8 @@ note = "Alias of --reuse-class-session upstream. Also `sbrs --rcs` (aliases `--r
 divergence = "Python quits the class's browser when the next class starts (setUpClass and tearDownClass); here it stays open until the idle timeout, so the browsers of several modules can be open at once. A BaseCase made outside a libtest thread (a custom harness, a spawned task on a Tokio worker) counts as the root module."
 
 [options_pytest."--rec"]
-status = "composed"
-rust = "BrowserConfig::with_recorder_mode"
+status = "implemented"
+rust = "TestSettings::recorder"
 note = "Recorder Mode (`--rec`, `SB_RECORDER`, `BrowserConfig::with_recorder_mode`) runs Python's page recorder in every tab; when the test quits, the actions are processed as Python does and written to `recordings/<test>_rec.rs` (an rstest test on the `sb` fixture) and `.json`, with `.feature` under `--rec-behave`. `sbrs mkrec` (aliases `codegen`, `record`) records from the command line."
 
 [options_pytest."--rec-behave"]
@@ -5240,9 +5263,9 @@ rust = "ActionRecorder::to_gherkin"
 note = "Writes a feature for the common browser steps; save_recording_as_feature saves it."
 
 [options_pytest."--rec-print"]
-status = "composed"
-rust = "BaseCase::export_recording_as_rust"
-note = "Print the returned text."
+status = "implemented"
+rust = "TestSettings::rec_print"
+note = "`sbrs test --rec-print`, `SB_REC_PRINT` or `rec_print` in the `[test]` table: the recording is printed when the test ends (the text BaseCase::export_recording_as_rust returns)."
 
 [options_pytest."--rec-sb-cdp"]
 status = "implemented"
@@ -5251,8 +5274,8 @@ note = "Also `sbrs --rec-sb-cdp` (alias `--rec_sb_cdp`), `Settings::rec_sb_cdp` 
 divergence = "Python writes the recording file when the test ends; here it is written when export_recording_as_rust, save_recording_to_logs or a CLI command asks. The test itself still runs on WebDriver, and the generated program launches a pure CDP Browser. Waits use the pure CDP engine's own timeout, not ten seconds, and actions with no pure CDP call (frame, window and alert switching, JavaScript clicks, set_window_size) are comments, where Python comments out the actions CDPMethods lacks."
 
 [options_pytest."--rec-sb-mgr"]
-status = "composed"
-rust = "ActionRecorder::to_rust_script"
+status = "implemented"
+rust = "TestSettings::rec_sb_mgr"
 note = "Python's `with SB() as sb:` form is a standalone script. `ActionRecorder::to_rust_script` writes the recording as a standalone `#[tokio::main]` Rust program (BaseCase::export_recording_as_rust returns it); to_rust_test writes a test instead."
 
 [options_pytest."--rec-sleep"]
@@ -5261,8 +5284,8 @@ rust = "RunSettings::with_record_sleep"
 note = "BaseCase::sleep goes into the recording, and the generated Rust calls sb.sleep."
 
 [options_pytest."--record"]
-status = "composed"
-rust = "BrowserConfig::with_recorder_mode"
+status = "implemented"
+rust = "TestSettings::recorder"
 note = "Recorder Mode (`--rec`, `SB_RECORDER`, `BrowserConfig::with_recorder_mode`) runs Python's page recorder in every tab; when the test quits, the actions are processed as Python does and written to `recordings/<test>_rec.rs` (an rstest test on the `sb` fixture) and `.json`, with `.feature` under `--rec-behave`. `sbrs mkrec` (aliases `codegen`, `record`) records from the command line."
 
 [options_pytest."--record-sleep"]
@@ -5271,8 +5294,8 @@ rust = "RunSettings::with_record_sleep"
 note = "BaseCase::sleep goes into the recording, and the generated Rust calls sb.sleep."
 
 [options_pytest."--recorder"]
-status = "composed"
-rust = "BrowserConfig::with_recorder_mode"
+status = "implemented"
+rust = "TestSettings::recorder"
 note = "Recorder Mode (`--rec`, `SB_RECORDER`, `BrowserConfig::with_recorder_mode`) runs Python's page recorder in every tab; when the test quits, the actions are processed as Python does and written to `recordings/<test>_rec.rs` (an rstest test on the `sb` fixture) and `.json`, with `.feature` under `--rec-behave`. `sbrs mkrec` (aliases `codegen`, `record`) records from the command line."
 
 [options_pytest."--remote-debug"]
@@ -5331,19 +5354,19 @@ rust = "BrowserConfig::browser"
 note = "Run with safaridriver, which comes with macOS; Safari needs Allow Remote Automation turned on."
 
 [options_pytest."--save-screenshot"]
-status = "composed"
-rust = "BaseCase::save_teardown_screenshot"
-note = "Call it at the end of a test."
+status = "implemented"
+rust = "TestSettings::save_screenshot"
+note = "A spelling of --screenshot; see there."
 
 [options_pytest."--save_screenshot"]
-status = "composed"
-rust = "BaseCase::save_teardown_screenshot"
-note = "Call it at the end of a test."
+status = "implemented"
+rust = "TestSettings::save_screenshot"
+note = "A spelling of --screenshot; see there."
 
 [options_pytest."--screenshot"]
-status = "composed"
-rust = "BaseCase::save_teardown_screenshot"
-note = "Call it at the end of a test."
+status = "implemented"
+rust = "TestSettings::save_screenshot"
+note = "`sbrs test --screenshot` (also `--save-screenshot`, `--ss`), `SB_SAVE_SCREENSHOT` or `save_screenshot` in the `[test]` table: the `sb` and `sb_cdp` fixtures save the screenshot and the page source of a passing test too, in `latest_logs/<test id>/`. A failing test always leaves them unless --no-screenshot is on (the screenshot only)."
 
 [options_pytest."--server"]
 status = "implemented"
@@ -5351,18 +5374,18 @@ rust = "BrowserConfig::with_grid"
 note = "`with_grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL."
 
 [options_pytest."--settings"]
-status = "composed"
-rust = "Settings::from_file"
+status = "implemented"
+rust = "Settings::settings_file"
 note = "`sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
 
 [options_pytest."--settings-file"]
-status = "composed"
-rust = "Settings::from_file"
+status = "implemented"
+rust = "Settings::settings_file"
 note = "`sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
 
 [options_pytest."--settings_file"]
-status = "composed"
-rust = "Settings::from_file"
+status = "implemented"
+rust = "Settings::settings_file"
 note = "`sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
 
 [options_pytest."--sjw"]
@@ -5401,9 +5424,9 @@ rust = "RunSettings::with_slow_mode"
 note = "Pauses, in full, after the same actions as --demo, which also outline the element."
 
 [options_pytest."--ss"]
-status = "composed"
-rust = "BaseCase::save_teardown_screenshot"
-note = "Call it at the end of a test."
+status = "implemented"
+rust = "TestSettings::save_screenshot"
+note = "A spelling of --screenshot; see there."
 
 [options_pytest."--start-page"]
 status = "implemented"
@@ -5420,19 +5443,19 @@ status = "implemented"
 rust = "BrowserConfig::with_swiftshader"
 
 [options_pytest."--time-limit"]
-status = "composed"
-rust = "BaseCase::set_time_limit"
-note = "Once the test has run longer than the limit (counted from creating the BaseCase), its next open, readiness wait or element action fails with a time-limit error; waits are cut to the time left. A test that does none of those is not interrupted: wrap it in `tokio::time::timeout` for a hard stop."
+status = "implemented"
+rust = "TestSettings::time_limit"
+note = "`sbrs test --time-limit` (also `--timelimit`), `SB_TIME_LIMIT` or `time_limit` in the `[test]` table: the `sb` and `sb_cdp` fixtures fail a test that runs longer with `This test has exceeded the time limit of N seconds!` and close its browser; the time spent at a debug prompt does not count. A Gherkin scenario cannot be stopped halfway, so its limit is the BaseCase's own (BaseCase::set_time_limit): the next open, readiness wait or element action fails once it has run out."
 
 [options_pytest."--time_limit"]
-status = "composed"
-rust = "BaseCase::set_time_limit"
-note = "Once the test has run longer than the limit (counted from creating the BaseCase), its next open, readiness wait or element action fails with a time-limit error; waits are cut to the time left. A test that does none of those is not interrupted: wrap it in `tokio::time::timeout` for a hard stop."
+status = "implemented"
+rust = "TestSettings::time_limit"
+note = "A Python spelling of --time-limit; `sbrs test` takes both."
 
 [options_pytest."--timelimit"]
-status = "composed"
-rust = "BaseCase::set_time_limit"
-note = "Once the test has run longer than the limit (counted from creating the BaseCase), its next open, readiness wait or element action fails with a time-limit error; waits are cut to the time left. A test that does none of those is not interrupted: wrap it in `tokio::time::timeout` for a hard stop."
+status = "implemented"
+rust = "TestSettings::time_limit"
+note = "A spelling of --time-limit; see there."
 
 [options_pytest."--timeout-multiplier"]
 status = "implemented"
@@ -5445,8 +5468,8 @@ rust = "RunSettings::with_timeout_multiplier"
 note = "The default wait becomes ceil(multiplier * seconds); a multiplier below 0.5 is raised to 0.5, as in Python. A timeout passed to a method explicitly is not multiplied, which matches Python, where only the default timeouts are."
 
 [options_pytest."--uc"]
-status = "composed"
-rust = "BrowserConfig::mode"
+status = "implemented"
+rust = "Settings::mode"
 note = "DriverMode::Uc."
 
 [options_pytest."--uc-cdp"]
@@ -5463,11 +5486,11 @@ divergence = "Python adds a listener with driver.add_cdp_listener; here the even
 
 [options_pytest."--uc-sub"]
 status = "not-applicable"
-reason = "Deprecated upstream: UC Mode always launches the browser as a separate process now, and DriverMode::Uc has no other launch path to switch to."
+reason = "Accepted and ignored by `sbrs test`. Deprecated upstream: UC Mode always launches the browser as a separate process now, and DriverMode::Uc has no other launch path to switch to."
 
 [options_pytest."--uc-subprocess"]
 status = "not-applicable"
-reason = "Deprecated upstream: UC Mode always launches the browser as a separate process now, and DriverMode::Uc has no other launch path to switch to."
+reason = "Accepted and ignored by `sbrs test`. Deprecated upstream: UC Mode always launches the browser as a separate process now, and DriverMode::Uc has no other launch path to switch to."
 
 [options_pytest."--uc_cdp_events"]
 status = "implemented"
@@ -5477,21 +5500,21 @@ divergence = "Python adds a listener with driver.add_cdp_listener; here the even
 
 [options_pytest."--uc_subprocess"]
 status = "not-applicable"
-reason = "Deprecated upstream: UC Mode always launches the browser as a separate process now, and DriverMode::Uc has no other launch path to switch to."
+reason = "Accepted and ignored by `sbrs test`. Deprecated upstream: UC Mode always launches the browser as a separate process now, and DriverMode::Uc has no other launch path to switch to."
 
 [options_pytest."--undetectable"]
-status = "composed"
-rust = "BrowserConfig::mode"
+status = "implemented"
+rust = "Settings::mode"
 note = "DriverMode::Uc."
 
 [options_pytest."--undetected"]
-status = "composed"
-rust = "BrowserConfig::mode"
+status = "implemented"
+rust = "Settings::mode"
 note = "DriverMode::Uc."
 
 [options_pytest."--url"]
-status = "composed"
-rust = "BrowserConfig::start_page"
+status = "implemented"
+rust = "Settings::start_page"
 note = "Alias of --start-page upstream. BaseCase::new opens the start page when one is set."
 
 [options_pytest."--use-auto-ext"]
@@ -5500,9 +5523,9 @@ rust = "BrowserConfig::with_automation_extension"
 note = "Sets `useAutomationExtension` to true. Upstream marks the option deprecated. Chromium only."
 
 [options_pytest."--use-chromium"]
-status = "composed"
-rust = "BrowserConfig::browser"
-note = "Choose the Browser variant."
+status = "implemented"
+rust = "Settings::browser"
+note = "An alias of --chromium: `sbrs test --use-chromium` is `SB_BROWSER=chromium`."
 
 [options_pytest."--use_auto_ext"]
 status = "implemented"
@@ -5526,20 +5549,24 @@ status = "implemented"
 rust = "BrowserConfig::user_data_dir"
 
 [options_pytest."--var1"]
-status = "not-applicable"
-reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
+status = "implemented"
+rust = "TestData::var1"
+note = "`sbrs test --var1`, `SB_VAR1` or `var1` in the `[test]` table; a test reads it with `sb.var1()`."
 
 [options_pytest."--var2"]
-status = "not-applicable"
-reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
+status = "implemented"
+rust = "TestData::var2"
+note = "`sbrs test --var2`, `SB_VAR2` or `var2` in the `[test]` table; a test reads it with `sb.var2()`."
 
 [options_pytest."--var3"]
-status = "not-applicable"
-reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
+status = "implemented"
+rust = "TestData::var3"
+note = "`sbrs test --var3`, `SB_VAR3` or `var3` in the `[test]` table; a test reads it with `sb.var3()`."
 
 [options_pytest."--variables"]
-status = "not-applicable"
-reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
+status = "implemented"
+rust = "TestData::variables"
+note = "`sbrs test --variables`, `SB_VARIABLES` or `variables` in the `[test]` table: a JSON object or the Python dictionary literal Python reads (`TestData::parse_variables`); anything else exits with status 2. A test reads it with `sb.variables()`."
 
 [options_pytest."--verify-delay"]
 status = "implemented"
@@ -5597,66 +5624,60 @@ rust = "BrowserConfig::with_window_size"
 note = "Chrome's `--window-size`; a Firefox window is resized once it runs."
 
 [options_pytest."--with-basic-test-info"]
-status = "composed"
-rust = "ReportPlugin::json"
-note = "Always on upstream. A failed test's report says the kind of error, a hint, and the page's URL and title: add `ReportPlugin::json(path)` to `Plugins` and run the test with `Plugins::run_browser_test`. It is one report file for the run, not a basic_test_info.txt per failure."
+status = "not-applicable"
+reason = "Accepted and ignored by `sbrs test`: always on upstream, and always on in the `sb` and `sb_cdp` fixtures, where a failing test leaves basic_test_info.txt in latest_logs/<test id>/. ReportPlugin::json is the equivalent for a test that runs through Plugins::run_browser_test."
 
 [options_pytest."--with-basic_test_info"]
-status = "composed"
-rust = "ReportPlugin::json"
-note = "Always on upstream. A failed test's report says the kind of error, a hint, and the page's URL and title: add `ReportPlugin::json(path)` to `Plugins` and run the test with `Plugins::run_browser_test`. It is one report file for the run, not a basic_test_info.txt per failure."
+status = "not-applicable"
+reason = "A Python spelling of --with-basic-test-info: accepted and ignored by `sbrs test`, because basic_test_info.txt is always written for a failing test of the `sb` and `sb_cdp` fixtures."
 
 [options_pytest."--with-db-reporting"]
-status = "composed"
-rust = "ResultStore::record_outcome"
-note = "Needs the turso feature; the store is a local database, not MySQL."
+status = "implemented"
+rust = "TestSettings::with_db_reporting"
+note = "`sbrs test --with-db-reporting`, `SB_WITH_DB_REPORTING` or `with_db_reporting` in the `[test]` table: each test's outcome goes to `ResultStore::record_outcome`, and `sbrs report history` reads it. It needs the turso feature (an `sbrs` built without it exits with status 2); the store is a local database, not MySQL."
 
 [options_pytest."--with-db_reporting"]
-status = "composed"
-rust = "ResultStore::record_outcome"
-note = "Needs the turso feature; the store is a local database, not MySQL."
+status = "implemented"
+rust = "TestSettings::with_db_reporting"
+note = "A Python spelling of --with-db-reporting; `sbrs test` takes both."
 
 [options_pytest."--with-page-source"]
-status = "composed"
-rust = "PageSourceOnFailurePlugin::new"
-note = "Always on upstream. Add `PageSourceOnFailurePlugin::new(\"latest_logs\")` to `Plugins` and run the test with `Plugins::run_browser_test`; a failed test then saves the page source."
+status = "not-applicable"
+reason = "Accepted and ignored by `sbrs test`: always on upstream, and always on in the `sb` and `sb_cdp` fixtures, where a failing test leaves page_source.html in latest_logs/<test id>/. PageSourceOnFailurePlugin is the equivalent for a test that runs through Plugins::run_browser_test."
 
 [options_pytest."--with-page_source"]
-status = "composed"
-rust = "PageSourceOnFailurePlugin::new"
-note = "Always on upstream. Add `PageSourceOnFailurePlugin::new(\"latest_logs\")` to `Plugins` and run the test with `Plugins::run_browser_test`; a failed test then saves the page source."
+status = "not-applicable"
+reason = "A Python spelling of --with-page-source: accepted and ignored by `sbrs test`, because page_source.html is always written for a failing test of the `sb` and `sb_cdp` fixtures."
 
 [options_pytest."--with-s3-logging"]
-status = "composed"
-rust = "S3LoggingPlugin::upload_file"
+status = "implemented"
+rust = "TestSettings::with_s3_logging"
+note = "`sbrs test --with-s3-logging`, `SB_WITH_S3_LOGGING` or `with_s3_logging` in the `[test]` table: when a test ends, the `sb` and `sb_cdp` fixtures upload its `latest_logs/<test id>/` folder to the bucket `SB_S3_BUCKET` names (region `SB_S3_REGION`, else `AWS_REGION`, else us-east-1; key prefix `SB_S3_PREFIX`) with S3LoggingPlugin::upload_file. It needs the feature `s3` of seleniumbase-rs in the tested crate; without it the flag logs a warning and does nothing."
 
 [options_pytest."--with-s3_logging"]
-status = "composed"
-rust = "S3LoggingPlugin::upload_file"
+status = "implemented"
+rust = "TestSettings::with_s3_logging"
+note = "A Python spelling of --with-s3-logging; `sbrs test` takes both."
 
 [options_pytest."--with-screen-shots"]
-status = "composed"
-rust = "ScreenshotOnFailurePlugin::new"
-note = "Always on upstream. Add `ScreenshotOnFailurePlugin::new(\"latest_logs\")` to `Plugins` and run the test with `Plugins::run_browser_test`; a failed test then saves a PNG screenshot."
+status = "not-applicable"
+reason = "Accepted and ignored by `sbrs test`: always on upstream, and always on in the `sb` and `sb_cdp` fixtures, where a failing test leaves screenshot.png in latest_logs/<test id>/ (--no-screenshot turns it off). ScreenshotOnFailurePlugin is the equivalent for a test that runs through Plugins::run_browser_test."
 
 [options_pytest."--with-screen_shots"]
-status = "composed"
-rust = "ScreenshotOnFailurePlugin::new"
-note = "Always on upstream. Add `ScreenshotOnFailurePlugin::new(\"latest_logs\")` to `Plugins` and run the test with `Plugins::run_browser_test`; a failed test then saves a PNG screenshot."
+status = "not-applicable"
+reason = "A Python spelling of --with-screen-shots: accepted and ignored by `sbrs test`, because screenshot.png is always written for a failing test of the `sb` and `sb_cdp` fixtures."
 
 [options_pytest."--with-selenium"]
 status = "not-applicable"
-reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
+reason = "Accepted and ignored by `sbrs test`: deprecated upstream and always on; the Rust test runner (api::runner) and RuntimeConfig replace the pytest plumbing."
 
 [options_pytest."--with-testing-base"]
-status = "composed"
-rust = "Plugins::run_browser_test"
-note = "Deprecated and always on upstream: logs and screenshots are saved when a test fails. Build a `Plugins` with `ScreenshotOnFailurePlugin` and `PageSourceOnFailurePlugin` and run the test with `Plugins::run_browser_test`; the runner in api::runner does none of this by itself."
+status = "not-applicable"
+reason = "Accepted and ignored by `sbrs test`: deprecated and always on upstream, and always on in the `sb` and `sb_cdp` fixtures, where a failing test leaves its screenshot, page source and test info in latest_logs/<test id>/. A test that runs through Plugins::run_browser_test gets the same with ScreenshotOnFailurePlugin and PageSourceOnFailurePlugin."
 
 [options_pytest."--with-testing_base"]
-status = "composed"
-rust = "Plugins::run_browser_test"
-note = "Deprecated and always on upstream: logs and screenshots are saved when a test fails. Build a `Plugins` with `ScreenshotOnFailurePlugin` and `PageSourceOnFailurePlugin` and run the test with `Plugins::run_browser_test`; the runner in api::runner does none of this by itself."
+status = "not-applicable"
+reason = "A Python spelling of --with-testing-base: accepted and ignored by `sbrs test`, because the evidence of a failing test is always written by the `sb` and `sb_cdp` fixtures."
 
 [options_pytest."--xvfb"]
 status = "implemented"
@@ -5674,22 +5695,24 @@ rust = "VirtualDisplay::new"
 note = "WIDTH,HEIGHT of the virtual screen; 1366,768 when not given."
 
 [options_sb."account"]
-status = "not-applicable"
-reason = "Hands a free-text account string to SB() tests as sb.account; a Rust test reads its own values from std::env or a fixture file."
+status = "implemented"
+rust = "TestData::account"
+note = "`Settings::test.data.account` (`account` in the `[test]` table, `SB_ACCOUNT`, `sbrs test --account`); a test reads it with `sb.account()`. `Sb::configure` sets it for one test."
 
 [options_sb."ad_block"]
-status = "composed"
-rust = "BrowserConfig::ad_block"
+status = "implemented"
+rust = "Settings::ad_block"
 note = "Set BrowserConfig::ad_block (BrowserConfig::with_ad_block). Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_sb."ad_block_on"]
-status = "composed"
-rust = "BrowserConfig::ad_block"
+status = "implemented"
+rust = "Settings::ad_block"
 note = "Set BrowserConfig::ad_block (BrowserConfig::with_ad_block). Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_sb."agent"]
-status = "composed"
-rust = "BrowserConfig::user_agent"
+status = "implemented"
+rust = "Settings::user_agent"
+note = "`user_agent` in the settings file, `SB_USER_AGENT`, `sbrs test --user-agent` (alias `--agent`)."
 
 [options_sb."binary_location"]
 status = "implemented"
@@ -5734,8 +5757,9 @@ status = "implemented"
 rust = "BrowserConfig::with_dark_mode"
 
 [options_sb."data"]
-status = "not-applicable"
-reason = "Passes one free-text string into SB() tests as sb.data; a Rust test reads its own values from std::env or a fixture file."
+status = "implemented"
+rust = "TestData::data"
+note = "`data` in the `[test]` table, `SB_DATA`, `sbrs test --data`; a test reads it with `sb.data()`."
 
 [options_sb."demo"]
 status = "implemented"
@@ -5807,11 +5831,12 @@ note = "Chrome Sync is switched off with `--disable-sync` unless this is set."
 
 [options_sb."enable_ws"]
 status = "not-applicable"
-reason = "Python adds --disable-web-security unless enable_ws is set. A Rust session never adds it, so web security is already on and there is nothing to enable."
+reason = "Not a setting here. Python adds --disable-web-security unless enable_ws is set. A Rust session never adds it unless disable_ws asks, so web security is already on and there is nothing to enable."
 
 [options_sb."environment"]
-status = "not-applicable"
-reason = "Names the test environment (qa, prod, ...) for SB() tests; this crate takes per-deploy configuration from SB_* environment variables (RuntimeConfig) instead."
+status = "implemented"
+rust = "TestData::env"
+note = "`env` in the `[test]` table, `SB_ENV`, `sbrs test --env`; one of Python's 24 choices, read with `sb.env()` or `sb.environment()` (`test` when none was given)."
 
 [options_sb."extension_dir"]
 status = "implemented"
@@ -5850,8 +5875,8 @@ status = "implemented"
 rust = "BrowserConfig::with_guest_mode"
 
 [options_sb."headed"]
-status = "composed"
-rust = "BrowserConfig::headless"
+status = "implemented"
+rust = "Settings::headless"
 note = "Headed is headless = false."
 
 [options_sb."headless"]
@@ -5869,8 +5894,9 @@ rust = "BrowserConfig::with_headless2"
 note = "`headless = true` launches Chrome's new headless mode (`--headless=new`), which is what headless2 asks for."
 
 [options_sb."highlights"]
-status = "planned"
-note = "RunSettings::with_highlights holds the count (zero is unset, 4 is the default), but BaseCase::highlight does not read it yet."
+status = "implemented"
+rust = "RunSettings::with_highlights"
+note = "`highlights` in the settings file, `SB_HIGHLIGHTS`, `sbrs test --highlights`: the number of loops every highlight plays. When it is set it wins over the count a call names (as in Python); BaseCase::highlight reads it."
 
 [options_sb."host_resolver_rules"]
 status = "implemented"
@@ -5886,8 +5912,8 @@ rust = "RunSettings::with_interval"
 note = "Zero is unset. play_tour (the tour moves on by itself), save_presentation, begin_presentation and display_chart use it."
 
 [options_sb."is_mobile"]
-status = "composed"
-rust = "BrowserConfig::mobile"
+status = "implemented"
+rust = "Settings::mobile"
 note = "Give the screen with `with_device_metrics`."
 
 [options_sb."js_checking_on"]
@@ -5900,8 +5926,9 @@ status = "implemented"
 rust = "BrowserConfig::locale"
 
 [options_sb."locale_code"]
-status = "composed"
-rust = "BrowserConfig::locale"
+status = "implemented"
+rust = "Settings::locale_code"
+note = "`locale_code` in the settings file, `SB_LOCALE_CODE`, `sbrs test --locale-code`: a language code such as fr or ar_eg; it wins over locale."
 
 [options_sb."log_cdp"]
 status = "implemented"
@@ -5928,13 +5955,13 @@ status = "implemented"
 rust = "BrowserConfig::mobile"
 
 [options_sb."multi_proxy"]
-status = "composed"
-rust = "LaunchOptionsBuilder::proxy"
-note = "Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine logs in to one through a DevTools client beside chromedriver (Chrome and Edge, a driver on this machine; a remote grid with a login is refused)."
+status = "not-applicable"
+reason = "Accepted and ignored by `sbrs test`: each pure CDP browser answers its own proxy login over the protocol (LaunchOptionsBuilder::proxy), so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine logs in to one through a DevTools client beside chromedriver (Chrome and Edge, a driver on this machine; a remote grid with a login is refused)."
 
 [options_sb."no_screenshot"]
-status = "not-applicable"
-reason = "Nothing to turn off: this crate saves a screenshot only when a test or ScreenshotOnFailurePlugin asks for one."
+status = "implemented"
+rust = "TestSettings::no_screenshot"
+note = "`no_screenshot` in the `[test]` table, `SB_NO_SCREENSHOT`, `sbrs test --no-screenshot`: the evidence of a failing test has no screenshot.png. It wins over save_screenshot."
 
 [options_sb."page_load_strategy"]
 status = "implemented"
@@ -5978,7 +6005,7 @@ divergence = "The URL must end in .pac, with a login before it or in it. Chrome 
 
 [options_sb."raise_test_failure"]
 status = "not-applicable"
-reason = "Makes the SB() context manager re-raise a failing test; every Rust BaseCase method returns Result, so a failure already reaches the caller as an Err."
+reason = "Not a flag or a setting: Sb::run always returns the test's error and the caller decides, and every Rust BaseCase method returns Result, so a failure already reaches the caller as an Err."
 
 [options_sb."rec_behave"]
 status = "implemented"
@@ -5986,9 +6013,9 @@ rust = "ActionRecorder::to_gherkin"
 note = "Writes a feature for the common browser steps; save_recording_as_feature saves it."
 
 [options_sb."rec_print"]
-status = "composed"
-rust = "BaseCase::export_recording_as_rust"
-note = "Print the returned text."
+status = "implemented"
+rust = "TestSettings::rec_print"
+note = "`rec_print` in the `[test]` table, `SB_REC_PRINT`, `sbrs test --rec-print`: the recording is printed when the test ends (the text BaseCase::export_recording_as_rust returns)."
 
 [options_sb."rec_sb_cdp"]
 status = "implemented"
@@ -5997,8 +6024,8 @@ note = "Also Settings::rec_sb_cdp, SB_REC_SB_CDP and `sbrs --rec-sb-cdp`. With i
 divergence = "Python writes the file when the SB() block ends; here you ask for it (export_recording_as_rust, save_recording_to_logs)."
 
 [options_sb."rec_sb_mgr"]
-status = "composed"
-rust = "ActionRecorder::to_rust_script"
+status = "implemented"
+rust = "TestSettings::rec_sb_mgr"
 note = "Python's `with SB() as sb:` form is a standalone script. `ActionRecorder::to_rust_script` writes the recording as a standalone `#[tokio::main]` Rust program (BaseCase::export_recording_as_rust returns it); to_rust_test writes a test instead."
 
 [options_sb."record_sleep"]
@@ -6018,12 +6045,12 @@ note = "Opens Chrome's debugger on port 9222, or on a free port when 9222 is in 
 
 [options_sb."rtf"]
 status = "not-applicable"
-reason = "Makes the SB() context manager re-raise a failing test; every Rust BaseCase method returns Result, so a failure already reaches the caller as an Err."
+reason = "Not a flag or a setting: Sb::run always returns the test's error and the caller decides, and every Rust BaseCase method returns Result, so a failure already reaches the caller as an Err."
 
 [options_sb."save_screenshot"]
-status = "composed"
-rust = "BaseCase::save_teardown_screenshot"
-note = "Call it at the end of a test."
+status = "implemented"
+rust = "TestSettings::save_screenshot"
+note = "`save_screenshot` in the `[test]` table, `SB_SAVE_SCREENSHOT`, `sbrs test --screenshot`: the `sb` and `sb_cdp` fixtures save the screenshot and the page source of a passing test too, in `latest_logs/<test id>/`."
 
 [options_sb."server"]
 status = "implemented"
@@ -6036,8 +6063,8 @@ rust = "BrowserConfig::with_grid"
 note = "The server name may carry a login (`USER:KEY@hub.browserstack.com`), which stays in the WebDriver URL; see `with_grid`."
 
 [options_sb."settings_file"]
-status = "composed"
-rust = "Settings::from_file"
+status = "implemented"
+rust = "Settings::settings_file"
 note = "`sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
 
 [options_sb."size"]
@@ -6070,13 +6097,14 @@ status = "implemented"
 rust = "BrowserConfig::with_swiftshader"
 
 [options_sb."test"]
-status = "not-applicable"
-reason = "Marks an SB() context-manager block as a test so it prints pytest-style results; Rust code runs under cargo test, which reports results itself."
+status = "composed"
+rust = "Sb::run"
+note = "Sb::run is Python's SB(test=True): it runs the body as a test with the evidence, reruns and time limit of the run configuration, and cargo test reports the result. run_browser_test is the form that is not a test."
 
 [options_sb."time_limit"]
-status = "composed"
-rust = "BaseCase::set_time_limit"
-note = "Once the test has run longer than the limit (counted from creating the BaseCase), its next open, readiness wait or element action fails with a time-limit error; waits are cut to the time left. A test that does none of those is not interrupted: wrap it in `tokio::time::timeout` for a hard stop."
+status = "implemented"
+rust = "TestSettings::time_limit"
+note = "`time_limit` in the `[test]` table, `SB_TIME_LIMIT`, `sbrs test --time-limit`: the `sb` and `sb_cdp` fixtures fail a test that runs longer with `This test has exceeded the time limit of N seconds!` and close its browser; the time spent at a debug prompt does not count. A Gherkin scenario cannot be stopped halfway, so its limit is the BaseCase's own (BaseCase::set_time_limit)."
 
 [options_sb."timeout_multiplier"]
 status = "implemented"
@@ -6084,8 +6112,8 @@ rust = "RunSettings::with_timeout_multiplier"
 note = "The default wait becomes ceil(multiplier * seconds); a multiplier below 0.5 is raised to 0.5, as in Python. A timeout passed to a method explicitly is not multiplied, which matches Python, where only the default timeouts are."
 
 [options_sb."uc"]
-status = "composed"
-rust = "BrowserConfig::mode"
+status = "implemented"
+rust = "Settings::mode"
 note = "DriverMode::Uc."
 
 [options_sb."uc_cdp"]
@@ -6109,13 +6137,13 @@ status = "not-applicable"
 reason = "Deprecated upstream: UC Mode always launches the browser as a separate process now, and DriverMode::Uc has no other launch path to switch to."
 
 [options_sb."undetectable"]
-status = "composed"
-rust = "BrowserConfig::mode"
+status = "implemented"
+rust = "Settings::mode"
 note = "DriverMode::Uc."
 
 [options_sb."undetected"]
-status = "composed"
-rust = "BrowserConfig::mode"
+status = "implemented"
+rust = "Settings::mode"
 note = "DriverMode::Uc."
 
 [options_sb."use_auto_ext"]
@@ -6124,29 +6152,33 @@ rust = "BrowserConfig::with_automation_extension"
 note = "Sets `useAutomationExtension` to true. Upstream marks the option deprecated. Chromium only."
 
 [options_sb."use_chromium"]
-status = "composed"
-rust = "BrowserConfig::browser"
-note = "Choose the Browser variant."
+status = "implemented"
+rust = "Settings::browser"
+note = "`browser = \"chromium\"` in the settings file, `SB_BROWSER=chromium`, `sbrs test --chromium`. Chooses the Browser variant."
 
 [options_sb."user_data_dir"]
 status = "implemented"
 rust = "BrowserConfig::user_data_dir"
 
 [options_sb."var1"]
-status = "not-applicable"
-reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
+status = "implemented"
+rust = "TestData::var1"
+note = "`var1` in the `[test]` table, `SB_VAR1`, `sbrs test --var1`; a test reads it with `sb.var1()`."
 
 [options_sb."var2"]
-status = "not-applicable"
-reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
+status = "implemented"
+rust = "TestData::var2"
+note = "`var2` in the `[test]` table, `SB_VAR2`, `sbrs test --var2`; a test reads it with `sb.var2()`."
 
 [options_sb."var3"]
-status = "not-applicable"
-reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
+status = "implemented"
+rust = "TestData::var3"
+note = "`var3` in the `[test]` table, `SB_VAR3`, `sbrs test --var3`; a test reads it with `sb.var3()`."
 
 [options_sb."variables"]
-status = "not-applicable"
-reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
+status = "implemented"
+rust = "TestData::variables"
+note = "`variables` in the `[test]` table, `SB_VARIABLES`, `sbrs test --variables`: a JSON object or the Python dictionary literal; a test reads it with `sb.variables()`."
 
 [options_sb."wait_for_angularjs"]
 status = "implemented"

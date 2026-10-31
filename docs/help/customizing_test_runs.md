@@ -16,13 +16,13 @@ workflow.
 - How to create a global TOML config file.
 - How to override settings with `SB_*` environment variables.
 - How CLI flags interact with programmatic and file configuration, and how
-  `sbrs test` hands them to your tests.
+  `sbrs test` hands them to your tests, with `-k`, `-m`, `-n`, `--co` and `--runner`.
 
 </Info>
 
 <Visibility for="agents">
 
-Summary for AI exports: a run is configured by the `BrowserConfig` builder, a global `sbase_config.toml` (or `.sbase_config.toml`, `.sbase_config`) in the working directory, `SB_*` environment variables and `sbrs` flags. Later sources win: defaults, config file, `SB_*` variables, then programmatic changes. `sbrs` options go before the subcommand. `sbrs test` passes the global options to tests as `SB_*` variables.
+Summary for AI exports: a run is configured by the `BrowserConfig` builder, a global `sbase_config.toml` (or `.sbase_config.toml`, `.sbase_config`) in the working directory, `SB_*` environment variables and `sbrs` flags. Later sources win: defaults, config file, `SB_*` variables, then programmatic changes. `sbrs` options go before or after the subcommand. `sbrs test` takes every option of Python's pytest plugin (see Test options), selects tests with `-k`, `-m`, `-n` and `--co`, picks `cargo` or `nextest` with `--runner`, and passes the options to the tests as `SB_*` variables.
 
 </Visibility>
 
@@ -339,16 +339,19 @@ export SB_BROWSER=chrome
 export SB_TIMEOUT=20
 ```
 
-`Settings::load` and `Settings::from_env` read exactly these, each mapped to the
-field of the same name: `SB_BROWSER`, `SB_HEADLESS`, `SB_TIMEOUT`,
-`SB_REMOTE_WEBDRIVER_TIMEOUT`, `SB_SCREENSHOT_DIR`, `SB_PROXY`,
-`SB_PROXY_PAC_URL`, `SB_WINDOW_WIDTH`, `SB_WINDOW_HEIGHT`, `SB_USER_DATA_DIR`,
-`SB_EXTENSION_DIR`, `SB_LOCALE`, `SB_USER_AGENT`, `SB_MODE`, `SB_AD_BLOCK`,
-`SB_REUSE_SESSION`, `SB_REUSE_CLASS_SESSION`, `SB_MOBILE`, `SB_THREADS`,
-`SB_ESC_END`, `SB_REC_SB_CDP`, `SB_WEBDRIVER_URL` and `SB_CHROME_BIN`. Booleans accept `true`/`false`, `1`/`0`, `yes`/`no` and
-`on`/`off`. There is no automatic name mapping: a
-variable that is not in this list, such as `SB_LOGGING__LOG_LEVEL`, does
-nothing. See [Settings and Global Configuration](/tutorials/settings_and_config)
+`Settings::load` and `Settings::from_env` read the variable of every row of the
+[option table](/help/test_options), each mapped to the field of the same name.
+The long-standing ones are `SB_BROWSER`, `SB_HEADLESS`, `SB_TIMEOUT`,
+`SB_REMOTE_WEBDRIVER_TIMEOUT`, `SB_PROXY`, `SB_PROXY_PAC_URL`,
+`SB_WINDOW_WIDTH`, `SB_WINDOW_HEIGHT`, `SB_USER_DATA_DIR`, `SB_EXTENSION_DIR`,
+`SB_LOCALE`, `SB_USER_AGENT`, `SB_MODE`, `SB_AD_BLOCK`, `SB_REUSE_SESSION`,
+`SB_REUSE_CLASS_SESSION`, `SB_MOBILE`, `SB_THREADS`, `SB_ESC_END`,
+`SB_REC_SB_CDP`, `SB_WEBDRIVER_URL` and `SB_CHROME_BIN`; every other option of
+Python's pytest plugin has one too (`SB_DARK_MODE`, `SB_ENV`, `SB_RERUNS`, ...),
+and `sbrs options` prints each with its settings key. Booleans accept
+`true`/`false`, `1`/`0`, `yes`/`no` and `on`/`off`. There is no automatic name
+mapping: a variable that is not in the table, such as `SB_LOGGING__LOG_LEVEL`,
+does nothing. See [Settings and Global Configuration](/tutorials/settings_and_config)
 for the table, including the separate runtime variables (`SB_LOG_LEVEL`,
 `SB_LOG_FORMAT`, ...), which `RuntimeConfig::from_env()` reads, and
 `BrowserConfig::from_env()`, which reads only `SB_WEBDRIVER_URL` and
@@ -365,13 +368,13 @@ starts.
 
 ## CLI flags
 
-<Warning>
+<Note>
 
-When using the `sbrs` binary, put its options **before** the subcommand. They
-belong to `sbrs` itself, not to the subcommand, so `sbrs open URL --headless`
-is rejected.
+The options of `sbrs` itself are global: they go before or after the
+subcommand, so `sbrs --headless open URL` and `sbrs open URL --headless` are the
+same command. With `sbrs test` a flag after `test` wins over one before it.
 
-</Warning>
+</Note>
 
 ```bash Terminal
 cargo run --bin sbrs -- --headless --proxy http://proxy.example.com:8080 open https://seleniumbase.io
@@ -395,7 +398,7 @@ Common flags:
 | `--ad-block` | Sets `ad_block`: a Chromium WebDriver session refuses the built-in list of ad and tracker hosts (`Network.setBlockedURLs`). Firefox and Safari block nothing. Images stay on; `--block-images` turns them off. |
 | `--reuse-session` / `--reuse_session` / `--rs` | Share browsers among the tests of the run (see [Sharing a browser between tests](#sharing-a-browser-between-tests)); `sbrs test` passes it on as `SB_REUSE_SESSION`. |
 | `--rcs` / `--reuse-class-session` / `--reuse_class_session` | Share a browser among the tests of one Rust module; `sbrs test` passes it on as `SB_REUSE_CLASS_SESSION`. |
-| `-n NUM` / `--threads NUM` | With `sbrs test`, run that many tests at once (`--test-threads`), so that many browsers. |
+| `-n NUM` / `--threads NUM` | An option of `sbrs test` only: run that many tests at once (`--test-threads`), so that many browsers. `-n auto` leaves it to Cargo. |
 | `--browser NAME` | Select `chrome`, `chromium`, `edge`, or `firefox`. |
 | `--cdp` / `--uc` | Select CDP or UC mode (they cannot be combined). |
 | `--webdriver URL` | WebDriver server URL (default `SB_WEBDRIVER_URL`, else `http://localhost:4444`). |
@@ -405,21 +408,44 @@ Run `sbrs --help` and `sbrs <subcommand> --help` for the full list of flags.
 
 ### Running tests with `sbrs test`
 
-`sbrs test` runs `cargo test` (or one example) and carries the global options
-into the tests as `SB_*` environment variables, so a test that loads `Settings`
-sees them:
+`sbrs test` runs `cargo test` (or `cargo nextest`, or one example) and carries
+the options into the tests as `SB_*` environment variables, so a test that
+loads `Settings` (the `sb` and `sb_cdp` fixtures do) sees them. It takes every
+option of Python SeleniumBase's pytest plugin as a flag, in each of its
+spellings; [Test options](/help/test_options) lists them with their variables
+and settings keys.
 
 ```bash Terminal
 # Sets SB_HEADLESS=true and SB_BROWSER=firefox, and runs 2 tests at a time.
-cargo run --bin sbrs -- --headless --browser firefox -n 2 test
-cargo run --bin sbrs -- test login --test checkout --release --features turso
+sbrs test --headless --browser firefox -n 2
+# Select by name or by module, run on nextest, rerun a failure twice.
+sbrs test -k "login and not slow" --runner nextest --reruns 2
+sbrs test -m smoke --env qa
+sbrs test --co                   # list the tests, run nothing
+sbrs test login --test checkout --release --features turso
 ```
 
-It accepts a name filter, `--test NAME` (one file from `tests/`),
-`--example NAME`, `--release`, `--features a,b`, and harness arguments after
-`--`. Only the options you actually pass become variables, so everything else
-still comes from your config file and environment. A non-default
-`--webdriver` URL reaches the tests as `SB_WEBDRIVER_URL`.
+| Flag | What it does |
+|---|---|
+| `FILTER` | Run the tests whose name contains this text. |
+| `-k EXPR` | Select tests by name, as pytest's `-k` (`login or signup`, `not slow`). With the cargo runner only `or` and `not` words work; `a and b` needs `--runner nextest`. |
+| `-m EXPR` | Select tests by marker. A marker is a module name: `-m smoke` runs the tests in `mod smoke`. |
+| `-n N` / `-n auto` | How many tests run at once (`--test-threads`); `auto` leaves it to Cargo. |
+| `--co` / `--collect-only` | List the tests and `collected N items`; start no browser. |
+| `--runner cargo` / `--runner nextest` | The runner (`SB_TEST_RUNNER`, key `runner` in `[test]`); cargo is the default. |
+| `--test NAME`, `--example NAME`, `--release`, `--features a,b` | What Cargo runs. |
+| `-s` | Show what the tests print (`--nocapture`). |
+| `--` then arguments | Passed to the test harness. |
+
+Only the options you actually pass become variables, so everything else still
+comes from your config file and environment. A non-default `--webdriver` URL
+reaches the tests as `SB_WEBDRIVER_URL`. Options before the command
+(`sbrs --headless test`) reach the tests too, and a flag after `test` wins.
+
+A run empties `latest_logs/` and `downloaded_files/` first (`--archive-logs` and
+`--archive-downloads` keep them in `archived_logs/` and `archived_files/`); a
+plain `cargo test` never does. The debug flags are in the [Debug
+modes tutorial](/tutorials/debug_modes).
 
 ## Combining config sources
 
@@ -490,9 +516,10 @@ overrides, and the builder or CLI flags for one-off experiments.
 
 <Accordion title="CLI flag rejected as unexpected" icon="flag">
 
-**Likely cause:** The flag was placed after the subcommand.
+**Likely cause:** A misspelled flag, or one the command does not take.
 
-**Fix:** Put it before: `sbrs --headless open URL`.
+**Fix:** Run `sbrs COMMAND --help`. The options of `sbrs` itself work before or
+after the command (`sbrs --headless open URL`).
 
 </Accordion>
 
