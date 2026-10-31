@@ -99,6 +99,7 @@ hidden: true
   - [fetcher](plugins/fetcher.md)
   - [extractor](plugins/extractor.md)
   - [batcher](plugins/batcher.md)
+  - [crawler](plugins/crawler.md)
   - [wasm](plugins/wasm.md)
 - [Stealth scraping](tutorials/stealth_scraping.md)
   - [Overview](stealth/overview.md)

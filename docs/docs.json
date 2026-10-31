@@ -330,6 +330,7 @@
               "plugins/fetcher",
               "plugins/extractor",
               "plugins/batcher",
+              "plugins/crawler",
               "plugins/imap",
               "plugins/tor",
               "plugins/wasm"
