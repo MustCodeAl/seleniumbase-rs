@@ -24,7 +24,7 @@ the folder to the browser's start-up settings. The folders are deleted when
 the browser closes.
 
 ```sh Terminal
-cargo add seleniumbase-rs-plugin-crx --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 628991af0e6c5711298e3bd3692dc2974887401a
+cargo add seleniumbase-rs-plugin-crx --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev fea3634e2ebcaafce63a244df8d4adb53e3ec002
 ```
 
 <Warning>

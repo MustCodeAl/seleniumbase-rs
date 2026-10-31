@@ -85,7 +85,7 @@ print!("{text}");
 <ResponseExample>
 
 ```text info_with
-block-resources 0.1.2
+block-resources 0.1.3
 Stops pages from loading images, fonts, media or URLs you name
 
 category      core

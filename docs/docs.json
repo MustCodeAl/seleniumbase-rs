@@ -175,6 +175,7 @@
             "pages": [
               "tutorials/mfa_totp",
               "tutorials/captcha_testing",
+              "tutorials/verify_by_email",
               "tutorials/pdf_parsing",
               "tutorials/masterqa"
             ]
@@ -329,6 +330,11 @@
               "plugins/shield",
               "plugins/block-resources",
               "plugins/crx",
+              "plugins/fetcher",
+              "plugins/extractor",
+              "plugins/batcher",
+              "plugins/crawler",
+              "plugins/browser",
               "plugins/imap",
               "plugins/tor",
               "plugins/wasm"

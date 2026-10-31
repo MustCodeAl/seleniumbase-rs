@@ -34,6 +34,7 @@ Summary for AI exports: the official plugins (`shield`, `block-resources`, `crx`
 | You want | Do |
 |---|---|
 | shield for one `sbrs` command | `sbrs --plugin shield open https://example.com` |
+| The task of a plugin (fetcher, extractor, batcher, crawler, imap) | `sbrs plugin run crawler --input crawl.json` |
 | An option of a plugin on the command line | `--plugin-opt 'shield.level="strict"'` |
 | The plugins and what they may do | `sbrs plugin list`, `sbrs plugin info shield` |
 | shield in a Rust program | `features = ["plugin-shield"]`, then `.plugins_named(["shield"])` |
@@ -50,11 +51,11 @@ Summary for AI exports: the official plugins (`shield`, `block-resources`, `crx`
 | `plugin-shield` | `plugins`, and the [shield](/plugins/shield) plugin |
 | `plugin-block-resources` | `plugins`, and the [block-resources](/plugins/block-resources) plugin |
 | `plugin-crx` | `plugins`, and the [crx](/plugins/crx) plugin |
-| `plugin-fetcher` | `plugins`, and the [fetcher](https://github.com/MustCodeAl/seleniumbase-rs-plugins/tree/main/plugins/fetcher) plugin: fetch rules and response records, and a fetch task |
-| `plugin-extractor` | `plugins`, and the [extractor](https://github.com/MustCodeAl/seleniumbase-rs-plugins/tree/main/plugins/extractor) plugin: find and extract structured data from pages |
-| `plugin-batcher` | `plugins`, and the [batcher](https://github.com/MustCodeAl/seleniumbase-rs-plugins/tree/main/plugins/batcher) plugin: a task that runs many jobs with bounded concurrency, retries and a resume file |
-| `plugin-crawler` | `plugins`, and the [crawler](https://github.com/MustCodeAl/seleniumbase-rs-plugins/tree/main/plugins/crawler) plugin: a task that follows a site's links and reports broken pages and console errors |
-| `plugin-browser` | `plugins`, and the [browser](https://github.com/MustCodeAl/seleniumbase-rs-plugins/tree/main/plugins/browser) plugin: loads extensions from `.zip` and `.crx` files and unpacked folders; it cannot be used together with `crx` |
+| `plugin-fetcher` | `plugins`, and the [fetcher](/plugins/fetcher) plugin: fetch rules and response records, and a fetch task; Chromium on the pure CDP engine |
+| `plugin-extractor` | `plugins`, and the [extractor](/plugins/extractor) plugin: find and extract structured data from pages, as a task; Chromium on the pure CDP engine |
+| `plugin-batcher` | `plugins`, and the [batcher](/plugins/batcher) plugin: a task that runs many jobs with bounded concurrency, retries and a resume file; Chromium on the pure CDP engine |
+| `plugin-crawler` | `plugins`, and the [crawler](/plugins/crawler) plugin: a task that follows a site's links and reports broken pages and console errors; Chromium on the pure CDP engine |
+| `plugin-browser` | `plugins`, and the [browser](/plugins/browser) plugin: loads extensions from `.zip` and `.crx` files and unpacked folders; it cannot be used together with `crx` |
 | `plugin-imap` | `plugins`, and the [imap](/plugins/imap) plugin: a task that waits for a verification mail in a mailbox you own and reads its code or link; read only, and the pure CDP engine only. With `sbrs-mcp` it also gives the `cdp` server the tool `wait_for_email` |
 | `plugin-tor` | `plugins`, and the [tor](/plugins/tor) plugin: routes the browser through a Tor SOCKS listener you run yourself, with circuits of their own for each browser context; a browser the program starts on the pure CDP engine only |
 | `plugins-builtin` | All of the above |
@@ -67,7 +68,7 @@ built-in plugins.
 
 <Note>
 
-`browser` and `crx` both load extensions, and `browser` declares that it cannot
+[browser](/plugins/browser) and [crx](/plugins/crx) both load extensions, and `browser` declares that it cannot
 share a set with `crx`: naming both builds the set, and the check every launch
 makes refuses it with ``plugin `browser` cannot be combined with plugin `crx` ``,
 before a browser starts. Name one of them. `browser` takes `extension_zip` (`.zip`
@@ -103,7 +104,7 @@ crate with the same revision:
 
 ```sh Terminal
 cargo add --git https://github.com/MustCodeAl/seleniumbase-rs-plugins \
-    --rev 628991af0e6c5711298e3bd3692dc2974887401a \
+    --rev fea3634e2ebcaafce63a244df8d4adb53e3ec002 \
     seleniumbase-rs-plugin-foo
 ```
 
@@ -233,8 +234,9 @@ quietly dropped. The same text is in `sbrs --help`.
 
 | Command | What happens |
 |---|---|
-| Every command that starts a browser with `BaseCase` (`open`, `smoke`, `screenshot`, `record`, `replay`, `run-scenario`, `print-pdf`, ...) | The WebDriver engine runs the plugins (`BrowserConfig::with_plugin_selection`) |
+| Every command that starts a browser with `BaseCase` (`open`, `smoke`, `screenshot`, `record`, `replay`, `run-scenario`, `print-pdf`, ...) | The WebDriver engine runs the plugins (`BrowserConfig::with_plugin_selection`). It refuses a plugin that needs a task, request interception or browser contexts (fetcher, extractor, batcher, crawler, imap, tor) before a browser starts |
 | `sbrs devtools` | The pure CDP engine runs them (`LaunchOptionsBuilder::plugin_selection`) |
+| `sbrs plugin run NAME` | The pure CDP engine runs the task of the plugin `NAME`, which this command turns on for that run, with the plugins the file, `SB_PLUGINS` and the global options name. Results are JSON lines on standard output or in `--out`; the summary goes to standard error |
 | `sbrs test` | Passes the names on to the tests as `SB_PLUGINS`, with the names the file and the variable already turn on, for a test that calls `with_plugin_selection(&settings.plugins)`. It refuses `--plugin-opt`, because the variable carries names only: put the options under `[plugins.NAME]` in the file |
 | `sbrs-mcp` | Every browser the server starts gets them; see below |
 | `sbrs plugin list`, `sbrs plugin info` | Show them; see below |
@@ -286,10 +288,17 @@ INFO plugin enabled plugin=crx source="--plugin"
 
 ```text
 $ sbrs plugin list
-NAME             CATEGORY   ENABLED  SUMMARY
-shield           privacy    no       Turns off browser telemetry, WebRTC address leaks and third-party cookies; keeps no profile (clear_between_tests and sweep_stale_profiles are not active yet)
-block-resources  core       no       Stops pages from loading images, fonts, media or URLs you name
-crx              extension  no       Loads .crx extension files into the browser it starts
+NAME             CATEGORY     ENABLED  SUMMARY
+shield           privacy      no       Turns off browser telemetry, WebRTC address leaks and third-party cookies; keeps no profile (clear_between_tests and sweep_stale_profiles are not active yet)
+block-resources  core         no       Stops pages from loading images, fonts, media or URLs you name
+crx              extension    no       Loads .crx extension files into the browser it starts
+fetcher          core         no       Sets, blocks and records requests, and fetches URLs through the browser
+extractor        core         no       Finds structured data on a page (JSON-LD, tables, cards, selectors) and extracts it as JSON
+batcher          environment  no       Runs another plugin's jobs over a list of inputs with bounded concurrency, retries and a resume file
+crawler          testing      no       Crawls a site you may test from its links and reports broken pages and console errors
+browser          extension    no       Loads extensions from .zip and .crx files and unpacked folders into the browser it starts
+imap             testing      no       Waits for an email over IMAP and extracts its one-time code or link
+tor              privacy      no       Routes the browser through a local Tor daemon, with circuits of their own for each browser context; names are resolved by Tor, never on this machine
 
 Turn one on with --plugin NAME, SB_PLUGINS, or `enable` in the [plugins] table of the settings file. `sbrs plugin info NAME` shows what a plugin may do.
 ```
@@ -299,7 +308,7 @@ plugin on. A name that is enabled but not in the build is listed below the table
 
 ```text
 $ sbrs --plugin shield --plugin-opt 'shield.level="strict"' plugin info shield
-shield 0.1.2
+shield 0.1.3
 Turns off browser telemetry, WebRTC address leaks and third-party cookies; keeps no profile (clear_between_tests and sweep_stale_profiles are not active yet)
 
 category      privacy
@@ -328,13 +337,16 @@ plugin refuses those options, or cannot start without any (`crx` needs its
 `files`), the page says so with the plugin's own message. The plugin API of this
 release does not describe the options a plugin accepts, so the page cannot list
 them: each plugin's page does ([shield](/plugins/shield),
-[block-resources](/plugins/block-resources), [crx](/plugins/crx)).
+[block-resources](/plugins/block-resources), [crx](/plugins/crx),
+[fetcher](/plugins/fetcher), [extractor](/plugins/extractor),
+[batcher](/plugins/batcher), [crawler](/plugins/crawler),
+[browser](/plugins/browser), [imap](/plugins/imap) and [tor](/plugins/tor)).
 
 An unknown name exits with status 2 and lists the ones the build has:
 
 ```text
 $ sbrs plugin info sheild
-error: invalid configuration: no plugin named `sheild` (known: shield, block-resources, crx); `sbrs plugin list` shows them
+error: invalid configuration: no plugin named `sheild` (known: shield, block-resources, crx, fetcher, extractor, batcher, crawler, browser, imap, tor); `sbrs plugin list` shows them
 ```
 
 ### sbrs-mcp
@@ -461,8 +473,8 @@ report the same mistakes with exit status 2 (see
 - Plugins that are not compiled in: WebAssembly modules and TOML manifests, and
   the store and lockfile that pin them.
 - A `plugins` argument for the MCP `start_browser` tool (a subset of what the
-  operator allowed), a `list_plugins` tool and `run_plugin_task`.
+  operator allowed). The `cdp` server has the tool `run_plugin_task` for the
+  plugins the operator enabled, and the `dev` server has `list_plugins` and
+  `plugin_info`.
 - A list of the options a plugin accepts in `sbrs plugin info`; the plugin API
   does not describe options yet.
-- The other official plugins of the design (fetcher, extractor, browser,
-  batcher, crawler).

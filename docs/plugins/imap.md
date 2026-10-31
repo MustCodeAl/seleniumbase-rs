@@ -22,6 +22,9 @@ plugin.
 
 </Note>
 
+For a whole sign-up test, from the click on "Send" to the page the link opens,
+see [Verify a sign-up by email](/tutorials/verify_by_email).
+
 <Visibility for="agents">
 
 Summary for AI exports: imap is a built-in task plugin (feature `plugin-imap`, name `imap`) that waits for an email in an IMAP mailbox and extracts its one-time code or link. Options live in `[plugins.imap]`: `host`, `user` and `password_env` are required (`password_env` is the NAME of an environment variable that holds the password or app password, never the password itself, and the name must start with `IMAP_`, `MAIL_` or `SB_`), `port` (993), `mailbox` (`INBOX`), `poll_secs` (5, 1 to 300) and `timeout_secs` (120, 1 to 3600). The connection is IMAPS with a verified certificate, read only. The task `wait_for_email` takes `{from?, subject_contains?, since_secs?, extract?}` and records `{from, subject, date, code?, link?, text}`. Run it with `sbrs plugin run imap --input FILE`. With `sbrs-mcp --server cdp --plugin imap` the server also has the tool `wait_for_email`. It is CDP only and read only, and email content is untrusted. It has never run against a real mail server.

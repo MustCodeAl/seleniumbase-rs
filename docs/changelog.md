@@ -973,6 +973,16 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   of the tree component, copied onto thirteen pages, are one file, `tools/layout_tree/component.mdx`,
   between markers on twelve of them. `just layout-tree` writes the pages again, and `just mdx`
   fails, naming the page and the line, when a copy differs.
+- **Every built-in plugin has a docs page, and the plugin lists are current.** `docs/plugins/` gains
+  `fetcher.md`, `extractor.md`, `batcher.md`, `crawler.md` and `browser.md` (the options with their
+  defaults and limits, the task input and the lines it writes, the exact messages, what the plugin
+  may do, and what has not been run in a real Chrome), next to shield, block-resources, crx, imap,
+  tor and wasm. The overview, Choosing plugins, the architecture page, the plugin API pages and
+  Browser Plugins list the ten built-ins, link their pages instead of the plugins repository's
+  READMEs and name the revision `Cargo.toml` pins (`fea3634e`); the new tutorial
+  `docs/tutorials/verify_by_email.md` builds a sign-up test with the pure CDP engine and the imap
+  plugin; the tldr pages show `sbrs plugin run`; and the tree component of
+  `docs/plugins/writing-your-own.md` sits between markers, so `just layout-tree --check` covers it.
 
 
 ### Removed
