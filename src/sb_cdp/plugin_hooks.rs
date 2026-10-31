@@ -39,6 +39,7 @@ use super::context::{BrowserContext, ContextOptions};
 use super::launch::{LaunchOptions, Proxy};
 use super::page::Page;
 use super::sync::locked;
+use crate::browser::options::ProxyBypassList;
 use crate::error::SeleniumBaseError;
 use crate::plugin_host::{convert, guard};
 
@@ -81,15 +82,32 @@ pub(super) fn for_attach(
     Ok(plugins)
 }
 
+/// The `--proxy-bypass-list` and `--proxy-pac-url` switches `options` give
+/// Chrome, as the launch writes them; the PAC file's login is never in one.
+fn proxy_switches(options: &LaunchOptions) -> Vec<String> {
+    let mut switches = Vec::new();
+    if let Some(hosts) = options.proxy_bypass_list.to_chrome_value() {
+        switches.push(format!("--proxy-bypass-list={hosts}"));
+    }
+    if let Some(pac) = &options.proxy_pac_url {
+        switches.push(format!("--proxy-pac-url={}", pac.url()));
+    }
+    switches
+}
+
 /// The start-up settings a plugin may change, taken from `options`.
 ///
 /// The proxy is given as its server only: a password in the options is not
 /// shown to plugins, and it stays when they leave the proxy as it is. The
 /// profile is read-only to plugins: persistent when the options name a folder
-/// for it, and a throwaway one otherwise.
+/// for it, and a throwaway one otherwise. A PAC file and a bypass list route
+/// traffic as a proxy does, so they are shown as the switches Chrome gets
+/// (`--proxy-pac-url`, without its login, and `--proxy-bypass-list`): a plugin
+/// that has to own the proxy, such as `tor`, refuses them.
 pub(super) fn settings_of(options: &LaunchOptions) -> LaunchSettings {
     let mut settings = LaunchSettings::default();
     settings.args.clone_from(&options.extra_args);
+    settings.args.extend(proxy_switches(options));
     settings.prefs.clone_from(&options.prefs);
     settings.extensions.clone_from(&options.extensions);
     settings.proxy = options
@@ -126,7 +144,7 @@ pub(super) fn apply_settings(
     settings: LaunchSettings,
 ) -> Result<(), SeleniumBaseError> {
     let LaunchSettings {
-        args,
+        mut args,
         prefs,
         extensions,
         proxy,
@@ -138,6 +156,17 @@ pub(super) fn apply_settings(
         disable_quic,
         ..
     } = settings;
+    // The switches `settings_of` added for the PAC file and the bypass list come back out:
+    // the options give them to Chrome. One a plugin removed is a setting it removed.
+    for switch in proxy_switches(options) {
+        match args.iter().position(|arg| *arg == switch) {
+            Some(at) => {
+                args.remove(at);
+            }
+            None if switch.starts_with("--proxy-pac-url=") => options.proxy_pac_url = None,
+            None => options.proxy_bypass_list = ProxyBypassList::default(),
+        }
+    }
     options.extra_args = args;
     options.prefs = prefs;
     options.extensions = extensions;
@@ -856,6 +885,67 @@ mod tests {
             matches!(error, SeleniumBaseError::InvalidConfig(_)),
             "{error:?}"
         );
+    }
+
+    #[test]
+    fn a_pac_file_and_a_bypass_list_reach_the_plugins_as_switches_and_chrome_once() {
+        // They route traffic as a proxy does, so a plugin that must own the proxy sees them.
+        let original = options(
+            LaunchOptions::builder()
+                .arg("--mute-audio")
+                .proxy_pac_url("user:s3cret@http://pac.example/proxy.pac")
+                .proxy_bypass_list("localhost;*.internal".parse().unwrap()),
+        );
+
+        let settings = settings_of(&original);
+
+        assert_eq!(
+            settings.args,
+            [
+                "--mute-audio",
+                "--proxy-bypass-list=localhost;*.internal",
+                "--proxy-pac-url=http://pac.example/proxy.pac",
+            ],
+            "the login is not shown"
+        );
+        let mut kept = original.clone();
+        apply_settings(&mut kept, settings).unwrap();
+        assert_eq!(
+            kept.extra_args,
+            ["--mute-audio"],
+            "the options give them once"
+        );
+        assert_eq!(kept.proxy_pac_url, original.proxy_pac_url);
+        assert_eq!(kept.proxy_bypass_list, original.proxy_bypass_list);
+
+        let mut settings = settings_of(&original);
+        settings.args.retain(|arg| !arg.starts_with("--proxy-"));
+        let mut removed = original.clone();
+        apply_settings(&mut removed, settings).unwrap();
+        assert!(removed.proxy_pac_url.is_none(), "a plugin removed it");
+        assert!(removed.proxy_bypass_list.is_empty(), "a plugin removed it");
+    }
+
+    #[cfg(feature = "plugin-tor")]
+    #[tokio::test]
+    async fn tor_refuses_a_launch_with_a_pac_file_or_a_bypass_list() {
+        use crate::config::plugins::PluginSelection;
+
+        let tor = || crate::plugin_host::build(&PluginSelection::new().enable("tor")).unwrap();
+        for builder in [
+            LaunchOptions::builder().proxy_pac_url("http://pac.example/proxy.pac"),
+            LaunchOptions::builder().proxy_bypass_list("*.onion".parse().unwrap()),
+        ] {
+            let error = before_launch(options(builder.plugins(tor())))
+                .await
+                .unwrap_err();
+
+            assert!(
+                matches!(&error, SeleniumBaseError::Plugin { plugin, .. } if plugin == "tor"),
+                "{error:?}"
+            );
+            assert!(error.to_string().contains("--proxy-"), "{error}");
+        }
     }
 
     struct LaunchOnly;

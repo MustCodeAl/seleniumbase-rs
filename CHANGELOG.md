@@ -992,6 +992,13 @@ work, `docs/parity.md` the per-API status).
   of a marked tool and every failure report that read the page are marked too
   (`structuredContent` is unchanged).
 
+- **Security: `tor` refuses a pure CDP launch with a PAC file or a proxy bypass list.** The
+  launch settings plugins see had no place for `proxy_pac_url` or the bypass list, so `tor`
+  could not refuse them and Chrome got `--proxy-pac-url` or `--proxy-bypass-list` next to the
+  Tor proxy, which can send traffic around Tor. Plugins now see both as those switches (the
+  PAC file's login left out), so `tor` refuses them before it changes anything; Chrome still
+  gets each once, and a plugin that removes one removes the setting.
+
 - **A pure CDP `Locator` enters a frame of any origin, so Python's `nested_click` works.**
   `page.locator("iframe#myFrame3").locator(".fBox").click()` found nothing in the demo page's
   `data:` iframe, because the page helper reads a frame's document, which a script may do for a

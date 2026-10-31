@@ -99,7 +99,10 @@ A launch that already has a proxy (`--proxy`, a `--proxy-*` argument or
 
 In `before_launch`, in this order:
 
-1. It refuses the launch if a proxy is already set, before it changes anything.
+1. It refuses the launch if a proxy is already set, before it changes anything:
+   a proxy, or a `--proxy-*` switch. A PAC file address (`proxy_pac_url`) and a
+   proxy bypass list reach plugins as the switches Chrome gets
+   (`--proxy-pac-url`, `--proxy-bypass-list`), so they are refused too.
 2. It checks Tor: something must answer as a SOCKS5 proxy at `socks`, and with a
    `control` port and `require_bootstrapped` (the default), Tor must report that
    it finished bootstrapping. A failure stops the launch before the browser
@@ -217,11 +220,6 @@ before you rely on it.
 
 </Warning>
 
-- **A PAC file or a bypass list is not seen.** A PAC file address
-  (`proxy_pac_url`) and a proxy bypass list are not part of the launch settings
-  plugins see, so the plugin cannot refuse them, and the browser is given them
-  (`--proxy-pac-url`, `--proxy-bypass-list`) next to the proxy of the plugin. Do
-  not combine them with tor.
 - **Launched Chromium on the pure CDP engine only.** A browser the program
   attaches to (`cdp_url`) is refused, because its proxy cannot be set, and the
   WebDriver engine is refused for the browser contexts it cannot give.
