@@ -279,13 +279,19 @@ impl HttpOptions {
 /// Returns [`SeleniumBaseError::Mcp`] if the system gives no random bytes.
 pub fn generate_token() -> Result<String, SeleniumBaseError> {
     use ring::rand::SecureRandom;
+    use std::fmt::Write as _;
     let mut bytes = [0u8; 32];
     ring::rand::SystemRandom::new()
         .fill(&mut bytes)
-        .map_err(|_| {
+        .map_err(|_unspecified| {
             SeleniumBaseError::mcp("http", "the system gave no random bytes for a token")
         })?;
-    Ok(bytes.iter().map(|byte| format!("{byte:02x}")).collect())
+    Ok(bytes
+        .iter()
+        .fold(String::with_capacity(64), |mut hex, byte| {
+            let _ = write!(hex, "{byte:02x}");
+            hex
+        }))
 }
 
 /// Why a request was turned away before it reached the MCP service.

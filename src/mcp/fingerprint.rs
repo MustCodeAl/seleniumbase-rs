@@ -399,7 +399,7 @@ fn readable_path(name: &str, requested: &str, settings: &Settings) -> Result<Pat
     let root = settings
         .output_dir()
         .canonicalize()
-        .map_err(|_| refused())?;
+        .map_err(|_unreadable| refused())?;
     match root.join(requested).canonicalize() {
         Ok(real) if real.starts_with(&root) && real.is_file() => Ok(real),
         _ => Err(refused()),
@@ -1211,13 +1211,15 @@ mod tests {
             assert_eq!(refusal(requested), missing, "{requested}");
         }
         #[cfg(unix)]
-        {
+        let link_out = {
             let outside = tempfile::tempdir().unwrap();
             std::fs::write(outside.path().join("o.json"), "{}").unwrap();
             std::os::unix::fs::symlink(outside.path().join("o.json"), dir.path().join("o.json"))
                 .unwrap();
-            assert_eq!(refusal("o.json"), missing, "a link out of the folder");
-        }
+            refusal("o.json")
+        };
+        #[cfg(unix)]
+        assert_eq!(link_out, missing, "a link out of the folder");
         std::fs::write(dir.path().join("w.json"), "{}").unwrap();
         assert!(readable_path("path", "w.json", &settings).is_ok());
         assert!(readable_path("path", "./w.json", &settings).is_ok());
