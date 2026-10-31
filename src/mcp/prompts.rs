@@ -276,7 +276,7 @@ pub(crate) fn browser() -> Vec<PromptDef> {
              a preset, and explain what a detection script would find.",
             vec![PromptArg::required(
                 "file_or_preset",
-                "A saved fingerprint file (in the output folder or the working directory), or a \
+                "A saved fingerprint file (in the output folder, relative to it), or a \
                  preset: windows, edge, macos, linux, android or ios",
             )],
             &[

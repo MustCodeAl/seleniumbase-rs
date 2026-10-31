@@ -289,7 +289,10 @@ async fn a_comparison_needs_exactly_one_fingerprint_source() {
     )
     .await
     .unwrap_err();
-    assert!(matches!(outside, ToolError::Refused(_)), "{outside}");
+    assert!(
+        matches!(outside, ToolError::InvalidArgument { .. }),
+        "{outside}"
+    );
     let inline = call(
         &host,
         "compare_fingerprint",

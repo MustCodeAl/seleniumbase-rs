@@ -16,7 +16,7 @@
 //! - `start_browser` takes a fingerprint to apply through [`start_fingerprint`].
 //!
 //! A fingerprint argument is `fingerprint` (a JSON object, or a string holding
-//! one), `path` (a file in the output folder or the working directory) or
+//! one), `path` (a file in the output folder, relative to it) or
 //! `preset`; exactly one. The tools that return a fingerprint show a proxy
 //! password as `***`; a file written with `save_to` keeps the real one and is
 //! private to its owner.
@@ -26,7 +26,7 @@
 
 use std::fmt::Write as _;
 use std::future::Future;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use serde_json::{json, Map, Value};
 
@@ -198,7 +198,7 @@ pub(super) fn inline_prop() -> Prop {
 }
 
 fn path_prop() -> Prop {
-    Prop::string("Path of a saved fingerprint file, in the output folder or the working directory")
+    Prop::string("Path of a saved fingerprint file in the output folder, relative to that folder")
 }
 
 /// The argument that names a built-in fingerprint.
@@ -246,9 +246,9 @@ pub(super) fn source_schema() -> Schema {
 ///
 /// [`ToolError::InvalidArgument`] when none or more than one of `fingerprint`,
 /// `path` and `preset` is given, when the fingerprint is not valid (the error
-/// names the setting), or when the file is too large or cannot be read;
-/// [`ToolError::Refused`] when `path` is outside the output folder and the
-/// working directory.
+/// names the setting), when the file is too large, and when `path` is not a file inside
+/// the output folder, given relative to it; [`ToolError::Failed`] when the file cannot be
+/// read.
 pub(super) fn fingerprint_arg(args: &Args, settings: &Settings) -> Result<Fingerprint, ToolError> {
     resolve(args, settings, SOURCE)?.ok_or_else(|| {
         ToolError::invalid(
@@ -377,36 +377,32 @@ fn named(name: &str, preset: &str) -> Result<Fingerprint, ToolError> {
     })
 }
 
-/// Where the file called `requested` is, if it is in the output folder or the
-/// working directory. A relative name is looked for in the output folder first,
-/// where `save_to` writes.
+/// Where the file called `requested` is: a path relative to the output folder that stays
+/// inside it once links are followed. The working directory does not count (the desktop
+/// app starts servers in `/`), and every refusal reads alike, so none tells what exists.
 fn readable_path(name: &str, requested: &str, settings: &Settings) -> Result<PathBuf, ToolError> {
-    let asked = Path::new(requested);
-    let here = std::env::current_dir().map_err(SeleniumBaseError::from)?;
-    let candidates = if asked.is_absolute() {
-        vec![asked.to_path_buf()]
-    } else {
-        vec![settings.output_dir().join(asked), here.join(asked)]
+    let refused = || {
+        ToolError::invalid(
+            name,
+            format!(
+                "{requested:?} is not a file in the output folder; give its path relative to \
+                 that folder"
+            ),
+        )
     };
-    let real = candidates
-        .iter()
-        .find_map(|candidate| candidate.canonicalize().ok())
-        .ok_or_else(|| {
-            ToolError::invalid(
-                name,
-                format!("no file {requested:?} in the output folder or the working directory"),
-            )
-        })?;
-    let allowed = [settings.output_dir().to_path_buf(), here]
-        .iter()
-        .filter_map(|root| root.canonicalize().ok())
-        .any(|root| real.starts_with(root));
-    if allowed {
-        Ok(real)
-    } else {
-        Err(ToolError::Refused(format!(
-            "{requested:?} is outside the output folder and the working directory"
-        )))
+    let relative = Path::new(requested)
+        .components()
+        .all(|part| matches!(part, Component::Normal(_) | Component::CurDir));
+    if !relative {
+        return Err(refused());
+    }
+    let root = settings
+        .output_dir()
+        .canonicalize()
+        .map_err(|_| refused())?;
+    match root.join(requested).canonicalize() {
+        Ok(real) if real.starts_with(&root) && real.is_file() => Ok(real),
+        _ => Err(refused()),
     }
 }
 
@@ -1176,7 +1172,10 @@ mod tests {
         Fingerprint::windows_desktop().save(&file).unwrap();
         let path = file.display().to_string();
         let error = fingerprint_arg(&args(json!({ "path": path })), &settings).unwrap_err();
-        assert!(matches!(error, ToolError::Refused(_)), "{error}");
+        assert!(
+            matches!(error, ToolError::InvalidArgument { .. }),
+            "{error}"
+        );
         let up = fingerprint_arg(
             &args(json!({ "path": "../../../../../etc/hosts" })),
             &settings,
@@ -1185,6 +1184,47 @@ mod tests {
     }
 
     #[test]
+    fn only_a_relative_path_inside_the_output_folder_is_read() {
+        // The desktop app starts servers in `/`, where the working directory holds every
+        // file: only the output folder counts, and every refusal reads alike, so an answer
+        // does not tell whether a file exists elsewhere.
+        let dir = tempfile::tempdir().unwrap();
+        let settings = settings_in(&dir);
+        let refusal = |requested: &str| {
+            let error = readable_path("path", requested, &settings).unwrap_err();
+            assert!(
+                matches!(error, ToolError::InvalidArgument { .. }),
+                "{requested}: {error:?}"
+            );
+            error.to_string().replace(&format!("{requested:?}"), "PATH")
+        };
+        let in_the_working_directory = std::env::current_dir().unwrap().join("Cargo.toml");
+
+        let missing = refusal("nothing-here.json");
+        for requested in [
+            "/etc/hosts",
+            "../x",
+            "sub/../../x",
+            "Cargo.toml",
+            in_the_working_directory.to_str().unwrap(),
+        ] {
+            assert_eq!(refusal(requested), missing, "{requested}");
+        }
+        #[cfg(unix)]
+        {
+            let outside = tempfile::tempdir().unwrap();
+            std::fs::write(outside.path().join("o.json"), "{}").unwrap();
+            std::os::unix::fs::symlink(outside.path().join("o.json"), dir.path().join("o.json"))
+                .unwrap();
+            assert_eq!(refusal("o.json"), missing, "a link out of the folder");
+        }
+        std::fs::write(dir.path().join("w.json"), "{}").unwrap();
+        assert!(readable_path("path", "w.json", &settings).is_ok());
+        assert!(readable_path("path", "./w.json", &settings).is_ok());
+    }
+
+    #[test]
+
     fn a_file_above_the_cap_is_refused_with_its_size() {
         let dir = tempfile::tempdir().unwrap();
         let settings = settings_in(&dir);

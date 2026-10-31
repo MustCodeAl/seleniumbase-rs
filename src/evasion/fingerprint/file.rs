@@ -148,18 +148,45 @@ impl Fingerprint {
     }
 }
 
-/// The fingerprint in `text`, or why it is not one.
+/// The fingerprint in `text`, or why it is not one: where the JSON breaks, or which setting
+/// holds what, by name and kind of value. The value itself is never in the reason: the text
+/// may be a file a tool was only asked to read, and the reason goes back to whoever asked.
 fn parse(text: &str) -> Result<Fingerprint, String> {
     serde_json::from_str(text).map_err(|error| {
-        let reason = error.to_string();
-        // The error of a setting that holds the wrong kind of value does not
-        // say which setting it was, so find it.
-        let culprit = misplaced_setting(text)
-            .filter(|(key, _)| !reason.contains(key.as_str()))
-            .map(|(key, value)| format!(" (check `{key}`, which is {value})"))
-            .unwrap_or_default();
-        format!("not a fingerprint: {reason}{culprit}")
+        // A syntax error says where the JSON breaks and quotes none of the text.
+        if !error.is_data() {
+            return format!("not a fingerprint: {error}");
+        }
+        match serde_json::from_str::<serde_json::Value>(text) {
+            Ok(serde_json::Value::Object(_)) => match misplaced_setting(text) {
+                Some((key, value)) => format!(
+                    "not a fingerprint: `{key}` (holding {}) is not a setting this version can \
+                     read",
+                    kind_of(&value)
+                ),
+                // Every setting reads on its own, so the reason is the builder's, which names
+                // settings, not a value of the text.
+                None => format!("not a fingerprint: {error}"),
+            },
+            Ok(other) => format!(
+                "not a fingerprint: the text is {}, not an object of settings",
+                kind_of(&other)
+            ),
+            Err(_) => "not a fingerprint: the text is not JSON".to_owned(),
+        }
     })
+}
+
+/// What kind of JSON value `value` is, in words, without the value.
+fn kind_of(value: &serde_json::Value) -> &'static str {
+    match value {
+        serde_json::Value::Null => "null",
+        serde_json::Value::Bool(_) => "true or false",
+        serde_json::Value::Number(_) => "a number",
+        serde_json::Value::String(_) => "a string",
+        serde_json::Value::Array(_) => "a list",
+        serde_json::Value::Object(_) => "an object",
+    }
 }
 
 /// The first top-level key of `text` whose value is not valid for it, with the
@@ -310,7 +337,7 @@ mod tests {
     fn a_file_that_is_not_a_fingerprint_is_an_invalid_config_with_its_name_and_the_setting() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("broken.json");
-        fs::write(&path, "{\n  \"timezone\": 5\n}\n").unwrap();
+        fs::write(&path, "{\n  \"timezone\": 54321\n}\n").unwrap();
 
         let error = Fingerprint::load(&path).unwrap_err();
 
@@ -324,11 +351,32 @@ mod tests {
             message.contains("`timezone`"),
             "it names the setting: {message}"
         );
-        assert!(message.contains('5'), "it shows the value: {message}");
+        assert!(!message.contains("54321"), "the value stays out: {message}");
         assert_eq!(error.exit_code(), 2);
     }
 
     #[test]
+    fn a_reason_names_the_setting_and_the_kind_of_value_never_the_value() {
+        for (text, wanted) in [
+            (r#""hunter2-token""#, "a string, not an object"),
+            (r#"[1, "hunter2-token"]"#, "not a fingerprint"),
+            (
+                r#"{ "timezone": ["hunter2-token"] }"#,
+                "`timezone` (holding a list)",
+            ),
+            (
+                r#"{ "hunter2_key": "hunter2-token" }"#,
+                "`hunter2_key` (holding a string)",
+            ),
+        ] {
+            let reason = Fingerprint::from_json(text).unwrap_err().to_string();
+            assert!(reason.contains(wanted), "{text}: {reason}");
+            assert!(!reason.contains("hunter2-token"), "{text}: {reason}");
+        }
+    }
+
+    #[test]
+
     fn the_flat_shape_of_the_old_versions_is_refused_by_name() {
         let error = Fingerprint::from_json(r#"{ "screen_width": 1920 }"#).unwrap_err();
 

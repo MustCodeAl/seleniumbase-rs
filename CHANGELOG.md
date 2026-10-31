@@ -972,6 +972,17 @@ work, `docs/parity.md` the per-API status).
   name) ended the comment and its next line became a statement of the generated Rust. The name
   is quoted (`{:?}`) like every other skip reason.
 
+- **Security: the MCP fingerprint tools read a `path` only inside the output folder, and a
+  fingerprint error never quotes a value.** `compare_fingerprint`, `start_browser`'s fingerprint,
+  `diff_fingerprints`, `patch_fingerprint` and the `sb` server's stealth tools took an absolute
+  path or one in the server's working directory, which is `/` when the desktop app starts the
+  server, so a client could read any file the server could; the errors told a missing file from
+  one outside, and a parse error quoted the value it could not read (`which is ...`). A `path`
+  is now relative to the output folder and must stay in it once links are followed; an absolute
+  path, `..`, a link out of the folder and a missing file get the same `invalid_argument`
+  answer. `Fingerprint::from_json` and `Fingerprint::load` name the setting and the kind of
+  value it holds (`` `timezone` (holding a number) ``), never the value.
+
 - **A pure CDP `Locator` enters a frame of any origin, so Python's `nested_click` works.**
   `page.locator("iframe#myFrame3").locator(".fBox").click()` found nothing in the demo page's
   `data:` iframe, because the page helper reads a frame's document, which a script may do for a
