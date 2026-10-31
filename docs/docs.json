@@ -327,6 +327,7 @@
               "plugins/shield",
               "plugins/block-resources",
               "plugins/crx",
+              "plugins/fetcher",
               "plugins/imap",
               "plugins/tor",
               "plugins/wasm"
