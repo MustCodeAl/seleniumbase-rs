@@ -385,19 +385,19 @@ Connect from the test with a fingerprint, including native CDP spoofing if desir
 ```rust
 use seleniumbase_rs::{BaseCase, BrowserConfig, Fingerprint};
 
-# async fn test() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-let fingerprint = Fingerprint::windows_desktop()
-    .to_builder().native_spoofing(true).build()?;
-let config = BrowserConfig::default()
-    .with_webdriver_url("http://127.0.0.1:4445/your-token/")
-    .with_cdp_discovery(true)
-    .with_fingerprint(fingerprint);
-let mut sb = BaseCase::new(config).await?;
-let title = sb.cdp_get_title().await?;
-sb.cdp_click("#save").await?;
-sb.quit().await?; // Detaches; the Tauri app keeps running.
-# Ok(())
-# }
+async fn test() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let fingerprint = Fingerprint::windows_desktop()
+        .to_builder().native_spoofing(true).build()?;
+    let config = BrowserConfig::default()
+        .with_webdriver_url("http://127.0.0.1:4445/your-token/")
+        .with_cdp_discovery(true)
+        .with_fingerprint(fingerprint);
+    let mut sb = BaseCase::new(config).await?;
+    let title = sb.cdp_get_title().await?;
+    sb.cdp_click("#save").await?;
+    sb.quit().await?; // Detaches; the Tauri app keeps running.
+    Ok(())
+}
 ```
 
 Direct CDP sessions use the existing `BaseCase::cdp_*` methods rather than
@@ -407,18 +407,18 @@ WebDriver element handles. The full `Page` and `Browser` API is available throug
 ```rust
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
 
-# async fn test() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-let options = LaunchOptions::builder()
-    .cdp_url("http://127.0.0.1:9222") // Or ws://.../devtools/browser/<id>.
-    .fingerprint(&seleniumbase_rs::Fingerprint::windows_desktop())
-    .build()?;
-let browser = Browser::launch(options).await?; // Attaches; launches no process.
-let page = browser.default_page().await?;
-page.locator("#save").click().await?;
-// A CdpDriver value can also drive it: `driver.attach(browser).await?`.
-browser.close().await?;
-# Ok(())
-# }
+async fn test() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let options = LaunchOptions::builder()
+        .cdp_url("http://127.0.0.1:9222") // Or ws://.../devtools/browser/<id>.
+        .fingerprint(&seleniumbase_rs::Fingerprint::windows_desktop())
+        .build()?;
+    let browser = Browser::launch(options).await?; // Attaches; launches no process.
+    let page = browser.default_page().await?;
+    page.locator("#save").click().await?;
+    // A CdpDriver value can also drive it: `driver.attach(browser).await?`.
+    browser.close().await?;
+    Ok(())
+}
 ```
 
 Attaching never changes the app's other windows: only the window you pick (or
@@ -480,23 +480,20 @@ has inside its own process.
 use seleniumbase_rs::sb_cdp::{Browser, CdpRequest, StealthPlan, TransportError};
 use seleniumbase_rs::{Fingerprint, OsType};
 
-# async fn stealth() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-let plan = StealthPlan::new(&Fingerprint::randomized(OsType::Windows, 7));
-// 1. While building the webview: its initialization script, for all frames.
-let script: &str = plan.init_script();
-# let _ = script;
-// 2. Once it exists: the overrides, through the webview's own channel.
-let (browser, inbox) = Browser::over_channel(|request: CdpRequest| -> Result<(), TransportError> {
-    // Hand `request` to CEF or WebView2 here; route the answer to `inbox`.
-#   let _ = request;
+async fn stealth() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let plan = StealthPlan::new(&Fingerprint::randomized(OsType::Windows, 7));
+    // 1. While building the webview: its initialization script, for all frames.
+    let script: &str = plan.init_script();
+    // 2. Once it exists: the overrides, through the webview's own channel.
+    let (browser, inbox) = Browser::over_channel(|request: CdpRequest| -> Result<(), TransportError> {
+        // Hand `request` to CEF or WebView2 here; route the answer to `inbox`.
+        Ok(())
+    });
+    for (method, params) in plan.overrides() {
+        browser.execute(method, params.clone()).await?;
+    }
     Ok(())
-});
-# let _ = inbox;
-for (method, params) in plan.overrides() {
-    browser.execute(method, params.clone()).await?;
 }
-# Ok(())
-# }
 ```
 
 | Runtime | The init script | The overrides |
