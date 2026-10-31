@@ -399,6 +399,54 @@ column says where the two differ.
 [CLI usage](/tutorials/cli_usage) shows the commands at work, and the
 [CLI reference](/help/cli_reference) lists every flag.
 
+## From pytest to sbrs test
+
+A pytest test that asks for the `sb` fixture becomes a Rust test that asks for
+the `sb` fixture and hands its body to `run`; the options of the pytest plugin
+become flags of `sbrs test`, with the same names.
+
+<CodeGroup>
+
+```python test_login.py
+def test_login(sb):
+    sb.open("https://example.com/login")
+    sb.type("#user", "demo")
+    sb.assert_title("Welcome")
+```
+
+```rust tests/login.rs
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
+
+#[rstest]
+#[tokio::test]
+async fn login(sb: Sb) -> Result<()> {
+    sb.run(async |sb| {
+        sb.open("https://example.com/login").await?;
+        sb.type_text("#user", "demo").await?;
+        sb.assert_title("Welcome").await
+    })
+    .await
+}
+```
+
+</CodeGroup>
+
+| pytest | `sbrs test` |
+|---|---|
+| `pytest -k "login or signup"` | `sbrs test -k "login or signup"`. With the cargo runner only `or` and `not` words work; `a and b` needs `--runner nextest` |
+| `pytest -m smoke` | `sbrs test -m smoke`. A marker is a module name: it runs the tests in `mod smoke` |
+| `pytest -n 4`, `-n auto` | `sbrs test -n 4`, `-n auto` |
+| `pytest --co` | `sbrs test --co` (lists the tests and `collected N items`) |
+| `pytest -s` | `sbrs test -s` |
+| `--reruns 2 --reruns-delay 1` | The same flags; the test is run again with a new browser |
+| `--time-limit 60` | The same flag; the test fails after 60 seconds and its browser is closed |
+| `--pdb`, `--trace`, `--final-debug`, `breakpoint()` | The same flags, and `sb.breakpoint("..")`; see [Debug modes](/tutorials/debug_modes) |
+| `--env qa --data x --var1 y --variables='{"k": 1}'` | The same flags; the test reads `sb.env()`, `sb.data()`, `sb.var1()` and `sb.variables()` |
+| `--headless --browser=firefox --uc` and the other browser options | The same flags; [Test options](/help/test_options) lists them with their `SB_*` variables |
+| `--html=report.html --junit-xml=report.xml --alluredir=results` | The same flags; see [Writing Tests with the sb Fixture](/tutorials/writing_tests#reports-of-a-run) |
+| `behave -D headless` | `sbrs test --headless`; `sbrs behave-options` maps the rest |
+
 
 ## Migration strategy
 
