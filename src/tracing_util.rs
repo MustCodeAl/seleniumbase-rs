@@ -2,10 +2,10 @@
 //!
 //! These helpers wire together the tracing ecosystem used by `seleniumbase-rs`:
 //!
-//! * [`tracing-subscriber`] for human-readable or JSON logs.
-//! * [`tracing-log`] to capture legacy `log` records as tracing events.
+//! * `tracing-subscriber` for human-readable or JSON logs.
+//! * `tracing-log` to capture legacy `log` records as tracing events.
 //! * JSON lines, from `tracing-subscriber`'s own JSON formatter.
-//! * [`tracing-timing`] (when the `full-tracing` feature is enabled) for
+//! * `tracing-timing` (when the `full-tracing` feature is enabled) for
 //!   histogram timing of spans/events.
 //!
 //! Logs go to standard error, never to standard output. Standard output is for

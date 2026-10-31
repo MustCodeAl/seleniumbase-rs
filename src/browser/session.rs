@@ -168,7 +168,7 @@ impl BrowserSession {
     /// reuse (see [`crate::browser::reuse`]).
     ///
     /// With browser plugins (feature `plugins`,
-    /// [`BrowserConfig::with_plugins`]) the set is checked and `before_launch`
+    /// `BrowserConfig::with_plugins`) the set is checked and `before_launch`
     /// runs before the browser is asked for; once it runs, `on_browser` and,
     /// for its window, the packages and `on_page_created`. A refusal or a hook
     /// that fails stops the session with [`SeleniumBaseError::Plugin`] and
@@ -1250,7 +1250,7 @@ impl BrowserSession {
         Ok(())
     }
 
-    /// Applies an optional [`Fingerprint`] to the active session.
+    /// Applies an optional [`Fingerprint`](crate::Fingerprint) to the active session.
     ///
     /// The script is [`session_script`](crate::evasion::evasions::session_script),
     /// the one the pure CDP engine runs. When CDP is available it is registered via

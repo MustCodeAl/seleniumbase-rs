@@ -1,4 +1,4 @@
-//! Built-in [`EvasionProvider`](super::EvasionProvider) implementations.
+//! Built-in [`EvasionProvider`] implementations.
 //!
 //! Each provider spoofs one browser dimension. They are registered, in
 //! priority order, by [`all`]. Snippets are self-contained IIFEs, so they can
@@ -643,7 +643,7 @@ impl EvasionProvider for WebglProvider {
 
 /// Canvas noise on `toDataURL` / `toBlob` / `getImageData`.
 ///
-/// Runs for every [`CanvasNoise`](crate::evasion::fingerprint::CanvasNoise)
+/// Runs for every [`CanvasNoise`]
 /// of the policy that adds noise: `Persistent` uses the profile seed, `Random`
 /// a fresh seed for each generated script, and `Low` touches about one pixel in
 /// eight.

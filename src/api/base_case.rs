@@ -739,7 +739,7 @@ impl BaseCase {
     /// `open_new_window(switch_to=True)` does; the keyword is
     /// [`OpenNewTab::switch_to`]. Opening a window you do not switch to leaves
     /// it without the plugin hooks described below until you switch to it and
-    /// call [`apply_plugins_to_window`](Self::apply_plugins_to_window).
+    /// call `apply_plugins_to_window` (feature `plugins`).
     ///
     /// With browser plugins (feature `plugins`), the new window gets their
     /// packages and `on_page_created`, as the first window did.
@@ -1343,7 +1343,7 @@ impl BaseCase {
 
     /// Waits up to the configured default timeout for `css` to become visible.
     ///
-    /// Use [`set_timeout`](BaseCase::set_timeout) or the [`sb_with_timeout!`]
+    /// Use [`set_timeout`](BaseCase::set_timeout) or the [`sb_with_timeout!`](crate::sb_with_timeout)
     /// macro to adjust the default.
     pub async fn wait_for_element_visible_default(
         &self,

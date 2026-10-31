@@ -101,7 +101,7 @@ impl Settings {
     }
 
     /// Makes every browser the Pure CDP server starts the executable at `path`
-    /// ([`BROWSER_BINARY_VAR`]). The operator's choice: no tool argument sets it.
+    /// (`BROWSER_BINARY_VAR`). The operator's choice: no tool argument sets it.
     #[must_use]
     pub fn with_browser_binary(mut self, path: impl Into<PathBuf>) -> Self {
         self.browser_binary = Some(path.into());
@@ -114,7 +114,7 @@ impl Settings {
         self.browser_binary.as_deref()
     }
 
-    /// Reads [`OUTPUT_DIR_VAR`] (falling back to `./mcp_output`) and [`BROWSER_BINARY_VAR`].
+    /// Reads [`OUTPUT_DIR_VAR`] (falling back to `./mcp_output`) and `BROWSER_BINARY_VAR`.
     #[must_use]
     pub fn from_env() -> Self {
         let dir = std::env::var_os(OUTPUT_DIR_VAR)

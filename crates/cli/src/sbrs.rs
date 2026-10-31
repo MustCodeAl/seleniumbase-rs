@@ -609,6 +609,8 @@ struct Cli {
     /// Precedence, highest first: the command line, then SB_PLUGINS (which replaces the names
     /// the file enables), then the settings file. `sbrs plugin list` shows the plugins this
     /// build has. `sbrs test` passes the names on to the tests as SB_PLUGINS.
+    #[allow(rustdoc::broken_intra_doc_links)] // `[plugins]` is a TOML table in help text, not a link
+
     #[usage(long, global, value_name = "NAME", value_hint = usage::ValueHint::Other)]
     plugin: Vec<String>,
     /// Set one option of a plugin, NAME.KEY=VALUE with a TOML VALUE (repeatable)
@@ -1962,6 +1964,8 @@ enum Commands {
     /// global options --plugin and --plugin-opt, the SB_PLUGINS variable, or the [plugins]
     /// table of the settings file; the command line wins over SB_PLUGINS, which wins over
     /// the file. `sbrs plugin list` shows the plugins this build has.
+    #[allow(rustdoc::broken_intra_doc_links)] // `[plugins]` is a TOML table in help text, not a link
+
     #[usage(help_heading = "Info and setup", example = "sbrs plugin list")]
     Plugin(PluginArgs),
     /// Capture, write, check and compare browser fingerprints.

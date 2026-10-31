@@ -9,7 +9,7 @@
 //! # Adding a new evasion
 //!
 //! 1. Implement [`EvasionProvider`] for a unit struct in
-//!    [`builtin`](crate::evasion::providers::builtin) (or your own crate).
+//!    [`builtin`] (or your own crate).
 //! 2. Return the JavaScript from [`EvasionProvider::script`]; use
 //!    [`EvasionContext::escape`] for text and [`EvasionContext::number`] for
 //!    numbers when substituting values from the fingerprint. Patch

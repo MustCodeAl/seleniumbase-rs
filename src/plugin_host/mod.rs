@@ -1,23 +1,23 @@
-//! Turning plugin names and options into a [`PluginSet`] (feature `plugins`).
+//! Turning plugin names and options into a [`PluginSet`](seleniumbase_rs_plugin::PluginSet) (feature `plugins`).
 //!
 //! A program that wants a built-in plugin without writing code lists it by
 //! name, in the `[plugins]` table of the settings file or in `SB_PLUGINS`
-//! (see [`PluginSelection`]), and the launch builders resolve the names here
-//! through a [`Registry`]:
+//! (see [`PluginSelection`](crate::config::plugins::PluginSelection)), and the launch builders resolve the names here
+//! through a [`Registry`](seleniumbase_rs_plugin::Registry):
 //!
-//! * [`builtin_registry`] holds the official plugins whose cargo feature is on
+//! * [`builtin_registry`](crate::plugin_host::builtin_registry) holds the official plugins whose cargo feature is on
 //!   (`plugin-shield`, `plugin-block-resources`, `plugin-crx`, `plugin-fetcher`, `plugin-extractor`, `plugin-batcher`, `plugin-crawler`, `plugin-browser`, `plugin-imap`, `plugin-tor`, or
 //!   `plugins-builtin` for all of them). A build with none has an empty
 //!   registry, and every name is then unknown.
-//! * [`build`] and [`build_with`] return a *strict* [`PluginSet`]: it refuses a
+//! * [`build`](crate::plugin_host::build) and [`build_with`](crate::plugin_host::build_with) return a *strict* [`PluginSet`](seleniumbase_rs_plugin::PluginSet): it refuses a
 //!   plugin that declares no metadata, and grants each plugin what it declares
 //!   except Critical capabilities, as the command line will.
 //! * A plugin from another crate joins by name through
-//!   `Registry::with(Descriptor::of::<P>())` and [`build_with`], or goes into a
+//!   `Registry::with(Descriptor::of::<P>())` and [`build_with`](crate::plugin_host::build_with), or goes into a
 //!   set directly with `PluginSet::with`.
 //!
-//! Two more jobs belong to the host: [`run_task`] runs the task of a plugin on a browser it
-//! launches (`sbrs plugin run NAME`), and [`test_start`] / [`test_end`] are the entry the test
+//! Two more jobs belong to the host: [`run_task`](crate::plugin_host::run_task) runs the task of a plugin on a browser it
+//! launches (`sbrs plugin run NAME`), and [`test_start`](crate::plugin_host::test_start) / [`test_end`](crate::plugin_host::test_end) are the entry the test
 //! lifecycle calls so that plugins hear when a test starts and ends and may fail it.
 //!
 //! An unknown name, options for a plugin that is not enabled, options the

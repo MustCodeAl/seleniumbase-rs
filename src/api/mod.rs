@@ -11,7 +11,7 @@
 //! | [`scenario`] | JSON scenarios, replayed against a `BaseCase` |
 //! | [`recorder`] | Recording of actions, Rust test generation and replay |
 //! | [`html`], [`html_inspector`] | Parsing page source, and static HTML/accessibility checks |
-//! | [`pdf`] | PDF text extraction (feature `pdf`) |
+//! | `pdf` | PDF text extraction (feature `pdf`) |
 //! | [`chart`], [`presentation`] | Chart.js and reveal.js pages |
 //! | [`tour`], [`master_qa`] | Website tours and manual verification sessions |
 //! | [`call`] | [`CallFuture`](call::CallFuture), the future of a call that takes Python's keyword arguments |

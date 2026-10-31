@@ -42,7 +42,7 @@ impl BaseCase {
     /// `.name(..)` names the tour, so that several can exist at the same time
     /// (the default name is `default`) and `.theme(..)` picks the library that
     /// shows it: a [`TourTheme`], or a
-    /// [`ShepherdTheme`](crate::api::tour::ShepherdTheme) for one of
+    /// [`ShepherdTheme`] for one of
     /// Shepherd's looks. The default theme is IntroJS, as in Python. Creating a
     /// tour under a name that is in use starts it again.
     ///

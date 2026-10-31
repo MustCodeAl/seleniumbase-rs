@@ -30,7 +30,7 @@ const DEBUG_TOOLS: [&str; 6] = [
 /// Builds the `driver` server.
 ///
 /// It keeps upstream's tool list and adds `get_page_info`, `diagnose_environment`
-/// and the debugging tools of [`DEBUG_TOOLS`]: they run on `BaseCase` as they do
+/// and the debugging tools of `DEBUG_TOOLS`: they run on `BaseCase` as they do
 /// on `sb`. `get_failed_requests` and `audit_page` are left to `cdp` and `sb`.
 /// A failed call is reported with the page's state, read the same way the `sb`
 /// server reads it.

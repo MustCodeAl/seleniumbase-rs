@@ -351,7 +351,7 @@ impl<I: LineInput, W: Write + Send> DebugPrompt<I, W> {
     /// A prompt starts plain. [`from_terminal`](DebugPrompt::from_terminal)
     /// turns colour on only when standard error is a terminal, `NO_COLOR` is
     /// unset or empty and `TERM` is not `dumb` (see
-    /// [`use_color`](crate::common::color::use_color)); a script or a test
+    /// [`use_color`]); a script or a test
     /// that wants to see the escape sequences asks for them here.
     #[must_use]
     pub fn with_color(mut self, on: bool) -> Self {

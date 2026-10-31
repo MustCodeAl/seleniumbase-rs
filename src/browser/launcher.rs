@@ -603,7 +603,7 @@ async fn keep_chromedriver(
 /// Starts the driver `config.browser` needs on a free port.
 ///
 /// Chromedriver is the one in `downloaded_drivers/`, or a download, as
-/// [`chromedriver_plan`] says. geckodriver (Firefox) and msedgedriver (Edge)
+/// `chromedriver_plan` says. geckodriver (Firefox) and msedgedriver (Edge)
 /// are looked for in `downloaded_drivers/` and on the `PATH`, and downloaded
 /// when missing; msedgedriver is also replaced when it does not fit the
 /// installed Edge. Operadriver, safaridriver and IEDriverServer are only looked
