@@ -12,6 +12,10 @@
 //!   go unpinned.
 //! * `a_plugin_as_the_host_sees_it`: a plugin written against the trait, put into a set and given
 //!   to both launch paths (`LaunchOptionsBuilder::plugins`, `BrowserConfig::with_plugins`).
+//! * `the_imap_plugin_as_the_email_tool_uses_it` (feature `plugin-imap`): what the
+//!   `wait_for_email` tool of `src/mcp/email.rs` imports of the `imap` plugin and the clock of the
+//!   plugin API, the calls it makes, and a wait against a mailbox held in memory.
+
 //!
 //! `just contracts` also checks the pin itself: both lines of `Cargo.toml` carry the same git URL
 //! and the same `rev` (two revisions would be two `seleniumbase-rs-plugin` crates, and the
@@ -34,7 +38,7 @@ mod imports {
     const _: () = {
         use seleniumbase_rs_plugin::{
             async_trait, BrowserFamily, BrowserHandle, BrowserId, Capability, CapabilitySet,
-            Category, Configurable, ContextHandle, ContextId, ContextSettings, Descriptor,
+            Category, Clock, Configurable, ContextHandle, ContextId, ContextSettings, Descriptor,
             Enforcement, Engine, HostInfo, HostKind, LaunchContext, LaunchSettings,
             LoadedExtension, Metadata, NavDecision, NavOrigin, NavOutcome, Navigation, NetRule,
             NetworkInterest, NoPrompt, Outcome, Package, PageHandle, PageId, PathScope, Phase,
@@ -253,5 +257,173 @@ mod a_plugin_as_the_host_sees_it {
         error: PluginError,
     ) -> seleniumbase_rs::SeleniumBaseError {
         error.into()
+    }
+}
+
+/// The `imap` built-in plugin as the `wait_for_email` tool of `src/mcp/email.rs` uses it (feature
+/// `plugin-imap`): the paths of its `use` lines, the calls it makes, and a wait that runs against
+/// a mailbox held in memory, which is the part of the plugin the tool's own tests rely on.
+#[cfg(feature = "plugin-imap")]
+mod the_imap_plugin_as_the_email_tool_uses_it {
+    use std::collections::HashSet;
+    use std::future::{ready, Future};
+    use std::pin::Pin;
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::sync::Arc;
+    use std::time::Duration;
+
+    use seleniumbase_rs_plugin::{async_trait, Clock, Configurable, PluginError, Timer};
+    use seleniumbase_rs_plugins_builtin::imap::{
+        wait_for, Found, Imap, ImapConfig, MailSource, Query, RawMail, DEFAULT_SINCE_SECS,
+        MAX_TIMEOUT_SECS,
+    };
+    use serde_json::{json, Value};
+
+    /// A clock that moves only when something sleeps: a sleep ends at once and adds its length.
+    struct Stepped(AtomicU64);
+
+    impl Timer for Stepped {
+        fn sleep(&self, duration: Duration) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+            let millis = u64::try_from(duration.as_millis()).unwrap_or(u64::MAX);
+            self.0.fetch_add(millis, Ordering::SeqCst);
+            Box::pin(ready(()))
+        }
+
+        fn now_ms(&self) -> u64 {
+            self.0.load(Ordering::SeqCst)
+        }
+    }
+
+    /// A mailbox that holds these messages.
+    struct Inbox(Vec<RawMail>);
+
+    #[async_trait]
+    impl MailSource for Inbox {
+        async fn fetch_new(
+            &mut self,
+            _since_secs: u64,
+            seen: &HashSet<u32>,
+        ) -> seleniumbase_rs_plugin::Result<Vec<RawMail>> {
+            Ok(self
+                .0
+                .iter()
+                .filter(|mail| !seen.contains(&mail.id))
+                .cloned()
+                .collect())
+        }
+    }
+
+    fn mail(id: u32, from: &str, subject: &str, body: &str) -> RawMail {
+        RawMail {
+            id,
+            bytes: format!("From: Shop <{from}>\r\nSubject: {subject}\r\n\r\n{body}\r\n")
+                .into_bytes(),
+        }
+    }
+
+    async fn waited(inbox: Vec<RawMail>, query: &Query) -> Result<Found, PluginError> {
+        let clock = Clock::new(Arc::new(Stepped(AtomicU64::new(1_800_000_000_000))));
+        wait_for(
+            &mut Inbox(inbox),
+            query,
+            &clock,
+            Duration::from_secs(1),
+            Duration::from_secs(30),
+        )
+        .await
+    }
+
+    /// `build`: the plugin from the operator's options, and again with the wait a call asked for.
+    fn the_tool_builds_the_plugin(
+        options: &Value,
+        requested: Option<u64>,
+    ) -> Result<Imap, PluginError> {
+        let configured = Imap::configure(options)?;
+        let seconds = requested.map_or(configured.config().timeout_secs, |secs| {
+            secs.min(MAX_TIMEOUT_SECS)
+        });
+        if seconds == configured.config().timeout_secs {
+            return Ok(configured);
+        }
+        Imap::new(ImapConfig {
+            timeout_secs: seconds,
+            ..configured.config().clone()
+        })
+    }
+
+    /// `wait_for_email`: the wait of the plugin, on the clock of the host.
+    async fn the_tool_waits(imap: &Imap, query: &Query) -> Result<Found, PluginError> {
+        let clock = Clock::new(Arc::new(Stepped(AtomicU64::new(0))));
+        imap.wait_for_email(query, &clock).await
+    }
+
+    /// `request`: a call's arguments become a `Query`, with the limits the plugin names.
+    fn the_tool_reads_a_query(input: &Value) -> Result<Query, PluginError> {
+        let _: u64 = DEFAULT_SINCE_SECS;
+        Query::parse(input)
+    }
+
+    /// `answer`: how the tool tells a failure from mail that did not come.
+    fn how_the_tool_reads_a_plugin_error(error: PluginError) -> String {
+        match error {
+            PluginError::Config(message) | PluginError::Other(message) => message,
+            PluginError::Timeout(after) => format!("{}s", after.as_secs()),
+            other => other.to_string(),
+        }
+    }
+
+    #[test]
+    fn a_query_comes_from_the_arguments_of_a_call() {
+        let query = the_tool_reads_a_query(&json!({
+            "from": "no-reply@shop.example",
+            "subject_contains": "verify",
+            "since_secs": 120,
+            "extract": "code",
+        }))
+        .expect("a query with a filter");
+        assert_eq!(query.from.as_deref(), Some("no-reply@shop.example"));
+        assert_eq!(query.subject_contains.as_deref(), Some("verify"));
+        assert!(MAX_TIMEOUT_SECS >= 1);
+    }
+
+    #[tokio::test]
+    async fn the_wait_finds_a_mail_and_reads_its_code() {
+        let query = Query {
+            from: Some("no-reply@shop.example".to_owned()),
+            ..Query::default()
+        };
+        let inbox = vec![
+            mail(1, "news@other.example", "Weekly", "Nothing here, 111111"),
+            mail(
+                2,
+                "no-reply@shop.example",
+                "Verify",
+                "Your code is 482913. Thanks.",
+            ),
+        ];
+
+        let found = waited(inbox, &query).await.expect("the mail is found");
+
+        assert_eq!(found.from.as_deref(), Some("no-reply@shop.example"));
+        assert_eq!(found.subject, "Verify");
+        assert_eq!(found.code.as_deref(), Some("482913"));
+        assert!(found.text.contains("Thanks"), "{}", found.text);
+        let _: (Option<String>, Option<String>) = (found.date, found.link);
+    }
+
+    #[tokio::test]
+    async fn mail_that_does_not_come_in_time_is_a_message_the_tool_can_tell_apart() {
+        let query = Query {
+            subject_contains: Some("verify".to_owned()),
+            ..Query::default()
+        };
+        let inbox = vec![mail(1, "news@other.example", "Weekly", "code 111111")];
+
+        let error = waited(inbox, &query).await.expect_err("no mail matches");
+
+        // The tool answers `found: false` for this message and an error for every other one.
+        let message = how_the_tool_reads_a_plugin_error(error);
+        assert!(message.starts_with("imap: no email ("), "{message}");
+        assert!(message.contains("within 30s"), "{message}");
     }
 }

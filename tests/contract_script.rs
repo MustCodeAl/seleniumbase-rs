@@ -166,7 +166,12 @@ fn copy_dir(from: &Path, to: &Path) {
 fn git(dir: &Path, args: &[&str]) {
     let status = Command::new("git")
         .args(["-c", "core.hooksPath=/dev/null"])
-        .args(["-c", "user.name=test", "-c", "user.email=test@example.invalid"])
+        .args([
+            "-c",
+            "user.name=test",
+            "-c",
+            "user.email=test@example.invalid",
+        ])
         .args(args)
         .current_dir(dir)
         .env("GIT_CONFIG_GLOBAL", "/dev/null")
@@ -201,7 +206,10 @@ fn a_git_worktree_looks_for_the_consumers_beside_the_main_checkout() {
     let main = sandbox.path().join("seleniumbase-rs");
     std::fs::create_dir_all(&main).expect("the main checkout is made");
     git(&main, &["init", "--quiet", "--initial-branch=main"]);
-    git(&main, &["commit", "--quiet", "--allow-empty", "-m", "start"]);
+    git(
+        &main,
+        &["commit", "--quiet", "--allow-empty", "-m", "start"],
+    );
     let worktree = main.join(".claude/worktrees/lane");
     git(
         &main,
@@ -239,7 +247,6 @@ fn a_git_worktree_looks_for_the_consumers_beside_the_main_checkout() {
         assert!(out.contains("ok   stealth: 12 paths"), "{out}");
     }
 }
-
 
 #[test]
 fn a_wrong_command_line_is_refused_with_status_2() {
