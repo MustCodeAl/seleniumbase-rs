@@ -160,8 +160,8 @@ example uses: with every `seleniumbase-rs` feature switched on
 (`cargo build --features seleniumbase-rs/mcp-server,seleniumbase-rs/turso,...`),
 the app builds and links, and its 115 tests pass (checked before 0.3.0, when the
 features also included `impersonate`, which has since moved to
-seleniumbase-rs-stealth). No feature needs Python:
-`playwright` uses `rustwright-core` without its Python bindings.
+seleniumbase-rs-stealth). No feature needs Python. (The `playwright` feature that
+existed then is the separate crate `seleniumbase-rs-playwright` now.)
 
 ## Features
 

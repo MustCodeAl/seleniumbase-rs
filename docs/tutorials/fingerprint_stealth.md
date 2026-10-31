@@ -477,40 +477,41 @@ When `native_spoofing` is true:
 
 ## rustwright / Playwright mode
 
-<Badge color="blue">Feature: playwright</Badge>
+<Badge color="blue">Crate: seleniumbase-rs-playwright</Badge>
 
-This mode needs the `playwright` Cargo feature (`rustwright`); it is not on by
-default.
+A fingerprint belongs to the browser, not to the Playwright client. In Stealthy
+Playwright Mode the pure CDP browser is launched with the fingerprint, and
+rustwright attaches to it, so Playwright-style code sees the persona the browser
+presents. The bridge is the separate crate `seleniumbase-rs-playwright`; the
+library has no `playwright` feature.
 
-```rust
-use seleniumbase_rs_stealth::browser::playwright::PlaywrightSession;
-use seleniumbase_rs_stealth::{BrowserConfig, Fingerprint};
+```rust,no_run
+use seleniumbase_rs::sb_cdp::LaunchOptions;
+use seleniumbase_rs::{tokio, Fingerprint};
+use seleniumbase_rs_playwright::StealthyPlaywright;
 
-# async fn demo() -> Result<(), seleniumbase_rs_stealth::SeleniumBaseError> {
-let fp = Fingerprint::windows_desktop();
-let config = BrowserConfig::default()
-    .with_headless(false)
-    .with_fingerprint(fp);
-let session = PlaywrightSession::launch_with_config(&config).await?;
-session.goto("https://example.com").await?;
-session.close().await?;
-# Ok(())
-# }
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let options = LaunchOptions::builder()
+        .headless(true)
+        .fingerprint(&Fingerprint::windows_desktop())
+        .build()?;
+    let stealthy = StealthyPlaywright::launch(options).await?;
+
+    stealthy.playwright().goto("https://example.com").await?;
+    // "Win32": the persona is still presented after the navigation.
+    println!("{}", stealthy.playwright().evaluate("navigator.platform").await?);
+
+    stealthy.close().await?;
+    Ok(())
+}
 ```
 
-`BrowserConfig::default()` is headless; `.with_headless(false)` opens a window.
-The session passes the
-fingerprint's launch arguments, then evaluates the evasion script in the first
-page and again after every `goto` and `new_page`, because rustwright cannot
-register a script to run in each new document.
-
-<Warning>
-
-The script therefore runs after navigation, not before the page's own scripts,
-so a page that reads the identity while it loads can see the browser's real one.
-The protocol overrides listed above are not sent in this mode.
-
-</Warning>
+How the persona's claims reach the page (launch switches, protocol overrides or
+the page script) is the same as for any pure CDP browser, described above; the
+bridge adds no script of its own and attaching changes nothing in the browser.
+`crates/playwright/tests/playwright_chrome.rs` checks this against a real Chrome.
+See [Playwright mode](/help/playwright_mode).
 
 ## External profile payloads
 

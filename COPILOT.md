@@ -14,7 +14,7 @@ Run these after any non-trivial change:
 
 ```bash
 cargo fmt --all -- --check
-cargo clippy --all-targets --features s3,azure,gcp,playwright,mcp-server -- -D warnings
+cargo clippy --all-targets --features s3,azure,gcp,mcp-server -- -D warnings
 cargo test --features mcp-server
 cargo deny --workspace check  # advisories, licenses, bans, sources
 mdbook build              # book.toml lives at the repository root
@@ -53,11 +53,11 @@ last raised. Raise it deliberately and keep the `msrv` CI job and the
 - **Macros**: `#[macro_export]` so they live at the crate root. Import as `use seleniumbase_rs::{selector, sb_click, ...};`.
 - **MCP tools**: Add a `ToolDef` in `src/mcp/` (see "Adding an MCP Tool" in `CONTRIBUTING.md`).
 - **Documentation**: Every public API needs a rustdoc example. Every new feature needs a tutorial or help page and an entry in `docs/SUMMARY.md`.
-- **Feature flags**: `s3`, `azure`, `gcp`, `playwright`, `mcp-server`, `mcp-client`, `plugins`, `pdf`, `turso`, `tui`, `gui`, `ocr`, `visual`, `testing`, `bdd`, `allure`. Keep default builds minimal (the library's default features are empty).
+- **Feature flags**: `s3`, `azure`, `gcp`, `mcp-server`, `mcp-client`, `plugins`, `pdf`, `turso`, `tui`, `gui`, `ocr`, `visual`, `testing`, `bdd`, `allure`. Keep default builds minimal (the library's default features are empty).
 
 ## Common gotchas
 
-- `seleniumbase-rs-plugin` and `seleniumbase-rs-plugins-builtin` (the `plugins` feature) are git dependencies, both pinned to the same `rev` (`tests/plugin_features.rs` checks). `cargo publish` uses their `version` from crates.io, so `cargo publish --dry-run` fails until they are there. `rustwright` (the `playwright` feature) comes from crates.io.
+- `seleniumbase-rs-plugin` and `seleniumbase-rs-plugins-builtin` (the `plugins` feature) are git dependencies, both pinned to the same `rev` (`tests/plugin_features.rs` checks). `cargo publish` uses their `version` from crates.io, so `cargo publish --dry-run` fails until they are there. `rustwright` (the bridge crate `crates/playwright`, not a feature of the library) comes from crates.io.
 - `BrowserConfig` no longer derives `Eq` because it contains `Fingerprint` with `f64` fields.
 - `rand` 0.10 uses `RngExt` for `random_range`; do not switch to `rand::Rng`.
 - The `macros` module is re-exported through `src/lib.rs` as `pub mod macros;`, but macro-exported macros are at the crate root.

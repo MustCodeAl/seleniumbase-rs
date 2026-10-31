@@ -26,7 +26,6 @@
 //! |---------|--------|------------|
 //! | `gui` | `dialog` | Native message, confirm, text-prompt and file dialogs |
 //! | `gui` | `gui` | Mouse and keyboard input at the OS level |
-//! | `playwright` | `playwright` | Helpers for the Playwright-compatible engine |
 //! | `pdf` | `pdf` | PDF text extraction, and `BaseCase::get_pdf_text` / `assert_pdf_text` |
 
 pub mod base_case;
@@ -59,6 +58,3 @@ pub mod switching;
 
 pub mod tour;
 pub mod traits;
-
-#[cfg(feature = "playwright")]
-pub mod playwright;

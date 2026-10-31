@@ -122,6 +122,8 @@ LAYOUT = D(
         D("tests", "every test that runs the real sbrs or sbrs-mcp binary"),
         open=True),
       D("own-imports", "tests that import only seleniumbase_rs: the proof that its re-exports work"),
+      D("playwright", "the package seleniumbase-rs-playwright: Stealthy Playwright Mode, rustwright attached to a stealthy sb_cdp browser"),
+
       open=True, check="all"),
     D("tests", "integration tests of the library",
       D("golden", "compiled into the library"),

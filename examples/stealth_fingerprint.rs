@@ -1,12 +1,12 @@
 //! Build anti-detection fingerprints (personas), check that they are
-//! consistent, and optionally launch a browser that presents one.
+//! consistent. A browser presents one through `LaunchOptionsBuilder::fingerprint`.
 //!
 //! A [`Fingerprint`] describes the browser a page should believe it is talking
 //! to: user agent, platform, screen, GPU, languages, time zone, and more. Every
 //! setting is one `Spoof`: leave the browser's own value (`Natural`), draw a
 //! coherent one (`Random`), use exactly this one (`Value`, which a plain value
 //! converts to) or turn the API off (`Off`, where that means something). How
-//! the claims are delivered is a `StealthPolicy`, not a setting. Part 1 needs no
+//! the claims are delivered is a `StealthPolicy`, not a setting. The example needs no
 //! browser:
 //!
 //! * the ready-made personas (`windows_desktop`, `edge_desktop`,
@@ -18,25 +18,11 @@
 //! * `Fingerprint::randomized`, which makes the same persona for the same seed,
 //! * the Chromium launch flags and the page script a persona produces.
 //!
-//! Part 2 only exists with the `playwright` feature. It launches headless
-//! Chromium with the persona, loads a page, injects the persona's script, and
-//! reads `navigator.userAgent`, `navigator.platform` and `screen` back from
-//! page JavaScript. The script is injected after the navigation because it
-//! patches the current document only, so loading a new page discards it.
-//!
 //! Run it with:
 //!
 //! ```bash
-//! cargo run --example stealth_fingerprint                       # part 1
-//! cargo run --example stealth_fingerprint --features playwright # parts 1 and 2
+//! cargo run --example stealth_fingerprint
 //! ```
-//!
-//! Part 1 needs nothing. Part 2 needs the `rustwright` engine's Chromium, which
-//! it may download on first launch. The page is served from `127.0.0.1` by
-//! `local_site/mod.rs`.
-
-#[cfg(feature = "playwright")]
-mod local_site;
 
 use seleniumbase_rs::evasion::evasions::{bootstrap_script, launch_args};
 use seleniumbase_rs::tokio;
@@ -143,50 +129,5 @@ async fn main() -> Result<()> {
     println!("launch flags: {}", launch_args(&persona).len());
     println!("page script: {} bytes", bootstrap_script(&persona).len());
 
-    #[cfg(feature = "playwright")]
-    launch_with(&persona).await?;
-    #[cfg(not(feature = "playwright"))]
-    println!("\nPart 2 needs the playwright feature:\n  cargo run --example stealth_fingerprint --features playwright");
     Ok(())
-}
-
-/// Part 2: what page JavaScript sees under the persona.
-#[cfg(feature = "playwright")]
-async fn launch_with(persona: &Fingerprint) -> Result<()> {
-    use local_site::{ensure, Site, DEMO_PATH};
-    use seleniumbase_rs::browser::playwright::PlaywrightSession;
-
-    let url = Site::serve_demo()?.url(DEMO_PATH);
-    let config = seleniumbase_rs::BrowserConfig::default()
-        .with_headless(true)
-        .with_fingerprint(persona.clone());
-    let session = PlaywrightSession::launch_with_config(&config).await?;
-    let outcome = async {
-        session.goto(&url).await?;
-        // The launch applied the script to the blank first page; apply it to
-        // this one too.
-        session.evaluate(&bootstrap_script(persona)).await?;
-
-        let user_agent = session.evaluate("navigator.userAgent").await?;
-        let platform = session.evaluate("navigator.platform").await?;
-        let width = session.evaluate("screen.width").await?;
-        let height = session.evaluate("screen.height").await?;
-        println!("\nuserAgent: {user_agent}");
-        println!("platform: {platform}");
-        println!("screen: {width}x{height}");
-
-        let screen = persona.screen().value().copied();
-        ensure(
-            platform.as_str() == persona.platform().as_str(),
-            "navigator.platform matches the persona",
-        )?;
-        ensure(
-            width.as_u64() == screen.map(|s| u64::from(s.width))
-                && height.as_u64() == screen.map(|s| u64::from(s.height)),
-            "screen size matches the persona",
-        )
-    }
-    .await;
-    let closed = session.close().await;
-    outcome.and(closed)
 }

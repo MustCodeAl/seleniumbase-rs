@@ -319,7 +319,7 @@ See [CLI Usage](./docs/tutorials/cli_usage.md) for every command and option.
 | Tour maker | `cargo run --example tour_maker` |
 | Chart maker | `cargo run --example chart_maker` |
 | Cloud upload | `cargo run --example cloud_upload --features s3` |
-| Playwright mode | `cargo run --example playwright_mode --features playwright` |
+| Playwright mode | `cargo run -p seleniumbase-rs-playwright --example playwright_mode` |
 | TOTP | `cargo run --example totp_login` |
 | Gherkin features (rstest-bdd) | `cargo test --features "testing bdd"` (see `tests/bdd_scenarios.rs`) |
 | Settings config | `cargo run --example settings_config` |
@@ -423,19 +423,22 @@ cargo run --example cloud_upload --features gcp
 
 See [`examples/cloud_upload.rs`](./examples/cloud_upload.rs) for the full snippet.
 
-### Playwright mode (optional feature)
+### Stealthy Playwright Mode (optional crate)
 
-Playwright-compatible stealth mode is available behind the `playwright` feature.
-It uses [`rustwright`](https://github.com/Skyvern-AI/rustwright)
-native Rust CDP engine, so it does **not** require a Node Playwright driver.
-`rustwright` discovers or downloads a Chromium build on first launch. The
-feature is disabled by default so the main build does not pull the engine:
+As in Python SeleniumBase, Playwright attaches to a stealthy CDP browser with
+`connect_over_cdp`, so both APIs work on the same tab. The bridge is the separate
+workspace crate [`seleniumbase-rs-playwright`](./crates/playwright) (the library has no
+Playwright engine and no `playwright` feature). It uses the
+[`rustwright`](https://github.com/Skyvern-AI/rustwright) native Rust CDP engine, so it does
+**not** require a Node Playwright driver, and it downloads no browser: the browser is the
+Chrome that `sb_cdp` launches.
 
 ```bash
-cargo run --example playwright_mode --features playwright
+cargo add seleniumbase-rs-playwright --git https://github.com/MustCodeAl/seleniumbase-rs
+cargo run -p seleniumbase-rs-playwright --example playwright_mode
 ```
 
-If Chromium download fails, use the default CDP or UC modes instead.
+See [Playwright Mode](./docs/help/playwright_mode.md).
 
 ### MCP servers (optional feature)
 
@@ -499,7 +502,6 @@ cookies, and execute JavaScript in the active page.
 |---------|---------|
 | `tui` | The terminal apps `sbrs commander`, `sbrs caseplans` and `sbrs behave-gui`. |
 | `gui` | Native OS dialogs and GUI automation (links GTK and X11 on Linux). |
-| `playwright` | `rustwright` Playwright-compatible engine. |
 | `s3` | AWS S3 artifact uploads. |
 | `azure` | Azure Blob Storage artifact uploads. |
 | `gcp` | Google Cloud Storage artifact uploads. |

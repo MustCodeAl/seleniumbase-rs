@@ -35,8 +35,6 @@ use crate::api::run_settings::{PauseKind, RunSettings, HEADLESS_MESSAGE_CAP};
 use crate::api::tour::Tour;
 use crate::artifacts::{artifact_path, ensure_latest_logs_dir};
 use crate::browser::config::{whole_seconds, BrowserConfig};
-#[cfg(feature = "playwright")]
-use crate::browser::playwright::PlaywrightSession;
 use crate::browser::session::{shown_text, BrowserSession};
 use crate::error::SeleniumBaseError;
 use crate::js_code::quote;
@@ -73,8 +71,6 @@ pub struct BaseCase {
     /// The charts, by name (`default` when none is given).
     charts: std::collections::BTreeMap<String, crate::api::chart::Chart>,
     qa_session: Option<MasterQaSession>,
-    #[cfg(feature = "playwright")]
-    playwright_session: Option<PlaywrightSession>,
     /// How long the whole test may run, from [`BaseCase::set_time_limit`].
     time_limit: Option<Duration>,
     /// The hard stop of the test lifecycle (`testing::Sb::run`), which a prompt
@@ -172,8 +168,6 @@ impl BaseCase {
             presentations: std::collections::BTreeMap::new(),
             charts: std::collections::BTreeMap::new(),
             qa_session: None,
-            #[cfg(feature = "playwright")]
-            playwright_session: None,
             time_limit: None,
             #[cfg(feature = "testing")]
             deadline: None,
@@ -329,55 +323,6 @@ impl BaseCase {
     /// Returns the current default implicit wait timeout.
     pub fn timeout_secs(&self) -> u64 {
         self.timeout_secs
-    }
-
-    /// Activates the optional Playwright-compatible stealth browser mode.
-    ///
-    /// This starts a second Chromium, through the
-    /// [`rustwright`](https://github.com/Skyvern-AI/rustwright) native Rust CDP
-    /// engine, beside the WebDriver browser, and stores it in the test case.
-    /// It is started as this case's configuration says (see
-    /// [`PlaywrightSession::launch_with_config`] for the settings used:
-    /// headless or not, the fingerprint, the proxy, the user agent, the browser
-    /// binary and the window size), except for the profile folder
-    /// ([`BrowserConfig::user_data_dir`]), which the WebDriver browser holds and
-    /// a second Chrome cannot share. A Playwright session that is already
-    /// active is closed first.
-    ///
-    /// When this mode is active you can use
-    /// [`playwright_session`](BaseCase::playwright_session) or the helpers in
-    /// [`crate::api::playwright`] to interact with pages. [`quit`](Self::quit)
-    /// closes the session.
-    ///
-    /// This method is only available when the `playwright` feature is enabled.
-    ///
-    /// # Errors
-    ///
-    /// Returns the error of [`PlaywrightSession::launch_with_config`] if
-    /// Chromium cannot be started, or of closing the session it replaces.
-    #[cfg(feature = "playwright")]
-    pub async fn activate_playwright_mode(&mut self) -> Result<(), SeleniumBaseError> {
-        if let Some(previous) = self.playwright_session.take() {
-            previous.close().await?;
-        }
-        let config = self.playwright_config();
-        self.playwright_session = Some(PlaywrightSession::launch_with_config(&config).await?);
-        Ok(())
-    }
-
-    /// The configuration of the Playwright browser: this case's, without the
-    /// profile folder the WebDriver browser already holds.
-    #[cfg(feature = "playwright")]
-    fn playwright_config(&self) -> BrowserConfig {
-        let mut config = self.config.clone();
-        config.user_data_dir = None;
-        config
-    }
-
-    /// Returns a mutable reference to the active Playwright session, if any.
-    #[cfg(feature = "playwright")]
-    pub fn playwright_session(&mut self) -> Option<&mut PlaywrightSession> {
-        self.playwright_session.as_mut()
     }
 
     /// Asserts that `text` is visible inside the element selected by `css`.
@@ -2346,24 +2291,15 @@ impl BaseCase {
     /// open, for the next test instead (see [`crate::browser::reuse`]).
     ///
     /// Every browser the case opened is closed, those that
-    /// [`get_new_driver`](Self::get_new_driver) added too, and the Playwright
-    /// session of `activate_playwright_mode` (feature `playwright`). The first
-    /// error is returned after all of them have been tried.
+    /// [`get_new_driver`](Self::get_new_driver) added too. The first error is returned
+    /// after all of them have been tried.
     #[instrument(skip(self))]
     pub async fn quit(&mut self) -> Result<(), SeleniumBaseError> {
         info!("quitting BaseCase");
         self.finish_recording_at_quit().await;
 
-        #[cfg(feature = "playwright")]
-        let playwright_closed = match self.playwright_session.take() {
-            Some(playwright) => playwright.close().await,
-            None => Ok(()),
-        };
         let mut result = self.session.quit().await;
-        #[cfg(feature = "playwright")]
-        {
-            result = playwright_closed.and(result);
-        }
+
         for mut parked in self.drivers.take_all_parked() {
             if let Err(error) = parked.quit().await {
                 result = result.and(Err(error));
@@ -3670,8 +3606,6 @@ include!("base_case_impls/base_case_impl_mouse_tests.rs");
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_misc_calls_tests.rs");
 
-#[cfg(all(test, feature = "playwright"))]
-include!("base_case_impls/base_case_impl_playwright_tests.rs");
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_traffic_tests.rs");
 #[cfg(test)]

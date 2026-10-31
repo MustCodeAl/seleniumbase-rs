@@ -40,8 +40,11 @@ no binary and no command-line crate; the binaries `sbrs` (CLI) and `sbrs-mcp`
 (MCP server) are the package `seleniumbase-rs-cli` in `crates/cli`, which turns
 `pdf`, `mcp-server`, `mcp-client` and `plugins-builtin` on by default and forwards `tui`, `gui`
 and `turso`. The
-library's default features are empty; `gui`, `tui`, `turso`, `playwright`,
-`plugins`, `ocr`, `visual`, `pdf` are opt-in. The
+library's default features are empty; `gui`, `tui`, `turso`,
+`plugins`, `ocr`, `visual`, `pdf` are opt-in. The library has no Playwright
+engine (no `playwright` feature, no `rustwright` dependency): Stealthy Playwright Mode
+is the workspace crate `crates/playwright` (`seleniumbase-rs-playwright`, rustwright
+attached to a stealthy `sb_cdp` browser; a member, not a default member). The
 experimental stealth layer (wire formats, `BrowserScraper`, `HttpSession`,
 `MitmProxy`, `StealthSession`; formerly the features `scrape` and `impersonate`)
 moved out in 0.3.0 to the workspace
@@ -62,7 +65,7 @@ public API of this crate: keep items it imports public (`evasion::randomize`,
 | Path | Role |
 |---|---|
 | `api/` | `BaseCase` (`base_case.rs`) and the capability traits in `traits.rs` (`BrowserApi`, `ElementApi`, `AssertionApi`, `ScreenshotApi`, selectors passed as `css: &str`). `base_case_impls/` splits its methods by theme (`_dom`, `_nav`, `_mouse`, `_storage`, `_tours`, ...). Also `recorder`, `scenario`, `presentation`, `master_qa`, `chart`, `tour`, `pdf`, `html`, `html_inspector`, `dialog`, `gui`, `cdp_driver`/`cdp_page`, `runner` (`run_browser_test`). |
-| `browser/` | `BrowserConfig`/`Browser`/`DriverMode` (`config.rs`), `BrowserSession` (`session.rs`), `launcher`, `driver_access` (repairs and runs drivers), `driver_install` (geckodriver and msedgedriver), `driver_version` (matches chromedriver to Chrome), `downloader`, `downloads` (the `downloaded_files` folder browsers are told to save into), `reuse` (reused sessions, `--crumbs`), `options/` (typed launch settings: Chromium switches, mobile mode), `playwright`. |
+| `browser/` | `BrowserConfig`/`Browser`/`DriverMode` (`config.rs`), `BrowserSession` (`session.rs`), `launcher`, `driver_access` (repairs and runs drivers), `driver_install` (geckodriver and msedgedriver), `driver_version` (matches chromedriver to Chrome), `downloader`, `downloads` (the `downloaded_files` folder browsers are told to save into), `reuse` (reused sessions, `--crumbs`), `options/` (typed launch settings: Chromium switches, mobile mode). |
 | `sb_cdp/` | The pure CDP engine: `browser`, `page`, `locator`, `context`, `client` (protocol), `launch` (`LaunchOptionsBuilder`), `pool` (`BrowserPool`, `PoolOptions`), `session_store`, `state` (`Cookie`, storage), `identity` (`Identity`), `intercept`, `input`, `human`, `captcha`, `download` (`Page::download_file`, `download_by_click`, `save_file_as`, `assert_downloaded_file`), `breakpoint` (`Page::breakpoint`), `capture` (`Page::capture_fingerprint`), `proxy_auth`, `webrtc`, `har` (`Page::start_har`, `HarRecorder`, the HAR 1.2 serde types), `expect`, `mock`, `helper.js`. Held to the pedantic lint set. |
 | `evasion/` | `fingerprint.rs` (`Fingerprint`, one `Spoof` per setting, `ProxyConfig`, `ClientHints`), `spoof.rs`, `settings.rs` (value types), `policy.rs` (`StealthPolicy`), `providers/` (`EvasionRegistry`, `default_registry`, `builtin.rs`), `randomize`, `capture` (`CapturedFingerprint`: reading a real browser's fingerprint), `fingerprint/` (parts of `fingerprint.rs`: `compare`, `file`, `schema`), `behavior` and `humanize` (human-like input), `patcher` (Chrome/chromedriver binary patching), `reactor`, `uc`, `evasions` (launch flags), `options`, `cdp` (DevTools wrapper for WebDriver), `js/`. |
 | `profile_payloads/` | Parses external browser-profile JSON into a `Fingerprint`. |
@@ -80,6 +83,8 @@ public API of this crate: keep items it imports public (`evasion::randomize`,
 | `visual.rs` | `visual` feature: `VisualBaseline` (screenshot baselines compared by SSIM, `check`, `check_page`), behind `BaseCase::assert_visual_match`. Not `check_window`, which compares the HTML layout. |
 | `drivers.rs`, `json.rs`, `tokio` | Re-exports of the third-party items the API takes, returns or expands to (`thirtyfour`'s `By` and `WebElement`, `serde_json`'s `json!` and `Value`, the Tokio crate), so docs, examples and generated code import only `seleniumbase_rs::...`. `testing::rstest` and `testing::bdd::{given, scenario, ...}` do the same for the test macros. A new generator or page imports through these paths and writes no import line for rstest, tokio, thirtyfour or serde_json; `tests/docs_current.rs` and the doctest of `crates/own-imports` fail when it does. The "Imports and dependencies" section of `docs/tutorials/getting_started.md` lists the lines that must stay. |
 | `crates/own-imports/` | Tests-only package, not a default member: its manifest lists `seleniumbase-rs` and `rstest-bdd` and nothing else, so its tests and its doctest over the golden files prove the re-exports and the generated code compile for a crate that imports only `seleniumbase_rs`. Run it with `cargo test -p seleniumbase-rs-own-imports`; the Dockerfile skeleton copies its manifest. |
+| `crates/playwright/` | Package `seleniumbase-rs-playwright`, not a default member and `publish = false`: Stealthy Playwright Mode as in Python SeleniumBase. `PlaywrightSession` attaches rustwright (the Rust Playwright port, re-exported as `seleniumbase_rs_playwright::rustwright`) to a browser over its DevTools endpoint (`attach(&sb_cdp::Browser)`, `connect_over_cdp(endpoint)`), `StealthyPlaywright::launch` starts the stealthy `sb_cdp` browser and attaches in one call. It is a bridge, not a `Plugin`. Run it with `cargo test -p seleniumbase-rs-playwright`; the Chrome tests are `#[ignore]`d (`--test playwright_chrome -- --ignored --test-threads=1`); the Dockerfile skeleton copies its manifest. |
+
 
 | rest | `error.rs` (`SeleniumBaseError`), `macros.rs`, `artifacts.rs`, `core/` (`test_run`, `report_helper`, `log_helper`, and the `dashboard`, `junit` and `allure` reports), `js_code/`, `resources/`, `ocr.rs` (`ocr` feature), `tracing_util.rs` (the crate logs with `tracing`). |
 

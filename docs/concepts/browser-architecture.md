@@ -569,8 +569,9 @@ enum in `src/browser/config.rs` (`seleniumbase_rs::browser::config::Browser`).
   a Chromium browser. A Firefox session gets its options as `moz:firefoxOptions`
   (headless, arguments, preferences, the user agent and locale), and Chrome-only
   settings are not sent to it.
-- **The optional `playwright` feature** uses the `rustwright` CDP engine and
-  launches Chromium, not WebKit or Gecko.
+- **The optional `seleniumbase-rs-playwright` crate** attaches the `rustwright`
+  CDP engine to a Chromium browser, not WebKit or Gecko (see
+  [Playwright mode](/help/playwright_mode)).
 - **One user agent is not an engine.** A fingerprint can claim to be Safari by
   changing the `User-Agent` text, but the engine that runs is still Blink, and
   a site can tell by checking behaviour. See
