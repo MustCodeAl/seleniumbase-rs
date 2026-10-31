@@ -120,8 +120,9 @@ Besides a pass, a scenario ends as one of these:
 | **FAIL** | A test failed. The message is the test's output. |
 | **SKIP** | The tags left the scenario out, or its test is `#[ignore]`d. |
 
-Steps written in Rust run, since the tests are your own: that was the limit of
-the earlier runner, which had only built-in steps.
+Steps written in Rust run, since the tests are your own, and so do the
+[built-in steps](/tutorials/behave#built-in-steps) of the library: the earlier
+runner could run only built-in steps.
 
 ## Differences from Python
 
@@ -130,4 +131,8 @@ the earlier runner, which had only built-in steps.
   this starts `cargo test`.
 - Python has options for the browser, session reuse, demo mode, the dashboard,
   headless mode, screenshots and any other `behave` option. Here the only run
-  option is tags; the `SB_*` variables of the environment reach the tests.
+  option is tags; the `SB_*` variables of the environment reach the tests, so
+  `SB_HEADLESS=true sbrs behave-gui` runs headless. To run scenarios with the
+  flags of the Python plugin, use [`sbrs test`](/help/test_options), for example
+  `sbrs test -k valid_login --headless`; `sbrs behave-options` maps behave's own
+  `-D` options onto it.
