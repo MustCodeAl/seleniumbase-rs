@@ -1293,39 +1293,64 @@ mod tests {
     fn a_run_effect_runs_the_chosen_scenarios_through_the_runner() {
         let (_dir, mut env, _) = on_disk();
 
+        // `-@shop` is the tag of the feature, so the runner leaves both
+        // scenarios out and reports them: `cargo test` is not started inside
+        // this test. How a run ends as passed or failed is read from the
+        // output of `cargo test` in `feature_files`, against canned output.
         let msg = env.perform(Effect::Run {
-            chosen: vec![(0, vec![0, 1])],
-            tags: String::new(),
+            chosen: vec![(0, vec![1, 0])],
+            tags: "-@shop".to_owned(),
         });
 
         let Some(Msg::Finished(runs)) = msg else {
             panic!("a run finishes with its results");
         };
-        let verdicts: Vec<_> = runs.iter().map(|r| (r.name.as_str(), r.verdict)).collect();
+        let found: Vec<_> = runs
+            .iter()
+            .map(|r| (r.name.as_str(), r.line, r.verdict))
+            .collect();
         assert_eq!(
-            verdicts,
+            found,
             [
-                ("add item", Verdict::Passed),
-                ("wrong value", Verdict::Failed)
+                ("add item", 4, Verdict::Skipped),
+                ("wrong value", 7, Verdict::Skipped)
             ]
         );
-        assert_eq!(runs[1].line, 7);
+        assert!(
+            runs[0].file.ends_with("features/cart.feature"),
+            "{}",
+            runs[0].file
+        );
     }
 
     #[test]
     fn the_tags_of_a_run_leave_scenarios_out() {
         let (_dir, mut env, _) = on_disk();
 
-        let msg = env.perform(Effect::Run {
-            chosen: vec![(0, vec![0, 1])],
+        // `add item` is tagged @smoke and `wrong value` is not. Each run
+        // chooses only the scenario the tags leave out, so `cargo test` is
+        // not started inside this test.
+        let only_smoke = env.perform(Effect::Run {
+            chosen: vec![(0, vec![1])],
             tags: "@smoke".to_owned(),
         });
+        let not_smoke = env.perform(Effect::Run {
+            chosen: vec![(0, vec![0])],
+            tags: "-@smoke".to_owned(),
+        });
 
-        let Some(Msg::Finished(runs)) = msg else {
-            panic!("a run finishes with its results");
-        };
-        let verdicts: Vec<_> = runs.iter().map(|r| r.verdict).collect();
-        assert_eq!(verdicts, [Verdict::Passed, Verdict::Skipped]);
+        for msg in [only_smoke, not_smoke] {
+            let Some(Msg::Finished(runs)) = msg else {
+                panic!("a run finishes with its results");
+            };
+            let verdicts: Vec<_> = runs.iter().map(|r| r.verdict).collect();
+            assert_eq!(verdicts, [Verdict::Skipped]);
+            assert!(
+                runs[0].messages[0].contains("tags"),
+                "{:?}",
+                runs[0].messages
+            );
+        }
     }
 
     #[test]
