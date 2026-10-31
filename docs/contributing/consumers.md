@@ -53,7 +53,9 @@ cargo test -p seleniumbase-rs-cli --test contract_homebrew
 `just contracts` is the other half. It reads the sibling checkouts and fails, naming the path,
 when a consumer uses a `seleniumbase_rs::` path that its contract file does not list, so a
 contract cannot lag behind the repository it describes. It finds the checkouts beside this one
-(`../seleniumbase-rs-stealth` and so on) or where these variables say:
+(`../seleniumbase-rs-stealth` and so on) or where these variables say. Run from a git worktree
+(`.claude/worktrees/NAME`), it looks beside the main checkout, which git names as the folder
+that holds the common git directory, and then beside the worktree, so a lane needs no variable:
 
 | Variable | Checkout |
 |---|---|

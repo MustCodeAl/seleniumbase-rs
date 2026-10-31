@@ -22,7 +22,9 @@
 #
 # The checkouts are found beside this one (../seleniumbase-rs-stealth, ../seleniumbase-rs-companion,
 # ../seleniumbase-rs-plugins, ../tauri-plugin-sbrs-automation, ../homebrew-tap) or in
-# SBRS_STEALTH_DIR, SBRS_COMPANION_DIR, SBRS_PLUGINS_DIR, SBRS_TAURI_DIR and SBRS_TAP_DIR.
+# SBRS_STEALTH_DIR, SBRS_COMPANION_DIR, SBRS_PLUGINS_DIR, SBRS_TAURI_DIR and SBRS_TAP_DIR. Run from a
+# git worktree (.claude/worktrees/NAME), the script looks beside the main checkout, the folder that
+# holds the common git directory, and then beside the worktree.
 # SBRS_CONTRACTS_DIR and SBRS_CLI_CONTRACTS_DIR move the folders that hold the contract files
 # (tests/ and crates/cli/tests/); the tests of this script use them to run it on a fixture.
 #
@@ -37,7 +39,23 @@
 set -euo pipefail
 
 core=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-beside=$(dirname "$core")
+
+# The folder the consumers' checkouts are in. They sit beside the MAIN checkout of this repository.
+# In a git worktree (.claude/worktrees/NAME) the folder above `core` is not that folder; git knows
+# the main checkout as the folder that holds the common git directory. Where git cannot say (no
+# repository, a bare one), it is the folder above `core`.
+main_checkout() {
+    local common
+    if common=$(cd "$core" && git rev-parse --git-common-dir 2>/dev/null) &&
+        common=$(cd "$core" && cd "$common" 2>/dev/null && pwd) &&
+        [ "$(basename "$common")" = .git ]; then
+        dirname "$common"
+    else
+        printf '%s\n' "$core"
+    fi
+}
+beside=$(dirname "$(main_checkout)")
+beside_here=$(dirname "$core")
 contracts=${SBRS_CONTRACTS_DIR:-$core/tests}
 cli_contracts=${SBRS_CLI_CONTRACTS_DIR:-$core/crates/cli/tests}
 git_url='https://github.com/MustCodeAl/seleniumbase-rs'
@@ -121,14 +139,28 @@ bad() {
     fail=1
 }
 
+# The folder NAME beside the main checkout of this repository, else beside this checkout (a
+# worktree that sits next to the consumers); when neither exists, the first, so that the message
+# of a missing checkout names the place to put it.
+beside_dir() {
+    local folder
+    for folder in "$beside" "$beside_here"; do
+        if [ -d "$folder/$1" ]; then
+            echo "$folder/$1"
+            return
+        fi
+    done
+    echo "$beside/$1"
+}
+
 # The folder of a consumer's checkout.
 consumer_dir() {
     case $1 in
-        stealth) echo "${SBRS_STEALTH_DIR:-$beside/seleniumbase-rs-stealth}" ;;
-        companion) echo "${SBRS_COMPANION_DIR:-$beside/seleniumbase-rs-companion}" ;;
-        plugins) echo "${SBRS_PLUGINS_DIR:-$beside/seleniumbase-rs-plugins}" ;;
-        tauri) echo "${SBRS_TAURI_DIR:-$beside/tauri-plugin-sbrs-automation}" ;;
-        homebrew) echo "${SBRS_TAP_DIR:-$beside/homebrew-tap}" ;;
+        stealth) echo "${SBRS_STEALTH_DIR:-$(beside_dir seleniumbase-rs-stealth)}" ;;
+        companion) echo "${SBRS_COMPANION_DIR:-$(beside_dir seleniumbase-rs-companion)}" ;;
+        plugins) echo "${SBRS_PLUGINS_DIR:-$(beside_dir seleniumbase-rs-plugins)}" ;;
+        tauri) echo "${SBRS_TAURI_DIR:-$(beside_dir tauri-plugin-sbrs-automation)}" ;;
+        homebrew) echo "${SBRS_TAP_DIR:-$(beside_dir homebrew-tap)}" ;;
     esac
 }
 
