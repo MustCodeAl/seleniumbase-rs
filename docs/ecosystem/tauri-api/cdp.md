@@ -2,6 +2,7 @@
 title: "Chromium CDP"
 sidebarTitle: "CDP discovery"
 description: "Authenticated CDP discovery and CdpStealthConfig for app-owned CEF or WebView2, including fingerprint stealth and seleniumbase-rs plugins."
+keywords: ["tauri", "cdp", "chromium", "cef", "webview2", "stealth", "debugger"]
 ---
 
 Discover the debugger of an app that owns its Chromium runtime: CEF on
@@ -71,6 +72,24 @@ the port, `cdpState` is `unreachable` and no port is named, so a client that
 starts the app retries until it is `ready`. Without the `cdp` feature, or with
 automation off, the route answers `disabled`. The existing automation gate
 still controls the server.
+
+**Path and headers**
+
+<ParamField path="token" type="string" required>
+
+`SBRS_AUTOMATION_TOKEN`, or the random token the app printed when it started.
+A wrong token answers `404 unknown command`.
+
+</ParamField>
+
+<ParamField header="Origin" type="string">
+
+Must be absent: a request that has one (even `null` or an empty value) answers
+`403 unknown error`.
+
+</ParamField>
+
+**Response**
 
 <ResponseField name="value" type="object" required>
 
