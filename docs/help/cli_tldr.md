@@ -145,7 +145,11 @@ sbrs plugin list                                   # the built-in plugins and wh
 sbrs plugin info shield
 sbrs --plugin shield open https://example.com
 sbrs --plugin shield --plugin-opt 'shield.level="strict"' open https://example.com
+sbrs plugin run crawler --input crawl.json --out pages.jsonl   # the task of a plugin: fetcher, extractor, batcher, crawler or imap
 ```
+
+The built-in plugins are shield, block-resources, crx, fetcher, extractor, batcher, crawler,
+browser, imap and tor; [Choosing plugins](/plugins/selecting) has every way to turn them on.
 
 ## Shell
 

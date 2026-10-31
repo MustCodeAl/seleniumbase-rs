@@ -1,6 +1,7 @@
 # sbrs plugin
 
 > List the built-in browser plugins, or show what one declares.
+> The built-ins are shield, block-resources, crx, fetcher, extractor, batcher, crawler, browser, imap and tor.
 > Turn a plugin on with the global `--plugin` option, the `SB_PLUGINS` variable, or the `[plugins]` table of `sbase_config.toml`.
 > More information: <https://mustcodeal-seleniumbase-rs.docs7.io/plugins/selecting>.
 
@@ -31,3 +32,11 @@
 - Start a browser for DevTools MCP clients with a plugin:
 
 `sbrs --plugin {{shield}} devtools`
+
+- Run the task of a plugin (fetcher, extractor, batcher, crawler or imap) with its input from a JSON file, and write the results as JSON lines:
+
+`sbrs plugin run {{crawler}} --input {{crawl.json}} --out {{pages.jsonl}}`
+
+- Set an option of the plugin whose task runs, with a TOML value:
+
+`sbrs --plugin-opt '{{crawler.max_pages}}={{50}}' plugin run {{crawler}} --input {{crawl.json}}`
