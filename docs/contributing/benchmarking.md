@@ -1,7 +1,8 @@
 ---
 title: "Benchmarking"
-description: "Run the cpu and cdp_latency harnesses in benches/, keep their output, and compare a change against main on a fair footing."
+description: "Run the cpu and cdp_latency harnesses in benches/, time the sbrs binary with hyperfine, and compare a change against main fairly."
 sidebarTitle: "Benchmarking"
+keywords: ["benchmark", "hyperfine", "cargo bench", "performance", "latency", "baseline"]
 ---
 
 The repository has two benchmarks in `benches/`. They measure what the library
@@ -18,12 +19,13 @@ your own tests faster is on [Performance](/performance).
 - How to run them, and where their results go.
 - How the published figures were produced.
 - How to compare before and after a change, and keep the runs fair.
+- How to time the `sbrs` binary itself with hyperfine, and why the first run is slow.
 
 </Info>
 
 <Visibility for="agents">
 
-Summary for AI exports: `benches/cpu.rs` (no browser; `--features turso` adds database figures) and `benches/cdp_latency.rs` (needs Chrome or Chromium; headless, local page) are plain programs with `harness = false`, timed with `std::time::Instant`. Run `cargo bench --bench cpu` or `cargo bench --bench cdp_latency`. They print Markdown tables to standard output and save nothing; redirect the output to keep it. There is no criterion or divan, no saved baseline and no CI benchmark job.
+Summary for AI exports: `benches/cpu.rs` (no browser; `--features turso` adds database figures) and `benches/cdp_latency.rs` (needs Chrome or Chromium; headless, local page) are plain programs with `harness = false`, timed with `std::time::Instant`. Run `cargo bench --bench cpu` or `cargo bench --bench cdp_latency`. They print Markdown tables to standard output and save nothing; redirect the output to keep it. There is no criterion or divan, no saved baseline and no CI benchmark job. To time the `sbrs` binary, build it with `cargo build --release --locked --bin sbrs` and run `hyperfine --warmup 3 --runs 20 'target/release/sbrs --version'`; to compare two builds, keep the old binary and give hyperfine both commands.
 
 </Visibility>
 
@@ -270,6 +272,87 @@ other's compiled library.
 
 When a pull request is about speed, put the before and after figures in its
 description, with the machine, the Chrome version and the command.
+
+## Time the sbrs binary with hyperfine
+
+The harnesses time the library. To time the `sbrs` program itself, such as how
+long it takes to start, use [hyperfine](https://github.com/sharkdp/hyperfine). It
+runs a command many times and prints the mean, the spread and the fastest and
+slowest run. The harnesses are not criterion, so there is no saved criterion
+baseline either; hyperfine compares builds by timing both in one run, as below.
+
+<Steps>
+
+<Step title="Build the release binary" icon="hammer">
+
+```bash Terminal
+cargo build --release --locked --bin sbrs
+```
+
+Time `target/release/sbrs`, the file itself. A debug build is slower than what
+users run, and a launcher in front of the binary adds its own start-up time.
+
+</Step>
+
+<Step title="Warm up, then time it" icon="stopwatch">
+
+<Badge color="orange" icon="flask" stroke>Not run here</Badge>
+
+```bash Terminal
+hyperfine --warmup 3 --runs 20 'target/release/sbrs --version'
+```
+
+`--warmup 3` runs the command three times before timing. A program that was
+just written or replaced is slow the first time it runs, because macOS scans it
+(see [Known traps](/contributing/debugging#known-traps)), and filesystem caches
+are not filled yet. Without a warm-up, hyperfine warns when the first run was
+significantly slower than the rest. `--runs 20` fixes the
+number of timed runs; left out, hyperfine takes at least 10 runs and at least
+three seconds.
+
+</Step>
+
+<Step title="Compare two builds" icon="code-compare">
+
+There is no saved baseline to compare against, so keep the old binary and time
+both in one call:
+
+<Badge color="orange" icon="flask" stroke>Not run here</Badge>
+
+```bash Terminal
+git switch main
+cargo build --release --locked --bin sbrs
+cp target/release/sbrs target/sbrs-before
+git switch my-branch
+cargo build --release --locked --bin sbrs
+hyperfine --warmup 3 --runs 20 --export-markdown target/bench-sbrs.md \
+    'target/sbrs-before --version' 'target/release/sbrs --version'
+```
+
+With several commands, hyperfine ends with a summary of how many times faster
+one ran than the other. `--export-markdown` writes the table to a file that you
+can paste into a pull request, with the machine and the command.
+
+</Step>
+
+</Steps>
+
+This is what hyperfine 2.0.0 printed on the machine this section was written
+on, for `hyperfine --runs 3 'sbrs --version'`. It ran with three runs and no
+warm-up, so it shows the warning rather than a figure to quote, and `sbrs` was a
+mise shim there, not the binary: 111 ms is far above the 9 ms that
+[the CLI guide](/tutorials/cli_usage) measured for `sbrs version` itself.
+
+<Badge color="green" icon="check" stroke>Run here</Badge>
+
+```text hyperfine --runs 3
+Benchmark 1: sbrs --version (3 runs)
+                mean     ±       σ          min     …     max
+  Wall Time    111.6 ms  ±     8.1 ms     106.7 ms  …   120.9 ms
+  Memory         8.5 MiB ±     0.0 MiB      8.5 MiB …     8.5 MiB
+
+  Warning: The first benchmarking run for this command was significantly slower than the rest (120.9 ms). This could be caused by (filesystem) caches that were not filled until after the first run. You should consider using the '--warmup' option to fill those caches before the actual benchmark. Alternatively, use the '--prepare' option to clear the caches before each timing run.
+```
 
 ## Keep the runs fair
 
