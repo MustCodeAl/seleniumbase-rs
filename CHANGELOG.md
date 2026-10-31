@@ -22,6 +22,16 @@ work, `docs/parity.md` the per-API status).
   still needs a token of yours. The library has `HttpOptions::with_no_token` and
   `mcp::generate_token`.
 
+- **Breaking (security): `plugin_cmd::check_origins_with` takes the selection, and reads what a
+  plugin declares once built with its options.** The check that a settings file in the current
+  folder (a project you clone) cannot turn on a plugin with `launch.proxy`, `artifacts.write` or
+  `host.*` read only `describe()`, so options that add a capability went through: the folder's
+  file could give `crawler` a `state_file` or `batcher` a `resume_file` anywhere on the disk,
+  and the plugin wrote there. The check now builds each plugin the file named with its options
+  and refuses a capability either one lists. Call it as
+  `check_origins_with(&registry, choice.selection(), choice.origins())`;
+  `PluginChoice::check` does this already.
+
 - **Breaking: `sbrs import-python` reads the Python as Python and writes the `sb` fixture form.**
   The SeleniumBase reading is a parser and a translator (no longer a regex per line): it maps
   every `implemented` method of `parity/api.toml` whose Rust call is mechanical (about 330, from

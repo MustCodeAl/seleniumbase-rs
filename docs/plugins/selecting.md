@@ -257,7 +257,11 @@ cannot grant a plugin the powers that reach beyond the browser.
 A plugin that declares `launch.proxy`, `artifacts.write` or a `host.*`
 capability (see `sbrs plugin info NAME`) and is named **only** by that file is
 refused, with exit status 2 and the way to name it yourself (`tunnel` is an
-example, not a built-in plugin):
+example, not a built-in plugin). Its options count too: the plugin is built with
+the options the file gives it, and a capability an option adds is held back the
+same way, so `[plugins.crawler] state_file = ...` or `[plugins.batcher]
+resume_file = ...` (which add `host.fs.*` for that file) in the folder's file
+also need the plugin named by you:
 
 ```text
 error: invalid configuration: plugin `tunnel` asks for launch.proxy, which the settings file in the current folder cannot grant by itself: a project you clone would decide. Name the plugin yourself, with `--plugin tunnel` or `SB_PLUGINS=tunnel`

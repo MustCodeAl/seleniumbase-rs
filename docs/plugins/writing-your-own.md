@@ -762,9 +762,10 @@ use seleniumbase_rs_plugin_hello::Hello;
 // --plugin-opt NAME.KEY=VALUE, as two lists of strings.
 let choice = PluginChoice::load(None::<&Path>, &plugin_flags, &option_flags)?;
 let registry = plugin_host::builtin_registry().with(Descriptor::of::<Hello>());
-// A plugin that declares launch.proxy, artifacts.write or host.* must be named by
-// the operator, not only by the settings file of the current folder.
-plugin_cmd::check_origins_with(&registry, choice.origins())?;
+// A plugin that declares launch.proxy, artifacts.write or host.* (itself, or through
+// its options) must be named by the operator, not only by the settings file of the
+// current folder.
+plugin_cmd::check_origins_with(&registry, choice.selection(), choice.origins())?;
 let plugins = plugin_host::build_with(&registry, choice.selection())?;
 ```
 

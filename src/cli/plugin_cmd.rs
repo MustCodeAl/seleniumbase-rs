@@ -257,7 +257,11 @@ impl PluginChoice {
     pub fn check(&self) -> Result<(), SeleniumBaseError> {
         check_selection(&self.selection)?;
         #[cfg(feature = "plugins")]
-        check_origins_with(&crate::plugin_host::builtin_registry(), &self.origins)?;
+        check_origins_with(
+            &crate::plugin_host::builtin_registry(),
+            &self.selection,
+            &self.origins,
+        )?;
         Ok(())
     }
 
@@ -365,10 +369,40 @@ fn needs_the_operator(capability: &str) -> bool {
         || capability.starts_with("host.")
 }
 
+/// The capabilities of `descriptor` that [`needs_the_operator`], in the order declared: those
+/// its `describe()` lists and those the plugin lists once built with its options from
+/// `selection`, because an option can add one (the crawler's `state_file` and the batcher's
+/// `resume_file` add `host.fs.*` for that file). A plugin that does not build is refused by
+/// [`check_selection_with`]; its descriptor still speaks for it here.
+#[cfg(feature = "plugins")]
+fn operator_powers(
+    registry: &Registry,
+    descriptor: &Descriptor,
+    selection: &PluginSelection,
+) -> Vec<String> {
+    let mut spec = PluginSpec::new(descriptor.name());
+    if let Some(options) = selection.options_of(descriptor.name()) {
+        spec = spec.options(options.clone());
+    }
+    let built = registry.build(&spec).ok().map(|plugin| plugin.metadata());
+    let mut powers: Vec<String> = Vec::new();
+    for meta in std::iter::once(descriptor.metadata()).chain(built.as_ref()) {
+        for capability in meta.capabilities.iter().chain(meta.optional.iter()) {
+            let capability = capability.to_string();
+            if needs_the_operator(&capability) && !powers.contains(&capability) {
+                powers.push(capability);
+            }
+        }
+    }
+    powers
+}
+
 /// The check of [`PluginChoice::check`] that depends on where a name came from, against
 /// the plugins of `registry`: a plugin that declares `launch.proxy`, `artifacts.write` or a
 /// `host.*` capability, and was named only by the settings file of the current folder, is
-/// refused. A name nothing in `registry` has is left to [`check_selection_with`].
+/// refused. What it declares is read twice: from its descriptor, and from the plugin built
+/// with its options in `selection`, since an option may add a capability. A name nothing in
+/// `registry` has is left to [`check_selection_with`].
 ///
 /// # Errors
 ///
@@ -377,6 +411,7 @@ fn needs_the_operator(capability: &str) -> bool {
 #[cfg(feature = "plugins")]
 pub fn check_origins_with(
     registry: &Registry,
+    selection: &PluginSelection,
     origins: &[PluginOrigin],
 ) -> Result<(), SeleniumBaseError> {
     for origin in origins
@@ -386,14 +421,7 @@ pub fn check_origins_with(
         let Some(descriptor) = registry.get(&origin.name) else {
             continue;
         };
-        let meta = descriptor.metadata();
-        let powers: Vec<String> = meta
-            .capabilities
-            .iter()
-            .chain(meta.optional.iter())
-            .map(ToString::to_string)
-            .filter(|capability| needs_the_operator(capability))
-            .collect();
+        let powers = operator_powers(registry, descriptor, selection);
         if !powers.is_empty() {
             let name = &origin.name;
             return Err(SeleniumBaseError::invalid_config(format!(
@@ -1566,6 +1594,7 @@ mod tests {
         // `probe` declares `host.fs.write:temp`; `plain` declares nothing.
         let error = check_origins_with(
             &registry(),
+            &PluginSelection::new(),
             &[
                 origin("plain", PluginSource::ProjectFile),
                 origin("probe", PluginSource::ProjectFile),
@@ -1592,19 +1621,33 @@ mod tests {
             PluginSource::Environment,
             PluginSource::ConfigFile,
         ] {
-            check_origins_with(&registry(), &[origin("probe", source)])
-                .unwrap_or_else(|error| panic!("{source:?}: {error}"));
+            check_origins_with(
+                &registry(),
+                &PluginSelection::new(),
+                &[origin("probe", source)],
+            )
+            .unwrap_or_else(|error| panic!("{source:?}: {error}"));
         }
     }
 
     #[test]
     fn a_name_the_build_does_not_have_is_left_to_the_name_check() {
-        check_origins_with(&registry(), &[origin("sheild", PluginSource::ProjectFile)]).unwrap();
+        check_origins_with(
+            &registry(),
+            &PluginSelection::new(),
+            &[origin("sheild", PluginSource::ProjectFile)],
+        )
+        .unwrap();
     }
 
     #[test]
     fn a_plugin_that_only_adjusts_the_launch_may_come_from_the_project_file() {
-        check_origins_with(&registry(), &[origin("plain", PluginSource::ProjectFile)]).unwrap();
+        check_origins_with(
+            &registry(),
+            &PluginSelection::new(),
+            &[origin("plain", PluginSource::ProjectFile)],
+        )
+        .unwrap();
         assert!(needs_the_operator("launch.proxy"));
         assert!(needs_the_operator("artifacts.write"));
         assert!(needs_the_operator("host.process"));
@@ -1618,6 +1661,78 @@ mod tests {
         ] {
             assert!(!needs_the_operator(capability), "{capability}");
         }
+    }
+
+    /// A plugin whose options decide its powers, as the crawler's `state_file` and the
+    /// batcher's `resume_file` do: `describe()` declares nothing, the built plugin may.
+    struct Keeper {
+        file: Option<std::path::PathBuf>,
+    }
+
+    #[async_trait]
+    impl Plugin for Keeper {
+        fn name(&self) -> &str {
+            Self::NAME
+        }
+
+        fn metadata(&self) -> Metadata {
+            match &self.file {
+                Some(file) => {
+                    Self::describe().capability(Capability::HostFsWrite(PathScope::Declared(vec![
+                        file.clone(),
+                    ])))
+                }
+                None => Self::describe(),
+            }
+        }
+    }
+
+    impl Configurable for Keeper {
+        const NAME: &'static str = "keeper";
+
+        fn describe() -> Metadata {
+            Metadata::new(Category::Core)
+        }
+
+        fn configure(options: &Value) -> seleniumbase_rs_plugin::Result<Self> {
+            Ok(Self {
+                file: options
+                    .get("state_file")
+                    .and_then(Value::as_str)
+                    .map(Into::into),
+            })
+        }
+    }
+
+    #[test]
+    fn a_power_the_options_add_needs_the_operator_as_much_as_a_declared_one() {
+        let registry = registry().with(Descriptor::of::<Keeper>());
+        let writes = PluginSelection::from_list("keeper").with_options(
+            "keeper",
+            json!({ "state_file": "/home/me/.ssh/authorized_keys" }),
+        );
+        let from_the_project = [origin("keeper", PluginSource::ProjectFile)];
+
+        let error = check_origins_with(&registry, &writes, &from_the_project).unwrap_err();
+
+        assert_eq!(error.exit_code(), 2, "{error:?}");
+        let text = error.to_string();
+        assert!(
+            text.contains("`keeper`") && text.contains("host.fs.write"),
+            "{text}"
+        );
+        check_origins_with(
+            &registry,
+            &PluginSelection::from_list("keeper"),
+            &from_the_project,
+        )
+        .expect("without the option it asks for nothing the operator has to grant");
+        check_origins_with(
+            &registry,
+            &writes,
+            &[origin("keeper", PluginSource::CommandLine)],
+        )
+        .expect("the operator named it");
     }
 }
 

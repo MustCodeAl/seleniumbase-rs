@@ -65,7 +65,7 @@ let option_flags = [r#"hello.message="hi""#];
 let choice = PluginChoice::load(None::<&Path>, &plugin_flags, &option_flags)?;
 let registry = plugin_host::builtin_registry().with(Descriptor::of::<Hello>());
 plugin_cmd::check_selection_with(&registry, choice.selection())?;
-plugin_cmd::check_origins_with(&registry, choice.origins())?;
+plugin_cmd::check_origins_with(&registry, choice.selection(), choice.origins())?;
 choice.log();
 let plugins = plugin_host::build_with(&registry, choice.selection())?;
 ```
@@ -790,6 +790,7 @@ The selection to check.
 ```rust
 pub fn check_origins_with(
     registry: &Registry,
+    selection: &PluginSelection,
     origins: &[PluginOrigin],
 ) -> Result<(), SeleniumBaseError>
 ```
@@ -797,6 +798,13 @@ pub fn check_origins_with(
 <ParamField body="registry" type="&Registry" required>
 
 The plugins that can be named.
+
+</ParamField>
+
+<ParamField body="selection" type="&PluginSelection" required>
+
+`PluginChoice::selection`: each plugin is built with its options, to read
+what the built plugin declares.
 
 </ParamField>
 
@@ -814,9 +822,12 @@ to name the plugin yourself.
 </ResponseField>
 
 Refuses a plugin named **only** by the settings file of the current folder
-(`PluginSource::ProjectFile`) when its descriptor's metadata (`describe()`)
-lists `launch.proxy`, `artifacts.write` or a `host.*` capability, in
-`capabilities` or `optional`. `--plugin`, `SB_PLUGINS` and a file named with
+(`PluginSource::ProjectFile`) when it lists `launch.proxy`, `artifacts.write`
+or a `host.*` capability, in `capabilities` or `optional`, either in its
+descriptor's metadata (`describe()`) or in the metadata of the plugin built
+with its options from `selection`: an option can add a capability, as the
+crawler's `state_file` and the batcher's `resume_file` add `host.fs.*` for
+their file. `--plugin`, `SB_PLUGINS` and a file named with
 `--config` count as the operator choosing. A name the registry does not have is
 left to `check_selection_with`.
 
