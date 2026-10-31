@@ -22,15 +22,28 @@ maintainer of this repository to decide.
   `pnpm lint` runs `prettier --check`, which the raw output fails; `pnpm lint:fix`
   in the steps below formats it, and the formatting only wraps long descriptions.
 - It is the CLI of a build **without the `turso` feature**, which is how the
-  Homebrew tap and a plain `cargo install --path crates/cli` build `sbrs`. `sbrs report`
-  exists only with `turso`, so the spec has no `report` subcommand. The `tui`
+  Homebrew tap and a plain `cargo install --path crates/cli` build `sbrs`. `sbrs report history`
+  exists only with `turso`, so the spec has `report` with its `finish` subcommand and no `history`. The `tui`
   feature changes what some commands do, not the command line, so it does not
   matter here.
-- 113 top-level subcommands (the 112 commands of `sbrs --help` and `help`) and 24
-  top-level options, `-h` and `-V` included. It uses `template: "filepaths"` in six
-  places, and has no `generators` and no `script`, so it runs nothing in a user's
-  shell. Two descriptions contain a URL (`https://example.com` and
-  `http://localhost:4444`), which upstream's review bot lists.
+- 110 top-level subcommands (the 109 commands of `sbrs --help` and `help`), 10
+  nested ones (under `download`, `plugin`, `report` and `fingerprint`), and 103
+  top-level options, `-h` and `-V` included. It uses `template: "filepaths"` in 60
+  places, has 4 repeatable options, and has no `generators` and no `script`, so it
+  runs nothing in a user's shell. Two descriptions contain a URL
+  (`https://example.com` and `http://localhost:4444`), which upstream's review bot
+  lists.
+- 101 of the 103 top-level options are global: every option of `sbrs` itself
+  (`--url`, `--headless`, `--browser`, `--uc`, `--proxy`, ...) is valid before or
+  after any command, so the file declares each one once, on the root, with
+  `isPersistent: true`, and not 101 times under every command. Only `-h` and `-V`
+  are not persistent.
+- The usage spec it is made from, `completions/sbrs.usage.kdl`, has the same
+  commands: 109 `cmd` nodes at the top (119 with the nested ones), 103 root
+  `flag` nodes of which 101 carry `global=#true`, and 127 `example` nodes, the
+  lines under `Examples:` in every command's `--help`. These numbers are those of
+  0.6.0; they change with the CLI, and the test that writes the spec again shows
+  when.
 
 To regenerate it after the CLI changes (the same test writes the usage spec and the
 [CLI reference](/help/cli_reference) too):
@@ -57,7 +70,9 @@ the help text of each command, option and argument.
 
 ## Before you decide
 
-Checked on 2026-10-15:
+Checked on 2026-10-15 (before the global options and the `Examples:` of the
+commands, so the file then had 113 subcommands and 24 options; the counts above
+are those of the file now, and the checks below were not repeated on it):
 
 - withfig/autocomplete is not archived, but its last commit and last merged pull
   request are from 2025-05-05, and pull requests opened since (the newest from
@@ -141,11 +156,12 @@ SeleniumBase (browser automation and testing).
 How it was made: `sbrs completions fig` writes the spec from the tables of the
 parser that reads the CLI's own definition, so the subcommands, aliases, options and
 descriptions match `sbrs --help` of the default build (the optional `turso` feature
-adds a `report` subcommand, which the spec leaves out). The file was then formatted
+adds `report history`, which the spec leaves out). The file was then formatted
 with this repository's prettier settings (`pnpm lint:fix`). To regenerate it:
 `sbrs completions fig`.
 
-- 113 top-level subcommands, `help` included.
+- 110 top-level subcommands, `help` included, and 103 top-level options; the 101
+  global ones are declared once, on the root, with `isPersistent: true`.
 - `template: "filepaths"` only; no generators and no `script`.
 - Short and long forms share one `name` array; there are no combined short flags.
 
