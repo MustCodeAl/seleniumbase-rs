@@ -1446,8 +1446,10 @@ mod tests {
         write(dir.path(), "tests/deep/more.rs");
         write(dir.path(), "new_recording.rs");
         let run = |file: &str, change: &dyn Fn(&mut RecorderForm)| {
-            let mut form = RecorderForm::default();
-            form.file = typed(file);
+            let mut form = RecorderForm {
+                file: typed(file),
+                ..RecorderForm::default()
+            };
             change(&mut form);
             form.run(dir.path())
         };
@@ -1487,8 +1489,10 @@ mod tests {
     #[test]
     fn replay_starts_the_recording_named_after_the_file() {
         let dir = project();
-        let mut form = RecorderForm::default();
-        form.file = typed("tests/login.rs");
+        let mut form = RecorderForm {
+            file: typed("tests/login.rs"),
+            ..RecorderForm::default()
+        };
 
         let message = form.replay(dir.path()).unwrap_err();
         assert!(message.contains("recordings/login_rec.json"), "{message}");

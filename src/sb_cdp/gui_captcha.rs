@@ -967,7 +967,7 @@ mod tests {
         .await;
 
         assert_eq!(page.gui_captcha_plan().await.unwrap(), None);
-        assert!(mock.calls_to("Browser.getWindowForTarget").is_empty());
+        assert_eq!(mock.calls_to("Browser.getWindowForTarget"), []);
     }
 
     #[tokio::test]
@@ -1079,7 +1079,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(clicked, None);
-        assert!(fake.events().is_empty());
+        assert_eq!(fake.events(), []);
     }
 
     #[tokio::test]
