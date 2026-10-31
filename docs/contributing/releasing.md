@@ -64,7 +64,7 @@ cargo fmt --all -- --check
 cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings
 cargo nextest run --features "mcp-server test-util"
 cargo test --doc --features "mcp-server test-util"
-cargo audit && cargo deny check
+cargo audit && cargo deny --workspace check
 trufflehog filesystem . --only-verified && ripsecrets
 just mdx && mdbook build
 ```

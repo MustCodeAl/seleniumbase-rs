@@ -44,7 +44,7 @@ run = 'cargo test --features "mcp-server test-util plugins"'
 
 [tasks.deny]
 description = "Dependency licences, advisories and sources"
-run = "cargo deny check"
+run = "cargo deny --workspace check"
 
 [tasks.gate]
 description = "Format, lint, tests and dependency policy, one after the other"
@@ -55,7 +55,7 @@ run = [
   'cargo clippy --all-targets --features "mcp-server test-util plugins ocr visual" -- -D warnings',
   'cargo test --features "mcp-server test-util plugins"',
   'cargo test --features "visual test-util" --lib visual',
-  "cargo deny check",
+  "cargo deny --workspace check",
 ]
 
 [tasks.chrome]

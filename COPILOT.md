@@ -16,7 +16,7 @@ Run these after any non-trivial change:
 cargo fmt --all -- --check
 cargo clippy --all-targets --features s3,azure,gcp,playwright,mcp-server -- -D warnings
 cargo test --features mcp-server
-cargo deny check          # advisories, licenses, bans, sources
+cargo deny --workspace check  # advisories, licenses, bans, sources
 mdbook build              # book.toml lives at the repository root
 ```
 

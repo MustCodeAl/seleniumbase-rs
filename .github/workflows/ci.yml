@@ -334,6 +334,9 @@ jobs:
         uses: EmbarkStudios/cargo-deny-action@v2
         with:
           command: check
+          # The root manifest is also a package: without --workspace only the library
+          # is a graph root, and crates/cli (the binaries) goes unchecked.
+          arguments: --all-features --workspace
 
   docs:
     name: Build and publish docs

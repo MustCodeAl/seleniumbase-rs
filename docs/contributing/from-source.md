@@ -582,11 +582,12 @@ filtered search of the output.
 
 ```bash Terminal
 cargo audit
-cargo deny check
+cargo deny --workspace check
 ```
 
-Run them when `Cargo.lock` changed. `cargo deny check` reads `deny.toml`, where
-every ignored advisory has a written reason.
+Run them when `Cargo.lock` changed. `cargo deny` reads `deny.toml`, where every
+ignored advisory has a written reason; `--workspace` makes it check `crates/cli`
+too, since the root manifest is also the library's package.
 
 </Step>
 

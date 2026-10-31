@@ -999,6 +999,15 @@ work, `docs/parity.md` the per-API status).
   PAC file's login left out), so `tor` refuses them before it changes anything; Chrome still
   gets each once, and a plugin that removes one removes the setting.
 
+- **Security: `pulldown-cmark` 0.13.6 (RUSTSEC-2026-0414), and `cargo deny` checks the whole
+  workspace.** `usage-lib`, a dev-dependency of `crates/cli`, pulled `pulldown-cmark` 0.13.4,
+  whose wikilink parsing grows exponentially (only the CLI's tests use it, on the project's own
+  text). `cargo audit` reported it; `cargo deny check` did not, because the root manifest is also the
+  library's package, so cargo-deny rooted its graph at the library and never looked at
+  `crates/cli` (the binaries) or its dependencies. CI, the `mise` tasks and the contributing
+  pages now run `cargo deny --workspace check`, and `deny.toml` allows the path-only
+  dependency of the two `publish = false` crates on the library (`allow-wildcard-paths`).
+
 - **A pure CDP `Locator` enters a frame of any origin, so Python's `nested_click` works.**
   `page.locator("iframe#myFrame3").locator(".fBox").click()` found nothing in the demo page's
   `data:` iframe, because the page helper reads a frame's document, which a script may do for a

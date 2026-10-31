@@ -551,7 +551,7 @@ cargo fmt --all -- --check
 cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings
 cargo test --features "mcp-server test-util"
 cargo check --features turso --all-targets            # code that only builds with turso
-cargo deny check && cargo audit                        # when Cargo.lock changed
+cargo deny --workspace check && cargo audit            # when Cargo.lock changed
 mdbook build                                           # when docs changed
 ```
 
