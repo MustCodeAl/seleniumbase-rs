@@ -3,10 +3,12 @@
 # that depends on the library compiles no command-line parser, completion
 # generator or binary-only dependency.
 [workspace]
-members = ["crates/cli", "crates/own-imports"]
+members = ["crates/cli", "crates/own-imports", "crates/playwright"]
 # A plain `cargo build`, `cargo test` or `cargo run --bin sbrs` at the root covers
 # both packages, as it did when the binaries were part of the library. Use
-# `-p seleniumbase-rs` for the library alone.
+# `-p seleniumbase-rs` for the library alone. The tests-only `crates/own-imports` and the
+# Playwright bridge `crates/playwright` (which links the `rustwright` engine) are members
+# but not default members: name them with `-p`.
 default-members = [".", "crates/cli"]
 resolver = "2"
 # The Tauri example has a manifest of its own and builds on its own.
@@ -108,9 +110,6 @@ async-trait = "0.1"
 # in the graph through thirtyfour.
 http = "1.5"
 bytes = "1.12"
-# Optional Playwright-compatible engine via rustwright. Disabled by default
-# because it pulls a large Chromium automation core.
-rustwright = { version = "0.3", optional = true }
 rust-s3 = { version = "0.38", features = ["tokio-native-tls"], optional = true }
 azure_storage_blob = { version = "1.1", optional = true }
 azure_core = { version = "1.1", optional = true }
@@ -158,10 +157,6 @@ default = []
 tui = ["dep:ratatui", "dep:crossterm"]
 # Native OS dialogs and GUI automation (enigo/rfd).
 gui = ["dep:enigo", "dep:rfd"]
-# Playwright-compatible automation mode powered by rustwright (pure Rust; no Python).
-# rustwright depends on rustwright-core without its `python` feature, so no
-# libpython is linked.
-playwright = ["dep:rustwright"]
 # Extra tracing integrations (timing histograms, actix actor instrumentation).
 full-tracing = ["dep:tracing-timing"]
 # Serves tokio-console (https://github.com/tokio-rs/console). Build with

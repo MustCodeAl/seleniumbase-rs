@@ -50,9 +50,46 @@ const GONE: &[(&str, &str)] = &[
     ),
     ("crate::stealth", "crate::evasion"),
     ("src/stealth", "src/evasion"),
-    // The Playwright feature is `playwright` (the dependency is still rustwright).
-    ("--features rustwright", "--features playwright"),
-    ("features = [\"rustwright\"", "features = [\"playwright\"]"),
+    // The library has no Playwright engine any more: the bridge is the crate
+    // `seleniumbase-rs-playwright` (`crates/playwright`), which re-exports rustwright.
+    (
+        "--features rustwright",
+        "the crate seleniumbase-rs-playwright",
+    ),
+    (
+        "--features playwright",
+        "the crate seleniumbase-rs-playwright",
+    ),
+    (
+        "--features \"playwright",
+        "the crate seleniumbase-rs-playwright",
+    ),
+    (
+        "features = [\"rustwright\"",
+        "the crate seleniumbase-rs-playwright",
+    ),
+    (
+        "features = [\"playwright\"",
+        "the crate seleniumbase-rs-playwright",
+    ),
+    (
+        "activate_playwright_mode",
+        "seleniumbase_rs_playwright::StealthyPlaywright",
+    ),
+    (
+        "playwright_session()",
+        "seleniumbase_rs_playwright::StealthyPlaywright::playwright",
+    ),
+    (
+        "browser::playwright",
+        "seleniumbase_rs_playwright::PlaywrightSession",
+    ),
+    (
+        "api::playwright",
+        "seleniumbase_rs_playwright::PlaywrightSession",
+    ),
+    ("launch_playwright_headless", "StealthyPlaywright::launch"),
+    ("PlaywrightSession::launch()", "StealthyPlaywright::launch"),
     // The crate is not on crates.io: it is installed from git.
     (
         "seleniumbase-rs = { version",
@@ -84,9 +121,19 @@ const GONE: &[(&str, &str)] = &[
         "profile_payloads::ProxyConfig",
         "profile_payloads::ProfileProxy",
     ),
-    ("PlaywrightSession::launch_headless", "launch_with_config"),
-    ("launch_headless_with_fingerprint", "launch_with_config"),
-    ("launch_with_fingerprint", "launch_with_config"),
+    (
+        "PlaywrightSession::launch_headless",
+        "StealthyPlaywright::launch",
+    ),
+    (
+        "PlaywrightSession::launch_with_config",
+        "StealthyPlaywright::launch",
+    ),
+    (
+        "launch_headless_with_fingerprint",
+        "StealthyPlaywright::launch",
+    ),
+    ("launch_with_fingerprint", "StealthyPlaywright::launch"),
     (
         "run_browser_test_boxed",
         "run_browser_test(.., async |sb| ..)",

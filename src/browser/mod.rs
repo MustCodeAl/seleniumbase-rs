@@ -22,6 +22,3 @@ mod shadow_find;
 
 pub mod session;
 pub mod virtual_display;
-
-#[cfg(feature = "playwright")]
-pub mod playwright;

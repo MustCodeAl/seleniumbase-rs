@@ -1,0 +1,23 @@
+# Stealthy Playwright Mode: the Rust Playwright port `rustwright` attached, through its DevTools
+# endpoint, to a stealthy pure-CDP browser (`seleniumbase_rs::sb_cdp::Browser`), so that
+# Playwright-style code and the CDP Mode API drive the same browser.
+#
+# This is a bridge crate and lives beside the library, not in it: the library has no
+# Playwright engine (no `playwright` feature, no `rustwright` dependency), and a project that
+# wants the bridge lists this crate. It is not a `Plugin` of the plugin API (ADR 004), which
+# hooks into an engine's browser and cannot start another client.
+[package]
+name = "seleniumbase-rs-playwright"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Stealthy Playwright Mode for seleniumbase-rs: rustwright attached to a stealthy CDP browser."
+repository.workspace = true
+publish = false
+
+[dependencies]
+seleniumbase-rs = { path = "../.." }
+# The Rust Playwright port. Its calls block, so the crate runs them on Tokio's blocking pool.
+# The default features of `rustwright` are the engine itself (no Python bindings).
+rustwright = "0.3"

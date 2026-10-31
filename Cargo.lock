@@ -5890,7 +5890,6 @@ dependencies = [
  "rten",
  "rust-s3",
  "rustls",
- "rustwright",
  "schemars",
  "scraper",
  "seleniumbase-rs-plugin",
@@ -5943,6 +5942,14 @@ name = "seleniumbase-rs-own-imports"
 version = "0.6.0"
 dependencies = [
  "rstest-bdd",
+ "seleniumbase-rs",
+]
+
+[[package]]
+name = "seleniumbase-rs-playwright"
+version = "0.6.0"
+dependencies = [
+ "rustwright",
  "seleniumbase-rs",
 ]
 

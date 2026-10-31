@@ -19,13 +19,15 @@ ARG CARGO_BUILD_JOBS
 # Cache dependencies by copying the manifests first and creating a skeleton that
 # matches every target the manifests declare. Cargo refuses to read a manifest
 # whose `[[bench]]`, `[[example]]`, `[[test]]` or `[[bin]]` files are missing, even
-# when the build asks for one binary. The workspace has three packages: the library
-# at the root, the command line in `crates/cli` and the tests-only `crates/own-imports`.
+# when the build asks for one binary. The workspace has four packages: the library
+# at the root, the command line in `crates/cli`, the tests-only `crates/own-imports` and
+# the Playwright bridge `crates/playwright` (which this image does not build).
 COPY Cargo.toml Cargo.lock ./
 COPY crates/cli/Cargo.toml ./crates/cli/Cargo.toml
 COPY crates/own-imports/Cargo.toml ./crates/own-imports/Cargo.toml
-RUN mkdir -p src crates/cli/src crates/own-imports/src benches examples tests && \
-    touch src/lib.rs crates/own-imports/src/lib.rs \
+COPY crates/playwright/Cargo.toml ./crates/playwright/Cargo.toml
+RUN mkdir -p src crates/cli/src crates/own-imports/src crates/playwright/src benches examples tests && \
+    touch src/lib.rs crates/own-imports/src/lib.rs crates/playwright/src/lib.rs \
           benches/cdp_latency.rs benches/cpu.rs \
           examples/dialog.rs examples/dialogs.rs examples/gui_automation.rs examples/pdf_example.rs && \
     echo 'fn main() {}' > crates/cli/src/sbrs.rs && \

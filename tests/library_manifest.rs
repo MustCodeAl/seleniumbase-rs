@@ -10,6 +10,7 @@ use toml::Table;
 
 const LIBRARY: &str = include_str!("../Cargo.toml");
 const CLI: &str = include_str!("../crates/cli/Cargo.toml");
+const PLAYWRIGHT: &str = include_str!("../crates/playwright/Cargo.toml");
 
 /// Crates only the command line may use. A library user must not build them.
 ///
@@ -103,6 +104,76 @@ fn the_command_line_crate_builds_both_binaries_from_the_library() {
             "crates/cli does not depend on {needed}: {dependencies:?}"
         );
     }
+}
+
+#[test]
+fn the_library_links_no_playwright_engine() {
+    let library = parse(LIBRARY);
+
+    for section in ["dependencies", "dev-dependencies", "build-dependencies"] {
+        let names = table_names(&library, section);
+        for engine in ["rustwright", "rustwright-core"] {
+            assert!(
+                !names.iter().any(|name| name == engine),
+                "[{section}] of the library names {engine}; the Playwright engine belongs to \
+                 crates/playwright"
+            );
+        }
+    }
+    assert!(
+        !table_names(&library, "features")
+            .iter()
+            .any(|feature| feature == "playwright"),
+        "the library has no `playwright` feature; the bridge is the crate crates/playwright"
+    );
+}
+
+#[test]
+fn the_playwright_bridge_is_a_workspace_member_that_is_not_built_by_default() {
+    let library = parse(LIBRARY);
+    let list = |key: &str| -> Vec<&str> {
+        library
+            .get("workspace")
+            .and_then(|workspace| workspace.get(key))
+            .and_then(toml::Value::as_array)
+            .map(|members| members.iter().filter_map(toml::Value::as_str).collect())
+            .unwrap_or_default()
+    };
+
+    assert!(
+        list("members").contains(&"crates/playwright"),
+        "members: {:?}",
+        list("members")
+    );
+    assert!(
+        !list("default-members").contains(&"crates/playwright"),
+        "a plain `cargo build` must not compile the Playwright engine"
+    );
+}
+
+#[test]
+fn the_playwright_bridge_depends_on_the_library_and_the_engine() {
+    let bridge = parse(PLAYWRIGHT);
+    let name = bridge
+        .get("package")
+        .and_then(|package| package.get("name"))
+        .and_then(toml::Value::as_str);
+
+    assert_eq!(name, Some("seleniumbase-rs-playwright"));
+    let dependencies = table_names(&bridge, "dependencies");
+    for needed in ["seleniumbase-rs", "rustwright"] {
+        assert!(
+            dependencies.iter().any(|name| name == needed),
+            "crates/playwright does not depend on {needed}: {dependencies:?}"
+        );
+    }
+    // The bridge is reached through the library's `sb_cdp` module, not a second copy of it.
+    let library_path = bridge
+        .get("dependencies")
+        .and_then(|dependencies| dependencies.get("seleniumbase-rs"))
+        .and_then(|dependency| dependency.get("path"))
+        .and_then(toml::Value::as_str);
+    assert_eq!(library_path, Some("../.."));
 }
 
 #[test]
