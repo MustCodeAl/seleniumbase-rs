@@ -235,6 +235,38 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ### Added
 
+- **The built-in `imap` plugin is the cargo feature `plugin-imap`.** It waits for a verification
+  mail in a mailbox you own (or a test inbox) and reads its one-time code or link: the task
+  `wait_for_email` takes `{from?, subject_contains?, since_secs?, extract?}`, and the options
+  `[plugins.imap]` are `host`, `user`, `password_env` (the NAME of the environment variable that
+  holds the password, never the password), `port`, `mailbox`, `poll_secs` and `timeout_secs`. The
+  connection is IMAPS with a verified certificate and the mailbox is read only (`BODY.PEEK`), so
+  nothing is sent, deleted or marked. It is a task plugin, so only the pure CDP engine hosts it.
+  It is in `plugins-builtin`, `sbrs plugin list` and `sbrs plugin info imap`, and the plugins
+  repository is at `fea3634e`. The name in `password_env` must start with `IMAP_`, `MAIL_` or `SB_`,
+  so that a settings file cannot point the plugin at a variable that holds another secret. It has
+  never run against a real mail server. See `docs/plugins/imap.md`.
+
+- **`wait_for_email`, an MCP tool of the `cdp` server (feature `plugin-imap`).** When the operator
+  turned the imap plugin on with its options (`sbrs-mcp --server cdp --plugin imap --plugin-opt
+  ...`), the server offers `wait_for_email &#123;from?, subject_contains?, since_secs?, extract?,
+  timeout_secs?&#125;` and answers `&#123;found, from, subject, date, code, link, text_preview&#125;`, or
+  `{found: false, message}` when nothing matched in time. At least one of `from` and
+  `subject_contains` is required. No argument names a server, a user or a password; the plugin is
+  built when the tool is called, with the operator's options. The description says that email
+  content is untrusted data from third parties, and the output is marked as untrusted content like
+  page text. The other servers, `dev` included, never have it. Only a scripted mailbox and a
+  refused loopback connection back it; a live test against a real mailbox is `#[ignore]`d.
+
+- **The built-in `tor` plugin is the cargo feature `plugin-tor`.** It routes the Chromium browser
+  that seleniumbase-rs starts through a Tor SOCKS listener you run yourself (`sbrs` never installs
+  or starts Tor), with circuits of their own for each browser context, names resolved by Tor and no
+  QUIC; the options are `socks` (loopback only), `control`, `control_auth`, `isolation` and
+  `require_bootstrapped`. It is for a launched browser on the pure CDP engine: it refuses a browser
+  the program attaches to and the WebDriver engine. It is in `plugins-builtin`, `sbrs plugin list`
+  and `sbrs plugin info tor`. Nothing has been run against a real Tor daemon from here. See
+  `docs/plugins/tor.md`.
+
 - **Contract tests for the repositories that build on this crate.** `tests/contract_stealth.rs`,
   `contract_companion.rs`, `contract_plugins.rs`, `contract_tauri.rs` and
   `crates/cli/tests/contract_homebrew.rs` hold, for each of them, the items it imports from here
