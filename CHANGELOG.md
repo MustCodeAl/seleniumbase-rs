@@ -10,6 +10,18 @@ work, `docs/parity.md` the per-API status).
 
 ### Breaking
 
+- **Breaking (security): the Pure CDP server's `start_browser` no longer takes
+  `browser_executable_path`, and `sbrs-mcp --listen` always asks for a bearer token.** A client
+  could name any executable and the server spawned it; the browser is now the operator's choice
+  alone, `SB_CHROME_BIN` (read by `sbrs-mcp` at start; `use_chromium` cannot override it), and a
+  call that still passes the argument is refused before anything launches. A loopback listener
+  used to need no token, so any local process could drive the browser tools: a listener given
+  none now gets a random token, printed once on standard error and written to `mcp-token` in
+  the output folder (mode 0600), and `--no-token` (or `SB_MCP_NO_TOKEN=true`) is the explicit
+  opt-out for a loopback listener on a machine you trust; an address other machines can reach
+  still needs a token of yours. The library has `HttpOptions::with_no_token` and
+  `mcp::generate_token`.
+
 - **Breaking: `sbrs import-python` reads the Python as Python and writes the `sb` fixture form.**
   The SeleniumBase reading is a parser and a translator (no longer a regex per line): it maps
   every `implemented` method of `parity/api.toml` whose Rust call is mechanical (about 330, from

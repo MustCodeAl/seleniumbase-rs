@@ -78,7 +78,7 @@ pub const TOKEN_VAR: &str = "SB_MCP_TOKEN";
 
 /// How the HTTP server listens and whom it lets in.
 ///
-/// The defaults are the safe ones: loopback, no token, no extra origins.
+/// The defaults are the safe ones: loopback, a token required, no extra origins.
 /// [`validate`](Self::validate) says whether a value may be served at all.
 ///
 /// The token is never written by `Debug`.
@@ -104,6 +104,12 @@ pub struct HttpOptions {
     pub max_sessions: usize,
     /// How long a session may stay silent before it is ended.
     pub idle: Duration,
+    /// Whether a loopback listener may run without a bearer token. Off by
+    /// default: a token is required on every address, and `sbrs-mcp` makes one
+    /// for a loopback listener given none. Only the operator's explicit opt-out
+    /// ([`with_no_token`](Self::with_no_token)) turns it on, and never for an
+    /// address other machines can reach.
+    pub allow_no_token: bool,
 }
 
 impl Default for HttpOptions {
@@ -116,6 +122,7 @@ impl Default for HttpOptions {
             allow_hosts: Vec::new(),
             max_sessions: DEFAULT_MAX_SESSIONS,
             idle: DEFAULT_IDLE,
+            allow_no_token: false,
         }
     }
 }
@@ -130,6 +137,7 @@ impl fmt::Debug for HttpOptions {
             .field("allow_hosts", &self.allow_hosts)
             .field("max_sessions", &self.max_sessions)
             .field("idle", &self.idle)
+            .field("allow_no_token", &self.allow_no_token)
             .finish()
     }
 }
@@ -184,6 +192,15 @@ impl HttpOptions {
         self
     }
 
+    /// Serves a loopback listener without a bearer token: the operator's
+    /// explicit opt-out, for a machine they trust every local process on. An
+    /// address other machines can reach still needs a token.
+    #[must_use]
+    pub fn with_no_token(mut self) -> Self {
+        self.allow_no_token = true;
+        self
+    }
+
     /// Checks that these options may be served.
     ///
     /// # Errors
@@ -191,7 +208,7 @@ impl HttpOptions {
     /// Returns [`SeleniumBaseError::InvalidConfig`] (exit status 2) for a path
     /// that is not an absolute URL path, a session cap of 0, an idle time of 0,
     /// an empty token or one with spaces, an origin or host that does not
-    /// parse, and a `listen` address that is not loopback while no token is set.
+    /// parse, a `listen` address that is not loopback while no token is set, and no token at all unless [`with_no_token`](Self::with_no_token) was called.
     pub fn validate(&self) -> Result<(), SeleniumBaseError> {
         if self.max_sessions == 0 {
             return Err(SeleniumBaseError::invalid_config(
@@ -221,12 +238,20 @@ impl HttpOptions {
                 ))
             })?;
         }
-        if self.token.is_none() && !is_loopback_ip(self.listen.ip()) {
-            return Err(SeleniumBaseError::invalid_config(format!(
-                "refusing to listen on {} without a token: set {TOKEN_VAR} or pass --token-file, \
-                         or listen on a loopback address",
-                self.listen
-            )));
+        if self.token.is_none() {
+            if !is_loopback_ip(self.listen.ip()) {
+                return Err(SeleniumBaseError::invalid_config(format!(
+                        "refusing to listen on {} without a token: set {TOKEN_VAR} or pass --token-file, \
+                                 or listen on a loopback address",
+                        self.listen
+                    )));
+            }
+            if !self.allow_no_token {
+                return Err(SeleniumBaseError::invalid_config(
+                            "refusing to serve without a bearer token: set SB_MCP_TOKEN or pass --token-file, \
+                             let sbrs-mcp make one, or pass --no-token for a loopback listener you trust",
+                        ));
+            }
         }
         Ok(())
     }
@@ -244,6 +269,23 @@ impl HttpOptions {
                     self.listen
                 ))
     }
+}
+
+/// A fresh bearer token: 32 random bytes from the system's CSPRNG, as 64 hex
+/// digits. `sbrs-mcp` makes one for a loopback listener that was given none.
+///
+/// # Errors
+///
+/// Returns [`SeleniumBaseError::Mcp`] if the system gives no random bytes.
+pub fn generate_token() -> Result<String, SeleniumBaseError> {
+    use ring::rand::SecureRandom;
+    let mut bytes = [0u8; 32];
+    ring::rand::SystemRandom::new()
+        .fill(&mut bytes)
+        .map_err(|_| {
+            SeleniumBaseError::mcp("http", "the system gave no random bytes for a token")
+        })?;
+    Ok(bytes.iter().map(|byte| format!("{byte:02x}")).collect())
 }
 
 /// Why a request was turned away before it reached the MCP service.
@@ -1075,7 +1117,9 @@ mod tests {
     }
 
     fn options() -> HttpOptions {
-        HttpOptions::default()
+        // The operator's opt-out: these tests are about the other checks; the
+        // token policy has tests of its own.
+        HttpOptions::default().with_no_token()
     }
 
     fn headers(pairs: &[(&str, &str)]) -> HeaderMap {
@@ -1098,6 +1142,35 @@ mod tests {
         gate.check("/mcp", &headers(pairs))
     }
 
+    #[test]
+    fn a_listener_needs_a_token_unless_the_operator_opts_out_on_loopback() {
+        let error = HttpOptions::default().validate().unwrap_err().to_string();
+        assert!(error.contains("without a bearer token"), "{error}");
+        options()
+            .with_no_token()
+            .validate()
+            .expect("the opt-out serves loopback");
+        options()
+            .with_token("t0ken")
+            .validate()
+            .expect("a token serves");
+        let exposed = options().with_listen(addr("0.0.0.0:8931")).with_no_token();
+        let error = exposed.validate().unwrap_err().to_string();
+        assert!(
+            error.contains("refusing to listen on 0.0.0.0:8931 without a token"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn a_made_token_is_long_random_hex() {
+        let first = generate_token().expect("random bytes");
+        let second = generate_token().expect("random bytes");
+        assert_eq!(first.len(), 64);
+        assert!(first.chars().all(|c| c.is_ascii_hexdigit()), "{first}");
+        assert_ne!(first, second);
+    }
+
     fn refused(options: &HttpOptions) -> String {
         let error = options.validate().expect_err("these options are refused");
         assert_eq!(error.exit_code(), 2, "an operator mistake exits 2: {error}");
@@ -1117,6 +1190,10 @@ mod tests {
         assert_eq!(defaults.max_sessions, 4);
         assert_eq!(defaults.idle, Duration::from_mins(15));
         assert_eq!(defaults.exposure_warning(), None);
+        assert!(
+            !HttpOptions::default().allow_no_token,
+            "a token is required unless the operator opts out"
+        );
     }
 
     #[test]
@@ -1142,7 +1219,7 @@ mod tests {
     }
 
     #[test]
-    fn every_loopback_address_is_servable_without_a_token() {
+    fn every_loopback_address_is_servable_with_the_opt_out() {
         for listen in [
             "127.0.0.1:0",
             "127.0.0.2:8931",

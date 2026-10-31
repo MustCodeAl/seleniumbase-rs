@@ -345,6 +345,69 @@ async fn starting_with_incognito_and_guest_together_is_an_error_before_anything_
 }
 
 #[tokio::test]
+async fn the_browser_binary_is_the_operators_choice_not_a_tool_argument() {
+    let dir = tempfile::tempdir().unwrap();
+    let host = cdp::host(Settings::new(dir.path()));
+
+    let start = host
+        .describe_tools()
+        .into_iter()
+        .find(|tool| tool.name == "start_browser")
+        .expect("start_browser is offered");
+    let properties = start
+        .input_schema
+        .get("properties")
+        .and_then(Value::as_object)
+        .expect("an object schema");
+    assert!(
+        !properties.contains_key("browser_executable_path"),
+        "a client must not choose the executable the server spawns"
+    );
+
+    let error = call(
+        &host,
+        "start_browser",
+        json!({ "browser_executable_path": "/tmp/not-a-browser", "headless": true }),
+    )
+    .await
+    .unwrap_err();
+    assert!(
+        matches!(error, ToolError::InvalidArgument { .. }),
+        "{error}"
+    );
+    assert!(error.to_string().contains("SB_CHROME_BIN"), "{error}");
+    assert!(
+        host.ctx().try_session().await.is_none(),
+        "the refusal comes before any launch"
+    );
+}
+
+#[tokio::test]
+async fn the_operators_binary_and_use_chromium_do_not_mix() {
+    let dir = tempfile::tempdir().unwrap();
+    let settings = Settings::new(dir.path()).with_browser_binary("/opt/browsers/chrome");
+    assert_eq!(
+        settings.browser_binary().map(Path::to_path_buf),
+        Some(Path::new("/opt/browsers/chrome").to_path_buf())
+    );
+    let host = cdp::host(settings);
+
+    let error = call(
+        &host,
+        "start_browser",
+        json!({ "use_chromium": true, "headless": true }),
+    )
+    .await
+    .unwrap_err();
+    assert!(
+        matches!(error, ToolError::InvalidArgument { .. }),
+        "{error}"
+    );
+    assert!(error.to_string().contains("SB_CHROME_BIN"), "{error}");
+    assert!(host.ctx().try_session().await.is_none());
+}
+
+#[tokio::test]
 async fn starting_twice_keeps_the_first_session() {
     let dir = tempfile::tempdir().unwrap();
     let (host, _mock) = running(dir.path()).await;

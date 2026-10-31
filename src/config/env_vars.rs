@@ -234,6 +234,14 @@ pub const EXTRA_VARIABLES: &[EnvVar] = &[
         refused: None,
     },
     EnvVar {
+        name: "SB_MCP_NO_TOKEN",
+        read_by: "sbrs-mcp",
+        flags: &["sbrs-mcp --no-token"],
+        default: "false",
+        help: "Serve HTTP on a loopback address without a bearer token (true or false); without it a loopback listener given no token gets a random one",
+        refused: None,
+    },
+    EnvVar {
         name: "SB_MCP_ALLOW_ORIGIN",
         read_by: "sbrs-mcp",
         flags: &["sbrs-mcp --allow-origin"],

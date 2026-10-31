@@ -976,8 +976,8 @@ async fn diagnose_environment<S: Send + 'static>(
     };
     if chrome.is_none() {
         problems.push(
-            "No Chrome or Chromium was found. Install Google Chrome, or give start_browser a \
-             browser_executable_path (Pure CDP server)."
+            "No Chrome or Chromium was found. Install Google Chrome, or set SB_CHROME_BIN to \
+             its executable before starting the server (the Pure CDP server reads it)."
                 .to_owned(),
         );
     }

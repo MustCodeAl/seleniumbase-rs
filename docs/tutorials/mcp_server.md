@@ -1375,7 +1375,7 @@ Give at most one of these; the commands take the same flags.
   `--connect-arg ARG`, one each (write `--connect-arg=--flag` when one starts with
   a dash).
 - **`--url http://127.0.0.1:8931/mcp`:** a running streamable HTTP server, such as
-  one started with `sbrs-mcp --listen 127.0.0.1:8931`. The bearer token it asks for
+  one started with `sbrs-mcp --listen 127.0.0.1:8931` (every listener asks for a bearer token: the server prints the one it made, or takes yours from `SB_MCP_TOKEN` or `--token-file`; `--no-token` serves a loopback listener on a machine you trust without one). The token the client sends
   comes from `SB_MCP_TOKEN` or from `--token-file FILE`, never from the command
   line; `--token-file` goes with `--url` only.
 

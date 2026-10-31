@@ -290,12 +290,6 @@ fn tools() -> Vec<ToolDef<Cdp>> {
                     Prop::boolean("Use Chromium instead of Google Chrome").default(false),
                 )
                 .optional(
-                    "browser_executable_path",
-                    Prop::string(
-                        "Path to the browser binary; cannot be combined with use_chromium",
-                    ),
-                )
-                .optional(
                     "incognito",
                     Prop::boolean("Incognito window").default(false),
                 )
@@ -815,7 +809,21 @@ async fn start_browser(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
     if let Some(url) = &url {
         options = options.url(url.as_str());
     }
-    if let Some(path) = nonempty(&args, "browser_executable_path")? {
+    // The executable is the operator's choice (`SB_CHROME_BIN`), never a tool
+    // argument: a client that could name a path could run any program.
+    if args.value("browser_executable_path").is_some() {
+        return Err(ToolError::invalid(
+            "browser_executable_path",
+            "not a tool argument: the operator sets the browser with SB_CHROME_BIN for the server",
+        ));
+    }
+    if let Some(path) = ctx.settings().browser_binary() {
+        if use_chromium {
+            return Err(ToolError::invalid(
+                    "use_chromium",
+                    "the operator set the browser executable (SB_CHROME_BIN), so use_chromium cannot change it",
+                ));
+        }
         options = options.executable_path(path);
     }
     if let Some(proxy) = nonempty(&args, "proxy")? {

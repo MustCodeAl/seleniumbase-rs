@@ -286,14 +286,15 @@ async fn the_cdp_server_launches_its_browser_with_the_plugins() {
         let chrome = FakeChrome::new();
         let mut args = vec!["--server", "cdp"];
         args.extend_from_slice(flags);
-        let mut server = Server::start(dir.path(), &[], &args).await;
+        // The binary is the operator's choice (SB_CHROME_BIN), never a tool argument.
+        let bin = chrome.path().to_string_lossy().into_owned();
+        let mut server = Server::start(dir.path(), &[("SB_CHROME_BIN", bin.as_str())], &args).await;
 
         // The script exits at once, so the launch fails; what counts is how it was asked.
         let result = server
             .call(
                 "start_browser",
                 json!({
-                    "browser_executable_path": chrome.path().to_string_lossy(),
                     "headless": true,
                 }),
             )
@@ -314,13 +315,17 @@ async fn the_cdp_server_launches_its_browser_with_the_plugins() {
 async fn no_tool_argument_adds_a_plugin() {
     let dir = tempfile::tempdir().unwrap();
     let chrome = FakeChrome::new();
-    let mut server = Server::start(dir.path(), &[], &["--server", "cdp"]).await;
+    let mut server = Server::start(
+        dir.path(),
+        &[("SB_CHROME_BIN", &*chrome.path().to_string_lossy())],
+        &["--server", "cdp"],
+    )
+    .await;
 
     server
         .call(
             "start_browser",
             json!({
-                "browser_executable_path": chrome.path().to_string_lossy(),
                 "headless": true,
                 "plugins": ["shield"],
             }),

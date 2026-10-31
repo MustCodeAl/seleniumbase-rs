@@ -58,7 +58,25 @@ pub struct Server {
 
 impl Server {
     /// Starts `sbrs-mcp` with `args` and waits for the line that says where it listens.
+    ///
+    /// A loopback listener without a token gets `--no-token`, so the tests of the
+    /// tools need no token; the token policy has tests of its own, through
+    /// [`Server::start_as_given`].
     pub async fn start(args: &[&str], env: &[(&str, &str)]) -> Self {
+        let names_a_token = args
+            .iter()
+            .any(|arg| *arg == "--token-file" || *arg == "--no-token")
+            || env.iter().any(|(name, _)| *name == "SB_MCP_TOKEN");
+        if names_a_token {
+            return Self::start_as_given(args, env).await;
+        }
+        let mut args = args.to_vec();
+        args.push("--no-token");
+        Self::start_as_given(&args, env).await
+    }
+
+    /// Starts `sbrs-mcp` with `args` and waits for the line that says where it listens.
+    pub async fn start_as_given(args: &[&str], env: &[(&str, &str)]) -> Self {
         let mut child = command(args, env)
             .stdout(Stdio::null())
             .stderr(Stdio::piped())

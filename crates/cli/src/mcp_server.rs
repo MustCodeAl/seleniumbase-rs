@@ -30,8 +30,8 @@
 //! loopback, `127.0.0.1:8931`; the server prints one line to standard error,
 //! `sbrs-mcp: listening on http://127.0.0.1:PORT/mcp (server NAME)`, once it listens. The
 //! `Host` and `Origin` of every request are checked (DNS rebinding), and an address that is
-//! not loopback needs a bearer token, read from `SB_MCP_TOKEN` or `--token-file FILE`, never
-//! from the command line.
+//! not loopback needs a bearer token of yours, read from `SB_MCP_TOKEN` or `--token-file FILE`, never
+//! from the command line. A loopback listener given none gets a random token, printed once and written to `mcp-token` in the output folder, unless `--no-token` says to serve without.
 //!
 //! ```bash
 //! sbrs-mcp --server cdp --listen 127.0.0.1:0
@@ -120,6 +120,13 @@ struct Cli {
     /// of the machine. The file wins over SB_MCP_TOKEN. Keep it readable by you only.
     #[usage(long, value_name = "FILE")]
     token_file: Option<String>,
+    /// Serve HTTP without a bearer token, on a loopback address only (SB_MCP_NO_TOKEN)
+    ///
+    /// Without it, a loopback listener given no token gets a random one, printed once on
+    /// standard error and written to mcp-token in the output folder (SB_MCP_OUTPUT_DIR),
+    /// readable by you only. Addresses other machines can reach always need a token of yours.
+    #[usage(long, bool_value)]
+    no_token: bool,
     /// Let a browser page from this origin use the HTTP endpoint (SB_MCP_ALLOW_ORIGIN; repeatable)
     ///
     /// ORIGIN is scheme://host[:port]. Pages from localhost and requests that carry no Origin
@@ -182,10 +189,7 @@ impl FromStr for Transport {
 ///
 /// Checked now, so that a mistake stops the server before it listens and exits with
 /// status 2 like every other mistake in what the operator typed.
-fn http_options(
-    cli: &Cli,
-    environment: &Environment,
-) -> Result<Option<HttpOptions>, SeleniumBaseError> {
+fn http_options(cli: &Cli, environment: &Environment) -> Result<Option<Http>, SeleniumBaseError> {
     // A flag wins over its variable.
     let transport = cli.transport.or(environment.transport);
     let http = match transport {
@@ -201,10 +205,11 @@ fn http_options(
             || cli.token_file.is_some()
             || !cli.allow_origin.is_empty()
             || !cli.allow_host.is_empty()
-            || cli.max_sessions.is_some();
+            || cli.max_sessions.is_some()
+            || cli.no_token;
         if flags_of_http {
             return Err(SeleniumBaseError::invalid_config(
-                "--listen, --path, --token-file, --allow-origin, --allow-host and --max-sessions \
+                "--listen, --path, --token-file, --no-token, --allow-origin, --allow-host and --max-sessions \
                  are for the HTTP transport; add --transport http",
             ));
         }
@@ -243,8 +248,20 @@ fn http_options(
                 .map(|file| (file, "SB_MCP_TOKEN_FILE"))
         });
     options.token = http_token(token_file)?;
+    // A loopback listener given no token gets one made here; an address other
+    // machines can reach needs the operator's own, and `validate` says so.
+    let mut generated = None;
+    if options.token.is_none() {
+        if cli.no_token || environment.no_token {
+            options.allow_no_token = true;
+        } else if options.listen.ip().to_canonical().is_loopback() {
+            let token = mcp::generate_token()?;
+            options.token = Some(token.clone());
+            generated = Some(token);
+        }
+    }
     options.validate()?;
-    Ok(Some(options))
+    Ok(Some(Http { options, generated }))
 }
 
 /// `IP:PORT`, or an IP address alone for the default port.
@@ -252,6 +269,51 @@ fn parse_listen(text: &str) -> Result<SocketAddr, SeleniumBaseError> {
     socket_address(text).ok_or_else(|| {
         SeleniumBaseError::invalid_config(format!("--listen {text:?} is not {ADDRESS_HINT}"))
     })
+}
+
+/// The HTTP options the operator asked for, and the token this run made for a
+/// loopback listener that was given none.
+struct Http {
+    options: HttpOptions,
+    generated: Option<String>,
+}
+
+/// Prints a made token once and writes it to `mcp-token` in the output folder,
+/// readable by the operator only. Standard error is the source of truth; the
+/// file is for scripts.
+fn announce_token(token: &str, output_dir: &std::path::Path) {
+    let file = output_dir.join("mcp-token");
+    match write_private(&file, token) {
+        Ok(()) => eprintln!(
+            "sbrs-mcp: HTTP bearer token: {token} (also in {}, readable by you only; send it as \
+             `Authorization: Bearer`; --no-token serves a loopback listener without one)",
+            file.display()
+        ),
+        Err(error) => eprintln!(
+            "sbrs-mcp: HTTP bearer token: {token} (could not write {}: {error}; send it as \
+             `Authorization: Bearer`)",
+            file.display()
+        ),
+    }
+}
+
+/// Writes `text` and a newline to `file`, creating its folder, with mode 0600
+/// where modes exist.
+fn write_private(file: &std::path::Path, text: &str) -> std::io::Result<()> {
+    use std::io::Write;
+    if let Some(parent) = file.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let mut open = std::fs::OpenOptions::new();
+    open.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        open.mode(0o600);
+    }
+    let mut handle = open.open(file)?;
+    handle.write_all(text.as_bytes())?;
+    handle.write_all(b"\n")
 }
 
 /// What `--listen` and `SB_MCP_LISTEN` take.
@@ -276,6 +338,7 @@ struct Environment {
     listen: Option<SocketAddr>,
     path: Option<String>,
     token_file: Option<String>,
+    no_token: bool,
     allow_origin: Vec<String>,
     allow_host: Vec<String>,
     max_sessions: Option<usize>,
@@ -302,6 +365,7 @@ impl Environment {
             listen,
             path: env_vars::text("SB_MCP_PATH"),
             token_file: env_vars::text("SB_MCP_TOKEN_FILE"),
+            no_token: env_vars::parse::<bool>("SB_MCP_NO_TOKEN")?.unwrap_or(false),
             allow_origin: env_vars::list("SB_MCP_ALLOW_ORIGIN"),
             allow_host: env_vars::list("SB_MCP_ALLOW_HOST"),
             max_sessions: env_vars::parse("SB_MCP_MAX_SESSIONS")?,
@@ -363,6 +427,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let http = http_options(&cli, &environment).unwrap_or_else(|error| exit_with(&error));
     let serving_http = http.is_some();
     let settings = mcp::Settings::from_env().with_plugin_selection(choice.selection().clone());
+    if let Some(token) = http.as_ref().and_then(|http| http.generated.as_deref()) {
+        announce_token(token, settings.output_dir());
+    }
     let runtime = tokio::runtime::Runtime::new()?;
     let outcome = runtime.block_on(async {
         // One bad SB_* variable must not drop the good ones, SB_LOG_LEVEL
@@ -374,7 +441,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         choice.log();
         match http {
-            Some(options) => mcp::serve_http(server, settings, options).await,
+            Some(http) => mcp::serve_http(server, settings, http.options).await,
             None => mcp::serve_with(server, settings).await,
         }
     });

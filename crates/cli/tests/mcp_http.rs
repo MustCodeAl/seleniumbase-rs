@@ -181,6 +181,81 @@ async fn an_address_others_can_reach_needs_a_token_and_exits_2_without_one() {
 }
 
 #[tokio::test]
+async fn a_loopback_server_without_a_token_makes_one_and_requires_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let server = Server::start_as_given(
+        &["--server", "dev", "--listen", "127.0.0.1:0"],
+        &[("SB_MCP_OUTPUT_DIR", dir.path().to_str().unwrap())],
+    )
+    .await;
+    let line = server
+        .before_ready
+        .iter()
+        .find(|line| line.starts_with("sbrs-mcp: HTTP bearer token: "))
+        .unwrap_or_else(|| {
+            panic!(
+                "the token is printed before the address: {:?}",
+                server.before_ready
+            )
+        });
+    let token = line["sbrs-mcp: HTTP bearer token: ".len()..]
+        .split_whitespace()
+        .next()
+        .expect("a token on the line");
+    assert!(
+        token.len() >= 32 && token.chars().all(|c| c.is_ascii_hexdigit()),
+        "a random hex token, not {token:?}"
+    );
+    let saved = std::fs::read_to_string(dir.path().join("mcp-token")).expect("the token file");
+    assert_eq!(saved.trim(), token);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = std::fs::metadata(dir.path().join("mcp-token"))
+            .unwrap()
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o777, 0o600, "readable by the operator only");
+    }
+
+    let ping = json!({ "jsonrpc": "2.0", "id": 1, "method": "ping" });
+    let without = Mcp::new(&server.url).post(&ping).await;
+    assert_eq!(without.status(), StatusCode::UNAUTHORIZED);
+    let mut client = Mcp::new(&server.url).with_token(token);
+    client.initialize().await;
+}
+
+#[tokio::test]
+async fn no_token_is_for_loopback_listeners_only() {
+    let (code, stderr) = run_to_exit(
+        &["--server", "dev", "--listen", "0.0.0.0:0", "--no-token"],
+        &[],
+    )
+    .await;
+    assert_eq!(code, Some(2), "{stderr}");
+    assert!(stderr.contains("without a token"), "{stderr}");
+}
+
+#[tokio::test]
+async fn the_no_token_variable_serves_a_loopback_listener_without_one() {
+    let server = Server::start_as_given(
+        &["--server", "dev", "--listen", "127.0.0.1:0"],
+        &[("SB_MCP_NO_TOKEN", "true")],
+    )
+    .await;
+    assert!(
+        !server
+            .before_ready
+            .iter()
+            .any(|line| line.contains("HTTP bearer token")),
+        "{:?}",
+        server.before_ready
+    );
+    let mut client = Mcp::new(&server.url);
+    client.initialize().await;
+}
+
+#[tokio::test]
 async fn an_address_others_can_reach_starts_with_a_token_and_warns() {
     let server = Server::start(
         &["--server", "dev", "--listen", "0.0.0.0:0"],

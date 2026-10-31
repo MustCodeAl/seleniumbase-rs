@@ -38,6 +38,18 @@ use crate::error::closest_match;
 /// Environment variable naming the directory tools write files into.
 pub const OUTPUT_DIR_VAR: &str = "SB_MCP_OUTPUT_DIR";
 
+/// The variable that names the browser executable every `start_browser` of the
+/// Pure CDP server spawns; unset, the installed Chrome (or Chromium) is used.
+/// The operator's choice: no tool argument may name a program to run.
+pub const BROWSER_BINARY_VAR: &str = "SB_CHROME_BIN";
+
+/// The executable [`BROWSER_BINARY_VAR`] names, if it is set and not empty.
+fn browser_binary_from_env() -> Option<PathBuf> {
+    std::env::var_os(BROWSER_BINARY_VAR)
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+}
+
 const DEFAULT_OUTPUT_DIR: &str = "mcp_output";
 
 /// A browser session the server owns and must release on shutdown.
@@ -56,6 +68,7 @@ pub trait Closeable: Send + 'static {
 pub struct Settings {
     output_dir: PathBuf,
     plugins: PluginSelection,
+    browser_binary: Option<PathBuf>,
 }
 
 impl Settings {
@@ -65,6 +78,7 @@ impl Settings {
         Self {
             output_dir: output_dir.into(),
             plugins: PluginSelection::new(),
+            browser_binary: None,
         }
     }
 
@@ -86,12 +100,29 @@ impl Settings {
         &self.plugins
     }
 
-    /// Reads [`OUTPUT_DIR_VAR`], falling back to `./mcp_output`.
+    /// Makes every browser the Pure CDP server starts the executable at `path`
+    /// ([`BROWSER_BINARY_VAR`]). The operator's choice: no tool argument sets it.
+    #[must_use]
+    pub fn with_browser_binary(mut self, path: impl Into<PathBuf>) -> Self {
+        self.browser_binary = Some(path.into());
+        self
+    }
+
+    /// The browser executable the operator chose, if any.
+    #[must_use]
+    pub fn browser_binary(&self) -> Option<&Path> {
+        self.browser_binary.as_deref()
+    }
+
+    /// Reads [`OUTPUT_DIR_VAR`] (falling back to `./mcp_output`) and [`BROWSER_BINARY_VAR`].
     #[must_use]
     pub fn from_env() -> Self {
         let dir = std::env::var_os(OUTPUT_DIR_VAR)
             .map_or_else(|| PathBuf::from(DEFAULT_OUTPUT_DIR), PathBuf::from);
-        Self::new(dir)
+        Self {
+            browser_binary: browser_binary_from_env(),
+            ..Self::new(dir)
+        }
     }
 
     /// The directory output goes to.

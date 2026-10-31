@@ -28,7 +28,10 @@ const PATIENCE: Duration = Duration::from_secs(15);
 const TOKEN: &str = "t0ken-for-the-http-tests";
 
 fn loopback_any_port() -> HttpOptions {
-    HttpOptions::default().with_listen("127.0.0.1:0".parse().expect("an address"))
+    HttpOptions::default()
+        .with_listen("127.0.0.1:0".parse().expect("an address"))
+        // These tests are about the server; the token policy has its own tests.
+        .with_no_token()
 }
 
 // ----------------------------------------------------------------------

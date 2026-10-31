@@ -63,8 +63,8 @@ pub use host::{
     UNTRUSTED_NOTICE,
 };
 pub use http::{
-    serve_http, HttpOptions, HttpServer, DEFAULT_IDLE, DEFAULT_LISTEN, DEFAULT_MAX_SESSIONS,
-    DEFAULT_PATH, TOKEN_VAR,
+    generate_token, serve_http, HttpOptions, HttpServer, DEFAULT_IDLE, DEFAULT_LISTEN,
+    DEFAULT_MAX_SESSIONS, DEFAULT_PATH, TOKEN_VAR,
 };
 pub use progress::{Progress, ProgressSink, ProgressUpdate};
 pub use prompts::{PromptArg, PromptDef, Render};

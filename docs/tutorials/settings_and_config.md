@@ -189,6 +189,7 @@ Variables that are not keys of the settings file include these (the rest are in
 | `SB_MCP_PATH` | `sbrs-mcp --path` | `/mcp` | The URL path of the HTTP endpoint |
 | `SB_MCP_TOKEN` | none | none | The bearer token the HTTP endpoint asks for; an address that is not loopback needs one |
 | `SB_MCP_TOKEN_FILE` | `sbrs-mcp --token-file` | none | A file that holds the bearer token; it wins over `SB_MCP_TOKEN` |
+| `SB_MCP_NO_TOKEN` | `sbrs-mcp --no-token` | `false` | Serve HTTP on a loopback address without a bearer token; without it a loopback listener given no token gets a random one, printed once and written to `mcp-token` in the output folder |
 | `SB_MCP_ALLOW_ORIGIN` | `sbrs-mcp --allow-origin` | none | Origins (`scheme://host[:port]`) of browser pages that may use the HTTP endpoint, separated by commas |
 | `SB_MCP_ALLOW_HOST` | `sbrs-mcp --allow-host` | none | Host names accepted in the `Host` header besides localhost, separated by commas |
 | `SB_MCP_MAX_SESSIONS` | `sbrs-mcp --max-sessions` | `4` | The most MCP sessions, and so browsers, the HTTP server holds at once |
