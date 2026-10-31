@@ -3,6 +3,8 @@ title: "Building and installing"
 sidebarTitle: "Install"
 ---
 
+{/* layout-tree-component:start */}
+
 export const LayoutTree = ({ children }) => (
   <div className="not-prose layout-tree" style={{ margin: "1.25rem 0", fontFamily: "var(--font-sans)", fontSize: "14px", color: "var(--text-secondary)" }}>
     <style>{`
@@ -105,6 +107,8 @@ export const layoutIconColor = (name) => {
 export const LayoutFile = ({ name, note, highlight = false }) => (
   <LayoutRow icon={<span className={highlight ? "" : "lt-ic-" + layoutIconColor(name)} style={{ display: "flex" }}><LayoutFileIcon /></span>} name={name} note={note} highlight={highlight} />
 )
+
+{/* layout-tree-component:end */}
 
 How to build `seleniumbase-rs` from source, which features cost what, and how to
 run it in a container. For writing and running tests with it, start with
@@ -268,7 +272,7 @@ The last line prints the browsers it found and whether their drivers match.
 Most features need nothing more: `tui`, `mcp-server`, `turso`, `playwright`,
 `azure`, `gcp`, `full-tracing`, `test-util`, `ocr`, `visual`, `plugins` and the
 built-in plugins (`plugin-shield`, `plugin-block-resources`, `plugin-crx`,
-`plugin-fetcher`, `plugin-extractor`, `plugin-batcher`, `plugin-crawler`, `plugin-browser`, or
+`plugin-fetcher`, `plugin-extractor`, `plugin-batcher`, `plugin-crawler`, `plugin-browser`, `plugin-imap`, `plugin-tor`, or
 `plugins-builtin` for all of them). The rest:
 
 <AccordionGroup>

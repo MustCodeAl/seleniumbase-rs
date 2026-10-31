@@ -40,6 +40,12 @@ mdx:
     bun install --cwd tools/mdx-check --frozen-lockfile
     bun tools/mdx-check/check.mjs docs
 
+# Write the layout trees of the docs pages again: the tree of the repository, from the one
+# description in tools/docs_layout_tree.py, and every copy of the tree component
+# (`just layout-tree --check` changes nothing and lists what differs; `just mdx` runs that check)
+layout-tree *args:
+    python3 -I tools/docs_layout_tree.py {{args}}
+
 # Serve the mdBook locally for editing
 serve-docs:
     mdbook serve --open

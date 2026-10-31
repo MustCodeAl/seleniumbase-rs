@@ -131,6 +131,8 @@ fn plugin_list_shows_every_builtin_plugin_and_none_is_on_by_default() {
         ("batcher", "environment"),
         ("crawler", "testing"),
         ("browser", "extension"),
+        ("imap", "testing"),
+        ("tor", "privacy"),
     ] {
         let columns = row(&text, name);
         assert_eq!(columns[1], category, "{name}");
@@ -266,6 +268,194 @@ fn plugin_info_shows_what_the_task_plugins_declare() {
             assert!(text.contains(expected), "{name}: {expected:?} in:\n{text}");
         }
     }
+}
+
+#[test]
+fn plugin_info_shows_what_the_imap_plugin_declares() {
+    let output = in_a_new_folder(&[], &["plugin", "info", "imap"]);
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    let text = stdout(&output);
+    assert!(text.starts_with("imap "), "name and version first: {text}");
+    for expected in [
+        "category      testing",
+        "enabled       no",
+        "Waits for an email over IMAP",
+        // It dials the host the operator names, and runs as a task.
+        "host.net:any",
+        "task",
+        "--plugin-opt 'imap.KEY=VALUE'",
+        "[plugins.imap]",
+    ] {
+        assert!(text.contains(expected), "{expected:?} in:\n{text}");
+    }
+}
+
+#[test]
+fn the_imap_plugin_without_a_host_stops_the_run_before_a_browser_starts() {
+    let run = against_a_fake_server(None, &[], &["--plugin", "imap"], &OPEN);
+
+    assert_eq!(run.output.status.code(), Some(2), "{}", run.stderr());
+    assert!(
+        run.stderr().contains("imap: `host` is required"),
+        "{}",
+        run.stderr()
+    );
+    assert!(run.driver.chrome_args().is_none(), "no browser was started");
+}
+
+#[test]
+fn the_imap_plugin_names_a_password_variable_that_is_not_set() {
+    // The password is read from the variable `password_env` names, and the run stops, naming
+    // the variable and never a value, when it is not set.
+    let run = against_a_fake_server(
+        None,
+        &[],
+        &[
+            "--plugin",
+            "imap",
+            "--plugin-opt",
+            r#"imap.host="imap.example.test""#,
+            "--plugin-opt",
+            r#"imap.user="me@example.test""#,
+            "--plugin-opt",
+            r#"imap.password_env="IMAP_CLI_TEST_UNSET""#,
+        ],
+        &OPEN,
+    );
+
+    assert_eq!(run.output.status.code(), Some(2), "{}", run.stderr());
+    let message = run.stderr();
+    assert!(message.contains("IMAP_CLI_TEST_UNSET"), "{message}");
+    assert!(message.contains("password_env"), "{message}");
+    assert!(run.driver.chrome_args().is_none(), "no browser was started");
+}
+
+#[test]
+fn the_imap_plugin_refuses_a_password_variable_that_is_not_an_imap_mail_or_sb_name() {
+    // The password goes to `host`, so a settings file must not be able to name a variable that
+    // holds another secret. The variable is set here, and the refusal comes before it is read.
+    let run = against_a_fake_server(
+        None,
+        &[("GITHUB_TOKEN", "not-a-real-token")],
+        &[
+            "--plugin",
+            "imap",
+            "--plugin-opt",
+            r#"imap.host="imap.example.test""#,
+            "--plugin-opt",
+            r#"imap.user="me@example.test""#,
+            "--plugin-opt",
+            r#"imap.password_env="GITHUB_TOKEN""#,
+        ],
+        &OPEN,
+    );
+
+    assert_eq!(run.output.status.code(), Some(2), "{}", run.stderr());
+    let message = run.stderr();
+    assert!(
+        message.contains("starting with IMAP_, MAIL_ or SB_"),
+        "{message}"
+    );
+    assert!(
+        !message.contains("not-a-real-token"),
+        "the value is never printed: {message}"
+    );
+    assert!(run.driver.chrome_args().is_none(), "no browser was started");
+}
+
+#[test]
+fn the_webdriver_engine_refuses_the_imap_plugin_because_it_cannot_host_a_task() {
+    // Options and variable are fine (`IMAP_CLI_PASSWORD` is set for the run); the engine is
+    // what refuses, before it starts a browser and before anything connects.
+    let run = against_a_fake_server(
+        None,
+        &[("IMAP_CLI_PASSWORD", "not-a-real-password")],
+        &[
+            "--plugin",
+            "imap",
+            "--plugin-opt",
+            r#"imap.host="imap.example.test""#,
+            "--plugin-opt",
+            r#"imap.user="me@example.test""#,
+            "--plugin-opt",
+            r#"imap.password_env="IMAP_CLI_PASSWORD""#,
+        ],
+        &OPEN,
+    );
+
+    assert!(!run.output.status.success(), "{}", run.stderr());
+    assert!(run.stderr().contains("imap"), "{}", run.stderr());
+    assert!(run.stderr().contains("WebDriver"), "{}", run.stderr());
+    assert!(
+        !run.stderr().contains("not-a-real-password"),
+        "the password is never printed: {}",
+        run.stderr()
+    );
+    assert!(run.driver.chrome_args().is_none(), "no browser was started");
+}
+
+#[test]
+fn plugin_info_shows_what_the_tor_plugin_declares() {
+    let output = in_a_new_folder(&[], &["plugin", "info", "tor"]);
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    let text = stdout(&output);
+    assert!(text.starts_with("tor "), "name and version first: {text}");
+    for expected in [
+        "category      privacy",
+        "enabled       no",
+        "Routes the browser through a local Tor daemon",
+        // It sets the proxy and the network settings of the launch, makes contexts, and dials
+        // only the loopback addresses of the Tor daemon the operator runs.
+        "launch.proxy",
+        "launch.network",
+        "launch.prefs",
+        "contexts",
+        "host.net:loopback",
+        "--plugin-opt 'tor.KEY=VALUE'",
+        "[plugins.tor]",
+    ] {
+        assert!(text.contains(expected), "{expected:?} in:\n{text}");
+    }
+}
+
+#[test]
+fn the_tor_plugin_refuses_a_socks_address_that_is_not_loopback_before_a_browser_starts() {
+    // Nothing is routed to a Tor daemon on another machine: the option is refused at once, and
+    // nothing connects anywhere.
+    let run = against_a_fake_server(
+        None,
+        &[],
+        &[
+            "--plugin",
+            "tor",
+            "--plugin-opt",
+            r#"tor.socks="10.0.0.5:9050""#,
+        ],
+        &OPEN,
+    );
+
+    assert_eq!(run.output.status.code(), Some(2), "{}", run.stderr());
+    let message = run.stderr();
+    assert!(
+        message.contains("tor: `socks` must be a loopback address"),
+        "{message}"
+    );
+    assert!(message.contains("10.0.0.5:9050"), "{message}");
+    assert!(run.driver.chrome_args().is_none(), "no browser was started");
+}
+
+#[test]
+fn a_webdriver_server_sbrs_attaches_to_is_refused_by_the_tor_plugin_before_tor_is_looked_for() {
+    // `--webdriver URL` attaches to a WebDriver server that is already running, whose proxy the
+    // program cannot set. The check refuses it before any hook runs: nothing looks for Tor.
+    let run = against_a_fake_server(None, &[], &["--plugin", "tor"], &OPEN);
+
+    assert!(!run.output.status.success(), "{}", run.stderr());
+    assert!(run.stderr().contains("tor"), "{}", run.stderr());
+    assert!(run.stderr().contains("attaches to"), "{}", run.stderr());
+    assert!(run.driver.chrome_args().is_none(), "no browser was started");
 }
 
 #[test]

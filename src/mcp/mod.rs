@@ -28,6 +28,8 @@
 //! ```
 
 mod devtools;
+#[cfg(feature = "plugin-imap")]
+mod email;
 mod export;
 mod failure;
 mod fingerprint;

@@ -33,7 +33,7 @@ is the user guide: it shows how to attach a set to a browser.
 Every plugin is its own crate. The official ones also ship with seleniumbase-rs
 behind a cargo feature each (`plugin-shield`, `plugin-block-resources`,
 `plugin-crx`, `plugin-fetcher`, `plugin-extractor`, `plugin-batcher`,
-`plugin-crawler`, `plugin-browser`, or `plugins-builtin` for all) and are switched on by name; see
+`plugin-crawler`, `plugin-browser`, `plugin-imap`, `plugin-tor`, or `plugins-builtin` for all) and are switched on by name; see
 [Choosing plugins](/plugins/selecting). The prebuilt `sbrs` and `sbrs-mcp` have all of
 them compiled in: `sbrs --plugin shield open https://example.com`, and
 `sbrs plugin list` shows them. Add the crate of one yourself to use it in code;
@@ -44,6 +44,8 @@ the plugins are also examples of how to write one.
 | [`shield`](/plugins/shield) | Privacy hardening: turns off the browser's background reporting, keeps WebRTC from leaking addresses, blocks third-party cookies, refuses a persistent profile |
 | [`block-resources`](/plugins/block-resources) | Stops pages from loading images, fonts or media (faster, less data) |
 | [`crx`](/plugins/crx) | Loads packed Chrome extensions (`.crx`, CRX3 and CRX2) |
+| [`imap`](/plugins/imap) | Waits for a verification mail in a mailbox you own and reads its one-time code or link; read only, pure CDP engine only; gives the `cdp` MCP server the tool `wait_for_email` |
+| [`tor`](/plugins/tor) | Routes the browser through a Tor SOCKS listener you run yourself, with circuits of their own for each browser context; names are resolved by Tor |
 | [`wasm`](/plugins/wasm) | Runs plugins written in any language that compiles to WebAssembly, sandboxed with wasmi (no host imports, fuel and memory limits) |
 
 To add a plugin's crate, use `cargo add` with the revision shown. `shield` is

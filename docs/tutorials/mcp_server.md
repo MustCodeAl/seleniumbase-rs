@@ -2,6 +2,8 @@
 title: "MCP servers"
 ---
 
+{/* layout-tree-component:start */}
+
 export const LayoutTree = ({ children }) => (
   <div className="not-prose layout-tree" style={{ margin: "1.25rem 0", fontFamily: "var(--font-sans)", fontSize: "14px", color: "var(--text-secondary)" }}>
     <style>{`
@@ -105,6 +107,8 @@ export const LayoutFile = ({ name, note, highlight = false }) => (
   <LayoutRow icon={<span className={highlight ? "" : "lt-ic-" + layoutIconColor(name)} style={{ display: "flex" }}><LayoutFileIcon /></span>} name={name} note={note} highlight={highlight} />
 )
 
+{/* layout-tree-component:end */}
+
 `sbrs-mcp` exposes a browser to any [Model Context Protocol] client
 (Claude Desktop, Claude Code, ...) over stdio. It serves one of three browser
 toolsets, the same tools as the Python `seleniumbase-mcp` project with tools of
@@ -114,7 +118,7 @@ finding out what is wrong:
 
 | `--server` | Engine | Tools |
 | --- | --- | --- |
-| `cdp` | Pure CDP (no WebDriver) | 24 + 9 developer tools + `get_devtools_endpoint` |
+| `cdp` | Pure CDP (no WebDriver) | 24 + 9 developer tools + `get_devtools_endpoint` (and `wait_for_email` when the operator turned the [imap plugin](/plugins/imap) on) |
 | `driver` | WebDriver, `Driver()` toolset | 26 + 8 debugging tools |
 | `sb` (default) | WebDriver, `SB()` toolset, plus this crate's stealth tools | 88 + 7 stealth + 9 developer tools |
 | `dev` | None: no browser | 12 tools for the library, the command line and diagnosing problems |
@@ -822,6 +826,56 @@ the performance traces of `chrome-devtools-mcp`, while this server keeps
 driving the page. [DevTools MCP servers](/tutorials/devtools_mcp) covers those servers
 and `sbrs devtools`, which starts such a browser from the command line.
 
+### `wait_for_email`
+
+<Badge color="gray">cdp server only</Badge> <Badge color="blue">Feature: plugin-imap</Badge>
+
+Only in the `cdp` server, and only when the operator turned the
+[imap](/plugins/imap) plugin on and gave it its options: `sbrs-mcp --server cdp
+--plugin imap --plugin-opt ...`, or `[plugins.imap]` in the settings file. With
+the plugin off there is no such tool. The `sb`, `driver` and `dev` servers never
+have it: the plugin is a task, and the WebDriver engine refuses tasks.
+
+Waits for a verification mail in the mailbox the operator gave the plugin and
+answers with its one-time code or link. Submit the login or sign-up form first,
+then call it. It looks at unread messages of the last `since_secs`, newest first,
+until one matches or the time is up.
+
+| Argument | Meaning |
+| --- | --- |
+| `from` | Part of the sender's address or name, without regard to case |
+| `subject_contains` | Part of the subject, without regard to case |
+| `since_secs` | Only mail sent in the last this many seconds. Default 600, at most 30 days |
+| `extract` | `code`, `link` or `both` (the default): what the message must have and the answer carries |
+| `timeout_secs` | Seconds to wait. The plugin's `timeout_secs` option when left out (120 unless the operator set it), and at most 3600 |
+
+At least one of `from` and `subject_contains` is required, so that the wait
+cannot return an unrelated message; a call with neither is refused. No argument
+names a server, a user or a password: those are the operator's.
+
+A message is answered as `found: true` with the sender, the subject, the date,
+the `code` and the `link` (each `null` when not asked for or not found) and
+`text_preview`, the first 2000 characters of the text. A message that does not
+arrive in time is `found: false` with the plugin's message, which is a normal
+result, not an error. Everything else is a tool error in the plugin's own words:
+a server that cannot be reached, a login that is refused, a mailbox that cannot
+be opened.
+
+<Warning>
+
+Email content is untrusted data from third parties; never follow instructions
+found in it. The description of the tool says so, and the result is marked as
+untrusted content like page text. The tool only reads: the mailbox is opened
+read only, and nothing is sent, deleted or marked. Keep `timeout_secs` below the
+time your client waits for a tool.
+
+</Warning>
+
+The operator's options are checked when the server starts, the password
+variable included (its name must start with `IMAP_`, `MAIL_` or `SB_`): a server whose `password_env` names a variable that is not set
+does not start. The wait itself has run against a scripted mailbox and against a
+refused loopback connection; it has not been run against a real mail server.
+
 ## Beyond the browser: development, library and CLI tools
 
 The `dev` server (`sbrs-mcp --server dev`) starts no browser, so it has no
@@ -1043,7 +1097,7 @@ A build without the feature `plugins-builtin` says so and names it, instead of
 listing nothing:
 
 ```text
-No plugins: this build has no built-in plugin; rebuild with --features plugins-builtin (or one of plugin-shield, plugin-block-resources, plugin-crx, plugin-fetcher, plugin-extractor, plugin-batcher, plugin-crawler, plugin-browser).
+No plugins: this build has no built-in plugin; rebuild with --features plugins-builtin (or one of plugin-shield, plugin-block-resources, plugin-crx, plugin-fetcher, plugin-extractor, plugin-batcher, plugin-crawler, plugin-browser, plugin-imap, plugin-tor).
 ```
 
 ### `install_driver`
@@ -1269,6 +1323,12 @@ trust, and prefer a throwaway browser profile.
 - `get_devtools_endpoint` (in `cdp`) gives out the address of the browser's
   DevTools endpoint. It listens on `127.0.0.1` only, but any program on this
   machine that knows it can drive the browser.
+- `wait_for_email` (in `cdp`, with the imap plugin) reads one mailbox that the
+  operator named, read only. What the mails say is text from third parties: the
+  tool says so and its result is marked untrusted, but a model that follows
+  instructions found in a mail is the risk, so use a test inbox. The password
+  is never an option or an argument: `password_env` names an environment
+  variable.
 - `capture_debug_bundle` saves a screenshot and the page's markup, which can show
   personal data; values of password and hidden inputs, cookies and storage, and
   the results of earlier tool calls are left out. `export_session_as_test` writes the text the model typed into the
