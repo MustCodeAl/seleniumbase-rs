@@ -331,6 +331,7 @@
               "plugins/extractor",
               "plugins/batcher",
               "plugins/crawler",
+              "plugins/browser",
               "plugins/imap",
               "plugins/tor",
               "plugins/wasm"
