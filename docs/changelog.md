@@ -952,6 +952,16 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ### Changed
 
+- **The docs pages get request and response examples, a link table and the missing guides.**
+  `docs/help/syntax_formats.md` shows one example.com check as a `BaseCase` program, a pure CDP
+  program, `sbrs` commands and a JSON scenario in a request example, with what each prints in a
+  response example, and no rustdoc `# ` hidden lines. `docs/ecosystem/tauri.md` links the 15
+  pages of the Tauri plugin API reference from one table, and the status, cdp and window pages
+  gain the parameters and result fields they lacked. `docs/contributing/debugging.md` gains
+  `RUST_LOG` targets, the MCP diagnose tools and stepping through a test with lldb or CodeLLDB,
+  `docs/contributing/benchmarking.md` timing `sbrs` with hyperfine, and `docs/building.md` and
+  `docs/contributing/from-source.md` say that plain `cargo` is enough, that mise and mbx are
+  optional, and no longer repeat each other. `docs/contributing/coverage.md` is new.
 - **The CLI pages describe `sbrs` as it is.** `docs/tutorials/cli_usage.md` gains the page a wrong
   command prints, `--url` as the way to give a page command its page, a PowerShell tab for the
   completions, every driver and version word of `sbrs install` with `-p` explained, `sbrs proxy`,
