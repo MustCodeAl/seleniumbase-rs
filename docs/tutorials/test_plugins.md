@@ -47,20 +47,20 @@ use seleniumbase_rs::plugins::reports::ReportPlugin;
 use seleniumbase_rs::plugins::screen_shots::ScreenshotOnFailurePlugin;
 use seleniumbase_rs::BrowserConfig;
 
-# async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-let mut plugins = Plugins::new()
-    .with(ScreenshotOnFailurePlugin::new("latest_logs"))
-    .with(PageSourceOnFailurePlugin::new("latest_logs"))
-    .with(ReportPlugin::json("latest_logs/report.json"));
+async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let mut plugins = Plugins::new()
+        .with(ScreenshotOnFailurePlugin::new("latest_logs"))
+        .with(PageSourceOnFailurePlugin::new("latest_logs"))
+        .with(ReportPlugin::json("latest_logs/report.json"));
 
-plugins
-    .run_browser_test("login_works", BrowserConfig::default(), async |sb| {
-        sb.open("https://example.com").await?;
-        sb.assert_title("Example Domain").await
-    })
-    .await?;
-# Ok(())
-# }
+    plugins
+        .run_browser_test("login_works", BrowserConfig::default(), async |sb| {
+            sb.open("https://example.com").await?;
+            sb.assert_title("Example Domain").await
+        })
+        .await?;
+    Ok(())
+}
 ```
 
 Reuse one `Plugins` value for every test in a run. A `ReportPlugin` keeps the
@@ -105,16 +105,16 @@ use seleniumbase_rs::plugins::observer::Plugins;
 use seleniumbase_rs::plugins::screen_shots::ScreenshotOnFailurePlugin;
 use seleniumbase_rs::sb_cdp::LaunchOptions;
 
-# async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-let mut plugins = Plugins::new().with(ScreenshotOnFailurePlugin::new("latest_logs"));
-plugins
-    .run_cdp_test("checkout", LaunchOptions::default(), async |page| {
-        page.goto("https://example.com").await?;
-        page.locator("#buy").click().await
-    })
-    .await?;
-# Ok(())
-# }
+async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let mut plugins = Plugins::new().with(ScreenshotOnFailurePlugin::new("latest_logs"));
+    plugins
+        .run_cdp_test("checkout", LaunchOptions::default(), async |page| {
+            page.goto("https://example.com").await?;
+            page.locator("#buy").click().await
+        })
+        .await?;
+    Ok(())
+}
 ```
 
 </Tab>
@@ -128,23 +128,23 @@ use seleniumbase_rs::plugins::observer::Plugins;
 use seleniumbase_rs::plugins::screen_shots::ScreenshotOnFailurePlugin;
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
 
-# async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-let browser = Browser::launch(LaunchOptions::default()).await?;
-let page = browser.default_page().await?;
-let mut plugins = Plugins::new().with(ScreenshotOnFailurePlugin::new("latest_logs"));
+async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let browser = Browser::launch(LaunchOptions::default()).await?;
+    let page = browser.default_page().await?;
+    let mut plugins = Plugins::new().with(ScreenshotOnFailurePlugin::new("latest_logs"));
 
-plugins.started("checkout").await;
-let outcome = async {
-    page.goto("https://example.com").await?;
-    page.locator("#buy").click().await
+    plugins.started("checkout").await;
+    let outcome = async {
+        page.goto("https://example.com").await?;
+        page.locator("#buy").click().await
+    }
+    .await;
+    if let Err(error) = &outcome {
+        plugins.failed("checkout", error, &page).await; // takes the screenshot now
+    }
+    plugins.finished("checkout", std::time::Duration::ZERO, &outcome).await;
+    Ok(())
 }
-.await;
-if let Err(error) = &outcome {
-    plugins.failed("checkout", error, &page).await; // takes the screenshot now
-}
-plugins.finished("checkout", std::time::Duration::ZERO, &outcome).await;
-# Ok(())
-# }
 ```
 
 </Tab>
@@ -171,7 +171,7 @@ impl TestPlugin for SlackOnFailure {
     ) -> Result<(), SeleniumBaseError> {
         let png = page.screenshot_png().await?;
         // ... post `test`, `error` and `png` somewhere ...
-        # let _ = (test, error, png);
+        let _ = (test, error, png);
         Ok(())
     }
 }

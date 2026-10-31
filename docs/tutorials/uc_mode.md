@@ -124,12 +124,12 @@ return an "Enable mode cdp or uc" error.
 </Info>
 
 ```rust,no_run
-# use seleniumbase_rs::BaseCase;
-# async fn demo(sb: &BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-sb.set_timezone("America/Los_Angeles").await?;
-sb.set_geolocation(34.0522, -118.2437, 100.0).await?;
-# Ok(())
-# }
+use seleniumbase_rs::BaseCase;
+async fn demo(sb: &BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    sb.set_timezone("America/Los_Angeles").await?;
+    sb.set_geolocation(34.0522, -118.2437, 100.0).await?;
+    Ok(())
+}
 ```
 
 ### Custom user agent and locale
@@ -153,11 +153,11 @@ quits the session, connects a new one with the same config, then opens the URL.
 ### Reconnect for a fresh session
 
 ```rust,no_run
-# use seleniumbase_rs::BaseCase;
-# async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-sb.reconnect().await?;
-# Ok(())
-# }
+use seleniumbase_rs::BaseCase;
+async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    sb.reconnect().await?;
+    Ok(())
+}
 ```
 
 `reconnect` closes the current WebDriver session and connects a new one with the
@@ -180,13 +180,13 @@ From code:
 ```rust,no_run
 use seleniumbase_rs::{ChromedriverPatcher, EnginePatch};
 
-# fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-let patcher = ChromedriverPatcher::new("/path/to/chromedriver");
-if patcher.needs_patch()? {
-    patcher.patch(EnginePatch::balanced())?;
+fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let patcher = ChromedriverPatcher::new("/path/to/chromedriver");
+    if patcher.needs_patch()? {
+        patcher.patch(EnginePatch::balanced())?;
+    }
+    Ok(())
 }
-# Ok(())
-# }
 ```
 
 The auto-started driver is `downloaded_drivers/chromedriver` (`sbrs install`
@@ -242,19 +242,19 @@ what Cloudflare's checks expect:
 ```rust,no_run
 use seleniumbase_rs::{BaseCase, BrowserConfig, DriverMode};
 
-# async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-let mut sb = BaseCase::new(
-    BrowserConfig::default()
-        .with_mode(DriverMode::Uc)
-        .with_headless(false),
-).await?;
+async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let mut sb = BaseCase::new(
+        BrowserConfig::default()
+            .with_mode(DriverMode::Uc)
+            .with_headless(false),
+    ).await?;
 
-sb.uc_open_with_reconnect("https://example.com/protected").await?;
-// The interstitial runs its checks in the browser; wait for the page behind it.
-sb.wait_for_element_visible("#content", 30).await?;
-# sb.quit().await?;
-# Ok(())
-# }
+    sb.uc_open_with_reconnect("https://example.com/protected").await?;
+    // The interstitial runs its checks in the browser; wait for the page behind it.
+    sb.wait_for_element_visible("#content", 30).await?;
+    sb.quit().await?;
+    Ok(())
+}
 ```
 
 </Tab>
@@ -282,18 +282,18 @@ path, checks that the page shows it cleared (a token in the response field, the
 times, if it did not. It returns the kind it cleared.
 
 ```rust,no_run
-# use seleniumbase_rs::sb_cdp::{Captcha, SolveOptions};
-# use seleniumbase_rs::{BaseCase, SeleniumBaseError};
-# async fn demo(sb: &mut BaseCase) -> Result<(), SeleniumBaseError> {
-assert_eq!(sb.solve_captcha().await?, Some(Captcha::Turnstile));
+use seleniumbase_rs::sb_cdp::{Captcha, SolveOptions};
+use seleniumbase_rs::{BaseCase, SeleniumBaseError};
+async fn demo(sb: &mut BaseCase) -> Result<(), SeleniumBaseError> {
+    assert_eq!(sb.solve_captcha().await?, Some(Captcha::Turnstile));
 
-// Or say what counts as the site's own page, and see what was done:
-let options = SolveOptions::new().success_marker("document.querySelector('#welcome')");
-if let Some(solved) = sb.solve_captcha_with(&options).await? {
-    println!("{solved}");
+    // Or say what counts as the site's own page, and see what was done:
+    let options = SolveOptions::new().success_marker("document.querySelector('#welcome')");
+    if let Some(solved) = sb.solve_captcha_with(&options).await? {
+        println!("{solved}");
+    }
+    Ok(())
 }
-# Ok(())
-# }
 ```
 
 It fails with `SeleniumBaseError::Captcha`, saying what it saw, when the page

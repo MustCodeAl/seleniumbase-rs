@@ -31,16 +31,16 @@ use seleniumbase_rs_stealth::mimic::tls_server::{
     accept, acceptor, EphemeralCa, ALPN_HTTP1, DEFAULT_HANDSHAKE_TIMEOUT,
 };
 
-# async fn demo(tcp: tokio::net::TcpStream) -> Result<(), Box<dyn std::error::Error>> {
-let ca = EphemeralCa::generate()?;
-let chrome_flag = ca.chrome_spki_arg(); // pass to Chrome together with --user-data-dir
-let server = acceptor(&[ALPN_HTTP1])?;
-let host = url::Host::parse("example.com")?;
-let leaf = ca.leaf_for(&host, SystemTime::now())?;
-let tls = accept(&server, &leaf, tcp, DEFAULT_HANDSHAKE_TIMEOUT).await?;
-# drop((chrome_flag, tls));
-# Ok(())
-# }
+async fn demo(tcp: tokio::net::TcpStream) -> Result<(), Box<dyn std::error::Error>> {
+    let ca = EphemeralCa::generate()?;
+    let chrome_flag = ca.chrome_spki_arg(); // pass to Chrome together with --user-data-dir
+    let server = acceptor(&[ALPN_HTTP1])?;
+    let host = url::Host::parse("example.com")?;
+    let leaf = ca.leaf_for(&host, SystemTime::now())?;
+    let tls = accept(&server, &leaf, tcp, DEFAULT_HANDSHAKE_TIMEOUT).await?;
+    drop((chrome_flag, tls));
+    Ok(())
+}
 ```
 
 Things to know before you use it:
@@ -111,18 +111,18 @@ use seleniumbase_rs_stealth::sb_cdp::{Browser, LaunchOptions};
 use seleniumbase_rs_stealth::scrape::NoopEventSink;
 use seleniumbase_rs_stealth::codec::BrowserKind;
 
-# async fn demo() -> Result<(), Box<dyn std::error::Error>> {
-let profile = ImpersonationProfile::measured(BrowserKind::Chrome)?;
-let mitm =
-    MitmProxy::start(profile, None, MitmOptions::default(), Arc::new(NoopEventSink)).await?;
-let options = mitm.configure_launch(LaunchOptions::builder()).build()?;
-let browser = Browser::launch(options).await?;
-let page = browser.new_page_at("https://example.com/").await?;
-# drop(page);
-browser.close().await?;
-mitm.shutdown(Duration::from_secs(5)).await;
-# Ok(())
-# }
+async fn demo() -> Result<(), Box<dyn std::error::Error>> {
+    let profile = ImpersonationProfile::measured(BrowserKind::Chrome)?;
+    let mitm =
+        MitmProxy::start(profile, None, MitmOptions::default(), Arc::new(NoopEventSink)).await?;
+    let options = mitm.configure_launch(LaunchOptions::builder()).build()?;
+    let browser = Browser::launch(options).await?;
+    let page = browser.new_page_at("https://example.com/").await?;
+    drop(page);
+    browser.close().await?;
+    mitm.shutdown(Duration::from_secs(5)).await;
+    Ok(())
+}
 ```
 
 `MitmProxy::start(profile, egress, options, sink)` binds `127.0.0.1` on a port the
@@ -403,15 +403,15 @@ behind the proxy, load the priming page in its first tab:
 use seleniumbase_rs_stealth::mimic::MitmProxy;
 use seleniumbase_rs_stealth::sb_cdp::{Browser, ContextOptions};
 
-# async fn demo(browser: Browser, mitm: MitmProxy) -> Result<(), Box<dyn std::error::Error>> {
-let context = browser
-    .new_context_with(ContextOptions::new().proxy(mitm.browser_proxy()))
-    .await?;
-let page = context.new_page_at(mitm.prime_url()).await?;
-// WebSockets of this context now carry the proxy's credentials.
-# drop(page);
-# Ok(())
-# }
+async fn demo(browser: Browser, mitm: MitmProxy) -> Result<(), Box<dyn std::error::Error>> {
+    let context = browser
+        .new_context_with(ContextOptions::new().proxy(mitm.browser_proxy()))
+        .await?;
+    let page = context.new_page_at(mitm.prime_url()).await?;
+    // WebSockets of this context now carry the proxy's credentials.
+    drop(page);
+    Ok(())
+}
 ```
 
 ### Changing the upstream, and stopping

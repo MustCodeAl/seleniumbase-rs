@@ -121,20 +121,20 @@ key events.
 </Warning>
 
 ```rust,no_run
-# use seleniumbase_rs::{BaseCase, BrowserConfig, SeleniumBaseError};
-# use std::time::Duration;
-# async fn demo(sb: &mut BaseCase) -> Result<(), SeleniumBaseError> {
-// Wait for the field, then type it the way a person would.
-sb.cdp_wait_for_element_present("#search", Duration::from_secs(10)).await?;
-sb.cdp_type("#search", "seleniumbase").await?;
+use seleniumbase_rs::{BaseCase, BrowserConfig, SeleniumBaseError};
+use std::time::Duration;
+async fn demo(sb: &mut BaseCase) -> Result<(), SeleniumBaseError> {
+    // Wait for the field, then type it the way a person would.
+    sb.cdp_wait_for_element_present("#search", Duration::from_secs(10)).await?;
+    sb.cdp_type("#search", "seleniumbase").await?;
 
-// Or fill it as fast as possible when stealth does not matter.
-sb.cdp_fast_type("#notes", "a long block of text").await?;
+    // Or fill it as fast as possible when stealth does not matter.
+    sb.cdp_fast_type("#notes", "a long block of text").await?;
 
-// Dropdowns can be chosen by text, value, or index.
-sb.cdp_select_option_by_index("#country", 2).await?;
-# Ok(())
-# }
+    // Dropdowns can be chosen by text, value, or index.
+    sb.cdp_select_option_by_index("#country", 2).await?;
+    Ok(())
+}
 ```
 
 ## Raw CDP commands

@@ -53,16 +53,16 @@ Summary for AI exports: `ChromedriverPatcher::new(path)` removes the `cdc_` and 
 ```rust,no_run
 use seleniumbase_rs::{ChromedriverPatcher, EnginePatch};
 
-# fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-let patcher = ChromedriverPatcher::new("/path/to/chromedriver");
+fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let patcher = ChromedriverPatcher::new("/path/to/chromedriver");
 
-// Check whether known markers are still present.
-if patcher.needs_patch()? {
-    // balanced = conservative patches with a .orig backup
-    patcher.patch(EnginePatch::balanced())?;
+    // Check whether known markers are still present.
+    if patcher.needs_patch()? {
+        // balanced = conservative patches with a .orig backup
+        patcher.patch(EnginePatch::balanced())?;
+    }
+    Ok(())
 }
-# Ok(())
-# }
 ```
 
 `EnginePatch` presets:
@@ -90,10 +90,10 @@ lives in the `evasion::patcher` module (it is not re-exported at the crate root)
 ```rust,no_run
 use seleniumbase_rs::evasion::patcher::patch_chromedriver;
 
-# fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-patch_chromedriver("/path/to/chromedriver")?;
-# Ok(())
-# }
+fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    patch_chromedriver("/path/to/chromedriver")?;
+    Ok(())
+}
 ```
 
 It is equivalent to `ChromedriverPatcher::new(path).patch(EnginePatch::all())`,
@@ -109,11 +109,11 @@ original. You can restore the original binary later:
 ```rust,no_run
 use seleniumbase_rs::ChromedriverPatcher;
 
-# fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-let patcher = ChromedriverPatcher::new("/path/to/chromedriver");
-patcher.restore()?; // copies .orig back over the patched binary
-# Ok(())
-# }
+fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let patcher = ChromedriverPatcher::new("/path/to/chromedriver");
+    patcher.restore()?; // copies .orig back over the patched binary
+    Ok(())
+}
 ```
 
 <Note>
@@ -155,15 +155,15 @@ use seleniumbase_rs::evasion::options::StealthOptions;
 use seleniumbase_rs::engine_spoofing_args;
 use seleniumbase_rs::drivers::{BrowserCapabilitiesHelper, DesiredCapabilities};
 
-# fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-let mut opts = StealthOptions::default();
-opts.extra_args = engine_spoofing_args();
+fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let mut opts = StealthOptions::default();
+    opts.extra_args = engine_spoofing_args();
 
-let mut caps = DesiredCapabilities::chrome();
-opts.apply_to(&mut caps)?;
-assert!(caps.args().contains(&"--disable-blink-features=AutomationControlled".into()));
-# Ok(())
-# }
+    let mut caps = DesiredCapabilities::chrome();
+    opts.apply_to(&mut caps)?;
+    assert!(caps.args().contains(&"--disable-blink-features=AutomationControlled".into()));
+    Ok(())
+}
 ```
 
 </Tab>
@@ -186,13 +186,13 @@ descriptor inspection.
 ```rust,no_run
 use seleniumbase_rs::{ChromeBinaryPatcher, EnginePatch};
 
-# fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-let patcher = ChromeBinaryPatcher::new("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
-    .with_cache_dir("/tmp/sb-chrome-patches");
-let patched = patcher.patch(EnginePatch::chrome_binary())?;
-println!("Patched binary: {}", patched.display());
-# Ok(())
-# }
+fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let patcher = ChromeBinaryPatcher::new("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+        .with_cache_dir("/tmp/sb-chrome-patches");
+    let patched = patcher.patch(EnginePatch::chrome_binary())?;
+    println!("Patched binary: {}", patched.display());
+    Ok(())
+}
 ```
 
 The patched copy goes under the cache directory in

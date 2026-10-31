@@ -94,7 +94,7 @@ let options = LaunchOptions::builder()
     .headless(true)
     .plugin_selection(&selection)
     .build()?;
-# Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
+Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 ```
 
 Or build the plugin yourself:
@@ -107,7 +107,7 @@ let config = SessionConfig::new()
     .with_zip("extensions/dark-reader.crx")
     .with_dir("my-extension");
 let plugins = PluginSet::new().with(BrowserSession::new(config)?)?;
-# Ok::<(), seleniumbase_rs::plugin_api::PluginError>(())
+Ok::<(), seleniumbase_rs::plugin_api::PluginError>(())
 ```
 
 </Tab>
@@ -253,7 +253,7 @@ let plugin = BrowserSession::new(SessionConfig::new().with_dir("my-extension"))?
 let mut launch = LaunchSettings::default();
 block_on(plugin.before_launch(&mut launch))?;
 assert_eq!(launch.extensions.len(), 1);
-# Ok::<(), seleniumbase_rs_plugin::PluginError>(())
+Ok::<(), seleniumbase_rs_plugin::PluginError>(())
 ```
 
 ## Limits

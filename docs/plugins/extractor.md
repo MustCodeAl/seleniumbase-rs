@@ -109,7 +109,7 @@ let options = LaunchOptions::builder()
     .headless(true)
     .plugin_selection(&selection)
     .build()?;
-# Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
+Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 ```
 
 `build()` reports a mistake in the name or the options as
@@ -347,7 +347,7 @@ let extractor = Extractor::new(ExtractorConfig::default())?;
 let plugins = PluginSet::strict().with(extractor)?;
 assert_eq!(plugins.names(), ["extractor"]);
 assert_eq!(plugins.task_names(), ["extractor"]);
-# Ok::<(), seleniumbase_rs_plugin::PluginError>(())
+Ok::<(), seleniumbase_rs_plugin::PluginError>(())
 ```
 
 `Extractor::extract_values(&schema, &raw)` types the raw records of a page and

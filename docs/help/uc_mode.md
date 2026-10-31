@@ -98,10 +98,10 @@ cargo run --bin sbrs -- patch-chromedriver --path /path/to/chromedriver
 ```rust,no_run
 use seleniumbase_rs::evasion::patcher::patch_chromedriver;
 
-# fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-patch_chromedriver("/path/to/chromedriver")?;
-# Ok(())
-# }
+fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    patch_chromedriver("/path/to/chromedriver")?;
+    Ok(())
+}
 ```
 
 </Tab>
@@ -132,11 +132,11 @@ that runs checks in the browser. UC mode reaches such a page like any other, but
 the challenge can appear mid-navigation, so open it with a fresh session:
 
 ```rust,no_run
-# use seleniumbase_rs::BaseCase;
-# async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-sb.uc_open_with_reconnect("https://example.com/protected").await?;
-# Ok(())
-# }
+use seleniumbase_rs::BaseCase;
+async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    sb.uc_open_with_reconnect("https://example.com/protected").await?;
+    Ok(())
+}
 ```
 
 `uc_open_with_reconnect(url)` reconnects the session and then opens the URL;

@@ -405,18 +405,18 @@ category, whether it is transient, and a remediation hint; `ResultExt::log_err`
 logs only the message. Make sure a subscriber is installed:
 
 ```rust,no_run
-# use seleniumbase_rs::{init_tracing, BaseCase, ResultExt};
-# async fn demo(case: &mut BaseCase) {
-init_tracing();
+use seleniumbase_rs::{init_tracing, BaseCase, ResultExt};
+async fn demo(case: &mut BaseCase) {
+    init_tracing();
 
-// `log_err` logs the message and returns the Result unchanged.
-let _ = case.click("#missing").await.log_err();
+    // `log_err` logs the message and returns the Result unchanged.
+    let _ = case.click("#missing").await.log_err();
 
-// `log` adds `error.category`, `error.transient` and `error.hint` fields.
-if let Err(err) = case.click("#missing").await {
-    err.log();
+    // `log` adds `error.category`, `error.transient` and `error.hint` fields.
+    if let Err(err) = case.click("#missing").await {
+        err.log();
+    }
 }
-# }
 ```
 
 Or configure the log level before running `sbrs` / `sbrs-mcp`:
@@ -428,18 +428,18 @@ SB_LOG_LEVEL=seleniumbase_rs=info,error cargo run --bin sbrs -- open https://exa
 `SeleniumBaseError` provides helpers for programmatic handling:
 
 ```rust
-# use seleniumbase_rs::SeleniumBaseError;
-# fn handle(err: SeleniumBaseError) -> Result<(), SeleniumBaseError> {
-match err {
-    e if e.is_transient() => println!("worth another attempt: {e}"),
-    e if e.is_skipped() => return Ok(()),
-    e if e.category() == "element_not_found" => {
-        println!("Hint: {}", e.hint().unwrap_or_default());
+use seleniumbase_rs::SeleniumBaseError;
+fn handle(err: SeleniumBaseError) -> Result<(), SeleniumBaseError> {
+    match err {
+        e if e.is_transient() => println!("worth another attempt: {e}"),
+        e if e.is_skipped() => return Ok(()),
+        e if e.category() == "element_not_found" => {
+            println!("Hint: {}", e.hint().unwrap_or_default());
+        }
+        e => return Err(e),
     }
-    e => return Err(e),
+    Ok(())
 }
-# Ok(())
-# }
 ```
 
 To retry transient failures with backoff, see `RetryPolicy` in the

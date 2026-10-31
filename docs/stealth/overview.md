@@ -236,13 +236,13 @@ the `Result` and left the fingerprint in its real locale.
 use seleniumbase_rs_stealth::evasion::fingerprint::{Fingerprint, OsType};
 use seleniumbase_rs_stealth::scrape::egress::geo::{Locale, LocaleExt};
 
-# fn demo() -> Result<(), Box<dyn std::error::Error>> {
-let fingerprint = Fingerprint::randomized_with_major(OsType::Macos, 7, 155);
-let german = Locale::by_tag("de-DE").ok_or("no such locale")?;
-let moved = german.localize(&fingerprint)?;
-assert_eq!(moved.timezone().as_str(), Some("Europe/Berlin"));
-# Ok(())
-# }
+fn demo() -> Result<(), Box<dyn std::error::Error>> {
+    let fingerprint = Fingerprint::randomized_with_major(OsType::Macos, 7, 155);
+    let german = Locale::by_tag("de-DE").ok_or("no such locale")?;
+    let moved = german.localize(&fingerprint)?;
+    assert_eq!(moved.timezone().as_str(), Some("Europe/Berlin"));
+    Ok(())
+}
 ```
 
 ### Profile and identity rotation
@@ -365,13 +365,13 @@ toolchain. The first build is about 1 GB of target directory.
 ```rust
 use seleniumbase_rs_stealth::scrape::BrowserScraper;
 
-# async fn demo() -> Result<(), seleniumbase_rs_stealth::scrape::ScrapeError> {
-let mut scraper = BrowserScraper::builder().build().await?;
-let page = scraper.fetch("https://example.com/").await?;
-println!("{} bytes", page.body.len());
-scraper.close().await?;
-# Ok(())
-# }
+async fn demo() -> Result<(), seleniumbase_rs_stealth::scrape::ScrapeError> {
+    let mut scraper = BrowserScraper::builder().build().await?;
+    let page = scraper.fetch("https://example.com/").await?;
+    println!("{} bytes", page.body.len());
+    scraper.close().await?;
+    Ok(())
+}
 ```
 
 `BrowserScraper` is re-exported at `scrape`. So are `ScrapeError`,

@@ -38,7 +38,7 @@ use seleniumbase_rs_plugin_block_resources::BlockResources;
 
 let plugins = PluginSet::new().with(BlockResources::images_and_fonts())?;
 assert_eq!(plugins.names(), ["block-resources"]);
-# Ok::<(), seleniumbase_rs_plugin::PluginError>(())
+Ok::<(), seleniumbase_rs_plugin::PluginError>(())
 ```
 
 Give the set to `LaunchOptionsBuilder::plugins`, as shown in the

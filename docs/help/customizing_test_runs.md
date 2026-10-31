@@ -103,7 +103,7 @@ use seleniumbase_rs::BrowserConfig;
 
 let list = AdBlockList::from_hosts(["ads.example.com", "tracker.example.net"])?;
 let config = BrowserConfig::default().with_ad_block_list(list);
-# Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
+Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 ```
 
 A list of your own replaces the built-in one. A list that needs more than 2,000
@@ -310,17 +310,17 @@ To build a `BrowserConfig` from the file in your own test:
 use seleniumbase_rs::config::settings::Settings;
 use seleniumbase_rs::BaseCase;
 
-# async fn demo() -> Result<(), Box<dyn std::error::Error>> {
-// The global config file (if any), with the SB_* variables applied on top.
-// `Settings::load_from(path)` reads a file you name instead.
-let settings = Settings::load()?;
-let config = settings.to_browser_config();
+async fn demo() -> Result<(), Box<dyn std::error::Error>> {
+    // The global config file (if any), with the SB_* variables applied on top.
+    // `Settings::load_from(path)` reads a file you name instead.
+    let settings = Settings::load()?;
+    let config = settings.to_browser_config();
 
-// `timeout_seconds` from the file or `SB_TIMEOUT` is already its default wait.
-let mut sb = BaseCase::new(config).await?;
-# sb.quit().await?;
-# Ok(())
-# }
+    // `timeout_seconds` from the file or `SB_TIMEOUT` is already its default wait.
+    let mut sb = BaseCase::new(config).await?;
+    sb.quit().await?;
+    Ok(())
+}
 ```
 
 `to_browser_config()` takes the WebDriver URL and the browser binary from

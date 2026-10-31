@@ -23,16 +23,16 @@ and moves between them by the policies:
 use seleniumbase_rs_stealth::mimic::StealthSession;
 use seleniumbase_rs_stealth::scrape::CountryCode;
 
-# async fn demo() -> Result<(), Box<dyn std::error::Error>> {
-let mut session = StealthSession::builder()
-    .with_geo_proxies([("http://user:pass@de.proxy.example:8080", CountryCode::new("DE")?)])?
-    .build()
-    .await?;
-let page = session.fetch("https://example.com/").await?;
-println!("{} bytes, {:?} mode", page.body.len(), page.mode);
-session.close().await?;
-# Ok(())
-# }
+async fn demo() -> Result<(), Box<dyn std::error::Error>> {
+    let mut session = StealthSession::builder()
+        .with_geo_proxies([("http://user:pass@de.proxy.example:8080", CountryCode::new("DE")?)])?
+        .build()
+        .await?;
+    let page = session.fetch("https://example.com/").await?;
+    println!("{} bytes, {:?} mode", page.body.len(), page.mode);
+    session.close().await?;
+    Ok(())
+}
 ```
 
 ## The loop
@@ -212,27 +212,27 @@ yourself when you know more than the answers show:
 ```rust
 use seleniumbase_rs_stealth::mimic::StealthSession;
 
-# async fn login_then_scrape(password: &str) -> Result<(), Box<dyn std::error::Error>> {
-let mut session = StealthSession::builder().build().await?;
+async fn login_then_scrape(password: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let mut session = StealthSession::builder().build().await?;
 
-// Log in where a real browser is needed.
-session.escalate().await?;
-let page = session.page().expect("a session in browser mode has a page");
-page.goto("https://shop.example/login").await?;
-page.locator("#user").type_text("me@example.com").await?;
-page.locator("#password").type_text(password).await?;
-page.locator("button[type=submit]").click().await?;
+    // Log in where a real browser is needed.
+    session.escalate().await?;
+    let page = session.page().expect("a session in browser mode has a page");
+    page.goto("https://shop.example/login").await?;
+    page.locator("#user").type_text("me@example.com").await?;
+    page.locator("#password").type_text(password).await?;
+    page.locator("button[type=submit]").click().await?;
 
-// Back to plain HTTP: the browser's cookies, the login among them, move into the
-// identity and the browser closes.
-session.demote().await?;
-for n in 1..=20 {
-    let orders = session.fetch(&format!("https://shop.example/orders?page={n}")).await?;
-    println!("page {n}: {} bytes over {:?}", orders.body.len(), orders.mode);
+    // Back to plain HTTP: the browser's cookies, the login among them, move into the
+    // identity and the browser closes.
+    session.demote().await?;
+    for n in 1..=20 {
+        let orders = session.fetch(&format!("https://shop.example/orders?page={n}")).await?;
+        println!("page {n}: {} bytes over {:?}", orders.body.len(), orders.mode);
+    }
+    session.close().await?;
+    Ok(())
 }
-session.close().await?;
-# Ok(())
-# }
 ```
 
 ## Errors

@@ -91,7 +91,7 @@ let config = ImapConfig {
 };
 // The variable must be set, or building the plugin fails and names it.
 let imap = Imap::new(config)?;
-# Ok::<(), seleniumbase_rs::plugin_api::PluginError>(())
+Ok::<(), seleniumbase_rs::plugin_api::PluginError>(())
 ```
 
 </Tab>

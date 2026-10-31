@@ -135,15 +135,15 @@ use seleniumbase_rs_stealth::codec::emulation::{self, EmulationError};
 use seleniumbase_rs_stealth::codec::BrowserKind;
 use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
 
-# fn demo() -> Result<(), EmulationError> {
-let chrome = emulation::get(BrowserKind::Chrome, OsType::Macos)?;
-assert_eq!(chrome.major, 155);
+fn demo() -> Result<(), EmulationError> {
+    let chrome = emulation::get(BrowserKind::Chrome, OsType::Macos)?;
+    assert_eq!(chrome.major, 155);
 
-// A system nobody measured is an error, never a nearby guess.
-let windows = emulation::get(BrowserKind::Chrome, OsType::Windows);
-assert!(matches!(windows, Err(EmulationError::NotMeasured { .. })));
-# Ok(())
-# }
+    // A system nobody measured is an error, never a nearby guess.
+    let windows = emulation::get(BrowserKind::Chrome, OsType::Windows);
+    assert!(matches!(windows, Err(EmulationError::NotMeasured { .. })));
+    Ok(())
+}
 ```
 
 `codec` and `scrape` still compile and run on every system. Only the
@@ -174,17 +174,17 @@ detect, solve in the browser, rotate the exit address, give up.
 use seleniumbase_rs_stealth::scrape::egress::geo::CountryCode;
 use seleniumbase_rs_stealth::scrape::BrowserScraper;
 
-# async fn demo() -> Result<(), seleniumbase_rs_stealth::scrape::ScrapeError> {
-let mut scraper = BrowserScraper::builder()
-    .with_geo_proxies([("http://user:pass@de.proxy.example:8080", CountryCode::new("DE")?)])?
-    .with_max_challenge_attempts(4)
-    .build()
-    .await?;
-let page = scraper.fetch("https://example.com/").await?;
-println!("{} bytes, status {}", page.body.len(), page.status);
-scraper.close().await?;
-# Ok(())
-# }
+async fn demo() -> Result<(), seleniumbase_rs_stealth::scrape::ScrapeError> {
+    let mut scraper = BrowserScraper::builder()
+        .with_geo_proxies([("http://user:pass@de.proxy.example:8080", CountryCode::new("DE")?)])?
+        .with_max_challenge_attempts(4)
+        .build()
+        .await?;
+    let page = scraper.fetch("https://example.com/").await?;
+    println!("{} bytes, status {}", page.body.len(), page.status);
+    scraper.close().await?;
+    Ok(())
+}
 ```
 
 Drop `with_geo_proxies` when you have no proxies. Add it when the site ties a
@@ -225,13 +225,13 @@ behind `features = ["mimic"]`:
 use seleniumbase_rs_stealth::mimic::{HttpOptions, HttpSession};
 use seleniumbase_rs_stealth::sb_cdp::Page;
 
-# async fn demo(page: Page) -> Result<(), Box<dyn std::error::Error>> {
-let session = HttpSession::from_page(&page, None, HttpOptions::new()).await?;
-let reply = session.get("https://example.com/api/orders").await?;
-let orders: serde_json::Value = reply.json()?;
-println!("{orders}");
-# Ok(())
-# }
+async fn demo(page: Page) -> Result<(), Box<dyn std::error::Error>> {
+    let session = HttpSession::from_page(&page, None, HttpOptions::new()).await?;
+    let reply = session.get("https://example.com/api/orders").await?;
+    let orders: serde_json::Value = reply.json()?;
+    println!("{orders}");
+    Ok(())
+}
 ```
 
 [`HttpSession`](/stealth/http-session) covers the request API, the cookie jar

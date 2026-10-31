@@ -111,7 +111,7 @@ let options = LaunchOptions::builder()
     .headless(true)
     .plugin_selection(&selection)
     .build()?;
-# Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
+Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 ```
 
 `build()` reports a mistake in the name or the options as
@@ -323,7 +323,7 @@ use serde_json::json;
 let batcher = Batcher::configure(&json!({ "concurrency": 4, "retries": 2 }))?;
 let set = PluginSet::strict().with(batcher)?;
 assert_eq!(set.task_names(), ["batcher"]);
-# Ok::<(), seleniumbase_rs_plugin::PluginError>(())
+Ok::<(), seleniumbase_rs_plugin::PluginError>(())
 ```
 
 With `RecordingBrowser::with_contexts()` the fakes count the live contexts and

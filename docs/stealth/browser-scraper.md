@@ -28,17 +28,17 @@ around it.
 use seleniumbase_rs_stealth::scrape::egress::geo::CountryCode;
 use seleniumbase_rs_stealth::scrape::runtime::browser_scraper::BrowserScraper;
 
-# async fn demo() -> Result<(), seleniumbase_rs_stealth::scrape::error::ScrapeError> {
-let mut scraper = BrowserScraper::builder()
-    .with_geo_proxies([("http://user:pass@de.proxy.example:8080", CountryCode::new("DE")?)])?
-    .with_max_challenge_attempts(4)
-    .build()
-    .await?;
-let page = scraper.fetch("https://example.com/").await?;
-println!("{} bytes, status {}", page.body.len(), page.status);
-scraper.close().await?;
-# Ok(())
-# }
+async fn demo() -> Result<(), seleniumbase_rs_stealth::scrape::error::ScrapeError> {
+    let mut scraper = BrowserScraper::builder()
+        .with_geo_proxies([("http://user:pass@de.proxy.example:8080", CountryCode::new("DE")?)])?
+        .with_max_challenge_attempts(4)
+        .build()
+        .await?;
+    let page = scraper.fetch("https://example.com/").await?;
+    println!("{} bytes, status {}", page.body.len(), page.status);
+    scraper.close().await?;
+    Ok(())
+}
 ```
 
 ## The fetch loop
@@ -165,17 +165,17 @@ move `rotate_egress` makes when the new proxy is in another country.
 use seleniumbase_rs_stealth::evasion::fingerprint::{Fingerprint, OsType};
 use seleniumbase_rs_stealth::scrape::egress::geo::{Locale, LocaleExt};
 
-# fn demo() -> Result<(), Box<dyn std::error::Error>> {
-let fingerprint = Fingerprint::randomized_with_major(OsType::Macos, 7, 155);
-let german = Locale::by_tag("de-DE").ok_or("no such locale")?;
+fn demo() -> Result<(), Box<dyn std::error::Error>> {
+    let fingerprint = Fingerprint::randomized_with_major(OsType::Macos, 7, 155);
+    let german = Locale::by_tag("de-DE").ok_or("no such locale")?;
 
-let moved = german.localize(&fingerprint)?;
+    let moved = german.localize(&fingerprint)?;
 
-assert_eq!(moved.locale().as_str(), Some("de-DE"));
-assert_eq!(moved.timezone().as_str(), Some("Europe/Berlin"));
-assert_eq!(moved.user_agent(), fingerprint.user_agent());
-# Ok(())
-# }
+    assert_eq!(moved.locale().as_str(), Some("de-DE"));
+    assert_eq!(moved.timezone().as_str(), Some("Europe/Berlin"));
+    assert_eq!(moved.user_agent(), fingerprint.user_agent());
+    Ok(())
+}
 ```
 
 Every other setting is kept, and a fingerprint that denies geolocation

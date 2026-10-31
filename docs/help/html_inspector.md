@@ -33,12 +33,12 @@ Summary for AI exports: `BaseCase::inspect_html` inspects the current page sourc
 `BaseCase::inspect_html` takes the current page source and inspects it:
 
 ```rust,no_run
-# use seleniumbase_rs::BaseCase;
-# async fn demo(sb: &BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-let inspection = sb.inspect_html().await?;
-assert!(inspection.is_clean(), "{inspection:?}");
-# Ok(())
-# }
+use seleniumbase_rs::BaseCase;
+async fn demo(sb: &BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let inspection = sb.inspect_html().await?;
+    assert!(inspection.is_clean(), "{inspection:?}");
+    Ok(())
+}
 ```
 
 `BaseCase::assert_no_html_issues` does the same and fails with an
@@ -53,13 +53,13 @@ The inspector needs no browser. `HtmlInspector::inspect` takes any HTML string:
 ```rust
 use seleniumbase_rs::api::html_inspector::HtmlInspector;
 
-# fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-let html = r#"<html lang="en"><head><title>T</title></head>
-              <body><img src="logo.png"></body></html>"#;
-let inspection = HtmlInspector::inspect(html)?;
-assert!(inspection.issues.iter().any(|issue| issue.rule == "image-alt"));
-# Ok(())
-# }
+fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let html = r#"<html lang="en"><head><title>T</title></head>
+                  <body><img src="logo.png"></body></html>"#;
+    let inspection = HtmlInspector::inspect(html)?;
+    assert!(inspection.issues.iter().any(|issue| issue.rule == "image-alt"));
+    Ok(())
+}
 ```
 
 </Tab>
@@ -95,16 +95,16 @@ when at least one finding has `InspectionSeverity::Error`.
 ## Access results
 
 ```rust
-# use seleniumbase_rs::api::html_inspector::InspectionResult;
-# fn print_issues(inspection: InspectionResult) {
-let issues = inspection.issues;
-for issue in issues {
-    println!(
-        "{:?} {} at {:?}: {}",
-        issue.severity, issue.rule, issue.selector, issue.message
-    );
+use seleniumbase_rs::api::html_inspector::InspectionResult;
+fn print_issues(inspection: InspectionResult) {
+    let issues = inspection.issues;
+    for issue in issues {
+        println!(
+            "{:?} {} at {:?}: {}",
+            issue.severity, issue.rule, issue.selector, issue.message
+        );
+    }
 }
-# }
 ```
 
 `selector` is an `Option<String>`: a best-effort selector for the element, or
@@ -115,12 +115,12 @@ for issue in issues {
 Fail a build when new markup issues appear:
 
 ```rust
-# use seleniumbase_rs::api::html_inspector::InspectionResult;
-# fn gate(inspection: InspectionResult) {
-if !inspection.is_clean() {
-    std::process::exit(1);
+use seleniumbase_rs::api::html_inspector::InspectionResult;
+fn gate(inspection: InspectionResult) {
+    if !inspection.is_clean() {
+        std::process::exit(1);
+    }
 }
-# }
 ```
 
 <Tip>

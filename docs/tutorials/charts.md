@@ -44,15 +44,15 @@ The `Chart` type needs no browser. Build it, add data points, and save it:
 ```rust
 use seleniumbase_rs::{Chart, ChartType};
 
-# fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-let mut chart = Chart::new("Browser Market Share", ChartType::Pie);
-chart.add_data_point("Chrome", 60);
-chart.add_data_point("Firefox", 25);
-chart.add_data_point("Safari", 15);
-chart.save("market_share.html")?;
-# let _ = std::fs::remove_file("market_share.html");
-# Ok(())
-# }
+fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let mut chart = Chart::new("Browser Market Share", ChartType::Pie);
+    chart.add_data_point("Chrome", 60);
+    chart.add_data_point("Firefox", 25);
+    chart.add_data_point("Safari", 15);
+    chart.save("market_share.html")?;
+    let _ = std::fs::remove_file("market_share.html");
+    Ok(())
+}
 ```
 
 </Tab>

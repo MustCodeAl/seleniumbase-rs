@@ -292,15 +292,15 @@ skipping changes nothing for ordinary navigation. A direct call to
 `sb.sleep(2.0).await`:
 
 ```rust,no_run
-# use seleniumbase_rs::api::run_settings::RunSettings;
-# use seleniumbase_rs::BaseCase;
-# async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-sb.set_run_settings(RunSettings::default().with_record_sleep(true));
-sb.sleep(2.0).await;
-let actions = sb.recorded_actions()?;
-assert!(actions.iter().any(|action| action.name == "sleep"));
-# Ok(())
-# }
+use seleniumbase_rs::api::run_settings::RunSettings;
+use seleniumbase_rs::BaseCase;
+async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    sb.set_run_settings(RunSettings::default().with_record_sleep(true));
+    sb.sleep(2.0).await;
+    let actions = sb.recorded_actions()?;
+    assert!(actions.iter().any(|action| action.name == "sleep"));
+    Ok(())
+}
 ```
 
 **Visual baseline reset** is read by `check_window`, and so by
@@ -311,15 +311,15 @@ test's name; under `#[tokio::main]` it is `main`. Set the reset for one run to
 accept the page as it is now, then go back to the default:
 
 ```rust,no_run
-# use seleniumbase_rs::api::run_settings::RunSettings;
-# use seleniumbase_rs::BaseCase;
-# async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-sb.set_run_settings(RunSettings::default().with_visual_baseline_reset(true));
-sb.check_window("home", 3).await?; // saves the baseline
-sb.set_run_settings(RunSettings::default());
-sb.check_window("home", 3).await?; // compares with it
-# Ok(())
-# }
+use seleniumbase_rs::api::run_settings::RunSettings;
+use seleniumbase_rs::BaseCase;
+async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    sb.set_run_settings(RunSettings::default().with_visual_baseline_reset(true));
+    sb.check_window("home", 3).await?; // saves the baseline
+    sb.set_run_settings(RunSettings::default());
+    sb.check_window("home", 3).await?; // compares with it
+    Ok(())
+}
 ```
 
 What `check_window` compares, and its levels 0 to 3, are in the rustdoc of

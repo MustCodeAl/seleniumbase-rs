@@ -113,7 +113,7 @@ let fp = Fingerprint::builder()
     .policy(StealthPolicy::balanced())
     .canvas_noise(CanvasNoise::Random)
     .build()?;
-# Ok::<(), seleniumbase_rs_stealth::evasion::fingerprint::FingerprintError>(())
+Ok::<(), seleniumbase_rs_stealth::evasion::fingerprint::FingerprintError>(())
 ```
 
 The random position is a spot in Berlin, because the time zone is a `Value`.
@@ -128,7 +128,7 @@ use seleniumbase_rs_stealth::Fingerprint;
 let fp = Fingerprint::windows_desktop();
 let tokyo = fp.to_builder().timezone("Asia/Tokyo").build()?;
 assert_eq!(tokyo.timezone().as_str(), Some("Asia/Tokyo"));
-# Ok::<(), seleniumbase_rs_stealth::evasion::fingerprint::FingerprintError>(())
+Ok::<(), seleniumbase_rs_stealth::evasion::fingerprint::FingerprintError>(())
 ```
 
 ## Fingerprint presets
@@ -270,7 +270,7 @@ let fp = Fingerprint::builder()
     .geolocation((40.7128, -74.0060))
     .media_device_counts(1, 1, 2) // audio inputs, audio outputs, video inputs
     .build()?;
-# Ok::<(), seleniumbase_rs_stealth::evasion::fingerprint::FingerprintError>(())
+Ok::<(), seleniumbase_rs_stealth::evasion::fingerprint::FingerprintError>(())
 ```
 
 There is no flag to flip afterwards, and none to set. Giving a value is the
@@ -350,7 +350,7 @@ let fp = Fingerprint::builder()
     .with_policy(|p| p.disable_csp(true))   // any change, in order
     .build()?;
 assert!(fp.policy().chrome_runtime && fp.policy().disable_csp);
-# Ok::<(), seleniumbase_rs_stealth::evasion::fingerprint::FingerprintError>(())
+Ok::<(), seleniumbase_rs_stealth::evasion::fingerprint::FingerprintError>(())
 ```
 
 | Preset | What it is |
@@ -431,7 +431,7 @@ let fp = Fingerprint::builder()
     .geolocation((40.7580, -73.9855))
     .native_spoofing(true)
     .build()?;
-# Ok::<(), seleniumbase_rs_stealth::evasion::fingerprint::FingerprintError>(())
+Ok::<(), seleniumbase_rs_stealth::evasion::fingerprint::FingerprintError>(())
 ```
 
 When `native_spoofing` is true:
@@ -802,14 +802,14 @@ seedable:
 use seleniumbase_rs_stealth::sb_cdp::Point;
 use seleniumbase_rs_stealth::evasion::behavior::{Behavior, Humanizer};
 
-# fn main() -> Result<(), seleniumbase_rs_stealth::SeleniumBaseError> {
-let mut person = Humanizer::new(Behavior::builder().typing_wpm(70.0).seed(7).build()?);
-let path = person.mouse_path(Point::new(0.0, 0.0), Point::new(200.0, 90.0), 60.0);
-let keys = person.typing_plan("hello");
-assert_eq!(path.last().map(|step| step.at), Some(Point::new(200.0, 90.0)));
-assert_eq!(keys.len(), 5);
-# Ok(())
-# }
+fn main() -> Result<(), seleniumbase_rs_stealth::SeleniumBaseError> {
+    let mut person = Humanizer::new(Behavior::builder().typing_wpm(70.0).seed(7).build()?);
+    let path = person.mouse_path(Point::new(0.0, 0.0), Point::new(200.0, 90.0), 60.0);
+    let keys = person.typing_plan("hello");
+    assert_eq!(path.last().map(|step| step.at), Some(Point::new(200.0, 90.0)));
+    assert_eq!(keys.len(), 5);
+    Ok(())
+}
 ```
 
 To play a plan out on a page, use `page.human(behavior)` from the Pure CDP

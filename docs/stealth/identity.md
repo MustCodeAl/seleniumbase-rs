@@ -17,18 +17,18 @@ and converts to and from CDP cookies. Every function that needs the time takes
 use seleniumbase_rs_stealth::scrape::jar::store::{CookieJar, SiteContext};
 use url::Url;
 
-# fn demo() -> Result<(), Box<dyn std::error::Error>> {
-let now = std::time::SystemTime::now()
-    .duration_since(std::time::UNIX_EPOCH)?
-    .as_secs();
-let url = Url::parse("https://shop.example.com/cart")?;
+fn demo() -> Result<(), Box<dyn std::error::Error>> {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)?
+        .as_secs();
+    let url = Url::parse("https://shop.example.com/cart")?;
 
-let mut jar = CookieJar::new();
-jar.store(&url, "sid=abc; Path=/; Secure; HttpOnly; SameSite=Lax", now);
-let header = jar.header_for(&url, SiteContext::SameSite { top_level: true }, now);
-assert_eq!(header.as_deref(), Some("sid=abc"));
-# Ok(())
-# }
+    let mut jar = CookieJar::new();
+    jar.store(&url, "sid=abc; Path=/; Secure; HttpOnly; SameSite=Lax", now);
+    let header = jar.header_for(&url, SiteContext::SameSite { top_level: true }, now);
+    assert_eq!(header.as_deref(), Some("sid=abc"));
+    Ok(())
+}
 ```
 
 What the jar enforces: `Secure` cookies need a secure origin (https or wss, or a
@@ -59,16 +59,16 @@ use seleniumbase_rs_stealth::scrape::runtime::identity_file;
 use seleniumbase_rs_stealth::evasion::fingerprint::{Fingerprint, OsType};
 use seleniumbase_rs_stealth::codec::BrowserKind;
 
-# async fn demo(now: u64) -> Result<(), Box<dyn std::error::Error>> {
-let fingerprint = Fingerprint::randomized_with_major(OsType::Macos, 7, 155);
-let emulation = EmulationRef { kind: BrowserKind::Chrome, major: 155, os: OsType::Macos };
-let identity = StealthIdentity::new(fingerprint, emulation, None, now)?;
+async fn demo(now: u64) -> Result<(), Box<dyn std::error::Error>> {
+    let fingerprint = Fingerprint::randomized_with_major(OsType::Macos, 7, 155);
+    let emulation = EmulationRef { kind: BrowserKind::Chrome, major: 155, os: OsType::Macos };
+    let identity = StealthIdentity::new(fingerprint, emulation, None, now)?;
 
-identity_file::save("identity.json", &identity).await?;
-let again = identity_file::load("identity.json").await?;
-# drop(again);
-# Ok(())
-# }
+    identity_file::save("identity.json", &identity).await?;
+    let again = identity_file::load("identity.json").await?;
+    drop(again);
+    Ok(())
+}
 ```
 
 Things to know:
@@ -121,15 +121,15 @@ use seleniumbase_rs_stealth::scrape::challenge::mitigation::Mode;
 use seleniumbase_rs_stealth::scrape::passport::identity::StealthIdentity;
 use seleniumbase_rs_stealth::scrape::passport::policy::{SessionPolicy, Transition};
 
-# fn demo(identity: &StealthIdentity, now: u64) {
-let policy = SessionPolicy {
-    require_clearance_for_http: true,
-    ..SessionPolicy::default()
-};
-// An HTTP session whose identity holds no clearance for the site goes to the browser.
-let step = policy.before_fetch(Mode::Http, identity, "example.com", None, now);
-assert!(matches!(step, Transition::Escalate(_)));
-# }
+fn demo(identity: &StealthIdentity, now: u64) {
+    let policy = SessionPolicy {
+        require_clearance_for_http: true,
+        ..SessionPolicy::default()
+    };
+    // An HTTP session whose identity holds no clearance for the site goes to the browser.
+    let step = policy.before_fetch(Mode::Http, identity, "example.com", None, now);
+    assert!(matches!(step, Transition::Escalate(_)));
+}
 ```
 
 The defaults are a margin of 120 seconds before a clearance expires, demotion

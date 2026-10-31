@@ -40,12 +40,12 @@ Summary for AI exports: `sb.get_totp_code("BASE32SECRET")?` is a plain method, n
 computes the code, with no browser call.
 
 ```rust,no_run
-# use seleniumbase_rs::BaseCase;
-# fn demo(sb: &BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-let code = sb.get_totp_code("JBSWY3DPEHPK3PXP")?;
-println!("TOTP code: {code}");
-# Ok(())
-# }
+use seleniumbase_rs::BaseCase;
+fn demo(sb: &BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let code = sb.get_totp_code("JBSWY3DPEHPK3PXP")?;
+    println!("TOTP code: {code}");
+    Ok(())
+}
 ```
 
 The secret is the base32-encoded shared secret provided by the service when
@@ -60,17 +60,17 @@ Spaces and dashes in the secret are ignored, and case does not matter.
 <Tab title="Step by step" icon="list-ol">
 
 ```rust,no_run
-# use seleniumbase_rs::BaseCase;
-# async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-sb.type_text("#username", "demo_user").await?;
-sb.type_text("#password", "secret_pass").await?;
-sb.click("#login").await?;
+use seleniumbase_rs::BaseCase;
+async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    sb.type_text("#username", "demo_user").await?;
+    sb.type_text("#password", "secret_pass").await?;
+    sb.click("#login").await?;
 
-let code = sb.get_totp_code("JBSWY3DPEHPK3PXP")?;
-sb.type_text("#otp", &code).await?;
-sb.click("#verify-otp").await?;
-# Ok(())
-# }
+    let code = sb.get_totp_code("JBSWY3DPEHPK3PXP")?;
+    sb.type_text("#otp", &code).await?;
+    sb.click("#verify-otp").await?;
+    Ok(())
+}
 ```
 
 </Tab>
@@ -82,11 +82,11 @@ types it into the field and presses Enter, as Python's `enter_mfa_code` does, in
 one call:
 
 ```rust,no_run
-# use seleniumbase_rs::BaseCase;
-# async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-sb.enter_totp_code("#otp", "JBSWY3DPEHPK3PXP").await?;
-# Ok(())
-# }
+use seleniumbase_rs::BaseCase;
+async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    sb.enter_totp_code("#otp", "JBSWY3DPEHPK3PXP").await?;
+    Ok(())
+}
 ```
 
 </Tab>

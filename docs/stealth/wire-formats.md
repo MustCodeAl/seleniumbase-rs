@@ -32,19 +32,19 @@ use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
 use seleniumbase_rs_stealth::codec::emulation::{self, EmulationError};
 use seleniumbase_rs_stealth::codec::BrowserKind;
 
-# fn demo() -> Result<(), EmulationError> {
-let chrome = emulation::get(BrowserKind::Chrome, OsType::Macos)?;
-assert_eq!(chrome.major, 155);
-println!("{} captured on {}", chrome.provenance.browser, chrome.provenance.captured_on);
-// The JA4 of the measured hello. The capture recorded t13d1517h2_8daaf6152771_cb7bf5808d99
-// for it, in the file's `capture` evidence.
-println!("{}", chrome.tls.ja4());
+fn demo() -> Result<(), EmulationError> {
+    let chrome = emulation::get(BrowserKind::Chrome, OsType::Macos)?;
+    assert_eq!(chrome.major, 155);
+    println!("{} captured on {}", chrome.provenance.browser, chrome.provenance.captured_on);
+    // The JA4 of the measured hello. The capture recorded t13d1517h2_8daaf6152771_cb7bf5808d99
+    // for it, in the file's `capture` evidence.
+    println!("{}", chrome.tls.ja4());
 
-// A system nobody measured is an error, never a nearby guess.
-let windows = emulation::get(BrowserKind::Chrome, OsType::Windows);
-assert!(matches!(windows, Err(EmulationError::NotMeasured { .. })));
-# Ok(())
-# }
+    // A system nobody measured is an error, never a nearby guess.
+    let windows = emulation::get(BrowserKind::Chrome, OsType::Windows);
+    assert!(matches!(windows, Err(EmulationError::NotMeasured { .. })));
+    Ok(())
+}
 ```
 
 `EmulationError::NotMeasured { kind, os }` is the error the design plan calls
@@ -178,21 +178,21 @@ use seleniumbase_rs_stealth::codec::akamai::Akamai;
 use seleniumbase_rs_stealth::codec::ja3::Ja3;
 use seleniumbase_rs_stealth::codec::ja4::Ja4;
 
-# fn demo() -> Result<(), Box<dyn std::error::Error>> {
-// The Akamai string measured from Chrome 155 on macOS.
-let akamai: Akamai = "1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p".parse()?;
-assert_eq!(akamai.settings, vec![(1, 65536), (2, 0), (4, 6_291_456), (6, 262_144)]);
-assert_eq!(akamai.window_update, 15_663_105);
+fn demo() -> Result<(), Box<dyn std::error::Error>> {
+    // The Akamai string measured from Chrome 155 on macOS.
+    let akamai: Akamai = "1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p".parse()?;
+    assert_eq!(akamai.settings, vec![(1, 65536), (2, 0), (4, 6_291_456), (6, 262_144)]);
+    assert_eq!(akamai.window_update, 15_663_105);
 
-// One JA4 and one JA3 measured from the same browser.
-let ja4: Ja4 = "t13d1517h2_8daaf6152771_cb7bf5808d99".parse()?;
-assert_eq!(ja4.a, "t13d1517h2");
-let ja3: Ja3 = "771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,\
-                13-10-35-18-65281-27-45-65037-5-0-23-17613-51-51764-43-11-16,4588-29-23-24,0"
-    .parse()?;
-assert_eq!(ja3.version, 771);
-# Ok(())
-# }
+    // One JA4 and one JA3 measured from the same browser.
+    let ja4: Ja4 = "t13d1517h2_8daaf6152771_cb7bf5808d99".parse()?;
+    assert_eq!(ja4.a, "t13d1517h2");
+    let ja3: Ja3 = "771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,\
+                    13-10-35-18-65281-27-45-65037-5-0-23-17613-51-51764-43-11-16,4588-29-23-24,0"
+        .parse()?;
+    assert_eq!(ja3.version, 771);
+    Ok(())
+}
 ```
 
 <Tip>
@@ -220,16 +220,16 @@ use seleniumbase_rs_stealth::mimic::client::{
 use seleniumbase_rs_stealth::codec::header_spec::RequestShape;
 use seleniumbase_rs_stealth::codec::BrowserKind;
 
-# async fn demo() -> Result<(), Box<dyn std::error::Error>> {
-let profile = ImpersonationProfile::measured(BrowserKind::Chrome)?;
-let client = impersonation_client(&profile)?.build()?;
+async fn demo() -> Result<(), Box<dyn std::error::Error>> {
+    let profile = ImpersonationProfile::measured(BrowserKind::Chrome)?;
+    let client = impersonation_client(&profile)?.build()?;
 
-let request = client.get("https://example.com/");
-let request = profile.apply(request, RequestShape::Document, None, WireProtocol::Http2)?;
-let response = request.send().await?;
-# drop(response);
-# Ok(())
-# }
+    let request = client.get("https://example.com/");
+    let request = profile.apply(request, RequestShape::Document, None, WireProtocol::Http2)?;
+    let response = request.send().await?;
+    drop(response);
+    Ok(())
+}
 ```
 
 - `impersonation_client` returns a `wreq::ClientBuilder` with the profile's
@@ -265,15 +265,15 @@ priority, a header list has no TLS.
 ```rust
 use seleniumbase_rs_stealth::mimic::client::ImpersonationProfile;
 
-# fn demo() -> Result<(), Box<dyn std::error::Error>> {
-let profile = ImpersonationProfile::custom()
-    .akamai("1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p")?
-    .user_agent("Mozilla/5.0 (custom)")
-    .accept_language("de-DE,de;q=0.9")
-    .build()?;
-assert_eq!(profile.user_agent(), "Mozilla/5.0 (custom)");
-# Ok(())
-# }
+fn demo() -> Result<(), Box<dyn std::error::Error>> {
+    let profile = ImpersonationProfile::custom()
+        .akamai("1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p")?
+        .user_agent("Mozilla/5.0 (custom)")
+        .accept_language("de-DE,de;q=0.9")
+        .build()?;
+    assert_eq!(profile.user_agent(), "Mozilla/5.0 (custom)");
+    Ok(())
+}
 ```
 
 | Method | What it replaces |
@@ -321,19 +321,19 @@ cannot write:
 use seleniumbase_rs_stealth::mimic::client::{ImpersonateError, ImpersonationProfile};
 use seleniumbase_rs_stealth::codec::tls_spec::SpecError;
 
-# fn demo(ja3_with_trust_anchors: &str) {
-let refused = ImpersonationProfile::custom().ja3(ja3_with_trust_anchors);
-assert!(matches!(
-    refused,
-    Err(ImpersonateError::Tls(SpecError::UnsupportedExtension { id: 0xCA34, .. }))
-));
+fn demo(ja3_with_trust_anchors: &str) {
+    let refused = ImpersonationProfile::custom().ja3(ja3_with_trust_anchors);
+    assert!(matches!(
+        refused,
+        Err(ImpersonateError::Tls(SpecError::UnsupportedExtension { id: 0xCA34, .. }))
+    ));
 
-let refused = ImpersonationProfile::custom().signature_algorithms(&[0x0904]);
-assert!(matches!(
-    refused,
-    Err(ImpersonateError::Tls(SpecError::UnsupportedSigalg { id: 0x0904, .. }))
-));
-# }
+    let refused = ImpersonationProfile::custom().signature_algorithms(&[0x0904]);
+    assert!(matches!(
+        refused,
+        Err(ImpersonateError::Tls(SpecError::UnsupportedSigalg { id: 0x0904, .. }))
+    ));
+}
 ```
 
 <Info>

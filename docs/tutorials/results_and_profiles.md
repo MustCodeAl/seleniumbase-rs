@@ -48,19 +48,19 @@ test as it finishes:
 use std::time::Instant;
 use seleniumbase_rs::storage::{ResultStore, RunInfo};
 
-# async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-let store = ResultStore::open("reports/results.db").await?;
-let run = store
-    .start_run(&RunInfo::new("nightly").environment("staging"))
-    .await?;
+async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let store = ResultStore::open("reports/results.db").await?;
+    let run = store
+        .start_run(&RunInfo::new("nightly").environment("staging"))
+        .await?;
 
-let started = Instant::now();
-let outcome: Result<(), seleniumbase_rs::SeleniumBaseError> = Ok(()); // your test
-store
-    .record_outcome(run, "login_works", started.elapsed(), &outcome)
-    .await?;
-# Ok(())
-# }
+    let started = Instant::now();
+    let outcome: Result<(), seleniumbase_rs::SeleniumBaseError> = Ok(()); // your test
+    store
+        .record_outcome(run, "login_works", started.elapsed(), &outcome)
+        .await?;
+    Ok(())
+}
 ```
 
 - **`environment`** is the counterpart of Python SeleniumBase's `--database_env`:
@@ -75,18 +75,18 @@ store
 Ask it questions:
 
 ```rust,no_run
-# use seleniumbase_rs::storage::ResultStore;
-# async fn demo(store: ResultStore) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-for run in store.runs(10).await? {
-    println!("{} {}: {} passed, {} failed", run.id, run.label, run.passed, run.failed);
-}
+use seleniumbase_rs::storage::ResultStore;
+async fn demo(store: ResultStore) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    for run in store.runs(10).await? {
+        println!("{} {}: {} passed, {} failed", run.id, run.label, run.passed, run.failed);
+    }
 
-// Tests that passed in some of the last 20 runs and failed in others.
-for test in store.flaky_tests(20).await? {
-    println!("{}: failed {} of {}", test.name, test.failures, test.attempts);
+    // Tests that passed in some of the last 20 runs and failed in others.
+    for test in store.flaky_tests(20).await? {
+        println!("{}: failed {} of {}", test.name, test.failures, test.attempts);
+    }
+    Ok(())
 }
-# Ok(())
-# }
 ```
 
 A test that always fails is broken, not flaky, so `flaky_tests` leaves it out.
@@ -125,16 +125,16 @@ use seleniumbase_rs::storage::ProfileVault;
 #[derive(Serialize, Deserialize)]
 struct Profile { name: String, proxy: String }
 
-# async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-let vault = ProfileVault::open("profiles.vault", "a long passphrase").await?;
+async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let vault = ProfileVault::open("profiles.vault", "a long passphrase").await?;
 
-vault
-    .put("profiles", "p1", &Profile { name: "EU shop".into(), proxy: "http://u:p@eu:8080".into() })
-    .await?;
-let profiles: Vec<(String, Profile)> = vault.list("profiles").await?;
-# let _ = profiles;
-# Ok(())
-# }
+    vault
+        .put("profiles", "p1", &Profile { name: "EU shop".into(), proxy: "http://u:p@eu:8080".into() })
+        .await?;
+    let profiles: Vec<(String, Profile)> = vault.list("profiles").await?;
+    let _ = profiles;
+    Ok(())
+}
 ```
 
 - **Collections and ids** (`profiles`, `p1`) are stored in the clear; the

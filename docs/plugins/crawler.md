@@ -117,7 +117,7 @@ let options = LaunchOptions::builder()
     .headless(true)
     .plugin_selection(&selection)
     .build()?;
-# Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
+Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 ```
 
 `build()` reports a mistake in the name or the options as
@@ -368,7 +368,7 @@ let crawler = Crawler::configure(&json!({
 }))?;
 let set = PluginSet::strict().with(crawler)?;
 assert_eq!(set.task_names(), ["crawler"]);
-# Ok::<(), seleniumbase_rs_plugin::PluginError>(())
+Ok::<(), seleniumbase_rs_plugin::PluginError>(())
 ```
 
 The plugin's own `tests/crawler.rs` drives a whole crawl against a fake tab.

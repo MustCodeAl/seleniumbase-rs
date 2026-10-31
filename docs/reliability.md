@@ -103,14 +103,14 @@ network and download failures, wait timeouts):
 ```rust
 use seleniumbase_rs::{RetryPolicy, SeleniumBaseError};
 
-# async fn fetch() -> Result<String, SeleniumBaseError> { Ok(String::new()) }
-# async fn demo() -> Result<(), SeleniumBaseError> {
-let body = RetryPolicy::network()
-    .retry(|| fetch(), SeleniumBaseError::is_transient)
-    .await?;
-# let _ = body;
-# Ok(())
-# }
+async fn fetch() -> Result<String, SeleniumBaseError> { Ok(String::new()) }
+async fn demo() -> Result<(), SeleniumBaseError> {
+    let body = RetryPolicy::network()
+        .retry(|| fetch(), SeleniumBaseError::is_transient)
+        .await?;
+    let _ = body;
+    Ok(())
+}
 ```
 
 The presets all double the wait after each attempt, up to a longest wait:
@@ -148,13 +148,13 @@ until it is displayed, and `get_text` and `submit` until it exists. When you nee
 finer control, use explicit waits:
 
 ```rust,no_run
-# use seleniumbase_rs::BaseCase;
-# async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-sb.wait_for_element_visible("#submit", 10).await?;
-sb.wait_for_text("Order confirmed", "body", 15).await?;
-sb.wait_for_element_not_visible(".spinner", 10).await?;
-# Ok(())
-# }
+use seleniumbase_rs::BaseCase;
+async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    sb.wait_for_element_visible("#submit", 10).await?;
+    sb.wait_for_text("Order confirmed", "body", 15).await?;
+    sb.wait_for_element_not_visible(".spinner", 10).await?;
+    Ok(())
+}
 ```
 
 <Tip>
@@ -230,18 +230,18 @@ When a test fails, the most useful diagnostic data is often the state of the
 browser at the moment of failure:
 
 ```rust,no_run
-# use seleniumbase_rs::BaseCase;
-# async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-match sb.assert_text_visible("Welcome!", "body").await {
-    Ok(()) => {}
-    Err(e) => {
-        let _ = sb.save_screenshot_to_logs().await;
-        let _ = sb.save_page_source_to_logs().await;
-        return Err(e);
+use seleniumbase_rs::BaseCase;
+async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    match sb.assert_text_visible("Welcome!", "body").await {
+        Ok(()) => {}
+        Err(e) => {
+            let _ = sb.save_screenshot_to_logs().await;
+            let _ = sb.save_page_source_to_logs().await;
+            return Err(e);
+        }
     }
+    Ok(())
 }
-# Ok(())
-# }
 ```
 
 The files go to the `latest_logs` folder of the working directory, named
@@ -286,16 +286,16 @@ use seleniumbase_rs::common::shutdown::{
     cleanup_within, run_until_shutdown, timeout_from_env, Outcome,
 };
 
-# async fn run_tests() {}
-# async fn close_browsers() {}
-# async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-match run_until_shutdown(run_tests()).await? {
-    Outcome::Completed(()) => {}
-    Outcome::Interrupted(signal) => eprintln!("{signal} received; closing browsers"),
+async fn run_tests() {}
+async fn close_browsers() {}
+async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    match run_until_shutdown(run_tests()).await? {
+        Outcome::Completed(()) => {}
+        Outcome::Interrupted(signal) => eprintln!("{signal} received; closing browsers"),
+    }
+    cleanup_within(timeout_from_env(), close_browsers()).await;
+    Ok(())
 }
-cleanup_within(timeout_from_env(), close_browsers()).await;
-# Ok(())
-# }
 ```
 
 Dropping a `BrowserSession` (and so a `BaseCase`) that was not quit starts its

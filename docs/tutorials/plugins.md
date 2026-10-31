@@ -83,18 +83,18 @@ use seleniumbase_rs::plugin_api::PluginSet;
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
 use seleniumbase_rs_plugin_block_resources::BlockResources;
 
-# async fn demo() -> Result<(), Box<dyn std::error::Error>> {
-let plugins = PluginSet::new().with(BlockResources::images_and_fonts())?;
-let options = LaunchOptions::builder()
-    .headless(true)
-    .plugins(plugins)
-    .build()?;
-let browser = Browser::launch(options).await?;
-let page = browser.default_page().await?;
-page.goto("https://example.com").await?; // no images, no web fonts
-browser.close().await?;
-# Ok(())
-# }
+async fn demo() -> Result<(), Box<dyn std::error::Error>> {
+    let plugins = PluginSet::new().with(BlockResources::images_and_fonts())?;
+    let options = LaunchOptions::builder()
+        .headless(true)
+        .plugins(plugins)
+        .build()?;
+    let browser = Browser::launch(options).await?;
+    let page = browser.default_page().await?;
+    page.goto("https://example.com").await?; // no images, no web fonts
+    browser.close().await?;
+    Ok(())
+}
 ```
 
 To attach to a browser that is already running, use
@@ -112,13 +112,13 @@ use seleniumbase_rs::plugin_api::PluginSet;
 use seleniumbase_rs::{BaseCase, BrowserConfig};
 use seleniumbase_rs_plugin_block_resources::BlockResources;
 
-# async fn demo() -> Result<(), Box<dyn std::error::Error>> {
-let plugins = PluginSet::new().with(BlockResources::images_and_fonts())?;
-let mut sb = BaseCase::new(BrowserConfig::default().with_plugins(plugins)).await?;
-sb.open("https://example.com").await?; // no images, no web fonts
-sb.quit().await?;
-# Ok(())
-# }
+async fn demo() -> Result<(), Box<dyn std::error::Error>> {
+    let plugins = PluginSet::new().with(BlockResources::images_and_fonts())?;
+    let mut sb = BaseCase::new(BrowserConfig::default().with_plugins(plugins)).await?;
+    sb.open("https://example.com").await?; // no images, no web fonts
+    sb.quit().await?;
+    Ok(())
+}
 ```
 
 `BrowserSession::connect` takes the same configuration. Chrome and the other
@@ -288,20 +288,20 @@ use seleniumbase_rs::plugin_api::PluginSet;
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, MockCtrl};
 use seleniumbase_rs::json::json;
 
-# async fn demo() -> Result<(), Box<dyn std::error::Error>> {
-let mock = MockCtrl::new();
-mock.reply("Browser.getVersion", json!({ "product": "Chrome/155.0" }));
-let options = LaunchOptions::builder()
-    .plugins(PluginSet::new().with(German)?)
-    .build()?;
-let browser = Browser::launch_mocked(options, &mock).await?;
+async fn demo() -> Result<(), Box<dyn std::error::Error>> {
+    let mock = MockCtrl::new();
+    mock.reply("Browser.getVersion", json!({ "product": "Chrome/155.0" }));
+    let options = LaunchOptions::builder()
+        .plugins(PluginSet::new().with(German)?)
+        .build()?;
+    let browser = Browser::launch_mocked(options, &mock).await?;
 
-let timezone = mock.calls_to("Emulation.setTimezoneOverride");
-assert_eq!(timezone.len(), 1, "the first tab got it");
-assert_eq!(timezone[0].params["timezoneId"], "Europe/Berlin");
-browser.close().await?;
-# Ok(())
-# }
+    let timezone = mock.calls_to("Emulation.setTimezoneOverride");
+    assert_eq!(timezone.len(), 1, "the first tab got it");
+    assert_eq!(timezone[0].params["timezoneId"], "Europe/Berlin");
+    browser.close().await?;
+    Ok(())
+}
 ```
 
 ## More hooks

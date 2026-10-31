@@ -91,14 +91,14 @@ suffix), `capslock`, `f1` to `f12`, or any single character. An unknown name
 returns a `SeleniumBaseError::Gui` error.
 
 ```rust,no_run
-# #[cfg(feature = "gui")]
-# fn demo(sb: &mut seleniumbase_rs::BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-sb.gui_click_x_y(100, 200)?;
-sb.gui_write("hello world")?;
-sb.gui_press_keys(&["command", "a"])?; // select all; use "ctrl" instead of "command" off macOS
-sb.gui_press_key("delete")?;
-# Ok(())
-# }
+#[cfg(feature = "gui")]
+fn demo(sb: &mut seleniumbase_rs::BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    sb.gui_click_x_y(100, 200)?;
+    sb.gui_write("hello world")?;
+    sb.gui_press_keys(&["command", "a"])?; // select all; use "ctrl" instead of "command" off macOS
+    sb.gui_press_key("delete")?;
+    Ok(())
+}
 ```
 
 `seleniumbase_rs::Gui` is the same wrapper without a browser: `Gui::new()?`
@@ -124,14 +124,14 @@ element with `document.querySelector`, so they take a CSS selector only.
 ## Example
 
 ```rust,no_run
-# #[cfg(feature = "gui")]
-# fn demo(sb: &mut seleniumbase_rs::BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-// Focus the browser address bar with Ctrl+L and type a URL
-sb.gui_press_keys(&["control", "l"])?;
-sb.gui_write("https://seleniumbase.io")?;
-sb.gui_press_key("return")?;
-# Ok(())
-# }
+#[cfg(feature = "gui")]
+fn demo(sb: &mut seleniumbase_rs::BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    // Focus the browser address bar with Ctrl+L and type a URL
+    sb.gui_press_keys(&["control", "l"])?;
+    sb.gui_write("https://seleniumbase.io")?;
+    sb.gui_press_key("return")?;
+    Ok(())
+}
 ```
 
 ## Limitations

@@ -143,7 +143,7 @@ let settings = Settings::load()?;
 let options = LaunchOptions::builder()
     .plugin_selection(&settings.plugins)
     .build()?;
-# Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
+Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 ```
 
 </Tab>
@@ -159,7 +159,7 @@ let settings = Settings::load()?;
 let config = settings
     .to_browser_config()
     .with_plugin_selection(&settings.plugins)?;
-# Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
+Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 ```
 
 </Tab>
@@ -426,7 +426,7 @@ let options = LaunchOptions::builder()
             .with_options("shield", json!({ "level": "strict" })),
     )
     .build()?;
-# Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
+Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 ```
 
 `plugins_named` and `plugin_selection` only record the names. `build()` resolves
@@ -446,7 +446,7 @@ use seleniumbase_rs::plugin_host;
 let registry = plugin_host::builtin_registry();
 let set = plugin_host::build_with(&registry, &Default::default())?;
 assert!(set.is_empty());
-# Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
+Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 ```
 
 A set built from names is **strict**: it refuses a plugin that declares no

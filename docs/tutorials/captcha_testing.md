@@ -410,33 +410,33 @@ a page with Turnstile and hCaptcha it would press Turnstile even when the test
 meant hCaptcha. A test key gives a known token, so the test can assert it:
 
 ```rust,no_run
-# use seleniumbase_rs::sb_cdp::{Captcha, Page, State};
-# use seleniumbase_rs::SeleniumBaseError;
-# // `press_until_token` is the helper from the listing above.
-# async fn press_until_token(_: &Page, _: Captcha, _: &str) -> Result<String, SeleniumBaseError> {
-#     unimplemented!()
-# }
-# async fn demo(page: Page) -> Result<(), SeleniumBaseError> {
-// hCaptcha, Publisher or Pro test key, on the hCaptcha fixture.
-page.goto("http://127.0.0.1:8765/hcaptcha.html").await?;
-page.locator(r#"iframe[src*="hcaptcha.com"][src*="checkbox"]"#)
-    .wait_for(State::Visible)
-    .await?;
-let field = r#"textarea[name="h-captcha-response"]"#;
-let token = press_until_token(&page, Captcha::Hcaptcha, field).await?;
-assert_eq!(token, "10000000-aaaa-bbbb-cccc-000000000001");
+use seleniumbase_rs::sb_cdp::{Captcha, Page, State};
+use seleniumbase_rs::SeleniumBaseError;
+// `press_until_token` is the helper from the listing above.
+async fn press_until_token(_: &Page, _: Captcha, _: &str) -> Result<String, SeleniumBaseError> {
+    unimplemented!()
+}
+async fn demo(page: Page) -> Result<(), SeleniumBaseError> {
+    // hCaptcha, Publisher or Pro test key, on the hCaptcha fixture.
+    page.goto("http://127.0.0.1:8765/hcaptcha.html").await?;
+    page.locator(r#"iframe[src*="hcaptcha.com"][src*="checkbox"]"#)
+        .wait_for(State::Visible)
+        .await?;
+    let field = r#"textarea[name="h-captcha-response"]"#;
+    let token = press_until_token(&page, Captcha::Hcaptcha, field).await?;
+    assert_eq!(token, "10000000-aaaa-bbbb-cccc-000000000001");
 
-// Turnstile, the key that forces an interactive challenge (3x...FF), on a page
-// of its own. Wait for the container to be visible, not only to exist: the
-// empty div has no height until the widget starts to draw (unless your CSS
-// gives it one), and solve_captcha skips a widget without a size.
-page.goto("http://127.0.0.1:8765/turnstile.html").await?;
-page.locator(".cf-turnstile").wait_for(State::Visible).await?;
-let field = r#"input[name="cf-turnstile-response"]"#;
-let token = press_until_token(&page, Captcha::Turnstile, field).await?;
-assert_eq!(token, "XXXX.DUMMY.TOKEN.XXXX");
-# Ok(())
-# }
+    // Turnstile, the key that forces an interactive challenge (3x...FF), on a page
+    // of its own. Wait for the container to be visible, not only to exist: the
+    // empty div has no height until the widget starts to draw (unless your CSS
+    // gives it one), and solve_captcha skips a widget without a size.
+    page.goto("http://127.0.0.1:8765/turnstile.html").await?;
+    page.locator(".cf-turnstile").wait_for(State::Visible).await?;
+    let field = r#"input[name="cf-turnstile-response"]"#;
+    let token = press_until_token(&page, Captcha::Turnstile, field).await?;
+    assert_eq!(token, "XXXX.DUMMY.TOKEN.XXXX");
+    Ok(())
+}
 ```
 
 A Turnstile key that always passes (`1x...AA`, `1x...BB`) needs no click: skip
@@ -502,13 +502,13 @@ replace step 2 with `solve_captcha`, which presses by position and never enters
 the frame:
 
 ```rust,no_run
-# use seleniumbase_rs::sb_cdp::Captcha;
-# use seleniumbase_rs::{BaseCase, SeleniumBaseError};
-# async fn demo(sb: &mut BaseCase) -> Result<(), SeleniumBaseError> {
-// From the top-level document, after the widget has drawn. Chromium only.
-assert_eq!(sb.solve_captcha().await?, Some(Captcha::Recaptcha));
-# Ok(())
-# }
+use seleniumbase_rs::sb_cdp::Captcha;
+use seleniumbase_rs::{BaseCase, SeleniumBaseError};
+async fn demo(sb: &mut BaseCase) -> Result<(), SeleniumBaseError> {
+    // From the top-level document, after the widget has drawn. Chromium only.
+    assert_eq!(sb.solve_captcha().await?, Some(Captcha::Recaptcha));
+    Ok(())
+}
 ```
 
 As in the pure CDP helper above, a press can come before the checkbox has

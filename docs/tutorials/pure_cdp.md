@@ -34,19 +34,19 @@ Summary for AI exports: `sb_cdp` drives Chrome directly over the DevTools Protoc
 ```rust,no_run
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
 
-# async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-let browser = Browser::launch(LaunchOptions::builder().headless(true).build()?).await?;
-let page = browser.default_page().await?;
+async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let browser = Browser::launch(LaunchOptions::builder().headless(true).build()?).await?;
+    let page = browser.default_page().await?;
 
-page.goto("seleniumbase.io/simple/login").await?; // https:// is added for you
-page.locator("#username").fill("demo_user").await?;
-page.locator("#password").fill("secret_pass").await?;
-page.locator("button").click().await?;
-page.locator("h1").expect().to_contain_text("Welcome").await?;
+    page.goto("seleniumbase.io/simple/login").await?; // https:// is added for you
+    page.locator("#username").fill("demo_user").await?;
+    page.locator("#password").fill("secret_pass").await?;
+    page.locator("button").click().await?;
+    page.locator("h1").expect().to_contain_text("Welcome").await?;
 
-browser.close().await?;
-# Ok(())
-# }
+    browser.close().await?;
+    Ok(())
+}
 ```
 
 <Note>
@@ -110,14 +110,14 @@ Enter.
 ## Waiting and asserting
 
 ```rust,no_run
-# use seleniumbase_rs::sb_cdp::{Page, State};
-# async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-page.locator(".spinner").wait_for(State::Absent).await?;
-page.locator("#result").expect().to_have_text("42").await?;
-page.locator(".error").expect().not().to_exist().await?;
-page.expect().to_contain_url("/done").await?;
-# Ok(())
-# }
+use seleniumbase_rs::sb_cdp::{Page, State};
+async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    page.locator(".spinner").wait_for(State::Absent).await?;
+    page.locator("#result").expect().to_have_text("42").await?;
+    page.locator(".error").expect().not().to_exist().await?;
+    page.expect().to_contain_url("/done").await?;
+    Ok(())
+}
 ```
 
 Expectations retry until they hold or the timeout passes; the error names the
@@ -128,11 +128,11 @@ locator and the state it was waiting for.
 A locator inside a frame is just a nested locator:
 
 ```rust,no_run
-# use seleniumbase_rs::sb_cdp::Page;
-# async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-page.locator("#payment").locator("button.pay").click().await?;
-# Ok(())
-# }
+use seleniumbase_rs::sb_cdp::Page;
+async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    page.locator("#payment").locator("button.pay").click().await?;
+    Ok(())
+}
 ```
 
 Frames nest to any depth, and clicks land at the right pixel. Python's
@@ -140,13 +140,13 @@ Frames nest to any depth, and clicks land at the right pixel. Python's
 is the same nested locator, and so are typing and reading:
 
 ```rust,no_run
-# use seleniumbase_rs::sb_cdp::Page;
-# async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-// Python: sb.cdp.nested_click("iframe#myFrame3", ".fBox")
-page.locator("iframe#myFrame3").locator(".fBox").click().await?;
-page.locator("iframe#myFrame3").locator("input").fill("typed in the frame").await?;
-# Ok(())
-# }
+use seleniumbase_rs::sb_cdp::Page;
+async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    // Python: sb.cdp.nested_click("iframe#myFrame3", ".fBox")
+    page.locator("iframe#myFrame3").locator(".fBox").click().await?;
+    page.locator("iframe#myFrame3").locator("input").fill("typed in the frame").await?;
+    Ok(())
+}
 ```
 
 It makes no difference where the frame comes from: the page's own origin, an
@@ -192,21 +192,21 @@ file or says why there is none:
 use std::time::Duration;
 use seleniumbase_rs::sb_cdp::Page;
 
-# async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-// A longer wait for big files: the wait is bounded by the page's timeout.
-let page = page.with_timeout(Duration::from_secs(60));
-page.goto("https://example.com/reports").await?;
-// Have the page fetch an address and save it (the page's cookies go along).
-let csv = page.download_file("https://example.com/export?id=3", "downloaded_files").await?;
-// Save it under a name you choose, replacing a file that is there.
-page.save_file_as("https://example.com/export?id=3", "out/report.csv").await?;
-// Click a link the server answers with `Content-Disposition: attachment`.
-let invoice = page.download_by_click("a#invoice", "downloaded_files").await?;
-// Wait for a file in the folder the browser saves to.
-page.assert_downloaded_file("invoice.pdf", Duration::from_secs(10)).await?;
-# let _ = (csv, invoice);
-# Ok(())
-# }
+async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    // A longer wait for big files: the wait is bounded by the page's timeout.
+    let page = page.with_timeout(Duration::from_secs(60));
+    page.goto("https://example.com/reports").await?;
+    // Have the page fetch an address and save it (the page's cookies go along).
+    let csv = page.download_file("https://example.com/export?id=3", "downloaded_files").await?;
+    // Save it under a name you choose, replacing a file that is there.
+    page.save_file_as("https://example.com/export?id=3", "out/report.csv").await?;
+    // Click a link the server answers with `Content-Disposition: attachment`.
+    let invoice = page.download_by_click("a#invoice", "downloaded_files").await?;
+    // Wait for a file in the folder the browser saves to.
+    page.assert_downloaded_file("invoice.pdf", Duration::from_secs(10)).await?;
+    let _ = (csv, invoice);
+    Ok(())
+}
 ```
 
 `download_file` names the file after the server's `Content-Disposition` header,
@@ -227,13 +227,13 @@ paced like a person's, for pages that watch how input arrives:
 use seleniumbase_rs::sb_cdp::Page;
 use seleniumbase_rs::evasion::behavior::Behavior;
 
-# async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-let person = page.human(Behavior::builder().typing_wpm(65.0).typo_rate(0.02).build()?);
-person.type_text(&page.locator("#search"), "rust cdp").await?;
-person.click(&page.locator("button[type=submit]")).await?;
-person.scroll_by(600.0).await?;
-# Ok(())
-# }
+async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let person = page.human(Behavior::builder().typing_wpm(65.0).typo_rate(0.02).build()?);
+    person.type_text(&page.locator("#search"), "rust cdp").await?;
+    person.click(&page.locator("button[type=submit]")).await?;
+    person.scroll_by(600.0).await?;
+    Ok(())
+}
 ```
 
 - **The pointer** travels along a curve with a bell-shaped speed (slow start,
@@ -274,23 +274,23 @@ use seleniumbase_rs::sb_cdp::{
     MessageOptions, MessageStyle, MessengerLocation, MessengerSettings, Page,
 };
 
-# async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-page.set_messenger_theme(MessengerSettings {
-    location: MessengerLocation::TopLeft,
-    ..MessengerSettings::default()
-})
-.await?;
-page.post_message(
-    "Logged in",
-    &MessageOptions {
-        style: MessageStyle::Success,
-        duration: Duration::from_secs(3),
-        ..MessageOptions::default()
-    },
-)
-.await?;
-# Ok(())
-# }
+async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    page.set_messenger_theme(MessengerSettings {
+        location: MessengerLocation::TopLeft,
+        ..MessengerSettings::default()
+    })
+    .await?;
+    page.post_message(
+        "Logged in",
+        &MessageOptions {
+            style: MessageStyle::Success,
+            duration: Duration::from_secs(3),
+            ..MessageOptions::default()
+        },
+    )
+    .await?;
+    Ok(())
+}
 ```
 
 The message is escaped before it is posted, so `<b>` appears as typed rather
@@ -312,19 +312,19 @@ They are Playwright's `addScriptTag`, `addStyleTag` and `addInitScript`; on
 ```rust,no_run
 use seleniumbase_rs::sb_cdp::{Page, TagSource};
 
-# async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-page.add_script_tag(TagSource::url(
-    "https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js",
-))
-.await?;
-page.add_style_tag(TagSource::content("header { display: none; }"))
+async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    page.add_script_tag(TagSource::url(
+        "https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js",
+    ))
     .await?;
+    page.add_style_tag(TagSource::content("header { display: none; }"))
+        .await?;
 
-let id = page.add_init_script("window.startedAt = Date.now();").await?;
-page.goto("https://example.com").await?; // runs before the page's scripts
-page.remove_init_script(&id).await?; // the next documents do without it
-# Ok(())
-# }
+    let id = page.add_init_script("window.startedAt = Date.now();").await?;
+    page.goto("https://example.com").await?; // runs before the page's scripts
+    page.remove_init_script(&id).await?; // the next documents do without it
+    Ok(())
+}
 ```
 
 A tag reaches only the current document, and a navigation drops it.
@@ -353,22 +353,22 @@ graph LR
 ```rust,no_run
 use seleniumbase_rs::sb_cdp::{Page, ResourceType, Response, Rule};
 
-# async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-let interception = page
-    .intercept(vec![
-        Rule::block().resource_type(ResourceType::Image).resource_type(ResourceType::Font),
-        Rule::fulfill(Response::json(200, &seleniumbase_rs::json::json!({ "plan": "pro" }))).url("*/api/account"),
-        Rule::modify().set_header("X-Test-Run", "42").url("https://example.com/*"),
-    ])
-    .await?;
+async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let interception = page
+        .intercept(vec![
+            Rule::block().resource_type(ResourceType::Image).resource_type(ResourceType::Font),
+            Rule::fulfill(Response::json(200, &seleniumbase_rs::json::json!({ "plan": "pro" }))).url("*/api/account"),
+            Rule::modify().set_header("X-Test-Run", "42").url("https://example.com/*"),
+        ])
+        .await?;
 
-page.goto("https://example.com").await?;
-for seen in interception.log() {
-    println!("{:?} {}", seen.outcome, seen.request.url);
+    page.goto("https://example.com").await?;
+    for seen in interception.log() {
+        println!("{:?} {}", seen.outcome, seen.request.url);
+    }
+    interception.stop().await?; // or just drop it
+    Ok(())
 }
-interception.stop().await?; // or just drop it
-# Ok(())
-# }
 ```
 
 A rule can match on a URL glob (`*` any run of characters, `?` one character),
@@ -395,23 +395,23 @@ mitmproxy open.
 ```rust,no_run
 use seleniumbase_rs::sb_cdp::{HarOptions, Page};
 
-# async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-let recorder = page.start_har().await?;
-page.goto("https://example.com").await?;
-let har = recorder.finish().await?;
+async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let recorder = page.start_har().await?;
+    page.goto("https://example.com").await?;
+    let har = recorder.finish().await?;
 
-for entry in &har.log.entries {
-    println!("{} {} {} ms", entry.response.status, entry.request.url, entry.time);
+    for entry in &har.log.entries {
+        println!("{} {} {} ms", entry.response.status, entry.request.url, entry.time);
+    }
+    har.save("example.har")?;
+
+    // With response bodies, each up to 256 KiB (the default limit is 1 MiB).
+    let recorder = page
+        .start_har_with(HarOptions::new().content(true).max_content_bytes(256 * 1024))
+        .await?;
+    let _ = recorder;
+    Ok(())
 }
-har.save("example.har")?;
-
-// With response bodies, each up to 256 KiB (the default limit is 1 MiB).
-let recorder = page
-    .start_har_with(HarOptions::new().content(true).max_content_bytes(256 * 1024))
-    .await?;
-# let _ = recorder;
-# Ok(())
-# }
 ```
 
 Start the recorder before the navigation you want to see: only what happens
@@ -460,17 +460,17 @@ context's tabs only:
 ```rust,no_run
 use seleniumbase_rs::sb_cdp::{Browser, ContextOptions, Proxy};
 
-# async fn demo(browser: Browser) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-let context = browser
-    .new_context_with(
-        ContextOptions::new()
-            .proxy(Proxy::parse("alice:s3cret@proxy.example.com:8080")?)
-            .bypass("*.internal.example.com"),
-    )
-    .await?;
-let page = context.new_page_at("https://example.com").await?;
-# Ok(())
-# }
+async fn demo(browser: Browser) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let context = browser
+        .new_context_with(
+            ContextOptions::new()
+                .proxy(Proxy::parse("alice:s3cret@proxy.example.com:8080")?)
+                .bypass("*.internal.example.com"),
+        )
+        .await?;
+    let page = context.new_page_at("https://example.com").await?;
+    Ok(())
+}
 ```
 
 The password is never sent to Chrome except in the reply to the proxy's own
@@ -485,25 +485,25 @@ Each `acquire()` returns a `Lease`: its own isolated context and a tab.
 ```rust,no_run
 use seleniumbase_rs::sb_cdp::{BrowserPool, LaunchOptions, PoolOptions};
 
-# async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-let pool = BrowserPool::new(
-    LaunchOptions::builder().headless(true).build()?,
-    PoolOptions::builder().max_browsers(2).contexts_per_browser(4).build()?,
-);
+async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let pool = BrowserPool::new(
+        LaunchOptions::builder().headless(true).build()?,
+        PoolOptions::builder().max_browsers(2).contexts_per_browser(4).build()?,
+    );
 
-let worker = pool.acquire().await?;       // waits its turn if the pool is full
-worker.page().goto("https://example.com/login").await?;
-// ... sign in ...
-worker.save_session("alice").await?;      // cookies and local storage, in memory
-worker.release().await;                   // discards the context
+    let worker = pool.acquire().await?;       // waits its turn if the pool is full
+    worker.page().goto("https://example.com/login").await?;
+    // ... sign in ...
+    worker.save_session("alice").await?;      // cookies and local storage, in memory
+    worker.release().await;                   // discards the context
 
-let another = pool.acquire().await?;
-another.page().goto("https://example.com").await?;
-another.load_session("alice").await?;     // signed in, without logging in again
-another.release().await;
-pool.close().await;
-# Ok(())
-# }
+    let another = pool.acquire().await?;
+    another.page().goto("https://example.com").await?;
+    another.load_session("alice").await?;     // signed in, without logging in again
+    another.release().await;
+    pool.close().await;
+    Ok(())
+}
 ```
 
 - **Bounded and fair.** The pool never holds more than `max_browsers *
@@ -535,15 +535,15 @@ page can learn:
 ```rust,no_run
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
 
-# async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-let browser = Browser::launch(
-    LaunchOptions::builder().shield_webrtc(true).build()?,
-)
-.await?;
-let page = browser.default_page().await?;
-assert!(page.webrtc_report().await?.is_clean());
-# Ok(())
-# }
+async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let browser = Browser::launch(
+        LaunchOptions::builder().shield_webrtc(true).build()?,
+    )
+    .await?;
+    let page = browser.default_page().await?;
+    assert!(page.webrtc_report().await?.is_clean());
+    Ok(())
+}
 ```
 
 - **By default** Chrome is left alone. On a typical machine the report lists
@@ -572,17 +572,17 @@ match:
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
 use seleniumbase_rs::{Fingerprint, OsType};
 
-# async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-let fingerprint = Fingerprint::randomized(OsType::Windows, 42);
-let browser = Browser::launch(
-    LaunchOptions::builder().fingerprint(&fingerprint).build()?,
-)
-.await?;
-let page = browser.default_page().await?;
-page.goto("https://example.com").await?;
-// A page now reads a Windows user agent, a Sydney time zone, and so on.
-# Ok(())
-# }
+async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let fingerprint = Fingerprint::randomized(OsType::Windows, 42);
+    let browser = Browser::launch(
+        LaunchOptions::builder().fingerprint(&fingerprint).build()?,
+    )
+    .await?;
+    let page = browser.default_page().await?;
+    page.goto("https://example.com").await?;
+    // A page now reads a Windows user agent, a Sydney time zone, and so on.
+    Ok(())
+}
 ```
 
 `page.apply_fingerprint(&fingerprint)` does the same for one tab, for the pages
@@ -667,16 +667,16 @@ with the machine's own pointer, as Python's `gui_click_captcha` does with
 PyAutoGUI:
 
 ```rust,no_run
-# #[cfg(feature = "gui")]
-# async fn demo(page: seleniumbase_rs::sb_cdp::Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-// Where the pointer would go, without moving it (and without a click):
-if let Some(plan) = page.gui_captcha_plan().await? {
-    println!("{} at {:?}", plan.captcha, plan.press);
+#[cfg(feature = "gui")]
+async fn demo(page: seleniumbase_rs::sb_cdp::Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    // Where the pointer would go, without moving it (and without a click):
+    if let Some(plan) = page.gui_captcha_plan().await? {
+        println!("{} at {:?}", plan.captcha, plan.press);
+    }
+    // Move the real pointer there along a human path and click.
+    page.gui_click_captcha().await?;
+    Ok(())
 }
-// Move the real pointer there along a human path and click.
-page.gui_click_captcha().await?;
-# Ok(())
-# }
 ```
 
 It brings the window to the front, works out the checkbox's position on the

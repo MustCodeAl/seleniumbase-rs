@@ -114,7 +114,7 @@ let options = LaunchOptions::builder()
     .headless(true)
     .plugin_selection(&selection)
     .build()?;
-# Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
+Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 ```
 
 `build()` reports a mistake in the name or the options as
@@ -240,7 +240,7 @@ let plugins = PluginSet::new().with_shared(fetcher.clone())?;
 for record in fetcher.take_captured() {
     println!("{} {} {}", record.method, record.url, record.status);
 }
-# Ok::<(), seleniumbase_rs::plugin_api::PluginError>(())
+Ok::<(), seleniumbase_rs::plugin_api::PluginError>(())
 ```
 
 `captured()` returns the log without emptying it, `take_captured()` empties it,
@@ -360,7 +360,7 @@ let fetcher = Fetcher::configure(&json!({ "strip": ["image"] }))?;
 let set = PluginSet::strict().with(fetcher)?;
 let image = RequestView::new("https://a.test/x.png", "GET", ResourceKind::Image);
 assert!(matches!(drive_request(&set, image), seleniumbase_rs_plugin::RequestDecision::Block(_)));
-# Ok::<(), seleniumbase_rs_plugin::PluginError>(())
+Ok::<(), seleniumbase_rs_plugin::PluginError>(())
 ```
 
 For the task, `VecSink` collects the lines, `RecordingPage::evaluating(text, reply)`

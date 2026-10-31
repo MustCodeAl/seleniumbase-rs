@@ -325,25 +325,25 @@ use seleniumbase_rs::{
     import_python, ImportOptions, ImportResult, PythonSource,
 };
 
-# fn main() -> Result<(), Box<dyn std::error::Error>> {
-let python = std::fs::read_to_string("tests/login_test.py")?;
-let result: ImportResult = import_python(
-    &python,
-    &ImportOptions {
-        source: PythonSource::Auto,
-        test_name: "login".to_owned(),
-    },
-);
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let python = std::fs::read_to_string("tests/login_test.py")?;
+    let result: ImportResult = import_python(
+        &python,
+        &ImportOptions {
+            source: PythonSource::Auto,
+            test_name: "login".to_owned(),
+        },
+    );
 
-println!("{}", result.rust);
-for diagnostic in &result.diagnostics {
-    eprintln!("{:?} at line {}: {}", diagnostic.severity, diagnostic.line, diagnostic.message);
+    println!("{}", result.rust);
+    for diagnostic in &result.diagnostics {
+        eprintln!("{:?} at line {}: {}", diagnostic.severity, diagnostic.line, diagnostic.message);
+    }
+    if !result.is_complete() {
+        eprintln!("error-level diagnostics: review the TODO comments");
+    }
+    Ok(())
 }
-if !result.is_complete() {
-    eprintln!("error-level diagnostics: review the TODO comments");
-}
-# Ok(())
-# }
 ```
 
 `result.detected_source` says which API family the importer assumed, and

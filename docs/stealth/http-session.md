@@ -27,15 +27,15 @@ Summary for AI exports: `HttpSession` (crate `seleniumbase-rs-mimic`) sends plai
 use seleniumbase_rs_stealth::mimic::{HttpOptions, HttpSession};
 use seleniumbase_rs_stealth::sb_cdp::Page;
 
-# async fn demo(page: Page) -> Result<(), Box<dyn std::error::Error>> {
-let session = HttpSession::from_page(&page, None, HttpOptions::new()).await?;
-let reply = session.get("https://example.com/api/orders").await?;
-let orders: serde_json::Value = reply.json()?;
-println!("{orders}");
-// Write the cookies that responses set back into the browser.
-session.sync_cookies_back(&page).await?;
-# Ok(())
-# }
+async fn demo(page: Page) -> Result<(), Box<dyn std::error::Error>> {
+    let session = HttpSession::from_page(&page, None, HttpOptions::new()).await?;
+    let reply = session.get("https://example.com/api/orders").await?;
+    let orders: serde_json::Value = reply.json()?;
+    println!("{orders}");
+    // Write the cookies that responses set back into the browser.
+    session.sync_cookies_back(&page).await?;
+    Ok(())
+}
 ```
 
 ## Making one
@@ -78,17 +78,17 @@ is reported there.
 use seleniumbase_rs_stealth::mimic::{HttpSession, Method};
 use seleniumbase_rs_stealth::codec::header_spec::RequestShape;
 
-# async fn demo(session: HttpSession) -> Result<(), Box<dyn std::error::Error>> {
-let reply = session
-    .request(Method::POST, "https://example.com/api/search")
-    .shape(RequestShape::Fetch)
-    .header("x-requested-with", "XMLHttpRequest")
-    .json(&serde_json::json!({ "q": "shoes" }))
-    .send()
-    .await?;
-println!("{}: {}", reply.status(), reply.text()?);
-# Ok(())
-# }
+async fn demo(session: HttpSession) -> Result<(), Box<dyn std::error::Error>> {
+    let reply = session
+        .request(Method::POST, "https://example.com/api/search")
+        .shape(RequestShape::Fetch)
+        .header("x-requested-with", "XMLHttpRequest")
+        .json(&serde_json::json!({ "q": "shoes" }))
+        .send()
+        .await?;
+    println!("{}: {}", reply.status(), reply.text()?);
+    Ok(())
+}
 ```
 
 - `GET` and `HEAD` carry the headers of a navigation (`RequestShape::Document`),
@@ -171,17 +171,17 @@ refuses a value out of range before a client exists.
   use seleniumbase_rs_stealth::mimic::HttpSession;
   use seleniumbase_rs_stealth::scrape::StealthIdentity;
 
-  # async fn demo(session: HttpSession, identity: StealthIdentity) -> Result<(), Box<dyn std::error::Error>> {
-  let fetched = session
-      .fetch("https://example.com/", &Attempt::default(), &Rules::default(), &identity)
-      .await?;
-  if fetched.verdict.is_clear() {
-      println!("{}", fetched.reply.text()?);
-  } else {
-      println!("{:?}", fetched.verdict);
+  async fn demo(session: HttpSession, identity: StealthIdentity) -> Result<(), Box<dyn std::error::Error>> {
+      let fetched = session
+          .fetch("https://example.com/", &Attempt::default(), &Rules::default(), &identity)
+          .await?;
+      if fetched.verdict.is_clear() {
+          println!("{}", fetched.reply.text()?);
+      } else {
+          println!("{:?}", fetched.verdict);
+      }
+      Ok(())
   }
-  # Ok(())
-  # }
   ```
 - **Identity.** `export_identity(&base)` puts the session's cookies back into a
   `StealthIdentity` and refreshes its clearances. `egress()` is the exit without

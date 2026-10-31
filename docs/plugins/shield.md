@@ -79,7 +79,7 @@ let options = LaunchOptions::builder()
     .headless(true)
     .plugins_named(["shield"])
     .build()?;
-# Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
+Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 ```
 
 </Tab>

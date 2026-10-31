@@ -255,13 +255,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 The recorder produces method calls such as:
 
 ```rust,no_run
-# use seleniumbase_rs::BaseCase;
-# async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-sb.click("#myButton").await?;
-sb.type_text("#myInput", "hello").await?;
-sb.assert_text("Success!", "body").await?;
-# Ok(())
-# }
+use seleniumbase_rs::BaseCase;
+async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    sb.click("#myButton").await?;
+    sb.type_text("#myInput", "hello").await?;
+    sb.assert_text("Success!", "body").await?;
+    Ok(())
+}
 ```
 
 <Warning>
@@ -338,11 +338,11 @@ Recorder Mode and `sbrs mkrec` write the actions as `recordings/NAME_rec.json`. 
 can also save the calls it made as JSON. From code:
 
 ```rust,no_run
-# use seleniumbase_rs::BaseCase;
-# fn demo(sb: &BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-sb.save_recording_json("recorded.json")?;
-# Ok(())
-# }
+use seleniumbase_rs::BaseCase;
+fn demo(sb: &BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    sb.save_recording_json("recorded.json")?;
+    Ok(())
+}
 ```
 
 The file goes in the `latest_logs` folder (the name must be a plain file name),

@@ -40,7 +40,7 @@ use seleniumbase_rs_plugin::PluginSet;
 use seleniumbase_rs_plugin_wasm::WasmPlugin;
 
 let plugins = PluginSet::new().with(WasmPlugin::from_file("hello.wasm")?)?;
-# Ok::<(), Box<dyn std::error::Error>>(())
+Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
 `WasmPlugin::from_bytes` takes the module from memory instead, and

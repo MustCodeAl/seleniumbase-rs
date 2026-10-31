@@ -41,7 +41,7 @@ use seleniumbase_rs_plugin::PluginSet;
 use seleniumbase_rs_plugin_crx::CrxExtensions;
 
 let plugins = PluginSet::new().with(CrxExtensions::new(["extensions/dark-reader.crx"]))?;
-# Ok::<(), seleniumbase_rs_plugin::PluginError>(())
+Ok::<(), seleniumbase_rs_plugin::PluginError>(())
 ```
 
 Give the set to `LaunchOptionsBuilder::plugins`, as shown in the

@@ -178,10 +178,10 @@ which panics on failure.
 ```rust,no_run
 use seleniumbase_rs::sb_fill_form;
 
-# async fn demo(sb: &mut seleniumbase_rs::BaseCase) -> seleniumbase_rs::Result<()> {
-sb_fill_form!(sb, "#username" => "alice", "#password" => "secret")?;
-# Ok(())
-# }
+async fn demo(sb: &mut seleniumbase_rs::BaseCase) -> seleniumbase_rs::Result<()> {
+    sb_fill_form!(sb, "#username" => "alice", "#password" => "secret")?;
+    Ok(())
+}
 ```
 
 `sb_with_timeout!` temporarily sets the default wait timeout (the one the
@@ -192,13 +192,13 @@ afterwards. The block must produce a `Result`, and the macro returns that
 ```rust,no_run
 use seleniumbase_rs::{sb_click, sb_wait_for, sb_with_timeout};
 
-# async fn demo(sb: &mut seleniumbase_rs::BaseCase) -> seleniumbase_rs::Result<()> {
-sb_with_timeout!(sb, 30, {
-    sb_wait_for!(sb, "#slow-element")?;
-    sb_click!(sb, "#slow-element")
-})?;
-# Ok(())
-# }
+async fn demo(sb: &mut seleniumbase_rs::BaseCase) -> seleniumbase_rs::Result<()> {
+    sb_with_timeout!(sb, 30, {
+        sb_wait_for!(sb, "#slow-element")?;
+        sb_click!(sb, "#slow-element")
+    })?;
+    Ok(())
+}
 ```
 
 A complete test with the macros (each action macro ends in `?`):
