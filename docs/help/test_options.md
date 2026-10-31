@@ -47,7 +47,8 @@ the variables you exported yourself.
   flag after `test` wins over them.
 - **Switches.** A switch is `--flag`, which is true, or `--flag=false`, so a
   setting the file or the environment turned on can be turned off for one run.
-  Write the value with `=`: `--headless false` reads `false` as the test filter.
+  Write the value with `=`, as the help shows it (`--headless[=HEADLESS]`): a
+  separate word is not read as the value.
 - **Spellings.** Every flag is accepted with `-` and with `_`
   (`--no_sandbox`, `--demo_sleep=2`) and under each of Python's aliases. The
   name before each entry below is the one `sbrs test --help` shows; its other
