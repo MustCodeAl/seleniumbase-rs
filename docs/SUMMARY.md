@@ -135,6 +135,7 @@ hidden: true
   - [Consumer contracts](contributing/consumers.md)
   - [Debugging](contributing/debugging.md)
   - [Benchmarking](contributing/benchmarking.md)
+  - [Code coverage](contributing/coverage.md)
   - [Syncing with upstream](UPSTREAM_SYNC.md)
   - [API parity table](parity.md)
   - [Stealth and impersonation plan](design/stealth_parity_plan.md)

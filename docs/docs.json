@@ -626,6 +626,7 @@
               "DEVELOPER_GUIDE",
               "contributing/debugging",
               "contributing/benchmarking",
+              "contributing/coverage",
               "contributing/releasing",
               "contributing/consumers",
               "UPSTREAM_SYNC",
