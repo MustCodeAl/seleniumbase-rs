@@ -12,7 +12,6 @@
 //! the attached client inherits it.
 
 use std::fmt;
-
 use std::path::Path;
 
 use rustwright::{

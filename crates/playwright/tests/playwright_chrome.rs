@@ -18,7 +18,7 @@ use seleniumbase_rs::{Fingerprint, SeleniumBaseError};
 use seleniumbase_rs_playwright::{PlaywrightSession, StealthyPlaywright};
 
 const PAGE: &str = "<!doctype html><html><head><title>Playwright</title></head>\
-                    <body><h1 id=\"title\">hello</h1></body></html>";
+                    <body><h1 id=\"title\">hello</h1><input id=\"name\"></body></html>";
 
 /// Serves one page on a loopback port.
 fn serve() -> u16 {
@@ -189,6 +189,55 @@ async fn a_missing_element_is_reported_as_not_found() {
         matches!(error, SeleniumBaseError::ElementNotFound { .. }),
         "{error:?}"
     );
+
+    stealthy.close().await.expect("Chrome closes");
+}
+
+#[tokio::test]
+#[ignore = "launches a real Chrome and attaches rustwright to it"]
+async fn the_page_actions_fill_read_evaluate_and_capture_the_attached_page() {
+    let port = serve();
+    let stealthy = StealthyPlaywright::launch(headless())
+        .await
+        .expect("the browser starts and rustwright attaches");
+    let session = stealthy.playwright();
+    session
+        .goto(&format!("http://127.0.0.1:{port}/"))
+        .await
+        .expect("the page loads");
+    assert!(session.is_connected() && session.browser().is_connected());
+
+    session
+        .type_text("#name", "Ada")
+        .await
+        .expect("the field is filled");
+    assert_eq!(
+        session
+            .evaluate("document.querySelector('#name').value")
+            .await
+            .expect("script runs"),
+        json!("Ada")
+    );
+
+    // Everything else rustwright can do is reached through the closure, which gets a clone of
+    // the page handle that `page()` lends.
+    let _engine_page: seleniumbase_rs_playwright::rustwright::Page = session.page().clone();
+    let title = session
+        .with_page(|page| page.title(Default::default()))
+        .await
+        .expect("the title");
+    assert_eq!(title, "Playwright");
+
+    let shot = std::env::temp_dir().join(format!("sbrs-playwright-{port}.png"));
+    session
+        .screenshot(&shot)
+        .await
+        .expect("the screenshot is written");
+    assert!(shot.metadata().expect("the file exists").len() > 0);
+    let _ = std::fs::remove_file(&shot);
+
+    // The endpoint for other clients is the one the session attached to.
+    assert_eq!(stealthy.endpoint().http_url(), stealthy.cdp().http_url());
 
     stealthy.close().await.expect("Chrome closes");
 }
