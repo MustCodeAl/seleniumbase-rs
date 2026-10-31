@@ -62,14 +62,13 @@ the variables you exported yourself.
 <Note>
 
 `-k`, `-m`, `-n`, `-s`, `--co`, `--collect-only`, `--reruns`, `--reruns-delay`,
-`--time-limit`, `--pdb`, `--trace` and the other debug flags are options of
-pytest itself and of its plugins, not of SeleniumBase's own plugin. They are
-flags of `sbrs test` as well, with the meaning described in the **Run control**
-and **Debug modes** groups below; `sbrs test --help` lists them. Of the options
-of Python's pytest plugin that this page names, `--env`, `--account`, `--data`,
-`--var1` to `--var3`, `--variables` and the browser options all have a row in
-the table of options. The ones that do nothing here are listed under [Accepted
-and ignored](#accepted-and-ignored).
+`--pdb` and `--trace` are options of pytest itself and of its plugins
+(pytest-xdist, pytest-rerunfailures), not of SeleniumBase's own plugin, so the
+[parity table](/parity) has no entry for them. They are flags of `sbrs test` all
+the same, with the meaning described in the **Run control** and **Debug modes**
+groups below; `sbrs test --help` lists them. Every option of SeleniumBase's
+plugin has a row in the table of options. The ones that do nothing here are
+listed under [Accepted and ignored](#accepted-and-ignored).
 
 </Note>
 
@@ -403,6 +402,11 @@ path. `SB_DATABASE_ENV`, key `database_env`.
 <ParamField path="--with-s3-logging" type="switch">
 
 Upload each test's logs to S3. `SB_WITH_S3_LOGGING`, key `with_s3_logging`.
+When a test ends, its `latest_logs/<test id>/` folder goes to the bucket
+`SB_S3_BUCKET` names (region `SB_S3_REGION`, else `AWS_REGION`, else
+`us-east-1`; key prefix `SB_S3_PREFIX`). It needs the feature `s3` of
+`seleniumbase-rs` in the tested crate; without it, or without a bucket, it logs a
+warning and does nothing.
 
 </ParamField>
 
