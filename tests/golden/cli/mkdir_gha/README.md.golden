@@ -27,7 +27,7 @@ GitHub, not on crates.io:
 
 ```toml
 [dev-dependencies]
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.6.0", features = ["testing"] }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.7.0", features = ["testing"] }
 ```
 
 ## Settings
