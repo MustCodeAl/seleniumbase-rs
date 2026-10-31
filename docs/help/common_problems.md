@@ -231,10 +231,10 @@ Nothing is enabled by default. These pieces exist only when their feature is on:
 Enable one with `--features`, for example
 `cargo build --features tui,turso`.
 
-## Playwright / rustwright crate not compiling
+## Playwright / rustwright feature not compiling
 
-The library has no Playwright feature. Stealthy Playwright Mode is the separate
-crate `seleniumbase-rs-playwright`, which pulls in the `rustwright` and
+Playwright is no longer a Cargo feature of the library. Stealthy Playwright Mode is
+the separate crate `seleniumbase-rs-playwright`, which pulls in the `rustwright` and
 `rustwright-core` crates from crates.io, a large Chromium automation core. A plain
 `cargo build` of the library does not need them; build or test the bridge by name:
 
