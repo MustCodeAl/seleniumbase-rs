@@ -255,7 +255,7 @@ See [BrowserScraper](/stealth/browser-scraper).
 
 <Badge color="orange">Plugins</Badge>
 
-One of the official plugins that ship inside seleniumbase-rs, one Cargo feature each: `shield`, `block-resources` and `crx`. The prebuilt `sbrs` and `sbrs-mcp` have them compiled in, and you switch one on by name, for example `sbrs --plugin shield open https://example.com`.
+One of the ten official plugins that ship inside seleniumbase-rs, one Cargo feature each (`plugin-<name>`, all ten in `plugins-builtin`): `shield`, `block-resources`, `crx`, `fetcher`, `extractor`, `batcher`, `crawler`, `browser`, `imap` and `tor`. The prebuilt `sbrs` and `sbrs-mcp` have them compiled in, and you switch one on by name, for example `sbrs --plugin shield open https://example.com`.
 
 See [Choosing Plugins](/plugins/selecting).
 
@@ -2265,7 +2265,7 @@ What a fingerprint says a browser is, and how it is delivered.
 
 <Card color="#d47628" title="Plugins" icon="plug" href="/plugins/overview">
 
-Browser plugins as Rust crates: shield, block-resources, crx and wasm.
+Browser plugins as Rust crates: the ten built-ins (shield, block-resources, crx, fetcher, extractor, batcher, crawler, browser, imap, tor) and wasm.
 
 </Card>
 
