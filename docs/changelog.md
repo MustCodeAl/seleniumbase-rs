@@ -936,9 +936,43 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   policy that blocks the scripts) `post_message` prints ` * INFO message: text` (the style in
   capitals) and still pauses, as Python does; it does not fail the test. `api::messages::fallback_line`
   gives the line.
+- **The test-runner documentation and the parity table describe `sbrs test` as it is.** The new
+  page `docs/help/test_options.md` lists every option of Python's pytest plugin as a flag of
+  `sbrs test` with its `SB_*` variable, settings key and Python name, and the ones that are
+  accepted and ignored; `docs/tutorials/debug_modes.md` walks through `--pdb`, `--trace`,
+  `--final-debug` and `sb.breakpoint`. The Gherkin page covers the 98 built-in steps and the
+  `sbrs test` flags on scenarios, Writing Browser Tests shows the `sb` and `sb_cdp` fixtures,
+  and the Customizing Test Runs and Python migration pages describe `-k`, `-m`, `-n`, `--co`,
+  `--runner` and the pytest options. In `parity/api.toml` the entries of the test data, debug,
+  run-control, evidence, report, recorder and browser options of `options_pytest` and
+  `options_sb` are `implemented` (`rust =` names the `Settings`, `TestSettings` or `TestData`
+  field, 239 of the 263 pytest options); the 24 that do nothing here stay `not-applicable`
+  with their reason, and `test` is `composed` by `Sb::run`. CI builds and tests the features
+  `testing` and `bdd`, and the build gate in `CLAUDE.md` names them.
 
 ### Changed
 
+- **The docs pages get request and response examples, a link table and the missing guides.**
+  `docs/help/syntax_formats.md` shows one example.com check as a `BaseCase` program, a pure CDP
+  program, `sbrs` commands and a JSON scenario in a request example, with what each prints in a
+  response example, and no rustdoc `# ` hidden lines. `docs/ecosystem/tauri.md` links the 15
+  pages of the Tauri plugin API reference from one table, and the status, cdp and window pages
+  gain the parameters and result fields they lacked. `docs/contributing/debugging.md` gains
+  `RUST_LOG` targets, the MCP diagnose tools and stepping through a test with lldb or CodeLLDB,
+  `docs/contributing/benchmarking.md` timing `sbrs` with hyperfine, and `docs/building.md` and
+  `docs/contributing/from-source.md` say that plain `cargo` is enough, that mise and mbx are
+  optional, and no longer repeat each other. `docs/contributing/coverage.md` is new.
+- **The CLI pages describe `sbrs` as it is.** `docs/tutorials/cli_usage.md` gains the page a wrong
+  command prints, `--url` as the way to give a page command its page, a PowerShell tab for the
+  completions, every driver and version word of `sbrs install` with `-p` explained, `sbrs proxy`,
+  `sbrs download server` and the page objects round trip; `docs/help/cli_tldr.md` and the tldr
+  pages in `contrib/tldr/` show `--url`, a driver name for `install` and `get`, and `mkrec FILE`
+  where they showed `sbrs record URL -o FILE`; `docs/completions/README.md` has the counts of the
+  spec (110 subcommands, 103 top-level options of which 101 are global);
+  `docs/help/recorder_cli.md` the `mkrec` shape; and `docs/python-migration.md` a table from each
+  `sbase` command to its `sbrs` command and where they differ. A few lines on other pages and in
+  the Warp workflow `sbrs-record.yaml` that typed `sbrs install` alone, `sbrs record URL -o FILE`
+  or `sbrs grid` are corrected.
 - **The layout trees of the docs pages come from one source.** The tree of the repository was
   copied by hand into `CONTRIBUTING.md`, `docs/CONTRIBUTING.md`, `docs/DEVELOPER_GUIDE.md` and
   `docs/contributing/from-source.md`, and the copies had drifted (`stealth/` for `evasion/`, a
@@ -949,6 +983,16 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   of the tree component, copied onto thirteen pages, are one file, `tools/layout_tree/component.mdx`,
   between markers on twelve of them. `just layout-tree` writes the pages again, and `just mdx`
   fails, naming the page and the line, when a copy differs.
+- **Every built-in plugin has a docs page, and the plugin lists are current.** `docs/plugins/` gains
+  `fetcher.md`, `extractor.md`, `batcher.md`, `crawler.md` and `browser.md` (the options with their
+  defaults and limits, the task input and the lines it writes, the exact messages, what the plugin
+  may do, and what has not been run in a real Chrome), next to shield, block-resources, crx, imap,
+  tor and wasm. The overview, Choosing plugins, the architecture page, the plugin API pages and
+  Browser Plugins list the ten built-ins, link their pages instead of the plugins repository's
+  READMEs and name the revision `Cargo.toml` pins (`fea3634e`); the new tutorial
+  `docs/tutorials/verify_by_email.md` builds a sign-up test with the pure CDP engine and the imap
+  plugin; the tldr pages show `sbrs plugin run`; and the tree component of
+  `docs/plugins/writing-your-own.md` sits between markers, so `just layout-tree --check` covers it.
 
 
 ### Removed

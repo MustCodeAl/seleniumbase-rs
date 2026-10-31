@@ -70,6 +70,9 @@ jobs:
             features: "s3,azure,gcp"
           - os: ubuntu-latest
             features: "mcp-server,pdf"
+          # The `sb` fixtures and the Gherkin steps: the mock-driven tests of `testing` and `bdd`.
+          - os: ubuntu-latest
+            features: "mcp-server,test-util,testing,bdd"
           # `gui` and `tui` are off by default, so the default build skips them.
           - os: ubuntu-latest
             features: "gui,tui"

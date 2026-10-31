@@ -147,7 +147,7 @@ pub use seleniumbase_rs_plugins_builtin as builtin_plugins;
 The crate `seleniumbase-rs-plugins-builtin`: its `registry()` (the built-in
 plugins whose feature is on, in the order `shield`, `block-resources`, `crx`, `fetcher`, `extractor`, `batcher`, `crawler`, `browser`, `imap`, `tor`),
 a module per plugin with that plugin's own types (`shield`, `block_resources`,
-`crx`, `fetcher`, `extractor`, `batcher`, `crawler`, `browser`), and re-exports of `Descriptor`, `PluginSpec` and `Registry`. Most
+`crx`, `fetcher`, `extractor`, `batcher`, `crawler`, `browser`, `imap`, `tor`), and re-exports of `Descriptor`, `PluginSpec` and `Registry`. Most
 programs enable the built-in plugins by name instead. The `wasm` plugin host is
 not in it: it needs the path of a module, so it is added with
 `PluginSet::with`.
@@ -197,8 +197,9 @@ where
 
 <ParamField body="names" type="impl IntoIterator<Item = impl Into<String>>" required>
 
-Names of built-in plugins: `shield`, `block-resources`, `crx`, each present
-only when its feature is on.
+Names of built-in plugins: `shield`, `block-resources`, `crx`, `fetcher`,
+`extractor`, `batcher`, `crawler`, `browser`, `imap` and `tor`, each present only
+when its feature is on.
 
 </ParamField>
 
@@ -425,7 +426,8 @@ pub fn builtin_registry() -> Registry
 <ResponseField name="return" type="Registry">
 
 The built-in plugins this build contains, by name: those whose cargo feature
-is on, in the order `shield`, `block-resources`, `crx`. Empty when none is on.
+is on, in the order `shield`, `block-resources`, `crx`, `fetcher`, `extractor`,
+`batcher`, `crawler`, `browser`, `imap`, `tor`. Empty when none is on.
 
 </ResponseField>
 

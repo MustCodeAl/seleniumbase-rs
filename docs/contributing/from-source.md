@@ -2,6 +2,7 @@
 title: "Build from source"
 description: "Clone seleniumbase-rs, set up Rust 1.99 and a C compiler, build the library and the sbrs binaries, and run the checks every change must pass."
 sidebarTitle: "Build from source"
+keywords: ["build", "cargo", "rust", "workspace", "checks", "mbx", "mise"]
 ---
 
 {/* layout-tree-component:start */}
@@ -130,7 +131,7 @@ feature needs, see [Building and installing](/building).
 
 <Visibility for="agents">
 
-Summary for AI exports: clone https://github.com/MustCodeAl/seleniumbase-rs. You need Rust 1.99 (`rust-toolchain.toml` pins it, with clippy and rustfmt) and a C compiler. Set `CARGO_BUILD_JOBS=2 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0`. The checks are `cargo fmt --all -- --check`, `cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings` and `cargo test --features "mcp-server test-util"`. Tests that need a real Chrome are the `#[ignore]`d `*_chrome.rs` files plus `browser_smoke`: run them one binary at a time with `-- --ignored`. The library has no default features; the command line `crates/cli` turns on `pdf`, `mcp-server`, `mcp-client` and `plugins-builtin`.
+Summary for AI exports: clone https://github.com/MustCodeAl/seleniumbase-rs. You need Rust 1.99 (`rust-toolchain.toml` pins it, with clippy and rustfmt) and a C compiler. Set `CARGO_BUILD_JOBS=2 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0`. The checks are `cargo fmt --all -- --check`, `cargo clippy --all-targets --features "mcp-server test-util testing bdd" -- -D warnings` and `cargo test --features "mcp-server test-util testing bdd"`. Tests that need a real Chrome are the `#[ignore]`d `*_chrome.rs` files plus `browser_smoke`: run them one binary at a time with `-- --ignored`. The library has no default features; the command line `crates/cli` turns on `pdf`, `mcp-server`, `mcp-client` and `plugins-builtin`.
 
 </Visibility>
 
@@ -418,6 +419,10 @@ The module map of `src/` is in `CLAUDE.md` and in the
 
 ## Build
 
+Plain `cargo` is all the build needs. mise (tool versions and the repository's
+tasks, see [Make, just and mise](#make-just-and-mise)) and mr-boxington (a build
+cache, see [Keep builds small](#keep-builds-small)) are optional.
+
 <CodeGroup>
 
 ```bash Both packages
@@ -513,7 +518,9 @@ mr-boxington (below) manages incremental state itself.
 <ParamField path="CARGO_PROFILE_DEV_DEBUG" type="number">
 
 `0` leaves debug information out of development builds: smaller files and
-faster links.
+faster links. A debugger then shows no variables and no source lines, so build
+with `CARGO_PROFILE_DEV_DEBUG=2` (cargo's default for `dev`) to step through
+code; see [Step through with lldb](/contributing/debugging#step-through-with-lldb).
 
 </ParamField>
 
@@ -532,13 +539,15 @@ and doctests then fail with "extern location does not exist". A development
 
 <Tip>
 
-Use [mr-boxington](https://mr-boxington.jdx.dev) (`mbx`), a shared cache for
-Cargo builds: `cargo install mbx --locked && mbx setup`, or with mise
+Optional: [mr-boxington](https://mr-boxington.jdx.dev) (`mbx`) is a shared cache
+for Cargo builds: `cargo install mbx --locked && mbx setup`, or with mise
 `mise use --global --tool-option mr_boxington=true rust mr-boxington`. Keep
 running `cargo`: each checkout and worktree gets its own managed `target`, so
 worktrees no longer collide, compiled work is reused between them, and the
-cache prunes itself. It caches nothing while `RUSTC_WRAPPER` is set, and it
-leaves a `CARGO_TARGET_DIR` you set alone. `mbx doctor` checks the setup.
+cache prunes itself. Do not set `RUSTC_WRAPPER` or `CARGO_TARGET_DIR` with it:
+it caches nothing while `RUSTC_WRAPPER` is set, and it leaves a
+`CARGO_TARGET_DIR` you set alone, so the managed `target` is not used.
+`mbx doctor` checks the setup.
 
 </Tip>
 
@@ -559,7 +568,7 @@ cargo fmt --all -- --check
 <Step title="Lint" icon="magnifying-glass">
 
 ```bash Terminal
-cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings
+cargo clippy --all-targets --features "mcp-server test-util testing bdd" -- -D warnings
 ```
 
 `src/mcp` and `src/sb_cdp` are held to the stricter pedantic lint set. An
@@ -570,7 +579,7 @@ cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings
 <Step title="Test" icon="flask">
 
 ```bash Terminal
-cargo test --features "mcp-server test-util"
+cargo test --features "mcp-server test-util testing bdd"
 ```
 
 Count failures from the exit code and the `test result:` lines, never from a
@@ -603,11 +612,14 @@ Run it when the docs changed. It writes the book to `book/`.
 
 </Steps>
 
+To see which lines the tests reach, with and without a browser, read
+[Code coverage](/contributing/coverage).
+
 <Tip>
 
-With cargo-nextest, `cargo nextest run --features "mcp-server test-util"`
+With cargo-nextest, `cargo nextest run --features "mcp-server test-util testing bdd"`
 replaces the test step, but it does not run doctests: add
-`cargo test --doc --features "mcp-server test-util"`. Code that only builds with
+`cargo test --doc --features "mcp-server test-util testing bdd"`. Code that only builds with
 the results database is checked by `cargo check --features turso --all-targets`.
 
 </Tip>
@@ -625,7 +637,7 @@ one test binary at a time: a Chrome that is starved of CPU and memory misses its
 <CodeGroup>
 
 ```bash Library
-cargo test --features "mcp-server test-util" --test sb_cdp_chrome -- --ignored --test-threads=1
+cargo test --features "mcp-server test-util testing bdd" --test sb_cdp_chrome -- --ignored --test-threads=1
 ```
 
 ```bash Command line
@@ -633,7 +645,7 @@ cargo test -p seleniumbase-rs-cli --test cli_e2e_chrome -- --ignored
 ```
 
 ```bash nextest
-cargo nextest run --features "mcp-server test-util" --run-ignored only
+cargo nextest run --features "mcp-server test-util testing bdd" --run-ignored only
 ```
 
 ```bash mise
@@ -648,7 +660,7 @@ mise run chrome
 - `mise run chrome` runs `tests/*_chrome.rs`, `tests/browser_smoke.rs` and
   `crates/cli/tests/*_chrome.rs` one binary at a time, and skips
   `playwright_chrome`.
-- The WebDriver tests need a chromedriver that matches Chrome: `sbrs install`
+- The WebDriver tests need a chromedriver that matches Chrome: `sbrs install chromedriver`
   downloads it into `downloaded_drivers/`. The pure CDP tests need none.
 - As root or in a container, Chrome needs `--no-sandbox`: the tests pass it when
   `CI` is set. To run them in Docker with Chromium and Xvfb, see
@@ -675,7 +687,7 @@ no menu of `docs/docs.json`.
 ## Make, just and mise
 
 The repository has the same everyday tasks in three runners. Use whichever you
-have.
+have; none is required, and mise is an optional extra like mbx.
 
 | Task | just | make | mise |
 |---|---|---|---|
@@ -768,7 +780,7 @@ request owns the result; see
 
 <Prompt description="Paste into an AI coding assistant that can run commands in this checkout" actions={["copy"]}>
 
-Check this seleniumbase-rs checkout. Read CLAUDE.md first. Export CARGO_BUILD_JOBS=2 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 and run one cargo command at a time: cargo fmt --all -- --check, then cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings, then cargo test --features "mcp-server test-util". Do not edit any code. Report the exit code of each command, and the passed and failed counts from the "test result" lines, not from a filtered search of the output.
+Check this seleniumbase-rs checkout. Read CLAUDE.md first. Export CARGO_BUILD_JOBS=2 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 and run one cargo command at a time: cargo fmt --all -- --check, then cargo clippy --all-targets --features "mcp-server test-util testing bdd" -- -D warnings, then cargo test --features "mcp-server test-util testing bdd". Do not edit any code. Report the exit code of each command, and the passed and failed counts from the "test result" lines, not from a filtered search of the output.
 
 </Prompt>
 
@@ -869,6 +881,12 @@ Logs, headed runs, evidence when a test fails, and tests without Chrome.
 <Card color="#a631be" title="Benchmarking" icon="gauge-high" href="/contributing/benchmarking">
 
 Run the harnesses in `benches/` and compare a change fairly.
+
+</Card>
+
+<Card color="#199f43" title="Code coverage" icon="chart-pie" href="/contributing/coverage">
+
+Which lines the tests reach, with a mocked browser and with a real one.
 
 </Card>
 

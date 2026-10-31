@@ -48,8 +48,8 @@ cd seleniumbase-rs
 
 # The checks every change must pass (the same ones CI runs)
 cargo fmt --all -- --check
-cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings
-cargo test --features "mcp-server test-util"
+cargo clippy --all-targets --features "mcp-server test-util testing bdd" -- -D warnings
+cargo test --features "mcp-server test-util testing bdd"
 
 # Build the mdBook
 mdbook build
@@ -328,8 +328,8 @@ See `docs/tutorials/tracing.md` for subscriber configuration examples.
 
 ```bash
 cargo fmt --all -- --check
-cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings
-cargo test --features "mcp-server test-util"
+cargo clippy --all-targets --features "mcp-server test-util testing bdd" -- -D warnings
+cargo test --features "mcp-server test-util testing bdd"
 cargo check --features turso --all-targets            # code that only builds with turso
 cargo deny --workspace check && cargo audit            # when Cargo.lock changed
 mdbook build                                           # when docs changed
@@ -362,7 +362,7 @@ needs, so when it moves, bump `rust-version`, the `msrv` job, and the
 On macOS, if a test binary cannot load `libpython`, prefix the test commands with:
 
 ```bash
-DYLD_LIBRARY_PATH="$HOME/.local/share/mise/installs/python/3.14.6/lib" cargo test --features "mcp-server test-util"
+DYLD_LIBRARY_PATH="$HOME/.local/share/mise/installs/python/3.14.6/lib" cargo test --features "mcp-server test-util testing bdd"
 ```
 
 ## Parity with Python SeleniumBase
@@ -595,8 +595,8 @@ the result:
 ### PR review checklist
 
 - [ ] `cargo fmt --all -- --check` is clean.
-- [ ] `cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings` is clean.
-- [ ] `cargo test --features "mcp-server test-util"` passes.
+- [ ] `cargo clippy --all-targets --features "mcp-server test-util testing bdd" -- -D warnings` is clean.
+- [ ] `cargo test --features "mcp-server test-util testing bdd"` passes.
 - [ ] `cargo deny check` and `cargo audit` are clean if `Cargo.lock` changed.
 - [ ] A new `[[bin]]`, `[[bench]]`, `[[example]]` or `[[test]]` is in the
       `Dockerfile` skeleton.

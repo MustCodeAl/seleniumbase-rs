@@ -9,17 +9,22 @@ explains them.
 
 <Note>
 
-Global options (`--headless`, `--browser`, `--uc`, `--proxy`, `--plugin`, ...) go **before** the
-command: `sbrs --headless smoke https://example.com`. Each command starts its own browser and closes
-it when it is done.
+Global options (`--headless`, `--browser`, `--uc`, `--proxy`, `--plugin`, `--url`, ...) go before or
+after the command, once each: `sbrs --headless smoke https://example.com` and
+`sbrs smoke https://example.com --headless` are the same. Each command starts its own browser and
+closes it when it is done, so a command that acts on a page needs it: `--url URL` (or
+`SB_START_PAGE`), as in `sbrs --url https://example.com get-text --css h1`. `open`, `smoke`,
+`download-file`, `print-pdf`, `pdf-text` and `assert-pdf-text` take their own URL and refuse `--url`.
 
 </Note>
 
 ## Set up
 
 ```bash
-sbrs install                      # the chromedriver that matches the installed Chrome
-sbrs install geckodriver          # or edgedriver; a version too: sbrs install chromedriver 155
+sbrs install chromedriver         # the chromedriver that matches the installed Chrome
+sbrs install chromedriver 155     # a version too: 155, latest, previous, keep, 141.0.7390.76
+sbrs get geckodriver              # `get` is `install`; also edgedriver, uc_driver, cft, chs, chromium
+sbrs install -p chromedriver      # also copy it to SB_DRIVER_PATH_DIR, else /usr/local/bin
 sbrs doctor                       # what was found, what is missing, and how to fix it
 sbrs version
 ```
@@ -32,6 +37,15 @@ sbrs smoke https://example.com --title-contains Example        # fails unless th
 sbrs --headless --browser firefox smoke https://example.com
 sbrs --uc smoke https://example.com                            # undetected Chrome
 sbrs deferred --url https://example.com --assert title=Example --assert "text=h1:Example Domain"
+```
+
+Every other page command takes its page from `--url`:
+
+```bash
+sbrs --url https://example.com get-title
+sbrs --url https://example.com get-text --css h1               # prints the element's text
+sbrs --url https://example.com screenshot --path page.png
+sbrs --headless --url https://example.com assert-element --css h1
 ```
 
 ## Save what a page shows
@@ -73,7 +87,6 @@ sbrs objectify tests/login.rs                      # selectors into page_objects
 sbrs extract-objects tests/login.rs                # only write page_objects.rs
 sbrs inject-objects tests/login.rs -c              # only use the page objects, a comment per line
 sbrs revert-objects tests/login.rs -c              # back to the selectors, byte for byte
-
 ```
 
 ## Bring tests from other tools
@@ -92,6 +105,26 @@ sbrs patch-chrome --path "/Applications/Google Chrome.app/Contents/MacOS/Google 
 sbrs --cdp cdp --cmd Browser.getVersion                       # any DevTools Protocol command
 sbrs --cdp cdp --cmd Network.setCacheDisabled --params '{"cacheDisabled":true}'
 ```
+
+## Proxy, Selenium Server and Grid
+
+```bash
+sbrs proxy                                         # a forward proxy on 127.0.0.1:8899, no authentication
+sbrs --proxy 127.0.0.1:8899 open https://example.com
+sbrs download server                               # the Selenium Server jar, into downloaded_drivers/
+sbrs grid-hub start                                # also stop, restart and status
+sbrs grid-node start --hub 127.0.0.1
+```
+
+## Look things up
+
+```bash
+sbrs install --help                                # the flags of one command, ending with Examples:
+sbrs methods                                       # the common test methods, as called on sb
+sbrs options                                       # each browser option: flag, SB_* variable, settings key
+sbrs behave-options                                # how Python's behave -D options map to sbrs test
+```
+
 
 ## AI assistants (MCP)
 
@@ -112,7 +145,11 @@ sbrs plugin list                                   # the built-in plugins and wh
 sbrs plugin info shield
 sbrs --plugin shield open https://example.com
 sbrs --plugin shield --plugin-opt 'shield.level="strict"' open https://example.com
+sbrs plugin run crawler --input crawl.json --out pages.jsonl   # the task of a plugin: fetcher, extractor, batcher, crawler or imap
 ```
+
+The built-in plugins are shield, block-resources, crx, fetcher, extractor, batcher, crawler,
+browser, imap and tor; [Choosing plugins](/plugins/selecting) has every way to turn them on.
 
 ## Shell
 

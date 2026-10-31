@@ -1,6 +1,8 @@
 ---
 title: "Tauri Plugin"
 sidebarTitle: "Tauri plugin"
+description: "Test a Tauri app with seleniumbase-rs: add the automation plugin, drive its window with BaseCase or sbrs, and configure CEF, WebView2 and stealth."
+keywords: ["tauri", "plugin", "webdriver", "desktop", "automation", "cef", "webview2"]
 ---
 
 {/* layout-tree-component:start */}
@@ -383,19 +385,19 @@ Connect from the test with a fingerprint, including native CDP spoofing if desir
 ```rust
 use seleniumbase_rs::{BaseCase, BrowserConfig, Fingerprint};
 
-# async fn test() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-let fingerprint = Fingerprint::windows_desktop()
-    .to_builder().native_spoofing(true).build()?;
-let config = BrowserConfig::default()
-    .with_webdriver_url("http://127.0.0.1:4445/your-token/")
-    .with_cdp_discovery(true)
-    .with_fingerprint(fingerprint);
-let mut sb = BaseCase::new(config).await?;
-let title = sb.cdp_get_title().await?;
-sb.cdp_click("#save").await?;
-sb.quit().await?; // Detaches; the Tauri app keeps running.
-# Ok(())
-# }
+async fn test() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let fingerprint = Fingerprint::windows_desktop()
+        .to_builder().native_spoofing(true).build()?;
+    let config = BrowserConfig::default()
+        .with_webdriver_url("http://127.0.0.1:4445/your-token/")
+        .with_cdp_discovery(true)
+        .with_fingerprint(fingerprint);
+    let mut sb = BaseCase::new(config).await?;
+    let title = sb.cdp_get_title().await?;
+    sb.cdp_click("#save").await?;
+    sb.quit().await?; // Detaches; the Tauri app keeps running.
+    Ok(())
+}
 ```
 
 Direct CDP sessions use the existing `BaseCase::cdp_*` methods rather than
@@ -405,18 +407,18 @@ WebDriver element handles. The full `Page` and `Browser` API is available throug
 ```rust
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
 
-# async fn test() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-let options = LaunchOptions::builder()
-    .cdp_url("http://127.0.0.1:9222") // Or ws://.../devtools/browser/<id>.
-    .fingerprint(&seleniumbase_rs::Fingerprint::windows_desktop())
-    .build()?;
-let browser = Browser::launch(options).await?; // Attaches; launches no process.
-let page = browser.default_page().await?;
-page.locator("#save").click().await?;
-// A CdpDriver value can also drive it: `driver.attach(browser).await?`.
-browser.close().await?;
-# Ok(())
-# }
+async fn test() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let options = LaunchOptions::builder()
+        .cdp_url("http://127.0.0.1:9222") // Or ws://.../devtools/browser/<id>.
+        .fingerprint(&seleniumbase_rs::Fingerprint::windows_desktop())
+        .build()?;
+    let browser = Browser::launch(options).await?; // Attaches; launches no process.
+    let page = browser.default_page().await?;
+    page.locator("#save").click().await?;
+    // A CdpDriver value can also drive it: `driver.attach(browser).await?`.
+    browser.close().await?;
+    Ok(())
+}
 ```
 
 Attaching never changes the app's other windows: only the window you pick (or
@@ -478,23 +480,20 @@ has inside its own process.
 use seleniumbase_rs::sb_cdp::{Browser, CdpRequest, StealthPlan, TransportError};
 use seleniumbase_rs::{Fingerprint, OsType};
 
-# async fn stealth() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-let plan = StealthPlan::new(&Fingerprint::randomized(OsType::Windows, 7));
-// 1. While building the webview: its initialization script, for all frames.
-let script: &str = plan.init_script();
-# let _ = script;
-// 2. Once it exists: the overrides, through the webview's own channel.
-let (browser, inbox) = Browser::over_channel(|request: CdpRequest| -> Result<(), TransportError> {
-    // Hand `request` to CEF or WebView2 here; route the answer to `inbox`.
-#   let _ = request;
+async fn stealth() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let plan = StealthPlan::new(&Fingerprint::randomized(OsType::Windows, 7));
+    // 1. While building the webview: its initialization script, for all frames.
+    let script: &str = plan.init_script();
+    // 2. Once it exists: the overrides, through the webview's own channel.
+    let (browser, inbox) = Browser::over_channel(|request: CdpRequest| -> Result<(), TransportError> {
+        // Hand `request` to CEF or WebView2 here; route the answer to `inbox`.
+        Ok(())
+    });
+    for (method, params) in plan.overrides() {
+        browser.execute(method, params.clone()).await?;
+    }
     Ok(())
-});
-# let _ = inbox;
-for (method, params) in plan.overrides() {
-    browser.execute(method, params.clone()).await?;
 }
-# Ok(())
-# }
 ```
 
 | Runtime | The init script | The overrides |
@@ -557,90 +556,31 @@ frame, content view, screen). For finding out why a resize did not stick.
 
 ## Supported commands
 
-Every path starts with `/<token>`; session commands with `/session/{id}`. The
-[API reference](/ecosystem/tauri-api/overview) gives each command's fields,
-replies and errors, with request and response examples.
+Every path starts with `/<token>`; session commands with `/session/{id}`. Each
+page of the [API reference](/ecosystem/tauri-api/overview) gives its commands'
+fields, replies and errors, with request and response examples.
 
-| Command | Endpoint | Notes |
+| Page | Endpoints | Notes |
 |---|---|---|
+| [Overview](/ecosystem/tauri-api/overview) | all | The base URL, the token, the reply format, element references and [every error code](/ecosystem/tauri-api/overview#errors). |
 | [Status](/ecosystem/tauri-api/status) | `GET /status` | No session needed. |
-| [New and delete session](/ecosystem/tauri-api/sessions) | `POST /session`, `DELETE /session/{id}` | One session at a time: a new one replaces the last. A new session starts in the top page, with no dialog answer or input held from the last one. |
+| [Chromium CDP](/ecosystem/tauri-api/cdp) | `GET /cdp` | No session needed. Finds the debugger of an app that owns CEF or WebView2, and `CdpStealthConfig`. |
+| [Sessions](/ecosystem/tauri-api/sessions) | `POST /session`, `DELETE /session/{id}` | One session at a time: a new one replaces the last. A new session starts in the top page, with no dialog answer or input held from the last one. |
 | [Timeouts](/ecosystem/tauri-api/timeouts) | `GET`, `POST /timeouts` | `script`, `pageLoad`, `implicit` (finding looks again until it is over). |
-| [Navigation](/ecosystem/tauri-api/navigation) | `POST /url`, `GET /url`, `GET /title`, `POST /back`, `/forward`, `/refresh` | Waits for the new page to load. |
-| [Page source](/ecosystem/tauri-api/navigation#get-page-source) | `GET /source` | Of the current frame. |
-| [Window](/ecosystem/tauri-api/window) | `GET /window`, `/window/handles`, `POST /window`, `GET`/`POST /window/rect`, `POST /window/maximize`, `/minimize`, `/fullscreen` | One window, `main`. A change waits until the window has it (normally well under a second; each state change is waited for up to three seconds, the final rectangle up to two more), and the answer is the window's rectangle then, which can differ from the one asked for: the system keeps a window below the menu bar and may refuse a size. |
-| [Frames](/ecosystem/tauri-api/frames) | `POST /frame`, `POST /frame/parent` | Same-origin frames only. |
+| [Navigation](/ecosystem/tauri-api/navigation) | `POST /url`, `GET /url`, `GET /title`, `POST /back`, `/forward`, `/refresh`, `GET /source` | Waits for the new page to load. The source is the current frame's. |
+| [Window](/ecosystem/tauri-api/window) | `GET /window`, `/window/handles`, `POST /window`, `GET`/`POST /window/rect`, `POST /window/maximize`, `/minimize`, `/fullscreen` | One window, `main`. A change waits until the window has it (each state change is waited for up to three seconds, the final rectangle up to two more), and the answer is the window's rectangle then, which can differ from the one asked for: the system keeps a window below the menu bar and may refuse a size. |
+| [Frames](/ecosystem/tauri-api/frames) | `POST /frame`, `POST /frame/parent` | Same-origin frames only; a cross-origin frame answers `no such frame`. |
 | [Find elements](/ecosystem/tauri-api/elements) | `POST /element`, `/elements`, `/element/{id}/element`, `/element/{id}/elements`, `GET /element/active` | CSS, XPath, link text, partial link text, tag name. |
-| [Element state](/ecosystem/tauri-api/element-state) | `GET /element/{id}/text`, `/name`, `/rect`, `/enabled`, `/selected`, `/displayed`, `/attribute/{name}`, `/property/{name}`, `/css/{name}` | |
-| [Element interaction](/ecosystem/tauri-api/element-interaction) | `POST /element/{id}/click`, `/clear`, `/value` | DOM events. |
+| [Element state](/ecosystem/tauri-api/element-state) | `GET /element/{id}/text`, `/name`, `/rect`, `/enabled`, `/selected`, `/displayed`, `/attribute/{name}`, `/property/{name}`, `/css/{name}` | Reads one thing, without changing it. |
+| [Element interaction](/ecosystem/tauri-api/element-interaction) | `POST /element/{id}/click`, `/clear`, `/value` | DOM events, not OS input. |
 | [Scripts](/ecosystem/tauri-api/scripts) | `POST /execute/sync`, `/execute/async` | Run in the current frame. |
-| [Actions](/ecosystem/tauri-api/actions) | `POST /actions`, `DELETE /actions` | Mouse, keys and pauses. |
-| [User prompts](/ecosystem/tauri-api/alerts) | `GET /alert/text`, `POST /alert/accept`, `/alert/dismiss`, `/alert/text` | Simulated: answered when they open. |
-| [Screenshots](/ecosystem/tauri-api/screenshots) | `GET /screenshot`, `GET /element/{id}/screenshot` | macOS only; PNG. |
-
-<Info>
+| [Actions](/ecosystem/tauri-api/actions) | `POST /actions`, `DELETE /actions` | Mouse, keys and pauses, tick by tick, as DOM events: CSS `:hover` and HTML drag and drop do not happen. |
+| [User prompts](/ecosystem/tauri-api/alerts) | `GET /alert/text`, `POST /alert/accept`, `/alert/dismiss`, `/alert/text` | Simulated: answered when they open. A test that should accept a confirm accepts first, then clicks; the usual WebDriver order, click and then accept, gets `unsupported operation`. |
+| [Screenshots](/ecosystem/tauri-api/screenshots) | `GET /screenshot`, `GET /element/{id}/screenshot` | macOS only; PNG, base64-encoded. |
 
 Not served: cookies, shadow roots, and opening or closing windows (`unknown
-command`); screenshots on Windows and Linux, wheel input, pen and touch
-pointers (`unsupported operation`); cross-origin frames (`no such frame`). The
-endpoint drives one window, `main` (or, without one, another window of the
-app). Cookies are left out on purpose: on macOS the app's page is
-`tauri://localhost`, where WKWebView keeps no cookies at all
-(`document.cookie` reads back empty after a write).
-
-</Info>
-
-### Details
-
-<Warning>
-
-Dialogs are answered when they open. A test that should accept a confirm
-accepts first, then clicks; the usual WebDriver order, click and then accept,
-gets `unsupported operation`. See [User prompts](/ecosystem/tauri-api/alerts).
-
-</Warning>
-
-<Columns cols={2}>
-
-<Card color="#d47628" title="User prompts" icon="message" href="/ecosystem/tauri-api/alerts">
-
-How `alert`, `confirm` and `prompt` are replaced, recorded and answered.
-
-</Card>
-
-<Card color="#a631be" title="Frames" icon="table-columns" href="/ecosystem/tauri-api/frames">
-
-Same-origin frames only, and what acts in the frame entered.
-
-</Card>
-
-<Card color="#1ca1c7" title="Actions" icon="keyboard" href="/ecosystem/tauri-api/actions">
-
-Tick by tick, as DOM events: the events the page sees, and why CSS `:hover`
-and HTML drag and drop do not happen.
-
-</Card>
-
-<Card color="#d32a61" title="Screenshots" icon="camera" href="/ecosystem/tauri-api/screenshots">
-
-WKWebView's own snapshot at the screen's scale; an element's part of it.
-
-</Card>
-
-<Card color="#693acf" title="Window changes" icon="window-maximize" href="/ecosystem/tauri-api/window#set-window-rect">
-
-Set Window Rect first brings the window back to its normal state, as
-WebDriver asks: out of full screen, not maximized, not minimized.
-
-</Card>
-
-<Card color="#d5a910" title="Errors" icon="triangle-exclamation" href="/ecosystem/tauri-api/overview#errors">
-
-Every error code the plugin answers, its HTTP status, and when.
-
-</Card>
-
-</Columns>
+command`); see [Not served](/ecosystem/tauri-api/overview#not-served) for why
+cookies are left out.
 
 ## Changing the page script
 

@@ -12,10 +12,13 @@ record, with the checks behind each decision, is
 
 <Note>
 
-The ADR is **proposed**. Only phase 1 of its plan has begun: the plugin API crate,
-the built-in plugins crate with [shield](/plugins/shield), and the core side that
-uses them (see [What is built](#what-is-built) and
-[What core does with it](#what-core-does-with-it)). Later phases are a plan,
+The ADR is still **proposed**: its own status line has not changed. Most of its
+plan is built in the plugins repository and used by seleniumbase-rs: the API
+crate with metadata, capabilities and the registry, the hooks of phases 2 and 3
+(navigation, the request router, browser contexts, DevTools events, tests and
+tasks) and ten built-in plugins (see [The built-in plugins](#the-built-in-plugins),
+[What is built](#what-is-built) and
+[What core does with it](#what-core-does-with-it)). What is not built is a plan,
 not a promise of dates.
 
 </Note>
@@ -24,7 +27,7 @@ not a promise of dates.
 
 <Visibility for="agents">
 
-Summary for AI exports: the plugin platform keeps one `Plugin` trait with default hook bodies, and the API crate stays on 0.1.x and changes only by addition. A plugin may describe itself with `metadata()` (category, phase, needed capabilities, ordering edges). Capabilities are checked where a plugin reaches the browser. For a native Rust plugin they are a contract and not a sandbox; only WebAssembly modules are sandboxed. The ADR is proposed and only phase 1 has begun.
+Summary for AI exports: the plugin platform keeps one `Plugin` trait with default hook bodies, and the API crate stays on 0.1.x and changes only by addition. A plugin may describe itself with `metadata()` (category, phase, needed capabilities, ordering edges). Capabilities are checked where a plugin reaches the browser. For a native Rust plugin they are a contract and not a sandbox; only WebAssembly modules are sandboxed. The ADR is still proposed; its phase 1, the hooks of phases 2 and 3 and ten built-in plugins (`shield`, `block-resources`, `crx`, `fetcher`, `extractor`, `batcher`, `crawler`, `browser`, `imap`, `tor`) are built, and the store, lockfile, manifest plugins and WASM ABI 2 are not.
 
 </Visibility>
 
@@ -100,15 +103,30 @@ capabilities are approved at install. A project's own lock holds pins only,
 never grants. WASM ABI 2 puts a JSON manifest in a custom section and runs the
 module once at load; event mode (ABI 2.1) comes later.
 
-## The seven example plugins
+## The built-in plugins
 
 The ADR specifies seven built-ins that exercise the platform: **shield** and
 **tor** (privacy), **fetcher** and **extractor** (core), **batcher**
-(environment), **crawler** (testing) and **browser** (extension).
+(environment), **crawler** (testing) and **browser** (extension). They are built,
+with three more: **block-resources**, **crx** and **imap**. Each has a page:
+
+| Plugin | Category | What it does |
+|---|---|---|
+| [shield](/plugins/shield) | Privacy | Hardens the browser's privacy settings |
+| [block-resources](/plugins/block-resources) | Core | Stops pages from loading images, fonts or media |
+| [crx](/plugins/crx) | Extension | Loads packed `.crx` extensions |
+| [fetcher](/plugins/fetcher) | Core | Request rules, response records and a fetch task |
+| [extractor](/plugins/extractor) | Core | Finds and extracts structured data from pages, as a task |
+| [batcher](/plugins/batcher) | Environment | Runs a list of jobs in tabs, with retries and a resume file |
+| [crawler](/plugins/crawler) | Testing | Crawls a site you own and reports broken pages |
+| [browser](/plugins/browser) | Extension | Loads extensions from `.zip` and `.crx` files and folders |
+| [imap](/plugins/imap) | Testing | Waits for a verification mail and reads its code or link |
+| [tor](/plugins/tor) | Privacy | Routes the browser through a Tor daemon you run |
 
 ## What is built
 
-Phase 1 starts in the API crate `seleniumbase-rs-plugin`, all additive:
+Phase 1 is in the API crate `seleniumbase-rs-plugin`, all additive, and the
+hooks of the later phases are added to it the same way:
 
 | Piece | File |
 |---|---|
@@ -119,22 +137,29 @@ Phase 1 starts in the API crate `seleniumbase-rs-plugin`, all additive:
 | `HostInfo`, which capabilities each host supports | `host.rs` |
 | `Configurable`, `Descriptor`, `Registry`, `PluginSpec` | `config.rs` |
 | `Plugin::metadata()`, `Plugin::per_launch()`, `PluginSet::strict()`, `with_trusted`, `with_grants`, `audit()` | `lib.rs` |
+| `Navigation`, `NavDecision`: `before_navigate` and `after_navigate` | `nav.rs` |
+| `NetworkInterest`, `NetRule`, `RequestFilter`, `RequestView`, `ResponseView`: the network declarations and `on_request`, `on_response` | `network.rs` |
+| `ContextSettings`, `ContextHandle`: browser contexts | `context.rs` |
+| `Task`, `JobRunner`, `Sink`, `Prompt`, `TaskContext`: work started by name | `task.rs` |
+| `TestInfo`, `TestOutcome`, `TestVerdict`: `on_test_end` | `testhook.rs` |
+| `Clock`, `Timer`: sleeps and time limits | `timer.rs` |
+| `Guarded`, `cdp_policy`: the guarded handles | `guard.rs` |
 
 Next to the API crate there is the `seleniumbase-rs-plugins-builtin` crate
-(one cargo feature per plugin, and `registry()`), and the first plugin written
-for the new API, [shield](/plugins/shield). How a program turns them on is in
+(one cargo feature per plugin, and `registry()`) and the ten plugins listed in
+[The built-in plugins](#the-built-in-plugins). How a program turns them on is in
 [Choosing plugins](/plugins/selecting).
 
-Not part of this page's claim: the store, manifests, WASM ABI 2 and the other six
-plugins belong to the later work. The plan, from the ADR:
+Not part of this page's claim: the store, manifests and WASM ABI 2 belong to the
+later work. The plan, from the ADR, and where it stands:
 
-| Phase | Delivers |
-|---|---|
-| 0 | Security hotfix: one refused-switch list for all plugins |
-| 1 | Metadata, registry, CLI and config surface, release features, shield |
-| 2 | CDP lifecycle hooks, the shared request router, fetcher, extractor, tor |
-| 3 | Tasks, test hooks, store and lockfile, manifest plugins, WASM ABI 2.0 |
-| 4 | WebDriver parity, ABI 2.1 events, CRX3 signature checks |
+| Phase | Delivers | State |
+|---|---|---|
+| 0 | Security hotfix: one refused-switch list for all plugins | Built (`switch_policy.rs`) |
+| 1 | Metadata, registry, CLI and config surface, release features, shield | Built |
+| 2 | CDP lifecycle hooks, the shared request router, fetcher, extractor, tor | Built for the pure CDP engine |
+| 3 | Tasks, test hooks, store and lockfile, manifest plugins, WASM ABI 2.0 | Tasks and test hooks are built; the store, lockfile, manifest plugins and WASM ABI 2.0 are not |
+| 4 | WebDriver parity, ABI 2.1 events, CRX3 signature checks | Not built: the WebDriver hosts offer no request interception, browser contexts, tasks or test hooks, and the signature of a `.crx` is not verified |
 
 To declare metadata in your own plugin, see
 [Writing your own plugin](/plugins/writing-your-own#declaring-metadata-and-capabilities).

@@ -1,6 +1,8 @@
 ---
 title: "Building and installing"
 sidebarTitle: "Install"
+description: "Install sbrs without a checkout or build seleniumbase-rs from source, pick features, check the setup and run it in a container on macOS, Linux or Windows."
+keywords: ["install", "build", "cargo", "sbrs", "features", "container", "doctor"]
 ---
 
 {/* layout-tree-component:start */}
@@ -112,8 +114,9 @@ export const LayoutFile = ({ name, note, highlight = false }) => (
 
 How to build `seleniumbase-rs` from source, which features cost what, and how to
 run it in a container. For writing and running tests with it, start with
-[Getting started](/tutorials/getting_started); for working on the crate, see
-`CONTRIBUTING.md`.
+[Getting started](/tutorials/getting_started). To work on the crate (the
+workspace layout, the checks, the real-Chrome tests and build problems), see
+[Build from source](/contributing/from-source) and `CONTRIBUTING.md`.
 
 <Visibility for="agents">
 
@@ -370,6 +373,15 @@ Neither package is published to crates.io, so `cargo install seleniumbase-rs-cli
 does not work; build from a checkout, install from git as below, or add the
 library as a git dependency.
 
+<Note>
+
+Plain `cargo` is all the build needs. mise (tool versions and the repository's
+tasks, see [Make, just and mise](/contributing/from-source#make-just-and-mise))
+and mr-boxington (a build cache, see [Build time and disk](#build-time-and-disk))
+are optional.
+
+</Note>
+
 ## Install without a checkout
 
 Three ways to get `sbrs` and `sbrs-mcp` (the package `seleniumbase-rs-cli`) onto
@@ -541,7 +553,7 @@ Combine them with `--features "mcp-server tui"`. The features `scrape` and
 ```bash
 sbrs --help
 sbrs doctor          # compares the chromedriver version with Chrome's
-sbrs install         # fetches the chromedriver that matches your Chrome
+sbrs install chromedriver   # fetches the chromedriver that matches your Chrome
 ```
 
 ## Container
@@ -576,7 +588,7 @@ Verified on an Apple-silicon Mac with Docker (so linux/arm64, Debian 12,
 Chromium 154.0.8037.92): the build succeeds in about four minutes with two Cargo
 jobs and gives a 1.19 GB image; `--help` and `doctor` exit with status 0, and
 `doctor` finds `/usr/bin/chromium` and a chromedriver of the same major version;
-the `smoke` command above exits with status 0 with no network. `sbrs install` in
+the `smoke` command above exits with status 0 with no network. `sbrs install chromedriver` in
 the image downloads an aarch64 chromedriver (Chrome for Testing publishes
 `linux-arm64` from Chrome 153 on).
 
@@ -646,22 +658,18 @@ also needs a line in the `Dockerfile` skeleton step, or the image build fails;
 ## Build time and disk
 
 A cold build compiles a large dependency tree, and a development `target/`
-directory with the test, bench and check artifacts grows past 10 GB. To keep
-rebuilds cheap:
+directory with the test, bench and check artifacts grows past 10 GB.
+[Build from source](/contributing/from-source#keep-builds-small) has the three
+environment variables that keep a build within a small machine's memory, the
+rule of one heavy cargo command at a time, and the optional mr-boxington (`mbx`)
+build cache. None of them is needed to build.
 
-```bash
-export CARGO_BUILD_JOBS=2 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0
-```
+One of those variables, `CARGO_PROFILE_DEV_DEBUG=0`, leaves debug information
+out of development builds. To step through code with a debugger, build with
+`CARGO_PROFILE_DEV_DEBUG=2` instead (see
+[Step through with lldb](/contributing/debugging#step-through-with-lldb)).
 
-- Use [mr-boxington](https://mr-boxington.jdx.dev) (`mbx`), a shared cache for
-  Cargo builds: `cargo install mbx --locked && mbx setup` (or, with mise,
-  `mise use --global --tool-option mr_boxington=true rust mr-boxington`), then
-  keep running `cargo`. Each checkout and worktree gets its own managed
-  `target`, compiled work is reused between them, and the cache prunes itself
-  to a size budget (`mbx stats`, `mbx gc --dry-run`). Leave `RUSTC_WRAPPER`
-  unset (it replaces sccache) and do not set `CARGO_TARGET_DIR`.
-- On a machine with little memory, keep `CARGO_BUILD_JOBS` low and run one cargo
-  command at a time; cargo serialises builds in the same target directory.
+With mbx, leave `RUSTC_WRAPPER` unset and do not set `CARGO_TARGET_DIR`.
 
 <Warning>
 
@@ -837,8 +845,8 @@ equivalent and are not sent; the session proxy is not passed to Firefox either.
 - **A freshly written or replaced executable is slow the first time.** macOS
   scans it on first run, which can take seconds. The library writes a replaced
   chromedriver as a new file because macOS kills a signed binary that is
-  overwritten in place; if a driver is "killed" or refused, run `sbrs install`
-  again and see [Common problems](/help/common_problems).
+  overwritten in place; if a driver is "killed" or refused, run
+  `sbrs install chromedriver` again and see [Common problems](/help/common_problems).
 - **Gatekeeper and quarantine.** A browser or driver downloaded by another tool
   can carry a quarantine flag; clear it with
   `xattr -d com.apple.quarantine <file>` if macOS refuses to open it.
@@ -970,13 +978,13 @@ with its CMake, NASM and LLVM requirements.) Install steps:
 Run the Linux steps inside WSL. A browser inside WSL has no display unless you
 use WSLg or run headless. To drive a browser on another machine, run
 `sbrs-mcp` or your tests there, or point the WebDriver engine at a
-Selenium Grid (`sbrs grid`) with `BrowserConfig::webdriver_url`.
+Selenium Grid (`sbrs grid-hub` and `sbrs grid-node`) with `BrowserConfig::webdriver_url`.
 
 ### Check the setup on any system
 
 ```bash Terminal
 sbrs doctor       # Chrome and chromedriver versions, and whether they match
-sbrs install      # fetch the matching chromedriver
+sbrs install chromedriver   # fetch the matching chromedriver
 ```
 
 From an AI agent, the MCP tool `diagnose_environment` reports the same plus the

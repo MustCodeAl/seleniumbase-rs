@@ -158,6 +158,7 @@
               "best-practices",
               "rust-test-tooling",
               "tutorials/writing_tests",
+              "tutorials/debug_modes",
               "tutorials/reliable_tests",
               "tutorials/behave",
               "tutorials/selectors",
@@ -174,6 +175,7 @@
             "pages": [
               "tutorials/mfa_totp",
               "tutorials/captcha_testing",
+              "tutorials/verify_by_email",
               "tutorials/pdf_parsing",
               "tutorials/masterqa"
             ]
@@ -194,6 +196,7 @@
             "pages": [
               "tutorials/settings_and_config",
               "help/customizing_test_runs",
+              "help/test_options",
               "tutorials/run_settings",
               "tutorials/headless",
               "tutorials/browser_profiles",
@@ -327,6 +330,11 @@
               "plugins/shield",
               "plugins/block-resources",
               "plugins/crx",
+              "plugins/fetcher",
+              "plugins/extractor",
+              "plugins/batcher",
+              "plugins/crawler",
+              "plugins/browser",
               "plugins/imap",
               "plugins/tor",
               "plugins/wasm"
@@ -624,6 +632,7 @@
               "DEVELOPER_GUIDE",
               "contributing/debugging",
               "contributing/benchmarking",
+              "contributing/coverage",
               "contributing/releasing",
               "contributing/consumers",
               "UPSTREAM_SYNC",

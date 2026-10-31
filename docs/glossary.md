@@ -255,7 +255,7 @@ See [BrowserScraper](/stealth/browser-scraper).
 
 <Badge color="orange">Plugins</Badge>
 
-One of the official plugins that ship inside seleniumbase-rs, one Cargo feature each: `shield`, `block-resources` and `crx`. The prebuilt `sbrs` and `sbrs-mcp` have them compiled in, and you switch one on by name, for example `sbrs --plugin shield open https://example.com`.
+One of the ten official plugins that ship inside seleniumbase-rs, one Cargo feature each (`plugin-<name>`, all ten in `plugins-builtin`): `shield`, `block-resources`, `crx`, `fetcher`, `extractor`, `batcher`, `crawler`, `browser`, `imap` and `tor`. The prebuilt `sbrs` and `sbrs-mcp` have them compiled in, and you switch one on by name, for example `sbrs --plugin shield open https://example.com`.
 
 See [Choosing Plugins](/plugins/selecting).
 
@@ -1597,7 +1597,7 @@ See [Browser architecture](/concepts/browser-architecture#site-isolation-and-the
 
 <Badge color="gray">CLI</Badge>
 
-The command-line tool of the crate (package `seleniumbase-rs-cli`): open pages, run smoke tests, send CDP commands, patch binaries, record and replay, convert Python scripts and more. Global options such as `--uc`, `--headless` and `--browser` go before the subcommand.
+The command-line tool of the crate (package `seleniumbase-rs-cli`): open pages, run smoke tests, send CDP commands, patch binaries, record and replay, convert Python scripts and more. Global options such as `--uc`, `--headless`, `--browser` and `--url` go before or after the subcommand.
 
 See [CLI Usage (sbrs)](/tutorials/cli_usage).
 
@@ -1613,7 +1613,7 @@ See [sbrs doctor](/help/cli_reference#sbrs-doctor).
 
 <Badge color="gray">CLI</Badge>
 
-Downloads a driver into `./downloaded_drivers/`, in practice the chromedriver that matches your Chrome. `sbrs get` is another name for it.
+Downloads a driver or a browser into `./downloaded_drivers/`; the name is required, as in `sbrs install chromedriver` for the one that matches your Chrome. `sbrs get` is another name for it.
 
 See [sbrs install](/help/cli_reference#sbrs-install).
 
@@ -2265,7 +2265,7 @@ What a fingerprint says a browser is, and how it is delivered.
 
 <Card color="#d47628" title="Plugins" icon="plug" href="/plugins/overview">
 
-Browser plugins as Rust crates: shield, block-resources, crx and wasm.
+Browser plugins as Rust crates: the ten built-ins (shield, block-resources, crx, fetcher, extractor, batcher, crawler, browser, imap, tor) and wasm.
 
 </Card>
 

@@ -1,6 +1,8 @@
 ---
 title: "Window"
+sidebarTitle: "Window"
 description: "The window commands of the Tauri plugin's WebDriver endpoint: the one handle, the window rectangle, maximize, minimize and full screen."
+keywords: ["tauri", "window", "rect", "maximize", "fullscreen", "webdriver"]
 ---
 
 The endpoint drives one window: the one labelled `main`, or else another
@@ -69,11 +71,13 @@ curl -s -X POST "http://127.0.0.1:4445/$TOKEN/session/$SESSION/window" \
 
 </ResponseExample>
 
+## Window rectangle
+
 Every command that answers a rectangle answers the window's outer rectangle in
 CSS pixels, rounded to whole pixels (a scale factor such as 1.5 gives
 fractions, and clients read integers):
 
-<ResponseField name="value" type="object">
+<ResponseField name="value" type="object" required>
 
 <Expandable title="properties" defaultOpen>
 
@@ -183,6 +187,13 @@ The current session's id.
 
 </ParamField>
 
+<ResponseField name="value" type="object" required>
+
+The window's [rectangle](#window-rectangle) as it is now.
+
+</ResponseField>
+
+
 ## Set window rect
 
 <Badge color="green">POST</Badge> `/session/{sessionId}/window/rect`
@@ -255,6 +266,13 @@ The outer height, from 0 to 2147483647. Missing or `null` keeps it.
 With none of the four, the command only brings the window back to its normal
 state.
 
+<ResponseField name="value" type="object" required>
+
+The window's [rectangle](#window-rectangle) then, which can differ from the one
+asked for.
+
+</ResponseField>
+
 **Errors**
 
 | Status | `error` | When |
@@ -277,6 +295,13 @@ The current session's id.
 
 </ParamField>
 
+<ResponseField name="value" type="object" required>
+
+The window's [rectangle](#window-rectangle) then.
+
+</ResponseField>
+
+
 ## Minimize window
 
 <Badge color="green">POST</Badge> `/session/{sessionId}/window/minimize`
@@ -290,6 +315,13 @@ The current session's id.
 
 </ParamField>
 
+<ResponseField name="value" type="object" required>
+
+The window's [rectangle](#window-rectangle) then.
+
+</ResponseField>
+
+
 ## Fullscreen window
 
 <Badge color="green">POST</Badge> `/session/{sessionId}/window/fullscreen`
@@ -302,6 +334,13 @@ the state the same way, and answers the rectangle then.
 The current session's id.
 
 </ParamField>
+
+<ResponseField name="value" type="object" required>
+
+The window's [rectangle](#window-rectangle) then.
+
+</ResponseField>
+
 
 <Tip>
 

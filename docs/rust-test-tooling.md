@@ -110,17 +110,19 @@ export const LayoutFile = ({ name, note, highlight = false }) => (
 
 {/* layout-tree-component:end */}
 
-`seleniumbase-rs` does not ship its own test runner. Instead, it integrates with
-standard Rust tooling: `#[tokio::test]`, `cargo test`, `cargo nextest run`, and
-the `run_browser_test` lifecycle helper. This keeps tests idiomatic and lets you
-use the full Rust testing ecosystem.
+`seleniumbase-rs` does not ship its own test runner. `cargo test` is the one
+runner and [rstest](https://docs.rs/rstest) supplies the fixtures: with the
+`testing` feature the library adds `sb` (WebDriver) and `sb_cdp` (pure CDP),
+which do what Python's `sb` fixture does with the pytest options. `sbrs test`
+is `cargo test` (or `cargo nextest run`) with pytest's flags. This keeps tests
+idiomatic and lets you use the full Rust testing ecosystem.
 
 This page maps common testing concepts from Python and JavaScript to Rust, shows
 the recommended test shape, and explains how to organize a growing suite.
 
 <Visibility for="agents">
 
-Summary for AI exports: write a browser test as a `#[tokio::test]` that calls `run_browser_test(BrowserConfig::default(), async |sb| { .. }).await`; it creates a `BaseCase` and calls `quit` even when the body fails or panics. For the pure CDP engine use `run_cdp_test(LaunchOptions::default(), async |page| { .. })`. `sb_test!` generates the same wrapper. Run with `cargo test NAME` or `cargo nextest run`. Put integration tests in `tests/` and shared helpers in `tests/helpers/`.
+Summary for AI exports: write a browser test as `#[rstest] #[tokio::test] async fn name(sb: Sb) -> Result<()> { sb.run(async |sb| { .. }).await }` with `use seleniumbase_rs::testing::{rstest, sb, Sb}` and `use seleniumbase_rs::{tokio, Result}`, and the feature `testing` as the only dev-dependency. The body is an async closure over `&mut BaseCase`; it may run again on a rerun, so it must not consume what it captures. For the pure CDP engine ask for `sb_cdp: SbCdp` and call `sb_cdp.run(async |page| { .. })`. The fixture reads the settings file and the `SB_*` variables, reruns, enforces a time limit, leaves `latest_logs/<test id>/` on a failure and closes the browser. `run_browser_test(BrowserConfig::default(), async |sb| { .. })` and `run_cdp_test` are the explicit forms that read no configuration; `sb_test!` generates the same wrapper. Run with `cargo test NAME`, `cargo nextest run` or `sbrs test` (`-k`, `-m`, `-n`, `--co`, `--reruns`, `--pdb`). Put integration tests in `tests/` and shared helpers in `tests/helpers/`.
 
 </Visibility>
 
@@ -129,24 +131,42 @@ Summary for AI exports: write a browser test as a `#[tokio::test]` that calls `r
 | Python or JavaScript concept | Rust equivalent |
 |------------------------------|-----------------|
 | `pytest` async plugin | `#[tokio::test]` |
-| SeleniumBase `setUp` / `tearDown` | `run_browser_test` |
-| Test selection by name | `cargo test name` or nextest filters |
-| Parallel test execution | `cargo nextest run` |
+| `def test(sb)` with the `sb` fixture | `#[rstest]` with `sb: Sb`, and `sb.run(..)` for the body |
+| SeleniumBase `setUp` / `tearDown` | `Sb::run`, or `run_browser_test` |
+| Test selection by name, `-k` and `-m` | `cargo test name`, or `sbrs test -k` and `-m` |
+| Parallel test execution, `-n` | `cargo nextest run`, or `sbrs test -n` |
+| `--reruns`, `--time-limit`, `--pdb` | the same flags of `sbrs test` |
 | Feature-specific suites | Cargo features |
 | Environment configuration | `BrowserConfig`, `sbase_config.toml`, `SB_*` env vars |
-| Parameterized test cases | A loop, helper function, or parameterized-test crate |
+| Parameterized test cases | rstest's `#[case]` |
 
 ## Recommended test shape
 
-Use `run_browser_test` to guarantee cleanup. It creates a `BaseCase`, runs your
-async test body, and then calls `quit` even when the body fails:
+Ask for the `sb` (WebDriver) or `sb_cdp` (pure CDP) fixture and hand the body of
+the test to `run`. The library then does what Python's `sb` fixture does with the
+pytest options: it reads the run configuration, reruns a failed test, stops one
+that runs too long, leaves the evidence of a failure in `latest_logs/` and
+closes the browser whatever happened. The one dev-dependency is the library with
+the `testing` feature, which re-exports the `rstest` attribute and the Tokio
+runtime:
 
-```rust
-use seleniumbase_rs::{run_browser_test, tokio, BrowserConfig, Result};
+```toml Cargo.toml
+[dev-dependencies]
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", features = ["testing"] }
+```
 
+<Tabs>
+
+<Tab title="WebDriver (sb)" icon="flask">
+
+```rust tests/home.rs
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
+
+#[rstest]
 #[tokio::test]
-async fn user_can_open_the_home_page() -> Result<()> {
-    run_browser_test(BrowserConfig::default(), async |sb| {
+async fn user_can_open_the_home_page(sb: Sb) -> Result<()> {
+    sb.run(async |sb| {
         sb.open("https://example.com").await?;
         sb.assert_element("h1").await?;
         sb.assert_text("Example Domain", "h1").await
@@ -155,25 +175,67 @@ async fn user_can_open_the_home_page() -> Result<()> {
 }
 ```
 
-The test is an async closure, `async |sb| { .. }` (or an `async fn` that takes
-`&mut BaseCase`). It receives `&mut BaseCase` and returns `Result<()>`, that is
-`Result<(), SeleniumBaseError>`, so `?` converts any error with a `From` impl
-into it. The browser is closed when the test panics too, and the panic is then
-raised again. Code written for older versions used
-`|sb| Box::pin(async move { .. })`; drop the `Box::pin` and write
-`async |sb| { .. }`. To test a page with the Pure CDP engine instead, use
-`run_cdp_test(LaunchOptions::default(), async |page| { .. })`.
+The body is an async closure over `&mut BaseCase` that returns `Result<()>`, so
+`?` converts any error with a `From` impl into it, and so do the assertions of
+`BaseCase`. A panic in the body fails the test too, after the browser is closed.
+
+</Tab>
+
+<Tab title="Pure CDP (sb_cdp)" icon="bolt">
+
+```rust tests/home_cdp.rs
+use seleniumbase_rs::testing::{rstest, sb_cdp, SbCdp};
+use seleniumbase_rs::{tokio, Result};
+
+#[rstest]
+#[tokio::test]
+async fn user_can_open_the_home_page(sb_cdp: SbCdp) -> Result<()> {
+    sb_cdp
+        .run(async |page| {
+            page.goto("https://example.com").await?;
+            page.locator("h1").expect().to_contain_text("Example Domain").await?;
+            Ok(())
+        })
+        .await
+}
+```
+
+The body gets the first `Page` of a browser that needs no driver. A `Page` has
+no test data of its own, so read it with `sb_cdp.data()`.
+
+</Tab>
+
+</Tabs>
+
+The body is called again on a rerun, so it must not move out of what it
+captures. For the test data (`sb.env()`, `sb.data()`, `sb.var1()`, ...), the
+evidence and the reports, see [Writing Tests with the sb
+Fixture](/tutorials/writing_tests).
+
+### Reruns, time limit and debugging
+
+These are the options of pytest's plugins, as options of `sbrs test`, `SB_*`
+variables and keys of the `[test]` table of the settings file:
+
+| Python | Here | What it does |
+|---|---|---|
+| `--reruns N`, `--reruns-delay S` | `--reruns`, `--reruns-delay`, `settings.test.reruns` | Runs a failed test again with a new browser, after the delay |
+| `--time-limit S` | `--time-limit`, `settings.test.time_limit` | Fails a test that runs longer, and closes its browser |
+| `--pdb`, `--trace`, `--final-debug` | the same flags | A prompt with the browser open; see [Debug modes](/tutorials/debug_modes) |
+| `--env`, `--data`, `--var1` | the same flags | The test data, read with `sb.env()`, `sb.data()`, `sb.var1()` |
 
 Run the test:
 
 ```bash
 cargo test user_can_open_the_home_page
+sbrs test user_can_open_the_home_page --reruns 2
 ```
 
 ## Running the full suite
 
 For small suites, the default test runner is fine. For larger suites, install and
-use [cargo-nextest](https://nexte.st/):
+use [cargo-nextest](https://nexte.st/). `sbrs test` runs either one and takes the
+options of Python's pytest plugin (see [Test options](/help/test_options)):
 
 <CodeGroup>
 
@@ -186,13 +248,24 @@ cargo install cargo-nextest
 cargo nextest run
 ```
 
+```bash sbrs test
+sbrs test                         # cargo test
+sbrs test --runner nextest -n 4   # cargo nextest, four tests at a time
+sbrs test -k "login or signup"    # select tests by name
+sbrs test -m smoke                # select the tests in a module named smoke
+sbrs test --co                    # list the tests, run nothing
+```
+
 </CodeGroup>
 
 <Note>
 
 Nextest runs each test as a separate process, which isolates browser failures
 and makes parallel execution safer. The repository profile intentionally does
-not retry failed tests, so flaky behavior is not hidden.
+not retry failed tests, so flaky behavior is not hidden: use `--reruns N` on
+the `sb` fixture's tests when you want a rerun. A debug prompt (`--pdb`,
+`--trace`, `--final-debug`) needs the cargo runner, because nextest gives tests
+no standard input; see [Debug modes](/tutorials/debug_modes).
 
 </Note>
 
@@ -242,24 +315,26 @@ because its `drivers::WebElement` return type tied the trait to WebDriver.
 
 ## Parameterized tests
 
-Rust does not have built-in parameterized tests, but you can achieve the same
-result with a loop inside a single test or with a parameterized-test crate:
+rstest's `#[case]` runs one body for several inputs. Each case is its own test,
+with its own test id, its own folder of evidence and its own name for `-k`:
 
 ```rust
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
+
+#[rstest]
+#[case("alice", "secret1")]
+#[case("bob", "secret2")]
 #[tokio::test]
-async fn login_with_multiple_users() -> Result<()> {
-    let users = [("alice", "secret1"), ("bob", "secret2")];
-    for (user, pass) in users {
-        run_browser_test(BrowserConfig::default(), async |sb| {
-            sb.open("https://example.com/login").await?;
-            sb.type_text("#username", user).await?;
-            sb.type_text("#password", pass).await?;
-            sb.click("#submit").await?;
-            sb.assert_element_visible("#dashboard").await
-        })
-        .await?;
-    }
-    Ok(())
+async fn login_with_multiple_users(sb: Sb, #[case] user: &str, #[case] pass: &str) -> Result<()> {
+    sb.run(async |sb| {
+        sb.open("https://example.com/login").await?;
+        sb.type_text("#username", user).await?;
+        sb.type_text("#password", pass).await?;
+        sb.click("#submit").await?;
+        sb.assert_element_visible("#dashboard").await
+    })
+    .await
 }
 ```
 
@@ -289,7 +364,36 @@ each test its own browser process and reduces shared-state bugs.
 
 ## Configuration per test
 
-For tests that need special configuration, build a `BrowserConfig` directly:
+For global defaults, use `sbase_config.toml`, `SB_*` environment variables or
+the flags of `sbrs test` ([Test options](/help/test_options) lists them). See
+[Settings and Configuration](/tutorials/settings_and_config) for details.
+
+To change a setting for one test, which is the Rust form of Python's `SB(...)`
+arguments, use `configure` on the fixture:
+
+```rust
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
+
+#[rstest]
+#[tokio::test]
+async fn flaky_page(sb: Sb) -> Result<()> {
+    let sb = sb.configure(|settings| {
+        settings.headless = true;
+        settings.test.reruns = 2;
+        settings.test.time_limit = Some(60.0);
+    });
+    sb.run(async |sb| {
+        sb.open("https://example.com").await?;
+        sb.assert_title_contains("Example").await
+    })
+    .await
+}
+```
+
+For a test that must not depend on the environment at all, build a
+`BrowserConfig` directly and use `run_browser_test`, which reads no
+configuration:
 
 ```rust
 use seleniumbase_rs::{run_browser_test, tokio, BrowserConfig, DriverMode, Result};
@@ -307,9 +411,6 @@ async fn uc_smoke_test() -> Result<()> {
     .await
 }
 ```
-
-For global defaults, use `sbase_config.toml` or `SB_*` environment variables.
-See [Settings and Configuration](/tutorials/settings_and_config) for details.
 
 ## Macros for shorter tests
 
@@ -342,10 +443,20 @@ does not compile ("implementation of `AsyncFnOnce` is not general enough"). Writ
 
 </Accordion>
 
+<Accordion title="Moving out of what the body captures" icon="recycle">
+
+The body of `sb.run` is called again on a rerun, so it must not consume what it
+captures. Borrow the case's parameters (`&str`, a `&String`) or clone them
+inside the closure; a body that moves a captured `String` out by value does not
+compile.
+
+</Accordion>
+
+
 <Accordion title="Mixing sync and async cleanup" icon="arrows-rotate">
 
-`BaseCase::quit` is async. Do not rely on `Drop` for cleanup; use
-`run_browser_test` or call `quit` explicitly.
+`BaseCase::quit` is async. Do not rely on `Drop` for cleanup; use `Sb::run`
+(or `run_browser_test`) or call `quit` explicitly.
 
 </Accordion>
 
@@ -367,9 +478,8 @@ measuring.
 
 ## Testing checklist
 
-- [ ] Tests use `run_browser_test` or `sb_test!` for automatic cleanup.
+- [ ] Tests ask for the `sb` or `sb_cdp` fixture and hand their body to `run`, so the browser closes whatever happens.
 - [ ] Helpers are extracted into `tests/helpers/` or a shared crate.
-- [ ] Configuration is externalized for environment differences.
-- [ ] The suite is run with `cargo test` or `cargo nextest run`.
-- [ ] Tests capture screenshots or page source on failure.
-
+- [ ] Configuration is externalized for environment differences (the settings file, `SB_*` variables, `sbrs test` flags).
+- [ ] The suite is run with `sbrs test`, `cargo test` or `cargo nextest run`.
+- [ ] A failing test leaves its screenshot, page source and test info in `latest_logs/<test id>/`: the fixture does it, so look there first.

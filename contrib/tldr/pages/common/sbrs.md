@@ -1,7 +1,7 @@
 # sbrs
 
 > Automate browsers and run browser tests, a Rust port of SeleniumBase.
-> Some subcommands such as `install`, `mkdir`, `record`, etc. have their own usage documentation.
+> Some subcommands such as `install`, `mkdir`, `mkrec`, etc. have their own usage documentation.
 > More information: <https://mustcodeal-seleniumbase-rs.docs7.io/tutorials/cli_usage>.
 
 - Open a URL in a browser:
@@ -18,19 +18,19 @@
 
 - Download the chromedriver that matches the installed Chrome:
 
-`sbrs install`
+`sbrs install chromedriver`
 
 - Create a folder with a runnable browser-test suite:
 
 `sbrs mkdir {{path/to/directory}}`
 
-- Record browser interactions on a page into an action file:
+- Record browser interactions on a page into a test file:
 
-`sbrs record {{https://example.com}} {{[-o|--output]}} {{path/to/actions.json}}`
+`sbrs mkrec {{path/to/test_file.rs}} --url {{https://example.com}}`
 
 - Replay a recorded action file in a fresh browser:
 
-`sbrs replay {{path/to/actions.json}}`
+`sbrs replay {{recordings/test_file_rec.json}}`
 
 - Check the environment and configuration for problems:
 

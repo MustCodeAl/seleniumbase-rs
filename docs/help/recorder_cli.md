@@ -21,7 +21,7 @@ scenario, which is a different, richer format.
 
 <Visibility for="agents">
 
-Summary for AI exports: `sbrs mkrec FILE.rs --url URL` records manual browsing into `recordings/NAME_rec.rs` and `recordings/NAME_rec.json`, and `sbrs replay recordings/NAME_rec.json` plays it back. `BaseCase` records its own actions, which `save_recording_json` and `export_recording_as_rust` write out. `sbrs recorder` is a terminal app (feature `tui`) that runs these steps from a form. `sbrs run-scenario --file scenario.json` runs a hand-written JSON scenario, and a failing step does not change its exit status of 0.
+Summary for AI exports: `sbrs mkrec FILE.rs --url URL` records manual browsing into `recordings/NAME_rec.rs` and `recordings/NAME_rec.json` and copies the test to `FILE.rs`; the file is an argument, not `--file`, and `--url` is the optional global start page (written before or after the command, like `--uc`, `--ee` and `--rec-sb-cdp`). `sbrs replay recordings/NAME_rec.json` plays the recording back. `BaseCase` records its own actions, which `save_recording_json` and `export_recording_as_rust` write out. `sbrs recorder` is a terminal app (feature `tui`) that runs these steps from a form. `sbrs run-scenario --file scenario.json` runs a hand-written JSON scenario, and a failing step does not change its exit status of 0.
 
 </Visibility>
 
@@ -42,15 +42,20 @@ flowchart LR
 
 ```bash
 sbrs mkrec tests/login.rs --url seleniumbase.io/demo_page
+sbrs mkrec tests/login.rs --uc --ee --overwrite --url seleniumbase.io/demo_page
 ```
 
-`mkrec` (also `codegen` and `record`) opens a browser in Recorder Mode on
-`--url` and saves what you do in that window. Type `c` and press Enter in the
+`mkrec` (also `codegen` and `record`) takes the file as its argument, not as
+`--file`. It opens a browser in Recorder Mode on `--url`, when you give one (it
+is the global start page, so it may come before the command as well, and a bare
+host gets `https://`), and saves what you do in that window. Type `c` and press Enter in the
 terminal, or press SHIFT+ESC in the browser with `--ee`, to end it. It writes
 `recordings/login_rec.rs` (a test) and `recordings/login_rec.json` (the
 actions, which `sbrs replay` reads), and copies the test to `tests/login.rs`.
-The flags and the other output formats are in
-[Recorder Mode](/tutorials/recorder_mode).
+`--overwrite` replaces `FILE` when it exists, and `--behave` also writes the
+recording as a Gherkin feature. The other flags and the other output formats are
+in [Recorder Mode](/tutorials/recorder_mode), the page about the recorder as a
+whole.
 
 ## Replay a recording
 
@@ -129,7 +134,10 @@ or replay with `replay_actions`.
 
 `sbrs recorder` is a terminal app with a form for the file, the start URL, the
 browser and the output format, and buttons that record (it runs `sbrs mkrec`),
-run the recorded test and replay the recording. It needs the `tui` feature. See
+run the recorded test and replay the recording. It needs the `tui` feature, and
+`--url`, `--browser`, `--uc`, `--cdp`, `--ee`, `--rec-behave`, `--rec-sb-mgr` and
+`--rec-sb-cdp` fill the form in when the app starts, as in
+`sbrs recorder --uc --url seleniumbase.io`. See
 [Recorder Mode](/tutorials/recorder_mode).
 
 ## Run a JSON scenario

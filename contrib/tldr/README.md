@@ -18,7 +18,7 @@ All pages are in `pages/common/`.
 | `sbrs-devtools.md` | Chrome with an open DevTools endpoint |
 | `sbrs-prompt.md` | Chrome version and driver state for a shell prompt |
 | `sbrs-pdf-text.md` | text of a page or PDF |
-| `sbrs-plugin.md` | `sbrs plugin list` and `info`, and the global `--plugin` and `--plugin-opt` |
+| `sbrs-plugin.md` | `sbrs plugin list`, `info` and `run`, and the global `--plugin` and `--plugin-opt` |
 | `sbrs-mcp.md` | the `sbrs-mcp` binary |
 
 The examples come from `sbrs --help` and `sbrs <command> --help` of version 0.4.0 and from

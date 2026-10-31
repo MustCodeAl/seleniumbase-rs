@@ -139,17 +139,25 @@ in the plugins repository:
 
 | Crate | What it does |
 |---|---|
-| `seleniumbase-rs-plugin-block-resources` | Stops pages from loading images, fonts or media (`Network.setBlockedURLs`) |
-| `seleniumbase-rs-plugin-crx` | Loads packed Chrome extensions (`.crx` files): unpacks them and adds the folders to the start-up settings, which the launch loads |
-| `seleniumbase-rs-plugin-wasm` | Runs plugins written in any language that compiles to WebAssembly, in a sandbox (no host imports, fuel and memory limits) |
+| `seleniumbase-rs-plugin-shield` | [Privacy hardening](/plugins/shield): turns off the browser's background reporting, keeps WebRTC from leaking addresses, blocks third-party cookies |
+| `seleniumbase-rs-plugin-block-resources` | [Stops pages](/plugins/block-resources) from loading images, fonts or media (`Network.setBlockedURLs`) |
+| `seleniumbase-rs-plugin-crx` | [Loads packed Chrome extensions](/plugins/crx) (`.crx` files): unpacks them and adds the folders to the start-up settings, which the launch loads |
+| `seleniumbase-rs-plugin-fetcher` | [Request rules](/plugins/fetcher), a record of the responses and a task that fetches a list of URLs through the browser |
+| `seleniumbase-rs-plugin-extractor` | [Finds structured data](/plugins/extractor) on a page and reads it as typed JSON, as a task |
+| `seleniumbase-rs-plugin-batcher` | [Runs a list of jobs](/plugins/batcher) in tabs of their own, with time limits, retries and a resume file, as a task |
+| `seleniumbase-rs-plugin-crawler` | [Crawls a site](/plugins/crawler) you own and reports broken pages and console errors, as a task |
+| `seleniumbase-rs-plugin-browser` | [Loads extensions](/plugins/browser) from `.zip` and `.crx` files and unpacked folders |
+| `seleniumbase-rs-plugin-imap` | [Waits for a verification mail](/plugins/imap) and reads its code or link, as a task |
+| `seleniumbase-rs-plugin-tor` | [Routes the browser through a Tor daemon](/plugins/tor) you run |
+| `seleniumbase-rs-plugin-wasm` | [Runs plugins](/plugins/wasm) written in any language that compiles to WebAssembly, in a sandbox (no host imports, fuel and memory limits) |
 
 Add one with `cargo add`, from the same revision of the plugins repository
 that this crate pins (the `rev` of `seleniumbase-rs-plugin` in its
-`Cargo.toml`, currently `628991af0e6c5711298e3bd3692dc2974887401a`):
+`Cargo.toml`, currently `fea3634e2ebcaafce63a244df8d4adb53e3ec002`):
 
 ```sh Terminal
 cargo add --git https://github.com/MustCodeAl/seleniumbase-rs-plugins \
-    --rev 628991af0e6c5711298e3bd3692dc2974887401a \
+    --rev fea3634e2ebcaafce63a244df8d4adb53e3ec002 \
     seleniumbase-rs-plugin-block-resources
 ```
 
@@ -422,9 +430,14 @@ JSON in `--input` and writes each result as one JSON line to `--out`:
 sbrs plugin run crawler --input crawl.json --out found.jsonl
 ```
 
-An MCP client runs one with the `run_plugin_task` tool, and gets the results as
-progress. The official `batcher` and `crawler` plugins are tasks; their READMEs
-in the plugins repository list their inputs.
+An MCP client runs one with the `run_plugin_task` tool of the `cdp` server, and
+gets the results as progress. The official [fetcher](/plugins/fetcher),
+[extractor](/plugins/extractor), [batcher](/plugins/batcher),
+[crawler](/plugins/crawler) and [imap](/plugins/imap) plugins are tasks; their
+pages list their inputs. A task needs the pure CDP engine: the WebDriver engine
+refuses a plugin that offers one. From Rust,
+`plugin_host::run_task(options, name, &input, &sink, &prompt)` launches the
+browser, runs the task and closes the browser.
 
 
 ## When the hooks run

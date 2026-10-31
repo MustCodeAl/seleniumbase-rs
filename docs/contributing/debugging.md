@@ -1,7 +1,8 @@
 ---
 title: "Debugging"
-description: "Find out why a run fails: logs, headed and slowed-down runs, evidence on failure, a mocked browser, HAR recordings, sbrs doctor, driver checks and the MCP server's logs."
+description: "Find out why a run fails: logs and RUST_LOG targets, headed runs, evidence, a mocked browser, sbrs doctor, the MCP diagnose tools and lldb."
 sidebarTitle: "Debugging"
+keywords: ["debugging", "logs", "rust_log", "lldb", "codelldb", "doctor", "mcp", "tracing"]
 ---
 
 When a test or a command fails, the cause is usually one of three things: the
@@ -12,19 +13,19 @@ has for each, from turning on the logs to reproducing a failure without Chrome.
 
 **What you will learn**
 
-- How to turn on the logs, and which variables control them.
+- How to turn on the logs, pick targets with `RUST_LOG`, and which variables control them.
 - Which build features help with debugging, and which do nothing yet.
 - How to watch the browser, and slow a run down.
 - How to keep a screenshot and the page's HTML when a test fails.
 - How to reproduce a failure with a mocked browser, or record the network.
-- How to check the setup, the driver and the MCP server.
-- How to run one test, and the known traps.
+- How to check the setup, the driver and the MCP server, and which MCP tools diagnose a failure.
+- How to run one test, step through it with lldb or CodeLLDB, and the known traps.
 
 </Info>
 
 <Visibility for="agents">
 
-Summary for AI exports: logs go to standard error. `sbrs` and `sbrs-mcp` read the filter from `SB_LOG_LEVEL`, else `RUST_LOG`, else `info`, and `SB_LOG_FORMAT=pretty|json`. A program installs logging with `seleniumbase_rs::init_tracing()` or `init_tracing_from_runtime(&RuntimeConfig::from_env()?)`. Debug features: `tokio-console` (build with `RUSTFLAGS="--cfg tokio_unstable"`) and `full-tracing`; `error-backtrace` is declared but nothing reads it. Run headed with `BrowserConfig::with_headless(false)`, `LaunchOptions::builder().headless(false)` or `sbrs --headed`. Save evidence with `Plugins` and `ScreenshotOnFailurePlugin` / `PageSourceOnFailurePlugin`. Reproduce without Chrome with `Browser::new_mocked()` (feature `test-util`). Check the setup with `sbrs doctor`.
+Summary for AI exports: logs go to standard error. `sbrs` and `sbrs-mcp` read the filter from `SB_LOG_LEVEL`, else `RUST_LOG`, else `info`, and `SB_LOG_FORMAT=pretty|json`. A program installs logging with `seleniumbase_rs::init_tracing()` or `init_tracing_from_runtime(&RuntimeConfig::from_env()?)`. Debug features: `tokio-console` (build with `RUSTFLAGS="--cfg tokio_unstable"`) and `full-tracing`; `error-backtrace` is declared but nothing reads it. Run headed with `BrowserConfig::with_headless(false)`, `LaunchOptions::builder().headless(false)` or `sbrs --headed`. Save evidence with `Plugins` and `ScreenshotOnFailurePlugin` / `PageSourceOnFailurePlugin`. Reproduce without Chrome with `Browser::new_mocked()` (feature `test-util`). Check the setup with `sbrs doctor`. Pick log targets by module path, such as `RUST_LOG=info,seleniumbase_rs::browser=debug`. The MCP debugging tools are `diagnose_environment`, `diagnose_selector`, `get_console_messages`, `get_failed_requests` and `capture_debug_bundle`. To step through a test, build it with `CARGO_PROFILE_DEV_DEBUG=2` (the repository's check environment sets `0`, which leaves out the debug information a debugger needs) and start `rust-lldb` on the test binary, or use a CodeLLDB launch configuration with a `cargo` property.
 
 </Visibility>
 
@@ -121,6 +122,36 @@ SB_LOG_FORMAT=json SB_LOG_LEVEL=debug sbrs --headless smoke https://example.com
 ```
 
 </CodeGroup>
+
+### Pick a target with RUST_LOG
+
+The target of a log event is the Rust module that wrote it, and a filter takes
+those names: `seleniumbase_rs::browser=debug` turns one part of the crate up and
+leaves the rest at the default. These modules log today:
+
+| Target | What it logs |
+|---|---|
+| `seleniumbase_rs::browser::launcher` | Finding and downloading the driver, and the warnings about a driver that does not match the browser |
+| `seleniumbase_rs::browser::session` | Starting a session: the virtual display, the patched Chrome binary, settings a browser ignores |
+| `seleniumbase_rs::browser::driver_access` | Making a driver file runnable |
+| `seleniumbase_rs::sb_cdp` | The pure CDP engine, for example `sb_cdp::browser`, `sb_cdp::launch` and `sb_cdp::captcha::engine` |
+| `seleniumbase_rs::mcp` | The MCP servers: `mcp::host`, `mcp::progress` and `mcp::tool` |
+
+<Badge color="orange" icon="flask" stroke>Not run here</Badge>
+
+<CodeGroup>
+
+```bash The browser module
+RUST_LOG=warn,seleniumbase_rs::browser=debug sbrs --headless smoke https://example.com
+```
+
+```bash The pure CDP engine
+RUST_LOG=warn,seleniumbase_rs::sb_cdp=debug sbrs --headless smoke https://example.com
+```
+
+</CodeGroup>
+
+`SB_LOG_LEVEL`, when set, wins over `RUST_LOG`; unset it to use the filter above.
 
 ### In your own program or test
 
@@ -435,6 +466,23 @@ it found, the patch cache, and the chromedriver it found with its major version
 next to Chrome's. Each problem comes with a hint. An AI agent gets the same
 from the MCP tool `diagnose_environment`.
 
+### Ask the MCP tools
+
+The MCP servers have debugging tools of their own, for an AI agent that is
+driving a browser. Each entry in the [MCP server reference](/tutorials/mcp_server)
+has the fields and an example.
+
+| Tool | What it tells you | Servers |
+|---|---|---|
+| [`diagnose_environment`](/tutorials/mcp_server#diagnose_environment) | Whether Chrome and chromedriver are found and their major versions match, the driver cache, the output folder, the features of this build and the `SB_*` settings (secrets redacted). Needs no browser. | `cdp`, `driver`, `sb`, `dev` |
+| [`diagnose_selector`](/tutorials/mcp_server#diagnose_selector) | Why a selector finds nothing: invalid syntax, no match, hidden, covered or disabled matches, an iframe or shadow root, near misses. | `cdp`, `driver`, `sb` |
+| [`get_console_messages`](/tutorials/mcp_server#get_console_messages) | The page's console messages and uncaught script errors. | `cdp`, `driver`, `sb` |
+| [`get_failed_requests`](/tutorials/mcp_server#get_failed_requests) | The requests that failed, with their errors on the pure CDP engine. | `cdp`, `sb` |
+| [`capture_debug_bundle`](/tutorials/mcp_server#capture_debug_bundle) | A folder with a screenshot, the page source, the console messages, failed requests and the last tool calls, for a bug report. Typed text and scripts are redacted. | `cdp`, `driver`, `sb` |
+
+[Debugging: which tool for which symptom](/tutorials/mcp_server#debugging-which-tool-for-which-symptom)
+says which to call first.
+
 ## Driver problems
 
 <Badge color="gray">WebDriver engine only</Badge>
@@ -545,6 +593,105 @@ RUST_BACKTRACE=1 cargo test --features "mcp-server test-util" --test sb_cdp_mock
   binary at a time.
 - `--nocapture` shows what the test prints as it runs. Logs appear only if the
   test installs a subscriber (see [In your own program or test](#in-your-own-program-or-test)).
+
+## Step through with lldb
+
+A debugger shows variables and source lines only when the binary was built with
+debug information. The check environment of this repository sets
+`CARGO_PROFILE_DEV_DEBUG=0` (see [Keep builds small](/contributing/from-source#keep-builds-small)),
+which cargo reads as no debug information at all. `2` is full debug information,
+cargo's default for the `dev` profile. Set it for the build you step through;
+changing a profile setting makes cargo rebuild, so expect a long first build.
+
+<Badge color="orange" icon="flask" stroke>Not run here</Badge>
+
+<Tabs>
+
+<Tab title="rust-lldb" icon="terminal">
+
+<Steps>
+
+<Step title="Build the test" icon="hammer">
+
+A test that uses the mocked browser needs no Chrome, so it is the one to step
+through first.
+
+```bash Terminal
+CARGO_PROFILE_DEV_DEBUG=2 cargo test --features "mcp-server test-util" --test sb_cdp_mock --no-run
+```
+
+`--no-run` builds the test binary and prints its path on a line that starts
+with `Executable`, such as `target/debug/deps/sb_cdp_mock-<hash>`.
+
+</Step>
+
+<Step title="Start it under lldb" icon="play">
+
+```bash Terminal
+rust-lldb target/debug/deps/sb_cdp_mock-<hash> -- --exact --nocapture waiting_succeeds_once_the_element_appears
+```
+
+`rust-lldb` is rustup's wrapper around `lldb`; it loads pretty-printers for
+Rust values. Arguments that start with `-` go after `--`, and reach the test
+binary, not lldb.
+
+</Step>
+
+<Step title="Set a breakpoint and run" icon="bug">
+
+```text lldb
+(lldb) breakpoint set --file sb_cdp_mock.rs --line 125
+(lldb) run
+(lldb) bt
+(lldb) frame variable
+```
+
+Line 125 of `tests/sb_cdp_mock.rs` is inside the mock's answer to
+`Runtime.evaluate`, which runs on every look for the element. Use the line you
+want to stop at.
+
+</Step>
+
+</Steps>
+
+</Tab>
+
+<Tab title="CodeLLDB" icon="code">
+
+The [CodeLLDB](https://github.com/vadimcn/codelldb) extension of VS Code builds
+the target itself when a launch configuration has a `cargo` property in place
+of `program`. Its `env` sets the variables for that cargo run:
+
+```json .vscode/launch.json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "One mock test",
+      "cargo": {
+        "args": [
+          "test", "--features", "mcp-server test-util",
+          "--test", "sb_cdp_mock",
+          "waiting_succeeds_once_the_element_appears",
+          "--", "--exact", "--nocapture"
+        ],
+        "env": { "CARGO_PROFILE_DEV_DEBUG": "2" }
+      }
+    }
+  ]
+}
+```
+
+Set a breakpoint in the test file, then start the configuration.
+
+</Tab>
+
+</Tabs>
+
+lldb debugs the test process only: a real-Chrome test starts Chrome as a
+separate process that lldb does not follow.
 
 ## rust-analyzer
 

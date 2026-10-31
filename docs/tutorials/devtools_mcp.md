@@ -141,13 +141,13 @@ From Rust, `Browser::devtools_endpoint()` returns a `DevToolsEndpoint` with
 ```rust,no_run
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
 
-# async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-let options = LaunchOptions::builder().debugging_port(9222).build()?;
-let browser = Browser::launch(options).await?;
-let endpoint = browser.devtools_endpoint();
-println!("{}", endpoint.chrome_devtools_mcp_config());
-# Ok(())
-# }
+async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let options = LaunchOptions::builder().debugging_port(9222).build()?;
+    let browser = Browser::launch(options).await?;
+    let endpoint = browser.devtools_endpoint();
+    println!("{}", endpoint.chrome_devtools_mcp_config());
+    Ok(())
+}
 ```
 
 ## Google chrome-devtools-mcp

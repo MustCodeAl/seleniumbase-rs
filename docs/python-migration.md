@@ -10,11 +10,12 @@ automatically. The `sbrs import-python` command is designed to handle the
 mechanical parts and surface the parts that need human review.
 
 This page explains how to use the importer, what it can and cannot translate,
-and how to validate the generated Rust.
+and how to validate the generated Rust. It also has a table that maps each
+`sbase` command to its `sbrs` command ([From sbase to sbrs](#from-sbase-to-sbrs)).
 
 <Visibility for="agents">
 
-Summary for AI exports: `sbrs import-python FILE.py --output FILE.rs` converts a Python SeleniumBase or Selenium WebDriver test into Rust tests in the form `sbrs mkfile` writes: `#[rstest] #[tokio::test] async fn name(sb: Sb) -> Result<()> { sb.run(async |sb| { .. }).await }` (feature `testing`). Each `def test_*` method, `test_*` function, `with SB(...)` block or script is its own Rust test; `@parameterized.expand` and `@pytest.mark.parametrize` become `#[case]`s, `setUp` and `tearDown` run at the start and end of each test. A script that uses `sb_cdp.Chrome()`, `sb.cdp.*` or `activate_cdp_mode()` becomes a pure CDP test (`sb_cdp: SbCdp`, `Page` and `Locator` calls). Python variables, f-strings, `%` formatting, `for`, `if`/`elif`/`else`, `while`, `try`/`except` and `with self.frame_switch(..)` are translated; a text assertion without a selector looks at `html`, as in Python. Options: `--source` (`auto`, `selenium-base`, `selenium`), `--test-name` and `--output`. The output is a first draft: what it cannot translate becomes a `TODO` comment and a diagnostic. Review it, run `cargo fmt` and compile it before trusting it.
+Summary for AI exports: `sbrs import-python FILE.py --output FILE.rs` converts a Python SeleniumBase or Selenium WebDriver test into Rust tests in the form `sbrs mkfile` writes: `#[rstest] #[tokio::test] async fn name(sb: Sb) -> Result<()> { sb.run(async |sb| { .. }).await }` (feature `testing`). Each `def test_*` method, `test_*` function, `with SB(...)` block or script is its own Rust test; `@parameterized.expand` and `@pytest.mark.parametrize` become `#[case]`s, `setUp` and `tearDown` run at the start and end of each test. A script that uses `sb_cdp.Chrome()`, `sb.cdp.*` or `activate_cdp_mode()` becomes a pure CDP test (`sb_cdp: SbCdp`, `Page` and `Locator` calls). Python variables, f-strings, `%` formatting, `for`, `if`/`elif`/`else`, `while`, `try`/`except` and `with self.frame_switch(..)` are translated; a text assertion without a selector looks at `html`, as in Python. Options: `--source` (`auto`, `selenium-base`, `selenium`), `--test-name` and `--output`. The output is a first draft: what it cannot translate becomes a `TODO` comment and a diagnostic. Review it, run `cargo fmt` and compile it before trusting it. The table "From sbase to sbrs" maps every `sbase` command to its `sbrs` command and says where they differ.
 
 </Visibility>
 
@@ -347,6 +348,105 @@ if !result.is_complete() {
 
 `result.detected_source` says which API family the importer assumed, and
 `result.is_complete()` is true when no diagnostic has the `Error` severity.
+
+## From sbase to sbrs
+
+Python SeleniumBase's `sbase` commands have a command in `sbrs`, with the same
+name wherever Rust allows it. A command that writes a test writes Rust, the
+files are arguments (never a `--file` flag), and the options of `sbrs` itself
+(`--uc`, `--headless`, `--url`, ...) go before or after the command. The last
+column says where the two differ.
+
+| `sbase` | `sbrs` | What differs |
+|---|---|---|
+| `get` | `sbrs get DRIVER [VERSION]` | The same command as `install`. DRIVER is required: `sbrs get` alone prints the page of the command and exits with status 2. Besides `chromedriver`, `geckodriver` and `edgedriver` it fetches `uc_driver`, `cft`, `chs` and `chromium` (with `--revision`). `-p` copies the driver to `SB_DRIVER_PATH_DIR`, else `/usr/local/bin`, and never uses `sudo`. |
+| `install` | `sbrs install DRIVER [VERSION]` | The same command as `get`. |
+| `mkdir` | `sbrs mkdir DIR` | Writes a Rust suite that is one Cargo test target: `main.rs`, example tests on the `sb` fixture and a README. `-b` writes the scaffolding only, `--gha` adds a GitHub Actions workflow, `--bdd` a Gherkin scenario. |
+| `mkfile` | `sbrs mkfile FILE` (also `new`) | Writes a Rust test, by default an `#[rstest]` test on the `sb` fixture. The syntax flags `--bc`, `--cm`, `--dc` and `--dm` pick another shape; `--cf` is refused, because class fixtures have no Rust form. It also takes the language flags (`--es`, ...), `--url`, `-b`, `-r`, `--uc` and `--cdp`. |
+| `mkpres` | `sbrs mkpres FILE` | Writes a Rust test that builds a three-slide deck with the presentation API, in the language of a flag such as `--es`. Python writes a SeleniumBase class. |
+| `mkchart` | `sbrs mkchart FILE` | Writes a Rust test that shows a pie chart on a slide, in the language of a flag such as `--ja`. |
+| `print` | `sbrs print FILE [-n]` | Shows the file as it is: there is no syntax highlighting. `-n` numbers the lines. |
+| `translate` | `sbrs translate FILE --es [-p] [-o] [-c] [-n]` | The language is a flag (`--es`, or by name: `--spanish`). It translates the actions of a JSON scenario, the file `sbrs run-scenario` runs, because a Rust test is compiled code with English method names. `-c` writes a copy such as `scenario_es.json`. |
+| `convert` | `sbrs convert FILE.py` | Reads a Selenium IDE or Katalon Recorder export and writes a Rust test, `FILE_SB.rs`, where Python writes `FILE_SB.py`. The original is kept, and what could not be converted stays a `TODO` and is listed on standard error. `import-python` (this page) converts any Python test. |
+| `extract-objects` | `sbrs extract-objects FILE.rs` | FILE is a Rust test. The selectors go to `page_objects.rs` next to it: a module for each page the test opens, named with the words of its URL, and a constant for each selector, named with the words of the selector. |
+| `inject-objects` | `sbrs inject-objects FILE.rs [-c]` | Writes `page_objects::page::NAME` where the selector was, and declares `mod page_objects;`. `-c` adds the selector as a comment to each changed line. |
+| `objectify` | `sbrs objectify FILE.rs [-c]` | `extract-objects`, then `inject-objects`. The objects are named by the words of their selectors. |
+| `revert-objects` | `sbrs revert-objects FILE.rs [-c]` | Puts the selectors back; the round trip gives the original file back byte for byte. `-c` takes the comments of `inject-objects -c` off, where Python's `-c` keeps them. |
+| `encrypt` | `sbrs encrypt [TEXT]` | AES-256-GCM under the passphrase in `SB_ENCRYPTION_KEY`. A token is not interchangeable with Python's. |
+| `obfuscate` | `sbrs obfuscate [TEXT]` | An alias of `encrypt`. |
+| `decrypt` | `sbrs decrypt [TOKEN]` | Reads tokens made by `sbrs encrypt` only. |
+| `unobfuscate` | `sbrs unobfuscate [TOKEN]` | An alias of `decrypt`. |
+| `proxy` | `sbrs proxy [--hostname HOST] [--port PORT]` | A forward proxy for HTTP and `CONNECT` on `127.0.0.1:8899`, with no authentication. The other options of Python's are not offered. |
+| `download` | `sbrs download server [--version VERSION]` | Downloads Selenium Server 4, not Python's Selenium 3 server, because Grid 3 is gone. |
+| `grid-hub` | `sbrs grid-hub ACTION` (also `grid_hub`) | `start`, `stop`, `restart` or `status`, with `-v` and `--timeout SECONDS`. It needs Java and a Selenium Server jar and downloads nothing. |
+| `grid-node` | `sbrs grid-node ACTION` (also `grid_node`) | As `grid-hub`, and `--hub HOST` names the hub to register with. |
+| `methods` | `sbrs methods` | The common methods as they are called on `sb` in Rust (`sb.open(url)`, `sb.click(selector)`, ...). |
+| `options` | `sbrs options` | The browser options: each flag, its `SB_*` variable and its key in the settings file. `--markdown`, `--all` and `--env` list more. |
+| `behave-options` | `sbrs behave-options` | How the behave `-D` options map to `sbrs test`. |
+| `mkrec` | `sbrs mkrec FILE [--url URL]` | `--url` is the global start page and may be left out. It writes `recordings/NAME_rec.rs` and `recordings/NAME_rec.json`, and copies the test to FILE. |
+| `codegen` | `sbrs codegen FILE` | An alias of `mkrec`. |
+| `record` | `sbrs record FILE` | An alias of `mkrec`. |
+| `recorder` | `sbrs recorder` | A terminal app (feature `tui`), not a Tkinter window; without `tui` it prints a hint and exits with status 2. |
+| `commander` | `sbrs commander [PATH] [-k FILTER]` | A terminal app (feature `tui`) that lists the tests and examples and runs the one you pick with Cargo. |
+| `gui` | `sbrs gui [PATH] [-k FILTER]` | An alias of `commander`. |
+| `behave-gui` | `sbrs behave-gui [PATH]` | A terminal app (feature `tui`) that lists `.feature` files and runs the scenarios you mark with `cargo test`. `--new` writes a feature file and needs no `tui`. |
+| `gui-behave` | `sbrs gui-behave [PATH]` | An alias of `behave-gui`. |
+| `caseplans` | `sbrs caseplans [PATH] [-k FILTER]` | A terminal app (feature `tui`). `--starter` writes the checklist `CASE_PLANS.md` and needs no `tui`. |
+| `case-plans` | `sbrs case-plans [PATH]` | An alias of `caseplans` (also `case_plans`). |
+| `version` | `sbrs version` | Prints what `sbrs --version` prints. |
+| `help` | `sbrs help [COMMAND]` | Also `sbrs COMMAND --help`, which ends with an `Examples:` section. |
+
+[CLI usage](/tutorials/cli_usage) shows the commands at work, and the
+[CLI reference](/help/cli_reference) lists every flag.
+
+## From pytest to sbrs test
+
+A pytest test that asks for the `sb` fixture becomes a Rust test that asks for
+the `sb` fixture and hands its body to `run`; the options of the pytest plugin
+become flags of `sbrs test`, with the same names.
+
+<CodeGroup>
+
+```python test_login.py
+def test_login(sb):
+    sb.open("https://example.com/login")
+    sb.type("#user", "demo")
+    sb.assert_title("Welcome")
+```
+
+```rust tests/login.rs
+use seleniumbase_rs::testing::{rstest, sb, Sb};
+use seleniumbase_rs::{tokio, Result};
+
+#[rstest]
+#[tokio::test]
+async fn login(sb: Sb) -> Result<()> {
+    sb.run(async |sb| {
+        sb.open("https://example.com/login").await?;
+        sb.type_text("#user", "demo").await?;
+        sb.assert_title("Welcome").await
+    })
+    .await
+}
+```
+
+</CodeGroup>
+
+| pytest | `sbrs test` |
+|---|---|
+| `pytest -k "login or signup"` | `sbrs test -k "login or signup"`. With the cargo runner only `or` and `not` words work; `a and b` needs `--runner nextest` |
+| `pytest -m smoke` | `sbrs test -m smoke`. A marker is a module name: it runs the tests in `mod smoke` |
+| `pytest -n 4`, `-n auto` | `sbrs test -n 4`, `-n auto` |
+| `pytest --co` | `sbrs test --co` (lists the tests and `collected N items`) |
+| `pytest -s` | `sbrs test -s` |
+| `--reruns 2 --reruns-delay 1` | The same flags; the test is run again with a new browser |
+| `--time-limit 60` | The same flag; the test fails after 60 seconds and its browser is closed |
+| `--pdb`, `--trace`, `--final-debug`, `breakpoint()` | The same flags, and `sb.breakpoint("..")`; see [Debug modes](/tutorials/debug_modes) |
+| `--env qa --data x --var1 y --variables='{"k": 1}'` | The same flags; the test reads `sb.env()`, `sb.data()`, `sb.var1()` and `sb.variables()` |
+| `--headless --browser=firefox --uc` and the other browser options | The same flags; [Test options](/help/test_options) lists them with their `SB_*` variables |
+| `--html=report.html --junit-xml=report.xml --alluredir=results` | The same flags; see [Writing Tests with the sb Fixture](/tutorials/writing_tests#reports-of-a-run) |
+| `behave -D headless` | `sbrs test --headless`; `sbrs behave-options` maps the rest |
+
 
 ## Migration strategy
 

@@ -1,6 +1,8 @@
 ---
 title: "Status"
+sidebarTitle: "Status"
 description: "GET /status of the Tauri plugin's WebDriver endpoint: whether the endpoint answers, before any session."
+keywords: ["tauri", "status", "webdriver", "health check", "endpoint"]
 ---
 
 Whether the endpoint is up. Paths follow `http://127.0.0.1:4445/{token}`; see
@@ -53,6 +55,22 @@ the moment to start a session, which then waits for the page (see
 of the `tauri-profile-manager` example waits for this answer before it starts
 `BaseCase`.
 
+**Path and headers**
+
+<ParamField path="token" type="string" required>
+
+`SBRS_AUTOMATION_TOKEN`, or the random token the app printed when it started.
+The command needs no session, no body and no query parameter.
+
+</ParamField>
+
+<ParamField header="Origin" type="string">
+
+Must be absent: a request that has one answers `403 unknown error`, whatever
+its path.
+
+</ParamField>
+
 **Response**
 
 <ResponseField name="value" type="object" required>
@@ -84,6 +102,7 @@ This status response does not indicate whether a Chromium debugger is ready.
 |---|---|---|
 | 404 | `unknown command` | The path does not start with the token. |
 | 403 | `unknown error` | The request has an `Origin` header. |
+| 400 | `invalid argument` | A body that is not JSON (an empty body is fine). |
 
 <Tip>
 
