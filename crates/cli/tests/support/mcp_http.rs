@@ -36,6 +36,18 @@ fn command(args: &[&str], env: &[(&str, &str)]) -> Command {
             command.env_remove(name);
         }
     }
+    // The server writes files, among them the token it makes (`mcp-token`), to its output
+    // folder, which defaults to `./mcp_output` in the crate: each server gets a folder of
+    // its own that goes with the test, unless the test names one.
+    if !env.iter().any(|(name, _)| *name == "SB_MCP_OUTPUT_DIR") {
+        let output = tempfile::Builder::new()
+            .prefix("sbrs-mcp-test-")
+            .tempdir()
+            .expect("a temporary output folder");
+        command.env("SB_MCP_OUTPUT_DIR", output.keep());
+        // Kept, not deleted when this function returns: the server writes to it for as
+        // long as it runs, and the system's temporary-file cleaning takes it later.
+    }
     for (name, value) in env {
         command.env(name, value);
     }

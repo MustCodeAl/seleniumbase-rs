@@ -25,3 +25,8 @@ latest_logs/
 
 # The run the processes of a test session share (sbrs test, the sb fixture)
 .sbrs_run/
+
+# The default output folder of sbrs-mcp (SB_MCP_OUTPUT_DIR): screenshots, saved
+# pages and the generated HTTP bearer token (mcp-token), which is a secret
+mcp_output/
+mcp-token
