@@ -443,7 +443,7 @@ async fn an_address_that_is_taken_is_an_mcp_error() {
     let error = HttpServer::bind(
         Profile::Dev,
         Settings::new("out"),
-        HttpOptions::default().with_listen(taken),
+        HttpOptions::default().with_listen(taken).with_no_token(),
     )
     .await
     .expect_err("the port is in use");
