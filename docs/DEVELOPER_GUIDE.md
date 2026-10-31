@@ -310,8 +310,6 @@ pub struct BaseCase {
     presentation: Option<Presentation>,
     chart: Option<Chart>,
     qa_session: Option<MasterQaSession>,
-    #[cfg(feature = "playwright")]
-    playwright_session: Option<PlaywrightSession>,
     time_limit: Option<Duration>,
     started: Instant,
     timeout_secs: u64,
@@ -503,7 +501,6 @@ contained:
 |---|---|---|
 | `tui` | off | Terminal apps: `sbrs commander`, `sbrs caseplans`, `sbrs behave-gui`. Pulls `ratatui`/`crossterm`. |
 | `gui` | off | Native OS dialogs and GUI automation. Pulls `rfd`/`enigo`; on Linux it needs GTK and X11 development packages. |
-| `playwright` | off | Enables the `rustwright`-based Playwright-compatible engine. |
 | `s3` | off | Enables AWS S3 artifact uploads. |
 | `azure` | off | Enables Azure Blob Storage artifact uploads. |
 | `gcp` | off | Placeholder for Google Cloud integrations. |

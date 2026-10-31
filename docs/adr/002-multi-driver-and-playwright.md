@@ -28,6 +28,9 @@ The port needs to support both WebDriver (thirtyfour) and a Playwright-compatibl
 ## Later addition: the pure CDP engine
 `src/sb_cdp` is a third, independent backend: it launches Chrome and speaks the DevTools Protocol directly (`Browser`, `Page`, `Locator`, with `BrowserContext`, `BrowserPool` and `SessionStore` on top). It has no chromedriver and no `thirtyfour` dependency, is always compiled, and is not reached through `BaseCase`. See the [Pure CDP guide](/tutorials/pure_cdp).
 
+## Later change: Playwright moved out of the library
+The `playwright` feature, `rustwright`, `PlaywrightSession`'s own Chromium launch, `BaseCase::activate_playwright_mode` and `BaseCase::playwright_session` are gone from the library. Python SeleniumBase's *Stealthy Playwright Mode* never lets Playwright launch the browser: Playwright attaches with `connect_over_cdp` to the stealthy CDP browser, so the bridge is the workspace crate `crates/playwright` (`seleniumbase-rs-playwright`), which attaches `rustwright` to an `sb_cdp::Browser` through its DevTools endpoint. It is a bridge and not a `Plugin`: a plugin hooks into an engine's browser and cannot start a second client on it. The library's dependency graph no longer contains `rustwright` (`tests/library_manifest.rs`). See [Playwright mode](/help/playwright_mode).
+
 ---
 
 Verified against commit 8e9180f (multi-driver behaviour: `src/api/base_case_impls/base_case_impl_drivers.rs`; Playwright gating: `Cargo.toml`, `src/api/base_case.rs`).

@@ -10,6 +10,21 @@ work, `docs/parity.md` the per-API status).
 
 ### Breaking
 
+- **Breaking: the `playwright` feature is gone; Stealthy Playwright Mode is the new crate
+  `seleniumbase-rs-playwright`.** Python SeleniumBase attaches Playwright to its stealthy CDP
+  browser with `connect_over_cdp`, and so does the Rust bridge in `crates/playwright` (a workspace
+  member, not a default member, installed with `cargo add seleniumbase-rs-playwright --git ...`).
+  `PlaywrightSession::attach(&sb_cdp::Browser)` and `connect_over_cdp(endpoint)` attach rustwright
+  (re-exported as `seleniumbase_rs_playwright::rustwright`) to a running browser, and
+  `StealthyPlaywright::launch(options)` starts the stealthy browser and attaches in one call, with
+  the CDP API (`cdp()`) and the Playwright API (`playwright()`) on the same tab. The library no
+  longer has the `playwright` feature, the `rustwright` dependency, `browser::playwright`,
+  `api::playwright` (the `pw_*` helpers), `PlaywrightSession::launch` and `launch_with_config`
+  (rustwright launching a Chromium of its own), `BaseCase::activate_playwright_mode` and
+  `BaseCase::playwright_session`; `cargo tree -p seleniumbase-rs` shows no `rustwright`. The
+  Playwright part of the `stealth_fingerprint` example is gone with them. The CI matrix entries
+  for the feature, with their Python setup, are replaced by a step that tests the bridge.
+
 - **Breaking: `sbrs import-python` reads the Python as Python and writes the `sb` fixture form.**
   The SeleniumBase reading is a parser and a translator (no longer a regex per line): it maps
   every `implemented` method of `parity/api.toml` whose Rust call is mechanical (about 330, from

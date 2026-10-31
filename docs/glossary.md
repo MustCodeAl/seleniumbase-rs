@@ -1367,7 +1367,7 @@ See [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth#randomised-i
 
 <Badge color="blue">Engine</Badge>
 
-An optional engine, behind the Cargo feature `playwright`, that uses [rustwright](#rustwright) to drive Chromium with a Playwright-compatible API. `activate_playwright_mode` starts it as a second Chromium next to the WebDriver one.
+Stealthy Playwright Mode: the optional crate `seleniumbase-rs-playwright` attaches [rustwright](#rustwright) to a stealthy pure-CDP browser through its DevTools endpoint (`connect_over_cdp`), so Playwright-style code and the CDP API drive the same browser. The library itself has no Playwright engine.
 
 See [Playwright Mode](/help/playwright_mode).
 
@@ -1563,7 +1563,7 @@ See [Run Settings: Demo, Slow and Fast Runs](/tutorials/run_settings).
 
 <Badge color="blue">Engine</Badge>
 
-The native Rust CDP engine behind [Playwright mode](#playwright-mode). It drives Chromium with a Playwright-compatible API and needs no Node driver.
+The native Rust CDP engine behind [Playwright mode](#playwright-mode), re-exported by the `seleniumbase-rs-playwright` crate. It speaks a Playwright-compatible API to Chromium and needs no Node driver.
 
 See [Playwright Mode](/help/playwright_mode).
 

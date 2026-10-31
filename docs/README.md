@@ -194,7 +194,7 @@ By reading this book you will learn how to:
 ## What is included
 
 - **Browser modes**: <Tooltip tip="The Selenium protocol: the test talks to chromedriver, which drives the browser.">WebDriver</Tooltip>, <Tooltip tip="Chrome DevTools Protocol: the browser's own debugging protocol, spoken over a WebSocket." cta="Pure CDP engine" href="/tutorials/pure_cdp">CDP</Tooltip>, <Tooltip tip="Undetected Chromedriver mode: a browser launch and session setup that avoid common bot checks; the driver itself is not patched." cta="Undetected (UC) mode" href="/tutorials/uc_mode">UC</Tooltip> (Undetected Chromedriver), and an optional
-  `rustwright`-based Playwright-compatible engine.
+  Playwright bridge (the `seleniumbase-rs-playwright` crate: `rustwright` attached to a stealthy CDP browser).
 - **`BaseCase` API**: more than 200 methods for navigation, element interaction,
   assertions, waits, frames, windows, cookies, storage, uploads, PDF handling,
   HTML parsing, and more.

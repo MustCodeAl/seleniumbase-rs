@@ -171,7 +171,6 @@ The crate uses Cargo features to keep heavy dependencies off by default:
 
 | Feature | Effect | Default |
 |---|---|---|
-| `playwright` | Enables the `rustwright`-backed Playwright-compatible driver. | no |
 | `s3` | Enables AWS S3 artifact uploads. | no |
 | `azure` | Enables Azure Blob Storage artifact uploads. | no |
 | `gcp` | Enables Google Cloud Storage artifact uploads. | no |

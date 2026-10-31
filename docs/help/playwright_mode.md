@@ -3,179 +3,334 @@ title: "Playwright Mode"
 sidebarTitle: "Playwright mode"
 ---
 
-<Badge color="blue">Feature: playwright</Badge>
+<Badge color="blue">Crate: seleniumbase-rs-playwright</Badge>
 
-Playwright Mode uses [`rustwright`](https://github.com/Skyvern-AI/rustwright), a
-native Rust CDP engine, to drive Chromium with a Playwright-compatible API. It
-can bypass bot-detection systems that target WebDriver fingerprints without
-requiring a Node Playwright driver.
+**Stealthy Playwright Mode** is a subset of the [pure CDP engine](/tutorials/pure_cdp) where
+[`rustwright`](https://github.com/Skyvern-AI/rustwright), a Rust port of Playwright with a native
+CDP engine, attaches to a stealthy browser session through the remote-debugging URL. Playwright
+then bypasses bot detection the way the browser does, and the APIs of both libraries work on the
+same tabs. Under the hood Playwright achieves stealth through `connect_over_cdp`, as in Python
+SeleniumBase.
 
 <Info>
 
 **What you will learn**
 
-- How to enable the optional `playwright` feature.
-- How `rustwright` resolves Chromium.
-- How to activate and use a Playwright session.
+- How to add the `seleniumbase-rs-playwright` crate, which is not a feature of the library.
+- How to attach Playwright to a stealthy browser, or launch both in one call.
+- How the three Python formats map to Rust.
+- How to convert a regular Playwright script.
 
 </Info>
 
 <Visibility for="agents">
 
-Summary for AI exports: Playwright Mode needs the `playwright` Cargo feature, which is off by default. `BaseCase::activate_playwright_mode` starts a second Chromium through `rustwright` next to the WebDriver one, and `sb.quit()` closes both. `PlaywrightSession::launch_with_config` starts a session on its own, and `PlaywrightSession::connect_over_cdp` attaches to a browser that is already running.
+Summary for AI exports: the library `seleniumbase-rs` has no Playwright engine and no `playwright` feature. Stealthy Playwright Mode is the separate crate `seleniumbase-rs-playwright` (`crates/playwright` in the repository). `PlaywrightSession::attach(&browser)` attaches rustwright to a `seleniumbase_rs::sb_cdp::Browser` through its DevTools endpoint; `PlaywrightSession::connect_over_cdp(endpoint)` attaches to any DevTools address. `StealthyPlaywright::launch(options)` starts the stealthy browser and attaches in one call; its `cdp()` is the CDP Mode browser and its `playwright()` the Playwright session, both on the same tab. `close` on a session only detaches; `StealthyPlaywright::close` detaches and closes the browser. rustwright is re-exported as `seleniumbase_rs_playwright::rustwright`; its calls block, so `PlaywrightSession::with_page` runs them on the blocking pool.
 
 </Visibility>
 
-## Enable the feature
+## Installation
 
-The feature is off by default, so a plain build does not compile `rustwright`.
-Enable it in `Cargo.toml` or on the command line:
+Add the bridge crate next to the library:
 
 <CodeGroup>
 
-```toml Cargo.toml
-[dependencies]
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", features = ["playwright"] }
+```bash Command line
+cargo add seleniumbase-rs --git https://github.com/MustCodeAl/seleniumbase-rs
+cargo add seleniumbase-rs-playwright --git https://github.com/MustCodeAl/seleniumbase-rs
 ```
 
-```bash Command line
-cargo run --example playwright_mode --features playwright
+```toml Cargo.toml
+[dependencies]
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs" }
+seleniumbase-rs-playwright = { git = "https://github.com/MustCodeAl/seleniumbase-rs" }
 ```
 
 </CodeGroup>
 
-## Chromium installation
+A plain build of the library does not compile `rustwright`; only a project that lists the bridge
+does. Playwright does not launch a browser here, so there is no `playwright install` step and
+nothing to download: the browser is the Chrome that `sb_cdp` starts, the system Chrome by
+default, or Chromium with `LaunchOptionsBuilder::use_chromium(true)`. Point
+`LaunchOptionsBuilder::executable_path` at a Chrome of your own.
 
-`rustwright` finds a Chromium on the machine or downloads a build on first
-launch (that is `rustwright`'s behavior, not this crate's). Ensure the build
-host can reach the Chromium CDN, or install Chromium where `rustwright` looks
-for it.
+## Usage
 
-To use a Chromium of your own, give `BrowserConfig::browser_binary_path` (or
-`SB_CHROME_BIN`); `launch_with_config` and `activate_playwright_mode` pass it on.
+Stealthy Playwright Mode comes in three formats, like the Python one:
 
-## Example
+| Python | Rust |
+|---|---|
+| `sb_cdp.Chrome()`, then `connect_over_cdp(sb.get_endpoint_url())` | `Browser::launch(..)`, then `PlaywrightSession::attach(&browser)` |
+| `cdp_driver.start_async()`, then `connect_over_cdp(driver.get_endpoint_url())` | `StealthyPlaywright::launch(..)`: launch and attach in one call |
+| `SB(uc=True)` with `activate_cdp_mode()`, then `connect_over_cdp(sb.get_endpoint_url())` | `PlaywrightSession::connect_over_cdp("http://HOST:PORT")` for the Chrome that chromedriver started |
 
-```rust,no_run
-# #[cfg(feature = "playwright")]
-# async fn example() -> Result<(), Box<dyn std::error::Error>> {
-use seleniumbase_rs::{BaseCase, BrowserConfig};
+### 1. Attach to a browser you launched
 
-let mut sb = BaseCase::new(BrowserConfig::default()).await?;
-
-sb.activate_playwright_mode().await?;
-
-if let Some(session) = sb.playwright_session() {
-    session.goto("https://example.com").await?;
-    let heading = session.get_text("h1").await?;
-    println!("Page heading: {heading}");
-}
-
-// Closes the Playwright browser and the WebDriver one.
-sb.quit().await?;
-# Ok(())
-# }
-```
-
-<Note>
-
-`BaseCase::new` still connects a WebDriver browser first; `activate_playwright_mode`
-then launches a second, separate Chromium through `rustwright`. It is started as
-the `BrowserConfig` you gave `BaseCase::new` says: headless or not, proxy, user
-agent, locale, fingerprint, binary path, window size and extra Chrome switches.
-The one setting it leaves out is `user_data_dir`: Chrome locks a profile folder,
-and the WebDriver browser holds it. `sb.quit()` closes the Playwright browser as
-well, so leave that to it. The WebDriver methods of the case act on the first
-browser, not on the Playwright one.
-
-</Note>
-
-To use the Playwright session on its own, with no WebDriver browser, launch it
-directly with `launch_with_config`. The configuration decides whether it runs
-without a window (`BrowserConfig::default()` is headless; `with_headless(false)`
-opens one), which browser binary, proxy, user agent, window size and [`Fingerprint`](/tutorials/fingerprint_stealth) it
-uses:
+Ideal for programs that use the pure CDP API (`sb_cdp`) and want Playwright on the same browser.
+`attach` uses the HTTP address of the browser's DevTools endpoint (`Browser::http_url`), which is
+what Python's `get_endpoint_url()` returns:
 
 ```rust,no_run
-# #[cfg(feature = "playwright")]
-# async fn example() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-use seleniumbase_rs::browser::playwright::PlaywrightSession;
-use seleniumbase_rs::BrowserConfig;
-
-let config = BrowserConfig::default().with_headless(true);
-let session = PlaywrightSession::launch_with_config(&config).await?;
-session.goto("https://example.com").await?;
-println!("{}", session.get_text("h1").await?);
-session.close().await?;
-# Ok(())
-# }
-```
-
-To drive a browser that is already running, attach to its DevTools endpoint
-with `connect_over_cdp`. The session works on the page the browser has open,
-and `close` only detaches, so the browser keeps running. This is Python's own
-route to Playwright, `sb.cdp.get_endpoint_url()` and `connect_over_cdp`:
-
-```rust,no_run
-# #[cfg(feature = "playwright")]
-# async fn example() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-use seleniumbase_rs::browser::playwright::PlaywrightSession;
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
+use seleniumbase_rs::tokio;
+use seleniumbase_rs_playwright::PlaywrightSession;
 
-let browser = Browser::launch(LaunchOptions::default()).await?;
-let session = PlaywrightSession::connect_over_cdp(&browser.http_url()).await?;
-println!("{}", session.evaluate("document.title").await?);
-session.close().await?; // detaches
-browser.close().await?;
-# Ok(())
-# }
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let browser = Browser::launch(LaunchOptions::builder().headless(true).build()?).await?;
+    let session = PlaywrightSession::attach(&browser).await?;
+
+    session.goto("https://example.com").await?;
+    println!("{}", session.get_text("h1").await?);
+
+    session.close().await?; // detaches; the browser keeps running
+    browser.close().await?;
+    Ok(())
+}
+```
+
+The session works on the first page the browser has open, or on a new one if it has none. A
+browser that is already on a page keeps it: open the page with the CDP API first and the session
+starts on that page.
+
+### 2. Launch both in one call
+
+`StealthyPlaywright::launch` starts the stealthy browser and attaches Playwright to it. The CDP
+API (`cdp()`) and the Playwright API (`playwright()`) then work on the same tab at the same time:
+
+```rust,no_run
+use seleniumbase_rs::sb_cdp::LaunchOptions;
+use seleniumbase_rs::tokio;
+use seleniumbase_rs_playwright::StealthyPlaywright;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let stealthy =
+        StealthyPlaywright::launch(LaunchOptions::builder().headless(true).build()?).await?;
+
+    // Playwright loads the page ...
+    stealthy.playwright().goto("https://example.com").await?;
+    // ... and the CDP API reads it from the same tab.
+    let title = stealthy.cdp().default_page().await?.title().await?;
+    println!("{title}");
+
+    stealthy.close().await?; // detaches Playwright, then closes the browser
+    Ok(())
+}
+```
+
+The repository's `crates/playwright/examples/playwright_mode.rs` is this flow against a page it
+serves from `127.0.0.1`:
+
+```bash
+cargo run -p seleniumbase-rs-playwright --example playwright_mode
+```
+
+### 3. A browser that chromedriver started
+
+The WebDriver engine starts Chrome through chromedriver. Chrome reports its DevTools address in
+the session's capabilities (`goog:chromeOptions.debuggerAddress`, a bare `host:port`). Put
+`http://` in front of it and attach:
+
+```rust,no_run
+use seleniumbase_rs::tokio;
+use seleniumbase_rs_playwright::PlaywrightSession;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let debugger_address = "127.0.0.1:9222"; // from the session's capabilities
+    let session = PlaywrightSession::connect_over_cdp(&format!("http://{debugger_address}")).await?;
+    println!("{}", session.evaluate("document.title").await?);
+    session.close().await?; // detaches; chromedriver still owns the browser
+    Ok(())
+}
+```
+
+This format needs chromedriver, which the first two do not.
+
+### The three formats compared
+
+- **`Browser::launch` and `attach`**: the simplest set-up. CDP launches the stealthy browser and
+  there is no WebDriver.
+- **`StealthyPlaywright::launch`**: the same, in one value that also closes everything in the
+  right order.
+- **`connect_over_cdp`**: for a browser that something else started, such as chromedriver. The
+  stealth is whatever that browser was started with.
+
+## Converting a regular Playwright script
+
+A regular Playwright script launches its own browser:
+
+```rust,ignore
+let browser = chromium().launch(LaunchOptions { headless: Some(false), ..Default::default() })?;
+let page = browser.new_page()?;
+page.goto("https://example.com", GotoOptions::default())?;
+```
+
+The Stealthy Playwright Mode version starts the stealthy browser and attaches instead:
+
+```rust,no_run
+use seleniumbase_rs::sb_cdp::LaunchOptions;
+use seleniumbase_rs::tokio;
+use seleniumbase_rs_playwright::StealthyPlaywright;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let stealthy =
+        StealthyPlaywright::launch(LaunchOptions::builder().headless(false).build()?).await?;
+    stealthy
+        .playwright()
+        .with_page(|page| {
+            page.goto("https://example.com", Default::default())?;
+            Ok(())
+        })
+        .await?;
+    stealthy.close().await?;
+    Ok(())
+}
+```
+
+## Using all of rustwright
+
+`PlaywrightSession` has the page actions most scripts need, as `async` methods that return the
+errors the other engines return: `goto`, `click`, `type_text`, `get_text`, `evaluate`,
+`screenshot`, `new_page` and `close`. A missing element is `ElementNotFound`, an element that
+cannot be clicked is `ElementNotInteractable`, and a wait that runs out is `WaitTimeout`.
+
+Everything else rustwright can do is one call away. rustwright's page calls block the thread they
+run on, so `with_page` runs a closure with the active page on Tokio's blocking pool and gives back
+its result. `page()` and `browser()` hand out the plain rustwright handles for code that is
+already on a blocking thread. The crate re-exports the engine as `seleniumbase_rs_playwright::rustwright`,
+so the project lists no second dependency:
+
+```rust,no_run
+use seleniumbase_rs::sb_cdp::LaunchOptions;
+use seleniumbase_rs::tokio;
+use seleniumbase_rs_playwright::StealthyPlaywright;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let stealthy =
+        StealthyPlaywright::launch(LaunchOptions::builder().headless(true).build()?).await?;
+    let title = stealthy
+        .playwright()
+        .with_page(|page| {
+            page.goto("https://example.com", Default::default())?;
+            page.title(Default::default())
+        })
+        .await?;
+    println!("{title}");
+    stealthy.close().await?;
+    Ok(())
+}
+```
+
+## Details
+
+- The stealth is the browser's, not Playwright's. The launch switches, the
+  [fingerprint](/tutorials/fingerprint_stealth) (`LaunchOptionsBuilder::fingerprint`), the proxy
+  and the user agent are set when `sb_cdp` starts the browser, and the attached client inherits
+  them. The attach itself changes none of them.
+- rustwright's Rust API in version 0.3 has a browser and pages, but no browser-context type: the
+  bridge returns `rustwright::Browser` and `rustwright::Page`, not the `browser.contexts[0].pages[0]`
+  of Python. `PlaywrightSession` starts on the first open page.
+- Default timeouts differ between Playwright and SeleniumBase. A 30-second default in a
+  Playwright call might be 10 seconds in the matching SeleniumBase call.
+- When you give a custom timeout, Playwright counts milliseconds and SeleniumBase counts seconds.
+  `page.wait_for_timeout(2000)` in Playwright is `sb.sleep(2)` in SeleniumBase.
+- Hard sleeps are discouraged in general, but in stealth mode the extra waiting helps the
+  automation look human.
+- Playwright's `:has-text()` selector is SeleniumBase's `:contains()` selector, except that
+  `:has-text()` ignores case and `:contains()` does not.
+- For additional stealth, open pages with the CDP API (`stealthy.cdp().default_page().await?` and
+  `goto`) instead of Playwright's `goto`.
+
+## Proxy with authentication
+
+Do two things to use an authenticated proxy in Stealthy Playwright Mode:
+
+1. Give the proxy when the browser launches: `LaunchOptions::builder().proxy("USER:PASS@IP:PORT")`.
+2. Open the page with the CDP API before Playwright attaches, so the proxy settings are in force.
+
+For that order, launch the browser yourself and call `attach` afterwards, as in format 1:
+
+```rust,no_run
+use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
+use seleniumbase_rs::tokio;
+use seleniumbase_rs_playwright::PlaywrightSession;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let options = LaunchOptions::builder()
+        .use_chromium(true)
+        .proxy("user:pass@server:port")
+        .build()?;
+    let browser = Browser::launch(options).await?;
+    browser.default_page().await?.goto("https://example.com").await?;
+
+    let session = PlaywrightSession::attach(&browser).await?;
+    println!("{}", session.get_text("h1").await?);
+    session.close().await?;
+    browser.close().await?;
+    Ok(())
+}
 ```
 
 ## Notes
 
-- Playwright mode is optional; the default build does not include the
-  `rustwright` engine.
-- The session API is async and mirrors the WebDriver-backed helpers where
-  practical (`goto`, `click`, `type_text`, `get_text`, `evaluate`, `screenshot`,
-  `close`, plus `new_page`). `src/api/playwright.rs` has thin `pw_*` function
-  wrappers over the same methods.
-- For WebDriver-based stealth use `DriverMode::Uc` or `DriverMode::Cdp`. For a
-  Chrome session with no WebDriver at all and no extra dependency, see the
-  [pure CDP engine](/tutorials/pure_cdp).
+- The Playwright engine is optional and lives outside the library: a project that does not list
+  `seleniumbase-rs-playwright` never compiles it.
+- `StealthyPlaywright` and `PlaywrightSession` are not `Plugin`s of the [plugin API](/tutorials/plugins):
+  a plugin hooks into an engine's browser, and the bridge starts a second client on it.
+- For stealth with a WebDriver browser use `DriverMode::Uc` or `DriverMode::Cdp`. For a Chrome
+  session with no WebDriver at all, see the [pure CDP engine](/tutorials/pure_cdp).
 
 ## Troubleshooting
 
 <AccordionGroup>
 
-<Accordion title="`activate_playwright_mode` or `PlaywrightSession` not found" icon="puzzle-piece">
+<Accordion title="`PlaywrightSession` or `StealthyPlaywright` not found" icon="puzzle-piece">
 
-**Likely cause.** Feature not enabled.
+**Likely cause.** The crate is not a dependency. The library has no `playwright` feature any more.
 
-**Fix.** Build with `--features playwright`.
-
-</Accordion>
-
-<Accordion title="Chromium download fails" icon="download">
-
-**Likely cause.** Network restricted.
-
-**Fix.** Point `BrowserConfig::browser_binary_path` (or `SB_CHROME_BIN`) at a local Chromium and launch with `PlaywrightSession::launch_with_config`.
+**Fix.** Add `seleniumbase-rs-playwright` as shown under Installation, and import the types from
+`seleniumbase_rs_playwright`.
 
 </Accordion>
 
-<Accordion title="A program built with `playwright` cannot load a `libpython`" icon="triangle-exclamation">
+<Accordion title="`attach failed`" icon="plug">
 
-**Likely cause.** A dependency of yours turns on `rustwright-core`'s default `python` feature (Python bindings); this crate leaves it off.
+**Likely cause.** Nothing answers at the DevTools address, or the browser has already closed.
 
-**Fix.** Depend on `rustwright-core` with `default-features = false` too; nothing here needs Python.
+**Fix.** Attach while the browser handle is alive: `Browser::http_url()` names the address. For a
+chromedriver browser, check that the address starts with `http://`.
+
+</Accordion>
+
+<Accordion title="Chrome is not found" icon="download">
+
+**Likely cause.** `sb_cdp` looks for the system Chrome (or Chromium with `use_chromium(true)`).
+
+**Fix.** Install Chrome, or name one with `LaunchOptionsBuilder::executable_path`.
+
+</Accordion>
+
+<Accordion title="A program built with the bridge cannot load a `libpython`" icon="triangle-exclamation">
+
+**Likely cause.** A dependency of yours turns on `rustwright-core`'s default `python` feature
+(Python bindings); this crate leaves it off.
+
+**Fix.** Depend on `rustwright-core` with `default-features = false` too; nothing here needs
+Python.
 
 </Accordion>
 
 <Accordion title="Session methods missing" icon="magnifying-glass">
 
-**Likely cause.** API mismatch.
+**Likely cause.** The rustwright API differs from the Python Playwright one, and between versions.
 
-**Fix.** Check the rustdocs for the installed `rustwright` version.
+**Fix.** Check the rustdocs of the installed `rustwright` version (`cargo doc -p rustwright`),
+and use `with_page` for the calls `PlaywrightSession` does not wrap.
 
 </Accordion>
 

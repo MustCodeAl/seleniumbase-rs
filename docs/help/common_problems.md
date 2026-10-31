@@ -221,7 +221,6 @@ Nothing is enabled by default. These pieces exist only when their feature is on:
 |---------|--------------|
 | `tui` | `sbrs commander`, `sbrs caseplans` and `sbrs behave-gui` (without it each command prints an error and exits with status 2) |
 | `gui` | `Gui`, `api::dialog`, `api::gui` and the `dialog`, `dialogs` and `gui_automation` examples (on Linux it links GTK and X11) |
-| `playwright` | `PlaywrightSession`, `BaseCase::activate_playwright_mode` |
 | `mcp-server` | the `seleniumbase_rs::mcp` module and the `sbrs-mcp` binary |
 | `turso` | `seleniumbase_rs::storage` (`ResultStore`, `ProfileVault`) and `sbrs report` |
 | `test-util` | the scripted mock browser for `sb_cdp` (`Browser::new_mocked`, `MockCtrl`) |
@@ -232,24 +231,22 @@ Nothing is enabled by default. These pieces exist only when their feature is on:
 Enable one with `--features`, for example
 `cargo build --features tui,turso`.
 
-## Playwright / rustwright feature not compiling
+## Playwright / rustwright crate not compiling
 
-The `playwright` feature pulls in the `rustwright` and `rustwright-core`
-crates from crates.io, which bring a large Chromium automation core. It is off
-by default, so a plain `cargo build` does not need them:
-
-```bash
-cargo build --features playwright
-```
-
-The project's own quality gate (see `ROADMAP.md`) notes that building with
-`--all-features` needs a `libpython` available because of this feature. If you
-build with it on macOS and a test binary fails to start with a missing
-`libpython...dylib`, point the loader at your Python install's `lib` folder:
+The library has no Playwright feature. Stealthy Playwright Mode is the separate
+crate `seleniumbase-rs-playwright`, which pulls in the `rustwright` and
+`rustwright-core` crates from crates.io, a large Chromium automation core. A plain
+`cargo build` of the library does not need them; build or test the bridge by name:
 
 ```bash
-DYLD_LIBRARY_PATH=/path/to/python/lib cargo test --features playwright
+cargo build -p seleniumbase-rs-playwright
+cargo test -p seleniumbase-rs-playwright
 ```
+
+The bridge links no Python. If a program that uses it fails to start with a
+missing `libpython...dylib`, another dependency has turned on the Python bindings
+of `rustwright-core` (its default `python` feature); depend on `rustwright-core`
+with `default-features = false`. See [Playwright mode](/help/playwright_mode).
 
 ## MCP server not listing tools
 

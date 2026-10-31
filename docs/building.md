@@ -537,7 +537,6 @@ to the library. Build the library alone, with its own defaults, with
 | `mcp-server` | the `sbrs-mcp` binary (`rmcp`) | needed for the MCP servers |
 | `tui` | `sbrs commander`, the terminal UI | without it the command prints a hint and exits with status 2 |
 | `gui` | native OS dialogs and GUI automation | links GTK and X11 on Linux |
-| `playwright` | the Playwright-compatible mode (`rustwright`) | |
 | `s3`, `azure`, `gcp` | uploading reports and artifacts | |
 | `turso` | `ResultStore`, `ProfileVault`, `sbrs report` | an embedded database |
 | `full-tracing`, `error-backtrace` | extra tracing, a backtrace on every error | for debugging |
