@@ -20,12 +20,13 @@ concurrency:
 # upstream monorepo, which does not exist here, so its path filter matched
 # nothing and it never ran.)
 #
-# The workspace has three packages: the library `seleniumbase-rs` at the root, the
-# command line `seleniumbase-rs-cli` in `crates/cli` and the tests-only
-# `seleniumbase-rs-own-imports` in `crates/own-imports`. `default-members` names the
+# The workspace has four packages: the library `seleniumbase-rs` at the root, the
+# command line `seleniumbase-rs-cli` in `crates/cli`, the tests-only
+# `seleniumbase-rs-own-imports` in `crates/own-imports` and the Playwright bridge
+# `seleniumbase-rs-playwright` in `crates/playwright`. `default-members` names the
 # first two, so a plain `cargo build`, `cargo test` or `cargo clippy` covers both;
-# the `library` job runs the third.
-# Features that only the library defines (`s3`, `playwright`, ...) apply to the
+# the `library` job runs the other two.
+# Features that only the library defines (`s3`, `azure`, ...) apply to the
 # library; the command line forwards the ones it needs.
 
 jobs:
@@ -76,8 +77,6 @@ jobs:
           # `gui` and `tui` are off by default, so the default build skips them.
           - os: ubuntu-latest
             features: "gui,tui"
-          - os: ubuntu-latest
-            features: "playwright"
           - os: macos-latest
             features: ""
           - os: macos-latest
@@ -86,16 +85,12 @@ jobs:
             features: "mcp-server,pdf"
           - os: macos-latest
             features: "gui,tui"
-          - os: macos-latest
-            features: "playwright"
           - os: windows-latest
             features: ""
           - os: windows-latest
             features: "s3,azure,gcp"
           - os: windows-latest
             features: "mcp-server,pdf"
-          - os: windows-latest
-            features: "playwright"
 
     steps:
       - name: Checkout repository
@@ -118,7 +113,7 @@ jobs:
             libssl-dev pkg-config
 
       - name: Install Chrome and chromedriver (Linux)
-        if: runner.os == 'Linux' && matrix.features != 'playwright'
+        if: runner.os == 'Linux'
         # GitHub-hosted Ubuntu runners ship Chrome and chromedriver, and
         # `google-chrome-stable` is not in the default apt sources, so installing
         # it here would fail. The unit tests do not drive a browser; the real
@@ -128,7 +123,7 @@ jobs:
           chromedriver --version || true
 
       - name: Install Chrome and chromedriver (macOS)
-        if: runner.os == 'macOS' && matrix.features != 'playwright'
+        if: runner.os == 'macOS'
         run: |
           brew install --cask google-chrome
           brew install chromedriver
@@ -136,37 +131,14 @@ jobs:
           chromedriver --version
 
       - name: Install Chrome and chromedriver (Windows)
-        if: runner.os == 'Windows' && matrix.features != 'playwright'
+        if: runner.os == 'Windows'
         shell: pwsh
         run: |
           choco install googlechrome chromedriver -y
           & "C:\Program Files\Google\Chrome\Application\chrome.exe" --version
           chromedriver --version
 
-      - name: Install Python for playwright feature
-        if: matrix.features == 'playwright'
-        uses: jdx/mise-action@v2
-        with:
-          install: true
-          tools: python@3.14
-
-      - name: Set Python library path (Unix)
-        if: matrix.features == 'playwright' && runner.os != 'Windows'
-        run: |
-          PY_PREFIX=$($HOME/.local/share/mise/shims/python3 -c 'import sysconfig; print(sysconfig.get_config_var("prefix"))')
-          echo "PY_LIB_DIR=$PY_PREFIX/lib" >> "$GITHUB_ENV"
-
-      - name: Set Python library path (Windows)
-        if: matrix.features == 'playwright' && runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $py = & "$env:USERPROFILE\.local\share\mise\shims\python3.exe" -c 'import sysconfig; print(sysconfig.get_config_var("prefix"))'
-          echo "PY_LIB_DIR=$py\lib" | Out-File -FilePath "$env:GITHUB_ENV" -Append
-
       - name: Build
-        env:
-          DYLD_LIBRARY_PATH: ${{ env.PY_LIB_DIR }}
-          LD_LIBRARY_PATH: ${{ env.PY_LIB_DIR }}
         run: |
           if ("${{ matrix.features }}" -ne "") {
             cargo build --features "${{ matrix.features }}"
@@ -176,9 +148,6 @@ jobs:
         shell: pwsh
 
       - name: Run tests
-        env:
-          DYLD_LIBRARY_PATH: ${{ env.PY_LIB_DIR }}
-          LD_LIBRARY_PATH: ${{ env.PY_LIB_DIR }}
         run: |
           if ("${{ matrix.features }}" -ne "") {
             cargo test --features "${{ matrix.features }}"
@@ -188,9 +157,6 @@ jobs:
         shell: pwsh
 
       - name: Run Clippy
-        env:
-          DYLD_LIBRARY_PATH: ${{ env.PY_LIB_DIR }}
-          LD_LIBRARY_PATH: ${{ env.PY_LIB_DIR }}
         run: |
           if ("${{ matrix.features }}" -ne "") {
             cargo clippy --all-targets --features "${{ matrix.features }}" -- -D warnings
@@ -234,6 +200,14 @@ jobs:
       - name: Imports resolve for a crate that lists only seleniumbase-rs
         run: cargo test -p seleniumbase-rs-own-imports
 
+      # `crates/playwright` is Stealthy Playwright Mode: rustwright attached to a stealthy
+      # sb_cdp browser. It is a workspace member and not a default member, so the matrix above
+      # never builds the Playwright engine. Its tests that start Chrome are `#[ignore]`d; what
+      # runs here compiles the attach path and its doctests.
+      - name: Playwright bridge (crates/playwright)
+        run: |
+          cargo clippy -p seleniumbase-rs-playwright --all-targets -- -D warnings
+          cargo test -p seleniumbase-rs-playwright
 
       # The command line turns `pdf` on by default, so the matrix above never runs
       # the tests that expect a build without it (the exit status 2 and the hint).
@@ -249,6 +223,15 @@ jobs:
         run: |
           if cargo tree -p seleniumbase-rs -e normal --prefix none | grep -E '^(usage-rs|usage-argv|usage-derive|usage-lib|clap|clap_complete|clap_complete_fig|clap_usage) '; then
             echo "::error::the library depends on a command-line crate"
+            exit 1
+          fi
+
+      # The Playwright engine belongs to crates/playwright; tests/library_manifest.rs checks
+      # the manifest, this checks the resolved graph.
+      - name: No Playwright engine in the library's dependency graph
+        run: |
+          if cargo tree -p seleniumbase-rs -e normal --prefix none | grep -E '^rustwright'; then
+            echo "::error::the library depends on the rustwright Playwright engine"
             exit 1
           fi
 

@@ -222,6 +222,7 @@ presentations, and optional stealth/CDP integrations.
 <LayoutDir name="tests" note="every test that runs the real sbrs or sbrs-mcp binary" />
 </LayoutDir>
 <LayoutDir name="own-imports" note="tests that import only seleniumbase_rs: the proof that its re-exports work" />
+<LayoutDir name="playwright" note="the package seleniumbase-rs-playwright: Stealthy Playwright Mode, rustwright attached to a stealthy sb_cdp browser" />
 </LayoutDir>
 <LayoutDir name="tests" note="integration tests of the library">
 <LayoutDir name="golden" note="compiled into the library" />

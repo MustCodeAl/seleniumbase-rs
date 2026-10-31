@@ -178,7 +178,8 @@ seleniumbase-rs/               # the workspace root
 │   │   │   ├── strict.rs      # refuses, with status 2, what the parser is too loose about
 │   │   │   └── mcp_install/   # sbrs-mcp install, uninstall and clients
 │   │   └── tests/             # every test that runs the real sbrs or sbrs-mcp binary
-│   └── own-imports/           # tests that import only seleniumbase_rs: the proof that its re-exports work
+│   ├── own-imports/           # tests that import only seleniumbase_rs: the proof that its re-exports work
+│   └── playwright/            # the package seleniumbase-rs-playwright: Stealthy Playwright Mode, rustwright attached to a stealthy sb_cdp browser
 ├── tests/                     # integration tests of the library
 ├── benches/                   # the benchmarks
 ├── examples/                  # runnable examples
