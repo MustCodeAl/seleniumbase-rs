@@ -2,6 +2,7 @@
 title: "Build from source"
 description: "Clone seleniumbase-rs, set up Rust 1.99 and a C compiler, build the library and the sbrs binaries, and run the checks every change must pass."
 sidebarTitle: "Build from source"
+keywords: ["build", "cargo", "rust", "workspace", "checks", "mbx", "mise"]
 ---
 
 {/* layout-tree-component:start */}
@@ -418,6 +419,10 @@ The module map of `src/` is in `CLAUDE.md` and in the
 
 ## Build
 
+Plain `cargo` is all the build needs. mise (tool versions and the repository's
+tasks, see [Make, just and mise](#make-just-and-mise)) and mr-boxington (a build
+cache, see [Keep builds small](#keep-builds-small)) are optional.
+
 <CodeGroup>
 
 ```bash Both packages
@@ -513,7 +518,9 @@ mr-boxington (below) manages incremental state itself.
 <ParamField path="CARGO_PROFILE_DEV_DEBUG" type="number">
 
 `0` leaves debug information out of development builds: smaller files and
-faster links.
+faster links. A debugger then shows no variables and no source lines, so build
+with `CARGO_PROFILE_DEV_DEBUG=2` (cargo's default for `dev`) to step through
+code; see [Step through with lldb](/contributing/debugging#step-through-with-lldb).
 
 </ParamField>
 
@@ -532,13 +539,15 @@ and doctests then fail with "extern location does not exist". A development
 
 <Tip>
 
-Use [mr-boxington](https://mr-boxington.jdx.dev) (`mbx`), a shared cache for
-Cargo builds: `cargo install mbx --locked && mbx setup`, or with mise
+Optional: [mr-boxington](https://mr-boxington.jdx.dev) (`mbx`) is a shared cache
+for Cargo builds: `cargo install mbx --locked && mbx setup`, or with mise
 `mise use --global --tool-option mr_boxington=true rust mr-boxington`. Keep
 running `cargo`: each checkout and worktree gets its own managed `target`, so
 worktrees no longer collide, compiled work is reused between them, and the
-cache prunes itself. It caches nothing while `RUSTC_WRAPPER` is set, and it
-leaves a `CARGO_TARGET_DIR` you set alone. `mbx doctor` checks the setup.
+cache prunes itself. Do not set `RUSTC_WRAPPER` or `CARGO_TARGET_DIR` with it:
+it caches nothing while `RUSTC_WRAPPER` is set, and it leaves a
+`CARGO_TARGET_DIR` you set alone, so the managed `target` is not used.
+`mbx doctor` checks the setup.
 
 </Tip>
 
@@ -601,6 +610,9 @@ Run it when the docs changed. It writes the book to `book/`.
 </Step>
 
 </Steps>
+
+To see which lines the tests reach, with and without a browser, read
+[Code coverage](/contributing/coverage).
 
 <Tip>
 
@@ -674,7 +686,7 @@ no menu of `docs/docs.json`.
 ## Make, just and mise
 
 The repository has the same everyday tasks in three runners. Use whichever you
-have.
+have; none is required, and mise is an optional extra like mbx.
 
 | Task | just | make | mise |
 |---|---|---|---|
@@ -868,6 +880,12 @@ Logs, headed runs, evidence when a test fails, and tests without Chrome.
 <Card color="#a631be" title="Benchmarking" icon="gauge-high" href="/contributing/benchmarking">
 
 Run the harnesses in `benches/` and compare a change fairly.
+
+</Card>
+
+<Card color="#199f43" title="Code coverage" icon="chart-pie" href="/contributing/coverage">
+
+Which lines the tests reach, with a mocked browser and with a real one.
 
 </Card>
 
