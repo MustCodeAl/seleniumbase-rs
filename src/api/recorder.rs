@@ -1865,7 +1865,7 @@ mod tests {
         let cdp = recorder.to_cdp_script();
         assert!(!cdp.contains("{{SB"), "{cdp}");
         assert!(
-            cdp.contains("// skipped: type: the text is a password"),
+            cdp.contains(r#"// skipped: "type": the text is a password"#),
             "{cdp}"
         );
         let feature = recorder.to_gherkin("Login");

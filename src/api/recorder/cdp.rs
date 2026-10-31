@@ -71,7 +71,7 @@ pub(super) fn cdp_call(action: &RecordedAction) -> Result<CdpCall, String> {
         .is_some_and(|text| text.contains(super::SECRET_PLACEHOLDER))
     {
         return Err(format!(
-            "{}: the text is a password; type it with the BaseCase program, which reads {}",
+            "{:?}: the text is a password; type it with the BaseCase program, which reads {}",
             action.name,
             super::SECRET_VARIABLE
         ));
@@ -328,6 +328,27 @@ mod tests {
         cdp_call(&action(name, target, value))
             .expect("the action has a pure CDP call")
             .imports
+    }
+
+    #[test]
+    fn a_skipped_actions_name_is_quoted_so_it_cannot_end_the_comment() {
+        // A recorded name is page data: the reason that quotes it must not let
+        // a newline in it start a statement of the generated program.
+        let hostile = "x\nlet injected = 1;";
+        let secret = format!("{}0", crate::api::recorder::SECRET_PLACEHOLDER);
+
+        let text = program(&[action(hostile, None, Some(&secret))], "async fn t()");
+
+        assert!(
+            !text
+                .lines()
+                .any(|line| line.trim_start().starts_with("let injected")),
+            "{text}"
+        );
+        assert!(
+            text.contains(r#"// skipped: "x\nlet injected = 1;": the text is a password"#),
+            "{text}"
+        );
     }
 
     /// Each supported action, the arguments that make it generate, and what it

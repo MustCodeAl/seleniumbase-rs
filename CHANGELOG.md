@@ -956,6 +956,11 @@ work, `docs/parity.md` the per-API status).
   `evasion::evasions::PERMITTED_SWITCHES`) are passed; anything else is refused and logged, named
   or not. The refused list stays, shared with the plugin policy.
 
+- **Security: a recorded action's name cannot add code to the pure CDP program.** A typed
+  password is skipped in the `to_cdp_script` output with a `// skipped:` comment that named the
+  action as recorded, so a name with a line break (a recording file from elsewhere can hold any
+  name) ended the comment and its next line became a statement of the generated Rust. The name
+  is quoted (`{:?}`) like every other skip reason.
 
 - **A pure CDP `Locator` enters a frame of any origin, so Python's `nested_click` works.**
   `page.locator("iframe#myFrame3").locator(".fBox").click()` found nothing in the demo page's
