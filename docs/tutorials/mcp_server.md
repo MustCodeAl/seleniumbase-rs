@@ -1437,10 +1437,10 @@ For `batch` the status is that of the first failure.
 ```rust,no_run
 use seleniumbase_rs::mcp::{self, Profile};
 
-# async fn run() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-mcp::serve(Profile::Cdp).await?;
-# Ok(())
-# }
+async fn run() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    mcp::serve(Profile::Cdp).await?;
+    Ok(())
+}
 ```
 
 `mcp::cdp::host`, `mcp::driver::host`, `mcp::sb::host` and `mcp::dev::host` build
