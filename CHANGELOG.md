@@ -914,6 +914,17 @@ work, `docs/parity.md` the per-API status).
 
 ### Changed
 
+- **The CLI pages describe `sbrs` as it is.** `docs/tutorials/cli_usage.md` gains the page a wrong
+  command prints, `--url` as the way to give a page command its page, a PowerShell tab for the
+  completions, every driver and version word of `sbrs install` with `-p` explained, `sbrs proxy`,
+  `sbrs download server` and the page objects round trip; `docs/help/cli_tldr.md` and the tldr
+  pages in `contrib/tldr/` show `--url`, a driver name for `install` and `get`, and `mkrec FILE`
+  where they showed `sbrs record URL -o FILE`; `docs/completions/README.md` has the counts of the
+  spec (110 subcommands, 103 top-level options of which 101 are global);
+  `docs/help/recorder_cli.md` the `mkrec` shape; and `docs/python-migration.md` a table from each
+  `sbase` command to its `sbrs` command and where they differ. A few lines on other pages and in
+  the Warp workflow `sbrs-record.yaml` that typed `sbrs install` alone, `sbrs record URL -o FILE`
+  or `sbrs grid` are corrected.
 - **The layout trees of the docs pages come from one source.** The tree of the repository was
   copied by hand into `CONTRIBUTING.md`, `docs/CONTRIBUTING.md`, `docs/DEVELOPER_GUIDE.md` and
   `docs/contributing/from-source.md`, and the copies had drifted (`stealth/` for `evasion/`, a

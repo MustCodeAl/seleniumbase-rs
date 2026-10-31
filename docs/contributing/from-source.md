@@ -647,7 +647,7 @@ mise run chrome
 - `mise run chrome` runs `tests/*_chrome.rs`, `tests/browser_smoke.rs` and
   `crates/cli/tests/*_chrome.rs` one binary at a time, and skips
   `playwright_chrome`.
-- The WebDriver tests need a chromedriver that matches Chrome: `sbrs install`
+- The WebDriver tests need a chromedriver that matches Chrome: `sbrs install chromedriver`
   downloads it into `downloaded_drivers/`. The pure CDP tests need none.
 - As root or in a container, Chrome needs `--no-sandbox`: the tests pass it when
   `CI` is set. To run them in Docker with Chromium and Xvfb, see

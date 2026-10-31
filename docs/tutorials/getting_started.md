@@ -367,7 +367,7 @@ cargo test login_succeeds
 
 **Cause.** The driver executable is missing.
 
-**Solution.** Install it with `sbrs install` or download it from the Chrome for Testing dashboard.
+**Solution.** Install it with `sbrs install chromedriver` or download it from the Chrome for Testing dashboard.
 
 </Accordion>
 

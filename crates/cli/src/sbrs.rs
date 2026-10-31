@@ -2687,12 +2687,12 @@ async fn run_doctor(options: &DoctorArgs) -> Result<(), Box<dyn std::error::Erro
                     println!("  Version: {driver}, but Chrome is {browser}");
                     failures.push(format!(
                         "chromedriver {driver} cannot drive Chrome {browser}: a chromedriver only \
-                         drives its own Chrome version, so run `sbrs install` to fetch the \
+                         drives its own Chrome version, so run `sbrs install chromedriver` to fetch the \
                          matching one"
                     ));
                     println!(
                         "  Hint: a chromedriver only drives its own Chrome version; \
-                         run `sbrs install` to fetch the matching one"
+                         run `sbrs install chromedriver` to fetch the matching one"
                     );
                 }
                 (Some(driver), None) => println!("  Version: {driver}"),
@@ -2720,11 +2720,11 @@ async fn run_doctor(options: &DoctorArgs) -> Result<(), Box<dyn std::error::Erro
                 assets::CHROMEDRIVER_PATH_VAR,
                 path.display()
             );
-            println!("  Hint: fix or unset CHROMEDRIVER_PATH, or run `sbrs install`");
+            println!("  Hint: fix or unset CHROMEDRIVER_PATH, or run `sbrs install chromedriver`");
         }
         assets::DriverLookup::NotFound => {
             println!("  Not found in {}/ or on PATH", assets::DRIVERS_DIR);
-            println!("  Hint: run `sbrs install` or set CHROMEDRIVER_PATH");
+            println!("  Hint: run `sbrs install chromedriver` or set CHROMEDRIVER_PATH");
         }
     }
 
