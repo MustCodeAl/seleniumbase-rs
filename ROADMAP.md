@@ -53,7 +53,7 @@ Design rules that apply to everything below:
 
 ## 1. Finish the parity upgrade
 
-Version 0.6.0 is the current release (see `CHANGELOG.md`); what follows is what is still open.
+Version 0.7.0 is the current release (see `CHANGELOG.md`); what follows is what is still open.
 
 1. **Verify the WebDriver MCP servers on a real driver.**
    `tests/mcp_webdriver_chrome.rs` is written but unrun. The chromedriver now

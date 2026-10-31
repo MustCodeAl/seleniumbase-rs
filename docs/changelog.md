@@ -5,19 +5,19 @@ title: "Changelog"
 Generated from `CHANGELOG.md` by `tools/docs7_changelog.py`. The versions follow
 Semantic Versioning.
 
-## Latest release: v0.6.0
+## Latest release: v0.7.0
 
 <Columns cols={3}>
 
-<Card title="Release notes" icon="github" color="#1a85d4" href="https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.6.0">
-  v0.6.0 on GitHub.
+<Card title="Release notes" icon="github" color="#1a85d4" href="https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.7.0">
+  v0.7.0 on GitHub.
 </Card>
 
-<Card title="Source (.zip)" icon="file-zipper" color="#199f43" href="https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.6.0.zip">
+<Card title="Source (.zip)" icon="file-zipper" color="#199f43" href="https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.7.0.zip">
   The source of this release as a zip archive.
 </Card>
 
-<Card title="Source (.tar.gz)" icon="box-archive" color="#d47628" href="https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.6.0.tar.gz">
+<Card title="Source (.tar.gz)" icon="box-archive" color="#d47628" href="https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.7.0.tar.gz">
   The source of this release as a tarball.
 </Card>
 
@@ -26,12 +26,19 @@ Semantic Versioning.
 The releases publish no prebuilt binaries; install the command line from the tag:
 
 ```bash Terminal
-cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 seleniumbase-rs-cli
+cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 seleniumbase-rs-cli
 ```
 
 ## All releases
 
-<Update label="Unreleased" description="Next release" tags={["New", "Fix", "Breaking"]}>
+<Update label="Unreleased" description="Next release" tags={[]}>
+
+
+</Update>
+
+<Update label="2026-10-31" description="v0.7.0" tags={["New", "Fix", "Breaking"]}>
+
+**Downloads:** [Release notes](https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.7.0) · [Source (.zip)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.7.0.zip) · [Source (.tar.gz)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.7.0.tar.gz)
 
 ### Breaking
 
@@ -56,6 +63,21 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   and refuses a capability either one lists. Call it as
   `check_origins_with(&registry, choice.selection(), choice.origins())`;
   `PluginChoice::check` does this already.
+
+- **Breaking: the `playwright` feature is gone; Stealthy Playwright Mode is the new crate
+  `seleniumbase-rs-playwright`.** Python SeleniumBase attaches Playwright to its stealthy CDP
+  browser with `connect_over_cdp`, and so does the Rust bridge in `crates/playwright` (a workspace
+  member, not a default member, installed with `cargo add seleniumbase-rs-playwright --git ...`).
+  `PlaywrightSession::attach(&sb_cdp::Browser)` and `connect_over_cdp(endpoint)` attach rustwright
+  (re-exported as `seleniumbase_rs_playwright::rustwright`) to a running browser, and
+  `StealthyPlaywright::launch(options)` starts the stealthy browser and attaches in one call, with
+  the CDP API (`cdp()`) and the Playwright API (`playwright()`) on the same tab. The library no
+  longer has the `playwright` feature, the `rustwright` dependency, `browser::playwright`,
+  `api::playwright` (the `pw_*` helpers), `PlaywrightSession::launch` and `launch_with_config`
+  (rustwright launching a Chromium of its own), `BaseCase::activate_playwright_mode` and
+  `BaseCase::playwright_session`; `cargo tree -p seleniumbase-rs` shows no `rustwright`. The
+  Playwright part of the `stealth_fingerprint` example is gone with them. The CI matrix entries
+  for the feature, with their Python setup, are replaced by a step that tests the bridge.
 
 - **Breaking: `sbrs import-python` reads the Python as Python and writes the `sb` fixture form.**
   The SeleniumBase reading is a parser and a translator (no longer a regex per line): it maps

@@ -8,6 +8,8 @@ work, `docs/parity.md` the per-API status).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-31
+
 ### Breaking
 
 - **Breaking (security): the Pure CDP server's `start_browser` no longer takes
