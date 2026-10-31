@@ -82,7 +82,7 @@ plugin `block-resources` failed in `on_page_created`: Network.setBlockedURLs fai
 
 ```toml Cargo.toml
 [dev-dependencies]
-seleniumbase-rs-plugin-testing = { git = "https://github.com/MustCodeAl/seleniumbase-rs-plugins", rev = "628991af0e6c5711298e3bd3692dc2974887401a" }
+seleniumbase-rs-plugin-testing = { git = "https://github.com/MustCodeAl/seleniumbase-rs-plugins", rev = "fea3634e2ebcaafce63a244df8d4adb53e3ec002" }
 ```
 
 Take it at the same `rev` as `seleniumbase-rs-plugin`, so both name one copy of
@@ -336,6 +336,29 @@ pub fn calls(&self) -> Vec<Call>
 Everything the plugins asked for, in order.
 
 </ResponseField>
+
+## Added in 0.1.3
+
+Everything above is unchanged. These items came with the navigation, network,
+context and task hooks, so that a test can run them without a browser. The
+built-in plugins [fetcher](/plugins/fetcher), [batcher](/plugins/batcher) and
+[crawler](/plugins/crawler) are tested with them.
+
+| Item | What it does |
+|---|---|
+| `Call::Navigate(String)`, `Call::Url`, `Call::Close`, `Call::BlockUrls(Vec<String>)`, `Call::NewContext(ContextSettings)`, `Call::NewPage(Option<String>)`, `Call::Dispose` | More things a fake handle records |
+| `RecordingPage::evaluating(substring, reply)` | `evaluate` answers `reply` for an expression that contains `substring`; the first match wins, and other expressions answer `null` |
+| `RecordingPage::at(url)` | Sets the address that `url()` answers with |
+| `RecordingPage::with_id(id)`, `in_context(context)` | Sets the id of the tab, and the context it reports |
+| `RecordingBrowser::with_contexts()` | Lets plugins open contexts and tabs and counts them: `live_contexts()`, `max_live_contexts()`, `contexts_made()`, `live_pages()`, `max_live_pages()` and `pages_made()`; `contexts()` returns the `FakeContext`s made and `pages()` the tabs opened outside any context |
+| `RecordingBrowser::failing(method)` | Makes `new_context`, `new_page`, `dispose` or a protocol command answer with an error |
+| `RecordingBrowser::with_extensions(extensions)` | Sets the extensions that `BrowserHandle::extensions` reports |
+| `FakeContext` | A fake browser context: `settings()`, `disposed()`, `pages()` and `calls()` |
+| `drive_request(&set, request)` | Runs a `RequestView` through the set the way the host does and returns the `RequestDecision` |
+| `drive_response(&set, response)` | Runs a `ResponseView` through the set and returns the errors of the hooks |
+| `VecSink` | A `Sink` that keeps the lines a task writes: `VecSink::new()` and `lines()` |
+| `ManualTimer` | A `Timer` that moves only when the test says so: `ManualTimer::new()`, and `advance(duration)`; give it to `Clock::new(Arc::new(timer))` |
+
 
 ## block_on
 

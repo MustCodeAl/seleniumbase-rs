@@ -345,7 +345,8 @@ pub struct Registry { /* private: descriptors, in the order added */ }
 
 The plugins a program can enable by name. seleniumbase-rs's
 `plugin_host::builtin_registry()` is the registry of the built-in plugins whose
-cargo feature is on, in the order `shield`, `block-resources`, `crx`
+cargo feature is on, in the order `shield`, `block-resources`, `crx`, `fetcher`,
+`extractor`, `batcher`, `crawler`, `browser`, `imap`, `tor`
 ([Host](/plugins/api/host)).
 
 ## Registry::new

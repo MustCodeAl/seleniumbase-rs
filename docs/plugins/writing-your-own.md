@@ -276,11 +276,11 @@ edition = "2024"
 license = "MIT"
 
 [dependencies]
-seleniumbase-rs-plugin = { git = "https://github.com/MustCodeAl/seleniumbase-rs-plugins", rev = "628991af0e6c5711298e3bd3692dc2974887401a" }
+seleniumbase-rs-plugin = { git = "https://github.com/MustCodeAl/seleniumbase-rs-plugins", rev = "fea3634e2ebcaafce63a244df8d4adb53e3ec002" }
 serde_json = "1"
 
 [dev-dependencies]
-seleniumbase-rs-plugin-testing = { git = "https://github.com/MustCodeAl/seleniumbase-rs-plugins", rev = "628991af0e6c5711298e3bd3692dc2974887401a" }
+seleniumbase-rs-plugin-testing = { git = "https://github.com/MustCodeAl/seleniumbase-rs-plugins", rev = "fea3634e2ebcaafce63a244df8d4adb53e3ec002" }
 ```
 
 The crate depends on the plugin API, and on `serde_json` because options and
@@ -290,7 +290,7 @@ DevTools parameters are JSON values. It never depends on seleniumbase-rs.
 
 Name the `rev` that your seleniumbase-rs pins: the `rev` of
 `seleniumbase-rs-plugin` in its `Cargo.toml`, currently
-`628991af0e6c5711298e3bd3692dc2974887401a`. Cargo counts a git repository under
+`fea3634e2ebcaafce63a244df8d4adb53e3ec002`. Cargo counts a git repository under
 two references as two crates, and then your `Plugin` is not the trait
 seleniumbase-rs calls. See [Cargo features](/plugins/selecting#cargo-features).
 
