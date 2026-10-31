@@ -122,6 +122,8 @@ Commit `sbrs X.Y.Z` and push. `brew upgrade sbrs` then gives users the release.
 
 The companion extension's end-to-end crate pins the library by tag: move it to `vX.Y.Z`.
 The stealth workspace follows with `cargo update -p seleniumbase-rs` and its own gates.
+Before the tag, run `just contracts --check-build` (see Consumer contracts): it compiles each
+consumer against this checkout, so the pins can be moved with nothing left to break.
 
 </Step>
 </Steps>

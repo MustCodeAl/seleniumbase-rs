@@ -3,6 +3,8 @@ title: "Tauri Plugin"
 sidebarTitle: "Tauri plugin"
 ---
 
+{/* layout-tree-component:start */}
+
 export const LayoutTree = ({ children }) => (
   <div className="not-prose layout-tree" style={{ margin: "1.25rem 0", fontFamily: "var(--font-sans)", fontSize: "14px", color: "var(--text-secondary)" }}>
     <style>{`
@@ -105,6 +107,8 @@ export const layoutIconColor = (name) => {
 export const LayoutFile = ({ name, note, highlight = false }) => (
   <LayoutRow icon={<span className={highlight ? "" : "lt-ic-" + layoutIconColor(name)} style={{ display: "flex" }}><LayoutFileIcon /></span>} name={name} note={note} highlight={highlight} />
 )
+
+{/* layout-tree-component:end */}
 
 <GitHub.Repo repo="MustCodeAl/tauri-plugin-sbrs-automation" />
 

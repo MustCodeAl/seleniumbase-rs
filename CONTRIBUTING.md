@@ -131,31 +131,83 @@ Neither is needed to build, test or contribute.
 
 ## Project Layout
 
+<!-- layout-tree:start -->
+
 ```text
-seleniumbase-rs/
-├── src/
-│   ├── lib.rs                 # Crate root and public re-exports
-│   ├── api/                   # BaseCase (base_case.rs, base_case_impls/), capability
-│   │                          # traits, recorder, scenario, run_settings, charts, tours
-│   ├── browser/               # BrowserConfig, launcher, session, options/, driver matching
-│   ├── sb_cdp/                # The pure CDP engine: Browser, Page, Locator, pool, mock
-│   ├── evasion/               # Fingerprint, evasion providers, humanize, patcher, reactor
-│   ├── mcp/                   # MCP servers: cdp, driver, sb; developer tools in devtools.rs
-│   ├── cli/                   # the library half of sbrs: commands.rs, scaffold.rs, scripts/
+seleniumbase-rs/               # the workspace root
+├── Cargo.toml                 # the workspace and the library package: version, rust-version 1.99, features
+├── Cargo.lock                 # the locked dependency versions
+├── rust-toolchain.toml        # pins Rust 1.99 with clippy and rustfmt
+├── src/                       # the library (no binary): both engines, the MCP tools, the library half of the command line
+│   ├── lib.rs                 # the crate root and its public re-exports
+│   ├── error.rs               # SeleniumBaseError: hints, exit codes, selector advice
+│   ├── api/                   # BaseCase (base_case.rs, base_case_impls/), the capability traits, recorder, scenario, charts, tours
+│   ├── browser/               # BrowserConfig, the launcher, the WebDriver session, driver access and downloads
+│   ├── sb_cdp/                # the pure CDP engine: Browser, Page, Locator, pool, mock
+│   ├── evasion/               # fingerprints, evasion providers, humanize, binary patching and the CDP reactor
+│   ├── mcp/                   # the MCP servers cdp, driver, sb and dev, and their tools
+│   ├── cli/                   # the library half of sbrs, with no parser: commands.rs, scaffold.rs, scripts/
 │   ├── testing/               # the rstest sb fixtures; bdd/: Gherkin through rstest-bdd
-│   ├── plugins/               # Reporting and logging plugins
-│   ├── config/, core/, common/, storage/, utilities/, utils/, profile_payloads/
-│   └── error.rs               # SeleniumBaseError: hints, exit codes, selector advice
-├── crates/cli/                # Package seleniumbase-rs-cli: the sbrs and sbrs-mcp binaries
-│   ├── src/                   # sbrs.rs (usage derives), fig.rs, report.rs, mcp_server.rs
-│   └── tests/                 # Every test that runs the real sbrs or sbrs-mcp binary
-├── tests/                     # Integration tests of the library (tests/golden is compiled in)
-├── benches/                   # cpu, cdp_latency
-├── examples/                  # Runnable examples
-├── parity/                    # api.toml: the status of every Python API
-├── docs/                      # mdBook sources, help pages, design/ notes
-└── CLAUDE.md                  # The module map for coding assistants
+│   ├── plugins/               # reporting and logging plugins
+│   ├── plugin_host/           # resolves plugin names to a PluginSet (feature plugins); the plugins are in the seleniumbase-rs-plugins repository
+│   ├── config/                # settings, runtime config, proxy and ad-block lists
+│   ├── core/                  # test result records and the Allure, JUnit and dashboard writers
+│   ├── common/                # graceful shutdown, encryption, obfuscation, test ids, the debug prompt
+│   ├── storage/               # ResultStore and ProfileVault (feature turso)
+│   ├── utilities/             # RetryPolicy, the grid server, Selenium Grid and IDE, the Python importer
+│   ├── utils/                 # selectors, shadow DOM, URLs, geometry, bundled extensions, translations
+│   ├── profile_payloads/      # parses external browser-profile JSON into a Fingerprint
+│   ├── resources/             # files the crate manages on disk, such as downloaded browser drivers
+│   ├── js_code/               # building blocks for the JavaScript the crate sends to a page
+│   ├── artifacts.rs           # where the files of a test run go (latest_logs) and how they are named
+│   ├── drivers.rs             # the WebDriver types behind BaseCase, under this crate's name
+│   ├── json.rs                # JSON values and json!, under this crate's name
+│   ├── macros.rs              # convenience macros for tests, such as sb_test!
+│   ├── ocr.rs                 # reading text from screenshots (feature ocr)
+│   ├── tracing_util.rs        # tracing initialization helpers
+│   └── visual.rs              # feature visual: VisualBaseline, screenshot baselines compared by SSIM
+├── crates/                    # the workspace members besides the library
+│   ├── cli/                   # the package seleniumbase-rs-cli: the sbrs and sbrs-mcp binaries
+│   │   ├── Cargo.toml         # default features: pdf, mcp-server, mcp-client, plugins-builtin
+│   │   ├── src/
+│   │   │   ├── sbrs.rs        # the sbrs command line
+│   │   │   ├── mcp_server.rs  # the sbrs-mcp server
+│   │   │   ├── fig.rs         # the Fig completion spec
+│   │   │   ├── report.rs      # sbrs report
+│   │   │   ├── reference.rs   # renders docs/help/cli_reference.md from the usage spec
+│   │   │   ├── strict.rs      # refuses, with status 2, what the parser is too loose about
+│   │   │   └── mcp_install/   # sbrs-mcp install, uninstall and clients
+│   │   └── tests/             # every test that runs the real sbrs or sbrs-mcp binary
+│   └── own-imports/           # tests that import only seleniumbase_rs: the proof that its re-exports work
+├── tests/                     # integration tests of the library
+├── benches/                   # the benchmarks
+├── examples/                  # runnable examples
+├── docs/                      # the pages of this site
+├── parity/                    # the Python parity manifests
+├── completions/               # the usage spec of sbrs
+├── schemas/                   # JSON Schemas
+├── contrib/                   # files that are not part of the crate
+├── scripts/                   # helper scripts
+├── tools/                     # scripts for the docs and the parity manifests
+├── docker/                    # the Linux verification image (Dockerfile.verify, verify-linux.sh) and firefox-check/
+├── .config/                   # configuration of tools
+├── .github/                   # GitHub Actions
+├── .warp/                     # the Warp terminal
+├── Dockerfile                 # the sbrs image; its skeleton step lists every target
+├── Makefile                   # make targets
+├── justfile                   # just recipes
+├── mise.toml                  # tools and tasks for mise
+├── deny.toml                  # the cargo-deny policy
+├── clippy.toml                # clippy settings
+├── rust-analyzer.toml         # settings for rust-analyzer
+├── book.toml                  # the mdBook configuration
+├── README.md
+├── CHANGELOG.md               # what changed in each release
+├── ROADMAP.md                 # what is done and what is missing
+└── CLAUDE.md                  # the module map for coding assistants
 ```
+
+<!-- layout-tree:end -->
 
 ## Architecture at a Glance
 

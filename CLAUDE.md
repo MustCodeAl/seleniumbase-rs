@@ -130,6 +130,7 @@ binaries with `cargo install --path crates/cli`.
   command-line crate in the library's `[dependencies]` fails
   `tests/library_manifest.rs`; it belongs in `crates/cli/Cargo.toml`.
 - A new Python-parity API gets an entry in `parity/api.toml`.
+- A public item a consumer imports needs its `tests/contract_*.rs` updated in the same commit (`just contracts`, `docs/contributing/consumers.md`).
 - Tutorials in `docs/tutorials/` are not compiled; keep their code true by hand.
   Only the `sbrs mkdir`/`mkfile` golden templates are compiled as doctests.
 - `completions/sbrs.usage.kdl` and `docs/help/cli_reference.md` are generated from

@@ -40,6 +40,12 @@ mdx:
     bun install --cwd tools/mdx-check --frozen-lockfile
     bun tools/mdx-check/check.mjs docs
 
+# Write the layout trees of the docs pages again: the tree of the repository, from the one
+# description in tools/docs_layout_tree.py, and every copy of the tree component
+# (`just layout-tree --check` changes nothing and lists what differs; `just mdx` runs that check)
+layout-tree *args:
+    python3 -I tools/docs_layout_tree.py {{args}}
+
 # Serve the mdBook locally for editing
 serve-docs:
     mdbook serve --open
@@ -83,3 +89,15 @@ parity-check:
 parity-docs:
     python3 -I tools/parity/render_docs.py
     git diff --exit-code docs/parity.md
+
+# Check that the contract files (tests/contract_*.rs) name everything the repositories that build
+# on this crate use: it reads the sibling checkouts (see docs/contributing/consumers.md for their
+# folders), `just contracts --check-build` also runs `cargo check --tests` in each against this
+# checkout (heavy: for a release)
+contracts *args:
+    scripts/check-consumers.sh {{args}}
+
+# Copy the companion extension's golden programs into tests/contract_companion/
+contracts-sync:
+    scripts/check-consumers.sh --sync
+

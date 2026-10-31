@@ -625,6 +625,7 @@
               "contributing/debugging",
               "contributing/benchmarking",
               "contributing/releasing",
+              "contributing/consumers",
               "UPSTREAM_SYNC",
               "completions/README",
               "feature-requests"
