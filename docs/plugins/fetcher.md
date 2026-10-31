@@ -354,8 +354,9 @@ run a request or a response through a set the way the host does:
 use seleniumbase_rs_plugin::{Configurable, PluginSet, RequestView, ResourceKind};
 use seleniumbase_rs_plugin_fetcher::Fetcher;
 use seleniumbase_rs_plugin_testing::drive_request;
+use serde_json::json;
 
-let fetcher = Fetcher::configure(&serde_json::json!({ "strip": ["image"] }))?;
+let fetcher = Fetcher::configure(&json!({ "strip": ["image"] }))?;
 let set = PluginSet::strict().with(fetcher)?;
 let image = RequestView::new("https://a.test/x.png", "GET", ResourceKind::Image);
 assert!(matches!(drive_request(&set, image), seleniumbase_rs_plugin::RequestDecision::Block(_)));

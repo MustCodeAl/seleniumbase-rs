@@ -318,8 +318,9 @@ The plugin crate depends on the plugin API only, so a test needs no browser:
 ```rust
 use seleniumbase_rs_plugin::{Configurable, PluginSet};
 use seleniumbase_rs_plugin_batcher::Batcher;
+use serde_json::json;
 
-let batcher = Batcher::configure(&serde_json::json!({ "concurrency": 4, "retries": 2 }))?;
+let batcher = Batcher::configure(&json!({ "concurrency": 4, "retries": 2 }))?;
 let set = PluginSet::strict().with(batcher)?;
 assert_eq!(set.task_names(), ["batcher"]);
 # Ok::<(), seleniumbase_rs_plugin::PluginError>(())

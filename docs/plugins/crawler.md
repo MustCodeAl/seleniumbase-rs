@@ -360,8 +360,9 @@ The plugin crate depends on the plugin API only, so a test needs no browser:
 ```rust
 use seleniumbase_rs_plugin::{Configurable, PluginSet};
 use seleniumbase_rs_plugin_crawler::Crawler;
+use serde_json::json;
 
-let crawler = Crawler::configure(&serde_json::json!({
+let crawler = Crawler::configure(&json!({
     "start": ["https://example.com/"],
     "max_pages": 20,
 }))?;
