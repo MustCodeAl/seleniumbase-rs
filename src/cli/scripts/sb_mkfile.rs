@@ -1,7 +1,7 @@
 //! `sbrs mkfile` (also `sbrs new`): create one browser-test file.
 //!
 //! The file is an ordinary Rust integration test. Its shape is a [`Syntax`]: by
-//! default the rstest `sb` fixture of [`testing`](crate::testing), which gives
+//! default the rstest `sb` fixture of `crate::testing`, which gives
 //! a test the run configuration, reruns and the evidence of a failure. The
 //! other syntaxes are a `BaseCase` made and quit by hand, the
 //! [`run_browser_test`](crate::run_browser_test) closure, and two pure CDP

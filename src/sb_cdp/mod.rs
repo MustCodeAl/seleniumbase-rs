@@ -47,8 +47,8 @@
 //!
 //! # Testing without a browser
 //!
-//! With the `test-util` feature, [`Browser::new_mocked`] returns a browser
-//! backed by a scripted [`MockCtrl`], so code that drives pages can be tested
+//! With the `test-util` feature, `Browser::new_mocked` returns a browser
+//! backed by a scripted `MockCtrl`, so code that drives pages can be tested
 //! without launching Chrome.
 //!
 //! # A webview embedded in an app
