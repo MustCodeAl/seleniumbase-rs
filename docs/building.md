@@ -1,6 +1,8 @@
 ---
 title: "Building and installing"
 sidebarTitle: "Install"
+description: "Install sbrs without a checkout or build seleniumbase-rs from source, pick features, check the setup and run it in a container on macOS, Linux or Windows."
+keywords: ["install", "build", "cargo", "sbrs", "features", "container", "doctor"]
 ---
 
 {/* layout-tree-component:start */}
@@ -112,8 +114,9 @@ export const LayoutFile = ({ name, note, highlight = false }) => (
 
 How to build `seleniumbase-rs` from source, which features cost what, and how to
 run it in a container. For writing and running tests with it, start with
-[Getting started](/tutorials/getting_started); for working on the crate, see
-`CONTRIBUTING.md`.
+[Getting started](/tutorials/getting_started). To work on the crate (the
+workspace layout, the checks, the real-Chrome tests and build problems), see
+[Build from source](/contributing/from-source) and `CONTRIBUTING.md`.
 
 <Visibility for="agents">
 
@@ -369,6 +372,15 @@ cargo install --path crates/cli --features tui        # and the terminal UI
 Neither package is published to crates.io, so `cargo install seleniumbase-rs-cli`
 does not work; build from a checkout, install from git as below, or add the
 library as a git dependency.
+
+<Note>
+
+Plain `cargo` is all the build needs. mise (tool versions and the repository's
+tasks, see [Make, just and mise](/contributing/from-source#make-just-and-mise))
+and mr-boxington (a build cache, see [Build time and disk](#build-time-and-disk))
+are optional.
+
+</Note>
 
 ## Install without a checkout
 
@@ -646,22 +658,18 @@ also needs a line in the `Dockerfile` skeleton step, or the image build fails;
 ## Build time and disk
 
 A cold build compiles a large dependency tree, and a development `target/`
-directory with the test, bench and check artifacts grows past 10 GB. To keep
-rebuilds cheap:
+directory with the test, bench and check artifacts grows past 10 GB.
+[Build from source](/contributing/from-source#keep-builds-small) has the three
+environment variables that keep a build within a small machine's memory, the
+rule of one heavy cargo command at a time, and the optional mr-boxington (`mbx`)
+build cache. None of them is needed to build.
 
-```bash
-export CARGO_BUILD_JOBS=2 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0
-```
+One of those variables, `CARGO_PROFILE_DEV_DEBUG=0`, leaves debug information
+out of development builds. To step through code with a debugger, build with
+`CARGO_PROFILE_DEV_DEBUG=2` instead (see
+[Step through with lldb](/contributing/debugging#step-through-with-lldb)).
 
-- Use [mr-boxington](https://mr-boxington.jdx.dev) (`mbx`), a shared cache for
-  Cargo builds: `cargo install mbx --locked && mbx setup` (or, with mise,
-  `mise use --global --tool-option mr_boxington=true rust mr-boxington`), then
-  keep running `cargo`. Each checkout and worktree gets its own managed
-  `target`, compiled work is reused between them, and the cache prunes itself
-  to a size budget (`mbx stats`, `mbx gc --dry-run`). Leave `RUSTC_WRAPPER`
-  unset (it replaces sccache) and do not set `CARGO_TARGET_DIR`.
-- On a machine with little memory, keep `CARGO_BUILD_JOBS` low and run one cargo
-  command at a time; cargo serialises builds in the same target directory.
+With mbx, leave `RUSTC_WRAPPER` unset and do not set `CARGO_TARGET_DIR`.
 
 <Warning>
 
