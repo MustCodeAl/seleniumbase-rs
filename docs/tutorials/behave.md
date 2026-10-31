@@ -39,7 +39,7 @@ rstest-bdd = "0.6"
 The step and scenario macros, the `rstest` attribute they expand to and the Tokio
 runtime all come from `seleniumbase_rs`, so the `use` lines below name no other
 crate. `rstest-bdd` is the one line that cannot go: see
-[Imports and dependencies](/imports#the-lines-that-stay).
+[Imports and dependencies](/tutorials/getting_started#the-lines-that-stay).
 
 ## A feature, its steps and its scenario
 

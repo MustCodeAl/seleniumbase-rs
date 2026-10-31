@@ -133,7 +133,7 @@ use seleniumbase_rs::tokio;
 
 </CodeGroup>
 
-[Imports and dependencies](/imports) lists every re-export and the few lines
+[Imports and dependencies](/tutorials/getting_started#imports-and-dependencies) lists every re-export and the few lines
 that must stay.
 
 ### 3. Use selectors the application owns

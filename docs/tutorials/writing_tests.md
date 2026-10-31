@@ -26,7 +26,7 @@ seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", featu
 That one line is the whole list. `seleniumbase_rs::testing::rstest` is the `#[rstest]`
 attribute and `seleniumbase_rs::tokio` the Tokio runtime behind `#[tokio::test]`;
 both attributes expand to paths that start with `rstest::` and `tokio::`, which resolve to
-those two imports. [Imports and dependencies](/imports) has the full list.
+those two imports. [Imports and dependencies](/tutorials/getting_started#imports-and-dependencies) has the full list.
 
 ## A test
 

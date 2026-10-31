@@ -74,7 +74,7 @@ cd my_first_test
 The crate is installed from git (it is not on crates.io). It is the only
 dependency: it re-exports the Tokio runtime that runs the async code
 (`seleniumbase_rs::tokio`), so the examples need no other crate. See
-[Imports and dependencies](/imports) for what else it re-exports.
+[Imports and dependencies](/tutorials/getting_started#imports-and-dependencies) for what else it re-exports.
 
 ```toml Cargo.toml
 [dependencies]

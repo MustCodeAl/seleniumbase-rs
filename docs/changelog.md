@@ -358,7 +358,7 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
   `sbrs mkdir` writes lists `seleniumbase-rs` alone (plus `rstest-bdd` for Gherkin). The new crate
   `crates/own-imports` proves it: its manifest lists only `seleniumbase-rs` and `rstest-bdd`, its
   tests import nothing else, and a doctest compiles every golden file there. The page
-  [Imports and dependencies](/imports) lists the lines that stay and why, and
+  [Imports and dependencies](/tutorials/getting_started#imports-and-dependencies) lists the lines that stay and why, and
   `tests/docs_current.rs` fails when a page gains a `use thirtyfour`, `use rstest`, `use rstest_bdd`,
   `use serde_json`, `use tokio` or `use async_trait` outside the pages that must name them.
 - **A fingerprint's stealth for a webview an app embeds, with no debugging port.**

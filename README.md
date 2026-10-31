@@ -119,7 +119,8 @@ the examples need: the Tokio runtime (`seleniumbase_rs::tokio`), the WebDriver t
 (`seleniumbase_rs::drivers`), JSON values (`seleniumbase_rs::json`) and the test
 attributes (`seleniumbase_rs::testing`) are re-exported, so a `use` line in this
 documentation names `seleniumbase_rs` and never another crate. The
-[imports page](./docs/imports.md) lists the exceptions and why.
+[imports section](./docs/tutorials/getting_started.md#imports-and-dependencies) of
+the getting-started guide lists the exceptions and why.
 
 ```toml
 [dependencies]

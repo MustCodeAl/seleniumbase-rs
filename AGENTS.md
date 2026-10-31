@@ -170,7 +170,7 @@ server (`find_api`) before you write the call.
    `use seleniumbase_rs::tokio;` (or add `tokio` to the braces of the import
    you have) before `#[tokio::main]` or `#[tokio::test]`. The manifest of a test
    crate lists `seleniumbase-rs` (feature `testing`) and nothing else; see
-   `docs/imports.md`.
+   "Imports and dependencies" in `docs/tutorials/getting_started.md`.
 3. **Use selectors the application owns:** `#id`, `[data-testid="total"]`,
    `link=Sign in`. Not `:nth-child`, generated class names or long paths.
 4. **Never sleep to wait.** No `sb.sleep(..)`, no `tokio::time::sleep`, no poll

@@ -108,7 +108,8 @@ const GONE: &[(&str, &str)] = &[
     ("Settings::from_toml", "Settings::from_file"),
     ("Locator::click_at", "click_with_offset(x, y, false)"),
     ("assert_visible!", "sb_assert_visible!"),
-    // Third-party crates the docs import through `seleniumbase_rs` (docs/imports.md). The
+    // Third-party crates the docs import through `seleniumbase_rs` (the "Imports and
+    // dependencies" section of docs/tutorials/getting_started.md). The
     // pages that must still name them are in `ALLOWED`.
     ("use thirtyfour", "seleniumbase_rs::drivers"),
     ("thirtyfour::prelude::By", "seleniumbase_rs::drivers::By"),
@@ -128,7 +129,8 @@ const GONE: &[(&str, &str)] = &[
 ];
 
 /// Pages that may keep a spelling of `GONE` because they cannot import it from
-/// `seleniumbase_rs`, each with its reason (the table in `docs/imports.md` says the same):
+/// `seleniumbase_rs`, each with its reason (the table "The lines that stay" in
+/// `docs/tutorials/getting_started.md` says the same):
 ///
 /// - the plugin pages describe crates that depend on `seleniumbase-rs-plugin`, never on
 ///   this crate, so `serde_json`, `tokio` and `async_trait` come from their own manifest;
@@ -174,8 +176,6 @@ const EXEMPT: &[&str] = &[
     "docs/changelog.md",
     "docs/design/",
     "docs/adr/",
-    // The page that explains the imports names the spellings it replaces.
-    "docs/imports.md",
 ];
 
 /// Whether `line` names `gone`.

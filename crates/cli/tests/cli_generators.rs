@@ -307,7 +307,8 @@ fn assert_golden(actual: &str, name: &str) {
     );
 }
 
-/// A generated test imports from `seleniumbase_rs` and from nothing else (docs/imports.md).
+/// A generated test imports from `seleniumbase_rs` and from nothing else (see "Imports and
+/// dependencies" in docs/tutorials/getting_started.md).
 fn assert_own_imports(source: &str, what: &str) {
     for line in source.lines().filter(|line| line.starts_with("use ")) {
         assert!(

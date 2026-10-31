@@ -34,6 +34,11 @@
   },
   "redirects": [
     {
+      "source": "/imports",
+      "destination": "/tutorials/getting_started#imports-and-dependencies",
+      "permanent": true
+    },
+    {
       "source": "/concepts/rendering-and-performance",
       "destination": "/concepts/how-a-page-loads",
       "permanent": true
@@ -146,7 +151,6 @@
             "pages": [
               "README",
               "tutorials/getting_started",
-              "imports",
               "building",
               "help/common_problems"
             ]

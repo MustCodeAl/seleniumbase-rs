@@ -26,7 +26,7 @@ The crate root exposes the following modules:
 | `common` | Decorators, obfuscation, and shared exception types. |
 | `config` | Settings, proxy lists, and ad-block lists. |
 | `core` | Test result records and the JSON and HTML reports made from them. |
-| `drivers` | The WebDriver types the API takes or returns (`By`, `WebElement`, `DesiredCapabilities`, `Key`, `Cookie`, `NetworkConditions`, ...), so a project needs no `thirtyfour` line. See [Imports and dependencies](/imports). |
+| `drivers` | The WebDriver types the API takes or returns (`By`, `WebElement`, `DesiredCapabilities`, `Key`, `Cookie`, `NetworkConditions`, ...), so a project needs no `thirtyfour` line. See [Imports and dependencies](/tutorials/getting_started#imports-and-dependencies). |
 
 | `error` | `SeleniumBaseError` and the `Result<T>` alias. |
 | `evasion` | Undetected-chrome options, evasions, the evasion **provider registry**, fingerprint profiles, humanization helpers, binary patcher, and CDP reactor. `session_registry` (the registry the Pure CDP engine runs) is <Badge color="orange">Experimental</Badge>: it serves the stealth layer, which lives in [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth) since 0.3.0. |

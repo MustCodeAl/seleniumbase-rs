@@ -69,7 +69,7 @@ seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", featu
 Nothing else goes into the manifest: the types of the plugin come through
 `seleniumbase_rs::builtin_plugins::imap`, the clock through
 `seleniumbase_rs::plugin_api`, and the runtime through `seleniumbase_rs::tokio`
-([Imports and dependencies](/imports) has the rule).
+([Imports and dependencies](/tutorials/getting_started#imports-and-dependencies) has the rule).
 
 ## 2. Write the test
 
