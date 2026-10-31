@@ -232,7 +232,8 @@ pub(super) fn tools<S: DevSession>() -> Vec<ToolDef<S>> {
                         .default(100),
                 ),
             get_console_messages::<S>,
-        ),
+        )
+        .untrusted(),
         ToolDef::new(
             "get_failed_requests",
             "Get Failed Requests",

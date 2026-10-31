@@ -338,6 +338,14 @@ impl Client {
         self.call(tool, arguments).await.ok().json()
     }
 
+    /// The JSON answer of a tool that must work and returns page content: the
+    /// notice line is asserted (see [`Reply::untrusted`]) and left out.
+    async fn untrusted_json(&mut self, tool: &str, arguments: Value) -> Value {
+        let text = self.call(tool, arguments).await.untrusted();
+        serde_json::from_str(&text)
+            .unwrap_or_else(|error| panic!("{tool} did not answer with JSON ({error}): {text}"))
+    }
+
     /// Closes the server's stdin, as a client that went away does, and waits
     /// for the exit status. `None` means a signal ended the process.
     async fn hang_up(&mut self) -> Option<i32> {
@@ -778,7 +786,13 @@ async fn failures_are_reports(mcp: &mut Client, engine: Engine, base: &str) {
         gone.text
     );
     assert!(
-        gone.text.starts_with("click_element failed:"),
+        gone.marked_untrusted,
+        "a report that read the page is marked untrusted: {}",
+        gone.text
+    );
+    assert!(
+        gone.text
+            .starts_with(&format!("{UNTRUSTED_NOTICE}\nclick_element failed:")),
         "{}",
         gone.text
     );
@@ -813,6 +827,11 @@ async fn failures_are_reports(mcp: &mut Client, engine: Engine, base: &str) {
         "{}",
         wrong_type.text
     );
+    assert!(
+        !wrong_type.marked_untrusted,
+        "a report that did not read the page is not marked: {}",
+        wrong_type.text
+    );
 
     let refused = mcp
         .call(
@@ -834,12 +853,12 @@ async fn failures_are_reports(mcp: &mut Client, engine: Engine, base: &str) {
 /// The console and the failed requests, as an engine reports them.
 async fn console_and_network(mcp: &mut Client, engine: Engine) {
     let started = mcp
-        .json("get_console_messages", json!({ "start": true }))
+        .untrusted_json("get_console_messages", json!({ "start": true }))
         .await;
     assert_eq!(started["recording"], true, "{started}");
     evaluate(mcp, engine, "console.error('saved in the cart')").await;
     let messages = mcp
-        .json("get_console_messages", json!({ "level": "error" }))
+        .untrusted_json("get_console_messages", json!({ "level": "error" }))
         .await;
     assert_eq!(
         messages["entries"][0]["text"], "saved in the cart",
@@ -857,7 +876,7 @@ async fn console_and_network(mcp: &mut Client, engine: Engine) {
     );
     if engine == Engine::Cdp {
         // Only this engine records a request that failed before the call.
-        let errors = mcp.json("get_console_messages", json!({})).await;
+        let errors = mcp.untrusted_json("get_console_messages", json!({})).await;
         assert!(
             errors["page_errors"]
                 .to_string()

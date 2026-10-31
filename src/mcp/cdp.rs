@@ -239,12 +239,16 @@ impl Closeable for Cdp {
 /// Builds the Pure CDP server, with the developer tools.
 #[must_use]
 pub fn host(settings: Settings) -> Host<Cdp> {
-    let mut tools = super::tool::mark_untrusted(tools(), &["get_content", "get_attributes"]);
+    let mut tools = super::tool::mark_untrusted(
+        tools(),
+        &["get_content", "get_attributes", "run_javascript"],
+    );
     tools.extend(devtools::tools());
     tools.extend(devtools::environment_tools());
     tools.extend(super::pagetools::tools());
     tools.extend(super::fingerprint::tools());
-    tools.push(plugin_task_tool());
+    // A task's results and errors are what the pages it visited held.
+    tools.push(plugin_task_tool().untrusted());
     // `wait_for_email` exists only for an operator who turned the imap plugin on with options.
     #[cfg(feature = "plugin-imap")]
     if super::email::offered(settings.plugin_selection()) {

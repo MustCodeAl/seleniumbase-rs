@@ -26,6 +26,7 @@ pub fn host(settings: Settings) -> Host<BaseCase> {
             "get_html_source",
             "get_element_html",
             "get_attribute",
+            "execute_script",
         ],
     );
     tools.extend(stealth::tools());
