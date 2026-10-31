@@ -97,6 +97,7 @@ hidden: true
   - [block-resources](plugins/block-resources.md)
   - [crx](plugins/crx.md)
   - [fetcher](plugins/fetcher.md)
+  - [extractor](plugins/extractor.md)
   - [wasm](plugins/wasm.md)
 - [Stealth scraping](tutorials/stealth_scraping.md)
   - [Overview](stealth/overview.md)

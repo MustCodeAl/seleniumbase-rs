@@ -328,6 +328,7 @@
               "plugins/block-resources",
               "plugins/crx",
               "plugins/fetcher",
+              "plugins/extractor",
               "plugins/imap",
               "plugins/tor",
               "plugins/wasm"
