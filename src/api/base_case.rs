@@ -2684,6 +2684,8 @@ impl BaseCase {
         Ok(())
     }
 
+    /// Fails with every deferred assertion that failed since the last call, then starts a
+    /// new list (Python's `process_deferred_asserts`).
     pub async fn process_deferred_asserts(&mut self) -> Result<(), SeleniumBaseError> {
         let mut deferred = std::mem::take(&mut self.deferred);
         let result = deferred.process(self).await;
@@ -3360,23 +3362,27 @@ impl BaseCase {
         Ok(())
     }
 
+    /// The value stored under `key` in the page's `sessionStorage` (`null` when it is missing).
     pub async fn get_session_storage_item(&self, key: &str) -> Result<Value, SeleniumBaseError> {
         let script = format!("return window.sessionStorage.getItem({});", quote(key));
         self.execute_script(&script).await
     }
 
+    /// Removes `key` from the page's `sessionStorage`.
     pub async fn remove_session_storage_item(&self, key: &str) -> Result<(), SeleniumBaseError> {
         let script = format!("window.sessionStorage.removeItem({});", quote(key));
         self.execute_script(&script).await?;
         Ok(())
     }
 
+    /// Removes every item from the page's `sessionStorage`.
     pub async fn clear_session_storage(&self) -> Result<(), SeleniumBaseError> {
         self.execute_script("window.sessionStorage.clear();")
             .await?;
         Ok(())
     }
 
+    /// The keys in the page's `sessionStorage`.
     pub async fn get_session_storage_keys(&self) -> Result<Vec<String>, SeleniumBaseError> {
         match self
             .execute_script("return Object.keys(window.sessionStorage);")
@@ -3390,6 +3396,7 @@ impl BaseCase {
         }
     }
 
+    /// Every key of the page's `sessionStorage` with its value.
     pub async fn get_session_storage_items(
         &self,
     ) -> Result<HashMap<String, String>, SeleniumBaseError> {
@@ -3410,6 +3417,7 @@ impl BaseCase {
         }
     }
 
+    /// The keys in the page's `localStorage`.
     pub async fn get_local_storage_keys(&self) -> Result<Vec<String>, SeleniumBaseError> {
         match self
             .execute_script("return Object.keys(window.localStorage);")
@@ -3423,6 +3431,7 @@ impl BaseCase {
         }
     }
 
+    /// Every key of the page's `localStorage` with its value.
     pub async fn get_local_storage_items(
         &self,
     ) -> Result<HashMap<String, String>, SeleniumBaseError> {
@@ -3445,34 +3454,42 @@ impl BaseCase {
 
     // --- Navigation aliases ---
 
+    /// Alias of `open` (Python parity).
     pub async fn get(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
         self.open(url).await
     }
 
+    /// Alias of `open` (Python parity).
     pub async fn goto(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
         self.open(url).await
     }
 
+    /// Alias of `open` (Python parity).
     pub async fn go_to(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
         self.open(url).await
     }
 
+    /// Alias of `open` (Python parity).
     pub async fn open_url(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
         self.open(url).await
     }
 
+    /// Alias of `open` (Python parity).
     pub async fn visit(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
         self.open(url).await
     }
 
+    /// Alias of `open` (Python parity).
     pub async fn visit_url(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
         self.open(url).await
     }
 
+    /// Alias of `refresh` (Python parity).
     pub async fn reload(&mut self) -> Result<(), SeleniumBaseError> {
         self.refresh().await
     }
 
+    /// Alias of `refresh` (Python parity).
     pub async fn reload_page(&mut self) -> Result<(), SeleniumBaseError> {
         self.refresh().await
     }
@@ -3485,28 +3502,34 @@ impl BaseCase {
         Ok(())
     }
 
+    /// Alias of `open_if_not_url` (Python parity).
     pub async fn goto_if_not_url(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
         self.open_if_not_url(url).await
     }
 
     // --- Input aliases ---
 
+    /// Alias of `type_text` (Python parity).
     pub async fn input(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
         self.type_text(css, text).await
     }
 
+    /// Alias of `type_text` (Python parity).
     pub async fn fill(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
         self.type_text(css, text).await
     }
 
+    /// Alias of `type_text` (Python parity).
     pub async fn write(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
         self.type_text(css, text).await
     }
 
+    /// Alias of `select_option_by_text` (Python parity).
     pub async fn select(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
         self.select_option_by_text(css, text).await
     }
 
+    /// Alias of `context_click` (Python parity).
     pub async fn right_click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         self.context_click(css).await
     }
