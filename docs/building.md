@@ -537,7 +537,7 @@ Combine them with `--features "mcp-server tui"`. The features `scrape` and
 ```bash
 sbrs --help
 sbrs doctor          # compares the chromedriver version with Chrome's
-sbrs install         # fetches the chromedriver that matches your Chrome
+sbrs install chromedriver   # fetches the chromedriver that matches your Chrome
 ```
 
 ## Container
@@ -572,7 +572,7 @@ Verified on an Apple-silicon Mac with Docker (so linux/arm64, Debian 12,
 Chromium 154.0.8037.92): the build succeeds in about four minutes with two Cargo
 jobs and gives a 1.19 GB image; `--help` and `doctor` exit with status 0, and
 `doctor` finds `/usr/bin/chromium` and a chromedriver of the same major version;
-the `smoke` command above exits with status 0 with no network. `sbrs install` in
+the `smoke` command above exits with status 0 with no network. `sbrs install chromedriver` in
 the image downloads an aarch64 chromedriver (Chrome for Testing publishes
 `linux-arm64` from Chrome 153 on).
 
@@ -833,8 +833,8 @@ equivalent and are not sent; the session proxy is not passed to Firefox either.
 - **A freshly written or replaced executable is slow the first time.** macOS
   scans it on first run, which can take seconds. The library writes a replaced
   chromedriver as a new file because macOS kills a signed binary that is
-  overwritten in place; if a driver is "killed" or refused, run `sbrs install`
-  again and see [Common problems](/help/common_problems).
+  overwritten in place; if a driver is "killed" or refused, run
+  `sbrs install chromedriver` again and see [Common problems](/help/common_problems).
 - **Gatekeeper and quarantine.** A browser or driver downloaded by another tool
   can carry a quarantine flag; clear it with
   `xattr -d com.apple.quarantine <file>` if macOS refuses to open it.
@@ -966,13 +966,13 @@ with its CMake, NASM and LLVM requirements.) Install steps:
 Run the Linux steps inside WSL. A browser inside WSL has no display unless you
 use WSLg or run headless. To drive a browser on another machine, run
 `sbrs-mcp` or your tests there, or point the WebDriver engine at a
-Selenium Grid (`sbrs grid`) with `BrowserConfig::webdriver_url`.
+Selenium Grid (`sbrs grid-hub` and `sbrs grid-node`) with `BrowserConfig::webdriver_url`.
 
 ### Check the setup on any system
 
 ```bash Terminal
 sbrs doctor       # Chrome and chromedriver versions, and whether they match
-sbrs install      # fetch the matching chromedriver
+sbrs install chromedriver   # fetch the matching chromedriver
 ```
 
 From an AI agent, the MCP tool `diagnose_environment` reports the same plus the

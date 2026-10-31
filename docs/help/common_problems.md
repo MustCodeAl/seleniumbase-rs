@@ -142,11 +142,13 @@ fail it keeps the old driver and logs a warning. The download needs network
 access to the Chrome for Testing endpoint. To fetch the driver ahead of time:
 
 ```bash
-cargo run --bin sbrs -- install
+cargo run --bin sbrs -- install chromedriver
 ```
 
-`sbrs install` with no argument fetches chromedriver; `sbrs install geckodriver`
-and `sbrs install edgedriver` fetch the drivers of Firefox and Edge (see the
+`sbrs install` needs the driver's name (alone it prints the page of the command
+and exits with status 2): `sbrs install chromedriver` fetches the one for your
+Chrome, and `sbrs install geckodriver` and `sbrs install edgedriver` fetch the
+drivers of Firefox and Edge (see the
 [CLI page](/tutorials/cli_usage#install-a-driver)).
 
 <Note>
@@ -572,7 +574,7 @@ review. See [Vibe coding](/tutorials/vibe_coding).
 <Accordion title='"chromedriver keeps crashing" or "session not created".' icon="triangle-exclamation">
 
 The chromedriver and Chrome major versions differ. Run `sbrs doctor`, then
-`sbrs install`. The pure CDP engine avoids the problem. See
+`sbrs install chromedriver`. The pure CDP engine avoids the problem. See
 [Common problems](/help/common_problems).
 
 </Accordion>

@@ -149,7 +149,7 @@ one, and runs the format, lint and test checks. `docker.yml` builds the image an
 are:
 
 ```bash
-sbrs install                     # fetch the chromedriver that matches Chrome
+sbrs install chromedriver        # fetch the chromedriver that matches Chrome
 export SB_HEADLESS=true
 cargo test --features "test-util" # tests that need no browser
 cargo test -- --ignored           # the tests that launch Chrome, if you want them
@@ -173,7 +173,7 @@ to a bucket directly.
 
 `sbrs grid` starts a Selenium Grid hub or node from a Selenium Server jar that
 you supply; the crate never downloads one. Point `BrowserConfig::webdriver_url`
-(or the `--server` option) at the hub. See `sbrs grid --help` for the options.
+(or the `--server` option) at the hub. See `sbrs grid-hub --help` and `sbrs grid-node --help` for the options.
 
 ## The MCP server
 
