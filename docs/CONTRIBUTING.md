@@ -145,7 +145,7 @@ Features, binaries, the Dockerfile and build-time tips.
 
 <Visibility for="agents">
 
-Summary for AI exports: every change must pass `cargo fmt --all -- --check`, `cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings` and `cargo test --features "mcp-server test-util"`; `cargo deny check` and `cargo audit` when `Cargo.lock` changed, and `mdbook build` when docs changed. Tests that need a real Chrome are `*_chrome.rs` (plus `browser_smoke`), `#[ignore]`d, run one binary at a time. A bug fix gets a test that fails without it. Commits carry no co-author or tool trailers; never force-push.
+Summary for AI exports: every change must pass `cargo fmt --all -- --check`, `cargo clippy --all-targets --features "mcp-server test-util testing bdd" -- -D warnings` and `cargo test --features "mcp-server test-util testing bdd"`; `cargo deny check` and `cargo audit` when `Cargo.lock` changed, and `mdbook build` when docs changed. Tests that need a real Chrome are `*_chrome.rs` (plus `browser_smoke`), `#[ignore]`d, run one binary at a time. A bug fix gets a test that fails without it. Commits carry no co-author or tool trailers; never force-push.
 
 </Visibility>
 
@@ -192,8 +192,8 @@ cd seleniumbase-rs
 
 # The checks every change must pass (the same ones CI runs)
 cargo fmt --all -- --check
-cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings
-cargo test --features "mcp-server test-util"
+cargo clippy --all-targets --features "mcp-server test-util testing bdd" -- -D warnings
+cargo test --features "mcp-server test-util testing bdd"
 
 # Build the mdBook
 mdbook build
@@ -548,8 +548,8 @@ turn the logs on, and the other ways to find out why a run fails, are in
 
 ```bash Terminal
 cargo fmt --all -- --check
-cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings
-cargo test --features "mcp-server test-util"
+cargo clippy --all-targets --features "mcp-server test-util testing bdd" -- -D warnings
+cargo test --features "mcp-server test-util testing bdd"
 cargo check --features turso --all-targets            # code that only builds with turso
 cargo deny check && cargo audit                        # when Cargo.lock changed
 mdbook build                                           # when docs changed
@@ -589,7 +589,7 @@ needs, so when it moves, bump `rust-version`, the `msrv` job, and the
 On macOS, if a test binary cannot load `libpython`, prefix the test commands with:
 
 ```bash
-DYLD_LIBRARY_PATH="$HOME/.local/share/mise/installs/python/3.14.6/lib" cargo test --features "mcp-server test-util"
+DYLD_LIBRARY_PATH="$HOME/.local/share/mise/installs/python/3.14.6/lib" cargo test --features "mcp-server test-util testing bdd"
 ```
 
 </Tip>
@@ -1024,8 +1024,8 @@ Ensure CI is green.
 ### PR review checklist
 
 - [ ] `cargo fmt --all -- --check` is clean.
-- [ ] `cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings` is clean.
-- [ ] `cargo test --features "mcp-server test-util"` passes.
+- [ ] `cargo clippy --all-targets --features "mcp-server test-util testing bdd" -- -D warnings` is clean.
+- [ ] `cargo test --features "mcp-server test-util testing bdd"` passes.
 - [ ] `cargo deny check` and `cargo audit` are clean if `Cargo.lock` changed.
 - [ ] A new `[[bin]]`, `[[bench]]`, `[[example]]` or `[[test]]` is in the
       `Dockerfile` skeleton.
