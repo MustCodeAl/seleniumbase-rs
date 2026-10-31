@@ -947,6 +947,16 @@ work, `docs/parity.md` the per-API status).
 
 ### Fixed
 
+- **Security: a fingerprint payload's Chrome switches are an allowlist now.** `cmd_params` could
+  name any switch outside a short list of refused ones, so a payload from outside the program
+  could pass `--remote-allow-origins` (remote control for a web origin), `--disable-web-security`,
+  `--allow-file-access-from-files`, `--proxy-bypass-list` and the like. Only the switches that
+  shape the fingerprint or keep the browser quiet (`lang`, `user-agent`, `window-size`,
+  `disable-features`, `force-webrtc-ip-handling-policy`, `disable-quic`, ...;
+  `evasion::evasions::PERMITTED_SWITCHES`) are passed; anything else is refused and logged, named
+  or not. The refused list stays, shared with the plugin policy.
+
+
 - **A pure CDP `Locator` enters a frame of any origin, so Python's `nested_click` works.**
   `page.locator("iframe#myFrame3").locator(".fBox").click()` found nothing in the demo page's
   `data:` iframe, because the page helper reads a frame's document, which a script may do for a

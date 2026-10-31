@@ -523,10 +523,12 @@ The returned `mode` follows the payload's `automation` field: `playwright` and
 absent) and the Firefox browser types give `DriverMode::WebDriver`; anything else
 gives `DriverMode::Uc`. The script and protocol overrides are applied only in
 `Cdp` and `Uc` mode, so a payload that keeps `selenium` is launched with the launch
-arguments only. The payload's `cmd_params` become Chrome flags, except switches
-that run a program, load an extension, set the profile directory, a proxy or
-remote debugging, or ignore certificate errors; those are refused. The Pure CDP
-engine does not pass `cmd_params` at all.
+arguments only. The payload's `cmd_params` become Chrome flags only when the switch is
+on the crate's allowlist of fingerprint and quiet-browser switches (`lang`,
+`user-agent`, `window-size`, `disable-features`, `force-webrtc-ip-handling-policy`,
+`disable-quic`, ...); anything else, from `--renderer-cmd-prefix` to
+`--remote-allow-origins` or `--disable-web-security`, is refused and logged, named
+or not. The Pure CDP engine does not pass `cmd_params` at all.
 
 The payload keeps its own format, because other tools write it: the flags are
 strings (`ProfileFlags`) and the nested sections (`navigator`, `screen`, ...)
