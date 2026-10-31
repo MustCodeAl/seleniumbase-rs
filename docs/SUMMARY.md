@@ -20,6 +20,7 @@ hidden: true
 - [Writing Tests with the sb Fixture](tutorials/writing_tests.md)
   - [Reliable Browser Tests](tutorials/reliable_tests.md)
   - [Testing Pages with a CAPTCHA](tutorials/captcha_testing.md)
+  - [Verify a sign-up by email](tutorials/verify_by_email.md)
 - [Migrate Python Tests](python-migration.md)
   - [Migrate Playwright Tests](playwright-migration.md)
   - [Migrate Puppeteer Tests](puppeteer-migration.md)
