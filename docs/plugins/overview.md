@@ -15,7 +15,7 @@ puppeteer-extra plugins do for Puppeteer. The design is
 
 <Visibility for="agents">
 
-Summary for AI exports: plugins are Rust crates with optional hooks (`before_launch`, `on_browser`, `on_page_created`, `on_close`). The official ones are `shield`, `block-resources`, `crx` and `wasm`. The prebuilt `sbrs` and `sbrs-mcp` have `shield`, `block-resources` and `crx` compiled in and switch them on with `--plugin NAME`; `wasm` is a separate crate. Plugins run in seleniumbase-rs 0.3.0 and later behind the `plugins` feature, in the pure CDP engine, and from 0.4.0 in the WebDriver engine too.
+Summary for AI exports: plugins are Rust crates with optional hooks (`before_launch`, `on_browser`, `on_page_created`, `on_close`, and since plugin API 0.1.3 navigation, network, context, protocol-event, test and task hooks). The official ones are the ten built-ins `shield`, `block-resources`, `crx`, `fetcher`, `extractor`, `batcher`, `crawler`, `browser`, `imap` and `tor`, plus `wasm`. Each built-in has a cargo feature (`plugin-shield`, `plugin-block-resources`, `plugin-crx`, `plugin-fetcher`, `plugin-extractor`, `plugin-batcher`, `plugin-crawler`, `plugin-browser`, `plugin-imap`, `plugin-tor`, or `plugins-builtin` for all) and a page: `/plugins/NAME`. The prebuilt `sbrs` and `sbrs-mcp` have all ten compiled in and switch them on with `--plugin NAME`; `wasm` is a separate crate. `fetcher`, `extractor`, `batcher`, `crawler` and `imap` offer a task (`sbrs plugin run NAME`) and need the pure CDP engine. Plugins run in seleniumbase-rs 0.3.0 and later behind the `plugins` feature, in the pure CDP engine, and from 0.4.0 in the WebDriver engine too, except the ones that need a task, request interception or browser contexts.
 
 </Visibility>
 
@@ -44,29 +44,63 @@ the plugins are also examples of how to write one.
 | [`shield`](/plugins/shield) | Privacy hardening: turns off the browser's background reporting, keeps WebRTC from leaking addresses, blocks third-party cookies, refuses a persistent profile |
 | [`block-resources`](/plugins/block-resources) | Stops pages from loading images, fonts or media (faster, less data) |
 | [`crx`](/plugins/crx) | Loads packed Chrome extensions (`.crx`, CRX3 and CRX2) |
+| [`fetcher`](/plugins/fetcher) | Rules for the requests the browser sends (fail some, add headers), a record of the responses, and a task that fetches a list of URLs through the browser with its cookies; pure CDP engine only |
+| [`extractor`](/plugins/extractor) | Finds structured data on a page (JSON-LD, tables, repeated cards) or reads the selectors you name, and returns typed JSON records; a task, pure CDP engine only |
+| [`batcher`](/plugins/batcher) | Runs another plugin's jobs over a list of inputs a few at a time, in tabs of their own, with time limits, retries and a resume file; a task, pure CDP engine only |
+| [`crawler`](/plugins/crawler) | Crawls a site you own or may test from its links and reports broken pages and console errors; obeys robots.txt by default; a task, pure CDP engine only |
+| [`browser`](/plugins/browser) | Loads extensions from `.zip` and `.crx` files and unpacked folders, as Python's `--extension-zip` and `--extension-dir` do; cannot share a set with `crx` |
 | [`imap`](/plugins/imap) | Waits for a verification mail in a mailbox you own and reads its one-time code or link; read only, pure CDP engine only; gives the `cdp` MCP server the tool `wait_for_email` |
 | [`tor`](/plugins/tor) | Routes the browser through a Tor SOCKS listener you run yourself, with circuits of their own for each browser context; names are resolved by Tor |
 | [`wasm`](/plugins/wasm) | Runs plugins written in any language that compiles to WebAssembly, sandboxed with wasmi (no host imports, fuel and memory limits) |
 
-To add a plugin's crate, use `cargo add` with the revision shown. `shield` is
-also the feature `plugin-shield`.
+To add a plugin's crate, use `cargo add` with the revision shown, the one that
+seleniumbase-rs pins. `shield` is also the feature `plugin-shield`, and so on
+for each built-in plugin.
 
 <CodeGroup>
 
 ```bash shield
-cargo add seleniumbase-rs-plugin-shield --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 628991af0e6c5711298e3bd3692dc2974887401a
+cargo add seleniumbase-rs-plugin-shield --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev fea3634e2ebcaafce63a244df8d4adb53e3ec002
 ```
 
 ```bash block-resources
-cargo add seleniumbase-rs-plugin-block-resources --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 628991af0e6c5711298e3bd3692dc2974887401a
+cargo add seleniumbase-rs-plugin-block-resources --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev fea3634e2ebcaafce63a244df8d4adb53e3ec002
 ```
 
 ```bash crx
-cargo add seleniumbase-rs-plugin-crx --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 628991af0e6c5711298e3bd3692dc2974887401a
+cargo add seleniumbase-rs-plugin-crx --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev fea3634e2ebcaafce63a244df8d4adb53e3ec002
+```
+
+```bash fetcher
+cargo add seleniumbase-rs-plugin-fetcher --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev fea3634e2ebcaafce63a244df8d4adb53e3ec002
+```
+
+```bash extractor
+cargo add seleniumbase-rs-plugin-extractor --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev fea3634e2ebcaafce63a244df8d4adb53e3ec002
+```
+
+```bash batcher
+cargo add seleniumbase-rs-plugin-batcher --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev fea3634e2ebcaafce63a244df8d4adb53e3ec002
+```
+
+```bash crawler
+cargo add seleniumbase-rs-plugin-crawler --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev fea3634e2ebcaafce63a244df8d4adb53e3ec002
+```
+
+```bash browser
+cargo add seleniumbase-rs-plugin-browser --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev fea3634e2ebcaafce63a244df8d4adb53e3ec002
+```
+
+```bash imap
+cargo add seleniumbase-rs-plugin-imap --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev fea3634e2ebcaafce63a244df8d4adb53e3ec002
+```
+
+```bash tor
+cargo add seleniumbase-rs-plugin-tor --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev fea3634e2ebcaafce63a244df8d4adb53e3ec002
 ```
 
 ```bash wasm
-cargo add seleniumbase-rs-plugin-wasm --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 628991af0e6c5711298e3bd3692dc2974887401a
+cargo add seleniumbase-rs-plugin-wasm --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev fea3634e2ebcaafce63a244df8d4adb53e3ec002
 ```
 
 </CodeGroup>
@@ -82,11 +116,11 @@ The framework itself:
 <CodeGroup>
 
 ```bash seleniumbase-rs-plugin
-cargo add seleniumbase-rs-plugin --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 628991af0e6c5711298e3bd3692dc2974887401a
+cargo add seleniumbase-rs-plugin --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev fea3634e2ebcaafce63a244df8d4adb53e3ec002
 ```
 
 ```bash seleniumbase-rs-plugin-testing
-cargo add --dev seleniumbase-rs-plugin-testing --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 628991af0e6c5711298e3bd3692dc2974887401a
+cargo add --dev seleniumbase-rs-plugin-testing --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev fea3634e2ebcaafce63a244df8d4adb53e3ec002
 ```
 
 </CodeGroup>
@@ -139,6 +173,49 @@ Plugins written in any language that compiles to WebAssembly.
 
 </Card>
 
+<Card color="#1a85d4" title="fetcher" icon="cloud-arrow-down" href="/plugins/fetcher">
+
+Request rules, response records and a task that fetches a list of URLs.
+
+</Card>
+
+<Card color="#199f43" title="extractor" icon="table" href="/plugins/extractor">
+
+Find structured data on a page and read it as typed JSON.
+
+</Card>
+
+<Card color="#d47628" title="batcher" icon="layer-group" href="/plugins/batcher">
+
+Run a list of jobs a few at a time, with retries and a resume file.
+
+</Card>
+
+<Card color="#a631be" title="crawler" icon="sitemap" href="/plugins/crawler">
+
+Crawl a site you own and report broken pages and console errors.
+
+</Card>
+
+<Card color="#1ca1c7" title="browser" icon="window-restore" href="/plugins/browser">
+
+Load extensions from `.zip` and `.crx` files and unpacked folders.
+
+</Card>
+
+<Card color="#d32a61" title="imap" icon="envelope" href="/plugins/imap">
+
+Wait for a verification mail and read its code or link.
+
+</Card>
+
+<Card color="#693acf" title="tor" icon="user-secret" href="/plugins/tor">
+
+Route the browser through a Tor daemon you run.
+
+</Card>
+
+
 </Columns>
 
 ## How the hooks run
@@ -148,7 +225,9 @@ settings), `on_browser`, `on_page_created`, `on_close`. A plugin can also
 declare JavaScript and CSS `packages` for every tab, its `dependencies` on other
 plugins, and `requirements` (run last, a visible window, a Chromium browser, a
 browser it starts itself). Errors in the launch and page hooks stop the launch or
-the tab instead of being skipped.
+the tab instead of being skipped. Since plugin API 0.1.3 there are hooks for
+navigation, the network, browser contexts, DevTools events, the end of a test and
+tasks run by name too; see [More hooks](/tutorials/plugins#more-hooks).
 
 ```mermaid
 flowchart LR
