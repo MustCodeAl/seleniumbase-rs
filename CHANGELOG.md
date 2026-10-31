@@ -911,6 +911,19 @@ work, `docs/parity.md` the per-API status).
   policy that blocks the scripts) `post_message` prints ` * INFO message: text` (the style in
   capitals) and still pauses, as Python does; it does not fail the test. `api::messages::fallback_line`
   gives the line.
+- **The test-runner documentation and the parity table describe `sbrs test` as it is.** The new
+  page `docs/help/test_options.md` lists every option of Python's pytest plugin as a flag of
+  `sbrs test` with its `SB_*` variable, settings key and Python name, and the ones that are
+  accepted and ignored; `docs/tutorials/debug_modes.md` walks through `--pdb`, `--trace`,
+  `--final-debug` and `sb.breakpoint`. The Gherkin page covers the 98 built-in steps and the
+  `sbrs test` flags on scenarios, Writing Browser Tests shows the `sb` and `sb_cdp` fixtures,
+  and the Customizing Test Runs and Python migration pages describe `-k`, `-m`, `-n`, `--co`,
+  `--runner` and the pytest options. In `parity/api.toml` the entries of the test data, debug,
+  run-control, evidence, report, recorder and browser options of `options_pytest` and
+  `options_sb` are `implemented` (`rust =` names the `Settings`, `TestSettings` or `TestData`
+  field, 239 of the 263 pytest options); the 24 that do nothing here stay `not-applicable`
+  with their reason, and `test` is `composed` by `Sb::run`. CI builds and tests the features
+  `testing` and `bdd`, and the build gate in `CLAUDE.md` names them.
 
 ### Changed
 
