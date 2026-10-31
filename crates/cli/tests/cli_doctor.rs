@@ -125,7 +125,7 @@ mod with_stand_ins {
             ),
             "{error}"
         );
-        assert!(error.contains("`sbrs install`"), "{error}");
+        assert!(error.contains("`sbrs install chromedriver`"), "{error}");
         let report = stdout(&output);
         assert!(
             report.contains("Version: 129, but Chrome is 130"),
