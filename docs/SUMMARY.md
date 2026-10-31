@@ -98,6 +98,7 @@ hidden: true
   - [crx](plugins/crx.md)
   - [fetcher](plugins/fetcher.md)
   - [extractor](plugins/extractor.md)
+  - [batcher](plugins/batcher.md)
   - [wasm](plugins/wasm.md)
 - [Stealth scraping](tutorials/stealth_scraping.md)
   - [Overview](stealth/overview.md)

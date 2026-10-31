@@ -329,6 +329,7 @@
               "plugins/crx",
               "plugins/fetcher",
               "plugins/extractor",
+              "plugins/batcher",
               "plugins/imap",
               "plugins/tor",
               "plugins/wasm"
