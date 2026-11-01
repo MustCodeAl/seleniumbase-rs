@@ -441,3 +441,154 @@ pub(super) fn py_repr(expr: &Expr) -> String {
         Expr::Other(text) => text.clone(),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::super::ast::{Arg, BinOp, FPart, UnOp};
+    use super::*;
+
+    fn name(text: &str) -> Expr {
+        Expr::Name(text.to_owned())
+    }
+
+    fn string(text: &str) -> Expr {
+        Expr::Str(text.to_owned())
+    }
+
+    fn num(text: &str) -> Expr {
+        Expr::Num {
+            text: text.to_owned(),
+            float: text.contains('.'),
+        }
+    }
+
+    #[test]
+    fn names_literals_and_the_forms_it_does_not_expand() {
+        for (expr, expected) in [
+            (name("sb"), "sb"),
+            (string("plain"), r#""plain""#),
+            // A string is printed with Rust's escapes, so a quote and a newline stay on one line.
+            (string("say \"hi\"\n"), r#""say \"hi\"\n""#),
+            (string(""), r#""""#),
+            (num("42"), "42"),
+            (num("3.14"), "3.14"),
+            (Expr::Bool(true), "True"),
+            (Expr::Bool(false), "False"),
+            (Expr::None, "None"),
+            (
+                Expr::FStr(vec![FPart::Lit("a".to_owned()), FPart::Expr(name("x"))]),
+                "f\"...\"",
+            ),
+            (Expr::Dict(vec![(string("k"), num("1"))]), "{...}"),
+            (Expr::Dict(Vec::new()), "{...}"),
+            (Expr::Other("lambda: 1".to_owned()), "lambda: 1"),
+        ] {
+            assert_eq!(py_repr(&expr), expected, "{expr:?}");
+        }
+    }
+
+    #[test]
+    fn lists_tuples_attributes_and_indexes() {
+        for (expr, expected) in [
+            (Expr::List(Vec::new()), "[]"),
+            (
+                Expr::List(vec![num("1"), string("a"), name("x")]),
+                r#"[1, "a", x]"#,
+            ),
+            (Expr::Tuple(Vec::new()), "()"),
+            (Expr::Tuple(vec![name("a"), name("b")]), "(a, b)"),
+            (
+                Expr::Attr(Box::new(name("self")), "driver".to_owned()),
+                "self.driver",
+            ),
+            (
+                Expr::Attr(
+                    Box::new(Expr::Attr(Box::new(name("sb")), "driver".to_owned())),
+                    "title".to_owned(),
+                ),
+                "sb.driver.title",
+            ),
+            (
+                Expr::Index(Box::new(name("xs")), Box::new(num("0"))),
+                "xs[0]",
+            ),
+        ] {
+            assert_eq!(py_repr(&expr), expected, "{expr:?}");
+        }
+    }
+
+    #[test]
+    fn calls_print_positional_keyword_and_spread_arguments_in_order() {
+        let click = Expr::Attr(Box::new(name("sb")), "click".to_owned());
+        let call = Expr::Call(
+            Box::new(click.clone()),
+            vec![
+                Arg::Pos(string("#a")),
+                Arg::Kw("timeout".to_owned(), num("5")),
+                Arg::Spread("**options".to_owned()),
+            ],
+        );
+        assert_eq!(py_repr(&call), r##"sb.click("#a", timeout=5, **options)"##);
+        assert_eq!(
+            py_repr(&Expr::Call(Box::new(click), Vec::new())),
+            "sb.click()"
+        );
+
+        let nested = Expr::Call(
+            Box::new(name("len")),
+            vec![Arg::Pos(Expr::Call(
+                Box::new(name("sb.find_all")),
+                Vec::new(),
+            ))],
+        );
+        assert_eq!(py_repr(&nested), "len(sb.find_all())");
+    }
+
+    #[test]
+    fn unary_operators() {
+        for (op, expected) in [
+            (UnOp::Not, "not ready"),
+            (UnOp::Neg, "-ready"),
+            (UnOp::Pos, "+ready"),
+        ] {
+            let expr = Expr::Unary(op, Box::new(name("ready")));
+            assert_eq!(py_repr(&expr), expected);
+        }
+    }
+
+    #[test]
+    fn every_binary_operator_prints_its_python_symbol() {
+        for (op, symbol) in [
+            (BinOp::Add, "+"),
+            (BinOp::Sub, "-"),
+            (BinOp::Mul, "*"),
+            (BinOp::Div, "/"),
+            (BinOp::FloorDiv, "//"),
+            (BinOp::Mod, "%"),
+            (BinOp::And, "and"),
+            (BinOp::Or, "or"),
+            (BinOp::Eq, "=="),
+            (BinOp::Ne, "!="),
+            (BinOp::Lt, "<"),
+            (BinOp::Le, "<="),
+            (BinOp::Gt, ">"),
+            (BinOp::Ge, ">="),
+            (BinOp::In, "in"),
+            (BinOp::NotIn, "not in"),
+            (BinOp::Is, "is"),
+            (BinOp::IsNot, "is not"),
+            // An operator the converter does not read.
+            (BinOp::Other, "?"),
+        ] {
+            let expr = Expr::Binary(Box::new(name("a")), op, Box::new(name("b")));
+            assert_eq!(py_repr(&expr), format!("a {symbol} b"));
+        }
+    }
+
+    #[test]
+    fn a_conditional_expression_prints_the_value_first_then_the_test() {
+        // `IfExp` holds `(test, then, orelse)`; Python writes `then if test else orelse`.
+        let expr = Expr::IfExp(Box::new(name("ok")), Box::new(num("1")), Box::new(num("2")));
+        assert_eq!(py_repr(&expr), "1 if ok else 2");
+    }
+}

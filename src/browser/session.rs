@@ -3414,3 +3414,77 @@ mod headless_variant_tests {
         );
     }
 }
+
+/// `BrowserSession::quit` against the mock WebDriver in `webdriver_support` (no
+/// browser): what it sends, and what it does when it is called again or when
+/// there is no driver left to close.
+#[cfg(test)]
+mod quit_tests {
+    use super::*;
+    use crate::api::base_case::webdriver_support::{MockWebDriver, Reply};
+
+    /// A WebDriver that answers every command.
+    fn driver() -> MockWebDriver {
+        MockWebDriver::start(json!({}), |_| Reply::Value(json!({})))
+    }
+
+    /// A session on `driver` that starts no driver of its own.
+    async fn session_on(driver: &MockWebDriver) -> BrowserSession {
+        let mut config = BrowserConfig::default().with_webdriver_url(driver.url());
+        config.auto_start_driver = false;
+        BrowserSession::connect(config)
+            .await
+            .expect("the mock WebDriver accepts a session")
+    }
+
+    /// How many times the session was deleted: the mock records
+    /// `DELETE /session/mock` with the empty path.
+    fn deletes(driver: &MockWebDriver) -> usize {
+        driver
+            .requests("")
+            .iter()
+            .filter(|request| request.method == "DELETE")
+            .count()
+    }
+
+    #[tokio::test]
+    async fn quit_deletes_the_webdriver_session_and_leaves_none() {
+        let mock = driver();
+        let mut session = session_on(&mock).await;
+        assert_eq!(session.session_id().as_deref(), Some("mock"));
+        assert_eq!(deletes(&mock), 0);
+
+        session.quit().await.expect("the session ends");
+
+        assert_eq!(deletes(&mock), 1);
+        assert_eq!(session.session_id(), None);
+        assert!(matches!(
+            session.webdriver(),
+            Err(SeleniumBaseError::SessionNotStarted)
+        ));
+    }
+
+    #[tokio::test]
+    async fn quitting_twice_deletes_the_session_once() {
+        let mock = driver();
+        let mut session = session_on(&mock).await;
+
+        session.quit().await.expect("the session ends");
+        session
+            .quit()
+            .await
+            .expect("a second quit has nothing left to close");
+
+        assert_eq!(deletes(&mock), 1);
+    }
+
+    #[tokio::test]
+    async fn a_session_with_no_driver_quits_without_error_every_time() {
+        let mut session = BrowserSession::disconnected();
+
+        session.quit().await.expect("nothing to close");
+        session.quit().await.expect("still nothing to close");
+
+        assert_eq!(session.session_id(), None);
+    }
+}
