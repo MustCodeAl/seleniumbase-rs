@@ -8,9 +8,10 @@
 //! tab's `Network` events.
 
 mod challenges;
+mod clicks;
 mod conditions;
 mod files;
-mod input;
+mod forms;
 mod navigation;
 mod page;
 mod script;
@@ -287,7 +288,8 @@ fn tools() -> Vec<ToolDef<Cdp>> {
         session::tools(),
         navigation::tools(),
         page::tools(),
-        input::tools(),
+        clicks::tools(),
+        forms::tools(),
         conditions::tools(),
         storage::tools(),
         windows::tools(),

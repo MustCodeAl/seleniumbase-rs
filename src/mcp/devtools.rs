@@ -135,7 +135,6 @@ fn selector_prop() -> Prop {
 }
 
 /// The developer tools that need a browser, for a server whose session is `S`.
-
 pub(super) fn tools<S: DevSession>() -> Vec<ToolDef<S>> {
     [selectors::tools(), diagnostics::tools(), exports::tools()]
         .into_iter()

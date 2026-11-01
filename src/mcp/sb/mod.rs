@@ -4,10 +4,12 @@
 mod assertions;
 mod challenges;
 mod clicks;
+mod elements;
 mod files;
-mod input;
+mod forms;
 mod navigation;
 mod page;
+mod pointer;
 mod presentation;
 mod script;
 mod scrolling;
@@ -61,8 +63,10 @@ fn tools() -> Vec<ToolDef<BaseCase>> {
         session::tools(),
         navigation::tools(),
         page::tools(),
+        elements::tools(),
         clicks::tools(),
-        input::tools(),
+        forms::tools(),
+        pointer::tools(),
         waits::tools(),
         assertions::tools(),
         storage::tools(),
