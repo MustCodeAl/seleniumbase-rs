@@ -18,12 +18,27 @@ capture tools. It builds no BoringSSL and runs wherever Chrome does. The guides 
 [BrowserScraper](/stealth/browser-scraper) and
 [Identity and cookies](/stealth/identity).
 
+## When to use it
+
+Reach for scrape when a real browser has to load the page. `BrowserScraper` drives
+one Chrome through `sb_cdp`: `fetch` loads the URL, the mitigation policy decides
+whether to solve a challenge, rotate the proxy or rotate the profile, and the
+country of the proxy sets the language and the time zone. Chrome's own TLS
+handshake leaves the machine, so this crate builds no BoringSSL.
+
+Reach for [mimic](/stealth/api/mimic) when the site judges the wire fingerprint:
+the measured `ClientHello`, the HTTP/2 start and the header order, or when a
+browser's cookies should continue over plain HTTP. That module is a facade
+feature of its own and needs cmake.
+
 <RequestExample>
 
 ```rust A scraper behind a German proxy
 use seleniumbase_rs_stealth::scrape::{BrowserScraper, CountryCode, ScrapeError};
+use seleniumbase_rs_stealth::tokio;
 
-async fn run() -> Result<(), ScrapeError> {
+#[tokio::main]
+async fn main() -> Result<(), ScrapeError> {
     let mut scraper = BrowserScraper::builder()
         .with_geo_proxies([("http://user:pass@de.proxy.example:8080", CountryCode::new("DE")?)])?
         .with_max_challenge_attempts(4)
@@ -37,6 +52,17 @@ async fn run() -> Result<(), ScrapeError> {
 
 </RequestExample>
 
+`BrowserScraper::builder` returns `BrowserScraperBuilder`.
+`with_geo_proxies` takes `(spec, CountryCode)` pairs and returns
+`Result<Self, ScrapeError>`. `CountryCode::new` returns
+`Result<CountryCode, scrape::egress::geo::GeoError>`, and that error converts
+into `ScrapeError`, which is why `?` sits inside the pair.
+`with_max_challenge_attempts(u32)` returns the builder. `build().await` returns
+`Result<BrowserScraper, ScrapeError>`. `fetch(&mut self, url)` returns
+`Result<BrowserFetch, ScrapeError>`: `body` is the rendered page (`String`) and
+`status` is the HTTP status (`u16`). `close(self)` takes the scraper by value
+and returns `Result<(), ScrapeError>`.
+
 ## Depend on it
 
 Use the unified root facade from Git:
@@ -46,15 +72,21 @@ Use the unified root facade from Git:
 seleniumbase-rs-stealth = { git = "https://github.com/MustCodeAl/seleniumbase-rs-stealth" }
 ```
 
-The default facade features expose `codec`, `scrape`, `fingerprint`, `sb_cdp`
-and `evasion`, without BoringSSL or cmake. Import all types through
-`seleniumbase_rs_stealth`; no separate core or implementation dependency is needed.
+The facade's default feature is `scrape`, which also enables `codec`. That is
+enough for this page, and it builds no BoringSSL. `sb_cdp`, `evasion` and
+`fingerprint` are modules re-exported from `seleniumbase-rs`, which the facade
+always depends on. They are not Cargo features. Import through
+`seleniumbase_rs_stealth`. No separate core or implementation dependency is
+needed.
 
 ## Features
 
-The facade enables `scrape` and `codec` by default. The implementation crate
-declares no Cargo features; its own tests enable `test-util` of the core and
-`test-fixtures` of the codec.
+The facade default is `scrape` (`default = ["scrape"]` in the stealth
+repository's root `Cargo.toml`). `scrape` turns on `codec`. `mimic` stays off
+unless the dependency asks for it.
+
+`seleniumbase-rs-scrape` declares no Cargo features of its own. Its tests enable
+`test-util` on `seleniumbase-rs` and `test-fixtures` on `seleniumbase-rs-codec`.
 
 ## Module map
 
