@@ -16,6 +16,15 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- `sbrs-mcp install`, `uninstall` and `clients` know Grok Build (`grok`). The
+  user file is `$GROK_HOME/config.toml`, or `~/.grok/config.toml` when
+  `GROK_HOME` is unset (on Windows, `%USERPROFILE%\.grok\config.toml`), and
+  `--scope project` writes `.grok/config.toml`. Entries are
+  `[mcp_servers.NAME]` tables. Paths and format are from
+  <https://docs.x.ai/build/features/mcp-servers> and
+  <https://docs.x.ai/build/settings>. `--all` treats `grok` on `PATH`, or the
+  config folder, as installed, and the plan lists it before anything is written.
+
 - `sbrs-mcp install --all` and `uninstall --all` register with, or remove the
   registration from, every MCP client that is installed on the machine (its config
   file, its own config folder, or its program on `PATH`). Clients that are not
