@@ -8,6 +8,11 @@ work, `docs/parity.md` the per-API status).
 
 ## [Unreleased]
 
+### Added
+
+- `docs/design/upstream_sync_4.56.5.md`: what changed in Python SeleniumBase
+  from 4.55.2 to 4.56.5, and the order to port it.
+
 ## [0.7.0] - 2026-10-31
 
 ### Breaking
