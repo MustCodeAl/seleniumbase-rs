@@ -186,32 +186,58 @@ const TEXT_TREE_MARKERS = ["<!-- layout-tree:start -->", "<!-- layout-tree:end -
 // The canonical blocks. The script refuses (and says why) when the tree it describes no
 // longer matches the repository.
 function canonicalLayout() {
-  const print = (kind) => execFileSync("python3", ["-I", LAYOUT_SCRIPT, "--print", kind], {
-    encoding: "utf8", stdio: ["ignore", "pipe", "pipe"],
-  }).replace(/\n$/, "");
-  return { component: print("component"), tree: print("mdx"), text: print("md") };
+  const print = (kind, scope = "") => {
+    const args = ["-I", LAYOUT_SCRIPT, "--print", kind];
+    if (scope) args.push("--scope", scope);
+    return execFileSync("python3", args, {
+      encoding: "utf8", stdio: ["ignore", "pipe", "pipe"],
+    }).replace(/\n$/, "");
+  };
+  return { component: print("component"), tree: print("mdx"), text: print("md"), print };
+}
+
+// Every layout-tree block: { start, close, scope, startText }.
+function treeBlocks(raw, startRe, endMarker) {
+  const blocks = [];
+  for (const match of raw.matchAll(startRe)) {
+    const close = raw.indexOf(endMarker, match.index + match[0].length);
+    blocks.push({ start: match.index, close, scope: match[1] || "", startText: match[0] });
+  }
+  return blocks;
 }
 
 // [line, message] for each way the layout trees of one page differ from the canonical ones.
 function layoutProblems(raw, canon) {
   const problems = [];
   const lineOf = (index) => raw.slice(0, index).split("\n").length;
-  const block = (markers, body, what) => {
-    const start = raw.indexOf(markers[0]);
-    if (start < 0) return;
-    const close = raw.indexOf(markers[1], start);
-    if (close < 0) { problems.push([lineOf(start), `${markers[0]} has no ${markers[1]}`]); return; }
-    const found = raw.slice(start, close + markers[1].length).split("\n");
-    const wanted = `${markers[0]}\n\n${body}\n\n${markers[1]}`.split("\n");
+  const compare = (start, close, startText, endMarker, body, what) => {
+    if (close < 0) { problems.push([lineOf(start), `${startText} has no ${endMarker}`]); return; }
+    const found = raw.slice(start, close + endMarker.length).split("\n");
+    const wanted = `${startText}\n\n${body}\n\n${endMarker}`.split("\n");
     let n = 0;
     while (n < found.length && n < wanted.length && found[n] === wanted[n]) n++;
     if (n < found.length || n < wanted.length) {
       problems.push([lineOf(start) + n, `${what} differs from the canonical one at line ${n + 1} of its block (just layout-tree writes it again)`]);
     }
   };
-  block(COMPONENT_MARKERS, canon.component, "the tree component");
-  block(TREE_MARKERS, canon.tree, "the layout tree");
-  block(TEXT_TREE_MARKERS, canon.text, "the layout tree");
+  const componentStart = raw.indexOf(COMPONENT_MARKERS[0]);
+  if (componentStart >= 0) {
+    compare(componentStart, raw.indexOf(COMPONENT_MARKERS[1], componentStart), COMPONENT_MARKERS[0], COMPONENT_MARKERS[1], canon.component, "the tree component");
+  }
+  const scopes = new Map();
+  const bodyFor = (kind, scope) => {
+    const key = `${kind}\0${scope}`;
+    if (!scopes.has(key)) scopes.set(key, scope ? canon.print(kind, scope) : (kind === "mdx" ? canon.tree : canon.text));
+    return scopes.get(key);
+  };
+  for (const block of treeBlocks(raw, /\{\/\* layout-tree:start(?:[ \t]+(\S+))?[ \t]*\*\/\}/g, TREE_MARKERS[1])) {
+    const what = block.scope ? `the layout tree of ${block.scope}` : "the layout tree";
+    compare(block.start, block.close, block.startText, TREE_MARKERS[1], bodyFor("mdx", block.scope), what);
+  }
+  for (const block of treeBlocks(raw, /<!-- layout-tree:start(?:[ \t]+(\S+))?[ \t]*-->/g, TEXT_TREE_MARKERS[1])) {
+    const what = block.scope ? `the layout tree of ${block.scope}` : "the layout tree";
+    compare(block.start, block.close, block.startText, TEXT_TREE_MARKERS[1], bodyFor("md", block.scope), what);
+  }
   const defines = raw.indexOf("export const LayoutTree");
   if (defines >= 0 && !raw.includes(COMPONENT_MARKERS[0]) && !raw.includes(canon.component)) {
     problems.push([lineOf(defines), "the tree component is not the canonical one in tools/layout_tree/component.mdx (python3 -I tools/docs_layout_tree.py --adopt PAGE puts it between markers)"]);

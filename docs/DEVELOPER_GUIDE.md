@@ -550,33 +550,204 @@ The public test API. `base_case.rs` defines the struct and core constructors;
 land in the smallest domain file first, then be surfaced through `BaseCase` or a
 capability trait.
 
+{/* layout-tree:start src/api */}
+
+<LayoutTree>
+<LayoutDir name="api" note="BaseCase (base_case.rs, base_case_impls/), the capability traits, recorder, scenario, charts, tours">
+<LayoutFile name="base_case.rs" note="the BaseCase struct and its constructors" />
+<LayoutDir name="base_case_impls" open note="BaseCase helpers, one file per domain">
+<LayoutFile name="base_case_impl_addon.rs" note="add-on helpers" />
+<LayoutFile name="base_case_impl_alerts.rs" note="alerts" />
+<LayoutFile name="base_case_impl_browser.rs" note="browser helpers" />
+<LayoutFile name="base_case_impl_cdp_page.rs" note="CDP page helpers" />
+<LayoutFile name="base_case_impl_cdp_tests.rs" note="tests of the CDP helpers" />
+<LayoutFile name="base_case_impl_charts.rs" note="charts" />
+<LayoutFile name="base_case_impl_common.rs" note="helpers shared by the domain files" />
+<LayoutFile name="base_case_impl_debug.rs" note="debug helpers" />
+<LayoutFile name="base_case_impl_demo_tests.rs" note="tests of the demo helpers" />
+<LayoutFile name="base_case_impl_dialog_inspector.rs" note="the dialog inspector" />
+<LayoutFile name="base_case_impl_dom.rs" note="DOM helpers" />
+<LayoutFile name="base_case_impl_downloads.rs" note="downloads" />
+<LayoutFile name="base_case_impl_driver_tests.rs" note="tests of the driver helpers" />
+<LayoutFile name="base_case_impl_drivers.rs" note="driver helpers" />
+<LayoutFile name="base_case_impl_element_tests.rs" note="tests of the element helpers" />
+<LayoutFile name="base_case_impl_esc.rs" note="ending a test when ESC is pressed" />
+<LayoutFile name="base_case_impl_extra.rs" note="extra helpers" />
+<LayoutFile name="base_case_impl_fingerprint.rs" note="fingerprint helpers" />
+<LayoutFile name="base_case_impl_form_tests.rs" note="tests of the form helpers" />
+<LayoutFile name="base_case_impl_frame_tests.rs" note="tests of the frame helpers" />
+<LayoutFile name="base_case_impl_gui.rs" note="GUI helpers" />
+<LayoutFile name="base_case_impl_highlight.rs" note="highlighting elements" />
+<LayoutFile name="base_case_impl_highlight_tests.rs" note="tests of highlighting" />
+<LayoutFile name="base_case_impl_jslibs.rs" note="JavaScript libraries injected into the page" />
+<LayoutFile name="base_case_impl_links.rs" note="links" />
+<LayoutFile name="base_case_impl_logs_tests.rs" note="tests of the log helpers" />
+<LayoutFile name="base_case_impl_masterqa.rs" note="MasterQA helpers" />
+<LayoutFile name="base_case_impl_media.rs" note="media helpers" />
+<LayoutFile name="base_case_impl_misc.rs" note="miscellaneous helpers" />
+<LayoutFile name="base_case_impl_misc_calls_tests.rs" note="tests of the miscellaneous calls" />
+<LayoutFile name="base_case_impl_mouse.rs" note="mouse helpers" />
+<LayoutFile name="base_case_impl_mouse_tests.rs" note="tests of the mouse helpers" />
+<LayoutFile name="base_case_impl_nav.rs" note="navigation helpers" />
+<LayoutFile name="base_case_impl_parity.rs" note="parity helpers" />
+<LayoutFile name="base_case_impl_pdf_html.rs" note="PDF and HTML helpers" />
+<LayoutFile name="base_case_impl_presentations.rs" note="presentations" />
+<LayoutFile name="base_case_impl_rec_cdp.rs" note="recorder helpers for CDP" />
+<LayoutFile name="base_case_impl_recorder.rs" note="recorder helpers" />
+<LayoutFile name="base_case_impl_shadow.rs" note="shadow DOM helpers" />
+<LayoutFile name="base_case_impl_storage.rs" note="cookies and storage" />
+<LayoutFile name="base_case_impl_switch_tests.rs" note="tests of window and frame switching" />
+<LayoutFile name="base_case_impl_switching.rs" note="window and frame switching" />
+<LayoutFile name="base_case_impl_test_data.rs" note="test data helpers" />
+<LayoutFile name="base_case_impl_text_tests.rs" note="tests of the text helpers" />
+<LayoutFile name="base_case_impl_tours.rs" note="tours" />
+<LayoutFile name="base_case_impl_traffic_tests.rs" note="tests of the traffic helpers" />
+<LayoutFile name="base_case_impl_window.rs" note="window helpers" />
+</LayoutDir>
+<LayoutFile name="call.rs" note="one call a test makes" />
+<LayoutFile name="cdp_driver.rs" note="CdpDriver, the DevTools client used from BaseCase" />
+<LayoutFile name="cdp_page.rs" note="CdpPage, one page of that client" />
+<LayoutFile name="chart.rs" note="charts" />
+<LayoutFile name="deferred.rs" note="assertions that run later" />
+<LayoutFile name="demo.rs" note="demo mode: highlight an element and pause" />
+<LayoutFile name="dialog.rs" note="dialogs" />
+<LayoutFile name="gui.rs" note="GUI automation, feature gui" />
+<LayoutFile name="html.rs" note="HTML reports and pages" />
+<LayoutFile name="html_inspector.rs" note="the HTML inspector" />
+<LayoutFile name="jqc.rs" note="jQuery-style helpers" />
+<LayoutDir name="master_qa" open note="MasterQA reports">
+<LayoutFile name="report.rs" note="the MasterQA report" />
+<LayoutFile name="wrapper_tests.rs" note="tests of the MasterQA wrapper" />
+</LayoutDir>
+<LayoutFile name="master_qa.rs" note="MasterQA" />
+<LayoutFile name="membership.rs" note="membership helpers" />
+<LayoutFile name="messages.rs" note="messages shown on the page" />
+<LayoutFile name="misc_calls.rs" note="miscellaneous calls" />
+<LayoutFile name="mod.rs" note="the api module" />
+<LayoutFile name="page_scripts.rs" note="scripts BaseCase runs in the page" />
+<LayoutFile name="pdf.rs" note="PDF helpers, feature pdf" />
+<LayoutFile name="presentation.rs" note="presentations" />
+<LayoutDir name="recorder" open note="the page recorder: state, generated output and its page script">
+<LayoutFile name="breakpoint.rs" note="the pause while a person records" />
+<LayoutFile name="calls.rs" note="the recorded calls" />
+<LayoutFile name="cdp.rs" note="recording over CDP" />
+<LayoutFile name="extras.rs" note="extra recorded actions" />
+<LayoutFile name="generate.rs" note="turns a recording into a test" />
+<LayoutDir name="js" open note="scripts the recorder runs in the page">
+<LayoutFile name="recorder.js" note="the recorder script" />
+<LayoutFile name="shift_esc.js" note="SHIFT+ESC ends the recording" />
+</LayoutDir>
+<LayoutFile name="output.rs" note="where a recording is written" />
+<LayoutFile name="process.rs" note="processes the recorded actions" />
+<LayoutFile name="raw.rs" note="the raw recording" />
+<LayoutFile name="state.rs" note="the recorder state" />
+</LayoutDir>
+<LayoutFile name="recorder.rs" note="the recorder on BaseCase" />
+<LayoutFile name="run_settings.rs" note="the settings of one test run" />
+<LayoutFile name="runner.rs" note="run_browser_test" />
+<LayoutFile name="scenario.rs" note="scenarios: several steps in one browser" />
+<LayoutFile name="switching.rs" note="switching windows and frames" />
+<LayoutFile name="tour.rs" note="tours" />
+<LayoutFile name="traits.rs" note="BrowserApi, ElementApi, AssertionApi and ScreenshotApi" />
+</LayoutDir>
+</LayoutTree>
+
+{/* layout-tree:end */}
+
 ### `src/browser/`
 
 Launch and session plumbing:
 
-- `config.rs` — serializable `BrowserConfig`, `Browser` enum, `DriverMode`.
-- `session.rs` — `BrowserSession`, the WebDriver wrapper and CDP session cache.
-- `launcher.rs` — chromedriver discovery, startup, and `StealthOptions` application.
-- `playwright.rs` — optional Playwright-backed session adapter.
+{/* layout-tree:start src/browser */}
+
+<LayoutTree>
+<LayoutDir name="browser" note="BrowserConfig, the launcher, the WebDriver session, driver access and downloads">
+<LayoutFile name="binaries.rs" note="finding browser binaries" />
+<LayoutFile name="chrome_for_testing.rs" note="Chrome for Testing builds" />
+<LayoutFile name="chromium_snapshots.rs" note="Chromium snapshot builds" />
+<LayoutFile name="config.rs" note="BrowserConfig, Browser and DriverMode" />
+<LayoutFile name="downloader.rs" note="downloading a browser or a driver" />
+<LayoutFile name="downloads.rs" note="the downloaded_files folder browsers save into" />
+<LayoutFile name="driver_access.rs" note="repairs and runs drivers" />
+<LayoutFile name="driver_install.rs" note="installs geckodriver and msedgedriver" />
+<LayoutFile name="driver_version.rs" note="matches chromedriver to Chrome" />
+<LayoutFile name="launcher.rs" note="chromedriver discovery, startup and StealthOptions" />
+<LayoutFile name="mod.rs" note="the browser module" />
+<LayoutDir name="options" open note="typed launch settings">
+<LayoutFile name="capabilities.rs" note="capabilities added to the session" />
+<LayoutFile name="cdp_events.rs" note="which DevTools events are logged" />
+<LayoutFile name="chromium_args.rs" note="Chromium switches" />
+<LayoutFile name="device.rs" note="mobile device emulation" />
+<LayoutFile name="driver.rs" note="driver settings" />
+<LayoutFile name="extensions.rs" note="extensions to load" />
+<LayoutFile name="firefox.rs" note="Firefox arguments and preferences" />
+<LayoutFile name="locale.rs" note="the locale" />
+<LayoutFile name="mod.rs" note="the options module" />
+<LayoutFile name="page_load.rs" note="how long a navigation waits" />
+<LayoutFile name="plugins.rs" note="plugins turned on for the browser" />
+<LayoutFile name="proxy.rs" note="the proxy" />
+<LayoutFile name="remote.rs" note="a remote WebDriver server" />
+<LayoutFile name="switches.rs" note="browser switches" />
+<LayoutFile name="virtual_display.rs" note="a virtual display" />
+<LayoutFile name="window.rs" note="window size and position" />
+</LayoutDir>
+<LayoutFile name="password_prompts.rs" note="password prompts" />
+<LayoutFile name="plugin_hooks.rs" note="calls the plugin set from the WebDriver engine" />
+<LayoutFile name="proxy_auth.rs" note="proxy authentication" />
+<LayoutFile name="reuse.rs" note="reused sessions and --crumbs" />
+<LayoutFile name="session.rs" note="BrowserSession, the WebDriver wrapper and the CDP session cache" />
+<LayoutFile name="shadow_find.rs" note="finding elements in a shadow root" />
+<LayoutFile name="virtual_display.rs" note="opens a virtual display on Linux" />
+</LayoutDir>
+</LayoutTree>
+
+{/* layout-tree:end */}
 
 ### `src/evasion/`
 
 Anti-detection layer:
 
-- `fingerprint.rs` — `Fingerprint`, `FingerprintBuilder`, `Dimension`,
-  presets (including `edge_desktop`), coherence validation, and `BrowserType`;
-  `spoof.rs` (`Spoof<T>`), `settings.rs` (the value types such as `ScreenSize`
-  and `WebGl`) and `policy.rs` (`StealthPolicy`).
-- `evasions.rs` / `providers/` — JavaScript evasion registry and 25 built-in
-  providers.
-- `patcher.rs` — `ChromedriverPatcher` and `EnginePatch` definitions.
-- `options.rs` — `StealthOptions` builder for launch args and prefs.
-- `reactor.rs` — background CDP `Fetch` interceptor.
-- `dprocess.rs` — detached chromedriver/browser process helpers.
-- `humanize.rs` — Bézier mouse paths and keystroke timing, and the seedable `Rng`
-  the rest of the layer shares.
-- `randomize.rs` — the tables and assembly behind `Fingerprint::randomized`
-  (private; the method is the API).
+{/* layout-tree:start src/evasion */}
+
+<LayoutTree>
+<LayoutDir name="evasion" note="fingerprints, evasion providers, humanize, binary patching and the CDP reactor">
+<LayoutFile name="behavior.rs" note="human-like input" />
+<LayoutFile name="capture.rs" note="CapturedFingerprint: reading a real browser fingerprint" />
+<LayoutFile name="cdp.rs" note="the DevTools wrapper used from WebDriver" />
+<LayoutFile name="dprocess.rs" note="detached chromedriver and browser processes" />
+<LayoutFile name="evasions.rs" note="launch flags for the evasion layer" />
+<LayoutDir name="fingerprint" open note="parts of fingerprint.rs">
+<LayoutFile name="compare.rs" note="compares two fingerprints" />
+<LayoutFile name="file.rs" note="reads and writes a fingerprint file" />
+<LayoutFile name="schema.rs" note="the fingerprint JSON schema" />
+</LayoutDir>
+<LayoutFile name="fingerprint.rs" note="Fingerprint, one Spoof per setting, ProxyConfig and ClientHints" />
+<LayoutFile name="humanize.rs" note="Bezier mouse paths, keystroke timing and the seedable Rng" />
+<LayoutDir name="js" open note="page scripts the evasion layer ships">
+<LayoutFile name="active_css_js.rs" note="the active CSS script" />
+<LayoutFile name="best_selector.js" note="picks a selector for an element" />
+<LayoutFile name="capture.js" note="reads a page fingerprint" />
+<LayoutFile name="capture_js.rs" note="the capture script as Rust" />
+<LayoutFile name="mod.rs" note="the js module" />
+<LayoutFile name="recorder_js.rs" note="the recorder script as Rust" />
+</LayoutDir>
+<LayoutFile name="mod.rs" note="the evasion module" />
+<LayoutFile name="options.rs" note="StealthOptions: launch arguments and preferences" />
+<LayoutFile name="patcher.rs" note="ChromedriverPatcher and EnginePatch" />
+<LayoutFile name="policy.rs" note="StealthPolicy" />
+<LayoutDir name="providers" open note="the evasion registry and the built-in providers">
+<LayoutFile name="builtin.rs" note="the built-in providers" />
+<LayoutFile name="mod.rs" note="EvasionRegistry and default_registry" />
+</LayoutDir>
+<LayoutFile name="randomize.rs" note="the tables behind Fingerprint::randomized; the method is the API" />
+<LayoutFile name="reactor.rs" note="the background CDP Fetch interceptor" />
+<LayoutFile name="settings.rs" note="value types such as ScreenSize and WebGl" />
+<LayoutFile name="spoof.rs" note="Spoof, one value and how it is applied" />
+<LayoutFile name="uc.rs" note="undetected-chromedriver mode" />
+</LayoutDir>
+</LayoutTree>
+
+{/* layout-tree:end */}
 
 ### `src/profile_payloads/`
 
@@ -584,29 +755,190 @@ Parses external anti-detect profile JSON into `BrowserConfig` + `Fingerprint`.
 The mapping is explicit: every JSON field is declared in `ProfileParams`, then
 converted in `ProfileParams::to_browser_config()` and `browser()`.
 
+{/* layout-tree:start src/profile_payloads */}
+
+<LayoutTree>
+<LayoutDir name="profile_payloads" note="parses external browser-profile JSON into a Fingerprint">
+<LayoutFile name="mod.rs" note="the profile_payloads module" />
+<LayoutFile name="profile.rs" note="ProfileParams: every JSON field, then to_browser_config and browser" />
+</LayoutDir>
+</LayoutTree>
+
+{/* layout-tree:end */}
+
 ### `src/cli/`
 
-The library half of the command line: `commands.rs`, `devtools.rs`, `prompt.rs`,
-`scaffold.rs` and the `scripts/` that the binaries, the MCP server and the golden
-tests share. It has no command-line parser.
+The library half of the command line. The binaries, the MCP server and the golden
+tests share it. It has no command-line parser.
+
+{/* layout-tree:start src/cli */}
+
+<LayoutTree>
+<LayoutDir name="cli" note="the library half of sbrs, with no parser: commands.rs, scaffold.rs, scripts/">
+<LayoutFile name="commands.rs" note="what each sbrs command does, with no parser" />
+<LayoutFile name="devtools.rs" note="Chrome with an open DevTools endpoint" />
+<LayoutFile name="fingerprint_cmd.rs" note="sbrs fingerprint" />
+<LayoutFile name="mod.rs" note="the cli module" />
+<LayoutFile name="plugin_cmd.rs" note="sbrs plugin list and info, and the check of plugin names" />
+<LayoutFile name="prompt.rs" note="the shell prompt line" />
+<LayoutFile name="scaffold.rs" note="sbrs mkdir and mkfile" />
+<LayoutDir name="scripts" open note="shared by the binaries, the MCP server and the golden tests">
+<LayoutFile name="all_scripts.rs" note="the script registry" />
+<LayoutFile name="behave_gui_tui.rs" note="the behave-gui terminal app" />
+<LayoutFile name="behave_options.rs" note="how Python behave options map to sbrs test" />
+<LayoutFile name="case_plans.rs" note="case plans" />
+<LayoutFile name="caseplans_tui.rs" note="the caseplans terminal app" />
+<LayoutFile name="discovery.rs" note="finds tests" />
+<LayoutFile name="feature_files.rs" note="Gherkin feature files" />
+<LayoutFile name="gherkin_outline.rs" note="Gherkin outlines" />
+<LayoutFile name="logo_helper.rs" note="the logo" />
+<LayoutFile name="mod.rs" note="the scripts module" />
+<LayoutFile name="recorder_tui.rs" note="the recorder terminal app" />
+<LayoutFile name="rich_helper.rs" note="terminal formatting" />
+<LayoutFile name="run.rs" note="runs a selection of tests" />
+<LayoutFile name="run_filter.rs" note="the -k and -m filters" />
+<LayoutFile name="run_logs.rs" note="logs of a test run" />
+<LayoutFile name="sb_behave_gui.rs" note="sbrs behave-gui" />
+<LayoutFile name="sb_caseplans.rs" note="sbrs caseplans" />
+<LayoutFile name="sb_commander.rs" note="sbrs commander" />
+<LayoutFile name="sb_convert.rs" note="sbrs convert" />
+<LayoutFile name="sb_grid.rs" note="sbrs grid-hub and grid-node" />
+<LayoutFile name="sb_install.rs" note="sbrs install" />
+<LayoutFile name="sb_mkchart.rs" note="sbrs mkchart" />
+<LayoutFile name="sb_mkdir.rs" note="sbrs mkdir" />
+<LayoutFile name="sb_mkfile.rs" note="sbrs mkfile" />
+<LayoutFile name="sb_mkpres.rs" note="sbrs mkpres" />
+<LayoutDir name="sb_objectify" open note="turns selectors in a Rust test into page-object constants">
+<LayoutFile name="api.rs" note="which calls take a selector" />
+<LayoutFile name="edit.rs" note="rewrites the test" />
+<LayoutFile name="lexer.rs" note="tokenizes a Rust test" />
+<LayoutFile name="model.rs" note="the page objects" />
+<LayoutFile name="scan.rs" note="finds the selectors" />
+<LayoutFile name="tests.rs" note="tests of objectify" />
+</LayoutDir>
+<LayoutFile name="sb_objectify.rs" note="sbrs objectify, extract-objects, inject-objects and revert-objects" />
+<LayoutFile name="sb_print.rs" note="sbrs print" />
+<LayoutFile name="sb_recorder.rs" note="sbrs recorder" />
+<LayoutFile name="sb_translate.rs" note="sbrs translate" />
+<LayoutFile name="tui_kit.rs" note="shared pieces of the terminal apps" />
+</LayoutDir>
+</LayoutDir>
+</LayoutTree>
+
+{/* layout-tree:end */}
 
 ### `crates/cli/`
 
 The workspace package `seleniumbase-rs-cli`, which builds the two binaries and
-owns the dependencies only they use (the `usage` command-line parser):
+owns the dependencies only they use (the `usage` command-line parser).
 
-- `src/sbrs.rs` — the `sbrs` CLI command tree, declared with the `usage` derives
-  (and `src/report.rs`, `sbrs report`). The usage spec `completions/sbrs.usage.kdl`
-  and the page `docs/help/cli_reference.md` are generated from it by a test.
-- `src/fig.rs` — the Fig spec of `sbrs completions fig`, written from the same tables.
-- `crates/cli/src/mcp_server.rs` — `sbrs-mcp`, which starts the Model Context Protocol
-  server of `src/mcp/` (the tools are `ToolDef`s there).
-- `tests/` — every test that runs the real `sbrs` or `sbrs-mcp` binary.
+{/* layout-tree:start crates/cli */}
+
+<LayoutTree>
+<LayoutDir name="cli" open note="the package seleniumbase-rs-cli: the sbrs and sbrs-mcp binaries">
+<LayoutFile name="Cargo.toml" note="default features: pdf, mcp-server, mcp-client, plugins-builtin" />
+<LayoutDir name="src" open>
+<LayoutFile name="sbrs.rs" highlight note="the sbrs command line" />
+<LayoutFile name="mcp_server.rs" highlight note="the sbrs-mcp server" />
+<LayoutFile name="fig.rs" note="the Fig completion spec" />
+<LayoutFile name="report.rs" note="sbrs report" />
+<LayoutFile name="reference.rs" note="renders docs/help/cli_reference.md from the usage spec" />
+<LayoutFile name="strict.rs" note="refuses, with status 2, what the parser is too loose about" />
+<LayoutDir name="mcp_install" open note="sbrs-mcp install, uninstall and clients">
+<LayoutFile name="apply.rs" note="writes one client's config" />
+<LayoutFile name="args.rs" note="the install, uninstall and clients command line" />
+<LayoutFile name="client.rs" note="the clients and where each keeps its config" />
+<LayoutFile name="entry.rs" note="the two server entries" />
+<LayoutFile name="env.rs" note="the machine, faked by tests" />
+<LayoutFile name="external.rs" note="the claude and codex programs" />
+<LayoutFile name="fsx.rs" note="atomic writes and the backup" />
+<LayoutFile name="jsonedit.rs" note="edits JSON as text" />
+<LayoutFile name="jsonfile.rs" note="the JSON layouts" />
+<LayoutFile name="mod.rs" note="install, uninstall and clients" />
+<LayoutFile name="report.rs" note="what one client prints" />
+<LayoutFile name="tests.rs" note="tests against a temporary folder" />
+<LayoutFile name="tomlfile.rs" note="edits Codex config.toml" />
+</LayoutDir>
+<LayoutDir name="args" open note="argument structs of the sbrs subcommands">
+<LayoutFile name="content.rs" note="convert and the content commands" />
+<LayoutFile name="generators.rs" note="mkdir, mkfile, mkchart, mkpres" />
+<LayoutFile name="install.rs" note="sbrs install" />
+<LayoutFile name="language.rs" note="the chart and presentation languages" />
+<LayoutFile name="mod.rs" note="the args module" />
+<LayoutFile name="objects.rs" note="extract-objects, inject-objects, objectify, revert-objects" />
+<LayoutFile name="report.rs" note="sbrs report finish and, with the turso feature, report history" />
+<LayoutFile name="tools.rs" note="the smaller tool commands" />
+</LayoutDir>
+<LayoutFile name="browser_flags.rs" note="the browser options, their SB_ variables and the settings file" />
+<LayoutFile name="completion.rs" note="the patched shell completion scripts" />
+<LayoutFile name="crypto.rs" note="sbrs encrypt and decrypt" />
+<LayoutFile name="failure.rs" note="a command line that does not parse prints the command page, then the error" />
+<LayoutFile name="fingerprint.rs" note="sbrs fingerprint" />
+<LayoutFile name="history.rs" note="sbrs report history" />
+<LayoutFile name="info.rs" note="sbrs version and the info commands" />
+<LayoutDir name="mcp_client" open note="sbrs mcp, the MCP client">
+<LayoutFile name="args.rs" note="the client command line" />
+<LayoutFile name="mod.rs" note="the mcp_client module" />
+<LayoutDir name="output" open note="how a tool result is printed">
+<LayoutFile name="tests.rs" note="tests of that printing" />
+</LayoutDir>
+<LayoutFile name="output.rs" note="prints a tool result" />
+</LayoutDir>
+<LayoutFile name="mcp_cmd.rs" note="sbrs mcp" />
+<LayoutFile name="proxy.rs" note="sbrs proxy" />
+<LayoutFile name="recorder_flags.rs" note="the recorder flags" />
+<LayoutFile name="test_args.rs" note="sbrs test" />
+<LayoutFile name="test_session.rs" note="the test run sbrs test starts and finishes" />
+</LayoutDir>
+<LayoutDir name="tests" note="every test that runs the real sbrs or sbrs-mcp binary" />
+</LayoutDir>
+</LayoutTree>
+
+{/* layout-tree:end */}
 
 ### `src/utilities/`
 
 Migration and IDE tooling: Python importer, Selenium IDE parser, Selenium Grid
 helpers.
+
+{/* layout-tree:start src/utilities */}
+
+<LayoutTree>
+<LayoutDir name="utilities" note="RetryPolicy, the grid server, Selenium Grid and IDE, the Python importer">
+<LayoutFile name="grid_server.rs" note="GridProcess: start, state, stop and ended" />
+<LayoutDir name="importer" open note="the Python importer">
+<LayoutFile name="emit.rs" note="writes the Rust test" />
+<LayoutFile name="lexer.rs" note="tokenizes Python" />
+<LayoutFile name="mod.rs" note="the importer module" />
+<LayoutFile name="parser.rs" note="parses Python" />
+<LayoutFile name="program.rs" note="a parsed program" />
+<LayoutDir name="pyconv" open note="converts a Python test into Rust">
+<LayoutFile name="ast.rs" note="the Python syntax the converter reads" />
+<LayoutFile name="cdp.rs" note="CDP-mode calls" />
+<LayoutFile name="expr.rs" note="expressions" />
+<LayoutFile name="generated.rs" note="generated pieces of the converter" />
+<LayoutFile name="mod.rs" note="the pyconv module" />
+<LayoutFile name="parse.rs" note="the parser" />
+<LayoutFile name="stmt.rs" note="statements" />
+<LayoutFile name="table.rs" note="the method table" />
+<LayoutFile name="tests.rs" note="tests of the converter" />
+<LayoutFile name="tr.rs" note="the translation" />
+<LayoutFile name="units.rs" note="units of a converted test" />
+</LayoutDir>
+<LayoutFile name="recorder.rs" note="imports a recording" />
+<LayoutFile name="selector.rs" note="selectors in the imported test" />
+<LayoutFile name="tests.rs" note="tests of the importer" />
+<LayoutFile name="translate.rs" note="translates one call" />
+</LayoutDir>
+<LayoutFile name="mod.rs" note="the utilities module" />
+<LayoutFile name="python_importer.rs" note="imports a Python SeleniumBase test" />
+<LayoutFile name="retry.rs" note="RetryPolicy and RateLimiter" />
+<LayoutFile name="selenium_grid.rs" note="Selenium Grid helpers" />
+<LayoutFile name="selenium_ide.rs" note="the Selenium IDE parser" />
+</LayoutDir>
+</LayoutTree>
+
+{/* layout-tree:end */}
 
 ## Browser session model
 
