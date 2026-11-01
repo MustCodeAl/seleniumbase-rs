@@ -98,6 +98,54 @@ fn script_frame(mock: &MockCtrl, present: usize, remote: bool) {
     });
 }
 
+/// Scripts a page with `frames` frames `iframe.ad` the page script cannot read
+/// into, each in the tab's own process and holding one match of `#b`.
+///
+/// A chain that names `iframe.ad` is the page's own; any other is a frame's.
+fn script_frames(mock: &MockCtrl, frames: usize) {
+    mock.on("Runtime.evaluate", move |params| {
+        let expression = params["expression"].as_str().unwrap_or_default();
+        let page_chain = expression.contains("iframe.ad");
+        if expression.contains("__sbcdp.search(") {
+            return Ok(value(json!(usize::from(!page_chain))));
+        }
+        if expression.contains("__sbcdp.blockedSteps(") {
+            let steps = if page_chain { vec![1; frames] } else { vec![] };
+            return Ok(value(json!(steps)));
+        }
+        if expression.contains("__sbcdp.blockedFrame(") {
+            return Ok(json!({ "result": {
+                "type": "object", "subtype": "node", "objectId": FRAME_ELEMENT,
+            }}));
+        }
+        if page_chain {
+            return Ok(exception("Error: sbcdp:frames\n    at resolve"));
+        }
+        Ok(if expression.contains("__sbcdp.center(") {
+            value(json!({ "x": 10.0, "y": 20.0, "covered": false }))
+        } else if expression.contains(".some(__sbcdp.visible)") {
+            value(json!(true))
+        } else if expression.contains(".length") {
+            value(json!(1))
+        } else {
+            value(Value::Null)
+        })
+    });
+    mock.reply("DOM.describeNode", json!({ "node": { "frameId": "F2" } }));
+    mock.reply(
+        "Page.createIsolatedWorld",
+        json!({ "executionContextId": 7 }),
+    );
+    mock.on("Runtime.callFunctionOn", |params| {
+        let function = params["functionDeclaration"].as_str().unwrap_or_default();
+        Ok(if function.contains("frameOrigin") {
+            value(json!({ "x": 30.0, "y": 100.0 }))
+        } else {
+            json!({})
+        })
+    });
+}
+
 /// The index of the first received `method` command that `matches`.
 fn position(calls: &[Call], method: &str, matches: impl Fn(&Call) -> bool) -> Option<usize> {
     calls
@@ -131,6 +179,45 @@ fn mouse_events(mock: &MockCtrl) -> Vec<(String, f64, f64, Option<String>)> {
 }
 
 #[test_log::test(tokio::test)]
+async fn a_strict_locator_counts_the_matches_of_every_frame_it_cannot_read() {
+    let (page, mock) = quick_page().await;
+    script_frames(&mock, 2);
+
+    let error = page
+        .locator("iframe.ad")
+        .locator("#b")
+        .strict()
+        .click()
+        .await
+        .unwrap_err();
+
+    assert!(
+        matches!(
+            &error,
+            SeleniumBaseError::StrictModeViolation { count: 2, .. }
+        ),
+        "unexpected error: {error}"
+    );
+    assert!(mouse_events(&mock).is_empty(), "nothing may be clicked");
+}
+
+#[test_log::test(tokio::test)]
+async fn a_strict_locator_clicks_the_only_match_in_a_frame_it_cannot_read() {
+    let (page, mock) = quick_page().await;
+    script_frames(&mock, 1);
+
+    page.locator("iframe.ad")
+        .locator("#b")
+        .strict()
+        .click()
+        .await
+        .unwrap();
+
+    assert_eq!(mouse_events(&mock).len(), 3);
+}
+
+#[test_log::test(tokio::test)]
+
 async fn a_chain_the_page_can_search_sends_no_frame_command() {
     let (page, mock) = quick_page().await;
     mock.on("Runtime.evaluate", |_| Ok(value(json!(1))));

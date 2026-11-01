@@ -151,6 +151,7 @@ impl Failure {
         let (selector, url) = match error {
             SeleniumBaseError::ElementNotFound { selector, .. }
             | SeleniumBaseError::ElementNotInteractable { selector, .. }
+            | SeleniumBaseError::StrictModeViolation { selector, .. }
             | SeleniumBaseError::StaleElement { selector } => (Some(selector.clone()), None),
             SeleniumBaseError::InvalidSelector(selector) => (Some(selector.clone()), None),
             SeleniumBaseError::Navigation { url, .. }

@@ -191,6 +191,64 @@ async fn finds_elements_by_css_xpath_and_link_text() {
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
 #[serial_test::serial(chrome)]
+async fn a_strict_locator_refuses_several_matches_in_the_page_and_across_frames() {
+    let (browser, page, base) = open().await;
+
+    let items = page.locator("#items li").strict();
+    let error = items.click().await.unwrap_err();
+    assert!(
+        matches!(
+            &error,
+            SeleniumBaseError::StrictModeViolation { count: 4, .. }
+        ),
+        "unexpected error: {error}"
+    );
+    assert_eq!(items.first().text().await.unwrap(), "one");
+    assert_eq!(items.count().await.unwrap(), 4);
+    let visible = items.visible();
+    assert!(
+        matches!(
+            visible.text().await,
+            Err(SeleniumBaseError::StrictModeViolation { count: 3, .. })
+        ),
+        "only the visible ones count"
+    );
+    assert_eq!(
+        page.locator("#title").strict().text().await.unwrap(),
+        "Welcome"
+    );
+
+    // One frame of another origin holds the only match, and a second one makes two.
+    page.goto(format!("{base}/frames")).await.unwrap();
+    let secret = page.locator("iframe[src]").locator("#secret").strict();
+    assert_eq!(secret.text().await.unwrap(), "Foreign");
+    page.evaluate(
+        "const twin = document.createElement('iframe');\
+         twin.id = 'twin'; twin.src = document.getElementById('foreign').src;\
+         document.body.append(twin);",
+    )
+    .await
+    .unwrap();
+    page.locator("#twin")
+        .locator("#secret")
+        .wait_for(State::Present)
+        .await
+        .unwrap();
+    let error = secret.text().await.unwrap_err();
+    assert!(
+        matches!(
+            &error,
+            SeleniumBaseError::StrictModeViolation { count: 2, .. }
+        ),
+        "unexpected error: {error}"
+    );
+
+    browser.close().await.unwrap();
+}
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn an_xpath_inside_a_parent_only_matches_within_it() {
     let (browser, page, _) = open().await;
 

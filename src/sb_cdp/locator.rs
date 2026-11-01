@@ -92,6 +92,7 @@ pub struct Locator {
     page: Page,
     chain: Vec<Step>,
     timeout: Duration,
+    strict: bool,
 }
 
 impl fmt::Display for Locator {
@@ -125,6 +126,7 @@ impl Locator {
         Self {
             page,
             chain: vec![Step::new(selector)],
+            strict: false,
             timeout,
         }
     }
@@ -150,6 +152,38 @@ impl Locator {
     pub fn with_timeout(&self, timeout: Duration) -> Self {
         Self {
             timeout,
+            ..self.clone()
+        }
+    }
+
+    /// Returns a locator that fails when it matches more than one element.
+    ///
+    /// A plain locator acts on the first match, which is the wrong element when
+    /// a selector turns out to be too loose. A strict one works like Playwright's
+    /// strict mode: every action, every read of one element and every wait returns
+    /// [`SeleniumBaseError::StrictModeViolation`], which says how many matched, as
+    /// soon as it sees more than one, without waiting for the timeout. No match
+    /// at all waits and fails as usual.
+    ///
+    /// [`count`](Self::count), [`infos`](Self::infos), [`all`](Self::all) and
+    /// [`all_waiting`](Self::all_waiting) are about every match, and stay allowed.
+    /// So does a match picked with [`first`](Self::first), [`last`](Self::last) or
+    /// [`nth`](Self::nth). Narrowing further keeps the locator strict. The matches
+    /// of every frame count, also in frames of another origin, where a plain
+    /// locator stops at the first frame that holds a match.
+    ///
+    /// ```no_run
+    /// # use seleniumbase_rs::sb_cdp::Page;
+    /// # async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    /// // Fails if the page has a second "Save" button, rather than clicking one.
+    /// page.locator("button.save").strict().click().await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[must_use]
+    pub fn strict(&self) -> Self {
+        Self {
+            strict: true,
             ..self.clone()
         }
     }
@@ -254,6 +288,7 @@ impl Locator {
         body: &str,
         origin: bool,
     ) -> Result<(Value, Point), SeleniumBaseError> {
+        self.check_strict().await?;
         self.eval(
             |chain| Self::element_script(chain, body),
             || Err(SeleniumBaseError::element_not_found(self.to_string())),
@@ -386,6 +421,71 @@ impl Locator {
         })
     }
 
+    /// Fails if this locator is strict and matches more than one element. A
+    /// match picked with `first`, `last` or `nth` is one by definition.
+    async fn check_strict(&self) -> Result<(), SeleniumBaseError> {
+        let picked = self
+            .chain
+            .last()
+            .is_some_and(|step| step.nth.is_some() || step.last);
+        if !self.strict || picked {
+            return Ok(());
+        }
+        let count = self
+            .count_in_frames(self.page.main_scope(), self.chain.clone(), 0)
+            .await?;
+        if count > 1 {
+            return Err(SeleniumBaseError::strict_mode_violation(
+                self.to_string(),
+                count,
+            ));
+        }
+        Ok(())
+    }
+
+    /// How many elements the chain `chain` matches in `scope` and in every frame
+    /// below it that the helper could not read into, as far as `MAX_FRAME_DEPTH`.
+    /// [`locate`](Self::locate) stops at the first frame with a match, so this is
+    /// what sees a second match in another frame.
+    fn count_in_frames(
+        &self,
+        scope: Scope,
+        chain: Vec<Step>,
+        depth: usize,
+    ) -> Pin<Box<dyn Future<Output = Result<usize, SeleniumBaseError>> + Send + '_>> {
+        Box::pin(async move {
+            if depth >= MAX_FRAME_DEPTH {
+                return Ok(0);
+            }
+            let label = self.to_string();
+            let chain_json = serde_json::to_string(&chain)?;
+            let search = format!("__sbcdp.search({chain_json}).length");
+            let here = self.page.eval_in(&scope, &label, &search).await?;
+            let mut total = here
+                .as_u64()
+                .and_then(|n| usize::try_from(n).ok())
+                .unwrap_or_default();
+            let steps = self.page.blocked_steps(&scope, &label, &chain_json).await?;
+            for (index, step) in steps.into_iter().enumerate() {
+                let Some(object) = self.page.frame_element(&scope, &chain_json, index).await?
+                else {
+                    continue;
+                };
+                let Some(inside) = self.page.enter_frame(&scope, object).await? else {
+                    continue;
+                };
+                let rest = chain.get(step..).unwrap_or_default().to_vec();
+                match self.count_in_frames(inside.clone(), rest, depth + 1).await {
+                    Ok(count) => total += count,
+                    Err(error) if is_frame_gone(&error) => self.page.forget_scope(&inside),
+                    Err(error) => return Err(error),
+                }
+                self.page.release_holder(&inside).await;
+            }
+            Ok(total)
+        })
+    }
+
     /// How many elements match right now. Does not wait.
     ///
     /// # Errors
@@ -416,6 +516,7 @@ impl Locator {
         // A frame the page script cannot read into that holds no match: nothing
         // is there, and nothing is visible.
         let none = matches!(state, State::Absent | State::Hidden);
+        self.check_strict().await?;
         let (answer, _) = self.eval(probe, || Ok(Value::Bool(none)), false).await?;
         Ok(answer == Value::Bool(true))
     }
@@ -502,9 +603,13 @@ impl Locator {
     ///
     /// Returns [`SeleniumBaseError::InvalidSelector`] if the selector is invalid.
     pub async fn all_waiting(&self) -> Result<Vec<Self>, SeleniumBaseError> {
+        let every = Self {
+            strict: false,
+            ..self.clone()
+        };
         self.page
             .poll(self.timeout, || async {
-                self.is_in_state(State::Present).await
+                every.is_in_state(State::Present).await
             })
             .await?;
         self.all().await
@@ -942,6 +1047,7 @@ impl Locator {
     ) -> Result<(), SeleniumBaseError> {
         let name = serde_json::to_string(name.as_ref())?;
         let value = serde_json::to_string(value.as_ref())?;
+        self.check_strict().await?;
         self.eval(
             |chain| {
                 format!("__sbcdp.resolve({chain}).forEach(e => e.setAttribute({name}, {value}))")
@@ -959,6 +1065,7 @@ impl Locator {
     ///
     /// Returns [`SeleniumBaseError::InvalidSelector`] if the selector is invalid.
     pub async fn remove(&self) -> Result<(), SeleniumBaseError> {
+        self.check_strict().await?;
         self.eval(
             |chain| format!("__sbcdp.resolve({chain}).forEach(e => e.remove())"),
             || Ok(Value::Null),

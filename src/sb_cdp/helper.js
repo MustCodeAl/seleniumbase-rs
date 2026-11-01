@@ -330,7 +330,7 @@
   });
 
   window.__sbcdp = {
-    resolve, one, visible, info, center, frameOrigin, blockedSteps, blockedFrame,
+    resolve, search, one, visible, info, center, frameOrigin, blockedSteps, blockedFrame,
     setValue, focus, selectOption, flash,
     textOf, fieldText, rectOf, attrs, errors,
   };

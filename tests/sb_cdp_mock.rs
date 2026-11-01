@@ -41,6 +41,9 @@ async fn quick_page() -> (Page, MockCtrl) {
 fn script_locator(mock: &MockCtrl, present: usize, visible: bool) {
     mock.on("Runtime.evaluate", move |params| {
         let expression = params["expression"].as_str().unwrap_or_default();
+        if expression.contains("__sbcdp.search(") {
+            return Ok(value(json!(present)));
+        }
         Ok(if expression.contains("__sbcdp.center(") {
             value(json!({ "x": 120.0, "y": 80.0, "covered": false }))
         } else if expression.contains(".some(__sbcdp.visible)") {
@@ -1291,4 +1294,187 @@ async fn every_tab_is_told_it_has_focus_so_input_reaches_it() {
     assert!(focus
         .iter()
         .all(|call| call.params == json!({ "enabled": true })));
+}
+
+// ----------------------------------------------------------------------
+// Strict locators
+// ----------------------------------------------------------------------
+
+/// Fails unless `result` is a strict-mode violation of two matches.
+#[track_caller]
+fn assert_two_matches<T: std::fmt::Debug>(what: &str, result: Result<T, SeleniumBaseError>) {
+    assert!(
+        matches!(
+            &result,
+            Err(SeleniumBaseError::StrictModeViolation { count: 2, .. })
+        ),
+        "{what} gave {result:?}"
+    );
+}
+
+/// The scripts the page was asked to run that count matches for a strict locator.
+fn strict_counts(mock: &MockCtrl) -> usize {
+    mock.calls_to("Runtime.evaluate")
+        .iter()
+        .filter(|call| {
+            call.params["expression"]
+                .as_str()
+                .is_some_and(|expression| expression.contains("__sbcdp.search("))
+        })
+        .count()
+}
+
+#[test_log::test(tokio::test)]
+async fn a_strict_locator_refuses_several_matches_and_says_how_many() {
+    let (page, mock) = quick_page().await;
+    script_locator(&mock, 3, true);
+
+    let error = page.locator("li").strict().click().await.unwrap_err();
+
+    assert!(
+        matches!(&error, SeleniumBaseError::StrictModeViolation { selector, count: 3 } if selector == "li"),
+        "unexpected error: {error}"
+    );
+    assert_eq!(
+        error.to_string(),
+        "strict mode violation: li matched 3 elements"
+    );
+    assert_eq!(error.category(), "strict_mode_violation");
+    assert_eq!(error.exit_code(), 3);
+    assert!(error.is_element_error());
+    assert!(error.hint().unwrap().contains(".first()"), "{error:?}");
+    assert!(
+        mock.calls_to("Input.dispatchMouseEvent").is_empty(),
+        "nothing may be clicked when the match is ambiguous"
+    );
+}
+
+#[test_log::test(tokio::test)]
+async fn a_strict_locator_fails_at_once_instead_of_waiting_out_its_timeout() {
+    let (page, mock) = quick_page().await;
+    script_locator(&mock, 2, false);
+    let patient = page
+        .locator("li")
+        .strict()
+        .with_timeout(Duration::from_secs(60));
+
+    let finished = tokio::time::timeout(Duration::from_secs(10), patient.click())
+        .await
+        .expect("the violation does not wait for the element to become visible");
+
+    assert_two_matches("a click", finished);
+}
+
+#[test_log::test(tokio::test)]
+async fn a_strict_locator_with_one_match_acts_on_it() {
+    let (page, mock) = quick_page().await;
+    script_locator(&mock, 1, true);
+
+    page.locator("#go").strict().click().await.unwrap();
+
+    assert_eq!(mock.calls_to("Input.dispatchMouseEvent").len(), 3);
+}
+
+#[test_log::test(tokio::test)]
+async fn a_strict_locator_with_no_match_is_still_not_found() {
+    let (page, mock) = quick_page().await;
+    script_locator(&mock, 0, false);
+
+    let error = page.locator("#nowhere").strict().click().await.unwrap_err();
+
+    assert!(
+        matches!(&error, SeleniumBaseError::ElementNotFound { selector, .. } if selector == "#nowhere"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test_log::test(tokio::test)]
+async fn every_action_read_and_wait_of_a_strict_locator_refuses_several_matches() {
+    let (page, mock) = quick_page().await;
+    script_locator(&mock, 2, true);
+    let strict = page.locator("li").strict();
+
+    assert_two_matches("click", strict.click().await);
+    assert_two_matches("hover", strict.hover().await);
+    assert_two_matches("fill", strict.fill("x").await);
+    assert_two_matches("text", strict.text().await);
+    assert_two_matches("html", strict.html().await);
+    assert_two_matches("attribute", strict.attribute("id").await);
+    assert_two_matches("info", strict.info().await);
+    assert_two_matches("is_visible", strict.is_visible().await);
+    assert_two_matches("exists", strict.exists().await);
+    assert_two_matches("wait_for", strict.wait_for(State::Visible).await);
+    assert_two_matches("wait_for absent", strict.wait_for(State::Absent).await);
+    assert_two_matches("set_attribute", strict.set_attribute("a", "b").await);
+    assert_two_matches("remove", strict.remove().await);
+    assert_two_matches("to_be_visible", strict.expect().to_be_visible().await);
+    assert_two_matches("to_have_text", strict.expect().to_have_text("x").await);
+    assert_two_matches("click_if_visible", strict.click_if_visible().await);
+    assert!(mock.calls_to("Input.dispatchMouseEvent").is_empty());
+}
+
+#[test_log::test(tokio::test)]
+async fn what_lists_every_match_stays_allowed_on_a_strict_locator() {
+    let (page, mock) = quick_page().await;
+    script_locator(&mock, 3, true);
+    let strict = page.locator("li").strict();
+
+    assert_eq!(strict.count().await.unwrap(), 3);
+    assert_eq!(strict.all().await.unwrap().len(), 3);
+    assert_eq!(strict.all_waiting().await.unwrap().len(), 3);
+    strict.expect().to_have_count(3).await.unwrap();
+}
+
+#[test_log::test(tokio::test)]
+async fn picking_one_match_satisfies_a_strict_locator() {
+    let (page, mock) = quick_page().await;
+    script_locator(&mock, 3, true);
+    let strict = page.locator("li").strict();
+
+    strict.first().click().await.unwrap();
+    strict.last().click().await.unwrap();
+    strict.nth(1).click().await.unwrap();
+    for each in strict.all().await.unwrap() {
+        each.click().await.unwrap();
+    }
+
+    assert_eq!(
+        strict_counts(&mock),
+        0,
+        "nothing to count once one is picked"
+    );
+}
+
+#[test_log::test(tokio::test)]
+async fn narrowing_keeps_a_locator_strict() {
+    let (page, mock) = quick_page().await;
+    script_locator(&mock, 2, true);
+    let strict = page.locator("ul").strict();
+
+    assert_two_matches("locator", strict.locator("li").text().await);
+    assert_two_matches("visible", strict.visible().text().await);
+    assert_two_matches("parent", strict.parent().text().await);
+    assert_two_matches(
+        "with_timeout",
+        strict.with_timeout(Duration::from_millis(50)).text().await,
+    );
+    assert_two_matches(
+        "inside a picked match",
+        strict.first().locator("a").text().await,
+    );
+}
+
+#[test_log::test(tokio::test)]
+async fn a_plain_locator_still_takes_the_first_of_several_matches() {
+    let (page, mock) = quick_page().await;
+    script_locator(&mock, 3, true);
+
+    page.locator("li").click().await.unwrap();
+
+    assert_eq!(mock.calls_to("Input.dispatchMouseEvent").len(), 3);
+    assert_eq!(
+        strict_counts(&mock),
+        0,
+        "a plain locator sends no extra script"
+    );
 }

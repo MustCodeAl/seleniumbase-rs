@@ -33,6 +33,11 @@ pub enum SeleniumBaseError {
     #[error("stale element reference: {selector}")]
     StaleElement { selector: String },
 
+    /// A strict locator matched more than one element, so it did not guess
+    /// which one was meant.
+    #[error("strict mode violation: {selector} matched {count} elements")]
+    StrictModeViolation { selector: String, count: usize },
+
     /// The selector string itself is malformed or unsupported.
     #[error("invalid selector: {0}")]
     InvalidSelector(String),
@@ -291,6 +296,14 @@ impl SeleniumBaseError {
         }
     }
 
+    /// Construct a strict-mode violation: `selector` matched `count` elements.
+    pub fn strict_mode_violation(selector: impl Into<String>, count: usize) -> Self {
+        Self::StrictModeViolation {
+            selector: selector.into(),
+            count,
+        }
+    }
+
     /// Construct a backwards-compatible wait-timeout error.
     pub fn wait_timeout(operation: impl Into<String>, duration: Option<Duration>) -> Self {
         let op = operation.into();
@@ -477,6 +490,7 @@ impl SeleniumBaseError {
             Self::ElementNotFound { .. }
                 | Self::ElementNotInteractable { .. }
                 | Self::StaleElement { .. }
+                | Self::StrictModeViolation { .. }
                 | Self::InvalidSelector(_)
         )
     }
@@ -487,6 +501,7 @@ impl SeleniumBaseError {
             Self::ElementNotFound { .. } => "element_not_found",
             Self::ElementNotInteractable { .. } => "element_not_interactable",
             Self::StaleElement { .. } => "stale_element",
+            Self::StrictModeViolation { .. } => "strict_mode_violation",
             Self::InvalidSelector(_) => "invalid_selector",
             Self::WaitTimeout(_) => "wait_timeout",
             Self::BrowserLaunch { .. } => "browser_launch",
@@ -555,7 +570,7 @@ impl SeleniumBaseError {
     /// |---|---|---|
     /// | 1 | a check or a test failed | `assertion_failed`, `test_lifecycle`, `skipped` |
     /// | 2 | the input was wrong | `invalid_config`, `invalid_selector`, `parse`, `json`, `unsupported`, `python_migration` |
-    /// | 3 | an element could not be used | `element_not_found`, `element_not_interactable`, `stale_element`, `wait_timeout` |
+    /// | 3 | an element could not be used | `element_not_found`, `element_not_interactable`, `stale_element`, `strict_mode_violation`, `wait_timeout` |
     /// | 4 | the browser or its driver failed | `browser_launch`, `browser_disconnected`, `session_not_started`, `webdriver`, `cdp_driver`, `playwright`, `patcher`, `stealth`, `gui`, `screenshot`, `pdf`, `plugin` |
     /// | 5 | the network or a site failed | `navigation`, `network`, `download`, `authentication`, `captcha` |
     /// | 6 | a local file or database failed | `io`, `database` |
@@ -585,6 +600,7 @@ impl SeleniumBaseError {
             Self::ElementNotFound { .. }
             | Self::ElementNotInteractable { .. }
             | Self::StaleElement { .. }
+            | Self::StrictModeViolation { .. }
             | Self::WaitTimeout(_) => 3,
             Self::BrowserLaunch { .. }
             | Self::BrowserDisconnected { .. }
@@ -649,6 +665,11 @@ impl SeleniumBaseError {
             Self::StaleElement { selector } => format!(
                 "The page changed between finding `{selector}` and using it, so the old \
                  reference points at nothing. Find the element again right before acting on it."
+            ),
+            Self::StrictModeViolation { selector, count } => format!(
+                "`{selector}` matched {count} elements, and a strict locator acts only on one. \
+                 Make the selector more specific, search inside a container with a nested \
+                 locator, or pick one with .first(), .last() or .nth(i)."
             ),
             Self::InvalidSelector(detail) => {
                 let mut hint = "The selector is not valid syntax. Check its brackets and quotes, \
