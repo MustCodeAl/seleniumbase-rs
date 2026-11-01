@@ -13,9 +13,9 @@ repository. A plugin is a type that implements its `Plugin` trait; a
 hooks; seleniumbase-rs calls the set from both of its engines. These pages
 document the public items of the original surface at the revision seleniumbase-rs pins,
 `fea3634e2ebcaafce63a244df8d4adb53e3ec002`, as the code defines it. The hooks
-added in 0.1.3 (navigation, the network, browser contexts, DevTools events, tests
-and tasks) are listed under [Hooks added in 0.1.3](/plugins/api/plugin-trait#hooks-added-in-013);
-the types behind them are in the crate's rustdoc. For a
+added in 0.1.3 are listed under [Hooks added in 0.1.3](/plugins/api/plugin-trait#hooks-added-in-013).
+Navigation, the network and tasks have their own pages. Browser contexts and
+test hooks stay in the crate's rustdoc. For a
 tutorial, read [Writing your own](/plugins/writing-your-own); for the design,
 [Plugin architecture](/plugins/architecture).
 
@@ -169,12 +169,16 @@ The API crate is on 0.1.x and changes by addition. Items marked
 `#[non_exhaustive]` can grow:
 
 - enums `PluginError`, `Engine`, `BrowserFamily`, `ProfileView`, `WebRtcPolicy`,
-  `Category`, `Phase`, `Capability` and `HostKind`: a `match` on one needs a
-  wildcard arm;
-- structs `LaunchSettings`, `Metadata`, `Budgets` and `AuditRow`: their public
-  fields can be read and assigned, but code outside the crate cannot build one
-  with a struct literal. Start from `LaunchSettings::default()`,
-  `Metadata::new`, `Budgets::default()`.
+  `Category`, `Phase`, `Capability`, `HostKind`, `NavOrigin`, `NavDecision`,
+  `ResourceKind`, `RuleAction`, `RequestDecision` and `Outcome`: a `match` on
+  one needs a wildcard arm;
+- structs `LaunchSettings`, `Metadata`, `Budgets`, `AuditRow`, `Navigation`,
+  `NavOutcome`, `RequestFilter`, `NetRule`, `NetworkInterest`, `RequestView`,
+  `ResponseView`, `ProtocolEvent` and `TaskContext`: their public fields can be
+  read and assigned, but code outside the crate cannot build one with a struct
+  literal. Start from a constructor (`RequestView::new`, `TaskContext::new`,
+  `RequestFilter::any`, `NetworkInterest::none`) or from `Default` where one
+  exists (`LaunchSettings::default()`, `Metadata::new`, `Budgets::default()`).
 
 ## Pages
 
@@ -195,6 +199,24 @@ The API crate is on 0.1.x and changes by addition. Items marked
 <Card title="Handles" icon="window-maximize" href="/plugins/api/handles">
 
 `BrowserHandle` and `PageHandle`, and what each engine does behind them.
+
+</Card>
+
+<Card title="Navigation" icon="route" href="/plugins/api/navigation">
+
+`Navigation`, `NavDecision`, `NavOutcome` and the navigate hooks.
+
+</Card>
+
+<Card title="Network" icon="globe" href="/plugins/api/network">
+
+Filters, rules, `RequestView`, responses and DevTools events.
+
+</Card>
+
+<Card title="Tasks" icon="list-check" href="/plugins/api/tasks">
+
+`Task`, `JobRunner`, `TaskContext`, `Sink`, `Prompt` and `Clock`.
 
 </Card>
 
@@ -257,6 +279,10 @@ The API crate, `crates/seleniumbase-rs-plugin/src/` in the plugins repository:
 | `lib.rs` | `Plugin`, `Result`, `PluginError`, `async_trait` | [The Plugin trait](/plugins/api/plugin-trait) |
 | `lib.rs` | `LaunchContext`, `LaunchSettings`, `ProfileView`, `Engine`, `BrowserFamily`, `WebRtcPolicy` | [Launch settings](/plugins/api/launch) |
 | `lib.rs` | `BrowserHandle`, `PageHandle` | [Handles](/plugins/api/handles) |
+| `nav.rs` | `Navigation`, `NavOrigin`, `NavDecision`, `NavOutcome`, `MAX_REDIRECTS` | [Navigation](/plugins/api/navigation) |
+| `network.rs` | `ResourceKind`, `RequestFilter`, `RuleAction`, `NetRule`, `NetworkInterest`, `RequestView`, `REDACTED`, `RequestDecision`, `Outcome`, `ResponseView`, `ProtocolEvent` | [Network](/plugins/api/network) |
+| `task.rs` | `Sink`, `NullSink`, `Prompt`, `NoPrompt`, `TaskContext`, `Task`, `JobRunner` | [Tasks](/plugins/api/tasks) |
+| `timer.rs` | `Timer`, `Clock` | [Tasks](/plugins/api/tasks#clock) |
 | `lib.rs` | `PluginSet`, `AuditRow` | [PluginSet](/plugins/api/plugin-set) |
 | `lib.rs` | `Requirements`, `Package` | [Requirements and packages](/plugins/api/requirements) |
 | `config.rs` | `Configurable`, `Descriptor`, `PluginSpec`, `Registry` | [Configuration](/plugins/api/configuration) |
