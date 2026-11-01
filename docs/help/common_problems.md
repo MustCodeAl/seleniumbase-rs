@@ -362,16 +362,25 @@ Every `SeleniumBaseError` has a hint: the likely cause and the fix
 (`lnk=Home` for `link=Home`), a prefix from another tool (`css=`, `xpath=`,
 `id=`, `name=`), XPath without its leading `//`, or unbalanced brackets.
 
-`sbrs` prints a failure for people, on standard error, with colour only on a
-terminal (and never with `NO_COLOR` set):
+`sbrs` and `sbrs-mcp` print a failure for people, on standard error, as a
+[miette](https://docs.rs/miette) diagnostic: a code that names the kind of
+failure, the message, and the hint as a `help:` line. Colour and box-drawing
+characters appear only on a terminal (never with `NO_COLOR` set, or with
+`TERM=dumb`); a pipe or a file gets the plain form below.
 
 ```text
-error: invalid configuration: failed to read settings: No such file or directory (os error 2)
-hint: Review the configuration values passed to the builder, the command line or the environment; `sbrs doctor` checks the browser setup.
+sbrs::invalid_config
+
+  x invalid configuration: failed to read settings: No such file or directory (os error 2)
+  help: Review the configuration values passed to the builder, the command line or the environment; `sbrs doctor` checks the browser setup.
 ```
 
-A cause the first line does not already say gets its own `caused by:` line. The
-exit status says which kind of failure it was:
+The code is `sbrs::` and the error's category (`element_not_found`,
+`invalid_config`, `io`, ...), `sbrs_mcp::` for `sbrs-mcp`, and `sbrs::error` for
+an error that is not the library's. A cause the message does not already say
+gets its own line under it, marked with an arrow. A command line the parser refuses is
+not a failure of this kind: it prints the page of the command and then an
+`error:` line. The exit status says which kind of failure it was:
 
 | Status | Meaning |
 | --- | --- |

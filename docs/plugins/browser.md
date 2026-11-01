@@ -210,7 +210,10 @@ The plugin declares `host.fs.write:temp` (to unpack archives) and, with paths,
 only by the settings file of the current folder is refused, with exit status 2:
 
 ```text
-error: invalid configuration: plugin `browser` asks for host.fs.write:temp, which the settings file in the current folder cannot grant by itself: a project you clone would decide. Name the plugin yourself, with `--plugin browser` or `SB_PLUGINS=browser`
+sbrs::invalid_config
+
+  x invalid configuration: plugin `browser` asks for host.fs.write:temp, which the settings file in the current folder cannot grant by itself: a project you clone would decide. Name the plugin yourself, with `--plugin browser` or `SB_PLUGINS=browser`
+  help: Review the configuration values passed to the builder, the command line or the environment; `sbrs doctor` checks the browser setup.
 ```
 
 `--plugin browser`, `SB_PLUGINS=browser` and a file named with `--config` count as

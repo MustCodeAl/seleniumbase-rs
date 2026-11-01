@@ -169,8 +169,9 @@ eliminate timing races.
 Every `SeleniumBaseError` carries a hint, and `is_transient()` tells a retryable
 failure (a browser disconnect, a network or download error, a wait timeout) from
 one that will fail again. Element errors point out a likely mistake in the
-selector, and a wait that times out reports the error that stopped it. `sbrs` prints `error:`, `caused by:` and
-`hint:` lines and exits with a status that follows the error's category, so a CI
+selector, and a wait that times out reports the error that stopped it. `sbrs` prints a code for the kind of
+failure (`sbrs::element_not_found`), the message, its causes and a `help:` line with the hint,
+and exits with a status that follows the error's category, so a CI
 script can tell a bad selector from a missing browser.
 
 In reports, a failed test carries its failure kind, hint, page URL and title and
