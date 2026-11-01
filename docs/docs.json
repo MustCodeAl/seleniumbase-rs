@@ -527,6 +527,7 @@
                         "pages": [
                           "concepts/webdriver",
                           "concepts/cdp",
+                          "concepts/devtools-protocol",
                           "concepts/mcp",
                           "concepts/detection",
                           "concepts/captchas",

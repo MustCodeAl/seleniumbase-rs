@@ -16,6 +16,10 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- How it works: what the `cdc_` properties are and how UC mode removes them,
+  the order stealth evasions apply, how a driver is matched to Chrome and
+  downloaded, and a DevTools Protocol page for the driverless engine.
+
 - `sbrs-mcp install --all` and `uninstall --all` register with, or remove the
   registration from, every MCP client that is installed on the machine (its config
   file, its own config folder, or its program on `PATH`). Clients that are not
