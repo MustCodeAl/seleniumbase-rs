@@ -196,8 +196,7 @@ seleniumbase-rs/               # the workspace root
 ├── .warp/                     # the Warp terminal
 ├── Dockerfile                 # the sbrs image; its skeleton step lists every target
 ├── Makefile                   # make targets
-├── justfile                   # just recipes
-├── mise.toml                  # tools and tasks for mise
+├── mise.toml                  # the tools and the tasks of the repository (mise tasks ls)
 ├── deny.toml                  # the cargo-deny policy
 ├── clippy.toml                # clippy settings
 ├── rust-analyzer.toml         # settings for rust-analyzer

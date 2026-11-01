@@ -379,13 +379,13 @@ both, so a plain `cargo build` or `cargo test` at the root covers both.
 <LayoutDir name="tldr" note="draft tldr-pages entries for sbrs, kept to propose upstream" />
 </LayoutDir>
 <LayoutDir name="scripts" note="helper scripts">
-<LayoutFile name="check-consumers.sh" note="just contracts: checks what the repositories that build on this crate use" />
+<LayoutFile name="check-consumers.sh" note="mise run contracts: checks what the repositories that build on this crate use" />
 </LayoutDir>
 <LayoutDir name="tools" note="scripts for the docs and the parity manifests">
-<LayoutDir name="mdx-check" note="just mdx: builds every docs page as Docs7 does" />
+<LayoutDir name="mdx-check" note="mise run mdx: builds every docs page as Docs7 does" />
 <LayoutDir name="parity" note="extracts, seeds and renders the parity manifest (docs/parity.md)" />
 <LayoutDir name="layout_tree" note="the tree component that docs_layout_tree.py copies onto the pages" />
-<LayoutFile name="docs_layout_tree.py" note="just layout-tree: writes the layout trees of the docs pages" />
+<LayoutFile name="docs_layout_tree.py" note="mise run layout-tree: writes the layout trees of the docs pages" />
 <LayoutFile name="docs7_changelog.py" note="writes docs/changelog.md from CHANGELOG.md" />
 </LayoutDir>
 <LayoutDir name="docker" note="the Linux verification image (Dockerfile.verify, verify-linux.sh) and firefox-check/" />
@@ -400,8 +400,7 @@ both, so a plain `cargo build` or `cargo test` at the root covers both.
 </LayoutDir>
 <LayoutFile name="Dockerfile" note="the sbrs image; its skeleton step lists every target" />
 <LayoutFile name="Makefile" note="make targets" />
-<LayoutFile name="justfile" note="just recipes" />
-<LayoutFile name="mise.toml" note="tools and tasks for mise" />
+<LayoutFile name="mise.toml" note="the tools and the tasks of the repository (mise tasks ls)" />
 <LayoutFile name="deny.toml" note="the cargo-deny policy" />
 <LayoutFile name="clippy.toml" note="clippy settings" />
 <LayoutFile name="rust-analyzer.toml" note="settings for rust-analyzer" />
