@@ -90,6 +90,7 @@ async fn open() -> (Browser, Page, String, Arc<Mutex<String>>) {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn text_selectors_find_any_element_and_contains_works_as_css() {
     let (browser, page, ..) = open().await;
 
@@ -127,6 +128,7 @@ async fn text_selectors_find_any_element_and_contains_works_as_css() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn evaluate_drops_the_return_of_the_last_line_like_python() {
     let (browser, page, ..) = open().await;
 
@@ -146,6 +148,7 @@ async fn evaluate_drops_the_return_of_the_last_line_like_python() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn goto_if_not_url_only_navigates_to_another_page() {
     let (browser, page, base, _) = open().await;
     // A reload would put the fixture's own value (1) back.
@@ -173,6 +176,7 @@ async fn goto_if_not_url_only_navigates_to_another_page() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_active_element_is_named_and_found_again() {
     let (browser, page, ..) = open().await;
 
@@ -190,6 +194,7 @@ async fn the_active_element_is_named_and_found_again() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_viewport_rect_ignores_how_far_the_page_is_scrolled() {
     let (browser, page, ..) = open().await;
     let button = page.locator("#go");
@@ -214,6 +219,7 @@ async fn the_viewport_rect_ignores_how_far_the_page_is_scrolled() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn click_and_hold_keeps_the_button_down_for_the_time_asked() {
     let (browser, page, ..) = open().await;
 
@@ -232,6 +238,7 @@ async fn click_and_hold_keeps_the_button_down_for_the_time_asked() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn all_waiting_waits_for_a_list_that_renders_after_the_page_loads() {
     let (browser, page, ..) = open().await;
 
@@ -252,6 +259,7 @@ async fn all_waiting_waits_for_a_list_that_renders_after_the_page_loads() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn flash_with_outlines_the_element_in_the_colour_asked() {
     let (browser, page, ..) = open().await;
 
@@ -273,6 +281,7 @@ async fn flash_with_outlines_the_element_in_the_colour_asked() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn chrome_grants_every_permission_python_grants_and_one_for_an_origin() {
     let (browser, page, base, _) = open().await;
 
@@ -293,6 +302,7 @@ async fn chrome_grants_every_permission_python_grants_and_one_for_an_origin() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn setting_the_locale_changes_the_language_the_page_and_the_server_see() {
     let (browser, page, base, language) = open().await;
 
@@ -328,6 +338,7 @@ async fn setting_the_locale_changes_the_language_the_page_and_the_server_see() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_browser_attached_by_name_reports_the_host_it_was_reached_on() {
     let (browser, _page, ..) = open().await;
     let port = browser.debugging_port();
@@ -348,6 +359,7 @@ async fn a_browser_attached_by_name_reports_the_host_it_was_reached_on() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn origin_locale_screen_and_the_active_element_click() {
     let (browser, page, base, _) = open().await;
 

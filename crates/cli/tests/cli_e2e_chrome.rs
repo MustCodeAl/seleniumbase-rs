@@ -134,6 +134,7 @@ fn stderr(output: &Output) -> String {
 
 #[test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 fn open_and_smoke_print_their_answer_and_only_that_on_standard_output() {
     let dir = tempfile::tempdir().unwrap();
     let base = serve();
@@ -185,6 +186,7 @@ fn open_and_smoke_print_their_answer_and_only_that_on_standard_output() {
 
 #[test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 fn every_mode_opens_the_page() {
     let dir = tempfile::tempdir().unwrap();
     let base = serve();
@@ -197,6 +199,7 @@ fn every_mode_opens_the_page() {
 
 #[test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 fn the_commands_that_speak_the_devtools_protocol_work_without_asking_for_a_mode() {
     let dir = tempfile::tempdir().unwrap();
     let base = serve();
@@ -273,6 +276,7 @@ fn the_commands_that_speak_the_devtools_protocol_work_without_asking_for_a_mode(
 
 #[test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 fn pages_files_and_assertions_are_handled_by_their_own_commands() {
     let dir = tempfile::tempdir().unwrap();
     let base = serve();
@@ -351,6 +355,7 @@ fn pages_files_and_assertions_are_handled_by_their_own_commands() {
 
 #[test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 fn a_scenario_runs_and_leaves_a_dashboard_and_a_recording_replays() {
     let dir = tempfile::tempdir().unwrap();
     let base = serve();
@@ -420,6 +425,7 @@ fn a_scenario_runs_and_leaves_a_dashboard_and_a_recording_replays() {
 
 #[test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 fn screenshot_and_save_source_write_where_they_are_told_and_a_blank_session_has_no_element() {
     let dir = tempfile::tempdir().unwrap();
 
@@ -452,6 +458,7 @@ fn screenshot_and_save_source_write_where_they_are_told_and_a_blank_session_has_
 
 #[test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 fn get_text_reads_the_start_page_under_any_of_its_spellings() {
     let dir = tempfile::tempdir().unwrap();
     let base = serve();
@@ -493,6 +500,7 @@ fn get_text_reads_the_start_page_under_any_of_its_spellings() {
 
 #[test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 fn save_screenshot_writes_a_png_just_before_the_browser_quits() {
     let dir = tempfile::tempdir().unwrap();
     let base = serve();
@@ -522,6 +530,7 @@ fn save_screenshot_writes_a_png_just_before_the_browser_quits() {
 
 #[test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 fn a_click_that_navigates_says_where_the_browser_ended() {
     let dir = tempfile::tempdir().unwrap();
     let base = serve();

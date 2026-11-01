@@ -23,7 +23,7 @@ async fn page_that_reads(readings: &str) -> (Page, MockCtrl) {
     (page, mock)
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_capture_sends_one_awaited_evaluation_to_the_tab_and_nothing_else() {
     let (page, mock) = page_that_reads(CHROME_MACOS).await;
     let before = mock.calls().len();
@@ -41,7 +41,7 @@ async fn a_capture_sends_one_awaited_evaluation_to_the_tab_and_nothing_else() {
     assert!(expression.contains("getHighEntropyValues"));
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_readings_come_back_as_a_fingerprint_with_the_page_and_the_browser() {
     let (page, _mock) = page_that_reads(CHROME_MACOS).await;
 
@@ -67,7 +67,7 @@ async fn the_readings_come_back_as_a_fingerprint_with_the_page_and_the_browser()
     assert_eq!(captured.unmapped["canvas_hash"], json!("5fa3c2d1"));
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_capture_is_the_one_file_format_once_saved() {
     let (page, _mock) = page_that_reads(CHROME_MACOS).await;
     let captured = page.capture_fingerprint().await.unwrap();
@@ -79,7 +79,7 @@ async fn a_capture_is_the_one_file_format_once_saved() {
     assert_eq!(Fingerprint::load(&path).unwrap(), captured.fingerprint);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_script_that_throws_is_a_protocol_error() {
     let (browser, mock) = Browser::new_mocked();
     mock.reply(
@@ -97,7 +97,7 @@ async fn a_script_that_throws_is_a_protocol_error() {
     assert!(error.to_string().contains("ReferenceError: x"), "{error}");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn readings_of_another_version_are_a_stealth_error_not_a_fingerprint() {
     let (page, _mock) = page_that_reads(r#"{ "version": 9 }"#).await;
 
@@ -109,7 +109,7 @@ async fn readings_of_another_version_are_a_stealth_error_not_a_fingerprint() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_failure_the_script_reports_is_named() {
     let (page, _mock) = page_that_reads(r#"{ "version": 1, "failure": "boom" }"#).await;
 
@@ -118,7 +118,7 @@ async fn a_failure_the_script_reports_is_named() {
     assert!(error.to_string().contains("boom"), "{error}");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn comparing_a_fingerprint_with_the_live_page_lists_what_differs_and_what_cannot_be_read() {
     let (page, _mock) = page_that_reads(CHROME_MACOS).await;
     // The browser is a Mac in Berlin with 8 cores; the claim is a Windows PC in
@@ -149,7 +149,7 @@ async fn comparing_a_fingerprint_with_the_live_page_lists_what_differs_and_what_
     assert!(!comparison.is_verified());
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_fingerprint_a_capture_gave_is_presented_by_the_page_it_came_from() {
     let (page, _mock) = page_that_reads(CHROME_MACOS).await;
     let captured = page.capture_fingerprint().await.unwrap();

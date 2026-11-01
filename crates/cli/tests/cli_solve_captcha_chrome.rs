@@ -53,6 +53,7 @@ fn text(bytes: &[u8]) -> String {
 
 #[test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 fn solve_captcha_clears_the_interstitial_and_checks_the_page_and_the_cookie() {
     let site = Site::start();
     let url = site.url("/interstitial");
@@ -88,6 +89,7 @@ fn solve_captcha_clears_the_interstitial_and_checks_the_page_and_the_cookie() {
 
 #[test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 fn solve_captcha_fails_when_the_expected_text_never_comes() {
     let site = Site::start();
     let url = site.url("/interstitial");
@@ -109,6 +111,7 @@ fn solve_captcha_fails_when_the_expected_text_never_comes() {
 
 #[test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 fn solve_captcha_on_a_page_without_a_widget_says_so() {
     let site = Site::start();
     let url = site.url("/decoy?widget=none");

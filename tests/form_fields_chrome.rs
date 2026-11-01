@@ -65,6 +65,7 @@ fn cdp_options() -> LaunchOptions {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn text_assertions_read_the_value_of_an_input_and_a_textarea() -> Result<()> {
     let url = serve();
     run_browser_test(headless(), async |sb| {
@@ -88,6 +89,7 @@ async fn text_assertions_read_the_value_of_an_input_and_a_textarea() -> Result<(
 
 #[tokio::test]
 #[ignore = "requires a local Chrome"]
+#[serial_test::serial(chrome)]
 async fn cdp_expectations_read_the_value_of_an_input_and_a_textarea() -> Result<()> {
     let url = serve();
     let browser = Browser::launch(cdp_options()).await?;
@@ -127,6 +129,7 @@ async fn cdp_expectations_read_the_value_of_an_input_and_a_textarea() -> Result<
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn get_attribute_falls_back_to_the_dom_property() -> Result<()> {
     let url = serve();
     run_browser_test(headless(), async |sb| {
@@ -163,6 +166,7 @@ async fn get_attribute_falls_back_to_the_dom_property() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn get_attribute_gives_what_a_field_holds_now_not_the_value_of_its_markup() -> Result<()> {
     let url = serve();
     run_browser_test(headless(), async |sb| {
@@ -214,6 +218,7 @@ async fn get_attribute_gives_what_a_field_holds_now_not_the_value_of_its_markup(
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn get_select_options_gives_the_text_the_value_or_the_index_of_each_option() -> Result<()> {
     let url = serve();
     run_browser_test(headless(), async |sb| {
@@ -241,6 +246,7 @@ async fn get_select_options_gives_the_text_the_value_or_the_index_of_each_option
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn checkboxes_at_zero_opacity_or_not_displayed_can_be_checked_and_unchecked() -> Result<()> {
     let url = serve();
     run_browser_test(headless(), async |sb| {
@@ -279,6 +285,7 @@ async fn checkboxes_at_zero_opacity_or_not_displayed_can_be_checked_and_unchecke
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn js_click_reads_contains_and_xpath_selectors_and_waits_for_the_element() -> Result<()> {
     let url = serve();
     run_browser_test(headless(), async |sb| {
@@ -305,6 +312,7 @@ async fn js_click_reads_contains_and_xpath_selectors_and_waits_for_the_element()
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn set_value_moves_the_mouse_over_a_range_input_and_presses_enter_for_a_newline() -> Result<()>
 {
     let url = serve();

@@ -62,6 +62,7 @@ fn get(authority: &str, path: &str) -> String {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_devtools_address_names_the_tab_chrome_lists() {
     let address = serve();
     let browser = Browser::launch(
@@ -158,6 +159,7 @@ async fn check(page: &dyn PromptPage, address: &str) {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_prompt_works_on_a_pure_cdp_page() {
     let address = serve();
     let browser = Browser::launch(
@@ -178,6 +180,7 @@ async fn the_prompt_works_on_a_pure_cdp_page() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn the_prompt_works_on_a_webdriver_page() {
     let address = serve();
     let config = BrowserConfig {

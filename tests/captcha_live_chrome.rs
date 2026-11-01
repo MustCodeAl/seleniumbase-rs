@@ -76,6 +76,7 @@ fn marker() -> String {
 
 #[tokio::test]
 #[ignore = "opens a real third-party site; set SB_LIVE_SITES=1 and run on purpose"]
+#[serial_test::serial(chrome)]
 async fn nowsecure_passes_with_the_pure_cdp_engine() {
     if !live_enabled() {
         return;
@@ -127,6 +128,7 @@ async fn nowsecure_passes_with_the_pure_cdp_engine() {
 
 #[tokio::test]
 #[ignore = "opens a real third-party site; set SB_LIVE_SITES=1 and run on purpose"]
+#[serial_test::serial(chrome)]
 async fn nowsecure_passes_with_the_uc_webdriver_engine() {
     if !live_enabled() {
         return;

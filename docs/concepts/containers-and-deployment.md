@@ -487,7 +487,7 @@ API index and the parity tables) are written again. One commit, titled
 
 The same checks as CI, run locally: `cargo fmt --check`, `clippy -D warnings`,
 `cargo nextest run`, the doc tests, `cargo audit` and `cargo deny check`,
-`trufflehog` and `ripsecrets` for secrets, `just mdx` and `mdbook build`.
+`trufflehog` and `ripsecrets` for secrets, `mise run mdx` and `mdbook build`.
 
 </Step>
 

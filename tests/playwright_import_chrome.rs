@@ -38,6 +38,7 @@ fn import_against(base: &str, name: &str) -> (String, String) {
 
 #[test]
 #[ignore = "launches a real Chrome and builds a scratch crate"]
+#[serial_test::serial(chrome)]
 fn the_imported_playwright_tests_pass_on_chrome_and_a_failing_one_fails() {
     let base = serve();
     let dir = scratch_dir("playwright");

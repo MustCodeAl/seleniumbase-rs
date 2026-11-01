@@ -40,6 +40,7 @@ fn failure() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "starts a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_failing_cdp_test_leaves_the_three_files_of_the_page_it_ended_on() {
     let logs = tempfile::tempdir().unwrap();
     let fixture = SbCdp::new(headless(|_| {})).logs_dir(logs.path());
@@ -77,6 +78,7 @@ async fn a_failing_cdp_test_leaves_the_three_files_of_the_page_it_ended_on() {
 #[rstest]
 #[tokio::test]
 #[ignore = "starts a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_failing_webdriver_test_leaves_the_three_files(sb: Sb) {
     let logs = tempfile::tempdir().unwrap();
     let sb = sb
@@ -102,6 +104,7 @@ async fn a_failing_webdriver_test_leaves_the_three_files(sb: Sb) {
 
 #[tokio::test]
 #[ignore = "starts a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_webdriver_case_reads_the_test_data_and_its_own_id() {
     let fixture = Sb::new(headless(|settings| {
         settings.test.data = TestData {
@@ -129,6 +132,7 @@ async fn the_webdriver_case_reads_the_test_data_and_its_own_id() {
 #[rstest]
 #[tokio::test]
 #[ignore = "starts a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_cdp_test_that_fails_once_passes_on_a_rerun(sb_cdp: SbCdp) {
     let logs = tempfile::tempdir().unwrap();
     let sb_cdp = sb_cdp

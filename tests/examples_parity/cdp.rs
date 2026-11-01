@@ -20,6 +20,7 @@ use crate::support::{cdp_options, run_cdp_port};
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/demo_page"]
+#[serial_test::serial(chrome)]
 async fn raw_demo_site() -> Result<()> {
     run_cdp_port(async |page, _mismatches| {
         page.goto("https://seleniumbase.io/demo_page").await?;
@@ -167,6 +168,7 @@ async fn raw_demo_site() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens data: pages in two tabs"]
+#[serial_test::serial(chrome)]
 async fn raw_cdp_tabs() -> Result<()> {
     run_cdp_test(cdp_options(), async |first| {
         first.goto("data:text/html,<h1>Page A</h1>").await?;
@@ -219,6 +221,7 @@ async fn raw_cdp_tabs() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/demo_page"]
+#[serial_test::serial(chrome)]
 async fn raw_cdp_xpath() -> Result<()> {
     run_cdp_test(cdp_options(), async |page| {
         page.goto("https://seleniumbase.io/demo_page").await?;
@@ -255,6 +258,7 @@ async fn raw_cdp_xpath() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/simple/login"]
+#[serial_test::serial(chrome)]
 async fn raw_basic_cdp() -> Result<()> {
     run_cdp_test(cdp_options(), async |page| {
         page.goto("https://seleniumbase.io/simple/login").await?;
@@ -293,6 +297,7 @@ async fn raw_basic_cdp() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/other/drag_and_drop"]
+#[serial_test::serial(chrome)]
 async fn raw_drag_and_drop() -> Result<()> {
     run_cdp_test(cdp_options(), async |page| {
         page.goto("https://seleniumbase.io/other/drag_and_drop")
@@ -318,6 +323,7 @@ async fn raw_drag_and_drop() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens saucedemo.com"]
+#[serial_test::serial(chrome)]
 async fn raw_cdp_swag() -> Result<()> {
     run_cdp_test(cdp_options(), async |page| {
         page.goto("https://www.saucedemo.com").await?;

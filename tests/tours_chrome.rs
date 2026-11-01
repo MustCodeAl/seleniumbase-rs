@@ -130,6 +130,7 @@ fn work_in_a_temporary_folder() -> WorkDir {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver and network access to the CDNs"]
+#[serial_test::serial(chrome)]
 async fn a_two_step_shepherd_tour_with_an_interval_ends_by_itself() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = watched_case().await;
@@ -176,6 +177,7 @@ async fn a_two_step_shepherd_tour_with_an_interval_ends_by_itself() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver and network access to the CDNs"]
+#[serial_test::serial(chrome)]
 async fn an_introjs_tour_shows_its_steps_to_a_person_and_play_tour_returns_at_the_end() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = watched_case().await;
@@ -222,6 +224,7 @@ async fn an_introjs_tour_shows_its_steps_to_a_person_and_play_tour_returns_at_th
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver and network access to the CDNs"]
+#[serial_test::serial(chrome)]
 async fn an_exported_tour_plays_when_it_is_run_in_the_console_of_a_page() {
     let _guard = BROWSER_LOCK.lock().await;
     let dir = work_in_a_temporary_folder();
@@ -281,6 +284,7 @@ async fn an_exported_tour_plays_when_it_is_run_in_the_console_of_a_page() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver and network access to the CDNs"]
+#[serial_test::serial(chrome)]
 async fn bootstrap_driverjs_and_hopscotch_tours_end_by_themselves_with_an_interval() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = watched_case().await;

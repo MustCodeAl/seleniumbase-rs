@@ -90,6 +90,7 @@ fn lines(output: &Output) -> Vec<Value> {
 
 #[test]
 #[ignore = "starts a real Chrome"]
+#[serial_test::serial(chrome)]
 fn plugin_run_fetcher_fetches_the_urls_through_the_browser_and_writes_one_line_each() {
     let site = serve();
     let dir = tempfile::tempdir().expect("a folder");
@@ -123,6 +124,7 @@ fn plugin_run_fetcher_fetches_the_urls_through_the_browser_and_writes_one_line_e
 
 #[test]
 #[ignore = "starts a real Chrome"]
+#[serial_test::serial(chrome)]
 fn plugin_run_extractor_finds_the_json_ld_product_of_a_page() {
     let site = serve();
     let dir = tempfile::tempdir().expect("a folder");

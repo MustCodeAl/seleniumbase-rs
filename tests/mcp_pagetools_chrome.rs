@@ -227,6 +227,7 @@ async fn the_page_is_read_the_same_on_every_engine<S: Send + 'static>(host: &Hos
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_page_tools_read_a_real_page_on_the_pure_cdp_engine() {
     let dir = tempfile::tempdir().unwrap();
     let base = serve();
@@ -284,6 +285,7 @@ async fn the_page_tools_read_a_real_page_on_the_pure_cdp_engine() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 async fn the_page_tools_read_a_real_page_on_the_webdriver_engine() {
     let dir = tempfile::tempdir().unwrap();
     let base = serve();

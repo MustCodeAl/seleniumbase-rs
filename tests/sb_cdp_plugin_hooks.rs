@@ -132,7 +132,7 @@ impl Plugin for Fence {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_plugin_that_cancels_a_navigation_stops_it_before_the_browser_hears_of_it() {
     let log = Log::default();
     let mock = MockCtrl::new();
@@ -178,7 +178,7 @@ async fn a_plugin_that_cancels_a_navigation_stops_it_before_the_browser_hears_of
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_navigation_that_fails_is_reported_to_the_plugins_with_the_browsers_reason() {
     let log = Log::default();
     let mock = MockCtrl::new();
@@ -231,7 +231,7 @@ impl Plugin for Redirector {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_redirect_changes_what_is_sent_and_the_later_plugins_see_the_new_address() {
     let log = Log::default();
     let mock = MockCtrl::new();
@@ -255,7 +255,7 @@ async fn a_redirect_changes_what_is_sent_and_the_later_plugins_see_the_new_addre
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn goto_if_not_url_runs_the_hooks_only_when_it_navigates() {
     let log = Log::default();
     let mock = MockCtrl::new();
@@ -313,7 +313,7 @@ impl Plugin for Stuck {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_navigation_hook_that_runs_out_of_time_stops_the_navigation() {
     let mock = MockCtrl::new();
     let browser = launch(PluginSet::new().with(Stuck).unwrap(), &mock).await;
@@ -328,7 +328,7 @@ async fn a_navigation_hook_that_runs_out_of_time_stops_the_navigation() {
     assert!(navigations(&mock).is_empty());
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_tab_a_plugin_stopped_on_its_way_to_its_first_page_is_closed() {
     let log = Log::default();
     let mock = MockCtrl::new();
@@ -440,7 +440,7 @@ fn mock_with_context() -> MockCtrl {
     mock
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_context_is_made_with_the_plugins_settings_and_they_hear_when_it_is_gone() {
     let log = Log::default();
     let mock = mock_with_context();
@@ -470,7 +470,7 @@ async fn a_context_is_made_with_the_plugins_settings_and_they_hear_when_it_is_go
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_context_without_contexts_plugins_is_made_as_before() {
     let mock = mock_with_context();
     let browser = launch(
@@ -524,17 +524,17 @@ async fn a_stopped_context_is_disposed_of(fail: Fail, expected: &str) {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_context_hook_that_fails_does_not_leave_the_context_open() {
     a_stopped_context_is_disposed_of(Fail::Error, "no context for you").await;
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_context_hook_that_panics_does_not_leave_the_context_open() {
     a_stopped_context_is_disposed_of(Fail::Panic, "panicked in `on_context_created`").await;
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_context_hook_that_runs_out_of_time_does_not_leave_the_context_open() {
     a_stopped_context_is_disposed_of(Fail::Hang, "timed out").await;
 }
@@ -556,7 +556,7 @@ impl Plugin for BadBeforeContext {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_plugin_that_refuses_in_before_context_makes_no_context() {
     let mock = mock_with_context();
     let browser = launch(PluginSet::new().with(BadBeforeContext).unwrap(), &mock).await;
@@ -634,7 +634,7 @@ impl Plugin for Blocker {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_plugin_opens_a_context_and_a_tab_through_the_handles_and_the_hooks_see_them() {
     let log = Log::default();
     let mock = mock_with_context();
@@ -704,7 +704,7 @@ impl Plugin for Wanderer {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn another_plugins_cancel_reaches_the_plugin_that_opened_the_tab_and_the_tab_is_closed() {
     let log = Log::default();
     let mock = MockCtrl::new();
@@ -769,7 +769,7 @@ impl Plugin for Closer {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn before_close_runs_while_the_browser_answers_and_before_on_close() {
     let log = Log::default();
     let mock = MockCtrl::new();
@@ -836,7 +836,7 @@ impl Plugin for Listener {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_protocol_events_a_plugin_named_reach_it_and_no_others() {
     let log = Log::default();
     let mock = MockCtrl::new();
@@ -891,7 +891,7 @@ impl Plugin for FileRedirector {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_redirect_to_a_file_is_refused_and_nothing_is_sent() {
     let mock = MockCtrl::new();
     let browser = launch(PluginSet::new().with(FileRedirector).unwrap(), &mock).await;
@@ -939,7 +939,7 @@ impl Plugin for Ordered {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_context_hooks_run_in_plugin_order_around_the_browsers_own_commands() {
     let log = Log::default();
     let mock = MockCtrl::new();

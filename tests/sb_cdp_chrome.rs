@@ -150,6 +150,7 @@ async fn open() -> (Browser, Page, String) {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn finds_elements_by_css_xpath_and_link_text() {
     let (browser, page, _) = open().await;
 
@@ -189,6 +190,7 @@ async fn finds_elements_by_css_xpath_and_link_text() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn an_xpath_inside_a_parent_only_matches_within_it() {
     let (browser, page, _) = open().await;
 
@@ -236,6 +238,7 @@ async fn an_xpath_inside_a_parent_only_matches_within_it() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn fills_a_form_and_submits_it() {
     let (browser, page, _) = open().await;
 
@@ -251,6 +254,7 @@ async fn fills_a_form_and_submits_it() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn typing_produces_trusted_key_events_one_per_character() {
     let (browser, page, _) = open().await;
 
@@ -274,6 +278,7 @@ async fn typing_produces_trusted_key_events_one_per_character() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn clicks_are_trusted_events() {
     let (browser, page, _) = open().await;
     let counter = page.locator("#counter");
@@ -291,6 +296,7 @@ async fn clicks_are_trusted_events() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn waits_and_expectations_see_elements_that_arrive_later() {
     let (browser, page, _) = open().await;
     let late = page.locator("#late");
@@ -313,6 +319,7 @@ async fn waits_and_expectations_see_elements_that_arrive_later() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn hidden_elements_exist_but_refuse_to_be_clicked() {
     let (browser, page, _) = open().await;
     let page = page.with_timeout(Duration::from_millis(400));
@@ -340,6 +347,7 @@ async fn hidden_elements_exist_but_refuse_to_be_clicked() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn chooses_dropdown_options_and_toggles_checkboxes() {
     let (browser, page, _) = open().await;
     let country = page.locator("#country");
@@ -378,6 +386,7 @@ async fn chooses_dropdown_options_and_toggles_checkboxes() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn cookies_and_storage_round_trip() {
     let (browser, page, base) = open().await;
     page.goto(format!("{base}/cookie")).await.unwrap();
@@ -419,6 +428,7 @@ async fn cookies_and_storage_round_trip() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn captures_png_and_pdf_and_an_element() {
     let (browser, page, _) = open().await;
 
@@ -437,6 +447,7 @@ async fn captures_png_and_pdf_and_an_element() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn manages_tabs_independently() {
     let (browser, first, base) = open().await;
 
@@ -459,6 +470,7 @@ async fn manages_tabs_independently() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn reports_and_changes_the_window() {
     let (browser, page, _) = open().await;
 
@@ -472,6 +484,7 @@ async fn reports_and_changes_the_window() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn navigation_history_and_reload_work() {
     let (browser, page, base) = open().await;
 
@@ -488,6 +501,7 @@ async fn navigation_history_and_reload_work() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn locators_reach_into_same_origin_frames_and_clicks_land_through_the_frame_offset() {
     let (browser, page, base) = open().await;
     page.goto(format!("{base}/frames")).await.unwrap();
@@ -519,6 +533,7 @@ async fn locators_reach_into_same_origin_frames_and_clicks_land_through_the_fram
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn frames_nest_and_a_cross_origin_frame_is_entered_through_the_protocol() {
     let (browser, page, base) = open().await;
     page.goto(format!("{base}/frames")).await.unwrap();
@@ -547,6 +562,7 @@ async fn frames_nest_and_a_cross_origin_frame_is_entered_through_the_protocol() 
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn human_input_is_trusted_moves_in_many_steps_and_types_with_varied_timing() {
     let (browser, page, _) = open().await;
     let person = page.human(
@@ -603,6 +619,7 @@ async fn human_input_is_trusted_moves_in_many_steps_and_types_with_varied_timing
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn pooled_workers_are_isolated_and_can_share_a_session_in_memory() {
     let base = serve();
     let pool = BrowserPool::new(
@@ -721,6 +738,7 @@ fn serve_routes() -> String {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn interception_blocks_mocks_and_rewrites_real_requests_and_stops_cleanly() {
     let base = serve_routes();
     let browser = Browser::launch(
@@ -855,6 +873,7 @@ fn serve_password_proxy(
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_context_can_have_its_own_password_protected_proxy_while_others_go_direct() {
     let (proxy, served) = serve_password_proxy("alice", "s3cret");
     let browser = Browser::launch(
@@ -946,6 +965,7 @@ async fn webrtc_report_under(shield: bool) -> seleniumbase_rs::sb_cdp::WebRtcRep
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn webrtc_gathers_candidates_by_default_and_the_shield_stops_it() {
     let open = webrtc_report_under(false).await;
     println!(
@@ -976,6 +996,7 @@ async fn webrtc_gathers_candidates_by_default_and_the_shield_stops_it() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_shield_works_together_with_chromes_ip_handling_flag() {
     use seleniumbase_rs::WebRtcPolicy;
     let base = serve();
@@ -1002,6 +1023,7 @@ async fn the_shield_works_together_with_chromes_ip_handling_flag() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_running_tab_can_be_shielded_after_the_fact() {
     let base = serve();
     let browser = Browser::launch(
@@ -1061,6 +1083,7 @@ const WHAT_A_PAGE_SEES: &str = r#"(() => {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_browser_launched_with_a_fingerprint_shows_its_identity_to_pages() {
     let fingerprint = Fingerprint::randomized(OsType::Windows, 42);
     let base = serve();
@@ -1119,6 +1142,7 @@ const ASK_FOR_THE_POSITION: &str = r#"new Promise((resolve) => {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_fingerprint_with_a_position_answers_a_geolocation_request_without_a_prompt() {
     // A position is all it takes: the permission is granted for the tab's
     // context, and the override delivers the position.
@@ -1154,6 +1178,7 @@ async fn a_fingerprint_with_a_position_answers_a_geolocation_request_without_a_p
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn under_native_spoofing_the_browser_itself_delivers_the_position_it_was_granted() {
     // `native_spoofing` leaves the page script's geolocation answer out, so the
     // position reaches the page only if the protocol override is in place and
@@ -1194,6 +1219,7 @@ async fn under_native_spoofing_the_browser_itself_delivers_the_position_it_was_g
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_denied_geolocation_answers_permission_denied() {
     let fingerprint = Fingerprint::randomized(OsType::Windows, 42)
         .to_builder()
@@ -1227,6 +1253,7 @@ async fn a_denied_geolocation_answers_permission_denied() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_running_tab_takes_on_a_fingerprint_from_its_next_page() {
     let fingerprint = Fingerprint::randomized(OsType::Macos, 5);
     let (browser, page, base) = open().await;
@@ -1243,6 +1270,7 @@ async fn a_running_tab_takes_on_a_fingerprint_from_its_next_page() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn script_errors_are_collected_and_a_broken_image_is_not_one() {
     let (browser, page, base) = open().await;
     page.assert_no_js_errors()
@@ -1282,6 +1310,7 @@ async fn script_errors_are_collected_and_a_broken_image_is_not_one() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_fingerprint_that_grants_permissions_is_accepted_by_chrome() {
     let fingerprint = Fingerprint::randomized(OsType::Windows, 1)
         .to_builder()
@@ -1315,6 +1344,7 @@ async fn a_fingerprint_that_grants_permissions_is_accepted_by_chrome() {
 
 #[tokio::test]
 #[ignore = "needs Chrome"]
+#[serial_test::serial(chrome)]
 async fn every_tab_takes_input_not_only_the_frontmost() {
     let (browser, first, base) = open().await;
     let second = browser
@@ -1344,6 +1374,7 @@ async fn run_script_body<T: serde::de::DeserializeOwned>(page: &Page, script: &s
 
 #[tokio::test]
 #[ignore = "needs Chrome"]
+#[serial_test::serial(chrome)]
 async fn shadow_dom_scripts_run_in_a_real_page() {
     use seleniumbase_rs::utils::shadow::{
         build_shadow_attribute, build_shadow_click, build_shadow_text, build_shadow_type,
@@ -1424,6 +1455,7 @@ async fn shadow_dom_scripts_run_in_a_real_page() {
 
 #[tokio::test]
 #[ignore = "needs Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_cdc_cleanup_script_runs_twice_and_removes_the_property() {
     let (browser, page, _) = open().await;
     page.evaluate("window.cdc_adoQpoasnfa76pfcZLmcfl_Array = [1]; window.keep = 1; true")

@@ -10,10 +10,10 @@ both is recorded as data and checked by a test.
 
 <Card color="#1a85d4" title="The loop in four commands" icon="terminal">
 
-- `just parity-extract ~/src/SeleniumBase ~/src/seleniumbase-mcp`
-- `just parity-seed`
-- `just parity-check`
-- `just parity-docs`
+- `mise run parity-extract ~/src/SeleniumBase ~/src/seleniumbase-mcp`
+- `mise run parity-seed`
+- `mise run parity-check`
+- `mise run parity-docs`
 
 </Card>
 
@@ -41,7 +41,7 @@ Pull the new release of SeleniumBase and seleniumbase-mcp into two local clones.
 <Step title="Extract the API" icon="file-export">
 
 ```bash Terminal
-just parity-extract ~/src/SeleniumBase ~/src/seleniumbase-mcp
+mise run parity-extract ~/src/SeleniumBase ~/src/seleniumbase-mcp
 ```
 
 The output is sorted and stable, so `git diff parity/upstream-api.json` is
@@ -60,7 +60,7 @@ match the extraction, and update `UPSTREAM_SELENIUMBASE_VERSION` in
 <Step title="Classify the new names" icon="tags">
 
 ```bash Terminal
-just parity-seed
+mise run parity-seed
 ```
 
 This adds an entry for every upstream name that has none: `implemented` if a
@@ -71,7 +71,7 @@ otherwise `planned`. It never changes entries that already exist.
 
 <Step title="Run the test" icon="flask">
 
-`just parity-check` lists what is still wrong, as a
+`mise run parity-check` lists what is still wrong, as a
 to-do list: names with no entry, entries for names upstream removed, entries
 missing a `rust`, `reason` or `note`, and `rust` paths that do not exist.
 
@@ -91,7 +91,7 @@ For each `planned` name, decide:
 
 <Step title="Regenerate the docs" icon="book">
 
-`just parity-docs` rewrites `docs/parity.md`.
+`mise run parity-docs` rewrites `docs/parity.md`.
 
 </Step>
 
@@ -136,6 +136,6 @@ SeleniumBase release with `parity/upstream.toml`, and opens an issue titled
 
 <Visibility for="agents">
 
-Summary for AI exports: to sync with a new upstream release, update the two checkouts, run `just parity-extract`, set `version` and `commit` in `parity/upstream.toml` and `UPSTREAM_SELENIUMBASE_VERSION` in `src/lib.rs`, run `just parity-seed`, work through what `just parity-check` lists (port, compose or mark `not-applicable`), run `just parity-docs`, then update `ROADMAP.md`, run the quality gate and commit.
+Summary for AI exports: to sync with a new upstream release, update the two checkouts, run `mise run parity-extract`, set `version` and `commit` in `parity/upstream.toml` and `UPSTREAM_SELENIUMBASE_VERSION` in `src/lib.rs`, run `mise run parity-seed`, work through what `mise run parity-check` lists (port, compose or mark `not-applicable`), run `mise run parity-docs`, then update `ROADMAP.md`, run the quality gate and commit.
 
 </Visibility>

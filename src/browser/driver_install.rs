@@ -57,6 +57,24 @@ pub const GECKODRIVER_RELEASES: &str = "https://github.com/mozilla/geckodriver/r
 /// Microsoft's download host for msedgedriver.
 pub const EDGEDRIVER_HOST: &str = "https://msedgedriver.microsoft.com";
 
+/// Where the two drivers are downloaded from: the published addresses ([`Hosts::PUBLISHED`]), or a
+/// mock server in a test.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Hosts<'a> {
+    /// Where geckodriver is released (see [`GECKODRIVER_RELEASES`]).
+    pub(crate) geckodriver_releases: &'a str,
+    /// Microsoft's download host for msedgedriver (see [`EDGEDRIVER_HOST`]).
+    pub(crate) edgedriver_host: &'a str,
+}
+
+impl Hosts<'static> {
+    /// The addresses the drivers are published at.
+    pub(crate) const PUBLISHED: Self = Self {
+        geckodriver_releases: GECKODRIVER_RELEASES,
+        edgedriver_host: EDGEDRIVER_HOST,
+    };
+}
+
 /// The largest driver archive that is accepted. Both drivers are far smaller
 /// (geckodriver about 3 MB, msedgedriver about 10 MB).
 pub const MAX_ARCHIVE_BYTES: u64 = 64 * 1024 * 1024;
@@ -122,7 +140,12 @@ pub fn geckodriver_tag(version: &str) -> Result<String, SeleniumBaseError> {
 /// release `tag` (see [`geckodriver_tag`]).
 #[must_use]
 pub fn geckodriver_url(tag: &str, asset: &str) -> String {
-    format!("{GECKODRIVER_RELEASES}/download/{tag}/geckodriver-{tag}-{asset}")
+    geckodriver_url_in(GECKODRIVER_RELEASES, tag, asset)
+}
+
+/// [`geckodriver_url`] with the address of the releases given.
+fn geckodriver_url_in(releases: &str, tag: &str, asset: &str) -> String {
+    format!("{releases}/download/{tag}/geckodriver-{tag}-{asset}")
 }
 
 /// The tag at the end of the address `/releases/latest` sends to:
@@ -157,7 +180,12 @@ pub fn edgedriver_platform(os: &str, arch: &str) -> Result<&'static str, Seleniu
 /// [`edgedriver_platform`]).
 #[must_use]
 pub fn edgedriver_url(version: &str, platform: &str) -> String {
-    format!("{EDGEDRIVER_HOST}/{version}/edgedriver_{platform}.zip")
+    edgedriver_url_in(EDGEDRIVER_HOST, version, platform)
+}
+
+/// [`edgedriver_url`] with the download host given.
+fn edgedriver_url_in(host: &str, version: &str, platform: &str) -> String {
+    format!("{host}/{version}/edgedriver_{platform}.zip")
 }
 
 /// The file on Microsoft's host that names the build `version` means, or `None`
@@ -173,22 +201,32 @@ pub fn edgedriver_listing_url(
     edge_major: Option<u32>,
     os: &str,
 ) -> Option<String> {
+    edgedriver_listing_url_in(EDGEDRIVER_HOST, version, edge_major, os)
+}
+
+/// [`edgedriver_listing_url`] with the download host given.
+fn edgedriver_listing_url_in(
+    host: &str,
+    version: &DriverVersion,
+    edge_major: Option<u32>,
+    os: &str,
+) -> Option<String> {
     let os = match os {
         "macos" => "MACOS",
         "windows" => "WINDOWS",
         _ => "LINUX",
     };
-    let release = |major: u32| format!("{EDGEDRIVER_HOST}/LATEST_RELEASE_{major}_{os}");
+    let release = |major: u32| format!("{host}/LATEST_RELEASE_{major}_{os}");
     match version {
         DriverVersion::Exact(_) => None,
         DriverVersion::Milestone(major) => Some(release(*major)),
         DriverVersion::MatchBrowser | DriverVersion::Keep => {
-            Some(edge_major.map_or_else(|| format!("{EDGEDRIVER_HOST}/LATEST_STABLE"), release))
+            Some(edge_major.map_or_else(|| format!("{host}/LATEST_STABLE"), release))
         }
         // The stable build; the major version before it is worked out from it.
-        DriverVersion::Previous => Some(format!("{EDGEDRIVER_HOST}/LATEST_STABLE")),
+        DriverVersion::Previous => Some(format!("{host}/LATEST_STABLE")),
         DriverVersion::Channel(channel) => Some(format!(
-            "{EDGEDRIVER_HOST}/LATEST_{}",
+            "{host}/LATEST_{}",
             channel.listing_name().to_ascii_uppercase()
         )),
     }
@@ -286,8 +324,11 @@ async fn install_driver_archive(
 /// `/releases/latest` redirects to the page of that release, so the address the
 /// client ends at names it. Unlike GitHub's API this has no rate limit for
 /// clients that are not signed in.
-async fn latest_geckodriver_tag(client: &Client) -> Result<String, SeleniumBaseError> {
-    let url = format!("{GECKODRIVER_RELEASES}/latest");
+async fn latest_geckodriver_tag(
+    client: &Client,
+    releases: &str,
+) -> Result<String, SeleniumBaseError> {
+    let url = format!("{releases}/latest");
     let response = client
         .head(&url)
         .send()
@@ -330,6 +371,16 @@ pub(crate) async fn install_geckodriver_in(
     version: Option<&str>,
     proxy: Option<&str>,
 ) -> Result<PathBuf, SeleniumBaseError> {
+    install_geckodriver_from(&Hosts::PUBLISHED, root, version, proxy).await
+}
+
+/// [`install_geckodriver_in`] with the address of the releases given.
+pub(crate) async fn install_geckodriver_from(
+    hosts: &Hosts<'_>,
+    root: &Path,
+    version: Option<&str>,
+    proxy: Option<&str>,
+) -> Result<PathBuf, SeleniumBaseError> {
     let pinned = match version.map(str::trim) {
         None | Some("") => None,
         Some(latest) if latest.eq_ignore_ascii_case("latest") => None,
@@ -344,14 +395,14 @@ pub(crate) async fn install_geckodriver_in(
     let client = http_client(proxy)?;
     let tag = match pinned {
         Some(tag) => tag,
-        None => latest_geckodriver_tag(&client).await?,
+        None => latest_geckodriver_tag(&client, hosts.geckodriver_releases).await?,
     };
     if let Some(found) = in_folder(&tag) {
         return Ok(found);
     }
     install_driver_archive(
         &client,
-        &geckodriver_url(&tag, asset),
+        &geckodriver_url_in(hosts.geckodriver_releases, &tag, asset),
         &root.join(format!("geckodriver-{tag}")),
         &GECKODRIVER_NAMES,
         "geckodriver",
@@ -382,6 +433,17 @@ pub async fn install_msedgedriver(
 }
 
 pub(crate) async fn install_msedgedriver_in(
+    root: &Path,
+    version: &DriverVersion,
+    edge_major: Option<u32>,
+    proxy: Option<&str>,
+) -> Result<PathBuf, SeleniumBaseError> {
+    install_msedgedriver_from(&Hosts::PUBLISHED, root, version, edge_major, proxy).await
+}
+
+/// [`install_msedgedriver_in`] with the download host given.
+pub(crate) async fn install_msedgedriver_from(
+    hosts: &Hosts<'_>,
     root: &Path,
     version: &DriverVersion,
     edge_major: Option<u32>,
@@ -424,7 +486,7 @@ pub(crate) async fn install_msedgedriver_in(
     let client = http_client(proxy)?;
     let resolved;
     let version = if *version == DriverVersion::Previous {
-        let listing = format!("{EDGEDRIVER_HOST}/LATEST_STABLE");
+        let listing = format!("{}/LATEST_STABLE", hosts.edgedriver_host);
         let stable =
             read_release_text(&fetch_bytes(&client, &listing, Some(MAX_LISTING_BYTES)).await?)?;
         let major = DriverVersion::major_before(&stable)?;
@@ -437,7 +499,12 @@ pub(crate) async fn install_msedgedriver_in(
     } else {
         version
     };
-    let build = match edgedriver_listing_url(version, edge_major, std::env::consts::OS) {
+    let build = match edgedriver_listing_url_in(
+        hosts.edgedriver_host,
+        version,
+        edge_major,
+        std::env::consts::OS,
+    ) {
         None => version.to_string(),
         Some(listing) => {
             read_release_text(&fetch_bytes(&client, &listing, Some(MAX_LISTING_BYTES)).await?)?
@@ -448,7 +515,7 @@ pub(crate) async fn install_msedgedriver_in(
     }
     install_driver_archive(
         &client,
-        &edgedriver_url(&build, platform),
+        &edgedriver_url_in(hosts.edgedriver_host, &build, platform),
         &root.join(format!("msedgedriver-{build}")),
         &MSEDGEDRIVER_NAMES,
         "msedgedriver",
@@ -598,6 +665,270 @@ mod tests {
         ] {
             assert!(read_release_text(bad).is_err(), "{bad:?}");
         }
+    }
+
+    // ---- the downloads, against a mock of GitHub's releases and Microsoft's host ---------------
+    // (the real network is never reached; the archives are named for this machine's platform)
+
+    use httpmock::prelude::*;
+
+    /// A zip archive that holds this one executable.
+    fn zip_with(name: &str, data: &[u8]) -> Vec<u8> {
+        use std::io::Write as _;
+
+        let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        let options = zip::write::SimpleFileOptions::default().unix_permissions(0o755);
+        writer.start_file(name, options).unwrap();
+        writer.write_all(data).unwrap();
+        writer.finish().unwrap().into_inner()
+    }
+
+    /// What Microsoft's `LATEST_*` files hold: UTF-16 with a byte order mark, and a line end.
+    fn microsoft_listing(build: &str) -> Vec<u8> {
+        [0xFF, 0xFE]
+            .into_iter()
+            .chain(
+                format!("{build}\r\n")
+                    .encode_utf16()
+                    .flat_map(u16::to_le_bytes),
+            )
+            .collect()
+    }
+
+    /// The hosts of a mock server, which serves both drivers.
+    fn hosts_of<'a>(releases: &'a str, edge: &'a str) -> Hosts<'a> {
+        Hosts {
+            geckodriver_releases: releases,
+            edgedriver_host: edge,
+        }
+    }
+
+    #[cfg(not(windows))]
+    #[test_log::test(tokio::test)]
+    async fn the_newest_geckodriver_is_the_release_that_latest_redirects_to() {
+        let server = MockServer::start_async().await;
+        let asset = geckodriver_asset(std::env::consts::OS, std::env::consts::ARCH).unwrap();
+        let latest = server
+            .mock_async(|when, then| {
+                when.method("HEAD").path("/releases/latest");
+                then.status(302).header("location", "/releases/tag/v0.99.1");
+            })
+            .await;
+        let page = server
+            .mock_async(|when, then| {
+                when.method("HEAD").path("/releases/tag/v0.99.1");
+                then.status(200);
+            })
+            .await;
+        let archive = server
+            .mock_async(|when, then| {
+                when.method(GET).path(format!(
+                    "/releases/download/v0.99.1/geckodriver-v0.99.1-{asset}"
+                ));
+                then.status(200)
+                    .body(tar_gz_of(&[("geckodriver", b"#!/bin/sh\n", 0o755)]));
+            })
+            .await;
+        let (releases, edge) = (server.url("/releases"), server.url("/unused"));
+        let root = tempfile::tempdir().unwrap();
+
+        let found = install_geckodriver_from(&hosts_of(&releases, &edge), root.path(), None, None)
+            .await
+            .unwrap();
+
+        latest.assert_async().await;
+        page.assert_async().await;
+        archive.assert_async().await;
+        assert_eq!(found, root.path().join("geckodriver-v0.99.1/geckodriver"));
+    }
+
+    #[cfg(not(windows))]
+    #[test_log::test(tokio::test)]
+    async fn a_pinned_geckodriver_does_not_ask_which_release_is_the_newest() {
+        let server = MockServer::start_async().await;
+        let asset = geckodriver_asset(std::env::consts::OS, std::env::consts::ARCH).unwrap();
+        let latest = server
+            .mock_async(|when, then| {
+                when.method("HEAD").path("/releases/latest");
+                then.status(500);
+            })
+            .await;
+        let archive = server
+            .mock_async(|when, then| {
+                when.method(GET).path(format!(
+                    "/releases/download/v0.98.0/geckodriver-v0.98.0-{asset}"
+                ));
+                then.status(200)
+                    .body(tar_gz_of(&[("geckodriver", b"#!/bin/sh\n", 0o755)]));
+            })
+            .await;
+        let (releases, edge) = (server.url("/releases"), server.url("/unused"));
+        let root = tempfile::tempdir().unwrap();
+
+        let found = install_geckodriver_from(
+            &hosts_of(&releases, &edge),
+            root.path(),
+            Some("0.98.0"),
+            None,
+        )
+        .await
+        .unwrap();
+
+        archive.assert_async().await;
+        latest.assert_calls_async(0).await;
+        assert_eq!(found, root.path().join("geckodriver-v0.98.0/geckodriver"));
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn a_release_page_that_does_not_name_a_tag_is_an_error() {
+        let server = MockServer::start_async().await;
+        server
+            .mock_async(|when, then| {
+                when.method("HEAD").path("/releases/latest");
+                then.status(200);
+            })
+            .await;
+        let (releases, edge) = (server.url("/releases"), server.url("/unused"));
+        let root = tempfile::tempdir().unwrap();
+
+        let error = install_geckodriver_from(&hosts_of(&releases, &edge), root.path(), None, None)
+            .await
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("the newest release is not named"), "{error}");
+        assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0);
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn the_msedgedriver_that_follows_the_installed_edge_is_read_from_the_listing() {
+        let Ok(platform) = edgedriver_platform(std::env::consts::OS, std::env::consts::ARCH) else {
+            return; // Microsoft publishes no msedgedriver for this machine.
+        };
+        let server = MockServer::start_async().await;
+        let edge = server.base_url();
+        let listing_url = edgedriver_listing_url_in(
+            &edge,
+            &DriverVersion::Milestone(155),
+            None,
+            std::env::consts::OS,
+        )
+        .unwrap();
+        let listing_path = listing_url.strip_prefix(&edge).unwrap().to_owned();
+        let listing = server
+            .mock_async(|when, then| {
+                when.method(GET).path(listing_path.clone());
+                then.status(200).body(microsoft_listing("155.0.4283.45"));
+            })
+            .await;
+        let archive = server
+            .mock_async(|when, then| {
+                when.method(GET)
+                    .path(format!("/155.0.4283.45/edgedriver_{platform}.zip"));
+                then.status(200)
+                    .body(zip_with("msedgedriver", b"#!/bin/sh\n"));
+            })
+            .await;
+        let releases = server.url("/unused");
+        let root = tempfile::tempdir().unwrap();
+
+        let found = install_msedgedriver_from(
+            &hosts_of(&releases, &edge),
+            root.path(),
+            &DriverVersion::MatchBrowser,
+            Some(155),
+            None,
+        )
+        .await
+        .unwrap();
+
+        listing.assert_async().await;
+        archive.assert_async().await;
+        assert_eq!(
+            found,
+            root.path().join("msedgedriver-155.0.4283.45/msedgedriver")
+        );
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn an_exact_msedgedriver_build_goes_straight_to_its_archive() {
+        let Ok(platform) = edgedriver_platform(std::env::consts::OS, std::env::consts::ARCH) else {
+            return; // Microsoft publishes no msedgedriver for this machine.
+        };
+        let server = MockServer::start_async().await;
+        let archive = server
+            .mock_async(|when, then| {
+                when.method(GET)
+                    .path(format!("/154.0.1.2/edgedriver_{platform}.zip"));
+                then.status(200)
+                    .body(zip_with("msedgedriver", b"#!/bin/sh\n"));
+            })
+            .await;
+        let (releases, edge) = (server.url("/unused"), server.base_url());
+        let root = tempfile::tempdir().unwrap();
+        let version = DriverVersion::Exact("154.0.1.2".into());
+
+        let found = install_msedgedriver_from(
+            &hosts_of(&releases, &edge),
+            root.path(),
+            &version,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+        let again = install_msedgedriver_from(
+            &hosts_of(&releases, &edge),
+            root.path(),
+            &version,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(
+            found,
+            root.path().join("msedgedriver-154.0.1.2/msedgedriver")
+        );
+        assert_eq!(again, found);
+        archive.assert_calls_async(1).await;
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn a_listing_that_names_no_build_is_an_error_and_nothing_is_downloaded() {
+        let server = MockServer::start_async().await;
+        let edge = server.base_url();
+        let listing_url = edgedriver_listing_url_in(
+            &edge,
+            &DriverVersion::Milestone(155),
+            None,
+            std::env::consts::OS,
+        )
+        .unwrap();
+        let listing_path = listing_url.strip_prefix(&edge).unwrap().to_owned();
+        server
+            .mock_async(|when, then| {
+                when.method(GET).path(listing_path.clone());
+                then.status(200).body("<html>not found</html>");
+            })
+            .await;
+        let releases = server.url("/unused");
+        let root = tempfile::tempdir().unwrap();
+
+        let error = install_msedgedriver_from(
+            &hosts_of(&releases, &edge),
+            root.path(),
+            &DriverVersion::Milestone(155),
+            None,
+            None,
+        )
+        .await
+        .unwrap_err()
+        .to_string();
+
+        assert!(error.contains("names no build"), "{error}");
+        assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0);
     }
 
     fn tar_gz_of(entries: &[(&str, &[u8], u32)]) -> Vec<u8> {

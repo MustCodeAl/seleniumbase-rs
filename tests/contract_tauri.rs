@@ -7,7 +7,7 @@
 //! to this crate stops this file compiling, the plugin stops compiling against it too: fix the
 //! contract in the same commit, and tell the plugin's owner what to change before the pin moves.
 //!
-//! `scripts/check-consumers.sh tauri` (`just contracts`) reads the plugin's checkout and fails
+//! `scripts/check-consumers.sh tauri` (`mise run contracts`) reads the plugin's checkout and fails
 //! when it imports a path this file does not list. No feature is needed: the plugin takes this
 //! crate with `default-features = false`.
 

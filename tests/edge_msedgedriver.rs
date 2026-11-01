@@ -36,6 +36,7 @@ fn gone(pattern: &str) -> Vec<u32> {
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "needs Microsoft Edge and, the first time, network access"]
+#[serial_test::serial(chrome)]
 async fn an_edge_session_runs_on_an_msedgedriver_the_crate_starts() {
     let profile = tempfile::tempdir().expect("a profile folder");
     let marker = profile.path().to_str().expect("a UTF-8 path").to_owned();

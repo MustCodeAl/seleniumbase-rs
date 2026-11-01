@@ -185,6 +185,7 @@ async fn title_becomes(sb: &mut BaseCase, want: &str) -> Result<(), String> {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_page_loads_through_a_proxy_that_asks_for_a_password() {
     let _guard = BROWSER_LOCK.lock().await;
     let (port, seen, proxy) = start_proxy().await;
@@ -206,6 +207,7 @@ async fn a_page_loads_through_a_proxy_that_asks_for_a_password() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_new_window_loads_through_the_proxy_too() {
     let _guard = BROWSER_LOCK.lock().await;
     let (port, _seen, proxy) = start_proxy().await;
@@ -229,6 +231,7 @@ async fn a_new_window_loads_through_the_proxy_too() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_tab_the_page_opens_loads_through_the_proxy_too() {
     let _guard = BROWSER_LOCK.lock().await;
     let (port, seen, proxy) = start_proxy().await;
@@ -256,6 +259,7 @@ async fn a_tab_the_page_opens_loads_through_the_proxy_too() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_website_that_asks_for_a_password_never_gets_the_proxy_account() {
     let _guard = BROWSER_LOCK.lock().await;
     let (port, seen, proxy) = start_proxy().await;
@@ -287,6 +291,7 @@ async fn a_website_that_asks_for_a_password_never_gets_the_proxy_account() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn the_browsers_command_line_has_no_password() {
     let _guard = BROWSER_LOCK.lock().await;
     let (port, _seen, proxy) = start_proxy().await;

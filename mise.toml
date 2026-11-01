@@ -1,11 +1,13 @@
 # Tools and tasks for working on seleniumbase-rs with mise (https://mise.jdx.dev).
 #
-#   mise install     the toolchain below
-#   mise run gate    the checks a change has to pass: format, lint, tests, dependency policy
-#   mise tasks       every task
+#   mise install       the toolchain below
+#   mise run gate      the checks a change has to pass: format, lint, tests, dependency policy
+#   mise tasks ls      every task, with its description
+#   mise run NAME ...  one task; what follows the name goes to the task (`mise run contracts
+#                      --check-build`), mise's own flags go before it (`mise run --quiet NAME`)
 #
-# The justfile has the same recipes for people who use `just`; the longer ones are
-# called from here rather than written twice.
+# This file is the repository's one task runner (the justfile it replaced is gone). A task that
+# takes arguments says how in the comment above it.
 
 [tools]
 # The crate's rust-version; the msrv CI job and the Dockerfile move with it.
@@ -17,7 +19,6 @@ python = "3.14"
 # The Tauri example's CLI (`npm ci`, `npx tauri`).
 node = "lts"
 mdbook = "0.5"
-just = "1"
 cargo-deny = "0.20"
 
 # No [env] section: mise asks people to trust a config file that sets
@@ -41,6 +42,24 @@ run = [
 description = "The test suite; tests that need a real browser are ignored"
 env = { CARGO_INCREMENTAL = "0", CARGO_PROFILE_DEV_DEBUG = "0" }
 run = 'cargo test --features "mcp-server test-util plugins"'
+
+[tasks.test-library]
+description = "Test the library alone, with its own default features (no command line)"
+env = { CARGO_INCREMENTAL = "0", CARGO_PROFILE_DEV_DEBUG = "0" }
+run = "cargo test -p seleniumbase-rs"
+
+# The library has no `playwright` feature (Stealthy Playwright Mode is the workspace crate
+# crates/playwright), so it is in neither feature list below. They need the system packages of the
+# `gui` and `s3` features.
+[tasks.test-all]
+description = "Run tests with all optional features enabled"
+env = { CARGO_INCREMENTAL = "0", CARGO_PROFILE_DEV_DEBUG = "0" }
+run = "cargo test --features s3,azure,gcp,mcp-server,full-tracing,gui,tui,pdf"
+
+[tasks.build]
+description = "Build the library and all binaries (the command line is crates/cli)"
+env = { CARGO_INCREMENTAL = "0", CARGO_PROFILE_DEV_DEBUG = "0" }
+run = "cargo build --all-targets --features s3,azure,gcp,mcp-server,full-tracing,gui,tui,pdf"
 
 [tasks.deny]
 description = "Dependency licences, advisories and sources"
@@ -70,15 +89,147 @@ for file in tests/*_chrome.rs tests/browser_smoke.rs crates/cli/tests/*_chrome.r
 done
 '''
 
-[tasks.parity-docs]
-description = "Regenerate docs/parity.md and fail if it was out of date"
-run = "just parity-docs"
-
 [tasks.docs]
 description = "Build the mdBook documentation"
 run = "mdbook build"
 
+# Fails on undefined names in expressions, relative .md links, missing titles and pages that are in
+# no menu of docs/docs.json. Needs Bun.
+[tasks.mdx]
+description = "Build every docs page as the Docs7 site does (MDX)"
+run = [
+  "bun install --cwd tools/mdx-check --frozen-lockfile",
+  "bun tools/mdx-check/check.mjs docs",
+]
+
+# The tree of the repository comes from the one description in tools/docs_layout_tree.py. Arguments
+# go to the script: `mise run layout-tree --check` changes nothing and lists what differs
+# (`mise run mdx` runs that check).
+[tasks.layout-tree]
+description = "Write the layout trees of the docs pages again, and every copy of the tree component"
+run = "python3 -I tools/docs_layout_tree.py"
+
+[tasks.serve-docs]
+description = "Serve the mdBook locally for editing"
+run = "mdbook serve --open"
+
+
 [tasks.smoke]
 description = "sbrs --help, --version and doctor"
 env = { CARGO_INCREMENTAL = "0", CARGO_PROFILE_DEV_DEBUG = "0" }
-run = "just smoke"
+run = [
+  "cargo run --quiet -p seleniumbase-rs-cli --bin sbrs -- --help",
+  "cargo run --quiet -p seleniumbase-rs-cli --bin sbrs -- --version",
+  "cargo run --quiet -p seleniumbase-rs-cli --bin sbrs -- doctor",
+]
+
+# `mise run completions [OUTDIR]` writes the five scripts into OUTDIR (default target/completions,
+# made if it is not there).
+[tasks.completions]
+description = "Generate shell completions for Bash, Zsh, Fish, Elvish, and PowerShell"
+env = { CARGO_INCREMENTAL = "0", CARGO_PROFILE_DEV_DEBUG = "0" }
+usage = 'arg "[outdir]" default="target/completions" help="The folder the completion scripts are written to"'
+run = [
+  'mkdir -p "$usage_outdir"',
+  'cargo run --quiet -p seleniumbase-rs-cli --bin sbrs -- completions bash > "$usage_outdir/sbrs.bash"',
+  'cargo run --quiet -p seleniumbase-rs-cli --bin sbrs -- completions zsh > "$usage_outdir/_sbrs"',
+  'cargo run --quiet -p seleniumbase-rs-cli --bin sbrs -- completions fish > "$usage_outdir/sbrs.fish"',
+  'cargo run --quiet -p seleniumbase-rs-cli --bin sbrs -- completions elvish > "$usage_outdir/sbrs.elv"',
+  'cargo run --quiet -p seleniumbase-rs-cli --bin sbrs -- completions powershell > "$usage_outdir/_sbrs.ps1"',
+]
+
+[tasks.clean]
+description = "Clean build artifacts and patch cache"
+run = [
+  "cargo clean",
+  "rm -rf ~/.cache/seleniumbase-rs/patched-chromedriver",
+]
+
+# The steps run one after the other (a `depends` list would run them side by side).
+[tasks.release-check]
+description = "Prepare a release: format, lint, test, docs, dry-run publish"
+env = { CARGO_INCREMENTAL = "0", CARGO_PROFILE_DEV_DEBUG = "0" }
+run = [
+  { task = "fmt" },
+  { task = "lint" },
+  { task = "test-all" },
+  { task = "docs" },
+  "cargo publish --dry-run -p seleniumbase-rs",
+]
+
+# `mise run parity-extract PATH/TO/SeleniumBase PATH/TO/seleniumbase-mcp`
+[tasks.parity-extract]
+description = "Extract the upstream API from a SeleniumBase and a seleniumbase-mcp checkout"
+usage = '''
+arg "<seleniumbase>" help="Path to the SeleniumBase checkout"
+arg "<mcp>" help="Path to the seleniumbase-mcp checkout"
+'''
+run = 'python3 -I tools/parity/extract_api.py --seleniumbase "$usage_seleniumbase" --mcp "$usage_mcp" --out parity/upstream-api.json'
+
+[tasks.parity-seed]
+description = "Add proposed entries to parity/api.toml for upstream names it does not list"
+run = "python3 -I tools/parity/seed_manifest.py"
+
+[tasks.parity-check]
+description = "Check that parity/api.toml agrees with the upstream API and the Rust sources"
+env = { CARGO_INCREMENTAL = "0", CARGO_PROFILE_DEV_DEBUG = "0" }
+run = "cargo test -p seleniumbase-rs --features mcp-server --test parity"
+
+[tasks.parity-docs]
+description = "Regenerate docs/parity.md and fail if it was out of date"
+run = [
+  "python3 -I tools/parity/render_docs.py",
+  "git diff --exit-code docs/parity.md",
+]
+
+# It reads the sibling checkouts (docs/contributing/consumers.md lists their folders). Arguments go to
+# scripts/check-consumers.sh: consumer names to check only those, `--list NAME` to print what one
+# of them uses, and `--check-build`, which also runs `cargo check --tests` in each against this
+# checkout (heavy: for a release).
+[tasks.contracts]
+description = "Check that the contract files (tests/contract_*.rs) name everything the repositories that build on this crate use"
+run = "scripts/check-consumers.sh"
+
+[tasks.contracts-sync]
+description = "Copy the companion extension's golden programs into tests/contract_companion/"
+run = "scripts/check-consumers.sh --sync"
+
+# cargo-semver-checks (`cargo binstall cargo-semver-checks`). The crate is not on crates.io, so the
+# baseline is a git revision of this repository: the newest tag by default, `mise run semver
+# v0.6.0` for another (a first argument that does not start with `-`). The feature set is the one
+# the gate builds; the other arguments go to the tool, such as `--release-type minor` to say what
+# the next version will be.
+[tasks.semver]
+description = "Check the public API of the library against a release (a git tag) for semver breaks"
+env = { CARGO_INCREMENTAL = "0", CARGO_PROFILE_DEV_DEBUG = "0" }
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+if [ "$#" -gt 0 ] && [[ "$1" != -* ]]; then
+  baseline=$1
+  shift
+else
+  baseline=$(git describe --tags --abbrev=0)
+fi
+exec cargo semver-checks check-release -p seleniumbase-rs --baseline-rev "$baseline" --features mcp-server,test-util,testing,bdd "$@"
+'''
+
+# cargo-hack (`cargo binstall cargo-hack`). The CI feature matrix builds the features in groups, so
+# a feature that compiles only next to another one goes unnoticed; this builds each alone.
+# `tokio-console` needs RUSTFLAGS="--cfg tokio_unstable" and is left out. About 30 runs:
+# `mise run features --partition 1/6` runs a sixth of them, `mise run features --all-targets`
+# adds the tests. Arguments go to cargo-hack, before the `--`.
+[tasks.features]
+description = "Clippy on the library with each cargo feature alone"
+env = { CARGO_INCREMENTAL = "0", CARGO_PROFILE_DEV_DEBUG = "0" }
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+exec cargo hack clippy -p seleniumbase-rs --each-feature --exclude-features tokio-console "$@" -- -D warnings
+'''
+
+# cargo-shear (`cargo binstall cargo-shear`). A dependency that is there on purpose is named in
+# `[package.metadata.cargo-shear] ignored = [..]` of its manifest. Arguments go to cargo-shear.
+[tasks.unused-deps]
+description = "Find dependencies that no code uses"
+run = "cargo shear"

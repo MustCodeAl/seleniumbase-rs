@@ -225,12 +225,12 @@ Most features need nothing more. These do:
 | `mdbook` | `mdbook build` | `cargo install mdbook` |
 | `cargo-deny`, `cargo-audit` | the dependency checks | `cargo install cargo-deny cargo-audit` |
 | `cargo-nextest` | faster test runs and the one-thread `chrome` test group | `cargo install cargo-nextest` |
-| `just` | the recipes in the `justfile` | `cargo install just` |
+| `mise` | the tasks in `mise.toml` (`mise tasks ls` lists them) | `brew install mise` or `cargo install --locked mise` |
 
 <Tip>
 
 With [mise](https://mise.jdx.dev), `mise install` sets up Rust 1.99, Python,
-Node, mdBook, just and cargo-deny from `mise.toml`, and `mise run gate` runs the
+Node, mdBook and cargo-deny from `mise.toml`, and `mise run gate` runs the
 checks a change must pass.
 
 </Tip>
@@ -379,13 +379,13 @@ both, so a plain `cargo build` or `cargo test` at the root covers both.
 <LayoutDir name="tldr" note="draft tldr-pages entries for sbrs, kept to propose upstream" />
 </LayoutDir>
 <LayoutDir name="scripts" note="helper scripts">
-<LayoutFile name="check-consumers.sh" note="just contracts: checks what the repositories that build on this crate use" />
+<LayoutFile name="check-consumers.sh" note="mise run contracts: checks what the repositories that build on this crate use" />
 </LayoutDir>
 <LayoutDir name="tools" note="scripts for the docs and the parity manifests">
-<LayoutDir name="mdx-check" note="just mdx: builds every docs page as Docs7 does" />
+<LayoutDir name="mdx-check" note="mise run mdx: builds every docs page as Docs7 does" />
 <LayoutDir name="parity" note="extracts, seeds and renders the parity manifest (docs/parity.md)" />
 <LayoutDir name="layout_tree" note="the tree component that docs_layout_tree.py copies onto the pages" />
-<LayoutFile name="docs_layout_tree.py" note="just layout-tree: writes the layout trees of the docs pages" />
+<LayoutFile name="docs_layout_tree.py" note="mise run layout-tree: writes the layout trees of the docs pages" />
 <LayoutFile name="docs7_changelog.py" note="writes docs/changelog.md from CHANGELOG.md" />
 </LayoutDir>
 <LayoutDir name="docker" note="the Linux verification image (Dockerfile.verify, verify-linux.sh) and firefox-check/" />
@@ -400,8 +400,7 @@ both, so a plain `cargo build` or `cargo test` at the root covers both.
 </LayoutDir>
 <LayoutFile name="Dockerfile" note="the sbrs image; its skeleton step lists every target" />
 <LayoutFile name="Makefile" note="make targets" />
-<LayoutFile name="justfile" note="just recipes" />
-<LayoutFile name="mise.toml" note="tools and tasks for mise" />
+<LayoutFile name="mise.toml" note="the tools and the tasks of the repository (mise tasks ls)" />
 <LayoutFile name="deny.toml" note="the cargo-deny policy" />
 <LayoutFile name="clippy.toml" note="clippy settings" />
 <LayoutFile name="rust-analyzer.toml" note="settings for rust-analyzer" />
@@ -421,7 +420,7 @@ The module map of `src/` is in `CLAUDE.md` and in the
 ## Build
 
 Plain `cargo` is all the build needs. mise (tool versions and the repository's
-tasks, see [Make, just and mise](#make-just-and-mise)) and mr-boxington (a build
+tasks, see [Make and mise](#make-and-mise)) and mr-boxington (a build
 cache, see [Keep builds small](#keep-builds-small)) are optional.
 
 <CodeGroup>
@@ -625,6 +624,35 @@ the results database is checked by `cargo check --features turso --all-targets`.
 
 </Tip>
 
+## Downloads without the network
+
+The default test run needs no network. The tests of the downloads (chromedriver and the Chrome
+for Testing browsers, geckodriver, msedgedriver, the Selenium Server jar) run against a local
+[httpmock](https://docs.rs/httpmock) server: every download function has a crate-private variant
+that takes the addresses it reads (`Listings` in `browser/downloader.rs`, `Sources` in
+`browser/chrome_for_testing.rs`, `Hosts` in `browser/driver_install.rs`, `download_server_from`
+in `cli/scripts/sb_grid.rs`), and the public function calls it with the published ones, so the
+public API is the same. The tests that do reach the internet (`sbrs install` and
+`sbrs download server` run as the real binary, the Edge and Firefox driver tests) stay `#[ignore]`d.
+
+## Checks for a release
+
+Three more checks are not part of every change, but each one finds what the steps above
+cannot. They are cargo subcommands, installed once with
+`cargo binstall cargo-semver-checks cargo-hack cargo-shear` (or `cargo install --locked`), and each
+has a mise task:
+
+| Task | Tool | What it finds |
+|---|---|---|
+| `mise run semver [TAG]` | [cargo-semver-checks](https://github.com/obi1kenobi/cargo-semver-checks) | A change to the public API of the library that needs a bigger version number than `Cargo.toml` has, measured against a release. The crate is not on crates.io, so the baseline is a git tag of this repository (`--baseline-rev`), the newest one by default. It builds the rustdoc JSON of both versions with the gate's features, so it takes about twenty minutes the first time. |
+| `mise run features` | [cargo-hack](https://github.com/taiki-e/cargo-hack) | A cargo feature of the library that does not compile alone: `cargo hack clippy --each-feature -- -D warnings`, about thirty runs. `mise run features --partition 1/6` runs a sixth of them, and `--all-targets` adds the tests. `tokio-console` is left out, because it needs `RUSTFLAGS="--cfg tokio_unstable"`. |
+| `mise run unused-deps` | [cargo-shear](https://github.com/Boshen/cargo-shear) | A dependency that no code uses. One kept on purpose is named in `[package.metadata.cargo-shear] ignored = [..]` of its manifest, with the reason beside it. |
+
+`mise run contracts --check-build` is the fourth, for the repositories that build on this crate (see
+[Consumer contracts](/contributing/consumers)). `mise run semver` and `mise run contracts --check-build`
+are the two to run before a tag.
+
+
 ## Tests that need a real Chrome
 
 <Badge color="orange" icon="globe">Needs Chrome</Badge>
@@ -655,6 +683,13 @@ mise run chrome
 
 </CodeGroup>
 
+- Every one of these tests carries `#[serial_test::serial(chrome)]` (the
+  [serial_test](https://docs.rs/serial_test) crate), so a test binary never runs two browsers at
+  once, whatever `--test-threads` says; `-- --test-threads=1` stays valid. The tests that set or
+  read `SB_*` variables of the process (`SB_REPORT_ROOT`, `SB_DASHBOARD`) are in the group `env`,
+  also when no browser is involved, because the environment is shared by every thread. A new test
+  of either kind gets the attribute under `#[ignore]` (or under `#[tokio::test]`).
+
 - `.config/nextest.toml` puts these binaries in a `chrome` test group with one
   thread, and reports a test as slow after 60 seconds (it is ended after three
   such periods). `--run-ignored only` runs the Edge and Firefox tests too.
@@ -674,41 +709,55 @@ Some files are generated. Edit their source, then write them again:
 | File | Made from | Command |
 |---|---|---|
 | `completions/sbrs.usage.kdl` and `docs/help/cli_reference.md` | the declarations in `crates/cli/src/sbrs.rs` | `SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec` |
-| `docs/parity.md` | `parity/api.toml` | `just parity-docs` |
+| `docs/parity.md` | `parity/api.toml` | `mise run parity-docs` |
 | `docs/completions/fig-sbrs.ts` | `sbrs completions fig`, through prettier | see `docs/completions/README.md` |
 
-The `usage_spec` test fails when the first two are stale, and `just parity-docs`
+The `usage_spec` test fails when the first two are stale, and `mise run parity-docs`
 fails when `docs/parity.md` was out of date. No test checks the Fig spec.
 
-The navigation in `docs/docs.json` is written by hand. `just mdx` (needs Bun)
+The navigation in `docs/docs.json` is written by hand. `mise run mdx` (needs Bun)
 builds every page as the Docs7 site does and fails on an undefined name in an
 expression, a relative `.md` link, a page without a title, and a page that is in
 no menu of `docs/docs.json`.
 
-## Make, just and mise
+## Make and mise
 
-The repository has the same everyday tasks in three runners. Use whichever you
-have; none is required, and mise is an optional extra like mbx.
+The repository has its everyday tasks in two runners: mise (`mise.toml`, all of
+them) and a Makefile for a machine without mise. Use whichever you have; neither
+is required, and mise is an optional extra like mbx. `mise tasks ls` lists every
+mise task and `mise run NAME` runs one. What follows the name goes to the task
+(`mise run contracts --check-build`); mise's own flags go before it (`mise run
+--quiet NAME`).
 
-| Task | just | make | mise |
-|---|---|---|---|
-| Format check | `just fmt` | `make fmt` | `mise run fmt` |
-| Tests | `just test` | `make test` | `mise run test` |
-| The library alone | `just test-library` | `make test-library` | - |
-| Lint | `just lint` | `make lint` | `mise run lint` |
-| Every check in a row | - | `make all` | `mise run gate` |
-| Real-Chrome tests | - | - | `mise run chrome` |
-| The book | `just docs` | `make docs` | `mise run docs` |
-| The layout trees on the docs pages, written again from `tools/docs_layout_tree.py` | `just layout-tree` | - | - |
-| `sbrs --help`, `--version` and `doctor` | `just smoke` | `make smoke` | `mise run smoke` |
-| Shell completions into `target/completions` | `just completions` | `make completions` | - |
+| Task | make | mise |
+|---|---|---|
+| Format check | `make fmt` | `mise run fmt` |
+| Tests | `make test` | `mise run test` |
+| The library alone | `make test-library` | `mise run test-library` |
+| Tests with the optional features | `make test-all` | `mise run test-all` |
+| Lint | `make lint` | `mise run lint` |
+| Build everything | `make build` | `mise run build` |
+| Every check in a row | `make all` | `mise run gate` |
+| Real-Chrome tests | - | `mise run chrome` |
+| The book | `make docs` | `mise run docs` |
+| Every docs page as Docs7 builds it (needs Bun) | - | `mise run mdx` |
+| The layout trees on the docs pages, written again from `tools/docs_layout_tree.py` | - | `mise run layout-tree` (`--check` changes nothing) |
+| `sbrs --help`, `--version` and `doctor` | `make smoke` | `mise run smoke` |
+| Shell completions into `target/completions` (or a folder you name) | `make completions` | `mise run completions [DIR]` |
+| Format, lint, tests, book and a dry-run publish | `make release-check` | `mise run release-check` |
+
+Both also have `serve-docs` and `clean`. Only mise has `deny`, the parity tasks
+(`parity-extract`, `parity-seed`, `parity-check`, `parity-docs`), the consumer
+contracts (`contracts`, `contracts-sync`) and the release checks (`semver`,
+`features`, `unused-deps`).
 
 <Warning>
 
-`just lint`, `just test-all`, `just build` and their `make` twins turn on
-`s3,azure,gcp,playwright,mcp-server,full-tracing,gui,tui` (the justfile adds
-`pdf`), so they need the `gui` and `s3` system packages. They are not the CI
-checks above; `mise run gate` is closer to those.
+`make lint`, `make test-all` and `make build`, and `mise run test-all` and
+`mise run build`, turn on `s3,azure,gcp,mcp-server,full-tracing,gui,tui` (the
+mise tasks add `pdf`), so they need the `gui` and `s3` system packages. They are
+not the CI checks above; `mise run gate` is closer to those, and `mise run lint`
+and `mise run test` run the features of the gate.
 
 </Warning>
 

@@ -21,3 +21,8 @@ seleniumbase-rs = { path = "../.." }
 # The Rust Playwright port. Its calls block, so the crate runs them on Tokio's blocking pool.
 # The default features of `rustwright` are the engine itself (no Python bindings).
 rustwright = "0.3"
+
+[dev-dependencies]
+# `#[serial(chrome)]` on the tests that start a real Chrome, so they need no `--test-threads=1`.
+serial_test = "4"
+

@@ -24,6 +24,7 @@ const PAGE: &str = "data:text/html,<html><head><title>CDP page</title></head>\
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn the_cdp_helpers_click_read_select_and_report_what_is_missing() {
     let mut config = BrowserConfig::default()
         .with_headless(true)
@@ -106,6 +107,7 @@ async fn the_cdp_helpers_click_read_select_and_report_what_is_missing() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn cdp_click_hits_the_button_on_a_page_scrolled_down() {
     let mut config = BrowserConfig::default()
         .with_headless(true)

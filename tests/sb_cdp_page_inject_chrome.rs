@@ -57,6 +57,7 @@ fn serve() -> String {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome"]
+#[serial_test::serial(chrome)]
 async fn tags_and_init_scripts_reach_the_documents_they_should() {
     let base = serve();
     let options = LaunchOptions::builder()

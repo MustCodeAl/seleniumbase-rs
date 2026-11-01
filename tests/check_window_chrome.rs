@@ -63,6 +63,7 @@ async fn differs(sb: &mut BaseCase, level: u8) -> bool {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn check_window_compares_the_structure_of_the_page_and_not_its_pixels() {
     let _guard = BROWSER_LOCK.lock().await;
     let _ = std::fs::remove_dir_all(baseline_dir());

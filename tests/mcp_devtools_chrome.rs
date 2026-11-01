@@ -120,6 +120,7 @@ async fn diagnose(host: &Host<Cdp>, selector: &str) -> Value {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_page_tools_understand_a_real_page() {
     let dir = tempfile::tempdir().unwrap();
     let (host, base) = started(dir.path()).await;
@@ -254,6 +255,7 @@ async fn the_page_tools_understand_a_real_page() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn console_messages_and_failed_requests_are_collected() {
     let dir = tempfile::tempdir().unwrap();
     let (host, _base) = started(dir.path()).await;
@@ -303,6 +305,7 @@ async fn console_messages_and_failed_requests_are_collected() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_session_becomes_a_bundle_and_a_test() {
     let dir = tempfile::tempdir().unwrap();
     let (host, base) = started(dir.path()).await;

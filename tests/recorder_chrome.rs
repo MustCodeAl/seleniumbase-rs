@@ -114,6 +114,7 @@ fn written(folder: &Path) -> String {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_label_click_and_typing_with_enter_are_written_as_a_test() {
     let (home, _) = sites();
     let folder = folder("typing");
@@ -143,6 +144,7 @@ async fn a_label_click_and_typing_with_enter_are_written_as_a_test() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 async fn caret_then_click_asserts_an_element_and_ampersand_then_click_asserts_text() {
     let (home, _) = sites();
     let folder = folder("asserts");
@@ -164,6 +166,7 @@ async fn caret_then_click_asserts_an_element_and_ampersand_then_click_asserts_te
 
 #[tokio::test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 async fn escape_pauses_the_recording_and_tilde_resumes_it() {
     let (home, _) = sites();
     let folder = folder("pause");
@@ -188,6 +191,7 @@ async fn escape_pauses_the_recording_and_tilde_resumes_it() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_link_to_another_origin_opens_a_tab_and_both_tabs_are_recorded_in_order() {
     let (home, other) = sites();
     let folder = folder("tabs");
@@ -218,6 +222,7 @@ async fn a_link_to_another_origin_opens_a_tab_and_both_tabs_are_recorded_in_orde
 
 #[tokio::test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 async fn shift_escape_ends_the_wait_for_the_end_of_the_recording() {
     let (home, _) = sites();
     let folder = folder("end");
@@ -239,6 +244,7 @@ async fn shift_escape_ends_the_wait_for_the_end_of_the_recording() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_dialog_does_not_end_the_watch_and_stays_open() {
     let (home, _) = sites();
     let folder = folder("alert");
@@ -265,6 +271,7 @@ async fn a_dialog_does_not_end_the_watch_and_stays_open() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_typed_password_is_read_from_the_environment_by_the_test() {
     let (home, _) = sites();
     let folder = folder("secret");

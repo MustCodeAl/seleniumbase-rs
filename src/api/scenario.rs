@@ -772,6 +772,7 @@ mod tests {
     /// Run with `cargo test --lib scenario -- --ignored`.
     #[tokio::test]
     #[ignore = "launches a real Chrome through chromedriver"]
+    #[serial_test::serial(chrome)]
     async fn runs_a_scenario_against_a_real_browser() {
         use crate::browser::config::BrowserConfig;
         use std::io::{Read, Write};

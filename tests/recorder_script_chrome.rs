@@ -75,6 +75,7 @@ async fn stored_actions(sb: &BaseCase) -> Vec<RawAction> {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_label_click_typing_a_password_and_enter_become_the_calls_of_a_test() {
     let base = serve_pages();
     let config = BrowserConfig {

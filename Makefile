@@ -1,5 +1,5 @@
 # Make fallback for the SeleniumBase Rust port.
-# Prefer `just` (https://github.com/casey/just) for richer recipes.
+# Prefer `mise run` (https://mise.jdx.dev, the tasks in mise.toml) for the full set of tasks.
 
 .PHONY: all fmt test test-library test-all lint build docs serve-docs smoke completions docker clean clean-cache release-check
 
@@ -17,13 +17,13 @@ test-library:
 	cargo test -p seleniumbase-rs
 
 test-all:
-	cargo test --features s3,azure,gcp,playwright,mcp-server,full-tracing,gui,tui
+	cargo test --features s3,azure,gcp,mcp-server,full-tracing,gui,tui
 
 lint:
-	cargo clippy --all-targets --features s3,azure,gcp,playwright,mcp-server,full-tracing,gui,tui -- -D warnings
+	cargo clippy --all-targets --features s3,azure,gcp,mcp-server,full-tracing,gui,tui -- -D warnings
 
 build:
-	cargo build --all-targets --features s3,azure,gcp,playwright,mcp-server,full-tracing,gui,tui
+	cargo build --all-targets --features s3,azure,gcp,mcp-server,full-tracing,gui,tui
 
 docs:
 	mdbook build

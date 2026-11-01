@@ -76,30 +76,35 @@ async fn solves(path: &str) {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_turnstile_in_a_cross_origin_frame_clears() {
     solves("/iframe").await;
 }
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_turnstile_inside_an_open_shadow_root_clears() {
     solves("/shadow").await;
 }
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_widget_that_needs_a_second_verified_check_clears() {
     solves("/iframe?widget=fail=1").await;
 }
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_widget_that_judges_the_pointer_path_clears_for_a_human_path() {
     solves("/human").await;
 }
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_form_checkbox_beside_the_widget_is_left_alone() {
     let site = Site::start();
     let mut sb = BaseCase::new(config()).await.expect("start Chrome");
@@ -132,6 +137,7 @@ async fn a_form_checkbox_beside_the_widget_is_left_alone() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn an_interstitial_clears_to_the_real_page_with_a_clearance_cookie() {
     let site = Site::start();
     let mut sb = BaseCase::new(config()).await.expect("start Chrome");

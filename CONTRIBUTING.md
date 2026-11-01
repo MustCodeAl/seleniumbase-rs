@@ -80,9 +80,10 @@ checkout gets its own target and they share compiled work through its cache.
 
 With [mise](https://mise.jdx.dev), `mise install` sets up the tools below from
 `mise.toml` (Rust 1.99 with clippy and rustfmt, Python 3.14 for the parity
-scripts, Node for the Tauri example, mdBook, just and cargo-deny), and
-`mise run gate` runs the checks a change has to pass; `mise tasks` lists the
-rest (`chrome`, `parity-docs`, `docs`, `smoke`).
+scripts, Node for the Tauri example, mdBook and cargo-deny), and
+`mise run gate` runs the checks a change has to pass; `mise tasks ls` lists the
+rest (`chrome`, `docs`, `mdx`, `smoke`, `parity-docs`, `contracts`, ...). mise is
+the repository's task runner; there is no `justfile`.
 
 ### Required
 
@@ -107,9 +108,8 @@ rest (`chrome`, `parity-docs`, `docs`, `smoke`).
   (`cargo install cargo-nextest`; it does not run doctests, so also run
   `cargo test --doc`). `.config/nextest.toml` has a one-thread `chrome` group
   for the tests that need a real Chrome.
-- `cargo-deny` and `cargo-audit` for the dependency checks, and `just` for the
-  recipes in the `justfile`.
-- `uv` to regenerate the parity docs (`just parity-docs`).
+- `cargo-deny` and `cargo-audit` for the dependency checks.
+- `uv` to regenerate the parity docs (`mise run parity-docs`).
 - A Chrome (and, for the WebDriver engine, a matching chromedriver: `sbrs
   install`) for the tests marked `#[ignore]`.
 - `libwebkit2gtk-4.1-dev` (Linux) or Xcode (macOS) if you build the Tauri
@@ -197,8 +197,7 @@ seleniumbase-rs/               # the workspace root
 ├── .warp/                     # the Warp terminal
 ├── Dockerfile                 # the sbrs image; its skeleton step lists every target
 ├── Makefile                   # make targets
-├── justfile                   # just recipes
-├── mise.toml                  # tools and tasks for mise
+├── mise.toml                  # the tools and the tasks of the repository (mise tasks ls)
 ├── deny.toml                  # the cargo-deny policy
 ├── clippy.toml                # clippy settings
 ├── rust-analyzer.toml         # settings for rust-analyzer
@@ -378,8 +377,8 @@ MCP server) exists here or has a stated reason why not.
   do it; name them in `rust`), `not-applicable` (with a `reason` specific to that
   API) or `planned`. Never mark something `implemented` without code and a test;
   `tests/parity.rs` checks that every Rust path in the manifest exists.
-- After editing the manifest, regenerate `docs/parity.md` with `just parity-docs`
-  (or `uv run tools/parity/render_docs.py`) and commit both. `just parity-check`
+- After editing the manifest, regenerate `docs/parity.md` with `mise run parity-docs`
+  (or `uv run tools/parity/render_docs.py`) and commit both. `mise run parity-check`
   verifies them.
 - `parity/upstream.toml` and `docs/UPSTREAM_SYNC.md` describe how to move to a
   newer upstream release.

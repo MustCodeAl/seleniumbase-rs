@@ -73,6 +73,7 @@ const WANTED_PREFERENCES: &str = "[false,false]";
 
 #[tokio::test]
 #[ignore = "real headless Chrome; reads chrome://prefs-internals"]
+#[serial_test::serial(chrome)]
 async fn a_pure_cdp_browser_starts_with_the_password_prompts_off() -> Result<()> {
     run_cdp_test(cdp_options(), async |page| {
         page.goto("chrome://prefs-internals").await?;
@@ -85,6 +86,7 @@ async fn a_pure_cdp_browser_starts_with_the_password_prompts_off() -> Result<()>
 
 #[tokio::test]
 #[ignore = "real headless Chrome and chromedriver; reads chrome://prefs-internals"]
+#[serial_test::serial(chrome)]
 async fn a_webdriver_browser_starts_with_the_password_prompts_off() -> Result<()> {
     run_browser_test(webdriver_config(), async |sb| {
         sb.open("chrome://prefs-internals").await?;
@@ -105,6 +107,7 @@ const WANTED_FIELDS: &str = r#"["SeleniumBase","Automation","77123"]"#;
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens saucedemo.com"]
+#[serial_test::serial(chrome)]
 async fn typing_lands_in_a_pure_cdp_page_after_a_login_with_a_leaked_password() -> Result<()> {
     run_cdp_test(cdp_options(), async |page| {
         page.goto("https://www.saucedemo.com").await?;
@@ -142,6 +145,7 @@ async fn typing_lands_in_a_pure_cdp_page_after_a_login_with_a_leaked_password() 
 
 #[tokio::test]
 #[ignore = "real headless Chrome and chromedriver; opens saucedemo.com"]
+#[serial_test::serial(chrome)]
 async fn typing_lands_in_a_webdriver_page_after_a_login_with_a_leaked_password() -> Result<()> {
     run_browser_test(webdriver_config(), async |sb| {
         sb.open("https://www.saucedemo.com").await?;

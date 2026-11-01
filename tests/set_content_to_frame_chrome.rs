@@ -91,6 +91,7 @@ fn serve() -> String {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_frame_replaces_the_page_and_default_brings_the_page_back() {
     let _guard = BROWSER_LOCK.lock().await;
     let base = serve();

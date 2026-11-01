@@ -235,9 +235,10 @@ checkout gets its own target and they share compiled work through its cache.
 
 With [mise](https://mise.jdx.dev), `mise install` sets up the tools below from
 `mise.toml` (Rust 1.99 with clippy and rustfmt, Python 3.14 for the parity
-scripts, Node for the Tauri example, mdBook, just and cargo-deny), and
-`mise run gate` runs the checks a change has to pass; `mise tasks` lists the
-rest (`chrome`, `parity-docs`, `docs`, `smoke`).
+scripts, Node for the Tauri example, mdBook and cargo-deny), and
+`mise run gate` runs the checks a change has to pass; `mise tasks ls` lists the
+rest (`chrome`, `docs`, `mdx`, `smoke`, `parity-docs`, `contracts`, ...). mise is
+the repository's task runner; there is no `justfile`.
 
 </Info>
 
@@ -264,9 +265,8 @@ rest (`chrome`, `parity-docs`, `docs`, `smoke`).
   (`cargo install cargo-nextest`; it does not run doctests, so also run
   `cargo test --doc`). `.config/nextest.toml` has a one-thread `chrome` group
   for the tests that need a real Chrome.
-- `cargo-deny` and `cargo-audit` for the dependency checks, and `just` for the
-  recipes in the `justfile`.
-- `uv` to regenerate the parity docs (`just parity-docs`).
+- `cargo-deny` and `cargo-audit` for the dependency checks.
+- `uv` to regenerate the parity docs (`mise run parity-docs`).
 - A Chrome (and, for the WebDriver engine, a matching chromedriver: `sbrs
   install`) for the tests marked `#[ignore]`.
 - `libwebkit2gtk-4.1-dev` (Linux) or Xcode (macOS) if you build the Tauri
@@ -393,13 +393,13 @@ prompt that runs the checks, is in
 <LayoutDir name="tldr" note="draft tldr-pages entries for sbrs, kept to propose upstream" />
 </LayoutDir>
 <LayoutDir name="scripts" note="helper scripts">
-<LayoutFile name="check-consumers.sh" note="just contracts: checks what the repositories that build on this crate use" />
+<LayoutFile name="check-consumers.sh" note="mise run contracts: checks what the repositories that build on this crate use" />
 </LayoutDir>
 <LayoutDir name="tools" note="scripts for the docs and the parity manifests">
-<LayoutDir name="mdx-check" note="just mdx: builds every docs page as Docs7 does" />
+<LayoutDir name="mdx-check" note="mise run mdx: builds every docs page as Docs7 does" />
 <LayoutDir name="parity" note="extracts, seeds and renders the parity manifest (docs/parity.md)" />
 <LayoutDir name="layout_tree" note="the tree component that docs_layout_tree.py copies onto the pages" />
-<LayoutFile name="docs_layout_tree.py" note="just layout-tree: writes the layout trees of the docs pages" />
+<LayoutFile name="docs_layout_tree.py" note="mise run layout-tree: writes the layout trees of the docs pages" />
 <LayoutFile name="docs7_changelog.py" note="writes docs/changelog.md from CHANGELOG.md" />
 </LayoutDir>
 <LayoutDir name="docker" note="the Linux verification image (Dockerfile.verify, verify-linux.sh) and firefox-check/" />
@@ -414,8 +414,7 @@ prompt that runs the checks, is in
 </LayoutDir>
 <LayoutFile name="Dockerfile" note="the sbrs image; its skeleton step lists every target" />
 <LayoutFile name="Makefile" note="make targets" />
-<LayoutFile name="justfile" note="just recipes" />
-<LayoutFile name="mise.toml" note="tools and tasks for mise" />
+<LayoutFile name="mise.toml" note="the tools and the tasks of the repository (mise tasks ls)" />
 <LayoutFile name="deny.toml" note="the cargo-deny policy" />
 <LayoutFile name="clippy.toml" note="clippy settings" />
 <LayoutFile name="rust-analyzer.toml" note="settings for rust-analyzer" />
@@ -607,8 +606,8 @@ MCP server) exists here or has a stated reason why not.
   do it; name them in `rust`), `not-applicable` (with a `reason` specific to that
   API) or `planned`. Never mark something `implemented` without code and a test;
   `tests/parity.rs` checks that every Rust path in the manifest exists.
-- After editing the manifest, regenerate `docs/parity.md` with `just parity-docs`
-  (or `uv run tools/parity/render_docs.py`) and commit both. `just parity-check`
+- After editing the manifest, regenerate `docs/parity.md` with `mise run parity-docs`
+  (or `uv run tools/parity/render_docs.py`) and commit both. `mise run parity-check`
   verifies them.
 - `parity/upstream.toml` and `docs/UPSTREAM_SYNC.md` describe how to move to a
   newer upstream release.

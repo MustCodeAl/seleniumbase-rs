@@ -298,6 +298,7 @@ mod tests {
 
     #[tokio::test]
     #[ignore = "needs Chrome"]
+    #[serial_test::serial(chrome)]
     async fn set_text_puts_text_in_an_input_and_a_textarea_and_in_a_div() {
         let (browser, page) = open_html(
             "<!doctype html><input id=a oninput='window.inputs=(window.inputs||0)+1' \
@@ -350,6 +351,7 @@ mod tests {
 
     #[tokio::test]
     #[ignore = "needs Chrome"]
+    #[serial_test::serial(chrome)]
     async fn bring_to_front_raises_the_z_index_of_an_element() {
         let (browser, page) = open_html("<!doctype html><button id=b>b</button>").await;
         let found = page
@@ -372,6 +374,7 @@ mod tests {
 
     #[tokio::test]
     #[ignore = "needs Chrome"]
+    #[serial_test::serial(chrome)]
     async fn select_by_index_selects_fires_events_and_refuses_a_missing_option() {
         let (browser, page) = open_html(
             "<!doctype html><select id=s onchange='window.changed=(window.changed||0)+1'>\
@@ -414,6 +417,7 @@ mod tests {
 
     #[tokio::test]
     #[ignore = "needs Chrome"]
+    #[serial_test::serial(chrome)]
     async fn console_scripts_write_to_the_console() {
         let (browser, page) = open_html("<!doctype html><title>T</title>").await;
         page.evaluate(
@@ -437,6 +441,7 @@ mod tests {
 
     #[tokio::test]
     #[ignore = "needs Chrome"]
+    #[serial_test::serial(chrome)]
     async fn ad_block_removes_upstreams_ads_and_leaves_ordinary_ad_classes() {
         let (browser, page) = open_html(
             "<!doctype html><div id=adn src='//x.adnxs.com/a'>network ad</div>\

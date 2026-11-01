@@ -120,6 +120,7 @@ fn entry<'a>(entries: &'a [Value], url: &str) -> &'a Value {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_visit_is_recorded_as_a_har_that_reads_back() {
     let base = serve();
     let browser = launch().await;
@@ -230,6 +231,7 @@ async fn a_visit_is_recorded_as_a_har_that_reads_back() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_requests_of_a_cross_site_iframe_are_recorded() {
     let base = serve();
     let frame_base = base.replace("127.0.0.1", "localhost");

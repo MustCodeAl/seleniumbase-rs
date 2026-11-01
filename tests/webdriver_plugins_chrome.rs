@@ -80,6 +80,7 @@ const PAGE: &str =
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_plugin_reaches_chrome_through_webdriver_and_its_devtools_channel() {
     let log = Log::default();
     let plugins = PluginSet::new()
