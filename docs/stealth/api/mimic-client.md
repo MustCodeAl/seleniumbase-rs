@@ -196,7 +196,7 @@ pub fn build(mut self) -> Result<ImpersonationProfile, ImpersonateError>
 
 - `new`: A builder over the newest measured Chrome.
 - `base`: Takes the newest measurement of `kind` as the base. Call it first: it discards the TLS and HTTP/2 inputs given before it.
-- `base_on`: Takes the measurement of `kind` on `os` as the base; a pair with no capture is refused by the next input that needs the base, or by [`build`](Self::build). Call it first.
+- `base_on`: Takes the measurement of `kind` on `os` as the base; a pair with no capture is refused by the next input that needs the base, or by `build`. Call it first.
 - `ja3`: Replaces the version, ciphers, extensions, groups and point formats with a JA3.
 - `ja4_r`: Replaces the ciphers, extensions and signature algorithms with a `JA4_r` (sorted ids).
 - `ja4_ro`: Replaces the ciphers, extensions and signature algorithms with a `JA4_ro` (wire order).
@@ -210,7 +210,7 @@ pub fn build(mut self) -> Result<ImpersonationProfile, ImpersonateError>
 - `client_hints`: Sets the client hints (`Sec-CH-UA`, `Sec-CH-UA-Mobile`, `Sec-CH-UA-Platform`).
 - `header`: Sets a header of one request shape: replaced in place (keeping its position and spelling) when the list has it, appended when it does not.
 - `without_header`: Removes a header of one request shape.
-- `header_order`: Puts the named headers of one request shape first, in this order; the others follow in their old order. A name that is not in the list is refused by [`build`](Self::build).
+- `header_order`: Puts the named headers of one request shape first, in this order; the others follow in their old order. A name that is not in the list is refused by `build`.
 - `priority`: Sets the HTTP/2 `priority` header value for requests with this `Sec-Fetch-Dest`.
 - `headers`: Replaces both header lists and the priority table.
 - `build`: Applies the identity and header inputs, checks every spec, and returns the profile.
