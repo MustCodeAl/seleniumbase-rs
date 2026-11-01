@@ -625,6 +625,35 @@ the results database is checked by `cargo check --features turso --all-targets`.
 
 </Tip>
 
+## Downloads without the network
+
+The default test run needs no network. The tests of the downloads (chromedriver and the Chrome
+for Testing browsers, geckodriver, msedgedriver, the Selenium Server jar) run against a local
+[httpmock](https://docs.rs/httpmock) server: every download function has a crate-private variant
+that takes the addresses it reads (`Listings` in `browser/downloader.rs`, `Sources` in
+`browser/chrome_for_testing.rs`, `Hosts` in `browser/driver_install.rs`, `download_server_from`
+in `cli/scripts/sb_grid.rs`), and the public function calls it with the published ones, so the
+public API is the same. The tests that do reach the internet (`sbrs install` and
+`sbrs download server` run as the real binary, the Edge and Firefox driver tests) stay `#[ignore]`d.
+
+## Checks for a release
+
+Three more checks are not part of every change, but each one finds what the steps above
+cannot. They are cargo subcommands, installed once with
+`cargo binstall cargo-semver-checks cargo-hack cargo-shear` (or `cargo install --locked`), and each
+has a `just` recipe:
+
+| Recipe | Tool | What it finds |
+|---|---|---|
+| `just semver [TAG]` | [cargo-semver-checks](https://github.com/obi1kenobi/cargo-semver-checks) | A change to the public API of the library that needs a bigger version number than `Cargo.toml` has, measured against a release. The crate is not on crates.io, so the baseline is a git tag of this repository (`--baseline-rev`), the newest one by default. It builds the rustdoc JSON of both versions with the gate's features, so it takes about twenty minutes the first time. |
+| `just features` | [cargo-hack](https://github.com/taiki-e/cargo-hack) | A cargo feature of the library that does not compile alone: `cargo hack clippy --each-feature -- -D warnings`, about thirty runs. `just features --partition 1/6` runs a sixth of them, and `--all-targets` adds the tests. `tokio-console` is left out, because it needs `RUSTFLAGS="--cfg tokio_unstable"`. |
+| `just unused-deps` | [cargo-shear](https://github.com/Boshen/cargo-shear) | A dependency that no code uses. One kept on purpose is named in `[package.metadata.cargo-shear] ignored = [..]` of its manifest, with the reason beside it. |
+
+`just contracts --check-build` is the fourth, for the repositories that build on this crate (see
+[Consumer contracts](/contributing/consumers)). `just semver` and `just contracts --check-build` are
+the two to run before a tag.
+
+
 ## Tests that need a real Chrome
 
 <Badge color="orange" icon="globe">Needs Chrome</Badge>
@@ -654,6 +683,13 @@ mise run chrome
 ```
 
 </CodeGroup>
+
+- Every one of these tests carries `#[serial_test::serial(chrome)]` (the
+  [serial_test](https://docs.rs/serial_test) crate), so a test binary never runs two browsers at
+  once, whatever `--test-threads` says; `-- --test-threads=1` stays valid. The tests that set or
+  read `SB_*` variables of the process (`SB_REPORT_ROOT`, `SB_DASHBOARD`) are in the group `env`,
+  also when no browser is involved, because the environment is shared by every thread. A new test
+  of either kind gets the attribute under `#[ignore]` (or under `#[tokio::test]`).
 
 - `.config/nextest.toml` puts these binaries in a `chrome` test group with one
   thread, and reports a test as slow after 60 seconds (it is ended after three
