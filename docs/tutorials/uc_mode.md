@@ -1,5 +1,5 @@
 ---
-title: "Undetected (UC) Mode Guide"
+title: "Undetected (UC) Mode"
 sidebarTitle: "UC mode"
 ---
 
@@ -8,29 +8,70 @@ automated browsers. It combines Chromium launch flags, JavaScript evasions,
 and optional binary patching to make the browser look more like a regular user
 session.
 
-This page explains how to enable UC mode, what it does automatically, and how to
-layer additional evasions when a site is still detecting you.
+UC mode drives Chrome through <Tooltip tip="Chrome DevTools Protocol: the protocol DevTools uses to control Chrome.">CDP</Tooltip>.
+It needs Chrome, Chromium or Edge. With Firefox, `BaseCase::new` returns an
+`InvalidConfig` error. It does not patch the chromedriver binary for you.
 
 <Info>
 
 **What you will learn**
 
-- How to enable UC mode with `BrowserConfig`.
-- Which automation markers are masked automatically.
-- How to spoof timezone, geolocation, user agent, and locale.
-- How to patch `chromedriver` and add engine spoofing arguments.
+- What UC mode changes, and when to turn it on.
+- Every option: the command-line flags, the `BrowserConfig` methods, and the `uc_*` calls.
+- How to patch `chromedriver`, add engine spoofing arguments, and open a Cloudflare interstitial.
 
 </Info>
 
 <Visibility for="agents">
 
-Summary for AI exports: set `BrowserConfig::default().with_mode(DriverMode::Uc)` (or run `sbrs --uc ...`) with a Chromium-based browser. UC mode starts Chrome with the undetected-Chrome launch arguments, leaves out the `enable-automation` switch and injects a stealth script into every new document. It does not patch chromedriver: use `ChromedriverPatcher` or `sbrs patch-chromedriver`. For a site that still detects you, combine the patched driver, `engine_spoofing_args()`, a coherent `Fingerprint`, a headed run, `native_spoofing` and the pure CDP engine.
+Summary for AI exports: set `BrowserConfig::default().with_mode(DriverMode::Uc)` or run `sbrs --uc` before the subcommand (`--undetected` and `--undetectable` are the same flag; `SB_MODE=uc`). It needs Chrome, Chromium or Edge, and it cannot be combined with `--cdp`. UC mode starts Chrome with the undetected-Chrome launch arguments, leaves out the `enable-automation` switch and injects a stealth script into every new document. It does not patch chromedriver: use `ChromedriverPatcher`, `patch_chromedriver`, or `sbrs patch-chromedriver --path`. Log DevTools events in this mode with `--uc-cdp-events` (`--uc-cdp`, `SB_UC_CDP_EVENTS`). Clicks and typing with human timing are `uc_click` / `uc_type` and `sbrs uc-click` / `sbrs uc-type`. A fresh session is `reconnect`, `uc_open_with_reconnect` or `uc_open_with_disconnect`. For a site that still detects you, combine the patched driver, `engine_spoofing_args()`, a coherent `Fingerprint`, a headed run (`with_headless(false)` or `--headed`), `FingerprintBuilder::native_spoofing(true)`, an egress IP that matches the spoofed place, and the pure CDP engine.
 
 </Visibility>
 
-## Enable UC mode
+## When to use UC mode
 
-Set the driver mode to `Uc` in `BrowserConfig`:
+Use UC mode when:
+
+- A site blocks normal WebDriver traffic.
+- You need to open a page that stands behind a Cloudflare-like interstitial.
+- You want the browser fingerprint closer to a regular session.
+
+<Warning>
+
+Avoid UC mode when you do not need anti-detection. The extra flags and patches
+make debugging harder and can conflict with some CI environments.
+
+</Warning>
+
+## Options
+
+`--uc` is a global flag: it goes before the subcommand. `--cdp` and `--uc`
+cannot be combined.
+
+| Option | Where | What it does |
+| --- | --- | --- |
+| `BrowserConfig::with_mode(DriverMode::Uc)` | Rust | Turns UC mode on for that session. |
+| `--uc`, `--undetected`, `--undetectable` | command line, before the subcommand | Same mode. The environment variable is `SB_MODE=uc`. |
+| `--uc-cdp-events`, `--uc-cdp` | command line | Logs the DevTools events while UC mode is on. `SB_UC_CDP_EVENTS`. `true` or `false`. |
+| `with_headless(false)`, `--headed`, `--gui` | Rust, command line | A visible window. `BrowserConfig::default()` is headless. `--headed` sets `SB_HEADLESS=false`. |
+| `--headless`, `--headless2` | command line | Headless (`SB_HEADLESS`). A headless session uses `--headless=new`. |
+| `with_user_agent`, `--user-agent`, `--agent`, `-a` | Rust, command line | The user-agent string (`SB_USER_AGENT`). |
+| `with_locale`, `--locale` | Rust, command line | The browser locale (`SB_LOCALE`). |
+| `set_timezone`, `set_geolocation` | `BaseCase` | Timezone and geolocation through CDP. They work in `Cdp` and `Uc` mode. In plain WebDriver mode they return an "Enable mode cdp or uc" error. |
+| `uc_click`, `sbrs uc-click --css` | Rust, command line | A click with human-like timing. Alias of `human_click`. |
+| `uc_type`, `sbrs uc-type --css --text` | Rust, command line | Typing with human-like timing. Alias of `human_type`. |
+| `reconnect` | `BaseCase` | Closes the WebDriver session and connects a new one with the same config. A driver you started yourself keeps running; the auto-started driver is a new chromedriver. |
+| `uc_open_with_reconnect(url)` | `BaseCase` | `reconnect`, then opens `url`. |
+| `uc_open_with_disconnect(url)` | `BaseCase` | Quits the session, connects a new one with the same config, then opens `url`. |
+| `is_uc_mode_active` | `BaseCase` | `true` when the session was started in `DriverMode::Uc`. |
+| `sbrs patch-chromedriver --path`, `ChromedriverPatcher`, `patch_chromedriver` | command line, Rust | Strips the markers a stock chromedriver injects. UC mode does not do this itself. The auto-started driver is `downloaded_drivers/chromedriver`. |
+| `engine_spoofing_args` then `with_extra_args` | Rust | Extra Chromium flags, including `--disable-blink-features=AutomationControlled`. |
+| `FingerprintBuilder::native_spoofing(true)` | Rust | Delivers fingerprint claims through CDP and launch arguments instead of JavaScript, where the browser can. |
+| `solve_captcha`, `solve_captcha_with` | `BaseCase` | Presses a Turnstile checkbox along a human pointer path. Not a puzzle solver. |
+| `sbrs --uc --url URL solve-captcha` | command line | The same press, then checks text and a cookie you name. |
+| `uc_gui_press_key`, `uc_gui_handle_captcha` | `BaseCase`, feature `gui` | Native key and mouse input. The captcha helper waits for `css` and clicks it. It does not check that the challenge passed. |
+
+## Enable UC mode
 
 <Tabs>
 
@@ -67,20 +108,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 sbrs --uc open URL
 ```
 
-On the command line, `--uc` selects UC mode (a global option, so
-it goes before the subcommand; `--cdp` and `--uc` cannot be combined).
+`--uc` goes before the subcommand. `sbrs --uc open https://example.com` opens
+that page. `sbrs --uc --headed` shows a window.
 
 </Tab>
 
 </Tabs>
-
-<Warning>
-
-UC mode drives Chrome through <Tooltip tip="Chrome DevTools Protocol: the protocol DevTools uses to control Chrome.">CDP</Tooltip>, so it needs a Chromium-based browser (Chrome,
-Chromium or Edge). With Firefox, `BaseCase::new` returns an
-`InvalidConfig` error.
-
-</Warning>
 
 ## What is patched automatically
 
@@ -146,9 +179,19 @@ let config = BrowserConfig::default()
 ### Human-like input and fresh sessions
 
 `uc_click(css)` and `uc_type(css, text)` are aliases for `human_click` and
-`human_type`, which move and type with human-like timing. `uc_open_with_reconnect(url)`
-reconnects the session and then opens the URL; `uc_open_with_disconnect(url)`
-quits the session, connects a new one with the same config, then opens the URL.
+`human_type`, which move and type with human-like timing. On the command line
+the same calls are `uc-click` and `uc-type`, and the page is the one `--url`
+opened:
+
+```bash
+sbrs --uc --url https://example.com uc-click --css a
+sbrs --uc --url https://example.com uc-type --css '#q' --text hello
+```
+
+`uc_open_with_reconnect(url)` reconnects the session and then opens the URL;
+`uc_open_with_disconnect(url)` quits the session, connects a new one with the
+same config, then opens the URL. There is no command-line equivalent of those
+two helpers.
 
 ### Reconnect for a fresh session
 
@@ -169,13 +212,23 @@ session.
 ## Patch the chromedriver binary
 
 Even in UC mode, a stock `chromedriver` may inject `cdc_` variables into every
-page. Patch the executable to strip those signatures:
+page. Patch the executable to strip those signatures. Check `needs_patch()`
+afterwards: it is `false` when the markers are gone.
+
+<Tabs>
+
+<Tab title="Command line" icon="terminal">
 
 ```bash
-cargo run --bin sbrs -- patch-chromedriver --path /path/to/chromedriver
+sbrs patch-chromedriver --path /path/to/chromedriver
 ```
 
-From code:
+The auto-started driver is `downloaded_drivers/chromedriver` (`sbrs install`
+puts it there), so that is the file to patch.
+
+</Tab>
+
+<Tab title="From Rust" icon="code">
 
 ```rust,no_run
 use seleniumbase_rs::{ChromedriverPatcher, EnginePatch};
@@ -189,9 +242,13 @@ fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 }
 ```
 
-The auto-started driver is `downloaded_drivers/chromedriver` (`sbrs install`
-puts it there), so that is the file to patch. See
-[Binary Patching](/tutorials/binary_patching) for backup, restore, and safety notes.
+`patch_chromedriver(path)` is the same patch in one call (`EnginePatch::all()`).
+
+</Tab>
+
+</Tabs>
+
+See [Binary Patching](/tutorials/binary_patching) for backup, restore, and safety notes.
 
 ## Engine spoofing arguments
 
@@ -208,6 +265,10 @@ let config = BrowserConfig::default()
 `engine_spoofing_args()` returns flags such as
 `--disable-blink-features=AutomationControlled` and disables background
 networking and default apps.
+
+`FingerprintBuilder::native_spoofing(true)` is separate: it delivers the
+fingerprint's claims through CDP and launch arguments instead of JavaScript,
+where the browser can, so a page finds no override to inspect.
 
 ## Cloudflare challenges
 
@@ -298,21 +359,7 @@ async fn demo(sb: &mut BaseCase) -> Result<(), SeleniumBaseError> {
 
 It fails with `SeleniumBaseError::Captcha`, saying what it saw, when the page
 could show a result and never did. It is not a solver of puzzles, and Cloudflare
-may follow with a harder challenge. [Testing pages with a
-CAPTCHA](/tutorials/captcha_testing) covers what it does and its limits;
-[How CAPTCHAs work](/concepts/captchas) explains why the page behind the
-challenge, not the click, decides the outcome, and how the solver is tested.
-
-#### Checking it on https://nowsecure.nl yourself
-
-nowsecure.nl is a public bot-detection test page behind Cloudflare. Whether the
-solver passes it is for you to check, on purpose; the library's own tests only
-use local imitation pages. The check passes when the site's own page loads, a
-Turnstile on the way is cleared and a `cf_clearance` cookie is held afterwards.
-
-<Tabs>
-
-<Tab title="Command line" icon="terminal">
+may follow with a harder challenge. From the command line:
 
 ```bash
 sbrs --uc --url https://nowsecure.nl solve-captcha --expect-text nowsecure --expect-cookie cf_clearance
@@ -321,9 +368,16 @@ sbrs --uc --url https://nowsecure.nl solve-captcha --expect-text nowsecure --exp
 It exits with status 0 when the text and the cookie are there, and with status 1
 and a message when they are not. Add `--headed` to watch a window.
 
-</Tab>
+[Testing pages with a CAPTCHA](/tutorials/captcha_testing) covers what it does and
+its limits; [How CAPTCHAs work](/concepts/captchas) explains why the page behind
+the challenge, not the click, decides the outcome, and how the solver is tested.
 
-<Tab title="Test" icon="vial">
+#### Checking it on https://nowsecure.nl yourself
+
+nowsecure.nl is a public bot-detection test page behind Cloudflare. Whether the
+solver passes it is for you to check, on purpose; the library's own tests only
+use local imitation pages. The check passes when the site's own page loads, a
+Turnstile on the way is cleared and a `cf_clearance` cookie is held afterwards.
 
 ```bash
 SB_LIVE_SITES=1 cargo test --test captcha_live_chrome -- --ignored --test-threads=1 --nocapture
@@ -335,16 +389,12 @@ the page title and the cookies it found. `SB_HEADED=1` shows a window,
 `SB_LIVE_URL` replaces the address and `SB_LIVE_MARKER` is a script expression
 that is true on the site's own page, if that page changes.
 
-</Tab>
-
-</Tabs>
-
 If a run fails, keep the printed lines: they are what to turn into a fixture in
 `tests/fixtures/captcha/` that reproduces the gap.
 
 ## Still detected?
 
-If a site still flags the browser, combine all layers:
+If a site still flags the browser, combine the layers:
 
 <Steps>
 
@@ -370,15 +420,21 @@ agent, platform, screen size, WebGL vendor, and geolocation.
 
 <Step title="Run headful" icon="window-maximize">
 
-Run headful (`with_headless(false)`). A headless session already uses
-`--headless=new`, not the legacy headless implementation.
+Run headful (`with_headless(false)` or `sbrs --headed`). A headless session
+already uses `--headless=new`, not the legacy headless implementation.
 
 </Step>
 
 <Step title="Enable native spoofing" icon="shield">
 
-Enable `native_spoofing` to move spoofing out of JavaScript and into CDP
-where possible.
+Call `FingerprintBuilder::native_spoofing(true)` so spoofing moves out of
+JavaScript and into CDP and launch arguments where the browser can.
+
+</Step>
+
+<Step title="Align the egress IP" icon="globe">
+
+Align the egress IP with the spoofed geolocation and timezone.
 
 </Step>
 
@@ -391,20 +447,43 @@ chromedriver at all.
 
 </Steps>
 
-## When to use UC mode
+## Troubleshooting
 
-Use UC mode when:
+<AccordionGroup>
 
-- A site blocks normal WebDriver traffic.
-- You need to interact with Cloudflare-like challenges.
-- You want the most human-like browser fingerprint possible.
+<Accordion title="navigator.webdriver is still true" icon="wrench">
 
-<Warning>
+**Likely cause:** chromedriver not patched.
 
-Avoid UC mode when you do not need anti-detection, because the extra flags and
-patches can make debugging harder and may conflict with some CI environments.
+**Fix:** Run `sbrs patch-chromedriver --path` and verify `needs_patch()`.
 
-</Warning>
+</Accordion>
+
+<Accordion title="Detection after patching" icon="flag">
+
+**Likely cause:** Missing engine args.
+
+**Fix:** Add `engine_spoofing_args()` to the launch flags.
+
+</Accordion>
+
+<Accordion title="Detection only in headless" icon="window-maximize">
+
+**Likely cause:** Headless artifacts.
+
+**Fix:** Run headful with `with_headless(false)` (or `sbrs --headed`).
+
+</Accordion>
+
+<Accordion title="Inconsistent signals" icon="fingerprint">
+
+**Likely cause:** Fingerprint values mismatch.
+
+**Fix:** Validate with `Fingerprint::validate()`.
+
+</Accordion>
+
+</AccordionGroup>
 
 ## Related reading
 

@@ -83,8 +83,10 @@ if (navigator.webdriver) signs.push("webdriver flag");            // true under 
 if (/HeadlessChrome/.test(navigator.userAgent)) signs.push("headless UA");
 if (navigator.plugins.length === 0) signs.push("no plugins");      // real Chrome lists PDF viewers
 if (!window.chrome) signs.push("no window.chrome");
-// chromedriver leaves global variables whose names start with cdc_
-if (Object.keys(window).some((k) => k.startsWith("cdc_"))) signs.push("chromedriver marker");
+// chromedriver leaves properties whose names look like cdc_<22 chars>_...
+if (Object.getOwnPropertyNames(window).some((k) => /^[a-z]{3}_[a-zA-Z0-9]{22}_/i.test(k))) {
+  signs.push("chromedriver marker");
+}
 ```
 
 `navigator.webdriver` is defined by the WebDriver standard: a browser under
@@ -92,8 +94,8 @@ automatic control must report `true`. The other lines look for things real
 Chrome has and a stripped-down automated one often lacks.
 
 seleniumbase-rs hides `navigator.webdriver`, replaces `HeadlessChrome` in the
-user agent (UC mode), fills `plugins` and `window.chrome`, and binary patching
-removes the `cdc_` markers.
+user agent (UC mode), and fills `window.chrome`. The `cdc_` properties are a
+separate story, below.
 
 </Tab>
 
@@ -142,6 +144,45 @@ classic tell. Each one is easy to fix; there are many of them.
 </Tab>
 
 </Tabs>
+
+## The `cdc_` variables
+
+Chromedriver injects a few properties onto `window` so its own page script can
+find the DOM helpers it installed. The names are not the word `cdc_` alone.
+In the driver binary they look like `window.cdc_<22 letters or digits>_<built-in>`,
+where the built-in is `Array`, `Promise`, `Symbol`, `Object`, `Proxy`, `JSON`
+or `Window`, and like a quoted `$cdc_<22 letters or digits>_` prefix
+(`src/evasion/patcher.rs`, `has_automation_markers` and
+`scrub_cdc_property_assignments`). A page that walks
+`Object.getOwnPropertyNames` and keeps names matching
+`/^[a-z]{3}_[a-zA-Z0-9]{22}_/i` is looking for those properties. They are not
+part of a normal Chrome, so their presence is a chromedriver tell.
+
+Python SeleniumBase describes the same idea in one line: UC Mode "modifies
+chromedriver to rename Chrome DevTools Console variables"
+([UC Mode](https://seleniumbase.io/help_docs/uc_mode/)). This crate does the
+work in two places, and they are not the same step.
+
+**In the binary, before the driver starts.** `ChromedriverPatcher::patch`
+rewrites the file. `EnginePatch::balanced` (and `all`) turn on
+`scrub_cdc_props` and `randomize_cdc_prefix`. Scrubbing replaces each
+`window.cdc_… = window.Array` assignment, and each `window.cdc_… ||` use, with
+spaces of the same length, so the file size does not change.
+`randomize_cdc_prefix` replaces each quoted `$cdc_…` string with a random
+lowercase id of a similar length. `EnginePatch::all` also turns on
+`replace_cdc_blocks`, which rewrites `{window.cdc…;}` blocks. UC mode does
+**not** run this patch for you. `sbrs patch-chromedriver`, or
+`patch_chromedriver`, does.
+
+**In the page, after a document exists.** `src/evasion/uc.rs` injects
+`UC_STEALTH_SCRIPT` with `Page.addScriptToEvaluateOnNewDocument`, so it runs
+before the page's own scripts. The first thing that script does is walk
+`window` and its prototypes and `delete` every property whose name matches
+`/^[a-z]{3}_[a-zA-Z0-9]{22}_.*/i`. `clear_cdc_properties` runs the shorter
+`CLEAR_CDC_SCRIPT` through `Runtime.evaluate` on the page that is already
+open. Deleting the property hides a marker the driver already injected. It
+does not change the driver, so the next document can receive the marker again
+unless the script runs there too, or the binary was patched.
 
 ## Headless tells
 
@@ -395,6 +436,47 @@ repository reproduce the same TLS and HTTP/2 fingerprint (see the
 
 </AccordionGroup>
 
+## The order stealth evasions apply
+
+A fingerprint has two parts (`src/evasion/policy.rs`). The settings are what
+the browser should claim (time zone, screen, user agent), one `Spoof` each.
+`StealthPolicy` is how those claims are delivered: canvas and audio noise,
+whether `Function.prototype.toString` is masked, whether `window.chrome` is
+stubbed, WebRTC, granted permissions. A policy preset does not change a
+setting.
+
+The page script is built by `EvasionRegistry::bootstrap`. Providers whose
+`applies` is true for that fingerprint are sorted by ascending `priority`
+(`ordered`; ties keep registration order). `builtin::all`
+(`src/evasion/providers/builtin.rs`) already registers them in that order, and
+a test checks the priorities never go backwards. The script is one function.
+Inside it, in that order:
+
+1. `native_tostring` installs the helpers that make a replacement look native.
+2. `webdriver`, then `cdp_marker` (the `cdc_` names).
+3. `chrome_runtime`, `navigator_props`, `permissions`.
+4. `plugins` (left out of a real Chrome session; see below).
+5. `window_geometry`, `webgl`, `canvas_noise`, `audio_noise`, `webrtc`.
+6. `battery`, then `connection` (also left out of a real Chrome session).
+7. `media_devices`, `fonts`, `speech`, `bluetooth`, `headless`.
+8. `prepare_stack_trace`, `client_hints`, `media_codecs`.
+9. `timezone`, `localization`, `geolocation`, `hairline`.
+10. `iframe` and `attach_shadow`, so the same masks hold in frames and closed shadow roots.
+11. `tracker_block`.
+
+`session_registry` is that list without `plugins` and `connection`
+(`SESSION_OMITTED_PROVIDERS`). Chrome already answers for plugins, mime types
+and `navigator.connection`, so a replaced getter would be something a real
+Chrome does not have. `default_registry` keeps them, for a browser that really
+lacks them.
+
+A provider that `applies` says does not fit this fingerprint is left out of
+the script. With native spoofing on, claims the browser can make itself
+(user agent, time zone, locale, geolocation, and the dimensions CDP can set)
+go out as DevTools commands and launch arguments, and the page script does not
+override those. The script still runs first in the document, via
+`Page.addScriptToEvaluateOnNewDocument`, before the page's own scripts.
+
 ## Keeping the answers consistent
 
 One `Fingerprint` describes the whole identity, and each setting is one `Spoof`:
@@ -431,10 +513,13 @@ tab's own session. See [Fingerprints](/tutorials/fingerprint_stealth) and
 ## What UC mode does
 
 UC mode (the name comes from "undetected chromedriver") is the WebDriver
-engine's way to avoid common bot checks. It sets the session up so that the
-usual WebDriver giveaways are not there: automation flags are left out, the
-Chrome and chromedriver binaries are patched so the `cdc_` markers are gone,
-and a headless browser's `HeadlessChrome` user agent is replaced. It is the
+engine's way to avoid common bot checks. It leaves automation switches out of
+the launch, injects `UC_STEALTH_SCRIPT` (`src/evasion/uc.rs`)
+so `cdc_` properties are deleted in each new document, and replaces a headless
+browser's `HeadlessChrome` user agent. Patching the chromedriver binary is a
+separate step: see [The `cdc_` variables](#the-cdc_-variables). Python's UC
+Mode docs describe that patch as renaming the DevTools console variables
+([UC Mode](https://seleniumbase.io/help_docs/uc_mode/)). It is the
 launch-level layer of the diagram above, applied to a `BaseCase` session. The
 details and the options are in the [UC mode guide](/tutorials/uc_mode); the
 pure CDP engine reaches the same goal with the fingerprint and launch options

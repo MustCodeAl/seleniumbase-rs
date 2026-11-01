@@ -102,6 +102,7 @@ pub fn perform(job: &Job<'_>, client: Client, task: &Task<'_>) -> ClientReport {
         Kind::Json => json_client(job, client, &path, task, &mut report),
         Kind::ClaudeCli => claude_code(job, &path, task, &mut report),
         Kind::Codex => codex(job, &path, task, &mut report),
+        Kind::Toml => write_toml(job, &path, task, &mut report),
     }
     report
 }
@@ -342,6 +343,31 @@ fn claude_code(job: &Job<'_>, path: &Path, task: &Task<'_>, report: &mut ClientR
     drive(job, report, steps, "claude", found.is_some());
 }
 
+/// Writes `[mcp_servers.NAME]` tables into `path`.
+///
+/// Grok Build's config is this format
+/// (<https://docs.x.ai/build/features/mcp-servers>), and so is Codex's when
+/// `codex mcp` is not available.
+fn write_toml(job: &Job<'_>, path: &Path, task: &Task<'_>, report: &mut ClientReport) {
+    let ops: Vec<tomlfile::Op<'_>> = match *task {
+        Task::Install { entries, force } => entries
+            .iter()
+            .map(|entry| tomlfile::Op::Upsert { entry, force })
+            .collect(),
+        Task::Uninstall { names } => names
+            .iter()
+            .map(|name| tomlfile::Op::Remove { name })
+            .collect(),
+    };
+    match tomlfile::apply(path, &ops, job.dry_run) {
+        Ok(applied) => {
+            report.entries = applied.reports;
+            report.preview = applied.preview;
+        }
+        Err(problem) => report.problem = Some(problem),
+    }
+}
+
 /// Codex: `codex mcp add` and `codex mcp remove` when the installed `codex` has them,
 /// otherwise the `[mcp_servers.NAME]` tables of `config.toml`.
 fn codex(job: &Job<'_>, path: &Path, task: &Task<'_>, report: &mut ClientReport) {
@@ -350,23 +376,7 @@ fn codex(job: &Job<'_>, path: &Path, task: &Task<'_>, report: &mut ClientReport)
         .find_program("codex")
         .filter(|program| codex_has_mcp_commands(program));
     let Some(program) = found else {
-        let ops: Vec<tomlfile::Op<'_>> = match *task {
-            Task::Install { entries, force } => entries
-                .iter()
-                .map(|entry| tomlfile::Op::Upsert { entry, force })
-                .collect(),
-            Task::Uninstall { names } => names
-                .iter()
-                .map(|name| tomlfile::Op::Remove { name })
-                .collect(),
-        };
-        match tomlfile::apply(path, &ops, job.dry_run) {
-            Ok(applied) => {
-                report.entries = applied.reports;
-                report.preview = applied.preview;
-            }
-            Err(problem) => report.problem = Some(problem),
-        }
+        write_toml(job, path, task, report);
         return;
     };
     let existing = match tomlfile::read_existing(path) {

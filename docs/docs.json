@@ -34,6 +34,11 @@
   },
   "redirects": [
     {
+      "source": "/help/uc_mode",
+      "destination": "/tutorials/uc_mode",
+      "permanent": true
+    },
+    {
       "source": "/imports",
       "destination": "/tutorials/getting_started#imports-and-dependencies",
       "permanent": true
@@ -256,7 +261,6 @@
             "icon": "mask",
             "pages": [
               "tutorials/uc_mode",
-              "help/uc_mode",
               "tutorials/fingerprint_stealth",
               "tutorials/binary_patching"
             ]
@@ -451,7 +455,15 @@
                   {
                     "group": "Stealth API: scrape",
                     "pages": [
-                      "stealth/api/scrape"
+                      "stealth/api/scrape",
+                      "stealth/api/scrape-browser-scraper",
+                      "stealth/api/scrape-challenge",
+                      "stealth/api/scrape-egress",
+                      "stealth/api/scrape-jar",
+                      "stealth/api/scrape-passport",
+                      "stealth/api/scrape-ledger",
+                      "stealth/api/scrape-runtime",
+                      "stealth/api/scrape-error"
                     ]
                   }
                 ]
@@ -464,7 +476,14 @@
                   {
                     "group": "Stealth API: mimic",
                     "pages": [
-                      "stealth/api/mimic"
+                      "stealth/api/mimic",
+                      "stealth/api/mimic-client",
+                      "stealth/api/mimic-convert",
+                      "stealth/api/mimic-http-session",
+                      "stealth/api/mimic-mitm",
+                      "stealth/api/mimic-tls-server",
+                      "stealth/api/mimic-stealth-session",
+                      "stealth/api/mimic-capture-h2"
                     ]
                   }
                 ]
@@ -527,6 +546,7 @@
                         "pages": [
                           "concepts/webdriver",
                           "concepts/cdp",
+                          "concepts/devtools-protocol",
                           "concepts/mcp",
                           "concepts/detection",
                           "concepts/captchas",
