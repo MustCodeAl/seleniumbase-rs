@@ -21,6 +21,7 @@ const PAGE: &str =
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_batch_over_http_clicks_a_button_by_its_ref_in_one_session() {
     let server = Server::start(&["--server", "cdp", "--listen", "127.0.0.1:0"], &[]).await;
     let calls = [

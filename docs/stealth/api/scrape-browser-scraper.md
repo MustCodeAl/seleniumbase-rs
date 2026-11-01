@@ -72,7 +72,7 @@ A page fetched through a real browser.
 pub struct BrowserScraper
 ```
 
-A scraper that drives one real browser. See the [module documentation](self).
+A scraper that drives one real browser. See the [module documentation](/stealth/api/scrape).
 
 ### `BrowserScraper` methods
 
@@ -104,7 +104,7 @@ pub async fn load_session(&self, name: &str) -> Result<bool, ScrapeError>
 - `fingerprint`: The fingerprint the browser presents.
 - `seed`: The noise seed of the profile in use.
 - `egress`: The egress the browser leaves through; `None` for the direct connection.
-- `sessions`: The sessions saved with [`save_session`](Self::save_session).
+- `sessions`: The sessions saved with `save_session`.
 - `close`: Closes the browser. A scraper that is dropped instead leaves the browser to its own drop.
 - `fetch`: Fetches `url` through the browser, solving challenges on the way.
 - `solve_challenge`: Reads the page now open, solves the challenge on it if there is one, and waits for the browser to show the clearance. Returns what the page is afterwards.
@@ -112,7 +112,7 @@ pub async fn load_session(&self, name: &str) -> Result<bool, ScrapeError>
 - `rotate_profile`: Presents a new browser profile.
 - `export_identity`: Takes the identity out of the scraper: the fingerprint, the cookies the browser holds, the clearances among them, and the egress they were earned through.
 - `import_identity`: Puts an identity into the scraper: the browser is started again with its fingerprint when it differs from the one in use, and its cookies are set.
-- `save_session`: Saves the cookies of the browser context and the local storage of the page's origin in the scraper's [`SessionStore`](seleniumbase_rs::sb_cdp::SessionStore) as `name`, the way a pool lease saves its login.
+- `save_session`: Saves the cookies of the browser context and the local storage of the page's origin in the scraper's `SessionStore` as `name`, the way a pool lease saves its login.
 - `load_session`: Loads the session saved as `name` into the browser context. Returns `false`, changing nothing, when there is no such session.
 
 ## `runtime::browser_scraper::builder`
@@ -159,7 +159,7 @@ pub async fn build(self) -> Result<BrowserScraper, ScrapeError>
 - `with_geo_proxies`: Adds proxies, each with the country it exits in. The country decides the language and the time zone the browser presents while it leaves through that proxy.
 - `proxy_strategy`: How the pool picks an egress when one is needed: at the start and at each rotation.
 - `with_max_challenge_attempts`: How many loads of one URL a fetch may make before it gives up. Zero is read as one.
-- `mitigation`: The whole mitigation policy: when to rotate, how long to cool down. The attempts set by [`with_max_challenge_attempts`](Self::with_max_challenge_attempts) still apply on top.
+- `mitigation`: The whole mitigation policy: when to rotate, how long to cool down. The attempts set by `with_max_challenge_attempts` still apply on top.
 - `with_state_store`: Where what is learned about each site is kept between fetches.
 - `with_event_sink`: Where the scraper reports what it does.
 - `geo_resolver`: How the country, time zone and language of an egress are found.
@@ -168,7 +168,7 @@ pub async fn build(self) -> Result<BrowserScraper, ScrapeError>
 - `fingerprint`: The first profile itself, instead of one drawn from the seed. A rotation replaces it with a generated profile of the same operating system.
 - `egress_switch`: How the egress is changed. The default opens a browser context behind the new proxy.
 - `launcher`: How a browser is started. The default starts Chrome.
-- `session_store`: The store [`save_session`](BrowserScraper::save_session) writes to, to share logins with other scrapers or a [`BrowserPool`](seleniumbase_rs::sb_cdp::BrowserPool).
+- `session_store`: The store `save_session` writes to, to share logins with other scrapers or a `BrowserPool`.
 - `solve_timeout`: How long a solved challenge is waited for. The default is [`DEFAULT_SOLVE_TIMEOUT`].
 - `clock`: The clock the scraper reads. The default is the system clock.
 - `build`: Starts the browser and returns the scraper.
@@ -183,7 +183,7 @@ pub async fn build(self) -> Result<BrowserScraper, ScrapeError>
 pub trait BrowserLauncher
 ```
 
-Starts a browser for a [`BrowserScraper`](super::BrowserScraper).
+Starts a browser for a `BrowserScraper`.
 
 ### `BrowserLauncher` methods
 

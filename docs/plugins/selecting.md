@@ -266,7 +266,10 @@ resume_file = ...` (which add `host.fs.*` for that file) in the folder's file
 also need the plugin named by you:
 
 ```text
-error: invalid configuration: plugin `tunnel` asks for launch.proxy, which the settings file in the current folder cannot grant by itself: a project you clone would decide. Name the plugin yourself, with `--plugin tunnel` or `SB_PLUGINS=tunnel`
+sbrs::invalid_config
+
+  x invalid configuration: plugin `tunnel` asks for launch.proxy, which the settings file in the current folder cannot grant by itself: a project you clone would decide. Name the plugin yourself, with `--plugin tunnel` or `SB_PLUGINS=tunnel`
+  help: Review the configuration values passed to the builder, the command line or the environment; `sbrs doctor` checks the browser setup.
 ```
 
 `--plugin NAME`, `SB_PLUGINS` and a file named with `--config` count as the
@@ -350,7 +353,10 @@ An unknown name exits with status 2 and lists the ones the build has:
 
 ```text
 $ sbrs plugin info sheild
-error: invalid configuration: no plugin named `sheild` (known: shield, block-resources, crx, fetcher, extractor, batcher, crawler, browser, imap, tor); `sbrs plugin list` shows them
+sbrs::invalid_config
+
+  x invalid configuration: no plugin named `sheild` (known: shield, block-resources, crx, fetcher, extractor, batcher, crawler, browser, imap, tor); `sbrs plugin list` shows them
+  help: Review the configuration values passed to the builder, the command line or the environment; `sbrs doctor` checks the browser setup.
 ```
 
 ### sbrs-mcp

@@ -254,7 +254,7 @@ async fn eventually(what: &str, mut condition: impl FnMut() -> bool) {
 // The handshake and the tools
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_dev_server_answers_the_handshake_and_lists_its_tools_over_http() {
     let mut server = Running::dev(loopback_any_port()).await;
     assert!(
@@ -287,7 +287,7 @@ async fn a_dev_server_answers_the_handshake_and_lists_its_tools_over_http() {
     assert!(server.stop().await.is_ok());
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_endpoint_is_only_at_its_path() {
     let server = Running::dev(loopback_any_port().with_path("/sbrs/mcp")).await;
     assert!(server.url.ends_with("/sbrs/mcp"), "{}", server.url);
@@ -307,7 +307,7 @@ async fn the_endpoint_is_only_at_its_path() {
 // Who may talk to it
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_missing_or_wrong_token_is_401_and_the_right_one_works() {
     let server = Running::dev(loopback_any_port().with_token(TOKEN)).await;
     let ping = json!({ "jsonrpc": "2.0", "id": 1, "method": "ping" });
@@ -336,7 +336,7 @@ async fn a_missing_or_wrong_token_is_401_and_the_right_one_works() {
     assert!(listed["result"]["tools"].is_array(), "{listed}");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_foreign_origin_is_403_even_with_the_token() {
     let server = Running::dev(loopback_any_port().with_token(TOKEN)).await;
     let client = Mcp::new(&server.url).with_token(TOKEN);
@@ -363,7 +363,7 @@ async fn a_foreign_origin_is_403_even_with_the_token() {
     assert_ne!(response.status(), StatusCode::FORBIDDEN);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn an_origin_the_operator_allowed_is_let_in() {
     let server =
         Running::dev(loopback_any_port().with_allow_origin("https://app.example.com")).await;
@@ -388,7 +388,7 @@ async fn an_origin_the_operator_allowed_is_let_in() {
     assert_eq!(other.status(), StatusCode::FORBIDDEN);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_host_header_that_is_not_loopback_is_403() {
     // DNS rebinding: the attacker's name resolves to 127.0.0.1, so the request
     // arrives on the right socket with the wrong `Host`.
@@ -423,7 +423,7 @@ async fn a_host_header_that_is_not_loopback_is_403() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn options_that_fail_validation_bind_nothing() {
     let error = HttpServer::bind(
         Profile::Dev,
@@ -436,7 +436,7 @@ async fn options_that_fail_validation_bind_nothing() {
     assert!(error.to_string().contains("without a token"), "{error}");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn an_address_that_is_taken_is_an_mcp_error() {
     let first = Running::dev(loopback_any_port()).await;
     let taken = format!("127.0.0.1:{}", first.port).parse().unwrap();
@@ -455,7 +455,7 @@ async fn an_address_that_is_taken_is_an_mcp_error() {
 // Sessions
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn an_initialize_over_the_session_cap_is_503_until_a_session_ends() {
     let server = Running::dev(loopback_any_port().with_max_sessions(2)).await;
     let mut first = Mcp::new(&server.url);
@@ -584,7 +584,7 @@ fn browser_of(result: &Value) -> u64 {
         .unwrap_or_else(|| panic!("no browser in {result}"))
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn every_session_has_its_own_browser_and_closes_it_when_it_ends() {
     let (mut server, closed) = stand_in_server().await;
     let mut a = Mcp::new(&server.url);
@@ -632,7 +632,7 @@ async fn every_session_has_its_own_browser_and_closes_it_when_it_ends() {
     assert_eq!(closed, vec![1, 2], "each browser was closed once");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn shutdown_closes_the_browser_of_every_live_session() {
     let (mut server, closed) = stand_in_server().await;
     let mut clients = Vec::new();
@@ -660,7 +660,7 @@ async fn shutdown_closes_the_browser_of_every_live_session() {
     drop(clients);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_session_that_stays_silent_is_ended_and_its_browser_closed() {
     let options = loopback_any_port().with_idle(Duration::from_millis(400));
     let (server, closed) = stand_in_server_with(options).await;
@@ -675,7 +675,7 @@ async fn a_session_that_stays_silent_is_ended_and_its_browser_closed() {
     .await;
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_client_of_a_protocol_without_sessions_gets_a_400_that_says_why() {
     let server = Running::dev(loopback_any_port()).await;
     let client = Mcp::new(&server.url);

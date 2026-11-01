@@ -37,7 +37,7 @@ fn only(mock: &MockCtrl, method: &str) -> Value {
     calls[0].params.clone()
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn starting_enables_the_fetch_domain_for_every_url() {
     let (page, mock) = page().await;
 
@@ -51,7 +51,7 @@ async fn starting_enables_the_fetch_domain_for_every_url() {
     );
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn a_blocked_request_is_failed_as_blocked_by_the_client() {
     let (page, mock) = page().await;
     let _i = page
@@ -68,7 +68,7 @@ async fn a_blocked_request_is_failed_as_blocked_by_the_client() {
     assert!(mock.calls_to("Fetch.continueRequest").is_empty());
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn a_fulfilled_request_gets_the_made_up_response() {
     let (page, mock) = page().await;
     let _i = page
@@ -89,7 +89,7 @@ async fn a_fulfilled_request_gets_the_made_up_response() {
     assert!(fulfilled["body"].as_str().is_some_and(|b| !b.is_empty()));
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn a_modified_request_continues_with_its_headers_changed() {
     let (page, mock) = page().await;
     let _i = page
@@ -117,7 +117,7 @@ async fn a_modified_request_continues_with_its_headers_changed() {
     assert!(!names.contains(&"Cookie".to_owned()));
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn a_request_no_rule_matches_continues_untouched() {
     let (page, mock) = page().await;
     let _i = page
@@ -132,7 +132,7 @@ async fn a_request_no_rule_matches_continues_untouched() {
     assert_eq!(sent, json!({ "requestId": "R4" }));
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn the_first_matching_rule_wins() {
     let (page, mock) = page().await;
     let _i = page
@@ -151,7 +151,7 @@ async fn the_first_matching_rule_wins() {
     assert_eq!(only(&mock, "Fetch.failRequest")["requestId"], "R6");
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn the_log_records_each_request_and_how_it_was_answered() {
     let (page, mock) = page().await;
     let interception = page
@@ -184,7 +184,7 @@ async fn the_log_records_each_request_and_how_it_was_answered() {
     assert_eq!(log[0].request.resource_type, ResourceType::Image);
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn requests_paused_for_another_tab_are_left_alone() {
     let (page, mock) = page().await;
     let _i = page.intercept(vec![Rule::block()]).await.unwrap();
@@ -202,7 +202,7 @@ async fn requests_paused_for_another_tab_are_left_alone() {
     );
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn one_failed_answer_does_not_stop_the_next_request_being_handled() {
     let (page, mock) = page().await;
     let interception = page.intercept(vec![Rule::block()]).await.unwrap();
@@ -222,7 +222,7 @@ async fn one_failed_answer_does_not_stop_the_next_request_being_handled() {
     assert_eq!(interception.log().len(), 2);
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn stopping_disables_fetch_and_later_requests_are_ignored() {
     let (page, mock) = page().await;
     let interception = page.intercept(vec![Rule::block()]).await.unwrap();
@@ -235,7 +235,7 @@ async fn stopping_disables_fetch_and_later_requests_are_ignored() {
     assert!(mock.calls_to("Fetch.failRequest").is_empty());
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn dropping_an_interception_also_disables_fetch() {
     let (page, mock) = page().await;
     {

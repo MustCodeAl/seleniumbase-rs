@@ -40,7 +40,7 @@ use std::path::Path;
 use std::str::FromStr;
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use turso::{Connection, Database};
 
 use super::db;
@@ -150,9 +150,9 @@ pub struct RunSummary {
     /// The environment it targeted.
     pub environment: String,
     /// When it started.
-    pub started_at: DateTime<Utc>,
+    pub started_at: Timestamp,
     /// When its latest result was recorded; `None` before the first one.
-    pub last_result_at: Option<DateTime<Utc>>,
+    pub last_result_at: Option<Timestamp>,
     /// Results that passed.
     pub passed: u32,
     /// Results that failed.
@@ -458,12 +458,12 @@ fn stored_status(passed: bool, message: &str) -> TestStatus {
 }
 
 fn now_ms() -> i64 {
-    Utc::now().timestamp_millis()
+    Timestamp::now().as_millisecond()
 }
 
-fn from_ms(ms: i64) -> Result<DateTime<Utc>> {
-    DateTime::from_timestamp_millis(ms)
-        .ok_or_else(|| SeleniumBaseError::Database(format!("{ms} is not a valid time")))
+fn from_ms(ms: i64) -> Result<Timestamp> {
+    Timestamp::from_millisecond(ms)
+        .map_err(|_| SeleniumBaseError::Database(format!("{ms} is not a valid time")))
 }
 
 fn saturating_i64(n: usize) -> i64 {
@@ -505,6 +505,22 @@ mod tests {
     }
 
     #[test]
+    fn a_stored_time_is_read_back_to_the_millisecond() {
+        let time = from_ms(1_700_000_000_123).unwrap();
+        assert_eq!(time.to_string(), "2023-11-14T22:13:20.123Z");
+        assert_eq!(time.as_millisecond(), 1_700_000_000_123);
+        assert!(now_ms() > 1_700_000_000_000);
+    }
+
+    #[test]
+    fn a_time_no_calendar_holds_is_a_database_error() {
+        let error = from_ms(i64::MAX).unwrap_err();
+        assert!(matches!(error, SeleniumBaseError::Database(_)), "{error:?}");
+        assert!(error.to_string().contains("is not a valid time"), "{error}");
+    }
+
+    #[test]
+
     fn an_outcome_becomes_a_pass_or_a_failure_with_the_error_as_message() {
         let ok: std::result::Result<(), String> = Ok(());
         let passed = outcome_to_result("a", Duration::from_millis(1500), &ok);

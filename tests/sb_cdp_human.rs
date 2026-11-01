@@ -76,7 +76,7 @@ fn seeded(seed: u64) -> Behavior {
     Behavior::builder().seed(seed).build().unwrap()
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn moving_the_pointer_sends_a_timed_curved_path_that_ends_on_the_target() {
     let (page, mock) = page_with_element().await;
     let person = page.human(Behavior::builder().overshoot(0.0).seed(3).build().unwrap());
@@ -111,7 +111,7 @@ async fn moving_the_pointer_sends_a_timed_curved_path_that_ends_on_the_target() 
     );
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn the_pointer_stays_where_it_was_left_between_movements() {
     let (page, mock) = page_with_element().await;
     let person = page.human(Behavior::builder().overshoot(0.0).seed(8).build().unwrap());
@@ -133,7 +133,7 @@ async fn the_pointer_stays_where_it_was_left_between_movements() {
     );
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn a_clone_shares_the_pointer_with_the_original() {
     let (page, mock) = page_with_element().await;
     let person = page.human(Behavior::builder().overshoot(0.0).seed(8).build().unwrap());
@@ -148,7 +148,7 @@ async fn a_clone_shares_the_pointer_with_the_original() {
     assert!((start.x - first.x).hypot(start.y - first.y) < 40.0);
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn clicks_land_inside_the_element_but_not_always_at_its_centre() {
     let mut presses = Vec::new();
     for seed in 0..20 {
@@ -185,7 +185,7 @@ async fn clicks_land_inside_the_element_but_not_always_at_its_centre() {
     assert_eq!(centred, 0, "no click should hit the exact centre");
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn a_click_holds_the_button_for_a_moment() {
     let (page, mock) = page_with_element().await;
     let person = page.human(seeded(1));
@@ -205,7 +205,7 @@ async fn a_click_holds_the_button_for_a_moment() {
     assert_eq!(events[pressed_at].params["button"], "left");
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn typing_sends_every_character_in_order_at_a_human_pace() {
     let (page, mock) = page_with_element().await;
     let person = page.human(seeded(2));
@@ -223,7 +223,7 @@ async fn typing_sends_every_character_in_order_at_a_human_pace() {
     );
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn a_faster_typist_finishes_sooner() {
     let text = "the same sentence for both typists";
     let mut times = Vec::new();
@@ -237,7 +237,7 @@ async fn a_faster_typist_finishes_sooner() {
     assert!(times[1] * 2 < times[0], "{times:?}");
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn typing_into_an_element_clicks_it_first() {
     let (page, mock) = page_with_element().await;
     let person = page.human(seeded(5));
@@ -262,7 +262,7 @@ async fn typing_into_an_element_clicks_it_first() {
     assert!(click_at < key_at, "the click comes before the first key");
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn typos_are_deleted_so_the_field_holds_the_intended_text() {
     let text = "The quick brown fox jumps over the lazy dog";
     let mut deletions = 0;
@@ -288,7 +288,7 @@ async fn typos_are_deleted_so_the_field_holds_the_intended_text() {
     );
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn newlines_and_tabs_press_their_keys() {
     let (page, mock) = page_with_element().await;
 
@@ -297,7 +297,7 @@ async fn newlines_and_tabs_press_their_keys() {
     assert_eq!(typed_result(&mock), "a\tb\nc");
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn scrolling_sends_wheel_notches_that_add_up_to_the_distance() {
     let (page, mock) = page_with_element().await;
     let person = page.human(seeded(7));
@@ -322,7 +322,7 @@ async fn scrolling_sends_wheel_notches_that_add_up_to_the_distance() {
     assert!(took.as_millis() >= 300, "{took:?}");
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn a_missing_element_is_reported_without_moving_the_pointer() {
     let (browser, mock) = Browser::new_mocked();
     mock.on("Runtime.evaluate", |params| {

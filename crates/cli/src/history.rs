@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 
+use jiff::Timestamp;
 use seleniumbase_rs::core::report_helper::TestResult;
 use seleniumbase_rs::storage::{FlakyTest, ResultStore, RunId, RunSummary};
 use serde_json::{json, Value};
@@ -67,13 +68,31 @@ fn pretty(value: &Value) -> String {
     serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string())
 }
 
+/// `time` as RFC 3339 in UTC, with the offset written `+00:00` and as many fractional digits as it
+/// needs, in groups of three: `2026-10-22T15:24:01+00:00`, `2026-10-22T15:24:01.123+00:00`.
+fn rfc3339_utc(time: Timestamp) -> String {
+    let nanos = time.subsec_nanosecond();
+    let (digits, divisor) = match nanos {
+        0 => (0, 1),
+        n if n % 1_000_000 == 0 => (3, 1_000_000),
+        n if n % 1_000 == 0 => (6, 1_000),
+        _ => (9, 1),
+    };
+    let fraction = if digits == 0 {
+        String::new()
+    } else {
+        format!(".{:0digits$}", nanos / divisor)
+    };
+    format!("{}{fraction}+00:00", time.strftime("%Y-%m-%dT%H:%M:%S"))
+}
+
 fn run_json(run: &RunSummary) -> Value {
     json!({
         "id": run.id.get(),
         "label": run.label,
         "environment": run.environment,
-        "started_at": run.started_at.to_rfc3339(),
-        "last_result_at": run.last_result_at.map(|t| t.to_rfc3339()),
+        "started_at": rfc3339_utc(run.started_at),
+        "last_result_at": run.last_result_at.map(rfc3339_utc),
         "passed": run.passed,
         "failed": run.failed,
     })
@@ -130,7 +149,7 @@ fn render_runs(runs: &[RunSummary]) -> String {
             run.id,
             run.label,
             run.environment,
-            run.started_at.format("%Y-%m-%d %H:%M:%S"),
+            run.started_at.strftime("%Y-%m-%d %H:%M:%S"),
             run.passed,
             run.failed,
         ));
@@ -305,6 +324,42 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn the_json_times_end_in_a_zero_offset_and_keep_the_milliseconds_they_have() {
+        let (store, first, _) = two_runs().await;
+        let summary = store.run(first).await.unwrap().unwrap();
+        let shape =
+            regex::Regex::new(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?\+00:00$").unwrap();
+
+        let value = run_json(&summary);
+
+        let started = value["started_at"].as_str().unwrap();
+        assert!(shape.is_match(started), "{started}");
+        let last = value["last_result_at"].as_str().unwrap();
+        assert!(shape.is_match(last), "{last}");
+    }
+
+    #[test]
+    fn a_time_is_written_the_way_chronos_to_rfc3339_wrote_it() {
+        let at = |ms: i64| Timestamp::from_millisecond(ms).unwrap();
+        // 2023-11-14T22:13:20Z.
+        assert_eq!(
+            rfc3339_utc(at(1_700_000_000_000)),
+            "2023-11-14T22:13:20+00:00"
+        );
+        assert_eq!(
+            rfc3339_utc(at(1_700_000_000_123)),
+            "2023-11-14T22:13:20.123+00:00"
+        );
+        assert_eq!(
+            rfc3339_utc(at(1_700_000_000_100)),
+            "2023-11-14T22:13:20.100+00:00"
+        );
+        let micros = Timestamp::from_microsecond(1_700_000_000_000_007).unwrap();
+        assert_eq!(rfc3339_utc(micros), "2023-11-14T22:13:20.000007+00:00");
+    }
+
+    #[tokio::test]
+
     async fn a_start_time_is_shown_in_utc_to_the_second() {
         let (store, _, _) = two_runs().await;
 

@@ -74,6 +74,7 @@ async fn js(sb: &BaseCase, script: &str) -> String {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_drag_by_an_offset_moves_the_element() {
     let mut sb = case(DRAG_PAGE).await;
 
@@ -88,6 +89,7 @@ async fn a_drag_by_an_offset_moves_the_element() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn the_nth_visible_element_counts_from_one() {
     let mut sb = case(NTH_PAGE).await;
 
@@ -117,6 +119,7 @@ async fn the_nth_visible_element_counts_from_one() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn an_arrow_key_goes_to_an_element_as_often_as_asked() {
     let mut sb = case(KEYS_PAGE).await;
 
@@ -147,6 +150,7 @@ async fn an_arrow_key_goes_to_an_element_as_often_as_asked() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_scroll_moves_a_percentage_of_the_window_height() {
     let mut sb = case(TALL_PAGE).await;
     let (_, height) = sb.get_window_size().await.unwrap();
@@ -171,6 +175,7 @@ async fn a_scroll_moves_a_percentage_of_the_window_height() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn the_hover_and_click_pair_takes_the_hover_and_the_click_selector() {
     let mut sb = case(HOVER_PAGE).await;
 
@@ -188,6 +193,7 @@ async fn the_hover_and_click_pair_takes_the_hover_and_the_click_selector() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn waiting_for_an_attribute_can_ask_for_its_value() {
     let mut sb = case(ATTRIBUTE_PAGE).await;
 
@@ -215,6 +221,7 @@ async fn waiting_for_an_attribute_can_ask_for_its_value() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_new_tab_stays_in_the_background_when_switch_to_is_false() {
     let mut sb = case(TALL_PAGE).await;
     let first = sb.get_current_window_handle().await.unwrap();
@@ -261,6 +268,7 @@ fn serve(heads: Arc<Mutex<Vec<String>>>) -> String {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_cookie_object_is_added_and_a_bad_one_is_refused() {
     let heads = Arc::new(Mutex::new(Vec::new()));
     let base = serve(heads);
@@ -291,6 +299,7 @@ async fn a_cookie_object_is_added_and_a_bad_one_is_refused() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn download_file_and_save_file_as_fetch_a_url_into_a_folder() {
     let heads = Arc::new(Mutex::new(Vec::new()));
     let base = serve(Arc::clone(&heads));

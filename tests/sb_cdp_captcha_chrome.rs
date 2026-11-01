@@ -88,42 +88,49 @@ async fn solves(path: &str) {
 
 #[tokio::test]
 #[ignore = "starts a headless Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_turnstile_in_a_cross_origin_frame_clears() {
     solves("/iframe").await;
 }
 
 #[tokio::test]
 #[ignore = "starts a headless Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_turnstile_inside_an_open_shadow_root_is_found_and_clears() {
     solves("/shadow").await;
 }
 
 #[tokio::test]
 #[ignore = "starts a headless Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_widget_that_appears_late_is_waited_for_and_clears() {
     solves("/late").await;
 }
 
 #[tokio::test]
 #[ignore = "starts a headless Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_widget_that_is_still_moving_is_pressed_where_it_ends_up() {
     solves("/moving").await;
 }
 
 #[tokio::test]
 #[ignore = "starts a headless Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_widget_that_needs_a_second_verified_check_clears() {
     solves("/iframe?widget=fail=1").await;
 }
 
 #[tokio::test]
 #[ignore = "starts a headless Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_widget_that_judges_the_pointer_path_clears_for_a_human_path() {
     solves("/human").await;
 }
 
 #[tokio::test]
 #[ignore = "starts a headless Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_press_lands_on_the_checkbox_at_the_left_edge_not_the_middle() {
     let site = Site::start();
     let (browser, page) = launch().await;
@@ -152,6 +159,7 @@ async fn the_press_lands_on_the_checkbox_at_the_left_edge_not_the_middle() {
 
 #[tokio::test]
 #[ignore = "starts a headless Chrome"]
+#[serial_test::serial(chrome)]
 async fn an_ordinary_form_checkbox_is_never_clicked() {
     let site = Site::start();
     let (browser, page) = launch().await;
@@ -183,6 +191,7 @@ async fn an_ordinary_form_checkbox_is_never_clicked() {
 
 #[tokio::test]
 #[ignore = "starts a headless Chrome"]
+#[serial_test::serial(chrome)]
 async fn an_interstitial_clears_to_the_real_page_with_a_clearance_cookie() {
     let site = Site::start();
     let (browser, page) = launch().await;
@@ -206,6 +215,7 @@ async fn an_interstitial_clears_to_the_real_page_with_a_clearance_cookie() {
 
 #[tokio::test]
 #[ignore = "starts a headless Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_report_says_what_showed_the_widget_cleared() {
     let site = Site::start();
     let (browser, page) = launch().await;
@@ -248,6 +258,7 @@ async fn the_report_says_what_showed_the_widget_cleared() {
 
 #[tokio::test]
 #[ignore = "starts a headless Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_widget_that_never_clears_fails_with_the_typed_error() {
     let site = Site::start();
     let (browser, page) = launch().await;
@@ -304,6 +315,7 @@ const MEASURED: [(&str, &str); 7] = [
 /// call returned (the time counted is from before the call).
 #[tokio::test]
 #[ignore = "measures, starts a headless Chrome; run with --nocapture"]
+#[serial_test::serial(chrome)]
 async fn measure_success_rate_and_time_over_the_fixtures() {
     const TRIALS: u32 = 5;
     let site = Site::start();

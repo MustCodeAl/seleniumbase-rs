@@ -91,6 +91,7 @@ fn macos_version() -> Option<String> {
 
 #[tokio::test]
 #[ignore = "needs a branded Google Chrome; run with --ignored --nocapture"]
+#[serial_test::serial(chrome)]
 async fn the_installed_chrome_reports_what_the_stealth_tables_claim() {
     let url = serve();
     let options = LaunchOptions::builder()

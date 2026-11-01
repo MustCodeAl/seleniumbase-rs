@@ -121,6 +121,7 @@ impl Lab {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn automation_is_not_announced() {
     let fingerprint = persona();
     let lab = lab(Some(&fingerprint)).await;
@@ -159,6 +160,7 @@ async fn automation_is_not_announced() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_runtime_domain_is_off_so_a_logged_error_is_never_read() {
     let fingerprint = persona();
     let lab = lab(Some(&fingerprint)).await;
@@ -186,6 +188,7 @@ async fn the_runtime_domain_is_off_so_a_logged_error_is_never_read() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn patched_getters_and_methods_print_native_code() {
     let fingerprint = persona();
     let lab = lab(Some(&fingerprint)).await;
@@ -246,6 +249,7 @@ async fn patched_getters_and_methods_print_native_code() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn webgl_and_canvas_agree_with_the_profile() {
     let fingerprint = persona();
     let lab = lab(Some(&fingerprint)).await;
@@ -308,6 +312,7 @@ async fn webgl_and_canvas_agree_with_the_profile() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn user_agent_data_exists_only_in_a_secure_context() {
     let fingerprint = persona();
     let hints = fingerprint
@@ -349,6 +354,7 @@ async fn user_agent_data_exists_only_in_a_secure_context() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_screen_is_the_profiles_and_the_viewport_is_the_windows() {
     let fingerprint = persona();
     let screen = fingerprint.screen().value().expect("a screen");
@@ -447,6 +453,7 @@ const BROWSER_OWNED_PROBE: &str = r##"(() => {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn plugins_mime_types_the_pdf_flag_and_connection_are_the_browsers_own() {
     let baseline = {
         let lab = lab(None).await;
@@ -514,6 +521,7 @@ fn only(name: &str) -> EvasionRegistry {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn every_session_provider_runs_in_chrome_without_throwing() {
     // A generated identity has audio noise; the media devices and the fonts
     // are values that turn their providers on.

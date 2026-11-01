@@ -16,6 +16,22 @@ const STABLE_LISTING: &str =
 const MILESTONE_LISTING: &str =
     "https://googlechromelabs.github.io/chrome-for-testing/latest-versions-per-milestone-with-downloads.json";
 
+/// The two listings the chromedriver download reads: the published ones are [`LISTINGS`], and the
+/// tests point them at a mock server.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Listings<'a> {
+    /// The newest stable build.
+    pub(crate) stable: &'a str,
+    /// The newest build of every milestone.
+    pub(crate) milestone: &'a str,
+}
+
+/// The listings Google publishes.
+pub(crate) const LISTINGS: Listings<'static> = Listings {
+    stable: STABLE_LISTING,
+    milestone: MILESTONE_LISTING,
+};
+
 /// Download and extract the latest stable chromedriver for the current platform.
 ///
 /// A chromedriver only drives the Chrome of its own major version, so prefer
@@ -37,21 +53,39 @@ pub async fn download_chrome_driver_for(major: Option<u32>) -> Result<PathBuf, S
     // Timeouts on connecting and on a stalled transfer, so a dead network
     // ends the download with an error instead of hanging it.
     let client = crate::browser::chrome_for_testing::http_client(None)?;
+    download_chrome_driver_from(
+        &client,
+        &LISTINGS,
+        platform,
+        major,
+        Path::new("downloaded_drivers"),
+    )
+    .await
+}
+
+/// [`download_chrome_driver_for`] with the listings, the platform and the folder given: the seam
+/// the tests point at a mock server.
+pub(crate) async fn download_chrome_driver_from(
+    client: &Client,
+    listings: &Listings<'_>,
+    platform: &str,
+    major: Option<u32>,
+    dest_dir: &Path,
+) -> Result<PathBuf, SeleniumBaseError> {
     let download_url = match major {
         None => {
-            let listing = fetch_version_info(&client, STABLE_LISTING).await?;
+            let listing = fetch_version_info(client, listings.stable).await?;
             chromedriver_download_url(&listing, platform)?
         }
         Some(major) => {
-            let listing = fetch_version_info(&client, MILESTONE_LISTING).await?;
+            let listing = fetch_version_info(client, listings.milestone).await?;
             chromedriver_milestone_url(&listing, major, platform)?
         }
     };
 
-    let dest_dir = PathBuf::from("downloaded_drivers");
-    fs::create_dir_all(&dest_dir).map_err(io_error)?;
+    fs::create_dir_all(dest_dir).map_err(io_error)?;
 
-    let dest_path = extract_chromedriver(&client, &download_url, &dest_dir).await?;
+    let dest_path = extract_chromedriver(client, &download_url, dest_dir).await?;
     // Executable, and free of the macOS quarantine flag if the archive had one.
     make_runnable(&dest_path, false)?;
     Ok(dest_path)
@@ -215,6 +249,250 @@ fn map_network_error(url: impl Into<String>, response: reqwest::Response) -> Sel
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ---- the download itself, against a mock of Google's listings and storage -------------------
+    // (the real network is never reached; the platform is named, so the machine does not matter)
+
+    use std::io::Write as _;
+
+    use httpmock::prelude::*;
+
+    use crate::browser::chrome_for_testing::http_client;
+
+    /// A zip archive that holds these files.
+    fn zip_of(entries: &[(&str, &[u8])]) -> Vec<u8> {
+        let mut writer = zip::ZipWriter::new(Cursor::new(Vec::new()));
+        for (name, data) in entries {
+            writer
+                .start_file(*name, zip::write::SimpleFileOptions::default())
+                .unwrap();
+            writer.write_all(data).unwrap();
+        }
+        writer.finish().unwrap().into_inner()
+    }
+
+    /// The archive Chrome for Testing serves: the driver in a folder of its own.
+    fn driver_archive() -> Vec<u8> {
+        zip_of(&[
+            ("chromedriver-linux64/LICENSE.chromedriver", b"license"),
+            ("chromedriver-linux64/chromedriver", b"#!/bin/sh\n"),
+        ])
+    }
+
+    /// The listing of the newest stable build, naming `download` as the Linux driver.
+    fn stable_listing(download: &str) -> serde_json::Value {
+        serde_json::json!({
+            "channels": { "Stable": { "version": "155.0.1.1", "downloads": {
+                "chromedriver": [{ "platform": "linux64", "url": download }]
+            } } }
+        })
+    }
+
+    /// The listing of the newest build of every milestone, naming `download` for Chrome 155.
+    fn milestone_listing(download: &str) -> serde_json::Value {
+        serde_json::json!({
+            "milestones": { "155": { "version": "155.0.8059.39", "downloads": {
+                "chromedriver": [{ "platform": "linux64", "url": download }]
+            } } }
+        })
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn the_stable_driver_is_downloaded_unpacked_and_made_runnable() {
+        let server = MockServer::start_async().await;
+        let download = server.url("/driver.zip");
+        let listing = server
+            .mock_async(|when, then| {
+                when.method(GET).path("/stable.json");
+                then.status(200).json_body(stable_listing(&download));
+            })
+            .await;
+        let archive = server
+            .mock_async(|when, then| {
+                when.method(GET).path("/driver.zip");
+                then.status(200).body(driver_archive());
+            })
+            .await;
+        let (stable, milestone) = (server.url("/stable.json"), server.url("/milestones.json"));
+        let dest = tempfile::tempdir().unwrap();
+
+        let path = download_chrome_driver_from(
+            &http_client(None).unwrap(),
+            &Listings {
+                stable: &stable,
+                milestone: &milestone,
+            },
+            "linux64",
+            None,
+            dest.path(),
+        )
+        .await
+        .unwrap();
+
+        listing.assert_async().await;
+        archive.assert_async().await;
+        assert_eq!(path, dest.path().join("chromedriver"));
+        assert_eq!(std::fs::read(&path).unwrap(), b"#!/bin/sh\n");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = std::fs::metadata(&path).unwrap().permissions().mode();
+            assert_ne!(mode & 0o100, 0, "the owner can run it: {mode:o}");
+        }
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn the_driver_of_a_chrome_milestone_comes_from_the_milestone_listing() {
+        let server = MockServer::start_async().await;
+        let download = server.url("/driver-155.zip");
+        let listing = server
+            .mock_async(|when, then| {
+                when.method(GET).path("/milestones.json");
+                then.status(200).json_body(milestone_listing(&download));
+            })
+            .await;
+        let archive = server
+            .mock_async(|when, then| {
+                when.method(GET).path("/driver-155.zip");
+                then.status(200).body(driver_archive());
+            })
+            .await;
+        let (stable, milestone) = (server.url("/stable.json"), server.url("/milestones.json"));
+        let dest = tempfile::tempdir().unwrap();
+
+        // Nothing is mocked at `/stable.json`: asking for it would be a 404 and an error.
+        let path = download_chrome_driver_from(
+            &http_client(None).unwrap(),
+            &Listings {
+                stable: &stable,
+                milestone: &milestone,
+            },
+            "linux64",
+            Some(155),
+            dest.path(),
+        )
+        .await
+        .unwrap();
+
+        listing.assert_async().await;
+        archive.assert_async().await;
+        assert_eq!(path, dest.path().join("chromedriver"));
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn a_listing_the_server_refuses_is_an_error_that_names_it() {
+        let server = MockServer::start_async().await;
+        let listing = server
+            .mock_async(|when, then| {
+                when.method(GET).path("/stable.json");
+                then.status(503);
+            })
+            .await;
+        let (stable, milestone) = (server.url("/stable.json"), server.url("/milestones.json"));
+        let dest = tempfile::tempdir().unwrap();
+
+        let error = download_chrome_driver_from(
+            &http_client(None).unwrap(),
+            &Listings {
+                stable: &stable,
+                milestone: &milestone,
+            },
+            "linux64",
+            None,
+            dest.path(),
+        )
+        .await
+        .unwrap_err()
+        .to_string();
+
+        listing.assert_async().await;
+        assert!(
+            error.contains("/stable.json") && error.contains("503"),
+            "{error}"
+        );
+        assert!(
+            !dest.path().join("chromedriver").exists(),
+            "nothing is written when the listing fails"
+        );
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn an_archive_with_no_driver_in_it_is_an_error() {
+        let server = MockServer::start_async().await;
+        let download = server.url("/driver.zip");
+        server
+            .mock_async(|when, then| {
+                when.method(GET).path("/stable.json");
+                then.status(200).json_body(stable_listing(&download));
+            })
+            .await;
+        server
+            .mock_async(|when, then| {
+                when.method(GET).path("/driver.zip");
+                then.status(200).body(zip_of(&[(
+                    "chromedriver-linux64/LICENSE.chromedriver",
+                    b"x",
+                )]));
+            })
+            .await;
+        let (stable, milestone) = (server.url("/stable.json"), server.url("/milestones.json"));
+        let dest = tempfile::tempdir().unwrap();
+
+        let error = download_chrome_driver_from(
+            &http_client(None).unwrap(),
+            &Listings {
+                stable: &stable,
+                milestone: &milestone,
+            },
+            "linux64",
+            None,
+            dest.path(),
+        )
+        .await
+        .unwrap_err()
+        .to_string();
+
+        assert!(
+            error.contains("chromedriver executable not found in ZIP archive"),
+            "{error}"
+        );
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn a_download_that_is_not_a_zip_is_an_error_that_says_so() {
+        let server = MockServer::start_async().await;
+        let download = server.url("/driver.zip");
+        server
+            .mock_async(|when, then| {
+                when.method(GET).path("/stable.json");
+                then.status(200).json_body(stable_listing(&download));
+            })
+            .await;
+        server
+            .mock_async(|when, then| {
+                when.method(GET).path("/driver.zip");
+                then.status(200).body("<html>an error page</html>");
+            })
+            .await;
+        let (stable, milestone) = (server.url("/stable.json"), server.url("/milestones.json"));
+        let dest = tempfile::tempdir().unwrap();
+
+        let error = download_chrome_driver_from(
+            &http_client(None).unwrap(),
+            &Listings {
+                stable: &stable,
+                milestone: &milestone,
+            },
+            "linux64",
+            None,
+            dest.path(),
+        )
+        .await
+        .unwrap_err()
+        .to_string();
+
+        assert!(error.contains("failed to open ZIP archive"), "{error}");
+    }
 
     fn listing() -> serde_json::Value {
         serde_json::json!({

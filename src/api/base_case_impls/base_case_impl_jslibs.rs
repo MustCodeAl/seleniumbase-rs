@@ -463,6 +463,7 @@ mod tests_jslibs {
 
     #[tokio::test]
     #[ignore = "needs Chrome"]
+    #[serial_test::serial(chrome)]
     async fn a_resource_reports_when_it_has_loaded_and_when_it_has_not() {
         let base = serve(vec![
             ("/page", 200, String::new(), "<!doctype html><title>t</title>".to_owned()),
@@ -493,6 +494,7 @@ mod tests_jslibs {
 
     #[tokio::test]
     #[ignore = "needs Chrome"]
+    #[serial_test::serial(chrome)]
     async fn disabling_beforeunload_lets_the_page_navigate() {
         let other = serve(vec![("/", 200, String::new(), "<!doctype html><title>other</title>".to_owned())]);
         let base = serve(vec![(

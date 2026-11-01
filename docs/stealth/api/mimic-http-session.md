@@ -67,7 +67,7 @@ pub const MAX_PACED_SITES: usize = 4096;
 pub struct HttpSession
 ```
 
-Plain HTTP requests that continue a browser's session; see the [module](self) documentation.
+Plain HTTP requests that continue a browser's session; see the [module](/stealth/api/mimic) documentation.
 
 ### `HttpSession` methods
 
@@ -122,7 +122,7 @@ pub async fn sync_cookies_back(&self, page: &Page) -> Result<usize, HttpError>
 - `egress`: The exit the requests leave through; `None` for a direct connection. It carries no credentials.
 - `cookie_count`: How many cookies the jar holds.
 - `assess`: Judges a reply: detects a challenge, asks the mitigation policy what to do, and asks the session policy whether that changes the mode. Emits `ChallengeDetected` and `ActionChosen` events.
-- `fetch`: Fetches `url` with a `GET` and judges the reply; see [`assess`](Self::assess).
+- `fetch`: Fetches `url` with a `GET` and judges the reply; see `assess`.
 - `preflight`: Asks, before a request to `url`, whether the session should go to the browser first because the identity's clearance for the site is about to end, is missing and required, or the site's history says plain requests do not work.
 - `export_identity`: The identity `base` with the cookies of this session in it, and the clearances found in them. Emits `IdentityExported`.
 - `from_page`: Continues the session of `page` as plain HTTP.
@@ -184,7 +184,7 @@ pub enum HttpError {
 }
 ```
 
-Why an [`HttpSession`](super::HttpSession) could not be made or a request failed.
+Why an `HttpSession` could not be made or a request failed.
 
 ## `http_session::options`
 
@@ -234,7 +234,7 @@ pub fn validate(&self) -> Result<(), HttpError>
 - `trust`: The certificate roots the server must chain to, in place of the system roots, as a `wreq::tls::trust::CertStore`. Verification stays on: this is how a private root is trusted.
 - `resolve`: Resolves `host` to `addr` without asking DNS, as `curl --resolve` does. The TLS server name stays `host`.
 - `bypass`: A host that skips the proxy, in the notation of a `no_proxy` list (`example.com`, `.example.com`). Only the egress of a session uses it.
-- `browser_proxy_exits_directly`: Says that the browser-wide proxy of the page's browser (a MITM proxy without an egress, say) leaves directly, so that [`HttpSession::from_page`](super::HttpSession::from_page) may build a session without an egress for it. Off by default: a page does not show a browser-wide proxy, and a session that silently went direct would send the page's cookies from this machine's own address, so `from_page` refuses with [`HttpError::BrowserProxy`] unless it is given the egress the proxy really leaves through.
+- `browser_proxy_exits_directly`: Says that the browser-wide proxy of the page's browser (a MITM proxy without an egress, say) leaves directly, so that `HttpSession::from_page` may build a session without an egress for it. Off by default: a page does not show a browser-wide proxy, and a session that silently went direct would send the page's cookies from this machine's own address, so `from_page` refuses with [`HttpError::BrowserProxy`] unless it is given the egress the proxy really leaves through.
 - `installed_chrome_major`: The major version of the Chrome installed on this machine. A session refuses to start when it differs from the measured one: the measurement is stale.
 - `clock`: The source of the time. The default reads the system clock.
 - `validate`: Checks every limit against its documented range.
@@ -406,7 +406,7 @@ pub fn detect(&self) -> Detection
 pub struct HttpRequest<'a>
 ```
 
-A request being built; send it with [`send`](Self::send).
+A request being built; send it with `send`.
 
 ### `HttpRequest` methods
 

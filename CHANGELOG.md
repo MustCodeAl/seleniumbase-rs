@@ -14,6 +14,17 @@ work, `docs/parity.md` the per-API status).
   `base64_decode` and `unobfuscate` moved into `seleniumbase_rs::common::obfuscate`.
   The two modules imported each other. Import them from `common::obfuscate`.
 
+- **Breaking: times are `jiff`, not `chrono`.** chrono is soft-deprecated; the public items that
+  carried one now carry jiff's (`jiff = "0.2"`). `core::report_helper::RunSnapshot::started_at`
+  and `updated_at` are a `jiff::Zoned` (a `chrono::DateTime<Local>` before),
+  `core::log_helper::get_master_time` takes a `&jiff::Zoned` (it was generic over
+  `chrono::DateTime<Tz>`), and `storage::RunSummary::started_at` and `last_result_at` are a
+  `jiff::Timestamp` (a `DateTime<Utc>` before). Build them with `jiff::civil::date(..).at(..)
+  .to_zoned(TimeZone::system())` or `Zoned::now()`. Everything the crate writes keeps its shape,
+  byte for byte: the JUnit `timestamp`, the dashboard's `Last updated`, `run.json`, the HAR
+  `startedDateTime`, the info files of a failed test, the `captured_at` of a fingerprint, the log
+  clock, and `sbrs report history --json`.
+
 ### Added
 
 - `sbrs-mcp install`, `uninstall` and `clients` know Grok Build (`grok`). The
@@ -43,12 +54,63 @@ work, `docs/parity.md` the per-API status).
   chromedriver (and a patched UC variant) through mise.
 - `docs/contributing/manual-checks.md`: step-by-step checks for the IMAP and Tor
   plugins against real services and for Windows and Linux smoke tests.
+- **`mise run semver`, `mise run features`, `mise run unused-deps`** run cargo-semver-checks against the
+  newest git tag (the crate is not on crates.io), cargo-hack `clippy --each-feature` on the
+  library, and cargo-shear. They are described in the contributing guide, with the contract check
+  of `mise run contracts --check-build`, as the checks for a release.
 
 ### Changed
 
+- **`sbrs` and `sbrs-mcp` print the failure of a command as a [miette](https://docs.rs/miette)
+  diagnostic.** Where they printed `error: ...`, `caused by: ...` and `hint: ...` they now print
+  a code that names the kind of failure (`sbrs::element_not_found`, `sbrs::io`,
+  `sbrs_mcp::invalid_config`: the library error's category, or `sbrs::error` for any other
+  error), the message after a cross, the causes the message does not already say under it, and
+  the hint as a `help:` line. The exit status is unchanged: it still follows the error's
+  category. Colour and box-drawing characters appear only on a terminal that allows colour
+  (`NO_COLOR` and `TERM=dumb` turn them off, as before); a pipe or a file gets plain ASCII with
+  every line whole. A command line the parser refuses is as before: the page of the command,
+  then the `error:` line. The library's `rich_helper::format_error_report` is unchanged.
+
 - The UC mode guide is one page, `docs/tutorials/uc_mode.md`: what the mode is,
   when to use it, and every option. `/help/uc_mode` redirects there.
+- **Tests: the downloads run offline, failing tests print their `tracing` output, and tests that
+  share the process run one at a time.** The tests of the chromedriver, Chrome for Testing,
+  geckodriver, msedgedriver and Selenium Server jar downloads run against a local
+  [httpmock](https://docs.rs/httpmock) server (each download function has a crate-private variant
+  that takes the addresses; the public API is unchanged), and the tests that reach the internet
+  stay `#[ignore]`d. The tests of the downloads, the MCP servers and the pure CDP mock start with
+  `#[test_log::test]`. Every real-browser test is `#[serial(chrome)]` and the tests that set or
+  read `SB_REPORT_ROOT` are `#[serial(env)]` ([serial_test](https://docs.rs/serial_test)), so
+  none of them needs `--test-threads=1` any more.
+- **One task runner: mise replaces `just`.** The `justfile` is gone and every one of its recipes
+  is a task of `mise.toml` with the same name (`test-library`, `test-all`, `build`, `mdx`,
+  `layout-tree`, `serve-docs`, `completions`, `clean`, `release-check`, `parity-extract`,
+  `parity-seed`, `parity-check`, `parity-docs`, `contracts`, `contracts-sync`, `semver`,
+  `features` and `unused-deps`, next to the `fmt`, `lint`, `test`, `docs`, `smoke`, `gate`,
+  `chrome` and `deny` that were there). `mise run NAME` replaces `just NAME`; what follows the
+  name goes to the task (`mise run contracts --check-build`, `mise run features --partition 1/6`,
+  `mise run layout-tree --check`), `completions` takes the folder to write into, and
+  `parity-extract` the two checkouts. `mise tasks ls` lists them. `just` is no longer one of the
+  tools `mise install` sets up, and the contributor guides, the docs pages and the messages of the
+  tests say `mise run ...` where they said `just ...`. `lint` and `test` are the tasks `mise.toml`
+  already had (the features of the gate, not those of the old recipes), and `test-all`, `build`
+  and the Makefile no longer turn on the `playwright` feature, which the library does not have
+  (cargo refused the list).
 
+### Fixed
+
+- **`scripts/check-consumers.sh` (`mise run contracts`) runs from a git worktree and checks what it
+  says it checks.** It looked for the consumers' checkouts in the folder above the script, which in
+  `.claude/worktrees/NAME` is not where they are; it now asks git for the main checkout and looks
+  beside it (then beside the worktree). `--check-build` built each consumer at the tag or commit
+  its `Cargo.lock` pins (`patch ... was not used in the crate graph`: v0.5.0, v0.6.0), printed
+  `ok`, and left a `[[patch.unused]]` entry in the consumer's lockfile; it now runs
+  `cargo update -p seleniumbase-rs` with the patch first, fails when the patch is still unused,
+  and puts the consumer's `Cargo.lock` back as it was. `tests/contract_plugins.rs` lists what the
+  `wait_for_email` tool uses of the `imap` plugin (`Clock`, `Imap`, `ImapConfig`, `Query`,
+  `Found`, `MailSource`, `RawMail`, `wait_for` and two constants), which the plugins check of the
+  script required.
 ## [0.7.0] - 2026-10-31
 
 ### Breaking

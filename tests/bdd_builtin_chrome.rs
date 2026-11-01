@@ -13,6 +13,7 @@ use seleniumbase_rs::testing::bdd::{sb, SbCase};
 )]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "starts a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_small_form(#[future(awt)] sb: SbCase) {
     let _ = &sb;
 }

@@ -40,6 +40,27 @@ const MILESTONE_LISTING: &str =
 /// Where every published build lives, by version and platform.
 const STORAGE_ROOT: &str = "https://storage.googleapis.com/chrome-for-testing-public";
 
+/// Where the listings and the archives are: the published addresses ([`Sources::PUBLISHED`]), or a
+/// mock server in a test.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Sources<'a> {
+    /// The listing of the newest build of every release channel.
+    pub(crate) last_known_good: &'a str,
+    /// The listing of the newest build of every Chrome major version.
+    pub(crate) milestone_listing: &'a str,
+    /// Where every published build lives, by version and platform.
+    pub(crate) storage_root: &'a str,
+}
+
+impl Sources<'static> {
+    /// The addresses Google publishes.
+    pub(crate) const PUBLISHED: Self = Self {
+        last_known_good: LAST_KNOWN_GOOD,
+        milestone_listing: MILESTONE_LISTING,
+        storage_root: STORAGE_ROOT,
+    };
+}
+
 /// The names a chromedriver executable goes by.
 const CHROMEDRIVER_NAMES: [&str; 2] = ["chromedriver", "chromedriver.exe"];
 
@@ -79,8 +100,13 @@ pub struct Build {
 /// `linux64` or `mac-arm64`).
 #[must_use]
 pub fn archive_url(artifact: Artifact, version: &str, platform: &str) -> String {
+    archive_url_in(STORAGE_ROOT, artifact, version, platform)
+}
+
+/// [`archive_url`] with the address the builds live under given.
+fn archive_url_in(storage_root: &str, artifact: Artifact, version: &str, platform: &str) -> String {
     let name = artifact.name();
-    format!("{STORAGE_ROOT}/{version}/{platform}/{name}-{platform}.zip")
+    format!("{storage_root}/{version}/{platform}/{name}-{platform}.zip")
 }
 
 /// A proxy URL from the form Python SeleniumBase takes, `SERVER:PORT` or
@@ -289,38 +315,58 @@ pub async fn resolve_build(
     platform: &str,
     browser_major: Option<u32>,
 ) -> Result<Build, SeleniumBaseError> {
+    resolve_build_from(
+        &Sources::PUBLISHED,
+        client,
+        version,
+        artifact,
+        platform,
+        browser_major,
+    )
+    .await
+}
+
+/// [`resolve_build`] with the addresses of the listings and the archives given.
+pub(crate) async fn resolve_build_from(
+    sources: &Sources<'_>,
+    client: &Client,
+    version: &DriverVersion,
+    artifact: Artifact,
+    platform: &str,
+    browser_major: Option<u32>,
+) -> Result<Build, SeleniumBaseError> {
     match version {
         DriverVersion::Exact(exact) => Ok(Build {
             version: exact.clone(),
-            url: archive_url(artifact, exact, platform),
+            url: archive_url_in(sources.storage_root, artifact, exact, platform),
         }),
         DriverVersion::Channel(channel) => {
-            let listing = fetch_json(client, LAST_KNOWN_GOOD).await?;
+            let listing = fetch_json(client, sources.last_known_good).await?;
             channel_build(&listing, *channel, artifact, platform)
         }
         DriverVersion::Milestone(major) => {
-            let listing = fetch_json(client, MILESTONE_LISTING).await?;
+            let listing = fetch_json(client, sources.milestone_listing).await?;
             milestone_build(&listing, *major, artifact, platform)
         }
         DriverVersion::Previous => {
-            let listing = fetch_json(client, LAST_KNOWN_GOOD).await?;
+            let listing = fetch_json(client, sources.last_known_good).await?;
             let stable = channel_build(&listing, ReleaseChannel::Stable, artifact, platform)?;
             let major = DriverVersion::major_before(&stable.version)?;
-            let listing = fetch_json(client, MILESTONE_LISTING).await?;
+            let listing = fetch_json(client, sources.milestone_listing).await?;
             milestone_build(&listing, major, artifact, platform)
         }
         // A driver kept on disk is looked for before this is asked; the one
         // that is downloaded when none is there follows the browser.
         DriverVersion::MatchBrowser | DriverVersion::Keep => match browser_major {
             Some(major) => {
-                let listing = fetch_json(client, MILESTONE_LISTING).await?;
+                let listing = fetch_json(client, sources.milestone_listing).await?;
                 milestone_build(&listing, major, artifact, platform)
             }
             None => {
                 tracing::warn!(
                     "the installed browser's version could not be read; using the stable build"
                 );
-                let listing = fetch_json(client, LAST_KNOWN_GOOD).await?;
+                let listing = fetch_json(client, sources.last_known_good).await?;
                 channel_build(&listing, ReleaseChannel::Stable, artifact, platform)
             }
         },
@@ -471,6 +517,17 @@ pub(crate) async fn install_chromedriver_in(
     browser_major: Option<u32>,
     proxy: Option<&str>,
 ) -> Result<PathBuf, SeleniumBaseError> {
+    install_chromedriver_from(&Sources::PUBLISHED, root, version, browser_major, proxy).await
+}
+
+/// [`install_chromedriver_in`] with the addresses of the listings and the archives given.
+pub(crate) async fn install_chromedriver_from(
+    sources: &Sources<'_>,
+    root: &Path,
+    version: &DriverVersion,
+    browser_major: Option<u32>,
+    proxy: Option<&str>,
+) -> Result<PathBuf, SeleniumBaseError> {
     if *version == DriverVersion::Keep {
         if let Some(found) = crate::browser::driver_install::downloaded_driver(
             root,
@@ -500,7 +557,8 @@ pub(crate) async fn install_chromedriver_in(
     }
 
     let client = http_client(proxy)?;
-    let build = resolve_build(
+    let build = resolve_build_from(
+        sources,
         &client,
         version,
         Artifact::Chromedriver,
@@ -563,6 +621,17 @@ pub(crate) async fn install_browser_in(
     version: &DriverVersion,
     proxy: Option<&str>,
 ) -> Result<PathBuf, SeleniumBaseError> {
+    install_browser_from(&Sources::PUBLISHED, root, browser, version, proxy).await
+}
+
+/// [`install_browser_in`] with the addresses of the listings and the archives given.
+pub(crate) async fn install_browser_from(
+    sources: &Sources<'_>,
+    root: &Path,
+    browser: Browser,
+    version: &DriverVersion,
+    proxy: Option<&str>,
+) -> Result<PathBuf, SeleniumBaseError> {
     let (artifact, folder) = match browser {
         Browser::ChromeForTesting => (Artifact::Chrome, CHROME_FOR_TESTING_DIR),
         Browser::ChromeHeadlessShell => (Artifact::ChromeHeadlessShell, CHROME_HEADLESS_SHELL_DIR),
@@ -578,7 +647,8 @@ pub(crate) async fn install_browser_in(
         ));
     }
     let client = http_client(proxy)?;
-    let build = resolve_build(&client, version, artifact, platform_label()?, None).await?;
+    let build =
+        resolve_build_from(sources, &client, version, artifact, platform_label()?, None).await?;
     let dest = root.join(folder);
     install_archive(&client, &build.url, &dest, None).await?;
     let executable = downloaded_executable(browser, &dest).ok_or_else(|| {
@@ -620,6 +690,297 @@ mod tests {
         let error = fetched.unwrap_err().to_string();
         assert!(error.contains(&url), "{error}");
         silent.abort();
+    }
+
+    // ---- the downloads, against a mock of Google's listings and storage ----------------------------
+    // (the real network is never reached; the archives are named for this machine's platform)
+
+    use httpmock::prelude::*;
+
+    /// An archive of Chrome for Testing: the `program` in a folder of its own, as Google packs it.
+    fn archive_with(program: &str) -> Vec<u8> {
+        let platform = platform_label().unwrap();
+        zip_of(&[(
+            &format!("{program}-{platform}/{program}"),
+            b"#!/bin/sh\n",
+            0o755,
+        )])
+    }
+
+    /// A listing of the newest stable build whose download of `artifact` is `url`.
+    fn stable_listing_with(artifact: Artifact, version: &str, url: &str) -> Value {
+        json!({
+            "channels": { "Stable": { "version": version, "downloads": {
+                artifact.name(): [{ "platform": platform_label().unwrap(), "url": url }]
+            } } }
+        })
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn an_exact_chromedriver_is_downloaded_from_the_storage_once() {
+        let server = MockServer::start_async().await;
+        let platform = platform_label().unwrap();
+        let archive = server
+            .mock_async(|when, then| {
+                when.method(GET)
+                    .path(format!("/126.0.1.1/{platform}/chromedriver-{platform}.zip"));
+                then.status(200).body(archive_with("chromedriver"));
+            })
+            .await;
+        let (base, unused) = (server.base_url(), server.url("/unused.json"));
+        let sources = Sources {
+            last_known_good: &unused,
+            milestone_listing: &unused,
+            storage_root: &base,
+        };
+        let root = tempfile::tempdir().unwrap();
+        let version = DriverVersion::Exact("126.0.1.1".into());
+
+        let found = install_chromedriver_from(&sources, root.path(), &version, None, None)
+            .await
+            .unwrap();
+        let again = install_chromedriver_from(&sources, root.path(), &version, None, None)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            found,
+            root.path().join(format!(
+                "chromedriver-126.0.1.1/chromedriver-{platform}/chromedriver"
+            ))
+        );
+        assert_eq!(again, found, "the second call finds it on disk");
+        archive.assert_calls_async(1).await;
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn a_channel_is_read_from_the_listing_and_its_archive_from_the_url_it_names() {
+        let server = MockServer::start_async().await;
+        let download = server.url("/stable/chromedriver.zip");
+        let listing = server
+            .mock_async(|when, then| {
+                when.method(GET).path("/last-known-good.json");
+                then.status(200).json_body(stable_listing_with(
+                    Artifact::Chromedriver,
+                    "126.0.6478.126",
+                    &download,
+                ));
+            })
+            .await;
+        let archive = server
+            .mock_async(|when, then| {
+                when.method(GET).path("/stable/chromedriver.zip");
+                then.status(200).body(archive_with("chromedriver"));
+            })
+            .await;
+        let (last_known_good, unused) = (
+            server.url("/last-known-good.json"),
+            server.url("/unused.json"),
+        );
+        let sources = Sources {
+            last_known_good: &last_known_good,
+            milestone_listing: &unused,
+            storage_root: &unused,
+        };
+        let root = tempfile::tempdir().unwrap();
+
+        let found = install_chromedriver_from(
+            &sources,
+            root.path(),
+            &DriverVersion::Channel(ReleaseChannel::Stable),
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+
+        listing.assert_async().await;
+        archive.assert_async().await;
+        let platform = platform_label().unwrap();
+        assert_eq!(
+            found,
+            root.path().join(format!(
+                "chromedriver-126.0.6478.126/chromedriver-{platform}/chromedriver"
+            ))
+        );
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn the_driver_that_follows_the_browser_comes_from_the_milestone_listing() {
+        let server = MockServer::start_async().await;
+        let download = server.url("/m126/chromedriver.zip");
+        let listing = server
+            .mock_async(|when, then| {
+                when.method(GET).path("/milestones.json");
+                then.status(200).json_body(json!({
+                    "milestones": { "126": { "version": "126.0.6478.182", "downloads": {
+                        "chromedriver": [{
+                            "platform": platform_label().unwrap(),
+                            "url": download,
+                        }]
+                    } } }
+                }));
+            })
+            .await;
+        let archive = server
+            .mock_async(|when, then| {
+                when.method(GET).path("/m126/chromedriver.zip");
+                then.status(200).body(archive_with("chromedriver"));
+            })
+            .await;
+        let (milestones, unused) = (server.url("/milestones.json"), server.url("/unused.json"));
+        let sources = Sources {
+            last_known_good: &unused,
+            milestone_listing: &milestones,
+            storage_root: &unused,
+        };
+        let root = tempfile::tempdir().unwrap();
+
+        // A browser of major 126, and nothing downloaded yet.
+        let found = install_chromedriver_from(
+            &sources,
+            root.path(),
+            &DriverVersion::MatchBrowser,
+            Some(126),
+            None,
+        )
+        .await
+        .unwrap();
+
+        listing.assert_async().await;
+        archive.assert_async().await;
+        assert!(
+            found.starts_with(root.path().join("chromedriver-126.0.6478.182")),
+            "{}",
+            found.display()
+        );
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn a_headless_shell_replaces_the_folder_of_the_earlier_one() {
+        let server = MockServer::start_async().await;
+        let platform = platform_label().unwrap();
+        let archive = server
+            .mock_async(|when, then| {
+                when.method(GET).path(format!(
+                    "/127.0.2.2/{platform}/chrome-headless-shell-{platform}.zip"
+                ));
+                then.status(200).body(archive_with("chrome-headless-shell"));
+            })
+            .await;
+        let (base, unused) = (server.base_url(), server.url("/unused.json"));
+        let sources = Sources {
+            last_known_good: &unused,
+            milestone_listing: &unused,
+            storage_root: &base,
+        };
+        let root = tempfile::tempdir().unwrap();
+        let old = root.path().join(CHROME_HEADLESS_SHELL_DIR).join("old.txt");
+        fs::create_dir_all(old.parent().unwrap()).unwrap();
+        fs::write(&old, b"an earlier download").unwrap();
+
+        let program = install_browser_from(
+            &sources,
+            root.path(),
+            Browser::ChromeHeadlessShell,
+            &DriverVersion::Exact("127.0.2.2".into()),
+            None,
+        )
+        .await
+        .unwrap();
+
+        archive.assert_async().await;
+        assert_eq!(
+            program,
+            root.path().join(CHROME_HEADLESS_SHELL_DIR).join(format!(
+                "chrome-headless-shell-{platform}/chrome-headless-shell"
+            ))
+        );
+        assert!(!old.exists(), "the earlier download is gone");
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn chrome_for_testing_is_read_from_the_stable_listing_too() {
+        let server = MockServer::start_async().await;
+        let download = server.url("/stable/chrome.zip");
+        server
+            .mock_async(|when, then| {
+                when.method(GET).path("/last-known-good.json");
+                then.status(200).json_body(stable_listing_with(
+                    Artifact::Chrome,
+                    "126.0.6478.126",
+                    &download,
+                ));
+            })
+            .await;
+        let archive = server
+            .mock_async(|when, then| {
+                when.method(GET).path("/stable/chrome.zip");
+                then.status(200).body(archive_with("chrome"));
+            })
+            .await;
+        let (last_known_good, unused) = (
+            server.url("/last-known-good.json"),
+            server.url("/unused.json"),
+        );
+        let sources = Sources {
+            last_known_good: &last_known_good,
+            milestone_listing: &unused,
+            storage_root: &unused,
+        };
+        let root = tempfile::tempdir().unwrap();
+
+        let program = install_browser_from(
+            &sources,
+            root.path(),
+            Browser::ChromeForTesting,
+            &DriverVersion::Channel(ReleaseChannel::Stable),
+            None,
+        )
+        .await
+        .unwrap();
+
+        archive.assert_async().await;
+        assert!(program.starts_with(root.path().join(CHROME_FOR_TESTING_DIR)));
+        assert_eq!(program.file_name().unwrap(), "chrome");
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn a_listing_the_server_refuses_ends_the_install_with_an_error_that_names_it() {
+        let server = MockServer::start_async().await;
+        server
+            .mock_async(|when, then| {
+                when.method(GET).path("/last-known-good.json");
+                then.status(503);
+            })
+            .await;
+        let (last_known_good, unused) = (
+            server.url("/last-known-good.json"),
+            server.url("/unused.json"),
+        );
+        let sources = Sources {
+            last_known_good: &last_known_good,
+            milestone_listing: &unused,
+            storage_root: &unused,
+        };
+        let root = tempfile::tempdir().unwrap();
+
+        let error = install_chromedriver_from(
+            &sources,
+            root.path(),
+            &DriverVersion::Channel(ReleaseChannel::Stable),
+            None,
+            None,
+        )
+        .await
+        .unwrap_err()
+        .to_string();
+
+        assert!(
+            error.contains("/last-known-good.json") && error.contains("503"),
+            "{error}"
+        );
+        assert_eq!(fs::read_dir(root.path()).unwrap().count(), 0);
     }
 
     fn last_known_good() -> Value {

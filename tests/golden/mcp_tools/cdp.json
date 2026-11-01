@@ -1,0 +1,1944 @@
+{
+  "server": "seleniumbase-cdp",
+  "tool_count": 43,
+  "tools": [
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Start Browser"
+      },
+      "description": "Launch the Chrome session the other tools use. Does nothing if one is already running. Headless by default on Linux, headed elsewhere.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "ad_block": {
+            "default": false,
+            "description": "Block common ad requests",
+            "type": "boolean"
+          },
+          "fingerprint": {
+            "description": "A fingerprint to apply to every tab, as a JSON object in the v2 file format; not with fingerprint_path or fingerprint_preset. Applied in undetected mode (uc, the default) on the driver and sb servers; Chromium browsers only",
+            "type": "object"
+          },
+          "fingerprint_path": {
+            "description": "Path of a saved fingerprint file to apply (in the output folder or the working directory); not with fingerprint or fingerprint_preset",
+            "type": "string"
+          },
+          "fingerprint_preset": {
+            "description": "A built-in fingerprint to apply; not with fingerprint or fingerprint_path",
+            "enum": [
+              "windows",
+              "edge",
+              "macos",
+              "linux",
+              "android",
+              "ios"
+            ],
+            "type": "string"
+          },
+          "guest": {
+            "default": false,
+            "description": "Guest profile; cannot be combined with incognito",
+            "type": "boolean"
+          },
+          "headless": {
+            "description": "Force headless (true) or headed (false)",
+            "type": "boolean"
+          },
+          "incognito": {
+            "default": false,
+            "description": "Incognito window",
+            "type": "boolean"
+          },
+          "proxy": {
+            "description": "SERVER:PORT or USER:PASS@SERVER:PORT",
+            "type": "string"
+          },
+          "url": {
+            "description": "Page to open as the browser starts",
+            "type": "string"
+          },
+          "use_chromium": {
+            "default": false,
+            "description": "Use Chromium instead of Google Chrome",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "name": "start_browser",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Close Browser"
+      },
+      "description": "Close the browser session and everything in it: tabs, cookies and history. Safe to call when nothing is running.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "close_browser",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": true,
+        "title": "Get Page Info"
+      },
+      "description": "Report whether a browser is running and, if so, the active tab's URL, title, origin and user agent.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "get_page_info",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": true,
+        "title": "Get DevTools Endpoint"
+      },
+      "description": "Report the DevTools endpoint of the running browser (HTTP address and browser WebSocket URL) and ready-made MCP client configs that attach Google's chrome-devtools-mcp (--browserUrl) or Microsoft's Playwright MCP (--cdp-endpoint) to the same browser. Reports running=false when no browser runs.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "get_devtools_endpoint",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Open URL"
+      },
+      "description": "Navigate the active tab to a URL and wait for it to load. A bare host such as example.com gets https:// added.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "url": {
+            "description": "Address to open",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "type": "object"
+      },
+      "name": "open_url",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "title": "Manage History"
+      },
+      "description": "Go back or forward, reload the page ignoring the cache, or list the tab's navigation history.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "default": "list",
+            "description": "What to do",
+            "enum": [
+              "back",
+              "forward",
+              "reload",
+              "list"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "manage_history",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": true,
+        "title": "Find Elements"
+      },
+      "description": "List the elements matching a selector with their tag and text. Elements cannot be held between calls; to act on one, use a tool that takes the selector.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "include_html": {
+            "default": false,
+            "description": "Also return each element's outer HTML",
+            "type": "boolean"
+          },
+          "selector": {
+            "description": "CSS selector, XPath, or link=text",
+            "type": "string"
+          },
+          "timeout": {
+            "default": 0.5,
+            "description": "Seconds to wait for the element",
+            "minimum": 0.0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "selector"
+        ],
+        "type": "object"
+      },
+      "name": "find_elements",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": true,
+        "title": "Get Content"
+      },
+      "description": "Read an element's visible text or HTML, or the absolute URLs found in it. Reads the whole page body by default.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "output_format": {
+            "default": "text",
+            "description": "What to return",
+            "enum": [
+              "text",
+              "html",
+              "urls"
+            ],
+            "type": "string"
+          },
+          "selector": {
+            "default": "body",
+            "description": "CSS selector, XPath, or link=text",
+            "type": "string"
+          },
+          "timeout": {
+            "default": 5.0,
+            "description": "Seconds to wait for the element",
+            "minimum": 0.0,
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "name": "get_content",
+      "untrusted": true
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": true,
+        "title": "Get Attributes"
+      },
+      "description": "Read one attribute of the first matching element, or all of them when no attribute is named.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "attribute": {
+            "description": "Attribute name, such as href or value",
+            "type": "string"
+          },
+          "selector": {
+            "description": "CSS selector, XPath, or link=text",
+            "type": "string"
+          },
+          "timeout": {
+            "default": 5.0,
+            "description": "Seconds to wait for the element",
+            "minimum": 0.0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "selector"
+        ],
+        "type": "object"
+      },
+      "name": "get_attributes",
+      "untrusted": true
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": true,
+        "title": "Check Condition"
+      },
+      "description": "Answer true or false right now whether an element is present or visible, or whether some text is visible in it. Does not wait; use wait_for_condition to wait.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "check": {
+            "default": "visible",
+            "description": "What to check; ignored when text is given",
+            "enum": [
+              "present",
+              "visible"
+            ],
+            "type": "string"
+          },
+          "selector": {
+            "default": "body",
+            "description": "CSS selector, XPath, or link=text",
+            "type": "string"
+          },
+          "text": {
+            "description": "Check that this text is visible in the element",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "check_if_condition",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Click Element"
+      },
+      "description": "Click an element. Use nth to pick one of several matches, all_matches to click every visible one, only_if_visible to skip a missing element quietly, or parent_selector to search inside a container.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "all_matches": {
+            "default": false,
+            "description": "Click every visible match, in page order",
+            "type": "boolean"
+          },
+          "nth": {
+            "description": "Which match to click, counting from 1",
+            "minimum": 1.0,
+            "type": "integer"
+          },
+          "only_if_visible": {
+            "default": false,
+            "description": "Click only if the element is already visible; never wait",
+            "type": "boolean"
+          },
+          "parent_selector": {
+            "description": "Look for the selector inside this container",
+            "type": "string"
+          },
+          "selector": {
+            "description": "CSS selector, XPath, or link=text",
+            "type": "string"
+          },
+          "timeout": {
+            "default": 5.0,
+            "description": "Seconds to wait for the element",
+            "minimum": 0.0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "selector"
+        ],
+        "type": "object"
+      },
+      "name": "click_element",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "title": "Hover / Click / Drag"
+      },
+      "description": "Hover an element, hover one and then click another (for menus), or drag one element onto another.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "default": "hover",
+            "description": "What to do",
+            "enum": [
+              "hover",
+              "hover_and_click",
+              "drag_and_drop"
+            ],
+            "type": "string"
+          },
+          "secondary_selector": {
+            "description": "The element to click after hovering, or to drop onto",
+            "type": "string"
+          },
+          "selector": {
+            "description": "CSS selector, XPath, or link=text",
+            "type": "string"
+          },
+          "timeout": {
+            "default": 5.0,
+            "description": "Seconds to wait for the element",
+            "minimum": 0.0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "selector"
+        ],
+        "type": "object"
+      },
+      "name": "hover_action",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "title": "Type Text"
+      },
+      "description": "Enter or clear text in an input, textarea or editable element. A newline in the text presses Enter, except in set_value mode.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "default": "fill_input",
+            "description": "fill_input clears then types key by key; append types after the current value; fast_type clears then inserts in one step; set_value assigns the value without key events; clear_only empties the field",
+            "enum": [
+              "fill_input",
+              "append",
+              "fast_type",
+              "set_value",
+              "clear_only"
+            ],
+            "type": "string"
+          },
+          "selector": {
+            "description": "CSS selector, XPath, or link=text",
+            "type": "string"
+          },
+          "text": {
+            "default": "",
+            "description": "The text to enter",
+            "type": "string"
+          },
+          "timeout": {
+            "default": 5.0,
+            "description": "Seconds to wait for the element",
+            "minimum": 0.0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "selector"
+        ],
+        "type": "object"
+      },
+      "name": "type_text",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Select Option"
+      },
+      "description": "Choose an option in a native <select> dropdown. For dropdowns built from divs or buttons, click them instead.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "by": {
+            "default": "text",
+            "description": "How to match the option",
+            "enum": [
+              "text",
+              "value",
+              "index"
+            ],
+            "type": "string"
+          },
+          "dropdown_selector": {
+            "description": "Selector of the <select> element",
+            "type": "string"
+          },
+          "value": {
+            "description": "The option's text, value or 0-based index",
+            "type": "string"
+          }
+        },
+        "required": [
+          "dropdown_selector",
+          "value"
+        ],
+        "type": "object"
+      },
+      "name": "select_option",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Focus Element"
+      },
+      "description": "Scroll an element into view, give it keyboard focus, or briefly outline it. Does not click or type.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "default": "scroll_to_element",
+            "description": "What to do",
+            "enum": [
+              "scroll_to_element",
+              "focus",
+              "highlight"
+            ],
+            "type": "string"
+          },
+          "selector": {
+            "description": "CSS selector, XPath, or link=text",
+            "type": "string"
+          },
+          "timeout": {
+            "default": 5.0,
+            "description": "Seconds to wait for the element",
+            "minimum": 0.0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "selector"
+        ],
+        "type": "object"
+      },
+      "name": "focus_element",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Wait For Condition"
+      },
+      "description": "Block until an element is present, visible, not visible or absent, until text appears or disappears, or for a fixed number of seconds. Fails if the timeout passes first.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "selector": {
+            "description": "Element to watch",
+            "type": "string"
+          },
+          "state": {
+            "default": "visible",
+            "description": "The condition to wait for",
+            "enum": [
+              "present",
+              "visible",
+              "not_visible",
+              "absent",
+              "seconds_passed"
+            ],
+            "type": "string"
+          },
+          "text": {
+            "description": "Wait for this text instead; present/visible wait for it to appear, absent/not_visible for it to go",
+            "type": "string"
+          },
+          "timeout": {
+            "default": 5,
+            "description": "Most seconds to wait; the exact wait for seconds_passed",
+            "minimum": 0.0,
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "name": "wait_for_condition",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Assert Condition"
+      },
+      "description": "Verify that an element is present or visible, that text is visible, or that the title or URL matches. A failed check is an error. Element and text checks wait up to the timeout; title and URL checks are immediate.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "check": {
+            "default": "element_visible",
+            "description": "What to verify",
+            "enum": [
+              "element_present",
+              "element_visible",
+              "text_visible",
+              "title",
+              "url",
+              "url_contains"
+            ],
+            "type": "string"
+          },
+          "exact": {
+            "default": false,
+            "description": "For text_visible, require the whole text to match",
+            "type": "boolean"
+          },
+          "expected": {
+            "description": "Expected text, title or URL",
+            "type": "string"
+          },
+          "selector": {
+            "description": "Element for element and text checks",
+            "type": "string"
+          },
+          "timeout": {
+            "default": 5.0,
+            "description": "Seconds to wait for the element",
+            "minimum": 0.0,
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "name": "assert_condition",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "title": "Manage Cookies"
+      },
+      "description": "List, clear, save or load the session's cookies. Saved files live in the server's output directory, under saved_cookies. Cookies can hold logins; handle them with care.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "default": "get_all",
+            "description": "What to do",
+            "enum": [
+              "get_all",
+              "clear",
+              "save",
+              "load"
+            ],
+            "type": "string"
+          },
+          "filename": {
+            "default": "cookies.txt",
+            "description": "File name for save and load; only its last path part is used",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "manage_cookies",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "title": "Manage Storage"
+      },
+      "description": "Read or write one key of localStorage or sessionStorage for the current page's origin.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "default": "get",
+            "description": "Read or write",
+            "enum": [
+              "get",
+              "set"
+            ],
+            "type": "string"
+          },
+          "key": {
+            "description": "The storage key",
+            "type": "string"
+          },
+          "storage": {
+            "default": "local",
+            "description": "Which storage",
+            "enum": [
+              "local",
+              "session"
+            ],
+            "type": "string"
+          },
+          "value": {
+            "description": "The value to store; required for set",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "type": "object"
+      },
+      "name": "manage_storage",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "title": "Scroll Page"
+      },
+      "description": "Scroll the page up or down by a share of the window height, or to the very top or bottom.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "default": 25,
+            "description": "Percent of the window height for up and down; 200 is two screens",
+            "minimum": 0.0,
+            "type": "integer"
+          },
+          "direction": {
+            "default": "down",
+            "description": "Where to scroll",
+            "enum": [
+              "up",
+              "down",
+              "top",
+              "bottom"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "scroll_page",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "title": "Manage Window"
+      },
+      "description": "Read or change the browser window's position, size and state.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "default": "get_rect",
+            "description": "What to do",
+            "enum": [
+              "get_rect",
+              "set_rect",
+              "maximize",
+              "minimize"
+            ],
+            "type": "string"
+          },
+          "height": {
+            "description": "Height, for set_rect",
+            "type": "integer"
+          },
+          "width": {
+            "description": "Width, for set_rect",
+            "type": "integer"
+          },
+          "x": {
+            "description": "Left edge, for set_rect",
+            "type": "integer"
+          },
+          "y": {
+            "description": "Top edge, for set_rect",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "name": "manage_window",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "title": "Manage Tabs"
+      },
+      "description": "List, open, switch between and close tabs. Closing the active tab moves to the newest remaining one.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "default": "list_tabs",
+            "description": "What to do",
+            "enum": [
+              "list_tabs",
+              "open_new_tab",
+              "switch_to_tab",
+              "switch_to_newest_tab",
+              "close_active_tab"
+            ],
+            "type": "string"
+          },
+          "switch_to": {
+            "default": true,
+            "description": "Make a newly opened tab the active one",
+            "type": "boolean"
+          },
+          "tab_index": {
+            "description": "Tab number from list_tabs, for switch_to_tab",
+            "type": "integer"
+          },
+          "url": {
+            "description": "Page for open_new_tab; defaults to about:blank",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "manage_tabs",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Solve CAPTCHA"
+      },
+      "description": "Try to pass a CAPTCHA widget on the page by clicking its checkbox (Cloudflare Turnstile, reCAPTCHA, hCaptcha, FriendlyCaptcha) or dragging its slider (DataDome). Does nothing if none is found. Success is not guaranteed; check the page afterwards.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "solve_captcha",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Save Page"
+      },
+      "description": "Save the active tab as a PNG screenshot, an HTML file or a PDF in the server's output directory. Replaces a file of the same name.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "filename": {
+            "description": "Defaults to screenshot.png, page_source.html or page.pdf",
+            "type": "string"
+          },
+          "folder": {
+            "description": "Sub-folder of the output directory",
+            "type": "string"
+          },
+          "format": {
+            "default": "screenshot",
+            "description": "What to save",
+            "enum": [
+              "screenshot",
+              "html",
+              "pdf"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "save_page",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "title": "Run JavaScript"
+      },
+      "description": "Evaluate JavaScript in the active tab and return the result. A returned promise is awaited. Use the dedicated tools where one fits.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "expression": {
+            "description": "Code to evaluate, such as document.title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expression"
+        ],
+        "type": "object"
+      },
+      "name": "run_javascript",
+      "untrusted": true
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": true,
+        "title": "Inspect Page"
+      },
+      "description": "Outline the current page for writing a test: URL, title, ready state, headings, forms, iframes, shadow-DOM hosts, and every control with its role, accessible name, a selector that finds it, and whether it is visible and enabled. Bounded by limit; says when it was cut short.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "include_hidden": {
+            "default": false,
+            "description": "Also list controls that are not visible",
+            "type": "boolean"
+          },
+          "limit": {
+            "default": 50,
+            "description": "Most controls to list, 1 to 500",
+            "minimum": 1.0,
+            "type": "integer"
+          },
+          "scope": {
+            "description": "Only look inside the first element this selector matches",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "inspect_page",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": true,
+        "title": "Suggest Selectors"
+      },
+      "description": "Find the element meant by its text, its role or a rough selector, and return ranked stable selectors for it (test attributes, id, name, aria-label, link text, text XPath, short CSS path), each checked against the page: how many elements it matches and whether it finds this one.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "default": 5,
+            "description": "Most selectors per element, 1 to 20",
+            "minimum": 1.0,
+            "type": "integer"
+          },
+          "role": {
+            "description": "ARIA role such as button, link, textbox or checkbox",
+            "type": "string"
+          },
+          "selector": {
+            "description": "A rough selector that finds it",
+            "type": "string"
+          },
+          "text": {
+            "description": "Text the element shows or is labelled with",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "suggest_selectors",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": true,
+        "title": "Diagnose Selector"
+      },
+      "description": "Explain why a selector finds nothing or cannot be used: invalid syntax (with the browser's message), no match, matches that are hidden, empty, off screen, disabled or covered by another element, matches inside an iframe or a shadow root, and near misses such as a similar id or the same text in different case. Ends with next steps.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "selector": {
+            "description": "CSS selector, XPath, or link=text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "selector"
+        ],
+        "type": "object"
+      },
+      "name": "diagnose_selector",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "title": "Get Console Messages"
+      },
+      "description": "Read the page's console messages and uncaught script errors. Messages are recorded from the moment start is true, which replaces the page's console functions (a page script can notice that); the Pure CDP engine also reports uncaught errors since the page loaded without it.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "clear": {
+            "default": false,
+            "description": "Forget the messages after reading them",
+            "type": "boolean"
+          },
+          "level": {
+            "default": "all",
+            "description": "The least serious level to include",
+            "enum": [
+              "all",
+              "error",
+              "warning",
+              "info",
+              "log"
+            ],
+            "type": "string"
+          },
+          "limit": {
+            "default": 100,
+            "description": "Most messages to return, 1 to 500",
+            "minimum": 1.0,
+            "type": "integer"
+          },
+          "start": {
+            "default": false,
+            "description": "Start recording console messages in this page",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "name": "get_console_messages",
+      "untrusted": true
+    },
+    {
+      "annotations": {
+        "title": "Get Failed Requests"
+      },
+      "description": "List the page's requests that failed: HTTP status 400 and up from the browser's performance timeline, and, once watch is true on the Pure CDP engine, every failed, blocked or refused request of the active tab with its error.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "clear": {
+            "default": false,
+            "description": "Forget the recorded failures after reading them",
+            "type": "boolean"
+          },
+          "limit": {
+            "default": 100,
+            "description": "Most requests to return, 1 to 500",
+            "minimum": 1.0,
+            "type": "integer"
+          },
+          "watch": {
+            "default": false,
+            "description": "Start recording failed requests (Pure CDP engine)",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "name": "get_failed_requests",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": true,
+        "title": "Audit Page"
+      },
+      "description": "Check the page as it is now for accessibility and HTML defects: images without alt text, controls without a label or name, duplicate ids, empty links and buttons, heading order, missing lang or title, and more. Each finding names its rule and a selector for the element.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "default": 50,
+            "description": "Most findings to return, 1 to 500",
+            "minimum": 1.0,
+            "type": "integer"
+          },
+          "severity": {
+            "default": "all",
+            "description": "Report warnings too, or errors only",
+            "enum": [
+              "all",
+              "error"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "audit_page",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Capture Debug Bundle"
+      },
+      "description": "Save what a bug report needs in a new folder under the output directory: a screenshot, the page source (password and hidden input values removed), the URL, title, viewport and user agent, console messages, failed requests, cookie and storage names (never their values) and the last tool calls (typed text and scripts redacted).",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "calls": {
+            "default": 20,
+            "description": "How many recent tool calls to include, 1 to 200",
+            "minimum": 1.0,
+            "type": "integer"
+          },
+          "name": {
+            "description": "A label for the folder; letters, digits, - and _ are kept",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "capture_debug_bundle",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Export Session As Test"
+      },
+      "description": "Write the successful steps of this browser session (since the last start_browser) as a Rust #[tokio::test] using BaseCase, into the output directory. Steps with no BaseCase equivalent become // skipped: comments and are listed in the result.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "test_name": {
+            "default": "exported_session",
+            "description": "Name of the test function and file, such as checkout_works",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "export_session_as_test",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Diagnose Environment"
+      },
+      "description": "Check this machine before or after a browser problem: the platform, whether Chrome and chromedriver are found and their major versions match (with the command that fixes a mismatch), the driver cache folder and what is in it, whether the output directory is writable and how much disk is free, the cargo features this build has and lacks, the SB_* settings in the environment (secret values redacted), and whether a session is running. Needs no browser.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "diagnose_environment",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": true,
+        "title": "Page Snapshot"
+      },
+      "description": "Read the page as a compact accessibility tree: landmarks, headings, links, buttons and form controls with their roles, names, state and values. Interactive nodes carry a ref such as [ref=e5]; pass \"ref=e5\" as the selector of click_element, type_text and the other tools. Call it again after the page changes: refs belong to the last snapshot. mode \"outline\" shows the tag tree instead, for pages with poor semantics. Passwords and card numbers are never printed.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "depth": {
+            "default": 12,
+            "description": "Deepest nesting to list, 1 to 30",
+            "minimum": 1.0,
+            "type": "integer"
+          },
+          "include_hidden": {
+            "default": false,
+            "description": "Also list nodes that are not visible",
+            "type": "boolean"
+          },
+          "max_nodes": {
+            "default": 400,
+            "description": "Most nodes to list, 1 to 2000",
+            "minimum": 1.0,
+            "type": "integer"
+          },
+          "mode": {
+            "default": "accessibility",
+            "description": "The accessibility tree, or the DOM tag tree",
+            "enum": [
+              "accessibility",
+              "outline"
+            ],
+            "type": "string"
+          },
+          "scope": {
+            "description": "Only look inside the first element this selector (or ref=eN) matches",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "page_snapshot",
+      "outputSchema": {
+        "properties": {
+          "mode": {
+            "enum": [
+              "accessibility",
+              "outline"
+            ],
+            "type": "string"
+          },
+          "more": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "nodes": {
+            "description": "The nodes that have refs.",
+            "items": {
+              "properties": {
+                "checked": {
+                  "type": [
+                    "boolean",
+                    "string"
+                  ]
+                },
+                "enabled": {
+                  "type": "boolean"
+                },
+                "frame": {
+                  "type": "null"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "ref": {
+                  "type": "string"
+                },
+                "role": {
+                  "type": "string"
+                },
+                "selector": {
+                  "type": "string"
+                },
+                "shadow": {
+                  "type": "boolean"
+                },
+                "value": {
+                  "type": "string"
+                },
+                "visible": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "ref",
+                "role",
+                "name",
+                "selector",
+                "visible",
+                "enabled",
+                "frame"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "snapshot": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "title",
+          "snapshot",
+          "truncated",
+          "nodes"
+        ],
+        "type": "object"
+      },
+      "untrusted": true
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": true,
+        "title": "Read Page Text"
+      },
+      "description": "Read the readable text of the page as Markdown: the main content (main, article, or the densest block), headings as #, links as [text](url), lists and tables. Scripts, styles and hidden nodes are skipped. Cut at max_chars on a block boundary and says how much more there was.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "format": {
+            "default": "markdown",
+            "description": "Markdown, or plain text",
+            "enum": [
+              "markdown",
+              "text"
+            ],
+            "type": "string"
+          },
+          "main_only": {
+            "default": true,
+            "description": "Only the main content, without navigation and footers",
+            "type": "boolean"
+          },
+          "max_chars": {
+            "default": 20000,
+            "description": "Most characters to return, 1000 to 200000",
+            "minimum": 1000.0,
+            "type": "integer"
+          },
+          "scope": {
+            "description": "Only look inside the first element this selector (or ref=eN) matches",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "read_page_text",
+      "outputSchema": {
+        "properties": {
+          "chars": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "format": {
+            "enum": [
+              "markdown",
+              "text"
+            ],
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "total_chars": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "title",
+          "source",
+          "format",
+          "chars",
+          "total_chars",
+          "truncated"
+        ],
+        "type": "object"
+      },
+      "untrusted": true
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": true,
+        "title": "Extract Links"
+      },
+      "description": "List the visible links of the page with their text, absolute URL, rel, target and the landmark they sit in. Duplicates are collapsed with a count; javascript: links are flagged. The first 100 links carry a ref.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "contains": {
+            "description": "Only links whose text or URL contains this, in any case",
+            "type": "string"
+          },
+          "limit": {
+            "default": 200,
+            "description": "Most links to return, 1 to 2000",
+            "minimum": 1.0,
+            "type": "integer"
+          },
+          "same_origin": {
+            "default": false,
+            "description": "Only links to the page's own origin",
+            "type": "boolean"
+          },
+          "scope": {
+            "description": "Only look inside the first element this selector (or ref=eN) matches",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "extract_links",
+      "outputSchema": {
+        "properties": {
+          "links": {
+            "items": {
+              "properties": {
+                "count": {
+                  "minimum": 2,
+                  "type": "integer"
+                },
+                "href": {
+                  "type": "string"
+                },
+                "kind": {
+                  "enum": [
+                    "script"
+                  ],
+                  "type": "string"
+                },
+                "ref": {
+                  "type": "string"
+                },
+                "region": {
+                  "type": "string"
+                },
+                "rel": {
+                  "type": "string"
+                },
+                "target": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text",
+                "href",
+                "region"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "links",
+          "total",
+          "truncated"
+        ],
+        "type": "object"
+      },
+      "untrusted": true
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": true,
+        "title": "Extract Tables"
+      },
+      "description": "Read the visible tables (HTML tables and role=table or grid) as data: caption, headers and rows, with colspan and rowspan expanded. Each table also carries a selector and a ref.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "default": 20,
+            "description": "Most tables to return, 1 to 100",
+            "minimum": 1.0,
+            "type": "integer"
+          },
+          "max_rows": {
+            "default": 200,
+            "description": "Most rows per table, 1 to 5000",
+            "minimum": 1.0,
+            "type": "integer"
+          },
+          "scope": {
+            "description": "Only look inside the first element this selector (or ref=eN) matches",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "extract_tables",
+      "outputSchema": {
+        "properties": {
+          "more_tables": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tables": {
+            "items": {
+              "properties": {
+                "caption": {
+                  "type": "string"
+                },
+                "headers": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "ref": {
+                  "type": "string"
+                },
+                "row_count": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "rows": {
+                  "items": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "type": "array"
+                },
+                "selector": {
+                  "type": "string"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "headers",
+                "rows",
+                "row_count",
+                "truncated"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "tables"
+        ],
+        "type": "object"
+      },
+      "untrusted": true
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": true,
+        "title": "Extract Forms"
+      },
+      "description": "Read the forms of the page as data: action, method and each field with its name, type, label, required flag, value, checked state and options, plus the submit button. Fields and forms carry refs. Password and card values are left out.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "scope": {
+            "description": "Only look inside the first element this selector (or ref=eN) matches",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "extract_forms",
+      "outputSchema": {
+        "properties": {
+          "forms": {
+            "items": {
+              "properties": {
+                "action": {
+                  "type": "string"
+                },
+                "fields": {
+                  "items": {
+                    "properties": {
+                      "checked": {
+                        "type": "boolean"
+                      },
+                      "label": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "options": {
+                        "items": {
+                          "properties": {
+                            "label": {
+                              "type": "string"
+                            },
+                            "selected": {
+                              "type": "boolean"
+                            },
+                            "value": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "value",
+                            "label",
+                            "selected"
+                          ],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      },
+                      "ref": {
+                        "type": "string"
+                      },
+                      "required": {
+                        "type": "boolean"
+                      },
+                      "type": {
+                        "type": "string"
+                      },
+                      "value": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "type",
+                      "label",
+                      "required"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "method": {
+                  "type": "string"
+                },
+                "ref": {
+                  "type": "string"
+                },
+                "selector": {
+                  "type": "string"
+                },
+                "submit": {
+                  "properties": {
+                    "label": {
+                      "type": "string"
+                    },
+                    "ref": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "label"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "action",
+                "method",
+                "fields"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "more_forms": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "forms"
+        ],
+        "type": "object"
+      },
+      "untrusted": true
+    },
+    {
+      "annotations": {
+        "title": "Capture Fingerprint"
+      },
+      "description": "Read what the running browser shows a page, as a fingerprint: the navigator, Client Hints, screen, time zone, WebGL, media devices and more, plus readings no setting holds (webdriver flag, plugins, canvas and audio hashes, headless markers). Optionally opens url first and saves the fingerprint as a file. An https page or about:blank gives the whole fingerprint; an http page has no Client Hints or media devices.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "save_to": {
+            "description": "File name in the output folder to save the fingerprint to, as JSON; the file is private to its owner",
+            "type": "string"
+          },
+          "url": {
+            "description": "Page to open before reading",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "capture_fingerprint",
+      "outputSchema": {
+        "properties": {
+          "fingerprint": {
+            "description": "The v2 fingerprint file",
+            "type": "object"
+          },
+          "probe": {
+            "properties": {
+              "browser_version": {
+                "type": "string"
+              },
+              "captured_at": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "url",
+              "captured_at"
+            ],
+            "type": "object"
+          },
+          "saved": {
+            "type": "string"
+          },
+          "settings_read": {
+            "type": "integer"
+          },
+          "unmapped": {
+            "description": "Readings no setting holds",
+            "type": "object"
+          }
+        },
+        "required": [
+          "fingerprint",
+          "unmapped",
+          "probe",
+          "settings_read"
+        ],
+        "type": "object"
+      },
+      "untrusted": true
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": true,
+        "title": "Compare Fingerprint"
+      },
+      "description": "Ask whether the running browser presents a fingerprint (give a fingerprint, a path or a preset): captures what the page shows and lists the settings it contradicts, the ones it matches and the ones no page can read (those are never counted as matches). The text starts with presents: yes|no, verified: yes|no.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "fingerprint": {
+            "description": "A fingerprint as a JSON object, in the v2 file format (a string holding the JSON is accepted too)",
+            "type": "object"
+          },
+          "path": {
+            "description": "Path of a saved fingerprint file in the output folder, relative to that folder",
+            "type": "string"
+          },
+          "preset": {
+            "description": "A built-in fingerprint preset",
+            "enum": [
+              "windows",
+              "edge",
+              "macos",
+              "linux",
+              "android",
+              "ios"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "compare_fingerprint",
+      "outputSchema": {
+        "properties": {
+          "claimed": {
+            "type": "integer"
+          },
+          "differences": {
+            "items": {
+              "properties": {
+                "setting": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "setting",
+                "expected",
+                "actual"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "matched": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "presents": {
+            "type": "boolean"
+          },
+          "unverifiable": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "url": {
+            "type": "string"
+          },
+          "verified": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "presents",
+          "verified",
+          "claimed",
+          "differences",
+          "matched",
+          "unverifiable"
+        ],
+        "type": "object"
+      },
+      "untrusted": true
+    },
+    {
+      "annotations": {
+        "title": "Explain Fingerprint"
+      },
+      "description": "Say what a detection script would find in the running browser: the signs of automation (webdriver flag, headless markers, software renderer ...) with how loudly a detector reacts and what to change, whether the readings agree with each other, and the values a script reads first. Optionally opens url first.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "url": {
+            "description": "Page to open before reading",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "explain_fingerprint",
+      "outputSchema": {
+        "properties": {
+          "coherence": {
+            "type": "object"
+          },
+          "detector_view": {
+            "type": "object"
+          },
+          "leaks": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "not_readable": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "risk": {
+            "enum": [
+              "none",
+              "low",
+              "medium",
+              "high"
+            ],
+            "type": "string"
+          },
+          "unanswered": {
+            "type": "object"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "risk",
+          "leaks",
+          "coherence",
+          "detector_view",
+          "not_readable"
+        ],
+        "type": "object"
+      },
+      "untrusted": true
+    },
+    {
+      "annotations": {
+        "title": "Run Plugin Task"
+      },
+      "description": "Run the task of a plugin on a browser of its own (not the running session), and return its summary and its first results. Only plugins the operator turned on for this server (`sbrs-mcp --plugin NAME`) can run, and only ones that offer a task; a task that needs a person at the keyboard cannot be run here (use `sbrs plugin run`). The browser is closed when the task ends.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "headless": {
+            "description": "Force headless (true) or headed (false)",
+            "type": "boolean"
+          },
+          "input": {
+            "description": "The task's input as JSON text, such as {\"start\":\"https://example.com/\"}; {} when omitted",
+            "type": "string"
+          },
+          "name": {
+            "description": "The plugin whose task to run",
+            "type": "string"
+          },
+          "plugins": {
+            "description": "Comma-separated names of the other enabled plugins to run beside it; all of the operator's plugins when omitted",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "name": "run_plugin_task",
+      "untrusted": true
+    }
+  ]
+}

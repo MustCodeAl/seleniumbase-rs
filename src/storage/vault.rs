@@ -189,7 +189,7 @@ impl ProfileVault {
                     collection,
                     id,
                     sealed,
-                    chrono::Utc::now().timestamp_millis(),
+                    jiff::Timestamp::now().as_millisecond(),
                 ),
             )
             .await?;

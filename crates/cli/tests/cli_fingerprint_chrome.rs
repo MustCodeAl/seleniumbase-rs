@@ -16,6 +16,7 @@ const PAGE: &str = "https://example.com";
 
 #[test]
 #[ignore = "starts a real Chrome"]
+#[serial_test::serial(chrome)]
 fn a_capture_is_a_fingerprint_file_that_checks_out_and_a_summary_on_standard_error() {
     let dir = tempfile::tempdir().unwrap();
     let file = dir.path().join("captured.json");
@@ -62,6 +63,7 @@ fn a_capture_is_a_fingerprint_file_that_checks_out_and_a_summary_on_standard_err
 
 #[test]
 #[ignore = "starts a real Chrome"]
+#[serial_test::serial(chrome)]
 fn a_browser_started_with_a_fingerprint_presents_it() {
     let dir = tempfile::tempdir().unwrap();
     let expected = dir.path().join("expected.json");

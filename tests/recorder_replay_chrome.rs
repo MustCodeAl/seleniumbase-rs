@@ -108,6 +108,7 @@ async fn field(sb: &BaseCase, id: &str) -> String {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_saved_recording_replays_every_step_in_a_real_browser() {
     let base = serve_pages();
     let mut actions = on_the_home_page(&base);
@@ -159,6 +160,7 @@ async fn a_saved_recording_replays_every_step_in_a_real_browser() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_step_that_fails_is_reported_and_the_steps_after_it_still_run() {
     let base = serve_pages();
     let mut sb = headless().await;

@@ -52,7 +52,7 @@ use std::sync::{Arc, Mutex, OnceLock, PoisonError};
 use std::thread::ThreadId;
 use std::time::{Duration, Instant};
 
-use chrono::{DateTime, Local, SecondsFormat};
+use jiff::{tz::TimeZone, Timestamp, Zoned};
 use serde::{Deserialize, Serialize};
 
 use crate::artifacts::{self, LATEST_LOGS_DIR};
@@ -363,12 +363,23 @@ struct Version {
 }
 
 fn now_string() -> String {
-    Local::now().to_rfc3339_opts(SecondsFormat::Millis, false)
+    Zoned::now()
+        .strftime("%Y-%m-%dT%H:%M:%S%.3f%:z")
+        .to_string()
 }
 
-fn parse_time(text: &str) -> DateTime<Local> {
-    DateTime::parse_from_rfc3339(text)
-        .map_or_else(|_| Local::now(), |time| time.with_timezone(&Local))
+fn parse_time(text: &str) -> Zoned {
+    text.parse::<Timestamp>()
+        .unwrap_or_else(|_| Timestamp::now())
+        .to_zoned(TimeZone::system())
+}
+
+/// The whole seconds since `text`, a time [`now_string`] wrote; a text that cannot be read counts
+/// as now.
+fn seconds_since(text: &str) -> i64 {
+    Timestamp::now()
+        .duration_since(parse_time(text).timestamp())
+        .as_secs()
 }
 
 fn io_error(what: &str, path: &Path, error: &io::Error) -> SeleniumBaseError {
@@ -785,13 +796,12 @@ impl TestRun {
         match self.key.as_str() {
             Some(key) => {
                 // A process id comes round again after a while: an old run is not this one.
-                let age = Local::now() - parse_time(&run.updated_at);
-                run.key == key
-                    && (!key.starts_with("cargo-ppid-") || age.num_seconds() < PPID_REUSE_SECONDS)
+                let age = seconds_since(&run.updated_at);
+                run.key == key && (!key.starts_with("cargo-ppid-") || age < PPID_REUSE_SECONDS)
             }
             None => {
-                let age = Local::now() - parse_time(&run.updated_at);
-                run.finalized_at.is_none() && age.num_seconds() < RECENT_SECONDS
+                let age = seconds_since(&run.updated_at);
+                run.finalized_at.is_none() && age < RECENT_SECONDS
             }
         }
     }
@@ -825,7 +835,7 @@ impl TestRun {
         let mut run = RunFile {
             v: FORMAT_VERSION,
             key: self.key.as_str().map_or_else(
-                || format!("recent-{}", Local::now().timestamp_millis()),
+                || format!("recent-{}", Timestamp::now().as_millisecond()),
                 str::to_owned,
             ),
             title: self.settings.title(),
@@ -1776,5 +1786,30 @@ mod tests {
             ..ReportSettings::default()
         };
         assert_eq!(blank.title(), DEFAULT_TITLE);
+    }
+
+    #[test]
+    fn the_time_a_run_writes_has_milliseconds_and_the_offset() {
+        let stamp = now_string();
+        let shape =
+            regex::Regex::new(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}[+-]\d{2}:\d{2}$")
+                .unwrap();
+        assert!(shape.is_match(&stamp), "{stamp}");
+        // It reads back as the same moment, to the millisecond.
+        let read = parse_time(&stamp);
+        assert_eq!(read.strftime("%Y-%m-%dT%H:%M:%S%.3f%:z").to_string(), stamp);
+    }
+
+    #[test]
+    fn a_time_with_an_offset_is_read_as_that_moment() {
+        let seen = parse_time("2020-01-01T00:00:00.000+02:00");
+        assert_eq!(seen.timestamp().as_second(), 1_577_829_600, "22:00 UTC");
+        assert!(seconds_since("2020-01-01T00:00:00.000+00:00") > 100_000_000);
+    }
+
+    #[test]
+    fn a_time_that_cannot_be_read_counts_as_now() {
+        assert!(seconds_since("not a time").abs() < 5);
+        assert!(seconds_since(&now_string()).abs() < 5);
     }
 }

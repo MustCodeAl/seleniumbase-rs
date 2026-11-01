@@ -14,6 +14,7 @@ const PAGE: &str = "data:text/html,<title>Reports</title><h1>Hello</h1>";
 
 #[tokio::test]
 #[ignore = "starts a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_failing_cdp_test_is_on_the_dashboard_with_the_evidence_of_a_real_page() {
     let root = tempfile::tempdir().unwrap();
     let run = TestRun::open(

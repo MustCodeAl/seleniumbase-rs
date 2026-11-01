@@ -63,6 +63,7 @@ async fn score(baselines: &VisualBaseline, name: &str, page: &Page) -> f64 {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_page_matches_its_baseline_and_a_rewritten_heading_does_not() {
     let dir = tempfile::tempdir().unwrap();
     let baselines = VisualBaseline::new(dir.path());
@@ -128,6 +129,7 @@ const BASE_CASE_TEST: &str = "assert_visual_match_sees_a_colour_change_check_win
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn assert_visual_match_sees_a_colour_change_check_window_does_not() {
     let layout_folder = PathBuf::from("visual_baseline").join(BASE_CASE_TEST);
     let folder = PathBuf::from("visual_baseline").join(format!("visual_chrome.{BASE_CASE_TEST}"));

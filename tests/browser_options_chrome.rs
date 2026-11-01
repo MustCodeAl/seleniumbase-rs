@@ -61,6 +61,7 @@ async fn probe(config: BrowserConfig) -> serde_json::Value {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn mobile_alone_gives_the_default_phone() {
     let seen = probe(test_config().with_mobile(true)).await;
     assert_eq!(seen["width"], 390, "{seen}");
@@ -74,6 +75,7 @@ async fn mobile_alone_gives_the_default_phone() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn metrics_choose_the_screen_and_turn_mobile_on() {
     let seen = probe(test_config().with_device_metrics(DeviceMetrics::new(360, 640, 2.0))).await;
     assert_eq!(seen["width"], 360, "{seen}");
@@ -83,6 +85,7 @@ async fn metrics_choose_the_screen_and_turn_mobile_on() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn the_undetected_mode_gets_the_same_phone_over_devtools() {
     let seen = probe(test_config().with_mode(DriverMode::Uc).with_mobile(true)).await;
     assert_eq!(seen["width"], 390, "{seen}");
@@ -96,6 +99,7 @@ async fn the_undetected_mode_gets_the_same_phone_over_devtools() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_desktop_session_is_not_a_phone() {
     let seen = probe(test_config()).await;
     assert!(seen["width"].as_u64().unwrap() > 390, "{seen}");
@@ -107,6 +111,7 @@ async fn a_desktop_session_is_not_a_phone() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn the_switches_are_on_the_command_line_chrome_started_with() {
     let _guard = BROWSER_LOCK.lock().await;
     let config = test_config()
@@ -190,6 +195,7 @@ async fn fake_proxy() -> (u16, tokio::sync::mpsc::UnboundedReceiver<String>) {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn chrome_loads_a_page_through_the_proxy_and_its_command_line_has_no_login() {
     let _guard = BROWSER_LOCK.lock().await;
     let (port, mut asked) = fake_proxy().await;

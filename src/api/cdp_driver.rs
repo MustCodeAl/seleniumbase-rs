@@ -470,6 +470,7 @@ mod tests {
     /// Run with `cargo test --lib cdp_driver -- --ignored`.
     #[tokio::test]
     #[ignore = "launches a real Chrome"]
+    #[serial_test::serial(chrome)]
     async fn drives_a_real_chrome_it_connected_to_by_port() {
         use crate::sb_cdp::LaunchOptions;
 

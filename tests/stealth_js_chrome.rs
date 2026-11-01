@@ -142,6 +142,7 @@ async fn active_selector(lab: &Lab, selector: &str) -> String {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn active_element_selector_names_the_focused_element() {
     let lab = lab("/").await;
 
@@ -163,6 +164,7 @@ async fn active_element_selector_names_the_focused_element() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn active_element_selector_always_finds_its_element() {
     let lab = lab("/messy").await;
     let script = serde_json::to_string(get_active_css_js()).expect("a string");
@@ -223,6 +225,7 @@ async fn active_element_selector_always_finds_its_element() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn proxy_auth_script_answers_only_the_proxy_with_the_exact_credentials() {
     let lab = lab("/").await;
     let password = "p\"w\\d\n</script>';alert(1);//\u{2028}";
@@ -338,6 +341,7 @@ fn fake_proxy() -> FakeProxy {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome and loads an extension into it"]
+#[serial_test::serial(chrome)]
 async fn proxy_auth_extension_logs_in_to_the_proxy_in_a_real_chrome() {
     // Chrome 137 and later ignore `--load-extension` in branded builds, so the
     // extension is loaded over the protocol, which `--enable-unsafe-extension-debugging`
@@ -409,6 +413,7 @@ async fn proxy_auth_extension_logs_in_to_the_proxy_in_a_real_chrome() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn every_script_in_the_bundled_extensions_parses() {
     let lab = lab("/").await;
     let mut checked = 0;

@@ -96,6 +96,7 @@ async fn started(output_dir: &Path) -> (Host<Cdp>, String) {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_devtools_endpoint_leads_to_the_browser_the_server_drives() {
     let dir = tempfile::tempdir().unwrap();
     let (host, _base) = started(dir.path()).await;
@@ -119,6 +120,7 @@ async fn the_devtools_endpoint_leads_to_the_browser_the_server_drives() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_model_can_fill_a_form_read_the_page_and_check_the_result() {
     let dir = tempfile::tempdir().unwrap();
     let (host, base) = started(dir.path()).await;
@@ -194,6 +196,7 @@ async fn a_model_can_fill_a_form_read_the_page_and_check_the_result() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn tabs_cookies_and_saved_pages_work_end_to_end() {
     let dir = tempfile::tempdir().unwrap();
     let (host, base) = started(dir.path()).await;
@@ -273,6 +276,7 @@ async fn tabs_cookies_and_saved_pages_work_end_to_end() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn solving_a_captcha_clicks_where_the_checkbox_is_with_a_trusted_event() {
     let dir = tempfile::tempdir().unwrap();
     let (host, _base) = started(dir.path()).await;

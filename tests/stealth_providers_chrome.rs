@@ -142,6 +142,7 @@ fn persona_with(change: impl FnOnce(FingerprintBuilder) -> FingerprintBuilder) -
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn replaced_functions_and_getters_look_native() {
     let lab = lab().await;
     let probe = r##"(() => {
@@ -185,6 +186,7 @@ async fn replaced_functions_and_getters_look_native() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn no_provider_leaves_a_name_or_property_a_page_can_see() {
     let lab = lab().await;
     let probe = r##"(() => {
@@ -249,6 +251,7 @@ async fn no_provider_leaves_a_name_or_property_a_page_can_see() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_font_check_understands_css_shorthand() {
     let lab = lab().await;
     let fp = persona_with(|b| b.fonts(["Arial", "Segoe UI"]));
@@ -320,6 +323,7 @@ const DATES: &str = r##"(() => {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_timezone_provider_makes_date_and_intl_agree() {
     let lab = lab().await;
     let fp = persona_with(|b| b.timezone("Asia/Tokyo"));
@@ -363,6 +367,7 @@ async fn the_timezone_provider_makes_date_and_intl_agree() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_timezone_provider_follows_daylight_saving_time() {
     let lab = lab().await;
     let fp = persona_with(|b| b.timezone("America/New_York"));
@@ -389,6 +394,7 @@ async fn the_timezone_provider_follows_daylight_saving_time() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_permission_state_is_a_real_permission_state() {
     let lab = lab().await;
     lab.install(&persona(), &["permissions"]).await;
@@ -415,6 +421,7 @@ async fn the_permission_state_is_a_real_permission_state() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn languages_and_plugins_are_the_same_object_on_every_read() {
     let lab = lab().await;
     let fp = persona_with(|b| b.languages("de-DE,de;q=0.9,en;q=0.8"));
@@ -452,6 +459,7 @@ async fn languages_and_plugins_are_the_same_object_on_every_read() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_connection_provider_changes_values_not_the_shape() {
     let lab = lab().await;
     let probe = r##"(() => ({
@@ -513,6 +521,7 @@ async fn the_connection_provider_changes_values_not_the_shape() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_battery_provider_reports_infinite_times() {
     let lab = lab().await;
     let fp = persona_with(|b| {
@@ -569,6 +578,7 @@ const CANVAS: &str = r##"(() => {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn canvas_noise_is_the_same_on_every_read() {
     let lab = lab().await;
     let before = lab.eval(CANVAS).await;
@@ -608,6 +618,7 @@ async fn canvas_noise_is_the_same_on_every_read() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn canvas_reads_do_not_change_the_canvas() {
     let lab = lab().await;
     lab.eval(
@@ -637,6 +648,7 @@ async fn canvas_reads_do_not_change_the_canvas() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn audio_noise_is_the_same_on_every_read() {
     let lab = lab().await;
     let render = r##"(async () => {
@@ -692,6 +704,7 @@ async fn audio_noise_is_the_same_on_every_read() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn tracker_blocking_matches_hosts_and_covers_fetch_xhr_and_beacons() {
     let lab = lab().await;
     let fp = persona_with(|b| b.blocked_trackers(vec!["localhost".to_owned()]));
@@ -753,6 +766,7 @@ async fn tracker_blocking_matches_hosts_and_covers_fetch_xhr_and_beacons() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn providers_that_cannot_work_leave_the_page_untouched() {
     let lab = lab().await;
     let probe = r##"(() => ({
@@ -787,6 +801,7 @@ const CODECS: [&str; 9] = [
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn codec_support_matches_chrome_for_what_it_can_play() {
     let lab = lab().await;
     let probe = format!(
@@ -808,6 +823,7 @@ async fn codec_support_matches_chrome_for_what_it_can_play() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn codec_support_is_filled_in_only_for_a_chromium_without_proprietary_codecs() {
     let lab = lab().await;
     let probe = format!(
@@ -847,6 +863,7 @@ async fn codec_support_is_filled_in_only_for_a_chromium_without_proprietary_code
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn window_geometry_and_headless_fixes_do_not_fight_over_the_outer_size() {
     let lab = lab().await;
     let probe = r##"(() => {
@@ -899,6 +916,7 @@ async fn window_geometry_and_headless_fixes_do_not_fight_over_the_outer_size() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn text_in_a_fingerprint_cannot_break_out_of_its_string() {
     let lab = lab().await;
     let hostile = "x'; window.pwned = 1; '\\ \u{2028} \"q\" `t` ${1}";
@@ -941,6 +959,7 @@ impl EvasionProvider for Multiline {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn assembling_a_script_does_not_change_a_template_literal() {
     let lab = lab().await;
     let mut registry = EvasionRegistry::empty();
@@ -957,6 +976,7 @@ async fn assembling_a_script_does_not_change_a_template_literal() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_whole_fingerprint_applied_over_cdp_is_consistent() {
     let lab = lab().await;
     let fp = Fingerprint::randomized(OsType::Windows, 7);

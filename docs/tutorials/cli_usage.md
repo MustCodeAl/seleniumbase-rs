@@ -39,8 +39,9 @@ The binary is built by the workspace package `seleniumbase-rs-cli` (`crates/cli`
 the library `seleniumbase-rs` at the repository root carries no command-line code.
 To install it: `cargo install --path crates/cli`.
 
-A `justfile` and `Makefile` provide common shortcuts such as `just lint`,
-`just test-all`, `just docs`, and `just completions`.
+`mise.toml` and the `Makefile` provide common shortcuts such as `mise run lint`,
+`mise run test-all`, `mise run docs`, and `mise run completions` (`mise tasks ls`
+lists them all).
 
 ## Help and version
 

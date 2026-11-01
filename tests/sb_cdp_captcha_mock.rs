@@ -73,7 +73,7 @@ fn options() -> SolveOptions {
     SolveOptions::new().behavior(seeded())
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn a_widget_that_needs_two_presses_is_pressed_twice_and_then_reported_cleared() {
     let (page, _mock, presses) = page_with_widget(2, 1).await;
 
@@ -89,7 +89,7 @@ async fn a_widget_that_needs_two_presses_is_pressed_twice_and_then_reported_clea
     assert_eq!(presses.load(Ordering::SeqCst), 2);
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn a_widget_that_never_clears_fails_with_a_typed_error_after_three_presses() {
     let (page, _mock, presses) = page_with_widget(u32::MAX, 1).await;
     let started = Instant::now();
@@ -118,7 +118,7 @@ async fn a_widget_that_never_clears_fails_with_a_typed_error_after_three_presses
     assert!(error.hint().unwrap().contains("verify_timeout"));
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn a_widget_that_is_already_clear_is_not_pressed() {
     let (page, mock, presses) = page_with_widget(0, 1).await;
 
@@ -134,7 +134,7 @@ async fn a_widget_that_is_already_clear_is_not_pressed() {
     assert!(mock.calls_to("Input.dispatchMouseEvent").is_empty());
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn a_page_with_no_response_field_is_pressed_once_and_reported_unverified() {
     let (page, _mock, presses) = page_with_widget(u32::MAX, 0).await;
 
@@ -154,7 +154,7 @@ async fn a_page_with_no_response_field_is_pressed_once_and_reported_unverified()
     assert!(solved.to_string().contains("nothing on the page shows"));
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn the_pointer_starts_in_the_middle_of_the_viewport_and_travels_to_the_widget() {
     let (page, mock, _presses) = page_with_widget(1, 1).await;
 
@@ -189,7 +189,7 @@ async fn the_pointer_starts_in_the_middle_of_the_viewport_and_travels_to_the_wid
     assert!(biggest < 150.0, "the biggest jump was {biggest:.0}px");
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn the_press_and_the_release_are_a_moment_apart() {
     let (page, mock, _presses) = page_with_widget(1, 1).await;
 
@@ -213,7 +213,7 @@ async fn the_press_and_the_release_are_a_moment_apart() {
     assert!(started.elapsed() >= Duration::from_millis(300));
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn click_at_presses_near_the_aim_and_remembers_where_the_pointer_is() {
     let (page, mock, _presses) = page_with_widget(1, 1).await;
     let person = page.human(seeded());
@@ -238,7 +238,7 @@ async fn click_at_presses_near_the_aim_and_remembers_where_the_pointer_is() {
     );
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn a_drag_holds_the_button_from_the_handle_to_the_end() {
     let (page, mock, _presses) = page_with_widget(1, 1).await;
     let person = page.human(seeded());

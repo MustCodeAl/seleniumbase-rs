@@ -22,7 +22,7 @@ Two things were copied by hand onto many pages and drifted apart:
    tree leaves out. Folders marked `open` are expanded in both; the text tree
    shows no row of a folder that is shut.
 
-Usage, from the repository root (`just layout-tree` runs the first line):
+Usage, from the repository root (`mise run layout-tree` runs the first line):
 
     python3 -I tools/docs_layout_tree.py            write every page again
     python3 -I tools/docs_layout_tree.py --check    change nothing; list what differs
@@ -30,7 +30,7 @@ Usage, from the repository root (`just layout-tree` runs the first line):
                                                     wrap a page's unmarked component copy
     python3 -I tools/docs_layout_tree.py --print mdx|md|component
 
-`just mdx` (tools/mdx-check/check.mjs) runs `--print` and compares every page with it.
+`mise run mdx` (tools/mdx-check/check.mjs) runs `--print` and compares every page with it.
 Only the standard library is used.
 """
 
@@ -415,6 +415,7 @@ def cli_package_detail():
         _file("browser_flags.rs", "the browser options, their SB_ variables and the settings file"),
         _file("completion.rs", "the patched shell completion scripts"),
         _file("crypto.rs", "sbrs encrypt and decrypt"),
+        _file("diagnostic.rs", "the miette report printed when a command fails"),
         _file("failure.rs", "a command line that does not parse prints the command page, then the error"),
         _file("fingerprint.rs", "sbrs fingerprint"),
         _file("history.rs", "sbrs report history"),
@@ -448,7 +449,7 @@ def cli_install_files():
 
 
 # The repository as it is. Add a line here when a folder appears in src/, crates/ or the
-# root; the check (`just mdx`, or `--check`) names the folder that is missing.
+# root; the check (`mise run mdx`, or `--check`) names the folder that is missing.
 LAYOUT = D(
     "seleniumbase-rs", "the workspace root",
     F("Cargo.toml", "the workspace and the library package: version, rust-version 1.99, features", highlight=True),
@@ -536,12 +537,12 @@ LAYOUT = D(
     D("contrib", "files that are not part of the crate",
       D("tldr", "draft tldr-pages entries for sbrs, kept to propose upstream")),
     D("scripts", "helper scripts",
-      F("check-consumers.sh", "just contracts: checks what the repositories that build on this crate use")),
+      F("check-consumers.sh", "mise run contracts: checks what the repositories that build on this crate use")),
     D("tools", "scripts for the docs and the parity manifests",
-      D("mdx-check", "just mdx: builds every docs page as Docs7 does"),
+      D("mdx-check", "mise run mdx: builds every docs page as Docs7 does"),
       D("parity", "extracts, seeds and renders the parity manifest (docs/parity.md)"),
       D("layout_tree", "the tree component that docs_layout_tree.py copies onto the pages"),
-      F("docs_layout_tree.py", "just layout-tree: writes the layout trees of the docs pages"),
+      F("docs_layout_tree.py", "mise run layout-tree: writes the layout trees of the docs pages"),
       F("docs7_changelog.py", "writes docs/changelog.md from CHANGELOG.md"),
       check="dirs"),
     D("docker", "the Linux verification image (Dockerfile.verify, verify-linux.sh) and firefox-check/"),
@@ -553,8 +554,7 @@ LAYOUT = D(
       D("workflows", "the Warp workflows for sbrs")),
     F("Dockerfile", "the sbrs image; its skeleton step lists every target"),
     F("Makefile", "make targets"),
-    F("justfile", "just recipes"),
-    F("mise.toml", "tools and tasks for mise"),
+    F("mise.toml", "the tools and the tasks of the repository (mise tasks ls)"),
     F("deny.toml", "the cargo-deny policy"),
     F("clippy.toml", "clippy settings"),
     F("rust-analyzer.toml", "settings for rust-analyzer"),

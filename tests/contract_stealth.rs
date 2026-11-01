@@ -17,7 +17,7 @@
 //! and list what the stealth repository has to change in the commit message. Do not add a shim:
 //! the crate has no users yet, and the stealth repository follows.
 //!
-//! `scripts/check-consumers.sh stealth` (`just contracts`) reads the stealth checkout and fails
+//! `scripts/check-consumers.sh stealth` (`mise run contracts`) reads the stealth checkout and fails
 //! when it imports a `seleniumbase_rs::` path that is not in this file, so the list cannot lag.
 //!
 //! The stealth crates take this crate with its default features, which are none. `Browser::new_mocked`

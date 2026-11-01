@@ -89,7 +89,7 @@ fn entry<'a>(har: &'a Har, url: &str) -> &'a HarEntry {
         .unwrap_or_else(|| panic!("no entry for {url}"))
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn starting_enables_the_network_domain() {
     let (page, mock) = page().await;
 
@@ -98,7 +98,7 @@ async fn starting_enables_the_network_domain() {
     assert_eq!(mock.calls_to("Network.enable").len(), 1);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_navigation_becomes_a_page_and_an_entry_with_timings() {
     let (page, mock) = page().await;
     let recorder = page.start_har().await.unwrap();
@@ -244,7 +244,7 @@ async fn a_navigation_becomes_a_page_and_an_entry_with_timings() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_redirect_becomes_one_entry_per_hop_on_one_page() {
     let (page, mock) = page().await;
     let recorder = page.start_har().await.unwrap();
@@ -369,7 +369,7 @@ async fn redirect_with_extra_info(extra_at: [usize; 2]) -> Har {
     recorder.finish().await.unwrap()
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn each_hop_of_a_redirect_gets_its_own_wire_headers_whenever_they_arrive() {
     // Chrome does not order the ExtraInfo events against requestWillBeSent:
     // the 302's may come before or after the next hop starts.
@@ -400,7 +400,7 @@ async fn each_hop_of_a_redirect_gets_its_own_wire_headers_whenever_they_arrive()
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_failed_request_has_status_zero_and_the_error() {
     let (page, mock) = page().await;
     let recorder = page.start_har().await.unwrap();
@@ -443,7 +443,7 @@ async fn a_failed_request_has_status_zero_and_the_error() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_request_without_an_answer_yet_is_kept_with_a_comment() {
     let (page, mock) = page().await;
     let recorder = page.start_har().await.unwrap();
@@ -469,7 +469,7 @@ async fn a_request_without_an_answer_yet_is_kept_with_a_comment() {
     assert!(har.to_json().unwrap().contains("\"time\": 0.0"));
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn headers_sent_before_their_request_are_still_used() {
     let (page, mock) = page().await;
     let recorder = page.start_har().await.unwrap();
@@ -494,7 +494,7 @@ async fn headers_sent_before_their_request_are_still_used() {
     assert_eq!(early.response.cookies[0].name, "late");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn post_data_is_recorded_from_text_or_from_entries() {
     let (page, mock) = page().await;
     let recorder = page.start_har().await.unwrap();
@@ -539,7 +539,7 @@ async fn post_data_is_recorded_from_text_or_from_entries() {
     assert_eq!(post.mime_type, "application/json");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_body_the_browser_left_out_has_an_unknown_size() {
     let (page, mock) = page().await;
     let recorder = page.start_har().await.unwrap();
@@ -596,7 +596,7 @@ async fn a_body_the_browser_left_out_has_an_unknown_size() {
     assert_eq!(binary.body_size, 2, "the bytes, not the text they make");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn bodies_are_not_fetched_by_default() {
     let (page, mock) = page().await;
     let recorder = page.start_har().await.unwrap();
@@ -609,7 +609,7 @@ async fn bodies_are_not_fetched_by_default() {
     assert!(har.log.entries[0].response.content.text.is_none());
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn bodies_are_kept_when_asked_up_to_the_size_limit() {
     let (page, mock) = page().await;
     mock.on("Network.getResponseBody", |params| {
@@ -678,7 +678,7 @@ async fn bodies_are_kept_when_asked_up_to_the_size_limit() {
     assert_eq!(fetched.len(), 4, "{fetched:?}");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_body_limit_stops_where_one_devtools_message_would_overflow() {
     let (page, mock) = page().await;
     mock.on("Network.getResponseBody", |_| {
@@ -712,7 +712,7 @@ async fn the_body_limit_stops_where_one_devtools_message_would_overflow() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn events_of_other_tabs_are_not_recorded() {
     let (page, mock) = page().await;
     let recorder = page.start_har().await.unwrap();
@@ -761,7 +761,7 @@ fn sessions_of(mock: &MockCtrl, method: &str, wanted: fn(&Value) -> bool) -> Vec
     sessions
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn requests_of_cross_site_iframes_are_recorded_too() {
     let (page, mock) = page().await;
     mock.on("Network.getResponseBody", |_| {
@@ -828,7 +828,7 @@ async fn requests_of_cross_site_iframes_are_recorded_too() {
     assert_eq!(last.params["autoAttach"], false);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn dropping_a_recorder_stops_attaching_to_iframes() {
     let (page, mock) = page().await;
     let recorder = page.start_har().await.unwrap();
@@ -846,7 +846,7 @@ async fn dropping_a_recorder_stops_attaching_to_iframes() {
     assert_eq!(last.params["autoAttach"], false);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_paused_target_that_is_not_an_iframe_is_let_go_unrecorded() {
     let (page, mock) = page().await;
     let recorder = page.start_har().await.unwrap();
@@ -872,7 +872,7 @@ async fn a_paused_target_that_is_not_an_iframe_is_let_go_unrecorded() {
     assert_eq!(sessions_of(&mock, "Network.enable", |_| true), ["S1"]);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_recording_that_falls_behind_says_so_and_attaches_its_iframes_again() {
     let (page, mock) = page().await;
     let recorder = page.start_har().await.unwrap();
@@ -901,7 +901,7 @@ async fn a_recording_that_falls_behind_says_so_and_attaches_its_iframes_again() 
     assert_eq!(tab_attach, [true, false, true, false]);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_response_from_the_cache_has_only_wait_and_receive() {
     let (page, mock) = page().await;
     let recorder = page.start_har().await.unwrap();
@@ -921,7 +921,7 @@ async fn a_response_from_the_cache_has_only_wait_and_receive() {
     assert!(close(har.log.entries[0].time, 60.0));
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_browser_version_names_the_browser() {
     let (page, mock) = page().await;
     mock.reply(
@@ -936,7 +936,7 @@ async fn the_browser_version_names_the_browser() {
     assert_eq!(browser.version, "141.0.7390.54");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_har_is_saved_as_json_that_reads_back() {
     let (page, mock) = page().await;
     let recorder = page.start_har().await.unwrap();

@@ -499,7 +499,7 @@ pub(crate) async fn write_evidence(
     let stem = format!(
         "{}_{}",
         file_stem(test),
-        chrono::Local::now().format("%Y%m%d_%H%M%S")
+        jiff::Zoned::now().strftime("%Y%m%d_%H%M%S")
     );
     crate::artifacts::write_new_file(dir, &stem, extension, bytes).await
 }
@@ -516,6 +516,17 @@ mod tests {
         assert_eq!(file_stem(""), "test");
         assert_eq!(file_stem(&"x".repeat(500)).len(), 80);
         assert!(!file_stem("a/b\\c:d").contains(['/', '\\', ':']));
+    }
+
+    #[tokio::test]
+    async fn evidence_is_named_after_the_test_and_the_second_it_was_taken() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = write_evidence(dir.path(), "login works", "png", b"x")
+            .await
+            .unwrap();
+        let name = path.file_name().unwrap().to_string_lossy().into_owned();
+        let shape = regex::Regex::new(r"^login_works_\d{8}_\d{6}\.png$").unwrap();
+        assert!(shape.is_match(&name), "{name}");
     }
 
     /// A plugin that writes down which hooks ran.

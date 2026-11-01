@@ -55,7 +55,7 @@ fn object(value: &Value) -> Map<String, Value> {
     value.as_object().cloned().unwrap_or_default()
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_handshake_tells_what_the_server_offers() {
     let tools_only = connect(host_with(vec![])).await;
     let dir = tempfile::tempdir().unwrap();
@@ -74,7 +74,7 @@ async fn the_handshake_tells_what_the_server_offers() {
     assert!(rich.tools && rich.resources && rich.prompts, "{rich:?}");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn tools_are_listed_with_their_schemas() {
     let declared = tool("declared", |_, _| async {
         Ok(Output::Json(json!({ "title": "Home" })))
@@ -102,7 +102,7 @@ async fn tools_are_listed_with_their_schemas() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_call_returns_the_text_and_the_structured_content() {
     let client = connect(host_with(vec![
         tool("object", |_, args: Args| async move {
@@ -132,7 +132,7 @@ async fn a_call_returns_the_text_and_the_structured_content() {
     assert!(text_result.images.is_empty());
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_tool_that_fails_is_an_outcome_and_not_an_error() {
     let client = connect(host_with(vec![tool("refuses", |_, _| async {
         Err::<Output, _>(ToolError::Refused("not on this server".to_owned()))
@@ -154,7 +154,7 @@ async fn a_tool_that_fails_is_an_outcome_and_not_an_error() {
     assert_eq!(report["kind"], "refused");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn progress_reaches_the_callback_of_the_call() {
     let client = connect(host_with(vec![tool(
         "slow",
@@ -194,7 +194,7 @@ async fn progress_reaches_the_callback_of_the_call() {
     assert_eq!(seen[2].total, Some(3.0));
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_call_without_a_callback_runs_the_same() {
     let client = connect(host_with(vec![tool(
         "slow",
@@ -210,7 +210,7 @@ async fn a_call_without_a_callback_runs_the_same() {
     assert_eq!(outcome.text, "done");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn an_unknown_tool_is_the_callers_mistake_and_names_the_nearest() {
     let client = connect(host_with(vec![tool("click_element", |_, _| async {
         Ok(Output::from("clicked"))
@@ -229,7 +229,7 @@ async fn an_unknown_tool_is_the_callers_mistake_and_names_the_nearest() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_call_that_takes_too_long_is_a_timeout() {
     let client = connect_to(
         host_with(vec![tool("stuck", |_, _| async {
@@ -252,7 +252,7 @@ async fn a_call_that_takes_too_long_is_a_timeout() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn resources_are_listed_and_read() {
     let dir = tempfile::tempdir().unwrap();
     let client = connect(cdp::host(Settings::new(dir.path()))).await;
@@ -277,7 +277,7 @@ async fn resources_are_listed_and_read() {
     assert_eq!(journal[0].blob, None);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_resource_the_server_refuses_or_does_not_know_is_the_callers_mistake() {
     let dir = tempfile::tempdir().unwrap();
     let client = connect(cdp::host(Settings::new(dir.path()))).await;
@@ -295,7 +295,7 @@ async fn a_resource_the_server_refuses_or_does_not_know_is_the_callers_mistake()
     assert_eq!(unknown.exit_code(), 2, "{unknown}");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn prompts_are_listed_and_rendered() {
     let dir = tempfile::tempdir().unwrap();
     let client = connect(cdp::host(Settings::new(dir.path()))).await;
@@ -327,7 +327,7 @@ async fn prompts_are_listed_and_rendered() {
     assert_eq!(missing.exit_code(), 2, "{missing}");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_client_can_be_closed() {
     let client = connect(host_with(vec![])).await;
 

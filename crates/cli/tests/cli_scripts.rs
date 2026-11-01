@@ -65,20 +65,20 @@ fn the_long_help_starts_with_the_banner() {
 }
 
 #[test]
-fn a_failure_is_reported_with_an_error_label_and_a_failing_exit_code() {
+fn a_failure_is_reported_as_a_diagnostic_and_a_failing_exit_code() {
     let output = sbrs(&["--cdp", "--uc", "open", "https://example.test"])
         .output()
         .expect("sbrs runs");
 
     assert_eq!(output.status.code(), Some(1));
     assert!(
-        stderr(&output).contains("error: Choose either --cdp or --uc, not both.\n"),
+        stderr(&output).starts_with("sbrs::error\n\n  x Choose either --cdp or --uc, not both.\n"),
         "{}",
         stderr(&output)
     );
     assert!(
-        !stderr(&output).contains("hint:"),
-        "a plain message has no hint to give"
+        !stderr(&output).contains("help:"),
+        "a plain message has no help to give"
     );
     assert!(
         !stderr(&output).contains('\x1b'),
@@ -108,11 +108,13 @@ fn a_crate_error_says_what_to_do_and_exits_with_its_category() {
         "bad input exits 2:\n{stderr}"
     );
     assert!(
-        stderr.contains("error: invalid configuration: failed to read settings:"),
+        stderr.starts_with(
+            "sbrs::invalid_config\n\n  x invalid configuration: failed to read settings:"
+        ),
         "{stderr}"
     );
     assert!(
-        stderr.contains("\nhint: Review the configuration"),
+        stderr.contains("\n  help: Review the configuration"),
         "{stderr}"
     );
     assert!(!stderr.contains("[ERROR]"), "{stderr}");

@@ -107,6 +107,7 @@ fn referers(requests: &Requests, path: &str) -> Vec<Option<String>> {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn the_destination_receives_the_page_the_link_was_clicked_on_as_its_referer() {
     let _guard = BROWSER_LOCK.lock().await;
     let (base, requests) = serve();

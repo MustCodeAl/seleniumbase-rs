@@ -11,15 +11,15 @@
 //! 2. The goldens are what `ActionRecorder` writes, and the extension's generators are held to the
 //!    same files. `action_recorder_still_writes_the_goldens` holds this crate to them from the
 //!    other side: when `ActionRecorder` changes its output, the extension has to follow, and the
-//!    goldens are copied again with `just contracts-sync`.
+//!    goldens are copied again with `mise run contracts-sync`.
 //! 3. Its end-to-end crate (`e2e/`) drives a real Chrome through `sb_cdp` and reads a page report
 //!    as a `Fingerprint` (`e2e_*`).
 //!
 //! Nothing here starts a browser: the programs and the helpers are compiled and never called.
 //!
-//! `scripts/check-consumers.sh companion` (`just contracts`) reads the extension's checkout and
+//! `scripts/check-consumers.sh companion` (`mise run contracts`) reads the extension's checkout and
 //! fails when it uses a `seleniumbase_rs::` path this file does not list, or when its goldens
-//! differ from the copies. The end-to-end crate pins this crate by tag; `just contracts` with
+//! differ from the copies. The end-to-end crate pins this crate by tag; `mise run contracts` with
 //! `--check-build` compiles it against this checkout.
 
 #![allow(dead_code, unused_imports, clippy::unused_async)]
@@ -117,7 +117,7 @@ mod e2e_tests {
             assert_eq!(
                 produced, expected,
                 "{file} no longer matches ActionRecorder: the companion's generators follow it, \
-                 so change them (and its tests/golden/) first, then run `just contracts-sync`"
+                 so change them (and its tests/golden/) first, then run `mise run contracts-sync`"
             );
         }
     }

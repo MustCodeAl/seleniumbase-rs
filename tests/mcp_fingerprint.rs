@@ -135,7 +135,7 @@ fn every_browser_server_offers_the_fingerprint_tools_as_untrusted_with_a_schema(
 // capture_fingerprint
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_capture_returns_the_fingerprint_saves_a_private_file_and_reports_progress() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path(), readings(&[])).await;
@@ -197,7 +197,7 @@ fn redacted_json(fingerprint: &Fingerprint) -> Value {
     serde_json::from_str(&fingerprint.to_json_pretty().unwrap()).unwrap()
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_capture_refuses_a_name_outside_the_output_folder_before_reading() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path(), readings(&[])).await;
@@ -215,7 +215,7 @@ async fn a_capture_refuses_a_name_outside_the_output_folder_before_reading() {
     assert_eq!(mock.calls_to("Runtime.evaluate").len(), before);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_fingerprint_tools_need_a_browser_to_read() {
     let dir = tempfile::tempdir().unwrap();
     let host = cdp::host(Settings::new(dir.path()));
@@ -234,7 +234,7 @@ async fn the_fingerprint_tools_need_a_browser_to_read() {
 // compare_fingerprint
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_browser_presents_its_own_capture_and_not_another_systems_preset() {
     let dir = tempfile::tempdir().unwrap();
     let (host, _mock) = running(dir.path(), readings(&[])).await;
@@ -264,7 +264,7 @@ async fn a_browser_presents_its_own_capture_and_not_another_systems_preset() {
     assert!(data["unverifiable"].is_array(), "{data}");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_comparison_needs_exactly_one_fingerprint_source() {
     let dir = tempfile::tempdir().unwrap();
     let (host, _mock) = running(dir.path(), readings(&[])).await;
@@ -307,7 +307,7 @@ async fn a_comparison_needs_exactly_one_fingerprint_source() {
 // explain_fingerprint
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn an_explanation_names_the_signs_of_automation_and_what_to_change() {
     let dir = tempfile::tempdir().unwrap();
     let (host, _mock) = running(
@@ -330,7 +330,7 @@ async fn an_explanation_names_the_signs_of_automation_and_what_to_change() {
     assert!(data["not_readable"].as_array().unwrap().len() >= 4);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_browser_with_no_markers_has_no_risk() {
     let dir = tempfile::tempdir().unwrap();
     let (host, _mock) = running(dir.path(), readings(&[])).await;
@@ -349,7 +349,7 @@ fn sb_host(dir: &Path) -> Host<seleniumbase_rs::BaseCase> {
     sb::host(Settings::new(dir))
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn two_fingerprints_differ_by_the_settings_the_expected_one_gives() {
     let dir = tempfile::tempdir().unwrap();
     let host = sb_host(dir.path());
@@ -388,7 +388,7 @@ async fn two_fingerprints_differ_by_the_settings_the_expected_one_gives() {
     assert!(invalid(&missing, "b"), "{missing}");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_patch_merges_removes_and_reports_the_key_it_cannot_read() {
     let dir = tempfile::tempdir().unwrap();
     let host = sb_host(dir.path());
@@ -425,7 +425,7 @@ async fn a_patch_merges_removes_and_reports_the_key_it_cannot_read() {
     assert!(bad.to_string().contains("screen_width"), "{bad}");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_proxy_password_is_shown_as_stars_and_kept_in_the_saved_file() {
     let dir = tempfile::tempdir().unwrap();
     let host = sb_host(dir.path());
@@ -458,7 +458,7 @@ async fn a_proxy_password_is_shown_as_stars_and_kept_in_the_saved_file() {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_random_identity_is_the_one_sbrs_fingerprint_export_writes() {
     let dir = tempfile::tempdir().unwrap();
     let host = sb_host(dir.path());
@@ -502,7 +502,7 @@ async fn a_random_identity_is_the_one_sbrs_fingerprint_export_writes() {
     assert_eq!(windows.as_json().unwrap()["screen"]["width"], 800);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn validate_reads_a_fingerprint_object_a_file_or_a_preset() {
     let dir = tempfile::tempdir().unwrap();
     let host = sb_host(dir.path());
@@ -535,7 +535,7 @@ async fn validate_reads_a_fingerprint_object_a_file_or_a_preset() {
 // start_browser
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn start_browser_refuses_a_bad_fingerprint_before_it_launches_anything() {
     let dir = tempfile::tempdir().unwrap();
     let cdp = cdp::host(Settings::new(dir.path()));

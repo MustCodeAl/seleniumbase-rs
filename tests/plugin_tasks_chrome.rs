@@ -128,6 +128,7 @@ fn options(log: &Log) -> Result<LaunchOptions> {
 
 #[tokio::test]
 #[ignore = "needs a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_task_runs_on_a_real_chrome_that_is_closed_afterwards() -> Result<()> {
     let log = Log::default();
     let sink = Lines::default();
@@ -153,6 +154,7 @@ async fn a_task_runs_on_a_real_chrome_that_is_closed_afterwards() -> Result<()> 
 
 #[tokio::test]
 #[ignore = "needs a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_test_hooks_see_the_real_tab_and_a_plugin_fails_a_passed_test() -> Result<()> {
     let site = serve();
     let log = Log::default();

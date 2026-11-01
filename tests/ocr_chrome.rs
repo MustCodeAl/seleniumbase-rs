@@ -20,6 +20,7 @@ const PAGE: &str = "data:text/html,<!doctype html><html><body style=\"background
 
 #[tokio::test]
 #[ignore = "launches a real Chrome and downloads the OCR models once"]
+#[serial_test::serial(chrome)]
 async fn read_page_finds_the_text_a_page_shows() {
     let ocr = Ocr::load().await.expect("the OCR models load");
     let options = LaunchOptions::builder()
@@ -47,6 +48,7 @@ async fn read_page_finds_the_text_a_page_shows() {
 
 #[tokio::test]
 #[ignore = "downloads the OCR models once"]
+#[serial_test::serial(chrome)]
 async fn bytes_that_are_not_a_png_are_an_error() {
     let ocr = Ocr::load().await.expect("the OCR models load");
     assert!(ocr.text_in_png(b"not a png").await.is_err());

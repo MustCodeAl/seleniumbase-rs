@@ -39,6 +39,7 @@ async fn the_title_is(page: &SbCdpCase, title: String) -> seleniumbase_rs::Resul
 )]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "starts a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_title_of_a_page(#[future(awt)] page: SbCdpCase) {
     let _ = page;
 }
@@ -47,12 +48,14 @@ async fn the_title_of_a_page(#[future(awt)] page: SbCdpCase) {
 #[tokio::test]
 #[should_panic(expected = "Step failed")]
 #[ignore = "starts a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_wrong_title(#[future(awt)] page: SbCdpCase) {
     let _ = page;
 }
 
 #[test]
 #[ignore = "starts a real Chrome"]
+#[serial_test::serial(chrome)]
 fn a_failed_scenario_leaves_the_three_files_of_its_page() {
     let id = format!(
         "bdd_chrome.{}",

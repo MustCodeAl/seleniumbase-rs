@@ -593,6 +593,16 @@ RUST_BACKTRACE=1 cargo test --features "mcp-server test-util" --test sb_cdp_mock
   binary at a time.
 - `--nocapture` shows what the test prints as it runs. Logs appear only if the
   test installs a subscriber (see [In your own program or test](#in-your-own-program-or-test)).
+- The mock-driven tests of the `sb_cdp` engine and of the MCP servers, and the tests of the
+  downloads (drivers, browsers, the Selenium Server jar), start with `#[test_log::test]` (the
+  [test-log](https://docs.rs/test-log) crate, `trace` feature) or `#[test_log::test(tokio::test)]`,
+  which installs a `tracing` subscriber that Cargo captures: the log of a test that fails is
+  printed with the failure, and `RUST_LOG=debug` (a filter, see
+  [Pick a target with RUST_LOG](#pick-a-target-with-rust_log)) chooses what it shows. Use the same
+  attribute for a new test of this kind. A test that installs a subscriber of its own
+  (`tests/sb_cdp_plugin_network.rs` does) keeps `#[tokio::test]`, because the global subscriber can
+  be set only once.
+
 
 ## Step through with lldb
 

@@ -296,6 +296,7 @@ mod tests_gui {
 
     #[tokio::test]
     #[ignore = "needs Chrome"]
+    #[serial_test::serial(chrome)]
     async fn the_pointer_target_includes_the_window_toolbar_and_borders() {
         let (browser, page) = open_html(
             "<!doctype html><body style='margin:0'>\
@@ -315,6 +316,7 @@ mod tests_gui {
 
     #[tokio::test]
     #[ignore = "needs Chrome"]
+    #[serial_test::serial(chrome)]
     async fn the_pointer_target_includes_the_frame_the_element_is_in() {
         let (browser, page) = open_html(
             "<!doctype html><body style='margin:0'>\
@@ -336,6 +338,7 @@ mod tests_gui {
 
     #[tokio::test]
     #[ignore = "needs Chrome"]
+    #[serial_test::serial(chrome)]
     async fn a_missing_element_is_an_error_not_a_position() {
         let (browser, page) = open_html("<!doctype html><p>nothing</p>").await;
         let script = format!("(function () {{ {} }})()", element_center_script("#nope"));

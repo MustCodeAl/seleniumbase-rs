@@ -47,6 +47,8 @@ mod args_install;
 mod completion;
 mod crypto;
 
+mod diagnostic;
+
 mod failure;
 
 mod fig;
@@ -2850,9 +2852,9 @@ fn run_command() -> std::process::ExitCode {
             std::process::ExitCode::from(2)
         }
         Err(error) => {
-            // `error:`, its causes and a `hint:`, and an exit status that
+            // The report (a code, the message, its causes, a help line) and an exit status that
             // says which kind of failure it was (see `exit_code_for`).
-            rich_helper::print_error_report(error.as_ref());
+            diagnostic::print("sbrs", error.as_ref());
             std::process::ExitCode::from(rich_helper::exit_code_for(error.as_ref()))
         }
     }

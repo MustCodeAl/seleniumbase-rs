@@ -22,6 +22,7 @@ use seleniumbase_rs::browser::launcher::launch_chromedriver;
 
 #[tokio::test]
 #[ignore = "needs chromedriver on PATH"]
+#[serial_test::serial(chrome)]
 async fn a_driver_macos_kills_is_signed_again_and_started() {
     let installed = which::which("chromedriver")
         .expect("this test needs chromedriver on PATH (it is ignored by default)");
