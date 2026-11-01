@@ -31,8 +31,21 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 s
 
 ## All releases
 
-<Update label="Unreleased" description="Next release" tags={[]}>
+<Update label="Unreleased" description="Next release" tags={["New"]}>
 
+### Breaking
+
+- **Breaking: `common::unobfuscate` is part of `common::obfuscate`.** `rot13`,
+  `base64_decode` and `unobfuscate` moved into `seleniumbase_rs::common::obfuscate`.
+  The two modules imported each other. Import them from `common::obfuscate`.
+
+### Added
+
+- `sbrs-mcp install --all` and `uninstall --all` register with, or remove the
+  registration from, every MCP client that is installed on the machine (its config
+  file, its own config folder, or its program on `PATH`). Clients that are not
+  installed are skipped and named. With no client named, a terminal lists the installed clients and asks
+  which ones; otherwise it still exits with status 2 and lists the known clients.
 
 </Update>
 
