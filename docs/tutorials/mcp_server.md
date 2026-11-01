@@ -212,7 +212,7 @@ client that starts it with only flags keeps working.
 | `--scope user` or `--scope project` | `user` | Your own config, or the config file in the current folder. A client without a project file refuses `project` with exit status 2. |
 | `--print` | off | Show exactly what would be written or run, and write and run nothing. |
 | `--force` | off | Replace an entry of the same name that starts something different. |
-| `--all` | off | `install` and `uninstall` only. Act on every client that is installed on this machine: its config file, its own config folder, or its program on `PATH` (`claude`, `codex`, `code`). Clients that are not installed are skipped, and each skip is printed. What will change is printed before anything is written or removed. `--all` takes no client names. |
+| `--all` | off | `install` and `uninstall` only. Act on every client that is installed on this machine: its config file, its own config folder, or its program on `PATH` (`claude`, `codex`, `code`). Clients that are not installed are skipped, and each skip is printed. Before anything is written or removed it prints a plan: the client, the config file, and `add` or `remove` for each entry. `--all` takes no client names. |
 
 ### Clients
 

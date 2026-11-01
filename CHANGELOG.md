@@ -19,7 +19,9 @@ work, `docs/parity.md` the per-API status).
 - `sbrs-mcp install --all` and `uninstall --all` register with, or remove the
   registration from, every MCP client that is installed on the machine (its config
   file, its own config folder, or its program on `PATH`). Clients that are not
-  installed are skipped and named. With no client named, a terminal lists the installed clients and asks
+  installed are skipped and named. Before it changes anything it prints a plan: the
+  client, the config file, and whether each entry is added or removed. With no client
+  named, a terminal lists the installed clients and asks
   which ones; otherwise it still exits with status 2 and lists the known clients.
 
 ## [0.7.0] - 2026-10-31

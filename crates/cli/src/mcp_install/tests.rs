@@ -1559,10 +1559,14 @@ mod fake_cli {
             sb.user(Client::Vscode).exists(),
             "vscode was detected by its program"
         );
-        assert!(outcome.out.contains("will change:"), "{}", outcome.out);
-        let preview = outcome.out.find("would be added").expect(&outcome.out);
-        let rest = &outcome.out[preview + "would be added".len()..];
-        assert!(rest.contains("added"), "{rest}");
+        let path = sb.user(Client::Vscode);
+        let plan = format!("  vscode  {}  add seleniumbase", path.display());
+        let at = outcome.out.find(&plan).expect(&outcome.out);
+        assert!(
+            outcome.out[at + plan.len()..].contains("added"),
+            "{}",
+            outcome.out
+        );
     }
 }
 
@@ -1592,7 +1596,14 @@ fn all_installs_only_a_client_whose_config_folder_is_there() {
     );
     assert!(sb.user(Client::Cursor).exists());
     assert!(!sb.user(Client::Zed).exists());
-    assert!(outcome.out.contains("will change:"), "{}", outcome.out);
+    let path = sb.user(Client::Cursor);
+    let plan = format!("  cursor  {}  add seleniumbase", path.display());
+    let at = outcome.out.find(&plan).expect(&outcome.out);
+    assert!(
+        outcome.out[at + plan.len()..].contains("added"),
+        "the plan is printed before the entries are added: {}",
+        outcome.out
+    );
 }
 
 #[test]
@@ -1642,7 +1653,14 @@ fn all_uninstall_removes_the_registration_from_detected_clients() {
     assert_eq!(installed.code, 0, "{}", installed.err);
     let outcome = sb.uninstall(&[], |request| request.all = true);
     assert_eq!(outcome.code, 0, "{}", outcome.err);
-    assert!(outcome.out.contains("will change:"), "{}", outcome.out);
+    let path = sb.user(Client::Cursor);
+    let plan = format!("  cursor  {}  remove seleniumbase", path.display());
+    let at = outcome.out.find(&plan).expect(&outcome.out);
+    assert!(
+        outcome.out[at + plan.len()..].contains("removed"),
+        "the plan is printed before the entries are removed: {}",
+        outcome.out
+    );
     assert!(
         outcome.err.contains("zed: not found, skipped"),
         "{}",
