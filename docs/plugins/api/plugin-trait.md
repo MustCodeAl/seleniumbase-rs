@@ -432,7 +432,9 @@ An error from `before_context`, `on_context_created` or `before_navigate` stops
 what it guards, and one from `on_request` blocks the request; the others are
 logged. A panic in any hook, old or new, becomes `PluginError::Panicked`, and a
 set with a timer (`PluginSet::with_timer`) ends a hook that runs past its limit
-with `PluginError::Timeout`. The full reference, with every type above, is the
+with `PluginError::Timeout`. Navigation is [Navigation](/plugins/api/navigation),
+the network and DevTools events are [Network](/plugins/api/network), and tasks
+are [Tasks](/plugins/api/tasks). Browser contexts and test hooks stay in the
 crate's rustdoc (`cargo doc -p seleniumbase-rs-plugin --open`).
 
 
