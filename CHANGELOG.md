@@ -24,7 +24,9 @@ work, `docs/parity.md` the per-API status).
   <https://docs.x.ai/build/features/mcp-servers> and
   <https://docs.x.ai/build/settings>. `--all` treats `grok` on `PATH`, or the
   config folder, as installed, and the plan lists it before anything is written.
-
+- How it works: what the `cdc_` properties are and how UC mode removes them,
+  the order stealth evasions apply, how a driver is matched to Chrome and
+  downloaded, and a DevTools Protocol page for the driverless engine.
 - `sbrs-mcp install --all` and `uninstall --all` register with, or remove the
   registration from, every MCP client that is installed on the machine (its config
   file, its own config folder, or its program on `PATH`). Clients that are not

@@ -320,10 +320,27 @@ an error reply names a W3C error such as `no such element`.
 
 ### Why the driver version matters
 
-A driver is built for one browser version: `chromedriver` 154 drives Chrome 154.
-A mismatch fails when the session starts, with `session not created`.
-`sbrs doctor` prints the Chrome it finds and the chromedriver it finds, with
-both versions side by side.
+A chromedriver only drives the Chrome of its own major version, and
+msedgedriver only drives the Edge of its own major version
+(`src/browser/driver_version.rs`). Pairing driver 151 with Chrome 155 does not
+crash the process. The session fails later with `session not created`.
+`sbrs doctor` prints the browser and the driver it found, with both versions
+side by side.
+
+`fit` compares the two major numbers. `Matches` means they are equal.
+`Mismatch` names both numbers. `Unknown` means at least one could not be read,
+so the launcher does not throw the file away. `major_version` takes the first
+word in `--version` output that is at least three dot-separated numbers
+(`ChromeDriver 155.0.8059.40` and `Google Chrome 155.0.8059.40` are both 155).
+`binary_major` runs the program with `--version` and waits at most 10 seconds
+(`VERSION_TIMEOUT`), which covers macOS checking a freshly downloaded binary.
+`major_without_running` does not start the program: on macOS it reads the
+`Info.plist` of the app bundle, otherwise the version folder beside the
+binary.
+
+geckodriver is the exception (`src/browser/driver_install.rs`). One build
+drives a range of Firefox versions, so nothing compares it to the installed
+Firefox.
 
 ### How a driver is found
 
@@ -345,10 +362,23 @@ It does not look on your `PATH`.
 
 </Step>
 
-<Step title="Download it first" icon="download">
+<Step title="Match it, then download" icon="download">
 
-When that file is missing, it downloads the latest stable chromedriver into
-`downloaded_drivers/` first. `sbrs install` does the download ahead of time.
+When the file in `downloaded_drivers/` is missing, or `fit` says its major
+version is not the browser's, the launcher downloads the driver for that
+browser. Chromedriver comes from the Chrome for Testing JSON
+(`src/browser/chrome_for_testing.rs`):
+`last-known-good-versions-with-downloads.json` for a channel, and
+`latest-versions-per-milestone-with-downloads.json` for a major. msedgedriver
+comes from `https://msedgedriver.microsoft.com`, defaulting to the newest build
+for the installed Edge (`LATEST_RELEASE_<major>_<OS>`), unpacked as
+`downloaded_drivers/msedgedriver-<version>/`. geckodriver comes from its GitHub
+releases, newest or a tag such as `v0.36.0`, unpacked as
+`downloaded_drivers/geckodriver-v<version>/`, with no Firefox version check.
+An archive over 64 MiB is refused, and a zip entry that would land outside its
+folder is not written. `sbrs install` does the same download ahead of time.
+If the download fails and an older file is already there, that file is used
+and a warning is logged.
 
 </Step>
 
