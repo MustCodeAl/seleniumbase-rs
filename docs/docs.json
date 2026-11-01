@@ -451,7 +451,15 @@
                   {
                     "group": "Stealth API: scrape",
                     "pages": [
-                      "stealth/api/scrape"
+                      "stealth/api/scrape",
+                      "stealth/api/scrape-browser-scraper",
+                      "stealth/api/scrape-challenge",
+                      "stealth/api/scrape-egress",
+                      "stealth/api/scrape-jar",
+                      "stealth/api/scrape-passport",
+                      "stealth/api/scrape-ledger",
+                      "stealth/api/scrape-runtime",
+                      "stealth/api/scrape-error"
                     ]
                   }
                 ]
@@ -464,7 +472,14 @@
                   {
                     "group": "Stealth API: mimic",
                     "pages": [
-                      "stealth/api/mimic"
+                      "stealth/api/mimic",
+                      "stealth/api/mimic-client",
+                      "stealth/api/mimic-convert",
+                      "stealth/api/mimic-http-session",
+                      "stealth/api/mimic-mitm",
+                      "stealth/api/mimic-tls-server",
+                      "stealth/api/mimic-stealth-session",
+                      "stealth/api/mimic-capture-h2"
                     ]
                   }
                 ]

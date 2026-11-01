@@ -16,11 +16,9 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
-- The stealth API pages for scrape and mimic name the real facade features
-  (`scrape` by default, `mimic` off until enabled) and the signatures of
-  `BrowserScraper` and `HttpSession`, including `close(self)`, synchronous
-  `from_identity`, and `fetch` with an attempt and rules. The mimic example
-  parses JSON as `seleniumbase_rs_stealth::json::Value`.
+- The scrape and mimic API references are one overview plus a page per public
+  module, in the same shape as the codec reference. Each page lists the public
+  types, methods and errors from seleniumbase-rs-stealth.
 - `sbrs-mcp install --all` and `uninstall --all` register with, or remove the
   registration from, every MCP client that is installed on the machine (its config
   file, its own config folder, or its program on `PATH`). Clients that are not
