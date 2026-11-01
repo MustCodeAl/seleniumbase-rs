@@ -50,7 +50,7 @@ cargo test --features "mcp-server test-util testing" \
 cargo test -p seleniumbase-rs-cli --test contract_homebrew
 ```
 
-`just contracts` is the other half. It reads the sibling checkouts and fails, naming the path,
+`mise run contracts` is the other half. It reads the sibling checkouts and fails, naming the path,
 when a consumer uses a `seleniumbase_rs::` path that its contract file does not list, so a
 contract cannot lag behind the repository it describes. It finds the checkouts beside this one
 (`../seleniumbase-rs-stealth` and so on) or where these variables say. Run from a git worktree
@@ -66,9 +66,9 @@ that holds the common git directory, and then beside the worktree, so a lane nee
 | `SBRS_TAP_DIR` | `homebrew-tap` |
 
 ```bash Terminal
-just contracts                  # every consumer
-just contracts stealth tauri    # some of them
-scripts/check-consumers.sh --list stealth   # the paths a consumer uses, one per line
+mise run contracts                  # every consumer
+mise run contracts stealth tauri    # some of them
+mise run contracts --list stealth   # the paths a consumer uses, one per line
 ```
 
 Besides the paths it checks four things:
@@ -88,7 +88,7 @@ A path counts when it is in code in the contract file; one in a comment does not
 ### Compile the consumers
 
 ```bash Terminal
-just contracts --check-build
+mise run contracts --check-build
 ```
 
 For each consumer this runs `cargo check --tests` with this checkout in place of its git
@@ -116,13 +116,13 @@ crate has no users yet, and the consumer follows.
 <Step title="The script names a path">
 
 The consumer uses a path its contract file does not list. Add it where the consumer writes it
-(an import block, or a call mirrored from the call site) and run `just contracts` again. Find
+(an import block, or a call mirrored from the call site) and run `mise run contracts` again. Find
 the use with the path from `scripts/check-consumers.sh --list NAME`.
 
 </Step>
 <Step title="The goldens differ">
 
-`just contracts-sync` copies the companion's golden programs again. Do it only after the
+`mise run contracts-sync` copies the companion's golden programs again. Do it only after the
 companion changed them on purpose: `action_recorder_still_writes_the_goldens` holds this crate's
 `ActionRecorder` to the same files, so a copy that makes it fail means one of the two moved.
 

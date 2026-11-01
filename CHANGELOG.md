@@ -10,7 +10,7 @@ work, `docs/parity.md` the per-API status).
 
 ### Fixed
 
-- **`scripts/check-consumers.sh` (`just contracts`) runs from a git worktree and checks what it
+- **`scripts/check-consumers.sh` (`mise run contracts`) runs from a git worktree and checks what it
   says it checks.** It looked for the consumers' checkouts in the folder above the script, which in
   `.claude/worktrees/NAME` is not where they are; it now asks git for the main checkout and looks
   beside it (then beside the worktree). `--check-build` built each consumer at the tag or commit
@@ -24,10 +24,10 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
-- **`just semver`, `just features`, `just unused-deps`** run cargo-semver-checks against the
+- **`mise run semver`, `mise run features`, `mise run unused-deps`** run cargo-semver-checks against the
   newest git tag (the crate is not on crates.io), cargo-hack `clippy --each-feature` on the
   library, and cargo-shear. They are described in the contributing guide, with the contract check
-  of `just contracts --check-build`, as the checks for a release.
+  of `mise run contracts --check-build`, as the checks for a release.
 
 ### Changed
 
@@ -40,6 +40,21 @@ work, `docs/parity.md` the per-API status).
   `#[test_log::test]`. Every real-browser test is `#[serial(chrome)]` and the tests that set or
   read `SB_REPORT_ROOT` are `#[serial(env)]` ([serial_test](https://docs.rs/serial_test)), so
   none of them needs `--test-threads=1` any more.
+
+- **One task runner: mise replaces `just`.** The `justfile` is gone and every one of its recipes
+  is a task of `mise.toml` with the same name (`test-library`, `test-all`, `build`, `mdx`,
+  `layout-tree`, `serve-docs`, `completions`, `clean`, `release-check`, `parity-extract`,
+  `parity-seed`, `parity-check`, `parity-docs`, `contracts`, `contracts-sync`, `semver`,
+  `features` and `unused-deps`, next to the `fmt`, `lint`, `test`, `docs`, `smoke`, `gate`,
+  `chrome` and `deny` that were there). `mise run NAME` replaces `just NAME`; what follows the
+  name goes to the task (`mise run contracts --check-build`, `mise run features --partition 1/6`,
+  `mise run layout-tree --check`), `completions` takes the folder to write into, and
+  `parity-extract` the two checkouts. `mise tasks ls` lists them. `just` is no longer one of the
+  tools `mise install` sets up, and the contributor guides, the docs pages and the messages of the
+  tests say `mise run ...` where they said `just ...`. `lint` and `test` are the tasks `mise.toml`
+  already had (the features of the gate, not those of the old recipes), and `test-all`, `build`
+  and the Makefile no longer turn on the `playwright` feature, which the library does not have
+  (cargo refused the list).
 
 ## [0.7.0] - 2026-10-31
 

@@ -324,13 +324,14 @@ sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev 
 
 </Accordion>
 
-<Accordion title="Repository tools" icon="wrench" description="mdBook, Python, just, cargo-deny">
+<Accordion title="Repository tools" icon="wrench" description="mise, mdBook, Python, cargo-deny">
 
-mdBook for the docs (`brew install mdbook` or `cargo
-install mdbook`), Python 3.10+ for the parity tables in `tools/parity`, and
-`just` and `cargo-deny` (`brew install just cargo-deny` or `cargo install just
-cargo-deny`). With [mise](https://mise.jdx.dev), `mise install` sets up Rust,
-Python, Node, mdBook, just and cargo-deny in one step.
+[mise](https://mise.jdx.dev) runs the repository's tasks (`mise tasks ls`;
+`brew install mise` or `cargo install --locked mise`), mdBook builds the docs
+(`brew install mdbook` or `cargo install mdbook`), Python 3.10+ runs the parity
+tables in `tools/parity`, and `cargo-deny` checks the dependencies (`brew
+install cargo-deny` or `cargo install cargo-deny`). `mise install` sets up Rust,
+Python, Node, mdBook and cargo-deny in one step.
 
 </Accordion>
 
@@ -376,7 +377,7 @@ library as a git dependency.
 <Note>
 
 Plain `cargo` is all the build needs. mise (tool versions and the repository's
-tasks, see [Make, just and mise](/contributing/from-source#make-just-and-mise))
+tasks, see [Make and mise](/contributing/from-source#make-and-mise))
 and mr-boxington (a build cache, see [Build time and disk](#build-time-and-disk))
 are optional.
 
@@ -695,7 +696,7 @@ mdbook serve --open    # live preview while editing
 
 </CodeGroup>
 
-The generated `docs/parity.md` is not edited by hand: `just parity-docs`
+The generated `docs/parity.md` is not edited by hand: `mise run parity-docs`
 rebuilds it from `parity/api.toml`.
 
 ### The Docs7 site
@@ -714,7 +715,7 @@ raw; link to the site route, `/tutorials/selectors`), a page without a title,
 and a page that is in no menu of `docs/docs.json`:
 
 ```bash
-just mdx
+mise run mdx
 ```
 
 </Step>
