@@ -1,10 +1,10 @@
 //! Reversible text scrambling. **This is not encryption.**
 //!
-//! [`obfuscate`] is ROT13 followed by Base64. Neither step has a key: anyone
-//! who holds the output can undo it, with [`unobfuscate`](super::unobfuscate::unobfuscate)
-//! or with any Base64 decoder and a ROT13 table. It keeps a value from being
-//! read at a glance, for example a name in a log line or a sample config, and
-//! nothing more.
+//! [`obfuscate`] is ROT13 followed by Base64. [`unobfuscate`] is Base64, then
+//! ROT13. Neither step has a key: anyone who holds the output can undo it, with
+//! [`unobfuscate`] or with any Base64 decoder and a ROT13 table. It keeps a
+//! value from being read at a glance, for example a name in a log line or a
+//! sample config, and nothing more.
 //!
 //! Do not use it to protect a password, a token or anything else that must stay
 //! secret. For that use
@@ -13,7 +13,7 @@
 //! encrypt` produces.
 //!
 //! ```
-//! use seleniumbase_rs::common::{obfuscate::obfuscate, unobfuscate::unobfuscate};
+//! use seleniumbase_rs::common::obfuscate::{obfuscate, unobfuscate};
 //!
 //! let scrambled = obfuscate("selenium");
 //! assert_eq!(scrambled, "ZnJ5cmF2aHo=");
@@ -22,6 +22,8 @@
 //! ```
 
 use base64::Engine;
+
+use crate::error::SeleniumBaseError;
 
 /// Rotates each ASCII letter 13 places along the alphabet; every other
 /// character, including letters outside ASCII, is left as it is.
@@ -61,13 +63,48 @@ pub fn base64_encode(input: &str) -> String {
     base64::engine::general_purpose::STANDARD.encode(input.as_bytes())
 }
 
-/// Scrambles `input` with ROT13, then Base64. The reverse is
-/// [`unobfuscate`](super::unobfuscate::unobfuscate).
+/// Decodes standard Base64 into UTF-8 text.
+///
+/// White space around the value is ignored, so a value copied with its
+/// trailing newline decodes.
+///
+/// # Errors
+///
+/// [`SeleniumBaseError::InvalidConfig`] if `input` is not valid Base64 or does
+/// not decode to UTF-8.
+///
+/// ```
+/// use seleniumbase_rs::common::obfuscate::base64_decode;
+///
+/// assert_eq!(base64_decode("aGVsbG8=\n").unwrap(), "hello");
+/// assert!(base64_decode("not base64!").is_err());
+/// ```
+pub fn base64_decode(input: &str) -> Result<String, SeleniumBaseError> {
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(input.trim())
+        .map_err(|e| SeleniumBaseError::InvalidConfig(format!("bad base64: {e}")))?;
+    String::from_utf8(bytes)
+        .map_err(|e| SeleniumBaseError::InvalidConfig(format!("invalid utf8: {e}")))
+}
+
+/// Scrambles `input` with ROT13, then Base64. The reverse is [`unobfuscate`].
 ///
 /// **Not encryption:** see the [module documentation](self). The output is
 /// deterministic, so equal inputs give equal outputs.
 pub fn obfuscate(input: &str) -> String {
     base64_encode(&rot13(input))
+}
+
+/// Undoes [`obfuscate`]: Base64, then ROT13.
+///
+/// # Errors
+///
+/// [`SeleniumBaseError::InvalidConfig`] if `input` is not Base64 text that
+/// decodes to UTF-8. Text that was never obfuscated but happens to be valid
+/// Base64 decodes to something else without an error: there is no check value.
+pub fn unobfuscate(input: &str) -> Result<String, SeleniumBaseError> {
+    let decoded = base64_decode(input)?;
+    Ok(rot13(&decoded))
 }
 
 #[cfg(test)]
@@ -107,7 +144,38 @@ mod tests {
     fn obfuscate_round_trip() {
         let text = "selenium";
         let encoded = obfuscate(text);
-        let decoded = crate::common::unobfuscate::unobfuscate(&encoded).unwrap();
+        let decoded = unobfuscate(&encoded).unwrap();
         assert_eq!(decoded, text);
+    }
+
+    #[test]
+    fn base64_decode_reverses_encode() {
+        let encoded = base64_encode("hello");
+        assert_eq!(base64_decode(&encoded).unwrap(), "hello");
+    }
+
+    #[test]
+    fn unobfuscate_reverses_obfuscate() {
+        let text = "open sesame";
+        let encoded = obfuscate(text);
+        assert_eq!(unobfuscate(&encoded).unwrap(), text);
+    }
+
+    #[test]
+    fn base64_decode_rejects_invalid_input() {
+        assert!(base64_decode("!!!").is_err());
+    }
+
+    #[test]
+    fn a_value_copied_with_its_newline_still_decodes() {
+        assert_eq!(unobfuscate("ZnJ5cmF2aHo=\n").unwrap(), "selenium");
+        assert_eq!(unobfuscate("  ZnJ5cmF2aHo=\r\n").unwrap(), "selenium");
+    }
+
+    #[test]
+    fn bytes_that_are_not_utf8_are_an_error() {
+        // Base64 of the single byte 0xFF.
+        let error = unobfuscate("/w==").unwrap_err().to_string();
+        assert!(error.contains("utf8"), "{error}");
     }
 }

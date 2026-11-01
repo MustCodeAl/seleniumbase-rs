@@ -8,6 +8,12 @@ work, `docs/parity.md` the per-API status).
 
 ## [Unreleased]
 
+### Breaking
+
+- **Breaking: `common::unobfuscate` is part of `common::obfuscate`.** `rot13`,
+  `base64_decode` and `unobfuscate` moved into `seleniumbase_rs::common::obfuscate`.
+  The two modules imported each other. Import them from `common::obfuscate`.
+
 ## [0.7.0] - 2026-10-31
 
 ### Breaking
