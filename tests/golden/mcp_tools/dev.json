@@ -1,0 +1,379 @@
+{
+  "server": "seleniumbase-dev",
+  "tool_count": 12,
+  "tools": [
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Find API"
+      },
+      "description": "Search the public API of this library for a method: BaseCase (the WebDriver engine) and the pure CDP engine (Browser, Page, Locator, BrowserContext). Ranks an exact name first, then names that contain the query, then methods whose name, type or documentation mention every word. Each match has its type, full signature, the first paragraph of its documentation, and whether it is async. The index is the one of this build.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "engine": {
+            "default": "any",
+            "description": "Which engine to search: BaseCase, the pure CDP engine, or both",
+            "enum": [
+              "basecase",
+              "cdp",
+              "any"
+            ],
+            "type": "string"
+          },
+          "limit": {
+            "default": 10,
+            "description": "Most matches to return, 1 to 50",
+            "minimum": 1.0,
+            "type": "integer"
+          },
+          "query": {
+            "description": "A method name or words describing it, such as `screenshot`, `wait for text` or `Page::click`",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object"
+      },
+      "name": "find_api",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Parity Lookup"
+      },
+      "description": "Look up a Python SeleniumBase 4.55.2 name (a BaseCase or sb.cdp method, a Driver() method, a command, an option or an upstream MCP tool) and say what this library has for it: its status (implemented, composed, not-applicable, planned), the Rust path, and notes on any difference in behavior. With no exact match, lists close names.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "python_name": {
+            "description": "The Python name, such as `click`, `self.assert_text`, `sb.cdp.gui_click_x_y` or `uc_open_with_reconnect`",
+            "type": "string"
+          }
+        },
+        "required": [
+          "python_name"
+        ],
+        "type": "object"
+      },
+      "name": "parity_lookup",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Python To Rust"
+      },
+      "description": "Convert a Python SeleniumBase or Selenium test to a Rust test for this library, as `sbrs import-python` does. The Python is read, never run. Statements it cannot translate stay as `// TODO` comments in the Rust, and each one is also a diagnostic with its line number; review them before using the test. The result says which API family it detected.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "description": "The Python source of the test, at most 256 KiB",
+            "type": "string"
+          },
+          "source": {
+            "default": "auto",
+            "description": "Which Python API the code uses; auto looks at its imports and calls",
+            "enum": [
+              "auto",
+              "seleniumbase",
+              "selenium"
+            ],
+            "type": "string"
+          },
+          "test_name": {
+            "default": "imported_python_test",
+            "description": "Name of the Rust test function",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "type": "object"
+      },
+      "name": "python_to_rust",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Scaffold"
+      },
+      "description": "Show the files `sbrs mkfile` (kind test: one browser-test file) or `sbrs mkdir` (kind suite: a folder with main.rs, helpers.rs, a README and example tests) would create, as text with each file's path and content. Writes nothing: create the files yourself. The names follow the same rules as the commands.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "basic": {
+            "default": false,
+            "description": "Leave out the example assertions (test) or the example tests (suite)",
+            "type": "boolean"
+          },
+          "kind": {
+            "description": "A single test file, or a folder holding a test suite",
+            "enum": [
+              "test",
+              "suite"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "description": "Relative name: `login` or `tests/login.rs` for a test, `tests/ui` for a suite; letters, digits, _, - and . only",
+            "type": "string"
+          },
+          "url": {
+            "description": "kind test: the page the test opens (an http, https or file URL)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "name"
+        ],
+        "type": "object"
+      },
+      "name": "scaffold",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "CLI Help"
+      },
+      "description": "Explain the `sbrs` command line. With no command: the global flags, one line each, and every command with a one-line description. With a command (`open`, `wait-for-text`, `plugin list`) or one of its aliases: its usage, arguments, flags with their defaults, choices and aliases. With `global`: the global flags in full. It is read from the usage spec of this version, the one `sbrs --help`, the shell completions and the CLI reference page are generated from.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "command": {
+            "description": "A command or alias, such as `mkdir`, `install` or `plugin list`; `global` for the flags that go before or after the command",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "cli_help",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "List Plugins"
+      },
+      "description": "List the built-in browser plugins compiled into this build, with their category, whether the operator turned them on, and a summary. A build without them says so and names the cargo feature that adds them (plugins-builtin).",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "list_plugins",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Plugin Info"
+      },
+      "description": "Show what one built-in plugin declares about itself: version, category, the capabilities it asks for and how risky they are, what it needs from the browser, what it conflicts with, and its options. Does not turn the plugin on.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "The plugin's name, from list_plugins",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "name": "plugin_info",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Install Driver"
+      },
+      "description": "Download a browser driver, as `sbrs install` does, into the downloaded_drivers folder of the folder the server runs in (the folder the library looks in first). Without a version the driver matches the installed browser, or is the latest stable one. Replaces a driver of another version already there. Needs network access. Returns the path and the version that was installed.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "browser": {
+            "default": "chrome",
+            "description": "Which browser the driver is for: chromedriver, msedgedriver or geckodriver",
+            "enum": [
+              "chrome",
+              "edge",
+              "firefox"
+            ],
+            "type": "string"
+          },
+          "version": {
+            "description": "`latest`, a major version such as `155`, or a full version such as `155.0.7100.4` (geckodriver: `latest` or `0.36.0`); default: match the installed browser",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "install_driver",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Explain Error"
+      },
+      "description": "Explain an error of this library or of an MCP server: from its text (or just its category tag) give the category, the library's hint with the likely cause and the fix, the exit status `sbrs` ends with, what to try next, and the sections of the common-problems page that apply. An error it does not recognize is said to be unrecognized, not guessed at.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "description": "The category tag (the `kind` of a failure report), when there is no text; the advice is then the general one for the category",
+            "enum": [
+              "element_not_found",
+              "element_not_interactable",
+              "stale_element",
+              "invalid_selector",
+              "wait_timeout",
+              "browser_launch",
+              "browser_disconnected",
+              "session_not_started",
+              "navigation",
+              "webdriver",
+              "cdp_driver",
+              "playwright",
+              "patcher",
+              "stealth",
+              "network",
+              "download",
+              "io",
+              "json",
+              "parse",
+              "invalid_config",
+              "assertion_failed",
+              "unsupported",
+              "gui",
+              "screenshot",
+              "pdf",
+              "authentication",
+              "mcp",
+              "python_migration",
+              "skipped",
+              "test_lifecycle",
+              "database",
+              "plugin",
+              "no_browser",
+              "invalid_argument",
+              "refused",
+              "unknown_tool"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "description": "The error text, as printed (`element not found: #buy (strategy: css selector)`, `wait timeout: ...`, or a whole failure report)",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "explain_error",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Check Config"
+      },
+      "description": "Check the configuration without starting anything: read the settings the way `sbrs` does (the settings file, then the SB_* environment variables) and report every problem, not only the first: an unreadable file, each variable that does not parse, an unknown browser or mode, a window size with one side, plugins this build cannot run. Also the runtime variables (SB_LOG_LEVEL and the rest, whose mistakes are ignored with a warning) and a summary of what would be launched. Secrets in the summary are redacted.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "description": "A settings file (TOML, or JSON for another extension), relative to the folder the server runs in; default: sbase_config.toml there, if any",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "check_config",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Check Fingerprint"
+      },
+      "description": "Check a fingerprint without starting a browser: parse JSON as a fingerprint of this library, or as the profile payload of an anti-detect browser tool, and report the errors and warnings of Fingerprint::validate (a platform that contradicts the user agent, a mobile agent without touch points, and the rest). A document that parses as neither is described, not guessed at.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "json": {
+            "description": "The fingerprint or the profile payload, as JSON text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "json"
+        ],
+        "type": "object"
+      },
+      "name": "check_fingerprint",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Diagnose Environment"
+      },
+      "description": "Check this machine before or after a browser problem: the platform, whether Chrome and chromedriver are found and their major versions match (with the command that fixes a mismatch), the driver cache folder and what is in it, whether the output directory is writable and how much disk is free, the cargo features this build has and lacks, the SB_* settings in the environment (secret values redacted), and whether a session is running. Needs no browser.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "diagnose_environment",
+      "untrusted": false
+    }
+  ]
+}

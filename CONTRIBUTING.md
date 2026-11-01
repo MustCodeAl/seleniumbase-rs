@@ -507,7 +507,10 @@ engines) and `src/mcp/stealth.rs` for how an extra toolset is attached.
    into a failure report with the page's state, the hint and the next tools to
    try. Files a tool writes go through the output directory
    (`SB_MCP_OUTPUT_DIR`), never to an arbitrary path.
-3. Register it in the server that offers it (`cdp.rs`, `driver.rs`, `sb.rs`).
+3. Register it in the group file of the server that offers it (`src/mcp/cdp/`,
+   `src/mcp/driver/`, `src/mcp/sb/`: `navigation.rs`, `page.rs`, `input.rs`, ...),
+   and write the snapshots of the tool lists again with `UPDATE_GOLDEN=1 cargo test
+   --features mcp-server --test mcp_tool_lists`.
 4. Test it without Chrome first (`tests/mcp_cdp.rs`, `tests/mcp_devtools.rs`),
    then with a real Chrome in a `*_chrome.rs` test if it reads a page.
 5. Document it in `docs/tutorials/mcp_server.md`, add it to `CHANGELOG.md`, and

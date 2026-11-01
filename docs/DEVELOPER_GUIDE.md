@@ -1149,8 +1149,8 @@ the `mcp` module, built with the `mcp-server` feature. A server is a
 
 <Step title="Pick the server file" icon="server">
 
-Pick the server file: `src/mcp/cdp.rs` (the Pure CDP engine),
-`src/mcp/driver.rs` or `src/mcp/sb.rs` (WebDriver, sharing the handlers in
+Pick the server folder: `src/mcp/cdp/` (the Pure CDP engine),
+`src/mcp/driver/` or `src/mcp/sb/` (WebDriver, sharing the handlers in
 `src/mcp/webdriver.rs`), or, for a tool that needs no browser, the `dev` server in
 `src/mcp/dev/` (`api.rs`, `author.rs`, `help.rs`, `cli.rs`, `diagnose.rs`). Every tool costs
 context in every session that loads its server, so a tool for the library or the
@@ -1174,6 +1174,13 @@ Register a `ToolDef::new(name, title, description, Effect, Schema, handler)`.
 Choose the `Effect` that is true of the tool (it becomes the MCP annotation
 hints) and describe each argument with `Prop`.
 
+A server's tools are grouped by what they do, one file per group in the server's
+folder (`session.rs`, `navigation.rs`, `page.rs`, `input.rs`, `storage.rs`,
+`windows.rs`, ...). Each file has a `tools()` function, and the `tools()` of the
+folder's `mod.rs` joins them in the order clients see. Add the `ToolDef` to the
+file of its group, or add a file and list it in `mod.rs` where the tool belongs
+in that order.
+
 </Step>
 
 <Step title="Write files safely" icon="folder-closed">
@@ -1186,7 +1193,12 @@ keeps them inside the output directory.
 <Step title="Test it" icon="flask">
 
 Test it: `tests/mcp_cdp.rs` shows how to drive a tool against the mock
-browser; `tests/mcp_webdriver.rs` covers the catalogues. A `dev` tool is tested in
+browser; `tests/mcp_webdriver.rs` covers the catalogues. `tests/mcp_tool_lists.rs`
+compares what `tools/list` answers on each server (names in order, descriptions,
+schemas, annotations) with `tests/golden/mcp_tools/*.json`; a new or changed tool
+fails it until you write the snapshots again with
+`UPDATE_GOLDEN=1 cargo test --features mcp-server --test mcp_tool_lists` and
+commit them. A `dev` tool is tested in
 its own file with `Host::call`, and `install_driver` through
 `mcp::dev::host_with_installer` with a fake downloader, never the network.
 

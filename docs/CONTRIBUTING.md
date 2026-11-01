@@ -837,7 +837,10 @@ try. Files a tool writes go through the output directory
 
 <Step title="Register it" icon="list-ol">
 
-Register it in the server that offers it (`cdp.rs`, `driver.rs`, `sb.rs`).
+Register it in the group file of the server that offers it (`src/mcp/cdp/`,
+`src/mcp/driver/`, `src/mcp/sb/`: `navigation.rs`, `page.rs`, `input.rs`, ...),
+and write the snapshots of the tool lists again with `UPDATE_GOLDEN=1 cargo test
+--features mcp-server --test mcp_tool_lists`.
 
 </Step>
 
