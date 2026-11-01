@@ -3064,8 +3064,8 @@ divergence = "Python scans a SeleniumBase `self.` test line by line with regular
 [cli."get"]
 status = "implemented"
 rust = "sbrs get"
-note = "An alias of `sbrs install`, as in Python: `sbrs get chromedriver|geckodriver|edgedriver [VERSION]` (also `firefoxdriver` and `msedgedriver`). chromedriver and edgedriver default to the driver for the installed Chrome and Edge, geckodriver to the newest GitHub release; VERSION is `latest`, a major version or a full build (a geckodriver version such as 0.36.0). Each driver goes to downloaded_drivers/<driver>-<version>/."
-divergence = "No `--path`: the driver stays in downloaded_drivers/ and is not copied to a folder on the PATH. Chrome for Testing and chrome-headless-shell are not fetched by name here; they are fetched when a session chooses one of them as the browser."
+note = "An alias of `sbrs install`, as in Python. `sbrs get DRIVER [VERSION]` fetches chromedriver, uc_driver (aliases `uc-driver` and `ucdriver`; chromedriver patched for UC mode, kept as downloaded_drivers/uc_driver-VERSION/uc_driver), geckodriver (alias `firefoxdriver`), edgedriver (alias `msedgedriver`), or the browsers cft (Chrome for Testing, downloaded_drivers/cft/), chs (chrome-headless-shell, downloaded_drivers/chs/) and chromium (a snapshot in downloaded_drivers/chromium/). Without a version, chromedriver and edgedriver match the installed Chrome and Edge, and geckodriver is the newest release. chromium takes `--revision` (a snapshot number; the newest when left out) instead of a version. VERSION is stable, beta, dev, canary, latest, previous, mlatest, browser or keep, a major version, a full build, or for geckodriver a version such as 0.36.0."
+divergence = "`-p`/`--path` also copies a driver into the folder named by SB_DRIVER_PATH_DIR, else /usr/local/bin. It never uses sudo and never replaces a symbolic link, and it does not copy a browser."
 
 [cli."grid-hub"]
 status = "implemented"
@@ -3101,8 +3101,8 @@ divergence = "Python adds a `from .page_objects import Page` line and writes `Pa
 [cli."install"]
 status = "implemented"
 rust = "sbrs install"
-note = "`sbrs install chromedriver|geckodriver|edgedriver [VERSION]`; with no argument it fetches the chromedriver that matches the installed Chrome (or the stable one). The same command as `sbrs get`."
-divergence = "No `--path`: the driver stays in downloaded_drivers/ and is not copied to a folder on the PATH."
+note = "The same command as `sbrs get`: `sbrs install DRIVER [VERSION]`, with `-p`/`--path` and, for chromium, `--revision REVISION`. DRIVER is chromedriver, uc_driver, geckodriver (or `firefoxdriver`), edgedriver (or `msedgedriver`), or the browsers cft, chs and chromium. With no version, chromedriver and edgedriver match the installed Chrome and Edge, and geckodriver is the newest release. Everything is kept under downloaded_drivers/."
+divergence = "`-p`/`--path` copies a driver (not a browser) into SB_DRIVER_PATH_DIR, else /usr/local/bin, never with sudo and never over a symbolic link."
 
 [cli."methods"]
 status = "implemented"
@@ -3131,9 +3131,9 @@ note = "`sbrs mkpres FILE [--en|--zh|--nl|--fr|--it|--ja|--ko|--pt|--ru|--es] [-
 divergence = "Python writes a SeleniumBase class and prints the file; this writes a Rust test and says `Created FILE`. The method names stay English in every language, and the images are the `.image(...)` of a slide, not an `<img>` tag in its text."
 
 [cli."mkrec"]
-status = "composed"
-rust = "sbrs record"
-note = "Python's mkrec creates a new test file with the Recorder. `sbrs record URL -o FILE` records in a browser and writes a JSON or YAML action list that `sbrs replay` runs, not a test file; `sbrs mkrec` only writes a starter recording file and opens no browser."
+status = "implemented"
+rust = "sbrs mkrec"
+note = "Python's `sbase mkrec` (aliases `codegen` and `record`). `sbrs mkrec FILE.rs [--overwrite] [--behave]` starts a browser in Recorder Mode, opening `--url` first when it is given, and waits: type `c` and press Enter, or press SHIFT+ESC in the browser with `--ee`. The recording is written to `recordings/NAME_rec.rs` and `recordings/NAME_rec.json`, shown, and copied to FILE. `--overwrite` replaces FILE when it exists. `--behave` (alias `--gherkin`) also writes a Gherkin feature, the same as `--rec-behave`."
 
 [cli."obfuscate"]
 status = "composed"
