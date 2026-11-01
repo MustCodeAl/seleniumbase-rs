@@ -17,8 +17,10 @@
 #   --list NAME   print the `seleniumbase_rs::...` paths NAME uses, one per line, and stop
 #   --sync        copy the companion's golden programs into tests/contract_companion/ and stop
 #   --check-build also run `cargo check --tests` in each consumer against this checkout (a
-#                 `[patch]` on this crate's git URL); heavy (stealth builds BoringSSL with cmake),
-#                 so it is for a release, not for every change
+#                 `[patch]` on this crate's git URL, after `cargo update -p seleniumbase-rs` has
+#                 moved the consumer's lock entry to it; the consumer's Cargo.lock is put back as
+#                 it was, and the check fails when the patch is not used); heavy (stealth builds
+#                 BoringSSL with cmake), so it is for a release, not for every change
 #
 # The checkouts are found beside this one (../seleniumbase-rs-stealth, ../seleniumbase-rs-companion,
 # ../seleniumbase-rs-plugins, ../tauri-plugin-sbrs-automation, ../homebrew-tap) or in
@@ -324,22 +326,84 @@ check_formula() {
     [ -n "$missing" ] || printf 'ok   homebrew: %s strings of the formula are in %s\n' "$(printf '%s\n' "$literals" | wc -l | tr -d ' ')" "${contract#"$core"/}"
 }
 
+# The Cargo.lock of a consumer that check_build is changing, and a copy of it as it was (empty when
+# there was none). restore_lock puts it back, also when the script is interrupted.
+saved_lock=
+saved_backup=
+
+restore_lock() {
+    [ -n "$saved_lock" ] || return 0
+    if [ -n "$saved_backup" ]; then
+        cp -p "$saved_backup" "$saved_lock"
+        rm -f "$saved_backup"
+    else
+        rm -f "$saved_lock"
+    fi
+    saved_lock=
+    saved_backup=
+}
+trap restore_lock EXIT
+trap 'restore_lock; exit 130' INT TERM
+
 # check_build CONSUMER: `cargo check --tests` in the consumer, with this checkout in place of the
 # git dependency on this crate.
+#
+# The consumer's Cargo.lock pins this crate to a tag or a commit, and Cargo does not use a `[patch]`
+# whose version differs from the locked one: it warns "patch ... was not used in the crate graph",
+# builds the pinned version, and the check says nothing about this checkout. So the lock entry of
+# this crate is updated first (`cargo update -p seleniumbase-rs` with the patch), and the check
+# fails when the patch is still not used. Both steps change the consumer's Cargo.lock, which is put
+# back as it was.
 check_build() {
-    local name=$1 dir patch
+    local name=$1 dir patch lock log
     dir=$(consumer_dir "$name")
     patch="patch.\"$git_url\".seleniumbase-rs.path=\"$core\""
     case $name in
-        stealth) (cd "$dir" && cargo check --tests --workspace --config "$patch") ;;
-        companion) (cd "$dir" && cargo check --tests --manifest-path e2e/Cargo.toml --config "$patch") ;;
-        tauri) (cd "$dir" && cargo check --tests --features stealth --config "$patch") ;;
+        stealth | tauri) lock=$dir/Cargo.lock ;;
+        companion) lock=$dir/e2e/Cargo.lock ;;
         *)
             printf 'skip %s: nothing to build\n' "$name"
             return
             ;;
-    esac || bad "$name: cargo check --tests against this checkout failed"
-    printf 'ok   %s: builds against this checkout\n' "$name"
+    esac
+    if [ ! -d "$dir" ]; then
+        bad "$name: no checkout at $dir (set the variable named in --help)"
+        return
+    fi
+    saved_lock=$lock
+    saved_backup=
+    if [ -f "$lock" ]; then
+        saved_backup=$(mktemp)
+        cp -p "$lock" "$saved_backup"
+    fi
+    log=$(mktemp)
+    if (
+        cd "$dir"
+        case $name in
+            stealth)
+                cargo update -p seleniumbase-rs --config "$patch"
+                cargo check --tests --workspace --config "$patch"
+                ;;
+            companion)
+                cargo update --manifest-path e2e/Cargo.toml -p seleniumbase-rs --config "$patch"
+                cargo check --tests --manifest-path e2e/Cargo.toml --config "$patch"
+                ;;
+            tauri)
+                cargo update -p seleniumbase-rs --config "$patch"
+                cargo check --tests --features stealth --config "$patch"
+                ;;
+        esac
+    ) 2>&1 | tee "$log" >&2; then
+        if grep -q 'was not used in the crate graph' "$log"; then
+            bad "$name: the patch of this checkout was not used, so the build says nothing about it (see the warning above)"
+        else
+            printf 'ok   %s: builds against this checkout\n' "$name"
+        fi
+    else
+        bad "$name: cargo check --tests against this checkout failed"
+    fi
+    rm -f "$log"
+    restore_lock
 }
 
 sync_golden() {

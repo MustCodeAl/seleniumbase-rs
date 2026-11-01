@@ -93,9 +93,14 @@ just contracts --check-build
 
 For each consumer this runs `cargo check --tests` with this checkout in place of its git
 dependency on this crate (a `--config` that patches `https://github.com/MustCodeAl/seleniumbase-rs`
-to a path). It is for a release, not for every change: the stealth workspace builds BoringSSL
-with cmake, the Tauri plugin builds Tauri, and the machine builds one at a time. Run it before
-the tag, then move the consumers' pins.
+to a path). A consumer's `Cargo.lock` pins this crate to a tag or a commit, and Cargo ignores a
+patch whose version differs from the locked one, so the script first runs
+`cargo update -p seleniumbase-rs` with the patch, and fails when Cargo still says that the patch
+"was not used in the crate graph". Both commands change the consumer's `Cargo.lock`; the script
+puts it back as it was, also when it is interrupted, so the consumer's checkout stays clean.
+It is for a release, not for every change: the stealth workspace builds BoringSSL with cmake, the
+Tauri plugin builds Tauri, and the machine builds one at a time. Run it before the tag, then move
+the consumers' pins.
 
 ## When one fails
 
