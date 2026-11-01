@@ -44,8 +44,16 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 s
 - `sbrs-mcp install --all` and `uninstall --all` register with, or remove the
   registration from, every MCP client that is installed on the machine (its config
   file, its own config folder, or its program on `PATH`). Clients that are not
-  installed are skipped and named. With no client named, a terminal lists the installed clients and asks
+  installed are skipped and named. Before it changes anything it prints a plan: the
+  client, the config file, and whether each entry is added or removed. With no client
+  named, a terminal lists the installed clients and asks
   which ones; otherwise it still exits with status 2 and lists the known clients.
+- `docs/design/upstream_sync_4.56.5.md`: what changed in Python SeleniumBase
+  from 4.55.2 to 4.56.5, and the order to port it.
+- `docs/design/mise_drivers.md`: a design for installing, upgrading and removing
+  chromedriver (and a patched UC variant) through mise.
+- `docs/contributing/manual-checks.md`: step-by-step checks for the IMAP and Tor
+  plugins against real services and for Windows and Linux smoke tests.
 
 </Update>
 
