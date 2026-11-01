@@ -694,7 +694,21 @@ Launch and session plumbing:
 <LayoutFile name="plugin_hooks.rs" note="calls the plugin set from the WebDriver engine" />
 <LayoutFile name="proxy_auth.rs" note="proxy authentication" />
 <LayoutFile name="reuse.rs" note="reused sessions and --crumbs" />
-<LayoutFile name="session.rs" note="BrowserSession, the WebDriver wrapper and the CDP session cache" />
+<LayoutDir name="session" open note="BrowserSession, the WebDriver wrapper and the CDP session cache">
+<LayoutFile name="capabilities.rs" note="the capabilities each browser is asked for" />
+<LayoutFile name="cdp.rs" note="DevTools commands of the session" />
+<LayoutFile name="connect.rs" note="starting a session, a leased one, or a direct CDP attachment" />
+<LayoutFile name="elements.rs" note="finding and using elements" />
+<LayoutFile name="emulation.rs" note="the ad block and the phone emulation" />
+<LayoutFile name="fingerprint.rs" note="the fingerprint of the session" />
+<LayoutFile name="launch.rs" note="the driver, the browser program and the virtual screen" />
+<LayoutFile name="lifecycle.rs" note="reconnect, quit and the cleanup on drop" />
+<LayoutFile name="mod.rs" note="the BrowserSession struct and its accessors" />
+<LayoutFile name="navigation.rs" note="opening pages and moving through history" />
+<LayoutFile name="page.rs" note="the page: title, source, scripts" />
+<LayoutFile name="plugins.rs" note="browser plugins (feature plugins)" />
+<LayoutFile name="waits.rs" note="waiting for elements and text" />
+</LayoutDir>
 <LayoutFile name="shadow_find.rs" note="finding elements in a shadow root" />
 <LayoutFile name="virtual_display.rs" note="opens a virtual display on Linux" />
 </LayoutDir>

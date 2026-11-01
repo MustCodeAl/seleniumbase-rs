@@ -745,7 +745,7 @@ required companions.
 
 <Step title="Wire it in" icon="plug">
 
-Wire the setting into the launcher (`browser/session.rs`), provider scripts,
+Wire the setting into the launcher (`browser/session/capabilities.rs` and `launch.rs`), provider scripts,
 or the reactor if applicable. A provider defines only a setting that is a
 `Value`, and handles `Off` where it has one.
 

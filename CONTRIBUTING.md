@@ -461,7 +461,7 @@ For a setting:
    arguments and overrides ask `is_masked`, never a field by hand.
 4. Add coherence validation in `Fingerprint::validate()` if the setting has
    required companions.
-5. Wire the setting into the launcher (`browser/session.rs`), provider scripts,
+5. Wire the setting into the launcher (`browser/session/capabilities.rs` and `launch.rs`), provider scripts,
    or the reactor if applicable. A provider defines only a setting that is a
    `Value`, and handles `Off` where it has one.
 6. Add the payload key to `ProfileParams::fingerprint_builder` if a payload can

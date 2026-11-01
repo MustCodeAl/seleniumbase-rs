@@ -235,7 +235,20 @@ def browser_detail():
         _file("plugin_hooks.rs", "calls the plugin set from the WebDriver engine"),
         _file("proxy_auth.rs", "proxy authentication"),
         _file("reuse.rs", "reused sessions and --crumbs"),
-        _file("session.rs", "BrowserSession, the WebDriver wrapper and the CDP session cache"),
+        _folder("session", "BrowserSession, the WebDriver wrapper and the CDP session cache",
+                        _file("capabilities.rs", "the capabilities each browser is asked for"),
+                        _file("cdp.rs", "DevTools commands of the session"),
+                        _file("connect.rs", "starting a session, a leased one, or a direct CDP attachment"),
+                        _file("elements.rs", "finding and using elements"),
+                        _file("emulation.rs", "the ad block and the phone emulation"),
+                        _file("fingerprint.rs", "the fingerprint of the session"),
+                        _file("launch.rs", "the driver, the browser program and the virtual screen"),
+                        _file("lifecycle.rs", "reconnect, quit and the cleanup on drop"),
+                        _file("mod.rs", "the BrowserSession struct and its accessors"),
+                        _file("navigation.rs", "opening pages and moving through history"),
+                        _file("page.rs", "the page: title, source, scripts"),
+                        _file("plugins.rs", "browser plugins (feature plugins)"),
+                        _file("waits.rs", "waiting for elements and text")),
         _file("shadow_find.rs", "finding elements in a shadow root"),
         _file("virtual_display.rs", "opens a virtual display on Linux"),
     ]
@@ -817,10 +830,10 @@ def self_test():
     assert [scope for _, _, scope in blocks] == ["", "src/browser"], blocks
     browser = lookup("src/browser")
     rendered = render_mdx(browser, overview=False)
-    assert 'name="session.rs"' in rendered, "src/browser should list session.rs"
+    assert 'name="reuse.rs"' in rendered, "src/browser should list reuse.rs"
     assert 'name="playwright.rs"' not in rendered, "src/browser has no playwright.rs"
     overview = render_mdx(LAYOUT, overview=True)
-    assert 'name="session.rs"' not in overview, "detail rows stay out of the repository tree"
+    assert 'name="reuse.rs"' not in overview, "detail rows stay out of the repository tree"
     assert 'name="base_case.rs"' not in overview
     fresh, notes = sync(ROOT / "docs" / "DEVELOPER_GUIDE.md", sample, {"component": ""}, adopt=False)
     assert "src/browser" in fresh and 'name="launcher.rs"' in fresh, notes
