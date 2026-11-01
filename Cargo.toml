@@ -239,4 +239,14 @@ schemars = "1.2"
 # Parses the JUnit XML the tests write (`src/core/junit.rs`), so a test fails on XML that is not
 # well formed. Test-only; it has no dependencies of its own.
 roxmltree = "0.21"
+# A mock HTTP server for the tests of the downloads (drivers, browsers, the Selenium Server jar),
+# which would otherwise reach the internet; the real-network tests stay `#[ignore]`d.
+httpmock = "0.9"
+# `#[serial]` / `#[serial(group)]`: tests that share the process (its environment, a real
+# browser) run one after the other, whatever `--test-threads` says. Groups: `chrome` (every
+# real-browser test) and `env` (the tests that set or read `SB_*` variables).
+serial_test = "4"
+# `#[test_log::test]`: the `tracing` output of a test that fails is printed (`RUST_LOG` sets the
+# level). Only the `trace` part: the crate logs with `tracing`, so no `env_logger`.
+test-log = { version = "0.2", default-features = false, features = ["trace", "color"] }
 
