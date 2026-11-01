@@ -14,6 +14,17 @@ work, `docs/parity.md` the per-API status).
   `base64_decode` and `unobfuscate` moved into `seleniumbase_rs::common::obfuscate`.
   The two modules imported each other. Import them from `common::obfuscate`.
 
+- **Breaking: times are `jiff`, not `chrono`.** chrono is soft-deprecated; the public items that
+  carried one now carry jiff's (`jiff = "0.2"`). `core::report_helper::RunSnapshot::started_at`
+  and `updated_at` are a `jiff::Zoned` (a `chrono::DateTime<Local>` before),
+  `core::log_helper::get_master_time` takes a `&jiff::Zoned` (it was generic over
+  `chrono::DateTime<Tz>`), and `storage::RunSummary::started_at` and `last_result_at` are a
+  `jiff::Timestamp` (a `DateTime<Utc>` before). Build them with `jiff::civil::date(..).at(..)
+  .to_zoned(TimeZone::system())` or `Zoned::now()`. Everything the crate writes keeps its shape,
+  byte for byte: the JUnit `timestamp`, the dashboard's `Last updated`, `run.json`, the HAR
+  `startedDateTime`, the info files of a failed test, the `captured_at` of a fingerprint, the log
+  clock, and `sbrs report history --json`.
+
 ### Added
 
 - `sbrs-mcp install --all` and `uninstall --all` register with, or remove the

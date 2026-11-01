@@ -52,6 +52,8 @@ tokio = { version = "1.53", features = ["macros", "rt-multi-thread", "time", "si
 reqwest = { version = "0.13", default-features = false }
 tempfile = { version = "3.27", default-features = false }
 dirs = "7.0"
+# The type of the times the library hands over (`RunSummary::started_at`); the same version.
+jiff = "0.2.38"
 # The warning for an invalid `SB_*` variable, written once logging works.
 tracing = "0.1"
 # `sbrs-mcp install`: edits a client's config.toml (Codex) and keeps its comments and

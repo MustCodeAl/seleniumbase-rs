@@ -35,7 +35,7 @@ use std::fmt::{self, Write as _};
 use std::io;
 use std::path::{Path, PathBuf};
 
-use chrono::{DateTime, Local};
+use jiff::Zoned;
 use serde::{Deserialize, Serialize};
 
 use crate::error::SeleniumBaseError;
@@ -264,9 +264,9 @@ pub struct RunSnapshot {
     /// The title of the report or dashboard.
     pub title: String,
     /// When the run started.
-    pub started_at: DateTime<Local>,
+    pub started_at: Zoned,
     /// When the run last changed.
-    pub updated_at: DateTime<Local>,
+    pub updated_at: Zoned,
     /// Whether the run is over: no result is going to be added.
     pub finished: bool,
     /// One result per test.
@@ -279,10 +279,10 @@ impl RunSnapshot {
     /// A finished run of `results`, taken now, whose folder is the current one.
     #[must_use]
     pub fn from_results(title: impl Into<String>, results: Vec<TestResult>) -> Self {
-        let now = Local::now();
+        let now = Zoned::now();
         Self {
             title: title.into(),
-            started_at: now,
+            started_at: now.clone(),
             updated_at: now,
             finished: true,
             results,

@@ -896,8 +896,8 @@ fn whole(value: f64) -> i64 {
 
 /// Seconds since the Unix epoch as an ISO 8601 time with milliseconds.
 fn iso_time(wall: f64) -> String {
-    chrono::DateTime::from_timestamp_millis(whole(wall * 1000.0))
-        .map(|time| time.to_rfc3339_opts(chrono::SecondsFormat::Millis, true))
+    jiff::Timestamp::from_millisecond(whole(wall * 1000.0))
+        .map(|time| time.strftime("%Y-%m-%dT%H:%M:%S%.3fZ").to_string())
         .unwrap_or_default()
 }
 
@@ -1601,6 +1601,19 @@ pub struct HarTimings {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_wall_clock_time_is_utc_with_three_digits_of_milliseconds() {
+        assert_eq!(iso_time(1_700_000_000.123), "2023-11-14T22:13:20.123Z");
+        assert_eq!(iso_time(1_700_000_000.0), "2023-11-14T22:13:20.000Z");
+        assert_eq!(iso_time(1_700_000_000.1), "2023-11-14T22:13:20.100Z");
+        assert_eq!(iso_time(-1.5), "1969-12-31T23:59:58.500Z");
+        assert_eq!(
+            iso_time(f64::MAX),
+            "",
+            "a time no calendar holds is left blank"
+        );
+    }
 
     fn event(method: &str, params: Value) -> CdpEvent {
         CdpEvent {

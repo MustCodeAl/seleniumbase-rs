@@ -263,7 +263,7 @@ fn random_uuid() -> String {
         // The system has no randomness: the time, the process and a counter are unique enough.
         let seed = format!(
             "{}-{}-{}",
-            chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default(),
+            jiff::Timestamp::now().as_nanosecond(),
             std::process::id(),
             FALLBACK.fetch_add(1, Ordering::Relaxed)
         );
@@ -284,7 +284,7 @@ fn random_uuid() -> String {
 }
 
 fn now_ms() -> i64 {
-    chrono::Utc::now().timestamp_millis()
+    jiff::Timestamp::now().as_millisecond()
 }
 
 /// `seconds` as whole milliseconds; a negative or invalid duration is zero.
@@ -616,6 +616,35 @@ mod tests {
 
     const NOW: i64 = 1_700_000_000_000;
     const PNG: &[u8] = b"\x89PNG\r\n\x1a\nfake";
+
+    #[test]
+    fn the_clock_reads_unix_milliseconds() {
+        let since_epoch = |time: std::time::SystemTime| {
+            i64::try_from(
+                time.duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis(),
+            )
+            .unwrap()
+        };
+        let before = since_epoch(std::time::SystemTime::now());
+        let read = now_ms();
+        let after = since_epoch(std::time::SystemTime::now());
+        assert!(
+            before <= read && read <= after,
+            "{before} <= {read} <= {after}"
+        );
+    }
+
+    #[test]
+    fn the_seed_clock_of_the_uuid_fallback_counts_nanoseconds() {
+        let millis = now_ms();
+        let nanos = jiff::Timestamp::now().as_nanosecond();
+        assert!(
+            nanos / 1_000_000 >= i128::from(millis),
+            "{nanos} ns, {millis} ms"
+        );
+    }
 
     /// Ids that count: `00000000-0000-4000-8000-000000000001`, `...02`, and so on.
     fn counting_ids() -> IdSource {

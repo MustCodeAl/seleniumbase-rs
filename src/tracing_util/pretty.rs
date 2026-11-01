@@ -51,11 +51,11 @@ pub(super) struct Clock {
 
 impl FormatTime for Clock {
     fn format_time(&self, w: &mut Writer<'_>) -> fmt::Result {
-        let now = chrono::Local::now();
+        let now = jiff::Zoned::now();
         if self.millis {
-            write!(w, "{}", now.format("%H:%M:%S%.3f"))
+            write!(w, "{}", now.strftime("%H:%M:%S%.3f"))
         } else {
-            write!(w, "{}", now.format("%H:%M:%S"))
+            write!(w, "{}", now.strftime("%H:%M:%S"))
         }
     }
 }
@@ -304,6 +304,25 @@ mod tests {
         fn format_time(&self, w: &mut Writer<'_>) -> fmt::Result {
             w.write_str("12:34:56")
         }
+    }
+
+    /// What the clock prints for `detail`.
+    fn clock_reading(detail: Detail) -> String {
+        let mut text = String::new();
+        let clock = Clock {
+            millis: detail == Detail::Full,
+        };
+        clock.format_time(&mut Writer::new(&mut text)).unwrap();
+        text
+    }
+
+    #[test]
+    fn the_clock_prints_whole_seconds_when_compact_and_milliseconds_when_full() {
+        let compact = regex::Regex::new(r"^\d{2}:\d{2}:\d{2}$").unwrap();
+        let full = regex::Regex::new(r"^\d{2}:\d{2}:\d{2}\.\d{3}$").unwrap();
+        let (short, long) = (clock_reading(Detail::Compact), clock_reading(Detail::Full));
+        assert!(compact.is_match(&short), "{short}");
+        assert!(full.is_match(&long), "{long}");
     }
 
     /// What `emit` logs, as the layer prints it.

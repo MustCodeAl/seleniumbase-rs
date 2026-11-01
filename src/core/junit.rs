@@ -56,7 +56,7 @@ pub fn render_junit_xml_for_host(run: &RunSnapshot, hostname: &str) -> String {
             None => suites.push((&case.suite, vec![case])),
         }
     }
-    let timestamp = run.started_at.format("%Y-%m-%dT%H:%M:%S%.6f").to_string();
+    let timestamp = run.started_at.strftime("%Y-%m-%dT%H:%M:%S%.6f").to_string();
     let hostname = escape(hostname);
     let total = Tally::of(cases.iter());
 
@@ -353,7 +353,7 @@ fn strip_ansi(text: &str) -> String {
 mod tests {
     use super::*;
     use crate::core::report_helper::FailureDetails;
-    use chrono::{Local, TimeZone};
+    use jiff::{civil::date, tz::TimeZone};
     use std::path::PathBuf;
 
     fn result(name: &str, status: TestStatus, secs: f64, message: &str) -> TestResult {
@@ -362,7 +362,10 @@ mod tests {
 
     fn run_of(results: Vec<TestResult>) -> RunSnapshot {
         let mut run = RunSnapshot::from_results("T", results);
-        run.started_at = Local.with_ymd_and_hms(2026, 10, 22, 15, 24, 1).unwrap();
+        run.started_at = date(2026, 10, 22)
+            .at(15, 24, 1, 0)
+            .to_zoned(TimeZone::system())
+            .unwrap();
         run.root = PathBuf::from("/run");
         run
     }

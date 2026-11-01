@@ -32,7 +32,7 @@ use std::io;
 use std::path::{Component, Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use chrono::{DateTime, Local, TimeZone};
+use jiff::Zoned;
 
 use crate::artifacts::LATEST_LOGS_DIR;
 use crate::common::test_id;
@@ -279,24 +279,24 @@ pub struct MasterTime {
 /// # Examples
 ///
 /// ```
-/// use chrono::{TimeZone, Utc};
+/// use jiff::{civil::date, tz::TimeZone};
 /// use seleniumbase_rs::core::log_helper::get_master_time;
 ///
-/// let now = Utc.with_ymd_and_hms(2026, 10, 22, 15, 24, 1).unwrap();
+/// let now = date(2026, 10, 22).at(15, 24, 1, 0).to_zoned(TimeZone::UTC).unwrap();
 /// let time = get_master_time(&now);
 /// assert_eq!(time.date, "Thursday, 22 October 2026");
 /// assert_eq!(time.time, "3:24:01 PM  (UTC+00:00)");
 /// ```
 #[must_use]
-pub fn get_master_time<Tz>(now: &DateTime<Tz>) -> MasterTime
-where
-    Tz: TimeZone,
-    Tz::Offset: std::fmt::Display,
-{
+pub fn get_master_time(now: &Zoned) -> MasterTime {
     MasterTime {
-        timestamp: now.timestamp().to_string(),
-        date: now.format("%A, %d %B %Y").to_string(),
-        time: format!("{}  (UTC{})", now.format("%-I:%M:%S %p"), now.format("%:z")),
+        timestamp: now.timestamp().as_second().to_string(),
+        date: now.strftime("%A, %d %B %Y").to_string(),
+        time: format!(
+            "{}  (UTC{})",
+            now.strftime("%-I:%M:%S %p"),
+            now.strftime("%:z")
+        ),
     }
 }
 
@@ -366,7 +366,7 @@ pub fn render_failure_info(info: &FailureInfo, time: &MasterTime) -> String {
 ///
 /// Returns the I/O error if the folder or the file cannot be written.
 pub fn log_test_failure_data(dir: &Path, info: &FailureInfo) -> io::Result<PathBuf> {
-    let text = render_failure_info(info, &get_master_time(&Local::now()));
+    let text = render_failure_info(info, &get_master_time(&Zoned::now()));
     write_file(dir, BASIC_INFO_FILE, text.as_bytes())
 }
 
@@ -377,7 +377,7 @@ pub fn log_test_failure_data(dir: &Path, info: &FailureInfo) -> io::Result<PathB
 ///
 /// Returns the I/O error if the folder or the file cannot be written.
 pub fn log_skipped_test_data(dir: &Path, info: &FailureInfo, reason: &str) -> io::Result<PathBuf> {
-    let mut lines = header(info, &get_master_time(&Local::now()));
+    let mut lines = header(info, &get_master_time(&Zoned::now()));
     lines.push(format!("Skip Reason: {reason}"));
     let mut text = lines.join("\r\n");
     text.push_str("\r\n");
@@ -594,7 +594,7 @@ fn percent_encode(part: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use chrono::Utc;
+    use jiff::{civil::date, tz::TimeZone};
 
     use super::*;
 
@@ -610,8 +610,36 @@ mod tests {
         }
     }
 
+    /// 2026-10-22 15:24:01 on the wall clock of `zone`.
+    fn at(zone: TimeZone) -> Zoned {
+        date(2026, 10, 22)
+            .at(15, 24, 1, 0)
+            .to_zoned(zone)
+            .expect("a valid time in a fixed zone")
+    }
+
+    #[test]
+    fn the_master_time_names_the_offset_of_its_zone() {
+        let east = get_master_time(&at(TimeZone::fixed(jiff::tz::offset(2))));
+        assert_eq!(east.timestamp, "1792675441", "13:24:01 UTC");
+        assert_eq!(east.date, "Thursday, 22 October 2026");
+        assert_eq!(east.time, "3:24:01 PM  (UTC+02:00)");
+
+        let west = get_master_time(&at(TimeZone::fixed(jiff::tz::offset(-5))));
+        assert_eq!(west.timestamp, "1792700641", "20:24:01 UTC");
+        assert_eq!(west.time, "3:24:01 PM  (UTC-05:00)");
+
+        let morning = date(2026, 1, 5)
+            .at(9, 5, 7, 0)
+            .to_zoned(TimeZone::UTC)
+            .expect("a valid time in UTC");
+        let morning = get_master_time(&morning);
+        assert_eq!(morning.date, "Monday, 05 January 2026");
+        assert_eq!(morning.time, "9:05:07 AM  (UTC+00:00)");
+    }
+
     fn fixed_time() -> MasterTime {
-        get_master_time(&Utc.with_ymd_and_hms(2026, 10, 22, 15, 24, 1).unwrap())
+        get_master_time(&at(TimeZone::UTC))
     }
 
     #[test]

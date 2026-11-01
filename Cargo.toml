@@ -89,6 +89,9 @@ rustls = { version = "0.23", default-features = false, features = ["ring", "std"
 url = "2.5"
 tokio-tungstenite = "0.30"
 futures-util = { version = "0.3", default-features = false, features = ["std", "sink"] }
+# Every time the crate reads, writes or prints is jiff's (`Zoned` for the local clock, `Timestamp`
+# for an instant). chrono is left only for `mcp::devtools`, until that file moves to jiff too.
+jiff = "0.2.38"
 chrono = "0.4"
 enigo = { version = "0.6", optional = true }
 ring = "0.17"

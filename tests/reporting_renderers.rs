@@ -6,7 +6,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use chrono::{Local, TimeZone};
+use jiff::{civil::date, tz::TimeZone};
 use seleniumbase_rs::core::dashboard::{
     pie_chart_svg, render_dashboard, render_html_report, PageOptions, LAST_REPORT_FILE,
 };
@@ -47,7 +47,10 @@ fn assert_golden(actual: &str, name: &str) {
 /// machine (the time zone only appears in the `Last updated` line, which
 /// [`without_the_clock`] removes).
 fn three_tests(finished: bool) -> RunSnapshot {
-    let at = Local.with_ymd_and_hms(2026, 10, 22, 15, 24, 1).unwrap();
+    let at = date(2026, 10, 22)
+        .at(15, 24, 1, 0)
+        .to_zoned(TimeZone::system())
+        .unwrap();
     let folder = "latest_logs/login_chrome.tests.test_bad_password";
     let mut failed = TestResult::new(
         "login_chrome::tests::test_bad_password",
@@ -67,7 +70,7 @@ fn three_tests(finished: bool) -> RunSnapshot {
     });
     RunSnapshot {
         title: "SeleniumBase Dashboard 📊".to_owned(),
-        started_at: at,
+        started_at: at.clone(),
         updated_at: at,
         finished,
         results: vec![

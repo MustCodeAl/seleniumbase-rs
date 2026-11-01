@@ -8,6 +8,8 @@
 
 use std::collections::VecDeque;
 
+use jiff::Zoned;
+
 use serde_json::{Map, Value};
 
 use super::failure::shorten;
@@ -36,6 +38,28 @@ const SENSITIVE_ARGUMENTS: [&str; 9] = [
     "script",
     "proxy",
 ];
+
+/// `time` as RFC 3339 with its numeric offset and as many fractional digits as it needs, in
+/// groups of three: `2026-10-22T15:24:01+02:00`, `2026-10-22T15:24:01.123456+02:00`.
+fn rfc3339_auto(time: &Zoned) -> String {
+    let nanos = time.subsec_nanosecond();
+    let (digits, divisor) = match nanos {
+        0 => (0, 1),
+        n if n % 1_000_000 == 0 => (3, 1_000_000),
+        n if n % 1_000 == 0 => (6, 1_000),
+        _ => (9, 1),
+    };
+    let fraction = if digits == 0 {
+        String::new()
+    } else {
+        format!(".{:0digits$}", nanos / divisor)
+    };
+    format!(
+        "{}{fraction}{}",
+        time.strftime("%Y-%m-%dT%H:%M:%S"),
+        time.strftime("%:z")
+    )
+}
 
 /// One tool call and how it ended.
 #[derive(Debug, Clone, PartialEq)]
@@ -82,7 +106,7 @@ impl CallRecord {
             ok,
             outcome: kept,
             outcome_chars: outcome.chars().count(),
-            at: chrono::Local::now().to_rfc3339(),
+            at: rfc3339_auto(&Zoned::now()),
             ms: 0,
         }
     }
@@ -160,6 +184,46 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+
+    /// 2026-10-22 15:24:01 and `nanos` nanoseconds at +02:00.
+    fn at_plus_two(nanos: i32) -> Zoned {
+        jiff::civil::date(2026, 10, 22)
+            .at(15, 24, 1, nanos)
+            .to_zoned(jiff::tz::TimeZone::fixed(jiff::tz::offset(2)))
+            .expect("a valid time in a fixed zone")
+    }
+
+    #[test]
+    fn a_time_gets_the_fractional_digits_it_needs_in_groups_of_three() {
+        assert_eq!(rfc3339_auto(&at_plus_two(0)), "2026-10-22T15:24:01+02:00");
+        assert_eq!(
+            rfc3339_auto(&at_plus_two(120_000_000)),
+            "2026-10-22T15:24:01.120+02:00"
+        );
+        assert_eq!(
+            rfc3339_auto(&at_plus_two(123_456_000)),
+            "2026-10-22T15:24:01.123456+02:00"
+        );
+        assert_eq!(
+            rfc3339_auto(&at_plus_two(7)),
+            "2026-10-22T15:24:01.000000007+02:00"
+        );
+        let utc = jiff::civil::date(2026, 10, 22)
+            .at(15, 24, 1, 5_000_000)
+            .to_zoned(jiff::tz::TimeZone::UTC)
+            .expect("a valid time in UTC");
+        assert_eq!(rfc3339_auto(&utc), "2026-10-22T15:24:01.005+00:00");
+    }
+
+    #[test]
+    fn a_record_is_stamped_with_the_local_time_and_its_offset() {
+        let stamp = record("open_url", json!({})).at;
+        let shape = regex::Regex::new(
+            r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3}|\.\d{6}|\.\d{9})?[+-]\d{2}:\d{2}$",
+        )
+        .unwrap();
+        assert!(shape.is_match(&stamp), "{stamp}");
+    }
 
     #[allow(
         clippy::needless_pass_by_value,

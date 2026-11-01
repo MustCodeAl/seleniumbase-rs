@@ -84,7 +84,9 @@ pub fn capture_async_script() -> String {
 
 /// The time to record for a capture taken now: RFC 3339, UTC, whole seconds.
 pub(crate) fn timestamp() -> String {
-    chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+    jiff::Timestamp::now()
+        .strftime("%Y-%m-%dT%H:%M:%SZ")
+        .to_string()
 }
 
 /// Where and when a capture was taken.
@@ -838,6 +840,15 @@ mod tests {
         include_str!("../../tests/fixtures/fingerprint/probe_chrome_real_headless.json");
 
     const AT: &str = "2026-10-18T12:00:00Z";
+
+    #[test]
+    fn the_capture_time_is_rfc_3339_in_utc_with_whole_seconds() {
+        let stamp = timestamp();
+        let shape = regex::Regex::new(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$").unwrap();
+        assert!(shape.is_match(&stamp), "{stamp}");
+        let parsed: jiff::Timestamp = stamp.parse().expect("jiff reads what the capture wrote");
+        assert!(parsed.as_second() > 1_700_000_000, "{stamp}");
+    }
 
     fn capture(fixture: &str) -> CapturedFingerprint {
         let raw: Value = serde_json::from_str(fixture).expect("the fixture is JSON");
