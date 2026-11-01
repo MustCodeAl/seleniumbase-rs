@@ -8,6 +8,11 @@ work, `docs/parity.md` the per-API status).
 
 ## [Unreleased]
 
+### Changed
+
+- The UC mode guide is one page, `docs/tutorials/uc_mode.md`: what the mode is,
+  when to use it, and every option. `/help/uc_mode` redirects there.
+
 ## [0.7.0] - 2026-10-31
 
 ### Breaking
