@@ -335,6 +335,134 @@ fn step_text(value: &str) -> String {
         .replace('\n', "\\n")
 }
 
+/// How an action's arguments go into its Gherkin step.
+enum StepForm {
+    /// The wording alone.
+    Wording,
+    /// `<wording> "<target>"`.
+    One,
+    /// `<wording> <target>`, with the target quoted as a selector.
+    Element,
+    /// `<wording> "<value as step text>" <joint> "<target>"`.
+    Typing(&'static str),
+    /// `<wording> "<target>" <joint> "<value>"`.
+    Two(&'static str),
+    /// `<wording> "<value as step text>" in "<target>"`, without the `in` part
+    /// when the target is `html`.
+    Assertion,
+}
+use StepForm::{Assertion, Element, One, Two, Typing, Wording};
+
+/// The actions whose step follows from one row: the name, the wording of
+/// Python's `behave_helper`, and how the arguments go in.
+const GHERKIN_STEPS: &[(&str, &str, StepForm)] = &[
+    ("goto", "Open", One),
+    ("goto_if_not_url", "Open if not", One),
+    ("click", "Click", One),
+    ("double_click", "Double click", One),
+    ("js_click", "JS click", One),
+    ("js_click_all", "JS click all", One),
+    ("jquery_click", "jQuery click", One),
+    ("jquery_click_all", "jQuery click all", One),
+    ("context_click", "Context click", One),
+    ("hover", "Hover", One),
+    ("highlight", "Highlight", One),
+    ("type_text", "Type", Typing("into")),
+    ("js_type", "JS type", Typing("in")),
+    ("jquery_type", "jQuery type", Typing("in")),
+    ("press_keys", "Press keys", Typing("in")),
+    ("hover_and_click", "Hover", Two("and click")),
+    ("drag_and_drop", "Drag", Two("into")),
+    ("select_option_by_text", "Find", Two("and select")),
+    ("set_value", "Set value of", Two("to")),
+    ("switch_to_frame", "Switch to frame", One),
+    (
+        "switch_to_default_content",
+        "Switch to default content",
+        Wording,
+    ),
+    ("switch_to_parent_frame", "Switch to parent frame", Wording),
+    ("set_content_to_frame", "Set content to frame", One),
+    ("set_content_to_default", "Set content to default", Wording),
+    ("set_content_to_parent", "Set content to parent", Wording),
+    ("wait_for_element", "Wait for element", Element),
+    ("assert_element", "Assert element", Element),
+    ("assert_element_present", "Assert element present", Element),
+    (
+        "assert_element_not_visible",
+        "Assert element not visible",
+        Element,
+    ),
+    ("assert_non_empty_text", "Assert non-empty text in", Element),
+    (
+        "deferred_assert_element",
+        "Deferred assert element",
+        Element,
+    ),
+    (
+        "deferred_assert_element_present",
+        "Deferred assert element present",
+        Element,
+    ),
+    (
+        "deferred_assert_non_empty_text",
+        "Deferred assert non-empty text in",
+        Element,
+    ),
+    ("accept_alert", "Accept alert", Wording),
+    ("dismiss_alert", "Dismiss alert", Wording),
+    ("assert_link_text", "Assert link text", One),
+    ("assert_title", "Assert title", One),
+    ("assert_title_contains", "Assert title contains", One),
+    ("assert_url", "Assert URL", One),
+    ("assert_url_contains", "Assert URL contains", One),
+    ("assert_downloaded_file", "Assert downloaded file", One),
+    ("assert_text", "Assert text", Assertion),
+    ("assert_exact_text", "Assert exact text", Assertion),
+    (
+        "assert_text_not_visible",
+        "Assert text not visible",
+        Assertion,
+    ),
+    (
+        "assert_exact_text_not_visible",
+        "Assert exact text not visible",
+        Assertion,
+    ),
+    ("deferred_assert_text", "Deferred assert text", Assertion),
+    (
+        "deferred_assert_exact_text",
+        "Deferred assert exact text",
+        Assertion,
+    ),
+    (
+        "save_screenshot_to_logs",
+        "Save screenshot to logs",
+        Wording,
+    ),
+    ("save_as_pdf_to_logs", "Save as PDF to logs", Wording),
+    (
+        "save_page_source_to_logs",
+        "Save page source to logs",
+        Wording,
+    ),
+    ("show_file_choosers", "Show file choosers", Wording),
+    (
+        "process_deferred_asserts",
+        "Process deferred asserts",
+        Wording,
+    ),
+    ("activate_demo_mode", "Activate Demo Mode", Wording),
+    ("deactivate_demo_mode", "Deactivate Demo Mode", Wording),
+    ("clear_local_storage", "Clear Local Storage", Wording),
+    ("clear_session_storage", "Clear Session Storage", Wording),
+    ("delete_all_cookies", "Delete all cookies", Wording),
+    ("go_back", "Go back", Wording),
+    ("go_forward", "Go forward", Wording),
+    ("check_if_unchecked", "Check if unchecked", One),
+    ("uncheck_if_checked", "Uncheck if checked", One),
+];
+
 /// The Gherkin step (without its keyword) in Python's `behave_helper`
 /// wording, or why there is none.
 fn gherkin_step(action: &RecordedAction) -> Result<String, String> {
@@ -344,36 +472,36 @@ fn gherkin_step(action: &RecordedAction) -> Result<String, String> {
     let value = action.value.as_deref();
     let need_target = || target.ok_or_else(|| format!("{name} has no target"));
     let need_value = || value.ok_or_else(|| format!("{name} has no value"));
-    let one = |wording: &str| -> Result<String, String> {
-        Ok(format!("{wording} {}", quoted(need_target()?)))
-    };
-    let element = |wording: &str| -> Result<String, String> {
-        Ok(format!("{wording} {}", quoted_selector(need_target()?)))
-    };
-    let typing = |wording: &str, joint: &str| -> Result<String, String> {
-        let text = step_text(need_value()?);
-        Ok(format!(
-            "{wording} {} {joint} {}",
-            quoted(&text),
-            quoted(need_target()?)
-        ))
-    };
-    let two = |first: &str, joint: &str| -> Result<String, String> {
-        Ok(format!(
-            "{first} {} {joint} {}",
-            quoted(need_target()?),
-            quoted(need_value()?)
-        ))
-    };
-    let assertion = |wording: &str| -> Result<String, String> {
-        let text = quoted(&step_text(need_value()?));
-        let selector = need_target()?;
-        Ok(if selector == "html" {
-            format!("{wording} {text}")
-        } else {
-            format!("{wording} {text} in {}", quoted(selector))
-        })
-    };
+    if let Some((_, wording, form)) = GHERKIN_STEPS.iter().find(|(known, ..)| *known == name) {
+        return Ok(match form {
+            Wording => (*wording).to_owned(),
+            One => format!("{wording} {}", quoted(need_target()?)),
+            Element => format!("{wording} {}", quoted_selector(need_target()?)),
+            Typing(joint) => {
+                let text = step_text(need_value()?);
+                format!(
+                    "{wording} {} {joint} {}",
+                    quoted(&text),
+                    quoted(need_target()?)
+                )
+            }
+            Two(joint) => format!(
+                "{wording} {} {joint} {}",
+                quoted(need_target()?),
+                quoted(need_value()?)
+            ),
+            Assertion => {
+                let text = quoted(&step_text(need_value()?));
+                let selector = need_target()?;
+                if selector == "html" {
+                    format!("{wording} {text}")
+                } else {
+                    format!("{wording} {text} in {}", quoted(selector))
+                }
+            }
+        });
+    }
+    // The steps that do more with their arguments than a row can say.
     Ok(match name {
         CAPTCHA => {
             return Err(super::calls::captcha_note(
@@ -381,62 +509,20 @@ fn gherkin_step(action: &RecordedAction) -> Result<String, String> {
                 "sb.solve_captcha() in a step of your own",
             ))
         }
-
-        "goto" => one("Open")?,
-        "goto_if_not_url" => one("Open if not")?,
-        "click" => one("Click")?,
-        "double_click" => one("Double click")?,
-        "js_click" => one("JS click")?,
-        "js_click_all" => one("JS click all")?,
-        "jquery_click" => one("jQuery click")?,
-        "jquery_click_all" => one("jQuery click all")?,
-        "context_click" => one("Context click")?,
-        "hover" => one("Hover")?,
-        "highlight" => one("Highlight")?,
         "click_with_offset" => {
             let offset = need_value()?;
             format!("Click {} at ({offset})", quoted(need_target()?))
         }
-        "type_text" => typing("Type", "into")?,
-        "js_type" => typing("JS type", "in")?,
-        "jquery_type" => typing("jQuery type", "in")?,
-        "press_keys" => typing("Press keys", "in")?,
         "enter_mfa_code" => {
             let text = step_text(need_value()?);
             format!("Into {} do MFA {}", quoted(need_target()?), quoted(&text))
         }
-        "hover_and_click" => format!(
-            "Hover {} and click {}",
-            quoted(need_target()?),
-            quoted(need_value()?)
-        ),
-        "drag_and_drop" => two("Drag", "into")?,
-        "select_option_by_text" => two("Find", "and select")?,
-        "set_value" => format!(
-            "Set value of {} to {}",
-            quoted(need_target()?),
-            quoted(need_value()?)
-        ),
         "choose_file" => format!(
             "Into {} choose file {}",
             quoted(need_target()?),
             quoted(&need_value()?.replace('\\', "\\\\"))
         ),
-        "switch_to_frame" => one("Switch to frame")?,
-        "switch_to_default_content" => "Switch to default content".to_owned(),
-        "switch_to_parent_frame" => "Switch to parent frame".to_owned(),
-        "set_content_to_frame" => one("Set content to frame")?,
-        "set_content_to_default" => "Set content to default".to_owned(),
-        "set_content_to_parent" => "Set content to parent".to_owned(),
         "sleep" => format!("Sleep for {} seconds", need_value()?),
-        "wait_for_element" => element("Wait for element")?,
-        "assert_element" => element("Assert element")?,
-        "assert_element_present" => element("Assert element present")?,
-        "assert_element_not_visible" => element("Assert element not visible")?,
-        "assert_non_empty_text" => element("Assert non-empty text in")?,
-        "deferred_assert_element" => element("Deferred assert element")?,
-        "deferred_assert_element_present" => element("Deferred assert element present")?,
-        "deferred_assert_non_empty_text" => element("Deferred assert non-empty text in")?,
         "set_attribute" | "set_attributes" => {
             let start = if name == "set_attributes" {
                 "Find all"
@@ -452,14 +538,6 @@ fn gherkin_step(action: &RecordedAction) -> Result<String, String> {
                 quoted_selector(need_target()?)
             )
         }
-        "accept_alert" => "Accept alert".to_owned(),
-        "dismiss_alert" => "Dismiss alert".to_owned(),
-        "assert_link_text" => one("Assert link text")?,
-        "assert_title" => one("Assert title")?,
-        "assert_title_contains" => one("Assert title contains")?,
-        "assert_url" => one("Assert URL")?,
-        "assert_url_contains" => one("Assert URL contains")?,
-        "assert_downloaded_file" => one("Assert downloaded file")?,
         "download_file" => match value {
             None => format!("Download file \"{}\" to downloads", need_target()?),
             Some(destination) => {
@@ -476,34 +554,14 @@ fn gherkin_step(action: &RecordedAction) -> Result<String, String> {
                 format!("In {selector} assert attribute/value \"{attribute}\"/\"{content}\"")
             }
         }
-        "assert_text" => assertion("Assert text")?,
-        "assert_exact_text" => assertion("Assert exact text")?,
-        "assert_text_not_visible" => assertion("Assert text not visible")?,
-        "assert_exact_text_not_visible" => assertion("Assert exact text not visible")?,
-        "deferred_assert_text" => assertion("Deferred assert text")?,
-        "deferred_assert_exact_text" => assertion("Deferred assert exact text")?,
         "save_screenshot" | "save_screenshot_to_folder" => match value {
-            None => one("Save screenshot as")?,
+            None => format!("Save screenshot as {}", quoted(need_target()?)),
             Some(folder) => format!(
                 "Save screenshot to {} as {}",
                 quoted(folder),
                 quoted(need_target()?)
             ),
         },
-        "save_screenshot_to_logs" => "Save screenshot to logs".to_owned(),
-        "save_as_pdf_to_logs" => "Save as PDF to logs".to_owned(),
-        "save_page_source_to_logs" => "Save page source to logs".to_owned(),
-        "show_file_choosers" => "Show file choosers".to_owned(),
-        "process_deferred_asserts" => "Process deferred asserts".to_owned(),
-        "activate_demo_mode" => "Activate Demo Mode".to_owned(),
-        "deactivate_demo_mode" => "Deactivate Demo Mode".to_owned(),
-        "clear_local_storage" => "Clear Local Storage".to_owned(),
-        "clear_session_storage" => "Clear Session Storage".to_owned(),
-        "delete_all_cookies" => "Delete all cookies".to_owned(),
-        "go_back" => "Go back".to_owned(),
-        "go_forward" => "Go forward".to_owned(),
-        "check_if_unchecked" => one("Check if unchecked")?,
-        "uncheck_if_checked" => one("Uncheck if checked")?,
         // The name is whatever was recorded; a line break in it would end the
         // `# skipped:` comment and start a step, so it is escaped.
         other => {
