@@ -1,6 +1,6 @@
 ---
-title: "Tauri Plugin"
-sidebarTitle: "Tauri plugin"
+title: "Tauri Integration"
+sidebarTitle: "Tauri integration"
 description: "Test a Tauri app with seleniumbase-rs: add the automation plugin, drive its window with BaseCase or sbrs, and configure CEF, WebView2 and stealth."
 keywords: ["tauri", "plugin", "webdriver", "desktop", "automation", "cef", "webview2"]
 ---
