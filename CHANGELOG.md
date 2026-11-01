@@ -8,6 +8,12 @@ work, `docs/parity.md` the per-API status).
 
 ## [Unreleased]
 
+### Added
+
+- `docs/contributing/manual-checks.md`: commands and expected results for a
+  real IMAP mailbox, a local Tor daemon, and a smoke of `sbrs` and `sbrs-mcp`
+  on Windows and in a Linux container.
+
 ## [0.7.0] - 2026-10-31
 
 ### Breaking
