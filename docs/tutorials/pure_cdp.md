@@ -79,6 +79,19 @@ element again and waits for it, so it keeps working when the page re-renders.
 | `.visible()` | keep only visible matches |
 | `.parent()` | the parent element |
 | `.with_timeout(d)` | how long actions wait |
+| `.strict()` | fail when more than one element matches |
+
+A plain locator acts on the first match. `.strict()` works like Playwright's
+strict mode: `page.locator("button.save").strict().click()` returns
+`SeleniumBaseError::StrictModeViolation` (`strict mode violation: button.save
+matched 2 elements`) at once instead of clicking one of them. Every action, read
+of one element and wait checks it; so do `set_attribute` and `remove`, which
+otherwise change every match. `count`, `infos`, `all` and `all_waiting` are about
+every match and stay allowed, and `.first()`, `.last()` or `.nth(i)` pick one, so
+they never violate it. The matches of every frame count, also in frames of
+another origin, where a plain locator stops at the first frame that holds a
+match. The check runs just before the action, as its own step, so an element
+added between the two is not seen. No match at all waits and fails as usual.
 
 Selectors are classified the way SeleniumBase does it: `"#id"` is CSS, `"//div"`
 is XPath, `"link=Home"` is a link. Use `SelectorBuf::css`/`xpath` to be explicit.

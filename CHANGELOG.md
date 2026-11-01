@@ -27,6 +27,14 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- Strict locators in the pure CDP engine: `page.locator(sel).strict()` fails with the new
+  `SeleniumBaseError::StrictModeViolation { selector, count }` (category `strict_mode_violation`,
+  exit status 3) when the selector matches more than one element, like Playwright's strict mode,
+  instead of acting on the first. Actions, reads of one element, waits, `set_attribute` and
+  `remove` check it at once; `count`, `infos`, `all`, `all_waiting` and a match picked with
+  `first`, `last` or `nth` stay allowed. The matches of frames of another origin count too.
+  Python SeleniumBase has no such option.
+
 - `sbrs-mcp install`, `uninstall` and `clients` know Grok Build (`grok`). The
   user file is `$GROK_HOME/config.toml`, or `~/.grok/config.toml` when
   `GROK_HOME` is unset (on Windows, `%USERPROFILE%\.grok\config.toml`), and

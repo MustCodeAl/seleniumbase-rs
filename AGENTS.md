@@ -184,11 +184,12 @@ server (`find_api`) before you write the call.
    `locator.expect().to_have_text(..)`. Not `get_text` plus `assert_eq!`: it reads
    once. End every call with `?`.
 6. **Scope the query and know how many match.** A selector or a `Locator` acts on
-   the first match and there is no strict mode. Put the container in the selector
+   the first match. Put the container in the selector
    (`#cart [data-sku="B-7"] .remove`, not `.remove`); `switch_to_frame(..)` before
    an iframe and `switch_to_default_content()` after; pure CDP chains
    `page.locator("#cart").locator(".remove")`. When exactly one must match,
-   `page.locator("#checkout").expect().to_have_count(1)`.
+   `page.locator("#checkout").strict()` (pure CDP) fails on two and says how many,
+   and `page.locator("#checkout").expect().to_have_count(1)` checks it on its own.
 7. **Find again, do not hold elements.** Pass selector strings, which find the
    element again on each call, or keep a `Locator`. A `WebElement` from
    `find_element` goes stale when the page re-renders.
@@ -232,7 +233,7 @@ server (`find_api`) before you write the call.
     `sb.account()`, `sb.data()`, `sb.variables()` (`SB_ACCOUNT`, `SB_DATA`,
     `SB_VARIABLES`). No literal password, token or account name in a test.
 
-Where the crate cannot enforce a rule (no strict single match, no scoped query on
+Where the crate cannot enforce a rule (no strict single match or scoped query on
 `BaseCase`, no hard time limit outside the fixtures, nothing that refuses a
 sleep), the page lists it under "What the crate cannot enforce yet".
 

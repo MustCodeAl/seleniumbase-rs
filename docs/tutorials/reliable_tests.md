@@ -30,7 +30,7 @@ with every item written in terms of this crate's API.
 
 <Visibility for="agents">
 
-Summary for AI exports: write each browser test as `#[rstest] #[tokio::test] async fn name(sb: Sb) -> Result<()> { sb.run(async |sb| { .. }).await }` (feature `testing`), or `sb_cdp: SbCdp` with `sb_cdp.run(async |page| { .. })` for the pure CDP engine; never start a browser by hand in a test body. Import only from `seleniumbase_rs`. Use stable selectors (`#id`, `[data-testid="x"]`, `link=Text`). Never sleep: actions wait, and `wait_for_element_visible`, `wait_for_text`, `wait_for_element_absent` or `locator.wait_for(State::Absent)` cover the rest. Assert with the retrying assertions (`assert_text(text, selector)` takes the text first, `locator.expect().to_have_text(..)`), not `get_text` plus `assert_eq!`. A selector or `Locator` acts on the first match: scope it, and use `expect().to_have_count(1)` when there must be exactly one. Do not keep a `WebElement` across a page change. Cleanup: the fixture and `run_browser_test` close the browser; a `Browser` you launch is closed on both paths. Evidence is `latest_logs/<test id>/`; add to it with `save_screenshot_to_logs` and `save_page_source_to_logs`, never print page source. One fixture test, one `BrowserPool` lease or one `BrowserContext` per concurrent flow. CI runs `SB_HEADLESS=true cargo test`. Raw protocol calls (`Page::execute`, `Browser::execute`, `BaseCase::execute_cdp_cmd`) live in one helper behind a feature of the test crate. Test code that drives pages without Chrome through `Browser::new_mocked()` (feature `test-util`). Credentials and data come from `sb.account()`, `sb.data()`, `sb.variables()`, never from the file.
+Summary for AI exports: write each browser test as `#[rstest] #[tokio::test] async fn name(sb: Sb) -> Result<()> { sb.run(async |sb| { .. }).await }` (feature `testing`), or `sb_cdp: SbCdp` with `sb_cdp.run(async |page| { .. })` for the pure CDP engine; never start a browser by hand in a test body. Import only from `seleniumbase_rs`. Use stable selectors (`#id`, `[data-testid="x"]`, `link=Text`). Never sleep: actions wait, and `wait_for_element_visible`, `wait_for_text`, `wait_for_element_absent` or `locator.wait_for(State::Absent)` cover the rest. Assert with the retrying assertions (`assert_text(text, selector)` takes the text first, `locator.expect().to_have_text(..)`), not `get_text` plus `assert_eq!`. A selector or `Locator` acts on the first match: scope it, and use `locator.strict()` (pure CDP) or `expect().to_have_count(1)` when there must be exactly one. Do not keep a `WebElement` across a page change. Cleanup: the fixture and `run_browser_test` close the browser; a `Browser` you launch is closed on both paths. Evidence is `latest_logs/<test id>/`; add to it with `save_screenshot_to_logs` and `save_page_source_to_logs`, never print page source. One fixture test, one `BrowserPool` lease or one `BrowserContext` per concurrent flow. CI runs `SB_HEADLESS=true cargo test`. Raw protocol calls (`Page::execute`, `Browser::execute`, `BaseCase::execute_cdp_cmd`) live in one helper behind a feature of the test crate. Test code that drives pages without Chrome through `Browser::new_mocked()` (feature `test-util`). Credentials and data come from `sb.account()`, `sb.data()`, `sb.variables()`, never from the file.
 
 </Visibility>
 
@@ -229,9 +229,10 @@ them all at the end.
 
 ### 6. Scope the query and know how many elements match
 
-A selector string or a `Locator` acts on the **first** match; there is no strict
-mode that fails on two. So reach the element through its container, and when the
-test depends on there being exactly one, say so.
+A selector string or a `Locator` acts on the **first** match. So reach the element
+through its container, and when the test depends on there being exactly one, say
+so: a pure CDP `Locator` has `.strict()`, which fails on two and says how many
+matched; `BaseCase` has no strict mode.
 
 <CodeGroup>
 
@@ -255,7 +256,9 @@ let cart = page.locator("#cart");
 cart.locator(r#"[data-sku="B-7"] .remove"#).click().await?;
 page.locator("#payment").locator("button.pay").click().await?;
 
-// When exactly one must match.
+// When exactly one must match: this fails rather than clicks one of two.
+page.locator("#checkout").strict().click().await?;
+// Or as a check of its own.
 page.locator("#checkout").expect().to_have_count(1).await?;
 ```
 
@@ -570,9 +573,9 @@ See [Test data](/tutorials/writing_tests#test-data) and
 A rule is only as strong as what checks it. These are the places where this crate
 leaves a rule to the author or the reviewer:
 
-- **No strict single match.** A selector or a `Locator` that matches several
-  elements acts on the first. Rule 6 uses `to_have_count(1)` for that; there is
-  no `single()` that fails on two.
+- **No strict single match on `BaseCase`.** A selector that matches several
+  elements acts on the first. Rule 6 uses `to_have_count(1)` for that. Only the
+  pure CDP `Locator` has `.strict()`, and a plain one acts on the first too.
 - **No scoped query on `BaseCase`.** There is no object that stands for a
   container. You scope with the selector string, a frame or a shadow root, or with
   a `WebElement`, which rule 7 warns about. The pure CDP `Locator` does scope.
