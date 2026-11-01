@@ -36,7 +36,7 @@ mod tomlfile;
 mod tests;
 
 use std::fs;
-use std::io::{self, Write};
+use std::io::{self, IsTerminal, Write};
 use std::path::PathBuf;
 
 use seleniumbase_rs::cli::plugin_cmd::check_selection;
@@ -87,6 +87,11 @@ pub struct InstallRequest {
     pub dry_run: bool,
     /// Replace a different entry of the same name.
     pub force: bool,
+    /// Install into every client that [`Client::detected`] finds.
+    pub all: bool,
+    /// The line a person typed when no client was named on a terminal.
+    /// `None` when this is not a terminal, or when names or `--all` were given.
+    pub choice: Option<String>,
 }
 
 /// What `uninstall` was asked for.
@@ -102,6 +107,11 @@ pub struct UninstallRequest {
     pub only: Only,
     /// Show and change nothing.
     pub dry_run: bool,
+    /// Remove the registration from every client that [`Client::detected`] finds.
+    pub all: bool,
+    /// The line a person typed when no client was named on a terminal.
+    /// `None` when this is not a terminal, or when names or `--all` were given.
+    pub choice: Option<String>,
 }
 
 /// What `clients` was asked for.
@@ -132,11 +142,181 @@ pub fn run(action: Action) -> i32 {
                     return 1;
                 }
             };
-            install(&env, &args.into_request(exe), &mut out, &mut err)
+            let mut request = args.into_request(exe);
+            if let Err(status) = ask_if_needed(
+                &env,
+                &request.clients,
+                request.all,
+                &mut request.choice,
+                &mut err,
+            ) {
+                return status;
+            }
+            install(&env, &request, &mut out, &mut err)
         }
-        Action::Uninstall(args) => uninstall(&env, &args.into_request(), &mut out, &mut err),
+        Action::Uninstall(args) => {
+            let mut request = args.into_request();
+            if let Err(status) = ask_if_needed(
+                &env,
+                &request.clients,
+                request.all,
+                &mut request.choice,
+                &mut err,
+            ) {
+                return status;
+            }
+            uninstall(&env, &request, &mut out, &mut err)
+        }
         Action::Clients(args) => clients(&env, &args.into_request(), &mut out, &mut err),
     }
+}
+
+/// When no client was named and this is a terminal, list the installed clients and
+/// read one line. Otherwise leave `choice` alone.
+fn ask_if_needed(
+    env: &Env,
+    clients: &[String],
+    all: bool,
+    choice: &mut Option<String>,
+    err: &mut dyn Write,
+) -> Result<(), i32> {
+    if all || !clients.is_empty() || !io::stdin().is_terminal() {
+        return Ok(());
+    }
+    let detected = detected_list(env);
+    write_installed(&detected, err);
+    let _ = writeln!(err, "Which clients? numbers, names, or all:");
+    let mut line = String::new();
+    if io::stdin().read_line(&mut line).is_err() {
+        let _ = writeln!(err, "sbrs-mcp: could not read the choice");
+        return Err(2);
+    }
+    *choice = Some(line);
+    Ok(())
+}
+
+fn detected_list(env: &Env) -> Vec<Client> {
+    Client::ALL
+        .into_iter()
+        .filter(|client| client.detected(env))
+        .collect()
+}
+
+fn write_installed(detected: &[Client], err: &mut dyn Write) {
+    let _ = writeln!(err, "installed clients:");
+    if detected.is_empty() {
+        let _ = writeln!(err, "  (none)");
+        return;
+    }
+    for (index, client) in detected.iter().enumerate() {
+        let _ = writeln!(err, "  {}  {}", index + 1, client.id());
+    }
+}
+
+/// `--all`, the names on the command line, or the line a person typed.
+fn select_clients(
+    requested: &[String],
+    all: bool,
+    choice: Option<&str>,
+    env: &Env,
+    err: &mut dyn Write,
+) -> Result<Vec<Client>, i32> {
+    if all && !requested.is_empty() {
+        let _ = writeln!(err, "sbrs-mcp: --all takes no client names");
+        return Err(2);
+    }
+    if all {
+        return detected_or_skip(env, err);
+    }
+    if !requested.is_empty() {
+        return parse_clients(requested, err);
+    }
+    match choice {
+        None => {
+            let _ = writeln!(
+                err,
+                "sbrs-mcp: name at least one client; the known clients are: {}",
+                Client::known_ids()
+            );
+            Err(2)
+        }
+        Some(line) => parse_choice(line, &detected_list(env), err),
+    }
+}
+
+fn detected_or_skip(env: &Env, err: &mut dyn Write) -> Result<Vec<Client>, i32> {
+    let mut found = Vec::new();
+    for client in Client::ALL {
+        if client.detected(env) {
+            found.push(client);
+        } else {
+            let _ = writeln!(err, "{}: not found, skipped", client.id());
+        }
+    }
+    if found.is_empty() {
+        let _ = writeln!(
+            err,
+            "sbrs-mcp: no installed client was found; the known clients are: {}",
+            Client::known_ids()
+        );
+        return Err(2);
+    }
+    Ok(found)
+}
+
+fn parse_choice(line: &str, detected: &[Client], err: &mut dyn Write) -> Result<Vec<Client>, i32> {
+    let line = line.trim();
+    if line.is_empty() {
+        let _ = writeln!(err, "sbrs-mcp: no client chosen");
+        return Err(2);
+    }
+    if line.eq_ignore_ascii_case("all") {
+        if detected.is_empty() {
+            let _ = writeln!(err, "sbrs-mcp: no installed client was found");
+            return Err(2);
+        }
+        return Ok(detected.to_vec());
+    }
+    let mut chosen = Vec::new();
+    for word in line
+        .split(|c: char| c == ',' || c.is_whitespace())
+        .filter(|word| !word.is_empty())
+    {
+        if let Ok(number) = word.parse::<usize>() {
+            let Some(client) = number.checked_sub(1).and_then(|index| detected.get(index)) else {
+                let _ = writeln!(err, "sbrs-mcp: {word} is not one of the installed clients");
+                return Err(2);
+            };
+            if !chosen.contains(client) {
+                chosen.push(*client);
+            }
+            continue;
+        }
+        match Client::from_id(word) {
+            Some(client) if detected.contains(&client) => {
+                if !chosen.contains(&client) {
+                    chosen.push(client);
+                }
+            }
+            Some(client) => {
+                let _ = writeln!(err, "sbrs-mcp: {} is not installed", client.id());
+                return Err(2);
+            }
+            None => {
+                let _ = writeln!(
+                    err,
+                    "sbrs-mcp: unknown client `{word}`; the known clients are: {}",
+                    Client::known_ids()
+                );
+                return Err(2);
+            }
+        }
+    }
+    if chosen.is_empty() {
+        let _ = writeln!(err, "sbrs-mcp: no client chosen");
+        return Err(2);
+    }
+    Ok(chosen)
 }
 
 /// The clients named on the command line, each once, or the reason to stop.
@@ -219,7 +399,13 @@ pub fn install(
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
-    let clients = match parse_clients(&request.clients, err) {
+    let clients = match select_clients(
+        &request.clients,
+        request.all,
+        request.choice.as_deref(),
+        env,
+        err,
+    ) {
         Ok(clients) => clients,
         Err(status) => return status,
     };
@@ -281,6 +467,9 @@ pub fn install(
         entries: &entries,
         force: request.force,
     };
+    if request.all && !request.dry_run {
+        show_preview(&job, &clients, &task, out, err);
+    }
     let reports: Vec<ClientReport> = clients
         .iter()
         .map(|client| perform(&job, *client, &task))
@@ -296,7 +485,13 @@ pub fn uninstall(
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
-    let clients = match parse_clients(&request.clients, err) {
+    let clients = match select_clients(
+        &request.clients,
+        request.all,
+        request.choice.as_deref(),
+        env,
+        err,
+    ) {
         Ok(clients) => clients,
         Err(status) => return status,
     };
@@ -313,12 +508,35 @@ pub fn uninstall(
         dry_run: request.dry_run,
     };
     let task = Task::Uninstall { names: &names };
+    if request.all && !request.dry_run {
+        show_preview(&job, &clients, &task, out, err);
+    }
     let reports: Vec<ClientReport> = clients
         .iter()
         .map(|client| perform(&job, *client, &task))
         .collect();
     print_reports(&reports, request.dry_run, out, err);
     exit_code(&reports)
+}
+
+/// Prints what `task` would do, before the real change.
+fn show_preview(
+    job: &Job<'_>,
+    clients: &[Client],
+    task: &Task<'_>,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) {
+    let preview_job = Job {
+        dry_run: true,
+        ..*job
+    };
+    let reports: Vec<ClientReport> = clients
+        .iter()
+        .map(|client| perform(&preview_job, *client, task))
+        .collect();
+    let _ = writeln!(out, "will change:");
+    print_reports(&reports, true, out, err);
 }
 
 /// Lists the clients: where each keeps its config, whether the config and the client's program

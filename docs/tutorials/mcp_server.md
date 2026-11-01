@@ -212,6 +212,7 @@ client that starts it with only flags keeps working.
 | `--scope user` or `--scope project` | `user` | Your own config, or the config file in the current folder. A client without a project file refuses `project` with exit status 2. |
 | `--print` | off | Show exactly what would be written or run, and write and run nothing. |
 | `--force` | off | Replace an entry of the same name that starts something different. |
+| `--all` | off | `install` and `uninstall` only. Act on every client that is installed on this machine: its config file, its own config folder, or its program on `PATH` (`claude`, `codex`, `code`). Clients that are not installed are skipped, and each skip is printed. What will change is printed before anything is written or removed. `--all` takes no client names. |
 
 ### Clients
 
@@ -225,6 +226,10 @@ client that starts it with only flags keeps working.
 | `opencode` | `~/.config/opencode/opencode.json`, or the `opencode.jsonc` that is there instead | `opencode.json` | JSON, key `mcp`, with `"type": "local"`, the command and its arguments as one array, and `environment`. |
 | `vscode` | macOS `~/Library/Application Support/Code/User/mcp.json`, Windows `%APPDATA%\Code\User\mcp.json`, Linux `~/.config/Code/User/mcp.json` | `.vscode/mcp.json` | JSON, key `servers`, with `"type": "stdio"`. Only the default profile's file. |
 | `zed` | macOS and Linux `~/.config/zed/settings.json` (`$XDG_CONFIG_HOME/zed` on Linux), Windows `%APPDATA%\Zed\settings.json` | none | JSON, key `context_servers`. |
+
+With no client named, a terminal lists the installed clients and asks which ones
+(numbers, names, or `all`). Without a terminal the command exits with status 2 and
+prints the known clients, as before.
 
 `sbrs-mcp clients` prints the same for your machine: the paths, whether each config
 and each client's program (`claude`, `codex`, `code`) was found, and which of the two
