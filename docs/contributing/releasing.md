@@ -67,7 +67,16 @@ cargo test --doc --features "mcp-server test-util"
 cargo audit && cargo deny --workspace check
 trufflehog filesystem . --only-verified && ripsecrets
 just mdx && mdbook build
+just semver
+just features --partition 1/6   # then 2/6 ... 6/6
+just unused-deps
 ```
+
+The last three lines are the checks for a release (see
+[Checks for a release](/contributing/from-source#checks-for-a-release)): `just semver` compares the
+public API with the last tag and says which version number the changes need, `just features`
+builds each cargo feature of the library alone, and `just unused-deps` lists dependencies that no
+code uses. They are slow, so they run once, on the release commit.
 
 </Step>
 <Step title="Publish main and the tag">

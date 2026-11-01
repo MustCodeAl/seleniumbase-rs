@@ -101,3 +101,29 @@ contracts *args:
 contracts-sync:
     scripts/check-consumers.sh --sync
 
+# cargo-semver-checks (`cargo binstall cargo-semver-checks`). The crate is not on crates.io, so the
+# baseline is a git revision of this repository: the newest tag by default, `just semver v0.6.0` for
+# another. The feature set is the one the gate builds; extra arguments go to the tool, such as
+# `--release-type minor` to say what the next version will be.
+
+# Check the public API of the library against a release (a git tag) for semver breaks
+semver baseline=`git describe --tags --abbrev=0` *args:
+    cargo semver-checks check-release -p seleniumbase-rs --baseline-rev {{baseline}} --features mcp-server,test-util,testing,bdd {{args}}
+
+# cargo-hack (`cargo binstall cargo-hack`). The CI feature matrix builds the features in groups, so
+# a feature that compiles only next to another one goes unnoticed; this builds each alone.
+# `tokio-console` needs RUSTFLAGS="--cfg tokio_unstable" and is left out. About 30 runs:
+# `just features --partition 1/6` runs a sixth of them, `just features --all-targets` adds the tests.
+
+# Clippy on the library with each cargo feature alone
+features *args:
+    cargo hack clippy -p seleniumbase-rs --each-feature --exclude-features tokio-console {{args}} -- -D warnings
+
+# cargo-shear (`cargo binstall cargo-shear`). A dependency that is there on purpose is named in
+# `[package.metadata.cargo-shear] ignored = [..]` of its manifest.
+
+# Find dependencies that no code uses
+unused-deps *args:
+    cargo shear {{args}}
+
+
