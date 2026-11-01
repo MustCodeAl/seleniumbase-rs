@@ -67,7 +67,7 @@ pub const MAX_PACED_SITES: usize = 4096;
 pub struct HttpSession
 ```
 
-Plain HTTP requests that continue a browser's session; see the [module](self) documentation.
+Plain HTTP requests that continue a browser's session; see the module documentation.
 
 ### `HttpSession` methods
 

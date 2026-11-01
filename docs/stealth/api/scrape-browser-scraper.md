@@ -72,7 +72,7 @@ A page fetched through a real browser.
 pub struct BrowserScraper
 ```
 
-A scraper that drives one real browser. See the [module documentation](self).
+A scraper that drives one real browser. See the module documentation.
 
 ### `BrowserScraper` methods
 
@@ -112,7 +112,7 @@ pub async fn load_session(&self, name: &str) -> Result<bool, ScrapeError>
 - `rotate_profile`: Presents a new browser profile.
 - `export_identity`: Takes the identity out of the scraper: the fingerprint, the cookies the browser holds, the clearances among them, and the egress they were earned through.
 - `import_identity`: Puts an identity into the scraper: the browser is started again with its fingerprint when it differs from the one in use, and its cookies are set.
-- `save_session`: Saves the cookies of the browser context and the local storage of the page's origin in the scraper's [`SessionStore`](seleniumbase_rs::sb_cdp::SessionStore) as `name`, the way a pool lease saves its login.
+- `save_session`: Saves the cookies of the browser context and the local storage of the page's origin in the scraper's `SessionStore` as `name`, the way a pool lease saves its login.
 - `load_session`: Loads the session saved as `name` into the browser context. Returns `false`, changing nothing, when there is no such session.
 
 ## `runtime::browser_scraper::builder`
@@ -168,7 +168,7 @@ pub async fn build(self) -> Result<BrowserScraper, ScrapeError>
 - `fingerprint`: The first profile itself, instead of one drawn from the seed. A rotation replaces it with a generated profile of the same operating system.
 - `egress_switch`: How the egress is changed. The default opens a browser context behind the new proxy.
 - `launcher`: How a browser is started. The default starts Chrome.
-- `session_store`: The store [`save_session`](BrowserScraper::save_session) writes to, to share logins with other scrapers or a [`BrowserPool`](seleniumbase_rs::sb_cdp::BrowserPool).
+- `session_store`: The store [`save_session`](Self::save_session) writes to, to share logins with other scrapers or a `BrowserPool`.
 - `solve_timeout`: How long a solved challenge is waited for. The default is [`DEFAULT_SOLVE_TIMEOUT`].
 - `clock`: The clock the scraper reads. The default is the system clock.
 - `build`: Starts the browser and returns the scraper.

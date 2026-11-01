@@ -44,7 +44,7 @@ pub const MITM_SHUTDOWN_GRACE: Duration = Duration::from_secs(5);
 pub struct StealthSession
 ```
 
-A scraping session that moves between HTTP and a real browser. See the [module documentation](self).
+A scraping session that moves between HTTP and a real browser. See the module documentation.
 
 ### `StealthSession` methods
 
@@ -80,7 +80,7 @@ pub async fn demote(&mut self) -> Result<(), StealthError>
 - `http`: The HTTP session, in HTTP mode: for requests of your own, such as an API call, that carry the cookies the session has earned. `None` in browser mode.
 - `page`: The tab of the browser, in browser mode. `None` in HTTP mode.
 - `close`: Closes the browser if one is running, and stops the MITM proxy.
-- `fetch`: Fetches `url` in whichever mode the session is in, moving between HTTP and the browser as the policies decide. See the [module documentation](super) for the loop.
+- `fetch`: Fetches `url` in whichever mode the session is in, moving between HTTP and the browser as the policies decide. See the module documentation for the loop.
 - `rotate_profile`: Presents a new browser profile through the same egress.
 - `rotate_egress`: Leaves through another egress of the pool, with the same fingerprint in the language and time zone of the new country.
 - `export_identity`: Takes the identity out of the session: the fingerprint, the cookies the leg in use holds, the clearances among them, and the egress they were earned through.
