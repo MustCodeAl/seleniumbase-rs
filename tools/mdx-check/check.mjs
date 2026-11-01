@@ -10,9 +10,9 @@
 // - Every page is in the navigation of docs.json, and every page there exists.
 // - The copy of the tree component on a page, and every layout tree between its markers, is
 //   the one tools/docs_layout_tree.py prints (CONTRIBUTING.md at the root included);
-//   `just layout-tree` writes them again.
+//   `mise run layout-tree` writes them again.
 //
-// Usage: just mdx  (or: bun tools/mdx-check/check.mjs docs)
+// Usage: mise run mdx  (or: bun tools/mdx-check/check.mjs docs)
 import { compile } from "@mdx-js/mdx";
 import remarkFrontmatter from "remark-frontmatter";
 import remarkGfm from "remark-gfm";
@@ -177,7 +177,7 @@ function navPages(config) {
 }
 
 // The layout trees. A page's copy of the tree component, and a layout tree between its
-// markers, must be what tools/docs_layout_tree.py prints; `just layout-tree` writes them again.
+// markers, must be what tools/docs_layout_tree.py prints; `mise run layout-tree` writes them again.
 const LAYOUT_SCRIPT = fileURLToPath(new URL("../docs_layout_tree.py", import.meta.url));
 const COMPONENT_MARKERS = ["{/* layout-tree-component:start */}", "{/* layout-tree-component:end */}"];
 const TREE_MARKERS = ["{/* layout-tree:start */}", "{/* layout-tree:end */}"];
@@ -206,7 +206,7 @@ function layoutProblems(raw, canon) {
     let n = 0;
     while (n < found.length && n < wanted.length && found[n] === wanted[n]) n++;
     if (n < found.length || n < wanted.length) {
-      problems.push([lineOf(start) + n, `${what} differs from the canonical one at line ${n + 1} of its block (just layout-tree writes it again)`]);
+      problems.push([lineOf(start) + n, `${what} differs from the canonical one at line ${n + 1} of its block (mise run layout-tree writes it again)`]);
     }
   };
   block(COMPONENT_MARKERS, canon.component, "the tree component");

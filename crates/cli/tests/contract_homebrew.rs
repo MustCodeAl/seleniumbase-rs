@@ -14,7 +14,7 @@
 //! Homebrew passes `powershell` for `:pwsh`, and so does the release workflow
 //! (`.github/workflows/release.yml`); `sbrs completions pwsh` is refused, so nothing may pass it.
 //!
-//! `scripts/check-consumers.sh homebrew` (`just contracts`) reads the formula in the tap's
+//! `scripts/check-consumers.sh homebrew` (`mise run contracts`) reads the formula in the tap's
 //! checkout and fails when it relies on a string that is not in this file. The test of
 //! `sbrs completions` for every shell is also in `cli_e2e.rs`; this one is for the names the
 //! formula passes.

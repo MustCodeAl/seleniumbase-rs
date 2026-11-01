@@ -437,7 +437,7 @@ fn the_rendered_parity_table_is_up_to_date() {
     assert_eq!(
         read("docs/parity.md"),
         expected,
-        "docs/parity.md is out of date; run `just parity-docs`"
+        "docs/parity.md is out of date; run `mise run parity-docs`"
     );
 }
 

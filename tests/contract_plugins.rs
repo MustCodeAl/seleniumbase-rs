@@ -17,7 +17,7 @@
 //!   plugin API, the calls it makes, and a wait against a mailbox held in memory.
 
 //!
-//! `just contracts` also checks the pin itself: both lines of `Cargo.toml` carry the same git URL
+//! `mise run contracts` also checks the pin itself: both lines of `Cargo.toml` carry the same git URL
 //! and the same `rev` (two revisions would be two `seleniumbase-rs-plugin` crates, and the
 //! `Plugin` of a built-in would not be the one this crate calls), and that `rev` is an ancestor of
 //! the plugins repository's `main`, so the commit this crate builds against is one that was kept.
