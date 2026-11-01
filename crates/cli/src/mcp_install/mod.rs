@@ -468,7 +468,7 @@ pub fn install(
         force: request.force,
     };
     if request.all && !request.dry_run {
-        show_preview(&job, &clients, &task, out, err);
+        show_preview(&job, &clients, &task, out);
     }
     let reports: Vec<ClientReport> = clients
         .iter()
@@ -509,7 +509,7 @@ pub fn uninstall(
     };
     let task = Task::Uninstall { names: &names };
     if request.all && !request.dry_run {
-        show_preview(&job, &clients, &task, out, err);
+        show_preview(&job, &clients, &task, out);
     }
     let reports: Vec<ClientReport> = clients
         .iter()
@@ -519,24 +519,34 @@ pub fn uninstall(
     exit_code(&reports)
 }
 
-/// Prints what `task` would do, before the real change.
-fn show_preview(
-    job: &Job<'_>,
-    clients: &[Client],
-    task: &Task<'_>,
-    out: &mut dyn Write,
-    err: &mut dyn Write,
-) {
-    let preview_job = Job {
-        dry_run: true,
-        ..*job
+/// The config file `task` will change, before anything is written.
+fn config_path(job: &Job<'_>, client: Client) -> Option<std::path::PathBuf> {
+    match job.scope {
+        Scope::User => client.user_path(job.env),
+        Scope::Project => client.project_path(job.env),
+    }
+}
+
+/// Prints the planned changes, one line per entry: client, config file, add or remove.
+/// Called before [`perform`] so the list is on the screen before any file changes.
+fn show_preview(job: &Job<'_>, clients: &[Client], task: &Task<'_>, out: &mut dyn Write) {
+    let (verb, entry_names): (&str, Vec<&str>) = match task {
+        Task::Install { entries, .. } => (
+            "add",
+            entries.iter().map(|entry| entry.name.as_str()).collect(),
+        ),
+        Task::Uninstall { names } => ("remove", names.iter().map(String::as_str).collect()),
     };
-    let reports: Vec<ClientReport> = clients
-        .iter()
-        .map(|client| perform(&preview_job, *client, task))
-        .collect();
-    let _ = writeln!(out, "will change:");
-    print_reports(&reports, true, out, err);
+    let _ = writeln!(out, "plan:");
+    for client in clients {
+        let Some(path) = config_path(job, *client) else {
+            let _ = writeln!(out, "  {}  no config file", client.id());
+            continue;
+        };
+        for name in &entry_names {
+            let _ = writeln!(out, "  {}  {}  {verb} {name}", client.id(), path.display());
+        }
+    }
 }
 
 /// Lists the clients: where each keeps its config, whether the config and the client's program
