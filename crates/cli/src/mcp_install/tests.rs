@@ -1108,6 +1108,82 @@ fn a_config_toml_that_is_not_toml_is_not_rewritten() {
     assert_eq!(read(&path), "model = = broken\n");
 }
 
+// -- Grok Build's config.toml ----------------------------------------------------------------
+
+#[test]
+fn grok_config_is_under_grok_home_and_the_project_file_is_dot_grok() {
+    let mut sb = Sandbox::mac();
+    assert_eq!(
+        Client::Grok.user_path(&sb.env),
+        Some(sb.env.home.join(".grok").join("config.toml"))
+    );
+    sb.env.grok_home = sb.root.join("custom-grok");
+    assert_eq!(
+        Client::Grok.user_path(&sb.env),
+        Some(sb.root.join("custom-grok").join("config.toml"))
+    );
+    assert_eq!(
+        Client::Grok.project_path(&sb.env),
+        Some(sb.env.cwd.join(".grok").join("config.toml"))
+    );
+}
+
+#[test]
+fn grok_install_writes_mcp_servers_tables_and_uninstall_removes_them() {
+    let sb = Sandbox::mac();
+    let path = sb.user(Client::Grok);
+    let outcome = sb.install(&["grok"], |_| {});
+    assert_eq!(outcome.code, 0, "{}", outcome.err);
+    let text = read(&path);
+    assert!(
+        text.contains(
+            "[mcp_servers.seleniumbase]\ncommand = \"/opt/sbrs/sbrs-mcp\"\nargs = [\"--server\", \"cdp\"]\n"
+        ),
+        "{text}"
+    );
+    assert!(
+        text.contains("[mcp_servers.seleniumbase.env]\nSB_MCP_OUTPUT_DIR = "),
+        "{text}"
+    );
+    assert!(text.contains("[mcp_servers.seleniumbase-dev]"), "{text}");
+    let outcome = sb.uninstall(&["grok"], |_| {});
+    assert_eq!(outcome.code, 0, "{}", outcome.err);
+    assert!(!read(&path).contains("seleniumbase"), "{}", read(&path));
+}
+
+#[test]
+fn grok_project_scope_writes_dot_grok_and_not_the_user_file() {
+    let sb = Sandbox::mac();
+    let outcome = sb.install(&["grok"], |request| request.scope = Scope::Project);
+    assert_eq!(outcome.code, 0, "{}", outcome.err);
+    let project = sb.env.cwd.join(".grok").join("config.toml");
+    assert_eq!(sb.file(Client::Grok, Scope::Project), project);
+    assert!(read(&project).contains("[mcp_servers.seleniumbase]"));
+    assert!(!sb.user(Client::Grok).exists());
+}
+
+#[test]
+fn all_detects_grok_by_its_config_folder_and_prints_the_plan() {
+    let sb = Sandbox::mac();
+    fs::create_dir_all(sb.user(Client::Grok).parent().unwrap()).unwrap();
+    let outcome = sb.install(&[], |request| request.all = true);
+    assert_eq!(outcome.code, 0, "{}", outcome.err);
+    assert!(
+        outcome.err.contains("cursor: not found, skipped"),
+        "{}",
+        outcome.err
+    );
+    let path = sb.user(Client::Grok);
+    assert!(path.exists());
+    let plan = format!("  grok  {}  add seleniumbase", path.display());
+    let at = outcome.out.find(&plan).expect(&outcome.out);
+    assert!(
+        outcome.out[at + plan.len()..].contains("added"),
+        "the plan is printed before the entries are added: {}",
+        outcome.out
+    );
+}
+
 // -- the clients' own commands, as scripts on a PATH of the test's own ----------------------------
 
 #[cfg(unix)]
@@ -1542,6 +1618,23 @@ mod fake_cli {
         );
         assert!(text.contains("codex (not found on PATH)"), "{text}");
         assert!(bin.calls().is_empty());
+    }
+
+    #[test]
+    fn all_detects_grok_by_the_program_on_path_and_does_not_run_it() {
+        let (sb, bin) = sandbox_with_bin();
+        bin.script("grok", "", 0, "");
+        let outcome = sb.install(&[], |request| request.all = true);
+        assert_eq!(outcome.code, 0, "{}", outcome.err);
+        assert!(
+            bin.calls().is_empty(),
+            "grok's config file is written, not its CLI"
+        );
+        let path = sb.user(Client::Grok);
+        assert!(path.exists());
+        let plan = format!("  grok  {}  add seleniumbase", path.display());
+        assert!(outcome.out.contains(&plan), "{}", outcome.out);
+        assert!(read(&path).contains("[mcp_servers.seleniumbase]"));
     }
 
     #[test]
