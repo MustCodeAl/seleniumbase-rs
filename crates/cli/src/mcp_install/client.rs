@@ -238,6 +238,47 @@ impl Client {
             Self::ClaudeDesktop | Self::Codex | Self::Zed => return None,
         })
     }
+
+    /// Whether this client is installed on the machine `env` describes.
+    ///
+    /// Installed means its user config file is there, or a folder that belongs to
+    /// the client (not the home folder and not the shared config folder), or its
+    /// program (`claude`, `codex` or `code`) is on `PATH`.
+    pub fn detected(self, env: &Env) -> bool {
+        if let Some(path) = self.user_path(env) {
+            if path.exists() || config_folder_exists(env, &path) {
+                return true;
+            }
+        }
+        self.program()
+            .is_some_and(|program| env.find_program(program).is_some())
+    }
+}
+
+/// Whether a folder of `file` that belongs to this client, and not to every
+/// program, is already there.
+fn config_folder_exists(env: &Env, file: &std::path::Path) -> bool {
+    let mut dir = file.parent();
+    while let Some(current) = dir {
+        if is_shared_root(env, current) {
+            return false;
+        }
+        if current.exists() {
+            return true;
+        }
+        dir = current.parent();
+    }
+    false
+}
+
+/// Home and the shared config folders. A client is not "installed" merely
+/// because one of these exists.
+fn is_shared_root(env: &Env, path: &std::path::Path) -> bool {
+    path == env.home
+        || path == env.config_dir
+        || path == env.data_dir
+        || env.xdg_config_home.as_deref() == Some(path)
+        || path == env.home.join(".config")
 }
 
 /// `opencode.json` in `dir`, or the `opencode.jsonc` that is there instead.

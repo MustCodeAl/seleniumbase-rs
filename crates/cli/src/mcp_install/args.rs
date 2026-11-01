@@ -109,6 +109,14 @@ pub struct InstallArgs {
     /// Replace an entry of the same name that starts something different.
     #[usage(long)]
     force: bool,
+    /// Install into every client that is installed on this machine.
+    ///
+    /// A client counts as installed when its config file or its own config folder
+    /// is there, or when its program is on PATH. Clients that are not installed
+    /// are skipped, and that is said. What will change is printed before anything
+    /// is written.
+    #[usage(long)]
+    all: bool,
 }
 
 impl InstallArgs {
@@ -126,6 +134,8 @@ impl InstallArgs {
             only: only(self.only),
             dry_run: self.print,
             force: self.force,
+            all: self.all,
+            choice: None,
         }
     }
 }
@@ -149,6 +159,13 @@ pub struct UninstallArgs {
     /// Show what would be removed, and remove nothing.
     #[usage(long)]
     print: bool,
+    /// Remove the registration from every client that is installed on this machine.
+    ///
+    /// The same detection as `install --all`: a config file, the client's own
+    /// config folder, or its program on PATH. Clients that are not installed are
+    /// skipped. What will change is printed before anything is removed.
+    #[usage(long)]
+    all: bool,
 }
 
 impl UninstallArgs {
@@ -160,6 +177,8 @@ impl UninstallArgs {
             scope: self.scope.into(),
             only: only(self.only),
             dry_run: self.print,
+            all: self.all,
+            choice: None,
         }
     }
 }

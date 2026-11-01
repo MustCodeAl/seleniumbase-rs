@@ -101,6 +101,8 @@ impl Sandbox {
             only: Only::Both,
             dry_run: false,
             force: false,
+            all: false,
+            choice: None,
         }
     }
 
@@ -123,6 +125,8 @@ impl Sandbox {
             scope: Scope::User,
             only: Only::Both,
             dry_run: false,
+            all: false,
+            choice: None,
         };
         tweak(&mut request);
         let (mut out, mut err) = (Vec::new(), Vec::new());
@@ -1539,4 +1543,110 @@ mod fake_cli {
         assert!(text.contains("codex (not found on PATH)"), "{text}");
         assert!(bin.calls().is_empty());
     }
+
+    #[test]
+    fn all_detects_a_client_by_its_program_on_path() {
+        let (sb, bin) = sandbox_with_bin();
+        bin.script("code", "", 0, "");
+        let outcome = sb.install(&[], |request| request.all = true);
+        assert_eq!(outcome.code, 0, "{}", outcome.err);
+        assert!(
+            outcome.err.contains("cursor: not found, skipped"),
+            "{}",
+            outcome.err
+        );
+        assert!(
+            sb.user(Client::Vscode).exists(),
+            "vscode was detected by its program"
+        );
+        assert!(outcome.out.contains("will change:"), "{}", outcome.out);
+        let preview = outcome.out.find("would be added").expect(&outcome.out);
+        let rest = &outcome.out[preview + "would be added".len()..];
+        assert!(rest.contains("added"), "{rest}");
+    }
+}
+
+#[test]
+fn naming_no_client_keeps_exit_2_when_nobody_is_asked() {
+    let sb = Sandbox::mac();
+    let outcome = sb.install(&[], |_| {});
+    assert_eq!(outcome.code, 2);
+    assert!(
+        outcome.err.contains("name at least one client"),
+        "{}",
+        outcome.err
+    );
+    assert!(outcome.err.contains("claude-code"), "{}", outcome.err);
+}
+
+#[test]
+fn all_installs_only_a_client_whose_config_folder_is_there() {
+    let sb = Sandbox::mac();
+    fs::create_dir_all(sb.user(Client::Cursor).parent().unwrap()).unwrap();
+    let outcome = sb.install(&[], |request| request.all = true);
+    assert_eq!(outcome.code, 0, "{}", outcome.err);
+    assert!(
+        outcome.err.contains("claude-code: not found, skipped"),
+        "{}",
+        outcome.err
+    );
+    assert!(sb.user(Client::Cursor).exists());
+    assert!(!sb.user(Client::Zed).exists());
+    assert!(outcome.out.contains("will change:"), "{}", outcome.out);
+}
+
+#[test]
+fn a_typed_choice_installs_only_that_installed_client() {
+    let sb = Sandbox::mac();
+    fs::create_dir_all(sb.user(Client::Cursor).parent().unwrap()).unwrap();
+    fs::create_dir_all(sb.user(Client::Zed).parent().unwrap()).unwrap();
+    let outcome = sb.install(&[], |request| request.choice = Some("cursor".into()));
+    assert_eq!(outcome.code, 0, "{}", outcome.err);
+    assert!(sb.user(Client::Cursor).exists());
+    assert!(!sb.user(Client::Zed).exists());
+}
+
+#[test]
+fn all_with_a_client_name_is_refused() {
+    let sb = Sandbox::mac();
+    let outcome = sb.install(&["cursor"], |request| request.all = true);
+    assert_eq!(outcome.code, 2);
+    assert!(
+        outcome.err.contains("--all takes no client names"),
+        "{}",
+        outcome.err
+    );
+}
+
+#[test]
+fn all_with_nothing_installed_exits_2() {
+    let sb = Sandbox::mac();
+    let outcome = sb.install(&[], |request| request.all = true);
+    assert_eq!(outcome.code, 2);
+    assert!(
+        outcome.err.contains("no installed client was found"),
+        "{}",
+        outcome.err
+    );
+    assert!(
+        outcome.err.contains("cursor: not found, skipped"),
+        "{}",
+        outcome.err
+    );
+}
+
+#[test]
+fn all_uninstall_removes_the_registration_from_detected_clients() {
+    let sb = Sandbox::mac();
+    let installed = sb.install(&["cursor"], |_| {});
+    assert_eq!(installed.code, 0, "{}", installed.err);
+    let outcome = sb.uninstall(&[], |request| request.all = true);
+    assert_eq!(outcome.code, 0, "{}", outcome.err);
+    assert!(outcome.out.contains("will change:"), "{}", outcome.out);
+    assert!(
+        outcome.err.contains("zed: not found, skipped"),
+        "{}",
+        outcome.err
+    );
+    assert!(sb.entries(Client::Cursor, Scope::User).is_empty());
 }
