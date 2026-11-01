@@ -62,7 +62,7 @@ fn throw_on(mock: &MockCtrl, needle: &'static str, description: &'static str) {
     });
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn an_init_script_is_added_to_this_tab_and_removed_by_its_identifier() {
     let (page, mock) = page().await;
     mock.reply(
@@ -90,7 +90,7 @@ async fn an_init_script_is_added_to_this_tab_and_removed_by_its_identifier() {
     assert_eq!(removed[0].session_id.as_deref(), Some("S1"));
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn an_init_script_without_an_identifier_or_refused_is_an_error() {
     let (page, mock) = page().await;
     // The mock answers `{}` unless told otherwise: nothing to remove it by.
@@ -108,7 +108,7 @@ async fn an_init_script_without_an_identifier_or_refused_is_an_error() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_script_tag_from_a_url_waits_for_the_file_to_load_or_fail() {
     let (page, mock) = page().await;
     let page = page.with_timeout(Duration::from_millis(1500));
@@ -134,7 +134,7 @@ async fn a_script_tag_from_a_url_waits_for_the_file_to_load_or_fail() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_script_file_that_does_not_load_is_an_error() {
     let (page, mock) = page().await;
     throw_on(
@@ -154,7 +154,7 @@ async fn a_script_file_that_does_not_load_is_an_error() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn script_content_reaches_the_tag_as_a_string_and_its_error_comes_back() {
     let (page, mock) = page().await;
     let code = r#"window.quoted = "a</script>'b\n";"#;
@@ -180,7 +180,7 @@ async fn script_content_reaches_the_tag_as_a_string_and_its_error_comes_back() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_style_tag_from_a_url_is_a_stylesheet_link_that_is_waited_for() {
     let (page, mock) = page().await;
     let url = "https://cdn.example.com/intro.js@7.2.0/introjs.min.css";
@@ -212,7 +212,7 @@ async fn a_style_tag_from_a_url_is_a_stylesheet_link_that_is_waited_for() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn style_content_goes_into_a_style_element() {
     let (page, mock) = page().await;
     let css = "body { zoom: 0.9 } /* \"quoted\" */";

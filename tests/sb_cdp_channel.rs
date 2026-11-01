@@ -89,7 +89,7 @@ fn page_agent(request: &CdpRequest, inbox: &CdpInbox) -> Answer {
     })
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_page_is_prepared_over_the_channel_without_targets_or_sessions() {
     let channel = channel_with(page_agent);
 
@@ -112,7 +112,7 @@ async fn the_page_is_prepared_over_the_channel_without_targets_or_sessions() {
     assert!(channel.browser.is_connected());
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_channels_page_is_listed_with_its_address_and_title() {
     let channel = channel_with(page_agent);
 
@@ -123,7 +123,7 @@ async fn the_channels_page_is_listed_with_its_address_and_title() {
     assert_eq!(pages[0].title, "My App");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn goto_waits_for_the_load_event_the_channel_reports() {
     let channel = channel_with(page_agent);
     let page = channel.browser.default_page().await.unwrap();
@@ -145,7 +145,7 @@ async fn goto_waits_for_the_load_event_the_channel_reports() {
     assert_eq!(navigate.session_id, None);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_stealth_overrides_reach_the_page_in_order_and_unchanged() {
     let channel = channel_with(page_agent);
     let plan = StealthPlan::new(&Fingerprint::randomized(OsType::Windows, 21));
@@ -173,7 +173,7 @@ async fn the_stealth_overrides_reach_the_page_in_order_and_unchanged() {
         .any(|(method, _)| method == "Network.setUserAgentOverride"));
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_command_the_agent_refuses_fails_with_its_message() {
     let channel = channel_with(|request, inbox| {
         if request.method == "Emulation.setTimezoneOverride" {
@@ -201,7 +201,7 @@ async fn a_command_the_agent_refuses_fails_with_its_message() {
     assert!(shown.contains("Invalid timezone ID"), "{shown}");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn closing_the_inbox_fails_a_waiting_command_at_once() {
     let channel = channel_with(|_, _| None);
     let browser = channel.browser.clone();
@@ -226,7 +226,7 @@ async fn closing_the_inbox_fails_a_waiting_command_at_once() {
     assert_eq!(channel.sent().len(), 1, "nothing goes out after the close");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_transport_that_cannot_hand_over_fails_the_command() {
     let (browser, _inbox) = Browser::over_channel(|_: CdpRequest| -> Result<(), TransportError> {
         Err("the webview was destroyed".into())
@@ -243,7 +243,7 @@ async fn a_transport_that_cannot_hand_over_fails_the_command() {
     assert!(shown.contains("the webview was destroyed"), "{shown}");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn raw_messages_are_taken_as_a_websocket_would_carry_them() {
     let (outgoing, mut incoming) = mpsc::unbounded_channel::<CdpRequest>();
     let (browser, inbox) =
@@ -279,7 +279,7 @@ async fn raw_messages_are_taken_as_a_websocket_would_carry_them() {
     assert!(inbox.deliver("{ not json").is_err());
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn opening_another_tab_is_refused_without_asking_the_browser() {
     let channel = channel_with(page_agent);
 
@@ -296,7 +296,7 @@ async fn opening_another_tab_is_refused_without_asking_the_browser() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn closing_the_browser_detaches_nothing_and_ends_the_channel() {
     let channel = channel_with(page_agent);
     let _page = channel.browser.default_page().await.unwrap();

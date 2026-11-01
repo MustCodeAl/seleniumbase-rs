@@ -45,7 +45,7 @@ fn answer_every_script_with(mock: &MockCtrl, answer: Value) {
 // find_element_by_text, find_elements_by_text, click_link, :contains()
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_contains_selector_is_sent_to_the_page_as_xpath() {
     let (page, mock) = quick_page().await;
     answer_every_script_with(&mock, json!(1));
@@ -107,7 +107,7 @@ fn text_selectors_collapse_white_space_and_quote_awkward_text() {
 // evaluate, execute_script
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn evaluate_drops_the_return_keyword_of_the_last_line_like_python() {
     let (page, mock) = quick_page().await;
     answer_every_script_with(&mock, json!(2));
@@ -141,7 +141,7 @@ fn navigations(mock: &MockCtrl) -> Vec<String> {
         .collect()
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn goto_if_not_url_stays_put_on_the_page_it_is_already_on() {
     let (page, mock) = quick_page().await;
     answer_every_script_with(&mock, json!("https://example.com/"));
@@ -152,7 +152,7 @@ async fn goto_if_not_url_stays_put_on_the_page_it_is_already_on() {
     assert!(navigations(&mock).is_empty(), "{:?}", navigations(&mock));
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn goto_if_not_url_navigates_when_the_page_differs() {
     let (page, mock) = quick_page().await;
     answer_every_script_with(&mock, json!("https://example.com/a"));
@@ -162,7 +162,7 @@ async fn goto_if_not_url_navigates_when_the_page_differs() {
     assert_eq!(navigations(&mock), ["https://example.com/b"]);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn goto_if_not_url_ignores_what_a_search_engine_tacks_on() {
     let (page, mock) = quick_page().await;
     answer_every_script_with(
@@ -181,7 +181,7 @@ async fn goto_if_not_url_ignores_what_a_search_engine_tacks_on() {
 // get_active_element, get_active_element_css
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_active_element_is_named_by_a_selector_and_found_again_through_it() {
     let (page, mock) = quick_page().await;
     mock.on("Runtime.evaluate", |params| {
@@ -212,7 +212,7 @@ async fn the_active_element_is_named_by_a_selector_and_found_again_through_it() 
 // get_element_rect, get_element_position
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_viewport_rect_is_the_window_relative_rectangle() {
     let (page, mock) = quick_page().await;
     mock.on("Runtime.evaluate", |params| {
@@ -238,7 +238,7 @@ async fn the_viewport_rect_is_the_window_relative_rectangle() {
 // click_and_hold
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn click_and_hold_presses_waits_and_releases_at_the_centre() {
     let (page, mock) = quick_page().await;
     mock.on("Runtime.evaluate", |params| {
@@ -273,7 +273,7 @@ async fn click_and_hold_presses_waits_and_releases_at_the_centre() {
 // find_elements, find_all, select_all
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn all_waiting_waits_for_the_first_match_and_then_returns_every_match() {
     let (page, mock) = quick_page().await;
     let looks = Arc::new(AtomicUsize::new(0));
@@ -302,7 +302,7 @@ async fn all_waiting_waits_for_the_first_match_and_then_returns_every_match() {
     assert_eq!(found[2].to_string(), "li [nth=2]");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn all_waiting_gives_an_empty_list_when_nothing_ever_matches() {
     let (page, mock) = quick_page().await;
     mock.on("Runtime.evaluate", |params| {
@@ -323,7 +323,7 @@ async fn all_waiting_gives_an_empty_list_when_nothing_ever_matches() {
 // flash
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn flash_with_passes_the_colour_and_the_duration_to_the_page() {
     let (page, mock) = quick_page().await;
     mock.on("Runtime.evaluate", |params| {
@@ -351,7 +351,7 @@ async fn flash_with_passes_the_colour_and_the_duration_to_the_page() {
 // get_rd_host, get_rd_url, get_endpoint_url
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_browser_reports_the_host_its_devtools_endpoint_is_on() {
     let (browser, _mock) = Browser::new_mocked();
 
@@ -401,7 +401,7 @@ fn every_permission_python_grants_is_known_and_named_once() {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn grant_all_permissions_asks_for_every_kind_for_all_origins() {
     let (browser, mock) = Browser::new_mocked();
 
@@ -412,7 +412,7 @@ async fn grant_all_permissions_asks_for_every_kind_for_all_origins() {
     assert!(call.params.get("origin").is_none(), "{}", call.params);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn permissions_can_be_granted_for_one_origin() {
     let (browser, mock) = Browser::new_mocked();
 
@@ -430,7 +430,7 @@ async fn permissions_can_be_granted_for_one_origin() {
 // set_locale
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn setting_the_locale_also_sets_the_accept_language_the_page_reports() {
     let (page, mock) = quick_page().await;
     let metadata =
@@ -452,7 +452,7 @@ async fn setting_the_locale_also_sets_the_accept_language_the_page_reports() {
     assert_eq!(agent.params["userAgentMetadata"], metadata);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn setting_the_locale_keeps_working_on_a_page_without_client_hints() {
     let (page, mock) = quick_page().await;
     mock.on("Runtime.evaluate", |_| {
@@ -475,7 +475,7 @@ async fn setting_the_locale_keeps_working_on_a_page_without_client_hints() {
 // get_origin, get_locale_code, get_screen_rect, click_active_element
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_origin_and_the_locale_code_are_what_the_page_reports() {
     let (page, mock) = quick_page().await;
     answer_every_script_with(&mock, json!("https://example.test"));
@@ -492,7 +492,7 @@ async fn the_origin_and_the_locale_code_are_what_the_page_reports() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_screen_rect_describes_the_display_not_the_window() {
     let (page, mock) = quick_page().await;
     answer_every_script_with(
@@ -512,7 +512,7 @@ async fn the_screen_rect_describes_the_display_not_the_window() {
     assert!(evaluated(&mock)[0].contains("screen"));
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn clicking_the_active_element_calls_click_on_the_focused_one() {
     let (page, mock) = quick_page().await;
     answer_every_script_with(&mock, Value::Null);

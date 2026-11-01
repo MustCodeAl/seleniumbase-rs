@@ -130,7 +130,7 @@ fn mouse_events(mock: &MockCtrl) -> Vec<(String, f64, f64, Option<String>)> {
         .collect()
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_chain_the_page_can_search_sends_no_frame_command() {
     let (page, mock) = quick_page().await;
     mock.on("Runtime.evaluate", |_| Ok(value(json!(1))));
@@ -149,7 +149,7 @@ async fn a_chain_the_page_can_search_sends_no_frame_command() {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_frame_of_the_tabs_process_is_entered_in_an_isolated_world() {
     let (page, mock) = quick_page().await;
     script_frame(&mock, 1, false);
@@ -194,7 +194,7 @@ async fn a_frame_of_the_tabs_process_is_entered_in_an_isolated_world() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_click_in_a_frame_lands_where_the_frame_starts_plus_the_point_in_it() {
     let (page, mock) = quick_page().await;
     script_frame(&mock, 1, false);
@@ -230,7 +230,7 @@ async fn a_click_in_a_frame_lands_where_the_frame_starts_plus_the_point_in_it() 
     assert!(reveal < center && center < press);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_handles_of_the_frame_elements_are_let_go_after_use() {
     let (page, mock) = quick_page().await;
     script_frame(&mock, 1, false);
@@ -249,7 +249,7 @@ async fn the_handles_of_the_frame_elements_are_let_go_after_use() {
         .all(|call| call.params["objectId"] == json!(FRAME_ELEMENT)));
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_frame_of_another_process_is_attached_to_and_scripts_go_to_its_session() {
     let (page, mock) = quick_page().await;
     script_frame(&mock, 1, true);
@@ -318,7 +318,7 @@ async fn a_frame_of_another_process_is_attached_to_and_scripts_go_to_its_session
         .all(|(_, x, y, session)| (*x, *y) == (40.0, 120.0) && session.as_deref() == Some("S1")));
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_session_of_a_frame_of_another_process_is_attached_once() {
     let (page, mock) = quick_page().await;
     script_frame(&mock, 1, true);
@@ -339,7 +339,7 @@ async fn the_session_of_a_frame_of_another_process_is_attached_once() {
     assert_eq!(to_frame, 1, "one session serves every later use");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_frame_that_holds_no_match_gives_not_found_and_clicks_nothing() {
     let (page, mock) = quick_page().await;
     script_frame(&mock, 0, false);
@@ -357,7 +357,7 @@ async fn a_frame_that_holds_no_match_gives_not_found_and_clicks_nothing() {
     assert!(mouse_events(&mock).is_empty(), "nothing may be clicked");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_frame_that_cannot_be_entered_is_a_frame_without_matches() {
     // The frame element has no frame behind it (it is not in the page any
     // longer): `DOM.describeNode` names none.
@@ -373,7 +373,7 @@ async fn a_frame_that_cannot_be_entered_is_a_frame_without_matches() {
         .unwrap());
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_frame_that_goes_away_during_the_click_is_looked_for_again() {
     let (page, mock) = quick_page().await;
     script_frame(&mock, 1, false);

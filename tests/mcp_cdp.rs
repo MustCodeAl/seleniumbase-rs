@@ -130,7 +130,7 @@ const CDP_ONLY_TOOLS: [&str; 2] = ["get_devtools_endpoint", "run_plugin_task"];
 // Catalogue
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_server_offers_every_tool_of_the_python_cdp_server_and_the_developer_tools() {
     let dir = tempfile::tempdir().unwrap();
     let host = cdp::host(Settings::new(dir.path()));
@@ -147,7 +147,7 @@ async fn the_server_offers_every_tool_of_the_python_cdp_server_and_the_developer
     assert_eq!(offered, expected);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn every_tool_describes_itself_with_an_object_schema_and_a_title() {
     let dir = tempfile::tempdir().unwrap();
     let host = cdp::host(Settings::new(dir.path()));
@@ -185,7 +185,7 @@ async fn every_tool_describes_itself_with_an_object_schema_and_a_title() {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn annotations_are_honest_about_what_each_tool_does() {
     let dir = tempfile::tempdir().unwrap();
     let host = cdp::host(Settings::new(dir.path()));
@@ -218,7 +218,7 @@ async fn annotations_are_honest_about_what_each_tool_does() {
 // Session
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_browser_tool_before_start_browser_says_to_start_one() {
     let dir = tempfile::tempdir().unwrap();
     let host = cdp::host(Settings::new(dir.path()));
@@ -231,7 +231,7 @@ async fn a_browser_tool_before_start_browser_says_to_start_one() {
     assert!(error.to_string().contains("start_browser"), "{error}");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn an_unknown_tool_is_reported_by_name() {
     let dir = tempfile::tempdir().unwrap();
     let (host, _mock) = running(dir.path()).await;
@@ -241,7 +241,7 @@ async fn an_unknown_tool_is_reported_by_name() {
     assert!(matches!(&error, ToolError::UnknownTool(name) if name == "make_coffee"));
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn page_info_reports_not_running_until_a_browser_starts() {
     let dir = tempfile::tempdir().unwrap();
     let host = cdp::host(Settings::new(dir.path()));
@@ -252,7 +252,7 @@ async fn page_info_reports_not_running_until_a_browser_starts() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_devtools_endpoint_needs_a_running_browser() {
     let dir = tempfile::tempdir().unwrap();
     let host = cdp::host(Settings::new(dir.path()));
@@ -266,7 +266,7 @@ async fn the_devtools_endpoint_needs_a_running_browser() {
         .contains("start_browser"));
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_devtools_endpoint_names_the_browser_and_the_configs_that_attach_to_it() {
     let dir = tempfile::tempdir().unwrap();
     let (host, _mock) = running(dir.path()).await;
@@ -299,7 +299,7 @@ async fn the_devtools_endpoint_names_the_browser_and_the_configs_that_attach_to_
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn page_info_gathers_url_title_origin_and_user_agent() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -324,7 +324,7 @@ async fn page_info_gathers_url_title_origin_and_user_agent() {
     assert_eq!(info["user_agent"], "TestAgent/1.0");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn starting_with_incognito_and_guest_together_is_an_error_before_anything_launches() {
     let dir = tempfile::tempdir().unwrap();
     let host = cdp::host(Settings::new(dir.path()));
@@ -344,7 +344,7 @@ async fn starting_with_incognito_and_guest_together_is_an_error_before_anything_
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_browser_binary_is_the_operators_choice_not_a_tool_argument() {
     let dir = tempfile::tempdir().unwrap();
     let host = cdp::host(Settings::new(dir.path()));
@@ -382,7 +382,7 @@ async fn the_browser_binary_is_the_operators_choice_not_a_tool_argument() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_operators_binary_and_use_chromium_do_not_mix() {
     let dir = tempfile::tempdir().unwrap();
     let settings = Settings::new(dir.path()).with_browser_binary("/opt/browsers/chrome");
@@ -407,7 +407,7 @@ async fn the_operators_binary_and_use_chromium_do_not_mix() {
     assert!(host.ctx().try_session().await.is_none());
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn starting_twice_keeps_the_first_session() {
     let dir = tempfile::tempdir().unwrap();
     let (host, _mock) = running(dir.path()).await;
@@ -417,7 +417,7 @@ async fn starting_twice_keeps_the_first_session() {
     assert_eq!(answer, "A browser session is already running.");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn closing_ends_the_session_and_closing_again_is_harmless() {
     let dir = tempfile::tempdir().unwrap();
     let (host, _mock) = running(dir.path()).await;
@@ -440,7 +440,7 @@ async fn closing_ends_the_session_and_closing_again_is_harmless() {
 // Navigation
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn open_url_adds_https_to_a_bare_host_and_waits_for_the_load() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -454,7 +454,7 @@ async fn open_url_adds_https_to_a_bare_host_and_waits_for_the_load() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_missing_required_argument_names_the_argument() {
     let dir = tempfile::tempdir().unwrap();
     let (host, _mock) = running(dir.path()).await;
@@ -467,7 +467,7 @@ async fn a_missing_required_argument_names_the_argument() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn an_argument_of_the_wrong_type_is_rejected_not_coerced() {
     let dir = tempfile::tempdir().unwrap();
     let (host, _mock) = running(dir.path()).await;
@@ -482,7 +482,7 @@ async fn an_argument_of_the_wrong_type_is_rejected_not_coerced() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn reload_bypasses_the_cache() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -492,7 +492,7 @@ async fn reload_bypasses_the_cache() {
     assert_eq!(mock.calls_to("Page.reload")[0].params["ignoreCache"], true);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn listing_history_reports_the_position_and_each_entry() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -516,7 +516,7 @@ async fn listing_history_reports_the_position_and_each_entry() {
 // Reading
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn finding_nothing_is_an_empty_answer_not_an_error() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -532,7 +532,7 @@ async fn finding_nothing_is_an_empty_answer_not_an_error() {
     assert_eq!(found, json!({ "count": 0, "matches": [] }));
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn get_content_reads_text_by_default_from_the_body() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -558,7 +558,7 @@ async fn get_content_reads_text_by_default_from_the_body() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn an_unknown_output_format_lists_the_choices() {
     let dir = tempfile::tempdir().unwrap();
     let (host, _mock) = running(dir.path()).await;
@@ -574,7 +574,7 @@ async fn an_unknown_output_format_lists_the_choices() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn checking_a_missing_element_answers_false_without_waiting() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -609,7 +609,7 @@ async fn checking_a_missing_element_answers_false_without_waiting() {
 // Interacting
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn click_element_presses_at_the_elements_centre() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -626,7 +626,7 @@ async fn click_element_presses_at_the_elements_centre() {
     assert_eq!(kinds, ["mouseMoved", "mousePressed", "mouseReleased"]);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn nth_counts_from_one_and_zero_is_rejected() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -663,7 +663,7 @@ async fn nth_counts_from_one_and_zero_is_rejected() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn clicking_only_if_visible_leaves_a_hidden_element_alone() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -680,7 +680,7 @@ async fn clicking_only_if_visible_leaves_a_hidden_element_alone() {
     assert!(mock.calls_to("Input.dispatchMouseEvent").is_empty());
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn click_all_matches_clicks_each_visible_one() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -702,7 +702,7 @@ async fn click_all_matches_clicks_each_visible_one() {
     assert_eq!(presses, 3);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn hover_and_click_needs_a_second_selector() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -722,7 +722,7 @@ async fn hover_and_click_needs_a_second_selector() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn typing_modes_differ_in_how_the_text_reaches_the_page() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -774,7 +774,7 @@ async fn typing_modes_differ_in_how_the_text_reaches_the_page() {
     assert!(last.contains("setValue"), "{last}");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn select_option_accepts_an_index_as_a_number_or_a_string() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -823,7 +823,7 @@ async fn select_option_accepts_an_index_as_a_number_or_a_string() {
 // Waiting and asserting
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn waiting_for_seconds_passed_sleeps_for_the_timeout() {
     let dir = tempfile::tempdir().unwrap();
     let (host, _mock) = running(dir.path()).await;
@@ -840,7 +840,7 @@ async fn waiting_for_seconds_passed_sleeps_for_the_timeout() {
     assert_eq!(answer, "Waited for 0.2s");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn waiting_without_a_selector_or_text_is_an_argument_error() {
     let dir = tempfile::tempdir().unwrap();
     let (host, _mock) = running(dir.path()).await;
@@ -855,7 +855,7 @@ async fn waiting_without_a_selector_or_text_is_an_argument_error() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_wait_that_times_out_is_an_error_naming_the_element_and_state() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -876,7 +876,7 @@ async fn a_wait_that_times_out_is_an_error_naming_the_element_and_state() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn title_and_url_assertions_are_immediate() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -917,7 +917,7 @@ async fn title_and_url_assertions_are_immediate() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn an_assertion_that_needs_an_expected_value_says_so() {
     let dir = tempfile::tempdir().unwrap();
     let (host, _mock) = running(dir.path()).await;
@@ -936,7 +936,7 @@ async fn an_assertion_that_needs_an_expected_value_says_so() {
 // Browser state
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn cookies_are_saved_inside_the_cookie_directory_whatever_the_filename() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -968,7 +968,7 @@ async fn cookies_are_saved_inside_the_cookie_directory_whatever_the_filename() {
         .exists());
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn cookies_saved_by_one_call_can_be_loaded_by_another() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -996,7 +996,7 @@ async fn cookies_saved_by_one_call_can_be_loaded_by_another() {
     assert_eq!(sent[0]["value"], "abc");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn loading_cookies_that_were_never_saved_is_refused() {
     let dir = tempfile::tempdir().unwrap();
     let (host, _mock) = running(dir.path()).await;
@@ -1012,7 +1012,7 @@ async fn loading_cookies_that_were_never_saved_is_refused() {
     assert!(matches!(error, ToolError::Refused(_)), "{error}");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn setting_storage_requires_a_value() {
     let dir = tempfile::tempdir().unwrap();
     let (host, _mock) = running(dir.path()).await;
@@ -1031,7 +1031,7 @@ async fn setting_storage_requires_a_value() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn scrolling_by_a_negative_amount_is_rejected() {
     let dir = tempfile::tempdir().unwrap();
     let (host, _mock) = running(dir.path()).await;
@@ -1054,7 +1054,7 @@ async fn scrolling_by_a_negative_amount_is_rejected() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn set_rect_needs_all_four_numbers() {
     let dir = tempfile::tempdir().unwrap();
     let (host, _mock) = running(dir.path()).await;
@@ -1073,7 +1073,7 @@ async fn set_rect_needs_all_four_numbers() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn opening_a_tab_switches_to_it_and_later_commands_go_there() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -1090,7 +1090,7 @@ async fn opening_a_tab_switches_to_it_and_later_commands_go_there() {
     assert!(!mock.calls_to("Page.bringToFront").is_empty());
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn switching_to_a_tab_out_of_range_lists_how_many_there_are() {
     let dir = tempfile::tempdir().unwrap();
     let (host, _mock) = running(dir.path()).await;
@@ -1110,7 +1110,7 @@ async fn switching_to_a_tab_out_of_range_lists_how_many_there_are() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn listing_tabs_numbers_them() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -1131,7 +1131,7 @@ async fn listing_tabs_numbers_them() {
     assert_eq!(tabs[1]["index"], 1);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn solving_a_captcha_on_a_page_without_one_does_nothing() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -1147,7 +1147,7 @@ async fn solving_a_captcha_on_a_page_without_one_does_nothing() {
 // Output and scripting
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_screenshot_is_written_into_the_output_directory() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -1161,7 +1161,7 @@ async fn a_screenshot_is_written_into_the_output_directory() {
     assert_eq!(std::fs::read(path).unwrap(), b"PNG!");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn saving_outside_the_output_directory_is_refused() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -1186,7 +1186,7 @@ async fn saving_outside_the_output_directory_is_refused() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn javascript_results_come_back_as_json() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -1200,7 +1200,7 @@ async fn javascript_results_come_back_as_json() {
     assert_eq!(result, json!({ "n": 3, "tags": ["a", "b"] }));
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_script_error_reaches_the_model_as_a_readable_error() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;

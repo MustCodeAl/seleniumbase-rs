@@ -220,7 +220,7 @@ fn schema_of<S: Send + 'static>(host: &Host<S>, tool: &str) -> Value {
 // page_snapshot
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_snapshot_is_a_compact_tree_with_refs_and_structured_content() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -242,7 +242,7 @@ async fn a_snapshot_is_a_compact_tree_with_refs_and_structured_content() {
     conforms(&schema_of(&host, "page_snapshot"), &data, "page_snapshot").unwrap();
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_bounds_and_the_scope_reach_the_page_script() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -268,7 +268,7 @@ async fn the_bounds_and_the_scope_reach_the_page_script() {
     assert_eq!(operation(&expressions[1]).as_deref(), Some("outline"));
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn out_of_range_bounds_and_a_scope_that_matches_nothing_are_argument_errors() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -293,7 +293,7 @@ async fn out_of_range_bounds_and_a_scope_that_matches_nothing_are_argument_error
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_snapshot_marks_what_cuts_it_short() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -318,7 +318,7 @@ async fn a_snapshot_marks_what_cuts_it_short() {
 // Refs in tool arguments
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_ref_in_a_selector_argument_reaches_the_tool_as_the_selector() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -355,7 +355,7 @@ async fn a_ref_in_a_selector_argument_reaches_the_tool_as_the_selector() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_ref_whose_element_changed_is_refused_with_what_it_is_now() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -385,7 +385,7 @@ async fn a_ref_whose_element_changed_is_refused_with_what_it_is_now() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_ref_whose_element_is_gone_and_a_moved_page_are_told_apart() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -419,7 +419,7 @@ async fn a_ref_whose_element_is_gone_and_a_moved_page_are_told_apart() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn an_unknown_ref_names_the_refs_there_are() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -445,7 +445,7 @@ async fn an_unknown_ref_names_the_refs_there_are() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn every_selector_argument_may_be_a_ref_and_a_new_snapshot_replaces_the_refs() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -476,7 +476,7 @@ async fn every_selector_argument_may_be_a_ref_and_a_new_snapshot_replaces_the_re
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_ref_inside_a_shadow_root_is_refused_on_the_pure_cdp_engine() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -505,7 +505,7 @@ async fn a_ref_inside_a_shadow_root_is_refused_on_the_pure_cdp_engine() {
 // read_page_text and the extract tools
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn page_text_is_the_text_and_the_facts_about_it() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -537,7 +537,7 @@ async fn page_text_is_the_text_and_the_facts_about_it() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn links_are_listed_with_refs_and_without_their_selectors() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -575,7 +575,7 @@ async fn links_are_listed_with_refs_and_without_their_selectors() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn tables_and_forms_are_data_with_refs_that_continue_the_numbering() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;

@@ -70,7 +70,7 @@ fn proxied() -> ContextOptions {
         .bypass("localhost")
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn a_context_proxy_is_sent_without_its_password() {
     let (browser, mock) = browser();
 
@@ -82,7 +82,7 @@ async fn a_context_proxy_is_sent_without_its_password() {
     assert!(!params.to_string().contains("s3cret") && !params.to_string().contains("alice"));
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn a_plain_context_asks_for_no_proxy() {
     let (browser, mock) = browser();
 
@@ -94,7 +94,7 @@ async fn a_plain_context_asks_for_no_proxy() {
     );
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn a_proxied_tab_has_auth_handling_on_before_its_first_request() {
     let (browser, mock) = browser();
     let context = browser.new_context_with(proxied()).await.unwrap();
@@ -122,7 +122,7 @@ async fn a_proxied_tab_has_auth_handling_on_before_its_first_request() {
     );
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn the_proxys_password_prompt_is_answered_with_its_credentials() {
     let (browser, mock) = browser();
     let context = browser.new_context_with(proxied()).await.unwrap();
@@ -137,7 +137,7 @@ async fn the_proxys_password_prompt_is_answered_with_its_credentials() {
     assert_eq!(answer["authChallengeResponse"]["password"], "s3cret");
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn a_websites_password_prompt_never_gets_the_proxys_credentials() {
     let (browser, mock) = browser();
     let context = browser.new_context_with(proxied()).await.unwrap();
@@ -164,7 +164,7 @@ async fn a_websites_password_prompt_never_gets_the_proxys_credentials() {
     );
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn a_prompt_that_does_not_say_who_asks_is_not_given_the_credentials() {
     let (browser, mock) = browser();
     let context = browser.new_context_with(proxied()).await.unwrap();
@@ -195,7 +195,7 @@ async fn a_prompt_that_does_not_say_who_asks_is_not_given_the_credentials() {
     }
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn the_proxy_is_still_answered_after_a_website_asked_first() {
     let (browser, mock) = browser();
     let context = browser.new_context_with(proxied()).await.unwrap();
@@ -214,7 +214,7 @@ async fn the_proxy_is_still_answered_after_a_website_asked_first() {
     );
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn requests_paused_by_auth_handling_are_released() {
     let (browser, mock) = browser();
     let context = browser.new_context_with(proxied()).await.unwrap();
@@ -229,7 +229,7 @@ async fn requests_paused_by_auth_handling_are_released() {
     );
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn the_password_appears_only_in_the_answer_to_a_prompt() {
     let (browser, mock) = browser();
     let context = browser.new_context_with(proxied()).await.unwrap();
@@ -250,7 +250,7 @@ async fn the_password_appears_only_in_the_answer_to_a_prompt() {
     assert!(!format!("{browser:?} {context:?} {page:?}").contains("s3cret"));
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn a_tab_in_an_unproxied_context_gets_no_auth_handling() {
     let (browser, mock) = browser();
     let context = browser.new_context().await.unwrap();
@@ -266,7 +266,7 @@ async fn a_tab_in_an_unproxied_context_gets_no_auth_handling() {
     );
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn an_interception_owns_the_requests_but_the_password_is_still_supplied() {
     let (browser, mock) = browser();
     let context = browser.new_context_with(proxied()).await.unwrap();
@@ -296,7 +296,7 @@ async fn an_interception_owns_the_requests_but_the_password_is_still_supplied() 
     drop(interception);
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn stopping_an_interception_restores_the_tabs_password_handling() {
     let (browser, mock) = browser();
     let context = browser.new_context_with(proxied()).await.unwrap();
@@ -329,7 +329,7 @@ async fn stopping_an_interception_restores_the_tabs_password_handling() {
     assert_eq!(mock.calls_to("Fetch.continueWithAuth").len(), 1);
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn disposing_a_context_forgets_its_password() {
     let (browser, mock) = browser();
     let context = browser.new_context_with(proxied()).await.unwrap();

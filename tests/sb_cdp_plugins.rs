@@ -97,7 +97,7 @@ impl Plugin for Marker {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_plugins_packages_then_its_hook_reach_every_new_tab_in_order() {
     let mock = MockCtrl::new();
     let browser = launch(PluginSet::new().with(Marker).unwrap(), &mock)
@@ -169,7 +169,7 @@ fn fails_from(fail_from: usize) -> PluginSet {
         .unwrap()
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_failing_on_page_created_fails_the_new_tab_and_closes_it() {
     let mock = MockCtrl::new();
     let browser = launch(fails_from(2), &mock).await.unwrap();
@@ -191,7 +191,7 @@ async fn a_failing_on_page_created_fails_the_new_tab_and_closes_it() {
     assert_eq!(closed[0].params["targetId"], "T2");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_plugin_that_fails_on_the_first_tab_fails_the_launch() {
     let mock = MockCtrl::new();
 
@@ -241,7 +241,7 @@ impl Plugin for Lifecycle {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn on_browser_runs_before_the_first_tab_and_talks_to_the_browser() {
     let mock = MockCtrl::new();
     mock.reply("Browser.getVersion", json!({ "product": "Chrome/155.0" }));
@@ -277,7 +277,7 @@ async fn on_browser_runs_before_the_first_tab_and_talks_to_the_browser() {
     drop(browser);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_script_error_in_a_plugins_evaluate_fails_the_tab() {
     let mock = MockCtrl::new();
     mock.on("Runtime.evaluate", |params| {
@@ -301,7 +301,7 @@ async fn a_script_error_in_a_plugins_evaluate_fails_the_tab() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn on_close_runs_once_and_its_errors_do_not_fail_close() {
     let mock = MockCtrl::new();
     let log = Log::default();
@@ -337,7 +337,7 @@ impl Plugin for CountsCloses {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn dropping_the_last_handle_runs_on_close() {
     let mock = MockCtrl::new();
     let closes = Arc::new(AtomicUsize::new(0));
@@ -365,7 +365,7 @@ async fn dropping_the_last_handle_runs_on_close() {
     assert_eq!(closes.load(Ordering::SeqCst), 1);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_failed_launch_tells_the_plugins_once_that_it_ended() {
     let mock = MockCtrl::new();
     let closes = Arc::new(AtomicUsize::new(0));
@@ -412,7 +412,7 @@ impl Plugin for AddsExtension {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn an_extension_a_plugin_adds_in_before_launch_is_loaded_before_the_first_tab() {
     let mock = MockCtrl::new();
 
@@ -443,7 +443,7 @@ impl Plugin for NeedsWindow {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_requirement_the_launch_does_not_meet_stops_it_before_any_command() {
     let mock = MockCtrl::new();
 
@@ -474,7 +474,7 @@ impl Plugin for NeedsOther {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_missing_dependency_stops_the_launch_and_says_what_to_add() {
     let mock = MockCtrl::new();
 
@@ -487,7 +487,7 @@ async fn a_missing_dependency_stops_the_launch_and_says_what_to_add() {
     assert!(hint.contains("needs-other"), "{hint}");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn without_plugins_a_launch_sends_no_plugin_commands() {
     let mock = MockCtrl::new();
 
@@ -510,7 +510,7 @@ async fn without_plugins_a_launch_sends_no_plugin_commands() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_page_is_a_page_handle_that_works_on_its_own_tab() {
     let (browser, mock) = Browser::new_mocked();
     let page = browser.default_page().await.unwrap();
@@ -604,7 +604,7 @@ impl Plugin for Numbered {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn each_launch_of_a_shared_set_gets_its_own_instance_of_a_per_launch_plugin() {
     let log = Log::default();
     let shared = PluginSet::new()
@@ -683,7 +683,7 @@ fn blocked_on(mock: &MockCtrl, session: &str) -> Vec<String> {
     serde_json::from_value(call.params["urls"].clone()).expect("a list of patterns")
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn raw_blocklists_of_several_plugins_are_merged_into_one_per_tab() {
     let mock = MockCtrl::new();
     let plugins = PluginSet::new()
@@ -701,7 +701,7 @@ async fn raw_blocklists_of_several_plugins_are_merged_into_one_per_tab() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn each_tab_keeps_its_own_blocklist() {
     let mock = MockCtrl::new();
     let tabs = Blocks {
@@ -734,7 +734,7 @@ async fn each_tab_keeps_its_own_blocklist() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_ad_block_list_of_the_launch_stays_when_a_plugin_blocks_urls() {
     let mock = MockCtrl::new();
     let options = LaunchOptions::builder()
@@ -766,7 +766,7 @@ fn tracker_blocking_fingerprint() -> Fingerprint {
         .expect("the builder builds")
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_tracker_hosts_of_a_fingerprint_stay_when_a_plugin_blocks_urls() {
     let fingerprint = tracker_blocking_fingerprint();
     let tracker = format!("*{}*", fingerprint.tracker_hosts()[0]);
@@ -801,7 +801,7 @@ async fn the_tracker_hosts_of_a_fingerprint_stay_when_a_plugin_blocks_urls() {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn ad_block_does_not_replace_the_trackers_of_a_fingerprint() {
     let fingerprint = tracker_blocking_fingerprint();
     let tracker = format!("*{}*", fingerprint.tracker_hosts()[0]);
@@ -851,7 +851,7 @@ impl Plugin for SendsRaw {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_plugin_cannot_take_over_request_interception() {
     for method in [
         "Fetch.enable",
@@ -879,7 +879,7 @@ async fn a_plugin_cannot_take_over_request_interception() {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_librarys_own_fetch_for_proxy_passwords_is_not_a_plugins() {
     let mock = MockCtrl::new();
     let options = LaunchOptions::builder()
@@ -898,7 +898,7 @@ async fn the_librarys_own_fetch_for_proxy_passwords_is_not_a_plugins() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_non_fetch_domain_with_a_similar_name_is_not_refused() {
     let mock = MockCtrl::new();
     let plugins = PluginSet::new()

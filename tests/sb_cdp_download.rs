@@ -265,7 +265,7 @@ fn fetching_scripts(mock: &MockCtrl) -> Vec<String> {
         .collect()
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn downloading_a_url_tells_the_browser_where_to_save_and_returns_the_saved_file() {
     let (page, mock) = quick_page().await;
     let folder = tempfile::tempdir().unwrap();
@@ -295,7 +295,7 @@ async fn downloading_a_url_tells_the_browser_where_to_save_and_returns_the_saved
     assert_eq!(page.browser().download_dir(), dir);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_script_that_fetches_keeps_the_url_inside_its_string() {
     let (page, mock) = quick_page().await;
     let folder = tempfile::tempdir().unwrap();
@@ -314,7 +314,7 @@ async fn the_script_that_fetches_keeps_the_url_inside_its_string() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn without_a_reported_path_the_file_is_the_suggested_name_in_the_folder() {
     let (page, mock) = quick_page().await;
     let folder = tempfile::tempdir().unwrap();
@@ -330,7 +330,7 @@ async fn without_a_reported_path_the_file_is_the_suggested_name_in_the_folder() 
     assert_eq!(saved, canonical(folder.path()).join("notes.txt"));
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_name_that_would_leave_the_folder_is_refused() {
     let (page, mock) = quick_page().await;
     let folder = tempfile::tempdir().unwrap();
@@ -350,7 +350,7 @@ async fn a_name_that_would_leave_the_folder_is_refused() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_download_the_browser_says_finished_but_left_no_file_for_is_an_error() {
     let (page, mock) = quick_page().await;
     let folder = tempfile::tempdir().unwrap();
@@ -369,7 +369,7 @@ async fn a_download_the_browser_says_finished_but_left_no_file_for_is_an_error()
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_path_the_browser_reports_is_returned_even_when_it_is_not_the_suggested_name() {
     let (page, mock) = quick_page().await;
     let folder = tempfile::tempdir().unwrap();
@@ -393,7 +393,7 @@ async fn the_path_the_browser_reports_is_returned_even_when_it_is_not_the_sugges
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_download_the_browser_cancels_is_reported_as_failed() {
     let (page, mock) = quick_page().await;
     let folder = tempfile::tempdir().unwrap();
@@ -411,7 +411,7 @@ async fn a_download_the_browser_cancels_is_reported_as_failed() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_download_that_never_begins_times_out_naming_the_address() {
     let (page, _mock) = quick_page().await;
     let folder = tempfile::tempdir().unwrap();
@@ -428,7 +428,7 @@ async fn a_download_that_never_begins_times_out_naming_the_address() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_download_that_never_finishes_times_out_and_says_it_began() {
     let (page, mock) = quick_page().await;
     let folder = tempfile::tempdir().unwrap();
@@ -446,7 +446,7 @@ async fn a_download_that_never_finishes_times_out_and_says_it_began() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_page_that_cannot_fetch_the_url_fails_at_once_with_the_reason() {
     let (browser, mock) = Browser::new_mocked();
     let page = browser
@@ -476,7 +476,7 @@ async fn a_page_that_cannot_fetch_the_url_fails_at_once_with_the_reason() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn saving_a_file_as_a_path_names_the_file_and_returns_that_path() {
     let (page, mock) = quick_page().await;
     let folder = tempfile::tempdir().unwrap();
@@ -506,7 +506,7 @@ async fn saving_a_file_as_a_path_names_the_file_and_returns_that_path() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn saving_over_a_file_replaces_it_whatever_name_the_browser_gave_the_new_one() {
     let (page, mock) = quick_page().await;
     let folder = tempfile::tempdir().unwrap();
@@ -532,7 +532,7 @@ async fn saving_over_a_file_replaces_it_whatever_name_the_browser_gave_the_new_o
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_path_with_no_file_name_is_refused_before_the_browser_is_asked() {
     let (page, mock) = quick_page().await;
 
@@ -548,7 +548,7 @@ async fn a_path_with_no_file_name_is_refused_before_the_browser_is_asked() {
     assert_eq!(steps(&mock), Vec::<&str>::new());
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn clicking_a_link_downloads_what_the_browser_saves() {
     let (page, mock) = quick_page().await;
     let folder = tempfile::tempdir().unwrap();
@@ -572,7 +572,7 @@ async fn clicking_a_link_downloads_what_the_browser_saves() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_click_that_starts_no_download_times_out_naming_the_selector() {
     let (page, mock) = quick_page().await;
     let folder = tempfile::tempdir().unwrap();
@@ -592,7 +592,7 @@ async fn a_click_that_starts_no_download_times_out_naming_the_selector() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_downloaded_file_is_found_in_the_folder_downloads_go_to() {
     let (page, _mock) = quick_page().await;
     let folder = tempfile::tempdir().unwrap();
@@ -614,7 +614,7 @@ async fn a_downloaded_file_is_found_in_the_folder_downloads_go_to() {
     assert_eq!(found, canonical(folder.path()).join("late.txt"));
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_file_that_does_not_arrive_times_out_naming_it_and_the_folder() {
     let (page, _mock) = quick_page().await;
     let folder = tempfile::tempdir().unwrap();
@@ -640,7 +640,7 @@ async fn a_file_that_does_not_arrive_times_out_naming_it_and_the_folder() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn only_a_plain_file_name_can_be_asserted() {
     let (page, _mock) = quick_page().await;
     let started = Instant::now();
@@ -662,7 +662,7 @@ async fn only_a_plain_file_name_can_be_asserted() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn until_a_folder_is_chosen_downloads_are_expected_in_downloaded_files() {
     let (browser, _mock) = Browser::new_mocked();
 
