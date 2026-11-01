@@ -80,6 +80,7 @@ async fn until_ready(page: &Page, probe: &str) -> Value {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome and needs the network"]
+#[serial_test::serial(chrome)]
 async fn sannysoft_fails_no_check() {
     let fingerprint = persona();
     let (browser, page) = browser(Some(&fingerprint)).await;
@@ -178,6 +179,7 @@ async fn creep(fingerprint: Option<&Fingerprint>) -> Creep {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome and needs the network"]
+#[serial_test::serial(chrome)]
 async fn creepjs_finds_the_persona_no_more_headless_than_plain_chrome() {
     let plain = creep(None).await;
     let fingerprint = persona();

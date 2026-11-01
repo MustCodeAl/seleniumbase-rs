@@ -35,6 +35,7 @@ const DEMO_PAGE: &str = "data:text/html,<html lang=\"en\"><head><title>Smoke</ti
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn open_page_and_assert_title() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = BaseCase::new(test_config())
@@ -51,6 +52,7 @@ async fn open_page_and_assert_title() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn type_and_click_round_trip() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = BaseCase::new(test_config())
@@ -68,6 +70,7 @@ async fn type_and_click_round_trip() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn screenshot_produces_png_bytes() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = BaseCase::new(test_config())
@@ -82,6 +85,7 @@ async fn screenshot_produces_png_bytes() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn deferred_asserts_collect_failures() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = BaseCase::new(test_config())
@@ -103,6 +107,7 @@ const LATE_PAGE: &str = "data:text/html,<html><head><title>Late</title></head><b
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn an_action_waits_for_an_element_that_appears_late() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = BaseCase::new(test_config())
@@ -120,6 +125,7 @@ async fn an_action_waits_for_an_element_that_appears_late() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn an_action_on_a_missing_element_times_out_and_names_it() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = BaseCase::new(test_config())
@@ -147,6 +153,7 @@ async fn an_action_on_a_missing_element_times_out_and_names_it() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn checking_for_an_absent_element_does_not_wait_out_the_timeout() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = BaseCase::new(test_config())

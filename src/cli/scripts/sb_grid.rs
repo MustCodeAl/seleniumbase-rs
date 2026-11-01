@@ -202,9 +202,19 @@ pub async fn download_server(
     version: Option<&str>,
     dir: &Path,
 ) -> Result<ServerJar, SeleniumBaseError> {
+    download_server_from(SERVER_RELEASES, version, dir).await
+}
+
+/// [`download_server`] with the address Selenium's releases are downloaded from given: the seam
+/// the tests point at a mock server.
+async fn download_server_from(
+    releases: &str,
+    version: Option<&str>,
+    dir: &Path,
+) -> Result<ServerJar, SeleniumBaseError> {
     let version = server_version(version.unwrap_or(SERVER_VERSION))?;
     let name = format!("selenium-server-{version}.jar");
-    let url = format!("{SERVER_RELEASES}/selenium-{version}/{name}");
+    let url = format!("{releases}/selenium-{version}/{name}");
     let expected = (version == SERVER_VERSION).then_some(SERVER_SHA256);
     fetch_jar(&url, &dir.join(name), expected, SERVER_MAX_BYTES).await
 }
@@ -538,6 +548,87 @@ fn describe_age(started_at: u64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ---- `download_server` against a mock of GitHub's releases (the network is never reached) ----
+
+    #[test_log::test(tokio::test)]
+    async fn a_release_is_fetched_from_the_folder_of_its_own_tag() {
+        use httpmock::prelude::*;
+
+        let server = MockServer::start_async().await;
+        let body = b"pretend this is the 4.99.0 jar".to_vec();
+        let release = server
+            .mock_async(|when, then| {
+                when.method(GET)
+                    .path("/selenium-4.99.0/selenium-server-4.99.0.jar");
+                then.status(200).body(body.clone());
+            })
+            .await;
+        let dir = tempfile::tempdir().unwrap();
+
+        let jar = download_server_from(&server.base_url(), Some("4.99.0"), dir.path())
+            .await
+            .unwrap();
+
+        release.assert_async().await;
+        assert_eq!(jar.path, dir.path().join("selenium-server-4.99.0.jar"));
+        assert!(!jar.verified && !jar.reused, "no hash is pinned for 4.99.0");
+        assert_eq!(jar.sha256, sha256_hex(&body));
+        assert_eq!(std::fs::read(&jar.path).unwrap(), body);
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn the_pinned_release_is_checked_against_its_hash_and_not_saved_when_it_differs() {
+        use httpmock::prelude::*;
+
+        let server = MockServer::start_async().await;
+        let path = format!("/selenium-{SERVER_VERSION}/selenium-server-{SERVER_VERSION}.jar");
+        let release = server
+            .mock_async(|when, then| {
+                when.method(GET).path(path.clone());
+                then.status(200).body("not the jar GitHub lists");
+            })
+            .await;
+        let dir = tempfile::tempdir().unwrap();
+
+        let error = download_server_from(&server.base_url(), None, dir.path())
+            .await
+            .unwrap_err()
+            .to_string();
+
+        release.assert_async().await;
+        assert!(error.contains("not the pinned"), "{error}");
+        assert!(error.contains(SERVER_SHA256), "{error}");
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0);
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn a_release_that_is_not_there_is_an_error_that_names_the_address() {
+        use httpmock::prelude::*;
+
+        let server = MockServer::start_async().await;
+        let release = server
+            .mock_async(|when, then| {
+                when.method(GET)
+                    .path("/selenium-4.98.0/selenium-server-4.98.0.jar");
+                then.status(404);
+            })
+            .await;
+        let dir = tempfile::tempdir().unwrap();
+
+        let error = download_server_from(&server.base_url(), Some("4.98.0"), dir.path())
+            .await
+            .unwrap_err()
+            .to_string();
+
+        release.assert_async().await;
+        assert!(
+            error.contains("/selenium-4.98.0/selenium-server-4.98.0.jar"),
+            "{error}"
+        );
+        assert!(error.contains("404"), "{error}");
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0);
+    }
 
     fn jar_server(body: &[u8]) -> (String, std::sync::Arc<std::sync::atomic::AtomicUsize>) {
         use std::sync::atomic::{AtomicUsize, Ordering};

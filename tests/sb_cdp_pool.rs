@@ -92,7 +92,7 @@ fn options(browsers: usize, contexts: usize) -> PoolOptions {
         .unwrap()
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn nothing_launches_until_the_first_lease_and_a_browser_is_reused() {
     let fleet = Fleet::default();
     let pool = pool(&fleet, options(2, 2));
@@ -111,7 +111,7 @@ async fn nothing_launches_until_the_first_lease_and_a_browser_is_reused() {
     );
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn leases_fill_one_browser_before_launching_the_next() {
     let fleet = Fleet::default();
     let pool = pool(&fleet, options(3, 2));
@@ -129,7 +129,7 @@ async fn leases_fill_one_browser_before_launching_the_next() {
     }
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn many_workers_never_exceed_the_pools_capacity() {
     let fleet = Fleet::default();
     let pool = pool(&fleet, options(2, 2));
@@ -161,7 +161,7 @@ async fn many_workers_never_exceed_the_pools_capacity() {
     assert_eq!(pool.stats().await.leased, 0);
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn every_lease_gets_its_own_context_and_it_is_disposed_on_release() {
     let fleet = Fleet::default();
     let pool = pool(&fleet, options(1, 3));
@@ -184,7 +184,7 @@ async fn every_lease_gets_its_own_context_and_it_is_disposed_on_release() {
     assert_eq!(fleet.total_calls("Target.disposeBrowserContext"), 3);
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn the_tab_of_a_lease_is_opened_inside_its_context() {
     let fleet = Fleet::default();
     let pool = pool(&fleet, options(1, 1));
@@ -209,7 +209,7 @@ async fn the_tab_of_a_lease_is_opened_inside_its_context() {
     lease.release().await;
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn a_browser_is_retired_after_serving_its_quota_and_replaced() {
     let fleet = Fleet::default();
     let quota = PoolOptions::builder()
@@ -237,7 +237,7 @@ async fn a_browser_is_retired_after_serving_its_quota_and_replaced() {
     assert_eq!(pool.stats().await.retired, 2);
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn a_browser_that_died_is_replaced_on_the_next_lease() {
     let fleet = Fleet::default();
     let pool = pool(&fleet, options(1, 1));
@@ -255,7 +255,7 @@ async fn a_browser_that_died_is_replaced_on_the_next_lease() {
     lease.release().await;
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn waiting_gives_up_after_the_timeout_and_a_freed_slot_is_usable_again() {
     let fleet = Fleet::default();
     let tight = PoolOptions::builder()
@@ -278,7 +278,7 @@ async fn waiting_gives_up_after_the_timeout_and_a_freed_slot_is_usable_again() {
     pool.acquire().await.unwrap().release().await;
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn a_waiting_worker_is_served_when_a_lease_ends() {
     let fleet = Fleet::default();
     let pool = pool(&fleet, options(1, 1));
@@ -302,7 +302,7 @@ async fn a_waiting_worker_is_served_when_a_lease_ends() {
     assert!(waiter.await.unwrap().is_ok());
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn dropping_a_lease_frees_its_slot_in_the_background() {
     let fleet = Fleet::default();
     let pool = pool(&fleet, options(1, 1));
@@ -323,7 +323,7 @@ async fn dropping_a_lease_frees_its_slot_in_the_background() {
     );
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn a_failed_launch_is_reported_and_does_not_leak_a_slot() {
     let fleet = Fleet::default();
     *fleet.failures.lock().unwrap() = 1;
@@ -343,7 +343,7 @@ async fn a_failed_launch_is_reported_and_does_not_leak_a_slot() {
         .await;
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn a_closed_pool_closes_its_browsers_and_refuses_new_leases() {
     let fleet = Fleet::default();
     let pool = pool(&fleet, options(2, 2));
@@ -360,7 +360,7 @@ async fn a_closed_pool_closes_its_browsers_and_refuses_new_leases() {
     assert_eq!(pool.stats().await.browsers, 0);
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn closing_wakes_workers_that_were_waiting() {
     let fleet = Fleet::default();
     let pool = pool(&fleet, options(1, 1));
@@ -387,7 +387,7 @@ fn session_cookie_reply() -> Value {
     }]})
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn a_session_saved_by_one_worker_is_loaded_by_another_in_a_different_browser() {
     let fleet = Fleet::default();
     // One context per browser, so two simultaneous leases use two browsers.
@@ -412,7 +412,7 @@ async fn a_session_saved_by_one_worker_is_loaded_by_another_in_a_different_brows
     bob.release().await;
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn loading_an_unknown_session_changes_nothing() {
     let fleet = Fleet::default();
     let pool = pool(&fleet, options(1, 1));
@@ -424,7 +424,7 @@ async fn loading_an_unknown_session_changes_nothing() {
     lease.release().await;
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn expired_cookies_are_not_loaded() {
     let fleet = Fleet::default();
     let pool = pool(&fleet, options(1, 1));
@@ -447,7 +447,7 @@ async fn expired_cookies_are_not_loaded() {
     lease.release().await;
 }
 
-#[tokio::test(start_paused = true)]
+#[test_log::test(tokio::test)]
 async fn the_pool_and_a_lease_never_print_cookie_values() {
     let fleet = Fleet::default();
     let pool = pool(&fleet, options(1, 1));

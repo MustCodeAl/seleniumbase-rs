@@ -38,6 +38,7 @@ fn running(pattern: &str) -> bool {
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "needs a geckodriver, or network access to download one"]
+#[serial_test::serial(chrome)]
 async fn the_crate_starts_the_geckodriver_it_finds() {
     let config = BrowserConfig::default().with_browser(Browser::Firefox);
     let mut driver = launch_driver_for(&config, None)
@@ -61,6 +62,7 @@ async fn the_crate_starts_the_geckodriver_it_finds() {
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "needs SB_WEBDRIVER_URL to name a geckodriver with Firefox; see the module docs"]
+#[serial_test::serial(chrome)]
 async fn a_headless_firefox_session_takes_its_options() {
     let Ok(url) = std::env::var("SB_WEBDRIVER_URL") else {
         eprintln!(

@@ -89,6 +89,7 @@ fn serve() -> String {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_webdriver_download_lands_in_downloaded_files() {
     let folder = work_dir().join("downloaded_files");
     let base = serve();
@@ -120,6 +121,7 @@ async fn a_webdriver_download_lands_in_downloaded_files() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_cdp_download_lands_in_downloaded_files_before_a_folder_is_chosen() {
     let folder = work_dir().join("downloaded_files");
     let base = serve();

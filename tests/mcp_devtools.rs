@@ -86,7 +86,7 @@ fn script_page(
 // Failure reports
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_failed_click_is_reported_with_the_page_and_the_tools_to_try_next() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -137,7 +137,7 @@ async fn a_failed_click_is_reported_with_the_page_and_the_tools_to_try_next() {
     assert_eq!(report.to_json()["kind"], "element_not_found");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_bad_argument_is_reported_without_touching_the_page() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -153,7 +153,7 @@ async fn a_bad_argument_is_reported_without_touching_the_page() {
     assert_eq!(mock.calls_to("Runtime.evaluate").len(), before);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_mistyped_choice_suggests_the_nearest_option() {
     let dir = tempfile::tempdir().unwrap();
     let (host, _mock) = running(dir.path()).await;
@@ -172,7 +172,7 @@ async fn a_mistyped_choice_suggests_the_nearest_option() {
 // Looking at the page
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn inspect_page_passes_its_bounds_to_the_page_and_returns_the_outline() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -204,7 +204,7 @@ async fn inspect_page_passes_its_bounds_to_the_page_and_returns_the_outline() {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_scope_that_matches_nothing_is_an_argument_error() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -224,7 +224,7 @@ async fn a_scope_that_matches_nothing_is_an_argument_error() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn diagnose_selector_says_the_element_is_in_a_frame_and_what_to_do() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -251,7 +251,7 @@ async fn diagnose_selector_says_the_element_is_in_a_frame_and_what_to_do() {
     assert!(steps[0].as_str().unwrap().contains("top document only"));
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn diagnose_selector_points_out_a_contains_selector_and_a_mistyped_prefix() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -290,7 +290,7 @@ async fn diagnose_selector_points_out_a_contains_selector_and_a_mistyped_prefix(
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn suggest_selectors_needs_something_to_look_for_and_says_when_nothing_matched() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -312,7 +312,7 @@ async fn suggest_selectors_needs_something_to_look_for_and_says_when_nothing_mat
 // Console and network
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn console_messages_include_the_errors_the_engine_saw_without_recording() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -343,7 +343,7 @@ async fn console_messages_include_the_errors_the_engine_saw_without_recording() 
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn failed_requests_are_recorded_once_the_tab_is_watched() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -404,7 +404,7 @@ async fn failed_requests_are_recorded_once_the_tab_is_watched() {
 // Debug bundles and exported tests
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_debug_bundle_holds_the_evidence_but_no_secrets() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -469,7 +469,7 @@ async fn a_debug_bundle_holds_the_evidence_but_no_secrets() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_debug_bundle_does_not_repeat_a_value_an_earlier_tool_returned() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;
@@ -506,7 +506,7 @@ async fn a_debug_bundle_does_not_repeat_a_value_an_earlier_tool_returned() {
     assert_eq!(recent[0]["ok"], true);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_session_is_exported_as_a_test_inside_the_output_directory() {
     let dir = tempfile::tempdir().unwrap();
     let (host, _mock) = running(dir.path()).await;
@@ -553,7 +553,7 @@ async fn the_session_is_exported_as_a_test_inside_the_output_directory() {
     ));
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn diagnose_environment_needs_no_browser() {
     let dir = tempfile::tempdir().unwrap();
     let host = cdp::host(Settings::new(dir.path()));

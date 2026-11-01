@@ -85,6 +85,7 @@ async fn open(base: &str) -> (Browser, Page) {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn files_are_downloaded_by_address_by_click_and_under_a_chosen_name() {
     let base = serve();
     let (browser, page) = open(&base).await;
@@ -174,6 +175,7 @@ async fn files_are_downloaded_by_address_by_click_and_under_a_chosen_name() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_missing_file_and_a_click_that_downloads_nothing_are_reported() {
     let base = serve();
     let (browser, page) = open(&base).await;

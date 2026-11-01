@@ -41,6 +41,7 @@ fn serve() -> String {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn webdriver_and_the_pure_cdp_engine_read_the_same_chrome_the_same_way() {
     let url = serve();
 

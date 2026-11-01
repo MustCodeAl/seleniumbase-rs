@@ -61,6 +61,7 @@ fn write_addon() -> String {
 
 #[tokio::test]
 #[ignore = "needs a real geckodriver and Firefox: see the module documentation"]
+#[serial_test::serial(chrome)]
 async fn a_real_geckodriver_installs_and_removes_an_add_on() {
     let folder = write_addon();
     let mut sb = BaseCase::new(firefox_config())

@@ -152,6 +152,8 @@ fn the_futures_of_the_calls_are_send() {
 }
 
 #[tokio::test]
+#[serial_test::serial(env)]
+
 async fn new_deletes_what_an_earlier_run_left_and_nothing_else() {
     let root = Root::new().await;
     let latest = root.latest();
@@ -179,6 +181,8 @@ async fn new_deletes_what_an_earlier_run_left_and_nothing_else() {
 }
 
 #[tokio::test]
+#[serial_test::serial(env)]
+
 async fn where_nobody_watches_a_check_is_skipped_and_asks_nothing() {
     let _root = Root::new().await;
     let driver = page_driver(vec!["Success!"], true, 0, "");
@@ -196,6 +200,8 @@ async fn where_nobody_watches_a_check_is_skipped_and_asks_nothing() {
 }
 
 #[tokio::test]
+#[serial_test::serial(env)]
+
 async fn a_passed_check_waits_the_verify_delay_and_is_recorded() {
     let _root = Root::new().await;
     let driver = page_driver(vec!["Success!"], true, 0, "");
@@ -228,6 +234,8 @@ async fn a_passed_check_waits_the_verify_delay_and_is_recorded() {
 }
 
 #[tokio::test]
+#[serial_test::serial(env)]
+
 async fn a_failed_check_keeps_a_screenshot_and_does_not_fail_the_test() {
     let root = Root::new().await;
     let driver = page_driver(vec!["Success!", "Failure!"], true, 0, "");
@@ -264,6 +272,8 @@ async fn a_failed_check_keeps_a_screenshot_and_does_not_fail_the_test() {
 }
 
 #[tokio::test]
+#[serial_test::serial(env)]
+
 async fn finish_writes_the_table_and_the_page_and_archives_the_run() {
     let root = Root::new().await;
     let driver = page_driver(vec!["Success!", "Failure!"], true, 0, "");
@@ -329,6 +339,8 @@ async fn finish_writes_the_table_and_the_page_and_archives_the_run() {
 }
 
 #[tokio::test]
+#[serial_test::serial(env)]
+
 async fn an_error_in_the_test_adds_an_err_row_and_a_screenshot() {
     let root = Root::new().await;
     let driver = page_driver(vec!["Success!"], true, 0, "");
@@ -360,6 +372,8 @@ async fn an_error_in_the_test_adds_an_err_row_and_a_screenshot() {
 }
 
 #[tokio::test]
+#[serial_test::serial(env)]
+
 async fn a_page_that_cannot_load_jquery_confirm_is_asked_with_confirm() {
     let _root = Root::new().await;
     // The libraries do not load; the box is open for two polls; it was

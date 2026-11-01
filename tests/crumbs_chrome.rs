@@ -68,6 +68,7 @@ async fn cookies_seen(page: &str) -> (Value, Option<String>) {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_reused_browser_keeps_its_cookies_unless_crumbs_are_asked_for() {
     set_idle_timeout(Duration::from_secs(60));
     set_crumbs(false);

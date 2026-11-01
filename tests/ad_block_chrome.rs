@@ -207,6 +207,7 @@ async fn load_images(config: BrowserConfig, site: &Site) -> Vec<(String, u64)> {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn ad_block_refuses_the_listed_hosts_and_nothing_else_in_a_webdriver_session() {
     let _guard = BROWSER_LOCK.lock().await;
     let list = AdBlockList::from_hosts([BLOCKED]).expect("a host name");

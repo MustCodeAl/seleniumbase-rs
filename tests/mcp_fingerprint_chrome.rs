@@ -37,6 +37,7 @@ async fn both<S: Send + 'static>(host: &Host<S>, tool: &str, v: Value) -> (Strin
 
 #[tokio::test]
 #[ignore = "needs Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_pure_cdp_engine_captures_compares_and_explains() {
     let dir = tempfile::tempdir().unwrap();
     let host = cdp::host(Settings::new(dir.path()));
@@ -77,6 +78,7 @@ async fn the_pure_cdp_engine_captures_compares_and_explains() {
 
 #[tokio::test]
 #[ignore = "needs Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_pure_cdp_engine_applies_a_preset_at_start() {
     let dir = tempfile::tempdir().unwrap();
     let host = cdp::host(Settings::new(dir.path()));
@@ -113,6 +115,7 @@ async fn the_pure_cdp_engine_applies_a_preset_at_start() {
 
 #[tokio::test]
 #[ignore = "needs Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn the_webdriver_engine_captures_and_compares() {
     let dir = tempfile::tempdir().unwrap();
     let host = sb::host(Settings::new(dir.path()));

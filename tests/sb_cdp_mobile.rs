@@ -32,7 +32,7 @@ fn args(builder: LaunchOptionsBuilder) -> Vec<String> {
         .browser_args(Path::new("/tmp/profile"))
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_mobile_launch_sets_every_tab_up_as_a_phone() {
     let options = LaunchOptions::builder().mobile(true).build().unwrap();
     let (browser, mock) = launched(options).await;
@@ -67,7 +67,7 @@ async fn a_mobile_launch_sets_every_tab_up_as_a_phone() {
     assert_eq!(mock.calls_to("Emulation.setTouchEmulationEnabled").len(), 2);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn chosen_metrics_and_a_chosen_agent_replace_the_defaults() {
     let options = LaunchOptions::builder()
         .device_metrics(DeviceMetrics::new(412, 732, 2.625))
@@ -85,7 +85,7 @@ async fn chosen_metrics_and_a_chosen_agent_replace_the_defaults() {
     assert_eq!(agent[0].params["userAgent"], json!("Agent/1"));
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_plain_launch_emulates_no_device() {
     let (_browser, mock) = launched(LaunchOptions::default()).await;
 
@@ -128,7 +128,7 @@ fn mobile_emulation_and_a_fingerprint_are_refused_together() {
         .unwrap();
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn disable_csp_bypasses_the_policy_in_every_tab() {
     let options = LaunchOptions::builder()
         .switch(LaunchSwitch::DisableCsp, true)
@@ -145,7 +145,7 @@ async fn disable_csp_bypasses_the_policy_in_every_tab() {
     assert_eq!(mock.calls_to("Page.setBypassCSP").len(), 2);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_emulation_of_a_tab_can_be_changed_at_run_time() {
     let (browser, mock) = Browser::new_mocked();
     let emulation = browser.default_page().await.unwrap().emulation();
@@ -291,7 +291,7 @@ fn a_bypass_list_and_a_pac_file_reach_chrome_without_a_login() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_pac_file_that_asks_for_a_login_is_answered_over_the_protocol() {
     let options = LaunchOptions::builder()
         .proxy_pac_url("user:secret@http://pac.example/proxy.pac")
@@ -385,7 +385,7 @@ fn a_config_with_every_option_gives_this_command_line() {
     assert!(!format!("{options:?}").contains("secret"));
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_config_with_mobile_set_makes_every_tab_a_phone() {
     let mut config = BrowserConfig::default().with_mobile(true);
     config.launch.device_metrics = Some(DeviceMetrics::new(360, 780, 2.0));

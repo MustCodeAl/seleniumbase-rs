@@ -147,6 +147,107 @@ fn a_consumer_that_is_not_checked_out_fails_naming_the_variable() {
     assert!(text(&output.stderr).contains("no checkout at /nonexistent"));
 }
 
+/// Copies the folder `from`, and everything in it, to `to`.
+fn copy_dir(from: &Path, to: &Path) {
+    std::fs::create_dir_all(to).expect("the target folder is made");
+    for entry in std::fs::read_dir(from).expect("the folder is read") {
+        let entry = entry.expect("an entry is read");
+        let target = to.join(entry.file_name());
+        if entry.file_type().expect("the entry has a type").is_dir() {
+            copy_dir(&entry.path(), &target);
+        } else {
+            std::fs::copy(entry.path(), target).expect("the file is copied");
+        }
+    }
+}
+
+/// `git ARGS` in `dir` on a throwaway repository: no hooks and none of the machine's own
+/// configuration, so nothing but the repository decides what happens.
+fn git(dir: &Path, args: &[&str]) {
+    let status = Command::new("git")
+        .args(["-c", "core.hooksPath=/dev/null"])
+        .args([
+            "-c",
+            "user.name=test",
+            "-c",
+            "user.email=test@example.invalid",
+        ])
+        .args(args)
+        .current_dir(dir)
+        .env("GIT_CONFIG_GLOBAL", "/dev/null")
+        .env("GIT_CONFIG_NOSYSTEM", "1")
+        .status()
+        .expect("git runs");
+    assert!(status.success(), "git {args:?} failed in {}", dir.display());
+}
+
+/// The copy of the script that is in `checkout/scripts/`, run with no consumer folder named, so
+/// that it has to look for them.
+fn script_in(checkout: &Path, args: &[&str]) -> Output {
+    Command::new("bash")
+        .arg(checkout.join("scripts/check-consumers.sh"))
+        .args(args)
+        .env("SBRS_CONTRACTS_DIR", fixtures().join("complete"))
+        .env("SBRS_CLI_CONTRACTS_DIR", fixtures().join("complete"))
+        .env_remove("SBRS_STEALTH_DIR")
+        .env_remove("SBRS_COMPANION_DIR")
+        .env_remove("SBRS_PLUGINS_DIR")
+        .env_remove("SBRS_TAURI_DIR")
+        .env_remove("SBRS_TAP_DIR")
+        .output()
+        .expect("bash runs the script")
+}
+
+#[test]
+fn a_git_worktree_looks_for_the_consumers_beside_the_main_checkout() {
+    // The layout of this repository's lanes: the main checkout has the consumers beside it, and
+    // a worktree sits inside it, in `.claude/worktrees/NAME`, three folders deeper.
+    let sandbox = tempfile::tempdir().expect("a temporary folder");
+    let main = sandbox.path().join("seleniumbase-rs");
+    std::fs::create_dir_all(&main).expect("the main checkout is made");
+    git(&main, &["init", "--quiet", "--initial-branch=main"]);
+    git(
+        &main,
+        &["commit", "--quiet", "--allow-empty", "-m", "start"],
+    );
+    let worktree = main.join(".claude/worktrees/lane");
+    git(
+        &main,
+        &[
+            "worktree",
+            "add",
+            "--quiet",
+            "-b",
+            "lane/one",
+            worktree.to_str().expect("a UTF-8 path"),
+        ],
+    );
+    copy_dir(
+        &fixtures().join("consumer"),
+        &sandbox.path().join("seleniumbase-rs-stealth"),
+    );
+    for checkout in [&main, &worktree] {
+        std::fs::create_dir_all(checkout.join("scripts")).expect("the scripts folder is made");
+        std::fs::copy(
+            root().join("scripts/check-consumers.sh"),
+            checkout.join("scripts/check-consumers.sh"),
+        )
+        .expect("the script is copied");
+    }
+
+    for checkout in [&main, &worktree] {
+        let output = script_in(checkout, &["stealth"]);
+        let (out, err) = (text(&output.stdout), text(&output.stderr));
+        assert_eq!(
+            output.status.code(),
+            Some(0),
+            "{}: stdout: {out}\nstderr: {err}",
+            checkout.display()
+        );
+        assert!(out.contains("ok   stealth: 12 paths"), "{out}");
+    }
+}
+
 #[test]
 fn a_wrong_command_line_is_refused_with_status_2() {
     let output = script("complete", &["no-such-consumer"]);

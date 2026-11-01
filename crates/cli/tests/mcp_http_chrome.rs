@@ -15,6 +15,7 @@ const PAGE: &str = "data:text/html,<title>Over HTTP</title><h1>hello</h1>";
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_cdp_server_drives_chrome_for_a_client_over_http() {
     let mut server = Server::start(&["--server", "cdp", "--listen", "127.0.0.1:0"], &[]).await;
     assert!(server.ready.ends_with("(server cdp)"), "{}", server.ready);

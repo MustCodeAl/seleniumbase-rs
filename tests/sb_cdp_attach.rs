@@ -223,7 +223,7 @@ fn assert_identity(server: &AttachServer) {
         .any(|call| call["method"] == "Target.createTarget" || call["method"] == "Browser.close"));
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn attaches_without_launching_and_reuses_the_existing_driver() {
     let server = AttachServer::start(None).await;
     let options = LaunchOptions::builder()
@@ -249,7 +249,7 @@ async fn attaches_without_launching_and_reuses_the_existing_driver() {
     assert_identity(&server);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn websocket_attachment_prepares_only_the_window_that_is_selected() {
     let server = AttachServer::start(None).await;
     let options = LaunchOptions::builder()
@@ -271,7 +271,7 @@ async fn websocket_attachment_prepares_only_the_window_that_is_selected() {
     assert!(server.requests.lock().unwrap().is_empty());
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn base_case_discovers_the_plugin_and_uses_the_pure_cdp_session() {
     let debugger = AttachServer::start(None).await;
     let port = url::Url::parse(&debugger.http).unwrap().port().unwrap();
@@ -298,7 +298,7 @@ async fn base_case_discovers_the_plugin_and_uses_the_pure_cdp_session() {
     assert_eq!(*plugin.requests.lock().unwrap(), ["/app-token/cdp"]);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn discovery_refuses_disabled_and_non_loopback_endpoints_without_leaking_tokens() {
     for discovery in [
         json!({ "value": { "cdpEnabled": false, "cdpPort": null, "cdpUrl": null } }),
@@ -379,7 +379,7 @@ async fn canned_http(response: Vec<u8>) -> (String, JoinHandle<()>) {
     (base, task)
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn attaching_leaves_every_window_of_the_app_alone_until_one_is_picked() {
     let server = AttachServer::start(None).await;
     let browser = Browser::launch(attached_options(&server)).await.unwrap();
@@ -398,7 +398,7 @@ async fn attaching_leaves_every_window_of_the_app_alone_until_one_is_picked() {
     browser.close().await.unwrap();
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_tab_the_automation_opens_is_prepared_and_the_apps_windows_are_not() {
     let server = AttachServer::start(None).await;
     let browser = Browser::launch(attached_options(&server)).await.unwrap();
@@ -421,7 +421,7 @@ async fn a_tab_the_automation_opens_is_prepared_and_the_apps_windows_are_not() {
     browser.close().await.unwrap();
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn closing_an_attached_browser_detaches_its_sessions_and_leaves_the_app_open() {
     let server = AttachServer::start(None).await;
     let browser = Browser::launch(attached_options(&server)).await.unwrap();
@@ -484,7 +484,7 @@ fn a_proxy_cannot_be_set_on_an_attached_browser() {
         .unwrap();
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn base_case_refuses_a_proxy_on_an_attached_app_before_it_connects() {
     let server = AttachServer::start(None).await;
     let config = BrowserConfig::default()
@@ -532,7 +532,7 @@ fn a_user_agent_or_locale_needs_a_fingerprint_on_an_attached_browser() {
         .unwrap();
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn base_case_refuses_a_user_agent_on_an_attached_app_before_it_connects() {
     let server = AttachServer::start(None).await;
     let mut config = BrowserConfig::default().with_cdp_url(&server.http);
@@ -545,7 +545,7 @@ async fn base_case_refuses_a_user_agent_on_an_attached_app_before_it_connects() 
     assert_eq!(server.connections.load(Ordering::SeqCst), 0);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn reconnect_attaches_to_the_same_endpoint_and_starts_no_driver() {
     let server = AttachServer::start(None).await;
     let mut config = BrowserConfig::default()
@@ -567,7 +567,7 @@ async fn reconnect_attaches_to_the_same_endpoint_and_starts_no_driver() {
     assert!(!sent(&server, "Target.detachFromTarget").is_empty());
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_webdriver_call_on_a_cdp_attachment_is_an_error_not_a_panic() {
     let server = AttachServer::start(None).await;
     let config = BrowserConfig::default().with_cdp_url(&server.http);
@@ -593,7 +593,7 @@ async fn a_webdriver_call_on_a_cdp_attachment_is_an_error_not_a_panic() {
     case.quit().await.unwrap();
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_discovered_debugger_must_advertise_its_own_loopback_endpoint() {
     let elsewhere = AttachServer::start(None).await;
     for advertised in [
@@ -616,7 +616,7 @@ async fn a_discovered_debugger_must_advertise_its_own_loopback_endpoint() {
     assert_eq!(elsewhere.connections.load(Ordering::SeqCst), 0);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn an_oversized_discovery_reply_is_refused_not_buffered() {
     const HEAD: &str = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n";
     // One reply announces a huge body and sends none; the other sends an
@@ -644,7 +644,7 @@ async fn an_oversized_discovery_reply_is_refused_not_buffered() {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn discovery_errors_name_the_failing_step_and_the_http_status() {
     let reply = b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
     let (base, task) = canned_http(reply.to_vec()).await;
@@ -665,7 +665,7 @@ async fn discovery_errors_name_the_failing_step_and_the_http_status() {
     task.abort();
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_window_is_picked_by_its_target_id_or_by_part_of_its_url() {
     let server = AttachServer::start(None).await;
     let browser = Browser::launch(attached_options(&server)).await.unwrap();
@@ -704,7 +704,7 @@ fn assert_second_window_is_the_only_one_touched(server: &AttachServer) {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn base_case_drives_the_window_named_in_the_configuration() {
     let server = AttachServer::start(None).await;
     let config = BrowserConfig::default()
@@ -740,7 +740,7 @@ fn the_window_to_drive_survives_a_round_trip_through_serde_and_the_builder() {
     assert_eq!(old.cdp_target, None);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn closing_resets_what_the_automation_set_for_the_whole_browser() {
     let server = AttachServer::start(None).await;
     let browser = Browser::launch(attached_options(&server)).await.unwrap();
@@ -802,7 +802,7 @@ mod plugins {
         }
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn base_case_passes_plugins_to_the_existing_cdp_host_with_stealth() {
         let server = AttachServer::start(None).await;
         let log = Arc::new(Mutex::new(Vec::new()));
@@ -860,7 +860,7 @@ mod plugins {
         }
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn attaching_preserves_the_plugin_launch_only_guard() {
         let server = AttachServer::start(None).await;
         let options = LaunchOptions::builder()

@@ -65,6 +65,7 @@ async fn becomes_visible(sb: &BaseCase, css: &str, limit: Duration) -> bool {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver and the network"]
+#[serial_test::serial(chrome)]
 async fn a_displayed_chart_is_drawn_and_a_headless_browser_waits_one_second() {
     let _guard = BROWSER_LOCK.lock().await;
     let _dir = work_in_a_temporary_folder();
@@ -107,6 +108,7 @@ async fn a_displayed_chart_is_drawn_and_a_headless_browser_waits_one_second() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver and the network"]
+#[serial_test::serial(chrome)]
 async fn two_named_charts_are_extracted_into_one_page_and_both_are_drawn() {
     let _guard = BROWSER_LOCK.lock().await;
     let dir = work_in_a_temporary_folder();
@@ -153,6 +155,7 @@ async fn two_named_charts_are_extracted_into_one_page_and_both_are_drawn() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver and the network"]
+#[serial_test::serial(chrome)]
 async fn a_presentation_with_an_interval_plays_by_itself_and_a_chart_on_a_slide_is_drawn() {
     let _guard = BROWSER_LOCK.lock().await;
     let _dir = work_in_a_temporary_folder();
@@ -215,6 +218,7 @@ async fn a_presentation_with_an_interval_plays_by_itself_and_a_chart_on_a_slide_
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn begin_presentation_shows_nothing_in_a_headless_browser() {
     let _guard = BROWSER_LOCK.lock().await;
     let dir = work_in_a_temporary_folder();

@@ -260,13 +260,13 @@ presentations, and optional stealth/CDP integrations.
 <LayoutDir name="tldr" note="draft tldr-pages entries for sbrs, kept to propose upstream" />
 </LayoutDir>
 <LayoutDir name="scripts" note="helper scripts">
-<LayoutFile name="check-consumers.sh" note="just contracts: checks what the repositories that build on this crate use" />
+<LayoutFile name="check-consumers.sh" note="mise run contracts: checks what the repositories that build on this crate use" />
 </LayoutDir>
 <LayoutDir name="tools" note="scripts for the docs and the parity manifests">
-<LayoutDir name="mdx-check" note="just mdx: builds every docs page as Docs7 does" />
+<LayoutDir name="mdx-check" note="mise run mdx: builds every docs page as Docs7 does" />
 <LayoutDir name="parity" note="extracts, seeds and renders the parity manifest (docs/parity.md)" />
 <LayoutDir name="layout_tree" note="the tree component that docs_layout_tree.py copies onto the pages" />
-<LayoutFile name="docs_layout_tree.py" note="just layout-tree: writes the layout trees of the docs pages" />
+<LayoutFile name="docs_layout_tree.py" note="mise run layout-tree: writes the layout trees of the docs pages" />
 <LayoutFile name="docs7_changelog.py" note="writes docs/changelog.md from CHANGELOG.md" />
 </LayoutDir>
 <LayoutDir name="docker" note="the Linux verification image (Dockerfile.verify, verify-linux.sh) and firefox-check/" />
@@ -281,8 +281,7 @@ presentations, and optional stealth/CDP integrations.
 </LayoutDir>
 <LayoutFile name="Dockerfile" note="the sbrs image; its skeleton step lists every target" />
 <LayoutFile name="Makefile" note="make targets" />
-<LayoutFile name="justfile" note="just recipes" />
-<LayoutFile name="mise.toml" note="tools and tasks for mise" />
+<LayoutFile name="mise.toml" note="the tools and the tasks of the repository (mise tasks ls)" />
 <LayoutFile name="deny.toml" note="the cargo-deny policy" />
 <LayoutFile name="clippy.toml" note="clippy settings" />
 <LayoutFile name="rust-analyzer.toml" note="settings for rust-analyzer" />
@@ -1150,8 +1149,8 @@ the `mcp` module, built with the `mcp-server` feature. A server is a
 
 <Step title="Pick the server file" icon="server">
 
-Pick the server file: `src/mcp/cdp.rs` (the Pure CDP engine),
-`src/mcp/driver.rs` or `src/mcp/sb.rs` (WebDriver, sharing the handlers in
+Pick the server folder: `src/mcp/cdp/` (the Pure CDP engine),
+`src/mcp/driver/` or `src/mcp/sb/` (WebDriver, sharing the handlers in
 `src/mcp/webdriver.rs`), or, for a tool that needs no browser, the `dev` server in
 `src/mcp/dev/` (`api.rs`, `author.rs`, `help.rs`, `cli.rs`, `diagnose.rs`). Every tool costs
 context in every session that loads its server, so a tool for the library or the
@@ -1175,6 +1174,13 @@ Register a `ToolDef::new(name, title, description, Effect, Schema, handler)`.
 Choose the `Effect` that is true of the tool (it becomes the MCP annotation
 hints) and describe each argument with `Prop`.
 
+A server's tools are grouped by what they do, one file per group in the server's
+folder (`session.rs`, `navigation.rs`, `page.rs`, `input.rs`, `storage.rs`,
+`windows.rs`, ...). Each file has a `tools()` function, and the `tools()` of the
+folder's `mod.rs` joins them in the order clients see. Add the `ToolDef` to the
+file of its group, or add a file and list it in `mod.rs` where the tool belongs
+in that order.
+
 </Step>
 
 <Step title="Write files safely" icon="folder-closed">
@@ -1187,7 +1193,12 @@ keeps them inside the output directory.
 <Step title="Test it" icon="flask">
 
 Test it: `tests/mcp_cdp.rs` shows how to drive a tool against the mock
-browser; `tests/mcp_webdriver.rs` covers the catalogues. A `dev` tool is tested in
+browser; `tests/mcp_webdriver.rs` covers the catalogues. `tests/mcp_tool_lists.rs`
+compares what `tools/list` answers on each server (names in order, descriptions,
+schemas, annotations) with `tests/golden/mcp_tools/*.json`; a new or changed tool
+fails it until you write the snapshots again with
+`UPDATE_GOLDEN=1 cargo test --features mcp-server --test mcp_tool_lists` and
+commit them. A `dev` tool is tested in
 its own file with `Host::call`, and `install_driver` through
 `mcp::dev::host_with_installer` with a fake downloader, never the network.
 

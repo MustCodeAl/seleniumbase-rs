@@ -114,6 +114,7 @@ impl Plugin for Witness {
 
 #[tokio::test]
 #[ignore = "needs a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_hooks_work_against_a_real_chrome() -> Result<(), SeleniumBaseError> {
     let site = serve();
     let log = Log::default();

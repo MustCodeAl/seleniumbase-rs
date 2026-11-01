@@ -6,13 +6,15 @@
 //   fine; `{browser}` with no `browser` defined fails the page on Docs7.
 // - No relative link to a `.md` file: Docs7 serves those raw. Use the site route
 //   (`/tutorials/selectors`), in Markdown links and in component `href`s alike.
+// - No link whose target is a Rust path (`self`, `Self::build`, `seleniumbase_rs::sb_cdp::T`):
+//   rustdoc resolves those, Docs7 shows them as broken links.
 // - The front matter has a title.
 // - Every page is in the navigation of docs.json, and every page there exists.
 // - The copy of the tree component on a page, and every layout tree between its markers, is
 //   the one tools/docs_layout_tree.py prints (CONTRIBUTING.md at the root included);
-//   `just layout-tree` writes them again.
+//   `mise run layout-tree` writes them again.
 //
-// Usage: just mdx  (or: bun tools/mdx-check/check.mjs docs)
+// Usage: mise run mdx  (or: bun tools/mdx-check/check.mjs docs)
 import { compile } from "@mdx-js/mdx";
 import remarkFrontmatter from "remark-frontmatter";
 import remarkGfm from "remark-gfm";
@@ -32,6 +34,9 @@ const GLOBALS = new Set([
   "parseFloat", "isNaN",
 ]);
 const RELATIVE_MD = /^(?!https?:|mailto:|\/|#)[^\s]*\.mdx?(#.*)?$/;
+// A rustdoc intra-doc link target (`self`, `super::X`, `Self::f`, `crate::m`,
+// `seleniumbase_rs::sb_cdp::T`, `Type::method`): it resolves in `cargo doc`, not on Docs7.
+const RUST_PATH = /^(?:self|super|crate|Self)(?:::\S*)?$|^[A-Za-z_][A-Za-z0-9_]*::\S+$/;
 
 function pages(dir, out = []) {
   for (const name of readdirSync(dir).sort()) {
@@ -156,6 +161,9 @@ function checkTree(problems) {
       if ((node.type === "link" || node.type === "definition") && RELATIVE_MD.test(node.url ?? "")) {
         problems.push(`${at(node)}: link (${node.url}) opens the raw file on Docs7; use the site route (/path/page)`);
       }
+      if ((node.type === "link" || node.type === "definition") && RUST_PATH.test(node.url ?? "")) {
+        problems.push(`${at(node)}: link (${node.url}) is a Rust path: it resolves in cargo doc, not on Docs7; link the site route or write the name in backticks`);
+      }
     });
   };
 }
@@ -177,7 +185,7 @@ function navPages(config) {
 }
 
 // The layout trees. A page's copy of the tree component, and a layout tree between its
-// markers, must be what tools/docs_layout_tree.py prints; `just layout-tree` writes them again.
+// markers, must be what tools/docs_layout_tree.py prints; `mise run layout-tree` writes them again.
 const LAYOUT_SCRIPT = fileURLToPath(new URL("../docs_layout_tree.py", import.meta.url));
 const COMPONENT_MARKERS = ["{/* layout-tree-component:start */}", "{/* layout-tree-component:end */}"];
 const TREE_MARKERS = ["{/* layout-tree:start */}", "{/* layout-tree:end */}"];
@@ -217,7 +225,7 @@ function layoutProblems(raw, canon) {
     let n = 0;
     while (n < found.length && n < wanted.length && found[n] === wanted[n]) n++;
     if (n < found.length || n < wanted.length) {
-      problems.push([lineOf(start) + n, `${what} differs from the canonical one at line ${n + 1} of its block (just layout-tree writes it again)`]);
+      problems.push([lineOf(start) + n, `${what} differs from the canonical one at line ${n + 1} of its block (mise run layout-tree writes it again)`]);
     }
   };
   const componentStart = raw.indexOf(COMPONENT_MARKERS[0]);

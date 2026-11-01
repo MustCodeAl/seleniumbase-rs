@@ -102,6 +102,7 @@ async fn seen(sb: &BaseCase) -> serde_json::Value {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver and network access to cdnjs"]
+#[serial_test::serial(chrome)]
 async fn a_clicked_button_is_the_answer() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = watched_case().await;
@@ -124,6 +125,7 @@ async fn a_clicked_button_is_the_answer() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver and network access to cdnjs"]
+#[serial_test::serial(chrome)]
 async fn a_key_clicks_the_button_it_belongs_to() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = watched_case().await;
@@ -140,6 +142,7 @@ async fn a_key_clicks_the_button_it_belongs_to() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver and network access to cdnjs"]
+#[serial_test::serial(chrome)]
 async fn the_text_of_the_input_is_the_answer_and_the_form_submits() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = watched_case().await;
@@ -156,6 +159,7 @@ async fn the_text_of_the_input_is_the_answer_and_the_form_submits() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver and network access to cdnjs"]
+#[serial_test::serial(chrome)]
 async fn a_form_answers_with_the_text_and_the_button() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = watched_case().await;
@@ -172,6 +176,7 @@ async fn a_form_answers_with_the_text_and_the_button() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver and network access to cdnjs"]
+#[serial_test::serial(chrome)]
 async fn the_stored_theme_and_a_calls_own_options_style_the_box() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = watched_case().await;
@@ -218,6 +223,7 @@ async fn the_stored_theme_and_a_calls_own_options_style_the_box() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver and network access to cdnjs"]
+#[serial_test::serial(chrome)]
 async fn nobody_answering_ends_with_the_time_limit() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = watched_case().await;
@@ -237,6 +243,7 @@ async fn nobody_answering_ends_with_the_time_limit() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn in_a_headless_browser_the_dialogs_do_not_open() {
     let _guard = BROWSER_LOCK.lock().await;
     // No `with_somebody_watching`: nobody watches a headless browser.

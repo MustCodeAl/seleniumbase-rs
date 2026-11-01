@@ -60,6 +60,7 @@ async fn text_of(host: &Host<BaseCase>, tool: &str, v: Value) -> String {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_model_can_drive_a_page_through_the_sb_server() {
     let dir = tempfile::tempdir().unwrap();
     let host = sb::host(Settings::new(dir.path()));

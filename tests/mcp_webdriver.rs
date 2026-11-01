@@ -216,7 +216,7 @@ fn the_debugging_tools_of_the_driver_server_are_the_ones_of_the_sb_server() {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_driver_servers_debugging_tools_need_a_started_browser_like_the_sb_servers() {
     let host = driver::host(Settings::new("unused"));
 
@@ -322,7 +322,7 @@ fn every_tool_describes_itself_with_a_schema_a_description_and_a_title() {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_browser_tool_before_start_browser_says_to_start_one() {
     let host = sb::host(Settings::new("unused"));
 
@@ -334,7 +334,7 @@ async fn a_browser_tool_before_start_browser_says_to_start_one() {
     assert!(error.to_string().contains("start_browser"), "{error}");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn page_info_reports_not_running_until_a_browser_starts() {
     let host = sb::host(Settings::new("unused"));
 
@@ -343,7 +343,7 @@ async fn page_info_reports_not_running_until_a_browser_starts() {
     assert_eq!(info.as_json(), Some(&json!({ "running": false })));
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn closing_with_nothing_running_is_harmless() {
     let host = driver::host(Settings::new("unused"));
 
@@ -352,7 +352,7 @@ async fn closing_with_nothing_running_is_harmless() {
     assert_eq!(answer.as_text(), Some("No browser session was running."));
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn starting_with_incognito_and_guest_together_is_rejected_before_anything_launches() {
     let host = sb::host(Settings::new("unused"));
 
@@ -374,7 +374,7 @@ async fn starting_with_incognito_and_guest_together_is_rejected_before_anything_
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn an_unknown_browser_lists_the_choices() {
     let host = sb::host(Settings::new("unused"));
 
@@ -389,7 +389,7 @@ async fn an_unknown_browser_lists_the_choices() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn files_are_refused_outside_the_output_directory_before_the_browser_is_asked() {
     let host = sb::host(Settings::new("out"));
 
@@ -404,7 +404,7 @@ async fn files_are_refused_outside_the_output_directory_before_the_browser_is_as
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn only_http_and_https_urls_can_be_downloaded() {
     let host = sb::host(Settings::new("out"));
 
@@ -419,7 +419,7 @@ async fn only_http_and_https_urls_can_be_downloaded() {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn cookie_files_cannot_name_a_path_outside_the_cookie_directory() {
     let dir = tempfile::tempdir().unwrap();
     let host = sb::host(Settings::new(dir.path()));
@@ -440,7 +440,7 @@ async fn cookie_files_cannot_name_a_path_outside_the_cookie_directory() {
 // Stealth tools, which need no browser
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_stealth_tools_work_without_a_browser() {
     let host = sb::host(Settings::new("unused"));
 
@@ -476,7 +476,7 @@ async fn the_stealth_tools_work_without_a_browser() {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_bootstrap_and_the_provider_list_are_the_ones_a_browser_session_runs() {
     let host = sb::host(Settings::new("unused"));
     let fingerprint = seleniumbase_rs::Fingerprint::windows_desktop();
@@ -509,7 +509,7 @@ async fn the_bootstrap_and_the_provider_list_are_the_ones_a_browser_session_runs
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_fingerprint_can_be_overridden_and_a_bad_preset_is_rejected() {
     let host = sb::host(Settings::new("unused"));
 

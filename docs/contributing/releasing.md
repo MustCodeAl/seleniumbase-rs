@@ -66,8 +66,17 @@ cargo nextest run --features "mcp-server test-util"
 cargo test --doc --features "mcp-server test-util"
 cargo audit && cargo deny --workspace check
 trufflehog filesystem . --only-verified && ripsecrets
-just mdx && mdbook build
+mise run mdx && mdbook build
+mise run semver
+mise run features --partition 1/6   # then 2/6 ... 6/6
+mise run unused-deps
 ```
+
+The last three lines are the checks for a release (see
+[Checks for a release](/contributing/from-source#checks-for-a-release)): `mise run semver` compares
+the public API with the last tag and says which version number the changes need, `mise run features`
+builds each cargo feature of the library alone, and `mise run unused-deps` lists dependencies that no
+code uses. They are slow, so they run once, on the release commit.
 
 </Step>
 <Step title="Publish main and the tag">
@@ -122,7 +131,7 @@ Commit `sbrs X.Y.Z` and push. `brew upgrade sbrs` then gives users the release.
 
 The companion extension's end-to-end crate pins the library by tag: move it to `vX.Y.Z`.
 The stealth workspace follows with `cargo update -p seleniumbase-rs` and its own gates.
-Before the tag, run `just contracts --check-build` (see Consumer contracts): it compiles each
+Before the tag, run `mise run contracts --check-build` (see Consumer contracts): it compiles each
 consumer against this checkout, so the pins can be moved with nothing left to break.
 
 </Step>

@@ -15,6 +15,7 @@ use crate::support::{headless, run_port};
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens saucedemo.com"]
+#[serial_test::serial(chrome)]
 async fn my_first_test() -> Result<()> {
     run_browser_test(headless(), async |sb| {
         sb.goto("https://www.saucedemo.com").await?;
@@ -51,6 +52,7 @@ async fn my_first_test() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/demo_page"]
+#[serial_test::serial(chrome)]
 async fn test_demo_site() -> Result<()> {
     run_port(async |sb, _| {
         // Open a web page in the active browser window
@@ -178,6 +180,7 @@ async fn test_demo_site() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/w3schools/iframes.html"]
+#[serial_test::serial(chrome)]
 async fn iframe_tests_iframe_basics() -> Result<()> {
     run_browser_test(headless(), async |sb| {
         sb.goto("https://seleniumbase.io/w3schools/iframes.html")
@@ -205,6 +208,7 @@ async fn iframe_tests_iframe_basics() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/w3schools/iframes.html"]
+#[serial_test::serial(chrome)]
 async fn iframe_tests_iframes_with_context_manager() -> Result<()> {
     run_browser_test(headless(), async |sb| {
         sb.goto("https://seleniumbase.io/w3schools/iframes.html")
@@ -242,6 +246,7 @@ async fn iframe_tests_iframes_with_context_manager() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/w3schools/iframes.html"]
+#[serial_test::serial(chrome)]
 async fn iframe_tests_set_content_to_frame() -> Result<()> {
     run_browser_test(headless(), async |sb| {
         sb.goto("https://seleniumbase.io/w3schools/iframes.html")
@@ -268,6 +273,7 @@ async fn iframe_tests_set_content_to_frame() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens data: pages and a second browser"]
+#[serial_test::serial(chrome)]
 async fn test_window_switching() -> Result<()> {
     run_browser_test(headless(), async |sb| {
         sb.goto("about:blank").await?;
@@ -293,6 +299,7 @@ async fn test_window_switching() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/coffee"]
+#[serial_test::serial(chrome)]
 async fn test_coffee_cart() -> Result<()> {
     run_browser_test(headless(), async |sb| {
         sb.goto("https://seleniumbase.io/coffee/").await?;
@@ -326,6 +333,7 @@ async fn test_coffee_cart() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/demo_page"]
+#[serial_test::serial(chrome)]
 async fn test_assert_elements() -> Result<()> {
     run_browser_test(headless(), async |sb| {
         sb.goto("https://seleniumbase.io/demo_page").await?;
@@ -344,6 +352,7 @@ async fn test_assert_elements() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/w3schools pages"]
+#[serial_test::serial(chrome)]
 async fn test_checkboxes() -> Result<()> {
     run_browser_test(headless(), async |sb| {
         sb.goto("https://seleniumbase.io/w3schools/checkboxes")
@@ -372,6 +381,7 @@ async fn test_checkboxes() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/demo_page"]
+#[serial_test::serial(chrome)]
 async fn test_select_options() -> Result<()> {
     run_port(async |sb, _| {
         sb.goto("https://seleniumbase.io/demo_page").await?;
@@ -433,6 +443,7 @@ async fn test_select_options() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/other/shadow_dom"]
+#[serial_test::serial(chrome)]
 async fn shadow_root_test() -> Result<()> {
     run_port(async |sb, _| {
         sb.goto("https://seleniumbase.io/other/shadow_dom").await?;
@@ -465,6 +476,7 @@ async fn shadow_root_test() -> Result<()> {
 /// shadow roots of `chrome://downloads/` with `::shadow` selectors.
 #[tokio::test]
 #[ignore = "real headless Chrome; opens chrome://downloads/ (the Python test skips headless)"]
+#[serial_test::serial(chrome)]
 async fn test_shadow_dom() -> Result<()> {
     run_port(async |sb, _| {
         sb.goto("chrome://downloads/").await?;
@@ -493,6 +505,7 @@ async fn test_shadow_dom() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/w3schools/double_click"]
+#[serial_test::serial(chrome)]
 async fn test_double_click_switch_to_frame_and_double_click() -> Result<()> {
     run_browser_test(headless(), async |sb| {
         sb.goto("https://seleniumbase.io/w3schools/double_click")
@@ -508,6 +521,7 @@ async fn test_double_click_switch_to_frame_and_double_click() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/w3schools/double_click"]
+#[serial_test::serial(chrome)]
 async fn test_double_click_switch_to_frame_of_element_and_double_click() -> Result<()> {
     run_browser_test(headless(), async |sb| {
         sb.goto("https://seleniumbase.io/w3schools/double_click")
@@ -528,6 +542,7 @@ async fn test_double_click_switch_to_frame_of_element_and_double_click() -> Resu
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/other/drag_and_drop"]
+#[serial_test::serial(chrome)]
 async fn test_drag_and_drop_drag_and_drop() -> Result<()> {
     run_browser_test(headless(), async |sb| {
         sb.goto("https://seleniumbase.io/other/drag_and_drop")
@@ -543,6 +558,7 @@ async fn test_drag_and_drop_drag_and_drop() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/w3schools/drag_drop"]
+#[serial_test::serial(chrome)]
 async fn test_drag_and_drop_w3schools_drag_and_drop() -> Result<()> {
     run_browser_test(headless(), async |sb| {
         sb.goto("https://seleniumbase.io/w3schools/drag_drop")
@@ -565,6 +581,7 @@ async fn test_drag_and_drop_w3schools_drag_and_drop() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/help_docs/how_it_works"]
+#[serial_test::serial(chrome)]
 async fn test_url_asserts() -> Result<()> {
     run_port(async |sb, _| {
         sb.goto("https://seleniumbase.io/help_docs/how_it_works/")
@@ -588,6 +605,7 @@ async fn test_url_asserts() -> Result<()> {
 /// `process_deferred_asserts` reports those four, and only those.
 #[tokio::test]
 #[ignore = "real headless Chrome; opens xkcd.com/993"]
+#[serial_test::serial(chrome)]
 async fn test_deferred_asserts() -> Result<()> {
     run_browser_test(headless(), async |sb| {
         sb.goto("https://xkcd.com/993/").await?;
@@ -626,6 +644,7 @@ async fn test_deferred_asserts() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens about:blank and raises JavaScript alerts"]
+#[serial_test::serial(chrome)]
 async fn handle_alert_test() -> Result<()> {
     run_browser_test(headless(), async |sb| {
         sb.goto("about:blank").await?;
@@ -652,6 +671,7 @@ async fn handle_alert_test() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/demo_page"]
+#[serial_test::serial(chrome)]
 async fn xpath_test() -> Result<()> {
     run_browser_test(headless(), async |sb| {
         sb.goto("https://seleniumbase.io/demo_page").await?;
@@ -674,6 +694,7 @@ async fn xpath_test() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/simple/login"]
+#[serial_test::serial(chrome)]
 async fn test_simple_login() -> Result<()> {
     run_browser_test(headless(), async |sb| {
         sb.goto("https://seleniumbase.io/simple/login").await?;
@@ -695,6 +716,7 @@ async fn test_simple_login() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens xkcd.com/2207"]
+#[serial_test::serial(chrome)]
 async fn test_contains_selector() -> Result<()> {
     run_browser_test(headless(), async |sb| {
         sb.goto("https://xkcd.com/2207/").await?;
@@ -713,6 +735,7 @@ async fn test_contains_selector() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/demo_page"]
+#[serial_test::serial(chrome)]
 async fn test_cycle_elements_with_tab_and_press_enter() -> Result<()> {
     run_browser_test(headless(), async |sb| {
         // Python: goto("seleniumbase.io/demo_page"), a URL with no scheme.
@@ -730,6 +753,7 @@ async fn test_cycle_elements_with_tab_and_press_enter() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/demo_page"]
+#[serial_test::serial(chrome)]
 async fn test_highlight_elements_highlight_inputs() -> Result<()> {
     run_browser_test(headless(), async |sb| {
         sb.goto("https://seleniumbase.io/demo_page").await?;
@@ -747,6 +771,7 @@ async fn test_highlight_elements_highlight_inputs() -> Result<()> {
 /// anyway, to see whether this crate can drive the TinyMCE editor headless.
 #[tokio::test]
 #[ignore = "real headless Chrome; opens seleniumbase.io/tinymce (the Python test skips headless)"]
+#[serial_test::serial(chrome)]
 async fn test_tinymce() -> Result<()> {
     run_browser_test(headless(), async |sb| {
         sb.goto("https://seleniumbase.io/tinymce/").await?;
@@ -821,18 +846,21 @@ async fn todomvc(framework: &str) -> Result<()> {
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens todomvc.com"]
+#[serial_test::serial(chrome)]
 async fn test_todomvc_jquery() -> Result<()> {
     todomvc("jquery").await
 }
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens todomvc.com"]
+#[serial_test::serial(chrome)]
 async fn test_todomvc_react() -> Result<()> {
     todomvc("react").await
 }
 
 #[tokio::test]
 #[ignore = "real headless Chrome; opens todomvc.com"]
+#[serial_test::serial(chrome)]
 async fn test_todomvc_vue() -> Result<()> {
     todomvc("vue").await
 }

@@ -57,7 +57,7 @@ fn script_locator(mock: &MockCtrl, present: usize, visible: bool) {
     });
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_click_moves_presses_and_releases_at_the_elements_centre() {
     let (page, mock) = quick_page().await;
     script_locator(&mock, 1, true);
@@ -85,7 +85,7 @@ async fn a_click_moves_presses_and_releases_at_the_elements_centre() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_missing_element_is_reported_as_not_found_with_its_locator() {
     let (page, mock) = quick_page().await;
     script_locator(&mock, 0, false);
@@ -102,7 +102,7 @@ async fn a_missing_element_is_reported_as_not_found_with_its_locator() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn an_element_that_never_becomes_visible_is_not_interactable_rather_than_missing() {
     let (page, mock) = quick_page().await;
     script_locator(&mock, 1, false);
@@ -115,7 +115,7 @@ async fn an_element_that_never_becomes_visible_is_not_interactable_rather_than_m
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn waiting_succeeds_once_the_element_appears() {
     let (page, mock) = quick_page().await;
     let probes = Arc::new(AtomicUsize::new(0));
@@ -137,7 +137,7 @@ async fn waiting_succeeds_once_the_element_appears() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn waiting_times_out_with_a_message_naming_the_locator_and_state() {
     let (page, mock) = quick_page().await;
     script_locator(&mock, 0, false);
@@ -159,7 +159,7 @@ async fn waiting_times_out_with_a_message_naming_the_locator_and_state() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn narrowing_a_locator_is_visible_to_the_page_as_a_resolution_chain() {
     let (page, mock) = quick_page().await;
     script_locator(&mock, 3, true);
@@ -177,7 +177,7 @@ async fn narrowing_a_locator_is_visible_to_the_page_as_a_resolution_chain() {
     assert_eq!(third_visible.to_string(), "ul > li [visible, nth=2]");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn nesting_locators_searches_inside_the_parent() {
     let (page, mock) = quick_page().await;
     script_locator(&mock, 1, true);
@@ -204,7 +204,7 @@ async fn nesting_locators_searches_inside_the_parent() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn fill_clears_then_inserts_in_one_step_and_type_text_sends_a_key_per_character() {
     let (page, mock) = quick_page().await;
     script_locator(&mock, 1, true);
@@ -251,7 +251,7 @@ fn emptied_before_typing(mock: &MockCtrl) -> (bool, usize) {
     )
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn type_text_empties_the_field_first_like_pythons_type_and_send_keys_does_not() {
     let (page, mock) = quick_page().await;
     script_locator(&mock, 1, true);
@@ -260,7 +260,7 @@ async fn type_text_empties_the_field_first_like_pythons_type_and_send_keys_does_
     assert_eq!(emptied_before_typing(&mock), (true, 2));
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn send_keys_types_after_what_the_field_holds() {
     let (page, mock) = quick_page().await;
     script_locator(&mock, 1, true);
@@ -272,7 +272,7 @@ async fn send_keys_types_after_what_the_field_holds() {
     assert_eq!(keys, 2);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn pressing_enter_produces_a_character_so_forms_submit() {
     let (page, mock) = quick_page().await;
     script_locator(&mock, 1, true);
@@ -284,7 +284,7 @@ async fn pressing_enter_produces_a_character_so_forms_submit() {
     assert_eq!(down.params["text"], "\r");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn an_unknown_dropdown_option_is_a_selector_error_naming_the_option() {
     let (page, mock) = quick_page().await;
     mock.on("Runtime.evaluate", |params| {
@@ -311,7 +311,7 @@ async fn an_unknown_dropdown_option_is_a_selector_error_naming_the_option() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn an_invalid_selector_is_a_selector_error_for_reads_and_for_clicks() {
     let (page, mock) = quick_page().await;
     mock.on("Runtime.evaluate", |_| {
@@ -334,7 +334,7 @@ async fn an_invalid_selector_is_a_selector_error_for_reads_and_for_clicks() {
     assert!(mock.calls_to("Input.dispatchMouseEvent").is_empty());
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_lost_connection_is_not_reported_as_a_missing_element() {
     let (page, mock) = quick_page().await;
     script_locator(&mock, 1, true);
@@ -348,7 +348,7 @@ async fn a_lost_connection_is_not_reported_as_a_missing_element() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn goto_normalises_a_bare_host_and_waits_for_the_load_event() {
     let (page, mock) = quick_page().await;
 
@@ -359,7 +359,7 @@ async fn goto_normalises_a_bare_host_and_waits_for_the_load_event() {
     assert_eq!(navigate[0].params["url"], "https://seleniumbase.io");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_failed_navigation_reports_the_url_and_the_browsers_reason() {
     let (page, mock) = quick_page().await;
     mock.reply(
@@ -376,7 +376,7 @@ async fn a_failed_navigation_reports_the_url_and_the_browsers_reason() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_navigation_that_becomes_a_download_is_not_an_error() {
     let (page, mock) = quick_page().await;
     mock.reply("Page.navigate", json!({ "errorText": "net::ERR_ABORTED" }));
@@ -384,7 +384,7 @@ async fn a_navigation_that_becomes_a_download_is_not_an_error() {
     page.goto("https://example.com/report.pdf").await.unwrap();
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn going_back_at_the_start_of_history_does_nothing() {
     let (page, mock) = quick_page().await;
 
@@ -393,7 +393,7 @@ async fn going_back_at_the_start_of_history_does_nothing() {
     assert!(mock.calls_to("Page.navigateToHistoryEntry").is_empty());
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn expectation_failures_say_what_was_expected_and_what_was_seen() {
     let (page, mock) = quick_page().await;
     mock.on("Runtime.evaluate", |params| {
@@ -423,7 +423,7 @@ async fn expectation_failures_say_what_was_expected_and_what_was_seen() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_negated_expectation_passes_when_the_plain_one_would_fail() {
     let (page, mock) = quick_page().await;
     script_locator(&mock, 1, false);
@@ -436,7 +436,7 @@ async fn a_negated_expectation_passes_when_the_plain_one_would_fail() {
         .unwrap();
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn page_expectations_retry_until_the_title_changes() {
     let (page, mock) = quick_page().await;
     let page = page.with_timeout(Duration::from_secs(2));
@@ -455,7 +455,7 @@ async fn page_expectations_retry_until_the_title_changes() {
     page.expect().to_have_title("Dashboard").await.unwrap();
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn cookies_survive_a_save_and_load_and_their_values_stay_out_of_debug_output() {
     let (page, mock) = quick_page().await;
     mock.reply(
@@ -489,7 +489,7 @@ async fn cookies_survive_a_save_and_load_and_their_values_stay_out_of_debug_outp
     assert!(!format!("{cookie:?}").contains("s3cret"));
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_session_cookie_has_no_expiry_and_a_persistent_one_keeps_it() {
     let (page, mock) = quick_page().await;
     mock.reply(
@@ -506,7 +506,7 @@ async fn a_session_cookie_has_no_expiry_and_a_persistent_one_keeps_it() {
     assert_eq!(cookies[1].expires, Some(1_900_000_000.0));
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_tab_sees_only_its_own_events() {
     let (page, mock) = quick_page().await;
     let mut events = page.events();
@@ -529,7 +529,7 @@ async fn a_tab_sees_only_its_own_events() {
     assert_eq!(event.params["from"], "this tab");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn closing_a_tab_asks_the_browser_to_close_exactly_that_target() {
     let (page, mock) = quick_page().await;
 
@@ -540,7 +540,7 @@ async fn closing_a_tab_asks_the_browser_to_close_exactly_that_target() {
     assert_eq!(closes[0].params["targetId"], page.id());
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn opening_a_page_attaches_to_the_new_target() {
     let (browser, mock) = Browser::new_mocked();
 
@@ -604,7 +604,7 @@ fn script_captcha(mock: &MockCtrl, found: Value) {
     });
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn solving_a_checkbox_captcha_clicks_near_its_left_edge_at_mid_height() {
     let (page, mock) = quick_page().await;
     // Turnstile is the first kind; a 300x65 widget at (100, 200).
@@ -644,7 +644,7 @@ async fn solving_a_checkbox_captcha_clicks_near_its_left_edge_at_mid_height() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn solving_a_slider_captcha_drags_across_the_widget() {
     let (page, mock) = quick_page().await;
     // DataDome is the last kind.
@@ -694,7 +694,7 @@ async fn solving_a_slider_captcha_drags_across_the_widget() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_page_with_no_captcha_is_left_alone() {
     let (page, mock) = quick_page().await;
     script_captcha(&mock, Value::Null);
@@ -703,7 +703,7 @@ async fn a_page_with_no_captcha_is_left_alone() {
     assert!(mock.calls_to("Input.dispatchMouseEvent").is_empty());
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn reload_keeps_the_cache_and_hard_reload_bypasses_it() {
     let (page, mock) = quick_page().await;
 
@@ -722,7 +722,7 @@ async fn reload_keeps_the_cache_and_hard_reload_bypasses_it() {
 // Offsets, screen geometry and URL collection
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn click_with_offset_measures_from_the_elements_top_left() {
     let (page, mock) = quick_page().await;
     mock.on("Runtime.evaluate", |params| {
@@ -799,7 +799,7 @@ fn pressed_at(mock: &MockCtrl) -> Vec<(f64, f64)> {
         .collect()
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn an_offset_click_measures_from_the_top_left_or_from_the_centre_as_asked() {
     let (page, mock) = quick_page().await;
     script_sized_element(&mock, true);
@@ -815,7 +815,7 @@ async fn an_offset_click_measures_from_the_top_left_or_from_the_centre_as_asked(
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn clicking_only_if_visible_clicks_a_visible_element_and_reports_it() {
     let (page, mock) = quick_page().await;
     script_sized_element(&mock, true);
@@ -826,7 +826,7 @@ async fn clicking_only_if_visible_clicks_a_visible_element_and_reports_it() {
     assert_eq!(pressed_at(&mock), [(200.0, 100.0)]);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn clicking_only_if_visible_leaves_a_hidden_element_alone_without_waiting() {
     let (page, mock) = quick_page().await;
     script_sized_element(&mock, false);
@@ -842,7 +842,7 @@ async fn clicking_only_if_visible_leaves_a_hidden_element_alone_without_waiting(
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn clicking_only_if_visible_waits_up_to_the_timeout_for_the_element() {
     let (page, mock) = quick_page().await;
     let looks = Arc::new(AtomicUsize::new(0));
@@ -869,7 +869,7 @@ async fn clicking_only_if_visible_waits_up_to_the_timeout_for_the_element() {
     assert_eq!(pressed_at(&mock), [(20.0, 30.0)]);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn clicking_only_if_visible_still_reports_a_selector_that_is_invalid() {
     let (page, mock) = quick_page().await;
     mock.on("Runtime.evaluate", |_| {
@@ -884,7 +884,7 @@ async fn clicking_only_if_visible_still_reports_a_selector_that_is_invalid() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn an_elements_urls_are_absolute_unique_and_in_page_order() {
     let (page, mock) = quick_page().await;
     mock.on("Runtime.evaluate", |params| {
@@ -918,7 +918,7 @@ async fn an_elements_urls_are_absolute_unique_and_in_page_order() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn an_elements_screen_rect_adds_the_window_origin_and_toolbar_and_removes_the_scroll() {
     let (page, mock) = quick_page().await;
     mock.on("Runtime.evaluate", |params| {
@@ -950,7 +950,7 @@ async fn an_elements_screen_rect_adds_the_window_origin_and_toolbar_and_removes_
 // WebRTC leak probing and shielding
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_webrtc_probe_turns_candidate_lines_into_a_report() {
     let (page, mock) = quick_page().await;
     mock.reply(
@@ -973,7 +973,7 @@ async fn the_webrtc_probe_turns_candidate_lines_into_a_report() {
     assert_eq!(report.leaks().len(), 2);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_page_that_gathers_nothing_has_a_clean_report() {
     let (page, mock) = quick_page().await;
     mock.reply("Runtime.evaluate", value(json!([])));
@@ -981,7 +981,7 @@ async fn a_page_that_gathers_nothing_has_a_clean_report() {
     assert!(page.webrtc_report().await.unwrap().is_clean());
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn shielding_webrtc_installs_the_shim_now_and_for_every_new_document() {
     let (page, mock) = quick_page().await;
 
@@ -1004,7 +1004,7 @@ async fn shielding_webrtc_installs_the_shim_now_and_for_every_new_document() {
     assert!(!now.is_empty(), "the current document is shielded too");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_page_is_not_shielded_unless_asked() {
     let (_page, mock) = quick_page().await;
 
@@ -1039,7 +1039,7 @@ fn tab_calls_after(mock: &MockCtrl, skip: usize) -> Vec<(String, Value)> {
         .collect()
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_fingerprint_is_applied_script_first_then_overrides() {
     let (page, mock) = quick_page().await;
     let fingerprint = Fingerprint::randomized(OsType::Windows, 7);
@@ -1071,7 +1071,7 @@ async fn a_fingerprint_is_applied_script_first_then_overrides() {
     }
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_proxy_password_in_a_fingerprint_is_never_sent_to_the_browser() {
     let (page, mock) = quick_page().await;
     let fingerprint = Fingerprint::randomized(OsType::Linux, 3)
@@ -1098,7 +1098,7 @@ async fn the_proxy_password_in_a_fingerprint_is_never_sent_to_the_browser() {
     assert!(!everything.contains("Proxy-Authorization"));
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn permissions_are_granted_in_the_tabs_own_browser_context() {
     let (page, mock) = quick_page().await;
     mock.reply(
@@ -1119,7 +1119,7 @@ async fn permissions_are_granted_in_the_tabs_own_browser_context() {
     assert_eq!(grants[0].session_id, None, "a browser-wide command");
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_refused_override_is_named_in_the_error() {
     let (page, mock) = quick_page().await;
     mock.fail("Emulation.setTimezoneOverride", "invalid timezone");
@@ -1136,7 +1136,7 @@ async fn a_refused_override_is_named_in_the_error() {
 // Script errors
 // ----------------------------------------------------------------------
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_page_without_script_errors_passes_the_assertion() {
     let (page, mock) = quick_page().await;
     mock.reply("Runtime.evaluate", value(json!([])));
@@ -1145,7 +1145,7 @@ async fn a_page_without_script_errors_passes_the_assertion() {
     page.assert_no_js_errors().await.unwrap();
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_first_script_error_is_named_and_the_rest_counted() {
     let (page, mock) = quick_page().await;
     mock.reply(
@@ -1202,7 +1202,7 @@ fn script_title_and_locator(mock: &MockCtrl, title: &'static str) {
     });
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_helper_written_over_the_traits_runs_on_a_cdp_page() {
     let (mut page, mock) = quick_page().await;
     script_title_and_locator(&mock, "Dashboard");
@@ -1223,7 +1223,7 @@ async fn a_helper_written_over_the_traits_runs_on_a_cdp_page() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn the_same_helper_fails_when_the_title_is_wrong() {
     let (mut page, mock) = quick_page().await;
     script_title_and_locator(&mock, "Login");
@@ -1236,7 +1236,7 @@ async fn the_same_helper_fails_when_the_title_is_wrong() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn quitting_through_the_trait_closes_the_tab() {
     let (mut page, mock) = quick_page().await;
 
@@ -1245,7 +1245,7 @@ async fn quitting_through_the_trait_closes_the_tab() {
     assert_eq!(mock.calls_to("Target.closeTarget").len(), 1);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_screenshot_through_the_trait_is_the_browsers_png() {
     use base64::Engine;
     let (page, mock) = quick_page().await;
@@ -1258,7 +1258,7 @@ async fn a_screenshot_through_the_trait_is_the_browsers_png() {
     assert_eq!(ScreenshotApi::screenshot_as_png(&page).await.unwrap(), png);
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn a_screenshot_name_that_could_leave_the_logs_directory_is_refused() {
     let (page, mock) = quick_page().await;
     mock.reply("Page.captureScreenshot", json!({ "data": "" }));
@@ -1278,7 +1278,7 @@ async fn a_screenshot_name_that_could_leave_the_logs_directory_is_refused() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 async fn every_tab_is_told_it_has_focus_so_input_reaches_it() {
     let (browser, mock) = Browser::new_mocked();
     let _first = browser.default_page().await.unwrap();

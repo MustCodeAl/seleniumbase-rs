@@ -12,6 +12,10 @@
 //! [`DevSession::evaluate`]. It leaves nothing behind in the page, except the
 //! console recorder that `get_console_messages` installs when asked to.
 
+mod diagnostics;
+mod exports;
+mod selectors;
+
 use std::future::Future;
 use std::time::Duration;
 
@@ -131,193 +135,11 @@ fn selector_prop() -> Prop {
 }
 
 /// The developer tools that need a browser, for a server whose session is `S`.
-#[expect(
-    clippy::too_many_lines,
-    reason = "the tool table reads best as one list"
-)]
 pub(super) fn tools<S: DevSession>() -> Vec<ToolDef<S>> {
-    vec![
-        ToolDef::new(
-            "inspect_page",
-            "Inspect Page",
-            "Outline the current page for writing a test: URL, title, ready state, headings, \
-             forms, iframes, shadow-DOM hosts, and every control with its role, accessible name, \
-             a selector that finds it, and whether it is visible and enabled. Bounded by limit; \
-             says when it was cut short.",
-            Effect::Observe,
-            Schema::new()
-                .optional(
-                    "scope",
-                    Prop::string("Only look inside the first element this selector matches"),
-                )
-                .optional(
-                    "limit",
-                    Prop::integer("Most controls to list, 1 to 500")
-                        .min(1.0)
-                        .default(50),
-                )
-                .optional(
-                    "include_hidden",
-                    Prop::boolean("Also list controls that are not visible").default(false),
-                ),
-            inspect_page::<S>,
-        ),
-        ToolDef::new(
-            "suggest_selectors",
-            "Suggest Selectors",
-            "Find the element meant by its text, its role or a rough selector, and return ranked \
-             stable selectors for it (test attributes, id, name, aria-label, link text, text \
-             XPath, short CSS path), each checked against the page: how many elements it \
-             matches and whether it finds this one.",
-            Effect::Observe,
-            Schema::new()
-                .optional(
-                    "text",
-                    Prop::string("Text the element shows or is labelled with"),
-                )
-                .optional(
-                    "role",
-                    Prop::string("ARIA role such as button, link, textbox or checkbox"),
-                )
-                .optional("selector", Prop::string("A rough selector that finds it"))
-                .optional(
-                    "limit",
-                    Prop::integer("Most selectors per element, 1 to 20")
-                        .min(1.0)
-                        .default(5),
-                ),
-            suggest_selectors::<S>,
-        ),
-        ToolDef::new(
-            "diagnose_selector",
-            "Diagnose Selector",
-            "Explain why a selector finds nothing or cannot be used: invalid syntax (with the \
-             browser's message), no match, matches that are hidden, empty, off screen, disabled \
-             or covered by another element, matches inside an iframe or a shadow root, and near \
-             misses such as a similar id or the same text in different case. Ends with next \
-             steps.",
-            Effect::Observe,
-            Schema::new().required("selector", selector_prop()),
-            diagnose_selector::<S>,
-        ),
-        ToolDef::new(
-            "get_console_messages",
-            "Get Console Messages",
-            "Read the page's console messages and uncaught script errors. Messages are recorded \
-             from the moment start is true, which replaces the page's console functions (a page \
-             script can notice that); the Pure CDP engine also reports uncaught errors since the \
-             page loaded without it.",
-            Effect::Mixed,
-            Schema::new()
-                .optional(
-                    "level",
-                    Prop::choice(
-                        &["all", "error", "warning", "info", "log"],
-                        "The least serious level to include",
-                    )
-                    .default("all"),
-                )
-                .optional(
-                    "start",
-                    Prop::boolean("Start recording console messages in this page").default(false),
-                )
-                .optional(
-                    "clear",
-                    Prop::boolean("Forget the messages after reading them").default(false),
-                )
-                .optional(
-                    "limit",
-                    Prop::integer("Most messages to return, 1 to 500")
-                        .min(1.0)
-                        .default(100),
-                ),
-            get_console_messages::<S>,
-        )
-        .untrusted(),
-        ToolDef::new(
-            "get_failed_requests",
-            "Get Failed Requests",
-            "List the page's requests that failed: HTTP status 400 and up from the browser's \
-             performance timeline, and, once watch is true on the Pure CDP engine, every failed, \
-             blocked or refused request of the active tab with its error.",
-            Effect::Mixed,
-            Schema::new()
-                .optional(
-                    "watch",
-                    Prop::boolean("Start recording failed requests (Pure CDP engine)")
-                        .default(false),
-                )
-                .optional(
-                    "clear",
-                    Prop::boolean("Forget the recorded failures after reading them").default(false),
-                )
-                .optional(
-                    "limit",
-                    Prop::integer("Most requests to return, 1 to 500")
-                        .min(1.0)
-                        .default(100),
-                ),
-            get_failed_requests::<S>,
-        ),
-        ToolDef::new(
-            "audit_page",
-            "Audit Page",
-            "Check the page as it is now for accessibility and HTML defects: images without alt \
-             text, controls without a label or name, duplicate ids, empty links and buttons, \
-             heading order, missing lang or title, and more. Each finding names its rule and a \
-             selector for the element.",
-            Effect::Observe,
-            Schema::new()
-                .optional(
-                    "severity",
-                    Prop::choice(&["all", "error"], "Report warnings too, or errors only")
-                        .default("all"),
-                )
-                .optional(
-                    "limit",
-                    Prop::integer("Most findings to return, 1 to 500")
-                        .min(1.0)
-                        .default(50),
-                ),
-            audit_page::<S>,
-        ),
-        ToolDef::new(
-            "capture_debug_bundle",
-            "Capture Debug Bundle",
-            "Save what a bug report needs in a new folder under the output directory: a \
-             screenshot, the page source (password and hidden input values removed), the URL, \
-             title, viewport and user agent, console messages, failed requests, cookie and \
-             storage names (never their values) and the last tool calls (typed text and scripts \
-             redacted).",
-            Effect::Overwrite,
-            Schema::new()
-                .optional(
-                    "name",
-                    Prop::string("A label for the folder; letters, digits, - and _ are kept"),
-                )
-                .optional(
-                    "calls",
-                    Prop::integer("How many recent tool calls to include, 1 to 200")
-                        .min(1.0)
-                        .default(20),
-                ),
-            capture_debug_bundle::<S>,
-        ),
-        ToolDef::new(
-            "export_session_as_test",
-            "Export Session As Test",
-            "Write the successful steps of this browser session (since the last start_browser) \
-             as a Rust #[tokio::test] using BaseCase, into the output directory. Steps with no \
-             BaseCase equivalent become // skipped: comments and are listed in the result.",
-            Effect::Overwrite,
-            Schema::new().optional(
-                "test_name",
-                Prop::string("Name of the test function and file, such as checkout_works")
-                    .default("exported_session"),
-            ),
-            export_session_as_test::<S>,
-        ),
-    ]
+    [selectors::tools(), diagnostics::tools(), exports::tools()]
+        .into_iter()
+        .flatten()
+        .collect()
 }
 
 /// The developer tools of [`tools`] called `names`, for a server that offers

@@ -55,6 +55,8 @@ fn status_of(name: &str) -> TestStatus {
 }
 
 #[tokio::test]
+#[serial_test::serial(env)]
+
 async fn a_fixture_test_reports_by_itself_when_the_dashboard_is_on() {
     let root = root();
     SbCdp::from_env()
@@ -84,6 +86,8 @@ async fn a_fixture_test_reports_by_itself_when_the_dashboard_is_on() {
 
 #[cfg(feature = "bdd")]
 #[tokio::test(flavor = "multi_thread")]
+#[serial_test::serial(env)]
+
 async fn a_scenario_reports_by_itself_when_the_dashboard_is_on() {
     use seleniumbase_rs::testing::bdd::SbCdpCase;
     use seleniumbase_rs::Settings;

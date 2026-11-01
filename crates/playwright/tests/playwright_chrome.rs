@@ -49,6 +49,7 @@ fn headless() -> LaunchOptions {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome and attaches rustwright to it"]
+#[serial_test::serial(chrome)]
 async fn the_fingerprint_of_the_browser_reaches_the_attached_client_after_navigating() {
     let port = serve();
     let options = LaunchOptions::builder()
@@ -79,6 +80,7 @@ async fn the_fingerprint_of_the_browser_reaches_the_attached_client_after_naviga
 
 #[tokio::test]
 #[ignore = "launches a real Chrome and attaches rustwright to it"]
+#[serial_test::serial(chrome)]
 async fn an_attached_session_sees_the_open_page_and_leaves_the_browser_running() {
     let port = serve();
     let browser = Browser::launch(headless()).await.expect("Chrome starts");
@@ -103,6 +105,7 @@ async fn an_attached_session_sees_the_open_page_and_leaves_the_browser_running()
 
 #[tokio::test]
 #[ignore = "launches a real Chrome and attaches rustwright to it"]
+#[serial_test::serial(chrome)]
 async fn both_apis_work_on_the_same_tab() {
     let port = serve();
     let stealthy = StealthyPlaywright::launch(headless())
@@ -136,6 +139,7 @@ async fn both_apis_work_on_the_same_tab() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome and attaches rustwright to it"]
+#[serial_test::serial(chrome)]
 async fn a_page_opened_through_playwright_is_as_stealthy_as_the_first_one() {
     let port = serve();
     let mut stealthy = StealthyPlaywright::launch(headless())
@@ -168,6 +172,7 @@ async fn a_page_opened_through_playwright_is_as_stealthy_as_the_first_one() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome and attaches rustwright to it"]
+#[serial_test::serial(chrome)]
 async fn a_missing_element_is_reported_as_not_found() {
     let port = serve();
     let stealthy = StealthyPlaywright::launch(headless())
@@ -195,6 +200,7 @@ async fn a_missing_element_is_reported_as_not_found() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome and attaches rustwright to it"]
+#[serial_test::serial(chrome)]
 async fn the_page_actions_fill_read_evaluate_and_capture_the_attached_page() {
     let port = serve();
     let stealthy = StealthyPlaywright::launch(headless())

@@ -41,7 +41,7 @@ last raised. Raise it deliberately and keep the `msrv` CI job and the
 | `crates/cli/src/mcp_server.rs` | `sbrs-mcp` MCP server (package `seleniumbase-rs-cli`, gated by its `mcp-server` feature, on by default). |
 | `crates/cli/src/mcp_install/` | `sbrs-mcp install`, `uninstall` and `clients`: registers the server with MCP clients (their config locations and formats, JSON edited as text, Codex's `config.toml`). |
 | `crates/cli/src/sbrs.rs` | Main `sbrs` CLI binary (package `seleniumbase-rs-cli`), declared with the `usage` derives; `completions/sbrs.usage.kdl` and `docs/help/cli_reference.md` are generated from it. |
-| `docs/` | The Docs7 site and the mdBook source. Add a new page to `docs/docs.json` (the menu) and to `SUMMARY.md`; `just mdx` builds every page. |
+| `docs/` | The Docs7 site and the mdBook source. Add a new page to `docs/docs.json` (the menu) and to `SUMMARY.md`; `mise run mdx` builds every page. |
 | `examples/` | Runnable examples. Add new examples to `Cargo.toml` automatically via filename. |
 
 ## Conventions

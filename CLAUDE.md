@@ -90,9 +90,9 @@ public API of this crate: keep items it imports public (`evasion::randomize`,
 
 Elsewhere: `tests/` (integration tests of the library; `tests/golden` is compiled into the
 library through `include_str!`, `tests/support` is shared with `crates/cli/tests`), `benches/` (`cdp_latency`, `cpu`), `examples/`
-(`tauri-profile-manager` has its own manifest), `docs/` (the Docs7 site, whose menu is `docs.json` and whose pages `just mdx` builds; also mdBook, `SUMMARY.md`),
+(`tauri-profile-manager` has its own manifest), `docs/` (the Docs7 site, whose menu is `docs.json` and whose pages `mise run mdx` builds; also mdBook, `SUMMARY.md`),
 `parity/`, `.config/nextest.toml`, `.github/workflows/` (`ci.yml`, `docker.yml`,
-`completions.yml`), `Dockerfile`, `Makefile`, `justfile`, `deny.toml`.
+`completions.yml`), `Dockerfile`, `Makefile`, `mise.toml` (the tasks: `mise tasks ls`), `deny.toml`.
 
 ## Build and check
 
@@ -135,7 +135,7 @@ binaries with `cargo install --path crates/cli`.
   command-line crate in the library's `[dependencies]` fails
   `tests/library_manifest.rs`; it belongs in `crates/cli/Cargo.toml`.
 - A new Python-parity API gets an entry in `parity/api.toml`.
-- A public item a consumer imports needs its `tests/contract_*.rs` updated in the same commit (`just contracts`, `docs/contributing/consumers.md`).
+- A public item a consumer imports needs its `tests/contract_*.rs` updated in the same commit (`mise run contracts`, `docs/contributing/consumers.md`).
 - Tutorials in `docs/tutorials/` are not compiled; keep their code true by hand.
   Only the `sbrs mkdir`/`mkfile` golden templates are compiled as doctests.
 - `completions/sbrs.usage.kdl` and `docs/help/cli_reference.md` are generated from

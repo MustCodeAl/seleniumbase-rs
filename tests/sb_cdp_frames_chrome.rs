@@ -210,6 +210,7 @@ async fn works_inside(page: &Page, frame: &str, who: &str) {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_frame_of_the_pages_own_origin_is_entered() {
     let (browser, page, site) = open().await;
     works_inside(&page, "iframe#same", &format!("127.0.0.1:{}", site.first)).await;
@@ -218,6 +219,7 @@ async fn a_frame_of_the_pages_own_origin_is_entered() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_data_url_frame_is_entered() {
     let (browser, page, _) = open().await;
     works_inside(&page, "iframe#data", "data").await;
@@ -226,6 +228,7 @@ async fn a_data_url_frame_is_entered() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome"]
+#[serial_test::serial(chrome)]
 async fn an_srcdoc_frame_is_entered() {
     let (browser, page, _) = open().await;
     works_inside(&page, "iframe#srcdoc", "srcdoc").await;
@@ -234,6 +237,7 @@ async fn an_srcdoc_frame_is_entered() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_frame_of_another_origin_in_the_same_site_is_entered() {
     let (browser, page, site) = open().await;
     works_inside(&page, "iframe#cross", &format!("127.0.0.1:{}", site.second)).await;
@@ -242,6 +246,7 @@ async fn a_frame_of_another_origin_in_the_same_site_is_entered() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_sandboxed_frame_is_entered() {
     let (browser, page, site) = open().await;
     works_inside(
@@ -255,6 +260,7 @@ async fn a_sandboxed_frame_is_entered() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_frame_of_another_site_in_a_process_of_its_own_is_entered() {
     let (browser, page, site) = open().await;
     works_inside(&page, "iframe#oopif", &format!("localhost:{}", site.second)).await;
@@ -263,6 +269,7 @@ async fn a_frame_of_another_site_in_a_process_of_its_own_is_entered() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_frame_inside_a_frame_of_another_site_is_entered() {
     let (browser, page, site) = open().await;
     let who = format!("127.0.0.1:{}", site.first);
@@ -292,6 +299,7 @@ async fn a_frame_inside_a_frame_of_another_site_is_entered() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome"]
+#[serial_test::serial(chrome)]
 async fn frames_are_found_by_their_parent_only_when_the_parent_matches() {
     let (browser, page, _) = open().await;
     // No such frame: not found, whatever is asked inside it.

@@ -160,7 +160,7 @@ explained in [Headless mode](/tutorials/headless).
 <Note>
 
 No CI job and no recipe measures coverage: `.github/workflows/` builds, tests
-and lints, and `justfile`, `Makefile` and `mise.toml` have no coverage task. A
+and lints, and `Makefile` and `mise.toml` have no coverage task. A
 job would need the settings above, one cargo command at a time, and a Chrome for
 the ignored tests.
 

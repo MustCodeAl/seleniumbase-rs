@@ -73,7 +73,7 @@ cargo check --features turso --all-targets
   `println!`. `src/mcp` and `src/sb_cdp` use the pedantic lint set: an `#[allow]`
   needs `reason = "..."`, and a function over 100 lines fails.
 - **Do not edit generated files by hand:** `docs/parity.md` is generated from
-  `parity/api.toml` (`just parity-docs`).
+  `parity/api.toml` (`mise run parity-docs`).
 - **A new `[[bin]]`, `[[bench]]`, `[[example]]` or `[[test]]`**, in either
   manifest, must also be listed in the `Dockerfile` skeleton step
   (`tests/dockerfile_skeleton.rs` checks). Keep `usage` and other command-line

@@ -94,6 +94,7 @@ async fn serve(mut tcp: TcpStream, seen: Arc<Mutex<Seen>>) {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "starts the local Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_website_that_asks_for_a_password_never_gets_the_proxy_account() {
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0))
         .await

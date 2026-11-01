@@ -1014,6 +1014,7 @@ fn compile_in_a_scratch_crate(exported: &Path, scratch: &Path) {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_cdp_server_runs_a_whole_session_over_stdio() {
     let dir = tempfile::tempdir().unwrap();
     let out = dir.path().join("out");
@@ -1067,6 +1068,7 @@ async fn the_cdp_server_runs_a_whole_session_over_stdio() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_client_that_leaves_takes_the_pure_cdp_browser_with_it() {
     let dir = tempfile::tempdir().unwrap();
     let base = serve();
@@ -1088,6 +1090,7 @@ async fn a_client_that_leaves_takes_the_pure_cdp_browser_with_it() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 async fn the_sb_server_runs_a_whole_session_over_stdio() {
     let dir = tempfile::tempdir().unwrap();
     let out = dir.path().join("out");
@@ -1132,6 +1135,7 @@ async fn the_sb_server_runs_a_whole_session_over_stdio() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 async fn the_driver_server_runs_a_session_in_undetected_mode_and_leaves_cleanly() {
     let dir = tempfile::tempdir().unwrap();
     let base = serve();

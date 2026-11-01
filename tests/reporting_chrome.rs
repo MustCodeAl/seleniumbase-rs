@@ -23,6 +23,7 @@ const PAGE: &str = "data:text/html,<html><head><title>Shop</title></head><body>h
 
 #[tokio::test]
 #[ignore = "requires a local Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_failing_test_leaves_a_real_screenshot_the_source_and_the_info() {
     let root = tempfile::tempdir().unwrap();
     let run = TestRun::open(

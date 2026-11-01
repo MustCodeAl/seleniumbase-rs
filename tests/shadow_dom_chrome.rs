@@ -66,6 +66,7 @@ fn cdp_options() -> LaunchOptions {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn the_regular_methods_read_a_shadow_selector() -> Result<()> {
     let url = serve();
     run_browser_test(headless(), async |sb| {
@@ -141,6 +142,7 @@ async fn the_regular_methods_read_a_shadow_selector() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_chain_crosses_three_shadow_roots() -> Result<()> {
     let url = serve();
     run_browser_test(headless(), async |sb| {
@@ -175,6 +177,7 @@ async fn a_chain_crosses_three_shadow_roots() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_container_that_only_slots_its_content_gives_its_rendered_text() -> Result<()> {
     let url = serve();
     run_browser_test(headless(), async |sb| {
@@ -199,6 +202,7 @@ async fn a_container_that_only_slots_its_content_gives_its_rendered_text() -> Re
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn the_checks_wait_for_content_that_arrives_late() -> Result<()> {
     let url = serve();
     run_browser_test(headless(), async |sb| {
@@ -217,6 +221,7 @@ async fn the_checks_wait_for_content_that_arrives_late() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn the_shadow_helpers_wait_with_the_timeout_of_the_case() -> Result<()> {
     let url = serve();
     run_browser_test(headless(), async |sb| {
@@ -245,6 +250,7 @@ async fn the_shadow_helpers_wait_with_the_timeout_of_the_case() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn the_shadow_helpers_still_act_on_the_page() -> Result<()> {
     let url = serve();
     run_browser_test(headless(), async |sb| {
@@ -269,6 +275,7 @@ async fn the_shadow_helpers_still_act_on_the_page() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_selector_that_ends_on_a_shadow_root_is_refused_at_once() -> Result<()> {
     let url = serve();
     run_browser_test(headless(), async |sb| {
@@ -290,6 +297,7 @@ async fn a_selector_that_ends_on_a_shadow_root_is_refused_at_once() -> Result<()
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_closed_root_is_reached_the_way_python_reaches_it() -> Result<()> {
     let url = serve();
     run_browser_test(headless(), async |sb| {
@@ -305,6 +313,7 @@ async fn a_closed_root_is_reached_the_way_python_reaches_it() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_cdp_engine_reads_a_shadow_selector() -> Result<()> {
     let url = serve();
     let browser = Browser::launch(cdp_options()).await?;
