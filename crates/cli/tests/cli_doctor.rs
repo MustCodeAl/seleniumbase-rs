@@ -56,7 +56,8 @@ fn a_browser_that_does_not_exist_fails_the_check_with_its_fix() {
     let error = stderr(&output);
     assert_eq!(output.status.code(), Some(1), "{error}");
     assert!(
-        error.starts_with("error: sbrs doctor found 1 problem\n  - the browser at "),
+        error
+            .starts_with("sbrs::error\n\n  x sbrs doctor found 1 problem\n  |   - the browser at "),
         "{error}"
     );
     assert!(
@@ -121,7 +122,7 @@ mod with_stand_ins {
         assert_eq!(output.status.code(), Some(1), "{error}");
         assert!(
             error.starts_with(
-                "error: sbrs doctor found 1 problem\n  - chromedriver 129 cannot drive Chrome 130:"
+                "sbrs::error\n\n  x sbrs doctor found 1 problem\n  |   - chromedriver 129 cannot drive Chrome 130:"
             ),
             "{error}"
         );

@@ -50,13 +50,15 @@ use std::path::Path;
 use std::str::FromStr;
 
 use seleniumbase_rs::cli::plugin_cmd::PluginChoice;
-use seleniumbase_rs::cli::scripts::rich_helper;
+
 use seleniumbase_rs::config::env_vars;
 use seleniumbase_rs::mcp::{self, HttpOptions, Profile, DEFAULT_LISTEN, TOKEN_VAR};
 use seleniumbase_rs::{init_tracing_from_runtime, RuntimeConfig, SeleniumBaseError};
 
+mod diagnostic;
 #[cfg(feature = "mcp-client")]
 mod mcp_client;
+
 mod mcp_cmd;
 mod mcp_install;
 
@@ -158,9 +160,12 @@ fn plugin_choice(cli: &Cli) -> Result<PluginChoice, SeleniumBaseError> {
     Ok(choice)
 }
 
+/// The start of the code of every error report (`sbrs_mcp::invalid_config`).
+const PROGRAM: &str = "sbrs_mcp";
+
 /// Prints the report of `error` and ends the process with the status of its category.
 fn exit_with(error: &SeleniumBaseError) -> ! {
-    rich_helper::print_error_report(error);
+    diagnostic::print(PROGRAM, error);
     std::process::exit(i32::from(error.exit_code()))
 }
 
@@ -421,7 +426,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let choice = plugin_choice(&cli).unwrap_or_else(|error| {
         // The same report and exit status as `sbrs`: 2 for what the operator typed.
-        rich_helper::print_error_report(&error);
+        diagnostic::print(PROGRAM, &error);
         std::process::exit(i32::from(error.exit_code()))
     });
     let environment = Environment::read().unwrap_or_else(|error| exit_with(&error));
@@ -458,7 +463,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             exit_with(error);
         }
     }
-    Ok(outcome?)
+    // The same report as the errors above; the status stays 1, the one a `main` that returns an
+    // error gives.
+    if let Err(error) = &outcome {
+        diagnostic::print(PROGRAM, error);
+        std::process::exit(1);
+    }
+    Ok(())
 }
 
 #[cfg(test)]

@@ -41,6 +41,20 @@ work, `docs/parity.md` the per-API status).
 - `docs/contributing/manual-checks.md`: step-by-step checks for the IMAP and Tor
   plugins against real services and for Windows and Linux smoke tests.
 
+### Changed
+
+- **`sbrs` and `sbrs-mcp` print the failure of a command as a [miette](https://docs.rs/miette)
+  diagnostic.** Where they printed `error: ...`, `caused by: ...` and `hint: ...` they now print
+  a code that names the kind of failure (`sbrs::element_not_found`, `sbrs::io`,
+  `sbrs_mcp::invalid_config`: the library error's category, or `sbrs::error` for any other
+  error), the message after a cross, the causes the message does not already say under it, and
+  the hint as a `help:` line. The exit status is unchanged: it still follows the error's
+  category. Colour and box-drawing characters appear only on a terminal that allows colour
+  (`NO_COLOR` and `TERM=dumb` turn them off, as before); a pipe or a file gets plain ASCII with
+  every line whole. A command line the parser refuses is as before: the page of the command,
+  then the `error:` line. The library's `rich_helper::format_error_report` is unchanged.
+
+
 ## [0.7.0] - 2026-10-31
 
 ### Breaking

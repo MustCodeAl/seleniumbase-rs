@@ -54,6 +54,10 @@ tempfile = { version = "3.27", default-features = false }
 dirs = "7.0"
 # The type of the times the library hands over (`RunSummary::started_at`); the same version.
 jiff = "0.2.38"
+# The report of a command that failed (`src/diagnostic.rs`): the graphical handler, without its
+# terminal probes, because `rich_helper::use_color` already decides the colour and the wrapping.
+miette = { version = "7.6", default-features = false, features = ["fancy-no-syscall"] }
+
 # The warning for an invalid `SB_*` variable, written once logging works.
 tracing = "0.1"
 # `sbrs-mcp install`: edits a client's config.toml (Codex) and keeps its comments and
