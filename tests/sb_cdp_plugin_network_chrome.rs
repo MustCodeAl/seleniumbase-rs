@@ -133,6 +133,7 @@ fn count(asked: &Log, path: &str) -> usize {
 
 #[tokio::test]
 #[ignore = "needs a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_router_works_against_a_real_chrome() -> Result<(), SeleniumBaseError> {
     let (site, asked) = serve();
     let log = Log::default();

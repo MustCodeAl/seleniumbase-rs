@@ -1391,6 +1391,8 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial(env)]
+
     fn the_plan_reads_the_test_settings() {
         let settings = Settings {
             headless1: true,

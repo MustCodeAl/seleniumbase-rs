@@ -137,6 +137,7 @@ async fn who(sb: &BaseCase) -> String {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_frame_is_entered_by_id_name_selector_or_position() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = on_the_top_page().await;
@@ -188,6 +189,7 @@ async fn a_frame_is_entered_by_id_name_selector_or_position() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_frame_is_waited_for_and_a_hidden_or_missing_one_is_reported() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = on_the_top_page().await;
@@ -255,6 +257,7 @@ async fn a_frame_is_waited_for_and_a_hidden_or_missing_one_is_reported() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn frame_switch_runs_in_the_frame_and_leaves_it_after() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = on_the_top_page().await;
@@ -322,6 +325,7 @@ async fn frame_switch_runs_in_the_frame_and_leaves_it_after() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_window_is_entered_by_position_or_handle_and_waited_for() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = on_the_top_page().await;
@@ -378,6 +382,7 @@ async fn a_window_is_entered_by_position_or_handle_and_waited_for() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn switch_to_alert_waits_for_the_alert_and_gives_it_back() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = on_the_top_page().await;

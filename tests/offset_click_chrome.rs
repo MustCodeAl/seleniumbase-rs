@@ -31,6 +31,7 @@ async fn case() -> BaseCase {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn an_offset_counts_from_the_top_left_corner_unless_it_says_centre() {
     let mut sb = case().await;
 

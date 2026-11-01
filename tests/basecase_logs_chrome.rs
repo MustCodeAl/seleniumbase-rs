@@ -36,6 +36,7 @@ fn config() -> BrowserConfig {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn the_screenshot_and_the_source_land_in_the_folder_of_the_recorded_test() {
     let root = tempfile::tempdir().unwrap();
     let run = TestRun::open(

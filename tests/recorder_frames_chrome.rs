@@ -173,6 +173,7 @@ async fn watch(sb: &mut BaseCase, seconds: u64) {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 async fn the_frames_of_a_page_are_not_written_as_pages_to_open() {
     let (home, _) = sites();
     let folder = folder("frames-load");
@@ -200,6 +201,7 @@ async fn the_frames_of_a_page_are_not_written_as_pages_to_open() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_click_in_a_captcha_frame_is_one_comment_and_not_a_step() {
     let (home, _) = sites();
     let folder = folder("captcha");
@@ -225,6 +227,7 @@ async fn a_click_in_a_captcha_frame_is_one_comment_and_not_a_step() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_click_in_a_captcha_frame_of_another_origin_is_one_comment() {
     let (home, _) = sites();
     let folder = folder("captcha-far");
@@ -253,6 +256,7 @@ async fn a_click_in_a_captcha_frame_of_another_origin_is_one_comment() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 async fn an_empty_about_blank_frame_is_never_a_step_or_a_tab() {
     let (home, _) = sites();
     let folder = folder("blank");
@@ -273,6 +277,7 @@ async fn an_empty_about_blank_frame_is_never_a_step_or_a_tab() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_person_who_acts_in_an_ordinary_frame_gets_a_switch_to_it() {
     let (home, _) = sites();
     let folder = folder("frame-act");
@@ -310,6 +315,7 @@ fn in_order(code: &str, needles: &[&str]) -> bool {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 async fn selectors_prefer_an_id_a_name_a_test_id_a_label_and_a_text_before_a_path() {
     let (home, _) = sites();
     let folder = folder("selectors");
@@ -351,6 +357,7 @@ async fn selectors_prefer_an_id_a_name_a_test_id_a_label_and_a_text_before_a_pat
 
 #[tokio::test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_302_chain_is_one_click_and_the_page_it_ended_on() {
     let (home, _) = sites();
     let folder = folder("redirect");
@@ -373,6 +380,7 @@ async fn a_302_chain_is_one_click_and_the_page_it_ended_on() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_link_that_opens_a_tab_is_a_click_and_then_the_page_it_opened() {
     let (home, far) = sites();
     let folder = folder("popup-link");
@@ -400,6 +408,7 @@ async fn a_link_that_opens_a_tab_is_a_click_and_then_the_page_it_opened() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_window_open_is_a_click_and_then_the_page_it_opened() {
     let (home, _) = sites();
     let folder = folder("popup-js");

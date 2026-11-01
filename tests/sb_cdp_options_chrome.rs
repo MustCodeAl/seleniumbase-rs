@@ -125,6 +125,7 @@ async fn command_line(browser: &Browser) -> String {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_mobile_launch_makes_every_tab_a_phone() {
     let (port, _heads) = serve(site);
     let browser = launch(builder().mobile(true)).await;
@@ -165,6 +166,7 @@ async fn a_mobile_launch_makes_every_tab_a_phone() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn chosen_metrics_are_the_screen_of_the_phone() {
     let (port, _heads) = serve(site);
     let browser = launch(builder().device_metrics(DeviceMetrics::new(360, 640, 2.0))).await;
@@ -187,6 +189,7 @@ async fn chosen_metrics_are_the_screen_of_the_phone() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_colour_scheme_of_a_tab_can_be_chosen() {
     let browser = launch(builder()).await;
     let page = browser.default_page().await.expect("a tab");
@@ -207,6 +210,7 @@ async fn the_colour_scheme_of_a_tab_can_be_chosen() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_switches_reach_the_command_line_of_the_browser() {
     let browser = launch(
         builder()
@@ -235,6 +239,7 @@ async fn the_switches_reach_the_command_line_of_the_browser() {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn the_content_security_policy_is_bypassed_only_when_asked() {
     let (port, _heads) = serve(site);
     let url = format!("http://127.0.0.1:{port}/policy");
@@ -273,6 +278,7 @@ async fn picture_width(page: &Page) -> f64 {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn block_images_is_a_profile_preference_the_browser_follows() {
     let (port, _heads) = serve(site);
     let url = format!("http://127.0.0.1:{port}/image");
@@ -308,6 +314,7 @@ fn direct_answer(_head: &str) -> String {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_host_on_the_bypass_list_skips_the_proxy() {
     let (proxy_port, proxy_heads) = serve(proxy_answer);
     let (direct_port, direct_heads) = serve(direct_answer);

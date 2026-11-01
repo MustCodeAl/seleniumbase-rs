@@ -66,6 +66,7 @@ async fn run_script(sb: &BaseCase, script: &str) -> serde_json::Value {
 
 #[tokio::test]
 #[ignore = "needs Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_highlight_blocks_for_its_loops_and_puts_the_box_shadow_back() {
     let _lock = BROWSER_LOCK.lock().await;
     let mut sb = watched_case(RunSettings::default()).await;
@@ -85,6 +86,7 @@ async fn a_highlight_blocks_for_its_loops_and_puts_the_box_shadow_back() {
 
 #[tokio::test]
 #[ignore = "needs Chrome"]
+#[serial_test::serial(chrome)]
 async fn highlight_elements_stops_at_the_limit() {
     let _lock = BROWSER_LOCK.lock().await;
     let mut sb = watched_case(RunSettings::default()).await;
@@ -110,6 +112,7 @@ async fn highlight_elements_stops_at_the_limit() {
 
 #[tokio::test]
 #[ignore = "needs Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_flash_adds_its_dot_and_takes_it_away() {
     let _lock = BROWSER_LOCK.lock().await;
     let mut sb = watched_case(RunSettings::default()).await;
@@ -127,6 +130,7 @@ async fn a_flash_adds_its_dot_and_takes_it_away() {
 
 #[tokio::test]
 #[ignore = "needs Chrome"]
+#[serial_test::serial(chrome)]
 async fn demo_mode_animates_before_the_click_and_pauses_after_it() {
     let _lock = BROWSER_LOCK.lock().await;
     let mut sb = watched_case(
@@ -149,6 +153,7 @@ async fn demo_mode_animates_before_the_click_and_pauses_after_it() {
 
 #[tokio::test]
 #[ignore = "needs Chrome and the network"]
+#[serial_test::serial(chrome)]
 async fn a_passed_assertion_shows_a_messenger_success_message_in_demo_mode() {
     let _lock = BROWSER_LOCK.lock().await;
     let mut sb = watched_case(

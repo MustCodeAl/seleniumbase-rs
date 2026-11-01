@@ -61,6 +61,7 @@ fn finish_within(mut child: std::process::Child, limit: Duration) -> Output {
 
 #[test]
 #[ignore = "launches a real Chrome through chromedriver"]
+#[serial_test::serial(chrome)]
 fn a_self_driving_page_is_recorded_until_shift_esc() {
     let dir = tempfile::tempdir().expect("temp dir");
     let page = dir.path().join("page.html");

@@ -77,6 +77,7 @@ async fn wait_until(sb: &BaseCase, expression: &str) {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver and network access to cdnjs"]
+#[serial_test::serial(chrome)]
 async fn a_message_is_shown_by_messenger_in_the_future_theme() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = watched_case().await;
@@ -110,6 +111,7 @@ async fn a_message_is_shown_by_messenger_in_the_future_theme() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver and network access to cdnjs"]
+#[serial_test::serial(chrome)]
 async fn the_style_of_a_message_is_its_type() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = watched_case().await;
@@ -140,6 +142,7 @@ async fn the_style_of_a_message_is_its_type() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver and network access to cdnjs"]
+#[serial_test::serial(chrome)]
 async fn the_theme_and_the_place_can_be_chosen() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = watched_case().await;
@@ -171,6 +174,7 @@ async fn the_theme_and_the_place_can_be_chosen() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver and network access to cdnjs"]
+#[serial_test::serial(chrome)]
 async fn a_message_waits_for_itself_and_a_second_activation_is_harmless() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = watched_case().await;

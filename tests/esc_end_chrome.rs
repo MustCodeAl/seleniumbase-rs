@@ -49,6 +49,7 @@ async fn reset_title(sb: &BaseCase) {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn pressing_escape_in_the_page_ends_the_test() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = BaseCase::new(test_config(true))
@@ -91,6 +92,7 @@ async fn pressing_escape_in_the_page_ends_the_test() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn without_the_setting_escape_changes_nothing() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = BaseCase::new(test_config(false))

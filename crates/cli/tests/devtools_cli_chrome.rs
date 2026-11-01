@@ -153,6 +153,7 @@ fn assert_endpoint_closes(port: u16) {
 
 #[test]
 #[ignore = "needs Chrome; run with --ignored --test-threads=1"]
+#[serial_test::serial(chrome)]
 fn the_json_endpoint_answers_version_and_ctrl_c_closes_chrome_with_status_0() {
     let (mut child, lines) = start(&["--headless", "--port", "0", "--json"]);
     let printed: Value = serde_json::from_str(&next_line(&lines)).expect("one line of JSON");
@@ -196,6 +197,7 @@ fn the_json_endpoint_answers_version_and_ctrl_c_closes_chrome_with_status_0() {
 
 #[test]
 #[ignore = "needs Chrome; run with --ignored --test-threads=1"]
+#[serial_test::serial(chrome)]
 fn the_text_output_names_the_fixed_port_and_sigterm_closes_chrome() {
     // A port that is free now, so the fixed-port path is the one tested.
     let port = std::net::TcpListener::bind("127.0.0.1:0")

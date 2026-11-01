@@ -45,6 +45,7 @@ const FORM_PAGE: &str = "data:text/html,<html><head><title>Form</title></head><b
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_start_page_is_opened_when_the_test_case_starts() {
     let _guard = BROWSER_LOCK.lock().await;
     let config = test_config().with_start_page(FORM_PAGE);
@@ -57,6 +58,7 @@ async fn a_start_page_is_opened_when_the_test_case_starts() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn press_keys_types_text_into_the_element_and_presses_enter_for_a_trailing_newline() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = open(FORM_PAGE).await;
@@ -78,6 +80,7 @@ async fn press_keys_types_text_into_the_element_and_presses_enter_for_a_trailing
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn select_all_returns_the_matching_elements_like_find_elements() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = open(FORM_PAGE).await;
@@ -90,6 +93,7 @@ async fn select_all_returns_the_matching_elements_like_find_elements() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn set_text_sets_the_value_of_fields_and_the_text_of_other_elements() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = open(FORM_PAGE).await;
@@ -120,6 +124,7 @@ const PAGE_B: &str = "data:text/html,<html><head><title>B</title></head><body>\
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn deferred_asserts_look_at_the_page_they_were_made_on() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = open(PAGE_A).await;
@@ -161,6 +166,7 @@ async fn deferred_asserts_look_at_the_page_they_were_made_on() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn switch_to_frame_of_element_enters_the_frame_that_holds_the_element() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = open(
@@ -191,6 +197,7 @@ async fn switch_to_frame_of_element_enters_the_frame_that_holds_the_element() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn select_option_by_index_fires_change_and_refuses_a_missing_option() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = open(
@@ -217,6 +224,7 @@ async fn select_option_by_index_fires_change_and_refuses_a_missing_option() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn find_text_waits_for_visible_text_and_ignores_hidden_text() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = open(
@@ -250,6 +258,7 @@ async fn find_text_waits_for_visible_text_and_ignores_hidden_text() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn bring_to_front_and_highlight_change_and_restore_the_element_style() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = open(

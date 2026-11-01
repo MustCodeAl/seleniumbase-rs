@@ -82,6 +82,7 @@ fn host_and_port(url: &str) -> &str {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_first_test_leaves_its_browser_open_with_a_cookie() {
     set_idle_timeout(IDLE);
     let page = serve_page();
@@ -117,6 +118,7 @@ async fn a_first_test_leaves_its_browser_open_with_a_cookie() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_second_test_gets_the_same_browser_cleaned_and_the_reaper_closes_it() {
     set_idle_timeout(IDLE);
     // The first test runs at the same time on another thread, or before this

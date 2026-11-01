@@ -58,6 +58,7 @@ async fn chrome(fingerprint: Option<&Fingerprint>) -> (Browser, Page) {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_real_chrome_is_captured_and_presents_what_it_captured() {
     let (browser, page) = chrome(None).await;
 
@@ -124,6 +125,7 @@ async fn a_real_chrome_is_captured_and_presents_what_it_captured() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_chrome_launched_with_a_fingerprint_shows_it_to_a_capture() {
     let claimed = Fingerprint::windows_desktop()
         .to_builder()

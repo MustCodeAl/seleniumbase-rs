@@ -77,6 +77,7 @@ async fn watched_case(page: &str) -> BaseCase {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver and network access to cdnjs"]
+#[serial_test::serial(chrome, env)]
 async fn a_yes_and_a_no_are_recorded_and_the_run_is_archived() {
     let _guard = BROWSER_LOCK.lock().await;
     let root = tempfile::tempdir().expect("a temporary folder");
@@ -132,6 +133,7 @@ async fn a_yes_and_a_no_are_recorded_and_the_run_is_archived() {
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+#[serial_test::serial(chrome, env)]
 async fn a_page_that_forbids_scripts_is_asked_with_the_browsers_own_confirm() {
     let _guard = BROWSER_LOCK.lock().await;
     let root = tempfile::tempdir().expect("a temporary folder");

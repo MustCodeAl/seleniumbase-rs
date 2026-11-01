@@ -31,6 +31,7 @@ const PAGE: &str = "data:text/html,<title>Demo</title><p id=hi>hello from the pa
 
 #[tokio::test]
 #[ignore = "needs a terminal and a Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_breakpoint_lists_the_code_around_it() {
     let browser = Browser::launch(LaunchOptions::builder().headless(true).build().unwrap())
         .await
@@ -47,6 +48,7 @@ async fn a_breakpoint_lists_the_code_around_it() {
 
 #[tokio::test]
 #[ignore = "needs a terminal and a Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_failing_test_ends_at_a_post_mortem() {
     let result = SbCdp::from_env()
         .configure(|settings| {

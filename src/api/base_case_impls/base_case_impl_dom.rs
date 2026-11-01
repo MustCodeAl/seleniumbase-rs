@@ -608,6 +608,7 @@ mod tests_dom {
 
     #[tokio::test]
     #[ignore = "needs Chrome"]
+    #[serial_test::serial(chrome)]
     async fn origin_agrees_with_the_browser() {
         let (browser, page) = open_html("<!doctype html><title>x</title>").await;
         for url in [
@@ -636,6 +637,7 @@ mod tests_dom {
 
     #[tokio::test]
     #[ignore = "needs Chrome"]
+    #[serial_test::serial(chrome)]
     async fn an_element_is_in_an_iframe_only_when_a_frame_holds_it() {
         let (browser, page) = open_html(
             "<!doctype html><p id=here>top</p>\
