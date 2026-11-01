@@ -8,6 +8,12 @@ work, `docs/parity.md` the per-API status).
 
 ## [Unreleased]
 
+### Added
+
+- `docs/design/mise_drivers.md`: a mise backend plugin for chromedriver and a
+  patched UC build, and the `SB_DRIVER_DIR` setting a session would need
+  before it can run a driver mise installed.
+
 ## [0.7.0] - 2026-10-31
 
 ### Breaking
