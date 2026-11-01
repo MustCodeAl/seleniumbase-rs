@@ -5,6 +5,8 @@ sidebarTitle: "Playwright mode"
 
 <Badge color="blue">Crate: seleniumbase-rs-playwright</Badge>
 
+Every method, error and signature of the crate is in the [Playwright bridge API reference](/api/playwright).
+
 **Stealthy Playwright Mode** is a subset of the [pure CDP engine](/tutorials/pure_cdp) where
 [`rustwright`](https://github.com/Skyvern-AI/rustwright), a Rust port of Playwright with a native
 CDP engine, attaches to a stealthy browser session through the remote-debugging URL. Playwright

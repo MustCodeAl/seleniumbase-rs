@@ -391,6 +391,7 @@
                       "api/tours-recorder",
                       "api/traits",
                       "api/crate-root",
+                      "api/playwright",
                       "tutorials/remaining_helpers",
                       "ABI_API"
                     ]
