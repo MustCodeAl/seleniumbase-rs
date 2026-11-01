@@ -1,13 +1,14 @@
 {
   "$schema": "https://context7.com/schema/context7.json",
   "projectTitle": "seleniumbase-rs",
-  "description": "Rust port of Python SeleniumBase for browser automation and testing: BaseCase on WebDriver (Chrome, Edge, Firefox, Safari, with drivers downloaded automatically), a driverless Chrome DevTools Protocol engine (sb_cdp: Browser, Page, Locator), undetected-Chrome and stealth modes, an MCP server (sbrs-mcp), the sbrs CLI, and importers that turn Playwright, Puppeteer and Python SeleniumBase tests into Rust. Runs on macOS, Linux and Windows.",
+  "description": "Rust port of Python SeleniumBase for browser automation and testing: BaseCase on WebDriver (Chrome, Edge, Firefox, Safari, with drivers downloaded automatically), a driverless Chrome DevTools Protocol engine (sb_cdp: Browser, Page, Locator), undetected-Chrome and stealth modes, Stealthy Playwright Mode (crate seleniumbase-rs-playwright), an MCP server (sbrs-mcp), the sbrs CLI, and importers that turn Playwright, Puppeteer and Python SeleniumBase tests into Rust.",
   "branch": "main",
-  "folders": ["docs", "examples"],
+  "folders": ["docs", "examples", "crates/playwright"],
   "excludeFolders": [
     "target",
     "docs/adr",
     "docs/design",
+    "docs/contributing",
     "examples/tauri-profile-manager/node_modules",
     "tests",
     "benches",
@@ -30,13 +31,16 @@
   "rules": [
     "The crate is seleniumbase-rs and is imported as seleniumbase_rs; its default features are empty, so enable mcp-server for the MCP server and tui for the terminal apps. The experimental stealth scraping layer (TLS and HTTP/2 impersonation, BrowserScraper, HttpSession, MitmProxy, StealthSession) is not in this crate since 0.3.0: it is the crates seleniumbase-rs-codec, seleniumbase-rs-scrape and seleniumbase-rs-mimic from https://github.com/MustCodeAl/seleniumbase-rs-stealth.",
     "Use BaseCase with a BrowserConfig (with_browser, with_headless, with_mode, with_proxy) for SeleniumBase-style tests on WebDriver, and sb_cdp::Browser, Page and Locator to drive Chrome over the DevTools Protocol without a driver.",
-    "Every browser call is async: run it on a Tokio runtime with #[tokio::main] or #[tokio::test].",
+    "Every browser call is async: run it on a Tokio runtime with #[tokio::main] or #[tokio::test], after use seleniumbase_rs::tokio; (the crate re-exports Tokio, so no tokio dependency is needed).",
+    "Import everything from seleniumbase_rs: the WebDriver types from seleniumbase_rs::drivers (By, WebElement), JSON from seleniumbase_rs::json (json!, Value), and with the testing feature the rstest fixtures from seleniumbase_rs::testing (rstest, fixture, sb, Sb, sb_cdp, SbCdp). Do not add thirtyfour, serde_json, rstest or tokio to Cargo.toml for code that uses this crate.",
+    "Stealthy Playwright Mode is the separate crate seleniumbase-rs-playwright (crates/playwright in the same repository), not a feature of this crate: StealthyPlaywright::launch starts the stealthy sb_cdp browser and attaches Playwright (rustwright) to it.",
     "Selectors are strings: CSS by default, XPath when they start with / or (, and :contains(text) works inside any selector.",
     "Errors are SeleniumBaseError; match on its variants rather than on message text.",
     "Call quit() on a BaseCase and close() on an sb_cdp::Browser when done; dropping the last Browser handle kills the process it launched.",
     "docs/parity.md maps each Python SeleniumBase method to its Rust name and says whether it is implemented, composed from other calls, or not applicable.",
-    "Install it from GitHub, not crates.io: seleniumbase-rs = { git = \"https://github.com/MustCodeAl/seleniumbase-rs\", tag = \"v0.5.1\" }; it needs Rust 1.99 and a C compiler, and docs/building.md lists the system packages each platform and feature needs.",
+    "Install it from GitHub, not crates.io: seleniumbase-rs = { git = \"https://github.com/MustCodeAl/seleniumbase-rs\", tag = \"v0.7.0\" }; it needs Rust 1.99 and a C compiler, and docs/building.md lists the system packages each platform and feature needs.",
     "chromedriver, msedgedriver and geckodriver are downloaded to match the installed browser when a session starts; sbrs install <driver> fetches one ahead of time, and the sb_cdp engine needs none.",
     "To migrate tests, sbrs import-playwright, sbrs import-puppeteer and sbrs import-python write Rust tests; statements they cannot convert stay as TODO comments with their line numbers."
-  ]
+  ],
+  "previousVersions": [{ "tag": "v0.6.0" }]
 }
