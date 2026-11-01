@@ -17,7 +17,7 @@ pub enum Command {
     /// just one. Both start this program by its absolute path, because desktop apps do not
     /// have your shell PATH, and write their files to --output-dir (SB_MCP_OUTPUT_DIR).
     ///
-    /// Clients: claude-code, claude-desktop, codex, cursor, gemini-cli, opencode, vscode,
+    /// Clients: claude-code, claude-desktop, codex, cursor, gemini-cli, grok, opencode, vscode,
     /// zed. `sbrs-mcp clients` shows where each keeps its config. Claude Code and Codex are
     /// changed through their own `mcp` commands, the others by editing their config file:
     /// only the key that holds the servers changes, a backup FILE.bak-sbrs-mcp is written
@@ -36,7 +36,7 @@ pub enum Command {
     /// List the MCP clients, where each keeps its config and whether it is on this machine.
     ///
     /// For each client: the user config file and the project one, whether they exist, whether
-    /// the client's program (claude, codex, code) is on PATH, and which of NAME and NAME-dev
+    /// the client's program (claude, codex, grok, code) is on PATH, and which of NAME and NAME-dev
     /// are registered.
     Clients(ClientsArgs),
     /// List the tools of an MCP server, or show one with the schema of its arguments.

@@ -41,6 +41,20 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 s
 
 ### Added
 
+- `sbrs-mcp install`, `uninstall` and `clients` know Grok Build (`grok`). The
+  user file is `$GROK_HOME/config.toml`, or `~/.grok/config.toml` when
+  `GROK_HOME` is unset (on Windows, `%USERPROFILE%\.grok\config.toml`), and
+  `--scope project` writes `.grok/config.toml`. Entries are
+  `[mcp_servers.NAME]` tables. Paths and format are from
+  https://docs.x.ai/build/features/mcp-servers and
+  https://docs.x.ai/build/settings. `--all` treats `grok` on `PATH`, or the
+  config folder, as installed, and the plan lists it before anything is written.
+- How it works: what the `cdc_` properties are and how UC mode removes them,
+  the order stealth evasions apply, how a driver is matched to Chrome and
+  downloaded, and a DevTools Protocol page for the driverless engine.
+- The scrape and mimic API references are one overview plus a page per public
+  module, in the same shape as the codec reference. Each page lists the public
+  types, methods and errors from seleniumbase-rs-stealth.
 - `sbrs-mcp install --all` and `uninstall --all` register with, or remove the
   registration from, every MCP client that is installed on the machine (its config
   file, its own config folder, or its program on `PATH`). Clients that are not
@@ -54,6 +68,11 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 s
   chromedriver (and a patched UC variant) through mise.
 - `docs/contributing/manual-checks.md`: step-by-step checks for the IMAP and Tor
   plugins against real services and for Windows and Linux smoke tests.
+
+### Changed
+
+- The UC mode guide is one page, `docs/tutorials/uc_mode.md`: what the mode is,
+  when to use it, and every option. `/help/uc_mode` redirects there.
 
 </Update>
 

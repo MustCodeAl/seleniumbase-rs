@@ -212,7 +212,7 @@ client that starts it with only flags keeps working.
 | `--scope user` or `--scope project` | `user` | Your own config, or the config file in the current folder. A client without a project file refuses `project` with exit status 2. |
 | `--print` | off | Show exactly what would be written or run, and write and run nothing. |
 | `--force` | off | Replace an entry of the same name that starts something different. |
-| `--all` | off | `install` and `uninstall` only. Act on every client that is installed on this machine: its config file, its own config folder, or its program on `PATH` (`claude`, `codex`, `code`). Clients that are not installed are skipped, and each skip is printed. Before anything is written or removed it prints a plan: the client, the config file, and `add` or `remove` for each entry. `--all` takes no client names. |
+| `--all` | off | `install` and `uninstall` only. Act on every client that is installed on this machine: its config file, its own config folder, or its program on `PATH` (`claude`, `codex`, `grok`, `code`). Clients that are not installed are skipped, and each skip is printed. Before anything is written or removed it prints a plan: the client, the config file, and `add` or `remove` for each entry. `--all` takes no client names. |
 
 ### Clients
 
@@ -223,6 +223,7 @@ client that starts it with only flags keeps working.
 | `codex` | `~/.codex/config.toml` (in `$CODEX_HOME` when that is set) | none | `codex mcp add` and `codex mcp remove` when the installed `codex` has them, else the tables `[mcp_servers.NAME]` and `[mcp_servers.NAME.env]` of `config.toml`, edited so that its comments and other tables stay. |
 | `cursor` | `~/.cursor/mcp.json` | `.cursor/mcp.json` | JSON, key `mcpServers`, with `"type": "stdio"`. |
 | `gemini-cli` | `~/.gemini/settings.json` | `.gemini/settings.json` | JSON, key `mcpServers`. |
+| `grok` | `~/.grok/config.toml`, or `$GROK_HOME/config.toml` when `GROK_HOME` is set (on Windows, `%USERPROFILE%\.grok\config.toml`) | `.grok/config.toml` | TOML tables `[mcp_servers.NAME]` and `[mcp_servers.NAME.env]`, edited so that comments and other tables stay. The `grok` program on `PATH` marks Grok Build as installed; the file is written directly. |
 | `opencode` | `~/.config/opencode/opencode.json`, or the `opencode.jsonc` that is there instead | `opencode.json` | JSON, key `mcp`, with `"type": "local"`, the command and its arguments as one array, and `environment`. |
 | `vscode` | macOS `~/Library/Application Support/Code/User/mcp.json`, Windows `%APPDATA%\Code\User\mcp.json`, Linux `~/.config/Code/User/mcp.json` | `.vscode/mcp.json` | JSON, key `servers`, with `"type": "stdio"`. Only the default profile's file. |
 | `zed` | macOS and Linux `~/.config/zed/settings.json` (`$XDG_CONFIG_HOME/zed` on Linux), Windows `%APPDATA%\Zed\settings.json` | none | JSON, key `context_servers`. |
@@ -232,7 +233,7 @@ With no client named, a terminal lists the installed clients and asks which ones
 prints the known clients, as before.
 
 `sbrs-mcp clients` prints the same for your machine: the paths, whether each config
-and each client's program (`claude`, `codex`, `code`) was found, and which of the two
+and each client's program (`claude`, `codex`, `grok`, `code`) was found, and which of the two
 entries are registered. The paths and formats were checked against the clients' own
 documentation:
 [Claude Code](https://code.claude.com/docs/en/mcp),
@@ -240,6 +241,7 @@ documentation:
 [Codex](https://developers.openai.com/codex/mcp),
 [Cursor](https://cursor.com/docs/context/mcp),
 [Gemini CLI](https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md),
+[Grok Build](https://docs.x.ai/build/features/mcp-servers),
 [opencode](https://opencode.ai/docs/mcp-servers/),
 [VS Code](https://code.visualstudio.com/docs/copilot/customization/mcp-servers) and
 [Zed](https://zed.dev/docs/ai/mcp).

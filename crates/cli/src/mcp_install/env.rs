@@ -45,6 +45,8 @@ pub struct Env {
     pub xdg_config_home: Option<PathBuf>,
     /// The folder of Codex's `config.toml`: `$CODEX_HOME`, else `~/.codex`.
     pub codex_home: PathBuf,
+    /// The folder of Grok Build's `config.toml`: `$GROK_HOME`, else `~/.grok`.
+    pub grok_home: PathBuf,
     /// The folder `--scope project` writes into.
     pub cwd: PathBuf,
     /// `PATH`, where `claude`, `codex` and `code` are looked for. `None` finds nothing.
@@ -67,6 +69,9 @@ impl Env {
         let codex_home = std::env::var_os("CODEX_HOME")
             .filter(|value| !value.is_empty())
             .map_or_else(|| home.join(".codex"), PathBuf::from);
+        let grok_home = std::env::var_os("GROK_HOME")
+            .filter(|value| !value.is_empty())
+            .map_or_else(|| home.join(".grok"), PathBuf::from);
         let cwd =
             std::env::current_dir().map_err(|e| format!("cannot read the current folder: {e}"))?;
         Ok(Self {
@@ -76,6 +81,7 @@ impl Env {
             data_dir,
             xdg_config_home,
             codex_home,
+            grok_home,
             cwd,
             path: std::env::var_os("PATH"),
         })
@@ -105,6 +111,7 @@ impl Env {
         Self {
             os,
             codex_home: home.join(".codex"),
+            grok_home: home.join(".grok"),
             home,
             config_dir,
             data_dir,

@@ -26,6 +26,8 @@ pub enum Client {
     Cursor,
     /// The Gemini CLI.
     GeminiCli,
+    /// Grok Build.
+    Grok,
     /// opencode.
     Opencode,
     /// Visual Studio Code.
@@ -43,16 +45,19 @@ pub enum Kind {
     ClaudeCli,
     /// Codex: `codex mcp` when the program has it, else `config.toml`.
     Codex,
+    /// A TOML file of `[mcp_servers.NAME]` tables, written directly.
+    Toml,
 }
 
 impl Client {
     /// Every client, in the order `clients` lists them.
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 9] = [
         Self::ClaudeCode,
         Self::ClaudeDesktop,
         Self::Codex,
         Self::Cursor,
         Self::GeminiCli,
+        Self::Grok,
         Self::Opencode,
         Self::Vscode,
         Self::Zed,
@@ -66,6 +71,7 @@ impl Client {
             Self::Codex => "codex",
             Self::Cursor => "cursor",
             Self::GeminiCli => "gemini-cli",
+            Self::Grok => "grok",
             Self::Opencode => "opencode",
             Self::Vscode => "vscode",
             Self::Zed => "zed",
@@ -80,6 +86,7 @@ impl Client {
             Self::Codex => "OpenAI Codex CLI",
             Self::Cursor => "Cursor",
             Self::GeminiCli => "Gemini CLI",
+            Self::Grok => "Grok Build",
             Self::Opencode => "opencode",
             Self::Vscode => "Visual Studio Code",
             Self::Zed => "Zed",
@@ -110,6 +117,9 @@ impl Client {
             Self::GeminiCli => {
                 "https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md"
             }
+            Self::Grok => {
+                "https://docs.x.ai/build/features/mcp-servers and https://docs.x.ai/build/settings"
+            }
             Self::Opencode => {
                 "https://opencode.ai/docs/mcp-servers/ and https://opencode.ai/docs/config/"
             }
@@ -129,6 +139,7 @@ impl Client {
         match self {
             Self::ClaudeCode => Kind::ClaudeCli,
             Self::Codex => Kind::Codex,
+            Self::Grok => Kind::Toml,
             _ => Kind::Json,
         }
     }
@@ -138,6 +149,7 @@ impl Client {
         match self {
             Self::ClaudeCode => "claude mcp add-json / claude mcp remove",
             Self::Codex => "codex mcp add / remove, else config.toml (table mcp_servers)",
+            Self::Grok => "config.toml (table mcp_servers)",
             Self::ClaudeDesktop | Self::Cursor | Self::GeminiCli => "JSON, key mcpServers",
             Self::Opencode => "JSON, key mcp (type local)",
             Self::Vscode => "JSON, key servers (type stdio)",
@@ -150,6 +162,7 @@ impl Client {
         match self {
             Self::ClaudeCode => Some("claude"),
             Self::Codex => Some("codex"),
+            Self::Grok => Some("grok"),
             Self::Vscode => Some("code"),
             _ => None,
         }
@@ -192,7 +205,7 @@ impl Client {
                 key: "mcp",
                 kind: LayoutKind::Opencode,
             }),
-            Self::Codex => None,
+            Self::Codex | Self::Grok => None,
         }
     }
 
@@ -209,6 +222,7 @@ impl Client {
                 Os::Linux => return None,
             },
             Self::Codex => env.codex_home.join("config.toml"),
+            Self::Grok => env.grok_home.join("config.toml"),
             Self::Cursor => env.home.join(".cursor").join("mcp.json"),
             Self::GeminiCli => env.home.join(".gemini").join("settings.json"),
             Self::Opencode => opencode_file(&env.home.join(".config").join("opencode")),
@@ -235,6 +249,7 @@ impl Client {
             Self::GeminiCli => env.cwd.join(".gemini").join("settings.json"),
             Self::Opencode => opencode_file(&env.cwd),
             Self::Vscode => env.cwd.join(".vscode").join("mcp.json"),
+            Self::Grok => env.cwd.join(".grok").join("config.toml"),
             Self::ClaudeDesktop | Self::Codex | Self::Zed => return None,
         })
     }
@@ -243,7 +258,7 @@ impl Client {
     ///
     /// Installed means its user config file is there, or a folder that belongs to
     /// the client (not the home folder and not the shared config folder), or its
-    /// program (`claude`, `codex` or `code`) is on `PATH`.
+    /// program (`claude`, `codex`, `grok` or `code`) is on `PATH`.
     pub fn detected(self, env: &Env) -> bool {
         if let Some(path) = self.user_path(env) {
             if path.exists() || config_folder_exists(env, &path) {
@@ -315,7 +330,14 @@ mod tests {
             .collect();
         assert_eq!(
             with,
-            ["claude-code", "cursor", "gemini-cli", "opencode", "vscode"]
+            [
+                "claude-code",
+                "cursor",
+                "gemini-cli",
+                "grok",
+                "opencode",
+                "vscode",
+            ]
         );
     }
 
@@ -384,6 +406,10 @@ mod tests {
         assert_eq!(
             Client::Codex.user_path(&env),
             Some(PathBuf::from("/r/home/.codex/config.toml"))
+        );
+        assert_eq!(
+            Client::Grok.user_path(&env),
+            Some(PathBuf::from("/r/home/.grok/config.toml"))
         );
         assert_eq!(
             Client::Opencode.user_path(&env),

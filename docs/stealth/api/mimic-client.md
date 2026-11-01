@@ -1,0 +1,234 @@
+---
+title: "mimic::client"
+sidebarTitle: "Client"
+description: "ImpersonationProfile, CustomProfileBuilder and impersonation_client."
+---
+
+<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: mimic</Badge>
+
+`client` turns a measured browser into a wreq client. `ImpersonationProfile` is the measurement as data, including the known gaps BoringSSL cannot send. `impersonation_client` builds a `ClientBuilder` from a profile. `CustomProfileBuilder` lays a JA3 or an Akamai string over the measured profile. A browser or system with no measurement is refused.
+
+See [Wire formats](/stealth/wire-formats) and [Limits](/stealth/limits). Only Chrome 155.0.8059.40 on macOS is measured.
+
+<RequestExample>
+
+```rust The measured Chrome on this operating system
+use seleniumbase_rs_stealth::codec::BrowserKind;
+use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
+use seleniumbase_rs_stealth::mimic::{ImpersonateError, ImpersonationProfile};
+
+fn profile() -> Result<ImpersonationProfile, ImpersonateError> {
+    ImpersonationProfile::for_system(BrowserKind::Chrome, OsType::Macos)
+}
+```
+
+</RequestExample>
+
+## `client`
+
+### `ImpersonateError`
+
+<Badge color="blue" shape="pill">enum</Badge>
+
+```rust
+pub enum ImpersonateError {
+    Ja3(#[from] Ja3Error),
+    Ja4(#[from] Ja4Error),
+    Peetprint(#[from] PeetprintError),
+    Akamai(#[from] AkamaiError),
+    Tls(#[from] TlsSpecError),
+    Http2(#[from] H2SpecError),
+    Emulation(#[from] EmulationError),
+    Headers(#[from] HeaderSpecError),
+    Convert(#[from] ConvertError),
+    VersionMismatch {
+            /// The major version the user agent claims.
+            browser: u32,
+            /// The major version that was measured.
+            measured: u32,
+        },
+    Incomplete {
+            /// What is missing.
+            what: &'static str,
+        },
+    Fingerprint(&'static str),
+    UnknownHeader(String),
+    Build(String),
+}
+```
+
+Why a profile or a client could not be built.
+
+### `WireProtocol`
+
+<Badge color="blue" shape="pill">enum</Badge>
+
+```rust
+pub enum WireProtocol {
+    Http1,
+    Http2,
+}
+```
+
+The protocol a request is expected to travel on.
+
+### `ImpersonationProfile`
+
+<Badge color="blue" shape="pill">struct</Badge>
+
+```rust
+pub struct ImpersonationProfile
+```
+
+A measured browser as data: what to send on the wire and in the headers to look like it.
+
+### `ImpersonationProfile` methods
+
+<Badge color="yellow" shape="pill">method</Badge>
+
+```rust
+pub fn measured(kind: BrowserKind) -> Result<Self, ImpersonateError>
+pub fn for_system(kind: BrowserKind, os: OsType) -> Result<Self, ImpersonateError>
+pub fn from_measured(entry: &Measured) -> Result<Self, ImpersonateError>
+pub fn random(seed: u64) -> Result<Self, ImpersonateError>
+pub fn from_fingerprint(fingerprint: &Fingerprint) -> Result<Self, ImpersonateError>
+pub fn with_locale(mut self, locale: &Locale) -> Self
+pub fn custom() -> CustomProfileBuilder
+pub fn validate(&self) -> Result<(), ImpersonateError>
+pub fn source(&self) -> &str
+pub fn kind(&self) -> BrowserKind
+pub fn os(&self) -> OsType
+pub fn major(&self) -> u32
+pub fn user_agent(&self) -> &str
+pub fn accept_language(&self) -> Option<&str>
+pub fn tls_spec(&self) -> &TlsSpec
+pub fn http2_spec(&self) -> &H2Spec
+pub fn header_spec(&self) -> &HeaderSpec
+pub fn identity(&self) -> &HeaderIdentity
+pub fn known_gaps(&self) -> &[KnownGap]
+pub fn dropped_settings(&self) -> &[(u16, u32)]
+pub fn headers_for(
+        &self,
+        shape: RequestShape,
+        cookie: Option<&str>,
+        wire: WireProtocol,
+    ) -> Result<Vec<(String, String)>, ImpersonateError>
+pub fn apply(
+        &self,
+        request: RequestBuilder,
+        shape: RequestShape,
+        cookie: Option<&str>,
+        wire: WireProtocol,
+    ) -> Result<RequestBuilder, ImpersonateError>
+```
+
+
+- `measured`: The newest measured entry of a browser.
+- `for_system`: The newest measured entry of a browser on one operating system.
+- `from_measured`: A profile from one measured entry.
+- `random`: A profile for a seeded random identity on a measured system.
+- `from_fingerprint`: A profile for the identity of a fingerprint, riding the measured TLS and HTTP/2 of its operating system.
+- `with_locale`: The same profile with the `Accept-Language` of a locale.
+- `custom`: A builder that layers custom inputs over a measured base.
+- `validate`: Checks that the specs can be sent and the headers are valid.
+- `source`: Where the profile comes from, such as `chrome-155-macos`.
+- `kind`: The browser.
+- `os`: The operating system the browser was measured on.
+- `major`: The major version that was measured.
+- `user_agent`: The `User-Agent` a request carries.
+- `accept_language`: The `Accept-Language` a request carries, when it has one.
+- `tls_spec`: The TLS spec the client sends.
+- `http2_spec`: The HTTP/2 spec the client sends.
+- `header_spec`: The header lists.
+- `identity`: The values of the identity placeholders (a cookie is never part of it).
+- `known_gaps`: What the measured hello has and `BoringSSL` cannot send: the difference between this client's hello and the browser's, which the wire test asserts and nothing else.
+- `dropped_settings`: The SETTINGS of the measured HTTP/2 start that wreq cannot send and the profile dropped.
+- `headers_for`: The headers of one request, in wire order, with the placeholders filled.
+- `apply`: Sets the headers of one request on a wreq request: the rendered list in its order and spelling, in place of the client's default headers.
+
+## `client::custom`
+
+### `CustomProfileBuilder`
+
+<Badge color="blue" shape="pill">struct</Badge>
+
+```rust
+pub struct CustomProfileBuilder
+```
+
+Builds an [`ImpersonationProfile`] from a measured base and caller-supplied inputs.
+
+### `CustomProfileBuilder` methods
+
+<Badge color="yellow" shape="pill">method</Badge>
+
+```rust
+pub fn new() -> Self
+pub fn base(mut self, kind: BrowserKind) -> Self
+pub fn base_on(mut self, kind: BrowserKind, os: OsType) -> Self
+pub fn ja3(self, ja3: &str) -> Result<Self, ImpersonateError>
+pub fn ja4_r(self, ja4_r: &str) -> Result<Self, ImpersonateError>
+pub fn ja4_ro(self, ja4_ro: &str) -> Result<Self, ImpersonateError>
+pub fn peetprint(self, peetprint: &str) -> Result<Self, ImpersonateError>
+pub fn signature_algorithms(self, ids: &[u16]) -> Result<Self, ImpersonateError>
+pub fn grease(self, enabled: bool) -> Result<Self, ImpersonateError>
+pub fn permute_extensions(self, enabled: bool) -> Result<Self, ImpersonateError>
+pub fn akamai(mut self, akamai: &str) -> Result<Self, ImpersonateError>
+pub fn user_agent(mut self, user_agent: impl Into<String>) -> Self
+pub fn accept_language(mut self, accept_language: impl Into<String>) -> Self
+pub fn client_hints(mut self, hints: ClientHints) -> Self
+pub fn header(
+        mut self,
+        shape: RequestShape,
+        name: impl Into<String>,
+        value: HeaderValue,
+    ) -> Self
+pub fn without_header(mut self, shape: RequestShape, name: impl Into<String>) -> Self
+pub fn header_order<I, S>(mut self, shape: RequestShape, names: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+pub fn priority(mut self, destination: impl Into<String>, value: impl Into<String>) -> Self
+pub fn headers(mut self, spec: HeaderSpec) -> Self
+pub fn build(mut self) -> Result<ImpersonationProfile, ImpersonateError>
+```
+
+
+- `new`: A builder over the newest measured Chrome.
+- `base`: Takes the newest measurement of `kind` as the base. Call it first: it discards the TLS and HTTP/2 inputs given before it.
+- `base_on`: Takes the measurement of `kind` on `os` as the base; a pair with no capture is refused by the next input that needs the base, or by [`build`](Self::build). Call it first.
+- `ja3`: Replaces the version, ciphers, extensions, groups and point formats with a JA3.
+- `ja4_r`: Replaces the ciphers, extensions and signature algorithms with a `JA4_r` (sorted ids).
+- `ja4_ro`: Replaces the ciphers, extensions and signature algorithms with a `JA4_ro` (wire order).
+- `peetprint`: Replaces the ciphers, extensions, groups, versions, ALPN, signature algorithms, PSK modes and certificate compression with a peetprint.
+- `signature_algorithms`: Replaces the signature algorithms.
+- `grease`: Turns GREASE (RFC 8701) on or off in the hello: the extra cipher, group, version and signature algorithm values and the first and last extension that fingerprints strip.
+- `permute_extensions`: Lets `BoringSSL` shuffle the extensions on every connection, as Chrome does, or pins their order. A JA3, `JA4_ro` or similar input pins the order; its JA3 is then exact.
+- `akamai`: Replaces the HTTP/2 SETTINGS, connection window, PRIORITY frames and pseudo-header order with an Akamai fingerprint. The HEADERS priority fields stay the base's.
+- `user_agent`: Sets the `User-Agent`.
+- `accept_language`: Sets the `Accept-Language`.
+- `client_hints`: Sets the client hints (`Sec-CH-UA`, `Sec-CH-UA-Mobile`, `Sec-CH-UA-Platform`).
+- `header`: Sets a header of one request shape: replaced in place (keeping its position and spelling) when the list has it, appended when it does not.
+- `without_header`: Removes a header of one request shape.
+- `header_order`: Puts the named headers of one request shape first, in this order; the others follow in their old order. A name that is not in the list is refused by [`build`](Self::build).
+- `priority`: Sets the HTTP/2 `priority` header value for requests with this `Sec-Fetch-Dest`.
+- `headers`: Replaces both header lists and the priority table.
+- `build`: Applies the identity and header inputs, checks every spec, and returns the profile.
+
+## Functions
+
+### `impersonation_client`
+
+<Badge color="green" shape="pill">function</Badge>
+
+```rust
+pub fn impersonation_client(
+    profile: &ImpersonationProfile,
+) -> Result<wreq::ClientBuilder, ImpersonateError>
+```
+
+Starts a wreq client with the TLS, HTTP/2 and default headers of a profile.
+
+## Related
+
+The guide is [Wire formats](/stealth/wire-formats). The overview is [mimic](/stealth/api/mimic).

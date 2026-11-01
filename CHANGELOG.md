@@ -27,6 +27,20 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- `sbrs-mcp install`, `uninstall` and `clients` know Grok Build (`grok`). The
+  user file is `$GROK_HOME/config.toml`, or `~/.grok/config.toml` when
+  `GROK_HOME` is unset (on Windows, `%USERPROFILE%\.grok\config.toml`), and
+  `--scope project` writes `.grok/config.toml`. Entries are
+  `[mcp_servers.NAME]` tables. Paths and format are from
+  <https://docs.x.ai/build/features/mcp-servers> and
+  <https://docs.x.ai/build/settings>. `--all` treats `grok` on `PATH`, or the
+  config folder, as installed, and the plan lists it before anything is written.
+- How it works: what the `cdc_` properties are and how UC mode removes them,
+  the order stealth evasions apply, how a driver is matched to Chrome and
+  downloaded, and a DevTools Protocol page for the driverless engine.
+- The scrape and mimic API references are one overview plus a page per public
+  module, in the same shape as the codec reference. Each page lists the public
+  types, methods and errors from seleniumbase-rs-stealth.
 - `sbrs-mcp install --all` and `uninstall --all` register with, or remove the
   registration from, every MCP client that is installed on the machine (its config
   file, its own config folder, or its program on `PATH`). Clients that are not
@@ -54,6 +68,8 @@ work, `docs/parity.md` the per-API status).
   every line whole. A command line the parser refuses is as before: the page of the command,
   then the `error:` line. The library's `rich_helper::format_error_report` is unchanged.
 
+- The UC mode guide is one page, `docs/tutorials/uc_mode.md`: what the mode is,
+  when to use it, and every option. `/help/uc_mode` redirects there.
 
 ## [0.7.0] - 2026-10-31
 
