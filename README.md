@@ -506,7 +506,7 @@ cookies, and execute JavaScript in the active page.
 | `azure` | Azure Blob Storage artifact uploads. |
 | `gcp` | Google Cloud Storage artifact uploads. |
 | `mcp-server` | Builds the `sbrs-mcp` binary using `rmcp`. |
-| `turso` | Embedded database: `ResultStore`, `ProfileVault`, `sbrs report`. |
+| `turso` | Embedded database: `ResultStore`, `ProfileVault`, and `sbrs report history`. |
 | `test-util` | The scripted mock browser, for tests without Chrome. |
 | `full-tracing` | Verbose `tracing` span events for debugging. |
 | `error-backtrace` | Backtraces attached to `SeleniumBaseError`. |

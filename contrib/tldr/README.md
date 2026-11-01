@@ -21,7 +21,7 @@ All pages are in `pages/common/`.
 | `sbrs-plugin.md` | `sbrs plugin list`, `info` and `run`, and the global `--plugin` and `--plugin-opt` |
 | `sbrs-mcp.md` | the `sbrs-mcp` binary |
 
-The examples come from `sbrs --help` and `sbrs <command> --help` of version 0.4.0 and from
+The examples come from `sbrs --help` and `sbrs <command> --help` of version 0.7.0 and from
 `docs/tutorials/mcp_server.md`. When a command changes, regenerate the matching page from its
 help rather than from memory.
 
