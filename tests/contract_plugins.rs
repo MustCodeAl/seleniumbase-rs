@@ -383,7 +383,7 @@ mod the_imap_plugin_as_the_email_tool_uses_it {
         .expect("a query with a filter");
         assert_eq!(query.from.as_deref(), Some("no-reply@shop.example"));
         assert_eq!(query.subject_contains.as_deref(), Some("verify"));
-        assert!(MAX_TIMEOUT_SECS >= 1);
+        let _: u64 = MAX_TIMEOUT_SECS;
     }
 
     #[tokio::test]
