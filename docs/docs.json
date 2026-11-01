@@ -642,6 +642,7 @@
               "contributing/coverage",
               "contributing/releasing",
               "contributing/consumers",
+              "contributing/manual-checks",
               "UPSTREAM_SYNC",
               "completions/README",
               "feature-requests"
