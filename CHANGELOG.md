@@ -39,6 +39,11 @@ work, `docs/parity.md` the per-API status).
 - `docs/contributing/manual-checks.md`: step-by-step checks for the IMAP and Tor
   plugins against real services and for Windows and Linux smoke tests.
 
+### Changed
+
+- The UC mode guide is one page, `docs/tutorials/uc_mode.md`: what the mode is,
+  when to use it, and every option. `/help/uc_mode` redirects there.
+
 ## [0.7.0] - 2026-10-31
 
 ### Breaking

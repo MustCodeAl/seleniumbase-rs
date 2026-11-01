@@ -34,7 +34,6 @@ hidden: true
 - [Stealth and Browser Modes](tutorials/uc_mode.md)
   - [CDP Mode](tutorials/cdp_mode.md)
   - [Pure CDP](tutorials/pure_cdp.md)
-  - [UC Mode reference](help/uc_mode.md)
   - [Playwright Mode](help/playwright_mode.md)
   - [Fingerprint & Stealth Profiles](tutorials/fingerprint_stealth.md)
   - [Binary Patching](tutorials/binary_patching.md)

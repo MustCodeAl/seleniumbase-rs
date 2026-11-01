@@ -34,6 +34,11 @@
   },
   "redirects": [
     {
+      "source": "/help/uc_mode",
+      "destination": "/tutorials/uc_mode",
+      "permanent": true
+    },
+    {
       "source": "/imports",
       "destination": "/tutorials/getting_started#imports-and-dependencies",
       "permanent": true
@@ -256,7 +261,6 @@
             "icon": "mask",
             "pages": [
               "tutorials/uc_mode",
-              "help/uc_mode",
               "tutorials/fingerprint_stealth",
               "tutorials/binary_patching"
             ]
