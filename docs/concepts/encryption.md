@@ -214,8 +214,8 @@ a fixed key.
 
 <Tab title="Scrambling, not encryption" icon="shuffle">
 
-`seleniumbase_rs::common::obfuscate` and `unobfuscate` hold `rot13`,
-`base64_encode` and `obfuscate` (ROT13, then Base64). The module documentation is
+`seleniumbase_rs::common::obfuscate` holds `rot13`, `base64_encode`,
+`base64_decode`, `obfuscate` (ROT13, then Base64) and `unobfuscate`. The module documentation is
 blunt: "This is not encryption." Anyone can undo it without a key. For example
 `obfuscate("selenium")` gives `ZnJ5cmF2aHo=`. It is meant to keep a value from
 being read at a glance, such as a name in a log line or a sample config, and
