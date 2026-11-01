@@ -39,6 +39,17 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 s
   `base64_decode` and `unobfuscate` moved into `seleniumbase_rs::common::obfuscate`.
   The two modules imported each other. Import them from `common::obfuscate`.
 
+- **Breaking: times are `jiff`, not `chrono`.** chrono is soft-deprecated; the public items that
+  carried one now carry jiff's (`jiff = "0.2"`). `core::report_helper::RunSnapshot::started_at`
+  and `updated_at` are a `jiff::Zoned` (a `chrono::DateTime<Local>` before),
+  `core::log_helper::get_master_time` takes a `&jiff::Zoned` (it was generic over
+  `chrono::DateTime<Tz>`), and `storage::RunSummary::started_at` and `last_result_at` are a
+  `jiff::Timestamp` (a `DateTime<Utc>` before). Build them with `jiff::civil::date(..).at(..)
+  .to_zoned(TimeZone::system())` or `Zoned::now()`. Everything the crate writes keeps its shape,
+  byte for byte: the JUnit `timestamp`, the dashboard's `Last updated`, `run.json`, the HAR
+  `startedDateTime`, the info files of a failed test, the `captured_at` of a fingerprint, the log
+  clock, and `sbrs report history --json`.
+
 ### Added
 
 - `sbrs-mcp install`, `uninstall` and `clients` know Grok Build (`grok`). The
@@ -74,6 +85,17 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 s
   of `mise run contracts --check-build`, as the checks for a release.
 
 ### Changed
+
+- **`sbrs` and `sbrs-mcp` print the failure of a command as a [miette](https://docs.rs/miette)
+  diagnostic.** Where they printed `error: ...`, `caused by: ...` and `hint: ...` they now print
+  a code that names the kind of failure (`sbrs::element_not_found`, `sbrs::io`,
+  `sbrs_mcp::invalid_config`: the library error's category, or `sbrs::error` for any other
+  error), the message after a cross, the causes the message does not already say under it, and
+  the hint as a `help:` line. The exit status is unchanged: it still follows the error's
+  category. Colour and box-drawing characters appear only on a terminal that allows colour
+  (`NO_COLOR` and `TERM=dumb` turn them off, as before); a pipe or a file gets plain ASCII with
+  every line whole. A command line the parser refuses is as before: the page of the command,
+  then the `error:` line. The library's `rich_helper::format_error_report` is unchanged.
 
 - The UC mode guide is one page, `docs/tutorials/uc_mode.md`: what the mode is,
   when to use it, and every option. `/help/uc_mode` redirects there.
