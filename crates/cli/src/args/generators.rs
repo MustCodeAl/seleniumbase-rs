@@ -118,6 +118,7 @@ pub(crate) struct MkfileArgs {
     pub(crate) file: String,
     /// Page the test opens (default: https://example.com). A bare host such as
     /// wikipedia.org gets https://; the test is then the basic one.
+    #[allow(rustdoc::bare_urls)] // the help text names a URL as plain text
     #[usage(long, value_hint = usage::ValueHint::Url)]
     pub(crate) url: Option<String>,
     /// Leave the test body empty: it only opens the page.

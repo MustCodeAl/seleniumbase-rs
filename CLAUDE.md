@@ -103,6 +103,7 @@ export CARGO_BUILD_JOBS=2 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0
 cargo fmt --all -- --check
 cargo clippy --all-targets --features "mcp-server test-util testing bdd" -- -D warnings
 cargo test --features "mcp-server test-util testing bdd"
+RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --features "mcp-server test-util testing bdd"
 cargo audit && cargo deny check
 mdbook build
 ```

@@ -122,4 +122,39 @@ mod tests {
             assert_eq!(read_back(&quote(text)), text);
         }
     }
+
+    /// The exact literal for each character the contract names, so a change in
+    /// the escaping shows up here and not in a page.
+    #[test]
+    fn the_exact_literal_for_each_special_character() {
+        // The escapes are built here, not typed, so that no tool or editor can turn
+        // an escape sequence in this file into the character it stands for.
+        fn escape(code: u32) -> String {
+            format!("\\u{code:04x}")
+        }
+
+        let cases: Vec<(&str, String)> = vec![
+            ("", "\"\"".to_owned()),
+            ("'", "\"'\"".to_owned()),
+            ("\"", "\"\\\"\"".to_owned()),
+            ("\\", "\"\\\\\"".to_owned()),
+            ("\n", "\"\\n\"".to_owned()),
+            ("\r", "\"\\r\"".to_owned()),
+            ("\t", "\"\\t\"".to_owned()),
+            ("\u{0}", format!("\"{}\"", escape(0))),
+            ("\u{8}\u{c}\u{1f}", format!("\"\\b\\f{}\"", escape(0x1f))),
+            (
+                "</script>",
+                format!("\"{}/script{}\"", escape(0x3c), escape(0x3e)),
+            ),
+            ("a&b", format!("\"a{}b\"", escape(0x26))),
+            ("\u{2028}", format!("\"{}\"", escape(0x2028))),
+            ("\u{2029}", format!("\"{}\"", escape(0x2029))),
+            ("🦀", "\"🦀\"".to_owned()),
+        ];
+        for (text, literal) in cases {
+            assert_eq!(quote(text), literal, "{text:?}");
+            assert_eq!(read_back(&literal), text, "{text:?}");
+        }
+    }
 }

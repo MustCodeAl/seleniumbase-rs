@@ -716,7 +716,7 @@ impl PageHandle for TabLink<'_> {
     }
 }
 
-/// A tab, as the plugin API sees it: what [`TabLink`] does, on the tab's own
+/// A tab, as the plugin API sees it: what `TabLink` does, on the tab's own
 /// protocol session, and the typed methods of the handle.
 ///
 /// The trait's `evaluate` and `add_init_script` differ from the methods of

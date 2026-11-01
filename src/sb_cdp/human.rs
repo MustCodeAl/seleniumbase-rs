@@ -224,8 +224,8 @@ struct State {
 }
 
 impl Page {
-    /// Input on this page with a person's pace; see the [module
-    /// docs](crate::sb_cdp::human).
+    /// Input on this page with a person's pace; see the `human` module
+    /// docs.
     #[must_use]
     pub fn human(&self, behavior: Behavior) -> Human {
         Human {

@@ -2,7 +2,7 @@
 //!
 //! `cargo test` is the one runner and [`rstest`](https://docs.rs/rstest)
 //! supplies the fixtures: a test asks for `sb: Sb` and calls
-//! [`Sb::run`] with its body, and the library does the rest with the run
+//! [`Sb::run`](crate::testing::Sb::run) with its body, and the library does the rest with the run
 //! configuration (the settings file, `SB_SETTINGS_FILE` and the `SB_*`
 //! variables that `sbrs test` sets from its flags):
 //!
@@ -48,8 +48,8 @@
 //! `sb_cdp: SbCdp` is the same for the pure CDP engine, with a
 //! [`Page`](crate::sb_cdp::Page) in place of the `BaseCase`. Per-test
 //! overrides, the Rust form of Python's `SB(...)` arguments, go through
-//! [`Sb::configure`]. Anything that wants to know how each attempt ended (the
-//! reports, the plugin host, the recorder) is a [`Finalizer`].
+//! [`Sb::configure`](crate::testing::Sb::configure). Anything that wants to know how each attempt ended (the
+//! reports, the plugin host, the recorder) is a [`Finalizer`](crate::testing::Finalizer).
 
 #[cfg(feature = "bdd")]
 pub mod bdd;

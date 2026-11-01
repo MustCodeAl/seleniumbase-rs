@@ -1,9 +1,9 @@
 //! Convenience macros for writing SeleniumBase Rust tests.
 //!
 //! These macros reduce boilerplate for common patterns such as constructing a
-//! selector, driving a [`BaseCase`], or building a [`Fingerprint`]. They are
+//! selector, driving a [`BaseCase`](crate::BaseCase), or building a [`Fingerprint`](crate::Fingerprint). They are
 //! intended to be used inside `async` test functions (for example those created
-//! with [`sb_test!`]).
+//! with [`sb_test!`](crate::sb_test)).
 
 /// Builds a [`Selector`](crate::Selector) variant at compile time.
 ///
@@ -166,7 +166,7 @@ macro_rules! sb_assert_text {
 }
 
 /// Asserts that the page title is the expected text, as Python's
-/// `assert_title` does. Use [`sb_assert_title_contains!`] for part of it.
+/// `assert_title` does. Use [`sb_assert_title_contains!`](crate::sb_assert_title_contains) for part of it.
 #[macro_export]
 macro_rules! sb_assert_title {
     ($sb:expr, $expected:expr $(, $msg:expr)?) => {
@@ -184,7 +184,7 @@ macro_rules! sb_assert_title_contains {
 }
 
 /// Asserts that the current URL is the expected one, as Python's `assert_url`
-/// does. Use [`sb_assert_url_contains!`] for part of it.
+/// does. Use [`sb_assert_url_contains!`](crate::sb_assert_url_contains) for part of it.
 #[macro_export]
 macro_rules! sb_assert_url {
     ($sb:expr, $expected:expr $(, $msg:expr)?) => {

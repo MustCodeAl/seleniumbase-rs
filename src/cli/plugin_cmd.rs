@@ -279,7 +279,7 @@ impl PluginChoice {
 }
 
 /// Gives `config` the plugins `selection` names. The same as
-/// [`BrowserConfig::with_plugin_selection`], except that a build without the feature
+/// `BrowserConfig::with_plugin_selection`, except that a build without the feature
 /// `plugins` refuses a selection that is not empty instead of leaving it out of the
 /// program, whichever features the caller has.
 ///

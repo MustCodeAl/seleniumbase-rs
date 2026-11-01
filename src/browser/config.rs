@@ -911,7 +911,7 @@ impl BrowserConfig {
     /// changes them later. They are not part of a configuration file.
     ///
     /// This replaces the whole [`RunSettings`], default wait included. A
-    /// configuration from [`Settings::to_browser_config`](crate::config::Settings::to_browser_config)
+    /// configuration from [`Settings::to_browser_config`](crate::Settings::to_browser_config)
     /// already carries the `SB_TIMEOUT` default wait there, so build on
     /// [`run_settings`](Self::run_settings) (clone it, change what you need)
     /// instead of starting from `RunSettings::default()`, or that wait is lost.

@@ -4,13 +4,13 @@
 //! agree with each other. A macOS user agent over a Direct3D renderer, a Tokyo
 //! time zone under an `en-US` locale, or a phone-sized screen on a machine with
 //! sixteen cores each give a fake identity away. Randomising one field at a time
-//! produces exactly those mismatches, so [`generate`] does not. It draws a whole
+//! produces exactly those mismatches, so `generate` does not. It draws a whole
 //! machine (a graphics adapter or device model from a table of real ones, with
 //! the core count, memory and screens such a machine ships with) and a whole
 //! place (a locale, its time zone and a spot in that time zone), then derives
-//! every field of the [`Fingerprint`] from them.
+//! every field of the [`Fingerprint`](crate::Fingerprint) from them.
 //!
-//! The public entry point is [`Fingerprint::randomized`]; this module holds the
+//! The public entry point is [`Fingerprint::randomized`](crate::Fingerprint::randomized); this module holds the
 //! tables and the assembly. Everything here is pure and uses the crate's
 //! seedable [`Rng`], so a seed always gives the same identity.
 
@@ -30,8 +30,8 @@ use super::settings::{MediaDevices, WebGl, WebRtcAddresses};
 /// before them.
 const CHROMIUM_MAJORS: [u32; 3] = [154, 155, 156];
 
-/// The Chromium major the fixed presets ([`Fingerprint::windows_desktop`] and
-/// the others) claim: the newest of [`CHROMIUM_MAJORS`].
+/// The Chromium major the fixed presets ([`Fingerprint::windows_desktop`](crate::Fingerprint::windows_desktop) and
+/// the others) claim: the newest of the majors a generated identity may claim.
 pub const PRESET_CHROMIUM_MAJOR: u32 = CHROMIUM_MAJORS[CHROMIUM_MAJORS.len() - 1];
 
 /// Where a row of [`KNOWN_FULL_VERSIONS`] comes from.

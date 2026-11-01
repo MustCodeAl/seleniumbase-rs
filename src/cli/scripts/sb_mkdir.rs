@@ -2,7 +2,7 @@
 //!
 //! The suite is one Cargo test target: a `main.rs` that declares the example
 //! tests, which use the rstest `sb` and `sb_cdp` fixtures of
-//! [`testing`](crate::testing). Options add a Gherkin scenario that runs on the
+//! `crate::testing` (feature `testing`). Options add a Gherkin scenario that runs on the
 //! built-in steps ([`Suite::bdd`]) and a GitHub Actions workflow
 //! ([`Suite::gha`]). The golden files under `tests/golden/cli/` pin every
 //! generated file, and the `cfg(doctest)` items at the bottom of this file

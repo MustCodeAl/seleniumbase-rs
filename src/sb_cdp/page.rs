@@ -806,7 +806,7 @@ impl Page {
         Ok(())
     }
 
-    /// Closes the tab, and waits (for up to [`CLOSE_WAIT`]) until the browser no longer lists it.
+    /// Closes the tab, and waits (for up to `CLOSE_WAIT`) until the browser no longer lists it.
     ///
     /// Chrome answers `Target.closeTarget` before the tab has left its target list, so without
     /// the wait a [`Browser::list_pages`] right after `close` could still show the tab.

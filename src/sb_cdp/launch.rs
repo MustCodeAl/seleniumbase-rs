@@ -966,8 +966,8 @@ impl LaunchOptionsBuilder {
     /// `guest` are both set, when `use_chromium` is combined with an explicit
     /// executable path, or when the proxy cannot be parsed, and
     /// [`SeleniumBaseError::Plugin`] when a plugin named with
-    /// [`plugins_named`](Self::plugins_named) or
-    /// [`plugin_selection`](Self::plugin_selection) is unknown, refuses its
+    /// `plugins_named` or
+    /// `plugin_selection` (feature `plugins`) is unknown, refuses its
     /// options or is named twice.
     pub fn build(self) -> Result<LaunchOptions, SeleniumBaseError> {
         if self.identity.is_some() && (self.mobile || self.device_metrics.is_some()) {

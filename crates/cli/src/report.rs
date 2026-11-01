@@ -1,7 +1,7 @@
 //! `sbrs report`: ending a test run (`finish`) and reading a results database (`history`).
 //!
 //! `finish` is for the run that `sbrs test` did not start: plain `cargo test` leaves the live
-//! dashboard going, and this ends it (see [`test_session`](crate::test_session)).
+//! dashboard going, and this ends it (see [`test_session`]).
 
 use std::path::PathBuf;
 

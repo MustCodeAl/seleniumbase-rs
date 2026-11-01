@@ -2,7 +2,7 @@
 //! each scenario by its line, and running chosen scenarios with `cargo test`.
 //!
 //! The scenarios are bound to Rust tests with rstest-bdd (feature `bdd`, see
-//! [`crate::testing::bdd`]), and the steps are Rust code in the user's own
+//! `crate::testing::bdd`), and the steps are Rust code in the user's own
 //! program, which `sbrs` cannot load. So the app asks cargo to run the tests
 //! instead: one `cargo test` for the chosen scenarios of a feature, with a name
 //! filter for each ([`scenario_filter`]: the scenario's title in snake case, as

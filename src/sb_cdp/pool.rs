@@ -288,7 +288,7 @@ impl Shared {
     }
 }
 
-/// A pool of Chrome browsers; see the [module docs](crate::sb_cdp::pool).
+/// A pool of Chrome browsers; see the `pool` module docs.
 ///
 /// Cloning gives another handle to the same pool.
 #[derive(Clone)]

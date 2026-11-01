@@ -87,6 +87,7 @@ struct Cli {
     /// in) and SB_PLUGINS turn on. Precedence, highest first: the command line, then
     /// SB_PLUGINS (which replaces the names the file enables), then the settings file.
     /// `sbrs plugin list` shows the plugins this build has.
+    #[allow(rustdoc::broken_intra_doc_links)] // `[plugins]` is a TOML table in help text, not a link
     #[usage(long, value_name = "NAME")]
     plugin: Vec<String>,
     /// Set one option of a plugin, NAME.KEY=VALUE with a TOML VALUE (repeatable)
@@ -131,6 +132,7 @@ struct Cli {
     ///
     /// ORIGIN is scheme://host[:port]. Pages from localhost and requests that carry no Origin
     /// header (every client that is not a browser) are always let in.
+    #[allow(rustdoc::broken_intra_doc_links)] // `[:port]` is help text, not a link
     #[usage(long, value_name = "ORIGIN")]
     allow_origin: Vec<String>,
     /// Accept this name in the Host header of HTTP requests, besides localhost (SB_MCP_ALLOW_HOST; repeatable)

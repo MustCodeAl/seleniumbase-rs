@@ -1,7 +1,7 @@
 //! CDP Page automation helpers and the [`CdpPage`] wrapper.
 //!
 //! These helpers issue Chrome DevTools Protocol commands directly through a
-//! [`BrowserSession`][crate::browser::session::BrowserSession], bypassing the
+//! [`BrowserSession`], bypassing the
 //! WebDriver layer for low-level control over navigation, DOM queries, input
 //! events, screenshots, and JavaScript evaluation.
 //!

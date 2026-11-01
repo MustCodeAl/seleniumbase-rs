@@ -6,7 +6,7 @@
 //! sessions as automated tests.
 //!
 //! [`RecorderSession`] holds a recorded action list: it saves and loads it as
-//! JSON or YAML, and replays it against a [`BaseCase`](crate::BaseCase). The
+//! JSON or YAML, and replays it against a [`BaseCase`]. The
 //! replay runs every action the generators write, because both are made from one
 //! table (`calls.rs`).
 //!
@@ -117,7 +117,7 @@ use calls::{gherkin_mark, rust_call, Mark, ALIASES};
 /// A single recorded browser action.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct RecordedAction {
-    /// Method name on [`BaseCase`](crate::BaseCase) that the action maps to.
+    /// Method name on [`BaseCase`] that the action maps to.
     pub name: String,
     /// Primary argument, typically a selector or URL.
     #[serde(default)]

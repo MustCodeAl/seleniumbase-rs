@@ -340,7 +340,7 @@ pub struct Seen {
     pub outcome: Outcome,
 }
 
-/// A running interception; see the [module docs](crate::sb_cdp::intercept).
+/// A running interception; see the `intercept` module docs.
 ///
 /// Stops when [`stop`](Self::stop)ped or dropped.
 #[derive(Debug)]

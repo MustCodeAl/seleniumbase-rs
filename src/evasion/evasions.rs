@@ -1,7 +1,7 @@
 //! JavaScript anti-detection / fingerprint spoofing payloads.
 //!
 //! The functions in this module build self-contained IIFE scripts from a
-//! [`Fingerprint`](crate::evasion::fingerprint::Fingerprint). The returned
+//! [`Fingerprint`]. The returned
 //! strings are suitable for:
 //!
 //! * `Page.addScriptToEvaluateOnNewDocument` via CDP (injected before any page
@@ -197,7 +197,7 @@ const PERMITTED_SWITCHES: &[&str] = &[
 /// `value` may be handed to Chrome.
 ///
 /// The flag must be a plain switch name, the value must be one line, and the
-/// switch must be one of [`PERMITTED_SWITCHES`] and none of [`FORBIDDEN_SWITCHES`].
+/// switch must be one of `PERMITTED_SWITCHES` and none of `FORBIDDEN_SWITCHES`.
 #[must_use]
 pub fn permitted_switch(flag: &str, value: &str) -> bool {
     let plain = !flag.is_empty()
