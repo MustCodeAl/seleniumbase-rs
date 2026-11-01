@@ -165,7 +165,7 @@ fn open_and_smoke_print_their_answer_and_only_that_on_standard_output() {
         "{}",
         stderr(&failed)
     );
-    assert!(stderr(&failed).contains("hint:"), "{}", stderr(&failed));
+    assert!(stderr(&failed).contains("help:"), "{}", stderr(&failed));
 
     // SB_HEADLESS does what --headless does.
     let by_environment = finish_within(

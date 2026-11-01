@@ -525,7 +525,7 @@ fn patch_chromedriver_patches_in_place_and_says_so_for_a_file_that_is_not_there(
     let missing = run(dir.path(), &["patch-chromedriver", "--path", "nope"]);
     assert_eq!(missing.status.code(), Some(4), "the driver failed");
     assert!(stderr(&missing).contains("nope"), "{}", stderr(&missing));
-    assert!(stderr(&missing).contains("hint:"), "{}", stderr(&missing));
+    assert!(stderr(&missing).contains("help:"), "{}", stderr(&missing));
 }
 
 #[test]
