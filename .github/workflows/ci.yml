@@ -221,7 +221,6 @@ jobs:
           cargo doc --no-deps -p seleniumbase-rs
           cargo doc --no-deps -p seleniumbase-rs-playwright
 
-
       # The command line turns `pdf` on by default, so the matrix above never runs
       # the tests that expect a build without it (the exit status 2 and the hint).
       - name: Command line without default features

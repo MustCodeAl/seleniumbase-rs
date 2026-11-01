@@ -52,7 +52,6 @@ cargo clippy --all-targets --features "mcp-server test-util testing bdd" -- -D w
 cargo test --features "mcp-server test-util testing bdd"
 RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --features "mcp-server test-util testing bdd"
 
-
 # Build the mdBook
 mdbook build
 ```
@@ -334,7 +333,6 @@ cargo fmt --all -- --check
 cargo clippy --all-targets --features "mcp-server test-util testing bdd" -- -D warnings
 cargo test --features "mcp-server test-util testing bdd"
 RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --features "mcp-server test-util testing bdd"   # no broken doc links
-
 cargo check --features turso --all-targets            # code that only builds with turso
 cargo deny --workspace check && cargo audit            # when Cargo.lock changed
 mdbook build                                           # when docs changed
