@@ -658,7 +658,8 @@
               "design/mcp-dev-tools",
               "design/stealth_parity_plan",
               "design/rstest_bdd_spike",
-              "design/upstream_sync_4.56.5"
+              "design/upstream_sync_4.56.5",
+              "design/mise_drivers"
             ]
           },
           {

@@ -25,6 +25,11 @@ work, `docs/parity.md` the per-API status).
   which ones; otherwise it still exits with status 2 and lists the known clients.
 - `docs/design/upstream_sync_4.56.5.md`: what changed in Python SeleniumBase
   from 4.55.2 to 4.56.5, and the order to port it.
+- `docs/design/mise_drivers.md`: a design for installing, upgrading and removing
+  chromedriver (and a patched UC variant) through mise.
+- `docs/contributing/manual-checks.md`: step-by-step checks for the IMAP and Tor
+  plugins against real services and for Windows and Linux smoke tests.
+
 ## [0.7.0] - 2026-10-31
 
 ### Breaking
