@@ -656,7 +656,8 @@
               "design/usage-cli",
               "design/mcp-dev-tools",
               "design/stealth_parity_plan",
-              "design/rstest_bdd_spike"
+              "design/rstest_bdd_spike",
+              "design/upstream_sync_4.56.5"
             ]
           },
           {

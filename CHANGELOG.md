@@ -23,7 +23,8 @@ work, `docs/parity.md` the per-API status).
   client, the config file, and whether each entry is added or removed. With no client
   named, a terminal lists the installed clients and asks
   which ones; otherwise it still exits with status 2 and lists the known clients.
-
+- `docs/design/upstream_sync_4.56.5.md`: what changed in Python SeleniumBase
+  from 4.55.2 to 4.56.5, and the order to port it.
 ## [0.7.0] - 2026-10-31
 
 ### Breaking
