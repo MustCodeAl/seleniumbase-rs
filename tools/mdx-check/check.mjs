@@ -6,6 +6,8 @@
 //   fine; `{browser}` with no `browser` defined fails the page on Docs7.
 // - No relative link to a `.md` file: Docs7 serves those raw. Use the site route
 //   (`/tutorials/selectors`), in Markdown links and in component `href`s alike.
+// - No link whose target is a Rust path (`self`, `Self::build`, `seleniumbase_rs::sb_cdp::T`):
+//   rustdoc resolves those, Docs7 shows them as broken links.
 // - The front matter has a title.
 // - Every page is in the navigation of docs.json, and every page there exists.
 // - The copy of the tree component on a page, and every layout tree between its markers, is
@@ -32,6 +34,9 @@ const GLOBALS = new Set([
   "parseFloat", "isNaN",
 ]);
 const RELATIVE_MD = /^(?!https?:|mailto:|\/|#)[^\s]*\.mdx?(#.*)?$/;
+// A rustdoc intra-doc link target (`self`, `super::X`, `Self::f`, `crate::m`,
+// `seleniumbase_rs::sb_cdp::T`, `Type::method`): it resolves in `cargo doc`, not on Docs7.
+const RUST_PATH = /^(?:self|super|crate|Self)(?:::\S*)?$|^[A-Za-z_][A-Za-z0-9_]*::\S+$/;
 
 function pages(dir, out = []) {
   for (const name of readdirSync(dir).sort()) {
@@ -155,6 +160,9 @@ function checkTree(problems) {
       }
       if ((node.type === "link" || node.type === "definition") && RELATIVE_MD.test(node.url ?? "")) {
         problems.push(`${at(node)}: link (${node.url}) opens the raw file on Docs7; use the site route (/path/page)`);
+      }
+      if ((node.type === "link" || node.type === "definition") && RUST_PATH.test(node.url ?? "")) {
+        problems.push(`${at(node)}: link (${node.url}) is a Rust path: it resolves in cargo doc, not on Docs7; link the site route or write the name in backticks`);
       }
     });
   };
