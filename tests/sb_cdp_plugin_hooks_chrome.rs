@@ -175,3 +175,118 @@ async fn the_hooks_work_against_a_real_chrome() -> Result<(), SeleniumBaseError>
     );
     Ok(())
 }
+
+/// Serves `/set`, which sets the cookie `sid=abc` for an hour, and every other
+/// path without one.
+#[cfg(feature = "plugin-browser")]
+fn serve_cookie() -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("a free port");
+    let address = listener.local_addr().expect("its address");
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let mut request = [0_u8; 2048];
+            let read = stream.read(&mut request).unwrap_or(0);
+            let head = String::from_utf8_lossy(&request[..read]);
+            let cookie = if head.starts_with("GET /set") {
+                "Set-Cookie: sid=abc; Path=/; Max-Age=3600\r\n"
+            } else {
+                ""
+            };
+            let body = "<html><body>cookies</body></html>";
+            let _ = write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\n\
+                 {cookie}Connection: close\r\n\r\n{body}",
+                body.len()
+            );
+        }
+    });
+    format!("http://{address}")
+}
+
+/// The `browser` plugin, built by name as `--plugin browser` builds it: a local
+/// MV3 extension with a service worker the launch waits for, and a session it
+/// saves when the browser closes and puts back in the next browser.
+#[cfg(all(feature = "plugin-browser", unix))]
+#[tokio::test]
+#[ignore = "needs a real Chrome"]
+#[serial_test::serial(chrome)]
+async fn the_browser_plugin_waits_for_a_service_worker_and_keeps_a_session(
+) -> Result<(), SeleniumBaseError> {
+    use std::os::unix::fs::PermissionsExt;
+
+    use seleniumbase_rs::config::plugins::PluginSelection;
+    use seleniumbase_rs::plugin_host::build;
+    use serde_json::{json, Value};
+
+    let folder = tempfile::tempdir().expect("a temporary folder");
+    let extension = folder.path().join("worker-extension");
+    std::fs::create_dir(&extension).expect("the extension folder");
+    std::fs::write(
+        extension.join("manifest.json"),
+        r#"{"manifest_version": 3, "name": "sbrs worker test", "version": "1.0",
+            "background": {"service_worker": "sw.js"}}"#,
+    )
+    .expect("the manifest");
+    std::fs::write(
+        extension.join("sw.js"),
+        "self.addEventListener('install', () => {});\n",
+    )
+    .expect("the worker");
+    let sessions = folder.path().join("sessions");
+    let site = serve_cookie();
+    let options = |plugin: Value| -> Result<LaunchOptions, SeleniumBaseError> {
+        let plugins = build(
+            &PluginSelection::new()
+                .enable("browser")
+                .with_options("browser", plugin),
+        )?;
+        LaunchOptions::builder()
+            .headless(true)
+            .no_sandbox(std::env::var_os("CI").is_some())
+            .plugins(plugins)
+            .build()
+    };
+
+    // The launch returns once the extension's worker runs; closing saves the cookies.
+    let browser = Browser::launch(options(json!({
+        "extension_dir": [extension],
+        "wait_for_workers": true,
+        "worker_timeout_secs": 20,
+        "session": "login",
+        "save_on_close": true,
+        "session_dir": sessions,
+    }))?)
+    .await?;
+    assert_eq!(
+        browser.extension_ids().len(),
+        1,
+        "Chrome loaded the extension"
+    );
+    let page = browser.default_page().await?;
+    page.goto(format!("{site}/set")).await?;
+    browser.close().await?;
+
+    let file = sessions.join("login.json");
+    let saved = std::fs::read_to_string(&file).expect("the session file");
+    assert!(saved.contains("\"sid\""), "{saved}");
+    let mode = std::fs::metadata(&file)
+        .expect("its metadata")
+        .permissions()
+        .mode();
+    assert_eq!(mode & 0o777, 0o600, "only the user may read it");
+
+    // A new browser, with a profile of its own, gets the cookie back.
+    let browser = Browser::launch(options(json!({
+        "session": "login",
+        "session_dir": sessions,
+    }))?)
+    .await?;
+    let page = browser.default_page().await?;
+    page.goto(format!("{site}/plain")).await?;
+    let cookies: String = page.evaluate_as("document.cookie").await?;
+    browser.close().await?;
+    assert!(cookies.contains("sid=abc"), "{cookies}");
+    Ok(())
+}
