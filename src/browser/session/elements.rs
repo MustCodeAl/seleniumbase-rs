@@ -268,13 +268,12 @@ impl BrowserSession {
 
     /// WebDriver interaction: `is_displayed`.
     pub async fn is_displayed(&self, locator: By) -> Result<bool, SeleniumBaseError> {
-        if let Ok(element) = self.find(locator).await {
-            element
+        match self.find(locator).await {
+            Ok(element) => element
                 .is_displayed()
                 .await
-                .map_err(SeleniumBaseError::WebDriver)
-        } else {
-            Ok(false)
+                .map_err(SeleniumBaseError::WebDriver),
+            _ => Ok(false),
         }
     }
 

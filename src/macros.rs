@@ -22,19 +22,19 @@
 /// ```
 #[macro_export]
 macro_rules! selector {
-    (css, $value:expr) => {
+    (css, $value:expr_2021) => {
         $crate::Selector::auto($value)
     };
-    (xpath, $value:expr) => {
+    (xpath, $value:expr_2021) => {
         $crate::Selector::XPath($value)
     };
-    (id, $value:expr) => {
+    (id, $value:expr_2021) => {
         $crate::Selector::Id($value)
     };
-    (link, $value:expr) => {
+    (link, $value:expr_2021) => {
         $crate::Selector::LinkText($value)
     };
-    (partial_link, $value:expr) => {
+    (partial_link, $value:expr_2021) => {
         $crate::Selector::PartialLinkText($value)
     };
 }
@@ -64,7 +64,7 @@ macro_rules! selector {
 /// ```
 #[macro_export]
 macro_rules! sb_test {
-    ($name:ident, $config:expr, |$sb:ident| $body:expr) => {
+    ($name:ident, $config:expr_2021, |$sb:ident| $body:expr_2021) => {
         #[tokio::test]
         async fn $name() {
             $crate::run_browser_test(
@@ -89,7 +89,7 @@ macro_rules! sb_test {
 /// ```
 #[macro_export]
 macro_rules! sb_open {
-    ($sb:expr, $url:expr $(, $msg:expr)?) => {
+    ($sb:expr_2021, $url:expr_2021 $(, $msg:expr_2021)?) => {
         $sb.open($url).await $(.expect($msg))?
     };
 }
@@ -101,7 +101,7 @@ macro_rules! sb_open {
 /// ```
 #[macro_export]
 macro_rules! sb_click {
-    ($sb:expr, $selector:expr $(, $msg:expr)?) => {
+    ($sb:expr_2021, $selector:expr_2021 $(, $msg:expr_2021)?) => {
         $sb.click($selector).await $(.expect($msg))?
     };
 }
@@ -113,7 +113,7 @@ macro_rules! sb_click {
 /// ```
 #[macro_export]
 macro_rules! sb_type {
-    ($sb:expr, $selector:expr, $text:expr $(, $msg:expr)?) => {
+    ($sb:expr_2021, $selector:expr_2021, $text:expr_2021 $(, $msg:expr_2021)?) => {
         $sb.type_text($selector, $text).await $(.expect($msg))?
     };
 }
@@ -121,7 +121,7 @@ macro_rules! sb_type {
 /// Hovers over an element inside an async test.
 #[macro_export]
 macro_rules! sb_hover {
-    ($sb:expr, $selector:expr $(, $msg:expr)?) => {
+    ($sb:expr_2021, $selector:expr_2021 $(, $msg:expr_2021)?) => {
         $sb.hover($selector).await $(.expect($msg))?
     };
 }
@@ -129,7 +129,7 @@ macro_rules! sb_hover {
 /// Scrolls to an element inside an async test.
 #[macro_export]
 macro_rules! sb_scroll_to {
-    ($sb:expr, $selector:expr $(, $msg:expr)?) => {
+    ($sb:expr_2021, $selector:expr_2021 $(, $msg:expr_2021)?) => {
         $sb.scroll_to($selector).await $(.expect($msg))?
     };
 }
@@ -137,7 +137,7 @@ macro_rules! sb_scroll_to {
 /// Waits for an element to be visible using the default timeout.
 #[macro_export]
 macro_rules! sb_wait_for {
-    ($sb:expr, $selector:expr $(, $msg:expr)?) => {
+    ($sb:expr_2021, $selector:expr_2021 $(, $msg:expr_2021)?) => {
         $sb.wait_for_element_visible_default($selector).await $(.expect($msg))?
     };
 }
@@ -145,7 +145,7 @@ macro_rules! sb_wait_for {
 /// Selects an `<option>` by visible text.
 #[macro_export]
 macro_rules! sb_select {
-    ($sb:expr, $selector:expr, $text:expr $(, $msg:expr)?) => {
+    ($sb:expr_2021, $selector:expr_2021, $text:expr_2021 $(, $msg:expr_2021)?) => {
         $sb.select_option_by_text($selector, $text).await $(.expect($msg))?
     };
 }
@@ -160,7 +160,7 @@ macro_rules! sb_select {
 /// ```
 #[macro_export]
 macro_rules! sb_assert_text {
-    ($sb:expr, $expected:expr, $selector:expr $(, $msg:expr)?) => {
+    ($sb:expr_2021, $expected:expr_2021, $selector:expr_2021 $(, $msg:expr_2021)?) => {
         $sb.assert_text($expected, $selector).await $(.expect($msg))?
     };
 }
@@ -169,7 +169,7 @@ macro_rules! sb_assert_text {
 /// `assert_title` does. Use [`sb_assert_title_contains!`](crate::sb_assert_title_contains) for part of it.
 #[macro_export]
 macro_rules! sb_assert_title {
-    ($sb:expr, $expected:expr $(, $msg:expr)?) => {
+    ($sb:expr_2021, $expected:expr_2021 $(, $msg:expr_2021)?) => {
         $sb.assert_title($expected).await $(.expect($msg))?
     };
 }
@@ -178,7 +178,7 @@ macro_rules! sb_assert_title {
 /// `assert_title_contains` does.
 #[macro_export]
 macro_rules! sb_assert_title_contains {
-    ($sb:expr, $expected:expr $(, $msg:expr)?) => {
+    ($sb:expr_2021, $expected:expr_2021 $(, $msg:expr_2021)?) => {
         $sb.assert_title_contains($expected).await $(.expect($msg))?
     };
 }
@@ -187,7 +187,7 @@ macro_rules! sb_assert_title_contains {
 /// does. Use [`sb_assert_url_contains!`](crate::sb_assert_url_contains) for part of it.
 #[macro_export]
 macro_rules! sb_assert_url {
-    ($sb:expr, $expected:expr $(, $msg:expr)?) => {
+    ($sb:expr_2021, $expected:expr_2021 $(, $msg:expr_2021)?) => {
         $sb.assert_url($expected).await $(.expect($msg))?
     };
 }
@@ -196,7 +196,7 @@ macro_rules! sb_assert_url {
 /// `assert_url_contains` does.
 #[macro_export]
 macro_rules! sb_assert_url_contains {
-    ($sb:expr, $expected:expr $(, $msg:expr)?) => {
+    ($sb:expr_2021, $expected:expr_2021 $(, $msg:expr_2021)?) => {
         $sb.assert_url_contains($expected).await $(.expect($msg))?
     };
 }
@@ -204,7 +204,7 @@ macro_rules! sb_assert_url_contains {
 /// Takes a screenshot and saves it to the supplied path.
 #[macro_export]
 macro_rules! sb_screenshot {
-    ($sb:expr, $path:expr $(, $msg:expr)?) => {
+    ($sb:expr_2021, $path:expr_2021 $(, $msg:expr_2021)?) => {
         $sb.save_screenshot_to_path($path).await $(.expect($msg))?
     };
 }
@@ -212,7 +212,7 @@ macro_rules! sb_screenshot {
 /// Executes JavaScript and returns the result.
 #[macro_export]
 macro_rules! sb_js {
-    ($sb:expr, $script:expr $(, $msg:expr)?) => {
+    ($sb:expr_2021, $script:expr_2021 $(, $msg:expr_2021)?) => {
         $sb.execute_script($script).await $(.expect($msg))?
     };
 }
@@ -220,7 +220,7 @@ macro_rules! sb_js {
 /// Quits the browser session.
 #[macro_export]
 macro_rules! sb_quit {
-    ($sb:expr $(, $msg:expr)?) => {
+    ($sb:expr_2021 $(, $msg:expr_2021)?) => {
         $sb.quit().await $(.expect($msg))?
     };
 }
@@ -233,7 +233,7 @@ macro_rules! sb_quit {
 /// ```
 #[macro_export]
 macro_rules! sb_assert_visible {
-    ($sb:expr, $selector:expr $(, $msg:expr)?) => {
+    ($sb:expr_2021, $selector:expr_2021 $(, $msg:expr_2021)?) => {
         $sb.assert_element_visible($selector).await $(.expect($msg))?
     };
 }
@@ -316,26 +316,26 @@ macro_rules! sb_config {
     () => {
         $crate::BrowserConfig::default()
     };
-    (headless: $h:expr) => {
+    (headless: $h:expr_2021) => {
         $crate::BrowserConfig::default().with_headless($h)
     };
-    (mode: $m:expr) => {
+    (mode: $m:expr_2021) => {
         $crate::BrowserConfig::default().with_mode($m)
     };
-    (browser: $b:expr) => {
+    (browser: $b:expr_2021) => {
         $crate::BrowserConfig::default().with_browser($b)
     };
-    (headless: $h:expr, mode: $m:expr) => {
+    (headless: $h:expr_2021, mode: $m:expr_2021) => {
         $crate::BrowserConfig::default()
             .with_headless($h)
             .with_mode($m)
     };
-    (mode: $m:expr, headless: $h:expr) => {
+    (mode: $m:expr_2021, headless: $h:expr_2021) => {
         $crate::BrowserConfig::default()
             .with_mode($m)
             .with_headless($h)
     };
-    (mode: $m:expr, headless: $h:expr, browser: $b:expr) => {
+    (mode: $m:expr_2021, headless: $h:expr_2021, browser: $b:expr_2021) => {
         $crate::BrowserConfig::default()
             .with_mode($m)
             .with_headless($h)
@@ -352,7 +352,7 @@ macro_rules! sb_config {
 /// ```
 #[macro_export]
 macro_rules! sb_fill_form {
-    ($sb:expr, $($selector:expr => $text:expr),+ $(,)?) => {{
+    ($sb:expr_2021, $($selector:expr_2021 => $text:expr_2021),+ $(,)?) => {{
         let result: $crate::Result<()> = async {
             $(
                 $sb.type_text($selector, $text).await?;
@@ -369,13 +369,13 @@ macro_rules! sb_fill_form {
 /// of the wait or of the click; with a message it panics with it instead.
 #[macro_export]
 macro_rules! sb_wait_and_click {
-    ($sb:expr, $selector:expr) => {{
+    ($sb:expr_2021, $selector:expr_2021) => {{
         match $sb.wait_for_element_visible_default($selector).await {
             Ok(_) => $sb.click($selector).await,
             Err(error) => Err(error),
         }
     }};
-    ($sb:expr, $selector:expr, $msg:expr) => {{
+    ($sb:expr_2021, $selector:expr_2021, $msg:expr_2021) => {{
         $sb.wait_for_element_visible_default($selector)
             .await
             .expect($msg);
@@ -390,7 +390,7 @@ macro_rules! sb_wait_and_click {
 /// it instead.
 #[macro_export]
 macro_rules! sb_assert_not_visible {
-    ($sb:expr, $selector:expr) => {{
+    ($sb:expr_2021, $selector:expr_2021) => {{
         let selector = $selector;
         match $sb.is_element_visible(selector).await {
             Ok(true) => Err($crate::SeleniumBaseError::AssertionFailed(format!(
@@ -401,7 +401,7 @@ macro_rules! sb_assert_not_visible {
             Err(error) => Err(error),
         }
     }};
-    ($sb:expr, $selector:expr, $msg:expr) => {{
+    ($sb:expr_2021, $selector:expr_2021, $msg:expr_2021) => {{
         $crate::sb_assert_not_visible!($sb, $selector).expect($msg)
     }};
 }
@@ -411,7 +411,7 @@ macro_rules! sb_assert_not_visible {
 /// The original timeout is restored after the block completes or errors.
 #[macro_export]
 macro_rules! sb_with_timeout {
-    ($sb:expr, $secs:expr, $body:expr) => {{
+    ($sb:expr_2021, $secs:expr_2021, $body:expr_2021) => {{
         let old = $sb.set_timeout($secs).await.ok();
         let result: $crate::Result<_> = async { $body }.await;
         if let Some(t) = old {

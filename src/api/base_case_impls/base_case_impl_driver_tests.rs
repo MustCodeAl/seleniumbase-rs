@@ -127,7 +127,7 @@ mod tests_page_scripts {
     /// call and the literals) and checks the script it sent with
     /// `assert_inert`. The call may fail; the script is what is checked.
     macro_rules! assert_script {
-        ($driver:expr, $text:ident, $call:expr, $skeleton:expr, $literals:expr) => {
+        ($driver:expr_2021, $text:ident, $call:expr_2021, $skeleton:expr_2021, $literals:expr_2021) => {
             for $text in HOSTILE {
                 let _ = $call.await;
                 assert_inert(&last_script(&$driver), $skeleton, &$literals);

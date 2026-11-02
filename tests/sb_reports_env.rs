@@ -22,10 +22,14 @@ fn root() -> &'static Path {
     static ROOT: OnceLock<tempfile::TempDir> = OnceLock::new();
     ROOT.get_or_init(|| {
         let dir = tempfile::tempdir().unwrap();
-        std::env::set_var("SB_REPORT_ROOT", dir.path());
-        std::env::set_var("SB_RUN_ID", "sb-reports-env");
-        std::env::set_var("SB_DASHBOARD", "true");
-        std::env::set_var("SB_DASH_TITLE", "Env_run");
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe { std::env::set_var("SB_REPORT_ROOT", dir.path()) };
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe { std::env::set_var("SB_RUN_ID", "sb-reports-env") };
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe { std::env::set_var("SB_DASHBOARD", "true") };
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe { std::env::set_var("SB_DASH_TITLE", "Env_run") };
         dir
     })
     .path()

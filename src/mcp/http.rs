@@ -792,15 +792,16 @@ impl HttpServer {
             listener_outcome(ended)
         } else {
             let _ = stop.send(());
-            if let Ok(ended) = tokio::time::timeout(grace, &mut serving).await {
-                listener_outcome(ended)
-            } else {
-                warn!(
-                    server = name,
-                    "connections did not close in time; dropping them"
-                );
-                serving.abort();
-                Ok(())
+            match tokio::time::timeout(grace, &mut serving).await {
+                Ok(ended) => listener_outcome(ended),
+                _ => {
+                    warn!(
+                        server = name,
+                        "connections did not close in time; dropping them"
+                    );
+                    serving.abort();
+                    Ok(())
+                }
             }
         };
         (control.close)(grace).await;

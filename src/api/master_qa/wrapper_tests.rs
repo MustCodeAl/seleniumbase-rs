@@ -32,7 +32,8 @@ impl Root {
     async fn new() -> Self {
         let lock = ROOT_LOCK.lock().await;
         let dir = tempfile::tempdir().expect("a temporary folder");
-        std::env::set_var(REPORT_ROOT_VARIABLE, dir.path());
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe { std::env::set_var(REPORT_ROOT_VARIABLE, dir.path()) };
         Self { dir, _lock: lock }
     }
 
@@ -43,7 +44,8 @@ impl Root {
 
 impl Drop for Root {
     fn drop(&mut self) {
-        std::env::remove_var(REPORT_ROOT_VARIABLE);
+        // FIXME: Audit that the environment access only happens in single-threaded code.
+        unsafe { std::env::remove_var(REPORT_ROOT_VARIABLE) };
     }
 }
 

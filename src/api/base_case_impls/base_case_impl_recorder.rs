@@ -857,7 +857,7 @@ mod tests_recorder_mode {
     /// A reader that answers with `lines`, then ends.
     fn typed(
         lines: &[&str],
-    ) -> impl FnMut() -> std::future::Ready<std::io::Result<Option<String>>> {
+    ) -> impl FnMut() -> std::future::Ready<std::io::Result<Option<String>>> + use<> {
         let mut lines: std::collections::VecDeque<String> =
             lines.iter().map(|line| (*line).to_owned()).collect();
         move || std::future::ready(Ok(lines.pop_front()))

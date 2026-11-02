@@ -283,15 +283,18 @@ impl Inner {
         if !std::mem::replace(self.plugins_open.get_mut(), false) || plugins.is_empty() {
             return;
         }
-        if let Ok(runtime) = tokio::runtime::Handle::try_current() {
-            let plugins = plugins.clone();
-            runtime.spawn(async move { super::plugin_hooks::on_close(&plugins).await });
-        } else {
-            tracing::event!(
-                name: "cdp.plugin.close.skipped",
-                tracing::Level::WARN,
-                "the browser was dropped outside an async runtime, so its plugins' on_close did not run",
-            );
+        match tokio::runtime::Handle::try_current() {
+            Ok(runtime) => {
+                let plugins = plugins.clone();
+                runtime.spawn(async move { super::plugin_hooks::on_close(&plugins).await });
+            }
+            _ => {
+                tracing::event!(
+                    name: "cdp.plugin.close.skipped",
+                    tracing::Level::WARN,
+                    "the browser was dropped outside an async runtime, so its plugins' on_close did not run",
+                );
+            }
         }
     }
 }

@@ -32,7 +32,7 @@ fix a line here when the code stops matching it. Human contributors want
 
 A Rust port of Python SeleniumBase (tracks 4.55.2; `parity/api.toml` records the
 status of every Python API, `parity/upstream.toml` the upstream version,
-`docs/UPSTREAM_SYNC.md` the process). Crate `seleniumbase-rs`, MIT, edition 2021,
+`docs/UPSTREAM_SYNC.md` the process). Crate `seleniumbase-rs`, MIT, edition 2024,
 `rust-version = "1.99"` (the newest stable; the `msrv` CI job and the
 `Dockerfile` base image must move with it). The repository is a Cargo workspace
 (`default-members` = both packages): the library `seleniumbase-rs` at the root has

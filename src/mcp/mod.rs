@@ -217,11 +217,12 @@ where
             cancel.cancel();
             // Cancelling ends the service loop; the bound is for a loop that
             // is stuck behind a tool call.
-            if let Ok(outcome) = tokio::time::timeout(grace, &mut waiting).await {
-                outcome
-            } else {
-                warn!(server = host.name(), "the server did not stop in time");
-                Ok(QuitReason::Cancelled)
+            match tokio::time::timeout(grace, &mut waiting).await {
+                Ok(outcome) => outcome,
+                _ => {
+                    warn!(server = host.name(), "the server did not stop in time");
+                    Ok(QuitReason::Cancelled)
+                }
             }
         }
     };

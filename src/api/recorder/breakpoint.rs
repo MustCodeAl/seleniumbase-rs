@@ -118,7 +118,7 @@ mod tests {
     fn lines(
         lines: &[&str],
         wait: Duration,
-    ) -> impl FnMut() -> std::pin::Pin<Box<dyn Future<Output = io::Result<Option<String>>> + Send>>
+    ) -> impl FnMut() -> std::pin::Pin<Box<dyn Future<Output = io::Result<Option<String>>> + Send>> + use<>
     {
         let queue = Arc::new(Mutex::new(
             lines
