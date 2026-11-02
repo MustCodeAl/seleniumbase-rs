@@ -5,7 +5,6 @@
 //! and a way to look at the browser once per tick, so a test can drive it
 //! with scripted input and no terminal.
 
-
 use std::io::{self, Write};
 use std::time::Duration;
 

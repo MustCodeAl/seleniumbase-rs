@@ -4,7 +4,6 @@
 //! hooks (`Budgets`) only for a set that was given a timer, so the host gives
 //! every set it launches a browser with one that sleeps on tokio.
 
-
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;

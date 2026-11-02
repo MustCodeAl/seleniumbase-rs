@@ -20,7 +20,6 @@
 //! 5. **Retry.** Only when the page can show a result and did not: after a
 //!    growing, spread-out wait, up to the attempts allowed, then a typed error.
 
-
 use std::time::Duration;
 
 use serde_json::Value;
