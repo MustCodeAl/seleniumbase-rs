@@ -52,6 +52,35 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 s
 
 ### Added
 
+- Strict locators in the pure CDP engine: `page.locator(sel).strict()` fails with the new
+  `SeleniumBaseError::StrictModeViolation { selector, count }` (category `strict_mode_violation`,
+  exit status 3) when the selector matches more than one element, like Playwright's strict mode,
+  instead of acting on the first. Actions, reads of one element, waits, `set_attribute` and
+  `remove` check it at once; `count`, `infos`, `all`, `all_waiting` and a match picked with
+  `first`, `last` or `nth` stay allowed. The matches of frames of another origin count too.
+  Python SeleniumBase has no such option.
+  The MCP `explain_error` tool knows the new category, and a failure report for it suggests
+  `inspect_page` and `suggest_selectors`.
+
+- **A trace viewer for the pure CDP engine.** `Page::start_trace` (and `start_trace_with`
+  with `TraceOptions`) records a tab's actions (`goto` and the actions of a `Locator`), a
+  screenshot and a DOM snapshot after each, the console and the network into a folder, and
+  `TraceRecorder::stop` writes `index.html`, a single self-contained viewer (timeline, a
+  screenshot, snapshot, details, console and network per step), beside `trace.json`,
+  `network.har` and the pictures. With no trace running an action sends nothing extra. The
+  engine still enables none of the five protocol domains a page can feel: the console is read
+  by a small page script that stopping the trace removes. The folder is sensitive and the docs
+  say so: typed text (`fill`, `type_text`, `send_keys`, `set_value`), request bodies and
+  credential headers are never written, an address loses its user name and password in a
+  `goto` note and in the error text of a failed one, the path must be a new or empty folder
+  (not a link), recording is bounded (`max_actions`, `max_bytes` up to 128 MiB with the
+  viewer's copy of the pictures held to 192 MiB, `max_console_messages`, `max_requests`,
+  addresses in the HAR cut at 2048 characters),
+  and the viewer escapes everything from the page, shows a snapshot only in a frame with an
+  empty `sandbox`, and carries a Content-Security-Policy that loads nothing. See "Tracing a
+  run" in `docs/tutorials/pure_cdp.md`. `sbrs trace show` comes later.
+
+
 - chromedriver through [mise](https://mise.jdx.dev). A mise tool plugin in
   `contrib/mise/mise-chromedriver` lists the builds of Chrome for Testing and
   installs, upgrades and removes chromedriver (`mise use chromedriver@151`). A
@@ -63,6 +92,11 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 s
   more than 5 seconds and a bad answer are all silent. A pinned `--driver-version`
   still downloads that build. See
   [Manage chromedriver with mise](/tutorials/mise_chromedriver).
+
+- `tools/release/build-binaries.sh` (`mise run release-binaries`) builds the release archives of
+  `sbrs` and `sbrs-mcp` for Linux arm64, Linux x86_64 and macOS Intel on an Apple silicon Mac,
+  named and packed as the release workflow does, with `SHA256SUMS`, and runs each binary on its
+  platform. It uploads nothing.
 
 - `sbrs-mcp install`, `uninstall` and `clients` know Grok Build (`grok`). The
   user file is `$GROK_HOME/config.toml`, or `~/.grok/config.toml` when
