@@ -37,8 +37,29 @@ pub(crate) const MISE_TIMEOUT: Duration = Duration::from_secs(5);
 /// through a shell; a test puts a stand-in in a folder of its own and passes its
 /// path, so the `PATH` of the process is never touched.
 pub(crate) async fn which_chromedriver(mise: &OsStr, timeout: Duration) -> Option<PathBuf> {
-    let _ = (mise, timeout);
-    None
+    let run = Command::new(mise)
+        .args(["which", "chromedriver"])
+        .stdin(Stdio::null())
+        .kill_on_drop(true)
+        .output();
+    let output = match tokio::time::timeout(timeout, run).await {
+        Ok(Ok(output)) => output,
+        Ok(Err(error)) => {
+            tracing::debug!(%error, "mise could not be run; no chromedriver from it");
+            return None;
+        }
+        Err(_elapsed) => {
+            tracing::debug!(?timeout, "mise did not say which chromedriver in time");
+            return None;
+        }
+    };
+    if !output.status.success() {
+        tracing::debug!(status = %output.status, "mise has no chromedriver here");
+        return None;
+    }
+    let text = String::from_utf8(output.stdout).ok()?;
+    let path = PathBuf::from(text.trim_end_matches(['\r', '\n']));
+    (path.is_absolute() && is_runnable(&path)).then_some(path)
 }
 
 /// [`which_chromedriver`], when the driver can drive Chrome of major version
@@ -48,14 +69,46 @@ pub(crate) async fn fitting_with(
     timeout: Duration,
     browser: Option<u32>,
 ) -> Option<PathBuf> {
-    let _ = (mise, timeout, browser);
-    None
+    let driver = which_chromedriver(mise, timeout).await?;
+    let Some(browser) = browser else {
+        return Some(driver);
+    };
+    match fit(binary_major(&driver).await, Some(browser)) {
+        Fit::Mismatch {
+            driver: found,
+            browser,
+        } => {
+            tracing::warn!(
+                found,
+                browser,
+                path = %driver.display(),
+                "the chromedriver mise manages is for Chrome {found}, not Chrome {browser}; passing it over"
+            );
+            None
+        }
+        Fit::Matches | Fit::Unknown => Some(driver),
+    }
 }
 
 /// Whether `path` is a file the system will run.
 fn is_runnable(path: &Path) -> bool {
-    let _ = path;
-    false
+    // `metadata` follows symbolic links: mise names a version folder such as
+    // `150` that links to the build it installed.
+    let Ok(metadata) = std::fs::metadata(path) else {
+        return false;
+    };
+    if !metadata.is_file() {
+        return false;
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        metadata.permissions().mode() & 0o111 != 0
+    }
+    #[cfg(not(unix))]
+    {
+        true
+    }
 }
 
 #[cfg(test)]
