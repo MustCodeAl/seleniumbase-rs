@@ -165,48 +165,123 @@ pub fn to_actions(sorted: &[RawAction], uc: bool) -> Vec<RecordedAction> {
     actions
 }
 
+/// How the arguments of a processed action go into its call.
+enum CallForm {
+    /// No target and no value.
+    Bare,
+    /// The argument as the target.
+    On,
+    /// The argument as the target and the detail as the value.
+    Pair,
+    /// `[selector, name, value]`: the selector as the target and `name=value`
+    /// as the value.
+    Attribute,
+    /// `[text, selector]`: the selector as the target and the text, normalized,
+    /// as the value.
+    Text,
+}
+use CallForm::{Attribute, Bare, On, Pair, Text};
+
+/// The kinds whose call follows from one row: the kind the page recorder
+/// writes, the call Python's `generate_sbase_code` writes for it, and how the
+/// arguments go in.
+const CALLS: &[(&str, &str, CallForm)] = &[
+    ("click", "click", On),
+    ("dbclk", "double_click", On),
+    ("js_cl", "js_click", On),
+    ("js_ca", "js_click_all", On),
+    ("jq_cl", "jquery_click", On),
+    ("jq_ca", "jquery_click_all", On),
+    ("r_clk", "context_click", On),
+    ("hover", "hover", On),
+    ("hi_li", "highlight", On),
+    ("js_ty", "js_type", Pair),
+    ("jq_ty", "jquery_type", Pair),
+    ("pkeys", "press_keys", Pair),
+    ("e_mfa", "enter_mfa_code", Pair),
+    ("h_clk", "hover_and_click", Pair),
+    ("ddrop", "drag_and_drop", Pair),
+    ("s_opt", "select_option_by_text", Pair),
+    ("set_v", "set_value", Pair),
+    ("cho_f", "choose_file", Pair),
+    ("sw_fr", "switch_to_frame", On),
+    ("sw_dc", "switch_to_default_content", Bare),
+    ("sw_pf", "switch_to_parent_frame", Bare),
+    ("s_c_f", "set_content_to_frame", On),
+    ("wf_el", "wait_for_element", On),
+    ("as_el", "assert_element", On),
+    ("as_ep", "assert_element_present", On),
+    ("asenv", "assert_element_not_visible", On),
+    ("asnet", "assert_non_empty_text", On),
+    ("da_el", "deferred_assert_element", On),
+    ("da_ep", "deferred_assert_element_present", On),
+    ("danet", "deferred_assert_non_empty_text", On),
+    ("s_at_", "set_attribute", Attribute),
+    ("s_ats", "set_attributes", Attribute),
+    ("acc_a", "accept_alert", Bare),
+    ("dis_a", "dismiss_alert", Bare),
+    ("as_lt", "assert_link_text", On),
+    ("as_ti", "assert_title", On),
+    ("as_tc", "assert_title_contains", On),
+    ("a_url", "assert_url", On),
+    ("a_u_c", "assert_url_contains", On),
+    ("as_df", "assert_downloaded_file", On),
+    ("as_at", "assert_attribute", Attribute),
+    ("as_te", "assert_text", Text),
+    ("as_et", "assert_exact_text", Text),
+    ("astnv", "assert_text_not_visible", Text),
+    ("aetnv", "assert_exact_text_not_visible", Text),
+    ("da_te", "deferred_assert_text", Text),
+    ("da_et", "deferred_assert_exact_text", Text),
+    ("s_scr", "save_screenshot", On),
+    ("ss_tl", "save_screenshot_to_logs", Bare),
+    ("pdftl", "save_as_pdf_to_logs", Bare),
+    ("spstl", "save_page_source_to_logs", Bare),
+    ("sh_fc", "show_file_choosers", Bare),
+    ("pr_da", "process_deferred_asserts", Bare),
+    ("a_d_m", "activate_demo_mode", Bare),
+    ("d_d_m", "deactivate_demo_mode", Bare),
+    ("c_l_s", "clear_local_storage", Bare),
+    ("c_s_s", "clear_session_storage", Bare),
+    ("d_a_c", "delete_all_cookies", Bare),
+    ("go_bk", "go_back", Bare),
+    ("go_fw", "go_forward", Bare),
+    // The page script saw a person use a CAPTCHA widget: the provider is the
+    // argument. The generators write a comment for it.
+    ("captcha", CAPTCHA, On),
+];
+
 /// The call one processed action makes, if it makes one.
 fn action(row: &RawAction, uc: bool) -> Option<RecordedAction> {
     let arg = text(&row.arg).to_owned();
     let detail = text(&row.detail).to_owned();
+    let parts = &row.arg;
     let make = |name: &str, target: Option<String>, value: Option<String>| RecordedAction {
         name: name.to_owned(),
         target,
         value,
         timestamp_ms: u128::try_from(row.time_ms).unwrap_or(0),
     };
-    let on = |name: &str| make(name, Some(arg.clone()), None);
-    let bare = |name: &str| make(name, None, None);
-    let pair = |name: &str| make(name, Some(arg.clone()), Some(detail.clone()));
-    // `[selector, name, value]` of an attribute action.
-    let attribute = |name: &str| {
-        let parts = &row.arg;
-        let value = format!("{}={}", shown(nth(parts, 1)), shown(nth(parts, 2)));
-        make(name, Some(shown(nth(parts, 0))), Some(value))
-    };
-    // `[text, selector]` of a text assertion.
-    let assertion = |name: &str| {
-        let parts = &row.arg;
-        make(
-            name,
-            Some(shown(nth(parts, 1))),
-            Some(normalized(&shown(nth(parts, 0)))),
-        )
-    };
+    if let Some(&(_, name, ref form)) = CALLS.iter().find(|(kind, ..)| *kind == row.kind) {
+        return Some(match form {
+            Bare => make(name, None, None),
+            On => make(name, Some(arg), None),
+            Pair => make(name, Some(arg), Some(detail)),
+            Attribute => {
+                let value = format!("{}={}", shown(nth(parts, 1)), shown(nth(parts, 2)));
+                make(name, Some(shown(nth(parts, 0))), Some(value))
+            }
+            Text => make(
+                name,
+                Some(shown(nth(parts, 1))),
+                Some(normalized(&shown(nth(parts, 0)))),
+            ),
+        });
+    }
     Some(match row.kind.as_str() {
         "begin" | "_url_" => make("goto", Some(unquoted(&detail)), None),
         "f_url" => make("goto_if_not_url", Some(unquoted(&detail)), None),
-        "click" => on("click"),
-        "dbclk" => on("double_click"),
-        "js_cl" => on("js_click"),
-        "js_ca" => on("js_click_all"),
-        "jq_cl" => on("jquery_click"),
-        "jq_ca" => on("jquery_click_all"),
-        "r_clk" => on("context_click"),
-        "hover" => on("hover"),
-        "hi_li" => on("highlight"),
         "canva" => {
-            let parts = &row.arg;
             let offset = format!("{}, {}", shown(nth(parts, 1)), shown(nth(parts, 2)));
             make(
                 "click_with_offset",
@@ -216,48 +291,19 @@ fn action(row: &RawAction, uc: bool) -> Option<RecordedAction> {
         }
         "input" => make(
             if uc { "press_keys" } else { "type_text" },
-            Some(arg.clone()),
+            Some(arg),
             Some(typed(row)),
         ),
-        "js_ty" => pair("js_type"),
-        "jq_ty" => pair("jquery_type"),
-        "pkeys" => pair("press_keys"),
-        "e_mfa" => pair("enter_mfa_code"),
-        "h_clk" => pair("hover_and_click"),
-        "ddrop" => pair("drag_and_drop"),
-        "s_opt" => pair("select_option_by_text"),
-        "set_v" => pair("set_value"),
-        "cho_f" => pair("choose_file"),
-        "sw_fr" => on("switch_to_frame"),
-        "sw_dc" => bare("switch_to_default_content"),
-        "sw_pf" => bare("switch_to_parent_frame"),
-        "s_c_f" => on("set_content_to_frame"),
-        "s_c_d" => bare(if truthy(&row.arg) {
-            "set_content_to_parent"
-        } else {
-            "set_content_to_default"
-        }),
-        "sleep" => make("sleep", None, Some(shown(&row.arg))),
-        "wf_el" => on("wait_for_element"),
-        "as_el" => on("assert_element"),
-        "as_ep" => on("assert_element_present"),
-        "asenv" => on("assert_element_not_visible"),
-        "asnet" => on("assert_non_empty_text"),
-        "da_el" => on("deferred_assert_element"),
-        "da_ep" => on("deferred_assert_element_present"),
-        "danet" => on("deferred_assert_non_empty_text"),
-        "s_at_" => attribute("set_attribute"),
-        "s_ats" => attribute("set_attributes"),
-        "acc_a" => bare("accept_alert"),
-        "dis_a" => bare("dismiss_alert"),
-        "as_lt" => on("assert_link_text"),
-        "as_ti" => on("assert_title"),
-        "as_tc" => on("assert_title_contains"),
-        "a_url" => on("assert_url"),
-        "a_u_c" => on("assert_url_contains"),
-        "as_df" => on("assert_downloaded_file"),
+        "s_c_d" => {
+            let name = if truthy(parts) {
+                "set_content_to_parent"
+            } else {
+                "set_content_to_default"
+            };
+            make(name, None, None)
+        }
+        "sleep" => make("sleep", None, Some(shown(parts))),
         "do_fi" => {
-            let parts = &row.arg;
             let destination = shown(nth(parts, 1));
             make(
                 "download_file",
@@ -265,43 +311,19 @@ fn action(row: &RawAction, uc: bool) -> Option<RecordedAction> {
                 (!destination.is_empty()).then_some(destination),
             )
         }
-        "as_at" => attribute("assert_attribute"),
-        "as_te" => assertion("assert_text"),
-        "as_et" => assertion("assert_exact_text"),
-        "astnv" => assertion("assert_text_not_visible"),
-        "aetnv" => assertion("assert_exact_text_not_visible"),
-        "da_te" => assertion("deferred_assert_text"),
-        "da_et" => assertion("deferred_assert_exact_text"),
-        "s_scr" => on("save_screenshot"),
-        "ss_tf" => {
-            let parts = &row.arg;
-            make(
-                "save_screenshot_to_folder",
-                Some(shown(nth(parts, 0))),
-                Some(shown(nth(parts, 1))),
-            )
+        "ss_tf" => make(
+            "save_screenshot_to_folder",
+            Some(shown(nth(parts, 0))),
+            Some(shown(nth(parts, 1))),
+        ),
+        "c_box" => {
+            let name = if detail == "no" {
+                "uncheck_if_checked"
+            } else {
+                "check_if_unchecked"
+            };
+            make(name, Some(arg), None)
         }
-        "ss_tl" => bare("save_screenshot_to_logs"),
-        "pdftl" => bare("save_as_pdf_to_logs"),
-        "spstl" => bare("save_page_source_to_logs"),
-        "sh_fc" => bare("show_file_choosers"),
-        "pr_da" => bare("process_deferred_asserts"),
-        "a_d_m" => bare("activate_demo_mode"),
-        "d_d_m" => bare("deactivate_demo_mode"),
-        "c_l_s" => bare("clear_local_storage"),
-        "c_s_s" => bare("clear_session_storage"),
-        "d_a_c" => bare("delete_all_cookies"),
-        "go_bk" => bare("go_back"),
-        "go_fw" => bare("go_forward"),
-        "c_box" => on(if detail == "no" {
-            "uncheck_if_checked"
-        } else {
-            "check_if_unchecked"
-        }),
-        // The page script saw a person use a CAPTCHA widget: the provider is
-        // the argument. The generators write a comment for it.
-        "captcha" => on(CAPTCHA),
-
         _ => return None,
     })
 }
