@@ -97,6 +97,19 @@ check("a platform the build lacks", cft.download_for(entry, "win64") == nil)
 check("a build before 115 has no chromedriver", cft.download_for({ version = "113.0.5672.0", downloads = { chrome = {} } }, "linux64") == nil)
 check("an entry without downloads", cft.download_for({ version = "1" }, "linux64") == nil)
 
+-- Where a platform's builds start: Chrome for Testing has linux-arm64 only from 153.
+local index = {
+    versions = {
+        { version = "150.0.1.0", downloads = { chromedriver = { { platform = "linux64", url = "a.zip" } } } },
+        { version = "153.0.8001.0", downloads = { chromedriver = { { platform = "linux64", url = "b.zip" }, { platform = "linux-arm64", url = "c.zip" } } } },
+        { version = "154.0.1.0", downloads = { chromedriver = { { platform = "linux-arm64", url = "d.zip" } } } },
+    },
+}
+check("the oldest build of linux-arm64", cft.oldest_with_download(index, "linux-arm64") == "153.0.8001.0")
+check("the oldest build of linux64", cft.oldest_with_download(index, "linux64") == "150.0.1.0")
+check("a platform no build has", cft.oldest_with_download(index, "win64") == nil)
+
+
 if failures > 0 then
     os.exit(1)
 end

@@ -10,12 +10,19 @@ function PLUGIN:PreInstall(ctx)
         if entry.version == ctx.version then
             local url = cft.download_for(entry, platform)
             if url == nil then
+                -- linux-arm64 is the case this is for: its builds start at 153.
+                local oldest = cft.oldest_with_download(index, platform)
+                local hint = ""
+                if oldest ~= nil then
+                    hint = " (the oldest build it has for " .. platform .. " is " .. oldest .. ")"
+                end
                 error(
                     "Chrome for Testing has no chromedriver "
                         .. ctx.version
                         .. " for "
                         .. platform
-                        .. "; not every build has one for every platform, and `mise ls-remote chromedriver` on that platform lists the builds that do"
+                        .. hint
+                        .. ". `mise ls-remote chromedriver` lists the builds that have one."
                 )
             end
             return { version = ctx.version, url = cft.checked_url(url) }

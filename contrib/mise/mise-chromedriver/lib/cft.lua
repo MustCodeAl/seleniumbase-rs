@@ -73,6 +73,20 @@ function M.download_for(entry, platform)
     return nil
 end
 
+-- The version of the oldest build in `index` that has a chromedriver for
+-- `platform`, or nil when none has. The index lists builds oldest first. It
+-- tells a user of a platform that Chrome for Testing covers only from some
+-- build on (linux-arm64) where the builds start.
+function M.oldest_with_download(index, platform)
+    for _, entry in ipairs(index.versions) do
+        if M.download_for(entry, platform) then
+            return entry.version
+        end
+    end
+    return nil
+end
+
+
 -- `url` when it is an https URL on the host the index names for its downloads
 -- and names a zip archive, else an error. The URL comes from the index and is
 -- never built here.
