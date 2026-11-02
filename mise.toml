@@ -16,7 +16,7 @@
 rust = "1.99"
 # tools/parity scripts, run as `python3 -I`. The crate itself needs no Python.
 python = "3.14"
-# The Tauri example's CLI (`npm ci`, `npx tauri`).
+# `npx`, for the Docs7 preview (docs/building.md).
 node = "lts"
 mdbook = "0.5"
 cargo-deny = "0.20"

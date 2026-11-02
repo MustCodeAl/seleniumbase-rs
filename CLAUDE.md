@@ -90,7 +90,7 @@ public API of this crate: keep items it imports public (`evasion::randomize`,
 
 Elsewhere: `tests/` (integration tests of the library; `tests/golden` is compiled into the
 library through `include_str!`, `tests/support` is shared with `crates/cli/tests`), `benches/` (`cdp_latency`, `cpu`), `examples/`
-(`tauri-profile-manager` has its own manifest), `docs/` (the Docs7 site, whose menu is `docs.json` and whose pages `mise run mdx` builds; also mdBook, `SUMMARY.md`),
+(the Tauri profile manager moved to tauri-plugin-sbrs-automation), `docs/` (the Docs7 site, whose menu is `docs.json` and whose pages `mise run mdx` builds; also mdBook, `SUMMARY.md`),
 `parity/`, `.config/nextest.toml`, `.github/workflows/` (`ci.yml`, `docker.yml`,
 `completions.yml`), `Dockerfile`, `Makefile`, `mise.toml` (the tasks: `mise tasks ls`), `deny.toml`.
 
