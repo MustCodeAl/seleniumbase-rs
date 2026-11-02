@@ -19,6 +19,8 @@
 //!   hold.
 //! * [`HarRecorder`] records a tab's network traffic as a HAR file
 //!   ([`Page::start_har`]).
+//! * [`TraceRecorder`] records a tab's actions, console and network into a
+//!   folder with a viewer to open in a browser ([`Page::start_trace`]).
 //!
 //! Selectors are plain strings classified the way SeleniumBase classifies
 //! them: `"#id"` is CSS, `"//div"` is XPath, `"link=Home"` is a link. Use
@@ -101,6 +103,7 @@ mod proxy_auth;
 mod session_store;
 mod state;
 pub(crate) mod sync;
+mod trace;
 mod types;
 mod webrtc;
 
@@ -159,6 +162,8 @@ pub use state::{
     ColorScheme, Cookie, Cookies, Emulation, SameSite, Storage, StorageArea, Window, WindowBounds,
     WindowState,
 };
+#[doc(inline)]
+pub use trace::{Trace, TraceOptions, TraceRecorder};
 #[doc(inline)]
 pub use types::{
     ElementInfo, PageInfo, Permission, Point, Rect, ScreenRect, Scroll, SelectBy, State,
