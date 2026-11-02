@@ -1078,6 +1078,16 @@ mod tests {
 
     const SECRET: &str = "hunter2-secret-value";
 
+    /// A symlink in `parent` to an empty folder, which a trace path may not be.
+    #[cfg(unix)]
+    fn symlinked_empty_folder(parent: &std::path::Path) -> std::path::PathBuf {
+        let empty = parent.join("empty");
+        std::fs::create_dir(&empty).unwrap();
+        let link = parent.join("link");
+        std::os::unix::fs::symlink(&empty, &link).unwrap();
+        link
+    }
+
     /// A `Runtime.evaluate` answer holding `v`.
     fn value(v: Value) -> Value {
         let mut answer = json!({ "result": {} });
@@ -1658,13 +1668,7 @@ mod tests {
             temp.path().join("no_parent").join("trace"),
         ];
         #[cfg(unix)]
-        {
-            let empty = temp.path().join("empty");
-            std::fs::create_dir(&empty).unwrap();
-            let link = temp.path().join("link");
-            std::os::unix::fs::symlink(&empty, &link).unwrap();
-            refused.push(link)
-        };
+        refused.push(symlinked_empty_folder(temp.path()));
         let before = mock.calls().len();
 
         for path in refused {
