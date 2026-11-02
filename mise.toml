@@ -89,6 +89,10 @@ for file in tests/*_chrome.rs tests/browser_smoke.rs crates/cli/tests/*_chrome.r
 done
 '''
 
+[tasks.linux-check]
+description = "Build the Dockerfile for Linux and run the tests and the Chrome tests in a container"
+run = "sh tools/linux-check/run.sh"
+
 [tasks.docs]
 description = "Build the mdBook documentation"
 run = "mdbook build"
