@@ -209,6 +209,7 @@
               "tutorials/run_settings",
               "tutorials/headless",
               "tutorials/browser_profiles",
+              "tutorials/mise_chromedriver",
               "tutorials/tracing"
             ]
           },

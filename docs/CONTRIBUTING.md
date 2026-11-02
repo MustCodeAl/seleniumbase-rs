@@ -390,6 +390,7 @@ prompt that runs the checks, is in
 <LayoutFile name="fingerprint.schema.json" note="the schema of a Fingerprint file" />
 </LayoutDir>
 <LayoutDir name="contrib" note="files that are not part of the crate">
+<LayoutDir name="mise" note="mise-chromedriver: a mise tool plugin that installs chromedriver" />
 <LayoutDir name="tldr" note="draft tldr-pages entries for sbrs, kept to propose upstream" />
 </LayoutDir>
 <LayoutDir name="scripts" note="helper scripts">

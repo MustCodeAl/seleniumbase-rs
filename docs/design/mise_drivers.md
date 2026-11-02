@@ -4,76 +4,95 @@ title: "Design: a mise plugin for chromedriver"
 
 # Design: a mise plugin for chromedriver
 
-Status: proposal.
+Status: built for the plain chromedriver: a tool plugin in
+`contrib/mise/mise-chromedriver` and a `mise which chromedriver` lookup in the
+launcher (`src/browser/mise_driver.rs`). The patched UC build is not built.
 
 A [mise](https://mise.jdx.dev) plugin that installs, upgrades and removes
-chromedriver, including a patched UC build. Versions come from the Chrome for
-Testing JSON this crate already uses. The plugin does not live in this
-repository; this page says what it would be and what the library must change
-before a mise-installed driver is the one a session runs.
+chromedriver. Versions come from the Chrome for Testing JSON this crate already
+uses. How to use it: [Manage chromedriver with mise](/tutorials/mise_chromedriver).
+This page records what was chosen and why, and what is left.
 
-## What the docs call the plugin
+## A tool plugin
 
-mise has two Lua plugin shapes that can install a binary. Pages used here:
+mise has several Lua plugin shapes. Pages used here:
 
 - [Plugins](https://mise.jdx.dev/plugins.html) (types, `[plugins]` and `[tools]`)
 - [Tool plugins](https://mise.jdx.dev/tool-plugin-development.html) (one tool)
 - [Backend plugins](https://mise.jdx.dev/backend-plugin-development.html) (a family of tools under one prefix)
-- [Plugin Lua reference](https://mise.jdx.dev/plugin-lua-modules.html) (which hook files decide the type)
+- [Plugin Lua reference](https://mise.jdx.dev/plugin-lua-modules.html) (the modules, `RUNTIME`, and which hook files decide the type)
 
-A tool plugin is one tool. chromedriver and the patched UC build are two
-tools, so this is a **backend plugin**: users write `sbrs:chromedriver` and
-`sbrs:uc-chromedriver` after installing the plugin under the name `sbrs`.
+The first draft of this page chose a backend plugin (`sbrs:chromedriver` and
+`sbrs:uc-chromedriver`), because it counted two tools. Only one is built, and
+mise's pages say to write a tool plugin for one tool and a backend plugin for a
+family. A tool plugin also gives mise the download: the plugin returns a URL,
+and mise fetches the archive, unpacks it and runs nothing from it. A backend
+plugin installs by itself, and mise does not look at what it downloads.
 
-The hook files, and the names mise documents for them:
+| Hook | File | What it does here |
+| --- | --- | --- |
+| `Available` | `hooks/available.lua` | `mise ls-remote` and resolving `151` or `latest`: the builds with a chromedriver for this platform, newest first |
+| `PreInstall` | `hooks/pre_install.lua` | the URL of the archive for one version |
+| `EnvKeys` | `hooks/env_keys.lua` | puts the install directory on the `PATH` (the archive has no `bin/`) |
 
-| Hook | File | Required | When mise calls it |
-| --- | --- | --- | --- |
-| `BackendListVersions` | `hooks/backend_list_versions.lua` | yes | `mise ls-remote`, and resolving `latest` |
-| `BackendInstall` | `hooks/backend_install.lua` | yes | install one version |
-| `BackendExecEnv` | `hooks/backend_exec_env.lua` | yes | put that install on the environment |
-| `BackendUninstall` | `hooks/backend_uninstall.lua` | no | before mise deletes the install directory |
-
-`metadata.lua` holds the plugin name and version. `mise plugins link sbrs ./mise-sbrs` is the local try-out from the backend-plugin page. A project pins it with:
-
-```toml
-[plugins]
-sbrs = "https://github.com/example/mise-sbrs#v1"
-
-[tools]
-"sbrs:chromedriver" = "latest"
-```
-
-Upgrade is a new install of another version (`mise upgrade`, or changing the version in `mise.toml`). mise then calls `BackendInstall` for the new version and `BackendUninstall` for the old one. Removal is `mise uninstall sbrs:chromedriver@<version>`, which calls `BackendUninstall` and deletes the install directory.
+`mise plugins link chromedriver ./contrib/mise/mise-chromedriver` is the local
+try-out. Upgrade is `mise upgrade chromedriver`, and removal is
+`mise uninstall chromedriver@VERSION`; mise deletes the install directory, so
+there is no uninstall hook. The commands were run against a throwaway
+`MISE_DATA_DIR`, `MISE_CONFIG_DIR` and `MISE_CACHE_DIR`.
 
 ## Where the versions come from
 
-The same Chrome for Testing documents `src/browser/chrome_for_testing.rs` and `src/browser/downloader.rs` already fetch:
+`known-good-versions-with-downloads.json` in the Chrome for Testing site: every
+build, with the archives of each platform. One document gives both the versions
+and the URLs, where the draft named two (`last-known-good-versions-with-downloads.json` for
+`latest` and `latest-versions-per-milestone-with-downloads.json` for a major).
+Builds before 115 have no chromedriver. The file lists builds oldest first, and
+`Available` turns that around.
 
-- `https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json` for `latest` (and stable, beta, dev, canary)
-- `https://googlechromelabs.github.io/chrome-for-testing/latest-versions-per-milestone-with-downloads.json` for a milestone such as `131`
+The URL comes from the index and is never built by the plugin. It must be
+`https` on `storage.googleapis.com`, the host the index names, and end in `.zip`.
+The index has no checksums, so the plugin returns none.
 
-`BackendListVersions` reads those documents and returns the chromedriver version strings (the Chrome version the driver belongs to). `BackendInstall` downloads the chromedriver archive for the host (`linux64`, `mac-arm64`, `mac-x64`, `win64`, `win32`) from the URL in that JSON, checks the download, and extracts the `chromedriver` binary into the install directory mise passed in. It does not reimplement the crate's downloader.
+Chrome for Testing does publish chromedriver for Linux arm64, from build
+153.0.8001.0 on (142 of the 2555 builds with a chromedriver). The plugin lists
+only those builds on a Linux arm64 machine and refuses an older one for that
+platform. It refuses every other platform it has no archive for, and Linux with
+musl, with a message that says what to install instead.
 
-## The patched UC variant
+## What the library changed
 
-`sbrs:uc-chromedriver` is the same version list. Its install does two steps, in order:
+A default Chrome session did not look on `PATH`. `ensure_chromedriver_binary` in
+`src/browser/launcher.rs` used only `downloaded_drivers/chromedriver` (or
+`chromedriver.exe`), relative to the working directory, and downloaded another
+into the same folder when that file was missing or for another Chrome. So a
+driver mise put on `PATH` was not the one `sbrs` ran for Chrome.
+
+The first draft proposed a setting, `SB_DRIVER_DIR`, that the plugin would set
+for the session. That is not built. The launcher asks mise instead, with no
+setting: `mise which chromedriver` in the working directory, run with an
+argument list and a 5 second limit. It comes after `downloaded_drivers/` and
+before a download, and the file it names must exist, be runnable and fit the
+installed Chrome. `--driver-version keep` tries it after `downloaded_drivers/`
+and the `PATH`. A pinned `--driver-version` still downloads that build. No mise,
+a failing mise, a slow one and a bad answer are silent. The download code does
+not know about mise.
+
+Not changed: the lookup that `sbrs doctor`, `sbrs prompt` and the `dev` MCP
+server print (`lookup_chromedriver_in` in `src/resources/assets.rs`). It reads
+`CHROMEDRIVER_PATH`, `downloaded_drivers/` and the `PATH` and does not start a
+program, which keeps the shell prompt fast. The launcher itself does not read
+`CHROMEDRIVER_PATH`.
+
+## The patched UC variant (not built)
+
+A `uc-chromedriver` tool would do two steps, in order:
 
 1. `sbrs install chromedriver <version>`, which is the crate's own download into `downloaded_drivers/`.
 2. The crate's patcher, `seleniumbase_rs::evasion::patcher::patch_chromedriver` (`src/evasion/patcher.rs`), which calls `ChromedriverPatcher::new(path).patch(EnginePatch::all())`.
 
-Lua cannot call that function. There is no `sbrs` subcommand that patches a chromedriver today (`sbrs patch-chrome` patches the browser, not the driver). The UC hook therefore needs a small command, proposed as `sbrs patch-chromedriver <path>`, whose only job is `patch_chromedriver`. The hook then copies the patched binary into the mise install directory and does not leave the session depending on `downloaded_drivers/`.
-
-Until that command exists, the UC tool cannot be installed by the plugin. Do not shell out to a private Rust test or copy the patch bytes into Lua.
-
-## What the library must change
-
-A default Chrome session does not look on `PATH`. `ensure_chromedriver_binary` in `src/browser/launcher.rs` uses only `downloaded_drivers/chromedriver` (or `chromedriver.exe`), relative to the working directory. When that file is missing or the major version does not match Chrome, it downloads another one into the same folder.
-
-`find_downloaded_or_on_path` and `find_driver_program` in the same file do look on `PATH`, but only after `binaries::DOWNLOADS_DIR` (`"downloaded_drivers"`, `src/browser/binaries.rs`). The default plan (`ChromedriverPlan::Default`) never calls them. So a driver mise put on `PATH` is not the one `sbrs` runs for Chrome.
-
-`SB_DRIVER_PATH_DIR` is not that lookup. `sbrs install -p` copies a driver into the directory it names (else `/usr/local/bin`). Nothing reads it back when a session starts.
-
-Add **`SB_DRIVER_DIR`**: a directory of driver binaries. `ensure_chromedriver_binary`, `find_downloaded_or_on_path` and `find_driver_program` search it before `downloaded_drivers`. When it is unset, behaviour stays as it is. The plugin's `BackendExecEnv` sets `SB_DRIVER_DIR` to the install's bin directory (and may also prepend that directory to `PATH`, which helps every other program and does not, by itself, change the default Chrome plan).
-
-Do not teach `src/browser/downloader.rs` about mise. The download stays the plugin's, or `sbrs install`, and the session only needs to find the binary.
+Lua cannot call that function. `sbrs patch-chromedriver --path FILE` patches a
+file in place, and a file in mise's install folder must not be patched in place:
+the hook would patch a copy and put the copy in the install directory. Until
+such a plugin exists, `sbrs install uc_driver` is the way to a patched driver.
+Do not copy the patch bytes into Lua.

@@ -229,6 +229,8 @@ def browser_detail():
         _file("driver_install.rs", "installs geckodriver and msedgedriver"),
         _file("driver_version.rs", "matches chromedriver to Chrome"),
         _file("launcher.rs", "chromedriver discovery, startup and StealthOptions"),
+        _file("mise_driver.rs", "the chromedriver that mise manages"),
+
         _file("mod.rs", "the browser module"),
         options,
         _file("password_prompts.rs", "password prompts"),
@@ -548,6 +550,8 @@ LAYOUT = D(
     D("schemas", "JSON Schemas",
       F("fingerprint.schema.json", "the schema of a Fingerprint file")),
     D("contrib", "files that are not part of the crate",
+      D("mise", "mise-chromedriver: a mise tool plugin that installs chromedriver"),
+
       D("tldr", "draft tldr-pages entries for sbrs, kept to propose upstream")),
     D("scripts", "helper scripts",
       F("check-consumers.sh", "mise run contracts: checks what the repositories that build on this crate use")),
