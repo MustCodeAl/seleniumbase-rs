@@ -82,7 +82,7 @@ plugin `block-resources` failed in `on_page_created`: Network.setBlockedURLs fai
 
 ```toml Cargo.toml
 [dev-dependencies]
-seleniumbase-rs-plugin-testing = { git = "https://github.com/MustCodeAl/seleniumbase-rs-plugins", rev = "fea3634e2ebcaafce63a244df8d4adb53e3ec002" }
+seleniumbase-rs-plugin-testing = { git = "https://github.com/MustCodeAl/seleniumbase-rs-plugins", rev = "0666904475f4f1f422f8f426f169f6a0e533e824" }
 ```
 
 Take it at the same `rev` as `seleniumbase-rs-plugin`, so both name one copy of

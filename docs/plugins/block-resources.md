@@ -20,7 +20,7 @@ Constructors: `BlockResources::images_and_fonts()`, `BlockResources::media()` an
 </Card>
 
 ```sh Terminal
-cargo add seleniumbase-rs-plugin-block-resources --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev fea3634e2ebcaafce63a244df8d4adb53e3ec002
+cargo add seleniumbase-rs-plugin-block-resources --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 0666904475f4f1f422f8f426f169f6a0e533e824
 ```
 
 <Note>

@@ -153,11 +153,11 @@ in the plugins repository:
 
 Add one with `cargo add`, from the same revision of the plugins repository
 that this crate pins (the `rev` of `seleniumbase-rs-plugin` in its
-`Cargo.toml`, currently `fea3634e2ebcaafce63a244df8d4adb53e3ec002`):
+`Cargo.toml`, currently `0666904475f4f1f422f8f426f169f6a0e533e824`):
 
 ```sh Terminal
 cargo add --git https://github.com/MustCodeAl/seleniumbase-rs-plugins \
-    --rev fea3634e2ebcaafce63a244df8d4adb53e3ec002 \
+    --rev 0666904475f4f1f422f8f426f169f6a0e533e824 \
     seleniumbase-rs-plugin-block-resources
 ```
 

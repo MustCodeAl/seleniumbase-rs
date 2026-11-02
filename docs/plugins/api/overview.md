@@ -12,7 +12,7 @@ repository. A plugin is a type that implements its `Plugin` trait; a
 `PluginSet` holds the plugins a program uses, checks them and calls their
 hooks; seleniumbase-rs calls the set from both of its engines. These pages
 document the public items of the original surface at the revision seleniumbase-rs pins,
-`fea3634e2ebcaafce63a244df8d4adb53e3ec002`, as the code defines it. The hooks
+`0666904475f4f1f422f8f426f169f6a0e533e824`, as the code defines it. The hooks
 added in 0.1.3 are listed under [Hooks added in 0.1.3](/plugins/api/plugin-trait#hooks-added-in-013).
 Navigation, the network and tasks have their own pages. Browser contexts and
 test hooks stay in the crate's rustdoc. For a
@@ -99,13 +99,13 @@ sb.quit().await?;
 - Tests: `seleniumbase-rs-plugin-testing` (`RecordingPage`, `RecordingBrowser`,
   `Call`, `block_on`).
 - Pin: every dependency on the plugins repository at
-  `rev = "fea3634e2ebcaafce63a244df8d4adb53e3ec002"`.
+  `rev = "0666904475f4f1f422f8f426f169f6a0e533e824"`.
 
 </Info>
 
 <Visibility for="agents">
 
-Summary for AI agents. Crate `seleniumbase-rs-plugin` 0.1.3 (git https://github.com/MustCodeAl/seleniumbase-rs-plugins, rev fea3634e2ebcaafce63a244df8d4adb53e3ec002), re-exported by seleniumbase-rs as `seleniumbase_rs::plugin_api` (feature `plugins`). Items: `Plugin` (trait; only `name` required; hooks `before_launch(&mut LaunchSettings)`, `on_browser(&dyn BrowserHandle)`, `on_page_created(&dyn PageHandle)`, `on_close()`; declarations `dependencies`, `requirements`, `metadata`, `per_launch`, `packages`; since 0.1.3 also `network`, `protocol_events`, `task`, `job_runner`, `before_context`, `on_context_created`, `on_context_closed`, `before_navigate`, `after_navigate`, `on_request`, `on_response`, `on_protocol_event`, `before_close`, `on_test_start`, `on_test_end`, see the plugin-trait page), `Result<T>`, `PluginError`, `PluginSet`, `AuditRow`, `LaunchContext`, `LaunchSettings`, `ProfileView`, `Engine`, `BrowserFamily`, `WebRtcPolicy`, `BrowserHandle`, `PageHandle`, `Requirements`, `Package`, `Configurable`, `Descriptor`, `PluginSpec`, `Registry`, `Metadata`, `Category`, `Phase`, `Seals`, `Budgets`, `Capability`, `CapabilitySet`, `HostScope`, `NetScope`, `PathScope`, `RawKind`, `Risk`, `Enforcement`, `ParseCapabilityError`, `HostInfo`, `HostKind`, `ExtensionWorker`, module `switch_policy`, and the `async_trait` macro. Test crate `seleniumbase-rs-plugin-testing`: `RecordingPage`, `RecordingBrowser`, `Call`, `block_on`, `block_on_advancing`, `ManualTimer`, `VecSink`. Host side in seleniumbase-rs: `LaunchOptionsBuilder::plugins`/`plugins_named`/`plugin_selection`, `BrowserConfig::with_plugins`/`with_plugins_named`/`with_plugin_selection`, `Browser::connect_with_plugins`, `plugin_host::builtin_registry`/`build`/`build_with`, `config::plugins::PluginSelection`, `PLUGINS_ENV` (`SB_PLUGINS`), `cli::plugin_cmd`, `SeleniumBaseError::Plugin`.
+Summary for AI agents. Crate `seleniumbase-rs-plugin` 0.1.3 (git https://github.com/MustCodeAl/seleniumbase-rs-plugins, rev 0666904475f4f1f422f8f426f169f6a0e533e824), re-exported by seleniumbase-rs as `seleniumbase_rs::plugin_api` (feature `plugins`). Items: `Plugin` (trait; only `name` required; hooks `before_launch(&mut LaunchSettings)`, `on_browser(&dyn BrowserHandle)`, `on_page_created(&dyn PageHandle)`, `on_close()`; declarations `dependencies`, `requirements`, `metadata`, `per_launch`, `packages`; since 0.1.3 also `network`, `protocol_events`, `task`, `job_runner`, `before_context`, `on_context_created`, `on_context_closed`, `before_navigate`, `after_navigate`, `on_request`, `on_response`, `on_protocol_event`, `before_close`, `on_test_start`, `on_test_end`, see the plugin-trait page), `Result<T>`, `PluginError`, `PluginSet`, `AuditRow`, `LaunchContext`, `LaunchSettings`, `ProfileView`, `Engine`, `BrowserFamily`, `WebRtcPolicy`, `BrowserHandle`, `PageHandle`, `Requirements`, `Package`, `Configurable`, `Descriptor`, `PluginSpec`, `Registry`, `Metadata`, `Category`, `Phase`, `Seals`, `Budgets`, `Capability`, `CapabilitySet`, `HostScope`, `NetScope`, `PathScope`, `RawKind`, `Risk`, `Enforcement`, `ParseCapabilityError`, `HostInfo`, `HostKind`, `ExtensionWorker`, module `switch_policy`, and the `async_trait` macro. Test crate `seleniumbase-rs-plugin-testing`: `RecordingPage`, `RecordingBrowser`, `Call`, `block_on`, `block_on_advancing`, `ManualTimer`, `VecSink`. Host side in seleniumbase-rs: `LaunchOptionsBuilder::plugins`/`plugins_named`/`plugin_selection`, `BrowserConfig::with_plugins`/`with_plugins_named`/`with_plugin_selection`, `Browser::connect_with_plugins`, `plugin_host::builtin_registry`/`build`/`build_with`, `config::plugins::PluginSelection`, `PLUGINS_ENV` (`SB_PLUGINS`), `cli::plugin_cmd`, `SeleniumBaseError::Plugin`.
 
 </Visibility>
 
@@ -119,11 +119,11 @@ on seleniumbase-rs with the feature `plugins` and on the plugin crates it uses.
 
 ```toml A plugin crate
 [dependencies]
-seleniumbase-rs-plugin = { git = "https://github.com/MustCodeAl/seleniumbase-rs-plugins", rev = "fea3634e2ebcaafce63a244df8d4adb53e3ec002" }
+seleniumbase-rs-plugin = { git = "https://github.com/MustCodeAl/seleniumbase-rs-plugins", rev = "0666904475f4f1f422f8f426f169f6a0e533e824" }
 serde_json = "1"
 
 [dev-dependencies]
-seleniumbase-rs-plugin-testing = { git = "https://github.com/MustCodeAl/seleniumbase-rs-plugins", rev = "fea3634e2ebcaafce63a244df8d4adb53e3ec002" }
+seleniumbase-rs-plugin-testing = { git = "https://github.com/MustCodeAl/seleniumbase-rs-plugins", rev = "0666904475f4f1f422f8f426f169f6a0e533e824" }
 ```
 
 ```toml A program
@@ -133,8 +133,8 @@ seleniumbase-rs-plugin-hello = { path = "../seleniumbase-rs-plugin-hello" }
 ```
 
 ```bash cargo add
-cargo add seleniumbase-rs-plugin --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev fea3634e2ebcaafce63a244df8d4adb53e3ec002
-cargo add --dev seleniumbase-rs-plugin-testing --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev fea3634e2ebcaafce63a244df8d4adb53e3ec002
+cargo add seleniumbase-rs-plugin --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 0666904475f4f1f422f8f426f169f6a0e533e824
+cargo add --dev seleniumbase-rs-plugin-testing --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 0666904475f4f1f422f8f426f169f6a0e533e824
 ```
 
 </CodeGroup>
@@ -143,7 +143,7 @@ cargo add --dev seleniumbase-rs-plugin-testing --git https://github.com/MustCode
 
 seleniumbase-rs takes `seleniumbase-rs-plugin` and
 `seleniumbase-rs-plugins-builtin` from one git URL at one `rev`,
-`fea3634e2ebcaafce63a244df8d4adb53e3ec002`. Cargo counts the same repository
+`0666904475f4f1f422f8f426f169f6a0e533e824`. Cargo counts the same repository
 under another reference (a branch, a tag, another `rev`) as another source, so a
 plugin crate pinned differently builds a second copy of the API, and its
 `Plugin` is not the trait seleniumbase-rs calls. See
