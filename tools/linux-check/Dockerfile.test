@@ -1,0 +1,14 @@
+# The repository's builder stage, plus what its runtime stage installs, for running the tests.
+# `run.sh` builds the base image from the repository's Dockerfile first.
+FROM sbrs-linux-check:builder
+
+# Chrome's sandbox cannot start in an unprivileged container, and these tests run as root, where it
+# refuses to start at all. Debian's chromium wrapper reads /etc/chromium.d.
+RUN rustup component add rustfmt && \
+    apt-get update && apt-get install -y --no-install-recommends \
+    chromium \
+    chromium-driver \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/* && \
+    mkdir -p /etc/chromium.d && \
+    echo 'export CHROMIUM_FLAGS="$CHROMIUM_FLAGS --no-sandbox"' > /etc/chromium.d/zz-no-sandbox
