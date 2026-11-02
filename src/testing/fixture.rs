@@ -9,7 +9,7 @@
 //! which a guard could not see.
 
 use std::fmt;
-use std::future::Future;
+
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;

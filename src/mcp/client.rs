@@ -38,7 +38,7 @@
 //! failure report the server wrote.
 
 use std::fmt;
-use std::future::Future;
+
 use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::{Arc, Mutex, PoisonError};

@@ -35,7 +35,7 @@
 //! ```
 
 use std::collections::VecDeque;
-use std::future::Future;
+
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use tracing::{debug, warn};

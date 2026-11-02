@@ -1,6 +1,6 @@
 //! The server: a set of tools sharing one browser session.
 
-use std::future::Future;
+
 use std::path::{Component, Path, PathBuf};
 use std::pin::Pin;
 use std::sync::{Arc, PoisonError};

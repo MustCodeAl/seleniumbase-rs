@@ -16,7 +16,7 @@ mod diagnostics;
 mod exports;
 mod selectors;
 
-use std::future::Future;
+
 use std::time::Duration;
 
 use serde_json::{json, Map, Value};

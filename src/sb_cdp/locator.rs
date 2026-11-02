@@ -1,7 +1,7 @@
 //! The [`Locator`]: a lazy, auto-waiting handle to elements on a page.
 
 use std::fmt;
-use std::future::Future;
+
 use std::pin::Pin;
 use std::time::Duration;
 

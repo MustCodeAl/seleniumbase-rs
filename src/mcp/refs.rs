@@ -10,7 +10,7 @@
 //! The table lives on the server, not in the page: a page global would be a
 //! mark that a script could look for.
 
-use std::future::Future;
+
 use std::pin::Pin;
 
 use super::host::Ctx;

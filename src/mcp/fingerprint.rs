@@ -25,7 +25,7 @@
 //! lets the browser report), so they are marked untrusted.
 
 use std::fmt::Write as _;
-use std::future::Future;
+
 use std::path::{Component, Path, PathBuf};
 
 use serde_json::{json, Map, Value};

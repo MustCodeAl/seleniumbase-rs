@@ -24,7 +24,7 @@
 use std::collections::HashMap;
 
 use std::fmt;
-use std::future::Future;
+
 use std::io;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::pin::Pin;

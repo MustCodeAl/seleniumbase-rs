@@ -228,7 +228,7 @@ fn found_json(found: &Found) -> Value {
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
-    use std::future::{ready, Future};
+    use std::future::ready;
     use std::pin::Pin;
     use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::Duration;

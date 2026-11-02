@@ -48,7 +48,7 @@
 //! are not seen by the plugins.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::future::Future;
+
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, Weak};
 use std::time::Duration;

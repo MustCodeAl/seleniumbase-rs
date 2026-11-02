@@ -1,7 +1,7 @@
 //! Tool definitions: arguments, results and errors.
 
 use std::fmt::{self, Write as _};
-use std::future::Future;
+
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;

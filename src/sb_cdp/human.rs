@@ -24,7 +24,7 @@
 //! # }
 //! ```
 
-use std::future::Future;
+
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;

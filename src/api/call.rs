@@ -19,7 +19,7 @@
 //! `tokio::spawn`. A synchronous Python method with optional arguments is not a
 //! builder: it takes `Option<_>` parameters in Python's order.
 
-use std::future::Future;
+
 use std::pin::Pin;
 
 use crate::error::SeleniumBaseError;

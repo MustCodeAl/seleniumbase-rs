@@ -1,7 +1,7 @@
 //! A single browser tab: navigation, scripting, capture and the handles for
 //! everything you can do inside it.
 
-use std::future::Future;
+
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 

@@ -3,7 +3,7 @@
 //!
 //! `cli_help`, which explains the command line itself, is in [`help`](super::help).
 
-use std::future::Future;
+
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;

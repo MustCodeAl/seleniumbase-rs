@@ -17,7 +17,7 @@
 //! Resources never change and are never subscribed to: the list is fixed
 //! when the server starts.
 
-use std::future::Future;
+
 use std::path::Path;
 use std::pin::Pin;
 use std::time::Duration;
