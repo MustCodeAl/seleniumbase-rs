@@ -24,14 +24,12 @@ in_container() {
     sbrs-linux-check:test "$@"
 }
 
+# shellcheck disable=SC2086 # build_flags holds several words on purpose
 build() {
   (cd "$repo" &&
-    # shellcheck disable=SC2086 # build_flags holds several words on purpose
     "$docker" build $build_flags --target builder --build-arg CARGO_BUILD_JOBS=2 -t sbrs-linux-check:builder . &&
-    # shellcheck disable=SC2086
     "$docker" build $build_flags --build-arg CARGO_BUILD_JOBS=2 -t sbrs-linux-check:final .) || return 1
   "$docker" run --rm sbrs-linux-check:final --version || return 1
-  # shellcheck disable=SC2086
   "$docker" build $build_flags -t sbrs-linux-check:test -f "$here/Dockerfile.test" "$here"
 }
 
