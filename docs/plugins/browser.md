@@ -230,9 +230,12 @@ Extensions without a service worker, and extensions another plugin loaded, are n
 waited for. The plugin asks the set for a longer limit for `on_browser` (the wait
 plus 5 s), so the set's default of 10 s does not cut a long wait short.
 
-It is off by default. The host has to implement `extension_workers`; one that
-does not, and the WebDriver host, which reports no extension ids, make the launch
-fail with a message that names `wait_for_workers`, instead of waiting for nothing.
+It is off by default. The pure CDP engine answers `extension_workers` from
+Chrome's list of targets (`Target.getTargets`): a target of type
+`service_worker` whose address is under `chrome-extension://<id>/` for an
+extension the launch loaded. The WebDriver host reports no extension ids and has
+no worker query, so there the launch fails with a message that names
+`wait_for_workers`, instead of waiting for nothing.
 A timeout names the option, the extensions that never started and the time.
 
 ## Saved sessions
@@ -275,11 +278,13 @@ close.
 
 With `interactive = true` (and a `session`) the plugin offers a task, which
 `sbrs plugin run browser` starts. The input is a JSON file, as for every task
-(`--input`), and the browser must be headed:
+(`--input`), and the browser must be headed. The global options go before
+`plugin run`, and an option's value is TOML, so a text needs its quotes:
 
 ```sh Terminal
 echo '{"url": "https://app.test/login"}' > login.json
-sbrs plugin run browser --headed --input login.json
+sbrs --headed --plugin-opt 'browser.session="login"' --plugin-opt 'browser.interactive=true' \
+  plugin run browser --input login.json
 ```
 
 It opens a tab (at the `url` of the input, `http` or `https` only; without one a

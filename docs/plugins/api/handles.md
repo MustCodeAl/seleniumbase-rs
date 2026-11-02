@@ -229,8 +229,11 @@ A plugin whose hook must wait for an MV3 worker uses this, together with
 [`clock`](#browserhandleclock): ask every 250 ms until the worker appears or the
 time is up. The set refuses the call unless the plugin holds `launch.extensions`
 (see [enforcement](/plugins/api/capabilities#capabilityenforcement)), so it only
-reaches the host for a plugin that loads extensions. The WebDriver host reports no
-extension ids, so it needs a host that implements this method.
+reaches the host for a plugin that loads extensions. The pure CDP engine of
+seleniumbase-rs answers it from Chrome's list of targets (`Target.getTargets`):
+the targets of type `service_worker` whose address is under
+`chrome-extension://<id>/` for an extension the launch loaded. The WebDriver host
+does not implement it, so there the call is `NotSupported`.
 
 ## BrowserHandle::clock
 

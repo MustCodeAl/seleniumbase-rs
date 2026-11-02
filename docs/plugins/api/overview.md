@@ -278,7 +278,8 @@ The API crate, `crates/seleniumbase-rs-plugin/src/` in the plugins repository:
 |---|---|---|
 | `lib.rs` | `Plugin`, `Result`, `PluginError`, `async_trait` | [The Plugin trait](/plugins/api/plugin-trait) |
 | `lib.rs` | `LaunchContext`, `LaunchSettings`, `ProfileView`, `Engine`, `BrowserFamily`, `WebRtcPolicy` | [Launch settings](/plugins/api/launch) |
-| `lib.rs` | `BrowserHandle`, `PageHandle`, `ExtensionWorker` | [Handles](/plugins/api/handles) |
+| `lib.rs` | `BrowserHandle`, `PageHandle` | [Handles](/plugins/api/handles) |
+| `context.rs` | `ExtensionWorker` (beside `LoadedExtension`) | [Handles](/plugins/api/handles#browserhandleextension_workers) |
 | `nav.rs` | `Navigation`, `NavOrigin`, `NavDecision`, `NavOutcome`, `MAX_REDIRECTS` | [Navigation](/plugins/api/navigation) |
 | `network.rs` | `ResourceKind`, `RequestFilter`, `RuleAction`, `NetRule`, `NetworkInterest`, `RequestView`, `REDACTED`, `RequestDecision`, `Outcome`, `ResponseView`, `ProtocolEvent` | [Network](/plugins/api/network) |
 | `task.rs` | `Sink`, `NullSink`, `Prompt`, `NoPrompt`, `TaskContext`, `Task`, `JobRunner` | [Tasks](/plugins/api/tasks) |
@@ -292,9 +293,9 @@ The API crate, `crates/seleniumbase-rs-plugin/src/` in the plugins repository:
 | `switch_policy.rs` | module `switch_policy`: `REFUSED_SWITCHES`, `REFUSED_FEATURES`, `switch_name`, `refusal`, `feature_refused` | [Capabilities](/plugins/api/capabilities#switch_policy) |
 | `order.rs` | nothing public: the resolver behind the run order | [PluginSet](/plugins/api/plugin-set#run-order) |
 
-The testing crate, `crates/seleniumbase-rs-plugin-testing/src/lib.rs`:
-`RecordingPage`, `RecordingBrowser`, `Call`, `block_on`, `block_on_advancing`,
-`ManualTimer`, `VecSink`
+The testing crate, `crates/seleniumbase-rs-plugin-testing/src/` (all re-exported
+from its root): `RecordingPage`, `RecordingBrowser`, `Call`, `block_on`,
+`block_on_advancing` (`lib.rs`), `ManualTimer` (`timer.rs`), `VecSink` (`drive.rs`)
 ([Testing](/plugins/api/testing)).
 
 The host side, in seleniumbase-rs:
