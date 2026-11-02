@@ -9,8 +9,9 @@
 //! the `PATH`, a non-zero exit, output that is not a path to a program, and a
 //! `mise` that does not answer in time are all "no driver here", with no error:
 //! the launcher goes on to its other ways. The answer is only read, never
-//! changed: nothing in this module patches or repairs the driver, and a driver
-//! mise installed stays as mise left it.
+//! changed: nothing in this module patches or repairs the driver, and the driver
+//! is started where mise put it (the launcher's usual repair of a driver the
+//! system refuses to start is all that can ever touch the file).
 
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};

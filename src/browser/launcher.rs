@@ -353,7 +353,6 @@ async fn kept_chromedriver(
     mise_driver::which_chromedriver(mise, mise_timeout).await
 }
 
-
 /// The program that automates a browser.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DriverProgram {
@@ -1007,6 +1006,33 @@ mod driver_program_tests {
         // `find_free_port` asks the system for a port, so there is always one.
     }
 
+    /// The real `mise` and a chromedriver it installed for the working directory.
+    ///
+    /// Pin chromedriver for the Chrome that is installed (a `mise.toml` above the
+    /// crate folder, or the global mise config), then run
+    /// `cargo test -p seleniumbase-rs --lib the_real_mise -- --ignored`.
+    #[tokio::test]
+    #[ignore = "needs mise with a chromedriver installed for the working directory"]
+    async fn the_real_mise_names_a_driver_the_launcher_starts() {
+        let found = mise_driver::which_chromedriver(OsStr::new(MISE), MISE_TIMEOUT)
+            .await
+            .expect("mise names a chromedriver for this folder");
+        let process = launch_chromedriver_at(&found, None)
+            .await
+            .expect("the driver mise installed starts");
+        assert!(
+            process.url.starts_with("http://127.0.0.1:"),
+            "{}",
+            process.url
+        );
+        // With no `downloaded_drivers/chromedriver` here, the launcher's own
+        // lookup lands on the same file when it fits the installed Chrome.
+        if !Path::new(DOWNLOADS_DIR).join("chromedriver").exists() {
+            let ensured = ensure_chromedriver_binary().await.expect("a driver");
+            assert_eq!(ensured, found);
+        }
+    }
+
     const WAIT: Duration = Duration::from_secs(10);
 
     /// A stand-in for a program: a shell script that runs `body`, started once
@@ -1061,7 +1087,10 @@ mod driver_program_tests {
         let mise = mise_naming(dir.path(), &managed, &record);
         let found = chromedriver_on_hand(&existing, Some(155), mise.as_os_str(), WAIT).await;
         assert_eq!(found, Some(existing));
-        assert!(!record.exists(), "mise was asked although it was not needed");
+        assert!(
+            !record.exists(),
+            "mise was asked although it was not needed"
+        );
     }
 
     #[cfg(unix)]
@@ -1077,7 +1106,9 @@ mod driver_program_tests {
         // The driver stays as mise left it, and nothing appears beside it.
         assert_eq!(std::fs::read(&managed).unwrap(), before);
         assert_eq!(
-            std::fs::read_dir(managed.parent().unwrap()).unwrap().count(),
+            std::fs::read_dir(managed.parent().unwrap())
+                .unwrap()
+                .count(),
             1
         );
     }
@@ -1137,7 +1168,10 @@ mod driver_program_tests {
             kept_chromedriver(Some(on_hand.clone()), mise.as_os_str(), WAIT).await,
             Some(on_hand)
         );
-        assert!(!record.exists(), "mise was asked although it was not needed");
+        assert!(
+            !record.exists(),
+            "mise was asked although it was not needed"
+        );
         // Nothing on hand: the one mise names, whatever Chrome is installed.
         assert_eq!(
             kept_chromedriver(None, mise.as_os_str(), WAIT).await,
@@ -1150,7 +1184,6 @@ mod driver_program_tests {
             None
         );
     }
-
 
     #[test]
     fn a_download_wins_over_the_system_copy_and_the_path_is_last() {
