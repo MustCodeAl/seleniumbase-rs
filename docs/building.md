@@ -795,8 +795,10 @@ your Chrome's major version, and `CHROMEDRIVER_PATH` points at one you already
 have. The pure CDP engine (`sb_cdp`) needs no chromedriver on any system.
 
 The WebDriver engine looks for `downloaded_drivers/chromedriver` in the working
-directory first and uses it when its major version fits the browser; otherwise it
-downloads the matching [Chrome for Testing](https://googlechromelabs.github.io/chrome-for-testing/)
+directory first and uses it when its major version fits the browser. Next it uses
+the chromedriver [mise manages](/tutorials/mise_chromedriver), when there is one
+that fits. Otherwise it downloads the matching
+[Chrome for Testing](https://googlechromelabs.github.io/chrome-for-testing/)
 driver. That download is `linux64` on x86-64 Linux and `linux-arm64` on arm64
 Linux, which Chrome for Testing publishes from Chrome 153 on; for an older Chrome
 on arm64, or any other Linux architecture, the error says that no build is
