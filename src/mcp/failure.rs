@@ -124,6 +124,7 @@ pub(crate) fn concerns_page(error: &ToolError) -> bool {
             SeleniumBaseError::ElementNotFound { .. }
                 | SeleniumBaseError::ElementNotInteractable { .. }
                 | SeleniumBaseError::StaleElement { .. }
+                | SeleniumBaseError::StrictModeViolation { .. }
                 | SeleniumBaseError::InvalidSelector(_)
                 | SeleniumBaseError::WaitTimeout(_)
                 | SeleniumBaseError::AssertionFailed(_)
@@ -140,6 +141,7 @@ pub(crate) fn focus_selector(error: &ToolError, arguments: &Map<String, Value>) 
     if let ToolError::Failed(
         SeleniumBaseError::ElementNotFound { selector, .. }
         | SeleniumBaseError::ElementNotInteractable { selector, .. }
+        | SeleniumBaseError::StrictModeViolation { selector, .. }
         | SeleniumBaseError::StaleElement { selector },
     ) = error
     {
@@ -168,6 +170,7 @@ fn next_steps(
         "element_not_found" | "wait_timeout" if selector.is_some() => &[Diagnose, Wait, Suggest],
         "element_not_interactable" => &[Diagnose, Scroll, Inspect],
         "stale_element" => &[Retry, Inspect],
+        "strict_mode_violation" => &[Inspect, Suggest],
         "invalid_selector" => &[Diagnose, Suggest, Inspect],
         "element_not_found" | "wait_timeout" | "assertion_failed" => &[Inspect, Console, Bundle],
         "navigation" | "network" | "download" => &[Requests, Environment, Bundle],
@@ -435,6 +438,25 @@ mod tests {
 
         assert_eq!(report.next_steps.len(), 1, "{:?}", report.next_steps);
         assert!(report.next_steps[0].starts_with("wait_for_element {\"selector\": \"#buy\", "));
+    }
+
+    #[test]
+    fn a_strict_violation_points_at_the_page_and_at_better_selectors() {
+        let error = ToolError::Failed(SeleniumBaseError::strict_mode_violation("li", 3));
+        assert!(concerns_page(&error));
+        assert_eq!(focus_selector(&error, &Map::new()).as_deref(), Some("li"));
+
+        let report = FailureReport::new(
+            "click_element",
+            &arguments(json!({ "selector": "li" })),
+            &error,
+            None,
+            &every_tool,
+        );
+
+        assert_eq!(report.next_steps.len(), 2, "{:?}", report.next_steps);
+        assert!(report.next_steps[0].starts_with("inspect_page"));
+        assert!(report.next_steps[1].starts_with("suggest_selectors"));
     }
 
     #[test]

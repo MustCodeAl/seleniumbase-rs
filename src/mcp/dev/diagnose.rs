@@ -112,10 +112,11 @@ pub(super) fn tools() -> Vec<ToolDef<NoBrowser>> {
 /// Every category of [`SeleniumBaseError`] and the start of the message its
 /// `Display` writes, so a message can be told from its text. A test builds each
 /// category and checks that its message starts as written here.
-const CATEGORIES: [(&str, &str); 32] = [
+const CATEGORIES: [(&str, &str); 33] = [
     ("element_not_found", "element not found: "),
     ("element_not_interactable", "element not interactable: "),
     ("stale_element", "stale element reference: "),
+    ("strict_mode_violation", "strict mode violation: "),
     ("invalid_selector", "invalid selector: "),
     ("wait_timeout", "wait timeout: "),
     ("browser_launch", "failed to launch browser binary "),
@@ -180,10 +181,11 @@ const TOOL_KINDS: [(&str, &str, &str); 4] = [
 
 /// Every value `explain_error` takes as a category: the library's, then the
 /// server's own.
-const ALL_CATEGORIES: [&str; 36] = [
+const ALL_CATEGORIES: [&str; 37] = [
     "element_not_found",
     "element_not_interactable",
     "stale_element",
+    "strict_mode_violation",
     "invalid_selector",
     "wait_timeout",
     "browser_launch",
@@ -242,6 +244,7 @@ fn docs_headings(category: &str) -> &'static [&'static str] {
         "element_not_found"
         | "wait_timeout"
         | "stale_element"
+        | "strict_mode_violation"
         | "element_not_interactable"
         | "invalid_selector"
         | "assertion_failed" => &["An element is not found or a wait times out"],
@@ -307,6 +310,15 @@ fn rebuild(category: &str, rest: &str) -> Option<SeleniumBaseError> {
             E::element_not_interactable(selector, reason)
         }
         "stale_element" => E::stale_element(rest),
+        "strict_mode_violation" => {
+            let (selector, count) = rest.rsplit_once(" matched ").unwrap_or((rest, ""));
+            let count = count
+                .trim_end_matches(" elements")
+                .trim()
+                .parse()
+                .unwrap_or(2);
+            E::strict_mode_violation(selector, count)
+        }
         "invalid_selector" => E::InvalidSelector(rest.to_owned()),
         "wait_timeout" => E::WaitTimeout(rest.to_owned()),
         "browser_launch" => {
@@ -415,6 +427,7 @@ fn placeholder(category: &str) -> &'static str {
         "element_not_found" | "element_not_interactable" | "stale_element" | "invalid_selector" => {
             "<selector>"
         }
+        "strict_mode_violation" => "<selector> matched 2 elements",
         "browser_launch" | "patcher" => "'<path>': <reason>",
         "navigation" => "'<url>' failed: <reason>",
         "network" => "'<url>' failed (0): <reason>",
@@ -887,12 +900,12 @@ mod tests {
             );
             seen.push(category);
         }
-        let mut listed: Vec<&str> = ALL_CATEGORIES[..32].to_vec();
+        let mut listed: Vec<&str> = ALL_CATEGORIES[..33].to_vec();
         listed.sort_unstable();
         seen.sort_unstable();
         assert_eq!(listed, seen);
         let kinds: Vec<&str> = TOOL_KINDS.iter().map(|(kind, _, _)| *kind).collect();
-        assert_eq!(kinds, ALL_CATEGORIES[32..]);
+        assert_eq!(kinds, ALL_CATEGORIES[33..]);
         assert!(rebuild("not_a_category", "x").is_none());
     }
 
@@ -1123,6 +1136,34 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(answer.as_json().unwrap()["category"], "stale_element");
+
+        let answer = call(
+            "explain_error",
+            json!({ "message": "click_element failed: strict mode violation: li matched 3 elements" }),
+        )
+        .await
+        .unwrap();
+        let report = answer.as_json().unwrap();
+        assert_eq!(report["category"], "strict_mode_violation");
+        assert!(
+            report["hint"]
+                .as_str()
+                .unwrap()
+                .contains("`li` matched 3 elements"),
+            "the selector and the count come from the text: {report}"
+        );
+        assert_eq!(report["exit_code"], 3, "{report}");
+
+        let answer = call(
+            "explain_error",
+            json!({ "category": "strict_mode_violation" }),
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            answer.as_json().unwrap()["category"],
+            "strict_mode_violation"
+        );
     }
 
     // ------------------------------------------------------------------

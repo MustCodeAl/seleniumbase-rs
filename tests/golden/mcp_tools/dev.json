@@ -265,6 +265,7 @@
               "element_not_found",
               "element_not_interactable",
               "stale_element",
+              "strict_mode_violation",
               "invalid_selector",
               "wait_timeout",
               "browser_launch",

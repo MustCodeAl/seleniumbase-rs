@@ -34,6 +34,8 @@ work, `docs/parity.md` the per-API status).
   `remove` check it at once; `count`, `infos`, `all`, `all_waiting` and a match picked with
   `first`, `last` or `nth` stay allowed. The matches of frames of another origin count too.
   Python SeleniumBase has no such option.
+  The MCP `explain_error` tool knows the new category, and a failure report for it suggests
+  `inspect_page` and `suggest_selectors`.
 
 - `sbrs-mcp install`, `uninstall` and `clients` know Grok Build (`grok`). The
   user file is `$GROK_HOME/config.toml`, or `~/.grok/config.toml` when
