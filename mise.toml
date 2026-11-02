@@ -102,6 +102,12 @@ run = [
   "bun tools/mdx-check/check.mjs docs",
 ]
 
+# Arguments go to the script: `mise run release-binaries linux-arm64` runs one step. It uploads
+# nothing; see tools/release/README.md.
+[tasks.release-binaries]
+description = "Build the release archives for Linux arm64, Linux x86_64 and macOS Intel on this Mac"
+run = "sh tools/release/build-binaries.sh"
+
 # The tree of the repository comes from the one description in tools/docs_layout_tree.py. Arguments
 # go to the script: `mise run layout-tree --check` changes nothing and lists what differs
 # (`mise run mdx` runs that check).
