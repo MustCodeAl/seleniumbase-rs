@@ -897,6 +897,9 @@ mod tests {
 
     #[test_log::test(tokio::test)]
     async fn a_listing_that_names_no_build_is_an_error_and_nothing_is_downloaded() {
+        if edgedriver_platform(std::env::consts::OS, std::env::consts::ARCH).is_err() {
+            return; // Microsoft publishes no msedgedriver for this machine.
+        }
         let server = MockServer::start_async().await;
         let edge = server.base_url();
         let listing_url = edgedriver_listing_url_in(
