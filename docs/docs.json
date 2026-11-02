@@ -680,7 +680,8 @@
               "design/stealth_parity_plan",
               "design/rstest_bdd_spike",
               "design/upstream_sync_4.56.5",
-              "design/mise_drivers"
+              "design/mise_drivers",
+              "design/trace_viewer"
             ]
           },
           {

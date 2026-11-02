@@ -13,6 +13,8 @@ use super::expect::LocatorExpect;
 use super::frames::{is_frame_gone, is_frames_request, Scope};
 use super::input::{Button, Key};
 use super::page::Page;
+use super::trace;
+
 use super::types::{ElementInfo, Point, Rect, SelectBy, State};
 use crate::error::SeleniumBaseError;
 use crate::utils::selectors::SelectorBuf;
@@ -266,6 +268,21 @@ impl Locator {
 
     fn chain_json(&self) -> Result<String, SeleniumBaseError> {
         Ok(serde_json::to_string(&self.chain)?)
+    }
+
+    /// Runs one action of this locator as a record of its tab's trace.
+    ///
+    /// With no trace running it awaits `body` and does nothing else (see
+    /// `Page::start_trace`).
+    async fn traced<T>(
+        &self,
+        name: &'static str,
+        detail: impl FnOnce() -> Option<String>,
+        body: impl Future<Output = Result<T, SeleniumBaseError>>,
+    ) -> Result<T, SeleniumBaseError> {
+        self.page
+            .traced(name, || self.to_string(), detail, body)
+            .await
     }
 
     /// Runs `body` with the first match bound to `el`.
@@ -791,6 +808,12 @@ impl Locator {
     /// [`SeleniumBaseError::ElementNotInteractable`] if the element does not
     /// become ready in time.
     pub async fn click(&self) -> Result<(), SeleniumBaseError> {
+        self.traced("click", trace::no_detail, self.click_step())
+            .await
+    }
+
+    /// `click` without a trace record, for the methods that click as a step.
+    async fn click_step(&self) -> Result<(), SeleniumBaseError> {
         let at = self.actionable_center().await?;
         self.page.mouse().click(at).await
     }
@@ -801,8 +824,11 @@ impl Locator {
     ///
     /// See [`click`](Self::click).
     pub async fn double_click(&self) -> Result<(), SeleniumBaseError> {
-        let at = self.actionable_center().await?;
-        self.page.mouse().double_click(at).await
+        self.traced("double_click", trace::no_detail, async {
+            let at = self.actionable_center().await?;
+            self.page.mouse().double_click(at).await
+        })
+        .await
     }
 
     /// Right-clicks the first match.
@@ -811,8 +837,11 @@ impl Locator {
     ///
     /// See [`click`](Self::click).
     pub async fn right_click(&self) -> Result<(), SeleniumBaseError> {
-        let at = self.actionable_center().await?;
-        self.page.mouse().right_click(at).await
+        self.traced("right_click", trace::no_detail, async {
+            let at = self.actionable_center().await?;
+            self.page.mouse().right_click(at).await
+        })
+        .await
     }
 
     /// Moves the pointer over the first match.
@@ -821,8 +850,11 @@ impl Locator {
     ///
     /// See [`click`](Self::click).
     pub async fn hover(&self) -> Result<(), SeleniumBaseError> {
-        let at = self.actionable_center().await?;
-        self.page.mouse().move_to(at).await
+        self.traced("hover", trace::no_detail, async {
+            let at = self.actionable_center().await?;
+            self.page.mouse().move_to(at).await
+        })
+        .await
     }
 
     /// Presses the primary button on the first match, holds it for `hold`, and
@@ -834,12 +866,19 @@ impl Locator {
     ///
     /// See [`click`](Self::click).
     pub async fn click_and_hold(&self, hold: Duration) -> Result<(), SeleniumBaseError> {
-        let at = self.actionable_center().await?;
-        let mouse = self.page.mouse();
-        mouse.move_to(at).await?;
-        mouse.down(at, Button::Left).await?;
-        tokio::time::sleep(hold).await;
-        mouse.up(at, Button::Left).await
+        self.traced(
+            "click_and_hold",
+            || Some(format!("hold {} ms", hold.as_millis())),
+            async {
+                let at = self.actionable_center().await?;
+                let mouse = self.page.mouse();
+                mouse.move_to(at).await?;
+                mouse.down(at, Button::Left).await?;
+                tokio::time::sleep(hold).await;
+                mouse.up(at, Button::Left).await
+            },
+        )
+        .await
     }
 
     /// Drags the first match onto the first match of `target`.
@@ -848,9 +887,12 @@ impl Locator {
     ///
     /// See [`click`](Self::click); applies to both locators.
     pub async fn drag_to(&self, target: &Locator) -> Result<(), SeleniumBaseError> {
-        let from = self.actionable_center().await?;
-        let to = target.actionable_center().await?;
-        self.page.mouse().drag(from, to).await
+        self.traced("drag_to", || Some(format!("onto {target}")), async {
+            let from = self.actionable_center().await?;
+            let to = target.actionable_center().await?;
+            self.page.mouse().drag(from, to).await
+        })
+        .await
     }
 
     // ------------------------------------------------------------------
@@ -863,6 +905,12 @@ impl Locator {
     ///
     /// See [`click`](Self::click).
     pub async fn focus(&self) -> Result<(), SeleniumBaseError> {
+        self.traced("focus", trace::no_detail, self.focus_step())
+            .await
+    }
+
+    /// `focus` without a trace record, for the methods that focus as a step.
+    async fn focus_step(&self) -> Result<(), SeleniumBaseError> {
         self.wait_actionable().await?;
         self.with_element("__sbcdp.focus(el); return null;").await?;
         Ok(())
@@ -874,6 +922,12 @@ impl Locator {
     ///
     /// See [`click`](Self::click).
     pub async fn clear(&self) -> Result<(), SeleniumBaseError> {
+        self.traced("clear", trace::no_detail, self.clear_step())
+            .await
+    }
+
+    /// `clear` without a trace record, for the methods that clear as a step.
+    async fn clear_step(&self) -> Result<(), SeleniumBaseError> {
         self.wait_actionable().await?;
         self.with_element("__sbcdp.focus(el); __sbcdp.setValue(el, ''); return null;")
             .await?;
@@ -889,8 +943,11 @@ impl Locator {
     ///
     /// See [`click`](Self::click).
     pub async fn fill(&self, text: impl AsRef<str>) -> Result<(), SeleniumBaseError> {
-        self.clear().await?;
-        self.page.keyboard().insert_text(text).await
+        self.traced("fill", trace::masked, async {
+            self.clear_step().await?;
+            self.page.keyboard().insert_text(text).await
+        })
+        .await
     }
 
     /// Types `text` into the field one key at a time, after what is there.
@@ -902,8 +959,11 @@ impl Locator {
     ///
     /// See [`click`](Self::click).
     pub async fn send_keys(&self, text: impl AsRef<str>) -> Result<(), SeleniumBaseError> {
-        self.focus().await?;
-        self.page.keyboard().type_text(text).await
+        self.traced("send_keys", trace::masked, async {
+            self.focus_step().await?;
+            self.page.keyboard().type_text(text).await
+        })
+        .await
     }
 
     /// Empties the field, then types `text` into it one key at a time.
@@ -917,9 +977,12 @@ impl Locator {
     ///
     /// See [`click`](Self::click).
     pub async fn type_text(&self, text: impl AsRef<str>) -> Result<(), SeleniumBaseError> {
-        // Clearing focuses the field.
-        self.clear().await?;
-        self.page.keyboard().type_text(text).await
+        self.traced("type_text", trace::masked, async {
+            // Clearing focuses the field.
+            self.clear_step().await?;
+            self.page.keyboard().type_text(text).await
+        })
+        .await
     }
 
     /// Sets the control's value directly and fires `input` and `change`.
@@ -930,13 +993,16 @@ impl Locator {
     ///
     /// See [`click`](Self::click).
     pub async fn set_value(&self, value: impl AsRef<str>) -> Result<(), SeleniumBaseError> {
-        self.wait_actionable().await?;
-        let value = serde_json::to_string(value.as_ref())?;
-        self.with_element(&format!(
-            "__sbcdp.focus(el); __sbcdp.setValue(el, {value}); return null;"
-        ))
-        .await?;
-        Ok(())
+        self.traced("set_value", trace::masked, async {
+            self.wait_actionable().await?;
+            let value = serde_json::to_string(value.as_ref())?;
+            self.with_element(&format!(
+                "__sbcdp.focus(el); __sbcdp.setValue(el, {value}); return null;"
+            ))
+            .await?;
+            Ok(())
+        })
+        .await
     }
 
     /// Focuses the first match and presses `key`.
@@ -945,8 +1011,11 @@ impl Locator {
     ///
     /// See [`click`](Self::click).
     pub async fn press(&self, key: Key) -> Result<(), SeleniumBaseError> {
-        self.focus().await?;
-        self.page.keyboard().press(key).await
+        self.traced("press", || Some(format!("{key:?}")), async {
+            self.focus_step().await?;
+            self.page.keyboard().press(key).await
+        })
+        .await
     }
 
     /// Chooses an option in a `<select>` dropdown.
@@ -956,18 +1025,21 @@ impl Locator {
     /// Returns [`SeleniumBaseError::InvalidSelector`] if there is no such
     /// option.
     pub async fn select_option(&self, by: SelectBy<'_>) -> Result<(), SeleniumBaseError> {
-        self.wait_actionable().await?;
-        let (kind, wanted) = match by {
-            SelectBy::Text(text) => ("text", text.to_owned()),
-            SelectBy::Value(value) => ("value", value.to_owned()),
-            SelectBy::Index(index) => ("index", index.to_string()),
-        };
-        let wanted = serde_json::to_string(&wanted)?;
-        self.with_element(&format!(
-            "__sbcdp.selectOption(el, '{kind}', {wanted}); return null;"
-        ))
-        .await?;
-        Ok(())
+        self.traced("select_option", || Some(format!("{by:?}")), async {
+            self.wait_actionable().await?;
+            let (kind, wanted) = match by {
+                SelectBy::Text(text) => ("text", text.to_owned()),
+                SelectBy::Value(value) => ("value", value.to_owned()),
+                SelectBy::Index(index) => ("index", index.to_string()),
+            };
+            let wanted = serde_json::to_string(&wanted)?;
+            self.with_element(&format!(
+                "__sbcdp.selectOption(el, '{kind}', {wanted}); return null;"
+            ))
+            .await?;
+            Ok(())
+        })
+        .await
     }
 
     /// Makes a checkbox or radio button checked, clicking only if needed.
@@ -976,7 +1048,8 @@ impl Locator {
     ///
     /// See [`click`](Self::click).
     pub async fn check(&self) -> Result<(), SeleniumBaseError> {
-        self.set_checked(true).await
+        self.traced("check", trace::no_detail, self.set_checked_step(true))
+            .await
     }
 
     /// Makes a checkbox unchecked, clicking only if needed.
@@ -985,7 +1058,8 @@ impl Locator {
     ///
     /// See [`click`](Self::click).
     pub async fn uncheck(&self) -> Result<(), SeleniumBaseError> {
-        self.set_checked(false).await
+        self.traced("uncheck", trace::no_detail, self.set_checked_step(false))
+            .await
     }
 
     /// Sets a checkbox to `checked`, clicking only if it differs.
@@ -994,8 +1068,18 @@ impl Locator {
     ///
     /// See [`click`](Self::click).
     pub async fn set_checked(&self, checked: bool) -> Result<(), SeleniumBaseError> {
+        self.traced(
+            "set_checked",
+            || Some(format!("checked={checked}")),
+            self.set_checked_step(checked),
+        )
+        .await
+    }
+
+    /// `set_checked` without a trace record, for `check` and `uncheck`.
+    async fn set_checked_step(&self, checked: bool) -> Result<(), SeleniumBaseError> {
         if self.is_checked().await? != checked {
-            self.click().await?;
+            self.click_step().await?;
         }
         Ok(())
     }
@@ -1007,14 +1091,19 @@ impl Locator {
     /// Returns [`SeleniumBaseError::ElementNotInteractable`] if the element is
     /// not inside a form.
     pub async fn submit(&self) -> Result<(), SeleniumBaseError> {
-        self.wait_present().await?;
-        self.with_element(
-            "const form = el.form || el.closest('form'); \
-             if (!form) throw new Error('sbcdp:not-interactable:the element is not inside a form'); \
-             form.requestSubmit(); return null;",
-        )
-        .await?;
-        Ok(())
+        self.traced("submit", trace::no_detail, async {
+                self.wait_present().await?;
+                self.with_element(
+                    "const form = el.form || el.closest('form'); \
+                     if (!form) { \
+                         throw new Error('sbcdp:not-interactable:the element is not inside a form'); \
+                     } \
+                     form.requestSubmit(); return null;",
+                )
+                .await?;
+                Ok(())
+            })
+            .await
     }
 
     /// Scrolls the first match to the middle of the viewport.
@@ -1023,12 +1112,16 @@ impl Locator {
     ///
     /// Returns [`SeleniumBaseError::ElementNotFound`] if nothing matches in time.
     pub async fn scroll_into_view(&self) -> Result<(), SeleniumBaseError> {
-        self.wait_present().await?;
-        self.with_element(
-            "el.scrollIntoView({block:'center', inline:'center', behavior:'instant'}); return null;",
-        )
-        .await?;
-        Ok(())
+        self.traced("scroll_into_view", trace::no_detail, async {
+            self.wait_present().await?;
+            self.with_element(
+                "el.scrollIntoView({block:'center', inline:'center', behavior:'instant'}); \
+                     return null;",
+            )
+            .await?;
+            Ok(())
+        })
+        .await
     }
 
     // ------------------------------------------------------------------

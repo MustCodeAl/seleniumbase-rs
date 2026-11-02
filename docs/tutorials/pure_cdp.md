@@ -457,6 +457,128 @@ A HAR records cookies and, with bodies, whatever the pages returned, so treat
 the file like the session it came from. `tests/sb_cdp_har_chrome.rs` records a
 visit to a local server, and a page with a cross-site iframe, in a real Chrome.
 
+## Tracing a run
+
+`page.start_trace(dir)` writes a record of a run to a folder you can open
+afterwards: every action, a screenshot and a copy of the page after each one,
+the console, and the network. It is the pure CDP engine's counterpart of
+Playwright's trace viewer.
+
+```rust,no_run
+use seleniumbase_rs::sb_cdp::{Page, TraceOptions};
+
+async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let recorder = page.start_trace("traces/checkout").await?;
+    page.goto("https://example.com/shop").await?;
+    page.locator("#add").click().await?;
+    page.locator("#email").fill("ada@example.com").await?;
+    let trace = recorder.stop().await?;
+    println!("open {}", trace.viewer.display());
+
+    // Smaller limits for a long run.
+    let options = TraceOptions::new().max_actions(200).max_bytes(16 << 20);
+    let recorder = page.start_trace_with("traces/long", options).await?;
+    recorder.stop().await?;
+    Ok(())
+}
+```
+
+Open `index.html` in the folder with any browser: a timeline of the actions, a
+list on the left, and for the action you pick its screenshot, a DOM snapshot, its
+details (selector, time, result, error, address, title), the console and the
+network requests around it. The arrow keys move between actions. The file is
+one piece: the pictures are inside it, and it loads nothing from the network.
+
+```text
+traces/checkout/
+  index.html          the viewer
+  trace.json          version, start time, duration, actions, console, limits
+  network.har         the HAR, without bodies
+  screenshots/0001.jpg
+  snapshots/0001.html
+```
+
+What is noted: `goto`, and these actions of a locator: `click`, `double_click`,
+`right_click`, `hover`, `click_and_hold`, `drag_to`, `focus`, `clear`, `fill`,
+`send_keys`, `type_text`, `set_value`, `press`, `select_option`, `check`,
+`uncheck`, `set_checked`, `submit` and `scroll_into_view`. Each is one record
+even when it uses another (`fill` clears the field first). Reads such as
+`text` and `count`, and the assertions, are not noted. A failing action is noted
+with its error and still returns it. Only the tab the trace was started on is
+traced, and only from the moment `start_trace` returns.
+
+The cost is one script evaluation and one screenshot per action, after the
+action, and nothing at all when no trace runs. The engine still turns on none of
+the protocol domains a page can feel (`Runtime`, `DOM`, `Log`, `Debugger`,
+`Profiler`): the console is collected by a small script in the page, so the
+page can see it (`window.__sbtrace` and wrapped `console` methods). Stopping the
+trace puts the console methods back and removes the global. Use a trace to
+debug, not for a run that must look untouched. Messages from iframes are not
+collected, and what a page logs just before it navigates away can be lost. The
+network log is a HAR recorder, so a trace and a `start_har` recording cannot run
+on the same tab together, and `Network` stays enabled after `stop`.
+
+### Limits
+
+`TraceOptions` bounds what a trace keeps, so a long run cannot fill the disk.
+Each value is clamped to a hard maximum.
+
+| Limit | Default | Hard maximum |
+|---|---|---|
+| `max_actions` | 1000 | 10 000 |
+| `max_bytes` (screenshots and snapshots together) | 64 MiB | 128 MiB |
+| `max_console_messages` | 2000 | 20 000 |
+| `max_requests` | 2000 | 20 000 |
+
+Past a limit, actions are still noted, the viewer says what was left out, and
+`limits` in `trace.json` counts it. After `max_bytes`, actions have no pictures.
+
+`max_bytes` counts the picture files only, so the folder takes more than that.
+`index.html` repeats every picture as text: a screenshot grows by a third, and a
+snapshot grows more because its `<`, `>`, `&` and quotes are escaped. The viewer
+keeps its copy of the pictures to 192 MiB; once the next pictures would not fit,
+actions have no pictures, as after `max_bytes`. `trace.json` and `network.har` are
+not counted: `max_requests` bounds the HAR, and an address in it is cut at 2048
+characters. A snapshot is cut at 512 KiB, a screenshot over 4 MiB is dropped, and
+a console text, selector or error is cut at 2000 characters.
+
+### A trace folder is sensitive
+
+A trace is written to be read in a browser, and a trace holds what the page
+showed, so treat the folder as you would the session it came from: keep it out
+of version control and out of public CI artifacts.
+
+- **Not recorded:** the text given to `fill`, `type_text`, `send_keys` and
+  `set_value` (the action says `[text not recorded]`, whatever the field),
+  request bodies and the `Authorization` and `Proxy-Authorization` values in the
+  HAR, a password input's `value` in a DOM snapshot, and the user name and
+  password of a `goto` address, in its note and in the text of its error.
+- **Recorded as they are:** screenshots (a value typed into a plain field, personal
+  data on the page), cookies in the HAR, full addresses with their query strings,
+  and the text of the page in a snapshot.
+- **The folder you name is the folder it writes to.** It must be absent (in a
+  parent that exists, and it is created) or an existing empty folder that is not a
+  symbolic link; anything else is refused with `InvalidConfig` before the browser
+  is asked for anything. File names inside it come from a counter, never from
+  page data, and no file is replaced.
+
+### Why the viewer is safe to open
+
+Everything in a trace that came from a page (console text, addresses, titles, the
+DOM) or from the caller (selectors, error text) is untrusted, and the viewer is
+a web page. So the data is embedded as JSON in which `<`, `>`, `&` and the line
+separators are escaped (a `</script>` in a console line stays inside its string),
+the viewer's script builds the page with `textContent` and never with markup, a
+DOM snapshot is shown only in a frame whose `sandbox` is empty (no scripts, no
+forms, no popups), and a Content-Security-Policy in the file lets only the viewer's
+own script run, by its hash, and loads nothing. The price is that images and
+fonts of the page do not show in a snapshot. The file's tests include a hostile
+console line and a hostile selector.
+
+`sbrs trace show`, which opens a trace folder, is not written yet. Until then
+open `index.html`.
+
+
 ## Isolated contexts
 
 `browser.new_context()` opens a `BrowserContext`: tabs that share no cookies,

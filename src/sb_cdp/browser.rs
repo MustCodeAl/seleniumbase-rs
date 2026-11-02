@@ -230,6 +230,10 @@ pub(crate) struct Inner {
     pub(super) context_routes: StdMutex<HashMap<String, super::context::ContextRoute>>,
     /// The ids Chrome gave the extensions the launch loaded, in load order.
     extension_ids: StdMutex<Vec<String>>,
+    /// The traces being recorded, by tab id (see `Page::start_trace`): what a
+    /// `Locator` action looks up to know whether to note itself. Empty, and so
+    /// free of cost, when no trace runs.
+    pub(super) traces: StdMutex<HashMap<String, Arc<super::trace::TraceState>>>,
     /// The blocklist of each tab session, which the library's ad-block list and
     /// the plugins' raw `Network.setBlockedURLs` commands all add to.
     #[cfg(feature = "plugins")]
@@ -734,6 +738,7 @@ impl Browser {
                 download_dir: StdMutex::new(None),
                 context_routes: StdMutex::new(HashMap::new()),
                 extension_ids: StdMutex::new(Vec::new()),
+                traces: StdMutex::new(HashMap::new()),
                 #[cfg(feature = "plugins")]
                 plugin_blocked: super::plugin_hooks::BlockedUrls::default(),
                 #[cfg(feature = "plugins")]
