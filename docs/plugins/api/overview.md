@@ -105,7 +105,7 @@ sb.quit().await?;
 
 <Visibility for="agents">
 
-Summary for AI agents. Crate `seleniumbase-rs-plugin` 0.1.3 (git https://github.com/MustCodeAl/seleniumbase-rs-plugins, rev fea3634e2ebcaafce63a244df8d4adb53e3ec002), re-exported by seleniumbase-rs as `seleniumbase_rs::plugin_api` (feature `plugins`). Items: `Plugin` (trait; only `name` required; hooks `before_launch(&mut LaunchSettings)`, `on_browser(&dyn BrowserHandle)`, `on_page_created(&dyn PageHandle)`, `on_close()`; declarations `dependencies`, `requirements`, `metadata`, `per_launch`, `packages`; since 0.1.3 also `network`, `protocol_events`, `task`, `job_runner`, `before_context`, `on_context_created`, `on_context_closed`, `before_navigate`, `after_navigate`, `on_request`, `on_response`, `on_protocol_event`, `before_close`, `on_test_start`, `on_test_end`, see the plugin-trait page), `Result<T>`, `PluginError`, `PluginSet`, `AuditRow`, `LaunchContext`, `LaunchSettings`, `ProfileView`, `Engine`, `BrowserFamily`, `WebRtcPolicy`, `BrowserHandle`, `PageHandle`, `Requirements`, `Package`, `Configurable`, `Descriptor`, `PluginSpec`, `Registry`, `Metadata`, `Category`, `Phase`, `Seals`, `Budgets`, `Capability`, `CapabilitySet`, `HostScope`, `NetScope`, `PathScope`, `RawKind`, `Risk`, `Enforcement`, `ParseCapabilityError`, `HostInfo`, `HostKind`, module `switch_policy`, and the `async_trait` macro. Test crate `seleniumbase-rs-plugin-testing`: `RecordingPage`, `RecordingBrowser`, `Call`, `block_on`. Host side in seleniumbase-rs: `LaunchOptionsBuilder::plugins`/`plugins_named`/`plugin_selection`, `BrowserConfig::with_plugins`/`with_plugins_named`/`with_plugin_selection`, `Browser::connect_with_plugins`, `plugin_host::builtin_registry`/`build`/`build_with`, `config::plugins::PluginSelection`, `PLUGINS_ENV` (`SB_PLUGINS`), `cli::plugin_cmd`, `SeleniumBaseError::Plugin`.
+Summary for AI agents. Crate `seleniumbase-rs-plugin` 0.1.3 (git https://github.com/MustCodeAl/seleniumbase-rs-plugins, rev fea3634e2ebcaafce63a244df8d4adb53e3ec002), re-exported by seleniumbase-rs as `seleniumbase_rs::plugin_api` (feature `plugins`). Items: `Plugin` (trait; only `name` required; hooks `before_launch(&mut LaunchSettings)`, `on_browser(&dyn BrowserHandle)`, `on_page_created(&dyn PageHandle)`, `on_close()`; declarations `dependencies`, `requirements`, `metadata`, `per_launch`, `packages`; since 0.1.3 also `network`, `protocol_events`, `task`, `job_runner`, `before_context`, `on_context_created`, `on_context_closed`, `before_navigate`, `after_navigate`, `on_request`, `on_response`, `on_protocol_event`, `before_close`, `on_test_start`, `on_test_end`, see the plugin-trait page), `Result<T>`, `PluginError`, `PluginSet`, `AuditRow`, `LaunchContext`, `LaunchSettings`, `ProfileView`, `Engine`, `BrowserFamily`, `WebRtcPolicy`, `BrowserHandle`, `PageHandle`, `Requirements`, `Package`, `Configurable`, `Descriptor`, `PluginSpec`, `Registry`, `Metadata`, `Category`, `Phase`, `Seals`, `Budgets`, `Capability`, `CapabilitySet`, `HostScope`, `NetScope`, `PathScope`, `RawKind`, `Risk`, `Enforcement`, `ParseCapabilityError`, `HostInfo`, `HostKind`, `ExtensionWorker`, module `switch_policy`, and the `async_trait` macro. Test crate `seleniumbase-rs-plugin-testing`: `RecordingPage`, `RecordingBrowser`, `Call`, `block_on`, `block_on_advancing`, `ManualTimer`, `VecSink`. Host side in seleniumbase-rs: `LaunchOptionsBuilder::plugins`/`plugins_named`/`plugin_selection`, `BrowserConfig::with_plugins`/`with_plugins_named`/`with_plugin_selection`, `Browser::connect_with_plugins`, `plugin_host::builtin_registry`/`build`/`build_with`, `config::plugins::PluginSelection`, `PLUGINS_ENV` (`SB_PLUGINS`), `cli::plugin_cmd`, `SeleniumBaseError::Plugin`.
 
 </Visibility>
 
@@ -278,7 +278,7 @@ The API crate, `crates/seleniumbase-rs-plugin/src/` in the plugins repository:
 |---|---|---|
 | `lib.rs` | `Plugin`, `Result`, `PluginError`, `async_trait` | [The Plugin trait](/plugins/api/plugin-trait) |
 | `lib.rs` | `LaunchContext`, `LaunchSettings`, `ProfileView`, `Engine`, `BrowserFamily`, `WebRtcPolicy` | [Launch settings](/plugins/api/launch) |
-| `lib.rs` | `BrowserHandle`, `PageHandle` | [Handles](/plugins/api/handles) |
+| `lib.rs` | `BrowserHandle`, `PageHandle`, `ExtensionWorker` | [Handles](/plugins/api/handles) |
 | `nav.rs` | `Navigation`, `NavOrigin`, `NavDecision`, `NavOutcome`, `MAX_REDIRECTS` | [Navigation](/plugins/api/navigation) |
 | `network.rs` | `ResourceKind`, `RequestFilter`, `RuleAction`, `NetRule`, `NetworkInterest`, `RequestView`, `REDACTED`, `RequestDecision`, `Outcome`, `ResponseView`, `ProtocolEvent` | [Network](/plugins/api/network) |
 | `task.rs` | `Sink`, `NullSink`, `Prompt`, `NoPrompt`, `TaskContext`, `Task`, `JobRunner` | [Tasks](/plugins/api/tasks) |
@@ -293,7 +293,8 @@ The API crate, `crates/seleniumbase-rs-plugin/src/` in the plugins repository:
 | `order.rs` | nothing public: the resolver behind the run order | [PluginSet](/plugins/api/plugin-set#run-order) |
 
 The testing crate, `crates/seleniumbase-rs-plugin-testing/src/lib.rs`:
-`RecordingPage`, `RecordingBrowser`, `Call`, `block_on`
+`RecordingPage`, `RecordingBrowser`, `Call`, `block_on`, `block_on_advancing`,
+`ManualTimer`, `VecSink`
 ([Testing](/plugins/api/testing)).
 
 The host side, in seleniumbase-rs:
