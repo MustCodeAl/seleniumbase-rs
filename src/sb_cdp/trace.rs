@@ -1080,7 +1080,9 @@ mod tests {
 
     /// A `Runtime.evaluate` answer holding `v`.
     fn value(v: Value) -> Value {
-        json!({ "result": { "value": v } })
+        let mut answer = json!({ "result": {} });
+        answer["result"]["value"] = v;
+        answer
     }
 
     /// The `Runtime.evaluate` answer for `expression` on a page with one visible
@@ -1231,7 +1233,7 @@ mod tests {
         let file = json_file(&dir, "trace.json");
         let action = &file["actions"][0];
         assert_eq!(action["ok"], false);
-        assert!(!action["error"].as_str().unwrap().is_empty());
+        assert_ne!(action["error"].as_str().unwrap(), "");
         assert_eq!(action["selector"], "#missing");
     }
 
@@ -1252,7 +1254,7 @@ mod tests {
             "https://shop.test/login?next=%2F"
         );
         assert!(!all_text(&dir).contains("lovelace"));
-        assert!(!mock.calls_to("Page.navigate").is_empty());
+        assert_ne!(mock.calls_to("Page.navigate").len(), 0);
     }
 
     #[tokio::test]
@@ -1661,8 +1663,8 @@ mod tests {
             std::fs::create_dir(&empty).unwrap();
             let link = temp.path().join("link");
             std::os::unix::fs::symlink(&empty, &link).unwrap();
-            refused.push(link);
-        }
+            refused.push(link)
+        };
         let before = mock.calls().len();
 
         for path in refused {

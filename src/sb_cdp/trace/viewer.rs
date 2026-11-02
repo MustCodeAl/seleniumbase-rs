@@ -209,7 +209,7 @@ mod tests {
         let open = html.rfind("<script>").unwrap() + "<script>".len();
         let close = html.rfind("</script>").unwrap();
         let hash = base64::engine::general_purpose::STANDARD
-            .encode(digest(&SHA256, html[open..close].as_bytes()).as_ref());
+            .encode(digest(&SHA256, &html.as_bytes()[open..close]).as_ref());
         assert!(
             html.contains(&format!("script-src 'sha256-{hash}';")),
             "no policy for the hash {hash}"
