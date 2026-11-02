@@ -20,14 +20,14 @@
 
 use std::collections::HashMap;
 use std::panic::AssertUnwindSafe;
-use std::sync::Mutex as StdMutex;
+use std::sync::{Arc, Mutex as StdMutex};
 
 use futures_util::FutureExt as _;
 use seleniumbase_rs_plugin::{
-    async_trait, BrowserFamily, BrowserHandle, BrowserId, ContextHandle, ContextId,
-    ContextSettings, Engine, HostInfo, LaunchContext, LaunchSettings, LoadedExtension, NavOrigin,
-    NavOutcome, Navigation, PageHandle, PageId, PluginError, PluginSet, ProfileView, ProtocolEvent,
-    Result as PluginResult,
+    async_trait, BrowserFamily, BrowserHandle, BrowserId, Clock, ContextHandle, ContextId,
+    ContextSettings, Engine, ExtensionWorker, HostInfo, LaunchContext, LaunchSettings,
+    LoadedExtension, NavOrigin, NavOutcome, Navigation, PageHandle, PageId, PluginError, PluginSet,
+    ProfileView, ProtocolEvent, Result as PluginResult,
 };
 use seleniumbase_rs_plugin::{Prompt, Sink, TaskContext};
 
@@ -41,6 +41,7 @@ use super::page::Page;
 use super::sync::locked;
 use crate::browser::options::ProxyBypassList;
 use crate::error::SeleniumBaseError;
+use crate::plugin_host::TokioTimer;
 use crate::plugin_host::{convert, guard};
 
 /// What this engine supports for the plugins it hosts: everything.
@@ -494,6 +495,28 @@ fn refused(error: &SeleniumBaseError) -> PluginError {
     PluginError::other(error.to_string())
 }
 
+/// The service workers in a `Target.getTargets` answer that belong to the
+/// extensions `ids`: the targets of type `service_worker` whose address is
+/// under `chrome-extension://<id>/`, in the order Chrome lists them.
+fn service_workers(ids: &[String], targets: &Value) -> Vec<ExtensionWorker> {
+    let Some(infos) = targets["targetInfos"].as_array() else {
+        return Vec::new();
+    };
+    infos
+        .iter()
+        .filter(|info| info["type"] == "service_worker")
+        .filter_map(|info| {
+            let url = info["url"].as_str()?;
+            let rest = url.strip_prefix("chrome-extension://")?;
+            let id = ids.iter().find(|id| {
+                rest.strip_prefix(id.as_str())
+                    .is_some_and(|path| path.starts_with('/'))
+            })?;
+            Some(ExtensionWorker::new(id.clone(), url))
+        })
+        .collect()
+}
+
 /// The browser, as plugins see it: browser-level commands on its connection,
 /// and the tabs and contexts it opens for them. What a plugin opens goes
 /// through the same hooks as what the program opens.
@@ -526,6 +549,32 @@ impl BrowserHandle for BrowserLink<'_> {
             .into_iter()
             .map(|(id, path)| LoadedExtension::new(id, path))
             .collect()
+    }
+
+    /// The running service workers of the extensions the launch loaded, read
+    /// from Chrome's list of targets.
+    async fn extension_workers(&self) -> PluginResult<Vec<ExtensionWorker>> {
+        let ids: Vec<String> = self
+            .browser
+            .loaded_extensions()
+            .into_iter()
+            .map(|(id, _)| id)
+            .collect();
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        let targets = self
+            .browser
+            .execute("Target.getTargets", json!({}))
+            .await
+            .map_err(|error| refused(&error))?;
+        Ok(service_workers(&ids, &targets))
+    }
+
+    /// A clock on tokio, for a set that was given no timer; the set's own
+    /// clock comes first (`timed` gives every launched set one).
+    fn clock(&self) -> Option<Clock> {
+        Some(Clock::new(Arc::new(TokioTimer)))
     }
 
     async fn new_context<'a>(

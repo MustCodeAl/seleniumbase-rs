@@ -803,6 +803,300 @@ async fn before_close_runs_while_the_browser_answers_and_before_on_close() {
     );
 }
 
+/// Lists the service workers of the extensions the browser loaded, and asks for
+/// a clock, as the `browser` plugin's `wait_for_workers` does.
+struct Lister {
+    log: Log,
+}
+
+#[async_trait]
+impl Plugin for Lister {
+    fn name(&self) -> &str {
+        "lister"
+    }
+
+    fn metadata(&self) -> Metadata {
+        Metadata::new(Category::Core)
+            .capability(Capability::LaunchExtensions)
+            .capability(Capability::Clock)
+    }
+
+    async fn on_browser(&self, browser: &dyn BrowserHandle) -> PluginResult<()> {
+        let workers: Vec<String> = browser
+            .extension_workers()
+            .await?
+            .iter()
+            .map(|worker| format!("{} {}", worker.id, worker.url))
+            .collect();
+        note(&self.log, format!("workers {workers:?}"));
+        note(&self.log, format!("clock {}", browser.clock().is_some()));
+        Ok(())
+    }
+}
+
+/// Gives each extension folder the id `id<folder name>`.
+fn ids_by_folder(mock: &MockCtrl) {
+    mock.on("Extensions.loadUnpacked", |params| {
+        let path = params["path"].as_str().unwrap_or_default();
+        let folder = path.rsplit('/').next().unwrap_or_default();
+        Ok(json!({ "id": format!("id{folder}") }))
+    });
+}
+
+#[test_log::test(tokio::test)]
+async fn extension_workers_are_the_running_service_workers_of_the_extensions_the_launch_loaded() {
+    let log = Log::default();
+    let mock = MockCtrl::new();
+    ids_by_folder(&mock);
+    mock.reply(
+        "Target.getTargets",
+        json!({ "targetInfos": [
+            { "targetId": "T1", "type": "page", "url": "about:blank", "title": "" },
+            { "targetId": "W1", "type": "service_worker", "url": "chrome-extension://ida/background.js" },
+            { "targetId": "W2", "type": "service_worker", "url": "chrome-extension://other/sw.js" },
+            { "targetId": "W3", "type": "service_worker", "url": "https://site.test/sw.js" },
+            { "targetId": "W4", "type": "service_worker", "url": "chrome-extension://idab/sw.js" },
+            { "targetId": "B1", "type": "background_page", "url": "chrome-extension://idb/page.html" },
+        ]}),
+    );
+    let options = LaunchOptions::builder()
+        .headless(true)
+        .extension("/opt/extensions/a")
+        .extension("/opt/extensions/b")
+        .plugins(PluginSet::new().with(Lister { log: log.clone() }).unwrap())
+        .build()
+        .unwrap();
+
+    let _browser = launch_with(options, &mock).await;
+
+    assert_eq!(
+        entries(&log),
+        [
+            "workers [\"ida chrome-extension://ida/background.js\"]",
+            "clock true"
+        ],
+        "only a worker of a loaded extension counts, not one of another extension, \
+         a site, an id that merely starts the same, or a page of the extension"
+    );
+}
+
+#[test_log::test(tokio::test)]
+async fn a_browser_without_extensions_has_no_workers() {
+    let log = Log::default();
+    let mock = MockCtrl::new();
+
+    let _browser = launch(
+        PluginSet::new().with(Lister { log: log.clone() }).unwrap(),
+        &mock,
+    )
+    .await;
+
+    assert_eq!(entries(&log), ["workers []", "clock true"]);
+}
+
+/// The built-in `browser` plugin, built by name as `--plugin browser` builds it,
+/// against the mock: what this host does for its worker wait, its saved session
+/// and its sign-in task.
+#[cfg(all(feature = "plugin-browser", unix))]
+mod the_browser_plugin {
+    use std::path::{Path, PathBuf};
+
+    use seleniumbase_rs::common::shutdown::{Outcome, Shutdown};
+    use seleniumbase_rs::config::plugins::PluginSelection;
+    use seleniumbase_rs::plugin_api::{NullSink, Prompt};
+    use seleniumbase_rs::plugin_host::{build, run_task_on};
+
+    use super::*;
+
+    /// An unpacked MV3 extension folder called `name`, with a service worker.
+    fn extension(root: &Path, name: &str) -> PathBuf {
+        let folder = root.join(name);
+        std::fs::create_dir(&folder).unwrap();
+        std::fs::write(
+            folder.join("manifest.json"),
+            r#"{"manifest_version": 3, "name": "t", "version": "1",
+                "background": {"service_worker": "sw.js"}}"#,
+        )
+        .unwrap();
+        std::fs::write(folder.join("sw.js"), "").unwrap();
+        folder
+    }
+
+    fn browser_plugin(options: Value) -> PluginSet {
+        build(
+            &PluginSelection::new()
+                .enable("browser")
+                .with_options("browser", options),
+        )
+        .unwrap()
+    }
+
+    fn launch_options(headless: bool, options: Value) -> LaunchOptions {
+        LaunchOptions::builder()
+            .headless(headless)
+            .plugins(browser_plugin(options))
+            .build()
+            .unwrap()
+    }
+
+    /// Chrome's targets: the first tab and these service workers.
+    fn targets(workers: &[&str]) -> Value {
+        let mut infos =
+            vec![json!({ "targetId": "T1", "type": "page", "url": "about:blank", "title": "" })];
+        for (index, url) in workers.iter().enumerate() {
+            infos.push(
+                json!({ "targetId": format!("W{index}"), "type": "service_worker", "url": url }),
+            );
+        }
+        json!({ "targetInfos": infos })
+    }
+
+    fn cookie() -> Value {
+        json!({
+            "name": "sid", "value": "abc", "domain": "app.test", "path": "/",
+            "expires": 4_102_444_800.0, "size": 6, "httpOnly": true, "secure": true,
+            "session": false, "sameSite": "Lax", "priority": "Medium",
+            "sourceScheme": "Secure", "sourcePort": 443,
+        })
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn wait_for_workers_returns_once_chrome_lists_the_worker() {
+        let root = tempfile::tempdir().unwrap();
+        let folder = extension(root.path(), "ext");
+        let mock = MockCtrl::new();
+        ids_by_folder(&mock);
+        mock.reply(
+            "Target.getTargets",
+            targets(&["chrome-extension://idext/sw.js"]),
+        );
+
+        let browser = Browser::launch_mocked(
+            launch_options(
+                true,
+                json!({ "extension_dir": [folder], "wait_for_workers": true }),
+            ),
+            &mock,
+        )
+        .await;
+
+        assert!(browser.is_ok(), "{:?}", browser.err());
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn wait_for_workers_names_itself_when_the_worker_never_starts() {
+        let root = tempfile::tempdir().unwrap();
+        let folder = extension(root.path(), "ext");
+        let mock = MockCtrl::new();
+        ids_by_folder(&mock);
+        mock.reply(
+            "Target.getTargets",
+            targets(&["chrome-extension://other/sw.js"]),
+        );
+
+        let error = Browser::launch_mocked(
+            launch_options(
+                true,
+                json!({ "extension_dir": [folder], "wait_for_workers": true, "worker_timeout_secs": 1 }),
+            ),
+            &mock,
+        )
+        .await
+        .unwrap_err();
+
+        assert!(error.to_string().contains("wait_for_workers"), "{error}");
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn a_session_is_saved_on_close_and_put_back_in_the_next_browser() {
+        let root = tempfile::tempdir().unwrap();
+        let sessions = root.path().join("sessions");
+        let first = MockCtrl::new();
+        first.reply("Storage.getCookies", json!({ "cookies": [cookie()] }));
+        let browser = launch_with(
+            launch_options(
+                true,
+                json!({ "session": "login", "save_on_close": true, "session_dir": sessions }),
+            ),
+            &first,
+        )
+        .await;
+        assert!(
+            first.calls_to("Storage.setCookies").is_empty(),
+            "a session that was never saved is a fresh start"
+        );
+        browser.close().await.unwrap();
+        let saved = std::fs::read_to_string(sessions.join("login.json")).unwrap();
+        assert!(saved.contains("\"sid\""), "{saved}");
+
+        let second = MockCtrl::new();
+        let _browser = launch_with(
+            launch_options(true, json!({ "session": "login", "session_dir": sessions })),
+            &second,
+        )
+        .await;
+
+        let calls = second.calls_to("Storage.setCookies");
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].params["cookies"][0]["name"], "sid");
+        assert_eq!(calls[0].params["cookies"][0]["value"], "abc");
+    }
+
+    /// A person who signs in at once, and what they were told.
+    struct SignedIn {
+        told: Log,
+    }
+
+    #[async_trait]
+    impl Prompt for SignedIn {
+        async fn wait(&self, message: &str, _page: &dyn PageHandle) -> PluginResult<()> {
+            note(&self.told, message);
+            Ok(())
+        }
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn the_sign_in_task_waits_for_the_person_and_saves_the_session() {
+        let root = tempfile::tempdir().unwrap();
+        let sessions = root.path().join("sessions");
+        let mock = MockCtrl::new();
+        mock.reply("Storage.getCookies", json!({ "cookies": [cookie()] }));
+        let browser = launch_with(
+            launch_options(
+                false,
+                json!({
+                    "session": "login",
+                    "interactive": true,
+                    "pause_message": "Sign in, then press Enter.",
+                    "session_dir": sessions,
+                }),
+            ),
+            &mock,
+        )
+        .await;
+        let told = Log::default();
+        let (mut shutdown, _trigger) = Shutdown::manual();
+
+        let outcome = run_task_on(
+            &mut shutdown,
+            browser,
+            "browser",
+            &json!({}),
+            &NullSink,
+            &SignedIn { told: told.clone() },
+        )
+        .await
+        .unwrap();
+
+        let Outcome::Completed(summary) = outcome else {
+            panic!("the task did not complete");
+        };
+        assert_eq!(summary, json!({ "session": "login", "cookies": 1 }));
+        assert_eq!(entries(&told), ["Sign in, then press Enter."]);
+        assert!(sessions.join("login.json").exists());
+    }
+}
+
 /// Wants the log entries of the browser.
 struct Listener {
     log: Log,
