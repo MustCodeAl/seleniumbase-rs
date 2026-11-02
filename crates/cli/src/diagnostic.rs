@@ -3,7 +3,7 @@
 //! [`Failure::of`] reads any error and keeps what a person needs: the message, a code that names
 //! the kind of failure (`sbrs::element_not_found`), the hint of the first `SeleniumBaseError` in
 //! the chain as the help line, and the causes the message does not already say. [`render`] draws
-//! it; [`print`] writes it to standard error.
+//! it; [`print()`] writes it to standard error.
 //!
 //! Colour follows the rules of the rest of the command line (`rich_helper::use_color`: a
 //! terminal, no `NO_COLOR`, `TERM` not `dumb`). With none, and always when standard error is a
