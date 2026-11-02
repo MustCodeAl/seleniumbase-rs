@@ -163,13 +163,14 @@ check() {
     tar -xzf "$archive" -C "$unpacked"
     kind=$(file -b "$unpacked/sbrs")
     case "$target" in
-      "$linux_arm") platform=linux/arm64 want="ARM aarch64" ;;
-      "$linux_x86") platform=linux/amd64 want="x86-64" ;;
-      "$mac_x86") platform=macos want="Mach-O 64-bit executable x86_64" ;;
-      *) platform=unknown want="?" ;;
+      "$linux_arm") platform=linux/arm64 want="ELF 64-bit*ARM aarch64*" ;;
+      "$linux_x86") platform=linux/amd64 want="ELF 64-bit*x86-64*" ;;
+      "$mac_x86") platform=macos want="Mach-O 64-bit*x86_64*" ;;
+      *) platform=unknown want="a known target" ;;
     esac
+    # shellcheck disable=SC2254 # want is a glob pattern on purpose
     case "$kind" in
-      *"$want"*) ;;
+      $want) ;;
       *)
         say "$target: FAILED: sbrs is '$kind', not $want" | tee -a "$report"
         failed=$((failed + 1))
