@@ -370,8 +370,8 @@ version is not the browser's, the launcher first runs `mise which chromedriver`
 exists, can run and fits the browser. A missing mise, a failing one, one that
 takes more than 5 seconds and a bad answer are silent, and the launcher goes on
 to download the driver for that browser. See
-[Manage chromedriver with mise](/tutorials/mise_chromedriver). Chromedriver comes from the Chrome for Testing JSON
-(`src/browser/chrome_for_testing.rs`):
+[Manage chromedriver with mise](/tutorials/mise_chromedriver). Chromedriver
+comes from the Chrome for Testing JSON (`src/browser/chrome_for_testing.rs`):
 `last-known-good-versions-with-downloads.json` for a channel, and
 `latest-versions-per-milestone-with-downloads.json` for a major. msedgedriver
 comes from `https://msedgedriver.microsoft.com`, defaulting to the newest build
