@@ -102,7 +102,8 @@ pub enum Call {
 ```
 
 One thing a plugin asked a fake handle to do. Compare `calls()` with a list of
-them.
+them. `Call` is `#[non_exhaustive]`, so a `match` on it from outside the crate
+needs a wildcard arm.
 
 <ResponseField name="Call" type="enum">
 
@@ -276,8 +277,10 @@ impl BrowserHandle for RecordingBrowser { /* ... */ }
 
 A fake browser that records what a plugin asks of it. `engine()` and
 `family()` report what it was made with; `send(method, params)` records
-`Call::Send(method, params)` and answers `null`. It has no `failing` or
-`replying`.
+`Call::Send(method, params)` and answers the reply set for `method`, or `null`.
+Without a script the worker query answers
+`PluginError::NotSupported("extension_workers")`, as a host without the query
+does, and `clock()` answers `None`.
 
 ## RecordingBrowser::new
 
@@ -351,8 +354,12 @@ built-in plugins [fetcher](/plugins/fetcher), [batcher](/plugins/batcher) and
 | `RecordingPage::at(url)` | Sets the address that `url()` answers with |
 | `RecordingPage::with_id(id)`, `in_context(context)` | Sets the id of the tab, and the context it reports |
 | `RecordingBrowser::with_contexts()` | Lets plugins open contexts and tabs and counts them: `live_contexts()`, `max_live_contexts()`, `contexts_made()`, `live_pages()`, `max_live_pages()` and `pages_made()`; `contexts()` returns the `FakeContext`s made and `pages()` the tabs opened outside any context |
-| `RecordingBrowser::failing(method)` | Makes `new_context`, `new_page`, `dispose` or a protocol command answer with an error |
+| `RecordingBrowser::failing(method)` | Makes `new_context`, `new_page`, `dispose`, `extension_workers` or a protocol command answer with an error |
 | `RecordingBrowser::with_extensions(extensions)` | Sets the extensions that `BrowserHandle::extensions` reports |
+| `RecordingBrowser::with_workers(snapshots)` | Scripts `BrowserHandle::extension_workers`: the first call answers with the first snapshot, the second with the second, and the last one repeats. Without it the call is `NotSupported`; use `failing("extension_workers")` for an `Other` error |
+| `RecordingBrowser::with_clock(clock)` | Sets the clock that `BrowserHandle::clock` reports |
+| `RecordingBrowser::replying(method, reply)` | Makes the browser-level command `method` answer with `reply` (otherwise `null`) |
+| `Call::ExtensionWorkers` | Recorded once for each `extension_workers` call |
 | `FakeContext` | A fake browser context: `settings()`, `disposed()`, `pages()` and `calls()` |
 | `drive_request(&set, request)` | Runs a `RequestView` through the set the way the host does and returns the `RequestDecision` |
 | `drive_response(&set, response)` | Runs a `ResponseView` through the set and returns the errors of the hooks |
@@ -386,3 +393,53 @@ polls. The fakes never wait, so nothing else is needed. It drives no I/O and no
 timers: a future that needs a runtime's reactor, such as tokio's, does not
 complete under it. Test those against the mock browser of seleniumbase-rs with
 `#[tokio::test]`.
+
+## block_on_advancing
+
+<Badge color="green">fn</Badge> `seleniumbase_rs_plugin_testing::block_on_advancing`
+
+```rust
+pub fn block_on_advancing<F: Future>(timer: &ManualTimer, step: Duration, future: F) -> F::Output
+```
+
+<ParamField body="timer" type="&ManualTimer" required>
+
+The timer the future waits on, usually the one behind its `Clock`.
+
+</ParamField>
+
+<ParamField body="step" type="std::time::Duration" required>
+
+How far the timer moves each time the future is pending.
+
+</ParamField>
+
+<ParamField body="future" type="impl Future" required>
+
+The future to run, such as a `clock.timeout(...)` around a poll loop.
+
+</ParamField>
+
+<ResponseField name="return" type="F::Output">
+
+Its output.
+
+</ResponseField>
+
+Like [`block_on`](#block_on), for a future that waits on a
+[`ManualTimer`](#added-in-013) instead of a real clock: whenever the future is
+pending, the timer moves on by `step`, so a poll loop or a time limit finishes
+without a real wait. A future that waits for anything other than the timer never
+finishes. The `browser` plugin's worker wait is tested with it.
+
+```rust
+use std::sync::Arc;
+use std::time::Duration;
+use seleniumbase_rs_plugin::Clock;
+use seleniumbase_rs_plugin_testing::{block_on_advancing, ManualTimer};
+
+let timer = Arc::new(ManualTimer::new());
+let clock = Clock::new(timer.clone());
+block_on_advancing(&timer, Duration::from_secs(1), clock.sleep(Duration::from_secs(5)));
+assert_eq!(timer.elapsed(), Duration::from_secs(5));
+```

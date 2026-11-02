@@ -199,6 +199,62 @@ On every engine the host refuses `Fetch.*` and
 `Network.setRequestInterception` first; see
 [the request guard](/plugins/api/host#request-guard).
 
+## BrowserHandle::extension_workers
+
+<Badge color="green">fn</Badge> <Badge color="gray" stroke>async</Badge>
+
+```rust
+async fn extension_workers(&self) -> Result<Vec<ExtensionWorker>>;
+```
+
+<ResponseField name="return" type="Result<Vec<ExtensionWorker>>">
+
+The service workers of the loaded extensions that are running now: one
+`ExtensionWorker` per worker, so an extension whose worker has not started, or
+has stopped, has none. Call it again to see a later state.
+
+</ResponseField>
+
+Asks the host which extension service workers are running now. The default body
+is `PluginError::NotSupported("extension_workers")`, for a host that cannot
+answer. `ExtensionWorker` is a `#[non_exhaustive]` struct re-exported from
+`seleniumbase_rs_plugin`:
+
+| Field | Type | |
+|---|---|---|
+| `id` | `String` | The id of the extension the worker belongs to |
+| `url` | `String` | The address of the worker's script, such as `chrome-extension://<id>/background.js` |
+
+A plugin whose hook must wait for an MV3 worker uses this, together with
+[`clock`](#browserhandleclock): ask every 250 ms until the worker appears or the
+time is up. The set refuses the call unless the plugin holds `launch.extensions`
+(see [enforcement](/plugins/api/capabilities#capabilityenforcement)), so it only
+reaches the host for a plugin that loads extensions. The WebDriver host reports no
+extension ids, so it needs a host that implements this method.
+
+## BrowserHandle::clock
+
+<Badge color="green">fn</Badge>
+
+```rust
+fn clock(&self) -> Option<Clock>;
+```
+
+<ResponseField name="return" type="Option<Clock>">
+
+A clock for sleeping and time limits inside a hook, or `None` when the host has
+none.
+
+</ResponseField>
+
+A hook such as [`on_browser`](/plugins/api/plugin-trait) gets no
+[`TaskContext`](/plugins/api/tasks), so this is where a plugin gets a clock to
+wait with. The default body is `None`.
+
+The set enforces [`Capability::Clock`](/plugins/api/capabilities): a plugin that
+does not hold it gets `None`. The clock is the plugin set's, when the set has one
+([`PluginSet::with_timer`](/plugins/api/plugin-set)), else the host handle's own.
+
 ## PageHandle
 
 <Badge color="purple">trait</Badge> `seleniumbase_rs_plugin::PageHandle`
