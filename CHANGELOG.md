@@ -36,8 +36,11 @@ work, `docs/parity.md` the per-API status).
   engine still enables none of the five protocol domains a page can feel: the console is read
   by a small page script that stopping the trace removes. The folder is sensitive and the docs
   say so: typed text (`fill`, `type_text`, `send_keys`, `set_value`), request bodies and
-  credential headers are never written, the path must be a new or empty folder (not a link),
-  recording is bounded (`max_actions`, `max_bytes`, `max_console_messages`, `max_requests`),
+  credential headers are never written, an address loses its user name and password in a
+  `goto` note and in the error text of a failed one, the path must be a new or empty folder
+  (not a link), recording is bounded (`max_actions`, `max_bytes` up to 128 MiB with the
+  viewer's copy of the pictures held to 192 MiB, `max_console_messages`, `max_requests`,
+  addresses in the HAR cut at 2048 characters),
   and the viewer escapes everything from the page, shows a snapshot only in a frame with an
   empty `sandbox`, and carries a Content-Security-Policy that loads nothing. See "Tracing a
   run" in `docs/tutorials/pure_cdp.md`. `sbrs trace show` comes later.

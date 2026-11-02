@@ -513,14 +513,20 @@ Each value is clamped to a hard maximum.
 | Limit | Default | Hard maximum |
 |---|---|---|
 | `max_actions` | 1000 | 10 000 |
-| `max_bytes` (screenshots and snapshots together) | 64 MiB | 1 GiB |
+| `max_bytes` (screenshots and snapshots together) | 64 MiB | 128 MiB |
 | `max_console_messages` | 2000 | 20 000 |
 | `max_requests` | 2000 | 20 000 |
 
 Past a limit, actions are still noted, the viewer says what was left out, and
 `limits` in `trace.json` counts it. After `max_bytes`, actions have no pictures.
-The viewer file repeats the pictures, so the folder takes about twice
-`max_bytes`. A snapshot is cut at 512 KiB, a screenshot over 4 MiB is dropped, and
+
+`max_bytes` counts the picture files only, so the folder takes more than that.
+`index.html` repeats every picture as text: a screenshot grows by a third, and a
+snapshot grows more because its `<`, `>`, `&` and quotes are escaped. The viewer
+keeps its copy of the pictures to 192 MiB; once the next pictures would not fit,
+actions have no pictures, as after `max_bytes`. `trace.json` and `network.har` are
+not counted: `max_requests` bounds the HAR, and an address in it is cut at 2048
+characters. A snapshot is cut at 512 KiB, a screenshot over 4 MiB is dropped, and
 a console text, selector or error is cut at 2000 characters.
 
 ### A trace folder is sensitive
@@ -533,7 +539,7 @@ of version control and out of public CI artifacts.
   `set_value` (the action says `[text not recorded]`, whatever the field),
   request bodies and the `Authorization` and `Proxy-Authorization` values in the
   HAR, a password input's `value` in a DOM snapshot, and the user name and
-  password of a `goto` address.
+  password of a `goto` address, in its note and in the text of its error.
 - **Recorded as they are:** screenshots (a value typed into a plain field, personal
   data on the page), cookies in the HAR, full addresses with their query strings,
   and the text of the page in a snapshot.

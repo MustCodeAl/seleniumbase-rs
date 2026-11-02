@@ -198,8 +198,14 @@ messages. The trace is opened in a browser, so the viewer is the attack surface.
    pictures), `max_console_messages` (default 2000) and `max_requests`
    (default 2000); each is clamped to a hard maximum. Per item: a snapshot is
    cut at 512 KiB, a screenshot over 4 MiB is dropped, a console text is cut at
-   2000 characters, a selector or error at 2000, a URL at 2048. The viewer
-   repeats the pictures, so the folder takes about twice `max_bytes`.
+   2000 characters, a selector or error at 2000, a URL at 2048 (in the HAR too).
+   `max_bytes` counts the picture files only. The viewer repeats the pictures
+   as text, a third larger for a screenshot and larger still for a snapshot
+   (escaping), so the folder takes more than `max_bytes`; the viewer's copy has
+   a budget of its own, 192 MiB, and pictures that would pass it are not kept,
+   so `index.html` stays far below the longest string a browser can parse. The
+   hard maximum of `max_bytes` is 128 MiB. `network.har` and `trace.json` are
+   not counted: `max_requests` bounds the HAR.
 
 ## Tests
 
@@ -235,7 +241,13 @@ The code wins where it differs from the plan above:
   (`click`, `focus`, `clear`, `set_checked`) have a private `*_step` twin that notes
   nothing. `Page::goto` notes the address without its user name and password.
 - **Page addresses lose their credentials too.** The `url` of an action goes through the
-  same cleaning as the `goto` detail.
+  same cleaning as the `goto` detail. So does the text of a failed action's error: it
+  often quotes the address (`navigation to '...' failed`), so every recorded error is
+  cleaned of the user name and password of any address in it before it is cut.
+- **The viewer's copy of the pictures has its own budget.** A picture is kept only if its
+  file fits `max_bytes` and the text the viewer will hold for it (base64 for a screenshot,
+  the escaped string for a snapshot) fits 192 MiB with the pictures already kept; an
+  action that does not fit has no pictures and counts in `limits.pictures_skipped`.
 - **The pictures of one action are kept whole or not at all.** If the screenshot and
   the snapshot together would pass `max_bytes`, neither is written and
   `limits.pictures_skipped` counts the action.
