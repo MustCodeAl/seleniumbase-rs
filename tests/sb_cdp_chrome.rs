@@ -1486,3 +1486,140 @@ async fn the_cdc_cleanup_script_runs_twice_and_removes_the_property() {
     assert!(!left, "the cdc_ property is still there");
     assert!(kept, "an unrelated property was removed");
 }
+
+/// A trace of a real page: a navigation, a click and a fill are written to a
+/// folder, the typed text is in no file, the page gets its console back, and
+/// the viewer, opened in the same Chrome, draws the steps and runs nothing the
+/// page logged.
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+#[serial_test::serial]
+async fn a_trace_of_a_click_and_a_fill_is_written_and_its_viewer_renders_it() {
+    const SECRET: &str = "hunter2-secret-value";
+    let (browser, page, base) = open().await;
+    let temp = tempfile::tempdir().unwrap();
+    let dir = temp.path().join("trace");
+
+    let recorder = page.start_trace(&dir).await.unwrap();
+    page.goto(format!("{base}/")).await.unwrap();
+    page.evaluate(
+        "console.log('hello from the page'); \
+         console.error('</script><script>window.pwned = 1</script>'); 0",
+    )
+    .await
+    .unwrap();
+    page.locator("#counter").click().await.unwrap();
+    page.locator("#pass").fill(SECRET).await.unwrap();
+    let trace = recorder.stop().await.unwrap();
+
+    // The page has its console back and no longer carries the trace script.
+    let clean: bool = page
+        .evaluate_as(
+            "typeof window.__sbtrace === 'undefined' \
+             && console.log.toString().includes('[native code]')",
+        )
+        .await
+        .unwrap();
+    assert!(clean, "the page still carries the trace script");
+
+    for name in [
+        "index.html",
+        "trace.json",
+        "network.har",
+        "screenshots/0001.jpg",
+        "snapshots/0001.html",
+    ] {
+        assert!(dir.join(name).is_file(), "{name} was not written");
+    }
+    assert_eq!(trace.actions, 3);
+    let shot = std::fs::read(dir.join("screenshots/0002.jpg")).unwrap();
+    assert_eq!(shot[..2], [0xff, 0xd8], "the screenshot is not a JPEG");
+
+    let file: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(dir.join("trace.json")).unwrap()).unwrap();
+    let actions = file["actions"].as_array().unwrap();
+    let names: Vec<_> = actions
+        .iter()
+        .map(|action| action["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(names, ["goto", "click", "fill"]);
+    assert!(actions.iter().all(|action| action["ok"] == true));
+    assert_eq!(actions[1]["selector"], "#counter");
+    assert_eq!(actions[2]["detail"], "[text not recorded]");
+    let console = file["console"].as_array().unwrap();
+    assert!(console
+        .iter()
+        .any(|message| message["text"] == "hello from the page" && message["level"] == "log"));
+    assert!(console.iter().any(|message| message["level"] == "error"
+        && message["text"].as_str().unwrap().contains("window.pwned")));
+    assert!(file["network"].as_array().unwrap().iter().any(|request| {
+        request["status"] == 200 && request["url"].as_str().unwrap().starts_with(&base)
+    }));
+    // The snapshot after the click shows the counter at 1 and has no script.
+    let snapshot = std::fs::read_to_string(dir.join("snapshots/0002.html")).unwrap();
+    assert!(snapshot.contains(">1</button>"), "{snapshot}");
+    assert!(!snapshot.to_ascii_lowercase().contains("<script"));
+
+    // The typed text is in no file, and the page's own words cannot open a script.
+    for name in [
+        "index.html",
+        "trace.json",
+        "network.har",
+        "snapshots/0001.html",
+        "snapshots/0002.html",
+        "snapshots/0003.html",
+    ] {
+        let text = std::fs::read_to_string(dir.join(name)).unwrap();
+        assert!(!text.contains(SECRET), "the typed text is in {name}");
+    }
+    let html = std::fs::read_to_string(dir.join("index.html")).unwrap();
+    assert_eq!(html.to_ascii_lowercase().matches("<script").count(), 2);
+
+    // Open the viewer in the same Chrome.
+    page.goto(format!("file://{}", trace.viewer.display()))
+        .await
+        .unwrap();
+    let rows: i64 = page
+        .evaluate_as("document.querySelectorAll('ol.actions li button').length")
+        .await
+        .unwrap();
+    assert_eq!(rows, 3, "the viewer did not list the actions");
+    let quiet: bool = page
+        .evaluate_as("typeof window.pwned === 'undefined'")
+        .await
+        .unwrap();
+    assert!(quiet, "text from the page ran as a script in the viewer");
+    // The screenshot decodes.
+    let mut decoded = false;
+    for _ in 0..40 {
+        decoded = page
+            .evaluate_as(
+                "(() => { const i = document.querySelector('img.shot'); \
+                 return !!i && i.naturalWidth > 0; })()",
+            )
+            .await
+            .unwrap();
+        if decoded {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    assert!(decoded, "the screenshot did not draw");
+    // The second action's details name its selector.
+    page.locator("ol.actions li:nth-child(2) button")
+        .click()
+        .await
+        .unwrap();
+    page.locator("button.tab").nth(2).click().await.unwrap();
+    let details = page.locator("dl.details").text().await.unwrap();
+    assert!(details.contains("#counter"), "{details}");
+    // The snapshot tab shows a frame with an empty sandbox.
+    page.locator("button.tab").nth(1).click().await.unwrap();
+    let sandbox: String = page
+        .evaluate_as("document.querySelector('iframe.snapframe').getAttribute('sandbox')")
+        .await
+        .unwrap();
+    assert_eq!(sandbox, "", "the snapshot frame is not sandboxed");
+    browser.close().await.unwrap();
+}
+
