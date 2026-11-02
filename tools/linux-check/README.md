@@ -23,7 +23,10 @@ work, so a second run reuses them. Delete them with `docker volume rm` to start 
   start: the sandbox cannot start in an unprivileged container.
 - The browser is Debian's `chromium`, with Debian's `chromedriver` linked at
   `downloaded_drivers/chromedriver`, as the runtime stage of the `Dockerfile` does it.
-- The images are built with `--no-slim`, so this does not check the Slim pass of a local Docker wrapper.
+- `DOCKER` names the docker command and `LINUX_CHECK_BUILD_FLAGS` adds flags to each `docker
+  build`. A wrapper that is a shell alias is not seen by this script, so name it, for example
+  `DOCKER=~/.local/bin/docker LINUX_CHECK_BUILD_FLAGS=--no-slim mise run linux-check` for a wrapper
+  that would otherwise slim the toolchain out of these images.
 - No display: a test that needs a headed browser fails here.
 
 ## What it leaves out
