@@ -1,4 +1,7 @@
-# Design: a trace viewer for the pure CDP engine
+---
+title: "Design: a trace viewer for the pure CDP engine"
+sidebarTitle: "Trace viewer"
+---
 
 Status: design note, written before the code (branch `friend/trace`).
 Code: `src/sb_cdp/trace.rs` and the folder `src/sb_cdp/trace/`.
@@ -18,7 +21,7 @@ video.
 ## What Playwright does (and what we take from it)
 
 Read for this note: the user guide page "Trace viewer"
-(<https://playwright.dev/docs/trace-viewer>) and the trace event types in the
+([Playwright docs](https://playwright.dev/docs/trace-viewer)) and the trace event types in the
 source, `packages/isomorphic/trace/trace.ts`, which re-exports
 `versions/traceV10.ts`. (The path `packages/trace/src/trace.ts` no longer
 exists.)
@@ -216,3 +219,35 @@ messages. The trace is opened in a browser, so the viewer is the attack surface.
   local fixture server: a click and a fill, stop, check the folder, the
   masked text, and the HTML; then open the HTML in the same Chrome and check it
   rendered the steps.
+
+## As built
+
+The code wins where it differs from the plan above:
+
+- **The page script undoes itself.** `__sbtrace` is `configurable` and has a
+  `release()`; `TraceRecorder::stop` calls it (one more evaluation, which also takes the
+  last console messages), so the console methods are put back when the page has not
+  wrapped them since, and the global is gone. `stop` also removes the new-document
+  script (`Page.removeScriptToEvaluateOnNewDocument`), and so does dropping the
+  recorder. The script runs in the top document only.
+- **One record per call, without a lock held across an await.** `Locator::traced` and
+  `Page::traced` wrap the public methods; the four that other methods call as a step
+  (`click`, `focus`, `clear`, `set_checked`) have a private `*_step` twin that notes
+  nothing. `Page::goto` notes the address without its user name and password.
+- **Page addresses lose their credentials too.** The `url` of an action goes through the
+  same cleaning as the `goto` detail.
+- **The pictures of one action are kept whole or not at all.** If the screenshot and
+  the snapshot together would pass `max_bytes`, neither is written and
+  `limits.pictures_skipped` counts the action.
+- **Pictures are written when taken and read back when the trace stops**, so a long run
+  does not hold them in memory until the end; the viewer embeds them from the files.
+- **A failure of the network log is not a failure of the trace.** The HAR recorder is
+  `start_har_with` (no bodies); if it cannot start or finish, `limits.network_error` says
+  so and the viewer shows the note. Because the recorder attaches to cross-site frames, a
+  trace and a `start_har` recording cannot run on one tab together.
+- **Tests.** The mock-driven tests are in `src/sb_cdp/trace.rs` and `trace/viewer.rs`
+  (no new file under `tests/`); the Chrome test is in `tests/sb_cdp_chrome.rs`.
+- **Not done here.** `sbrs trace show` (it belongs in `crates/cli`) and
+  `src/mcp/dev/api_index.json`, which has to be written again for the new public methods
+  `Page::start_trace` and `Page::start_trace_with`.
+
