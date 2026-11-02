@@ -263,10 +263,12 @@ presentations, and optional stealth/CDP integrations.
 <LayoutDir name="scripts" note="helper scripts">
 <LayoutFile name="check-consumers.sh" note="mise run contracts: checks what the repositories that build on this crate use" />
 </LayoutDir>
-<LayoutDir name="tools" note="scripts for the docs and the parity manifests">
+<LayoutDir name="tools" note="scripts for the docs, the parity manifests, the Linux check and the release archives">
 <LayoutDir name="mdx-check" note="mise run mdx: builds every docs page as Docs7 does" />
 <LayoutDir name="parity" note="extracts, seeds and renders the parity manifest (docs/parity.md)" />
 <LayoutDir name="layout_tree" note="the tree component that docs_layout_tree.py copies onto the pages" />
+<LayoutDir name="linux-check" note="mise run linux-check: the test suite and the Chrome tests in a Linux container" />
+<LayoutDir name="release" note="build-binaries.sh: the release archives for Linux and macOS Intel" />
 <LayoutFile name="docs_layout_tree.py" note="mise run layout-tree: writes the layout trees of the docs pages" />
 <LayoutFile name="docs7_changelog.py" note="writes docs/changelog.md from CHANGELOG.md" />
 </LayoutDir>

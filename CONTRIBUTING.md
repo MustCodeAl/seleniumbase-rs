@@ -190,7 +190,7 @@ seleniumbase-rs/               # the workspace root
 ├── schemas/                   # JSON Schemas
 ├── contrib/                   # files that are not part of the crate
 ├── scripts/                   # helper scripts
-├── tools/                     # scripts for the docs and the parity manifests
+├── tools/                     # scripts for the docs, the parity manifests, the Linux check and the release archives
 ├── docker/                    # the Linux verification image (Dockerfile.verify, verify-linux.sh) and firefox-check/
 ├── .config/                   # configuration of tools
 ├── .github/                   # GitHub Actions
