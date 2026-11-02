@@ -59,6 +59,145 @@ fn locator(selector: &str) -> String {
     format!("page.locator({})", literal(selector))
 }
 
+/// How an action's arguments go into its pure CDP statement, with the text of
+/// its row in [`STATEMENTS`].
+enum Form {
+    /// The text is the statement.
+    Plain,
+    /// The text is the statement, which uses `Scroll`.
+    Scrolling,
+    /// `page.<text>(<target>).await?;`
+    OnPage,
+    /// `page.locator(<target>).<text>.await?;`
+    OnTarget,
+    /// `page.locator(<target>).<text>(<value>).await?;`
+    WithValue,
+    /// A click on the link whose text is the target; the text is the selector's
+    /// prefix.
+    Link,
+    /// `page.locator(<target>).wait_for(State::<text>).await?;`
+    Wait,
+    /// `page.locator(<target>).select_option(SelectBy::<text>(<value>)).await?;`
+    Select,
+}
+use Form::{Link, OnPage, OnTarget, Plain, Scrolling, Select, Wait, WithValue};
+
+/// The actions whose statement follows from one row: their names, how the
+/// arguments go in, and the text the form uses.
+const STATEMENTS: &[(&[&str], Form, &str)] = &[
+    (&["open", "goto", "goto_if_not_url"], OnPage, "goto"),
+    (&["click", "cdp_click", "slow_click"], OnTarget, "click()"),
+    (&["hover"], OnTarget, "hover()"),
+    (&["double_click"], OnTarget, "double_click()"),
+    (&["context_click"], OnTarget, "right_click()"),
+    (&["clear"], OnTarget, "clear()"),
+    (&["submit"], OnTarget, "submit()"),
+    (
+        &[
+            "scroll_into_view",
+            "scroll_to",
+            "slow_scroll_to",
+            "smooth_scroll_to",
+        ],
+        OnTarget,
+        "scroll_into_view()",
+    ),
+    (&["check_if_unchecked"], OnTarget, "check()"),
+    (&["uncheck_if_checked"], OnTarget, "uncheck()"),
+    // `Locator::type_text` empties the field and then types, as
+    // `BaseCase::type_text` and Python's `sb.cdp.type` do.
+    (&["type_text", "update_text"], WithValue, "type_text"),
+    // `Locator::send_keys` adds to what the field holds, as `BaseCase::add_text`
+    // does. `type_text` here would empty the field first, so a recorded
+    // `add_text` would erase what was there. `press_keys` is what Python's
+    // recorder writes for typing into a field with `--uc`.
+    (
+        &["add_text", "send_keys", "press_keys"],
+        WithValue,
+        "send_keys",
+    ),
+    (&["click_link_text", "click_link"], Link, "link="),
+    (
+        &["click_partial_link_text", "click_partial_link"],
+        Link,
+        "p_link=",
+    ),
+    (&["select_option_by_text"], Select, "Text"),
+    (&["select_option_by_value"], Select, "Value"),
+    (
+        &["wait_for_element_visible", "wait_for_element"],
+        Wait,
+        "Visible",
+    ),
+    (&["wait_for_element_present"], Wait, "Present"),
+    (&["wait_for_element_not_visible"], Wait, "Hidden"),
+    (&["wait_for_element_absent"], Wait, "Absent"),
+    (
+        &["wait_for_ready_state_complete"],
+        Plain,
+        "page.wait_for_load().await?;",
+    ),
+    (
+        &["assert_text", "assert_text_visible"],
+        WithValue,
+        "expect().to_contain_text",
+    ),
+    (
+        &["assert_text_not_visible"],
+        WithValue,
+        "expect().not().to_contain_text",
+    ),
+    (&["assert_exact_text"], WithValue, "expect().to_have_text"),
+    (
+        &["assert_exact_text_not_visible"],
+        WithValue,
+        "expect().not().to_have_text",
+    ),
+    (&["assert_title"], OnPage, "expect().to_have_title"),
+    (
+        &["assert_title_contains"],
+        OnPage,
+        "expect().to_contain_title",
+    ),
+    (&["assert_url"], OnPage, "expect().to_have_url"),
+    (&["assert_url_contains"], OnPage, "expect().to_contain_url"),
+    (&["assert_element"], OnTarget, "expect().to_be_visible()"),
+    (&["assert_element_present"], OnTarget, "expect().to_exist()"),
+    (
+        &["assert_element_not_visible"],
+        OnTarget,
+        "expect().not().to_be_visible()",
+    ),
+    (&["go_back"], Plain, "page.back().await?;"),
+    (&["go_forward"], Plain, "page.forward().await?;"),
+    (&["refresh"], Plain, "page.reload().await?;"),
+    (
+        &["maximize_window"],
+        Plain,
+        "page.window().maximize().await?;",
+    ),
+    (
+        &["scroll_to_bottom"],
+        Scrolling,
+        "page.scroll(Scroll::Bottom).await?;",
+    ),
+    (
+        &["scroll_to_top"],
+        Scrolling,
+        "page.scroll(Scroll::Top).await?;",
+    ),
+    (
+        &["delete_all_cookies"],
+        Plain,
+        "page.cookies().clear().await?;",
+    ),
+    (
+        &["clear_local_storage"],
+        Plain,
+        "page.local_storage().clear().await?;",
+    ),
+];
+
 /// The pure CDP statements for `action`, or why there are none.
 ///
 /// The reasons are the ones the `BaseCase` generator gives for an unknown
@@ -82,107 +221,61 @@ pub(super) fn cdp_call(action: &RecordedAction) -> Result<CdpCall, String> {
     let value = action.value.as_deref();
     let need_target = || target.ok_or_else(|| format!("{name} has no target"));
     let need_value = || value.ok_or_else(|| format!("{name} has no value"));
-    // `page.locator(<target>).<call>.await?;`
-    let on_target = |call: &str| -> Result<CdpCall, String> {
-        Ok(CdpCall::statement(format!(
-            "{}.{call}.await?;",
-            locator(need_target()?)
-        )))
-    };
-    // A click on the link whose text is the target; `prefix` is `link=` or `p_link=`.
-    let link = |prefix: &str| -> Result<CdpCall, String> {
-        let selector = format!("{prefix}{}", need_target()?);
-        Ok(CdpCall::statement(format!(
-            "{}.click().await?;",
-            locator(&selector)
-        )))
-    };
-    let select = |option: String| -> Result<CdpCall, String> {
-        Ok(CdpCall::importing(
-            format!(
-                "{}.select_option({option}).await?;",
-                locator(need_target()?)
-            ),
-            "SelectBy",
-        ))
-    };
-    let wait = |state: &str| -> Result<CdpCall, String> {
-        Ok(CdpCall::importing(
-            format!(
-                "{}.wait_for(State::{state}).await?;",
-                locator(need_target()?)
-            ),
-            "State",
-        ))
-    };
-    // `page.locator(<target>).expect()<negation>.<check>(<value>).await?;`
-    let expect = |negation: &str, check: &str| -> Result<CdpCall, String> {
-        Ok(CdpCall::statement(format!(
-            "{}.expect(){negation}.{check}({}).await?;",
-            locator(need_target()?),
-            literal(need_value()?)
-        )))
-    };
-    // A statement that takes nothing from the recording.
-    let plain = |statement: &str| -> Result<CdpCall, String> { Ok(CdpCall::statement(statement)) };
-    let local_storage = |call: &str| -> Result<CdpCall, String> {
-        Ok(CdpCall::statement(format!(
-            "page.local_storage().{call}.await?;"
-        )))
-    };
 
+    if let Some((_, form, text)) = STATEMENTS.iter().find(|(names, ..)| names.contains(&name)) {
+        return Ok(match form {
+            Plain => CdpCall::statement(*text),
+            Scrolling => CdpCall::importing((*text).to_owned(), "Scroll"),
+            OnPage => {
+                CdpCall::statement(format!("page.{text}({}).await?;", literal(need_target()?)))
+            }
+            OnTarget => CdpCall::statement(format!("{}.{text}.await?;", locator(need_target()?))),
+            WithValue => CdpCall::statement(format!(
+                "{}.{text}({}).await?;",
+                locator(need_target()?),
+                literal(need_value()?)
+            )),
+            Link => {
+                let selector = format!("{text}{}", need_target()?);
+                CdpCall::statement(format!("{}.click().await?;", locator(&selector)))
+            }
+            Wait => CdpCall::importing(
+                format!(
+                    "{}.wait_for(State::{text}).await?;",
+                    locator(need_target()?)
+                ),
+                "State",
+            ),
+            Select => {
+                let option = literal(need_value()?);
+                CdpCall::importing(
+                    format!(
+                        "{}.select_option(SelectBy::{text}({option})).await?;",
+                        locator(need_target()?)
+                    ),
+                    "SelectBy",
+                )
+            }
+        });
+    }
+
+    // The actions that do more with their arguments than a row can say.
     match name {
-        "open" | "goto" | "goto_if_not_url" => Ok(CdpCall::statement(format!(
-            "page.goto({}).await?;",
-            literal(need_target()?)
-        ))),
-        "click" | "cdp_click" | "slow_click" => on_target("click()"),
-        "hover" => on_target("hover()"),
-        "double_click" => on_target("double_click()"),
-        "context_click" => on_target("right_click()"),
-        "clear" => on_target("clear()"),
-        "submit" => on_target("submit()"),
-        "scroll_into_view" | "scroll_to" | "slow_scroll_to" | "smooth_scroll_to" => {
-            on_target("scroll_into_view()")
+        "select_option_by_index" => {
+            let index = number::<usize>(name, "index", need_value()?)?;
+            Ok(CdpCall::importing(
+                format!(
+                    "{}.select_option(SelectBy::Index({index})).await?;",
+                    locator(need_target()?)
+                ),
+                "SelectBy",
+            ))
         }
-        "check_if_unchecked" => on_target("check()"),
-        "uncheck_if_checked" => on_target("uncheck()"),
-        // `Locator::type_text` empties the field and then types, as
-        // `BaseCase::type_text` and Python's `sb.cdp.type` do.
-        "type_text" | "update_text" => Ok(CdpCall::statement(format!(
-            "{}.type_text({}).await?;",
-            locator(need_target()?),
-            literal(need_value()?)
-        ))),
-        // `Locator::send_keys` adds to what the field holds, as
-        // `BaseCase::add_text` does. `type_text` here would empty the field
-        // first, so a recorded `add_text` would erase what was there.
-        "add_text" | "send_keys" => Ok(CdpCall::statement(format!(
-            "{}.send_keys({}).await?;",
-            locator(need_target()?),
-            literal(need_value()?)
-        ))),
-        "click_link_text" | "click_link" => link("link="),
-        "click_partial_link_text" | "click_partial_link" => link("p_link="),
-        "select_option_by_text" => select(format!("SelectBy::Text({})", literal(need_value()?))),
-        "select_option_by_value" => select(format!("SelectBy::Value({})", literal(need_value()?))),
-        "select_option_by_index" => select(format!(
-            "SelectBy::Index({})",
-            number::<usize>(name, "index", need_value()?)?
-        )),
         "drag_and_drop" => Ok(CdpCall::statement(format!(
             "{}.drag_to(&{}).await?;",
             locator(need_target()?),
             locator(need_value()?)
         ))),
-        "wait_for_element_visible" => wait("Visible"),
-        "wait_for_element_present" => wait("Present"),
-        "wait_for_element_not_visible" => wait("Hidden"),
-        "wait_for_element_absent" => wait("Absent"),
-        "wait_for_ready_state_complete" => plain("page.wait_for_load().await?;"),
-        "assert_text" | "assert_text_visible" => expect("", "to_contain_text"),
-        "assert_text_not_visible" => expect(".not()", "to_contain_text"),
-        "assert_exact_text" => expect("", "to_have_text"),
         "assert_attribute" => {
             let pair = need_value()?;
             let (key, content) = pair
@@ -195,56 +288,15 @@ pub(super) fn cdp_call(action: &RecordedAction) -> Result<CdpCall, String> {
                 literal(content.trim())
             )))
         }
-        "assert_title" => Ok(CdpCall::statement(format!(
-            "page.expect().to_have_title({}).await?;",
-            literal(need_target()?)
-        ))),
-        "assert_title_contains" => Ok(CdpCall::statement(format!(
-            "page.expect().to_contain_title({}).await?;",
-            literal(need_target()?)
-        ))),
-        // What Python's recorder writes for typing into a field with `--uc`.
-        "press_keys" => Ok(CdpCall::statement(format!(
-            "{}.send_keys({}).await?;",
-            locator(need_target()?),
-            literal(need_value()?)
-        ))),
-        "wait_for_element" => wait("Visible"),
-        "assert_element" => on_target("expect().to_be_visible()"),
-        "assert_element_present" => on_target("expect().to_exist()"),
-        "assert_element_not_visible" => on_target("expect().not().to_be_visible()"),
-        "assert_exact_text_not_visible" => expect(".not()", "to_have_text"),
-        "assert_url" => Ok(CdpCall::statement(format!(
-            "page.expect().to_have_url({}).await?;",
-            literal(need_target()?)
-        ))),
-        "assert_url_contains" => Ok(CdpCall::statement(format!(
-            "page.expect().to_contain_url({}).await?;",
-            literal(need_target()?)
-        ))),
-
-        "go_back" => plain("page.back().await?;"),
-        "go_forward" => plain("page.forward().await?;"),
-        "refresh" => plain("page.reload().await?;"),
-        "maximize_window" => plain("page.window().maximize().await?;"),
-        "scroll_to_bottom" => Ok(CdpCall::importing(
-            "page.scroll(Scroll::Bottom).await?;".to_owned(),
-            "Scroll",
-        )),
-        "scroll_to_top" => Ok(CdpCall::importing(
-            "page.scroll(Scroll::Top).await?;".to_owned(),
-            "Scroll",
-        )),
-        "delete_all_cookies" => plain("page.cookies().clear().await?;"),
-        "set_local_storage_item" => local_storage(&format!(
-            "set({}, {})",
+        "set_local_storage_item" => Ok(CdpCall::statement(format!(
+            "page.local_storage().set({}, {}).await?;",
             literal(need_target()?),
             literal(need_value()?)
-        )),
-        "remove_local_storage_item" => {
-            local_storage(&format!("remove({})", literal(need_target()?)))
-        }
-        "clear_local_storage" => local_storage("clear()"),
+        ))),
+        "remove_local_storage_item" => Ok(CdpCall::statement(format!(
+            "page.local_storage().remove({}).await?;",
+            literal(need_target()?)
+        ))),
         "click_with_offset" => {
             let (x, y, center) = offset_parts(name, need_value()?)?;
             // The offset is a float; the whole numbers recorded are written as such.
@@ -353,6 +405,7 @@ mod tests {
 
     /// Each supported action, the arguments that make it generate, and what it
     /// becomes. A raw string with `##` holds the `"#` of a CSS id.
+    #[rustfmt::skip]
     #[allow(clippy::type_complexity)]
     fn expected() -> Vec<(
         &'static str,
@@ -360,354 +413,69 @@ mod tests {
         Option<&'static str>,
         Vec<&'static str>,
     )> {
-        vec![
-            (
-                "open",
-                Some("https://example.com/a?b=1"),
-                None,
-                vec![r##"page.goto("https://example.com/a?b=1").await?;"##],
-            ),
-            (
-                "goto",
-                Some("https://example.com/a?b=1"),
-                None,
-                vec![r##"page.goto("https://example.com/a?b=1").await?;"##],
-            ),
-            (
-                "press_keys",
-                Some("#q"),
-                Some("rust"),
-                vec![r##"page.locator("#q").send_keys("rust").await?;"##],
-            ),
-            (
-                "wait_for_element",
-                Some("#late"),
-                None,
-                vec![r##"page.locator("#late").wait_for(State::Visible).await?;"##],
-            ),
-            (
-                "assert_element",
-                Some("#m"),
-                None,
-                vec![r##"page.locator("#m").expect().to_be_visible().await?;"##],
-            ),
-            (
-                "assert_element_present",
-                Some("#m"),
-                None,
-                vec![r##"page.locator("#m").expect().to_exist().await?;"##],
-            ),
-            (
-                "assert_element_not_visible",
-                Some("#m"),
-                None,
-                vec![r##"page.locator("#m").expect().not().to_be_visible().await?;"##],
-            ),
-            (
-                "assert_exact_text_not_visible",
-                Some("#m"),
-                Some("Hi"),
-                vec![r##"page.locator("#m").expect().not().to_have_text("Hi").await?;"##],
-            ),
-            (
-                "assert_url",
-                Some("https://example.com/"),
-                None,
-                vec![r##"page.expect().to_have_url("https://example.com/").await?;"##],
-            ),
-            (
-                "assert_url_contains",
-                Some("example"),
-                None,
-                vec![r##"page.expect().to_contain_url("example").await?;"##],
-            ),
-            (
-                "click",
-                Some("#go"),
-                None,
-                vec![r##"page.locator("#go").click().await?;"##],
-            ),
-            (
-                "cdp_click",
-                Some("#shadow"),
-                None,
-                vec![r##"page.locator("#shadow").click().await?;"##],
-            ),
-            (
-                "slow_click",
-                Some("#go"),
-                None,
-                vec![r##"page.locator("#go").click().await?;"##],
-            ),
-            (
-                "hover",
-                Some("#menu"),
-                None,
-                vec![r##"page.locator("#menu").hover().await?;"##],
-            ),
-            (
-                "double_click",
-                Some("#row"),
-                None,
-                vec![r##"page.locator("#row").double_click().await?;"##],
-            ),
-            (
-                "context_click",
-                Some("#row"),
-                None,
-                vec![r##"page.locator("#row").right_click().await?;"##],
-            ),
-            (
-                "clear",
-                Some("#q"),
-                None,
-                vec![r##"page.locator("#q").clear().await?;"##],
-            ),
-            (
-                "submit",
-                Some("form"),
-                None,
-                vec![r#"page.locator("form").submit().await?;"#],
-            ),
-            (
-                "scroll_into_view",
-                Some("#end"),
-                None,
-                vec![r##"page.locator("#end").scroll_into_view().await?;"##],
-            ),
-            (
-                "scroll_to",
-                Some("#end"),
-                None,
-                vec![r##"page.locator("#end").scroll_into_view().await?;"##],
-            ),
-            (
-                "slow_scroll_to",
-                Some("#end"),
-                None,
-                vec![r##"page.locator("#end").scroll_into_view().await?;"##],
-            ),
-            (
-                "smooth_scroll_to",
-                Some("#end"),
-                None,
-                vec![r##"page.locator("#end").scroll_into_view().await?;"##],
-            ),
-            (
-                "check_if_unchecked",
-                Some("#agree"),
-                None,
-                vec![r##"page.locator("#agree").check().await?;"##],
-            ),
-            (
-                "uncheck_if_checked",
-                Some("#spam"),
-                None,
-                vec![r##"page.locator("#spam").uncheck().await?;"##],
-            ),
-            (
-                "type_text",
-                Some("#q"),
-                Some("rust"),
-                vec![r##"page.locator("#q").type_text("rust").await?;"##],
-            ),
-            (
-                "update_text",
-                Some("#q"),
-                Some("rust"),
-                vec![r##"page.locator("#q").type_text("rust").await?;"##],
-            ),
-            (
-                "add_text",
-                Some("#q"),
-                Some(" more"),
-                vec![r##"page.locator("#q").send_keys(" more").await?;"##],
-            ),
-            (
-                "send_keys",
-                Some("#q"),
-                Some("abc"),
-                vec![r##"page.locator("#q").send_keys("abc").await?;"##],
-            ),
-            (
-                "click_link_text",
-                Some("Log out"),
-                None,
-                vec![r#"page.locator("link=Log out").click().await?;"#],
-            ),
-            (
-                "click_link",
-                Some("Log out"),
-                None,
-                vec![r#"page.locator("link=Log out").click().await?;"#],
-            ),
-            (
-                "click_partial_link_text",
-                Some("Log"),
-                None,
-                vec![r#"page.locator("p_link=Log").click().await?;"#],
-            ),
-            (
-                "click_partial_link",
-                Some("Log"),
-                None,
-                vec![r#"page.locator("p_link=Log").click().await?;"#],
-            ),
-            (
-                "select_option_by_text",
-                Some("#c"),
-                Some("Canada"),
-                vec![r##"page.locator("#c").select_option(SelectBy::Text("Canada")).await?;"##],
-            ),
-            (
-                "select_option_by_value",
-                Some("#c"),
-                Some("ca"),
-                vec![r##"page.locator("#c").select_option(SelectBy::Value("ca")).await?;"##],
-            ),
-            (
-                "select_option_by_index",
-                Some("#c"),
-                Some("2"),
-                vec![r##"page.locator("#c").select_option(SelectBy::Index(2)).await?;"##],
-            ),
-            (
-                "drag_and_drop",
-                Some("#a"),
-                Some("#b"),
-                vec![r##"page.locator("#a").drag_to(&page.locator("#b")).await?;"##],
-            ),
-            (
-                "wait_for_element_visible",
-                Some("#x"),
-                None,
-                vec![r##"page.locator("#x").wait_for(State::Visible).await?;"##],
-            ),
-            (
-                "wait_for_element_present",
-                Some("#x"),
-                None,
-                vec![r##"page.locator("#x").wait_for(State::Present).await?;"##],
-            ),
-            (
-                "wait_for_element_not_visible",
-                Some("#x"),
-                None,
-                vec![r##"page.locator("#x").wait_for(State::Hidden).await?;"##],
-            ),
-            (
-                "wait_for_element_absent",
-                Some("#x"),
-                None,
-                vec![r##"page.locator("#x").wait_for(State::Absent).await?;"##],
-            ),
-            (
-                "wait_for_ready_state_complete",
-                None,
-                None,
-                vec!["page.wait_for_load().await?;"],
-            ),
-            (
-                "assert_text",
-                Some("#m"),
-                Some("Welcome"),
-                vec![r##"page.locator("#m").expect().to_contain_text("Welcome").await?;"##],
-            ),
-            (
-                "assert_text_visible",
-                Some("#m"),
-                Some("Welcome"),
-                vec![r##"page.locator("#m").expect().to_contain_text("Welcome").await?;"##],
-            ),
-            (
-                "assert_text_not_visible",
-                Some("#m"),
-                Some("Failed"),
-                vec![r##"page.locator("#m").expect().not().to_contain_text("Failed").await?;"##],
-            ),
-            (
-                "assert_exact_text",
-                Some("#m"),
-                Some("Welcome"),
-                vec![r##"page.locator("#m").expect().to_have_text("Welcome").await?;"##],
-            ),
-            (
-                "assert_attribute",
-                Some("a"),
-                Some("href=/home"),
-                vec![r#"page.locator("a").expect().to_have_attribute("href", "/home").await?;"#],
-            ),
-            (
-                "assert_title",
-                Some("Home"),
-                None,
-                vec![r#"page.expect().to_have_title("Home").await?;"#],
-            ),
-            (
-                "assert_title_contains",
-                Some("Ho"),
-                None,
-                vec![r#"page.expect().to_contain_title("Ho").await?;"#],
-            ),
-            ("go_back", None, None, vec!["page.back().await?;"]),
-            ("go_forward", None, None, vec!["page.forward().await?;"]),
-            ("refresh", None, None, vec!["page.reload().await?;"]),
-            (
-                "maximize_window",
-                None,
-                None,
-                vec!["page.window().maximize().await?;"],
-            ),
-            (
-                "scroll_to_bottom",
-                None,
-                None,
-                vec!["page.scroll(Scroll::Bottom).await?;"],
-            ),
-            (
-                "scroll_to_top",
-                None,
-                None,
-                vec!["page.scroll(Scroll::Top).await?;"],
-            ),
-            (
-                "delete_all_cookies",
-                None,
-                None,
-                vec!["page.cookies().clear().await?;"],
-            ),
-            (
-                "set_local_storage_item",
-                Some("theme"),
-                Some("dark"),
-                vec![r#"page.local_storage().set("theme", "dark").await?;"#],
-            ),
-            (
-                "remove_local_storage_item",
-                Some("theme"),
-                None,
-                vec![r#"page.local_storage().remove("theme").await?;"#],
-            ),
-            (
-                "clear_local_storage",
-                None,
-                None,
-                vec!["page.local_storage().clear().await?;"],
-            ),
-            (
-                "click_with_offset",
-                Some("#c"),
-                Some("5, -7"),
-                vec![r##"page.locator("#c").click_with_offset(5.0, -7.0, false).await?;"##],
-            ),
-            (
-                "sleep",
-                None,
-                Some("1.5"),
-                vec!["tokio::time::sleep(std::time::Duration::from_secs_f64(1.5)).await;"],
-            ),
-        ]
-    }
+            vec![
+                ("open", Some("https://example.com/a?b=1"), None, vec![r##"page.goto("https://example.com/a?b=1").await?;"##]),
+                ("goto", Some("https://example.com/a?b=1"), None, vec![r##"page.goto("https://example.com/a?b=1").await?;"##]),
+                ("press_keys", Some("#q"), Some("rust"), vec![r##"page.locator("#q").send_keys("rust").await?;"##]),
+                ("wait_for_element", Some("#late"), None, vec![r##"page.locator("#late").wait_for(State::Visible).await?;"##]),
+                ("assert_element", Some("#m"), None, vec![r##"page.locator("#m").expect().to_be_visible().await?;"##]),
+                ("assert_element_present", Some("#m"), None, vec![r##"page.locator("#m").expect().to_exist().await?;"##]),
+                ("assert_element_not_visible", Some("#m"), None, vec![r##"page.locator("#m").expect().not().to_be_visible().await?;"##]),
+                ("assert_exact_text_not_visible", Some("#m"), Some("Hi"), vec![r##"page.locator("#m").expect().not().to_have_text("Hi").await?;"##]),
+                ("assert_url", Some("https://example.com/"), None, vec![r##"page.expect().to_have_url("https://example.com/").await?;"##]),
+                ("assert_url_contains", Some("example"), None, vec![r##"page.expect().to_contain_url("example").await?;"##]),
+                ("click", Some("#go"), None, vec![r##"page.locator("#go").click().await?;"##]),
+                ("cdp_click", Some("#shadow"), None, vec![r##"page.locator("#shadow").click().await?;"##]),
+                ("slow_click", Some("#go"), None, vec![r##"page.locator("#go").click().await?;"##]),
+                ("hover", Some("#menu"), None, vec![r##"page.locator("#menu").hover().await?;"##]),
+                ("double_click", Some("#row"), None, vec![r##"page.locator("#row").double_click().await?;"##]),
+                ("context_click", Some("#row"), None, vec![r##"page.locator("#row").right_click().await?;"##]),
+                ("clear", Some("#q"), None, vec![r##"page.locator("#q").clear().await?;"##]),
+                ("submit", Some("form"), None, vec![r#"page.locator("form").submit().await?;"#]),
+                ("scroll_into_view", Some("#end"), None, vec![r##"page.locator("#end").scroll_into_view().await?;"##]),
+                ("scroll_to", Some("#end"), None, vec![r##"page.locator("#end").scroll_into_view().await?;"##]),
+                ("slow_scroll_to", Some("#end"), None, vec![r##"page.locator("#end").scroll_into_view().await?;"##]),
+                ("smooth_scroll_to", Some("#end"), None, vec![r##"page.locator("#end").scroll_into_view().await?;"##]),
+                ("check_if_unchecked", Some("#agree"), None, vec![r##"page.locator("#agree").check().await?;"##]),
+                ("uncheck_if_checked", Some("#spam"), None, vec![r##"page.locator("#spam").uncheck().await?;"##]),
+                ("type_text", Some("#q"), Some("rust"), vec![r##"page.locator("#q").type_text("rust").await?;"##]),
+                ("update_text", Some("#q"), Some("rust"), vec![r##"page.locator("#q").type_text("rust").await?;"##]),
+                ("add_text", Some("#q"), Some(" more"), vec![r##"page.locator("#q").send_keys(" more").await?;"##]),
+                ("send_keys", Some("#q"), Some("abc"), vec![r##"page.locator("#q").send_keys("abc").await?;"##]),
+                ("click_link_text", Some("Log out"), None, vec![r#"page.locator("link=Log out").click().await?;"#]),
+                ("click_link", Some("Log out"), None, vec![r#"page.locator("link=Log out").click().await?;"#]),
+                ("click_partial_link_text", Some("Log"), None, vec![r#"page.locator("p_link=Log").click().await?;"#]),
+                ("click_partial_link", Some("Log"), None, vec![r#"page.locator("p_link=Log").click().await?;"#]),
+                ("select_option_by_text", Some("#c"), Some("Canada"), vec![r##"page.locator("#c").select_option(SelectBy::Text("Canada")).await?;"##]),
+                ("select_option_by_value", Some("#c"), Some("ca"), vec![r##"page.locator("#c").select_option(SelectBy::Value("ca")).await?;"##]),
+                ("select_option_by_index", Some("#c"), Some("2"), vec![r##"page.locator("#c").select_option(SelectBy::Index(2)).await?;"##]),
+                ("drag_and_drop", Some("#a"), Some("#b"), vec![r##"page.locator("#a").drag_to(&page.locator("#b")).await?;"##]),
+                ("wait_for_element_visible", Some("#x"), None, vec![r##"page.locator("#x").wait_for(State::Visible).await?;"##]),
+                ("wait_for_element_present", Some("#x"), None, vec![r##"page.locator("#x").wait_for(State::Present).await?;"##]),
+                ("wait_for_element_not_visible", Some("#x"), None, vec![r##"page.locator("#x").wait_for(State::Hidden).await?;"##]),
+                ("wait_for_element_absent", Some("#x"), None, vec![r##"page.locator("#x").wait_for(State::Absent).await?;"##]),
+                ("wait_for_ready_state_complete", None, None, vec!["page.wait_for_load().await?;"]),
+                ("assert_text", Some("#m"), Some("Welcome"), vec![r##"page.locator("#m").expect().to_contain_text("Welcome").await?;"##]),
+                ("assert_text_visible", Some("#m"), Some("Welcome"), vec![r##"page.locator("#m").expect().to_contain_text("Welcome").await?;"##]),
+                ("assert_text_not_visible", Some("#m"), Some("Failed"), vec![r##"page.locator("#m").expect().not().to_contain_text("Failed").await?;"##]),
+                ("assert_exact_text", Some("#m"), Some("Welcome"), vec![r##"page.locator("#m").expect().to_have_text("Welcome").await?;"##]),
+                ("assert_attribute", Some("a"), Some("href=/home"), vec![r#"page.locator("a").expect().to_have_attribute("href", "/home").await?;"#]),
+                ("assert_title", Some("Home"), None, vec![r#"page.expect().to_have_title("Home").await?;"#]),
+                ("assert_title_contains", Some("Ho"), None, vec![r#"page.expect().to_contain_title("Ho").await?;"#]),
+                ("go_back", None, None, vec!["page.back().await?;"]),
+                ("go_forward", None, None, vec!["page.forward().await?;"]),
+                ("refresh", None, None, vec!["page.reload().await?;"]),
+                ("maximize_window", None, None, vec!["page.window().maximize().await?;"]),
+                ("scroll_to_bottom", None, None, vec!["page.scroll(Scroll::Bottom).await?;"]),
+                ("scroll_to_top", None, None, vec!["page.scroll(Scroll::Top).await?;"]),
+                ("delete_all_cookies", None, None, vec!["page.cookies().clear().await?;"]),
+                ("set_local_storage_item", Some("theme"), Some("dark"), vec![r#"page.local_storage().set("theme", "dark").await?;"#]),
+                ("remove_local_storage_item", Some("theme"), None, vec![r#"page.local_storage().remove("theme").await?;"#]),
+                ("clear_local_storage", None, None, vec!["page.local_storage().clear().await?;"]),
+                ("click_with_offset", Some("#c"), Some("5, -7"), vec![r##"page.locator("#c").click_with_offset(5.0, -7.0, false).await?;"##]),
+                ("sleep", None, Some("1.5"), vec!["tokio::time::sleep(std::time::Duration::from_secs_f64(1.5)).await;"]),
+            ]
+        }
 
     #[test]
     fn each_supported_action_becomes_the_pure_cdp_lines_that_do_the_same() {
