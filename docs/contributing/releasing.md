@@ -1,13 +1,15 @@
 ---
 title: "Releasing a version"
 sidebarTitle: "Releasing"
-description: "The steps that turn main into a tagged release: versions, changelog, gate, tag, the macOS binary, the GitHub release and the Homebrew formula."
+description: "The steps that turn main into a tagged release: versions, changelog, gate, tag, the binaries, the GitHub release and the Homebrew formula."
 ---
 
 A release is cut from `main` by a maintainer, by hand. GitHub Actions cannot run for this
 repository at the moment (billing), so the release workflow does not build binaries: the
-only prebuilt binary is the macOS arm64 one built locally, and every other platform installs
-from source (`cargo install --git ... --tag vX.Y.Z seleniumbase-rs-cli`) or through Homebrew.
+prebuilt binaries are the macOS arm64 one built locally with `cargo build --release`, the three
+archives `mise run release-binaries` builds (Linux arm64, Linux x86_64, macOS Intel), and every
+other platform installs from source (`cargo install --git ... --tag vX.Y.Z seleniumbase-rs-cli`)
+or through Homebrew.
 
 <Warning>
 Every push, tag, GitHub release and Homebrew commit is public. Run the whole gate on the
@@ -92,7 +94,9 @@ git push origin vX.Y.Z
 In zsh write `"${C}:refs/heads/main"`: `$C:r` would be read as a modifier.
 
 </Step>
-<Step title="Build the macOS binary">
+<Step title="Build the binaries">
+
+The macOS arm64 archive is built here, by hand:
 
 ```bash Terminal
 cargo build --release --locked -p seleniumbase-rs-cli
@@ -100,6 +104,11 @@ cargo build --release --locked -p seleniumbase-rs-cli
 
 Archive `target/release/sbrs` and `target/release/sbrs-mcp` with the completion scripts as
 `seleniumbase-rs-vX.Y.Z-aarch64-apple-darwin.tgz`, and write its SHA-256 next to it.
+
+`mise run release-binaries` builds three more archives — Linux arm64, Linux x86_64 and macOS
+Intel — named and packed as the release workflow does, with `SHA256SUMS`, and checks that each
+binary runs on its platform. It uploads nothing: attach the archives you mean to ship by hand.
+`tools/release/README.md` has the settings (`RELEASE_COMMIT`, `RELEASE_OUT`, `RELEASE_X86_MODE`).
 
 </Step>
 <Step title="Create the GitHub release">
@@ -109,8 +118,8 @@ gh release create vX.Y.Z --verify-tag --title "vX.Y.Z" --notes-file NOTES.md \
   seleniumbase-rs-vX.Y.Z-aarch64-apple-darwin.tgz seleniumbase-rs-vX.Y.Z-aarch64-apple-darwin.tgz.sha256
 ```
 
-The notes are the version's CHANGELOG block, plus a line saying the prebuilt binary is for
-macOS arm64 only and how to install elsewhere.
+The notes are the version's CHANGELOG block, plus a line saying which platforms the attached
+prebuilt binaries cover and how to install elsewhere.
 
 </Step>
 <Step title="Update the Homebrew formula">
