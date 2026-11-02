@@ -68,6 +68,11 @@ work, `docs/parity.md` the per-API status).
   still downloads that build. See
   [Manage chromedriver with mise](docs/tutorials/mise_chromedriver.md).
 
+- `tools/release/build-binaries.sh` (`mise run release-binaries`) builds the release archives of
+  `sbrs` and `sbrs-mcp` for Linux arm64, Linux x86_64 and macOS Intel on an Apple silicon Mac,
+  named and packed as the release workflow does, with `SHA256SUMS`, and runs each binary on its
+  platform. It uploads nothing.
+
 - `sbrs-mcp install`, `uninstall` and `clients` know Grok Build (`grok`). The
   user file is `$GROK_HOME/config.toml`, or `~/.grok/config.toml` when
   `GROK_HOME` is unset (on Windows, `%USERPROFILE%\.grok\config.toml`), and
