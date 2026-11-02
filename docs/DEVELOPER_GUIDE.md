@@ -257,6 +257,7 @@ presentations, and optional stealth/CDP integrations.
 <LayoutFile name="fingerprint.schema.json" note="the schema of a Fingerprint file" />
 </LayoutDir>
 <LayoutDir name="contrib" note="files that are not part of the crate">
+<LayoutDir name="mise" note="mise-chromedriver: a mise tool plugin that installs chromedriver" />
 <LayoutDir name="tldr" note="draft tldr-pages entries for sbrs, kept to propose upstream" />
 </LayoutDir>
 <LayoutDir name="scripts" note="helper scripts">
@@ -671,6 +672,7 @@ Launch and session plumbing:
 <LayoutFile name="driver_install.rs" note="installs geckodriver and msedgedriver" />
 <LayoutFile name="driver_version.rs" note="matches chromedriver to Chrome" />
 <LayoutFile name="launcher.rs" note="chromedriver discovery, startup and StealthOptions" />
+<LayoutFile name="mise_driver.rs" note="the chromedriver that mise manages" />
 <LayoutFile name="mod.rs" note="the browser module" />
 <LayoutDir name="options" open note="typed launch settings">
 <LayoutFile name="capabilities.rs" note="capabilities added to the session" />

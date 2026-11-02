@@ -21,7 +21,7 @@ does not do.
 
 <Visibility for="agents">
 
-Summary for AI exports: link the plugin with `mise plugins link chromedriver ./contrib/mise/mise-chromedriver`, then `mise use chromedriver@151` (the major version of your Chrome; `latest` is usually a Canary build). `mise upgrade chromedriver` installs a newer build of the pinned major and `mise uninstall chromedriver@VERSION` removes one. A session started by `sbrs` or the library runs `mise which chromedriver` in the working directory when `downloaded_drivers/chromedriver` is missing or is for another Chrome (and, with `--driver-version keep`, when no driver is in `downloaded_drivers/` or on the `PATH`), and uses the file it prints when it exists, can run and fits the installed Chrome. No mise, a failing mise, a mise that takes more than 5 seconds and a bad answer are all silent. There is no setting for it. `--driver-version` with a version always downloads that build. `sbrs doctor` and `sbrs prompt` do not ask mise. The plugin lists builds from Chrome for Testing, and installs only what the index names on storage.googleapis.com over https.
+Summary for AI exports: link the plugin with `mise plugins link chromedriver ./contrib/mise/mise-chromedriver`, then `mise use chromedriver@151` (the major version of your Chrome; `latest` is usually a Canary build). `mise upgrade chromedriver` installs a newer build of the pinned major (mise prunes the old one after a day, or at once with `mise prune chromedriver`) and `mise uninstall chromedriver@VERSION` removes one. A session started by `sbrs` or the library runs `mise which chromedriver` in the working directory when `downloaded_drivers/chromedriver` is missing or is for another Chrome (and, with `--driver-version keep`, when no driver is in `downloaded_drivers/` or on the `PATH`), and uses the file it prints when it exists, can run and fits the installed Chrome. No mise, a failing mise, a mise that takes more than 5 seconds and a bad answer are all silent. There is no setting for it. `--driver-version` with a version always downloads that build. `sbrs doctor` and `sbrs prompt` do not ask mise. The plugin lists builds from Chrome for Testing, and installs only what the index names on storage.googleapis.com over https.
 
 </Visibility>
 
@@ -51,7 +51,8 @@ entry in `mise.toml`.
 
 ```bash Terminal
 mise outdated                  # shows 151 with the build installed and the newest one
-mise upgrade chromedriver      # installs the newest 151 and removes the old build
+mise upgrade chromedriver      # installs the newest 151; mise prunes the old build after a day
+mise prune chromedriver        # removes the builds no mise.toml selects, now
 mise uninstall chromedriver@151.0.7922.71
 mise uninstall --all chromedriver
 ```
@@ -71,7 +72,9 @@ and stops at the first that fits:
 `--driver-version keep` takes any chromedriver in `downloaded_drivers/` or on the
 `PATH` first, then the one mise manages, and downloads only when there is none.
 A pinned `--driver-version` (`151`, `stable`, a full build) downloads that build
-and does not ask mise.
+and does not ask mise. Brave, Comet, Chrome for Testing, chrome-headless-shell and a
+session that downloads the driver through a proxy follow the version of their own
+browser in the same way, so they do not ask mise either.
 
 Asking mise is cheap and silent. Nothing is logged above debug level, and the
 launcher goes on to the next place, when:
@@ -98,8 +101,12 @@ no chromedriver while a session runs the one mise manages. If your shell runs
 
 ## The driver stays as mise installed it
 
-The launcher runs the driver where mise put it. It does not patch it, and it
-writes nothing into mise's install folder. To use a patched driver, make a copy
+The launcher runs the driver where mise put it and does not patch it. The one
+thing it can change is what it does for every driver the system refuses to
+start: add the execute bit, remove the macOS quarantine flag, and sign a driver
+that macOS kills as it starts. A driver that mise installed started on macOS
+without any of that (the file's SHA-256, mode and time were the same after the
+run). To use a patched driver, make a copy
 and patch the copy: `sbrs install uc_driver` does that in `downloaded_drivers/`,
 and `sbrs patch-chromedriver --path FILE` patches the file it is given in place,
 so give it a copy and not the file in mise's folder.

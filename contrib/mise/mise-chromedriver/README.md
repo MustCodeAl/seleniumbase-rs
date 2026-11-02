@@ -17,7 +17,8 @@ mise plugins link chromedriver ./contrib/mise/mise-chromedriver
 mise ls-remote chromedriver 151        # the builds of Chrome 151
 mise use chromedriver@151              # install the newest 151 and pin it in mise.toml
 mise exec -- chromedriver --version
-mise upgrade chromedriver              # a newer build of the pinned major
+mise upgrade chromedriver              # a newer build of the pinned major; the old one is pruned after a day
+mise prune chromedriver                # removes the builds no mise.toml selects, now
 mise uninstall chromedriver@151.0.7922.71
 ```
 

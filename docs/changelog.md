@@ -52,6 +52,18 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 s
 
 ### Added
 
+- chromedriver through [mise](https://mise.jdx.dev). A mise tool plugin in
+  `contrib/mise/mise-chromedriver` lists the builds of Chrome for Testing and
+  installs, upgrades and removes chromedriver (`mise use chromedriver@151`). A
+  session that has no fitting chromedriver in `downloaded_drivers/` now runs
+  `mise which chromedriver` in the working directory before it downloads one, and
+  uses the file mise prints when it exists, can run and fits the installed Chrome;
+  `--driver-version keep` asks mise after `downloaded_drivers/` and the `PATH`.
+  There is no setting for it. No mise on the `PATH`, a failing mise, one that takes
+  more than 5 seconds and a bad answer are all silent. A pinned `--driver-version`
+  still downloads that build. See
+  [Manage chromedriver with mise](/tutorials/mise_chromedriver).
+
 - `sbrs-mcp install`, `uninstall` and `clients` know Grok Build (`grok`). The
   user file is `$GROK_HOME/config.toml`, or `~/.grok/config.toml` when
   `GROK_HOME` is unset (on Windows, `%USERPROFILE%\.grok\config.toml`), and
