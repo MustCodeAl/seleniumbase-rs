@@ -347,12 +347,12 @@ impl<'a> Lexer<'a> {
         let col = self.column(start);
         let c = self.peek().unwrap_or_default();
 
-        if self.dialect == Dialect::Python {
-            if let Some((prefix_len, quote)) = self.python_string_start() {
-                let tok = self.python_string(prefix_len, quote)?;
-                self.push(tok, start, line, col);
-                return Ok(());
-            }
+        if self.dialect == Dialect::Python
+            && let Some((prefix_len, quote)) = self.python_string_start()
+        {
+            let tok = self.python_string(prefix_len, quote)?;
+            self.push(tok, start, line, col);
+            return Ok(());
         }
         if is_ident_start(c, self.dialect) {
             while let Some(c) = self.peek() {

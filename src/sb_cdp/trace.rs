@@ -775,17 +775,16 @@ impl TraceState {
         let mut data = serde_json::to_value(file)?;
         if let Some(items) = data.get_mut("actions").and_then(Value::as_array_mut) {
             for (item, action) in items.iter_mut().zip(file.actions) {
-                if let Some(name) = &action.screenshot {
-                    if let Ok(bytes) = tokio::fs::read(self.dir.join(name)).await {
-                        item["screenshot"] =
-                            Value::String(base64::engine::general_purpose::STANDARD.encode(bytes));
-                    }
+                if let Some(name) = &action.screenshot
+                    && let Ok(bytes) = tokio::fs::read(self.dir.join(name)).await
+                {
+                    item["screenshot"] =
+                        Value::String(base64::engine::general_purpose::STANDARD.encode(bytes));
                 }
-                if let Some(name) = &action.snapshot {
-                    if let Ok(bytes) = tokio::fs::read(self.dir.join(name)).await {
-                        item["snapshot"] =
-                            Value::String(String::from_utf8_lossy(&bytes).into_owned());
-                    }
+                if let Some(name) = &action.snapshot
+                    && let Ok(bytes) = tokio::fs::read(self.dir.join(name)).await
+                {
+                    item["snapshot"] = Value::String(String::from_utf8_lossy(&bytes).into_owned());
                 }
             }
         }
@@ -1055,18 +1054,18 @@ impl TraceRecorder {
 impl Drop for TraceRecorder {
     fn drop(&mut self) {
         self.unregister();
-        if let Some(identifier) = self.script_id.take() {
-            if let Ok(runtime) = tokio::runtime::Handle::try_current() {
-                let page = self.page.clone();
-                runtime.spawn(async move {
-                    let _ = page
-                        .execute(
-                            "Page.removeScriptToEvaluateOnNewDocument",
-                            json!({ "identifier": identifier }),
-                        )
-                        .await;
-                });
-            }
+        if let Some(identifier) = self.script_id.take()
+            && let Ok(runtime) = tokio::runtime::Handle::try_current()
+        {
+            let page = self.page.clone();
+            runtime.spawn(async move {
+                let _ = page
+                    .execute(
+                        "Page.removeScriptToEvaluateOnNewDocument",
+                        json!({ "identifier": identifier }),
+                    )
+                    .await;
+            });
         }
     }
 }

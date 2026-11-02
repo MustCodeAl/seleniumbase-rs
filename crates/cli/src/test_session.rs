@@ -153,10 +153,8 @@ impl Closing {
         let summary = &outcome.summary;
         let failed = summary.failed > 0 || summary.unreported > 0;
         let mut lines = Vec::new();
-        if failed {
-            if let Some(dashboard) = &outcome.dashboard {
-                lines.push(format!("----- Dashboard = {} -----", file_url(dashboard)));
-            }
+        if failed && let Some(dashboard) = &outcome.dashboard {
+            lines.push(format!("----- Dashboard = {} -----", file_url(dashboard)));
         }
         if let Some(html) = &outcome.html {
             lines.push(format!(

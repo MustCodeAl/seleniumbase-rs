@@ -155,12 +155,12 @@ where
             .bold()
             .write(&mut *writer, span.name(), color)?;
         let extensions = span.extensions();
-        if let Some(fields) = extensions.get::<FormattedFields<N>>() {
-            if !fields.is_empty() {
-                // Formatted by the layer's own field formatter, which escapes
-                // what it prints; its ANSI codes are not ours to sanitize.
-                write!(writer, "{{{fields}}}")?;
-            }
+        if let Some(fields) = extensions.get::<FormattedFields<N>>()
+            && !fields.is_empty()
+        {
+            // Formatted by the layer's own field formatter, which escapes
+            // what it prints; its ANSI codes are not ours to sanitize.
+            write!(writer, "{{{fields}}}")?;
         }
         writer.write_char(':')?;
     }

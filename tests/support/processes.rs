@@ -30,10 +30,10 @@ fn command_line(cmd: &[OsString]) -> String {
         .iter()
         .map(|arg| arg.to_string_lossy().into_owned())
         .collect();
-    if let Some(program) = words.first_mut() {
-        if program.to_ascii_lowercase().ends_with(".exe") {
-            program.truncate(program.len() - ".exe".len());
-        }
+    if let Some(program) = words.first_mut()
+        && program.to_ascii_lowercase().ends_with(".exe")
+    {
+        program.truncate(program.len() - ".exe".len());
     }
     words.join(" ")
 }

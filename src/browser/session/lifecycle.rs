@@ -100,10 +100,10 @@ impl BrowserSession {
         let display = self.virtual_display.as_ref().map(XvfbProcess::display);
         let (driver, process) = connect_driver(config, display).await?;
         self.driver = Some(driver);
-        if let Some(process) = process {
-            if let Some(mut previous) = self.driver_process.replace(process) {
-                previous.kill();
-            }
+        if let Some(process) = process
+            && let Some(mut previous) = self.driver_process.replace(process)
+        {
+            previous.kill();
         }
         self.cdp = if config.is_cdp_enabled() {
             Some(CdpClient::from_handle(

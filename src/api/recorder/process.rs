@@ -477,12 +477,11 @@ fn fold_same_page_opens(rows: &mut [RawAction]) {
 fn trim_search_queries(rows: &mut [RawAction]) {
     for row in rows {
         let url = text(&row.detail);
-        if row.kind == "f_url" {
-            if let (Some(query), Some(and)) = (url.find("?q="), url.find('&')) {
-                if query < and {
-                    row.detail = Value::String(url.split('&').next().unwrap_or(url).to_owned());
-                }
-            }
+        if row.kind == "f_url"
+            && let (Some(query), Some(and)) = (url.find("?q="), url.find('&'))
+            && query < and
+        {
+            row.detail = Value::String(url.split('&').next().unwrap_or(url).to_owned());
         }
     }
 }

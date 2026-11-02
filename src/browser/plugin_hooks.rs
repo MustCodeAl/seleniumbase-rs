@@ -628,10 +628,10 @@ impl SessionPlugins {
         };
         let prepared = self.set.on_page_created(&page).await;
         let union = std::mem::take(&mut *locked(&page.blocked));
-        if union != self.blocked {
-            if let Some(handle) = window_handle(driver).await {
-                locked(&self.windows).insert(handle, union);
-            }
+        if union != self.blocked
+            && let Some(handle) = window_handle(driver).await
+        {
+            locked(&self.windows).insert(handle, union);
         }
         let added = std::mem::take(&mut *locked(&page.scripts));
         let mut scripts = locked(&self.scripts);
@@ -648,8 +648,8 @@ impl SessionPlugins {
     /// they added to the library's.
     pub(crate) async fn window_blocklist(&self, driver: &WebDriver) -> Option<Vec<String>> {
         let handle = window_handle(driver).await?;
-        let known = locked(&self.windows).get(&handle).cloned();
-        known
+
+        locked(&self.windows).get(&handle).cloned()
     }
 
     /// Runs again, in the document the session just opened, the scripts the

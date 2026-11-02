@@ -111,15 +111,15 @@ fn collect(items: &[syn::Item], out: &mut RustItems) {
     for item in items {
         match item {
             syn::Item::Impl(imp) => {
-                if let syn::Type::Path(path) = &*imp.self_ty {
-                    if let Some(segment) = path.path.segments.last() {
-                        for member in &imp.items {
-                            if let syn::ImplItem::Fn(function) = member {
-                                out.methods.insert((
-                                    segment.ident.to_string(),
-                                    function.sig.ident.to_string(),
-                                ));
-                            }
+                if let syn::Type::Path(path) = &*imp.self_ty
+                    && let Some(segment) = path.path.segments.last()
+                {
+                    for member in &imp.items {
+                        if let syn::ImplItem::Fn(function) = member {
+                            out.methods.insert((
+                                segment.ident.to_string(),
+                                function.sig.ident.to_string(),
+                            ));
                         }
                     }
                 }
@@ -375,12 +375,12 @@ fn every_mcp_tool_we_offer_from_upstream_is_marked_implemented() {
         };
         for name in offered {
             // Tools this crate adds (such as the stealth tools) have no upstream entry.
-            if let Some(entry) = entries.get(name) {
-                if text(entry, "status").as_deref() != Some("implemented") {
-                    problems.push(format!(
-                        "[{surface}.{name:?}] is offered but not marked implemented"
-                    ));
-                }
+            if let Some(entry) = entries.get(name)
+                && text(entry, "status").as_deref() != Some("implemented")
+            {
+                problems.push(format!(
+                    "[{surface}.{name:?}] is offered but not marked implemented"
+                ));
             }
         }
     }

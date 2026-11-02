@@ -174,10 +174,10 @@ fn check(root: &Value, schema: &Value, instance: &Value, at: &str, found: &mut V
         }
         return;
     }
-    if let Some(excluded) = schema.get("not") {
-        if violations(root, excluded, instance, at).is_empty() {
-            found.push(format!("{at}: {instance} is not allowed"));
-        }
+    if let Some(excluded) = schema.get("not")
+        && violations(root, excluded, instance, at).is_empty()
+    {
+        found.push(format!("{at}: {instance} is not allowed"));
     }
     if let (Some(pattern), Some(text)) = (
         schema.get("pattern").and_then(Value::as_str),
@@ -222,15 +222,15 @@ fn check(root: &Value, schema: &Value, instance: &Value, at: &str, found: &mut V
         }
         return;
     }
-    if let Some(constant) = schema.get("const") {
-        if constant != instance {
-            found.push(format!("{at}: is not {constant}"));
-        }
+    if let Some(constant) = schema.get("const")
+        && constant != instance
+    {
+        found.push(format!("{at}: is not {constant}"));
     }
-    if let Some(words) = schema.get("enum").and_then(Value::as_array) {
-        if !words.contains(instance) {
-            found.push(format!("{at}: {instance} is not one of {words:?}"));
-        }
+    if let Some(words) = schema.get("enum").and_then(Value::as_array)
+        && !words.contains(instance)
+    {
+        found.push(format!("{at}: {instance} is not one of {words:?}"));
     }
     if let Some(kinds) = schema.get("type") {
         let kinds: Vec<&str> = match kinds {
@@ -246,18 +246,16 @@ fn check(root: &Value, schema: &Value, instance: &Value, at: &str, found: &mut V
     if let (Some(minimum), Some(number)) = (
         schema.get("minimum").and_then(Value::as_f64),
         instance.as_f64(),
-    ) {
-        if number < minimum {
-            found.push(format!("{at}: {number} is below {minimum}"));
-        }
+    ) && number < minimum
+    {
+        found.push(format!("{at}: {number} is below {minimum}"));
     }
     if let (Some(maximum), Some(number)) = (
         schema.get("maximum").and_then(Value::as_f64),
         instance.as_f64(),
-    ) {
-        if number > maximum {
-            found.push(format!("{at}: {number} is above {maximum}"));
-        }
+    ) && number > maximum
+    {
+        found.push(format!("{at}: {number} is above {maximum}"));
     }
     if let Some(object) = instance.as_object() {
         let properties = schema.get("properties").and_then(Value::as_object);

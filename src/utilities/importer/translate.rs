@@ -349,11 +349,11 @@ pub(super) fn regex_text(pattern: &str, flags: &str) -> TResult<(String, bool)> 
         start = false;
         body = rest;
     }
-    if let Some(rest) = body.strip_suffix(".*") {
-        if !rest.ends_with('\\') {
-            end = false;
-            body = rest;
-        }
+    if let Some(rest) = body.strip_suffix(".*")
+        && !rest.ends_with('\\')
+    {
+        end = false;
+        body = rest;
     }
     let mut text = String::new();
     let mut chars = body.chars();
@@ -976,29 +976,28 @@ impl<'s> Translator<'s> {
 
     fn new_object(&mut self, callee: &Expr, args: &[Arg]) -> TResult<Ev> {
         // `new Promise(r => setTimeout(r, 500))`: a sleep.
-        if matches!(callee, Expr::Ident(name) if name == "Promise") {
-            if let [Arg::Pos(Expr::Function(func))] = args {
-                let resolve = func.params.first().and_then(|p| p.name.as_deref());
-                let body = match &func.body {
-                    FnBody::Expr(expr) => Some(expr.as_ref()),
-                    FnBody::Block(stmts) => match stmts.as_slice() {
-                        [Stmt {
-                            kind: StmtKind::Expr(expr),
-                            ..
-                        }] => Some(expr),
-                        _ => None,
-                    },
-                };
-                if let (Some(resolve), Some(Expr::Call { callee, args })) = (resolve, body) {
-                    if let (Expr::Ident(timer), [Arg::Pos(Expr::Ident(r)), Arg::Pos(delay)]) =
-                        (callee.as_ref(), args.as_slice())
-                    {
-                        if timer == "setTimeout" && r == resolve {
-                            let ms = self.number(delay)?;
-                            return self.sleep_ms(ms);
-                        }
-                    }
-                }
+        if matches!(callee, Expr::Ident(name) if name == "Promise")
+            && let [Arg::Pos(Expr::Function(func))] = args
+        {
+            let resolve = func.params.first().and_then(|p| p.name.as_deref());
+            let body = match &func.body {
+                FnBody::Expr(expr) => Some(expr.as_ref()),
+                FnBody::Block(stmts) => match stmts.as_slice() {
+                    [Stmt {
+                        kind: StmtKind::Expr(expr),
+                        ..
+                    }] => Some(expr),
+                    _ => None,
+                },
+            };
+            if let (Some(resolve), Some(Expr::Call { callee, args })) = (resolve, body)
+                && let (Expr::Ident(timer), [Arg::Pos(Expr::Ident(r)), Arg::Pos(delay)]) =
+                    (callee.as_ref(), args.as_slice())
+                && timer == "setTimeout"
+                && r == resolve
+            {
+                let ms = self.number(delay)?;
+                return self.sleep_ms(ms);
             }
         }
         Err("`new ...` is not converted".to_owned())
@@ -1648,10 +1647,10 @@ impl<'s> Translator<'s> {
             &options,
             &["path", "fullPage", "timeout", "animations"],
         )?;
-        if let Some(full) = option(&options, "fullPage") {
-            if self.boolean(full)? {
-                return Err("a full-page screenshot is not converted".to_owned());
-            }
+        if let Some(full) = option(&options, "fullPage")
+            && self.boolean(full)?
+        {
+            return Err("a full-page screenshot is not converted".to_owned());
         }
         match option(&options, "path") {
             Some(path) => {
@@ -2901,10 +2900,8 @@ fn mark_unused(lines: &mut [Line]) {
             Line::Code(later) => super::emit::mentions(later, &name),
             _ => false,
         });
-        if !used {
-            if let Line::Code(code) = &mut lines[index] {
-                *code = format!("let _{}", &code["let ".len()..]);
-            }
+        if !used && let Line::Code(code) = &mut lines[index] {
+            *code = format!("let _{}", &code["let ".len()..]);
         }
     }
 }

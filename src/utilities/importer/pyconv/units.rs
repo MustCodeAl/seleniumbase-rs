@@ -57,11 +57,11 @@ pub(super) fn discover(stmts: &[Stmt]) -> Found {
         todos: Vec::new(),
     };
     let mut rest = stmts;
-    if let Some(first) = stmts.first() {
-        if let StmtKind::Expr(Expr::Str(text)) = &first.kind {
-            found.doc = Some(text.clone());
-            rest = &stmts[1..];
-        }
+    if let Some(first) = stmts.first()
+        && let StmtKind::Expr(Expr::Str(text)) = &first.kind
+    {
+        found.doc = Some(text.clone());
+        rest = &stmts[1..];
     }
     let mut loose: Vec<Stmt> = Vec::new();
     for stmt in rest {
@@ -155,12 +155,11 @@ fn unwrap_sb_with(stmts: Vec<Stmt>) -> (Vec<Stmt>, Option<String>, Vec<String>) 
         .iter()
         .filter(|stmt| !matches!(stmt.kind, StmtKind::Pass | StmtKind::Import(_)))
         .collect();
-    if let [only] = significant.as_slice() {
-        if let StmtKind::With { items, body } = &only.kind {
-            if let Some((args, receivers)) = sb_context(items) {
-                return (body.clone(), Some(args), receivers);
-            }
-        }
+    if let [only] = significant.as_slice()
+        && let StmtKind::With { items, body } = &only.kind
+        && let Some((args, receivers)) = sb_context(items)
+    {
+        return (body.clone(), Some(args), receivers);
     }
     (stmts, None, Vec::new())
 }

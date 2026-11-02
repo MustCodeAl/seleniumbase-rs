@@ -153,10 +153,10 @@ impl ProxyScheme {
 /// or sit in the authority of a URL (`http://user:pass@host/x.pac`).
 fn split_login(text: &str, has_path: bool) -> (Option<&str>, String) {
     let scheme_end = text.find("://");
-    if let (Some(at), Some(scheme)) = (text.find('@'), scheme_end) {
-        if at < scheme {
-            return (Some(&text[..at]), text[at + 1..].to_owned());
-        }
+    if let (Some(at), Some(scheme)) = (text.find('@'), scheme_end)
+        && at < scheme
+    {
+        return (Some(&text[..at]), text[at + 1..].to_owned());
     }
     let start = scheme_end.map_or(0, |scheme| scheme + 3);
     let end = if has_path {

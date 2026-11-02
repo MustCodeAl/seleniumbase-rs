@@ -1057,12 +1057,12 @@ impl Fingerprint {
         }
 
         // Screen sanity.
-        if let Some(size) = f.screen.value() {
-            if size.width == 0 || size.height == 0 {
-                report
-                    .errors
-                    .push("screen dimensions must be non-zero".to_owned());
-            }
+        if let Some(size) = f.screen.value()
+            && (size.width == 0 || size.height == 0)
+        {
+            report
+                .errors
+                .push("screen dimensions must be non-zero".to_owned());
         }
 
         self.check_graphics(&mut report);
@@ -1133,12 +1133,12 @@ impl Fingerprint {
             .map(|(_, region)| region)
             .filter(|region| region.len() == 2);
         let country = randomize::locale_of_timezone(zone).map(|l| l.country);
-        if let (Some(region), Some(country)) = (region, country) {
-            if !region.eq_ignore_ascii_case(country) {
-                report.warnings.push(format!(
-                    "locale '{locale}' is not spoken in the country of time zone '{zone}' ({country})"
-                ));
-            }
+        if let (Some(region), Some(country)) = (region, country)
+            && !region.eq_ignore_ascii_case(country)
+        {
+            report.warnings.push(format!(
+                "locale '{locale}' is not spoken in the country of time zone '{zone}' ({country})"
+            ));
         }
     }
 
@@ -1896,10 +1896,10 @@ impl FingerprintBuilder {
             draw_random(&mut fields, browser_type_set)?;
         }
 
-        if fields.languages.is_natural() {
-            if let Some(locale) = fields.locale.as_str() {
-                fields.languages = Spoof::Value(languages_for_locale(locale));
-            }
+        if fields.languages.is_natural()
+            && let Some(locale) = fields.locale.as_str()
+        {
+            fields.languages = Spoof::Value(languages_for_locale(locale));
         }
         if fields.platform.is_natural() && fields.user_agent.is_value() {
             fields.platform = Spoof::Value(fields.os().platform().to_owned());

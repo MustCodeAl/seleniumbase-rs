@@ -28,13 +28,13 @@ impl Step {
     pub(crate) fn parse(line: &str) -> Option<Step> {
         let trimmed = line.trim();
         for keyword in STEP_KEYWORDS {
-            if let Some(rest) = trimmed.strip_prefix(keyword) {
-                if rest.is_empty() || rest.starts_with(char::is_whitespace) {
-                    return Some(Step {
-                        keyword: keyword.to_owned(),
-                        text: rest.trim().to_owned(),
-                    });
-                }
+            if let Some(rest) = trimmed.strip_prefix(keyword)
+                && (rest.is_empty() || rest.starts_with(char::is_whitespace))
+            {
+                return Some(Step {
+                    keyword: keyword.to_owned(),
+                    text: rest.trim().to_owned(),
+                });
             }
         }
         None

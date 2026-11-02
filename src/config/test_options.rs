@@ -278,13 +278,13 @@ fn read(
     env: &str,
     assign: impl FnOnce(&str, &str) -> Result<(), SeleniumBaseError>,
 ) {
-    if let Some(text) = var(env) {
-        if let Err(error) = assign(env, &text) {
-            problems.push(SettingsProblem {
-                source: env.to_owned(),
-                error,
-            });
-        }
+    if let Some(text) = var(env)
+        && let Err(error) = assign(env, &text)
+    {
+        problems.push(SettingsProblem {
+            source: env.to_owned(),
+            error,
+        });
     }
 }
 

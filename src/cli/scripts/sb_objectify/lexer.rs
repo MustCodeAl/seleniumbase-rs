@@ -273,12 +273,12 @@ fn pair_brackets(tokens: &[Token]) -> Vec<Option<usize>> {
                     b']' => b'[',
                     _ => b'{',
                 };
-                if let Some(&opener) = open.last() {
-                    if tokens[opener].kind == Kind::Punct(opening) {
-                        open.pop();
-                        partner[opener] = Some(index);
-                        partner[index] = Some(opener);
-                    }
+                if let Some(&opener) = open.last()
+                    && tokens[opener].kind == Kind::Punct(opening)
+                {
+                    open.pop();
+                    partner[opener] = Some(index);
+                    partner[index] = Some(opener);
                 }
             }
             _ => {}

@@ -157,15 +157,14 @@ fn rewrite_actions(json: &str, mut replace: impl FnMut(&str) -> Option<String>) 
                             let value_end = string_end(bytes, value_start);
                             if let Ok(action) =
                                 serde_json::from_str::<String>(&json[value_start..value_end])
+                                && let Some(new) = replace(&action)
                             {
-                                if let Some(new) = replace(&action) {
-                                    out.push_str(&json[copied_to..value_start]);
-                                    out.push_str(
-                                        &serde_json::to_string(&new)
-                                            .unwrap_or_else(|_| "\"\"".to_owned()),
-                                    );
-                                    copied_to = value_end;
-                                }
+                                out.push_str(&json[copied_to..value_start]);
+                                out.push_str(
+                                    &serde_json::to_string(&new)
+                                        .unwrap_or_else(|_| "\"\"".to_owned()),
+                                );
+                                copied_to = value_end;
                             }
                             i = value_end;
                             continue;

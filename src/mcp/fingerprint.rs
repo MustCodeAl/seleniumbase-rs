@@ -448,10 +448,9 @@ pub(super) fn redacted(fingerprint: &Fingerprint) -> Value {
     if let Some(password) = value
         .get_mut("proxy")
         .and_then(|proxy| proxy.get_mut("password"))
+        && !password.is_null()
     {
-        if !password.is_null() {
-            *password = json!("***");
-        }
+        *password = json!("***");
     }
     value
 }

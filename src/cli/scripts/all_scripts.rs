@@ -131,13 +131,14 @@ pub fn examples_from_metadata(
                 .and_then(|list| list.as_array())
                 .map(|list| list.iter().filter_map(|f| f.as_str()).collect())
                 .unwrap_or_default();
-            if is_example && needs.iter().all(|feature| on.contains(*feature)) {
-                if let Some(name) = target.get("name").and_then(|n| n.as_str()) {
-                    found.push(Example {
-                        name: name.to_owned(),
-                        dir: dir.to_path_buf(),
-                    });
-                }
+            if is_example
+                && needs.iter().all(|feature| on.contains(*feature))
+                && let Some(name) = target.get("name").and_then(|n| n.as_str())
+            {
+                found.push(Example {
+                    name: name.to_owned(),
+                    dir: dir.to_path_buf(),
+                });
             }
         }
     }

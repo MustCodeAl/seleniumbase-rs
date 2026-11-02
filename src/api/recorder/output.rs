@@ -357,12 +357,12 @@ fn add_test(existing: &str, prelude: &str, test: &str, name: &str) -> (String, b
         }
     }
     let header = format!("{TEST_START}#[tokio::test]\nasync fn {name}(");
-    if let Some(start) = text.find(&header) {
-        if let Some(length) = text[start..].find(TEST_END) {
-            let end = start + length + TEST_END.len();
-            text.replace_range(start..end, test);
-            return (text, false);
-        }
+    if let Some(start) = text.find(&header)
+        && let Some(length) = text[start..].find(TEST_END)
+    {
+        let end = start + length + TEST_END.len();
+        text.replace_range(start..end, test);
+        return (text, false);
     }
     if !text.ends_with('\n') {
         text.push('\n');
@@ -384,17 +384,18 @@ fn write_feature(
         std::fs::create_dir_all(parent)?;
     }
     let feature = recorder.to_gherkin_scenario(&target.feature, &target.scenario, uc);
-    if add && path.exists() {
-        if let Some(at) = feature.find("  Scenario:") {
-            let mut existing = std::fs::read_to_string(path)?;
-            if !existing.ends_with('\n') {
-                existing.push('\n');
-            }
+    if add
+        && path.exists()
+        && let Some(at) = feature.find("  Scenario:")
+    {
+        let mut existing = std::fs::read_to_string(path)?;
+        if !existing.ends_with('\n') {
             existing.push('\n');
-            existing.push_str(&feature[at..]);
-            std::fs::write(path, existing)?;
-            return Ok(true);
         }
+        existing.push('\n');
+        existing.push_str(&feature[at..]);
+        std::fs::write(path, existing)?;
+        return Ok(true);
     }
     std::fs::write(path, feature)?;
     Ok(false)

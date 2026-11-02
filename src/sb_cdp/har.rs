@@ -553,10 +553,10 @@ impl Recording {
                 return Some(Follow::Iframe(attached));
             }
             "Target.detachedFromTarget" => {
-                if let Some(iframe) = params["sessionId"].as_str() {
-                    if iframe != self.page_session {
-                        self.sessions.remove(iframe);
-                    }
+                if let Some(iframe) = params["sessionId"].as_str()
+                    && iframe != self.page_session
+                {
+                    self.sessions.remove(iframe);
                 }
             }
             _ => {}

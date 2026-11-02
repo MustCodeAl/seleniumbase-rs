@@ -449,17 +449,17 @@ impl Parser<'_> {
             }
             return Ok(StmtKind::Assign { targets, value });
         }
-        if let Some(Tok::Punct(op)) = self.tok() {
-            if AUG_ASSIGN.contains(op) {
-                let op = (*op).to_owned();
-                self.pos += 1;
-                let value = self.testlist()?;
-                return Ok(StmtKind::AugAssign {
-                    target: first,
-                    op,
-                    value,
-                });
-            }
+        if let Some(Tok::Punct(op)) = self.tok()
+            && AUG_ASSIGN.contains(op)
+        {
+            let op = (*op).to_owned();
+            self.pos += 1;
+            let value = self.testlist()?;
+            return Ok(StmtKind::AugAssign {
+                target: first,
+                op,
+                value,
+            });
         }
         if self.is_punct(":") {
             self.pos += 1;

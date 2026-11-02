@@ -449,10 +449,10 @@ pub(crate) async fn install_msedgedriver_from(
     edge_major: Option<u32>,
     proxy: Option<&str>,
 ) -> Result<PathBuf, SeleniumBaseError> {
-    if *version == DriverVersion::Keep {
-        if let Some(found) = downloaded_driver(root, "msedgedriver", &MSEDGEDRIVER_NAMES) {
-            return Ok(found);
-        }
+    if *version == DriverVersion::Keep
+        && let Some(found) = downloaded_driver(root, "msedgedriver", &MSEDGEDRIVER_NAMES)
+    {
+        return Ok(found);
     }
     let platform = edgedriver_platform(std::env::consts::OS, std::env::consts::ARCH)?;
     let known_major = match version {

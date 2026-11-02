@@ -500,10 +500,10 @@ fn close_all(entries: Vec<Entry>) {
             entry.address.server_url.trim_end_matches('/'),
             entry.address.session_id
         );
-        if let (Some(runtime), Some(client)) = (&runtime, &client) {
-            if let Err(error) = runtime.block_on(async { client.delete(&url).send().await }) {
-                debug!(%error, %url, "the WebDriver server did not answer the end of a reused session");
-            }
+        if let (Some(runtime), Some(client)) = (&runtime, &client)
+            && let Err(error) = runtime.block_on(async { client.delete(&url).send().await })
+        {
+            debug!(%error, %url, "the WebDriver server did not answer the end of a reused session");
         }
         if let Some(mut process) = entry.driver_process {
             process.kill();

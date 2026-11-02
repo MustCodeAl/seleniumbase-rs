@@ -540,14 +540,14 @@ fn parse_dimensions(s: &str) -> Option<(u32, u32, u32)> {
 
 fn parse_coordinates(s: &str) -> Option<(f64, f64, f64)> {
     let parts: Vec<&str> = s.split(',').collect();
-    if parts.len() >= 2 {
-        if let (Ok(latitude), Ok(longitude)) = (parts[0].trim().parse(), parts[1].trim().parse()) {
-            let altitude = parts
-                .get(2)
-                .and_then(|p| p.trim().parse().ok())
-                .unwrap_or(0.0);
-            return Some((latitude, longitude, altitude));
-        }
+    if parts.len() >= 2
+        && let (Ok(latitude), Ok(longitude)) = (parts[0].trim().parse(), parts[1].trim().parse())
+    {
+        let altitude = parts
+            .get(2)
+            .and_then(|p| p.trim().parse().ok())
+            .unwrap_or(0.0);
+        return Some((latitude, longitude, altitude));
     }
     None
 }

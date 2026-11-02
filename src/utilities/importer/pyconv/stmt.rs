@@ -235,12 +235,12 @@ impl Tr<'_> {
                 .find_map(|scope| scope.get(name))
                 .cloned()
         };
-        if let Some(var) = outer {
-            if var.ty == ty {
-                self.make_mutable(var.line_index);
-                self.emit(format!("{} = {code};", var.rust));
-                return;
-            }
+        if let Some(var) = outer
+            && var.ty == ty
+        {
+            self.make_mutable(var.line_index);
+            self.emit(format!("{} = {code};", var.rust));
+            return;
         }
         let rust = self.declare(name, ty);
         self.emit(format!("let {rust} = {code};"));
@@ -451,18 +451,18 @@ impl Tr<'_> {
                     return self.range_header(target, std::slice::from_ref(inner));
                 }
             }
-            if let (Expr::Name(function), true) = (&**func, args.len() == 2) {
-                if function == "range" {
-                    let items: Vec<&Expr> = args
-                        .iter()
-                        .filter_map(|arg| match arg {
-                            Arg::Pos(value) => Some(value),
-                            _ => None,
-                        })
-                        .collect();
-                    if items.len() == 2 {
-                        return self.range_header_of(target, &items);
-                    }
+            if let (Expr::Name(function), true) = (&**func, args.len() == 2)
+                && function == "range"
+            {
+                let items: Vec<&Expr> = args
+                    .iter()
+                    .filter_map(|arg| match arg {
+                        Arg::Pos(value) => Some(value),
+                        _ => None,
+                    })
+                    .collect();
+                if items.len() == 2 {
+                    return self.range_header_of(target, &items);
                 }
             }
         }
@@ -536,12 +536,11 @@ impl Tr<'_> {
         self.emit(".await;");
         // `}` and `.await;` are one statement: join them for readability.
         let last = self.out.len();
-        if last >= 2 {
-            if let Some((_, text)) = self.out.pop() {
-                if let Some((_, brace)) = self.out.last_mut() {
-                    brace.push_str(&text);
-                }
-            }
+        if last >= 2
+            && let Some((_, text)) = self.out.pop()
+            && let Some((_, brace)) = self.out.last_mut()
+        {
+            brace.push_str(&text);
         }
         if handlers.len() > 1 {
             let skip =
@@ -586,30 +585,30 @@ impl Tr<'_> {
     /// `with self.frame_switch(x):` as the call builder; other `with` blocks
     /// are kept without the context manager.
     fn with_stmt(&mut self, stmt: &Stmt, items: &[(Expr, Option<Expr>)], body: &[Stmt]) {
-        if let [(Expr::Call(func, args), None)] = items {
-            if self.receiver_method(func).as_deref() == Some("frame_switch") {
-                let params = [typed("frame", K::Frame), TIMEOUT];
-                let frame = bind(&params, args)
-                    .and_then(|bound| self.rust_arguments(&params, &bound))
-                    .map(|rust_args| rust_args.join(", "));
-                match frame {
-                    Ok(frame) => {
-                        self.flush_notes(stmt.line);
-                        self.emit(format!("sb.frame_switch({frame})"));
-                        self.depth += 1;
-                        self.emit(".run(async |sb| {");
-                        self.indented(|tr| {
-                            tr.stmts(body);
-                            tr.emit("Ok(())");
-                        });
-                        self.emit("})");
-                        self.emit(".await?;");
-                        self.depth -= 1;
-                    }
-                    Err(skip) => self.skip_stmt(stmt, &skip),
+        if let [(Expr::Call(func, args), None)] = items
+            && self.receiver_method(func).as_deref() == Some("frame_switch")
+        {
+            let params = [typed("frame", K::Frame), TIMEOUT];
+            let frame = bind(&params, args)
+                .and_then(|bound| self.rust_arguments(&params, &bound))
+                .map(|rust_args| rust_args.join(", "));
+            match frame {
+                Ok(frame) => {
+                    self.flush_notes(stmt.line);
+                    self.emit(format!("sb.frame_switch({frame})"));
+                    self.depth += 1;
+                    self.emit(".run(async |sb| {");
+                    self.indented(|tr| {
+                        tr.stmts(body);
+                        tr.emit("Ok(())");
+                    });
+                    self.emit("})");
+                    self.emit(".await?;");
+                    self.depth -= 1;
                 }
-                return;
+                Err(skip) => self.skip_stmt(stmt, &skip),
             }
+            return;
         }
         let skip = Skip::warn(
             "this `with` block is not translated: its body follows without the context manager",

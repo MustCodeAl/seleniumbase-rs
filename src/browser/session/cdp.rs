@@ -207,14 +207,12 @@ impl BrowserSession {
         if let Some(user_agent) = config.user_agent.as_deref() {
             uc::override_user_agent(cdp, user_agent, config.locale.as_deref()).await?;
         } else {
-            if let Ok(version_info) = cdp.execute("Browser.getVersion").await {
-                if let Some(ua) = version_info["userAgent"].as_str() {
-                    if ua.contains("HeadlessChrome") {
-                        let stealth_ua = ua.replace("HeadlessChrome", "Chrome");
-                        let _ = uc::override_user_agent(cdp, &stealth_ua, config.locale.as_deref())
-                            .await;
-                    }
-                }
+            if let Ok(version_info) = cdp.execute("Browser.getVersion").await
+                && let Some(ua) = version_info["userAgent"].as_str()
+                && ua.contains("HeadlessChrome")
+            {
+                let stealth_ua = ua.replace("HeadlessChrome", "Chrome");
+                let _ = uc::override_user_agent(cdp, &stealth_ua, config.locale.as_deref()).await;
             }
         }
         self.apply_fingerprint(config).await?;

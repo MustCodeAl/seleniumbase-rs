@@ -161,15 +161,15 @@ fn step_lines(step: &Expr, translator: &mut Translator<'_>) -> Result<Vec<String
         return Err("a step that is not an object is not converted".to_owned());
     };
     let kind = text_field(entries, "type")?;
-    if let Some(target) = field(entries, "target") {
-        if !matches!(target, Expr::Str(t) if t == "main") {
-            return Err("a step in another tab or window is not converted".to_owned());
-        }
+    if let Some(target) = field(entries, "target")
+        && !matches!(target, Expr::Str(t) if t == "main")
+    {
+        return Err("a step in another tab or window is not converted".to_owned());
     }
-    if let Some(Expr::Array(frame)) = field(entries, "frame") {
-        if !frame.is_empty() {
-            return Err("a step inside a frame is not converted".to_owned());
-        }
+    if let Some(Expr::Array(frame)) = field(entries, "frame")
+        && !frame.is_empty()
+    {
+        return Err("a step inside a frame is not converted".to_owned());
     }
     let locator = |translator: &mut Translator<'_>| -> Result<String, String> {
         let steps = choose_selector(entries)?;

@@ -627,10 +627,9 @@ fn confine(path: &str) -> Result<PathBuf, ToolError> {
     if let (Ok(real), Ok(here)) = (
         candidate.canonicalize(),
         std::env::current_dir().and_then(|dir| dir.canonicalize()),
-    ) {
-        if !real.starts_with(&here) {
-            return Err(refused());
-        }
+    ) && !real.starts_with(&here)
+    {
+        return Err(refused());
     }
     Ok(candidate.to_path_buf())
 }

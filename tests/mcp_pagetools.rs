@@ -161,18 +161,17 @@ fn conforms(schema: &Value, value: &Value, path: &str) -> Result<(), String> {
             return Err(format!("{path}: expected {kinds:?}, got {value}"));
         }
     }
-    if let Some(allowed) = schema.get("enum").and_then(Value::as_array) {
-        if !allowed.contains(value) {
-            return Err(format!("{path}: {value} is not one of {allowed:?}"));
-        }
+    if let Some(allowed) = schema.get("enum").and_then(Value::as_array)
+        && !allowed.contains(value)
+    {
+        return Err(format!("{path}: {value} is not one of {allowed:?}"));
     }
     if let (Some(minimum), Some(number)) = (
         schema.get("minimum").and_then(Value::as_f64),
         value.as_f64(),
-    ) {
-        if number < minimum {
-            return Err(format!("{path}: {number} is below {minimum}"));
-        }
+    ) && number < minimum
+    {
+        return Err(format!("{path}: {number} is below {minimum}"));
     }
     if let Some(object) = value.as_object() {
         for required in schema

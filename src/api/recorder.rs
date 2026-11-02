@@ -785,10 +785,10 @@ impl RecorderSession {
     /// Writes the recording to `path`. A `.rs` extension writes a Rust test named after the file, a `.yaml`/`.yml` extension selects YAML,
     /// anything else writes JSON.
     pub fn save(&self, path: &Path) -> Result<PathBuf, SeleniumBaseError> {
-        if let Some(parent) = path.parent() {
-            if !parent.as_os_str().is_empty() {
-                std::fs::create_dir_all(parent)?;
-            }
+        if let Some(parent) = path.parent()
+            && !parent.as_os_str().is_empty()
+        {
+            std::fs::create_dir_all(parent)?;
         }
         let data = if is_yaml_path(path) {
             self.to_yaml()

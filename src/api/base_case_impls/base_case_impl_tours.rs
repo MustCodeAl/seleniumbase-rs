@@ -385,8 +385,8 @@ impl BaseCase {
                 return Ok(());
             };
             if state.active {
-                if let Some(clock) = clock.as_mut() {
-                    if clock.observe(&state.key) {
+                if let Some(clock) = clock.as_mut()
+                    && clock.observe(&state.key) {
                         if self.execute_script(library.advance_script()).await.is_err() {
                             return Ok(());
                         }
@@ -395,7 +395,6 @@ impl BaseCase {
                             None => return Ok(()),
                         }
                     }
-                }
                 continue;
             }
             // A tour that looks over may be between two steps: ask again.

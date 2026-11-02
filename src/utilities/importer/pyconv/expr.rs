@@ -137,10 +137,10 @@ pub(super) fn format_pieces(pieces: Vec<Piece>) -> Val {
 /// The name a hoisted value gets: the method without `is_`, `get_` or `has_`.
 fn hint_for(method: &str) -> &str {
     for prefix in ["is_", "get_", "has_"] {
-        if let Some(rest) = method.strip_prefix(prefix) {
-            if !rest.is_empty() {
-                return rest;
-            }
+        if let Some(rest) = method.strip_prefix(prefix)
+            && !rest.is_empty()
+        {
+            return rest;
         }
     }
     method
@@ -327,10 +327,10 @@ impl Tr<'_> {
     }
 
     fn attribute(&mut self, base: &Expr, attr: &str) -> TResult<Val> {
-        if let Expr::Name(name) = base {
-            if self.receivers.contains(name) {
-                return Err(Skip::warn(format!("`{name}.{attr}` has no Rust equal")));
-            }
+        if let Expr::Name(name) = base
+            && self.receivers.contains(name)
+        {
+            return Err(Skip::warn(format!("`{name}.{attr}` has no Rust equal")));
         }
         if matches!(base, Expr::Name(name) if self.var(name).is_none()) {
             return Err(Skip::warn(format!(
@@ -715,13 +715,13 @@ impl Tr<'_> {
         }
         if let [single] = items {
             let value = self.expr(single)?;
-            if let Ty::List(element) = &value.ty {
-                if element.is_text() {
-                    return Ok(format!(
-                        "&{}.iter().map(String::as_str).collect::<Vec<_>>()",
-                        value.operand()
-                    ));
-                }
+            if let Ty::List(element) = &value.ty
+                && element.is_text()
+            {
+                return Ok(format!(
+                    "&{}.iter().map(String::as_str).collect::<Vec<_>>()",
+                    value.operand()
+                ));
             }
             return Ok(format!("&[{}]", Self::str_code(&value, single)?));
         }

@@ -146,11 +146,10 @@ impl<T> DriverTable<T> {
     fn take_all_parked(&mut self) -> Vec<T> {
         let mut sessions = Vec::new();
         for slot in &mut self.slots {
-            if matches!(slot, DriverSlot::Parked(_)) {
-                if let DriverSlot::Parked(session) = std::mem::replace(slot, DriverSlot::Quit) {
+            if matches!(slot, DriverSlot::Parked(_))
+                && let DriverSlot::Parked(session) = std::mem::replace(slot, DriverSlot::Quit) {
                     sessions.push(session);
                 }
-            }
         }
         sessions
     }

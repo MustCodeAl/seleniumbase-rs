@@ -109,12 +109,11 @@ pub(crate) fn route<'t>(root: &'t Command<'t>, argv: &[&OsStr]) -> Vec<&'t Comma
 
 /// The page of the deepest command in `route`, or the compact root page for the root.
 fn page(route: &[&Command<'_>]) -> String {
-    if route.len() > 1 {
-        if let Some(page) =
+    if route.len() > 1
+        && let Some(page) =
             usage::help::render_at_styled(Cli::spec(), route, false, Style::auto_stderr())
-        {
-            return without_global_flags(&page);
-        }
+    {
+        return without_global_flags(&page);
     }
     root_page(Cli::spec(), terminal_width())
 }
@@ -551,10 +550,8 @@ mod tests {
             let plain = strip_ansi(line);
             if !plain.is_empty() && !plain.starts_with(' ') {
                 in_examples = plain.trim_end() == "Examples:";
-            } else if in_examples {
-                if let Some(example) = plain.trim().strip_prefix("$ ") {
-                    found.push(example.to_owned());
-                }
+            } else if in_examples && let Some(example) = plain.trim().strip_prefix("$ ") {
+                found.push(example.to_owned());
             }
         }
         found

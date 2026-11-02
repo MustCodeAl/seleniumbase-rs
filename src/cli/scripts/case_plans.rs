@@ -101,11 +101,9 @@ pub fn test_functions(source: &str) -> Vec<String> {
                 pending = true;
             }
             // `#[test] fn x() {}` on one line.
-            if pending {
-                if let Some(name) = function_name(rest.trim()) {
-                    names.push(name);
-                    pending = false;
-                }
+            if pending && let Some(name) = function_name(rest.trim()) {
+                names.push(name);
+                pending = false;
             }
             continue;
         }

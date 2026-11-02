@@ -74,16 +74,15 @@ pub fn check<'v>(
                 let Some(flag_meta) = flag_meta(meta, flag) else {
                     // A flag of an ancestor, written after the subcommand (a `global` one): the root says
                     // `args_override_self = false`, so it is a repeat of the same flag given before.
-                    if strict {
-                        if let Some(own) = ancestors
+                    if strict
+                        && let Some(own) = ancestors
                             .iter()
                             .find_map(|ancestor| flag_meta(ancestor, flag))
-                        {
-                            if !repeats(own) && inherited.contains(&flag.key) {
-                                return Err(Error::DuplicateFlag { name: flag.name });
-                            }
-                            inherited.push(flag.key);
+                    {
+                        if !repeats(own) && inherited.contains(&flag.key) {
+                            return Err(Error::DuplicateFlag { name: flag.name });
                         }
+                        inherited.push(flag.key);
                     }
                     continue;
                 };

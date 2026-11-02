@@ -430,13 +430,13 @@ fn js_script(stmts: &[Stmt], out: &mut Structure) {
         }
     }
     for stmt in stmts {
-        if let StmtKind::FuncDef { name, .. } = &stmt.kind {
-            if !used.contains(name.as_str()) {
-                out.todos.push((
-                    stmt.clone(),
-                    format!("the helper function `{name}` is not converted"),
-                ));
-            }
+        if let StmtKind::FuncDef { name, .. } = &stmt.kind
+            && !used.contains(name.as_str())
+        {
+            out.todos.push((
+                stmt.clone(),
+                format!("the helper function `{name}` is not converted"),
+            ));
         }
     }
     let meaningful = body

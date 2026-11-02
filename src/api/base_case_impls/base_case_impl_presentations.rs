@@ -171,11 +171,10 @@ impl BaseCase {
             if !url.contains(&folder) {
                 return;
             }
-            if let Some(selector) = end_selector {
-                if self.is_element_visible(selector).await.unwrap_or(false) {
+            if let Some(selector) = end_selector
+                && self.is_element_visible(selector).await.unwrap_or(false) {
                     return;
                 }
-            }
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
     }

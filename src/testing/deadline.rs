@@ -103,10 +103,10 @@ impl Deadline {
         {
             let mut state = self.lock();
             state.suspended = state.suspended.saturating_sub(1);
-            if state.suspended == 0 {
-                if let Some(since) = state.suspended_since.take() {
-                    state.banked += Instant::now().saturating_duration_since(since);
-                }
+            if state.suspended == 0
+                && let Some(since) = state.suspended_since.take()
+            {
+                state.banked += Instant::now().saturating_duration_since(since);
             }
         }
         self.changed.notify_waiters();

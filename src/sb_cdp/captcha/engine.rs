@@ -360,13 +360,13 @@ async fn verify<S: Surface>(
                 return Ok(Verdict::Cleared(Evidence::Marker));
             }
         }
-        if let Some(name) = kind.clearance_cookie() {
-            if let Ok(cookies) = surface.cookie_names().await {
-                let arrived = cookies.iter().any(|cookie| cookie == name)
-                    && !baseline.cookies.iter().any(|cookie| cookie == name);
-                if arrived {
-                    return Ok(Verdict::Cleared(Evidence::Cookie));
-                }
+        if let Some(name) = kind.clearance_cookie()
+            && let Ok(cookies) = surface.cookie_names().await
+        {
+            let arrived = cookies.iter().any(|cookie| cookie == name)
+                && !baseline.cookies.iter().any(|cookie| cookie == name);
+            if arrived {
+                return Ok(Verdict::Cleared(Evidence::Cookie));
             }
         }
 
@@ -438,10 +438,10 @@ pub(crate) async fn solve<S: Surface>(
 
         // The widget may already be clear: it solved itself, or an earlier
         // press landed late. Pressing a cleared widget can reset it.
-        if let Ok(Some(now)) = check(surface, kind).await {
-            if now.filled {
-                return Ok(Some(solved(attempts, Some(Evidence::Token))));
-            }
+        if let Ok(Some(now)) = check(surface, kind).await
+            && now.filled
+        {
+            return Ok(Some(solved(attempts, Some(Evidence::Token))));
         }
 
         let Some(area) = settle(surface, kind, options).await? else {

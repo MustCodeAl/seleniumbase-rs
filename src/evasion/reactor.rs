@@ -56,12 +56,11 @@ impl CdpReactor {
                     )
                 })?
                 .map_err(|e| SeleniumBaseError::cdp_driver(format!("recv failed: {e}")))?;
-            if let Message::Text(text) = msg {
-                if let Ok(value) = serde_json::from_str::<Value>(&text) {
-                    if value.get("id").and_then(|v| v.as_u64()) == Some(1) {
-                        break;
-                    }
-                }
+            if let Message::Text(text) = msg
+                && let Ok(value) = serde_json::from_str::<Value>(&text)
+                && value.get("id").and_then(|v| v.as_u64()) == Some(1)
+            {
+                break;
             }
         }
 

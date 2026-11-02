@@ -1224,12 +1224,12 @@ impl Parser<'_> {
             }
             return Ok(StmtKind::Ignored);
         }
-        if let Some(Tok::Punct(op)) = self.tok() {
-            if COMPOUND_ASSIGN.contains(op) {
-                let op = *op;
-                self.skip_py_line();
-                return Ok(StmtKind::Unsupported(format!("a `{op}` assignment")));
-            }
+        if let Some(Tok::Punct(op)) = self.tok()
+            && COMPOUND_ASSIGN.contains(op)
+        {
+            let op = *op;
+            self.skip_py_line();
+            return Ok(StmtKind::Unsupported(format!("a `{op}` assignment")));
         }
         Ok(StmtKind::Expr(expr))
     }

@@ -218,10 +218,8 @@ pub fn apply(path: &Path, ops: &[Op<'_>], dry_run: bool) -> Result<Applied, Prob
     let mut separate = !doc.to_string().trim().is_empty();
     for entry in &write {
         let mut item = item_of(&entry.spec);
-        if separate {
-            if let Some(table) = item.as_table_mut() {
-                table.decor_mut().set_prefix("\n");
-            }
+        if separate && let Some(table) = item.as_table_mut() {
+            table.decor_mut().set_prefix("\n");
         }
         separate = true;
         servers_mut(&mut doc)?.insert(&entry.name, item);

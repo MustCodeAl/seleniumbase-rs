@@ -44,16 +44,14 @@ impl BaseCase {
                 }
             }
         }
-        if let Ok(by) = Selector::auto(locator).to_by() {
-            if let Ok(found) = driver.find(by).await {
-                if invisible || found.is_displayed().await.unwrap_or(false) {
+        if let Ok(by) = Selector::auto(locator).to_by()
+            && let Ok(found) = driver.find(by).await
+                && (invisible || found.is_displayed().await.unwrap_or(false)) {
                     match found.enter_frame().await {
                         Ok(()) => return Ok(true),
                         Err(error) => refusal = Some(error),
                     }
                 }
-            }
-        }
         refusal.map_or(Ok(false), |error| Err(SeleniumBaseError::WebDriver(error)))
     }
 

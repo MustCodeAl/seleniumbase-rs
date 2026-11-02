@@ -390,10 +390,10 @@ async fn fetch(request: &InstallRequest) -> Result<Installed, SeleniumBaseError>
             } else {
                 Browser::ChromeHeadlessShell
             };
-            if version == DriverVersion::Keep {
-                if let Some(path) = locate(browser) {
-                    return Ok(plain(path, "cft"));
-                }
+            if version == DriverVersion::Keep
+                && let Some(path) = locate(browser)
+            {
+                return Ok(plain(path, "cft"));
             }
             let chrome = major_of(find_system_chrome()).await;
             needs_browser(text, chrome)?;
@@ -407,17 +407,17 @@ async fn fetch(request: &InstallRequest) -> Result<Installed, SeleniumBaseError>
         }
         DriverName::Chromium => {
             let keep = chromium_keeps(text)?;
-            if keep && request.revision.is_none() {
-                if let Some(path) =
+            if keep
+                && request.revision.is_none()
+                && let Some(path) =
                     downloaded_executable(Browser::Chromium, &root.join(CHROMIUM_DIR))
-                {
-                    return Ok(Installed {
-                        path,
-                        version: installed_revision(root).map(|revision| format!("r{revision}")),
-                        driver: None,
-                        copied_to: None,
-                    });
-                }
+            {
+                return Ok(Installed {
+                    path,
+                    version: installed_revision(root).map(|revision| format!("r{revision}")),
+                    driver: None,
+                    copied_to: None,
+                });
             }
             let snapshot = install_chromium_with_driver(request.revision, None).await?;
             Ok(Installed {

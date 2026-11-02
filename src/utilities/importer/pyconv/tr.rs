@@ -247,12 +247,11 @@ impl<'a> Tr<'a> {
 
     /// Makes the `let` of a variable `let mut`.
     pub(super) fn make_mutable(&mut self, line_index: usize) {
-        if let Some((_, text)) = self.out.get_mut(line_index) {
-            if let Some(rest) = text.strip_prefix("let ") {
-                if !rest.starts_with("mut ") {
-                    *text = format!("let mut {rest}");
-                }
-            }
+        if let Some((_, text)) = self.out.get_mut(line_index)
+            && let Some(rest) = text.strip_prefix("let ")
+            && !rest.starts_with("mut ")
+        {
+            *text = format!("let mut {rest}");
         }
     }
 

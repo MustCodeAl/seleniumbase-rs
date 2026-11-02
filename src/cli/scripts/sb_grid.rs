@@ -298,13 +298,13 @@ async fn fetch_jar(
         bytes.extend_from_slice(&chunk);
     }
     let sha256 = sha256_hex(&bytes);
-    if let Some(hash) = expected {
-        if sha256 != hash {
-            return Err(SeleniumBaseError::invalid_config(format!(
-                "the download from {url} has SHA-256 {sha256}, not the pinned {hash}; \
+    if let Some(hash) = expected
+        && sha256 != hash
+    {
+        return Err(SeleniumBaseError::invalid_config(format!(
+            "the download from {url} has SHA-256 {sha256}, not the pinned {hash}; \
                  it was not saved"
-            )));
-        }
+        )));
     }
     let path = dest.to_path_buf();
     let target = path.clone();

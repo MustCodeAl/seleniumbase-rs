@@ -179,10 +179,11 @@ mod tests {
         let mut available = false;
         let mut rust: Option<String> = None;
         let mut settle = |in_basecase: bool, available: bool, rust: &mut Option<String>| {
-            if let Some(item) = rust.take() {
-                if in_basecase && available {
-                    items.push(item);
-                }
+            if let Some(item) = rust.take()
+                && in_basecase
+                && available
+            {
+                items.push(item);
             }
         };
         for line in PARITY.lines() {

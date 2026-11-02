@@ -101,10 +101,10 @@ async fn finish(args: &FinishArgs) -> Result<(), Box<dyn std::error::Error>> {
     } else {
         closing.print();
     }
-    if args.show_report {
-        if let Some(page) = &closing.page {
-            test_session::show_report(page).await?;
-        }
+    if args.show_report
+        && let Some(page) = &closing.page
+    {
+        test_session::show_report(page).await?;
     }
     if closing.report_missing {
         std::process::exit(1);

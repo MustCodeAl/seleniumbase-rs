@@ -98,10 +98,10 @@ fn http_get(port: u16, path: &str) -> std::io::Result<String> {
         if line.is_empty() {
             break;
         }
-        if let Some((name, value)) = line.split_once(':') {
-            if name.eq_ignore_ascii_case("content-length") {
-                length = value.trim().parse().unwrap_or(0);
-            }
+        if let Some((name, value)) = line.split_once(':')
+            && name.eq_ignore_ascii_case("content-length")
+        {
+            length = value.trim().parse().unwrap_or(0);
         }
     }
     let mut body = vec![0_u8; length];

@@ -52,13 +52,13 @@ fn unquoted(url: &str) -> String {
     let mut index = 0;
     while index < bytes.len() {
         let hex = |at: usize| bytes.get(at).and_then(|byte| (*byte as char).to_digit(16));
-        if bytes[index] == b'%' {
-            if let (Some(high), Some(low)) = (hex(index + 1), hex(index + 2)) {
-                // Two hex digits make a value below 256.
-                out.push((high * 16 + low) as u8);
-                index += 3;
-                continue;
-            }
+        if bytes[index] == b'%'
+            && let (Some(high), Some(low)) = (hex(index + 1), hex(index + 2))
+        {
+            // Two hex digits make a value below 256.
+            out.push((high * 16 + low) as u8);
+            index += 3;
+            continue;
         }
         out.push(bytes[index]);
         index += 1;

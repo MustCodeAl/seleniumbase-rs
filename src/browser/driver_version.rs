@@ -148,10 +148,10 @@ pub async fn version_flag_major(binary: &Path, timeout: Duration) -> std::io::Re
 /// Otherwise `binary --version` is run, and `None` comes back when it does not
 /// start, takes longer than ten seconds, or prints no version.
 pub async fn binary_major(binary: &Path) -> Option<u32> {
-    if cfg!(windows) {
-        if let Some(major) = windows_product_major(binary).await {
-            return Some(major);
-        }
+    if cfg!(windows)
+        && let Some(major) = windows_product_major(binary).await
+    {
+        return Some(major);
     }
     if let Some(major) = major_from_install_dir(binary) {
         return Some(major);

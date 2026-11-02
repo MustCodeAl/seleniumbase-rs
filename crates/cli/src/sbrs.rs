@@ -2071,10 +2071,10 @@ async fn solve_captcha_and_expect(
 
 /// Writes `bytes` to `path`, creating the folder it names first.
 fn write_creating_parent(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-    if let Some(parent) = path.parent() {
-        if !parent.as_os_str().is_empty() {
-            std::fs::create_dir_all(parent)?;
-        }
+    if let Some(parent) = path.parent()
+        && !parent.as_os_str().is_empty()
+    {
+        std::fs::create_dir_all(parent)?;
     }
     std::fs::write(path, bytes)
 }
@@ -2363,10 +2363,10 @@ impl Commands {
 async fn http_download(url: &str, dest: &Path) -> Result<u64, Box<dyn std::error::Error>> {
     seleniumbase_rs::install_tls_provider();
     let bytes = reqwest::get(url).await?.error_for_status()?.bytes().await?;
-    if let Some(parent) = dest.parent() {
-        if !parent.as_os_str().is_empty() {
-            std::fs::create_dir_all(parent)?;
-        }
+    if let Some(parent) = dest.parent()
+        && !parent.as_os_str().is_empty()
+    {
+        std::fs::create_dir_all(parent)?;
     }
     std::fs::write(dest, &bytes)?;
     Ok(bytes.len() as u64)
@@ -2397,10 +2397,10 @@ async fn resolve_pdf(
             (Some(dir), path)
         }
     };
-    if let Some(parent) = path.parent() {
-        if !parent.as_os_str().is_empty() {
-            std::fs::create_dir_all(parent)?;
-        }
+    if let Some(parent) = path.parent()
+        && !parent.as_os_str().is_empty()
+    {
+        std::fs::create_dir_all(parent)?;
     }
     let target = path.to_str().ok_or("PDF output path is not valid UTF-8")?;
 
@@ -2863,10 +2863,10 @@ fn run_command() -> std::process::ExitCode {
 /// `sbrs test --settings-file FILE` is `sbrs -c FILE test`: the one setting names the file the
 /// command and the tests it starts read.
 fn with_settings_file(mut cli: Cli) -> Cli {
-    if cli.config.is_none() {
-        if let Commands::Test(test) = &cli.command {
-            cli.config = test.settings_file();
-        }
+    if cli.config.is_none()
+        && let Commands::Test(test) = &cli.command
+    {
+        cli.config = test.settings_file();
     }
     cli
 }
@@ -4315,10 +4315,10 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             {
                 Ok(path) => {
                     if path != dest {
-                        if let Some(parent) = dest.parent() {
-                            if !parent.as_os_str().is_empty() {
-                                std::fs::create_dir_all(parent)?;
-                            }
+                        if let Some(parent) = dest.parent()
+                            && !parent.as_os_str().is_empty()
+                        {
+                            std::fs::create_dir_all(parent)?;
                         }
                         std::fs::copy(&path, &dest)?;
                     }
@@ -4339,10 +4339,10 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Commands::PrintPdf { url, output } => {
             let mut sb = BaseCase::new(config).await?;
             sb.open(&navigable_url(&url)?).await?;
-            if let Some(parent) = Path::new(&output).parent() {
-                if !parent.as_os_str().is_empty() {
-                    std::fs::create_dir_all(parent)?;
-                }
+            if let Some(parent) = Path::new(&output).parent()
+                && !parent.as_os_str().is_empty()
+            {
+                std::fs::create_dir_all(parent)?;
             }
             sb.print_to_pdf(&output).await?;
             after.finish(&mut sb).await?;

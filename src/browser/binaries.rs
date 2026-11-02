@@ -244,10 +244,10 @@ pub(crate) fn locate_with(
     };
     // A Chromium that `sbrs get chromium` downloaded is the one asked for, so it comes before
     // the system's.
-    if browser == Browser::Chromium {
-        if let Some(found) = downloaded_executable(browser, &downloads.join(CHROMIUM_DIR)) {
-            return Some(found);
-        }
+    if browser == Browser::Chromium
+        && let Some(found) = downloaded_executable(browser, &downloads.join(CHROMIUM_DIR))
+    {
+        return Some(found);
     }
 
     if let Some(subfolder) = subfolder {

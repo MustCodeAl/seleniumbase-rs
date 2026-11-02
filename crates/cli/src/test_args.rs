@@ -711,12 +711,12 @@ impl Plan {
         let mut code = status
             .as_ref()
             .map_or(1, |status| status.code().unwrap_or(1));
-        if status.is_ok() {
-            if let Some(all) = &self.all_scripts {
-                let failed = Self::run_examples(all, &dirs)?;
-                if failed && code == 0 {
-                    code = 1;
-                }
+        if status.is_ok()
+            && let Some(all) = &self.all_scripts
+        {
+            let failed = Self::run_examples(all, &dirs)?;
+            if failed && code == 0 {
+                code = 1;
             }
         }
         if let Some(session) = session {
@@ -729,10 +729,10 @@ impl Plan {
                 .report
                 .as_ref()
                 .is_some_and(|report| report.show_report);
-            if let (true, Some(page)) = (show, &closing.page) {
-                if let Err(error) = test_session::show_report(page).await {
-                    eprintln!("warning: --show-report: {error}");
-                }
+            if let (true, Some(page)) = (show, &closing.page)
+                && let Err(error) = test_session::show_report(page).await
+            {
+                eprintln!("warning: --show-report: {error}");
             }
         }
         status?;
@@ -749,12 +749,11 @@ impl Plan {
             let is_run_root = run_root
                 .as_deref()
                 .is_some_and(|root| std::fs::canonicalize(dir).is_ok_and(|dir| dir == root));
-            if !is_run_root {
-                if let run_logs::Reset::Archived(to) =
+            if !is_run_root
+                && let run_logs::Reset::Archived(to) =
                     run_logs::reset_logs(dir, self.archive_logs, stamp)?
-                {
-                    eprintln!("Archived the logs of {} in {}", dir.display(), to.display());
-                }
+            {
+                eprintln!("Archived the logs of {} in {}", dir.display(), to.display());
             }
             if let run_logs::Reset::Archived(to) =
                 run_logs::reset_downloads(dir, self.archive_downloads, stamp)?

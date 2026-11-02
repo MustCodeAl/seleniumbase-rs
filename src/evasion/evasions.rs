@@ -472,19 +472,20 @@ pub(crate) fn raw_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Val
         );
     }
 
-    if let Some(proxy) = fp.proxy().value() {
-        if proxy.username.is_some() && proxy.password.is_some() {
-            let creds = format!(
-                "{}:{}",
-                proxy.username.as_deref().unwrap_or_default(),
-                proxy.password.as_deref().unwrap_or_default()
-            );
-            let encoded = base64::engine::general_purpose::STANDARD.encode(creds);
-            map.insert(
-                "Network.setExtraHTTPHeaders".to_owned(),
-                serde_json::json!({ "headers": { "Proxy-Authorization": format!("Basic {encoded}") } }),
-            );
-        }
+    if let Some(proxy) = fp.proxy().value()
+        && proxy.username.is_some()
+        && proxy.password.is_some()
+    {
+        let creds = format!(
+            "{}:{}",
+            proxy.username.as_deref().unwrap_or_default(),
+            proxy.password.as_deref().unwrap_or_default()
+        );
+        let encoded = base64::engine::general_purpose::STANDARD.encode(creds);
+        map.insert(
+            "Network.setExtraHTTPHeaders".to_owned(),
+            serde_json::json!({ "headers": { "Proxy-Authorization": format!("Basic {encoded}") } }),
+        );
     }
 
     map

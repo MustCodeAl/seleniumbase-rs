@@ -260,10 +260,10 @@ impl Client {
     /// the client (not the home folder and not the shared config folder), or its
     /// program (`claude`, `codex`, `grok` or `code`) is on `PATH`.
     pub fn detected(self, env: &Env) -> bool {
-        if let Some(path) = self.user_path(env) {
-            if path.exists() || config_folder_exists(env, &path) {
-                return true;
-            }
+        if let Some(path) = self.user_path(env)
+            && (path.exists() || config_folder_exists(env, &path))
+        {
+            return true;
         }
         self.program()
             .is_some_and(|program| env.find_program(program).is_some())

@@ -406,10 +406,10 @@ fn word(bytes: &[u8], text: &str, at: usize) -> (Option<Kind>, usize) {
         end += 1;
     }
     let name = text.get(at..end).unwrap_or("");
-    if matches!(name, "r" | "br") {
-        if let Some(raw_end) = raw_string_end(bytes, end) {
-            return (Some(Kind::Str), raw_end);
-        }
+    if matches!(name, "r" | "br")
+        && let Some(raw_end) = raw_string_end(bytes, end)
+    {
+        return (Some(Kind::Str), raw_end);
     }
     if bytes.get(end) == Some(&b'!') && matches!(bytes.get(end + 1), Some(b'(' | b'[' | b'{')) {
         return (Some(Kind::Macro), end + 1);
@@ -669,20 +669,20 @@ pub(super) fn view_for(
         .unwrap_or_else(|| spot + 2 * WINDOW)
         .min(total);
     let mut marks: Vec<Mark> = Vec::new();
-    if kind == PromptKind::PostMortem {
-        if let Some(failure) = failure {
-            marks = (spot..=end)
-                .filter(|&number| {
-                    source
-                        .line(number)
-                        .is_some_and(|text| failure.needles().any(|needle| text.contains(needle)))
-                })
-                .map(|line| Mark {
-                    line,
-                    kind: MarkKind::Failing,
-                })
-                .collect();
-        }
+    if kind == PromptKind::PostMortem
+        && let Some(failure) = failure
+    {
+        marks = (spot..=end)
+            .filter(|&number| {
+                source
+                    .line(number)
+                    .is_some_and(|text| failure.needles().any(|needle| text.contains(needle)))
+            })
+            .map(|line| Mark {
+                line,
+                kind: MarkKind::Failing,
+            })
+            .collect();
     }
     if marks.is_empty() {
         marks.push(Mark {

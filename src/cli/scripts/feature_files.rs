@@ -353,22 +353,22 @@ fn parse_libtest(output: &str) -> TestReport {
     let mut report = TestReport::default();
     let mut section: Option<String> = None;
     for line in output.lines() {
-        if let Some(rest) = line.strip_prefix("test ") {
-            if let Some((name, result)) = rest.split_once(" ... ") {
-                let end = if result.starts_with("ok") {
-                    Some(TestEnd::Ok)
-                } else if result.starts_with("FAILED") {
-                    Some(TestEnd::Failed)
-                } else if result.starts_with("ignored") {
-                    Some(TestEnd::Ignored)
-                } else {
-                    None
-                };
-                if let Some(end) = end {
-                    report.tests.push((name.trim().to_owned(), end));
-                }
-                continue;
+        if let Some(rest) = line.strip_prefix("test ")
+            && let Some((name, result)) = rest.split_once(" ... ")
+        {
+            let end = if result.starts_with("ok") {
+                Some(TestEnd::Ok)
+            } else if result.starts_with("FAILED") {
+                Some(TestEnd::Failed)
+            } else if result.starts_with("ignored") {
+                Some(TestEnd::Ignored)
+            } else {
+                None
+            };
+            if let Some(end) = end {
+                report.tests.push((name.trim().to_owned(), end));
             }
+            continue;
         }
         if let Some(name) = line
             .strip_prefix("---- ")

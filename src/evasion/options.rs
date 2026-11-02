@@ -289,17 +289,14 @@ impl StealthOptions {
         // only `mobile` is on. The undetected mode would show the capability, so
         // it is sent the same phone over DevTools instead
         // (`BrowserSession::apply_mobile_emulation`).
-        if !self.uc {
-            if let Some((metrics, user_agent)) = emulated_phone(
+        if !self.uc
+            && let Some((metrics, user_agent)) = emulated_phone(
                 self.mobile,
                 launch.device_metrics,
                 self.user_agent.as_deref(),
-            ) {
-                caps.add_experimental_option(
-                    "mobileEmulation",
-                    metrics.mobile_emulation(user_agent),
-                )?;
-            }
+            )
+        {
+            caps.add_experimental_option("mobileEmulation", metrics.mobile_emulation(user_agent))?;
         }
 
         // Chrome Sync is off unless it was asked for. The undetected-mode

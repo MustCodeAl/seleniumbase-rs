@@ -440,10 +440,10 @@ fn read_events(dir: &Path) -> Result<Vec<Line>> {
         if line.trim().is_empty() {
             continue;
         }
-        if let Ok(Version { v }) = serde_json::from_str(line) {
-            if v > FORMAT_VERSION {
-                return Err(too_new(&path, v));
-            }
+        if let Ok(Version { v }) = serde_json::from_str(line)
+            && v > FORMAT_VERSION
+        {
+            return Err(too_new(&path, v));
         }
         match serde_json::from_str::<Line>(line) {
             Ok(event) => events.push(event),
@@ -1238,12 +1238,12 @@ impl TestRecorder {
         let mut details = FailureDetails::from_error(error);
         details.url.clone_from(&url);
         details.title = title;
-        if !settings.no_screenshot {
-            if let Some(png) = within(page.screenshot_png()).await {
-                match log_screenshot(&self.log_dir, &png) {
-                    Ok(_) => details.screenshot = Some(self.relative(SCREENSHOT_FILE)),
-                    Err(error) => tracing::warn!(%error, "the screenshot was not written"),
-                }
+        if !settings.no_screenshot
+            && let Some(png) = within(page.screenshot_png()).await
+        {
+            match log_screenshot(&self.log_dir, &png) {
+                Ok(_) => details.screenshot = Some(self.relative(SCREENSHOT_FILE)),
+                Err(error) => tracing::warn!(%error, "the screenshot was not written"),
             }
         }
         if let Some(source) = within(page.page_source()).await {
@@ -1253,10 +1253,10 @@ impl TestRecorder {
             }
         }
         self.write_info(error, &details);
-        if settings.list_fail_pages {
-            if let Some(url) = &url {
-                (self.run.console)(&format!("\n=> Fail Page: {url}\n"));
-            }
+        if settings.list_fail_pages
+            && let Some(url) = &url
+        {
+            (self.run.console)(&format!("\n=> Fail Page: {url}\n"));
         }
         self.failure = Some(details);
     }
@@ -1294,10 +1294,10 @@ impl TestRecorder {
         if !settings.save_screenshot || settings.no_screenshot {
             return;
         }
-        if let Some(png) = within(page.screenshot_png()).await {
-            if let Err(error) = log_screenshot(&self.log_dir, &png) {
-                tracing::warn!(%error, "the screenshot was not written");
-            }
+        if let Some(png) = within(page.screenshot_png()).await
+            && let Err(error) = log_screenshot(&self.log_dir, &png)
+        {
+            tracing::warn!(%error, "the screenshot was not written");
         }
     }
 

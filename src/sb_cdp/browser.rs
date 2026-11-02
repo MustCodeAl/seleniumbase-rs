@@ -1012,18 +1012,18 @@ impl Browser {
             self.ensure_proxy_auth();
         }
         let page = Page::new(self.clone(), id.into(), session, DEFAULT_TIMEOUT);
-        if let Some(url) = url {
-            if let Err(error) = page.goto(url).await {
-                if matches!(error, SeleniumBaseError::Plugin { .. }) {
-                    // A tab a plugin stopped on its way to its first page is
-                    // neither handed out nor left open.
-                    let _ = self
-                        .execute("Target.closeTarget", json!({ "targetId": id }))
-                        .await;
-                    self.forget_page(id);
-                }
-                return Err(error);
+        if let Some(url) = url
+            && let Err(error) = page.goto(url).await
+        {
+            if matches!(error, SeleniumBaseError::Plugin { .. }) {
+                // A tab a plugin stopped on its way to its first page is
+                // neither handed out nor left open.
+                let _ = self
+                    .execute("Target.closeTarget", json!({ "targetId": id }))
+                    .await;
+                self.forget_page(id);
             }
+            return Err(error);
         }
         Ok(page)
     }
@@ -1477,15 +1477,13 @@ impl Browser {
             && info["targetId"]
                 .as_str()
                 .is_some_and(|target| auth.claim_target(target));
-        if is_new_tab {
-            if let Err(error) = Self::enable_proxy_login(client, session).await {
-                tracing::event!(
-                    name: "cdp.browser.proxy_login.tab",
-                    tracing::Level::WARN,
-                    error = %error,
-                    "a tab's proxy login could not be turned on: {{error}}",
-                );
-            }
+        if is_new_tab && let Err(error) = Self::enable_proxy_login(client, session).await {
+            tracing::event!(
+                name: "cdp.browser.proxy_login.tab",
+                tracing::Level::WARN,
+                error = %error,
+                "a tab's proxy login could not be turned on: {{error}}",
+            );
         }
         if params["waitingForDebugger"].as_bool() == Some(true) {
             // A tab that has gone already has nothing to resume.

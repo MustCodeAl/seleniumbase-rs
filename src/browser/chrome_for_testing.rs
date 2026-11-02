@@ -212,10 +212,10 @@ pub(crate) async fn fetch_bytes(
     let too_big = |limit: u64| {
         SeleniumBaseError::download(url, format!("the download is larger than {limit} bytes"))
     };
-    if let (Some(limit), Some(length)) = (max_bytes, response.content_length()) {
-        if length > limit {
-            return Err(too_big(limit));
-        }
+    if let (Some(limit), Some(length)) = (max_bytes, response.content_length())
+        && length > limit
+    {
+        return Err(too_big(limit));
     }
     let mut bytes = Vec::new();
     // Read piece by piece, so a server that sends more than it announced is
@@ -226,10 +226,10 @@ pub(crate) async fn fetch_bytes(
         .map_err(|error| SeleniumBaseError::download(url, error.to_string()))?
     {
         bytes.extend_from_slice(&chunk);
-        if let Some(limit) = max_bytes {
-            if bytes.len() as u64 > limit {
-                return Err(too_big(limit));
-            }
+        if let Some(limit) = max_bytes
+            && bytes.len() as u64 > limit
+        {
+            return Err(too_big(limit));
         }
     }
     Ok(bytes)
@@ -528,14 +528,14 @@ pub(crate) async fn install_chromedriver_from(
     browser_major: Option<u32>,
     proxy: Option<&str>,
 ) -> Result<PathBuf, SeleniumBaseError> {
-    if *version == DriverVersion::Keep {
-        if let Some(found) = crate::browser::driver_install::downloaded_driver(
+    if *version == DriverVersion::Keep
+        && let Some(found) = crate::browser::driver_install::downloaded_driver(
             root,
             "chromedriver",
             &CHROMEDRIVER_NAMES,
-        ) {
-            return Ok(found);
-        }
+        )
+    {
+        return Ok(found);
     }
     let known_major = match version {
         DriverVersion::Milestone(major) => Some(*major),
@@ -547,13 +547,13 @@ pub(crate) async fn install_chromedriver_from(
     {
         return Ok(found);
     }
-    if let DriverVersion::Exact(exact) = version {
-        if let Some(found) = find_executable(
+    if let DriverVersion::Exact(exact) = version
+        && let Some(found) = find_executable(
             &root.join(format!("chromedriver-{exact}")),
             &CHROMEDRIVER_NAMES,
-        ) {
-            return Ok(found);
-        }
+        )
+    {
+        return Ok(found);
     }
 
     let client = http_client(proxy)?;

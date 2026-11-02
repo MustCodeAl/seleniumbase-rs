@@ -409,10 +409,10 @@ fn http_token(file: Option<(&str, &str)>) -> Result<Option<String>, SeleniumBase
 #[cfg(unix)]
 fn warn_if_shared(file: &str) {
     use std::os::unix::fs::PermissionsExt;
-    if let Ok(metadata) = std::fs::metadata(file) {
-        if metadata.permissions().mode() & 0o077 != 0 {
-            eprintln!("sbrs-mcp: warning: {file} can be read by other users; run chmod 600 on it");
-        }
+    if let Ok(metadata) = std::fs::metadata(file)
+        && metadata.permissions().mode() & 0o077 != 0
+    {
+        eprintln!("sbrs-mcp: warning: {file} can be read by other users; run chmod 600 on it");
     }
 }
 

@@ -136,12 +136,12 @@ impl BaseCase {
             return Err(error);
         }
 
-        if case.config.start_page.is_some() {
-            if let Err(error) = case.open_start_page().await {
-                // Do not leave a browser running that nobody holds.
-                let _ = case.quit().await;
-                return Err(error);
-            }
+        if case.config.start_page.is_some()
+            && let Err(error) = case.open_start_page().await
+        {
+            // Do not leave a browser running that nobody holds.
+            let _ = case.quit().await;
+            return Err(error);
         }
         Ok(case)
     }
