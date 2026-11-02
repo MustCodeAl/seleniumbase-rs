@@ -23,6 +23,9 @@ for path in tests/*_chrome.rs tests/browser_smoke.rs crates/cli/tests/*_chrome.r
     captcha_live_chrome|examples_parity_chrome|cli_fingerprint_chrome)
       echo "$name NOT RUN: opens a real site" >> "$SUMMARY"
       ;;
+    client_hints_chrome)
+      echo "$name NOT RUN: needs a branded Google Chrome, which has no Linux arm64 build" >> "$SUMMARY"
+      ;;
     password_prompt_chrome)
       run "$name" cargo test --features "$FEATURES" --test "$name" -- --ignored --test-threads=1 \
         --skip typing_lands_in_a_pure_cdp_page_after_a_login_with_a_leaked_password \

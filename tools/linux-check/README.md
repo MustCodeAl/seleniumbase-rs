@@ -37,3 +37,10 @@ These open real sites, and this check uses local fixture pages only:
 - `examples_parity_chrome`: seleniumbase.io and saucedemo.com.
 - `cli_fingerprint_chrome`: example.com.
 - The two `..._after_a_login_with_a_leaked_password` tests in `password_prompt_chrome`: saucedemo.com.
+
+This one needs a browser the image cannot have:
+
+- `client_hints_chrome`: it reads the `Google Chrome` brand, which Chromium does not report, and
+  Google publishes no Chrome for Linux arm64.
+
+The last run's results are in `RESULTS.md`.
