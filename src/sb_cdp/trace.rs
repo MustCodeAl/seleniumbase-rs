@@ -79,15 +79,21 @@ const MAX_URL_CHARS: usize = 2048;
 /// The JPEG quality of the screenshots: they are for reading, not for pixels.
 const SCREENSHOT_QUALITY: u8 = 60;
 
+/// The most bytes the viewer file may spend on pictures. It repeats each one as
+/// text (base64 for a screenshot, an escaped string for a snapshot), and a
+/// browser refuses a string past a length limit of its own, so the copy is bounded
+/// on its own and a picture that would pass it is not kept.
+const MAX_VIEWER_BYTES: usize = 192 << 20;
+
 /// The hard maximums that clamp [`TraceOptions`].
 const HARD_MAX_ACTIONS: usize = 10_000;
-const HARD_MAX_BYTES: usize = 1 << 30;
+const HARD_MAX_BYTES: usize = 128 << 20;
 const HARD_MAX_CONSOLE: usize = 20_000;
 const HARD_MAX_REQUESTS: usize = 20_000;
 
 /// What a trace may record before it stops recording that kind of thing.
 ///
-/// Every value is clamped to a hard maximum (10 000 actions, 1 GiB of pictures,
+/// Every value is clamped to a hard maximum (10 000 actions, 128 MiB of pictures,
 /// 20 000 console messages, 20 000 requests), so a long run cannot fill the
 /// disk. Past a limit, actions are still noted, only the thing that hit the
 /// limit is left out, and the viewer says so.
@@ -109,6 +115,7 @@ pub struct TraceOptions {
     max_bytes: usize,
     max_console_messages: usize,
     max_requests: usize,
+    max_viewer_bytes: usize,
 }
 
 impl Default for TraceOptions {
@@ -118,6 +125,7 @@ impl Default for TraceOptions {
             max_bytes: 64 << 20,
             max_console_messages: 2000,
             max_requests: 2000,
+            max_viewer_bytes: MAX_VIEWER_BYTES,
         }
     }
 }
@@ -138,8 +146,12 @@ impl TraceOptions {
     }
 
     /// The most bytes of screenshots and snapshots together. Once it is reached,
-    /// actions are still noted but without pictures. The viewer file repeats
-    /// the pictures, so the folder takes about twice this.
+    /// actions are still noted but without pictures. Only the picture files
+    /// count: `index.html` repeats the pictures as text (a third larger for a
+    /// screenshot, larger still for a snapshot) up to a budget of its own of
+    /// 192 MiB, past which actions have no pictures either, and `network.har`
+    /// and `trace.json` have limits of their own. The folder therefore takes
+    /// more than this.
     #[must_use]
     pub fn max_bytes(mut self, bytes: usize) -> Self {
         self.max_bytes = bytes.min(HARD_MAX_BYTES);
@@ -150,6 +162,14 @@ impl TraceOptions {
     #[must_use]
     pub fn max_console_messages(mut self, count: usize) -> Self {
         self.max_console_messages = count.min(HARD_MAX_CONSOLE);
+        self
+    }
+
+    /// The same options with the viewer's budget for pictures set to `bytes`,
+    /// for tests that cannot make 192 MiB of pictures.
+    #[cfg(test)]
+    fn with_viewer_bytes(mut self, bytes: usize) -> Self {
+        self.max_viewer_bytes = bytes;
         self
     }
 
@@ -261,7 +281,16 @@ struct Record {
     actions: Vec<ActionRecord>,
     console: Vec<ConsoleRecord>,
     picture_bytes: usize,
+    viewer_bytes: usize,
     limits: Limits,
+}
+
+impl Record {
+    /// Whether the pictures kept so far leave room for more, in the folder
+    /// (`max_bytes`) and in the viewer's copy of them.
+    fn has_room(&self, options: &TraceOptions) -> bool {
+        self.picture_bytes < options.max_bytes && self.viewer_bytes < options.max_viewer_bytes
+    }
 }
 
 /// A trace that is running: what a tab's actions look up to know whether to
@@ -326,10 +355,84 @@ pub(super) fn plain_url(url: &str) -> String {
             // Refused only for a URL that cannot hold credentials anyway.
             let _ = parsed.set_username("");
             let _ = parsed.set_password(None);
-            cut(parsed.as_str(), MAX_URL_CHARS)
+            cut(&without_credentials(&parsed), MAX_URL_CHARS)
         }
         Err(_) => "[address not recorded]".to_owned(),
     }
+}
+
+/// The text of `address` with nothing in it that reads as a user name and
+/// password.
+fn without_credentials(address: &url::Url) -> String {
+    if address.cannot_be_a_base() {
+        // `user:password@host` parses as a scheme and a path, which no setter
+        // can empty, so the text is cleaned instead.
+        redact_credentials(address.as_str())
+    } else {
+        address.as_str().to_owned()
+    }
+}
+
+/// Whether `c` ends the part of an address that can hold user information:
+/// the path, query or fragment, or whatever quotes or separates the address.
+fn ends_authority(c: char) -> bool {
+    c.is_whitespace() || matches!(c, '/' | '\\' | '?' | '#' | '"' | '\'' | '<' | '>' | '`')
+}
+
+/// Whether `c` cannot be part of a `user:password` that stands before an `@`
+/// and has no `://` before it.
+fn ends_user_info(c: char) -> bool {
+    ends_authority(c) || matches!(c, '(' | ')' | ',' | ';' | '=' | '{' | '}')
+}
+
+/// `text` without the user name and password of any address in it.
+///
+/// The text of an error often quotes the address a caller gave, so a failed
+/// `goto("https://admin:secret@host/")` would otherwise write the password into
+/// the trace. Two shapes are removed, with the `@` that ends them: the user
+/// information of an authority (what stands between `://` and the last `@`
+/// before the path), and `user:password@` with no scheme in front of it, which
+/// is how a caller may write a bare address. An `@` that belongs to an e-mail
+/// address, a path or a query is left alone.
+pub(super) fn redact_credentials(text: &str) -> String {
+    let mut cuts: Vec<(usize, usize)> = Vec::new();
+    for (at, _) in text.match_indices("://") {
+        let start = at + 3;
+        let rest = &text[start..];
+        let end = rest.find(ends_authority).unwrap_or(rest.len());
+        if let Some(last) = rest[..end].rfind('@') {
+            cuts.push((start, start + last + 1));
+        }
+    }
+    for (at, _) in text.match_indices('@') {
+        let before = &text[..at];
+        let start = before
+            .char_indices()
+            .rev()
+            .find(|&(_, c)| ends_user_info(c))
+            .map_or(0, |(index, c)| index + c.len_utf8());
+        if before[start..].contains(':') {
+            cuts.push((start, at + 1));
+        }
+    }
+    cuts.sort_unstable();
+    let mut clean = String::with_capacity(text.len());
+    let mut copied = 0;
+    for (start, end) in cuts {
+        if end > copied {
+            clean.push_str(&text[copied..start.max(copied)]);
+            copied = end;
+        }
+    }
+    clean.push_str(&text[copied..]);
+    clean
+}
+
+/// The text of `error` as the trace keeps it: without the user name and
+/// password of any address in it, then cut. The credentials go first, so a cut
+/// cannot leave a password whose `@` it removed.
+fn error_text(error: &SeleniumBaseError) -> String {
+    cut(&redact_credentials(&error.to_string()), MAX_TEXT_CHARS)
 }
 
 /// `text`, cut to `max` characters with `...` marking the cut.
@@ -521,7 +624,7 @@ impl TraceState {
 
     /// Whether another picture may still be taken.
     fn has_room(&self) -> bool {
-        locked(&self.record).picture_bytes < self.options.max_bytes
+        locked(&self.record).has_room(&self.options)
     }
 
     /// Keeps what the page logged, up to the console limit.
@@ -545,7 +648,7 @@ impl TraceState {
 
     /// Notes that the network log could not be kept.
     fn note_network_error(&self, error: &SeleniumBaseError) {
-        locked(&self.record).limits.network_error = Some(cut(&error.to_string(), MAX_TEXT_CHARS));
+        locked(&self.record).limits.network_error = Some(error_text(error));
     }
 
     /// Completes `action` with what the page shows now, and notes it.
@@ -573,13 +676,22 @@ impl TraceState {
         }
         let bytes =
             shot.as_ref().map_or(0, Vec::len) + html.as_ref().map_or(0, |(text, _)| text.len());
+        // What the viewer will hold for them: it repeats each picture as text.
+        let embedded = shot
+            .as_ref()
+            .map_or(0, |bytes| viewer::screenshot_len(bytes.len()))
+            + html.as_ref().map_or(0, |(text, _)| viewer::text_len(text));
         let keep = {
             let mut record = locked(&self.record);
-            if !room || record.picture_bytes + bytes > self.options.max_bytes {
+            if !room
+                || record.picture_bytes + bytes > self.options.max_bytes
+                || record.viewer_bytes + embedded > self.options.max_viewer_bytes
+            {
                 record.limits.pictures_skipped += 1;
                 false
             } else {
                 record.picture_bytes += bytes;
+                record.viewer_bytes += embedded;
                 true
             }
         };
@@ -619,6 +731,13 @@ impl TraceState {
             locked(&self.record).limits.requests_dropped = total - self.options.max_requests;
         }
         for entry in &mut har.log.entries {
+            // A page can ask for an address of any length (a `data:` URL is a
+            // whole file), and nothing else bounds the size of the HAR.
+            if entry.request.url.chars().nth(MAX_URL_CHARS).is_some() {
+                entry.request.url = cut(&entry.request.url, MAX_URL_CHARS);
+                // The decoded query would repeat the whole address.
+                entry.request.query_string.clear();
+            }
             if let Some(body) = &mut entry.request.post_data {
                 MASKED_BODY.clone_into(&mut body.text);
             }
@@ -765,10 +884,7 @@ impl Page {
             start_ms,
             end_ms: state.now_ms(),
             ok: result.is_ok(),
-            error: result
-                .as_ref()
-                .err()
-                .map(|error| cut(&error.to_string(), MAX_TEXT_CHARS)),
+            error: result.as_ref().err().map(error_text),
             url: String::new(),
             title: String::new(),
             screenshot: None,
@@ -813,7 +929,9 @@ impl Page {
     /// The text given to `fill`, `type_text`, `send_keys` and `set_value` is
     /// never written, whatever the field. Request bodies and the
     /// `Authorization` and `Proxy-Authorization` header values are removed from
-    /// the HAR, and a `goto` address loses its user name and password.
+    /// the HAR, and a `goto` address loses its user name and password, in its
+    /// note and in the text of its error. An address in the HAR is cut at 2048
+    /// characters.
     /// Everything else is kept as it is: screenshots show what the page shows
     /// (a value typed into a plain field, personal data), the HAR holds cookies
     /// and full URLs with their query strings, and a snapshot has the page's
@@ -1138,6 +1256,48 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_failed_goto_notes_its_error_without_the_address_credentials() {
+        let (page, mock, _temp, dir) = traced_tab(json!([])).await;
+        mock.reply(
+            "Page.navigate",
+            json!({ "errorText": "net::ERR_NAME_NOT_RESOLVED" }),
+        );
+        let recorder = page.start_trace(&dir).await.unwrap();
+
+        let result = page.goto("https://admin:s3cret@staging.internal/").await;
+        recorder.stop().await.unwrap();
+
+        assert!(matches!(result, Err(SeleniumBaseError::Navigation { .. })));
+        let file = json_file(&dir, "trace.json");
+        let action = &file["actions"][0];
+        assert_eq!(action["ok"], false);
+        assert_eq!(
+            action["error"],
+            "navigation to 'https://staging.internal/' failed: net::ERR_NAME_NOT_RESOLVED"
+        );
+        assert_eq!(action["detail"], "https://staging.internal/");
+        assert!(!all_text(&dir).contains("s3cret"));
+    }
+
+    #[tokio::test]
+    async fn a_goto_refused_before_it_is_sent_notes_no_credentials_either() {
+        let (page, mock, _temp, dir) = traced_tab(json!([])).await;
+        let recorder = page.start_trace(&dir).await.unwrap();
+
+        // Without a scheme the address is refused as one with the scheme
+        // `admin`, and the refusal quotes it.
+        let schemeless = page.goto("admin:s3cret@staging.internal").await;
+        let foreign = page.goto("ftp://admin:s3cret@staging.internal/").await;
+        recorder.stop().await.unwrap();
+
+        assert!(schemeless.is_err() && foreign.is_err());
+        assert_eq!(mock.calls_to("Page.navigate").len(), 0);
+        let file = json_file(&dir, "trace.json");
+        assert_eq!(file["actions"].as_array().unwrap().len(), 2);
+        assert!(!all_text(&dir).contains("s3cret"));
+    }
+
+    #[tokio::test]
     async fn with_no_trace_an_action_sends_nothing_for_it() {
         let (page, mock, _temp, _dir) = traced_tab(json!([])).await;
         let before = mock.calls().len();
@@ -1273,6 +1433,52 @@ mod tests {
         assert_eq!(file["network"][0]["method"], "POST");
         assert_eq!(file["network"][0]["status"], 401);
         assert_eq!(file["network"][0]["type"], "xhr");
+    }
+
+    #[tokio::test]
+    async fn a_very_long_request_address_is_cut_in_the_har() {
+        let (page, mock, _temp, dir) = traced_tab(json!([])).await;
+        let recorder = page.start_trace(&dir).await.unwrap();
+        let long = "A".repeat(100_000);
+        mock.emit(
+            "Network.requestWillBeSent",
+            json!({
+                "requestId": "R1", "loaderId": "L1", "frameId": "T1", "type": "Fetch",
+                "timestamp": 1.0, "wallTime": 1_700_000_000.5,
+                "request": {
+                    "url": format!("https://shop.test/search?q={long}"), "method": "GET",
+                    "headers": { "Accept": "*/*" },
+                },
+            }),
+            Some("S1"),
+        );
+        mock.emit(
+            "Network.responseReceived",
+            json!({
+                "requestId": "R1", "timestamp": 1.1,
+                "response": { "url": "x", "status": 200, "statusText": "ok",
+                              "headers": {}, "mimeType": "text/plain", "protocol": "http/1.1" },
+            }),
+            Some("S1"),
+        );
+        mock.emit(
+            "Network.loadingFinished",
+            json!({ "requestId": "R1", "timestamp": 1.2, "encodedDataLength": 10 }),
+            Some("S1"),
+        );
+
+        let trace = recorder.stop().await.unwrap();
+
+        assert_eq!(trace.requests, 1);
+        let har = json_file(&dir, "network.har");
+        let request = &har["log"]["entries"][0]["request"];
+        let url = request["url"].as_str().unwrap();
+        assert!(url.starts_with("https://shop.test/search?q=AAAA"));
+        assert!(url.chars().count() <= MAX_URL_CHARS + 3, "{}", url.len());
+        // The decoded query would repeat the whole address.
+        assert_eq!(request["queryString"], json!([]));
+        let size = std::fs::metadata(dir.join("network.har")).unwrap().len();
+        assert!(size < 50_000, "network.har is {size} bytes");
     }
 
     #[tokio::test]
@@ -1503,6 +1709,110 @@ mod tests {
         );
         assert_eq!(plain_url("example.com/x"), "https://example.com/x");
         assert_eq!(plain_url("http://[bad"), "[address not recorded]");
+        // Without a scheme, `user:password@` reads as a scheme and a path: no
+        // setter can remove it, so the text is cleaned instead.
+        assert_eq!(
+            plain_url("admin:s3cret@staging.internal"),
+            "staging.internal"
+        );
+    }
+
+    #[test]
+    fn credentials_are_removed_from_the_text_of_an_error() {
+        for (text, clean) in [
+            (
+                "navigation to 'https://admin:s3cret@staging.internal/' failed: net::ERR_X",
+                "navigation to 'https://staging.internal/' failed: net::ERR_X",
+            ),
+            (
+                "https://admin@host/x and ftp://u:p@h:21",
+                "https://host/x and ftp://h:21",
+            ),
+            (
+                "opening 'https://u:p@[::1]:8080'",
+                "opening 'https://[::1]:8080'",
+            ),
+            // A raw `@` in the password.
+            ("https://a:p@ss@host/", "https://host/"),
+            // No scheme: the text of the refusal of an address.
+            (
+                "Invalid URL: \"admin:s3cret@host\" uses the scheme \"admin\"",
+                "Invalid URL: \"host\" uses the scheme \"admin\"",
+            ),
+            ("proxy=user:pw@proxy.test:3128", "proxy=proxy.test:3128"),
+            // Not credentials.
+            ("mail ada@example.com", "mail ada@example.com"),
+            (
+                "https://example.com/@ada and https://example.com/?e=a@b.c",
+                "https://example.com/@ada and https://example.com/?e=a@b.c",
+            ),
+            ("@media screen and a@", "@media screen and a@"),
+        ] {
+            assert_eq!(redact_credentials(text), clean, "{text}");
+        }
+    }
+
+    #[test]
+    fn credentials_are_removed_before_an_error_is_cut() {
+        // The password starts inside the cut and its `@` lies beyond it, so a
+        // cut made first would leave a piece of the password.
+        let padding = "x".repeat(MAX_TEXT_CHARS - 60);
+        let error = SeleniumBaseError::invalid_config(format!(
+            "{padding} https://admin:{}@host/",
+            "p".repeat(200)
+        ));
+
+        let text = error_text(&error);
+
+        assert!(!text.contains("ppp"), "{text}");
+        assert!(text.ends_with(" https://host/"), "{text}");
+    }
+
+    #[tokio::test]
+    async fn the_viewers_budget_keeps_the_pictures_of_an_action_whole_or_not_at_all() {
+        let (page, mock, _temp, dir) = traced_tab(json!([])).await;
+        // What the pictures of one action take in the viewer: the screenshot
+        // of 8 bytes and the snapshot the mocked page gives.
+        let html = "<!doctype html><html><body><p>Hello</p></body></html>";
+        let one_action = viewer::screenshot_len(8) + viewer::text_len(html);
+        let recorder = page
+            .start_trace_with(&dir, TraceOptions::new().with_viewer_bytes(one_action))
+            .await
+            .unwrap();
+
+        page.locator("#a").click().await.unwrap();
+        page.locator("#b").click().await.unwrap();
+        let trace = recorder.stop().await.unwrap();
+
+        let file = json_file(&dir, "trace.json");
+        assert_eq!(file["actions"][0]["screenshot"], "screenshots/0001.jpg");
+        assert_eq!(file["actions"][0]["snapshot"], "snapshots/0001.html");
+        assert_eq!(file["actions"][1]["screenshot"], Value::Null);
+        assert_eq!(file["actions"][1]["snapshot"], Value::Null);
+        assert_eq!(file["limits"]["pictures_skipped"], 1);
+        assert!(!dir.join("screenshots/0002.jpg").exists());
+        assert!(!dir.join("snapshots/0002.html").exists());
+        // The budget was spent, so the second action was not photographed.
+        assert_eq!(mock.calls_to("Page.captureScreenshot").len(), 1);
+        assert!(trace.picture_bytes > 0);
+    }
+
+    #[tokio::test]
+    async fn pictures_that_do_not_fit_the_viewers_budget_are_not_kept() {
+        let (page, _mock, _temp, dir) = traced_tab(json!([])).await;
+        let recorder = page
+            .start_trace_with(&dir, TraceOptions::new().with_viewer_bytes(10))
+            .await
+            .unwrap();
+
+        page.locator("#a").click().await.unwrap();
+        let trace = recorder.stop().await.unwrap();
+
+        let file = json_file(&dir, "trace.json");
+        assert_eq!(file["actions"][0]["screenshot"], Value::Null);
+        assert_eq!(file["actions"][0]["snapshot"], Value::Null);
+        assert_eq!(file["limits"]["pictures_skipped"], 1);
+        assert_eq!(trace.picture_bytes, 0);
     }
 
     #[test]

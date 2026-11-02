@@ -88,6 +88,18 @@ pub(super) fn render(data: &Value) -> Result<String, SeleniumBaseError> {
     ))
 }
 
+/// The bytes a screenshot of `len` bytes takes inside the viewer's data: its
+/// base64 text between quotes.
+pub(super) fn screenshot_len(len: usize) -> usize {
+    len.div_ceil(3).saturating_mul(4).saturating_add(2)
+}
+
+/// The bytes `text` takes inside the viewer's data, quotes included: the
+/// length of the same escaping [`script_json`] applies.
+pub(super) fn text_len(text: &str) -> usize {
+    script_json(&Value::String(text.to_owned())).map_or(usize::MAX, |json| json.len())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -144,6 +156,21 @@ mod tests {
         let json = script_json(&data).unwrap();
 
         assert_eq!(serde_json::from_str::<Value>(&json).unwrap(), data);
+    }
+
+    #[test]
+    fn the_size_of_a_picture_in_the_viewer_is_counted_exactly() {
+        let bytes: Vec<u8> = (0..=255).collect();
+        for len in [0, 1, 2, 3, 4, 100, 255] {
+            let text = base64::engine::general_purpose::STANDARD.encode(&bytes[..len]);
+            let json = script_json(&Value::String(text)).unwrap();
+            assert_eq!(screenshot_len(len), json.len(), "{len} bytes");
+        }
+        let html = "<p class=\"a\">x & y</p>\n\u{2028}é\\";
+        let json = script_json(&Value::String(html.to_owned())).unwrap();
+        assert_eq!(text_len(html), json.len());
+        // Markup grows a lot: `<` and `>` become six bytes each.
+        assert!(text_len(html) > html.len() + 10);
     }
 
     #[test]
