@@ -195,7 +195,14 @@ mod tests {
 
         assert!(policy.starts_with("default-src 'none';"), "{policy}");
         assert!(policy.contains("script-src 'sha256-"));
-        for allowed in ["unsafe-eval", "connect-src", "frame-src", "https:", "http:", "*"] {
+        for allowed in [
+            "unsafe-eval",
+            "connect-src",
+            "frame-src",
+            "https:",
+            "http:",
+            "*",
+        ] {
             assert!(!policy.contains(allowed), "{allowed} in {policy}");
         }
         assert!(
@@ -254,7 +261,10 @@ mod tests {
             "XMLHttpRequest",
             "import(",
         ] {
-            assert!(!code.contains(forbidden), "{forbidden} in the viewer script");
+            assert!(
+                !code.contains(forbidden),
+                "{forbidden} in the viewer script"
+            );
         }
     }
 

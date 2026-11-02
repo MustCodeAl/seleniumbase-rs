@@ -1,4 +1,4 @@
-// The trace viewer: draws the data in <script id="trace-data"> and nothing else.
+// The trace viewer: draws the data in the element with the id trace-data and nothing else.
 //
 // Every string in that data came from a page or a caller and is untrusted. This
 // script therefore builds the page with createElement and textContent only: no

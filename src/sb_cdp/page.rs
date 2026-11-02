@@ -352,7 +352,19 @@ impl Page {
     /// Returns [`SeleniumBaseError::Navigation`] if the browser cannot load
     /// the page, and [`SeleniumBaseError::WaitTimeout`] if it takes too long.
     pub async fn goto(&self, url: impl AsRef<str>) -> Result<(), SeleniumBaseError> {
-        let url = normalize_page_url(url.as_ref())?;
+        let url = url.as_ref();
+        self.traced(
+            "goto",
+            String::new,
+            || Some(super::trace::plain_url(url)),
+            self.goto_untraced(url),
+        )
+        .await
+    }
+
+    /// [`goto`](Self::goto) without a trace record.
+    async fn goto_untraced(&self, url: &str) -> Result<(), SeleniumBaseError> {
+        let url = normalize_page_url(url)?;
         #[cfg(feature = "plugins")]
         if !self.browser.inner().options.plugins.is_empty() {
             return super::plugin_hooks::navigate(self, url, NavOrigin::Program).await;

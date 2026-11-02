@@ -10,6 +10,12 @@
 // it so.
 (function () {
   'use strict';
+  // Only the top document is traced; a frame would collect messages that nobody
+  // asks for.
+  if (window.top !== window) {
+    return;
+  }
+
   if (window.__sbtrace) {
     return;
   }
@@ -18,6 +24,8 @@
   var MAX_HTML = 524288;
   var buffer = [];
   var dropped = 0;
+  var active = true;
+
 
   function show(value) {
     try {
@@ -38,6 +46,10 @@
   }
 
   function push(level, parts) {
+    if (!active) {
+      return;
+    }
+
     if (buffer.length >= MAX_BUFFER) {
       dropped += 1;
       return;
@@ -53,7 +65,14 @@
     buffer.push({ at: Date.now(), level: level, text: joined });
   }
 
-  ['debug', 'log', 'info', 'warn', 'error'].forEach(function (level) {
+  var LEVELS = ['debug', 'log', 'info', 'warn', 'error'];
+  var originals = {};
+  var wrappers = {};
+  LEVELS.forEach(function (level) {
+    originals[level] = console[level];
+  });
+
+  LEVELS.forEach(function (level) {
     var original = console[level];
     if (typeof original !== 'function') {
       return;
@@ -67,6 +86,11 @@
       return original.apply(this, arguments);
     };
   });
+
+  LEVELS.forEach(function (level) {
+    wrappers[level] = console[level];
+  });
+
 
   window.addEventListener('error', function (event) {
     try {
@@ -138,8 +162,29 @@
     return { html: html, truncated: false };
   }
 
+  // The end of a trace: the console methods are put back (unless the page has
+  // wrapped them since), the buffer is emptied and the global goes away. The
+  // error listeners stay in the document until it ends, but record nothing.
+  function release() {
+    active = false;
+    LEVELS.forEach(function (level) {
+      if (console[level] === wrappers[level] && typeof originals[level] === 'function') {
+        console[level] = originals[level];
+      }
+    });
+    buffer = [];
+    try {
+      delete window.__sbtrace;
+    } catch (error) {
+      // Ignored: a page that made it permanent keeps it.
+    }
+  }
+
+
   Object.defineProperty(window, '__sbtrace', {
     value: {
+      release: release,
+
       take: function (withSnapshot) {
         var messages = buffer.splice(0, buffer.length);
         var lost = dropped;
@@ -155,6 +200,6 @@
         };
       }
     },
-    enumerable: false
+    enumerable: false, configurable: true
   });
 })();
