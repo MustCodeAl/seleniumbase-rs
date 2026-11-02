@@ -365,8 +365,12 @@ It does not look on your `PATH`.
 <Step title="Match it, then download" icon="download">
 
 When the file in `downloaded_drivers/` is missing, or `fit` says its major
-version is not the browser's, the launcher downloads the driver for that
-browser. Chromedriver comes from the Chrome for Testing JSON
+version is not the browser's, the launcher first runs `mise which chromedriver`
+(`src/browser/mise_driver.rs`) and uses the driver mise prints when the file
+exists, can run and fits the browser. A missing mise, a failing one, one that
+takes more than 5 seconds and a bad answer are silent, and the launcher goes on
+to download the driver for that browser. See
+[Manage chromedriver with mise](/tutorials/mise_chromedriver). Chromedriver comes from the Chrome for Testing JSON
 (`src/browser/chrome_for_testing.rs`):
 `last-known-good-versions-with-downloads.json` for a channel, and
 `latest-versions-per-milestone-with-downloads.json` for a major. msedgedriver
