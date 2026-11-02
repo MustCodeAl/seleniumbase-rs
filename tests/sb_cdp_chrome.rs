@@ -1622,4 +1622,3 @@ async fn a_trace_of_a_click_and_a_fill_is_written_and_its_viewer_renders_it() {
     assert_eq!(sandbox, "", "the snapshot frame is not sandboxed");
     browser.close().await.unwrap();
 }
-

@@ -100,6 +100,10 @@ const HARD_MAX_REQUESTS: usize = 20_000;
 /// let options = TraceOptions::new().max_actions(200).max_bytes(16 << 20);
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[expect(
+    clippy::struct_field_names,
+    reason = "each field is named for the builder method that sets it"
+)]
 pub struct TraceOptions {
     max_actions: usize,
     max_bytes: usize,
@@ -299,6 +303,10 @@ pub(super) fn no_detail() -> Option<String> {
 }
 
 /// The detail of an action that takes text: the text is never recorded.
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "it is passed where a detail closure, which may return nothing, is expected"
+)]
 pub(super) fn masked() -> Option<String> {
     Some(MASKED_TEXT.to_owned())
 }
@@ -949,7 +957,6 @@ impl Drop for TraceRecorder {
 mod tests {
     use super::*;
     use crate::sb_cdp::{Browser, MockCtrl};
-    use base64::Engine as _;
 
     const SECRET: &str = "hunter2-secret-value";
 
