@@ -1304,7 +1304,7 @@ mod tests {
 
 #[cfg(test)]
 mod navigation_origin_tests {
-    use std::sync::{Arc, Mutex};
+    use std::sync::Mutex;
 
     use seleniumbase_rs_plugin::{async_trait, NavDecision, Plugin};
 
