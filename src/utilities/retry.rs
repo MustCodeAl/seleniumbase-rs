@@ -278,10 +278,11 @@ where
 /// use seleniumbase_rs::utilities::retry::RateLimiter;
 /// use std::time::Duration;
 ///
-/// let limiter = RateLimiter::new(2, Duration::from_secs(1));
+/// let limiter = RateLimiter::new(2, Duration::from_secs(60));
 /// assert_eq!(limiter.reserve(), Duration::ZERO);
 /// assert_eq!(limiter.reserve(), Duration::ZERO);
-/// assert!(limiter.reserve() > Duration::from_millis(900));
+/// // The third waits for the first to be a full window old: nearly 60 seconds.
+/// assert!(limiter.reserve() > Duration::from_secs(50));
 /// ```
 #[derive(Debug)]
 pub struct RateLimiter {
