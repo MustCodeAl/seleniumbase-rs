@@ -134,7 +134,8 @@ work, `docs/parity.md` the per-API status).
   Assertions", "Macros" and "HTML Inspector". "Best practices" is "Best practices for reliable tests" and holds the former
   "Reliable Browser Tests" (`/tutorials/reliable_tests`). "FAQ and common problems" is "Troubleshooting" in the
   Help group with the FAQ as its own page (`help/faq`), and "Working with SeleniumBase for Rust" is
-  "Walkthrough".
+  "Walkthrough". The test plugins page is in Ecosystem → Plugins, "Cloud uploads" is in Run in
+  production, and "Translations" is in Reference → Settings and options.
 
 
 - **`sbrs` and `sbrs-mcp` print the failure of a command as a [miette](https://docs.rs/miette)

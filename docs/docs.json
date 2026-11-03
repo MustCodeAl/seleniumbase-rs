@@ -265,11 +265,8 @@
             "icon": "chart-pie",
             "pages": [
               "tutorials/results_and_profiles",
-              "tutorials/test_plugins",
               "tutorials/charts",
-              "tutorials/tours",
-              "tutorials/translations",
-              "tutorials/cloud_integrations"
+              "tutorials/tours"
             ]
           },
           {
@@ -286,7 +283,8 @@
             "icon": "server",
             "pages": [
               "deployment",
-              "help/docker"
+              "help/docker",
+              "tutorials/cloud_integrations"
             ]
           },
           {
@@ -381,6 +379,7 @@
               "plugins/wasm",
               "plugins/overview",
               "tutorials/plugins",
+              "tutorials/test_plugins",
               "plugins/selecting",
               "plugins/writing-your-own",
               "plugins/architecture"
@@ -567,7 +566,8 @@
                     "pages": [
                       "tutorials/settings_and_config",
                       "help/test_options",
-                      "help/customizing_test_runs"
+                      "help/customizing_test_runs",
+                      "tutorials/translations"
                     ]
                   }
                 ]
