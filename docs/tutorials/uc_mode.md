@@ -368,7 +368,7 @@ sbrs --uc --url https://nowsecure.nl solve-captcha --expect-text nowsecure --exp
 It exits with status 0 when the text and the cookie are there, and with status 1
 and a message when they are not. Add `--headed` to watch a window.
 
-[Testing pages with a CAPTCHA](/tutorials/captcha_testing) covers what it does and
+[Handling CAPTCHAs](/tutorials/captcha_testing) covers what it does and
 its limits; [How CAPTCHAs work](/concepts/captchas) explains why the page behind
 the challenge, not the click, decides the outcome, and how the solver is tested.
 

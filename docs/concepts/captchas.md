@@ -138,7 +138,7 @@ Google, hCaptcha and Cloudflare publish site and secret keys for testing. With
 them the widget always passes (or, for the other keys, always fails) and the
 vendor's server agrees. You run the application under test with those keys, so
 the code you test is the code you ship. The page
-[Testing pages with a CAPTCHA](/tutorials/captcha_testing) shows the keys, the
+[Handling CAPTCHAs](/tutorials/captcha_testing) shows the keys, the
 steps and the failure cases.
 
 </Step>
@@ -330,7 +330,7 @@ for an API, a feed or an allowlist.
 
 <Columns cols={2}>
 
-<Card title="Testing pages with a CAPTCHA" icon="vial" color="#199f43" href="/tutorials/captcha_testing">
+<Card title="Handling CAPTCHAs" icon="vial" color="#199f43" href="/tutorials/captcha_testing">
   Vendor test keys, the widget steps and the failure paths.
 </Card>
 

@@ -135,7 +135,8 @@ work, `docs/parity.md` the per-API status).
   "Reliable Browser Tests" (`/tutorials/reliable_tests`). "FAQ and common problems" is "Troubleshooting" in the
   Help group with the FAQ as its own page (`help/faq`), and "Working with SeleniumBase for Rust" is
   "Walkthrough". The test plugins page is in Ecosystem → Plugins, "Cloud uploads" is in Run in
-  production, and "Translations" is in Reference → Settings and options.
+  production, and "Translations" is in Reference → Settings and options. "Install" comes right after the
+  introduction, and "Pages with a CAPTCHA" is "Handling CAPTCHAs" in the Help group.
 
 
 - **`sbrs` and `sbrs-mcp` print the failure of a command as a [miette](https://docs.rs/miette)

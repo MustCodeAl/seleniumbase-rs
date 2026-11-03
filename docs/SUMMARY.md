@@ -18,7 +18,7 @@ hidden: true
   - [Benchmarks](benchmarks.md)
 - [Writing Browser Tests](rust-test-tooling.md)
   - [Best practices for reliable tests](best-practices.md)
-  - [Testing Pages with a CAPTCHA](tutorials/captcha_testing.md)
+  - [Handling CAPTCHAs](tutorials/captcha_testing.md)
   - [Verify a sign-up by email](tutorials/verify_by_email.md)
 - [Migrate Python Tests](python-migration.md)
   - [Migrate Playwright Tests](playwright-migration.md)

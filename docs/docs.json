@@ -205,8 +205,8 @@
             "icon": "rocket",
             "pages": [
               "README",
-              "tutorials/getting_started",
-              "building"
+              "building",
+              "tutorials/getting_started"
             ]
           },
           {
@@ -225,7 +225,6 @@
             "icon": "star",
             "pages": [
               "tutorials/mfa_totp",
-              "tutorials/captcha_testing",
               "tutorials/verify_by_email",
               "tutorials/pdf_parsing",
               "tutorials/masterqa"
@@ -292,6 +291,7 @@
             "icon": "circle-question",
             "pages": [
               "help/common_problems",
+              "tutorials/captcha_testing",
               "help/faq"
             ]
           }

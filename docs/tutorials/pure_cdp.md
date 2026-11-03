@@ -794,7 +794,7 @@ verified", and the page is yours to check.
 </Note>
 
 To test your own pages with the vendors' test keys, see
-[Testing Pages with a CAPTCHA](/tutorials/captcha_testing).
+[Handling CAPTCHAs](/tutorials/captcha_testing).
 
 Some challenge frames refuse events that did not come from the operating
 system. With the `gui` feature, `page.gui_click_captcha()` is the same attempt
@@ -895,7 +895,7 @@ Hooks that run before the browser starts, for every tab and at close.
 
 </Card>
 
-<Card color="#1ca1c7" title="Testing Pages with a CAPTCHA" icon="shield-halved" href="/tutorials/captcha_testing">
+<Card color="#1ca1c7" title="Handling CAPTCHAs" icon="shield-halved" href="/tutorials/captcha_testing">
 
 Test your own pages with the vendors' test keys.
 
