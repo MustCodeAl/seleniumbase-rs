@@ -122,6 +122,16 @@ work, `docs/parity.md` the per-API status).
 
 ### Changed
 
+- The Docs7 menu has five tabs: Guides, Stealth, Ecosystem, Reference and Contributing.
+  "Ecosystem" holds MCP, the CLI, the plugins (the built-in ones first) and the integrations;
+  the CLI reference and the settings and options pages (`help/test_options`,
+  `help/customizing_test_runs`, `tutorials/settings_and_config`) are in Reference. The vibe
+  coding, TL;DR and mise install pages are near the top of Guides. "Writing Browser Tests" now
+  holds the former "Writing Tests with the sb Fixture" (`/tutorials/writing_tests` redirects to
+  `/rust-test-tooling`), "FAQ and common problems" is "Troubleshooting" with the FAQ as its own page
+  (`help/faq`), and "Working with SeleniumBase for Rust" is "Walkthrough".
+
+
 - **`sbrs` and `sbrs-mcp` print the failure of a command as a [miette](https://docs.rs/miette)
   diagnostic.** Where they printed `error: ...`, `caused by: ...` and `hint: ...` they now print
   a code that names the kind of failure (`sbrs::element_not_found`, `sbrs::io`,

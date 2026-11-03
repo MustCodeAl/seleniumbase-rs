@@ -34,6 +34,11 @@
   },
   "redirects": [
     {
+      "source": "/tutorials/writing_tests",
+      "destination": "/rust-test-tooling",
+      "permanent": true
+    },
+    {
       "source": "/help/uc_mode",
       "destination": "/tutorials/uc_mode",
       "permanent": true
@@ -156,6 +161,9 @@
             "pages": [
               "README",
               "tutorials/getting_started",
+              "tutorials/vibe_coding",
+              "help/cli_tldr",
+              "tutorials/mise_sbrs",
               "building",
               "help/common_problems"
             ]
@@ -166,7 +174,6 @@
             "pages": [
               "best-practices",
               "rust-test-tooling",
-              "tutorials/writing_tests",
               "tutorials/debug_modes",
               "tutorials/reliable_tests",
               "tutorials/behave",
@@ -203,14 +210,10 @@
             "group": "Configure runs",
             "icon": "sliders",
             "pages": [
-              "tutorials/settings_and_config",
-              "help/customizing_test_runs",
-              "help/test_options",
               "tutorials/run_settings",
               "tutorials/headless",
               "tutorials/browser_profiles",
               "tutorials/mise_chromedriver",
-              "tutorials/mise_sbrs",
               "tutorials/tracing"
             ]
           },
@@ -251,6 +254,13 @@
               "deployment",
               "help/docker"
             ]
+          },
+          {
+            "group": "Help",
+            "icon": "circle-question",
+            "pages": [
+              "help/faq"
+            ]
           }
         ]
       },
@@ -286,56 +296,30 @@
         ]
       },
       {
-        "tab": "CLI and MCP",
-        "icon": "terminal",
+        "tab": "Ecosystem",
+        "icon": "puzzle-piece",
         "groups": [
           {
-            "group": "Command line",
-            "icon": "terminal",
+            "group": "MCP",
+            "icon": "robot",
             "pages": [
-              "help/cli_tldr",
-              "tutorials/cli_usage",
-              "help/cli_reference"
+              "tutorials/mcp_server",
+              "tutorials/devtools_mcp"
             ]
           },
           {
-            "group": "Terminal apps",
-            "icon": "window-maximize",
+            "group": "CLI",
+            "icon": "terminal",
             "pages": [
+              "tutorials/cli_usage",
               "help/commander",
               "help/caseplans",
               "help/behave-gui"
             ]
           },
           {
-            "group": "MCP servers",
-            "icon": "robot",
-            "pages": [
-              "tutorials/mcp_server",
-              "tutorials/devtools_mcp",
-              "tutorials/vibe_coding"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "Plugins and ecosystem",
-        "icon": "puzzle-piece",
-        "groups": [
-          {
             "group": "Plugins",
             "icon": "puzzle-piece",
-            "pages": [
-              "plugins/overview",
-              "tutorials/plugins",
-              "plugins/selecting",
-              "plugins/writing-your-own",
-              "plugins/architecture"
-            ]
-          },
-          {
-            "group": "Built-in plugins",
-            "icon": "box",
             "pages": [
               "plugins/shield",
               "plugins/block-resources",
@@ -347,11 +331,16 @@
               "plugins/browser",
               "plugins/imap",
               "plugins/tor",
-              "plugins/wasm"
+              "plugins/wasm",
+              "plugins/overview",
+              "tutorials/plugins",
+              "plugins/selecting",
+              "plugins/writing-your-own",
+              "plugins/architecture"
             ]
           },
           {
-            "group": "Ecosystem",
+            "group": "Integrations",
             "icon": "cubes",
             "pages": [
               "ecosystem/overview",
@@ -514,6 +503,34 @@
                       "ecosystem/tauri-api/actions",
                       "ecosystem/tauri-api/alerts",
                       "ecosystem/tauri-api/screenshots"
+                    ]
+                  }
+                ]
+              },
+              {
+                "product": "Command line",
+                "icon": "terminal",
+                "description": "Every sbrs command, flag and option",
+                "groups": [
+                  {
+                    "group": "Command line",
+                    "pages": [
+                      "help/cli_reference"
+                    ]
+                  }
+                ]
+              },
+              {
+                "product": "Settings and options",
+                "icon": "sliders",
+                "description": "sbase_config.toml, SB_* variables, and the test and run options",
+                "groups": [
+                  {
+                    "group": "Settings and options",
+                    "pages": [
+                      "tutorials/settings_and_config",
+                      "help/test_options",
+                      "help/customizing_test_runs"
                     ]
                   }
                 ]
