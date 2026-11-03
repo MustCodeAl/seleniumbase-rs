@@ -52,6 +52,12 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 s
 
 ### Added
 
+- Docs: [Install sbrs with mise](/tutorials/mise_sbrs). mise's built-in backends install
+  `sbrs` and `sbrs-mcp` with no plugin: `github:` takes the macOS arm64 release archive and lists
+  the versions from the release tags, `cargo:` builds from a git tag on every other platform, and
+  one `mise.toml` with `os = ["macos/arm64"]` picks between them. `docs/building.md` no longer
+  says the release archives do not exist.
+
 - Strict locators in the pure CDP engine: `page.locator(sel).strict()` fails with the new
   `SeleniumBaseError::StrictModeViolation { selector, count }` (category `strict_mode_violation`,
   exit status 3) when the selector matches more than one element, like Playwright's strict mode,

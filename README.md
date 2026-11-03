@@ -111,7 +111,8 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-r
 ```
 
 See [Install without a checkout](./docs/building.md#install-without-a-checkout)
-(the prebuilt release archives wait for the release workflow's first run).
+(the releases carry a prebuilt archive for macOS arm64 only;
+[Install sbrs with mise](./docs/tutorials/mise_sbrs.md) covers mise).
 
 **The library:** add the crate from GitHub (it is not on crates.io). It carries no
 command-line code; `sbrs` is the separate package above. It is the only dependency

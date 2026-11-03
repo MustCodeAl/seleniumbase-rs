@@ -120,7 +120,7 @@ workspace layout, the checks, the real-Chrome tests and build problems), see
 
 <Visibility for="agents">
 
-Summary for AI exports: install Rust 1.99 (rustup), a C compiler and Google Chrome, then clone the repository and run `cargo build --bin sbrs` and `sbrs doctor`. Without a checkout, use `brew install mustcodeal/tap/sbrs` or `cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs-cli --locked`. The prebuilt release archives do not exist yet, so `cargo binstall` and mise's `github:` backend find nothing to download. The library has no default features; the command-line package `seleniumbase-rs-cli` turns on `pdf` and `mcp-server`.
+Summary for AI exports: install Rust 1.99 (rustup), a C compiler and Google Chrome, then clone the repository and run `cargo build --bin sbrs` and `sbrs doctor`. Without a checkout, use `brew install mustcodeal/tap/sbrs` or `cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs-cli --locked`. The releases carry one prebuilt archive, for macOS arm64, which `cargo binstall` and mise's `github:` backend install there (see [Install sbrs with mise](/tutorials/mise_sbrs)); every other platform builds from source. The library has no default features; the command-line package `seleniumbase-rs-cli` turns on `pdf` and `mcp-server`.
 
 </Visibility>
 
@@ -390,16 +390,15 @@ your `PATH` without cloning the repository. None of them uses crates.io.
 
 <Warning>
 
-The prebuilt archives do not exist yet. They come from
-`.github/workflows/release.yml`, which builds `sbrs` and `sbrs-mcp` for
-`aarch64-apple-darwin`, `x86_64-apple-darwin`, `x86_64-unknown-linux-gnu`,
+From v0.6.0 on, each release carries one prebuilt archive, for
+`aarch64-apple-darwin` (macOS on Apple silicon), built on a Mac with
+`mise run release-binaries`. `.github/workflows/release.yml` would also build
+`sbrs` and `sbrs-mcp` for `x86_64-apple-darwin`, `x86_64-unknown-linux-gnu`,
 `aarch64-unknown-linux-gnu` and `x86_64-pc-windows-msvc` when a `v*` tag is
-pushed, and attaches them to that GitHub release. GitHub Actions is locked on
-this repository by a billing problem, so the workflow has not run: the
-releases v0.1.0 to v0.2.0 have no binary assets. Until it runs, `cargo
-binstall` and mise's `github:` backend find nothing to download; the commands
-that build from source (`cargo install --git`, mise's `cargo:` backend and
-Homebrew) work today.
+pushed, but GitHub Actions is locked on this repository by a billing problem,
+so it has not run. On those platforms `cargo binstall` and mise's `github:`
+backend find nothing to download; the commands that build from source
+(`cargo install --git`, mise's `cargo:` backend and Homebrew) work everywhere.
 
 </Warning>
 
@@ -421,7 +420,7 @@ Windows) holds these at its root:
 
 ### cargo binstall
 
-<Badge color="orange">No archives yet</Badge>
+<Badge color="orange">macOS arm64 only</Badge>
 
 [cargo-binstall](https://github.com/cargo-bins/cargo-binstall) downloads the
 release archive for your system instead of compiling. `crates/cli/Cargo.toml`
@@ -441,62 +440,21 @@ completions <shell>` (see [the CLI page](/tutorials/cli_usage)).
 
 ### mise
 
-[mise](https://mise.jdx.dev) has two backends that fit.
-
-<Tabs>
-
-<Tab title="From release archives" icon="download">
-
-The `github:` backend picks the archive for your system and puts both binaries on `PATH`:
-
-<CodeGroup>
+[mise](https://mise.jdx.dev) installs both binaries with two built-in backends
+and no plugin: `github:` downloads the release archive and lists the versions
+from the release tags, and `cargo:` builds from a git tag (Rust 1.99 and a C
+compiler):
 
 ```bash Terminal
-mise use -g github:MustCodeAl/seleniumbase-rs
+mise use -g github:MustCodeAl/seleniumbase-rs                                  # macOS arm64
+mise use -g 'cargo:https://github.com/MustCodeAl/seleniumbase-rs@tag:v0.7.0'  # other platforms
 ```
 
-```toml mise.toml
-[tools."github:MustCodeAl/seleniumbase-rs"]
-version = "latest"
-```
-
-</CodeGroup>
-
-Until the release archives exist, mise reports "No versions found" for it.
-
-</Tab>
-
-<Tab title="Build from the git tag" icon="hammer">
-
-To build from the git tag now, the `cargo:` backend runs `cargo install --git`
-(Rust 1.99 must be on `PATH`, for example with `mise use -g rust@1.99`). The
-repository has one package with binaries, `seleniumbase-rs-cli`, so cargo finds
-it by itself, and it builds `sbrs-mcp` too (`features = ["tui"]` adds the
-terminal UI):
-
-<CodeGroup>
-
-```bash Terminal
-mise use -g 'cargo:https://github.com/MustCodeAl/seleniumbase-rs@tag:v0.2.0'
-```
-
-```toml mise.toml
-[tools."cargo:https://github.com/MustCodeAl/seleniumbase-rs"]
-version = "tag:v0.2.0"
-```
-
-</CodeGroup>
-
-The binaries moved from the package `seleniumbase-rs` to `seleniumbase-rs-cli`
-after v0.4.0. For a tag up to v0.4.0, add `features = ["mcp-server"]` to get
-`sbrs-mcp`.
-
-</Tab>
-
-</Tabs>
-
-mise installs no completions for these backends either; its per-tool
-`postinstall` option can run `sbrs completions zsh` into your completions folder.
+[Install sbrs with mise](/tutorials/mise_sbrs) has a `mise.toml` that picks the
+right backend on each machine, and covers upgrades and completions. The binaries
+moved from the package `seleniumbase-rs` to `seleniumbase-rs-cli` after v0.4.0;
+for a tag up to v0.4.0, add `features = ["mcp-server"]` to the `cargo:` entry to
+get `sbrs-mcp`.
 
 ### Homebrew
 
