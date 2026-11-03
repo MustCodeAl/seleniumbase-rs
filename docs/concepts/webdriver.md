@@ -408,7 +408,7 @@ See [Headless and headed browsers](/tutorials/headless).
   What happens between a URL and a page you can click, and why waits are needed.
 </Card>
 
-<Card title="Common problems" icon="triangle-exclamation" color="#d52c36" href="/help/common_problems">
+<Card title="Troubleshooting" icon="triangle-exclamation" color="#d52c36" href="/help/common_problems">
   Driver version mismatches and other startup errors.
 </Card>
 

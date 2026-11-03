@@ -2245,13 +2245,13 @@ See [Headless and Headed Browsers](/tutorials/headless#containers-and-ci).
 
 <Columns cols={2}>
 
-<Card color="#1a85d4" title="Working with seleniumbase-rs" icon="rocket" href="/tutorials/getting_started">
+<Card color="#1a85d4" title="Walkthrough" icon="rocket" href="/tutorials/getting_started">
 
 Create a project, add seleniumbase-rs and run your first test.
 
 </Card>
 
-<Card color="#199f43" title="FAQ and common problems" icon="circle-question" href="/help/common_problems">
+<Card color="#199f43" title="Troubleshooting" icon="circle-question" href="/help/common_problems">
 
 Short answers about engines, browsers, drivers and stealth.
 

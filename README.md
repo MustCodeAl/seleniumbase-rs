@@ -574,7 +574,7 @@ in [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-steal
 - [Playwright Mode](./docs/help/playwright_mode.md)
 - [Docker Guide](./docs/help/docker.md)
 - [HTML Inspector](./docs/help/html_inspector.md)
-- [Common Problems](./docs/help/common_problems.md)
+- [Troubleshooting](./docs/help/common_problems.md)
 - [ABI & API Stability](./docs/ABI_API.md)
 
 ### Build the documentation book

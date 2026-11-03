@@ -269,7 +269,7 @@ a red build can be read without running it again.
 
 <Columns cols={2}>
 
-<Card title="Common problems" icon="triangle-exclamation" color="#d52c36" href="/help/common_problems">
+<Card title="Troubleshooting" icon="triangle-exclamation" color="#d52c36" href="/help/common_problems">
   What to do when a test will not start or fails oddly.
 </Card>
 

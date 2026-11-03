@@ -804,7 +804,7 @@ equivalent and are not sent; the session proxy is not passed to Firefox either.
   scans it on first run, which can take seconds. The library writes a replaced
   chromedriver as a new file because macOS kills a signed binary that is
   overwritten in place; if a driver is "killed" or refused, run
-  `sbrs install chromedriver` again and see [Common problems](/help/common_problems).
+  `sbrs install chromedriver` again and see [Troubleshooting](/help/common_problems).
 - **Gatekeeper and quarantine.** A browser or driver downloaded by another tool
   can carry a quarantine flag; clear it with
   `xattr -d com.apple.quarantine <file>` if macOS refuses to open it.
@@ -950,7 +950,7 @@ platform, the redacted `SB_*` settings and the output directory.
 
 <Columns cols={2}>
 
-<Card color="#1a85d4" title="Working with seleniumbase-rs" icon="rocket" href="/tutorials/getting_started" horizontal>
+<Card color="#1a85d4" title="Walkthrough" icon="rocket" href="/tutorials/getting_started" horizontal>
 
 Write and run your first browser test.
 

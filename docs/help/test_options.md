@@ -58,7 +58,7 @@ the variables you exported yourself.
   SB_BROWSER: give only one of them`.
 - **In a test.** `Sb::configure` changes the same settings for one test, and the
   keys are the names of the settings (see [Writing Tests with the sb
-  Fixture](/tutorials/writing_tests#what-the-run-configuration-does)).
+  Fixture](/rust-test-tooling#what-the-run-configuration-does)).
 
 <Note>
 
@@ -302,7 +302,7 @@ working directory is its package's.
 
 A failing test leaves `latest_logs/<test id>/` with `screenshot.png`,
 `page_source.html` and `basic_test_info.txt`. [Writing Tests with the sb
-Fixture](/tutorials/writing_tests#reports-of-a-run) describes what each report
+Fixture](/rust-test-tooling#reports-of-a-run) describes what each report
 holds.
 
 <ParamField path="--screenshot, --save-screenshot, --ss" type="switch">
@@ -708,7 +708,7 @@ Stop in a prompt with the browser open.
 
 </Card>
 
-<Card color="#199f43" title="Writing Tests with the sb Fixture" icon="flask" horizontal href="/tutorials/writing_tests">
+<Card color="#199f43" title="Writing Browser Tests" icon="flask" horizontal href="/rust-test-tooling">
 
 Reruns, time limits, evidence and reports.
 

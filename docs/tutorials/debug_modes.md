@@ -123,7 +123,7 @@ prompt`. `s` and
 `src` save a screenshot and the page source to `latest_logs/<test id>/`, `js
 <expr>` evaluates an expression in the page, and `h` lists the rest. The full
 table of commands, the listing and the colours are described in [Writing Tests
-with the sb Fixture](/tutorials/writing_tests#debug-prompts).
+with the sb Fixture](/rust-test-tooling#debug-prompts).
 
 The time you spend at a prompt counts neither against `--time-limit` nor against
 the test's own limit, so a test is not stopped while you look around.
@@ -165,7 +165,7 @@ Every flag of `sbrs test`.
 
 </Card>
 
-<Card color="#199f43" title="Writing Tests with the sb Fixture" icon="flask" horizontal href="/tutorials/writing_tests">
+<Card color="#199f43" title="Writing Browser Tests" icon="flask" horizontal href="/rust-test-tooling">
 
 The prompt commands, reruns and evidence.
 

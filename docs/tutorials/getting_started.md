@@ -1,6 +1,6 @@
 ---
-title: "Working with SeleniumBase for Rust"
-sidebarTitle: "Working with seleniumbase-rs"
+title: "Walkthrough"
+sidebarTitle: "Walkthrough"
 ---
 
 This guide walks you through your first browser automation test with

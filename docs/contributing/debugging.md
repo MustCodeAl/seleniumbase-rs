@@ -527,7 +527,7 @@ Before it starts a driver, the launcher makes the file runnable
 removes the macOS quarantine flag and, after a patch on macOS, signs the binary
 again ad hoc. Firefox and Edge use geckodriver and msedgedriver; see
 [Operating systems](/building#firefox-and-edge) and
-[Common problems](/help/common_problems).
+[Troubleshooting](/help/common_problems).
 
 ## The MCP server's logs
 
@@ -777,7 +777,7 @@ Spans, error events and the `SB_*` variables in full.
 
 </Card>
 
-<Card color="#199f43" title="Common problems" icon="life-ring" href="/help/common_problems">
+<Card color="#199f43" title="Troubleshooting" icon="life-ring" href="/help/common_problems">
 
 Error messages and what to do about them.
 

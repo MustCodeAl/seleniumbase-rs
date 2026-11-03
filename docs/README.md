@@ -14,7 +14,7 @@ system, async runtime, and native distribution model.
 
 <Columns cols={2}>
 
-<Card title="Working with seleniumbase-rs" icon="rocket" color="#d47628" href="/tutorials/getting_started">
+<Card title="Walkthrough" icon="rocket" color="#d47628" href="/tutorials/getting_started">
   Create a Rust project, add seleniumbase-rs, and run your first test.
 </Card>
 
@@ -400,7 +400,7 @@ Read [Undetected (UC) Mode](/tutorials/uc_mode),
 <Tab title="Day to day" icon="terminal">
 
 Keep [CLI Usage](/tutorials/cli_usage) and
-[Common Problems](/help/common_problems) handy.
+[Troubleshooting](/help/common_problems) handy.
 
 </Tab>
 

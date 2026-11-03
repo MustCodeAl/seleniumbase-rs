@@ -106,7 +106,7 @@ sb.quit().await?;
 Without the feature `testing`, `run_browser_test(BrowserConfig::default(), async |sb| { .. })`
 and `run_cdp_test(LaunchOptions::default(), async |page| { .. })` close the browser
 on every path too, but they read no configuration (no reruns, no time limit) and
-keep no evidence. [Writing Tests with the sb Fixture](/tutorials/writing_tests)
+keep no evidence. [Writing Browser Tests](/rust-test-tooling)
 has the setup and the settings.
 
 ### 2. Import from `seleniumbase_rs` only
@@ -565,7 +565,7 @@ sb.type_text("#password", "hunter2").await?; // in the repository for good
 
 </CodeGroup>
 
-See [Test data](/tutorials/writing_tests#test-data) and
+See [Test data](/rust-test-tooling#test-data) and
 [MFA and TOTP codes](/tutorials/mfa_totp).
 
 ## What the crate cannot enforce yet
@@ -593,7 +593,7 @@ leaves a rule to the author or the reviewer:
 
 <Columns cols={2}>
 
-<Card color="#1a85d4" title="Writing Tests with the sb Fixture" icon="flask" href="/tutorials/writing_tests">
+<Card color="#1a85d4" title="Writing Browser Tests" icon="flask" href="/rust-test-tooling">
 
 The fixtures, the run configuration, evidence and reports.
 
