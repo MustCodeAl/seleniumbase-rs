@@ -503,7 +503,7 @@ Selector syntax differences.
 
 </Card>
 
-<Card color="#d47628" title="Waits and Assertions" icon="clock" horizontal href="/tutorials/helpers#waits-and-assertions">
+<Card color="#d47628" title="Waits and Assertions" icon="clock" horizontal href="/tutorials/utilities#waits-and-assertions">
 
 Equivalent Rust methods.
 

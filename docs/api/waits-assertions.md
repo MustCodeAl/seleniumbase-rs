@@ -32,7 +32,7 @@ Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...)
 | `sleep(seconds)` | Async sleep helper. |
 | `wait(seconds)` | The same as `sleep`; takes whole or fractional seconds (`wait(2)`, `wait(0.5)`). |
 
-See [Waits and Assertions](/tutorials/helpers#waits-and-assertions) for detailed examples.
+See [Waits and Assertions](/tutorials/utilities#waits-and-assertions) for detailed examples.
 
 ## Assertions
 

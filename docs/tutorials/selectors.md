@@ -480,7 +480,7 @@ The list of actions is in [Recorder CLI](/help/recorder_cli#run-a-json-scenario)
 
 <Columns cols={3}>
 
-<Card color="#1a85d4" title="Helpers" icon="clock" horizontal href="/tutorials/helpers">
+<Card color="#1a85d4" title="Utilities" icon="clock" horizontal href="/tutorials/utilities">
 
 Waits, assertions, macros and the HTML inspector.
 

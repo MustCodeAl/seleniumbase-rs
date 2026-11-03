@@ -73,7 +73,7 @@ Actions and assertions wait for their element, so a fixed `sleep` only makes a
 test slower, or flaky when the page is slower than the sleep. When you need to
 wait for something an action does not cover, use a wait method with a timeout
 (`wait_for_element_visible(selector, timeout_secs)`). See
-[Waits and assertions](/tutorials/helpers#waits-and-assertions).
+[Waits and assertions](/tutorials/utilities#waits-and-assertions).
 
 <CodeGroup>
 
@@ -110,7 +110,7 @@ error that names the selector; ignoring the result hides failures. See
 <Accordion title="Always close the browser" icon="power-off">
 
 A test that fails before `sb.quit()` leaves a Chrome running. `sb_test!` and
-`run_browser_test` always quit, even on failure. See [Macros](/tutorials/helpers#macros).
+`run_browser_test` always quit, even on failure. See [Macros](/tutorials/utilities#macros).
 
 </Accordion>
 
@@ -453,7 +453,7 @@ sb.sleep(3.0).await; // too long when fast, too short when slow
 To change how long everything waits, set the default once (`sb.set_timeout(30).await?`)
 or narrow it for one locator (`page.locator(..).with_timeout(Duration::from_secs(30))`).
 A wait that runs out fails with `SeleniumBaseError::WaitTimeout`, which names the
-selector and the state it waited for. [Waits and Assertions](/tutorials/helpers#waits-and-assertions)
+selector and the state it waited for. [Waits and Assertions](/tutorials/utilities#waits-and-assertions)
 lists every wait.
 
 ### 5. Assert with the retrying assertions
@@ -857,7 +857,7 @@ The fixtures, the run configuration, evidence and reports.
 
 </Card>
 
-<Card color="#199f43" title="Waits and Assertions" icon="clock" href="/tutorials/helpers#waits-and-assertions">
+<Card color="#199f43" title="Waits and Assertions" icon="clock" href="/tutorials/utilities#waits-and-assertions">
 
 Every wait and assertion, and the default timeout.
 

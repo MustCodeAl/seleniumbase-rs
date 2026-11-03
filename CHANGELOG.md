@@ -128,14 +128,14 @@ work, `docs/parity.md` the per-API status).
   the CLI reference and the settings and options pages (`help/test_options`,
   `help/customizing_test_runs`, `tutorials/settings_and_config`) are in Reference. Overlapping
   pages are merged and every old address redirects: "Writing Browser Tests" holds the former
-  "Writing Tests with the sb Fixture" (`/tutorials/writing_tests`), "Install" holds "Install sbrs
+  "Writing Tests with the sb Fixture" (`/tutorials/writing_tests`), "Installation" holds "Install sbrs
   with mise" and "Manage chromedriver with mise", "Tracing and logs" holds "Debug modes",
-  "Selectors" holds "Shadow DOM" and "Syntax formats", and the new "Helpers" holds "Waits and
-  Assertions", "Macros" and "HTML Inspector". "Best practices" is "Best practices for reliable tests" and holds the former
+  "Selectors" holds "Shadow DOM" and "Syntax formats", and the new "Utilities" holds "Waits and
+  Assertions", "Macros", "HTML Inspector" and "Behave and Gherkin" (`/tutorials/behave`). "Best practices" is "Best practices for reliable tests" and holds the former
   "Reliable Browser Tests" (`/tutorials/reliable_tests`). "FAQ and common problems" is "Troubleshooting" in the
   Help group with the FAQ as its own page (`help/faq`), and "Working with SeleniumBase for Rust" is
   "Walkthrough". The test plugins page is in Ecosystem → Plugins, "Cloud uploads" is in Run in
-  production, and "Translations" is in Reference → Settings and options. "Install" comes right after the
+  production, and "Translations" is in Reference → Settings and options. "Installation" comes right after the
   introduction, and "Pages with a CAPTCHA" is "Handling CAPTCHAs" in the Help group.
 
 

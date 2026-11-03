@@ -688,7 +688,7 @@ not.
 
 `sbrs behave-options` prints how Python's behave options map to `sbrs test`,
 because Gherkin scenarios are `cargo test` tests now (see [Gherkin scenarios
-with rstest-bdd](/tutorials/behave)).
+with rstest-bdd](/tutorials/utilities#gherkin-scenarios-with-rstest-bdd)).
 
 | behave | `sbrs test` |
 |---|---|

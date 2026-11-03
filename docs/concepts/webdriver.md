@@ -256,7 +256,7 @@ The rule of thumb is to wait for a **condition**, never for a fixed time. A
 `sleep(2)` is either too short (still flaky) or too long (slow suite). The
 SeleniumBase approach is to build the wait into the action methods, so `click`
 waits for its element to appear and be clickable before it acts, and tests rarely
-need hand-written waits (see [Waits and Assertions](/tutorials/helpers#waits-and-assertions)).
+need hand-written waits (see [Waits and Assertions](/tutorials/utilities#waits-and-assertions)).
 [How a page loads](/concepts/how-a-page-loads) explains
 why "the page loaded" does not mean "the page is ready".
 

@@ -800,7 +800,7 @@ Write a compile-time unit test under the definition.
 
 <Step title="Document it" icon="book">
 
-Update `docs/tutorials/helpers.md` and the macro table in `README.md`.
+Update `docs/tutorials/utilities.md` and the macro table in `README.md`.
 
 </Step>
 

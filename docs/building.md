@@ -1,6 +1,6 @@
 ---
 title: "Building and installing"
-sidebarTitle: "Install"
+sidebarTitle: "Installation"
 description: "Install sbrs without a checkout or build seleniumbase-rs from source, pick features, check the setup and run it in a container on macOS, Linux or Windows."
 keywords: ["install", "build", "cargo", "sbrs", "features", "container", "doctor"]
 ---

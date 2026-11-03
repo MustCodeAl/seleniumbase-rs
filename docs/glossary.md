@@ -177,7 +177,7 @@ See [Getting Started with SeleniumBase for Rust](/tutorials/getting_started).
 
 The crate's Gherkin runner: a small parser and step runner for `.feature` files, like Python's `behave`. You register step definitions, plain or async, and can run only the scenarios with certain tags.
 
-See [Behave / Gherkin Support](/tutorials/behave).
+See [Behave / Gherkin Support](/tutorials/utilities#gherkin-scenarios-with-rstest-bdd).
 
 ### Binary patching
 
@@ -629,7 +629,7 @@ See [Network and proxies](/concepts/network#udp-and-quic).
 
 An assertion that checks the page at once but does not stop the test when it fails. It records the failure, and `process_deferred_asserts` reports all of them together. It is also called a soft assertion.
 
-See [Waits and Assertions](/tutorials/helpers#soft-assertions).
+See [Waits and Assertions](/tutorials/utilities#soft-assertions).
 
 ### Demo mode
 
@@ -803,7 +803,7 @@ See [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth).
 
 The plain-language format of `.feature` files, where behaviour is written as scenarios made of steps. The crate's [Behave](#behave) runner reads Gherkin and matches each step to a step definition you register.
 
-See [Behave / Gherkin Support](/tutorials/behave).
+See [Behave / Gherkin Support](/tutorials/utilities#gherkin-scenarios-with-rstest-bdd).
 
 ### Git
 
@@ -1799,7 +1799,7 @@ See [Network and proxies](/concepts/network#sockets).
 
 Another name for a [deferred assertion](#deferred-assertion): a check that records its failure instead of stopping the test.
 
-See [Waits and Assertions](/tutorials/helpers#soft-assertions).
+See [Waits and Assertions](/tutorials/utilities#soft-assertions).
 
 ### Source map
 

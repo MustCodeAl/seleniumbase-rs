@@ -1150,7 +1150,7 @@ can be asserted without a browser.
 
 <Step title="Document it" icon="book">
 
-Update `docs/tutorials/helpers.md` with the macro name, signature, and example.
+Update `docs/tutorials/utilities.md` with the macro name, signature, and example.
 
 </Step>
 

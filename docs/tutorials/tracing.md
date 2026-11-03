@@ -440,7 +440,7 @@ time.
 `--pdb`, `--trace`, `--final-debug` and `breakpoint` work in the steps of a
 scenario as in any other test: a failed step panics, and the post-mortem prompt
 opens before the browser closes. See [Gherkin scenarios with
-rstest-bdd](/tutorials/behave).
+rstest-bdd](/tutorials/utilities#gherkin-scenarios-with-rstest-bdd).
 
 ## Troubleshooting
 

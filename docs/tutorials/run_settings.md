@@ -385,7 +385,7 @@ times longer. Keep them off unless a person is watching.
 
 </Card>
 
-<Card color="#199f43" title="Waits and Assertions" icon="clock" href="/tutorials/helpers#waits-and-assertions">
+<Card color="#199f43" title="Waits and Assertions" icon="clock" href="/tutorials/utilities#waits-and-assertions">
 
 The waits that `with_skip_js_waits` leaves alone.
 

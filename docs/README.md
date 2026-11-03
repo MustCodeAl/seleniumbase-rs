@@ -252,7 +252,7 @@ sb.wait_for_element_absent("#loading-spinner", 5).await?;
 sb.assert_element_present(".user-profile").await?;
 ```
 
-See [Waits and Assertions](/tutorials/helpers#waits-and-assertions).
+See [Waits and Assertions](/tutorials/utilities#waits-and-assertions).
 
 ### PDF files and HTML parsing
 
@@ -305,7 +305,7 @@ fails the test when there are any.
 
 Tests do not have to start as Rust. seleniumbase-rs reads
 [Selenium IDE](/tutorials/selenium_ide) recordings, runs Gherkin scenarios as
-cargo tests ([Behave and Gherkin](/tutorials/behave)), converts Python, Playwright
+cargo tests ([Behave and Gherkin](/tutorials/utilities#gherkin-scenarios-with-rstest-bdd)), converts Python, Playwright
 and Puppeteer scripts ([Migrate from Python](/python-migration)), and records your
 clicks as a ready-to-run test ([Recorder Mode](/tutorials/recorder_mode)).
 
@@ -377,7 +377,7 @@ can list the tools without one. See [MCP Server](/tutorials/mcp_server).
 
 Start with [Getting Started](/tutorials/getting_started)
 and then read [Writing Browser Tests](/rust-test-tooling) and
-[Waits and Assertions](/tutorials/helpers#waits-and-assertions).
+[Waits and Assertions](/tutorials/utilities#waits-and-assertions).
 
 </Tab>
 

@@ -751,7 +751,7 @@ sb_test!(home_page_loads, BrowserConfig::default(), |sb| {
 This expands to the same shape as the manual example above. It is optional but
 useful for linear tests where the reduced noise improves readability.
 
-See [Macros](/tutorials/helpers#macros) for the full macro catalog.
+See [Macros](/tutorials/utilities#macros) for the full macro catalog.
 
 ## Common pitfalls
 

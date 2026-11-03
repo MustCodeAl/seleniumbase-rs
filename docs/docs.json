@@ -34,6 +34,11 @@
   },
   "redirects": [
     {
+      "source": "/tutorials/behave",
+      "destination": "/tutorials/utilities",
+      "permanent": true
+    },
+    {
       "source": "/tutorials/reliable_tests",
       "destination": "/best-practices",
       "permanent": true
@@ -65,17 +70,17 @@
     },
     {
       "source": "/tutorials/macros",
-      "destination": "/tutorials/helpers",
+      "destination": "/tutorials/utilities",
       "permanent": true
     },
     {
       "source": "/help/html_inspector",
-      "destination": "/tutorials/helpers",
+      "destination": "/tutorials/utilities",
       "permanent": true
     },
     {
       "source": "/tutorials/waits_assertions",
-      "destination": "/tutorials/helpers",
+      "destination": "/tutorials/utilities",
       "permanent": true
     },
     {
@@ -214,9 +219,8 @@
             "icon": "flask",
             "pages": [
               "rust-test-tooling",
-              "tutorials/behave",
               "tutorials/selectors",
-              "tutorials/helpers",
+              "tutorials/utilities",
               "best-practices"
             ]
           },

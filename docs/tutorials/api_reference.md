@@ -196,7 +196,7 @@ CSS, XPath, link text and shadow DOM: how a selector string is read.
 
 </Card>
 
-<Card color="#1ca1c7" title="Waits and Assertions" icon="clock" href="/tutorials/helpers#waits-and-assertions" horizontal>
+<Card color="#1ca1c7" title="Waits and Assertions" icon="clock" href="/tutorials/utilities#waits-and-assertions" horizontal>
 
 Wait for the page, then check it, without sleeps.
 
@@ -214,7 +214,7 @@ Run Chrome so sites see a person's browser.
 
 </Card>
 
-<Card color="#d5a910" title="Macros" icon="wand-magic-sparkles" href="/tutorials/helpers#macros" horizontal>
+<Card color="#d5a910" title="Macros" icon="wand-magic-sparkles" href="/tutorials/utilities#macros" horizontal>
 
 Convenience macros from the crate root.
 
