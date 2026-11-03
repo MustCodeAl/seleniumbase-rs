@@ -139,7 +139,7 @@ For an assistant that writes tests *with* this crate, in a user's project or in
 `examples/` and `docs/`; the rules above are for changing the crate. They follow
 the checklist that thirtyfour publishes as
 [Reliable AI-Generated Tests](https://github.com/stevepryde/thirtyfour/blob/main/docs/src/getting-started/reliable-tests.md),
-written for this crate's API. `docs/tutorials/reliable_tests.md` explains each rule
+written for this crate's API. `docs/best-practices.md` explains each rule
 with a do and an avoid. If you are not sure a method exists, ask the `dev` MCP
 server (`find_api`) before you write the call.
 

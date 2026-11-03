@@ -26,7 +26,7 @@ fix a line here when the code stops matching it. Human contributors want
 - Commit small, one concern per commit; a bug fix comes with a test that fails
   without it.
 - Writing browser tests *with* the crate (not changing it): follow the rules in
-  `AGENTS.md`; `docs/tutorials/reliable_tests.md` explains each one.
+  `AGENTS.md`; `docs/best-practices.md` explains each one.
 
 ## What this is
 

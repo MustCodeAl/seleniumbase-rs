@@ -131,7 +131,8 @@ work, `docs/parity.md` the per-API status).
   "Writing Tests with the sb Fixture" (`/tutorials/writing_tests`), "Install" holds "Install sbrs
   with mise" and "Manage chromedriver with mise", "Tracing and logs" holds "Debug modes",
   "Selectors" holds "Shadow DOM" and "Syntax formats", and the new "Helpers" holds "Waits and
-  Assertions", "Macros" and "HTML Inspector". "FAQ and common problems" is "Troubleshooting" in the
+  Assertions", "Macros" and "HTML Inspector". "Best practices" is "Best practices for reliable tests" and holds the former
+  "Reliable Browser Tests" (`/tutorials/reliable_tests`). "FAQ and common problems" is "Troubleshooting" in the
   Help group with the FAQ as its own page (`help/faq`), and "Working with SeleniumBase for Rust" is
   "Walkthrough".
 
@@ -520,7 +521,7 @@ work, `docs/parity.md` the per-API status).
   concurrent flow, headless through `SB_HEADLESS`, a body safe to run twice, raw protocol calls in one
   helper, tests of page-driving code on `Browser::new_mocked()`, credentials from the run). They adapt
   the checklist that thirtyfour publishes for generated tests to this crate's API. The page
-  [Reliable Browser Tests](docs/tutorials/reliable_tests.md) explains each rule with a do and an
+  [Best practices for reliable tests](docs/best-practices.md) explains each rule with a do and an
   avoid, and lists what the crate cannot enforce yet (no strict single match, no scoped query on
   `BaseCase`, no hard time limit outside the fixtures). `CLAUDE.md` points to both.
 
