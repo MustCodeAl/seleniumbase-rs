@@ -167,7 +167,6 @@ binaries with `cargo install --path crates/cli`.
   so every switch must be, and a test fails for one that is not) and a `help` path that
   names no command (`sbrs help nosuch`). The help lists the commands alphabetically,
   not in declaration order.
-- `thirtyfour` still depends on `zip` 8.6, so two `zip` versions are in the tree.
 - Real-Chrome behaviour differs between headless and headed runs; check which
   one a test uses before trusting a timing.
 
