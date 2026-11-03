@@ -52,6 +52,15 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 s
 
 ### Added
 
+- The built-in `browser` plugin's worker, session and sign-in options work on the pure CDP
+  engine (plugins `0666904`): `wait_for_workers` and `worker_timeout_secs`, `session` with
+  `save_on_close` and `session_dir`, and `interactive` with `pause_message`
+  (`docs/plugins/browser.md`). The engine's plugin host answers the new
+  `BrowserHandle::extension_workers` from Chrome's targets (the `service_worker` targets under
+  `chrome-extension://<id>/` of the extensions the launch loaded) and gives a tokio clock through
+  `BrowserHandle::clock` when the plugin set has no timer of its own. The WebDriver host has
+  neither, so there `wait_for_workers` and `save_on_close` fail at launch, naming the option.
+
 - Strict locators in the pure CDP engine: `page.locator(sel).strict()` fails with the new
   `SeleniumBaseError::StrictModeViolation { selector, count }` (category `strict_mode_violation`,
   exit status 3) when the selector matches more than one element, like Playwright's strict mode,

@@ -39,13 +39,13 @@ mod imports {
         use seleniumbase_rs_plugin::{
             async_trait, BrowserFamily, BrowserHandle, BrowserId, Capability, CapabilitySet,
             Category, Clock, Configurable, ContextHandle, ContextId, ContextSettings, Descriptor,
-            Enforcement, Engine, HostInfo, HostKind, LaunchContext, LaunchSettings,
-            LoadedExtension, Metadata, NavDecision, NavOrigin, NavOutcome, Navigation, NetRule,
-            NetworkInterest, NoPrompt, Outcome, Package, PageHandle, PageId, PathScope, Phase,
-            Plugin, PluginError, PluginSet, PluginSpec, ProfileView, Prompt, ProtocolEvent,
-            Registry, RequestDecision, RequestFilter, RequestView, Requirements, ResourceKind,
-            ResponseView, Result, Seals, Sink, Task, TaskContext, TestInfo, TestOutcome,
-            TestVerdict, Timer, WebRtcPolicy,
+            Enforcement, Engine, ExtensionWorker, HostInfo, HostKind, LaunchContext,
+            LaunchSettings, LoadedExtension, Metadata, NavDecision, NavOrigin, NavOutcome,
+            Navigation, NetRule, NetworkInterest, NoPrompt, Outcome, Package, PageHandle, PageId,
+            PathScope, Phase, Plugin, PluginError, PluginSet, PluginSpec, ProfileView, Prompt,
+            ProtocolEvent, Registry, RequestDecision, RequestFilter, RequestView, Requirements,
+            ResourceKind, ResponseView, Result, Seals, Sink, Task, TaskContext, TestInfo,
+            TestOutcome, TestVerdict, Timer, WebRtcPolicy,
         };
     };
 

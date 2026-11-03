@@ -55,7 +55,7 @@ pub use task::{check_task, run_task, run_task_on, run_task_until};
 pub use test_hooks::{test_end, test_start};
 
 pub(crate) use timer::timed;
-#[cfg(all(feature = "plugin-imap", feature = "mcp-server"))]
+// The email tool's clock, and the pure CDP engine's `BrowserHandle::clock`.
 pub(crate) use timer::TokioTimer;
 
 /// The cargo features that add a built-in plugin, for messages.
@@ -504,21 +504,60 @@ mod tests {
     #[test]
     fn the_builtin_registry_builds_browser_with_its_options() {
         assert!(builtin_registry().names().contains(&"browser"));
+        let built = |options: serde_json::Value| {
+            build(
+                &PluginSelection::new()
+                    .enable("browser")
+                    .with_options("browser", options),
+            )
+        };
 
-        let selection = PluginSelection::new()
-            .enable("browser")
-            .with_options("browser", json!({ "extension_dir": ["my-extension"] }));
-        assert_eq!(build(&selection).unwrap().names(), ["browser"]);
-
-        // An option the plugin does not have yet is refused, not ignored.
-        let bad = PluginSelection::new()
-            .enable("browser")
-            .with_options("browser", json!({ "wait_for_workers": true }));
-        let error = build(&bad).unwrap_err();
-        assert!(
-            matches!(&error, SeleniumBaseError::Plugin { plugin, .. } if plugin == "browser"),
-            "{error:?}"
+        assert_eq!(
+            built(json!({ "extension_dir": ["my-extension"] }))
+                .unwrap()
+                .names(),
+            ["browser"]
         );
+        // The worker and session options build.
+        assert_eq!(
+            built(json!({
+                "extension_dir": ["my-extension"],
+                "wait_for_workers": true,
+                "worker_timeout_secs": 5,
+                "session": "login",
+            }))
+            .unwrap()
+            .names(),
+            ["browser"]
+        );
+        // Saving a session needs Unix file permissions.
+        if cfg!(unix) {
+            assert_eq!(
+                built(json!({
+                    "session": "login",
+                    "save_on_close": true,
+                    "interactive": true,
+                    "pause_message": "Sign in, then press Enter.",
+                }))
+                .unwrap()
+                .names(),
+                ["browser"]
+            );
+        }
+
+        // An option the plugin does not have is refused, not ignored, and so is
+        // one without the option it needs.
+        for bad in [
+            json!({ "extension_zips": ["a.crx"] }),
+            json!({ "save_on_close": true }),
+            json!({ "worker_timeout_secs": 5 }),
+        ] {
+            let error = built(bad).unwrap_err();
+            assert!(
+                matches!(&error, SeleniumBaseError::Plugin { plugin, .. } if plugin == "browser"),
+                "{error:?}"
+            );
+        }
     }
 
     #[cfg(feature = "plugin-imap")]
