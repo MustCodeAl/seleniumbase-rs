@@ -499,7 +499,7 @@ CSS, XPath, link text and shadow DOM: how a selector string is read.
 
 </Card>
 
-<Card color="#199f43" title="Waits and assertions" icon="clock" href="/tutorials/waits_assertions">
+<Card color="#199f43" title="Waits and assertions" icon="clock" href="/tutorials/helpers#waits-and-assertions">
 
 Wait for the page, then check it, without sleeps.
 

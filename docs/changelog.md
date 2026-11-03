@@ -61,7 +61,7 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 s
   `BrowserHandle::clock` when the plugin set has no timer of its own. The WebDriver host has
   neither, so there `wait_for_workers` and `save_on_close` fail at launch, naming the option.
 
-- Docs: [Install sbrs with mise](/tutorials/mise_sbrs). mise's built-in backends install
+- Docs: [Install sbrs with mise](/building). mise's built-in backends install
   `sbrs` and `sbrs-mcp` with no plugin: `github:` takes the macOS arm64 release archive and lists
   the versions from the release tags, `cargo:` builds from a git tag on every other platform, and
   one `mise.toml` with `os = ["macos/arm64"]` picks between them. `docs/building.md` no longer
@@ -106,7 +106,7 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 s
   There is no setting for it. No mise on the `PATH`, a failing mise, one that takes
   more than 5 seconds and a bad answer are all silent. A pinned `--driver-version`
   still downloads that build. See
-  [Manage chromedriver with mise](/tutorials/mise_chromedriver).
+  [Manage chromedriver with mise](/building).
 
 - `tools/release/build-binaries.sh` (`mise run release-binaries`) builds the release archives of
   `sbrs` and `sbrs-mcp` for Linux arm64, Linux x86_64 and macOS Intel on an Apple silicon Mac,
@@ -148,13 +148,17 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 s
 ### Changed
 
 - The Docs7 menu has five tabs: Guides, Stealth, Ecosystem, Reference and Contributing.
-  "Ecosystem" holds MCP, the CLI, the plugins (the built-in ones first) and the integrations;
+  "Ecosystem" holds MCP (with the vibe coding page), the CLI (with the TL;DR page), the integrations
+  and the plugins (the built-in ones first);
   the CLI reference and the settings and options pages (`help/test_options`,
-  `help/customizing_test_runs`, `tutorials/settings_and_config`) are in Reference. The vibe
-  coding, TL;DR and mise install pages are near the top of Guides. "Writing Browser Tests" now
-  holds the former "Writing Tests with the sb Fixture" (`/tutorials/writing_tests` redirects to
-  `/rust-test-tooling`), "FAQ and common problems" is "Troubleshooting" with the FAQ as its own page
-  (`help/faq`), and "Working with SeleniumBase for Rust" is "Walkthrough".
+  `help/customizing_test_runs`, `tutorials/settings_and_config`) are in Reference. Overlapping
+  pages are merged and every old address redirects: "Writing Browser Tests" holds the former
+  "Writing Tests with the sb Fixture" (`/tutorials/writing_tests`), "Install" holds "Install sbrs
+  with mise" and "Manage chromedriver with mise", "Tracing and logs" holds "Debug modes",
+  "Selectors" holds "Shadow DOM" and "Syntax formats", and the new "Helpers" holds "Waits and
+  Assertions", "Macros" and "HTML Inspector". "FAQ and common problems" is "Troubleshooting" in the
+  Help group with the FAQ as its own page (`help/faq`), and "Working with SeleniumBase for Rust" is
+  "Walkthrough".
 
 
 - **`sbrs` and `sbrs-mcp` print the failure of a command as a [miette](https://docs.rs/miette)

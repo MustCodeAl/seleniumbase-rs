@@ -252,7 +252,7 @@ sb.wait_for_element_absent("#loading-spinner", 5).await?;
 sb.assert_element_present(".user-profile").await?;
 ```
 
-See [Waits and Assertions](/tutorials/waits_assertions).
+See [Waits and Assertions](/tutorials/helpers#waits-and-assertions).
 
 ### PDF files and HTML parsing
 
@@ -275,7 +275,7 @@ See [PDF Parsing](/tutorials/pdf_parsing).
   Step-by-step product tours on any page, and charts saved as HTML (see also [Charts](/tutorials/charts)).
 </Card>
 
-<Card title="Shadow DOM" icon="layer-group" href="/tutorials/shadow_dom">
+<Card title="Shadow DOM" icon="layer-group" href="/tutorials/selectors#shadow-dom">
   Selectors that reach into shadow trees, open or closed, for every method that takes one.
 </Card>
 
@@ -377,7 +377,7 @@ can list the tools without one. See [MCP Server](/tutorials/mcp_server).
 
 Start with [Getting Started](/tutorials/getting_started)
 and then read [Writing Browser Tests](/rust-test-tooling) and
-[Waits and Assertions](/tutorials/waits_assertions).
+[Waits and Assertions](/tutorials/helpers#waits-and-assertions).
 
 </Tab>
 

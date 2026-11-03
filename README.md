@@ -112,7 +112,7 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-r
 
 See [Install without a checkout](./docs/building.md#install-without-a-checkout)
 (the releases carry a prebuilt archive for macOS arm64 only;
-[Install sbrs with mise](./docs/tutorials/mise_sbrs.md) covers mise).
+[Install sbrs with mise](./docs/building.md#install-sbrs-with-mise) covers mise).
 
 **The library:** add the crate from GitHub (it is not on crates.io). It carries no
 command-line code; `sbrs` is the separate package above. It is the only dependency
@@ -536,9 +536,9 @@ in [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-steal
 
 - [Getting Started](./docs/tutorials/getting_started.md)
 - [Selectors](./docs/tutorials/selectors.md)
-- [Waits and Assertions](./docs/tutorials/waits_assertions.md)
+- [Waits and Assertions](./docs/tutorials/helpers.md#waits-and-assertions)
 - [Testing Pages with a CAPTCHA](./docs/tutorials/captcha_testing.md)
-- [Shadow DOM](./docs/tutorials/shadow_dom.md)
+- [Shadow DOM](./docs/tutorials/selectors.md#shadow-dom)
 - [CDP Mode](./docs/tutorials/cdp_mode.md)
 - [Undetected (UC) Mode](./docs/tutorials/uc_mode.md)
 - [Fingerprint & Stealth Profiles](./docs/tutorials/fingerprint_stealth.md)
@@ -554,7 +554,7 @@ in [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-steal
 - [Test Translations](./docs/tutorials/translations.md)
 - [CLI Usage](./docs/tutorials/cli_usage.md)
 - [API Reference](./docs/tutorials/api_reference.md)
-- [Macros](./docs/tutorials/macros.md)
+- [Macros](./docs/tutorials/helpers.md#macros)
 - [Cloud Integrations](./docs/tutorials/cloud_integrations.md)
 - [Settings and Configuration](./docs/tutorials/settings_and_config.md)
 - [Run Settings (demo and slow mode)](./docs/tutorials/run_settings.md)
@@ -566,14 +566,14 @@ in [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-steal
 ### Help pages
 
 - [Customizing Test Runs](./docs/help/customizing_test_runs.md)
-- [Syntax Formats](./docs/help/syntax_formats.md)
+- [Syntax Formats](./docs/tutorials/selectors.md#syntax-formats)
 - [Commander TUI](./docs/help/commander.md)
 - [Case Plans Generator](./docs/help/caseplans.md)
 - [Behave Commander](./docs/help/behave-gui.md)
 - [Recorder CLI](./docs/help/recorder_cli.md)
 - [Playwright Mode](./docs/help/playwright_mode.md)
 - [Docker Guide](./docs/help/docker.md)
-- [HTML Inspector](./docs/help/html_inspector.md)
+- [HTML Inspector](./docs/tutorials/helpers.md#html-inspector)
 - [Troubleshooting](./docs/help/common_problems.md)
 - [ABI & API Stability](./docs/ABI_API.md)
 

@@ -148,7 +148,7 @@ companies are often built this way. How each tool crosses the boundary:
   shadow element as a click on the shadow **host**, because that is what an
   outside selector can name.
 
-See the [Shadow DOM guide](/tutorials/shadow_dom), the
+See the [Shadow DOM guide](/tutorials/selectors#shadow-dom), the
 [Selectors guide](/tutorials/selectors#shadow-dom), the glossary entry
 [Shadow DOM](/glossary#shadow-dom) and the
 [web components](/concepts/modern-web#web-components-and-shadow-dom) entry of

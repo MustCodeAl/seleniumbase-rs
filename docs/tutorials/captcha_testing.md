@@ -675,6 +675,6 @@ For `run_browser_test`.
 
 </Card>
 
-<Card color="#d47628" title="Waits and Assertions" icon="clock" href="/tutorials/waits_assertions" />
+<Card color="#d47628" title="Waits and Assertions" icon="clock" href="/tutorials/helpers#waits-and-assertions" />
 
 </Columns>

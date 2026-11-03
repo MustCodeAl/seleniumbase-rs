@@ -34,6 +34,46 @@
   },
   "redirects": [
     {
+      "source": "/tutorials/mise_sbrs",
+      "destination": "/building",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/mise_chromedriver",
+      "destination": "/building",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/debug_modes",
+      "destination": "/tutorials/tracing",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/shadow_dom",
+      "destination": "/tutorials/selectors",
+      "permanent": true
+    },
+    {
+      "source": "/help/syntax_formats",
+      "destination": "/tutorials/selectors",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/macros",
+      "destination": "/tutorials/helpers",
+      "permanent": true
+    },
+    {
+      "source": "/help/html_inspector",
+      "destination": "/tutorials/helpers",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/waits_assertions",
+      "destination": "/tutorials/helpers",
+      "permanent": true
+    },
+    {
       "source": "/tutorials/writing_tests",
       "destination": "/rust-test-tooling",
       "permanent": true
@@ -161,11 +201,7 @@
             "pages": [
               "README",
               "tutorials/getting_started",
-              "tutorials/vibe_coding",
-              "help/cli_tldr",
-              "tutorials/mise_sbrs",
-              "building",
-              "help/common_problems"
+              "building"
             ]
           },
           {
@@ -174,15 +210,10 @@
             "pages": [
               "best-practices",
               "rust-test-tooling",
-              "tutorials/debug_modes",
               "tutorials/reliable_tests",
               "tutorials/behave",
               "tutorials/selectors",
-              "tutorials/waits_assertions",
-              "tutorials/macros",
-              "tutorials/shadow_dom",
-              "help/syntax_formats",
-              "help/html_inspector"
+              "tutorials/helpers"
             ]
           },
           {
@@ -213,7 +244,6 @@
               "tutorials/run_settings",
               "tutorials/headless",
               "tutorials/browser_profiles",
-              "tutorials/mise_chromedriver",
               "tutorials/tracing"
             ]
           },
@@ -259,6 +289,7 @@
             "group": "Help",
             "icon": "circle-question",
             "pages": [
+              "help/common_problems",
               "help/faq"
             ]
           }
@@ -304,6 +335,7 @@
             "icon": "robot",
             "pages": [
               "tutorials/mcp_server",
+              "tutorials/vibe_coding",
               "tutorials/devtools_mcp"
             ]
           },
@@ -311,10 +343,21 @@
             "group": "CLI",
             "icon": "terminal",
             "pages": [
+              "help/cli_tldr",
               "tutorials/cli_usage",
               "help/commander",
               "help/caseplans",
               "help/behave-gui"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "icon": "cubes",
+            "pages": [
+              "ecosystem/overview",
+              "ecosystem/browser-extension",
+              "ecosystem/tauri",
+              "ecosystem/homebrew"
             ]
           },
           {
@@ -337,16 +380,6 @@
               "plugins/selecting",
               "plugins/writing-your-own",
               "plugins/architecture"
-            ]
-          },
-          {
-            "group": "Integrations",
-            "icon": "cubes",
-            "pages": [
-              "ecosystem/overview",
-              "ecosystem/browser-extension",
-              "ecosystem/tauri",
-              "ecosystem/homebrew"
             ]
           }
         ]

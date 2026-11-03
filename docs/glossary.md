@@ -629,7 +629,7 @@ See [Network and proxies](/concepts/network#udp-and-quic).
 
 An assertion that checks the page at once but does not stop the test when it fails. It records the failure, and `process_deferred_asserts` reports all of them together. It is also called a soft assertion.
 
-See [Waits and Assertions](/tutorials/waits_assertions#soft-assertions).
+See [Waits and Assertions](/tutorials/helpers#soft-assertions).
 
 ### Demo mode
 
@@ -1033,7 +1033,7 @@ See [The Model Context Protocol](/concepts/mcp#how-mcp-messages-travel).
 
 A hand-written JSON file of steps that `sbrs run-scenario --file` runs, for CI smoke checks or for authors who do not write Rust. It is not the action file that `sbrs mkrec` writes.
 
-See [Syntax Formats](/help/syntax_formats).
+See [Syntax Formats](/tutorials/selectors#syntax-formats).
 
 ## L
 
@@ -1727,7 +1727,7 @@ See [Settings and Global Configuration](/tutorials/settings_and_config).
 
 A tree of elements hidden inside a web component. Every selector of `BaseCase` (and of the pure CDP engine's `page.locator`) can enter shadow roots with the `::shadow` combinator, as in `my-app::shadow button`. `BaseCase` enters closed roots too; the pure CDP engine enters open roots only.
 
-See [Shadow DOM Guide](/tutorials/shadow_dom).
+See [Shadow DOM Guide](/tutorials/selectors#shadow-dom).
 
 ### Single-page application
 
@@ -1799,7 +1799,7 @@ See [Network and proxies](/concepts/network#sockets).
 
 Another name for a [deferred assertion](#deferred-assertion): a check that records its failure instead of stopping the test.
 
-See [Waits and Assertions](/tutorials/waits_assertions#soft-assertions).
+See [Waits and Assertions](/tutorials/helpers#soft-assertions).
 
 ### Source map
 

@@ -138,7 +138,7 @@ Python accepts (`--variables="{'k': 1}"`). Anything else exits with status 2:
 <Accordion title="Debug modes" icon="bug">
 
 These stop a test in a prompt with the browser open. The
-[Debug modes tutorial](/tutorials/debug_modes) walks through them.
+[Debug modes tutorial](/tutorials/tracing#debug-modes) walks through them.
 
 <ParamField path="--pdb" type="switch">
 
@@ -702,7 +702,7 @@ with rstest-bdd](/tutorials/behave)).
 
 <Columns cols={3}>
 
-<Card color="#1a85d4" title="Debug modes" icon="bug" horizontal href="/tutorials/debug_modes">
+<Card color="#1a85d4" title="Debug modes" icon="bug" horizontal href="/tutorials/tracing#debug-modes">
 
 Stop in a prompt with the browser open.
 

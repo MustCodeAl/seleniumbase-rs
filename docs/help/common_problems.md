@@ -276,7 +276,7 @@ use seleniumbase_rs::{sb_open, sb_click, sb_test, selector};
 
 Action macros expand `.await` internally, so they must be called inside an
 `async` block or function. `sb_test!` generates a `#[tokio::test]` wrapper for
-you. See the [macros guide](/tutorials/macros).
+you. See the [macros guide](/tutorials/helpers#macros).
 
 ## Chrome is not found
 

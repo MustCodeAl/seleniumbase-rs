@@ -195,7 +195,7 @@ sb.sleep(3.0).await; // too long when fast, too short when slow
 To change how long everything waits, set the default once (`sb.set_timeout(30).await?`)
 or narrow it for one locator (`page.locator(..).with_timeout(Duration::from_secs(30))`).
 A wait that runs out fails with `SeleniumBaseError::WaitTimeout`, which names the
-selector and the state it waited for. [Waits and Assertions](/tutorials/waits_assertions)
+selector and the state it waited for. [Waits and Assertions](/tutorials/helpers#waits-and-assertions)
 lists every wait.
 
 ### 5. Assert with the retrying assertions
@@ -599,7 +599,7 @@ The fixtures, the run configuration, evidence and reports.
 
 </Card>
 
-<Card color="#199f43" title="Waits and Assertions" icon="clock" href="/tutorials/waits_assertions">
+<Card color="#199f43" title="Waits and Assertions" icon="clock" href="/tutorials/helpers#waits-and-assertions">
 
 Every wait and assertion, and the default timeout.
 

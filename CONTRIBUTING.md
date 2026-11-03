@@ -487,7 +487,7 @@ macro_rules! sb_focus {
 
 1. Add the macro with `#[macro_export]`.
 2. Write a compile-time unit test under the definition.
-3. Update `docs/tutorials/macros.md` and the macro table in `README.md`.
+3. Update `docs/tutorials/helpers.md` and the macro table in `README.md`.
 
 ## Adding an MCP Tool
 

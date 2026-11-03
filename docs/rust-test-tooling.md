@@ -221,7 +221,7 @@ variables and keys of the `[test]` table of the settings file:
 |---|---|---|
 | `--reruns N`, `--reruns-delay S` | `--reruns`, `--reruns-delay`, `settings.test.reruns` | Runs a failed test again with a new browser, after the delay |
 | `--time-limit S` | `--time-limit`, `settings.test.time_limit` | Fails a test that runs longer, and closes its browser |
-| `--pdb`, `--trace`, `--final-debug` | the same flags | A prompt with the browser open; see [Debug modes](/tutorials/debug_modes) |
+| `--pdb`, `--trace`, `--final-debug` | the same flags | A prompt with the browser open; see [Debug modes](/tutorials/tracing#debug-modes) |
 | `--env`, `--data`, `--var1` | the same flags | The test data, read with `sb.env()`, `sb.data()`, `sb.var1()` |
 
 Run the test:
@@ -587,7 +587,7 @@ and makes parallel execution safer. The repository profile intentionally does
 not retry failed tests, so flaky behavior is not hidden: use `--reruns N` on
 the `sb` fixture's tests when you want a rerun. A debug prompt (`--pdb`,
 `--trace`, `--final-debug`) needs the cargo runner, because nextest gives tests
-no standard input; see [Debug modes](/tutorials/debug_modes).
+no standard input; see [Debug modes](/tutorials/tracing#debug-modes).
 
 </Note>
 
@@ -751,7 +751,7 @@ sb_test!(home_page_loads, BrowserConfig::default(), |sb| {
 This expands to the same shape as the manual example above. It is optional but
 useful for linear tests where the reduced noise improves readability.
 
-See [Macros](/tutorials/macros) for the full macro catalog.
+See [Macros](/tutorials/helpers#macros) for the full macro catalog.
 
 ## Common pitfalls
 

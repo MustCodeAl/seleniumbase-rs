@@ -104,7 +104,7 @@ A CSS selector may cross shadow roots with `::shadow`, as in
 (or in the matches of the step), each of the others in the open shadow root of
 every element the piece before it matched, and a selector that ends on
 `::shadow` is an `InvalidSelector`. Python's CDP mode has no such selector; see
-the [Shadow DOM guide](/tutorials/shadow_dom).
+the [Shadow DOM guide](/tutorials/selectors#shadow-dom).
 
 Reading: `text`, `html`, `attribute`, `count`, `info`, `bounding_box` (from the
 top of the document), `viewport_rect` (from the window, as Python's
