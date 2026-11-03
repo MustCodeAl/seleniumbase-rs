@@ -213,11 +213,11 @@
             "group": "Write tests",
             "icon": "flask",
             "pages": [
-              "best-practices",
               "rust-test-tooling",
               "tutorials/behave",
               "tutorials/selectors",
-              "tutorials/helpers"
+              "tutorials/helpers",
+              "best-practices"
             ]
           },
           {
