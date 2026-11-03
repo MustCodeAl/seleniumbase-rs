@@ -327,7 +327,7 @@ See [CLI Usage](./docs/tutorials/cli_usage.md) for every command and option.
 | Selenium IDE parsing | `cargo run --example selenium_ide` |
 | Browser test lifecycle | `cargo run --example browser_test_runner` |
 
-See also [`examples/tauri-profile-manager`](./examples/tauri-profile-manager) for a desktop multi-profile browser manager with a profile-compatible REST API.
+See also the [Tauri profile manager](https://github.com/MustCodeAl/tauri-plugin-sbrs-automation/tree/main/examples/tauri-profile-manager) in tauri-plugin-sbrs-automation: a desktop multi-profile browser manager with a profile-compatible REST API, built on the Tauri plugin.
 
 ### CDP page automation
 

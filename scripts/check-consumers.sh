@@ -197,7 +197,13 @@ consumer_paths() {
     dir=$(consumer_dir "$1")
     {
         case $1 in
-            stealth | tauri) scan "$dir" 'seleniumbase_rs::' keep rs ;;
+            stealth) scan "$dir" 'seleniumbase_rs::' keep rs ;;
+            # The plugin crate only: its example app (examples/) takes this crate at the plugin's
+            # tag with features of its own, and is built in that repository.
+            tauri)
+                scan "$dir/src" 'seleniumbase_rs::' keep rs
+                scan "$dir/tests" 'seleniumbase_rs::' keep rs
+                ;;
             companion) scan "$dir" 'seleniumbase_rs::' keep rs ts ;;
             plugins)
                 scan "$core/src" 'seleniumbase_rs_plugin::' keep rs

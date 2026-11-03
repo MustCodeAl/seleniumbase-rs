@@ -453,7 +453,6 @@ arrives. Its jobs:
 | `check` | A matrix of Ubuntu, macOS and Windows with several feature sets: build, test, `clippy -D warnings` and `cargo fmt --check` |
 | `library` | The library alone with its default features, and the command line without its default features. It also fails if a command-line crate sneaks into the library's dependencies |
 | `msrv` | Compiles with Rust 1.99, the version declared in `Cargo.toml` and used in the Dockerfile |
-| `tauri-example` | Builds and tests the example that has its own manifest |
 | `supply-chain` | `cargo-deny`: advisories, licenses, bans and sources |
 | `docs` | Builds the documentation with `mdbook`; only a push to `main` publishes it to GitHub Pages |
 

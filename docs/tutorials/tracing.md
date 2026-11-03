@@ -208,7 +208,9 @@ async fn login_flow(sb: &mut seleniumbase_rs::BaseCase) -> Result<(), Box<dyn st
 
 ## Tauri multi-profile example
 
-The Tauri app also initializes `tracing_subscriber` in `src-tauri/src/lib.rs`.
+The [Tauri profile manager](https://github.com/MustCodeAl/tauri-plugin-sbrs-automation/tree/main/examples/tauri-profile-manager)
+(an example of tauri-plugin-sbrs-automation) also initializes `tracing_subscriber`
+in `src-tauri/src/lib.rs`.
 Its REST API logs each endpoint call so you can correlate UI actions with local
 HTTP requests.
 

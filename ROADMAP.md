@@ -154,7 +154,8 @@ step 2.
   AES-256-GCM, bound to their id, passphrase changeable in one transaction).
   Covered by unit tests, `tests/cli_report.rs` and doctests. See
   `docs/tutorials/results_and_profiles.md`.
-- Done: the Tauri example (`examples/tauri-profile-manager`) keeps profiles,
+- Done: the Tauri example (`examples/tauri-profile-manager`, since moved to
+  tauri-plugin-sbrs-automation) keeps profiles,
   tags and folders in a `ProfileVault` instead of clear-text JSON, migrating the
   old files only after reading every document back and comparing it. The vault
   passphrase comes from `SB_PROFILE_PASSPHRASE` or the OS keychain. It also has a

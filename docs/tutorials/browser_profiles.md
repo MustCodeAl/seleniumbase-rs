@@ -726,7 +726,8 @@ params.apply_runtime_overrides(&mut sb).await.unwrap();
 
 ## Tauri profile-manager app
 
-The `examples/tauri-profile-manager` app accepts a profile JSON payload in the
+The [Tauri profile manager](https://github.com/MustCodeAl/tauri-plugin-sbrs-automation/tree/main/examples/tauri-profile-manager)
+(an example of tauri-plugin-sbrs-automation) accepts a profile JSON payload in the
 **Import profile JSON** section. It converts the payload into a local profile
 and launches it with the converted `BrowserConfig`. Profiles imported this way
 show an `external` badge in the profile list.

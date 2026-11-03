@@ -11,8 +11,6 @@ members = ["crates/cli", "crates/own-imports", "crates/playwright"]
 # but not default members: name them with `-p`.
 default-members = [".", "crates/cli"]
 resolver = "2"
-# The Tauri example has a manifest of its own and builds on its own.
-exclude = ["examples/tauri-profile-manager/src-tauri"]
 
 # Shared by both packages, so the command line always has the library's version.
 [workspace.package]

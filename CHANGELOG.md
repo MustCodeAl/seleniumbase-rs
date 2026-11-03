@@ -159,6 +159,17 @@ work, `docs/parity.md` the per-API status).
   and the Makefile no longer turn on the `playwright` feature, which the library does not have
   (cargo refused the list).
 
+### Removed
+
+- **The Tauri profile manager example moved to
+  [tauri-plugin-sbrs-automation](https://github.com/MustCodeAl/tauri-plugin-sbrs-automation)**,
+  as `examples/tauri-profile-manager` there, where it builds on the plugin (its `stealth` feature
+  opens a profile in a window of the app with the profile's fingerprint) and takes this crate at
+  the plugin's tag. `examples/tauri-profile-manager`, its `exclude` in the workspace and the
+  `tauri-example` CI job are gone from this repository; `scripts/check-consumers.sh tauri` reads
+  the plugin's `src` and `tests` only, not its example.
+
+
 ### Fixed
 
 - **`scripts/check-consumers.sh` (`mise run contracts`) runs from a git worktree and checks what it

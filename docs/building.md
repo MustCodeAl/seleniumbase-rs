@@ -312,15 +312,13 @@ those instructions live in that repository now. This crate needs none of them.
 
 </Accordion>
 
-<Accordion title="The Tauri example" icon="desktop" description="Node LTS">
+<Accordion title="The Tauri example" icon="desktop" description="Moved to the Tauri plugin">
 
-The Tauri example (`examples/tauri-profile-manager`) needs Node LTS (`brew
-install node`, `winget install OpenJS.NodeJS.LTS`). On Windows it also uses
-WebView2, which comes with Windows 10 and 11. On Debian and Ubuntu:
-
-```bash
-sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libgtk-3-dev libssl-dev libx11-dev libxdo-dev
-```
+The Tauri profile manager example moved to
+[tauri-plugin-sbrs-automation](https://github.com/MustCodeAl/tauri-plugin-sbrs-automation)
+(`examples/tauri-profile-manager`), where it builds on the plugin. Its README
+lists what it needs (Node LTS, and the WebKitGTK packages on Linux). This
+repository builds nothing of it.
 
 </Accordion>
 

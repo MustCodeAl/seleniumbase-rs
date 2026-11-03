@@ -9,7 +9,6 @@
     "docs/adr",
     "docs/design",
     "docs/contributing",
-    "examples/tauri-profile-manager/node_modules",
     "tests",
     "benches",
     "parity",

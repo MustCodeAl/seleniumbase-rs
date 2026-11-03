@@ -274,53 +274,6 @@ jobs:
       - name: Check against the declared rust-version
         run: cargo check --all-targets --features gui,tui
 
-  # The Tauri example carries its own manifest outside the workspace, so the
-  # jobs above never build it and regressions in it go unnoticed.
-  tauri-example:
-    name: Tauri profile-manager example
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy, rustfmt
-
-      - name: Cache Cargo dependencies
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: examples/tauri-profile-manager/src-tauri
-
-      - name: Install Tauri system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf \
-            libgtk-3-dev \
-            libssl-dev \
-            libx11-dev \
-            libxdo-dev \
-            libxkbcommon-dev \
-            libxtst-dev \
-            pkg-config
-
-      - name: Check formatting
-        working-directory: examples/tauri-profile-manager/src-tauri
-        run: cargo fmt --all -- --check
-
-      - name: Run Clippy
-        working-directory: examples/tauri-profile-manager/src-tauri
-        run: cargo clippy --all-targets -- -D warnings
-
-      - name: Run tests
-        working-directory: examples/tauri-profile-manager/src-tauri
-        run: cargo test
-
   supply-chain:
     name: Supply chain (advisories, licenses, bans, sources)
     runs-on: ubuntu-latest
