@@ -168,6 +168,8 @@ call, so they do not go stale when the page re-renders. The pure CDP engine's
 
 </Columns>
 
+The pure CDP engine (Chrome over the DevTools Protocol, with no WebDriver) has its own reference, starting at [Pure CDP](/api/cdp-overview).
+
 ## Common error handling pattern
 
 Most `BaseCase` methods return `Result<T, SeleniumBaseError>`. Use `?` inside an
