@@ -34,6 +34,61 @@
   },
   "redirects": [
     {
+      "source": "/tutorials/behave",
+      "destination": "/tutorials/utilities",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/reliable_tests",
+      "destination": "/best-practices",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/mise_sbrs",
+      "destination": "/building",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/mise_chromedriver",
+      "destination": "/building",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/debug_modes",
+      "destination": "/tutorials/tracing",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/shadow_dom",
+      "destination": "/tutorials/selectors",
+      "permanent": true
+    },
+    {
+      "source": "/help/syntax_formats",
+      "destination": "/tutorials/selectors",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/macros",
+      "destination": "/tutorials/utilities",
+      "permanent": true
+    },
+    {
+      "source": "/help/html_inspector",
+      "destination": "/tutorials/utilities",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/waits_assertions",
+      "destination": "/tutorials/utilities",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/writing_tests",
+      "destination": "/rust-test-tooling",
+      "permanent": true
+    },
+    {
       "source": "/help/uc_mode",
       "destination": "/tutorials/uc_mode",
       "permanent": true
@@ -155,27 +210,18 @@
             "icon": "rocket",
             "pages": [
               "README",
-              "tutorials/getting_started",
               "building",
-              "help/common_problems"
+              "tutorials/getting_started"
             ]
           },
           {
             "group": "Write tests",
             "icon": "flask",
             "pages": [
-              "best-practices",
               "rust-test-tooling",
-              "tutorials/writing_tests",
-              "tutorials/debug_modes",
-              "tutorials/reliable_tests",
-              "tutorials/behave",
               "tutorials/selectors",
-              "tutorials/waits_assertions",
-              "tutorials/macros",
-              "tutorials/shadow_dom",
-              "help/syntax_formats",
-              "help/html_inspector"
+              "tutorials/utilities",
+              "best-practices"
             ]
           },
           {
@@ -183,7 +229,6 @@
             "icon": "star",
             "pages": [
               "tutorials/mfa_totp",
-              "tutorials/captcha_testing",
               "tutorials/verify_by_email",
               "tutorials/pdf_parsing",
               "tutorials/masterqa"
@@ -203,13 +248,9 @@
             "group": "Configure runs",
             "icon": "sliders",
             "pages": [
-              "tutorials/settings_and_config",
-              "help/customizing_test_runs",
-              "help/test_options",
               "tutorials/run_settings",
               "tutorials/headless",
               "tutorials/browser_profiles",
-              "tutorials/mise_chromedriver",
               "tutorials/tracing"
             ]
           },
@@ -227,11 +268,8 @@
             "icon": "chart-pie",
             "pages": [
               "tutorials/results_and_profiles",
-              "tutorials/test_plugins",
               "tutorials/charts",
-              "tutorials/tours",
-              "tutorials/translations",
-              "tutorials/cloud_integrations"
+              "tutorials/tours"
             ]
           },
           {
@@ -248,7 +286,17 @@
             "icon": "server",
             "pages": [
               "deployment",
-              "help/docker"
+              "help/docker",
+              "tutorials/cloud_integrations"
+            ]
+          },
+          {
+            "group": "Help",
+            "icon": "circle-question",
+            "pages": [
+              "help/common_problems",
+              "tutorials/captcha_testing",
+              "help/faq"
             ]
           }
         ]
@@ -285,56 +333,42 @@
         ]
       },
       {
-        "tab": "CLI and MCP",
-        "icon": "terminal",
+        "tab": "Ecosystem",
+        "icon": "puzzle-piece",
         "groups": [
           {
-            "group": "Command line",
+            "group": "MCP",
+            "icon": "robot",
+            "pages": [
+              "tutorials/mcp_server",
+              "tutorials/vibe_coding",
+              "tutorials/devtools_mcp"
+            ]
+          },
+          {
+            "group": "CLI",
             "icon": "terminal",
             "pages": [
               "help/cli_tldr",
               "tutorials/cli_usage",
-              "help/cli_reference"
-            ]
-          },
-          {
-            "group": "Terminal apps",
-            "icon": "window-maximize",
-            "pages": [
               "help/commander",
               "help/caseplans",
               "help/behave-gui"
             ]
           },
           {
-            "group": "MCP servers",
-            "icon": "robot",
+            "group": "Integrations",
+            "icon": "cubes",
             "pages": [
-              "tutorials/mcp_server",
-              "tutorials/devtools_mcp",
-              "tutorials/vibe_coding"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "Plugins and ecosystem",
-        "icon": "puzzle-piece",
-        "groups": [
-          {
-            "group": "Plugins",
-            "icon": "puzzle-piece",
-            "pages": [
-              "plugins/overview",
-              "tutorials/plugins",
-              "plugins/selecting",
-              "plugins/writing-your-own",
-              "plugins/architecture"
+              "ecosystem/overview",
+              "ecosystem/browser-extension",
+              "ecosystem/tauri",
+              "ecosystem/homebrew"
             ]
           },
           {
-            "group": "Built-in plugins",
-            "icon": "box",
+            "group": "Plugins",
+            "icon": "puzzle-piece",
             "pages": [
               "plugins/shield",
               "plugins/block-resources",
@@ -346,17 +380,13 @@
               "plugins/browser",
               "plugins/imap",
               "plugins/tor",
-              "plugins/wasm"
-            ]
-          },
-          {
-            "group": "Ecosystem",
-            "icon": "cubes",
-            "pages": [
-              "ecosystem/overview",
-              "ecosystem/browser-extension",
-              "ecosystem/tauri",
-              "ecosystem/homebrew"
+              "plugins/wasm",
+              "plugins/overview",
+              "tutorials/plugins",
+              "tutorials/test_plugins",
+              "plugins/selecting",
+              "plugins/writing-your-own",
+              "plugins/architecture"
             ]
           }
         ]
@@ -513,6 +543,35 @@
                       "ecosystem/tauri-api/actions",
                       "ecosystem/tauri-api/alerts",
                       "ecosystem/tauri-api/screenshots"
+                    ]
+                  }
+                ]
+              },
+              {
+                "product": "Command line",
+                "icon": "terminal",
+                "description": "Every sbrs command, flag and option",
+                "groups": [
+                  {
+                    "group": "Command line",
+                    "pages": [
+                      "help/cli_reference"
+                    ]
+                  }
+                ]
+              },
+              {
+                "product": "Settings and options",
+                "icon": "sliders",
+                "description": "sbase_config.toml, SB_* variables, and the test and run options",
+                "groups": [
+                  {
+                    "group": "Settings and options",
+                    "pages": [
+                      "tutorials/settings_and_config",
+                      "help/test_options",
+                      "help/customizing_test_runs",
+                      "tutorials/translations"
                     ]
                   }
                 ]

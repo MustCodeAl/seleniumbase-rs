@@ -10,7 +10,7 @@ launcher (`src/browser/mise_driver.rs`). The patched UC build is not built.
 
 A [mise](https://mise.jdx.dev) plugin that installs, upgrades and removes
 chromedriver. Versions come from the Chrome for Testing JSON this crate already
-uses. How to use it: [Manage chromedriver with mise](/tutorials/mise_chromedriver).
+uses. How to use it: [Manage chromedriver with mise](/building#manage-chromedriver-with-mise).
 This page records what was chosen and why, and what is left.
 
 ## A tool plugin

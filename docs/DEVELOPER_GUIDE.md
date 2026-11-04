@@ -235,9 +235,7 @@ presentations, and optional stealth/CDP integrations.
 <LayoutFile name="cdp_latency.rs" note="the pure CDP engine against a real Chrome" />
 <LayoutFile name="cpu.rs" note="the library's own work, no browser" />
 </LayoutDir>
-<LayoutDir name="examples" note="runnable examples">
-<LayoutDir name="tauri-profile-manager" note="has its own manifest and is not part of the workspace" />
-</LayoutDir>
+<LayoutDir name="examples" note="runnable examples" />
 <LayoutDir name="docs" note="the pages of this site">
 <LayoutFile name="docs.json" note="the Docs7 navigation and settings" />
 <LayoutFile name="SUMMARY.md" note="the mdBook table of contents" />
@@ -1152,7 +1150,7 @@ can be asserted without a browser.
 
 <Step title="Document it" icon="book">
 
-Update `docs/tutorials/macros.md` with the macro name, signature, and example.
+Update `docs/tutorials/utilities.md` with the macro name, signature, and example.
 
 </Step>
 

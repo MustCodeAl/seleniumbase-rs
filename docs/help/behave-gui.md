@@ -105,7 +105,7 @@ below shows the messages of the scenario under the cursor, and `Esc` (or `q` or
 ## What the run does
 
 The scenarios are bound to Rust tests with rstest-bdd, as the
-[Gherkin tutorial](/tutorials/behave) shows. The app runs `cargo test` once for
+[Gherkin tutorial](/tutorials/utilities#gherkin-scenarios-with-rstest-bdd) shows. The app runs `cargo test` once for
 the marked scenarios of a feature, in the folder it was started in, with a name
 filter for each: the scenario's title in snake case (`valid login` becomes
 `valid_login`; `scenarios!` names its tests that way). A test whose name
@@ -121,7 +121,7 @@ Besides a pass, a scenario ends as one of these:
 | **SKIP** | The tags left the scenario out, or its test is `#[ignore]`d. |
 
 Steps written in Rust run, since the tests are your own, and so do the
-[built-in steps](/tutorials/behave#built-in-steps) of the library: the earlier
+[built-in steps](/tutorials/utilities#built-in-steps) of the library: the earlier
 runner could run only built-in steps.
 
 ## Differences from Python

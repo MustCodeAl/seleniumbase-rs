@@ -10,7 +10,7 @@ the set reads that once, when the plugin is added. Items are in
 `seleniumbase_rs_plugin`, defined in
 `crates/seleniumbase-rs-plugin/src/network.rs` of
 [seleniumbase-rs-plugins](https://github.com/MustCodeAl/seleniumbase-rs-plugins)
-at `fea3634e2ebcaafce63a244df8d4adb53e3ec002` (crate 0.1.3).
+at `0666904475f4f1f422f8f426f169f6a0e533e824` (crate 0.1.3).
 
 Rules run without calling the plugin: block a URL, or add request headers.
 `observe` filters name the responses [`Plugin::on_response`](#pluginon_response)

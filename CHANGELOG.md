@@ -27,6 +27,21 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- The built-in `browser` plugin's worker, session and sign-in options work on the pure CDP
+  engine (plugins `0666904`): `wait_for_workers` and `worker_timeout_secs`, `session` with
+  `save_on_close` and `session_dir`, and `interactive` with `pause_message`
+  (`docs/plugins/browser.md`). The engine's plugin host answers the new
+  `BrowserHandle::extension_workers` from Chrome's targets (the `service_worker` targets under
+  `chrome-extension://<id>/` of the extensions the launch loaded) and gives a tokio clock through
+  `BrowserHandle::clock` when the plugin set has no timer of its own. The WebDriver host has
+  neither, so there `wait_for_workers` and `save_on_close` fail at launch, naming the option.
+
+- Docs: [Install sbrs with mise](docs/building.md). mise's built-in backends install
+  `sbrs` and `sbrs-mcp` with no plugin: `github:` takes the macOS arm64 release archive and lists
+  the versions from the release tags, `cargo:` builds from a git tag on every other platform, and
+  one `mise.toml` with `os = ["macos/arm64"]` picks between them. `docs/building.md` no longer
+  says the release archives do not exist.
+
 - Strict locators in the pure CDP engine: `page.locator(sel).strict()` fails with the new
   `SeleniumBaseError::StrictModeViolation { selector, count }` (category `strict_mode_violation`,
   exit status 3) when the selector matches more than one element, like Playwright's strict mode,
@@ -66,7 +81,7 @@ work, `docs/parity.md` the per-API status).
   There is no setting for it. No mise on the `PATH`, a failing mise, one that takes
   more than 5 seconds and a bad answer are all silent. A pinned `--driver-version`
   still downloads that build. See
-  [Manage chromedriver with mise](docs/tutorials/mise_chromedriver.md).
+  [Manage chromedriver with mise](docs/building.md).
 
 - `tools/release/build-binaries.sh` (`mise run release-binaries`) builds the release archives of
   `sbrs` and `sbrs-mcp` for Linux arm64, Linux x86_64 and macOS Intel on an Apple silicon Mac,
@@ -114,6 +129,23 @@ work, `docs/parity.md` the per-API status).
   `#[case(default(...))]` instead of reading it as `#[case]`. One `zip` is left in the tree.
   rten stays on 0.26 until ocrs moves to rten 0.27 (ocrs 0.13.1 takes an rten 0.26 `Model`).
 
+- The Docs7 menu has five tabs: Guides, Stealth, Ecosystem, Reference and Contributing.
+  "Ecosystem" holds MCP (with the vibe coding page), the CLI (with the TL;DR page), the integrations
+  and the plugins (the built-in ones first);
+  the CLI reference and the settings and options pages (`help/test_options`,
+  `help/customizing_test_runs`, `tutorials/settings_and_config`) are in Reference. Overlapping
+  pages are merged and every old address redirects: "Writing Browser Tests" holds the former
+  "Writing Tests with the sb Fixture" (`/tutorials/writing_tests`), "Installation" holds "Install sbrs
+  with mise" and "Manage chromedriver with mise", "Tracing and logs" holds "Debug modes",
+  "Selectors" holds "Shadow DOM" and "Syntax formats", and the new "Utilities" holds "Waits and
+  Assertions", "Macros", "HTML Inspector" and "Behave and Gherkin" (`/tutorials/behave`). "Best practices" is "Best practices for reliable tests" and holds the former
+  "Reliable Browser Tests" (`/tutorials/reliable_tests`). "FAQ and common problems" is "Troubleshooting" in the
+  Help group with the FAQ as its own page (`help/faq`), and "Working with SeleniumBase for Rust" is
+  "Walkthrough". The test plugins page is in Ecosystem → Plugins, "Cloud uploads" is in Run in
+  production, and "Translations" is in Reference → Settings and options. "Installation" comes right after the
+  introduction, and "Pages with a CAPTCHA" is "Handling CAPTCHAs" in the Help group.
+
+
 - **`sbrs` and `sbrs-mcp` print the failure of a command as a [miette](https://docs.rs/miette)
   diagnostic.** Where they printed `error: ...`, `caused by: ...` and `hint: ...` they now print
   a code that names the kind of failure (`sbrs::element_not_found`, `sbrs::io`,
@@ -150,6 +182,17 @@ work, `docs/parity.md` the per-API status).
   already had (the features of the gate, not those of the old recipes), and `test-all`, `build`
   and the Makefile no longer turn on the `playwright` feature, which the library does not have
   (cargo refused the list).
+
+### Removed
+
+- **The Tauri profile manager example moved to
+  [tauri-plugin-sbrs-automation](https://github.com/MustCodeAl/tauri-plugin-sbrs-automation)**,
+  as `examples/tauri-profile-manager` there, where it builds on the plugin (its `stealth` feature
+  opens a profile in a window of the app with the profile's fingerprint) and takes this crate at
+  the plugin's tag. `examples/tauri-profile-manager`, its `exclude` in the workspace and the
+  `tauri-example` CI job are gone from this repository; `scripts/check-consumers.sh tauri` reads
+  the plugin's `src` and `tests` only, not its example.
+
 
 ### Fixed
 
@@ -487,7 +530,7 @@ work, `docs/parity.md` the per-API status).
   concurrent flow, headless through `SB_HEADLESS`, a body safe to run twice, raw protocol calls in one
   helper, tests of page-driving code on `Browser::new_mocked()`, credentials from the run). They adapt
   the checklist that thirtyfour publishes for generated tests to this crate's API. The page
-  [Reliable Browser Tests](docs/tutorials/reliable_tests.md) explains each rule with a do and an
+  [Best practices for reliable tests](docs/best-practices.md) explains each rule with a do and an
   avoid, and lists what the crate cannot enforce yet (no strict single match, no scoped query on
   `BaseCase`, no hard time limit outside the fixtures). `CLAUDE.md` points to both.
 

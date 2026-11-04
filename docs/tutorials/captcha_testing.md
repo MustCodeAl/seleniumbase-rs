@@ -1,6 +1,6 @@
 ---
-title: "Testing Pages with a CAPTCHA"
-sidebarTitle: "Pages with a CAPTCHA"
+title: "Handling CAPTCHAs"
+sidebarTitle: "Handling CAPTCHAs"
 ---
 
 A CAPTCHA exists to stop automation, so a test that has to get past a real one
@@ -675,6 +675,6 @@ For `run_browser_test`.
 
 </Card>
 
-<Card color="#d47628" title="Waits and Assertions" icon="clock" href="/tutorials/waits_assertions" />
+<Card color="#d47628" title="Waits and Assertions" icon="clock" href="/tutorials/utilities#waits-and-assertions" />
 
 </Columns>

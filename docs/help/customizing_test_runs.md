@@ -445,7 +445,7 @@ reaches the tests as `SB_WEBDRIVER_URL`. Options before the command
 A run empties `latest_logs/` and `downloaded_files/` first (`--archive-logs` and
 `--archive-downloads` keep them in `archived_logs/` and `archived_files/`); a
 plain `cargo test` never does. The debug flags are in the [Debug
-modes tutorial](/tutorials/debug_modes).
+modes tutorial](/tutorials/tracing#debug-modes).
 
 ## Combining config sources
 

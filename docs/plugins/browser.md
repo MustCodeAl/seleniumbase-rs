@@ -24,7 +24,7 @@ by itself: the operator names it, see [Who may turn it on](#who-may-turn-it-on).
 
 <Visibility for="agents">
 
-Summary for AI exports: browser is a built-in extension plugin (feature `plugin-browser`, name `browser`) that loads extensions into a Chromium browser the program starts. Options live in `[plugins.browser]`: `extension_zip` (`.zip` or `.crx` files) and `extension_dir` (unpacked extension folders), each a list of paths or one text with the paths separated by commas, both default empty. An unknown option is an error, so the options of the design that are not built yet (`wait_for_workers`, `worker_timeout_secs`, `session`, `save_on_close`, `interactive`, `pause_message`) are refused, not ignored. Archives are unpacked into a temporary folder that belongs to one browser; folders are loaded where they are. The archives come first, then the folders, each list in the order given; the same path twice is loaded once. Every extension needs a `manifest.json` with `manifest_version` 3. Everything is checked before the browser starts: a missing path, a file of the wrong kind, a bad archive or a manifest that is not Manifest V3 fails the launch and the message names the option and the path. The signature of a `.crx` is not verified. It conflicts with `crx` (naming both is refused with "plugin `browser` cannot be combined with plugin `crx`"). It declares `launch.extensions`, `host.fs.read` for the paths and `host.fs.write:temp`, so only the operator can turn it on (`--plugin browser`, `SB_PLUGINS=browser`), never a settings file in the current folder alone. Nothing in it has run in a real Chrome.
+Summary for AI exports: browser is a built-in extension plugin (feature `plugin-browser`, name `browser`) that loads extensions into a Chromium browser the program starts. Options live in `[plugins.browser]`: `extension_zip` (`.zip` or `.crx` files) and `extension_dir` (unpacked extension folders), each a list of paths or one text with the paths separated by commas, both default empty; plus `wait_for_workers` (default false) and `worker_timeout_secs` (default 10, 1 to 30, needs `wait_for_workers`); `session` (a name, 1 to 64 letters, digits, `.`, `_` or `-`) with `save_on_close` (default false) and `session_dir` (default `saved_sessions`); and `interactive` (default false) with `pause_message`. An unknown option is an error, and so is a combination that makes no sense (an option that depends on another, a number out of range): the message starts with `browser:` and names the option, and it comes when the plugin is built. Archives are unpacked into a temporary folder that belongs to one browser; folders are loaded where they are. The archives come first, then the folders, each list in the order given; the same path twice is loaded once. Every extension needs a `manifest.json` with `manifest_version` 3. Everything is checked before the browser starts: a missing path, a file of the wrong kind, a bad archive or a manifest that is not Manifest V3 fails the launch and the message names the option and the path. The signature of a `.crx` is not verified. `wait_for_workers` waits in `on_browser` for the service workers of the extensions this plugin loaded; `session` keeps the cookies of the default context in `<session_dir>/<session>.json` and `save_on_close` writes them before the browser closes (needs a host that runs `before_close`: the pure CDP engine, not WebDriver); `interactive` offers the task `sbrs plugin run browser`, which waits for a person to sign in and saves the session (needs a headed browser). It conflicts with `crx` (naming both is refused with "plugin `browser` cannot be combined with plugin `crx`"). It declares `launch.extensions`, `host.fs.read` for the paths, `host.fs.write:temp` for archives and, with the new options, `clock`, `cookies.read`, `cookies.write`, `host.fs.read` and `host.fs.write` for the session folder and `task`; only the operator can turn it on (`--plugin browser`, `SB_PLUGINS=browser`), never a settings file in the current folder alone. One headless Chrome test covers an unpacked extension, `wait_for_workers` and a session saved and restored; archives and the headed `interactive` task have only run against a mock browser.
 
 </Visibility>
 
@@ -139,6 +139,10 @@ In `before_launch`:
    protocol where branded Chrome ignores that switch. Python does not add
    `--disable-extensions-except` either, and neither does the plugin.
 
+In `on_browser` it restores the session named by `session`, if any, and waits for
+the extensions' service workers when `wait_for_workers` is on (see
+[Waiting for the service workers](#waiting-for-the-service-workers)).
+
 In `on_close` it drops its temporary folders, which deletes them. Each browser of
 a pool gets a copy of the plugin of its own, so closing one browser deletes only
 its own folders.
@@ -164,11 +168,134 @@ extension folders is split there.
 
 </ParamField>
 
-Not built yet: the design also has `wait_for_workers`, `worker_timeout_secs`,
-`session`, `save_on_close`, `interactive` and `pause_message`. They need hooks the
-plugin API does not have (a clock in `on_browser`, a folder for saved sessions),
-so they are refused as unknown options instead of being accepted and ignored,
-for example ``plugin configuration: browser: unknown option `wait_for_workers` ``.
+<ParamField body="wait_for_workers" type="boolean" default="false">
+Wait, in `on_browser`, until each extension this plugin loaded whose manifest has
+a `background.service_worker` has a running worker. Needs `extension_zip` or
+`extension_dir`, and a host that reports extension service workers: a host that
+does not makes the launch fail with a message naming this option.
+
+</ParamField>
+
+<ParamField body="worker_timeout_secs" type="integer" default="10">
+How many seconds `wait_for_workers` waits, from 1 to 30. Refused unless
+`wait_for_workers` is on.
+
+</ParamField>
+
+<ParamField body="session" type="string">
+The name of a saved session: one to 64 letters, digits, `.`, `_` or `-`, starting
+with a letter or a digit. Its cookies are put back when the browser starts. A
+session that was never saved is a fresh start.
+
+</ParamField>
+
+<ParamField body="save_on_close" type="boolean" default="false">
+Save the browser's cookies under `session` just before it closes. Needs `session`,
+Unix file permissions, and a host that runs `before_close` (the pure CDP engine;
+on the WebDriver host the launch fails, naming this option).
+
+</ParamField>
+
+<ParamField body="session_dir" type="path" default="saved_sessions">
+The folder the session files live in, made absolute against the working directory
+when the plugin is built. Needs `session`.
+
+</ParamField>
+
+<ParamField body="interactive" type="boolean" default="false">
+Offer the task `sbrs plugin run browser`, which opens a tab, waits for a person
+to sign in and saves the session. Needs `session`, a headed browser and Unix file
+permissions.
+
+</ParamField>
+
+<ParamField body="pause_message" type="string" default="a default text">
+What the person is told while the interactive task waits, at most 500 characters.
+Needs `interactive`.
+
+</ParamField>
+
+A combination that makes no sense is refused when the plugin is built, before any
+browser starts, for example ``plugin configuration: browser: `save_on_close` needs `session`: there is no name to save the cookies under``.
+
+## Waiting for the service workers
+
+An MV3 extension does its work in a service worker that Chrome starts a moment
+after the extension is loaded. `wait_for_workers` makes the launch wait for it:
+in `on_browser` the plugin asks the host for the running workers
+(`BrowserHandle::extension_workers`) every 250 ms, with the plugin set's clock
+(`BrowserHandle::clock`), until every extension this plugin loaded whose manifest
+has a `background.service_worker` has one, or `worker_timeout_secs` have passed.
+Extensions without a service worker, and extensions another plugin loaded, are not
+waited for. The plugin asks the set for a longer limit for `on_browser` (the wait
+plus 5 s), so the set's default of 10 s does not cut a long wait short.
+
+It is off by default. The pure CDP engine answers `extension_workers` from
+Chrome's list of targets (`Target.getTargets`): a target of type
+`service_worker` whose address is under `chrome-extension://<id>/` for an
+extension the launch loaded. The WebDriver host reports no extension ids and has
+no worker query, so there the launch fails with a message that names
+`wait_for_workers`, instead of waiting for nothing.
+A timeout names the option, the extensions that never started and the time.
+
+## Saved sessions
+
+`session` keeps the cookies of the browser's default context, through
+`Storage.getCookies` and `Storage.setCookies`, in `<session_dir>/<session>.json`.
+When the browser starts the file is read and its cookies are put back; cookies
+that already expired are dropped and session cookies are kept.
+
+With `save_on_close` the cookies are written just before the browser closes. The
+file is made through a temporary file in the same folder, created with mode `0600`,
+and renamed over the old one; a folder the plugin creates gets mode `0700`; a
+symbolic link or a folder at the file's place is refused. The folder is tested for
+writing at launch, so a folder that cannot be written fails the launch, not the
+close.
+
+- **`save_on_close` needs a host that runs `before_close`.** Only the pure CDP
+  engine does, in `Browser::close`. The WebDriver host calls `on_browser` and
+  `on_close` only, so there the launch fails in `on_browser` with a message that
+  names `save_on_close`, before the session is restored. A pure CDP browser
+  dropped without `Browser::close` runs `on_close` only and saves nothing, so
+  close it. Without `save_on_close` a session is restored on both engines.
+- A file that is corrupt, larger than 8 MiB, of another version, holds more than
+  5000 cookies or is a symbolic link is an error that names `session`.
+- Only the fields `name`, `value`, `domain`, `path`, `expires`, `httpOnly`,
+  `secure`, `sameSite`, `priority`, `sourceScheme`, `sourcePort` and
+  `partitionKey` are kept and sent; others in the file are dropped.
+- **The file holds credentials.** Keep `session_dir` out of version control (add
+  `saved_sessions/` to `.gitignore`). No error, log line, task result or `Debug`
+  output carries a cookie value: a syntax error names a line and a column only,
+  and a browser message that repeats a value has it removed.
+- **localStorage and sessionStorage are not saved.** DOM storage belongs to a tab,
+  and the browser handle has no way to list tabs without the Critical capability
+  `cdp:Target`, which the host never grants. Only cookies are kept.
+- Saving needs Unix file permissions: `save_on_close` and `interactive` are
+  refused elsewhere. Pooled browsers that save the same session race; the last
+  one wins.
+
+## Signing in by hand
+
+With `interactive = true` (and a `session`) the plugin offers a task, which
+`sbrs plugin run browser` starts. The input is a JSON file, as for every task
+(`--input`), and the browser must be headed. The global options go before
+`plugin run`, and an option's value is TOML, so a text needs its quotes:
+
+```sh Terminal
+echo '{"url": "https://app.test/login"}' > login.json
+sbrs --headed --plugin-opt 'browser.session="login"' --plugin-opt 'browser.interactive=true' \
+  plugin run browser --input login.json
+```
+
+It opens a tab (at the `url` of the input, `http` or `https` only; without one a
+blank tab), prints `pause_message` and waits until you press Enter in the
+terminal, then saves the session and prints `{"session": "login", "cookies": 7}`.
+The plugin needs `Requirements::HEADFUL` (a headless launch is refused before it
+starts), a host with tasks (not WebDriver) and a person: over MCP, where nobody
+can be asked, the task fails with "`interactive` needs a person at the keyboard".
+A session folder that cannot be written is found out before the prompt. Use it to
+sign in once, by hand, and keep the state for fixtures, then `session = "login"`
+restores it in every later browser.
 
 ## Messages
 
@@ -206,8 +333,10 @@ deleted. Other messages:
 ## Who may turn it on
 
 The plugin declares `host.fs.write:temp` (to unpack archives) and, with paths,
-`host.fs.read` for them. A plugin that declares a `host.*` capability and is named
-only by the settings file of the current folder is refused, with exit status 2:
+`host.fs.read` for them, plus `host.fs.read` and `host.fs.write` for the session
+folder when a session is restored or saved. A plugin that declares a `host.*`
+capability and is named only by the settings file of the current folder is
+refused, with exit status 2:
 
 ```text
 sbrs::invalid_config
@@ -232,6 +361,13 @@ plugin for Chromium browsers that the program starts (`Requirements::CHROMIUM_ON
 | `launch.extensions` | It adds extension folders to the launch settings |
 | `host.fs.read` for the paths you configured | It reads the archives, the manifests and the folders |
 | `host.fs.write:temp` | It unpacks archives into a temporary folder; the configured plugin asks for it only when you configured archives |
+| `cookies.write` and, when saving, `cookies.read` | It puts cookies back, and writes them with `save_on_close` or `interactive` |
+| `host.fs.read` for the session file and, when saving, `host.fs.write` for the session folder | It reads and writes `<session_dir>/<session>.json` |
+| `clock` | It reads the set's clock to wait for service workers; asked for only with `wait_for_workers` |
+| `task` | The `browser` task; asked for only with `interactive` |
+
+`task` needs a host with tasks, so the WebDriver host is refused for
+`interactive`. The session options need Unix file permissions.
 
 It declares that it cannot share a set with `crx`: naming both builds the set, and
 the check every launch makes refuses the pair, whichever name comes first, before
@@ -263,10 +399,14 @@ Ok::<(), seleniumbase_rs_plugin::PluginError>(())
 
 <Warning>
 
-**Nothing here has run in a real Chrome.** The plugin's tests use a plugin set,
-archives built in memory and temporary folders; they never start a browser. What
-Chrome does with the folders, and the `--load-extension` list itself, belong to
-seleniumbase-rs, and its tests of that part run on a scripted mock browser (see
+**Little of it has run in a real Chrome.** The plugin's own tests use a plugin
+set, archives built in memory and temporary folders; they never start a browser.
+In seleniumbase-rs one test runs in a headless Chrome
+(`tests/sb_cdp_plugin_hooks_chrome.rs`, ignored by default): an unpacked folder
+with a service worker, `wait_for_workers` until that worker runs, and a session
+saved on close (mode `0600`) and put back in a second browser. Archives, `.crx`
+files and the headed `interactive` task have only run against the scripted mock
+browser (see
 [What has and has not been verified](/tutorials/plugins#what-has-and-has-not-been-verified)). Check that your
 extension is active in the browser (open its page, or `chrome://extensions`)
 before you rely on it.
@@ -286,5 +426,15 @@ before you rely on it.
 - **Manifest V3 only.** A Manifest V2 extension is refused with the message above,
   not loaded.
 - **The signature of a `.crx` is not verified.** Load only files you trust.
+- **`save_on_close` needs the pure CDP engine.** Only that engine runs
+  `before_close`; on the WebDriver host the launch is refused, naming the option.
+- **The session file holds credentials.** Only cookies are kept, and no error,
+  log line or task result carries a value, but the file is readable by your user
+  and holds live cookies. Keep `session_dir` out of version control.
+- **`interactive` needs a person.** It needs `Requirements::HEADFUL` (a headless
+  launch is refused) and a host with a prompt; over MCP the task fails, because
+  nobody can be asked.
+- **Saving needs Unix.** `save_on_close` and `interactive` are refused on a
+  system without Unix file permissions.
 - **It is not a sandbox.** Like every native plugin, browser is Rust code that
   runs with your program's rights, and an extension it loads runs in your browser.

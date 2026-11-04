@@ -111,7 +111,8 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-r
 ```
 
 See [Install without a checkout](./docs/building.md#install-without-a-checkout)
-(the prebuilt release archives wait for the release workflow's first run).
+(the releases carry a prebuilt archive for macOS arm64 only;
+[Install sbrs with mise](./docs/building.md#install-sbrs-with-mise) covers mise).
 
 **The library:** add the crate from GitHub (it is not on crates.io). It carries no
 command-line code; `sbrs` is the separate package above. It is the only dependency
@@ -326,7 +327,7 @@ See [CLI Usage](./docs/tutorials/cli_usage.md) for every command and option.
 | Selenium IDE parsing | `cargo run --example selenium_ide` |
 | Browser test lifecycle | `cargo run --example browser_test_runner` |
 
-See also [`examples/tauri-profile-manager`](./examples/tauri-profile-manager) for a desktop multi-profile browser manager with a profile-compatible REST API.
+See also the [Tauri profile manager](https://github.com/MustCodeAl/tauri-plugin-sbrs-automation/tree/main/examples/tauri-profile-manager) in tauri-plugin-sbrs-automation: a desktop multi-profile browser manager with a profile-compatible REST API, built on the Tauri plugin.
 
 ### CDP page automation
 
@@ -535,9 +536,9 @@ in [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-steal
 
 - [Getting Started](./docs/tutorials/getting_started.md)
 - [Selectors](./docs/tutorials/selectors.md)
-- [Waits and Assertions](./docs/tutorials/waits_assertions.md)
-- [Testing Pages with a CAPTCHA](./docs/tutorials/captcha_testing.md)
-- [Shadow DOM](./docs/tutorials/shadow_dom.md)
+- [Waits and Assertions](./docs/tutorials/utilities.md#waits-and-assertions)
+- [Handling CAPTCHAs](./docs/tutorials/captcha_testing.md)
+- [Shadow DOM](./docs/tutorials/selectors.md#shadow-dom)
 - [CDP Mode](./docs/tutorials/cdp_mode.md)
 - [Undetected (UC) Mode](./docs/tutorials/uc_mode.md)
 - [Fingerprint & Stealth Profiles](./docs/tutorials/fingerprint_stealth.md)
@@ -553,11 +554,11 @@ in [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-steal
 - [Test Translations](./docs/tutorials/translations.md)
 - [CLI Usage](./docs/tutorials/cli_usage.md)
 - [API Reference](./docs/tutorials/api_reference.md)
-- [Macros](./docs/tutorials/macros.md)
+- [Macros](./docs/tutorials/utilities.md#macros)
 - [Cloud Integrations](./docs/tutorials/cloud_integrations.md)
 - [Settings and Configuration](./docs/tutorials/settings_and_config.md)
 - [Run Settings (demo and slow mode)](./docs/tutorials/run_settings.md)
-- [Behave / Gherkin Support](./docs/tutorials/behave.md)
+- [Behave / Gherkin Support](./docs/tutorials/utilities.md#gherkin-scenarios-with-rstest-bdd)
 - [Selenium IDE Migration](./docs/tutorials/selenium_ide.md)
 - [Remaining Helpers](./docs/tutorials/remaining_helpers.md)
 - [Binary Patching](./docs/tutorials/binary_patching.md)
@@ -565,15 +566,15 @@ in [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-steal
 ### Help pages
 
 - [Customizing Test Runs](./docs/help/customizing_test_runs.md)
-- [Syntax Formats](./docs/help/syntax_formats.md)
+- [Syntax Formats](./docs/tutorials/selectors.md#syntax-formats)
 - [Commander TUI](./docs/help/commander.md)
 - [Case Plans Generator](./docs/help/caseplans.md)
 - [Behave Commander](./docs/help/behave-gui.md)
 - [Recorder CLI](./docs/help/recorder_cli.md)
 - [Playwright Mode](./docs/help/playwright_mode.md)
 - [Docker Guide](./docs/help/docker.md)
-- [HTML Inspector](./docs/help/html_inspector.md)
-- [Common Problems](./docs/help/common_problems.md)
+- [HTML Inspector](./docs/tutorials/utilities.md#html-inspector)
+- [Troubleshooting](./docs/help/common_problems.md)
 - [ABI & API Stability](./docs/ABI_API.md)
 
 ### Build the documentation book

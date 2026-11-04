@@ -14,7 +14,7 @@ system, async runtime, and native distribution model.
 
 <Columns cols={2}>
 
-<Card title="Working with seleniumbase-rs" icon="rocket" color="#d47628" href="/tutorials/getting_started">
+<Card title="Walkthrough" icon="rocket" color="#d47628" href="/tutorials/getting_started">
   Create a Rust project, add seleniumbase-rs, and run your first test.
 </Card>
 
@@ -208,6 +208,167 @@ By reading this book you will learn how to:
 - **Optional integrations**: S3, Azure Blob Storage, Google Cloud Storage, and an
   MCP server, each behind a Cargo feature flag.
 
+## Key features
+
+### Stealth and UC mode
+
+UC mode (Undetected Chromedriver) launches the browser and sets up the session so
+that common bot checks do not spot the automation. Turn it on in the configuration:
+
+```rust
+use seleniumbase_rs::{BaseCase, BrowserConfig, DriverMode};
+
+let config = BrowserConfig::default()
+    .with_mode(DriverMode::Uc)
+    .with_headless(true);
+let mut sb = BaseCase::new(config).await?;
+```
+
+Fingerprints, stealth policies and binary patching go further; see
+[Undetected (UC) Mode](/tutorials/uc_mode) and
+[Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth).
+
+### Human-like input
+
+Bot detectors watch typing speed and mouse movement. These methods add the pauses
+a person makes:
+
+```rust
+sb.human_type("#search", "Stealthy typing").await?; // one key at a time, with pauses
+sb.human_click("#submit").await?;                   // a short pause before the click
+sb.smooth_scroll_to("#footer").await?;              // scrolls the element into the middle
+sb.uc_type("#email", "user@example.com").await?;   // the names UC-mode scripts use
+sb.uc_click("#login").await?;
+```
+
+### Smart waits
+
+Every action waits for its element first, so a test needs no `sleep`. To wait
+for a state yourself, give a time limit in seconds:
+
+```rust
+sb.wait_for_element_visible("#dynamic-content", 10).await?;
+sb.wait_for_element_absent("#loading-spinner", 5).await?;
+sb.assert_element_present(".user-profile").await?;
+```
+
+See [Waits and Assertions](/tutorials/utilities#waits-and-assertions).
+
+### PDF files and HTML parsing
+
+Print the page to a PDF, read the text of a PDF, and parse the page's HTML the
+way BeautifulSoup does in Python:
+
+```rust
+sb.print_to_pdf("page.pdf").await?;
+let text = sb.get_pdf_text("page.pdf")?;
+let soup = sb.get_beautiful_soup_object().await?;
+```
+
+See [PDF Parsing](/tutorials/pdf_parsing).
+
+### More of BaseCase
+
+<Columns cols={2}>
+
+<Card title="Tours and charts" icon="route" href="/tutorials/tours">
+  Step-by-step product tours on any page, and charts saved as HTML (see also [Charts](/tutorials/charts)).
+</Card>
+
+<Card title="Shadow DOM" icon="layer-group" href="/tutorials/selectors#shadow-dom">
+  Selectors that reach into shadow trees, open or closed, for every method that takes one.
+</Card>
+
+<Card title="GUI automation" icon="computer-mouse" href="/tutorials/gui_automation">
+  Mouse and keyboard at the operating-system level, for native dialogs.
+</Card>
+
+<Card title="CDP mode" icon="bolt" href="/tutorials/cdp_mode">
+  Chrome DevTools Protocol commands from a BaseCase test.
+</Card>
+
+<Card title="MasterQA" icon="clipboard-check" href="/tutorials/masterqa">
+  Manual verification steps recorded during a run, exported as a report.
+</Card>
+
+<Card title="All of the API" icon="book" href="/tutorials/api_reference">
+  Where each group of methods is documented.
+</Card>
+
+</Columns>
+
+The HTML inspector checks the current page for accessibility and markup problems:
+`sb.inspect_html().await?` lists them, and `sb.assert_no_html_issues().await?`
+fails the test when there are any.
+
+## Low-code tests
+
+Tests do not have to start as Rust. seleniumbase-rs reads
+[Selenium IDE](/tutorials/selenium_ide) recordings, runs Gherkin scenarios as
+cargo tests ([Behave and Gherkin](/tutorials/utilities#gherkin-scenarios-with-rstest-bdd)), converts Python, Playwright
+and Puppeteer scripts ([Migrate from Python](/python-migration)), and records your
+clicks as a ready-to-run test ([Recorder Mode](/tutorials/recorder_mode)).
+
+## The command line
+
+`sbrs` drives a browser without a Rust project. Each command starts its own
+browser and closes it at the end.
+
+<Steps titleSize="h3">
+
+<Step title="Open a page" icon="globe">
+
+```bash Terminal
+sbrs --headless open https://example.com
+```
+
+</Step>
+
+<Step title="Record a test" icon="circle-dot">
+
+```bash Terminal
+sbrs mkrec my_test.rs --url https://example.com
+```
+
+Act in the browser; the test is written to `my_test.rs` and the actions to a
+recording that `sbrs replay` plays back.
+
+</Step>
+
+<Step title="Run tests from a terminal UI" icon="table-list">
+
+```bash Terminal
+sbrs commander
+```
+
+Commander needs a build with the `tui` feature.
+
+</Step>
+
+</Steps>
+
+Every command and flag is in the [CLI reference](/help/cli_reference);
+[CLI Usage](/tutorials/cli_usage) explains them by task.
+
+## Configuration
+
+Settings come from `sbase_config.toml` in the project, `SB_*` environment
+variables, `BrowserConfig` in code and command-line flags, each overriding the
+one before it. See [Settings and Configuration](/tutorials/settings_and_config).
+
+## MCP server for AI agents
+
+`sbrs-mcp` gives MCP clients a browser. `--server cdp|driver|sb|dev` picks the
+tool set (`dev` starts no browser), and `sbrs-mcp install CLIENT` registers it
+with a client. The browser starts on the first `start_browser` call, so a client
+can list the tools without one. See [MCP Server](/tutorials/mcp_server).
+
+## For contributors
+
+[API Reference](/tutorials/api_reference) maps the crate's modules; `cargo doc
+--open` builds the generated documentation locally.
+
+
 ## How to use this book
 
 <Tabs>
@@ -216,7 +377,7 @@ By reading this book you will learn how to:
 
 Start with [Getting Started](/tutorials/getting_started)
 and then read [Writing Browser Tests](/rust-test-tooling) and
-[Waits and Assertions](/tutorials/waits_assertions).
+[Waits and Assertions](/tutorials/utilities#waits-and-assertions).
 
 </Tab>
 
@@ -239,7 +400,7 @@ Read [Undetected (UC) Mode](/tutorials/uc_mode),
 <Tab title="Day to day" icon="terminal">
 
 Keep [CLI Usage](/tutorials/cli_usage) and
-[Common Problems](/help/common_problems) handy.
+[Troubleshooting](/help/common_problems) handy.
 
 </Tab>
 

@@ -441,10 +441,10 @@ async fn login(sb: Sb) -> Result<()> {
 | `pytest -s` | `sbrs test -s` |
 | `--reruns 2 --reruns-delay 1` | The same flags; the test is run again with a new browser |
 | `--time-limit 60` | The same flag; the test fails after 60 seconds and its browser is closed |
-| `--pdb`, `--trace`, `--final-debug`, `breakpoint()` | The same flags, and `sb.breakpoint("..")`; see [Debug modes](/tutorials/debug_modes) |
+| `--pdb`, `--trace`, `--final-debug`, `breakpoint()` | The same flags, and `sb.breakpoint("..")`; see [Debug modes](/tutorials/tracing#debug-modes) |
 | `--env qa --data x --var1 y --variables='{"k": 1}'` | The same flags; the test reads `sb.env()`, `sb.data()`, `sb.var1()` and `sb.variables()` |
 | `--headless --browser=firefox --uc` and the other browser options | The same flags; [Test options](/help/test_options) lists them with their `SB_*` variables |
-| `--html=report.html --junit-xml=report.xml --alluredir=results` | The same flags; see [Writing Tests with the sb Fixture](/tutorials/writing_tests#reports-of-a-run) |
+| `--html=report.html --junit-xml=report.xml --alluredir=results` | The same flags; see [Writing Browser Tests](/rust-test-tooling#reports-of-a-run) |
 | `behave -D headless` | `sbrs test --headless`; `sbrs behave-options` maps the rest |
 
 
@@ -503,7 +503,7 @@ Selector syntax differences.
 
 </Card>
 
-<Card color="#d47628" title="Waits and Assertions" icon="clock" horizontal href="/tutorials/waits_assertions">
+<Card color="#d47628" title="Waits and Assertions" icon="clock" horizontal href="/tutorials/utilities#waits-and-assertions">
 
 Equivalent Rust methods.
 

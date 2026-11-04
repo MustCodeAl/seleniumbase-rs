@@ -142,7 +142,7 @@ cargo test visit_example            # one test
 SB_HEADLESS=true cargo test         # every test, headless
 ```
 
-See [Macros](/tutorials/macros) and [Writing browser tests](/rust-test-tooling).
+See [Macros](/tutorials/utilities#macros) and [Writing browser tests](/rust-test-tooling).
 
 ## One binary to ship
 

@@ -177,7 +177,7 @@ See [Getting Started with SeleniumBase for Rust](/tutorials/getting_started).
 
 The crate's Gherkin runner: a small parser and step runner for `.feature` files, like Python's `behave`. You register step definitions, plain or async, and can run only the scenarios with certain tags.
 
-See [Behave / Gherkin Support](/tutorials/behave).
+See [Behave / Gherkin Support](/tutorials/utilities#gherkin-scenarios-with-rstest-bdd).
 
 ### Binary patching
 
@@ -629,7 +629,7 @@ See [Network and proxies](/concepts/network#udp-and-quic).
 
 An assertion that checks the page at once but does not stop the test when it fails. It records the failure, and `process_deferred_asserts` reports all of them together. It is also called a soft assertion.
 
-See [Waits and Assertions](/tutorials/waits_assertions#soft-assertions).
+See [Waits and Assertions](/tutorials/utilities#soft-assertions).
 
 ### Demo mode
 
@@ -803,7 +803,7 @@ See [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth).
 
 The plain-language format of `.feature` files, where behaviour is written as scenarios made of steps. The crate's [Behave](#behave) runner reads Gherkin and matches each step to a step definition you register.
 
-See [Behave / Gherkin Support](/tutorials/behave).
+See [Behave / Gherkin Support](/tutorials/utilities#gherkin-scenarios-with-rstest-bdd).
 
 ### Git
 
@@ -1033,7 +1033,7 @@ See [The Model Context Protocol](/concepts/mcp#how-mcp-messages-travel).
 
 A hand-written JSON file of steps that `sbrs run-scenario --file` runs, for CI smoke checks or for authors who do not write Rust. It is not the action file that `sbrs mkrec` writes.
 
-See [Syntax Formats](/help/syntax_formats).
+See [Syntax Formats](/tutorials/selectors#syntax-formats).
 
 ## L
 
@@ -1727,7 +1727,7 @@ See [Settings and Global Configuration](/tutorials/settings_and_config).
 
 A tree of elements hidden inside a web component. Every selector of `BaseCase` (and of the pure CDP engine's `page.locator`) can enter shadow roots with the `::shadow` combinator, as in `my-app::shadow button`. `BaseCase` enters closed roots too; the pure CDP engine enters open roots only.
 
-See [Shadow DOM Guide](/tutorials/shadow_dom).
+See [Shadow DOM Guide](/tutorials/selectors#shadow-dom).
 
 ### Single-page application
 
@@ -1799,7 +1799,7 @@ See [Network and proxies](/concepts/network#sockets).
 
 Another name for a [deferred assertion](#deferred-assertion): a check that records its failure instead of stopping the test.
 
-See [Waits and Assertions](/tutorials/waits_assertions#soft-assertions).
+See [Waits and Assertions](/tutorials/utilities#soft-assertions).
 
 ### Source map
 
@@ -2245,13 +2245,13 @@ See [Headless and Headed Browsers](/tutorials/headless#containers-and-ci).
 
 <Columns cols={2}>
 
-<Card color="#1a85d4" title="Working with seleniumbase-rs" icon="rocket" href="/tutorials/getting_started">
+<Card color="#1a85d4" title="Walkthrough" icon="rocket" href="/tutorials/getting_started">
 
 Create a project, add seleniumbase-rs and run your first test.
 
 </Card>
 
-<Card color="#199f43" title="FAQ and common problems" icon="circle-question" href="/help/common_problems">
+<Card color="#199f43" title="Troubleshooting" icon="circle-question" href="/help/common_problems">
 
 Short answers about engines, browsers, drivers and stealth.
 

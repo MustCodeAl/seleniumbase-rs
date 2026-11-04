@@ -3,7 +3,7 @@
 A [mise](https://mise.jdx.dev) tool plugin that installs, upgrades and removes
 chromedriver from [Chrome for Testing](https://googlechromelabs.github.io/chrome-for-testing/).
 `sbrs` and the library find the driver it installs with `mise which chromedriver`;
-see `docs/tutorials/mise_chromedriver.md`.
+see `docs/building.md`.
 
 It is a tool plugin because it installs one tool. mise's plugin pages say to write
 a tool plugin when no backend can install the tool and a backend plugin only for a

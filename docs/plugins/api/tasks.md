@@ -10,7 +10,7 @@ A [`JobRunner`](#jobrunner) is the smaller piece a batching plugin calls once
 per job, on a page the caller opened. Items are in `seleniumbase_rs_plugin`,
 defined in `crates/seleniumbase-rs-plugin/src/task.rs` of
 [seleniumbase-rs-plugins](https://github.com/MustCodeAl/seleniumbase-rs-plugins)
-at `fea3634e2ebcaafce63a244df8d4adb53e3ec002` (crate 0.1.3).
+at `0666904475f4f1f422f8f426f169f6a0e533e824` (crate 0.1.3).
 [`Clock`](#clock) lives in `timer.rs` in the same crate.
 
 A task needs [`Capability::Task`](/plugins/api/capabilities).

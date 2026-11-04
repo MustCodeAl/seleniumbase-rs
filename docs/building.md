@@ -1,6 +1,6 @@
 ---
 title: "Building and installing"
-sidebarTitle: "Install"
+sidebarTitle: "Installation"
 description: "Install sbrs without a checkout or build seleniumbase-rs from source, pick features, check the setup and run it in a container on macOS, Linux or Windows."
 keywords: ["install", "build", "cargo", "sbrs", "features", "container", "doctor"]
 ---
@@ -120,7 +120,7 @@ workspace layout, the checks, the real-Chrome tests and build problems), see
 
 <Visibility for="agents">
 
-Summary for AI exports: install Rust 1.99 (rustup), a C compiler and Google Chrome, then clone the repository and run `cargo build --bin sbrs` and `sbrs doctor`. Without a checkout, use `brew install mustcodeal/tap/sbrs` or `cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs-cli --locked`. The prebuilt release archives do not exist yet, so `cargo binstall` and mise's `github:` backend find nothing to download. The library has no default features; the command-line package `seleniumbase-rs-cli` turns on `pdf` and `mcp-server`.
+Summary for AI exports: install Rust 1.99 (rustup), a C compiler and Google Chrome, then clone the repository and run `cargo build --bin sbrs` and `sbrs doctor`. Without a checkout, use `brew install mustcodeal/tap/sbrs` or `cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs-cli --locked`. The releases carry one prebuilt archive, for macOS arm64, which `cargo binstall` and mise's `github:` backend install there (see [Install sbrs with mise](#install-sbrs-with-mise)); every other platform builds from source. The library has no default features; the command-line package `seleniumbase-rs-cli` turns on `pdf` and `mcp-server`. mise: on macOS arm64, `mise use -g github:MustCodeAl/seleniumbase-rs` installs the release archive and puts `sbrs` and `sbrs-mcp` on the `PATH`; `mise ls-remote github:MustCodeAl/seleniumbase-rs` lists the versions, which are the release tags without the `v` (0.6.0 and 0.7.0 have an archive). `aarch64-apple-darwin` is the only archive the releases carry, so every other platform builds from a tag with `mise use -g 'cargo:https://github.com/MustCodeAl/seleniumbase-rs@tag:v0.7.0'`, which runs `cargo install --git` and needs Rust 1.99 and a C compiler; a git source lists no versions, so name the tag. A team `mise.toml` can hold both entries with `os = ["macos/arm64"]` on the `github:` one and `os = ["linux", "windows", "macos/x64"]` on the `cargo:` one (mise 2026.4.12 or newer). mise installs no completions; the archive holds them in `completions/` under `mise where github:MustCodeAl/seleniumbase-rs`, and `sbrs completions <shell>` writes them for any install. chromedriver with mise: link the plugin with `mise plugins link chromedriver ./contrib/mise/mise-chromedriver`, then `mise use chromedriver@151` (the major version of your Chrome; `latest` is usually a Canary build). `mise upgrade chromedriver` installs a newer build of the pinned major (mise prunes the old one after a day, or at once with `mise prune chromedriver`) and `mise uninstall chromedriver@VERSION` removes one. A session started by `sbrs` or the library runs `mise which chromedriver` in the working directory when `downloaded_drivers/chromedriver` is missing or is for another Chrome (and, with `--driver-version keep`, when no driver is in `downloaded_drivers/` or on the `PATH`), and uses the file it prints when it exists, can run and fits the installed Chrome. No mise, a failing mise, a mise that takes more than 5 seconds and a bad answer are all silent. There is no setting for it. `--driver-version` with a version always downloads that build. `sbrs doctor` and `sbrs prompt` do not ask mise. The plugin lists builds from Chrome for Testing, and installs only what the index names on storage.googleapis.com over https.
 
 </Visibility>
 
@@ -312,15 +312,13 @@ those instructions live in that repository now. This crate needs none of them.
 
 </Accordion>
 
-<Accordion title="The Tauri example" icon="desktop" description="Node LTS">
+<Accordion title="The Tauri example" icon="desktop" description="Moved to the Tauri plugin">
 
-The Tauri example (`examples/tauri-profile-manager`) needs Node LTS (`brew
-install node`, `winget install OpenJS.NodeJS.LTS`). On Windows it also uses
-WebView2, which comes with Windows 10 and 11. On Debian and Ubuntu:
-
-```bash
-sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libgtk-3-dev libssl-dev libx11-dev libxdo-dev
-```
+The Tauri profile manager example moved to
+[tauri-plugin-sbrs-automation](https://github.com/MustCodeAl/tauri-plugin-sbrs-automation)
+(`examples/tauri-profile-manager`), where it builds on the plugin. Its README
+lists what it needs (Node LTS, and the WebKitGTK packages on Linux). This
+repository builds nothing of it.
 
 </Accordion>
 
@@ -390,16 +388,15 @@ your `PATH` without cloning the repository. None of them uses crates.io.
 
 <Warning>
 
-The prebuilt archives do not exist yet. They come from
-`.github/workflows/release.yml`, which builds `sbrs` and `sbrs-mcp` for
-`aarch64-apple-darwin`, `x86_64-apple-darwin`, `x86_64-unknown-linux-gnu`,
+From v0.6.0 on, each release carries one prebuilt archive, for
+`aarch64-apple-darwin` (macOS on Apple silicon), built on a Mac with
+`mise run release-binaries`. `.github/workflows/release.yml` would also build
+`sbrs` and `sbrs-mcp` for `x86_64-apple-darwin`, `x86_64-unknown-linux-gnu`,
 `aarch64-unknown-linux-gnu` and `x86_64-pc-windows-msvc` when a `v*` tag is
-pushed, and attaches them to that GitHub release. GitHub Actions is locked on
-this repository by a billing problem, so the workflow has not run: the
-releases v0.1.0 to v0.2.0 have no binary assets. Until it runs, `cargo
-binstall` and mise's `github:` backend find nothing to download; the commands
-that build from source (`cargo install --git`, mise's `cargo:` backend and
-Homebrew) work today.
+pushed, but GitHub Actions is locked on this repository by a billing problem,
+so it has not run. On those platforms `cargo binstall` and mise's `github:`
+backend find nothing to download; the commands that build from source
+(`cargo install --git`, mise's `cargo:` backend and Homebrew) work everywhere.
 
 </Warning>
 
@@ -421,7 +418,7 @@ Windows) holds these at its root:
 
 ### cargo binstall
 
-<Badge color="orange">No archives yet</Badge>
+<Badge color="orange">macOS arm64 only</Badge>
 
 [cargo-binstall](https://github.com/cargo-bins/cargo-binstall) downloads the
 release archive for your system instead of compiling. `crates/cli/Cargo.toml`
@@ -441,62 +438,21 @@ completions <shell>` (see [the CLI page](/tutorials/cli_usage)).
 
 ### mise
 
-[mise](https://mise.jdx.dev) has two backends that fit.
-
-<Tabs>
-
-<Tab title="From release archives" icon="download">
-
-The `github:` backend picks the archive for your system and puts both binaries on `PATH`:
-
-<CodeGroup>
+[mise](https://mise.jdx.dev) installs both binaries with two built-in backends
+and no plugin: `github:` downloads the release archive and lists the versions
+from the release tags, and `cargo:` builds from a git tag (Rust 1.99 and a C
+compiler):
 
 ```bash Terminal
-mise use -g github:MustCodeAl/seleniumbase-rs
+mise use -g github:MustCodeAl/seleniumbase-rs                                  # macOS arm64
+mise use -g 'cargo:https://github.com/MustCodeAl/seleniumbase-rs@tag:v0.7.0'  # other platforms
 ```
 
-```toml mise.toml
-[tools."github:MustCodeAl/seleniumbase-rs"]
-version = "latest"
-```
-
-</CodeGroup>
-
-Until the release archives exist, mise reports "No versions found" for it.
-
-</Tab>
-
-<Tab title="Build from the git tag" icon="hammer">
-
-To build from the git tag now, the `cargo:` backend runs `cargo install --git`
-(Rust 1.99 must be on `PATH`, for example with `mise use -g rust@1.99`). The
-repository has one package with binaries, `seleniumbase-rs-cli`, so cargo finds
-it by itself, and it builds `sbrs-mcp` too (`features = ["tui"]` adds the
-terminal UI):
-
-<CodeGroup>
-
-```bash Terminal
-mise use -g 'cargo:https://github.com/MustCodeAl/seleniumbase-rs@tag:v0.2.0'
-```
-
-```toml mise.toml
-[tools."cargo:https://github.com/MustCodeAl/seleniumbase-rs"]
-version = "tag:v0.2.0"
-```
-
-</CodeGroup>
-
-The binaries moved from the package `seleniumbase-rs` to `seleniumbase-rs-cli`
-after v0.4.0. For a tag up to v0.4.0, add `features = ["mcp-server"]` to get
-`sbrs-mcp`.
-
-</Tab>
-
-</Tabs>
-
-mise installs no completions for these backends either; its per-tool
-`postinstall` option can run `sbrs completions zsh` into your completions folder.
+[Install sbrs with mise](#install-sbrs-with-mise) below has a `mise.toml` that picks the
+right backend on each machine, and covers upgrades and completions. The binaries
+moved from the package `seleniumbase-rs` to `seleniumbase-rs-cli` after v0.4.0;
+for a tag up to v0.4.0, add `features = ["mcp-server"]` to the `cargo:` entry to
+get `sbrs-mcp`.
 
 ### Homebrew
 
@@ -523,6 +479,199 @@ That builds `sbrs` and `sbrs-mcp`; add `--no-default-features` for `sbrs` alone,
 without PDF text extraction. For a tag up to v0.4.0 the binaries are in the
 package `seleniumbase-rs`:
 `cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.4.0 --features mcp-server --locked`.
+
+## Install sbrs with mise
+
+[mise](https://mise.jdx.dev) can install, pin and upgrade `sbrs` and `sbrs-mcp`
+without a checkout of this repository. Two of its built-in backends do it, so
+there is no plugin to link: `github:` downloads the release archive, and
+`cargo:` builds the command line from a git tag.
+
+### On a Mac with Apple silicon
+
+Each release on GitHub carries a prebuilt archive for `aarch64-apple-darwin`.
+The `github:` backend lists the releases, picks that archive and puts both
+binaries on the `PATH`:
+
+```bash Terminal
+mise ls-remote github:MustCodeAl/seleniumbase-rs   # 0.6.0, 0.7.0, ...
+mise use -g github:MustCodeAl/seleniumbase-rs@0.7.0
+sbrs --version
+sbrs-mcp --version
+```
+
+A version is the release tag without its `v`. `mise use` without `@0.7.0` takes
+the newest release. Drop `-g` to pin the version in the project's `mise.toml`
+instead of your global one.
+
+### On every other platform
+
+No other platform has an archive yet (see
+[Install without a checkout](/building#install-without-a-checkout)), so the
+`github:` backend stops with an error there. The `cargo:` backend builds the
+command line from a git tag instead, with `cargo install --git`:
+
+```bash Terminal
+mise use -g rust@1.99
+mise use -g 'cargo:https://github.com/MustCodeAl/seleniumbase-rs@tag:v0.7.0'
+```
+
+It needs Rust 1.99 and a C compiler, and takes as long as a release build of the
+command line. The repository has one package with binaries,
+`seleniumbase-rs-cli`, so cargo finds it and installs `sbrs` and `sbrs-mcp`.
+Add `features = ["tui"]` to the tool's options for the terminal UI. A git source
+lists no versions, so `mise ls-remote` has nothing to offer for it: name the
+tag, and change it to upgrade.
+
+### One mise.toml for every machine
+
+A team on mixed machines can keep both entries in one file. mise installs an
+entry only on the platforms its `os` option names, so a Mac with Apple silicon
+downloads the archive and everything else builds from the same tag:
+
+```toml mise.toml
+[tools]
+"github:MustCodeAl/seleniumbase-rs" = { version = "0.7.0", os = ["macos/arm64"] }
+"cargo:https://github.com/MustCodeAl/seleniumbase-rs" = { version = "tag:v0.7.0", os = ["linux", "windows", "macos/x64"] }
+```
+
+An `os` entry with an architecture, such as `macos/arm64`, needs mise 2026.4.12
+or newer. Keep the two versions the same when you move to a new release.
+
+### Upgrade and remove sbrs
+
+```bash Terminal
+mise outdated                                         # the github: entry, with the newest release
+mise use -g github:MustCodeAl/seleniumbase-rs@latest
+mise uninstall github:MustCodeAl/seleniumbase-rs@0.6.0
+```
+
+For the `cargo:` entry, write the new tag in `mise.toml` (or run `mise use`
+with it) and mise builds it.
+
+### Shell completions
+
+mise installs no completions. The archive holds them in `completions/` (bash,
+zsh, fish, PowerShell, a Fig spec and the usage spec), in the folder that
+`mise where github:MustCodeAl/seleniumbase-rs` prints. `sbrs completions <shell>`
+writes them for any install, the `cargo:` one included; see
+[the CLI page](/tutorials/cli_usage).
+
+### What was checked
+
+On macOS arm64 with mise 2026.10.25: `mise ls-remote` lists 0.6.0 and 0.7.0,
+`mise install` puts the 0.7.0 archive in place, `sbrs --version` and
+`sbrs-mcp --version` print 0.7.0, and with the `mise.toml` above mise installs
+the `github:` entry and skips the `cargo:` one. The `cargo:` route was not built
+for this page; it is the same `cargo install --git` that
+[Install without a checkout](/building#install-without-a-checkout) describes.
+
+For the chromedriver the WebDriver engine needs, see [Manage chromedriver with mise](/building#manage-chromedriver-with-mise).
+
+## Manage chromedriver with mise
+
+[mise](https://mise.jdx.dev) can install, upgrade and remove chromedriver for you,
+and the WebDriver engine runs the driver it manages. This section shows the plugin
+in `contrib/mise/mise-chromedriver`, how a session finds the driver, and what it
+does not do.
+
+### Install the plugin and a driver
+
+The plugin is a folder of Lua files. Link it from a checkout of this repository,
+under the name `chromedriver`, then pin the major version of your Chrome:
+
+```bash Terminal
+mise plugins link chromedriver ./contrib/mise/mise-chromedriver
+mise ls-remote chromedriver 151
+mise use chromedriver@151
+mise exec -- chromedriver --version
+```
+
+`mise use` installs the newest build of Chrome 151 that has a chromedriver for
+your platform and writes `chromedriver = "151"` under `[tools]` in `mise.toml`.
+Pin the major, not `latest`: the list holds every build Chrome for Testing has
+published, Canary builds included, and a chromedriver only drives the Chrome of
+its own major version.
+
+To share the plugin with a team, copy the folder into a repository of its own
+and install it from there as mise's plugin pages describe, with a `[plugins]`
+entry in `mise.toml`.
+
+### Upgrade and remove the driver
+
+```bash Terminal
+mise outdated                  # shows 151 with the build installed and the newest one
+mise upgrade chromedriver      # installs the newest 151; mise prunes the old build after a day
+mise prune chromedriver        # removes the builds no mise.toml selects, now
+mise uninstall chromedriver@151.0.7922.71
+mise uninstall --all chromedriver
+```
+
+### Where a session looks for a driver
+
+With the default WebDriver URL, a session first uses a driver that is already
+listening there. Otherwise the launcher looks for a chromedriver in this order
+and stops at the first that fits:
+
+1. `downloaded_drivers/chromedriver`, when its major version is the installed
+   Chrome's, or when either version cannot be read.
+2. The chromedriver mise manages for the working directory, found with
+   `mise which chromedriver`, under the same version check.
+3. A download for the installed Chrome into `downloaded_drivers/`.
+
+`--driver-version keep` takes any chromedriver in `downloaded_drivers/` or on the
+`PATH` first, then the one mise manages, and downloads only when there is none.
+A pinned `--driver-version` (`151`, `stable`, a full build) downloads that build
+and does not ask mise. Brave, Comet, Chrome for Testing, chrome-headless-shell and a
+session that downloads the driver through a proxy follow the version of their own
+browser in the same way, so they do not ask mise either.
+
+Asking mise is cheap and silent. Nothing is logged above debug level, and the
+launcher goes on to the next place, when:
+
+- there is no `mise` on the `PATH`;
+- `mise which chromedriver` exits with a non-zero status, for example because
+  no chromedriver is installed for the directory;
+- mise does not answer within 5 seconds;
+- the path it prints does not exist, is not a file the system can run, or is not
+  a full path.
+
+mise is started with an argument list, never through a shell. The answer depends
+on the working directory, so a project's `mise.toml` decides which build runs.
+A driver for another Chrome than the installed one is passed over with a warning.
+
+<Warning>
+
+`sbrs doctor` and `sbrs prompt` look for a driver in `CHROMEDRIVER_PATH`,
+`downloaded_drivers/` and the `PATH` and do not ask mise, so they can report
+no chromedriver while a session runs the one mise manages. If your shell runs
+`mise activate`, the driver is on the `PATH` and they find it there.
+
+</Warning>
+
+### The driver stays as mise installed it
+
+The launcher runs the driver where mise put it and does not patch it. The one
+thing it can change is what it does for every driver the system refuses to
+start: add the execute bit, remove the macOS quarantine flag, and sign a driver
+that macOS kills as it starts. A driver that mise installed started on macOS
+without any of that (the file's SHA-256, mode and time were the same after the
+run). To use a patched driver, make a copy
+and patch the copy: `sbrs install uc_driver` does that in `downloaded_drivers/`,
+and `sbrs patch-chromedriver --path FILE` patches the file it is given in place,
+so give it a copy and not the file in mise's folder.
+
+### Platforms
+
+Linux x64, Linux arm64, macOS Intel and Apple silicon, Windows x64 and Windows
+x86. Chrome for Testing publishes chromedriver for Linux arm64 only from build
+153 on; on that platform the plugin lists those builds, and asking for an older
+one fails with a message that says so. Any other platform, and Linux with musl
+(Alpine), is refused instead of being given a binary that would not run: install
+the system's chromedriver package there. The plugin's own README lists what it
+checks and what it does not: the index has no checksums, so the download is
+protected by https alone.
+
 
 ## Features
 
@@ -796,7 +945,7 @@ have. The pure CDP engine (`sb_cdp`) needs no chromedriver on any system.
 
 The WebDriver engine looks for `downloaded_drivers/chromedriver` in the working
 directory first and uses it when its major version fits the browser. Next it uses
-the chromedriver [mise manages](/tutorials/mise_chromedriver), when there is one
+the chromedriver [mise manages](/building#manage-chromedriver-with-mise), when there is one
 that fits. Otherwise it downloads the matching
 [Chrome for Testing](https://googlechromelabs.github.io/chrome-for-testing/)
 driver. That download is `linux64` on x86-64 Linux and `linux-arm64` on arm64
@@ -848,7 +997,7 @@ equivalent and are not sent; the session proxy is not passed to Firefox either.
   scans it on first run, which can take seconds. The library writes a replaced
   chromedriver as a new file because macOS kills a signed binary that is
   overwritten in place; if a driver is "killed" or refused, run
-  `sbrs install chromedriver` again and see [Common problems](/help/common_problems).
+  `sbrs install chromedriver` again and see [Troubleshooting](/help/common_problems).
 - **Gatekeeper and quarantine.** A browser or driver downloaded by another tool
   can carry a quarantine flag; clear it with
   `xattr -d com.apple.quarantine <file>` if macOS refuses to open it.
@@ -994,7 +1143,7 @@ platform, the redacted `SB_*` settings and the output directory.
 
 <Columns cols={2}>
 
-<Card color="#1a85d4" title="Working with seleniumbase-rs" icon="rocket" href="/tutorials/getting_started" horizontal>
+<Card color="#1a85d4" title="Walkthrough" icon="rocket" href="/tutorials/getting_started" horizontal>
 
 Write and run your first browser test.
 

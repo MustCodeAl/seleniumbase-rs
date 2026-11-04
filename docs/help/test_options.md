@@ -58,7 +58,7 @@ the variables you exported yourself.
   SB_BROWSER: give only one of them`.
 - **In a test.** `Sb::configure` changes the same settings for one test, and the
   keys are the names of the settings (see [Writing Tests with the sb
-  Fixture](/tutorials/writing_tests#what-the-run-configuration-does)).
+  Fixture](/rust-test-tooling#what-the-run-configuration-does)).
 
 <Note>
 
@@ -138,7 +138,7 @@ Python accepts (`--variables="{'k': 1}"`). Anything else exits with status 2:
 <Accordion title="Debug modes" icon="bug">
 
 These stop a test in a prompt with the browser open. The
-[Debug modes tutorial](/tutorials/debug_modes) walks through them.
+[Debug modes tutorial](/tutorials/tracing#debug-modes) walks through them.
 
 <ParamField path="--pdb" type="switch">
 
@@ -302,7 +302,7 @@ working directory is its package's.
 
 A failing test leaves `latest_logs/<test id>/` with `screenshot.png`,
 `page_source.html` and `basic_test_info.txt`. [Writing Tests with the sb
-Fixture](/tutorials/writing_tests#reports-of-a-run) describes what each report
+Fixture](/rust-test-tooling#reports-of-a-run) describes what each report
 holds.
 
 <ParamField path="--screenshot, --save-screenshot, --ss" type="switch">
@@ -688,7 +688,7 @@ not.
 
 `sbrs behave-options` prints how Python's behave options map to `sbrs test`,
 because Gherkin scenarios are `cargo test` tests now (see [Gherkin scenarios
-with rstest-bdd](/tutorials/behave)).
+with rstest-bdd](/tutorials/utilities#gherkin-scenarios-with-rstest-bdd)).
 
 | behave | `sbrs test` |
 |---|---|
@@ -702,13 +702,13 @@ with rstest-bdd](/tutorials/behave)).
 
 <Columns cols={3}>
 
-<Card color="#1a85d4" title="Debug modes" icon="bug" horizontal href="/tutorials/debug_modes">
+<Card color="#1a85d4" title="Debug modes" icon="bug" horizontal href="/tutorials/tracing#debug-modes">
 
 Stop in a prompt with the browser open.
 
 </Card>
 
-<Card color="#199f43" title="Writing Tests with the sb Fixture" icon="flask" horizontal href="/tutorials/writing_tests">
+<Card color="#199f43" title="Writing Browser Tests" icon="flask" horizontal href="/rust-test-tooling">
 
 Reruns, time limits, evidence and reports.
 

@@ -8,7 +8,7 @@ What a plugin may do with a navigation the program starts, and how it learns
 that the navigation ended. Items are in `seleniumbase_rs_plugin`, defined in
 `crates/seleniumbase-rs-plugin/src/nav.rs` of
 [seleniumbase-rs-plugins](https://github.com/MustCodeAl/seleniumbase-rs-plugins)
-at `fea3634e2ebcaafce63a244df8d4adb53e3ec002` (crate 0.1.3). The host calls
+at `0666904475f4f1f422f8f426f169f6a0e533e824` (crate 0.1.3). The host calls
 [`PluginSet::before_navigate`](#pluginsetbefore_navigate) before `Page::goto`
 and the MCP `navigate` tool, and
 [`PluginSet::after_navigate`](#pluginsetafter_navigate) when that navigation

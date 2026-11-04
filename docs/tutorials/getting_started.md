@@ -1,6 +1,6 @@
 ---
-title: "Working with SeleniumBase for Rust"
-sidebarTitle: "Working with seleniumbase-rs"
+title: "Walkthrough"
+sidebarTitle: "Walkthrough"
 ---
 
 This guide walks you through your first browser automation test with
@@ -499,7 +499,7 @@ CSS, XPath, link text and shadow DOM: how a selector string is read.
 
 </Card>
 
-<Card color="#199f43" title="Waits and assertions" icon="clock" href="/tutorials/waits_assertions">
+<Card color="#199f43" title="Waits and assertions" icon="clock" href="/tutorials/utilities#waits-and-assertions">
 
 Wait for the page, then check it, without sleeps.
 

@@ -1157,7 +1157,7 @@ first, then run headed (on a virtual display on a server).
   <Card color="#d5a910" title="Fingerprints and stealth" icon="fingerprint" href="/tutorials/fingerprint_stealth">
     The stealth policy and the headless fixes it turns on.
   </Card>
-  <Card color="#17a5af" title="Common problems" icon="triangle-exclamation" href="/help/common_problems#headless-detected">
+  <Card color="#17a5af" title="Troubleshooting" icon="triangle-exclamation" href="/help/common_problems#headless-detected">
     What to try when a site detects the headless browser.
   </Card>
 </Columns>

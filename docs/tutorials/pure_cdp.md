@@ -104,7 +104,7 @@ A CSS selector may cross shadow roots with `::shadow`, as in
 (or in the matches of the step), each of the others in the open shadow root of
 every element the piece before it matched, and a selector that ends on
 `::shadow` is an `InvalidSelector`. Python's CDP mode has no such selector; see
-the [Shadow DOM guide](/tutorials/shadow_dom).
+the [Shadow DOM guide](/tutorials/selectors#shadow-dom).
 
 Reading: `text`, `html`, `attribute`, `count`, `info`, `bounding_box` (from the
 top of the document), `viewport_rect` (from the window, as Python's
@@ -794,7 +794,7 @@ verified", and the page is yours to check.
 </Note>
 
 To test your own pages with the vendors' test keys, see
-[Testing Pages with a CAPTCHA](/tutorials/captcha_testing).
+[Handling CAPTCHAs](/tutorials/captcha_testing).
 
 Some challenge frames refuse events that did not come from the operating
 system. With the `gui` feature, `page.gui_click_captcha()` is the same attempt
@@ -871,7 +871,7 @@ The full mapping of every `sb.cdp` method is in the
 
 <Columns cols={2}>
 
-<Card color="#1a85d4" title="Working with seleniumbase-rs" icon="rocket" href="/tutorials/getting_started">
+<Card color="#1a85d4" title="Walkthrough" icon="rocket" href="/tutorials/getting_started">
 
 Your first test, on either engine.
 
@@ -895,7 +895,7 @@ Hooks that run before the browser starts, for every tab and at close.
 
 </Card>
 
-<Card color="#1ca1c7" title="Testing Pages with a CAPTCHA" icon="shield-halved" href="/tutorials/captcha_testing">
+<Card color="#1ca1c7" title="Handling CAPTCHAs" icon="shield-halved" href="/tutorials/captcha_testing">
 
 Test your own pages with the vendors' test keys.
 
