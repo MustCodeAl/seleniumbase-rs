@@ -58,6 +58,8 @@ hidden: true
   - [Screenshots and scripts](api/screenshots-scripts.md)
   - [Files, downloads and PDF](api/files.md)
   - [CDP and UC helpers](api/cdp-uc.md)
+  - [Stealth settings](api/stealth-settings.md)
+  - [Testing fixtures](api/testing-fixtures.md)
   - [Alerts and MFA](api/alerts-mfa.md)
   - [Tours, charts, recorder and utilities](api/tours-recorder.md)
   - [Capability traits](api/traits.md)

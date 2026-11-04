@@ -27,6 +27,8 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- API reference pages for UC mode on `BaseCase` (`docs/api/cdp-uc.md`), stealth settings in this crate (`Fingerprint`, `Spoof`, `StealthPolicy`; `docs/api/stealth-settings.md`) and the `testing` fixtures `Sb` and `SbCdp` (`docs/api/testing-fixtures.md`).
+
 - The built-in `browser` plugin's worker, session and sign-in options work on the pure CDP
   engine (plugins `0666904`): `wait_for_workers` and `worker_timeout_secs`, `session` with
   `save_on_close` and `session_dir`, and `interactive` with `pause_message`

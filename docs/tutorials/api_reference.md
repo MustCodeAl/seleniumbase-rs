@@ -150,6 +150,14 @@ call, so they do not go stale when the page re-renders. The pure CDP engine's
   Chrome DevTools and undetected-mode helpers, including the GUI bypass helpers.
 </Card>
 
+<Card color="#5b4db3" title="Stealth settings" icon="fingerprint" href="/api/stealth-settings">
+  Fingerprint, Spoof and StealthPolicy, and the launch settings that apply them.
+</Card>
+
+<Card color="#2f7d4a" title="Testing fixtures" icon="flask" href="/api/testing-fixtures">
+  Sb, SbCdp and run, behind the testing feature.
+</Card>
+
 <Card color="#d52c36" title="Alerts and MFA" icon="bell" href="/api/alerts-mfa">
   Handle JavaScript dialogs and generate TOTP codes.
 </Card>
