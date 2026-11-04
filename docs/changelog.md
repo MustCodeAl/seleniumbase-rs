@@ -61,6 +61,10 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 s
   `BrowserHandle::clock` when the plugin set has no timer of its own. The WebDriver host has
   neither, so there `wait_for_workers` and `save_on_close` fail at launch, naming the option.
 
+- `sbrs trace show FOLDER` opens a trace's viewer (`index.html`, written by `Page::start_trace`
+  when the recording stops) in the system's default browser; `--print` prints its path instead.
+  A folder that is not a trace, or whose recording was not stopped, exits with status 2.
+
 - Docs: [Install sbrs with mise](/building). mise's built-in backends install
   `sbrs` and `sbrs-mcp` with no plugin: `github:` takes the macOS arm64 release archive and lists
   the versions from the release tags, `cargo:` builds from a git tag on every other platform, and
@@ -220,6 +224,13 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 s
 
 
 ### Fixed
+
+- The Tauri guide matches the plugin again. `SBRS_AUTOMATION` turns the endpoint
+  on only for `1`, `true` or `on` (any other value turns it off). `GET /<token>/cdp`
+  names the debugging port only while Chromium answers (`cdpState` `ready`);
+  leaving `SBRS_CDP_PORT` unset does not turn that port off. The optional `stealth`
+  feature is the in-process path for a shipped app (no port). The guide no longer
+  points at `examples/tauri-profile-manager`, which is not in this repository.
 
 - **`scripts/check-consumers.sh` (`mise run contracts`) runs from a git worktree and checks what it
   says it checks.** It looked for the consumers' checkouts in the folder above the script, which in

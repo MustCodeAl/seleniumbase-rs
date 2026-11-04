@@ -52,8 +52,8 @@ The server answers this one itself, without the page and without a session, as
 soon as it listens: also before the app's window has loaded its page. That is
 the moment to start a session, which then waits for the page (see
 [New session](/ecosystem/tauri-api/sessions#new-session)). The end-to-end test
-of the `tauri-profile-manager` example waits for this answer before it starts
-`BaseCase`.
+of the `tauri-profile-manager` example waited for this answer before it started
+`BaseCase`. That example is no longer in this repository.
 
 **Path and headers**
 

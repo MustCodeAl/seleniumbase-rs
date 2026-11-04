@@ -115,9 +115,9 @@ trailing slash).
 
 There is no credential header. The endpoint is guarded instead:
 
-- it is on in debug builds only, unless `SBRS_AUTOMATION` turns it on (or off);
+- it is on in a debug build when `SBRS_AUTOMATION` is unset; `1`, `true` or `on` (any case) turn it on, and any other value turns it off;
 - it listens on `127.0.0.1` only;
-- every path must start with the token;
+- every path must start with the token, compared in constant time;
 - a request with an `Origin` header is refused.
 
 <ParamField header="Origin" type="string">
@@ -343,7 +343,7 @@ Elements are `{"element-6066-11e4-a52e-4f735466cecf": "<id>"}`. One session at a
 time; session routes start with `/session/{sessionId}`.
 
 - `GET /status`
-- `GET /cdp` (no session; configured loopback Chromium debugger or disabled)
+- `GET /cdp` (no session; `cdpState` is `ready`, `unreachable` or `disabled`. The port is named only when Chromium answers `GET /json/version`)
 - `POST /session`; `DELETE /session/{sessionId}`
 - `GET /timeouts`; `POST /timeouts`
 - `POST /url`; `GET /url`; `GET /title`; `POST /back`; `POST /forward`; `POST /refresh`; `GET /source`
