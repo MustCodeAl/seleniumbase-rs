@@ -8,7 +8,7 @@ description: "Plain functions from the codec specs to wreq and BoringSSL options
 
 `convert` maps a codec spec onto what BoringSSL and wreq can emit. `tls_options`, `http2_options` and `wreq_headers` do the mapping. `check_emittable` reports a spec that cannot be sent. `ConvertError` names the gap. This module and `client` are the ones that name wreq types.
 
-See [Wire formats](/stealth/wire-formats).
+See [Wire formats](/stealth/advanced/wire-formats).
 
 <RequestExample>
 
@@ -108,4 +108,4 @@ pub fn wreq_headers(
 
 ## Related
 
-The guide is [Wire formats](/stealth/wire-formats). The overview is [mimic](/stealth/api/mimic).
+The guide is [Wire formats](/stealth/advanced/wire-formats). The overview is [mimic](/stealth/api/mimic).

@@ -728,7 +728,7 @@ navigates). It works on a tab inside an isolated `BrowserContext` too.
   (user agent, language, window size, WebRTC flag, proxy); one made after it
   replaces it.
 - A fingerprint adds only what it holds and has switched on (see
-  [One setting, four states](/tutorials/fingerprint_stealth#one-setting-four-states)): a
+  [One setting, four states](/stealth/fingerprints#one-setting-four-states)): a
   fingerprint with no WebRTC policy and no WebRTC masking passes no WebRTC flag,
   and a dimension named `Natural` adds no argument and no override.
 - A fingerprint's proxy password is never sent to the browser as a header, which
@@ -883,7 +883,7 @@ The `cdp` server runs on this engine.
 
 </Card>
 
-<Card color="#d47628" title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/tutorials/fingerprint_stealth">
+<Card color="#d47628" title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/stealth/introduction">
 
 What a `Fingerprint` says a browser is.
 

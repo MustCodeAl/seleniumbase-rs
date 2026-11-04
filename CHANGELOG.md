@@ -36,6 +36,16 @@ work, `docs/parity.md` the per-API status).
   `BrowserHandle::clock` when the plugin set has no timer of its own. The WebDriver host has
   neither, so there `wait_for_workers` and `save_on_close` fail at launch, naming the option.
 
+- Docs: the Stealth tab has four sections. **Undetected browsing** holds UC mode and a new
+  [CDP Mode](docs/stealth/cdp-mode.md) page (the pure CDP engine as the undetected path).
+  **Stealth** has an overview and one page per aspect (fingerprints, evasions and launch flags,
+  policies, identities and profiles, proxies and network, human-like input, troubleshooting),
+  split from the old *Fingerprint & Stealth Profiles* page. **Advanced stealth** holds evasion
+  providers, binary patching, Playwright mode, wire formats and MitmProxy. **Scraping** has an
+  overview, basics, advanced scraping (the fetcher, extractor, crawler and batcher plugins, the
+  browser pool) and the stealth repository's pages under *Stealthy scraping* and *Advanced
+  stealthy scraping*. Every moved route redirects to its new place.
+
 - Docs: [Install sbrs with mise](docs/building.md). mise's built-in backends install
   `sbrs` and `sbrs-mcp` with no plugin: `github:` takes the macOS arm64 release archive and lists
   the versions from the release tags, `cargo:` builds from a git tag on every other platform, and

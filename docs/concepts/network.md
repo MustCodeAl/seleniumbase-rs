@@ -602,7 +602,7 @@ driven by seleniumbase-rs passes this check on its own.
 
 A plain HTTP client does not. When requests are made outside the browser (to
 continue a browser session faster), the experimental
-[stealth crates](/stealth/overview), kept in the separate
+[stealth crates](/scraping/stealthy/overview), kept in the separate
 [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
 repository, reproduce Chrome's fingerprint:
 
@@ -616,11 +616,11 @@ repository, reproduce Chrome's fingerprint:
   The HTTP/2 fingerprint string.
 </Card>
 
-<Card title="Wire formats" icon="code" color="#d47628" href="/stealth/wire-formats">
+<Card title="Wire formats" icon="code" color="#d47628" href="/stealth/advanced/wire-formats">
   Measured fingerprints and impersonating clients.
 </Card>
 
-<Card title="Limits" icon="triangle-exclamation" color="#d52c36" href="/stealth/limits">
+<Card title="Limits" icon="triangle-exclamation" color="#d52c36" href="/scraping/advanced-stealthy/limits">
   What is measured, and what is not.
 </Card>
 

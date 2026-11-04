@@ -771,7 +771,7 @@ impl ProfileParams {
     /// hold values. Every key reads the same words, and each setting ends up
     /// in one of the four states of a [`Spoof`](evasion_fp::Spoof). The words,
     /// the literal format of each key and the keys that differ are in one table,
-    /// in `docs/tutorials/fingerprint_stealth.md`.
+    /// in `docs/stealth/profiles.md`.
     ///
     /// An unknown keyword, and a literal that is not in the format of its key,
     /// is logged and read as Natural, never guessed at. A section value that is

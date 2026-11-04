@@ -24,7 +24,7 @@ Browser plugins as Rust crates: block resources, load `.crx` extensions, run Web
 
 <GitHub.Repo repo="MustCodeAl/seleniumbase-rs-stealth" />
 
-Wire fingerprints, identities, the browser scraper, `HttpSession`, `MitmProxy` and `StealthSession`. Depend on the `seleniumbase-rs-stealth` facade, not on the three implementation crates. See [Stealth scraping](/stealth/overview) and the [tutorial](/tutorials/stealth_scraping).
+Wire fingerprints, identities, the browser scraper, `HttpSession`, `MitmProxy` and `StealthSession`. Depend on the `seleniumbase-rs-stealth` facade, not on the three implementation crates. See [Stealth scraping](/scraping/stealthy/overview) and the [tutorial](/scraping/stealthy/first-fetch).
 
 ## Tauri automation
 
@@ -50,7 +50,7 @@ A recorder, an element inspector and a DevTools Recorder export for Chrome, Edge
   Overview, the plugin list, writing your own, wasm, crx and block-resources.
 </Card>
 
-<Card title="Stealth scraping" icon="user-secret" color="#199f43" href="/stealth/overview">
+<Card title="Stealth scraping" icon="user-secret" color="#199f43" href="/scraping/stealthy/overview">
   The tutorial, split into pages by topic.
 </Card>
 

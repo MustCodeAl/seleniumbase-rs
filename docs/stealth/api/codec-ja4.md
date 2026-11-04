@@ -439,7 +439,7 @@ hello with no usable ALPN value.
 
 </Card>
 
-<Card color="#1a85d4" title="Limits" icon="triangle-exclamation" href="/stealth/limits">
+<Card color="#1a85d4" title="Limits" icon="triangle-exclamation" href="/scraping/advanced-stealthy/limits">
 
 Why the client's JA4 differs from Chrome's by the known gaps.
 

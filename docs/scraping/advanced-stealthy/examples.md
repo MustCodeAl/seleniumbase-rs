@@ -31,12 +31,12 @@ Summary for AI exports: `cookie_jar` and `browser_scraper` belong to the `scrape
 
 | Example | Crate | Needs | What it shows |
 |---|---|---|---|
-| `cookie_jar` | `scrape` | Nothing | Made-up `Set-Cookie` headers into the [cookie jar](/stealth/identity#the-cookie-jar): which are stored, which are refused and why, and the `Cookie` header for five requests. |
-| `browser_scraper` | `scrape` | A Chrome | A [`BrowserScraper`](/stealth/browser-scraper) detecting and solving the same kind of challenge in a headless Chrome. |
+| `cookie_jar` | `scrape` | Nothing | Made-up `Set-Cookie` headers into the [cookie jar](/scraping/advanced-stealthy/identity#the-cookie-jar): which are stored, which are refused and why, and the `Cookie` header for five requests. |
+| `browser_scraper` | `scrape` | A Chrome | A [`BrowserScraper`](/scraping/stealthy/browser-scraper) detecting and solving the same kind of challenge in a headless Chrome. |
 | `capture_tls`, `capture_hints` | `scrape` | A headed Chrome | Re-measure the local Chrome into `crates/codec/src/measured`. They write the repository. |
-| `custom_profile` | `mimic` | `cmake`; Chrome 155 on macOS | The measured profile, with an Akamai string and a JA3 laid over it with `CustomProfileBuilder`, and four inputs the stack [refuses](/stealth/wire-formats#what-is-refused). |
-| `http_session` | `mimic` | `cmake`; Chrome 155 on macOS | An [`HttpSession`](/stealth/http-session) fetching from a loopback TLS shop, its jar carrying the cookie the shop sets, and the <Tooltip tip="A fingerprint of the TLS ClientHello, as FoxIO defines it." cta="Wire formats" href="/stealth/wire-formats#reading-the-wire-formats">JA4</Tooltip> the shop saw next to the measured one. |
-| `stealth_session` | `mimic` | `cmake`; Chrome 155 on macOS, installed | A [`StealthSession`](/stealth/stealth-session) that meets a challenge over HTTP, goes to a headless Chrome behind the proxy, comes back, and prints its changes of mode. |
+| `custom_profile` | `mimic` | `cmake`; Chrome 155 on macOS | The measured profile, with an Akamai string and a JA3 laid over it with `CustomProfileBuilder`, and four inputs the stack [refuses](/stealth/advanced/wire-formats#what-is-refused). |
+| `http_session` | `mimic` | `cmake`; Chrome 155 on macOS | An [`HttpSession`](/scraping/stealthy/http-session) fetching from a loopback TLS shop, its jar carrying the cookie the shop sets, and the <Tooltip tip="A fingerprint of the TLS ClientHello, as FoxIO defines it." cta="Wire formats" href="/stealth/advanced/wire-formats#reading-the-wire-formats">JA4</Tooltip> the shop saw next to the measured one. |
+| `stealth_session` | `mimic` | `cmake`; Chrome 155 on macOS, installed | A [`StealthSession`](/scraping/advanced-stealthy/stealth-session) that meets a challenge over HTTP, goes to a headless Chrome behind the proxy, comes back, and prints its changes of mode. |
 | `capture_h2` | `mimic` | `cmake`; a headed Chrome | The HTTP/2 capture. Run `capture_tls` and `capture_hints` first. |
 
 ```text
@@ -54,7 +54,7 @@ message on any system but macOS: they do not borrow the values of another system
 `stealth_session` also needs the installed Chrome to be the measured major, or it is
 refused before it loads a page. The two that drive Chrome should run one at a time,
 and not beside another Chrome-driving program. The `mimic` ones start from the
-[unified setup](/stealth/overview#which-crate-to-depend-on); the first build compiles BoringSSL.
+[unified setup](/scraping/stealthy/overview#which-crate-to-depend-on); the first build compiles BoringSSL.
 
 </Warning>
 
@@ -67,7 +67,7 @@ escalated to Chrome, came back to HTTP, and in two runs the shop saw one JA4 and
 user agent on every request of both legs (six and seven requests, as Chrome's favicon
 requests come and go);
 `http_session` printed a JA4 that differs from the measured one by the known gaps
-(see [Limits](/stealth/limits#limits)). Nothing was run on another system, so the `NotMeasured` stop
+(see [Limits](/scraping/advanced-stealthy/limits#limits)). Nothing was run on another system, so the `NotMeasured` stop
 of the three is read from the code and was not observed.
 
 </Check>
@@ -171,7 +171,7 @@ cargo test -p seleniumbase-rs-mimic --test impersonate_capture_h2
 
 </Steps>
 
-The full procedure is in [Re-measuring when Chrome updates](/stealth/wire-formats#re-measuring-when-chrome-updates).
+The full procedure is in [Re-measuring when Chrome updates](/stealth/advanced/wire-formats#re-measuring-when-chrome-updates).
 
 ### Tests that start a real Chrome
 

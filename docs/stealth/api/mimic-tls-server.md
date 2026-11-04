@@ -8,7 +8,7 @@ description: "EphemeralCa: an in-memory P-256 CA, one leaf per host, never writt
 
 `tls_server` is the certificate authority `MitmProxy` uses. `EphemeralCa` is an in-memory P-256 CA. It issues one leaf per host, pinned by SPKI, and never writes a key to disk.
 
-How Chrome is told to trust the leaf is on [MITM proxy](/stealth/mitm-proxy).
+How Chrome is told to trust the leaf is on [MITM proxy](/stealth/advanced/mitm-proxy).
 
 <RequestExample>
 
@@ -213,4 +213,4 @@ Runs the server side of one TLS handshake with `leaf` and checks the client's SN
 
 ## Related
 
-The guide is [MITM proxy](/stealth/mitm-proxy). The overview is [mimic](/stealth/api/mimic).
+The guide is [MITM proxy](/stealth/advanced/mitm-proxy). The overview is [mimic](/stealth/api/mimic).

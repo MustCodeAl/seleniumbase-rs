@@ -176,7 +176,7 @@ What each tool can do, and the security notes for the server.
 
 </Card>
 
-<Card color="#199f43" title="Binary Patching" icon="screwdriver-wrench" href="/tutorials/binary_patching">
+<Card color="#199f43" title="Binary Patching" icon="screwdriver-wrench" href="/stealth/advanced/binary-patching">
 
 Safety and licensing before you patch a driver or a browser.
 

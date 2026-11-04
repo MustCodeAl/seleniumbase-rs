@@ -50,7 +50,7 @@ the crates `seleniumbase-rs-codec`, `seleniumbase-rs-scrape` and
 [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
 now. Use the unified `seleniumbase-rs-stealth` facade to access their `codec`,
 `scrape` and optional `mimic` modules alongside all of the core public API,
-including `sb_cdp` and `evasion`. See the [single-dependency setup](/stealth/overview#which-crate-to-depend-on).
+including `sb_cdp` and `evasion`. See the [single-dependency setup](/scraping/stealthy/overview#which-crate-to-depend-on).
 
 </Note>
 

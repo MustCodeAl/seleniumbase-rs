@@ -174,7 +174,7 @@ settings most programs touch (all are in `seleniumbase_rs::BrowserConfig`):
 | Ad blocking | `with_ad_block(bool)` | `false` |
 | Reuse browsers between tests | `with_reuse_session(bool)` | `false` |
 | Extra Chromium arguments | `with_extra_args([..])`, `push_extra_arg(arg)` | none |
-| Fingerprint | `with_fingerprint(Fingerprint)` | none; see [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth) |
+| Fingerprint | `with_fingerprint(Fingerprint)` | none; see [Fingerprint & Stealth Profiles](/stealth/introduction) |
 
 An explicit `cdp_url` takes precedence over discovery. Direct attachments use
 `BaseCase::cdp_*` methods; the app keeps running after `quit()`. See the

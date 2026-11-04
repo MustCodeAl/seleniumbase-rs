@@ -8,7 +8,7 @@ description: "Challenge detection, interstitial markers and the mitigation polic
 
 `challenge` decides what a response is and what to do next. `detect` reads a `ResponseView` and returns a `Detection`. `markers` holds the interstitial strings. `mitigation` turns a detection and an attempt into an `Action`.
 
-`BrowserScraper` calls this on every load. See [BrowserScraper](/stealth/browser-scraper).
+`BrowserScraper` calls this on every load. See [BrowserScraper](/scraping/stealthy/browser-scraper).
 
 <RequestExample>
 
@@ -289,4 +289,4 @@ The cookie that proves a vendor's challenge was passed, once it is set.
 
 ## Related
 
-The guide is [BrowserScraper](/stealth/browser-scraper). The overview is [scrape](/stealth/api/scrape).
+The guide is [BrowserScraper](/scraping/stealthy/browser-scraper). The overview is [scrape](/stealth/api/scrape).

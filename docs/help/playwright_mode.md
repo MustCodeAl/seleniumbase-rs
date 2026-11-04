@@ -230,7 +230,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## Details
 
 - The stealth is the browser's, not Playwright's. The launch switches, the
-  [fingerprint](/tutorials/fingerprint_stealth) (`LaunchOptionsBuilder::fingerprint`), the proxy
+  [fingerprint](/stealth/introduction) (`LaunchOptionsBuilder::fingerprint`), the proxy
   and the user agent are set when `sb_cdp` starts the browser, and the attached client inherits
   them. The attach itself changes none of them.
 - rustwright's Rust API in version 0.3 has a browser and pages, but no browser-context type: the

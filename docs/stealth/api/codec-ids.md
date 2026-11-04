@@ -202,7 +202,7 @@ the P-256 hybrid), and the ML-DSA signature schemes.
 
 </Card>
 
-<Card color="#1a85d4" title="What is refused" icon="ban" href="/stealth/wire-formats#what-is-refused">
+<Card color="#1a85d4" title="What is refused" icon="ban" href="/stealth/advanced/wire-formats#what-is-refused">
 
 The refusals in the guide.
 

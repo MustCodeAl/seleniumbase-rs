@@ -94,7 +94,7 @@ a browser's session (`HttpSession`), a loopback proxy for a real Chrome
 (`MitmProxy`) and a session that moves between the two (`StealthSession`), is a
 separate, experimental project on top of this crate:
 [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
-(see [Stealth Scraping](/tutorials/stealth_scraping)). No tool, this one
+(see [Stealth Scraping](/scraping/stealthy/first-fetch)). No tool, this one
 included, can promise to pass a given detection service.
 
 ### HTTP impersonation clients (curl-impersonate, wreq and similar)
@@ -173,7 +173,7 @@ What this crate itself costs.
 
 </Card>
 
-<Card color="#d32a61" title="Stealth scraping" icon="user-secret" href="/tutorials/stealth_scraping">
+<Card color="#d32a61" title="Stealth scraping" icon="user-secret" href="/scraping/stealthy/first-fetch">
 
 The separate, experimental seleniumbase-rs-stealth project.
 

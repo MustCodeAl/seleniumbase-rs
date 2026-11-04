@@ -8,7 +8,7 @@ description: "ScrapeError, the one error enum seleniumbase-rs-scrape returns."
 
 Every fallible call in the scrape crate returns `ScrapeError`. A URL on an error is a `RedactedUrl`. The enum is `non_exhaustive`. `GeoError`, `EgressError`, `StateError` and `IdentityError` convert into it.
 
-See [BrowserScraper](/stealth/browser-scraper).
+See [BrowserScraper](/scraping/stealthy/browser-scraper).
 
 <RequestExample>
 
@@ -73,4 +73,4 @@ Why a scrape did not produce a page.
 
 ## Related
 
-The guide is [BrowserScraper](/stealth/browser-scraper). The overview is [scrape](/stealth/api/scrape).
+The guide is [BrowserScraper](/scraping/stealthy/browser-scraper). The overview is [scrape](/stealth/api/scrape).

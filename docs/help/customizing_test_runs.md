@@ -74,7 +74,7 @@ Key builder methods:
 | `with_threads(n)` | Sets `threads`. `BaseCase` ignores it; only `sbrs test` acts on a thread count (`-n`, as `--test-threads`). |
 | `with_ad_block(bool)` | Sets `ad_block`: a Chromium WebDriver session refuses the requests of advertising and tracking hosts (see below). |
 | `with_ad_block_list(list)` | Block the hosts of this `AdBlockList` instead of the built-in list, and turn `ad_block` on. |
-| `with_fingerprint(fp)` | Apply a [`Fingerprint`](/tutorials/fingerprint_stealth). |
+| `with_fingerprint(fp)` | Apply a [`Fingerprint`](/stealth/introduction). |
 | `with_browser_binary_path(path)` | Use this Chrome/Chromium/Edge executable. |
 | `with_extra_args(vec)` / `push_extra_arg(s)` | Pass extra Chromium launch flags. |
 
@@ -549,7 +549,7 @@ The table of settings and the separate runtime variables.
 
 </Card>
 
-<Card color="#d47628" title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/tutorials/fingerprint_stealth">
+<Card color="#d47628" title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/stealth/introduction">
 
 What `with_fingerprint` applies.
 

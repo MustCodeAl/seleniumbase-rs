@@ -8,7 +8,7 @@ description: "StealthSession: one identity in plain HTTP or in a real Chrome."
 
 `StealthSession` keeps one `StealthIdentity` and moves it between `HttpSession` and a real Chrome behind `MitmProxy`. A challenge escalates to the browser. A clearance demotes back to plain HTTP.
 
-The guide is [StealthSession](/stealth/stealth-session).
+The guide is [StealthSession](/scraping/advanced-stealthy/stealth-session).
 
 <RequestExample>
 
@@ -191,4 +191,4 @@ A page fetched by a `StealthSession`, by whichever leg got it.
 
 ## Related
 
-The guide is [StealthSession](/stealth/stealth-session). The overview is [mimic](/stealth/api/mimic).
+The guide is [StealthSession](/scraping/advanced-stealthy/stealth-session). The overview is [mimic](/stealth/api/mimic).

@@ -13,7 +13,7 @@ no clock, no files, and `#![forbid(unsafe_code)]`. Every parser bounds its input
 and returns an error for hostile or truncated bytes instead of panicking. The
 measured browser table is embedded from `src/measured/*.json`; today it holds one
 entry, Chrome 155.0.8059.40 on macOS. The guide that explains these formats is
-[Wire formats](/stealth/wire-formats).
+[Wire formats](/stealth/advanced/wire-formats).
 
 <RequestExample>
 

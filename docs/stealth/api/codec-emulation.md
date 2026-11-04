@@ -13,7 +13,7 @@ imitates. Each one was measured from a real browser by a capture tool
 once, and looked up by `BrowserKind` and `OsType`. Only what was measured
 exists: an unmeasured pair is an error, never a nearby guess. Today the table
 holds `chrome-155-macos.json`. How the files are made and refreshed is in
-[Wire formats](/stealth/wire-formats#re-measuring-when-chrome-updates).
+[Wire formats](/stealth/advanced/wire-formats#re-measuring-when-chrome-updates).
 
 <RequestExample>
 
@@ -453,7 +453,7 @@ The `tls` and `tls_websocket` fields, and `KnownGap`.
 
 </Card>
 
-<Card color="#1a85d4" title="Wire formats guide" icon="book" href="/stealth/wire-formats">
+<Card color="#1a85d4" title="Wire formats guide" icon="book" href="/stealth/advanced/wire-formats">
 
 What is measured, what is refused, and how to re-measure.
 

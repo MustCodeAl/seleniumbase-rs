@@ -8,7 +8,7 @@ description: "Proxy specs, the rotating pool, countries and locales, and URL red
 
 `egress` is where a scrape leaves the machine. `route` parses a proxy spec into an `EgressRef` and an `EgressKey` that carries no credentials. `pool` rotates those keys. `geo` maps a country to a language and a time zone. `redact` builds a `RedactedUrl` so a log cannot echo a password.
 
-How a clearance stays with the address that earned it is on [Identity and cookies](/stealth/identity).
+How a clearance stays with the address that earned it is on [Identity and cookies](/scraping/advanced-stealthy/identity).
 
 <RequestExample>
 
@@ -334,4 +334,4 @@ Why an egress spec was refused.
 
 ## Related
 
-The guide is [Identity and cookies](/stealth/identity). The overview is [scrape](/stealth/api/scrape).
+The guide is [Identity and cookies](/scraping/advanced-stealthy/identity). The overview is [scrape](/stealth/api/scrape).

@@ -287,13 +287,13 @@ Combining CDP with anti-detection.
 
 </Card>
 
-<Card color="#199f43" title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/tutorials/fingerprint_stealth">
+<Card color="#199f43" title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/stealth/introduction">
 
 Using CDP for native spoofing.
 
 </Card>
 
-<Card color="#d47628" title="Binary Patching" icon="wrench" href="/tutorials/binary_patching">
+<Card color="#d47628" title="Binary Patching" icon="wrench" href="/stealth/advanced/binary-patching">
 
 Removing driver-level markers.
 

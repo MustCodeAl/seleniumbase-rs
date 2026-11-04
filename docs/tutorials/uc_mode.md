@@ -248,7 +248,7 @@ fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 
 </Tabs>
 
-See [Binary Patching](/tutorials/binary_patching) for backup, restore, and safety notes.
+See [Binary Patching](/stealth/advanced/binary-patching) for backup, restore, and safety notes.
 
 ## Engine spoofing arguments
 
@@ -413,7 +413,7 @@ Add `engine_spoofing_args()` to the launch flags.
 
 <Step title="Use a coherent fingerprint" icon="fingerprint">
 
-Use a coherent [`Fingerprint`](/tutorials/fingerprint_stealth) with consistent user
+Use a coherent [`Fingerprint`](/stealth/introduction) with consistent user
 agent, platform, screen size, WebGL vendor, and geolocation.
 
 </Step>
@@ -489,13 +489,13 @@ chromedriver at all.
 
 <Columns cols={2}>
 
-<Card color="#1a85d4" title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/tutorials/fingerprint_stealth">
+<Card color="#1a85d4" title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/stealth/introduction">
 
 A coherent `Fingerprint`: user agent, platform, screen size, WebGL vendor and geolocation.
 
 </Card>
 
-<Card color="#199f43" title="Binary Patching" icon="wrench" href="/tutorials/binary_patching">
+<Card color="#199f43" title="Binary Patching" icon="wrench" href="/stealth/advanced/binary-patching">
 
 Backup, restore, and safety notes.
 

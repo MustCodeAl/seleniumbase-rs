@@ -962,7 +962,7 @@ sb.set_geolocation(52.52, 13.405, 10.0).await?;
 the permission. Replacing `HeadlessChrome` in the user agent hides the most
 visible headless sign. The pure CDP engine has no phone emulation: set the
 window size and user agent, or a fingerprint (see
-[Fingerprints and stealth](/tutorials/fingerprint_stealth)).
+[Fingerprints and stealth](/stealth/introduction)).
 
 ```rust Emulation
 use seleniumbase_rs::sb_cdp::Permission;
@@ -1154,7 +1154,7 @@ first, then run headed (on a virtual display on a server).
   <Card color="#693acf" title="Settings" icon="gear" href="/tutorials/settings_and_config">
     The settings file, the `SB_*` variables and their order.
   </Card>
-  <Card color="#d5a910" title="Fingerprints and stealth" icon="fingerprint" href="/tutorials/fingerprint_stealth">
+  <Card color="#d5a910" title="Fingerprints and stealth" icon="fingerprint" href="/stealth/introduction">
     The stealth policy and the headless fixes it turns on.
   </Card>
   <Card color="#17a5af" title="Troubleshooting" icon="triangle-exclamation" href="/help/common_problems#headless-detected">

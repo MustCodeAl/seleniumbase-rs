@@ -180,4 +180,4 @@ https://github.com/MustCodeAl/seleniumbase-rs-stealth, which depends on this
 crate by git. What stays here for it is the hardening of the pure CDP page
 script and the public items it imports. The design history is
 `docs/design/stealth_parity_plan.md` and `docs/adr/003-stealth-scraping-layout.md`;
-`docs/tutorials/stealth_scraping.md` now only points to the new repository.
+the stealth layer's pages are the stealthy sections of `docs/scraping/` and `docs/stealth/advanced/`.

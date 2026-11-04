@@ -8,7 +8,7 @@ description: "StealthIdentity, the session policy and the emulation reference."
 
 `passport` is the identity a scrape carries between the browser and plain HTTP: the fingerprint, the cookies, the clearances and the emulation it claims. `SessionPolicy` says when that identity should stay on HTTP and when it should go to the browser.
 
-See [Identity and cookies](/stealth/identity).
+See [Identity and cookies](/scraping/advanced-stealthy/identity).
 
 <RequestExample>
 
@@ -246,4 +246,4 @@ Why a session goes back to HTTP.
 
 ## Related
 
-The guide is [Identity and cookies](/stealth/identity). The overview is [scrape](/stealth/api/scrape).
+The guide is [Identity and cookies](/scraping/advanced-stealthy/identity). The overview is [scrape](/stealth/api/scrape).

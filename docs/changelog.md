@@ -2311,7 +2311,7 @@ call, are listed first.
   entropy, and a fingerprint with nothing to draw takes a seed from its user
   agent, so a preset is the same every time.
 - **Profile payloads** read one set of words for every key (see the table in
-  `docs/tutorials/fingerprint_stealth.md`): `natural`, `native`, `pass_through`,
+  `docs/stealth/introduction.md`): `natural`, `native`, `pass_through`,
   `whitelist` are `Natural`; `auto`, and a flag the payload leaves out, are the
   value the payload holds, else `Natural` (the default was `mask` for the
   navigator, localization, time zone, graphics, fonts, screen, geolocation and
@@ -3019,7 +3019,7 @@ A breaking release: the experimental stealth scraping layer leaves this crate.
   `impersonate`), which build on the public API of this crate and stay
   experimental. Current installation uses the unified root facade
   `seleniumbase-rs-stealth`; see the updated
-  [Stealth Scraping setup](/tutorials/stealth_scraping).
+  [Stealth Scraping setup](/scraping/stealthy/first-fetch).
 - With the layer go the optional dependencies `psl`, `wreq`, `btls`,
   `tokio-btls`, `brotli`, `hyper`, `hyper-util` and `http-body-util`; the
   examples `capture_tls`, `capture_hints`, `capture_h2`, `cookie_jar`,
@@ -3449,7 +3449,7 @@ listed first under *Fixed*.
   `scrape` and `impersonate` and at the crate root behind the same features. The
   TLS and HTTP/2 `SpecError` enums are `TlsSpecError` and `H2SpecError`. The stealth
   layer is experimental and not a stable API.
-- `docs/tutorials/stealth_scraping.md` and `docs/adr/003-stealth-scraping-layout.md`.
+- `docs/scraping/stealthy/first-fetch.md` and `docs/adr/003-stealth-scraping-layout.md`.
 - A `rust-analyzer.toml` that loads the optional features so analysis covers
   `src/mcp` and `src/scrape`.
 - `CLAUDE.md` (a map of the modules, checks and gotchas), `CHANGELOG.md`, and

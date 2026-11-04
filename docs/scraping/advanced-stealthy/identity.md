@@ -137,8 +137,8 @@ back to HTTP after a solve, and a preference for HTTP. `after_fetch` turns an
 `Action::Escalate` seen in HTTP mode into an escalation and a solved challenge in
 the browser into a demotion when the identity now holds a clearance. The tables
 are in the module documentation. `BrowserScraper` stays in the browser and never
-applies them. [`HttpSession`](/stealth/http-session) offers `preflight` and `assess` for a
-caller that runs its own loop, and [`StealthSession`](/stealth/stealth-session) applies
+applies them. [`HttpSession`](/scraping/stealthy/http-session) offers `preflight` and `assess` for a
+caller that runs its own loop, and [`StealthSession`](/scraping/advanced-stealthy/stealth-session) applies
 them for you.
 
 ```mermaid
@@ -203,11 +203,11 @@ it. Make a new identity.
 
 <Columns cols={2}>
 
-<Card title="BrowserScraper" icon="globe" color="#1a85d4" href="/stealth/browser-scraper">
+<Card title="BrowserScraper" icon="globe" color="#1a85d4" href="/scraping/stealthy/browser-scraper">
   The loop that stores these cookies and rotates this identity.
 </Card>
 
-<Card title="HttpSession" icon="network-wired" color="#a631be" href="/stealth/http-session">
+<Card title="HttpSession" icon="network-wired" color="#a631be" href="/scraping/stealthy/http-session">
   The same jar, carried on plain HTTP. Needs `mimic`.
 </Card>
 

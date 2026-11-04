@@ -42,7 +42,7 @@ system, async runtime, and native distribution model.
   Browser plugins as Rust crates: privacy hardening, block resources, load extensions, run WebAssembly.
 </Card>
 
-<Card title="Stealth scraping" icon="fingerprint" color="#d5a910" href="/stealth/overview">
+<Card title="Stealth scraping" icon="fingerprint" color="#d5a910" href="/scraping/stealthy/overview">
   Wire fingerprints, identities and the browser scraper (experimental).
 </Card>
 
@@ -226,7 +226,7 @@ let mut sb = BaseCase::new(config).await?;
 
 Fingerprints, stealth policies and binary patching go further; see
 [Undetected (UC) Mode](/tutorials/uc_mode) and
-[Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth).
+[Fingerprint & Stealth Profiles](/stealth/introduction).
 
 ### Human-like input
 
@@ -392,8 +392,8 @@ syntax and test lifecycle.
 <Tab title="Anti-detection" icon="user-secret">
 
 Read [Undetected (UC) Mode](/tutorials/uc_mode),
-[Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth), and
-[Binary Patching](/tutorials/binary_patching) in that order.
+[Fingerprint & Stealth Profiles](/stealth/introduction), and
+[Binary Patching](/stealth/advanced/binary-patching) in that order.
 
 </Tab>
 

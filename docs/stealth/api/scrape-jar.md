@@ -8,7 +8,7 @@ description: "The RFC 6265 cookie jar and the Set-Cookie parser."
 
 `jar` stores cookies the way a browser does. `set_cookie` parses one `Set-Cookie` header. `CookieJar` is what a browser session and an `HttpSession` share.
 
-The decision table is on [Identity and cookies](/stealth/identity).
+The decision table is on [Identity and cookies](/scraping/advanced-stealthy/identity).
 
 <RequestExample>
 
@@ -348,4 +348,4 @@ The registrable domain (`eTLD+1`) of `host` from the public suffix list.
 
 ## Related
 
-The guide is [Identity and cookies](/stealth/identity). The overview is [scrape](/stealth/api/scrape).
+The guide is [Identity and cookies](/scraping/advanced-stealthy/identity). The overview is [scrape](/stealth/api/scrape).

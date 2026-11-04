@@ -13,7 +13,7 @@ HTTP/2 start, and the same header names, order and values. It builds a wreq clie
 `ImpersonationProfile`, carries a browser's cookies on in plain HTTP (`HttpSession`), puts a real
 Chrome behind a loopback proxy that replays its requests (`MitmProxy`), and moves one identity
 between the two (`StealthSession`). A browser or system that was not measured is refused.
-Only Chrome 155.0.8059.40 on macOS is measured. See [Limits](/stealth/limits).
+Only Chrome 155.0.8059.40 on macOS is measured. See [Limits](/scraping/advanced-stealthy/limits).
 
 ## When to use it
 
@@ -104,6 +104,6 @@ system's values.
 
 ## Guides
 
-[HttpSession](/stealth/http-session), [MITM proxy](/stealth/mitm-proxy),
-[StealthSession](/stealth/stealth-session), [Wire formats](/stealth/wire-formats),
-[Runnable examples](/stealth/examples) and [Limits](/stealth/limits).
+[HttpSession](/scraping/stealthy/http-session), [MITM proxy](/stealth/advanced/mitm-proxy),
+[StealthSession](/scraping/advanced-stealthy/stealth-session), [Wire formats](/stealth/advanced/wire-formats),
+[Runnable examples](/scraping/advanced-stealthy/examples) and [Limits](/scraping/advanced-stealthy/limits).

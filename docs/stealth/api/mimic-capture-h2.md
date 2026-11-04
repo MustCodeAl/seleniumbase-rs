@@ -8,7 +8,7 @@ description: "capture_h2 records a local Chrome's HTTP/2 frames and header block
 
 `capture_h2` serves a local HTTPS site, points the local Chrome at it, and records the HTTP/2 frames and the header block, plus an HTTP/1.1 pass, so a new browser can be added to the measured table. It is a measurement tool, not a client you send traffic through.
 
-The programs are on [Runnable examples](/stealth/examples).
+The programs are on [Runnable examples](/scraping/advanced-stealthy/examples).
 
 <RequestExample>
 
@@ -514,4 +514,4 @@ Writes the raw bytes of each HTTP/2 connection start as `&lt;stem&gt;.h2.&lt;pro
 
 ## Related
 
-The guide is [Runnable examples](/stealth/examples). The overview is [mimic](/stealth/api/mimic).
+The guide is [Runnable examples](/scraping/advanced-stealthy/examples). The overview is [mimic](/stealth/api/mimic).

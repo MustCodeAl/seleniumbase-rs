@@ -13,7 +13,7 @@ description: "Why version 2 of the fingerprint API keeps one Spoof<T> per settin
 The fingerprint API is Rust-only: it has no Python SeleniumBase counterpart, and
 nothing in `parity/api.toml` changes. So this is a breaking change, listed in the
 [changelog](/changelog) with a migration snippet. For how to use the API, see
-[Fingerprints](/tutorials/fingerprint_stealth).
+[Fingerprints](/stealth/introduction).
 
 </Info>
 
@@ -248,7 +248,7 @@ format is another tool's, and reads the same words for every key:
 The policy keys (`canvas_noise`, `audio_masking`, `native_spoofing`,
 `grant_permissions`, `disable_csp`, `quic_mode`, `ports_masking`) map to the
 policy. The full table is in
-[Fingerprints: words every key reads](/tutorials/fingerprint_stealth#words-every-key-reads).
+[Fingerprints: words every key reads](/stealth/profiles#words-every-key-reads).
 
 ## As built
 
@@ -291,7 +291,7 @@ no protocol command denies the request for one tab.
 
 <Columns cols={2}>
 
-<Card title="Fingerprints" icon="fingerprint" color="#1a85d4" href="/tutorials/fingerprint_stealth">
+<Card title="Fingerprints" icon="fingerprint" color="#1a85d4" href="/stealth/introduction">
   How to build and use a fingerprint, with every setting and the policy.
 </Card>
 
