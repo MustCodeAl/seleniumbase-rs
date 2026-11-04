@@ -71,6 +71,7 @@ sbrs test --example NAME                           # examples/NAME.rs instead of
 ```bash
 sbrs mkrec tests/login.rs --url example.com        # type c and Enter at the prompt to finish
 sbrs replay recordings/login_rec.json
+sbrs trace show traces/checkout                      # open a trace's viewer (--print: only its path)
 sbrs run-scenario --file login.json --dashboard dashboard.html
 sbrs translate login.json --es --copy              # writes login_es.json
 sbrs translate login.json --zh -p -n               # prints the Chinese scenario with line numbers

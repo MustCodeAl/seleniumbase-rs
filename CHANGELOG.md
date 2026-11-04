@@ -36,6 +36,10 @@ work, `docs/parity.md` the per-API status).
   `BrowserHandle::clock` when the plugin set has no timer of its own. The WebDriver host has
   neither, so there `wait_for_workers` and `save_on_close` fail at launch, naming the option.
 
+- `sbrs trace show FOLDER` opens a trace's viewer (`index.html`, written by `Page::start_trace`
+  when the recording stops) in the system's default browser; `--print` prints its path instead.
+  A folder that is not a trace, or whose recording was not stopped, exits with status 2.
+
 - Docs: [Install sbrs with mise](docs/building.md). mise's built-in backends install
   `sbrs` and `sbrs-mcp` with no plugin: `github:` takes the macOS arm64 release archive and lists
   the versions from the release tags, `cargo:` builds from a git tag on every other platform, and
