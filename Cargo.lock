@@ -5613,16 +5613,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rstest-bdd-harness-tokio"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c02e599db62e9b97f7ebf0b68cf75a94a297d1dec5e6b9ec24e0e218b78ff64"
-dependencies = [
- "rstest-bdd-harness",
- "tokio",
-]
-
-[[package]]
 name = "rstest-bdd-macros"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6258,8 +6248,6 @@ dependencies = [
  "roxmltree",
  "rstest",
  "rstest-bdd",
- "rstest-bdd-harness",
- "rstest-bdd-harness-tokio",
  "rstest-bdd-macros",
  "rten",
  "rust-s3",

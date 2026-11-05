@@ -33,6 +33,12 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 s
 
 <Update label="Unreleased" description="Next release" tags={["New", "Fix", "Breaking"]}>
 
+### Changed
+
+- The `bdd` feature no longer depends on `rstest-bdd-harness` or
+  `rstest-bdd-harness-tokio`. Those crates were unused. Scenarios still use
+  `rstest-bdd`.
+
 ### Breaking
 
 - **Breaking: `common::unobfuscate` is part of `common::obfuscate`.** `rot13`,

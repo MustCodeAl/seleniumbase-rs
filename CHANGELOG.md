@@ -8,6 +8,12 @@ work, `docs/parity.md` the per-API status).
 
 ## [Unreleased]
 
+### Changed
+
+- The `bdd` feature no longer depends on `rstest-bdd-harness` or
+  `rstest-bdd-harness-tokio`. Those crates were unused. Scenarios still use
+  `rstest-bdd`.
+
 ### Breaking
 
 - **Breaking: `common::unobfuscate` is part of `common::obfuscate`.** `rot13`,
