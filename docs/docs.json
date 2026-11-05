@@ -538,6 +538,26 @@
                 ]
               },
               {
+                "product": "Pure CDP API",
+                "icon": "window-restore",
+                "description": "Browser, Page and Locator: Chrome over the DevTools Protocol, with no WebDriver",
+                "groups": [
+                  {
+                    "group": "Pure CDP API",
+                    "pages": [
+                      "api/cdp-overview",
+                      "api/cdp-browser",
+                      "api/cdp-page",
+                      "api/cdp-locator",
+                      "api/cdp-input",
+                      "api/cdp-network",
+                      "api/cdp-state",
+                      "api/cdp-pool"
+                    ]
+                  }
+                ]
+              },
+              {
                 "product": "Plugin API",
                 "icon": "puzzle-piece",
                 "description": "The Plugin trait, PluginSet, capabilities and the host side",

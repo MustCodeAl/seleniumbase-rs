@@ -38,6 +38,8 @@ work, `docs/parity.md` the per-API status).
   policy's own schedule (base delay, factor, cap, no spread) instead of `backoff`'s
   doubling.
 
+- Docs: a pure CDP API reference on the Reference tab. [Pure CDP](docs/api/cdp-overview.md) introduces `Browser`, `Page` and `Locator`; the pages beside it cover the browser and launch options, the page, locators and expectations, input, network (intercept, HAR, trace, downloads), tab state, and the browser pool.
+
 - The built-in `browser` plugin's worker, session and sign-in options work on the pure CDP
   engine (plugins `0666904`): `wait_for_workers` and `worker_timeout_secs`, `session` with
   `save_on_close` and `session_dir`, and `interactive` with `pause_message`
