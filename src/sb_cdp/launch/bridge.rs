@@ -1,14 +1,17 @@
 //! Reading a [`BrowserConfig`] into pure CDP launch options.
 //!
 //! Python's `sb_cdp.Chrome(**kwargs)` takes the same options as the WebDriver
-//! engine; [`LaunchOptionsBuilder::browser_config`] gives a pure CDP test the
+//! engine; [`LaunchOptionsBuilder::browser_config`](super::LaunchOptionsBuilder::browser_config) gives a pure CDP test the
 //! settings a `BaseCase` test gets from the settings file and `SB_*`.
 
 use std::net::{Ipv4Addr, TcpListener};
+use std::path::PathBuf;
+use std::sync::Arc;
 
-use serde_json::json;
+use serde_json::{json, Map};
 
-use super::{LaunchOptionsBuilder, Proxy, Redacted};
+use super::layers::{Layer, ProxySpec, SharedFingerprint};
+use super::{Proxy, Redacted};
 use crate::browser::config::{Browser as BrowserKind, BrowserConfig};
 use crate::browser::options::{LaunchSwitch, LocaleCode, ProxyAddress};
 use crate::error::SeleniumBaseError;
@@ -91,75 +94,17 @@ fn debugging_port(config: &BrowserConfig) -> Option<u16> {
     Some(port)
 }
 
-impl LaunchOptionsBuilder {
+impl Layer {
     /// Everything of `config` that the pure CDP engine can use, as Python's
-    /// `sb_cdp.Chrome(**kwargs)` reads the same options.
+    /// `sb_cdp.Chrome(**kwargs)` reads the same options, for the config layer of
+    /// [`LaunchOptionsBuilder::browser_config`](super::LaunchOptionsBuilder::browser_config).
     ///
-    /// Headless or headed, the browser (a binary path, or Chromium), the user
-    /// agent, the locale (`--lang` and `intl.accept_languages`), the proxy and
-    /// its bypass list, a PAC file, the profile folder, unpacked extension
-    /// folders, the start page, extra arguments, mobile emulation and its
-    /// screen, the window size and position, the virtual display, the
-    /// remote debugging port, `ad_block`, a fingerprint, the on/off switches
-    /// (see [`switch`](Self::switch)), the disabled features and the host
-    /// resolver rules.
-    ///
-    /// What only the WebDriver engine can use (the page load strategy,
-    /// capabilities, the driver version, Firefox options, the DevTools event
-    /// log, extension archives, a custom ad block list, a WebDriver URL) is
-    /// listed at debug level and left out. A proxy or PAC address that is not
-    /// well formed makes [`build`](Self::build) fail, as it makes the WebDriver
-    /// engine fail. Settings made on the builder after this call replace the
-    /// ones read here; the fingerprint is applied last, so settings made
-    /// before it win over it.
-    ///
-    /// With a `cdp_url` the browser is attached to, not launched, and only
-    /// what can reach a running app is taken: a proxy, a PAC file, and a user
-    /// agent or locale without a fingerprint make [`build`](Self::build) fail
-    /// with [`InvalidConfig`](SeleniumBaseError::InvalidConfig), instead of
-    /// being dropped without a word.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::path::Path;
-    /// use seleniumbase_rs::sb_cdp::LaunchOptions;
-    /// use seleniumbase_rs::BrowserConfig;
-    ///
-    /// let config = BrowserConfig::default().with_headless(true).with_mobile(true);
-    /// let options = LaunchOptions::builder().browser_config(&config).build()?;
-    /// assert!(options.is_headless());
-    /// assert!(options
-    ///     .browser_args(Path::new("/tmp/profile"))
-    ///     .iter()
-    ///     .any(|arg| arg.starts_with("--user-agent=") && arg.contains("Android")));
-    /// # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
-    /// ```
-    #[must_use]
-    pub fn browser_config(mut self, config: &BrowserConfig) -> Self {
+    /// A setting the config only turns on (`mobile`, `ad_block`, a switch) is set when it is on
+    /// and left unset when it is off, so that it cannot undo what a layer above it asks for.
+    pub(super) fn from_config(config: &BrowserConfig) -> Self {
         let unused = unused_settings(config);
         if !unused.is_empty() {
             tracing::debug!("not used by the pure CDP engine: {}", unused.join(", "));
-        }
-        let launch = &config.launch;
-
-        if let Some(url) = &config.cdp_url {
-            self = self.cdp_url(url);
-        } else if config.cdp_discovery {
-            self = self.cdp_url(&config.webdriver_url);
-        }
-        #[cfg(feature = "plugins")]
-        self.plugins.clone_from(config.plugins());
-
-        if let Some(target) = &config.cdp_target {
-            self = self.cdp_target(target);
-        }
-
-        self = self.headless(config.headless).ad_block(config.ad_block);
-        if let Some(path) = &config.browser_binary_path {
-            self = self.executable_path(path);
-        } else if matches!(config.browser, BrowserKind::Chromium) {
-            self = self.use_chromium(true);
         }
         if !config.browser.is_chromium_based() {
             tracing::warn!(
@@ -167,67 +112,84 @@ impl LaunchOptionsBuilder {
                 config.browser.name()
             );
         }
-        if let Some(user_agent) = &config.user_agent {
-            self = self.user_agent(user_agent);
+        let launch = &config.launch;
+
+        // A binary path and Chromium are one choice of browser; the path comes first.
+        let (executable_path, use_chromium) = match &config.browser_binary_path {
+            Some(path) => (Some(path.clone()), None),
+            None => (
+                None,
+                matches!(config.browser, BrowserKind::Chromium).then_some(true),
+            ),
+        };
+        let locale = config.locale.as_deref().map(LocaleCode::normalise);
+        let mut prefs = Map::new();
+        if let Some(code) = &locale {
+            prefs.insert("intl.accept_languages".to_owned(), json!(code));
         }
-        if let Some(locale) = &config.locale {
-            let code = LocaleCode::normalise(locale);
-            self = self
-                .preference("intl.accept_languages", json!(code))
-                .lang(code);
-        }
-        if let Some(proxy) = &config.proxy {
-            self.proxy = Some(Redacted(proxy.clone()));
-            self.checked_proxy = true;
-        }
-        if let Some(pac) = &config.proxy_pac_url {
-            self = self.proxy_pac_url(pac);
-        }
-        self = self.proxy_bypass_list(launch.proxy_bypass_list.clone());
-        if let Some(dir) = &config.user_data_dir {
-            self = self.user_data_dir(dir);
-        }
-        for dir in config.extension_dir.iter().flat_map(|dirs| dirs.split(',')) {
-            let dir = dir.trim();
-            if !dir.is_empty() {
-                self = self.extension(dir);
-            }
-        }
-        if let Some(url) = &config.start_page {
-            self = self.url(url);
-        }
-        if let Some(size) = launch.window_size {
-            self = self.window_size(size.width, size.height);
-        }
-        if let Some(position) = launch.window_position {
-            self = self.window_position(position.x, position.y);
-        }
-        self.mobile = config.mobile;
-        self.device_metrics = launch.device_metrics;
-        if let Some(display) = launch.virtual_display {
-            self = self.virtual_display(display);
-        }
-        if let Some(port) = debugging_port(config) {
-            self = self.debugging_port(port);
-        }
+        let mut layer = Self {
+            cdp_url: config
+                .cdp_url
+                .clone()
+                .or_else(|| config.cdp_discovery.then(|| config.webdriver_url.clone()))
+                .map(Redacted),
+            cdp_target: config.cdp_target.clone(),
+            headless: Some(config.headless),
+            use_chromium,
+            executable_path,
+            ad_block: config.ad_block.then_some(true),
+            user_agent: config.user_agent.clone(),
+            lang: locale,
+            proxy: config.proxy.clone().map(|text| ProxySpec {
+                text: Redacted(text),
+                checked: true,
+            }),
+            proxy_pac_url: config.proxy_pac_url.clone().map(Redacted),
+            proxy_bypass_list: Some(launch.proxy_bypass_list.clone()),
+            user_data_dir: config.user_data_dir.as_ref().map(PathBuf::from),
+            url: config.start_page.clone(),
+            window_size: launch.window_size.map(|size| (size.width, size.height)),
+            window_position: launch
+                .window_position
+                .map(|position| (position.x, position.y)),
+            mobile: config.mobile.then_some(true),
+            device_metrics: launch.device_metrics,
+            virtual_display: launch.virtual_display,
+            debugging_port: debugging_port(config),
+            fingerprint: config
+                .fingerprint
+                .clone()
+                .map(|fingerprint| SharedFingerprint(Arc::new(fingerprint))),
+            #[cfg(feature = "plugins")]
+            plugins: Some(config.plugins().clone()),
+            extensions: config
+                .extension_dir
+                .iter()
+                .flat_map(|dirs| dirs.split(','))
+                .map(str::trim)
+                .filter(|dir| !dir.is_empty())
+                .map(PathBuf::from)
+                .collect(),
+            extra_args: config
+                .extra_args
+                .iter()
+                .map(|arg| {
+                    if arg.starts_with('-') {
+                        arg.clone()
+                    } else {
+                        format!("--{arg}")
+                    }
+                })
+                .collect(),
+            prefs,
+            disable_features: launch.disable_features.clone(),
+            host_resolver_rules: launch.host_resolver_rules.iter().cloned().collect(),
+            ..Self::default()
+        };
         for switch in &launch.switches {
-            self = self.switch(*switch, true);
+            layer.set_switch(*switch, true);
         }
-        self = self.disable_features(launch.disable_features.iter().cloned());
-        if let Some(rules) = &launch.host_resolver_rules {
-            self = self.host_resolver_rules(rules);
-        }
-        for arg in &config.extra_args {
-            if arg.starts_with('-') {
-                self = self.arg(arg);
-            } else {
-                self = self.arg(format!("--{arg}"));
-            }
-        }
-        if let Some(fingerprint) = &config.fingerprint {
-            self = self.fingerprint(fingerprint);
-        }
-        self
+        layer
     }
 }
 
@@ -235,6 +197,7 @@ impl LaunchOptionsBuilder {
 mod tests {
     use super::*;
     use crate::browser::options::{CapabilityOverrides, CdpEventCapture, PageLoadStrategy};
+    use crate::sb_cdp::LaunchOptionsBuilder;
 
     #[test]
     fn a_plain_config_leaves_nothing_unused() {

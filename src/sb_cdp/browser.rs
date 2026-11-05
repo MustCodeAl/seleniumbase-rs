@@ -513,9 +513,10 @@ impl Browser {
         // Each attach is a launch of its own for the plugins: a set shared by
         // several browsers gets fresh instances of the per-launch ones.
         #[cfg(feature = "plugins")]
-        let options = LaunchOptions {
-            plugins: super::plugin_hooks::for_attach(&options.plugins, &version)?,
-            ..options
+        let options = {
+            let mut options = options;
+            options.plugins = super::plugin_hooks::for_attach(&options.plugins, &version)?;
+            options
         };
         let browser = Self::from_parts(
             client,
