@@ -19,8 +19,8 @@ The bridge is a separate crate, not a feature of the library. `seleniumbase-rs` 
 
 ```toml
 [dependencies]
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.7.0" }
-seleniumbase-rs-playwright = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.7.0" }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.8.0" }
+seleniumbase-rs-playwright = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.8.0" }
 ```
 
 The crate root has three public items:

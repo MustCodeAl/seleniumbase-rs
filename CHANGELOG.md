@@ -10,6 +10,13 @@ work, `docs/parity.md` the per-API status).
 
 ## [0.8.0] - 2026-11-05
 
+### Security
+
+- `object_store` 0.14.2 (was 0.12.4) for the S3 and Azure uploads: it brings `quick-xml` 0.41,
+  which fixes RUSTSEC-2026-0194 (quadratic time on duplicate attribute names) and
+  RUSTSEC-2026-0195 (unbounded namespace allocation). `put` and `get` now come from
+  `object_store::ObjectStoreExt`.
+
 ### Changed
 
 - The `bdd` feature no longer depends on `rstest-bdd-harness` or

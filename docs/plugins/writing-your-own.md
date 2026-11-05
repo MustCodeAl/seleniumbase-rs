@@ -499,7 +499,7 @@ sent.
 
 ```toml Cargo.toml
 [dev-dependencies]
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.7.0", features = ["plugins", "test-util"] }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.8.0", features = ["plugins", "test-util"] }
 tokio = { version = "1", features = ["macros", "rt"] }
 ```
 
@@ -671,7 +671,7 @@ A program adds the plugin crate next to seleniumbase-rs:
 
 ```toml Cargo.toml
 [dependencies]
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.7.0", features = ["plugins"] }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.8.0", features = ["plugins"] }
 seleniumbase-rs-plugin-hello = { path = "../seleniumbase-rs-plugin-hello" }
 serde_json = "1"
 ```

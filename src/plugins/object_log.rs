@@ -1,4 +1,4 @@
-//! Bytes written through [`object_store`](https://docs.rs/object_store/0.12.4).
+//! Bytes written through [`object_store`](https://docs.rs/object_store/0.14.2).
 //!
 //! The S3 and Azure plugins build a cloud store and call [`put_bytes`]. Tests use
 //! the in-memory store and a local directory, which implement the same
@@ -6,7 +6,7 @@
 
 use bytes::Bytes;
 use object_store::path::Path as ObjectPath;
-use object_store::{ObjectStore, PutPayload};
+use object_store::{ObjectStore, ObjectStoreExt, PutPayload};
 
 /// Writes `bytes` at `key`.
 ///

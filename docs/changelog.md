@@ -40,6 +40,13 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 
 **Downloads:** [Release notes](https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.8.0) · [Source (.zip)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.8.0.zip) · [Source (.tar.gz)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.8.0.tar.gz)
 
+### Security
+
+- `object_store` 0.14.2 (was 0.12.4) for the S3 and Azure uploads: it brings `quick-xml` 0.41,
+  which fixes RUSTSEC-2026-0194 (quadratic time on duplicate attribute names) and
+  RUSTSEC-2026-0195 (unbounded namespace allocation). `put` and `get` now come from
+  `object_store::ObjectStoreExt`.
+
 ### Changed
 
 - The `bdd` feature no longer depends on `rstest-bdd-harness` or

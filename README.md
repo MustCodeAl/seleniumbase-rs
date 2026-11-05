@@ -125,13 +125,13 @@ the getting-started guide lists the exceptions and why.
 
 ```toml
 [dependencies]
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.7.0" }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.8.0" }
 ```
 
 Turn on optional features as you need them (see [Feature flags](#feature-flags)):
 
 ```toml
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.7.0", features = ["mcp-server", "s3"] }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.8.0", features = ["mcp-server", "s3"] }
 ```
 
 > [!IMPORTANT]
