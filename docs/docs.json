@@ -285,6 +285,34 @@
             ]
           },
           {
+            "group": "Scraping",
+            "icon": "spider",
+            "pages": [
+              "scraping/overview",
+              "scraping/basics",
+              "scraping/advanced",
+              {
+                "group": "Stealthy scraping",
+                "pages": [
+                  "scraping/stealthy/overview",
+                  "scraping/stealthy/first-fetch",
+                  "scraping/stealthy/browser-scraper",
+                  "scraping/stealthy/http-session"
+                ]
+              },
+              {
+                "group": "Advanced stealthy scraping",
+                "pages": [
+                  "scraping/advanced-stealthy/overview",
+                  "scraping/advanced-stealthy/stealth-session",
+                  "scraping/advanced-stealthy/identity",
+                  "scraping/advanced-stealthy/examples",
+                  "scraping/advanced-stealthy/limits"
+                ]
+              }
+            ]
+          },
+          {
             "group": "Special pages",
             "icon": "star",
             "pages": [
@@ -397,34 +425,6 @@
               "stealth/advanced/playwright",
               "stealth/advanced/wire-formats",
               "stealth/advanced/mitm-proxy"
-            ]
-          },
-          {
-            "group": "Scraping",
-            "icon": "spider",
-            "pages": [
-              "scraping/overview",
-              "scraping/basics",
-              "scraping/advanced",
-              {
-                "group": "Stealthy scraping",
-                "pages": [
-                  "scraping/stealthy/overview",
-                  "scraping/stealthy/first-fetch",
-                  "scraping/stealthy/browser-scraper",
-                  "scraping/stealthy/http-session"
-                ]
-              },
-              {
-                "group": "Advanced stealthy scraping",
-                "pages": [
-                  "scraping/advanced-stealthy/overview",
-                  "scraping/advanced-stealthy/stealth-session",
-                  "scraping/advanced-stealthy/identity",
-                  "scraping/advanced-stealthy/examples",
-                  "scraping/advanced-stealthy/limits"
-                ]
-              }
             ]
           }
         ]
