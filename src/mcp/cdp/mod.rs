@@ -1363,13 +1363,6 @@ async fn save_page(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
     Ok(format!("Saved {format} as {}", path.display()).into())
 }
 
-async fn run_javascript(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
-    let expression = args.str("expression")?;
-    Ok(Output::Json(
-        ctx.session().await?.page.evaluate(expression).await?,
-    ))
-}
-
 #[cfg(all(test, feature = "plugins"))]
 mod plugin_task_tests {
     use seleniumbase_rs_plugin::Sink as _;
