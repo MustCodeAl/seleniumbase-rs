@@ -883,7 +883,8 @@
               "design/rstest_bdd_spike",
               "design/upstream_sync_4.56.5",
               "design/mise_drivers",
-              "design/trace_viewer"
+              "design/trace_viewer",
+              "design/bon_builders"
             ]
           },
           {
