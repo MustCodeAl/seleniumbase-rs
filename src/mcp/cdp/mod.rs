@@ -28,7 +28,6 @@ use serde_json::{json, Value};
 
 use super::devtools::{self, DevSession};
 use super::failure::shorten;
-use super::support::{cookie_file, is_missing, json_output, nonempty, write_file};
 use super::{Closeable, Host, Prop, Settings, ToolDef};
 use crate::error::SeleniumBaseError;
 use crate::sb_cdp::{Browser, Page};
