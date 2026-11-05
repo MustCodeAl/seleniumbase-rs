@@ -93,16 +93,16 @@ mod imports {
         use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
     };
     const _: () = {
-        use seleniumbase_rs::sb_cdp::{LaunchOptionsBuilder, Proxy};
+        use seleniumbase_rs::sb_cdp::{LaunchOptions, Proxy};
     };
     const _: () = {
-        use seleniumbase_rs::sb_cdp::{LaunchOptionsBuilder, Page};
+        use seleniumbase_rs::sb_cdp::{LaunchOptions, Page};
     };
     const _: () = {
         use seleniumbase_rs::sb_cdp::{Browser, Page};
     };
     const _: () = {
-        use seleniumbase_rs::sb_cdp::LaunchOptionsBuilder;
+        use seleniumbase_rs::sb_cdp::LaunchOptions;
     };
     const _: () = {
         use seleniumbase_rs::sb_cdp::SameSite;
@@ -120,10 +120,10 @@ mod imports {
         use seleniumbase_rs::sb_cdp::Cookie;
     };
     const _: () = {
-        use seleniumbase_rs::sb_cdp::{Browser, LaunchOptionsBuilder, Page, SessionStore};
+        use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Page, SessionStore};
     };
     const _: () = {
-        use seleniumbase_rs::sb_cdp::{LaunchOptionsBuilder, SessionStore};
+        use seleniumbase_rs::sb_cdp::{LaunchOptions, SessionStore};
     };
     const _: () = {
         use seleniumbase_rs::sb_cdp::{CdpEvent, Page, Session, SolveOptions};
@@ -132,9 +132,7 @@ mod imports {
         use seleniumbase_rs::sb_cdp::{Browser, BrowserContext, ContextOptions, Page};
     };
     const _: () = {
-        use seleniumbase_rs::sb_cdp::{
-            Browser, ContextOptions, LaunchOptions, LaunchOptionsBuilder, Page,
-        };
+        use seleniumbase_rs::sb_cdp::{Browser, ContextOptions, LaunchOptions, Page};
     };
     const _: () = {
         use seleniumbase_rs::sb_cdp;
@@ -235,8 +233,8 @@ mod calls {
     use seleniumbase_rs::evasion::humanize::Rng;
     use seleniumbase_rs::evasion::randomize::chromium_hints;
     use seleniumbase_rs::sb_cdp::{
-        Browser, BrowserContext, Captcha, CdpEvent, ContextOptions, Cookie, LaunchOptions,
-        LaunchOptionsBuilder, Page, Proxy, SameSite, Session, SessionStore, SolveOptions,
+        Browser, BrowserContext, Captcha, CdpEvent, ContextOptions, Cookie, LaunchOptions, Page,
+        Proxy, SameSite, Session, SessionStore, SolveOptions,
     };
     use seleniumbase_rs::utilities::retry::{poll_until, RateLimiter, RetryPolicy};
     use seleniumbase_rs::utils::urls::normalize_page_url;
@@ -348,7 +346,7 @@ mod calls {
         executable: Option<PathBuf>,
         extra: &[String],
     ) -> Result<LaunchOptions, SeleniumBaseError> {
-        let mut builder: LaunchOptionsBuilder = LaunchOptions::builder()
+        let mut builder = LaunchOptions::builder()
             .headless(headless)
             .lang(lang)
             .no_sandbox(no_sandbox)
@@ -363,27 +361,33 @@ mod calls {
     }
 
     /// crates/wire/src/mitm/mod.rs, `MitmProxy::configure_launch`, and the stealth session's
-    /// use of the fingerprint on the builder.
+    /// use of the fingerprint on the built options it holds.
     fn configure_launch(
-        builder: LaunchOptionsBuilder,
+        options: LaunchOptions,
         proxy: String,
         args: Vec<String>,
         start_page: String,
         fingerprint: &Fingerprint,
-    ) -> LaunchOptionsBuilder {
-        let has_start_page = builder
-            .clone()
-            .build()
-            .is_ok_and(|options| options.url().is_some());
-        let builder = args
-            .into_iter()
-            .fold(builder.proxy(proxy), |builder, arg| builder.arg(arg));
-        let builder = if has_start_page {
-            builder
-        } else {
-            builder.url(start_page)
+    ) -> Result<LaunchOptions, SeleniumBaseError> {
+        let prime = options.url().is_none().then_some(start_page);
+        let options = options.with_proxy(proxy)?.with_args(args)?;
+        let options = match prime {
+            Some(url) => options.with_url(url)?,
+            None => options,
         };
-        builder.fingerprint(fingerprint)
+        options.with_fingerprint(fingerprint)
+    }
+
+    /// crates/scrape/src/runtime/browser_scraper/builder.rs and rotate.rs: the launch options
+    /// the scraper holds, the one-off headless probe, and the read of the fingerprint they hold.
+    fn the_launch_options_a_scraper_holds(
+        held: &LaunchOptions,
+        fingerprint: &Fingerprint,
+    ) -> Result<(LaunchOptions, LaunchOptions, Option<Fingerprint>), SeleniumBaseError> {
+        let probe: LaunchOptions = held.clone().with_headless(true)?;
+        let started: LaunchOptions = held.clone().with_fingerprint(fingerprint)?;
+        let first: Option<Fingerprint> = held.fingerprint().cloned();
+        Ok((probe, started, first))
     }
 
     /// crates/wire/tests/stealth_session/flows.rs, line 111.
