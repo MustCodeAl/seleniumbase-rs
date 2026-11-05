@@ -14,7 +14,7 @@ const PLAYWRIGHT: &str = include_str!("../../crates/playwright/Cargo.toml");
 
 /// Crates only the command line may use. A library user must not build them.
 ///
-/// `usage` is how `crates/cli` names its parser (the package `usage-rs`), `usage_lib`
+/// `usage-rs` is the parser of `crates/cli` (its sources import it as `usage`), `usage_lib`
 /// the Markdown renderer its tests use; the clap crates are what the parser replaced.
 const COMMAND_LINE_ONLY: [&str; 8] = [
     "usage",
@@ -98,7 +98,7 @@ fn the_command_line_crate_builds_both_binaries_from_the_library() {
     assert_eq!(name, Some("seleniumbase-rs-cli"));
     assert_eq!(bin_names(&cli), ["sbrs", "sbrs-mcp"]);
     let dependencies = table_names(&cli, "dependencies");
-    for needed in ["seleniumbase-rs", "usage"] {
+    for needed in ["seleniumbase-rs", "usage-rs"] {
         assert!(
             dependencies.iter().any(|name| name == needed),
             "crates/cli does not depend on {needed}: {dependencies:?}"

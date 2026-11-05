@@ -41,6 +41,11 @@ use seleniumbase_rs::{
 };
 use serde_json::{json, Value};
 
+// The sources name the parser crate `usage`; the dependency is `usage-rs`, which is the name
+// the derives of usage 7 write their code against (see its entry in `Cargo.toml`).
+extern crate usage_rs as usage;
+
+
 mod args;
 #[path = "args/doctor.rs"]
 mod args_doctor;

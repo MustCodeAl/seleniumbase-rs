@@ -55,6 +55,11 @@ use seleniumbase_rs::config::env_vars;
 use seleniumbase_rs::mcp::{self, HttpOptions, Profile, DEFAULT_LISTEN, TOKEN_VAR};
 use seleniumbase_rs::{init_tracing_from_runtime, RuntimeConfig, SeleniumBaseError};
 
+// The sources name the parser crate `usage`; the dependency is `usage-rs`, which is the name
+// the derives of usage 7 write their code against (see its entry in `Cargo.toml`).
+extern crate usage_rs as usage;
+
+
 mod diagnostic;
 #[cfg(feature = "mcp-client")]
 mod mcp_client;
