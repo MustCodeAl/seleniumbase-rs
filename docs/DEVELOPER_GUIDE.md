@@ -217,6 +217,7 @@ presentations, and optional stealth/CDP integrations.
 <LayoutFile name="report.rs" note="sbrs report" />
 <LayoutFile name="reference.rs" note="renders docs/help/cli_reference.md from the usage spec" />
 <LayoutFile name="strict.rs" note="refuses, with status 2, what the parser is too loose about" />
+<LayoutFile name="trace.rs" note="sbrs trace show: opens a trace folder's viewer" />
 <LayoutDir name="mcp_install" note="sbrs-mcp install, uninstall and clients" />
 </LayoutDir>
 <LayoutDir name="tests" note="every test that runs the real sbrs or sbrs-mcp binary" />
@@ -859,6 +860,7 @@ owns the dependencies only they use (the `usage` command-line parser).
 <LayoutFile name="report.rs" note="sbrs report" />
 <LayoutFile name="reference.rs" note="renders docs/help/cli_reference.md from the usage spec" />
 <LayoutFile name="strict.rs" note="refuses, with status 2, what the parser is too loose about" />
+<LayoutFile name="trace.rs" note="sbrs trace show: opens a trace folder's viewer" />
 <LayoutDir name="mcp_install" open note="sbrs-mcp install, uninstall and clients">
 <LayoutFile name="apply.rs" note="writes one client's config" />
 <LayoutFile name="args.rs" note="the install, uninstall and clients command line" />

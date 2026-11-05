@@ -177,6 +177,7 @@ seleniumbase-rs/               # the workspace root
 │   │   │   ├── report.rs      # sbrs report
 │   │   │   ├── reference.rs   # renders docs/help/cli_reference.md from the usage spec
 │   │   │   ├── strict.rs      # refuses, with status 2, what the parser is too loose about
+│   │   │   ├── trace.rs       # sbrs trace show: opens a trace folder's viewer
 │   │   │   └── mcp_install/   # sbrs-mcp install, uninstall and clients
 │   │   └── tests/             # every test that runs the real sbrs or sbrs-mcp binary
 │   ├── own-imports/           # tests that import only seleniumbase_rs: the proof that its re-exports work

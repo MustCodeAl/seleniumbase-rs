@@ -2611,6 +2611,27 @@ Only plugins that offer a task can be run, and the named plugin is turned on for
     }
     example "sbrs plugin list"
 }
+cmd trace help_heading="Record and replay" help="Look at a recorded trace." subcommand_required=#true {
+    long_help #"""
+Look at a recorded trace.
+
+A trace is the folder `Page::start_trace` writes: the actions of a run, a screenshot and a copy of the page after each one, the console and the network, and index.html, the viewer, which holds all of it. `sbrs trace show` opens that viewer.
+"""#
+    flag "-h --help" help="Print help" action=help builtin=#true
+    cmd show help="Open the viewer of a trace folder in the system's default browser." {
+        long_help #"""
+Open the viewer of a trace folder in the system's default browser.
+
+FOLDER is the folder the trace was written to, or its index.html. The viewer loads nothing from the network, so no server is needed. Exits with status 2 when FOLDER is not a trace or its recording was not stopped (the viewer is written when it stops), and with status 1 when the browser cannot be started.
+"""#
+        flag --print help="Print the viewer's path instead of opening it." bool_value=#true
+        flag "-h --help" help="Print help" action=help builtin=#true
+        arg <FOLDER> help="The trace folder, or its index.html."
+        complete folder type=dir
+        example "sbrs trace show traces/checkout"
+    }
+    example "sbrs trace show traces/checkout"
+}
 cmd fingerprint help_heading=Security help="Capture, write, check and compare browser fingerprints." subcommand_required=#true {
     long_help #"""
 Capture, write, check and compare browser fingerprints.
