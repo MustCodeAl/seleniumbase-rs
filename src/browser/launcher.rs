@@ -6,8 +6,6 @@
 //! lifecycle, downloading chromedriver, geckodriver and msedgedriver when none
 //! is found.
 
-use std::ffi::OsStr;
-
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ExitStatus, Stdio};
