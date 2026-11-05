@@ -22,7 +22,6 @@
 //! holds each of the three open: when it fails, usage has taken the rule over, and the rule
 //! goes from here while its tests stay.
 //!
-
 //! [`check`] reads the events the generated parser reads, from the same tables, and
 //! refuses these three with the errors usage renders for everything else. Every other mistake,
 //! and every help or version request, is left to the real parse.
