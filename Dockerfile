@@ -28,7 +28,7 @@ COPY crates/own-imports/Cargo.toml ./crates/own-imports/Cargo.toml
 COPY crates/playwright/Cargo.toml ./crates/playwright/Cargo.toml
 RUN mkdir -p src crates/cli/src crates/own-imports/src crates/playwright/src benches examples tests && \
     touch src/lib.rs crates/own-imports/src/lib.rs crates/playwright/src/lib.rs \
-          benches/cdp_latency.rs benches/cpu.rs \
+          benches/cdp_latency.rs benches/cpu.rs benches/alloc.rs benches/alloc_sites.rs \
           examples/dialog.rs examples/dialogs.rs examples/gui_automation.rs examples/pdf_example.rs && \
     echo 'fn main() {}' > crates/cli/src/sbrs.rs && \
     echo 'fn main() {}' > crates/cli/src/mcp_server.rs

@@ -1,13 +1,13 @@
 ---
 title: "Benchmarking"
-description: "Run the cpu and cdp_latency harnesses in benches/, time the sbrs binary with hyperfine, and compare a change against main fairly."
+description: "Run the cpu, cdp_latency and allocation harnesses in benches/, time the sbrs binary with hyperfine, and compare a change against main fairly."
 sidebarTitle: "Benchmarking"
 keywords: ["benchmark", "hyperfine", "cargo bench", "performance", "latency", "baseline"]
 ---
 
-The repository has two benchmarks in `benches/`. They measure what the library
-itself costs: its own CPU work, and what it adds on top of a Chrome that is
-already running. This page says how to run them and how to compare a change.
+The repository has four benchmarks in `benches/`. They measure what the library
+itself costs: its own CPU work, what it adds on top of a Chrome that is
+already running, and what it allocates. This page says how to run them and how to compare a change.
 The measured figures are on [Benchmarks](/benchmarks), and advice for making
 your own tests faster is on [Performance](/performance).
 
@@ -25,7 +25,7 @@ your own tests faster is on [Performance](/performance).
 
 <Visibility for="agents">
 
-Summary for AI exports: `benches/cpu.rs` (no browser; `--features turso` adds database figures) and `benches/cdp_latency.rs` (needs Chrome or Chromium; headless, local page) are plain programs with `harness = false`, timed with `std::time::Instant`. Run `cargo bench --bench cpu` or `cargo bench --bench cdp_latency`. They print Markdown tables to standard output and save nothing; redirect the output to keep it. There is no criterion or divan, no saved baseline and no CI benchmark job. To time the `sbrs` binary, build it with `cargo build --release --locked --bin sbrs` and run `hyperfine --warmup 3 --runs 20 'target/release/sbrs --version'`; to compare two builds, keep the old binary and give hyperfine both commands.
+Summary for AI exports: `benches/cpu.rs` (no browser; `--features turso` adds database figures) and `benches/cdp_latency.rs` (needs Chrome or Chromium; headless, local page) are plain programs with `harness = false`, timed with `std::time::Instant`. Run `cargo bench --bench cpu` or `cargo bench --bench cdp_latency`. They print Markdown tables to standard output and save nothing; redirect the output to keep it. `benches/alloc.rs` (divan with its `AllocProfiler`) counts the allocations per call and `benches/alloc_sites.rs` (dhat) lists where they come from, both with no browser and `--features "mcp-server test-util"`. There is no saved baseline and no CI benchmark job. To time the `sbrs` binary, build it with `cargo build --release --locked --bin sbrs` and run `hyperfine --warmup 3 --runs 20 'target/release/sbrs --version'`; to compare two builds, keep the old binary and give hyperfine both commands.
 
 </Visibility>
 
@@ -74,16 +74,18 @@ Rust stable, N cores, release build.
 
 ## The two benchmarks
 
-Both are plain programs, not a framework. Each `[[bench]]` in `Cargo.toml` sets
-`harness = false`, and each file has its own `main` that times with
-`std::time::Instant` and prints Markdown tables. There is no criterion or divan,
-and no saved baseline.
+`cpu` and `cdp_latency` are plain programs, not a framework. Each `[[bench]]`
+in `Cargo.toml` sets `harness = false`, and each file has its own `main` that
+times with `std::time::Instant` and prints Markdown tables. The two allocation
+benches are below. There is no saved baseline.
 
 | Bench | Measures | Needs | Command |
 |---|---|---|---|
 | `cpu` | The library's own work | <Badge color="green">no browser</Badge> | `cargo bench --bench cpu` |
 | `cpu` with `turso` | The same, plus the embedded database | <Badge color="green">no browser</Badge> | `cargo bench --bench cpu --features turso` |
 | `cdp_latency` | The pure CDP engine against a real Chrome | <Badge color="orange">Chrome or Chromium</Badge> | `cargo bench --bench cdp_latency` |
+| `alloc` | Allocations per call (divan) | <Badge color="green">no browser</Badge> | `cargo bench --bench alloc --features "mcp-server test-util"` |
+| `alloc_sites` | Where the allocations come from (dhat) | <Badge color="green">no browser</Badge> | `cargo bench --bench alloc_sites --features "mcp-server test-util"` |
 
 ### `cpu`
 
@@ -150,6 +152,33 @@ The memory table reads `ps -o rss=`. Where there is no `ps`, as on Windows, it
 shows 0.
 
 </Note>
+
+### `alloc` and `alloc_sites`
+
+Both need no browser and no network. They run the same work, from
+`benches/alloc_workloads/mod.rs`:
+
+| Workload | What runs |
+|---|---|
+| `cdp` | `Page::evaluate`, `Locator::count` and `Locator::click` on the mocked browser (`Browser::new_mocked`) |
+| `importer` | `import_python` on every Python file of `tests/golden/import_python` |
+| `mcp` | `find_api` on the `dev` server through `Host::call`, and the Pure CDP server's tool list (`tools/list`) |
+
+`alloc` installs divan's `AllocProfiler` as the global allocator. divan prints a
+table with the time of each call and, under it, the allocations, deallocations,
+reallocations and bytes of one call.
+
+`alloc_sites` installs dhat's allocator. It sets each workload up first, then
+runs it 200 times under a heap profiler. It prints the totals per run and the
+eight largest allocation sites, each named by the first frame in this crate's
+code. Each profile is saved to `target/tmp/dhat/<workload>.json`; open one in
+[dhat's viewer](https://nnethercote.github.io/dh_view/dh_view.html) to see the
+whole tree. Build it with line tables, so that each site has its file and line:
+
+```bash Terminal
+CARGO_PROFILE_BENCH_DEBUG=line-tables-only \
+    cargo bench --bench alloc_sites --features "mcp-server test-util"
+```
 
 ## Run them
 
@@ -375,8 +404,8 @@ Benchmark 1: sbrs --version (3 runs)
 
 No CI job runs the benchmarks. `.github/workflows/` builds, tests, lints, checks
 the minimum Rust version, the dependency policy and the docs, but has no
-`cargo bench`. The `Dockerfile` only creates empty `benches/cdp_latency.rs` and
-`benches/cpu.rs` in its skeleton step.
+`cargo bench`. The `Dockerfile` only creates empty files for the four benches in
+its skeleton step.
 
 </Note>
 
@@ -386,8 +415,8 @@ the minimum Rust version, the dependency policy and the docs, but has no
 
 <Step title="Write the program" icon="file-code">
 
-Add a file to `benches/` with its own `main`, as the two that exist: warm up,
-time several runs, and print the median as a Markdown table.
+Add a file to `benches/` with its own `main`, as `cpu` and `cdp_latency` do:
+warm up, time several runs, and print the median as a Markdown table.
 
 </Step>
 
