@@ -522,8 +522,72 @@ mod tests_form_attributes {
             assert_eq!(attribute_reads(&driver), [json!("id")]);
         }
 
-}
+    /// `#pick`'s `value` is `values[n]` the n-th time the attribute script runs
+    /// (counting from 0) and stays on the last entry after that.
+    fn changing_value(values: &'static [&'static str]) -> MockWebDriver {
+        let reads = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        MockWebDriver::start(json!({}), move |request| {
+            let known = request.body["value"].as_str() == Some("#pick");
+            match (request.method.as_str(), request.path.as_str()) {
+                ("POST", "/element") if known => Reply::Value(element("pick")),
+                ("POST", "/element") => Reply::Error(404, "no such element"),
+                ("POST", "/elements") if known => Reply::Value(json!([element("pick")])),
+                ("POST", "/elements") => Reply::Value(json!([])),
+                ("POST", "/execute/sync") => {
+                    let n = reads.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    let value = values
+                        .get(n)
+                        .or_else(|| values.last())
+                        .copied()
+                        .unwrap_or("");
+                    Reply::Value(json!(value))
+                }
+                _ => Reply::Value(Value::Null),
+            }
+        })
+    }
 
+    #[tokio::test]
+    async fn assert_attribute_waits_for_a_value_that_shows_up_late() {
+        // It used to read the attribute once and fail while the page was still
+        // changing it. The third read is the one that matches.
+        let driver = changing_value(&["old", "old", "ready"]);
+        let mut sb = driver.base_case().await;
+        sb.set_timeout(5).await.unwrap();
+
+        sb.assert_attribute("#pick", "value", "ready")
+            .await
+            .expect("the attribute becomes ready before the timeout");
+
+        assert!(
+            attribute_reads(&driver).len() >= 3,
+            "the assertion read the attribute once and gave up: {:?}",
+            attribute_reads(&driver)
+        );
+    }
+
+    #[tokio::test]
+    async fn assert_attribute_fails_when_the_value_never_matches() {
+        let driver = changing_value(&["nope"]);
+        let mut sb = driver.base_case().await;
+        // A zero timeout still checks once, and must fail rather than pass.
+        sb.set_timeout(0).await.unwrap();
+
+        let error = sb
+            .assert_attribute("#pick", "value", "ready")
+            .await
+            .expect_err("the attribute stays nope");
+        assert!(
+            matches!(error, SeleniumBaseError::AssertionFailed(_)),
+            "{error:?}"
+        );
+        let message = error.to_string();
+        assert!(
+            message.contains("#pick") && message.contains("ready") && message.contains("nope"),
+            "{message}"
+        );
+    }
+}
 
 mod tests_form_fields {
     use super::webdriver_support::{element, MockWebDriver, Reply};

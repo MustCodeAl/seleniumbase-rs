@@ -361,25 +361,60 @@ impl BaseCase {
         })
     }
 
-    /// Asserts that the attribute named `attribute` on `css` equals `value`.
+    /// Asserts that `attribute` on `css` equals `value`, polling until the timeout.
+    ///
+    /// The wait is the default timeout ([`set_timeout`](Self::set_timeout)),
+    /// the same one [`assert_text`](Self::assert_text) uses. An element that is
+    /// not there yet does not fail the check; the assertion keeps looking.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::AssertionFailed`] when the attribute still
+    /// differs at the end of the timeout. The message names the selector, the
+    /// attribute, the expected value and the value last seen.
     pub async fn assert_attribute(
         &mut self,
         css: &str,
         attribute: &str,
         value: &str,
     ) -> Result<(), SeleniumBaseError> {
-        let actual_value = self.get_attribute(css, attribute).await?;
-        if actual_value.as_deref() != Some(value) {
-            return Err(SeleniumBaseError::AssertionFailed(format!(
-                "Expected attribute '{}' of '{}' to be '{}', but got '{}'",
-                attribute,
-                css,
-                value,
-                actual_value.unwrap_or_default()
-            )));
-        }
+        // `get_attribute` takes `&mut self`, which a poll cannot hold across
+        // tries. Finding the element and reading the attribute only need a
+        // shared borrow, the same one the text assertions poll with.
+        let this = &*self;
+        this.check_time_limit()?;
+        let seen_slot = std::sync::Mutex::new(String::new());
+        let seen = &seen_slot;
+        poll_until_true(this.default_wait_secs(), String::new(), || async {
+            let by = Selector::auto(css).to_by()?;
+            let actual = match this.session.find(by).await {
+                Ok(element) => {
+                    this.session
+                        .attribute_or_property(&element, attribute)
+                        .await?
+                }
+                // Not there yet, same as a text assertion: keep looking.
+                Err(_) => None,
+            };
+            let held = actual.as_deref() == Some(value);
+            if !held && let Ok(mut slot) = seen.lock() {
+                *slot = actual.unwrap_or_default();
+            }
+            Ok(held)
+        })
+        .await
+        .map_err(|error| match error {
+            SeleniumBaseError::WaitTimeout(_) => {
+                let got = seen.lock().map(|slot| slot.clone()).unwrap_or_default();
+                SeleniumBaseError::AssertionFailed(format!(
+                    "Expected attribute '{}' of '{}' to be '{}', but got '{}'",
+                    attribute, css, value, got
+                ))
+            }
+            other => other,
+        })?;
         let message = demo::attribute_message(css, attribute, Some(value));
-        self.demo_assert_success(&message, Some(css)).await;
+        this.demo_assert_success(&message, Some(css)).await;
         Ok(())
     }
 

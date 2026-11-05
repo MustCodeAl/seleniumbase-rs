@@ -253,6 +253,11 @@ work, `docs/parity.md` the per-API status).
   feature is the in-process path for a shipped app (no port). The guide no longer
   points at `examples/tauri-profile-manager`, which is not in this repository.
 
+- **`BaseCase::assert_attribute` waits for the attribute.** It used to read the
+  attribute once and fail immediately. It now polls until the default timeout, as
+  `assert_text` does, and still fails with `AssertionFailed`, naming the selector,
+  the attribute, the expected value and the value last seen.
+
 - **`scripts/check-consumers.sh` (`mise run contracts`) runs from a git worktree and checks what it
   says it checks.** It looked for the consumers' checkouts in the folder above the script, which in
   `.claude/worktrees/NAME` is not where they are; it now asks git for the main checkout and looks

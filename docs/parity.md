@@ -61,7 +61,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `append_data_to_logs` | implemented | `BaseCase::append_data_to_logs` |  |
 | `assert_any_of_elements_present` | implemented | `BaseCase::assert_any_of_elements_present` |  |
 | `assert_any_of_elements_visible` | implemented | `BaseCase::assert_any_of_elements_visible` |  |
-| `assert_attribute` | implemented | `BaseCase::assert_attribute` | Differs: Takes the value (Python's is optional, and then the attribute only has to exist) and reads the attribute once after the element is there, where Python waits up to SMALL_TIMEOUT for it (use wait_for_attribute). Like Python it sees the DOM property when the element has no such attribute. |
+| `assert_attribute` | implemented | `BaseCase::assert_attribute` | Differs: Takes the value (Python's is optional, and then the attribute only has to exist). It waits up to the default timeout (set_timeout) for the attribute to equal that value, as Python waits up to SMALL_TIMEOUT. Like Python it sees the DOM property when the element has no such attribute. |
 | `assert_attribute_not_present` | implemented | `BaseCase::assert_attribute_not_present` |  |
 | `assert_data_in_downloaded_file` | implemented | `BaseCase::assert_data_in_downloaded_file` |  |
 | `assert_downloaded_file` | implemented | `BaseCase::assert_downloaded_file` | Differs: Waits for the default timeout (set_timeout), not a per-call one, and takes no browser flag. It looks in ./downloaded_files (browser::downloads::downloads_dir), where a launched browser is told to save, as Python does. |
