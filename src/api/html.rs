@@ -136,7 +136,7 @@ pub struct SoupNode {
 impl SoupNode {
     fn from_element(element: ElementRef<'_>) -> Self {
         Self {
-            tag_name: element.value().name.local.as_ref().to_owned(),
+            tag_name: element.value().name().to_owned(),
             text: element.text().collect::<Vec<_>>().join(""),
             attributes: element
                 .value()

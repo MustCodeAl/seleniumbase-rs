@@ -575,8 +575,15 @@ own script run, by its hash, and loads nothing. The price is that images and
 fonts of the page do not show in a snapshot. The file's tests include a hostile
 console line and a hostile selector.
 
-`sbrs trace show`, which opens a trace folder, is not written yet. Until then
-open `index.html`.
+### Opening a trace
+
+`sbrs trace show traces/checkout` opens the folder's `index.html` in the
+system's default browser (`open` on macOS, `xdg-open` on Linux, `explorer` on
+Windows). It takes the folder or the `index.html` itself, and `--print` prints
+the viewer's path instead of opening it, for a machine with no desktop. A
+folder whose recording was not stopped has `trace.json` but no viewer yet; the
+command says so and exits with status 2, as it does for a folder that is not a
+trace.
 
 
 ## Isolated contexts

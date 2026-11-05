@@ -46,7 +46,7 @@ usage = { package = "usage-rs", version = "6", features = ["completions"] }
 # of its keys (thirtyfour turns the feature on already).
 serde_json = { version = "1.0", features = ["preserve_order"] }
 # The same features as the library, so one build of thirtyfour serves both.
-thirtyfour = { version = "0.37", default-features = false, features = ["reqwest", "cdp"] }
+thirtyfour = { version = "0.38", default-features = false, features = ["reqwest", "cdp"] }
 tokio = { version = "1.53", features = ["macros", "rt-multi-thread", "time", "signal", "sync", "process", "net", "io-util", "fs"] }
 # `sbrs install` downloads with `reqwest::get`; the TLS provider is the library's.
 reqwest = { version = "0.13", default-features = false }
@@ -118,7 +118,7 @@ regex = "1.13"
 syn = { version = "3", features = ["full", "visit"] }
 # Lists processes for the tests' leftover-process checks on every system (Windows
 # has no `pgrep`); only its process part.
-sysinfo = { version = "0.39", default-features = false, features = ["system"] }
+sysinfo = { version = "0.40", default-features = false, features = ["system"] }
 # `#[serial(chrome)]` on the tests that start a real Chrome, so they need no
 # `--test-threads=1`; the group is the library's (see its dev-dependencies).
 serial_test = "4"

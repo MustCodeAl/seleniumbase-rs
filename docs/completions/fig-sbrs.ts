@@ -3772,6 +3772,39 @@ const completionSpec: Fig.Spec = {
       ],
     },
     {
+      name: "trace",
+      description: "Look at a recorded trace.",
+      subcommands: [
+        {
+          name: "show",
+          description: "Open the viewer of a trace folder in the system's default browser.",
+          options: [
+            {
+              name: "--print",
+              description: "Print the viewer's path instead of opening it.",
+            },
+            {
+              name: ["-h", "--help"],
+              description: "Print help",
+            },
+          ],
+          args: [
+            {
+              name: "folder",
+              description: "The trace folder, or its index.html.",
+              template: "folders",
+            },
+          ],
+        },
+      ],
+      options: [
+        {
+          name: ["-h", "--help"],
+          description: "Print help",
+        },
+      ],
+    },
+    {
       name: "fingerprint",
       description: "Capture, write, check and compare browser fingerprints.",
       subcommands: [

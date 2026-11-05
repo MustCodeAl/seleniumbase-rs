@@ -65,6 +65,7 @@ mod history;
 mod reference;
 mod report;
 mod strict;
+mod trace;
 
 mod test_args;
 mod test_session;
@@ -307,6 +308,38 @@ struct PluginRunArgs {
     /// Write the results to this file, one JSON value per line (default: standard output).
     #[usage(long, value_name = "FILE", value_hint = usage::ValueHint::AnyPath)]
     out: Option<PathBuf>,
+}
+
+// The `trace` command: it holds only its own subcommands. (Plain comments, not docs: a doc
+// comment on this struct would be help text.)
+#[derive(Debug, usage::Args)]
+struct TraceArgs {
+    #[usage(subcommand)]
+    command: TraceCommand,
+}
+
+#[derive(Debug, usage::Subcommands)]
+enum TraceCommand {
+    /// Open the viewer of a trace folder in the system's default browser.
+    ///
+    /// FOLDER is the folder the trace was written to, or its index.html. The viewer loads
+    /// nothing from the network, so no server is needed. Exits with status 2 when FOLDER is
+    /// not a trace or its recording was not stopped (the viewer is written when it stops),
+    /// and with status 1 when the browser cannot be started.
+    #[usage(example = "sbrs trace show traces/checkout")]
+    Show(TraceShowArgs),
+}
+
+// The arguments of `trace show`. (Plain comments, not docs: a doc comment on this struct would
+// be help text.)
+#[derive(Debug, usage::Args)]
+struct TraceShowArgs {
+    /// The trace folder, or its index.html.
+    #[usage(value_hint = usage::ValueHint::DirPath)]
+    folder: PathBuf,
+    /// Print the viewer's path instead of opening it.
+    #[usage(long, bool_value)]
+    print: bool,
 }
 
 // The options `grid-hub` and `grid-node` share. (Plain comments, not docs: a doc
@@ -1968,6 +2001,16 @@ enum Commands {
     #[allow(rustdoc::broken_intra_doc_links)] // `[plugins]` is a TOML table in help text, not a link
     #[usage(help_heading = "Info and setup", example = "sbrs plugin list")]
     Plugin(PluginArgs),
+    /// Look at a recorded trace.
+    ///
+    /// A trace is the folder `Page::start_trace` writes: the actions of a run, a screenshot
+    /// and a copy of the page after each one, the console and the network, and index.html,
+    /// the viewer, which holds all of it. `sbrs trace show` opens that viewer.
+    #[usage(
+        help_heading = "Record and replay",
+        example = "sbrs trace show traces/checkout"
+    )]
+    Trace(TraceArgs),
     /// Capture, write, check and compare browser fingerprints.
     ///
     /// A fingerprint file is what a browser claims to be: the user agent, the screen, the
@@ -2123,7 +2166,8 @@ impl Commands {
             | Self::ImportPlaywright { .. }
             | Self::ImportPuppeteer { .. }
             | Self::Devtools { .. }
-            | Self::Plugin(_) => false,
+            | Self::Plugin(_)
+            | Self::Trace(_) => false,
             #[cfg(feature = "turso")]
             Self::Report(_) => false,
             _ => true,
@@ -3484,6 +3528,12 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
 
         Commands::Prompt(options) => return run_prompt(options).await,
         Commands::Plugin(plugin) => return run_plugin(&plugin.command, &args).await,
+        Commands::Trace(TraceArgs {
+            command: TraceCommand::Show(show),
+        }) => match trace::show(&show.folder, show.print) {
+            0 => return Ok(()),
+            status => std::process::exit(status),
+        },
         // The subcommands that start no browser end here; `capture` goes on to start one.
         Commands::Fingerprint(fingerprint) => match fingerprint::run_offline(&fingerprint.command)?
         {
@@ -4466,7 +4516,8 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         | Commands::ImportPlaywright { .. }
         | Commands::ImportPuppeteer { .. }
         | Commands::Plugin(_)
-        | Commands::Prompt(_) => {
+        | Commands::Prompt(_)
+        | Commands::Trace(_) => {
             unreachable!("pure CLI commands return before browser configuration")
         }
     }
@@ -4932,6 +4983,24 @@ mod plugin_cli_tests {
     }
 
     #[test]
+    fn trace_show_takes_a_folder_and_print() {
+        let Commands::Trace(TraceArgs {
+            command: TraceCommand::Show(show),
+        }) = parse(&["sbrs", "trace", "show", "traces/run", "--print"]).command
+        else {
+            panic!("not `trace show`");
+        };
+        assert_eq!(show.folder, PathBuf::from("traces/run"));
+        assert!(show.print);
+        assert!(!parse(&["sbrs", "trace", "show", "traces/run"])
+            .command
+            .launches_browser());
+        for argv in [&["sbrs", "trace"][..], &["sbrs", "trace", "show"]] {
+            assert!(try_parse(argv).is_err(), "{argv:?} was accepted");
+        }
+    }
+
+    #[test]
     fn only_the_commands_that_start_a_browser_check_and_get_the_plugins() {
         let launches = |argv: &[&str]| parse(argv).command.launches_browser();
 
@@ -4948,6 +5017,7 @@ mod plugin_cli_tests {
             &["sbrs", "completions", "bash"],
             &["sbrs", "install", "chromedriver"],
             &["sbrs", "mkfile", "tests/a.rs"],
+            &["sbrs", "trace", "show", "traces/run"],
         ] {
             assert!(!launches(argv), "{argv:?} starts no BaseCase browser");
         }
