@@ -4,7 +4,6 @@
 //! [`BaseCase`]. A target tells the sidecar where its browser's DevTools endpoint is and
 //! which tab it is on, so that the rustwright page is the page the target drives.
 
-use std::future::Future;
 use std::time::Duration;
 
 use seleniumbase_rs::sb_cdp::{DevToolsEndpoint, Page};
@@ -69,36 +68,32 @@ pub(crate) async fn attachment_of<T: PlaywrightTarget + ?Sized>(
 }
 
 impl sealed::Sealed for Page {
-    fn attachment(&self) -> impl Future<Output = Result<Attachment, SeleniumBaseError>> + Send {
-        async move {
-            Ok(Attachment {
-                endpoint: self.browser().devtools_endpoint(),
-                hints: TabHints {
-                    target_id: Some(self.id().to_owned()),
-                    // A tab that cannot say its URL is still found by its id.
-                    url: self.url().await.ok(),
-                },
-                timeout: self.timeout(),
-            })
-        }
+    async fn attachment(&self) -> Result<Attachment, SeleniumBaseError> {
+        Ok(Attachment {
+            endpoint: self.browser().devtools_endpoint(),
+            hints: TabHints {
+                target_id: Some(self.id().to_owned()),
+                // A tab that cannot say its URL is still found by its id.
+                url: self.url().await.ok(),
+            },
+            timeout: self.timeout(),
+        })
     }
 }
 
 impl sealed::Sealed for BaseCase {
-    fn attachment(&self) -> impl Future<Output = Result<Attachment, SeleniumBaseError>> + Send {
-        async move {
-            let endpoint = self.devtools_endpoint().await?;
-            Ok(Attachment {
-                endpoint,
-                hints: TabHints {
-                    // chromedriver's window handle may be the target id; when the driver
-                    // answers none (a direct CDP attachment) the URL decides.
-                    target_id: self.get_current_window_handle().await.ok(),
-                    url: self.get_current_url().await.ok(),
-                },
-                timeout: Duration::from_secs(self.timeout_secs()),
-            })
-        }
+    async fn attachment(&self) -> Result<Attachment, SeleniumBaseError> {
+        let endpoint = self.devtools_endpoint().await?;
+        Ok(Attachment {
+            endpoint,
+            hints: TabHints {
+                // chromedriver's window handle may be the target id; when the driver
+                // answers none (a direct CDP attachment) the URL decides.
+                target_id: self.get_current_window_handle().await.ok(),
+                url: self.get_current_url().await.ok(),
+            },
+            timeout: Duration::from_secs(self.timeout_secs()),
+        })
     }
 }
 
