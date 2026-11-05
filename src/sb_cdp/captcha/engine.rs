@@ -205,6 +205,15 @@ fn backoff(base: Duration, attempt: u32, rng: &mut Rng) -> Duration {
     grown.mul_f64(rng.range(0.75, 1.25))
 }
 
+/// The wait before press number `attempt + 1`: the options' retry policy when
+/// they have one, otherwise [`backoff`].
+fn wait_before(options: &SolveOptions, attempt: u32, rng: &mut Rng) -> Duration {
+    match &options.retry_policy {
+        Some(policy) => policy.delay_for_attempt(attempt as usize + 1),
+        None => backoff(options.backoff, attempt, rng),
+    }
+}
+
 /// Finds the widget, waiting for one that is on its way.
 async fn locate<S: Surface>(
     surface: &S,
@@ -461,7 +470,7 @@ pub(crate) async fn solve<S: Surface>(
             Verdict::Failed(why) => reason = why,
         }
         if attempts < allowed {
-            sleep(backoff(options.backoff, attempts, &mut spread)).await;
+            sleep(wait_before(options, attempts, &mut spread)).await;
         }
     }
     Err(SeleniumBaseError::captcha(
@@ -975,6 +984,30 @@ mod tests {
     }
 
     #[test]
+    fn a_retry_policy_sets_the_waits_with_no_spread() {
+        let policy = crate::utilities::retry::RetryPolicy {
+            max_attempts: 5,
+            base_delay: Duration::from_millis(100),
+            backoff_factor: 3.0,
+            max_delay: Duration::from_millis(500),
+        };
+        let options = SolveOptions::new().retry_policy(policy);
+        let mut rng = Rng::new(3);
+        let waits: Vec<Duration> = (1..=4)
+            .map(|attempt| wait_before(&options, attempt, &mut rng))
+            .collect();
+        assert_eq!(
+            waits,
+            [100, 300, 500, 500].map(Duration::from_millis),
+            "the policy's own schedule, capped, the same on every run"
+        );
+        let without = SolveOptions::new().backoff(Duration::from_millis(100));
+        let doubled = wait_before(&without, 3, &mut rng);
+        assert!(doubled >= Duration::from_millis(300) && doubled <= Duration::from_millis(500));
+    }
+
+    #[test]
+
     fn the_backoff_is_spread_so_it_is_not_on_a_clock() {
         let mut rng = Rng::new(9);
         let waits: std::collections::HashSet<_> = (0..20)

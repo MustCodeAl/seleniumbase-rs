@@ -15,6 +15,7 @@ use serde_json::Value;
 use super::{Page, Point, Rect};
 use crate::error::SeleniumBaseError;
 use crate::evasion::behavior::Behavior;
+use crate::utilities::retry::RetryPolicy;
 
 mod engine;
 mod script;
@@ -268,6 +269,7 @@ pub struct SolveOptions {
     verify_timeout: Duration,
     attempts: u32,
     backoff: Duration,
+    retry_policy: Option<RetryPolicy>,
     marker: Option<String>,
     behavior: Behavior,
 }
@@ -280,6 +282,7 @@ impl Default for SolveOptions {
             verify_timeout: Duration::from_secs(5),
             attempts: 3,
             backoff: Duration::from_millis(600),
+            retry_policy: None,
             marker: None,
             behavior: Behavior::default(),
         }
@@ -337,6 +340,18 @@ impl SolveOptions {
     #[must_use]
     pub fn backoff(mut self, base: Duration) -> Self {
         self.backoff = base;
+        self
+    }
+
+    /// Another schedule for the waits between presses: the policy's own, its
+    /// [`base_delay`](RetryPolicy::base_delay) times its
+    /// [`backoff_factor`](RetryPolicy::backoff_factor) for each press, up to its
+    /// [`max_delay`](RetryPolicy::max_delay), with no spread. It replaces
+    /// [`backoff`](Self::backoff)'s doubling; the number of presses is still
+    /// [`attempts`](Self::attempts).
+    #[must_use]
+    pub fn retry_policy(mut self, policy: RetryPolicy) -> Self {
+        self.retry_policy = Some(policy);
         self
     }
 

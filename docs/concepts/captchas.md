@@ -247,6 +247,12 @@ if let Some(solved) = page.solve_captcha_with(&options).await? {
 }
 ```
 
+Between presses it waits: `backoff` sets the first wait, which doubles for each
+further press up to 8 seconds and is spread by a quarter either way.
+`retry_policy(RetryPolicy)` is the other schedule: the policy's own base delay,
+times its factor for each press, up to its cap, with no spread.
+
+
 What it does **not** do, and says so in its own documentation:
 
 - It does not read or answer a puzzle. It never looks at pictures or audio.

@@ -27,6 +27,17 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- `ProxyList` picks by a `RotationStrategy`, set with `with_rotation`: `RoundRobin` (the
+  default, as `next_round_robin`), `Random { seed }` (a seed repeats the order; `None` is
+  `random`'s pick), `LeastFailures` and `StickyPerSite`. `pick(site)` and
+  `pick_other(current, site)` choose among the proxies that are not resting,
+  `report(entry, ProxyOutcome)` records what a request met, and
+  `with_quarantine(after_failures, rest)` rests a proxy that keeps failing. The strategies come
+  from the stealth repository's proxy pool, which will build on them.
+- `SolveOptions::retry_policy(RetryPolicy)`: the waits between CAPTCHA presses follow the
+  policy's own schedule (base delay, factor, cap, no spread) instead of `backoff`'s
+  doubling.
+
 - The built-in `browser` plugin's worker, session and sign-in options work on the pure CDP
   engine (plugins `0666904`): `wait_for_workers` and `worker_timeout_secs`, `session` with
   `save_on_close` and `session_dir`, and `interactive` with `pause_message`
