@@ -1,8 +1,8 @@
 //! Typing, choosing options and focus.
 
 use super::{selector_prop, timeout_prop, Cdp};
-use crate::sb_cdp::{Key, SelectBy};
 use crate::mcp::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};
+use crate::sb_cdp::{Key, SelectBy};
 
 pub(super) fn tools() -> Vec<ToolDef<Cdp>> {
     vec![

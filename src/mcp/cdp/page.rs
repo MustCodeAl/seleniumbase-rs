@@ -2,10 +2,7 @@
 
 use serde_json::{json, Value};
 
-use super::{
-    selector_prop, timeout_prop, NO_WAIT,
-    Cdp,
-};
+use super::{selector_prop, timeout_prop, Cdp, NO_WAIT};
 use crate::mcp::support::{is_missing, json_output, nonempty};
 use crate::mcp::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};
 use crate::sb_cdp::State;

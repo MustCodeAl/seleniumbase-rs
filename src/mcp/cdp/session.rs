@@ -7,8 +7,8 @@ use crate::error::SeleniumBaseError;
 use crate::mcp::fingerprint;
 use crate::mcp::support::nonempty;
 use crate::mcp::Started;
-use crate::sb_cdp::{Browser, LaunchOptions};
 use crate::mcp::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};
+use crate::sb_cdp::{Browser, LaunchOptions};
 
 pub(super) fn tools() -> Vec<ToolDef<Cdp>> {
     vec![

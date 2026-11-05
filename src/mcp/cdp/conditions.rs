@@ -2,8 +2,8 @@
 
 use super::{timeout_prop, Cdp, NO_WAIT};
 use crate::mcp::support::nonempty;
-use crate::sb_cdp::State;
 use crate::mcp::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};
+use crate::sb_cdp::State;
 
 pub(super) fn tools() -> Vec<ToolDef<Cdp>> {
     vec![

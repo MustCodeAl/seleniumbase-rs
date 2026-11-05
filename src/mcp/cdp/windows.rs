@@ -4,8 +4,8 @@ use serde_json::{json, Value};
 
 use super::Cdp;
 use crate::mcp::support::{json_output, nonempty};
-use crate::sb_cdp::Scroll;
 use crate::mcp::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};
+use crate::sb_cdp::Scroll;
 
 pub(super) fn tools() -> Vec<ToolDef<Cdp>> {
     vec![
