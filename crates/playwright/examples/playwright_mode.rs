@@ -77,9 +77,11 @@ async fn drive(browser: &Browser, url: &str) -> seleniumbase_rs::Result<()> {
 
     // Playwright, for what that API does not do, on the same tab. Attach late, detach early.
     let playwright = PlaywrightSidecar::attach(&page).await?;
-    let title = playwright.run(|pw| pw.title(Default::default())).await;
+    // `title` stands in for a call only Playwright has: our own API reads it with `page.title()`.
+    let theirs = playwright.run(|pw| pw.title(Default::default())).await;
     let detached = playwright.close().await;
-    println!("Page title (Playwright): {}", title?);
+    println!("Page title (our API): {}", page.title().await?);
+    println!("Page title (rustwright, same tab): {}", theirs?);
     detached?;
 
     // The endpoint is what other clients attach to (Playwright MCP, chrome-devtools-mcp).

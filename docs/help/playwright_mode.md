@@ -140,6 +140,7 @@ async fn main() -> seleniumbase_rs::Result<()> {
 
     // Playwright only for what that API does not do, on the same tab.
     let playwright = PlaywrightSidecar::attach(&page).await?;
+    // Placeholder: any rustwright call goes in the closure. Our own title is `page.title()`.
     let title = playwright.run(|pw| pw.title(Default::default())).await?;
     println!("{title}");
 
@@ -147,6 +148,11 @@ async fn main() -> seleniumbase_rs::Result<()> {
     browser.close().await
 }
 ```
+
+The page title in the examples of this guide is a placeholder: our own API already reads it
+(`page.title()`, `sb.get_title()`), and `pw.title(..)` only shows the closure receiving the
+rustwright page of the same tab. Put a call that only Playwright has in its place (the
+paragraph after the Playwright-to-ours table says what those are).
 
 The repository's `crates/playwright/examples/playwright_mode.rs` is this flow against a page it
 serves from `127.0.0.1`:
@@ -206,6 +212,7 @@ async fn main() -> seleniumbase_rs::Result<()> {
     sb.open("https://example.com").await?;
 
     let playwright = PlaywrightSidecar::attach(&sb).await?; // the window `sb` is on
+    // Placeholder: any rustwright call goes in the closure. Our own title is `sb.get_title()`.
     playwright.run(|pw| pw.title(Default::default())).await?;
     sb.assert_element("h1").await?;
 
@@ -236,6 +243,8 @@ async fn main() -> seleniumbase_rs::Result<()> {
     let browser = Browser::connect("127.0.0.1", 9222).await?;
 
     let playwright = PlaywrightSidecar::connect(&browser.devtools_endpoint()).await?;
+    // Placeholder: any rustwright call goes in the closure. Our own title is
+    // `browser.default_page().await?.title()`.
     let title = playwright.run(|pw| pw.title(Default::default())).await?;
     println!("{title}");
 
@@ -273,6 +282,7 @@ async fn main() -> seleniumbase_rs::Result<()> {
 
     // A statement that only Playwright has: the rustwright page, on the same tab.
     let playwright = PlaywrightSidecar::attach(&page).await?;
+    // Placeholder: any rustwright call goes in the closure. Our own title is `page.title()`.
     let title = playwright.run(|pw| pw.title(Default::default())).await?;
     println!("{title}");
 
@@ -332,6 +342,7 @@ async fn main() -> seleniumbase_rs::Result<()> {
     println!("{}", page.get_text("h1").await?);
 
     let playwright = PlaywrightSidecar::attach(&page).await?;
+    // Placeholder: any rustwright call goes in the closure. Our own title is `page.title()`.
     let title = playwright.run(|pw| pw.title(Default::default())).await?;
     println!("{title}");
     playwright.close().await?;

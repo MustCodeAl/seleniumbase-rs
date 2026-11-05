@@ -52,8 +52,12 @@ use crate::target::{attachment_of, PlaywrightTarget, TabHints};
 ///
 /// // Playwright only for what that API does not do, on the same tab.
 /// let playwright = PlaywrightSidecar::attach(&page).await?;
-/// let title = playwright.run(|pw| pw.title(Default::default())).await?;
-/// println!("{title}");
+/// // `title` stands in for a call only Playwright has: our own API reads it with
+/// // `page.title()`, and the closure sees the same tab.
+/// let ours = page.title().await?;
+/// let theirs = playwright.run(|pw| pw.title(Default::default())).await?;
+/// assert_eq!(ours, theirs);
+/// println!("{theirs}");
 ///
 /// playwright.close().await?; // detaches; the browser and the tab stay
 /// browser.close().await

@@ -48,6 +48,7 @@
 //! page.assert_text("Example Domain", "h1").await?;
 //!
 //! let playwright = PlaywrightSidecar::attach(&page).await?;
+//! // Placeholder: any rustwright call goes in the closure. Our own title is `page.title()`.
 //! let title = playwright.run(|pw| pw.title(Default::default())).await?;
 //! println!("{title}");
 //!
@@ -68,6 +69,7 @@
 //! sb.open("https://example.com").await?;
 //!
 //! let playwright = PlaywrightSidecar::attach(&sb).await?; // the window `sb` is on
+//! // Placeholder: any rustwright call goes in the closure. Our own title is `sb.get_title()`.
 //! playwright.run(|pw| pw.title(Default::default())).await?;
 //! sb.assert_element("h1").await?;
 //!

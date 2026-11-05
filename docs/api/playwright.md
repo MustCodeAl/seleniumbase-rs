@@ -76,8 +76,12 @@ async fn main() -> seleniumbase_rs::Result<()> {
 
     // Playwright only for what that API does not do, on the same tab.
     let playwright = PlaywrightSidecar::attach(&page).await?;
-    let title = playwright.run(|pw| pw.title(Default::default())).await?;
-    println!("{title}");
+    // `title` stands in for a call only Playwright has: our own API reads it with
+    // `page.title()`, and the closure sees the same tab.
+    let ours = page.title().await?;
+    let theirs = playwright.run(|pw| pw.title(Default::default())).await?;
+    assert_eq!(ours, theirs);
+    println!("{theirs}");
 
     playwright.close().await?; // detaches; the browser and the tab stay
     browser.close().await
@@ -97,7 +101,10 @@ async fn main() -> seleniumbase_rs::Result<()> {
     sb.open("https://example.com").await?;
 
     let playwright = PlaywrightSidecar::attach(&sb).await?; // the window `sb` is on
-    playwright.run(|pw| pw.title(Default::default())).await?;
+    // `title` stands in for a call only Playwright has: our own API reads it with
+    // `sb.get_title()`, and the closure sees the same window.
+    let theirs = playwright.run(|pw| pw.title(Default::default())).await?;
+    assert_eq!(sb.get_title().await?, theirs);
     sb.assert_element("h1").await?;
 
     playwright.close().await?;
@@ -118,6 +125,8 @@ async fn main() -> seleniumbase_rs::Result<()> {
     let browser = Browser::connect("127.0.0.1", 9222).await?;
 
     let playwright = PlaywrightSidecar::connect(&browser.devtools_endpoint()).await?;
+    // `title` stands in for a call only Playwright has: our own API reads it with
+    // `browser.default_page().await?.title()`.
     let title = playwright.run(|pw| pw.title(Default::default())).await?;
     println!("{title}");
 
@@ -183,7 +192,8 @@ async fn main() -> seleniumbase_rs::Result<()> {
     let page = browser.default_page().await?;
     let playwright = PlaywrightSidecar::attach(&page).await?;
 
-    // The rustwright page navigates the tab; `page.url()` follows it.
+    // Any rustwright call goes here. Navigating (our own is `page.goto`) only shows that the
+    // rustwright page and `page` are one tab: `page.url()` follows it.
     playwright
         .run(|pw| pw.goto("https://example.com", GotoOptions::default()).map(drop))
         .await?;
