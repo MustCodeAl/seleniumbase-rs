@@ -318,7 +318,8 @@ async fn main() -> seleniumbase_rs::Result<()> {
   Playwright call might be 10 seconds in the matching SeleniumBase call. The attach itself waits
   as long as the handle you attach beside waits by default.
 - When you give a custom timeout, Playwright counts milliseconds and SeleniumBase counts seconds.
-  `page.wait_for_timeout(2000)` in Playwright is `sb.sleep(2)` in SeleniumBase.
+  `page.wait_for_timeout(2000)` in Playwright is `sb.sleep(2.0).await` in SeleniumBase
+  (`BaseCase::sleep(&self, seconds: f64)`).
 - Hard sleeps are discouraged in general, but in stealth mode the extra waiting helps the
   automation look human.
 - Playwright's `:has-text()` selector is SeleniumBase's `:contains()` selector, except that
