@@ -1,6 +1,6 @@
 //! The page `sbrs` prints when a command line is wrong.
 //!
-//! usage 6 answers a command line it cannot parse with the clap-shaped error and one line of
+//! usage answers a command line it cannot parse with the clap-shaped error and one line of
 //! `Usage:`. Python's `sbase` prints more: the usage of the command the words reached, its
 //! examples and its options, and then what was wrong with the call. [`render`] does the same:
 //! the help page of the deepest command the words reached (about line, `Usage:`, arguments,

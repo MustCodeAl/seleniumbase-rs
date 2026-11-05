@@ -1,6 +1,6 @@
-//! What usage 6 lets through that clap did not, refused before the real parse.
+//! What usage 7 lets through that clap did not, refused before the real parse.
 //!
-//! usage 6.12 is looser than clap in three places that no attribute of the derives closes:
+//! usage 7.2 is looser than clap in three places that no attribute of the derives closes:
 //!
 //! - A scalar flag given twice. `args_override_self = false` is a setting of one command:
 //!   the root and an `Args` struct can say it, an inline variant of the command enum
@@ -14,6 +14,15 @@
 //! - `help` followed by a path that names no command. The parser stops at the last word
 //!   that names one and prints that page, so `help nosuch` printed the main help.
 //!
+//! usage 7.0 to 7.2 closed none of them (checked against its changelog and documentation on
+//! 2026-11-05): `args_override_self` is still documented per command, and the attributes of a
+//! `Subcommands` variant have no such setting; a switch that is not `bool_value` still drops
+//! the `=value`, and one that is takes `true` and `false`; `help` still stops at the last word
+//! that names a command. `usage_still_takes_what_the_rules_of_strict_refuse` (in `sbrs.rs`)
+//! holds each of the three open: when it fails, usage has taken the rule over, and the rule
+//! goes from here while its tests stay.
+//!
+
 //! [`check`] reads the events the generated parser reads, from the same tables, and
 //! refuses these three with the errors usage renders for everything else. Every other mistake,
 //! and every help or version request, is left to the real parse.

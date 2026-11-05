@@ -1,6 +1,6 @@
 //! The zsh and PowerShell scripts `sbrs completions` prints: usage's scripts with one fix each.
 //!
-//! usage 6.12's zsh script adds every candidate with `compadd -S ''`. That stops zsh from
+//! usage 7.2's zsh script adds every candidate with `compadd -S ''`. That stops zsh from
 //! putting its space after a complete word, so `sbrs pl<Tab>` gives `sbrs plugin` and the
 //! next Tab completes `plugin` again instead of offering `info` and `list`; the same
 //! happens after every flag. The patched script adds complete words without `-S ''`, so
