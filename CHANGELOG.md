@@ -42,10 +42,11 @@ work, `docs/parity.md` the per-API status).
   **Stealth** has an overview and one page per aspect (fingerprints, evasions and launch flags,
   policies, identities and profiles, proxies and network, human-like input, troubleshooting),
   split from the old *Fingerprint & Stealth Profiles* page. **Advanced stealth** holds evasion
-  providers, binary patching, Playwright mode, wire formats and MitmProxy. **Scraping**, in Guides, has an
-  overview, basics, advanced scraping (the fetcher, extractor, crawler and batcher plugins, the
-  browser pool) and the stealth repository's pages under *Stealthy scraping* and *Advanced
-  stealthy scraping*. Every moved route redirects to its new place.
+  providers, binary patching, Playwright mode, wire formats and MitmProxy, and the stealth
+  repository's scraping pages under *Stealthy scraping* and *Advanced stealthy scraping*.
+  **Scraping**, in Guides, has an overview, basics and advanced scraping (the fetcher, extractor,
+  crawler and batcher plugins, the browser pool). The built-in plugin pages sit in a *Built-in*
+  group of Ecosystem → Plugins. Every moved route redirects to its new place.
 
 - `sbrs trace show FOLDER` opens a trace's viewer (`index.html`, written by `Page::start_trace`
   when the recording stops) in the system's default browser; `--print` prints its path instead.

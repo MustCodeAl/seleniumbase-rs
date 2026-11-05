@@ -7,7 +7,8 @@ Scraping is reading data out of pages: loading them, finding the parts you
 want and keeping them, often for many pages at once. `seleniumbase-rs` gives
 you a real browser to do it with, and plugins that do the common jobs for you.
 When a site resists automated clients, the same jobs run with stealth. Stealth
-is one aspect of scraping, so the stealthy pages here link to the
+is one aspect of scraping: the stealthy scraping pages live in the Stealth tab,
+under [Advanced stealth](/stealth/advanced/overview), and link to the
 [Stealth](/stealth/introduction) sections instead of repeating them.
 
 <Note>
@@ -44,6 +45,9 @@ Summary for AI exports: scraping in seleniumbase-rs uses the pure CDP engine (`s
   a list of URLs, read structured data, record what a page loads.
 - **[Advanced scraping](/scraping/advanced)**: crawl a site, run jobs in
   batches, many workers, change what pages load, keep a signed-in session.
+
+In the Stealth tab, under Advanced stealth:
+
 - **[Stealthy scraping](/scraping/stealthy/overview)**: the stealth
   repository's `BrowserScraper` and `HttpSession`, and a first fetch.
 - **[Advanced stealthy scraping](/scraping/advanced-stealthy/overview)**:
