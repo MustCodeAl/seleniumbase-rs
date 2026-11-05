@@ -594,7 +594,7 @@ mod launch_tests {
     }
 
     #[test]
-    fn a_setting_made_before_the_fingerprint_wins_and_one_made_after_replaces_it() {
+    fn a_setting_made_on_the_builder_wins_over_the_fingerprint_before_or_after_it() {
         let fingerprint = Fingerprint::randomized(OsType::Linux, 9);
 
         let before = args(

@@ -5,7 +5,7 @@
 //! together is worked out by [`build`](LaunchOptionsBuilder::build).
 
 use std::path::PathBuf;
-use std::sync::Arc;
+
 use std::time::Duration;
 
 use serde_json::Value;
@@ -105,7 +105,7 @@ impl LaunchOptionsBuilder {
     /// what is applied and what is deliberately left out.
     #[must_use]
     pub fn fingerprint(mut self, fingerprint: &Fingerprint) -> Self {
-        self.given.set.fingerprint = Some(SharedFingerprint(Arc::new(fingerprint.clone())));
+        self.given.set.fingerprint = Some(SharedFingerprint::new(fingerprint));
         self
     }
 

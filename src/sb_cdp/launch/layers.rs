@@ -37,7 +37,21 @@ use crate::sb_cdp::identity::StealthPlan;
 /// A fingerprint the layers and the options built from them share. Its `Debug` is short: the
 /// fingerprint is long, and the plan made from it is what the options show.
 #[derive(Clone)]
-pub(super) struct SharedFingerprint(pub(super) Arc<Fingerprint>);
+pub(super) struct SharedFingerprint {
+    pub(super) fingerprint: Arc<Fingerprint>,
+    pub(super) plan: Arc<StealthPlan>,
+}
+
+impl SharedFingerprint {
+    /// Holds a copy of `fingerprint` and the plan worked out from it, once, so that making the
+    /// options again does not work it out again.
+    pub(super) fn new(fingerprint: &Fingerprint) -> Self {
+        Self {
+            fingerprint: Arc::new(fingerprint.clone()),
+            plan: Arc::new(StealthPlan::new(fingerprint)),
+        }
+    }
+}
 
 impl fmt::Debug for SharedFingerprint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -244,7 +258,9 @@ impl View {
         let asked = layers.set.clone().over(layers.config.clone());
         let fingerprint = asked.fingerprint.clone();
         let merged = match &fingerprint {
-            Some(fingerprint) => asked.clone().over(Layer::of_fingerprint(&fingerprint.0)),
+            Some(shared) => asked
+                .clone()
+                .over(Layer::of_fingerprint(&shared.fingerprint)),
             None => asked.clone(),
         };
         // `mobile(false)` of the builder turns the phone off whatever else asks for one.
@@ -393,7 +409,7 @@ impl Layers {
             .fingerprint
             .as_ref()
             .or(self.config.fingerprint.as_ref())
-            .map(|shared| shared.0.as_ref())
+            .map(|shared| shared.fingerprint.as_ref())
     }
 
     /// Checks the combination and merges the layers into the options a launch reads.
@@ -505,7 +521,7 @@ impl Layers {
             no_sandbox,
             webrtc,
             shield_webrtc: shield_webrtc.unwrap_or(false),
-            identity: fingerprint.map(|shared| Arc::new(StealthPlan::new(shared.0.as_ref()))),
+            identity: fingerprint.map(|shared| shared.plan),
             extra_args,
             extensions,
             prefs: merged_prefs,
@@ -758,6 +774,82 @@ mod tests {
         }
         let kept = built(LaunchOptions::builder().browser_config(&config));
         assert_eq!(kept.fingerprint(), config.fingerprint.as_ref());
+    }
+
+    #[cfg(feature = "plugins")]
+    #[test]
+    fn the_plugins_of_the_builder_replace_the_configs_and_named_ones_come_after() {
+        use seleniumbase_rs_plugin::{async_trait, Plugin, PluginSet};
+
+        struct Mine;
+        struct Theirs;
+
+        #[async_trait]
+        impl Plugin for Mine {
+            fn name(&self) -> &'static str {
+                "mine"
+            }
+        }
+
+        #[async_trait]
+        impl Plugin for Theirs {
+            fn name(&self) -> &'static str {
+                "theirs"
+            }
+        }
+
+        let config = BrowserConfig::default().with_plugins(PluginSet::new().with(Theirs).unwrap());
+        let mine = || PluginSet::new().with(Mine).unwrap();
+        assert_eq!(
+            built(LaunchOptions::builder().browser_config(&config))
+                .plugins
+                .names(),
+            ["theirs"]
+        );
+        for builder in [
+            LaunchOptions::builder()
+                .plugins(mine())
+                .browser_config(&config),
+            LaunchOptions::builder()
+                .browser_config(&config)
+                .plugins(mine()),
+        ] {
+            assert_eq!(built(builder).plugins.names(), ["mine"]);
+        }
+    }
+
+    #[test]
+    fn the_webrtc_policy_of_the_builder_wins_over_the_fingerprints_in_either_order() {
+        // A fingerprint that masks WebRTC passes the policy flag of its own.
+        let masked = Fingerprint::randomized(OsType::Windows, 42);
+        let theirs = masked.policy().webrtc_policy.unwrap_or_default();
+        let mine = if theirs == WebRtcPolicy::PublicInterfaceOnly {
+            WebRtcPolicy::DisableNonProxiedUdp
+        } else {
+            WebRtcPolicy::PublicInterfaceOnly
+        };
+        assert_eq!(
+            built(LaunchOptions::builder().fingerprint(&masked)).webrtc,
+            Some(theirs)
+        );
+        for builder in [
+            LaunchOptions::builder()
+                .webrtc_policy(mine)
+                .fingerprint(&masked),
+            LaunchOptions::builder()
+                .fingerprint(&masked)
+                .webrtc_policy(mine),
+            LaunchOptions::builder().webrtc_policy(mine),
+        ] {
+            let options = built(builder);
+            assert_eq!(options.webrtc, Some(mine));
+            let flags = options.browser_args(Path::new("/tmp/profile"));
+            let policy_flags = flags
+                .iter()
+                .filter(|flag| flag.starts_with("--force-webrtc-ip-handling-policy="))
+                .count();
+            assert_eq!(policy_flags, 1, "{flags:?}");
+        }
     }
 
     #[test]

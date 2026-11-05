@@ -6,7 +6,6 @@
 
 use std::net::{Ipv4Addr, TcpListener};
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use serde_json::{json, Map};
 
@@ -156,10 +155,7 @@ impl Layer {
             device_metrics: launch.device_metrics,
             virtual_display: launch.virtual_display,
             debugging_port: debugging_port(config),
-            fingerprint: config
-                .fingerprint
-                .clone()
-                .map(|fingerprint| SharedFingerprint(Arc::new(fingerprint))),
+            fingerprint: config.fingerprint.as_ref().map(SharedFingerprint::new),
             #[cfg(feature = "plugins")]
             plugins: Some(config.plugins().clone()),
             extensions: config

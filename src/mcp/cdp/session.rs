@@ -101,7 +101,7 @@ async fn start_browser(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
         .incognito(args.bool_or("incognito", false)?)
         .guest(args.bool_or("guest", false)?)
         .ad_block(args.bool_or("ad_block", false)?);
-    // Applied first: the settings made below replace the fingerprint's own.
+    // The settings made on the builder win over the fingerprint's own, in any order.
     let fingerprint = fingerprint::start_fingerprint(&args, ctx.settings())?;
     if let Some(fingerprint) = &fingerprint {
         options = options.fingerprint(fingerprint);
