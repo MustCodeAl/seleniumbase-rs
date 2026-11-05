@@ -56,6 +56,13 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 s
   `startedDateTime`, the info files of a failed test, the `captured_at` of a fingerprint, the log
   clock, and `sbrs report history --json`.
 
+### Changed
+
+- The `s3` and `azure` logging plugins upload through `object_store` 0.12 instead of
+  `rust-s3` and `azure_storage_blob`. `S3LoggingPlugin::upload_file` and
+  `AzureLoggingPlugin::upload_file` keep their signatures. `seleniumbase-rs-plugins` does not
+  need a code change for that. The GCP plugin is unchanged.
+
 ### Added
 
 - Docs: a pure CDP API reference on the Reference tab. [Pure CDP](/api/cdp-overview) introduces `Browser`, `Page` and `Locator`; the pages beside it cover the browser and launch options, the page, locators and expectations, input, network (intercept, HAR, trace, downloads), tab state, and the browser pool.
