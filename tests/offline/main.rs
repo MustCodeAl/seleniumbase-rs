@@ -61,7 +61,7 @@ mod sb_cdp_mock;
 mod sb_cdp_page_inject;
 mod sb_cdp_parity_mock;
 mod sb_cdp_plugin_hooks;
-mod sb_cdp_plugin_network;
+
 mod sb_cdp_plugins;
 mod sb_cdp_pool;
 mod sb_cdp_proxy;

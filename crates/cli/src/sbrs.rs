@@ -42,10 +42,10 @@ use seleniumbase_rs::{
 use serde_json::{json, Value};
 
 mod args;
-#[path = "args/install.rs"]
-mod args_install;
 #[path = "args/doctor.rs"]
 mod args_doctor;
+#[path = "args/install.rs"]
+mod args_install;
 
 mod completion;
 mod crypto;
@@ -2790,7 +2790,10 @@ async fn run_doctor(options: &DoctorArgs) -> Result<(), Box<dyn std::error::Erro
                 }
             }
             (
-                args_doctor::ChromedriverFinding::Found { major: driver, pinned },
+                args_doctor::ChromedriverFinding::Found {
+                    major: driver,
+                    pinned,
+                },
                 browser,
             )
         }
@@ -2824,13 +2827,9 @@ async fn run_doctor(options: &DoctorArgs) -> Result<(), Box<dyn std::error::Erro
             patch_cache_exists: cache_dir.is_dir(),
         };
         let plan = args_doctor::plan_fixes(&findings);
-        let report = args_doctor::apply_fixes(
-            &plan,
-            &cache_dir,
-            failures,
-            install_doctor_chromedriver,
-        )
-        .await;
+        let report =
+            args_doctor::apply_fixes(&plan, &cache_dir, failures, install_doctor_chromedriver)
+                .await;
         for line in &report.lines {
             println!("{line}");
         }

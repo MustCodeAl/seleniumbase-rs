@@ -4,7 +4,9 @@
 //! A test pauses requests the way Chrome does (`Fetch.requestPaused`, at the
 //! request stage and at the response stage) and reads back what the plugins
 //! saw and which `Fetch` commands the mock browser was sent. Run with
-//! `cargo test --features "test-util plugins" --test offline sb_cdp_plugin_network`.
+//! `cargo test --features "test-util plugins" --test sb_cdp_plugin_network`. It is its own test
+//! binary, not a module of `offline`: its event test sets the process-wide `tracing` subscriber,
+//! which another module of a shared binary may already have set.
 
 #![cfg(all(feature = "plugins", feature = "test-util"))]
 

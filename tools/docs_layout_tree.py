@@ -223,6 +223,7 @@ def browser_detail():
         _file("chrome_for_testing.rs", "Chrome for Testing builds"),
         _file("chromium_snapshots.rs", "Chromium snapshot builds"),
         _file("config.rs", "BrowserConfig, Browser and DriverMode"),
+        _file("download_progress.rs", "progress bars for downloads, quiet when not on a terminal"),
         _file("downloader.rs", "downloading a browser or a driver"),
         _file("downloads.rs", "the downloaded_files folder browsers save into"),
         _file("driver_access.rs", "repairs and runs drivers"),
@@ -408,6 +409,7 @@ def cli_package_detail():
     args = _folder(
         "args", "argument structs of the sbrs subcommands",
         _file("content.rs", "convert and the content commands"),
+        _file("doctor.rs", "sbrs doctor and doctor --fix"),
         _file("generators.rs", "mkdir, mkfile, mkchart, mkpres"),
         _file("install.rs", "sbrs install"),
         _file("language.rs", "the chart and presentation languages"),

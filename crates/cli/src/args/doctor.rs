@@ -154,7 +154,9 @@ where
                      is used",
                     path.display()
                 ));
-                let had_mismatch = failures.iter().any(|problem| problem.contains(MISMATCH_MARK));
+                let had_mismatch = failures
+                    .iter()
+                    .any(|problem| problem.contains(MISMATCH_MARK));
                 if !had_mismatch {
                     failures.push(
                         "CHROMEDRIVER_PATH names no usable chromedriver; --fix installed one in \
@@ -164,7 +166,10 @@ where
                 }
             }
             Ok(path) => {
-                lines.push(format!("Fixed: installed chromedriver at {}", path.display()));
+                lines.push(format!(
+                    "Fixed: installed chromedriver at {}",
+                    path.display()
+                ));
                 failures.retain(|problem| !problem.contains(MISMATCH_MARK));
             }
             Err(error) => {
@@ -353,12 +358,10 @@ mod tests {
         .await;
 
         assert!(report.failures.iter().any(|failure| failure == problem));
-        assert!(
-            report
-                .failures
-                .iter()
-                .any(|failure| failure.contains("network down"))
-        );
+        assert!(report
+            .failures
+            .iter()
+            .any(|failure| failure.contains("network down")));
     }
 
     #[tokio::test]

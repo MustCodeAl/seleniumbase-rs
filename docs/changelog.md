@@ -74,6 +74,17 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 s
 
 ### Added
 
+- `ProxyList` picks by a `RotationStrategy`, set with `with_rotation`: `RoundRobin` (the
+  default, as `next_round_robin`), `Random { seed }` (a seed repeats the order; `None` is
+  `random`'s pick), `LeastFailures` and `StickyPerSite`. `pick(site)` and
+  `pick_other(current, site)` choose among the proxies that are not resting,
+  `report(entry, ProxyOutcome)` records what a request met, and
+  `with_quarantine(after_failures, rest)` rests a proxy that keeps failing. The strategies come
+  from the stealth repository's proxy pool, which will build on them.
+- `SolveOptions::retry_policy(RetryPolicy)`: the waits between CAPTCHA presses follow the
+  policy's own schedule (base delay, factor, cap, no spread) instead of `backoff`'s
+  doubling.
+
 - Docs: a pure CDP API reference on the Reference tab. [Pure CDP](/api/cdp-overview) introduces `Browser`, `Page` and `Locator`; the pages beside it cover the browser and launch options, the page, locators and expectations, input, network (intercept, HAR, trace, downloads), tab state, and the browser pool.
 
 - `sbrs doctor --fix` applies the repairs the check already names. It installs a missing or
@@ -95,6 +106,18 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 s
   `chrome-extension://<id>/` of the extensions the launch loaded) and gives a tokio clock through
   `BrowserHandle::clock` when the plugin set has no timer of its own. The WebDriver host has
   neither, so there `wait_for_workers` and `save_on_close` fail at launch, naming the option.
+
+- Docs: the Stealth tab has three sections. **Undetected browsing** holds UC mode and a new
+  [CDP Mode](/stealth/cdp-mode) page (the pure CDP engine as the undetected path).
+  **Stealth** has an overview and one page per aspect (fingerprints, evasions and launch flags,
+  policies, identities and profiles, proxies and network, human-like input, troubleshooting),
+  split from the old *Fingerprint & Stealth Profiles* page. **Advanced stealth** holds evasion
+  providers, binary patching, Playwright mode, wire formats and MitmProxy, and the stealth
+  repository's scraping pages under *Stealthy scraping* and *Advanced stealthy scraping*.
+  Plain scraping has no section of its own: each part is on the page of the plugin that does
+  it (*Scraping with fetcher*, *extractor*, *crawler*, *batcher*), and the plugin overview has a
+  *Scraping* section that picks the tool. The built-in plugin pages sit in a *Built-in* group of
+  Ecosystem → Plugins. Every moved route redirects to its new place.
 
 - `sbrs trace show FOLDER` opens a trace's viewer (`index.html`, written by `Page::start_trace`
   when the recording stops) in the system's default browser; `--print` prints its path instead.
@@ -249,6 +272,14 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 s
 
 ### Removed
 
+- The mise plugin for chromedriver (`contrib/mise/mise-chromedriver`, its Lua tests and the
+  `mise-plugin-test` task) and the `mise which chromedriver` lookup of the WebDriver launcher
+  (`src/browser/mise_driver.rs`): `sbrs` already installs chromedriver and matches it to the
+  installed Chrome, so the plugin only duplicated that. A session now uses
+  `downloaded_drivers/chromedriver` when it fits the browser and otherwise downloads the
+  matching driver; `--driver-version keep` takes a driver from `downloaded_drivers/` or the
+  `PATH`, else downloads one. Installing `sbrs` itself with mise stays (the Installation page).
+
 - **The Tauri profile manager example moved to
   [tauri-plugin-sbrs-automation](https://github.com/MustCodeAl/tauri-plugin-sbrs-automation)**,
   as `examples/tauri-profile-manager` there, where it builds on the plugin (its `stealth` feature
@@ -266,6 +297,11 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 s
   leaving `SBRS_CDP_PORT` unset does not turn that port off. The optional `stealth`
   feature is the in-process path for a shipped app (no port). The guide no longer
   points at `examples/tauri-profile-manager`, which is not in this repository.
+
+- **`BaseCase::assert_attribute` waits for the attribute.** It used to read the
+  attribute once and fail immediately. It now polls until the default timeout, as
+  `assert_text` does, and still fails with `AssertionFailed`, naming the selector,
+  the attribute, the expected value and the value last seen.
 
 - **`scripts/check-consumers.sh` (`mise run contracts`) runs from a git worktree and checks what it
   says it checks.** It looked for the consumers' checkouts in the folder above the script, which in
@@ -2364,7 +2400,7 @@ call, are listed first.
   entropy, and a fingerprint with nothing to draw takes a seed from its user
   agent, so a preset is the same every time.
 - **Profile payloads** read one set of words for every key (see the table in
-  `docs/stealth/introduction.md`): `natural`, `native`, `pass_through`,
+  `docs/tutorials/fingerprint_stealth.md`): `natural`, `native`, `pass_through`,
   `whitelist` are `Natural`; `auto`, and a flag the payload leaves out, are the
   value the payload holds, else `Natural` (the default was `mask` for the
   navigator, localization, time zone, graphics, fonts, screen, geolocation and
@@ -3072,7 +3108,7 @@ A breaking release: the experimental stealth scraping layer leaves this crate.
   `impersonate`), which build on the public API of this crate and stay
   experimental. Current installation uses the unified root facade
   `seleniumbase-rs-stealth`; see the updated
-  [Stealth Scraping setup](/scraping/stealthy/first-fetch).
+  [Stealth Scraping setup](/tutorials/stealth_scraping).
 - With the layer go the optional dependencies `psl`, `wreq`, `btls`,
   `tokio-btls`, `brotli`, `hyper`, `hyper-util` and `http-body-util`; the
   examples `capture_tls`, `capture_hints`, `capture_h2`, `cookie_jar`,
@@ -3502,7 +3538,7 @@ listed first under *Fixed*.
   `scrape` and `impersonate` and at the crate root behind the same features. The
   TLS and HTTP/2 `SpecError` enums are `TlsSpecError` and `H2SpecError`. The stealth
   layer is experimental and not a stable API.
-- `docs/scraping/stealthy/first-fetch.md` and `docs/adr/003-stealth-scraping-layout.md`.
+- `docs/tutorials/stealth_scraping.md` and `docs/adr/003-stealth-scraping-layout.md`.
 - A `rust-analyzer.toml` that loads the optional features so analysis covers
   `src/mcp` and `src/scrape`.
 - `CLAUDE.md` (a map of the modules, checks and gotchas), `CHANGELOG.md`, and

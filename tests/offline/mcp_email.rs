@@ -37,7 +37,8 @@ fn password_is_set() -> bool {
 fn rerun_with_password(name: &str) {
     let exe = std::env::current_exe().expect("the path of this test binary");
     let output = std::process::Command::new(exe)
-        .args([name, "--exact", "--nocapture", "--test-threads=1"])
+        .arg(test_path(name))
+        .args(["--exact", "--nocapture", "--test-threads=1"])
         .env(SET_VARIABLE, "not-a-real-password")
         .output()
         .expect("the test binary starts again");
@@ -49,6 +50,15 @@ fn rerun_with_password(name: &str) {
         "{name} failed in the child process ({}):\n{stdout}\n{stderr}",
         output.status
     );
+}
+
+/// The full name libtest gives the test `name` of this module: `mcp_email::name` in the shared
+/// `offline` binary (the crate name, the first part of `module_path!`, is not part of it).
+fn test_path(name: &str) -> String {
+    match module_path!().split_once("::") {
+        Some((_, module)) => format!("{module}::{name}"),
+        None => name.to_owned(),
+    }
 }
 
 /// A port on the loopback interface that nothing listens on.

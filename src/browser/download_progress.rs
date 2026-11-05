@@ -33,7 +33,11 @@ impl DownloadProgress {
     /// A bar on stdout when stdout is a terminal, otherwise nothing.
     #[must_use]
     pub(crate) fn on_stdout(message: impl Into<String>) -> Self {
-        Self::new(message, io::stdout().is_terminal(), ProgressDrawTarget::stdout())
+        Self::new(
+            message,
+            io::stdout().is_terminal(),
+            ProgressDrawTarget::stdout(),
+        )
     }
 
     /// A bar that draws nothing. Listing fetches use this.
@@ -45,11 +49,7 @@ impl DownloadProgress {
     /// `show` draws on `target`. When it is false the target is not used and
     /// nothing is drawn, which is how a pipe and the tests stay quiet.
     #[must_use]
-    pub(crate) fn new(
-        message: impl Into<String>,
-        show: bool,
-        target: ProgressDrawTarget,
-    ) -> Self {
+    pub(crate) fn new(message: impl Into<String>, show: bool, target: ProgressDrawTarget) -> Self {
         let target = if show {
             target
         } else {
@@ -197,14 +197,20 @@ mod tests {
         progress.start(Some(32));
         progress.advance(16);
         progress.finish();
-        assert!(written.lock().expect("progress log").is_empty(), "a byte bar was drawn");
+        assert!(
+            written.lock().expect("progress log").is_empty(),
+            "a byte bar was drawn"
+        );
 
         let written = Arc::new(Mutex::new(Vec::new()));
         let progress = DownloadProgress::new("chrome", false, recording_term(&written));
         progress.start(None);
         progress.advance(8);
         progress.finish();
-        assert!(written.lock().expect("progress log").is_empty(), "a spinner was drawn");
+        assert!(
+            written.lock().expect("progress log").is_empty(),
+            "a spinner was drawn"
+        );
     }
 
     #[test]
@@ -216,7 +222,10 @@ mod tests {
         progress.finish();
         let text = String::from_utf8(written.lock().expect("progress log").clone())
             .expect("bar text is utf-8");
-        assert!(text.contains("chromedriver"), "the bar did not name the download: {text:?}");
+        assert!(
+            text.contains("chromedriver"),
+            "the bar did not name the download: {text:?}"
+        );
     }
 
     #[test]

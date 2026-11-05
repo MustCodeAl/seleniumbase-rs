@@ -666,6 +666,7 @@ Launch and session plumbing:
 <LayoutFile name="chrome_for_testing.rs" note="Chrome for Testing builds" />
 <LayoutFile name="chromium_snapshots.rs" note="Chromium snapshot builds" />
 <LayoutFile name="config.rs" note="BrowserConfig, Browser and DriverMode" />
+<LayoutFile name="download_progress.rs" note="progress bars for downloads, quiet when not on a terminal" />
 <LayoutFile name="downloader.rs" note="downloading a browser or a driver" />
 <LayoutFile name="downloads.rs" note="the downloaded_files folder browsers save into" />
 <LayoutFile name="driver_access.rs" note="repairs and runs drivers" />
@@ -876,6 +877,7 @@ owns the dependencies only they use (the `usage` command-line parser).
 </LayoutDir>
 <LayoutDir name="args" open note="argument structs of the sbrs subcommands">
 <LayoutFile name="content.rs" note="convert and the content commands" />
+<LayoutFile name="doctor.rs" note="sbrs doctor and doctor --fix" />
 <LayoutFile name="generators.rs" note="mkdir, mkfile, mkchart, mkpres" />
 <LayoutFile name="install.rs" note="sbrs install" />
 <LayoutFile name="language.rs" note="the chart and presentation languages" />
