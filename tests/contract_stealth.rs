@@ -1,5 +1,5 @@
 //! The contract with `seleniumbase-rs-stealth`, the experimental stealth layer (crates
-//! `seleniumbase-rs-codec`, `-scrape` and `-mimic`) that builds on this crate's public API.
+//! `seleniumbase-rs-codec`, `-scrape` and `-wire`) that builds on this crate's public API.
 //!
 //! The stealth repository depends on this crate by git, with no tag or revision, so it takes
 //! whatever its lockfile holds and meets a change here the day it updates. This file is what
@@ -34,7 +34,7 @@
 mod imports {
     //! The imports of the stealth repository, as written there.
 
-    // crates/codec/src/emulation.rs, tests, crates/mimic/*, crates/scrape/*: `evasion::fingerprint`.
+    // crates/codec/src/measurement.rs, tests, crates/wire/*, crates/scrape/*: `evasion::fingerprint`.
     const _: () = {
         use seleniumbase_rs::evasion::fingerprint::OsType;
     };
@@ -181,9 +181,8 @@ mod imports {
         use seleniumbase_rs::common::shutdown::cleanup_within;
     };
 
-    // The facade crate (src/lib.rs, lines 12 and 15) re-exports the whole of both.
+    // The facade crate (src/lib.rs) re-exports the whole of the core crate.
     pub mod facade {
-        pub use seleniumbase_rs::evasion::*;
         pub use seleniumbase_rs::*;
     }
 
@@ -261,7 +260,7 @@ mod calls {
         let _: fn(&Proxy) -> bool = Proxy::has_credentials;
     }
 
-    /// crates/mimic/src/stealth_session/fetch.rs and crates/scrape/src/runtime/cdp.rs.
+    /// crates/wire/src/stealth_session/fetch.rs and crates/scrape/src/runtime/cdp.rs.
     #[test]
     fn a_page_url_is_normalised_as_page_goto_reads_it() {
         let _: fn(&str) -> Result<String, SeleniumBaseError> = normalize_page_url;
@@ -271,7 +270,7 @@ mod calls {
         );
     }
 
-    /// crates/mimic/src/http_session/pace.rs, stealth_session/pace.rs and
+    /// crates/wire/src/http_session/pace.rs, stealth_session/pace.rs and
     /// crates/scrape/src/runtime/browser_scraper/pacing.rs.
     async fn the_pacers(calls: usize, window: Duration) {
         let limiter: Arc<RateLimiter> = Arc::new(RateLimiter::new(calls, window));
@@ -292,7 +291,7 @@ mod calls {
         .await
     }
 
-    /// crates/mimic/src/mitm/mod.rs and mitm/websocket.rs.
+    /// crates/wire/src/mitm/mod.rs and mitm/websocket.rs.
     async fn the_shutdown_helpers(grace: Duration) {
         let _: Duration = shutdown::timeout_from_env();
         let ended: bool = cleanup_within(grace, async {}).await;
@@ -319,7 +318,7 @@ mod calls {
     }
 
     /// crates/scrape/src/runtime/browser_scraper/launcher.rs and rotate.rs; the identity
-    /// tests of crates/mimic.
+    /// tests of crates/wire.
     #[test]
     fn a_fingerprint_is_made_read_and_changed_as_the_stealth_crates_do() {
         let fingerprint: Fingerprint = Fingerprint::randomized(OsType::Macos, 7);
@@ -340,7 +339,7 @@ mod calls {
         assert!(proxied.is_ok());
     }
 
-    /// crates/mimic/src/capture_h2/browser.rs: the launch options a measured browser gets.
+    /// crates/wire/src/capture_h2/browser.rs: the launch options a measured browser gets.
     fn launch_options(
         headless: bool,
         lang: String,
@@ -363,7 +362,7 @@ mod calls {
         builder.build()
     }
 
-    /// crates/mimic/src/mitm/mod.rs, `MitmProxy::configure_launch`, and the stealth session's
+    /// crates/wire/src/mitm/mod.rs, `MitmProxy::configure_launch`, and the stealth session's
     /// use of the fingerprint on the builder.
     fn configure_launch(
         builder: LaunchOptionsBuilder,
@@ -387,12 +386,12 @@ mod calls {
         builder.fingerprint(fingerprint)
     }
 
-    /// crates/mimic/tests/stealth_session/flows.rs, line 111.
+    /// crates/wire/tests/stealth_session/flows.rs, line 111.
     fn a_proxy_with_credentials(options: &LaunchOptions) -> bool {
         options.proxy().is_some_and(Proxy::has_credentials)
     }
 
-    /// crates/mimic/src/capture_h2/browser.rs and crates/scrape/src/runtime/browser_scraper/*.
+    /// crates/wire/src/capture_h2/browser.rs and crates/scrape/src/runtime/browser_scraper/*.
     async fn the_browser(options: LaunchOptions) -> Result<(), SeleniumBaseError> {
         let browser: Browser = Browser::launch(options).await?;
         let _: Value = browser.execute("Browser.getVersion", json!({})).await?;
