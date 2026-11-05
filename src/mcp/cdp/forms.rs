@@ -1,7 +1,8 @@
 //! Typing, choosing options and focus.
 
-use super::{focus_element, select_option, selector_prop, timeout_prop, type_text, Cdp};
-use crate::mcp::{Effect, Prop, Schema, ToolDef};
+use super::{selector_prop, timeout_prop, Cdp};
+use crate::mcp::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};
+use crate::sb_cdp::{Key, SelectBy};
 
 pub(super) fn tools() -> Vec<ToolDef<Cdp>> {
     vec![
@@ -72,4 +73,86 @@ pub(super) fn tools() -> Vec<ToolDef<Cdp>> {
             focus_element,
         ),
     ]
+}
+
+async fn type_text(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
+    let selector = args.str("selector")?;
+    let text = args.str_or("text", "")?;
+    let mode = args.choice(
+        "mode",
+        &[
+            "fill_input",
+            "append",
+            "fast_type",
+            "set_value",
+            "clear_only",
+        ],
+        "fill_input",
+    )?;
+    let timeout = args.seconds_or("timeout", 5.0)?;
+    let session = ctx.session().await?;
+    let page = &session.page;
+    let field = page.locator(selector).with_timeout(timeout);
+
+    match mode {
+        "fill_input" => field.type_text(text).await?,
+        "append" => field.send_keys(text).await?,
+        "fast_type" => {
+            field.clear().await?;
+            // Inserting text in one step cannot press Enter, so do that
+            // between the lines.
+            for (index, line) in text.split('\n').enumerate() {
+                if index > 0 {
+                    page.keyboard().press(Key::Enter).await?;
+                }
+                if !line.is_empty() {
+                    page.keyboard().insert_text(line).await?;
+                }
+            }
+        }
+        "set_value" => field.set_value(text).await?,
+        _ => field.clear().await?,
+    }
+    Ok(format!("type_text(mode={mode}) done for {selector}").into())
+}
+
+async fn select_option(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
+    let dropdown = args.str("dropdown_selector")?;
+    let value = args.scalar("value")?;
+    let by = args.choice("by", &["text", "value", "index"], "text")?;
+    let choice =
+        match by {
+            "text" => SelectBy::Text(&value),
+            "value" => SelectBy::Value(&value),
+            _ => {
+                SelectBy::Index(value.trim().parse().ok().ok_or_else(|| {
+                    ToolError::invalid("value", "an index must be a whole number")
+                })?)
+            }
+        };
+    ctx.session()
+        .await?
+        .page
+        .locator(dropdown)
+        .select_option(choice)
+        .await?;
+    Ok(format!("Selected ({by}={value:?}) in {dropdown}").into())
+}
+
+async fn focus_element(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
+    let selector = args.str("selector")?;
+    let action = args.choice(
+        "action",
+        &["scroll_to_element", "focus", "highlight"],
+        "scroll_to_element",
+    )?;
+    let timeout = args.seconds_or("timeout", 5.0)?;
+    let session = ctx.session().await?;
+    let element = session.page.locator(selector).with_timeout(timeout);
+    match action {
+        "scroll_to_element" => element.scroll_into_view().await?,
+        "focus" => element.focus().await?,
+        _ => element.flash().await?,
+    }
+    Ok(format!("{action} done for {selector}").into())
 }

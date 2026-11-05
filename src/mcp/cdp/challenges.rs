@@ -1,7 +1,7 @@
 //! CAPTCHAs: what stands between the session and a protected page.
 
-use super::{solve_captcha, Cdp};
-use crate::mcp::{Effect, Schema, ToolDef};
+use super::Cdp;
+use crate::mcp::{Args, Ctx, Effect, Output, Schema, ToolDef, ToolError};
 
 pub(super) fn tools() -> Vec<ToolDef<Cdp>> {
     vec![ToolDef::new(
@@ -15,4 +15,17 @@ pub(super) fn tools() -> Vec<ToolDef<Cdp>> {
         Schema::new(),
         solve_captcha,
     )]
+}
+
+async fn solve_captcha(ctx: Ctx<Cdp>, _args: Args) -> Result<Output, ToolError> {
+    let session = ctx.session().await?;
+    let solved = session
+        .page
+        .solve_captcha_with(&crate::sb_cdp::SolveOptions::default())
+        .await?;
+    Ok(match solved {
+        Some(solved) => format!("Attempted to solve a {} CAPTCHA: {solved}.", solved.captcha),
+        None => "No supported CAPTCHA was found on the page.".to_owned(),
+    }
+    .into())
 }

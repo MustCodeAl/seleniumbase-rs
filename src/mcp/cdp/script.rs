@@ -1,7 +1,7 @@
 //! Running JavaScript in the page.
 
-use super::{run_javascript, Cdp};
-use crate::mcp::{Effect, Prop, Schema, ToolDef};
+use super::Cdp;
+use crate::mcp::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};
 
 pub(super) fn tools() -> Vec<ToolDef<Cdp>> {
     vec![ToolDef::new(
@@ -16,4 +16,11 @@ pub(super) fn tools() -> Vec<ToolDef<Cdp>> {
         ),
         run_javascript,
     )]
+}
+
+async fn run_javascript(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
+    let expression = args.str("expression")?;
+    Ok(Output::Json(
+        ctx.session().await?.page.evaluate(expression).await?,
+    ))
 }

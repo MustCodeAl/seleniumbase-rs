@@ -1,7 +1,11 @@
 //! Cookies, `localStorage` and `sessionStorage`.
 
-use super::{manage_cookies, manage_storage, Cdp};
-use crate::mcp::{Effect, Prop, Schema, ToolDef};
+use serde_json::Value;
+
+use super::Cdp;
+use crate::error::SeleniumBaseError;
+use crate::mcp::support::{cookie_file, json_output};
+use crate::mcp::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};
 
 pub(super) fn tools() -> Vec<ToolDef<Cdp>> {
     vec![
@@ -48,4 +52,63 @@ pub(super) fn tools() -> Vec<ToolDef<Cdp>> {
             manage_storage,
         ),
     ]
+}
+
+async fn manage_cookies(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
+    let action = args.choice("action", &["get_all", "clear", "save", "load"], "get_all")?;
+    let session = ctx.session().await?;
+    let cookies = session.page.cookies();
+
+    match action {
+        "get_all" => json_output(cookies.all().await?),
+        "clear" => {
+            cookies.clear().await?;
+            Ok("Cookies cleared.".into())
+        }
+        _ => {
+            let (path, name) =
+                cookie_file(ctx.settings(), args.str_or("filename", "cookies.txt")?)?;
+
+            if action == "save" {
+                if let Some(dir) = path.parent() {
+                    tokio::fs::create_dir_all(dir)
+                        .await
+                        .map_err(SeleniumBaseError::from)?;
+                }
+                let saved = cookies.save(&path, None).await?;
+                Ok(format!("Saved {saved} cookies to {name}").into())
+            } else {
+                if !path.exists() {
+                    return Err(ToolError::Refused(format!(
+                        "{name} does not exist in the cookie directory"
+                    )));
+                }
+                let loaded = cookies.load(&path, None).await?;
+                Ok(format!("Loaded {loaded} cookies from {name}").into())
+            }
+        }
+    }
+}
+
+async fn manage_storage(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
+    let key = args.str("key")?;
+    let which = args.choice("storage", &["local", "session"], "local")?;
+    let action = args.choice("action", &["get", "set"], "get")?;
+    let session = ctx.session().await?;
+    let storage = if which == "local" {
+        session.page.local_storage()
+    } else {
+        session.page.session_storage()
+    };
+
+    if action == "get" {
+        return Ok(Output::Json(
+            storage.get(key).await?.map_or(Value::Null, Value::String),
+        ));
+    }
+    let value = args
+        .opt_str("value")?
+        .ok_or_else(|| ToolError::invalid("value", "required when action is set"))?;
+    storage.set(key, value).await?;
+    Ok(format!("Set {which}Storage[{key:?}]").into())
 }
