@@ -189,6 +189,14 @@ work, `docs/parity.md` the per-API status).
 
 ### Removed
 
+- The mise plugin for chromedriver (`contrib/mise/mise-chromedriver`, its Lua tests and the
+  `mise-plugin-test` task) and the `mise which chromedriver` lookup of the WebDriver launcher
+  (`src/browser/mise_driver.rs`): `sbrs` already installs chromedriver and matches it to the
+  installed Chrome, so the plugin only duplicated that. A session now uses
+  `downloaded_drivers/chromedriver` when it fits the browser and otherwise downloads the
+  matching driver; `--driver-version keep` takes a driver from `downloaded_drivers/` or the
+  `PATH`, else downloads one. Installing `sbrs` itself with mise stays (the Installation page).
+
 - **The Tauri profile manager example moved to
   [tauri-plugin-sbrs-automation](https://github.com/MustCodeAl/tauri-plugin-sbrs-automation)**,
   as `examples/tauri-profile-manager` there, where it builds on the plugin (its `stealth` feature

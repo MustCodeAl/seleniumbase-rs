@@ -4,9 +4,11 @@ title: "Design: a mise plugin for chromedriver"
 
 # Design: a mise plugin for chromedriver
 
-Status: built for the plain chromedriver: a tool plugin in
+Status: removed. It was built for the plain chromedriver (a tool plugin in
 `contrib/mise/mise-chromedriver` and a `mise which chromedriver` lookup in the
-launcher (`src/browser/mise_driver.rs`). The patched UC build is not built.
+launcher, `src/browser/mise_driver.rs`) and taken out again, because `sbrs`
+already installs chromedriver and matches it to the installed Chrome, so the
+plugin only duplicated that. This page stays as the record of the design.
 
 A [mise](https://mise.jdx.dev) plugin that installs, upgrades and removes
 chromedriver. Versions come from the Chrome for Testing JSON this crate already
