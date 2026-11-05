@@ -3,7 +3,7 @@ title: "Design: Stealthy Playwright Mode on the BaseCase API"
 sidebarTitle: "Playwright mode on BaseCase"
 ---
 
-Status: design note, written before the code (branch `lane/design-playwright-basecase`).
+Status: implemented on `lane/playwright-basecase`; the owner accepted every recommendation of section 7 (the note was written before the code, on `lane/design-playwright-basecase`). Section 8 records what the code found.
 Code it changes: `crates/playwright/`, `src/api/base_case.rs`, `src/browser/session/cdp.rs`,
 `src/sb_cdp/endpoint.rs`. Breaking changes are fine (no users yet); nothing below keeps a shim.
 
@@ -410,3 +410,22 @@ One commit per step, in this order. No step needs chromedriver except the dogfoo
 6. **An automated test of the UC road.** It needs chromedriver, which the one headless test
    avoids. Recommendation: no automated test in this lane; the dogfood run of step 6 and
    `tools/linux-check/chrome.sh` cover it, and a test follows if it ever breaks.
+
+## 8. What the code found
+
+- **Does rustwright 0.3's Rust `Page` report its target id?** Yes. `Page::target_id() -> String`
+  and `Page::url() -> String` (rustwright's `rust-native/src/lib.rs`, read through Context7;
+  `Browser::pages()` lists the pages), and the crate compiles against `rustwright = "0.3"` with
+  both calls (`crates/playwright/src/sidecar.rs`, `page_for`). Its `url()` is the cached URL of
+  the main frame. `attach` therefore matches by target id first, as designed.
+- **Does a chromedriver window handle equal the CDP target id?** Not verified. No documentation
+  Context7 or the repository has says so, and the Chrome test that would show it needs
+  chromedriver and was not run (the test of the UC road is not part of this lane, question 6).
+  `attach` compares the handle with the target id as it is, and the URL hint decides when they
+  differ; two tabs on one URL with a handle that is not a target id are refused, never guessed.
+- **`devtools_endpoint` for a WebDriver session** reads `debuggerAddress` from the capabilities
+  with `proxy_auth::debugger_address` and resolves the WebSocket address with
+  `sb_cdp::endpoint::resolve` (now `pub(crate)`, with its module); the probe waits 10 seconds.
+- **`PlaywrightTarget`** is sealed through a private supertrait that is `Sync`, because its one
+  method returns `impl Future + Send` that holds `&self`: that keeps `attach` `Send` for both
+  targets.

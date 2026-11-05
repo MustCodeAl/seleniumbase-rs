@@ -1367,7 +1367,7 @@ See [Fingerprint & Stealth Profiles](/stealth/fingerprints#randomised-identities
 
 <Badge color="blue">Engine</Badge>
 
-Stealthy Playwright Mode: the optional crate `seleniumbase-rs-playwright` attaches [rustwright](#rustwright) to a stealthy pure-CDP browser through its DevTools endpoint (`connect_over_cdp`), so Playwright-style code and the CDP API drive the same browser. The library itself has no Playwright engine.
+Stealthy Playwright Mode: the optional crate `seleniumbase-rs-playwright` attaches [rustwright](#rustwright) beside a stealthy browser's page (`PlaywrightSidecar::attach`) through its DevTools endpoint (`connect_over_cdp`), so the BaseCase API and Playwright drive the same tab. The library itself has no Playwright engine.
 
 See [Playwright Mode](/help/playwright_mode).
 

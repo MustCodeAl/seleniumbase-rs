@@ -74,22 +74,35 @@ const GONE: &[(&str, &str)] = &[
     ),
     (
         "activate_playwright_mode",
-        "seleniumbase_rs_playwright::StealthyPlaywright",
+        "seleniumbase_rs_playwright::PlaywrightSidecar",
     ),
     (
         "playwright_session()",
-        "seleniumbase_rs_playwright::StealthyPlaywright::playwright",
+        "seleniumbase_rs_playwright::PlaywrightSidecar",
     ),
     (
         "browser::playwright",
-        "seleniumbase_rs_playwright::PlaywrightSession",
+        "seleniumbase_rs_playwright::PlaywrightSidecar",
     ),
     (
         "api::playwright",
-        "seleniumbase_rs_playwright::PlaywrightSession",
+        "seleniumbase_rs_playwright::PlaywrightSidecar",
     ),
-    ("launch_playwright_headless", "StealthyPlaywright::launch"),
-    ("PlaywrightSession::launch()", "StealthyPlaywright::launch"),
+    (
+        "launch_playwright_headless",
+        "Browser::launch, then PlaywrightSidecar::attach",
+    ),
+    (
+        "StealthyPlaywright",
+        "Browser::launch, then PlaywrightSidecar::attach(&page)",
+    ),
+    // The bridge's session and launcher were replaced by the sidecar (the design note
+    // docs/design/playwright_basecase.md): `PlaywrightSession` is `PlaywrightSidecar` and
+    // `StealthyPlaywright` is `Browser::launch`, then `PlaywrightSidecar::attach`.
+    (
+        "playwright_mut(",
+        "Browser::new_page, then PlaywrightSidecar::attach",
+    ),
     // The crate is not on crates.io: it is installed from git.
     (
         "seleniumbase-rs = { version",
@@ -121,19 +134,16 @@ const GONE: &[(&str, &str)] = &[
         "profile_payloads::ProxyConfig",
         "profile_payloads::ProfileProxy",
     ),
-    (
-        "PlaywrightSession::launch_headless",
-        "StealthyPlaywright::launch",
-    ),
-    (
-        "PlaywrightSession::launch_with_config",
-        "StealthyPlaywright::launch",
-    ),
+    ("PlaywrightSession", "PlaywrightSidecar"),
+    (".with_page(", "PlaywrightSidecar::run"),
     (
         "launch_headless_with_fingerprint",
-        "StealthyPlaywright::launch",
+        "Browser::launch with LaunchOptionsBuilder::fingerprint",
     ),
-    ("launch_with_fingerprint", "StealthyPlaywright::launch"),
+    (
+        "launch_with_fingerprint",
+        "Browser::launch with LaunchOptionsBuilder::fingerprint",
+    ),
     (
         "run_browser_test_boxed",
         "run_browser_test(.., async |sb| ..)",

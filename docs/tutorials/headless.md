@@ -48,7 +48,7 @@ Each engine turns headless mode into a browser flag:
 | Chrome, Edge and the other Chromium browsers, WebDriver engine | `--headless=new` and `--disable-gpu` | `--window-size=1280,720` (`390,844` with `mobile`) unless you set one, headless or headed |
 | Chrome, pure CDP engine | `--headless=new` | none unless you set `window_size(width, height)` or a fingerprint gives a screen size |
 | Firefox, WebDriver engine | `-headless` | the browser's own |
-| Chrome, Playwright mode (`seleniumbase-rs-playwright`) | whatever the pure CDP browser it attaches to was launched with | the same as the pure CDP engine |
+| Chrome, Playwright mode (`PlaywrightSidecar` of `seleniumbase-rs-playwright`) | whatever the browser it attaches to was launched with | the same as that browser's engine |
 | Safari | none: Safari always opens a window | the browser's own |
 
 <Columns cols={2}>
@@ -102,7 +102,7 @@ Each engine has its own default:
 | `sbrs` browser commands (`open`, `smoke`, `record`, ...) | <Badge color="blue">Headed</Badge> | `--headless` or `--headed`, `SB_HEADLESS`, the settings file |
 | `sbrs devtools` | <Badge color="purple">By system</Badge> Headless on Linux, headed elsewhere | `--headless`, or the global `--headed` |
 | Pure CDP engine (`LaunchOptions`) | <Badge color="purple">By system</Badge> Headless on Linux, headed on every other system | `LaunchOptionsBuilder::headless(bool)` |
-| `StealthyPlaywright::launch(options)` (crate `seleniumbase-rs-playwright`) | The same as the pure CDP engine: it launches the browser with the `LaunchOptions` you give | `LaunchOptionsBuilder::headless(bool)`; `PlaywrightSession::attach` leaves the headless setting of the browser it attaches to |
+| `Browser::launch(options)`, then `PlaywrightSidecar::attach(&page)` (crate `seleniumbase-rs-playwright`) | The same as the pure CDP engine: `Browser::launch` starts the browser with the `LaunchOptions` you give | `LaunchOptionsBuilder::headless(bool)`; `PlaywrightSidecar::attach` leaves the headless setting of the browser it attaches to |
 | `sbrs-mcp` `start_browser` (all three toolsets: `sb`, `driver` and `cdp`) | <Badge color="purple">By system</Badge> Headless on Linux, headed elsewhere | The tool's `headless` argument |
 | Safari | <Badge color="blue">Headed</Badge> Always a window | Safari ignores the setting |
 

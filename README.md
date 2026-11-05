@@ -427,7 +427,10 @@ See [`examples/cloud_upload.rs`](./examples/cloud_upload.rs) for the full snippe
 ### Stealthy Playwright Mode (optional crate)
 
 As in Python SeleniumBase, Playwright attaches to a stealthy CDP browser with
-`connect_over_cdp`, so both APIs work on the same tab. The bridge is the separate
+`connect_over_cdp`. You drive the stealthy browser with the same API as everywhere else
+(`open`, `click`, `type_text`, `assert_text`, `solve_captcha` on an `sb_cdp::Page` or a
+`BaseCase`), and `PlaywrightSidecar::attach(&page)` puts the rustwright page beside it, on the
+same tab, for what only Playwright does. The bridge is the separate
 workspace crate [`seleniumbase-rs-playwright`](./crates/playwright) (the library has no
 Playwright engine and no `playwright` feature). It uses the
 [`rustwright`](https://github.com/Skyvern-AI/rustwright) native Rust CDP engine, so it does

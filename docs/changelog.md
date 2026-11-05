@@ -45,6 +45,25 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 s
   `base64_decode` and `unobfuscate` moved into `seleniumbase_rs::common::obfuscate`.
   The two modules imported each other. Import them from `common::obfuscate`.
 
+- **Breaking: the Playwright bridge's `PlaywrightSidecar` replaces `PlaywrightSession` and
+  `StealthyPlaywright`.** The stealthy browser is driven with the BaseCase API (`sb_cdp::Page`
+  and `BaseCase`, as on every other page of the docs) and Playwright joins on the same tab only
+  for what that API does not do, so the bridge wraps no Playwright call any more. In the crate
+  `seleniumbase-rs-playwright`: `PlaywrightSession` is `PlaywrightSidecar`;
+  `attach(&sb_cdp::Browser)` is `attach(&page)` (call `Browser::default_page()` first), and
+  `attach` also takes a `BaseCase` (the sealed `PlaywrightTarget` is `sb_cdp::Page` and
+  `BaseCase`); `connect_over_cdp(&str)` and `connect_with(ConnectOptions)` are
+  `connect(&DevToolsEndpoint)`; `with_page` is `run`; `goto`, `click`, `type_text`, `get_text`,
+  `evaluate`, `screenshot` and `new_page` are gone (use the BaseCase API on the page, and
+  `Browser::new_page`); `StealthyPlaywright` and its `launch`, `cdp`, `playwright`,
+  `playwright_mut`, `endpoint` and `close` are gone (use `Browser::launch`, then
+  `PlaywrightSidecar::attach`, and `Browser::devtools_endpoint`). `attach` takes the tab its
+  target is on, found by target id, then by a unique URL, and refuses two tabs it cannot tell
+  apart with an error that names the open URLs, where the old session took the browser's first
+  page. `run` maps only a lost browser or page (`BrowserDisconnected`) and a timeout
+  (`WaitTimeout`); every other rustwright failure is `Playwright` with its text, and no element
+  error is made up. `close` on a sidecar whose browser is gone is `Ok`.
+
 - **Breaking: times are `jiff`, not `chrono`.** chrono is soft-deprecated; the public items that
   carried one now carry jiff's (`jiff = "0.2"`). `core::report_helper::RunSnapshot::started_at`
   and `updated_at` are a `jiff::Zoned` (a `chrono::DateTime<Local>` before),
@@ -74,6 +93,16 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 s
 
 ### Added
 
+- `BaseCase::devtools_endpoint()` (and `BrowserSession::devtools_endpoint()`): the DevTools
+  endpoint of the browser a case drives, Python's `get_endpoint_url()` for the `SB(uc=True)`
+  format. A WebDriver Chromium session answers the `debuggerAddress` its driver reported (probed
+  at `/json/version` for the WebSocket address); a direct CDP attachment answers its browser's.
+  Firefox, Safari and a grid that hides the address get `Unsupported`. The Playwright bridge's
+  `PlaywrightSidecar::attach(&sb)` uses it.
+- `PlaywrightSidecar` and the sealed `PlaywrightTarget` (`sb_cdp::Page`, `BaseCase`) in the crate
+  `seleniumbase-rs-playwright`: rustwright attached beside a handle of this project, on the tab
+  that handle is on, with `attach(&target)`, `connect(&endpoint)`, `run(closure)`, `page()`,
+  `browser()`, `is_connected()` and `close()`. See the breaking entry above.
 - `ProxyList` picks by a `RotationStrategy`, set with `with_rotation`: `RoundRobin` (the
   default, as `next_round_robin`), `Random { seed }` (a seed repeats the order; `None` is
   `random`'s pick), `LeastFailures` and `StickyPerSite`. `pick(site)` and
