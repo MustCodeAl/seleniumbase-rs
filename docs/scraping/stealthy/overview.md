@@ -1,9 +1,17 @@
 ---
-title: "Stealth Scraping"
+title: "Stealthy scraping"
 sidebarTitle: "Overview"
 ---
 
 <Badge color="orange">Experimental</Badge>
+
+The scraping tools of the
+[seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
+repository, for sites that block automated clients. The stealth they use is
+described in the Stealth sections: [Fingerprints](/stealth/fingerprints),
+[Proxies and network](/stealth/proxies), [Wire formats](/stealth/advanced/wire-formats)
+and [MitmProxy](/stealth/advanced/mitm-proxy). Plain scraping comes first in
+[Scraping](/plugins/overview#scraping).
 
 <Note>
 
@@ -18,15 +26,15 @@ not in this one.
 
 A site can tell a client apart before any page script runs: by the TLS
 `ClientHello`, by the HTTP/2 connection start, and by the order and spelling of
-the request headers. [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth)
+the request headers. [Fingerprint & Stealth Profiles](/stealth/introduction)
 covers what a page can read from inside the browser. This section covers the
 other side, the wire, and the pieces that keep an identity, its cookies and its
 exit address together.
 
 These pages were checked against `seleniumbase-rs-stealth` at `0eb20629`.
 Types and paths may change between commits, and nothing there is on crates.io.
-Read [Limits](/stealth/limits) before you rely on any of it. The short on-ramp,
-with a first fetch, is the [tutorial](/tutorials/stealth_scraping).
+Read [Limits](/scraping/advanced-stealthy/limits) before you rely on any of it. The short on-ramp,
+with a first fetch, is the [tutorial](/scraping/stealthy/first-fetch).
 
 <Visibility for="agents">
 
@@ -57,7 +65,7 @@ Summary for AI exports: depend on the `seleniumbase-rs-stealth` facade by Git, a
 `HttpSession`, `MitmProxy` and `StealthSession` are tested against loopback
 sites, a scripted browser and, in tests marked `#[ignore]`, a local Chrome 155
 on macOS, run headless. None of them was checked against a live service.
-[Limits](/stealth/limits) lists what that leaves open, including the three
+[Limits](/scraping/advanced-stealthy/limits) lists what that leaves open, including the three
 known gaps between Chrome's handshake and the one wreq can send.
 
 </Warning>
@@ -65,20 +73,20 @@ known gaps between Chrome's handshake and the one wreq can send.
 ## Pick a tool first
 
 UC mode in this crate and the stealth repository answer different signals.
-The [tutorial](/tutorials/stealth_scraping) is the short version of this table,
+The [tutorial](/scraping/stealthy/first-fetch) is the short version of this table,
 with the dependency and a first fetch. The section below it is the description
 of what the layer does; the links are where each piece is spelled out.
 
 | You need | Read | BoringSSL |
 |---|---|---|
-| What a page can read inside the browser | [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth) | No |
-| A real Chrome fetch, no TLS spoofing | [BrowserScraper](/stealth/browser-scraper) | No |
-| Plain HTTP with the measured handshake | [HttpSession](/stealth/http-session) | Yes |
-| HTTP that escalates to Chrome on a challenge | [StealthSession](/stealth/stealth-session) | Yes |
-| A real Chrome behind that same handshake | [MitmProxy](/stealth/mitm-proxy) | Yes |
-| Cookies, the identity file, challenge decisions | [Identity and cookies](/stealth/identity) | No |
-| The measured tables, or a Chrome that just updated | [Wire formats](/stealth/wire-formats) | HTTP/2 capture only |
-| What is refused, and what an error means | [Limits](/stealth/limits) |  |
+| What a page can read inside the browser | [Fingerprint & Stealth Profiles](/stealth/introduction) | No |
+| A real Chrome fetch, no TLS spoofing | [BrowserScraper](/scraping/stealthy/browser-scraper) | No |
+| Plain HTTP with the measured handshake | [HttpSession](/scraping/stealthy/http-session) | Yes |
+| HTTP that escalates to Chrome on a challenge | [StealthSession](/scraping/advanced-stealthy/stealth-session) | Yes |
+| A real Chrome behind that same handshake | [MitmProxy](/stealth/advanced/mitm-proxy) | Yes |
+| Cookies, the identity file, challenge decisions | [Identity and cookies](/scraping/advanced-stealthy/identity) | No |
+| The measured tables, or a Chrome that just updated | [Wire formats](/stealth/advanced/wire-formats) | HTTP/2 capture only |
+| What is refused, and what an error means | [Limits](/scraping/advanced-stealthy/limits) |  |
 
 ## Features
 
@@ -124,7 +132,7 @@ streamed both ways within size limits. A `wss://` or `ws://` WebSocket handshake
 is relayed with the measured WebSocket `ClientHello`. By default the proxy
 refuses loopback, private and cloud-metadata destinations. Chrome's own TLS
 handshake ends at the proxy, so the proxy is the one the site sees. The page
-for it is [MitmProxy](/stealth/mitm-proxy).
+for it is [MitmProxy](/stealth/advanced/mitm-proxy).
 
 ### A plain HTTP client without a browser
 
@@ -139,7 +147,7 @@ requests with that client, keeps an RFC 6265 cookie jar (with the public suffix
 list), follows redirects by hand, enforces limits (time, body size, redirects,
 requests per window and site) and detects challenges on every reply. It does not
 run JavaScript or solve challenges. A request body is held in memory; the reply
-is read as a stream and capped. The page for it is [HttpSession](/stealth/http-session).
+is read as a stream and capped. The page for it is [HttpSession](/scraping/stealthy/http-session).
 
 ### Dual-mode sessions
 
@@ -154,7 +162,7 @@ identity; the session then goes back to HTTP (`SessionPolicy` decides, and a
 clearance about to expire sends it back to the browser). The proxy and the HTTP
 client use the same proxy egress. A Chrome of another major version than the
 measurement is refused before it loads a page. The page for it is
-[StealthSession](/stealth/stealth-session).
+[StealthSession](/scraping/advanced-stealthy/stealth-session).
 
 ### The CDP client
 
@@ -185,7 +193,7 @@ Canvas noise (`toDataURL`, `toBlob`, `getImageData`) and audio noise
 the position, so reading the same canvas twice gives the same bytes. Other
 providers cover WebGL, navigator, plugins, permissions, WebRTC, time zone and
 locale, geolocation and more. The guide in this crate is
-[Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth).
+[Fingerprint & Stealth Profiles](/stealth/introduction).
 
 ### Challenge detection and mitigation
 
@@ -207,7 +215,7 @@ hCaptcha, Friendly Captcha or the DataDome slider; the site decides whether it
 is accepted), then waits for the vendor's clearance cookie or for the page to
 stop being a challenge, bounded by a timeout. A script challenge is only waited
 for. There is no connection to a solving service. The page for it is
-[Identity and cookies](/stealth/identity#challenge-detection-and-mitigation).
+[Identity and cookies](/scraping/advanced-stealthy/identity#challenge-detection-and-mitigation).
 
 ### Proxy pool, rotation and locale from the proxy's country
 
@@ -257,7 +265,7 @@ the same Chrome version. The identity file is written atomically with mode
 before fingerprint API v2, with the flat layout (`screen_width`, `flags`), no
 longer loads: `identity_file::load` reports it as a corrupt file, and the error
 names no value from it. Make a new identity. The page for it is
-[Identity and cookies](/stealth/identity).
+[Identity and cookies](/scraping/advanced-stealthy/identity).
 
 ### Session state behind a store trait
 
@@ -468,33 +476,33 @@ cargo test -p seleniumbase-rs-scrape --test scrape_browser_chrome -- --ignored -
 ```
 
 The examples, what each needs, and how to run them are on
-[Runnable examples](/stealth/examples).
+[Runnable examples](/scraping/advanced-stealthy/examples).
 
 ## Where to go next
 
 <Columns cols={2}>
 
-<Card title="A first fetch" icon="play" color="#199f43" href="/tutorials/stealth_scraping">
+<Card title="A first fetch" icon="play" color="#199f43" href="/scraping/stealthy/first-fetch">
   The dependency, a working `BrowserScraper`, and what to do when Chrome updates.
 </Card>
 
-<Card title="Wire formats" icon="fingerprint" color="#d47628" href="/stealth/wire-formats">
+<Card title="Wire formats" icon="fingerprint" color="#d47628" href="/stealth/advanced/wire-formats">
   Measured tables, JA3, JA4, peetprint, Akamai strings, impersonating clients.
 </Card>
 
-<Card title="BrowserScraper" icon="globe" color="#1a85d4" href="/stealth/browser-scraper">
+<Card title="BrowserScraper" icon="globe" color="#1a85d4" href="/scraping/stealthy/browser-scraper">
   Fetch with a real Chrome, detect a challenge, mitigate, rotate egress.
 </Card>
 
-<Card title="HttpSession" icon="network-wired" color="#a631be" href="/stealth/http-session">
+<Card title="HttpSession" icon="network-wired" color="#a631be" href="/scraping/stealthy/http-session">
   Continue a browser's session as plain requests with the same fingerprint.
 </Card>
 
-<Card title="MitmProxy" icon="shield" color="#1ca1c7" href="/stealth/mitm-proxy">
+<Card title="MitmProxy" icon="shield" color="#1ca1c7" href="/stealth/advanced/mitm-proxy">
   Put a real Chrome behind the measured handshake.
 </Card>
 
-<Card title="Limits" icon="triangle-exclamation" color="#d5a910" href="/stealth/limits">
+<Card title="Limits" icon="triangle-exclamation" color="#d5a910" href="/scraping/advanced-stealthy/limits">
   What is measured, what is refused, and what the errors mean.
 </Card>
 

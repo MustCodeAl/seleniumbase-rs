@@ -128,6 +128,29 @@ Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 
 </Tabs>
 
+## Scraping with crawler
+
+crawler walks a site breadth first, one navigation at a time, never leaving its
+scope (`same-origin` by default), and follows `robots.txt` unless told not to:
+
+```toml sbase_config.toml
+[plugins.crawler]
+start = ["https://example.com/"]
+max_depth = 2
+max_pages = 200
+delay_ms = 1000
+state_file = "crawl-state.json"
+```
+
+```bash
+sbrs plugin run crawler --out pages.jsonl
+```
+
+Each page writes one line (its `url`, `depth`, `status`, `title` and links),
+and the report lists broken links, script errors and pages it could not reach.
+With `state_file` an interrupted crawl resumes ([Resuming](#resuming)).
+
+
 ## Options
 
 `[plugins.crawler]` in a settings file. An option that is not listed is an

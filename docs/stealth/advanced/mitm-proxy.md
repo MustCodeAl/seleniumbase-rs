@@ -4,7 +4,7 @@ sidebarTitle: "MitmProxy"
 ---
 
 Examples importing `seleniumbase_rs_stealth::mimic` require the facade's
-`mimic` feature. See the [single-dependency setup](/stealth/overview#which-crate-to-depend-on);
+`mimic` feature. See the [single-dependency setup](/scraping/stealthy/overview#which-crate-to-depend-on);
 this feature builds BoringSSL and needs cmake and a C/C++ toolchain.
 
 <Badge color="orange">Experimental</Badge>
@@ -90,7 +90,7 @@ covers the ones a real Chrome makes. It is a loopback forward proxy that ends
 the browser's TLS with a leaf of the [ephemeral CA](#the-ephemeral-ca-tls-server)
 and replays each request through the impersonating client, so the origin sees the
 `ClientHello`, HTTP/2 start and header spelling of the profile (the measured
-ones, minus the [known gaps](/stealth/limits#limits)) instead of whatever the installed browser
+ones, minus the [known gaps](/scraping/advanced-stealthy/limits#limits)) instead of whatever the installed browser
 would have sent. Both legs then look alike on the wire, and a clearance earned in
 the browser is valid over `HttpSession`.
 
@@ -512,15 +512,15 @@ build compiles BoringSSL.
 
 <Columns cols={2}>
 
-<Card title="StealthSession" icon="shuffle" color="#d32a61" href="/stealth/stealth-session">
+<Card title="StealthSession" icon="shuffle" color="#d32a61" href="/scraping/advanced-stealthy/stealth-session">
   The session that launches this proxy for you and moves cookies back to HTTP.
 </Card>
 
-<Card title="HttpSession" icon="network-wired" color="#a631be" href="/stealth/http-session">
+<Card title="HttpSession" icon="network-wired" color="#a631be" href="/scraping/stealthy/http-session">
   The same handshake, with no browser and no proxy.
 </Card>
 
-<Card title="Limits" icon="triangle-exclamation" color="#d5a910" href="/stealth/limits">
+<Card title="Limits" icon="triangle-exclamation" color="#d5a910" href="/scraping/advanced-stealthy/limits">
   The gaps the origin sees, because the origin sees this proxy and not Chrome.
 </Card>
 

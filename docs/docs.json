@@ -197,6 +197,81 @@
       "source": "/concepts/seo",
       "destination": "/concepts/crawlers-and-seo",
       "permanent": true
+    },
+    {
+      "source": "/tutorials/fingerprint_stealth",
+      "destination": "/stealth/introduction",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/stealth_scraping",
+      "destination": "/scraping/stealthy/first-fetch",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/binary_patching",
+      "destination": "/stealth/advanced/binary-patching",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/overview",
+      "destination": "/scraping/stealthy/overview",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/browser-scraper",
+      "destination": "/scraping/stealthy/browser-scraper",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/http-session",
+      "destination": "/scraping/stealthy/http-session",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/stealth-session",
+      "destination": "/scraping/advanced-stealthy/stealth-session",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/identity",
+      "destination": "/scraping/advanced-stealthy/identity",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/examples",
+      "destination": "/scraping/advanced-stealthy/examples",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/limits",
+      "destination": "/scraping/advanced-stealthy/limits",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/wire-formats",
+      "destination": "/stealth/advanced/wire-formats",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/mitm-proxy",
+      "destination": "/stealth/advanced/mitm-proxy",
+      "permanent": true
+    },
+    {
+      "source": "/scraping/overview",
+      "destination": "/plugins/overview",
+      "permanent": true
+    },
+    {
+      "source": "/scraping/basics",
+      "destination": "/plugins/overview",
+      "permanent": true
+    },
+    {
+      "source": "/scraping/advanced",
+      "destination": "/plugins/overview",
+      "permanent": true
     }
   ],
   "navigation": {
@@ -310,24 +385,52 @@
             "icon": "mask",
             "pages": [
               "tutorials/uc_mode",
-              "tutorials/fingerprint_stealth",
-              "tutorials/binary_patching"
+              "stealth/cdp-mode"
             ]
           },
           {
-            "group": "Stealth scraping",
-            "icon": "spider",
+            "group": "Stealth",
+            "icon": "user-secret",
             "pages": [
-              "tutorials/stealth_scraping",
-              "stealth/overview",
-              "stealth/wire-formats",
-              "stealth/identity",
-              "stealth/browser-scraper",
-              "stealth/http-session",
-              "stealth/mitm-proxy",
-              "stealth/stealth-session",
-              "stealth/examples",
-              "stealth/limits"
+              "stealth/introduction",
+              "stealth/fingerprints",
+              "stealth/evasions",
+              "stealth/policies",
+              "stealth/profiles",
+              "stealth/proxies",
+              "stealth/human-input",
+              "stealth/troubleshooting"
+            ]
+          },
+          {
+            "group": "Advanced stealth",
+            "icon": "shield-halved",
+            "pages": [
+              "stealth/advanced/overview",
+              "stealth/advanced/providers",
+              "stealth/advanced/binary-patching",
+              "stealth/advanced/playwright",
+              "stealth/advanced/wire-formats",
+              "stealth/advanced/mitm-proxy",
+              {
+                "group": "Stealthy scraping",
+                "pages": [
+                  "scraping/stealthy/overview",
+                  "scraping/stealthy/first-fetch",
+                  "scraping/stealthy/browser-scraper",
+                  "scraping/stealthy/http-session"
+                ]
+              },
+              {
+                "group": "Advanced stealthy scraping",
+                "pages": [
+                  "scraping/advanced-stealthy/overview",
+                  "scraping/advanced-stealthy/stealth-session",
+                  "scraping/advanced-stealthy/identity",
+                  "scraping/advanced-stealthy/examples",
+                  "scraping/advanced-stealthy/limits"
+                ]
+              }
             ]
           }
         ]
@@ -370,17 +473,22 @@
             "group": "Plugins",
             "icon": "puzzle-piece",
             "pages": [
-              "plugins/shield",
-              "plugins/block-resources",
-              "plugins/crx",
-              "plugins/fetcher",
-              "plugins/extractor",
-              "plugins/batcher",
-              "plugins/crawler",
-              "plugins/browser",
-              "plugins/imap",
-              "plugins/tor",
-              "plugins/wasm",
+              {
+                "group": "Built-in",
+                "pages": [
+                  "plugins/shield",
+                  "plugins/block-resources",
+                  "plugins/crx",
+                  "plugins/fetcher",
+                  "plugins/extractor",
+                  "plugins/batcher",
+                  "plugins/crawler",
+                  "plugins/browser",
+                  "plugins/imap",
+                  "plugins/tor",
+                  "plugins/wasm"
+                ]
+              },
               "plugins/overview",
               "tutorials/plugins",
               "tutorials/test_plugins",

@@ -57,7 +57,7 @@ State these plainly to yourself before you build on any of this.
   plain text, so with no hello to impersonate); every other upgrade is refused.
   It needs the proxy's credentials in Chrome first: `configure_launch` loads the
   priming page at the launch, but a browser context created later has to load
-  `mitm.prime_url()` itself (see [the priming page](/stealth/mitm-proxy#the-priming-page)).
+  `mitm.prime_url()` itself (see [the priming page](/stealth/advanced/mitm-proxy#the-priming-page)).
   `HttpSession` opens no WebSocket.
 - **The first request to an HTTP/1.1-only origin carries an HTTP/2 `priority`
   header**, in `HttpSession` and in `MitmProxy`, because the protocol is known
@@ -223,11 +223,11 @@ service" limit were unchanged.
 
 <Columns cols={2}>
 
-<Card title="A first fetch" icon="play" color="#199f43" href="/tutorials/stealth_scraping">
+<Card title="A first fetch" icon="play" color="#199f43" href="/scraping/stealthy/first-fetch">
   Pick a tool, depend on the facade, and run `BrowserScraper`.
 </Card>
 
-<Card title="Overview" icon="layer-group" color="#d47628" href="/stealth/overview">
+<Card title="Overview" icon="layer-group" color="#d47628" href="/scraping/stealthy/overview">
   What each piece does, and which page spells it out.
 </Card>
 

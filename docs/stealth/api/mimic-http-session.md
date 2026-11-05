@@ -8,7 +8,7 @@ description: "HttpSession: plain HTTP that continues a browser session with the 
 
 `HttpSession` sends plain HTTP that looks like the measured Chrome on the wire and carries a browser's cookies. `from_page` is async and copies a `Page`. `from_identity` is synchronous. `get` and `request` send; `fetch` also judges the reply. At the crate root, `Attempt`, `Fetched`, `Rules`, `Verdict` and `Headers` are `HttpAttempt`, `HttpFetched`, `HttpRules`, `HttpVerdict` and `ReplyHeaders`.
 
-The guide is [HttpSession](/stealth/http-session). `HttpOptions::new` uses a 30 second timeout, a 64 MiB body, and 10 redirects. `validate` refuses a timeout above one hour, a body limit above 1 GiB, or more than 30 redirects.
+The guide is [HttpSession](/scraping/stealthy/http-session). `HttpOptions::new` uses a 30 second timeout, a 64 MiB body, and 10 redirects. `validate` refuses a timeout above one hour, a body limit above 1 GiB, or more than 30 redirects.
 
 <RequestExample>
 
@@ -433,4 +433,4 @@ pub async fn send(self) -> Result<HttpReply, HttpError>
 
 ## Related
 
-The guide is [HttpSession](/stealth/http-session). The overview is [mimic](/stealth/api/mimic).
+The guide is [HttpSession](/scraping/stealthy/http-session). The overview is [mimic](/stealth/api/mimic).

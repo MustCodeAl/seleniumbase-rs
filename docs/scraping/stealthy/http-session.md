@@ -3,7 +3,7 @@ title: "HttpSession"
 ---
 
 Examples importing `seleniumbase_rs_stealth::mimic` require the facade's
-`mimic` feature. See the [single-dependency setup](/stealth/overview#which-crate-to-depend-on);
+`mimic` feature. See the [single-dependency setup](/scraping/stealthy/overview#which-crate-to-depend-on);
 this feature builds BoringSSL and needs cmake and a C/C++ toolchain.
 
 <Badge color="orange">Experimental</Badge>
@@ -48,7 +48,7 @@ async fn demo(page: Page) -> Result<(), Box<dyn std::error::Error>> {
   proxy, such as a MITM proxy the browser was launched with, is not visible to a
   page, so say so with `egress`.
 - `HttpSession::from_identity(&identity, egress, options)` builds one from a
-  [`StealthIdentity`](/stealth/identity#identity-session-policy-and-the-identity-file): its
+  [`StealthIdentity`](/scraping/advanced-stealthy/identity#identity-session-policy-and-the-identity-file): its
   fingerprint becomes the user agent, hints and languages, and its cookies fill
   the jar.
 
@@ -108,7 +108,7 @@ async fn demo(session: HttpSession) -> Result<(), Box<dyn std::error::Error>> {
 
 ## What the session does
 
-- **Cookies.** The jar is the RFC 6265 [`CookieJar`](/stealth/identity#the-cookie-jar). The
+- **Cookies.** The jar is the RFC 6265 [`CookieJar`](/scraping/advanced-stealthy/identity#the-cookie-jar). The
   session writes the `Cookie` header and reads `Set-Cookie` itself; wreq's own
   store is off. A cookie for a public suffix, for another host, or against the
   `Secure`, `__Host-` and `SameSite` rules is refused as a browser refuses it.
@@ -157,14 +157,14 @@ verification is never turned off), `resolve(host, addr)`, `bypass(host)`,
 refuses a value out of range before a client exists.
 
 - **Judging replies.** `reply.detect()` runs the [challenge
-  detection](/stealth/identity#challenge-detection-and-mitigation). `session.assess(&reply,
+  detection](/scraping/advanced-stealthy/identity#challenge-detection-and-mitigation). `session.assess(&reply,
   &Attempt, &Rules, &identity)` adds what the `MitigationPolicy` and the
   `SessionPolicy` make of it, as a `Verdict { detection, action, transition }`;
   `session.fetch(url, &attempt, &rules, &identity)` sends a `GET` and judges it
   in one call (`Fetched { reply, verdict }`); `session.preflight(url, &identity,
   state, &rules)` asks, before a request, whether the identity's clearance is
   about to end so that the browser should take the URL first. They are the
-  pieces of your own loop; [`StealthSession`](/stealth/stealth-session) is that loop.
+  pieces of your own loop; [`StealthSession`](/scraping/advanced-stealthy/stealth-session) is that loop.
 
   ```rust
   use seleniumbase_rs_stealth::mimic::http_session::{Attempt, Rules};
@@ -239,25 +239,25 @@ would clash at the root are renamed there: `Attempt`, `Fetched`, `Rules`,
 
 <Columns cols={2}>
 
-<Card color="#1a85d4" title="Identity" icon="id-card" href="/stealth/identity">
+<Card color="#1a85d4" title="Identity" icon="id-card" href="/scraping/advanced-stealthy/identity">
 
 Identity, session policy, the cookie jar and challenge detection.
 
 </Card>
 
-<Card color="#199f43" title="StealthSession" icon="shuffle" href="/stealth/stealth-session">
+<Card color="#199f43" title="StealthSession" icon="shuffle" href="/scraping/advanced-stealthy/stealth-session">
 
 The loop built from `fetch`, `assess` and `preflight`.
 
 </Card>
 
-<Card color="#1ca1c7" title="MitmProxy" icon="shield" href="/stealth/mitm-proxy">
+<Card color="#1ca1c7" title="MitmProxy" icon="shield" href="/stealth/advanced/mitm-proxy">
 
 The loopback proxy that gives a real Chrome this same handshake.
 
 </Card>
 
-<Card color="#d5a910" title="Limits" icon="triangle-exclamation" href="/stealth/limits">
+<Card color="#d5a910" title="Limits" icon="triangle-exclamation" href="/scraping/advanced-stealthy/limits">
 
 The handshake gaps this session sends, and what each `HttpError` means.
 

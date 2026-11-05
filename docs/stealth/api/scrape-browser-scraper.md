@@ -8,7 +8,7 @@ description: "BrowserScraper, its builder, BrowserFetch and the launcher port."
 
 `runtime::browser_scraper` drives one real Chrome through `sb_cdp`. It does no TLS spoofing: Chrome's own handshake leaves the machine. `fetch` loads a URL, reads the rendered page, and follows `MitigationPolicy`. `close` takes the scraper by value.
 
-Import the main types from `seleniumbase_rs_stealth::scrape`. The fetch loop is on [BrowserScraper](/stealth/browser-scraper).
+Import the main types from `seleniumbase_rs_stealth::scrape`. The fetch loop is on [BrowserScraper](/scraping/stealthy/browser-scraper).
 
 <RequestExample>
 
@@ -208,4 +208,4 @@ Starts Chrome (or the browser the launch options name) with [`Browser::launch`].
 
 ## Related
 
-The guide is [BrowserScraper](/stealth/browser-scraper). The overview is [scrape](/stealth/api/scrape).
+The guide is [BrowserScraper](/scraping/stealthy/browser-scraper). The overview is [scrape](/stealth/api/scrape).

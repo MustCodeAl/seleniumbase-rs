@@ -8,7 +8,7 @@ description: "MitmProxy: a loopback proxy that replays Chrome's requests with th
 
 `MitmProxy` binds on loopback, ends Chrome's TLS with a leaf of an in-memory CA, and replays each request through the impersonating client. It requires a random proxy token, refuses destinations it will not intercept, and never tunnels blind.
 
-The guide is [MITM proxy](/stealth/mitm-proxy). The CA is [TLS server](/stealth/api/mimic-tls-server).
+The guide is [MITM proxy](/stealth/advanced/mitm-proxy). The CA is [TLS server](/stealth/api/mimic-tls-server).
 
 <RequestExample>
 
@@ -222,4 +222,4 @@ pub async fn shutdown(self, grace: Duration)
 
 ## Related
 
-The guide is [MITM proxy](/stealth/mitm-proxy). The overview is [mimic](/stealth/api/mimic).
+The guide is [MITM proxy](/stealth/advanced/mitm-proxy). The overview is [mimic](/stealth/api/mimic).

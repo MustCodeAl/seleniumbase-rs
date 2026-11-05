@@ -231,8 +231,8 @@ UC mode and the standalone fingerprint system work together:
 5. `native_spoofing` moves whatever it can out of JavaScript and into CDP
    (`Network.setUserAgentOverride`, `Emulation.setDeviceMetricsOverride`, etc.).
 
-See the [Fingerprint & Stealth Profiles](./docs/tutorials/fingerprint_stealth.md)
-and [Binary Patching](./docs/tutorials/binary_patching.md) tutorials for the full
+See the [Fingerprint & Stealth Profiles](./docs/stealth/introduction.md)
+and [Binary Patching](./docs/stealth/advanced/binary-patching.md) tutorials for the full
 recipe.
 
 ### Recorder and low-code scenarios
@@ -517,7 +517,7 @@ in 0.3.0: the stealth scraping layer (JA3/JA4/Akamai, the measured Chrome table,
 `BrowserScraper`, `HttpSession`, `MitmProxy`, `StealthSession`) is now the crates
 `seleniumbase-rs-codec`, `seleniumbase-rs-scrape` and `seleniumbase-rs-mimic`
 in [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
-(see [Stealth Scraping](./docs/tutorials/stealth_scraping.md)).
+(see [Stealth Scraping](./docs/scraping/stealthy/first-fetch.md)).
 
 ## Documentation
 
@@ -541,8 +541,8 @@ in [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-steal
 - [Shadow DOM](./docs/tutorials/selectors.md#shadow-dom)
 - [CDP Mode](./docs/tutorials/cdp_mode.md)
 - [Undetected (UC) Mode](./docs/tutorials/uc_mode.md)
-- [Fingerprint & Stealth Profiles](./docs/tutorials/fingerprint_stealth.md)
-- [Stealth Scraping](./docs/tutorials/stealth_scraping.md)
+- [Fingerprint & Stealth Profiles](./docs/stealth/introduction.md)
+- [Stealth Scraping](./docs/scraping/stealthy/first-fetch.md)
 - [Browser Profiles](./docs/tutorials/browser_profiles.md)
 - [Recorder Mode](./docs/tutorials/recorder_mode.md)
 - [GUI Automation](./docs/tutorials/gui_automation.md)
@@ -561,7 +561,7 @@ in [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-steal
 - [Behave / Gherkin Support](./docs/tutorials/utilities.md#gherkin-scenarios-with-rstest-bdd)
 - [Selenium IDE Migration](./docs/tutorials/selenium_ide.md)
 - [Remaining Helpers](./docs/tutorials/remaining_helpers.md)
-- [Binary Patching](./docs/tutorials/binary_patching.md)
+- [Binary Patching](./docs/stealth/advanced/binary-patching.md)
 
 ### Help pages
 

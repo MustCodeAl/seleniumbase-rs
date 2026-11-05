@@ -218,6 +218,41 @@ Route the browser through a Tor daemon you run.
 
 </Columns>
 
+## Scraping
+
+Scraping is reading data out of pages: loading them, finding the parts you
+want and keeping them, often for many pages at once. The built-in plugins do
+the common jobs on the pure CDP engine; when a site resists automated clients,
+the stealth repository's tools take over (Stealth › Advanced stealth).
+
+<Note>
+
+Scrape what you may: read a site's terms and its `robots.txt`, keep the rate
+low, and do not collect personal data you have no right to. The `crawler`
+plugin follows `robots.txt` by default.
+
+</Note>
+
+| You want to | Use | Read |
+|---|---|---|
+| Read a few pages with your own code | the pure CDP engine: `Page` and `Locator` | [Reading a page in your own code](/plugins/extractor#reading-a-page-in-your-own-code) |
+| Fetch a list of URLs as the signed-in browser would | `fetcher` | [Fetch a list of URLs](/plugins/fetcher#fetch-a-list-of-urls) |
+| Read structured data without writing selectors | `extractor` | [Read structured data](/plugins/extractor#read-structured-data) |
+| Walk a whole site | `crawler` | [Scraping with crawler](/plugins/crawler#scraping-with-crawler) |
+| Run thousands of jobs with retries and a resume file | `batcher` | [Scraping with batcher](/plugins/batcher#scraping-with-batcher) |
+| Run many isolated workers at once, and keep a signed-in session between them | `BrowserPool` and its `SessionStore` | [The browser pool](/tutorials/pure_cdp#many-workers-the-browser-pool) |
+| Scrape a site that blocks automated browsers | `BrowserScraper` (stealth repository) | [Stealthy scraping](/scraping/stealthy/overview) |
+| Plain HTTP that looks like Chrome on the wire | `HttpSession` (stealth repository) | [HttpSession](/scraping/stealthy/http-session) |
+| One identity moving between a browser and HTTP | `StealthSession` (stealth repository) | [Advanced stealthy scraping](/scraping/advanced-stealthy/overview) |
+
+The four plugins are built into this crate, each behind its own cargo feature
+(`plugin-fetcher`, `plugin-extractor`, `plugin-crawler`, `plugin-batcher`).
+`BrowserScraper`, `HttpSession`, `StealthSession` and `MitmProxy` are in
+[seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth),
+which builds on this crate's public API; depend on it only when a site needs
+it ([Which crate to depend on](/scraping/stealthy/overview#which-crate-to-depend-on)).
+
+
 ## How the hooks run
 
 Every hook is optional: `before_launch` (change the browser's start-up

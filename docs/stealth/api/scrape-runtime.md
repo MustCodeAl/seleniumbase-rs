@@ -8,7 +8,7 @@ description: "CDP helpers, the egress switch, the identity file, state stores, t
 
 These modules are the I/O around the pure scrape types, other than `BrowserScraper`. `egress_switch` opens a browser context behind a new proxy. `json_store` and `identity_file` persist state and identities. `tracing_sink` writes events to `tracing`. `capture` is the `capture_tls` and `capture_hints` measurement tools.
 
-The programs are on [Runnable examples](/stealth/examples). `BrowserScraper` has its own page.
+The programs are on [Runnable examples](/scraping/advanced-stealthy/examples). `BrowserScraper` has its own page.
 
 <RequestExample>
 
@@ -1198,4 +1198,4 @@ Replaces the file at `path` with `bytes`, so that a reader or a crash never sees
 
 ## Related
 
-The guide is [Runnable examples](/stealth/examples). The overview is [scrape](/stealth/api/scrape).
+The guide is [Runnable examples](/scraping/advanced-stealthy/examples). The overview is [scrape](/stealth/api/scrape).

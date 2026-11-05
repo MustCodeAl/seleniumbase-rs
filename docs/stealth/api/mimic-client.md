@@ -8,7 +8,7 @@ description: "ImpersonationProfile, CustomProfileBuilder and impersonation_clien
 
 `client` turns a measured browser into a wreq client. `ImpersonationProfile` is the measurement as data, including the known gaps BoringSSL cannot send. `impersonation_client` builds a `ClientBuilder` from a profile. `CustomProfileBuilder` lays a JA3 or an Akamai string over the measured profile. A browser or system with no measurement is refused.
 
-See [Wire formats](/stealth/wire-formats) and [Limits](/stealth/limits). Only Chrome 155.0.8059.40 on macOS is measured.
+See [Wire formats](/stealth/advanced/wire-formats) and [Limits](/scraping/advanced-stealthy/limits). Only Chrome 155.0.8059.40 on macOS is measured.
 
 <RequestExample>
 
@@ -231,4 +231,4 @@ Starts a wreq client with the TLS, HTTP/2 and default headers of a profile.
 
 ## Related
 
-The guide is [Wire formats](/stealth/wire-formats). The overview is [mimic](/stealth/api/mimic).
+The guide is [Wire formats](/stealth/advanced/wire-formats). The overview is [mimic](/stealth/api/mimic).

@@ -3,14 +3,14 @@ title: "Stealth parity plan: stealthscraper-rs features, JA3/JA4 and Akamai impe
 sidebarTitle: "Stealth parity plan"
 ---
 
-> **Moved:** on 2026-10-15 (version 0.3.0) this code moved to [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth). It shipped there first as `seleniumbase-rs-wire`, `-scrape` and `-impersonate`; those crates are now `seleniumbase-rs-codec`, `seleniumbase-rs-scrape` and `seleniumbase-rs-mimic`, behind the `seleniumbase-rs-stealth` facade. This plan is kept as design history, with the paths the code had in this repository. The current guide is [Stealth scraping](/stealth/overview).
+> **Moved:** on 2026-10-15 (version 0.3.0) this code moved to [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth). It shipped there first as `seleniumbase-rs-wire`, `-scrape` and `-impersonate`; those crates are now `seleniumbase-rs-codec`, `seleniumbase-rs-scrape` and `seleniumbase-rs-mimic`, behind the `seleniumbase-rs-stealth` facade. This plan is kept as design history, with the paths the code had in this repository. The current guide is [Stealth scraping](/scraping/stealthy/overview).
 
 Status (2026-10-11, branch `feat/pure-cdp-and-mcp-parity` at `4184e74`): **WP0 to WP17 are merged,
 including WP14 (`HttpSession`), WP15 (`MitmProxy`) and WP16 (`StealthSession`). The WP18 reviews (two
 passes) are done and their fixes are in progress. WP19 (re-exports and documentation) is in progress.**
 The plan was written on 2026-10-10 as design only, at `8c1394d`. Where the code differs from what is
 written below, [the next section](#status-and-what-the-code-changed) says how, and the code wins. Sections
-3.11 to 3.13 describe what was built. The user-facing description of what exists is [Stealth Scraping](/tutorials/stealth_scraping);
+3.11 to 3.13 describe what was built. The user-facing description of what exists is [Stealth Scraping](/scraping/stealthy/first-fetch);
 the layout rules are recorded in [ADR 003](/adr/003-stealth-scraping-layout).
 Sources: the project memory (`stealthscraper-feature-parity`, `project-priorities-2026-10-10`),
 three Context7 reads of `/ypno/stealthscraper-rs`, the wreq 6.0.0-rc.31, wreq-proto 0.2.6,
@@ -182,7 +182,7 @@ tests: scrape_domain_purity WP0 | fixtures/measured/*.bin WP9, WP11 | impersonat
        scrape_browser WP13 | impersonate_http WP14 | impersonate_mitm WP15 | stealth_session WP16
        sb_cdp_domain_hygiene, stealth_audit_chrome, stealth_audit_network WP17
 Cargo.toml, Cargo.lock, justfile, .github/workflows/ci.yml: WP0 only
-docs/tutorials/stealth_scraping.md (new), fingerprint_stealth.md, ROADMAP.md: WP19
+docs/scraping/stealthy/first-fetch.md (new), fingerprint_stealth.md, ROADMAP.md: WP19
 ```
 
 WP0 creates every listed source file with only a `//!` line, so later packages fill files they own
@@ -939,7 +939,7 @@ design and audits. Size: S up to 400 lines with tests, M 400-900, L 900-1600. Bu
 | 16 | stealth_session, `tests/stealth_session.rs` | WP13, WP14, WP15, WP17 | 13, 14, 15, 17 | L | sonnet | B + chrome |
 | 17 | hardening: `evasion/cdp.rs`, `providers/{mod,builtin}.rs`, `sb_cdp/identity.rs`, hygiene and audit tests | `MockCtrl::calls_to`, `EvasionRegistry` | 0 | M | sonnet | test + chrome |
 | 18 | split-role security review. Pass 1 after WP4, 8, 10 (cookies, identity files, CA); pass 2 after WP14-16 (MITM, credentials, egress stickiness); audit, deny, ripsecrets; may patch only a reviewed package's files after it merged | - | see scope | M | opus | B |
-| 19 | re-exports in `scrape/mod.rs`, `impersonate/mod.rs`, `lib.rs`; `docs/tutorials/stealth_scraping.md`; fix `fingerprint_stealth.md` lines 529-530 ("not implemented", "consider wreq-util"); ROADMAP; full `--all-targets` clippy per feature, doctests, audit, deny | - | all | S | haiku | test + B |
+| 19 | re-exports in `scrape/mod.rs`, `impersonate/mod.rs`, `lib.rs`; `docs/scraping/stealthy/first-fetch.md`; fix `fingerprint_stealth.md` lines 529-530 ("not implemented", "consider wreq-util"); ROADMAP; full `--all-targets` clippy per feature, doctests, audit, deny | - | all | S | haiku | test + B |
 
 Schedule: at most two builds at once, `CARGO_BUILD_JOBS=1`, two shared target dirs:
 `target-scrape` (lane A) and `target-imp` (lane B, the only place BoringSSL compiles). Cargo's dir lock

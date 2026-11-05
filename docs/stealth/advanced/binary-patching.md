@@ -294,7 +294,7 @@ Combine patching with UC mode.
 
 </Card>
 
-<Card color="#d47628" title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/tutorials/fingerprint_stealth">
+<Card color="#d47628" title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/stealth/introduction">
 
 Combine patching with a matching `Fingerprint`.
 

@@ -694,7 +694,7 @@ Add a unit test asserting the snippet contains expected markers and that
 
 <Step title="Document it" icon="book">
 
-Update `docs/tutorials/fingerprint_stealth.md`.
+Update `docs/stealth/introduction.md`.
 
 </Step>
 
@@ -762,7 +762,7 @@ carry it, reading the common words of `Word`.
 
 <Step title="Document it" icon="book">
 
-Document the setting in `docs/tutorials/fingerprint_stealth.md`.
+Document the setting in `docs/stealth/introduction.md`.
 
 </Step>
 

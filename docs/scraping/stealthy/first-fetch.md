@@ -1,6 +1,6 @@
 ---
 title: "Stealth Scraping: Wire Fingerprints, Identities and the Browser Scraper"
-sidebarTitle: "Stealth scraping"
+sidebarTitle: "First fetch"
 ---
 
 <Badge color="orange">Experimental</Badge>
@@ -22,8 +22,8 @@ Summary for AI exports: one Git dependency, `seleniumbase-rs-stealth`. The facad
 <Tip>
 
 This page picks a tool, shows the dependency, and runs a first fetch. The map
-of every piece is [Stealth scraping](/stealth/overview). Limits and the error
-table are on [Limits](/stealth/limits).
+of every piece is [Stealth scraping](/scraping/stealthy/overview). Limits and the error
+table are on [Limits](/scraping/advanced-stealthy/limits).
 
 </Tip>
 
@@ -35,36 +35,36 @@ stealth crates do.
 
 | You need | Use | BoringSSL |
 |---|---|---|
-| In-page stealth in a test (navigator, WebGL, canvas) | [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth) and [UC mode](/tutorials/uc_mode) in this crate | No |
+| In-page stealth in a test (navigator, WebGL, canvas) | [Fingerprint & Stealth Profiles](/stealth/introduction) and [UC mode](/tutorials/uc_mode) in this crate | No |
 | A Cloudflare "Just a moment..." page in a UC session | [UC mode: Cloudflare challenges](/tutorials/uc_mode#cloudflare-challenges). UC mode does not answer an interactive proof. | No |
-| A real Chrome fetch, with challenge detection and no TLS spoofing | [`BrowserScraper`](/stealth/browser-scraper) (`scrape`, default) | No |
-| Plain HTTP that sends the measured TLS and HTTP/2 | [`HttpSession`](/stealth/http-session) (`mimic`) | Yes |
-| HTTP that escalates to Chrome when a challenge appears | [`StealthSession`](/stealth/stealth-session) (`mimic`) | Yes |
-| The measured tables, JA3/JA4, or re-measuring Chrome | [Wire formats](/stealth/wire-formats) (`codec`) | Only the HTTP/2 capture needs `mimic` |
+| A real Chrome fetch, with challenge detection and no TLS spoofing | [`BrowserScraper`](/scraping/stealthy/browser-scraper) (`scrape`, default) | No |
+| Plain HTTP that sends the measured TLS and HTTP/2 | [`HttpSession`](/scraping/stealthy/http-session) (`mimic`) | Yes |
+| HTTP that escalates to Chrome when a challenge appears | [`StealthSession`](/scraping/advanced-stealthy/stealth-session) (`mimic`) | Yes |
+| The measured tables, JA3/JA4, or re-measuring Chrome | [Wire formats](/stealth/advanced/wire-formats) (`codec`) | Only the HTTP/2 capture needs `mimic` |
 
 <Warning>
 
 None of this was checked against a live bot-protection service. A matching
 handshake is one signal among many. Follow each site's terms and the law where
-you are. [Limits](/stealth/limits) states what is measured and what is refused.
+you are. [Limits](/scraping/advanced-stealthy/limits) states what is measured and what is refused.
 
 </Warning>
 
 <Columns cols={2}>
 
-<Card title="Overview and crates" icon="layer-group" color="#d47628" href="/stealth/overview">
+<Card title="Overview and crates" icon="layer-group" color="#d47628" href="/scraping/stealthy/overview">
   The facade, what each implementation crate is, and how the pieces layer.
 </Card>
 
-<Card title="Wire formats" icon="fingerprint" color="#199f43" href="/stealth/wire-formats">
+<Card title="Wire formats" icon="fingerprint" color="#199f43" href="/stealth/advanced/wire-formats">
   Measured tables, JA3, JA4, peetprint, re-measuring when Chrome updates.
 </Card>
 
-<Card title="BrowserScraper" icon="globe" color="#1a85d4" href="/stealth/browser-scraper">
+<Card title="BrowserScraper" icon="globe" color="#1a85d4" href="/scraping/stealthy/browser-scraper">
   A real Chrome, challenge detection, and rotation of egress and profile.
 </Card>
 
-<Card title="Limits" icon="triangle-exclamation" color="#a631be" href="/stealth/limits">
+<Card title="Limits" icon="triangle-exclamation" color="#a631be" href="/scraping/advanced-stealthy/limits">
   What is measured, what is refused, and what each error means.
 </Card>
 
@@ -147,7 +147,7 @@ fn demo() -> Result<(), EmulationError> {
 ```
 
 `codec` and `scrape` still compile and run on every system. Only the
-impersonating client refuses. [Wire formats](/stealth/wire-formats) shows how
+impersonating client refuses. [Wire formats](/stealth/advanced/wire-formats) shows how
 to read the table and how to re-measure when Chrome moves to a new major. When
 it does, nothing updates the file for you.
 
@@ -159,7 +159,7 @@ algorithms, and it writes no GREASE signature algorithm. JA4 strips GREASE, so
 the first two change the JA4 and the third shows up only in the peetprint.
 `HttpSession` and `MitmProxy` send this client, gaps included.
 `BrowserScraper` does not: Chrome's own handshake leaves the machine.
-[Limits](/stealth/limits#limits) lists the gaps by name.
+[Limits](/scraping/advanced-stealthy/limits#limits) lists the gaps by name.
 
 </Warning>
 
@@ -205,8 +205,8 @@ limit or a block with nowhere to rotate starts a cooldown
 timeout.
 
 The decisions, the identity file and the events are on
-[BrowserScraper](/stealth/browser-scraper). The cookie jar and
-`StealthIdentity` are on [Identity and cookies](/stealth/identity).
+[BrowserScraper](/scraping/stealthy/browser-scraper). The cookie jar and
+`StealthIdentity` are on [Identity and cookies](/scraping/advanced-stealthy/identity).
 
 ## Continuing as plain HTTP
 
@@ -234,9 +234,9 @@ async fn demo(page: Page) -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-[`HttpSession`](/stealth/http-session) covers the request API, the cookie jar
-and what the session refuses. [`StealthSession`](/stealth/stealth-session)
-covers the escalation loop. [`MitmProxy`](/stealth/mitm-proxy) is the loopback
+[`HttpSession`](/scraping/stealthy/http-session) covers the request API, the cookie jar
+and what the session refuses. [`StealthSession`](/scraping/advanced-stealthy/stealth-session)
+covers the escalation loop. [`MitmProxy`](/stealth/advanced/mitm-proxy) is the loopback
 proxy that puts a real Chrome behind the measured handshake.
 
 ## Running the examples
@@ -257,7 +257,7 @@ that use the measured emulation (`custom_profile`, `http_session`,
 `stealth_session`) need the `mimic` crate, so the first build compiles
 BoringSSL, and they stop at once with `NotMeasured` on any system but macOS.
 The full list, including the capture tools, is on
-[Runnable examples](/stealth/examples).
+[Runnable examples](/scraping/advanced-stealthy/examples).
 
 ## When Chrome updates
 
@@ -276,7 +276,7 @@ Run them in that order. Each extends the same
 `crates/codec/src/measured/<browser>-<major>-<os>.json`, and `capture_h2`
 refuses a Chrome of another version than the file it extends. The checks that
 follow, and the `SOURCES` list the new file has to join, are on
-[Wire formats](/stealth/wire-formats).
+[Wire formats](/stealth/advanced/wire-formats).
 
 <Check>
 
@@ -285,6 +285,6 @@ this page were read from `seleniumbase-rs-stealth` at `0eb20629` (`src/lib.rs`,
 `crates/scrape/src/lib.rs`, `crates/mimic/src/lib.rs`, `docs/tutorial.md`,
 `docs/examples.md`). No example was run for this rewrite, and nothing was
 checked against a live service. The note on
-[Runnable examples](/stealth/examples) records the earlier macOS runs.
+[Runnable examples](/scraping/advanced-stealthy/examples) records the earlier macOS runs.
 
 </Check>

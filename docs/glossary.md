@@ -103,7 +103,7 @@ See [Symmetric and asymmetric encryption](/concepts/encryption#symmetric-and-asy
 
 A string that describes how a client opens an HTTP/2 connection, written `SETTINGS | WINDOW_UPDATE | PRIORITY | pseudo-header order`. A site can use it, with the TLS handshake and the order of the headers, to tell clients apart.
 
-See [Wire Formats and Impersonation](/stealth/wire-formats#reading-the-wire-formats).
+See [Wire Formats and Impersonation](/stealth/advanced/wire-formats#reading-the-wire-formats).
 
 ### ALPN
 
@@ -111,7 +111,7 @@ See [Wire Formats and Impersonation](/stealth/wire-formats#reading-the-wire-form
 
 Application-Layer Protocol Negotiation: the part of the TLS handshake where client and server agree on HTTP/1.1 or HTTP/2. On the browser's side, `MitmProxy` offers `http/1.1` only.
 
-See [TLS Server and MitmProxy](/stealth/mitm-proxy).
+See [TLS Server and MitmProxy](/stealth/advanced/mitm-proxy).
 
 ### Asymmetric encryption
 
@@ -135,7 +135,7 @@ See [Roles, names and states](/concepts/mobile-and-accessibility#roles-names-and
 
 A tiny, repeatable change to the audio data a page can read (`AudioBuffer.getChannelData` and similar), so that the audio fingerprint is not the real machine's. With the usual settings it follows the fingerprint's seed, so reading the same audio twice gives the same result.
 
-See [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth#the-policy).
+See [Fingerprint & Stealth Profiles](/stealth/policies).
 
 ### Automation markers
 
@@ -185,7 +185,7 @@ See [Behave / Gherkin Support](/tutorials/utilities#gherkin-scenarios-with-rstes
 
 Editing a driver or browser executable on disk so that it no longer carries the markers bot checks look for, such as the `cdc_` variables. `ChromedriverPatcher` patches chromedriver and `ChromeBinaryPatcher` patches a cached copy of the browser; UC mode does not patch the driver for you.
 
-See [Binary Patching](/tutorials/binary_patching).
+See [Binary Patching](/stealth/advanced/binary-patching).
 
 ### BitTorrent
 
@@ -249,7 +249,7 @@ See [Pure CDP](/tutorials/pure_cdp#many-workers-the-browser-pool).
 
 A fetcher in the experimental stealth crates that drives one real Chrome through the pure CDP engine. It loads a URL, detects a [challenge](#challenge), solves it in the browser and rotates the [egress](#egress) or the profile when challenges repeat; it does no TLS spoofing.
 
-See [BrowserScraper](/stealth/browser-scraper).
+See [BrowserScraper](/scraping/stealthy/browser-scraper).
 
 ### Built-in plugin
 
@@ -299,7 +299,7 @@ See [Canonical URLs](/concepts/crawlers-and-seo#canonical-urls).
 
 A small, seeded change to the pixels a page reads from a canvas (`toDataURL`, `toBlob`, `getImageData`), so that the canvas fingerprint is not the real machine's. The [StealthPolicy](#stealthpolicy) picks the kind: seeded, a fresh seed for each document, low (one pixel in eight) or none.
 
-See [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth#the-policy).
+See [Fingerprint & Stealth Profiles](/stealth/policies).
 
 ### Capability
 
@@ -363,7 +363,7 @@ See [Certificates and the chain of trust](/concepts/encryption#certificates-and-
 
 A page that a bot-protection service shows instead of the content you asked for: a script that must run, a widget to complete, a block or a rate limit. The stealth crates read it from the response, where a header, a widget or a bare 403 is only evidence and the verdict needs an [interstitial](#interstitial) marker, and then decide what to do next.
 
-See [Cookies, Identity and Challenges](/stealth/identity#challenge-detection-and-mitigation).
+See [Cookies, Identity and Challenges](/scraping/advanced-stealthy/identity#challenge-detection-and-mitigation).
 
 ### Chrome for Testing
 
@@ -411,7 +411,7 @@ See [Containers and deployment](/concepts/containers-and-deployment#continuous-i
 
 The cookie a site gives once a [challenge](#challenge) is solved. It belongs to the address that earned it, so an [identity](#identity) may use it only through the same [egress](#egress).
 
-See [Cookies, Identity and Challenges](/stealth/identity#identity-session-policy-and-the-identity-file).
+See [Cookies, Identity and Challenges](/scraping/advanced-stealthy/identity#identity-session-policy-and-the-identity-file).
 
 ### Clickjacking
 
@@ -427,7 +427,7 @@ See [Clickjacking](/concepts/web-security#clickjacking).
 
 The `Sec-CH-UA*` request headers and the `navigator.userAgentData` object through which Chrome tells a site its brand, version and platform. A [Fingerprint](#fingerprint) can set them or turn them off; the user agent keeps Chrome's frozen `major.0.0.0` while the hints carry a real full version.
 
-See [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth#randomised-identities).
+See [Fingerprint & Stealth Profiles](/stealth/fingerprints#randomised-identities).
 
 ### ClientHello
 
@@ -435,7 +435,7 @@ See [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth#randomised-i
 
 The first message of a TLS handshake, in which a client says which versions, ciphers and extensions it supports. A site can tell clients apart by it, and [JA3](#ja3) and [JA4](#ja4) are summaries of it.
 
-See [Wire Formats and Impersonation](/stealth/wire-formats#reading-the-wire-formats).
+See [Wire Formats and Impersonation](/stealth/advanced/wire-formats#reading-the-wire-formats).
 
 ### Codec
 
@@ -531,7 +531,7 @@ See [Sessions, cookies and storage](/concepts/sessions-and-state#cookies-in-dept
 
 The cookie store of the stealth crates. It follows RFC 6265 and the rules Chrome ships, checks domains against the Public Suffix List, and converts to and from the cookies a CDP browser reports.
 
-See [Cookies, Identity and Challenges](/stealth/identity#the-cookie-jar).
+See [Cookies, Identity and Challenges](/scraping/advanced-stealthy/identity#the-cookie-jar).
 
 ### Crawl frontier
 
@@ -719,7 +719,7 @@ See [Public items of the crate root](/api/crate-root).
 
 The exit address a request leaves through: one of your proxies, or the direct connection. Changing it (`rotate_egress`) opens a new browser context behind the new proxy and drops the old one with its cookies, because a [clearance](#clearance) belongs to the address that earned it.
 
-See [BrowserScraper](/stealth/browser-scraper#egress-and-the-profile).
+See [BrowserScraper](/scraping/stealthy/browser-scraper#egress-and-the-profile).
 
 ### Element reference
 
@@ -751,7 +751,7 @@ See [Protected video](/concepts/media-and-video#protected-video-eme-cdms-and-wid
 
 A certificate authority made in memory and kept only for the life of one process. [MitmProxy](#mitmproxy) uses one to end Chrome's TLS. Chrome trusts the leaf certificates only through a pin of the leaf key, and the CA is never installed in a trust store or written to disk.
 
-See [TLS Server and MitmProxy](/stealth/mitm-proxy#the-ephemeral-ca-tls-server).
+See [TLS Server and MitmProxy](/stealth/advanced/mitm-proxy#the-ephemeral-ca-tls-server).
 
 ### ETag
 
@@ -767,7 +767,7 @@ See [Revalidation](/concepts/bundling-and-caching#revalidation).
 
 A small unit that returns a JavaScript snippet for one thing a page can probe, such as navigator, WebGL or canvas noise. An `EvasionRegistry` assembles the providers, in priority order, into one script that runs before any page script.
 
-See [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth#provider-architecture).
+See [Fingerprint & Stealth Profiles](/stealth/advanced/providers).
 
 ## F
 
@@ -793,7 +793,7 @@ See [Containers and deployment](/concepts/containers-and-deployment#environments
 
 What a browser claims to be: user agent and [Client Hints](#client-hints), language, time zone, screen, location and the hardware a page can probe. It holds one [Spoof](#spoof) per setting, is built once from a preset, `randomized(os, seed)` or the builder, and is never changed afterwards; `to_builder()` makes a changed copy.
 
-See [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth).
+See [Fingerprint & Stealth Profiles](/stealth/introduction).
 
 ## G
 
@@ -827,7 +827,7 @@ See [Containers and deployment](/concepts/containers-and-deployment#github-actio
 
 Random reserved values (RFC 8701) that a client adds to its TLS handshake so that servers do not depend on a fixed list. [JA3](#ja3) and [JA4](#ja4) leave them out, so only the [peetprint](#peetprint) shows a GREASE signature algorithm.
 
-See [Limits and Troubleshooting](/stealth/limits#limits).
+See [Limits and Troubleshooting](/scraping/advanced-stealthy/limits#limits).
 
 ## H
 
@@ -917,7 +917,7 @@ See [Cookies, in depth](/concepts/sessions-and-state#cookies-in-depth).
 
 A client in the experimental stealth crates that sends plain HTTP requests carrying the cookies, the measured TLS and HTTP/2 start, the header order and the identity of a real Chrome page. It does not run JavaScript or solve challenges.
 
-See [HttpSession](/stealth/http-session).
+See [HttpSession](/scraping/stealthy/http-session).
 
 ### Human-paced input
 
@@ -943,7 +943,7 @@ See [Modern web technologies](/concepts/modern-web#single-page-apps-and-framewor
 
 What a session presents to a site. In the stealth crates a `StealthIdentity` holds the [Fingerprint](#fingerprint), a reference to the measured browser, the cookies it earned, its [clearances](#clearance) and the [egress](#egress) they were earned through; it never holds a proxy, and its file is private. In the fingerprint pages, an identity is also a whole Fingerprint drawn for one seed.
 
-See [Cookies, Identity and Challenges](/stealth/identity#identity-session-policy-and-the-identity-file).
+See [Cookies, Identity and Challenges](/scraping/advanced-stealthy/identity#identity-session-policy-and-the-identity-file).
 
 ### Impersonation
 
@@ -951,7 +951,7 @@ See [Cookies, Identity and Challenges](/stealth/identity#identity-session-policy
 
 Making a client send the same TLS handshake, HTTP/2 start and headers as a [measured](#measured-profile) browser, so a site sees that browser's [wire fingerprint](#wire-fingerprint). The `mimic` crate does it with a wreq client, and only Chrome 155 on macOS is measured today.
 
-See [Wire Formats and Impersonation](/stealth/wire-formats#an-impersonating-client).
+See [Wire Formats and Impersonation](/stealth/advanced/wire-formats#an-impersonating-client).
 
 ### IndexedDB
 
@@ -975,7 +975,7 @@ See [Injection](/concepts/web-security#injection).
 
 A page shown instead of the content you asked for, such as a check page. A response counts as a [challenge](#challenge) only when it carries an interstitial marker.
 
-See [Cookies, Identity and Challenges](/stealth/identity#challenge-detection-and-mitigation).
+See [Cookies, Identity and Challenges](/scraping/advanced-stealthy/identity#challenge-detection-and-mitigation).
 
 ### IP address
 
@@ -1001,7 +1001,7 @@ See [Modern web technologies](/concepts/modern-web#ipfs-addressing-by-content).
 
 A fingerprint of a client's [ClientHello](#clienthello): five comma-separated fields with [GREASE](#grease) removed, usually shown as an MD5 hash. A site can use it to tell TLS clients apart.
 
-See [Wire Formats and Impersonation](/stealth/wire-formats#reading-the-wire-formats).
+See [Wire Formats and Impersonation](/stealth/advanced/wire-formats#reading-the-wire-formats).
 
 ### JA4
 
@@ -1009,7 +1009,7 @@ See [Wire Formats and Impersonation](/stealth/wire-formats#reading-the-wire-form
 
 A newer fingerprint of a client's [ClientHello](#clienthello), written in three parts as `a_b_c` after FoxIO's definition. `JA4_r` and `JA4_ro` are the unhashed variants, and only JA4 itself is implemented here, not the other JA4+ methods.
 
-See [Wire Formats and Impersonation](/stealth/wire-formats#reading-the-wire-formats).
+See [Wire Formats and Impersonation](/stealth/advanced/wire-formats#reading-the-wire-formats).
 
 ### JSON-LD
 
@@ -1149,7 +1149,7 @@ See [MCP servers](/tutorials/mcp_server).
 
 Wire values copied from a real browser by capture tools and stored as JSON: its TLS spec, HTTP/2 start, header order and Client Hints. Today there is one, Chrome 155.0.8059.40 on macOS, and any other browser and system pair is refused with `NotMeasured`.
 
-See [Wire Formats and Impersonation](/stealth/wire-formats#what-is-measured-and-what-is-refused).
+See [Wire Formats and Impersonation](/stealth/advanced/wire-formats#what-is-measured-and-what-is-refused).
 
 ### Merge
 
@@ -1197,7 +1197,7 @@ See [What happens to your code](/concepts/bundling-and-caching#what-happens-to-y
 
 A loopback forward proxy in the experimental `mimic` crate. It ends a real Chrome's TLS with a certificate from an [ephemeral CA](#ephemeral-ca) and replays each request through the impersonating client, so the site sees the measured handshake instead of Chrome's own.
 
-See [TLS Server and MitmProxy](/stealth/mitm-proxy#mitmproxy).
+See [TLS Server and MitmProxy](/stealth/advanced/mitm-proxy#mitmproxy).
 
 ### Mixed content
 
@@ -1247,7 +1247,7 @@ See [How the body is encoded](/concepts/forms#how-the-body-is-encoded).
 
 A [StealthPolicy](#stealthpolicy) option (`native_spoofing`) that delivers a fingerprint's claims through CDP overrides and launch arguments where the browser can, instead of through replaced JavaScript getters. The browser then reports the value itself; things the protocol cannot cover, such as WebGL and canvas noise, stay in JavaScript.
 
-See [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth#native-level-cdp-spoofing).
+See [Fingerprint & Stealth Profiles](/stealth/evasions#native-level-cdp-spoofing).
 
 ## P
 
@@ -1345,7 +1345,7 @@ See [Encryption and certificates](/concepts/encryption).
 
 A [JA3](#ja3)-like TLS fingerprint that also records the signature algorithms, and shows [GREASE](#grease) as `GREASE`.
 
-See [Wire Formats and Impersonation](/stealth/wire-formats#reading-the-wire-formats).
+See [Wire Formats and Impersonation](/stealth/advanced/wire-formats#reading-the-wire-formats).
 
 ### Permissions-Policy
 
@@ -1361,7 +1361,7 @@ See [Permissions-Policy](/concepts/web-security#permissions-policy).
 
 The whole machine and place that a [Fingerprint](#fingerprint) pretends to be: operating system, hardware, locale, time zone and position. A randomised identity draws the persona first and derives every field from it, so the signals agree with each other.
 
-See [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth#randomised-identities).
+See [Fingerprint & Stealth Profiles](/stealth/fingerprints#randomised-identities).
 
 ### Playwright mode
 
@@ -1443,7 +1443,7 @@ See [Pure CDP: Chrome without a WebDriver](/tutorials/pure_cdp).
 
 The UDP-based transport that carries HTTP/3. A [StealthPolicy](#stealthpolicy) can force it off (`--disable-quic`), force it on (`--enable-quic`) or leave it to Chrome.
 
-See [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth#the-policy).
+See [Fingerprint & Stealth Profiles](/stealth/policies).
 
 ## R
 
@@ -1671,7 +1671,7 @@ See [Deployment](/deployment#selenium-grid).
 
 The separate, experimental repository that holds the TLS and HTTP/2 layer as three crates: `codec` (wire formats), `scrape` ([BrowserScraper](#browserscraper), identity, challenge detection) and `mimic` ([HttpSession](#httpsession), [MitmProxy](#mitmproxy), [StealthSession](#stealthsession)). It left this crate in 0.3.0.
 
-See [Stealth Scraping](/stealth/overview).
+See [Stealth Scraping](/scraping/stealthy/overview).
 
 ### Semantic versioning
 
@@ -1783,7 +1783,7 @@ See [Modern web technologies](/concepts/modern-web#web3-keys-and-shared-ledgers)
 
 Server Name Indication: the host name a client states in its TLS handshake. [MitmProxy](#mitmproxy) refuses a connection whose SNI names a different host from the one the browser asked for.
 
-See [TLS Server and MitmProxy](/stealth/mitm-proxy).
+See [TLS Server and MitmProxy](/stealth/advanced/mitm-proxy).
 
 ### Socket
 
@@ -1815,7 +1815,7 @@ See [Source maps](/concepts/bundling-and-caching#source-maps).
 
 One setting of a [Fingerprint](#fingerprint), which is in one of four states: `Natural` (the browser's own value, the default), `Random` (a coherent value drawn when the fingerprint is built), `Value` (exactly what you give) or `Off` (the API is turned off, only where that makes sense, such as geolocation or WebRTC). The state and the value are one field, so they cannot disagree.
 
-See [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth#one-setting-four-states).
+See [Fingerprint & Stealth Profiles](/stealth/fingerprints#one-setting-four-states).
 
 ### SSRF
 
@@ -1839,7 +1839,7 @@ See [Selectors Guide](/tutorials/selectors#selector-troubleshooting).
 
 How a [Fingerprint](#fingerprint)'s claims are delivered and which protections run beside them, such as the WebRTC leak policy, [canvas noise](#canvas-noise), [audio noise](#audio-noise) and the `window.chrome` stubs; it never changes what a setting claims. The presets are `default()` (only the `toString` mask and open shadow roots), `balanced()`, `native_only()` and `max()`.
 
-See [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth#the-policy).
+See [Fingerprint & Stealth Profiles](/stealth/policies).
 
 ### StealthSession
 
@@ -1847,7 +1847,7 @@ See [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth#the-policy).
 
 A session in the experimental `mimic` crate that presents one identity in two modes: plain HTTP through an [HttpSession](#httpsession), or a real Chrome behind a [MitmProxy](#mitmproxy). When a challenge appears in HTTP mode it moves to the browser, solves it there, and returns to HTTP with the clearance.
 
-See [StealthSession](/stealth/stealth-session).
+See [StealthSession](/scraping/advanced-stealthy/stealth-session).
 
 ### Streams API
 
@@ -2205,7 +2205,7 @@ See [Protected video](/concepts/media-and-video#protected-video-eme-cdms-and-wid
 
 What a site can tell about a client before any page script runs: the TLS [ClientHello](#clienthello), the HTTP/2 connection start, and the order and spelling of the request headers.
 
-See [Stealth Scraping](/stealth/overview).
+See [Stealth Scraping](/scraping/stealthy/overview).
 
 ### Workflow
 
@@ -2257,7 +2257,7 @@ Short answers about engines, browsers, drivers and stealth.
 
 </Card>
 
-<Card color="#a631be" title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/tutorials/fingerprint_stealth">
+<Card color="#a631be" title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/stealth/introduction">
 
 What a fingerprint says a browser is, and how it is delivered.
 

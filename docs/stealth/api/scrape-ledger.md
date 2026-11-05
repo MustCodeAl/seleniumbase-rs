@@ -8,7 +8,7 @@ description: "Per-site state, event sinks and the events a scraper reports."
 
 `ledger` is the memory of a scrape. `state` keeps what each site has done behind `StateStore`. `events` is what the scraper reports, with URLs and proxies already redacted, behind `EventSink`.
 
-See [BrowserScraper](/stealth/browser-scraper).
+See [BrowserScraper](/scraping/stealthy/browser-scraper).
 
 <RequestExample>
 
@@ -319,4 +319,4 @@ pub fn new() -> Self
 
 ## Related
 
-The guide is [BrowserScraper](/stealth/browser-scraper). The overview is [scrape](/stealth/api/scrape).
+The guide is [BrowserScraper](/scraping/stealthy/browser-scraper). The overview is [scrape](/stealth/api/scrape).

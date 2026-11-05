@@ -121,6 +121,62 @@ launches the browser, runs the task and closes the browser.
 
 </Tabs>
 
+## Scraping with extractor
+
+### Read structured data
+
+extractor reads data without selectors: with nothing else asked, it finds the
+structure of the page (JSON-LD, then tables, then repeated elements) and reads
+it.
+
+```json pages.json
+{"urls": ["https://example.com/products"]}
+```
+
+```bash
+sbrs plugin run extractor --input pages.json --out records.jsonl
+```
+
+Each page writes `{index, url, title, schema, records, problems}`. A job can
+also name what to read (`select`, `item`, `schema`); see [A job](#a-job).
+
+### Reading a page in your own code
+
+Without the plugin, the pure CDP engine reads a page from Rust. A browser runs
+the page's own scripts first, so content that JavaScript draws is there too:
+
+```rust,no_run
+use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
+
+async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let browser = Browser::launch(LaunchOptions::builder().headless(true).build()?).await?;
+    let page = browser.default_page().await?;
+    page.goto("https://example.com/products").await?;
+
+    for item in page.locator(".product").all_waiting().await? {
+        let name = item.locator(".name").text().await?;
+        let link = item.locator("a").attribute("href").await?;
+        println!("{name}: {link:?}");
+    }
+
+    let html = page.content().await?; // the whole document, for a parser of your own
+    println!("{} bytes", html.len());
+    browser.close().await?;
+    Ok(())
+}
+```
+
+- `all_waiting()` waits up to the locator's timeout for a first match, then
+  returns one locator per match, as Python's `find_elements` does. It gives an
+  empty list when nothing appears in time.
+- `text()` reads the rendered text (and the value of a form field), `html()`
+  the outer HTML, `attribute(name)` an attribute or `None`.
+- `page.content()` returns the whole document.
+
+[Pure CDP](/tutorials/pure_cdp) covers locators, frames, cookies and waiting
+in full.
+
+
 ## Options
 
 `[plugins.extractor]` in a settings file. An option that is not listed is an

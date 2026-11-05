@@ -423,7 +423,7 @@ codepoint; `TRUST_ANCHORS` is the extension that BoringSSL as vendored by btls
 
 </Card>
 
-<Card color="#1a85d4" title="Wire formats guide" icon="book" href="/stealth/wire-formats#reading-the-wire-formats">
+<Card color="#1a85d4" title="Wire formats guide" icon="book" href="/stealth/advanced/wire-formats#reading-the-wire-formats">
 
 The formats in context.
 

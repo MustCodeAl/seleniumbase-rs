@@ -503,7 +503,7 @@ Related tools and prompts:
   `start_browser`, `capture_fingerprint`, `compare_fingerprint` and
   `explain_fingerprint`.
 
-See [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth) for what the
+See [Fingerprint & Stealth Profiles](/stealth/introduction) for what the
 settings mean.
 
 
@@ -1219,7 +1219,7 @@ quotes the lines of the file or the value it refused.
 
 ### `check_fingerprint`
 
-Parses JSON as a [fingerprint](/tutorials/fingerprint_stealth) of this library, or, when
+Parses JSON as a [fingerprint](/stealth/introduction) of this library, or, when
 it has `parameters` or `browser_type` with `os_type`, as the profile payload of an
 anti-detect browser tool, and returns what `Fingerprint::validate` finds: whether it
 is coherent, the errors (a platform that contradicts the user agent) and the

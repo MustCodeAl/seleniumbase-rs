@@ -437,7 +437,7 @@ before any other provider runs.
 4. Use `ctx.seed` for deterministic per-session noise (canvas, audio, WebGL).
 5. Add a unit test asserting the snippet contains expected markers and that
    `applies` is gated correctly.
-6. Update `docs/tutorials/fingerprint_stealth.md`.
+6. Update `docs/stealth/fingerprints.md`.
 
 ## Adding a Fingerprint Setting or Policy Field
 
@@ -467,7 +467,7 @@ For a setting:
    `Value`, and handles `Off` where it has one.
 6. Add the payload key to `ProfileParams::fingerprint_builder` if a payload can
    carry it, reading the common words of `Word`.
-7. Document the setting in `docs/tutorials/fingerprint_stealth.md`.
+7. Document the setting in `docs/stealth/fingerprints.md`.
 
 For a policy field, add the field, its default and its preset values to
 `StealthPolicy`, a method of the same name, and a builder shortcut

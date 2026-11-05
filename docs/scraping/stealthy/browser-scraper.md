@@ -124,7 +124,7 @@ failures in a row is out of rotation for ten minutes by default.
 
 `export_identity()` takes the identity out of the scraper: the fingerprint, the
 cookies the browser holds, the clearances among them, and the egress. Save it
-with the [identity file](/stealth/identity#identity-session-policy-and-the-identity-file).
+with the [identity file](/scraping/advanced-stealthy/identity#identity-session-policy-and-the-identity-file).
 `import_identity(&id)` puts one back: it refuses an identity for another egress
 or another Chrome major, restarts the browser when the fingerprint differs, and
 sets the cookies. `save_session(name)` and `load_session(name)` keep cookies and
@@ -221,19 +221,19 @@ are on [the API page](/stealth/api/scrape#re-exports-at-the-root).
 
 <Columns cols={2}>
 
-<Card title="Identity and cookies" icon="cookie" color="#199f43" href="/stealth/identity">
+<Card title="Identity and cookies" icon="cookie" color="#199f43" href="/scraping/advanced-stealthy/identity">
   The jar, the identity file, and the decision table `fetch` follows.
 </Card>
 
-<Card title="HttpSession" icon="network-wired" color="#a631be" href="/stealth/http-session">
+<Card title="HttpSession" icon="network-wired" color="#a631be" href="/scraping/stealthy/http-session">
   Carry the cookies this scraper earned as plain HTTP. Needs `mimic`.
 </Card>
 
-<Card title="StealthSession" icon="shuffle" color="#d32a61" href="/stealth/stealth-session">
+<Card title="StealthSession" icon="shuffle" color="#d32a61" href="/scraping/advanced-stealthy/stealth-session">
   The same loop, with plain HTTP as the first move.
 </Card>
 
-<Card title="Limits" icon="triangle-exclamation" color="#d5a910" href="/stealth/limits">
+<Card title="Limits" icon="triangle-exclamation" color="#d5a910" href="/scraping/advanced-stealthy/limits">
   What a fetch refuses, and what each `ScrapeError` means.
 </Card>
 

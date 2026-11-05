@@ -17,7 +17,7 @@ Items marked with a feature need that Cargo feature; the default feature set
 is empty. For stealth and scraping, the unified `seleniumbase-rs-stealth`
 facade re-exports this core API alongside `fingerprint`, `codec`, `scrape` and
 optional `mimic`. Use `seleniumbase_rs_stealth` paths with the
-[single dependency](/stealth/overview#which-crate-to-depend-on). Optional core
+[single dependency](/scraping/stealthy/overview#which-crate-to-depend-on). Optional core
 APIs retain their feature gates.
 
 ### Browser, configuration and test runner
@@ -69,14 +69,14 @@ APIs retain their feature gates.
 
 ### Fingerprint and stealth
 
-These are re-exported for convenience; the [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth)
+These are re-exported for convenience; the [Fingerprint & Stealth Profiles](/stealth/introduction)
 tutorial is the reference for them.
 
 | Item | What it is |
 |---|---|
 | Fingerprint types | `Fingerprint` (built once with `Fingerprint::builder()`, read through accessors, changed with `to_builder()`), `FingerprintBuilder`, `FingerprintError`, `Spoof<T>` (each setting: `Natural`, `Random`, `Value(T)` or `Off`), `StealthPolicy` (how the claims are delivered; presets `default()`, `balanced()`, `native_only()`, `max()`), `Dimension`, and the value types `ScreenSize`, `Geolocation`, `WebGl`, `WebRtcAddresses`, `MediaDevices`, `ClientHints`, `BrandVersion`, `ProxyConfig`, `BatteryProfile`, `ConnectionProfile`, `SpeechVoice`, `OsType`, `BrowserType`; the policy enums `CanvasNoise`, `AudioNoise`, `QuicMode`, `WebRtcPolicy`; `HumanizeConfig` and `CoherenceReport`. |
 | Evasion providers | `default_registry()` returns an `EvasionRegistry` with every built-in provider. `session_registry(&Fingerprint)` is the registry for a pure CDP tab: it leaves out the providers named in `SESSION_OMITTED_PROVIDERS` (`"plugins"` and `"connection"`), because Chrome already answers for those itself. `EvasionProvider` is the trait for your own, `EvasionContext` the data a provider's script is built from, `EvasionConfig` its settings. |
-| Patching | `find_system_chrome() -> Option<PathBuf>` (checks `CHROME_BIN` and `CHROMIUM_BIN`, well-known paths, then `which`), `engine_spoofing_args() -> Vec<String>` (launch flags that reduce engine-level automation signals), `ChromeBinaryPatcher`, `ChromedriverPatcher`, `EnginePatch`. See [Binary patching](/tutorials/binary_patching). |
+| Patching | `find_system_chrome() -> Option<PathBuf>` (checks `CHROME_BIN` and `CHROMIUM_BIN`, well-known paths, then `which`), `engine_spoofing_args() -> Vec<String>` (launch flags that reduce engine-level automation signals), `ChromeBinaryPatcher`, `ChromedriverPatcher`, `EnginePatch`. See [Binary patching](/stealth/advanced/binary-patching). |
 
 ### Python migration
 

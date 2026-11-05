@@ -20,7 +20,7 @@ The lists never hold GREASE: the `grease` flag says BoringSSL adds its GREASE
 values. The per-extension flags of the design plan (`ocsp_stapling`, `sct`,
 `session_ticket`, `renegotiation`, `ech_grease`) are methods that read the
 extension list, so they cannot disagree with it. The table of what is refused is
-in [Wire formats](/stealth/wire-formats#what-is-refused).
+in [Wire formats](/stealth/advanced/wire-formats#what-is-refused).
 
 <RequestExample>
 

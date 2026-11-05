@@ -108,6 +108,6 @@ which the facade always depends on. They are not Cargo features. Import through
 
 ## Guides
 
-[BrowserScraper](/stealth/browser-scraper) is the fetch loop. [Identity and cookies](/stealth/identity)
-is the jar and the decision table. [Runnable examples](/stealth/examples) is the programs.
-[Limits](/stealth/limits) is what is measured.
+[BrowserScraper](/scraping/stealthy/browser-scraper) is the fetch loop. [Identity and cookies](/scraping/advanced-stealthy/identity)
+is the jar and the decision table. [Runnable examples](/scraping/advanced-stealthy/examples) is the programs.
+[Limits](/scraping/advanced-stealthy/limits) is what is measured.

@@ -390,7 +390,7 @@ gone. In the pure CDP engine, `LaunchOptions::builder()` takes the pieces:
 `user_data_dir(..)`, `arg(..)` for any other Chrome flag, and `preference(..)`.
 UC mode sets up a WebDriver session to avoid common bot checks, and replaces
 `HeadlessChrome` in the user agent when running headless. See
-[Binary patching](/tutorials/binary_patching) and [UC mode](/tutorials/uc_mode).
+[Binary patching](/stealth/advanced/binary-patching) and [UC mode](/tutorials/uc_mode).
 
 </Accordion>
 
@@ -427,7 +427,7 @@ the `Human` type.
 A proxy changes the IP the site sees, and the WebRTC policy keeps the real IP
 from leaking through WebRTC. A real Chrome already sends a Chrome TLS
 fingerprint; for plain HTTP requests made outside the browser, the
-[stealth crates](/stealth/overview) in the separate
+[stealth crates](/scraping/stealthy/overview) in the separate
 [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
 repository reproduce the same TLS and HTTP/2 fingerprint (see the
 [codec API](/stealth/api/codec) and [JA3 and JA4](/stealth/api/codec-ja4)).
@@ -507,7 +507,7 @@ page.goto("https://example.com").await?;
 Internally, `Page::apply_fingerprint` registers the page script with
 `Page.addScriptToEvaluateOnNewDocument`, turns on `Network`, and sends the
 protocol overrides (device metrics, user agent, time zone and so on) for the
-tab's own session. See [Fingerprints](/tutorials/fingerprint_stealth) and
+tab's own session. See [Fingerprints](/stealth/introduction) and
 [Design: fingerprint API v2](/design/fingerprint-api-v2).
 
 ## What UC mode does
@@ -531,7 +531,7 @@ shown above, and needs no driver to hide.
 
 No layer makes a browser undetectable. Each closes known signals; a site can
 look for new ones. The stealth scraping layer is experimental; see its
-[limits](/stealth/limits).
+[limits](/scraping/advanced-stealthy/limits).
 
 </Warning>
 
@@ -549,7 +549,7 @@ how you use the library.
 
 <Columns cols={2}>
 
-<Card title="Fingerprints" icon="fingerprint" color="#1a85d4" href="/tutorials/fingerprint_stealth">
+<Card title="Fingerprints" icon="fingerprint" color="#1a85d4" href="/stealth/introduction">
   Build and apply a fingerprint and a policy.
 </Card>
 
@@ -565,7 +565,7 @@ how you use the library.
   Proxies, TLS and the connection a site sees.
 </Card>
 
-<Card title="Stealth scraping" icon="spider" color="#a631be" href="/stealth/overview">
+<Card title="Stealth scraping" icon="spider" color="#a631be" href="/scraping/stealthy/overview">
   The experimental crates for network-level fingerprints, in the separate seleniumbase-rs-stealth repository.
 </Card>
 

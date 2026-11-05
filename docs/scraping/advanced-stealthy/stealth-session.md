@@ -3,7 +3,7 @@ title: "StealthSession"
 ---
 
 Examples importing `seleniumbase_rs_stealth::mimic` require the facade's
-`mimic` feature. See the [single-dependency setup](/stealth/overview#which-crate-to-depend-on);
+`mimic` feature. See the [single-dependency setup](/scraping/stealthy/overview#which-crate-to-depend-on);
 this feature builds BoringSSL and needs cmake and a C/C++ toolchain.
 
 <Badge color="blue">Crate: mimic</Badge>
@@ -13,10 +13,10 @@ this feature builds BoringSSL and needs cmake and a C/C++ toolchain.
 cookies it earned and the <Tooltip tip="The exit address a request leaves through: one of your proxies, or the direct connection.">egress</Tooltip> they were earned through) in one of two modes
 and moves between them by the policies:
 
-- `Mode::Http`: an [`HttpSession`](/stealth/http-session) sends the requests. It is fast
+- `Mode::Http`: an [`HttpSession`](/scraping/stealthy/http-session) sends the requests. It is fast
   and cheap, with the measured handshake and headers.
 - `Mode::Browser`: a real Chrome sends them, behind a
-  [`MitmProxy`](/stealth/mitm-proxy#mitmproxy) that replays each request with the same measured
+  [`MitmProxy`](/stealth/advanced/mitm-proxy#mitmproxy) that replays each request with the same measured
   handshake. A clearance earned here is valid in the other mode.
 
 ```rust
@@ -153,7 +153,7 @@ it is then moved to the language and time zone of the egress country. Like every
 randomized identity it carries `StealthPolicy::balanced()`: the WebRTC leak
 policy `DisableNonProxiedUdp`, seeded canvas and audio noise, the `window.chrome`
 stubs and the headless fixes (see the
-[fingerprint tutorial](/tutorials/fingerprint_stealth)). The fingerprint
+[fingerprint tutorial](/stealth/introduction)). The fingerprint
 only changes when you rotate the profile or the egress, or pass your own with
 `fingerprint(..)`, which must claim the measured Chrome.
 
@@ -254,7 +254,7 @@ boundary it maps to `SeleniumBaseError`.
   closed. There is no idle timeout and no deadline in the session.
 - It runs the same fetch loop as `BrowserScraper`, with plain HTTP as the first
   move. A matching handshake is one signal among many, and a session does not
-  make automation permitted by a site's terms. See [Limits](/stealth/limits#limits).
+  make automation permitted by a site's terms. See [Limits](/scraping/advanced-stealthy/limits#limits).
 
 </Warning>
 
@@ -293,19 +293,19 @@ re-exported at `seleniumbase_rs_stealth::mimic`. The module path
 
 <Columns cols={2}>
 
-<Card title="HttpSession" icon="network-wired" color="#a631be" href="/stealth/http-session">
+<Card title="HttpSession" icon="network-wired" color="#a631be" href="/scraping/stealthy/http-session">
   The plain HTTP leg of this session, on its own.
 </Card>
 
-<Card title="MitmProxy" icon="shield" color="#1ca1c7" href="/stealth/mitm-proxy">
+<Card title="MitmProxy" icon="shield" color="#1ca1c7" href="/stealth/advanced/mitm-proxy">
   The proxy the browser leg launches behind.
 </Card>
 
-<Card title="BrowserScraper" icon="globe" color="#1a85d4" href="/stealth/browser-scraper">
+<Card title="BrowserScraper" icon="globe" color="#1a85d4" href="/scraping/stealthy/browser-scraper">
   The same loop with no TLS spoofing and no BoringSSL.
 </Card>
 
-<Card title="Limits" icon="triangle-exclamation" color="#d5a910" href="/stealth/limits">
+<Card title="Limits" icon="triangle-exclamation" color="#d5a910" href="/scraping/advanced-stealthy/limits">
   What a session refuses, and what was never checked against a live service.
 </Card>
 

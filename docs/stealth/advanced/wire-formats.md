@@ -4,7 +4,7 @@ sidebarTitle: "Wire formats"
 ---
 
 Examples importing `seleniumbase_rs_stealth::mimic` require the facade's
-`mimic` feature. See the [single-dependency setup](/stealth/overview#which-crate-to-depend-on);
+`mimic` feature. See the [single-dependency setup](/scraping/stealthy/overview#which-crate-to-depend-on);
 this feature builds BoringSSL and needs cmake and a C/C++ toolchain.
 
 <Badge color="orange">Experimental</Badge>
@@ -121,7 +121,7 @@ cargo run -p seleniumbase-rs-mimic --example capture_h2
   cannot drive, `--snippet` prints a script to paste into its developer
   console.
 - `capture_h2` serves a small HTTPS site with an [ephemeral
-  CA](/stealth/mitm-proxy#the-ephemeral-ca-tls-server), starts Chrome so that it trusts only
+  CA](/stealth/advanced/mitm-proxy#the-ephemeral-ca-tls-server), starts Chrome so that it trusts only
   that CA, and reads the first request on each of five connections (a
   navigation, a `fetch`, an image, a script, a stylesheet), once over HTTP/2
   and once over HTTP/1.1. `--h1` and `--h2` run one pass only.
@@ -245,9 +245,9 @@ async fn demo() -> Result<(), Box<dyn std::error::Error>> {
   `priority` header of the measured table for the request's `Sec-Fetch-Dest`;
   Chrome sends it on HTTP/2 only.
 - The profile carries the measured TLS without its known gaps (see
-  [Limits](/stealth/limits#limits)) and keeps extension permutation on, as Chrome does.
+  [Limits](/scraping/advanced-stealthy/limits#limits)) and keeps extension permutation on, as Chrome does.
 - Cookies, redirects, body limits and the hand-over from a browser are not part
-  of this client. That is what [`HttpSession`](/stealth/http-session) is for.
+  of this client. That is what [`HttpSession`](/scraping/stealthy/http-session) is for.
 
 Other ways to get a profile: `ImpersonationProfile::for_system(kind, os)`,
 `ImpersonationProfile::from_fingerprint(&fp)` (a Chromium identity that claims
@@ -356,11 +356,11 @@ needs `features = ["mimic"]`. The module paths used above
 
 <Columns cols={2}>
 
-<Card title="HttpSession" icon="network-wired" color="#a631be" href="/stealth/http-session">
+<Card title="HttpSession" icon="network-wired" color="#a631be" href="/scraping/stealthy/http-session">
   The client this page builds, carrying a browser's cookies.
 </Card>
 
-<Card title="Examples" icon="play" color="#693acf" href="/stealth/examples">
+<Card title="Examples" icon="play" color="#693acf" href="/scraping/advanced-stealthy/examples">
   `custom_profile` and the three capture tools, and what each needs.
 </Card>
 
