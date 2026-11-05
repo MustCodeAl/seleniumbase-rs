@@ -147,8 +147,6 @@ rstest = { version = "0.28", default-features = false, optional = true }
 # `bdd`: Gherkin features through rstest-bdd (see the feature below).
 rstest-bdd = { version = "0.6", optional = true }
 rstest-bdd-macros = { version = "0.6", optional = true }
-rstest-bdd-harness = { version = "0.6", optional = true }
-rstest-bdd-harness-tokio = { version = "0.6", optional = true }
 
 [features]
 # Nothing is on by default: a headless browser pool needs neither the terminal UI
@@ -215,9 +213,10 @@ pdf = ["dep:pdf-extract"]
 # prompts) and the test id. See `docs/tutorials/writing_tests.md`.
 testing = ["dep:rstest"]
 # Gherkin features as cargo tests (rstest-bdd; replaces the removed `behave` module):
-# `testing::bdd::{sb, sb_cdp, SbCase, SbCdpCase}`. The four crates are
+# `testing::bdd::{sb, sb_cdp, SbCase, SbCdpCase}`. The crates are
 # optional and the macros' own dependency tree (i18n, rust-embed, gherkin) comes with them.
-bdd = ["testing", "dep:rstest-bdd", "dep:rstest-bdd-macros", "dep:rstest-bdd-harness", "dep:rstest-bdd-harness-tokio"]
+# The harness crates are not used: an async step cannot run on that path.
+bdd = ["testing", "dep:rstest-bdd", "dep:rstest-bdd-macros"]
 # Allure results (`core::allure`, `SB_ALLURE_DIR`). The feature has no dependency on purpose: the
 # results are written with serde, and allure-rust-commons would add a crate for a sink that is told
 # the duration of each test afterwards (its facade stamps the time of its own calls).
