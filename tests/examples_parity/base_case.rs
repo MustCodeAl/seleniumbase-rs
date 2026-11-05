@@ -7,7 +7,7 @@
 
 use seleniumbase_rs::{run_browser_test, Result};
 
-use crate::support::{headless, run_port};
+use super::support::{headless, run_port};
 
 // ---------------------------------------------------------------------------
 // my_first_test.py

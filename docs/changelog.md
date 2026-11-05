@@ -50,6 +50,15 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 s
   `startedDateTime`, the info files of a failed test, the `captured_at` of a fingerprint, the log
   clock, and `sbrs report history --json`.
 
+### Changed
+
+- Integration tests are two binaries per package, `offline` and `chrome`, instead of one
+  binary per file. Run a module with `cargo test -p seleniumbase-rs --test offline <module>::`
+  or `cargo test -p seleniumbase-rs --test chrome <module>::` (and `-p seleniumbase-rs-cli`
+  for the command-line package). `browser_smoke`, `edge_msedgedriver`, `firefox_geckodriver`,
+  the `contract_*` binaries and `cli_plugins_off` stay separate, because a consumer check, a
+  feature exclusion or the one-thread browser group names that binary.
+
 ### Added
 
 - The built-in `browser` plugin's worker, session and sign-in options work on the pure CDP

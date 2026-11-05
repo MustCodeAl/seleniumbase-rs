@@ -432,7 +432,7 @@ Pushes a protocol event to everything listening, as the browser would.
 </ResponseField>
 
 - Run the existing mock tests with
-  `cargo test --features test-util --test sb_cdp_mock`. In this repository a
+  `cargo test --features test-util --test offline sb_cdp_mock`. In this repository a
   test file that uses the mock starts with `#![cfg(feature = "test-util")]`.
 - `page.with_timeout(Duration::from_millis(150))` makes the failure paths quick.
 - The crate's own unit tests have a WebDriver counterpart, `MockWebDriver` in
@@ -562,11 +562,11 @@ server's standard error depends on the client.
 <CodeGroup>
 
 ```bash One test, output shown
-cargo test --features "mcp-server test-util" --test sb_cdp_mock waiting_succeeds_once_the_element_appears -- --nocapture
+cargo test --features "mcp-server test-util" --test offline sb_cdp_mock waiting_succeeds_once_the_element_appears -- --nocapture
 ```
 
 ```bash Exact name
-cargo test --features "mcp-server test-util" --test sb_cdp_mock -- --exact waiting_succeeds_once_the_element_appears
+cargo test --features "mcp-server test-util" --test offline sb_cdp_mock -- --exact waiting_succeeds_once_the_element_appears
 ```
 
 ```bash A library unit test
@@ -574,23 +574,24 @@ cargo test -p seleniumbase-rs --lib tracing_util
 ```
 
 ```bash Real Chrome
-cargo test --test sb_cdp_chrome -- --ignored --nocapture --test-threads=1
+cargo test -p seleniumbase-rs --test chrome sb_cdp_chrome -- --ignored --nocapture --test-threads=1
 ```
 
 ```bash The sbrs binary
-cargo test -p seleniumbase-rs-cli --test cli_e2e_chrome -- --ignored
+cargo test -p seleniumbase-rs-cli --test chrome cli_e2e_chrome -- --ignored
 ```
 
 ```bash With a backtrace
-RUST_BACKTRACE=1 cargo test --features "mcp-server test-util" --test sb_cdp_mock -- --nocapture
+RUST_BACKTRACE=1 cargo test --features "mcp-server test-util" --test offline sb_cdp_mock -- --nocapture
 ```
 
 </CodeGroup>
 
-- The name after `--test` is the file in `tests/` (or `crates/cli/tests/`, with
-  `-p seleniumbase-rs-cli`). A word after it filters the tests by name.
-- Tests that need a real Chrome are `#[ignore]`d: add `--ignored`, and run one
-  binary at a time.
+- The name after `--test` is the integration-test binary, `offline` or `chrome`
+  (pass `-p`: both packages have those names). The module, the former file in
+  `tests/`, filters that binary.
+- Tests that need a real Chrome are `#[ignore]`d: add `--ignored`, and
+  `--test-threads=1`.
 - `--nocapture` shows what the test prints as it runs. Logs appear only if the
   test installs a subscriber (see [In your own program or test](#in-your-own-program-or-test)).
 - The mock-driven tests of the `sb_cdp` engine and of the MCP servers, and the tests of the
@@ -600,7 +601,7 @@ RUST_BACKTRACE=1 cargo test --features "mcp-server test-util" --test sb_cdp_mock
   printed with the failure, and `RUST_LOG=debug` (a filter, see
   [Pick a target with RUST_LOG](#pick-a-target-with-rust_log)) chooses what it shows. Use the same
   attribute for a new test of this kind. A test that installs a subscriber of its own
-  (`tests/sb_cdp_plugin_network.rs` does) keeps `#[tokio::test]`, because the global subscriber can
+  (`tests/offline/sb_cdp_plugin_network.rs` does) keeps `#[tokio::test]`, because the global subscriber can
   be set only once.
 
 
@@ -627,11 +628,11 @@ A test that uses the mocked browser needs no Chrome, so it is the one to step
 through first.
 
 ```bash Terminal
-CARGO_PROFILE_DEV_DEBUG=2 cargo test --features "mcp-server test-util" --test sb_cdp_mock --no-run
+CARGO_PROFILE_DEV_DEBUG=2 cargo test --features "mcp-server test-util" --test offline sb_cdp_mock --no-run
 ```
 
 `--no-run` builds the test binary and prints its path on a line that starts
-with `Executable`, such as `target/debug/deps/sb_cdp_mock-<hash>`.
+with `Executable`, such as `target/debug/deps/offline-<hash>`.
 
 </Step>
 
@@ -656,7 +657,7 @@ binary, not lldb.
 (lldb) frame variable
 ```
 
-Line 125 of `tests/sb_cdp_mock.rs` is inside the mock's answer to
+Line 125 of `tests/offline/sb_cdp_mock.rs` is inside the mock's answer to
 `Runtime.evaluate`, which runs on every look for the element. Use the line you
 want to stop at.
 

@@ -115,10 +115,15 @@ binaries with `cargo install --path crates/cli`.
 
 - Count failures from the exit code or from `test result` lines, never from a
   filtered `grep`; read the whole output.
-- Tests that launch a real Chrome are named `*_chrome.rs` (plus `browser_smoke`)
-  and are `#[ignore]`d. Run them one binary at a time (the nextest `chrome` group
-  has one thread). Mock-driven tests (`tests/sb_cdp_*.rs`) need no browser. The
-  tests that run the `sbrs` binaries are in `crates/cli/tests`.
+- Real-Chrome tests live in `tests/chrome` and `crates/cli/tests/chrome` (one
+  binary each, still `#[ignore]`d). Run a module with
+  `cargo test -p seleniumbase-rs --test chrome <module>:: -- --ignored`.
+  `browser_smoke`, `edge_msedgedriver` and `firefox_geckodriver` stay their own
+  binaries. The nextest `chrome` group runs those binaries one at a time.
+  Mock-driven tests are the `offline` binary (`tests/offline`,
+  `cargo test -p seleniumbase-rs --test offline <module>::`). The tests that
+  run the `sbrs` binaries are in `crates/cli/tests` (`-p seleniumbase-rs-cli`).
+  Both packages have a binary named `chrome` and one named `offline`, so pass `-p`.
 - The stealth layer's gates, BoringSSL build (cmake) and Chrome tests live in
   the seleniumbase-rs-stealth repository, not here.
 - Publishing: gate the exact commit, `git fetch`, confirm `origin/main` has not
@@ -133,7 +138,7 @@ binaries with `cargo install --path crates/cli`.
 - A new `[[bin]]`, `[[bench]]` or `[[example]]`, in either manifest, must also be
   added to the `Dockerfile` skeleton step, or the image build fails. A
   command-line crate in the library's `[dependencies]` fails
-  `tests/library_manifest.rs`; it belongs in `crates/cli/Cargo.toml`.
+  `tests/offline/library_manifest.rs`; it belongs in `crates/cli/Cargo.toml`.
 - A new Python-parity API gets an entry in `parity/api.toml`.
 - A public item a consumer imports needs its `tests/contract_*.rs` updated in the same commit (`mise run contracts`, `docs/contributing/consumers.md`).
 - Tutorials in `docs/tutorials/` are not compiled; keep their code true by hand.

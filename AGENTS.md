@@ -38,10 +38,12 @@ cargo check --features turso --all-targets
 ```
 
 - Run the narrowest test while you work (`cargo test --lib <filter>`,
-  `cargo test --test <name>`); run the whole set once, at the end.
-- Tests that need a real Chrome are named `*_chrome.rs` and are `#[ignore]`d. Run
-  one binary at a time: `cargo test --test mcp_cdp_chrome -- --ignored`. Tests
-  that run the `sbrs` binaries are in `crates/cli/tests` (`-p seleniumbase-rs-cli`).
+  `cargo test -p seleniumbase-rs --test offline <module>::`); run the whole set once, at the end.
+- Tests that need a real Chrome are modules of `tests/chrome` and are `#[ignore]`d.
+  Run one module: `cargo test -p seleniumbase-rs --test chrome mcp_cdp_chrome -- --ignored`.
+  `browser_smoke`, `edge_msedgedriver` and `firefox_geckodriver` stay separate binaries.
+  Tests that run the `sbrs` binaries are in `crates/cli/tests`
+  (`-p seleniumbase-rs-cli --test offline` or `--test chrome`).
 - Count failures from the exit code and the `test result:` lines, not from a
   filtered search of the output.
 - Do not run two heavy cargo commands at once, and do not share one

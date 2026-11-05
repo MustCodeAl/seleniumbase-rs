@@ -346,8 +346,8 @@ both, so a plain `cargo build` or `cargo test` at the root covers both.
 <LayoutDir name="tests" note="integration tests of the library">
 <LayoutDir name="golden" note="compiled into the library" />
 <LayoutDir name="support" note="shared with crates/cli/tests" />
-<LayoutFile name="sb_cdp_mock.rs" note="the pure CDP API against a mocked browser" />
-<LayoutFile name="sb_cdp_chrome.rs" note="the same against a real Chrome, ignored by default" />
+<LayoutDir name="offline" note="mock and offline integration tests, one binary" />
+<LayoutDir name="chrome" note="real-Chrome integration tests, one binary, ignored by default" />
 <LayoutFile name="browser_smoke.rs" note="the WebDriver path against a real Chrome, ignored by default" />
 </LayoutDir>
 <LayoutDir name="benches" note="the benchmarks">
@@ -667,11 +667,11 @@ one test binary at a time: a Chrome that is starved of CPU and memory misses its
 <CodeGroup>
 
 ```bash Library
-cargo test --features "mcp-server test-util testing bdd" --test sb_cdp_chrome -- --ignored --test-threads=1
+cargo test -p seleniumbase-rs --features "mcp-server test-util testing bdd" --test chrome sb_cdp_chrome -- --ignored --test-threads=1
 ```
 
 ```bash Command line
-cargo test -p seleniumbase-rs-cli --test cli_e2e_chrome -- --ignored
+cargo test -p seleniumbase-rs-cli --test chrome cli_e2e_chrome -- --ignored
 ```
 
 ```bash nextest

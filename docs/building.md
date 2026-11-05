@@ -770,14 +770,14 @@ run cargo test --locked --features "mcp-server test-util" --no-fail-fast --doc \
     -- --test-threads=2
 
 # A real-browser binary, one at a time:
-run cargo test --locked --features "mcp-server test-util" --test sb_cdp_chrome \
+run cargo test --locked --features "mcp-server test-util" -p seleniumbase-rs --test chrome sb_cdp_chrome \
     -- --ignored --test-threads=1
 
 # A test that needs a headed Chrome gets a virtual display:
 docker run --rm --memory=4g --memory-swap=4g --shm-size=1g -e SBRS_XVFB=1 \
     -e CARGO_BUILD_JOBS=2 -v "$PWD":/src:ro -v sbrs-verify-target:/target \
     -v sbrs-verify-registry:/usr/local/cargo/registry seleniumbase-rs:verify-tools \
-    cargo test --locked --features "mcp-server test-util" --test NAME_chrome \
+    cargo test --locked --features "mcp-server test-util" -p seleniumbase-rs --test chrome NAME_chrome \
     -- --ignored --test-threads=1
 ```
 
@@ -1065,7 +1065,7 @@ then are no longer part of this crate).
 | The other test binaries of that feature set (68) | 406 passed, 0 failed, 114 ignored (the real-browser tests, ignored by default) |
 | Doc tests, same features | 182 passed, 0 failed, 10 ignored |
 | Real Chromium 154: `browser_smoke` and 17 `*_chrome` binaries, one at a time with `-- --ignored --test-threads=1` | 112 passed, 0 failed (headless, except the 2 of `scrape_capture_chrome`, now in seleniumbase-rs-stealth, which ran headed on a virtual display) |
-| `cargo test --test dockerfile_skeleton` | 9 passed |
+| `cargo test -p seleniumbase-rs --test offline dockerfile_skeleton` | 9 passed |
 
 What the runs showed:
 
