@@ -438,48 +438,61 @@ impl ProxyList {
         let index = match self.rotation {
             RotationStrategy::RoundRobin => self.next_of(&open),
             RotationStrategy::Random { seed } => {
-                let at = match seed {
-                    Some(seed) => {
-                        // A generator per draw, seeded from the seed and the draw
-                        // number: the order repeats for the seed, and the list stays
-                        // cloneable.
-                        let mut rng = StdRng::seed_from_u64(seed.wrapping_add(state.draws));
-                        state.draws = state.draws.wrapping_add(1);
-                        rng.random_range(0..open.len())
-                    }
-                    None => rand::rng().random_range(0..open.len()),
-                };
-                open[at]
+                open[Self::random_index(&mut state, seed, open.len())]
             }
-            RotationStrategy::LeastFailures => {
-                let fewest = open
-                    .iter()
-                    .map(|&index| state.health[index].failures)
-                    .min()
-                    .unwrap_or_default();
-                let tied: Vec<usize> = open
-                    .iter()
-                    .copied()
-                    .filter(|&index| state.health[index].failures == fewest)
-                    .collect();
-                self.next_of(&tied)
-            }
+            RotationStrategy::LeastFailures => self.least_failed(&state, &open),
             RotationStrategy::StickyPerSite => match site {
-                Some(site) => match state.sticky.get(site) {
-                    Some(&kept) if open.contains(&kept) => kept,
-                    _ => {
-                        let chosen = self.next_of(&open);
-                        if state.sticky.len() >= MAX_STICKY_SITES {
-                            state.sticky.clear();
-                        }
-                        state.sticky.insert(site.to_owned(), chosen);
-                        chosen
-                    }
-                },
+                Some(site) => self.sticky(&mut state, site, &open),
                 None => self.next_of(&open),
             },
         };
         self.entries.get(index)
+    }
+
+    /// A random position below `len`. With a seed, each draw has its own
+    /// generator, seeded from the seed and the draw number: the order repeats
+    /// for the seed, and the list stays cloneable.
+    fn random_index(state: &mut Rotation, seed: Option<u64>, len: usize) -> usize {
+        match seed {
+            Some(seed) => {
+                let mut rng = StdRng::seed_from_u64(seed.wrapping_add(state.draws));
+                state.draws = state.draws.wrapping_add(1);
+                rng.random_range(0..len)
+            }
+            None => rand::rng().random_range(0..len),
+        }
+    }
+
+    /// The next in turn of the `open` proxies with the fewest failures.
+    fn least_failed(&self, state: &Rotation, open: &[usize]) -> usize {
+        let failures = |index: usize| state.health[index].failures;
+        let fewest = open
+            .iter()
+            .map(|&index| failures(index))
+            .min()
+            .unwrap_or_default();
+        let tied: Vec<usize> = open
+            .iter()
+            .copied()
+            .filter(|&index| failures(index) == fewest)
+            .collect();
+        self.next_of(&tied)
+    }
+
+    /// The proxy `site` stuck to when it is still open, otherwise the next in
+    /// turn, which the site then sticks to.
+    fn sticky(&self, state: &mut Rotation, site: &str, open: &[usize]) -> usize {
+        if let Some(&kept) = state.sticky.get(site)
+            && open.contains(&kept)
+        {
+            return kept;
+        }
+        let chosen = self.next_of(open);
+        if state.sticky.len() >= MAX_STICKY_SITES {
+            state.sticky.clear();
+        }
+        state.sticky.insert(site.to_owned(), chosen);
+        chosen
     }
 
     /// The next of `candidates` in turn, by the list's shared turn.
