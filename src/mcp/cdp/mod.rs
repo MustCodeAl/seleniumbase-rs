@@ -306,73 +306,7 @@ fn tools() -> Vec<ToolDef<Cdp>> {
 // Session
 // ----------------------------------------------------------------------
 
-async fn start_browser(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
-    let headless = args
-        .opt_bool("headless")?
-        .unwrap_or(cfg!(target_os = "linux"));
-    let use_chromium = args.bool_or("use_chromium", false)?;
-    let url = nonempty(&args, "url")?.map(str::to_owned);
 
-    let mut options = LaunchOptions::builder()
-        .headless(headless)
-        .use_chromium(use_chromium)
-        .incognito(args.bool_or("incognito", false)?)
-        .guest(args.bool_or("guest", false)?)
-        .ad_block(args.bool_or("ad_block", false)?);
-    // Applied first: the settings made below replace the fingerprint's own.
-    let fingerprint = super::fingerprint::start_fingerprint(&args, ctx.settings())?;
-    if let Some(fingerprint) = &fingerprint {
-        options = options.fingerprint(fingerprint);
-    }
-    if let Some(url) = &url {
-        options = options.url(url.as_str());
-    }
-    // The executable is the operator's choice (`SB_CHROME_BIN`), never a tool
-    // argument: a client that could name a path could run any program.
-    if args.value("browser_executable_path").is_some() {
-        return Err(ToolError::invalid(
-            "browser_executable_path",
-            "not a tool argument: the operator sets the browser with SB_CHROME_BIN for the server",
-        ));
-    }
-    if let Some(path) = ctx.settings().browser_binary() {
-        if use_chromium {
-            return Err(ToolError::invalid(
-                    "use_chromium",
-                    "the operator set the browser executable (SB_CHROME_BIN), so use_chromium cannot change it",
-                ));
-        }
-        options = options.executable_path(path);
-    }
-    if let Some(proxy) = nonempty(&args, "proxy")? {
-        options = options.proxy(proxy);
-    }
-    // The operator's plugins (`sbrs-mcp --plugin`), never a tool argument.
-    let plugins = ctx.settings().plugin_selection();
-    plugins.ensure_supported()?;
-    #[cfg(feature = "plugins")]
-    let options = options.plugin_selection(plugins);
-    let options = options.build()?;
-
-    let started = ctx
-        .start(async move {
-            let browser = Browser::launch(options).await?;
-            Ok::<_, ToolError>(Cdp::attach(browser).await?)
-        })
-        .await?;
-    Ok(match started {
-        Started::Created => format!(
-            "Started Pure CDP Mode browser (url={}, headless={headless}, use_chromium={use_chromium}).{}",
-            url.as_deref().unwrap_or("none"),
-            super::fingerprint::applied(fingerprint.as_ref()),
-        ),
-        Started::AlreadyRunning => format!(
-            "A browser session is already running.{}",
-            super::fingerprint::ignored(fingerprint.as_ref())
-        ),
-    }
-    .into())
-}
 
 // ----------------------------------------------------------------------
 // Plugin tasks
@@ -534,20 +468,7 @@ fn task_selection(
     Ok(subset)
 }
 
-async fn run_plugin_task(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
-    #[cfg(feature = "plugins")]
-    {
-        plugin_task(&ctx, &args).await
-    }
-    #[cfg(not(feature = "plugins"))]
-    {
-        let _ = (&ctx, &args);
-        Err(ToolError::Refused(
-            "this build of the server has no plugins; rebuild it with --features plugins-builtin"
-                .to_owned(),
-        ))
-    }
-}
+
 
 #[cfg(feature = "plugins")]
 async fn plugin_task(ctx: &Ctx<Cdp>, args: &Args) -> Result<Output, ToolError> {
@@ -618,46 +539,11 @@ async fn plugin_task(ctx: &Ctx<Cdp>, args: &Args) -> Result<Output, ToolError> {
     }
 }
 
-async fn close_browser(ctx: Ctx<Cdp>, _args: Args) -> Result<Output, ToolError> {
-    let Some(cdp) = ctx.take().await else {
-        return Ok("No browser session is currently running.".into());
-    };
-    cdp.browser.close().await?;
-    Ok("The browser session was closed.".into())
-}
 
-async fn get_devtools_endpoint(ctx: Ctx<Cdp>, _args: Args) -> Result<Output, ToolError> {
-    let Some(session) = ctx.try_session().await else {
-        return Ok(json!({
-            "running": false,
-            "hint": "Call start_browser first; the endpoint exists only while a browser runs.",
-        })
-        .into());
-    };
-    let mut answer = session.browser.devtools_endpoint().to_json();
-    answer["running"] = json!(true);
-    Ok(answer.into())
-}
 
-async fn get_page_info(ctx: Ctx<Cdp>, _args: Args) -> Result<Output, ToolError> {
-    let Some(session) = ctx.try_session().await else {
-        return Ok(json!({ "running": false }).into());
-    };
-    let page = &session.page;
-    let info = async {
-        Ok::<_, SeleniumBaseError>(json!({
-            "running": true,
-            "url": page.url().await?,
-            "title": page.title().await?,
-            "origin": page.evaluate_as::<String>("location.origin").await?,
-            "user_agent": page.user_agent().await?,
-        }))
-    }
-    .await;
-    Ok(info
-        .unwrap_or_else(|error| json!({ "running": false, "error": error.to_string() }))
-        .into())
-}
+
+
+
 
 // ----------------------------------------------------------------------
 // Navigation
@@ -682,686 +568,65 @@ async fn navigate_for_client(
     page.goto(url).await
 }
 
-async fn open_url(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
-    let url = args.str("url")?;
-    navigate_for_client(&ctx.session().await?.page, url).await?;
-    Ok(format!("Navigated to {url}").into())
-}
 
-async fn manage_history(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
-    let action = args.choice("action", &["back", "forward", "reload", "list"], "list")?;
-    let session = ctx.session().await?;
-    let page = &session.page;
-    match action {
-        "back" => {
-            page.back().await?;
-            Ok("Navigated back.".into())
-        }
-        "forward" => {
-            page.forward().await?;
-            Ok("Navigated forward.".into())
-        }
-        "reload" => {
-            page.hard_reload().await?;
-            Ok("Page reloaded.".into())
-        }
-        _ => {
-            let history = page.execute("Page.getNavigationHistory", json!({})).await?;
-            let entries: Vec<Value> = history["entries"]
-                .as_array()
-                .into_iter()
-                .flatten()
-                .map(|entry| {
-                    json!({
-                        "id": entry["id"],
-                        "url": entry["url"],
-                        "user_typed_url": entry["userTypedURL"],
-                        "title": entry["title"],
-                        "transition_type": entry["transitionType"],
-                    })
-                })
-                .collect();
-            Ok(json!({ "position": history["currentIndex"], "entries": entries }).into())
-        }
-    }
-}
+
+
 
 // ----------------------------------------------------------------------
 // Reading
 // ----------------------------------------------------------------------
 
-async fn find_elements(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
-    let selector = args.str("selector")?;
-    let timeout = args.seconds_or("timeout", 0.5)?;
-    let include_html = args.bool_or("include_html", false)?;
-    let session = ctx.session().await?;
 
-    let found = session.page.locator(selector).with_timeout(timeout);
-    match found.wait_for(State::Present).await {
-        Ok(()) => {}
-        Err(error) if is_missing(&error) => {
-            return Ok(json!({ "count": 0, "matches": [] }).into());
-        }
-        Err(error) => return Err(error.into()),
-    }
-    let matches: Vec<Value> = found
-        .infos()
-        .await?
-        .into_iter()
-        .map(|info| {
-            let mut entry = json!({ "tag_name": info.tag, "text": info.text });
-            if include_html {
-                entry["html"] = Value::String(info.html);
-            }
-            entry
-        })
-        .collect();
-    Ok(json!({ "count": matches.len(), "matches": matches }).into())
-}
 
-async fn get_content(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
-    let selector = args.str_or("selector", "body")?;
-    let format = args.choice("output_format", &["text", "html", "urls"], "text")?;
-    let timeout = args.seconds_or("timeout", 5.0)?;
-    let session = ctx.session().await?;
 
-    let element = session.page.locator(selector).with_timeout(timeout);
-    match format {
-        "text" => Ok(element.text().await?.into()),
-        "html" => Ok(element.html().await?.into()),
-        _ => Ok(Output::Json(json!(element.urls().await?))),
-    }
-}
 
-async fn get_attributes(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
-    let selector = args.str("selector")?;
-    let timeout = args.seconds_or("timeout", 5.0)?;
-    let session = ctx.session().await?;
-    let element = session.page.locator(selector).with_timeout(timeout);
 
-    match nonempty(&args, "attribute")? {
-        Some(name) => Ok(Output::Json(
-            element
-                .attribute(name)
-                .await?
-                .map_or(Value::Null, Value::String),
-        )),
-        None => json_output(element.info().await?.attributes),
-    }
-}
 
-async fn check_if_condition(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
-    let check = args.choice("check", &["present", "visible"], "visible")?;
-    let selector = args.str_or("selector", "body")?;
-    let text = nonempty(&args, "text")?;
-    let session = ctx.session().await?;
-    let element = session.page.locator(selector).with_timeout(NO_WAIT);
 
-    let answer = if let Some(text) = text {
-        match element.text().await {
-            Ok(shown) => element.is_visible().await? && shown.contains(text),
-            Err(error) if is_missing(&error) => false,
-            Err(error) => return Err(error.into()),
-        }
-    } else if check == "present" {
-        element.exists().await?
-    } else {
-        element.is_visible().await?
-    };
-    Ok(Output::Json(Value::Bool(answer)))
-}
 
 // ----------------------------------------------------------------------
 // Interacting
 // ----------------------------------------------------------------------
 
-async fn click_element(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
-    let selector = args.str("selector")?;
-    let timeout = args.seconds_or("timeout", 5.0)?;
-    let session = ctx.session().await?;
-    let page = &session.page;
 
-    if let Some(nth) = args.opt_i64("nth")? {
-        let index = usize::try_from(nth)
-            .ok()
-            .and_then(|n| n.checked_sub(1))
-            .ok_or_else(|| ToolError::invalid("nth", "counts from 1"))?;
-        page.locator(selector)
-            .with_timeout(timeout)
-            .nth(index)
-            .click()
-            .await?;
-        return Ok(format!("Clicked match #{nth} of {selector}").into());
-    }
 
-    if args.bool_or("all_matches", false)? {
-        let visible = page.locator(selector).with_timeout(NO_WAIT).visible();
-        let total = visible.count().await?;
-        let mut clicked = 0_usize;
-        for index in 0..total {
-            match visible.nth(index).click().await {
-                Ok(()) => clicked += 1,
-                // A click that navigated away leaves nothing to click next.
-                Err(error) if error.is_element_error() => break,
-                Err(error) => return Err(error.into()),
-            }
-        }
-        return Ok(format!("Clicked {clicked} visible matches of {selector}").into());
-    }
 
-    if args.bool_or("only_if_visible", false)? {
-        let first = page
-            .locator(selector)
-            .with_timeout(NO_WAIT)
-            .visible()
-            .first();
-        return if first.exists().await? {
-            first.click().await?;
-            Ok(format!("Clicked {selector}").into())
-        } else {
-            Ok(format!("No visible match for {selector}; nothing was clicked").into())
-        };
-    }
 
-    if let Some(parent) = nonempty(&args, "parent_selector")? {
-        page.locator(parent)
-            .locator(selector)
-            .with_timeout(timeout)
-            .click()
-            .await?;
-        return Ok(format!("Clicked {selector} inside {parent}").into());
-    }
 
-    page.locator(selector).with_timeout(timeout).click().await?;
-    Ok(format!("Clicked {selector}").into())
-}
 
-async fn hover_action(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
-    let selector = args.str("selector")?;
-    let action = args.choice(
-        "action",
-        &["hover", "hover_and_click", "drag_and_drop"],
-        "hover",
-    )?;
-    let timeout = args.seconds_or("timeout", 5.0)?;
-    let session = ctx.session().await?;
-    let page = &session.page;
-    let primary = page.locator(selector).with_timeout(timeout);
 
-    if action == "hover" {
-        primary.hover().await?;
-        return Ok(format!("Hovered {selector}").into());
-    }
 
-    let secondary_selector = nonempty(&args, "secondary_selector")?.ok_or_else(|| {
-        ToolError::invalid(
-            "secondary_selector",
-            format!("required for action {action:?}"),
-        )
-    })?;
-    let secondary = page.locator(secondary_selector).with_timeout(timeout);
-    if action == "hover_and_click" {
-        primary.hover().await?;
-        tokio::time::sleep(HOVER_PAUSE).await;
-        secondary.click().await?;
-        Ok(format!("Hovered {selector} and clicked {secondary_selector}").into())
-    } else {
-        primary.drag_to(&secondary).await?;
-        Ok(format!("Dragged {selector} onto {secondary_selector}").into())
-    }
-}
 
-async fn type_text(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
-    let selector = args.str("selector")?;
-    let text = args.str_or("text", "")?;
-    let mode = args.choice(
-        "mode",
-        &[
-            "fill_input",
-            "append",
-            "fast_type",
-            "set_value",
-            "clear_only",
-        ],
-        "fill_input",
-    )?;
-    let timeout = args.seconds_or("timeout", 5.0)?;
-    let session = ctx.session().await?;
-    let page = &session.page;
-    let field = page.locator(selector).with_timeout(timeout);
-
-    match mode {
-        "fill_input" => field.type_text(text).await?,
-        "append" => field.send_keys(text).await?,
-        "fast_type" => {
-            field.clear().await?;
-            // Inserting text in one step cannot press Enter, so do that
-            // between the lines.
-            for (index, line) in text.split('\n').enumerate() {
-                if index > 0 {
-                    page.keyboard().press(Key::Enter).await?;
-                }
-                if !line.is_empty() {
-                    page.keyboard().insert_text(line).await?;
-                }
-            }
-        }
-        "set_value" => field.set_value(text).await?,
-        _ => field.clear().await?,
-    }
-    Ok(format!("type_text(mode={mode}) done for {selector}").into())
-}
-
-async fn select_option(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
-    let dropdown = args.str("dropdown_selector")?;
-    let value = args.scalar("value")?;
-    let by = args.choice("by", &["text", "value", "index"], "text")?;
-    let choice =
-        match by {
-            "text" => SelectBy::Text(&value),
-            "value" => SelectBy::Value(&value),
-            _ => {
-                SelectBy::Index(value.trim().parse().ok().ok_or_else(|| {
-                    ToolError::invalid("value", "an index must be a whole number")
-                })?)
-            }
-        };
-    ctx.session()
-        .await?
-        .page
-        .locator(dropdown)
-        .select_option(choice)
-        .await?;
-    Ok(format!("Selected ({by}={value:?}) in {dropdown}").into())
-}
-
-async fn focus_element(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
-    let selector = args.str("selector")?;
-    let action = args.choice(
-        "action",
-        &["scroll_to_element", "focus", "highlight"],
-        "scroll_to_element",
-    )?;
-    let timeout = args.seconds_or("timeout", 5.0)?;
-    let session = ctx.session().await?;
-    let element = session.page.locator(selector).with_timeout(timeout);
-    match action {
-        "scroll_to_element" => element.scroll_into_view().await?,
-        "focus" => element.focus().await?,
-        _ => element.flash().await?,
-    }
-    Ok(format!("{action} done for {selector}").into())
-}
 
 // ----------------------------------------------------------------------
 // Waiting and asserting
 // ----------------------------------------------------------------------
 
-async fn wait_for_condition(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
-    let state = args.choice(
-        "state",
-        &[
-            "present",
-            "visible",
-            "not_visible",
-            "absent",
-            "seconds_passed",
-        ],
-        "visible",
-    )?;
-    let selector = nonempty(&args, "selector")?;
-    let text = nonempty(&args, "text")?;
-    let timeout = args.seconds_or("timeout", 5.0)?;
 
-    if state == "seconds_passed" {
-        tokio::time::sleep(timeout).await;
-        return Ok(format!("Waited for {}s", timeout.as_secs_f64()).into());
-    }
-    if selector.is_none() && text.is_none() {
-        return Err(ToolError::invalid(
-            "selector",
-            "give a selector or text unless state is seconds_passed",
-        ));
-    }
-    let session = ctx.session().await?;
-    let page = &session.page;
 
-    if let Some(text) = text {
-        let within = page
-            .locator(selector.unwrap_or("body"))
-            .with_timeout(timeout);
-        let expect = within.expect().timeout(timeout);
-        return if matches!(state, "present" | "visible") {
-            expect.to_contain_text(text).await?;
-            Ok(format!("Text '{text}' found in {}.", selector.unwrap_or("the page")).into())
-        } else {
-            expect.not().to_contain_text(text).await?;
-            Ok(format!(
-                "Text '{text}' not found in {}.",
-                selector.unwrap_or("the page")
-            )
-            .into())
-        };
-    }
 
-    let wanted = match state {
-        "present" => State::Present,
-        "visible" => State::Visible,
-        "not_visible" => State::Hidden,
-        _ => State::Absent,
-    };
-    let selector = selector.unwrap_or_default();
-    page.locator(selector)
-        .with_timeout(timeout)
-        .wait_for(wanted)
-        .await?;
-    Ok(format!("Element {selector} reached state '{state}'.").into())
-}
-
-async fn assert_condition(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
-    const CHECKS: [&str; 6] = [
-        "element_present",
-        "element_visible",
-        "text_visible",
-        "title",
-        "url",
-        "url_contains",
-    ];
-    let check = args.choice("check", &CHECKS, "element_visible")?;
-    let selector = nonempty(&args, "selector")?;
-    let expected = args.opt_str("expected")?;
-    let timeout = args.seconds_or("timeout", 5.0)?;
-    let session = ctx.session().await?;
-    let page = &session.page;
-
-    if matches!(check, "element_present" | "element_visible") {
-        let selector = selector.ok_or_else(|| {
-            ToolError::invalid("selector", format!("required for check {check:?}"))
-        })?;
-        let expect = page
-            .locator(selector)
-            .with_timeout(timeout)
-            .expect()
-            .timeout(timeout);
-        if check == "element_present" {
-            expect.to_exist().await?;
-            return Ok(format!("Confirmed {selector} is present.").into());
-        }
-        expect.to_be_visible().await?;
-        return Ok(format!("Confirmed {selector} is visible.").into());
-    }
-
-    let expected = expected
-        .ok_or_else(|| ToolError::invalid("expected", format!("required for check {check:?}")))?;
-    let now = page.expect().timeout(NO_WAIT);
-    match check {
-        "text_visible" => {
-            let target = selector.unwrap_or("html");
-            let expect = page
-                .locator(target)
-                .with_timeout(timeout)
-                .expect()
-                .timeout(timeout);
-            if args.bool_or("exact", false)? {
-                expect.to_have_text(expected).await?;
-            } else {
-                expect.to_contain_text(expected).await?;
-            }
-            Ok(format!("Confirmed visible text {expected} in {target}.").into())
-        }
-        "title" => {
-            now.to_have_title(expected).await?;
-            Ok(format!("Confirmed title is '{expected}'.").into())
-        }
-        "url" => {
-            now.to_have_url(expected).await?;
-            Ok(format!("Confirmed URL is '{expected}'.").into())
-        }
-        _ => {
-            now.to_contain_url(expected).await?;
-            Ok(format!("Confirmed URL contains '{expected}'.").into())
-        }
-    }
-}
 
 // ----------------------------------------------------------------------
 // Browser state
 // ----------------------------------------------------------------------
 
-async fn manage_cookies(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
-    let action = args.choice("action", &["get_all", "clear", "save", "load"], "get_all")?;
-    let session = ctx.session().await?;
-    let cookies = session.page.cookies();
 
-    match action {
-        "get_all" => json_output(cookies.all().await?),
-        "clear" => {
-            cookies.clear().await?;
-            Ok("Cookies cleared.".into())
-        }
-        _ => {
-            let (path, name) =
-                cookie_file(ctx.settings(), args.str_or("filename", "cookies.txt")?)?;
 
-            if action == "save" {
-                if let Some(dir) = path.parent() {
-                    tokio::fs::create_dir_all(dir)
-                        .await
-                        .map_err(SeleniumBaseError::from)?;
-                }
-                let saved = cookies.save(&path, None).await?;
-                Ok(format!("Saved {saved} cookies to {name}").into())
-            } else {
-                if !path.exists() {
-                    return Err(ToolError::Refused(format!(
-                        "{name} does not exist in the cookie directory"
-                    )));
-                }
-                let loaded = cookies.load(&path, None).await?;
-                Ok(format!("Loaded {loaded} cookies from {name}").into())
-            }
-        }
-    }
-}
 
-async fn manage_storage(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
-    let key = args.str("key")?;
-    let which = args.choice("storage", &["local", "session"], "local")?;
-    let action = args.choice("action", &["get", "set"], "get")?;
-    let session = ctx.session().await?;
-    let storage = if which == "local" {
-        session.page.local_storage()
-    } else {
-        session.page.session_storage()
-    };
 
-    if action == "get" {
-        return Ok(Output::Json(
-            storage.get(key).await?.map_or(Value::Null, Value::String),
-        ));
-    }
-    let value = args
-        .opt_str("value")?
-        .ok_or_else(|| ToolError::invalid("value", "required when action is set"))?;
-    storage.set(key, value).await?;
-    Ok(format!("Set {which}Storage[{key:?}]").into())
-}
 
-async fn scroll_page(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
-    let direction = args.choice("direction", &["up", "down", "top", "bottom"], "down")?;
-    let amount = args.i64_or("amount", 25)?;
-    if amount < 0 && matches!(direction, "up" | "down") {
-        return Err(ToolError::invalid("amount", "cannot be negative"));
-    }
-    #[expect(
-        clippy::cast_precision_loss,
-        reason = "a scroll percentage is far below 2^53"
-    )]
-    let percent = amount as f64;
-    let (to, done) = match direction {
-        "up" => (
-            Scroll::PageUp(percent),
-            format!("Scrolled up by {amount}%."),
-        ),
-        "down" => (
-            Scroll::PageDown(percent),
-            format!("Scrolled down by {amount}%."),
-        ),
-        "top" => (Scroll::Top, "Scrolled to the top.".to_owned()),
-        _ => (Scroll::Bottom, "Scrolled to the bottom.".to_owned()),
-    };
-    ctx.session().await?.page.scroll(to).await?;
-    Ok(done.into())
-}
 
-async fn manage_window(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
-    let action = args.choice(
-        "action",
-        &["get_rect", "set_rect", "maximize", "minimize"],
-        "get_rect",
-    )?;
-    let session = ctx.session().await?;
-    let window = session.page.window();
 
-    match action {
-        "get_rect" => json_output(window.bounds().await?),
-        "set_rect" => {
-            let (Some(x), Some(y), Some(width), Some(height)) = (
-                args.opt_i64("x")?,
-                args.opt_i64("y")?,
-                args.opt_i64("width")?,
-                args.opt_i64("height")?,
-            ) else {
-                return Err(ToolError::invalid(
-                    "action",
-                    "set_rect needs x, y, width and height",
-                ));
-            };
-            window.set_bounds(x, y, width, height).await?;
-            Ok(format!("Window set to ({x}, {y}, {width}x{height})").into())
-        }
-        "maximize" => {
-            window.maximize().await?;
-            Ok("Window maximized.".into())
-        }
-        _ => {
-            window.minimize().await?;
-            Ok("Window minimized.".into())
-        }
-    }
-}
 
-async fn manage_tabs(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
-    let action = args.choice(
-        "action",
-        &[
-            "list_tabs",
-            "open_new_tab",
-            "switch_to_tab",
-            "switch_to_newest_tab",
-            "close_active_tab",
-        ],
-        "list_tabs",
-    )?;
-    let mut session = ctx.session().await?;
 
-    match action {
-        "list_tabs" => {
-            let tabs: Vec<Value> = session
-                .browser
-                .list_pages()
-                .await?
-                .into_iter()
-                .enumerate()
-                .map(|(index, tab)| json!({ "index": index, "url": tab.url, "title": tab.title }))
-                .collect();
-            Ok(Output::Json(Value::Array(tabs)))
-        }
-        "open_new_tab" => {
-            let url = nonempty(&args, "url")?.unwrap_or("about:blank");
-            let switch_to = args.bool_or("switch_to", true)?;
-            let page = session.browser.new_page_at(url).await?;
-            if switch_to {
-                page.bring_to_front().await?;
-                session.page = page;
-            }
-            Ok(format!("Opened new tab (url={url:?}, switch_to={switch_to})").into())
-        }
-        "switch_to_tab" => {
-            let index = args
-                .opt_usize("tab_index")?
-                .ok_or_else(|| ToolError::invalid("tab_index", "required for switch_to_tab"))?;
-            let mut tabs = session.browser.pages().await?;
-            if index >= tabs.len() {
-                return Err(ToolError::invalid(
-                    "tab_index",
-                    format!("{index} is out of range; there are {} tabs", tabs.len()),
-                ));
-            }
-            let page = tabs.swap_remove(index);
-            page.bring_to_front().await?;
-            session.page = page;
-            Ok(format!("Switched to tab {index}").into())
-        }
-        "switch_to_newest_tab" => {
-            let page = session.browser.newest_page().await?;
-            page.bring_to_front().await?;
-            session.page = page;
-            Ok("Switched to newest tab.".into())
-        }
-        _ => {
-            session.page.close().await?;
-            match session.browser.newest_page().await {
-                Ok(page) => {
-                    page.bring_to_front().await?;
-                    session.page = page;
-                    Ok("Closed active tab; switched to the newest remaining tab.".into())
-                }
-                Err(_) => Ok("Closed active tab; no tabs remain, open a new one.".into()),
-            }
-        }
-    }
-}
 
-async fn solve_captcha(ctx: Ctx<Cdp>, _args: Args) -> Result<Output, ToolError> {
-    let session = ctx.session().await?;
-    let solved = session
-        .page
-        .solve_captcha_with(&crate::sb_cdp::SolveOptions::default())
-        .await?;
-    Ok(match solved {
-        Some(solved) => format!("Attempted to solve a {} CAPTCHA: {solved}.", solved.captcha),
-        None => "No supported CAPTCHA was found on the page.".to_owned(),
-    }
-    .into())
-}
+
 
 // ----------------------------------------------------------------------
 // Output and scripting
 // ----------------------------------------------------------------------
 
-async fn save_page(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
-    let format = args.choice("format", &["screenshot", "html", "pdf"], "screenshot")?;
-    let default_name = match format {
-        "screenshot" => "screenshot.png",
-        "html" => "page_source.html",
-        _ => "page.pdf",
-    };
-    let name = nonempty(&args, "filename")?.unwrap_or(default_name);
-    let path = ctx
-        .settings()
-        .output_path(nonempty(&args, "folder")?, name)?;
-    let session = ctx.session().await?;
-    let page = &session.page;
 
-    let bytes = match format {
-        "screenshot" => page.screenshot().await?,
-        "html" => page.content().await?.into_bytes(),
-        _ => page.pdf().await?,
-    };
-    write_file(&path, &bytes).await?;
-    Ok(format!("Saved {format} as {}", path.display()).into())
-}
 
 #[cfg(all(test, feature = "plugins"))]
 mod plugin_task_tests {

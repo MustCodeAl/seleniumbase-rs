@@ -1,7 +1,9 @@
 //! Waiting for a condition, and asserting one.
 
-use super::{assert_condition, timeout_prop, wait_for_condition, Cdp};
-use crate::mcp::{Effect, Prop, Schema, ToolDef};
+use super::{timeout_prop, Cdp, NO_WAIT};
+use crate::mcp::support::nonempty;
+use crate::sb_cdp::State;
+use crate::mcp::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};
 
 pub(super) fn tools() -> Vec<ToolDef<Cdp>> {
     vec![
@@ -80,4 +82,131 @@ pub(super) fn tools() -> Vec<ToolDef<Cdp>> {
             assert_condition,
         ),
     ]
+}
+
+async fn wait_for_condition(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
+    let state = args.choice(
+        "state",
+        &[
+            "present",
+            "visible",
+            "not_visible",
+            "absent",
+            "seconds_passed",
+        ],
+        "visible",
+    )?;
+    let selector = nonempty(&args, "selector")?;
+    let text = nonempty(&args, "text")?;
+    let timeout = args.seconds_or("timeout", 5.0)?;
+
+    if state == "seconds_passed" {
+        tokio::time::sleep(timeout).await;
+        return Ok(format!("Waited for {}s", timeout.as_secs_f64()).into());
+    }
+    if selector.is_none() && text.is_none() {
+        return Err(ToolError::invalid(
+            "selector",
+            "give a selector or text unless state is seconds_passed",
+        ));
+    }
+    let session = ctx.session().await?;
+    let page = &session.page;
+
+    if let Some(text) = text {
+        let within = page
+            .locator(selector.unwrap_or("body"))
+            .with_timeout(timeout);
+        let expect = within.expect().timeout(timeout);
+        return if matches!(state, "present" | "visible") {
+            expect.to_contain_text(text).await?;
+            Ok(format!("Text '{text}' found in {}.", selector.unwrap_or("the page")).into())
+        } else {
+            expect.not().to_contain_text(text).await?;
+            Ok(format!(
+                "Text '{text}' not found in {}.",
+                selector.unwrap_or("the page")
+            )
+            .into())
+        };
+    }
+
+    let wanted = match state {
+        "present" => State::Present,
+        "visible" => State::Visible,
+        "not_visible" => State::Hidden,
+        _ => State::Absent,
+    };
+    let selector = selector.unwrap_or_default();
+    page.locator(selector)
+        .with_timeout(timeout)
+        .wait_for(wanted)
+        .await?;
+    Ok(format!("Element {selector} reached state '{state}'.").into())
+}
+
+async fn assert_condition(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
+    const CHECKS: [&str; 6] = [
+        "element_present",
+        "element_visible",
+        "text_visible",
+        "title",
+        "url",
+        "url_contains",
+    ];
+    let check = args.choice("check", &CHECKS, "element_visible")?;
+    let selector = nonempty(&args, "selector")?;
+    let expected = args.opt_str("expected")?;
+    let timeout = args.seconds_or("timeout", 5.0)?;
+    let session = ctx.session().await?;
+    let page = &session.page;
+
+    if matches!(check, "element_present" | "element_visible") {
+        let selector = selector.ok_or_else(|| {
+            ToolError::invalid("selector", format!("required for check {check:?}"))
+        })?;
+        let expect = page
+            .locator(selector)
+            .with_timeout(timeout)
+            .expect()
+            .timeout(timeout);
+        if check == "element_present" {
+            expect.to_exist().await?;
+            return Ok(format!("Confirmed {selector} is present.").into());
+        }
+        expect.to_be_visible().await?;
+        return Ok(format!("Confirmed {selector} is visible.").into());
+    }
+
+    let expected = expected
+        .ok_or_else(|| ToolError::invalid("expected", format!("required for check {check:?}")))?;
+    let now = page.expect().timeout(NO_WAIT);
+    match check {
+        "text_visible" => {
+            let target = selector.unwrap_or("html");
+            let expect = page
+                .locator(target)
+                .with_timeout(timeout)
+                .expect()
+                .timeout(timeout);
+            if args.bool_or("exact", false)? {
+                expect.to_have_text(expected).await?;
+            } else {
+                expect.to_contain_text(expected).await?;
+            }
+            Ok(format!("Confirmed visible text {expected} in {target}.").into())
+        }
+        "title" => {
+            now.to_have_title(expected).await?;
+            Ok(format!("Confirmed title is '{expected}'.").into())
+        }
+        "url" => {
+            now.to_have_url(expected).await?;
+            Ok(format!("Confirmed URL is '{expected}'.").into())
+        }
+        _ => {
+            now.to_contain_url(expected).await?;
+            Ok(format!("Confirmed URL contains '{expected}'.").into())
+        }
+    }
 }
