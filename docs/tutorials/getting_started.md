@@ -437,7 +437,7 @@ The crate `crates/own-imports` in the repository lists `seleniumbase-rs` and
 `#[tokio::test]`, the `drivers` and `json` types, and `#[async_trait]`. A
 doctest compiles the golden files of `sbrs mkfile`, `sbrs mkdir`, `sbrs mkpres`,
 `sbrs mkchart` and the recorder there, so a generator that wrote an import of another crate fails
-`cargo test -p seleniumbase-rs-own-imports`. `cargo test --test docs_current`
+`cargo test -p seleniumbase-rs-own-imports`. `cargo test -p seleniumbase-rs --test offline docs_current`
 fails when a page gains an import of `thirtyfour`, `rstest`, `rstest_bdd` or
 `serde_json` outside the pages that the table above names.
 

@@ -11,7 +11,7 @@ use seleniumbase_rs::api::runner::run_cdp_test;
 use seleniumbase_rs::sb_cdp::SelectBy;
 use seleniumbase_rs::Result;
 
-use crate::support::{cdp_options, run_cdp_port};
+use super::support::{cdp_options, run_cdp_port};
 
 // ---------------------------------------------------------------------------
 

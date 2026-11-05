@@ -424,7 +424,7 @@ real Chrome has its own `#[ignore]`d test, `crates/cli/tests/cli_plugins_chrome.
 Run them before you rely on the plugin:
 
 ```sh Terminal
-cargo test -p seleniumbase-rs-cli --test cli_plugins_chrome -- --ignored --test-threads=1
+cargo test -p seleniumbase-rs-cli --test chrome cli_plugins_chrome -- --ignored --test-threads=1
 ```
 
 </Warning>

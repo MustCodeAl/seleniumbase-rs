@@ -325,7 +325,7 @@ then Developer, "Allow remote automation and external agents" (see
 `sbrs devtools` and `get_devtools_endpoint` have unit tests for the configs and
 the arguments, a mocked-browser test of the tool, and real-Chrome tests
 (`tests/devtools_cli_chrome.rs`, run with
-`cargo test --test devtools_cli_chrome -- --ignored --test-threads=1`) that start
+`cargo test -p seleniumbase-rs-cli --test chrome devtools_cli_chrome -- --ignored --test-threads=1`) that start
 the command against Chrome 155 on macOS, read `/json/version` from the printed
 endpoint, and stop it with SIGINT and SIGTERM. `sbrs --browser edge devtools
 --headless --port 9444 --json` was run by hand against Microsoft Edge 155 on

@@ -16,7 +16,7 @@ list, this looks for a Rust counterpart and writes an entry:
 Existing entries are never changed, so hand edits survive; with
 `--reclassify-planned`, entries still marked `planned` are upgraded when a
 counterpart has since appeared. Review the new
-`planned` entries, then run `cargo test --test parity`.
+`planned` entries, then run `cargo test -p seleniumbase-rs --test offline parity`.
 """
 import json
 import pathlib

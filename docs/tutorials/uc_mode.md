@@ -380,7 +380,7 @@ use local imitation pages. The check passes when the site's own page loads, a
 Turnstile on the way is cleared and a `cf_clearance` cookie is held afterwards.
 
 ```bash
-SB_LIVE_SITES=1 cargo test --test captcha_live_chrome -- --ignored --test-threads=1 --nocapture
+SB_LIVE_SITES=1 cargo test -p seleniumbase-rs --test chrome captcha_live_chrome -- --ignored --test-threads=1 --nocapture
 ```
 
 The test is `#[ignore]`d and does nothing unless `SB_LIVE_SITES=1`. It runs the

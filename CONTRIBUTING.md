@@ -313,12 +313,15 @@ See `docs/tutorials/tracing.md` for subscriber configuration examples.
   providers, JSON parsing.
 - Use `#[tokio::test]` for async helpers that do not require a browser. The pure
   CDP engine has a mock browser (`Browser::new_mocked`, `MockCtrl`), so waits,
-  retries and error paths can be tested without Chrome (see `tests/sb_cdp_*.rs`).
-- Tests that need a real Chrome are named `*_chrome.rs` (plus `browser_smoke`)
-  and are `#[ignore]`d. Run them one test binary at a time:
-  `cargo test --test mcp_cdp_chrome -- --ignored`. The tests that run the
-  `sbrs` binaries are in `crates/cli/tests`; name the package for those:
-  `cargo test -p seleniumbase-rs-cli --test cli_e2e_chrome -- --ignored`.
+  retries and error paths can be tested without Chrome
+  (`cargo test -p seleniumbase-rs --test offline sb_cdp_mock`).
+- Real-Chrome tests are modules of `tests/chrome` (still `#[ignore]`d), plus the
+  separate `browser_smoke`, `edge_msedgedriver` and `firefox_geckodriver` binaries.
+  Run one module with
+  `cargo test -p seleniumbase-rs --test chrome mcp_cdp_chrome -- --ignored`.
+  The tests that run the `sbrs` binaries are in `crates/cli/tests`; name the package:
+  `cargo test -p seleniumbase-rs-cli --test chrome cli_e2e_chrome -- --ignored`.
+  Both packages have a binary named `offline` and one named `chrome`, so pass `-p`.
 - A test that fakes `java` or another executable must run the script once
   (`--warm`) before timing it: macOS can take seconds to run a freshly written
   script the first time.
@@ -511,7 +514,7 @@ engines) and `src/mcp/stealth.rs` for how an extra toolset is attached.
 3. Register it in the group file of the server that offers it (`src/mcp/cdp/`,
    `src/mcp/driver/`, `src/mcp/sb/`: `navigation.rs`, `page.rs`, `input.rs`, ...),
    and write the snapshots of the tool lists again with `UPDATE_GOLDEN=1 cargo test
-   --features mcp-server --test mcp_tool_lists`.
+   --features mcp-server --test offline mcp_tool_lists`.
 4. Test it without Chrome first (`tests/mcp_cdp.rs`, `tests/mcp_devtools.rs`),
    then with a real Chrome in a `*_chrome.rs` test if it reads a page.
 5. Document it in `docs/tutorials/mcp_server.md`, add it to `CHANGELOG.md`, and

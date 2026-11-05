@@ -42,7 +42,7 @@ marked. Read the tool's own help before you rely on a flag.
 | Tests | Where | Needs Chrome | How to run them |
 |---|---|---|---|
 | Library unit tests | `src/` | <Badge color="green">no</Badge> | `cargo test --lib` |
-| Integration tests with a mocked browser | `tests/sb_cdp_*.rs` without `_chrome`, such as `sb_cdp_mock.rs` | <Badge color="green">no</Badge> | `cargo test --features "mcp-server test-util" --test sb_cdp_mock` |
+| Integration tests with a mocked browser | `tests/offline/sb_cdp_*.rs` without `_chrome`, such as `sb_cdp_mock.rs` | <Badge color="green">no</Badge> | `cargo test --features "mcp-server test-util" --test offline sb_cdp_mock` |
 | Real-Chrome tests of the library | `tests/*_chrome.rs`, `tests/browser_smoke.rs` | <Badge color="orange">yes</Badge> | `-- --ignored`, one binary at a time |
 | Tests of the `sbrs` binaries | `crates/cli/tests/` | only the `*_chrome.rs` files | `cargo test -p seleniumbase-rs-cli` |
 
@@ -126,11 +126,11 @@ the end:
 cargo llvm-cov clean --workspace
 cargo llvm-cov --no-report --features "mcp-server test-util testing bdd"
 cargo llvm-cov --no-report --features "mcp-server test-util testing bdd" \
-    --test sb_cdp_chrome -- --ignored --test-threads=1
+    -p seleniumbase-rs --test chrome sb_cdp_chrome -- --ignored --test-threads=1
 cargo llvm-cov report --html
 ```
 
-Add one `--no-report` line for each `*_chrome.rs` file you want in the report.
+Add one `--no-report` line for each real-Chrome binary you want in the report (`chrome`, `browser_smoke`, and the command-line `chrome`).
 Arguments after `--` go to the test binary, as with `cargo test`. To include
 doctests in the report, pass `--doctests` to `cargo llvm-cov report`.
 

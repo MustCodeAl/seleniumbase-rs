@@ -228,8 +228,8 @@ presentations, and optional stealth/CDP integrations.
 <LayoutDir name="tests" note="integration tests of the library">
 <LayoutDir name="golden" note="compiled into the library" />
 <LayoutDir name="support" note="shared with crates/cli/tests" />
-<LayoutFile name="sb_cdp_mock.rs" note="the pure CDP API against a mocked browser" />
-<LayoutFile name="sb_cdp_chrome.rs" note="the same against a real Chrome, ignored by default" />
+<LayoutDir name="offline" note="mock and offline integration tests, one binary" />
+<LayoutDir name="chrome" note="real-Chrome integration tests, one binary, ignored by default" />
 <LayoutFile name="browser_smoke.rs" note="the WebDriver path against a real Chrome, ignored by default" />
 </LayoutDir>
 <LayoutDir name="benches" note="the benchmarks">
@@ -1214,7 +1214,7 @@ browser; `tests/mcp_webdriver.rs` covers the catalogues. `tests/mcp_tool_lists.r
 compares what `tools/list` answers on each server (names in order, descriptions,
 schemas, annotations) with `tests/golden/mcp_tools/*.json`; a new or changed tool
 fails it until you write the snapshots again with
-`UPDATE_GOLDEN=1 cargo test --features mcp-server --test mcp_tool_lists` and
+`UPDATE_GOLDEN=1 cargo test --features mcp-server --test offline mcp_tool_lists` and
 commit them. A `dev` tool is tested in
 its own file with `Host::call`, and `install_driver` through
 `mcp::dev::host_with_installer` with a fake downloader, never the network.

@@ -298,7 +298,7 @@ afterwards. It is an `#[ignore]`d test that also does nothing unless
 `SB_LIVE_SITES=1`, for the pure CDP engine and for the UC (WebDriver) engine:
 
 ```bash
-SB_LIVE_SITES=1 cargo test --test captcha_live_chrome -- --ignored --test-threads=1 --nocapture
+SB_LIVE_SITES=1 cargo test -p seleniumbase-rs --test chrome captcha_live_chrome -- --ignored --test-threads=1 --nocapture
 ```
 
 or one command line with the `sbrs` binary (the UC engine):

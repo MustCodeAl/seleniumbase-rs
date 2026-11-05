@@ -415,7 +415,7 @@ own, `crates/cli/tests/cli_plugins_chrome.rs`, which is `#[ignore]`d. Run it
 before you rely on the plugin:
 
 ```sh Terminal
-cargo test -p seleniumbase-rs-cli --test cli_plugins_chrome -- --ignored --test-threads=1
+cargo test -p seleniumbase-rs-cli --test chrome cli_plugins_chrome -- --ignored --test-threads=1
 ```
 
 </Warning>
