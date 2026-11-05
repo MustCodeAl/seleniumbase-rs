@@ -102,6 +102,12 @@ Playwright call becomes:
 | `page.wait_for_function(js)` | `Page::wait_for_function` | |
 | `page.wait_for_timeout(ms)` | `seleniumbase_rs::tokio::time::sleep` | `BaseCase::sleep(seconds)` |
 | `locator(..).nth(i)`, `.count()`, `.first()` | `Locator::nth`, `Locator::count`, `Locator::first` | |
+| `text=Foo`, `getByText(text, { exact })` | `page.locator(SelectorBuf::text("Foo", exact))` | `:contains(Foo)` in the selector string |
+| `:has-text("x")`, `.filter({ hasText })` | `page.locator(css).locator(SelectorBuf::has_text("x"))` | `:contains(x)` (it matches case; `:has-text()` does not) |
+| `getByRole(role, { name, exact })`, `role=` | `page.locator(SelectorBuf::role(role, Some(name), exact))`: an XPath approximation of the accessibility tree | |
+| `getByLabel(text, { exact })` | `page.locator(SelectorBuf::label(text, exact))` | |
+| `getByTestId(id)`, `data-testid=id` | `page.locator(r#"[data-testid="id"]"#)` | `[data-testid="id"]` as the CSS selector |
+| `frameLocator(css).locator(css)` | `page.locator(frame).locator(css)`: the engine searches inside frames of any origin | |
 | `expect(locator).to_have_text(..)`, `to_be_visible()` | `Locator::expect`, then `to_have_text`, `to_be_visible` | `BaseCase::assert_text`, `assert_element` |
 | `expect(page).to_have_title(..)`, `to_have_url(..)` | `Page::expect`, then `to_have_title`, `to_have_url` | `BaseCase::assert_title` |
 | `page.route(..)` | `Page::intercept` | |
@@ -111,10 +117,16 @@ Playwright call becomes:
 | `sb.solve_captcha()` | `Page::solve_captcha` | `BaseCase::solve_captcha` |
 | `sb.get_endpoint_url()` | `Browser::devtools_endpoint` | `BaseCase::devtools_endpoint` |
 
-What stays Playwright's is what neither API has: selector engines such as `role=`, `text=` and
-`:has-text()`, `get_by_role`, `get_by_label` and `get_by_test_id`, Playwright's own `trace.zip`,
-video and `FrameLocator`, where rustwright's Rust crate has them. Reach those through the
-sidecar below.
+The selector rows come from [Migrate Playwright tests](/playwright-migration), which maps every
+locator. `SelectorBuf` is `seleniumbase_rs::utils::selectors::SelectorBuf`. The text matches
+follow Playwright (whitespace collapsed; without `exact`, a substring match that ignores ASCII
+case).
+
+What stays Playwright's is only what neither API has: Playwright's own `trace.zip` and Trace
+Viewer, video, the request context (`playwright.request`), and a `getByRole` that reads the real
+accessibility tree (`SelectorBuf::role` is an XPath approximation: it skips `aria-labelledby`,
+hidden elements, roles that depend on context and states such as `checked`), where rustwright's
+Rust crate has them. Reach those through the sidecar below.
 
 ## Add Playwright for what only Playwright does
 

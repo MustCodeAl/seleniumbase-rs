@@ -117,8 +117,9 @@ Rows: the bridge's own calls, then what the Python Stealthy Playwright examples 
 | CAPTCHA (`sb.solve_captcha()` in the Python examples) | `Page::solve_captcha` (`captcha.rs:462`) | `BaseCase::solve_captcha` (`base_case_impl_mouse.rs:289`) | ours, not Playwright's |
 | `StealthyPlaywright::endpoint`, Python `get_endpoint_url()` | `Browser::devtools_endpoint` (`browser.rs:811`), `Browser::http_url` (:782) | none today: proposed `BaseCase::devtools_endpoint` | covered for `sb_cdp`; add for `BaseCase` |
 | `StealthyPlaywright::cdp` | the `Browser` from `Browser::launch` (`browser.rs:320`) | | covered |
-| `get_by_role`, `get_by_label`, `get_by_test_id`; selector engines `role=`, `text=`, `:has-text()` | none (`get_by_role` appears in `src/` only in the importer) | none | Playwright-only |
-| Playwright's own `trace.zip` for its Trace Viewer, video, `playwright.request`, `FrameLocator` | none found (no screencast in `src/sb_cdp/`) | none | Playwright-only, if rustwright's Rust API has them (see 4.5) |
+| `getByRole`, `getByLabel`, `getByText`, `getByTestId`; selector engines `role=`, `text=`, `:has-text()` | `SelectorBuf::role(role, name, exact)` (an XPath approximation of the accessibility tree), `SelectorBuf::label`, `SelectorBuf::text`, `SelectorBuf::has_text` (`src/utils/selectors.rs:382-476`), `[data-testid="id"]`; `docs/playwright-migration.md:196-210` maps them | `:contains(text)` and CSS/XPath strings | covered (`role` is an approximation) |
+| `frameLocator(css).locator(css)` | `page.locator(frame).locator(css)`: the engine searches frames of any origin (`docs/playwright-migration.md:210`) | | covered |
+| Playwright's own `trace.zip` for its Trace Viewer, video, `playwright.request`, a `getByRole` that reads the real accessibility tree | none found (no screencast in `src/sb_cdp/`) | none | Playwright-only, if rustwright's Rust API has them (see 4.5) |
 
 Every method the bridge wraps today is covered. What stays Playwright's is what neither
 `BaseCase` nor `sb_cdp` has, and the bridge reaches it through the raw rustwright page.
