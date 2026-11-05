@@ -25,4 +25,6 @@ rustwright = "0.3"
 [dev-dependencies]
 # `#[serial(chrome)]` on the tests that start a real Chrome, so they need no `--test-threads=1`.
 serial_test = "4"
+# `Browser::new_mocked`, so the tests of what a target tells the sidecar need no browser.
+seleniumbase-rs = { path = "../..", features = ["test-util"] }
 
