@@ -2297,7 +2297,7 @@ note = "`page.locator(selector).bounding_box()`; position, size and rect all com
 [cdp."get_endpoint_url"]
 status = "composed"
 rust = "Browser::http_url"
-note = "`browser.http_url()` is the DevTools HTTP endpoint, on the host the browser was launched on or attached to."
+note = "`browser.http_url()` is the DevTools HTTP endpoint, on the host the browser was launched on or attached to; `browser.devtools_endpoint()` holds both addresses. For the `SB(uc=True)` format, `BaseCase::devtools_endpoint()` answers the address chromedriver reported (and a direct CDP attachment's browser)."
 
 [cdp."get_event_loop"]
 status = "not-applicable"

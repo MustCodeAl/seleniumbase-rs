@@ -24,6 +24,7 @@ starts a local browser or driver.
 | Method | Description |
 |--------|-------------|
 | `activate_cdp_mode()` | Enables CDP domains. |
+| `devtools_endpoint()` | The DevTools endpoint of the browser this case drives (a `DevToolsEndpoint` with `http_url()` and `websocket_url()`), Python's `get_endpoint_url()`: what another DevTools client attaches to, such as the Playwright bridge's `PlaywrightSidecar::attach(&sb)`. A WebDriver Chromium session answers the address its driver reported (`debuggerAddress`, probed at `/json/version`); a direct CDP attachment answers its browser's. Firefox, Safari and a grid that hides the address get `Unsupported`; a quit session gets `SessionNotStarted`. |
 | `execute_cdp(method)` | Sends a CDP command. |
 | `execute_cdp_with_params(method, params)` | Sends a CDP command with params. |
 | `cdp_mouse_click(x, y)` | CDP mouse click at viewport coordinates. |

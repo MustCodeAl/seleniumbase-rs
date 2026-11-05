@@ -1083,3 +1083,114 @@ mod tests_with_a_driver {
         }
     }
 }
+
+/// `BaseCase::devtools_endpoint` against a mock WebDriver whose reported
+/// `debuggerAddress` is a loopback thread that plays Chrome's `/json/version`.
+#[cfg(test)]
+mod devtools_endpoint_tests {
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+
+    use serde_json::{json, Value};
+
+    use super::webdriver_support::{MockWebDriver, Reply};
+    use super::*;
+
+    /// Answers every request on a loopback port with `version` and returns
+    /// the `host:port` that Chrome would report as its `debuggerAddress`.
+    fn serve_version(version: &Value) -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind a loopback port");
+        let address = listener.local_addr().expect("bound address");
+        let body = version.to_string();
+        std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                let Ok(mut stream) = stream else { continue };
+                let mut request = [0_u8; 4096];
+                let _ = stream.read(&mut request);
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\
+                     Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+                let _ = stream.write_all(response.as_bytes());
+            }
+        });
+        address.to_string()
+    }
+
+    /// A case on a mock driver that reports `capabilities` for its session.
+    async fn case_reporting(capabilities: Value) -> (MockWebDriver, BaseCase) {
+        let driver = MockWebDriver::start(capabilities, |_| Reply::Value(Value::Null));
+        let sb = driver.base_case().await;
+        (driver, sb)
+    }
+
+    #[tokio::test]
+    async fn a_chromium_session_names_the_endpoint_its_driver_reported() {
+            let advertised = "ws://127.0.0.1:9/devtools/browser/0a1b";
+            let address = serve_version(&json!({ "webSocketDebuggerUrl": advertised }));
+            let (_driver, sb) = case_reporting(json!({
+                "browserName": "chrome",
+                "goog:chromeOptions": { "debuggerAddress": address },
+            }))
+            .await;
+    
+            let endpoint = sb.devtools_endpoint().await.expect("the endpoint answers");
+    
+            // The WebSocket address is the browser's own: it is passed on, not dialled.
+            assert_eq!(endpoint.http_url(), format!("http://{address}"));
+            assert_eq!(endpoint.websocket_url(), advertised);
+        }
+    
+        #[tokio::test]
+        async fn a_session_whose_driver_reports_no_address_is_unsupported() {
+            let (_driver, sb) = case_reporting(json!({ "browserName": "firefox" })).await;
+    
+            let error = sb.devtools_endpoint().await.expect_err("no DevTools address");
+    
+            assert!(matches!(error, SeleniumBaseError::Unsupported(_)), "{error:?}");
+        }
+    
+        #[tokio::test]
+        async fn a_browser_that_advertises_no_websocket_is_a_cdp_driver_error() {
+            let address = serve_version(&json!({ "Browser": "Chrome/150.0.0.0" }));
+            let (_driver, sb) = case_reporting(json!({
+                "goog:chromeOptions": { "debuggerAddress": address },
+            }))
+            .await;
+    
+            let error = sb.devtools_endpoint().await.expect_err("no WebSocket");
+    
+            let SeleniumBaseError::CdpDriver(reason) = error else {
+                panic!("expected a CdpDriver error, got {error:?}");
+            };
+            assert!(reason.contains("webSocketDebuggerUrl"), "{reason}");
+        }
+    
+        #[tokio::test]
+        async fn an_address_nothing_listens_on_is_a_cdp_driver_error() {
+            // Nothing listens on a port that was just released.
+            let port = TcpListener::bind("127.0.0.1:0")
+                .and_then(|listener| listener.local_addr())
+                .expect("a free port")
+                .port();
+            let (_driver, sb) = case_reporting(json!({
+                "goog:chromeOptions": { "debuggerAddress": format!("127.0.0.1:{port}") },
+            }))
+            .await;
+    
+            let error = sb.devtools_endpoint().await.expect_err("refused");
+    
+            assert!(matches!(error, SeleniumBaseError::CdpDriver(_)), "{error:?}");
+        }
+    
+        #[tokio::test]
+        async fn a_case_without_a_session_has_no_endpoint() {
+            let sb = BaseCase::without_session(BrowserConfig::default());
+    
+            let error = sb.devtools_endpoint().await.expect_err("not started");
+    
+            assert!(matches!(error, SeleniumBaseError::SessionNotStarted), "{error:?}");
+        }
+}
+

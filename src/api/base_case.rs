@@ -38,6 +38,7 @@ use crate::browser::config::{whole_seconds, BrowserConfig};
 use crate::browser::session::{shown_text, BrowserSession};
 use crate::error::SeleniumBaseError;
 use crate::js_code::quote;
+use crate::sb_cdp::DevToolsEndpoint;
 use crate::utils::selectors::{css_to_xpath, Selector};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -1234,6 +1235,24 @@ impl BaseCase {
     /// Activates CDP domains on the current session.
     pub async fn activate_cdp_mode(&self) -> Result<(), SeleniumBaseError> {
         self.session.activate_cdp_mode().await
+    }
+
+    /// The DevTools endpoint of the browser this case drives: the addresses
+    /// another DevTools client attaches to, Python's `get_endpoint_url()`. The
+    /// Playwright bridge (`PlaywrightSidecar`) attaches with it.
+    ///
+    /// A WebDriver Chromium session (UC mode included) answers the address its
+    /// driver reported; a direct CDP attachment
+    /// ([`with_cdp_url`](BrowserConfig::with_cdp_url)) answers its browser's.
+    ///
+    /// # Errors
+    ///
+    /// [`SeleniumBaseError::Unsupported`] when the driver reported no DevTools
+    /// address (Firefox, Safari, a grid that hides it),
+    /// [`SeleniumBaseError::SessionNotStarted`] after [`quit`](Self::quit),
+    /// [`SeleniumBaseError::CdpDriver`] when the browser does not answer there.
+    pub async fn devtools_endpoint(&self) -> Result<DevToolsEndpoint, SeleniumBaseError> {
+        self.session.devtools_endpoint().await
     }
 
     /// Reconnects the underlying WebDriver session (useful in UC mode for a clean session).

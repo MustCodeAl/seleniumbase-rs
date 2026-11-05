@@ -655,7 +655,7 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `get_element_position` | composed | `Locator::viewport_rect` | `page.locator(selector).viewport_rect()` is measured from the window's visible area, as in Python. `bounding_box()` is measured from the top of the document and differs by how far the page is scrolled. |
 | `get_element_rect` | composed | `Locator::viewport_rect` | `page.locator(selector).viewport_rect()` is measured from the window's visible area, as Python's window-based rectangle is. `bounding_box()` is measured from the top of the document and differs by how far the page is scrolled. |
 | `get_element_size` | composed | `Locator::bounding_box` | `page.locator(selector).bounding_box()`; position, size and rect all come from the one bounding box. |
-| `get_endpoint_url` | composed | `Browser::http_url` | `browser.http_url()` is the DevTools HTTP endpoint, on the host the browser was launched on or attached to. |
+| `get_endpoint_url` | composed | `Browser::http_url` | `browser.http_url()` is the DevTools HTTP endpoint, on the host the browser was launched on or attached to; `browser.devtools_endpoint()` holds both addresses. For the `SB(uc=True)` format, `BaseCase::devtools_endpoint()` answers the address chromedriver reported (and a direct CDP attachment's browser). |
 | `get_event_loop` | not-applicable |  | The async runtime is the caller's; there is no event loop to expose. |
 | `get_flattened_document` | composed | `Page::execute` | Raw protocol call: `page.execute(..)` with `DOM.getFlattenedDocument`. |
 | `get_gui_element_center` | composed | `Locator::screen_rect` | `page.locator(selector).screen_rect()` gives the rectangle in screen coordinates; take its centre. |
