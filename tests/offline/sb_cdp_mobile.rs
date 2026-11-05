@@ -108,6 +108,18 @@ fn the_phone_agent_is_also_the_browsers_own_agent() {
 }
 
 #[test]
+fn built_options_hold_the_fingerprint_they_were_given() {
+    let fingerprint = Fingerprint::randomized(OsType::Windows, 7);
+    let options = LaunchOptions::builder()
+        .fingerprint(&fingerprint)
+        .build()
+        .unwrap();
+    assert_eq!(options.fingerprint(), Some(&fingerprint));
+    assert_eq!(options.user_agent(), fingerprint.user_agent().as_str());
+    assert_eq!(LaunchOptions::default().fingerprint(), None);
+}
+
+#[test]
 fn mobile_emulation_and_a_fingerprint_are_refused_together() {
     let fingerprint = Fingerprint::randomized(OsType::Windows, 7);
     for builder in [

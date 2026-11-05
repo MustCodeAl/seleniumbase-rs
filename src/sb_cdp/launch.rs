@@ -201,6 +201,8 @@ pub struct LaunchOptions {
     pub(crate) shield_webrtc: bool,
     /// What every tab is made to look like, if a fingerprint was given.
     pub(crate) identity: Option<Arc<StealthPlan>>,
+    /// The fingerprint the launch was given, which `identity` is the plan of.
+    pub(crate) fingerprint: Option<Arc<Fingerprint>>,
     pub(crate) extra_args: Vec<String>,
     /// Unpacked extension folders, loaded over the protocol once the browser runs.
     pub(crate) extensions: Vec<PathBuf>,
@@ -256,6 +258,13 @@ impl LaunchOptions {
     #[must_use]
     pub fn cdp_target(&self) -> Option<&str> {
         self.cdp_target.as_deref()
+    }
+
+    /// The fingerprint the options were built with
+    /// ([`LaunchOptionsBuilder::fingerprint`]), if any.
+    #[must_use]
+    pub fn fingerprint(&self) -> Option<&Fingerprint> {
+        self.fingerprint.as_deref()
     }
 
     /// Starts building launch options.
@@ -491,6 +500,7 @@ pub struct LaunchOptionsBuilder {
     webrtc: Option<WebRtcPolicy>,
     shield_webrtc: bool,
     identity: Option<Arc<StealthPlan>>,
+    fingerprint: Option<Arc<Fingerprint>>,
     extra_args: Vec<String>,
     extensions: Vec<PathBuf>,
     prefs: Map<String, Value>,
@@ -538,6 +548,7 @@ impl Default for LaunchOptionsBuilder {
             webrtc: None,
             shield_webrtc: false,
             identity: None,
+            fingerprint: None,
             extra_args: Vec::new(),
             extensions: Vec::new(),
             prefs: Map::new(),
@@ -647,6 +658,7 @@ impl LaunchOptionsBuilder {
     #[must_use]
     pub fn fingerprint(mut self, fingerprint: &Fingerprint) -> Self {
         self.identity = Some(Arc::new(StealthPlan::new(fingerprint)));
+        self.fingerprint = Some(Arc::new(fingerprint.clone()));
         if self.user_agent.is_none() {
             self.user_agent = fingerprint.user_agent().value().cloned();
         }
@@ -1100,6 +1112,8 @@ impl LaunchOptionsBuilder {
             webrtc: self.webrtc,
             shield_webrtc: self.shield_webrtc,
             identity: self.identity,
+            fingerprint: self.fingerprint,
+
             extra_args: self.extra_args,
             extensions: self.extensions,
             prefs,
@@ -1587,6 +1601,20 @@ mod tests {
             .proxy("user:pass@")
             .build()
             .is_err());
+    }
+
+    #[test]
+    fn the_options_keep_the_fingerprint_they_were_given() {
+        use crate::evasion::fingerprint::OsType;
+
+        let fingerprint = Fingerprint::randomized(OsType::Linux, 3);
+        let options = LaunchOptions::builder()
+            .fingerprint(&fingerprint)
+            .build()
+            .unwrap();
+        assert_eq!(options.fingerprint(), Some(&fingerprint));
+        assert!(options.identity.is_some(), "the plan is made from it");
+        assert_eq!(LaunchOptions::default().fingerprint(), None);
     }
 
     #[test]
