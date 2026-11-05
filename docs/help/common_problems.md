@@ -158,8 +158,7 @@ those are consulted only by `sbrs doctor`, which prints which chromedriver it
 finds (`CHROMEDRIVER_PATH`, then `downloaded_drivers/`, then `PATH`), its major
 version next to Chrome's (`Version: 155 (matches Chrome 155)`, or
 `Version: 151, but Chrome is 155` with a hint to run `sbrs install`), and whether
-it still has automation markers. The auto-start does ask `mise which chromedriver`,
-after `downloaded_drivers/` and before a download.
+it still has automation markers.
 
 </Note>
 

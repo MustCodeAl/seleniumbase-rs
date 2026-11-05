@@ -69,8 +69,7 @@ pub enum DriverVersion {
     Milestone(u32),
     /// One build, by its full version (`126.0.6478.126`).
     Exact(String),
-    /// Any driver already in `downloaded_drivers/` or on the `PATH`, then the one
-    /// `mise which chromedriver` names; the one for
+    /// Any driver already in `downloaded_drivers/` or on the `PATH`; the one for
     /// the installed browser is downloaded only when there is none (`keep`).
     Keep,
     /// The newest driver of the Chrome major version before the stable one

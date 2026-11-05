@@ -119,10 +119,6 @@ run = "sh tools/release/build-binaries.sh"
 description = "Write the layout trees of the docs pages again, and every copy of the tree component"
 run = "python3 -I tools/docs_layout_tree.py"
 
-[tasks.mise-plugin-test]
-description = "The Lua tests of the chromedriver plugin for mise (needs luajit)"
-run = "cd contrib/mise/mise-chromedriver && luajit test/cft_test.lua"
-
 [tasks.serve-docs]
 description = "Serve the mdBook locally for editing"
 run = "mdbook serve --open"

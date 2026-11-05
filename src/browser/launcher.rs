@@ -6,8 +6,6 @@
 //! lifecycle, downloading chromedriver, geckodriver and msedgedriver when none
 //! is found.
 
-use std::ffi::OsStr;
-
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ExitStatus, Stdio};
@@ -22,7 +20,6 @@ use crate::browser::driver_install::{
     downloaded_driver, install_geckodriver, install_msedgedriver,
 };
 use crate::browser::driver_version::{binary_major, fit, Fit};
-use crate::browser::mise_driver::{self, MISE, MISE_TIMEOUT};
 
 use crate::browser::options::{DriverVersion, LaunchSwitch};
 use crate::common::orphan_guard::OrphanGuard;
@@ -258,10 +255,7 @@ async fn wait_for_port(
 ///
 /// A chromedriver only drives the Chrome of its own major version. A driver in
 /// `downloaded_drivers/` is used as it is when its version matches, or when
-/// either version cannot be read. When the versions differ, the chromedriver
-/// that [mise](https://mise.jdx.dev) manages for the working directory is tried
-/// next (`mise which chromedriver`, under the same version check; see
-/// [`mise_driver`](crate::browser::mise_driver)), and then the driver for the
+/// either version cannot be read. When the versions differ, the driver for the
 /// installed Chrome is downloaded in its place, falling back to the latest
 /// stable one, and to the old driver only when nothing could be downloaded.
 async fn ensure_chromedriver_binary() -> Result<PathBuf, SeleniumBaseError> {
@@ -276,9 +270,7 @@ async fn ensure_chromedriver_binary() -> Result<PathBuf, SeleniumBaseError> {
         None => None,
     };
 
-    if let Some(found) =
-        chromedriver_on_hand(&existing, browser, OsStr::new(MISE), MISE_TIMEOUT).await
-    {
+    if let Some(found) = chromedriver_on_hand(&existing, browser).await {
         return Ok(found);
     }
 
@@ -313,16 +305,9 @@ async fn ensure_chromedriver_binary() -> Result<PathBuf, SeleniumBaseError> {
 /// A chromedriver that is on this machine and fits Chrome `browser`, so that
 /// nothing has to be downloaded.
 ///
-/// `existing` (the one in `downloaded_drivers/`) comes first, and is used when
-/// its major version is the browser's or when either version cannot be read.
-/// Otherwise the chromedriver the program `mise` names (see
-/// [`mise_driver`](crate::browser::mise_driver)) is used, under the same check.
-async fn chromedriver_on_hand(
-    existing: &Path,
-    browser: Option<u32>,
-    mise: &OsStr,
-    mise_timeout: Duration,
-) -> Option<PathBuf> {
+/// `existing` (the one in `downloaded_drivers/`) is used when its major version
+/// is the browser's or when either version cannot be read.
+async fn chromedriver_on_hand(existing: &Path, browser: Option<u32>) -> Option<PathBuf> {
     if existing.exists() {
         match fit(binary_major(existing).await, browser) {
             Fit::Mismatch { driver, browser } => {
@@ -336,21 +321,7 @@ async fn chromedriver_on_hand(
             Fit::Matches | Fit::Unknown => return Some(existing.to_path_buf()),
         }
     }
-    mise_driver::fitting_with(mise, mise_timeout, browser).await
-}
-
-/// What `--driver-version=keep` uses: the chromedriver `found` in
-/// `downloaded_drivers/` or on the `PATH`, else the one `mise` names, whatever
-/// Chrome is installed.
-async fn kept_chromedriver(
-    found: Option<PathBuf>,
-    mise: &OsStr,
-    mise_timeout: Duration,
-) -> Option<PathBuf> {
-    if found.is_some() {
-        return found;
-    }
-    mise_driver::which_chromedriver(mise, mise_timeout).await
+    None
 }
 
 /// The program that automates a browser.
@@ -540,11 +511,9 @@ async fn ensure_msedgedriver(config: &BrowserConfig) -> Result<PathBuf, Selenium
 #[derive(Clone, Eq, PartialEq)]
 pub(crate) enum ChromedriverPlan {
     /// The one in `downloaded_drivers/` when it fits the installed Chrome,
-    /// otherwise the one mise manages when that fits, otherwise a download for
-    /// that Chrome.
+    /// otherwise a download for that Chrome.
     Default,
-    /// Any chromedriver already in `downloaded_drivers/` or on the `PATH`, else
-    /// the one mise manages; the
+    /// Any chromedriver already in `downloaded_drivers/` or on the `PATH`; the
     /// one for the installed Chrome is downloaded only when there is none
     /// (`--driver-version=keep`).
     Keep {
@@ -623,8 +592,7 @@ pub(crate) fn chromedriver_plan(config: &BrowserConfig) -> ChromedriverPlan {
 }
 
 /// The chromedriver already in `downloaded_drivers/` or on the `PATH`, else the
-/// one mise manages for the working directory (`mise which chromedriver`), else
-/// the one for the installed Chrome (or `browser`), downloaded.
+/// one for the installed Chrome (or `browser`), downloaded.
 async fn keep_chromedriver(
     browser: Option<PathBuf>,
     proxy: Option<&str>,
@@ -634,7 +602,7 @@ async fn keep_chromedriver(
         Path::new(DOWNLOADS_DIR),
         &|name| which::which(name).ok(),
     );
-    if let Some(found) = kept_chromedriver(found, OsStr::new(MISE), MISE_TIMEOUT).await {
+    if let Some(found) = found {
         return Ok(found);
     }
     let program = browser.or_else(find_system_chrome);
@@ -647,8 +615,7 @@ async fn keep_chromedriver(
 
 /// Starts the driver `config.browser` needs on a free port.
 ///
-/// Chromedriver is the one in `downloaded_drivers/`, the one mise manages
-/// (`mise which chromedriver`), or a download, as
+/// Chromedriver is the one in `downloaded_drivers/` or a download, as
 /// `chromedriver_plan` says. geckodriver (Firefox) and msedgedriver (Edge)
 /// are looked for in `downloaded_drivers/` and on the `PATH`, and downloaded
 /// when missing; msedgedriver is also replaced when it does not fit the
@@ -1006,35 +973,6 @@ mod driver_program_tests {
         // `find_free_port` asks the system for a port, so there is always one.
     }
 
-    /// The real `mise` and a chromedriver it installed for the working directory.
-    ///
-    /// Pin chromedriver for the Chrome that is installed (a `mise.toml` above the
-    /// crate folder, or the global mise config), then run
-    /// `cargo test -p seleniumbase-rs --lib the_real_mise -- --ignored`.
-    #[tokio::test]
-    #[ignore = "needs mise with a chromedriver installed for the working directory"]
-    async fn the_real_mise_names_a_driver_the_launcher_starts() {
-        let found = mise_driver::which_chromedriver(OsStr::new(MISE), MISE_TIMEOUT)
-            .await
-            .expect("mise names a chromedriver for this folder");
-        let process = launch_chromedriver_at(&found, None)
-            .await
-            .expect("the driver mise installed starts");
-        assert!(
-            process.url.starts_with("http://127.0.0.1:"),
-            "{}",
-            process.url
-        );
-        // With no `downloaded_drivers/chromedriver` here, the launcher's own
-        // lookup lands on the same file when it fits the installed Chrome.
-        if !Path::new(DOWNLOADS_DIR).join("chromedriver").exists() {
-            let ensured = ensure_chromedriver_binary().await.expect("a driver");
-            assert_eq!(ensured, found);
-        }
-    }
-
-    const WAIT: Duration = Duration::from_secs(10);
-
     /// A stand-in for a program: a shell script that runs `body`, started once
     /// with `--warm` first, since macOS delays the first run of a new file.
     #[cfg(unix)]
@@ -1063,126 +1001,21 @@ mod driver_program_tests {
         )
     }
 
-    /// A `mise` that notes in `record` that it was asked, and names `driver`.
-    #[cfg(unix)]
-    fn mise_naming(dir: &Path, driver: &Path, record: &Path) -> PathBuf {
-        stand_in(
-            dir,
-            "mise",
-            &format!(
-                "echo asked >> '{}'\necho '{}'",
-                record.display(),
-                driver.display()
-            ),
-        )
-    }
-
-    #[cfg(unix)]
     #[tokio::test]
-    async fn a_downloaded_driver_that_fits_wins_and_mise_is_not_asked() {
+    async fn a_downloaded_driver_is_used_when_it_fits_and_otherwise_nothing_is_on_hand() {
         let dir = tempfile::tempdir().unwrap();
-        let existing = driver_in(&dir.path().join("downloaded_drivers"), "155.0.8059.40");
-        let managed = driver_in(&dir.path().join("managed"), "155.0.8059.40");
-        let record = dir.path().join("asked");
-        let mise = mise_naming(dir.path(), &managed, &record);
-        let found = chromedriver_on_hand(&existing, Some(155), mise.as_os_str(), WAIT).await;
-        assert_eq!(found, Some(existing));
-        assert!(
-            !record.exists(),
-            "mise was asked although it was not needed"
-        );
-    }
-
-    #[cfg(unix)]
-    #[tokio::test]
-    async fn mise_supplies_the_driver_when_downloaded_drivers_has_none() {
-        let dir = tempfile::tempdir().unwrap();
-        let existing = dir.path().join("downloaded_drivers").join("chromedriver");
-        let managed = driver_in(&dir.path().join("managed"), "155.0.8059.40");
-        let before = std::fs::read(&managed).unwrap();
-        let mise = mise_naming(dir.path(), &managed, &dir.path().join("asked"));
-        let found = chromedriver_on_hand(&existing, Some(155), mise.as_os_str(), WAIT).await;
-        assert_eq!(found, Some(managed.clone()));
-        // The driver stays as mise left it, and nothing appears beside it.
-        assert_eq!(std::fs::read(&managed).unwrap(), before);
-        assert_eq!(
-            std::fs::read_dir(managed.parent().unwrap())
-                .unwrap()
-                .count(),
-            1
-        );
-    }
-
-    #[cfg(unix)]
-    #[tokio::test]
-    async fn mise_is_tried_when_the_downloaded_driver_is_for_another_chrome() {
-        let dir = tempfile::tempdir().unwrap();
-        let stale = driver_in(&dir.path().join("downloaded_drivers"), "151.0.7922.71");
-        let managed = driver_in(&dir.path().join("managed"), "155.0.8059.40");
-        let mise = mise_naming(dir.path(), &managed, &dir.path().join("asked"));
-        let found = chromedriver_on_hand(&stale, Some(155), mise.as_os_str(), WAIT).await;
-        assert_eq!(found, Some(managed));
-    }
-
-    #[cfg(unix)]
-    #[tokio::test]
-    async fn a_managed_driver_for_another_chrome_leaves_the_download_to_the_caller() {
-        let dir = tempfile::tempdir().unwrap();
-        let stale = driver_in(&dir.path().join("downloaded_drivers"), "151.0.7922.71");
-        let managed = driver_in(&dir.path().join("managed"), "151.0.7922.71");
-        let mise = mise_naming(dir.path(), &managed, &dir.path().join("asked"));
-        assert_eq!(
-            chromedriver_on_hand(&stale, Some(155), mise.as_os_str(), WAIT).await,
-            None
-        );
-    }
-
-    #[tokio::test]
-    async fn without_mise_a_fitting_download_is_used_and_a_missing_one_is_not_found() {
-        let dir = tempfile::tempdir().unwrap();
-        let no_mise = dir.path().join("no-such-mise");
         let missing = dir.path().join("downloaded_drivers").join("chromedriver");
-        assert_eq!(
-            chromedriver_on_hand(&missing, Some(155), no_mise.as_os_str(), WAIT).await,
-            None
-        );
+        assert_eq!(chromedriver_on_hand(&missing, Some(155)).await, None);
         #[cfg(unix)]
         {
             let existing = driver_in(&dir.path().join("downloaded_drivers"), "155.0.8059.40");
             assert_eq!(
-                chromedriver_on_hand(&existing, Some(155), no_mise.as_os_str(), WAIT).await,
+                chromedriver_on_hand(&existing, Some(155)).await,
                 Some(existing)
             );
+            let stale = driver_in(&dir.path().join("stale"), "151.0.7922.71");
+            assert_eq!(chromedriver_on_hand(&stale, Some(155)).await, None);
         }
-    }
-
-    #[cfg(unix)]
-    #[tokio::test]
-    async fn keep_takes_what_is_on_hand_before_it_asks_mise() {
-        let dir = tempfile::tempdir().unwrap();
-        let managed = driver_in(&dir.path().join("managed"), "151.0.7922.71");
-        let record = dir.path().join("asked");
-        let mise = mise_naming(dir.path(), &managed, &record);
-        let on_hand = PathBuf::from("/opt/drivers/chromedriver");
-        assert_eq!(
-            kept_chromedriver(Some(on_hand.clone()), mise.as_os_str(), WAIT).await,
-            Some(on_hand)
-        );
-        assert!(
-            !record.exists(),
-            "mise was asked although it was not needed"
-        );
-        // Nothing on hand: the one mise names, whatever Chrome is installed.
-        assert_eq!(
-            kept_chromedriver(None, mise.as_os_str(), WAIT).await,
-            Some(managed)
-        );
-        assert!(record.exists());
-        let no_mise = dir.path().join("no-such-mise");
-        assert_eq!(
-            kept_chromedriver(None, no_mise.as_os_str(), WAIT).await,
-            None
-        );
     }
 
     #[test]

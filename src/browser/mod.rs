@@ -12,7 +12,6 @@ pub mod driver_access;
 pub mod driver_install;
 pub mod driver_version;
 pub mod launcher;
-pub(crate) mod mise_driver;
 
 pub mod options;
 pub(crate) mod password_prompts;
