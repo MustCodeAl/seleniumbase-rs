@@ -352,6 +352,28 @@ let config = BrowserConfig::default().with_proxy(entry.spec());
 
 `ProxyEntry`'s `Debug` and `Display` never show a password; only `spec()` does.
 
+`pick(site)` chooses by the list's `RotationStrategy`, set with `with_rotation`: in
+turn (`RoundRobin`, the default), at random (`Random { seed }`, where a seed
+repeats the same order and `None` is `random`'s pick), the proxy with the fewest
+reported failures (`LeastFailures`), or the same proxy for the same site
+(`StickyPerSite`). `report(entry, outcome)` records what a request through a
+proxy met (`ProxyOutcome::Success`, `ConnectFailed`, `Challenged`, `Blocked`), and
+`with_quarantine(after_failures, rest)` rests a proxy that failed that many times in
+a row. `pick_other(current, site)` never returns `current`, so a rotation really
+moves:
+
+```rust
+use std::time::Duration;
+use seleniumbase_rs::config::proxy_list::{ProxyList, ProxyOutcome, RotationStrategy};
+
+let proxies = ProxyList::from_file("proxies.txt")?
+    .with_rotation(RotationStrategy::LeastFailures)
+    .with_quarantine(3, Duration::from_secs(600));
+let entry = proxies.pick(Some("shop.example")).expect("a proxy that is not resting");
+proxies.report(entry, ProxyOutcome::ConnectFailed);
+```
+
+
 `AdBlockList` is a set of hosts to refuse, with their subdomains.
 `AdBlockList::builtin()` is the crate's starter list of advertising and
 tracking hosts, `AdBlockList::parse` reads the host rules of a hosts file or

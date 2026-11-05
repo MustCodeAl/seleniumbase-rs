@@ -46,11 +46,15 @@
 //! # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 //! ```
 
+use std::collections::HashMap;
 use std::fmt;
 use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Mutex, MutexGuard, PoisonError};
+use std::time::{Duration, Instant};
 
-use rand::RngExt;
+use rand::rngs::StdRng;
+use rand::{RngExt, SeedableRng};
 use url::Url;
 
 use super::strip_comment;
@@ -118,6 +122,82 @@ impl fmt::Display for ProxyEntry {
     }
 }
 
+/// How many sites [`RotationStrategy::StickyPerSite`] remembers; past this the
+/// memory starts again, so a long run that visits many sites stays bounded.
+pub const MAX_STICKY_SITES: usize = 4096;
+
+/// How [`ProxyList::pick`] chooses the next proxy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[non_exhaustive]
+pub enum RotationStrategy {
+    /// In turn, wrapping around, as [`ProxyList::next_round_robin`] does.
+    #[default]
+    RoundRobin,
+    /// At random. With a seed the order is the same for the same seed, so a run
+    /// can be repeated; without one it is [`ProxyList::random`]'s pick.
+    Random {
+        /// The seed of the order, or `None` for a fresh one each time.
+        seed: Option<u64>,
+    },
+    /// The proxy with the fewest failures [reported](ProxyList::report) since
+    /// its last success; ties go in turn.
+    LeastFailures,
+    /// The same proxy for the same site, chosen in turn the first time the site
+    /// is asked for.
+    StickyPerSite,
+}
+
+/// What happened to a request through a proxy, as [`ProxyList::report`]
+/// records it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum ProxyOutcome {
+    /// The request went through.
+    Success,
+    /// The proxy could not be reached or refused the connection.
+    ConnectFailed,
+    /// The site answered with a challenge.
+    Challenged,
+    /// The site refused the request.
+    Blocked,
+}
+
+/// What the rotation strategies remember between picks.
+#[derive(Debug, Default, Clone)]
+struct Rotation {
+    health: Vec<Health>,
+    sticky: HashMap<String, usize>,
+    draws: u64,
+}
+
+impl Rotation {
+    /// Keeps one health record per entry, as entries are added.
+    fn fit(&mut self, len: usize) {
+        if self.health.len() < len {
+            self.health.resize(len, Health::default());
+        }
+    }
+}
+
+/// One proxy's failures since its last success, and when its rest ends.
+#[derive(Debug, Default, Clone, Copy)]
+struct Health {
+    failures: u32,
+    resting_until: Option<Instant>,
+}
+
+impl Health {
+    fn resting(&self, now: Instant) -> bool {
+        self.resting_until.is_some_and(|until| now < until)
+    }
+}
+
+/// The lock, also after a thread panicked while holding it: the state is a
+/// set of counters that stay usable.
+fn locked<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
 /// An ordered list of proxies, some of them named.
 ///
 /// It is safe to share between threads: taking the next proxy needs only `&self`.
@@ -125,6 +205,9 @@ impl fmt::Display for ProxyEntry {
 pub struct ProxyList {
     entries: Vec<ProxyEntry>,
     cursor: AtomicUsize,
+    rotation: RotationStrategy,
+    quarantine: Option<(u32, Duration)>,
+    state: Mutex<Rotation>,
 }
 
 impl Clone for ProxyList {
@@ -132,6 +215,9 @@ impl Clone for ProxyList {
         Self {
             entries: self.entries.clone(),
             cursor: AtomicUsize::new(self.cursor.load(Ordering::Relaxed)),
+            rotation: self.rotation,
+            quarantine: self.quarantine,
+            state: Mutex::new(locked(&self.state).clone()),
         }
     }
 }
@@ -274,6 +360,145 @@ impl ProxyList {
         }
         let index = rand::rng().random_range(0..self.entries.len());
         self.entries.get(index)
+    }
+
+    /// Sets how [`pick`](Self::pick) chooses: in turn (the default), at random,
+    /// the proxy with the fewest failures, or the same proxy for the same site.
+    #[must_use]
+    pub fn with_rotation(mut self, strategy: RotationStrategy) -> Self {
+        self.rotation = strategy;
+        locked(&self.state).draws = 0;
+        self
+    }
+
+    /// Rests a proxy once it has failed `after_failures` times in a row (zero
+    /// counts as one), for `rest`. A resting proxy is not picked, and its count
+    /// starts again when the rest begins.
+    #[must_use]
+    pub fn with_quarantine(mut self, after_failures: u32, rest: Duration) -> Self {
+        self.quarantine = Some((after_failures.max(1), rest));
+        self
+    }
+
+    /// The proxy for a request to `site`, chosen by the
+    /// [rotation strategy](Self::with_rotation) among the proxies that are not
+    /// resting. `None` when the list is empty or every proxy is resting. The
+    /// site matters only to [`RotationStrategy::StickyPerSite`].
+    #[must_use]
+    pub fn pick(&self, site: Option<&str>) -> Option<&ProxyEntry> {
+        self.choose(site, None)
+    }
+
+    /// Like [`pick`](Self::pick), but never `current`, so that changing proxy
+    /// really moves. With [`RotationStrategy::StickyPerSite`] the site then
+    /// sticks to the new proxy.
+    #[must_use]
+    pub fn pick_other(&self, current: &ProxyEntry, site: Option<&str>) -> Option<&ProxyEntry> {
+        self.choose(site, self.index_of(current))
+    }
+
+    /// Records what happened to a request through `entry`. A success clears
+    /// its failures; any other outcome adds one, and at the
+    /// [quarantine](Self::with_quarantine) limit the proxy rests. An entry the list
+    /// does not hold is ignored.
+    pub fn report(&self, entry: &ProxyEntry, outcome: ProxyOutcome) {
+        let Some(index) = self.index_of(entry) else {
+            return;
+        };
+        let mut state = locked(&self.state);
+        state.fit(self.entries.len());
+        let Some(health) = state.health.get_mut(index) else {
+            return;
+        };
+        if outcome == ProxyOutcome::Success {
+            health.failures = 0;
+            return;
+        }
+        health.failures = health.failures.saturating_add(1);
+        if let Some((limit, rest)) = self.quarantine
+            && health.failures >= limit
+        {
+            health.resting_until = Some(Instant::now() + rest);
+            health.failures = 0;
+        }
+    }
+
+    /// The pick of every strategy: among the proxies that are not resting and
+    /// are not `except`.
+    fn choose(&self, site: Option<&str>, except: Option<usize>) -> Option<&ProxyEntry> {
+        let now = Instant::now();
+        let mut state = locked(&self.state);
+        state.fit(self.entries.len());
+        let open: Vec<usize> = (0..self.entries.len())
+            .filter(|&index| Some(index) != except && !state.health[index].resting(now))
+            .collect();
+        if open.is_empty() {
+            return None;
+        }
+        let index = match self.rotation {
+            RotationStrategy::RoundRobin => self.next_of(&open),
+            RotationStrategy::Random { seed } => {
+                let at = match seed {
+                    Some(seed) => {
+                        // A generator per draw, seeded from the seed and the draw
+                        // number: the order repeats for the seed, and the list stays
+                        // cloneable.
+                        let mut rng = StdRng::seed_from_u64(seed.wrapping_add(state.draws));
+                        state.draws = state.draws.wrapping_add(1);
+                        rng.random_range(0..open.len())
+                    }
+                    None => rand::rng().random_range(0..open.len()),
+                };
+                open[at]
+            }
+            RotationStrategy::LeastFailures => {
+                let fewest = open
+                    .iter()
+                    .map(|&index| state.health[index].failures)
+                    .min()
+                    .unwrap_or_default();
+                let tied: Vec<usize> = open
+                    .iter()
+                    .copied()
+                    .filter(|&index| state.health[index].failures == fewest)
+                    .collect();
+                self.next_of(&tied)
+            }
+            RotationStrategy::StickyPerSite => match site {
+                Some(site) => match state.sticky.get(site) {
+                    Some(&kept) if open.contains(&kept) => kept,
+                    _ => {
+                        let chosen = self.next_of(&open);
+                        if state.sticky.len() >= MAX_STICKY_SITES {
+                            state.sticky.clear();
+                        }
+                        state.sticky.insert(site.to_owned(), chosen);
+                        chosen
+                    }
+                },
+                None => self.next_of(&open),
+            },
+        };
+        self.entries.get(index)
+    }
+
+    /// The next of `candidates` in turn, by the list's shared turn.
+    fn next_of(&self, candidates: &[usize]) -> usize {
+        let turn = self.cursor.fetch_add(1, Ordering::Relaxed);
+        candidates[turn % candidates.len()]
+    }
+
+    /// Where `entry` is in the list: the entry itself, else one with the same
+    /// proxy.
+    fn index_of(&self, entry: &ProxyEntry) -> Option<usize> {
+        self.entries
+            .iter()
+            .position(|held| std::ptr::eq(held, entry))
+            .or_else(|| {
+                self.entries
+                    .iter()
+                    .position(|held| held.spec() == entry.spec())
+            })
     }
 
     /// The entries, in order.
@@ -567,6 +792,102 @@ mod tests {
     }
 
     #[test]
+    fn round_robin_is_the_pick_by_default() {
+        let list = list(&["a.test:1", "b.test:2", "c.test:3"]);
+        let order: Vec<_> = (0..4).map(|_| list.pick(None).unwrap().server()).collect();
+        assert_eq!(order, ["a.test:1", "b.test:2", "c.test:3", "a.test:1"]);
+    }
+
+    #[test]
+    fn a_seeded_random_pick_repeats_its_order_for_the_seed() {
+        let specs = ["a.test:1", "b.test:2", "c.test:3", "d.test:4"];
+        let order = |seed| {
+            let list = list(&specs).with_rotation(RotationStrategy::Random { seed: Some(seed) });
+            (0..12)
+                .map(|_| list.pick(None).unwrap().server().to_owned())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(order(7), order(7));
+        assert_ne!(order(7), order(8), "another seed, another order");
+        assert!(order(7)
+            .iter()
+            .all(|server| specs.contains(&server.as_str())));
+    }
+
+    #[test]
+    fn least_failures_keeps_away_from_a_proxy_that_failed() {
+        let list = list(&["a.test:1", "b.test:2"]).with_rotation(RotationStrategy::LeastFailures);
+        let a = list.iter().next().unwrap().clone();
+        list.report(&a, ProxyOutcome::ConnectFailed);
+        for _ in 0..4 {
+            assert_eq!(list.pick(None).unwrap().server(), "b.test:2");
+        }
+        list.report(&a, ProxyOutcome::Success);
+        let both: std::collections::HashSet<_> =
+            (0..4).map(|_| list.pick(None).unwrap().server()).collect();
+        assert_eq!(both.len(), 2, "a success puts it back in turn");
+    }
+
+    #[test]
+    fn a_site_sticks_to_its_proxy_and_moves_with_pick_other() {
+        let list = list(&["a.test:1", "b.test:2", "c.test:3"])
+            .with_rotation(RotationStrategy::StickyPerSite);
+        let first = list.pick(Some("shop.test")).unwrap().clone();
+        assert_eq!(
+            list.pick(Some("shop.test")).unwrap().server(),
+            first.server()
+        );
+        assert_ne!(
+            list.pick(Some("news.test")).unwrap().server(),
+            first.server()
+        );
+        let moved = list.pick_other(&first, Some("shop.test")).unwrap().clone();
+        assert_ne!(moved.server(), first.server());
+        assert_eq!(
+            list.pick(Some("shop.test")).unwrap().server(),
+            moved.server()
+        );
+    }
+
+    #[test]
+    fn a_proxy_rests_after_its_failures_and_a_short_rest_ends() {
+        let list = list(&["a.test:1", "b.test:2"]).with_quarantine(2, Duration::from_secs(600));
+        let a = list.iter().next().unwrap().clone();
+        list.report(&a, ProxyOutcome::Blocked);
+        assert!(
+            (0..4).any(|_| list.pick(None).unwrap().server() == a.server()),
+            "one failure is not enough"
+        );
+        list.report(&a, ProxyOutcome::Challenged);
+        assert!((0..6).all(|_| list.pick(None).unwrap().server() == "b.test:2"));
+        let b = list.iter().nth(1).unwrap().clone();
+        list.report(&b, ProxyOutcome::ConnectFailed);
+        list.report(&b, ProxyOutcome::ConnectFailed);
+        assert!(list.pick(None).is_none(), "every proxy is resting");
+
+        let quick = self::list(&["a.test:1"]).with_quarantine(1, Duration::ZERO);
+        let only = quick.iter().next().unwrap().clone();
+        quick.report(&only, ProxyOutcome::ConnectFailed);
+        assert_eq!(
+            quick.pick(None).map(ProxyEntry::server),
+            Some(only.server()),
+            "a rest of zero is already over"
+        );
+    }
+
+    #[test]
+    fn pick_other_never_returns_the_current_proxy() {
+        let list = list(&["a.test:1", "b.test:2"]);
+        let a = list.iter().next().unwrap().clone();
+        assert!((0..5).all(|_| list.pick_other(&a, None).unwrap().server() == "b.test:2"));
+        let alone = self::list(&["a.test:1"]);
+        let only = alone.iter().next().unwrap().clone();
+        assert!(alone.pick_other(&only, None).is_none());
+        assert!(ProxyList::new().pick(None).is_none());
+    }
+
+    #[test]
+
     fn iterating_a_list_by_reference_visits_every_entry() {
         let list = list(&["a.test:1", "b.test:2"]);
         let mut count = 0;
