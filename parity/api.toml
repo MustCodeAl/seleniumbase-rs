@@ -119,7 +119,7 @@ rust = "BaseCase::assert_any_of_elements_visible"
 [basecase."assert_attribute"]
 status = "implemented"
 rust = "BaseCase::assert_attribute"
-divergence = "Takes the value (Python's is optional, and then the attribute only has to exist) and reads the attribute once after the element is there, where Python waits up to SMALL_TIMEOUT for it (use wait_for_attribute). Like Python it sees the DOM property when the element has no such attribute."
+divergence = "Takes the value (Python's is optional, and then the attribute only has to exist). It waits up to the default timeout (set_timeout) for the attribute to equal that value, as Python waits up to SMALL_TIMEOUT. Like Python it sees the DOM property when the element has no such attribute."
 
 [basecase."assert_attribute_not_present"]
 status = "implemented"

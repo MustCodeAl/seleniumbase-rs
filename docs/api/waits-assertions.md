@@ -45,7 +45,7 @@ See [Waits and Assertions](/tutorials/utilities#waits-and-assertions) for detail
 | `assert_exact_text(text, selector)` | Asserts the element's text equals `text` exactly (whitespace at the ends ignored); waits like `assert_text`. |
 | `assert_element_visible(selector)` | Asserts element is visible. |
 | `assert_element_not_visible(selector)` | Asserts element is not visible. |
-| `assert_attribute(selector, attr, value)` | Asserts attribute value. |
+| `assert_attribute(selector, attr, value)` | Asserts the attribute equals `value`, polling until the default timeout. |
 | `assert_url_contains(fragment)` | Asserts current URL contains fragment. |
 | `assert_no_404_errors()` | Fails if any same-origin link returns HTTP 404. |
 | `assert_link_text(text)` | Asserts a link with exact text exists. |
