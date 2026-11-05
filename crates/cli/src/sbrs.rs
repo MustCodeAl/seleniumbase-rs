@@ -44,6 +44,9 @@ use serde_json::{json, Value};
 mod args;
 #[path = "args/install.rs"]
 mod args_install;
+#[path = "args/doctor.rs"]
+mod args_doctor;
+
 mod completion;
 mod crypto;
 
@@ -246,6 +249,12 @@ struct DoctorArgs {
         help = "Print the problems found but exit with 0 (the default exits with 1 when the browser is missing or the chromedriver does not match it)"
     )]
     warn_only: bool,
+    #[usage(
+        long,
+        bool_value,
+        help = "Apply the fixes doctor already knows how to do: install a missing or mismatched chromedriver, and create a missing patch-cache directory. Does not install a browser or patch Chrome"
+    )]
+    fix: bool,
 }
 
 // The `plugin` command: it holds only its own subcommands. (Plain comments, not docs: a
@@ -1042,7 +1051,15 @@ enum Commands {
     /// not match the installed Chrome, and with 0 otherwise. A chromedriver that is not found
     /// is only a hint, since the pure CDP engine needs none. --warn-only prints the same and
     /// always exits with 0.
-    #[usage(help_heading = "Info and setup", example = "sbrs doctor")]
+    /// `--fix` installs a missing or mismatched chromedriver (what `sbrs install chromedriver`
+    /// downloads) and creates a missing patch-cache directory. It does not install a browser
+    /// and does not patch Chrome. A problem it repairs is not a failure; one it cannot repair
+    /// still is.
+    #[usage(
+        help_heading = "Info and setup",
+        example = "sbrs doctor",
+        example = "sbrs doctor --fix"
+    )]
     Doctor(DoctorArgs),
     /// Print one short line for a shell prompt: the installed Chrome's major
     /// version and whether a matching chromedriver is at hand.
@@ -2620,6 +2637,17 @@ impl std::fmt::Display for DoctorFailed {
 
 impl std::error::Error for DoctorFailed {}
 
+/// The download `sbrs install chromedriver` runs, with no version: the driver for the
+/// installed Chrome. It does not download a browser.
+async fn install_doctor_chromedriver() -> Result<PathBuf, String> {
+    let request = args_install::request(DriverArg::Chromedriver, None, false, None)
+        .map_err(|error| error.to_string())?;
+    let installed = sb_install::install(&request)
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(installed.path)
+}
+
 async fn run_doctor(options: &DoctorArgs) -> Result<(), Box<dyn std::error::Error>> {
     println!("seleniumbase-rs environment diagnostics");
     println!("========================================");
@@ -2663,9 +2691,10 @@ async fn run_doctor(options: &DoctorArgs) -> Result<(), Box<dyn std::error::Erro
     println!();
     println!("Browser binary");
     let chrome_bin = runtime.chrome_bin.clone().or_else(find_system_chrome);
-    match &chrome_bin {
+    let chrome_present = match &chrome_bin {
         Some(path) if path.exists() => {
             println!("  Found: {}", path.display());
+            true
         }
         Some(path) => {
             println!("  Configured path missing: {}", path.display());
@@ -2675,6 +2704,7 @@ async fn run_doctor(options: &DoctorArgs) -> Result<(), Box<dyn std::error::Erro
                  Chromium executable",
                 path.display()
             ));
+            false
         }
         None => {
             println!("  Not found");
@@ -2684,19 +2714,15 @@ async fn run_doctor(options: &DoctorArgs) -> Result<(), Box<dyn std::error::Erro
                  SB_CHROME_BIN to its executable"
                     .to_owned(),
             );
+            false
         }
-    }
+    };
 
     println!();
+    let cache_dir = args_doctor::patch_cache_directory(runtime.patch_cache_dir.clone());
     println!("Patch cache");
     if let Some(path) = &chrome_bin {
-        let patcher = ChromeBinaryPatcher::new(path).with_cache_dir(
-            runtime.patch_cache_dir.clone().unwrap_or_else(|| {
-                dirs::cache_dir()
-                    .unwrap_or_default()
-                    .join("sb-chrome-patches")
-            }),
-        );
+        let patcher = ChromeBinaryPatcher::new(path).with_cache_dir(&cache_dir);
         match patcher.patched_path() {
             Ok(p) => {
                 if p.exists() {
@@ -2719,9 +2745,11 @@ async fn run_doctor(options: &DoctorArgs) -> Result<(), Box<dyn std::error::Erro
 
     println!();
     println!("Chromedriver");
-    match assets::lookup_chromedriver() {
+    let (chromedriver, chrome_major) = match assets::lookup_chromedriver() {
         assets::DriverLookup::Found(path) => {
             println!("  Found: {}", path.display());
+            let pinned = std::env::var_os(assets::CHROMEDRIVER_PATH_VAR)
+                .is_some_and(|value| !value.is_empty());
             let driver = binary_major(&path).await;
             let browser = match &chrome_bin {
                 Some(chrome) => binary_major(chrome).await,
@@ -2761,6 +2789,10 @@ async fn run_doctor(options: &DoctorArgs) -> Result<(), Box<dyn std::error::Erro
                     println!("  Status: unable to inspect binary ({e})");
                 }
             }
+            (
+                args_doctor::ChromedriverFinding::Found { major: driver, pinned },
+                browser,
+            )
         }
         assets::DriverLookup::MissingConfigured(path) => {
             println!(
@@ -2769,11 +2801,40 @@ async fn run_doctor(options: &DoctorArgs) -> Result<(), Box<dyn std::error::Erro
                 path.display()
             );
             println!("  Hint: fix or unset CHROMEDRIVER_PATH, or run `sbrs install chromedriver`");
+            (
+                args_doctor::ChromedriverFinding::Missing { configured: true },
+                None,
+            )
         }
         assets::DriverLookup::NotFound => {
             println!("  Not found in {}/ or on PATH", assets::DRIVERS_DIR);
             println!("  Hint: run `sbrs install chromedriver` or set CHROMEDRIVER_PATH");
+            (
+                args_doctor::ChromedriverFinding::Missing { configured: false },
+                None,
+            )
         }
+    };
+
+    if options.fix {
+        let findings = args_doctor::DoctorFindings {
+            chrome_present,
+            chromedriver,
+            chrome_major,
+            patch_cache_exists: cache_dir.is_dir(),
+        };
+        let plan = args_doctor::plan_fixes(&findings);
+        let report = args_doctor::apply_fixes(
+            &plan,
+            &cache_dir,
+            failures,
+            install_doctor_chromedriver,
+        )
+        .await;
+        for line in &report.lines {
+            println!("{line}");
+        }
+        failures = report.failures;
     }
 
     if !failures.is_empty() {
@@ -5472,6 +5533,26 @@ mod page_cli_tests {
             PathBuf::from("from-the-variable")
         );
         assert!(patch_cache_dir(None, None).ends_with("sb-chrome-patches"));
+    }
+
+    /// `--fix` is a switch, including the explicit `--fix=false` a `bool_value` flag accepts.
+    #[test]
+    fn doctor_fix_is_a_switch() {
+        match command(&["sbrs", "doctor", "--fix"]) {
+            Commands::Doctor(args) => assert!(args.fix),
+            _ => panic!("expected doctor"),
+        }
+        match command(&["sbrs", "doctor", "--fix=false"]) {
+            Commands::Doctor(args) => assert!(!args.fix),
+            _ => panic!("expected doctor"),
+        }
+        match command(&["sbrs", "doctor"]) {
+            Commands::Doctor(args) => {
+                assert!(!args.fix);
+                assert!(!args.warn_only);
+            }
+            _ => panic!("expected doctor"),
+        }
     }
 
     /// Python's `--start-page`, under each of its names, is the page a command acts on; it
