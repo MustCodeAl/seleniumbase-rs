@@ -41,7 +41,7 @@ pub fn check<'v>(
     argv: &[&'v OsStr],
 ) -> Result<(), Error<'static, 'v>> {
     // The rule is the root's: a command that says nothing about it is held to it too.
-    let strict = !spec.root.args_override_self;
+    let strict = !spec.root.args_override_self();
     let mut parser = Parser::new(root, argv);
     // The metadata of the command the parser is in, and the flags it has been given.
     let mut meta = spec.root;
@@ -89,7 +89,7 @@ pub fn check<'v>(
                 // Only a command whose own declaration lets the last value win needs the
                 // check: the root and the `Args` structs refuse a repeat themselves.
                 if strict
-                    && meta.args_override_self
+                    && meta.args_override_self()
                     && !repeats(flag_meta)
                     && given.contains(&flag.key)
                 {
@@ -125,30 +125,30 @@ fn subcommand_meta(
     meta: &'static CommandMeta<'static>,
     command: &Command<'_>,
 ) -> Option<&'static CommandMeta<'static>> {
-    meta.subcommands
+    meta.subcommands()
         .iter()
         .copied()
-        .find(|candidate| candidate.cmd.key == command.key)
+        .find(|candidate| candidate.cmd().key == command.key)
 }
 
 /// The metadata of `flag`, a flag of the command `meta` describes. A flag the command does
 /// not declare itself (one of an ancestor) has none here.
 fn flag_meta<'m>(meta: &'m CommandMeta<'static>, flag: &Flag<'_>) -> Option<&'m FlagMeta<'static>> {
-    meta.flags
+    meta.flags()
         .iter()
-        .find(|candidate| candidate.flag.key == flag.key)
+        .find(|candidate| candidate.flag().key == flag.key)
 }
 
 /// Whether the flag may be given more than once: a collection, or a counter.
 fn repeats(flag: &FlagMeta<'_>) -> bool {
-    flag.repeatable || flag.count
+    flag.repeatable() || flag.count()
 }
 
 /// The switch of the command `meta` describes that the parser calls `name`.
 fn switch_named(meta: &'static CommandMeta<'static>, name: &str) -> Option<&'static Flag<'static>> {
-    meta.flags
+    meta.flags()
         .iter()
-        .map(|candidate| candidate.flag)
+        .map(|candidate| candidate.flag())
         .find(|flag| flag.name == name && flag.bool_value && !flag.takes_value)
 }
 

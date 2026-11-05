@@ -59,7 +59,6 @@ use seleniumbase_rs::{init_tracing_from_runtime, RuntimeConfig, SeleniumBaseErro
 // the derives of usage 7 write their code against (see its entry in `Cargo.toml`).
 extern crate usage_rs as usage;
 
-
 mod diagnostic;
 #[cfg(feature = "mcp-client")]
 mod mcp_client;

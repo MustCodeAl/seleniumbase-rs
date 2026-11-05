@@ -15,7 +15,7 @@ pub fn spec(spec: &Spec<'_>) -> String {
     let mut out = String::from("const completionSpec: Fig.Spec = {\n");
     let name = spec.bin.unwrap_or(spec.name);
     push_line(&mut out, 1, &format!("name: {},", quote(name)));
-    if let Some(about) = spec.about.or(spec.root.about) {
+    if let Some(about) = spec.about.or(spec.root.about()) {
         push_line(
             &mut out,
             1,
@@ -31,9 +31,9 @@ pub fn spec(spec: &Spec<'_>) -> String {
 /// also lists the `help` command and the `--version` flag the parser answers to.
 fn push_command_body(out: &mut String, command: &CommandMeta<'_>, depth: usize, root: bool) {
     let subcommands: Vec<_> = command
-        .subcommands
+        .subcommands()
         .iter()
-        .filter(|subcommand| !subcommand.hide)
+        .filter(|subcommand| !subcommand.hide())
         .collect();
     if !subcommands.is_empty() {
         push_line(out, depth, "subcommands: [");
@@ -44,10 +44,10 @@ fn push_command_body(out: &mut String, command: &CommandMeta<'_>, depth: usize, 
                 depth + 2,
                 &format!(
                     "name: {},",
-                    names(subcommand.cmd.name, subcommand.cmd.aliases)
+                    names(subcommand.cmd().name, subcommand.cmd().aliases)
                 ),
             );
-            if let Some(about) = subcommand.about {
+            if let Some(about) = subcommand.about() {
                 push_line(
                     out,
                     depth + 2,
@@ -76,7 +76,7 @@ fn push_command_body(out: &mut String, command: &CommandMeta<'_>, depth: usize, 
     }
 
     push_line(out, depth, "options: [");
-    for flag in command.flags.iter().filter(|flag| !flag.hide) {
+    for flag in command.flags().iter().filter(|flag| !flag.hide()) {
         push_flag(out, flag, depth + 1);
     }
     push_builtin(out, &["-h", "--help"], "Print help", depth + 1);
@@ -85,7 +85,7 @@ fn push_command_body(out: &mut String, command: &CommandMeta<'_>, depth: usize, 
     }
     push_line(out, depth, "],");
 
-    let args: Vec<_> = command.args.iter().filter(|arg| !arg.hide).collect();
+    let args: Vec<_> = command.args().iter().filter(|arg| !arg.hide()).collect();
     if !args.is_empty() {
         push_line(out, depth, "args: [");
         for arg in args {
@@ -99,39 +99,39 @@ fn push_command_body(out: &mut String, command: &CommandMeta<'_>, depth: usize, 
 fn push_flag(out: &mut String, flag: &FlagMeta<'_>, depth: usize) {
     push_line(out, depth, "{");
     let mut spellings: Vec<String> = flag
-        .flag
+        .flag()
         .shorts
         .iter()
         .map(|short| format!("-{}", char::from(*short)))
         .collect();
-    spellings.extend(flag.flag.longs.iter().map(|long| format!("--{long}")));
+    spellings.extend(flag.flag().longs.iter().map(|long| format!("--{long}")));
     let spellings = match spellings.as_slice() {
         [one] => quote(one),
         many => list(many),
     };
     push_line(out, depth + 1, &format!("name: {spellings},"));
-    if let Some(help) = flag.help {
+    if let Some(help) = flag.help() {
         push_line(
             out,
             depth + 1,
             &format!("description: {},", quote(first_line(help))),
         );
     }
-    if flag.repeatable {
+    if flag.repeatable() {
         push_line(out, depth + 1, "isRepeatable: true,");
     }
-    if flag.flag.global {
+    if flag.flag().global {
         // Declared once, on the root, and valid below every command.
         push_line(out, depth + 1, "isPersistent: true,");
     }
 
-    if flag.required {
+    if flag.required() {
         push_line(out, depth + 1, "isRequired: true,");
     }
-    if flag.flag.takes_value {
+    if flag.flag().takes_value {
         let value = flag
-            .value_name
-            .or_else(|| flag.flag.longs.first().copied())
+            .value_name()
+            .or_else(|| flag.flag().longs.first().copied())
             .unwrap_or("value");
         push_line(out, depth + 1, "args: {");
         push_line(
@@ -139,11 +139,11 @@ fn push_flag(out: &mut String, flag: &FlagMeta<'_>, depth: usize) {
             depth + 2,
             &format!("name: {},", quote(&value.to_lowercase())),
         );
-        if flag.value_optional {
+        if flag.value_optional() {
             push_line(out, depth + 2, "isOptional: true,");
         }
         push_template(out, flag.complete_type(), depth + 2);
-        push_suggestions(out, flag.choices, depth + 2);
+        push_suggestions(out, flag.choices(), depth + 2);
         push_line(out, depth + 1, "},");
     }
     push_line(out, depth, "},");
@@ -167,23 +167,23 @@ fn push_arg(out: &mut String, arg: &ArgMeta<'_>, depth: usize) {
     push_line(
         out,
         depth + 1,
-        &format!("name: {},", quote(&arg.arg.name.to_lowercase())),
+        &format!("name: {},", quote(&arg.arg().name.to_lowercase())),
     );
-    if let Some(help) = arg.help {
+    if let Some(help) = arg.help() {
         push_line(
             out,
             depth + 1,
             &format!("description: {},", quote(first_line(help))),
         );
     }
-    if !arg.required {
+    if !arg.required() {
         push_line(out, depth + 1, "isOptional: true,");
     }
-    if arg.arg.var {
+    if arg.arg().var {
         push_line(out, depth + 1, "isVariadic: true,");
     }
-    push_template(out, arg.complete_type, depth + 1);
-    push_suggestions(out, arg.choices, depth + 1);
+    push_template(out, arg.complete_type(), depth + 1);
+    push_suggestions(out, arg.choices(), depth + 1);
     push_line(out, depth, "},");
 }
 

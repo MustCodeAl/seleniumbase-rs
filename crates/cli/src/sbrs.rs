@@ -45,7 +45,6 @@ use serde_json::{json, Value};
 // the derives of usage 7 write their code against (see its entry in `Cargo.toml`).
 extern crate usage_rs as usage;
 
-
 mod args;
 #[path = "args/doctor.rs"]
 mod args_doctor;
@@ -5178,13 +5177,13 @@ mod strict_cli_tests {
             failures: &mut Vec<String>,
         ) {
             // The root and the `Args` structs refuse a repeat themselves.
-            if !path.is_empty() && meta.args_override_self {
-                for flag_meta in meta.flags {
-                    let flag = flag_meta.flag;
-                    if flag_meta.builtin
+            if !path.is_empty() && meta.args_override_self() {
+                for flag_meta in meta.flags() {
+                    let flag = flag_meta.flag();
+                    if flag_meta.builtin()
                         || flag.action != usage::ArgAction::Set
-                        || flag_meta.repeatable
-                        || flag_meta.count
+                        || flag_meta.repeatable()
+                        || flag_meta.count()
                     {
                         continue;
                     }
@@ -5206,8 +5205,8 @@ mod strict_cli_tests {
                     }
                 }
             }
-            for sub in meta.subcommands {
-                path.push(sub.cmd.name.to_owned());
+            for sub in meta.subcommands() {
+                path.push(sub.cmd().name.to_owned());
                 walk(sub, path, refused, failures);
                 path.pop();
             }
@@ -5366,7 +5365,7 @@ mod usage_spec_tests {
     /// The check in `strict` holds every command to the rule of the root.
     #[test]
     fn the_root_refuses_a_flag_given_twice() {
-        assert!(!Cli::spec().root.args_override_self);
+        assert!(!Cli::spec().root.args_override_self());
     }
 
     /// The check in `strict` can see a value written after a switch only when the switch is

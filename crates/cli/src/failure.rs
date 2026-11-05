@@ -239,11 +239,11 @@ fn terminal_width() -> usize {
 /// lines.
 pub(crate) fn root_page(spec: &Spec<'_>, width: usize) -> String {
     let mut groups: Vec<(&str, Vec<&str>)> = Vec::new();
-    for meta in spec.root.subcommands.iter().filter(|meta| !meta.hide) {
-        let heading = meta.extra.help_heading.unwrap_or(OTHER_COMMANDS);
+    for meta in spec.root.subcommands().iter().filter(|meta| !meta.hide()) {
+        let heading = meta.help_heading().unwrap_or(OTHER_COMMANDS);
         match groups.iter_mut().find(|(known, _)| *known == heading) {
-            Some((_, names)) => names.push(meta.cmd.name),
-            None => groups.push((heading, vec![meta.cmd.name])),
+            Some((_, names)) => names.push(meta.cmd().name),
+            None => groups.push((heading, vec![meta.cmd().name])),
         }
     }
     // The known headings first, in their order, then the others as declared, the commands
@@ -412,14 +412,14 @@ mod tests {
         let page = root_page(Cli::spec(), 80);
         for meta in Cli::spec()
             .root
-            .subcommands
+            .subcommands()
             .iter()
-            .filter(|meta| !meta.hide)
+            .filter(|meta| !meta.hide())
         {
             assert!(
-                page.split_whitespace().any(|word| word == meta.cmd.name),
+                page.split_whitespace().any(|word| word == meta.cmd().name),
                 "{} is missing from:\n{page}",
-                meta.cmd.name
+                meta.cmd().name
             );
         }
         assert!(page.lines().all(|line| line.len() <= 80), "{page}");
@@ -517,8 +517,8 @@ mod tests {
             route: &mut Vec<&'static Command<'static>>,
             found: &mut Vec<Vec<&'static Command<'static>>>,
         ) {
-            for sub in meta.subcommands.iter().copied().filter(|sub| !sub.hide) {
-                route.push(sub.cmd);
+            for sub in meta.subcommands().iter().copied().filter(|sub| !sub.hide()) {
+                route.push(sub.cmd());
                 found.push(route.clone());
                 walk(sub, route, found);
                 route.pop();
