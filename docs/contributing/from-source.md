@@ -336,6 +336,7 @@ both, so a plain `cargo build` or `cargo test` at the root covers both.
 <LayoutFile name="report.rs" note="sbrs report" />
 <LayoutFile name="reference.rs" note="renders docs/help/cli_reference.md from the usage spec" />
 <LayoutFile name="strict.rs" note="refuses, with status 2, what the parser is too loose about" />
+<LayoutFile name="trace.rs" note="sbrs trace show: opens a trace folder's viewer" />
 <LayoutDir name="mcp_install" note="sbrs-mcp install, uninstall and clients" />
 </LayoutDir>
 <LayoutDir name="tests" note="every test that runs the real sbrs or sbrs-mcp binary" />

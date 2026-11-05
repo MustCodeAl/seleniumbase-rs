@@ -156,6 +156,13 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 s
 
 ### Changed
 
+- **Dependencies: thirtyfour 0.38, rstest 0.28, scraper 0.29, sysinfo 0.40** (and `cargo update`).
+  The re-exports follow: `seleniumbase_rs::drivers` is thirtyfour 0.38, whose `CdpError::data`
+  is an `Option<Box<serde_json::Value>>`, and `testing::rstest` is rstest 0.28, which refuses a
+  `#[case(...)]` argument attribute other than `#[case(opt)]`, `#[case(default)]` and
+  `#[case(default(...))]` instead of reading it as `#[case]`. One `zip` is left in the tree.
+  rten stays on 0.26 until ocrs moves to rten 0.27 (ocrs 0.13.1 takes an rten 0.26 `Model`).
+
 - The Docs7 menu has five tabs: Guides, Stealth, Ecosystem, Reference and Contributing.
   "Ecosystem" holds MCP (with the vibe coding page), the CLI (with the TL;DR page), the integrations
   and the plugins (the built-in ones first);

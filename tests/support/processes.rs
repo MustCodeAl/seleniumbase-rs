@@ -13,7 +13,7 @@ use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
 
 /// Every running process, with its command line and its parent.
 fn snapshot() -> System {
-    let mut system = System::new();
+    let mut system = System::new().expect("read the process table");
     system.refresh_processes_specifics(
         ProcessesToUpdate::All,
         true,
@@ -84,7 +84,7 @@ pub fn descendants(pid: u32) -> Vec<u32> {
 /// `kill -0 pid` tells.
 pub fn alive(pid: u32) -> bool {
     let pid = Pid::from_u32(pid);
-    let mut system = System::new();
+    let mut system = System::new().expect("read the process table");
     system.refresh_processes_specifics(
         ProcessesToUpdate::Some(&[pid]),
         true,

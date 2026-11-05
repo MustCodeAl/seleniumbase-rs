@@ -45,6 +45,10 @@ work, `docs/parity.md` the per-API status).
   `BrowserHandle::clock` when the plugin set has no timer of its own. The WebDriver host has
   neither, so there `wait_for_workers` and `save_on_close` fail at launch, naming the option.
 
+- `sbrs trace show FOLDER` opens a trace's viewer (`index.html`, written by `Page::start_trace`
+  when the recording stops) in the system's default browser; `--print` prints its path instead.
+  A folder that is not a trace, or whose recording was not stopped, exits with status 2.
+
 - Docs: [Install sbrs with mise](docs/building.md). mise's built-in backends install
   `sbrs` and `sbrs-mcp` with no plugin: `github:` takes the macOS arm64 release archive and lists
   the versions from the release tags, `cargo:` builds from a git tag on every other platform, and
@@ -130,6 +134,13 @@ work, `docs/parity.md` the per-API status).
   of `mise run contracts --check-build`, as the checks for a release.
 
 ### Changed
+
+- **Dependencies: thirtyfour 0.38, rstest 0.28, scraper 0.29, sysinfo 0.40** (and `cargo update`).
+  The re-exports follow: `seleniumbase_rs::drivers` is thirtyfour 0.38, whose `CdpError::data`
+  is an `Option<Box<serde_json::Value>>`, and `testing::rstest` is rstest 0.28, which refuses a
+  `#[case(...)]` argument attribute other than `#[case(opt)]`, `#[case(default)]` and
+  `#[case(default(...))]` instead of reading it as `#[case]`. One `zip` is left in the tree.
+  rten stays on 0.26 until ocrs moves to rten 0.27 (ocrs 0.13.1 takes an rten 0.26 `Model`).
 
 - The Docs7 menu has five tabs: Guides, Stealth, Ecosystem, Reference and Contributing.
   "Ecosystem" holds MCP (with the vibe coding page), the CLI (with the TL;DR page), the integrations

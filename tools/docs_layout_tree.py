@@ -515,6 +515,7 @@ LAYOUT = D(
           F("report.rs", "sbrs report"),
           F("reference.rs", "renders docs/help/cli_reference.md from the usage spec"),
           F("strict.rs", "refuses, with status 2, what the parser is too loose about"),
+          F("trace.rs", "sbrs trace show: opens a trace folder's viewer"),
           D("mcp_install", "sbrs-mcp install, uninstall and clients", *cli_install_files(), open=True, check="all"),
           *cli_package_detail(),
           open=True, check="all"),

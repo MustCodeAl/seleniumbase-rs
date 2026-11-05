@@ -129,6 +129,8 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs smooth-scroll-to`](#sbrs-smooth-scroll-to) | Smoothly scroll an element into view. |
 | [`sbrs solve-captcha`](#sbrs-solve-captcha) | Solve the CAPTCHA on the page and check that it cleared. |
 | [`sbrs test`](#sbrs-test) | Run the project's tests, or one example, through Cargo or cargo-nextest. |
+| [`sbrs trace`](#sbrs-trace) | Look at a recorded trace. |
+| [`sbrs trace show`](#sbrs-trace-show) | Open the viewer of a trace folder in the system's default browser. |
 | [`sbrs translate`](#sbrs-translate) | Write the actions of a JSON scenario in another language. |
 | [`sbrs type-alert-text`](#sbrs-type-alert-text) | Type text into the prompt that the page opens when it loads. |
 | [`sbrs uc-click`](#sbrs-uc-click) | Perform a UC-mode click on an element. |
@@ -5087,6 +5089,50 @@ One of: `true`, `false`
 ```bash Examples
 sbrs test login
 sbrs test -k 'login and not slow' --runner nextest --headless --browser firefox
+```
+
+## sbrs trace
+
+Look at a recorded trace.
+
+A trace is the folder `Page::start_trace` writes: the actions of a run, a screenshot and a copy of the page after each one, the console and the network, and index.html, the viewer, which holds all of it. `sbrs trace show` opens that viewer.
+
+```bash Usage
+sbrs trace <SUBCOMMAND>
+```
+
+```bash Examples
+sbrs trace show traces/checkout
+```
+
+### sbrs trace show
+
+Open the viewer of a trace folder in the system's default browser.
+
+FOLDER is the folder the trace was written to, or its index.html. The viewer loads nothing from the network, so no server is needed. Exits with status 2 when FOLDER is not a trace or its recording was not stopped (the viewer is written when it stops), and with status 1 when the browser cannot be started.
+
+```bash Usage
+sbrs trace show [--print] <FOLDER>
+```
+
+**Arguments**
+
+<ParamField path="FOLDER" type="string" required>
+
+The trace folder, or its index.html.
+
+</ParamField>
+
+**Flags**
+
+<ParamField query="--print" type="boolean">
+
+Print the viewer's path instead of opening it.
+
+</ParamField>
+
+```bash Examples
+sbrs trace show traces/checkout
 ```
 
 ## sbrs translate
