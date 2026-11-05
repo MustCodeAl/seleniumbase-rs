@@ -13,6 +13,18 @@ work, `docs/parity.md` the per-API status).
 - The `bdd` feature no longer depends on `rstest-bdd-harness` or
   `rstest-bdd-harness-tokio`. Those crates were unused. Scenarios still use
   `rstest-bdd`.
+- `sbrs` and `sbrs-mcp` parse their command line with usage-rs 7.2 (usage-lib 7.2 for the
+  tests), up from 6.12. Nothing changes for a person: the help, the errors, the completion
+  scripts and the generated `completions/sbrs.usage.kdl`, `docs/help/cli_reference.md` and
+  `docs/completions/fig-sbrs.ts` are the same byte for byte. The package is now a dependency
+  of `crates/cli` under its own name, `usage-rs`, because the derives of usage 7 write their
+  code against `::usage_rs` and no longer read the manifest for a renamed dependency, and the
+  tables the Fig spec and the tests walk are read through `flags()`, `subcommands()`, `cmd()`
+  and the other accessors, since usage 7 hides their fields. The three checks of
+  `crates/cli/src/strict.rs` (a flag given twice to a command, a value written after a switch,
+  `help` with a path that names no command) stay: usage 7.2 still takes all three, and a
+  test fails the day it does not.
+
 
 ### Breaking
 
