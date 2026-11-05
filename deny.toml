@@ -38,6 +38,12 @@ ignore = [
     # pdf-extract -> lopdf for font handling while parsing PDFs. Revisit if
     # pdf-extract stays on an unmaintained lopdf line.
     "RUSTSEC-2026-0192",
+
+    # RUSTSEC-2026-0441: pin-utils unmaintained (its `pin_mut!` is `std::pin::pin!` now).
+    # Reached only through seleniumbase-rs-plugin-imap -> async-imap 0.12.0 (the newest
+    # release), behind the plugins-builtin IMAP plugin. It is a few lines of macro with no
+    # unsafe input handling. Drop this once async-imap moves off it.
+    "RUSTSEC-2026-0441",
 ]
 
 [licenses]
