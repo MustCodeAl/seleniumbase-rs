@@ -83,6 +83,9 @@ base64 = "0.23"
 # No crypto provider of reqwest's own: rustls uses `ring` (see `common::tls`), so
 # the aws-lc-sys C library is not built.
 reqwest = { version = "0.13", default-features = false, features = ["json", "charset", "http2", "system-proxy", "rustls-no-provider"] }
+# Byte bars for driver and browser downloads (indicatif). Drawn on stdout only
+# when it is a terminal; a pipe stays quiet.
+indicatif = "0.18"
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
 url = "2.5"
 tokio-tungstenite = "0.30"

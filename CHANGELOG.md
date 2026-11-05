@@ -27,6 +27,10 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- Driver and browser-binary downloads show a progress bar on a terminal: a byte
+  bar when the response has a length, and a spinner when it does not. Nothing is
+  printed when stdout is not a terminal.
+
 - The built-in `browser` plugin's worker, session and sign-in options work on the pure CDP
   engine (plugins `0666904`): `wait_for_workers` and `worker_timeout_secs`, `session` with
   `save_on_close` and `session_dir`, and `interactive` with `pause_message`

@@ -6,6 +6,7 @@ pub mod chrome_for_testing;
 pub mod chromium_snapshots;
 
 pub mod config;
+pub(crate) mod download_progress;
 pub mod downloader;
 pub mod downloads;
 pub mod driver_access;

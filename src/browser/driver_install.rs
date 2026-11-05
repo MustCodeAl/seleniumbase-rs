@@ -20,6 +20,8 @@
 //! the executable is made runnable (the execute bit, and on macOS no quarantine
 //! flag; see [`make_runnable`]).
 //!
+//! On a terminal each archive shows a progress bar. A pipe prints nothing.
+//!
 //! # Examples
 //!
 //! ```

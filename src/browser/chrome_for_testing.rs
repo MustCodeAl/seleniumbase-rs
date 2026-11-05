@@ -9,6 +9,8 @@
 //! The downloads go through an HTTP client that can use a proxy, which is what
 //! Python SeleniumBase's `--proxy-driver` asks for.
 //!
+//! On a terminal each archive shows a progress bar. A pipe prints nothing.
+//!
 //! [Chrome for Testing]: https://googlechromelabs.github.io/chrome-for-testing/
 
 use std::fs;
@@ -24,6 +26,7 @@ use crate::browser::binaries::{
     DOWNLOADS_DIR,
 };
 use crate::browser::config::Browser;
+use crate::browser::download_progress::{archive_name, DownloadProgress};
 use crate::browser::downloader::platform_label;
 use crate::browser::driver_access::make_runnable;
 use crate::browser::options::{DriverVersion, ReleaseChannel};
@@ -197,6 +200,19 @@ pub(crate) async fn fetch_bytes(
     url: &str,
     max_bytes: Option<u64>,
 ) -> Result<Vec<u8>, SeleniumBaseError> {
+    read_body(client, url, max_bytes, DownloadProgress::quiet()).await
+}
+
+/// Reads the body of `url`, drawing `progress` as the bytes arrive.
+///
+/// A body larger than `max_bytes` is refused when a limit is given, including
+/// one that grows past the length the server announced.
+async fn read_body(
+    client: &Client,
+    url: &str,
+    max_bytes: Option<u64>,
+    progress: DownloadProgress,
+) -> Result<Vec<u8>, SeleniumBaseError> {
     let mut response = client
         .get(url)
         .send()
@@ -212,11 +228,13 @@ pub(crate) async fn fetch_bytes(
     let too_big = |limit: u64| {
         SeleniumBaseError::download(url, format!("the download is larger than {limit} bytes"))
     };
-    if let (Some(limit), Some(length)) = (max_bytes, response.content_length())
-        && length > limit
+    let length = response.content_length();
+    if let (Some(limit), Some(announced)) = (max_bytes, length)
+        && announced > limit
     {
         return Err(too_big(limit));
     }
+    progress.start(length);
     let mut bytes = Vec::new();
     // Read piece by piece, so a server that sends more than it announced is
     // stopped at the limit instead of filling the memory.
@@ -226,12 +244,15 @@ pub(crate) async fn fetch_bytes(
         .map_err(|error| SeleniumBaseError::download(url, error.to_string()))?
     {
         bytes.extend_from_slice(&chunk);
+        progress.advance(chunk.len() as u64);
         if let Some(limit) = max_bytes
             && bytes.len() as u64 > limit
         {
+            progress.finish();
             return Err(too_big(limit));
         }
     }
+    progress.finish();
     Ok(bytes)
 }
 
@@ -443,13 +464,16 @@ pub(crate) fn replace_with_unpacked(archive: &[u8], dest: &Path) -> Result<(), S
 
 /// Downloads the archive at `url`, at most `max_bytes` of it when a limit is
 /// given, and unpacks it into `dest`.
+///
+/// On a terminal a progress bar shows the bytes. A pipe prints nothing.
 pub(crate) async fn install_archive(
     client: &Client,
     url: &str,
     dest: &Path,
     max_bytes: Option<u64>,
 ) -> Result<(), SeleniumBaseError> {
-    let bytes = fetch_bytes(client, url, max_bytes).await?;
+    let progress = DownloadProgress::on_stdout(archive_name(url));
+    let bytes = read_body(client, url, max_bytes, progress).await?;
     let dest = dest.to_owned();
     tokio::task::spawn_blocking(move || replace_with_unpacked(&bytes, &dest))
         .await
