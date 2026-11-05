@@ -25,6 +25,13 @@ work, `docs/parity.md` the per-API status).
   `startedDateTime`, the info files of a failed test, the `captured_at` of a fingerprint, the log
   clock, and `sbrs report history --json`.
 
+### Changed
+
+- The `s3` and `azure` logging plugins upload through `object_store` 0.12 instead of
+  `rust-s3` and `azure_storage_blob`. `S3LoggingPlugin::upload_file` and
+  `AzureLoggingPlugin::upload_file` keep their signatures. `seleniumbase-rs-plugins` does not
+  need a code change for that. The GCP plugin is unchanged.
+
 ### Added
 
 - The built-in `browser` plugin's worker, session and sign-in options work on the pure CDP

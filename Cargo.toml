@@ -111,9 +111,7 @@ async-trait = "0.1"
 # in the graph through thirtyfour.
 http = "1.5"
 bytes = "1.12"
-rust-s3 = { version = "0.38", features = ["tokio-native-tls"], optional = true }
-azure_storage_blob = { version = "1.1", optional = true }
-azure_core = { version = "1.1", optional = true }
+object_store = { version = "0.12.4", default-features = false, features = ["fs"], optional = true }
 rmcp = { version = "3.5", default-features = false, features = ["server", "transport-io", "transport-streamable-http-server"], optional = true }
 # `mcp::http`: the router and the listener that serve rmcp's streamable HTTP service. Only the
 # `tokio` and `http1` parts; it was already in the graph through tonic.
@@ -165,8 +163,8 @@ full-tracing = ["dep:tracing-timing"]
 tokio-console = ["dep:console-subscriber", "tokio/tracing"]
 # Capture a backtrace for every SeleniumBaseError (useful for debugging).
 error-backtrace = []
-s3 = ["dep:rust-s3"]
-azure = ["dep:azure_storage_blob", "dep:azure_core"]
+s3 = ["dep:object_store", "object_store/aws"]
+azure = ["dep:object_store", "object_store/azure"]
 gcp = []
 mcp-server = ["dep:rmcp", "dep:axum"]
 # `mcp::client`: an MCP client (`McpClient`) for the servers of this crate and any other one,

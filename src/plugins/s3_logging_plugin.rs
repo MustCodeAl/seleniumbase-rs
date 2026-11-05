@@ -1,11 +1,17 @@
-use s3::creds::Credentials;
-use s3::{Bucket, Region};
-use std::path::Path;
-use std::str::FromStr;
-use thiserror::Error;
-use tokio::fs::File;
+//! S3 logging plugin.
+//!
+//! Uploads test artifacts through [`object_store::aws::AmazonS3Builder`]
+//! (object_store 0.12, feature `aws`). Docs: <https://docs.rs/object_store/0.12.4/object_store/aws/struct.AmazonS3Builder.html>.
 
-/// Errors that can occur during S3 upload.
+use std::path::Path;
+
+use object_store::aws::AmazonS3Builder;
+use thiserror::Error;
+use tokio::fs;
+
+use super::object_log;
+
+/// Errors that can occur during an S3 upload.
 #[derive(Debug, Error)]
 pub enum S3UploadError {
     #[error("missing environment variable {0}")]
@@ -40,8 +46,13 @@ impl S3LoggingPlugin {
     /// Credentials are read from the environment:
     /// - `AWS_ACCESS_KEY_ID`
     /// - `AWS_SECRET_ACCESS_KEY`
-    /// - `AWS_REGION` (used as a fallback when no explicit region is supplied)
+    /// - `AWS_REGION` is not required; pass `region`
     /// - `AWS_ENDPOINT_URL` (optional, enables S3-compatible stores such as MinIO)
+    ///
+    /// # Errors
+    ///
+    /// Returns [`S3UploadError::MissingEnv`] when a credential is absent, and
+    /// [`S3UploadError::Upload`] when the store rejects the write.
     pub async fn upload_file(
         bucket: &str,
         key: &str,
@@ -53,27 +64,25 @@ impl S3LoggingPlugin {
         let secret_key = std::env::var("AWS_SECRET_ACCESS_KEY")
             .map_err(|_| S3UploadError::MissingEnv("AWS_SECRET_ACCESS_KEY"))?;
 
-        let credentials = Credentials::new(Some(&access_key), Some(&secret_key), None, None, None)
-            .map_err(|e| S3UploadError::Credentials(e.to_string()))?;
+        let mut builder = AmazonS3Builder::new()
+            .with_bucket_name(bucket)
+            .with_region(region)
+            .with_access_key_id(access_key)
+            .with_secret_access_key(secret_key);
+        if let Ok(endpoint) = std::env::var("AWS_ENDPOINT_URL") {
+            if endpoint.starts_with("http://") {
+                builder = builder.with_allow_http(true);
+            }
+            builder = builder.with_endpoint(endpoint);
+        }
+        let store = builder
+            .build()
+            .map_err(|error| S3UploadError::Bucket(error.to_string()))?;
 
-        let region = match std::env::var("AWS_ENDPOINT_URL") {
-            Ok(endpoint) => Region::Custom {
-                region: region.to_owned(),
-                endpoint,
-            },
-            Err(_) => Region::from_str(region).map_err(|e| S3UploadError::Region(e.to_string()))?,
-        };
-
-        let bucket = Bucket::new(bucket, region, credentials)
-            .map_err(|e| S3UploadError::Bucket(e.to_string()))?
-            .with_path_style();
-
-        let mut file = File::open(path).await?;
-        bucket
-            .put_object_stream(&mut file, key)
+        let bytes = fs::read(path).await?;
+        object_log::put_bytes(&store, key, bytes)
             .await
-            .map_err(|e| S3UploadError::Upload(e.to_string()))?;
-
+            .map_err(|error| S3UploadError::Upload(error.to_string()))?;
         Ok(())
     }
 }
@@ -90,7 +99,6 @@ mod tests {
 
     #[test]
     fn upload_file_requires_env_vars() {
-        // Ensure missing credentials produce a clear error without touching the network.
         let err = tokio::runtime::Runtime::new()
             .unwrap()
             .block_on(S3LoggingPlugin::upload_file(

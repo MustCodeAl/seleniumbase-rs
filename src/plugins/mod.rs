@@ -8,6 +8,9 @@ pub mod page_source;
 pub mod reports;
 pub mod screen_shots;
 
+#[cfg(any(feature = "s3", feature = "azure"))]
+pub mod object_log;
+
 #[cfg(feature = "s3")]
 pub mod s3_logging_plugin;
 
