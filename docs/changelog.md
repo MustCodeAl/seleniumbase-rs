@@ -33,6 +33,13 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 s
 
 <Update label="Unreleased" description="Next release" tags={["New", "Fix", "Breaking"]}>
 
+### Changed
+
+- The MCP tool-list snapshots are insta snapshots. Review a change with
+  `cargo insta review` after `cargo test --features mcp-server --test mcp_tool_lists`.
+  Generated files that the crate compiles, and the command-line spec, stay on
+  their own checks.
+
 ### Breaking
 
 - **Breaking: `common::unobfuscate` is part of `common::obfuscate`.** `rot13`,
@@ -60,6 +67,10 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 s
   `chrome-extension://<id>/` of the extensions the launch loaded) and gives a tokio clock through
   `BrowserHandle::clock` when the plugin set has no timer of its own. The WebDriver host has
   neither, so there `wait_for_workers` and `save_on_close` fail at launch, naming the option.
+
+- `sbrs trace show FOLDER` opens a trace's viewer (`index.html`, written by `Page::start_trace`
+  when the recording stops) in the system's default browser; `--print` prints its path instead.
+  A folder that is not a trace, or whose recording was not stopped, exits with status 2.
 
 - Docs: [Install sbrs with mise](/building). mise's built-in backends install
   `sbrs` and `sbrs-mcp` with no plugin: `github:` takes the macOS arm64 release archive and lists

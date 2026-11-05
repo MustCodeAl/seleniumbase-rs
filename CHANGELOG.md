@@ -8,6 +8,13 @@ work, `docs/parity.md` the per-API status).
 
 ## [Unreleased]
 
+### Changed
+
+- The MCP tool-list snapshots are insta snapshots. Review a change with
+  `cargo insta review` after `cargo test --features mcp-server --test mcp_tool_lists`.
+  Generated files that the crate compiles, and the command-line spec, stay on
+  their own checks.
+
 ### Breaking
 
 - **Breaking: `common::unobfuscate` is part of `common::obfuscate`.** `rot13`,

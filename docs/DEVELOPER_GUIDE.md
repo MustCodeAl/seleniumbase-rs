@@ -1214,10 +1214,10 @@ keeps them inside the output directory.
 Test it: `tests/mcp_cdp.rs` shows how to drive a tool against the mock
 browser; `tests/mcp_webdriver.rs` covers the catalogues. `tests/mcp_tool_lists.rs`
 compares what `tools/list` answers on each server (names in order, descriptions,
-schemas, annotations) with `tests/golden/mcp_tools/*.json`; a new or changed tool
-fails it until you write the snapshots again with
-`UPDATE_GOLDEN=1 cargo test --features mcp-server --test mcp_tool_lists` and
-commit them. A `dev` tool is tested in
+schemas, annotations) with insta snapshots. A new or changed tool fails the test
+until you review the snapshot with `cargo insta review` after
+`cargo test --features mcp-server --test mcp_tool_lists`. Generated files that
+the crate compiles stay on their own checks, not insta. A `dev` tool is tested in
 its own file with `Host::call`, and `install_driver` through
 `mcp::dev::host_with_installer` with a fake downloader, never the network.
 

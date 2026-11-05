@@ -250,4 +250,8 @@ serial_test = "4"
 # `#[test_log::test]`: the `tracing` output of a test that fails is printed (`RUST_LOG` sets the
 # level). Only the `trace` part: the crate logs with `tracing`, so no `env_logger`.
 test-log = { version = "0.2", default-features = false, features = ["trace", "color"] }
+# Snapshot tests for output that is not compiled into the crate (the MCP tool
+# lists). Review a change with `cargo insta review`. Generated files that the
+# crate compiles, and the CLI spec, stay on their own checks.
+insta = "1"
 
