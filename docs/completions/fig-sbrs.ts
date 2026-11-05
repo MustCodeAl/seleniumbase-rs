@@ -742,6 +742,10 @@ const completionSpec: Fig.Spec = {
           description: "Print the problems found but exit with 0 (the default exits with 1 when the browser is missing or the chromedriver does not match it)",
         },
         {
+          name: "--fix",
+          description: "Apply the fixes doctor already knows how to do: install a missing or mismatched chromedriver, and create a missing patch-cache directory. Does not install a browser or patch Chrome",
+        },
+        {
           name: ["-h", "--help"],
           description: "Print help",
         },

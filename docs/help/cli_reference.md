@@ -1632,10 +1632,10 @@ sbrs --url https://example.com dismiss-alert
 
 Run a diagnostic check on the environment and configuration.
 
-Prints the settings in effect, the browser found, the patch cache and the chromedriver found, with a hint for anything that needs a fix. Exits with status 1 when no browser is found (or the one SB_CHROME_BIN names does not exist) or when the chromedriver does not match the installed Chrome, and with 0 otherwise. A chromedriver that is not found is only a hint, since the pure CDP engine needs none. --warn-only prints the same and always exits with 0.
+Prints the settings in effect, the browser found, the patch cache and the chromedriver found, with a hint for anything that needs a fix. Exits with status 1 when no browser is found (or the one SB_CHROME_BIN names does not exist) or when the chromedriver does not match the installed Chrome, and with 0 otherwise. A chromedriver that is not found is only a hint, since the pure CDP engine needs none. --warn-only prints the same and always exits with 0. `--fix` installs a missing or mismatched chromedriver (what `sbrs install chromedriver` downloads) and creates a missing patch-cache directory. It does not install a browser and does not patch Chrome. A problem it repairs is not a failure; one it cannot repair still is.
 
 ```bash Usage
-sbrs doctor [--warn-only]
+sbrs doctor [--warn-only] [--fix]
 ```
 
 **Flags**
@@ -1646,8 +1646,15 @@ Print the problems found but exit with 0 (the default exits with 1 when the brow
 
 </ParamField>
 
+<ParamField query="--fix" type="boolean">
+
+Apply the fixes doctor already knows how to do: install a missing or mismatched chromedriver, and create a missing patch-cache directory. Does not install a browser or patch Chrome
+
+</ParamField>
+
 ```bash Examples
 sbrs doctor
+sbrs doctor --fix
 ```
 
 ## sbrs download

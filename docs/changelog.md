@@ -52,6 +52,11 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 s
 
 ### Added
 
+- `sbrs doctor --fix` applies the repairs the check already names. It installs a missing or
+  mismatched chromedriver (the same download as `sbrs install chromedriver`, not a browser) and
+  creates a missing patch-cache directory, without patching Chrome. A problem it repairs is not a
+  failure; one it cannot repair still is.
+
 - The built-in `browser` plugin's worker, session and sign-in options work on the pure CDP
   engine (plugins `0666904`): `wait_for_workers` and `worker_timeout_secs`, `session` with
   `save_on_close` and `session_dir`, and `interactive` with `pause_message`
@@ -60,6 +65,10 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 s
   `chrome-extension://<id>/` of the extensions the launch loaded) and gives a tokio clock through
   `BrowserHandle::clock` when the plugin set has no timer of its own. The WebDriver host has
   neither, so there `wait_for_workers` and `save_on_close` fail at launch, naming the option.
+
+- `sbrs trace show FOLDER` opens a trace's viewer (`index.html`, written by `Page::start_trace`
+  when the recording stops) in the system's default browser; `--print` prints its path instead.
+  A folder that is not a trace, or whose recording was not stopped, exits with status 2.
 
 - Docs: [Install sbrs with mise](/building). mise's built-in backends install
   `sbrs` and `sbrs-mcp` with no plugin: `github:` takes the macOS arm64 release archive and lists
