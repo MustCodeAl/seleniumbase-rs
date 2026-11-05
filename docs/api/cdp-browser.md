@@ -12,7 +12,11 @@ Methods are listed as `name(arguments)`, called on a `Browser` unless the headin
 
 Import the types from `seleniumbase_rs::sb_cdp`. `Browser::launch` starts Chrome. `Browser::connect` attaches to one that is already listening. `close` shuts down a browser this process launched. Closing a browser that was only attached leaves the other process running.
 
-A `LaunchOptions` is built with `LaunchOptions::builder()`, then `build()`, which returns a `Result`. `build` fails with `InvalidConfig` when incognito and guest are both set, when `use_chromium` is combined with an explicit executable path, or when the proxy string cannot be parsed. With the `plugins` feature it also fails with `Plugin` when a named plugin is unknown, refuses its options, or is named twice. `LaunchOptions` implements `Default`.
+A `LaunchOptions` is built with `LaunchOptions::builder()`, then `build()`, which returns a `Result`. `build` fails with `InvalidConfig` when incognito and guest are both set, when `use_chromium` is combined with an explicit executable path, when a fingerprint is combined with mobile emulation, or when the proxy string cannot be parsed. With the `plugins` feature it also fails with `Plugin` when a named plugin is unknown, refuses its options, or is named twice. `LaunchOptions` implements `Default`.
+
+A builder setter writes one setting and reads no other, so the order of the calls changes nothing. The settings can come from three places, and one rule picks among them: a value set on the builder wins; else the value of the `BrowserConfig` given to `browser_config`; else the fingerprint's (its user agent, language, window size, WebRTC policy and proxy); else the default. The lists (`arg`, `extension`, `preference`, `disable_features`, `enable_features`, `host_resolver_rules`) are added together, the config's first and the builder's after it. A switch the builder turns on or off (`dark_mode(false)`, say) is decided by the builder. `mobile(false)` turns the phone off whatever else asks for one.
+
+The built `LaunchOptions` keeps the settings it was made from, so one of them can change later: `with_fingerprint(&fingerprint)`, `with_headless(headless)`, `with_proxy(proxy)`, `with_args(args)` and `with_url(url)` take the options and return them made again (a `Result`, since the combination is checked again). A setting the options were built with still wins over the fingerprint, so the fingerprint of a rotation replaces the previous one and nothing else.
 
 ## Launch and attach
 
@@ -112,11 +116,11 @@ Chain these, then `build()`. Each returns the builder.
 | `window_size(width, height)` | Initial window size in pixels (`u32`). |
 | `window_position(x, y)` | Initial window position in pixels (`i32`). |
 | `maximize(on)` | Opens the window maximized and sends no `window_size`. A headless browser gets neither. |
-| `mobile(on)` | Phone emulation for every tab: a 390 by 715 screen at pixel ratio 3, touch, and an Android user agent. A user agent set on the builder is kept. Turning this off also forgets `device_metrics`. `build` refuses it together with `fingerprint`. |
+| `mobile(on)` | Phone emulation for every tab: a 390 by 715 screen at pixel ratio 3, touch, and an Android user agent. A user agent set on the builder is kept. `mobile(false)` turns the phone off whatever else asks for one (`device_metrics`, a config's `mobile`), before or after it. `build` refuses it together with `fingerprint`. |
 | `device_metrics(metrics)` | The phone screen `mobile` emulates, and turns mobile emulation on. `metrics` is `seleniumbase_rs::browser::options::DeviceMetrics::new(width, height, pixel_ratio)` (`u32`, `u32`, `f64`). |
 | `dark_mode(on)` | Forces Chrome's dark theme on web pages. For `prefers-color-scheme` only, use `color_scheme` on [State](/api/cdp-state). |
 | `devtools(on)` | Opens DevTools with each tab. A headless browser has no window, and gets nothing. |
-| `no_sandbox(no_sandbox)` | Passes `--no-sandbox`. Also enabled by `SB_NO_SANDBOX`. |
+| `no_sandbox(no_sandbox)` | Passes `--no-sandbox`. Also enabled by `SB_NO_SANDBOX`, which this setting overrides either way. |
 | `disable_web_security(on)` | Allows cross-origin requests and ignores certificate errors. |
 | `swiftshader(on)` | Software WebGL (SwiftShader). |
 | `ad_block(ad_block)` | Blocks a built-in list of ad hosts. |
@@ -130,20 +134,20 @@ Chain these, then `build()`. Each returns the builder.
 | `enable_features(features)` | Chrome features to enable. |
 | `extension(dir)` | Unpacked extension directory, loaded over the protocol after start. An attached browser loads none. |
 | `preference(name, value)` | A Chrome preference merged into the profile before start. A dotted `name` is a path. |
-| `virtual_display(display)` | A headed browser on Xvfb, for a Linux machine with no display. Other systems, and a headless browser, start none. A screen smaller than 1024 by 768 is raised to that. Unless `headless` is set, the browser is headed. |
+| `virtual_display(display)` | A headed browser on Xvfb, for a Linux machine with no display. Other systems, and a headless browser, start none. A screen smaller than 1024 by 768 is raised to that. Unless `headless` is set, here or by a `browser_config`, the browser is headed. |
 | `startup_timeout(timeout)` | How long to wait until the browser is reachable (`Duration`). |
 | `debugging_port(port)` | Listen on this port of `127.0.0.1` instead of a free port (`0`, the default). |
 | `cdp_url(url)` | Attach instead of launching. An HTTP debugger URL, a browser WebSocket, or an authenticated embedded-webview URL. `close` does not stop the other process. |
 | `cdp_target(target)` | When attaching, the window to drive: a target id, or part of its URL. Ignored when this process launches Chrome. |
-| `fingerprint(fingerprint)` | Apply a `Fingerprint` to every tab as it opens. A setting made before this call wins; one made after replaces the fingerprint's. Flags in the fingerprint's `cmd_params` are not passed (add trusted flags with `arg`). |
+| `fingerprint(fingerprint)` | Apply a `Fingerprint` to every tab as it opens. A setting made on the builder, or read from a config, wins over the fingerprint's, before or after this call. Flags in the fingerprint's `cmd_params` are not passed (add trusted flags with `arg`). `LaunchOptions::fingerprint()` returns it. |
 | `webrtc_policy(policy)` | Chrome's WebRTC IP-handling policy (`WebRtcPolicy`). Unset, Chrome's own behaviour is kept. |
 | `shield_webrtc(shield)` | Relay-only WebRTC in every tab. Pages that need a direct WebRTC call will not connect. |
-| `browser_config(config)` | Copies what a `BrowserConfig` holds that this engine can use. WebDriver-only settings are logged at debug level and left out. Later builder calls replace these; a fingerprint is applied last. |
+| `browser_config(config)` | Reads what a `BrowserConfig` holds that this engine can use. WebDriver-only settings are logged at debug level and left out. The config is a layer under the builder's own settings and over the fingerprint's, whatever the order of the calls. A second call replaces the first config. |
 | `plugins(plugins)` | `PluginSet` whose hooks run at start, on each tab, and on close. Feature `plugins`. |
 | `plugins_named(names)` | Built-in plugins by name, after `plugins`. Feature `plugins`. |
 | `plugin_selection(selection)` | Plugins a `PluginSelection` names, with their options (the `[plugins]` table and `SB_PLUGINS`). Feature `plugins`. |
 
-`LaunchOptions` also exposes what was set, without launching: `is_headless`, `proxy`, `url`, `user_agent`, `lang`, `cdp_url`, `cdp_target`, and `browser_args(profile_dir)` (the Chrome arguments for that profile directory).
+`LaunchOptions` also exposes what was set, without launching: `is_headless`, `proxy`, `url`, `user_agent`, `lang`, `cdp_url`, `cdp_target`, `fingerprint`, and `browser_args(profile_dir)` (the Chrome arguments for that profile directory).
 
 ## Proxy
 

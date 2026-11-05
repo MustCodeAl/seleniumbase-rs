@@ -130,7 +130,7 @@ pub async fn build(self) -> Result<StealthSession, StealthError>
 ```
 
 
-- `launch_options`: The launch options of the browser. The fingerprint of the session is applied after them, so a setting made here (a user agent, say) wins over the fingerprint's. The proxy is the MITM proxy's, whatever is set here.
+- `launch_options`: The launch options of the browser, a built `LaunchOptions`. The session adds its fingerprint to a copy of them (`LaunchOptions::with_fingerprint`), so a setting made here (a user agent, say) wins over the fingerprint's. The proxy is the MITM proxy's, whatever is set here.
 - `launcher`: How a browser is started. The default starts Chrome.
 - `with_geo_proxies`: Adds proxies, each with the country it exits in. The country decides the language and the time zone the session presents while it leaves through that proxy.
 - `proxy_strategy`: How the pool picks an egress when one is needed: at the start and at each rotation.

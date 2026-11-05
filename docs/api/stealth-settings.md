@@ -164,7 +164,7 @@ assert_eq!(policy.canvas_noise, CanvasNoise::Low);
 | Call | What the browser does |
 |------|------------------------|
 | `BrowserConfig::with_fingerprint(fingerprint)` | Presents that fingerprint. Launch arguments go to every Chromium-based session. In `DriverMode::Cdp` and `DriverMode::Uc` the session also installs the page script and sends the protocol overrides. Plain `DriverMode::WebDriver` sends the launch arguments only. |
-| `LaunchOptionsBuilder::fingerprint(&fingerprint)` | Pure CDP. Launch settings (user agent, language, window size, WebRTC policy, proxy) come from the fingerprint unless you already set them. The script and protocol overrides run on every tab before the first navigation. Flags in the fingerprint's `cmd_params` are not passed; add flags you trust with `arg`. A setting made after this call replaces the fingerprint's. |
+| `LaunchOptionsBuilder::fingerprint(&fingerprint)` | Pure CDP. Launch settings (user agent, language, window size, WebRTC policy, proxy) come from the fingerprint unless you set them on the builder (or read them from a config), before or after this call. The script and protocol overrides run on every tab before the first navigation. Flags in the fingerprint's `cmd_params` are not passed; add flags you trust with `arg`. |
 | `sbrs --fingerprint FILE` | Global flag (`SB_FINGERPRINT`). `FILE` is the JSON that `sbrs fingerprint capture` and `sbrs fingerprint export` write. The command line wins over `SB_FINGERPRINT`, which wins over the `[fingerprint]` table of the settings file. A user agent, language or proxy named by its own option wins over the fingerprint. A Chromium browser then runs in CDP mode unless `--uc` or another mode is given. |
 
 ```rust

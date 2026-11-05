@@ -197,7 +197,7 @@ pub fn local_addr(&self) -> SocketAddr
 pub fn proxy_spec(&self) -> Secret
 pub fn browser_proxy(&self) -> Proxy
 pub fn chrome_args(&self) -> Vec<String>
-pub fn configure_launch(&self, builder: LaunchOptionsBuilder) -> LaunchOptionsBuilder
+pub fn configure_launch(&self, options: LaunchOptions) -> Result<LaunchOptions, SeleniumBaseError>
 pub fn stats(&self) -> MitmStats
 pub fn egress(&self) -> Option<EgressKey>
 pub fn swap_upstream(&self, egress: Option<EgressRef>) -> Result<(), MitmError>

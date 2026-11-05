@@ -196,7 +196,7 @@ major and closes it before starting the browser it keeps.
 
 | Method | Default | What it sets |
 |---|---|---|
-| `launch_options` | the platform's | Applied first. A user agent set here wins over the fingerprint's. |
+| `launch_options` | the platform's | A built `LaunchOptions`. A user agent set here wins over the fingerprint's. |
 | `with_geo_proxies` | none | `(spec, country)` pairs. A bad spec is `ScrapeError::Egress` and never echoes the password. |
 | `proxy_strategy` | `RoundRobin` | Also `Random { seed }`, `LeastFailures`, `StickyPerSite`. |
 | `with_max_challenge_attempts` | 3 | Zero is read as one. The default gives up before the profile ladder starts. |

@@ -65,9 +65,8 @@ async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 - No chromedriver is started, so the page has no `cdc_` properties and
   `navigator.webdriver` is not announced.
 - The fingerprint is applied to every tab as it opens, before its first
-  navigation ([Fingerprints](/stealth/fingerprints)). A launch setting made
-  before `.fingerprint(..)` wins over the fingerprint's; one made after it
-  replaces it.
+  navigation ([Fingerprints](/stealth/fingerprints)). A launch setting made on
+  the builder wins over the fingerprint's, before or after `.fingerprint(..)`.
 - The WebRTC shield makes every `RTCPeerConnection` relay-only, so a page
   cannot gather the machine's addresses ([Proxies and network](/stealth/proxies#webrtc)).
 - `click`, `fill` and `type_text` arrive as trusted events, as a person's input

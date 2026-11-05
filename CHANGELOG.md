@@ -16,6 +16,39 @@ work, `docs/parity.md` the per-API status).
 
 ### Breaking
 
+- **Breaking: one rule picks among the sources of a launch setting, whatever the order of the
+  calls.** `LaunchOptionsBuilder` used to apply its calls in order: `fingerprint(&fp)` filled
+  only the settings that were unset when it was called, and `browser_config(&config)` replaced
+  what was set before it (headless, the user agent, the proxy, `mobile`, the browser, ...). Now
+  a value set on the builder wins; else the value of the `BrowserConfig`; else the
+  fingerprint's (its user agent, language, window size, WebRTC policy and proxy); else the
+  default. The lists (`arg`, `extension`, `preference`, `disable_features`, `enable_features`,
+  `host_resolver_rules`) of the config and the builder are added together, the config's first,
+  so the builder's arguments come last. A switch the builder turns on or off (`dark_mode(false)`,
+  `incognito(false)`, `no_sandbox(false)`) is decided by the builder, and `mobile(false)` turns
+  the phone off whatever else asks for one (`device_metrics`, a config's `mobile`). A proxy is
+  read as Python reads one only when it comes from the config, and a proxy of the builder
+  replaces it. `use_chromium(true)` with `executable_path` on the builder is still refused;
+  Chromium of the config and a path of the builder are two layers, and the path wins.
+  `SB_NO_SANDBOX` is read when the options are built. Code that relied on the old order changes:
+
+  ```rust
+  // Before: the config replaced the user agent set before it, so "Config/1" was sent.
+  LaunchOptions::builder().user_agent("Mine/1").browser_config(&config).build()?;
+  // After: "Mine/1" wins, before or after browser_config. To let the config decide, do not set it.
+  LaunchOptions::builder().user_agent("Mine/1").browser_config(&config).build()?;
+
+  // Before: a user agent set after fingerprint() replaced the fingerprint's; one set before won.
+  // After: both win. The order of the calls no longer matters.
+  LaunchOptions::builder().user_agent("Mine/1").fingerprint(&fingerprint).build()?;
+  LaunchOptions::builder().fingerprint(&fingerprint).user_agent("Mine/1").build()?;
+  ```
+
+  `LaunchOptionsBuilder` keeps its name, its type and its setters, so every chain, helper and
+  stored builder compiles as before. Its `Debug` output is different. `browser_config` reads the
+  config when it is called, and a second call replaces the first config.
+
+
 - **Breaking: `common::unobfuscate` is part of `common::obfuscate`.** `rot13`,
   `base64_decode` and `unobfuscate` moved into `seleniumbase_rs::common::obfuscate`.
   The two modules imported each other. Import them from `common::obfuscate`.
@@ -48,6 +81,13 @@ work, `docs/parity.md` the per-API status).
   feature exclusion or the one-thread browser group names that binary.
 
 ### Added
+
+- `LaunchOptions::fingerprint()` returns the fingerprint the options were built with, and
+  `with_fingerprint`, `with_headless`, `with_proxy`, `with_args` and `with_url` make built
+  options again with one setting changed (each returns a `Result`: the combination is checked
+  again). The options keep what they were built from, so what they were built with still wins
+  over a fingerprint: the stealth crates hold built options and call `with_fingerprint` for
+  each browser they rotate to.
 
 - `ProxyList` picks by a `RotationStrategy`, set with `with_rotation`: `RoundRobin` (the
   default, as `next_round_robin`), `Random { seed }` (a seed repeats the order; `None` is

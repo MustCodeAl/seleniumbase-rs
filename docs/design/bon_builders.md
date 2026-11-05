@@ -3,8 +3,10 @@ title: "Design: generated builders with bon"
 sidebarTitle: "Builders with bon"
 ---
 
-Status: design note, written before the code (branch `lane/design-bon`, from `5cc77bd5`).
-Nothing here is implemented. Code it is about: `src/browser/config.rs`,
+Status: design note, written before the code (branch `lane/design-bon`, from `5cc77bd5`); the
+owner's [Decision](#decision) is at the end, and it is implemented (branch `lane/launch-options`).
+The analysis below is kept as it was written, bon proposal included.
+Code it is about: `src/browser/config.rs`,
 `src/sb_cdp/launch.rs`, `src/sb_cdp/launch/builders.rs`, `src/sb_cdp/launch/bridge.rs`.
 Every line number below is from that commit. What bon does was read on Context7 (the pages are
 listed under [Sources](#sources)); nothing about it is from memory, and what the pages did not
@@ -573,6 +575,59 @@ question 6.
    clearest misfit: it starts from an existing value (`Fingerprint::to_builder`,
    `fingerprint.rs:780`) and is passed through 11 helpers (`src/profile_payloads/profile.rs:805-1173`).
    `PoolOptionsBuilder` could follow if `LaunchOptions` goes to bon.
+
+## Decision
+
+The owner accepted every recommendation above (2026-11-05). What was decided, and what the code
+does (lane `launch-options`, core and stealth):
+
+1. **No bon for `LaunchOptions` for now** (open question 1). Steps 1 and 2 were done, and step 3
+   became a hand-written builder over one struct instead of the generated one:
+   * `LaunchOptionsBuilder` is a single field, `given: Layers`. `Layers` holds two `Layer`s, the
+     settings of the caller and the ones `browser_config` read; a `Layer` is one struct of
+     optional settings (`src/sb_cdp/launch/layers.rs`), declared once. The 36-field copy, its
+     `Default` and its field moves are gone; the setters (`src/sb_cdp/launch/builder.rs`) are one
+     line each.
+   * `build` merges the layers and checks the combination; the built `LaunchOptions` keeps the
+     layers, next to the values the launch reads, so that one setting can change and the options
+     be made again (`with_fingerprint`, `with_headless`, `with_proxy`, `with_args`, `with_url`).
+     `LaunchOptions::fingerprint()` returns the fingerprint (step 1).
+   * The builder keeps its name and its type, so there is no typestate, no `maybe_` setter and no
+     generated module. Every chain, the 10 reassigned builders and the 10 helpers typed
+     `LaunchOptionsBuilder` compile as they were; none had to change.
+2. **The precedence rule: yes** (open question 2). A value set on the builder wins; else the
+   value of the `BrowserConfig` given to `browser_config`; else the fingerprint's (the builder's,
+   else the config's); else the default, whatever the order of the calls. Where the note left it
+   open, the code settles it like this:
+   * A switch the builder turns on or off (`dark_mode(false)`, `incognito(false)`,
+     `no_sandbox(false)`) is decided by the builder; the config's switches are only on. An unset
+     `no_sandbox` is `SB_NO_SANDBOX`, read when the options are built.
+   * The binary and Chromium are one choice of browser: a layer that names either replaces the
+     browser the lower layer names. `use_chromium(true)` with `executable_path` on the builder is
+     still refused; Chromium of the config and a path of the builder are two layers.
+   * `mobile(false)` turns the phone off whatever else asks for one; `mobile(true)`, a screen of
+     the builder or a config's `mobile` turns it on.
+   * The lists (arguments, extensions, preferences, features, host rules) are added together,
+     the config's first, so the builder's arguments come last and Chrome keeps them.
+   * A proxy is read as Python reads one only when it came from the config; a proxy of the
+     builder replaces it and is read as the pure CDP engine reads one.
+   * Unset `headless` is headed with a `virtual_display`, and the config always says one.
+   * A second `browser_config` replaces the first.
+3. **`BrowserConfig` keeps its `with_*` methods, no bon** (open question 3 stays open; no macro
+   table was written).
+4. **Stealth holds built `LaunchOptions`** (open question 4), not builders. `launch_options`
+   of `BrowserScraperBuilder` and `StealthSessionBuilder` take `LaunchOptions`; rotation calls
+   `with_fingerprint`; the probe browser calls `with_headless`; `MitmProxy::configure_launch`
+   takes built options and returns them, with `with_proxy`, `with_args` and `with_url`, and reads
+   a start page with `LaunchOptions::url()` instead of building a copy. Dropping
+   `BrowserScraperBuilder::fingerprint` for `LaunchOptions::fingerprint()` (Decision 2 of the
+   stealth naming note) is not done here.
+5. **`get_shadow_root` and the 12 other thirtyfour signatures** (open question 6) are a separate,
+   later lane: a type of the WebDriver engine's own for all 13. Not done here.
+
+Not taken from the note: `#[builder(overwritable)]` (question 5, moot without bon) and the other
+hand-written builders (question 7).
+
 
 ## Sources
 
