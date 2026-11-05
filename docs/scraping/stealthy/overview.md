@@ -11,7 +11,7 @@ repository, for sites that block automated clients. The stealth they use is
 described in the Stealth sections: [Fingerprints](/stealth/fingerprints),
 [Proxies and network](/stealth/proxies), [Wire formats](/stealth/advanced/wire-formats)
 and [MitmProxy](/stealth/advanced/mitm-proxy). Plain scraping comes first in
-[Scraping](/scraping/overview).
+[Scraping](/plugins/overview#scraping).
 
 <Note>
 

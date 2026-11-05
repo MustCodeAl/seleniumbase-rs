@@ -122,6 +122,32 @@ Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 
 </Tabs>
 
+## Scraping with batcher
+
+batcher runs a list of jobs in chunks, each chunk in a browser context of its
+own and each job in a tab of its own, with retries, a time limit per job and a
+resume file. With the `fetcher` runner every job is a fetch:
+
+```toml sbase_config.toml
+[plugins.batcher]
+runner = "fetcher"
+concurrency = 2
+retries = 1
+resume_file = "batch-resume.json"
+```
+
+```json jobs.json
+{"jobs": [{"url": "https://example.com/a"}, {"url": "https://example.com/b"}]}
+```
+
+```bash
+sbrs plugin run batcher --input jobs.json --out results.jsonl --plugin fetcher
+```
+
+A second run with the same `resume_file` skips the jobs that finished
+([The resume file](#the-resume-file)).
+
+
 ## The task
 
 The input is a list of jobs. What a job looks like is up to the runner:

@@ -257,6 +257,21 @@
       "source": "/stealth/mitm-proxy",
       "destination": "/stealth/advanced/mitm-proxy",
       "permanent": true
+    },
+    {
+      "source": "/scraping/overview",
+      "destination": "/plugins/overview",
+      "permanent": true
+    },
+    {
+      "source": "/scraping/basics",
+      "destination": "/plugins/overview",
+      "permanent": true
+    },
+    {
+      "source": "/scraping/advanced",
+      "destination": "/plugins/overview",
+      "permanent": true
     }
   ],
   "navigation": {
@@ -282,15 +297,6 @@
               "tutorials/selectors",
               "tutorials/utilities",
               "best-practices"
-            ]
-          },
-          {
-            "group": "Scraping",
-            "icon": "spider",
-            "pages": [
-              "scraping/overview",
-              "scraping/basics",
-              "scraping/advanced"
             ]
           },
           {

@@ -125,6 +125,41 @@ the plugin; see [Records](#records).
 
 </Tabs>
 
+## Scraping with fetcher
+
+### Fetch a list of URLs
+
+fetcher fetches each URL from inside one tab, with the cookies the browser
+holds for each site, as the signed-in browser would:
+
+```json urls.json
+{"urls": ["https://example.com/a", "https://example.com/b"], "delay_ms": 1000}
+```
+
+```bash
+sbrs plugin run fetcher --input urls.json --out pages.jsonl
+```
+
+Each URL writes one line, `{index, url, status, mime, text, truncated}` or
+`{index, url, error}`, and the summary goes to standard error. `strip`
+(resource kinds to fail, to save bandwidth) and `block` (address patterns to
+fail) go in `[plugins.fetcher]`; see [Options](#options).
+
+### Record what a page loads
+
+Many pages fetch their data as JSON. The `capture` option records the responses
+of the addresses you name (`capture = ["*/api/*"]`), and Rust code reads them
+with `Fetcher::captured()` or `take_captured()`. To keep everything a tab
+loads, record a HAR file ([Recording a HAR](/tutorials/pure_cdp#recording-a-har)).
+
+### Change what pages load
+
+`strip` and `block` fail requests from configuration. In Rust,
+`page.intercept(rules)` answers each request by the first matching `Rule`:
+block images and fonts, serve a made-up response, or send a request on with
+changes ([Intercepting requests](/tutorials/pure_cdp#intercepting-requests)).
+
+
 ## Rules
 
 The plugin declares its rules once, and seleniumbase-rs runs them itself: the

@@ -36,17 +36,17 @@ work, `docs/parity.md` the per-API status).
   `BrowserHandle::clock` when the plugin set has no timer of its own. The WebDriver host has
   neither, so there `wait_for_workers` and `save_on_close` fail at launch, naming the option.
 
-- Docs: the Stealth tab has three sections and the Guides tab a new Scraping section (after
-  Write tests). **Undetected browsing** holds UC mode and a new
+- Docs: the Stealth tab has three sections. **Undetected browsing** holds UC mode and a new
   [CDP Mode](docs/stealth/cdp-mode.md) page (the pure CDP engine as the undetected path).
   **Stealth** has an overview and one page per aspect (fingerprints, evasions and launch flags,
   policies, identities and profiles, proxies and network, human-like input, troubleshooting),
   split from the old *Fingerprint & Stealth Profiles* page. **Advanced stealth** holds evasion
   providers, binary patching, Playwright mode, wire formats and MitmProxy, and the stealth
   repository's scraping pages under *Stealthy scraping* and *Advanced stealthy scraping*.
-  **Scraping**, in Guides, has an overview, basics and advanced scraping (the fetcher, extractor,
-  crawler and batcher plugins, the browser pool). The built-in plugin pages sit in a *Built-in*
-  group of Ecosystem → Plugins. Every moved route redirects to its new place.
+  Plain scraping has no section of its own: each part is on the page of the plugin that does
+  it (*Scraping with fetcher*, *extractor*, *crawler*, *batcher*), and the plugin overview has a
+  *Scraping* section that picks the tool. The built-in plugin pages sit in a *Built-in* group of
+  Ecosystem → Plugins. Every moved route redirects to its new place.
 
 - `sbrs trace show FOLDER` opens a trace's viewer (`index.html`, written by `Page::start_trace`
   when the recording stops) in the system's default browser; `--print` prints its path instead.

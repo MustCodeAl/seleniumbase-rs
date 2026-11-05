@@ -14,7 +14,7 @@ profiles loaded from files, proxy and WebRTC settings, and human-paced input.
 This section has one page per aspect. It covers what a page can read inside
 the browser. What the network sees before any page loads (the TLS and HTTP/2
 handshake) is in [Advanced stealth](/stealth/advanced/overview), and scraping
-with all of this is in [Scraping](/scraping/overview).
+with all of this is in [Scraping](/plugins/overview#scraping).
 
 <Visibility for="agents">
 
