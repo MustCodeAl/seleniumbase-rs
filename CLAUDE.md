@@ -89,7 +89,7 @@ public API of this crate: keep items it imports public (`evasion::randomize`,
 | rest | `error.rs` (`SeleniumBaseError`), `macros.rs`, `artifacts.rs`, `core/` (`test_run`, `report_helper`, `log_helper`, and the `dashboard`, `junit` and `allure` reports), `js_code/`, `resources/`, `ocr.rs` (`ocr` feature), `tracing_util.rs` (the crate logs with `tracing`). |
 
 Elsewhere: `tests/` (integration tests of the library; `tests/golden` is compiled into the
-library through `include_str!`, `tests/support` is shared with `crates/cli/tests`), `benches/` (`cdp_latency`, `cpu`), `examples/`
+library through `include_str!`, `tests/support` is shared with `crates/cli/tests`), `benches/` (`cdp_latency`, `cpu`, and `alloc`/`alloc_sites` for allocations), `examples/`
 (the Tauri profile manager moved to tauri-plugin-sbrs-automation), `docs/` (the Docs7 site, whose menu is `docs.json` and whose pages `mise run mdx` builds; also mdBook, `SUMMARY.md`),
 `parity/`, `.config/nextest.toml`, `.github/workflows/` (`ci.yml`, `docker.yml`,
 `completions.yml`), `Dockerfile`, `Makefile`, `mise.toml` (the tasks: `mise tasks ls`), `deny.toml`.

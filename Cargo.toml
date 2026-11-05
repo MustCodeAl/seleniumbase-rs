@@ -59,6 +59,18 @@ harness = false
 name = "cpu"
 harness = false
 
+# Allocations, with no browser: `cargo bench --bench alloc --features "mcp-server test-util"`
+# counts them per call (divan), `--bench alloc_sites` finds where they come from (dhat).
+[[bench]]
+name = "alloc"
+harness = false
+required-features = ["mcp-server", "test-util"]
+
+[[bench]]
+name = "alloc_sites"
+harness = false
+required-features = ["mcp-server", "test-util"]
+
 [dependencies]
 ratatui = { version = "0.30", optional = true }
 crossterm = { version = "0.29", optional = true }
@@ -250,4 +262,6 @@ serial_test = "4"
 # `#[test_log::test]`: the `tracing` output of a test that fails is printed (`RUST_LOG` sets the
 # level). Only the `trace` part: the crate logs with `tracing`, so no `env_logger`.
 test-log = { version = "0.2", default-features = false, features = ["trace", "color"] }
+divan = "0.1.21"
+dhat = "0.3.3"
 
