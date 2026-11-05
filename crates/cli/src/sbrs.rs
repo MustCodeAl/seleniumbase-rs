@@ -5535,17 +5535,15 @@ mod page_cli_tests {
         assert!(patch_cache_dir(None, None).ends_with("sb-chrome-patches"));
     }
 
-    /// `--fix` is a switch, including the explicit `--fix=false` a `bool_value` flag accepts.
+    /// `--fix` is a switch. A value written after it is refused, like `--headless=false`.
     #[test]
     fn doctor_fix_is_a_switch() {
         match command(&["sbrs", "doctor", "--fix"]) {
             Commands::Doctor(args) => assert!(args.fix),
             _ => panic!("expected doctor"),
         }
-        match command(&["sbrs", "doctor", "--fix=false"]) {
-            Commands::Doctor(args) => assert!(!args.fix),
-            _ => panic!("expected doctor"),
-        }
+        let error = refused(&["sbrs", "doctor", "--fix=false"]);
+        assert!(error.contains("takes no value"), "{error}");
         match command(&["sbrs", "doctor"]) {
             Commands::Doctor(args) => {
                 assert!(!args.fix);
