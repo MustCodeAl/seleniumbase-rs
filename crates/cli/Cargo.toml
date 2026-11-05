@@ -113,7 +113,7 @@ tokio-console = ["seleniumbase-rs/tokio-console"]
 [dev-dependencies]
 # Writes the CLI reference page (docs/help/cli_reference.md) from the usage spec in a
 # test; usage-lib is the renderer of the usage tool (`usage generate markdown`), and
-# the binary does not link it. The same release train as `usage` above.
+# the binary does not link it. The same release train as `usage-rs` above.
 usage_lib = { package = "usage-lib", version = "7.2", default-features = false, features = ["markdown"] }
 # The `report` module's test (feature `turso`) matches a timestamp.
 regex = "1.13"
