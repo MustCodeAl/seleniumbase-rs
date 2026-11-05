@@ -558,6 +558,20 @@
                 ]
               },
               {
+                "product": "Stealth settings and fixtures",
+                "icon": "fingerprint",
+                "description": "Fingerprint, Spoof, StealthPolicy, and the testing fixtures",
+                "groups": [
+                  {
+                    "group": "Stealth settings and fixtures",
+                    "pages": [
+                      "api/stealth-settings",
+                      "api/testing-fixtures"
+                    ]
+                  }
+                ]
+              },
+              {
                 "product": "Plugin API",
                 "icon": "puzzle-piece",
                 "description": "The Plugin trait, PluginSet, capabilities and the host side",
