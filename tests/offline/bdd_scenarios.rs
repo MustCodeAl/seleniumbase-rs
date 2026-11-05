@@ -102,7 +102,7 @@ async fn the_count_is(world: &World, n: u32) {
 #[scenario(path = "tests/features/bdd_shop.feature", name = "The page answers")]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn the_page_answers(#[future(awt)] page: SbCdpCase, world: World) {
-    assert!(page.test_id().starts_with("bdd_scenarios."), "{page:?}");
+    assert!(page.test_id().starts_with("offline.bdd_scenarios."), "{page:?}");
     let _ = world;
 }
 
@@ -167,7 +167,7 @@ fn closed_browsers(owner: &str) -> (usize, usize) {
 }
 
 fn evidence_folder() -> PathBuf {
-    LOGS.path().join(format!("bdd_scenarios.{}", thread_name()))
+    LOGS.path().join(seleniumbase_rs::common::test_id::current_test_id())
 }
 
 #[test]

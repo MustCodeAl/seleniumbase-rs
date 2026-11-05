@@ -137,7 +137,7 @@ async fn a_failed_test_is_recorded_with_its_evidence_in_pythons_layout() {
     let info = std::fs::read_to_string(folder.join("basic_test_info.txt")).unwrap();
     assert!(
         info.starts_with(
-            "sb_reports::a_failed_test_is_recorded_with_its_evidence_in_pythons_layout\r\n"
+            "offline::sb_reports::a_failed_test_is_recorded_with_its_evidence_in_pythons_layout\r\n"
         ),
         "the first line is the display id: {info}"
     );
