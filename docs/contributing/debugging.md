@@ -466,6 +466,10 @@ it found, the patch cache, and the chromedriver it found with its major version
 next to Chrome's. Each problem comes with a hint. An AI agent gets the same
 from the MCP tool `diagnose_environment`.
 
+`sbrs doctor --fix` installs a missing or mismatched chromedriver and creates a
+missing patch-cache directory. It does not install a browser and does not patch
+Chrome. A problem it repairs is not a failure.
+
 ### Ask the MCP tools
 
 The MCP servers have debugging tools of their own, for an AI agent that is

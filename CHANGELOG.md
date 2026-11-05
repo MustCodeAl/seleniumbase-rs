@@ -53,6 +53,11 @@ work, `docs/parity.md` the per-API status).
 
 - Docs: a pure CDP API reference on the Reference tab. [Pure CDP](docs/api/cdp-overview.md) introduces `Browser`, `Page` and `Locator`; the pages beside it cover the browser and launch options, the page, locators and expectations, input, network (intercept, HAR, trace, downloads), tab state, and the browser pool.
 
+- `sbrs doctor --fix` applies the repairs the check already names. It installs a missing or
+  mismatched chromedriver (the same download as `sbrs install chromedriver`, not a browser) and
+  creates a missing patch-cache directory, without patching Chrome. A problem it repairs is not a
+  failure; one it cannot repair still is.
+
 - The built-in `browser` plugin's worker, session and sign-in options work on the pure CDP
   engine (plugins `0666904`): `wait_for_workers` and `worker_timeout_secs`, `session` with
   `save_on_close` and `session_dir`, and `interactive` with `pause_message`
