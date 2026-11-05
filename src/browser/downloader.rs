@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use reqwest::Client;
 use zip::ZipArchive;
 
+use crate::browser::download_progress::{archive_name, DownloadProgress};
 use crate::browser::driver_access::make_runnable;
 use crate::error::SeleniumBaseError;
 
@@ -36,6 +37,8 @@ pub(crate) const LISTINGS: Listings<'static> = Listings {
 ///
 /// A chromedriver only drives the Chrome of its own major version, so prefer
 /// [`download_chrome_driver_for`] when the installed Chrome is known.
+///
+/// On a terminal the archive shows a progress bar. A pipe prints nothing.
 pub async fn download_chrome_driver() -> Result<PathBuf, SeleniumBaseError> {
     download_chrome_driver_for(None).await
 }
@@ -187,7 +190,7 @@ async fn extract_chromedriver(
     download_url: &str,
     dest_dir: &Path,
 ) -> Result<PathBuf, SeleniumBaseError> {
-    let response = client
+    let mut response = client
         .get(download_url)
         .send()
         .await
@@ -195,7 +198,14 @@ async fn extract_chromedriver(
     if !response.status().is_success() {
         return Err(map_network_error(download_url, response));
     }
-    let bytes = response.bytes().await.map_err(io_error)?;
+    let progress = DownloadProgress::on_stdout(archive_name(download_url));
+    progress.start(response.content_length());
+    let mut bytes = Vec::new();
+    while let Some(chunk) = response.chunk().await.map_err(io_error)? {
+        bytes.extend_from_slice(&chunk);
+        progress.advance(chunk.len() as u64);
+    }
+    progress.finish();
     let reader = Cursor::new(bytes);
     let mut archive = ZipArchive::new(reader).map_err(|e| {
         SeleniumBaseError::download(download_url, format!("failed to open ZIP archive: {e}"))

@@ -16,6 +16,8 @@
 //!
 //! The downloads go through [`http_client`], so a proxy for downloads applies.
 //!
+//! On a terminal each archive shows a progress bar. A pipe prints nothing.
+//!
 //! # Examples
 //!
 //! ```
