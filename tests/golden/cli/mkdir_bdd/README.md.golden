@@ -27,7 +27,7 @@ GitHub, not on crates.io:
 
 ```toml
 [dev-dependencies]
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.7.0", features = ["testing", "bdd"] }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.8.0", features = ["testing", "bdd"] }
 # The Gherkin macros read this crate from the manifest; no test names it.
 rstest-bdd = "0.6"
 ```

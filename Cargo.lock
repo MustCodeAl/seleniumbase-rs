@@ -5837,7 +5837,7 @@ dependencies = [
 
 [[package]]
 name = "seleniumbase-rs"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -5906,7 +5906,7 @@ dependencies = [
 
 [[package]]
 name = "seleniumbase-rs-cli"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "dirs",
  "jiff",
@@ -5931,7 +5931,7 @@ dependencies = [
 
 [[package]]
 name = "seleniumbase-rs-own-imports"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "rstest-bdd",
  "seleniumbase-rs",
@@ -5939,7 +5939,7 @@ dependencies = [
 
 [[package]]
 name = "seleniumbase-rs-playwright"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "rustwright",
  "seleniumbase-rs",

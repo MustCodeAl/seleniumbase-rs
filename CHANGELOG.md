@@ -8,6 +8,8 @@ work, `docs/parity.md` the per-API status).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-05
+
 ### Changed
 
 - The `bdd` feature no longer depends on `rstest-bdd-harness` or

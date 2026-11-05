@@ -14,7 +14,7 @@ resolver = "2"
 
 # Shared by both packages, so the command line always has the library's version.
 [workspace.package]
-version = "0.7.0"
+version = "0.8.0"
 edition = "2024"
 rust-version = "1.99"
 license = "MIT"
