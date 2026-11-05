@@ -129,7 +129,7 @@ the same tests drive the app everywhere.
 <Card color="#1a85d4" title="Key facts" icon="circle-info">
 
 - Endpoint: `http://127.0.0.1:4445/{token}/`
-- On in debug builds, or with `SBRS_AUTOMATION=1`
+- On in a debug build when `SBRS_AUTOMATION` is unset. `1`, `true` or `on` (any case) turn it on; any other value turns it off
 - Token: `SBRS_AUTOMATION_TOKEN`, or a random one printed at start
 - One window, `main`, and one session at a time
 - Input is simulated in the page
@@ -331,9 +331,8 @@ async fn saving_a_profile() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 Any WebDriver client works the same way with `http://127.0.0.1:4445/secret/`
 as its server URL. A new session waits until the app's window has loaded its
 page, so a test can start one as soon as the endpoint answers
-`GET /secret/status`. For a test that starts the app itself, see
-`examples/tauri-profile-manager/src-tauri/tests/e2e_automation.rs` in
-seleniumbase-rs.
+`GET /secret/status`. The end-to-end test that started the app itself lived in
+`examples/tauri-profile-manager`; that example is no longer in this repository.
 
 ## App-owned Chromium: CEF and WebView2
 
@@ -409,7 +408,7 @@ use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
 
 async fn test() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
     let options = LaunchOptions::builder()
-        .cdp_url("http://127.0.0.1:9222") // Or ws://.../devtools/browser/<id>.
+        .cdp_url("http://127.0.0.1:53412") // `cdpUrl` from GET /<token>/cdp, or ws://127.0.0.1:{port}/devtools/browser/<id>.
         .fingerprint(&seleniumbase_rs::Fingerprint::windows_desktop())
         .build()?;
     let browser = Browser::launch(options).await?; // Attaches; launches no process.
@@ -429,11 +428,17 @@ fingerprint, is refused because the app owns its network and profile settings.
 
 `BrowserConfig::with_cdp_url` bypasses discovery; it takes HTTP or browser
 WebSocket URLs. An authenticated plugin URL is also accepted. For discovery,
-`GET /<token>/cdp` returns `value.cdpEnabled`, `value.cdpPort`, and `value.cdpUrl`
-(null when disabled). It reports configuration, not debugger readiness. The
-route has the existing token and Origin guards; it does not authenticate the
-separate loopback Chromium socket. Discovery rejects redirects and endpoints
-outside loopback. `/status` keeps its existing response.
+`GET /<token>/cdp` returns `value.cdpEnabled`, `value.cdpPort`, `value.cdpUrl`
+and `value.cdpState` (`disabled`, `unreachable` or `ready`). The port and URL
+are named only while `cdpState` is `ready`: Chromium answered `GET /json/version`
+on that port (the route waits up to one second). `unreachable` means a port was
+turned on but nothing answers like Chromium, and then the port is not named;
+`disabled` means no port was turned on. A `ready` answer shows that a Chromium
+debugger listens there, not that the browser is the app's. The route has the
+existing token and Origin guards; it does not authenticate the separate loopback
+Chromium socket. The client's discovery follows no redirect and refuses an
+endpoint that is not loopback HTTP. `/status` keeps its existing `ready` and
+`message` fields.
 
 With the `plugins` feature, use the existing `BrowserConfig::with_plugins` or
 `LaunchOptionsBuilder::plugins`. Attachment runs `on_browser`; packages and
@@ -510,11 +515,34 @@ time, because WebView2 may run what it was given out of order. The overrides
 reach the page after the webview exists, so open it at a page of the app's own
 and go to the outside site once they are applied.
 
-The automation plugin's `stealth` feature does this for a Tauri app: the
-builder extension for the script, and bridges for the CEF and WebView2 channels
-(see its README). There, as here, the channel opens no port and no listener; the
-`cdp` feature's launch flags and debugging port stay opt-in and for tests only.
-This path is tested against an in-memory channel; it has not run in a real CEF
+The plugin's optional `stealth` feature is that path for a shipped app. It
+opens no port and no listener, and it does not use the automation gate or the
+`cdp` feature's launch flags. The feature depends on seleniumbase-rs from git
+and needs Rust 1.99; a build without it, `cdp` included, still uses the
+plugin's Rust 1.88.
+
+`stealth::StealthScriptExt::stealth_script` adds the plan's init script to a
+`WebviewWindowBuilder`, for every frame. On CEF and WebView2 a
+`stealth::DevToolsChannel` sends the overrides in order (`apply`) and can hand
+back a seleniumbase-rs `Page` (`page`). The plugin pins Tauri `3.0.0-alpha.4`
+and builds without a runtime, so it cannot name the runtimes' DevTools types.
+The app joins a bridge:
+
+- `stealth::cef::channel(send, allocate_id)` returns the channel and an
+  `Observer`. `send` is CEF's `send_dev_tools_message`; `allocate_id` is the
+  runtime's `allocate_devtools_message_id`, because every observer sees every
+  result. The app's `on_dev_tools_protocol` callback feeds
+  `Observer::method_result` and `Observer::event`. The documented CEF DevTools
+  API is `tauri-runtime-cef` 3.0.0-alpha.6, which needs Tauri 3.0.0-alpha.5 or
+  later, so it does not combine with this plugin's current pin.
+- `stealth::webview2::channel` hands each command to the app as a
+  `webview2::Call` (`method`, `params_json`, `session_id`, `reply`). The app
+  calls `CallDevToolsProtocolMethod` on the UI thread and finishes it with
+  `reply.complete`. Subscribe to each name in `webview2::EVENTS` and pass the
+  event to `webview2::event`.
+
+`close` ends the channel only; what was set in the page stays. The bridges are
+tested against fake channels. They have not been compiled or run in a real CEF
 or WebView2 app.
 
 
@@ -524,9 +552,10 @@ The plugin reads these environment variables once, when the app starts.
 
 <ParamField body="SBRS_AUTOMATION" type="string" default="on in debug builds, off in release">
 
-`0`, `false` or `off` turn the plugin off; any other value, such as `1`, turns
-it on. Unset or empty, the build decides. Off, the plugin injects no page
-script and serves no endpoint.
+Unset, a debug build turns the plugin on and a release build leaves it off.
+`1`, `true` and `on` (any case) turn it on. Any other value, including `0`,
+`false`, `off`, an empty value or a typo, turns it off. Off, the plugin injects
+no page script and serves no endpoint.
 
 </ParamField>
 
@@ -633,6 +662,8 @@ WebKit draws the page out of process.
 <LayoutDir name="tauri-plugin-sbrs-automation" open note="the plugin's repository">
 <LayoutDir name="src" open>
 <LayoutFile name="lib.rs" note="init, the settings, the bridge to the window" />
+<LayoutFile name="cdp.rs" note="the debugging port for CEF and WebView2, and GET /cdp" />
+<LayoutFile name="stealth.rs" note="optional: fingerprint stealth in the webview, no port" />
 <LayoutFile name="server.rs" note="the HTTP server on 127.0.0.1, one request at a time" />
 <LayoutFile name="webdriver.rs" highlight note="the routes, the replies and the error statuses" />
 <LayoutDir name="webdriver" open>
@@ -657,9 +688,9 @@ WebKit draws the page out of process.
 The endpoint can run any JavaScript in your app's window; that is what
 WebDriver's "execute script" is for. So it is guarded:
 
-- on in debug builds only, unless you set `SBRS_AUTOMATION=1`;
+- on in a debug build when `SBRS_AUTOMATION` is unset; `1`, `true` or `on` (any case) turn it on, and any other value turns it off;
 - listens on `127.0.0.1` only;
-- every URL must start with the secret token;
+- every URL must start with the secret token, compared in constant time;
 - requests from web pages (any request with an `Origin` header) are refused.
 
 Keep it behind a Cargo feature that release builds do not enable.
@@ -668,14 +699,18 @@ Keep it behind a Cargo feature that release builds do not enable.
 
 <Warning>
 
-With the `cdp` feature, the app also opens Chromium's raw debug socket
+With the `cdp` feature, the app can open Chromium's raw debug socket
 (`--remote-debugging-port`, CEF or WebView2). **That socket has no
 authentication**: any process on the machine that can reach
 `127.0.0.1:{port}` can drive every window of the app, read its pages and run
 script in them, without the token. The token guards the plugin's discovery
-route only. Turn `cdp` and the debugging port on in debug and test builds
-only; they must be off in release builds (leave `SBRS_CDP_PORT` unset and build
-without the `e2e` feature).
+route only. `chromium_args` and `apply_env` produce no debugging switch unless
+the automation gate is on, and `apply_env` does not export `SBRS_CDP_PORT` (it
+sets `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS` only, which a child process
+inherits). Leaving `SBRS_CDP_PORT` unset does not turn the port off: when the
+gate is on, an unset port is a free loopback port. Keep the gate off in a
+release build, and keep the plugin behind a Cargo feature that release builds
+do not enable.
 
 </Warning>
 

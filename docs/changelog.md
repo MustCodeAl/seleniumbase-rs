@@ -227,6 +227,13 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.7.0 s
 
 ### Fixed
 
+- The Tauri guide matches the plugin again. `SBRS_AUTOMATION` turns the endpoint
+  on only for `1`, `true` or `on` (any other value turns it off). `GET /<token>/cdp`
+  names the debugging port only while Chromium answers (`cdpState` `ready`);
+  leaving `SBRS_CDP_PORT` unset does not turn that port off. The optional `stealth`
+  feature is the in-process path for a shipped app (no port). The guide no longer
+  points at `examples/tauri-profile-manager`, which is not in this repository.
+
 - **`scripts/check-consumers.sh` (`mise run contracts`) runs from a git worktree and checks what it
   says it checks.** It looked for the consumers' checkouts in the folder above the script, which in
   `.claude/worktrees/NAME` is not where they are; it now asks git for the main checkout and looks
