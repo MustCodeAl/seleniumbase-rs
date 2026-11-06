@@ -1044,7 +1044,7 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Returns the visible text of the element `css`.
+    /// Returns the visible text of the element `css`, or the value of an `<input>` or a `<textarea>`.
     pub async fn get_text(&self, css: &str) -> Result<String, SeleniumBaseError> {
         let selector = shadow_find::checked(css)?;
         self.await_ready(css, Ready::Present).await?;

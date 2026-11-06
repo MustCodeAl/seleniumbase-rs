@@ -91,16 +91,16 @@ impl BrowserSession {
         self.find(selector).await?.submit().await
     }
 
-    /// Returns the text the driver renders for the element `selector` finds.
+    /// Returns the text Python's `get_text` gives for the element `selector` finds.
     ///
-    /// That is the driver's own answer, which is empty for an `<input>`; the
-    /// text Python's checks compare is [`Element::text`].
+    /// That is the value of an `<input>` or a `<textarea>`, whose rendered text is empty,
+    /// and the text the driver renders for anything else: the same as [`Element::text`].
     pub async fn text(
         &self,
         selector: impl Into<SelectorBuf>,
     ) -> Result<String, SeleniumBaseError> {
         let element = self.find(selector).await?;
-        element.rendered_text().await
+        element.text().await
     }
 
     /// Hovers over the element `selector` finds.

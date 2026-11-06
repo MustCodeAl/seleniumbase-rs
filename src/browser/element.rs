@@ -166,8 +166,8 @@ impl Element {
             .map_err(|error| self.failed(error))
     }
 
-    /// The text the driver renders for the element, as `BaseCase::get_text`
-    /// answers: empty for an `<input>` or a `<textarea>`, whose value
+    /// The text the driver renders for the element, as `BaseCase::get_text_content`
+    /// and `is_non_empty_text_visible` read it: empty for an `<input>`, whose value
     /// [`text`](Self::text) reads.
     ///
     /// # Errors
