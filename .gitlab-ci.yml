@@ -35,6 +35,8 @@ workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    # The lead pushes a lane or batch branch here to gate it before main fast-forwards to it.
+    - if: '$CI_COMMIT_BRANCH =~ /^(lane|batch)\//'
     - if: $CI_PIPELINE_SOURCE == "web"
 
 default:
@@ -62,6 +64,7 @@ variables:
 .rules_automatic:
   - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  - if: '$CI_COMMIT_BRANCH =~ /^(lane|batch)\//'
   - if: $CI_PIPELINE_SOURCE == "web"
     when: manual
     allow_failure: true
