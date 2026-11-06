@@ -91,6 +91,30 @@ fn the_listing_has_a_line_for_every_variable() {
     assert!(sbrs::stdout(&markdown).starts_with("| Variable |"));
 }
 
+/// The variables the library reads outside the option table (the recorder, S3 logging, the OCR
+/// models and the folder of the Grid) are in the listing of `sbrs options --env`.
+#[test]
+fn the_variables_of_the_recorder_s3_ocr_and_the_grid_are_listed() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let output = sbrs::run(dir.path(), &[], &["options", "--env"]);
+    let text = sbrs::stdout(&output);
+    for name in [
+        "SB_REC_FILE",
+        "SB_REC_KEEP_SECRETS",
+        "SB_S3_BUCKET",
+        "SB_S3_REGION",
+        "SB_S3_PREFIX",
+        "SB_OCR_MODELS",
+        "SB_GRID_DIR",
+    ] {
+        assert!(
+            text.lines()
+                .any(|line| line.split_whitespace().next() == Some(name)),
+            "{name} is not listed:\n{text}"
+        );
+    }
+}
+
 /// Every variable that is not a row of the option table is the subject of a test, here or in
 /// another file: a new one without a test fails this.
 #[test]

@@ -103,6 +103,15 @@ macro_rules! browser_flags {
     (@next $n:tt $i:tt $f:tt $p:tt (test.$($r:tt)*) $($more:tt)*) => {
         browser_flags!(@next $n $i $f $p $($more)*);
     };
+    // The report rows and `--rec-sleep` were rows of the `test` group; they are still options of
+    // `sbrs test` only, now under the groups `report` and `run`.
+    (@next $n:tt $i:tt $f:tt $p:tt (report.$($r:tt)*) $($more:tt)*) => {
+        browser_flags!(@next $n $i $f $p $($more)*);
+    };
+    (@next $n:tt $i:tt $f:tt $p:tt (run.record_sleep, $($r:tt)*) $($more:tt)*) => {
+        browser_flags!(@next $n $i $f $p $($more)*);
+    };
+
     (@next $n:tt $i:tt $f:tt $p:tt (none, $($r:tt)*) $($more:tt)*) => {
         browser_flags!(@next $n $i $f $p $($more)*);
     };

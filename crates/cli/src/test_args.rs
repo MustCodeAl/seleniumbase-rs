@@ -99,6 +99,13 @@ macro_rules! test_options {
     (@next $names:tt $ids:tt $fields:tt $pushes:tt (test.$leaf:ident, $($row:tt)*) $($more:tt)*) => {
         test_options!(@alias "Test run, debugging and reports" $names $ids $fields $pushes ($($row)*) $($more)*);
     };
+    (@next $names:tt $ids:tt $fields:tt $pushes:tt (report.$leaf:ident, $($row:tt)*) $($more:tt)*) => {
+        test_options!(@alias "Test run, debugging and reports" $names $ids $fields $pushes ($($row)*) $($more)*);
+    };
+    (@next $names:tt $ids:tt $fields:tt $pushes:tt (run.record_sleep, $($row:tt)*) $($more:tt)*) => {
+        test_options!(@alias "Test run, debugging and reports" $names $ids $fields $pushes ($($row)*) $($more)*);
+    };
+
     (@next $names:tt $ids:tt $fields:tt $pushes:tt ($($path:ident).+, $($row:tt)*) $($more:tt)*) => {
         test_options!(@alias "Browser and page options" $names $ids $fields $pushes ($($row)*) $($more)*);
     };

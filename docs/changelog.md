@@ -135,7 +135,19 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   (`--no-sandbox`, a `no_sandbox` key) already read the variable this way.
 
 
+### Security
+
+- `SB_NO_SANDBOX` fails safe: `SB_NO_SANDBOX=0`, `=false` and an empty value no longer turn Chrome's
+  sandbox off (see the breaking change above, which lists the accepted values).
+
+
 ### Added
+
+- `sbrs options --env` lists seven variables the code already read: `SB_REC_FILE`,
+  `SB_REC_KEEP_SECRETS`, `SB_S3_BUCKET`, `SB_S3_REGION`, `SB_S3_PREFIX`, `SB_OCR_MODELS` and
+  `SB_GRID_DIR`. `env_vars::switch` reads a switch variable (`true`, `1`, `yes`, `on`; `false`,
+  `0`, `no`, `off`; blank is unset; anything else is an error naming the variable).
+
 
 - `BaseCase::devtools_endpoint()` (and `BrowserSession::devtools_endpoint()`): the DevTools
   endpoint of the browser a case drives, Python's `get_endpoint_url()` for the `SB(uc=True)`
