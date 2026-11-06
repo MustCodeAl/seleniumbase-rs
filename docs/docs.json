@@ -886,7 +886,8 @@
               "design/trace_viewer",
               "design/playwright_basecase",
               "design/bon_builders",
-              "design/settings_v2"
+              "design/settings_v2",
+              "design/element_type"
             ]
           },
           {

@@ -24,9 +24,9 @@ impl BaseCase {
         &self,
         selector: &str,
         ready: Ready,
-    ) -> Result<thirtyfour::WebElement, SeleniumBaseError> {
+    ) -> Result<Element, SeleniumBaseError> {
         self.await_ready(selector, ready).await?;
-        self.session.find(Selector::auto(selector).to_by()?).await
+        self.session.find(shadow_find::checked(selector)?).await
     }
 
     /// Clicks an element inside one or more shadow roots, once it can be
@@ -72,7 +72,7 @@ impl BaseCase {
     /// the case's timeout.
     pub async fn shadow_get_text(&self, selector: &str) -> Result<String, SeleniumBaseError> {
         let element = self.shadow_element(selector, Ready::Visible).await?;
-        shown_text(&element).await
+        element.text().await
     }
 
     /// Returns an attribute value of an element inside shadow roots, once the
@@ -90,7 +90,7 @@ impl BaseCase {
         attribute: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
         let element = self.shadow_element(selector, Ready::Present).await?;
-        self.session.attribute_or_property(&element, attribute).await
+        self.session.attribute_or_property(element.as_webdriver_element(), attribute).await
     }
 
     /// Asserts that a shadow-pierced element exists, waiting up to the case's

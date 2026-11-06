@@ -577,7 +577,7 @@ async fn a_webdriver_call_on_a_cdp_attachment_is_an_error_not_a_panic() {
         session.forward().await.unwrap_err(),
         session.refresh().await.unwrap_err(),
         session.page_source().await.unwrap_err(),
-        session.click(thirtyfour::By::Css("#go")).await.unwrap_err(),
+        session.click("#go").await.unwrap_err(),
     ] {
         assert!(
             matches!(&error, SeleniumBaseError::Unsupported(text) if text.contains("CDP")),

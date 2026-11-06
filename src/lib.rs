@@ -192,6 +192,8 @@ pub use api::runner::{run_browser_test, run_cdp_test};
 pub use api::tour::TourTheme;
 pub use api::traits::{AssertionApi, BrowserApi, ElementApi, ScreenshotApi};
 pub use browser::config::{Browser, BrowserConfig, DriverMode};
+pub use browser::element::Element;
+
 pub use browser::reuse::shutdown_reused_sessions;
 pub use browser::session::BrowserSession;
 pub use common::tls::install_tls_provider;
@@ -213,6 +215,8 @@ pub use evasion::providers::{
 pub use evasion::{
     engine_spoofing_args, find_system_chrome, ChromeBinaryPatcher, ChromedriverPatcher, EnginePatch,
 };
+pub use sb_cdp::{Key, SelectBy};
+
 pub use tracing_util::{
     init_tracing, init_tracing_from_runtime, init_tracing_json, init_tracing_json_with_filter,
     init_tracing_with_filter,

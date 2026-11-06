@@ -300,11 +300,7 @@ pub(super) async fn get_element_html(ctx: Ctx<BaseCase>, args: Args) -> Result<O
     let selector = args.str("selector")?;
     let mut case = ctx.session().await?;
     let element = case.find_element(selector).await?;
-    Ok(element
-        .outer_html()
-        .await
-        .map_err(SeleniumBaseError::WebDriver)?
-        .into())
+    Ok(element.html().await?.into())
 }
 
 pub(super) async fn get_attribute(ctx: Ctx<BaseCase>, args: Args) -> Result<Output, ToolError> {
@@ -411,15 +407,8 @@ pub(super) async fn click_visible_elements(
             if clicked == limit {
                 break;
             }
-            if element
-                .is_displayed()
-                .await
-                .map_err(SeleniumBaseError::WebDriver)?
-            {
-                element
-                    .click()
-                    .await
-                    .map_err(SeleniumBaseError::WebDriver)?;
+            if element.is_visible().await? {
+                element.click().await?;
                 clicked += 1;
             }
         }

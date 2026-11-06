@@ -121,11 +121,11 @@ impl BaseCase {
     /// ```
     pub async fn set_content_to_frame(&mut self, frame: &str) -> Result<(), SeleniumBaseError> {
         let selector = self.frame_selector(frame).await?;
-        let by = Selector::auto(&selector).to_by()?;
+        let iframe = shadow_find::checked(&selector)?;
         let url = self.get_current_url().await?;
         let window = self.get_current_window_handle().await?;
         let source = self.get_page_source().await?;
-        self.session.switch_to_frame(by.clone()).await?;
+        self.session.switch_to_frame(iframe.clone()).await?;
         let frame_source = self.get_page_source().await;
         // Leave the frame whether or not its source could be read.
         self.session.switch_to_default_content().await?;
@@ -133,7 +133,7 @@ impl BaseCase {
         self.wait_for_ready_state_complete().await?;
         let src = self
             .session
-            .get_property(by, "src")
+            .get_property(iframe, "src")
             .await?
             .unwrap_or_default();
         if opens_in_a_tab(&src) {
@@ -444,14 +444,14 @@ impl BaseCase {
         &mut self,
         x: i64,
         y: i64,
-    ) -> Result<Option<WebElement>, SeleniumBaseError> {
+    ) -> Result<Option<Element>, SeleniumBaseError> {
         let script = format!("return document.elementFromPoint({}, {});", x, y);
         let result = self.execute_script(&script).await?;
         self.element_from_script_result(result).await
     }
 
     /// Returns the parent element of `css`.
-    pub async fn get_parent(&mut self, css: &str) -> Result<Option<WebElement>, SeleniumBaseError> {
+    pub async fn get_parent(&mut self, css: &str) -> Result<Option<Element>, SeleniumBaseError> {
         let script = format!(
             "return document.querySelector({})?.parentElement;",
             quote(css)

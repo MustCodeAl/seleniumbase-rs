@@ -6,8 +6,8 @@
 //! CDP), so a helper written once over the traits runs on either engine.
 //!
 //! None of them mentions an engine's own types. Finding an element and keeping
-//! the handle is engine-specific; [`BaseCase::find_element`] returns a
-//! [`drivers::WebElement`](crate::drivers::WebElement) for code that wants it, and a CDP `Page` offers
+//! the handle is engine-specific; [`BaseCase::find_element`] returns an
+//! [`Element`](crate::Element) for code that wants it, and a CDP `Page` offers
 //! `locator(..)`.
 //!
 //! # Examples

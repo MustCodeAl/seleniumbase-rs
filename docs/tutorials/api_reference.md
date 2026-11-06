@@ -100,15 +100,33 @@ call with `?` (`sleep` is an exception: it cannot fail).
 | Actions (`click`, `type_text`, `open`, `set_attribute`, ...) and assertions | `()`: nothing, or an error |
 | `get_text`, `get_title`, `get_current_url` and the like | `String` |
 | `get_attribute(selector, attr)`, `get_property(selector, prop)` | `Option<String>`: `None` when it is not set (`get_attribute` goes by the DOM property first, as Selenium does: what was typed, not the `value=""` of the markup) |
-| `find_element(selector)` | an element: a `drivers::WebElement` handle to the first match, found within 10 seconds |
-| `find_elements(selector)` | `Vec<drivers::WebElement>`: every match, possibly none |
+| `find_element(selector)` | an `Element`: a handle to the first match, found within 10 seconds |
+| `find_elements(selector)` | `Vec<Element>`: every match, possibly none |
 | `execute_script(script)` | `seleniumbase_rs::json::Value`: what the script returned |
 | `save_screenshot(filename)` | `PathBuf`: where the file was written |
 
-An element handle is the WebDriver engine's own type. Keep the selector
-instead when you can: the `BaseCase` methods look the element up again on each
-call, so they do not go stale when the page re-renders. The pure CDP engine's
-`Locator` (from `page.locator(selector)`) is lazy in the same way.
+An `Element` is the WebDriver engine's own type, `seleniumbase_rs::Element`: the
+node the browser found at that moment, as Python's `WebElement` is. It has the
+methods of the pure CDP engine's `Locator` under the same names (`text`,
+`html`, `tag`, `attribute`, `property`, `bounding_box`, `is_visible`,
+`is_enabled`, `is_selected`, `click`, `double_click`, `right_click`, `hover`,
+`clear`, `send_keys`, `type_text`, `press`, `select_option`, `submit`,
+`scroll_into_view`, `drag_to`) and `find`, `find_all` and `parent` for the
+elements inside and above it. It does not wait, and once the page replaces the
+node its methods fail with `StaleElement`, which names the selector it was
+found by. For a `thirtyfour` call it has no method for,
+`element.as_webdriver_element()` gives the raw `drivers::WebElement`.
+
+```rust
+let row = sb.find_element("#cart .row").await?;
+println!("{}", row.text().await?);
+row.find(".remove").await?.click().await?;
+```
+
+Keep the selector instead when you can: the `BaseCase` methods look the element
+up again on each call, so they do not go stale when the page re-renders. The
+pure CDP engine's `Locator` (from `page.locator(selector)`) is lazy in the same
+way.
 
 ## Reference pages
 

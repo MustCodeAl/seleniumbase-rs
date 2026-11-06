@@ -31,7 +31,7 @@ with every item written in terms of this crate's API.
 
 <Visibility for="agents">
 
-Summary for AI exports: write each browser test as `#[rstest] #[tokio::test] async fn name(sb: Sb) -> Result<()> { sb.run(async |sb| { .. }).await }` (feature `testing`), or `sb_cdp: SbCdp` with `sb_cdp.run(async |page| { .. })` for the pure CDP engine; never start a browser by hand in a test body. Import only from `seleniumbase_rs`. Use stable selectors (`#id`, `[data-testid="x"]`, `link=Text`). Never sleep: actions wait, and `wait_for_element_visible`, `wait_for_text`, `wait_for_element_absent` or `locator.wait_for(State::Absent)` cover the rest. Assert with the retrying assertions (`assert_text(text, selector)` takes the text first, `locator.expect().to_have_text(..)`), not `get_text` plus `assert_eq!`. A selector or `Locator` acts on the first match: scope it, and use `locator.strict()` (pure CDP) or `expect().to_have_count(1)` when there must be exactly one. Do not keep a `WebElement` across a page change. Cleanup: the fixture and `run_browser_test` close the browser; a `Browser` you launch is closed on both paths. Evidence is `latest_logs/<test id>/`; add to it with `save_screenshot_to_logs` and `save_page_source_to_logs`, never print page source. One fixture test, one `BrowserPool` lease or one `BrowserContext` per concurrent flow. CI runs `SB_HEADLESS=true cargo test`. Raw protocol calls (`Page::execute`, `Browser::execute`, `BaseCase::execute_cdp_cmd`) live in one helper behind a feature of the test crate. Test code that drives pages without Chrome through `Browser::new_mocked()` (feature `test-util`). Credentials and data come from `sb.account()`, `sb.data()`, `sb.variables()`, never from the file.
+Summary for AI exports: write each browser test as `#[rstest] #[tokio::test] async fn name(sb: Sb) -> Result<()> { sb.run(async |sb| { .. }).await }` (feature `testing`), or `sb_cdp: SbCdp` with `sb_cdp.run(async |page| { .. })` for the pure CDP engine; never start a browser by hand in a test body. Import only from `seleniumbase_rs`. Use stable selectors (`#id`, `[data-testid="x"]`, `link=Text`). Never sleep: actions wait, and `wait_for_element_visible`, `wait_for_text`, `wait_for_element_absent` or `locator.wait_for(State::Absent)` cover the rest. Assert with the retrying assertions (`assert_text(text, selector)` takes the text first, `locator.expect().to_have_text(..)`), not `get_text` plus `assert_eq!`. A selector or `Locator` acts on the first match: scope it, and use `locator.strict()` (pure CDP) or `expect().to_have_count(1)` when there must be exactly one. Do not keep an `Element` across a page change. Cleanup: the fixture and `run_browser_test` close the browser; a `Browser` you launch is closed on both paths. Evidence is `latest_logs/<test id>/`; add to it with `save_screenshot_to_logs` and `save_page_source_to_logs`, never print page source. One fixture test, one `BrowserPool` lease or one `BrowserContext` per concurrent flow. CI runs `SB_HEADLESS=true cargo test`. Raw protocol calls (`Page::execute`, `Browser::execute`, `BaseCase::execute_cdp_cmd`) live in one helper behind a feature of the test crate. Test code that drives pages without Chrome through `Browser::new_mocked()` (feature `test-util`). Credentials and data come from `sb.account()`, `sb.data()`, `sb.variables()`, never from the file.
 
 </Visibility>
 
@@ -384,7 +384,7 @@ seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", featu
 ```
 
 ```rust Do
-use seleniumbase_rs::drivers::By; // a WebDriver type, through the crate
+use seleniumbase_rs::Element; // a WebDriver engine type, through the crate
 use seleniumbase_rs::json::json; // the json! macro, through the crate
 use seleniumbase_rs::tokio;
 ```
@@ -531,9 +531,9 @@ sb.click(".remove").await?; // the first .remove on the page, whichever row it i
 ### 7. Find again instead of holding an element
 
 Every `BaseCase` call that takes a selector finds the element again, and a
-`Locator` looks again on every use, so both survive a re-render. A `WebElement`
+`Locator` looks again on every use, so both survive a re-render. An `Element`
 from `find_element` is a handle to one node: once the page replaces that node,
-the handle is stale.
+the handle is stale, and its methods fail with `StaleElement`.
 
 <CodeGroup>
 
@@ -836,7 +836,8 @@ leaves a rule to the author or the reviewer:
   pure CDP `Locator` has `.strict()`, and a plain one acts on the first too.
 - **No scoped query on `BaseCase`.** There is no object that stands for a
   container. You scope with the selector string, a frame or a shadow root, or with
-  a `WebElement`, which rule 7 warns about. The pure CDP `Locator` does scope.
+  an `Element` (`row.find(".edit")`), which rule 7 warns about. The pure CDP
+  `Locator` does scope.
 - **The hard time limit is the fixtures'.** `SB_TIME_LIMIT` stops a fixture test.
   `run_browser_test` has no limit, and `BaseCase::set_time_limit` is checked only
   when the test opens a page or waits, so a test that does neither is not

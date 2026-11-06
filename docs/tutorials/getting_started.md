@@ -23,7 +23,7 @@ browser, interacts with a page, asserts on the result, and cleans up.
 
 <Visibility for="agents">
 
-Summary for AI exports: add `seleniumbase-rs` to `Cargo.toml` (it re-exports the Tokio runtime as `seleniumbase_rs::tokio`), build a `BrowserConfig`, create `BaseCase::new(config).await?`, call `open`, `click`, `type_text` and the `assert_*` methods, then `quit`. Rust 1.99 or newer and a Chromium-based browser are required. Import from `seleniumbase_rs`, not from the crates it is built on. Tokio: `use seleniumbase_rs::tokio;` before `#[tokio::main]` or `#[tokio::test]`. rstest (feature `testing`): `use seleniumbase_rs::testing::{fixture, rstest};`. Gherkin (feature `bdd`): `use seleniumbase_rs::testing::bdd::{given, scenario, scenarios, skip, then, when};` plus `use seleniumbase_rs::testing::rstest;`, and `rstest-bdd = "0.6"` in the manifest (never named in code). WebDriver types: `use seleniumbase_rs::drivers::{By, WebElement, DesiredCapabilities, ...};`. JSON: `use seleniumbase_rs::json::{json, Value};`. Test plugins: `use seleniumbase_rs::plugins::observer::async_trait;`. Plugin crates, your own `serde` derives and your own `tracing` spans still need those crates.
+Summary for AI exports: add `seleniumbase-rs` to `Cargo.toml` (it re-exports the Tokio runtime as `seleniumbase_rs::tokio`), build a `BrowserConfig`, create `BaseCase::new(config).await?`, call `open`, `click`, `type_text` and the `assert_*` methods, then `quit`. Rust 1.99 or newer and a Chromium-based browser are required. Import from `seleniumbase_rs`, not from the crates it is built on. Tokio: `use seleniumbase_rs::tokio;` before `#[tokio::main]` or `#[tokio::test]`. rstest (feature `testing`): `use seleniumbase_rs::testing::{fixture, rstest};`. Gherkin (feature `bdd`): `use seleniumbase_rs::testing::bdd::{given, scenario, scenarios, skip, then, when};` plus `use seleniumbase_rs::testing::rstest;`, and `rstest-bdd = "0.6"` in the manifest (never named in code). Elements: `BaseCase::find_element` returns `seleniumbase_rs::Element`; the other WebDriver types: `use seleniumbase_rs::drivers::{DesiredCapabilities, Key, Cookie, ...};`, and `WebElement` for `Element::as_webdriver_element`. JSON: `use seleniumbase_rs::json::{json, Value};`. Test plugins: `use seleniumbase_rs::plugins::observer::async_trait;`. Plugin crates, your own `serde` derives and your own `tracing` spans still need those crates.
 
 </Visibility>
 
@@ -369,15 +369,18 @@ needs no second crate.
 | `#[rstest]` and `#[fixture]` (feature `testing`) | `use seleniumbase_rs::testing::{fixture, rstest};` | `rstest = "0.26"` |
 | The `sb` and `sb_cdp` fixtures | `use seleniumbase_rs::testing::{sb, Sb, sb_cdp, SbCdp};` | nothing else |
 | Gherkin steps and scenarios (feature `bdd`) | `use seleniumbase_rs::testing::bdd::{given, when, then, scenario, scenarios, skip};` and `use seleniumbase_rs::testing::rstest;` | `rstest-bdd-macros = "0.6"`, `rstest = "0.26"` |
-| A selector or an element on the WebDriver engine | `use seleniumbase_rs::drivers::{By, WebElement};` | `thirtyfour` |
+| An element on the WebDriver engine | `use seleniumbase_rs::Element;` (a selector is a plain string; `Key` and `SelectBy` are at the crate root too) | `thirtyfour` |
+| The raw `thirtyfour` element behind an `Element` | `use seleniumbase_rs::drivers::WebElement;` | `thirtyfour` |
 | Capabilities, keys, cookies, network conditions of the WebDriver engine | `use seleniumbase_rs::drivers::{DesiredCapabilities, Key, Cookie, NetworkConditions, ...};` | `thirtyfour` |
 | A JSON value or the `json!` macro | `use seleniumbase_rs::json::{json, Value};` | `serde_json = "1"` |
 | `#[async_trait]` for a `TestPlugin` or `PageEvidence` | `use seleniumbase_rs::plugins::observer::async_trait;` | `async-trait = "0.1"` |
 
 `seleniumbase_rs::drivers` lists the `thirtyfour` types that appear in this
 crate's signatures. [`BaseCase::find_element`](/api/traits) returns a
-`seleniumbase_rs::drivers::WebElement`, so `root.find(By::Css("button"))` on
-it needs only the `By` of the same module.
+`seleniumbase_rs::Element`, whose methods take the same selector strings as
+`BaseCase`: `row.find(".remove")`. `Element::as_webdriver_element()` gives
+the `drivers::WebElement` behind it, for a `thirtyfour` call the element has no
+method for.
 
 #### Why a macro needs an import you never name
 

@@ -160,6 +160,7 @@ hidden: true
   - [Stealthy Playwright Mode on the BaseCase API](design/playwright_basecase.md)
   - [Generated builders with bon](design/bon_builders.md)
   - [Settings regrouped and layered with figment](design/settings_v2.md)
+  - [An element type of our own for the WebDriver engine](design/element_type.md)
 
 - [ABI & API Stability](ABI_API.md)
 - [Architecture Decision Records](adr/001-stealth-architecture.md)

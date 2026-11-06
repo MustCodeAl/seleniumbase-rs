@@ -26,7 +26,7 @@ use thirtyfour::prelude::{By, WebDriver, WebElement};
 use thirtyfour::RequestData;
 
 use crate::error::SeleniumBaseError;
-use crate::utils::selectors::Selector;
+use crate::utils::selectors::{Selector, SelectorBuf};
 use crate::utils::shadow::{is_shadow_selector, shadow_chain};
 
 /// What the wire calls a CSS locator.
@@ -107,7 +107,7 @@ async fn last_root<'a>(
     let (last, hosts) = pieces.split_last().ok_or_else(empty)?;
     let (first, inner) = hosts.split_first().ok_or_else(empty)?;
     let mut so_far = first.clone();
-    let mut host = match driver.find(Selector::auto(first).to_by()?).await {
+    let mut host = match driver.find(Selector::auto_by(first)?).await {
         Ok(element) => element,
         Err(error) if is_missing(&error) => return Ok(Walk::Short(so_far)),
         Err(other) => return Err(other.into()),
@@ -127,6 +127,49 @@ async fn last_root<'a>(
         Ok(root) => Walk::Reached(root, last),
         Err(_) => Walk::Short(so_far),
     })
+}
+
+/// The WebDriver locator that looks `selector` up: the one conversion from
+/// this crate's selector to a `thirtyfour` one, which the session and an
+/// [`Element`](crate::Element) look elements up with.
+///
+/// A CSS selector that crosses a shadow root stays whole, for [`find`] and
+/// [`find_all`] to cut; one that cannot be cut is refused here, before anything
+/// waits. The kind was decided when the string became a [`SelectorBuf`], so a
+/// CSS selector is taken as CSS here, and `:contains(..)` is not read again.
+///
+/// # Errors
+///
+/// [`SeleniumBaseError::InvalidSelector`] if the text is empty or blank, or if
+/// a CSS selector crosses a shadow root but cannot be cut.
+pub(crate) fn by_of(selector: &SelectorBuf) -> Result<By, SeleniumBaseError> {
+    let filled = |text: &str| !text.trim().is_empty();
+    match selector {
+        SelectorBuf::Css(css) if is_shadow_selector(css) => {
+            shadow_chain(css)?;
+            Ok(By::Css(css.clone()))
+        }
+        SelectorBuf::Css(css) if filled(css) => Ok(By::Css(css.clone())),
+        SelectorBuf::XPath(xpath) if filled(xpath) => Ok(By::XPath(xpath.clone())),
+        SelectorBuf::LinkText(text) if filled(text) => Ok(By::LinkText(text.clone())),
+        SelectorBuf::PartialLinkText(text) if filled(text) => Ok(By::PartialLinkText(text.clone())),
+        _ => Err(SeleniumBaseError::InvalidSelector(
+            "selector value cannot be empty".to_owned(),
+        )),
+    }
+}
+
+/// `selector` as a [`SelectorBuf`], once it is known that [`by_of`] accepts
+/// it: for the waits, which look it up again and again and must refuse a
+/// selector that can never match at once, not after the timeout.
+///
+/// # Errors
+///
+/// As [`by_of`].
+pub(crate) fn checked(selector: impl Into<SelectorBuf>) -> Result<SelectorBuf, SeleniumBaseError> {
+    let selector = selector.into();
+    by_of(&selector)?;
+    Ok(selector)
 }
 
 /// The first element `by` names: with a selector that crosses shadow roots,
@@ -192,5 +235,58 @@ mod tests {
     fn a_locator_that_cannot_be_cut_is_an_error() {
         let error = pieces(&By::Css("app ::shadow")).unwrap_err().to_string();
         assert!(error.contains("cannot end on a shadow root"), "{error}");
+    }
+
+    /// The `Debug` text of the locator `selector` becomes.
+    fn locator(selector: SelectorBuf) -> String {
+        format!("{:?}", by_of(&selector).unwrap())
+    }
+
+    #[test]
+    fn a_selector_becomes_the_locator_of_its_kind() {
+        assert_eq!(
+            locator(SelectorBuf::css("#a")),
+            format!("{:?}", By::Css("#a"))
+        );
+        assert_eq!(
+            locator(SelectorBuf::xpath("//a")),
+            format!("{:?}", By::XPath("//a"))
+        );
+        assert_eq!(
+            locator(SelectorBuf::link_text("Go")),
+            format!("{:?}", By::LinkText("Go"))
+        );
+        assert_eq!(
+            locator(SelectorBuf::partial_link_text("G")),
+            format!("{:?}", By::PartialLinkText("G"))
+        );
+        // The kind was decided when the string became a selector: a CSS
+        // selector is looked up as CSS, and `:contains(..)` is not read again.
+        assert_eq!(
+            locator(SelectorBuf::css("a:contains('x')")),
+            format!("{:?}", By::Css("a:contains('x')"))
+        );
+        assert_eq!(
+            locator(SelectorBuf::from("app::shadow a")),
+            format!("{:?}", By::Css("app::shadow a"))
+        );
+    }
+
+    #[test]
+    fn a_selector_that_can_never_match_is_refused_before_anything_is_looked_up() {
+        for selector in [
+            SelectorBuf::css(""),
+            SelectorBuf::xpath(" "),
+            SelectorBuf::link_text(""),
+            SelectorBuf::partial_link_text("\t"),
+            SelectorBuf::css("app ::shadow"),
+        ] {
+            assert!(
+                matches!(by_of(&selector), Err(SeleniumBaseError::InvalidSelector(_))),
+                "{selector:?}"
+            );
+            assert!(checked(selector.clone()).is_err(), "{selector:?}");
+        }
+        assert_eq!(checked("#a").unwrap(), SelectorBuf::css("#a"));
     }
 }

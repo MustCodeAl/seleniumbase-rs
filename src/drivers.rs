@@ -2,24 +2,24 @@
 //! crate's name.
 //!
 //! The WebDriver engine is built on the `thirtyfour` crate, and a few of its types show up in
-//! this crate's signatures: [`BaseCase::find_element`](crate::BaseCase::find_element) returns
-//! a [`WebElement`], [`BrowserSession::find`](crate::BrowserSession::find) takes a [`By`],
-//! and the capabilities of a custom launch are [`DesiredCapabilities`]. Import them from here
+//! this crate's signatures: [`BaseCase::get_cookie`](crate::BaseCase::get_cookie) returns a
+//! [`Cookie`], the capabilities of a custom launch are [`DesiredCapabilities`], and an
+//! [`Element`](crate::Element) hands out the raw [`WebElement`] behind it. Import them from here
 //! and a program needs no `thirtyfour` line in its manifest:
 //!
 //! ```no_run
-//! use seleniumbase_rs::drivers::By;
+//! use seleniumbase_rs::drivers::WebElement;
 //! use seleniumbase_rs::{BaseCase, BrowserConfig};
 //!
 //! # async fn demo() -> seleniumbase_rs::Result<()> {
 //! let mut sb = BaseCase::new(BrowserConfig::default()).await?;
 //! sb.open("https://example.com").await?;
 //!
-//! // `get_shadow_root` hands back the shadow root as a `WebElement`; search inside it
-//! // with a `By`.
-//! let root = sb.get_shadow_root("my-app").await?;
-//! let button = root.find(By::Css("button")).await?;
-//! button.click().await?;
+//! // The raw `thirtyfour` element, for a call that `Element` has no method for.
+//! let element = sb.find_element("my-app::shadow button").await?;
+//! let raw: &WebElement = element.as_webdriver_element();
+//! println!("{}", raw.element_id());
+//! element.click().await?;
 //! sb.quit().await
 //! # }
 //! ```

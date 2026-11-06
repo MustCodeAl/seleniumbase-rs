@@ -246,12 +246,12 @@ async fn find_text_waits_for_visible_text_and_ignores_hidden_text() {
         .find_text("late-needle", "body")
         .await
         .expect("found once it appears");
-    assert_eq!(late.tag_name().await.expect("tag"), "body");
+    assert_eq!(late.tag().await.expect("tag"), "body");
     let exact = sb
         .find_exact_text("visible", "p")
         .await
         .expect("exact text");
-    assert_eq!(exact.tag_name().await.expect("tag"), "p");
+    assert_eq!(exact.tag().await.expect("tag"), "p");
     sb.find_non_empty_text("body").await.expect("some text");
     sb.quit().await.expect("quit");
 }

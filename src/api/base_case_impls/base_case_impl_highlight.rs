@@ -149,10 +149,10 @@ impl BaseCase {
         &self,
         css: &str,
         timeout: Duration,
-    ) -> Result<thirtyfour::WebElement, SeleniumBaseError> {
-        let by = Selector::auto(demo::highlight_target(css)).to_by()?;
+    ) -> Result<Element, SeleniumBaseError> {
+        let selector = shadow_find::checked(demo::highlight_target(css))?;
         self.session
-            .wait_for_element_visible(by, demo::whole_seconds_up(timeout))
+            .wait_for_element_visible(selector, demo::whole_seconds_up(timeout))
             .await
     }
 
@@ -161,10 +161,10 @@ impl BaseCase {
     async fn run_on_element(
         &self,
         script: &str,
-        element: &thirtyfour::WebElement,
+        element: &Element,
     ) -> Result<Value, SeleniumBaseError> {
         let returned = self.session.webdriver()?
-            .execute(script, vec![element.to_json()?])
+            .execute(script, vec![element.reference()?])
             .await?;
         Ok(returned.json().clone())
     }
@@ -173,7 +173,7 @@ impl BaseCase {
     /// waits after it.
     async fn animate_highlight(
         &self,
-        element: &thirtyfour::WebElement,
+        element: &Element,
         loops: u32,
         scroll: bool,
     ) -> Result<(), SeleniumBaseError> {
@@ -259,12 +259,12 @@ impl BaseCase {
         scroll: bool,
         limit: usize,
     ) -> Result<(), SeleniumBaseError> {
-        let by = Selector::auto(demo::highlight_target(css)).to_by()?;
-        let elements = self.session.find_all(by).await?;
+        let selector = shadow_find::checked(demo::highlight_target(css))?;
+        let elements = self.session.find_all(selector).await?;
         let loops = self.highlight_loops(loops, DEFAULT_HIGHLIGHT_LOOPS);
         let mut count = 0_usize;
         for element in elements {
-            let shown = element.is_displayed().await.unwrap_or(false);
+            let shown = element.is_visible().await.unwrap_or(false);
             if shown && self.animate_highlight(&element, loops, scroll).await.is_ok() {
                 count += 1;
             }

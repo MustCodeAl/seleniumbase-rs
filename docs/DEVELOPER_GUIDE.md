@@ -672,6 +672,7 @@ Launch and session plumbing:
 <LayoutFile name="driver_access.rs" note="repairs and runs drivers" />
 <LayoutFile name="driver_install.rs" note="installs geckodriver and msedgedriver" />
 <LayoutFile name="driver_version.rs" note="matches chromedriver to Chrome" />
+<LayoutFile name="element.rs" note="Element, the element the WebDriver engine found" />
 <LayoutFile name="launcher.rs" note="chromedriver discovery, startup and StealthOptions" />
 <LayoutFile name="mod.rs" note="the browser module" />
 <LayoutDir name="options" open note="typed launch settings">
@@ -1357,8 +1358,10 @@ should produce `SeleniumBaseError::InvalidConfig` with the field name.
 ```rust Pure-logic test
 #[test]
 fn selector_parses_link_text() {
-    let s = Selector::LinkText("Dashboard".into());
-    assert_eq!(s.to_by(), By::LinkText("Dashboard".to_string()));
+    assert_eq!(
+        SelectorBuf::from("link=Dashboard"),
+        SelectorBuf::link_text("Dashboard")
+    );
 }
 ```
 

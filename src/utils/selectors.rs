@@ -209,7 +209,7 @@ impl<'a> Selector<'a> {
     ///
     /// Returns [`SeleniumBaseError::InvalidSelector`] when `selector` is empty
     /// or contains only whitespace.
-    pub fn auto_by(selector: &'a str) -> Result<By, SeleniumBaseError> {
+    pub(crate) fn auto_by(selector: &'a str) -> Result<By, SeleniumBaseError> {
         Self::auto(selector).to_by()
     }
 
@@ -223,7 +223,7 @@ impl<'a> Selector<'a> {
     ///
     /// Returns [`SeleniumBaseError::InvalidSelector`] when the text is empty
     /// or contains only whitespace.
-    pub fn to_by(self) -> Result<By, SeleniumBaseError> {
+    pub(crate) fn to_by(self) -> Result<By, SeleniumBaseError> {
         match self {
             // A selector that crosses a shadow root stays whole: the session
             // cuts it into pieces and finds each in its own root. A selector
@@ -1108,6 +1108,25 @@ mod tests {
         }
         assert!(Selector::auto_by("link=").is_err());
         assert!(Selector::auto_by("p_text=  ").is_err());
+    }
+
+    #[test]
+    fn a_shadow_selector_with_contains_after_the_combinator_stays_css() {
+        // `:contains(..)` is rewritten as XPath, which cannot be cut at a
+        // shadow root: the shadow check comes first, as in `Selector::to_by`.
+        for selector in [
+            "app::shadow a:contains(\"Go\")",
+            "app ::shadow .row:contains('x') ::shadow b",
+            "div > app::shadow li:contains(\"Two\")",
+        ] {
+            assert_eq!(
+                SelectorBuf::from(selector),
+                SelectorBuf::css(selector),
+                "{selector}"
+            );
+            let by = Selector::auto(selector).to_by().unwrap();
+            assert_eq!(format!("{by}"), format!("CSS({selector})"), "{selector}");
+        }
     }
 
     /// Python SeleniumBase's rules, written as a table: input, kind, text.
