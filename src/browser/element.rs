@@ -1023,6 +1023,46 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn an_xpath_union_is_refused_when_any_branch_starts_at_the_root() {
+        let driver = cart();
+        let (_session, cart) = found(&driver, "#a").await;
+
+        // Each selector with the branch the message names. A group holds a union
+        // too, and the function `id()` searches the whole document, as `//` does.
+        for (selector, branch) in [
+            (SelectorBuf::xpath(".//a | //b"), "//b"),
+            (SelectorBuf::xpath("./a|/html/body"), "/html/body"),
+            (SelectorBuf::xpath(".//a | (//b)[1]"), "(//b)[1]"),
+            (SelectorBuf::xpath("(.//a | //b)[1]"), "(.//a | //b)[1]"),
+            (SelectorBuf::xpath("((.//a) | ( //b))"), "((.//a) | ( //b))"),
+            (SelectorBuf::xpath(".//a[@x='|'] | //b"), "//b"),
+            (SelectorBuf::xpath("id('y')//b"), "id('y')//b"),
+            (SelectorBuf::xpath(".//a | id ( 'y' )"), "id ( 'y' )"),
+            (SelectorBuf::xpath("(//b)[1]"), "(//b)[1]"),
+        ] {
+            for error in [
+                cart.find(selector.clone()).await.unwrap_err(),
+                cart.find_all(selector.clone()).await.unwrap_err(),
+            ] {
+                let SeleniumBaseError::InvalidSelector(message) = &error else {
+                    panic!("{selector}: expected InvalidSelector, got {error:?}");
+                };
+                // It names the branch, and keeps the hint.
+                assert!(
+                    message.contains(&format!("page, '{branch}', so")),
+                    "{selector}: {message}"
+                );
+                assert!(message.contains(".//td"), "{selector}: {message}");
+                assert!(message.contains("find_element"), "{selector}: {message}");
+            }
+        }
+        // The driver was not asked: it would have searched the whole page.
+        assert!(driver.requests("/element/e1/element").is_empty());
+        assert!(driver.requests("/element/e1/elements").is_empty());
+    }
+
+
+    #[tokio::test]
     async fn an_xpath_that_starts_at_the_element_is_looked_up_as_written() {
         let driver = cart();
         let (_session, cart) = found(&driver, "#a").await;
@@ -1032,6 +1072,17 @@ mod tests {
             "(.//td)[1]",
             "parent::div",
             "descendant::td",
+            // A union is a path in every branch, and a `|`, a `/` or a `[` inside a
+            // string or a predicate is no branch.
+            ".//a | .//b",
+            "./a|./b",
+            "(.//a | .//b)[1]",
+            ".//a[@title='x | //y']",
+            ".//a[@title=\"x | //y\"]",
+            ".//a[.//b]",
+            ".//a[//b]",
+            ".//a[@href='/x'] | ./b[@id=\"/y\"]",
+
         ];
 
         for xpath in relative {
