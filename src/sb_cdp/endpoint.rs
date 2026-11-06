@@ -10,8 +10,11 @@
 use crate::error::SeleniumBaseError;
 use serde_json::{json, Value};
 
-/// Resolves the existing attach path, including Tauri's authenticated discovery.
-pub(super) async fn resolve(
+/// Resolves an address to the endpoint behind it, including Tauri's authenticated discovery.
+///
+/// Also how a WebDriver session's `debuggerAddress` becomes an endpoint
+/// (`BrowserSession::devtools_endpoint`).
+pub(crate) async fn resolve(
     address: &str,
     timeout: std::time::Duration,
 ) -> Result<(DevToolsEndpoint, Value), SeleniumBaseError> {

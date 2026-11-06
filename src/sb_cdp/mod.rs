@@ -77,7 +77,7 @@ mod channel;
 mod client;
 mod context;
 mod download;
-mod endpoint;
+pub(crate) mod endpoint;
 mod expect;
 mod frames;
 #[cfg(feature = "gui")]

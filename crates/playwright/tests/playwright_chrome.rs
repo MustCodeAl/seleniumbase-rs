@@ -1,4 +1,4 @@
-//! The bridge against a real Chrome.
+//! The sidecar against a real Chrome.
 //!
 //! These need a Chrome or Chromium on the machine, so they are ignored by default. Run them
 //! one binary at a time, headless:
@@ -14,13 +14,12 @@ use std::thread;
 use seleniumbase_rs::json::json;
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
 use seleniumbase_rs::tokio;
-use seleniumbase_rs::{Fingerprint, SeleniumBaseError};
-use seleniumbase_rs_playwright::{PlaywrightSession, StealthyPlaywright};
+use seleniumbase_rs::{BaseCase, BrowserConfig, ElementApi, Fingerprint};
+use seleniumbase_rs_playwright::rustwright::{ActionOptions, GotoOptions};
+use seleniumbase_rs_playwright::PlaywrightSidecar;
 
-const PAGE: &str = "<!doctype html><html><head><title>Playwright</title></head>\
-                    <body><h1 id=\"title\">hello</h1><input id=\"name\"></body></html>";
-
-/// Serves one page on a loopback port.
+/// Serves a page on a loopback port for every path: its title and heading are the path
+/// (`/second` is the page titled `second`), and it has one input, `#name`.
 fn serve() -> u16 {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind a loopback port");
     let port = listener.local_addr().expect("bound address").port();
@@ -28,11 +27,22 @@ fn serve() -> u16 {
         for stream in listener.incoming() {
             let Ok(mut stream) = stream else { continue };
             let mut buffer = [0_u8; 2048];
-            let _ = stream.read(&mut buffer);
+            let read = stream.read(&mut buffer).unwrap_or(0);
+            let request = String::from_utf8_lossy(&buffer[..read]);
+            let path = request
+                .lines()
+                .next()
+                .and_then(|line| line.split(' ').nth(1))
+                .unwrap_or("/");
+            let title = path.trim_matches('/');
+            let page = format!(
+                "<!doctype html><html><head><title>{title}</title></head>\
+                 <body><h1>{title}</h1><input id=\"name\"></body></html>"
+            );
             let response = format!(
                 "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\n\
-                 Connection: close\r\n\r\n{PAGE}",
-                PAGE.len()
+                 Connection: close\r\n\r\n{page}",
+                page.len()
             );
             let _ = stream.write_all(response.as_bytes());
         }
@@ -40,210 +50,103 @@ fn serve() -> u16 {
     port
 }
 
-fn headless() -> LaunchOptions {
-    LaunchOptions::builder()
-        .headless(true)
-        .build()
-        .expect("launch options")
-}
-
 #[tokio::test]
 #[ignore = "launches a real Chrome and attaches rustwright to it"]
 #[serial_test::serial(chrome)]
-async fn the_fingerprint_of_the_browser_reaches_the_attached_client_after_navigating() {
-    let port = serve();
+async fn the_sidecar_is_on_the_tab_of_its_target_and_leaves_the_browser_running() {
+    let base = format!("http://127.0.0.1:{}", serve());
     let options = LaunchOptions::builder()
         .headless(true)
         .fingerprint(&Fingerprint::windows_desktop())
         .build()
         .expect("launch options");
-    let stealthy = StealthyPlaywright::launch(options)
-        .await
-        .expect("the browser starts and rustwright attaches");
+    let browser = Browser::launch(options).await.expect("Chrome starts");
 
-    // The first page was about:blank when Playwright attached. The persona must still be
-    // presented once the page has navigated.
-    stealthy
-        .playwright()
-        .goto(&format!("http://127.0.0.1:{port}/"))
+    // Two tabs. Our API types into the second one, so reading the typed value back through
+    // rustwright proves the sidecar took the second tab and not the first.
+    let first = browser.default_page().await.expect("a first tab");
+    first
+        .goto(&format!("{base}/first"))
         .await
-        .expect("the page loads");
-    let platform = stealthy
-        .playwright()
-        .evaluate("navigator.platform")
+        .expect("the first page loads");
+    let mut second = browser
+        .new_page_at(format!("{base}/second"))
         .await
-        .expect("the page runs script");
-    assert_eq!(platform, json!("Win32"));
-
-    stealthy.close().await.expect("Chrome closes");
-}
-
-#[tokio::test]
-#[ignore = "launches a real Chrome and attaches rustwright to it"]
-#[serial_test::serial(chrome)]
-async fn an_attached_session_sees_the_open_page_and_leaves_the_browser_running() {
-    let port = serve();
-    let browser = Browser::launch(headless()).await.expect("Chrome starts");
-    let page = browser.default_page().await.expect("a first tab");
-    page.goto(&format!("http://127.0.0.1:{port}/"))
-        .await
-        .expect("the page loads");
-
-    let session = PlaywrightSession::attach(&browser)
-        .await
-        .expect("rustwright attaches");
-    // It works on the tab that was already open, not a blank new one.
-    assert_eq!(
-        session.get_text("#title").await.expect("the heading"),
-        "hello"
-    );
-    // Closing detaches; the browser it did not start keeps running.
-    session.close().await.expect("detaches");
-    assert_eq!(page.title().await.expect("still alive"), "Playwright");
-    browser.close().await.expect("Chrome closes");
-}
-
-#[tokio::test]
-#[ignore = "launches a real Chrome and attaches rustwright to it"]
-#[serial_test::serial(chrome)]
-async fn both_apis_work_on_the_same_tab() {
-    let port = serve();
-    let stealthy = StealthyPlaywright::launch(headless())
-        .await
-        .expect("the browser starts and rustwright attaches");
-
-    // Playwright navigates; the CDP API reads the same tab.
-    stealthy
-        .playwright()
-        .goto(&format!("http://127.0.0.1:{port}/"))
-        .await
-        .expect("the page loads");
-    let page = stealthy.cdp().default_page().await.expect("the tab");
-    assert_eq!(page.title().await.expect("the CDP title"), "Playwright");
-
-    // The CDP API navigates; Playwright reads the new document.
-    page.goto(&format!("http://127.0.0.1:{port}/?again"))
-        .await
-        .expect("the CDP navigation");
-    assert_eq!(
-        stealthy
-            .playwright()
-            .get_text("#title")
-            .await
-            .expect("the heading"),
-        "hello"
-    );
-
-    stealthy.close().await.expect("Chrome closes");
-}
-
-#[tokio::test]
-#[ignore = "launches a real Chrome and attaches rustwright to it"]
-#[serial_test::serial(chrome)]
-async fn a_page_opened_through_playwright_is_as_stealthy_as_the_first_one() {
-    let port = serve();
-    let mut stealthy = StealthyPlaywright::launch(headless())
-        .await
-        .expect("the browser starts and rustwright attaches");
-    let url = format!("http://127.0.0.1:{port}/");
-
-    stealthy.playwright().goto(&url).await.expect("first page");
-    let first = stealthy
-        .playwright()
-        .evaluate("navigator.webdriver === true")
-        .await
-        .expect("script runs");
-    stealthy
-        .playwright_mut()
-        .new_page()
-        .await
-        .expect("a new page");
-    stealthy.playwright().goto(&url).await.expect("second page");
-    let second = stealthy
-        .playwright()
-        .evaluate("navigator.webdriver === true")
-        .await
-        .expect("script runs");
-
-    assert_eq!(first, json!(false));
-    assert_eq!(second, first);
-    stealthy.close().await.expect("Chrome closes");
-}
-
-#[tokio::test]
-#[ignore = "launches a real Chrome and attaches rustwright to it"]
-#[serial_test::serial(chrome)]
-async fn a_missing_element_is_reported_as_not_found() {
-    let port = serve();
-    let stealthy = StealthyPlaywright::launch(headless())
-        .await
-        .expect("the browser starts and rustwright attaches");
-    stealthy
-        .playwright()
-        .goto(&format!("http://127.0.0.1:{port}/"))
-        .await
-        .expect("the page loads");
-
-    // rustwright waits for the element before giving up, so this takes a while.
-    let error = stealthy
-        .playwright()
-        .click("#not-on-this-page")
-        .await
-        .expect_err("there is nothing to click");
-    assert!(
-        matches!(error, SeleniumBaseError::ElementNotFound { .. }),
-        "{error:?}"
-    );
-
-    stealthy.close().await.expect("Chrome closes");
-}
-
-#[tokio::test]
-#[ignore = "launches a real Chrome and attaches rustwright to it"]
-#[serial_test::serial(chrome)]
-async fn the_page_actions_fill_read_evaluate_and_capture_the_attached_page() {
-    let port = serve();
-    let stealthy = StealthyPlaywright::launch(headless())
-        .await
-        .expect("the browser starts and rustwright attaches");
-    let session = stealthy.playwright();
-    session
-        .goto(&format!("http://127.0.0.1:{port}/"))
-        .await
-        .expect("the page loads");
-    assert!(session.is_connected() && session.browser().is_connected());
-
-    session
+        .expect("a second tab");
+    second
         .type_text("#name", "Ada")
         .await
-        .expect("the field is filled");
-    assert_eq!(
-        session
-            .evaluate("document.querySelector('#name').value")
-            .await
-            .expect("script runs"),
-        json!("Ada")
-    );
+        .expect("our API types into the second tab");
 
-    // Everything else rustwright can do is reached through the closure, which gets a clone of
-    // the page handle that `page()` lends.
-    let _engine_page: seleniumbase_rs_playwright::rustwright::Page = session.page().clone();
-    let title = session
-        .with_page(|page| page.title(Default::default()))
+    let sidecar = PlaywrightSidecar::attach(&second)
         .await
-        .expect("the title");
-    assert_eq!(title, "Playwright");
-
-    let shot = std::env::temp_dir().join(format!("sbrs-playwright-{port}.png"));
-    session
-        .screenshot(&shot)
+        .expect("rustwright attaches to the tab of `second`");
+    assert!(sidecar.is_connected() && sidecar.browser().is_connected());
+    let typed = sidecar
+        .run(|pw| {
+            pw.evaluate(
+                "document.querySelector('#name').value",
+                None,
+                ActionOptions::default(),
+            )
+        })
         .await
-        .expect("the screenshot is written");
-    assert!(shot.metadata().expect("the file exists").len() > 0);
-    let _ = std::fs::remove_file(&shot);
+        .expect("script runs in the second tab");
+    assert_eq!(typed, json!("Ada"));
 
-    // The endpoint for other clients is the one the session attached to.
-    assert_eq!(stealthy.endpoint().http_url(), stealthy.cdp().http_url());
+    // rustwright navigates; our handle follows the same tab. The browser's persona is still
+    // presented after the navigation, and the tab is not flagged as automated.
+    let third = format!("{base}/third");
+    sidecar
+        .run({
+            let third = third.clone();
+            move |pw| pw.goto(&third, GotoOptions::default()).map(drop)
+        })
+        .await
+        .expect("rustwright navigates");
+    assert_eq!(second.url().await.expect("our URL"), third);
+    let platform = sidecar
+        .run(|pw| pw.evaluate("navigator.platform", None, ActionOptions::default()))
+        .await
+        .expect("script runs");
+    assert_eq!(platform, json!("Win32"));
+    let flagged = sidecar
+        .run(|pw| {
+            pw.evaluate(
+                "navigator.webdriver === true",
+                None,
+                ActionOptions::default(),
+            )
+        })
+        .await
+        .expect("script runs");
+    assert_eq!(flagged, json!(false));
 
-    stealthy.close().await.expect("Chrome closes");
+    // A `BaseCase` on the same browser, through a direct CDP attachment, has a tab of its
+    // own: a sidecar beside it is on that tab, whichever one the case took.
+    let mut sb = BaseCase::new(BrowserConfig::default().with_cdp_url(browser.http_url()))
+        .await
+        .expect("a case attaches to the running browser");
+    let case_url = sb.get_current_url().await.expect("the case's URL");
+    let beside_case = PlaywrightSidecar::attach(&sb)
+        .await
+        .expect("rustwright attaches to the case's tab");
+    let seen = beside_case
+        .run(|pw| Ok(pw.url()))
+        .await
+        .expect("rustwright reads the URL");
+    assert_eq!(seen, case_url);
+    beside_case.close().await.expect("detaches from the case");
+    sb.quit().await.expect("the case detaches");
+
+    // Closing detaches: the browser and the tab keep running and answering.
+    sidecar.close().await.expect("detaches");
+    assert_eq!(second.title().await.expect("the tab is alive"), "third");
+
+    // Closing again, once the browser itself is gone, is not an error.
+    browser.close().await.expect("Chrome closes");
+    sidecar
+        .close()
+        .await
+        .expect("a sidecar whose browser is gone closes quietly");
 }

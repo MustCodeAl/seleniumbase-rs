@@ -157,6 +157,7 @@ hidden: true
   - [The sbrs CLI on usage](design/usage-cli.md)
   - [The dev MCP server](design/mcp-dev-tools.md)
   - [A trace viewer for the pure CDP engine](design/trace_viewer.md)
+  - [Stealthy Playwright Mode on the BaseCase API](design/playwright_basecase.md)
 
 - [ABI & API Stability](ABI_API.md)
 - [Architecture Decision Records](adr/001-stealth-architecture.md)

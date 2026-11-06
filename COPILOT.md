@@ -30,7 +30,7 @@ last raised. Raise it deliberately and keep the `msrv` CI job and the
 |-----------|---------|
 | `src/api/` | `BaseCase` and capability traits (`BrowserApi`, `ElementApi`, `AssertionApi`, `ScreenshotApi`). |
 | `src/api/base_case_impls/` | Modular `BaseCase` method implementations. |
-| `src/browser/` | `BrowserConfig`, `BrowserSession`, `PlaywrightSession`, launcher/downloader. |
+| `src/browser/` | `BrowserConfig`, `BrowserSession`, launcher/downloader. |
 | `src/evasion/` | Anti-detection: CDP wrappers, evasions, fingerprint profiles, binary patcher, reactor. |
 | `src/profile_payloads/` | External browser profile JSON parsing and conversion. |
 | `src/macros.rs` | User-facing macros (`selector!`, `sb_test!`, `sb_click!`, `fingerprint!`, etc.). |

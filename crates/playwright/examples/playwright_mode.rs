@@ -1,11 +1,11 @@
-//! Stealthy Playwright Mode: Playwright attached to a stealthy CDP browser.
+//! Stealthy Playwright Mode: this project's API on a stealthy browser, and Playwright beside it.
 //!
-//! `StealthyPlaywright::launch` starts a pure-CDP browser the way `seleniumbase_rs::sb_cdp`
-//! does, with its stealth launch switches, and attaches rustwright (the Rust port of
-//! Playwright) to it over the DevTools Protocol. Both APIs then work on the same tab: the
-//! example loads a page with Playwright, reads it back with the CDP API, and takes a
-//! screenshot. This is Python SeleniumBase's
-//! `p.chromium.connect_over_cdp(sb.get_endpoint_url())`.
+//! The stealthy pure-CDP browser is driven with the same API as every other page of the
+//! documentation (`BrowserApi`, `ElementApi`, `ScreenshotApi` and `Page::evaluate` on an
+//! `sb_cdp::Page`). Playwright joins only for what that API does not do: `PlaywrightSidecar`
+//! attaches rustwright (the Rust port of Playwright) to the same tab over the DevTools
+//! Protocol, and `run` hands it a closure with the rustwright page. This is Python
+//! SeleniumBase's `p.chromium.connect_over_cdp(sb.get_endpoint_url())`.
 //!
 //! Run it with:
 //!
@@ -22,10 +22,10 @@ use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::thread;
 
-use seleniumbase_rs::artifacts::ensure_latest_logs_dir;
-use seleniumbase_rs::sb_cdp::LaunchOptions;
+use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
 use seleniumbase_rs::tokio;
-use seleniumbase_rs_playwright::StealthyPlaywright;
+use seleniumbase_rs::{BrowserApi, ElementApi, ScreenshotApi};
+use seleniumbase_rs_playwright::PlaywrightSidecar;
 
 const PAGE: &str = "<!doctype html><html><head><title>Stealthy Playwright</title></head>\
                     <body><h1 id=\"title\">Hello from a stealthy browser</h1></body></html>";
@@ -54,35 +54,40 @@ fn serve() -> std::io::Result<u16> {
 async fn main() -> seleniumbase_rs::Result<()> {
     let url = format!("http://127.0.0.1:{}/", serve()?);
 
-    let stealthy =
-        StealthyPlaywright::launch(LaunchOptions::builder().headless(true).build()?).await?;
-    let outcome = drive(&stealthy, &url).await;
-    // Detach Playwright and close the browser, whatever the run did.
-    let closed = stealthy.close().await;
+    let browser = Browser::launch(LaunchOptions::builder().headless(true).build()?).await?;
+    let outcome = drive(&browser, &url).await;
+    // Close the browser, whatever the run did.
+    let closed = browser.close().await;
     outcome.and(closed)
 }
 
-/// Uses the Playwright API and the CDP API on the one browser.
-async fn drive(stealthy: &StealthyPlaywright, url: &str) -> seleniumbase_rs::Result<()> {
-    let playwright = stealthy.playwright();
+/// Uses this project's API on the browser, then Playwright beside it on the same tab.
+async fn drive(browser: &Browser, url: &str) -> seleniumbase_rs::Result<()> {
+    let mut page = browser.default_page().await?;
 
-    // Playwright loads the page and reads it ...
-    playwright.goto(url).await?;
-    println!("Page heading: {}", playwright.get_text("h1").await?);
+    // This project's API: open the page, read it, check the stealth, take a screenshot.
+    page.open(url).await?;
+    println!("Page heading: {}", page.get_text("h1").await?);
     println!(
         "Flagged as automated (navigator.webdriver === true): {}",
-        playwright.evaluate("navigator.webdriver === true").await?
+        page.evaluate("navigator.webdriver === true").await?
     );
-
-    // ... and the CDP API sees the same tab.
-    let page = stealthy.cdp().default_page().await?;
-    println!("Page title (CDP): {}", page.title().await?);
-
-    let screenshot = ensure_latest_logs_dir()?.join("playwright_example.png");
-    playwright.screenshot(&screenshot).await?;
+    let screenshot = page.save_screenshot("playwright_example.png").await?;
     println!("Screenshot saved to {}", screenshot.display());
 
+    // Playwright, for what that API does not do, on the same tab. Attach late, detach early.
+    let playwright = PlaywrightSidecar::attach(&page).await?;
+    // `title` stands in for a call only Playwright has: our own API reads it with `page.title()`.
+    let theirs = playwright.run(|pw| pw.title(Default::default())).await;
+    let detached = playwright.close().await;
+    println!("Page title (our API): {}", page.title().await?);
+    println!("Page title (rustwright, same tab): {}", theirs?);
+    detached?;
+
     // The endpoint is what other clients attach to (Playwright MCP, chrome-devtools-mcp).
-    println!("DevTools endpoint: {}", stealthy.endpoint().http_url());
+    println!(
+        "DevTools endpoint: {}",
+        browser.devtools_endpoint().http_url()
+    );
     Ok(())
 }

@@ -14,11 +14,17 @@ use thirtyfour::extensions::cdp::NetworkConditions;
 
 use crate::browser::config::BrowserConfig;
 use crate::browser::options::CdpEvent;
+use crate::browser::proxy_auth;
 use crate::error::SeleniumBaseError;
 use crate::evasion::cdp::CdpClient;
 use crate::evasion::uc;
+use crate::sb_cdp::DevToolsEndpoint;
 
 use super::BrowserSession;
+
+/// How long [`BrowserSession::devtools_endpoint`] waits for a driver's browser
+/// to answer its `/json/version` probe.
+const DEVTOOLS_PROBE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
 impl BrowserSession {
     /// A DevTools Protocol client for this session, whatever its
@@ -39,6 +45,46 @@ impl BrowserSession {
             SeleniumBaseError::Unsupported("the session has no browser driver".to_owned())
         })?;
         Ok(CdpClient::from_handle(driver.handle().clone()))
+    }
+
+    /// The DevTools endpoint of the browser this session drives: the addresses
+    /// another DevTools client attaches to (Python's `get_endpoint_url()`),
+    /// such as a Playwright client (`PlaywrightSidecar::connect`).
+    ///
+    /// A direct CDP attachment answers the endpoint of its browser. A
+    /// WebDriver Chromium session reads the `debuggerAddress` its driver
+    /// reported and asks that address for the browser's WebSocket address
+    /// (`/json/version`).
+    ///
+    /// # Errors
+    ///
+    /// [`SeleniumBaseError::SessionNotStarted`] after [`quit`](Self::quit).
+    /// [`SeleniumBaseError::Unsupported`] when the driver reported no
+    /// `debuggerAddress` (Firefox, Safari, a grid that hides it), as
+    /// [`devtools`](Self::devtools) does for a session that is not connected.
+    /// [`SeleniumBaseError::CdpDriver`] when that address does not answer or
+    /// advertises no WebSocket.
+    pub async fn devtools_endpoint(&self) -> Result<DevToolsEndpoint, SeleniumBaseError> {
+        if let Some(page) = &self.external_page {
+            return Ok(page.browser().devtools_endpoint());
+        }
+        let capabilities =
+            serde_json::to_value(self.webdriver()?.handle().capabilities()).unwrap_or(Value::Null);
+        let address = proxy_auth::debugger_address(&capabilities).ok_or_else(|| {
+            SeleniumBaseError::Unsupported(
+                "the driver reported no DevTools address (debuggerAddress): only a Chromium \
+                 session has an endpoint to share"
+                    .to_owned(),
+            )
+        })?;
+        let address = if address.contains("://") {
+            address
+        } else {
+            format!("http://{address}")
+        };
+        let (endpoint, _version) =
+            crate::sb_cdp::endpoint::resolve(&address, DEVTOOLS_PROBE_TIMEOUT).await?;
+        Ok(endpoint)
     }
 
     /// The pure CDP tab of an external attachment, or `None` for WebDriver.
@@ -255,5 +301,40 @@ impl BrowserSession {
                 "CDP is unavailable for this session. Enable mode cdp or uc.".to_owned(),
             )
         })
+    }
+}
+
+#[cfg(test)]
+mod endpoint_tests {
+    use super::*;
+    use crate::sb_cdp::Browser;
+
+    #[tokio::test]
+    async fn a_direct_attachment_answers_the_endpoint_of_its_browser() {
+        let (browser, _mock) = Browser::new_mocked();
+        let page = browser.default_page().await.expect("a page on the mock");
+        let mut session = BrowserSession::disconnected();
+        session.external_page = Some(page);
+
+        let endpoint = session
+            .devtools_endpoint()
+            .await
+            .expect("an attachment has its browser's endpoint");
+
+        // What `Browser::http_url` says of the mock (`tests/offline/sb_cdp_parity_mock.rs`).
+        assert_eq!(endpoint.http_url(), "http://127.0.0.1:0");
+        assert_eq!(endpoint, browser.devtools_endpoint());
+    }
+
+    #[tokio::test]
+    async fn a_session_that_is_not_connected_has_no_endpoint() {
+        let session = BrowserSession::disconnected();
+
+        let error = session.devtools_endpoint().await.expect_err("no session");
+
+        assert!(
+            matches!(error, SeleniumBaseError::SessionNotStarted),
+            "{error:?}"
+        );
     }
 }

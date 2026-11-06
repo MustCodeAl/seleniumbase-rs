@@ -3,8 +3,8 @@ title: "Stealth with Playwright mode"
 sidebarTitle: "Playwright mode"
 ---
 
-[Playwright mode](/help/playwright_mode) attaches rustwright to a stealthy
-browser. This is how a [fingerprint](/stealth/fingerprints) reaches its pages.
+[Playwright mode](/help/playwright_mode) attaches rustwright beside a stealthy
+browser's page. This is how a [fingerprint](/stealth/fingerprints) reaches its pages.
 
 
 <Badge color="blue">Crate: seleniumbase-rs-playwright</Badge>
@@ -16,24 +16,32 @@ presents. The bridge is the separate crate `seleniumbase-rs-playwright`; the
 library has no `playwright` feature.
 
 ```rust,no_run
-use seleniumbase_rs::sb_cdp::LaunchOptions;
-use seleniumbase_rs::{tokio, Fingerprint};
-use seleniumbase_rs_playwright::StealthyPlaywright;
+use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
+use seleniumbase_rs::{tokio, BrowserApi, Fingerprint};
+use seleniumbase_rs_playwright::PlaywrightSidecar;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> seleniumbase_rs::Result<()> {
     let options = LaunchOptions::builder()
         .headless(true)
         .fingerprint(&Fingerprint::windows_desktop())
         .build()?;
-    let stealthy = StealthyPlaywright::launch(options).await?;
+    let browser = Browser::launch(options).await?;
 
-    stealthy.playwright().goto("https://example.com").await?;
-    // "Win32": the persona is still presented after the navigation.
-    println!("{}", stealthy.playwright().evaluate("navigator.platform").await?);
+    // Our page opens the site ...
+    let mut page = browser.default_page().await?;
+    page.open("https://example.com").await?;
 
-    stealthy.close().await?;
-    Ok(())
+    // ... and the sidecar, attached to the same tab, evaluates in it.
+    let playwright = PlaywrightSidecar::attach(&page).await?;
+    // "Win32": the persona is still presented to the attached client.
+    let platform = playwright
+        .run(|pw| pw.evaluate("navigator.platform", None, Default::default()))
+        .await?;
+    println!("{platform}");
+
+    playwright.close().await?;
+    browser.close().await
 }
 ```
 

@@ -1,19 +1,21 @@
 ---
 title: "Playwright bridge API"
 sidebarTitle: "Playwright bridge"
-description: "PlaywrightSession and StealthyPlaywright of the seleniumbase-rs-playwright crate: attach rustwright to a stealthy browser, with every method, its errors and examples."
-keywords: ["playwright", "rustwright", "PlaywrightSession", "StealthyPlaywright", "connect_over_cdp", "attach", "with_page", "stealth", "sb_cdp"]
+description: "PlaywrightSidecar and PlaywrightTarget of the seleniumbase-rs-playwright crate: attach rustwright beside an sb_cdp Page or a BaseCase, with every method, its errors and examples."
+keywords: ["playwright", "rustwright", "PlaywrightSidecar", "PlaywrightTarget", "attach", "connect", "run", "devtools_endpoint", "stealth", "sb_cdp"]
 ---
 
 <Note>
 
-This page is the reference for the crate `seleniumbase-rs-playwright`. The guide, with the three formats that map from Python and the conversion of a regular Playwright script, is [Playwright mode](/help/playwright_mode). The browser the bridge attaches to is the [pure CDP engine](/tutorials/pure_cdp) (`sb_cdp`), which is what Python's CDP Mode (`sb.cdp`) maps to.
+This page is the reference for the crate `seleniumbase-rs-playwright`. The guide, with the Python formats that map to Rust, the table of Playwright calls and the conversion of a regular Playwright script, is [Playwright mode](/help/playwright_mode). The browser the bridge attaches to is the [pure CDP engine](/tutorials/pure_cdp) (`sb_cdp`), which is what Python's CDP Mode (`sb.cdp`) maps to, or the Chrome of a `BaseCase` in UC mode.
 
 </Note>
 
 ## The crate
 
-Stealthy Playwright Mode, as in Python SeleniumBase: [`rustwright`](https://github.com/Skyvern-AI/rustwright), a Rust port of Playwright with a native CDP engine, attaches to a stealthy `sb_cdp` browser through its DevTools endpoint (`connect_over_cdp`). The browser keeps its fingerprint, proxy and launch switches, and the CDP API and the Playwright API then work on the same tabs.
+Stealthy Playwright Mode, as in Python SeleniumBase: [`rustwright`](https://github.com/Skyvern-AI/rustwright), a Rust port of Playwright with a native CDP engine, attaches to a stealthy browser through its DevTools endpoint (`connect_over_cdp`). The browser keeps its fingerprint, proxy and launch switches.
+
+The stealthy browser is driven with this project's own API: the capability traits `BrowserApi`, `ElementApi`, `AssertionApi` and `ScreenshotApi` that `sb_cdp::Page` and `BaseCase` implement, plus their SeleniumBase extras such as `solve_captcha`. The bridge wraps no Playwright call. Playwright joins, on the same tab, for what that API does not do.
 
 The bridge is a separate crate, not a feature of the library. `seleniumbase-rs` has no `playwright` feature and no `rustwright` dependency; a project that does not list the bridge never compiles `rustwright`. It is a bridge, not a `Plugin`. Add it next to the library:
 
@@ -27,66 +29,122 @@ The crate root has three public items:
 
 | Item | What it is |
 |---|---|
-| `PlaywrightSession` | A rustwright client attached to a running Chromium, with one active page. |
-| `StealthyPlaywright` | A stealthy `sb_cdp` browser and a `PlaywrightSession` attached to it, launched in one call. |
+| `PlaywrightSidecar` | A rustwright client attached beside one of this project's handles, on the tab that handle is on. |
+| `PlaywrightTarget` | The sealed trait of the handles a sidecar attaches beside: `sb_cdp::Page` and `BaseCase`. |
 | `rustwright` | The whole `rustwright` crate, re-exported (`pub use rustwright;`), so a project lists one dependency. |
 
 All examples on this page import only from `seleniumbase_rs` and `seleniumbase_rs_playwright`.
 
-## PlaywrightSession
+## PlaywrightSidecar
 
 ```rust
-pub struct PlaywrightSession { /* private fields */ }
+pub struct PlaywrightSidecar { /* private fields */ }
 ```
 
-A `rustwright` client attached to a running Chromium, with one active page. It never starts a browser. The attached page keeps whatever fingerprint, proxy and launch switches the browser was started with; the session changes none of them.
+A `rustwright` client attached to a running Chromium, on one tab. The name follows `ProxyAuthSidecar`, a DevTools client attached beside a WebDriver session: a sidecar never starts a browser and never closes one. The attached page keeps whatever fingerprint, proxy and launch switches the browser was started with; the sidecar changes none of them. While it is attached, rustwright is one more DevTools client of the browser, so attach late and detach early.
 
-rustwright's page calls block the thread they run on, so every `async` method of the session runs its call on Tokio's blocking pool and the runtime is never stalled. `close` only detaches: a browser that another handle owns is never shut down from the session.
+rustwright's page calls block the thread they run on, so `run` runs its closure on Tokio's blocking pool and the runtime is never stalled. `close` only detaches: a browser that another handle owns is never shut down from the sidecar.
 
-`PlaywrightSession` implements `Debug`; it prints the `connected` flag and nothing else, because rustwright's handles are not `Debug`.
+`PlaywrightSidecar` implements `Debug`; it prints the `connected` flag and nothing else, because rustwright's handles are not `Debug`.
 
 ### Attaching
 
 ```rust
-pub async fn attach(browser: &sb_cdp::Browser) -> Result<Self, SeleniumBaseError>
-pub async fn connect_over_cdp(endpoint: &str) -> Result<Self, SeleniumBaseError>
-pub async fn connect_with(options: ConnectOptions) -> Result<Self, SeleniumBaseError>
+pub async fn attach(target: &impl PlaywrightTarget) -> Result<Self, SeleniumBaseError>
+pub async fn connect(endpoint: &DevToolsEndpoint) -> Result<Self, SeleniumBaseError>
 ```
 
-- `attach(&browser)` attaches to a browser launched through `sb_cdp`, using the HTTP address of its DevTools endpoint (`Browser::http_url()`). It calls `connect_over_cdp` with that address.
-- `connect_over_cdp(endpoint)` attaches to any Chromium that is already running: an `http://host:port` address or a `ws://` URL. A chromedriver session reports its `debuggerAddress` as a bare `host:port`; put `http://` in front of it.
-- `connect_with(options)` attaches as the rustwright `ConnectOptions` say, for a timeout or request headers that `connect_over_cdp` does not set. `connect_over_cdp(endpoint)` is `connect_with(ConnectOptions::new(endpoint))`.
+- `attach(&target)` attaches to the browser of `target` and works on the tab `target` is on. The target is an `sb_cdp::Page` or a `BaseCase`. A user of `sb_cdp::Browser` calls `default_page()` first. The attach waits as long as the target waits by default (`Page::timeout()`, `BaseCase::timeout_secs()`).
+- `connect(&endpoint)` attaches to any Chromium's DevTools endpoint (`seleniumbase_rs::sb_cdp::DevToolsEndpoint`) and works on the first page it lists, or on a new one if it has none. It is for a browser that no handle of this project drives; with a handle, `attach` picks the right tab. `Browser::devtools_endpoint()` and `BaseCase::devtools_endpoint()` give the endpoint of a browser this project drives, and `Browser::connect(host, port)` attaches the pure CDP engine to one that something else started.
 
-All three work on the first page the browser has open, or on a new one if it has none. Open the page you want with the CDP API first (the order Python SeleniumBase asks for with an authenticated proxy) and the session starts on that page. Each fails with `SeleniumBaseError::Playwright` if nothing answers at the endpoint, the browser cannot be controlled, or the attach times out.
+Both fail with `SeleniumBaseError::Playwright` if nothing answers at the endpoint, the browser cannot be controlled, or the attach times out. `attach` also returns the errors of the target: `Unsupported` for a `BaseCase` whose browser has no DevTools endpoint to share (Firefox, Safari, a grid that hides it), and `SessionNotStarted` for a `BaseCase` after `quit`.
 
 ```rust,no_run
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
 use seleniumbase_rs::tokio;
-use seleniumbase_rs_playwright::rustwright::ConnectOptions;
-use seleniumbase_rs_playwright::PlaywrightSession;
+use seleniumbase_rs::{AssertionApi, BrowserApi};
+use seleniumbase_rs_playwright::PlaywrightSidecar;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> seleniumbase_rs::Result<()> {
     let browser = Browser::launch(LaunchOptions::builder().headless(true).build()?).await?;
+    let mut page = browser.default_page().await?;
 
-    // The same endpoint, attached three ways, one after the other.
-    let session = PlaywrightSession::attach(&browser).await?;
-    println!("attach: {}", session.is_connected());
-    session.close().await?; // detaches; the browser keeps running
+    // This project's API on the stealthy browser.
+    page.open("https://example.com").await?;
+    page.assert_text("Example Domain", "h1").await?;
 
-    let session = PlaywrightSession::connect_over_cdp(&browser.http_url()).await?;
-    println!("connect_over_cdp: {}", session.is_connected());
-    session.close().await?;
+    // Playwright only for what that API does not do, on the same tab.
+    let playwright = PlaywrightSidecar::attach(&page).await?;
+    // `title` stands in for a call only Playwright has: our own API reads it with
+    // `page.title()`, and the closure sees the same tab.
+    let ours = page.title().await?;
+    let theirs = playwright.run(|pw| pw.title(Default::default())).await?;
+    assert_eq!(ours, theirs);
+    println!("{theirs}");
 
-    let options = ConnectOptions::new(&browser.http_url());
-    let session = PlaywrightSession::connect_with(options).await?;
-    println!("connect_with: {}", session.is_connected());
-    session.close().await?;
-
-    browser.close().await?;
-    Ok(())
+    playwright.close().await?; // detaches; the browser and the tab stay
+    browser.close().await
 }
 ```
+
+A `BaseCase` is a target too. In UC mode it is Python's `SB(uc=True)` with a Playwright page beside it:
+
+```rust,no_run
+use seleniumbase_rs::tokio;
+use seleniumbase_rs::{BaseCase, BrowserConfig, DriverMode};
+use seleniumbase_rs_playwright::PlaywrightSidecar;
+
+#[tokio::main]
+async fn main() -> seleniumbase_rs::Result<()> {
+    let mut sb = BaseCase::new(BrowserConfig::default().with_mode(DriverMode::Uc)).await?;
+    sb.open("https://example.com").await?;
+
+    let playwright = PlaywrightSidecar::attach(&sb).await?; // the window `sb` is on
+    // `title` stands in for a call only Playwright has: our own API reads it with
+    // `sb.get_title()`, and the closure sees the same window.
+    let theirs = playwright.run(|pw| pw.title(Default::default())).await?;
+    assert_eq!(sb.get_title().await?, theirs);
+    sb.assert_element("h1").await?;
+
+    playwright.close().await?;
+    sb.quit().await
+}
+```
+
+A browser that something else started, with `connect`:
+
+```rust,no_run
+use seleniumbase_rs::sb_cdp::Browser;
+use seleniumbase_rs::tokio;
+use seleniumbase_rs_playwright::PlaywrightSidecar;
+
+#[tokio::main]
+async fn main() -> seleniumbase_rs::Result<()> {
+    // A Chrome started with --remote-debugging-port=9222.
+    let browser = Browser::connect("127.0.0.1", 9222).await?;
+
+    let playwright = PlaywrightSidecar::connect(&browser.devtools_endpoint()).await?;
+    // `title` stands in for a call only Playwright has: our own API reads it with
+    // `browser.default_page().await?.title()`.
+    let title = playwright.run(|pw| pw.title(Default::default())).await?;
+    println!("{title}");
+
+    playwright.close().await?;
+    browser.close().await // detaches; the browser keeps running
+}
+```
+
+### Which tab `attach` takes
+
+The sidecar must be on the tab its target is on, not on whichever page the browser lists first. `attach` gets two hints from the target and picks one of the browser's pages:
+
+| Target | Tab id hint | URL hint |
+|---|---|---|
+| `sb_cdp::Page` | `Page::id()`, the tab's DevTools target id | `Page::url()` |
+| `BaseCase` | `BaseCase::get_current_window_handle()`, when the session has one | `BaseCase::get_current_url()` |
+
+A page whose target id is the id hint wins. Otherwise the one page whose URL is the URL hint is taken. If neither picks exactly one page, `attach` returns `SeleniumBaseError::Playwright` naming the URLs that are open: it never guesses, because a silent wrong tab is worse than an error. Two tabs on the same URL are therefore refused unless the id tells them apart: attach beside the `sb_cdp::Page` of the tab, or give the tabs different URLs. For a `BaseCase` on a direct CDP attachment (`BrowserConfig::with_cdp_url`) there is no window handle, so the URL decides. A chromedriver window handle is compared with the target id as it is; when it is not equal, the URL hint decides.
 
 ### Handles
 
@@ -96,111 +154,53 @@ pub fn page(&self) -> &Page
 pub fn is_connected(&self) -> bool
 ```
 
-- `browser()` is the `rustwright::Browser` the session is attached to.
-- `page()` is the active `rustwright::Page`. It is a cheap handle: clone it to move it elsewhere. Its calls block, so use it only on a thread that may block; from async code use `with_page`.
+- `browser()` is the `rustwright::Browser` the sidecar is attached to.
+- `page()` is the `rustwright::Page` the sidecar is on. It is a cheap handle: clone it to move it elsewhere. Its calls block, so use it only on a thread that may block; from async code use `run`.
 - `is_connected()` is true while the connection to the browser is open.
 
-### with_page
+### run
 
 ```rust
-pub async fn with_page<T, F>(&self, work: F) -> Result<T, SeleniumBaseError>
+pub async fn run<T, F>(&self, work: F) -> Result<T, SeleniumBaseError>
 where
     F: FnOnce(Page) -> Result<T, RwError> + Send + 'static,
     T: Send + 'static,
 ```
 
-Runs `work` with the active page on Tokio's blocking pool and returns its result. This is the way to use any rustwright page call from async code, so everything rustwright can do is one call away. `RwError` is `rustwright::Error`. If `work` fails, the result is `SeleniumBaseError::Playwright` with the text of the rustwright error.
+Runs `work` with the rustwright page on Tokio's blocking pool and returns its result. This is the way to use any rustwright page call from async code, so everything rustwright can do is one call away. `RwError` is `rustwright::Error`.
 
-```rust,no_run
-use seleniumbase_rs::sb_cdp::LaunchOptions;
-use seleniumbase_rs::tokio;
-use seleniumbase_rs_playwright::StealthyPlaywright;
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let stealthy =
-        StealthyPlaywright::launch(LaunchOptions::builder().headless(true).build()?).await?;
-
-    let title = stealthy
-        .playwright()
-        .with_page(|page| {
-            page.goto("https://example.com", Default::default())?;
-            page.title(Default::default())
-        })
-        .await?;
-    println!("{title}");
-
-    stealthy.close().await?;
-    Ok(())
-}
-```
-
-### Page actions
-
-```rust
-pub async fn new_page(&mut self) -> Result<(), SeleniumBaseError>
-pub async fn goto(&self, url: &str) -> Result<(), SeleniumBaseError>
-pub async fn click(&self, selector: &str) -> Result<(), SeleniumBaseError>
-pub async fn type_text(&self, selector: &str, text: &str) -> Result<(), SeleniumBaseError>
-pub async fn get_text(&self, selector: &str) -> Result<String, SeleniumBaseError>
-pub async fn evaluate(&self, expression: &str) -> Result<Value, SeleniumBaseError>
-pub async fn screenshot(&self, path: &Path) -> Result<(), SeleniumBaseError>
-```
-
-| Method | What it does | Errors |
-|---|---|---|
-| `new_page()` | Opens a new page in the browser and makes it the active one. It takes `&mut self`; on a `StealthyPlaywright` call it through `playwright_mut()`. | `Playwright` if the page cannot be created. |
-| `goto(url)` | Navigates the active page to `url`. | `Navigation` if the page cannot be loaded. |
-| `click(selector)` | Clicks the element selected by `selector`. | The element errors below. |
-| `type_text(selector, text)` | Clears the element and types `text` into it (rustwright `fill`). | The element errors below. |
-| `get_text(selector)` | Returns the text content of the element; an element with no text content gives an empty `String`. | The element errors below. |
-| `evaluate(expression)` | Evaluates `expression` in the active page and returns the JSON result as a `seleniumbase_rs::json::Value`. | `Playwright` if the script throws. |
-| `screenshot(path)` | Saves a screenshot of the active page to `path`. | `Screenshot` if the page cannot be captured or the file cannot be written. |
-
-`click`, `type_text` and `get_text` map rustwright's failure to the errors the other engines return:
+`run` maps only the failures that mean the same here as everywhere else in the project; every other failure stays `Playwright` with the text rustwright gave. There is no selector to name, so no element error is made up:
 
 | rustwright reports | `SeleniumBaseError` |
 |---|---|
-| The wait ended with no element matched | `ElementNotFound` |
-| The element is detached from the page, whether it never was in it or went away while rustwright waited | `ElementNotFound` |
-| Any other actionability failure, for example an element that cannot be clicked | `ElementNotInteractable`, with rustwright's reason |
-| An action timeout or a plain timeout | `WaitTimeout` |
 | The connection closed or dropped, the target closed, or the page crashed | `BrowserDisconnected` |
-| An action failure | The same table applied to its cause |
-| Anything else | `Playwright` |
+| An action timeout or a plain timeout | `WaitTimeout` |
+| An action failure | The same table applied to its cause; the failure's own text if the cause is neither of the above |
+| Anything else, including a failed actionability check | `Playwright`, with rustwright's text |
+
+A panic in `work` is a `Playwright` error too, not a hang.
 
 ```rust,no_run
-use std::path::Path;
-
-use seleniumbase_rs::sb_cdp::LaunchOptions;
+use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
 use seleniumbase_rs::tokio;
-use seleniumbase_rs::SeleniumBaseError;
-use seleniumbase_rs_playwright::StealthyPlaywright;
+use seleniumbase_rs_playwright::rustwright::GotoOptions;
+use seleniumbase_rs_playwright::PlaywrightSidecar;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut stealthy =
-        StealthyPlaywright::launch(LaunchOptions::builder().headless(true).build()?).await?;
+async fn main() -> seleniumbase_rs::Result<()> {
+    let browser = Browser::launch(LaunchOptions::builder().headless(true).build()?).await?;
+    let page = browser.default_page().await?;
+    let playwright = PlaywrightSidecar::attach(&page).await?;
 
-    let session = stealthy.playwright_mut();
-    session.new_page().await?; // a new tab, now the active page
-    session.goto("https://example.com/login").await?;
-    session.type_text("#user", "alice").await?;
-    session.click("#submit").await?;
+    // Any rustwright call goes here. Navigating (our own is `page.goto`) only shows that the
+    // rustwright page and `page` are one tab: `page.url()` follows it.
+    playwright
+        .run(|pw| pw.goto("https://example.com", GotoOptions::default()).map(drop))
+        .await?;
+    println!("{}", page.url().await?);
 
-    match session.get_text("#welcome").await {
-        Ok(text) => println!("{text}"),
-        Err(SeleniumBaseError::ElementNotFound { .. }) => println!("the page shows no welcome"),
-        Err(SeleniumBaseError::WaitTimeout { .. }) => println!("the page took too long"),
-        Err(other) => return Err(other.into()),
-    }
-
-    let title = session.evaluate("document.title").await?;
-    println!("{title}");
-    session.screenshot(Path::new("login.png")).await?;
-
-    stealthy.close().await?;
-    Ok(())
+    playwright.close().await?;
+    browser.close().await
 }
 ```
 
@@ -210,62 +210,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 pub async fn close(&self) -> Result<(), SeleniumBaseError>
 ```
 
-Closes this client's connection. The browser it attached to keeps running; whoever started it shuts it down (for a browser from `sb_cdp`, its own `close`). It fails with `SeleniumBaseError::Playwright` if the connection does not close cleanly.
+Detaches this client. The browser and its tabs stay; whoever started the browser shuts it down (for one from `sb_cdp`, its own `close`). Closing a sidecar whose connection has already ended, for instance after `Browser::close`, is `Ok`. It fails with `SeleniumBaseError::Playwright` if the connection does not close cleanly.
 
-## StealthyPlaywright
+## PlaywrightTarget
 
 ```rust
-#[derive(Debug)]
-pub struct StealthyPlaywright { /* private fields */ }
+pub trait PlaywrightTarget: /* sealed */ {}
 ```
 
-A stealthy pure CDP browser and a `PlaywrightSession` attached to it: Python SeleniumBase's Stealthy Playwright Mode in one value. The browser is launched by `sb_cdp` with all of its launch switches, fingerprint and proxy handling, and rustwright connects to it over the DevTools Protocol. The CDP API (`cdp()`) and the Playwright API (`playwright()`) then work on the same tabs at the same time.
-
-| Method | Signature | What it does |
-|---|---|---|
-| `launch` | `pub async fn launch(options: LaunchOptions) -> Result<Self, SeleniumBaseError>` | Launches a stealthy browser as `options` say and attaches Playwright to it. |
-| `cdp` | `pub fn cdp(&self) -> &Browser` | The pure CDP browser (`seleniumbase_rs::sb_cdp::Browser`): pages, locators, interception, input. |
-| `playwright` | `pub fn playwright(&self) -> &PlaywrightSession` | The Playwright session on the same browser. |
-| `playwright_mut` | `pub fn playwright_mut(&mut self) -> &mut PlaywrightSession` | The session, mutably, for `new_page`. |
-| `endpoint` | `pub fn endpoint(&self) -> DevToolsEndpoint` | The DevTools endpoint of the browser, for other clients that attach to it: Playwright MCP, `chrome-devtools-mcp`, a Playwright in another language. |
-| `close` | `pub async fn close(self) -> Result<(), SeleniumBaseError>` | Detaches Playwright, then closes the browser. |
-
-`launch` returns the error of `Browser::launch` if the browser does not start, or `SeleniumBaseError::Playwright` if Playwright cannot attach. In the second case the browser that was started is closed again, so nothing is left running that nobody holds. To open a page with the CDP API before Playwright attaches, launch the browser yourself with `Browser::launch`, open the page and call `PlaywrightSession::attach`.
-
-`close` takes `self`. It returns the first error of detaching and of closing the browser, and the browser is closed even when detaching fails.
-
-`endpoint()` returns a `seleniumbase_rs::sb_cdp::DevToolsEndpoint`: `http_url()` (what `chrome-devtools-mcp --browserUrl` and Playwright's `--cdp-endpoint` take), `websocket_url()`, `version_url()`, and the ready-made arguments `chrome_devtools_mcp_args()` and `playwright_mcp_args()`.
-
-```rust,no_run
-use seleniumbase_rs::sb_cdp::LaunchOptions;
-use seleniumbase_rs::tokio;
-use seleniumbase_rs_playwright::StealthyPlaywright;
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let stealthy =
-        StealthyPlaywright::launch(LaunchOptions::builder().headless(true).build()?).await?;
-
-    // Playwright loads the page ...
-    stealthy.playwright().goto("https://example.com").await?;
-    println!("{}", stealthy.playwright().get_text("h1").await?);
-
-    // ... and the CDP API reads it back from the same tab.
-    let title = stealthy.cdp().default_page().await?.title().await?;
-    println!("{title}");
-
-    // Other clients can attach to the same browser.
-    let endpoint = stealthy.endpoint();
-    println!("DevTools at {}", endpoint.http_url());
-
-    stealthy.close().await?; // detaches Playwright, then closes the browser
-    Ok(())
-}
-```
+The handles a sidecar can attach beside: `sb_cdp::Page` and `BaseCase`. The trait is sealed, so it cannot be implemented elsewhere: what a target tells the sidecar (its browser's endpoint, its tab and its timeout) is the crate's business. The same handles come out of the test fixtures: `SbCdp::run` hands the test a `&Page` and `Sb::run` a `&mut BaseCase`, and either can be passed to `attach`.
 
 ## The rustwright re-export
 
-`seleniumbase_rs_playwright::rustwright` is the `rustwright` crate itself, so a project lists no second dependency. The types the bridge hands out are its types: `rustwright::Browser` and `rustwright::Page` from `browser()`, `page()` and `with_page`, `rustwright::ConnectOptions` for `connect_with`, and `rustwright::Error` in the signature of `with_page`. rustwright's Rust API has a browser and pages but no browser-context type, so the session starts on the first open page instead of Python's `browser.contexts[0].pages[0]`.
+`seleniumbase_rs_playwright::rustwright` is the `rustwright` crate itself, so a project lists no second dependency. The types the bridge hands out are its types: `rustwright::Browser` and `rustwright::Page` from `browser()`, `page()` and `run`, and `rustwright::Error` in the signature of `run`. rustwright's Rust API has a browser and pages but no browser-context type. Its Rust surface moves between versions (this crate pins `rustwright = "0.3"`), which is why the bridge wraps none of it: check the rustdocs of the installed version (`cargo doc -p rustwright`).
 
 ## Errors
 
@@ -273,15 +230,15 @@ Every fallible method returns `Result<T, SeleniumBaseError>`, the same error typ
 
 | Variant | Returned by |
 |---|---|
-| `Playwright` | The attach methods, `with_page`, `new_page`, `evaluate`, `close`, a rustwright failure the table above does not name, and a blocking task that panicked or was cancelled |
-| `Navigation` | `goto` |
-| `ElementNotFound`, `ElementNotInteractable`, `WaitTimeout`, `BrowserDisconnected` | `click`, `type_text`, `get_text` |
-| `Screenshot` | `screenshot` |
+| `Playwright` | `attach` and `connect` (nothing answers, the browser cannot be controlled, no single open page is the target's tab), `run` for a rustwright failure the table above does not name, `close`, and a blocking task that panicked or was cancelled |
+| `BrowserDisconnected`, `WaitTimeout` | `run` |
+| `Unsupported`, `SessionNotStarted`, `CdpDriver` | `attach` beside a `BaseCase` whose browser has no DevTools endpoint to share, that was quit, or whose endpoint does not answer |
 
-`StealthyPlaywright::launch` also returns whatever `Browser::launch` returns when the browser does not start. See [the errors of the crate root](/api/crate-root#errors) for the helpers every `SeleniumBaseError` has, such as `is_transient()` and `category()`.
+See [the errors of the crate root](/api/crate-root#errors) for the helpers every `SeleniumBaseError` has, such as `is_transient()` and `category()`.
 
 ## See also
 
 - [Playwright mode](/help/playwright_mode): the guide, the Python-to-Rust mapping and the conversion of a regular Playwright script.
+- [CDP and UC helpers](/api/cdp-uc): `BaseCase::devtools_endpoint()`, the endpoint a UC session shares.
 - [Pure CDP engine](/tutorials/pure_cdp): the browser the bridge attaches to (`Browser`, `Page`, `LaunchOptions`).
 - [Crate root](/api/crate-root): `SeleniumBaseError` and the other items of `seleniumbase_rs`.
