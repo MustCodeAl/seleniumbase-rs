@@ -6,8 +6,9 @@
 # the pages deployment of `ci.yml` has no equivalent here.
 #
 # The group is on GitLab's Open Source plan (Ultimate, approved 2026-11-06), so the whole test
-# suite runs on every pipeline; the Chrome and msrv jobs stay manual. Pipelines are created only for merge requests
-# and for the default branch (which must be `main`), and a new push cancels a pipeline that is
+# suite runs on every pipeline; the Chrome and msrv jobs stay manual. Pipelines are created only
+# for merge requests, for the default branch (which must be `main`), for `lane/` and `batch/`
+# branches that have no open merge request, and by hand, and a new push cancels a pipeline that is
 # still running (every job is `interruptible`):
 #
 #   gate          fmt and clippy
@@ -16,6 +17,15 @@
 #   docs          mise run mdx and mdbook build, only when the docs or their tooling change
 #   msrv          MANUAL: cargo check with the gui and tui features
 #   chrome        MANUAL: the real-Chrome tests, one binary at a time
+#
+# GitLab's own security scanners (Ultimate) come from the `include:` below and add these jobs to
+# the `test` stage. They are `allow_failure` in their templates, so a scanner that breaks never
+# stops the pipeline, and their findings go to the Security tab and the merge request widget:
+#
+#   secret_detection          secrets in the files and in the commits of the pipeline
+#   dependency-scanning       the advisories and the licences of the crates in Cargo.lock
+#   gitlab-advanced-sast-ext  GitLab Advanced SAST (beta) for the Rust files
+#   gitlab-advanced-sast      GitLab Advanced SAST for the JavaScript, Python, TypeScript and Ruby files
 #
 # A manual job has a play button in the pipeline view. A pipeline made by hand on any branch
 # (Build > Pipelines > New pipeline) holds every job as a manual job. To push a commit that
@@ -33,11 +43,29 @@ workflow:
   auto_cancel:
     on_new_commit: interruptible
   rules:
+    # A push to a branch that has an open merge request creates a merge request pipeline (the next
+    # rule) and, without this rule, a second branch pipeline: the whole test suite twice. This is
+    # the rule GitLab documents to avoid duplicate pipelines (ci/yaml/workflow); it names the push
+    # source so a pipeline made by hand (`web`) on such a branch still runs.
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS && $CI_PIPELINE_SOURCE == "push"
+      when: never
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
     # The lead pushes a lane or batch branch here to gate it before main fast-forwards to it.
     - if: '$CI_COMMIT_BRANCH =~ /^(lane|batch)\//'
     - if: $CI_PIPELINE_SOURCE == "web"
+
+# GitLab's security scanners. The `Jobs/` templates hold jobs and variables only (no `workflow:`
+# and no `stages:`), so they do not change the pipelines the workflow rules create, and their
+# jobs use the `test` stage, which exists by default. Each template decides by its own `rules`
+# whether its job runs: see AST_ENABLE_MR_PIPELINES below. The `Dependency-Scanning.v2` template
+# is GitLab's current dependency scanning (it reads Cargo.lock into a CycloneDX SBOM and matches
+# it against the GitLab advisory database); the SAST and secret detection ones are the stable
+# editions, and the docs warn against mixing stable and latest editions.
+include:
+  - template: Jobs/SAST.gitlab-ci.yml
+  - template: Jobs/Secret-Detection.gitlab-ci.yml
+  - template: Jobs/Dependency-Scanning.v2.gitlab-ci.yml
 
 default:
   interruptible: true
@@ -46,6 +74,16 @@ default:
     when: runner_system_failure
 
 variables:
+  # By default the security jobs run in branch pipelines only. With "true" they run in the merge
+  # request pipeline and are left out of the branch pipeline of a branch that has an open merge
+  # request, which is the pairing of the workflow rules above.
+  AST_ENABLE_MR_PIPELINES: "true"
+  # The Semgrep-based SAST analyzer has no Rust rules and its job is not routed `.rs` files; Rust is
+  # covered only by GitLab Advanced SAST (beta), which this variable turns on. It adds the job
+  # `gitlab-advanced-sast-ext` for the Rust files and `gitlab-advanced-sast` for the files of
+  # the languages that analyzer has always covered (here the JavaScript, Python, TypeScript and
+  # Ruby ones).
+  GITLAB_ADVANCED_SAST_ENABLED: "true"
   RUST_VERSION: "1.99"
   # The feature set of "Build and check" in CLAUDE.md and CONTRIBUTING.md.
   FEATURES: "mcp-server test-util testing bdd"
