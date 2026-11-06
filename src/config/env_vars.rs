@@ -15,6 +15,9 @@
 //! A flag wins over its variable, which wins over the settings file, which wins over the
 //! default. A variable is read trimmed, a blank one counts as unset, and one that cannot be used
 //! is an error that names the variable and the flag it stands for.
+//! `SB_PLUGINS` keeps an empty or blank value as an answer (no plugin), and the variables of one
+//! tool that name a key, a file or a folder (`SB_ENCRYPTION_KEY`, `SB_REC_FILE`, `SB_OCR_MODELS`,
+//! `SB_GRID_DIR`) are not trimmed.
 //!
 //! # Examples
 //!
