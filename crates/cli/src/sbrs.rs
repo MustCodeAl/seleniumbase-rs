@@ -3777,16 +3777,13 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     } else {
         DriverMode::WebDriver
     };
-    // The default mode is WebDriver, so a session that was asked for WebDriver and one that was
-    // asked for nothing are the same here, and the command's default applies to both.
-    let mode = match settings.session.mode {
-        DriverMode::WebDriver => default_mode,
-        asked => asked,
-    };
+    // A mode that was asked for (by `--mode`, `--cdp`, `--uc`, `SB_MODE` or the settings file),
+    // WebDriver included, beats the command's default, which applies when none was asked for.
+    let mode = settings.session.mode.unwrap_or(default_mode);
     if let Some(url) = args.webdriver {
         config.session.webdriver_url = Some(url);
     }
-    config.session.mode = mode;
+    config.session.mode = Some(mode);
     config.session.auto_start_driver = true;
     // `BaseCase::new` opens the start page before the command acts. A command with a URL of
     // its own opens only that one.

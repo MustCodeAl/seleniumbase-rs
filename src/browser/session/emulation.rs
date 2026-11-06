@@ -333,7 +333,7 @@ mod ad_block_tests {
         let plain = ad_block_commands(&config).unwrap();
         assert_eq!(plain[1].1, json!({ "urls": own_patterns() }));
 
-        config.session.mode = DriverMode::Cdp;
+        config.session.mode = Some(DriverMode::Cdp);
         let commands = ad_block_commands(&config).unwrap();
         let urls = blocked_patterns(&commands);
         let own: Vec<String> = serde_json::from_value(own_patterns()).unwrap();

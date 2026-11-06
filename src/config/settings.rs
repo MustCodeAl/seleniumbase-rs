@@ -1026,7 +1026,7 @@ mod tests {
             ("SB_TIMEOUT", ""),
         ])
         .unwrap();
-        assert_eq!(settings.session.mode, DriverMode::default());
+        assert_eq!(settings.session.mode, None);
         assert_eq!(settings.browser.kind, Browser::Chrome);
         assert_eq!(settings.browser.executable_path, None);
         assert_eq!(settings.session.webdriver_url, None);
@@ -1120,7 +1120,7 @@ mod tests {
             s.browser.proxy.server,
             Some("http://proxy:8080".to_string())
         );
-        assert_eq!(s.session.mode, DriverMode::Uc);
+        assert_eq!(s.session.mode, Some(DriverMode::Uc));
         assert!(s.browser.mobile);
         assert_eq!(s.test.threads, Some(4));
     }
@@ -1130,14 +1130,14 @@ mod tests {
         let mut s = Settings::default();
         s.browser.kind = Browser::Firefox;
         s.browser.headless = true;
-        s.session.mode = DriverMode::Cdp;
+        s.session.mode = Some(DriverMode::Cdp);
         s.browser.mobile = true;
         s.test.threads = Some(2);
         s.browser.proxy.pac_url = Some("http://proxy/proxy.pac".to_string());
         let config = s.to_browser_config();
         assert!(matches!(config.browser.kind, Browser::Firefox));
         assert!(config.browser.headless);
-        assert!(matches!(config.session.mode, DriverMode::Cdp));
+        assert!(matches!(config.session.mode, Some(DriverMode::Cdp)));
         assert!(config.browser.mobile);
 
         assert_eq!(
@@ -1220,7 +1220,7 @@ mod tests {
         let (browser, session) = (&settings.browser, &settings.session);
         assert_eq!(browser.kind, Browser::Firefox);
         assert!(browser.headless && browser.ad_block && session.reuse && browser.mobile);
-        assert_eq!(session.mode, DriverMode::Uc);
+        assert_eq!(session.mode, Some(DriverMode::Uc));
         assert_eq!(browser.user_agent.as_deref(), Some("TestAgent/1.0"));
         assert_eq!(browser.lang.as_deref(), Some("fr-FR"));
         assert_eq!(browser.proxy.server.as_deref(), Some("proxy.test:8080"));
@@ -1773,6 +1773,33 @@ mod tests {
         let before = settings.clone();
         settings.apply_options(&[]).unwrap();
         assert_eq!(settings, before);
+    }
+
+    #[test]
+    fn a_driver_mode_that_was_asked_for_is_told_from_none_even_when_it_is_webdriver() {
+        // `sbrs` gives a command its own mode only when none was asked for, so asking for
+        // WebDriver must not read as asking for nothing.
+        assert_eq!(Settings::default().session.mode, None);
+        assert_eq!(with_vars(&[("SB_MODE", "  ")]).unwrap().session.mode, None);
+        assert_eq!(
+            with_vars(&[("SB_MODE", "webdriver")]).unwrap().session.mode,
+            Some(DriverMode::WebDriver)
+        );
+        assert_eq!(
+            settings_of("mode = \"webdriver\"").session.mode,
+            Some(DriverMode::WebDriver)
+        );
+        assert_eq!(settings_of("headless = true").session.mode, None);
+        let mut settings = Settings::default();
+        settings
+            .apply_options(&[("SB_MODE", "webdriver".to_owned())])
+            .unwrap();
+        assert_eq!(settings.session.mode, Some(DriverMode::WebDriver));
+        assert_eq!(settings.session.driver_mode(), DriverMode::WebDriver);
+        assert_eq!(
+            Settings::default().session.driver_mode(),
+            DriverMode::WebDriver
+        );
     }
 
     #[test]

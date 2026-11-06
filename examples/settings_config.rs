@@ -95,7 +95,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let config = settings.to_browser_config();
     println!(
         "BrowserConfig: browser {:?}, mode {:?}, headless {}",
-        config.browser.kind, config.session.mode, config.browser.headless
+        config.browser.kind,
+        config.session.driver_mode(),
+        config.browser.headless
     );
     Ok(())
 }
@@ -111,6 +113,6 @@ fn show(layer: &str, settings: &Settings) {
             .map(|timeout| timeout.as_secs())
             .map_or_else(|| "unset".to_owned(), |seconds| format!("{seconds}s")),
         settings.browser.lang,
-        settings.session.mode
+        settings.session.driver_mode()
     );
 }

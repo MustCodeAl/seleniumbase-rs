@@ -1041,7 +1041,7 @@ mod tests {
         let (settings, problems) = read_all(&[("SB_BROWSER", "firefox"), ("SB_MODE", "uc")]);
         assert!(problems.is_empty());
         assert_eq!(settings.browser.kind, Browser::Firefox);
-        assert_eq!(settings.session.mode, DriverMode::Uc);
+        assert_eq!(settings.session.mode, Some(DriverMode::Uc));
         let chrome = find_option("--chrome").unwrap();
         assert_eq!(chrome.kind, OptionKind::Sets("chrome"));
         assert_eq!(chrome.env, "SB_BROWSER");

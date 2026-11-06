@@ -737,7 +737,7 @@ fn settings_summary(settings: &Settings) -> Value {
         ),
         (
             "session.mode",
-            json!(format!("{:?}", session.mode).to_lowercase()),
+            json!(format!("{:?}", session.driver_mode()).to_lowercase()),
         ),
         (
             "session.webdriver_url",
@@ -774,7 +774,7 @@ fn settings_summary(settings: &Settings) -> Value {
         "would_launch".to_owned(),
         json!({
             "browser": format!("{:?}", config.browser.kind).to_lowercase(),
-            "mode": format!("{:?}", config.session.mode).to_lowercase(),
+            "mode": format!("{:?}", config.session.driver_mode()).to_lowercase(),
             "auto_start_driver": config.session.auto_start_driver,
             "reuse_session": config.session.reuse,
         }),

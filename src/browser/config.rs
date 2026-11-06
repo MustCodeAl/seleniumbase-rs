@@ -337,7 +337,7 @@ impl BrowserConfig {
     /// How the browser is driven: WebDriver, DevTools without a driver
     /// binary, or the undetected mode (`--cdp`, `--uc`).
     pub fn with_mode(mut self, mode: DriverMode) -> Self {
-        self.session.mode = mode;
+        self.session.mode = Some(mode);
         self
     }
 
@@ -642,12 +642,12 @@ impl BrowserConfig {
     pub fn is_cdp_enabled(&self) -> bool {
         self.cdp_url.is_some()
             || self.cdp_discovery
-            || self.session.mode == DriverMode::Cdp
-            || self.session.mode == DriverMode::Uc
+            || self.session.driver_mode() == DriverMode::Cdp
+            || self.session.driver_mode() == DriverMode::Uc
     }
 
     pub fn is_uc_enabled(&self) -> bool {
-        self.session.mode == DriverMode::Uc
+        self.session.driver_mode() == DriverMode::Uc
     }
 
     pub fn is_default_webdriver_url(&self) -> bool {
@@ -1304,7 +1304,7 @@ mod tests {
             [PathBuf::from("/ext/a"), PathBuf::from("/ext/b")]
         );
         assert_eq!(browser.executable_path, Some(PathBuf::from("/opt/chrome")));
-        assert_eq!(config.session.mode, DriverMode::Uc);
+        assert_eq!(config.session.mode, Some(DriverMode::Uc));
         assert!(config.session.reuse);
         assert_eq!(
             config.session.webdriver_url.as_deref(),
@@ -1342,7 +1342,7 @@ mod tests {
         assert!(!config.browser.headless);
         assert_eq!(config.browser.proxy.server.as_deref(), Some("p.test:1"));
         assert!(config.browser.has(LaunchSwitch::DarkMode));
-        assert_eq!(config.session.mode, DriverMode::Cdp);
+        assert_eq!(config.session.mode, Some(DriverMode::Cdp));
         assert_eq!(
             config.session.webdriver_url(),
             "http://hub.test:4445/wd/hub"

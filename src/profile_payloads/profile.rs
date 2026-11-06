@@ -1234,7 +1234,7 @@ impl ProfileParams {
         let fingerprint = self.to_fingerprint();
         let mut config = BrowserConfig::default();
         config.session.webdriver_url = Some(container_url.into());
-        config.session.mode = mode;
+        config.session.mode = Some(mode);
         config.browser = crate::browser::options::BrowserSettings {
             kind: self.browser(),
             headless: self.is_headless,
@@ -1591,7 +1591,7 @@ mod tests {
         .unwrap();
         let config = params.to_browser_config("http://localhost:4444");
         assert!(config.browser.headless);
-        assert_eq!(config.session.mode, DriverMode::Cdp);
+        assert_eq!(config.session.mode, Some(DriverMode::Cdp));
     }
 
     #[test]
