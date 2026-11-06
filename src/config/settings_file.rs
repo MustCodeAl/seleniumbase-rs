@@ -275,17 +275,41 @@ impl Provider for SettingsFile {
 /// three characters or more is hidden wherever it stands alone, as a word of the message. A
 /// shorter value is never searched for in the words of the message: a secret of one letter is
 /// also a letter of "cannot parse", and the message must stay readable.
+///
+/// The value is hidden as serde writes it too (a quote or a backslash in it gets a backslash
+/// before it), and so is each item of a comma-separated value that the message quotes: a reader
+/// names the item it refuses and not the whole list.
 fn without_value(message: &str, value: &str) -> String {
     if value.is_empty() {
         return message.to_owned();
     }
-    let mut hidden = message.to_owned();
-    for quote in ['"', '\'', '`'] {
-        hidden = hidden.replace(
-            &format!("{quote}{value}{quote}"),
-            &format!("{quote}…{quote}"),
-        );
+    let mut hidden = hide_text(message, value);
+    // serde writes a text with its escapes (`zq9\\zq9` for `zq9\zq9`), so the value as the file
+    // has it is not the text in the message.
+    let written = escaped(value);
+    if written != value {
+        hidden = hide_text(&hidden, &written);
     }
+    // A reader names the item of a list that it refuses (`got 'item'`), which is part of the
+    // value: an item is hidden where the message quotes it.
+    for item in value
+        .split(',')
+        .map(str::trim)
+        .filter(|item| !item.is_empty() && *item != value)
+    {
+        hidden = hide_quoted(&hidden, item);
+        let written = escaped(item);
+        if written != item {
+            hidden = hide_quoted(&hidden, &written);
+        }
+    }
+    hidden
+}
+
+/// `message` without `value` where it is quoted, where it ends the message and, for a value of
+/// three characters or more, where it stands alone as a word.
+fn hide_text(message: &str, value: &str) -> String {
+    let mut hidden = hide_quoted(message, value);
     if let Some(head) = hidden.strip_suffix(value)
         && head.ends_with(": ")
     {
@@ -295,6 +319,29 @@ fn without_value(message: &str, value: &str) -> String {
         hidden = hide_words(&hidden, value);
     }
     hidden
+}
+
+/// `message` with `value` between quotes (`"v"`, `'v'` or `` `v` ``) replaced by `…`.
+fn hide_quoted(message: &str, value: &str) -> String {
+    let mut hidden = message.to_owned();
+    for quote in ['"', '\'', '`'] {
+        hidden = hidden.replace(
+            &format!("{quote}{value}{quote}"),
+            &format!("{quote}…{quote}"),
+        );
+    }
+    hidden
+}
+
+/// `value` as a `Debug` string writes it, without its quotes: a quote or a backslash gets a
+/// backslash before it, as serde writes the text it refuses.
+fn escaped(value: &str) -> String {
+    let written = format!("{value:?}");
+    written
+        .strip_prefix('"')
+        .and_then(|rest| rest.strip_suffix('"'))
+        .unwrap_or(&written)
+        .to_owned()
 }
 
 /// `text` with each occurrence of `value` that is not part of a longer word replaced by `…`.
@@ -363,6 +410,26 @@ mod tests {
         assert_eq!(
             without_value("unknown variant `a`, expected `cdp`", "a"),
             "unknown variant `…`, expected `cdp`"
+        );
+    }
+
+    #[test]
+    fn a_value_is_hidden_as_serde_escapes_it_and_by_the_item_a_reader_names() {
+        assert_eq!(
+            without_value(
+                "invalid type: string \"zq9\\\\zq9\", expected a boolean",
+                "zq9\\zq9"
+            ),
+            "invalid type: string \"…\", expected a boolean"
+        );
+        assert_eq!(
+            without_value("a preference as NAME:VALUE, got 'zq9'", "good:1,zq9"),
+            "a preference as NAME:VALUE, got '…'"
+        );
+        // An item that the message does not quote is left alone.
+        assert_eq!(
+            without_value("cannot use good in here", "good,zq9"),
+            "cannot use good in here"
         );
     }
 
