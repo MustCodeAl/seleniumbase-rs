@@ -531,6 +531,7 @@ impl BaseCase {
     /// (ignoring whitespace at the ends), and returns it. The text comes first
     /// and the selector second, as in Python's `find_exact_text(text,
     /// selector)`; pass `"body"` to look at the whole page.
+    /// The text of an `<input>` or a `<textarea>` is its value, as in Python.
     ///
     /// # Errors
     ///
@@ -550,6 +551,7 @@ impl BaseCase {
     /// and returns it. Text that is hidden (`display: none`) does not count.
     /// The text comes first and the selector second, as in Python's
     /// `find_text(text, selector)`; pass `"body"` to look at the whole page.
+    /// The text of an `<input>` or a `<textarea>` is its value, as in Python.
     ///
     /// # Errors
     ///
@@ -564,6 +566,7 @@ impl BaseCase {
     /// for the element `css` to be displayed with text that is not blank, and
     /// returns it. Corresponds to Python's `find_non_empty_text(selector)`;
     /// pass `"body"` to look at the whole page.
+    /// The text of an `<input>` or a `<textarea>` is its value, as in Python.
     ///
     /// # Errors
     ///
@@ -598,7 +601,7 @@ impl BaseCase {
                 if !element.is_visible().await.unwrap_or(false) {
                     return Ok(Polled::Pending { seen: None });
                 }
-                let shown = element.rendered_text().await.unwrap_or_default();
+                let shown = element.text().await.unwrap_or_default();
                 Ok(if kind.holds(&shown, text) {
                     Polled::Found(element)
                 } else {

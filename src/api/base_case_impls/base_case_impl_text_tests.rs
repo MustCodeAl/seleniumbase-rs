@@ -443,6 +443,7 @@ mod tests_get_text {
                 ("GET", "/element/title/name") => Reply::Value(json!("div")),
                 ("GET", "/element/title/text") => Reply::Value(json!("Order form")),
                 ("GET", "/element/title/property/value") => Reply::Value(json!("not a field")),
+                ("GET", path) if path.ends_with("/displayed") => Reply::Value(json!(true)),
                 _ => Reply::Value(Value::Null),
             }
         })
@@ -472,6 +473,46 @@ mod tests_get_text {
             "{:?}",
             driver.all_requests()
         );
+    }
+
+    #[tokio::test]
+    async fn the_non_empty_text_checks_read_the_value_of_a_field() {
+        // Python's `is_non_empty_text_visible` and
+        // `wait_for_non_empty_text_visible` read `get_property("value")` of an
+        // `input` or a `textarea`; the text the driver renders for an input
+        // is empty.
+        let driver = form();
+        let mut sb = driver.base_case().await;
+        sb.set_timeout(1).await.unwrap();
+
+        assert!(sb.is_non_empty_text_visible("#name").await.unwrap());
+        assert!(sb.is_non_empty_text_visible("#bio").await.unwrap());
+        assert!(sb.is_non_empty_text_visible("#title").await.unwrap());
+        sb.assert_non_empty_text("#name").await.unwrap();
+        sb.wait_for_non_empty_text("#name", 1).await.unwrap();
+        sb.wait_for_non_empty_text_visible("#name", 1).await.unwrap();
+        let found = sb.find_non_empty_text("#name").await.unwrap();
+        assert_eq!(found.as_webdriver_element().element_id().to_string(), "name");
+    }
+
+    #[tokio::test]
+    async fn the_find_text_methods_read_the_value_of_a_field() {
+        // Python's `wait_for_text_visible` and `wait_for_exact_text_visible`
+        // compare the value of an `input` or a `textarea`, not the text the
+        // driver renders for it (empty for an input, what a textarea was
+        // written with).
+        let driver = form();
+        let mut sb = driver.base_case().await;
+        sb.set_timeout(0).await.unwrap();
+
+        let found = sb.find_text("Ada", "#name").await.unwrap();
+        assert_eq!(found.as_webdriver_element().element_id().to_string(), "name");
+        sb.find_exact_text(" Ada Lovelace ", "#name").await.unwrap();
+        sb.find_text("Typed", "#bio").await.unwrap();
+        sb.find_exact_text("Typed since", "#bio").await.unwrap();
+
+        sb.find_exact_text("Ada", "#name").await.unwrap_err();
+        sb.find_text("Written", "#bio").await.unwrap_err();
     }
 }
 

@@ -166,9 +166,11 @@ impl Element {
             .map_err(|error| self.failed(error))
     }
 
-    /// The text the driver renders for the element, as `BaseCase::get_text_content`
-    /// and `is_non_empty_text_visible` read it: empty for an `<input>`, whose value
-    /// [`text`](Self::text) reads.
+    /// The text the driver renders for the element, which is what
+    /// `BaseCase::get_text_content` returns. It is empty for an element that is
+    /// not displayed, where Python's `get_text_content` reads the `textContent`
+    /// property (the markup's text, shown or not), and for an `<input>`, whose
+    /// value [`text`](Self::text) reads.
     ///
     /// # Errors
     ///
