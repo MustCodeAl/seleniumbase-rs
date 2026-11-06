@@ -885,7 +885,8 @@
               "design/mise_drivers",
               "design/trace_viewer",
               "design/playwright_basecase",
-              "design/bon_builders"
+              "design/bon_builders",
+              "design/settings_v2"
             ]
           },
           {
