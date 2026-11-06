@@ -60,6 +60,30 @@ async fn a_contains_selector_is_sent_to_the_page_as_xpath() {
     assert!(sent.contains("//button[contains(., 'Go on')]"), "{sent}");
 }
 
+#[test_log::test(tokio::test)]
+async fn a_role_selector_is_sent_to_the_page_as_a_path_from_the_context_node() {
+    let (page, mock) = quick_page().await;
+    answer_every_script_with(&mock, json!(1));
+
+    // The locator of a page and a step below another one send the same path:
+    // `.//` is the descendants of the context node, which is the document for the page.
+    page.locator(SelectorBuf::role("button", Some("Save"), false))
+        .count()
+        .await
+        .unwrap();
+    page.locator("form")
+        .locator(SelectorBuf::role("button", Some("Save"), false))
+        .count()
+        .await
+        .unwrap();
+
+    let sent = evaluated(&mock);
+    let role = r#""kind":"xpath","value":".//*[@role='button' or "#;
+    assert!(sent[sent.len() - 2].contains(role), "{sent:?}");
+    assert!(sent[sent.len() - 1].contains(role), "{sent:?}");
+}
+
+
 #[test]
 fn a_contains_selector_converts_in_a_selector_buf_and_plain_css_stays_css() {
     assert_eq!(
@@ -76,13 +100,13 @@ fn a_contains_selector_converts_in_a_selector_buf_and_plain_css_stays_css() {
 fn text_selectors_find_any_element_not_only_links() {
     assert_eq!(
         SelectorBuf::containing_text("Sign in", Some("button")),
-        SelectorBuf::xpath("//button[contains(normalize-space(.), 'Sign in')]")
+        SelectorBuf::xpath(".//button[contains(normalize-space(.), 'Sign in')]")
     );
     // Without a tag the innermost element that holds the text is meant, so the
     // page's <html> and <body> do not match.
     assert_eq!(
         SelectorBuf::containing_text("Sign in", None),
-        SelectorBuf::xpath("//*[text()[contains(normalize-space(.), 'Sign in')]]")
+        SelectorBuf::xpath(".//*[text()[contains(normalize-space(.), 'Sign in')]]")
     );
 }
 
@@ -90,11 +114,11 @@ fn text_selectors_find_any_element_not_only_links() {
 fn text_selectors_collapse_white_space_and_quote_awkward_text() {
     assert_eq!(
         SelectorBuf::containing_text("Sign \n   in", Some("a")),
-        SelectorBuf::xpath("//a[contains(normalize-space(.), 'Sign in')]")
+        SelectorBuf::xpath(".//a[contains(normalize-space(.), 'Sign in')]")
     );
     assert_eq!(
         SelectorBuf::containing_text("it's", Some("p")),
-        SelectorBuf::xpath("//p[contains(normalize-space(.), \"it's\")]")
+        SelectorBuf::xpath(".//p[contains(normalize-space(.), \"it's\")]")
     );
     // A tag that is not a name cannot smuggle XPath in.
     assert_eq!(

@@ -1056,6 +1056,46 @@ mod tests {
 
 
     #[tokio::test]
+    async fn the_xpath_the_selector_builders_write_is_looked_up_from_the_element() {
+        let driver = cart();
+        let (_session, cart) = found(&driver, "#a").await;
+        let selectors = [
+            SelectorBuf::role("button", Some("Save"), false),
+            SelectorBuf::role("", None, true),
+            SelectorBuf::containing_text("Save", Some("button")),
+            SelectorBuf::containing_text("Save", None),
+            SelectorBuf::text("Save", false),
+            SelectorBuf::label("Email", false),
+            SelectorBuf::has_text("Save"),
+        ];
+
+        for selector in &selectors {
+            // The mock finds nothing; what matters is that the driver is asked.
+            let error = cart.find(selector.clone()).await.unwrap_err();
+            assert!(
+                matches!(error, SeleniumBaseError::WebDriver(_)),
+                "{selector}: {error:?}"
+            );
+            let all = cart.find_all(selector.clone()).await.unwrap();
+            assert!(all.is_empty(), "{selector}");
+        }
+
+        for path in ["/element/e1/element", "/element/e1/elements"] {
+            let asked = driver.requests(path);
+            assert_eq!(asked.len(), selectors.len(), "{path}");
+            for (request, selector) in asked.iter().zip(&selectors) {
+                let xpath = request.body["value"].as_str().unwrap_or_default();
+                assert_eq!(request.body["using"], "xpath", "{path}: {selector}");
+                assert!(
+                    xpath.starts_with(".//") || xpath.starts_with("self::"),
+                    "{path}: {xpath}"
+                );
+            }
+        }
+    }
+
+
+    #[tokio::test]
     async fn an_xpath_that_starts_at_the_element_is_looked_up_as_written() {
         let driver = cart();
         let (_session, cart) = found(&driver, "#a").await;

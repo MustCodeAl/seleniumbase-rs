@@ -350,7 +350,7 @@ impl SelectorBuf {
     ///
     /// assert_eq!(
     ///     SelectorBuf::containing_text("Sign in", Some("button")),
-    ///     SelectorBuf::xpath("//button[contains(normalize-space(.), 'Sign in')]"),
+    ///     SelectorBuf::xpath(".//button[contains(normalize-space(.), 'Sign in')]"),
     /// );
     /// ```
     pub fn containing_text(text: impl AsRef<str>, tag: Option<&str>) -> Self {
@@ -498,7 +498,7 @@ impl SelectorBuf {
     /// let SelectorBuf::XPath(xpath) = SelectorBuf::role("button", Some("Sign in"), false) else {
     ///     unreachable!()
     /// };
-    /// assert!(xpath.starts_with("//*[@role='button' or (not(@role) and (self::button"));
+    /// assert!(xpath.starts_with(".//*[@role='button' or (not(@role) and (self::button"));
     /// assert!(xpath.contains("'sign in'"));
     /// ```
     pub fn role(role: &str, name: Option<&str>, exact: bool) -> Self {
@@ -1701,15 +1701,75 @@ mod tests {
         );
         let xpath = xpath_of(SelectorBuf::role("x'] | //script[('", Some("n"), false));
         assert!(
-            xpath.starts_with(r#"//*[@role="x'] | //script[('"]["#),
+            xpath.starts_with(r#".//*[@role="x'] | //script[('"]["#),
             "{xpath}"
         );
     }
 
     #[test]
+    fn a_quote_in_the_text_cannot_add_a_branch_to_the_xpath() {
+        for selector in [
+            SelectorBuf::role("x'] | //script[('", Some("n'] | //b['"), false),
+            SelectorBuf::containing_text("x'] | //b['", Some("p")),
+            SelectorBuf::containing_text("x'] | //b['", None),
+            SelectorBuf::text("x\"] | //b[\"", false),
+            SelectorBuf::label("x'] | //b['", true),
+        ] {
+            let xpath = xpath_of(selector);
+            assert_eq!(xpath_union_branches(&xpath), [xpath.as_str()]);
+            assert_eq!(xpath_root_branch(&xpath), None, "{xpath}");
+        }
+    }
+
+    #[test]
+    fn every_xpath_builder_starts_at_the_context_node() {
+        // A search from an element evaluates a path from the root of the page whatever
+        // element it starts from, so `Element::find` refuses one: the builders write
+        // `.//`, which finds the same elements from the page and stays inside an element.
+        for selector in [
+            SelectorBuf::containing_text("Save", Some("button")),
+            SelectorBuf::containing_text("Save", None),
+            SelectorBuf::text("Save", false),
+            SelectorBuf::text("Save", true),
+            SelectorBuf::has_text("Save"),
+            SelectorBuf::label("Email", false),
+            SelectorBuf::role("button", Some("Save"), false),
+            SelectorBuf::role("button", None, true),
+            SelectorBuf::role("tab", None, false),
+            SelectorBuf::role("", Some("Save"), true),
+            SelectorBuf::role("", None, false),
+        ] {
+            let xpath = xpath_of(selector);
+            assert_eq!(xpath_root_branch(&xpath), None, "{xpath}");
+            assert!(
+                xpath.starts_with(".//") || xpath.starts_with("self::"),
+                "{xpath}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_label_that_names_a_control_is_looked_for_in_the_whole_page() {
+        // A `<label for>` may sit anywhere in the document, outside the element
+        // that is searched too: that part of the path stays absolute.
+        for xpath in [
+            xpath_of(SelectorBuf::label("Email", false)),
+            xpath_of(SelectorBuf::role("textbox", Some("Email"), false)),
+            xpath_of(SelectorBuf::role("", Some("Email"), true)),
+        ] {
+            assert!(xpath.starts_with(".//*["), "{xpath}");
+            assert!(xpath.contains("@id=//label["), "{xpath}");
+        }
+    }
+
+
+    #[test]
     fn text_takes_the_innermost_element_and_input_buttons() {
         let xpath = xpath_of(SelectorBuf::text("Go", false));
-        assert!(xpath.starts_with("//body/descendant-or-self::*"), "{xpath}");
+        assert!(
+            xpath.starts_with(".//*[not(ancestor-or-self::head)]"),
+            "{xpath}"
+        );
         assert!(xpath.contains("and not(.//*[contains("), "{xpath}");
         assert!(xpath.contains("@type='submit'"), "{xpath}");
         assert!(xpath.contains("normalize-space(@value)"), "{xpath}");
@@ -1751,14 +1811,14 @@ mod tests {
         let button = xpath_of(SelectorBuf::role("button", None, false));
         assert_eq!(
             button,
-            "//*[@role='button' or (not(@role) and (self::button or self::summary or \
+            ".//*[@role='button' or (not(@role) and (self::button or self::summary or \
              (self::input and (@type='button' or @type='submit' or @type='reset' or \
              @type='image'))))]"
         );
         let custom = xpath_of(SelectorBuf::role("tab", None, false));
-        assert_eq!(custom, "//*[@role='tab']");
+        assert_eq!(custom, ".//*[@role='tab']");
         let any = xpath_of(SelectorBuf::role("", Some("Sign in"), true));
-        assert!(any.starts_with("//*[normalize-space(@aria-label)='Sign in' or (normalize-space(.)='Sign in' and not(.//*["), "{any}");
+        assert!(any.starts_with(".//*[normalize-space(@aria-label)='Sign in' or (normalize-space(.)='Sign in' and not(.//*["), "{any}");
     }
 
     #[test]
