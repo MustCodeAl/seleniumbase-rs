@@ -2,7 +2,7 @@
 //! option table of [`test_options`](crate::config::test_options): the names a settings file
 //! may use, the list type of `chromium_arg`, and the listing `sbrs options` prints.
 //!
-//! The option table has one row for each option, and each row names the [`Settings`]
+//! The option table has one row for each option, and each row names the [`Settings`](crate::Settings)
 //! field, the flag (with its aliases), the `SB_*` variable and the help. This module adds
 //! nothing to the table. It reads the table to answer three more questions:
 //!
