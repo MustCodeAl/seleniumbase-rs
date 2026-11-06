@@ -241,6 +241,24 @@ pub(crate) fn no_items() -> Value {
     Value::Array(Tag::Default, Vec::new())
 }
 
+/// The value that is the default of the setting at `path` of the serialized settings, for a
+/// setting the serializer leaves out when it holds its default (`skip_serializing_if`: an
+/// option that is unset, a list with no item, a switch that is off).
+///
+/// A source that gave such a setting a value that is its default must still win over a lower
+/// source, so its layer needs a value at the path. The type of the setting decides which value
+/// is the default, so each of the three that stand for it is tried on the settings, and the
+/// first that they accept is the one. `None` for a path none of them stands for.
+pub(crate) fn empty_at(path: &str) -> Option<Value> {
+    [nothing(), no_items(), flag(false)]
+        .into_iter()
+        .find(|candidate| {
+            let mut dict = Dict::new();
+            put(&mut dict, path, candidate.clone());
+            extract(&[&Layer::new(Metadata::named("probe"), dict)]).is_ok()
+        })
+}
+
 fn forget_at(dict: &mut Dict, path: &[String]) -> bool {
     match path {
         [] => false,

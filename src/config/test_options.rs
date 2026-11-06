@@ -36,7 +36,7 @@
 //! ```
 
 use crate::browser::options::{LaunchSwitch, WindowSize};
-use crate::config::layers::{flag, no_items, nothing, put, Given, Inputs};
+use crate::config::layers::{empty_at, flag, no_items, nothing, put, Given, Inputs};
 use crate::config::text::{self, OptionValue};
 use figment::value::{Dict, Value};
 use std::path::PathBuf;
@@ -544,7 +544,7 @@ pub(crate) fn read_variables(var: &dyn Fn(&str) -> Option<String>) -> Variables 
                     match whole.find_ref(&path) {
                         Some(value) => put(&mut dict, &path, value.clone()),
                         None => {
-                            if let Some(value) = absent.value() {
+                            if let Some(value) = absent.value(&path) {
                                 put(&mut dict, &path, value);
                             }
                         }
@@ -591,17 +591,22 @@ enum Absent {
     Nothing,
     /// A list with no item (`SB_EXTENSION_DIR` with no folder).
     NoItems,
+    /// The default of the setting, whatever its type: an unset option, a list with no item or a
+    /// switch that is off, whichever the setting at the path accepts (`layers::empty_at`).
+    Default,
+
     /// A switch that is off.
     Off,
 }
 
 impl Absent {
-    fn value(self) -> Option<Value> {
+    fn value(self, path: &str) -> Option<Value> {
         match self {
             Self::Skip => None,
             Self::Nothing => Some(nothing()),
             Self::NoItems => Some(no_items()),
             Self::Off => Some(flag(false)),
+            Self::Default => empty_at(path),
         }
     }
 }
@@ -631,10 +636,14 @@ fn written_by(row: &OptionSpec) -> Vec<(String, Absent)> {
             // `TestSettings` flattens its `TestData`: `test.data.env` is `test.env` in the
             // serialized settings.
             let path = row.field.replacen("test.data.", "test.", 1);
-            let absent = if matches!(row.kind, OptionKind::Switch) {
-                Absent::Off
-            } else {
-                Absent::Skip
+            // A source that gives a variable says what the setting is: when the serialized
+            // settings hold nothing at the path, the reader left the default there, and that
+            // is the value the source gives. The settings file is the one setting no layer
+            // holds (it names the file the layers come from).
+            let absent = match row.kind {
+                OptionKind::Switch => Absent::Off,
+                _ if row.env == "SB_SETTINGS_FILE" => Absent::Skip,
+                _ => Absent::Default,
             };
             vec![(path, absent)]
         }
