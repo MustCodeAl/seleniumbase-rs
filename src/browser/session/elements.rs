@@ -439,16 +439,16 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn the_text_of_the_session_is_still_the_rendered_text_of_the_driver() {
-        // `BaseCase::get_text` reads this: the rendered text of an `<input>` is empty,
-        // and only `Element::text` reads the field's value.
-        let driver = page();
-        let session = session(&driver).await;
-
-        assert_eq!(session.text("#a").await.unwrap(), "");
-        assert_eq!(
-            session.find("#a").await.unwrap().text().await.unwrap(),
-            "typed"
-        );
-    }
+    async fn the_text_of_the_session_is_the_text_python_compares() {
+            // `BaseCase::get_text` reads this, and Python's `get_text` gives the value of an
+            // `<input>`, whose rendered text is empty: the same text as `Element::text`.
+            let driver = page();
+            let session = session(&driver).await;
+    
+            assert_eq!(session.text("#a").await.unwrap(), "typed");
+            assert_eq!(
+                session.find("#a").await.unwrap().text().await.unwrap(),
+                "typed"
+            );
+        }
 }

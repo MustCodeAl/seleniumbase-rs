@@ -411,3 +411,67 @@ mod tests_text_argument_order {
         sb.wait(0.0_f32).await;
     }
 }
+
+// What `get_text` answers for a field and for anything else. Python's
+// `get_text` (`base_case.py`, `page_actions.py`) reads `element.text` and, for
+// an `input` or a `textarea`, `element.get_property("value")` instead.
+mod tests_get_text {
+    use super::webdriver_support::{element, MockWebDriver, Reply};
+    use serde_json::{json, Value};
+
+    /// A form: `#name` is an `<input>` and `#bio` a `<textarea>`, each with a
+    /// value that is not the text the driver renders for it (none for the
+    /// input, what the textarea was written with); `#title` is a `<div>` that
+    /// shows "Order form" and has a `value` property that is no business of
+    /// anyone's.
+    fn form() -> MockWebDriver {
+        MockWebDriver::start(json!({}), |request| {
+            let asked = request.body["value"].as_str().unwrap_or_default();
+            match (request.method.as_str(), request.path.as_str()) {
+                ("POST", "/element") => match asked {
+                    "#name" => Reply::Value(element("name")),
+                    "#bio" => Reply::Value(element("bio")),
+                    "#title" => Reply::Value(element("title")),
+                    _ => Reply::Error(404, "no such element"),
+                },
+                ("GET", "/element/name/name") => Reply::Value(json!("input")),
+                ("GET", "/element/name/text") => Reply::Value(json!("")),
+                ("GET", "/element/name/property/value") => Reply::Value(json!("Ada Lovelace")),
+                ("GET", "/element/bio/name") => Reply::Value(json!("textarea")),
+                ("GET", "/element/bio/text") => Reply::Value(json!("Written first")),
+                ("GET", "/element/bio/property/value") => Reply::Value(json!("Typed since")),
+                ("GET", "/element/title/name") => Reply::Value(json!("div")),
+                ("GET", "/element/title/text") => Reply::Value(json!("Order form")),
+                ("GET", "/element/title/property/value") => Reply::Value(json!("not a field")),
+                _ => Reply::Value(Value::Null),
+            }
+        })
+    }
+
+    #[tokio::test]
+    async fn the_text_of_an_input_or_a_textarea_is_its_value() {
+        let driver = form();
+        let mut sb = driver.base_case().await;
+        sb.set_timeout(1).await.unwrap();
+
+        assert_eq!(sb.get_text("#name").await.unwrap(), "Ada Lovelace");
+        assert_eq!(sb.get_text("#bio").await.unwrap(), "Typed since");
+        // The alias reads the same.
+        assert_eq!(sb.get_text_of_element("#name").await.unwrap(), "Ada Lovelace");
+    }
+
+    #[tokio::test]
+    async fn the_text_of_anything_else_is_what_the_driver_renders() {
+        let driver = form();
+        let sb = driver.base_case().await;
+
+        assert_eq!(sb.get_text("#title").await.unwrap(), "Order form");
+        // The value of a `div` is not asked for.
+        assert!(
+            driver.requests("/element/title/property/value").is_empty(),
+            "{:?}",
+            driver.all_requests()
+        );
+    }
+}
+
