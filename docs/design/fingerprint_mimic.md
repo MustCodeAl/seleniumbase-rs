@@ -393,11 +393,14 @@ and CreepJS-like scripts compute for their own drawings equals the value a real 
 claimed machine gives.
 
 What it **cannot** do: make Firefox pass as Chrome to a detector that checks the engine. The
-JavaScript engine, CSS, workers, the request headers and the TLS handshake still say Firefox,
-and a Chrome canvas inside an engine that is plainly Firefox is a stronger signal than Firefox's
+JavaScript engine, CSS and workers still say Firefox. The request headers, the TLS handshake and
+HTTP/2 say Firefox too unless the stealth repository's wire proxy (`MitmProxy`) fronts the
+browser: it already gives a real Chrome the measured Chrome handshake and headers, and fronting
+Firefox the same way is _to verify_. A Chrome canvas inside an engine that is plainly Firefox is a stronger signal than Firefox's
 own canvas. So the useful case is the same engine on another machine (Chrome on this Mac
 claiming Chrome on Windows with a UHD 620), and a cross-engine claim is an explicit opt-in
-whose report lists what it cannot hide.
+whose report lists what it cannot hide. The owner is focused on Chrome for now (2026-11-06), so
+the Chromium lane comes first and the Firefox lanes wait.
 
 ### Recommendation
 
