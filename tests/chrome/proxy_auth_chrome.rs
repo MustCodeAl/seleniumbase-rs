@@ -157,15 +157,11 @@ async fn start_proxy() -> (u16, Arc<Mutex<Seen>>, tokio::task::JoinHandle<()>) {
 }
 
 fn config(port: u16) -> BrowserConfig {
-    let mut config = BrowserConfig {
-        headless: true,
-        auto_start_driver: true,
-        ..BrowserConfig::default()
-    }
-    .with_proxy(format!("{USER}:{PASSWORD}@127.0.0.1:{port}"));
+    let mut config =
+        BrowserConfig::default().with_proxy(format!("{USER}:{PASSWORD}@127.0.0.1:{port}"));
     if let Ok(url) = std::env::var("SB_WEBDRIVER_URL") {
-        config.webdriver_url = url;
-        config.auto_start_driver = false;
+        config.session.webdriver_url = Some(url);
+        config.session.auto_start_driver = false;
     }
     config
 }
@@ -321,10 +317,10 @@ async fn the_browsers_command_line_has_no_password() {
 /// so a proxy with a login is refused before a session is requested.
 #[tokio::test]
 async fn a_remote_grid_with_a_proxy_login_is_refused_before_anything_starts() {
-    let config = BrowserConfig {
-        headless: true,
-        auto_start_driver: false,
-        ..BrowserConfig::default()
+    let config = {
+        let mut config = BrowserConfig::default();
+        config.session.auto_start_driver = false;
+        config
     }
     .with_proxy(format!("{USER}:{PASSWORD}@proxy.test:8080"))
     .with_webdriver_url("http://USER:KEY@hub.browserstack.com/wd/hub");

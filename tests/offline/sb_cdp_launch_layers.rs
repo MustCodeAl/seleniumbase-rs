@@ -42,7 +42,7 @@ fn setting_user_agent() -> Setting {
     Setting {
         flag: "--user-agent=",
         on_builder: |builder| builder.user_agent("Builder/1"),
-        on_config: |config| config.user_agent = Some("Config/1".to_owned()),
+        on_config: |config| config.browser.user_agent = Some("Config/1".to_owned()),
         on_fingerprint: |print| print.user_agent("Fingerprint/1".to_owned()),
         values: ["Builder/1", "Config/1", "Fingerprint/1"],
     }
@@ -52,7 +52,7 @@ fn setting_lang() -> Setting {
     Setting {
         flag: "--lang=",
         on_builder: |builder| builder.lang("de-DE"),
-        on_config: |config| config.locale = Some("fr_FR".to_owned()),
+        on_config: |config| config.browser.lang = Some("fr_FR".to_owned()),
         on_fingerprint: |print| print.locale("es-ES".to_owned()),
         // The config's locale is written the way Chrome reads it.
         values: ["de-DE", "fr-FR", "es-ES"],
@@ -63,7 +63,7 @@ fn setting_window_size() -> Setting {
     Setting {
         flag: "--window-size=",
         on_builder: |builder| builder.window_size(801, 601),
-        on_config: |config| config.launch.window_size = Some(WindowSize::new(802, 602)),
+        on_config: |config| config.browser.window_size = Some(WindowSize::new(802, 602)),
         on_fingerprint: |print| print.screen(803, 603),
         values: ["801,601", "802,602", "803,603"],
     }
@@ -73,7 +73,7 @@ fn setting_proxy() -> Setting {
     Setting {
         flag: "--proxy-server=",
         on_builder: |builder| builder.proxy("builder.example:8001"),
-        on_config: |config| config.proxy = Some("config.example:8002".to_owned()),
+        on_config: |config| config.browser.proxy.server = Some("config.example:8002".to_owned()),
         on_fingerprint: |print| {
             print.proxy(ProxyConfig {
                 r#type: "http".to_owned(),
@@ -220,10 +220,7 @@ fn headless_is_the_builders_then_the_configs_in_either_order() {
 #[test]
 fn what_the_builder_sets_before_a_config_is_no_longer_replaced_by_it() {
     // Before the one rule, the config replaced the user agent set before it.
-    let config = BrowserConfig {
-        user_agent: Some("Config/1".to_owned()),
-        ..BrowserConfig::default()
-    };
+    let config = BrowserConfig::default().with_user_agent("Config/1");
     let options = LaunchOptions::builder()
         .user_agent("Builder/1")
         .browser_config(&config)
@@ -234,10 +231,7 @@ fn what_the_builder_sets_before_a_config_is_no_longer_replaced_by_it() {
 
 #[test]
 fn the_lists_of_the_config_come_before_the_builders() {
-    let config = BrowserConfig {
-        extra_args: vec!["first-flag".to_owned()],
-        ..BrowserConfig::default()
-    };
+    let config = BrowserConfig::default().with_extra_args(["first-flag"]);
     for options in [
         LaunchOptions::builder()
             .arg("--second-flag")
@@ -259,7 +253,7 @@ fn the_lists_of_the_config_come_before_the_builders() {
 #[test]
 fn a_switch_turned_off_on_the_builder_beats_the_config_in_either_order() {
     let mut config = BrowserConfig::default();
-    config.launch.set(
+    config.browser.set(
         seleniumbase_rs::browser::options::LaunchSwitch::DarkMode,
         true,
     );

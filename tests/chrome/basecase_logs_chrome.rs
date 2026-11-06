@@ -22,14 +22,10 @@ const PAGE: &str =
     "data:text/html,<html><head><title>Logs</title></head><body>hello logs</body></html>";
 
 fn config() -> BrowserConfig {
-    let mut config = BrowserConfig {
-        headless: true,
-        auto_start_driver: true,
-        ..BrowserConfig::default()
-    };
+    let mut config = BrowserConfig::default();
     if let Ok(url) = std::env::var("SB_WEBDRIVER_URL") {
-        config.webdriver_url = url;
-        config.auto_start_driver = false;
+        config.session.webdriver_url = Some(url);
+        config.session.auto_start_driver = false;
     }
     config
 }

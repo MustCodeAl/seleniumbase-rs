@@ -93,11 +93,7 @@ fn serve() -> String {
 async fn a_webdriver_download_lands_in_downloaded_files() {
     let folder = work_dir().join("downloaded_files");
     let base = serve();
-    let config = BrowserConfig {
-        headless: true,
-        auto_start_driver: true,
-        ..BrowserConfig::default()
-    };
+    let config = BrowserConfig::default();
     let mut sb = BaseCase::new(config).await.expect("start Chrome");
     assert_eq!(sb.get_downloads_folder(), folder);
 

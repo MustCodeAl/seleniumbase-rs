@@ -9,7 +9,7 @@
 //! an extension is loaded over the protocol, which Chrome allows in an
 //! incognito window.
 
-use crate::browser::options::{switch_args, LaunchSettings, LaunchSwitch};
+use crate::browser::options::{switch_args, BrowserSettings, LaunchSwitch};
 
 use super::LaunchOptions;
 
@@ -20,7 +20,7 @@ impl LaunchOptions {
     /// browser gets neither. Dark mode, incognito, guest and the sandbox have
     /// arguments of their own elsewhere in [`browser_args`](Self::browser_args).
     pub(super) fn switch_arguments(&self, headless: bool) -> Vec<String> {
-        let mut launch = LaunchSettings::default();
+        let mut launch = BrowserSettings::default();
         for switch in &self.switches {
             let used = match switch {
                 LaunchSwitch::DisableWebSecurity

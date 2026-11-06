@@ -837,7 +837,7 @@ pub(crate) mod webdriver_support {
         /// A [`BaseCase`] whose session is on this server.
         pub async fn base_case(&self) -> BaseCase {
             let mut config = BrowserConfig::default().with_webdriver_url(self.url.clone());
-            config.auto_start_driver = false;
+            config.session.auto_start_driver = false;
             BaseCase::new(config)
                 .await
                 .expect("the mock WebDriver accepts a session")

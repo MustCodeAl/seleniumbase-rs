@@ -93,10 +93,7 @@ fn on_the_second_page(base: &str) -> Vec<RecordedAction> {
 }
 
 async fn headless() -> BaseCase {
-    let config = BrowserConfig {
-        headless: true,
-        ..BrowserConfig::default()
-    };
+    let config = BrowserConfig::default();
     BaseCase::new(config).await.expect("Chrome starts")
 }
 

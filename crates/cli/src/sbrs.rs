@@ -3694,7 +3694,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     // A command that speaks the DevTools Protocol gets a session that has a
     // DevTools connection when no mode was asked for, on a Chromium browser.
     let default_mode = if (args.command.needs_devtools() || settings.fingerprint.file.is_some())
-        && config.browser.is_chromium_based()
+        && config.browser.kind.is_chromium_based()
     {
         DriverMode::Cdp
     } else {
@@ -3706,13 +3706,13 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         .and_then(|mode| mode.parse::<DriverMode>().ok())
         .unwrap_or(default_mode);
     if let Some(url) = args.webdriver {
-        config.webdriver_url = url;
+        config.session.webdriver_url = Some(url);
     }
-    config.mode = mode;
-    config.auto_start_driver = true;
+    config.session.mode = mode;
+    config.session.auto_start_driver = true;
     // `BaseCase::new` opens the start page before the command acts. A command with a URL of
     // its own opens only that one.
-    config.start_page = if args.command.opens_own_url() {
+    config.browser.url = if args.command.opens_own_url() {
         None
     } else {
         settings
@@ -3721,7 +3721,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             .map(start_page_url)
             .transpose()?
     };
-    let start_page_set = config.start_page.is_some();
+    let start_page_set = config.browser.url.is_some();
     // What a page command does just before its browser quits.
     let after = PageEnd {
         now_at: args.command.acts_on_page(),
@@ -4248,8 +4248,11 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 .into_iter()
                 .map(|(name, value)| (name.to_owned(), value))
                 .collect();
-            if config.webdriver_url != "http://localhost:4444" {
-                forwarded.push(("SB_WEBDRIVER_URL".to_owned(), config.webdriver_url.clone()));
+            if !config.is_default_webdriver_url() {
+                forwarded.push((
+                    "SB_WEBDRIVER_URL".to_owned(),
+                    config.session.webdriver_url(),
+                ));
             }
             // The variable replaces the names the file enables, so it carries all of them.
             if forward_plugins {

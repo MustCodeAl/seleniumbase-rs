@@ -118,7 +118,7 @@ mod tests_esc_end {
         let mut config = BrowserConfig::default()
             .with_webdriver_url(driver.url().to_owned())
             .with_esc_end(esc_end);
-        config.auto_start_driver = false;
+        config.session.auto_start_driver = false;
         BaseCase::new(config)
             .await
             .expect("the mock WebDriver accepts a session")

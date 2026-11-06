@@ -6,11 +6,11 @@ use thirtyfour::common::capabilities::chromium::ChromiumLikeCapabilities;
 use thirtyfour::prelude::DesiredCapabilities;
 
 use crate::browser::config::{Browser, BrowserConfig};
-use crate::browser::options::{firefox_preferences, LaunchSettings, LaunchSwitch};
+use crate::browser::options::{firefox_preferences, BrowserSettings, LaunchSwitch};
 use crate::error::SeleniumBaseError;
 
 /// The capabilities a session for `config` asks the WebDriver server for: what
-/// the settings produce, with [`LaunchSettings::capabilities`] merged over it.
+/// the settings produce, with [`BrowserSettings::capabilities`] merged over it.
 pub(super) fn session_capabilities(
     config: &BrowserConfig,
 ) -> Result<thirtyfour::Capabilities, SeleniumBaseError> {
@@ -19,15 +19,15 @@ pub(super) fn session_capabilities(
     // the caller gave name for themselves (merged next) wins.
     crate::browser::downloads::ask_for_downloads_in(
         &mut caps,
-        config.browser,
+        config.browser.kind,
         &crate::browser::downloads::downloads_dir(),
     );
     // Chrome's password prompts take the keyboard from the page, so they stay
     // off, as in Python; what the capabilities the caller gave name wins.
-    crate::browser::password_prompts::ask_for_quiet_passwords_in(&mut caps, config.browser);
+    crate::browser::password_prompts::ask_for_quiet_passwords_in(&mut caps, config.browser.kind);
     keep_recorder_dialogs_open(&mut caps, config);
 
-    config.launch.capabilities.apply_to(&mut caps);
+    config.session.capabilities.apply_to(&mut caps);
     Ok(caps)
 }
 
@@ -35,7 +35,7 @@ pub(super) fn session_capabilities(
 fn browser_capabilities(
     config: &BrowserConfig,
 ) -> Result<thirtyfour::Capabilities, SeleniumBaseError> {
-    let caps: thirtyfour::Capabilities = match config.browser {
+    let caps: thirtyfour::Capabilities = match config.browser.kind {
         // Brave, Comet, Opera and the two Chrome builds are driven as Chrome is,
         // with their own program set as the binary.
         Browser::Chrome
@@ -80,7 +80,7 @@ fn browser_capabilities(
 /// command (chromedriver's default is to dismiss it and fail the command).
 fn keep_recorder_dialogs_open(caps: &mut thirtyfour::Capabilities, config: &BrowserConfig) {
     if config.recorder_mode()
-        && config.browser.is_chromium_based()
+        && config.browser.kind.is_chromium_based()
         && caps.get_mut("unhandledPromptBehavior").is_none()
     {
         // `Capabilities::set` only fails when serialising, which text cannot.
@@ -94,7 +94,7 @@ fn apply_generic_capabilities(
     caps: &mut impl thirtyfour::CapabilitiesHelper,
     config: &BrowserConfig,
 ) -> Result<(), SeleniumBaseError> {
-    if let Some(strategy) = config.launch.page_load_strategy {
+    if let Some(strategy) = config.session.page_load_strategy {
         caps.set_page_load_strategy(strategy.into())?;
     }
     Ok(())
@@ -110,10 +110,10 @@ fn apply_firefox_capabilities(
 ) -> Result<(), SeleniumBaseError> {
     use thirtyfour::CapabilitiesHelper;
     add_firefox_arguments(caps, config)?;
-    if let Some(binary) = &config.browser_binary_path {
+    if let Some(binary) = &config.browser.executable_path {
         caps.set_firefox_binary(&binary.to_string_lossy())?;
     }
-    if let Some(strategy) = config.launch.page_load_strategy {
+    if let Some(strategy) = config.session.page_load_strategy {
         caps.set_page_load_strategy(strategy.into())?;
     }
     let preferences = firefox_preferences_for(config)?;
@@ -132,30 +132,30 @@ fn add_firefox_arguments(
     caps: &mut thirtyfour::FirefoxCapabilities,
     config: &BrowserConfig,
 ) -> Result<(), SeleniumBaseError> {
-    let launch = &config.launch;
-    if config.headless {
+    let launch = &config.browser;
+    if config.browser.headless {
         caps.add_arg("-headless")?;
     }
     if launch.has(LaunchSwitch::Incognito) {
         caps.add_arg("-private")?;
     }
-    if launch.has(LaunchSwitch::Devtools) && !config.headless {
+    if launch.has(LaunchSwitch::Devtools) && !config.browser.headless {
         caps.add_arg("-devtools")?;
     }
     warn_about_chromium_only_switches(launch);
-    for arg in launch.firefox.args() {
+    for arg in config.session.firefox.args() {
         caps.add_arg(arg)?;
     }
-    if let Some(profile) = &config.user_data_dir {
+    if let Some(profile) = &config.browser.user_data_dir {
         caps.add_arg("-profile")?;
-        caps.add_arg(profile)?;
+        caps.add_arg(&profile.to_string_lossy())?;
     }
     Ok(())
 }
 
 /// Says, for each switch that only a Chromium browser understands, that
 /// Firefox ignores it.
-fn warn_about_chromium_only_switches(launch: &LaunchSettings) {
+fn warn_about_chromium_only_switches(launch: &BrowserSettings) {
     for switch in [
         LaunchSwitch::DarkMode,
         LaunchSwitch::Guest,
@@ -180,18 +180,18 @@ fn warn_about_chromium_only_switches(launch: &LaunchSettings) {
 fn firefox_preferences_for(
     config: &BrowserConfig,
 ) -> Result<serde_json::Map<String, Value>, SeleniumBaseError> {
-    let launch = &config.launch;
-    let mut from_settings = firefox_preferences(&launch.switches);
-    if let Some(proxy) = &config.proxy {
+    let launch = &config.browser;
+    let mut from_settings = firefox_preferences(launch.switches_on());
+    if let Some(proxy) = &config.browser.proxy.server {
         let proxy: crate::browser::options::ProxyAddress = proxy.parse()?;
         if proxy.credentials().is_some() {
             return Err(SeleniumBaseError::invalid_config(
                 crate::browser::config::FIREFOX_PROXY_LOGIN,
             ));
         }
-        from_settings.extend(proxy.firefox_preferences(&launch.proxy_bypass_list));
+        from_settings.extend(proxy.firefox_preferences(&launch.proxy.bypass_list));
     }
-    if let Some(pac) = &config.proxy_pac_url {
+    if let Some(pac) = &config.browser.proxy.pac_url {
         let pac: crate::browser::options::PacUrl = pac.parse()?;
         if pac.credentials().is_some() {
             return Err(SeleniumBaseError::invalid_config(
@@ -200,13 +200,13 @@ fn firefox_preferences_for(
         }
         from_settings.extend(pac.firefox_preferences());
     }
-    if let Some(agent) = &config.user_agent {
+    if let Some(agent) = &config.browser.user_agent {
         from_settings.insert("general.useragent.override".into(), json!(agent));
     }
-    if let Some(locale) = &config.locale {
+    if let Some(locale) = &config.browser.lang {
         from_settings.insert("intl.accept_languages".into(), json!(locale));
     }
-    Ok(launch.firefox.preferences_over(from_settings))
+    Ok(config.session.firefox.preferences_over(from_settings))
 }
 
 fn apply_chromium_capabilities<C: ChromiumLikeCapabilities>(
@@ -249,7 +249,7 @@ mod capability_tests {
     #[test]
     fn a_preference_the_caller_names_wins_over_the_downloads_folder() {
         let mut config = BrowserConfig::default();
-        config.launch.capabilities = CapabilityOverrides::from_text(
+        config.session.capabilities = CapabilityOverrides::from_text(
             r#"{"goog:chromeOptions": {"prefs": {"download.default_directory": "/elsewhere"}}}"#,
         )
         .unwrap();

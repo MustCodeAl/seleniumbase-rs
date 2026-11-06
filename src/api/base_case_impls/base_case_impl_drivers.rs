@@ -183,8 +183,8 @@ impl BaseCase {
         &mut self,
         mut config: BrowserConfig,
     ) -> Result<DriverId, SeleniumBaseError> {
-        config.reuse_session = false;
-        config.launch.reuse_class = None;
+        config.session.reuse = false;
+        config.session.reuse_class = None;
         let session = BrowserSession::connect(config).await?;
         let id = self.drivers.add(&mut self.session, session);
         info!(driver = %id, "created new driver session");
@@ -363,7 +363,7 @@ mod tests_drivers {
     /// The configuration of a case that uses `driver`.
     fn config_for(driver: &MockWebDriver) -> BrowserConfig {
         let mut config = BrowserConfig::default().with_webdriver_url(driver.url().to_owned());
-        config.auto_start_driver = false;
+        config.session.auto_start_driver = false;
         config
     }
 

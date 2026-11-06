@@ -353,6 +353,18 @@ let config = BrowserConfig::default()
     .with_extra_args(vec!["--disable-blink-features=AutomationControlled".into()]);
 ```
 
+A `BrowserConfig` keeps what it holds in groups, and a field is read through its group:
+
+| Group | Type | Holds | Examples |
+|---|---|---|---|
+| `browser` | `BrowserSettings` | what both engines start: the browser, its window, proxy, profile and switches | `config.browser.headless`, `config.browser.kind`, `config.browser.proxy.server`, `config.browser.has(LaunchSwitch::DarkMode)` |
+| `session` | `SessionSettings` | what only a WebDriver session reads: the driver mode, the server, the Grid, reuse, capabilities | `config.session.mode`, `config.session.webdriver_url()`, `config.session.reuse` |
+| `run` | `RunSettings` | demo, slow and timeout settings of the run | `config.run_settings()` |
+
+The pure CDP engine (`LaunchOptionsBuilder::browser_config`) reads `browser` whole and ignores
+`session`. `BrowserSettings::default()` opens a window, as Python does; a default `BrowserConfig`
+is headless. Replace a whole group with `with_browser_settings` and `with_session_settings`.
+
 `BrowserConfig` also supports `from_env()` to load runtime variables directly:
 
 ```rust

@@ -140,9 +140,7 @@ container.
 
 <ParamField path="RUSTC_VERSION" type="text, at build time">
 
-Read when the bench is compiled, for the header line: "Rust stable" when it is
-unset. Set it to label a run, for example
-`RUSTC_VERSION="$(rustc --version)" cargo bench --bench cdp_latency`.
+config.session.webdriver_url = Some()
 
 </ParamField>
 

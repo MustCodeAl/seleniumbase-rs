@@ -37,7 +37,7 @@ impl BrowserSession {
         config: BrowserConfig,
     ) -> Result<Self, SeleniumBaseError> {
         let config = plugin_hooks::before_launch(config).await?;
-        let family = plugin_hooks::family_of(config.browser)?;
+        let family = plugin_hooks::family_of(config.browser.kind)?;
         let plugins = config.plugins().clone();
         let mut session = match Self::connect_new(config.clone()).await {
             Ok(session) => session,
@@ -129,7 +129,7 @@ impl BrowserSession {
         if prepared.plugins().is_empty() {
             return Ok(());
         }
-        let family = plugin_hooks::family_of(prepared.browser)?;
+        let family = plugin_hooks::family_of(prepared.browser.kind)?;
         self.check_server_for(prepared.plugins(), family).await?;
         self.start_plugins(
             SessionPlugins::new(prepared.plugins().clone(), family),

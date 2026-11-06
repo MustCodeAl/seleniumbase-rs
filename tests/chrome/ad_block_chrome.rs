@@ -165,15 +165,11 @@ fn reached(seen: &[String], request: &str) -> bool {
 }
 
 fn test_config(site: &Site) -> BrowserConfig {
-    let mut config = BrowserConfig {
-        headless: true,
-        auto_start_driver: true,
-        ..BrowserConfig::default()
-    }
-    .with_extra_args([format!("--host-resolver-rules={}", site.resolver_rules())]);
+    let mut config = BrowserConfig::default()
+        .with_extra_args([format!("--host-resolver-rules={}", site.resolver_rules())]);
     if let Ok(url) = std::env::var("SB_WEBDRIVER_URL") {
-        config.webdriver_url = url;
-        config.auto_start_driver = false;
+        config.session.webdriver_url = Some(url);
+        config.session.auto_start_driver = false;
     }
     config
 }

@@ -336,10 +336,7 @@ use seleniumbase_rs::{tokio, BaseCase, BrowserConfig, DriverMode};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut sb = BaseCase::new(BrowserConfig {
-        mode: DriverMode::Cdp,
-        ..Default::default()
-    }).await?;
+    let mut sb = BaseCase::new(BrowserConfig::default().with_mode(DriverMode::Cdp)).await?;
     sb.open("https://seleniumbase.io").await?;
     let text = sb.get_text("h1").await?;
     println!("{text}");

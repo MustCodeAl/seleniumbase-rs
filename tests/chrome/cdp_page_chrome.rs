@@ -29,7 +29,7 @@ async fn the_cdp_helpers_click_read_select_and_report_what_is_missing() {
     let mut config = BrowserConfig::default()
         .with_headless(true)
         .with_mode(DriverMode::Cdp);
-    config.auto_start_driver = true;
+    config.session.auto_start_driver = true;
     let mut sb = BaseCase::new(config).await.expect("Chrome starts");
     sb.open(PAGE).await.unwrap();
 
@@ -112,7 +112,7 @@ async fn cdp_click_hits_the_button_on_a_page_scrolled_down() {
     let mut config = BrowserConfig::default()
         .with_headless(true)
         .with_mode(DriverMode::Cdp);
-    config.auto_start_driver = true;
+    config.session.auto_start_driver = true;
     let mut sb = BaseCase::new(config).await.expect("Chrome starts");
     sb.open(PAGE).await.unwrap();
 

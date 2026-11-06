@@ -51,14 +51,10 @@ const THE_PERSON: &str = "window.__answers = [0, 1]; \
     return true;";
 
 fn test_config() -> BrowserConfig {
-    let mut config = BrowserConfig {
-        headless: true,
-        auto_start_driver: true,
-        ..BrowserConfig::default()
-    };
+    let mut config = BrowserConfig::default();
     if let Ok(url) = std::env::var("SB_WEBDRIVER_URL") {
-        config.webdriver_url = url;
-        config.auto_start_driver = false;
+        config.session.webdriver_url = Some(url);
+        config.session.auto_start_driver = false;
     }
     config
 }

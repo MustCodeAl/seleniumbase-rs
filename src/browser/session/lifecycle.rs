@@ -211,7 +211,7 @@ mod quit_tests {
     /// A session on `driver` that starts no driver of its own.
     async fn session_on(driver: &MockWebDriver) -> BrowserSession {
         let mut config = BrowserConfig::default().with_webdriver_url(driver.url());
-        config.auto_start_driver = false;
+        config.session.auto_start_driver = false;
         BrowserSession::connect(config)
             .await
             .expect("the mock WebDriver accepts a session")

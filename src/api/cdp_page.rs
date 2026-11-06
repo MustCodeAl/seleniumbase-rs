@@ -1092,7 +1092,7 @@ mod driven_tests {
         let mut config = BrowserConfig::default()
             .with_webdriver_url(driver.url())
             .with_mode(DriverMode::Cdp);
-        config.auto_start_driver = false;
+        config.session.auto_start_driver = false;
         let session = BrowserSession::connect(config).await.expect("connects");
         (driver, session)
     }

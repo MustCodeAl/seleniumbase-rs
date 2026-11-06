@@ -163,16 +163,7 @@ chromedriver to rename Chrome DevTools Console variables"
 ([UC Mode](https://seleniumbase.io/help_docs/uc_mode/)). This crate does the
 work in two places, and they are not the same step.
 
-**In the binary, before the driver starts.** `ChromedriverPatcher::patch`
-rewrites the file. `EnginePatch::balanced` (and `all`) turn on
-`scrub_cdc_props` and `randomize_cdc_prefix`. Scrubbing replaces each
-`window.cdc_… = window.Array` assignment, and each `window.cdc_… ||` use, with
-spaces of the same length, so the file size does not change.
-`randomize_cdc_prefix` replaces each quoted `$cdc_…` string with a random
-lowercase id of a similar length. `EnginePatch::all` also turns on
-`replace_cdc_blocks`, which rewrites `{window.cdc…;}` blocks. UC mode does
-**not** run this patch for you. `sbrs patch-chromedriver`, or
-`patch_chromedriver`, does.
+config.session.webdriver_url = Some()
 
 **In the page, after a document exists.** `src/evasion/uc.rs` injects
 `UC_STEALTH_SCRIPT` with `Page.addScriptToEvaluateOnNewDocument`, so it runs

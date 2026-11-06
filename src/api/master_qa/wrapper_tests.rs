@@ -95,7 +95,7 @@ async fn case(driver: &MockWebDriver, headless: bool) -> BaseCase {
     let mut config = BrowserConfig::default()
         .with_headless(headless)
         .with_webdriver_url(driver.url().to_owned());
-    config.auto_start_driver = false;
+    config.session.auto_start_driver = false;
     let mut sb = BaseCase::new(config)
         .await
         .expect("the mock accepts a session");

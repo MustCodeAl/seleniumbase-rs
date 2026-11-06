@@ -155,9 +155,9 @@ pub(super) fn ad_block_commands(
     let Some(list) = AdBlockList::for_config(config) else {
         return Ok(Vec::new());
     };
-    if !config.browser.is_chromium_based() {
+    if !config.browser.kind.is_chromium_based() {
         tracing::warn!(
-            browser = %config.browser,
+            browser = %config.browser.kind,
             "ad_block needs the DevTools Protocol, which WebDriver does not give this browser; \
              nothing is blocked"
         );
@@ -197,16 +197,16 @@ pub(super) fn ad_block_commands(
 /// emulate a phone, so it starts as a desktop browser, and a warning says so.
 pub(super) fn mobile_commands(config: &BrowserConfig) -> Vec<(&'static str, Value)> {
     let Some((metrics, user_agent)) = emulated_phone(
-        config.mobile,
-        config.launch.device_metrics,
-        config.user_agent.as_deref(),
+        config.browser.mobile,
+        config.browser.device_metrics,
+        config.browser.user_agent.as_deref(),
     ) else {
         return Vec::new();
     };
-    if !config.browser.is_chromium_based() {
+    if !config.browser.kind.is_chromium_based() {
         tracing::warn!(
             "mobile emulation needs a Chromium browser; {} starts as a desktop browser",
-            config.browser
+            config.browser.kind
         );
         return Vec::new();
     }
@@ -254,7 +254,7 @@ mod ad_block_tests {
     /// A session on `driver` that starts no driver of its own.
     fn config_for(driver: &MockWebDriver) -> BrowserConfig {
         let mut config = BrowserConfig::default().with_webdriver_url(driver.url());
-        config.auto_start_driver = false;
+        config.session.auto_start_driver = false;
         config
     }
 
@@ -280,7 +280,7 @@ mod ad_block_tests {
 
         // A list that is set but not asked for blocks nothing.
         let mut config = BrowserConfig::default().with_ad_block_list(own_list());
-        config.ad_block = false;
+        config.browser.ad_block = false;
         assert!(ad_block_commands(&config).unwrap().is_empty());
     }
 
@@ -333,7 +333,7 @@ mod ad_block_tests {
         let plain = ad_block_commands(&config).unwrap();
         assert_eq!(plain[1].1, json!({ "urls": own_patterns() }));
 
-        config.mode = DriverMode::Cdp;
+        config.session.mode = DriverMode::Cdp;
         let commands = ad_block_commands(&config).unwrap();
         let urls = blocked_patterns(&commands);
         let own: Vec<String> = serde_json::from_value(own_patterns()).unwrap();
@@ -582,7 +582,7 @@ mod mobile_tests {
 
     fn config_for(driver: &MockWebDriver) -> BrowserConfig {
         let mut config = BrowserConfig::default().with_webdriver_url(driver.url());
-        config.auto_start_driver = false;
+        config.session.auto_start_driver = false;
         config
     }
 

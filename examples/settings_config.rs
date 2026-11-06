@@ -90,7 +90,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let config = settings.to_browser_config();
     println!(
         "BrowserConfig: browser {:?}, mode {:?}, headless {}",
-        config.browser, config.mode, config.headless
+        config.browser.kind, config.session.mode, config.browser.headless
     );
     Ok(())
 }

@@ -47,14 +47,10 @@ const TYPE_AND_CLICK_SECOND: &str = "jQuery('.jconfirm-box input.jqc_input').val
     document.querySelectorAll('.jconfirm-buttons button')[1].click();";
 
 fn test_config() -> BrowserConfig {
-    let mut config = BrowserConfig {
-        headless: true,
-        auto_start_driver: true,
-        ..BrowserConfig::default()
-    };
+    let mut config = BrowserConfig::default();
     if let Ok(url) = std::env::var("SB_WEBDRIVER_URL") {
-        config.webdriver_url = url;
-        config.auto_start_driver = false;
+        config.session.webdriver_url = Some(url);
+        config.session.auto_start_driver = false;
     }
     config
 }

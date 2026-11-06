@@ -122,7 +122,7 @@ the recommended test shape, and explains how to organize a growing suite.
 
 <Visibility for="agents">
 
-Summary for AI exports: write a browser test as `#[rstest] #[tokio::test] async fn name(sb: Sb) -> Result<()> { sb.run(async |sb| { .. }).await }` with `use seleniumbase_rs::testing::{rstest, sb, Sb}` and `use seleniumbase_rs::{tokio, Result}`, and the feature `testing` as the only dev-dependency. The body is an async closure over `&mut BaseCase`; it may run again on a rerun, so it must not consume what it captures. For the pure CDP engine ask for `sb_cdp: SbCdp` and call `sb_cdp.run(async |page| { .. })`. The fixture reads the settings file and the `SB_*` variables, reruns, enforces a time limit, leaves `latest_logs/<test id>/` on a failure and closes the browser. `run_browser_test(BrowserConfig::default(), async |sb| { .. })` and `run_cdp_test` are the explicit forms that read no configuration; `sb_test!` generates the same wrapper. Run with `cargo test NAME`, `cargo nextest run` or `sbrs test` (`-k`, `-m`, `-n`, `--co`, `--reruns`, `--pdb`). Put integration tests in `tests/` and shared helpers in `tests/helpers/`. Test data is read with `sb.data()`, `sb.env()`, `sb.account()`, `sb.var1()`, `sb.variables()`. A failure leaves `latest_logs/<test id>/screenshot.png`, `page_source.html` and `basic_test_info.txt`. Reports are off until asked: `sbrs test --dashboard --html PATH --junit-xml PATH --alluredir DIR` (or `SB_DASHBOARD`, `SB_HTML`, `SB_JUNIT_XML`, `SB_ALLURE_DIR`) writes `dashboard.html`, an HTML report, JUnit XML and Allure results (the Allure results need the feature `allure`); a plain `cargo test` with one of them on leaves the dashboard live until `sbrs report finish`.
+BrowserConfig::default()
 
 </Visibility>
 

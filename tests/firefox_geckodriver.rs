@@ -76,7 +76,7 @@ async fn a_headless_firefox_session_takes_its_options() {
         .with_headless(true)
         .with_user_agent("sbrs-firefox-check/1.0")
         .with_locale("fr");
-    config.auto_start_driver = false;
+    config.session.auto_start_driver = false;
     let mut session = BrowserSession::connect(config)
         .await
         .expect("a Firefox session");

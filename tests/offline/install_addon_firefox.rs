@@ -44,8 +44,8 @@ fn firefox_config() -> BrowserConfig {
     let mut config = BrowserConfig::default()
         .with_browser(Browser::Firefox)
         .with_webdriver_url(url);
-    config.headless = true;
-    config.auto_start_driver = false;
+    config.browser.headless = true;
+    config.session.auto_start_driver = false;
     config
 }
 

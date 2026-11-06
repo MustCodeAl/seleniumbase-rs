@@ -5,14 +5,16 @@
 //! settings a `BaseCase` test gets from the settings file and `SB_*`.
 
 use std::net::{Ipv4Addr, TcpListener};
-use std::path::PathBuf;
 
 use serde_json::{json, Map};
 
 use super::layers::{Layer, ProxySpec, SharedFingerprint};
 use super::{Proxy, Redacted};
 use crate::browser::config::{Browser as BrowserKind, BrowserConfig};
-use crate::browser::options::{LaunchSwitch, LocaleCode, ProxyAddress};
+use crate::browser::options::{
+    BrowserSettings, ChromiumSettings, LaunchSwitch, LocaleCode, ProxyAddress, ProxySettings,
+    SessionSettings,
+};
 use crate::error::SeleniumBaseError;
 
 /// A proxy address as Chrome reads it, with the login in front when there is
@@ -41,27 +43,42 @@ pub(super) fn parse_proxy(text: &str, checked: bool) -> Result<Proxy, SeleniumBa
 
 /// The settings of `config` that the pure CDP engine cannot use, by name.
 pub(super) fn unused_settings(config: &BrowserConfig) -> Vec<&'static str> {
-    let launch = &config.launch;
+    // Destructured without `..`: a field added to the session settings does not compile until
+    // it is listed here as used or unused by the pure CDP engine.
+    let SessionSettings {
+        mode: _,
+        webdriver_url: _,
+        grid: _,
+        remote_webdriver_timeout_seconds: _,
+        driver_version,
+        page_load_strategy,
+        capabilities,
+        extension_archives,
+        firefox,
+        cdp_events,
+        reuse: _,
+        reuse_class: _,
+        crumbs: _,
+        auto_start_driver: _,
+    } = &config.session;
     let mut unused = Vec::new();
     let mut note = |used_by_webdriver: bool, name: &'static str| {
         if used_by_webdriver {
             unused.push(name);
         }
     };
-    note(launch.page_load_strategy.is_some(), "page_load_strategy");
-    note(!launch.capabilities.is_empty(), "capabilities");
-    note(launch.driver_version.is_some(), "driver_version");
-    note(!launch.firefox.is_empty(), "firefox");
-    note(!launch.cdp_events.is_off(), "cdp_events");
-    note(!launch.extension_archives.is_empty(), "extension_archives");
-    note(launch.ad_block_list.is_some(), "ad_block_list");
+    note(page_load_strategy.is_some(), "page_load_strategy");
+    note(!capabilities.is_empty(), "capabilities");
+    note(driver_version.is_some(), "driver_version");
+    note(!firefox.is_empty(), "firefox");
+    note(!cdp_events.is_off(), "cdp_events");
+    note(!extension_archives.is_empty(), "extension_archives");
+    note(config.browser.ad_block_list.is_some(), "ad_block_list");
     note(
-        !config.cdp_discovery
-            && !config.webdriver_url.is_empty()
-            && !config.is_default_webdriver_url(),
+        !config.cdp_discovery && !config.is_default_webdriver_url(),
         "webdriver_url",
     );
-    for switch in &launch.switches {
+    for switch in config.browser.switches_on() {
         let name = match switch {
             LaunchSwitch::EnableSync => "enable_sync",
             LaunchSwitch::AutomationExtension => "use_auto_ext",
@@ -80,10 +97,9 @@ pub(super) fn unused_settings(config: &BrowserConfig) -> Vec<&'static str> {
 /// The remote debugging port to ask for: the one named, or, when it was only
 /// the default and something listens there, none (the browser picks a free
 /// port).
-fn debugging_port(config: &BrowserConfig) -> Option<u16> {
-    let launch = &config.launch;
-    let port = launch.remote_debug_port?;
-    if launch.remote_debug_any_port && TcpListener::bind((Ipv4Addr::LOCALHOST, port)).is_err() {
+fn debugging_port(browser: &BrowserSettings) -> Option<u16> {
+    let port = browser.debugging_port?;
+    if browser.debugging_any_port && TcpListener::bind((Ipv4Addr::LOCALHOST, port)).is_err() {
         tracing::debug!(
             port,
             "the default remote debugging port is in use; a free one is used"
@@ -105,69 +121,98 @@ impl Layer {
         if !unused.is_empty() {
             tracing::debug!("not used by the pure CDP engine: {}", unused.join(", "));
         }
-        if !config.browser.is_chromium_based() {
+        if !config.browser.kind.is_chromium_based() {
             tracing::warn!(
                 "the pure CDP engine drives Chromium browsers only; {} is not used",
-                config.browser.name()
+                config.browser.kind.name()
             );
         }
-        let launch = &config.launch;
+        Self {
+            cdp_url: config
+                .cdp_url
+                .clone()
+                .or_else(|| config.cdp_discovery.then(|| config.session.webdriver_url()))
+                .map(Redacted),
+            cdp_target: config.cdp_target.clone(),
+            fingerprint: config.fingerprint.as_ref().map(SharedFingerprint::new),
+            #[cfg(feature = "plugins")]
+            plugins: Some(config.plugins().clone()),
+            ..Self::of_browser(&config.browser)
+        }
+    }
+
+    /// The part of a `BrowserConfig` both engines start: the [`BrowserSettings`] they share.
+    ///
+    /// `BrowserSettings` is destructured without `..`, so a field added to it does not compile
+    /// until the pure CDP engine reads it here or names it unused.
+    fn of_browser(browser: &BrowserSettings) -> Self {
+        let BrowserSettings {
+            kind,
+            executable_path,
+            headless,
+            url,
+            user_agent,
+            lang,
+            mobile,
+            device_metrics,
+            window_size,
+            window_position,
+            proxy:
+                ProxySettings {
+                    server: proxy_server,
+                    pac_url,
+                    bypass_list,
+                },
+            user_data_dir,
+            extensions,
+            ad_block,
+            // Not a launch setting: the WebDriver session sends the list over DevTools.
+            ad_block_list: _,
+            switches: _,
+            chromium:
+                ChromiumSettings {
+                    args,
+                    disable_features,
+                    host_resolver_rules,
+                },
+            virtual_display,
+            debugging_port: _,
+            debugging_any_port: _,
+        } = browser;
 
         // A binary path and Chromium are one choice of browser; the path comes first.
-        let (executable_path, use_chromium) = match &config.browser_binary_path {
+        let (executable_path, use_chromium) = match executable_path {
             Some(path) => (Some(path.clone()), None),
-            None => (
-                None,
-                matches!(config.browser, BrowserKind::Chromium).then_some(true),
-            ),
+            None => (None, matches!(kind, BrowserKind::Chromium).then_some(true)),
         };
-        let locale = config.locale.as_deref().map(LocaleCode::normalise);
+        let locale = lang.as_deref().map(LocaleCode::normalise);
         let mut prefs = Map::new();
         if let Some(code) = &locale {
             prefs.insert("intl.accept_languages".to_owned(), json!(code));
         }
         let mut layer = Self {
-            cdp_url: config
-                .cdp_url
-                .clone()
-                .or_else(|| config.cdp_discovery.then(|| config.webdriver_url.clone()))
-                .map(Redacted),
-            cdp_target: config.cdp_target.clone(),
-            headless: Some(config.headless),
+            headless: Some(*headless),
             use_chromium,
             executable_path,
-            ad_block: config.ad_block.then_some(true),
-            user_agent: config.user_agent.clone(),
+            ad_block: ad_block.then_some(true),
+            user_agent: user_agent.clone(),
             lang: locale,
-            proxy: config.proxy.clone().map(|text| ProxySpec {
+            proxy: proxy_server.clone().map(|text| ProxySpec {
                 text: Redacted(text),
                 checked: true,
             }),
-            proxy_pac_url: config.proxy_pac_url.clone().map(Redacted),
-            proxy_bypass_list: Some(launch.proxy_bypass_list.clone()),
-            user_data_dir: config.user_data_dir.as_ref().map(PathBuf::from),
-            url: config.start_page.clone(),
-            window_size: launch.window_size.map(|size| (size.width, size.height)),
-            window_position: launch
-                .window_position
-                .map(|position| (position.x, position.y)),
-            mobile: config.mobile.then_some(true),
-            device_metrics: launch.device_metrics,
-            virtual_display: launch.virtual_display,
-            debugging_port: debugging_port(config),
-            fingerprint: config.fingerprint.as_ref().map(SharedFingerprint::new),
-            #[cfg(feature = "plugins")]
-            plugins: Some(config.plugins().clone()),
-            extensions: config
-                .extension_dir
-                .iter()
-                .flat_map(|dirs| dirs.split(','))
-                .map(str::trim)
-                .filter(|dir| !dir.is_empty())
-                .map(PathBuf::from)
-                .collect(),
-            extra_args: config
-                .extra_args
+            proxy_pac_url: pac_url.clone().map(Redacted),
+            proxy_bypass_list: Some(bypass_list.clone()),
+            user_data_dir: user_data_dir.clone(),
+            url: url.clone(),
+            window_size: window_size.map(|size| (size.width, size.height)),
+            window_position: window_position.map(|position| (position.x, position.y)),
+            mobile: mobile.then_some(true),
+            device_metrics: *device_metrics,
+            virtual_display: *virtual_display,
+            debugging_port: debugging_port(browser),
+            extensions: extensions.clone(),
+            extra_args: args
                 .iter()
                 .map(|arg| {
                     if arg.starts_with('-') {
@@ -178,12 +223,12 @@ impl Layer {
                 })
                 .collect(),
             prefs,
-            disable_features: launch.disable_features.clone(),
-            host_resolver_rules: launch.host_resolver_rules.iter().cloned().collect(),
+            disable_features: disable_features.clone(),
+            host_resolver_rules: host_resolver_rules.iter().cloned().collect(),
             ..Self::default()
         };
-        for switch in &launch.switches {
-            layer.set_switch(*switch, true);
+        for switch in browser.switches_on() {
+            layer.set_switch(switch, true);
         }
         layer
     }
@@ -206,12 +251,12 @@ mod tests {
     #[test]
     fn what_only_the_webdriver_engine_uses_is_listed() {
         let mut config = BrowserConfig::default();
-        config.launch.page_load_strategy = Some(PageLoadStrategy::Eager);
-        config.launch.driver_version = Some("126".parse().unwrap());
-        config.launch.cdp_events = CdpEventCapture::Always;
-        config.launch.capabilities = CapabilityOverrides::from_text(r#"{"name":"t"}"#).unwrap();
-        config.launch.set(LaunchSwitch::EscEnd, true);
-        config.launch.set(LaunchSwitch::BlockImages, true);
+        config.session.page_load_strategy = Some(PageLoadStrategy::Eager);
+        config.session.driver_version = Some("126".parse().unwrap());
+        config.session.cdp_events = CdpEventCapture::Always;
+        config.session.capabilities = CapabilityOverrides::from_text(r#"{"name":"t"}"#).unwrap();
+        config.browser.set(LaunchSwitch::EscEnd, true);
+        config.browser.set(LaunchSwitch::BlockImages, true);
         assert_eq!(
             unused_settings(&config),
             [
@@ -243,10 +288,7 @@ mod tests {
 
     #[test]
     fn a_bad_proxy_in_a_config_fails_the_build_without_echoing_the_password() {
-        let config = BrowserConfig {
-            proxy: Some("user:hunter2@host:notaport".to_owned()),
-            ..BrowserConfig::default()
-        };
+        let config = BrowserConfig::default().with_proxy("user:hunter2@host:notaport");
         let error = LaunchOptionsBuilder::default()
             .browser_config(&config)
             .build()

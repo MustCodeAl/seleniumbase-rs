@@ -2,10 +2,10 @@
 //!
 //! [`parse_chromium_args`] reads Python SeleniumBase's `--chromium-arg` text;
 //! [`switch_args`] turns the on/off switches and the argument-valued settings
-//! of a [`LaunchSettings`] into the arguments Chromium takes, in one place and
+//! of a [`BrowserSettings`] into the arguments Chromium takes, in one place and
 //! a fixed order.
 
-use super::{LaunchSettings, LaunchSwitch};
+use super::{BrowserSettings, LaunchSwitch};
 
 /// Reads the text of `--chromium-arg` (Python's `chromium_arg`): items
 /// separated by commas, each written as a command-line switch.
@@ -62,7 +62,7 @@ pub fn parse_chromium_args(text: &str) -> (Vec<String>, Vec<String>) {
 /// told that the page needs WebGL (`enable_3d_apis`).
 #[must_use]
 pub(crate) fn switch_args(
-    launch: &LaunchSettings,
+    launch: &BrowserSettings,
     headless: bool,
     loads_extensions: bool,
 ) -> Vec<String> {
@@ -117,13 +117,13 @@ pub(crate) fn switch_args(
     if launch.has(LaunchSwitch::NoSandbox) && !cfg!(target_os = "linux") {
         args.push("--no-sandbox".to_owned());
     }
-    if let Some(rules) = launch.host_resolver_rules.as_deref() {
+    if let Some(rules) = launch.chromium.host_resolver_rules.as_deref() {
         args.push(format!("--host-resolver-rules={rules}"));
     }
-    if !launch.disable_features.is_empty() {
+    if !launch.chromium.disable_features.is_empty() {
         args.push(format!(
             "--disable-features={}",
-            launch.disable_features.join(",")
+            launch.chromium.disable_features.join(",")
         ));
     }
     args
@@ -131,10 +131,12 @@ pub(crate) fn switch_args(
 
 #[cfg(test)]
 mod tests {
+    use crate::browser::options::ChromiumSettings;
+
     use super::*;
 
-    fn with(switches: &[LaunchSwitch]) -> LaunchSettings {
-        let mut launch = LaunchSettings::default();
+    fn with(switches: &[LaunchSwitch]) -> BrowserSettings {
+        let mut launch = BrowserSettings::default();
         for switch in switches {
             launch.set(*switch, true);
         }
@@ -167,7 +169,7 @@ mod tests {
 
     #[test]
     fn no_switch_asks_for_no_argument_and_a_headless_session_loses_its_gpu() {
-        let none = LaunchSettings::default();
+        let none = BrowserSettings::default();
         assert!(switch_args(&none, false, false).is_empty());
         assert_eq!(switch_args(&none, true, false), ["--disable-gpu"]);
     }
@@ -254,10 +256,13 @@ mod tests {
 
     #[test]
     fn the_resolver_rules_and_the_disabled_features_are_one_switch_each() {
-        let launch = LaunchSettings {
-            host_resolver_rules: Some("MAP example.com 127.0.0.1".to_owned()),
-            disable_features: vec!["Translate".to_owned(), "Foo".to_owned()],
-            ..LaunchSettings::default()
+        let launch = BrowserSettings {
+            chromium: ChromiumSettings {
+                host_resolver_rules: Some("MAP example.com 127.0.0.1".to_owned()),
+                disable_features: vec!["Translate".to_owned(), "Foo".to_owned()],
+                ..ChromiumSettings::default()
+            },
+            ..BrowserSettings::default()
         };
         assert_eq!(
             switch_args(&launch, false, false),

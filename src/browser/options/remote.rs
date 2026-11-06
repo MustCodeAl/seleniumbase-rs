@@ -3,6 +3,8 @@
 use std::fmt;
 use std::str::FromStr;
 
+use serde::{Deserialize, Serialize};
+
 use crate::error::SeleniumBaseError;
 
 /// The protocol a Selenium Grid is reached over (`--protocol`).
@@ -17,7 +19,8 @@ use crate::error::SeleniumBaseError;
 /// assert!("ftp".parse::<GridProtocol>().is_err());
 /// # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 /// ```
-#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum GridProtocol {
     /// Plain HTTP, the default.
     #[default]

@@ -536,7 +536,7 @@ fn a_user_agent_or_locale_needs_a_fingerprint_on_an_attached_browser() {
 async fn base_case_refuses_a_user_agent_on_an_attached_app_before_it_connects() {
     let server = AttachServer::start(None).await;
     let mut config = BrowserConfig::default().with_cdp_url(&server.http);
-    config.user_agent = Some("Custom/1.0".to_owned());
+    config.browser.user_agent = Some("Custom/1.0".to_owned());
     let error = BaseCase::new(config).await.err().expect("refused");
     assert!(
         matches!(error, SeleniumBaseError::InvalidConfig(_)),
@@ -552,7 +552,7 @@ async fn reconnect_attaches_to_the_same_endpoint_and_starts_no_driver() {
         .with_cdp_url(&server.http)
         .with_fingerprint(fingerprint());
     // Were a driver started, it would be a local chromedriver: not here.
-    config.auto_start_driver = false;
+    config.session.auto_start_driver = false;
     let mut case = BaseCase::new(config).await.unwrap();
     assert_eq!(server.connections.load(Ordering::SeqCst), 1);
 

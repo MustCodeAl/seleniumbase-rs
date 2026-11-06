@@ -15,21 +15,21 @@ use crate::browser::chrome_for_testing::{
 use crate::browser::chromium_snapshots::install_chromium;
 use crate::browser::config::{Browser, BrowserConfig};
 use crate::browser::launcher::{launch_driver_for, DriverProcess};
-use crate::browser::options::{DriverVersion, LaunchSettings, LaunchSwitch, ReleaseChannel};
+use crate::browser::options::{BrowserSettings, DriverVersion, LaunchSwitch, ReleaseChannel};
 use crate::browser::virtual_display::{self, XvfbProcess};
 use crate::error::SeleniumBaseError;
 
 use super::capabilities::session_capabilities;
 
 pub(super) fn validate_mode_support(config: &BrowserConfig) -> Result<(), SeleniumBaseError> {
-    if config.is_cdp_enabled() && !config.browser.is_chromium_based() {
+    if config.is_cdp_enabled() && !config.browser.kind.is_chromium_based() {
         return Err(SeleniumBaseError::InvalidConfig(format!(
             "CDP/UC mode requires a Chromium-based browser, not {}",
-            config.browser
+            config.browser.kind
         )));
     }
     if config.is_uc_enabled()
-        && (config.browser == Browser::ChromeHeadlessShell || headless1_uses_shell(config))
+        && (config.browser.kind == Browser::ChromeHeadlessShell || headless1_uses_shell(config))
     {
         return Err(SeleniumBaseError::InvalidConfig(
             "chrome-headless-shell cannot run the undetected (UC) mode".to_owned(),
@@ -48,7 +48,7 @@ async fn connect_with_caps(
     crate::install_tls_provider();
     let url = server_url_for_joins(url);
     let url = url.as_str();
-    match config.remote_webdriver_timeout_seconds {
+    match config.session.remote_webdriver_timeout_seconds {
         Some(seconds) => Ok(WebDriver::builder(url, caps)
             .request_timeout(Duration::from_secs(seconds))
             .connect()
@@ -73,7 +73,7 @@ pub(crate) fn server_url_for_joins(url: &str) -> String {
 }
 
 async fn try_connect(config: &BrowserConfig, url: &str) -> Result<WebDriver, SeleniumBaseError> {
-    crate::browser::downloads::create_folder_for(config.browser);
+    crate::browser::downloads::create_folder_for(config.browser.kind);
     let caps = session_capabilities(config)?;
     connect_with_caps(config, url, caps).await
 }
@@ -82,7 +82,7 @@ async fn try_connect(config: &BrowserConfig, url: &str) -> Result<WebDriver, Sel
 /// cannot be given the geometry as a launch argument.
 pub(super) async fn apply_window_rect(
     driver: &WebDriver,
-    launch: &LaunchSettings,
+    launch: &BrowserSettings,
 ) -> Result<(), SeleniumBaseError> {
     if launch.window_size.is_none() && launch.window_position.is_none() {
         return Ok(());
@@ -106,9 +106,9 @@ pub(super) async fn apply_window_rect(
 /// `chrome-headless-shell`: only Chrome with no program of its own named has a
 /// shell to stand for it.
 fn headless1_uses_shell(config: &BrowserConfig) -> bool {
-    config.launch.has(LaunchSwitch::Headless1)
-        && config.browser == Browser::Chrome
-        && config.browser_binary_path.is_none()
+    config.browser.has(LaunchSwitch::Headless1)
+        && config.browser.kind == Browser::Chrome
+        && config.browser.executable_path.is_none()
 }
 
 /// Settles the headless variants of `config` before a browser is asked for.
@@ -119,23 +119,25 @@ fn headless1_uses_shell(config: &BrowserConfig) -> bool {
 /// Chromium browser has no such program and runs in its new headless mode, and
 /// Firefox simply runs headless. (`headless2` is plain headless.)
 fn apply_headless_variants(config: &mut BrowserConfig) {
-    if config.browser == Browser::ChromeHeadlessShell && !config.headless {
+    if config.browser.kind == Browser::ChromeHeadlessShell && !config.browser.headless {
         tracing::info!(
             "chrome-headless-shell only runs headless; the headed request is overridden"
         );
-        config.headless = true;
+        config.browser.headless = true;
     }
-    if !config.launch.has(LaunchSwitch::Headless1) {
+    if !config.browser.has(LaunchSwitch::Headless1) {
         return;
     }
-    config.headless = true;
+    config.browser.headless = true;
     if headless1_uses_shell(config) {
-        config.browser = Browser::ChromeHeadlessShell;
-    } else if config.browser.is_chromium_based() && config.browser != Browser::ChromeHeadlessShell {
+        config.browser.kind = Browser::ChromeHeadlessShell;
+    } else if config.browser.kind.is_chromium_based()
+        && config.browser.kind != Browser::ChromeHeadlessShell
+    {
         tracing::info!(
             "headless1 needs chrome-headless-shell, which only replaces Chrome with no program of \
              its own named; {} runs in its new headless mode",
-            config.browser
+            config.browser.kind
         );
     }
 }
@@ -148,14 +150,18 @@ fn apply_headless_variants(config: &mut BrowserConfig) {
 pub(super) fn start_virtual_display(
     config: &BrowserConfig,
 ) -> Result<Option<XvfbProcess>, SeleniumBaseError> {
-    let Some(screen) = config.launch.virtual_display else {
+    let Some(screen) = config.browser.virtual_display else {
         return Ok(None);
     };
-    if !virtual_display::wanted(Some(screen), config.headless, cfg!(target_os = "linux")) {
+    if !virtual_display::wanted(
+        Some(screen),
+        config.browser.headless,
+        cfg!(target_os = "linux"),
+    ) {
         tracing::info!("a virtual display was asked for, but this session is headless or not on Linux; none is started");
         return Ok(None);
     }
-    if !config.auto_start_driver || !config.is_default_webdriver_url() {
+    if !config.session.auto_start_driver || !config.is_default_webdriver_url() {
         tracing::warn!(
             "a virtual display only works with a driver this crate starts; none is started"
         );
@@ -175,22 +181,22 @@ pub(super) fn start_virtual_display(
 pub(super) fn resolve_remote_debug(
     config: &mut BrowserConfig,
 ) -> Result<Option<u16>, SeleniumBaseError> {
-    let Some(port) = config.launch.remote_debug_port else {
+    let Some(port) = config.browser.debugging_port else {
         return Ok(None);
     };
-    if !config.browser.is_chromium_based() {
+    if !config.browser.kind.is_chromium_based() {
         return Ok(None);
     }
-    if !config.auto_start_driver || !config.is_default_webdriver_url() {
+    if !config.session.auto_start_driver || !config.is_default_webdriver_url() {
         return Ok(Some(port));
     }
     let port = crate::browser::launcher::choose_debug_port(
         port,
-        config.launch.remote_debug_any_port,
+        config.browser.debugging_any_port,
         crate::browser::launcher::port_is_free,
         crate::browser::launcher::find_free_port,
     )?;
-    config.launch.remote_debug_port = Some(port);
+    config.browser.debugging_port = Some(port);
     info!("Chrome's remote debugger listens on localhost:{port}; open chrome://inspect");
     Ok(Some(port))
 }
@@ -205,9 +211,9 @@ pub(super) async fn connect_driver(
     patch_chrome_binary_if_needed(&mut config).await?;
 
     let mut process: Option<DriverProcess> = None;
-    let mut url = config.webdriver_url.clone();
+    let mut url = config.session.webdriver_url();
 
-    if config.auto_start_driver && config.is_default_webdriver_url() {
+    if config.session.auto_start_driver && config.is_default_webdriver_url() {
         match try_connect(&config, &url).await {
             Ok(driver) => return Ok((driver, None)),
             Err(_) => {
@@ -232,7 +238,7 @@ pub(super) async fn connect_driver(
 /// `chrome-headless-shell`, which are fetched when missing, cannot be.
 async fn resolve_browser_binary(config: &mut BrowserConfig) -> Result<(), SeleniumBaseError> {
     let needs_program = matches!(
-        config.browser,
+        config.browser.kind,
         Browser::Brave
             | Browser::Comet
             | Browser::Opera
@@ -240,19 +246,19 @@ async fn resolve_browser_binary(config: &mut BrowserConfig) -> Result<(), Seleni
             | Browser::ChromeForTesting
             | Browser::ChromeHeadlessShell
     );
-    if !needs_program || config.browser_binary_path.is_some() {
+    if !needs_program || config.browser.executable_path.is_some() {
         return Ok(());
     }
     let proxy = config
-        .launch
+        .browser
         .has(LaunchSwitch::ProxyForDriverDownload)
-        .then_some(config.proxy.as_deref())
+        .then_some(config.browser.proxy.server.as_deref())
         .flatten();
-    let found = match binaries::locate(config.browser) {
+    let found = match binaries::locate(config.browser.kind) {
         Some(found) => found,
         // Chrome for Testing, chrome-headless-shell and Chromium are downloads, so a missing
         // one is fetched: the stable build of the first two, the newest snapshot of Chromium.
-        None => match config.browser {
+        None => match config.browser.kind {
             Browser::ChromeForTesting => {
                 let stable = DriverVersion::Channel(ReleaseChannel::Stable);
                 install_chrome_for_testing(&stable, proxy).await?
@@ -264,17 +270,17 @@ async fn resolve_browser_binary(config: &mut BrowserConfig) -> Result<(), Seleni
             Browser::Chromium => install_chromium(None, proxy).await?,
             _ => {
                 return Err(SeleniumBaseError::invalid_config(missing_browser_message(
-                    config.browser,
+                    config.browser.kind,
                 )))
             }
         },
     };
     // A chromedriver drives only the Chrome of its own major version, and the Chromium found
     // is not the Chrome that is installed: the driver follows the Chromium.
-    if config.browser == Browser::Chromium && config.launch.driver_version.is_none() {
-        config.launch.driver_version = Some(DriverVersion::MatchBrowser);
+    if config.browser.kind == Browser::Chromium && config.session.driver_version.is_none() {
+        config.session.driver_version = Some(DriverVersion::MatchBrowser);
     }
-    config.browser_binary_path = Some(found);
+    config.browser.executable_path = Some(found);
     Ok(())
 }
 
@@ -305,12 +311,12 @@ async fn patch_chrome_binary_if_needed(
         return Ok(());
     }
     if !matches!(
-        config.browser,
+        config.browser.kind,
         Browser::Chrome | Browser::Chromium | Browser::Edge
     ) {
         return Ok(());
     }
-    if config.browser_binary_path.is_some() {
+    if config.browser.executable_path.is_some() {
         return Ok(());
     }
 
@@ -343,7 +349,7 @@ async fn patch_chrome_binary_if_needed(
     })??;
 
     tracing::info!(path = %patched.display(), "using patched chrome binary");
-    config.browser_binary_path = Some(patched);
+    config.browser.executable_path = Some(patched);
     Ok(())
 }
 
@@ -401,10 +407,10 @@ mod headless_variant_tests {
         let mut config = BrowserConfig::default()
             .with_headless(false)
             .with_headless1(true);
-        config.browser_binary_path = None;
+        config.browser.executable_path = None;
         let settled = settled(config);
-        assert_eq!(settled.browser, Browser::ChromeHeadlessShell);
-        assert!(settled.headless);
+        assert_eq!(settled.browser.kind, Browser::ChromeHeadlessShell);
+        assert!(settled.browser.headless);
     }
 
     #[test]
@@ -412,7 +418,7 @@ mod headless_variant_tests {
         let own = BrowserConfig::default()
             .with_headless1(true)
             .with_browser_binary_path("/opt/chrome/chrome");
-        assert_eq!(settled(own).browser, Browser::Chrome);
+        assert_eq!(settled(own).browser.kind, Browser::Chrome);
 
         for browser in [Browser::Edge, Browser::Brave, Browser::Firefox] {
             let config = BrowserConfig::default()
@@ -420,8 +426,8 @@ mod headless_variant_tests {
                 .with_headless(false)
                 .with_headless1(true);
             let config = settled(config);
-            assert_eq!(config.browser, browser);
-            assert!(config.headless, "{browser}");
+            assert_eq!(config.browser.kind, browser);
+            assert!(config.browser.headless, "{browser}");
         }
     }
 
@@ -432,7 +438,7 @@ mod headless_variant_tests {
             .with_headless2(true);
         let after = settled(config.clone());
         assert_eq!(after, config);
-        assert!(after.headless);
+        assert!(after.browser.headless);
     }
 
     #[test]
@@ -440,7 +446,7 @@ mod headless_variant_tests {
         let shell = BrowserConfig::default()
             .with_browser(Browser::ChromeHeadlessShell)
             .with_headless(false);
-        assert!(settled(shell).headless);
+        assert!(settled(shell).browser.headless);
     }
 
     #[test]
@@ -448,7 +454,7 @@ mod headless_variant_tests {
         let mut config = BrowserConfig::default()
             .with_mode(DriverMode::Uc)
             .with_headless1(true);
-        config.browser_binary_path = None;
+        config.browser.executable_path = None;
         let error = validate_mode_support(&config).expect_err("refused");
         assert!(
             error
@@ -486,11 +492,11 @@ mod remote_debug_tests {
 
         // The default port gives way to a free one.
         let mut moving = BrowserConfig::default();
-        moving.launch.remote_debug_port = Some(busy);
-        moving.launch.remote_debug_any_port = true;
+        moving.browser.debugging_port = Some(busy);
+        moving.browser.debugging_any_port = true;
         let chosen = resolve_remote_debug(&mut moving).unwrap().unwrap();
         assert_ne!(chosen, busy);
-        assert_eq!(moving.launch.remote_debug_port, Some(chosen));
+        assert_eq!(moving.browser.debugging_port, Some(chosen));
 
         // A browser on a server of its own is not checked from here, and
         // Firefox has no such debugger.

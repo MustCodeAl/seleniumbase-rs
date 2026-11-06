@@ -356,7 +356,7 @@ impl BaseCase {
     /// right (the top right in a mobile emulator) and waits until it has gone,
     /// as Python's `post_messenger_success_message` does. True when it was shown.
     async fn post_demo_success_message(&self, markup: &str) -> bool {
-        let location = if self.config.mobile {
+        let location = if self.config.browser.mobile {
             MessengerLocation::TopRight
         } else {
             MessengerLocation::BottomRight

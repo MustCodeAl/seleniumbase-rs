@@ -144,14 +144,14 @@ impl BaseCase {
 
     /// Refuses, naming `what`, unless the session is a Firefox one.
     fn require_firefox(&self, what: &str) -> Result<(), SeleniumBaseError> {
-        if self.config.browser == crate::browser::config::Browser::Firefox {
+        if self.config.browser.kind == crate::browser::config::Browser::Firefox {
             return Ok(());
         }
         Err(SeleniumBaseError::Unsupported(format!(
             "{what} needs a Firefox session, because add-ons are installed through geckodriver; \
              this one is {}. A Chromium browser loads its extensions at launch, with \
              BrowserConfig::with_extension_dir or with_extension_archive.",
-            self.config.browser
+            self.config.browser.kind
         )))
     }
 }
@@ -183,7 +183,7 @@ mod tests_addon {
         let mut config = BrowserConfig::default()
             .with_webdriver_url(driver.url())
             .with_browser(Browser::Firefox);
-        config.auto_start_driver = false;
+        config.session.auto_start_driver = false;
         BaseCase::new(config)
             .await
             .expect("the mock WebDriver accepts a Firefox session")

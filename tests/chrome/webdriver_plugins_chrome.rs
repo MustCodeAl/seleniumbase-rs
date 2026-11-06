@@ -91,7 +91,7 @@ async fn a_plugin_reaches_chrome_through_webdriver_and_its_devtools_channel() {
     let mut config = BrowserConfig::default()
         .with_headless(true)
         .with_plugins(plugins);
-    config.auto_start_driver = true;
+    config.session.auto_start_driver = true;
 
     let mut sb = BaseCase::new(config).await.expect("Chrome starts");
     sb.open(PAGE).await.unwrap();

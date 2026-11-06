@@ -250,15 +250,16 @@ impl BrowserSession {
             .await
             .map_err(|e| crate::error::SeleniumBaseError::Unsupported(e.to_string()))?;
         uc::apply_uc_stealth(cdp).await?;
-        if let Some(user_agent) = config.user_agent.as_deref() {
-            uc::override_user_agent(cdp, user_agent, config.locale.as_deref()).await?;
+        if let Some(user_agent) = config.browser.user_agent.as_deref() {
+            uc::override_user_agent(cdp, user_agent, config.browser.lang.as_deref()).await?;
         } else {
             if let Ok(version_info) = cdp.execute("Browser.getVersion").await
                 && let Some(ua) = version_info["userAgent"].as_str()
                 && ua.contains("HeadlessChrome")
             {
                 let stealth_ua = ua.replace("HeadlessChrome", "Chrome");
-                let _ = uc::override_user_agent(cdp, &stealth_ua, config.locale.as_deref()).await;
+                let _ =
+                    uc::override_user_agent(cdp, &stealth_ua, config.browser.lang.as_deref()).await;
             }
         }
         self.apply_fingerprint(config).await?;

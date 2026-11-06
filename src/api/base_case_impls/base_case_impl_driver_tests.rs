@@ -1086,8 +1086,8 @@ mod tests_page_load_hooks {
     async fn a_browser_that_is_not_chromium_has_no_log_and_no_dialog_to_switch_off() {
         let driver = page(json!([]));
         let mut config = BrowserConfig::default().with_webdriver_url(driver.url().to_owned());
-        config.auto_start_driver = false;
-        config.browser = Browser::Firefox;
+        config.session.auto_start_driver = false;
+        config.browser.kind = Browser::Firefox;
         let mut sb = BaseCase::new(config).await.unwrap();
         sb.set_run_settings(all_three());
         sb.wait_for_ready_state_complete().await.unwrap();

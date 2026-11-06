@@ -319,18 +319,16 @@ async fn a_pac_file_that_asks_for_a_login_is_answered_over_the_protocol() {
 
 /// A config that sets every option the pure CDP engine can use.
 fn full_config() -> BrowserConfig {
-    let mut config = BrowserConfig {
-        headless: false,
-        mobile: true,
-        user_agent: Some("Agent/1".to_owned()),
-        locale: Some("ar_eg".to_owned()),
-        proxy: Some("user:secret@127.0.0.1:8080".to_owned()),
-        start_page: Some("https://example.com/".to_owned()),
-        extra_args: vec!["mute-audio".to_owned(), "--no-pings".to_owned()],
-        ad_block: true,
-        ..BrowserConfig::default()
-    };
-    let launch = &mut config.launch;
+    let mut config = BrowserConfig::default()
+        .with_headless(false)
+        .with_mobile(true)
+        .with_user_agent("Agent/1")
+        .with_locale("ar_eg")
+        .with_proxy("user:secret@127.0.0.1:8080")
+        .with_start_page("https://example.com/")
+        .with_extra_args(["mute-audio", "--no-pings"])
+        .with_ad_block(true);
+    let launch = &mut config.browser;
     for switch in [
         LaunchSwitch::DarkMode,
         LaunchSwitch::Incognito,
@@ -346,9 +344,9 @@ fn full_config() -> BrowserConfig {
     }
     launch.window_size = Some(WindowSize::new(1000, 700));
     launch.window_position = Some(WindowPosition::new(5, 6));
-    launch.proxy_bypass_list = ProxyBypassList::new(["localhost"]).unwrap();
-    launch.disable_features = vec!["Bar".to_owned()];
-    launch.host_resolver_rules = Some("MAP a.test 127.0.0.1".to_owned());
+    launch.proxy.bypass_list = ProxyBypassList::new(["localhost"]).unwrap();
+    launch.chromium.disable_features = vec!["Bar".to_owned()];
+    launch.chromium.host_resolver_rules = Some("MAP a.test 127.0.0.1".to_owned());
     config
 }
 
@@ -400,7 +398,7 @@ fn a_config_with_every_option_gives_this_command_line() {
 #[test_log::test(tokio::test)]
 async fn a_config_with_mobile_set_makes_every_tab_a_phone() {
     let mut config = BrowserConfig::default().with_mobile(true);
-    config.launch.device_metrics = Some(DeviceMetrics::new(360, 780, 2.0));
+    config.browser.device_metrics = Some(DeviceMetrics::new(360, 780, 2.0));
     let options = LaunchOptions::builder()
         .browser_config(&config)
         .build()
@@ -419,11 +417,9 @@ async fn a_config_with_mobile_set_makes_every_tab_a_phone() {
 
 #[test]
 fn a_config_with_a_fingerprint_and_mobile_is_refused() {
-    let config = BrowserConfig {
-        mobile: true,
-        fingerprint: Some(Fingerprint::randomized(OsType::Linux, 3)),
-        ..BrowserConfig::default()
-    };
+    let config = BrowserConfig::default()
+        .with_mobile(true)
+        .with_fingerprint(Fingerprint::randomized(OsType::Linux, 3));
     let error = LaunchOptions::builder()
         .browser_config(&config)
         .build()
@@ -443,10 +439,7 @@ fn a_config_proxy_is_checked_as_python_checks_it() {
         "host:notaport",
         "user:hunter2@:80",
     ] {
-        let config = BrowserConfig {
-            proxy: Some(bad.to_owned()),
-            ..BrowserConfig::default()
-        };
+        let config = BrowserConfig::default().with_proxy(bad);
         let error = LaunchOptions::builder()
             .browser_config(&config)
             .build()
@@ -454,10 +447,7 @@ fn a_config_proxy_is_checked_as_python_checks_it() {
         assert!(!error.to_string().contains("hunter2"), "{error}");
     }
     // A SOCKS proxy is written the way Chrome reads it.
-    let config = BrowserConfig {
-        proxy: Some("socks5h://10.0.0.1:1080".to_owned()),
-        ..BrowserConfig::default()
-    };
+    let config = BrowserConfig::default().with_proxy("socks5h://10.0.0.1:1080");
     let arguments = LaunchOptions::builder()
         .browser_config(&config)
         .build()
@@ -471,7 +461,7 @@ fn a_config_switch_that_is_a_profile_preference_reaches_the_profile() {
     // The preferences are written into the profile before Chrome starts; the
     // real-Chrome test reads them back.
     let mut config = BrowserConfig::default();
-    config.launch.set(LaunchSwitch::BlockImages, true);
+    config.browser.set(LaunchSwitch::BlockImages, true);
     let builder = LaunchOptions::builder().browser_config(&config);
     assert!(format!("{builder:?}").contains("BlockImages"));
 }

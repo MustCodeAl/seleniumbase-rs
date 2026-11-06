@@ -183,10 +183,7 @@ async fn the_prompt_works_on_a_pure_cdp_page() {
 #[serial_test::serial(chrome)]
 async fn the_prompt_works_on_a_webdriver_page() {
     let address = serve();
-    let config = BrowserConfig {
-        headless: true,
-        ..BrowserConfig::default()
-    };
+    let config = BrowserConfig::default();
     let mut sb = BaseCase::new(config).await.expect("Chrome starts");
     sb.open(&address).await.expect("the page opens");
 

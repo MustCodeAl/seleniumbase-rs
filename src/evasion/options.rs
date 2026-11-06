@@ -5,8 +5,8 @@ use std::path::PathBuf;
 
 use crate::browser::config::BrowserConfig;
 use crate::browser::options::{
-    chrome_preferences, emulated_phone, switch_args, Bundled, LaunchSettings, LaunchSwitch,
-    LocaleCode,
+    chrome_preferences, emulated_phone, switch_args, BrowserSettings, Bundled, LaunchSwitch,
+    LocaleCode, SessionSettings,
 };
 use crate::error::SeleniumBaseError;
 use crate::evasion::fingerprint::Fingerprint;
@@ -48,9 +48,11 @@ pub struct StealthOptions {
     pub extra_args: Vec<String>,
     /// Optional explicit path to a patched or custom browser binary.
     pub binary_path: Option<PathBuf>,
-    /// The launch settings of the configuration these options came from:
+    /// The browser settings of the configuration these options came from:
     /// preferences, page load strategy, mobile emulation, extensions and so on.
-    pub launch: LaunchSettings,
+    pub browser: BrowserSettings,
+    /// The session settings of the configuration these options came from.
+    pub session: SessionSettings,
 }
 
 // Written by hand: the proxy URL may carry a password and the extra headers
@@ -79,7 +81,8 @@ impl std::fmt::Debug for StealthOptions {
             .field("extra_header_names", &header_names)
             .field("extra_args", &self.extra_args)
             .field("binary_path", &self.binary_path)
-            .field("launch", &self.launch)
+            .field("browser", &self.browser)
+            .field("session", &self.session)
             .finish()
     }
 }
@@ -97,30 +100,46 @@ pub(crate) fn without_credentials(url: &str) -> String {
     }
 }
 
+/// The folders of `extensions` as Chrome takes them in `--load-extension`: comma-separated.
+fn join_extension_dirs(extensions: &[PathBuf]) -> Option<String> {
+    (!extensions.is_empty()).then(|| {
+        extensions
+            .iter()
+            .map(|dir| dir.to_string_lossy())
+            .collect::<Vec<_>>()
+            .join(",")
+    })
+}
+
 impl From<&BrowserConfig> for StealthOptions {
     fn from(config: &BrowserConfig) -> Self {
         Self {
-            headless: config.headless
-                || config.browser == crate::browser::config::Browser::ChromeHeadlessShell,
-            window_size: config.launch.window_size.map(|size| size.to_string()),
+            headless: config.browser.headless
+                || config.browser.kind == crate::browser::config::Browser::ChromeHeadlessShell,
+            window_size: config.browser.window_size.map(|size| size.to_string()),
             window_position: config
-                .launch
+                .browser
                 .window_position
                 .map(|position| position.to_string()),
-            user_agent: config.user_agent.clone(),
-            locale: config.locale.clone(),
-            proxy: config.proxy.clone(),
-            proxy_pac_url: config.proxy_pac_url.clone(),
-            user_data_dir: config.user_data_dir.clone(),
-            extension_dir: config.extension_dir.clone(),
-            mobile: config.mobile,
-            ad_block: config.ad_block,
+            user_agent: config.browser.user_agent.clone(),
+            locale: config.browser.lang.clone(),
+            proxy: config.browser.proxy.server.clone(),
+            proxy_pac_url: config.browser.proxy.pac_url.clone(),
+            user_data_dir: config
+                .browser
+                .user_data_dir
+                .as_ref()
+                .map(|dir| dir.to_string_lossy().into_owned()),
+            extension_dir: join_extension_dirs(&config.browser.extensions),
+            mobile: config.browser.mobile,
+            ad_block: config.browser.ad_block,
             uc: config.is_uc_enabled(),
             fingerprint: config.fingerprint.clone(),
             extra_headers: HashMap::new(),
-            extra_args: config.extra_args.clone(),
-            binary_path: config.browser_binary_path.clone(),
-            launch: config.launch.clone(),
+            extra_args: config.browser.chromium.args.clone(),
+            binary_path: config.browser.executable_path.clone(),
+            browser: config.browser.clone(),
+            session: config.session.clone(),
         }
     }
 }
@@ -157,7 +176,7 @@ impl StealthOptions {
             |switch: &str| fingerprint_args.iter().any(|arg| arg.starts_with(switch));
 
         // Maximized, a headed window takes the screen and no size is asked for.
-        let maximize = !self.headless && self.launch.has(LaunchSwitch::Maximize);
+        let maximize = !self.headless && self.browser.has(LaunchSwitch::Maximize);
         let size =
             self.window_size
                 .as_deref()
@@ -198,7 +217,7 @@ impl StealthOptions {
             caps.add_arg(&format!("--proxy-server={server}"))?;
         }
 
-        if let Some(hosts) = self.launch.proxy_bypass_list.to_chrome_value() {
+        if let Some(hosts) = self.browser.proxy.bypass_list.to_chrome_value() {
             caps.add_arg(&format!("--proxy-bypass-list={hosts}"))?;
         }
 
@@ -256,19 +275,19 @@ impl StealthOptions {
     }
 
     /// The part of [`apply_to`](Self::apply_to) that comes from
-    /// [`LaunchSettings`]: preferences, page load strategy, mobile emulation,
+    /// [`BrowserSettings`]: preferences, page load strategy, mobile emulation,
     /// extensions, sync, the remote debugger and the DevTools event log.
     fn apply_launch_settings<C: ChromiumLikeCapabilities>(
         &self,
         caps: &mut C,
     ) -> Result<(), SeleniumBaseError> {
-        let launch = &self.launch;
+        let launch = &self.browser;
 
-        if let Some(strategy) = launch.page_load_strategy {
+        if let Some(strategy) = self.session.page_load_strategy {
             caps.set_page_load_strategy(strategy.into())?;
         }
 
-        let mut preferences = chrome_preferences(&launch.switches);
+        let mut preferences = chrome_preferences(launch.switches_on());
         // Python sets the language preference as well as `--lang`, so the
         // `Accept-Language` header follows the locale.
         if let Some(locale) = self
@@ -313,7 +332,7 @@ impl StealthOptions {
         }
 
         let mut loads_extensions = self.extension_dir.is_some();
-        for archive in &launch.extension_archives {
+        for archive in &self.session.extension_archives {
             caps.add_encoded_extension(&archive.encoded()?)?;
             loads_extensions = true;
         }
@@ -339,11 +358,11 @@ impl StealthOptions {
             caps.add_arg(&arg)?;
         }
 
-        if let Some(port) = launch.remote_debug_port {
+        if let Some(port) = launch.debugging_port {
             caps.add_arg(&format!("--remote-debugging-port={port}"))?;
         }
 
-        if launch.cdp_events.captures(self.uc) {
+        if self.session.cdp_events.captures(self.uc) {
             caps.set_logging_prefs("performance", LoggingPrefsLogLevel::All)?;
             caps.set_logging_prefs("browser", LoggingPrefsLogLevel::All)?;
         }
@@ -720,10 +739,11 @@ mod tests {
             (Some("proxy.example"), None),
             (None, Some("user:hunter2@http://pac.example/proxy.js")),
         ] {
-            let config = BrowserConfig {
-                proxy: proxy.map(str::to_owned),
-                proxy_pac_url: pac.map(str::to_owned),
-                ..BrowserConfig::default()
+            let config = {
+                let mut config = BrowserConfig::default();
+                config.browser.proxy.server = proxy.map(str::to_owned);
+                config.browser.proxy.pac_url = pac.map(str::to_owned);
+                config
             };
 
             let error = options_for(&config).args().unwrap_err().to_string();
@@ -810,7 +830,7 @@ mod tests {
 
         // Metrics given alone do not choose a user agent.
         let mut metrics_only = BrowserConfig::default();
-        metrics_only.launch.device_metrics = Some(DeviceMetrics::new(360, 640, 2.0));
+        metrics_only.browser.device_metrics = Some(DeviceMetrics::new(360, 640, 2.0));
         let emulation = chrome_options(&options_for(&metrics_only))["mobileEmulation"].clone();
         assert!(emulation.get("userAgent").is_none());
     }

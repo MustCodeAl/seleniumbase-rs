@@ -218,7 +218,7 @@ mod wait_tests {
 
     async fn session(driver: &MockWebDriver) -> BrowserSession {
         let mut config = BrowserConfig::default().with_webdriver_url(driver.url());
-        config.auto_start_driver = false;
+        config.session.auto_start_driver = false;
         BrowserSession::connect(config).await.expect("connects")
     }
 

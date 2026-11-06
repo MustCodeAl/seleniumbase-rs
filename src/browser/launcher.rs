@@ -430,9 +430,9 @@ pub(crate) fn find_downloaded_or_on_path(
 /// asks for it.
 fn download_proxy(config: &BrowserConfig) -> Option<String> {
     config
-        .launch
+        .browser
         .has(LaunchSwitch::ProxyForDriverDownload)
-        .then(|| config.proxy.clone())
+        .then(|| config.browser.proxy.server.clone())
         .flatten()
 }
 
@@ -464,7 +464,8 @@ async fn ensure_geckodriver(config: &BrowserConfig) -> Result<PathBuf, SeleniumB
 /// not fit is the last resort when nothing could be downloaded.
 async fn ensure_msedgedriver(config: &BrowserConfig) -> Result<PathBuf, SeleniumBaseError> {
     let edge = match config
-        .browser_binary_path
+        .browser
+        .executable_path
         .clone()
         .or_else(|| locate(Browser::Edge))
     {
@@ -472,7 +473,7 @@ async fn ensure_msedgedriver(config: &BrowserConfig) -> Result<PathBuf, Selenium
         None => None,
     };
     let proxy = download_proxy(config);
-    if let Some(version) = &config.launch.driver_version {
+    if let Some(version) = &config.session.driver_version {
         return install_msedgedriver(version, edge, proxy.as_deref()).await;
     }
     let found = find_downloaded_or_on_path(
@@ -571,21 +572,21 @@ impl std::fmt::Debug for ChromedriverPlan {
 pub(crate) fn chromedriver_plan(config: &BrowserConfig) -> ChromedriverPlan {
     let proxy = download_proxy(config);
     let runs_its_own_browser = matches!(
-        config.browser,
+        config.browser.kind,
         Browser::Brave | Browser::Comet | Browser::ChromeForTesting | Browser::ChromeHeadlessShell
     );
-    let version = config.launch.driver_version.clone().or_else(|| {
+    let version = config.session.driver_version.clone().or_else(|| {
         (runs_its_own_browser || proxy.is_some()).then_some(DriverVersion::MatchBrowser)
     });
     match version {
         None => ChromedriverPlan::Default,
         Some(DriverVersion::Keep) => ChromedriverPlan::Keep {
-            browser: config.browser_binary_path.clone(),
+            browser: config.browser.executable_path.clone(),
             proxy,
         },
         Some(version) => ChromedriverPlan::Pinned {
             version,
-            browser: config.browser_binary_path.clone(),
+            browser: config.browser.executable_path.clone(),
             proxy,
         },
     }
@@ -613,7 +614,7 @@ async fn keep_chromedriver(
     install_chromedriver(&DriverVersion::MatchBrowser, major, proxy).await
 }
 
-/// Starts the driver `config.browser` needs on a free port.
+/// Starts the driver `config.browser.kind` needs on a free port.
 ///
 /// Chromedriver is the one in `downloaded_drivers/` or a download, as
 /// `chromedriver_plan` says. geckodriver (Firefox) and msedgedriver (Edge)
@@ -632,7 +633,7 @@ pub async fn launch_driver_for(
     config: &BrowserConfig,
     display: Option<&str>,
 ) -> Result<DriverProcess, SeleniumBaseError> {
-    let program = DriverProgram::for_browser(config.browser);
+    let program = DriverProgram::for_browser(config.browser.kind);
     if program == DriverProgram::Chromedriver {
         let binary = match chromedriver_plan(config) {
             ChromedriverPlan::Default => ensure_chromedriver_binary().await?,

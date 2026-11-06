@@ -42,7 +42,7 @@
 //! // Hand them out in turn.
 //! let first = list.next_round_robin().expect("a proxy");
 //! let config = BrowserConfig::default().with_proxy(first.spec());
-//! assert_eq!(config.proxy.as_deref(), Some("10.0.0.5:3128"));
+//! assert_eq!(config.browser.proxy.server.as_deref(), Some("10.0.0.5:3128"));
 //! # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 //! ```
 

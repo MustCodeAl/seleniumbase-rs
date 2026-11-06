@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use crate::api::run_settings::RunSettings;
 use crate::browser::config::{Browser, BrowserConfig, DriverMode};
-use crate::browser::options::{LaunchSettings, LaunchSwitch, WindowSize};
+use crate::browser::options::{LaunchSwitch, WindowSize};
 use crate::browser::reuse::ReuseClass;
 use crate::config::plugins::{PluginSelection, PLUGINS_ENV};
 use crate::config::test_settings::TestSettings;
@@ -952,60 +952,49 @@ impl Settings {
     pub(super) fn base_browser_config(&self) -> BrowserConfig {
         self.apply_process_wide();
 
-        let browser = self.browser.parse::<Browser>().unwrap_or_default();
-        let mode = self
+        let mut config = BrowserConfig::default();
+        config.browser.kind = self.browser.parse::<Browser>().unwrap_or_default();
+        config.session.mode = self
             .mode
             .as_deref()
             .and_then(|mode| mode.parse::<DriverMode>().ok())
             .unwrap_or_default();
-        let mut launch = LaunchSettings::default();
         if let (Some(width), Some(height)) = (self.window_width, self.window_height) {
-            launch.window_size = Some(WindowSize::new(width, height));
+            config.browser.window_size = Some(WindowSize::new(width, height));
         }
         // A multiplier below the minimum is raised to it, as `with_timeout_multiplier` does.
         let mut run = self.run.clone();
         if let Some(multiplier) = run.timeout_multiplier {
             run = run.with_timeout_multiplier(multiplier);
         }
-        launch.set(LaunchSwitch::EscEnd, self.esc_end);
-        launch.set(LaunchSwitch::RecSbCdp, self.rec_sb_cdp);
-        launch.reuse_class = self.reuse_class_session.then_some(ReuseClass::TestModule);
-        BrowserConfig {
-            cdp_url: None,
-            cdp_discovery: false,
-            cdp_target: None,
-
-            webdriver_url: self
-                .webdriver_url
-                .clone()
-                .unwrap_or_else(|| crate::config::RuntimeConfig::default().webdriver_url),
-            browser,
-            headless: self.headless,
-            mode,
-            user_agent: self.user_agent.clone(),
-            locale: self.locale.clone(),
-            ad_block: self.ad_block,
-            proxy: self.proxy.clone(),
-            proxy_pac_url: self.proxy_pac_url.clone(),
-            user_data_dir: self.user_data_dir.clone(),
-            extension_dir: self.extension_dir.clone(),
-            reuse_session: self.reuse_session || self.reuse_class_session,
-            mobile: self.mobile,
-
-            auto_start_driver: true,
-            start_page: self.start_page.clone(),
-            extra_args: Vec::new(),
-            fingerprint: self.load_fingerprint().unwrap_or_else(|error| {
-                // A `Settings` that was read is checked already; this is one made by hand.
-                tracing::warn!(%error, "the fingerprint file of the settings is ignored");
-                None
-            }),
-            browser_binary_path: self.chrome_bin.clone(),
-            remote_webdriver_timeout_seconds: self.remote_webdriver_timeout_seconds,
-            run,
-
-            launch,
-        }
+        config.run = run;
+        config.browser.set(LaunchSwitch::EscEnd, self.esc_end);
+        config.browser.set(LaunchSwitch::RecSbCdp, self.rec_sb_cdp);
+        config.session.reuse_class = self.reuse_class_session.then_some(ReuseClass::TestModule);
+        config.session.webdriver_url = self.webdriver_url.clone();
+        config.browser.headless = self.headless;
+        config.browser.user_agent = self.user_agent.clone();
+        config.browser.lang = self.locale.clone();
+        config.browser.ad_block = self.ad_block;
+        config.browser.proxy.server = self.proxy.clone();
+        config.browser.proxy.pac_url = self.proxy_pac_url.clone();
+        config.browser.user_data_dir = self.user_data_dir.as_ref().map(PathBuf::from);
+        config.browser.extensions = self
+            .extension_dir
+            .as_deref()
+            .map(crate::browser::config::split_extension_dirs)
+            .unwrap_or_default();
+        config.session.reuse = self.reuse_session || self.reuse_class_session;
+        config.browser.mobile = self.mobile;
+        config.browser.url = self.start_page.clone();
+        config.fingerprint = self.load_fingerprint().unwrap_or_else(|error| {
+            // A `Settings` that was read is checked already; this is one made by hand.
+            tracing::warn!(%error, "the fingerprint file of the settings is ignored");
+            None
+        });
+        config.browser.executable_path = self.chrome_bin.clone();
+        config.session.remote_webdriver_timeout_seconds = self.remote_webdriver_timeout_seconds;
+        config
     }
 
     fn apply_env_overrides(settings: Self) -> Result<Self, SeleniumBaseError> {
@@ -1206,8 +1195,8 @@ mod tests {
     #[test]
     fn the_webdriver_url_and_the_browser_binary_reach_the_browser_config() {
         let defaults = Settings::default().to_browser_config();
-        assert_eq!(defaults.webdriver_url, "http://localhost:4444");
-        assert_eq!(defaults.browser_binary_path, None);
+        assert_eq!(defaults.session.webdriver_url(), "http://localhost:4444");
+        assert_eq!(defaults.browser.executable_path, None);
 
         let config = with_vars(&[
             ("SB_WEBDRIVER_URL", "http://grid.test:4444"),
@@ -1215,9 +1204,9 @@ mod tests {
         ])
         .unwrap()
         .to_browser_config();
-        assert_eq!(config.webdriver_url, "http://grid.test:4444");
+        assert_eq!(config.session.webdriver_url(), "http://grid.test:4444");
         assert_eq!(
-            config.browser_binary_path,
+            config.browser.executable_path,
             Some(PathBuf::from("/opt/chrome/chrome"))
         );
     }
@@ -1225,13 +1214,13 @@ mod tests {
     #[test]
     fn the_window_size_reaches_the_launch_settings_when_both_sides_are_set() {
         assert_eq!(
-            Settings::default().to_browser_config().launch.window_size,
+            Settings::default().to_browser_config().browser.window_size,
             None
         );
         let config = with_vars(&[("SB_WINDOW_WIDTH", "1280"), ("SB_WINDOW_HEIGHT", "720")])
             .unwrap()
             .to_browser_config();
-        assert_eq!(config.launch.window_size, Some(WindowSize::new(1280, 720)));
+        assert_eq!(config.browser.window_size, Some(WindowSize::new(1280, 720)));
     }
 
     #[test]
@@ -1297,6 +1286,7 @@ mod tests {
             .is_none());
         assert!(Settings::default()
             .to_browser_config()
+            .session
             .remote_webdriver_timeout_seconds
             .is_none());
     }
@@ -1310,6 +1300,7 @@ mod tests {
         assert_eq!(
             settings
                 .to_browser_config()
+                .session
                 .remote_webdriver_timeout_seconds,
             Some(420)
         );
@@ -1373,15 +1364,15 @@ threads = 4
         };
         let config = s.to_browser_config();
         assert!(matches!(
-            config.browser,
+            config.browser.kind,
             crate::browser::config::Browser::Firefox
         ));
-        assert!(config.headless);
-        assert!(matches!(config.mode, DriverMode::Cdp));
-        assert!(config.mobile);
+        assert!(config.browser.headless);
+        assert!(matches!(config.session.mode, DriverMode::Cdp));
+        assert!(config.browser.mobile);
 
         assert_eq!(
-            config.proxy_pac_url,
+            config.browser.proxy.pac_url,
             Some("http://proxy/proxy.pac".to_string())
         );
     }
@@ -1421,24 +1412,24 @@ threads = 4
     #[test]
     fn reuse_follows_its_variables_and_reaches_the_browser_config() {
         let off = Settings::default().to_browser_config();
-        assert!(!off.reuse_session);
-        assert_eq!(off.launch.reuse_class, None);
+        assert!(!off.session.reuse);
+        assert_eq!(off.session.reuse_class, None);
 
         let run = Settings::apply_overrides(Settings::default(), |name| {
             (name == "SB_REUSE_SESSION").then(|| "true".to_owned())
         })
         .unwrap()
         .to_browser_config();
-        assert!(run.reuse_session);
-        assert_eq!(run.launch.reuse_class, None, "--rs shares across the run");
+        assert!(run.session.reuse);
+        assert_eq!(run.session.reuse_class, None, "--rs shares across the run");
 
         let module = Settings::apply_overrides(Settings::default(), |name| {
             (name == "SB_REUSE_CLASS_SESSION").then(|| "1".to_owned())
         })
         .unwrap()
         .to_browser_config();
-        assert!(module.reuse_session, "--rcs implies --rs, as in Python");
-        assert_eq!(module.launch.reuse_class, Some(ReuseClass::TestModule));
+        assert!(module.session.reuse, "--rcs implies --rs, as in Python");
+        assert_eq!(module.session.reuse_class, Some(ReuseClass::TestModule));
 
         let from_toml: Settings = toml::from_str("reuse_class_session = true").unwrap();
         assert!(from_toml.reuse_class_session);
@@ -2173,7 +2164,7 @@ threads = 4
     fn the_start_page_comes_from_the_variable_the_file_or_the_command_line() {
         // Nothing names a page: a browser opens none.
         assert_eq!(Settings::default().start_page, None);
-        assert_eq!(Settings::default().to_browser_config().start_page, None);
+        assert_eq!(Settings::default().to_browser_config().browser.url, None);
 
         // The variable, a blank one counting as unset.
         let from_variable = with_vars(&[("SB_START_PAGE", "https://start.test/")]).unwrap();
@@ -2182,7 +2173,7 @@ threads = 4
             Some("https://start.test/")
         );
         assert_eq!(
-            from_variable.to_browser_config().start_page.as_deref(),
+            from_variable.to_browser_config().browser.url.as_deref(),
             Some("https://start.test/")
         );
         assert_eq!(

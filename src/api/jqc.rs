@@ -1294,7 +1294,7 @@ mod tests {
         let mut config = BrowserConfig::default()
             .with_headless(true)
             .with_webdriver_url(driver.url().to_owned());
-        config.auto_start_driver = false;
+        config.session.auto_start_driver = false;
         let sb = BaseCase::new(config).await.unwrap();
 
         let button = sb
@@ -1376,7 +1376,7 @@ mod tests {
         let mut config = BrowserConfig::default()
             .with_headless(false)
             .with_webdriver_url(driver.url().to_owned());
-        config.auto_start_driver = false;
+        config.session.auto_start_driver = false;
         BaseCase::new(config).await.unwrap()
     }
 

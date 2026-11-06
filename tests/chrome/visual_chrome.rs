@@ -135,11 +135,7 @@ async fn assert_visual_match_sees_a_colour_change_check_window_does_not() {
     let folder = PathBuf::from("visual_baseline").join(format!("visual_chrome.{BASE_CASE_TEST}"));
     let _ = std::fs::remove_dir_all(&layout_folder);
     let _ = std::fs::remove_dir_all(&folder);
-    let config = BrowserConfig {
-        headless: true,
-        auto_start_driver: true,
-        ..BrowserConfig::default()
-    };
+    let config = BrowserConfig::default();
     let mut sb = BaseCase::new(config).await.expect("connect to browser");
     sb.open(&page_with("Visual check", "Hello"))
         .await

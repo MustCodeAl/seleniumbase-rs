@@ -1232,43 +1232,34 @@ impl ProfileParams {
         // `natural` flag or an off word launches nothing of that setting, and a
         // drawn value is the one the evasions claim.
         let fingerprint = self.to_fingerprint();
-        let mut config = BrowserConfig {
-            webdriver_url: container_url.into(),
-            cdp_url: None,
-            cdp_discovery: false,
-            cdp_target: None,
-
-            browser: self.browser(),
+        let mut config = BrowserConfig::default();
+        config.session.webdriver_url = Some(container_url.into());
+        config.session.mode = mode;
+        config.browser = crate::browser::options::BrowserSettings {
+            kind: self.browser(),
             headless: self.is_headless,
-            mode,
             user_agent: fingerprint.user_agent().value().cloned(),
-            locale: fingerprint.locale().value().cloned(),
-            proxy: fingerprint
-                .proxy()
-                .value()
-                .map(evasion_fp::ProxyConfig::to_url),
-            proxy_pac_url: None,
-            user_data_dir: self.user_data_dir(),
-            extension_dir: None,
-            start_page: custom_start_urls.first().cloned(),
-            reuse_session: false,
+            lang: fingerprint.locale().value().cloned(),
+            proxy: crate::browser::options::ProxySettings {
+                server: fingerprint
+                    .proxy()
+                    .value()
+                    .map(evasion_fp::ProxyConfig::to_url),
+                ..Default::default()
+            },
+            user_data_dir: self.user_data_dir().map(std::path::PathBuf::from),
+            url: custom_start_urls.first().cloned(),
             mobile: self.os_type == "android" || self.os_type == "ios",
-
             ad_block: fingerprint
                 .proxy()
                 .value()
                 .is_some_and(|proxy| proxy.save_traffic),
-            auto_start_driver: true,
-            extra_args: Vec::new(),
-            fingerprint: Some(fingerprint),
-            browser_binary_path: None,
-            remote_webdriver_timeout_seconds: None,
-            run: Default::default(),
-            launch: Default::default(),
+            ..Default::default()
         };
+        config.fingerprint = Some(fingerprint);
 
         for extra in self.extra_args() {
-            config.extra_args.push(extra);
+            config.browser.chromium.args.push(extra);
         }
 
         config
@@ -1512,7 +1503,12 @@ mod tests {
         .unwrap();
         assert_eq!(params.extra_args(), ["--disable-quic", "--lang=fr-FR"]);
         let config = params.to_browser_config("http://localhost:4444");
-        assert!(!config.extra_args.iter().any(|a| a.contains("cmd-prefix")));
+        assert!(!config
+            .browser
+            .chromium
+            .args
+            .iter()
+            .any(|a| a.contains("cmd-prefix")));
     }
 
     #[test]
@@ -1537,7 +1533,7 @@ mod tests {
             ]
         );
         let config = params.to_browser_config("http://localhost:4444");
-        assert_eq!(config.start_page.as_deref(), Some("https://a.example"));
+        assert_eq!(config.browser.url.as_deref(), Some("https://a.example"));
     }
 
     #[test]
@@ -1594,8 +1590,8 @@ mod tests {
         }))
         .unwrap();
         let config = params.to_browser_config("http://localhost:4444");
-        assert!(config.headless);
-        assert_eq!(config.mode, DriverMode::Cdp);
+        assert!(config.browser.headless);
+        assert_eq!(config.session.mode, DriverMode::Cdp);
     }
 
     #[test]
@@ -1662,7 +1658,7 @@ mod tests {
         .unwrap();
         assert_eq!(params.start_urls().len(), 5);
         let config = params.to_browser_config("http://localhost:4444");
-        assert_eq!(config.start_page, Some("https://a.example".to_string()));
+        assert_eq!(config.browser.url, Some("https://a.example".to_string()));
     }
 
     /// The fingerprint of a payload with `flags` and nothing else.
@@ -2277,7 +2273,10 @@ mod tests {
         assert!(fp.accept_languages().is_natural());
         // Nothing empty reaches the launch arguments.
         let config = params.to_browser_config("http://localhost:4444");
-        assert_eq!((config.user_agent, config.locale), (None, None));
+        assert_eq!(
+            (config.browser.user_agent, config.browser.lang),
+            (None, None)
+        );
 
         // A mask word draws what the payload does not give, never an empty value.
         let drawn = blank_payload(json!({
@@ -2311,11 +2310,15 @@ mod tests {
         };
         let auto = launch(json!({}));
         assert!(auto
+            .browser
             .user_agent
             .as_deref()
             .is_some_and(|ua| ua.contains("Chrome/133")));
-        assert_eq!(auto.locale.as_deref(), Some("de-DE"));
-        assert_eq!(auto.proxy.as_deref(), Some("http://proxy.example:8080"));
+        assert_eq!(auto.browser.lang.as_deref(), Some("de-DE"));
+        assert_eq!(
+            auto.browser.proxy.server.as_deref(),
+            Some("http://proxy.example:8080")
+        );
 
         // A natural flag launches with none of it, whatever the payload holds.
         let natural = launch(json!({
@@ -2324,13 +2327,20 @@ mod tests {
             "proxy_masking": "natural"
         }));
         assert_eq!(
-            (natural.user_agent, natural.locale, natural.proxy),
+            (
+                natural.browser.user_agent,
+                natural.browser.lang,
+                natural.browser.proxy.server,
+            ),
             (None, None, None)
         );
         // So does the word for no proxy, and the off words, which a proxy lacks.
         for word in ["direct", "off", "disabled"] {
             assert_eq!(
-                launch(json!({ "proxy_masking": word })).proxy,
+                launch(json!({ "proxy_masking": word }))
+                    .browser
+                    .proxy
+                    .server,
                 None,
                 "{word}"
             );

@@ -2,11 +2,33 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 use crate::api::run_settings::RunSettings;
+#[cfg(feature = "plugins")]
+use crate::browser::options::BrowserPlugins;
 use crate::browser::options::{
-    CapabilityOverrides, CdpEventCapture, DeviceMetrics, DriverVersion, ExtensionArchive,
-    FirefoxOptions, LaunchSettings, LaunchSwitch, PageLoadStrategy, ProxyBypassList,
-    VirtualDisplay, WindowPosition, WindowSize,
+    BrowserSettings, CapabilityOverrides, CdpEventCapture, DeviceMetrics, DriverVersion,
+    ExtensionArchive, FirefoxOptions, LaunchSwitch, PageLoadStrategy, ProxyBypassList,
+    SessionSettings, VirtualDisplay, WindowPosition, WindowSize, DEFAULT_WEBDRIVER_URL,
 };
+use crate::config::test_settings::TestData;
+
+/// The folders of a comma-separated list, as Chrome takes them (`--load-extension`,
+/// `SB_EXTENSION_DIR`): trimmed, without the empty items.
+pub(crate) fn split_extension_dirs(text: &str) -> Vec<PathBuf> {
+    text.split(',')
+        .map(str::trim)
+        .filter(|dir| !dir.is_empty())
+        .map(PathBuf::from)
+        .collect()
+}
+
+/// The browser settings of a default [`BrowserConfig`]: the defaults of
+/// [`BrowserSettings`], and headless.
+fn default_browser_settings() -> BrowserSettings {
+    BrowserSettings {
+        headless: true,
+        ..BrowserSettings::default()
+    }
+}
 use crate::browser::reuse::ReuseClass;
 use crate::config::ad_block_list::AdBlockList;
 use crate::error::SeleniumBaseError;
@@ -174,13 +196,35 @@ impl std::str::FromStr for DriverMode {
 /// Configuration for a browser session.
 #[derive(Clone, Deserialize, PartialEq, Serialize)]
 pub struct BrowserConfig {
-    pub webdriver_url: String,
+    /// What both engines start: the browser and its window, proxy, profile and switches.
+    /// Set it with the `with_*` methods below; a default configuration is headless.
+    #[serde(default = "default_browser_settings")]
+    pub browser: BrowserSettings,
+    /// What only a WebDriver session reads: the driver mode, the WebDriver server, reuse,
+    /// capabilities, the driver version and more.
+    #[serde(default)]
+    pub session: SessionSettings,
+    /// The run-wide demo, slow, message and timeout settings a test starts with; see
+    /// [`with_run_settings`](Self::with_run_settings). They do not change the browser, so they
+    /// are not part of a reuse key, and they are not written to, or read from, a configuration
+    /// file.
+    #[serde(skip)]
+    pub run: RunSettings,
+    /// The data a run hands to its tests (`--env`, `--account`, `--data`, `--var1..3`,
+    /// `--variables`); see [`TestData`]. A `BaseCase` made from the configuration reads it.
+    /// It does not change the browser and is not written to, or read from, a configuration
+    /// file.
+    #[serde(skip)]
+    pub test_data: TestData,
+    /// Optional anti-detection fingerprint profile.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fingerprint: Option<Fingerprint>,
     /// Attach the pure CDP engine to this HTTP or browser WebSocket URL.
     /// An authenticated Tauri plugin URL discovers its debugger via `/cdp`.
     /// `BaseCase` uses its `cdp_*` methods; no local browser or driver is started.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cdp_url: Option<String>,
-    /// Discover CDP through `webdriver_url` (the authenticated Tauri plugin URL).
+    /// Discover CDP through the session's WebDriver URL (the authenticated Tauri plugin URL).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub cdp_discovery: bool,
     /// The window `BaseCase` drives on a direct CDP attachment: a target id,
@@ -189,98 +233,12 @@ pub struct BrowserConfig {
     /// target it is the first.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cdp_target: Option<String>,
-
-    pub browser: Browser,
-    pub headless: bool,
-    pub mode: DriverMode,
-    pub user_agent: Option<String>,
-    pub locale: Option<String>,
-    /// The `--ad-block` setting: refuse the requests of advertising and
-    /// tracking hosts.
-    ///
-    /// A Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet,
-    /// Opera, Chrome for Testing, `chrome-headless-shell`) sends the hosts of
-    /// an [`AdBlockList`] to the browser with `Network.setBlockedURLs` once it
-    /// is connected: the built-in list, or the one set with
-    /// [`with_ad_block_list`](Self::with_ad_block_list). The block belongs to
-    /// a window, so the session repeats it for each window it switches to with
-    /// `switch_to_window` or `switch_to_new_window`; a window reached some
-    /// other way needs
-    /// [`BrowserSession::apply_ad_block`](crate::browser::session::BrowserSession::apply_ad_block).
-    ///
-    /// What it does not reach, as seen in Chrome 155 (`tests/ad_block_chrome.rs`):
-    /// a URL that names a port is not matched, and a frame of another site is
-    /// not stopped from loading, nor are its own requests blocked. A frame of
-    /// the page's own site is blocked like the page.
-    ///
-    /// Firefox, Safari and Internet Explorer have no DevTools channel through
-    /// WebDriver, so the setting blocks nothing there (a warning says so).
-    /// The pure CDP engine blocks hosts with `LaunchOptionsBuilder::ad_block`,
-    /// and `BaseCase::ad_block` removes ad elements from a page that loaded.
-    pub ad_block: bool,
-    pub proxy: Option<String>,
-    pub proxy_pac_url: Option<String>,
-    pub user_data_dir: Option<String>,
-    pub extension_dir: Option<String>,
-    pub start_page: Option<String>,
-    /// Python's `--reuse-session` (`--rs`): the tests of a run share browsers.
-    ///
-    /// With it on, [`BrowserSession::connect`](crate::BrowserSession::connect)
-    /// (and so `BaseCase::new`) attaches to a browser that an earlier test
-    /// started with the same configuration and has given back, after cleaning
-    /// it (other windows closed, the page's storage deleted, cookies deleted if
-    /// [`crumbs`](crate::browser::reuse::crumbs) are on, `about:blank`), and `BaseCase::quit` gives the browser back instead of
-    /// closing it. One test holds a browser at a time; a test that starts while
-    /// every matching browser is held gets one of its own, kept for reuse too.
-    /// Idle browsers close after
-    /// [`reuse::idle_timeout`](crate::browser::reuse::idle_timeout) or at
-    /// [`shutdown_reused_sessions`](crate::shutdown_reused_sessions). The
-    /// `sbrs` flag, `Settings` and `SB_REUSE_SESSION` set it;
-    /// [`with_reuse_class_session`](Self::with_reuse_class_session) and
-    /// [`with_reuse_module_session`](Self::with_reuse_module_session) narrow
-    /// who shares (`--rcs`). See [`crate::browser::reuse`] for how it works and
-    /// what differs from Python.
-    pub reuse_session: bool,
-    pub mobile: bool,
-
-    pub auto_start_driver: bool,
-    /// Extra Chromium/Edge command-line arguments supplied by callers such as
-    /// external profile payload integrations.
-    #[serde(default)]
-    pub extra_args: Vec<String>,
-    /// Optional anti-detection fingerprint profile.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub fingerprint: Option<Fingerprint>,
-    /// Optional explicit path to the browser binary (Chrome/Chromium/Edge).
-    /// When `native_spoofing` is enabled and this is unset, the crate will
-    /// locate the system Chrome binary, patch a cached copy, and set this
-    /// field automatically before launch.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub browser_binary_path: Option<PathBuf>,
-    /// Client-side timeout, in seconds, for each HTTP request sent to a Remote
-    /// WebDriver server such as a Selenium Grid.
-    ///
-    /// `None` leaves the WebDriver client's own default in place. Set it
-    /// higher than the page-load timeout and higher than the time a new-session
-    /// request may sit in the grid's queue, otherwise healthy sessions will be
-    /// cut off. Its purpose is to stop a command blocking forever when a grid
-    /// node dies mid-session.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub remote_webdriver_timeout_seconds: Option<u64>,
-    /// The run-wide demo, slow, message and timeout settings a test starts with; see
-    /// [`with_run_settings`](Self::with_run_settings). They do not change the browser, so they
-    /// are not part of a reuse key, and they are not written to, or read from, a configuration
-    /// file.
+    /// The browser plugins whose hooks run when a session starts (feature
+    /// `plugins`, ADR 004); see [`with_plugins`](Self::with_plugins). They are not written to,
+    /// or read from, a configuration file.
+    #[cfg(feature = "plugins")]
     #[serde(skip)]
-    pub run: RunSettings,
-
-    /// The options that shape how the browser and its driver are started:
-    /// preferences, page load strategy, window geometry, mobile emulation,
-    /// extensions, Firefox settings, extra capabilities, driver version and
-    /// more. Set them with the `with_*` methods below; in a config file they
-    /// sit next to the fields above.
-    #[serde(default, flatten)]
-    pub launch: LaunchSettings,
+    pub plugins: BrowserPlugins,
 }
 
 /// What Firefox is told when its proxy has a login: only Chromium browsers can
@@ -300,45 +258,20 @@ pub(crate) fn whole_seconds(timeout: std::time::Duration) -> u64 {
 // them.
 impl std::fmt::Debug for BrowserConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use crate::evasion::options::without_credentials;
+        // The discovery URL holds a token in its path, which `without_credentials` keeps.
+        let mut session = self.session.clone();
+        if self.cdp_discovery && session.webdriver_url.is_some() {
+            session.webdriver_url = Some("<configured>".to_owned());
+        }
         f.debug_struct("BrowserConfig")
-            .field(
-                "webdriver_url",
-                &if self.cdp_discovery {
-                    "<configured>".to_owned()
-                } else {
-                    without_credentials(&self.webdriver_url)
-                },
-            )
+            .field("browser", &self.browser)
+            .field("session", &session)
+            .field("run", &self.run)
+            .field("test_data", &self.test_data)
+            .field("fingerprint", &self.fingerprint)
             .field("cdp_url", &self.cdp_url.as_ref().map(|_| "<configured>"))
             .field("cdp_discovery", &self.cdp_discovery)
             .field("cdp_target", &self.cdp_target)
-            .field("browser", &self.browser)
-            .field("headless", &self.headless)
-            .field("mode", &self.mode)
-            .field("user_agent", &self.user_agent)
-            .field("locale", &self.locale)
-            .field("ad_block", &self.ad_block)
-            .field("proxy", &self.proxy.as_deref().map(without_credentials))
-            .field(
-                "proxy_pac_url",
-                &self.proxy_pac_url.as_deref().map(without_credentials),
-            )
-            .field("user_data_dir", &self.user_data_dir)
-            .field("extension_dir", &self.extension_dir)
-            .field("start_page", &self.start_page)
-            .field("reuse_session", &self.reuse_session)
-            .field("mobile", &self.mobile)
-            .field("auto_start_driver", &self.auto_start_driver)
-            .field("extra_args", &self.extra_args)
-            .field("fingerprint", &self.fingerprint)
-            .field("browser_binary_path", &self.browser_binary_path)
-            .field(
-                "remote_webdriver_timeout_seconds",
-                &self.remote_webdriver_timeout_seconds,
-            )
-            .field("run", &self.run)
-            .field("launch", &self.launch)
             .finish()
     }
 }
@@ -361,34 +294,25 @@ impl BrowserConfig {
     }
 
     fn from_runtime_config(runtime: &crate::config::RuntimeConfig) -> Self {
-        Self {
-            webdriver_url: runtime.webdriver_url.clone(),
+        let mut built = Self {
+            browser: default_browser_settings(),
+            session: SessionSettings::default(),
+            run: RunSettings::default(),
+            test_data: TestData::default(),
+            fingerprint: None,
             cdp_url: None,
             cdp_discovery: false,
             cdp_target: None,
-
-            browser: Browser::Chrome,
-            headless: true,
-            mode: DriverMode::WebDriver,
-            user_agent: None,
-            locale: None,
-            ad_block: false,
-            proxy: None,
-            proxy_pac_url: None,
-            user_data_dir: None,
-            extension_dir: None,
-            start_page: None,
-            reuse_session: false,
-            mobile: false,
-
-            auto_start_driver: true,
-            extra_args: Vec::new(),
-            fingerprint: None,
-            browser_binary_path: runtime.chrome_bin.clone(),
-            remote_webdriver_timeout_seconds: runtime.remote_webdriver_timeout.map(|d| d.as_secs()),
-            run: RunSettings::default(),
-            launch: LaunchSettings::default(),
+            #[cfg(feature = "plugins")]
+            plugins: BrowserPlugins::default(),
+        };
+        if runtime.webdriver_url != DEFAULT_WEBDRIVER_URL {
+            built.session.webdriver_url = Some(runtime.webdriver_url.clone());
         }
+        built.browser.executable_path = runtime.chrome_bin.clone();
+        built.session.remote_webdriver_timeout_seconds =
+            runtime.remote_webdriver_timeout.map(|d| d.as_secs());
+        built
     }
 }
 
@@ -396,20 +320,20 @@ impl BrowserConfig {
     /// How the browser is driven: WebDriver, DevTools without a driver
     /// binary, or the undetected mode (`--cdp`, `--uc`).
     pub fn with_mode(mut self, mode: DriverMode) -> Self {
-        self.mode = mode;
+        self.session.mode = mode;
         self
     }
 
     /// Which browser to start (`--browser`).
     pub fn with_browser(mut self, browser: Browser) -> Self {
-        self.browser = browser;
+        self.browser.kind = browser;
         self
     }
 
     /// Runs the browser without a window (`--headless`); `false` opens one
     /// (`--headed`). A default configuration is headless.
     pub fn with_headless(mut self, headless: bool) -> Self {
-        self.headless = headless;
+        self.browser.headless = headless;
         self
     }
 
@@ -417,7 +341,7 @@ impl BrowserConfig {
     /// (`--server`, `--port`). The default is `http://localhost:4444`, or
     /// `SB_WEBDRIVER_URL` for [`from_env`](Self::from_env).
     pub fn with_webdriver_url(mut self, url: impl Into<String>) -> Self {
-        self.webdriver_url = url.into();
+        self.session.webdriver_url = Some(url.into());
         self
     }
 
@@ -468,13 +392,13 @@ impl BrowserConfig {
 
     /// The user-agent string the browser sends (`--agent`, `--user-agent`).
     pub fn with_user_agent(mut self, user_agent: impl Into<String>) -> Self {
-        self.user_agent = Some(user_agent.into());
+        self.browser.user_agent = Some(user_agent.into());
         self
     }
 
     /// The browser's language, such as `fr-FR` (`--locale`).
     pub fn with_locale(mut self, locale: impl Into<String>) -> Self {
-        self.locale = Some(locale.into());
+        self.browser.lang = Some(locale.into());
         self
     }
 
@@ -490,40 +414,40 @@ impl BrowserConfig {
     /// proxy with a login is refused there when the session connects; Firefox
     /// refuses a login too.
     pub fn with_proxy(mut self, proxy: impl Into<String>) -> Self {
-        self.proxy = Some(proxy.into());
+        self.browser.proxy.server = Some(proxy.into());
         self
     }
 
     /// A proxy auto-config script the browser fetches to choose its proxy
     /// (`--proxy-pac-url`).
     pub fn with_proxy_pac_url(mut self, url: impl Into<String>) -> Self {
-        self.proxy_pac_url = Some(url.into());
+        self.browser.proxy.pac_url = Some(url.into());
         self
     }
 
     /// A browser profile folder that keeps cookies and settings between runs
     /// (`--user-data-dir`).
-    pub fn with_user_data_dir(mut self, dir: impl Into<String>) -> Self {
-        self.user_data_dir = Some(dir.into());
+    pub fn with_user_data_dir(mut self, dir: impl Into<PathBuf>) -> Self {
+        self.browser.user_data_dir = Some(dir.into());
         self
     }
 
     /// An unpacked browser extension to load (`--extension-dir`).
     pub fn with_extension_dir(mut self, dir: impl Into<String>) -> Self {
-        self.extension_dir = Some(dir.into());
+        self.browser.extensions = split_extension_dirs(&dir.into());
         self
     }
 
     /// A page the browser opens as soon as it starts (`--start-page`).
     pub fn with_start_page(mut self, page: impl Into<String>) -> Self {
-        self.start_page = Some(page.into());
+        self.browser.url = Some(page.into());
         self
     }
 
     /// Shares browsers among the tests of the run (`--reuse-session`, `--rs`).
     /// See [`reuse_session`](Self::reuse_session).
     pub fn with_reuse_session(mut self, reuse: bool) -> Self {
-        self.reuse_session = reuse;
+        self.session.reuse = reuse;
         self
     }
 
@@ -531,8 +455,8 @@ impl BrowserConfig {
     /// (Python's `--reuse-class-session` for the tests of one class). It turns
     /// [`reuse_session`](Self::reuse_session) on.
     pub fn with_reuse_class_session(mut self, class: impl Into<String>) -> Self {
-        self.reuse_session = true;
-        self.launch.reuse_class = Some(ReuseClass::Named(class.into()));
+        self.session.reuse = true;
+        self.session.reuse_class = Some(ReuseClass::Named(class.into()));
         self
     }
 
@@ -545,17 +469,17 @@ impl BrowserConfig {
     /// removes a per-module setting and leaves `reuse_session` as it is.
     pub fn with_reuse_module_session(mut self, on: bool) -> Self {
         if on {
-            self.reuse_session = true;
-            self.launch.reuse_class = Some(ReuseClass::TestModule);
-        } else if self.launch.reuse_class == Some(ReuseClass::TestModule) {
-            self.launch.reuse_class = None;
+            self.session.reuse = true;
+            self.session.reuse_class = Some(ReuseClass::TestModule);
+        } else if self.session.reuse_class == Some(ReuseClass::TestModule) {
+            self.session.reuse_class = None;
         }
         self
     }
 
     /// Turns [`ad_block`](Self::ad_block) on or off (`--ad-block`).
     pub fn with_ad_block(mut self, on: bool) -> Self {
-        self.ad_block = on;
+        self.browser.ad_block = on;
         self
     }
 
@@ -563,13 +487,13 @@ impl BrowserConfig {
     /// [`ad_block`](Self::ad_block) on. Set `ad_block` to `false` afterwards to
     /// keep the list but block nothing.
     pub fn with_ad_block_list(mut self, list: AdBlockList) -> Self {
-        self.launch.ad_block_list = Some(list);
-        self.ad_block = true;
+        self.browser.ad_block_list = Some(list);
+        self.browser.ad_block = true;
         self
     }
 
     pub fn with_mobile(mut self, mobile: bool) -> Self {
-        self.mobile = mobile;
+        self.browser.mobile = mobile;
         self
     }
 
@@ -589,7 +513,7 @@ impl BrowserConfig {
     }
 
     pub fn with_browser_binary_path(mut self, path: impl Into<PathBuf>) -> Self {
-        self.browser_binary_path = Some(path.into());
+        self.browser.executable_path = Some(path.into());
         self
     }
 
@@ -623,7 +547,7 @@ impl BrowserConfig {
     ///     80,
     /// )?;
     /// assert_eq!(
-    ///     config.webdriver_url,
+    ///     config.session.webdriver_url(),
     ///     "http://USER:KEY@hub.browserstack.com/wd/hub"
     /// );
     /// # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
@@ -635,7 +559,9 @@ impl BrowserConfig {
         port: u16,
     ) -> Result<Self, SeleniumBaseError> {
         if servername.trim() != "localhost" {
-            self.webdriver_url = crate::browser::options::grid_url(protocol, servername, port)?;
+            self.session.webdriver_url = Some(crate::browser::options::grid_url(
+                protocol, servername, port,
+            )?);
         }
         Ok(self)
     }
@@ -662,22 +588,26 @@ impl BrowserConfig {
     pub fn validate(&self) -> Result<(), SeleniumBaseError> {
         use crate::browser::options::{PacUrl, ProxyAddress};
         let proxy = self
+            .browser
             .proxy
+            .server
             .as_deref()
             .map(str::parse::<ProxyAddress>)
             .transpose()?;
         let pac = self
-            .proxy_pac_url
+            .browser
+            .proxy
+            .pac_url
             .as_deref()
             .map(str::parse::<PacUrl>)
             .transpose()?;
         let has_login = proxy.is_some_and(|proxy| proxy.credentials().is_some())
             || pac.is_some_and(|pac| pac.credentials().is_some());
-        if has_login && self.browser == Browser::Firefox {
+        if has_login && self.browser.kind == Browser::Firefox {
             return Err(SeleniumBaseError::invalid_config(FIREFOX_PROXY_LOGIN));
         }
-        if self.browser == Browser::Remote {
-            if self.launch.capabilities.is_empty() {
+        if self.browser.kind == Browser::Remote {
+            if self.session.capabilities.is_empty() {
                 return Err(SeleniumBaseError::invalid_config(
                     "--browser=remote needs --cap-file or --cap-string",
                 ));
@@ -695,37 +625,43 @@ impl BrowserConfig {
     pub fn is_cdp_enabled(&self) -> bool {
         self.cdp_url.is_some()
             || self.cdp_discovery
-            || self.mode == DriverMode::Cdp
-            || self.mode == DriverMode::Uc
+            || self.session.mode == DriverMode::Cdp
+            || self.session.mode == DriverMode::Uc
     }
 
     pub fn is_uc_enabled(&self) -> bool {
-        self.mode == DriverMode::Uc
+        self.session.mode == DriverMode::Uc
     }
 
     pub fn is_default_webdriver_url(&self) -> bool {
-        self.webdriver_url == "http://localhost:4444" || self.webdriver_url.is_empty()
+        self.session.is_default_webdriver_url()
     }
 
     pub fn with_extra_args(mut self, args: impl IntoIterator<Item = impl Into<String>>) -> Self {
-        self.extra_args = args.into_iter().map(Into::into).collect();
+        self.browser.chromium.args = args.into_iter().map(Into::into).collect();
         self
     }
 
     pub fn push_extra_arg(mut self, arg: impl Into<String>) -> Self {
-        self.extra_args.push(arg.into());
+        self.browser.chromium.args.push(arg.into());
         self
     }
 
-    /// Replaces all the [`LaunchSettings`] at once.
-    pub fn with_launch_settings(mut self, launch: LaunchSettings) -> Self {
-        self.launch = launch;
+    /// Replaces all the [`BrowserSettings`] at once.
+    pub fn with_browser_settings(mut self, browser: BrowserSettings) -> Self {
+        self.browser = browser;
+        self
+    }
+
+    /// Replaces all the [`SessionSettings`] at once.
+    pub fn with_session_settings(mut self, session: SessionSettings) -> Self {
+        self.session = session;
         self
     }
 
     /// Turns one of the on/off launch settings on or off.
     pub fn with_switch(mut self, switch: LaunchSwitch, on: bool) -> Self {
-        self.launch.set(switch, on);
+        self.browser.set(switch, on);
         self
     }
 
@@ -804,7 +740,7 @@ impl BrowserConfig {
     /// ([`with_esc_end`](Self::with_esc_end)).
     #[must_use]
     pub fn esc_end(&self) -> bool {
-        self.launch.has(LaunchSwitch::EscEnd)
+        self.browser.has(LaunchSwitch::EscEnd)
     }
 
     /// Write the recording as a program for the pure CDP engine instead of one
@@ -824,7 +760,7 @@ impl BrowserConfig {
     /// ([`with_rec_sb_cdp`](Self::with_rec_sb_cdp)).
     #[must_use]
     pub fn rec_sb_cdp(&self) -> bool {
-        self.launch.has(LaunchSwitch::RecSbCdp)
+        self.browser.has(LaunchSwitch::RecSbCdp)
     }
 
     /// Turn Recorder Mode on or off (`--rec`, `--record`, `--recorder`,
@@ -869,27 +805,27 @@ impl BrowserConfig {
             LaunchSwitch::RecSbCdp,
         ]
         .into_iter()
-        .any(|switch| self.launch.has(switch))
+        .any(|switch| self.browser.has(switch))
     }
 
     /// Whether the recording is printed ([`with_rec_print`](Self::with_rec_print)).
     #[must_use]
     pub fn rec_print(&self) -> bool {
-        self.launch.has(LaunchSwitch::RecPrint)
+        self.browser.has(LaunchSwitch::RecPrint)
     }
 
     /// Whether the recording is also written as a Gherkin feature
     /// ([`with_rec_behave`](Self::with_rec_behave)).
     #[must_use]
     pub fn rec_behave(&self) -> bool {
-        self.launch.has(LaunchSwitch::RecBehave)
+        self.browser.has(LaunchSwitch::RecBehave)
     }
 
     /// Whether the recording is written as a standalone script
     /// ([`with_rec_sb_mgr`](Self::with_rec_sb_mgr)).
     #[must_use]
     pub fn rec_sb_mgr(&self) -> bool {
-        self.launch.has(LaunchSwitch::RecSbMgr)
+        self.browser.has(LaunchSwitch::RecSbMgr)
     }
 
     /// The client-side timeout of each request sent to a Remote WebDriver
@@ -898,7 +834,7 @@ impl BrowserConfig {
     /// [`remote_webdriver_timeout_seconds`](Self::remote_webdriver_timeout_seconds).
     #[must_use]
     pub fn with_remote_webdriver_timeout(mut self, timeout: std::time::Duration) -> Self {
-        self.remote_webdriver_timeout_seconds = Some(whole_seconds(timeout));
+        self.session.remote_webdriver_timeout_seconds = Some(whole_seconds(timeout));
         self
     }
 
@@ -932,19 +868,19 @@ impl BrowserConfig {
 
     /// How long a navigation waits (`--page-load-strategy`, `--pls`).
     pub fn with_page_load_strategy(mut self, strategy: PageLoadStrategy) -> Self {
-        self.launch.page_load_strategy = Some(strategy);
+        self.session.page_load_strategy = Some(strategy);
         self
     }
 
     /// The size of the browser window (`--window-size`, `size`).
     pub fn with_window_size(mut self, size: WindowSize) -> Self {
-        self.launch.window_size = Some(size);
+        self.browser.window_size = Some(size);
         self
     }
 
     /// The position of the browser window (`--window-position`, `position`).
     pub fn with_window_position(mut self, position: WindowPosition) -> Self {
-        self.launch.window_position = Some(position);
+        self.browser.window_position = Some(position);
         self
     }
 
@@ -952,8 +888,8 @@ impl BrowserConfig {
     /// `d_p_r`). It turns mobile emulation on, with the user agent from
     /// [`user_agent`](Self::user_agent) or, without one, an Android one.
     pub fn with_device_metrics(mut self, metrics: DeviceMetrics) -> Self {
-        self.launch.device_metrics = Some(metrics);
-        self.mobile = true;
+        self.browser.device_metrics = Some(metrics);
+        self.browser.mobile = true;
         self
     }
 
@@ -1033,7 +969,7 @@ impl BrowserConfig {
     /// undetected mode cannot use it.
     pub fn with_headless1(mut self, on: bool) -> Self {
         if on {
-            self.headless = true;
+            self.browser.headless = true;
         }
         self.with_switch(LaunchSwitch::Headless1, on)
     }
@@ -1048,7 +984,7 @@ impl BrowserConfig {
     /// the default size (`--xvfb-metrics` sets another through
     /// [`VirtualDisplay`]). Off removes it.
     pub fn with_xvfb(mut self, on: bool) -> Self {
-        self.launch.virtual_display = on.then(VirtualDisplay::default);
+        self.browser.virtual_display = on.then(VirtualDisplay::default);
         self
     }
 
@@ -1060,7 +996,7 @@ impl BrowserConfig {
     /// See [`parse_chromium_args`](crate::browser::options::parse_chromium_args).
     pub fn with_chromium_arg(mut self, text: &str) -> Self {
         let (args, features) = crate::browser::options::parse_chromium_args(text);
-        self.extra_args.extend(args);
+        self.browser.chromium.args.extend(args);
         self.with_disable_features(features)
     }
 
@@ -1074,8 +1010,8 @@ impl BrowserConfig {
     {
         for feature in features {
             let feature = feature.into();
-            if !self.launch.disable_features.contains(&feature) {
-                self.launch.disable_features.push(feature);
+            if !self.browser.chromium.disable_features.contains(&feature) {
+                self.browser.chromium.disable_features.push(feature);
             }
         }
         self
@@ -1084,55 +1020,55 @@ impl BrowserConfig {
     /// Rules that map host names to addresses in Chromium
     /// (`--host-resolver-rules`), such as `MAP example.com 127.0.0.1`.
     pub fn with_host_resolver_rules(mut self, rules: impl Into<String>) -> Self {
-        self.launch.host_resolver_rules = Some(rules.into());
+        self.browser.chromium.host_resolver_rules = Some(rules.into());
         self
     }
 
     /// Hosts that skip the proxy (`--proxy-bypass-list`).
     pub fn with_proxy_bypass_list(mut self, hosts: ProxyBypassList) -> Self {
-        self.launch.proxy_bypass_list = hosts;
+        self.browser.proxy.bypass_list = hosts;
         self
     }
 
     /// Load a Chromium extension from a `.zip` or `.crx` file
     /// (`--extension-zip`, `--crx`). May be called more than once.
     pub fn with_extension_archive(mut self, archive: ExtensionArchive) -> Self {
-        if !self.launch.extension_archives.contains(&archive) {
-            self.launch.extension_archives.push(archive);
+        if !self.session.extension_archives.contains(&archive) {
+            self.session.extension_archives.push(archive);
         }
         self
     }
 
     /// Firefox arguments and preferences (`--firefox-arg`, `--firefox-pref`).
     pub fn with_firefox_options(mut self, firefox: FirefoxOptions) -> Self {
-        self.launch.firefox = firefox;
+        self.session.firefox = firefox;
         self
     }
 
     /// Capabilities to add to the session's (`--cap-string`, `--cap-file`).
     pub fn with_capabilities(mut self, capabilities: CapabilityOverrides) -> Self {
-        self.launch.capabilities = capabilities;
+        self.session.capabilities = capabilities;
         self
     }
 
     /// Which chromedriver to run (`--driver-version`).
     pub fn with_driver_version(mut self, version: DriverVersion) -> Self {
-        self.launch.driver_version = Some(version);
+        self.session.driver_version = Some(version);
         self
     }
 
     /// Open a headed browser on a virtual screen on Linux (`--xvfb`,
     /// `--xvfb-metrics`).
     pub fn with_virtual_display(mut self, display: VirtualDisplay) -> Self {
-        self.launch.virtual_display = Some(display);
+        self.browser.virtual_display = Some(display);
         self
     }
 
     /// Open Chrome's remote debugger on `port`. Anyone on the machine who can
     /// reach the port can drive the browser, so use it for debugging only.
     pub fn with_remote_debug_port(mut self, port: u16) -> Self {
-        self.launch.remote_debug_port = Some(port);
-        self.launch.remote_debug_any_port = false;
+        self.browser.debugging_port = Some(port);
+        self.browser.debugging_any_port = false;
         self
     }
 
@@ -1142,16 +1078,16 @@ impl BrowserConfig {
     /// port is taken instead and logged; see
     /// [`BrowserSession::remote_debug_address`](crate::browser::session::BrowserSession::remote_debug_address).
     pub fn with_remote_debug(mut self, on: bool) -> Self {
-        self.launch.remote_debug_port =
+        self.browser.debugging_port =
             on.then_some(crate::evasion::options::DEFAULT_REMOTE_DEBUG_PORT);
-        self.launch.remote_debug_any_port = on;
+        self.browser.debugging_any_port = on;
         self
     }
 
     /// Log the DevTools Protocol events of Chromium sessions
     /// (`--log-cdp-events`, `--uc-cdp-events`).
     pub fn with_cdp_events(mut self, capture: CdpEventCapture) -> Self {
-        self.launch.cdp_events = capture;
+        self.session.cdp_events = capture;
         self
     }
 
@@ -1183,7 +1119,7 @@ impl BrowserConfig {
     /// ```
     #[cfg(feature = "plugins")]
     pub fn with_plugins(mut self, plugins: seleniumbase_rs_plugin::PluginSet) -> Self {
-        self.launch.plugins = plugins.into();
+        self.plugins = plugins.into();
         self
     }
 
@@ -1253,11 +1189,11 @@ impl BrowserConfig {
         selection: &crate::config::plugins::PluginSelection,
     ) -> Result<Self, SeleniumBaseError> {
         let set = crate::plugin_host::add_selection(
-            self.launch.plugins.set().clone(),
+            self.plugins.set().clone(),
             &crate::plugin_host::builtin_registry(),
             selection,
         )?;
-        self.launch.plugins = set.into();
+        self.plugins = set.into();
         Ok(self)
     }
 
@@ -1265,7 +1201,7 @@ impl BrowserConfig {
     #[cfg(feature = "plugins")]
     #[must_use]
     pub fn plugins(&self) -> &seleniumbase_rs_plugin::PluginSet {
-        self.launch.plugins.set()
+        self.plugins.set()
     }
 
     /// Returns true when the configured fingerprint requests native-level
@@ -1323,6 +1259,96 @@ mod tests {
     }
 
     #[test]
+    fn the_builders_write_into_the_group_that_owns_the_setting() {
+        let config = BrowserConfig::default()
+            .with_proxy("proxy.test:8080")
+            .with_proxy_pac_url("http://pac.test/p.pac")
+            .with_user_agent("Agent/1")
+            .with_locale("fr_FR")
+            .with_start_page("https://example.com/")
+            .with_user_data_dir("/tmp/profile")
+            .with_extension_dir("/ext/a, /ext/b")
+            .with_browser_binary_path("/opt/chrome")
+            .with_mode(DriverMode::Uc)
+            .with_reuse_session(true)
+            .with_webdriver_url("http://hub.test:4444/wd/hub");
+        let browser = &config.browser;
+        assert_eq!(browser.proxy.server.as_deref(), Some("proxy.test:8080"));
+        assert_eq!(
+            browser.proxy.pac_url.as_deref(),
+            Some("http://pac.test/p.pac")
+        );
+        assert_eq!(browser.user_agent.as_deref(), Some("Agent/1"));
+        assert_eq!(browser.lang.as_deref(), Some("fr_FR"));
+        assert_eq!(browser.url.as_deref(), Some("https://example.com/"));
+        assert_eq!(browser.user_data_dir, Some(PathBuf::from("/tmp/profile")));
+        assert_eq!(
+            browser.extensions,
+            [PathBuf::from("/ext/a"), PathBuf::from("/ext/b")]
+        );
+        assert_eq!(browser.executable_path, Some(PathBuf::from("/opt/chrome")));
+        assert_eq!(config.session.mode, DriverMode::Uc);
+        assert!(config.session.reuse);
+        assert_eq!(
+            config.session.webdriver_url.as_deref(),
+            Some("http://hub.test:4444/wd/hub")
+        );
+        assert!(!config.is_default_webdriver_url());
+    }
+
+    #[test]
+    fn each_group_has_one_default_and_the_config_is_headless() {
+        assert!(!BrowserSettings::default().headless, "Python's default");
+        assert!(BrowserConfig::default().browser.headless);
+        assert!(SessionSettings::default().auto_start_driver);
+        assert_eq!(
+            BrowserConfig::default().session.webdriver_url(),
+            "http://localhost:4444"
+        );
+        let from_nothing: BrowserConfig = serde_json::from_str("{}").unwrap();
+        assert_eq!(from_nothing, BrowserConfig::default());
+    }
+
+    #[test]
+    fn a_config_reads_its_groups_from_json() {
+        let config: BrowserConfig = serde_json::from_str(
+            r#"{
+                "browser": {"kind": "Firefox", "headless": false,
+                            "proxy": {"server": "p.test:1"},
+                            "switches": {"dark-mode": true}},
+                "session": {"mode": "Cdp", "grid": {"server": "hub.test", "port": 4445}},
+                "cdp_target": "/settings"
+            }"#,
+        )
+        .unwrap();
+        assert_eq!(config.browser.kind, Browser::Firefox);
+        assert!(!config.browser.headless);
+        assert_eq!(config.browser.proxy.server.as_deref(), Some("p.test:1"));
+        assert!(config.browser.has(LaunchSwitch::DarkMode));
+        assert_eq!(config.session.mode, DriverMode::Cdp);
+        assert_eq!(
+            config.session.webdriver_url(),
+            "http://hub.test:4445/wd/hub"
+        );
+        assert_eq!(config.cdp_target.as_deref(), Some("/settings"));
+    }
+
+    #[test]
+    fn the_debug_text_hides_every_login_and_the_discovery_url() {
+        let config = BrowserConfig::default()
+            .with_proxy("user:PROXYPW@proxy.test:8080")
+            .with_webdriver_url("https://USER:GRIDKEY@hub.test/wd/hub");
+        let text = format!("{config:?}");
+        assert!(!text.contains("PROXYPW"), "{text}");
+        assert!(!text.contains("GRIDKEY"), "{text}");
+        let discovery = BrowserConfig::default()
+            .with_webdriver_url("http://127.0.0.1:4445/TOKEN123/")
+            .with_cdp_discovery(true);
+        assert!(!format!("{discovery:?}").contains("TOKEN123"));
+    }
+
+    #[test]
+
     fn run_settings_are_set_by_a_builder_and_stay_out_of_config_files() {
         let demo = RunSettings::default().with_demo_mode(true);
         let config = BrowserConfig::default().with_run_settings(demo.clone());
@@ -1340,12 +1366,12 @@ mod tests {
     fn the_remote_timeout_builder_rounds_up_to_whole_seconds() {
         use std::time::Duration;
         let config = BrowserConfig::default();
-        assert_eq!(config.remote_webdriver_timeout_seconds, None);
+        assert_eq!(config.session.remote_webdriver_timeout_seconds, None);
         let set = config.with_remote_webdriver_timeout(Duration::from_millis(2500));
-        assert_eq!(set.remote_webdriver_timeout_seconds, Some(3));
+        assert_eq!(set.session.remote_webdriver_timeout_seconds, Some(3));
         let exact =
             BrowserConfig::default().with_remote_webdriver_timeout(Duration::from_secs(600));
-        assert_eq!(exact.remote_webdriver_timeout_seconds, Some(600));
+        assert_eq!(exact.session.remote_webdriver_timeout_seconds, Some(600));
     }
 
     #[test]
@@ -1364,16 +1390,16 @@ mod tests {
     #[test]
     fn reuse_is_off_until_asked_for() {
         let config = BrowserConfig::default();
-        assert!(!config.reuse_session);
-        assert_eq!(config.launch.reuse_class, None);
+        assert!(!config.session.reuse);
+        assert_eq!(config.session.reuse_class, None);
     }
 
     #[test]
     fn a_class_session_is_a_reused_session_for_one_class() {
         let config = BrowserConfig::default().with_reuse_class_session("Login");
-        assert!(config.reuse_session);
+        assert!(config.session.reuse);
         assert_eq!(
-            config.launch.reuse_class,
+            config.session.reuse_class,
             Some(ReuseClass::Named("Login".to_owned()))
         );
     }
@@ -1381,16 +1407,16 @@ mod tests {
     #[test]
     fn the_module_flag_turns_reuse_on_and_comes_off_alone() {
         let on = BrowserConfig::default().with_reuse_module_session(true);
-        assert!(on.reuse_session);
-        assert_eq!(on.launch.reuse_class, Some(ReuseClass::TestModule));
+        assert!(on.session.reuse);
+        assert_eq!(on.session.reuse_class, Some(ReuseClass::TestModule));
         let off = on.with_reuse_module_session(false);
-        assert!(off.reuse_session, "--rs stays on");
-        assert_eq!(off.launch.reuse_class, None);
+        assert!(off.session.reuse, "--rs stays on");
+        assert_eq!(off.session.reuse_class, None);
         let named = BrowserConfig::default()
             .with_reuse_class_session("Login")
             .with_reuse_module_session(false);
         assert_eq!(
-            named.launch.reuse_class,
+            named.session.reuse_class,
             Some(ReuseClass::Named("Login".to_owned())),
             "a named class is not the module flag"
         );
@@ -1472,7 +1498,7 @@ mod tests {
     #[test]
     fn the_default_browser_is_chrome() {
         assert_eq!(Browser::default(), Browser::Chrome);
-        assert_eq!(BrowserConfig::default().browser, Browser::Chrome);
+        assert_eq!(BrowserConfig::default().browser.kind, Browser::Chrome);
     }
 
     #[test]
@@ -1564,7 +1590,7 @@ mod tests {
             .with_grid(GridProtocol::Https, "USER:KEY@hub.example.com", 443)
             .unwrap();
         assert_eq!(
-            config.webdriver_url,
+            config.session.webdriver_url(),
             "https://USER:KEY@hub.example.com/wd/hub"
         );
         // The access key stays out of the debug output.
@@ -1582,7 +1608,7 @@ mod tests {
     fn a_binary_location_is_the_browser_binary_path() {
         let config = BrowserConfig::default().with_binary_location("/opt/chrome/chrome");
         assert_eq!(
-            config.browser_binary_path,
+            config.browser.executable_path,
             Some(PathBuf::from("/opt/chrome/chrome"))
         );
     }
@@ -1590,48 +1616,56 @@ mod tests {
     #[test]
     fn the_remote_debugger_may_move_only_when_the_default_port_was_asked_for() {
         let default = BrowserConfig::default().with_remote_debug(true);
-        assert!(default.launch.remote_debug_any_port);
+        assert!(default.browser.debugging_any_port);
         let named = default.with_remote_debug_port(9333);
-        assert!(!named.launch.remote_debug_any_port);
-        assert_eq!(named.launch.remote_debug_port, Some(9333));
+        assert!(!named.browser.debugging_any_port);
+        assert_eq!(named.browser.debugging_port, Some(9333));
         let off = named.with_remote_debug(false);
-        assert_eq!(off.launch.remote_debug_port, None);
-        assert!(!off.launch.remote_debug_any_port);
+        assert_eq!(off.browser.debugging_port, None);
+        assert!(!off.browser.debugging_any_port);
     }
 
     #[test]
-    fn a_default_config_writes_no_launch_settings_and_a_set_one_sits_beside_the_rest() {
+    fn a_default_config_writes_no_switches_and_a_set_one_sits_in_its_group() {
         let plain = serde_json::to_value(BrowserConfig::default()).unwrap();
-        assert!(plain.get("switches").is_none(), "{plain}");
-        assert!(plain.get("page_load_strategy").is_none(), "{plain}");
+        assert!(plain["browser"].get("switches").is_none(), "{plain}");
+        assert!(
+            plain["session"].get("page_load_strategy").is_none(),
+            "{plain}"
+        );
 
         let config = BrowserConfig::default()
             .with_browser(Browser::Brave)
             .with_block_images(true)
             .with_page_load_strategy(PageLoadStrategy::Eager);
         let json = serde_json::to_value(&config).unwrap();
-        assert_eq!(json["browser"], "Brave");
-        assert_eq!(json["switches"], serde_json::json!(["block-images"]));
-        assert_eq!(json["page_load_strategy"], "eager");
+        assert_eq!(json["browser"]["kind"], "Brave");
+        assert_eq!(
+            json["browser"]["switches"],
+            serde_json::json!({"block-images": true})
+        );
+        assert_eq!(json["session"]["page_load_strategy"], "eager");
         let back: BrowserConfig = serde_json::from_value(json).unwrap();
         assert_eq!(back, config);
     }
 
     #[test]
-    fn a_config_written_before_launch_settings_existed_still_reads() {
+    fn a_config_written_without_browser_and_session_settings_still_reads() {
         let mut old = serde_json::to_value(BrowserConfig::default()).unwrap();
-        old.as_object_mut().unwrap().remove("launch");
+        old.as_object_mut().unwrap().remove("browser");
+        old.as_object_mut().unwrap().remove("session");
         let config: BrowserConfig = serde_json::from_value(old).unwrap();
-        assert_eq!(config.launch, LaunchSettings::default());
+        assert_eq!(config.browser, default_browser_settings());
+        assert_eq!(config.session, SessionSettings::default());
     }
 
     #[test]
     fn device_metrics_turn_mobile_on() {
         let config =
             BrowserConfig::default().with_device_metrics(DeviceMetrics::new(360, 640, 2.0));
-        assert!(config.mobile);
+        assert!(config.browser.mobile);
         assert_eq!(
-            config.launch.device_metrics,
+            config.browser.device_metrics,
             Some(DeviceMetrics::new(360, 640, 2.0))
         );
     }
@@ -1650,7 +1684,7 @@ mod tests {
         assert!(shown.contains("https://hub.example.com/wd/hub"), "{shown}");
         // The proxy itself is untouched.
         assert_eq!(
-            config.proxy.as_deref(),
+            config.browser.proxy.server.as_deref(),
             Some("socks5://user:secret@proxy.example:1080")
         );
     }
@@ -1680,14 +1714,14 @@ mod tests {
             LaunchSwitch::NoSandbox,
             LaunchSwitch::DisableGpu,
         ] {
-            assert!(on.launch.has(switch), "{switch:?}");
+            assert!(on.browser.has(switch), "{switch:?}");
         }
         let off = on.with_dark_mode(false).with_enable_ws(true);
-        assert!(!off.launch.has(LaunchSwitch::DarkMode));
-        assert!(!off.launch.has(LaunchSwitch::DisableWebSecurity));
+        assert!(!off.browser.has(LaunchSwitch::DarkMode));
+        assert!(!off.browser.has(LaunchSwitch::DisableWebSecurity));
         assert!(off
             .with_enable_ws(false)
-            .launch
+            .browser
             .has(LaunchSwitch::DisableWebSecurity));
     }
 
@@ -1695,9 +1729,9 @@ mod tests {
     fn headless1_asks_for_a_headless_browser_and_headless2_is_headless() {
         let headed = BrowserConfig::default().with_headless(false);
         let one = headed.clone().with_headless1(true);
-        assert!(one.headless && one.launch.has(LaunchSwitch::Headless1));
+        assert!(one.browser.headless && one.browser.has(LaunchSwitch::Headless1));
         let two = headed.with_headless2(true);
-        assert!(two.headless && !two.launch.has(LaunchSwitch::Headless1));
+        assert!(two.browser.headless && !two.browser.has(LaunchSwitch::Headless1));
     }
 
     #[test]
@@ -1708,12 +1742,15 @@ mod tests {
             .with_disable_features(["Foo", "Translate"])
             .with_host_resolver_rules("MAP a.test 127.0.0.1");
         assert_eq!(
-            config.extra_args,
+            config.browser.chromium.args,
             ["--mute-audio", "--ignore-gpu-blocklist"]
         );
-        assert_eq!(config.launch.disable_features, ["Translate", "Foo"]);
         assert_eq!(
-            config.launch.host_resolver_rules.as_deref(),
+            config.browser.chromium.disable_features,
+            ["Translate", "Foo"]
+        );
+        assert_eq!(
+            config.browser.chromium.host_resolver_rules.as_deref(),
             Some("MAP a.test 127.0.0.1")
         );
     }
@@ -1721,8 +1758,8 @@ mod tests {
     #[test]
     fn xvfb_is_the_default_virtual_display_or_none() {
         let on = BrowserConfig::default().with_xvfb(true);
-        assert_eq!(on.launch.virtual_display, Some(VirtualDisplay::default()));
-        assert_eq!(on.with_xvfb(false).launch.virtual_display, None);
+        assert_eq!(on.browser.virtual_display, Some(VirtualDisplay::default()));
+        assert_eq!(on.with_xvfb(false).browser.virtual_display, None);
     }
 
     #[test]
@@ -1730,7 +1767,7 @@ mod tests {
         assert!(!BrowserConfig::default().esc_end());
         let on = BrowserConfig::default().with_esc_end(true);
         assert!(on.esc_end());
-        assert!(on.launch.has(LaunchSwitch::EscEnd));
+        assert!(on.browser.has(LaunchSwitch::EscEnd));
         assert!(!on.with_esc_end(false).esc_end());
     }
 
@@ -1741,7 +1778,10 @@ mod tests {
         assert!(on.rec_sb_cdp());
         assert!(!on.esc_end(), "the switches are independent");
         let json = serde_json::to_value(&on).unwrap();
-        assert_eq!(json["switches"], serde_json::json!(["rec-sb-cdp"]));
+        assert_eq!(
+            json["browser"]["switches"],
+            serde_json::json!({"rec-sb-cdp": true})
+        );
         let back: BrowserConfig = serde_json::from_value(json).unwrap();
         assert!(back.rec_sb_cdp());
         assert!(!on.with_rec_sb_cdp(false).rec_sb_cdp());
@@ -1765,8 +1805,8 @@ mod tests {
         assert!(on.rec_print() && on.rec_behave() && !on.rec_sb_mgr());
         let json = serde_json::to_value(&on).unwrap();
         assert_eq!(
-            json["switches"],
-            serde_json::json!(["rec-print", "rec-behave"])
+            json["browser"]["switches"],
+            serde_json::json!({"rec-print": true, "rec-behave": true})
         );
     }
 
@@ -1775,7 +1815,10 @@ mod tests {
     fn esc_end_is_written_beside_the_other_switches() {
         let config = BrowserConfig::default().with_esc_end(true);
         let json = serde_json::to_value(&config).unwrap();
-        assert_eq!(json["switches"], serde_json::json!(["esc-end"]));
+        assert_eq!(
+            json["browser"]["switches"],
+            serde_json::json!({"esc-end": true})
+        );
         let back: BrowserConfig = serde_json::from_value(json).unwrap();
         assert!(back.esc_end());
     }
@@ -1783,7 +1826,7 @@ mod tests {
     #[test]
     fn the_remote_debugger_has_a_default_port_and_can_be_closed() {
         let on = BrowserConfig::default().with_remote_debug(true);
-        assert_eq!(on.launch.remote_debug_port, Some(9222));
-        assert_eq!(on.with_remote_debug(false).launch.remote_debug_port, None);
+        assert_eq!(on.browser.debugging_port, Some(9222));
+        assert_eq!(on.with_remote_debug(false).browser.debugging_port, None);
     }
 }

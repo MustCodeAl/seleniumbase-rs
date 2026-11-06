@@ -580,10 +580,7 @@ mod tests {
     }
 
     fn chromium_config() -> BrowserConfig {
-        BrowserConfig {
-            browser: BrowserKind::Chromium,
-            ..BrowserConfig::default()
-        }
+        BrowserConfig::default().with_browser(BrowserKind::Chromium)
     }
 
     fn fingerprint(seed: u64) -> Fingerprint {
@@ -593,10 +590,7 @@ mod tests {
     #[test]
     fn a_browser_the_builder_names_replaces_the_one_the_config_names() {
         let config = chromium_config();
-        let path_config = BrowserConfig {
-            browser_binary_path: Some("/opt/config/chrome".into()),
-            ..BrowserConfig::default()
-        };
+        let path_config = BrowserConfig::default().with_browser_binary_path("/opt/config/chrome");
         assert!(matches!(
             built(LaunchOptions::builder()).source,
             BrowserSource::Chrome
@@ -666,9 +660,9 @@ mod tests {
     #[test]
     fn a_switch_is_decided_by_the_builder_when_it_says_anything() {
         let mut config = BrowserConfig::default();
-        config.launch.set(LaunchSwitch::Incognito, true);
-        config.launch.set(LaunchSwitch::BlockImages, true);
-        config.launch.set(LaunchSwitch::NoSandbox, true);
+        config.browser.set(LaunchSwitch::Incognito, true);
+        config.browser.set(LaunchSwitch::BlockImages, true);
+        config.browser.set(LaunchSwitch::NoSandbox, true);
         let from_config = built(LaunchOptions::builder().browser_config(&config));
         assert!(matches!(from_config.mode, ProfileMode::Incognito));
         assert!(from_config.no_sandbox);
@@ -697,7 +691,7 @@ mod tests {
     #[test]
     fn incognito_and_guest_are_refused_whichever_layer_gives_them() {
         let mut config = BrowserConfig::default();
-        config.launch.set(LaunchSwitch::Incognito, true);
+        config.browser.set(LaunchSwitch::Incognito, true);
         assert!(LaunchOptions::builder()
             .guest(true)
             .browser_config(&config)
@@ -757,11 +751,9 @@ mod tests {
 
     #[test]
     fn a_fingerprint_of_either_layer_is_refused_with_a_phone_unless_it_is_switched_off() {
-        let config = BrowserConfig {
-            mobile: true,
-            fingerprint: Some(fingerprint(3)),
-            ..BrowserConfig::default()
-        };
+        let config = BrowserConfig::default()
+            .with_mobile(true)
+            .with_fingerprint(fingerprint(3));
         assert!(LaunchOptions::builder()
             .browser_config(&config)
             .build()
@@ -843,12 +835,10 @@ mod tests {
 
     #[test]
     fn the_single_settings_of_the_builder_win_over_the_configs_in_either_order() {
-        let config = BrowserConfig {
-            ad_block: true,
-            start_page: Some("https://config.example/".to_owned()),
-            user_data_dir: Some("/config/profile".to_owned()),
-            ..BrowserConfig::default()
-        };
+        let config = BrowserConfig::default()
+            .with_ad_block(true)
+            .with_start_page("https://config.example/")
+            .with_user_data_dir("/config/profile");
         let from_config = built(LaunchOptions::builder().browser_config(&config));
         assert!(from_config.ad_block);
         assert_eq!(from_config.url(), Some("https://config.example/"));
@@ -992,10 +982,7 @@ mod tests {
 
     #[test]
     fn a_proxy_is_checked_as_python_checks_it_only_where_the_config_gave_it() {
-        let bad = BrowserConfig {
-            proxy: Some("ftp://proxy.example:21".to_owned()),
-            ..BrowserConfig::default()
-        };
+        let bad = BrowserConfig::default().with_proxy("ftp://proxy.example:21");
         assert!(LaunchOptions::builder()
             .browser_config(&bad)
             .build()
@@ -1020,8 +1007,8 @@ mod tests {
     #[test]
     fn the_port_and_the_timeout_of_the_builder_win_over_the_config() {
         let mut config = BrowserConfig::default();
-        config.launch.remote_debug_port = Some(9333);
-        config.launch.remote_debug_any_port = false;
+        config.browser.debugging_port = Some(9333);
+        config.browser.debugging_any_port = false;
         assert_eq!(
             built(LaunchOptions::builder().browser_config(&config)).debugging_port,
             9333
@@ -1048,12 +1035,10 @@ mod tests {
 
     #[test]
     fn the_lists_of_both_layers_are_kept_the_configs_first() {
-        let mut config = BrowserConfig {
-            locale: Some("fr_FR".to_owned()),
-            extension_dir: Some("/ext/one, /ext/two".to_owned()),
-            ..BrowserConfig::default()
-        };
-        config.launch.disable_features = vec!["FromConfig".to_owned()];
+        let mut config = BrowserConfig::default()
+            .with_locale("fr_FR")
+            .with_extension_dir("/ext/one, /ext/two");
+        config.browser.chromium.disable_features = vec!["FromConfig".to_owned()];
         let options = built(
             LaunchOptions::builder()
                 .disable_features(["FromBuilder"])
@@ -1085,10 +1070,7 @@ mod tests {
             })
             .build()
             .unwrap();
-        let config = BrowserConfig {
-            proxy: Some("bob:hunter2@config.example:9090".to_owned()),
-            ..BrowserConfig::default()
-        };
+        let config = BrowserConfig::default().with_proxy("bob:hunter2@config.example:9090");
         for builder in [
             LaunchOptions::builder().fingerprint(&print),
             LaunchOptions::builder().browser_config(&config),

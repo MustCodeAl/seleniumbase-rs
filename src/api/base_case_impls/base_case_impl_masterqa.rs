@@ -172,7 +172,7 @@ impl BaseCase {
 
     /// The name of the browser as a result row records it (`chrome`).
     pub(crate) fn masterqa_browser(&self) -> &'static str {
-        self.config.browser.name()
+        self.config.browser.kind.name()
     }
 
     /// Closes the second window, if another one was opened, and goes back to

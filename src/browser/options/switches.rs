@@ -1,5 +1,7 @@
 //! On/off launch settings, and the browser preferences some of them set.
 
+use std::borrow::Borrow;
+
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 
@@ -7,7 +9,7 @@ use serde_json::{json, Map, Value};
 ///
 /// Each one is a Python SeleniumBase option that takes no value, such as
 /// `--block-images`. Turn them on with the matching `BrowserConfig::with_*`
-/// method; [`LaunchSettings`](super::LaunchSettings) keeps the set that is on.
+/// method; [`BrowserSettings`](super::BrowserSettings) keeps the set that is on.
 ///
 /// # Examples
 ///
@@ -189,11 +191,12 @@ impl LaunchSwitch {
 /// `goog:chromeOptions` and writes them into the profile's `Preferences` file.
 /// Use [`nested_preferences`] for the form that file holds.
 #[must_use]
-pub fn chrome_preferences<'a>(
-    switches: impl IntoIterator<Item = &'a LaunchSwitch>,
+pub fn chrome_preferences(
+    switches: impl IntoIterator<Item = impl Borrow<LaunchSwitch>>,
 ) -> Map<String, Value> {
     let mut preferences = Map::new();
     for switch in switches {
+        let switch = switch.borrow();
         // 2 is Chrome's "block" in a content-setting preference.
         match switch {
             LaunchSwitch::BlockImages => {
@@ -228,11 +231,12 @@ pub fn chrome_preferences<'a>(
 
 /// The Firefox preferences that `switches` ask for.
 #[must_use]
-pub fn firefox_preferences<'a>(
-    switches: impl IntoIterator<Item = &'a LaunchSwitch>,
+pub fn firefox_preferences(
+    switches: impl IntoIterator<Item = impl Borrow<LaunchSwitch>>,
 ) -> Map<String, Value> {
     let mut preferences = Map::new();
     for switch in switches {
+        let switch = switch.borrow();
         match switch {
             LaunchSwitch::BlockImages => {
                 // 2 is Firefox's "block" in a permission preference.
@@ -325,7 +329,7 @@ mod tests {
             ),
         ];
         for (switch, name, value) in cases {
-            let preferences = chrome_preferences(&one(switch));
+            let preferences = chrome_preferences(one(switch));
             assert_eq!(preferences.len(), 1, "{switch:?}");
             assert_eq!(preferences[name], value, "{switch:?}");
         }
@@ -362,7 +366,7 @@ mod tests {
             ),
         ];
         for (switch, name, value) in cases {
-            let preferences = firefox_preferences(&one(switch));
+            let preferences = firefox_preferences(one(switch));
             assert_eq!(preferences.len(), 1, "{switch:?}");
             assert_eq!(preferences[name], value, "{switch:?}");
         }
@@ -396,7 +400,7 @@ mod tests {
         .into();
         assert!(chrome_preferences(&others).is_empty());
         assert!(firefox_preferences(&others).is_empty());
-        assert!(chrome_preferences(&BTreeSet::new()).is_empty());
+        assert!(chrome_preferences(BTreeSet::<LaunchSwitch>::new()).is_empty());
     }
 
     #[test]
@@ -408,7 +412,7 @@ mod tests {
 
     #[test]
     fn dotted_names_nest_and_share_their_prefix() {
-        let dotted = chrome_preferences(&BTreeSet::from([
+        let dotted = chrome_preferences(BTreeSet::from([
             LaunchSwitch::BlockImages,
             LaunchSwitch::DisableJavaScript,
             LaunchSwitch::DoNotTrack,

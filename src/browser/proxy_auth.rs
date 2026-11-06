@@ -47,12 +47,14 @@ const OPTION_KEYS: [&str; 2] = ["goog:chromeOptions", "ms:edgeOptions"];
 /// valid, or when the WebDriver server is not on this machine: the message
 /// never shows the password.
 pub(crate) fn login_for(config: &BrowserConfig) -> Result<Option<Credentials>, SeleniumBaseError> {
-    if !config.browser.is_chromium_based() {
+    if !config.browser.kind.is_chromium_based() {
         return Ok(None);
     }
     let own = |(user, password): (&str, &str)| (user.to_owned(), password.to_owned());
     let proxy = config
+        .browser
         .proxy
+        .server
         .as_deref()
         .map(str::parse::<ProxyAddress>)
         .transpose()?
@@ -60,7 +62,9 @@ pub(crate) fn login_for(config: &BrowserConfig) -> Result<Option<Credentials>, S
     let credentials = match proxy {
         Some(credentials) => Some(credentials),
         None => config
-            .proxy_pac_url
+            .browser
+            .proxy
+            .pac_url
             .as_deref()
             .map(str::parse::<PacUrl>)
             .transpose()?
@@ -69,7 +73,7 @@ pub(crate) fn login_for(config: &BrowserConfig) -> Result<Option<Credentials>, S
     let Some(credentials) = credentials else {
         return Ok(None);
     };
-    if config.is_default_webdriver_url() || server_is_local(&config.webdriver_url) {
+    if config.is_default_webdriver_url() || server_is_local(&config.session.webdriver_url()) {
         Ok(Some(credentials))
     } else {
         Err(SeleniumBaseError::invalid_config(REMOTE_GRID_LOGIN))
@@ -243,7 +247,7 @@ mod tests {
     fn a_chromium_session_with_a_proxy_login_wants_the_sidecar() {
         for browser in [Browser::Chrome, Browser::Edge, Browser::Brave] {
             let mut config = login();
-            config.browser = browser;
+            config.browser.kind = browser;
             assert_eq!(
                 login_for(&config).expect("valid"),
                 Some(("alice".to_owned(), PASSWORD.to_owned())),
@@ -284,7 +288,7 @@ mod tests {
     fn a_browser_that_is_not_chromium_wants_nothing() {
         for browser in [Browser::Firefox, Browser::Safari, Browser::Remote] {
             let mut config = login();
-            config.browser = browser;
+            config.browser.kind = browser;
             assert_eq!(login_for(&config).expect("valid"), None, "{browser}");
         }
     }

@@ -128,7 +128,7 @@ impl BaseCase {
     /// cannot be opened; the browser is closed again in the second case.
     #[instrument(skip(config))]
     pub async fn new(config: BrowserConfig) -> Result<Self, SeleniumBaseError> {
-        info!(browser = ?config.browser, headless = config.headless, "creating BaseCase");
+        info!(browser = ?config.browser.kind, headless = config.browser.headless, "creating BaseCase");
         Self::check_recorder_browser(&config)?;
 
         let session = BrowserSession::connect(config.clone()).await?;
@@ -139,7 +139,7 @@ impl BaseCase {
             return Err(error);
         }
 
-        if case.config.start_page.is_some()
+        if case.config.browser.url.is_some()
             && let Err(error) = case.open_start_page().await
         {
             // Do not leave a browser running that nobody holds.
@@ -1638,7 +1638,7 @@ impl BaseCase {
         if self.somebody_watching {
             return false;
         }
-        self.config.headless || self.config.launch.virtual_display.is_some()
+        self.config.browser.headless || self.config.browser.virtual_display.is_some()
     }
 
     /// Captures a screenshot and writes it to `path`.

@@ -144,7 +144,7 @@ mod tests_to_logs {
         let mut config = BrowserConfig::default()
             .with_webdriver_url(driver.url().to_owned())
             .with_mode(crate::browser::config::DriverMode::Cdp);
-        config.auto_start_driver = false;
+        config.session.auto_start_driver = false;
         let sb = BaseCase::new(config).await.unwrap();
 
         let path = sb.save_as_pdf_to_logs("saved.pdf").await.unwrap();

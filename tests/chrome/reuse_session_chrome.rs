@@ -45,12 +45,7 @@ fn config() -> BrowserConfig {
     // The second test checks that the first one's cookie is cleaned away, which
     // is what crumbs ask for; `crumbs_chrome.rs` checks the default.
     set_crumbs(true);
-    BrowserConfig {
-        headless: true,
-        auto_start_driver: true,
-        ..BrowserConfig::default()
-    }
-    .with_reuse_session(true)
+    BrowserConfig::default().with_reuse_session(true)
 }
 
 /// Serves one page on a loopback port, since cookies need an `http` origin,

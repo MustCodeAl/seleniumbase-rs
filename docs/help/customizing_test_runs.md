@@ -131,8 +131,9 @@ URL patterns is refused when the session starts. Limits:
 ### Launch settings
 
 The Python SeleniumBase options that shape how a browser or its driver starts
-live in `BrowserConfig::launch` (a `LaunchSettings`) and have builder methods of
-their own. Each value type reads the text the Python command line takes, so
+live in `BrowserConfig::browser` (a `BrowserSettings`, what both engines start) and
+`BrowserConfig::session` (a `SessionSettings`, what only a WebDriver session reads), and have
+builder methods of their own. Each value type reads the text the Python command line takes, so
 `"1280,720".parse::<WindowSize>()` and `"eager".parse::<PageLoadStrategy>()`
 work.
 

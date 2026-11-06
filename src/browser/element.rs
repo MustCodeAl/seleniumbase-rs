@@ -692,7 +692,7 @@ mod tests {
     /// The session on `driver` and the element `#a` as it finds it.
     async fn found(driver: &MockWebDriver, css: &str) -> (BrowserSession, Element) {
         let mut config = BrowserConfig::default().with_webdriver_url(driver.url());
-        config.auto_start_driver = false;
+        config.session.auto_start_driver = false;
         let session = BrowserSession::connect(config).await.expect("connects");
         let webdriver = session.webdriver().expect("a WebDriver session").clone();
         let inner = webdriver

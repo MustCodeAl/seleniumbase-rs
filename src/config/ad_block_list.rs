@@ -133,16 +133,16 @@ impl AdBlockList {
 
     /// The list `config` asks to block, otherwise `None`: the list set with
     /// [`BrowserConfig::with_ad_block_list`] if there is one, else the built-in
-    /// list, when `config.ad_block` is on.
+    /// list, when `config.browser.ad_block` is on.
     ///
     /// A list that is set but not asked for (`ad_block` is `false`) blocks
     /// nothing. A list of one's own that is empty blocks nothing either; it is
     /// not replaced by the built-in one.
     #[must_use]
     pub fn for_config(config: &BrowserConfig) -> Option<Self> {
-        config.ad_block.then(|| {
+        config.browser.ad_block.then(|| {
             config
-                .launch
+                .browser
                 .ad_block_list
                 .clone()
                 .unwrap_or_else(Self::builtin)
@@ -646,10 +646,7 @@ mod tests {
         let off = BrowserConfig::default();
         assert!(AdBlockList::for_config(&off).is_none());
 
-        let on = BrowserConfig {
-            ad_block: true,
-            ..BrowserConfig::default()
-        };
+        let on = BrowserConfig::default().with_ad_block(true);
         assert_eq!(AdBlockList::for_config(&on), Some(AdBlockList::builtin()));
     }
 
@@ -663,7 +660,7 @@ mod tests {
 
         // A list that is set but not asked for blocks nothing.
         let mut off = on.clone();
-        off.ad_block = false;
+        off.browser.ad_block = false;
         assert!(AdBlockList::for_config(&off).is_none());
 
         // An empty list of one's own is not the built-in list in disguise.
@@ -675,7 +672,7 @@ mod tests {
     fn setting_a_list_of_ones_own_turns_ad_blocking_on() {
         let config = BrowserConfig::default()
             .with_ad_block_list(AdBlockList::from_hosts(["ads.example.com"]).unwrap());
-        assert!(config.ad_block);
+        assert!(config.browser.ad_block);
     }
 
     #[test]

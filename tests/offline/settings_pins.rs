@@ -817,7 +817,7 @@ fn finding_4_to_launch_options_leaves_the_phone_out_today() {
 #[test]
 fn finding_5_headless_has_one_default_for_each_entry_point() {
     assert!(!Settings::default().headless);
-    assert!(BrowserConfig::default().headless);
+    assert!(BrowserConfig::default().browser.headless);
     let options = LaunchOptions::builder().build().expect("launch options");
     assert_eq!(options.is_headless(), cfg!(target_os = "linux"));
 }
@@ -870,7 +870,8 @@ fn finding_9_one_function_builds_a_grid_address() {
             ..Settings::default()
         }
         .to_browser_config()
-        .webdriver_url
+        .session
+        .webdriver_url()
     };
     for (port, protocol, kind) in [
         (4445, "https", GridProtocol::Https),

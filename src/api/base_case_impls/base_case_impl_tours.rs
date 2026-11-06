@@ -875,10 +875,7 @@ mod tests_tours {
     async fn nothing_is_played_where_nobody_watches() {
         // A headless case with no browser behind it: any call to the driver
         // would panic, so this shows that none is made.
-        let config = BrowserConfig {
-            headless: true,
-            ..BrowserConfig::default()
-        };
+        let config = BrowserConfig::default();
         let mut sb = BaseCase::with_session(config, BrowserSession::disconnected());
         sb.add_tour_step("hello").await.unwrap();
         sb.play_tour().await.unwrap();

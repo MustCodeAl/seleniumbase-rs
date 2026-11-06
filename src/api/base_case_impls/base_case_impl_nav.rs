@@ -13,7 +13,7 @@ impl BaseCase {
 
     /// Opens the configured start page if one exists, otherwise `about:blank`.
     pub async fn open_start_page(&mut self) -> Result<(), SeleniumBaseError> {
-        let url = self.config.start_page.clone().unwrap_or_else(|| "about:blank".to_owned());
+        let url = self.config.browser.url.clone().unwrap_or_else(|| "about:blank".to_owned());
         self.open(&url).await
     }
 

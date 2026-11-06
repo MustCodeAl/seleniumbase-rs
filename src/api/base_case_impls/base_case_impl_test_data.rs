@@ -13,7 +13,7 @@ impl BaseCase {
     /// ```
     #[must_use]
     pub fn data(&self) -> Option<&str> {
-        self.config.launch.test_data.data.as_deref()
+        self.config.test_data.data.as_deref()
     }
 
     /// The environment the run is against (`--env`, `SB_ENV`): one of the 24
@@ -21,7 +21,7 @@ impl BaseCase {
     /// lower case, and `test` when none was given. Python's `self.env`.
     #[must_use]
     pub fn env(&self) -> &str {
-        self.config.launch.test_data.env()
+        self.config.test_data.env()
     }
 
     /// [`env`](Self::env), under Python's other name for it.
@@ -33,32 +33,32 @@ impl BaseCase {
     /// The account name of the run (`--account`, `SB_ACCOUNT`).
     #[must_use]
     pub fn account(&self) -> Option<&str> {
-        self.config.launch.test_data.account.as_deref()
+        self.config.test_data.account.as_deref()
     }
 
     /// The first free variable of the run (`--var1`, `SB_VAR1`).
     #[must_use]
     pub fn var1(&self) -> Option<&str> {
-        self.config.launch.test_data.var1.as_deref()
+        self.config.test_data.var1.as_deref()
     }
 
     /// The second free variable of the run (`--var2`, `SB_VAR2`).
     #[must_use]
     pub fn var2(&self) -> Option<&str> {
-        self.config.launch.test_data.var2.as_deref()
+        self.config.test_data.var2.as_deref()
     }
 
     /// The third free variable of the run (`--var3`, `SB_VAR3`).
     #[must_use]
     pub fn var3(&self) -> Option<&str> {
-        self.config.launch.test_data.var3.as_deref()
+        self.config.test_data.var3.as_deref()
     }
 
     /// The dictionary of the run (`--variables`, `SB_VARIABLES`); empty when
     /// none was given.
     #[must_use]
     pub fn variables(&self) -> &serde_json::Map<String, Value> {
-        &self.config.launch.test_data.variables
+        &self.config.test_data.variables
     }
 
     /// The id of the test this case runs: the name given by
@@ -85,10 +85,12 @@ mod test_data_tests {
     use crate::config::test_settings::TestData;
 
     fn case_with(data: TestData) -> BaseCase {
-        let mut config = BrowserConfig::default();
-        config.launch.test_data = data;
-        BaseCase::without_session(config)
-    }
+            let config = BrowserConfig {
+                test_data: data,
+                ..BrowserConfig::default()
+            };
+            BaseCase::without_session(config)
+        }
 
     #[test]
     fn a_run_without_data_has_the_test_environment_and_nothing_else() {

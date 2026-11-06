@@ -209,11 +209,11 @@ pub(crate) struct ReuseKey {
 impl ReuseKey {
     /// The key of `config`, with its class resolved on the calling thread.
     pub(crate) fn of(config: &BrowserConfig) -> Self {
-        let class = config.launch.reuse_class.as_ref().map(ReuseClass::resolve);
+        let class = config.session.reuse_class.as_ref().map(ReuseClass::resolve);
         let mut config = config.clone();
-        config.reuse_session = false;
-        config.start_page = None;
-        config.launch.reuse_class = None;
+        config.session.reuse = false;
+        config.browser.url = None;
+        config.session.reuse_class = None;
         // How a test behaves (demo mode, message time) does not change the
         // browser, so a demo test and a plain one still share browsers.
         config.run = crate::api::run_settings::RunSettings::default();
@@ -695,6 +695,7 @@ async fn attach(
     address: &SessionAddress,
 ) -> Result<WebDriver, SeleniumBaseError> {
     let timeout = config
+        .session
         .remote_webdriver_timeout_seconds
         .map_or(DEFAULT_REQUEST_TIMEOUT, Duration::from_secs);
     let client = AttachClient::new(address, timeout)?;
@@ -734,7 +735,7 @@ async fn reset(
     // Crumbs delete every cookie, through DevTools on Chromium; elsewhere, or
     // if DevTools refuses, WebDriver deletes those of the open page.
     let cleared = !crumbs
-        || (config.browser.is_chromium_based()
+        || (config.browser.kind.is_chromium_based()
             && CdpClient::from_handle(driver.handle().clone())
                 .clear_cookies()
                 .await
@@ -866,7 +867,7 @@ mod tests {
         let base = BrowserConfig::default().with_reuse_session(true);
         let different = [
             base.clone().with_browser(Browser::Firefox),
-            base.clone().with_headless(!base.headless),
+            base.clone().with_headless(!base.browser.headless),
             base.clone().with_mode(DriverMode::Uc),
             base.clone().with_proxy("proxy.test:8080"),
             base.clone().with_user_agent("Agent/1.0"),
@@ -1147,7 +1148,7 @@ mod tests_with_a_driver {
         let mut config = BrowserConfig::default()
             .with_webdriver_url(driver.url())
             .with_reuse_session(true);
-        config.auto_start_driver = false;
+        config.session.auto_start_driver = false;
         config
     }
 

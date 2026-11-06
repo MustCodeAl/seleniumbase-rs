@@ -713,10 +713,10 @@ fn settings_summary(settings: &Settings) -> Value {
         "esc_end": settings.esc_end,
         "rec_sb_cdp": settings.rec_sb_cdp,
         "would_launch": {
-            "browser": format!("{:?}", config.browser).to_lowercase(),
-            "mode": format!("{:?}", config.mode).to_lowercase(),
-            "auto_start_driver": config.auto_start_driver,
-            "reuse_session": config.reuse_session,
+            "browser": format!("{:?}", config.browser.kind).to_lowercase(),
+            "mode": format!("{:?}", config.session.mode).to_lowercase(),
+            "auto_start_driver": config.session.auto_start_driver,
+            "reuse_session": config.session.reuse,
         },
     })
 }

@@ -55,10 +55,10 @@ impl BaseCase {
     /// Refuses Recorder Mode for a browser that is not Chromium-based, with
     /// Python's message, before a browser is started.
     pub(crate) fn check_recorder_browser(config: &BrowserConfig) -> Result<(), SeleniumBaseError> {
-        if config.recorder_mode() && !config.browser.is_chromium_based() {
+        if config.recorder_mode() && !config.browser.kind.is_chromium_based() {
             return Err(SeleniumBaseError::InvalidConfig(format!(
                 "Recorder Mode ONLY supports Chrome and Edge!\n(Your browser choice was: \"{}\")",
-                config.browser
+                config.browser.kind
             )));
         }
         Ok(())
@@ -153,7 +153,7 @@ impl BaseCase {
     /// Returns [`SeleniumBaseError::InvalidConfig`] for a browser that is not
     /// Chromium-based, and the driver's error when the tab cannot be reached.
     pub async fn activate_recorder(&mut self) -> Result<(), SeleniumBaseError> {
-        if !self.config.browser.is_chromium_based() {
+        if !self.config.browser.kind.is_chromium_based() {
             return Err(SeleniumBaseError::InvalidConfig(
                 "The SeleniumBase Recorder is for Chromium only!\n    (Supported browsers: Chrome and Edge)"
                     .to_owned(),
@@ -624,7 +624,7 @@ mod tests_recorder_mode {
         let mut config = BrowserConfig::default()
             .with_webdriver_url(driver.url().to_owned())
             .with_recorder_mode(true);
-        config.auto_start_driver = false;
+        config.session.auto_start_driver = false;
         config
     }
 
@@ -668,7 +668,7 @@ mod tests_recorder_mode {
     async fn another_browser_is_refused_before_it_starts() {
         let driver = browser(vec![tab("w1", "about:blank", Value::Null)], now());
         let mut config = config(&driver);
-        config.browser = crate::browser::config::Browser::Firefox;
+        config.browser.kind = crate::browser::config::Browser::Firefox;
         let error = BaseCase::new(config)
             .await
             .err()

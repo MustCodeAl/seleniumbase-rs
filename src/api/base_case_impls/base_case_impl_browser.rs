@@ -66,7 +66,7 @@ fn major_version(version: &str) -> String {
 impl BaseCase {
     /// Returns true if the configured browser is Chromium-based.
     pub fn is_chromium(&self) -> bool {
-        self.config.browser.is_chromium_based()
+        self.config.browser.kind.is_chromium_based()
     }
 
     /// Whether the session can run DevTools Protocol commands.

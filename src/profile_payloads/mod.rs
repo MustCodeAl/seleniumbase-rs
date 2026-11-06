@@ -41,12 +41,12 @@
 //! }))?;
 //!
 //! let config = params.to_browser_config("http://localhost:4444");
-//! assert_eq!(config.webdriver_url, "http://localhost:4444");
+//! assert_eq!(config.session.webdriver_url(), "http://localhost:4444");
 //! assert_eq!(
-//!     config.user_agent.as_deref(),
+//!     config.browser.user_agent.as_deref(),
 //!     Some("Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
 //! );
-//! assert_eq!(config.user_data_dir.as_deref(), Some("./profile-data/work"));
+//! assert_eq!(config.browser.user_data_dir.as_deref(), Some("./profile-data/work"));
 //! # Ok::<(), serde_json::Error>(())
 //! ```
 

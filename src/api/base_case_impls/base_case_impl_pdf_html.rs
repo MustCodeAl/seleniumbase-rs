@@ -117,7 +117,7 @@ impl BaseCase {
     /// `None` means no locale was set, so the browser uses its own default.
     /// Use [`BaseCase::get_locale_code`] to ask the browser what it is using.
     pub fn configured_locale(&self) -> Option<&str> {
-        self.config.locale.as_deref()
+        self.config.browser.lang.as_deref()
     }
 
     /// Returns the configured browser locale, or `en-US` when none was
@@ -219,17 +219,11 @@ mod tests_pdf_html {
 
     #[test]
     fn an_unconfigured_locale_is_distinguishable_from_the_fallback() {
-        let config = BrowserConfig {
-            locale: None,
-            ..BrowserConfig::default()
-        };
+        let config = BrowserConfig::default();
         let sb = BaseCase::with_session(config.clone(), BrowserSession::disconnected());
         assert_eq!(sb.configured_locale(), None);
         assert_eq!(sb.get_locale(), "en-US");
-        let config = BrowserConfig {
-            locale: Some("de-DE".to_owned()),
-            ..config
-        };
+        let config = config.with_locale("de-DE");
         let sb = BaseCase::with_session(config, BrowserSession::disconnected());
         assert_eq!(sb.configured_locale(), Some("de-DE"));
         assert_eq!(sb.get_locale(), "de-DE");

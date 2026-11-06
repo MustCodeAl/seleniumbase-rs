@@ -146,7 +146,7 @@ pub(super) async fn start_browser(ctx: Ctx<BaseCase>, args: Args) -> Result<Outp
     if uc {
         config = config.with_mode(DriverMode::Uc);
     }
-    config.ad_block = args.bool_or("ad_block", false)?;
+    config.browser.ad_block = args.bool_or("ad_block", false)?;
     if chromium_family && incognito {
         config = config.push_extra_arg("--incognito");
     }

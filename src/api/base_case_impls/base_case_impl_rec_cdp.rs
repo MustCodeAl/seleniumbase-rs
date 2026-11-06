@@ -50,7 +50,7 @@ mod tests_rec_sb_cdp {
         let mut config = BrowserConfig::default()
             .with_webdriver_url(driver.url().to_owned())
             .with_rec_sb_cdp(rec_sb_cdp);
-        config.auto_start_driver = false;
+        config.session.auto_start_driver = false;
         let mut sb = BaseCase::new(config)
             .await
             .expect("the mock WebDriver accepts a session");

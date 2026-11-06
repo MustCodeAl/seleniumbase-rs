@@ -69,7 +69,7 @@ pub(crate) fn family_of(browser: Browser) -> Result<BrowserFamily, SeleniumBaseE
 /// Whether the browser of `config` runs without a window. Safari always has
 /// one, whatever the setting says.
 fn headless_of(config: &BrowserConfig, family: BrowserFamily) -> bool {
-    config.headless && family != BrowserFamily::Safari
+    config.browser.headless && family != BrowserFamily::Safari
 }
 
 /// What the set checks its plugins against for `config`.
@@ -184,9 +184,9 @@ fn options_key(browser: Browser) -> &'static str {
 /// (`goog:chromeOptions.prefs`, or `ms:edgeOptions.prefs` for Edge).
 fn chromium_prefs(config: &BrowserConfig) -> Map<String, Value> {
     config
-        .launch
+        .session
         .capabilities
-        .get(options_key(config.browser))
+        .get(options_key(config.browser.kind))
         .and_then(|options| options.get("prefs"))
         .and_then(Value::as_object)
         .cloned()
@@ -195,16 +195,7 @@ fn chromium_prefs(config: &BrowserConfig) -> Map<String, Value> {
 
 /// The folders of `extension_dir`, which Chrome takes comma-separated.
 fn extension_dirs(config: &BrowserConfig) -> Vec<PathBuf> {
-    config
-        .extension_dir
-        .as_deref()
-        .map(|dirs| {
-            dirs.split(',')
-                .filter(|dir| !dir.is_empty())
-                .map(PathBuf::from)
-                .collect()
-        })
-        .unwrap_or_default()
+    config.browser.extensions.clone()
 }
 
 /// The start-up settings plugins may change, taken from `config`.
@@ -218,20 +209,25 @@ fn extension_dirs(config: &BrowserConfig) -> Vec<PathBuf> {
 /// it, and a throwaway one otherwise.
 pub(crate) fn settings_of(config: &BrowserConfig, family: BrowserFamily) -> LaunchSettings {
     let mut settings = LaunchSettings::default();
-    settings.set_profile(match config.user_data_dir.as_deref() {
+    settings.set_profile(match config.browser.user_data_dir.as_deref() {
         Some(folder) => ProfileView::Persistent(PathBuf::from(folder)),
         None => ProfileView::Ephemeral,
     });
     match family {
         BrowserFamily::Chromium => {
-            settings.args.clone_from(&config.extra_args);
+            settings.args.clone_from(&config.browser.chromium.args);
             settings.prefs = chromium_prefs(config);
             settings.extensions = extension_dirs(config);
-            settings.proxy = config.proxy.as_deref().map(without_credentials);
+            settings.proxy = config
+                .browser
+                .proxy
+                .server
+                .as_deref()
+                .map(without_credentials);
         }
         BrowserFamily::Firefox => {
-            settings.args = config.launch.firefox.args().to_vec();
-            settings.prefs = config.launch.firefox.preferences_over(Map::new());
+            settings.args = config.session.firefox.args().to_vec();
+            settings.prefs = config.session.firefox.preferences_over(Map::new());
         }
         _ => {}
     }
@@ -279,9 +275,9 @@ pub(crate) fn apply_settings(
         || disable_quic;
     match family {
         BrowserFamily::Chromium => {
-            config.extra_args = args;
+            config.browser.chromium.args = args;
             add_chromium_switches(
-                &mut config.extra_args,
+                &mut config.browser.chromium.args,
                 &ChromiumSwitches {
                     host_resolver_rules: &host_resolver_rules,
                     webrtc_policy,
@@ -292,16 +288,17 @@ pub(crate) fn apply_settings(
             )?;
             if prefs != before.prefs {
                 let prefs = (!prefs.is_empty()).then_some(Value::Object(prefs));
-                config
-                    .launch
-                    .capabilities
-                    .set_field(options_key(config.browser), "prefs", prefs);
+                config.session.capabilities.set_field(
+                    options_key(config.browser.kind),
+                    "prefs",
+                    prefs,
+                );
             }
             if extensions != before.extensions {
-                config.extension_dir = extension_list(&extensions)?;
+                config.browser.extensions = extension_list(&extensions)?;
             }
             if proxy != before.proxy {
-                config.proxy = proxy;
+                config.browser.proxy.server = proxy;
             }
         }
         BrowserFamily::Firefox => {
@@ -319,7 +316,7 @@ pub(crate) fn apply_settings(
                 return Err(cannot("Firefox", "take a proxy from this engine"));
             }
             if args != before.args || prefs != before.prefs {
-                config.launch.firefox = firefox_options(&args, prefs)?;
+                config.session.firefox = firefox_options(&args, prefs)?;
             }
         }
         _ => {
@@ -342,7 +339,7 @@ pub(crate) fn apply_settings(
         if family == BrowserFamily::Safari {
             return Err(cannot("Safari", "run headless"));
         }
-        config.headless = headless;
+        config.browser.headless = headless;
     }
     Ok(())
 }
@@ -459,14 +456,10 @@ fn add_chromium_switches(
 ///
 /// [`SeleniumBaseError::InvalidConfig`] for a folder whose path is not UTF-8,
 /// or holds a comma, which would split it in two.
-fn extension_list(extensions: &[PathBuf]) -> Result<Option<String>, SeleniumBaseError> {
-    if extensions.is_empty() {
-        return Ok(None);
-    }
-    let mut dirs = Vec::with_capacity(extensions.len());
+fn extension_list(extensions: &[PathBuf]) -> Result<Vec<PathBuf>, SeleniumBaseError> {
     for path in extensions {
-        let dir = path
-            .to_str()
+        // Chrome takes the folders comma-separated in `--load-extension`.
+        path.to_str()
             .filter(|dir| !dir.is_empty() && !dir.contains(','))
             .ok_or_else(|| {
                 SeleniumBaseError::invalid_config(format!(
@@ -475,9 +468,8 @@ fn extension_list(extensions: &[PathBuf]) -> Result<Option<String>, SeleniumBase
                     path.display()
                 ))
             })?;
-        dirs.push(dir);
     }
-    Ok(Some(dirs.join(",")))
+    Ok(extensions.to_vec())
 }
 
 /// Firefox options with `args` and `prefs`.
@@ -530,16 +522,16 @@ pub(crate) async fn before_launch(
     if config.plugins().is_empty() {
         return Ok(config);
     }
-    if config.reuse_session {
+    if config.session.reuse {
         return Err(SeleniumBaseError::invalid_config(
             "browser plugins cannot be used with reuse_session: a browser kept for reuse would \
              get the plugins' hooks a second time, or not at all. Turn one of them off.",
         ));
     }
-    let family = family_of(config.browser)?;
+    let family = family_of(config.browser.kind)?;
     // A fresh instance of each per-launch plugin, kept in the configuration so
     // the hooks that follow reach the same instances.
-    config.launch.plugins = config.plugins().for_launch().into();
+    config.plugins = config.plugins().for_launch().into();
     let plugins = config.plugins().clone();
     let host = webdriver_host(&plugins, family);
     plugins.check_with(&launch_context(&config, family), &host)?;
@@ -922,9 +914,9 @@ mod conversion_tests {
     fn settings_left_alone_change_nothing() {
         let firefox = {
             let mut config = BrowserConfig::default().with_browser(Browser::Firefox);
-            config.launch.firefox.add_args("width=800").unwrap();
+            config.session.firefox.add_args("width=800").unwrap();
             config
-                .launch
+                .session
                 .firefox
                 .add_preferences("a.b:1,c.d:true")
                 .unwrap();
@@ -943,7 +935,7 @@ mod conversion_tests {
             apply_settings(&mut changed, family, settings_of(&config, family)).unwrap();
             assert_eq!(changed, config, "{family:?}");
             assert_eq!(
-                changed.proxy, config.proxy,
+                changed.browser.proxy.server, config.browser.proxy.server,
                 "the password stays when the plugins keep the proxy"
             );
         }
@@ -963,20 +955,23 @@ mod conversion_tests {
 
         apply_settings(&mut config, BrowserFamily::Chromium, settings).unwrap();
 
-        assert_eq!(config.extra_args, ["--mute-audio", "--lang=de"]);
+        assert_eq!(config.browser.chromium.args, ["--mute-audio", "--lang=de"]);
         let prefs = &config
-            .launch
+            .session
             .capabilities
             .get("goog:chromeOptions")
             .unwrap()["prefs"];
         assert_eq!(prefs["intl.accept_languages"], "de-DE");
         assert_eq!(prefs["webkit.webprefs.default_font_size"], 22);
         assert_eq!(
-            config.extension_dir.as_deref(),
-            Some("/opt/ext/a,/opt/ext/b,/opt/ext/c")
+            config.browser.extensions,
+            ["/opt/ext/a", "/opt/ext/b", "/opt/ext/c"].map(PathBuf::from)
         );
-        assert_eq!(config.proxy.as_deref(), Some("socks5://10.0.0.1:1080"));
-        assert!(!config.headless);
+        assert_eq!(
+            config.browser.proxy.server.as_deref(),
+            Some("socks5://10.0.0.1:1080")
+        );
+        assert!(!config.browser.headless);
     }
 
     #[test]
@@ -991,15 +986,15 @@ mod conversion_tests {
 
         assert!(
             config
-                .launch
+                .session
                 .capabilities
                 .get("goog:chromeOptions")
                 .is_none(),
             "{:?}",
-            config.launch.capabilities
+            config.session.capabilities
         );
-        assert_eq!(config.extension_dir, None);
-        assert_eq!(config.proxy, None);
+        assert!(config.browser.extensions.is_empty());
+        assert_eq!(config.browser.proxy.server, None);
     }
 
     #[test]
@@ -1013,12 +1008,12 @@ mod conversion_tests {
         apply_settings(&mut config, BrowserFamily::Chromium, settings).unwrap();
 
         assert_eq!(
-            config.launch.capabilities.get("ms:edgeOptions").unwrap()["prefs"]
+            config.session.capabilities.get("ms:edgeOptions").unwrap()["prefs"]
                 ["intl.accept_languages"],
             "fr"
         );
         assert!(config
-            .launch
+            .session
             .capabilities
             .get("goog:chromeOptions")
             .is_none());
@@ -1046,7 +1041,7 @@ mod conversion_tests {
     #[test]
     fn firefox_takes_arguments_and_preferences_as_its_own_options() {
         let mut config = BrowserConfig::default().with_browser(Browser::Firefox);
-        config.launch.firefox.add_preferences("a.b:1").unwrap();
+        config.session.firefox.add_preferences("a.b:1").unwrap();
         let mut settings = settings_of(&config, BrowserFamily::Firefox);
         assert_eq!(settings.prefs["a.b"], 1);
         settings.args.push("--width=800".to_owned());
@@ -1059,8 +1054,8 @@ mod conversion_tests {
 
         apply_settings(&mut config, BrowserFamily::Firefox, settings).unwrap();
 
-        assert_eq!(config.launch.firefox.args(), ["--width=800"]);
-        let prefs = config.launch.firefox.preferences();
+        assert_eq!(config.session.firefox.args(), ["--width=800"]);
+        let prefs = config.session.firefox.preferences();
         assert_eq!(prefs["a.b"], FirefoxPreference::Int(1));
         assert_eq!(
             prefs["intl.accept_languages"],
@@ -1160,8 +1155,8 @@ mod conversion_tests {
         let config = before_launch(config).await.unwrap();
 
         assert_eq!(*log.lock().unwrap(), ["before_launch"]);
-        assert_eq!(config.extra_args, ["--lang=de"]);
-        assert!(!config.headless);
+        assert_eq!(config.browser.chromium.args, ["--lang=de"]);
+        assert!(!config.browser.headless);
         assert_eq!(config.plugins().names(), ["recorder"], "the plugins stay");
     }
 
@@ -1254,7 +1249,7 @@ mod conversion_tests {
             settings.webrtc_policy = Some(WebRtcPolicy::DisableNonProxiedUdp);
         });
 
-        let args = &config.extra_args;
+        let args = &config.browser.chromium.args;
         assert_eq!(args[0], "--mute-audio");
         assert_eq!(
             switches(args, "host-resolver-rules"),
@@ -1288,7 +1283,7 @@ mod conversion_tests {
             settings.disable_quic = true;
         });
 
-        let args = &config.extra_args;
+        let args = &config.browser.chromium.args;
         assert_eq!(
             switches(args, "host-resolver-rules"),
             ["--host-resolver-rules=MAP own.example 127.0.0.1,MAP a.example ^NOTFOUND"],
@@ -1315,7 +1310,11 @@ mod conversion_tests {
             settings.webrtc_policy = Some(WebRtcPolicy::Default);
         });
 
-        assert!(config.extra_args.is_empty(), "{:?}", config.extra_args);
+        assert!(
+            config.browser.chromium.args.is_empty(),
+            "{:?}",
+            config.browser.chromium.args
+        );
     }
 
     #[test]
@@ -1692,7 +1691,7 @@ mod session_tests {
             .with_webdriver_url(driver.url())
             .with_browser(browser)
             .with_plugins(plugins);
-        config.auto_start_driver = false;
+        config.session.auto_start_driver = false;
         config
     }
 

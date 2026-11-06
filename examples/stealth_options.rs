@@ -40,12 +40,10 @@ async fn main() -> Result<()> {
 
     if std::env::args().any(|arg| arg == "--launch") {
         let url = Site::serve_demo()?.url(DEMO_PATH);
-        let config = BrowserConfig {
-            headless: true,
-            user_agent: Some(USER_AGENT.to_owned()),
-            mode: DriverMode::Uc,
-            ..BrowserConfig::default()
-        };
+        let config = BrowserConfig::default()
+            .with_headless(true)
+            .with_user_agent(USER_AGENT)
+            .with_mode(DriverMode::Uc);
         run_browser_test(config, async |sb| launched(sb, url).await).await?;
     } else {
         println!("\n(pass --launch to start a browser with these options)");

@@ -131,7 +131,7 @@ impl Settings {
             }
         }
         if self.firefox_arg.is_some() || self.firefox_pref.is_some() {
-            let mut firefox = config.launch.firefox.clone();
+            let mut firefox = config.session.firefox.clone();
             if let Some(text) = &self.firefox_arg {
                 firefox.add_args(text)?;
             }
@@ -165,7 +165,7 @@ impl Settings {
         if let Some(env) = &data.env {
             data.env = Some(TestData::parse_env(env)?);
         }
-        config.launch.test_data = data;
+        config.test_data = data;
         Ok(config)
     }
 
@@ -217,7 +217,7 @@ impl Settings {
         let config = self.with_launch_options(BrowserConfig::default())?;
         let headless = self.headless || self.headless1;
         let loads_extensions =
-            self.extension_dir.is_some() || !config.launch.extension_archives.is_empty();
+            self.extension_dir.is_some() || !config.session.extension_archives.is_empty();
 
         let mut builder = LaunchOptions::builder();
         builder = match (&self.chrome_bin, browser) {
@@ -252,10 +252,10 @@ impl Settings {
         if let Some(user_agent) = &self.user_agent {
             builder = builder.user_agent(user_agent.as_str());
         }
-        if let Some(lang) = config.locale.as_deref().or(self.locale.as_deref()) {
+        if let Some(lang) = config.browser.lang.as_deref().or(self.locale.as_deref()) {
             builder = builder.lang(lang);
         }
-        let size = config.launch.window_size.or_else(|| {
+        let size = config.browser.window_size.or_else(|| {
             self.window_width
                 .zip(self.window_height)
                 .map(|(width, height)| WindowSize::new(width, height))
@@ -263,7 +263,7 @@ impl Settings {
         if let Some(size) = size {
             builder = builder.window_size(size.width, size.height);
         }
-        if let Some(position) = config.launch.window_position {
+        if let Some(position) = config.browser.window_position {
             builder = builder.window_position(position.x, position.y);
         }
         if let Some(dirs) = &self.extension_dir {
@@ -271,11 +271,11 @@ impl Settings {
                 builder = builder.extension(PathBuf::from(dir));
             }
         }
-        if let Some(port) = config.launch.remote_debug_port {
+        if let Some(port) = config.browser.debugging_port {
             builder = builder.debugging_port(port);
         }
-        for arg in config.extra_args.iter().cloned().chain(
-            switch_args(&config.launch, headless, loads_extensions)
+        for arg in config.browser.chromium.args.iter().cloned().chain(
+            switch_args(&config.browser, headless, loads_extensions)
                 .into_iter()
                 // The builder has its own setters for these.
                 .filter(|arg| !matches!(arg.as_str(), "--incognito" | "--guest" | "--no-sandbox")),
@@ -310,7 +310,7 @@ fn with_chromium_items(mut config: BrowserConfig, items: &[String]) -> BrowserCo
                 features.push(feature.to_owned());
             }
         } else if !switch.is_empty() {
-            config.extra_args.push(format!("--{switch}"));
+            config.browser.chromium.args.push(format!("--{switch}"));
         }
     }
     config.with_disable_features(features)
@@ -365,11 +365,11 @@ mod tests {
     fn the_defaults_add_nothing_to_the_browser_config() {
         let settings = Settings::default();
         let config = settings.to_browser_config();
-        assert!(config.launch.switches.is_empty());
-        assert!(config.extra_args.is_empty());
+        assert!(config.browser.switches.is_empty());
+        assert!(config.browser.chromium.args.is_empty());
         assert_eq!(config.run_settings(), &RunSettings::default());
-        assert_eq!(config.launch.test_data, settings.test.data);
-        assert_eq!(config.webdriver_url, "http://localhost:4444");
+        assert_eq!(config.test_data, settings.test.data);
+        assert_eq!(config.session.webdriver_url(), "http://localhost:4444");
     }
 
     #[test]
@@ -402,8 +402,8 @@ mod tests {
             let mut settings = Settings::default();
             set(&mut settings);
             let config = settings.to_browser_config();
-            assert!(config.launch.has(switch), "{switch:?}");
-            assert_eq!(config.launch.switches.len(), 1, "{switch:?}");
+            assert!(config.browser.has(switch), "{switch:?}");
+            assert_eq!(config.browser.switches.len(), 1, "{switch:?}");
         }
     }
 
@@ -414,8 +414,8 @@ mod tests {
             ..Settings::default()
         };
         let config = settings.to_browser_config();
-        assert!(config.headless);
-        assert!(config.launch.has(LaunchSwitch::Headless1));
+        assert!(config.browser.headless);
+        assert!(config.browser.has(LaunchSwitch::Headless1));
     }
 
     #[test]
@@ -427,10 +427,13 @@ mod tests {
             ..Settings::default()
         };
         let config = settings.to_browser_config();
-        assert_eq!(config.extra_args, ["--mute-audio", "--lang=fr"]);
-        assert_eq!(config.launch.disable_features, ["Foo", "Bar", "Baz"]);
+        assert_eq!(config.browser.chromium.args, ["--mute-audio", "--lang=fr"]);
         assert_eq!(
-            config.launch.host_resolver_rules.as_deref(),
+            config.browser.chromium.disable_features,
+            ["Foo", "Bar", "Baz"]
+        );
+        assert_eq!(
+            config.browser.chromium.host_resolver_rules.as_deref(),
             Some("MAP example.test 127.0.0.1")
         );
     }
@@ -476,7 +479,7 @@ mod tests {
             ..Settings::default()
         };
         assert_eq!(
-            settings.to_browser_config().webdriver_url,
+            settings.to_browser_config().session.webdriver_url(),
             "http://grid.test:4445/wd/hub"
         );
         let settings = Settings {
@@ -484,7 +487,7 @@ mod tests {
             ..settings
         };
         assert_eq!(
-            settings.to_browser_config().webdriver_url,
+            settings.to_browser_config().session.webdriver_url(),
             "http://other.test:1"
         );
     }
@@ -508,23 +511,26 @@ mod tests {
             ..Settings::default()
         };
         let config = settings.to_browser_config();
-        let launch = &config.launch;
+        let launch = &config.browser;
         assert_eq!(launch.window_size, Some(WindowSize::new(1280, 720)));
         assert_eq!(launch.window_position, Some(WindowPosition::new(10, 20)));
         assert_eq!(
             launch.device_metrics,
             Some(DeviceMetrics::new(412, 732, 3.0))
         );
-        assert!(config.mobile);
-        assert_eq!(launch.page_load_strategy, Some(PageLoadStrategy::Eager));
-        assert!(launch.driver_version.is_some());
-        assert!(!launch.proxy_bypass_list.is_empty());
-        assert_eq!(config.locale.as_deref(), Some("ar-EG"));
+        assert!(config.browser.mobile);
+        assert_eq!(
+            config.session.page_load_strategy,
+            Some(PageLoadStrategy::Eager)
+        );
+        assert!(config.session.driver_version.is_some());
+        assert!(!launch.proxy.bypass_list.is_empty());
+        assert_eq!(config.browser.lang.as_deref(), Some("ar-EG"));
         assert_eq!(
             launch.virtual_display,
             Some(VirtualDisplay::new(1920, 1080))
         );
-        assert!(launch.remote_debug_port.is_some());
+        assert!(launch.debugging_port.is_some());
     }
 
     #[test]
@@ -558,7 +564,7 @@ mod tests {
             ..Settings::default()
         };
         let config = settings.to_browser_config();
-        let capabilities = &config.launch.capabilities;
+        let capabilities = &config.session.capabilities;
         assert_eq!(
             capabilities.get("name"),
             Some(&serde_json::json!("from-text"))
@@ -658,8 +664,8 @@ mod tests {
         settings.test.data.env = Some("qa".to_owned());
         settings.test.data.var1 = Some("x".to_owned());
         let config = settings.to_browser_config();
-        assert_eq!(config.launch.test_data.env(), "qa");
-        assert_eq!(config.launch.test_data.var1.as_deref(), Some("x"));
+        assert_eq!(config.test_data.env(), "qa");
+        assert_eq!(config.test_data.var1.as_deref(), Some("x"));
     }
 
     #[test]
@@ -737,7 +743,7 @@ mod tests {
         assert_eq!(settings.test.data.env(), "qa");
         assert_eq!(settings.test.reruns, 2);
         assert_eq!(
-            settings.to_browser_config().launch.window_size,
+            settings.to_browser_config().browser.window_size,
             Some(WindowSize::new(1000, 700))
         );
         std::fs::remove_dir_all(file.parent().unwrap()).unwrap();

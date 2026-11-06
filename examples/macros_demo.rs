@@ -49,13 +49,13 @@ async fn main() -> Result<()> {
 
 /// Part 1: macros that only build values.
 fn configuration_macros() {
-    println!("uc_config!()  -> mode {:?}", uc_config!().mode);
-    println!("cdp_config!() -> mode {:?}", cdp_config!().mode);
+    println!("uc_config!()  -> mode {:?}", uc_config!().session.mode);
+    println!("cdp_config!() -> mode {:?}", cdp_config!().session.mode);
 
     let custom = sb_config!(headless: true, mode: DriverMode::Cdp);
     println!(
         "sb_config!    -> mode {:?}, headless {}",
-        custom.mode, custom.headless
+        custom.session.mode, custom.browser.headless
     );
 
     let persona = fingerprint!(windows);

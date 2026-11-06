@@ -35,15 +35,10 @@ const LEAVING_PAGE: &str = "data:text/html,<html><head><title>leaving</title></h
     <script>window.onbeforeunload = function () { return 'leave?'; };</script></body></html>";
 
 fn test_config(settings: RunSettings) -> BrowserConfig {
-    let mut config = BrowserConfig {
-        headless: true,
-        auto_start_driver: true,
-        ..BrowserConfig::default()
-    }
-    .with_run_settings(settings);
+    let mut config = BrowserConfig::default().with_run_settings(settings);
     if let Ok(url) = std::env::var("SB_WEBDRIVER_URL") {
-        config.webdriver_url = url;
-        config.auto_start_driver = false;
+        config.session.webdriver_url = Some(url);
+        config.session.auto_start_driver = false;
     }
     config
 }

@@ -304,7 +304,7 @@ impl BaseCase {
     /// future theme at the bottom right, but at the top centre in a mobile
     /// emulator (Python's `set_messenger_theme` defaults).
     fn messenger_defaults(&self) -> MessengerSettings {
-        let location = if self.config.mobile {
+        let location = if self.config.browser.mobile {
             MessengerLocation::TopCenter
         } else {
             MessengerLocation::BottomRight

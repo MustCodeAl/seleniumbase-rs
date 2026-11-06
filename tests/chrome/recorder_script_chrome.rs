@@ -78,10 +78,7 @@ async fn stored_actions(sb: &BaseCase) -> Vec<RawAction> {
 #[serial_test::serial(chrome)]
 async fn a_label_click_typing_a_password_and_enter_become_the_calls_of_a_test() {
     let base = serve_pages();
-    let config = BrowserConfig {
-        headless: true,
-        ..BrowserConfig::default()
-    };
+    let config = BrowserConfig::default();
     let mut sb = BaseCase::new(config).await.expect("Chrome starts");
     sb.open(&format!("{base}/")).await.expect("the home page");
     sb.execute_script(RECORDER_JS)

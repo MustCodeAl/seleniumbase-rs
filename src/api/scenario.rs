@@ -809,12 +809,9 @@ mod tests {
         ))
         .unwrap();
 
-        let mut sb = BaseCase::new(BrowserConfig {
-            headless: true,
-            ..BrowserConfig::default()
-        })
-        .await
-        .expect("Chrome starts");
+        let mut sb = BaseCase::new(BrowserConfig::default())
+            .await
+            .expect("Chrome starts");
         let summary = run_scenario(&mut sb, &scenario).await.unwrap();
         sb.quit().await.unwrap();
 

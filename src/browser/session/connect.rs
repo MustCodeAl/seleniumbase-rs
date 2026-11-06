@@ -40,7 +40,7 @@ impl BrowserSession {
         if !config.plugins().is_empty() {
             return Self::connect_with_plugins(config).await;
         }
-        if config.reuse_session {
+        if config.session.reuse {
             return reuse::connect(config).await;
         }
         Self::connect_new(config).await
@@ -52,7 +52,7 @@ impl BrowserSession {
         if config.cdp_url.is_some() || config.cdp_discovery {
             return Self::connect_cdp(&config).await;
         }
-        info!(browser = ?config.browser, headless = config.headless, "connecting browser session");
+        info!(browser = ?config.browser.kind, headless = config.browser.headless, "connecting browser session");
         let (remote_debug, ad_block) = refuse_what_cannot_work(&mut config)?;
         let virtual_display = start_virtual_display(&config)?;
         let (driver, driver_process) =
@@ -115,7 +115,7 @@ impl BrowserSession {
             ad_block,
             reuse: Some(lease),
             mobile: mobile_commands(config),
-            remote_debug: config.launch.remote_debug_port,
+            remote_debug: config.browser.debugging_port,
             proxy_login: None,
             #[cfg(feature = "plugins")]
             plugins: None,
@@ -196,7 +196,7 @@ impl BrowserSession {
     /// Connects through the pure engine's existing config, identity and plugin bridge.
     pub(super) async fn connect_cdp(config: &BrowserConfig) -> Result<Self, SeleniumBaseError> {
         config.validate()?;
-        if config.reuse_session || config.recorder_mode() {
+        if config.session.reuse || config.recorder_mode() {
             return Err(SeleniumBaseError::invalid_config(
                 "direct CDP attachment does not support WebDriver session reuse or Recorder Mode",
             ));
@@ -254,13 +254,13 @@ fn refuse_what_cannot_work(
 async fn place_window(driver: &WebDriver, config: &BrowserConfig) -> Result<(), SeleniumBaseError> {
     // Chromium takes its window geometry as launch arguments; the
     // others have to be told once they are running.
-    if config.browser.is_chromium_based() {
+    if config.browser.kind.is_chromium_based() {
         return Ok(());
     }
-    apply_window_rect(driver, &config.launch).await?;
+    apply_window_rect(driver, &config.browser).await?;
     // Chromium is given `--start-maximized`; the others are asked once
     // they are running, and only when they have a window.
-    if config.launch.has(LaunchSwitch::Maximize) && !config.headless {
+    if config.browser.has(LaunchSwitch::Maximize) && !config.browser.headless {
         driver.maximize_window().await?;
     }
     Ok(())

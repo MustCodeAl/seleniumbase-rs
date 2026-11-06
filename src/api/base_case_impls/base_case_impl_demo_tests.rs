@@ -333,7 +333,7 @@ mod tests_messages {
             _ => Reply::Value(Value::Null),
         });
         let mut config = config.with_webdriver_url(driver.url().to_owned());
-        config.auto_start_driver = false;
+        config.session.auto_start_driver = false;
         let sb = BaseCase::new(config).await.unwrap();
         (driver, sb)
     }
@@ -483,7 +483,7 @@ mod tests_messages {
 
     async fn case_on(driver: &MockWebDriver, config: BrowserConfig) -> BaseCase {
         let mut config = config.with_webdriver_url(driver.url().to_owned());
-        config.auto_start_driver = false;
+        config.session.auto_start_driver = false;
         BaseCase::new(config).await.unwrap()
     }
 

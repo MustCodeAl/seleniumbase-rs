@@ -61,11 +61,9 @@ use seleniumbase_rs_stealth::{BaseCase, BrowserConfig, DriverMode, Fingerprint};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let fp = Fingerprint::windows_desktop();
-    let config = BrowserConfig {
-        mode: DriverMode::Uc,
-        fingerprint: Some(fp),
-        ..BrowserConfig::default()
-    };
+    let config = BrowserConfig::default()
+        .with_mode(DriverMode::Uc)
+        .with_fingerprint(fp);
 
     let mut sb = BaseCase::new(config).await?;
     sb.open("https://example.com").await?;
