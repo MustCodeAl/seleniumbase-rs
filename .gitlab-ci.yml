@@ -5,13 +5,13 @@
 # GitHub workflows stay in .github/workflows: `release` and `docker` still run only there, and
 # the pages deployment of `ci.yml` has no equivalent here.
 #
-# A Free namespace has 400 compute minutes a month and one full run of the test suite has taken
-# about an hour, so the default pipeline is lean. Pipelines are created only for merge requests
+# The group is on GitLab's Open Source plan (Ultimate, approved 2026-11-06), so the whole test
+# suite runs on every pipeline; the Chrome and msrv jobs stay manual. Pipelines are created only for merge requests
 # and for the default branch (which must be `main`), and a new push cancels a pipeline that is
 # still running (every job is `interruptible`):
 #
 #   gate          fmt and clippy
-#   test          MANUAL: the whole test suite and rustdoc (every push here passed them already)
+#   test          the whole test suite and rustdoc
 #   supply-chain  cargo deny and cargo audit
 #   docs          mise run mdx and mdbook build, only when the docs or their tooling change
 #   msrv          MANUAL: cargo check with the gui and tui features
@@ -115,9 +115,9 @@ gate:
     - cargo fmt --all -- --check
     - cargo clippy --all-targets --features "$FEATURES" -- -D warnings
 
-# The rest of "Build and check": the whole test suite and rustdoc. MANUAL, to keep the Free
-# tier's 400 minutes a month: every push to GitLab has already passed them on the lead's machine,
-# and a run takes an hour or more (the doctests are most of it). The project timeout of GitLab is
+# The rest of "Build and check": the whole test suite and rustdoc, a second run on Linux of what
+# every push passed on the lead's machine. A run takes an hour or more (the doctests are most of
+# it). The project timeout of GitLab is
 # 60 minutes by default: if this job is cut off there, raise it in Settings > CI/CD > General
 # pipelines > Timeout.
 test:
@@ -125,7 +125,7 @@ test:
     - .rust
     - .target_cache
   rules:
-    - !reference [.rules_by_hand]
+    - !reference [.rules_automatic]
   timeout: 3h
   script:
     - cargo test --no-fail-fast --features "$FEATURES"
