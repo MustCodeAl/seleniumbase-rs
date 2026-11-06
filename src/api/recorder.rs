@@ -661,6 +661,7 @@ fn keep_secrets() -> bool {
 /// [`keep_secrets`] for the variables `var` reports.
 fn keep_secrets_in(var: impl Fn(&str) -> Option<String>) -> bool {
     var("SB_REC_KEEP_SECRETS")
+        .map(|value| value.trim().to_owned())
         .is_some_and(|value| value.eq_ignore_ascii_case("true") || value == "1")
 }
 
