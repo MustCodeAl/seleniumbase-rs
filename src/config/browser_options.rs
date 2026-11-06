@@ -2,7 +2,7 @@
 //! option table of [`test_options`](crate::config::test_options): the names a settings file
 //! may use, the list type of `chromium_arg`, and the listing `sbrs options` prints.
 //!
-//! The option table has one row for each option, and each row names the [`Settings`]
+//! The option table has one row for each option, and each row names the [`Settings`](crate::Settings)
 //! field, the flag (with its aliases), the `SB_*` variable and the help. This module adds
 //! nothing to the table. It reads the table to answer three more questions:
 //!
@@ -33,8 +33,9 @@ use serde::de::Deserializer;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
+#[cfg(test)]
 use crate::config::settings::Settings;
-use crate::config::test_options::{find_option, OptionKind, OptionSpec, OptionValue, TEST_OPTIONS};
+use crate::config::test_options::{find_option, OptionKind, OptionSpec, TEST_OPTIONS};
 use crate::error::SeleniumBaseError;
 
 /// The top-level keys of a settings file that hold a table of their own.
@@ -122,13 +123,6 @@ impl<'de> Deserialize<'de> for ArgList {
     }
 }
 
-impl OptionValue for Option<ArgList> {
-    fn assign(&mut self, _name: &str, text: &str) -> Result<(), SeleniumBaseError> {
-        *self = Some(ArgList::from_text(text));
-        Ok(())
-    }
-}
-
 /// The key of the settings file that `key` stands for, if it is one: a table of the file
 /// (`plugins`, `fingerprint`, `test`, `report`) or the field of a row of the option table.
 ///
@@ -161,11 +155,40 @@ pub fn settings_key(key: &str) -> Option<&'static str> {
 /// The path in `Settings` of the setting that the settings-file key `key` (a name that
 /// [`settings_key`] returned) stands for: `run.demo_mode` for `demo`, the key itself when the
 /// setting sits at the top level.
-fn key_path(key: &'static str) -> &'static str {
-    TEST_OPTIONS
-        .iter()
-        .find(|row| row.flat_key() == Some(key))
-        .map_or(key, |row| row.field)
+fn row_of(key: &'static str) -> Option<&'static OptionSpec> {
+    TEST_OPTIONS.iter().find(|row| row.flat_key() == Some(key))
+}
+
+/// Whether the settings file gives the row's setting as a flat key that is read as the text of
+/// its variable (the browser and the session) and not by serde (the run group).
+fn is_read_as_text(row: &OptionSpec) -> bool {
+    !row.field.starts_with("run.")
+}
+
+/// The four recorder switches, which a `[test]` table still holds.
+const RECORDER_VARIABLES: [&str; 4] = [
+    "SB_RECORDER",
+    "SB_REC_BEHAVE",
+    "SB_REC_PRINT",
+    "SB_REC_SB_MGR",
+];
+
+/// Whether the row is an option of the test run: `sbrs options` lists it with `--all` only.
+fn is_test_run_row(row: &OptionSpec) -> bool {
+    row.field.starts_with("test.")
+        || row.field.starts_with("report.")
+        || row.field == "run.record_sleep"
+        || RECORDER_VARIABLES.contains(&row.env)
+}
+
+/// The recorder switch that the key `key` of the `[test]` table stands for, if any.
+fn recorder_row(key: &str) -> Option<&'static OptionSpec> {
+    let wanted = key.trim().replace('-', "_").to_ascii_lowercase();
+    TEST_OPTIONS.iter().find(|row| {
+        RECORDER_VARIABLES.contains(&row.env)
+            && row.flat_key().is_some()
+            && (row.flat_key() == Some(wanted.as_str()) || row.matches_flag(key))
+    })
 }
 
 /// The message for a key of the settings file `file` that is no setting.
@@ -237,13 +260,16 @@ fn table_key(table: &str, key: &str) -> Option<(&'static str, &'static str)> {
 }
 
 /// The entries of a settings file with each key renamed to the field it stands for.
-fn canonical_entries(
+pub(crate) fn canonical_entries(
     entries: Map<String, Value>,
     file: &Path,
-) -> Result<Map<String, Value>, SeleniumBaseError> {
+) -> Result<FileEntries, SeleniumBaseError> {
     let mut seen: Vec<(String, String)> = Vec::new();
     let mut top = Map::new();
+    let mut text: Vec<TextEntry> = Vec::new();
     let mut groups: BTreeMap<&'static str, Map<String, Value>> = BTreeMap::new();
+    let mut written: BTreeMap<String, String> = BTreeMap::new();
+
     for (key, value) in entries {
         let name = settings_key(&key).ok_or_else(|| unknown_setting(&key, file))?;
         if name == "settings_file" {
@@ -253,22 +279,32 @@ fn canonical_entries(
                  use `--settings-file` or `SB_SETTINGS_FILE`"
             )));
         }
-        let path = if TABLES.contains(&name) {
-            name
-        } else {
-            key_path(name)
+        // The setting as the messages name it: a table, the path of a setting of the run
+        // group, or the key of a setting the file writes flat.
+        let row = row_of(name);
+        let path = match row {
+            Some(row) if row.field.starts_with("run.") || row.field.starts_with("test.") => {
+                row.field
+            }
+            _ => name,
         };
         if let Some((_, first)) = seen.iter().find(|(known, _)| known == path) {
             return Err(same_setting(first, &key, path));
         }
-        seen.push((path.to_owned(), key));
-        match path.split_once('.') {
+        seen.push((path.to_owned(), key.clone()));
+        match row {
+            // A setting read as the text of its variable: `dark_mode`, `window_size`.
+            Some(row) if is_read_as_text(row) => text.push((row, key, value)),
             // A setting of a group, written flat: `demo` is `run.demo_mode`.
-            Some((group, field)) => {
-                groups
-                    .entry(group)
-                    .or_default()
-                    .insert(field.to_owned(), value);
+            Some(row) => {
+                if let Some((group, field)) = row.field.split_once('.') {
+                    written.insert(row.field.to_owned(), key.clone());
+
+                    groups
+                        .entry(group)
+                        .or_default()
+                        .insert(field.to_owned(), value);
+                }
             }
             None => {
                 top.insert(name.to_owned(), value);
@@ -282,13 +318,28 @@ fn canonical_entries(
         match top.remove(table) {
             Some(Value::Object(entries)) => {
                 for (key, value) in entries {
+                    let written_as = format!("[{table}] {key}");
+                    // The recorder switches were `[test]` settings; they are switches of the
+                    // browser now.
+                    if table == "test"
+                        && let Some(row) = recorder_row(&key)
+                    {
+                        let name = row.flat_key().unwrap_or(row.env);
+                        if let Some((_, first)) = seen.iter().find(|(known, _)| known == name) {
+                            return Err(same_setting(first, &written_as, name));
+                        }
+                        seen.push((name.to_owned(), written_as.clone()));
+                        text.push((row, written_as, value));
+                        continue;
+                    }
                     let (group, canonical) = table_key(table, &key)
                         .ok_or_else(|| unknown_in_table(&key, table, file))?;
                     let path = format!("{group}.{canonical}");
-                    let written_as = format!("[{table}] {key}");
                     if let Some((_, first)) = seen.iter().find(|(known, _)| *known == path) {
                         return Err(same_setting(first, &written_as, &path));
                     }
+                    written.insert(path.clone(), written_as.clone());
+
                     seen.push((path, written_as));
                     groups
                         .entry(group)
@@ -308,7 +359,27 @@ fn canonical_entries(
             top.insert(group.to_owned(), Value::Object(fields));
         }
     }
-    Ok(top)
+    Ok(FileEntries {
+        groups: top,
+        text,
+        written,
+    })
+}
+
+/// A setting a file gives as a flat key that is read as the text of its variable: the row,
+/// the key as the file wrote it, and the value.
+pub(crate) type TextEntry = (&'static OptionSpec, String, Value);
+
+/// What a settings file holds, sorted by how each part is read.
+pub(crate) struct FileEntries {
+    /// The tables and the settings of a group, which serde reads as they are written.
+    pub(crate) groups: Map<String, Value>,
+    /// The settings read through the readers of the option table, as the variables are.
+    pub(crate) text: Vec<TextEntry>,
+    /// The key as the file wrote it, for each setting of a group the file wrote flat or in the
+    /// table of another group: by the path of the serialized settings (`run.demo_mode` is
+    /// `demo`, or `[test] rec_sleep`).
+    pub(crate) written: BTreeMap<String, String>,
 }
 
 /// Reads the settings file `path` whose text is `content` (TOML for a `.toml` name, JSON
@@ -316,23 +387,9 @@ fn canonical_entries(
 ///
 /// A key may be spelled with dashes or under an alias of its option (see
 /// [`settings_key`]); a key that is no setting is an error.
+#[cfg(test)]
 pub(crate) fn parse_settings(path: &Path, content: &str) -> Result<Settings, SeleniumBaseError> {
-    let (what, parsed) = if path.extension().is_some_and(|ext| ext == "toml") {
-        let table = toml::from_str::<toml::Table>(content).map_err(|error| error.to_string());
-        let value = table.and_then(|table| serde_json::to_value(table).map_err(|e| e.to_string()));
-        ("failed to parse TOML settings", value)
-    } else {
-        let value = serde_json::from_str::<Value>(content).map_err(|error| error.to_string());
-        ("failed to parse settings", value)
-    };
-    let failed = |error: &dyn std::fmt::Display| {
-        SeleniumBaseError::InvalidConfig(format!("{what}: {error}"))
-    };
-    let Value::Object(entries) = parsed.map_err(|error| failed(&error))? else {
-        return Err(failed(&"the file must hold one object"));
-    };
-    let entries = canonical_entries(entries, path)?;
-    serde_json::from_value(Value::Object(entries)).map_err(|error| failed(&error))
+    crate::config::settings_file::SettingsFile::parse(path, content)?.settings()
 }
 
 /// The rows `sbrs options` lists: the options of the browser and the page, or with `all` the
@@ -341,11 +398,7 @@ pub(crate) fn parse_settings(path: &Path, content: &str) -> Result<Settings, Sel
 pub fn listed_options(all: bool) -> impl Iterator<Item = &'static OptionSpec> {
     TEST_OPTIONS.iter().filter(move |row| match row.kind {
         OptionKind::Cli(_) | OptionKind::NotAFlag(_) | OptionKind::NoOp(_) => false,
-        _ => {
-            all || !(row.field.starts_with("test.")
-                || row.field.starts_with("report.")
-                || row.field == "run.record_sleep")
-        }
+        _ => all || !is_test_run_row(row),
     })
 }
 
@@ -403,10 +456,19 @@ pub(crate) fn flag_cell(row: &OptionSpec) -> String {
 /// field and the value it sets.
 fn key_cell(row: &OptionSpec) -> String {
     match row.kind {
-        OptionKind::Sets(value) => format!("{} = {value}", row.flat_key().unwrap_or(row.field)),
+        OptionKind::Sets(value) => format!("{} = {value}", sets_key(row)),
         _ if row.has_field() => row.flat_key().unwrap_or(row.field).to_owned(),
         _ => "-".to_owned(),
     }
+}
+
+/// The key of the setting a shorthand sets: the key of the row that reads the same variable
+/// (`browser` for `--firefox`).
+fn sets_key(row: &OptionSpec) -> &'static str {
+    TEST_OPTIONS
+        .iter()
+        .find_map(|other| (other.env == row.env).then(|| other.flat_key()).flatten())
+        .unwrap_or(row.field)
 }
 
 fn variable_cell(row: &OptionSpec) -> &'static str {
@@ -512,6 +574,38 @@ pub fn render_options_markdown(all: bool) -> String {
 mod tests {
     use super::*;
 
+    use crate::browser::options::{LaunchSwitch, PageLoadStrategy};
+
+    #[test]
+    fn the_recorder_switches_and_the_threads_are_read_flat_or_in_the_test_table() {
+        let flat = toml_file("recorder = true\nrec_print = true\nthreads = 4\n").unwrap();
+        let table = toml_file("[test]\nrecorder = true\nrec-print = true\nthreads = 4\n").unwrap();
+        assert!(flat.browser.has(LaunchSwitch::RecorderMode));
+        assert!(flat.browser.has(LaunchSwitch::RecPrint));
+        assert!(!flat.browser.has(LaunchSwitch::RecBehave));
+        assert_eq!(flat.test.threads, Some(4));
+        assert_eq!(flat, table);
+        // Written twice, in the table and flat, it is one setting twice.
+        let error = message(toml_file("threads = 4\n[test]\nthreads = 2\n").unwrap_err());
+        assert!(error.contains("are the same setting"), "{error}");
+        let error = message(toml_file("recorder = true\n[test]\nrec = true\n").unwrap_err());
+        assert!(error.contains("are the same setting (recorder)"), "{error}");
+    }
+
+    #[test]
+    fn a_value_the_file_gives_is_read_like_the_variable_and_not_repeated_when_refused() {
+        let error = message(toml_file("window_size = \"hunter2\"\n").unwrap_err());
+        assert!(error.contains("window_size"), "{error}");
+        assert!(!error.contains("hunter2"), "{error}");
+        // A number, a boolean and a null are texts too; a table is not.
+        let settings = toml_file("port = 4445\nmobile = true\nuser_data_dir = \"\"\n").unwrap();
+        assert_eq!(settings.session.grid.port, Some(4445));
+        assert!(settings.browser.mobile);
+        assert!(toml_file("port = [1]\n").is_err());
+        let json = parse_settings(Path::new("settings.json"), r#"{"locale": null}"#).unwrap();
+        assert_eq!(json.browser.lang, None);
+    }
+
     fn toml_file(content: &str) -> Result<Settings, SeleniumBaseError> {
         parse_settings(Path::new("sbase_config.toml"), content)
     }
@@ -543,28 +637,33 @@ mod tests {
     }
 
     #[test]
-    fn every_row_with_a_field_of_its_own_is_a_key() {
+    fn every_row_with_a_flat_key_is_a_key() {
+        let mut keys = 0;
         for row in TEST_OPTIONS {
-            if row.has_field()
-                && !row.field.contains('.')
-                && matches!(
-                    row.kind,
-                    OptionKind::Switch | OptionKind::Value(_) | OptionKind::Env(_)
-                )
-            {
-                assert_eq!(settings_key(row.field), Some(row.field), "{}", row.long);
-                for flag in row.flags() {
-                    assert_eq!(settings_key(flag), Some(row.field), "--{flag}");
-                }
+            let Some(key) = row.flat_key() else {
+                continue;
+            };
+            assert_eq!(settings_key(key), Some(key), "{}", row.long);
+            for flag in row.flags() {
+                assert_eq!(settings_key(flag), Some(key), "--{flag}");
             }
+            keys += 1;
         }
+        assert!(keys > 80, "only {keys} rows have a flat key");
+        // A shorthand has none, and a setting of the test run has its table only.
+        assert!(find_option("--chrome")
+            .and_then(OptionSpec::flat_key)
+            .is_none());
+        assert!(find_option("--pdb")
+            .and_then(OptionSpec::flat_key)
+            .is_none());
     }
 
     #[test]
     fn a_file_may_spell_its_keys_with_dashes_and_aliases() {
         let settings = toml_file("block-images = true\ndark = true\ntimeout = 30\n").unwrap();
-        assert!(settings.block_images);
-        assert!(settings.dark_mode);
+        assert!(settings.browser.has(LaunchSwitch::BlockImages));
+        assert!(settings.browser.has(LaunchSwitch::DarkMode));
         assert_eq!(
             settings.run.default_timeout,
             Some(std::time::Duration::from_secs(30))
@@ -578,8 +677,11 @@ mod tests {
             r#"{"block-images": true, "pls": "eager"}"#,
         )
         .unwrap();
-        assert!(settings.block_images);
-        assert_eq!(settings.page_load_strategy.as_deref(), Some("eager"));
+        assert!(settings.browser.has(LaunchSwitch::BlockImages));
+        assert_eq!(
+            settings.session.page_load_strategy,
+            Some(PageLoadStrategy::Eager)
+        );
     }
 
     #[test]
@@ -628,13 +730,13 @@ mod tests {
     #[test]
     fn chromium_arg_is_a_string_split_at_commas_or_an_array_that_is_not() {
         let text = toml_file("chromium_arg = \"--a=1, --b,--c\"\n").unwrap();
-        assert_eq!(text.chromium_arg.unwrap().items(), ["--a=1", "--b", "--c"]);
+        assert_eq!(text.browser.chromium.args, ["--a=1", "--b", "--c"]);
         let array = toml_file(
             "chromium_arg = [\"--host-resolver-rules=MAP a b,EXCLUDE c\", \"--mute-audio\"]\n",
         )
         .unwrap();
         assert_eq!(
-            array.chromium_arg.unwrap().items(),
+            array.browser.chromium.args,
             ["--host-resolver-rules=MAP a b,EXCLUDE c", "--mute-audio"]
         );
     }
@@ -645,7 +747,7 @@ mod tests {
         settings
             .apply_options(&[("SB_CHROMIUM_ARG", "--a, --b".to_owned())])
             .unwrap();
-        assert_eq!(settings.chromium_arg.unwrap().items(), ["--a", "--b"]);
+        assert_eq!(settings.browser.chromium.args, ["--a", "--b"]);
     }
 
     #[test]

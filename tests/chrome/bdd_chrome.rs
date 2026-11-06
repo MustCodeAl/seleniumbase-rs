@@ -11,7 +11,10 @@ use seleniumbase_rs::Settings;
 #[fixture]
 async fn page() -> SbCdpCase {
     let settings = Settings {
-        headless: true,
+        browser: seleniumbase_rs::browser::options::BrowserSettings {
+            headless: true,
+            ..Default::default()
+        },
         ..Settings::default()
     };
     SbCdpCase::launch_with(settings)

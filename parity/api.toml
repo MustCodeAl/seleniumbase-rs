@@ -4436,22 +4436,22 @@ note = "`sbrs test --account`, `SB_ACCOUNT` or `account` in the `[test]` table; 
 
 [options_pytest."--ad-block"]
 status = "implemented"
-rust = "Settings::ad_block"
+rust = "BrowserSettings::ad_block"
 note = "`sbrs --ad-block` sets BrowserConfig::ad_block. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_pytest."--ad_block"]
 status = "implemented"
-rust = "Settings::ad_block"
+rust = "BrowserSettings::ad_block"
 note = "A Python spelling of --ad-block; `sbrs` takes --ad-block, and BrowserConfig::ad_block is the same setting. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_pytest."--adblock"]
 status = "implemented"
-rust = "Settings::ad_block"
+rust = "BrowserSettings::ad_block"
 note = "A Python spelling of --ad-block; `sbrs` takes --ad-block, and BrowserConfig::ad_block is the same setting. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_pytest."--agent"]
 status = "implemented"
-rust = "Settings::user_agent"
+rust = "BrowserSettings::user_agent"
 note = "An alias of --user-agent: `sbrs test --agent`, `SB_USER_AGENT` or `user_agent` in the settings file."
 
 [options_pytest."--all-scripts"]
@@ -4491,7 +4491,7 @@ note = "Sets `useAutomationExtension` to true. Upstream marks the option depreca
 
 [options_pytest."--binary-location"]
 status = "implemented"
-rust = "Settings::chrome_bin"
+rust = "BrowserSettings::executable_path"
 note = "`sbrs test --binary-location`, `SB_CHROME_BIN` or `chrome_bin` in the settings file."
 
 [options_pytest."--binary_location"]
@@ -4500,12 +4500,12 @@ rust = "BrowserConfig::with_binary_location"
 
 [options_pytest."--bl"]
 status = "implemented"
-rust = "Settings::chrome_bin"
+rust = "BrowserSettings::executable_path"
 note = "An alias of --binary-location."
 
 [options_pytest."--block-ads"]
 status = "implemented"
-rust = "Settings::ad_block"
+rust = "BrowserSettings::ad_block"
 note = "A Python spelling of --ad-block; `sbrs` takes --ad-block, and BrowserConfig::ad_block is the same setting. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_pytest."--block-images"]
@@ -4515,7 +4515,7 @@ note = "Chrome's content-setting preference (`prefs` of `goog:chromeOptions`), o
 
 [options_pytest."--block_ads"]
 status = "implemented"
-rust = "Settings::ad_block"
+rust = "BrowserSettings::ad_block"
 note = "A Python spelling of --ad-block; `sbrs` takes --ad-block, and BrowserConfig::ad_block is the same setting. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_pytest."--block_images"]
@@ -4571,12 +4571,12 @@ note = "After every page load (open, go_back, go_forward, refresh, wait_for_read
 
 [options_pytest."--chrome"]
 status = "implemented"
-rust = "Settings::browser"
+rust = "BrowserSettings::kind"
 note = "`sbrs test --chrome` is `SB_BROWSER=chrome`; two browser flags that choose different values are refused. Chooses the Browser variant."
 
 [options_pytest."--chromium"]
 status = "implemented"
-rust = "Settings::browser"
+rust = "BrowserSettings::kind"
 note = "`sbrs test --chromium` (also `--use-chromium`) is `SB_BROWSER=chromium`. Chooses the Browser variant."
 
 [options_pytest."--chromium-arg"]
@@ -4594,7 +4594,7 @@ note = "chrome-headless-shell, downloaded into downloaded_drivers/chs/ when miss
 
 [options_pytest."--codegen"]
 status = "implemented"
-rust = "TestSettings::recorder"
+rust = "BrowserSettings::switches"
 note = "Recorder Mode (`--rec`, `SB_RECORDER`, `BrowserConfig::with_recorder_mode`) runs Python's page recorder in every tab; when the test quits, the actions are processed as Python does and written to `recordings/<test>_rec.rs` (an rstest test on the `sb` fixture) and `.json`, with `.feature` under `--rec-behave`. `sbrs mkrec` (aliases `codegen`, `record`) records from the command line."
 
 [options_pytest."--comet"]
@@ -4604,7 +4604,7 @@ note = "Run with chromedriver; the program is found in Comet's install locations
 
 [options_pytest."--crumbs"]
 status = "implemented"
-rust = "Settings::crumbs"
+rust = "SessionSettings::crumbs"
 note = "SB_CRUMBS=1 or `browser::reuse::set_crumbs(true)` (process-wide, as the idle timeout is): with --reuse-session or --rcs, a browser handed to the next test has every cookie deleted (Network.clearBrowserCookies on Chromium, WebDriver's delete-all elsewhere). Without it the cookies stay, as in Python; the other windows are still closed, the page's local and session storage cleared and the page set to about:blank. Without reuse every test has a new browser and no cookies; call delete_all_cookies to clear them within a test. Mock WebDriver tests in browser::reuse check both paths, and tests/crumbs_chrome.rs (ignored) checks them in Chrome."
 
 [options_pytest."--crx"]
@@ -4794,7 +4794,7 @@ rust = "BrowserConfig::with_disable_ws"
 
 [options_pytest."--edge"]
 status = "implemented"
-rust = "Settings::browser"
+rust = "BrowserSettings::kind"
 note = "Choose Browser::Edge. The session starts msedgedriver itself, from downloaded_drivers/ or the PATH when it fits the installed Edge, else downloaded for that Edge from msedgedriver.microsoft.com; options go in ms:edgeOptions."
 
 [options_pytest."--ee"]
@@ -4909,7 +4909,7 @@ note = "A spelling of --final-debug; see there."
 
 [options_pytest."--firefox"]
 status = "implemented"
-rust = "Settings::browser"
+rust = "BrowserSettings::kind"
 note = "Choose Browser::Firefox. The session starts geckodriver itself, from downloaded_drivers/ or the PATH, else the newest release downloaded from GitHub; options go in moz:firefoxOptions."
 
 [options_pytest."--firefox-arg"]
@@ -4939,7 +4939,7 @@ note = "A spelling of --final-debug; see there."
 
 [options_pytest."--fullscreen"]
 status = "implemented"
-rust = "Settings::maximize"
+rust = "BrowserSettings::switches"
 note = "Alias of --maximize upstream: `sbrs test --fullscreen`, `SB_MAXIMIZE` or `maximize` in the settings file. A headed Chromium window starts with --start-maximized and no --window-size; Firefox and Safari are maximized once they are running. A headless session ignores it."
 
 [options_pytest."--guest"]
@@ -4956,12 +4956,12 @@ rust = "BrowserConfig::with_guest_mode"
 
 [options_pytest."--gui"]
 status = "implemented"
-rust = "Settings::headless"
+rust = "BrowserSettings::headless"
 note = "An alias of --headed: `sbrs test --gui` is `SB_HEADLESS=false`. Headed is headless = false."
 
 [options_pytest."--headed"]
 status = "implemented"
-rust = "Settings::headless"
+rust = "BrowserSettings::headless"
 note = "`sbrs test --headed` is `SB_HEADLESS=false`. Headed is headless = false."
 
 [options_pytest."--headless"]
@@ -5042,12 +5042,12 @@ rust = "BrowserSettings::lang"
 
 [options_pytest."--locale-code"]
 status = "implemented"
-rust = "Settings::locale_code"
+rust = "BrowserSettings::lang"
 note = "`sbrs test --locale-code`, `SB_LOCALE_CODE` or `locale_code` in the settings file: a language code such as fr or ar_eg; it wins over --locale."
 
 [options_pytest."--locale_code"]
 status = "implemented"
-rust = "Settings::locale_code"
+rust = "BrowserSettings::lang"
 note = "A Python spelling of --locale-code; `sbrs test` takes both."
 
 [options_pytest."--log-cdp"]
@@ -5085,12 +5085,12 @@ note = "A headed Chromium window starts with --start-maximized and no --window-s
 
 [options_pytest."--maximize-window"]
 status = "implemented"
-rust = "Settings::maximize"
+rust = "BrowserSettings::switches"
 note = "An alias of --maximize; see there."
 
 [options_pytest."--maximize_window"]
 status = "implemented"
-rust = "Settings::maximize"
+rust = "BrowserSettings::switches"
 note = "An alias of --maximize; see there."
 
 [options_pytest."--message-duration"]
@@ -5115,12 +5115,12 @@ rust = "BrowserSettings::mobile"
 
 [options_pytest."--mobile-emulator"]
 status = "implemented"
-rust = "Settings::mobile"
+rust = "BrowserSettings::mobile"
 note = "Give the screen with `with_device_metrics`."
 
 [options_pytest."--mobile_emulator"]
 status = "implemented"
-rust = "Settings::mobile"
+rust = "BrowserSettings::mobile"
 note = "Give the screen with `with_device_metrics`."
 
 [options_pytest."--multi-proxy"]
@@ -5179,7 +5179,7 @@ note = "Run with operadriver, which must be in downloaded_drivers/ or on the PAT
 
 [options_pytest."--pac-url"]
 status = "implemented"
-rust = "Settings::proxy_pac_url"
+rust = "ProxySettings::pac_url"
 note = "USERNAME:PASSWORD@URL works for Chrome and Edge on a driver this machine runs: a DevTools client answers the proxy login. A remote grid with a login is refused; Firefox refuses it too."
 
 [options_pytest."--page-load-strategy"]
@@ -5229,12 +5229,12 @@ divergence = "The URL must end in .pac, with a login before it or in it. Chrome 
 
 [options_pytest."--proxy-server"]
 status = "implemented"
-rust = "Settings::proxy"
+rust = "ProxySettings::server"
 note = "SERVER:PORT only. A WebDriver session hands the address to Chrome as a flag, Chrome ignores credentials in it, and the engine does not answer the proxy's login request, so USER:PASS@SERVER:PORT does not log in. For a proxy that needs a password use the pure CDP engine (LaunchOptionsBuilder::proxy)."
 
 [options_pytest."--proxy-string"]
 status = "implemented"
-rust = "Settings::proxy"
+rust = "ProxySettings::server"
 note = "SERVER:PORT only. A WebDriver session hands the address to Chrome as a flag, Chrome ignores credentials in it, and the engine does not answer the proxy's login request, so USER:PASS@SERVER:PORT does not log in. For a proxy that needs a password use the pure CDP engine (LaunchOptionsBuilder::proxy)."
 
 [options_pytest."--proxy_bypass_list"]
@@ -5255,7 +5255,7 @@ divergence = "Python quits the class's browser when the next class starts (setUp
 
 [options_pytest."--rec"]
 status = "implemented"
-rust = "TestSettings::recorder"
+rust = "BrowserSettings::switches"
 note = "Recorder Mode (`--rec`, `SB_RECORDER`, `BrowserConfig::with_recorder_mode`) runs Python's page recorder in every tab; when the test quits, the actions are processed as Python does and written to `recordings/<test>_rec.rs` (an rstest test on the `sb` fixture) and `.json`, with `.feature` under `--rec-behave`. `sbrs mkrec` (aliases `codegen`, `record`) records from the command line."
 
 [options_pytest."--rec-behave"]
@@ -5270,7 +5270,7 @@ note = "Writes a feature for the common browser steps; save_recording_as_feature
 
 [options_pytest."--rec-print"]
 status = "implemented"
-rust = "TestSettings::rec_print"
+rust = "BrowserSettings::switches"
 note = "`sbrs test --rec-print`, `SB_REC_PRINT` or `rec_print` in the `[test]` table: the recording is printed when the test ends (the text BaseCase::export_recording_as_rust returns)."
 
 [options_pytest."--rec-sb-cdp"]
@@ -5281,7 +5281,7 @@ divergence = "Python writes the recording file when the test ends; here it is wr
 
 [options_pytest."--rec-sb-mgr"]
 status = "implemented"
-rust = "TestSettings::rec_sb_mgr"
+rust = "BrowserSettings::switches"
 note = "Python's `with SB() as sb:` form is a standalone script. `ActionRecorder::to_rust_script` writes the recording as a standalone `#[tokio::main]` Rust program (BaseCase::export_recording_as_rust returns it); to_rust_test writes a test instead."
 
 [options_pytest."--rec-sleep"]
@@ -5291,7 +5291,7 @@ note = "BaseCase::sleep goes into the recording, and the generated Rust calls sb
 
 [options_pytest."--record"]
 status = "implemented"
-rust = "TestSettings::recorder"
+rust = "BrowserSettings::switches"
 note = "Recorder Mode (`--rec`, `SB_RECORDER`, `BrowserConfig::with_recorder_mode`) runs Python's page recorder in every tab; when the test quits, the actions are processed as Python does and written to `recordings/<test>_rec.rs` (an rstest test on the `sb` fixture) and `.json`, with `.feature` under `--rec-behave`. `sbrs mkrec` (aliases `codegen`, `record`) records from the command line."
 
 [options_pytest."--record-sleep"]
@@ -5301,7 +5301,7 @@ note = "BaseCase::sleep goes into the recording, and the generated Rust calls sb
 
 [options_pytest."--recorder"]
 status = "implemented"
-rust = "TestSettings::recorder"
+rust = "BrowserSettings::switches"
 note = "Recorder Mode (`--rec`, `SB_RECORDER`, `BrowserConfig::with_recorder_mode`) runs Python's page recorder in every tab; when the test quits, the actions are processed as Python does and written to `recordings/<test>_rec.rs` (an rstest test on the `sb` fixture) and `.json`, with `.feature` under `--rec-behave`. `sbrs mkrec` (aliases `codegen`, `record`) records from the command line."
 
 [options_pytest."--remote-debug"]
@@ -5382,17 +5382,17 @@ note = "`with_grid(protocol, servername, port)` builds the URL Python builds: an
 [options_pytest."--settings"]
 status = "implemented"
 rust = "Settings::settings_file"
-note = "`sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
+note = "`sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top, each source winning over the one before for the settings it gives. The keys are the flat keys `sbrs options` lists (browser, headless, timeout_seconds, ...) and the tables [run], [test], [report], [plugins] and [fingerprint], not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
 
 [options_pytest."--settings-file"]
 status = "implemented"
 rust = "Settings::settings_file"
-note = "`sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
+note = "`sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top, each source winning over the one before for the settings it gives. The keys are the flat keys `sbrs options` lists (browser, headless, timeout_seconds, ...) and the tables [run], [test], [report], [plugins] and [fingerprint], not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
 
 [options_pytest."--settings_file"]
 status = "implemented"
 rust = "Settings::settings_file"
-note = "`sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
+note = "`sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top, each source winning over the one before for the settings it gives. The keys are the flat keys `sbrs options` lists (browser, headless, timeout_seconds, ...) and the tables [run], [test], [report], [plugins] and [fingerprint], not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
 
 [options_pytest."--sjw"]
 status = "implemented"
@@ -5475,7 +5475,7 @@ note = "The default wait becomes ceil(multiplier * seconds); a multiplier below 
 
 [options_pytest."--uc"]
 status = "implemented"
-rust = "Settings::mode"
+rust = "SessionSettings::mode"
 note = "DriverMode::Uc."
 
 [options_pytest."--uc-cdp"]
@@ -5510,17 +5510,17 @@ reason = "Accepted and ignored by `sbrs test`. Deprecated upstream: UC Mode alwa
 
 [options_pytest."--undetectable"]
 status = "implemented"
-rust = "Settings::mode"
+rust = "SessionSettings::mode"
 note = "DriverMode::Uc."
 
 [options_pytest."--undetected"]
 status = "implemented"
-rust = "Settings::mode"
+rust = "SessionSettings::mode"
 note = "DriverMode::Uc."
 
 [options_pytest."--url"]
 status = "implemented"
-rust = "Settings::start_page"
+rust = "BrowserSettings::url"
 note = "Alias of --start-page upstream. BaseCase::new opens the start page when one is set."
 
 [options_pytest."--use-auto-ext"]
@@ -5530,7 +5530,7 @@ note = "Sets `useAutomationExtension` to true. Upstream marks the option depreca
 
 [options_pytest."--use-chromium"]
 status = "implemented"
-rust = "Settings::browser"
+rust = "BrowserSettings::kind"
 note = "An alias of --chromium: `sbrs test --use-chromium` is `SB_BROWSER=chromium`."
 
 [options_pytest."--use_auto_ext"]
@@ -5707,17 +5707,17 @@ note = "`Settings::test.data.account` (`account` in the `[test]` table, `SB_ACCO
 
 [options_sb."ad_block"]
 status = "implemented"
-rust = "Settings::ad_block"
+rust = "BrowserSettings::ad_block"
 note = "Set BrowserSettings::ad_block (BrowserConfig::with_ad_block). Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_sb."ad_block_on"]
 status = "implemented"
-rust = "Settings::ad_block"
+rust = "BrowserSettings::ad_block"
 note = "Set BrowserSettings::ad_block (BrowserConfig::with_ad_block). Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_sb."agent"]
 status = "implemented"
-rust = "Settings::user_agent"
+rust = "BrowserSettings::user_agent"
 note = "`user_agent` in the settings file, `SB_USER_AGENT`, `sbrs test --user-agent` (alias `--agent`)."
 
 [options_sb."binary_location"]
@@ -5882,7 +5882,7 @@ rust = "BrowserConfig::with_guest_mode"
 
 [options_sb."headed"]
 status = "implemented"
-rust = "Settings::headless"
+rust = "BrowserSettings::headless"
 note = "Headed is headless = false."
 
 [options_sb."headless"]
@@ -5919,7 +5919,7 @@ note = "Zero is unset. play_tour (the tour moves on by itself), save_presentatio
 
 [options_sb."is_mobile"]
 status = "implemented"
-rust = "Settings::mobile"
+rust = "BrowserSettings::mobile"
 note = "Give the screen with `with_device_metrics`."
 
 [options_sb."js_checking_on"]
@@ -5933,7 +5933,7 @@ rust = "BrowserSettings::lang"
 
 [options_sb."locale_code"]
 status = "implemented"
-rust = "Settings::locale_code"
+rust = "BrowserSettings::lang"
 note = "`locale_code` in the settings file, `SB_LOCALE_CODE`, `sbrs test --locale-code`: a language code such as fr or ar_eg; it wins over locale."
 
 [options_sb."log_cdp"]
@@ -6020,7 +6020,7 @@ note = "Writes a feature for the common browser steps; save_recording_as_feature
 
 [options_sb."rec_print"]
 status = "implemented"
-rust = "TestSettings::rec_print"
+rust = "BrowserSettings::switches"
 note = "`rec_print` in the `[test]` table, `SB_REC_PRINT`, `sbrs test --rec-print`: the recording is printed when the test ends (the text BaseCase::export_recording_as_rust returns)."
 
 [options_sb."rec_sb_cdp"]
@@ -6031,7 +6031,7 @@ divergence = "Python writes the file when the SB() block ends; here you ask for 
 
 [options_sb."rec_sb_mgr"]
 status = "implemented"
-rust = "TestSettings::rec_sb_mgr"
+rust = "BrowserSettings::switches"
 note = "Python's `with SB() as sb:` form is a standalone script. `ActionRecorder::to_rust_script` writes the recording as a standalone `#[tokio::main]` Rust program (BaseCase::export_recording_as_rust returns it); to_rust_test writes a test instead."
 
 [options_sb."record_sleep"]
@@ -6071,7 +6071,7 @@ note = "The server name may carry a login (`USER:KEY@hub.browserstack.com`), whi
 [options_sb."settings_file"]
 status = "implemented"
 rust = "Settings::settings_file"
-note = "`sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
+note = "`sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top, each source winning over the one before for the settings it gives. The keys are the flat keys `sbrs options` lists (browser, headless, timeout_seconds, ...) and the tables [run], [test], [report], [plugins] and [fingerprint], not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
 
 [options_sb."size"]
 status = "implemented"
@@ -6119,7 +6119,7 @@ note = "The default wait becomes ceil(multiplier * seconds); a multiplier below 
 
 [options_sb."uc"]
 status = "implemented"
-rust = "Settings::mode"
+rust = "SessionSettings::mode"
 note = "DriverMode::Uc."
 
 [options_sb."uc_cdp"]
@@ -6144,12 +6144,12 @@ reason = "Deprecated upstream: UC Mode always launches the browser as a separate
 
 [options_sb."undetectable"]
 status = "implemented"
-rust = "Settings::mode"
+rust = "SessionSettings::mode"
 note = "DriverMode::Uc."
 
 [options_sb."undetected"]
 status = "implemented"
-rust = "Settings::mode"
+rust = "SessionSettings::mode"
 note = "DriverMode::Uc."
 
 [options_sb."use_auto_ext"]
@@ -6159,7 +6159,7 @@ note = "Sets `useAutomationExtension` to true. Upstream marks the option depreca
 
 [options_sb."use_chromium"]
 status = "implemented"
-rust = "Settings::browser"
+rust = "BrowserSettings::kind"
 note = "`browser = \"chromium\"` in the settings file, `SB_BROWSER=chromium`, `sbrs test --chromium`. Chooses the Browser variant."
 
 [options_sb."user_data_dir"]

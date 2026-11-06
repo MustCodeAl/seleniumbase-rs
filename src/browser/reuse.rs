@@ -135,7 +135,7 @@ pub fn crumbs() -> bool {
     set.unwrap_or_else(|| {
         static FROM_ENV: OnceLock<bool> = OnceLock::new();
         *FROM_ENV.get_or_init(|| {
-            let value = std::env::var(CRUMBS_VAR).ok();
+            let value = crate::config::env_vars::text(CRUMBS_VAR);
             parse_crumbs(value.as_deref()).unwrap_or_else(|error| {
                 warn!(%error, "ignoring {CRUMBS_VAR}; cookies are kept between tests");
                 false

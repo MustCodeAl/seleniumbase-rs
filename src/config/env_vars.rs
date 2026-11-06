@@ -31,9 +31,14 @@ use std::fmt::{Display, Write as _};
 use std::str::FromStr;
 
 use crate::config::browser_options::flag_cell;
-use crate::config::settings::Settings;
+use crate::config::layers::{no_items, put, Layer, Refused};
+use crate::config::plugins::{PluginSelection, PLUGINS_ENV};
+use crate::config::settings::{named, Settings, SettingsProblem};
+use crate::config::test_options::{read_variables, Variables};
 use crate::config::test_options::{OptionKind, OptionSpec, TEST_OPTIONS};
 use crate::error::SeleniumBaseError;
+use figment::value::{Dict, Map, Value};
+use figment::{Metadata, Profile, Provider};
 
 /// A variable that is not a row of the option table.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -358,12 +363,18 @@ fn default_of(row: &OptionSpec, settings: &serde_json::Value) -> String {
         "SB_WEBDRIVER_URL" => return "http://localhost:4444".to_owned(),
         "SB_TIMEOUT" => return "10".to_owned(),
         "SB_CHROME_BIN" => return "the browser found on the machine".to_owned(),
+        "SB_BROWSER" => return crate::browser::config::Browser::default().to_string(),
+        // The command decides when no mode is asked for (`sbrs devtools` uses the DevTools).
+        "SB_MODE" => return "-".to_owned(),
         _ => {}
     }
     let mut at = settings;
     for part in row.field.split('.') {
         match at.get(part) {
             Some(next) => at = next,
+            // A setting that is off writes nothing (`skip_serializing_if`), so a switch that the
+            // settings do not show is off.
+            None if matches!(row.kind, OptionKind::Switch) => return "false".to_owned(),
             None => return "-".to_owned(),
         }
     }
@@ -512,10 +523,7 @@ pub fn is_known(name: &str) -> bool {
 /// ```
 #[must_use]
 pub fn text(name: &str) -> Option<String> {
-    std::env::var(name)
-        .ok()
-        .map(|value| value.trim().to_owned())
-        .filter(|value| !value.is_empty())
+    EnvVars::process().text(name)
 }
 
 /// The value of the variable `name` read as a `T`; `None` when it is not set.
@@ -529,13 +537,7 @@ where
     T: FromStr,
     T::Err: Display,
 {
-    text(name)
-        .map(|value| {
-            value
-                .parse()
-                .map_err(|why: T::Err| refusal(name, &value, &why.to_string()))
-        })
-        .transpose()
+    EnvVars::process().parse(name)
 }
 
 /// The value of the switch variable `name`: `Some(true)` for `true`, `1`, `yes` or `on`,
@@ -550,17 +552,7 @@ where
 /// [`SeleniumBaseError::InvalidConfig`] naming the variable and the value, when the value is
 /// none of those.
 pub fn switch(name: &str) -> Result<Option<bool>, SeleniumBaseError> {
-    text(name)
-        .map(|value| {
-            crate::config::settings::parse_bool(&value).map_err(|_| {
-                refusal(
-                    name,
-                    &value,
-                    "expected true, 1, yes, on, false, 0, no or off",
-                )
-            })
-        })
-        .transpose()
+    EnvVars::process().switch(name)
 }
 
 /// The items of the variable `name`, separated by commas and trimmed; empty when it is not
@@ -590,6 +582,188 @@ pub fn refusal(name: &str, value: &str, why: &str) -> SeleniumBaseError {
         .and_then(|flag| flag.rsplit(' ').next());
     let stands_for = flag.map_or_else(String::new, |flag| format!(" (the variable of {flag})"));
     SeleniumBaseError::InvalidConfig(format!("{name}{stands_for}: cannot use '{value}': {why}"))
+}
+
+/// The value of the process variable `name`, as the environment has it.
+fn process_variable(name: &str) -> Option<String> {
+    std::env::var(name).ok()
+}
+
+/// Looks a variable up by name: the process environment, or the variables a program hands in.
+type Lookup<'a> = Box<dyn Fn(&str) -> Option<String> + 'a>;
+
+/// The `SB_*` variables of one source, and the one rule they are read by: a value that is empty
+/// or blank is not set (`SB_PLUGINS` is the exception, where an empty value is an answer).
+///
+/// The source is the process environment ([`process`](Self::process)), the variables a program
+/// hands to [`Settings::check_with`](crate::config::settings::Settings::check_with), or the
+/// pairs a command line asked for ([`pairs`](Self::pairs)). `EnvVars` is a figment provider:
+/// laid over the settings file, each variable it gives wins over the file's value for the same
+/// setting, and the settings it does not give are the file's. Every variable of the option
+/// table is read here and nowhere else; so are the few that other code reads
+/// ([`text`], [`switch`], [`parse`]).
+///
+/// The type is crate-private: no figment type is part of the API of the crate.
+pub(crate) struct EnvVars<'a> {
+    /// What an error calls the source: "environment variable" or "command line".
+    name: &'static str,
+    lookup: Lookup<'a>,
+}
+
+/// What the variables of one source gave, read once.
+pub(crate) struct Read {
+    /// The settings the variables wrote, by path.
+    pub(crate) layer: Layer,
+    /// The variables whose value is refused, with the row of each.
+    pub(crate) refused: Vec<Refused>,
+    /// Whether `SB_PLUGINS` was given, so that the options of the plugins it leaves out go.
+    pub(crate) plugins_named: bool,
+    /// The settings file `SB_SETTINGS_FILE` names.
+    pub(crate) settings_file: Option<std::path::PathBuf>,
+}
+
+impl<'a> EnvVars<'a> {
+    /// The variables `lookup` reports, called `name` in an error.
+    pub(crate) fn new(name: &'static str, lookup: impl Fn(&str) -> Option<String> + 'a) -> Self {
+        Self {
+            name,
+            lookup: Box::new(lookup),
+        }
+    }
+
+    /// The process environment.
+    pub(crate) fn process() -> EnvVars<'static> {
+        EnvVars::new("environment variable", process_variable)
+    }
+
+    /// The pairs of a command line (`("SB_HEADLESS", "true")`): for a variable given twice, the
+    /// last pair wins.
+    pub(crate) fn pairs(pairs: &'a [(&str, String)]) -> EnvVars<'a> {
+        EnvVars::new("command line", move |name: &str| {
+            pairs
+                .iter()
+                .rev()
+                .find(|(variable, _)| *variable == name)
+                .map(|(_, value)| value.clone())
+        })
+    }
+
+    /// The value of the variable `name`, trimmed; `None` when it is not set, empty or blank.
+    pub(crate) fn text(&self, name: &str) -> Option<String> {
+        (self.lookup)(name)
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty())
+    }
+
+    /// The value of the switch variable `name`; see [`switch`].
+    pub(crate) fn switch(&self, name: &str) -> Result<Option<bool>, SeleniumBaseError> {
+        self.text(name)
+            .map(|value| {
+                crate::config::settings::parse_bool(&value).map_err(|_| {
+                    refusal(
+                        name,
+                        &value,
+                        "expected true, 1, yes, on, false, 0, no or off",
+                    )
+                })
+            })
+            .transpose()
+    }
+
+    /// The value of the variable `name` read as a `T`; `None` when it is not set; see [`parse`].
+    pub(crate) fn parse<T>(&self, name: &str) -> Result<Option<T>, SeleniumBaseError>
+    where
+        T: FromStr,
+        T::Err: Display,
+    {
+        self.text(name)
+            .map(|value| {
+                value
+                    .parse()
+                    .map_err(|why: T::Err| refusal(name, &value, &why.to_string()))
+            })
+            .transpose()
+    }
+
+    /// Reads every variable of the option table, and `SB_PLUGINS`.
+    pub(crate) fn read(&self) -> Read {
+        let given = |name: &str| (self.lookup)(name).filter(|value| !value.trim().is_empty());
+        let Variables {
+            mut dict,
+            inputs,
+            problems,
+            settings_file,
+        } = read_variables(&given);
+        // The variable names the plugins; the options of the file stay for the ones it names.
+        let plugins_named = match (self.lookup)(PLUGINS_ENV) {
+            Some(list) => {
+                let mut selection = PluginSelection::new();
+                selection.set_enabled_from_list(&list);
+                let names = Value::serialize(&selection)
+                    .ok()
+                    .and_then(|value| value.find_ref("enable").cloned())
+                    .unwrap_or_else(no_items);
+                put(&mut dict, "plugins.enable", names);
+                true
+            }
+            None => false,
+        };
+        // A refusal says which variable it came from, and which flag stands for it.
+        let refused = problems
+            .into_iter()
+            .map(|problem| Refused {
+                row: row_of(&problem.source),
+                problem: SettingsProblem {
+                    source: problem.source.clone(),
+                    error: named(problem),
+                },
+            })
+            .collect();
+        Read {
+            layer: Layer::new(self.metadata(), dict).with_inputs(inputs),
+            refused,
+            plugins_named,
+            settings_file,
+        }
+    }
+}
+
+impl Provider for EnvVars<'_> {
+    fn metadata(&self) -> Metadata {
+        Metadata::named(self.name)
+            .interpolater(|_profile: &Profile, keys: &[&str]| variable_of(&keys.join(".")))
+    }
+
+    fn data(&self) -> Result<Map<Profile, Dict>, figment::Error> {
+        let read = self.read();
+        match read.refused.first() {
+            Some(refused) => Err(figment::Error::from(refused.problem.error.to_string())),
+            None => read.layer.data(),
+        }
+    }
+}
+
+/// The index of the row of the option table that reads `variable`; the rows run in this order.
+pub(crate) fn row_of(variable: &str) -> usize {
+    TEST_OPTIONS
+        .iter()
+        .position(|row| row.env == variable)
+        .unwrap_or(usize::MAX)
+}
+
+/// The variable that writes the setting at `path` of the serialized settings, or the path.
+fn variable_of(path: &str) -> String {
+    TEST_OPTIONS
+        .iter()
+        .filter(|row| row.has_field() && !row.env.is_empty())
+        .find(|row| {
+            let field = row.field.replacen("test.data.", "test.", 1);
+            field == path
+                || path
+                    .strip_prefix(field.as_str())
+                    .is_some_and(|rest| rest.starts_with('.'))
+        })
+        .map_or_else(|| path.to_owned(), |row| row.env.to_owned())
 }
 
 /// The table: the cells of each line in columns as wide as the longest cell.
@@ -666,6 +840,72 @@ mod tests {
     use std::collections::BTreeSet;
 
     use super::*;
+
+    /// The source that gives the one variable `name` the text `value`.
+    fn gives<'a>(name: &'a str, value: &'a str) -> EnvVars<'a> {
+        EnvVars::new("test", move |asked: &str| {
+            (asked == name).then(|| value.to_owned())
+        })
+    }
+
+    #[test]
+    fn only_a_true_value_turns_the_sandbox_off() {
+        for text in ["true", "TRUE", "1", "yes", "On"] {
+            let source = gives("SB_NO_SANDBOX", text);
+            assert_eq!(
+                source.switch("SB_NO_SANDBOX").unwrap(),
+                Some(true),
+                "{text}"
+            );
+        }
+        for text in ["false", "0", "no", "OFF"] {
+            let source = gives("SB_NO_SANDBOX", text);
+            assert_eq!(
+                source.switch("SB_NO_SANDBOX").unwrap(),
+                Some(false),
+                "{text}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_blank_value_is_unset_and_a_value_that_is_no_switch_is_refused() {
+        for text in ["", "   "] {
+            let source = gives("SB_NO_SANDBOX", text);
+            assert_eq!(source.switch("SB_NO_SANDBOX").unwrap(), None, "{text:?}");
+            assert_eq!(source.text("SB_NO_SANDBOX"), None, "{text:?}");
+        }
+        let error = gives("SB_NO_SANDBOX", "maybe")
+            .switch("SB_NO_SANDBOX")
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("SB_NO_SANDBOX"), "{error}");
+    }
+
+    #[test]
+    fn the_process_environment_and_a_lookup_are_read_by_the_same_rule() {
+        let source = gives("SB_CHROME_BIN", "  /opt/chrome  ");
+        assert_eq!(source.text("SB_CHROME_BIN").as_deref(), Some("/opt/chrome"));
+        let read = source.read();
+        assert!(read.refused.is_empty());
+        assert!(!read.plugins_named);
+        assert!(
+            !read.layer.is_empty(),
+            "the variable is a setting of the layer"
+        );
+        // `SB_PLUGINS` is the exception to the blank rule: empty names no plugin.
+        assert!(gives("SB_PLUGINS", "").read().plugins_named);
+    }
+
+    #[test]
+    fn a_figment_made_of_a_source_with_a_refused_variable_fails_naming_it() {
+        let source = gives("SB_HEADLESS", "maybe");
+        let error = figment::Figment::new()
+            .merge(source)
+            .extract::<Settings>()
+            .unwrap_err();
+        assert!(error.to_string().contains("SB_HEADLESS"), "{error}");
+    }
 
     #[test]
     fn a_variable_is_listed_once() {

@@ -190,14 +190,10 @@ pub struct TestSettings {
     /// Fail a test that runs longer than this many seconds
     /// (`SB_TIME_LIMIT`, `--time-limit`).
     pub time_limit: Option<f64>,
-    /// Record the browser actions (`SB_RECORDER`, `--rec`).
-    pub recorder: bool,
-    /// Also write a Gherkin feature (`SB_REC_BEHAVE`).
-    pub rec_behave: bool,
-    /// Print the recording when the test ends (`SB_REC_PRINT`).
-    pub rec_print: bool,
-    /// Write the recording as a script (`SB_REC_SB_MGR`).
-    pub rec_sb_mgr: bool,
+    /// The number of parallel test threads (`SB_THREADS`); `sbrs test` reads it. The file
+    /// writes it flat (`threads = 4`) or here.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub threads: Option<usize>,
 
     /// Which test runner `sbrs test` uses: `cargo` or `nextest`
     /// (`SB_TEST_RUNNER`, `--runner`).
@@ -358,7 +354,7 @@ mod tests {
         assert!(!settings.pdb && !settings.trace && !settings.final_debug);
         assert_eq!(settings.reruns, 0);
         assert!(settings.time_limit.is_none() && settings.runner.is_none());
-        assert!(!settings.recorder && settings.runner.is_none());
+        assert!(settings.threads.is_none() && settings.runner.is_none());
         assert_eq!(settings.data, TestData::default());
     }
 
@@ -389,6 +385,6 @@ mod tests {
         assert_eq!((settings.reruns, settings.reruns_delay), (3, 0.25));
         assert_eq!(settings.time_limit, Some(30.0));
         assert_eq!(settings.runner.as_deref(), Some("nextest"));
-        assert!(!settings.recorder);
+        assert!(settings.threads.is_none());
     }
 }

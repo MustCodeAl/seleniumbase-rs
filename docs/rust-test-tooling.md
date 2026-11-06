@@ -700,7 +700,7 @@ use seleniumbase_rs::{tokio, Result};
 #[tokio::test]
 async fn flaky_page(sb: Sb) -> Result<()> {
     let sb = sb.configure(|settings| {
-        settings.headless = true;
+        settings.browser.headless = true;
         settings.test.reruns = 2;
         settings.test.time_limit = Some(60.0);
     });

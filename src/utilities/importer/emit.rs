@@ -433,7 +433,7 @@ const LAUNCH_OPTIONS: &str = r#"    /// The launch options: headless when `SB_HE
     pub fn launch_options() -> Result<LaunchOptions, seleniumbase_rs::SeleniumBaseError> {
         let mut builder = LaunchOptions::builder();
         if std::env::var_os("SB_HEADLESS").is_some() {
-            builder = builder.headless(Settings::from_env()?.headless);
+            builder = builder.headless(Settings::from_env()?.browser.headless);
         }
         builder.build()
     }

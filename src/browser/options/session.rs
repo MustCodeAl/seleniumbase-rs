@@ -110,8 +110,12 @@ impl fmt::Debug for GridSettings {
 #[serde(default)]
 pub struct SessionSettings {
     /// How the browser is driven: WebDriver, DevTools without a driver binary, or the
-    /// undetected mode (`--cdp`, `--uc`, `SB_MODE`).
-    pub mode: DriverMode,
+    /// undetected mode (`--cdp`, `--uc`, `SB_MODE`). `None` when no mode was asked for, which
+    /// means WebDriver ([`driver_mode`](Self::driver_mode)); a program that has a mode of its
+    /// own for a task (`sbrs` for the commands that speak the DevTools Protocol) uses it only
+    /// then, so that asking for WebDriver is told from asking for nothing.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mode: Option<DriverMode>,
     /// The WebDriver server to connect to (`SB_WEBDRIVER_URL`). Unset, the Grid address
     /// [`grid`](Self::grid) names is used, else `http://localhost:4444`; see
     /// [`webdriver_url`](Self::webdriver_url).
@@ -182,7 +186,7 @@ pub struct SessionSettings {
 impl Default for SessionSettings {
     fn default() -> Self {
         Self {
-            mode: DriverMode::default(),
+            mode: None,
             webdriver_url: None,
             grid: GridSettings::default(),
             remote_webdriver_timeout_seconds: None,
@@ -201,6 +205,12 @@ impl Default for SessionSettings {
 }
 
 impl SessionSettings {
+    /// How the browser is driven: the [`mode`](Self::mode) asked for, else WebDriver.
+    #[must_use]
+    pub fn driver_mode(&self) -> DriverMode {
+        self.mode.unwrap_or_default()
+    }
+
     /// The WebDriver server to connect to: [`webdriver_url`](Self::webdriver_url) when set,
     /// else the address [`grid`](Self::grid) names, else `http://localhost:4444`.
     ///
@@ -261,7 +271,8 @@ mod tests {
         assert!(session.auto_start_driver);
         assert_eq!(session.webdriver_url(), "http://localhost:4444");
         assert!(session.is_default_webdriver_url());
-        assert_eq!(session.mode, DriverMode::WebDriver);
+        assert_eq!(session.mode, None);
+        assert_eq!(session.driver_mode(), DriverMode::WebDriver);
     }
 
     #[test]
@@ -315,10 +326,7 @@ mod tests {
     #[test]
     fn the_default_writes_only_what_it_always_writes() {
         let text = serde_json::to_string(&SessionSettings::default()).unwrap();
-        assert_eq!(
-            text,
-            r#"{"mode":"WebDriver","reuse":false,"auto_start_driver":true}"#
-        );
+        assert_eq!(text, r#"{"reuse":false,"auto_start_driver":true}"#);
         let back: SessionSettings = serde_json::from_str("{}").unwrap();
         assert_eq!(back, SessionSettings::default());
     }

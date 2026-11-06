@@ -12,14 +12,12 @@ use std::time::Duration;
 ///
 /// All fields have sensible defaults so that local development works out of
 /// the box while production deploys can override via the environment.
+///
+/// The variables that are settings of a browser (`SB_WEBDRIVER_URL`, `SB_CHROME_BIN`,
+/// `SB_REMOTE_WEBDRIVER_TIMEOUT`) are not read here: they are rows of the option table, read by
+/// the one reader of the table's variables (`Settings` and `BrowserConfig::from_env`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct RuntimeConfig {
-    /// WebDriver endpoint. Defaults to `http://localhost:4444`. A blank `SB_WEBDRIVER_URL`,
-    /// `SB_CHROME_BIN` or `SB_REMOTE_WEBDRIVER_TIMEOUT` counts as unset, as it does for `Settings`.
-    pub webdriver_url: String,
-    /// Explicit Chrome/Chromium binary path. Falls back to `find_system_chrome()`
-    /// when unset.
-    pub chrome_bin: Option<PathBuf>,
     /// Directory for cached patched binaries. Defaults to the platform cache
     /// directory (`dirs::cache_dir()`).
     pub patch_cache_dir: Option<PathBuf>,
@@ -36,14 +34,6 @@ pub struct RuntimeConfig {
     pub chromedriver_port: u16,
     /// Default implicit wait timeout for element queries. Defaults to 30 s.
     pub implicit_wait: Duration,
-    /// Client-side timeout for each HTTP request sent to a Remote WebDriver
-    /// server such as a Selenium Grid.
-    ///
-    /// `None` (the default) leaves the WebDriver client's own timeout in
-    /// place. Set it higher than the page-load timeout and higher than the
-    /// time a new-session request may wait in the grid's queue; its purpose is
-    /// to stop a command blocking forever when a grid node dies mid-session.
-    pub remote_webdriver_timeout: Option<Duration>,
 }
 
 /// Supported log output formats.
@@ -59,15 +49,12 @@ pub enum LogFormat {
 impl Default for RuntimeConfig {
     fn default() -> Self {
         Self {
-            webdriver_url: "http://localhost:4444".to_owned(),
-            chrome_bin: None,
             patch_cache_dir: None,
             log_level: None,
             log_format: LogFormat::default(),
             shutdown_timeout: Duration::from_secs(30),
             chromedriver_port: 0,
             implicit_wait: Duration::from_secs(30),
-            remote_webdriver_timeout: None,
         }
     }
 }
@@ -119,12 +106,6 @@ impl RuntimeConfig {
             }
         };
 
-        if let Some(v) = var("SB_WEBDRIVER_URL").filter(|v| !v.trim().is_empty()) {
-            cfg.webdriver_url = v;
-        }
-        if let Some(v) = var("SB_CHROME_BIN").filter(|v| !v.trim().is_empty()) {
-            cfg.chrome_bin = Some(PathBuf::from(v));
-        }
         if let Some(v) = var("SB_PATCH_CACHE_DIR") {
             cfg.patch_cache_dir = Some(PathBuf::from(v));
         }
@@ -147,12 +128,6 @@ impl RuntimeConfig {
             keep(
                 parse_u64(&v, "SB_IMPLICIT_WAIT_SECS")
                     .map(|secs| cfg.implicit_wait = Duration::from_secs(secs)),
-            );
-        }
-        if let Some(v) = var("SB_REMOTE_WEBDRIVER_TIMEOUT").filter(|v| !v.trim().is_empty()) {
-            keep(
-                parse_u64(&v, "SB_REMOTE_WEBDRIVER_TIMEOUT")
-                    .map(|secs| cfg.remote_webdriver_timeout = Some(Duration::from_secs(secs))),
             );
         }
 
@@ -193,7 +168,6 @@ mod tests {
     #[test]
     fn defaults_are_sensible() {
         let cfg = RuntimeConfig::default();
-        assert_eq!(cfg.webdriver_url, "http://localhost:4444");
         assert_eq!(cfg.log_level, None);
         assert_eq!(cfg.log_format, LogFormat::Pretty);
         assert_eq!(cfg.shutdown_timeout, Duration::from_secs(30));
@@ -213,11 +187,9 @@ mod tests {
         let pairs = &[
             ("SB_SHUTDOWN_TIMEOUT_SECS", "soon"),
             ("SB_LOG_LEVEL", "debug"),
-            ("SB_WEBDRIVER_URL", "http://grid:4444"),
         ];
         let (cfg, problems) = RuntimeConfig::from_vars_lenient(vars(pairs));
         assert_eq!(cfg.log_level.as_deref(), Some("debug"));
-        assert_eq!(cfg.webdriver_url, "http://grid:4444");
         assert_eq!(cfg.shutdown_timeout, Duration::from_secs(30));
         assert_eq!(problems.len(), 1, "{problems:?}");
         assert!(problems[0].to_string().contains("SB_SHUTDOWN_TIMEOUT_SECS"));

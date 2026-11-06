@@ -15,7 +15,10 @@ const PAGE: &str = "data:text/html,<title>Fixture</title><h1>Hello</h1>";
 
 fn headless(change: impl FnOnce(&mut Settings)) -> Settings {
     let mut settings = Settings {
-        headless: true,
+        browser: seleniumbase_rs::browser::options::BrowserSettings {
+            headless: true,
+            ..Default::default()
+        },
         ..Settings::default()
     };
     change(&mut settings);
@@ -82,7 +85,7 @@ async fn a_failing_cdp_test_leaves_the_three_files_of_the_page_it_ended_on() {
 async fn a_failing_webdriver_test_leaves_the_three_files(sb: Sb) {
     let logs = tempfile::tempdir().unwrap();
     let sb = sb
-        .configure(|settings| settings.headless = true)
+        .configure(|settings| settings.browser.headless = true)
         .logs_dir(logs.path());
     let id = sb.test_id().to_owned();
     let result = sb
@@ -137,7 +140,7 @@ async fn a_cdp_test_that_fails_once_passes_on_a_rerun(sb_cdp: SbCdp) {
     let logs = tempfile::tempdir().unwrap();
     let sb_cdp = sb_cdp
         .configure(|settings| {
-            settings.headless = true;
+            settings.browser.headless = true;
             settings.test.reruns = 1;
             settings.test.reruns_delay = 0.1;
         })

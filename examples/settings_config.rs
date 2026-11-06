@@ -11,7 +11,7 @@
 //!    `.sbase_config.toml` or `.sbase_config` in the working directory.
 //! 4. `Settings::load_from(path)`, the file plus any `SB_*` environment
 //!    variables, which win over it.
-//! 5. `SettingsOverrides::apply`, what a command line asked for explicitly,
+//! 5. `SettingsOverrides::try_apply`, what a command line asked for explicitly,
 //!    which wins over everything.
 //!
 //! Run it with:
@@ -27,6 +27,8 @@
 
 use std::error::Error;
 use std::fs;
+
+use seleniumbase_rs::browser::config::Browser;
 
 use seleniumbase_rs::config::settings::{Settings, SettingsOverrides};
 
@@ -50,7 +52,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     // 2. A specific file. Keys the file leaves out keep their defaults.
     let from_file = Settings::from_file(&path)?;
     show("from_file", &from_file);
-    if from_file.browser != "chromium" || from_file.window_width != defaults.window_width {
+    if from_file.browser.kind != Browser::Chromium
+        || from_file.browser.window_size != defaults.browser.window_size
+    {
         return Err("the file should override browser and leave window_width alone".into());
     }
 
@@ -73,13 +77,14 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // 5. Explicit overrides win over the file and the environment.
     let overrides = SettingsOverrides {
-        headless: Some(false),
-        threads: Some(4),
-        ..SettingsOverrides::default()
+        options: vec![
+            ("SB_HEADLESS", "false".to_owned()),
+            ("SB_THREADS", "4".to_owned()),
+        ],
     };
-    overrides.apply(&mut settings);
+    overrides.try_apply(&mut settings)?;
     show("after explicit overrides", &settings);
-    if settings.headless || settings.threads != Some(4) {
+    if settings.browser.headless || settings.test.threads != Some(4) {
         return Err("explicit overrides should win".into());
     }
 
@@ -90,7 +95,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let config = settings.to_browser_config();
     println!(
         "BrowserConfig: browser {:?}, mode {:?}, headless {}",
-        config.browser.kind, config.session.mode, config.browser.headless
+        config.browser.kind,
+        config.session.driver_mode(),
+        config.browser.headless
     );
     Ok(())
 }
@@ -98,14 +105,14 @@ fn main() -> Result<(), Box<dyn Error>> {
 fn show(layer: &str, settings: &Settings) {
     println!(
         "{layer}: browser={}, headless={}, timeout={}, locale={:?}, mode={:?}",
-        settings.browser,
-        settings.headless,
+        settings.browser.kind,
+        settings.browser.headless,
         settings
             .run
             .default_timeout()
             .map(|timeout| timeout.as_secs())
             .map_or_else(|| "unset".to_owned(), |seconds| format!("{seconds}s")),
-        settings.locale,
-        settings.mode
+        settings.browser.lang,
+        settings.session.driver_mode()
     );
 }

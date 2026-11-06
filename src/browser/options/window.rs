@@ -43,8 +43,10 @@ fn two_numbers<T: FromStr>(
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct WindowSize {
     /// Width in pixels.
+    #[serde(default)]
     pub width: u32,
     /// Height in pixels.
+    #[serde(default)]
     pub height: u32,
 }
 

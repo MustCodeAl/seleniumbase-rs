@@ -228,11 +228,9 @@ async fn sb() -> SbCase {
         .lock()
         .unwrap()
         .push((thread_name(), Arc::clone(&mock)));
-    let settings = Settings {
-        webdriver_url: Some(mock.url.clone()),
-        headless: true,
-        ..Settings::default()
-    };
+    let mut settings = Settings::default();
+    settings.session.webdriver_url = Some(mock.url.clone());
+    settings.browser.headless = true;
     SbCase::launch_with(settings)
         .await
         .expect("the mock WebDriver accepts a session")

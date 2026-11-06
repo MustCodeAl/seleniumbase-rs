@@ -322,8 +322,8 @@ async fn patch_chrome_binary_if_needed(
 
     // A bad unrelated variable must not hide SB_CHROME_BIN.
     let runtime = crate::config::RuntimeConfig::from_env_lenient().0;
-    let source = runtime
-        .chrome_bin
+    let source = crate::config::env_vars::text("SB_CHROME_BIN")
+        .map(std::path::PathBuf::from)
         .or_else(crate::evasion::patcher::find_system_chrome)
         .ok_or_else(|| {
             SeleniumBaseError::invalid_config(

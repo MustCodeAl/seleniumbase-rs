@@ -3,12 +3,17 @@ pub mod browser_options;
 pub mod env_vars;
 
 mod launch_map;
+pub(crate) mod layers;
+
 pub mod plugins;
 pub mod proxy_list;
 pub mod runtime;
 pub mod settings;
+pub(crate) mod settings_file;
+
 pub mod test_options;
 pub mod test_settings;
+pub(crate) mod text;
 
 pub use runtime::{LogFormat, RuntimeConfig};
 

@@ -340,7 +340,8 @@ export SB_TIMEOUT=20
 ```
 
 `Settings::load` and `Settings::from_env` read the variable of every row of the
-[option table](/help/test_options), each mapped to the field of the same name.
+[option table](/help/test_options), each written into the setting its row names (a path of
+the grouped settings, such as `browser.proxy.server`), over the settings file.
 The long-standing ones are `SB_BROWSER`, `SB_HEADLESS`, `SB_TIMEOUT`,
 `SB_REMOTE_WEBDRIVER_TIMEOUT`, `SB_PROXY`, `SB_PROXY_PAC_URL`,
 `SB_WINDOW_WIDTH`, `SB_WINDOW_HEIGHT`, `SB_USER_DATA_DIR`, `SB_EXTENSION_DIR`,
@@ -354,8 +355,9 @@ mapping: a variable that is not in the table, such as `SB_LOGGING__LOG_LEVEL`,
 does nothing. See [Settings and Global Configuration](/tutorials/settings_and_config)
 for the table, including the separate runtime variables (`SB_LOG_LEVEL`,
 `SB_LOG_FORMAT`, ...), which `RuntimeConfig::from_env()` reads, and
-`BrowserConfig::from_env()`, which reads only `SB_WEBDRIVER_URL` and
-`SB_CHROME_BIN`:
+`BrowserConfig::from_env()`, which reads only `SB_WEBDRIVER_URL`,
+`SB_CHROME_BIN` and `SB_REMOTE_WEBDRIVER_TIMEOUT`, by the same rule as `Settings` (a blank
+value is unset):
 
 ```bash Terminal
 export SB_WEBDRIVER_URL=http://localhost:4444/wd/hub
@@ -476,6 +478,13 @@ Two settings can be written in two ways: the window size (`window_size`, or `win
 whichever spelling it uses: `SB_WINDOW_WIDTH` and `SB_WINDOW_HEIGHT` beat a `window_size` in the
 file, and `--locale` beats a `locale_code` in the environment. Only inside one source does the
 size beat the pair and the code beat the locale.
+
+The layers are merged setting by setting: a source that gives only `SB_PROXY` leaves the window
+size of the file alone, a list of a higher source (`extension_dir`, `chromium_arg`) replaces the
+list of the lower one, and a switch that a higher source turns off (`SB_DARK_MODE=false`) turns
+off what a lower one turned on. A value that is refused names its source: the variable with its
+flag, or the file with the key as the file wrote it. See
+[how the layers are merged](/tutorials/settings_and_config#how-the-layers-are-merged).
 
 
 <Tip>

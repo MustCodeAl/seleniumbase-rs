@@ -52,7 +52,7 @@ async fn a_breakpoint_lists_the_code_around_it() {
 async fn a_failing_test_ends_at_a_post_mortem() {
     let result = SbCdp::from_env()
         .configure(|settings| {
-            settings.headless = true;
+            settings.browser.headless = true;
             settings.test.pdb = true;
         })
         .run(async |page| {

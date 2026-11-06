@@ -29,7 +29,10 @@ async fn a_failing_cdp_test_is_on_the_dashboard_with_the_evidence_of_a_real_page
     )
     .unwrap();
     let fixture = SbCdp::new(Settings {
-        headless: true,
+        browser: seleniumbase_rs::browser::options::BrowserSettings {
+            headless: true,
+            ..Default::default()
+        },
         ..Settings::default()
     })
     .report_to(Arc::clone(&run));
