@@ -438,9 +438,11 @@ Playwright engine and no `playwright` feature). It uses the
 Chrome that `sb_cdp` launches.
 
 ```bash
-cargo add seleniumbase-rs-playwright --git https://github.com/MustCodeAl/seleniumbase-rs
+cargo add seleniumbase-rs-playwright --git https://github.com/MustCodeAl/seleniumbase-rs --branch main
 cargo run -p seleniumbase-rs-playwright --example playwright_mode
 ```
+
+`PlaywrightSidecar` is on `main` and is not in the v0.8.0 tag; the next release carries it.
 
 See [Playwright Mode](./docs/help/playwright_mode.md).
 
