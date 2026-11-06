@@ -819,6 +819,42 @@ mod tests {
     }
 
     #[test]
+    fn the_single_settings_of_the_builder_win_over_the_configs_in_either_order() {
+        let config = BrowserConfig {
+            ad_block: true,
+            start_page: Some("https://config.example/".to_owned()),
+            user_data_dir: Some("/config/profile".to_owned()),
+            ..BrowserConfig::default()
+        };
+        let from_config = built(LaunchOptions::builder().browser_config(&config));
+        assert!(from_config.ad_block);
+        assert_eq!(from_config.url(), Some("https://config.example/"));
+        assert_eq!(
+            from_config.user_data_dir.as_deref(),
+            Some(Path::new("/config/profile"))
+        );
+
+        let own = |builder: LaunchOptionsBuilder| {
+            builder
+                .ad_block(false)
+                .url("https://own.example/")
+                .user_data_dir("/own/profile")
+        };
+        for builder in [
+            own(LaunchOptions::builder()).browser_config(&config),
+            own(LaunchOptions::builder().browser_config(&config)),
+        ] {
+            let options = built(builder);
+            assert!(!options.ad_block);
+            assert_eq!(options.url(), Some("https://own.example/"));
+            assert_eq!(
+                options.user_data_dir.as_deref(),
+                Some(Path::new("/own/profile"))
+            );
+        }
+    }
+
+    #[test]
     fn the_webrtc_policy_of_the_builder_wins_over_the_fingerprints_in_either_order() {
         // A fingerprint that masks WebRTC passes the policy flag of its own.
         let masked = Fingerprint::randomized(OsType::Windows, 42);
