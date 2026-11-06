@@ -80,7 +80,7 @@ pub struct H2Spec {
     pub priority_frames: Vec<PriorityFrame>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub headers_priority: Option<HeadersPriority>,
-    pub pseudo_order: [Pseudo; 4],
+    pub pseudo_order: [PseudoHeader; 4],
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub initial_stream_id: Option<u32>,
 }
@@ -116,7 +116,7 @@ The priority fields of the first HEADERS frame, when the client sends them.
 
 </ResponseField>
 
-<ResponseField name="pseudo_order" type="[Pseudo; 4]">
+<ResponseField name="pseudo_order" type="[PseudoHeader; 4]">
 
 The order of the request pseudo-headers.
 

@@ -110,7 +110,7 @@ failures in a row is out of rotation for ten minutes by default.
   earned it. When the new egress is in another country, the browser is also
   started again with the same profile in that country's language and time zone,
   because the fingerprint is written into every document before its scripts run.
-  It returns `ScrapeError::NoEgressAvailable` when the pool has nothing else.
+  It returns `ScrapeError::NoProxyLeft` when the pool has nothing else.
 - `rotate_fingerprint()` derives a new seed, draws a new fingerprint for the same
   operating system that claims the version of the Chrome that is running, and
   starts the browser again behind the same egress, with empty cookies. What is

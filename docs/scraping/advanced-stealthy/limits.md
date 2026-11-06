@@ -145,7 +145,7 @@ State these plainly to yourself before you build on any of this.
 
 </Accordion>
 
-<Accordion title="`ScrapeError::NoEgressAvailable`" icon="network-wired">
+<Accordion title="`ScrapeError::NoProxyLeft`" icon="network-wired">
 
 **Likely cause.** A rotation was asked for and the pool has nothing else in rotation.
 

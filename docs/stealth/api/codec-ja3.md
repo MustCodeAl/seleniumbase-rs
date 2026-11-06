@@ -1,7 +1,7 @@
 ---
 title: "codec::ja3"
 sidebarTitle: "JA3 and peetprint"
-description: "JA3 and the peetprint in seleniumbase-rs-codec: Ja3, Ja3Field, Ja3Error, Peetprint, Slot, PeetprintField, PeetprintError, and the hex and MD5 helpers."
+description: "JA3 and the peetprint in seleniumbase-rs-codec: Ja3, Ja3Field, Ja3Error, Peetprint, PeetprintSlot, PeetprintField, PeetprintError, and the hex and MD5 helpers."
 ---
 
 <Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: codec</Badge>
@@ -258,14 +258,14 @@ with it. Do not use it for anything that needs collision resistance.
 // seleniumbase_rs_stealth::codec::ja3::peetprint, re-exported as ja3::Peetprint and at the root
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Peetprint {
-    pub versions: Vec<Slot>,
+    pub versions: Vec<PeetprintSlot>,
     pub alpn: Vec<String>,
-    pub groups: Vec<Slot>,
-    pub signature_algorithms: Vec<Slot>,
+    pub groups: Vec<PeetprintSlot>,
+    pub signature_algorithms: Vec<PeetprintSlot>,
     pub psk_modes: Vec<u8>,
     pub cert_compression: Vec<u16>,
-    pub ciphers: Vec<Slot>,
-    pub extensions: Vec<Slot>,
+    pub ciphers: Vec<PeetprintSlot>,
+    pub extensions: Vec<PeetprintSlot>,
 }
 ```
 
@@ -277,9 +277,9 @@ supported groups, the signature algorithms, the PSK key exchange modes, the
 certificate compression algorithms, the cipher suites and the extensions. GREASE
 ids are written as the word `GREASE`. It implements `Display` and `FromStr`.
 
-<ResponseField name="versions, groups, signature_algorithms, ciphers" type="Vec<Slot>">
+<ResponseField name="versions, groups, signature_algorithms, ciphers" type="Vec<PeetprintSlot>">
 
-As sent, GREASE kept as `Slot::Grease`.
+As sent, GREASE kept as `PeetprintSlot::Grease`.
 
 </ResponseField>
 
@@ -301,7 +301,7 @@ Certificate compression algorithms as sent.
 
 </ResponseField>
 
-<ResponseField name="extensions" type="Vec<Slot>">
+<ResponseField name="extensions" type="Vec<PeetprintSlot>">
 
 The extensions. `Peetprint::of` sorts them; parsing keeps the given order.
 
@@ -329,32 +329,32 @@ pub fn parse(text: &str) -> Result<Self, PeetprintError>
 - `parse`: reads a string of at most `MAX_PEETPRINT_LEN` (16 KiB), trimmed; a
   `PeetprintError` names the field and the token that failed.
 
-## `Slot`
+## `PeetprintSlot`
 
 <Badge color="purple" shape="pill">enum</Badge>
 
 ```rust
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum Slot {
+pub enum PeetprintSlot {
     Grease,
     Id(u16),
 }
 
-impl Slot {
+impl PeetprintSlot {
     pub fn from_id(id: u16) -> Self;
 }
 ```
 
 A list entry of a peetprint: any GREASE value (RFC 8701), or a concrete id.
-`Slot::from_id` collapses a GREASE id into `Slot::Grease`.
+`PeetprintSlot::from_id` collapses a GREASE id into `PeetprintSlot::Grease`.
 
 ## `slots`, `ids`
 
 <Badge color="yellow" shape="pill">fn</Badge>
 
 ```rust
-pub fn slots(values: &[u16]) -> Vec<Slot>
-pub fn ids(values: &[Slot]) -> Vec<u16>
+pub fn slots(values: &[u16]) -> Vec<PeetprintSlot>
+pub fn ids(values: &[PeetprintSlot]) -> Vec<u16>
 ```
 
 In `ja3::peetprint`: the GREASE-collapsed slots of a list of wire ids, and the

@@ -117,7 +117,7 @@ pub fn from_captured<N: AsRef<str>, V: AsRef<str>>(
 ```
 
 Builds a spec from the headers of one captured navigation and one captured fetch.
-Pseudo-headers, the transport headers of `TRANSPORT_HEADERS` and the credential
+PseudoHeader-headers, the transport headers of `TRANSPORT_HEADERS` and the credential
 headers are dropped. The identity headers become placeholders. A `priority` header
 (an HTTP/2 capture) moves to the priority table, keyed by the same request's
 `Sec-Fetch-Dest`. Fails when a name or value is invalid, a header repeats, or a

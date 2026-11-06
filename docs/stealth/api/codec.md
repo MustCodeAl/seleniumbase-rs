@@ -174,7 +174,7 @@ Parse the first TLS handshake message, across records.
 
 <Card color="#1ca1c7" title="Akamai" icon="code" href="/stealth/api/codec-akamai">
 
-The HTTP/2 fingerprint string: `Akamai`, `PriorityFrame`, `Pseudo`.
+The HTTP/2 fingerprint string: `Akamai`, `PriorityFrame`, `PseudoHeader`.
 
 </Card>
 

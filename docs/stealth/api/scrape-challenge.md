@@ -232,7 +232,7 @@ What to do next.
 pub enum GiveUpReason {
     AttemptsExhausted,
     Blocked,
-    NoProxyLeft,
+    NoEgressLeft,
 }
 ```
 
