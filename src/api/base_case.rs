@@ -1281,7 +1281,7 @@ impl BaseCase {
     /// The result is the same in every mode: the DevTools Protocol (modes `cdp` and `uc`) and
     /// plain WebDriver both answer the cookies the browser would send to the current URL, not
     /// every cookie it holds (a frame of another origin adds none), and a session cookie has no
-    /// `expires`. Feed one to [`add_cookie`](Self::add_cookie) to set it again.
+    /// `expires`. Feed one to [`add_cookie`](Self::add_cookie) to set it again as a session cookie.
     ///
     /// # Examples
     ///
@@ -2114,9 +2114,10 @@ impl BaseCase {
     }
 
     /// Adds a cookie, as Python's `add_cookie(cookie_dict, expiry=False)` does.
-    /// A cookie that [`get_cookies`](Self::get_cookies) returned goes in as it came. The W3C
-    /// cookie object of Python reads as a [`Cookie`] with `serde_json::from_value`. The keyword is
-    /// [`AddCookie::expiry`]; see [`AddCookie`] for what the call does to the
+    /// A cookie that [`get_cookies`](Self::get_cookies) returned goes in with its expiry
+    /// dropped, so it lasts for the browser session, unless [`CookieExpiry::Saved`] is given.
+    /// The W3C cookie object of Python reads as a [`Cookie`] with `serde_json::from_value`.
+    /// The keyword is [`AddCookie::expiry`]; see [`AddCookie`] for what the call does to the
     /// cookie before it goes in.
     ///
     /// # Examples
