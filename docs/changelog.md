@@ -129,12 +129,12 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   where it returned a `serde_json::Value` of the shape `{"cookies": [...]}`. `add_cookie` takes
   a `&Cookie`, where it took the W3C cookie object as a `&Value`; `BrowserSession::add_cookie`
   takes a `&Cookie` too, where it took `(name, value)`, so it can set a path, a domain and the
-  flags. A W3C object reads as a `Cookie` with `serde_json::from_value` (`expiry` is read as
+  flags. A W3C object reads as a `Cookie` with `seleniumbase_rs::json::from_value` (`expiry` is read as
   `expires`; a missing `path`, `domain`, `secure` or `httpOnly` takes its default), and
   `add_cookie(..)` keeps its `.expiry(..)` keyword and its rule that a `domain` outside the
   page's origin becomes the origin's host. The files of `save_cookies` and `load_cookies`
   keep the W3C format that Python SeleniumBase writes and reads.
-  The MCP tool `get_cookies` of the `sb` and `driver` servers answers the serialized
+  The MCP tool `get_cookies` of the `sb` server answers the serialized
   `Vec<Cookie>` (`[{"name": .., "value": .., "expires": ..}, ..]`, as `manage_cookies` of the
   `cdp` server does), where it answered `{"cookies": [..]}` with the driver's own objects
   (`expiry` for `expires`). `sbrs get-cookies` prints that JSON after `Cookies: `.
@@ -216,9 +216,14 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   `session` and `priority`), without them the driver's (an integer `expiry`, missing for a
   session cookie), so code that read `expires` worked in one mode. It is a `Vec<Cookie>` in both
   modes, and a session cookie has no `expires` on every path. Its documentation said "all
-  cookies"; it answers the cookies of the current page (`Network.getCookies` without `urls`,
-  as WebDriver's `get_all_cookies` does), and the comments of `BaseCase::get_cookies` and
-  `CdpClient::get_cookies` now say so.
+  cookies"; it answers the cookies of the current page, and the comments of
+  `BaseCase::get_cookies` and `CdpClient::get_cookies` now say so. With DevTools it asks
+  `Network.getCookies` for the current URL, as chromedriver does for WebDriver's
+  `get_all_cookies` (`CdpClient::get_cookies` takes the URL). Without `urls` the protocol also
+  answers the cookies of every frame of the page, so a cross-origin frame, such as a CAPTCHA
+  widget, added cookies in the `cdp` and `uc` modes that the WebDriver mode did not list. A
+  DevTools answer with no list of cookies is `SeleniumBaseError::CdpDriver`; it was read as a
+  page without cookies.
 
 </Update>
 
