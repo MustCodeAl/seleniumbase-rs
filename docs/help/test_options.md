@@ -291,7 +291,7 @@ It cannot be combined with `--test` or `--example`. Python: `--all-scripts`.
 <ParamField path="-c, --settings-file, --settings" type="path">
 
 The settings file the tests read instead of `sbase_config.toml`. `SB_SETTINGS_FILE`,
-key `settings_file`. A relative path is made absolute first, because a test's
+no file key (a settings file cannot name itself). A relative path is made absolute first, because a test's
 working directory is its package's.
 
 </ParamField>

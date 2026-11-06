@@ -4,7 +4,7 @@ sidebarTitle: "Settings with figment"
 ---
 
 Status: design note, written before the code (branch `lane/design-settings`, from `90ca478e`).
-Every line number below is from that commit. Nothing here is implemented. What figment does was
+Every line number below is from that commit. Implemented on `lane/settings-v2`: the pins (step 1), the report table (step 2), the run group (step 3), the `SB_NO_SANDBOX` rule, and findings 1, 2, 3, 7, 8, 9, 11 and 13; not yet: the `browser` and `session` groups (steps 4 and 5), the figment layering (step 6), findings 4, 5, 10 and 12. What figment does was
 read on Context7 (the pages are listed under [Sources](#sources)); what those pages did not say is
 marked "to verify". Statements about today's behaviour come from reading the code; none was run,
 and each one that matters gets a test in [step 1](#implementation-steps) before anything moves.
@@ -928,6 +928,23 @@ One commit each; each runs the gate of `CLAUDE.md` (fmt, clippy with `-D warning
 10. **The figment dependency.** *Recommendation:* add it in step 6 only after checking on docs.rs
     and crates.io its version (Context7 gave none), its MSRV against `rust-version = "1.99"`, its
     licence and `cargo deny check`, with the default features off.
+    *Checked 2026-11-05 (scratch crate with `figment = { version = "0.10.19", default-features =
+    false }`, the repository's `deny.toml`):* figment 0.10.19, released 2024-05-17, `MIT OR
+    Apache-2.0`, no `rust-version` declared (it builds on the 1.99 toolchain); with the default
+    feature (a no-op `env`) off, its normal dependencies are `serde` and `uncased` (build:
+    `version_check`) and nothing else; `cargo deny check` reports `advisories ok, bans ok,
+    licenses ok, sources ok` and `cargo audit` finds no vulnerability in the 13 crates. Its last
+    release is eighteen months old.
+    The "to verify" items were run in the same crate (four tests, figment 0.10.19): `merge`
+    joins nested dictionaries key by key and the later provider wins; a `#[serde(flatten)]` group
+    and a flattened map of plugin options extract; an array of the later layer replaces the
+    earlier one (what `SB_PLUGINS` needs); an integer extracts into an `f64`; `Metadata::named`
+    takes an owned `String`; an extraction error carries `path`, `metadata` (the name of the
+    provider) and `profile`, and `Metadata::interpolate` gives the key as the source writes it.
+    `Error::origins()`, which the Context7 pages show, is not in 0.10.19 (the pages describe the
+    repository's master): read `error.metadata` and `error.profile`.
+
+
 11. **The other names with two meanings** (finding 12). *Recommendation:* `LaunchSettings` is
     resolved here by the rename; `mcp::host::Settings` and the `Browser` enum go to a naming lane.
 12. **The listing.** *Recommendation:* add the variables of finding 13 to `EXTRA_VARIABLES`, so
