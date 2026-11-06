@@ -3162,9 +3162,7 @@ async fn run_devtools(args: &Cli) -> Result<(), Box<dyn std::error::Error>> {
     choice.log();
     // The page to open once the browser runs: the global --url, else SB_START_PAGE.
     let page = args.start_page.clone().or_else(|| {
-        std::env::var(seleniumbase_rs::config::settings::START_PAGE_ENV)
-            .ok()
-            .filter(|page| !page.trim().is_empty())
+        seleniumbase_rs::config::env_vars::text(seleniumbase_rs::config::settings::START_PAGE_ENV)
     });
     let request = DevtoolsRequest {
         headless: if args.headless {
