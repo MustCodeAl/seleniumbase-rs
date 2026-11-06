@@ -313,7 +313,9 @@ impl<'a> CdpPage<'a> {
         Ok(())
     }
 
-    /// Returns the visible text of the first element matching `selector`.
+    /// Returns the text of the first element matching `selector`: the value of an input or a
+    /// textarea, as Python's `sb.cdp.get_text` gives it, and the rendered text of any other
+    /// element.
     ///
     /// It looks once: unlike [`click`](Self::click) it does not wait for the
     /// element. Call [`wait_for_element_present`](Self::wait_for_element_present)
@@ -325,10 +327,7 @@ impl<'a> CdpPage<'a> {
     /// [`SeleniumBaseError::InvalidSelector`] for a selector the browser
     /// rejects.
     pub async fn get_text(&self, selector: &str) -> Result<String, SeleniumBaseError> {
-        let script = single_element_script(
-            selector,
-            "el ? String(el.innerText !== undefined ? el.innerText : el.textContent) : null",
-        );
+        let script = single_element_script(selector, TEXT_OF_ELEMENT);
         let result = self.evaluate_raw(&script).await?;
         extract_string_value(&result).ok_or_else(|| SeleniumBaseError::element_not_found(selector))
     }
@@ -519,6 +518,12 @@ impl<'a> CdpPage<'a> {
 /// The body of the script that focuses an element and empties its value, for
 /// [`single_element_script`]. It gives `true` when the element exists.
 const FOCUS_AND_CLEAR: &str = "el ? (el.focus(), el.value = '', true) : false";
+
+/// The body of the script that reads an element's text, for [`single_element_script`]:
+/// the value of an input or a textarea, as Python's `sb.cdp.get_text` gives it (its
+/// `text_all`), and the rendered text of any other element; `null` when nothing matches.
+const TEXT_OF_ELEMENT: &str = "el ? String(el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' \
+    ? el.value : el.innerText !== undefined ? el.innerText : el.textContent) : null";
 
 /// The expression that gives the first element matching `selector`, or `null`.
 fn query_script(selector: &str) -> String {

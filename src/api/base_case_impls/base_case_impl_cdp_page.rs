@@ -80,7 +80,8 @@ impl BaseCase {
             .await
     }
 
-    /// Returns the visible text of the first element matching `selector`.
+    /// Returns the text of the first element matching `selector`: an input's or a textarea's
+    /// value, as Python's `sb.cdp.get_text` gives it, else the rendered text.
     pub async fn cdp_get_text(&self, selector: &str) -> Result<String, SeleniumBaseError> {
         CdpPage::new(&self.session).get_text(selector).await
     }
