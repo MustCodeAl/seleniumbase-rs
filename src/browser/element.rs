@@ -564,15 +564,15 @@ impl Element {
     fn lookup(selector: &SelectorBuf) -> Result<By, SeleniumBaseError> {
         let by = shadow_find::by_of(selector)?;
         if let SelectorBuf::XPath(xpath) = selector
-                    && let Some(branch) = xpath_root_branch(xpath)
-                {
-                    return Err(SeleniumBaseError::InvalidSelector(format!(
+            && let Some(branch) = xpath_root_branch(xpath)
+        {
+            return Err(SeleniumBaseError::InvalidSelector(format!(
                         "'{selector}' has a branch that starts at the root of the page, '{branch}', so \
                          it matches the whole page from inside an element too: write it from the \
                          element (`.//td`) to search inside this one, or look it up from the page with \
                          `BaseCase::find_element`"
                     )));
-                }
+        }
 
         if shadow_find::pieces(&by)?.is_some() {
             return Err(SeleniumBaseError::InvalidSelector(format!(
@@ -1054,7 +1054,6 @@ mod tests {
         assert!(driver.requests("/element/e1/elements").is_empty());
     }
 
-
     #[tokio::test]
     async fn the_xpath_the_selector_builders_write_is_looked_up_from_the_element() {
         let driver = cart();
@@ -1094,7 +1093,6 @@ mod tests {
         }
     }
 
-
     #[tokio::test]
     async fn an_xpath_that_starts_at_the_element_is_looked_up_as_written() {
         let driver = cart();
@@ -1115,7 +1113,6 @@ mod tests {
             ".//a[.//b]",
             ".//a[//b]",
             ".//a[@href='/x'] | ./b[@id=\"/y\"]",
-
         ];
 
         for xpath in relative {

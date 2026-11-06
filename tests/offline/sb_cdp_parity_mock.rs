@@ -83,7 +83,6 @@ async fn a_role_selector_is_sent_to_the_page_as_a_path_from_the_context_node() {
     assert!(sent[sent.len() - 1].contains(role), "{sent:?}");
 }
 
-
 #[test]
 fn a_contains_selector_converts_in_a_selector_buf_and_plain_css_stays_css() {
     assert_eq!(
