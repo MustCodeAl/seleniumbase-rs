@@ -163,6 +163,7 @@ hidden: true
   - [An element type of our own for the WebDriver engine](design/element_type.md)
   - [One cookie type for both engines](design/cookie_type.md)
   - [Mimic, a fifth state for every fingerprint setting](design/fingerprint_mimic.md)
+  - [A lean core, closer to Python SeleniumBase](design/core_split.md)
 
 - [ABI & API Stability](ABI_API.md)
 - [Architecture Decision Records](adr/001-stealth-architecture.md)
