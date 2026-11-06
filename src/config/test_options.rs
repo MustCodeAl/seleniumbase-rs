@@ -881,8 +881,14 @@ mod tests {
                 .find(|(key, _)| *key == name)
                 .map(|(_, value)| (*value).to_owned())
         };
-        let Variables { dict, problems, .. } = read_variables(&var);
-        let layer = crate::config::layers::Layer::new(figment::Metadata::named("test"), dict);
+        let Variables {
+            dict,
+            inputs,
+            problems,
+            ..
+        } = read_variables(&var);
+        let layer = crate::config::layers::Layer::new(figment::Metadata::named("test"), dict)
+            .with_inputs(inputs);
         let settings = crate::config::layers::extract(&[&layer]).expect("the variables extract");
         (settings, problems)
     }
