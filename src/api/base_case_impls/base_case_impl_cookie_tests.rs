@@ -291,6 +291,25 @@ mod tests_cookie_calls {
         assert!(matches!(error, SeleniumBaseError::CdpDriver(_)), "{error:?}");
     }
 
+    #[tokio::test]
+    async fn a_devtools_session_asks_for_the_cookies_of_the_current_url_only() {
+        let driver = page_with_cookies();
+        let sb = devtools_case(&driver).await;
+
+        sb.get_cookies().await.unwrap();
+
+        let asked: Vec<Value> = driver
+            .requests("/goog/cdp/execute")
+            .into_iter()
+            .filter(|request| request.body["cmd"] == "Network.getCookies")
+            .map(|request| request.body["params"].clone())
+            .collect();
+        // Without `urls` the protocol answers the cookies of the page and of every frame in
+        // it, which WebDriver does not: chromedriver asks for the current URL.
+        assert_eq!(asked, [json!({ "urls": ["https://www.example.test/home"] })]);
+    }
+
+
 
 
     
