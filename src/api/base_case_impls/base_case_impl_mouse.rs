@@ -264,12 +264,10 @@ impl BaseCase {
             return clicked;
         }
         let selector = shadow_find::checked(css)?;
-        let child = parent
-            .find(selector)
-            .await.map_err(|error| match error {
-                    SeleniumBaseError::InvalidSelector(_) => error,
-                    _ => SeleniumBaseError::element_not_found(format!("{parent_css} {css}")),
-                })?;
+        let child = parent.find(selector).await.map_err(|error| match error {
+            SeleniumBaseError::InvalidSelector(_) => error,
+            _ => SeleniumBaseError::element_not_found(format!("{parent_css} {css}")),
+        })?;
         child.click().await?;
         Ok(())
     }
