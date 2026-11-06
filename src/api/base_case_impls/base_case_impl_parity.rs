@@ -657,4 +657,38 @@ mod tests_cookies {
         }
         assert!(added(&driver).is_empty(), "nothing was added");
     }
+
+    #[tokio::test]
+    async fn a_good_cookie_before_a_bad_one_is_not_added() {
+        let driver = page_with_a_cookie();
+        let sb = driver.base_case().await;
+        let dir = tempfile::tempdir().unwrap();
+        // The first entry of each file is fine. The whole file is read before the first
+        // cookie goes in, so the bad second entry stops the load with nothing added.
+        for (name, text) in [
+            (
+                "second_nameless.txt",
+                r#"[{"name": "a", "value": "1"}, {"value": "2"}]"#,
+            ),
+            ("second_scalar.txt", r#"[{"name": "a", "value": "1"}, 7]"#),
+            (
+                // Python writes `Lax`, `Strict` and `None`; another spelling is not a policy.
+                "second_same_site.txt",
+                r#"[{"name": "a", "value": "1"}, {"name": "b", "value": "2", "sameSite": "sometimes"}]"#,
+            ),
+        ] {
+            let file = dir.path().join(name);
+            std::fs::write(&file, text).unwrap();
+            let error = sb
+                .load_cookies_from_path(&file, CookieExpiry::Saved)
+                .await
+                .expect_err(name);
+            assert!(
+                matches!(error, SeleniumBaseError::InvalidConfig(ref m) if m.contains(name)),
+                "{error:?}"
+            );
+            assert!(added(&driver).is_empty(), "{name} added a cookie");
+        }
+    }
+
 }
