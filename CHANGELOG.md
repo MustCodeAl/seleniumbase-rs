@@ -8,33 +8,6 @@ work, `docs/parity.md` the per-API status).
 
 ## [Unreleased]
 
-## [0.8.0] - 2026-11-05
-
-### Security
-
-- `object_store` 0.14.2 (was 0.12.4) for the S3 and Azure uploads: it brings `quick-xml` 0.41,
-  which fixes RUSTSEC-2026-0194 (quadratic time on duplicate attribute names) and
-  RUSTSEC-2026-0195 (unbounded namespace allocation). `put` and `get` now come from
-  `object_store::ObjectStoreExt`.
-
-### Changed
-
-- The `bdd` feature no longer depends on `rstest-bdd-harness` or
-  `rstest-bdd-harness-tokio`. Those crates were unused. Scenarios still use
-  `rstest-bdd`.
-- `sbrs` and `sbrs-mcp` parse their command line with usage-rs 7.2 (usage-lib 7.2 for the
-  tests), up from 6.12. Nothing changes for a person: the help, the errors, the completion
-  scripts and the generated `completions/sbrs.usage.kdl`, `docs/help/cli_reference.md` and
-  `docs/completions/fig-sbrs.ts` are the same byte for byte. The package is now a dependency
-  of `crates/cli` under its own name, `usage-rs`, because the derives of usage 7 write their
-  code against `::usage_rs` and no longer read the manifest for a renamed dependency, and the
-  tables the Fig spec and the tests walk are read through `flags()`, `subcommands()`, `cmd()`
-  and the other accessors, since usage 7 hides their fields. The three checks of
-  `crates/cli/src/strict.rs` (a flag given twice to a command, a value written after a switch,
-  `help` with a path that names no command) stay: usage 7.2 still takes all three, and a
-  test fails the day it does not.
-
-
 ### Breaking
 
 - **Breaking: one rule picks among the sources of a launch setting, whatever the order of the
@@ -69,11 +42,6 @@ work, `docs/parity.md` the per-API status).
   stored builder compiles as before. Its `Debug` output is different. `browser_config` reads the
   config when it is called, and a second call replaces the first config.
 
-
-- **Breaking: `common::unobfuscate` is part of `common::obfuscate`.** `rot13`,
-  `base64_decode` and `unobfuscate` moved into `seleniumbase_rs::common::obfuscate`.
-  The two modules imported each other. Import them from `common::obfuscate`.
-
 - **Breaking: the Playwright bridge's `PlaywrightSidecar` replaces `PlaywrightSession` and
   `StealthyPlaywright`.** The stealthy browser is driven with the BaseCase API (`sb_cdp::Page`
   and `BaseCase`, as on every other page of the docs) and Playwright joins on the same tab only
@@ -92,6 +60,60 @@ work, `docs/parity.md` the per-API status).
   page. `run` maps only a lost browser or page (`BrowserDisconnected`) and a timeout
   (`WaitTimeout`); every other rustwright failure is `Playwright` with its text, and no element
   error is made up. `close` on a sidecar whose browser is gone is `Ok`.
+
+### Added
+
+- `BaseCase::devtools_endpoint()` (and `BrowserSession::devtools_endpoint()`): the DevTools
+  endpoint of the browser a case drives, Python's `get_endpoint_url()` for the `SB(uc=True)`
+  format. A WebDriver Chromium session answers the `debuggerAddress` its driver reported (probed
+  at `/json/version` for the WebSocket address); a direct CDP attachment answers its browser's.
+  Firefox, Safari and a grid that hides the address get `Unsupported`. The Playwright bridge's
+  `PlaywrightSidecar::attach(&sb)` uses it.
+- `PlaywrightSidecar` and the sealed `PlaywrightTarget` (`sb_cdp::Page`, `BaseCase`) in the crate
+  `seleniumbase-rs-playwright`: rustwright attached beside a handle of this project, on the tab
+  that handle is on, with `attach(&target)`, `connect(&endpoint)`, `run(closure)`, `page()`,
+  `browser()`, `is_connected()` and `close()`. See the breaking entry above.
+- `LaunchOptions::fingerprint()` returns the fingerprint the options were built with, and
+  `with_fingerprint`, `with_headless`, `with_proxy`, `with_args` and `with_url` make built
+  options again with one setting changed (each returns a `Result`: the combination is checked
+  again). The options keep what they were built from, so what they were built with still wins
+  over a fingerprint: the stealth crates hold built options and call `with_fingerprint` for
+  each browser they rotate to.
+
+### Changed
+
+- `sbrs` and `sbrs-mcp` parse their command line with usage-rs 7.2 (usage-lib 7.2 for the
+  tests), up from 6.12. Nothing changes for a person: the help, the errors, the completion
+  scripts and the generated `completions/sbrs.usage.kdl`, `docs/help/cli_reference.md` and
+  `docs/completions/fig-sbrs.ts` are the same byte for byte. The package is now a dependency
+  of `crates/cli` under its own name, `usage-rs`, because the derives of usage 7 write their
+  code against `::usage_rs` and no longer read the manifest for a renamed dependency, and the
+  tables the Fig spec and the tests walk are read through `flags()`, `subcommands()`, `cmd()`
+  and the other accessors, since usage 7 hides their fields. The three checks of
+  `crates/cli/src/strict.rs` (a flag given twice to a command, a value written after a switch,
+  `help` with a path that names no command) stay: usage 7.2 still takes all three, and a
+  test fails the day it does not.
+
+## [0.8.0] - 2026-11-05
+
+### Security
+
+- `object_store` 0.14.2 (was 0.12.4) for the S3 and Azure uploads: it brings `quick-xml` 0.41,
+  which fixes RUSTSEC-2026-0194 (quadratic time on duplicate attribute names) and
+  RUSTSEC-2026-0195 (unbounded namespace allocation). `put` and `get` now come from
+  `object_store::ObjectStoreExt`.
+
+### Changed
+
+- The `bdd` feature no longer depends on `rstest-bdd-harness` or
+  `rstest-bdd-harness-tokio`. Those crates were unused. Scenarios still use
+  `rstest-bdd`.
+
+### Breaking
+
+- **Breaking: `common::unobfuscate` is part of `common::obfuscate`.** `rot13`,
+  `base64_decode` and `unobfuscate` moved into `seleniumbase_rs::common::obfuscate`.
+  The two modules imported each other. Import them from `common::obfuscate`.
 
 - **Breaking: times are `jiff`, not `chrono`.** chrono is soft-deprecated; the public items that
   carried one now carry jiff's (`jiff = "0.2"`). `core::report_helper::RunSnapshot::started_at`
@@ -121,23 +143,6 @@ work, `docs/parity.md` the per-API status).
   feature exclusion or the one-thread browser group names that binary.
 
 ### Added
-
-- `BaseCase::devtools_endpoint()` (and `BrowserSession::devtools_endpoint()`): the DevTools
-  endpoint of the browser a case drives, Python's `get_endpoint_url()` for the `SB(uc=True)`
-  format. A WebDriver Chromium session answers the `debuggerAddress` its driver reported (probed
-  at `/json/version` for the WebSocket address); a direct CDP attachment answers its browser's.
-  Firefox, Safari and a grid that hides the address get `Unsupported`. The Playwright bridge's
-  `PlaywrightSidecar::attach(&sb)` uses it.
-- `PlaywrightSidecar` and the sealed `PlaywrightTarget` (`sb_cdp::Page`, `BaseCase`) in the crate
-  `seleniumbase-rs-playwright`: rustwright attached beside a handle of this project, on the tab
-  that handle is on, with `attach(&target)`, `connect(&endpoint)`, `run(closure)`, `page()`,
-  `browser()`, `is_connected()` and `close()`. See the breaking entry above.
-- `LaunchOptions::fingerprint()` returns the fingerprint the options were built with, and
-  `with_fingerprint`, `with_headless`, `with_proxy`, `with_args` and `with_url` make built
-  options again with one setting changed (each returns a `Result`: the combination is checked
-  again). The options keep what they were built from, so what they were built with still wins
-  over a fingerprint: the stealth crates hold built options and call `with_fingerprint` for
-  each browser they rotate to.
 
 - `ProxyList` picks by a `RotationStrategy`, set with `with_rotation`: `RoundRobin` (the
   default, as `next_round_robin`), `Random { seed }` (a seed repeats the order; `None` is
