@@ -137,7 +137,8 @@ pub(crate) fn concerns_page(error: &ToolError) -> bool {
 }
 
 /// The selector a failure is about: the one the error names, or else the
-/// call's own selector argument.
+/// call's own selector argument. What an element found from another one is called
+/// (`#cart >> .row`) is no selector the page can be asked about, and is skipped.
 pub(crate) fn focus_selector(error: &ToolError, arguments: &Map<String, Value>) -> Option<String> {
     if let ToolError::Failed(
         SeleniumBaseError::ElementNotFound { selector, .. }
@@ -145,10 +146,9 @@ pub(crate) fn focus_selector(error: &ToolError, arguments: &Map<String, Value>) 
         | SeleniumBaseError::StrictModeViolation { selector, .. }
         | SeleniumBaseError::StaleElement { selector },
     ) = error
+        && is_lookup_selector(selector)
     {
-        if is_lookup_selector(selector) {
-            return Some(selector.clone());
-        }
+        return Some(selector.clone());
     }
     ["selector", "dropdown_selector", "css"]
         .iter()
