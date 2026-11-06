@@ -342,7 +342,7 @@ pub enum Ja4Section {
 ```
 
 A section of a fingerprint, named in errors and mismatches (`TlsSpec` overlays
-report `SpecError::Ja4Mismatch(Ja4Section)`). Its `Display` is `a`, `ciphers`,
+report `TlsSpecError::Ja4Mismatch(Ja4Section)`). Its `Display` is `a`, `ciphers`,
 `extensions` and `signature algorithms`.
 
 ## `Ja4Error`

@@ -482,6 +482,19 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 
 ### Changed
 
+- The pages about the stealth crates (`docs/stealth/**`, `docs/scraping/**`, the glossary, the
+  crate-root API page, `README.md`, `CLAUDE.md`) use the names of the stealth repository after
+  its naming review. The `mimic` crate is `wire` (`seleniumbase-rs-wire`, the feature and facade
+  path `wire`, the pages `stealth/api/wire*`), the codec `Emulation` is `WireMeasurement` (module
+  `measurement`, page `stealth/api/codec-measurement`; its lookups are `measurement::all`,
+  `for_kind`, `get`), `ImpersonationProfile` and `CustomProfileBuilder` are `WireFormat` and
+  `WireFormatBuilder`, the egress types are proxy types (`ProxyRoute`, `ProxyKey`,
+  `ProxySwitch`, `ProxyLocale`, `rotate_proxy`), `Mode` is `FetchKind`, `Transition` is
+  `Escalation`, `Action` is `Mitigation`, the state store family is `Ledger` and `SiteRecord`,
+  `StealthIdentity` is `Identity`, and the TLS and HTTP/2 spec errors are `TlsSpecError` and
+  `H2SpecError`. The changelog of the stealth repository has the full list. Prose that says
+  "egress" is kept, as the stealth repository keeps it.
+
 - The tool lists of the MCP servers (`cdp`, `driver`, `sb` and `dev`) are pinned with `insta`
   snapshots, `tests/offline/snapshots/offline__mcp_tool_lists__<server>.snap`, checked by the
   `mcp_tool_lists` module of the `offline` test binary. They replace the JSON files in

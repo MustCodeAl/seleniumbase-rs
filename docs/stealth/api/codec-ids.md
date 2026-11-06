@@ -13,7 +13,7 @@ in both directions. The `BORINGSSL_*` slices list the ids BoringSSL can emit; th
 `*_CIPHERS`, `REFUSED_EXTENSIONS`, `UNSUPPORTED_GROUPS` and `ML_DSA_SIGALGS`
 constants list the ids the spec refuses before a client exists. The numbers come
 from the vendored BoringSSL headers of btls-sys 0.5.6, cross-checked against
-rustls 0.23.45 and http2 0.5.20; the wire probe of the mimic crate decides what
+rustls 0.23.45 and http2 0.5.20; the wire probe of the wire crate decides what
 the wire really carries.
 
 <RequestExample>

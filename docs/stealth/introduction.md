@@ -53,7 +53,7 @@ Its default features include `codec` and `scrape`, without BoringSSL or cmake.
 It re-exports the core browser API, `sb_cdp`, `evasion` and `fingerprint`, so the
 examples need no separate core dependency. Examples using `#[tokio::main]`
 also need Tokio's runtime and macros in the application. Add the facade's
-`mimic` feature only for [TLS/HTTP2 impersonation](/scraping/stealthy/overview#which-crate-to-depend-on).
+`wire` feature only for [TLS/HTTP2 impersonation](/scraping/stealthy/overview#which-crate-to-depend-on).
 
 ```rust
 use seleniumbase_rs_stealth::{BaseCase, BrowserConfig, DriverMode, Fingerprint};

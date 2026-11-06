@@ -16,7 +16,7 @@ Everything below is importable as `seleniumbase_rs::Name` (from `src/lib.rs`).
 Items marked with a feature need that Cargo feature; the default feature set
 is empty. For stealth and scraping, the unified `seleniumbase-rs-stealth`
 facade re-exports this core API alongside `fingerprint`, `codec`, `scrape` and
-optional `mimic`. Use `seleniumbase_rs_stealth` paths with the
+optional `wire`. Use `seleniumbase_rs_stealth` paths with the
 [single dependency](/scraping/stealthy/overview#which-crate-to-depend-on). Optional core
 APIs retain their feature gates.
 

@@ -49,7 +49,7 @@ experimental stealth layer (wire formats, `BrowserScraper`, `HttpSession`,
 `MitmProxy`, `StealthSession`; formerly the features `scrape` and `impersonate`)
 moved out in 0.3.0 to the workspace
 [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
-(crates `seleniumbase-rs-codec`, `-scrape`, `-mimic`), which uses only the
+(crates `seleniumbase-rs-codec`, `-scrape`, `-wire`), which uses only the
 public API of this crate: keep items it imports public (`evasion::randomize`,
 `sb_cdp`).
 

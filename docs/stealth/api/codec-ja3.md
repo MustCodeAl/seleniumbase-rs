@@ -1,7 +1,7 @@
 ---
 title: "codec::ja3"
 sidebarTitle: "JA3 and peetprint"
-description: "JA3 and the peetprint in seleniumbase-rs-codec: Ja3, Ja3Field, Ja3Error, Peetprint, Slot, PeetField, PeetprintError, and the hex and MD5 helpers."
+description: "JA3 and the peetprint in seleniumbase-rs-codec: Ja3, Ja3Field, Ja3Error, Peetprint, Slot, PeetprintField, PeetprintError, and the hex and MD5 helpers."
 ---
 
 <Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: codec</Badge>
@@ -360,13 +360,13 @@ pub fn ids(values: &[Slot]) -> Vec<u16>
 In `ja3::peetprint`: the GREASE-collapsed slots of a list of wire ids, and the
 concrete ids of a slot list with GREASE dropped.
 
-## `PeetField`
+## `PeetprintField`
 
 <Badge color="purple" shape="pill">enum</Badge>
 
 ```rust
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum PeetField {
+pub enum PeetprintField {
     Versions,
     Alpn,
     Groups,
@@ -390,7 +390,7 @@ One of the eight fields of a peetprint, named in errors. Its `Display` is
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum PeetprintError {
     FieldCount(usize),
-    Token { field: PeetField, token: String },
+    Token { field: PeetprintField, token: String },
     TooLong,
 }
 ```

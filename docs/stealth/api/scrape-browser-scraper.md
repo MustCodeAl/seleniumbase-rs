@@ -19,8 +19,8 @@ use seleniumbase_rs_stealth::tokio;
 #[tokio::main]
 async fn main() -> Result<(), ScrapeError> {
     let mut scraper = BrowserScraper::builder()
-        .with_geo_proxies([("http://user:pass@de.proxy.example:8080", CountryCode::new("DE")?)])?
-        .with_max_challenge_attempts(4)
+        .geo_proxies([("http://user:pass@de.proxy.example:8080", CountryCode::new("DE")?)])?
+        .max_challenge_attempts(4)
         .build()
         .await?;
     let page = scraper.fetch("https://example.com/").await?;
@@ -58,7 +58,7 @@ pub struct BrowserFetch {
     pub detection: Detection,
     pub attempts: u32,
     pub solved: Option<ChallengeKind>,
-    pub egress: Option<EgressKey>,
+    pub egress: Option<ProxyKey>,
 }
 ```
 
@@ -84,15 +84,15 @@ pub fn page(&self) -> &Page
 pub fn browser(&self) -> &Browser
 pub fn fingerprint(&self) -> &Fingerprint
 pub fn seed(&self) -> u64
-pub fn egress(&self) -> Option<&EgressKey>
+pub fn egress(&self) -> Option<&ProxyKey>
 pub fn sessions(&self) -> &SessionStore
 pub async fn close(self) -> Result<(), ScrapeError>
 pub async fn fetch(&mut self, url: &str) -> Result<BrowserFetch, ScrapeError>
 pub async fn solve_challenge(&mut self) -> Result<Detection, ScrapeError>
-pub async fn rotate_egress(&mut self) -> Result<(), ScrapeError>
-pub async fn rotate_profile(&mut self) -> Result<(), ScrapeError>
-pub async fn export_identity(&self) -> Result<StealthIdentity, ScrapeError>
-pub async fn import_identity(&mut self, identity: &StealthIdentity) -> Result<(), ScrapeError>
+pub async fn rotate_proxy(&mut self) -> Result<(), ScrapeError>
+pub async fn rotate_fingerprint(&mut self) -> Result<(), ScrapeError>
+pub async fn export_identity(&self) -> Result<Identity, ScrapeError>
+pub async fn import_identity(&mut self, identity: &Identity) -> Result<(), ScrapeError>
 pub async fn save_session(&self, name: impl Into<String>) -> Result<(), ScrapeError>
 pub async fn load_session(&self, name: &str) -> Result<bool, ScrapeError>
 ```
@@ -108,8 +108,8 @@ pub async fn load_session(&self, name: &str) -> Result<bool, ScrapeError>
 - `close`: Closes the browser. A scraper that is dropped instead leaves the browser to its own drop.
 - `fetch`: Fetches `url` through the browser, solving challenges on the way.
 - `solve_challenge`: Reads the page now open, solves the challenge on it if there is one, and waits for the browser to show the clearance. Returns what the page is afterwards.
-- `rotate_egress`: Leaves through another egress of the pool.
-- `rotate_profile`: Presents a new browser profile.
+- `rotate_proxy`: Leaves through another egress of the pool.
+- `rotate_fingerprint`: Presents a new browser profile.
 - `export_identity`: Takes the identity out of the scraper: the fingerprint, the cookies the browser holds, the clearances among them, and the egress they were earned through.
 - `import_identity`: Puts an identity into the scraper: the browser is started again with its fingerprint when it differs from the one in use, and its cookies are set.
 - `save_session`: Saves the cookies of the browser context and the local storage of the page's origin in the scraper's `SessionStore` as `name`, the way a pool lease saves its login.
@@ -133,20 +133,20 @@ Configures a [`BrowserScraper`]; see [`BrowserScraper::builder`].
 
 ```rust
 pub fn launch_options(mut self, launch: LaunchOptionsBuilder) -> Self
-pub fn with_geo_proxies<I, S>(mut self, proxies: I) -> Result<Self, ScrapeError>
+pub fn geo_proxies<I, S>(mut self, proxies: I) -> Result<Self, ScrapeError>
     where
         I: IntoIterator<Item = (S, CountryCode)>,
         S: AsRef<str>,
 pub fn proxy_strategy(mut self, strategy: RotationStrategy) -> Self
-pub fn with_max_challenge_attempts(mut self, attempts: u32) -> Self
+pub fn max_challenge_attempts(mut self, attempts: u32) -> Self
 pub fn mitigation(mut self, policy: MitigationPolicy) -> Self
-pub fn with_state_store(mut self, store: Arc<dyn StateStore>) -> Self
-pub fn with_event_sink(mut self, sink: Arc<dyn EventSink>) -> Self
+pub fn ledger(mut self, store: Arc<dyn Ledger>) -> Self
+pub fn event_sink(mut self, sink: Arc<dyn EventSink>) -> Self
 pub fn geo_resolver(mut self, geo: Arc<dyn GeoResolver>) -> Self
-pub fn per_site_rate(mut self, calls: usize, window: Duration) -> Self
+pub fn rate_limit(mut self, calls: usize, window: Duration) -> Self
 pub fn seed(mut self, seed: u64) -> Self
 pub fn fingerprint(mut self, fingerprint: Fingerprint) -> Self
-pub fn egress_switch(mut self, switch: Box<dyn EgressSwitch>) -> Self
+pub fn proxy_switch(mut self, switch: Box<dyn ProxySwitch>) -> Self
 pub fn launcher(mut self, launcher: Arc<dyn BrowserLauncher>) -> Self
 pub fn session_store(mut self, sessions: SessionStore) -> Self
 pub fn solve_timeout(mut self, timeout: Duration) -> Self
@@ -156,17 +156,17 @@ pub async fn build(self) -> Result<BrowserScraper, ScrapeError>
 
 
 - `launch_options`: The launch options of the browser, a built `LaunchOptions`. The scraper adds its fingerprint to a copy of them (`LaunchOptions::with_fingerprint`), so a setting made here (a user agent, say) wins over the fingerprint's.
-- `with_geo_proxies`: Adds proxies, each with the country it exits in. The country decides the language and the time zone the browser presents while it leaves through that proxy.
+- `geo_proxies`: Adds proxies, each with the country it exits in. The country decides the language and the time zone the browser presents while it leaves through that proxy.
 - `proxy_strategy`: How the pool picks an egress when one is needed: at the start and at each rotation.
-- `with_max_challenge_attempts`: How many loads of one URL a fetch may make before it gives up. Zero is read as one.
-- `mitigation`: The whole mitigation policy: when to rotate, how long to cool down. The attempts set by `with_max_challenge_attempts` still apply on top.
-- `with_state_store`: Where what is learned about each site is kept between fetches.
-- `with_event_sink`: Where the scraper reports what it does.
+- `max_challenge_attempts`: How many loads of one URL a fetch may make before it gives up. Zero is read as one.
+- `mitigation`: The whole mitigation policy: when to rotate, how long to cool down. The attempts set by `max_challenge_attempts` still apply on top.
+- `ledger`: Where what is learned about each site is kept between fetches.
+- `event_sink`: Where the scraper reports what it does.
 - `geo_resolver`: How the country, time zone and language of an egress are found.
-- `per_site_rate`: At most `calls` fetches of one site in `window`. The limit is per site, not global.
+- `rate_limit`: At most `calls` fetches of one site in `window`. The limit is per site, not global.
 - `seed`: The seed of the first profile. The same seed gives the same profile, and each rotation derives the next seed from the last, so a run can be repeated.
 - `fingerprint`: The first profile itself, instead of one drawn from the seed. A rotation replaces it with a generated profile of the same operating system.
-- `egress_switch`: How the egress is changed. The default opens a browser context behind the new proxy.
+- `proxy_switch`: How the egress is changed. The default opens a browser context behind the new proxy.
 - `launcher`: How a browser is started. The default starts Chrome.
 - `session_store`: The store `save_session` writes to, to share logins with other scrapers or a `BrowserPool`.
 - `solve_timeout`: How long a solved challenge is waited for. The default is [`DEFAULT_SOLVE_TIMEOUT`].

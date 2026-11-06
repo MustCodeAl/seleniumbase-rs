@@ -117,7 +117,7 @@ State these plainly to yourself before you build on any of this.
 
 **Likely cause.** `cmake` or a C/C++ toolchain is missing.
 
-**Fix.** Install them, or drop the `mimic` crate.
+**Fix.** Install them, or drop the `wire` crate.
 
 </Accordion>
 
@@ -141,7 +141,7 @@ State these plainly to yourself before you build on any of this.
 
 **Likely cause.** A challenge was still there after the attempts allowed.
 
-**Fix.** Raise `with_max_challenge_attempts`, add egresses, or accept that this page needs a person.
+**Fix.** Raise `max_challenge_attempts`, add egresses, or accept that this page needs a person.
 
 </Accordion>
 
@@ -149,7 +149,7 @@ State these plainly to yourself before you build on any of this.
 
 **Likely cause.** A rotation was asked for and the pool has nothing else in rotation.
 
-**Fix.** Add proxies with `with_geo_proxies`.
+**Fix.** Add proxies with `geo_proxies`.
 
 </Accordion>
 
@@ -185,7 +185,7 @@ State these plainly to yourself before you build on any of this.
 
 </Accordion>
 
-<Accordion title="`HttpError::Identity(EgressMismatch)`" icon="fingerprint">
+<Accordion title="`HttpError::Identity(ProxyMismatch)`" icon="fingerprint">
 
 **Likely cause.** The identity or the page belongs to another egress than the one passed.
 
@@ -206,14 +206,14 @@ State these plainly to yourself before you build on any of this.
 ---
 
 Verified against commit `4184e74` and the re-exports added after it, by reading
-`crates/codec/src/**`, `crates/scrape/src/**`, `crates/mimic/src/**`, `crates/scrape/examples/capture_*.rs`, `crates/mimic/examples/capture_h2.rs`,
+`crates/codec/src/**`, `crates/scrape/src/**`, `crates/wire/src/**`, `crates/scrape/examples/capture_*.rs`, `crates/wire/examples/capture_h2.rs`,
 `crates/codec/src/measured/chrome-155-macos.json` and the tests that pin the behaviour
 described here. The code samples were checked against the signatures in those
 files; they were not compiled or run for this check. The real-Chrome tests named
 here are `#[ignore]`d and were not run for this check.
 
 A later read of `seleniumbase-rs-stealth` at `0eb20629` (`src/lib.rs`,
-`crates/scrape/src/lib.rs`, `crates/mimic/src/lib.rs`, `crates/scrape/src/error.rs`)
+`crates/scrape/src/lib.rs`, `crates/wire/src/lib.rs`, `crates/scrape/src/error.rs`)
 confirmed the same refusals and added `ScrapeError::Fingerprint`, which a locale
 move or a rotation returns when the core refuses to build the next fingerprint.
 The handshake gaps, the measured browser and the "not checked against a live
