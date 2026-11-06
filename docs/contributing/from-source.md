@@ -319,6 +319,7 @@ both, so a plain `cargo build` or `cargo test` at the root covers both.
 <LayoutDir name="resources" note="files the crate manages on disk, such as downloaded browser drivers" />
 <LayoutDir name="js_code" note="building blocks for the JavaScript the crate sends to a page" />
 <LayoutFile name="artifacts.rs" note="where the files of a test run go (latest_logs) and how they are named" />
+<LayoutFile name="cookie.rs" note="Cookie and SameSite, the one cookie type of both engines" />
 <LayoutFile name="drivers.rs" note="the WebDriver types behind BaseCase, under this crate's name" />
 <LayoutFile name="json.rs" note="JSON values and json!, under this crate's name" />
 <LayoutFile name="macros.rs" note="convenience macros for tests, such as sb_test!" />

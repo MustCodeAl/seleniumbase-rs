@@ -371,7 +371,8 @@ needs no second crate.
 | Gherkin steps and scenarios (feature `bdd`) | `use seleniumbase_rs::testing::bdd::{given, when, then, scenario, scenarios, skip};` and `use seleniumbase_rs::testing::rstest;` | `rstest-bdd-macros = "0.6"`, `rstest = "0.26"` |
 | An element on the WebDriver engine | `use seleniumbase_rs::Element;` (a selector is a plain string; `Key` and `SelectBy` are at the crate root too) | `thirtyfour` |
 | The raw `thirtyfour` element behind an `Element` | `use seleniumbase_rs::drivers::WebElement;` | `thirtyfour` |
-| Capabilities, keys, cookies, network conditions of the WebDriver engine | `use seleniumbase_rs::drivers::{DesiredCapabilities, Key, Cookie, NetworkConditions, ...};` | `thirtyfour` |
+| A browser cookie, from either engine | `use seleniumbase_rs::{Cookie, SameSite};` | `thirtyfour` |
+| Capabilities, keys, network conditions of the WebDriver engine | `use seleniumbase_rs::drivers::{DesiredCapabilities, Key, NetworkConditions, ...};` | `thirtyfour` |
 | A JSON value or the `json!` macro | `use seleniumbase_rs::json::{json, Value};` | `serde_json = "1"` |
 | `#[async_trait]` for a `TestPlugin` or `PageEvidence` | `use seleniumbase_rs::plugins::observer::async_trait;` | `async-trait = "0.1"` |
 

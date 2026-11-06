@@ -44,7 +44,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `activate_messenger` | implemented | `BaseCase::activate_messenger` |  |
 | `activate_recorder` | implemented | `BaseCase::activate_recorder` |  |
 | `ad_block` | implemented | `BaseCase::ad_block` |  |
-| `add_cookie` | implemented | `BaseCase::add_cookie` | Takes the W3C cookie object that get_cookies returns (a serde_json::Value), and refuses one without a string name and value. The keyword expiry is the builder method .expiry(..), a bool as in Python or a CookieExpiry. |
+| `add_cookie` | implemented | `BaseCase::add_cookie` | Takes a Cookie, such as one that get_cookies returned (a W3C cookie object, as Python takes it, reads as one with serde_json::from_value). The keyword expiry is the builder method .expiry(..), a bool as in Python or a CookieExpiry. |
 | `add_cookies` | implemented | `BaseCase::add_cookies` |  |
 | `add_css_link` | implemented | `BaseCase::add_css_link` |  |
 | `add_css_style` | implemented | `BaseCase::add_css_style` |  |
@@ -205,9 +205,9 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `get_chromedriver_version` | implemented | `BaseCase::get_chromedriver_version` |  |
 | `get_chromium_driver_version` | implemented | `BaseCase::get_chromium_driver_version` |  |
 | `get_chromium_version` | implemented | `BaseCase::get_chromium_version` |  |
-| `get_cookie` | implemented | `BaseCase::get_cookie` |  |
+| `get_cookie` | implemented | `BaseCase::get_cookie` | Returns Option&lt;Cookie&gt;: None when the page has no such cookie, as Python's None. |
 | `get_cookie_string` | implemented | `BaseCase::get_cookie_string` |  |
-| `get_cookies` | implemented | `BaseCase::get_cookies` | Differs: Returns a serde_json::Value. |
+| `get_cookies` | implemented | `BaseCase::get_cookies` | Returns Vec&lt;Cookie&gt; (the cookies of the current page), the same type in DevTools and plain WebDriver mode. |
 | `get_current_url` | implemented | `BaseCase::get_current_url` |  |
 | `get_data_from_downloaded_file` | implemented | `BaseCase::get_data_from_downloaded_file` |  |
 | `get_domain_url` | implemented | `BaseCase::get_domain_url` | A pure function of its argument, as in Python: a string that is not an http(s) URL comes back as it is. The scheme's own default port is dropped. |
@@ -514,7 +514,7 @@ Methods of Python's `Driver()`.
 | `forward` | composed | `BaseCase::go_forward` | Named go_forward, like the BaseCase method. |
 | `get_active_element_css` | implemented | `BaseCase::get_active_element_css` |  |
 | `get_attribute` | implemented | `BaseCase::get_attribute` |  |
-| `get_cookie` | implemented | `BaseCase::get_cookie` |  |
+| `get_cookie` | implemented | `BaseCase::get_cookie` | Returns Option&lt;Cookie&gt;: None when the page has no such cookie, as Python's None. |
 | `get_cookie_string` | implemented | `BaseCase::get_cookie_string` |  |
 | `get_current_url` | implemented | `BaseCase::get_current_url` |  |
 | `get_locale_code` | implemented | `BaseCase::get_locale_code` |  |

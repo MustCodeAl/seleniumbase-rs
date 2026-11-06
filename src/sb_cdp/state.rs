@@ -2,7 +2,6 @@
 //! environment emulation.
 
 use std::collections::BTreeMap;
-
 use std::path::Path;
 
 use regex::Regex;

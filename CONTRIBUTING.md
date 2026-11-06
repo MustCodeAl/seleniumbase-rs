@@ -161,6 +161,7 @@ seleniumbase-rs/               # the workspace root
 │   ├── resources/             # files the crate manages on disk, such as downloaded browser drivers
 │   ├── js_code/               # building blocks for the JavaScript the crate sends to a page
 │   ├── artifacts.rs           # where the files of a test run go (latest_logs) and how they are named
+│   ├── cookie.rs              # Cookie and SameSite, the one cookie type of both engines
 │   ├── drivers.rs             # the WebDriver types behind BaseCase, under this crate's name
 │   ├── json.rs                # JSON values and json!, under this crate's name
 │   ├── macros.rs              # convenience macros for tests, such as sb_test!

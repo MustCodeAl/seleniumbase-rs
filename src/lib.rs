@@ -51,7 +51,6 @@ pub mod cli;
 pub mod common;
 pub mod config;
 mod cookie;
-
 pub mod core;
 pub mod drivers;
 pub mod error;
@@ -202,7 +201,6 @@ pub use common::tls::install_tls_provider;
 pub use config::settings::{Settings, SettingsOverrides};
 pub use config::{LogFormat, RuntimeConfig};
 pub use cookie::{Cookie, SameSite};
-
 pub use error::{Result, ResultExt, SeleniumBaseError};
 pub use evasion::capture::CapturedFingerprint;
 pub use evasion::fingerprint::{

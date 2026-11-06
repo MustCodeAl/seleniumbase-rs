@@ -5,7 +5,6 @@
 mod tests_cookie_calls {
     use crate::browser::config::DriverMode;
     use crate::cookie::SameSite;
-
     use super::webdriver_support::{MockWebDriver, Reply};
     use super::*;
     use serde_json::json;
