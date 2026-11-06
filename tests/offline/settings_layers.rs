@@ -9,6 +9,7 @@ use seleniumbase_rs::config::settings::Settings;
 
 mod default_values;
 mod redaction;
+mod trim;
 
 /// A settings file `name` with the text `content` in the folder `dir`.
 fn file_with(dir: &Path, name: &str, content: &str) -> PathBuf {

@@ -156,7 +156,11 @@ impl SettingsFile {
                 message = rest.to_owned();
             }
             // The value may be a secret: the message does not repeat it.
-            if let Some(value) = texts.get(variable).filter(|value| !value.is_empty()) {
+            if let Some(value) = texts
+                .get(variable)
+                .map(|value| value.trim())
+                .filter(|value| !value.is_empty())
+            {
                 message = without_value(&message, value);
             }
             refuse(row_of(variable), key, &message);

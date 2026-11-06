@@ -593,7 +593,7 @@ fn process_variable(name: &str) -> Option<String> {
 type Lookup<'a> = Box<dyn Fn(&str) -> Option<String> + 'a>;
 
 /// The `SB_*` variables of one source, and the one rule they are read by: a value that is empty
-/// or blank is not set (`SB_PLUGINS` is the exception, where an empty value is an answer).
+/// or blank is not set, and any other is trimmed (`SB_PLUGINS` keeps an empty value as an answer).
 ///
 /// The source is the process environment ([`process`](Self::process)), the variables a program
 /// hands to [`Settings::check_with`](crate::config::settings::Settings::check_with), or the
@@ -687,13 +687,12 @@ impl<'a> EnvVars<'a> {
 
     /// Reads every variable of the option table, and `SB_PLUGINS`.
     pub(crate) fn read(&self) -> Read {
-        let given = |name: &str| (self.lookup)(name).filter(|value| !value.trim().is_empty());
         let Variables {
             mut dict,
             inputs,
             problems,
             settings_file,
-        } = read_variables(&given);
+        } = read_variables(&*self.lookup);
         // The variable names the plugins; the options of the file stay for the ones it names.
         let plugins_named = match (self.lookup)(PLUGINS_ENV) {
             Some(list) => {

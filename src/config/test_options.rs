@@ -497,10 +497,13 @@ macro_rules! option_table {
     };
 }
 
-/// Reads every option whose variable `var` reports, the variables of one source, into the
+/// Reads every option whose variable `raw` reports, the variables of one source, into the
 /// settings they write (`Variables::dict`); a value that does not parse goes to
 /// `Variables::problems`, in table order. The providers `EnvVars` and `SettingsFile` call it.
 /// A row writes the field its path names; a derived row has a reader of its own (`config::text`).
+/// Every reader gets the text trimmed, and a variable that is blank is not given: the one rule
+/// of every source, so that a padded `SB_HEADLESS= true ` is read as `true`.
+
 ///
 /// Two settings have two spellings: the window size (`SB_WINDOW_SIZE`, or `SB_WINDOW_WIDTH`
 /// and `SB_WINDOW_HEIGHT`) and the language (`SB_LOCALE`, `SB_LOCALE_CODE`). The source that
@@ -508,7 +511,15 @@ macro_rules! option_table {
 /// spelling, and within the source the window size and the locale code win, as they always
 /// did. A file's `window_size` therefore no longer beats `SB_WINDOW_WIDTH` and
 /// `SB_WINDOW_HEIGHT` of the environment.
-pub(crate) fn read_variables(var: &dyn Fn(&str) -> Option<String>) -> Variables {
+pub(crate) fn read_variables(raw: &dyn Fn(&str) -> Option<String>) -> Variables {
+    // One rule for every source and every reader: a value is trimmed, and a blank one is unset.
+    let trimmed = |name: &str| {
+        raw(name)
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty())
+    };
+    let var: &dyn Fn(&str) -> Option<String> = &trimmed;
+
     // The rows run in table order on a scratch `Settings`, so that what one row reads can
     // depend on the rows before it in the same source (a refused value is found here).
     let mut scratch = Settings::default();
