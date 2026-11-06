@@ -1341,6 +1341,26 @@ mod driven_tests {
     }
 
     #[tokio::test]
+    async fn the_text_of_an_input_or_a_textarea_is_its_value() {
+        // Python's `sb.cdp.get_text` gives a field's value (`text_all`), so the
+        // script reads `value` for an input or a textarea.
+        let (_driver, session) = driven(|_, params| {
+            let expression = params["expression"].as_str().unwrap_or_default();
+            if expression.contains("el.value") && expression.contains("'TEXTAREA'") {
+                returned(json!("Ada Lovelace"))
+            } else {
+                returned(json!(""))
+            }
+        })
+        .await;
+
+        assert_eq!(
+            CdpPage::new(&session).get_text("#name").await.unwrap(),
+            "Ada Lovelace"
+        );
+    }
+
+    #[tokio::test]
     async fn evaluate_gives_the_value_and_drops_a_final_return() {
         let (driver, session) = driven(|_, _| returned(json!(2))).await;
 
