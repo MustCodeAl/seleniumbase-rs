@@ -85,6 +85,32 @@ async fn get_text_of_an_input_and_a_textarea_is_what_they_hold() -> Result<()> {
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
 #[serial_test::serial(chrome)]
+async fn the_text_checks_read_the_value_of_a_field() -> Result<()> {
+    let url = serve();
+    run_browser_test(headless(), async |sb| {
+        sb.open(&url).await?;
+        sb.set_timeout(3).await?;
+        sb.type_text("#name", "Grace Hopper").await?;
+        sb.type_text("#notes", "Typed note").await?;
+
+        // The driver renders nothing for an `input`, so only its value shows the text
+        // that Python's `find_text` and `find_non_empty_text` look for.
+        sb.find_text("Grace", "#name").await?;
+        sb.find_exact_text("Grace Hopper", "#name").await?;
+        sb.find_non_empty_text("#name").await?;
+        sb.find_text("Typed", "#notes").await?;
+        assert!(sb.is_non_empty_text_visible("#name").await?);
+        sb.assert_non_empty_text("#name").await?;
+        sb.wait_for_non_empty_text("#name", 1).await?;
+        sb.find_exact_text("Grace", "#name").await.unwrap_err();
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+#[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_role_or_text_selector_from_an_element_finds_only_what_is_inside_it() -> Result<()> {
     let url = serve();
     run_browser_test(headless(), async |sb| {
