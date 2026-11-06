@@ -503,7 +503,6 @@ macro_rules! option_table {
 /// A row writes the field its path names; a derived row has a reader of its own (`config::text`).
 /// Every reader gets the text trimmed, and a variable that is blank is not given: the one rule
 /// of every source, so that a padded `SB_HEADLESS= true ` is read as `true`.
-
 ///
 /// Two settings have two spellings: the window size (`SB_WINDOW_SIZE`, or `SB_WINDOW_WIDTH`
 /// and `SB_WINDOW_HEIGHT`) and the language (`SB_LOCALE`, `SB_LOCALE_CODE`). The source that
