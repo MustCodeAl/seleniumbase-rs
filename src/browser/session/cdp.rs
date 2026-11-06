@@ -180,14 +180,18 @@ impl BrowserSession {
     ///
     /// # Errors
     ///
-    /// Returns the browser's or the driver's error if the cookies cannot be read.
+    /// Returns [`SeleniumBaseError::Unsupported`] if DevTools refuses the command,
+    /// [`SeleniumBaseError::WebDriver`] if the driver refuses to list the cookies, and
+    /// [`SeleniumBaseError::CdpDriver`] if DevTools answers without a list of cookies.
     pub async fn get_cookies(&self) -> Result<Vec<Cookie>, SeleniumBaseError> {
         if let Ok(cdp) = self.cdp_client() {
             let response = cdp.get_cookies().await?;
-            return Ok(response["cookies"]
-                .as_array()
-                .map(|cookies| cookies.iter().map(Cookie::from_protocol).collect())
-                .unwrap_or_default());
+            let cookies = response["cookies"].as_array().ok_or_else(|| {
+                SeleniumBaseError::CdpDriver(
+                    "Network.getCookies answered no list of cookies".to_owned(),
+                )
+            })?;
+            return Ok(cookies.iter().map(Cookie::from_protocol).collect());
         }
         let cookies = self
             .webdriver()?
