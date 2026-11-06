@@ -23,7 +23,7 @@ use crate::browser::session::shown_text;
 use crate::browser::shadow_find;
 use crate::error::SeleniumBaseError;
 use crate::sb_cdp::{Key, Rect, SelectBy};
-use crate::utils::selectors::{SelectorBuf, CHAIN_SEPARATOR};
+use crate::utils::selectors::{xpath_root_branch, SelectorBuf, CHAIN_SEPARATOR};
 
 /// The page script of [`Element::attribute`]: the attribute `arguments[1]` of
 /// the element `arguments[0]`, as the markup has it, or `null`.
@@ -542,17 +542,6 @@ impl Element {
     }
 }
 
-/// Whether `xpath` starts at the root of the document (`//td`, `/html/body`,
-/// `(//td)[1]`).
-///
-/// The WebDriver evaluates such a path from the root whatever element the
-/// search starts from, so inside an element it would match the whole page.
-fn starts_at_the_root(xpath: &str) -> bool {
-    xpath
-        .trim_start_matches(|c: char| c == '(' || c.is_whitespace())
-        .starts_with('/')
-}
-
 /// Finding other elements from this one.
 ///
 /// Each looks once, since the element is already found: a search that finds
@@ -574,13 +563,16 @@ impl Element {
     /// with a hint, not left to the driver.
     fn lookup(selector: &SelectorBuf) -> Result<By, SeleniumBaseError> {
         let by = shadow_find::by_of(selector)?;
-        if matches!(selector, SelectorBuf::XPath(xpath) if starts_at_the_root(xpath)) {
-            return Err(SeleniumBaseError::InvalidSelector(format!(
-                "'{selector}' starts at the root of the page, so it matches the whole page \
-                 from inside an element too: write it from the element (`.//td`) to search \
-                 inside this one, or look it up from the page with `BaseCase::find_element`"
-            )));
-        }
+        if let SelectorBuf::XPath(xpath) = selector
+                    && let Some(branch) = xpath_root_branch(xpath)
+                {
+                    return Err(SeleniumBaseError::InvalidSelector(format!(
+                        "'{selector}' has a branch that starts at the root of the page, '{branch}', so \
+                         it matches the whole page from inside an element too: write it from the \
+                         element (`.//td`) to search inside this one, or look it up from the page with \
+                         `BaseCase::find_element`"
+                    )));
+                }
 
         if shadow_find::pieces(&by)?.is_some() {
             return Err(SeleniumBaseError::InvalidSelector(format!(
@@ -602,9 +594,10 @@ impl Element {
     /// The search stays inside this element. The WebDriver evaluates an XPath
     /// that starts at the root of the page (`//td`, `/html/body`, `(//td)[1]`)
     /// from the root whatever element it is asked from, so that would match
-    /// the whole page: it is refused. Write it from the element, `.//td`,
-    /// for the descendants. A `p:contains('x')` selector is read as
-    /// `.//p[...]`, which stays inside.
+    /// the whole page: it is refused, and so is a union with such a branch
+    /// (`.//a | //b`) or a call of `id()`, which also searches the whole document.
+    /// Write it from the element, `.//td`, for the descendants. A `p:contains('x')`
+    /// selector is read as `.//p[...]`, which stays inside.
     ///
     /// An `<iframe>` element holds its frame, not the frame's document, so
     /// this finds nothing in the frame, unlike

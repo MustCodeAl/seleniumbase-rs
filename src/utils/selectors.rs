@@ -1001,6 +1001,150 @@ pub fn xpath_to_css(xpath: &str) -> Result<String, SeleniumBaseError> {
         .ok_or_else(|| SeleniumBaseError::InvalidSelector(format!("unsupported xpath: {xpath}")))
 }
 
+/// The branches of the XPath `xpath`: the pieces a `|` of the whole expression
+/// joins, so `.//a | //b` is `.//a ` and ` //b`.
+///
+/// A `|` inside a string literal (`'x | y'`), a predicate (`a[b | c]`) or a
+/// group (`(a | b)`) joins nothing of the expression itself and cuts nothing.
+/// The pieces are not trimmed. An expression without such a `|` is one piece.
+pub(crate) fn xpath_union_branches(xpath: &str) -> Vec<&str> {
+    let mut branches = Vec::new();
+    let mut depth = 0_usize;
+    let mut quote = None;
+    let mut start = 0;
+    for (at, c) in xpath.char_indices() {
+        match (quote, c) {
+            (Some(open), _) if c == open => quote = None,
+            (Some(_), _) => {}
+            (None, '\'' | '"') => quote = Some(c),
+            (None, '[' | '(') => depth += 1,
+            (None, ']' | ')') => depth = depth.saturating_sub(1),
+            (None, '|') if depth == 0 => {
+                branches.push(&xpath[start..at]);
+                start = at + '|'.len_utf8();
+            }
+            (None, _) => {}
+        }
+    }
+    branches.push(&xpath[start..]);
+    branches
+}
+
+/// The first branch of the XPath `xpath` (trimmed) that starts at the root of
+/// the document, or `None` if every branch starts at the context node.
+///
+/// A branch starts at the root when it begins with `/` (`//td`, `/html/body`),
+/// with a call of `id()`, which selects from the whole document, or with a
+/// group that holds such a branch (`(//td)[1]`, `(.//a | //b)`). A search from an
+/// element evaluates these from the root of the page whatever element it starts
+/// from, so they match outside it. A `//` or a `|` inside a predicate or a
+/// string does not count: `.//a[//b]` and `.//a[@title='x | //y']` start at the
+/// context node.
+pub(crate) fn xpath_root_branch(xpath: &str) -> Option<&str> {
+    xpath_union_branches(xpath)
+        .into_iter()
+        .map(str::trim)
+        .find(|branch| branch_starts_at_the_root(branch))
+}
+
+/// Whether `branch`, trimmed, starts at the root of the document (see
+/// [`xpath_root_branch`]).
+fn branch_starts_at_the_root(branch: &str) -> bool {
+    if let Some(group) = branch.strip_prefix('(') {
+        return xpath_root_branch(group).is_some();
+    }
+    branch.starts_with('/')
+        || branch
+            .strip_prefix("id")
+            .is_some_and(|call| call.trim_start().starts_with('('))
+}
+
+#[cfg(test)]
+mod tests_xpath_branches {
+    use super::*;
+
+    #[test]
+    fn a_union_is_cut_at_the_pipes_outside_strings_predicates_and_groups() {
+        assert_eq!(xpath_union_branches(".//a | //b"), [".//a ", " //b"]);
+        assert_eq!(
+            xpath_union_branches("./a|/html/body"),
+            ["./a", "/html/body"]
+        );
+        assert_eq!(xpath_union_branches(".//a | .//b | .//c").len(), 3);
+        assert_eq!(xpath_union_branches(".//a"), [".//a"]);
+        assert_eq!(xpath_union_branches(""), [""]);
+        assert_eq!(xpath_union_branches("a |"), ["a ", ""]);
+        // A `|` in a string, a predicate or a group is no branch of the whole.
+        for xpath in [
+            ".//a[@title='x | //y']",
+            ".//a[@title=\"x | //y\"]",
+            ".//a[@x=\"it's | //y\"]",
+            ".//a[b | c]",
+            ".//a[b[c | d]]",
+            "(.//a | .//b)[1]",
+            "((.//a | .//b) | .//c)",
+            "count(.//a | .//b)",
+        ] {
+            assert_eq!(xpath_union_branches(xpath), [xpath], "{xpath}");
+        }
+        // Quotes of the other kind inside a string do not end it, and text that is not
+        // ASCII does not upset the cut.
+        assert_eq!(
+            xpath_union_branches(".//a[@x=\"it's\"] | .//b[@y='say \"hi\"']"),
+            [".//a[@x=\"it's\"] ", " .//b[@y='say \"hi\"']"]
+        );
+        assert_eq!(
+            xpath_union_branches(".//a[.='日本語'] | .//b"),
+            [".//a[.='日本語'] ", " .//b"]
+        );
+    }
+
+    #[test]
+    fn the_root_branch_is_the_first_that_starts_with_a_slash_or_a_call_of_id() {
+        for (xpath, branch) in [
+            ("//td", "//td"),
+            ("  /html/body ", "/html/body"),
+            (".//a | //b", "//b"),
+            ("./a|/html/body", "/html/body"),
+            ("//a | //b", "//a"),
+            ("(//td)[1]", "(//td)[1]"),
+            ("( ( //td))", "( ( //td))"),
+            ("(.//a | //b)", "(.//a | //b)"),
+            ("((.//a) | ( //b))", "((.//a) | ( //b))"),
+            ("id('x')//a", "id('x')//a"),
+            ("id ( 'x' )", "id ( 'x' )"),
+            (".//a | id(\"x\")", "id(\"x\")"),
+            (".//a[@x='|'] | //b", "//b"),
+        ] {
+            assert_eq!(xpath_root_branch(xpath), Some(branch), "{xpath}");
+        }
+        for xpath in [
+            "",
+            ".//td",
+            "./td",
+            "(.//td)[1]",
+            ".//a | .//b",
+            "./a|./b",
+            "(.//a | (.//b))",
+            ".//a[@title='x | //y']",
+            ".//a[@title=\"x | //y\"]",
+            ".//a[.//b]",
+            ".//a[//b]",
+            ".//a[@href='/x']",
+            "parent::div",
+            "..",
+            "self::a[id('x')]",
+            // A name that begins with `id` is not a call of `id()`.
+            "id/a",
+            "idx/a",
+            "identity",
+        ] {
+            assert_eq!(xpath_root_branch(xpath), None, "{xpath}");
+        }
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
