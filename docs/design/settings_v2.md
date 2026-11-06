@@ -894,7 +894,8 @@ One commit each; each runs the gate of `CLAUDE.md` (fmt, clippy with `-D warning
    class. The settings file reads the flat keys of the browser and the session through the
    same readers (a file is one more source of variables), and the tables `[run]`, `[test]`,
    `[report]`, `[plugins]` and `[fingerprint]` through serde. What is not in step 5: the nested
-   `[browser]` and `[session]` tables of a file (step 6). Where the sequential reading differs
+   `[browser]` and `[session]` tables of a file (step 6; the follow-up at the end of step 5 reads
+   them). Where the sequential reading differs
    from the note: the capabilities are added across sources (the display, the DevTools events and
    the Chromium switches and features are read by variable once the sources are merged, as
    described at the end of step 5).
@@ -922,7 +923,7 @@ One commit each; each runs the gate of `CLAUDE.md` (fmt, clippy with `-D warning
    step 5 (`OptionValue::assign` and the functions of `config::text`), run before the
    dictionary is made, instead of `deserialize_with` on every field; the key of a row is still
    looked up by its variable (`FLAT_KEYS`), not a column of the table; the nested `[browser]`
-   and `[session]` tables of a file are not read.
+   and `[session]` tables of a file are not read (the follow-up below reads them).
 
    *As implemented after the review (2026-11-06).* Reading each source on its own lost what
    the note's table promised for the settings that two variables write together. Those
@@ -956,8 +957,10 @@ One commit each; each runs the gate of `CLAUDE.md` (fmt, clippy with `-D warning
      absent from the serialization now writes the default the setting accepts there:
      `layers::empty_at` tries `nothing()`, an empty list and `false` on the settings and keeps
      the first they accept, so a field that gains `skip_serializing_if` later is covered. The
-     derived rows that merge (capabilities, the Firefox options, the window sides, the
-     language) keep their `Skip`, and so does `SB_SETTINGS_FILE`. The numbers, texts, enums and
+     derived rows that merge (the capabilities, the Firefox preferences, the window sides, the
+     language) keep their `Skip`, and so does `SB_SETTINGS_FILE`; the Firefox arguments are a
+     list that replaces, so `SB_FIREFOX_ARG` writes an empty list (`NoItems`) as
+     `SB_EXTENSION_DIR` does. The numbers, texts, enums and
      options of `[run]`, `[test]` and `[report]` were already right; the pin covers them.
    * **The nested form (open question 2, decided "both").** `[browser]` and `[session]` are read
      by serde as they are written, like `[run]`, `[test]` and `[report]`; a top-level key named
@@ -967,14 +970,29 @@ One commit each; each runs the gate of `CLAUDE.md` (fmt, clippy with `-D warning
      twice and are refused naming both spellings (`"dark_mode" and "[browser.switches] dark-mode"
      are the same setting`). `BrowserSettings`, `SessionSettings`, `ProxySettings`,
      `ChromiumSettings` and `GridSettings` deny unknown fields so that a typo in a nested table
-     is refused; none of them is flattened into another type. A file written from a serialized
-     `Settings` loads back equal (TOML and JSON, pinned).
+     is refused; none of them is flattened into another type. The small types inside them
+     (`WindowSize`, `WindowPosition`, `DeviceMetrics`, `VirtualDisplay`, `FirefoxOptions`) do not
+     deny unknown fields (left as they were), so a key they do not know is ignored; the
+     tutorial says so. The tables are handed to serde as
+     written: the trim rule below does not reach them (`[browser] user_agent = ""` is an empty
+     text, pinned). A file written from a serialized `Settings` loads back equal (TOML and
+     JSON, pinned).
    * **Redaction.** `SettingsFile` hides a refused value between quotes (`"v"`, `'v'`, `` `v` ``)
      and as the tail of the message, and a value of three characters or more where it stands
-     alone; it never searches a short value in the words of the message.
+     alone (a secret that spells a word of the message hides that word); it never searches a
+     short value in the words of the message. serde writes a text with its escapes
+     (`zq9\\zq9` for `zq9\zq9`), so the escaped form is hidden too, and so is an item of a
+     comma-separated value where the message quotes it (`got 'item'`: a reader names the item it
+     refuses, not the list).
    * **One trim rule.** `read_variables` trims the text and drops a blank one before any reader
      runs, so the variables, the pairs and the flat keys of a file share the rule of
-     `EnvVars::text`; `SB_PLUGINS` keeps its raw lookup because an empty value is an answer there.
+     `EnvVars::text`; `SB_PLUGINS` keeps its raw lookup because an empty or blank value is an
+     answer there. The other readers of a `SB_*` variable follow it: `RuntimeConfig`
+     (`from_vars_lenient` trims and drops a blank value before any parse), `SB_REPORT_DB`
+     (`ReportSettings::from_settings_with` and `sbrs report history`), the S3 variables of the
+     `testing` finalizer and the `SB_LOG_LEVEL` that `sbrs-mcp` clients hand to a server they
+     start. Variables of one tool that name a key, a file or a folder (`SB_ENCRYPTION_KEY`,
+     `SB_REC_FILE`, `SB_OCR_MODELS`, `SB_GRID_DIR`) are not trimmed.
    * **The `key` column.** The option table has no `key` column, against step 6: the flat key of
      a row is found by its variable in `FLAT_KEYS` (`OptionSpec::flat_key`), because the rows
      are the token trees of a macro (`sb_test_options!`) that the structural tools cannot edit,

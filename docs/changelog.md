@@ -415,9 +415,12 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   settings as `Settings` serializes them, so a file written with `toml::to_string(&settings)` or
   `serde_json::to_string(&settings)` loads back equal. One setting written in both forms is
   refused, naming both spellings (`"dark_mode" and "[browser.switches] dark-mode" are the same
-  setting`), and a key that is no field of a nested table is refused (`BrowserSettings`,
+  setting`), and a key that is no field of one of five tables is refused (`BrowserSettings`,
   `SessionSettings`, `ProxySettings`, `ChromiumSettings` and `GridSettings` deny unknown
-  fields). A `browser` that is a text is still the flat key of the browser kind.
+  fields); the small tables inside them (`window_size`, `window_position`, `device_metrics`,
+  `virtual_display` and `[session.firefox]`) ignore a key they do not know. The tables are read
+  as written, without the trim rule of the flat keys. A `browser` that is a text is still the
+  flat key of the browser kind.
 
 - `sbrs options --env` lists seven variables the code already read: `SB_REC_FILE`,
   `SB_REC_KEEP_SECRETS`, `SB_S3_BUCKET`, `SB_S3_REGION`, `SB_S3_PREFIX`, `SB_OCR_MODELS` and
@@ -563,17 +566,26 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 
 - A value that equals the default of its setting still wins over a lower source. A list with no
   item (`SB_PROXY_BYPASS_LIST=,`) was written as nothing, so the list of the settings file stayed;
-  it empties it now. The numbers, texts, enums and options of the run, test and report groups
-  were already right, and a test pins them (file, variable, then pair).
+  it empties it now, and so does `SB_FIREFOX_ARG=,` for the Firefox arguments of a file. The
+  numbers, texts, enums and options of the run, test and report groups were already right, and a
+  test pins them (file, variable, then pair).
 - A refused value of a settings file is hidden where the message quotes it (`"v"`, `'v'`,
   `` `v` ``) or ends with it, and the words of the message stay: a one-letter value turned
   `cannot parse bool` into `c…nnot p…rse bool`. A value of three characters or more is also
-  hidden where it stands alone in the message.
+  hidden where it stands alone in the message, so a secret that spells a word of the message
+  hides that word. The value is hidden as serde writes it too (`"p\\ss"` for `p\ss`), and so is
+  an item of a list that the message quotes (`got 'item'`).
 - One rule reads a value in every source: it is trimmed, and a blank one is unset.
   `EnvVars::read` gave the readers of the option table the text as it was, so `SB_HEADLESS=" true "`
   was refused and `SB_USER_AGENT` kept its blanks, while `env_vars::text`, `switch` and `parse`
   trimmed. The flat keys of a settings file follow the rule too: `user_agent = ""` is unset,
-  where it set an empty text. `SB_PLUGINS` keeps an empty value as an answer.
+  where it set an empty text. The runtime variables follow it (`RuntimeConfig` refused
+  `SB_CHROMEDRIVER_PORT=" 9515"` and a blank `SB_SHUTDOWN_TIMEOUT_SECS`), and so do
+  `SB_REPORT_DB` (`ReportSettings` kept its blanks, and `sbrs report history` took an empty value
+  for the path), the S3 variables and the `SB_LOG_LEVEL` that the `sbrs-mcp` client commands pass
+  on. `SB_PLUGINS` keeps an empty or blank value as an answer, the nested tables of a settings
+  file are read as written, and a few variables of one tool that name a key, a file or a folder
+  (`SB_ENCRYPTION_KEY`, `SB_REC_FILE`, `SB_OCR_MODELS`, `SB_GRID_DIR`) are not trimmed.
 
 </Update>
 

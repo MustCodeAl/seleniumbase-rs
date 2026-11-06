@@ -196,6 +196,21 @@ fn a_setting_written_flat_and_nested_is_refused_naming_both_spellings() {
 }
 
 #[test]
+fn the_nested_tables_are_read_as_written_and_the_flat_keys_by_the_trim_rule() {
+    // A nested table is handed to serde as it is: a padded text keeps its blanks and an empty
+    // one is a text.
+    let settings = layered("[browser]\nuser_agent = \" agent \"\n", &[]);
+    assert_eq!(settings.browser.user_agent.as_deref(), Some(" agent "));
+    let settings = layered("[browser]\nuser_agent = \"\"\n", &[]);
+    assert_eq!(settings.browser.user_agent.as_deref(), Some(""));
+    // The flat key of the same setting is trimmed, and a blank one is unset.
+    let settings = layered("user_agent = \" agent \"\n", &[]);
+    assert_eq!(settings.browser.user_agent.as_deref(), Some("agent"));
+    let settings = layered("user_agent = \"\"\n", &[]);
+    assert_eq!(settings.browser.user_agent, None);
+}
+
+#[test]
 fn a_misspelled_key_of_a_nested_table_is_refused() {
     let error = refused("sbase_config.toml", "[browser]\nhedless = true\n");
     assert!(error.contains("sbase_config.toml"), "{error}");

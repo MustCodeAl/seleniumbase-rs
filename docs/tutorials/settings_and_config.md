@@ -129,8 +129,12 @@ port = 4445
 
 The names in a nested table are the field names of the serialized settings, not the flat keys:
 `server` of `[browser.proxy]` is the flat `proxy`, `dark-mode` of `[browser.switches]` is
-`dark_mode`, `server` of `[session.grid]` is the flat `server`. A key that is no field is
-refused (`[browser] hedless = true`). One setting written in both forms is refused, naming both
+`dark_mode`, `server` of `[session.grid]` is the flat `server`. A key that is no field of
+`[browser]`, `[browser.proxy]`, `[browser.chromium]`, `[session]` or `[session.grid]` is refused
+(`[browser] hedless = true`). The small tables inside them (`window_size`, `window_position`,
+`device_metrics`, `virtual_display` and `[session.firefox]`) do not refuse a key they do not
+know, so spell those with care. The nested tables are read as written, without the trimming of
+the flat keys (see Blanks below). One setting written in both forms is refused, naming both
 spellings:
 
 ```text
@@ -155,10 +159,15 @@ proxy does not touch the window size the file set):
   replaces the list of the lower one, and a list with no item (`SB_PROXY_BYPASS_LIST=,`) empties
   it. `SB_PLUGINS` replaces the names in `[plugins] enable` (an empty value means no plugin) and
   the options of the plugins it names stay.
-* **Blanks.** Every source reads a value trimmed, and a value that is empty or only blanks is
-  unset: it leaves what a lower source says. The same holds for a flat key of the settings file
-  (`user_agent = ""` sets nothing). `SB_PLUGINS` is the one exception, where an empty value is
-  an answer.
+* **Blanks.** The settings are read by one rule in every source: a value is trimmed, and a value
+  that is empty or only blanks is unset, so it leaves what a lower source says. It holds for the
+  variables, the pairs, a flat key of the settings file (`user_agent = ""` sets nothing), the
+  runtime variables (`SB_CHROMEDRIVER_PORT`, `SB_SHUTDOWN_TIMEOUT_SECS`, ...), `SB_REPORT_DB`
+  and the S3 variables. Two things are read as they are written. `SB_PLUGINS`: an empty or blank
+  value is an answer (no plugin). The tables of the nested form: the file hands them to serde
+  unchanged, so `[browser] user_agent = ""` sets an empty text and a padded value keeps its
+  blanks. A few variables of one tool that name a key, a file or a folder (`SB_ENCRYPTION_KEY`,
+  `SB_REC_FILE`, `SB_OCR_MODELS`, `SB_GRID_DIR`) are not trimmed.
 * **Capabilities** (`cap_file`, `cap_string`): merged key by key, the higher source winning on a
   key.
 * **Two spellings of one setting** (`window_size`, or `window_width` and `window_height`;
@@ -173,8 +182,10 @@ proxy does not touch the window size the file set):
 
 A value that is refused names its source and where in it. A variable is named with its flag,
 and a value of the settings file with the file and the key as the file wrote it (the value
-itself is not repeated, because it may be a secret: it is hidden where the message quotes it or
-ends with it, and the words of the message stay as they are, whatever the value):
+itself is not repeated, because it may be a secret: it is hidden where the message quotes it (as
+serde escapes it too) or ends with it, and so is an item of a list that the message quotes. A
+value of three characters or more is also hidden where it stands alone, so a secret that spells a
+word of the message hides that word; a shorter value never changes the words of the message):
 
 ```text
 SB_HEADLESS (--headless): cannot parse bool: maybe
@@ -276,7 +287,8 @@ lines read.
 
 **Order.** A flag wins over its variable, which wins over the settings file, which
 wins over the default. A variable is read trimmed, and one that is empty or blank counts as
-unset.
+unset (the Blanks rule under [How the layers are merged](#how-the-layers-are-merged) lists
+what it does not cover).
 
 **A bad value stops the program.** A variable that cannot be used ends `sbrs` or
 `sbrs-mcp` with status 2, before a browser starts or the server listens, and the
@@ -319,7 +331,9 @@ commands and the `--url` and `--token-file` flags.
 In addition to `Settings`, the crate reads `SB_*` runtime configuration for
 library behavior (`RuntimeConfig`). Three of the variables below are settings of the browser,
 rows of the option table: `Settings` and `BrowserConfig::from_env()` read them, both by the one
-rule of the table (a blank value is unset), and `RuntimeConfig` does not hold them.
+rule of the table (a blank value is unset), and `RuntimeConfig` does not hold them. The others
+are read by the same rule: trimmed, and a blank value is unset (`SB_CHROMEDRIVER_PORT=" 9515"`
+is the port 9515).
 
 <ParamField body="SB_WEBDRIVER_URL" type="string" default="http://localhost:4444">
 
