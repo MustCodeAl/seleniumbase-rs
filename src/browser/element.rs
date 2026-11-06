@@ -23,7 +23,7 @@ use crate::browser::session::shown_text;
 use crate::browser::shadow_find;
 use crate::error::SeleniumBaseError;
 use crate::sb_cdp::{Key, Rect, SelectBy};
-use crate::utils::selectors::SelectorBuf;
+use crate::utils::selectors::{SelectorBuf, CHAIN_SEPARATOR};
 
 /// The page script of [`Element::attribute`]: the attribute `arguments[1]` of
 /// the element `arguments[0]`, as the markup has it, or `null`.
@@ -117,6 +117,19 @@ impl Element {
                 }
             }
             other => other,
+        }
+    }
+
+    /// This element under `name`, for one that was found by a selector that
+    /// no longer matches anything (a temporary marker) and so cannot name it.
+    ///
+    /// The name is shown by `Display` and `Debug` and carried by
+    /// [`SeleniumBaseError::StaleElement`]; it need not be a selector (see
+    /// `utils::selectors::is_lookup_selector`).
+    pub(crate) fn named(self, name: String) -> Self {
+        Self {
+            selector: SelectorBuf::css(name),
+            ..self
         }
     }
 
@@ -454,7 +467,8 @@ impl Element {
     ///
     /// # Errors
     ///
-    /// The driver's error, `no such element`, if the `<select>` has no such
+    /// [`SeleniumBaseError::InvalidConfig`] for an index above `u32::MAX`, the
+    /// driver's error, `no such element`, if the `<select>` has no such
     /// option; and see [`click`](Self::click).
     pub async fn select_option(&self, by: SelectBy<'_>) -> Result<(), SeleniumBaseError> {
         let select = SelectElement::new(&self.inner)
@@ -465,7 +479,10 @@ impl Element {
             SelectBy::Value(value) => select.select_by_value(value).await,
             SelectBy::Index(index) => {
                 let index = u32::try_from(index).map_err(|_| {
-                    SeleniumBaseError::InvalidSelector(format!("option index {index} is too large"))
+                    SeleniumBaseError::InvalidConfig(format!(
+                        "option index {index} is too large (at most {})",
+                        u32::MAX
+                    ))
                 })?;
                 select.select_by_index(index).await
             }
@@ -525,6 +542,17 @@ impl Element {
     }
 }
 
+/// Whether `xpath` starts at the root of the document (`//td`, `/html/body`,
+/// `(//td)[1]`).
+///
+/// The WebDriver evaluates such a path from the root whatever element the
+/// search starts from, so inside an element it would match the whole page.
+fn starts_at_the_root(xpath: &str) -> bool {
+    xpath
+        .trim_start_matches(|c: char| c == '(' || c.is_whitespace())
+        .starts_with('/')
+}
+
 /// Finding other elements from this one.
 ///
 /// Each looks once, since the element is already found: a search that finds
@@ -536,7 +564,7 @@ impl Element {
 impl Element {
     /// The name of what `selector` finds inside this element: the chain.
     fn below(&self, selector: &SelectorBuf) -> SelectorBuf {
-        SelectorBuf::css(format!("{self} >> {selector}"))
+        SelectorBuf::css(format!("{self}{CHAIN_SEPARATOR}{selector}"))
     }
 
     /// The locator for a search inside this element.
@@ -546,6 +574,14 @@ impl Element {
     /// with a hint, not left to the driver.
     fn lookup(selector: &SelectorBuf) -> Result<By, SeleniumBaseError> {
         let by = shadow_find::by_of(selector)?;
+        if matches!(selector, SelectorBuf::XPath(xpath) if starts_at_the_root(xpath)) {
+            return Err(SeleniumBaseError::InvalidSelector(format!(
+                "'{selector}' starts at the root of the page, so it matches the whole page \
+                 from inside an element too: write it from the element (`.//td`) to search \
+                 inside this one, or look it up from the page with `BaseCase::find_element`"
+            )));
+        }
+
         if shadow_find::pieces(&by)?.is_some() {
             return Err(SeleniumBaseError::InvalidSelector(format!(
                 "'{selector}' crosses a shadow root, which a search inside an element does not \
@@ -558,16 +594,32 @@ impl Element {
     /// The first match of `selector` inside this element, looked for once.
     ///
     /// `selector` is anything that converts to a [`SelectorBuf`]: a string,
-    /// whose kind is read as everywhere else (`.remove`, `//td`, `link=Edit`),
+    /// whose kind is read as everywhere else (`.remove`, `.//td`, `link=Edit`),
     /// or a [`SelectorBuf`] that names its kind. Like
     /// [`Locator::locator`](crate::sb_cdp::Locator::locator), without the
     /// laziness.
     ///
+    /// The search stays inside this element. The WebDriver evaluates an XPath
+    /// that starts at the root of the page (`//td`, `/html/body`, `(//td)[1]`)
+    /// from the root whatever element it is asked from, so that would match
+    /// the whole page: it is refused. Write it from the element, `.//td`,
+    /// for the descendants. A `p:contains('x')` selector is read as
+    /// `.//p[...]`, which stays inside.
+    ///
+    /// An `<iframe>` element holds its frame, not the frame's document, so
+    /// this finds nothing in the frame, unlike
+    /// [`Locator::locator`](crate::sb_cdp::Locator::locator) on the pure CDP
+    /// engine, which searches inside it. To search a frame, switch to it with
+    /// [`BaseCase::switch_to_frame`](crate::BaseCase::switch_to_frame) and find
+    /// from the page; [`BaseCase::nested_click`](crate::BaseCase::nested_click)
+    /// does that for a click.
+    ///
     /// # Errors
     ///
     /// The driver's `no such element` error if nothing matches,
-    /// [`SeleniumBaseError::InvalidSelector`] for an empty selector or one
-    /// that crosses a shadow root, and
+    /// [`SeleniumBaseError::InvalidSelector`] for an empty selector, an XPath
+    /// that starts at the root of the page, or one that crosses a shadow root,
+    /// and
     /// [`SeleniumBaseError::StaleElement`] if this element went stale.
     pub async fn find(
         &self,
@@ -904,7 +956,7 @@ mod tests {
         let (_session, cart) = found(&driver, "#a").await;
 
         // Nothing matches, and the driver's error is passed on.
-        let error = cart.find("//td").await.unwrap_err();
+        let error = cart.find(".//td").await.unwrap_err();
         assert!(
             matches!(error, SeleniumBaseError::WebDriver(_)),
             "{error:?}"
@@ -925,6 +977,85 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn contains_is_looked_for_inside_the_element_not_in_the_whole_page() {
+        let driver = cart();
+        let (_session, cart) = found(&driver, "#a").await;
+
+        // `p:contains('x')` is XPath. An absolute `//p[..]` would match the
+        // whole page from inside an element, so it must start at the element.
+        cart.find("p:contains('x')").await.unwrap_err();
+        assert!(cart.find_all("p:contains('x')").await.unwrap().is_empty());
+
+        for path in ["/element/e1/element", "/element/e1/elements"] {
+            let asked = only_request(&driver, path);
+            assert_eq!(asked["using"], "xpath", "{path}");
+            assert_eq!(asked["value"], ".//p[contains(., 'x')]", "{path}");
+        }
+    }
+
+    #[tokio::test]
+    async fn an_xpath_from_the_root_is_refused_with_a_hint() {
+        let driver = cart();
+        let (_session, cart) = found(&driver, "#a").await;
+
+        for xpath in [
+            "//td",
+            "/html/body//td",
+            "  //td",
+            "(//td)[1]",
+            "( //td)[1]",
+            "((//td))",
+        ] {
+            for error in [
+                cart.find(xpath).await.unwrap_err(),
+                cart.find_all(xpath).await.unwrap_err(),
+            ] {
+                let SeleniumBaseError::InvalidSelector(message) = &error else {
+                    panic!("{xpath:?}: expected InvalidSelector, got {error:?}");
+                };
+                assert!(message.contains(".//td"), "{xpath:?}: {message}");
+                assert!(message.contains("find_element"), "{xpath:?}: {message}");
+            }
+        }
+        // The driver was not asked: it would have searched the whole page.
+        assert!(driver.requests("/element/e1/element").is_empty());
+        assert!(driver.requests("/element/e1/elements").is_empty());
+    }
+
+    #[tokio::test]
+    async fn an_xpath_that_starts_at_the_element_is_looked_up_as_written() {
+        let driver = cart();
+        let (_session, cart) = found(&driver, "#a").await;
+        let relative = [
+            ".//td",
+            "./td",
+            "(.//td)[1]",
+            "parent::div",
+            "descendant::td",
+        ];
+
+        for xpath in relative {
+            // The mock finds nothing; what matters is what the driver is asked.
+            let _ = cart.find(xpath).await;
+            let _ = cart.find_all(xpath).await;
+        }
+
+        for path in ["/element/e1/element", "/element/e1/elements"] {
+            let asked: Vec<_> = driver
+                .requests(path)
+                .into_iter()
+                .map(|request| (request.body["using"].clone(), request.body["value"].clone()))
+                .collect();
+            let expected: Vec<_> = relative
+                .iter()
+                .map(|xpath| (json!("xpath"), json!(xpath)))
+                .collect();
+            assert_eq!(asked, expected, "{path}");
+        }
+    }
+
+    #[tokio::test]
+
     async fn find_all_returns_every_match_and_no_match_is_an_empty_list() {
         let driver = cart();
         let (_session, cart) = found(&driver, "#a").await;
@@ -1098,6 +1229,194 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn an_option_index_no_select_can_have_is_a_bad_argument() {
+        let driver = form();
+        let (_session, dropdown) = found(&driver, "#s").await;
+        // On a 32-bit target every `usize` is an index.
+        let Ok(too_large) = usize::try_from(u64::from(u32::MAX) + 1) else {
+            return;
+        };
+
+        let error = dropdown
+            .select_option(SelectBy::Index(too_large))
+            .await
+            .unwrap_err();
+
+        // The selector is fine and the argument is not, so not `InvalidSelector`.
+        assert!(
+            matches!(error, SeleniumBaseError::InvalidConfig(_)),
+            "{error:?}"
+        );
+        assert_eq!(error.exit_code(), 2);
+        assert!(
+            error.to_string().contains(&too_large.to_string()),
+            "{error}"
+        );
+        assert!(driver.requests("/element/o1/click").is_empty());
+    }
+
+    /// The WebDriver's code point for `key` ("Keys" of the W3C WebDriver
+    /// specification, the values thirtyfour's `Key::value` has), written out
+    /// here and not read from the code under test. The match has no wildcard,
+    /// so a new `Key` does not compile until it has its code point.
+    fn w3c_code_point(key: Key) -> char {
+        match key {
+            Key::Enter => '\u{e007}',
+            Key::Tab => '\u{e004}',
+            Key::Escape => '\u{e00c}',
+            Key::Backspace => '\u{e003}',
+            Key::Delete => '\u{e017}',
+            Key::ArrowUp => '\u{e013}',
+            Key::ArrowDown => '\u{e015}',
+            Key::ArrowLeft => '\u{e012}',
+            Key::ArrowRight => '\u{e014}',
+            Key::Home => '\u{e011}',
+            Key::End => '\u{e010}',
+            Key::PageUp => '\u{e00e}',
+            Key::PageDown => '\u{e00f}',
+        }
+    }
+
+    #[tokio::test]
+    async fn press_types_the_w3c_code_point_of_every_key() {
+        let driver = form();
+        let (_session, field) = found(&driver, "#a").await;
+        let keys = [
+            Key::Enter,
+            Key::Tab,
+            Key::Escape,
+            Key::Backspace,
+            Key::Delete,
+            Key::ArrowUp,
+            Key::ArrowDown,
+            Key::ArrowLeft,
+            Key::ArrowRight,
+            Key::Home,
+            Key::End,
+            Key::PageUp,
+            Key::PageDown,
+        ];
+
+        for key in keys {
+            field.press(key).await.unwrap();
+        }
+
+        let typed: Vec<_> = driver
+            .requests("/element/e1/value")
+            .into_iter()
+            .map(|request| request.body["text"].clone())
+            .collect();
+        let expected: Vec<_> = keys
+            .iter()
+            .map(|key| json!(w3c_code_point(*key).to_string()))
+            .collect();
+        assert_eq!(typed, expected);
+    }
+
+    #[tokio::test]
+    async fn an_attribute_the_element_lacks_is_none_and_an_empty_one_is_empty() {
+        // The page script answers `null` for an attribute that is not there.
+        let driver = form();
+        let (_session, field) = found(&driver, "#a").await;
+        assert_eq!(field.attribute("data-missing").await.unwrap(), None);
+        let script = only_request(&driver, "/execute/sync");
+        assert_eq!(script["args"][1], json!("data-missing"));
+
+        // `data-flag=""` is there, with no value.
+        let driver = MockWebDriver::start(json!({}), |request: &Seen| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("POST", "/element") => Reply::Value(element("e1")),
+                ("POST", "/execute/sync") => Reply::Value(json!("")),
+                _ => Reply::Value(Value::Null),
+            }
+        });
+        let (_session, field) = found(&driver, "#a").await;
+        assert_eq!(
+            field.attribute("data-flag").await.unwrap().as_deref(),
+            Some("")
+        );
+    }
+
+    /// A driver whose element `#a` (`e1`) has gone stale: every command on it,
+    /// and every script or action that takes it, answers `stale element
+    /// reference`. `#b` (`e2`) is fine.
+    fn gone() -> MockWebDriver {
+        MockWebDriver::start(json!({}), |request: &Seen| {
+            let takes_e1 = request.path.starts_with("/element/e1/")
+                || (matches!(request.path.as_str(), "/actions" | "/execute/sync")
+                    && request.body.to_string().contains("\"e1\""));
+            match (request.method.as_str(), request.path.as_str()) {
+                ("POST", "/element") => Reply::Value(
+                    if request.body["value"].as_str().unwrap_or_default() == "#b" {
+                        element("e2")
+                    } else {
+                        element("e1")
+                    },
+                ),
+                _ if takes_e1 => Reply::Error(404, "stale element reference"),
+                _ => Reply::Value(Value::Null),
+            }
+        })
+    }
+
+    /// `result` is the stale-element error that names `selector`.
+    fn assert_stale<T: fmt::Debug>(
+        what: &str,
+        selector: &str,
+        result: Result<T, SeleniumBaseError>,
+    ) {
+        match result {
+            Err(SeleniumBaseError::StaleElement { selector: named }) => {
+                assert_eq!(named, selector, "{what}");
+            }
+            other => panic!("{what}: expected StaleElement, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn every_command_on_a_stale_element_names_the_selector_it_was_found_by() {
+        let driver = gone();
+        let (_session, stale) = found(&driver, "#a").await;
+        let (_other, live) = found(&driver, "#b").await;
+
+        // Reads.
+        assert_stale("text", "#a", stale.text().await);
+        assert_stale("html", "#a", stale.html().await);
+        assert_stale("tag", "#a", stale.tag().await);
+        assert_stale("attribute", "#a", stale.attribute("id").await);
+        assert_stale("property", "#a", stale.property("value").await);
+        assert_stale("bounding_box", "#a", stale.bounding_box().await);
+        assert_stale("is_visible", "#a", stale.is_visible().await);
+        assert_stale("is_enabled", "#a", stale.is_enabled().await);
+        assert_stale("is_selected", "#a", stale.is_selected().await);
+        // Actions.
+        assert_stale("click", "#a", stale.click().await);
+        assert_stale("double_click", "#a", stale.double_click().await);
+        assert_stale("right_click", "#a", stale.right_click().await);
+        assert_stale("hover", "#a", stale.hover().await);
+        assert_stale("clear", "#a", stale.clear().await);
+        assert_stale("send_keys", "#a", stale.send_keys("x").await);
+        assert_stale("type_text", "#a", stale.type_text("x").await);
+        assert_stale("press", "#a", stale.press(Key::Enter).await);
+        assert_stale(
+            "select_option",
+            "#a",
+            stale.select_option(SelectBy::Text("Two")).await,
+        );
+        assert_stale("submit", "#a", stale.submit().await);
+        assert_stale("scroll_into_view", "#a", stale.scroll_into_view().await);
+        assert_stale("drag_to", "#a", stale.drag_to(&live).await);
+        // Searches.
+        assert_stale("find", "#a", stale.find(".row").await);
+        assert_stale("find_all", "#a", stale.find_all(".row").await);
+        assert_stale("parent", "#a", stale.parent().await);
+
+        // A stale target is reported with the element that was being dragged.
+        assert_stale("drag_to a stale target", "#b", live.drag_to(&stale).await);
+    }
+
+    #[tokio::test]
+
     async fn a_stale_element_names_the_selector_it_was_found_by() {
         let driver = MockWebDriver::start(json!({}), |request: &Seen| {
             match (request.method.as_str(), request.path.as_str()) {

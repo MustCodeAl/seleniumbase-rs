@@ -645,6 +645,15 @@ pub(super) static TABLE: &[Call] = &[
         &[s("text"), sd("selector", HTML), BY, WAIT_TIMEOUT],
     ),
     // Reads.
+    // Python's `locator` waits for the element and gives it back. `BaseCase` has no
+    // `locator` (the name is the lazy `Page::locator`), so its parity row is `composed`
+    // of `find_element`, which the generated table leaves out.
+    get(
+        &["locator"],
+        "find_element",
+        &[s("selector"), BY, TIMEOUT],
+        Ret::Other,
+    ),
     get(
         &["get_text"],
         "get_text",

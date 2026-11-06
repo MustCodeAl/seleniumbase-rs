@@ -25,12 +25,16 @@
 //! ```
 //!
 //! These are the items this crate itself uses or returns; the version is the one this crate
-//! builds against (`thirtyfour` 0.37), so a type from here is always the one the API expects.
+//! builds against (`thirtyfour` 0.38), so a type from here is always the one the API expects.
 //! A program that needs a part of `thirtyfour` that is not listed lists the crate itself.
 //! The pure CDP engine ([`sb_cdp`](crate::sb_cdp)) does not use any of these.
+//!
+//! There is no `Key` here. The named key of this crate is [`Key`](crate::Key), at the crate root,
+//! and both engines take it (`Element::press`, `Locator::press`); `thirtyfour`'s own `Key`, the
+//! private-use code points a WebDriver session types, is not re-exported, so the name has one
+//! meaning.
 
 pub use thirtyfour::common::capabilities::chromium::ChromiumLikeCapabilities;
-pub use thirtyfour::common::keys::Key;
 pub use thirtyfour::cookie::Cookie;
 pub use thirtyfour::error::{WebDriverError, WebDriverErrorInner};
 // `BaseCase::set_network_conditions` takes the chromedriver `NetworkConditions` of

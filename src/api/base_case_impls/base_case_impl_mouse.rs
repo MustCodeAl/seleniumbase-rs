@@ -242,8 +242,14 @@ impl BaseCase {
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::ElementNotFound`] if either element is
-    /// missing, or [`SeleniumBaseError::WebDriver`] if the click fails.
+    /// Returns [`SeleniumBaseError::InvalidSelector`] for a `css` the search
+    /// inside the parent refuses (an empty one, or an XPath that starts at the
+    /// root of the page: write `.//td`),
+    /// [`SeleniumBaseError::ElementNotFound`] if either element is
+    /// missing, [`SeleniumBaseError::StaleElement`] if the page replaced the
+    /// parent or the child before the click, or the driver's error
+    /// ([`SeleniumBaseError::WebDriver`]) if the click fails otherwise, as when
+    /// another element intercepts it.
     pub async fn nested_click(
         &mut self,
         parent_css: &str,
@@ -258,10 +264,10 @@ impl BaseCase {
             return clicked;
         }
         let selector = shadow_find::checked(css)?;
-        let child = parent
-            .find(selector)
-            .await
-            .map_err(|_| SeleniumBaseError::element_not_found(format!("{parent_css} {css}")))?;
+        let child = parent.find(selector).await.map_err(|error| match error {
+            SeleniumBaseError::InvalidSelector(_) => error,
+            _ => SeleniumBaseError::element_not_found(format!("{parent_css} {css}")),
+        })?;
         child.click().await?;
         Ok(())
     }

@@ -112,7 +112,8 @@ methods of the pure CDP engine's `Locator` under the same names (`text`,
 `is_enabled`, `is_selected`, `click`, `double_click`, `right_click`, `hover`,
 `clear`, `send_keys`, `type_text`, `press`, `select_option`, `submit`,
 `scroll_into_view`, `drag_to`) and `find`, `find_all` and `parent` for the
-elements inside and above it. It does not wait, and once the page replaces the
+elements inside and above it (a search stays inside the element: `//td` would
+match the whole page, so it is refused; write `.//td`). It does not wait, and once the page replaces the
 node its methods fail with `StaleElement`, which names the selector it was
 found by. For a `thirtyfour` call it has no method for,
 `element.as_webdriver_element()` gives the raw `drivers::WebElement`.
