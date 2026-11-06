@@ -151,10 +151,15 @@ impl std::str::FromStr for Browser {
 /// [`FromStr`]: std::str::FromStr
 /// [`Display`]: std::fmt::Display
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum DriverMode {
+    // The names in a file are lower case; the capitalized names of an older file are read too.
     #[default]
+    #[serde(alias = "WebDriver")]
     WebDriver,
+    #[serde(alias = "Cdp")]
     Cdp,
+    #[serde(alias = "Uc")]
     Uc,
 }
 

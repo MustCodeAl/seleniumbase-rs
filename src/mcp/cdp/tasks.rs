@@ -204,7 +204,10 @@ async fn plugin_task(ctx: &Ctx<Cdp>, args: &Args) -> Result<Output, ToolError> {
     // Every mistake in the name and the plugins is found before a browser starts.
     let options = crate::cli::plugin_cmd::task_launch_options(
         crate::config::settings::Settings {
-            headless,
+            browser: crate::browser::options::BrowserSettings {
+                headless,
+                ..crate::browser::options::BrowserSettings::default()
+            },
             plugins: selection,
             ..crate::config::settings::Settings::default()
         },

@@ -294,14 +294,15 @@ async fn a_test_that_runs_past_the_time_limit_is_stopped_and_its_browser_closed(
 #[tokio::test]
 async fn settings_that_do_not_hold_up_fail_the_test_before_a_browser_starts() {
     let browsers = Browsers::default();
-    let fixture = SbCdp::new(Settings {
-        browser: "netscape".to_owned(),
-        ..Settings::default()
-    });
+    let mut settings = Settings::default();
+    // A window with one side only is refused when the settings are checked.
+    settings.browser.window_size =
+        Some(seleniumbase_rs::browser::options::WindowSize::new(1280, 0));
+    let fixture = SbCdp::new(settings);
     let result = fixture
         .run_with_browser(async || browsers.launch().await, async |_page| Ok(()))
         .await;
-    assert!(result.unwrap_err().to_string().contains("netscape"));
+    assert!(result.unwrap_err().to_string().contains("window_width"));
     assert_eq!(browsers.launches(), 0);
 }
 

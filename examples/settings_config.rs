@@ -28,6 +28,8 @@
 use std::error::Error;
 use std::fs;
 
+use seleniumbase_rs::browser::config::Browser;
+
 use seleniumbase_rs::config::settings::{Settings, SettingsOverrides};
 
 const CONFIG_FILE: &str = r#"
@@ -50,7 +52,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     // 2. A specific file. Keys the file leaves out keep their defaults.
     let from_file = Settings::from_file(&path)?;
     show("from_file", &from_file);
-    if from_file.browser != "chromium" || from_file.window_width != defaults.window_width {
+    if from_file.browser.kind != Browser::Chromium
+        || from_file.browser.window_size != defaults.browser.window_size
+    {
         return Err("the file should override browser and leave window_width alone".into());
     }
 
@@ -77,9 +81,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         threads: Some(4),
         ..SettingsOverrides::default()
     };
-    overrides.apply(&mut settings);
+    overrides.apply(&mut settings)?;
     show("after explicit overrides", &settings);
-    if settings.headless || settings.threads != Some(4) {
+    if settings.browser.headless || settings.test.threads != Some(4) {
         return Err("explicit overrides should win".into());
     }
 
@@ -98,14 +102,14 @@ fn main() -> Result<(), Box<dyn Error>> {
 fn show(layer: &str, settings: &Settings) {
     println!(
         "{layer}: browser={}, headless={}, timeout={}, locale={:?}, mode={:?}",
-        settings.browser,
-        settings.headless,
+        settings.browser.kind,
+        settings.browser.headless,
         settings
             .run
             .default_timeout()
             .map(|timeout| timeout.as_secs())
             .map_or_else(|| "unset".to_owned(), |seconds| format!("{seconds}s")),
-        settings.locale,
-        settings.mode
+        settings.browser.lang,
+        settings.session.mode
     );
 }

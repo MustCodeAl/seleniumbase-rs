@@ -600,12 +600,12 @@ mod tests {
 
     #[tokio::test]
     async fn checked_settings_fail_the_run_before_a_browser_starts() {
-        let sb = Sb::new(Settings {
-            browser: "netscape".to_owned(),
-            ..Settings::default()
-        });
+        let mut settings = Settings::default();
+        // A window with one side only is refused when the settings are checked.
+        settings.browser.window_size = Some(crate::browser::options::WindowSize::new(1280, 0));
+        let sb = Sb::new(settings);
         let error = sb.run(async |_: &mut BaseCase| Ok(())).await.unwrap_err();
-        assert!(error.to_string().contains("netscape"), "{error}");
+        assert!(error.to_string().contains("window_width"), "{error}");
     }
 
     #[test]

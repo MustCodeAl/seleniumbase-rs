@@ -19,6 +19,7 @@ use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::Duration;
 
+use seleniumbase_rs::browser::options::LaunchSwitch;
 use seleniumbase_rs::cli::scripts::all_scripts;
 use seleniumbase_rs::cli::scripts::run::{self, Runner, TestRun, TestTarget};
 use seleniumbase_rs::cli::scripts::run_filter;
@@ -27,6 +28,7 @@ use seleniumbase_rs::config::settings::Settings;
 use seleniumbase_rs::config::test_options::find_option;
 use seleniumbase_rs::config::test_settings::TestData;
 use seleniumbase_rs::core::test_run::ReportSettings;
+
 use seleniumbase_rs::SeleniumBaseError;
 
 use crate::failure::ArgumentError;
@@ -106,6 +108,21 @@ macro_rules! test_options {
         test_options!(@alias "Test run, debugging and reports" $names $ids $fields $pushes ($($row)*) $($more)*);
     };
 
+    // The recorder switches are switches of the browser, but options of the test run.
+    (@next $names:tt $ids:tt $fields:tt $pushes:tt (browser.switches, "rec", $($row:tt)*) $($more:tt)*) => {
+        test_options!(@alias "Test run, debugging and reports" $names $ids $fields $pushes ("rec", $($row)*) $($more)*);
+    };
+    (@next $names:tt $ids:tt $fields:tt $pushes:tt (browser.switches, "rec-behave", $($row:tt)*) $($more:tt)*) => {
+        test_options!(@alias "Test run, debugging and reports" $names $ids $fields $pushes ("rec-behave", $($row)*) $($more)*);
+    };
+    (@next $names:tt $ids:tt $fields:tt $pushes:tt (browser.switches, "rec-print", $($row:tt)*) $($more:tt)*) => {
+        test_options!(@alias "Test run, debugging and reports" $names $ids $fields $pushes ("rec-print", $($row)*) $($more)*);
+    };
+    (@next $names:tt $ids:tt $fields:tt $pushes:tt (browser.switches, "rec-sb-mgr", $($row:tt)*) $($more:tt)*) => {
+        test_options!(@alias "Test run, debugging and reports" $names $ids $fields $pushes ("rec-sb-mgr", $($row)*) $($more)*);
+    };
+
+
     (@next $names:tt $ids:tt $fields:tt $pushes:tt ($($path:ident).+, $($row:tt)*) $($more:tt)*) => {
         test_options!(@alias "Browser and page options" $names $ids $fields $pushes ($($row)*) $($more)*);
     };
@@ -139,6 +156,14 @@ macro_rules! test_options {
                 choices("true", "false"), help = $help, help_heading = $h)]]
             [switch $env] $($more)*);
     };
+    // A switch that is one entry of `browser.switches`: the same flag as any other switch.
+    (@kind $h:tt $names:tt $ids:tt $fields:tt $pushes:tt ($long:tt, [$($al:tt)*], $sb:tt, $env:tt, [switch_in($v:ident, $k:literal)], $help:tt) $($more:tt)*) => {
+        test_options!(@emit $names $ids $fields $pushes
+            [#[usage(long = $long, $($al)* default_missing = "true", require_equals,
+                choices("true", "false"), help = $help, help_heading = $h)]]
+            [switch $env] $($more)*);
+    };
+
     // A switch that stands for a value of a variable: `--firefox` is `SB_BROWSER=firefox`.
     (@kind $h:tt $names:tt $ids:tt $fields:tt $pushes:tt ($long:tt, [$($al:tt)*], $sb:tt, $env:tt, [sets($v:tt)], $help:tt) $($more:tt)*) => {
         test_options!(@emit $names $ids $fields $pushes
@@ -535,7 +560,7 @@ impl TestArgs {
                         ))
                     })?,
             ),
-            None => settings.threads,
+            None => settings.test.threads,
         };
 
         if self.filter.is_some() && self.keyword.is_some() {
@@ -573,10 +598,18 @@ impl TestArgs {
             run = run.filter(filter);
         }
         // A prompt needs the terminal to itself: one test at a time, and its output shown.
-        let recording = on("SB_RECORDER", settings.test.recorder)
-            || on("SB_REC_PRINT", settings.test.rec_print)
-            || on("SB_REC_BEHAVE", settings.test.rec_behave)
-            || on("SB_REC_SB_MGR", settings.test.rec_sb_mgr);
+        let recording = on(
+            "SB_RECORDER",
+            settings.browser.has(LaunchSwitch::RecorderMode),
+        ) || on("SB_REC_PRINT", settings.browser.has(LaunchSwitch::RecPrint))
+            || on(
+                "SB_REC_BEHAVE",
+                settings.browser.has(LaunchSwitch::RecBehave),
+            )
+            || on(
+                "SB_REC_SB_MGR",
+                settings.browser.has(LaunchSwitch::RecSbMgr),
+            );
         if debug.is_some() {
             run = run.threads(1);
         } else if recording {
@@ -1129,7 +1162,7 @@ mod tests {
         assert_eq!(args_of(&plan(&["--rec", "-n", "4"]).unwrap()), one);
         // Nor does the recorder of the settings.
         let mut settings = Settings::default();
-        settings.test.recorder = true;
+        settings.browser.set(LaunchSwitch::RecorderMode, true);
         let p = parse(&[]).plan(&settings, Vec::new(), None).unwrap();
         assert_eq!(args_of(&p), one);
         // Without the recorder the count is used.

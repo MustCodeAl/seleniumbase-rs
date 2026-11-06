@@ -3684,8 +3684,12 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     check_page_arguments(
         &args.command,
         start_page_flag.is_some(),
-        settings.start_page.as_deref(),
-        settings.user_data_dir.as_deref(),
+        settings.browser.url.as_deref(),
+        settings
+            .browser
+            .user_data_dir
+            .as_deref()
+            .and_then(std::path::Path::to_str),
     )?;
 
     // `SB_WEBDRIVER_URL` and `SB_CHROME_BIN` are settings too, so
@@ -3700,11 +3704,12 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     } else {
         DriverMode::WebDriver
     };
-    let mode = settings
-        .mode
-        .as_deref()
-        .and_then(|mode| mode.parse::<DriverMode>().ok())
-        .unwrap_or(default_mode);
+    // The default mode is WebDriver, so a session that was asked for WebDriver and one that was
+    // asked for nothing are the same here, and the command's default applies to both.
+    let mode = match settings.session.mode {
+        DriverMode::WebDriver => default_mode,
+        asked => asked,
+    };
     if let Some(url) = args.webdriver {
         config.session.webdriver_url = Some(url);
     }
@@ -3716,7 +3721,8 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         None
     } else {
         settings
-            .start_page
+            .browser
+            .url
             .as_deref()
             .map(start_page_url)
             .transpose()?

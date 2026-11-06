@@ -241,7 +241,7 @@ fn launch_options() -> Result<LaunchOptions, seleniumbase_rs::SeleniumBaseError>
     let mut builder = LaunchOptions::builder();
     // Without SB_HEADLESS, the engine's default for the system stays.
     if std::env::var_os("SB_HEADLESS").is_some() {
-        builder = builder.headless(Settings::from_env()?.headless);
+        builder = builder.headless(Settings::from_env()?.browser.headless);
     }
     builder.build()
 }

@@ -115,6 +115,21 @@ macro_rules! browser_flags {
     (@next $n:tt $i:tt $f:tt $p:tt (none, $($r:tt)*) $($more:tt)*) => {
         browser_flags!(@next $n $i $f $p $($more)*);
     };
+    // The recorder switches are switches of the browser, but options of the test run: `sbrs test`
+    // has their flags, and no other command does.
+    (@next $n:tt $i:tt $f:tt $p:tt (browser.switches, "rec", $($r:tt)*) $($more:tt)*) => {
+        browser_flags!(@next $n $i $f $p $($more)*);
+    };
+    (@next $n:tt $i:tt $f:tt $p:tt (browser.switches, "rec-behave", $($r:tt)*) $($more:tt)*) => {
+        browser_flags!(@next $n $i $f $p $($more)*);
+    };
+    (@next $n:tt $i:tt $f:tt $p:tt (browser.switches, "rec-print", $($r:tt)*) $($more:tt)*) => {
+        browser_flags!(@next $n $i $f $p $($more)*);
+    };
+    (@next $n:tt $i:tt $f:tt $p:tt (browser.switches, "rec-sb-mgr", $($r:tt)*) $($more:tt)*) => {
+        browser_flags!(@next $n $i $f $p $($more)*);
+    };
+
     // The options the root declares by hand.
     (@next $n:tt $i:tt $f:tt $p:tt ($($path:ident).+, $long:tt, $($r:tt)*) $($more:tt)*) => {
         declared_at_the_root!($long,
@@ -156,6 +171,14 @@ macro_rules! browser_flags {
                 choices("true", "false"), help = $help)]]
             [switch $env] $($more)*);
     };
+    // A switch that is one entry of `browser.switches`: the same flag as any other switch.
+    (@kind $n:tt $i:tt $f:tt $p:tt ($long:tt, [$($al:tt)*], $sb:tt, $env:tt, [switch_in($v:ident, $k:literal)], $help:tt) $($more:tt)*) => {
+        browser_flags!(@emit $n $i $f $p
+            [#[usage(long = $long, $($al)* global, default_missing = "true", require_equals,
+                choices("true", "false"), help = $help)]]
+            [switch $env] $($more)*);
+    };
+
     // A switch that stands for a value of a variable: `--firefox` is `SB_BROWSER=firefox`.
     (@kind $n:tt $i:tt $f:tt $p:tt ($long:tt, [$($al:tt)*], $sb:tt, $env:tt, [sets($v:tt)], $help:tt) $($more:tt)*) => {
         browser_flags!(@emit $n $i $f $p

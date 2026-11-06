@@ -358,12 +358,18 @@ fn default_of(row: &OptionSpec, settings: &serde_json::Value) -> String {
         "SB_WEBDRIVER_URL" => return "http://localhost:4444".to_owned(),
         "SB_TIMEOUT" => return "10".to_owned(),
         "SB_CHROME_BIN" => return "the browser found on the machine".to_owned(),
+        "SB_BROWSER" => return crate::browser::config::Browser::default().to_string(),
+        // The command decides when no mode is asked for (`sbrs devtools` uses the DevTools).
+        "SB_MODE" => return "-".to_owned(),
         _ => {}
     }
     let mut at = settings;
     for part in row.field.split('.') {
         match at.get(part) {
             Some(next) => at = next,
+            // A setting that is off writes nothing (`skip_serializing_if`), so a switch that the
+            // settings do not show is off.
+            None if matches!(row.kind, OptionKind::Switch) => return "false".to_owned(),
             None => return "-".to_owned(),
         }
     }

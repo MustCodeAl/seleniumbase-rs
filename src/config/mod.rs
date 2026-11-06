@@ -9,6 +9,7 @@ pub mod runtime;
 pub mod settings;
 pub mod test_options;
 pub mod test_settings;
+pub(crate) mod text;
 
 pub use runtime::{LogFormat, RuntimeConfig};
 

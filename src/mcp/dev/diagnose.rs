@@ -15,6 +15,8 @@ use serde_json::{json, Map, Value};
 use thirtyfour::error::{WebDriverError, WebDriverErrorInner};
 
 use super::NoBrowser;
+use crate::browser::options::LaunchSwitch;
+
 use crate::cli::plugin_cmd;
 use crate::config::plugins::PluginSelection;
 use crate::config::settings::Settings;
@@ -683,42 +685,112 @@ fn settings_summary(settings: &Settings) -> Value {
     let shown = |name: &str, value: &Option<String>| {
         value.as_deref().map(|value| redact_setting(name, value))
     };
+    let browser = &settings.browser;
+    let session = &settings.session;
     let config = settings.to_browser_config();
-    json!({
-        "browser": settings.browser,
-        "mode": settings.mode,
-        "headless": settings.headless,
-        "webdriver_url": settings
-            .webdriver_url
-            .as_deref()
-            .map(|url| redact_setting("SB_WEBDRIVER_URL", url)),
-        "chrome_bin": settings.chrome_bin.as_ref().map(|path| path.display().to_string()),
-        "proxy": shown("SB_PROXY", &settings.proxy),
-        "proxy_pac_url": shown("SB_PROXY_PAC_URL", &settings.proxy_pac_url),
-        "user_data_dir": settings.user_data_dir,
-        "extension_dir": settings.extension_dir,
-        "locale": settings.locale,
-        "user_agent": settings.user_agent,
-        "window": settings
-            .window_width
-            .zip(settings.window_height)
-            .map(|(width, height)| format!("{width}x{height}")),
-        "default_timeout_seconds": settings.run.default_timeout.map(|timeout| timeout.as_secs()),
-        "remote_webdriver_timeout_seconds": settings.remote_webdriver_timeout_seconds,
-        "ad_block": settings.ad_block,
-        "mobile": settings.mobile,
-        "threads": settings.threads,
-        "reuse_session": settings.reuse_session,
-        "reuse_class_session": settings.reuse_class_session,
-        "esc_end": settings.esc_end,
-        "rec_sb_cdp": settings.rec_sb_cdp,
-        "would_launch": {
+    let path_text = |path: &std::path::Path| path.display().to_string();
+    // Each setting under its path in `Settings`, with the variables that write it.
+    let entries: Vec<(&str, Value)> = vec![
+        ("browser.kind", json!(browser.kind.to_string())),
+        ("browser.headless", json!(browser.headless)),
+        (
+            "browser.executable_path",
+            json!(browser.executable_path.as_deref().map(path_text)),
+        ),
+        (
+            "browser.proxy.server",
+            json!(shown("SB_PROXY", &browser.proxy.server)),
+        ),
+        (
+            "browser.proxy.pac_url",
+            json!(shown("SB_PROXY_PAC_URL", &browser.proxy.pac_url)),
+        ),
+        (
+            "browser.user_data_dir",
+            json!(browser.user_data_dir.as_deref().map(path_text)),
+        ),
+        (
+            "browser.extensions",
+            json!(browser
+                .extensions
+                .iter()
+                .map(|dir| path_text(dir))
+                .collect::<Vec<_>>()),
+        ),
+        ("browser.lang", json!(browser.lang)),
+        ("browser.user_agent", json!(browser.user_agent)),
+        (
+            "browser.window_size",
+            json!(browser
+                .window_size
+                .map(|size| format!("{}x{}", size.width, size.height))),
+        ),
+        ("browser.ad_block", json!(browser.ad_block)),
+        ("browser.mobile", json!(browser.mobile)),
+        (
+            "browser.switches.esc-end",
+            json!(browser.has(LaunchSwitch::EscEnd)),
+        ),
+        (
+            "browser.switches.rec-sb-cdp",
+            json!(browser.has(LaunchSwitch::RecSbCdp)),
+        ),
+        (
+            "session.mode",
+            json!(format!("{:?}", session.mode).to_lowercase()),
+        ),
+        (
+            "session.webdriver_url",
+            json!(session
+                .webdriver_url
+                .as_deref()
+                .map(|url| redact_setting("SB_WEBDRIVER_URL", url))),
+        ),
+        (
+            "session.remote_webdriver_timeout_seconds",
+            json!(session.remote_webdriver_timeout_seconds),
+        ),
+        ("session.reuse", json!(session.reuse)),
+        ("session.reuse_class", json!(session.reuse_class.is_some())),
+        (
+            "run.default_timeout",
+            json!(settings
+                .run
+                .default_timeout
+                .map(|timeout| timeout.as_secs())),
+        ),
+        ("test.threads", json!(settings.test.threads)),
+    ];
+    let mut summary: serde_json::Map<String, Value> = entries
+        .into_iter()
+        .map(|(path, value)| {
+            (
+                path.to_owned(),
+                json!({ "value": value, "variable": variables_of(path) }),
+            )
+        })
+        .collect();
+    summary.insert(
+        "would_launch".to_owned(),
+        json!({
             "browser": format!("{:?}", config.browser.kind).to_lowercase(),
             "mode": format!("{:?}", config.session.mode).to_lowercase(),
             "auto_start_driver": config.session.auto_start_driver,
             "reuse_session": config.session.reuse,
-        },
-    })
+        }),
+    );
+    Value::Object(summary)
+}
+
+/// The `SB_*` variables that write the setting at `path` of [`Settings`], as the option table
+/// names them, separated by commas.
+fn variables_of(path: &str) -> String {
+    crate::config::test_options::TEST_OPTIONS
+        .iter()
+        .filter(|row| row.field == path && row.kind.reads_env() && !row.env.is_empty())
+        .map(|row| row.env)
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 /// The runtime variables (`SB_LOG_LEVEL` and the rest) as they were read.
@@ -1169,6 +1241,61 @@ mod tests {
     // check_config
     // ------------------------------------------------------------------
 
+    /// `check_config` names each setting by its path in `Settings`, with the variables that
+    /// write it (open question 13 of `docs/design/settings_v2.md`).
+    #[test]
+    fn every_setting_is_listed_by_its_path_with_the_variables_that_write_it() {
+        let file = write_settings("");
+
+        let report = config_report(
+            Some(file.path()),
+            &vars(&[("SB_USER_AGENT", "agent/1"), ("SB_SERVER", "grid.test")]),
+            &PluginSelection::new(),
+        );
+
+        let settings = &report["settings"];
+        assert_eq!(
+            settings["browser.user_agent"],
+            json!({ "value": "agent/1", "variable": "SB_USER_AGENT" })
+        );
+        assert_eq!(settings["browser.proxy.server"]["variable"], "SB_PROXY");
+        assert_eq!(
+            settings["session.webdriver_url"]["variable"],
+            "SB_WEBDRIVER_URL"
+        );
+        assert_eq!(
+            settings["browser.switches.esc-end"]["variable"],
+            "SB_ESC_END"
+        );
+        assert_eq!(settings["test.threads"]["variable"], "SB_THREADS");
+        // A setting that several variables write names them all, in the order of the table.
+        assert_eq!(
+            settings["browser.window_size"]["variable"],
+            "SB_WINDOW_WIDTH, SB_WINDOW_HEIGHT, SB_WINDOW_SIZE"
+        );
+        // Every entry is a path of the option table, with the variables the table gives it.
+        let table = crate::config::test_options::TEST_OPTIONS;
+        for (path, entry) in settings
+            .as_object()
+            .unwrap()
+            .iter()
+            .filter(|(path, _)| path.as_str() != "would_launch")
+        {
+            let variable = entry["variable"].as_str().unwrap();
+            assert!(!variable.is_empty(), "{path} has no variable");
+            for name in variable.split(", ") {
+                assert!(
+                    table
+                        .iter()
+                        .any(|row| row.env == name && row.field == path.as_str()),
+                    "{path}: {name}"
+                );
+            }
+        }
+        // The flat names of the old listing are gone.
+        assert!(settings.get("browser").is_none() && settings.get("headless").is_none());
+    }
+
     fn vars(pairs: &'static [(&'static str, &'static str)]) -> impl Fn(&str) -> Option<String> {
         move |name| {
             pairs
@@ -1201,14 +1328,20 @@ mod tests {
         assert_eq!(report["ok"], true, "{report}");
         assert_eq!(report["starts_nothing"], true);
         assert_eq!(report["problems"], json!([]));
-        assert_eq!(report["settings"]["browser"], "edge");
+        assert_eq!(report["settings"]["browser.kind"]["value"], "edge");
         assert_eq!(report["settings"]["would_launch"]["browser"], "edge");
-        assert_eq!(report["settings"]["window"], "1280x720");
-        assert_eq!(report["settings"]["default_timeout_seconds"], 7);
+        assert_eq!(
+            report["settings"]["browser.window_size"]["value"],
+            "1280x720"
+        );
+        assert_eq!(report["settings"]["run.default_timeout"]["value"], 7);
         assert_eq!(report["runtime"]["log_level"], "debug");
         assert_eq!(report["plugins"]["check"], "ok");
         // The proxy password is not repeated.
-        assert_eq!(report["settings"]["proxy"], "[redacted]@proxy.test:8080");
+        assert_eq!(
+            report["settings"]["browser.proxy.server"]["value"],
+            "[redacted]@proxy.test:8080"
+        );
         assert!(!report.to_string().contains("pw@"), "{report}");
     }
 
@@ -1251,8 +1384,8 @@ mod tests {
             .as_str()
             .unwrap()
             .contains("SB_SHUTDOWN_TIMEOUT_SECS"));
-        assert_eq!(report["settings"]["mobile"], true);
-        assert_eq!(report["settings"]["locale"], "de-DE");
+        assert_eq!(report["settings"]["browser.mobile"]["value"], true);
+        assert_eq!(report["settings"]["browser.lang"]["value"], "de-DE");
         assert_eq!(report["runtime"]["shutdown_timeout_seconds"], 30);
     }
 

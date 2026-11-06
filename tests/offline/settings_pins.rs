@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use seleniumbase_rs::browser::config::BrowserConfig;
-use seleniumbase_rs::browser::options::{grid_url, GridProtocol};
+use seleniumbase_rs::browser::options::{grid_url, GridProtocol, WindowSize};
 use seleniumbase_rs::config::browser_options::settings_key;
 use seleniumbase_rs::config::env_vars::variables;
 use seleniumbase_rs::config::settings::{Settings, SettingsOverrides};
@@ -90,6 +90,15 @@ fn sample(row: &OptionSpec, dir: &Path) -> Sample {
                 companions: Vec::new(),
             }
         }
+        // The size of the virtual display is used when the display is on, so it is given with
+        // `SB_XVFB`, as the window sides are given in pairs.
+        "SB_XVFB_METRICS" => {
+            return Sample {
+                companions: vec![("SB_XVFB", "true".to_owned(), json!(true))],
+                ..text("800,600")
+            }
+        }
+
         "SB_WINDOW_WIDTH" => {
             return Sample {
                 companions: vec![("SB_WINDOW_HEIGHT", "600".to_owned(), json!(600))],
@@ -230,7 +239,7 @@ fn a_blank_variable_is_unset_and_the_last_pair_of_a_variable_wins() {
             ("SB_BROWSER", "edge".to_owned()),
         ])
         .expect("both are valid");
-    assert_eq!(settings.browser, "edge");
+    assert_eq!(settings.browser.kind.to_string(), "edge");
 }
 
 #[test]
@@ -801,14 +810,22 @@ fn finding_3_the_report_options_are_declared_and_read_once() {
 /// `Layer::from_config` passes: the phone, the PAC file, the bypass list, the preferences.
 #[test]
 fn finding_4_to_launch_options_passes_what_the_browser_config_passes() {
-    let settings = Settings {
-        mobile: true,
-        device_metrics: Some("412,732,3".to_owned()),
-        proxy_pac_url: Some("http://pac.example/proxy.pac".to_owned()),
-        proxy_bypass_list: Some("*.example.test;localhost".to_owned()),
-        block_images: true,
-        ..Settings::default()
-    };
+    let mut settings = Settings::default();
+    settings
+        .apply_options(&[
+            ("SB_MOBILE", "true".to_owned()),
+            ("SB_DEVICE_METRICS", "412,732,3".to_owned()),
+            (
+                "SB_PROXY_PAC_URL",
+                "http://pac.example/proxy.pac".to_owned(),
+            ),
+            (
+                "SB_PROXY_BYPASS_LIST",
+                "*.example.test;localhost".to_owned(),
+            ),
+            ("SB_BLOCK_IMAGES", "true".to_owned()),
+        ])
+        .expect("valid values");
     let direct = settings.to_launch_options().expect("launch options");
     let through_the_config = LaunchOptions::builder()
         .browser_config(&settings.to_browser_config())
@@ -840,7 +857,7 @@ fn finding_4_to_launch_options_passes_what_the_browser_config_passes() {
 /// Finding 5: `headless` has three defaults, one for each entry point.
 #[test]
 fn finding_5_headless_has_one_default_for_each_entry_point() {
-    assert!(!Settings::default().headless);
+    assert!(!Settings::default().browser.headless);
     assert!(BrowserConfig::default().browser.headless);
     let options = LaunchOptions::builder().build().expect("launch options");
     assert_eq!(options.is_headless(), cfg!(target_os = "linux"));
@@ -855,7 +872,10 @@ fn finding_7_runtime_config_reads_a_blank_binary_as_unset() {
     let runtime = RuntimeConfig::from_vars(blank).expect("valid");
     assert_eq!(runtime.chrome_bin, None);
     assert_eq!(
-        Settings::check_with(Some(&path), blank).settings.chrome_bin,
+        Settings::check_with(Some(&path), blank)
+            .settings
+            .browser
+            .executable_path,
         None
     );
     // The same for the other two variables both read.
@@ -874,28 +894,26 @@ fn finding_7_runtime_config_reads_a_blank_binary_as_unset() {
 fn finding_8_the_browser_config_carries_no_threads() {
     // `Settings::threads` is read by `sbrs test`; the `BrowserConfig` of a session had a copy
     // that nothing read.
-    let settings = Settings {
-        threads: Some(3),
-        ..Settings::default()
-    };
+    let mut settings = Settings::default();
+    settings.test.threads = Some(3);
     let config = serde_json::to_value(settings.to_browser_config()).expect("json");
     assert!(find_key(&config, "threads").is_none(), "{config}");
-    assert_eq!(settings.threads, Some(3));
+    assert_eq!(settings.test.threads, Some(3));
 }
 
 /// Finding 9: `Settings` and `BrowserConfig::with_grid` built a Grid address with two functions.
 #[test]
 fn finding_9_one_function_builds_a_grid_address() {
     let address = |port: u16, protocol: &str| {
-        Settings {
-            server: Some("grid.example.test".to_owned()),
-            port: Some(port),
-            protocol: Some(protocol.to_owned()),
-            ..Settings::default()
-        }
-        .to_browser_config()
-        .session
-        .webdriver_url()
+        let mut settings = Settings::default();
+        settings
+            .apply_options(&[
+                ("SB_SERVER", "grid.example.test".to_owned()),
+                ("SB_PORT", port.to_string()),
+                ("SB_PROTOCOL", protocol.to_owned()),
+            ])
+            .expect("a Grid address");
+        settings.to_browser_config().session.webdriver_url()
     };
     for (port, protocol, kind) in [
         (4445, "https", GridProtocol::Https),
@@ -909,6 +927,13 @@ fn finding_9_one_function_builds_a_grid_address() {
     }
     // The protocol's own port is left out of the address.
     assert_eq!(address(80, "http"), "http://grid.example.test/wd/hub");
+}
+
+/// Settings whose window is `width` by `height` pixels.
+fn settings_with_window(width: u32, height: u32) -> Settings {
+    let mut settings = Settings::default();
+    settings.browser.window_size = Some(WindowSize::new(width, height));
+    settings
 }
 
 /// Finding 10: the higher source decides between the spellings of one setting, so `SB_WINDOW_WIDTH`
@@ -934,15 +959,8 @@ fn finding_10_the_higher_source_decides_between_the_spellings_of_the_window_size
         )
         .cloned()
     };
-    let file_size = size(&Settings {
-        window_size: Some("800,600".to_owned()),
-        ..Settings::default()
-    });
-    let variable_size = size(&Settings {
-        window_width: Some(1024),
-        window_height: Some(768),
-        ..Settings::default()
-    });
+    let file_size = size(&settings_with_window(800, 600));
+    let variable_size = size(&settings_with_window(1024, 768));
     assert_ne!(file_size, variable_size);
     assert_eq!(size(&check.settings), variable_size);
 }

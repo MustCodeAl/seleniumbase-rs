@@ -35,7 +35,8 @@
 //! # Ok::<(), &str>(())
 //! ```
 
-use std::path::PathBuf;
+use crate::browser::options::{LaunchSwitch, WindowSize};
+use crate::config::text::{self, OptionValue};
 
 use crate::config::settings::{Settings, SettingsProblem};
 use crate::config::test_settings::TestData;
@@ -152,10 +153,18 @@ impl OptionSpec {
     /// (`[test] pdb`, `[report] html`).
     #[must_use]
     pub fn flat_key(&self) -> Option<&'static str> {
-        if let Some((_, key)) = FLAT_KEYS.iter().find(|(path, _)| *path == self.field) {
-            return Some(key);
+        if !self.has_field()
+            || !matches!(
+                self.kind,
+                OptionKind::Switch | OptionKind::Value(_) | OptionKind::Env(_)
+            )
+        {
+            return None;
         }
-        (self.has_field() && !self.field.contains('.')).then_some(self.field)
+        FLAT_KEYS
+            .iter()
+            .find(|(env, _)| *env == self.env)
+            .map(|(_, key)| *key)
     }
 
     /// Whether `spelling` is a flag of the row (`--dark`, `dark_mode`, ...).
@@ -180,124 +189,98 @@ pub fn find_option(flag: &str) -> Option<&'static OptionSpec> {
     TEST_OPTIONS.iter().find(|row| row.matches_flag(flag))
 }
 
-/// How an option's variable text is written into a [`Settings`] field.
-pub(crate) trait OptionValue {
-    /// Reads `text`, the value of the variable `name`.
-    fn assign(&mut self, name: &str, text: &str) -> Result<(), SeleniumBaseError>;
-}
-
-impl OptionValue for bool {
-    fn assign(&mut self, _name: &str, text: &str) -> Result<(), SeleniumBaseError> {
-        *self = crate::config::settings::parse_bool(text)?;
-        Ok(())
-    }
-}
-
-impl OptionValue for String {
-    fn assign(&mut self, _name: &str, text: &str) -> Result<(), SeleniumBaseError> {
-        text.clone_into(self);
-        Ok(())
-    }
-}
-
-impl OptionValue for Option<String> {
-    fn assign(&mut self, _name: &str, text: &str) -> Result<(), SeleniumBaseError> {
-        *self = Some(text.to_owned());
-        Ok(())
-    }
-}
-
-impl OptionValue for Option<PathBuf> {
-    fn assign(&mut self, _name: &str, text: &str) -> Result<(), SeleniumBaseError> {
-        *self = Some(PathBuf::from(text));
-        Ok(())
-    }
-}
-
-fn parse_number<T>(name: &str, text: &str) -> Result<T, SeleniumBaseError>
-where
-    T: std::str::FromStr,
-    T::Err: std::fmt::Display,
-{
-    text.parse()
-        .map_err(|error| SeleniumBaseError::InvalidConfig(format!("{name}: {error}")))
-}
-
-fn parse_seconds(name: &str, text: &str) -> Result<f64, SeleniumBaseError> {
-    match text.trim().parse::<f64>() {
-        Ok(seconds) if seconds.is_finite() && seconds >= 0.0 => Ok(seconds),
-        _ => Err(SeleniumBaseError::InvalidConfig(format!(
-            "{name}: expected a number of seconds, 0 or more, not '{text}'"
-        ))),
-    }
-}
-
-macro_rules! number_values {
-    ($($t:ty),+ $(,)?) => {$(
-        impl OptionValue for Option<$t> {
-            fn assign(&mut self, name: &str, text: &str) -> Result<(), SeleniumBaseError> {
-                *self = Some(parse_number(name, text.trim())?);
-                Ok(())
-            }
-        }
-    )+};
-}
-
-number_values!(u16, u32, u64, usize);
-
-impl OptionValue for u32 {
-    fn assign(&mut self, name: &str, text: &str) -> Result<(), SeleniumBaseError> {
-        *self = parse_number(name, text.trim())?;
-        Ok(())
-    }
-}
-
-impl OptionValue for f64 {
-    fn assign(&mut self, name: &str, text: &str) -> Result<(), SeleniumBaseError> {
-        *self = parse_seconds(name, text)?;
-        Ok(())
-    }
-}
-
-impl OptionValue for Option<f64> {
-    fn assign(&mut self, name: &str, text: &str) -> Result<(), SeleniumBaseError> {
-        *self = Some(parse_seconds(name, text)?);
-        Ok(())
-    }
-}
-
-impl OptionValue for Option<std::time::Duration> {
-    fn assign(&mut self, name: &str, text: &str) -> Result<(), SeleniumBaseError> {
-        let seconds = parse_seconds(name, text)?;
-        *self = Some(
-            std::time::Duration::try_from_secs_f64(seconds).map_err(|_| {
-                SeleniumBaseError::InvalidConfig(format!(
-                    "{name}: expected a number of seconds, 0 or more, not '{text}'"
-                ))
-            })?,
-        );
-        Ok(())
-    }
-}
-
 /// The settings-file keys of the rows whose field moved into a group: the path of the field,
 /// then the key a file writes at its top level. A row not listed here has the key of its
 /// field when that has no dot.
 const FLAT_KEYS: &[(&str, &str)] = &[
-    ("run.default_timeout", "timeout_seconds"),
-    ("run.demo_mode", "demo"),
-    ("run.slow_mode", "slow"),
-    ("run.demo_sleep", "demo_sleep"),
-    ("run.message_duration", "message_duration"),
-    ("run.skip_js_waits", "skip_js_waits"),
-    ("run.reset_visual_baseline", "visual_baseline"),
-    ("run.highlights", "highlights"),
-    ("run.interval", "interval"),
-    ("run.verify_delay", "verify_delay"),
-    ("run.check_js", "check_js"),
-    ("run.wait_for_angularjs", "wait_for_angularjs"),
-    ("run.disable_beforeunload", "disable_beforeunload"),
-    ("run.timeout_multiplier", "timeout_multiplier"),
+    ("SB_BROWSER", "browser"),
+    ("SB_HEADLESS", "headless"),
+    ("SB_TIMEOUT", "timeout_seconds"),
+    ("SB_WEBDRIVER_URL", "webdriver_url"),
+    ("SB_CHROME_BIN", "chrome_bin"),
+    (
+        "SB_REMOTE_WEBDRIVER_TIMEOUT",
+        "remote_webdriver_timeout_seconds",
+    ),
+    ("SB_PROXY", "proxy"),
+    ("SB_WINDOW_WIDTH", "window_width"),
+    ("SB_WINDOW_HEIGHT", "window_height"),
+    ("SB_USER_DATA_DIR", "user_data_dir"),
+    ("SB_EXTENSION_DIR", "extension_dir"),
+    ("SB_LOCALE", "locale"),
+    ("SB_USER_AGENT", "user_agent"),
+    ("SB_MODE", "mode"),
+    ("SB_AD_BLOCK", "ad_block"),
+    ("SB_REUSE_SESSION", "reuse_session"),
+    ("SB_REUSE_CLASS_SESSION", "reuse_class_session"),
+    ("SB_MOBILE", "mobile"),
+    ("SB_THREADS", "threads"),
+    ("SB_PROXY_PAC_URL", "proxy_pac_url"),
+    ("SB_ESC_END", "esc_end"),
+    ("SB_REC_SB_CDP", "rec_sb_cdp"),
+    ("SB_START_PAGE", "start_page"),
+    ("SB_SETTINGS_FILE", "settings_file"),
+    ("SB_HEADLESS1", "headless1"),
+    ("SB_LOCALE_CODE", "locale_code"),
+    ("SB_SERVER", "server"),
+    ("SB_PORT", "port"),
+    ("SB_PROTOCOL", "protocol"),
+    ("SB_CHROMIUM_ARG", "chromium_arg"),
+    ("SB_DARK_MODE", "dark_mode"),
+    ("SB_DEVTOOLS", "devtools"),
+    ("SB_DISABLE_FEATURES", "disable_features"),
+    ("SB_DISABLE_GPU", "disable_gpu"),
+    ("SB_DISABLE_WS", "disable_ws"),
+    ("SB_GUEST_MODE", "guest_mode"),
+    ("SB_INCOGNITO", "incognito"),
+    ("SB_HOST_RESOLVER_RULES", "host_resolver_rules"),
+    ("SB_NO_SANDBOX", "no_sandbox"),
+    ("SB_SWIFTSHADER", "swiftshader"),
+    ("SB_ENABLE_3D_APIS", "enable_3d_apis"),
+    ("SB_MAXIMIZE", "maximize"),
+    ("SB_BLOCK_IMAGES", "block_images"),
+    ("SB_DISABLE_JS", "disable_js"),
+    ("SB_DISABLE_COOKIES", "disable_cookies"),
+    ("SB_DO_NOT_TRACK", "do_not_track"),
+    ("SB_EXTERNAL_PDF", "external_pdf"),
+    ("SB_ENABLE_SYNC", "enable_sync"),
+    ("SB_DISABLE_CSP", "disable_csp"),
+    ("SB_USE_AUTO_EXT", "use_auto_ext"),
+    ("SB_PROXY_DRIVER", "proxy_driver"),
+    ("SB_PAGE_LOAD_STRATEGY", "page_load_strategy"),
+    ("SB_WINDOW_SIZE", "window_size"),
+    ("SB_WINDOW_POSITION", "window_position"),
+    ("SB_DEVICE_METRICS", "device_metrics"),
+    ("SB_PROXY_BYPASS_LIST", "proxy_bypass_list"),
+    ("SB_DRIVER_VERSION", "driver_version"),
+    ("SB_CAP_FILE", "cap_file"),
+    ("SB_CAP_STRING", "cap_string"),
+    ("SB_EXTENSION_ZIP", "extension_zip"),
+    ("SB_FIREFOX_ARG", "firefox_arg"),
+    ("SB_FIREFOX_PREF", "firefox_pref"),
+    ("SB_XVFB", "xvfb"),
+    ("SB_XVFB_METRICS", "xvfb_metrics"),
+    ("SB_REMOTE_DEBUG", "remote_debug"),
+    ("SB_LOG_CDP_EVENTS", "log_cdp_events"),
+    ("SB_UC_CDP_EVENTS", "uc_cdp_events"),
+    ("SB_CRUMBS", "crumbs"),
+    ("SB_DEMO", "demo"),
+    ("SB_SLOW", "slow"),
+    ("SB_DEMO_SLEEP", "demo_sleep"),
+    ("SB_MESSAGE_DURATION", "message_duration"),
+    ("SB_SKIP_JS_WAITS", "skip_js_waits"),
+    ("SB_VISUAL_BASELINE", "visual_baseline"),
+    ("SB_HIGHLIGHTS", "highlights"),
+    ("SB_INTERVAL", "interval"),
+    ("SB_VERIFY_DELAY", "verify_delay"),
+    ("SB_CHECK_JS", "check_js"),
+    ("SB_WAIT_FOR_ANGULARJS", "wait_for_angularjs"),
+    ("SB_DISABLE_BEFOREUNLOAD", "disable_beforeunload"),
+    ("SB_TIMEOUT_MULTIPLIER", "timeout_multiplier"),
+    ("SB_RECORDER", "recorder"),
+    ("SB_REC_BEHAVE", "rec_behave"),
+    ("SB_REC_PRINT", "rec_print"),
+    ("SB_REC_SB_MGR", "rec_sb_mgr"),
 ];
 
 /// `--env`: one of the 24 environments, in lower case.
@@ -326,6 +309,12 @@ fn read(
     if let Some(text) = var(env)
         && let Err(error) = assign(env, &text)
     {
+        // A value a type refuses (a window size, a driver mode) says what it expected and
+        // not where it came from; as an `InvalidConfig` it gets the variable and the flag.
+        let error = match error {
+            error @ SeleniumBaseError::InvalidConfig(_) => error,
+            other => SeleniumBaseError::InvalidConfig(other.to_string()),
+        };
         problems.push(SettingsProblem {
             source: env.to_owned(),
             error,
@@ -334,6 +323,12 @@ fn read(
 }
 
 macro_rules! kind_of {
+    // An on/off setting that is one entry of `browser.switches`: the `LaunchSwitch` and the
+    // name it has in the serialized settings.
+    (switch_in($v:ident, $k:literal)) => {
+        OptionKind::Switch
+    };
+
     (switch) => {
         OptionKind::Switch
     };
@@ -361,6 +356,59 @@ macro_rules! kind_of {
 }
 
 macro_rules! apply_row {
+    // The derived settings: several variables write one value, or one writes two, so each has
+    // a reader of its own (`config::text`). `SB_WINDOW_HEIGHT` is read with `SB_WINDOW_WIDTH`.
+    ($s:ident, $var:ident, $problems:ident, "SB_WINDOW_WIDTH", [$($k:tt)+], $($p:ident).+) => {
+        read_window_axes($s, $var, $problems)
+    };
+    ($s:ident, $var:ident, $problems:ident, "SB_WINDOW_HEIGHT", [$($k:tt)+], $($p:ident).+) => {};
+    ($s:ident, $var:ident, $problems:ident, "SB_LOCALE_CODE", [$($k:tt)+], $($p:ident).+) => {
+        derived!($s, $var, $problems, "SB_LOCALE_CODE", browser, text::locale_code)
+    };
+    ($s:ident, $var:ident, $problems:ident, "SB_XVFB", [$($k:tt)+], $($p:ident).+) => {
+        derived!($s, $var, $problems, "SB_XVFB", browser, text::xvfb)
+    };
+    ($s:ident, $var:ident, $problems:ident, "SB_XVFB_METRICS", [$($k:tt)+], $($p:ident).+) => {
+        derived!($s, $var, $problems, "SB_XVFB_METRICS", browser, text::xvfb_metrics)
+    };
+    ($s:ident, $var:ident, $problems:ident, "SB_REMOTE_DEBUG", [$($k:tt)+], $($p:ident).+) => {
+        derived!($s, $var, $problems, "SB_REMOTE_DEBUG", browser, text::remote_debug)
+    };
+    ($s:ident, $var:ident, $problems:ident, "SB_CHROMIUM_ARG", [$($k:tt)+], $($p:ident).+) => {
+        derived!($s, $var, $problems, "SB_CHROMIUM_ARG", browser, text::chromium_arg)
+    };
+    ($s:ident, $var:ident, $problems:ident, "SB_DISABLE_FEATURES", [$($k:tt)+], $($p:ident).+) => {
+        derived!($s, $var, $problems, "SB_DISABLE_FEATURES", browser, text::disable_features)
+    };
+    ($s:ident, $var:ident, $problems:ident, "SB_REUSE_CLASS_SESSION", [$($k:tt)+], $($p:ident).+) => {
+        derived!($s, $var, $problems, "SB_REUSE_CLASS_SESSION", session, text::reuse_class)
+    };
+    ($s:ident, $var:ident, $problems:ident, "SB_CAP_FILE", [$($k:tt)+], $($p:ident).+) => {
+        derived!($s, $var, $problems, "SB_CAP_FILE", session, text::cap_file)
+    };
+    ($s:ident, $var:ident, $problems:ident, "SB_CAP_STRING", [$($k:tt)+], $($p:ident).+) => {
+        derived!($s, $var, $problems, "SB_CAP_STRING", session, text::cap_string)
+    };
+    ($s:ident, $var:ident, $problems:ident, "SB_FIREFOX_ARG", [$($k:tt)+], $($p:ident).+) => {
+        derived!($s, $var, $problems, "SB_FIREFOX_ARG", session, text::firefox_arg)
+    };
+    ($s:ident, $var:ident, $problems:ident, "SB_FIREFOX_PREF", [$($k:tt)+], $($p:ident).+) => {
+        derived!($s, $var, $problems, "SB_FIREFOX_PREF", session, text::firefox_pref)
+    };
+    ($s:ident, $var:ident, $problems:ident, "SB_LOG_CDP_EVENTS", [$($k:tt)+], $($p:ident).+) => {
+        derived!($s, $var, $problems, "SB_LOG_CDP_EVENTS", session, text::log_cdp_events)
+    };
+    ($s:ident, $var:ident, $problems:ident, "SB_UC_CDP_EVENTS", [$($k:tt)+], $($p:ident).+) => {
+        derived!($s, $var, $problems, "SB_UC_CDP_EVENTS", session, text::uc_cdp_events)
+    };
+
+    ($s:ident, $var:ident, $problems:ident, $env:literal, [switch_in($v:ident, $k:literal)], $($p:ident).+) => {
+        read($var, $problems, $env, |_name, text| {
+            $s.browser
+                .set(LaunchSwitch::$v, crate::config::settings::parse_bool(text)?);
+            Ok(())
+        })
+    };
     ($s:ident, $var:ident, $problems:ident, $env:literal, [switch], $($p:ident).+) => {
         read($var, $problems, $env, |name, text| {
             OptionValue::assign(&mut $s.$($p).+, name, text)
@@ -385,6 +433,26 @@ macro_rules! apply_row {
     ($s:ident, $var:ident, $problems:ident, $env:literal, [na($why:literal)], $($p:ident).+) => {};
 }
 
+/// Reads the variable `$env` with the reader `$reader` of one group of the settings.
+macro_rules! derived {
+    ($s:ident, $var:ident, $problems:ident, $env:literal, $group:ident, $reader:path) => {
+        read($var, $problems, $env, |name, text| {
+            $reader(&mut $s.$group, name, text)
+        })
+    };
+}
+
+/// The field of a row, as the serialized settings name it: the path the macro is given, and for
+/// one entry of `browser.switches` the name of the switch after it.
+macro_rules! field_of {
+    ([switch_in($v:ident, $k:literal)], $($p:ident).+) => {
+        concat!(stringify!($($p).+), ".", $k)
+    };
+    ([$($k:tt)+], $($p:ident).+) => {
+        stringify!($($p).+)
+    };
+}
+
 macro_rules! option_table {
     ($(
         (
@@ -392,7 +460,7 @@ macro_rules! option_table {
             $long:literal,
             [$($alias:literal),* $(,)?],
             [$($sb:literal),* $(,)?],
-            $env:literal,
+            $env:tt,
             [$($kind:tt)+],
             $help:literal
         )
@@ -400,7 +468,7 @@ macro_rules! option_table {
         /// Every option of the table; see the [module documentation](self).
         pub static TEST_OPTIONS: &[OptionSpec] = &[$(
             OptionSpec {
-                field: stringify!($($path).+),
+                field: field_of!([$($kind)+], $($path).+),
                 long: $long,
                 aliases: &[$($alias),*],
                 sb_names: &[$($sb),*],
@@ -440,15 +508,40 @@ pub(crate) fn apply_env(
     problems: &mut Vec<SettingsProblem>,
 ) {
     apply_rows(settings, var, problems);
-    if var("SB_WINDOW_SIZE").is_some() {
-        settings.window_width = None;
-        settings.window_height = None;
-    } else if var("SB_WINDOW_WIDTH").is_some() || var("SB_WINDOW_HEIGHT").is_some() {
-        settings.window_size = None;
+}
+
+/// `SB_WINDOW_WIDTH` and `SB_WINDOW_HEIGHT` together: the window size, unless the same source
+/// gives `SB_WINDOW_SIZE`, which wins and is read after them.
+///
+/// A side the source gives alone is laid over the size already there (a lower source's), and
+/// the other side is left at zero when there is none. A size with a side of zero is what
+/// [`Settings::validate`] refuses ("both must be set, and above zero"), so a lone side is
+/// refused when the settings are checked and not when it is read: the other side may come
+/// from a higher source.
+fn read_window_axes(
+    settings: &mut Settings,
+    var: &dyn Fn(&str) -> Option<String>,
+    problems: &mut Vec<SettingsProblem>,
+) {
+    let mut side = |env: &str| -> Option<u32> {
+        let mut number: Option<u32> = None;
+        read(var, problems, env, |name, text| number.assign(name, text));
+
+        number
+    };
+    let width = side("SB_WINDOW_WIDTH");
+    let height = side("SB_WINDOW_HEIGHT");
+    if var("SB_WINDOW_SIZE").is_some() || (width.is_none() && height.is_none()) {
+        return;
     }
-    if var("SB_LOCALE_CODE").is_none() && var("SB_LOCALE").is_some() {
-        settings.locale_code = None;
-    }
+    let current = settings
+        .browser
+        .window_size
+        .unwrap_or(WindowSize::new(0, 0));
+    settings.browser.window_size = Some(WindowSize::new(
+        width.unwrap_or(current.width),
+        height.unwrap_or(current.height),
+    ));
 }
 
 /// Hands every row of the table to the macro `$callback`, so that another
@@ -463,90 +556,90 @@ macro_rules! sb_test_options {
         $callback! {
             // Settings that exist since the first release, in the order their
             // variables are read.
-            (browser, "browser", [], [], "SB_BROWSER", [value(Browser)], "The browser to run: chrome, edge, firefox, brave, ... (SB_BROWSER)"),
-            (headless, "headless", ["headless2"], ["headless", "headless2"], "SB_HEADLESS", [switch], "Run without a visible window (Chrome's new headless mode) (SB_HEADLESS)"),
+            (browser.kind, "browser", [], [], "SB_BROWSER", [value(Browser)], "The browser to run: chrome, edge, firefox, brave, ... (SB_BROWSER)"),
+            (browser.headless, "headless", ["headless2"], ["headless", "headless2"], "SB_HEADLESS", [switch], "Run without a visible window (Chrome's new headless mode) (SB_HEADLESS)"),
             (run.default_timeout, "timeout", [], [], "SB_TIMEOUT", [env(Seconds)], "The default wait, in whole seconds (SB_TIMEOUT)"),
-            (webdriver_url, "webdriver-url", [], [], "SB_WEBDRIVER_URL", [env(Url)], "The WebDriver server to use (SB_WEBDRIVER_URL)"),
-            (chrome_bin, "binary-location", ["bl"], ["binary_location"], "SB_CHROME_BIN", [value(Path)], "The browser binary to run (SB_CHROME_BIN)"),
-            (remote_webdriver_timeout_seconds, "remote-webdriver-timeout", [], [], "SB_REMOTE_WEBDRIVER_TIMEOUT", [env(Seconds)], "Client timeout for each request to a Remote WebDriver server (SB_REMOTE_WEBDRIVER_TIMEOUT)"),
-            (proxy, "proxy", ["proxy-server", "proxy-string"], [], "SB_PROXY", [value(Text)], "The proxy server: HOST:PORT or USER:PASS@HOST:PORT (SB_PROXY)"),
-            (window_width, "window-width", [], [], "SB_WINDOW_WIDTH", [env(Pixels)], "The browser window's width in pixels (SB_WINDOW_WIDTH)"),
-            (window_height, "window-height", [], [], "SB_WINDOW_HEIGHT", [env(Pixels)], "The browser window's height in pixels (SB_WINDOW_HEIGHT)"),
-            (user_data_dir, "user-data-dir", [], [], "SB_USER_DATA_DIR", [value(Path)], "The browser profile folder (SB_USER_DATA_DIR)"),
-            (extension_dir, "extension-dir", [], [], "SB_EXTENSION_DIR", [value(Path)], "Unpacked extension folders to load, separated by commas (SB_EXTENSION_DIR)"),
-            (locale, "locale", [], [], "SB_LOCALE", [value(Text)], "The browser locale (SB_LOCALE)"),
-            (user_agent, "user-agent", ["agent"], [], "SB_USER_AGENT", [value(Text)], "The user agent string (SB_USER_AGENT)"),
-            (mode, "mode", [], [], "SB_MODE", [value(Mode)], "The driver mode: webdriver, cdp or uc (SB_MODE)"),
-            (ad_block, "ad-block", ["adblock", "block-ads"], ["ad_block_on"], "SB_AD_BLOCK", [switch], "Block the requests of ad and tracker hosts (SB_AD_BLOCK)"),
-            (reuse_session, "reuse-session", ["rs"], [], "SB_REUSE_SESSION", [switch], "Share browsers among the tests of the run (SB_REUSE_SESSION)"),
-            (reuse_class_session, "reuse-class-session", ["rcs"], [], "SB_REUSE_CLASS_SESSION", [switch], "Share a browser among the tests of one module (SB_REUSE_CLASS_SESSION)"),
-            (mobile, "mobile", ["mobile-emulator"], ["is_mobile"], "SB_MOBILE", [switch], "Emulate a mobile phone (SB_MOBILE)"),
-            (threads, "threads", [], [], "SB_THREADS", [env(Count)], "The number of parallel test threads (SB_THREADS)"),
-            (proxy_pac_url, "proxy-pac-url", ["pac-url"], [], "SB_PROXY_PAC_URL", [value(Url)], "A proxy auto-config URL (SB_PROXY_PAC_URL)"),
-            (esc_end, "esc-end", ["ee"], [], "SB_ESC_END", [switch], "End the current test when ESC is pressed in the browser (SB_ESC_END)"),
-            (rec_sb_cdp, "rec-sb-cdp", [], [], "SB_REC_SB_CDP", [switch], "Write recordings as pure CDP code (SB_REC_SB_CDP)"),
+            (session.webdriver_url, "webdriver-url", [], [], "SB_WEBDRIVER_URL", [env(Url)], "The WebDriver server to use (SB_WEBDRIVER_URL)"),
+            (browser.executable_path, "binary-location", ["bl"], ["binary_location"], "SB_CHROME_BIN", [value(Path)], "The browser binary to run (SB_CHROME_BIN)"),
+            (session.remote_webdriver_timeout_seconds, "remote-webdriver-timeout", [], [], "SB_REMOTE_WEBDRIVER_TIMEOUT", [env(Seconds)], "Client timeout for each request to a Remote WebDriver server (SB_REMOTE_WEBDRIVER_TIMEOUT)"),
+            (browser.proxy.server, "proxy", ["proxy-server", "proxy-string"], [], "SB_PROXY", [value(Text)], "The proxy server: HOST:PORT or USER:PASS@HOST:PORT (SB_PROXY)"),
+            (browser.window_size, "window-width", [], [], "SB_WINDOW_WIDTH", [env(Pixels)], "The browser window's width in pixels (SB_WINDOW_WIDTH)"),
+            (browser.window_size, "window-height", [], [], "SB_WINDOW_HEIGHT", [env(Pixels)], "The browser window's height in pixels (SB_WINDOW_HEIGHT)"),
+            (browser.user_data_dir, "user-data-dir", [], [], "SB_USER_DATA_DIR", [value(Path)], "The browser profile folder (SB_USER_DATA_DIR)"),
+            (browser.extensions, "extension-dir", [], [], "SB_EXTENSION_DIR", [value(Path)], "Unpacked extension folders to load, separated by commas (SB_EXTENSION_DIR)"),
+            (browser.lang, "locale", [], [], "SB_LOCALE", [value(Text)], "The browser locale (SB_LOCALE)"),
+            (browser.user_agent, "user-agent", ["agent"], [], "SB_USER_AGENT", [value(Text)], "The user agent string (SB_USER_AGENT)"),
+            (session.mode, "mode", [], [], "SB_MODE", [value(Mode)], "The driver mode: webdriver, cdp or uc (SB_MODE)"),
+            (browser.ad_block, "ad-block", ["adblock", "block-ads"], ["ad_block_on"], "SB_AD_BLOCK", [switch], "Block the requests of ad and tracker hosts (SB_AD_BLOCK)"),
+            (session.reuse, "reuse-session", ["rs"], [], "SB_REUSE_SESSION", [switch], "Share browsers among the tests of the run (SB_REUSE_SESSION)"),
+            (session.reuse_class, "reuse-class-session", ["rcs"], [], "SB_REUSE_CLASS_SESSION", [switch], "Share a browser among the tests of one module (SB_REUSE_CLASS_SESSION)"),
+            (browser.mobile, "mobile", ["mobile-emulator"], ["is_mobile"], "SB_MOBILE", [switch], "Emulate a mobile phone (SB_MOBILE)"),
+            (test.threads, "threads", [], [], "SB_THREADS", [env(Count)], "The number of parallel test threads (SB_THREADS)"),
+            (browser.proxy.pac_url, "proxy-pac-url", ["pac-url"], [], "SB_PROXY_PAC_URL", [value(Url)], "A proxy auto-config URL (SB_PROXY_PAC_URL)"),
+            (browser.switches, "esc-end", ["ee"], [], "SB_ESC_END", [switch_in(EscEnd, "esc-end")], "End the current test when ESC is pressed in the browser (SB_ESC_END)"),
+            (browser.switches, "rec-sb-cdp", [], [], "SB_REC_SB_CDP", [switch_in(RecSbCdp, "rec-sb-cdp")], "Write recordings as pure CDP code (SB_REC_SB_CDP)"),
             (fingerprint.file, "fingerprint", [], [], "SB_FINGERPRINT", [value(Path)], "A fingerprint file every browser presents (SB_FINGERPRINT)"),
-            (start_page, "start-page", ["url"], [], "SB_START_PAGE", [value(Url)], "The page every browser opens first (SB_START_PAGE)"),
+            (browser.url, "start-page", ["url"], [], "SB_START_PAGE", [value(Url)], "The page every browser opens first (SB_START_PAGE)"),
             (settings_file, "settings-file", ["settings"], [], "SB_SETTINGS_FILE", [value(Path)], "The settings file to read instead of sbase_config.toml (SB_SETTINGS_FILE)"),
             // Which browser: shorthands for a value of SB_BROWSER, SB_HEADLESS and SB_MODE.
-            (browser, "chrome", [], [], "SB_BROWSER", [sets("chrome")], "Run Chrome (SB_BROWSER=chrome)"),
-            (browser, "edge", [], [], "SB_BROWSER", [sets("edge")], "Run Edge (SB_BROWSER=edge)"),
-            (browser, "firefox", [], [], "SB_BROWSER", [sets("firefox")], "Run Firefox (SB_BROWSER=firefox)"),
-            (browser, "brave", [], [], "SB_BROWSER", [sets("brave")], "Run Brave (SB_BROWSER=brave)"),
-            (browser, "comet", [], [], "SB_BROWSER", [sets("comet")], "Run Comet (SB_BROWSER=comet)"),
-            (browser, "opera", [], [], "SB_BROWSER", [sets("opera")], "Run Opera (SB_BROWSER=opera)"),
-            (browser, "safari", [], [], "SB_BROWSER", [sets("safari")], "Run Safari (SB_BROWSER=safari)"),
-            (browser, "ie", [], [], "SB_BROWSER", [sets("ie")], "Run Internet Explorer (SB_BROWSER=ie)"),
-            (browser, "cft", [], [], "SB_BROWSER", [sets("cft")], "Run Chrome for Testing (SB_BROWSER=cft)"),
-            (browser, "chs", [], [], "SB_BROWSER", [sets("chs")], "Run chrome-headless-shell (SB_BROWSER=chs)"),
-            (browser, "chromium", ["use-chromium"], [], "SB_BROWSER", [sets("chromium")], "Run Chromium (SB_BROWSER=chromium)"),
-            (headless, "headed", ["gui"], ["headed"], "SB_HEADLESS", [sets("false")], "Run with a visible window (SB_HEADLESS=false)"),
-            (mode, "uc", ["undetected", "undetectable"], ["uc", "undetected", "undetectable"], "SB_MODE", [sets("uc")], "Run in undetected-chromedriver mode (SB_MODE=uc)"),
-            (headless1, "headless1", [], [], "SB_HEADLESS1", [switch], "Run headless with chrome-headless-shell (Chrome's old headless mode) (SB_HEADLESS1)"),
-            (locale_code, "locale-code", [], [], "SB_LOCALE_CODE", [value(Text)], "The browser language code, such as fr or ar_eg (SB_LOCALE_CODE)"),
-            (server, "server", [], ["servername"], "SB_SERVER", [value(Text)], "The Selenium Grid server to connect to (SB_SERVER)"),
-            (port, "port", [], [], "SB_PORT", [value(Port)], "The port of the Selenium Grid server (SB_PORT)"),
-            (protocol, "protocol", [], [], "SB_PROTOCOL", [value(Text)], "The protocol of the Selenium Grid server: http or https (SB_PROTOCOL)"),
+            (browser.kind, "chrome", [], [], "SB_BROWSER", [sets("chrome")], "Run Chrome (SB_BROWSER=chrome)"),
+            (browser.kind, "edge", [], [], "SB_BROWSER", [sets("edge")], "Run Edge (SB_BROWSER=edge)"),
+            (browser.kind, "firefox", [], [], "SB_BROWSER", [sets("firefox")], "Run Firefox (SB_BROWSER=firefox)"),
+            (browser.kind, "brave", [], [], "SB_BROWSER", [sets("brave")], "Run Brave (SB_BROWSER=brave)"),
+            (browser.kind, "comet", [], [], "SB_BROWSER", [sets("comet")], "Run Comet (SB_BROWSER=comet)"),
+            (browser.kind, "opera", [], [], "SB_BROWSER", [sets("opera")], "Run Opera (SB_BROWSER=opera)"),
+            (browser.kind, "safari", [], [], "SB_BROWSER", [sets("safari")], "Run Safari (SB_BROWSER=safari)"),
+            (browser.kind, "ie", [], [], "SB_BROWSER", [sets("ie")], "Run Internet Explorer (SB_BROWSER=ie)"),
+            (browser.kind, "cft", [], [], "SB_BROWSER", [sets("cft")], "Run Chrome for Testing (SB_BROWSER=cft)"),
+            (browser.kind, "chs", [], [], "SB_BROWSER", [sets("chs")], "Run chrome-headless-shell (SB_BROWSER=chs)"),
+            (browser.kind, "chromium", ["use-chromium"], [], "SB_BROWSER", [sets("chromium")], "Run Chromium (SB_BROWSER=chromium)"),
+            (browser.headless, "headed", ["gui"], ["headed"], "SB_HEADLESS", [sets("false")], "Run with a visible window (SB_HEADLESS=false)"),
+            (session.mode, "uc", ["undetected", "undetectable"], ["uc", "undetected", "undetectable"], "SB_MODE", [sets("uc")], "Run in undetected-chromedriver mode (SB_MODE=uc)"),
+            (browser.switches, "headless1", [], [], "SB_HEADLESS1", [switch_in(Headless1, "headless1")], "Run headless with chrome-headless-shell (Chrome's old headless mode) (SB_HEADLESS1)"),
+            (browser.lang, "locale-code", [], [], "SB_LOCALE_CODE", [value(Text)], "The browser language code, such as fr or ar_eg (SB_LOCALE_CODE)"),
+            (session.grid.server, "server", [], ["servername"], "SB_SERVER", [value(Text)], "The Selenium Grid server to connect to (SB_SERVER)"),
+            (session.grid.port, "port", [], [], "SB_PORT", [value(Port)], "The port of the Selenium Grid server (SB_PORT)"),
+            (session.grid.protocol, "protocol", [], [], "SB_PROTOCOL", [value(Text)], "The protocol of the Selenium Grid server: http or https (SB_PROTOCOL)"),
             // Chromium switches.
-            (chromium_arg, "chromium-arg", [], [], "SB_CHROMIUM_ARG", [value(List)], "Extra Chromium switches, separated by commas (SB_CHROMIUM_ARG)"),
-            (dark_mode, "dark-mode", ["dark"], [], "SB_DARK_MODE", [switch], "Force Chrome's dark theme on web pages (SB_DARK_MODE)"),
-            (devtools, "devtools", ["open-devtools"], [], "SB_DEVTOOLS", [switch], "Open the developer tools with each tab (headed only) (SB_DEVTOOLS)"),
-            (disable_features, "disable-features", [], [], "SB_DISABLE_FEATURES", [value(List)], "Chromium features to switch off, separated by commas (SB_DISABLE_FEATURES)"),
-            (disable_gpu, "disable-gpu", [], [], "SB_DISABLE_GPU", [switch], "Switch the GPU off (SB_DISABLE_GPU)"),
-            (disable_ws, "disable-ws", ["dws", "disable-web-security"], [], "SB_DISABLE_WS", [switch], "Switch web security off (SB_DISABLE_WS)"),
-            (guest_mode, "guest-mode", ["guest"], [], "SB_GUEST_MODE", [switch], "Open the browser as a guest (SB_GUEST_MODE)"),
-            (incognito, "incognito", ["incognito-mode"], [], "SB_INCOGNITO", [switch], "Open the browser in an incognito window (SB_INCOGNITO)"),
-            (host_resolver_rules, "host-resolver-rules", [], [], "SB_HOST_RESOLVER_RULES", [value(Text)], "Chromium rules that map host names to addresses (SB_HOST_RESOLVER_RULES)"),
-            (no_sandbox, "no-sandbox", [], [], "SB_NO_SANDBOX", [switch], "Start Chromium without its sandbox (SB_NO_SANDBOX)"),
-            (swiftshader, "swiftshader", [], [], "SB_SWIFTSHADER", [switch], "Render with SwiftShader, a software WebGL renderer (SB_SWIFTSHADER)"),
-            (enable_3d_apis, "enable-3d-apis", [], [], "SB_ENABLE_3D_APIS", [switch], "Keep the GPU on in a headless session, for WebGL (SB_ENABLE_3D_APIS)"),
-            (maximize, "maximize", ["maximize-window", "fullscreen"], [], "SB_MAXIMIZE", [switch], "Maximize the browser window (SB_MAXIMIZE)"),
+            (browser.chromium.args, "chromium-arg", [], [], "SB_CHROMIUM_ARG", [value(List)], "Extra Chromium switches, separated by commas (SB_CHROMIUM_ARG)"),
+            (browser.switches, "dark-mode", ["dark"], [], "SB_DARK_MODE", [switch_in(DarkMode, "dark-mode")], "Force Chrome's dark theme on web pages (SB_DARK_MODE)"),
+            (browser.switches, "devtools", ["open-devtools"], [], "SB_DEVTOOLS", [switch_in(Devtools, "devtools")], "Open the developer tools with each tab (headed only) (SB_DEVTOOLS)"),
+            (browser.chromium.disable_features, "disable-features", [], [], "SB_DISABLE_FEATURES", [value(List)], "Chromium features to switch off, separated by commas (SB_DISABLE_FEATURES)"),
+            (browser.switches, "disable-gpu", [], [], "SB_DISABLE_GPU", [switch_in(DisableGpu, "disable-gpu")], "Switch the GPU off (SB_DISABLE_GPU)"),
+            (browser.switches, "disable-ws", ["dws", "disable-web-security"], [], "SB_DISABLE_WS", [switch_in(DisableWebSecurity, "disable-web-security")], "Switch web security off (SB_DISABLE_WS)"),
+            (browser.switches, "guest-mode", ["guest"], [], "SB_GUEST_MODE", [switch_in(Guest, "guest")], "Open the browser as a guest (SB_GUEST_MODE)"),
+            (browser.switches, "incognito", ["incognito-mode"], [], "SB_INCOGNITO", [switch_in(Incognito, "incognito")], "Open the browser in an incognito window (SB_INCOGNITO)"),
+            (browser.chromium.host_resolver_rules, "host-resolver-rules", [], [], "SB_HOST_RESOLVER_RULES", [value(Text)], "Chromium rules that map host names to addresses (SB_HOST_RESOLVER_RULES)"),
+            (browser.switches, "no-sandbox", [], [], "SB_NO_SANDBOX", [switch_in(NoSandbox, "no-sandbox")], "Start Chromium without its sandbox (SB_NO_SANDBOX)"),
+            (browser.switches, "swiftshader", [], [], "SB_SWIFTSHADER", [switch_in(Swiftshader, "swiftshader")], "Render with SwiftShader, a software WebGL renderer (SB_SWIFTSHADER)"),
+            (browser.switches, "enable-3d-apis", [], [], "SB_ENABLE_3D_APIS", [switch_in(Enable3dApis, "enable-3d-apis")], "Keep the GPU on in a headless session, for WebGL (SB_ENABLE_3D_APIS)"),
+            (browser.switches, "maximize", ["maximize-window", "fullscreen"], [], "SB_MAXIMIZE", [switch_in(Maximize, "maximize")], "Maximize the browser window (SB_MAXIMIZE)"),
             // Preferences and launch settings that were implemented before the table.
-            (block_images, "block-images", [], [], "SB_BLOCK_IMAGES", [switch], "Do not load images (SB_BLOCK_IMAGES)"),
-            (disable_js, "disable-js", [], [], "SB_DISABLE_JS", [switch], "Turn JavaScript off (SB_DISABLE_JS)"),
-            (disable_cookies, "disable-cookies", [], [], "SB_DISABLE_COOKIES", [switch], "Refuse every cookie (SB_DISABLE_COOKIES)"),
-            (do_not_track, "do-not-track", [], [], "SB_DO_NOT_TRACK", [switch], "Send the DNT: 1 header (SB_DO_NOT_TRACK)"),
-            (external_pdf, "external-pdf", [], [], "SB_EXTERNAL_PDF", [switch], "Download PDF files instead of showing them (SB_EXTERNAL_PDF)"),
-            (enable_sync, "enable-sync", [], [], "SB_ENABLE_SYNC", [switch], "Leave Chrome Sync on (SB_ENABLE_SYNC)"),
-            (disable_csp, "disable-csp", ["dcsp", "no-csp"], [], "SB_DISABLE_CSP", [switch], "Strip the Content Security Policy from every response (SB_DISABLE_CSP)"),
-            (use_auto_ext, "use-auto-ext", ["auto-ext"], [], "SB_USE_AUTO_EXT", [switch], "Keep Chrome's automation extension (SB_USE_AUTO_EXT)"),
-            (proxy_driver, "proxy-driver", [], [], "SB_PROXY_DRIVER", [switch], "Download the driver through the proxy (SB_PROXY_DRIVER)"),
-            (page_load_strategy, "page-load-strategy", ["pls"], [], "SB_PAGE_LOAD_STRATEGY", [value(Strategy)], "How long a navigation waits: normal, eager or none (SB_PAGE_LOAD_STRATEGY)"),
-            (window_size, "window-size", [], ["size"], "SB_WINDOW_SIZE", [value(Size)], "The window size: WIDTH,HEIGHT (SB_WINDOW_SIZE)"),
-            (window_position, "window-position", [], ["position"], "SB_WINDOW_POSITION", [value(Position)], "The window position: X,Y (SB_WINDOW_POSITION)"),
-            (device_metrics, "device-metrics", ["metrics"], [], "SB_DEVICE_METRICS", [value(Metrics)], "Emulate a phone screen: WIDTH,HEIGHT,PIXEL_RATIO (SB_DEVICE_METRICS)"),
-            (proxy_bypass_list, "proxy-bypass-list", [], [], "SB_PROXY_BYPASS_LIST", [value(List)], "Hosts that skip the proxy (SB_PROXY_BYPASS_LIST)"),
-            (driver_version, "driver-version", [], [], "SB_DRIVER_VERSION", [value(Version)], "The driver version: a number, latest, stable, beta, ... (SB_DRIVER_VERSION)"),
-            (cap_file, "cap-file", [], [], "SB_CAP_FILE", [value(Path)], "A JSON file of capabilities to add to the session's (SB_CAP_FILE)"),
-            (cap_string, "cap-string", [], [], "SB_CAP_STRING", [value(Json)], "A JSON object of capabilities to add to the session's (SB_CAP_STRING)"),
-            (extension_zip, "extension-zip", ["crx"], [], "SB_EXTENSION_ZIP", [value(List)], "Extension .zip or .crx files to load, separated by commas (SB_EXTENSION_ZIP)"),
-            (firefox_arg, "firefox-arg", [], [], "SB_FIREFOX_ARG", [value(List)], "Firefox arguments, separated by commas (SB_FIREFOX_ARG)"),
-            (firefox_pref, "firefox-pref", [], [], "SB_FIREFOX_PREF", [value(List)], "Firefox preferences, NAME:VALUE separated by commas (SB_FIREFOX_PREF)"),
-            (xvfb, "xvfb", [], [], "SB_XVFB", [switch], "Open a virtual display for a headed browser on Linux (SB_XVFB)"),
-            (xvfb_metrics, "xvfb-metrics", [], [], "SB_XVFB_METRICS", [value(Size)], "The virtual display size: WIDTH,HEIGHT (SB_XVFB_METRICS)"),
-            (remote_debug, "remote-debug", ["remote-debugger"], [], "SB_REMOTE_DEBUG", [switch], "Open Chrome's remote debugger on port 9222 (SB_REMOTE_DEBUG)"),
-            (log_cdp_events, "log-cdp-events", ["log-cdp"], [], "SB_LOG_CDP_EVENTS", [switch], "Log the DevTools Protocol events (SB_LOG_CDP_EVENTS)"),
-            (uc_cdp_events, "uc-cdp-events", ["uc-cdp"], [], "SB_UC_CDP_EVENTS", [switch], "Log the DevTools Protocol events in undetected mode (SB_UC_CDP_EVENTS)"),
+            (browser.switches, "block-images", [], [], "SB_BLOCK_IMAGES", [switch_in(BlockImages, "block-images")], "Do not load images (SB_BLOCK_IMAGES)"),
+            (browser.switches, "disable-js", [], [], "SB_DISABLE_JS", [switch_in(DisableJavaScript, "disable-java-script")], "Turn JavaScript off (SB_DISABLE_JS)"),
+            (browser.switches, "disable-cookies", [], [], "SB_DISABLE_COOKIES", [switch_in(DisableCookies, "disable-cookies")], "Refuse every cookie (SB_DISABLE_COOKIES)"),
+            (browser.switches, "do-not-track", [], [], "SB_DO_NOT_TRACK", [switch_in(DoNotTrack, "do-not-track")], "Send the DNT: 1 header (SB_DO_NOT_TRACK)"),
+            (browser.switches, "external-pdf", [], [], "SB_EXTERNAL_PDF", [switch_in(ExternalPdf, "external-pdf")], "Download PDF files instead of showing them (SB_EXTERNAL_PDF)"),
+            (browser.switches, "enable-sync", [], [], "SB_ENABLE_SYNC", [switch_in(EnableSync, "enable-sync")], "Leave Chrome Sync on (SB_ENABLE_SYNC)"),
+            (browser.switches, "disable-csp", ["dcsp", "no-csp"], [], "SB_DISABLE_CSP", [switch_in(DisableCsp, "disable-csp")], "Strip the Content Security Policy from every response (SB_DISABLE_CSP)"),
+            (browser.switches, "use-auto-ext", ["auto-ext"], [], "SB_USE_AUTO_EXT", [switch_in(AutomationExtension, "automation-extension")], "Keep Chrome's automation extension (SB_USE_AUTO_EXT)"),
+            (browser.switches, "proxy-driver", [], [], "SB_PROXY_DRIVER", [switch_in(ProxyForDriverDownload, "proxy-for-driver-download")], "Download the driver through the proxy (SB_PROXY_DRIVER)"),
+            (session.page_load_strategy, "page-load-strategy", ["pls"], [], "SB_PAGE_LOAD_STRATEGY", [value(Strategy)], "How long a navigation waits: normal, eager or none (SB_PAGE_LOAD_STRATEGY)"),
+            (browser.window_size, "window-size", [], ["size"], "SB_WINDOW_SIZE", [value(Size)], "The window size: WIDTH,HEIGHT (SB_WINDOW_SIZE)"),
+            (browser.window_position, "window-position", [], ["position"], "SB_WINDOW_POSITION", [value(Position)], "The window position: X,Y (SB_WINDOW_POSITION)"),
+            (browser.device_metrics, "device-metrics", ["metrics"], [], "SB_DEVICE_METRICS", [value(Metrics)], "Emulate a phone screen: WIDTH,HEIGHT,PIXEL_RATIO (SB_DEVICE_METRICS)"),
+            (browser.proxy.bypass_list, "proxy-bypass-list", [], [], "SB_PROXY_BYPASS_LIST", [value(List)], "Hosts that skip the proxy (SB_PROXY_BYPASS_LIST)"),
+            (session.driver_version, "driver-version", [], [], "SB_DRIVER_VERSION", [value(Version)], "The driver version: a number, latest, stable, beta, ... (SB_DRIVER_VERSION)"),
+            (session.capabilities, "cap-file", [], [], "SB_CAP_FILE", [value(Path)], "A JSON file of capabilities to add to the session's (SB_CAP_FILE)"),
+            (session.capabilities, "cap-string", [], [], "SB_CAP_STRING", [value(Json)], "A JSON object of capabilities to add to the session's (SB_CAP_STRING)"),
+            (session.extension_archives, "extension-zip", ["crx"], [], "SB_EXTENSION_ZIP", [value(List)], "Extension .zip or .crx files to load, separated by commas (SB_EXTENSION_ZIP)"),
+            (session.firefox, "firefox-arg", [], [], "SB_FIREFOX_ARG", [value(List)], "Firefox arguments, separated by commas (SB_FIREFOX_ARG)"),
+            (session.firefox, "firefox-pref", [], [], "SB_FIREFOX_PREF", [value(List)], "Firefox preferences, NAME:VALUE separated by commas (SB_FIREFOX_PREF)"),
+            (browser.virtual_display, "xvfb", [], [], "SB_XVFB", [switch], "Open a virtual display for a headed browser on Linux (SB_XVFB)"),
+            (browser.virtual_display, "xvfb-metrics", [], [], "SB_XVFB_METRICS", [value(Size)], "The virtual display size: WIDTH,HEIGHT (SB_XVFB_METRICS)"),
+            (browser.debugging_port, "remote-debug", ["remote-debugger"], [], "SB_REMOTE_DEBUG", [switch], "Open Chrome's remote debugger on port 9222 (SB_REMOTE_DEBUG)"),
+            (session.cdp_events, "log-cdp-events", ["log-cdp"], [], "SB_LOG_CDP_EVENTS", [switch], "Log the DevTools Protocol events (SB_LOG_CDP_EVENTS)"),
+            (session.cdp_events, "uc-cdp-events", ["uc-cdp"], [], "SB_UC_CDP_EVENTS", [switch], "Log the DevTools Protocol events in undetected mode (SB_UC_CDP_EVENTS)"),
             // Run settings and page behaviour.
             (run.demo_mode, "demo", ["demo-mode"], [], "SB_DEMO", [switch], "Highlight each element and pause after an action (SB_DEMO)"),
             (run.slow_mode, "slow", ["slow-mode", "slowmo"], [], "SB_SLOW", [switch], "Pause briefly after each action (SB_SLOW)"),
@@ -560,7 +653,7 @@ macro_rules! sb_test_options {
             (run.wait_for_angularjs, "wait-for-angularjs", ["wfa"], [], "SB_WAIT_FOR_ANGULARJS", [switch], "Wait for AngularJS after opening a page and clicking (SB_WAIT_FOR_ANGULARJS)"),
             (run.disable_beforeunload, "disable-beforeunload", [], [], "SB_DISABLE_BEFOREUNLOAD", [switch], "Remove the beforeunload prompt after each page opens (SB_DISABLE_BEFOREUNLOAD)"),
             (run.reset_visual_baseline, "visual-baseline", [], [], "SB_VISUAL_BASELINE", [switch], "Set the visual baselines again instead of comparing (SB_VISUAL_BASELINE)"),
-            (crumbs, "crumbs", [], [], "SB_CRUMBS", [switch], "Delete the cookies when a reused browser is handed to the next test (SB_CRUMBS)"),
+            (session.crumbs, "crumbs", [], [], "SB_CRUMBS", [switch], "Delete the cookies when a reused browser is handed to the next test (SB_CRUMBS)"),
             (run.timeout_multiplier, "timeout-multiplier", [], [], "SB_TIMEOUT_MULTIPLIER", [value(Float)], "Multiply the default waits by this number (SB_TIMEOUT_MULTIPLIER)"),
             (run.record_sleep, "rec-sleep", ["record-sleep"], [], "SB_REC_SLEEP", [switch], "Keep the sleeps of a recording (SB_REC_SLEEP)"),
             // Test data.
@@ -594,10 +687,10 @@ macro_rules! sb_test_options {
             (report.database_env, "database-env", [], [], "SB_DATABASE_ENV", [value(Text)], "Which results database to use (SB_DATABASE_ENV)"),
             (report.with_s3_logging, "with-s3-logging", [], [], "SB_WITH_S3_LOGGING", [switch], "Upload each test's logs to S3 (SB_WITH_S3_LOGGING)"),
             // The recorder.
-            (test.recorder, "rec", ["record", "recorder", "codegen"], ["recorder_ext"], "SB_RECORDER", [switch], "Record the browser actions as a test (SB_RECORDER)"),
-            (test.rec_behave, "rec-behave", ["rec-gherkin"], [], "SB_REC_BEHAVE", [switch], "Also write the recording as a Gherkin feature (SB_REC_BEHAVE)"),
-            (test.rec_print, "rec-print", [], [], "SB_REC_PRINT", [switch], "Print the recording when the test ends (SB_REC_PRINT)"),
-            (test.rec_sb_mgr, "rec-sb-mgr", [], [], "SB_REC_SB_MGR", [switch], "Write the recording as a script (SB_REC_SB_MGR)"),
+            (browser.switches, "rec", ["record", "recorder", "codegen"], ["recorder_ext"], "SB_RECORDER", [switch_in(RecorderMode, "recorder-mode")], "Record the browser actions as a test (SB_RECORDER)"),
+            (browser.switches, "rec-behave", ["rec-gherkin"], [], "SB_REC_BEHAVE", [switch_in(RecBehave, "rec-behave")], "Also write the recording as a Gherkin feature (SB_REC_BEHAVE)"),
+            (browser.switches, "rec-print", [], [], "SB_REC_PRINT", [switch_in(RecPrint, "rec-print")], "Print the recording when the test ends (SB_REC_PRINT)"),
+            (browser.switches, "rec-sb-mgr", [], [], "SB_REC_SB_MGR", [switch_in(RecSbMgr, "rec-sb-mgr")], "Write the recording as a script (SB_REC_SB_MGR)"),
             // Accepted and ignored, or not a flag.
             (none, "all-scripts", [], [], "", [cli("sbrs test runs every example after the tests")], "Run every example after the tests"),
             (none, "with-testing-base", [], [], "", [noop("always on in the sb fixture, as upstream")], "Accepted and ignored"),
@@ -646,6 +739,9 @@ mod tests {
     }
 
     use super::*;
+
+    use crate::browser::config::{Browser, DriverMode};
+    use std::path::PathBuf;
 
     fn read_all(pairs: &[(&str, &str)]) -> (Settings, Vec<SettingsProblem>) {
         let mut settings = Settings::default();
@@ -735,10 +831,10 @@ mod tests {
     fn a_switch_reads_true_and_false_and_refuses_the_rest() {
         let (settings, problems) = read_all(&[("SB_DARK_MODE", "true"), ("SB_PDB", "1")]);
         assert!(problems.is_empty());
-        assert!(settings.dark_mode && settings.test.pdb);
+        assert!(settings.browser.has(LaunchSwitch::DarkMode) && settings.test.pdb);
 
         let (settings, problems) = read_all(&[("SB_DARK_MODE", "off")]);
-        assert!(problems.is_empty() && !settings.dark_mode);
+        assert!(problems.is_empty() && !settings.browser.has(LaunchSwitch::DarkMode));
 
         let (_, problems) = read_all(&[("SB_DEVTOOLS", "maybe")]);
         assert_eq!(problems.len(), 1);
@@ -753,7 +849,7 @@ mod tests {
     fn a_value_is_stored_as_text_a_path_a_number_or_seconds() {
         let (settings, problems) = read_all(&[
             ("SB_WINDOW_SIZE", "1280,720"),
-            ("SB_CAP_FILE", "caps.json"),
+            ("SB_USER_DATA_DIR", "profile-dir"),
             ("SB_PORT", "4445"),
             ("SB_HIGHLIGHTS", "3"),
             ("SB_RERUNS", "2"),
@@ -764,9 +860,15 @@ mod tests {
             ("SB_DASH_TITLE", "My Run"),
         ]);
         assert!(problems.is_empty(), "{problems:?}");
-        assert_eq!(settings.window_size.as_deref(), Some("1280,720"));
-        assert_eq!(settings.cap_file, Some(PathBuf::from("caps.json")));
-        assert_eq!(settings.port, Some(4445));
+        assert_eq!(
+            settings.browser.window_size,
+            Some(WindowSize::new(1280, 720))
+        );
+        assert_eq!(
+            settings.browser.user_data_dir,
+            Some(PathBuf::from("profile-dir"))
+        );
+        assert_eq!(settings.session.grid.port, Some(4445));
         assert_eq!(settings.run.highlights, Some(3));
         assert_eq!(settings.test.reruns, 2);
         assert!((settings.test.reruns_delay - 0.25).abs() < f64::EPSILON);
@@ -807,8 +909,8 @@ mod tests {
         // `--firefox` rows only tell the command line what to write.
         let (settings, problems) = read_all(&[("SB_BROWSER", "firefox"), ("SB_MODE", "uc")]);
         assert!(problems.is_empty());
-        assert_eq!(settings.browser, "firefox");
-        assert_eq!(settings.mode.as_deref(), Some("uc"));
+        assert_eq!(settings.browser.kind, Browser::Firefox);
+        assert_eq!(settings.session.mode, DriverMode::Uc);
         let chrome = find_option("--chrome").unwrap();
         assert_eq!(chrome.kind, OptionKind::Sets("chrome"));
         assert_eq!(chrome.env, "SB_BROWSER");

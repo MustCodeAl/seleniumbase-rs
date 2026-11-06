@@ -41,6 +41,8 @@ use super::deadline::{exceeded_message, Deadline};
 use super::evidence::{self, Subject};
 use crate::api::runner::{drive_with, Ended};
 use crate::artifacts::{logs_root, LATEST_LOGS_DIR};
+use crate::browser::options::LaunchSwitch;
+
 use crate::common::debug_prompt::{
     DebugPrompt, Failure, PromptKind, PromptOutcome, PromptPage, Scene, SourceSpot,
 };
@@ -189,10 +191,10 @@ impl Plan {
             save_screenshot: settings.report.save_screenshot,
             no_screenshot: settings.report.no_screenshot,
             list_fail_page: settings.report.list_fail_page,
-            recorder: test.recorder,
+            recorder: settings.browser.has(LaunchSwitch::RecorderMode),
             logs_dir: logs_root().join(LATEST_LOGS_DIR),
-            browser: settings.browser.clone(),
-            headless: settings.headless || settings.headless1,
+            browser: settings.browser.kind.to_string(),
+            headless: settings.browser.headless || settings.browser.has(LaunchSwitch::Headless1),
             spot: None,
             driver,
         })
@@ -1383,6 +1385,15 @@ mod tests {
         );
     }
 
+    /// Edge, recording, with the old headless implementation.
+    fn edge_recording_headless1() -> crate::browser::options::BrowserSettings {
+        let mut browser = crate::browser::options::BrowserSettings::default();
+        browser.kind = crate::browser::config::Browser::Edge;
+        browser.set(LaunchSwitch::Headless1, true);
+        browser.set(LaunchSwitch::RecorderMode, true);
+        browser
+    }
+
     fn settings_with(test: TestSettings) -> Settings {
         Settings {
             test,
@@ -1395,8 +1406,8 @@ mod tests {
 
     fn the_plan_reads_the_test_settings() {
         let settings = Settings {
-            headless1: true,
-            browser: "edge".to_owned(),
+            browser: edge_recording_headless1(),
+
             test: TestSettings {
                 reruns: 2,
                 reruns_delay: 0.25,
@@ -1404,7 +1415,7 @@ mod tests {
                 trace: true,
                 pdb: true,
                 final_debug: true,
-                recorder: true,
+
                 ..TestSettings::default()
             },
             report: crate::core::test_run::ReportSettings {
