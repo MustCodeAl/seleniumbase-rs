@@ -177,6 +177,9 @@ const GONE: &[(&str, &str)] = &[
     ("drivers::{By, WebElement}", "seleniumbase_rs::Element"),
     ("Selector::to_by", "a selector string, or SelectorBuf"),
     ("Selector::auto_by", "a selector string, or SelectorBuf"),
+    // The cookie is one type of ours, the same in both engines (docs/design/cookie_type.md).
+    ("drivers::Cookie", "seleniumbase_rs::Cookie"),
+    ("thirtyfour::cookie::Cookie", "seleniumbase_rs::Cookie"),
     ("get_shadow_root", "find_element(\"host::shadow inner\")"),
     ("BaseCase::locator", "BaseCase::find_element"),
     (

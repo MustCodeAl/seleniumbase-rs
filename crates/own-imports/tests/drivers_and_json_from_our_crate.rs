@@ -3,7 +3,8 @@
 //! The manifest of this crate lists neither `thirtyfour` nor `serde_json`. The assertions
 //! also show that the types are the ones the API itself uses: the raw element behind an
 //! `Element` is the `WebElement` of `seleniumbase_rs::drivers`, and `json!` of
-//! `seleniumbase_rs::json` makes a `Value` that `BaseCase::add_cookie` takes.
+//! `seleniumbase_rs::json` reads a W3C cookie object as the `Cookie` that `BaseCase::add_cookie`
+//! takes.
 
 #![expect(
     deprecated,
@@ -14,8 +15,8 @@ use seleniumbase_rs::drivers::{
     ChromiumLikeCapabilities, ConnectionType, DesiredCapabilities, NetworkConditions,
     WebDriverError, WebElement,
 };
-use seleniumbase_rs::json::{json, Value};
-use seleniumbase_rs::{Element, Key, SelectBy, SeleniumBaseError};
+use seleniumbase_rs::json::{from_value, json, Value};
+use seleniumbase_rs::{BaseCase, Cookie, Element, Key, SameSite, SelectBy, SeleniumBaseError};
 
 #[test]
 fn an_element_and_the_types_around_it_come_from_our_crate() {
@@ -61,8 +62,39 @@ fn a_webdriver_error_is_the_one_the_error_type_wraps() {
 }
 
 #[test]
-fn the_json_macro_makes_the_value_the_api_takes() {
-    let cookie: Value = json!({ "name": "session", "value": "abc123" });
-    assert_eq!(cookie["name"], "session");
-    assert_eq!(cookie["value"], json!("abc123"));
+fn the_json_macro_makes_the_value_the_api_trades_in() {
+    let object: Value = json!({ "name": "session", "value": "abc123" });
+    assert_eq!(object["name"], "session");
+    assert_eq!(object["value"], json!("abc123"));
+}
+
+#[test]
+fn a_w3c_cookie_object_reads_as_the_cookie_the_api_takes() {
+    let cookie: Cookie = from_value(json!({
+        "name": "session", "value": "abc123", "expiry": 4_102_444_800_i64, "sameSite": "Lax"
+    }))
+    .expect("a W3C cookie object");
+    assert_eq!(cookie.path, "/");
+    assert_eq!(cookie.expires, Some(4_102_444_800.0));
+    assert_eq!(cookie.same_site, Some(SameSite::Lax));
+}
+
+/// What a test writes with a cookie: the type is at the crate root, and the same one goes in and
+/// comes out. Naming the function is enough: it compiles without `thirtyfour` in the manifest.
+async fn what_a_test_writes_with_a_cookie(sb: &BaseCase) -> seleniumbase_rs::Result<()> {
+    sb.add_cookie(&Cookie::new("session", "abc123").http_only(true))
+        .expiry(true)
+        .await?;
+    if let Some(cookie) = sb.get_cookie("session").await? {
+        println!("{cookie:?}");
+    }
+    for cookie in sb.get_cookies().await? {
+        println!("{} expires {:?}", cookie.name, cookie.expires);
+    }
+    Ok(())
+}
+
+#[test]
+fn the_cookie_calls_come_from_our_crate() {
+    let _what_a_test_writes = what_a_test_writes_with_a_cookie;
 }

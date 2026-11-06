@@ -169,7 +169,9 @@ impl CdpClient {
         Ok(())
     }
 
-    /// Returns all cookies as a JSON value.
+    /// Returns the cookies of the current page as the raw `Network.getCookies` result,
+    /// `{"cookies": [...]}`. Without `urls` the command answers the cookies the browser
+    /// would send to the current URL, not every cookie it holds.
     pub async fn get_cookies(&self) -> Result<serde_json::Value, crate::error::SeleniumBaseError> {
         self.dev_tools
             .execute_cdp("Network.getCookies")

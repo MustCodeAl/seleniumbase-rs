@@ -17,14 +17,16 @@
 //! a real origin, so the page is served over HTTP from `127.0.0.1` by
 //! `local_site/mod.rs`; a `data:` or `about:blank` page would refuse both.
 //!
-//! `BaseCase::get_cookies` (every cookie as JSON) goes through the Chrome
-//! DevTools Protocol, so it needs `DriverMode::Cdp`; `get_cookie` by name works
-//! in every mode.
+//! `BaseCase::get_cookie` (by name, `None` when the page has no such cookie) and
+//! `BaseCase::get_cookies` (every cookie of the page) give the same `Cookie` in
+//! every `DriverMode`.
 
 mod local_site;
 
 use local_site::{ensure, Site, DEMO_PATH};
-use seleniumbase_rs::{run_browser_test, tokio, BaseCase, BrowserConfig, CookieExpiry, Result};
+use seleniumbase_rs::{
+    run_browser_test, tokio, BaseCase, BrowserConfig, Cookie, CookieExpiry, Result,
+};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -37,9 +39,10 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
     sb.open(&url).await?;
 
     // ---- Cookies ----
-    sb.add_cookie(&seleniumbase_rs::json::json!({ "name": "session", "value": "abc123" }))
-        .await?;
-    let cookie = sb.get_cookie("session").await?;
+    sb.add_cookie(&Cookie::new("session", "abc123")).await?;
+    let Some(cookie) = sb.get_cookie("session").await? else {
+        return ensure(false, "the added cookie is found");
+    };
     ensure(cookie.value == "abc123", "the cookie keeps its value")?;
     println!("cookie: {}={}", cookie.name, cookie.value);
 
@@ -49,7 +52,7 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
     sb.save_cookies_to_path(&file).await?;
     sb.delete_cookie("session").await?;
     ensure(
-        sb.get_cookie("session").await.is_err(),
+        sb.get_cookie("session").await?.is_none(),
         "the deleted cookie is gone",
     )?;
     // `Saved` keeps the expiry the cookie was saved with; `load_cookies(name)`
@@ -57,7 +60,10 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
     sb.load_cookies_from_path(&file, CookieExpiry::Saved)
         .await?;
     ensure(
-        sb.get_cookie("session").await?.value == "abc123",
+        sb.get_cookies()
+            .await?
+            .iter()
+            .any(|cookie| cookie.name == "session" && cookie.value == "abc123"),
         "the cookie is restored from the file",
     )?;
     println!("cookie restored from {}", file.display());

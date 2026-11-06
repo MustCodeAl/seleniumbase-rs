@@ -1188,7 +1188,7 @@ impl BaseCase {
         cookies: &HashMap<String, String>,
     ) -> Result<(), SeleniumBaseError> {
         for (name, value) in cookies {
-            self.session.add_cookie(name, value).await?;
+            self.session.add_cookie(&Cookie::new(name, value)).await?;
         }
         Ok(())
     }

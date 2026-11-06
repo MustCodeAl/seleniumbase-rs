@@ -32,10 +32,9 @@ use std::future::IntoFuture;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use serde_json::Value;
-
 use crate::api::base_case::{BaseCase, CookieExpiry};
 use crate::api::call::CallFuture;
+use crate::cookie::Cookie;
 use crate::error::SeleniumBaseError;
 
 impl From<bool> for CookieExpiry {
@@ -653,10 +652,10 @@ impl<'a> IntoFuture for OpenNewTab<'a> {
     }
 }
 
-/// Python's `add_cookie(cookie_dict, expiry=False)`: add a cookie, given as the
-/// W3C cookie object (`name`, `value`, and optionally `path`, `domain`,
-/// `secure`, `httpOnly`, `expiry` and `sameSite`) that
-/// [`BaseCase::get_cookies`] returns.
+/// Python's `add_cookie(cookie_dict, expiry=False)`: add a [`Cookie`], such as one that
+/// [`BaseCase::get_cookies`] returned. A W3C cookie object, as Python takes it, reads as a
+/// cookie with `serde_json::from_value` (`name` and `value`, and optionally `path`, `domain`,
+/// `secure`, `httpOnly`, `expiry` and `sameSite`).
 ///
 /// It comes from [`BaseCase::add_cookie`]. The one keyword is
 /// [`expiry`](Self::expiry): by default (Python's `False`) the cookie's own
@@ -665,12 +664,12 @@ impl<'a> IntoFuture for OpenNewTab<'a> {
 #[must_use = "nothing happens until the call is awaited"]
 pub struct AddCookie<'a> {
     sb: &'a BaseCase,
-    cookie: &'a Value,
+    cookie: &'a Cookie,
     expiry: CookieExpiry,
 }
 
 impl<'a> AddCookie<'a> {
-    pub(crate) fn new(sb: &'a BaseCase, cookie: &'a Value) -> Self {
+    pub(crate) fn new(sb: &'a BaseCase, cookie: &'a Cookie) -> Self {
         Self {
             sb,
             cookie,

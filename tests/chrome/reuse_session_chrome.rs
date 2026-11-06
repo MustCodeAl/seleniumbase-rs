@@ -94,7 +94,11 @@ async fn a_first_test_leaves_its_browser_open_with_a_cookie() {
     )
     .await
     .expect("set a cookie and a stored item");
-    let cookie = sb.get_cookie("left").await.expect("the cookie is set");
+    let cookie = sb
+        .get_cookie("left")
+        .await
+        .expect("the cookie is read")
+        .expect("the cookie is set");
     assert_eq!(cookie.value, "by-the-first-test");
 
     let session_id = sb.session_id().expect("a session");

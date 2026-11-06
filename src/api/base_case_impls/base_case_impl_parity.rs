@@ -77,34 +77,47 @@ fn host_of_origin(origin: &str) -> &str {
 /// `load_cookies` does: a domain that is not part of the origin becomes the
 /// origin's host, and the expiry is dropped, kept or set from `now` (seconds
 /// since the epoch).
-fn prepare_cookie(
-    cookie: &mut serde_json::Map<String, Value>,
-    origin: &str,
-    expiry: CookieExpiry,
-    now: i64,
-) {
-    let foreign = cookie
-        .get("domain")
-        .and_then(Value::as_str)
-        .is_some_and(|domain| !origin.contains(domain));
-    if foreign {
-        cookie.insert("domain".to_owned(), Value::from(host_of_origin(origin)));
+fn prepare_cookie(cookie: &mut Cookie, origin: &str, expiry: CookieExpiry, now: i64) {
+    if !cookie.domain.is_empty() && !origin.contains(cookie.domain.as_str()) {
+        cookie.domain = host_of_origin(origin).to_owned();
     }
-    match expiry {
-        CookieExpiry::Session | CookieExpiry::Minutes(0) => {
-            cookie.remove("expiry");
-        }
-        CookieExpiry::Day => {
-            cookie.insert("expiry".to_owned(), Value::from(now + 86_400));
-        }
-        CookieExpiry::Saved => {}
-        CookieExpiry::Minutes(minutes) => {
-            cookie.insert(
-                "expiry".to_owned(),
-                Value::from(now + i64::from(minutes) * 60),
-            );
-        }
+    cookie.expires = match expiry {
+        CookieExpiry::Session | CookieExpiry::Minutes(0) => None,
+        CookieExpiry::Day => Some((now + 86_400) as f64),
+        CookieExpiry::Saved => cookie.expires,
+        CookieExpiry::Minutes(minutes) => Some((now + i64::from(minutes) * 60) as f64),
+    };
+}
+
+/// The cookie in one entry of a saved cookie file: the W3C cookie object that Python
+/// SeleniumBase writes.
+///
+/// # Errors
+///
+/// Returns [`SeleniumBaseError::InvalidConfig`] naming `path` if the entry is not an object
+/// with a string `name` and `value`, or holds a field that is not a cookie's.
+fn saved_cookie(entry: Value, path: &Path) -> Result<Cookie, SeleniumBaseError> {
+    if !entry.is_object() {
+        return Err(SeleniumBaseError::InvalidConfig(format!(
+            "{} holds a cookie that is not an object",
+            path.display()
+        )));
     }
+    serde_json::from_value(entry).map_err(|e| {
+        SeleniumBaseError::InvalidConfig(format!(
+            "{} holds a cookie that cannot be used: {e}",
+            path.display()
+        ))
+    })
+}
+
+/// The time now, in whole seconds since the Unix epoch.
+fn unix_seconds() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |since| {
+            i64::try_from(since.as_secs()).unwrap_or(i64::MAX)
+        })
 }
 
 impl std::fmt::Display for Ready {
@@ -491,14 +504,10 @@ mod parity_tests {
         }
     }
 
-    fn cookie() -> serde_json::Map<String, Value> {
-        let Value::Object(fields) = serde_json::json!({
-            "name": "sid", "value": "abc", "domain": ".example.test",
-            "path": "/", "expiry": 4_102_444_800_i64
-        }) else {
-            unreachable!("a JSON object");
-        };
-        fields
+    fn cookie() -> Cookie {
+        Cookie::new("sid", "abc")
+            .domain(".example.test")
+            .expires(4_102_444_800.0)
     }
 
     #[test]
@@ -511,18 +520,15 @@ mod parity_tests {
             0,
         );
         // The port is not part of a cookie's domain.
-        assert_eq!(foreign["domain"], "www.other.test");
-
+        assert_eq!(foreign.domain, "www.other.test");
         // A domain the origin contains is left alone.
         let mut same = cookie();
         prepare_cookie(&mut same, "https://www.example.test", CookieExpiry::Saved, 0);
-        assert_eq!(same["domain"], ".example.test");
-
+        assert_eq!(same.domain, ".example.test");
         // A cookie with no domain gets none.
-        let mut bare = cookie();
-        bare.remove("domain");
+        let mut bare = Cookie::new("sid", "abc");
         prepare_cookie(&mut bare, "https://www.other.test", CookieExpiry::Saved, 0);
-        assert!(!bare.contains_key("domain"));
+        assert_eq!(bare.domain, "");
     }
 
     #[test]
@@ -538,25 +544,22 @@ mod parity_tests {
     fn the_expiry_is_dropped_kept_or_set_as_python_does() {
         let origin = "https://www.example.test";
         let after = |expiry| {
-            let mut fields = cookie();
-            prepare_cookie(&mut fields, origin, expiry, 1_000);
-            fields.get("expiry").cloned()
+            let mut cookie = cookie();
+            prepare_cookie(&mut cookie, origin, expiry, 1_000);
+            cookie.expires
         };
         assert_eq!(after(CookieExpiry::default()), None, "dropped by default");
         assert_eq!(after(CookieExpiry::Session), None);
         assert_eq!(after(CookieExpiry::Minutes(0)), None);
-        assert_eq!(after(CookieExpiry::Saved), Some(Value::from(4_102_444_800_i64)));
-        assert_eq!(after(CookieExpiry::Day), Some(Value::from(1_000 + 86_400)));
-        assert_eq!(
-            after(CookieExpiry::Minutes(5)),
-            Some(Value::from(1_000 + 300))
-        );
-
+        assert_eq!(after(CookieExpiry::Saved), Some(4_102_444_800.0));
+        assert_eq!(after(CookieExpiry::Day), Some(1_000.0 + 86_400.0));
+        assert_eq!(after(CookieExpiry::Minutes(5)), Some(1_000.0 + 300.0));
         // A cookie with no expiry gets one only when asked to.
-        let mut session = cookie();
-        session.remove("expiry");
+        let mut session = Cookie::new("sid", "abc");
+        prepare_cookie(&mut session, origin, CookieExpiry::Saved, 1_000);
+        assert_eq!(session.expires, None);
         prepare_cookie(&mut session, origin, CookieExpiry::Day, 1_000);
-        assert_eq!(session["expiry"], 1_000 + 86_400);
+        assert_eq!(session.expires, Some(1_000.0 + 86_400.0));
     }
 }
 

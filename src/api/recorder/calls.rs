@@ -169,7 +169,7 @@ macro_rules! replay_call {
     (Cookie, $sb:ident, $p:ident, $m:ident) => {{
         let name = $p.target()?;
         let value = $p.text()?;
-        let cookie = serde_json::json!({ "name": name, "value": value });
+        let cookie = $crate::Cookie::new(name, value);
         ran($sb.$m(&cookie).await)?
     }};
 
@@ -652,7 +652,7 @@ pub(super) fn rust_call(action: &RecordedAction) -> Result<String, String> {
         Shape::Cookie => (
             *method,
             format!(
-                "&serde_json::json!({{ \"name\": {}, \"value\": {} }})",
+                "&seleniumbase_rs::Cookie::new({}, {})",
                 literal(parts.target()?),
                 text_argument(parts.value()?)
             ),

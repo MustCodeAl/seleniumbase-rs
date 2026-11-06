@@ -108,6 +108,8 @@ mod types;
 mod webrtc;
 
 #[doc(inline)]
+pub use crate::cookie::{Cookie, SameSite};
+#[doc(inline)]
 pub use browser::Browser;
 pub(crate) use captcha::{solve as solve_captcha, Surface as CaptchaSurface};
 #[doc(inline)]
@@ -159,8 +161,7 @@ pub use pool::{BrowserPool, Lease, PoolOptions, PoolOptionsBuilder, PoolStats};
 pub use session_store::{Session, SessionStore};
 #[doc(inline)]
 pub use state::{
-    ColorScheme, Cookie, Cookies, Emulation, SameSite, Storage, StorageArea, Window, WindowBounds,
-    WindowState,
+    ColorScheme, Cookies, Emulation, Storage, StorageArea, Window, WindowBounds, WindowState,
 };
 #[doc(inline)]
 pub use trace::{Trace, TraceOptions, TraceRecorder};
