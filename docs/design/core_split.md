@@ -3,7 +3,7 @@ title: "Design: a lean core, closer to Python SeleniumBase"
 sidebarTitle: "Core split"
 ---
 
-Status: proposal (2026-11-06), no code. It answers the owner's question of 2026-11-06: "wouldnt
+Status: decided (2026-11-06). The owner left the decision to the lead ("dont need my approval for the split do whats best"), who took every recommendation below, open questions 1 to 15 included, in the lane order of the note: the split lands in 0.9.0, and Mimic's first (Chromium) lane is built in core's `src/evasion` under the note's two rules and moves to stealth with the rest of the layer. Written as a proposal, no code. It answers the owner's question of 2026-11-06: "wouldnt
 it make sense to move evasion to stealth repo and other stuff to plugins repos to keep the base
 repo more lean and closer in parity with python?" The lead answered with a rule, and the owner
 accepted that answer as the brief for this note:
