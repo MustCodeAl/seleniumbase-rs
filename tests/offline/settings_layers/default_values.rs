@@ -183,7 +183,7 @@ fn a_higher_source_that_gives_the_default_of_a_setting_still_wins() {
         // A file in the nested form is a source like any other.
         (
             "browser.kind",
-            "[browser]\nkind = \"firefox\"\n",
+            "[browser]\nkind = \"Firefox\"\n",
             "SB_BROWSER",
             "chrome",
         ),

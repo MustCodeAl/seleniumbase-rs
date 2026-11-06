@@ -1128,7 +1128,7 @@ mod tests {
         // there and `empty_at` finds nothing either, the source silently loses the value (a
         // later `skip_serializing_if` on a number or a text would do it). No row may be in that
         // state, so that such a change fails here and not as a lower source winning.
-        let whole = Value::serialize(&Settings::default()).expect("the settings serialize");
+        let whole = Value::serialize(Settings::default()).expect("the settings serialize");
         for row in TEST_OPTIONS
             .iter()
             .filter(|row| row.kind.reads_env() && !row.env.is_empty())
