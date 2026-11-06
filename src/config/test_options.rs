@@ -508,20 +508,20 @@ macro_rules! sb_test_options {
             (test.reruns_delay, "reruns-delay", [], [], "SB_RERUNS_DELAY", [value(Seconds)], "Seconds to wait between reruns (SB_RERUNS_DELAY)"),
             (test.time_limit, "time-limit", ["timelimit"], [], "SB_TIME_LIMIT", [value(Seconds)], "Fail a test that runs longer than this many seconds (SB_TIME_LIMIT)"),
             (test.runner, "runner", [], [], "SB_TEST_RUNNER", [value(Runner)], "The test runner: cargo or nextest (SB_TEST_RUNNER)"),
-            (test.save_screenshot, "screenshot", ["save-screenshot", "ss"], [], "SB_SAVE_SCREENSHOT", [switch], "Save a screenshot of passing tests too (SB_SAVE_SCREENSHOT)"),
-            (test.no_screenshot, "no-screenshot", ["ns"], [], "SB_NO_SCREENSHOT", [switch], "Save no screenshot of failing tests (SB_NO_SCREENSHOT)"),
-            (test.list_fail_page, "list-fail-page", ["list-fail-pages", "lfp"], [], "SB_LIST_FAIL_PAGE", [switch], "Print the URL of the page a failing test ended on (SB_LIST_FAIL_PAGE)"),
-            (test.archive_logs, "archive-logs", [], [], "SB_ARCHIVE_LOGS", [switch], "Keep the old latest_logs folder in archived_logs (SB_ARCHIVE_LOGS)"),
-            (test.archive_downloads, "archive-downloads", [], [], "SB_ARCHIVE_DOWNLOADS", [switch], "Keep the old downloaded_files folder in archived_files (SB_ARCHIVE_DOWNLOADS)"),
-            (test.dashboard, "dashboard", [], [], "SB_DASHBOARD", [switch], "Write the results dashboard (SB_DASHBOARD)"),
-            (test.dash_title, "dash-title", [], [], "SB_DASH_TITLE", [value(Text)], "The dashboard's title (SB_DASH_TITLE)"),
-            (test.html, "html", [], [], "SB_HTML", [value(Path)], "Write an HTML report to this file (SB_HTML)"),
-            (test.junit_xml, "junit-xml", ["junitxml"], [], "SB_JUNIT_XML", [value(Path)], "Write a JUnit XML report to this file (SB_JUNIT_XML)"),
-            (test.allure_dir, "alluredir", ["allure-dir"], [], "SB_ALLURE_DIR", [value(Path)], "Write Allure results to this folder (SB_ALLURE_DIR)"),
+            (report.save_screenshot, "screenshot", ["save-screenshot", "ss"], [], "SB_SAVE_SCREENSHOT", [switch], "Save a screenshot of passing tests too (SB_SAVE_SCREENSHOT)"),
+            (report.no_screenshot, "no-screenshot", ["ns"], [], "SB_NO_SCREENSHOT", [switch], "Save no screenshot of failing tests (SB_NO_SCREENSHOT)"),
+            (report.list_fail_page, "list-fail-page", ["list-fail-pages", "lfp"], [], "SB_LIST_FAIL_PAGE", [switch], "Print the URL of the page a failing test ended on (SB_LIST_FAIL_PAGE)"),
+            (report.archive_logs, "archive-logs", [], [], "SB_ARCHIVE_LOGS", [switch], "Keep the old latest_logs folder in archived_logs (SB_ARCHIVE_LOGS)"),
+            (report.archive_downloads, "archive-downloads", [], [], "SB_ARCHIVE_DOWNLOADS", [switch], "Keep the old downloaded_files folder in archived_files (SB_ARCHIVE_DOWNLOADS)"),
+            (report.dashboard, "dashboard", [], [], "SB_DASHBOARD", [switch], "Write the results dashboard (SB_DASHBOARD)"),
+            (report.dash_title, "dash-title", [], [], "SB_DASH_TITLE", [value(Text)], "The dashboard's title (SB_DASH_TITLE)"),
+            (report.html, "html", [], [], "SB_HTML", [value(Path)], "Write an HTML report to this file (SB_HTML)"),
+            (report.junit_xml, "junit-xml", ["junitxml"], [], "SB_JUNIT_XML", [value(Path)], "Write a JUnit XML report to this file (SB_JUNIT_XML)"),
+            (report.allure_dir, "alluredir", ["allure-dir"], [], "SB_ALLURE_DIR", [value(Path)], "Write Allure results to this folder (SB_ALLURE_DIR)"),
 
-            (test.with_db_reporting, "with-db-reporting", [], [], "SB_WITH_DB_REPORTING", [switch], "Record each test's outcome in the results database (SB_WITH_DB_REPORTING)"),
-            (test.database_env, "database-env", [], [], "SB_DATABASE_ENV", [value(Text)], "Which results database to use (SB_DATABASE_ENV)"),
-            (test.with_s3_logging, "with-s3-logging", [], [], "SB_WITH_S3_LOGGING", [switch], "Upload each test's logs to S3 (SB_WITH_S3_LOGGING)"),
+            (report.with_db_reporting, "with-db-reporting", [], [], "SB_WITH_DB_REPORTING", [switch], "Record each test's outcome in the results database (SB_WITH_DB_REPORTING)"),
+            (report.database_env, "database-env", [], [], "SB_DATABASE_ENV", [value(Text)], "Which results database to use (SB_DATABASE_ENV)"),
+            (report.with_s3_logging, "with-s3-logging", [], [], "SB_WITH_S3_LOGGING", [switch], "Upload each test's logs to S3 (SB_WITH_S3_LOGGING)"),
             // The recorder.
             (test.recorder, "rec", ["record", "recorder", "codegen"], ["recorder_ext"], "SB_RECORDER", [switch], "Record the browser actions as a test (SB_RECORDER)"),
             (test.rec_behave, "rec-behave", ["rec-gherkin"], [], "SB_REC_BEHAVE", [switch], "Also write the recording as a Gherkin feature (SB_REC_BEHAVE)"),
@@ -705,7 +705,7 @@ mod tests {
             settings.fingerprint.file,
             Some(PathBuf::from("profile.json"))
         );
-        assert_eq!(settings.test.dash_title.as_deref(), Some("My Run"));
+        assert_eq!(settings.report.dash_title.as_deref(), Some("My Run"));
     }
 
     #[test]

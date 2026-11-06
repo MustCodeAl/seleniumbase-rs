@@ -43,7 +43,7 @@
 //! `end` line. A recorder that is dropped without `finish` writes the missing
 //! line itself (failed for a panic, unreported otherwise).
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use std::fs::{self, OpenOptions};
 use std::io::{self, Write as _};
@@ -106,9 +106,10 @@ fn stderr_console() -> Console {
 // Settings
 // ---------------------------------------------------------------------------
 
-/// What a run writes and keeps. It is the `[report]` table of the settings
-/// file, completed from the `[test]` table and the `SB_*` variables by
-/// [`from_settings`](Self::from_settings), and it is saved in `run.json`.
+/// What a run writes and keeps: the `[report]` table of the settings file, the one table of the
+/// reports, evidence and results database (`Settings::report`). The `SB_*` variables of its
+/// fields are read once, by `Settings::load`; [`from_settings`](Self::from_settings) only
+/// chooses the results database. It is saved in `run.json`.
 ///
 /// | Field | Variable |
 /// |---|---|
@@ -117,7 +118,7 @@ fn stderr_console() -> Console {
 /// | `html` | `SB_HTML` |
 /// | `junit_xml` | `SB_JUNIT_XML` |
 /// | `archive_logs` | `SB_ARCHIVE_LOGS` |
-/// | `list_fail_pages` | `SB_LIST_FAIL_PAGE` |
+/// | `list_fail_page` | `SB_LIST_FAIL_PAGE` |
 /// | `save_screenshot` | `SB_SAVE_SCREENSHOT` |
 /// | `no_screenshot` | `SB_NO_SCREENSHOT` |
 /// | `allure_dir` | `SB_ALLURE_DIR` |
@@ -125,37 +126,48 @@ fn stderr_console() -> Console {
 /// | `db` | `SB_REPORT_DB` |
 /// | `database_env` | `SB_DATABASE_ENV` |
 ///
-/// The options that are also options of `sbrs test` (everything but `db`) are
-/// read from the `[test]` table, where the option table of
-/// [`config::test_options`](crate::config::test_options) keeps them; a
-/// `[report]` table can set them too.
+/// The options that are also options of `sbrs test` (everything but `db`, `databases`) are rows
+/// of the option table of [`config::test_options`](crate::config::test_options). A settings
+/// file writes them in `[report]`; the `[test]` table still reads the keys it held before the
+/// report moved here (`html`, `dashboard`, `databases`, ...).
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ReportSettings {
-    /// Write the live dashboard (`dashboard.html`).
+    /// Write the live dashboard (`dashboard.html`) (`SB_DASHBOARD`).
     pub dashboard: bool,
-    /// The dashboard's title; `_` stands for a space.
+    /// The dashboard's title; `_` stands for a space (`SB_DASH_TITLE`).
     pub dash_title: Option<String>,
-    /// Write an HTML report to this file.
+    /// Write an HTML report to this file (`SB_HTML`).
     pub html: Option<PathBuf>,
-    /// Write a JUnit XML report to this file.
+    /// Write a JUnit XML report to this file (`SB_JUNIT_XML`).
     pub junit_xml: Option<PathBuf>,
-    /// Keep the logs of the run in `archived_logs/` instead of deleting them.
-    pub archive_logs: bool,
-    /// Print `=> Fail Page: <url>` after a failing test.
-    pub list_fail_pages: bool,
-    /// Save a screenshot of every test, not only of failures.
-    pub save_screenshot: bool,
-    /// Save no screenshot of a failure. It wins over `save_screenshot`.
-    pub no_screenshot: bool,
-    /// Write Allure results to this folder.
+    /// Write Allure results to this folder (`SB_ALLURE_DIR`).
     pub allure_dir: Option<PathBuf>,
-    /// Record the run in the results database when it is finalized.
+    /// Keep the logs of the run in `archived_logs/` instead of deleting them
+    /// (`SB_ARCHIVE_LOGS`).
+    pub archive_logs: bool,
+    /// Keep the old `downloaded_files/` in `archived_files/` (`SB_ARCHIVE_DOWNLOADS`).
+    pub archive_downloads: bool,
+    /// Print `=> Fail Page: <url>` after a failing test (`SB_LIST_FAIL_PAGE`). A run saved by
+    /// an earlier version wrote it as `list_fail_pages`.
+    #[serde(alias = "list_fail_pages")]
+    pub list_fail_page: bool,
+    /// Save a screenshot of every test, not only of failures (`SB_SAVE_SCREENSHOT`).
+    pub save_screenshot: bool,
+    /// Save no screenshot of a failure. It wins over `save_screenshot`
+    /// (`SB_NO_SCREENSHOT`).
+    pub no_screenshot: bool,
+    /// Record the run in the results database when it is finalized
+    /// (`SB_WITH_DB_REPORTING`).
     pub with_db_reporting: bool,
-    /// The results database; `reports/results.db` when unset.
-    pub db: Option<PathBuf>,
-    /// Which results database to use.
+    /// Which results database of `databases` to use (`SB_DATABASE_ENV`).
     pub database_env: Option<String>,
+    /// The results database; `reports/results.db` when unset (`SB_REPORT_DB`).
+    pub db: Option<PathBuf>,
+    /// The results databases by environment name (`[report.databases]`).
+    pub databases: BTreeMap<String, PathBuf>,
+    /// Upload the logs of each test to S3 (`SB_WITH_S3_LOGGING`).
+    pub with_s3_logging: bool,
 }
 
 impl ReportSettings {
@@ -170,41 +182,18 @@ impl ReportSettings {
     /// `SB_HTML`, `SB_JUNIT_XML`, `SB_ALLURE_DIR` and `SB_REPORT_DB` from `var`.
     /// A blank value counts as unset.
     pub fn from_settings_with(settings: &Settings, var: impl Fn(&str) -> Option<String>) -> Self {
-        let table = &settings.report;
-        let test = &settings.test;
-        let var = |name: &str| var(name).filter(|value| !value.trim().is_empty());
-        let path = |name: &str, file: Option<&Path>| {
-            var(name)
-                .map(PathBuf::from)
-                .or_else(|| file.map(Path::to_path_buf))
-        };
-        Self {
-            dashboard: test.dashboard || table.dashboard,
-            dash_title: test.dash_title.clone().or_else(|| table.dash_title.clone()),
-            html: path("SB_HTML", test.html.as_deref().or(table.html.as_deref())),
-            junit_xml: path(
-                "SB_JUNIT_XML",
-                test.junit_xml.as_deref().or(table.junit_xml.as_deref()),
-            ),
-            archive_logs: test.archive_logs || table.archive_logs,
-            list_fail_pages: test.list_fail_page || table.list_fail_pages,
-            save_screenshot: test.save_screenshot || table.save_screenshot,
-            no_screenshot: test.no_screenshot || table.no_screenshot,
-            allure_dir: path(
-                "SB_ALLURE_DIR",
-                test.allure_dir.as_deref().or(table.allure_dir.as_deref()),
-            ),
-            with_db_reporting: test.with_db_reporting || table.with_db_reporting,
-            db: path("SB_REPORT_DB", table.db.as_deref()).or_else(|| {
-                // `--database-env` picks one of the databases of the `[test.databases]` table.
-                let name = test.database_env.as_ref()?;
-                test.databases.get(name).cloned()
-            }),
-            database_env: test
-                .database_env
-                .clone()
-                .or_else(|| table.database_env.clone()),
-        }
+        let mut report = settings.report.clone();
+        let chosen = var("SB_REPORT_DB")
+            .filter(|value| !value.trim().is_empty())
+            .map(PathBuf::from)
+            .or_else(|| report.db.clone())
+            .or_else(|| {
+                // `--database-env` picks one of the databases of the `[report.databases]` table.
+                let name = report.database_env.as_ref()?;
+                report.databases.get(name).cloned()
+            });
+        report.db = chosen;
+        report
     }
 
     /// The dashboard's title: `dash_title` with its underscores read as
@@ -1223,7 +1212,7 @@ impl TestRecorder {
     /// still open: `basic_test_info.txt`, `screenshot.png` (unless
     /// `no_screenshot`) and `page_source.html` in the test's folder. Each item
     /// is given at most five seconds, and one that fails is left out. With
-    /// `list_fail_pages` it prints `=> Fail Page: <url>`.
+    /// `list_fail_page` it prints `=> Fail Page: <url>`.
     ///
     /// A skip is not a failure; this does nothing for one.
     pub async fn on_failure(&mut self, error: &SeleniumBaseError, page: &dyn PageEvidence) {
@@ -1253,7 +1242,7 @@ impl TestRecorder {
             }
         }
         self.write_info(error, &details);
-        if settings.list_fail_pages
+        if settings.list_fail_page
             && let Some(url) = &url
         {
             (self.run.console)(&format!("\n=> Fail Page: {url}\n"));

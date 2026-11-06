@@ -626,8 +626,8 @@ impl TestArgs {
             runner,
             list: self.collect_only,
             example,
-            archive_logs: on("SB_ARCHIVE_LOGS", settings.test.archive_logs),
-            archive_downloads: on("SB_ARCHIVE_DOWNLOADS", settings.test.archive_downloads),
+            archive_logs: on("SB_ARCHIVE_LOGS", settings.report.archive_logs),
+            archive_downloads: on("SB_ARCHIVE_DOWNLOADS", settings.report.archive_downloads),
             all_scripts,
             report,
         })
@@ -1220,7 +1220,7 @@ mod tests {
         let p = plan(&["--archive-downloads"]).unwrap_or_else(|_| unreachable!());
         assert!(p.archive_downloads);
         let mut settings = Settings::default();
-        settings.test.archive_logs = true;
+        settings.report.archive_logs = true;
         let p = parse(&["--archive-logs=false"])
             .plan(&settings, Vec::new(), None)
             .unwrap();

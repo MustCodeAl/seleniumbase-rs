@@ -186,9 +186,9 @@ impl Plan {
             trace: test.trace,
             pdb: test.pdb,
             final_debug: test.final_debug,
-            save_screenshot: test.save_screenshot,
-            no_screenshot: test.no_screenshot,
-            list_fail_page: test.list_fail_page,
+            save_screenshot: settings.report.save_screenshot,
+            no_screenshot: settings.report.no_screenshot,
+            list_fail_page: settings.report.list_fail_page,
             recorder: test.recorder,
             logs_dir: logs_root().join(LATEST_LOGS_DIR),
             browser: settings.browser.clone(),
@@ -1404,11 +1404,14 @@ mod tests {
                 trace: true,
                 pdb: true,
                 final_debug: true,
+                recorder: true,
+                ..TestSettings::default()
+            },
+            report: crate::core::test_run::ReportSettings {
                 save_screenshot: true,
                 no_screenshot: true,
                 list_fail_page: true,
-                recorder: true,
-                ..TestSettings::default()
+                ..crate::core::test_run::ReportSettings::default()
             },
             ..Settings::default()
         };

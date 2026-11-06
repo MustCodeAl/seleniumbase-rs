@@ -1,5 +1,5 @@
 //! The settings of a test run that are not about the browser: test data, debug
-//! modes, reruns, evidence and reports, and what the recorder writes.
+//! modes, reruns and what the recorder writes (the reports are `ReportSettings`).
 //!
 //! [`TestSettings`] is the `[test]` table of the settings file and the
 //! `SB_*` variables of the options in [`test_options`](super::test_options).
@@ -17,8 +17,8 @@
 //!     reruns = 2
 //!     reruns_delay = 0.5
 //!
-//!     [databases]
-//!     qa = "results-qa.db"
+//!     runner = "nextest"
+//!     pdb = true
 //!     "#,
 //! )?;
 //! assert_eq!(settings.data.env(), "qa");
@@ -28,9 +28,6 @@
 //! assert_eq!(variables["KEY2"], 123);
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
-
-use std::collections::BTreeMap;
-use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -193,36 +190,6 @@ pub struct TestSettings {
     /// Fail a test that runs longer than this many seconds
     /// (`SB_TIME_LIMIT`, `--time-limit`).
     pub time_limit: Option<f64>,
-    /// Save a screenshot of a passing test too (`SB_SAVE_SCREENSHOT`,
-    /// `--screenshot`).
-    pub save_screenshot: bool,
-    /// Save no screenshot of a failing test (`SB_NO_SCREENSHOT`,
-    /// `--no-screenshot`); it wins over `save_screenshot`.
-    pub no_screenshot: bool,
-    /// Print `=> Fail Page: <url>` after a failing test (`SB_LIST_FAIL_PAGE`).
-    pub list_fail_page: bool,
-    /// Keep the old `latest_logs/` in `archived_logs/` (`SB_ARCHIVE_LOGS`).
-    pub archive_logs: bool,
-    /// Keep the old `downloaded_files/` in `archived_files/`
-    /// (`SB_ARCHIVE_DOWNLOADS`).
-    pub archive_downloads: bool,
-    /// Write the dashboard (`SB_DASHBOARD`).
-    pub dashboard: bool,
-    /// The dashboard's title (`SB_DASH_TITLE`).
-    pub dash_title: Option<String>,
-    /// Write an HTML report to this file (`SB_HTML`, `--html`).
-    pub html: Option<PathBuf>,
-    /// Write a JUnit XML report to this file (`SB_JUNIT_XML`, `--junit-xml`).
-    pub junit_xml: Option<PathBuf>,
-    /// Write Allure results to this folder (`SB_ALLURE_DIR`, `--alluredir`).
-    pub allure_dir: Option<PathBuf>,
-
-    /// Record each outcome in the results database (`SB_WITH_DB_REPORTING`).
-    pub with_db_reporting: bool,
-    /// Which database of `databases` to use (`SB_DATABASE_ENV`).
-    pub database_env: Option<String>,
-    /// Upload the logs of each test to S3 (`SB_WITH_S3_LOGGING`).
-    pub with_s3_logging: bool,
     /// Record the browser actions (`SB_RECORDER`, `--rec`).
     pub recorder: bool,
     /// Also write a Gherkin feature (`SB_REC_BEHAVE`).
@@ -236,8 +203,6 @@ pub struct TestSettings {
     /// Which test runner `sbrs test` uses: `cargo` or `nextest`
     /// (`SB_TEST_RUNNER`, `--runner`).
     pub runner: Option<String>,
-    /// Result databases by environment name (`[test.databases]`).
-    pub databases: BTreeMap<String, PathBuf>,
 }
 
 /// Python dictionary literal text as JSON text: single-quoted strings become
@@ -394,7 +359,7 @@ mod tests {
         assert!(!settings.pdb && !settings.trace && !settings.final_debug);
         assert_eq!(settings.reruns, 0);
         assert!(settings.time_limit.is_none() && settings.runner.is_none());
-        assert!(settings.databases.is_empty());
+        assert!(!settings.recorder && settings.runner.is_none());
         assert_eq!(settings.data, TestData::default());
     }
 
@@ -413,7 +378,7 @@ mod tests {
             [variables]
             k = 1
 
-            [databases]
+            [variables.nested]
             qa = "results-qa.db"
             "#,
         )
@@ -425,6 +390,6 @@ mod tests {
         assert_eq!((settings.reruns, settings.reruns_delay), (3, 0.25));
         assert_eq!(settings.time_limit, Some(30.0));
         assert_eq!(settings.runner.as_deref(), Some("nextest"));
-        assert_eq!(settings.databases["qa"], PathBuf::from("results-qa.db"));
+        assert!(!settings.recorder);
     }
 }

@@ -262,11 +262,12 @@ pub struct Settings {
     pub disable_beforeunload: bool,
     /// Multiplies the default waits (`SB_TIMEOUT_MULTIPLIER`); wired by RS-1 (`RunSettings::with_timeout_multiplier`).
     pub timeout_multiplier: Option<f64>,
-    /// The `[test]` table: test data, debug modes, reruns, evidence and reports.
+    /// The `[test]` table: test data, debug modes, reruns and the recorder.
     pub test: TestSettings,
-    /// The `[report]` table: what a run writes beyond the `[test]` table's options
-    /// (`SB_HTML`, `SB_JUNIT_XML`, `SB_ALLURE_DIR`, `SB_REPORT_DB`). See
-    /// [`ReportSettings::from_settings`].
+    /// The `[report]` table, the one table of the reports, the evidence kept and the results
+    /// database (`SB_HTML`, `SB_JUNIT_XML`, `SB_ALLURE_DIR`, `SB_DASHBOARD`, ...). The `[test]`
+    /// table of a settings file still reads the report keys it held. See
+    /// [`ReportSettings::from_settings`] for the results database.
     pub report: ReportSettings,
 }
 

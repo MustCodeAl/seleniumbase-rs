@@ -11,6 +11,7 @@ use std::time::{Duration, Instant};
 use base64::prelude::*;
 use rstest::rstest;
 use seleniumbase_rs::config::test_settings::{TestData, TestSettings};
+use seleniumbase_rs::core::test_run::ReportSettings;
 use seleniumbase_rs::sb_cdp::Browser;
 use seleniumbase_rs::testing::{sb_cdp, SbCdp};
 use seleniumbase_rs::{Result, SeleniumBaseError, Settings};
@@ -71,6 +72,17 @@ fn settings(change: impl FnOnce(&mut TestSettings)) -> Settings {
 
 fn fixture_for(logs: &Path, change: impl FnOnce(&mut TestSettings)) -> SbCdp {
     SbCdp::new(settings(change)).logs_dir(logs)
+}
+
+/// As [`fixture_for`], changing the report settings (`save_screenshot` and `no_screenshot`).
+fn fixture_reporting(logs: &Path, change: impl FnOnce(&mut ReportSettings)) -> SbCdp {
+    let mut report = ReportSettings::default();
+    change(&mut report);
+    let settings = Settings {
+        report,
+        ..Settings::default()
+    };
+    SbCdp::new(settings).logs_dir(logs)
 }
 
 fn names(folder: &Path) -> Vec<String> {
@@ -192,7 +204,7 @@ async fn a_failing_test_leaves_the_three_files_and_closes_the_browser() {
 async fn no_screenshot_leaves_out_the_png() {
     let logs = tempfile::tempdir().unwrap();
     let browsers = Browsers::default();
-    let fixture = fixture_for(logs.path(), |test| test.no_screenshot = true);
+    let fixture = fixture_reporting(logs.path(), |report| report.no_screenshot = true);
     let id = fixture.test_id().to_owned();
     let _ = fixture
         .run_with_browser(
@@ -210,7 +222,7 @@ async fn no_screenshot_leaves_out_the_png() {
 async fn a_screenshot_of_a_passing_test_is_taken_on_request() {
     let logs = tempfile::tempdir().unwrap();
     let browsers = Browsers::default();
-    let fixture = fixture_for(logs.path(), |test| test.save_screenshot = true);
+    let fixture = fixture_reporting(logs.path(), |report| report.save_screenshot = true);
     let id = fixture.test_id().to_owned();
     fixture
         .run_with_browser(async || browsers.launch().await, async |_page| Ok(()))

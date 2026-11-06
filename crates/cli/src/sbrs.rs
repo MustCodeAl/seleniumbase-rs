@@ -3725,7 +3725,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     // What a page command does just before its browser quits.
     let after = PageEnd {
         now_at: args.command.acts_on_page(),
-        screenshot: args.save_screenshot || settings.test.save_screenshot,
+        screenshot: args.save_screenshot || settings.report.save_screenshot,
     };
 
     // The plugins: what the settings file and `SB_PLUGINS` turn on, with `--plugin` and

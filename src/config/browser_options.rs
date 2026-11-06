@@ -30,13 +30,14 @@ use std::path::Path;
 
 use serde::de::Deserializer;
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 
 use crate::config::settings::Settings;
 use crate::config::test_options::{find_option, OptionKind, OptionSpec, OptionValue, TEST_OPTIONS};
 use crate::error::SeleniumBaseError;
 
 /// The top-level keys of a settings file that hold a table of their own.
-const TABLES: [&str; 3] = ["plugins", "fingerprint", "test"];
+const TABLES: [&str; 4] = ["plugins", "fingerprint", "test", "report"];
 
 /// A list of Chromium switches, written in a settings file either as a comma-separated
 /// string or as an array.
@@ -128,7 +129,7 @@ impl OptionValue for Option<ArgList> {
 }
 
 /// The key of the settings file that `key` stands for, if it is one: a table of the file
-/// (`plugins`, `fingerprint`, `test`) or the field of a row of the option table.
+/// (`plugins`, `fingerprint`, `test`, `report`) or the field of a row of the option table.
 ///
 /// Dashes and underscores are the same, case does not matter, and a row's flags and
 /// `SB(...)` names are accepted (`timeout` is `timeout_seconds`, `dark` is `dark_mode`).
@@ -169,24 +170,120 @@ fn unknown_setting(key: &str, file: &Path) -> SeleniumBaseError {
     ))
 }
 
+/// The message for a key of the table `table` (`test` or `report`) of the settings file `file`
+/// that is no setting of it.
+fn unknown_in_table(key: &str, table: &str, file: &Path) -> SeleniumBaseError {
+    let name = file.file_name().map_or_else(
+        || file.display().to_string(),
+        |name| name.to_string_lossy().into_owned(),
+    );
+    SeleniumBaseError::InvalidConfig(format!(
+        "unknown setting \"{key}\" in the [{table}] table of {name}; \
+         `sbrs options --all` lists the options of the test run"
+    ))
+}
+
+/// The message for two spellings of one setting in one settings file.
+fn same_setting(first: &str, second: &str, setting: &str) -> SeleniumBaseError {
+    SeleniumBaseError::InvalidConfig(format!(
+        "\"{first}\" and \"{second}\" are the same setting ({setting}) in the settings file"
+    ))
+}
+
+/// The group and the key that `key` stands for inside the table `table` (`test` or `report`) of
+/// a settings file, if it is a setting of it.
+///
+/// A key is the last part of the field of a row (`dash_title`) or a flag of the row
+/// (`dash-title`, `ftrace`), as the top-level keys are. `[test]` also reads the keys it held
+/// before the report moved to `[report]` (`html`, `dashboard`, `databases`, ...), and they
+/// sort into the group they belong to now.
+fn table_key(table: &str, key: &str) -> Option<(&'static str, &'static str)> {
+    let wanted = key.trim().replace('-', "_").to_ascii_lowercase();
+    // The databases by environment are a table of their own, with no row.
+    if wanted == "databases" {
+        return Some(("report", "databases"));
+    }
+    if table == "report" && wanted == "db" {
+        return Some(("report", "db"));
+    }
+    TEST_OPTIONS
+        .iter()
+        .filter(|row| {
+            row.has_field()
+                && matches!(
+                    row.kind,
+                    OptionKind::Switch
+                        | OptionKind::Value(_)
+                        | OptionKind::Env(_)
+                        | OptionKind::Custom(_)
+                )
+        })
+        .find_map(|row| {
+            let (group, rest) = row.field.split_once('.')?;
+            let name = rest.strip_prefix("data.").unwrap_or(rest);
+            let belongs = group == table || (table == "test" && group == "report");
+            (belongs && (name == wanted || row.matches_flag(key))).then_some((group, name))
+        })
+}
+
 /// The entries of a settings file with each key renamed to the field it stands for.
-fn canonical_entries<V>(
-    entries: impl IntoIterator<Item = (String, V)>,
+fn canonical_entries(
+    entries: Map<String, Value>,
     file: &Path,
-) -> Result<Vec<(String, V)>, SeleniumBaseError> {
+) -> Result<Map<String, Value>, SeleniumBaseError> {
     let mut written: Vec<(&'static str, String)> = Vec::new();
-    let mut renamed = Vec::new();
+    let mut top = Map::new();
     for (key, value) in entries {
         let name = settings_key(&key).ok_or_else(|| unknown_setting(&key, file))?;
         if let Some((_, first)) = written.iter().find(|(known, _)| *known == name) {
-            return Err(SeleniumBaseError::InvalidConfig(format!(
-                "\"{first}\" and \"{key}\" are the same setting ({name}) in the settings file"
-            )));
+            return Err(same_setting(first, &key, name));
         }
         written.push((name, key));
-        renamed.push((name.to_owned(), value));
+        top.insert(name.to_owned(), value);
     }
-    Ok(renamed)
+
+    // The keys of `[test]` and `[report]` are checked as the top-level ones are, and each goes
+    // to the table that holds its setting now: `[test] html` is `[report] html`.
+    let mut test = Map::new();
+    let mut report = Map::new();
+    let mut seen: Vec<(&'static str, &'static str, String)> = Vec::new();
+    for table in ["test", "report"] {
+        match top.remove(table) {
+            Some(Value::Object(entries)) => {
+                for (key, value) in entries {
+                    let (group, canonical) = table_key(table, &key)
+                        .ok_or_else(|| unknown_in_table(&key, table, file))?;
+                    let written_as = format!("[{table}] {key}");
+                    if let Some((_, _, first)) = seen
+                        .iter()
+                        .find(|(known, name, _)| *known == group && *name == canonical)
+                    {
+                        let setting = format!("{group}.{canonical}");
+                        return Err(same_setting(first, &written_as, &setting));
+                    }
+                    seen.push((group, canonical, written_as));
+                    let target = if group == "report" {
+                        &mut report
+                    } else {
+                        &mut test
+                    };
+                    target.insert(canonical.to_owned(), value);
+                }
+            }
+            // Not a table: the reader of the value says so.
+            Some(other) => {
+                top.insert(table.to_owned(), other);
+            }
+            None => {}
+        }
+    }
+    if !test.is_empty() {
+        top.insert("test".to_owned(), Value::Object(test));
+    }
+    if !report.is_empty() {
+        top.insert("report".to_owned(), Value::Object(report));
+    }
+    Ok(top)
 }
 
 /// Reads the settings file `path` whose text is `content` (TOML for a `.toml` name, JSON
@@ -195,27 +292,22 @@ fn canonical_entries<V>(
 /// A key may be spelled with dashes or under an alias of its option (see
 /// [`settings_key`]); a key that is no setting is an error.
 pub(crate) fn parse_settings(path: &Path, content: &str) -> Result<Settings, SeleniumBaseError> {
-    if path.extension().is_some_and(|ext| ext == "toml") {
-        let failed = |e: &dyn std::fmt::Display| format!("failed to parse TOML settings: {e}");
-        let table: toml::Table =
-            toml::from_str(content).map_err(|e| SeleniumBaseError::InvalidConfig(failed(&e)))?;
-        let table: toml::Table = canonical_entries(table, path)?.into_iter().collect();
-        Settings::deserialize(toml::Value::Table(table))
-            .map_err(|e| SeleniumBaseError::InvalidConfig(failed(&e)))
+    let (what, parsed) = if path.extension().is_some_and(|ext| ext == "toml") {
+        let table = toml::from_str::<toml::Table>(content).map_err(|error| error.to_string());
+        let value = table.and_then(|table| serde_json::to_value(table).map_err(|e| e.to_string()));
+        ("failed to parse TOML settings", value)
     } else {
-        let failed = |e: &dyn std::fmt::Display| format!("failed to parse settings: {e}");
-        let value: serde_json::Value = serde_json::from_str(content)
-            .map_err(|e| SeleniumBaseError::InvalidConfig(failed(&e)))?;
-        let serde_json::Value::Object(map) = value else {
-            return Err(SeleniumBaseError::InvalidConfig(failed(
-                &"the file must hold one object",
-            )));
-        };
-        let map: serde_json::Map<String, serde_json::Value> =
-            canonical_entries(map, path)?.into_iter().collect();
-        serde_json::from_value(serde_json::Value::Object(map))
-            .map_err(|e| SeleniumBaseError::InvalidConfig(failed(&e)))
-    }
+        let value = serde_json::from_str::<Value>(content).map_err(|error| error.to_string());
+        ("failed to parse settings", value)
+    };
+    let failed = |error: &dyn std::fmt::Display| {
+        SeleniumBaseError::InvalidConfig(format!("{what}: {error}"))
+    };
+    let Value::Object(entries) = parsed.map_err(|error| failed(&error))? else {
+        return Err(failed(&"the file must hold one object"));
+    };
+    let entries = canonical_entries(entries, path)?;
+    serde_json::from_value(Value::Object(entries)).map_err(|error| failed(&error))
 }
 
 /// The rows `sbrs options` lists: the options of the browser and the page, or with `all` the
@@ -224,7 +316,7 @@ pub(crate) fn parse_settings(path: &Path, content: &str) -> Result<Settings, Sel
 pub fn listed_options(all: bool) -> impl Iterator<Item = &'static OptionSpec> {
     TEST_OPTIONS.iter().filter(move |row| match row.kind {
         OptionKind::Cli(_) | OptionKind::NotAFlag(_) | OptionKind::NoOp(_) => false,
-        _ => all || !row.field.starts_with("test."),
+        _ => all || !(row.field.starts_with("test.") || row.field.starts_with("report.")),
     })
 }
 

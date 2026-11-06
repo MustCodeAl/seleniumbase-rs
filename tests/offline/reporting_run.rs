@@ -259,7 +259,7 @@ async fn a_failure_leaves_the_three_files_and_prints_the_fail_page() {
     let root = tempfile::tempdir().unwrap();
     let (console, printed) = console();
     let settings = ReportSettings {
-        list_fail_pages: true,
+        list_fail_page: true,
         ..ReportSettings::default()
     };
     let run = TestRun::open_with_console(root.path(), settings, RunKey::new("A"), console).unwrap();
@@ -708,12 +708,12 @@ fn an_allure_folder_without_the_feature_is_a_warning() {
 // ---------------------------------------------------------------------------
 
 #[test]
-fn the_settings_come_from_the_test_table_the_report_table_and_the_environment() {
+fn the_report_is_the_report_table_and_only_the_results_database_reads_a_variable() {
     let mut settings = Settings::default();
-    settings.test.dashboard = true;
-    settings.test.dash_title = Some("My_title".to_owned());
-    settings.test.list_fail_page = true;
-    settings.test.no_screenshot = true;
+    settings.report.dashboard = true;
+    settings.report.dash_title = Some("My_title".to_owned());
+    settings.report.list_fail_page = true;
+    settings.report.no_screenshot = true;
     settings.report.junit_xml = Some("table.xml".into());
     settings.report.html = Some("table.html".into());
     let var = |name: &str| match name {
@@ -725,16 +725,16 @@ fn the_settings_come_from_the_test_table_the_report_table_and_the_environment() 
 
     let report = ReportSettings::from_settings_with(&settings, var);
 
-    assert!(report.dashboard && report.list_fail_pages && report.no_screenshot);
+    assert!(report.dashboard && report.list_fail_page && report.no_screenshot);
     assert!(!report.archive_logs && !report.save_screenshot);
     assert_eq!(report.title(), "My title");
     assert_eq!(
         report.html.as_deref(),
-        Some(Path::new("env.html")),
-        "the variable wins"
+        Some(Path::new("table.html")),
+        "SB_HTML is read once, by Settings::load"
     );
     assert_eq!(report.junit_xml.as_deref(), Some(Path::new("table.xml")));
-    assert_eq!(report.allure_dir.as_deref(), Some(Path::new("allure")));
+    assert_eq!(report.allure_dir, None);
     assert_eq!(report.db, None, "a blank variable is unset");
     assert_eq!(report.db_path(), Path::new("reports/results.db"));
 }

@@ -101,7 +101,7 @@ pub(crate) fn finalizers(
     if let Some(run) = run {
         finalizers.push(Arc::new(RunFinalizer::new(Arc::clone(run), test.clone())));
     }
-    if settings.test.with_s3_logging {
+    if settings.report.with_s3_logging {
         finalizers.extend(s3::finalizer(&logs_dir.join(&test.id), &test.id));
     }
     finalizers
@@ -246,7 +246,6 @@ mod s3 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::test_settings::TestSettings;
 
     fn on(change: impl FnOnce(&mut ReportSettings)) -> ReportSettings {
         let mut settings = ReportSettings::default();
@@ -265,15 +264,15 @@ mod tests {
         assert!(wants_a_run(&on(|s| s.archive_logs = true)));
         // These only change what a failure leaves behind.
         assert!(!wants_a_run(&on(|s| s.no_screenshot = true)));
-        assert!(!wants_a_run(&on(|s| s.list_fail_pages = true)));
+        assert!(!wants_a_run(&on(|s| s.list_fail_page = true)));
     }
 
     #[test]
     fn off_and_an_explicit_run_ignore_the_settings() {
         let dashboard = Settings {
-            test: TestSettings {
+            report: ReportSettings {
                 dashboard: true,
-                ..TestSettings::default()
+                ..ReportSettings::default()
             },
             ..Settings::default()
         };

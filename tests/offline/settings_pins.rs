@@ -615,51 +615,127 @@ fn the_table_reads_exactly_the_variables_of_the_first_step() {
     );
 }
 
-/// Finding 1: a `[report]` table is refused by the loader (the field says it is that table).
+/// Finding 1: a `[report]` table was refused by the loader (the field said it is that table).
 #[test]
-fn finding_1_a_report_table_is_refused_by_the_loader_today() {
+fn finding_1_a_report_table_is_read_by_the_loader() {
     let dir = tempfile::tempdir().expect("a temporary folder");
-    let path = file_with(
+    let toml = file_with(
         dir.path(),
         "sbase_config.toml",
-        "[report]\nhtml = \"r.html\"\n",
+        "[report]\nhtml = \"r.html\"\nlist_fail_pages = true\ndb = \"r.db\"\n[report.databases]\nqa = \"qa.db\"\n",
     );
-    let error = Settings::from_file(path).unwrap_err().to_string();
-    assert!(error.contains("unknown setting \"report\""), "{error}");
+    let settings = Settings::from_file(toml).expect("a [report] table is a table of the file");
+    assert_eq!(settings.report.html.as_deref(), Some(Path::new("r.html")));
+    // The old spelling of the key is still read.
+    assert!(settings.report.list_fail_page);
+    assert_eq!(settings.report.db.as_deref(), Some(Path::new("r.db")));
+    assert_eq!(settings.report.databases["qa"], Path::new("qa.db"));
+    let json = file_with(
+        dir.path(),
+        "settings.json",
+        r#"{"report": {"dashboard": true}}"#,
+    );
+    assert!(
+        Settings::from_file(json)
+            .expect("JSON too")
+            .report
+            .dashboard
+    );
 }
 
-/// Finding 2: a key of `[test]` that is no setting is dropped without a word.
+/// `[test]` still reads the keys it held before the report moved to `[report]`; they land in
+/// `report`, and one setting written in both tables is refused.
 #[test]
-fn finding_2_a_typo_in_the_test_table_is_dropped_today() {
+fn the_test_table_still_reads_the_report_keys_it_held() {
+    let dir = tempfile::tempdir().expect("a temporary folder");
+    let toml = |name: &str, content: &str| file_with(dir.path(), name, content);
+    let old = Settings::from_file(toml(
+        "old.toml",
+        "[test]\nreruns = 2\nhtml = \"t.html\"\ndashboard = true\nlist_fail_page = true\n\
+         [test.databases]\nqa = \"qa.db\"\n",
+    ))
+    .expect("the old [test] table");
+    assert_eq!(old.test.reruns, 2);
+    assert_eq!(old.report.html.as_deref(), Some(Path::new("t.html")));
+    assert!(old.report.dashboard && old.report.list_fail_page);
+    assert_eq!(old.report.databases["qa"], Path::new("qa.db"));
+
+    let twice = Settings::from_file(toml(
+        "twice.toml",
+        "[test]\nhtml = \"a.html\"\n[report]\nhtml = \"b.html\"\n",
+    ))
+    .unwrap_err()
+    .to_string();
+    assert!(
+        twice.contains(
+            "\"[test] html\" and \"[report] html\" are the same setting (report.html) in the settings file"
+        ),
+        "{twice}"
+    );
+
+    // A report key is no key of the other tables.
+    let misplaced = Settings::from_file(toml("misplaced.toml", "[report]\npdb = true\n"))
+        .unwrap_err()
+        .to_string();
+    assert!(
+        misplaced.contains("unknown setting \"pdb\" in the [report] table"),
+        "{misplaced}"
+    );
+}
+
+/// Finding 2: a key of `[test]` that is no setting was dropped without a word.
+#[test]
+fn finding_2_a_typo_in_the_test_table_is_refused() {
     let dir = tempfile::tempdir().expect("a temporary folder");
     let path = file_with(dir.path(), "sbase_config.toml", "[test]\nrerun = 2\n");
-    let settings = Settings::from_file(path).expect("the typo is not refused today");
-    assert_eq!(settings.test.reruns, 0);
+    let error = Settings::from_file(path).unwrap_err().to_string();
+    assert!(
+        error.contains("unknown setting \"rerun\" in the [test] table of sbase_config.toml"),
+        "{error}"
+    );
+    // The aliases of a row are accepted there as at the top level.
+    let path = file_with(
+        dir.path(),
+        "alias.toml",
+        "[test]\nftrace = true\nreruns = 1\n",
+    );
+    let settings = Settings::from_file(path).expect("an alias of the row");
+    assert!(settings.test.final_debug);
 }
 
-/// Finding 3: the report options are held by `TestSettings` and `ReportSettings`, and
-/// `SB_HTML` is read again by `from_settings_with`.
+/// Finding 3: the report options were held by `TestSettings` and `ReportSettings`, and
+/// `SB_HTML` was read again by `from_settings_with`.
 #[test]
-fn finding_3_the_report_options_are_declared_and_read_twice_today() {
+fn finding_3_the_report_options_are_declared_and_read_once() {
     let mut settings = Settings::default();
-    settings.test.list_fail_page = true;
-    settings.test.html = Some(PathBuf::from("from-test.html"));
-    settings.report.junit_xml = Some(PathBuf::from("from-report.xml"));
+    settings.report.list_fail_page = true;
+    settings.report.html = Some(PathBuf::from("from-report.html"));
+    settings
+        .report
+        .databases
+        .insert("qa".to_owned(), PathBuf::from("qa.db"));
+    settings.report.database_env = Some("qa".to_owned());
     let none = |_: &str| None;
     let report = ReportSettings::from_settings_with(&settings, none);
-    assert!(report.list_fail_pages);
-    assert_eq!(report.html.as_deref(), Some(Path::new("from-test.html")));
+    assert!(report.list_fail_page);
+    assert_eq!(report.html.as_deref(), Some(Path::new("from-report.html")));
     assert_eq!(
-        report.junit_xml.as_deref(),
-        Some(Path::new("from-report.xml"))
+        report.db.as_deref(),
+        Some(Path::new("qa.db")),
+        "the database of the environment"
     );
-    let report = ReportSettings::from_settings_with(&Settings::default(), |name| {
-        (name == "SB_HTML").then(|| "from-variable.html".to_owned())
+    // The variables of the report are read by `Settings::load`; only the results database is
+    // chosen here, and the variable wins over the file's.
+    let report = ReportSettings::from_settings_with(&settings, |name| {
+        ["SB_HTML", "SB_REPORT_DB"]
+            .contains(&name)
+            .then(|| format!("{name}.file"))
     });
-    assert_eq!(
-        report.html.as_deref(),
-        Some(Path::new("from-variable.html"))
-    );
+    assert_eq!(report.html.as_deref(), Some(Path::new("from-report.html")));
+    assert_eq!(report.db.as_deref(), Some(Path::new("SB_REPORT_DB.file")));
+    // A run saved by an earlier version wrote `list_fail_pages`.
+    let saved: ReportSettings = serde_json::from_str(r#"{"list_fail_pages": true}"#).expect("json");
+    assert!(saved.list_fail_page);
 }
 
 /// Finding 4: `to_launch_options` leaves out what `Layer::from_config` passes, the phone for one.
