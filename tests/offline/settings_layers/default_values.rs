@@ -48,7 +48,7 @@ fn shown(settings: &Settings, path: &str) -> String {
 fn a_higher_source_that_gives_the_default_of_a_setting_still_wins() {
     // (the path of the setting, a file that gives it a value other than its default, the
     // variable that gives it, and the text of the default value)
-    let pins: [(&str, &str, &'static str, &str); 17] = [
+    let pins: [(&str, &str, &'static str, &str); 18] = [
         // A number of the run group, and numbers of the test group.
         (
             "run.timeout_multiplier",
@@ -120,6 +120,13 @@ fn a_higher_source_that_gives_the_default_of_a_setting_still_wins() {
             "browser.extensions",
             "extension_dir = \"/a,/b\"\n",
             "SB_EXTENSION_DIR",
+            ",",
+        ),
+        // The arguments of Firefox are a list too: the variable replaces them, it does not merge.
+        (
+            "session.firefox.args",
+            "firefox_arg = \"-headless,-private\"\n",
+            "SB_FIREFOX_ARG",
             ",",
         ),
         // A switch of the report group and of the test group.

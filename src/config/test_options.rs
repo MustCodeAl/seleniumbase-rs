@@ -640,7 +640,7 @@ fn written_by(row: &OptionSpec) -> Vec<(String, Absent)> {
         "SB_EXTENSION_ZIP" => one("session.extension_archives", Absent::NoItems),
         "SB_REUSE_CLASS_SESSION" => one("session.reuse_class", Absent::Nothing),
         "SB_CAP_FILE" | "SB_CAP_STRING" => one("session.capabilities", Absent::Skip),
-        "SB_FIREFOX_ARG" => one("session.firefox.args", Absent::Skip),
+        "SB_FIREFOX_ARG" => one("session.firefox.args", Absent::NoItems),
         "SB_FIREFOX_PREF" => one("session.firefox.preferences", Absent::Skip),
         _ => {
             // `TestSettings` flattens its `TestData`: `test.data.env` is `test.env` in the
