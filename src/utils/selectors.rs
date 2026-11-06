@@ -287,6 +287,13 @@ impl<'a> Selector<'a> {
 /// uses, so `"#login"`, `"//form/button"` and `"link=Sign in"` all work. The
 /// kind is decided once, here, and sent to the page already tagged.
 ///
+/// The XPath that [`containing_text`](Self::containing_text), [`text`](Self::text),
+/// [`label`](Self::label) and [`role`](Self::role) write starts at the context node
+/// (`.//`). From a page that is the whole document, as `//` would be; from an
+/// [`Element`](crate::Element) it stays inside the element, where
+/// [`Element::find`](crate::Element::find) refuses a path from the root of the page.
+
+///
 /// # Examples
 ///
 /// ```
@@ -370,9 +377,9 @@ impl SelectorBuf {
             })
             .map(str::to_owned);
         match tag {
-            Some(tag) => Self::XPath(format!("//{tag}[contains(normalize-space(.), {literal})]")),
+            Some(tag) => Self::XPath(format!(".//{tag}[contains(normalize-space(.), {literal})]")),
             None => Self::XPath(format!(
-                "//*[text()[contains(normalize-space(.), {literal})]]"
+                ".//*[text()[contains(normalize-space(.), {literal})]]"
             )),
         }
     }
@@ -392,7 +399,7 @@ impl SelectorBuf {
     /// or (with `exact`) whose whole text is `text`, case and all. Buttons made
     /// with `<input type="submit">` (and `button`, `reset`) match by their
     /// value. Runs of white space count as one space, and `<script>` and
-    /// `<style>` never match.
+    /// `<style>` never match, nor does anything in the `<head>`.
     ///
     /// This is an approximation written in XPath 1.0: only ASCII letters are
     /// folded for the case-insensitive match.
@@ -412,7 +419,7 @@ impl SelectorBuf {
         let content = text_match(".", text, exact);
         let value = text_match("@value", text, exact);
         Self::XPath(format!(
-            "//body/descendant-or-self::*\
+            ".//*[not(ancestor-or-self::head)]\
              [not(self::script or self::style or self::noscript or self::template)]\
              [({content} and not(.//*[{content}])) or \
              (self::input and (@type='button' or @type='submit' or @type='reset') and {value})]"
@@ -459,7 +466,7 @@ impl SelectorBuf {
         let by_label = text_match(".", text, exact);
         let by_aria = text_match("@aria-label", text, exact);
         Self::XPath(format!(
-            "//*[(self::input and not(@type='hidden')) or self::textarea or self::select or \
+            ".//*[(self::input and not(@type='hidden')) or self::textarea or self::select or \
              self::button or self::meter or self::output or self::progress or \
              @role='textbox' or @role='combobox' or @role='checkbox' or @role='radio' or \
              @role='switch' or @role='slider' or @role='spinbutton' or @role='listbox']\
@@ -503,7 +510,7 @@ impl SelectorBuf {
     /// ```
     pub fn role(role: &str, name: Option<&str>, exact: bool) -> Self {
         let role = role.trim();
-        let mut xpath = String::from("//*");
+        let mut xpath = String::from(".//*");
         if !role.is_empty() {
             let explicit = format!("@role={}", xpath_string_literal(role));
             match implicit_role(role) {
@@ -1144,7 +1151,6 @@ mod tests_xpath_branches {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1761,7 +1767,6 @@ mod tests {
             assert!(xpath.contains("@id=//label["), "{xpath}");
         }
     }
-
 
     #[test]
     fn text_takes_the_innermost_element_and_input_buttons() {
