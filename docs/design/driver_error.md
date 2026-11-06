@@ -3,10 +3,27 @@ title: "Design: our own error for a failed WebDriver command"
 sidebarTitle: "Our own WebDriver error"
 ---
 
-Status: proposal (2026-11-05). One of the lanes that
+Status: implemented on `lane/thirtyfour`, with every recommendation of the open questions accepted (2026-11-06). One of the lanes that
 [the element note](/design/element_type) recommends in open question 9 (one lane for each
 thirtyfour type left in the public API), after [the cookie note](/design/cookie_type). This one
 is `SeleniumBaseError::WebDriver`, which any call of the WebDriver engine can return.
+
+The note was written before the code and is kept as it was; a few things turned out differently.
+`FatalError` is a case of thirtyfour 0.38.1 (the crate's own test builds one), and it is
+`Other`, as the table says. `DriverError::new` serves the tests and `explain_error`
+(`src/mcp/dev/diagnose.rs`), and there the kind comes from the words of the message
+(`driver_kind_of`), the one place that still reads words: the error the text came from is gone.
+The reason of the two variants the conversion makes (`BrowserDisconnected`, `InvalidSelector`)
+and of the `ElementNotInteractable` that `Element::failed` makes is the driver's message on one
+line, without the page data and the stack trace (`summary`), where the full text stays the
+`message()`. `Element::find` names the chain it looked for (`#cart >> .row`), not the element it
+searched in, and `BrowserSession::get_cookie` reads the kind through the crate-private
+`driver_kind`, as `shadow_find` does, because both hold thirtyfour's error and not ours.
+`SeleniumBaseError::WebDriver` has no `#[source]`, as the snippet shows: the thirtyfour error is
+the source of the `DriverError`, one step down, and it is not boxed a second time (`WebDriverError`
+is a box already), so `source().downcast_ref::<WebDriverError>()` finds it. Problem 2 holds for
+the waits that poll through `poll_until_found`; `BaseCase::wait_for_element_present` has a loop
+of its own that ignores every error until its timeout, and is not changed here.
 
 ## The problem
 

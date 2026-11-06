@@ -372,6 +372,7 @@ needs no second crate.
 | An element on the WebDriver engine | `use seleniumbase_rs::Element;` (a selector is a plain string; `Key` and `SelectBy` are at the crate root too) | `thirtyfour` |
 | The raw `thirtyfour` element behind an `Element` | `use seleniumbase_rs::drivers::WebElement;` | `thirtyfour` |
 | A browser cookie, from either engine | `use seleniumbase_rs::{Cookie, SameSite};` | `thirtyfour` |
+| Why the driver failed a command (no such alert, window or frame; a script that threw) | `use seleniumbase_rs::{DriverErrorKind, SeleniumBaseError};` and `SeleniumBaseError::WebDriver(error)` with `error.kind()` | `thirtyfour` |
 | A named key for `Element::press` or `Locator::press` | `use seleniumbase_rs::Key;` (one `Key` for both engines; `drivers` has none) | `thirtyfour` |
 | Capabilities and network conditions of the WebDriver engine | `use seleniumbase_rs::drivers::{DesiredCapabilities, NetworkConditions, ...};` | `thirtyfour` |
 | A JSON value or the `json!` macro | `use seleniumbase_rs::json::{json, Value};` | `serde_json = "1"` |

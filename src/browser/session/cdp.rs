@@ -168,7 +168,7 @@ impl BrowserSession {
         self.webdriver()?
             .delete_all_cookies()
             .await
-            .map_err(SeleniumBaseError::WebDriver)
+            .map_err(SeleniumBaseError::from)
     }
 
     /// Returns the cookies of the current page, the same [`Cookie`] in both modes.
@@ -195,11 +195,7 @@ impl BrowserSession {
             })?;
             return Ok(cookies.iter().map(Cookie::from_protocol).collect());
         }
-        let cookies = self
-            .webdriver()?
-            .get_all_cookies()
-            .await
-            .map_err(SeleniumBaseError::WebDriver)?;
+        let cookies = self.webdriver()?.get_all_cookies().await?;
         Ok(cookies.iter().map(Cookie::from_webdriver).collect())
     }
 

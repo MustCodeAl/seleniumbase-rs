@@ -16,7 +16,9 @@ use seleniumbase_rs::drivers::{
     WebDriverError, WebElement,
 };
 use seleniumbase_rs::json::{from_value, json, Value};
-use seleniumbase_rs::{BaseCase, Cookie, Element, Key, SameSite, SelectBy, SeleniumBaseError};
+use seleniumbase_rs::{
+    BaseCase, Cookie, DriverErrorKind, Element, Key, SameSite, SelectBy, SeleniumBaseError,
+};
 
 #[test]
 fn an_element_and_the_types_around_it_come_from_our_crate() {
@@ -56,9 +58,14 @@ fn network_conditions_are_the_type_the_api_takes() {
 }
 
 #[test]
-fn a_webdriver_error_is_the_one_the_error_type_wraps() {
-    let error = SeleniumBaseError::WebDriver(WebDriverError::FatalError("gone".to_owned()));
+fn a_webdriver_error_becomes_the_error_type_and_its_kind_is_read_without_thirtyfour() {
+    let error = SeleniumBaseError::from(WebDriverError::FatalError("gone".to_owned()));
     assert!(error.to_string().contains("gone"));
+    // The kind is read from our own enum: no `thirtyfour` item is named.
+    assert!(
+        matches!(&error, SeleniumBaseError::WebDriver(driver) if driver.kind() == DriverErrorKind::Other),
+        "{error:?}"
+    );
 }
 
 #[test]

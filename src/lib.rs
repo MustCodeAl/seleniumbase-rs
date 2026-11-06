@@ -217,7 +217,7 @@ pub use common::tls::install_tls_provider;
 pub use config::settings::{Settings, SettingsOverrides};
 pub use config::{LogFormat, RuntimeConfig};
 pub use cookie::{Cookie, SameSite};
-pub use error::{Result, ResultExt, SeleniumBaseError};
+pub use error::{DriverError, DriverErrorKind, Result, ResultExt, SeleniumBaseError};
 pub use evasion::capture::CapturedFingerprint;
 pub use evasion::fingerprint::{
     AudioNoise, BatteryProfile, BrandVersion, BrowserType, CanvasNoise, ClientHints,

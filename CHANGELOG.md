@@ -381,6 +381,44 @@ work, `docs/parity.md` the per-API status).
   `as_webdriver_element()` lists `thirtyfour` itself, as `drivers` says for anything it does
   not list.
 
+- **Breaking: `SeleniumBaseError::WebDriver` holds our own `DriverError`, and a failed WebDriver
+  command is read by its `DriverErrorKind`, not by `thirtyfour`'s enum.** `DriverError` and
+  `DriverErrorKind` are at the crate root. `DriverError::kind()` is a `#[non_exhaustive]`
+  `DriverErrorKind`: `ElementNotFound`, `StaleElement`, `ElementNotInteractable` (also a click
+  that was intercepted, an element in an invalid state, a move target out of bounds),
+  `FrameNotFound`, `WindowNotFound`, `AlertNotFound`, `CookieNotFound`, `ScriptFailed`,
+  `TimedOut` (the driver's command or script ran out of time, not a wait of this crate),
+  `BrowserLaunch`, `InvalidArgument`, `Unreachable` and `Other`; `message()` is the driver's text,
+  which `{}` still prints after `webdriver command failed: `, and `source()` is the `thirtyfour`
+  error, named by no public item. `drivers::WebDriverErrorInner` is gone; `drivers::WebDriverError`
+  stays, as the error of the escape hatches (`Element::as_webdriver_element`,
+  `BrowserSession::webdriver`), and `From<drivers::WebDriverError> for SeleniumBaseError` stays, so
+  `?` on their results still gives a `SeleniumBaseError`. Code that built
+  `SeleniumBaseError::WebDriver(error)` or read `error.as_inner()` changes. Three answers of the
+  driver are now told apart, which fixes what they did before:
+  `invalid session id` is `BrowserDisconnected`, so a wait (`wait_for_element_present`, `click`, ...)
+  ends at once with it instead of polling a dead session until its timeout;
+  `invalid selector` is `InvalidSelector` (exit status 2), which a wait also ends with at once;
+  and a lookup that finds nothing, `BrowserSession::find` and `Element::find`, is
+  `ElementNotFound` naming the selector (exit status 3), where it was `WebDriver` (status 4).
+  An `Element` method the driver refuses as not interactable is `ElementNotInteractable` naming
+  the element's selector. `hint()` for `WebDriver` follows the kind, so a driver that words a
+  message differently keeps its advice. `category()` is still `webdriver` and `exit_code()` still 4.
+
+  ```rust
+  // Before: name thirtyfour to read why the driver failed.
+  match error {
+      SeleniumBaseError::WebDriver(e) if matches!(e.as_inner(), WebDriverErrorInner::NoSuchAlert(_)) => {}
+      other => return Err(other),
+  }
+  // After
+  match error {
+      SeleniumBaseError::WebDriver(e) if e.kind() == DriverErrorKind::AlertNotFound => {}
+      other => return Err(other),
+  }
+  ```
+
+
 
 ### Added
 

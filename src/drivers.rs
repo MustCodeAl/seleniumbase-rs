@@ -3,8 +3,11 @@
 //!
 //! The WebDriver engine is built on the `thirtyfour` crate, and a few of its types show up in
 //! this crate's signatures: the capabilities of a custom launch are [`DesiredCapabilities`], and an
-//! [`Element`](crate::Element) hands out the raw [`WebElement`] behind it. A WebDriver failure
-//! carries a [`WebDriverError`]. Import them from here
+//! [`Element`](crate::Element) hands out the raw [`WebElement`] behind it. The calls on those
+//! raw types fail with a [`WebDriverError`], which `?` turns into a
+//! [`SeleniumBaseError`](crate::SeleniumBaseError); this crate's own calls fail with a
+//! [`DriverError`](crate::DriverError) in its `WebDriver` variant, which names no `thirtyfour`
+//! type and tells the failure by its [`DriverErrorKind`](crate::DriverErrorKind). Import them from here
 //! and a program needs no `thirtyfour` line in its manifest:
 //!
 //! ```no_run
@@ -35,7 +38,7 @@
 //! meaning.
 
 pub use thirtyfour::common::capabilities::chromium::ChromiumLikeCapabilities;
-pub use thirtyfour::error::{WebDriverError, WebDriverErrorInner};
+pub use thirtyfour::error::WebDriverError;
 // `BaseCase::set_network_conditions` takes the chromedriver `NetworkConditions` of
 // thirtyfour, which thirtyfour has deprecated in favour of its typed CDP domain; the
 // re-export carries the type the API takes, not an opinion about it.
