@@ -4,7 +4,7 @@ sidebarTitle: "Settings with figment"
 ---
 
 Status: design note, written before the code (branch `lane/design-settings`, from `90ca478e`).
-Every line number below is from that commit. Implemented on `lane/settings-v2`, and corrected after its review on `lane/settings-v3`: the pins (step 1), the report table (step 2), the run group (step 3), the `browser` and `session` groups of `BrowserConfig` (step 4: `BrowserSettings`, `SessionSettings`, `GridSettings`, one Grid address function), the `SB_NO_SANDBOX` rule, and findings 1, 2, 3, 7, 8, 9, 11 and 13, finding 4 (`to_launch_options` goes through `to_browser_config`) and finding 10 (the higher source decides between the spellings of the window size and of the language; done by the layering: each source gives one spelling and figment merges the sources key by key), step 5 (`Settings` holds the core: `Settings::browser` and `session` are `BrowserSettings` and `SessionSettings`, the field column of the option table is the dotted path, a row kind writes one entry of `browser.switches`, `config::text` reads the text of a variable or of a flat file key into the typed field, `with_launch_options`, `check_launch_values` and `base_browser_config` are gone, and `check_config` lists the paths with their variables, open question 13); step 6 (the settings are layered with figment: `SettingsFile` and `EnvVars` are crate-private providers over one `Figment`, `SettingsOverrides` is its pairs, `RuntimeConfig` drops the three shared fields and every variable of the table has one reader, errors name their source, `check` sorts by row) and step 7 (the docs pages, the CHANGELOG, the parity notes); not yet: the nested `[browser]` and `[session]` tables of a settings file, the `key` column of the table (the key of a row is still looked up by its variable, `FLAT_KEYS`), `OptionValue` (kept, as the reader of the text of one field), and the part of finding 12 that is not the `LaunchSettings` rename. What figment does was
+Every line number below is from that commit. Implemented on `lane/settings-v2`, and corrected after its review on `lane/settings-v3`: the pins (step 1), the report table (step 2), the run group (step 3), the `browser` and `session` groups of `BrowserConfig` (step 4: `BrowserSettings`, `SessionSettings`, `GridSettings`, one Grid address function), the `SB_NO_SANDBOX` rule, and findings 1, 2, 3, 7, 8, 9, 11 and 13, finding 4 (`to_launch_options` goes through `to_browser_config`) and finding 10 (the higher source decides between the spellings of the window size and of the language; done by the layering: each source gives one spelling and figment merges the sources key by key), step 5 (`Settings` holds the core: `Settings::browser` and `session` are `BrowserSettings` and `SessionSettings`, the field column of the option table is the dotted path, a row kind writes one entry of `browser.switches`, `config::text` reads the text of a variable or of a flat file key into the typed field, `with_launch_options`, `check_launch_values` and `base_browser_config` are gone, and `check_config` lists the paths with their variables, open question 13); step 6 (the settings are layered with figment: `SettingsFile` and `EnvVars` are crate-private providers over one `Figment`, `SettingsOverrides` is its pairs, `RuntimeConfig` drops the three shared fields and every variable of the table has one reader, errors name their source, `check` sorts by row) and step 7 (the docs pages, the CHANGELOG, the parity notes); and, on `lane/settings-v4`, the follow-ups of the review (a value equal to its default overrides a lower source, the nested `[browser]` and `[session]` tables of a settings file, the redaction of a refused file value, one trim rule; see "As implemented in the follow-up"); not done, by decision: the `key` column of the table (the key of a row is looked up by its variable in `FLAT_KEYS`), `OptionValue` (kept, as the reader of the text of one field), and the part of finding 12 that is not the `LaunchSettings` rename. What figment does was
 read on Context7 (the pages are listed under [Sources](#sources)); what those pages did not say is
 marked "to verify". Statements about today's behaviour come from reading the code; none was run,
 and each one that matters gets a test in [step 1](#implementation-steps) before anything moves.
@@ -948,6 +948,41 @@ One commit each; each runs the gate of `CLAUDE.md` (fmt, clippy with `-D warning
    error, as a flat key's is not. `SB_START_PAGE` of `sbrs devtools` and `SB_CRUMBS` are read
    through `env_vars::text`, the one reader.
 
+   *As implemented in the follow-up (2026-11-06, `lane/settings-v4`).*
+   * **A value equal to its default.** `read_variables` reads the paths a source wrote from the
+     serialized scratch settings, which leaves out a value that is its default
+     (`skip_serializing_if`); a source that gave a list with no item (`SB_PROXY_BYPASS_LIST=,`)
+     therefore wrote nothing and a lower source's list stayed. A non-switch row whose path is
+     absent from the serialization now writes the default the setting accepts there:
+     `layers::empty_at` tries `nothing()`, an empty list and `false` on the settings and keeps
+     the first they accept, so a field that gains `skip_serializing_if` later is covered. The
+     derived rows that merge (capabilities, the Firefox options, the window sides, the
+     language) keep their `Skip`, and so does `SB_SETTINGS_FILE`. The numbers, texts, enums and
+     options of `[run]`, `[test]` and `[report]` were already right; the pin covers them.
+   * **The nested form (open question 2, decided "both").** `[browser]` and `[session]` are read
+     by serde as they are written, like `[run]`, `[test]` and `[report]`; a top-level key named
+     `browser` is the nested form only when its value is a table (a text is the flat key of the
+     browser kind). A flat key and a nested leaf that write the same path, or one inside the
+     other (`written_paths` of the row against the leaves of the table), are one setting written
+     twice and are refused naming both spellings (`"dark_mode" and "[browser.switches] dark-mode"
+     are the same setting`). `BrowserSettings`, `SessionSettings`, `ProxySettings`,
+     `ChromiumSettings` and `GridSettings` deny unknown fields so that a typo in a nested table
+     is refused; none of them is flattened into another type. A file written from a serialized
+     `Settings` loads back equal (TOML and JSON, pinned).
+   * **Redaction.** `SettingsFile` hides a refused value between quotes (`"v"`, `'v'`, `` `v` ``)
+     and as the tail of the message, and a value of three characters or more where it stands
+     alone; it never searches a short value in the words of the message.
+   * **One trim rule.** `read_variables` trims the text and drops a blank one before any reader
+     runs, so the variables, the pairs and the flat keys of a file share the rule of
+     `EnvVars::text`; `SB_PLUGINS` keeps its raw lookup because an empty value is an answer there.
+   * **The `key` column.** The option table has no `key` column, against step 6: the flat key of
+     a row is found by its variable in `FLAT_KEYS` (`OptionSpec::flat_key`), because the rows
+     are the token trees of a macro (`sb_test_options!`) that the structural tools cannot edit,
+     and a column would be an edit of every row by hand. `flat_key` is the one reader of the
+     list, and a test (`every_row_with_a_flat_key_is_a_key`) keeps the list and the rows in step.
+   * **Known limit.** figment merges two tables key by key, so a map-valued setting a higher
+     source gives (the Firefox preferences, `test.variables`, `report.databases`, the
+     capabilities) is added to the lower source's map and does not replace it; the lists replace.
 
 6. **`feat(config): layer the settings with figment`.** `SettingsFile` and `EnvVars`;
    `Settings::load`, `load_from`, `from_env`, `check` and `apply_options` on one `Figment`; the
@@ -970,7 +1005,7 @@ One commit each; each runs the gate of `CLAUDE.md` (fmt, clippy with `-D warning
 2. **The file syntax.** Flat keys only, or also the nested tables? *Recommendation:* both: the flat
    key is what the docs show (it is the option's name, as `sbrs options` lists it), the nested form
    is what `Settings` serializes to; one setting written in both forms is refused, as two spellings
-   are today.
+   are today. *Decided 2026-11-06 ("OK to all"): both; done on `lane/settings-v4`.*
 3. **Field names of the core.** The builder's names (`url`, `executable_path`, `lang`,
    `extensions`, `debugging_port`) or the Python ones (`start_page`, `chrome_bin`, `locale`,
    `remote_debug`)? *Recommendation:* the builder's, because consumers use the builder (stealth 82

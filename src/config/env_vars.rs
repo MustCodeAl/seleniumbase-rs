@@ -13,7 +13,7 @@
 //! # Precedence
 //!
 //! A flag wins over its variable, which wins over the settings file, which wins over the
-//! default. A variable that is empty or blank counts as unset, and one that cannot be used
+//! default. A variable is read trimmed, a blank one counts as unset, and one that cannot be used
 //! is an error that names the variable and the flag it stands for.
 //!
 //! # Examples

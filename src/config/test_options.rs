@@ -21,7 +21,7 @@
 //!
 //! An `sbrs test` flag wins over an `SB_*` variable already in the
 //! environment, which wins over the settings file, which wins over the
-//! default. A variable that is empty or blank counts as unset.
+//! default. A variable is read trimmed, and one that is empty or blank counts as unset.
 //!
 //! # Examples
 //!

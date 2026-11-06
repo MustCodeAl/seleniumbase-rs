@@ -14,7 +14,10 @@
 //!   variables, so that a value is refused in one place;
 //! * the tables and the settings of the other groups (`[run]`, `[test]`, `[report]`,
 //!   `[plugins]`, `[fingerprint]`) are handed on as written, and figment's extraction reads
-//!   them with serde.
+//!   them with serde;
+//! * the nested tables `[browser]` and `[session]`, with the tables and maps inside them, are the
+//!   settings as `Settings` serializes them: they are handed on as written, beside the flat
+//!   keys, and a setting that a flat key and a nested table both give is written twice.
 //!
 //! A value that is refused names the file and the key as the file wrote it
 //! (`sbase_config.toml: headless: cannot parse bool: …`), and never repeats the value, which may

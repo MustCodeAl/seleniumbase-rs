@@ -105,6 +105,41 @@ report keys it held (`html`, `dashboard`, `databases`, ...) and `rec_sleep`; the
 `settings.report` and `settings.run`. A settings file cannot set `settings_file`: that setting
 names the file (`--settings-file`, `SB_SETTINGS_FILE`).
 
+## The nested form
+
+A settings file may also write the settings the way `Settings` serializes them: the tables
+`[browser]` and `[session]`, and the tables and maps inside them (`browser.proxy`,
+`browser.chromium`, `browser.switches`, `session.grid`), beside the flat keys of other settings.
+A file written from a serialized `Settings` (`toml::to_string(&settings)`,
+`serde_json::to_string(&settings)`) loads back equal, in TOML and in JSON.
+
+```toml sbase_config.toml
+headless = true                 # a flat key
+
+[browser.proxy]
+server = "proxy.example.com:8080"
+
+[browser.switches]
+dark-mode = true
+
+[session.grid]
+server = "hub.example.com"
+port = 4445
+```
+
+The names in a nested table are the field names of the serialized settings, not the flat keys:
+`server` of `[browser.proxy]` is the flat `proxy`, `dark-mode` of `[browser.switches]` is
+`dark_mode`, `server` of `[session.grid]` is the flat `server`. A key that is no field is
+refused (`[browser] hedless = true`). One setting written in both forms is refused, naming both
+spellings:
+
+```text
+"dark_mode" and "[browser.switches] dark-mode" are the same setting (browser.switches.dark-mode) in the settings file
+```
+
+A lone `window_width` beside `[browser.window_size] height = 600` is one size, as a lone side
+is laid over a lower source's. A `browser` that is a text is the flat key of the browser kind
+(`browser = "firefox"`); a table of that name is the nested form.
 
 ## How the layers are merged
 
@@ -112,11 +147,18 @@ Each source is read into the settings it gives, and a higher source wins for eac
 gives and leaves the others alone (the layers are merged key by key, so a variable that sets the
 proxy does not touch the window size the file set):
 
-* **One value** (a name, a number, a switch): the value of the higher source. A switch that a
-  higher source turns off (`SB_DARK_MODE=false`) turns off what a lower source turned on.
+* **One value** (a name, a number, a switch): the value of the higher source, even when it is
+  the default of the setting (`SB_PORT=4444` over a file's `port = 4445` sets 4444, and
+  `SB_TIMEOUT_MULTIPLIER=1` over `timeout_multiplier = 3` sets 1). A switch that a higher
+  source turns off (`SB_DARK_MODE=false`) turns off what a lower source turned on.
 * **A list** (`extension_dir`, `chromium_arg`, `SB_PLUGINS`): the list of the higher source
-  replaces the list of the lower one. `SB_PLUGINS` replaces the names in `[plugins] enable`
-  (an empty value means no plugin) and the options of the plugins it names stay.
+  replaces the list of the lower one, and a list with no item (`SB_PROXY_BYPASS_LIST=,`) empties
+  it. `SB_PLUGINS` replaces the names in `[plugins] enable` (an empty value means no plugin) and
+  the options of the plugins it names stay.
+* **Blanks.** Every source reads a value trimmed, and a value that is empty or only blanks is
+  unset: it leaves what a lower source says. The same holds for a flat key of the settings file
+  (`user_agent = ""` sets nothing). `SB_PLUGINS` is the one exception, where an empty value is
+  an answer.
 * **Capabilities** (`cap_file`, `cap_string`): merged key by key, the higher source winning on a
   key.
 * **Two spellings of one setting** (`window_size`, or `window_width` and `window_height`;
@@ -131,7 +173,8 @@ proxy does not touch the window size the file set):
 
 A value that is refused names its source and where in it. A variable is named with its flag,
 and a value of the settings file with the file and the key as the file wrote it (the value
-itself is not repeated, because it may be a secret):
+itself is not repeated, because it may be a secret: it is hidden where the message quotes it or
+ends with it, and the words of the message stay as they are, whatever the value):
 
 ```text
 SB_HEADLESS (--headless): cannot parse bool: maybe
@@ -232,7 +275,8 @@ table and the list of the other variables, so it names every variable the comman
 lines read.
 
 **Order.** A flag wins over its variable, which wins over the settings file, which
-wins over the default. A variable that is empty or blank counts as unset.
+wins over the default. A variable is read trimmed, and one that is empty or blank counts as
+unset.
 
 **A bad value stops the program.** A variable that cannot be used ends `sbrs` or
 `sbrs-mcp` with status 2, before a browser starts or the server listens, and the

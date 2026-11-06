@@ -384,6 +384,16 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- **A settings file accepts the nested form beside the flat keys (`docs/design/settings_v2.md`,
+  open question 2).** The tables `[browser]` and `[session]`, with the tables and maps inside
+  them (`[browser.proxy]`, `[browser.chromium]`, `[browser.switches]`, `[session.grid]`), are the
+  settings as `Settings` serializes them, so a file written with `toml::to_string(&settings)` or
+  `serde_json::to_string(&settings)` loads back equal. One setting written in both forms is
+  refused, naming both spellings (`"dark_mode" and "[browser.switches] dark-mode" are the same
+  setting`), and a key that is no field of a nested table is refused (`BrowserSettings`,
+  `SessionSettings`, `ProxySettings`, `ChromiumSettings` and `GridSettings` deny unknown
+  fields). A `browser` that is a text is still the flat key of the browser kind.
+
 - `sbrs options --env` lists seven variables the code already read: `SB_REC_FILE`,
   `SB_REC_KEEP_SECRETS`, `SB_S3_BUCKET`, `SB_S3_REGION`, `SB_S3_PREFIX`, `SB_OCR_MODELS` and
   `SB_GRID_DIR`. `env_vars::switch` reads a switch variable (`true`, `1`, `yes`, `on`; `false`,
@@ -525,6 +535,20 @@ work, `docs/parity.md` the per-API status).
   start of the path missed: `.//p | //button`, `(.//p | //button)[1]` and `id('x')` matched
   elements outside the locator before them. Each step now carries `confine`, which the Rust side
   sets with the check that `Element::find` refuses these paths with.
+
+- A value that equals the default of its setting still wins over a lower source. A list with no
+  item (`SB_PROXY_BYPASS_LIST=,`) was written as nothing, so the list of the settings file stayed;
+  it empties it now. The numbers, texts, enums and options of the run, test and report groups
+  were already right, and a test pins them (file, variable, then pair).
+- A refused value of a settings file is hidden where the message quotes it (`"v"`, `'v'`,
+  `` `v` ``) or ends with it, and the words of the message stay: a one-letter value turned
+  `cannot parse bool` into `c…nnot p…rse bool`. A value of three characters or more is also
+  hidden where it stands alone in the message.
+- One rule reads a value in every source: it is trimmed, and a blank one is unset.
+  `EnvVars::read` gave the readers of the option table the text as it was, so `SB_HEADLESS=" true "`
+  was refused and `SB_USER_AGENT` kept its blanks, while `env_vars::text`, `switch` and `parse`
+  trimmed. The flat keys of a settings file follow the rule too: `user_agent = ""` is unset,
+  where it set an empty text. `SB_PLUGINS` keeps an empty value as an answer.
 
 
 ## [0.8.0] - 2026-11-05
