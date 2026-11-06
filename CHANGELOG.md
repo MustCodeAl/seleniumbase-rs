@@ -481,10 +481,10 @@ work, `docs/parity.md` the per-API status).
   `BaseCase::convert_css_to_xpath` still writes the absolute path.
 
 - CI runs on GitLab.com, where the repository is mirrored: `.gitlab-ci.yml` defines a `gate`
-  job (fmt, clippy, tests and rustdoc in one build folder), a `supply-chain` job (cargo deny
+  job (fmt and clippy), a `supply-chain` job (cargo deny
   and cargo audit) and a `docs` job (`mise run mdx`, `mdbook build`, only when the docs
-  change) for merge requests and `main`, and the manual jobs `msrv` and `chrome` (the
-  real-Chrome tests, headless). The GitHub workflows stay in `.github/workflows`. The
+  change) for merge requests and `main`, and the manual jobs `test` (the whole test suite and
+  rustdoc), `msrv` and `chrome` (the real-Chrome tests, headless). The GitHub workflows stay in `.github/workflows`. The
   "CI on GitLab" section of `CONTRIBUTING.md` has the budget of compute minutes and how to
   start the manual jobs.
 

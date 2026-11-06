@@ -10,7 +10,8 @@
 # and for the default branch (which must be `main`), and a new push cancels a pipeline that is
 # still running (every job is `interruptible`):
 #
-#   gate          fmt, clippy, tests and rustdoc, one after the other, in one build folder
+#   gate          fmt and clippy
+#   test          MANUAL: the whole test suite and rustdoc (every push here passed them already)
 #   supply-chain  cargo deny and cargo audit
 #   docs          mise run mdx and mdbook build, only when the docs or their tooling change
 #   msrv          MANUAL: cargo check with the gui and tui features
@@ -98,23 +99,35 @@ variables:
       find target/debug -maxdepth 1 -type f -delete
       find target/debug/deps -type f -perm /111 ! -name '*.so' -delete
 
-# The checks of "Build and check", in that order. One build folder serves all four, so a
-# dependency is compiled once. The first run, and the first after a change of Cargo.lock, builds
-# every dependency; a run of the doctests is most of the rest. The project timeout of GitLab is
-# 60 minutes by default: if this job is cut off there, raise it in Settings > CI/CD > General
-# pipelines > Timeout.
+# fmt and clippy of "Build and check", on every pipeline: cheap next to the tests, and they
+# catch most mistakes. The first run, and the first after a change of Cargo.lock, builds every
+# dependency once for the cache.
 gate:
   extends:
     - .rust
     - .target_cache
   rules:
     - !reference [.rules_automatic]
-  timeout: 3h
+  timeout: 2h
   script:
     - rustc --version
     - cargo --version
     - cargo fmt --all -- --check
     - cargo clippy --all-targets --features "$FEATURES" -- -D warnings
+
+# The rest of "Build and check": the whole test suite and rustdoc. MANUAL, to keep the Free
+# tier's 400 minutes a month: every push to GitLab has already passed them on the lead's machine,
+# and a run takes an hour or more (the doctests are most of it). The project timeout of GitLab is
+# 60 minutes by default: if this job is cut off there, raise it in Settings > CI/CD > General
+# pipelines > Timeout.
+test:
+  extends:
+    - .rust
+    - .target_cache
+  rules:
+    - !reference [.rules_by_hand]
+  timeout: 3h
+  script:
     - cargo test --no-fail-fast --features "$FEATURES"
     - RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --features "$FEATURES"
 
