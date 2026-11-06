@@ -74,6 +74,37 @@ The file is optional. If it is missing, built-in defaults are used. The
 `Settings::load_global()` function searches for `sbase_config.toml`, then
 `.sbase_config.toml`, then `.sbase_config` in the current directory.
 
+## Flat keys and tables
+
+A setting is written flat (`demo = true`, `timeout_seconds = 12`: the key `sbrs options` lists)
+or in the table of its group. The groups that have a table today:
+
+| Table | Holds | In code |
+|---|---|---|
+| `[run]` | how a whole run behaves: `default_timeout` (flat: `timeout_seconds`), `demo_mode` (`demo`), `slow_mode` (`slow`), `demo_sleep`, `message_duration`, `skip_js_waits`, `highlights`, `interval`, `verify_delay`, `check_js`, `wait_for_angularjs`, `disable_beforeunload`, `timeout_multiplier`, `reset_visual_baseline` (`visual_baseline`), `record_sleep` | `settings.run` (a `RunSettings`) |
+| `[report]` | the reports and the evidence: `dashboard`, `dash_title`, `html`, `junit_xml`, `allure_dir`, `archive_logs`, `archive_downloads`, `list_fail_page`, `save_screenshot`, `no_screenshot`, `with_db_reporting`, `database_env`, `db`, `databases`, `with_s3_logging` | `settings.report` (a `ReportSettings`) |
+| `[test]` | test data, debug modes, reruns, the recorder: `env`, `account`, `data`, `var1` to `var3`, `variables`, `pdb`, `trace`, `final_debug`, `reruns`, `reruns_delay`, `time_limit`, `runner`, `recorder`, `rec_behave`, `rec_print`, `rec_sb_mgr` | `settings.test` (a `TestSettings`) |
+
+```toml sbase_config.toml
+timeout_seconds = 30        # the same as [run] default_timeout = 30
+
+[report]
+html = "reports/report.html"
+junit_xml = "reports/report.xml"
+
+[test]
+reruns = 2
+```
+
+The aliases of an option work in a table as they do at the top level (`ftrace` for
+`final_debug`), and a key that is no setting of the table is an error that names the table:
+`[test] rerun = 2` is refused, where it used to be dropped without a word. One setting written
+twice (`demo = true` and `[run] demo_mode = true`) is refused too. `[test]` still reads the
+report keys it held (`html`, `dashboard`, `databases`, ...) and `rec_sleep`; they land in
+`settings.report` and `settings.run`. A settings file cannot set `settings_file`: that setting
+names the file (`--settings-file`, `SB_SETTINGS_FILE`).
+
+
 ## Loading settings programmatically
 
 ```rust
@@ -110,7 +141,7 @@ Every setting in `Settings` can be overridden with an `SB_` prefixed variable:
 |----------|---------|
 | `SB_BROWSER` | `browser` |
 | `SB_HEADLESS` | `headless` (see [Headless and headed browsers](/tutorials/headless) for which entry points read it) |
-| `SB_TIMEOUT` | `timeout_seconds`: the default wait `run_browser_test` gives its `BaseCase` |
+| `SB_TIMEOUT` | `timeout_seconds` (`run.default_timeout` in code): the default wait `run_browser_test` gives its `BaseCase` |
 | `SB_PROXY` | `proxy` |
 | `SB_PROXY_PAC_URL` | `proxy_pac_url` |
 | `SB_WINDOW_WIDTH` | `window_width`: with `window_height`, the browser window's size |

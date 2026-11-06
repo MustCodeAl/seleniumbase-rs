@@ -86,6 +86,55 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   (`WaitTimeout`); every other rustwright failure is `Playwright` with its text, and no element
   error is made up. `close` on a sidecar whose browser is gone is `Ok`.
 
+- **Breaking: the settings are grouped (`docs/design/settings_v2.md`, steps 1 to 3).**
+  `Settings::report` is the one table of the reports, the evidence and the results database
+  (`ReportSettings`): the thirteen report fields of `TestSettings` (`dashboard`, `dash_title`,
+  `html`, `junit_xml`, `allure_dir`, `archive_logs`, `archive_downloads`, `list_fail_page`,
+  `save_screenshot`, `no_screenshot`, `with_db_reporting`, `database_env`, `with_s3_logging`)
+  and its `databases` are `settings.report.*` now, and `ReportSettings::list_fail_pages` is
+  `list_fail_page` (a `run.json` that wrote the old name is still read).
+  `ReportSettings::from_settings_with` only chooses the results database (`SB_REPORT_DB`, else
+  the entry of `database_env`): the variables of the report are read once, by `Settings::load`.
+  `Settings::run` is a `RunSettings` that holds the fourteen run options that were flat fields
+  (`timeout_seconds` is `run.default_timeout`, `demo` is `run.demo_mode`, `slow` is
+  `run.slow_mode`, `visual_baseline` is `run.reset_visual_baseline`, and `demo_sleep`,
+  `message_duration`, `skip_js_waits`, `highlights`, `interval`, `verify_delay`, `check_js`,
+  `wait_for_angularjs`, `disable_beforeunload` and `timeout_multiplier` keep their names under
+  `run`), and `[test] rec_sleep` is `run.record_sleep`. `RunSettings` reads and writes as a
+  settings group (seconds are numbers). `BrowserConfig::run` replaces `launch.run`, and
+  `BrowserConfig::threads` and `with_threads` are gone: nothing read them (`Settings::threads`,
+  which `sbrs test` reads, stays). The names of the variables, flags and file keys do not
+  change.
+
+  A settings file may write a setting flat (`demo = true`, `timeout_seconds = 12`) or in its
+  table (`[run] demo_mode = true`, `[report] html = "r.html"`), and refuses one setting written
+  twice. `[test]` still reads the keys it held (`html`, `dashboard`, `databases`, `rec_sleep`,
+  ...), and now refuses a key that is no setting (`[test] rerun = 2` was dropped without a word)
+  and reads the aliases of a row there (`ftrace`). A `[report]` table was refused before.
+
+- **Breaking: the Grid address of `Settings::server`, `port` and `protocol` is built by
+  `browser::options::grid_url`**, the function `BrowserConfig::with_grid` uses. The protocol's
+  own port is left out of the address (`http://grid.test:80/wd/hub` is `http://grid.test/wd/hub`),
+  and a protocol other than `http` and `https` is refused.
+
+- A settings file that sets `settings_file` (or `settings`) is refused: the setting names the
+  file, so it did nothing there. `RuntimeConfig` reads `SB_WEBDRIVER_URL`, `SB_CHROME_BIN` and
+  `SB_REMOTE_WEBDRIVER_TIMEOUT` with the blank rule of the option table: a blank value is
+  unset, not an empty path.
+
+
+- **Breaking, security: `SB_NO_SANDBOX` fails safe.** The pure CDP engine turned Chrome's
+  sandbox off whenever the variable existed, so `SB_NO_SANDBOX=0`, `=false` and an empty value
+  did the opposite of what they say. Now only `true`, `1`, `yes` or `on` (in any letter case)
+  turn the sandbox off; `false`, `0`, `no`, `off` and an empty or blank value keep it on, as an
+  unset variable does; any other value makes `LaunchOptionsBuilder::build` fail with an error
+  that names the variable. The builder's own `no_sandbox(bool)` still decides first, and then
+  the variable is not read. A deployment that turned the sandbox off with another value
+  (`SB_NO_SANDBOX=enabled`) must change it to one of the four. The Dockerfile and
+  `docker/verify-linux.sh` set `1`, which still works. The table reader of `Settings`
+  (`--no-sandbox`, a `no_sandbox` key) already read the variable this way.
+
+
 ### Added
 
 - `BaseCase::devtools_endpoint()` (and `BrowserSession::devtools_endpoint()`): the DevTools

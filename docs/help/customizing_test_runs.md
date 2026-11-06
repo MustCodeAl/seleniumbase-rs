@@ -271,7 +271,7 @@ proxy = "http://proxy.example.com:8080"
 </CodeGroup>
 
 Every key is optional and any key you leave out keeps its default. The keys are
-the fields of `Settings`: `browser`, `headless`, `timeout_seconds`,
+the flat keys `sbrs options` lists (the [Settings page](/tutorials/settings_and_config) describes the `[run]`, `[report]` and `[test]` tables too): `browser`, `headless`, `timeout_seconds`,
 `screenshot_dir`, `proxy`, `proxy_pac_url`, `window_width`, `window_height`,
 `user_data_dir`, `extension_dir`, `locale`, `user_agent`, `mode` (`webdriver`,
 `cdp` or `uc`), `ad_block`, `reuse_session`, `reuse_class_session`, `mobile`, `threads`, `esc_end`,
