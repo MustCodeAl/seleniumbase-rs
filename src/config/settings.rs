@@ -736,7 +736,8 @@ impl Settings {
         Ok((settings, refused))
     }
 
-    /// `settings` if no variable was refused, else the error of the first one; then the checks
+    /// `settings` if no value was refused, else the error of the first one in the order of the
+    /// option table, whichever source gave it (the order `check` lists them in); then the checks
     /// of the whole: the window size, the plugins this build can run, and the fingerprint file.
     fn finish(settings: Self, mut refused: Vec<Refused>) -> Result<Self, SeleniumBaseError> {
         // The first in the order of the option table, whichever source gave it.
@@ -776,7 +777,9 @@ impl Settings {
     /// Writes options given as `SB_*` variables and the text of their values, the way
     /// [`load`](Self::load) writes the environment: the pairs of the same variable are read
     /// last one first, a blank value counts as unset, and a pair whose variable no option of
-    /// the table reads (the shorthands, `SB_PLUGINS`) is ignored. The result is checked with
+    /// the table reads (the shorthands) is ignored. `SB_PLUGINS` is read too, and names the
+    /// plugins as the variable does: its list replaces the selection and drops the options of
+    /// the plugins it leaves out, and an empty value turns them all off. The result is checked with
     /// [`validate`](Self::validate).
     ///
     /// This is how the flags of `sbrs` that have no field of their own in
@@ -853,7 +856,8 @@ pub struct SettingsCheck {
     /// The settings: the file's, with the variables on top. A part that could not be read
     /// is at its default.
     pub settings: Settings,
-    /// Everything [`Settings::load_from`] would refuse, in the order it would meet it; empty
+    /// Everything [`Settings::load_from`] would refuse, in the order of the option table
+    /// whichever source gave each (the first is the error `load_from` returns); empty
     /// when it would succeed.
     pub problems: Vec<SettingsProblem>,
 }
