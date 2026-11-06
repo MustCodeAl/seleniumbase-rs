@@ -480,13 +480,14 @@ work, `docs/parity.md` the per-API status).
   form starts at the context node, so a search from an `Element` stays inside the element.
   `BaseCase::convert_css_to_xpath` still writes the absolute path.
 
-- CI runs on GitLab.com, where the repository is mirrored: `.gitlab-ci.yml` defines a `gate`
-  job (fmt and clippy), a `supply-chain` job (cargo deny
-  and cargo audit) and a `docs` job (`mise run mdx`, `mdbook build`, only when the docs
-  change) for merge requests and `main`, and the manual jobs `test` (the whole test suite and
-  rustdoc), `msrv` and `chrome` (the real-Chrome tests, headless). The GitHub workflows stay in `.github/workflows`. The
-  "CI on GitLab" section of `CONTRIBUTING.md` has the budget of compute minutes and how to
-  start the manual jobs.
+- CI runs on GitLab.com, where the repository is mirrored
+  (`gitlab.com/seleniumbaserust/seleniumbase-rs`, on GitLab's Open Source plan):
+  `.gitlab-ci.yml` defines a `gate` job (fmt and clippy), a `test` job (the whole test suite
+  and rustdoc), a `supply-chain` job (cargo deny and cargo audit) and a `docs` job
+  (`mise run mdx`, `mdbook build`, only when the docs change) for merge requests and `main`,
+  and the manual jobs `msrv` and `chrome` (the real-Chrome tests, headless). The GitHub
+  workflows stay in `.github/workflows`. The "CI on GitLab" section of `CONTRIBUTING.md` says
+  how to start the manual jobs.
 
 ### Fixed
 
