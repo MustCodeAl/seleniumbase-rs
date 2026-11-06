@@ -384,6 +384,15 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- Docs: the stealth crates' HTTP/3 page is on the site, as Stealth › Advanced stealth ›
+  HTTP/3 (`docs/stealth/advanced/http3.md`, ported from the stealth repository's
+  `docs/http3.md`): the `sbrs-h3d` helper, the `http3` feature, and what was measured equal to
+  and different from Chrome 156. The stealth repository's BoringSSL build note is a contributor
+  page, `docs/contributing/stealth-boringssl.md`. Advanced stealthy scraping › Limits points to
+  the HTTP/3 page, and Cookies, identity and challenges says how a widget is solved. `CLAUDE.md`
+  and `CONTRIBUTING.md` say where the stealth crates' user docs live: on this site under
+  `docs/stealth`, never only in the stealth repository's `docs/`.
+
 - `sbrs options --env` lists seven variables the code already read: `SB_REC_FILE`,
   `SB_REC_KEEP_SECRETS`, `SB_S3_BUCKET`, `SB_S3_REGION`, `SB_S3_PREFIX`, `SB_OCR_MODELS` and
   `SB_GRID_DIR`. `env_vars::switch` reads a switch variable (`true`, `1`, `yes`, `on`; `false`,
