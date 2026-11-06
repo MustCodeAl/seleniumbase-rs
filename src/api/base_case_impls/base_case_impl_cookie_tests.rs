@@ -96,7 +96,7 @@ mod tests_cookie_calls {
         let mut config = BrowserConfig::default()
             .with_webdriver_url(driver.url().to_owned())
             .with_mode(DriverMode::Cdp);
-        config.auto_start_driver = false;
+        config.session.auto_start_driver = false;
         BaseCase::new(config)
             .await
             .expect("the mock accepts a session")
