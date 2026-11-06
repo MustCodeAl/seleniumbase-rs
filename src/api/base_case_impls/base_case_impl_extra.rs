@@ -627,10 +627,12 @@ impl BaseCase {
         Ok(visible)
     }
 
-    /// Helper to convert a WebDriver element JSON response into an `Element`.
+    /// Helper to convert a WebDriver element JSON response into an `Element` called `name`: the
+    /// temporary marker it is looked up by is taken off again, so it cannot name the element.
     async fn element_from_script_result(
         &mut self,
         result: Value,
+        name: String,
     ) -> Result<Option<Element>, SeleniumBaseError> {
         if result.is_null() {
             return Ok(None);
@@ -657,7 +659,7 @@ impl BaseCase {
                         vec![el.reference()?, Value::String(mark_attr)],
                     )
                     .await;
-                Ok(Some(el))
+                Ok(Some(el.named(name)))
             }
             Err(_) => Ok(None),
         }

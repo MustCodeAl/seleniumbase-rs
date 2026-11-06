@@ -182,6 +182,10 @@ const GONE: &[(&str, &str)] = &[
     ("thirtyfour::cookie::Cookie", "seleniumbase_rs::Cookie"),
     ("get_shadow_root", "find_element(\"host::shadow inner\")"),
     ("BaseCase::locator", "BaseCase::find_element"),
+    // `Key` has one meaning: the pure CDP engine's, at the crate root. thirtyfour's is not
+    // re-exported (docs/design/element_type.md).
+    ("drivers::Key", "seleniumbase_rs::Key"),
+    ("DesiredCapabilities, Key", "seleniumbase_rs::Key"),
     (
         "use rstest::",
         "seleniumbase_rs::testing::{fixture, rstest}",

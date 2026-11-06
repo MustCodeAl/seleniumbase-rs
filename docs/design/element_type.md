@@ -17,6 +17,16 @@ taken from code this crate already compiles (cited) or marked "to verify". The c
 are literal-text counts over the indexed sources (a `.method(` search per name), not a
 type-resolved caller graph.
 
+A review of the branch changed four more things, which the text below does not show. A search from
+an `Element` stays inside it: an XPath that starts at the root of the page (`//td`) is refused,
+since the WebDriver would search the whole page from any element, and a `:contains()` selector is
+read as `.//p[...]`; an `<iframe>` element is not entered (its frame is a different document).
+`drivers::Key`, thirtyfour's, is removed, so `Key` has one meaning, the pure CDP engine's
+(open question 5). `BaseCase::get_parent` and `get_element_at_x_y` name their elements
+(`#a >> ..`, `element at (10, 20)`) where a temporary marker selector had been the name. Python's
+`locator` is mapped to `find_element` by hand in the importer, since its parity row is `composed`.
+
+
 ## Goal
 
 `BaseCase` and `BrowserSession` hand users `thirtyfour::WebElement` (through the re-export

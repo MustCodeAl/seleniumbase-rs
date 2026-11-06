@@ -24,6 +24,7 @@ use std::path::{Path, PathBuf};
 use super::PromptKind;
 use crate::common::color::{palette, sanitize, Color, Style};
 use crate::error::SeleniumBaseError;
+use crate::utils::selectors::is_lookup_selector;
 
 /// Lines shown on each side of the line of a breakpoint.
 const WINDOW: usize = 5;
@@ -152,7 +153,10 @@ impl Failure {
             SeleniumBaseError::ElementNotFound { selector, .. }
             | SeleniumBaseError::ElementNotInteractable { selector, .. }
             | SeleniumBaseError::StrictModeViolation { selector, .. }
-            | SeleniumBaseError::StaleElement { selector } => (Some(selector.clone()), None),
+            | SeleniumBaseError::StaleElement { selector } => {
+                // `#cart >> .row` says where an element came from; it is no text of the test.
+                (is_lookup_selector(selector).then(|| selector.clone()), None)
+            }
             SeleniumBaseError::InvalidSelector(selector) => (Some(selector.clone()), None),
             SeleniumBaseError::Navigation { url, .. }
             | SeleniumBaseError::Network { url, .. }
@@ -901,6 +905,19 @@ mod tests {
 
         let other = Failure::from_error(&SeleniumBaseError::AssertionFailed("no".to_owned()));
         assert_eq!((other.selector(), other.url()), (None, None));
+    }
+
+    #[test]
+    fn the_name_of_an_element_found_from_another_is_not_a_selector_of_the_failure() {
+        // `#cart >> .row` and `element at (1, 2)` are what an element is called, not
+        // text a test line holds: they are no needle for the source, and no selector.
+        for name in ["#cart >> .row", "element at (1, 2)"] {
+            let stale = Failure::from_error(&SeleniumBaseError::StaleElement {
+                selector: name.to_owned(),
+            });
+            assert_eq!(stale.selector(), None, "{name}");
+            assert_eq!(stale.message(), format!("stale element reference: {name}"));
+        }
     }
 
     // ---- reading the source ----

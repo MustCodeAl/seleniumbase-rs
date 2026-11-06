@@ -64,7 +64,7 @@ async fn a_contains_selector_is_sent_to_the_page_as_xpath() {
 fn a_contains_selector_converts_in_a_selector_buf_and_plain_css_stays_css() {
     assert_eq!(
         SelectorBuf::from("span:contains(\"Championship\")"),
-        SelectorBuf::xpath("//span[contains(., 'Championship')]")
+        SelectorBuf::xpath(".//span[contains(., 'Championship')]")
     );
     assert_eq!(
         SelectorBuf::from("div.card > a"),

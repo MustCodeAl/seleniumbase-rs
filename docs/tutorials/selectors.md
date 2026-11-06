@@ -5,8 +5,8 @@ description: "Selector formats, Shadow DOM with ::shadow, XPath to CSS, best pra
 ---
 
 Selectors are the addresses your tests use to find elements on the page.
-`seleniumbase-rs` accepts several formats and converts them into `drivers::By`
-locators automatically. Choosing the right selector is one of the most important
+`seleniumbase-rs` accepts several formats and works out for itself which kind of
+lookup the browser needs. Choosing the right selector is one of the most important
 things you can do for test maintainability. This page also covers Web Components
 (Shadow DOM) and the three syntax formats a check can be written in.
 
@@ -15,7 +15,7 @@ things you can do for test maintainability. This page also covers Web Components
 **What you will learn**
 
 - The selector formats supported by `BaseCase`.
-- How `::shadow` selectors pierce Shadow DOM trees, which methods read them, how to chain shadow roots and how to query them directly.
+- How `::shadow` selectors pierce Shadow DOM trees, which methods read them, how to chain shadow roots and how to keep an element inside a shadow root.
 - What differs between the WebDriver engine and the pure CDP engine, and the limits of shadow-DOM automation.
 - How to convert between CSS and XPath.
 - Best practices for stable, readable selectors.
@@ -43,7 +43,7 @@ Summary for AI exports: `BaseCase` reads a selector string by its prefix. `#` is
 | (none) | CSS selector | `input[name='email']` |
 
 Most `BaseCase` methods accept these strings directly. The library inspects the
-selector to decide which `By` variant to use, so the same method takes CSS,
+selector to decide which kind of lookup to use, so the same method takes CSS,
 XPath, or a prefixed link-text selector without you having to say which it is.
 
 Any of the thirteen XPath axes may lead an expression, so `parent::div` and
@@ -73,9 +73,17 @@ let row = sb.find_element("#cart .row").await?;
 // Detected automatically: a string is read by the rules above.
 let remove = row.find("link=Remove").await?;
 
-// Or stated explicitly, where the guess would be wrong.
-let cell = row.find(SelectorBuf::css("td:first-child")).await?;
+// Or stated explicitly, where the guess would be wrong: `td[2]` is XPath for the
+// second cell, but nothing in the text says so, and a string is read as CSS then.
+let cell = row.find(SelectorBuf::xpath("td[2]")).await?;
 ```
+
+From an element, `find` and `find_all` search inside it. An XPath that starts at the root of the
+page (`//td`, `(//td)[1]`) matches the whole page from any element, so they refuse it with
+`InvalidSelector`: write `.//td` for the descendants of the element. A `p:contains("x")`
+selector is read as `.//p[...]`, so it stays inside the element too. An `<iframe>` element
+holds the frame, not the frame's document: switch to the frame with `switch_to_frame` and find
+from the page.
 
 ## Examples
 

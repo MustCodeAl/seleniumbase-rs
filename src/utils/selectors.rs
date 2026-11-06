@@ -85,11 +85,39 @@ const PARTIAL_LINK_TEXT_PREFIXES: [&str; 6] = [
 /// browser's `querySelector` rejects it; SeleniumBase rewrites it as XPath.
 const CONTAINS_PSEUDO: &str = ":contains(";
 
-/// The XPath for a CSS selector that uses `:contains()`, or `None` when the
+/// What separates the pieces of a chain in the name of an element found from
+/// another one (`#cart >> .row`), as `Locator`'s `Display` writes it.
+pub(crate) const CHAIN_SEPARATOR: &str = " >> ";
+
+/// What an element found by position is called: `element at (10, 20)`.
+///
+/// It is a description, not a selector (see [`is_lookup_selector`]).
+pub(crate) fn point_name(x: i64, y: i64) -> String {
+    format!("{POINT_NAME}{x}, {y})")
+}
+
+/// The start of [`point_name`].
+const POINT_NAME: &str = "element at (";
+
+/// Whether `name`, as an error or an element carries it, is a selector the page
+/// can be asked about.
+///
+/// An element found from another one is called by the chain that led to it
+/// (`#cart >> .row`), and one found by position by a description
+/// (`element at (10, 20)`). Those say where an element came from; neither is a
+/// selector, and a tool that looks the name up (a diagnosis of the page, a line
+/// of the test to point at) skips them.
+pub(crate) fn is_lookup_selector(name: &str) -> bool {
+    !name.contains(CHAIN_SEPARATOR) && !name.starts_with(POINT_NAME)
+}
+
+/// The XPath for a CSS selector that uses `:contains()`, written from the
+/// context node (`.//p[...]`) so that a search from an element stays inside it
+/// and a search from the page still matches the same elements, or `None` when the
 /// selector is more than the converter understands (it is then left as CSS and
 /// the browser reports the problem).
 fn contains_to_xpath(css: &str) -> Option<String> {
-    css_to_xpath(css).ok()
+    css_to_relative_xpath(css).ok()
 }
 
 /// `text` as an XPath string literal, quoted so that any content is safe.
@@ -1034,7 +1062,7 @@ mod tests {
             .unwrap();
         assert_eq!(
             variant_name(by),
-            variant_name(By::XPath("//button[contains(., 'Go on')]".to_owned()))
+            variant_name(By::XPath(".//button[contains(., 'Go on')]".to_owned()))
         );
     }
 
@@ -1127,6 +1155,52 @@ mod tests {
             let by = Selector::auto(selector).to_by().unwrap();
             assert_eq!(format!("{by}"), format!("CSS({selector})"), "{selector}");
         }
+    }
+
+    #[test]
+    fn contains_becomes_an_xpath_that_starts_at_the_context_node() {
+        // An absolute `//p[..]` ignores where a search starts: from an element it
+        // finds the matches of the whole document. `.//p[..]` stays inside.
+        assert_eq!(
+            SelectorBuf::from("p:contains('x')"),
+            SelectorBuf::xpath(".//p[contains(., 'x')]")
+        );
+        assert_eq!(
+            SelectorBuf::from("div > a:contains(\"Go\"), td:contains('x')"),
+            SelectorBuf::xpath(".//div/a[contains(., 'Go')] | .//td[contains(., 'x')]"),
+            "every path of the union starts at the context node"
+        );
+        let by = Selector::auto("p:contains('x')").to_by().unwrap();
+        assert_eq!(format!("{by}"), "XPath(.//p[contains(., 'x')])");
+        // The converter that `BaseCase::convert_css_to_xpath` offers is unchanged.
+        assert_eq!(
+            css_to_xpath("p:contains('x')").unwrap(),
+            "//p[contains(., 'x')]"
+        );
+    }
+
+    #[test]
+    fn what_an_element_is_called_is_not_always_a_selector() {
+        for selector in [
+            "#a",
+            "div > .row",
+            "//a[@x='1']",
+            "link=Edit",
+            "a:contains('>>')",
+            "li:nth-child(2)",
+        ] {
+            assert!(is_lookup_selector(selector), "{selector}");
+        }
+        // The chain of an element found from another, and an element found by position.
+        for name in [
+            "#cart >> .row",
+            "a >> b >> c",
+            "#a >> ..",
+            point_name(10, -20).as_str(),
+        ] {
+            assert!(!is_lookup_selector(name), "{name}");
+        }
+        assert_eq!(point_name(10, -20), "element at (10, -20)");
     }
 
     /// Python SeleniumBase's rules, written as a table: input, kind, text.
@@ -1622,13 +1696,18 @@ impl CssStep {
 /// Reads one CSS selector list from a string.
 struct CssParser<'a> {
     chars: std::iter::Peekable<std::str::Chars<'a>>,
+    /// Every path starts at the context node (`.//p`), not at the root of the
+    /// document (`//p`).
+    relative: bool,
+
     source: &'a str,
 }
 
 impl<'a> CssParser<'a> {
-    fn new(source: &'a str) -> Self {
+    fn new(source: &'a str, relative: bool) -> Self {
         Self {
             chars: source.chars().peekable(),
+            relative,
             source,
         }
     }
@@ -1859,9 +1938,14 @@ impl<'a> CssParser<'a> {
         Ok(CssStep { name, predicates })
     }
 
-    /// One complex selector, as an absolute XPath path.
+    /// One complex selector, as an XPath path: absolute (`//a`), or from the
+    /// context node (`.//a`) when the parser is `relative`.
     fn complex(&mut self) -> Result<String, SeleniumBaseError> {
-        let mut path = String::new();
+        let mut path = if self.relative {
+            ".".to_owned()
+        } else {
+            String::new()
+        };
         let mut combinator = CssCombinator::Descendant;
         loop {
             let step = self.compound()?;
@@ -1913,12 +1997,29 @@ impl<'a> CssParser<'a> {
 
 /// Converts the CSS selector `css` to an XPath expression.
 pub(crate) fn css_to_xpath(css: &str) -> Result<String, SeleniumBaseError> {
+    convert(css, false)
+}
+
+/// Converts the CSS selector `css` to an XPath expression whose every path
+/// starts at the context node (`.//p[...]`) where [`css_to_xpath`] starts at
+/// the root of the document (`//p[...]`).
+///
+/// A search from an element evaluates a leading `//` from the root of the
+/// page, so the absolute form finds elements outside the one searched; this
+/// form finds only what is inside it. From the page the two match the same
+/// elements.
+pub(crate) fn css_to_relative_xpath(css: &str) -> Result<String, SeleniumBaseError> {
+    convert(css, true)
+}
+
+/// The work of [`css_to_xpath`] and [`css_to_relative_xpath`].
+fn convert(css: &str, relative: bool) -> Result<String, SeleniumBaseError> {
     if css.trim().is_empty() {
         return Err(SeleniumBaseError::InvalidSelector(
             "cannot convert an empty CSS selector to XPath".to_owned(),
         ));
     }
-    CssParser::new(css).list()
+    CssParser::new(css, relative).list()
 }
 
 #[cfg(test)]
