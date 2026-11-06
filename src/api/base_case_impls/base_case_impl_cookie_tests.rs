@@ -273,6 +273,25 @@ mod tests_cookie_calls {
         );
     }
 
+    #[tokio::test]
+    async fn a_devtools_answer_with_no_list_of_cookies_is_an_error_not_no_cookies() {
+        // Chromedriver says "DevTools didn't return cookies" for such an answer; an empty list
+        // would read as a page without cookies.
+        let driver = MockWebDriver::start(json!({}), |request| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("GET", "/url") => Reply::Value(json!("https://www.example.test/home")),
+                ("POST", "/goog/cdp/execute") => Reply::Value(json!({})),
+                _ => Reply::Value(Value::Null),
+            }
+        });
+        let sb = devtools_case(&driver).await;
+
+        let error = sb.get_cookies().await.unwrap_err();
+
+        assert!(matches!(error, SeleniumBaseError::CdpDriver(_)), "{error:?}");
+    }
+
+
 
     
 }
