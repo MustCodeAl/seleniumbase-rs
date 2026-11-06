@@ -1120,4 +1120,31 @@ mod tests {
         assert!(problems.is_empty());
         assert_eq!(settings, Settings::default());
     }
+
+    #[test]
+    fn a_setting_the_serializer_leaves_out_has_a_default_value_for_every_row_that_reads_it() {
+        // A row of `Absent::Default` whose variable gives the default of a setting is written
+        // out as the value `layers::empty_at` finds for the path; when the settings hold nothing
+        // there and `empty_at` finds nothing either, the source silently loses the value (a
+        // later `skip_serializing_if` on a number or a text would do it). No row may be in that
+        // state, so that such a change fails here and not as a lower source winning.
+        let whole = Value::serialize(&Settings::default()).expect("the settings serialize");
+        for row in TEST_OPTIONS
+            .iter()
+            .filter(|row| row.kind.reads_env() && !row.env.is_empty())
+        {
+            for (path, absent) in written_by(row) {
+                if !matches!(absent, Absent::Default) {
+                    continue;
+                }
+                assert!(
+                    whole.find_ref(&path).is_some() || empty_at(&path).is_some(),
+                    "{}: {path} is left out of the serialized settings and no value stands for \
+                     its default",
+                    row.env
+                );
+            }
+        }
+    }
+
 }
