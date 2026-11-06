@@ -6,9 +6,17 @@ sidebarTitle: "API guidelines audit"
 Status: audit note, written before any fix, on branch `lane/api-audit` (from `404208aa`, 2026-11-06).
 It is read-only on code: no cargo command was run (no clippy, no rustdoc, no doctests), so every
 statement comes from reading the source through the code index, from literal-text counts, and
-from the two guideline books. Every `file:line` below is from that commit. The five areas that the
-thirtyfour lanes are reworking are marked [in progress elsewhere](#in-progress-elsewhere) and are
-not judged here.
+from the two guideline books. Every `file:line` below is from that commit (the second pass, below,
+re-read the lines it cites). The five areas that the thirtyfour lanes are reworking are marked
+[in progress elsewhere](#in-progress-elsewhere) and are not judged here.
+
+Two passes made this note. The first walked the root, `api`, `browser`, `sb_cdp`, `error`,
+`cookie`, the macros and the manifests. The second spot-checked the first pass against the code
+(35 claims: 26 stood and 9 were corrected, listed in
+[What the second pass changed](#what-the-second-pass-changed)), walked the modules the first pass
+had only sampled (`storage`, `plugin_host`, `artifacts`, `plugins`, `profile_payloads`, `core`,
+`testing`, `utilities`, `crates/playwright`), added two findings (F20 and F21) and two fix lanes,
+and moved two checklist items from met to partly.
 
 ## What was checked, and against what
 
@@ -32,36 +40,42 @@ How the numbers were made, and what they cannot say:
   `pub async fn` 936, `pub struct` 425, `pub enum` 122, `pub trait` 15, `pub mod` 203,
   `#[non_exhaustive]` 70, `#[must_use` 1,065. `BaseCase` alone has about 700 public methods
   (452 `pub async fn` and 251 `pub fn` in the `src/api/base_case*` files).
-* `module_api` was run on `src/error.rs` and `src/cookie.rs` only: for `BaseCase` its output is
-  too large to read. The other modules were walked through `lib.rs`, the `mod.rs` files, literal
-  counts and the representative types named below (`BaseCase`, `BrowserSession`, `BrowserConfig`,
-  `Browser`, `Page`, `Cookie`, `Settings`, `RunSettings`, `Fingerprint` and its builder, the
-  capability traits, the macros, the retry and shutdown helpers, the `testing` fixtures).
-  `evasion`, `mcp`, `plugins`, `core`, `storage`, `profile_payloads`, `artifacts`, `plugin_host`
-  and the packages under `crates/` were sampled, not walked item by item.
+* `module_api` was run on `src/error.rs`, `src/cookie.rs`, `src/storage`, `src/plugin_host`,
+  `src/artifacts.rs` and `crates/playwright/src`: for `BaseCase` its output is too large to read.
+  The other modules were walked through `lib.rs`, the `mod.rs` files, literal counts and the
+  representative types named below (`BaseCase`, `BrowserSession`, `BrowserConfig`, `Browser`,
+  `DriverMode`, `Page`, `Cookie`, `Settings`, `RunSettings`, `Fingerprint` and its builder, the
+  capability traits, the macros, the retry and shutdown helpers, the `testing` fixtures, the
+  `S3LoggingPlugin`, `ProfileParams`, `IdeCommand`, the `Drop` impls). `evasion` (outside
+  `fingerprint`), `mcp`, `config` (outside `Settings`), `utils`, `common` and `crates/cli` were
+  sampled, not walked item by item: [Not checked](#not-checked) lists what is left.
+* `doc_coverage` was tried and is not used for counts: it reported 80 or more undocumented items
+  in 14 files, and the two files read (`src/api/jqc.rs:98-116`, `src/api/chart.rs:106-139`) have a
+  doc comment on every item it listed (a `///` above `#[default]` reads as missing).
 * Statuses: met, partly (some items meet it, some do not), not met, n/a (the crate has nothing
   the item is about), not checked. "Affected" is a verified count or a lower bound; "not counted"
   means only a compiler lint can count it, which is lane 1 and 2 below.
 
 ## Summary: Rust API Guidelines
 
-Tally of the 54 items: met 26, partly 17, not met 3, n/a 7, not checked 1.
+Tally of the 54 items: met 24, partly 19, not met 3, n/a 7, not checked 1 (the first pass had met 26
+and partly 17; C-METHOD and C-DTOR-BLOCK moved to partly in the second).
 
 | Item | Status | Affected | In one line |
 |---|---|---|---|
 | C-CASE | met | 0 | rustc's naming lints are on by default and the gate runs clippy with `-D warnings`; no counter-example in the files read. |
-| C-CONV | met | 2 | 13 `as_`, 4 `into_` and at least 30 `to_` methods fit their prefixes; `Browser::name` and `DriverMode::name` are the two odd names (`as_str` elsewhere). |
+| C-CONV | met | 4 | 13 `as_`, 4 `into_` and at least 30 `to_` methods fit their prefixes; four `const fn name(self) -> &'static str` are the odd names where `as_str` is used elsewhere (`Browser::name` and `DriverMode::name` in `src/browser/config.rs:91,169`, `src/browser/chrome_for_testing.rs:84`, `src/browser/options/proxy.rs:120`). |
 | C-GETTER | not met | 104 | 35 `pub fn get_` and 69 `pub async fn get_` (78 of them on `BaseCase`). |
 | C-ITER | met | 0 | `ProxyList` has `iter` and `IntoIterator for &ProxyList` (`src/config/proxy_list.rs:518,535`). |
 | C-ITER-TY | n/a | 0 | No public iterator type. |
 | C-FEATURE | met | 0 | Feature names carry no `use-` or `with-`. |
 | C-WORD-ORDER | partly | not counted | Error variants and proxy types mix word orders (F11). |
-| C-COMMON-TRAITS | partly | 2 or more | `BaseCase` and `BrowserSession` have no `Debug` (F2); the rest needs the lint. |
+| C-COMMON-TRAITS | partly | 4 or more | `BaseCase` and `BrowserSession` have no `Debug`; `Browser` and `DriverMode` are `Copy` enums without `Hash` (F2); the rest needs the lint. |
 | C-CONV-TRAITS | met | 0 | `FromStr` and `Display` on `Browser` and `DriverMode`; `From` impls on the selector types. |
 | C-COLLECT | n/a | 0 | No public collection type needs `FromIterator`. |
 | C-SERDE | met | 0 | `Cookie`, `BrowserConfig`, `RunSettings`, the fingerprint file derive serde. |
 | C-SEND-SYNC | partly | 3 pinned | Pinned for `Browser`, `CdpInbox`, `Page` only (F14). |
-| C-GOOD-ERR | partly | 10 types | `SeleniumBaseError` is `Error + Send + Sync + 'static` (pinned); 31 of 34 variants keep no source (F4). |
+| C-GOOD-ERR | partly | 10 types, 6 functions | `SeleniumBaseError` is `Error + Send + Sync + 'static` (pinned); 31 of 34 variants keep no source; 4 public functions return `Result<_, String>` and 2 return `Box<dyn Error>` without `Send + Sync` (F4). |
 | C-NUM-FMT | n/a | 0 | No numeric formatting traits wanted. |
 | C-RW-VALUE | n/a | 0 | No reader or writer taken by value. |
 | C-EVOCATIVE | met | 0 | The `sb_*` macro names say what they do. |
@@ -79,7 +93,7 @@ Tally of the 54 items: met 26, partly 17, not met 3, n/a 7, not checked 1.
 | C-HIDDEN | met | 2 | Two `#[doc(hidden)]` items: `config/test_options.rs:684`, `testing/mod.rs:66`. |
 | C-SMART-PTR | met | 0 | No method on a smart pointer type; `Arc` is returned only by crate-private functions. |
 | C-CONV-SPECIFIC | met | 0 | `as_webdriver_element`, `into_webdriver_element` name the type. |
-| C-METHOD | met | 0 | Functions with an obvious receiver are methods (sampled). |
+| C-METHOD | partly | 3 | Three unit structs (`S3LoggingPlugin`, `AzureLoggingPlugin`, `GcpLoggingPlugin`) hold one receiver-less `upload_file` each and nothing else (F20); the rest was sampled. |
 | C-NO-OUT | met | 0 | The `&mut Vec` parameters found mutate in place. |
 | C-OVERLOAD | n/a | 0 | No operator overloading. |
 | C-DEREF | not met | 3 | `MasterQA`, `SbCase`, `SbCdpCase` deref to `BaseCase` (F6). |
@@ -88,16 +102,16 @@ Tally of the 54 items: met 26, partly 17, not met 3, n/a 7, not checked 1.
 | C-CALLER-CONTROL | met | 0 | No `&String`, `&Vec` or `&PathBuf` parameter; the 6 `&String` are `From<&String>` impls. |
 | C-GENERIC | partly | not counted | Filesystem paths taken as `&str` (F9). |
 | C-OBJECT | met | 0 | The four capability traits are object safe through `async_trait`. |
-| C-NEWTYPE | partly | up to 370 | 269 `css: &str` and 101 `selector: &str` parameters (public or not), though `Selector` exists (F9). |
+| C-NEWTYPE | partly | up to 371 | 270 `css: &str` and 101 `selector: &str` parameters (public or not), though `Selector` exists (F9). |
 | C-CUSTOM-TYPE | partly | 9 or more | `bool` parameters where an enum fits, `uc: bool` for `DriverMode` (F9). |
 | C-BITFLAG | n/a | 0 | No flag set. |
 | C-BUILDER | partly | 4 plus 4 | Four real builders; four other construction styles (F15). |
 | C-VALIDATE | partly | 3 | Public fields on `Cookie`, `BrowserConfig`, `Settings` skip validation at the set (F8). |
 | C-DTOR-FAIL | met | 0 | `BrowserSession::quit` and `Browser::close` report failure; `Drop` swallows it. |
-| C-DTOR-BLOCK | met | 0 | `Drop` spawns the cleanup (`common/shutdown.rs:322`, `sb_cdp/browser.rs:262`). |
+| C-DTOR-BLOCK | partly | 3 | `BrowserSession` and the `sb_cdp` handles spawn their cleanup; `DriverProcess` and `XvfbProcess` kill and `wait()` in `drop`, and `TestRecorder` writes report files in `drop` (F21). |
 | C-DEBUG | partly | 2 or more | Same as C-COMMON-TRAITS (F2). |
 | C-DEBUG-NONEMPTY | met | 0 | `Cookie` and `BrowserConfig` print fields and hide secrets. |
-| C-SEALED | not met | 6 | Six traits nobody should implement are open (F6). |
+| C-SEALED | not met | 6 | Six traits nobody should implement are open (F6); `crates/playwright` seals `PlaywrightTarget` correctly, the pattern to copy. |
 | C-STRUCT-PRIVATE | partly | 3 or more | `Cookie` 8, `BrowserConfig` 9 public fields; 70 `#[non_exhaustive]` for 547 structs and enums (F8). |
 | C-NEWTYPE-HIDE | met | 0 | `SelectorBuf`, `FrameRef`, `WindowRef` hide their representation. |
 | C-STRUCT-BOUNDS | not checked | n/a | No search can find derive bounds on generic structs. |
@@ -124,7 +138,7 @@ checked are the 11 performance guidelines, the 3 application guidelines (they co
 | M-CANONICAL-DOCS | partly | see C-FAILURE | Same gaps as C-FAILURE and C-EXAMPLE (F3). |
 | M-DOC-INLINE | partly | 0 of 26 | `sb_cdp/mod.rs:110-177` marks every `pub use`; `src/lib.rs:201-246` marks none. |
 | M-FIRST-DOC-SENTENCE | partly | not counted | Enforced only where the lint set is on (5 module trees). |
-| M-MODULE-DOCS | partly | 3 | `common/mod.rs`, `utils/mod.rs`, `utilities/mod.rs` have no `//!`. |
+| M-MODULE-DOCS | partly | 4 | `common/mod.rs`, `config/mod.rs`, `utils/mod.rs`, `utilities/mod.rs` have no `//!`. |
 | M-EXAMPLE-OVER-PROC | met | 0 | Only `macro_rules!`. |
 | M-MACRO-HELPERS, M-MACRO-VERSION-PIN, M-PROC-IMPL, M-PROC-IMPLIED-ITEMS | n/a | 0 | No proc macro, no third-party helper item. |
 | M-MACRO-LAST-RESORT | not met | 27 | 27 exported macros; those read are mostly a single method call (F7). |
@@ -158,11 +172,11 @@ checked are the 11 performance guidelines, the 3 application guidelines (they co
 | M-AVOID-STATICS | partly | 21 | 20 `OnceLock` and 1 `LazyLock` caches; the registries in `common::shutdown` and `browser::reuse` (F17). |
 | M-BUILD-RESULT | met | 4 | The four builders validate in `build()`. |
 | M-INTEGRATION-TESTS | met | 0 | `tests/` holds the offline, chrome and contract binaries. |
-| M-LOG-NOT-PRINT | partly | 3 | Three `eprintln!` in library code (F17). |
-| M-MOCKABLE-SYSCALLS | partly | 1 | `sb_cdp::Browser::new_mocked` (feature `test-util`); the WebDriver engine's mock was not checked as exported. |
+| M-LOG-NOT-PRINT | partly | 3 | Three `eprintln!` in library code (F17). The five `println!` in `BaseCase` and the `rich_helper` print functions are documented prints, not counted. |
+| M-MOCKABLE-SYSCALLS | partly | 9 | The settings code takes an injected lookup (`Settings::load_with`, `from_vars`); three `upload_file`, `artifacts::logs_root`, `find_system_chrome` and four cookie-file methods read the environment or the working directory directly (F20). `sb_cdp::Browser::new_mocked` (feature `test-util`) is the engine-level mock; the WebDriver engine's was not checked as exported. |
 | M-NO-GLOB-REEXPORTS | partly | 1 | `src/profile_payloads/mod.rs:55`: `pub use profile::*;`. |
 | M-STRONG-TYPES-GUARD | partly | 3 | Public fields (C-VALIDATE). |
-| M-STRONG-TYPES | partly | see C-NEWTYPE | Strings for selectors and paths, `bool` for modes. |
+| M-STRONG-TYPES | partly | see C-NEWTYPE | Strings for selectors and paths, `bool` for modes, keyword strings in `ProfileParams` (F9). |
 | M-TEST-UTIL | met | 0 | Feature `test-util` (`Cargo.toml:194`). |
 | M-ASYNC-FN | partly | 84 | 84 `#[async_trait` sites, boxing every call of the capability traits (F16). |
 | M-AVOID-WRAPPERS | met | 0 | No `Arc`, `Rc` or `Box` in the public signatures read. |
@@ -208,6 +222,38 @@ compiler lints (`missing_debug_implementations`, `redundant_imports`, `redundant
 One comment is misplaced: `src/lib.rs:151` says "held to for this module" above `pub mod evasion;`
 (152), but the attribute block at 153-166 belongs to `pub mod sb_cdp;` (167). `evasion` is not
 under the set.
+
+## The ten findings that matter most
+
+Ranked by how many callers meet the problem and by how hard it is to fix later.
+
+1. **No lint set in the manifests (F1).** The Pragmatic Rust set is held on 5 of about 27 module
+   trees by attributes in `src/lib.rs`; `[workspace.lints]` does not exist, so over 4,000 lines with `.unwrap()`,
+   600 with `.expect(` and 160 with `panic!(` in `src` are unchecked and every count in this note that says
+   "not counted" waits on it.
+2. **Selectors are `&str` in about 370 signatures (F9)** although `Selector` and `SelectorBuf`
+   exist and `Page::locator` already takes `impl Into<SelectorBuf>`; the parameter is called `css`
+   even when it holds an XPath.
+3. **104 `get_` functions (F5, C-GETTER)**, 78 on `BaseCase`, the one checklist item with a
+   count in the hundreds. It follows the Python names, so it is decision D2, not a quick fix.
+4. **27 exported macros, mostly one method call (F7)**; in five of them an optional last argument
+   changes the type from a `Result` to `()` that panics.
+5. **The error type keeps almost no source (F4):** 31 of 34 variants hold only text,
+   `ResultExt::sb_context` turns every error into `InvalidConfig`, and public functions return
+   `Result<_, String>` (4) or `Box<dyn Error>` without `Send + Sync` (2).
+6. **Open traits and `Deref` for inheritance (F6):** six traits that nobody should implement are
+   open, and `MasterQA`, `SbCase`, `SbCdpCase` deref to `BaseCase`. `crates/playwright` shows the
+   sealed form.
+7. **`BrowserConfig` is not additive (F8):** a public field exists only under feature `plugins`,
+   and no config struct, `Browser` or `DriverMode` is `#[non_exhaustive]`; `src/api` has no
+   `#[non_exhaustive]` at all.
+8. **Two paths per item and one crate for everything (F12):** about 86 root re-exports, 203
+   `pub mod`, a Python translator and the library half of the CLI inside the library.
+9. **`BaseCase` and `BrowserSession` have no `Debug` (F2)**, no doc comment on `BaseCase` (F3), and
+   `Send + Sync` is pinned for 3 types of the public handles (F14).
+10. **The logging plugins (F20):** unit structs with a receiver-less `upload_file` that reads its
+    credentials from the environment, and an error enum of `String`s.
+
 
 ## Findings
 
@@ -268,8 +314,10 @@ literal_string_with_formatting_args = "allow"
   `unwrap_used`, `expect_used`, `panic` at `warn`, with `allow-unwrap-in-tests = true`,
   `allow-expect-in-tests = true` and `allow-panic-in-tests = true` in `clippy.toml`. That turns
   the rule in `CLAUDE.md` ("`unwrap()` only in tests") into a check; today nothing enforces it, and
-  the 3,836 `.unwrap()`, 532 `.expect(` and 130 `panic!(` in `src/` cannot be split into
-  production and test by a text search.
+  the 4,357 lines with `.unwrap()`, 632 with `.expect(` and 164 with `panic!(` in `src/` (a
+  literal search in the second pass; the first pass counted 3,836, 532 and 130 with another scope,
+  so read them as an order of magnitude) cannot be split into production and test by a text
+  search.
 * Staging: the set will not be clean on 203,711 lines. For each module that is not yet clean, put
   `#[expect(clippy::pedantic, reason = "lane N")]` on its `pub mod` line in `src/lib.rs`; a lint
   group expectation is fulfilled when any lint in the group fires (Rust Reference on Context7), and
@@ -283,22 +331,36 @@ literal_string_with_formatting_args = "allow"
 ### F2. `Debug` is missing on the two main types (C-DEBUG, M-PUBLIC-DEBUG)
 
 * `BaseCase` (`src/api/base_case.rs:60`) and `BrowserSession` (`src/browser/session/mod.rs:49`)
-  have no derive and no `impl Debug`; 30 other types in `src` (outside `sb_cdp`, `mcp`, `cli`) do,
-  by hand: `MasterQA` (`src/api/master_qa.rs:462`), `Sb` (`src/testing/fixture.rs:157`), `Element`,
-  `BrowserConfig` (`src/browser/config.rs:265`).
+  have no derive and no `impl Debug` (there is no `Debug for BaseCase` or `Debug for BrowserSession`
+  anywhere in `src`). 26 hand-written `impl Debug` exist in `api`, `browser`, `testing`, `core`,
+  `plugins`, `config`, `common`, `evasion` and `storage`: `MasterQA` (`src/api/master_qa.rs:462`),
+  `Sb` (`src/testing/fixture.rs:157`), `Element` (`src/browser/element.rs:77`), `BrowserConfig`
+  (`src/browser/config.rs:265`), and the ones that keep a credential out of the output
+  (`ProxyAddress`, `PacUrl`, `VaultKey`).
+* `Browser` and `DriverMode` (`src/browser/config.rs:44,153`) derive `Clone, Copy, Debug, Default,
+  Deserialize, Eq, PartialEq, Serialize` and no `Hash`, so neither can key a `HashMap`; `ChartType`
+  (`src/api/chart.rs:107`) is the same, while `JqcTheme` (`src/api/jqc.rs:99`) has `Hash`. No lint
+  reports a missing `Hash`, `Eq` or `Clone`, so lane 2 reads the public `Copy` and `Eq` types once.
 * Fix: a hand-written `Debug` that prints the test name, the engine and the mode and ends with
   `finish_non_exhaustive()`, as `MasterQA` does. The exact list of other gaps comes from
-  `missing_debug_implementations` once lane 1 turns it on for the whole crate.
+  `missing_debug_implementations` once lane 1 turns it on for the whole crate. Derive `Hash` on the
+  `Copy` enums above.
 * Breaking: no.
 
 ### F3. Documentation gaps (C-EXAMPLE, C-FAILURE, M-CANONICAL-DOCS, M-MODULE-DOCS, M-DOC-INLINE)
 
 * `BaseCase` has no doc comment at all (`src/api/base_case.rs:58-60`: a constant, a blank line,
-  `pub struct BaseCase {`). The index's `doc_coverage` reports it among 8 undocumented public
-  items in `src`; this one was confirmed by reading.
+  `pub struct BaseCase {`), confirmed by reading. Its fields are private, so the struct needs one
+  summary line and no more.
 * The variants `Chrome`, `Chromium`, `Edge`, `Firefox` of `Browser` have no doc
   (`src/browser/config.rs:47-50`), the rest have.
-* `src/common/mod.rs`, `src/utils/mod.rs` and `src/utilities/mod.rs` have no `//!`.
+* `src/common/mod.rs`, `src/config/mod.rs`, `src/utils/mod.rs` and `src/utilities/mod.rs` have no
+  `//!`, and `src/utilities/mod.rs` has no doc on any of its six `pub mod` lines.
+* Public items read in the second pass without a doc: `S3LoggingPlugin::new`
+  (`src/plugins/s3_logging_plugin.rs:40`) and the six variants of `S3UploadError` (`:16-29`), the
+  three fields of `IdeCommand` (`src/utilities/selenium_ide.rs:8-12`), the fields of `ProfileParams`
+  and the struct `Parameters` (`src/profile_payloads/profile.rs:14-53`). `# Errors` is also missing
+  on `parse_ide_file` and `parse_ide_html` (`src/utilities/selenium_ide.rs:15,33`).
 * The first line of `BrowserSession::driver` is "WebDriver interaction: `connect`."
   (`src/browser/session/mod.rs:85`), which says nothing about the method.
 * `# Errors` is written 894 times, `-> Result<` appears 2,580 times; `# Panics` 4 times;
@@ -309,7 +371,7 @@ literal_string_with_formatting_args = "allow"
 * `src/lib.rs:201-246` has 26 `pub use` statements without `#[doc(inline)]`, while
   `src/sb_cdp/mod.rs:110-177` marks every one; the root page of the docs therefore lists links, not
   items.
-* Fix: a doc for `BaseCase` and the four variants, module docs for the three roots, then the lint
+* Fix: a doc for `BaseCase` and the four variants, module docs for the four roots, then the lint
   output of lane 1 for `# Errors` and `# Panics`; `#[doc(inline)]` on the root re-exports.
 * Breaking: no.
 
@@ -336,10 +398,28 @@ literal_string_with_formatting_args = "allow"
   `sb_cdp::TransportError` was not read. Builders disagree on the error: `Fingerprint` builds with
   `FingerprintError` (`src/evasion/fingerprint.rs:1856`), the other three with
   `SeleniumBaseError`.
+* Four public functions return `Result<_, String>`: `find_examples`
+  (`src/cli/scripts/all_scripts.rs:155`), `SbRecorder::check` and `check_in`
+  (`src/cli/scripts/sb_recorder.rs:103,112`) and `validate_file_name` (`:151`), whose docs say
+  "the message Python prints". `String` is not an `Error`, so `?` into `SeleniumBaseError` or
+  `Box<dyn Error>` needs a `map_err`. A search for `, String> {` found 65 lines in `src`, nearly all
+  `Result<_, String>` (two are a `BTreeMap<String, String>`) and most of them private parsers
+  (`api/recorder`, `utilities/importer`, `config/plugins`); five lines past the first 60 were not
+  listed, so four is a lower bound for the public ones.
+* `utilities::selenium_ide::parse_ide_file` and `parse_ide_html`
+  (`src/utilities/selenium_ide.rs:15-17,33`) return `Box<dyn std::error::Error>`, which is not
+  `Send + Sync`, so a caller on a spawned task cannot `?` it into an error that is.
+  `parse_ide_html` cannot fail (it ends in `Ok(commands)`, `:53`).
+* The logging plugins have their own enum of `String` payloads: `S3UploadError`
+  (`src/plugins/s3_logging_plugin.rs:16-29`; `Bucket` and `Upload` hold `error.to_string()`,
+  `:80,85`). It is not `#[non_exhaustive]`, so a new variant breaks every `match` (the Azure and
+  GCP enums were not re-read).
 * `{:?}` is hand-written and prints the message plus the hint (`:209-228`); that is documented at
   `:15-17` and kept.
 * Fix, small: keep the source in `sb_context` (a new `Context` variant or a boxed source), and
-  keep the source in the two `From` impls with `#[source]`. Breaking: low.
+  keep the source in the two `From` impls with `#[source]`; give the six functions above a typed
+  error (decision D9); let the plugin errors keep their source and take `#[non_exhaustive]`
+  (lane 7). Breaking: low.
 * Fix, large: the canonical shape of M-ERRORS-CANONICAL-STRUCTS, a struct with a `kind()` enum, a
   source and a hint, and `Skipped` leaves the error type. Breaking: yes, and it waits for the
   thirtyfour driver-errors lane (the `WebDriver` variant, `src/error.rs:76`).
@@ -353,7 +433,9 @@ literal_string_with_formatting_args = "allow"
 * `BaseCase::get_browser` (`src/api/base_case_impls/base_case_impl_extra.rs:1840`) returns a clone
   of the whole `BrowserConfig`, not a `Browser`; the index describes it as "the configured browser
   type". The name promises a cheap read and a different type.
-* `Browser::name` and `DriverMode::name` should be `as_str`, like the 13 other `as_str`.
+* Four `const fn name(self) -> &'static str` (`Browser`, `DriverMode`,
+  `src/browser/chrome_for_testing.rs:84`, `src/browser/options/proxy.rs:120`) should be `as_str`,
+  like the 13 other `as_str`.
 * The prefix is the Python names (`parity/api.toml`), so this is decision D2, not a quick rename.
   The cheap part: fix `get_browser`, the `*_js` getters and `name`.
 * Breaking: yes.
@@ -369,7 +451,9 @@ literal_string_with_formatting_args = "allow"
   (`src/testing/bdd/mod.rs:203-215`) and `SbCdpCase` (`:326`) make a wrapper look like `BaseCase`.
 * Fix: a private `Sealed` supertrait on the six; replace the three `Deref` impls with an explicit
   `case()` and `case_mut()` (`Scenario` already has both, and the `SbCase` impls call them,
-  `src/testing/bdd/mod.rs:207,213`).
+  `src/testing/bdd/mod.rs:207,213`). The sealing pattern is already in the repository:
+  `PlaywrightTarget: sealed::Sealed`, with the `sealed` module private
+  (`crates/playwright/src/target.rs:36-61`).
 * Breaking: yes (callers of `qa.open(..)` write `qa.case_mut().open(..)`).
 
 ### F7. Macros (M-MACRO-LAST-RESORT, M-MACROS-DONT-LIE, C-MACRO-ATTR)
@@ -401,14 +485,19 @@ literal_string_with_formatting_args = "allow"
   but neither is `#[non_exhaustive]`, so adding a field breaks every literal.
 * `Browser` and `DriverMode` (`src/browser/config.rs:44-76,150-175`) are not `#[non_exhaustive]`,
   though a browser was added recently (`Comet`). The `SeleniumBaseError`, `SameSite` and 68
-  other items are.
-* Fix: `#[non_exhaustive]` on the config structs and the two enums; the `plugins` field becomes
+  other items are. `src/api` has none: the enums `ChartType`, `JqcTheme` and `InspectionSeverity`
+  and the records `ChartPoint`, `ChartSeries` and `InspectionIssue` have public fields or
+  variants and are exhaustive, as are `IdeCommand` (`src/utilities/selenium_ide.rs:8`) and
+  `ProfileParams` with its siblings (`src/profile_payloads/profile.rs`). `storage` does it right:
+  `RunSummary` and `FlakyTest` are `#[non_exhaustive]` (`src/storage/results.rs:144,178`).
+* Fix: `#[non_exhaustive]` on the config structs, the two enums and the `api`, `utilities` and
+  `profile_payloads` types listed above; the `plugins` field becomes
   unconditional (a zero-size `BrowserPlugins` when the feature is off).
 * Breaking: yes.
 
 ### F9. Strings, booleans and paths where a type fits (C-NEWTYPE, C-CUSTOM-TYPE, C-GENERIC)
 
-* Selectors: 269 `css: &str` and 101 `selector: &str` parameters, although `Selector` and
+* Selectors: 270 `css: &str` and 101 `selector: &str` parameters, although `Selector` and
   `SelectorBuf` exist (`src/utils/selectors.rs`) and `sb_cdp::Page::locator` already takes
   `impl Into<SelectorBuf>` (`src/sb_cdp/page.rs:133`). The name `css` is also wrong when the
   string is an XPath.
@@ -425,6 +514,12 @@ literal_string_with_formatting_args = "allow"
   used elsewhere (`make_runnable`, `convert`), so the style is mixed. A text search for
   `path: &str` finds 32 lines, but it also matches `xpath: &str` and URL paths, so the exact
   count needs the review of the lane.
+* Keywords: `ProfileParams` keeps `browser_type`, `os_type` and `automation` as `String`s
+  (`src/profile_payloads/profile.rs:14-39`), and `ProfileFlags` (`:60`) holds `webrtc_masking`,
+  `proxy_masking`, `audio_masking` and others as keyword strings (`"mask"`, `"natural"`,
+  `"auto"`, or a literal such as `"1920x1080x24"`, per its doc). The shape mirrors an external
+  tool's JSON, which justifies strings on the wire; the typed settings exist (the conversion
+  `to_fingerprint` makes them), so a bad keyword is found at the conversion, not at the parse.
 * Durations are right: 83 `timeout: Duration` against one `default_timeout: f64`
   (`src/mcp/webdriver.rs:593`).
 * Fix: `impl AsRef<Path>` for filesystem paths; enums for the booleans; for selectors, a lane of
@@ -487,9 +582,11 @@ literal_string_with_formatting_args = "allow"
 
 * `[package]` (`Cargo.toml:23-30`) has `description`, `license`, `repository`; it lacks
   `documentation`, `readme`, `keywords`, `categories`, `homepage`.
-* Feature `error-backtrace` (`:183`) is empty and nothing reads it; `docs/DEVELOPER_GUIDE.md:493`
-  says so, `README.md:515` and `CONTRIBUTING.md:300` say it "captures backtraces". A feature that
-  does nothing and is documented as doing something.
+* Feature `error-backtrace` (`:183`) is empty and nothing reads it. `docs/DEVELOPER_GUIDE.md:493`,
+  `docs/CONTRIBUTING.md:518`, `docs/ABI_API.md:181` and `docs/contributing/debugging.md:28` say so;
+  `README.md:515`, `CONTRIBUTING.md:300` and `docs/building.md:585` say it captures backtraces
+  ("a backtrace on every error"). A feature that does nothing and is documented as doing
+  something.
 * `rust-version = "1.99"` is the newest stable (`:19`); M-MSRV asks for a few versions behind.
   `CLAUDE.md` says this is deliberate, so it is decision D1.
 * No `[workspace.dependencies]`: versions are repeated per member (F1 adds the lints; this adds the
@@ -527,8 +624,11 @@ literal_string_with_formatting_args = "allow"
 ### F16. Capability traits (M-ASYNC-FN, M-PARAMETER-CONSISTENCY)
 
 * All four use `#[async_trait]` (`src/api/traits.rs:36,61,80,98`), 84 sites in all. That boxes
-  every call and fixes the futures' bounds; native `async fn` in traits drops the boxing but not
-  the object safety. Decision D5.
+  every call and fixes the futures' bounds; native `async fn` in traits drops the boxing but the
+  traits stop being dyn compatible (a method with an `async fn` is not dispatchable from a trait
+  object: Rust Reference, "Dyn Compatibility", read on Context7). Decision D5. The repository has
+  the native shape in one place already: the sealed `Sealed::attachment` of
+  `crates/playwright/src/target.rs:46` returns `impl Future<Output = ..> + Send`.
 * Receivers disagree for the same kind of call: `refresh(&self)` and `get_title(&mut self)`
   (`:45,54`), `get_url(&mut self)` (`:57`), `get_text(&mut self, ..)` (`:73`) read state and take
   `&mut self`.
@@ -540,8 +640,13 @@ literal_string_with_formatting_args = "allow"
 ### F17. Printing, statics, global effects (M-LOG-NOT-PRINT, M-AVOID-STATICS)
 
 * `eprintln!` in library code: `src/api/master_qa.rs:431`, `src/browser/driver_access.rs:288`,
-  `src/mcp/http.rs:842`. Use `tracing`.
-* 20 `OnceLock` and 1 `LazyLock`; the registry `CLEANUPS` (`src/common/shutdown.rs:308`) and the
+  `src/mcp/http.rs:842`. Use `tracing`. The three `eprintln!` in `src/cli/scripts/rich_helper.rs`
+  (`:180,188,196`) are the `print_notice`, `print_warning` and `print_error` functions, and the five
+  `println!` in `BaseCase` (`base_case_impl_links.rs:218,221`, `base_case_impl_parity.rs:281`,
+  `base_case_impl_charts.rs:501`, `base_case_impl_tours.rs:459`) are documented behaviour (a method
+  that prints, Python's `post_message` fallback, a prompt to close a window): none is a finding.
+* 20 `OnceLock`, 1 `LazyLock` and a `static Mutex` registry keyed by thread (`ACTIVE_TEST_LOGS`,
+  `src/artifacts.rs:89`); the registry `CLEANUPS` (`src/common/shutdown.rs:308`) and the
   reuse registry. Public functions with process-wide effect sit at the root: `install_tls_provider`,
   `init_tracing*` (5), `shutdown_reused_sessions`. They are documented; they are also the reason
   two tests in one process can disturb each other.
@@ -560,13 +665,60 @@ literal_string_with_formatting_args = "allow"
 
 ### F19. Lint overrides (M-LINT-OVERRIDE-EXPECT)
 
-* 15 `#[allow(` in `src` against 25 `#[expect(`. Of the 14 the search listed, nine are one-line
-  with no reason: `src/api/recorder/cdp.rs:409`, `src/browser/driver_access.rs:199`,
+* 15 `#[allow(` in `src` against 25 `#[expect(`, and no crate-level `#![allow(` in the library.
+  Ten are one-line with no reason: `src/api/recorder/cdp.rs:409`, `src/browser/driver_access.rs:199`,
   `src/config/test_options.rs:487`, `src/evasion/behavior.rs:130,392,403,631,645`,
-  `src/evasion/humanize.rs:107`; five more open a multi-line attribute (`src/mcp/export.rs:307`,
+  `src/evasion/humanize.rs:107`, `src/utils/translate/master_dict.rs:80`; five more open a multi-line attribute (`src/mcp/export.rs:307`,
   `failure.rs:390`, `journal.rs:228`, `src/sb_cdp/session_store.rs:129,162`) whose reasons were not
   read.
 * Fix: `#[expect(.., reason = "..")]` for each, in the same lane as the module's pedantic pass.
+* Breaking: no.
+
+### F20. Plugins and path helpers take their inputs from the environment (C-METHOD, M-MOCKABLE-SYSCALLS, M-DI-HIERARCHY)
+
+* `S3LoggingPlugin`, `AzureLoggingPlugin` and `GcpLoggingPlugin` (`src/plugins/s3_logging_plugin.rs:37`,
+  `azure_logging_plugin.rs:41`, `gcp_logging_plugin.rs:40`) are unit structs. `new()` returns the
+  empty value and the one real function, `upload_file`, takes no `self` (`s3:56`, `azure:58`,
+  `gcp:50`). The S3 doc says "It has no hooks of its own", so the type is a namespace, with
+  `Default` and `new` to look like a plugin.
+* `upload_file` reads its credentials from the environment on every call (`AWS_ACCESS_KEY_ID`,
+  `AWS_SECRET_ACCESS_KEY` and `AWS_ENDPOINT_URL` at `s3:62,64,72`; `AZURE_BLOB_URL` at `azure:59`;
+  `GCS_ACCESS_TOKEN` at `gcp:55`). A caller cannot pass a credential, two uploads in one process
+  cannot use two accounts, and a test can only fake one with `set_var`, which is `unsafe` in
+  edition 2024 (the only `unsafe` in `src` is such a test, `src/api/master_qa/wrapper_tests.rs:36,48`).
+  The settings code shows the right shape: `Settings::load_with(path, lookup)` and
+  `from_settings_with(settings, lookup)` take the lookup as an argument
+  (`src/config/settings.rs:455,466`, `src/core/test_run.rs:178`).
+* The same shape in other public functions: `artifacts::logs_root` (`src/artifacts.rs:79`,
+  `SB_REPORT_ROOT`; documented), `evasion::find_system_chrome` (`src/evasion/patcher.rs:403`,
+  `CHROME_BIN` and `CHROMIUM_BIN`; documented, and re-exported at the crate root) and four
+  cookie-file sites that resolve a name against `std::env::current_dir()`
+  (`src/api/base_case.rs:581,641`, `src/api/base_case_impls/base_case_impl_parity.rs:411,423`).
+* Fix: an upload target struct per store (bucket, region, endpoint, credential in a type that does
+  not print), `fn upload(&self, path, key)`, and one named constructor `from_env()` so today's
+  behaviour stays one call; a `logs_root_with(lookup)` and a `find_system_chrome_with(lookup)` like
+  the settings code; an optional directory for the cookie-file methods.
+* Breaking: yes for the three plugins (no known user); no for the rest if the old functions stay.
+
+### F21. `Drop` that blocks or does I/O (C-DTOR-BLOCK, C-DTOR-FAIL)
+
+* `DriverProcess::drop` calls `kill()`, which calls `child.kill()` and then `child.wait()`
+  (`src/browser/launcher.rs:50-51,55-59`); `XvfbProcess::drop` calls `stop()`, which does the same
+  (`src/browser/virtual_display.rs:141-151`). A `kill` followed by a `wait` returns quickly, but
+  it is a blocking system call, and `BrowserSession::drop` runs `process.kill()` inside the task
+  it spawns (`src/browser/session/lifecycle.rs:188-190`), that is on a Tokio worker.
+* `TestRecorder::drop` (`src/core/test_run.rs:1416-1437`) writes the failure info and records the
+  result in the run's reports when a test ends without finishing, which is file I/O in a
+  destructor, and during a panic. Failures are logged with `tracing::warn!` and not lost, so
+  C-DTOR-FAIL holds.
+* Met: `BrowserSession::drop` (`lifecycle.rs:158-193`) gives the browser to
+  `common::shutdown::spawn_cleanup` because "`drop` cannot await", and says so in its doc; the
+  first pass found the same in `sb_cdp/browser.rs:262`. Of the 21 `impl Drop` in `src`, five were
+  read (the four above and that one) and 16 were not; one of the 21 is in a test.
+* Fix: say in the docs of `DriverProcess`, `XvfbProcess` and `TestRecorder` that dropping waits or
+  writes; run the `wait` of `BrowserSession::drop` on `tokio::task::spawn_blocking`; let
+  `TestRecorder` do its writes in an explicit `finish` (it has the `finished` flag) and leave
+  `drop` to log. Check the other 16 with the lane.
 * Breaking: no.
 
 ## In progress elsewhere
@@ -580,50 +732,80 @@ escape hatch by design and counts as M-ESCAPE-HATCHES met.
 
 ## Fix lanes
 
-In this order; each is one concern, with the files it mostly touches. None is started.
+In this order; each is one concern, with the files it mostly touches. None is started. Every
+lane ends with the repository's gate (`cargo fmt --check`, clippy with `-D warnings`, the tests,
+`cargo doc` with `-D warnings`); a breaking lane also updates the `tests/contract_*.rs` files in
+the same commit and runs `mise run contracts` and `mise run semver`. The order puts first the
+lanes that cost little and tell the rest (1 to 4), then the lanes that break little or nothing
+(5 to 8), then the breaking lanes from the smaller to the larger (9 to 19), and the history
+clean-up last.
 
 1. **The Microsoft lint set for the whole workspace through `[workspace.lints]`** (F1, F19).
    Files: `Cargo.toml`, `crates/cli/Cargo.toml`, `crates/playwright/Cargo.toml`,
    `crates/own-imports/Cargo.toml`, `src/lib.rs`, `clippy.toml`. Not breaking. Output: the exact
-   lists for lanes 2 to 4 (`missing_debug_implementations`, `missing_errors_doc`,
-   `missing_panics_doc`, `unwrap_used`).
-2. **`Debug` and `Send + Sync` pins** (F2, F14). Files: `src/api/base_case.rs`,
-   `src/browser/session/mod.rs`, whatever the lint lists, one new test file. Not breaking.
-3. **Doc gaps** (F3). Files: `src/api/base_case.rs`, `src/browser/config.rs`, `src/common/mod.rs`,
-   `src/utils/mod.rs`, `src/utilities/mod.rs`, `src/lib.rs`, `src/macros.rs` (fences). Not breaking.
+   lists for lanes 2 to 4 and 8 (`missing_debug_implementations`, `missing_errors_doc`,
+   `missing_panics_doc`, `unwrap_used`). Delete the five attribute blocks and the misplaced
+   comment in `src/lib.rs` in the same commit; put `#[expect(clippy::pedantic, reason = "lane N")]`
+   on each module that is not yet clean, so a later lane finds its line by the
+   `unfulfilled_lint_expectations` warning.
+2. **`Debug`, `Hash` and `Send + Sync` pins** (F2, F14). Files: `src/api/base_case.rs`,
+   `src/browser/session/mod.rs`, `src/browser/config.rs`, `src/api/chart.rs`, whatever the lint
+   lists, one new test file. Not breaking.
+3. **Doc gaps** (F3, and the doc half of F21). Files: `src/api/base_case.rs`,
+   `src/browser/config.rs`, `src/common/mod.rs`, `src/config/mod.rs`, `src/utils/mod.rs`,
+   `src/utilities/mod.rs`, `src/lib.rs`, `src/macros.rs` (fences), `src/plugins/`,
+   `src/utilities/selenium_ide.rs`, `src/profile_payloads/profile.rs`, `src/browser/launcher.rs`,
+   `src/browser/virtual_display.rs`. Not breaking.
 4. **Manifest and tooling** (F13, F1 rustfmt): metadata, `[workspace.dependencies]`,
-   `error-backtrace`, after decisions D1 and D7. Files: the four manifests, `rustfmt.toml`.
+   `error-backtrace` and the three pages that describe it wrongly, after decisions D1 and D7.
+   Files: the four manifests, `rustfmt.toml`, `README.md`, `CONTRIBUTING.md`, `docs/building.md`.
    Breaking only for the feature.
-5. **Keep the source in errors** (F4 small). Files: `src/error.rs` and its callers. Low breaking.
+5. **Keep the source in errors** (F4 small): `sb_context`, the two `From` impls, `#[non_exhaustive]`
+   on the plugin errors, and typed errors for `find_examples`, `SbRecorder::check`, `check_in`,
+   `validate_file_name`, `parse_ide_file` and `parse_ide_html` after decision D9. Files:
+   `src/error.rs` and its callers, `src/cli/scripts/all_scripts.rs`, `src/cli/scripts/sb_recorder.rs`,
+   `src/utilities/selenium_ide.rs`. Low breaking.
 6. **Print, glob, small hygiene** (F17, F12 glob). Files: `src/api/master_qa.rs`,
    `src/browser/driver_access.rs`, `src/mcp/http.rs`, `src/profile_payloads/mod.rs`. Not breaking.
-7. **Sealed traits and no `Deref`** (F6). Files: `src/api/traits.rs`, `src/error.rs`,
+7. **The logging plugins and the path helpers take their inputs** (F20): an upload target per store
+   with `from_env()`, `logs_root_with`, `find_system_chrome_with`, a directory for the cookie-file
+   methods. Files: `src/plugins/s3_logging_plugin.rs`, `azure_logging_plugin.rs`,
+   `gcp_logging_plugin.rs`, `src/artifacts.rs`, `src/evasion/patcher.rs`,
+   `src/api/base_case.rs`, `src/api/base_case_impls/base_case_impl_parity.rs`. Breaking only for
+   the three plugin types.
+8. **`Drop` that blocks or writes** (F21, the code half): `spawn_blocking` for the `wait`, an
+   explicit `finish` for `TestRecorder`, and the check of the 16 `impl Drop` not read. Files:
+   `src/browser/launcher.rs`, `src/browser/virtual_display.rs`,
+   `src/browser/session/lifecycle.rs`, `src/core/test_run.rs`. Not breaking.
+9. **Sealed traits and no `Deref`** (F6). Files: `src/api/traits.rs`, `src/error.rs`,
    `src/api/membership.rs`, `src/api/master_qa.rs`, `src/testing/bdd/mod.rs`, their tests. Breaking.
-8. **`non_exhaustive` and the unconditional `plugins` field** (F8). Files:
-   `src/browser/config.rs`, `src/cookie.rs`, `src/config/settings.rs`, and every struct literal
-   (use `constructors` to list them first). Breaking.
-9. **Booleans to enums, paths to `AsRef<Path>`** (F9 without selectors). Files: the sites in F9.
-   Breaking.
-10. **Macros** (F7), after D3. Files: `src/macros.rs`, `src/lib.rs`, `tests/`, `examples/`,
+10. **`non_exhaustive` and the unconditional `plugins` field** (F8). Files:
+    `src/browser/config.rs`, `src/cookie.rs`, `src/config/settings.rs`, the `api`, `utilities` and
+    `profile_payloads` types of F8, and every struct literal (use `constructors` to list them
+    first). Breaking.
+11. **Booleans to enums, paths to `AsRef<Path>`, keywords to enums** (F9 without selectors). Files:
+    the sites in F9. Breaking.
+12. **Macros** (F7), after D3. Files: `src/macros.rs`, `src/lib.rs`, `tests/`, `examples/`,
     `docs/`. Breaking.
-11. **Names** (F11, F5 cheap part, F15): `BrowserKind`, one `Proxy`, `connect` and `from_session`,
-    `as_str`, `get_browser`. Files: `src/browser/config.rs`, `src/lib.rs`,
+13. **Names** (F11, F5 cheap part, F15): `BrowserKind`, one `Proxy`, `connect` and `from_session`,
+    `as_str` for the four `name`, `get_browser`. Files: `src/browser/config.rs`, `src/lib.rs`,
     `src/evasion/fingerprint.rs`, `src/browser/options/`, `src/config/proxy_list.rs`,
-    `src/profile_payloads/profile.rs`, `src/api/base_case.rs`. Breaking. Use `tokensave_rename`.
-12. **Trait receivers and parameter order** (F16), with D5. Files: `src/api/traits.rs` and the
+    `src/profile_payloads/profile.rs`, `src/api/base_case.rs`,
+    `src/browser/chrome_for_testing.rs`. Breaking. Use `tokensave_rename`.
+14. **Trait receivers and parameter order** (F16), with D5. Files: `src/api/traits.rs` and the
     `BaseCase` and `Page` impls. Breaking.
-13. **Public module tree** (F12): `pub(crate)` pass, one path per item. Files: `src/lib.rs`,
+15. **Public module tree** (F12): `pub(crate)` pass, one path per item. Files: `src/lib.rs`,
     `mod.rs` files, the contract tests. Breaking; run `mise run semver` and the contract tests.
-14. **Error redesign** (F4 large), after the thirtyfour driver-errors lane. Files: `src/error.rs`
+16. **Error redesign** (F4 large), after the thirtyfour driver-errors lane. Files: `src/error.rs`
     and every constructor call. Breaking, large.
-15. **Selector typing** (F9 selectors): `BaseCase` on `impl Into<SelectorBuf>`. Up to 370
+17. **Selector typing** (F9 selectors): `BaseCase` on `impl Into<SelectorBuf>`. About 371
     signatures (public or not); do it with `ast_grep_rewrite`. Breaking, large.
-16. **`get_` names** (F5), only if D2 says yes; with the translator tables
+18. **`get_` names** (F5), only if D2 says yes; with the translator tables
     (`src/utilities/importer/translate.rs`, `src/mcp/dev/api_index.json`) and `parity/api.toml`.
     Breaking, large.
-17. **`panic` to `Result` for `driver()`** (F10), after the drivers lane. Files:
+19. **`panic` to `Result` for `driver()`** (F10), after the drivers lane. Files:
     `src/browser/session/mod.rs`. Breaking.
-18. **Docs without history** (F18). Files: wherever the search lists. Not breaking.
+20. **Docs without history** (F18). Files: wherever the search lists. Not breaking.
 
 ## Decisions for the owner
 
@@ -637,6 +819,69 @@ In this order; each is one concern, with the files it mostly touches. None is st
 * D8. The deliberate re-exports (`tokio`, `json`, `testing::rstest`, `drivers`): an accepted
   deviation from M-FOREIGN-REEXPORTS? The imports note in `CLAUDE.md` says yes; this audit lists
   them so the choice is written down.
+* D9. Keep `String` as the error where the text is Python's message (`SbRecorder::check`,
+  `validate_file_name`, `find_examples`), or give them an error type that displays the same text
+  (lane 5)?
+
+## What the second pass changed
+
+The second pass re-read the code behind 35 claims of the first pass. No cargo command was run.
+
+Stood as written (26):
+
+1. The five lint blocks (`src/lib.rs:55-69,78-92,95-109,153-167,179-193`) and the misplaced
+   comment (`:151`).
+2. The 26 `pub use` of `src/lib.rs:201-246`, 27 of the names from `evasion::fingerprint`.
+3. `Browser` (`:211`), `BrowserType` (`:223`) and `Key` (`:236`) at the crate root.
+4. The three `Deref` impls (`src/api/master_qa.rs:446`, `src/testing/bdd/mod.rs:203,326`).
+5. No `Debug` for `BaseCase` and `BrowserSession`.
+6. No doc on `BaseCase` (`src/api/base_case.rs:58-60`).
+7. The four undocumented `Browser` variants (`src/browser/config.rs:47-50`).
+8. `BrowserSession::driver`: the first doc line, the panic and the `webdriver()` sibling
+   (`src/browser/session/mod.rs:85-116`).
+9. 35 `pub fn get_` and 69 `pub async fn get_`.
+10. `BaseCase::get_browser` returns a clone of the `BrowserConfig`.
+11. `ResultExt::sb_context` formats into `InvalidConfig` (`src/error.rs:1054-1067`).
+12. The empty `error-backtrace` feature (`Cargo.toml:183`).
+13. The three `eprintln!` (`master_qa.rs:431`, `driver_access.rs:288`, `mcp/http.rs:842`).
+14. 26 macros in `src/macros.rs` and `sb_test_options!` as the 27th.
+15. `sb_open!` changes its type by arity (`src/macros.rs:91-95`) and `sb_test!` ends in `.expect`
+    (`:80`).
+16. The four traits: `#[async_trait]` at `src/api/traits.rs:36,61,80,98`, `&mut self` getters, the
+    order of `type_text` and `assert_text`.
+17. `BrowserConfig`: nine public fields, `plugins` behind a feature, no `#[non_exhaustive]`
+    (`src/browser/config.rs:201-248`).
+18. `Browser` and `DriverMode` are not `#[non_exhaustive]`.
+19. The manifest: edition 2024, `rust-version` 1.99, MIT, the `[package]` fields, no `lints` table.
+20. `unsafe` only in two test lines (`src/api/master_qa/wrapper_tests.rs:36,48`).
+21. `pub use profile::*;` (`src/profile_payloads/mod.rs:55`).
+22. The counts 1,910 `pub fn`, 936 `pub async fn`, 203 `pub mod`, 894 `# Errors`, 25 `#[expect(`,
+    15 `#[allow(`.
+23. `browser` exposes 15 `pub mod`, plumbing included (`src/browser/mod.rs`).
+24. `src/api/mod.rs:9` says to prefer `crate::sb_cdp`.
+25. The hand-written `Debug` of `BrowserConfig` keeps secrets out (`src/browser/config.rs:262-270`).
+26. `FromStr` on `Browser` and `Display` on `DriverMode` (`src/browser/config.rs:122-143,178-180`).
+
+Corrected (9):
+
+1. "`doc_coverage` reports 8 undocumented public items": it reports 80 or more, and the two files
+   read have a doc on each listed item. The count is dropped.
+2. "30 other types have a hand-written `Debug`": 26 in the directories searched.
+3. The counts of `.unwrap()`, `.expect(` and `panic!(`: 4,357, 632 and 164 in this scope, not
+   3,836, 532 and 130.
+4. 270 `css: &str`, not 269.
+5. `#[allow(` without a reason: ten one-line, not nine (`src/utils/translate/master_dict.rs:80`).
+6. M-MODULE-DOCS: four modules, not three (`src/config/mod.rs`).
+7. C-CONV: four `name` methods, not two.
+8. `error-backtrace`: three pages say it works, not two (`docs/building.md:585`); four say it does
+   not.
+9. F16: native `async fn` in traits drops the boxing but also the dyn compatibility; the first pass
+   wrote "but not the object safety".
+
+Moved from met to partly: C-METHOD (F20) and C-DTOR-BLOCK (F21). Added: `Hash` to C-COMMON-TRAITS,
+the `Result<_, String>` and `Box<dyn Error>` signatures to C-GOOD-ERR, and the missing `//!` of
+`config/mod.rs`.
+
 
 ## Not checked
 
@@ -646,8 +891,11 @@ In this order; each is one concern, with the files it mostly touches. None is st
 * The 11 performance guidelines, the 3 application guidelines for `crates/cli`, M-UNSOUND,
   M-TAUTOLOGICAL-TESTS, M-LOG-STRUCTURED beyond one site, M-PUBLIC-DISPLAY, M-REGULAR-FN,
   M-SHORT-NAMES, C-STRUCT-BOUNDS.
-* The item-level API of `evasion`, `mcp`, `plugins`, `core`, `storage`, `profile_payloads`, the
-  packages under `crates/`, and the features `gui`, `tui`, `turso`, `ocr`, `visual`, `pdf`.
+* The item-level API of `evasion` outside `fingerprint`, `mcp`, `config` outside `Settings`,
+  `utils`, `common`, `sb_cdp` beyond `Browser`, `Page` and `Cookie`, `crates/cli` (a binary
+  package) and the features `gui`, `tui`, `ocr`, `visual`, `pdf`. `crates/own-imports` is
+  tests only and has no public item.
+* 16 of the 21 `impl Drop` in `src` (F21), and the Azure and GCP error enums.
 * Whether `cargo-semver-checks` is clean on the current tree (not run).
 
 ## Sources

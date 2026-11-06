@@ -162,6 +162,7 @@ hidden: true
   - [Settings regrouped and layered with figment](design/settings_v2.md)
   - [An element type of our own for the WebDriver engine](design/element_type.md)
   - [One cookie type for both engines](design/cookie_type.md)
+  - [Rust API Guidelines and Pragmatic Rust audit](design/api_guidelines_audit.md)
 
 - [ABI & API Stability](ABI_API.md)
 - [Architecture Decision Records](adr/001-stealth-architecture.md)
