@@ -278,6 +278,7 @@ presentations, and optional stealth/CDP integrations.
 <LayoutDir name=".github" note="GitHub Actions">
 <LayoutDir name="workflows" note="ci, docker, completions, release and upstream-watch" />
 </LayoutDir>
+<LayoutFile name=".gitlab-ci.yml" note="GitLab CI: gate, supply-chain and docs jobs, and the manual test, msrv and chrome jobs" />
 <LayoutDir name=".warp" note="the Warp terminal">
 <LayoutDir name="workflows" note="the Warp workflows for sbrs" />
 </LayoutDir>

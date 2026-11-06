@@ -505,6 +505,14 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   form starts at the context node, so a search from an `Element` stays inside the element.
   `BaseCase::convert_css_to_xpath` still writes the absolute path.
 
+- CI runs on GitLab.com, where the repository is mirrored: `.gitlab-ci.yml` defines a `gate`
+  job (fmt and clippy), a `supply-chain` job (cargo deny
+  and cargo audit) and a `docs` job (`mise run mdx`, `mdbook build`, only when the docs
+  change) for merge requests and `main`, and the manual jobs `test` (the whole test suite and
+  rustdoc), `msrv` and `chrome` (the real-Chrome tests, headless). The GitHub workflows stay in `.github/workflows`. The
+  "CI on GitLab" section of `CONTRIBUTING.md` has the budget of compute minutes and how to
+  start the manual jobs.
+
 ### Fixed
 
 - `get_cookie` of a cookie the page does not have is `Ok(None)`, as Python's is `None`. It was

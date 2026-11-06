@@ -411,6 +411,7 @@ prompt that runs the checks, is in
 <LayoutDir name=".github" note="GitHub Actions">
 <LayoutDir name="workflows" note="ci, docker, completions, release and upstream-watch" />
 </LayoutDir>
+<LayoutFile name=".gitlab-ci.yml" note="GitLab CI: gate, supply-chain and docs jobs, and the manual test, msrv and chrome jobs" />
 <LayoutDir name=".warp" note="the Warp terminal">
 <LayoutDir name="workflows" note="the Warp workflows for sbrs" />
 </LayoutDir>
@@ -608,6 +609,49 @@ DYLD_LIBRARY_PATH="$HOME/.local/share/mise/installs/python/3.14.6/lib" cargo tes
 ```
 
 </Tip>
+
+### CI on GitLab
+
+CI runs on GitLab.com, on its shared Linux runners. The repository is mirrored there after
+each gated publish, and the definition is `.gitlab-ci.yml`. The workflows in
+`.github/workflows` are still in the repository; the release and Docker ones run only on
+GitHub.
+
+The default pipeline is made for a small budget. GitLab creates it for merge requests and
+for `main`, and a new push cancels a pipeline that is still running. It has three jobs:
+
+- `gate` runs `cargo fmt --all -- --check` and clippy with `-D warnings` and the features
+  `mcp-server test-util testing bdd`.
+- `supply-chain` runs `cargo deny --all-features --workspace check` and `cargo audit`.
+- `docs` runs `mise run mdx` and `mdbook build`, and only when `docs/`, `book.toml`,
+  `CONTRIBUTING.md` or the tools that build the docs changed.
+
+Three more jobs are manual and never start by themselves. `test` runs `cargo test
+--no-fail-fast` and `cargo doc --no-deps` with `RUSTDOCFLAGS="-D warnings"`, with the same
+features; every push to GitLab has passed them on the lead's machine first. `msrv` runs `cargo check` with the
+`gui` and `tui` features on the Rust version of `Cargo.toml`, and fails when that version
+and the one in `.gitlab-ci.yml` differ. `chrome` installs Chromium and runs the real-Chrome
+tests (`tests/chrome`, `browser_smoke`, `crates/cli/tests/chrome` and the Playwright
+bridge) headless, one binary at a time with `--ignored --test-threads=1`. It leaves out the
+tests that open a real site (`captcha_live`, `examples_parity`, `leaked_password`,
+`cli_fingerprint`) and `client_hints`, which needs a branded Google Chrome.
+
+To start a manual job, open the pipeline of the merge request or of the commit and press
+the play button beside the job. To run jobs on a branch that has no merge request, use
+Build, then Pipelines, then New pipeline: every job is a manual job there. No job needs a
+secret.
+
+A free GitLab namespace has 400 compute minutes a month, and one `test` run has taken
+about an hour or more (the doctests are the largest part; `tools/linux-check/RESULTS.md` has the
+timing of a run in a container). That is a handful of full runs a month, so open the merge
+request when a change is ready rather than pushing every commit to one, and give a commit
+that needs no pipeline `[ci skip]` in its message (or push it with `git push -o ci.skip`).
+The [GitLab for Open Source](https://docs.gitlab.com/subscriptions/community_programs/)
+program raises the quota to 50,000 compute minutes a month for a qualifying project. A
+project's job timeout is 60 minutes by default. The `test` and `chrome` jobs ask for three
+hours with `timeout:`, which GitLab allows up to the runner's limit; if one is still cut off
+at 60 minutes, raise the timeout under Settings, CI/CD, General pipelines.
+
 
 ## Parity with Python SeleniumBase
 
