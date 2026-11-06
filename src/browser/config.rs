@@ -267,6 +267,13 @@ pub struct BrowserConfig {
     /// node dies mid-session.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub remote_webdriver_timeout_seconds: Option<u64>,
+    /// The run-wide demo, slow, message and timeout settings a test starts with; see
+    /// [`with_run_settings`](Self::with_run_settings). They do not change the browser, so they
+    /// are not part of a reuse key, and they are not written to, or read from, a configuration
+    /// file.
+    #[serde(skip)]
+    pub run: RunSettings,
+
     /// The options that shape how the browser and its driver are started:
     /// preferences, page load strategy, window geometry, mobile emulation,
     /// extensions, Firefox settings, extra capabilities, driver version and
@@ -330,6 +337,7 @@ impl std::fmt::Debug for BrowserConfig {
                 "remote_webdriver_timeout_seconds",
                 &self.remote_webdriver_timeout_seconds,
             )
+            .field("run", &self.run)
             .field("launch", &self.launch)
             .finish()
     }
@@ -378,6 +386,7 @@ impl BrowserConfig {
             fingerprint: None,
             browser_binary_path: runtime.chrome_bin.clone(),
             remote_webdriver_timeout_seconds: runtime.remote_webdriver_timeout.map(|d| d.as_secs()),
+            run: RunSettings::default(),
             launch: LaunchSettings::default(),
         }
     }
@@ -911,14 +920,14 @@ impl BrowserConfig {
     /// instead of starting from `RunSettings::default()`, or that wait is lost.
     #[must_use]
     pub fn with_run_settings(mut self, settings: RunSettings) -> Self {
-        self.launch.run = settings;
+        self.run = settings;
         self
     }
 
     /// The run-wide settings; see [`with_run_settings`](Self::with_run_settings).
     #[must_use]
     pub fn run_settings(&self) -> &RunSettings {
-        &self.launch.run
+        &self.run
     }
 
     /// How long a navigation waits (`--page-load-strategy`, `--pls`).

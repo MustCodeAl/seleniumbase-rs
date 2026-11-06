@@ -703,7 +703,7 @@ fn settings_summary(settings: &Settings) -> Value {
             .window_width
             .zip(settings.window_height)
             .map(|(width, height)| format!("{width}x{height}")),
-        "default_timeout_seconds": settings.timeout_seconds,
+        "default_timeout_seconds": settings.run.default_timeout.map(|timeout| timeout.as_secs()),
         "remote_webdriver_timeout_seconds": settings.remote_webdriver_timeout_seconds,
         "ad_block": settings.ad_block,
         "mobile": settings.mobile,

@@ -8,6 +8,7 @@
 //! the step that fixes one flips its test.
 
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use seleniumbase_rs::browser::config::BrowserConfig;
 use seleniumbase_rs::browser::options::{grid_url, GridProtocol};
@@ -149,6 +150,9 @@ fn variable_rows() -> impl Iterator<Item = &'static OptionSpec> {
 
 /// Where a row's key sits in a settings file: the table (none for a top-level key) and the key.
 fn location(row: &OptionSpec) -> (Option<&'static str>, &'static str) {
+    if let Some(key) = row.flat_key() {
+        return (None, key);
+    }
     match row.field.split_once('.') {
         None => (None, row.field),
         Some(("test", rest)) => (Some("test"), rest.strip_prefix("data.").unwrap_or(rest)),
@@ -613,6 +617,61 @@ fn the_table_reads_exactly_the_variables_of_the_first_step() {
         unread.is_empty() && unpinned.is_empty(),
         "no longer read: {unread:?}; read and not pinned: {unpinned:?}"
     );
+}
+
+/// The run group is read flat (`demo = true`, `timeout_seconds = 12`) or in its table, and the
+/// `[test]` key it held (`rec_sleep`) still works.
+#[test]
+fn the_run_group_is_read_flat_or_in_its_table() {
+    let dir = tempfile::tempdir().expect("a temporary folder");
+    let read =
+        |name: &str, content: &str| Settings::from_file(file_with(dir.path(), name, content));
+    let flat = read(
+        "flat.toml",
+        "demo = true\ntimeout_seconds = 12\nvisual_baseline = true\ndemo_sleep = 0.5\n",
+    )
+    .expect("flat keys");
+    let table = read(
+        "table.toml",
+        "[run]\ndemo_mode = true\ndefault_timeout = 12\nreset_visual_baseline = true\ndemo_sleep = 0.5\n",
+    )
+    .expect("a [run] table");
+    assert_eq!(flat.run, table.run);
+    assert_eq!(flat.run.default_timeout(), Some(Duration::from_secs(12)));
+    let json = read(
+        "flat.json",
+        r#"{"demo": true, "timeout": 12, "visual-baseline": true, "demo_sleep": 0.5}"#,
+    )
+    .expect("JSON");
+    assert_eq!(json.run, flat.run);
+    let legacy = read("legacy.toml", "[test]\nrec_sleep = true\n").expect("the old [test] key");
+    assert_eq!(
+        legacy.run,
+        Settings::from_file(file_with(
+            dir.path(),
+            "new.toml",
+            "[run]\nrecord_sleep = true\n"
+        ))
+        .expect("the new key")
+        .run
+    );
+
+    let twice = read("twice.toml", "demo = true\n[run]\ndemo_mode = true\n")
+        .unwrap_err()
+        .to_string();
+    assert!(
+        twice.contains("\"demo\" and \"[run] demo_mode\" are the same setting (run.demo_mode)"),
+        "{twice}"
+    );
+    let unknown = read("unknown.toml", "[run]\nnosuch = 1\n")
+        .unwrap_err()
+        .to_string();
+    assert!(
+        unknown.contains("unknown setting \"nosuch\" in the [run] table"),
+        "{unknown}"
+    );
+    // A negative number of seconds is refused where it is read.
+    assert!(read("negative.toml", "demo_sleep = -1\n").is_err());
 }
 
 /// Finding 1: a `[report]` table was refused by the loader (the field said it is that table).

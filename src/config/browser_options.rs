@@ -25,6 +25,7 @@
 //! assert_eq!(settings_key("blok_images"), None);
 //! ```
 
+use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::path::Path;
 
@@ -37,7 +38,7 @@ use crate::config::test_options::{find_option, OptionKind, OptionSpec, OptionVal
 use crate::error::SeleniumBaseError;
 
 /// The top-level keys of a settings file that hold a table of their own.
-const TABLES: [&str; 4] = ["plugins", "fingerprint", "test", "report"];
+const TABLES: [&str; 5] = ["plugins", "fingerprint", "test", "report", "run"];
 
 /// A list of Chromium switches, written in a settings file either as a comma-separated
 /// string or as an array.
@@ -131,8 +132,8 @@ impl OptionValue for Option<ArgList> {
 /// The key of the settings file that `key` stands for, if it is one: a table of the file
 /// (`plugins`, `fingerprint`, `test`, `report`) or the field of a row of the option table.
 ///
-/// Dashes and underscores are the same, case does not matter, and a row's flags and
-/// `SB(...)` names are accepted (`timeout` is `timeout_seconds`, `dark` is `dark_mode`).
+/// Dashes and underscores are the same, case does not matter, and a row's flags are accepted
+/// (`timeout` is `timeout_seconds`, `dark` is `dark_mode`); the names of Python's `SB(...)` are not.
 /// The shorthands that stand for a value (`chrome`, `headed`, `uc`) are not keys.
 #[must_use]
 pub fn settings_key(key: &str) -> Option<&'static str> {
@@ -140,23 +141,31 @@ pub fn settings_key(key: &str) -> Option<&'static str> {
     if let Some(table) = TABLES.iter().find(|table| **table == wanted) {
         return Some(table);
     }
-    let is_key = |row: &&OptionSpec| row.has_field() && !row.field.contains('.');
-    if let Some(row) = TEST_OPTIONS
+    if let Some(name) = TEST_OPTIONS
         .iter()
-        .filter(is_key)
-        .find(|row| row.field == wanted)
+        .filter_map(OptionSpec::flat_key)
+        .find(|name| *name == wanted)
     {
-        return Some(row.field);
+        return Some(name);
     }
     find_option(key)
-        .filter(is_key)
         .filter(|row| {
             matches!(
                 row.kind,
                 OptionKind::Switch | OptionKind::Value(_) | OptionKind::Env(_)
             )
         })
-        .map(|row| row.field)
+        .and_then(OptionSpec::flat_key)
+}
+
+/// The path in `Settings` of the setting that the settings-file key `key` (a name that
+/// [`settings_key`] returned) stands for: `run.demo_mode` for `demo`, the key itself when the
+/// setting sits at the top level.
+fn key_path(key: &'static str) -> &'static str {
+    TEST_OPTIONS
+        .iter()
+        .find(|row| row.flat_key() == Some(key))
+        .map_or(key, |row| row.field)
 }
 
 /// The message for a key of the settings file `file` that is no setting.
@@ -221,7 +230,8 @@ fn table_key(table: &str, key: &str) -> Option<(&'static str, &'static str)> {
         .find_map(|row| {
             let (group, rest) = row.field.split_once('.')?;
             let name = rest.strip_prefix("data.").unwrap_or(rest);
-            let belongs = group == table || (table == "test" && group == "report");
+            let belongs = group == table
+                || (table == "test" && (group == "report" || row.field == "run.record_sleep"));
             (belongs && (name == wanted || row.matches_flag(key))).then_some((group, name))
         })
 }
@@ -231,8 +241,9 @@ fn canonical_entries(
     entries: Map<String, Value>,
     file: &Path,
 ) -> Result<Map<String, Value>, SeleniumBaseError> {
-    let mut written: Vec<(&'static str, String)> = Vec::new();
+    let mut seen: Vec<(String, String)> = Vec::new();
     let mut top = Map::new();
+    let mut groups: BTreeMap<&'static str, Map<String, Value>> = BTreeMap::new();
     for (key, value) in entries {
         let name = settings_key(&key).ok_or_else(|| unknown_setting(&key, file))?;
         if name == "settings_file" {
@@ -242,40 +253,47 @@ fn canonical_entries(
                  use `--settings-file` or `SB_SETTINGS_FILE`"
             )));
         }
-
-        if let Some((_, first)) = written.iter().find(|(known, _)| *known == name) {
-            return Err(same_setting(first, &key, name));
+        let path = if TABLES.contains(&name) {
+            name
+        } else {
+            key_path(name)
+        };
+        if let Some((_, first)) = seen.iter().find(|(known, _)| known == path) {
+            return Err(same_setting(first, &key, path));
         }
-        written.push((name, key));
-        top.insert(name.to_owned(), value);
+        seen.push((path.to_owned(), key));
+        match path.split_once('.') {
+            // A setting of a group, written flat: `demo` is `run.demo_mode`.
+            Some((group, field)) => {
+                groups
+                    .entry(group)
+                    .or_default()
+                    .insert(field.to_owned(), value);
+            }
+            None => {
+                top.insert(name.to_owned(), value);
+            }
+        }
     }
 
-    // The keys of `[test]` and `[report]` are checked as the top-level ones are, and each goes
-    // to the table that holds its setting now: `[test] html` is `[report] html`.
-    let mut test = Map::new();
-    let mut report = Map::new();
-    let mut seen: Vec<(&'static str, &'static str, String)> = Vec::new();
-    for table in ["test", "report"] {
+    // The keys of `[test]`, `[report]` and `[run]` are checked as the top-level ones are, and
+    // each goes to the group that holds its setting now: `[test] html` is `[report] html`.
+    for table in ["test", "report", "run"] {
         match top.remove(table) {
             Some(Value::Object(entries)) => {
                 for (key, value) in entries {
                     let (group, canonical) = table_key(table, &key)
                         .ok_or_else(|| unknown_in_table(&key, table, file))?;
+                    let path = format!("{group}.{canonical}");
                     let written_as = format!("[{table}] {key}");
-                    if let Some((_, _, first)) = seen
-                        .iter()
-                        .find(|(known, name, _)| *known == group && *name == canonical)
-                    {
-                        let setting = format!("{group}.{canonical}");
-                        return Err(same_setting(first, &written_as, &setting));
+                    if let Some((_, first)) = seen.iter().find(|(known, _)| *known == path) {
+                        return Err(same_setting(first, &written_as, &path));
                     }
-                    seen.push((group, canonical, written_as));
-                    let target = if group == "report" {
-                        &mut report
-                    } else {
-                        &mut test
-                    };
-                    target.insert(canonical.to_owned(), value);
+                    seen.push((path, written_as));
+                    groups
+                        .entry(group)
+                        .or_default()
+                        .insert(canonical.to_owned(), value);
                 }
             }
             // Not a table: the reader of the value says so.
@@ -285,11 +303,10 @@ fn canonical_entries(
             None => {}
         }
     }
-    if !test.is_empty() {
-        top.insert("test".to_owned(), Value::Object(test));
-    }
-    if !report.is_empty() {
-        top.insert("report".to_owned(), Value::Object(report));
+    for (group, fields) in groups {
+        if !fields.is_empty() {
+            top.insert(group.to_owned(), Value::Object(fields));
+        }
     }
     Ok(top)
 }
@@ -324,7 +341,11 @@ pub(crate) fn parse_settings(path: &Path, content: &str) -> Result<Settings, Sel
 pub fn listed_options(all: bool) -> impl Iterator<Item = &'static OptionSpec> {
     TEST_OPTIONS.iter().filter(move |row| match row.kind {
         OptionKind::Cli(_) | OptionKind::NotAFlag(_) | OptionKind::NoOp(_) => false,
-        _ => all || !(row.field.starts_with("test.") || row.field.starts_with("report.")),
+        _ => {
+            all || !(row.field.starts_with("test.")
+                || row.field.starts_with("report.")
+                || row.field == "run.record_sleep")
+        }
     })
 }
 
@@ -382,8 +403,8 @@ pub(crate) fn flag_cell(row: &OptionSpec) -> String {
 /// field and the value it sets.
 fn key_cell(row: &OptionSpec) -> String {
     match row.kind {
-        OptionKind::Sets(value) => format!("{} = {value}", row.field),
-        _ if row.has_field() => row.field.to_owned(),
+        OptionKind::Sets(value) => format!("{} = {value}", row.flat_key().unwrap_or(row.field)),
+        _ if row.has_field() => row.flat_key().unwrap_or(row.field).to_owned(),
         _ => "-".to_owned(),
     }
 }
@@ -544,7 +565,10 @@ mod tests {
         let settings = toml_file("block-images = true\ndark = true\ntimeout = 30\n").unwrap();
         assert!(settings.block_images);
         assert!(settings.dark_mode);
-        assert_eq!(settings.timeout_seconds, Some(30));
+        assert_eq!(
+            settings.run.default_timeout,
+            Some(std::time::Duration::from_secs(30))
+        );
     }
 
     #[test]

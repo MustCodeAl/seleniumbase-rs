@@ -85,7 +85,7 @@ impl OptionKind {
 /// One row of the table. See the [module documentation](self).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct OptionSpec {
-    /// The path of the field in [`Settings`] (`dark_mode`, `test.pdb`,
+    /// The path of the field in [`Settings`] (`dark_mode`, `run.demo_mode`, `report.html`, `test.pdb`,
     /// `test.data.env`), or `none` when the row has no field.
     pub field: &'static str,
     /// The canonical flag, without the dashes: `dark-mode`.
@@ -145,6 +145,17 @@ impl OptionSpec {
     #[must_use]
     pub fn has_field(&self) -> bool {
         self.field != "none"
+    }
+
+    /// The key a settings file writes at its top level for the row's setting (`dark_mode`,
+    /// `demo`, `timeout_seconds`), or `None` when the setting has only the key of its table
+    /// (`[test] pdb`, `[report] html`).
+    #[must_use]
+    pub fn flat_key(&self) -> Option<&'static str> {
+        if let Some((_, key)) = FLAT_KEYS.iter().find(|(path, _)| *path == self.field) {
+            return Some(key);
+        }
+        (self.has_field() && !self.field.contains('.')).then_some(self.field)
     }
 
     /// Whether `spelling` is a flag of the row (`--dark`, `dark_mode`, ...).
@@ -254,6 +265,40 @@ impl OptionValue for Option<f64> {
         Ok(())
     }
 }
+
+impl OptionValue for Option<std::time::Duration> {
+    fn assign(&mut self, name: &str, text: &str) -> Result<(), SeleniumBaseError> {
+        let seconds = parse_seconds(name, text)?;
+        *self = Some(
+            std::time::Duration::try_from_secs_f64(seconds).map_err(|_| {
+                SeleniumBaseError::InvalidConfig(format!(
+                    "{name}: expected a number of seconds, 0 or more, not '{text}'"
+                ))
+            })?,
+        );
+        Ok(())
+    }
+}
+
+/// The settings-file keys of the rows whose field moved into a group: the path of the field,
+/// then the key a file writes at its top level. A row not listed here has the key of its
+/// field when that has no dot.
+const FLAT_KEYS: &[(&str, &str)] = &[
+    ("run.default_timeout", "timeout_seconds"),
+    ("run.demo_mode", "demo"),
+    ("run.slow_mode", "slow"),
+    ("run.demo_sleep", "demo_sleep"),
+    ("run.message_duration", "message_duration"),
+    ("run.skip_js_waits", "skip_js_waits"),
+    ("run.reset_visual_baseline", "visual_baseline"),
+    ("run.highlights", "highlights"),
+    ("run.interval", "interval"),
+    ("run.verify_delay", "verify_delay"),
+    ("run.check_js", "check_js"),
+    ("run.wait_for_angularjs", "wait_for_angularjs"),
+    ("run.disable_beforeunload", "disable_beforeunload"),
+    ("run.timeout_multiplier", "timeout_multiplier"),
+];
 
 /// `--env`: one of the 24 environments, in lower case.
 fn set_env(settings: &mut Settings, _name: &str, text: &str) -> Result<(), SeleniumBaseError> {
@@ -394,7 +439,7 @@ macro_rules! sb_test_options {
             // variables are read.
             (browser, "browser", [], [], "SB_BROWSER", [value(Browser)], "The browser to run: chrome, edge, firefox, brave, ... (SB_BROWSER)"),
             (headless, "headless", ["headless2"], ["headless", "headless2"], "SB_HEADLESS", [switch], "Run without a visible window (Chrome's new headless mode) (SB_HEADLESS)"),
-            (timeout_seconds, "timeout", [], [], "SB_TIMEOUT", [env(Seconds)], "The default wait, in whole seconds (SB_TIMEOUT)"),
+            (run.default_timeout, "timeout", [], [], "SB_TIMEOUT", [env(Seconds)], "The default wait, in whole seconds (SB_TIMEOUT)"),
             (webdriver_url, "webdriver-url", [], [], "SB_WEBDRIVER_URL", [env(Url)], "The WebDriver server to use (SB_WEBDRIVER_URL)"),
             (chrome_bin, "binary-location", ["bl"], ["binary_location"], "SB_CHROME_BIN", [value(Path)], "The browser binary to run (SB_CHROME_BIN)"),
             (remote_webdriver_timeout_seconds, "remote-webdriver-timeout", [], [], "SB_REMOTE_WEBDRIVER_TIMEOUT", [env(Seconds)], "Client timeout for each request to a Remote WebDriver server (SB_REMOTE_WEBDRIVER_TIMEOUT)"),
@@ -477,21 +522,21 @@ macro_rules! sb_test_options {
             (log_cdp_events, "log-cdp-events", ["log-cdp"], [], "SB_LOG_CDP_EVENTS", [switch], "Log the DevTools Protocol events (SB_LOG_CDP_EVENTS)"),
             (uc_cdp_events, "uc-cdp-events", ["uc-cdp"], [], "SB_UC_CDP_EVENTS", [switch], "Log the DevTools Protocol events in undetected mode (SB_UC_CDP_EVENTS)"),
             // Run settings and page behaviour.
-            (demo, "demo", ["demo-mode"], [], "SB_DEMO", [switch], "Highlight each element and pause after an action (SB_DEMO)"),
-            (slow, "slow", ["slow-mode", "slowmo"], [], "SB_SLOW", [switch], "Pause briefly after each action (SB_SLOW)"),
-            (demo_sleep, "demo-sleep", [], [], "SB_DEMO_SLEEP", [value(Seconds)], "Seconds to pause after each action in demo mode (SB_DEMO_SLEEP)"),
-            (message_duration, "message-duration", [], [], "SB_MESSAGE_DURATION", [value(Seconds)], "Seconds a message stays on the page (SB_MESSAGE_DURATION)"),
-            (skip_js_waits, "skip-js-waits", ["sjw"], [], "SB_SKIP_JS_WAITS", [switch], "Do not wait for the page's JavaScript to settle (SB_SKIP_JS_WAITS)"),
-            (highlights, "highlights", [], [], "SB_HIGHLIGHTS", [value(Count)], "How many times to flash a highlighted element (SB_HIGHLIGHTS)"),
-            (interval, "interval", [], [], "SB_INTERVAL", [value(Seconds)], "Seconds between the steps of a tour or presentation (SB_INTERVAL)"),
-            (verify_delay, "verify-delay", [], [], "SB_VERIFY_DELAY", [value(Seconds)], "Seconds to wait before each MasterQA verification (SB_VERIFY_DELAY)"),
-            (check_js, "check-js", [], ["js_checking_on"], "SB_CHECK_JS", [switch], "Check each page for JavaScript errors after it opens (SB_CHECK_JS)"),
-            (wait_for_angularjs, "wait-for-angularjs", ["wfa"], [], "SB_WAIT_FOR_ANGULARJS", [switch], "Wait for AngularJS after opening a page and clicking (SB_WAIT_FOR_ANGULARJS)"),
-            (disable_beforeunload, "disable-beforeunload", [], [], "SB_DISABLE_BEFOREUNLOAD", [switch], "Remove the beforeunload prompt after each page opens (SB_DISABLE_BEFOREUNLOAD)"),
-            (visual_baseline, "visual-baseline", [], [], "SB_VISUAL_BASELINE", [switch], "Set the visual baselines again instead of comparing (SB_VISUAL_BASELINE)"),
+            (run.demo_mode, "demo", ["demo-mode"], [], "SB_DEMO", [switch], "Highlight each element and pause after an action (SB_DEMO)"),
+            (run.slow_mode, "slow", ["slow-mode", "slowmo"], [], "SB_SLOW", [switch], "Pause briefly after each action (SB_SLOW)"),
+            (run.demo_sleep, "demo-sleep", [], [], "SB_DEMO_SLEEP", [value(Seconds)], "Seconds to pause after each action in demo mode (SB_DEMO_SLEEP)"),
+            (run.message_duration, "message-duration", [], [], "SB_MESSAGE_DURATION", [value(Seconds)], "Seconds a message stays on the page (SB_MESSAGE_DURATION)"),
+            (run.skip_js_waits, "skip-js-waits", ["sjw"], [], "SB_SKIP_JS_WAITS", [switch], "Do not wait for the page's JavaScript to settle (SB_SKIP_JS_WAITS)"),
+            (run.highlights, "highlights", [], [], "SB_HIGHLIGHTS", [value(Count)], "How many times to flash a highlighted element (SB_HIGHLIGHTS)"),
+            (run.interval, "interval", [], [], "SB_INTERVAL", [value(Seconds)], "Seconds between the steps of a tour or presentation (SB_INTERVAL)"),
+            (run.verify_delay, "verify-delay", [], [], "SB_VERIFY_DELAY", [value(Seconds)], "Seconds to wait before each MasterQA verification (SB_VERIFY_DELAY)"),
+            (run.check_js, "check-js", [], ["js_checking_on"], "SB_CHECK_JS", [switch], "Check each page for JavaScript errors after it opens (SB_CHECK_JS)"),
+            (run.wait_for_angularjs, "wait-for-angularjs", ["wfa"], [], "SB_WAIT_FOR_ANGULARJS", [switch], "Wait for AngularJS after opening a page and clicking (SB_WAIT_FOR_ANGULARJS)"),
+            (run.disable_beforeunload, "disable-beforeunload", [], [], "SB_DISABLE_BEFOREUNLOAD", [switch], "Remove the beforeunload prompt after each page opens (SB_DISABLE_BEFOREUNLOAD)"),
+            (run.reset_visual_baseline, "visual-baseline", [], [], "SB_VISUAL_BASELINE", [switch], "Set the visual baselines again instead of comparing (SB_VISUAL_BASELINE)"),
             (crumbs, "crumbs", [], [], "SB_CRUMBS", [switch], "Delete the cookies when a reused browser is handed to the next test (SB_CRUMBS)"),
-            (timeout_multiplier, "timeout-multiplier", [], [], "SB_TIMEOUT_MULTIPLIER", [value(Float)], "Multiply the default waits by this number (SB_TIMEOUT_MULTIPLIER)"),
-            (test.rec_sleep, "rec-sleep", ["record-sleep"], [], "SB_REC_SLEEP", [switch], "Keep the sleeps of a recording (SB_REC_SLEEP)"),
+            (run.timeout_multiplier, "timeout-multiplier", [], [], "SB_TIMEOUT_MULTIPLIER", [value(Float)], "Multiply the default waits by this number (SB_TIMEOUT_MULTIPLIER)"),
+            (run.record_sleep, "rec-sleep", ["record-sleep"], [], "SB_REC_SLEEP", [switch], "Keep the sleeps of a recording (SB_REC_SLEEP)"),
             // Test data.
             (test.data.env, "env", [], ["environment"], "SB_ENV", [custom(Env, set_env)], "The environment the tests run against: qa, staging, production, ... (SB_ENV)"),
             (test.data.account, "account", [], [], "SB_ACCOUNT", [value(Text)], "A free account name for the tests (SB_ACCOUNT)"),
@@ -696,11 +741,14 @@ mod tests {
         assert_eq!(settings.window_size.as_deref(), Some("1280,720"));
         assert_eq!(settings.cap_file, Some(PathBuf::from("caps.json")));
         assert_eq!(settings.port, Some(4445));
-        assert_eq!(settings.highlights, Some(3));
+        assert_eq!(settings.run.highlights, Some(3));
         assert_eq!(settings.test.reruns, 2);
         assert!((settings.test.reruns_delay - 0.25).abs() < f64::EPSILON);
         assert_eq!(settings.test.time_limit, Some(30.0));
-        assert_eq!(settings.timeout_seconds, Some(7));
+        assert_eq!(
+            settings.run.default_timeout,
+            Some(std::time::Duration::from_secs(7))
+        );
         assert_eq!(
             settings.fingerprint.file,
             Some(PathBuf::from("profile.json"))

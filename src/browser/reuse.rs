@@ -216,7 +216,7 @@ impl ReuseKey {
         config.launch.reuse_class = None;
         // How a test behaves (demo mode, message time) does not change the
         // browser, so a demo test and a plain one still share browsers.
-        config.launch.run = crate::api::run_settings::RunSettings::default();
+        config.run = crate::api::run_settings::RunSettings::default();
         Self { config, class }
     }
 }

@@ -4460,7 +4460,7 @@ note = "A Python spelling of --all-scripts; `sbrs test` takes both."
 
 [options_pytest."--archive-downloads"]
 status = "implemented"
-rust = "TestSettings::archive_downloads"
+rust = "ReportSettings::archive_downloads"
 note = "`sbrs test --archive-downloads`, `SB_ARCHIVE_DOWNLOADS` or `archive_downloads` in the `[test]` table: when a run starts, `downloaded_files/` of each tested package is moved to `archived_files/downloads_<unix time>/` instead of being emptied. Only `sbrs test` does it (never for `--co`), and the operating system's Downloads folder is never touched."
 
 [options_pytest."--archive-logs"]
@@ -4470,7 +4470,7 @@ note = "When a run starts, `latest_logs/` is moved to `archived_logs/logs_<unix 
 
 [options_pytest."--archive_downloads"]
 status = "implemented"
-rust = "TestSettings::archive_downloads"
+rust = "ReportSettings::archive_downloads"
 note = "A Python spelling of --archive-downloads; `sbrs test` takes both."
 
 [options_pytest."--archive_logs"]
@@ -4640,12 +4640,12 @@ note = "`sbrs test --data`, `SB_DATA` or `data` in the `[test]` table; a test re
 
 [options_pytest."--database-env"]
 status = "implemented"
-rust = "TestSettings::database_env"
+rust = "ReportSettings::database_env"
 note = "`sbrs test --database-env`, `SB_DATABASE_ENV` or `database_env` in the `[test]` table picks the entry of the `[test.databases]` table (a name and the path of a local database file) that --with-db-reporting writes to. Python picks a MySQL database."
 
 [options_pytest."--database_env"]
 status = "implemented"
-rust = "TestSettings::database_env"
+rust = "ReportSettings::database_env"
 note = "A Python spelling of --database-env; `sbrs test` takes both."
 
 [options_pytest."--dcsp"]
@@ -5017,17 +5017,17 @@ reason = "Accepted and ignored by `sbrs test`: an internal pytest flag; the Rust
 
 [options_pytest."--lfp"]
 status = "implemented"
-rust = "TestSettings::list_fail_page"
+rust = "ReportSettings::list_fail_page"
 note = "A spelling of --list-fail-page; see there."
 
 [options_pytest."--list-fail-page"]
 status = "implemented"
-rust = "TestSettings::list_fail_page"
+rust = "ReportSettings::list_fail_page"
 note = "`sbrs test --list-fail-page` (also `--list-fail-pages`, `--lfp`), `SB_LIST_FAIL_PAGE` or `list_fail_page` in the `[test]` table: a failing test of the `sb` and `sb_cdp` fixtures prints `=> Fail Page: <url>`, the page it ended on."
 
 [options_pytest."--list-fail-pages"]
 status = "implemented"
-rust = "TestSettings::list_fail_page"
+rust = "ReportSettings::list_fail_page"
 note = "A spelling of --list-fail-page; see there."
 
 [options_pytest."--locale"]
@@ -5136,7 +5136,7 @@ rust = "BrowserConfig::with_no_sandbox"
 
 [options_pytest."--no-screenshot"]
 status = "implemented"
-rust = "TestSettings::no_screenshot"
+rust = "ReportSettings::no_screenshot"
 note = "`sbrs test --no-screenshot` (also `--ns`), `SB_NO_SCREENSHOT` or `no_screenshot` in the `[test]` table: the evidence of a failing test (`latest_logs/<test id>/`) has no screenshot.png, only the page source and the test info. It wins over --screenshot, as in Python."
 
 [options_pytest."--no_csp"]
@@ -5150,12 +5150,12 @@ rust = "BrowserConfig::with_no_sandbox"
 
 [options_pytest."--no_screenshot"]
 status = "implemented"
-rust = "TestSettings::no_screenshot"
+rust = "ReportSettings::no_screenshot"
 note = "A Python spelling of --no-screenshot; `sbrs test` takes both."
 
 [options_pytest."--ns"]
 status = "implemented"
-rust = "TestSettings::no_screenshot"
+rust = "ReportSettings::no_screenshot"
 note = "A spelling of --no-screenshot; see there."
 
 [options_pytest."--open-devtools"]
@@ -5355,17 +5355,17 @@ note = "Run with safaridriver, which comes with macOS; Safari needs Allow Remote
 
 [options_pytest."--save-screenshot"]
 status = "implemented"
-rust = "TestSettings::save_screenshot"
+rust = "ReportSettings::save_screenshot"
 note = "A spelling of --screenshot; see there."
 
 [options_pytest."--save_screenshot"]
 status = "implemented"
-rust = "TestSettings::save_screenshot"
+rust = "ReportSettings::save_screenshot"
 note = "A spelling of --screenshot; see there."
 
 [options_pytest."--screenshot"]
 status = "implemented"
-rust = "TestSettings::save_screenshot"
+rust = "ReportSettings::save_screenshot"
 note = "`sbrs test --screenshot` (also `--save-screenshot`, `--ss`), `SB_SAVE_SCREENSHOT` or `save_screenshot` in the `[test]` table: the `sb` and `sb_cdp` fixtures save the screenshot and the page source of a passing test too, in `latest_logs/<test id>/`. A failing test always leaves them unless --no-screenshot is on (the screenshot only)."
 
 [options_pytest."--server"]
@@ -5425,7 +5425,7 @@ note = "Pauses, in full, after the same actions as --demo, which also outline th
 
 [options_pytest."--ss"]
 status = "implemented"
-rust = "TestSettings::save_screenshot"
+rust = "ReportSettings::save_screenshot"
 note = "A spelling of --screenshot; see there."
 
 [options_pytest."--start-page"]
@@ -5633,12 +5633,12 @@ reason = "A Python spelling of --with-basic-test-info: accepted and ignored by `
 
 [options_pytest."--with-db-reporting"]
 status = "implemented"
-rust = "TestSettings::with_db_reporting"
+rust = "ReportSettings::with_db_reporting"
 note = "`sbrs test --with-db-reporting`, `SB_WITH_DB_REPORTING` or `with_db_reporting` in the `[test]` table: each test's outcome goes to `ResultStore::record_outcome`, and `sbrs report history` reads it. It needs the turso feature (an `sbrs` built without it exits with status 2); the store is a local database, not MySQL."
 
 [options_pytest."--with-db_reporting"]
 status = "implemented"
-rust = "TestSettings::with_db_reporting"
+rust = "ReportSettings::with_db_reporting"
 note = "A Python spelling of --with-db-reporting; `sbrs test` takes both."
 
 [options_pytest."--with-page-source"]
@@ -5651,12 +5651,12 @@ reason = "A Python spelling of --with-page-source: accepted and ignored by `sbrs
 
 [options_pytest."--with-s3-logging"]
 status = "implemented"
-rust = "TestSettings::with_s3_logging"
+rust = "ReportSettings::with_s3_logging"
 note = "`sbrs test --with-s3-logging`, `SB_WITH_S3_LOGGING` or `with_s3_logging` in the `[test]` table: when a test ends, the `sb` and `sb_cdp` fixtures upload its `latest_logs/<test id>/` folder to the bucket `SB_S3_BUCKET` names (region `SB_S3_REGION`, else `AWS_REGION`, else us-east-1; key prefix `SB_S3_PREFIX`) with S3LoggingPlugin::upload_file. It needs the feature `s3` of seleniumbase-rs in the tested crate; without it the flag logs a warning and does nothing."
 
 [options_pytest."--with-s3_logging"]
 status = "implemented"
-rust = "TestSettings::with_s3_logging"
+rust = "ReportSettings::with_s3_logging"
 note = "A Python spelling of --with-s3-logging; `sbrs test` takes both."
 
 [options_pytest."--with-screen-shots"]
@@ -5960,7 +5960,7 @@ reason = "Accepted and ignored by `sbrs test`: each pure CDP browser answers its
 
 [options_sb."no_screenshot"]
 status = "implemented"
-rust = "TestSettings::no_screenshot"
+rust = "ReportSettings::no_screenshot"
 note = "`no_screenshot` in the `[test]` table, `SB_NO_SCREENSHOT`, `sbrs test --no-screenshot`: the evidence of a failing test has no screenshot.png. It wins over save_screenshot."
 
 [options_sb."page_load_strategy"]
@@ -6049,7 +6049,7 @@ reason = "Not a flag or a setting: Sb::run always returns the test's error and t
 
 [options_sb."save_screenshot"]
 status = "implemented"
-rust = "TestSettings::save_screenshot"
+rust = "ReportSettings::save_screenshot"
 note = "`save_screenshot` in the `[test]` table, `SB_SAVE_SCREENSHOT`, `sbrs test --screenshot`: the `sb` and `sb_cdp` fixtures save the screenshot and the page source of a passing test too, in `latest_logs/<test id>/`."
 
 [options_sb."server"]

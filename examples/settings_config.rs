@@ -101,7 +101,9 @@ fn show(layer: &str, settings: &Settings) {
         settings.browser,
         settings.headless,
         settings
-            .timeout_seconds
+            .run
+            .default_timeout()
+            .map(|timeout| timeout.as_secs())
             .map_or_else(|| "unset".to_owned(), |seconds| format!("{seconds}s")),
         settings.locale,
         settings.mode

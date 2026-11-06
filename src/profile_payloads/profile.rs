@@ -1263,6 +1263,7 @@ impl ProfileParams {
             fingerprint: Some(fingerprint),
             browser_binary_path: None,
             remote_webdriver_timeout_seconds: None,
+            run: Default::default(),
             launch: Default::default(),
         };
 

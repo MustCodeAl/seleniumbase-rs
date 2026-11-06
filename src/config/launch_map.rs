@@ -8,7 +8,6 @@
 //! place, [`Settings::validate`], and not at launch.
 
 use std::path::PathBuf;
-use std::time::Duration;
 
 use crate::browser::config::{Browser, BrowserConfig};
 use crate::browser::options::{
@@ -161,51 +160,6 @@ impl Settings {
             config = config.with_cdp_events(CdpEventCapture::UndetectedOnly);
         }
 
-        let mut run = config.run_settings().clone();
-        if self.demo {
-            run = run.with_demo_mode(true);
-        }
-        if self.slow {
-            run = run.with_slow_mode(true);
-        }
-        if let Some(seconds) = self.demo_sleep {
-            run = run.with_demo_sleep(duration("demo_sleep", seconds)?);
-        }
-        if let Some(seconds) = self.message_duration {
-            run = run.with_message_duration(duration("message_duration", seconds)?);
-        }
-        if self.skip_js_waits {
-            run = run.with_skip_js_waits(true);
-        }
-        if let Some(loops) = self.highlights {
-            run = run.with_highlights(loops);
-        }
-        if let Some(seconds) = self.interval {
-            run = run.with_interval(duration("interval", seconds)?);
-        }
-        if let Some(seconds) = self.verify_delay {
-            run = run.with_verify_delay(duration("verify_delay", seconds)?);
-        }
-        if self.check_js {
-            run = run.with_check_js(true);
-        }
-        if self.wait_for_angularjs {
-            run = run.with_wait_for_angularjs(true);
-        }
-        if self.disable_beforeunload {
-            run = run.with_disable_beforeunload(true);
-        }
-        if let Some(multiplier) = self.timeout_multiplier {
-            run = run.with_timeout_multiplier(multiplier);
-        }
-
-        if self.test.rec_sleep {
-            run = run.with_record_sleep(true);
-        }
-        if self.visual_baseline {
-            run = run.with_visual_baseline_reset(true);
-        }
-        config = config.with_run_settings(run);
         // A file can hold any string for `env`; the variable is checked as it is read.
         let mut data = self.test.data.clone();
         if let Some(env) = &data.env {
@@ -369,15 +323,6 @@ fn list(text: &str) -> impl Iterator<Item = &str> {
         .filter(|item| !item.is_empty())
 }
 
-/// `seconds` as a `Duration`, or an error naming the setting.
-fn duration(name: &str, seconds: f64) -> Result<Duration, SeleniumBaseError> {
-    Duration::try_from_secs_f64(seconds).map_err(|_| {
-        SeleniumBaseError::InvalidConfig(format!(
-            "{name}: expected a number of seconds, 0 or more, not {seconds}"
-        ))
-    })
-}
-
 /// The address of a Selenium Grid, built the way Python SeleniumBase builds it.
 ///
 /// With a `server`, the address is `PROTOCOL://SERVER:PORT/wd/hub`: a scheme in `server` wins
@@ -404,6 +349,7 @@ pub(super) fn remote_address(
 mod tests {
     use super::*;
     use crate::api::run_settings::RunSettings;
+    use std::time::Duration;
 
     /// Changes one setting of a `Settings`.
     type Setter = fn(&mut Settings);
@@ -592,7 +538,6 @@ mod tests {
             |s| s.xvfb_metrics = Some("big".to_owned()),
             |s| s.cap_string = Some("[1]".to_owned()),
             |s| s.cap_file = Some(PathBuf::from("/no/such/caps.json")),
-            |s| s.demo_sleep = Some(-1.0),
         ] {
             let mut settings = Settings::default();
             set(&mut settings);
@@ -624,20 +569,19 @@ mod tests {
 
     #[test]
     fn run_settings_come_from_the_demo_slow_and_timeout_options() {
-        let settings = Settings {
-            demo: true,
-            slow: true,
-            skip_js_waits: true,
-            visual_baseline: true,
-            demo_sleep: Some(0.5),
-            message_duration: Some(3.0),
-            timeout_seconds: Some(4),
-            test: crate::config::test_settings::TestSettings {
-                rec_sleep: true,
-                ..Default::default()
-            },
-            ..Settings::default()
-        };
+        let mut settings = Settings::default();
+        settings
+            .apply_options(&[
+                ("SB_DEMO", "true".to_owned()),
+                ("SB_SLOW", "true".to_owned()),
+                ("SB_SKIP_JS_WAITS", "true".to_owned()),
+                ("SB_VISUAL_BASELINE", "true".to_owned()),
+                ("SB_DEMO_SLEEP", "0.5".to_owned()),
+                ("SB_MESSAGE_DURATION", "3".to_owned()),
+                ("SB_TIMEOUT", "4".to_owned()),
+                ("SB_REC_SLEEP", "true".to_owned()),
+            ])
+            .unwrap();
         let expected = RunSettings::default()
             .with_default_timeout(Duration::from_secs(4))
             .with_demo_mode(true)
@@ -647,22 +591,25 @@ mod tests {
             .with_skip_js_waits(true)
             .with_record_sleep(true)
             .with_visual_baseline_reset(true);
+        assert_eq!(settings.run, expected);
         assert_eq!(settings.to_browser_config().run_settings(), &expected);
     }
 
     #[test]
     fn the_run_settings_of_the_fixture_come_from_the_settings() {
-        let settings = Settings {
-            highlights: Some(3),
-            interval: Some(1.5),
-            verify_delay: Some(0.0),
-            check_js: true,
-            wait_for_angularjs: true,
-            disable_beforeunload: true,
-            timeout_multiplier: Some(2.0),
-            timeout_seconds: Some(10),
-            ..Settings::default()
-        };
+        let mut settings = Settings::default();
+        settings
+            .apply_options(&[
+                ("SB_HIGHLIGHTS", "3".to_owned()),
+                ("SB_INTERVAL", "1.5".to_owned()),
+                ("SB_VERIFY_DELAY", "0".to_owned()),
+                ("SB_CHECK_JS", "true".to_owned()),
+                ("SB_WAIT_FOR_ANGULARJS", "true".to_owned()),
+                ("SB_DISABLE_BEFOREUNLOAD", "true".to_owned()),
+                ("SB_TIMEOUT_MULTIPLIER", "2".to_owned()),
+                ("SB_TIMEOUT", "10".to_owned()),
+            ])
+            .unwrap();
         let expected = RunSettings::default()
             .with_default_timeout(Duration::from_secs(10))
             .with_highlights(3)
@@ -679,17 +626,13 @@ mod tests {
 
     #[test]
     fn a_multiplier_below_the_minimum_is_raised_and_a_negative_pause_is_refused() {
-        let slow = Settings {
-            timeout_multiplier: Some(0.1),
-            ..Settings::default()
-        };
+        let mut slow = Settings::default();
+        slow.apply_options(&[("SB_TIMEOUT_MULTIPLIER", "0.1".to_owned())])
+            .unwrap();
         let config = slow.to_browser_config();
         assert_eq!(config.run_settings().timeout_multiplier(), Some(0.5));
-        let wrong = Settings {
-            interval: Some(-1.0),
-            ..Settings::default()
-        };
-        assert!(wrong.validate().is_err());
+        let wrong = Settings::default().apply_options(&[("SB_INTERVAL", "-1".to_owned())]);
+        assert!(wrong.is_err());
     }
 
     #[test]

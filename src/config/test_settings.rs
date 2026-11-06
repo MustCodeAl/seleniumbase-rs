@@ -198,8 +198,7 @@ pub struct TestSettings {
     pub rec_print: bool,
     /// Write the recording as a script (`SB_REC_SB_MGR`).
     pub rec_sb_mgr: bool,
-    /// Keep the recorded sleeps (`SB_REC_SLEEP`).
-    pub rec_sleep: bool,
+
     /// Which test runner `sbrs test` uses: `cargo` or `nextest`
     /// (`SB_TEST_RUNNER`, `--runner`).
     pub runner: Option<String>,

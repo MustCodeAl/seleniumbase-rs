@@ -33,7 +33,6 @@ use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
-use crate::api::run_settings::RunSettings;
 use crate::browser::reuse::ReuseClass;
 use crate::config::ad_block_list::AdBlockList;
 use crate::config::test_settings::TestData;
@@ -157,13 +156,6 @@ pub struct LaunchSettings {
     #[cfg(feature = "plugins")]
     #[serde(skip)]
     pub plugins: BrowserPlugins,
-    /// The run-wide demo, slow, message and timeout settings a test starts
-    /// with; see
-    /// [`BrowserConfig::with_run_settings`](crate::BrowserConfig::with_run_settings).
-    /// They do not change the browser, so they are not part of a reuse key,
-    /// and they are not written to, or read from, a configuration file.
-    #[serde(skip)]
-    pub run: RunSettings,
     /// The data a run hands to its tests (`--env`, `--account`, `--data`, `--var1..3`,
     /// `--variables`); see [`TestData`]. A `BaseCase` made from the configuration reads it.
     /// It does not change the browser and is not written to, or read from, a configuration

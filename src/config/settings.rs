@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 
 use crate::api::run_settings::RunSettings;
 use crate::browser::config::{Browser, BrowserConfig, DriverMode};
@@ -75,11 +74,6 @@ impl FingerprintSettings {
 pub struct Settings {
     pub browser: String,
     pub headless: bool,
-    /// The default wait, in whole seconds, of a [`BaseCase`](crate::BaseCase)
-    /// made from [`to_browser_config`](Self::to_browser_config)
-    /// (`SB_TIMEOUT`); see [`RunSettings::with_default_timeout`]. `None` keeps
-    /// the `BaseCase` default of 10 seconds.
-    pub timeout_seconds: Option<u64>,
     pub proxy: Option<String>,
     pub proxy_pac_url: Option<String>,
     /// The browser window's width in pixels (`SB_WINDOW_WIDTH`). The window
@@ -232,36 +226,14 @@ pub struct Settings {
     pub log_cdp_events: bool,
     /// Log the DevTools Protocol events in undetected mode only (`SB_UC_CDP_EVENTS`).
     pub uc_cdp_events: bool,
-    /// Demo mode: highlight and pause after each action (`SB_DEMO`).
-    pub demo: bool,
-    /// Slow mode: pause briefly after each action (`SB_SLOW`).
-    pub slow: bool,
-    /// Do not wait for the page's JavaScript (`SB_SKIP_JS_WAITS`, `--sjw`).
-    pub skip_js_waits: bool,
-    /// Set the visual baselines again (`SB_VISUAL_BASELINE`).
-    pub visual_baseline: bool,
     /// Delete the cookies of a reused browser (`SB_CRUMBS`); [`to_browser_config`](Self::to_browser_config)
     /// turns the process-wide switch on, as `browser::reuse::set_crumbs(true)` does.
     pub crumbs: bool,
-    /// Seconds to pause after an action in demo mode (`SB_DEMO_SLEEP`).
-    pub demo_sleep: Option<f64>,
-    /// Seconds a message stays on the page (`SB_MESSAGE_DURATION`).
-    pub message_duration: Option<f64>,
-    /// How many times to flash a highlighted element (`SB_HIGHLIGHTS`); wired by the run
-    /// settings of the `sb` fixture (RS-1).
-    pub highlights: Option<u32>,
-    /// Seconds between the steps of a tour (`SB_INTERVAL`); wired by RS-1.
-    pub interval: Option<f64>,
-    /// Seconds to wait before a MasterQA verification (`SB_VERIFY_DELAY`); wired by RS-1.
-    pub verify_delay: Option<f64>,
-    /// Check each page for JavaScript errors (`SB_CHECK_JS`); wired by RS-1.
-    pub check_js: bool,
-    /// Wait for AngularJS after opening a page (`SB_WAIT_FOR_ANGULARJS`); wired by RS-1.
-    pub wait_for_angularjs: bool,
-    /// Remove the beforeunload prompt after a page opens (`SB_DISABLE_BEFOREUNLOAD`); wired by RS-1.
-    pub disable_beforeunload: bool,
-    /// Multiplies the default waits (`SB_TIMEOUT_MULTIPLIER`); wired by RS-1 (`RunSettings::with_timeout_multiplier`).
-    pub timeout_multiplier: Option<f64>,
+    /// The `[run]` group: how a whole test run behaves (demo and slow mode, the default wait, the
+    /// pauses, the highlights). It is the [`RunSettings`] of a [`BaseCase`](crate::BaseCase) made
+    /// from [`to_browser_config`](Self::to_browser_config); the file may write each setting flat
+    /// (`demo = true`) or in the table (`[run] demo_mode = true`).
+    pub run: RunSettings,
     /// The `[test]` table: test data, debug modes, reruns and the recorder.
     pub test: TestSettings,
     /// The `[report]` table, the one table of the reports, the evidence kept and the results
@@ -536,7 +508,6 @@ impl Default for Settings {
         Self {
             browser: "chrome".to_owned(),
             headless: false,
-            timeout_seconds: None,
             proxy: None,
             proxy_pac_url: None,
             window_width: None,
@@ -603,20 +574,8 @@ impl Default for Settings {
             remote_debug: false,
             log_cdp_events: false,
             uc_cdp_events: false,
-            demo: false,
-            slow: false,
-            skip_js_waits: false,
-            visual_baseline: false,
             crumbs: false,
-            demo_sleep: None,
-            message_duration: None,
-            highlights: None,
-            interval: None,
-            verify_delay: None,
-            check_js: false,
-            wait_for_angularjs: false,
-            disable_beforeunload: false,
-            timeout_multiplier: None,
+            run: RunSettings::default(),
             test: TestSettings::default(),
             report: ReportSettings::default(),
         }
@@ -1003,8 +962,10 @@ impl Settings {
         if let (Some(width), Some(height)) = (self.window_width, self.window_height) {
             launch.window_size = Some(WindowSize::new(width, height));
         }
-        if let Some(seconds) = self.timeout_seconds {
-            launch.run = RunSettings::default().with_default_timeout(Duration::from_secs(seconds));
+        // A multiplier below the minimum is raised to it, as `with_timeout_multiplier` does.
+        let mut run = self.run.clone();
+        if let Some(multiplier) = run.timeout_multiplier {
+            run = run.with_timeout_multiplier(multiplier);
         }
         launch.set(LaunchSwitch::EscEnd, self.esc_end);
         launch.set(LaunchSwitch::RecSbCdp, self.rec_sb_cdp);
@@ -1041,6 +1002,8 @@ impl Settings {
             }),
             browser_binary_path: self.chrome_bin.clone(),
             remote_webdriver_timeout_seconds: self.remote_webdriver_timeout_seconds,
+            run,
+
             launch,
         }
     }
@@ -1192,6 +1155,7 @@ pub(crate) fn parse_bool(value: &str) -> Result<bool, SeleniumBaseError> {
 mod tests {
     use super::*;
     use std::io::Write;
+    use std::time::Duration;
 
     #[test]
     fn a_refused_variable_is_named_with_its_flag() {
@@ -1222,7 +1186,7 @@ mod tests {
         let s = Settings::default();
         assert_eq!(s.browser, "chrome");
         assert!(!s.headless);
-        assert_eq!(s.timeout_seconds, None);
+        assert_eq!(s.run, RunSettings::default());
         assert!(!s.dark_mode);
         assert_eq!((s.window_width, s.window_height), (None, None));
         assert!(s.proxy.is_none());
@@ -1308,7 +1272,7 @@ mod tests {
         assert_eq!(settings.browser, "chrome");
         assert_eq!(settings.chrome_bin, None);
         assert_eq!(settings.webdriver_url, None);
-        assert_eq!(settings.timeout_seconds, None);
+        assert_eq!(settings.run.default_timeout, None);
     }
 
     #[test]
@@ -1368,7 +1332,7 @@ mod tests {
         let s = Settings::from_file(tmp.path()).unwrap();
         assert_eq!(s.browser, "firefox");
         assert!(s.headless);
-        assert_eq!(s.timeout_seconds, Some(60));
+        assert_eq!(s.run.default_timeout, Some(Duration::from_secs(60)));
         assert!(!s.test.pdb);
         assert_eq!(s.proxy, Some("http://proxy:8080".to_string()));
         assert_eq!(s.window_width, Some(1280));

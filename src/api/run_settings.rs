@@ -20,6 +20,7 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::api::html::BeautifulSoup;
@@ -74,23 +75,76 @@ pub enum PauseKind {
 /// The settings that change how a whole test run behaves.
 ///
 /// The default changes nothing.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
 pub struct RunSettings {
-    demo_mode: bool,
-    slow_mode: bool,
-    demo_sleep: Option<Duration>,
-    message_duration: Option<Duration>,
-    default_timeout: Option<Duration>,
-    skip_js_waits: bool,
-    record_sleep: bool,
-    reset_visual_baseline: bool,
-    highlights: Option<u32>,
-    interval: Option<Duration>,
-    verify_delay: Option<Duration>,
-    check_js: bool,
-    wait_for_angularjs: bool,
-    disable_beforeunload: bool,
-    timeout_multiplier: Option<f64>,
+    /// Highlight and pause after each action (`SB_DEMO`).
+    pub(crate) demo_mode: bool,
+    /// Pause after each action without highlighting (`SB_SLOW`).
+    pub(crate) slow_mode: bool,
+    /// The pause of demo and slow mode, in seconds (`SB_DEMO_SLEEP`).
+    #[serde(with = "seconds")]
+    pub(crate) demo_sleep: Option<Duration>,
+    /// How long a message stays on the page, in seconds (`SB_MESSAGE_DURATION`).
+    #[serde(with = "seconds")]
+    pub(crate) message_duration: Option<Duration>,
+    /// The default wait, in seconds (`SB_TIMEOUT`).
+    #[serde(with = "seconds")]
+    pub(crate) default_timeout: Option<Duration>,
+    /// Do not wait for the page's JavaScript (`SB_SKIP_JS_WAITS`).
+    pub(crate) skip_js_waits: bool,
+    /// Keep the sleeps of a recording (`SB_REC_SLEEP`).
+    pub(crate) record_sleep: bool,
+    /// Set the visual baselines again (`SB_VISUAL_BASELINE`).
+    pub(crate) reset_visual_baseline: bool,
+    /// How many times a highlighted element flashes (`SB_HIGHLIGHTS`).
+    pub(crate) highlights: Option<u32>,
+    /// Seconds between the steps of a tour or a presentation (`SB_INTERVAL`).
+    #[serde(with = "seconds")]
+    pub(crate) interval: Option<Duration>,
+    /// Seconds before a MasterQA verification (`SB_VERIFY_DELAY`).
+    #[serde(with = "seconds")]
+    pub(crate) verify_delay: Option<Duration>,
+    /// Check each page for JavaScript errors (`SB_CHECK_JS`).
+    pub(crate) check_js: bool,
+    /// Wait for AngularJS (`SB_WAIT_FOR_ANGULARJS`).
+    pub(crate) wait_for_angularjs: bool,
+    /// Remove the beforeunload prompt (`SB_DISABLE_BEFOREUNLOAD`).
+    pub(crate) disable_beforeunload: bool,
+    /// Multiplies the default waits (`SB_TIMEOUT_MULTIPLIER`).
+    pub(crate) timeout_multiplier: Option<f64>,
+}
+
+/// `Option<Duration>` as a number of seconds, 0 or more, in a settings file.
+mod seconds {
+    use std::time::Duration;
+
+    use serde::de::Error as _;
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub(super) fn serialize<S: Serializer>(
+        value: &Option<Duration>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        match value {
+            Some(duration) => serializer.serialize_some(&duration.as_secs_f64()),
+            None => serializer.serialize_none(),
+        }
+    }
+
+    pub(super) fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Option<Duration>, D::Error> {
+        Option::<f64>::deserialize(deserializer)?
+            .map(|seconds| {
+                Duration::try_from_secs_f64(seconds).map_err(|_| {
+                    D::Error::custom(format!(
+                        "expected a number of seconds, 0 or more, not {seconds}"
+                    ))
+                })
+            })
+            .transpose()
+    }
 }
 
 impl RunSettings {
