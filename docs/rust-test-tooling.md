@@ -610,8 +610,7 @@ pub async fn login(sb: &mut BaseCase, user: &str, pass: &str) -> Result<()> {
 }
 ```
 
-`BaseCase::find_element` is still there when you want the `drivers::WebElement`
-handle.
+`BaseCase::find_element` is still there when you want the `Element` handle.
 
 </View>
 
@@ -631,7 +630,7 @@ async fn fill_email<E: ElementApi>(sb: &mut E, email: &str) -> Result<(), seleni
 
 Both `BaseCase` (WebDriver) and `sb_cdp::Page` (Pure CDP) implement the traits,
 so the same helper runs on either. `ElementApi` no longer has `find_element`,
-because its `drivers::WebElement` return type tied the trait to WebDriver.
+because its element return type, a WebDriver `Element`, tied the trait to WebDriver.
 
 </View>
 

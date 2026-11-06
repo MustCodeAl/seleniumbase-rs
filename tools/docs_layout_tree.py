@@ -229,6 +229,8 @@ def browser_detail():
         _file("driver_access.rs", "repairs and runs drivers"),
         _file("driver_install.rs", "installs geckodriver and msedgedriver"),
         _file("driver_version.rs", "matches chromedriver to Chrome"),
+        _file("element.rs", "Element, the element the WebDriver engine found"),
+
         _file("launcher.rs", "chromedriver discovery, startup and StealthOptions"),
   
         _file("mod.rs", "the browser module"),

@@ -170,6 +170,15 @@ const GONE: &[(&str, &str)] = &[
     // pages that must still name them are in `ALLOWED`.
     ("use thirtyfour", "seleniumbase_rs::drivers"),
     ("thirtyfour::prelude::By", "seleniumbase_rs::drivers::By"),
+    // The WebDriver engine hands out `Element` and takes selector strings, not `By`
+    // (docs/design/element_type.md). `drivers::WebElement` stays for the escape hatch of
+    // `Element::as_webdriver_element`, which the pages may name.
+    ("use seleniumbase_rs::drivers::By", "a selector string"),
+    ("drivers::{By, WebElement}", "seleniumbase_rs::Element"),
+    ("Selector::to_by", "a selector string, or SelectorBuf"),
+    ("Selector::auto_by", "a selector string, or SelectorBuf"),
+    ("get_shadow_root", "find_element(\"host::shadow inner\")"),
+    ("BaseCase::locator", "BaseCase::find_element"),
     (
         "use rstest::",
         "seleniumbase_rs::testing::{fixture, rstest}",

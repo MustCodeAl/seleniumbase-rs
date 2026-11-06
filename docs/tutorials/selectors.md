@@ -25,7 +25,7 @@ things you can do for test maintainability. This page also covers Web Components
 
 <Visibility for="agents">
 
-Summary for AI exports: `BaseCase` reads a selector string by its prefix. `#` is an ID and `.` a class, a string that starts with `/`, `//`, `./`, `../`, `(` or an XPath axis is XPath, `link=` and `partial_link=` (and their short forms) match link text, and anything else is CSS. Prefixes are matched exactly. `Selector::auto_by` detects the strategy and `Selector::Css(..)` states it. The `::shadow` combinator moves the search into the shadow root of the element on its left, and can be chained for nested Web Components, as in `sb.click("app-shell::shadow nav-menu::shadow a[href='/settings']")`. Every method that takes a selector reads it (`click`, `type_text`, `get_text`, `get_attribute`, `assert_element`, `assert_text`, `assert_exact_text`, `is_element_visible`, `wait_for_element_visible`, `find_elements`, ...) and waits for the element. A selector must end on an element inside the last shadow root. The older `shadow_click`, `shadow_type`, `shadow_get_text`, `shadow_get_attribute`, `assert_shadow_element` and `assert_shadow_text` are the same lookups, and `get_shadow_root` returns a root as a `WebElement`. The WebDriver engine reaches closed roots; the pure CDP engine (`page.locator`) reaches open roots only. A check can be written in three formats: direct API calls in Rust (`BaseCase`, or `Locator` on the pure CDP engine), `sbrs` CLI commands such as `open`, `smoke` and `deferred`, and JSON scenarios run with `sbrs run-scenario --file`. Use the direct API for production tests, the CLI or JSON scenarios for CI smoke checks, and JSON scenarios for non-developer authors.
+Summary for AI exports: `BaseCase` reads a selector string by its prefix. `#` is an ID and `.` a class, a string that starts with `/`, `//`, `./`, `../`, `(` or an XPath axis is XPath, `link=` and `partial_link=` (and their short forms) match link text, and anything else is CSS. Prefixes are matched exactly. `Selector::auto` detects the strategy and `SelectorBuf::css(..)` states it where a method takes `impl Into<SelectorBuf>`. The `::shadow` combinator moves the search into the shadow root of the element on its left, and can be chained for nested Web Components, as in `sb.click("app-shell::shadow nav-menu::shadow a[href='/settings']")`. Every method that takes a selector reads it (`click`, `type_text`, `get_text`, `get_attribute`, `assert_element`, `assert_text`, `assert_exact_text`, `is_element_visible`, `wait_for_element_visible`, `find_elements`, ...) and waits for the element. A selector must end on an element inside the last shadow root. The older `shadow_click`, `shadow_type`, `shadow_get_text`, `shadow_get_attribute`, `assert_shadow_element` and `assert_shadow_text` are the same lookups, and `find_element("host::shadow inner")` returns the element inside the root as an `Element`. The WebDriver engine reaches closed roots; the pure CDP engine (`page.locator`) reaches open roots only. A check can be written in three formats: direct API calls in Rust (`BaseCase`, or `Locator` on the pure CDP engine), `sbrs` CLI commands such as `open`, `smoke` and `deferred`, and JSON scenarios run with `sbrs run-scenario --file`. Use the direct API for production tests, the CLI or JSON scenarios for CI smoke checks, and JSON scenarios for non-developer authors.
 
 </Visibility>
 
@@ -60,17 +60,21 @@ The prefixes are matched exactly and everything after one is the text, so
 
 </Warning>
 
-If you need to force a particular strategy, construct the `Selector` variant
-yourself instead of relying on detection:
+If you need to force a particular strategy, build the `SelectorBuf` yourself
+instead of relying on detection. It goes wherever a method takes a selector as
+`impl Into<SelectorBuf>`: the methods of `Element` and `BrowserSession`, and
+`Page::locator` and `Locator::locator` on the pure CDP engine.
 
 ```rust
-use seleniumbase_rs::Selector;
+use seleniumbase_rs::utils::selectors::SelectorBuf;
 
-// Detected automatically.
-let by = Selector::auto_by("parent::div")?;
+let row = sb.find_element("#cart .row").await?;
 
-// Or stated explicitly.
-let by = Selector::Css("div").to_by()?;
+// Detected automatically: a string is read by the rules above.
+let remove = row.find("link=Remove").await?;
+
+// Or stated explicitly, where the guess would be wrong.
+let cell = row.find(SelectorBuf::css("td:first-child")).await?;
 ```
 
 ## Examples
@@ -146,8 +150,7 @@ All of them. A few that Python's own examples use:
 | `get_text`, `get_attribute` | Wait for the element, then read what the browser shows. A container that only slots its content gives the slotted text. |
 | `assert_element`, `assert_element_present`, `assert_text`, `assert_exact_text` | Wait up to the case's timeout (`set_timeout`), then assert. |
 | `is_element_visible`, `is_element_present`, `is_text_visible` | Look once; a host that is missing or has no shadow root is `false`, not an error. |
-| `wait_for_element_visible`, `wait_for_element_present`, `find_elements` | Wait for the element, or list the matches in the innermost root. |
-| `get_shadow_root(selector)` | Returns the shadow root of the element, as a `WebElement`, for your own queries. |
+| `wait_for_element_visible`, `wait_for_element_present`, `find_element`, `find_elements` | Wait for the element, or list the matches in the innermost root. |
 
 The `shadow_click`, `shadow_type`, `shadow_get_text`, `shadow_get_attribute`,
 `assert_shadow_element` and `assert_shadow_text` methods of earlier versions
@@ -181,8 +184,8 @@ for el in elements {
 ```
 
 The elements are the matches in the innermost root, as ordinary
-`seleniumbase_rs::drivers::WebElement` handles, so you can call any supported
-method on them after retrieval.
+`seleniumbase_rs::Element` handles, so you can call any supported method on
+them after retrieval.
 
 ### The pure CDP engine
 
@@ -204,18 +207,19 @@ page.locator("my-app::shadow .result")
 A step of a chain reads it too (`page.locator("main").locator("my-app::shadow
 button")`), and a plain step does not enter a shadow root by itself.
 
-### Query the shadow root directly
+### Keep an element inside a shadow root
 
-For complex logic, fetch the shadow root and call the `WebElement` methods on it
-directly:
+`find_element` reads `host::shadow inner` like every other method, and gives
+the node inside the root as an `Element`:
 
 ```rust
-use seleniumbase_rs::drivers::By;
-
-let root = sb.get_shadow_root("my-app").await?;
-let button = root.find(By::Css("button")).await?;
+let button = sb.find_element("my-app::shadow button").await?;
 button.click().await?;
 ```
+
+A shadow root has no handle of its own: the selector reaches the same elements,
+closed roots included. A search from an element (`element.find(..)`) does not
+enter a shadow root; write the whole selector instead.
 
 ### Limitations
 

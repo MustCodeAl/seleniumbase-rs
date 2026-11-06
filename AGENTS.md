@@ -193,7 +193,7 @@ server (`find_api`) before you write the call.
    `page.locator("#checkout").strict()` (pure CDP) fails on two and says how many,
    and `page.locator("#checkout").expect().to_have_count(1)` checks it on its own.
 7. **Find again, do not hold elements.** Pass selector strings, which find the
-   element again on each call, or keep a `Locator`. A `WebElement` from
+   element again on each call, or keep a `Locator`. An `Element` from
    `find_element` goes stale when the page re-renders.
 8. **Cleanup runs on every path.** Do not call `quit` inside `sb.run` or
    `run_browser_test`. A `Browser` you launch is closed before you return the

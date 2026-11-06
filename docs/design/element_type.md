@@ -3,7 +3,14 @@ title: "Design: an element type of our own for the WebDriver engine"
 sidebarTitle: "An element type of our own"
 ---
 
-Status: design note, written before the code (branch `lane/design-element`, from `90ca478e`).
+Status: implemented on `lane/element-type`, with every recommendation accepted. Written
+before the code (branch `lane/design-element`, from `90ca478e`), and kept as it was, so the
+text below describes the plan; two things turned out differently. The conversion of a
+`SelectorBuf` to a `By` is `shadow_find::by_of` (with `checked`, which the `BaseCase` sites call
+where they called `Selector::auto(css).to_by()?`), and the suspected bug of
+`From<&str> for SelectorBuf` (`:contains` turned into XPath before `::shadow` is looked for) does
+not occur: the CSS-to-XPath converter reads `::` as an empty pseudo-class name and refuses, so a
+shadow selector stays CSS (a test pins it).
 Every line number below is from that commit. What `thirtyfour` does was read on Context7
 (`/websites/rs_thirtyfour`, the `WebElement` pages); what those pages did not show is either
 taken from code this crate already compiles (cited) or marked "to verify". The call-site counts

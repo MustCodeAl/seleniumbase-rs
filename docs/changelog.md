@@ -86,6 +86,39 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   (`WaitTimeout`); every other rustwright failure is `Playwright` with its text, and no element
   error is made up. `close` on a sidecar whose browser is gone is `Ok`.
 
+- **Breaking: the WebDriver engine returns `seleniumbase_rs::Element` and takes selectors, not
+  `thirtyfour` types.** `BaseCase::find_element`, `find_elements`, `get_element`,
+  `get_element_at_x_y`, `get_parent`, `find_link_text`, `find_partial_link_text`,
+  `find_exact_text`, `find_text`, `find_non_empty_text`, `find_visible_elements`, `select_all`,
+  `wait_for_any_of_elements_present`, `wait_for_link_text` and `wait_for_partial_link_text`
+  return an `Element` (or `Vec<Element>`, `Option<Element>`) where they returned
+  `drivers::WebElement`, and so do `BrowserSession::find`, `find_all`, `find_elements` and the
+  waits `wait_for_element`, `wait_for_element_visible` and `wait_for_element_clickable`. The 26
+  `BrowserSession` methods that took a `drivers::By` (`click`, `type_text`, `find`, the waits,
+  `switch_to_frame`, ...) take `selector: impl Into<SelectorBuf>`: a `&str`, a `String` or a
+  `Selector`, read by the rules of every other method. `BaseCase::get_shadow_root` is gone (a
+  `host::shadow inner` selector reaches the same elements in every method, closed roots
+  included) and so is `BaseCase::locator`, whose name belongs to the lazy `Page::locator`
+  (Python's `locator` is `find_element`; `get_element` stays). `Selector::to_by` and
+  `Selector::auto_by` are crate-private. `drivers::WebElement` and `drivers::By` stay, for
+  `Element::as_webdriver_element` and code that already holds them.
+
+  ```rust
+  // Before
+  let row: drivers::WebElement = sb.find_element("#cart .row").await?;
+  row.find(By::Css(".remove")).await?.click().await?;
+  println!("{}", row.is_displayed().await?);
+  session.click(Selector::auto("#go").to_by()?).await?;
+  // After
+  let row: Element = sb.find_element("#cart .row").await?;
+  row.find(".remove").await?.click().await?;
+  println!("{}", row.is_visible().await?);
+  session.click("#go").await?;
+  // A thirtyfour call Element has no method for
+  let raw = row.as_webdriver_element(); // &drivers::WebElement
+  ```
+
+
 ### Added
 
 - `BaseCase::devtools_endpoint()` (and `BrowserSession::devtools_endpoint()`): the DevTools
@@ -104,6 +137,19 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   again). The options keep what they were built from, so what they were built with still wins
   over a fingerprint: the stealth crates hold built options and call `with_fingerprint` for
   each browser they rotate to.
+- `seleniumbase_rs::Element`, the element type of the WebDriver engine (`src/browser/element.rs`).
+  It is the node the browser found, as Python's `WebElement` is, and its methods carry the names
+  of the pure CDP engine's `Locator` where the idea is the same: `text` (an input's value, else
+  the rendered text), `html`, `tag`, `attribute` (the markup's), `property`, `bounding_box`,
+  `is_visible`, `is_enabled`, `is_selected`, `click`, `double_click`, `right_click`, `hover`,
+  `clear`, `send_keys`, `type_text`, `press`, `select_option`, `submit`, `scroll_into_view` and
+  `drag_to`, with `find`, `find_all` and `parent` for the elements inside and above it. It
+  does not wait; a node the page replaced fails with `SeleniumBaseError::StaleElement`, which
+  now names the selector the element was found by (`#cart >> .row` for one found from another).
+  `as_webdriver_element()` and `into_webdriver_element()` give the raw `thirtyfour` element.
+  `Key` and `SelectBy` of the pure CDP engine are re-exported at the crate root, since
+  `Element::press` and `Element::select_option` take them.
+
 
 ### Changed
 
@@ -118,6 +164,12 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   `crates/cli/src/strict.rs` (a flag given twice to a command, a value written after a switch,
   `help` with a path that names no command) stay: usage 7.2 still takes all three, and a
   test fails the day it does not.
+
+- The message of a `BrowserSession` wait that times out names the selector as it was written
+  (`timed out waiting for element #a to be visible`), where it used `thirtyfour`'s `CSS(#a)`.
+  The waits and every other method of the session refuse a selector that can never match
+  (empty, or a shadow selector that ends on `::shadow`) with `InvalidSelector` at once, as
+  `BaseCase` always did.
 
 </Update>
 

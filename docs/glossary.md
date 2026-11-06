@@ -1959,7 +1959,7 @@ See [First-party and third-party](/concepts/sessions-and-state#first-party-and-t
 
 <Badge color="blue">Engine</Badge>
 
-The Rust WebDriver client library that the WebDriver engine is built on. Selectors become `drivers::By` values, and elements are `drivers::WebElement` handles.
+The Rust WebDriver client library that the WebDriver engine is built on. Its `WebElement` is wrapped by this crate's `Element`, which `BaseCase::find_element` returns, and `Element::as_webdriver_element` hands the raw one back (`drivers::WebElement`) for a call `Element` has no method for.
 
 See [How it compares](/comparison).
 
