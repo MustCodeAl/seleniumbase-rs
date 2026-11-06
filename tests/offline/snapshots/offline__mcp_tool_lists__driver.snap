@@ -1,5 +1,5 @@
 ---
-source: tests/mcp_tool_lists.rs
+source: tests/offline/mcp_tool_lists.rs
 expression: text
 ---
 {
