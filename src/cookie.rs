@@ -195,6 +195,10 @@ impl Cookie {
     /// `false`, the whole-second expiry becomes `expires` (a negative one reads as a session
     /// cookie), and the library's `Default` policy, which means "let the driver pick", becomes
     /// no policy.
+    #[expect(
+        clippy::cast_precision_loss,
+        reason = "a whole-second expiry since 1970 is far below 2^53, where an f64 is exact"
+    )]
     pub(crate) fn from_webdriver(cookie: &WebDriverCookie) -> Self {
         Self {
             name: cookie.name.clone(),
@@ -221,6 +225,10 @@ impl Cookie {
     /// An empty `domain` is left out, so the browser uses the page's. The expiry is cut to
     /// whole seconds, as WebDriver counts them, and a negative one (a session cookie) is left
     /// out.
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "after trunc() a real expiry is a whole number of seconds that fits an i64"
+    )]
     pub(crate) fn to_webdriver(&self) -> WebDriverCookie {
         let mut cookie = WebDriverCookie::new(self.name.as_str(), self.value.as_str());
         cookie.set_path(self.path.as_str());

@@ -50,6 +50,22 @@ pub mod browser;
 pub mod cli;
 pub mod common;
 pub mod config;
+// The Microsoft Pragmatic Rust Guidelines lint set, held to for this module (it held for
+// the cookie type while it lived in `sb_cdp`).
+#[warn(
+    clippy::pedantic,
+    clippy::allow_attributes_without_reason,
+    clippy::clone_on_ref_ptr,
+    clippy::map_err_ignore,
+    clippy::semicolon_outside_block,
+    clippy::unused_result_ok,
+    clippy::too_long_first_doc_paragraph,
+    missing_debug_implementations,
+    redundant_imports,
+    redundant_lifetimes,
+    trivial_numeric_casts,
+    unused_lifetimes
+)]
 mod cookie;
 pub mod core;
 pub mod drivers;
