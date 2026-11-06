@@ -12,6 +12,8 @@ pub mod downloads;
 pub mod driver_access;
 pub mod driver_install;
 pub mod driver_version;
+pub mod element;
+
 pub mod launcher;
 
 pub mod options;
