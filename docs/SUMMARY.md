@@ -161,6 +161,7 @@ hidden: true
   - [Generated builders with bon](design/bon_builders.md)
   - [An element type of our own for the WebDriver engine](design/element_type.md)
   - [One cookie type for both engines](design/cookie_type.md)
+  - [Our own error for a failed WebDriver command](design/driver_error.md)
 
 - [ABI & API Stability](ABI_API.md)
 - [Architecture Decision Records](adr/001-stealth-architecture.md)
