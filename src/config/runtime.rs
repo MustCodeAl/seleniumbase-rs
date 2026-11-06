@@ -14,7 +14,8 @@ use std::time::Duration;
 /// the box while production deploys can override via the environment.
 #[derive(Clone, Debug, PartialEq)]
 pub struct RuntimeConfig {
-    /// WebDriver endpoint. Defaults to `http://localhost:4444`.
+    /// WebDriver endpoint. Defaults to `http://localhost:4444`. A blank `SB_WEBDRIVER_URL`,
+    /// `SB_CHROME_BIN` or `SB_REMOTE_WEBDRIVER_TIMEOUT` counts as unset, as it does for `Settings`.
     pub webdriver_url: String,
     /// Explicit Chrome/Chromium binary path. Falls back to `find_system_chrome()`
     /// when unset.
@@ -118,10 +119,10 @@ impl RuntimeConfig {
             }
         };
 
-        if let Some(v) = var("SB_WEBDRIVER_URL") {
+        if let Some(v) = var("SB_WEBDRIVER_URL").filter(|v| !v.trim().is_empty()) {
             cfg.webdriver_url = v;
         }
-        if let Some(v) = var("SB_CHROME_BIN") {
+        if let Some(v) = var("SB_CHROME_BIN").filter(|v| !v.trim().is_empty()) {
             cfg.chrome_bin = Some(PathBuf::from(v));
         }
         if let Some(v) = var("SB_PATCH_CACHE_DIR") {
@@ -148,7 +149,7 @@ impl RuntimeConfig {
                     .map(|secs| cfg.implicit_wait = Duration::from_secs(secs)),
             );
         }
-        if let Some(v) = var("SB_REMOTE_WEBDRIVER_TIMEOUT") {
+        if let Some(v) = var("SB_REMOTE_WEBDRIVER_TIMEOUT").filter(|v| !v.trim().is_empty()) {
             keep(
                 parse_u64(&v, "SB_REMOTE_WEBDRIVER_TIMEOUT")
                     .map(|secs| cfg.remote_webdriver_timeout = Some(Duration::from_secs(secs))),

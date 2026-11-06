@@ -235,6 +235,14 @@ fn canonical_entries(
     let mut top = Map::new();
     for (key, value) in entries {
         let name = settings_key(&key).ok_or_else(|| unknown_setting(&key, file))?;
+        if name == "settings_file" {
+            // The setting names the file, so a file cannot hold it: it would do nothing.
+            return Err(SeleniumBaseError::InvalidConfig(format!(
+                "\"{key}\" names the settings file, so a settings file cannot set it; \
+                 use `--settings-file` or `SB_SETTINGS_FILE`"
+            )));
+        }
+
         if let Some((_, first)) = written.iter().find(|(known, _)| *known == name) {
             return Err(same_setting(first, &key, name));
         }

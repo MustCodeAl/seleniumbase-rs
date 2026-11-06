@@ -71,7 +71,6 @@ Key builder methods:
 | `with_start_page(url)` | The page `BaseCase::open_start_page` / `goto_start_page` returns to (default `about:blank`). |
 | `with_reuse_session(bool)` | Share browsers among the tests of the run (`--reuse-session`, `--rs`); see [Sharing a browser between tests](#sharing-a-browser-between-tests). |
 | `with_reuse_module_session(bool)` / `with_reuse_class_session(name)` | Share a browser only among the tests of one module, or of one name (`--rcs`). Both turn `reuse_session` on. |
-| `with_threads(n)` | Sets `threads`. `BaseCase` ignores it; only `sbrs test` acts on a thread count (`-n`, as `--test-threads`). |
 | `with_ad_block(bool)` | Sets `ad_block`: a Chromium WebDriver session refuses the requests of advertising and tracking hosts (see below). |
 | `with_ad_block_list(list)` | Block the hosts of this `AdBlockList` instead of the built-in list, and turn `ad_block` on. |
 | `with_fingerprint(fp)` | Apply a [`Fingerprint`](/stealth/introduction). |

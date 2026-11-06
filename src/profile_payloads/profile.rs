@@ -1253,7 +1253,7 @@ impl ProfileParams {
             start_page: custom_start_urls.first().cloned(),
             reuse_session: false,
             mobile: self.os_type == "android" || self.os_type == "ios",
-            threads: None,
+
             ad_block: fingerprint
                 .proxy()
                 .value()

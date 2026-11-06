@@ -763,33 +763,46 @@ fn finding_5_headless_has_one_default_for_each_entry_point() {
     assert_eq!(options.is_headless(), cfg!(target_os = "linux"));
 }
 
-/// Finding 7: `RuntimeConfig` reads `SB_CHROME_BIN` without the blank rule of the table.
+/// Finding 7: `RuntimeConfig` read `SB_CHROME_BIN` without the blank rule of the table.
 #[test]
-fn finding_7_runtime_config_reads_a_blank_binary_as_a_path_today() {
+fn finding_7_runtime_config_reads_a_blank_binary_as_unset() {
     let dir = tempfile::tempdir().expect("a temporary folder");
     let path = file_with(dir.path(), "sbase_config.toml", "");
     let blank = |name: &str| (name == "SB_CHROME_BIN").then(String::new);
     let runtime = RuntimeConfig::from_vars(blank).expect("valid");
-    assert_eq!(runtime.chrome_bin, Some(PathBuf::from("")));
+    assert_eq!(runtime.chrome_bin, None);
     assert_eq!(
         Settings::check_with(Some(&path), blank).settings.chrome_bin,
         None
     );
+    // The same for the other two variables both read.
+    let blank = |name: &str| {
+        ["SB_WEBDRIVER_URL", "SB_REMOTE_WEBDRIVER_TIMEOUT"]
+            .contains(&name)
+            .then(|| " ".to_owned())
+    };
+    let runtime = RuntimeConfig::from_vars(blank).expect("valid");
+    assert_eq!(runtime.webdriver_url, "http://localhost:4444");
+    assert_eq!(runtime.remote_webdriver_timeout, None);
 }
 
-/// Finding 8: `BrowserConfig::threads` is written from `Settings::threads` and read by nothing.
+/// Finding 8: `BrowserConfig::threads` was written from `Settings::threads` and read by nothing.
 #[test]
-fn finding_8_the_browser_config_carries_threads_nothing_reads_today() {
+fn finding_8_the_browser_config_carries_no_threads() {
+    // `Settings::threads` is read by `sbrs test`; the `BrowserConfig` of a session had a copy
+    // that nothing read.
     let settings = Settings {
         threads: Some(3),
         ..Settings::default()
     };
-    assert_eq!(settings.to_browser_config().threads, Some(3));
+    let config = serde_json::to_value(settings.to_browser_config()).expect("json");
+    assert!(find_key(&config, "threads").is_none(), "{config}");
+    assert_eq!(settings.threads, Some(3));
 }
 
-/// Finding 9: the Grid address of `Settings` and `grid_url` agree except where they differ.
+/// Finding 9: `Settings` and `BrowserConfig::with_grid` built a Grid address with two functions.
 #[test]
-fn finding_9_two_functions_build_a_grid_address_today() {
+fn finding_9_one_function_builds_a_grid_address() {
     let address = |port: u16, protocol: &str| {
         Settings {
             server: Some("grid.example.test".to_owned()),
@@ -800,16 +813,18 @@ fn finding_9_two_functions_build_a_grid_address_today() {
         .to_browser_config()
         .webdriver_url
     };
-    assert_eq!(
-        address(4445, "https"),
-        grid_url(GridProtocol::Https, "grid.example.test", 4445).expect("a Grid address")
-    );
-    // The protocol's own port is left out of the address by `grid_url`, not by `Settings`.
-    assert_eq!(address(80, "http"), "http://grid.example.test:80/wd/hub");
-    assert_eq!(
-        grid_url(GridProtocol::Http, "grid.example.test", 80).expect("a Grid address"),
-        "http://grid.example.test/wd/hub"
-    );
+    for (port, protocol, kind) in [
+        (4445, "https", GridProtocol::Https),
+        (80, "http", GridProtocol::Http),
+        (443, "https", GridProtocol::Https),
+    ] {
+        assert_eq!(
+            address(port, protocol),
+            grid_url(kind, "grid.example.test", port).expect("a Grid address")
+        );
+    }
+    // The protocol's own port is left out of the address.
+    assert_eq!(address(80, "http"), "http://grid.example.test/wd/hub");
 }
 
 /// Finding 10: `window_size` of the file wins over `SB_WINDOW_WIDTH` and `_HEIGHT`, whatever set each.
@@ -847,9 +862,9 @@ fn finding_10_a_window_size_of_the_file_beats_the_width_and_height_variables_tod
     assert_eq!(size(&check.settings), file_size);
 }
 
-/// Finding 11: `settings_file` is accepted as a key of the file and does nothing.
+/// Finding 11: `settings_file` was accepted as a key of the file and did nothing.
 #[test]
-fn finding_11_settings_file_is_a_key_that_does_nothing_today() {
+fn finding_11_a_settings_file_cannot_name_the_settings_file() {
     let dir = tempfile::tempdir().expect("a temporary folder");
     for key in ["settings_file", "settings"] {
         let path = file_with(
@@ -857,14 +872,17 @@ fn finding_11_settings_file_is_a_key_that_does_nothing_today() {
             "sbase_config.toml",
             &format!("{key} = \"other.toml\"\n"),
         );
-        let settings = Settings::from_file(path).expect("accepted today");
-        assert_eq!(settings.settings_file, None, "{key}");
+        let error = Settings::from_file(path).unwrap_err().to_string();
+        assert!(
+            error.contains(&format!("\"{key}\" names the settings file")),
+            "{error}"
+        );
     }
 }
 
-/// Finding 13: seven variables the code reads are missing from the listing (`sbrs options --env`).
+/// Finding 13: seven variables the code reads were missing from the listing (`sbrs options --env`).
 #[test]
-fn finding_13_seven_variables_are_missing_from_the_listing_today() {
+fn finding_13_the_seven_variables_are_in_the_listing() {
     let listed = variables();
     for name in [
         "SB_REC_KEEP_SECRETS",
@@ -876,8 +894,8 @@ fn finding_13_seven_variables_are_missing_from_the_listing_today() {
         "SB_GRID_DIR",
     ] {
         assert!(
-            listed.iter().all(|variable| variable.name != name),
-            "{name} is listed"
+            listed.iter().any(|variable| variable.name == name),
+            "{name} is not listed"
         );
     }
 }

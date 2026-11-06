@@ -273,6 +273,63 @@ pub const EXTRA_VARIABLES: &[EnvVar] = &[
         help: "The folder the tools of the MCP server write their files to",
         refused: None,
     },
+    EnvVar {
+        name: "SB_REC_FILE",
+        read_by: "tests",
+        flags: &[],
+        default: "the name of the test",
+        help: "The file stem a recording is written to, when the test names none",
+        refused: None,
+    },
+    EnvVar {
+        name: "SB_REC_KEEP_SECRETS",
+        read_by: "tests",
+        flags: &[],
+        default: "false",
+        help: "Record typed passwords as typed, not as a placeholder read from the environment when the recording is replayed (true or 1)",
+        refused: None,
+    },
+    EnvVar {
+        name: "SB_S3_BUCKET",
+        read_by: "tests",
+        flags: &[],
+        default: "-",
+        help: "The S3 bucket that --with-s3-logging uploads the logs of each test to",
+        refused: None,
+    },
+    EnvVar {
+        name: "SB_S3_REGION",
+        read_by: "tests",
+        flags: &[],
+        default: "AWS_REGION, else us-east-1",
+        help: "The region of the S3 bucket",
+        refused: None,
+    },
+    EnvVar {
+        name: "SB_S3_PREFIX",
+        read_by: "tests",
+        flags: &[],
+        default: "-",
+        help: "A key prefix in the S3 bucket, such as logs/",
+        refused: None,
+    },
+    EnvVar {
+        name: "SB_OCR_MODELS",
+        read_by: "tests",
+        flags: &[],
+        default: "downloaded into the cache folder",
+        help: "A folder that holds the OCR models, instead of downloading them (feature ocr)",
+        refused: None,
+    },
+    EnvVar {
+        name: "SB_GRID_DIR",
+        read_by: "sbrs",
+        flags: &[],
+        default: "seleniumbase-rs/grid in the state folder of the user",
+        help: "The folder the Selenium Grid records and logs go to",
+        refused: None,
+    },
+
 ];
 
 /// One line of the listing: a variable, who reads it, its flag, its default and what it sets.

@@ -12,9 +12,9 @@ use std::time::Duration;
 
 use crate::browser::config::{Browser, BrowserConfig};
 use crate::browser::options::{
-    switch_args, CapabilityOverrides, CdpEventCapture, DeviceMetrics, DriverVersion,
-    ExtensionArchive, LaunchSwitch, LocaleCode, PageLoadStrategy, ProxyBypassList, VirtualDisplay,
-    WindowPosition, WindowSize,
+    grid_url, switch_args, CapabilityOverrides, CdpEventCapture, DeviceMetrics, DriverVersion,
+    ExtensionArchive, GridProtocol, LaunchSwitch, LocaleCode, PageLoadStrategy, ProxyBypassList,
+    VirtualDisplay, WindowPosition, WindowSize,
 };
 use crate::config::settings::Settings;
 use crate::config::test_settings::TestData;
@@ -93,7 +93,7 @@ impl Settings {
                 self.server.as_deref(),
                 self.port,
                 self.protocol.as_deref(),
-            ));
+            )?);
         }
         if let Some(text) = &self.locale_code {
             config = config.with_locale(text.parse::<LocaleCode>()?.as_str());
@@ -388,33 +388,16 @@ pub(super) fn remote_address(
     server: Option<&str>,
     port: Option<u16>,
     protocol: Option<&str>,
-) -> String {
-    let mut protocol = protocol.unwrap_or("http");
+) -> Result<String, SeleniumBaseError> {
+    let protocol = protocol
+        .map(str::parse::<GridProtocol>)
+        .transpose()?
+        .unwrap_or_default();
     let port = port.unwrap_or(DEFAULT_PORT);
-    let Some(mut server) = server else {
-        return format!("{protocol}://localhost:{port}");
-    };
-    if let Some(rest) = server.strip_prefix("https://") {
-        protocol = "https";
-        server = rest;
-    } else if let Some((_, rest)) = server.split_once("://") {
-        server = rest;
+    match server {
+        Some(server) => grid_url(protocol, server, port),
+        None => Ok(format!("{protocol}://localhost:{port}")),
     }
-    let with_port = if server.contains(':') {
-        server.to_owned()
-    } else if let Some(slash) = server.find('/') {
-        format!("{}:{port}{}", &server[..slash], &server[slash..])
-    } else {
-        format!("{server}:{port}")
-    };
-    let mut address = format!("{protocol}://{with_port}");
-    if !address.ends_with("/wd/hub") {
-        if !address.ends_with('/') {
-            address.push('/');
-        }
-        address.push_str("wd/hub");
-    }
-    address
 }
 
 #[cfg(test)]
@@ -508,31 +491,35 @@ mod tests {
 
     #[test]
     fn the_grid_address_is_built_as_python_builds_it() {
-        assert_eq!(remote_address(None, None, None), "http://localhost:4444");
+        let address = |server, port, protocol| remote_address(server, port, protocol).unwrap();
+        assert_eq!(address(None, None, None), "http://localhost:4444");
         assert_eq!(
-            remote_address(None, Some(9515), Some("https")),
+            address(None, Some(9515), Some("https")),
             "https://localhost:9515"
         );
         assert_eq!(
-            remote_address(Some("grid.test"), None, None),
+            address(Some("grid.test"), None, None),
             "http://grid.test:4444/wd/hub"
         );
         assert_eq!(
-            remote_address(Some("grid.test"), Some(5555), Some("https")),
+            address(Some("grid.test"), Some(5555), Some("https")),
             "https://grid.test:5555/wd/hub"
         );
         assert_eq!(
-            remote_address(Some("https://grid.test"), None, Some("http")),
+            address(Some("https://grid.test"), None, Some("http")),
             "https://grid.test:4444/wd/hub"
         );
         assert_eq!(
-            remote_address(Some("http://grid.test:4445/wd/hub"), Some(1), None),
+            address(Some("http://grid.test:4445/wd/hub"), Some(1), None),
             "http://grid.test:4445/wd/hub"
         );
+        // The protocol's own port is left out of the address, as `grid_url` writes it.
         assert_eq!(
-            remote_address(Some("grid.test/base/"), Some(80), None),
-            "http://grid.test:80/base/wd/hub"
+            address(Some("grid.test/base/"), Some(80), None),
+            "http://grid.test/base/wd/hub"
         );
+        assert!(remote_address(Some("grid.test"), None, Some("ftp")).is_err());
+        assert!(remote_address(Some(" "), None, None).is_err());
     }
 
     #[test]

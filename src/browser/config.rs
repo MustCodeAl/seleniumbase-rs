@@ -242,7 +242,7 @@ pub struct BrowserConfig {
     /// what differs from Python.
     pub reuse_session: bool,
     pub mobile: bool,
-    pub threads: Option<usize>,
+
     pub auto_start_driver: bool,
     /// Extra Chromium/Edge command-line arguments supplied by callers such as
     /// external profile payload integrations.
@@ -322,7 +322,6 @@ impl std::fmt::Debug for BrowserConfig {
             .field("start_page", &self.start_page)
             .field("reuse_session", &self.reuse_session)
             .field("mobile", &self.mobile)
-            .field("threads", &self.threads)
             .field("auto_start_driver", &self.auto_start_driver)
             .field("extra_args", &self.extra_args)
             .field("fingerprint", &self.fingerprint)
@@ -373,7 +372,7 @@ impl BrowserConfig {
             start_page: None,
             reuse_session: false,
             mobile: false,
-            threads: None,
+
             auto_start_driver: true,
             extra_args: Vec::new(),
             fingerprint: None,
@@ -562,11 +561,6 @@ impl BrowserConfig {
 
     pub fn with_mobile(mut self, mobile: bool) -> Self {
         self.mobile = mobile;
-        self
-    }
-
-    pub fn with_threads(mut self, threads: usize) -> Self {
-        self.threads = Some(threads);
         self
     }
 

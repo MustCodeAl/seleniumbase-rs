@@ -1030,7 +1030,7 @@ impl Settings {
             extension_dir: self.extension_dir.clone(),
             reuse_session: self.reuse_session || self.reuse_class_session,
             mobile: self.mobile,
-            threads: self.threads,
+
             auto_start_driver: true,
             start_page: self.start_page.clone(),
             extra_args: Vec::new(),
@@ -1415,7 +1415,7 @@ threads = 4
         assert!(config.headless);
         assert!(matches!(config.mode, DriverMode::Cdp));
         assert!(config.mobile);
-        assert_eq!(config.threads, Some(2));
+
         assert_eq!(
             config.proxy_pac_url,
             Some("http://proxy/proxy.pac".to_string())
