@@ -95,6 +95,22 @@ fn a_file_written_from_serialized_settings_loads_back_equal_in_toml_and_json() {
 }
 
 #[test]
+fn the_disable_features_of_chromium_arg_add_to_the_nested_disable_features() {
+    // Not a duplicate: a `disable-features=` item of `chromium_arg` joins the features to
+    // disable, as it does for the builder and the variable, so the two spellings add up.
+    let settings = layered(
+        "chromium_arg = \"disable-features=Foo\"\n[browser.chromium]\ndisable_features = [\"Bar\"]\n",
+        &[],
+    );
+    let features = &settings.browser.chromium.disable_features;
+    assert!(
+        features.iter().any(|feature| feature == "Foo")
+            && features.iter().any(|feature| feature == "Bar"),
+        "{features:?}"
+    );
+}
+
+#[test]
 fn the_nested_tables_sit_beside_the_flat_keys_of_other_settings() {
     let settings = layered(
         "dark_mode = true\nheadless = true\n\

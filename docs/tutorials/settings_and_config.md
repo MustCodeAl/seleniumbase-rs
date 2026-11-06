@@ -141,6 +141,11 @@ spellings:
 "dark_mode" and "[browser.switches] dark-mode" are the same setting (browser.switches.dark-mode) in the settings file
 ```
 
+The one pair that is not refused is `chromium_arg` and `[browser.chromium] disable_features`: the
+`disable-features=` items of `chromium_arg` join the features of `disable_features` when the
+browser is launched, so the two add up (`chromium_arg = "disable-features=Foo"` beside
+`disable_features = ["Bar"]` disables both).
+
 A lone `window_width` beside `[browser.window_size] height = 600` is one size, as a lone side
 is laid over a lower source's. A `browser` that is a text is the flat key of the browser kind
 (`browser = "firefox"`); a table of that name is the nested form.
