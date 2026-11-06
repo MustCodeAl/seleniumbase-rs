@@ -207,6 +207,53 @@ fn a_misspelled_key_of_a_nested_table_is_refused() {
 }
 
 #[test]
+fn check_lists_every_problem_of_the_nested_tables_sorted_by_row() {
+    let dir = tempfile::tempdir().expect("a temporary folder");
+    // A key that is no field, two texts for a switch and a window side that is no number, all in
+    // the nested form, and a variable: `check` finds each one, and not only the first.
+    let path = file_with(
+        dir.path(),
+        "sbase_config.toml",
+        "[browser]\nmobile = \"sometimes\"\nhedless = true\nheadless = \"maybe\"\n\
+         [browser.window_size]\nwidth = \"wide\"\n",
+    );
+    let check = Settings::check_with(Some(&path), |name| {
+        (name == "SB_THREADS").then(|| "lots".to_owned())
+    });
+    // The rows run `headless`, `window_width`, `mobile`, `threads`; a key that no row holds
+    // comes last.
+    let order: Vec<&str> = check
+        .problems
+        .iter()
+        .map(|problem| {
+            let text = problem.error.to_string();
+            [
+                "browser.headless:",
+                "browser.window_size.width:",
+                "browser.mobile:",
+                "SB_THREADS",
+                "browser.hedless:",
+            ]
+            .into_iter()
+            .find(|key| text.contains(key))
+            .unwrap_or("?")
+        })
+        .collect();
+    assert_eq!(
+        order,
+        [
+            "browser.headless:",
+            "browser.window_size.width:",
+            "browser.mobile:",
+            "SB_THREADS",
+            "browser.hedless:",
+        ],
+        "{:?}",
+        check.problems
+    );
+}
+
+#[test]
 fn a_refused_nested_value_names_the_file_and_the_path_and_not_the_value() {
     let error = refused("sbase_config.toml", "[browser]\nheadless = \"hunter2\"\n");
     assert!(error.contains("sbase_config.toml"), "{error}");

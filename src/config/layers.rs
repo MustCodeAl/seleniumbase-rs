@@ -356,6 +356,56 @@ mod tests {
     }
 
     #[test]
+    fn the_default_of_a_setting_the_serializer_leaves_out_is_the_value_its_type_accepts() {
+        // An option that is unset, a list with no item and a switch that is off.
+        assert!(matches!(
+            empty_at("browser.debugging_port"),
+            Some(Value::Empty(_, Empty::None))
+        ));
+        assert!(matches!(
+            empty_at("browser.extensions"),
+            Some(Value::Array(_, items)) if items.is_empty()
+        ));
+        assert!(matches!(
+            empty_at("report.dashboard"),
+            Some(Value::Bool(_, false))
+        ));
+        // A number and an enum take the unset value too (figment leaves the field out and serde
+        // fills its default), so a field that gains `skip_serializing_if` later is covered.
+        assert!(matches!(
+            empty_at("run.timeout_multiplier"),
+            Some(Value::Empty(_, Empty::None))
+        ));
+        assert!(matches!(empty_at("test.runner"), Some(Value::Empty(..))));
+        // A field the group does not have is refused as well.
+        assert!(empty_at("run.no_such_field").is_none());
+    }
+
+    #[test]
+    fn an_unset_value_over_a_number_or_a_name_leaves_the_default_of_the_setting() {
+        let mut low = Dict::new();
+        put(&mut low, "run.timeout_multiplier", Value::from(3_u32));
+        put(&mut low, "test.runner", text("nextest"));
+        let mut high = Dict::new();
+        put(&mut high, "run.timeout_multiplier", nothing());
+        put(&mut high, "test.runner", nothing());
+        let low = Layer::new(Metadata::named("low"), low);
+        let high = Layer::new(Metadata::named("high"), high);
+        let over = extract(&[&low, &high]).expect("the layers are settings");
+        let lone = extract(&[&low]).expect("the layer is settings");
+        let seen = |settings: &Settings| {
+            let whole = serde_json::to_value(settings).expect("the settings serialize");
+            (
+                whole["run"]["timeout_multiplier"].clone(),
+                whole["test"]["runner"].clone(),
+            )
+        };
+        let defaults = seen(&Settings::default());
+        assert_ne!(seen(&lone), defaults, "the lower layer sets both");
+        assert_eq!(seen(&over), defaults);
+    }
+
+    #[test]
     fn a_refused_key_is_forgotten_with_the_table_that_it_leaves_empty() {
         let mut dict = Dict::new();
         put(&mut dict, "run.demo_mode", text("later"));
