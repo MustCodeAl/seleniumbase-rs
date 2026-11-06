@@ -864,6 +864,7 @@
               "contributing/benchmarking",
               "contributing/coverage",
               "contributing/releasing",
+              "contributing/ci",
               "contributing/consumers",
               "contributing/manual-checks",
               "UPSTREAM_SYNC",
