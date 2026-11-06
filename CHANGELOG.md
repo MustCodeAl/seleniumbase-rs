@@ -489,6 +489,17 @@ work, `docs/parity.md` the per-API status).
   workflows stay in `.github/workflows`. The "CI on GitLab" section of `CONTRIBUTING.md` says
   how to start the manual jobs.
 
+- ci: GitLab security scanning. `.gitlab-ci.yml` includes GitLab's SAST, secret detection and
+  dependency scanning templates, which add the jobs `secret_detection`, `dependency-scanning`
+  (it reads `Cargo.lock`), `gitlab-advanced-sast-ext` (the Rust files: GitLab Advanced SAST
+  supports Rust in beta, its Semgrep-based analyzer does not) and `gitlab-advanced-sast`. They
+  report to the Security tab and the merge request and never stop the pipeline. A branch with an
+  open merge request is now gated by its merge request pipeline only, not by a second branch
+  pipeline. `docs/contributing/ci.md` (new) describes the scanners, the merge-request flow with
+  GitLab Duo Code Review, and where a future `fuzz/` crate plugs into GitLab's coverage-guided
+  fuzzing; the "CI on GitLab" section of `CONTRIBUTING.md` has the short form.
+
+
 ### Fixed
 
 - `get_cookie` of a cookie the page does not have is `Ok(None)`, as Python's is `None`. It was
