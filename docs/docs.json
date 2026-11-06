@@ -890,7 +890,8 @@
               "design/cookie_type",
               "design/driver_error",
               "design/network_throttle",
-              "design/devtools_client"
+              "design/devtools_client",
+              "design/capability_types"
             ]
           },
           {
