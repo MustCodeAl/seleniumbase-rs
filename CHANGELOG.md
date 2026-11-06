@@ -118,7 +118,7 @@ work, `docs/parity.md` the per-API status).
   config.browser_binary_path                 config.browser.executable_path
   config.extra_args                          config.browser.chromium.args
   config.launch.has(LaunchSwitch::DarkMode)  config.browser.has(LaunchSwitch::DarkMode)
-  config.mode                                config.session.mode
+  config.mode                                config.session.mode (an Option<DriverMode>)
   config.reuse_session                       config.session.reuse
   config.webdriver_url                       config.session.webdriver_url()
   config.launch.firefox                      config.session.firefox
@@ -183,7 +183,7 @@ work, `docs/parity.md` the per-API status).
     esc_end, rec_sb_cdp, headless1              ... (browser.switches, 26 of them)
   settings.test.recorder, rec_print,          settings.browser.has(LaunchSwitch::RecorderMode),
     rec_behave, rec_sb_mgr                      RecPrint, RecBehave, RecSbMgr
-  settings.mode (text)                        settings.session.mode (a DriverMode)
+  settings.mode (text)                        settings.session.mode (an Option<DriverMode>)
   settings.webdriver_url                      settings.session.webdriver_url
   settings.server, port, protocol (text)      settings.session.grid.server, .port, .protocol
   settings.remote_webdriver_timeout_seconds   settings.session.remote_webdriver_timeout_seconds
@@ -216,14 +216,18 @@ work, `docs/parity.md` the per-API status).
   ```
 
   Where a value had two inputs, the rule is the one of the table: the later row of one source
-  wins, and a higher source wins over a lower one. Three corners follow from that. The
-  capabilities of a higher source are laid over the lower one's (the file, then the JSON
-  text), and `SB_DISABLE_FEATURES` adds to the features that `SB_CHROMIUM_ARG` named. A
-  virtual-display size (`SB_XVFB_METRICS`) counts only when `SB_XVFB` is on in the same
-  source; it is forgotten when `SB_XVFB` comes from another source, a higher or a lower one (the
-  layers are read one source at a time). And `sbrs` takes the default mode of a command (the DevTools for `devtools`)
-  also when the mode asked for is WebDriver, because the settings no longer tell "WebDriver"
-  from "no mode".
+  wins, and a higher source wins over a lower one. The variables that write one setting
+  together are decided one by one: the virtual display and its size (`SB_XVFB`,
+  `SB_XVFB_METRICS`), the DevTools events that are logged (`SB_LOG_CDP_EVENTS`,
+  `SB_UC_CDP_EVENTS`) and the Chromium switches and features (`SB_CHROMIUM_ARG`,
+  `SB_DISABLE_FEATURES`) are each read from the source nearest the top that gives them,
+  whichever source gave the other half, as they were read before the sources were layered. The
+  capabilities of a higher source are laid over the lower one's (the file, then the JSON text).
+  The mode is an `Option<DriverMode>`: `None` is no mode asked for, and `sbrs` gives a command
+  its own mode (the DevTools for `devtools`) only then, so `SB_MODE=webdriver`, `--mode
+  webdriver` and `mode = "webdriver"` keep WebDriver. One corner stays: a display size that no
+  display was asked for by the end of one loading is forgotten, so `--xvfb` on the command line
+  over a file that holds only `xvfb_metrics` opens the default size.
 
 - **Breaking: the settings are layered with figment (`docs/design/settings_v2.md`, step 6).**
   The settings file, the `SB_*` variables and explicit code are three layers over the defaults,
@@ -257,20 +261,22 @@ work, `docs/parity.md` the per-API status).
   ```text
   SB_HEADLESS (--headless): cannot parse bool: maybe
   failed to parse TOML settings: sbase_config.toml: headless: cannot parse bool: …
-  failed to parse TOML settings: sbase_config.toml: [run] demo_mode: invalid type: string "later", expected a boolean
+  failed to parse TOML settings: sbase_config.toml: [run] demo_mode: invalid type: string "…", expected a boolean
   ```
 
   `Settings::check` lists the problems of the file and of the variables in the order of the
   rows of the option table, whichever source gave each, and a file with several refused values
   reports every one and keeps the values it did not refuse (it used to report the first and
-  drop the whole file). Corners of the merge: a list of a higher source replaces the list of
-  the lower one (`SB_CHROMIUM_ARG`, `SB_EXTENSION_DIR`, `SB_PLUGINS`), the Chromium features of
-  `SB_DISABLE_FEATURES` replace the ones a lower source named (they were added across sources),
-  the Firefox preferences of a higher source are laid over the lower ones key by key, and
-  `SB_XVFB=true` from a higher source opens the display at the default size, whatever size a
-  lower source asked for with `SB_XVFB_METRICS`. A window width or height given alone is laid
-  over the size of a lower source; with no lower size it is read as a size with a side of zero,
-  which `validate` refuses as before (`WindowSize` reads a missing side of a table as 0).
+  drop the whole file). `Settings::load` reads the file as `check` does and returns the first
+  problem in the order of the rows, so the two agree. Corners of the merge: a list of a higher
+  source replaces the list of the lower one (`SB_CHROMIUM_ARG`, `SB_EXTENSION_DIR`,
+  `SB_PLUGINS`; the features of `SB_DISABLE_FEATURES` replace the ones that variable gave), and
+  the Firefox preferences of a higher source are laid over the lower ones key by key. A window
+  width or height given alone is laid over the size of a lower source or completed by a higher
+  one (a side of the file may be completed by a variable); with no other side it is read as a
+  size with a side of zero, which `validate` refuses as before (`WindowSize` reads a missing
+  side of a table as 0). A pair `("SB_PLUGINS", ..)` of `SettingsOverrides` names the plugins as
+  the variable does.
 
 
 

@@ -874,8 +874,8 @@ Python `--option` flags.
 | `--cft` | implemented | `BrowserConfig::browser` | Chrome for Testing, downloaded into downloaded_drivers/cft/ when missing; the driver follows its version. |
 | `--check-js` | implemented | `RunSettings::with_check_js` | After every page load (open, go_back, go_forward, refresh, wait_for_ready_state_complete) the browser log is checked for severe JavaScript errors, on a Chromium browser. Skipped by skip-js-waits. |
 | `--check_js` | implemented | `RunSettings::with_check_js` | After every page load (open, go_back, go_forward, refresh, wait_for_ready_state_complete) the browser log is checked for severe JavaScript errors, on a Chromium browser. Skipped by skip-js-waits. |
-| `--chrome` | implemented | `Settings::browser` | `sbrs test --chrome` is `SB_BROWSER=chrome`; two browser flags that choose different values are refused. Chooses the Browser variant. |
-| `--chromium` | implemented | `Settings::browser` | `sbrs test --chromium` (also `--use-chromium`) is `SB_BROWSER=chromium`. Chooses the Browser variant. |
+| `--chrome` | implemented | `BrowserSettings::kind` | `sbrs test --chrome` is `SB_BROWSER=chrome`; two browser flags that choose different values are refused. Chooses the Browser variant. |
+| `--chromium` | implemented | `BrowserSettings::kind` | `sbrs test --chromium` (also `--use-chromium`) is `SB_BROWSER=chromium`. Chooses the Browser variant. |
 | `--chromium-arg` | implemented | `BrowserConfig::with_chromium_arg` |  |
 | `--chromium_arg` | implemented | `BrowserConfig::with_chromium_arg` |  |
 | `--chs` | implemented | `BrowserConfig::browser` | chrome-headless-shell, downloaded into downloaded_drivers/chs/ when missing; it cannot run UC mode. |
@@ -921,7 +921,7 @@ Python `--option` flags.
 | `--driver-version` | implemented | `BrowserConfig::with_driver_version` | browser, mlatest (the newest build of the browser's major version), latest, stable, beta, dev, canary, keep (a driver already downloaded or on the PATH), previous or latest-1 (the major before the stable one), a major version or a full version. The driver goes to downloaded_drivers/chromedriver-&lt;version&gt;/, or msedgedriver-&lt;version&gt;/ for Edge. geckodriver takes no version here: one geckodriver drives many Firefox versions, and `sbrs get geckodriver VERSION` pins one. |
 | `--driver_version` | implemented | `BrowserConfig::with_driver_version` | browser, mlatest (the newest build of the browser's major version), latest, stable, beta, dev, canary, keep (a driver already downloaded or on the PATH), previous or latest-1 (the major before the stable one), a major version or a full version. The driver goes to downloaded_drivers/chromedriver-&lt;version&gt;/, or msedgedriver-&lt;version&gt;/ for Edge. geckodriver takes no version here: one geckodriver drives many Firefox versions, and `sbrs get geckodriver VERSION` pins one. |
 | `--dws` | implemented | `BrowserConfig::with_disable_ws` |  |
-| `--edge` | implemented | `Settings::browser` | Choose Browser::Edge. The session starts msedgedriver itself, from downloaded_drivers/ or the PATH when it fits the installed Edge, else downloaded for that Edge from msedgedriver.microsoft.com; options go in ms:edgeOptions. |
+| `--edge` | implemented | `BrowserSettings::kind` | Choose Browser::Edge. The session starts msedgedriver itself, from downloaded_drivers/ or the PATH when it fits the installed Edge, else downloaded for that Edge from msedgedriver.microsoft.com; options go in ms:edgeOptions. |
 | `--ee` | implemented | `BrowserConfig::with_esc_end` | Also `sbrs --esc-end` (aliases `--esc_end`, `--ee`), `Settings::esc_end` and SB_ESC_END. BaseCase puts a keydown listener in the page that sets `document.sb_esc_end`, and open, click, click_link_text, highlight, wait_for_element_visible, wait_for_ready_state_complete and the demo highlight of type_text, update_text and press_keys return SeleniumBaseError::Skipped once ESC was pressed; run_browser_test counts that as a skipped test. Differs: Python assigns `document.onkeydown`, replacing the page's own handler; the Rust listener is added once per document with addEventListener, so the page keeps its handlers. A script that fails (an open alert, no page) counts as 'ESC not pressed'. Only the WebDriver engine (BaseCase) has the option. |
 | `--enable-3d-apis` | implemented | `BrowserConfig::with_enable_3d_apis` | A headless session keeps the GPU. A Rust session never adds --disable-3d-apis. |
 | `--enable-sync` | implemented | `BrowserConfig::with_enable_sync` | Chrome Sync is switched off with `--disable-sync` unless this is set. |
@@ -945,7 +945,7 @@ Python `--option` flags.
 | `--fdebug` | implemented | `TestSettings::final_debug` | A spelling of --final-debug; see there. |
 | `--final-debug` | implemented | `TestSettings::final_debug` | `sbrs test --final-debug` (also `--ftrace`, `--fdebug`, `--final-trace`), `SB_FINAL_DEBUG` or `final_debug` in the `[test]` table: after each attempt the `sb` and `sb_cdp` fixtures pause in a `[FINAL TRACE]` prompt with the browser open (`common::debug_prompt`), where Python drops into pdbp. It needs a terminal and the cargo runner; `sbrs test` then runs one test at a time with its output shown. |
 | `--final-trace` | implemented | `TestSettings::final_debug` | A spelling of --final-debug; see there. |
-| `--firefox` | implemented | `Settings::browser` | Choose Browser::Firefox. The session starts geckodriver itself, from downloaded_drivers/ or the PATH, else the newest release downloaded from GitHub; options go in moz:firefoxOptions. |
+| `--firefox` | implemented | `BrowserSettings::kind` | Choose Browser::Firefox. The session starts geckodriver itself, from downloaded_drivers/ or the PATH, else the newest release downloaded from GitHub; options go in moz:firefoxOptions. |
 | `--firefox-arg` | implemented | `FirefoxOptions::add_args` | Comma-separated; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`. |
 | `--firefox-pref` | implemented | `FirefoxOptions::add_preferences` | Comma-separated NAME:VALUE; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`. |
 | `--firefox_arg` | implemented | `FirefoxOptions::add_args` | Comma-separated; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`. |
@@ -1072,7 +1072,7 @@ Python `--option` flags.
 | `--undetected` | implemented | `SessionSettings::mode` | DriverMode::Uc. |
 | `--url` | implemented | `BrowserSettings::url` | Alias of --start-page upstream. BaseCase::new opens the start page when one is set. |
 | `--use-auto-ext` | implemented | `BrowserConfig::with_automation_extension` | Sets `useAutomationExtension` to true. Upstream marks the option deprecated. Chromium only. |
-| `--use-chromium` | implemented | `Settings::browser` | An alias of --chromium: `sbrs test --use-chromium` is `SB_BROWSER=chromium`. |
+| `--use-chromium` | implemented | `BrowserSettings::kind` | An alias of --chromium: `sbrs test --use-chromium` is `SB_BROWSER=chromium`. |
 | `--use_auto_ext` | implemented | `BrowserConfig::with_automation_extension` | Sets `useAutomationExtension` to true. Upstream marks the option deprecated. Chromium only. |
 | `--user-agent` | implemented | `BrowserSettings::user_agent` |  |
 | `--user-data-dir` | implemented | `BrowserSettings::user_data_dir` |  |
@@ -1211,7 +1211,7 @@ Keyword arguments of `SB()`.
 | `undetectable` | implemented | `SessionSettings::mode` | DriverMode::Uc. |
 | `undetected` | implemented | `SessionSettings::mode` | DriverMode::Uc. |
 | `use_auto_ext` | implemented | `BrowserConfig::with_automation_extension` | Sets `useAutomationExtension` to true. Upstream marks the option deprecated. Chromium only. |
-| `use_chromium` | implemented | `Settings::browser` | `browser = "chromium"` in the settings file, `SB_BROWSER=chromium`, `sbrs test --chromium`. Chooses the Browser variant. |
+| `use_chromium` | implemented | `BrowserSettings::kind` | `browser = "chromium"` in the settings file, `SB_BROWSER=chromium`, `sbrs test --chromium`. Chooses the Browser variant. |
 | `user_data_dir` | implemented | `BrowserSettings::user_data_dir` |  |
 | `var1` | implemented | `TestData::var1` | `var1` in the `[test]` table, `SB_VAR1`, `sbrs test --var1`; a test reads it with `sb.var1()`. |
 | `var2` | implemented | `TestData::var2` | `var2` in the `[test]` table, `SB_VAR2`, `sbrs test --var2`; a test reads it with `sb.var2()`. |

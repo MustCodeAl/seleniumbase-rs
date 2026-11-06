@@ -4,7 +4,7 @@ sidebarTitle: "Settings with figment"
 ---
 
 Status: design note, written before the code (branch `lane/design-settings`, from `90ca478e`).
-Every line number below is from that commit. Implemented on `lane/settings-v2`: the pins (step 1), the report table (step 2), the run group (step 3), the `browser` and `session` groups of `BrowserConfig` (step 4: `BrowserSettings`, `SessionSettings`, `GridSettings`, one Grid address function), the `SB_NO_SANDBOX` rule, and findings 1, 2, 3, 7, 8, 9, 11 and 13, finding 4 (`to_launch_options` goes through `to_browser_config`) and finding 10 (the higher source decides between the spellings of the window size and of the language; done by the layering: each source gives one spelling and figment merges the sources key by key), step 5 (`Settings` holds the core: `Settings::browser` and `session` are `BrowserSettings` and `SessionSettings`, the field column of the option table is the dotted path, a row kind writes one entry of `browser.switches`, `config::text` reads the text of a variable or of a flat file key into the typed field, `with_launch_options`, `check_launch_values` and `base_browser_config` are gone, and `check_config` lists the paths with their variables, open question 13); step 6 (the settings are layered with figment: `SettingsFile` and `EnvVars` are crate-private providers over one `Figment`, `SettingsOverrides` is its pairs, `RuntimeConfig` drops the three shared fields and every variable of the table has one reader, errors name their source, `check` sorts by row) and step 7 (the docs pages, the CHANGELOG, the parity notes); not yet: the nested `[browser]` and `[session]` tables of a settings file, the `key` column of the table (the key of a row is still looked up by its variable, `FLAT_KEYS`), `OptionValue` (kept, as the reader of the text of one field), and the part of finding 12 that is not the `LaunchSettings` rename. What figment does was
+Every line number below is from that commit. Implemented on `lane/settings-v2`, and corrected after its review on `lane/settings-v3`: the pins (step 1), the report table (step 2), the run group (step 3), the `browser` and `session` groups of `BrowserConfig` (step 4: `BrowserSettings`, `SessionSettings`, `GridSettings`, one Grid address function), the `SB_NO_SANDBOX` rule, and findings 1, 2, 3, 7, 8, 9, 11 and 13, finding 4 (`to_launch_options` goes through `to_browser_config`) and finding 10 (the higher source decides between the spellings of the window size and of the language; done by the layering: each source gives one spelling and figment merges the sources key by key), step 5 (`Settings` holds the core: `Settings::browser` and `session` are `BrowserSettings` and `SessionSettings`, the field column of the option table is the dotted path, a row kind writes one entry of `browser.switches`, `config::text` reads the text of a variable or of a flat file key into the typed field, `with_launch_options`, `check_launch_values` and `base_browser_config` are gone, and `check_config` lists the paths with their variables, open question 13); step 6 (the settings are layered with figment: `SettingsFile` and `EnvVars` are crate-private providers over one `Figment`, `SettingsOverrides` is its pairs, `RuntimeConfig` drops the three shared fields and every variable of the table has one reader, errors name their source, `check` sorts by row) and step 7 (the docs pages, the CHANGELOG, the parity notes); not yet: the nested `[browser]` and `[session]` tables of a settings file, the `key` column of the table (the key of a row is still looked up by its variable, `FLAT_KEYS`), `OptionValue` (kept, as the reader of the text of one field), and the part of finding 12 that is not the `LaunchSettings` rename. What figment does was
 read on Context7 (the pages are listed under [Sources](#sources)); what those pages did not say is
 marked "to verify". Statements about today's behaviour come from reading the code; none was run,
 and each one that matters gets a test in [step 1](#implementation-steps) before anything moves.
@@ -510,7 +510,7 @@ pub struct ChromiumSettings {
 
 // src/browser/options/session.rs (new)
 pub struct SessionSettings {
-    pub mode: DriverMode,                                 // SB_MODE
+    pub mode: Option<DriverMode>,                         // SB_MODE; None: no mode asked for
     pub webdriver_url: Option<String>,                    // SB_WEBDRIVER_URL
     pub grid: GridSettings,                               // [session.grid]
     pub remote_webdriver_timeout_seconds: Option<u64>,    // SB_REMOTE_WEBDRIVER_TIMEOUT
@@ -745,7 +745,7 @@ across sources the higher source wins, which changes finding 10.
 | `browser.chromium.args` | `chromium_arg` | `disable-features=` items join `disable_features`, the others get `--` (`launch_map.rs:346-363`) | the same, when read |
 | `session.capabilities` | `cap_file`, `cap_string` | the file, then the string merged over it (`launch_map.rs:119-128`) | the file's object and the string's object as dictionaries; figment's merge puts the higher source's keys over the lower's (to verify, below) |
 | `session.firefox` | `firefox_arg`, `firefox_pref` | both added to one `FirefoxOptions` | the same |
-| `session.cdp_events` | `log_cdp_events`, `uc_cdp_events` | `Always` over `UndetectedOnly` | the same, within one source |
+| `session.cdp_events` | `log_cdp_events`, `uc_cdp_events` | `Always` over `UndetectedOnly` | the same, each variable decided by the source nearest the top that gives it |
 | `session.reuse_class` | `reuse_class_session` | on: `TestModule`, and reuse on (`settings.rs:1010`, `:1030`) | on: `TestModule`; reuse is on when `reuse` or `reuse_class` |
 | `session.webdriver_url` | `webdriver_url`; `server`, `port`, `protocol` | the Grid address unless `webdriver_url` is set (`launch_map.rs:89-97`) | `grid` stays its own group; `SessionSettings::webdriver_url()` gives the URL, else the Grid address, else `http://localhost:4444`, through one Grid address function (finding 9) |
 
@@ -895,8 +895,9 @@ One commit each; each runs the gate of `CLAUDE.md` (fmt, clippy with `-D warning
    same readers (a file is one more source of variables), and the tables `[run]`, `[test]`,
    `[report]`, `[plugins]` and `[fingerprint]` through serde. What is not in step 5: the nested
    `[browser]` and `[session]` tables of a file (step 6). Where the sequential reading differs
-   from the note: `SB_XVFB_METRICS` is used only when `SB_XVFB` is on in the same source or
-   a lower one, and the capabilities and the Chromium features are added across sources.
+   from the note: the capabilities are added across sources (the display, the DevTools events and
+   the Chromium switches and features are read by variable once the sources are merged, as
+   described at the end of step 5).
 
    *As implemented (2026-11-06).* Each provider gives its source as a dictionary at the paths of
    the serialized `Settings` (`config/layers.rs`: `Layer`, `put`, `merge_into`, `extract`,
@@ -921,8 +922,31 @@ One commit each; each runs the gate of `CLAUDE.md` (fmt, clippy with `-D warning
    step 5 (`OptionValue::assign` and the functions of `config::text`), run before the
    dictionary is made, instead of `deserialize_with` on every field; the key of a row is still
    looked up by its variable (`FLAT_KEYS`), not a column of the table; the nested `[browser]`
-   and `[session]` tables of a file are not read; and a size of the virtual display counts when
-   `SB_XVFB` is on in the same source.
+   and `[session]` tables of a file are not read.
+
+   *As implemented after the review (2026-11-06).* Reading each source on its own lost what
+   the note's table promised for the settings that two variables write together. Those
+   variables (`SB_XVFB` and `SB_XVFB_METRICS`, `SB_LOG_CDP_EVENTS` and `SB_UC_CDP_EVENTS`,
+   `SB_CHROMIUM_ARG` and `SB_DISABLE_FEATURES`, listed in `text::REPLAYED`) are not read into
+   a path any more. A source keeps the text of each it gave (`Inputs` on its `Layer`; the
+   array form of `chromium_arg` of a file is kept as its items), `extract` lays the inputs of
+   the layers over each other variable by variable, the source nearest the top deciding each,
+   and `text::replay` reads them once over the merged settings, in the order of the table. So
+   the display takes its size from any source, `SB_UC_CDP_EVENTS=false` never lowers the
+   capture of every session whoever asked for it, and a list of `SB_CHROMIUM_ARG` of a higher
+   source takes the features its items named with it, while the features of
+   `SB_DISABLE_FEATURES` replace the lower source's. What it cannot do: a half that shows in
+   no setting (a size while no display is asked for) is not kept past one loading, so
+   `--xvfb` laid on settings that were loaded from a file holding only `xvfb_metrics` opens
+   the default size, and the features that the items of an `SB_CHROMIUM_ARG` given to
+   `apply_options` name are added to the features the settings hold. The other derived rows keep their one-path reading (`written_by`).
+   `Settings::session.mode` is an `Option<DriverMode>`: `None` is no mode asked for, so that
+   `sbrs` gives a command its own mode only then and `SB_MODE=webdriver` keeps WebDriver.
+   `Settings::load` reads the file as `check` does and returns the first problem in the order
+   of the table, so `check` and `load` agree, and a lone window side of the file may be
+   completed by a variable. A refused value of a table of the file is not repeated in the
+   error, as a flat key's is not. `SB_START_PAGE` of `sbrs devtools` and `SB_CRUMBS` are read
+   through `env_vars::text`, the one reader.
 
 
 6. **`feat(config): layer the settings with figment`.** `SettingsFile` and `EnvVars`;

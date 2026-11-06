@@ -4569,12 +4569,12 @@ note = "After every page load (open, go_back, go_forward, refresh, wait_for_read
 
 [options_pytest."--chrome"]
 status = "implemented"
-rust = "Settings::browser"
+rust = "BrowserSettings::kind"
 note = "`sbrs test --chrome` is `SB_BROWSER=chrome`; two browser flags that choose different values are refused. Chooses the Browser variant."
 
 [options_pytest."--chromium"]
 status = "implemented"
-rust = "Settings::browser"
+rust = "BrowserSettings::kind"
 note = "`sbrs test --chromium` (also `--use-chromium`) is `SB_BROWSER=chromium`. Chooses the Browser variant."
 
 [options_pytest."--chromium-arg"]
@@ -4792,7 +4792,7 @@ rust = "BrowserConfig::with_disable_ws"
 
 [options_pytest."--edge"]
 status = "implemented"
-rust = "Settings::browser"
+rust = "BrowserSettings::kind"
 note = "Choose Browser::Edge. The session starts msedgedriver itself, from downloaded_drivers/ or the PATH when it fits the installed Edge, else downloaded for that Edge from msedgedriver.microsoft.com; options go in ms:edgeOptions."
 
 [options_pytest."--ee"]
@@ -4907,7 +4907,7 @@ note = "A spelling of --final-debug; see there."
 
 [options_pytest."--firefox"]
 status = "implemented"
-rust = "Settings::browser"
+rust = "BrowserSettings::kind"
 note = "Choose Browser::Firefox. The session starts geckodriver itself, from downloaded_drivers/ or the PATH, else the newest release downloaded from GitHub; options go in moz:firefoxOptions."
 
 [options_pytest."--firefox-arg"]
@@ -5528,7 +5528,7 @@ note = "Sets `useAutomationExtension` to true. Upstream marks the option depreca
 
 [options_pytest."--use-chromium"]
 status = "implemented"
-rust = "Settings::browser"
+rust = "BrowserSettings::kind"
 note = "An alias of --chromium: `sbrs test --use-chromium` is `SB_BROWSER=chromium`."
 
 [options_pytest."--use_auto_ext"]
@@ -6157,7 +6157,7 @@ note = "Sets `useAutomationExtension` to true. Upstream marks the option depreca
 
 [options_sb."use_chromium"]
 status = "implemented"
-rust = "Settings::browser"
+rust = "BrowserSettings::kind"
 note = "`browser = \"chromium\"` in the settings file, `SB_BROWSER=chromium`, `sbrs test --chromium`. Chooses the Browser variant."
 
 [options_sb."user_data_dir"]
