@@ -167,7 +167,8 @@ proxy does not touch the window size the file set):
   value is an answer (no plugin). The tables of the nested form: the file hands them to serde
   unchanged, so `[browser] user_agent = ""` sets an empty text and a padded value keeps its
   blanks. A few variables of one tool that name a key, a file or a folder (`SB_ENCRYPTION_KEY`,
-  `SB_REC_FILE`, `SB_OCR_MODELS`, `SB_GRID_DIR`) are not trimmed.
+  `SB_REC_FILE`, `SB_OCR_MODELS`, `SB_GRID_DIR` and `SB_REPORT_ROOT`, which `sbrs test` sets to
+  its working directory) are not trimmed.
 * **Capabilities** (`cap_file`, `cap_string`): merged key by key, the higher source winning on a
   key.
 * **Two spellings of one setting** (`window_size`, or `window_width` and `window_height`;

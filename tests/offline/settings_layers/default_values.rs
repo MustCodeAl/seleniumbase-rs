@@ -48,7 +48,7 @@ fn shown(settings: &Settings, path: &str) -> String {
 fn a_higher_source_that_gives_the_default_of_a_setting_still_wins() {
     // (the path of the setting, a file that gives it a value other than its default, the
     // variable that gives it, and the text of the default value)
-    let pins: [(&str, &str, &'static str, &str); 22] = [
+    let pins: [(&str, &str, &'static str, &str); 31] = [
         // A number of the run group, and numbers of the test group.
         (
             "run.timeout_multiplier",
@@ -153,6 +153,63 @@ fn a_higher_source_that_gives_the_default_of_a_setting_still_wins() {
             "xvfb = true\n",
             "SB_XVFB",
             "false",
+        ),
+        // The variables that are worked out once the sources are laid (`text::REPLAYED`): the
+        // variable of the higher source is the one that counts, whatever the file said.
+        (
+            "browser.chromium.args",
+            "chromium_arg = \"--foo,--bar\"\n",
+            "SB_CHROMIUM_ARG",
+            ",",
+        ),
+        (
+            "browser.chromium.disable_features",
+            "disable_features = \"A,B\"\n",
+            "SB_DISABLE_FEATURES",
+            ",",
+        ),
+        (
+            "session.cdp_events",
+            "log_cdp_events = true\n",
+            "SB_LOG_CDP_EVENTS",
+            "false",
+        ),
+        (
+            "session.cdp_events",
+            "uc_cdp_events = true\n",
+            "SB_UC_CDP_EVENTS",
+            "false",
+        ),
+        // A file in the nested form is a source like any other.
+        (
+            "browser.kind",
+            "[browser]\nkind = \"firefox\"\n",
+            "SB_BROWSER",
+            "chrome",
+        ),
+        (
+            "session.grid.port",
+            "[session.grid]\nport = 4445\n",
+            "SB_PORT",
+            "4444",
+        ),
+        (
+            "browser.extensions",
+            "[browser]\nextensions = [\"/a\", \"/b\"]\n",
+            "SB_EXTENSION_DIR",
+            ",",
+        ),
+        (
+            "browser.debugging_port",
+            "[browser]\ndebugging_port = 9222\n",
+            "SB_REMOTE_DEBUG",
+            "false",
+        ),
+        (
+            "session.firefox.args",
+            "[session.firefox]\nargs = [\"-headless\"]\n",
+            "SB_FIREFOX_ARG",
+            ",",
         ),
         // A switch of the report group and of the test group.
         (

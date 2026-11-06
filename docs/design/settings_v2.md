@@ -991,8 +991,10 @@ One commit each; each runs the gate of `CLAUDE.md` (fmt, clippy with `-D warning
      (`from_vars_lenient` trims and drops a blank value before any parse), `SB_REPORT_DB`
      (`ReportSettings::from_settings_with` and `sbrs report history`), the S3 variables of the
      `testing` finalizer and the `SB_LOG_LEVEL` that `sbrs-mcp` clients hand to a server they
-     start. Variables of one tool that name a key, a file or a folder (`SB_ENCRYPTION_KEY`,
-     `SB_REC_FILE`, `SB_OCR_MODELS`, `SB_GRID_DIR`) are not trimmed.
+     start, `SB_REC_KEEP_SECRETS` of the recorder and the `SB_CHROME_BIN` that `sbrs prompt`
+     reads. Variables of one tool that name a key, a file or a folder (`SB_ENCRYPTION_KEY`,
+     `SB_REC_FILE`, `SB_OCR_MODELS`, `SB_GRID_DIR`, and `SB_REPORT_ROOT`, which `sbrs test` sets
+     to its working directory, so a blank in the name must stay) are not trimmed.
    * **The `key` column.** The option table has no `key` column, against step 6: the flat key of
      a row is found by its variable in `FLAT_KEYS` (`OptionSpec::flat_key`), because the rows
      are the token trees of a macro (`sb_test_options!`) that the structural tools cannot edit,

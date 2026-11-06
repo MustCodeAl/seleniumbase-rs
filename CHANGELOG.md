@@ -557,10 +557,14 @@ work, `docs/parity.md` the per-API status).
   where it set an empty text. The runtime variables follow it (`RuntimeConfig` refused
   `SB_CHROMEDRIVER_PORT=" 9515"` and a blank `SB_SHUTDOWN_TIMEOUT_SECS`), and so do
   `SB_REPORT_DB` (`ReportSettings` kept its blanks, and `sbrs report history` took an empty value
-  for the path), the S3 variables and the `SB_LOG_LEVEL` that the `sbrs-mcp` client commands pass
-  on. `SB_PLUGINS` keeps an empty or blank value as an answer, the nested tables of a settings
-  file are read as written, and a few variables of one tool that name a key, a file or a folder
-  (`SB_ENCRYPTION_KEY`, `SB_REC_FILE`, `SB_OCR_MODELS`, `SB_GRID_DIR`) are not trimmed.
+  for the path), the S3 variables, the `SB_LOG_LEVEL` that the `sbrs-mcp` client commands pass
+  on, `SB_REC_KEEP_SECRETS` (`" true "` did not keep the typed text) and the `SB_CHROME_BIN` that
+  `sbrs prompt` reads (it looked for a browser at a path with blanks around it, where
+  `sbrs doctor` and `Settings` trimmed it). `SB_PLUGINS` keeps an empty or blank value as an answer,
+  the nested tables of a settings file are read as written, and a few variables of one tool that
+  name a key, a file or a folder (`SB_ENCRYPTION_KEY`, `SB_REC_FILE`, `SB_OCR_MODELS`,
+  `SB_GRID_DIR`, and `SB_REPORT_ROOT`, which `sbrs test` sets to its working directory) are not
+  trimmed.
 
 
 ## [0.8.0] - 2026-11-05
