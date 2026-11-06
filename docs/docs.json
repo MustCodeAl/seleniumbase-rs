@@ -893,7 +893,8 @@
               "design/network_throttle",
               "design/devtools_client",
               "design/capability_types",
-              "design/drivers_module"
+              "design/drivers_module",
+              "design/core_split"
             ]
           },
           {
