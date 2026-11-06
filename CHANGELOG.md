@@ -428,6 +428,31 @@ work, `docs/parity.md` the per-API status).
   `as_webdriver_element()` and `into_webdriver_element()` give the raw `thirtyfour` element.
   `Key` and `SelectBy` of the pure CDP engine are re-exported at the crate root, since
   `Element::press` and `Element::select_option` take them.
+- Another retry strategy for the CAPTCHA solver, moved to core from the stealth layer's
+  mitigation policy (`SolveOptions`): `rounds(n)` and `cooldown(wait)` (a round is a whole pass of
+  locate, settle, press and verify; a round that spent its presses without a result is followed
+  by the cooldown and a new round that finds the widget again; `Solved::rounds` says how many
+  were made and `Solved::attempts` and the error count the presses of all of them), and
+  `clearance_cookie(name)` (one more cookie whose arrival shows the visitor was let through,
+  beside the vendor's; a press after which it did not come is pressed again, as with a success
+  marker). `rotate_proxy_after(n)` and `rotate_fingerprint_after(n)` only carry the setting,
+  because a `Page` has no proxy list and cannot change its fingerprint: the layer that owns them
+  reads `proxy_rotation_due(failed_rounds)` and `fingerprint_rotation_due(failed_rounds)`
+  between rounds. `rounds_allowed()` and `cooldown_between_rounds()` read the other two.
+- `Page::solve_captcha` waits out a script challenge, the page Cloudflare shows with the title
+  "Just a moment..." and no widget, which runs its checks and then navigates away or replaces
+  itself. It used to give it only the locate timeout, and a reading made while the page was being
+  replaced failed the call. Now the page is waited out for `SolveOptions::interstitial_timeout`
+  (20 s by default), a reading that fails meanwhile is read again, and a widget that is on its
+  way after it gets the locate timeout in turn. A challenge page is told by its own markers (its
+  title, `#challenge-stage`, `#challenge-form`, its `orchestrate` script), not by the widget's
+  frame, which sites keep hidden on ordinary pages.
+- `Locale::accept_language_list(&[..])`: the `Accept-Language` header for a raw list of
+  languages, such as a page's `navigator.languages` (trimmed, without empty entries or repeats,
+  at most ten, the first bare and then `q` falling from 0.9 by a tenth), beside
+  `Locale::accept_language` for a locale's own list. The stealth wire format can call it
+  instead of keeping a copy of the rule.
+
 
 
 ### Changed

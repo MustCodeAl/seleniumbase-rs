@@ -196,7 +196,13 @@ the other:
    of a Cloudflare challenge (its `orchestrate` script, `#challenge-stage`, the
    challenge frame, the title "Just a moment...") and has not drawn the widget
    yet is waited for, 6 s by default; a page with no sign of one answers `None`
-   at once.
+   at once. A challenge page that shows no widget at all, an interstitial (its
+   title, `#challenge-stage`, `#challenge-form` or its `orchestrate` script),
+   runs its checks and then navigates away or replaces itself. It is waited out
+   first, 20 s by default (`SolveOptions::interstitial_timeout`), and a reading
+   that fails while the page is being replaced is read again. What is left of
+   the page is looked at then, and a widget that is on its way gets the 6 s in
+   turn.
 2. **Settle.** The widget is scrolled to the middle of the viewport and read
    again and again until it has stood still, in view, for 240 ms. A page that
    animates a widget in, or lays it out late, moves a widget that was read once.
@@ -210,7 +216,8 @@ the other:
 4. **Check.** The widgets live in frames whose insides cannot be read, so the
    solver reads what the page can show: a token in the widget's response field
    (`cf-turnstile-response`, `g-recaptcha-response`, `h-captcha-response`, ...),
-   the vendor's clearance cookie (`cf_clearance`, `datadome`), a page that was
+   the vendor's clearance cookie (`cf_clearance`, `datadome`) or the one you name
+   with `SolveOptions::clearance_cookie`, a page that was
    replaced by one with no widget, a widget that stayed gone for two readings, a
    success state in a widget the page may read, or an expression you give with
    `SolveOptions::success_marker`.
@@ -251,6 +258,28 @@ Between presses it waits: `backoff` sets the first wait, which doubles for each
 further press up to 8 seconds and is spread by a quarter either way.
 `retry_policy(RetryPolicy)` is the other schedule: the policy's own base delay,
 times its factor for each press, up to its cap, with no spread.
+
+**Rounds.** The steps above are one round. `rounds(n)` allows more of them: a
+round that spent its presses without a result is followed by `cooldown(wait)`
+(none by default) and a new round, which finds the widget again, because a
+widget that failed is often drawn anew and another challenge may follow.
+`Solved::rounds` says how many were made; `Solved::attempts` and the error
+count the presses of all of them. If the widget is gone when a later round
+begins, that is a result (`Evidence::WidgetGone`).
+
+`rotate_proxy_after(n)` and `rotate_fingerprint_after(n)` name the number of
+rounds in a row without a result after which the proxy, or the fingerprint, is
+to change. A `Page` has no proxy list and cannot give itself another
+fingerprint, so the solver only carries these two settings: the layer that owns
+them (the stealth scraper) asks `proxy_rotation_due(failed_rounds)` and
+`fingerprint_rotation_due(failed_rounds)` between rounds, one round for each
+call (`rounds(1)`).
+
+`clearance_cookie(name)` names one more cookie whose arrival shows that the
+visitor was let through, beside the one the vendor sets. It counts when it is in
+the browser after a press and was not before it. With it a press after which the
+cookie did not come is a failure to retry, as with a marker.
+
 
 
 What it does **not** do, and says so in its own documentation:

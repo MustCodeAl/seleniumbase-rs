@@ -6,6 +6,13 @@
 //! [`Evidence`]). The steps are in the `engine` module and run against any
 //! `Surface`, which is how `BaseCase::solve_captcha` shares them; the scripts
 //! the steps send to the page are in the `script` module.
+//!
+//! A call is one or more rounds of those steps ([`SolveOptions::rounds`]), with a
+//! cooldown between them, and a challenge page that shows no widget (an
+//! interstitial) is waited out before the first. The proxy and the fingerprint
+//! cannot be changed from a `Page`, so the options that name when to change them
+//! ([`SolveOptions::rotate_proxy_after`], [`SolveOptions::rotate_fingerprint_after`])
+//! are only carried for the layer that can.
 
 use std::fmt;
 use std::time::Duration;
@@ -576,6 +583,12 @@ impl Page {
     /// checkbox widgets are pressed at the left edge where they draw their box
     /// and the `DataDome` slider is dragged.
     ///
+    /// A challenge page that shows no widget at all (an interstitial, such as
+    /// "Just a moment...") is waited out first, until it navigates away or
+    /// replaces itself (see [`SolveOptions::interstitial_timeout`]); what is left
+    /// of the page is then looked at for a widget.
+
+    ///
     /// The result is then looked for, because the widgets live in frames whose
     /// insides cannot be read: the response field of the widget holds a token,
     /// the clearance cookie arrived, or the page was replaced by one with no
@@ -584,6 +597,10 @@ impl Page {
     /// growing wait, up to three presses. See [`SolveOptions`] to change any of
     /// this, and [`solve_captcha_with`](Self::solve_captcha_with) for what was
     /// seen.
+    ///
+    /// A round that spends its presses without a result can be followed by more
+    /// rounds, after a cooldown (see [`SolveOptions::rounds`]).
+
     ///
     /// Returns the widget that was attempted, or `None` if the page shows no
     /// supported widget.
