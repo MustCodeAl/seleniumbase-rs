@@ -244,5 +244,35 @@ mod tests_cookie_calls {
         assert_eq!(saved, [sid(), theme()]);
     }
 
+    #[tokio::test]
+    async fn add_cookies_sends_each_pair_with_the_defaults_of_the_standard() {
+        let driver = page_with_cookies();
+        let mut sb = driver.base_case().await;
+        let pairs = std::collections::HashMap::from([
+            ("sid".to_owned(), "abc".to_owned()),
+            ("theme".to_owned(), "dark".to_owned()),
+        ]);
+
+        sb.add_cookies(&pairs).await.unwrap();
+
+        let mut sent = added(&driver);
+        sent.sort_by_key(|cookie| cookie["name"].as_str().unwrap_or_default().to_owned());
+        // The path, `secure` and `httpOnly` are what WebDriver takes when a cookie names none.
+        // There is no domain (the page's is used) and no expiry (it lasts for the session).
+        assert_eq!(
+            sent,
+            [
+                json!({
+                    "name": "sid", "value": "abc", "path": "/", "secure": false, "httpOnly": false
+                }),
+                json!({
+                    "name": "theme", "value": "dark", "path": "/", "secure": false,
+                    "httpOnly": false
+                }),
+            ]
+        );
+    }
+
+
     
 }
