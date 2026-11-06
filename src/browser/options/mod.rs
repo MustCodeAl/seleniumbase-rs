@@ -26,7 +26,7 @@
 //!     .with_page_load_strategy(PageLoadStrategy::Eager)
 //!     .with_window_size("1280,720".parse::<WindowSize>()?)
 //!     .with_device_metrics(DeviceMetrics::new(412, 732, 3.0));
-//! assert!(config.browser.kind.has(seleniumbase_rs::browser::options::LaunchSwitch::BlockImages));
+//! assert!(config.browser.has(seleniumbase_rs::browser::options::LaunchSwitch::BlockImages));
 //! assert_eq!(config.session.page_load_strategy, Some(PageLoadStrategy::Eager));
 //! # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 //! ```

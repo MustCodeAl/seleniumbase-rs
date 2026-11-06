@@ -90,7 +90,7 @@ pub struct Settings {
     pub mode: Option<String>,
     pub ad_block: bool,
     /// Share browsers among the tests of a run (`SB_REUSE_SESSION`, Python's
-    /// `--reuse-session`). See [`BrowserConfig::reuse_session`].
+    /// `--reuse-session`). See [`SessionSettings::reuse`](crate::browser::options::SessionSettings::reuse).
     pub reuse_session: bool,
     /// Share a browser among the tests of one Rust module
     /// (`SB_REUSE_CLASS_SESSION`, Python's `--rcs`). It implies
@@ -132,7 +132,7 @@ pub struct Settings {
     pub fingerprint: FingerprintSettings,
     /// The page every browser opens first (`SB_START_PAGE`, the `start_page` key, and
     /// `--start-page` on `sbrs`; Python's `--start-page`). It becomes
-    /// [`BrowserConfig::start_page`], which `BaseCase::new` opens. `None` opens no page.
+    /// [`BrowserSettings::url`](crate::browser::options::BrowserSettings::url), which `BaseCase::new` opens. `None` opens no page.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub start_page: Option<String>,
     /// The settings file the run reads (`SB_SETTINGS_FILE`, Python's `--settings-file`).

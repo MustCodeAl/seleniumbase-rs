@@ -2326,7 +2326,7 @@ impl BaseCase {
 
     /// Closes the browser and ends the session.
     ///
-    /// With [`BrowserConfig::reuse_session`] on, the browser is given back,
+    /// With [`SessionSettings::reuse`](crate::browser::options::SessionSettings::reuse) on, the browser is given back,
     /// open, for the next test instead (see [`crate::browser::reuse`]).
     ///
     /// Every browser the case opened is closed, those that

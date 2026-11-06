@@ -195,6 +195,7 @@ impl std::str::FromStr for DriverMode {
 
 /// Configuration for a browser session.
 #[derive(Clone, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct BrowserConfig {
     /// What both engines start: the browser and its window, proxy, profile and switches.
     /// Set it with the `with_*` methods below; a default configuration is headless.
@@ -445,7 +446,7 @@ impl BrowserConfig {
     }
 
     /// Shares browsers among the tests of the run (`--reuse-session`, `--rs`).
-    /// See [`reuse_session`](Self::reuse_session).
+    /// See [`session.reuse`](crate::browser::options::SessionSettings::reuse).
     pub fn with_reuse_session(mut self, reuse: bool) -> Self {
         self.session.reuse = reuse;
         self
@@ -453,7 +454,7 @@ impl BrowserConfig {
 
     /// Shares a browser only among the tests that pass the same `class`
     /// (Python's `--reuse-class-session` for the tests of one class). It turns
-    /// [`reuse_session`](Self::reuse_session) on.
+    /// [`session.reuse`](crate::browser::options::SessionSettings::reuse) on.
     pub fn with_reuse_class_session(mut self, class: impl Into<String>) -> Self {
         self.session.reuse = true;
         self.session.reuse_class = Some(ReuseClass::Named(class.into()));
@@ -465,7 +466,7 @@ impl BrowserConfig {
     /// part of Python's test class, and is read from the name of the thread
     /// the test runs on ([`ReuseClass::TestModule`]).
     ///
-    /// On, it turns [`reuse_session`](Self::reuse_session) on as well. Off, it
+    /// On, it turns [`session.reuse`](crate::browser::options::SessionSettings::reuse) on as well. Off, it
     /// removes a per-module setting and leaves `reuse_session` as it is.
     pub fn with_reuse_module_session(mut self, on: bool) -> Self {
         if on {
@@ -477,14 +478,14 @@ impl BrowserConfig {
         self
     }
 
-    /// Turns [`ad_block`](Self::ad_block) on or off (`--ad-block`).
+    /// Turns [`browser.ad_block`](crate::browser::options::BrowserSettings::ad_block) on or off (`--ad-block`).
     pub fn with_ad_block(mut self, on: bool) -> Self {
         self.browser.ad_block = on;
         self
     }
 
     /// Blocks the hosts of `list` instead of the built-in list, and turns
-    /// [`ad_block`](Self::ad_block) on. Set `ad_block` to `false` afterwards to
+    /// [`browser.ad_block`](crate::browser::options::BrowserSettings::ad_block) on. Set `ad_block` to `false` afterwards to
     /// keep the list but block nothing.
     pub fn with_ad_block_list(mut self, list: AdBlockList) -> Self {
         self.browser.ad_block_list = Some(list);
@@ -719,7 +720,7 @@ impl BrowserConfig {
     }
 
     /// Fetch a driver, or a Chrome build, that has to be downloaded through
-    /// [`proxy`](Self::proxy) (`--proxy-driver`).
+    /// [`browser.proxy.server`](crate::browser::options::ProxySettings::server) (`--proxy-driver`).
     pub fn with_proxy_for_driver_download(self, on: bool) -> Self {
         self.with_switch(LaunchSwitch::ProxyForDriverDownload, on)
     }
@@ -831,7 +832,7 @@ impl BrowserConfig {
     /// The client-side timeout of each request sent to a Remote WebDriver
     /// server such as a Selenium Grid (`SB_REMOTE_WEBDRIVER_TIMEOUT`). A part of
     /// a second rounds up to a whole second. See
-    /// [`remote_webdriver_timeout_seconds`](Self::remote_webdriver_timeout_seconds).
+    /// [`session.remote_webdriver_timeout_seconds`](crate::browser::options::SessionSettings::remote_webdriver_timeout_seconds).
     #[must_use]
     pub fn with_remote_webdriver_timeout(mut self, timeout: std::time::Duration) -> Self {
         self.session.remote_webdriver_timeout_seconds = Some(whole_seconds(timeout));
@@ -886,7 +887,7 @@ impl BrowserConfig {
 
     /// Emulate a phone with this screen (`--metrics`, `d_width`, `d_height`,
     /// `d_p_r`). It turns mobile emulation on, with the user agent from
-    /// [`user_agent`](Self::user_agent) or, without one, an Android one.
+    /// [`browser.user_agent`](crate::browser::options::BrowserSettings::user_agent) or, without one, an Android one.
     pub fn with_device_metrics(mut self, metrics: DeviceMetrics) -> Self {
         self.browser.device_metrics = Some(metrics);
         self.browser.mobile = true;
@@ -961,7 +962,7 @@ impl BrowserConfig {
 
     /// Run headless with `chrome-headless-shell`, Chrome's old headless
     /// implementation (`--headless1`). On, it also makes the session
-    /// [headless](Self::headless).
+    /// [headless](crate::browser::options::BrowserSettings::headless).
     ///
     /// Chrome runs as [`Browser::ChromeHeadlessShell`], which is downloaded
     /// when it is missing; another Chromium browser, which has no such
@@ -1334,6 +1335,17 @@ mod tests {
     }
 
     #[test]
+    fn a_config_in_the_old_flat_shape_is_refused_and_not_silently_defaulted() {
+        let error = serde_json::from_str::<BrowserConfig>(
+            r#"{"webdriver_url": "http://hub.test/wd/hub", "headless": false}"#,
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("unknown field"), "{error}");
+    }
+
+    #[test]
+
     fn the_debug_text_hides_every_login_and_the_discovery_url() {
         let config = BrowserConfig::default()
             .with_proxy("user:PROXYPW@proxy.test:8080")

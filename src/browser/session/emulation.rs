@@ -14,7 +14,7 @@ use super::BrowserSession;
 
 impl BrowserSession {
     /// Makes the window the session is on refuse the ad and tracker hosts of
-    /// the configuration, when [`BrowserConfig::ad_block`] was on.
+    /// the configuration, when [`BrowserSettings::ad_block`](crate::browser::options::BrowserSettings::ad_block) was on.
     ///
     /// The session does this itself: for the window it opens with, again when
     /// it reconnects, and for each window it switches to with
@@ -71,7 +71,7 @@ impl BrowserSession {
     }
 
     /// Makes the window the session is on a phone, for an undetected-mode
-    /// session that was asked to be mobile ([`BrowserConfig::mobile`] or
+    /// session that was asked to be mobile ([`BrowserSettings::mobile`](crate::browser::options::BrowserSettings::mobile) or
     /// [`BrowserConfig::with_device_metrics`]).
     ///
     /// The other modes ask for the phone with the `mobileEmulation`

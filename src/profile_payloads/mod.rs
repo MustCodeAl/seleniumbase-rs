@@ -46,7 +46,7 @@
 //!     config.browser.user_agent.as_deref(),
 //!     Some("Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
 //! );
-//! assert_eq!(config.browser.user_data_dir.as_deref(), Some("./profile-data/work"));
+//! assert_eq!(config.browser.user_data_dir.as_deref(), Some(std::path::Path::new("./profile-data/work")));
 //! # Ok::<(), serde_json::Error>(())
 //! ```
 

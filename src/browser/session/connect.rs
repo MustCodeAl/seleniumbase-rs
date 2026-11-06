@@ -22,7 +22,7 @@ use super::BrowserSession;
 
 impl BrowserSession {
     /// Starts a browser for `config` and connects to it, or, with
-    /// [`BrowserConfig::reuse_session`] on, attaches to a browser kept for
+    /// [`SessionSettings::reuse`](crate::browser::options::SessionSettings::reuse) on, attaches to a browser kept for
     /// reuse (see [`crate::browser::reuse`]).
     ///
     /// With browser plugins (feature `plugins`,

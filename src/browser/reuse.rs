@@ -1,7 +1,7 @@
 //! One browser for many tests: Python's `--reuse-session` (`--rs`,
 //! `--reuse_session`) and `--reuse-class-session` (`--rcs`).
 //!
-//! With [`BrowserConfig::reuse_session`] on, [`BrowserSession::connect`] (and so
+//! With [`SessionSettings::reuse`](crate::browser::options::SessionSettings::reuse) on, [`BrowserSession::connect`] (and so
 //! [`BaseCase::new`](crate::BaseCase::new)) does not always start a browser: it
 //! borrows one that an earlier test started with the same configuration and has
 //! finished with, and [`BaseCase::quit`](crate::BaseCase::quit) (or dropping the

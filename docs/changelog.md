@@ -158,7 +158,8 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   `SessionSettings::webdriver_url()` gives the server (`webdriver_url`, else the Grid address,
   else `http://localhost:4444`). `StealthOptions::launch` is `browser` and has a `session`
   beside it. The pure CDP engine reads `config.browser` whole; the settings it cannot use are
-  `config.session`.
+  `config.session`. A `BrowserConfig` written as JSON in the old flat shape is refused
+  (`unknown field`) and not read as the defaults.
 
 - **`Settings::to_launch_options` passes everything `BrowserConfig` passes to the pure CDP
   engine.** It used a second, shorter mapping, so `SB_MOBILE`, `SB_DEVICE_METRICS`,
