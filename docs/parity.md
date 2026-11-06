@@ -44,7 +44,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `activate_messenger` | implemented | `BaseCase::activate_messenger` |  |
 | `activate_recorder` | implemented | `BaseCase::activate_recorder` |  |
 | `ad_block` | implemented | `BaseCase::ad_block` |  |
-| `add_cookie` | implemented | `BaseCase::add_cookie` | Takes a Cookie, such as one that get_cookies returned (a W3C cookie object, as Python takes it, reads as one with serde_json::from_value). The keyword expiry is the builder method .expiry(..), a bool as in Python or a CookieExpiry. |
+| `add_cookie` | implemented | `BaseCase::add_cookie` | Takes a Cookie, such as one that get_cookies returned (a W3C cookie object, as Python takes it, reads as one with seleniumbase_rs::json::from_value). The keyword expiry is the builder method .expiry(..), a bool as in Python or a CookieExpiry. |
 | `add_cookies` | implemented | `BaseCase::add_cookies` |  |
 | `add_css_link` | implemented | `BaseCase::add_css_link` |  |
 | `add_css_style` | implemented | `BaseCase::add_css_style` |  |

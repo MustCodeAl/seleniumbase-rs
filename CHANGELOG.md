@@ -104,7 +104,7 @@ work, `docs/parity.md` the per-API status).
   where it returned a `serde_json::Value` of the shape `{"cookies": [...]}`. `add_cookie` takes
   a `&Cookie`, where it took the W3C cookie object as a `&Value`; `BrowserSession::add_cookie`
   takes a `&Cookie` too, where it took `(name, value)`, so it can set a path, a domain and the
-  flags. A W3C object reads as a `Cookie` with `serde_json::from_value` (`expiry` is read as
+  flags. A W3C object reads as a `Cookie` with `seleniumbase_rs::json::from_value` (`expiry` is read as
   `expires`; a missing `path`, `domain`, `secure` or `httpOnly` takes its default), and
   `add_cookie(..)` keeps its `.expiry(..)` keyword and its rule that a `domain` outside the
   page's origin becomes the origin's host. The files of `save_cookies` and `load_cookies`

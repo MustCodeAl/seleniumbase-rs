@@ -50,7 +50,7 @@ rust = "BaseCase::ad_block"
 [basecase."add_cookie"]
 status = "implemented"
 rust = "BaseCase::add_cookie"
-note = "Takes a Cookie, such as one that get_cookies returned (a W3C cookie object, as Python takes it, reads as one with serde_json::from_value). The keyword expiry is the builder method .expiry(..), a bool as in Python or a CookieExpiry."
+note = "Takes a Cookie, such as one that get_cookies returned (a W3C cookie object, as Python takes it, reads as one with seleniumbase_rs::json::from_value). The keyword expiry is the builder method .expiry(..), a bool as in Python or a CookieExpiry."
 
 [basecase."add_cookies"]
 status = "implemented"

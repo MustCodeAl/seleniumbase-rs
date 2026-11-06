@@ -2116,9 +2116,9 @@ impl BaseCase {
     /// Adds a cookie, as Python's `add_cookie(cookie_dict, expiry=False)` does.
     /// A cookie that [`get_cookies`](Self::get_cookies) returned goes in with its expiry
     /// dropped, so it lasts for the browser session, unless [`CookieExpiry::Saved`] is given.
-    /// The W3C cookie object of Python reads as a [`Cookie`] with `serde_json::from_value`.
-    /// The keyword is [`AddCookie::expiry`]; see [`AddCookie`] for what the call does to the
-    /// cookie before it goes in.
+    /// The W3C cookie object of Python reads as a [`Cookie`] with
+    /// `seleniumbase_rs::json::from_value`. The keyword is [`AddCookie::expiry`]; see
+    /// [`AddCookie`] for what the call does to the cookie before it goes in.
     ///
     /// # Examples
     ///

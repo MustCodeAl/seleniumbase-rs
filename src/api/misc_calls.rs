@@ -654,8 +654,8 @@ impl<'a> IntoFuture for OpenNewTab<'a> {
 
 /// Python's `add_cookie(cookie_dict, expiry=False)`: add a [`Cookie`], such as one that
 /// [`BaseCase::get_cookies`] returned. A W3C cookie object, as Python takes it, reads as a
-/// cookie with `serde_json::from_value` (`name` and `value`, and optionally `path`, `domain`,
-/// `secure`, `httpOnly`, `expiry` and `sameSite`).
+/// cookie with `seleniumbase_rs::json::from_value` (`name` and `value`, and optionally `path`,
+/// `domain`, `secure`, `httpOnly`, `expiry` and `sameSite`).
 ///
 /// It comes from [`BaseCase::add_cookie`]. The one keyword is
 /// [`expiry`](Self::expiry): by default (Python's `False`) the cookie's own

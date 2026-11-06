@@ -49,15 +49,15 @@ fn root_path() -> String {
 /// # Examples
 ///
 /// ```
-/// use seleniumbase_rs::Cookie;
+/// use seleniumbase_rs::{json, Cookie};
 ///
 /// let cookie = Cookie::new("session", "s3cret").domain("example.com").secure(true);
 /// assert!(!format!("{cookie:?}").contains("s3cret"));
 ///
-/// let saved: Cookie = serde_json::from_str(r#"{"name": "sid", "value": "abc", "expiry": 4102444800}"#)?;
+/// let saved: Cookie = json::from_str(r#"{"name": "sid", "value": "abc", "expiry": 4102444800}"#)?;
 /// assert_eq!(saved.path, "/");
 /// assert_eq!(saved.expires, Some(4_102_444_800.0));
-/// # Ok::<(), serde_json::Error>(())
+/// # Ok::<(), json::Error>(())
 /// ```
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
