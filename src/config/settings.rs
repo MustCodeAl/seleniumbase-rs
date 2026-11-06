@@ -541,17 +541,24 @@ impl Settings {
             None => Self::global_file_with(&var),
         };
         let file = file.map(|file| SettingsFile::read(&file)).transpose()?;
-        // The file alone is read and checked first, so that its errors are the file's.
-        if let Some(file) = &file {
-            file.settings()?.validate()?;
-        }
-        let below = file.map_or_else(Layer::defaults, SettingsFile::into_layer);
-        let (settings, problems) = Self::over(
+        // What the file refuses is met with what the variables refuse, in the order of the
+        // option table, whichever source gave each, as `check` lists them. The file alone is
+        // not checked for a window with one side: a variable may give the other side.
+        let mut refused = Vec::new();
+        let below = match file {
+            Some(mut file) => {
+                refused.extend(file.check());
+                file.into_layer()
+            }
+            None => Layer::defaults(),
+        };
+        let (settings, from_variables) = Self::over(
             &below,
             None,
             EnvVars::new("environment variable", var).read(),
         )?;
-        Self::finish(settings, problems)
+        refused.extend(from_variables);
+        Self::finish(settings, refused)
     }
 
     /// Reads the settings as [`load_from`](Self::load_from) does (the file `path`, or the
@@ -731,7 +738,9 @@ impl Settings {
 
     /// `settings` if no variable was refused, else the error of the first one; then the checks
     /// of the whole: the window size, the plugins this build can run, and the fingerprint file.
-    fn finish(settings: Self, refused: Vec<Refused>) -> Result<Self, SeleniumBaseError> {
+    fn finish(settings: Self, mut refused: Vec<Refused>) -> Result<Self, SeleniumBaseError> {
+        // The first in the order of the option table, whichever source gave it.
+        refused.sort_by_key(|refused| refused.row);
         if let Some(refused) = refused.into_iter().next() {
             return Err(refused.problem.error);
         }
@@ -1636,10 +1645,7 @@ mod tests {
         assert_eq!(over.args, ["--y"]);
         assert!(over.disable_features.is_empty(), "{over:?}");
         // The features of `SB_DISABLE_FEATURES` are not the switches' own.
-        let kept = chromium(
-            "disable_features = \"X\"",
-            &[("SB_CHROMIUM_ARG", "--y")],
-        );
+        let kept = chromium("disable_features = \"X\"", &[("SB_CHROMIUM_ARG", "--y")]);
         assert_eq!(kept.args, ["--y"]);
         assert_eq!(kept.disable_features, ["X"]);
         // The two variables name features together; one variable replaces its own kind.
@@ -1650,10 +1656,7 @@ mod tests {
         .disable_features;
         both.sort();
         assert_eq!(both, ["A", "B"]);
-        let replaced = chromium(
-            "disable_features = \"X\"",
-            &[("SB_DISABLE_FEATURES", "B")],
-        );
+        let replaced = chromium("disable_features = \"X\"", &[("SB_DISABLE_FEATURES", "B")]);
         assert_eq!(replaced.disable_features, ["B"]);
     }
 
@@ -1767,7 +1770,6 @@ mod tests {
         settings.apply_options(&[]).unwrap();
         assert_eq!(settings, before);
     }
-
 
     #[test]
     fn rec_sb_cdp_is_off_by_default_and_follows_its_variable_and_key() {
