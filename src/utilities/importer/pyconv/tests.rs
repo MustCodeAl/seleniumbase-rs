@@ -766,6 +766,50 @@ fn every_call_the_goldens_make_on_sb_is_a_basecase_method_taking_those_arguments
     );
 }
 
+/// Python's `self.locator(selector, by, timeout)` waits for the element and hands it
+/// back (`BaseCase.locator` of SeleniumBase calls `wait_for_element_present`); here
+/// that is `find_element`, since `BaseCase` has no `locator` (the name is the lazy
+/// `Page::locator` of the pure CDP engine). Its parity row is `composed`, which the
+/// generated table leaves out, so the hand-written table maps it.
+#[test]
+fn locator_is_converted_to_find_element() {
+    use crate::utilities::python_importer::{
+        import_python, ImportOptions, ImportSeverity, PythonSource,
+    };
+    let source = "from seleniumbase import BaseCase\n\n\nclass T(BaseCase):\n    \
+                  def test_locator(self):\n        self.open(\"https://example.com\")\n        \
+                  self.locator(\"#a\")\n        self.locator(\"p:contains('x')\", timeout=5)\n";
+
+    let result = import_python(
+        source,
+        &ImportOptions {
+            source: PythonSource::Auto,
+            test_name: "locator".to_owned(),
+        },
+    );
+
+    let errors: Vec<_> = result
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.severity == ImportSeverity::Error)
+        .collect();
+    assert!(errors.is_empty(), "{errors:?}\n{}", result.rust);
+    assert!(
+        result.rust.contains("sb.find_element(\"#a\").await?;"),
+        "{}",
+        result.rust
+    );
+    assert!(
+        result
+            .rust
+            .contains("sb.find_element(\"p:contains('x')\").await?;"),
+        "{}",
+        result.rust
+    );
+    assert!(!result.rust.contains("sb.locator("), "{}", result.rust);
+    syn::parse_file(&result.rust).unwrap();
+}
+
 /// `tests/golden/import_python`: the Python examples and what the importer
 /// writes for each.
 fn golden_dir() -> PathBuf {
