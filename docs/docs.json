@@ -888,7 +888,8 @@
               "design/bon_builders",
               "design/element_type",
               "design/cookie_type",
-              "design/driver_error"
+              "design/driver_error",
+              "design/network_throttle"
             ]
           },
           {
