@@ -61,6 +61,18 @@ work, `docs/parity.md` the per-API status).
   (`WaitTimeout`); every other rustwright failure is `Playwright` with its text, and no element
   error is made up. `close` on a sidecar whose browser is gone is `Ok`.
 
+- **Breaking, security: `SB_NO_SANDBOX` fails safe.** The pure CDP engine turned Chrome's
+  sandbox off whenever the variable existed, so `SB_NO_SANDBOX=0`, `=false` and an empty value
+  did the opposite of what they say. Now only `true`, `1`, `yes` or `on` (in any letter case)
+  turn the sandbox off; `false`, `0`, `no`, `off` and an empty or blank value keep it on, as an
+  unset variable does; any other value makes `LaunchOptionsBuilder::build` fail with an error
+  that names the variable. The builder's own `no_sandbox(bool)` still decides first, and then
+  the variable is not read. A deployment that turned the sandbox off with another value
+  (`SB_NO_SANDBOX=enabled`) must change it to one of the four. The Dockerfile and
+  `docker/verify-linux.sh` set `1`, which still works. The table reader of `Settings`
+  (`--no-sandbox`, a `no_sandbox` key) already read the variable this way.
+
+
 ### Added
 
 - `BaseCase::devtools_endpoint()` (and `BrowserSession::devtools_endpoint()`): the DevTools

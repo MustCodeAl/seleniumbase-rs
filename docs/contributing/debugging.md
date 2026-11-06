@@ -749,7 +749,7 @@ take seconds. Tests that fake `java` or another script run it once with
 <Accordion title="Chrome will not start as root or in a container" icon="docker">
 
 It needs `--no-sandbox` there. The WebDriver engine always passes it on Linux.
-For the pure CDP engine, set `SB_NO_SANDBOX` (any value, `0` included) or call
+For the pure CDP engine, set `SB_NO_SANDBOX=true` (`false`, `0`, `no`, `off` keep the sandbox) or call
 `LaunchOptionsBuilder::no_sandbox(true)`. The real-Chrome tests of this
 repository pass it when `CI` is set. In Docker, also start the container with
 `--shm-size=1g`.

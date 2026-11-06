@@ -604,7 +604,7 @@ Chrome's sandbox off**, and it confines the files its own tools write.
 - The pure CDP engine ([DevTools Protocol](/concepts/cdp)) builds its launch
   options with `LaunchOptions::builder()`. The builder's `no_sandbox(bool)` passes
   `--no-sandbox`, "which Chrome needs when run as root in a container". Setting
-  the `SB_NO_SANDBOX` environment variable turns it on as well.
+  the `SB_NO_SANDBOX` environment variable to `true`, `1`, `yes` or `on` turns it on as well; `false`, `0`, `no` and `off` keep the sandbox.
 - The same options have an incognito and a guest profile mode, which pass
   `--incognito` and `--guest` to Chrome.
 

@@ -369,6 +369,7 @@ impl View {
 /// not in the set.
 fn profile_of(
     switches: BTreeMap<LaunchSwitch, bool>,
+    no_sandbox_by_variable: bool,
 ) -> (ProfileMode, bool, BTreeSet<LaunchSwitch>) {
     let on = |switch: LaunchSwitch| switches.get(&switch).copied();
     let mode = if on(LaunchSwitch::Incognito) == Some(true) {
@@ -378,8 +379,7 @@ fn profile_of(
     } else {
         ProfileMode::Standard
     };
-    let no_sandbox =
-        on(LaunchSwitch::NoSandbox).unwrap_or_else(|| std::env::var_os("SB_NO_SANDBOX").is_some());
+    let no_sandbox = on(LaunchSwitch::NoSandbox).unwrap_or(no_sandbox_by_variable);
     let rest = switches
         .into_iter()
         .filter(|(switch, on)| {
@@ -398,6 +398,9 @@ fn profile_of(
 struct Parsed {
     proxy: Option<Proxy>,
     pac: Option<PacUrl>,
+    /// Whether `SB_NO_SANDBOX` turns the sandbox off: only a true value does, and only when no
+    /// layer decided the sandbox.
+    sandbox_off_by_variable: bool,
     #[cfg(feature = "plugins")]
     plugins: Option<seleniumbase_rs_plugin::PluginSet>,
 }
@@ -432,9 +435,19 @@ impl Layers {
             .as_ref()
             .map(|spec| bridge::parse_proxy(&spec.text.0, spec.checked))
             .transpose()?;
+        // The variable decides only when no layer says anything about the sandbox; a value
+        // that is no boolean is an error, never a sandbox turned off by accident.
+        let sandbox_off_by_variable = if view.merged.switches.contains_key(&LaunchSwitch::NoSandbox)
+        {
+            false
+        } else {
+            crate::config::env_vars::switch("SB_NO_SANDBOX")?.unwrap_or(false)
+        };
+
         let parsed = Parsed {
             proxy,
             pac,
+            sandbox_off_by_variable,
             #[cfg(feature = "plugins")]
             plugins: Some(view.plugins()?),
         };
@@ -445,7 +458,17 @@ impl Layers {
     pub(super) fn assemble_default() -> LaunchOptions {
         let layers = Self::default();
         let view = View::of(&layers);
-        layers.assemble(view, Parsed::default())
+        let sandbox_off_by_variable = crate::config::env_vars::switch("SB_NO_SANDBOX")
+            .ok()
+            .flatten()
+            .unwrap_or(false);
+        layers.assemble(
+            view,
+            Parsed {
+                sandbox_off_by_variable,
+                ..Parsed::default()
+            },
+        )
     }
 
     /// Merges the layers into options, without checking the combination.
@@ -491,7 +514,7 @@ impl Layers {
         let user_agent = user_agent.or_else(|| mobile.then(|| MOBILE_USER_AGENT.to_owned()));
 
         // The three that have fields of their own are not in the set.
-        let (mode, no_sandbox, switches) = profile_of(switches);
+        let (mode, no_sandbox, switches) = profile_of(switches, parsed.sandbox_off_by_variable);
 
         // What the caller sets wins over what a switch implies.
         let mut merged_prefs = chrome_preferences(&switches);

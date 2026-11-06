@@ -120,7 +120,7 @@ Chain these, then `build()`. Each returns the builder.
 | `device_metrics(metrics)` | The phone screen `mobile` emulates, and turns mobile emulation on. `metrics` is `seleniumbase_rs::browser::options::DeviceMetrics::new(width, height, pixel_ratio)` (`u32`, `u32`, `f64`). |
 | `dark_mode(on)` | Forces Chrome's dark theme on web pages. For `prefers-color-scheme` only, use `color_scheme` on [State](/api/cdp-state). |
 | `devtools(on)` | Opens DevTools with each tab. A headless browser has no window, and gets nothing. |
-| `no_sandbox(no_sandbox)` | Passes `--no-sandbox`. Also enabled by `SB_NO_SANDBOX`, which this setting overrides either way. |
+| `no_sandbox(no_sandbox)` | Passes `--no-sandbox`. Also enabled by `SB_NO_SANDBOX=true` (or `1`, `yes`, `on`; `false`, `0`, `no`, `off` and an empty value keep the sandbox; any other value makes `build` fail), which this setting overrides either way. |
 | `disable_web_security(on)` | Allows cross-origin requests and ignores certificate errors. |
 | `swiftshader(on)` | Software WebGL (SwiftShader). |
 | `ad_block(ad_block)` | Blocks a built-in list of ad hosts. |

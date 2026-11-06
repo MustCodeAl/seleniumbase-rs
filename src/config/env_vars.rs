@@ -481,6 +481,31 @@ where
         .transpose()
 }
 
+/// The value of the switch variable `name`: `Some(true)` for `true`, `1`, `yes` or `on`,
+/// `Some(false)` for `false`, `0`, `no` or `off` (in any letter case), and `None` when it is
+/// not set, empty or blank.
+///
+/// A variable that turns something on is read with this, so a value that says no never turns it
+/// on by accident: `SB_NO_SANDBOX=0` keeps Chrome's sandbox.
+///
+/// # Errors
+///
+/// [`SeleniumBaseError::InvalidConfig`] naming the variable and the value, when the value is
+/// none of those.
+pub fn switch(name: &str) -> Result<Option<bool>, SeleniumBaseError> {
+    text(name)
+        .map(|value| {
+            crate::config::settings::parse_bool(&value).map_err(|_| {
+                refusal(
+                    name,
+                    &value,
+                    "expected true, 1, yes, on, false, 0, no or off",
+                )
+            })
+        })
+        .transpose()
+}
+
 /// The items of the variable `name`, separated by commas and trimmed; empty when it is not
 /// set.
 #[must_use]

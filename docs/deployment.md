@@ -111,7 +111,7 @@ driver (`linux64` or `linux-arm64`) on first use.
 
 Chrome refuses to start its sandbox in many container setups. The WebDriver
 engine always passes `--no-sandbox` on Linux. For the pure CDP engine,
-`SB_NO_SANDBOX=1` (any value counts, `0` included) or
+`SB_NO_SANDBOX=true` (also `1`, `yes`, `on`; `false`, `0`, `no`, `off` and an empty value keep the sandbox, any other value is an error) or
 `LaunchOptionsBuilder::no_sandbox(true)` passes it.
 
 <Warning>

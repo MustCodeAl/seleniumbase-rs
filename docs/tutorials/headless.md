@@ -391,7 +391,7 @@ has no display.
 
 On Linux, the WebDriver engine passes `--no-sandbox` to Chromium browsers itself.
 The pure CDP engine passes it only with `LaunchOptionsBuilder::no_sandbox(true)` or
-when `SB_NO_SANDBOX` is set, which Chrome needs when it runs as root in a
+when `SB_NO_SANDBOX` is `true`, `1`, `yes` or `on`, which Chrome needs when it runs as root in a
 container. The runtime image built from the `Dockerfile` runs as the non-root user
 `sbrs`.
 

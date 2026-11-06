@@ -907,8 +907,8 @@ equivalent and are not sent; the session proxy is not passed to Firefox either.
   Chrome's own package. The repository's `Dockerfile` shows the Debian setup.
 - **Running as root or in a container** usually needs `--no-sandbox`. The
   WebDriver engine always passes it on Linux. For the pure CDP engine set
-  `SB_NO_SANDBOX` (it is read as set or not set: `SB_NO_SANDBOX=0` also turns the
-  sandbox off), or call `LaunchOptionsBuilder::no_sandbox(true)`. The real-browser
+  `SB_NO_SANDBOX=true` (also `1`, `yes`, `on`; `false`, `0`, `no`, `off` and an empty value keep the
+  sandbox, any other value is an error), or call `LaunchOptionsBuilder::no_sandbox(true)`. The real-browser
   tests of this repository read `CI` instead and pass `--no-sandbox` when it is
   set.
 

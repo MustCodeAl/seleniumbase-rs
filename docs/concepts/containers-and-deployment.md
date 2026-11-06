@@ -409,7 +409,7 @@ docker run --rm seleniumbase-rs --help
 
 For a browser run, the table above applies. The pure CDP launcher has
 `LaunchOptionsBuilder::no_sandbox(true)`, and it is switched on by the
-`SB_NO_SANDBOX` environment variable too, which suits a container where the
+`SB_NO_SANDBOX=true` environment variable too (`false`, `0`, `no` and `off` keep the sandbox), which suits a container where the
 sandbox cannot start. Pass `--shm-size` to `docker run` for the shared memory.
 
 `docker/verify-linux.sh` is a second example: the script used to run this

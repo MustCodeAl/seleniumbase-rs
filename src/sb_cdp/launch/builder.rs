@@ -221,8 +221,9 @@ impl LaunchOptionsBuilder {
     }
 
     /// Passes `--no-sandbox`, which Chrome needs when run as root in a
-    /// container. Also enabled by setting the `SB_NO_SANDBOX` variable, which
-    /// this setting overrides either way.
+    /// container. Also enabled by `SB_NO_SANDBOX=true` (or `1`, `yes`, `on`; `false`, `0`, `no`,
+    /// `off` and an empty value keep the sandbox; any other value makes `build` fail). This
+    /// setting overrides the variable either way.
     #[must_use]
     pub fn no_sandbox(self, no_sandbox: bool) -> Self {
         self.switch(LaunchSwitch::NoSandbox, no_sandbox)
