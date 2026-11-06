@@ -56,6 +56,7 @@ mod sb_cdp_frames;
 mod sb_cdp_har;
 mod sb_cdp_human;
 mod sb_cdp_intercept;
+mod sb_cdp_launch_layers;
 mod sb_cdp_mobile;
 mod sb_cdp_mock;
 mod sb_cdp_page_inject;

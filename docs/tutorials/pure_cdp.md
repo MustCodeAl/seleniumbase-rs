@@ -731,9 +731,10 @@ async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 it loads from then on (the page that is open keeps its old identity until it
 navigates). It works on a tab inside an isolated `BrowserContext` too.
 
-- A launch setting made before `.fingerprint(..)` wins over the fingerprint's
-  (user agent, language, window size, WebRTC flag, proxy); one made after it
-  replaces it.
+- A launch setting made on the builder wins over the fingerprint's (user agent,
+  language, window size, WebRTC flag, proxy), before or after `.fingerprint(..)`;
+  so does one read from a config with `.browser_config(..)`. The order of the
+  calls never matters.
 - A fingerprint adds only what it holds and has switched on (see
   [One setting, four states](/stealth/fingerprints#one-setting-four-states)): a
   fingerprint with no WebRTC policy and no WebRTC masking passes no WebRTC flag,

@@ -155,7 +155,7 @@ pub async fn build(self) -> Result<BrowserScraper, ScrapeError>
 ```
 
 
-- `launch_options`: The launch options of the browser. The fingerprint of the scraper is applied after them, so a setting made here (a user agent, say) wins over the fingerprint's.
+- `launch_options`: The launch options of the browser, a built `LaunchOptions`. The scraper adds its fingerprint to a copy of them (`LaunchOptions::with_fingerprint`), so a setting made here (a user agent, say) wins over the fingerprint's.
 - `with_geo_proxies`: Adds proxies, each with the country it exits in. The country decides the language and the time zone the browser presents while it leaves through that proxy.
 - `proxy_strategy`: How the pool picks an egress when one is needed: at the start and at each rotation.
 - `with_max_challenge_attempts`: How many loads of one URL a fetch may make before it gives up. Zero is read as one.

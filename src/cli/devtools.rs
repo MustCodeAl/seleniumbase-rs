@@ -91,7 +91,7 @@ impl DevtoolsRequest {
         if let Some(dir) = &self.extension_dir {
             builder = builder.extension(dir);
         }
-        // After the user agent, the language and the proxy: what was asked for by name wins.
+        // What was asked for by name (user agent, language, proxy) wins over the fingerprint's.
         if let Some(fingerprint) = &self.fingerprint {
             builder = builder.fingerprint(fingerprint);
         }

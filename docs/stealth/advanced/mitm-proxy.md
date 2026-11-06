@@ -115,7 +115,7 @@ async fn demo() -> Result<(), Box<dyn std::error::Error>> {
     let profile = ImpersonationProfile::measured(BrowserKind::Chrome)?;
     let mitm =
         MitmProxy::start(profile, None, MitmOptions::default(), Arc::new(NoopEventSink)).await?;
-    let options = mitm.configure_launch(LaunchOptions::builder()).build()?;
+    let options = mitm.configure_launch(LaunchOptions::builder().build()?)?;
     let browser = Browser::launch(options).await?;
     let page = browser.new_page_at("https://example.com/").await?;
     drop(page);
@@ -184,7 +184,8 @@ An absolute-form `http://` request is checked the same way and forwarded without
 
 ### What Chrome must be told
 
-`mitm.configure_launch(builder)` sets the proxy, makes the proxy's priming page
+`mitm.configure_launch(options)` takes built `LaunchOptions`, returns them made
+again (a `Result`) with the proxy set, makes the proxy's priming page
 the start page (see [the priming page](#the-priming-page)) and adds
 `mitm.chrome_args()`:
 
