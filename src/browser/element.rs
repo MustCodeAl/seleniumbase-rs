@@ -23,7 +23,7 @@ use crate::browser::session::shown_text;
 use crate::browser::shadow_find;
 use crate::error::SeleniumBaseError;
 use crate::sb_cdp::{Key, Rect, SelectBy};
-use crate::utils::selectors::{SelectorBuf, CHAIN_SEPARATOR};
+use crate::utils::selectors::{xpath_root_branch, SelectorBuf, CHAIN_SEPARATOR};
 
 /// The page script of [`Element::attribute`]: the attribute `arguments[1]` of
 /// the element `arguments[0]`, as the markup has it, or `null`.
@@ -166,9 +166,11 @@ impl Element {
             .map_err(|error| self.failed(error))
     }
 
-    /// The text the driver renders for the element, as `BaseCase::get_text`
-    /// answers: empty for an `<input>` or a `<textarea>`, whose value
-    /// [`text`](Self::text) reads.
+    /// The text the driver renders for the element, which is what
+    /// `BaseCase::get_text_content` returns. It is empty for an element that is
+    /// not displayed, where Python's `get_text_content` reads the `textContent`
+    /// property (the markup's text, shown or not), and for an `<input>`, whose
+    /// value [`text`](Self::text) reads.
     ///
     /// # Errors
     ///
@@ -542,17 +544,6 @@ impl Element {
     }
 }
 
-/// Whether `xpath` starts at the root of the document (`//td`, `/html/body`,
-/// `(//td)[1]`).
-///
-/// The WebDriver evaluates such a path from the root whatever element the
-/// search starts from, so inside an element it would match the whole page.
-fn starts_at_the_root(xpath: &str) -> bool {
-    xpath
-        .trim_start_matches(|c: char| c == '(' || c.is_whitespace())
-        .starts_with('/')
-}
-
 /// Finding other elements from this one.
 ///
 /// Each looks once, since the element is already found: a search that finds
@@ -574,12 +565,15 @@ impl Element {
     /// with a hint, not left to the driver.
     fn lookup(selector: &SelectorBuf) -> Result<By, SeleniumBaseError> {
         let by = shadow_find::by_of(selector)?;
-        if matches!(selector, SelectorBuf::XPath(xpath) if starts_at_the_root(xpath)) {
+        if let SelectorBuf::XPath(xpath) = selector
+            && let Some(branch) = xpath_root_branch(xpath)
+        {
             return Err(SeleniumBaseError::InvalidSelector(format!(
-                "'{selector}' starts at the root of the page, so it matches the whole page \
-                 from inside an element too: write it from the element (`.//td`) to search \
-                 inside this one, or look it up from the page with `BaseCase::find_element`"
-            )));
+                        "'{selector}' has a branch that starts at the root of the page, '{branch}', so \
+                         it matches the whole page from inside an element too: write it from the \
+                         element (`.//td`) to search inside this one, or look it up from the page with \
+                         `BaseCase::find_element`"
+                    )));
         }
 
         if shadow_find::pieces(&by)?.is_some() {
@@ -602,9 +596,10 @@ impl Element {
     /// The search stays inside this element. The WebDriver evaluates an XPath
     /// that starts at the root of the page (`//td`, `/html/body`, `(//td)[1]`)
     /// from the root whatever element it is asked from, so that would match
-    /// the whole page: it is refused. Write it from the element, `.//td`,
-    /// for the descendants. A `p:contains('x')` selector is read as
-    /// `.//p[...]`, which stays inside.
+    /// the whole page: it is refused, and so is a union with such a branch
+    /// (`.//a | //b`) or a call of `id()`, which also searches the whole document.
+    /// Write it from the element, `.//td`, for the descendants. A `p:contains('x')`
+    /// selector is read as `.//p[...]`, which stays inside.
     ///
     /// An `<iframe>` element holds its frame, not the frame's document, so
     /// this finds nothing in the frame, unlike
@@ -1023,6 +1018,84 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn an_xpath_union_is_refused_when_any_branch_starts_at_the_root() {
+        let driver = cart();
+        let (_session, cart) = found(&driver, "#a").await;
+
+        // Each selector with the branch the message names. A group holds a union
+        // too, and the function `id()` searches the whole document, as `//` does.
+        for (selector, branch) in [
+            (SelectorBuf::xpath(".//a | //b"), "//b"),
+            (SelectorBuf::xpath("./a|/html/body"), "/html/body"),
+            (SelectorBuf::xpath(".//a | (//b)[1]"), "(//b)[1]"),
+            (SelectorBuf::xpath("(.//a | //b)[1]"), "(.//a | //b)[1]"),
+            (SelectorBuf::xpath("((.//a) | ( //b))"), "((.//a) | ( //b))"),
+            (SelectorBuf::xpath(".//a[@x='|'] | //b"), "//b"),
+            (SelectorBuf::xpath("id('y')//b"), "id('y')//b"),
+            (SelectorBuf::xpath(".//a | id ( 'y' )"), "id ( 'y' )"),
+            (SelectorBuf::xpath("(//b)[1]"), "(//b)[1]"),
+        ] {
+            for error in [
+                cart.find(selector.clone()).await.unwrap_err(),
+                cart.find_all(selector.clone()).await.unwrap_err(),
+            ] {
+                let SeleniumBaseError::InvalidSelector(message) = &error else {
+                    panic!("{selector}: expected InvalidSelector, got {error:?}");
+                };
+                // It names the branch, and keeps the hint.
+                assert!(
+                    message.contains(&format!("page, '{branch}', so")),
+                    "{selector}: {message}"
+                );
+                assert!(message.contains(".//td"), "{selector}: {message}");
+                assert!(message.contains("find_element"), "{selector}: {message}");
+            }
+        }
+        // The driver was not asked: it would have searched the whole page.
+        assert!(driver.requests("/element/e1/element").is_empty());
+        assert!(driver.requests("/element/e1/elements").is_empty());
+    }
+
+    #[tokio::test]
+    async fn the_xpath_the_selector_builders_write_is_looked_up_from_the_element() {
+        let driver = cart();
+        let (_session, cart) = found(&driver, "#a").await;
+        let selectors = [
+            SelectorBuf::role("button", Some("Save"), false),
+            SelectorBuf::role("", None, true),
+            SelectorBuf::containing_text("Save", Some("button")),
+            SelectorBuf::containing_text("Save", None),
+            SelectorBuf::text("Save", false),
+            SelectorBuf::label("Email", false),
+            SelectorBuf::has_text("Save"),
+        ];
+
+        for selector in &selectors {
+            // The mock finds nothing; what matters is that the driver is asked.
+            let error = cart.find(selector.clone()).await.unwrap_err();
+            assert!(
+                matches!(error, SeleniumBaseError::WebDriver(_)),
+                "{selector}: {error:?}"
+            );
+            let all = cart.find_all(selector.clone()).await.unwrap();
+            assert!(all.is_empty(), "{selector}");
+        }
+
+        for path in ["/element/e1/element", "/element/e1/elements"] {
+            let asked = driver.requests(path);
+            assert_eq!(asked.len(), selectors.len(), "{path}");
+            for (request, selector) in asked.iter().zip(&selectors) {
+                let xpath = request.body["value"].as_str().unwrap_or_default();
+                assert_eq!(request.body["using"], "xpath", "{path}: {selector}");
+                assert!(
+                    xpath.starts_with(".//") || xpath.starts_with("self::"),
+                    "{path}: {xpath}"
+                );
+            }
+        }
+    }
+
+    #[tokio::test]
     async fn an_xpath_that_starts_at_the_element_is_looked_up_as_written() {
         let driver = cart();
         let (_session, cart) = found(&driver, "#a").await;
@@ -1032,6 +1105,16 @@ mod tests {
             "(.//td)[1]",
             "parent::div",
             "descendant::td",
+            // A union is a path in every branch, and a `|`, a `/` or a `[` inside a
+            // string or a predicate is no branch.
+            ".//a | .//b",
+            "./a|./b",
+            "(.//a | .//b)[1]",
+            ".//a[@title='x | //y']",
+            ".//a[@title=\"x | //y\"]",
+            ".//a[.//b]",
+            ".//a[//b]",
+            ".//a[@href='/x'] | ./b[@id=\"/y\"]",
         ];
 
         for xpath in relative {

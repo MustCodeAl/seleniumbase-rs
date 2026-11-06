@@ -287,6 +287,12 @@ impl<'a> Selector<'a> {
 /// uses, so `"#login"`, `"//form/button"` and `"link=Sign in"` all work. The
 /// kind is decided once, here, and sent to the page already tagged.
 ///
+/// The XPath that [`containing_text`](Self::containing_text), [`text`](Self::text),
+/// [`label`](Self::label) and [`role`](Self::role) write starts at the context node
+/// (`.//`). From a page that is the whole document, as `//` would be; from an
+/// [`Element`](crate::Element) it stays inside the element, where
+/// [`Element::find`](crate::Element::find) refuses a path from the root of the page.
+///
 /// # Examples
 ///
 /// ```
@@ -350,7 +356,7 @@ impl SelectorBuf {
     ///
     /// assert_eq!(
     ///     SelectorBuf::containing_text("Sign in", Some("button")),
-    ///     SelectorBuf::xpath("//button[contains(normalize-space(.), 'Sign in')]"),
+    ///     SelectorBuf::xpath(".//button[contains(normalize-space(.), 'Sign in')]"),
     /// );
     /// ```
     pub fn containing_text(text: impl AsRef<str>, tag: Option<&str>) -> Self {
@@ -370,9 +376,9 @@ impl SelectorBuf {
             })
             .map(str::to_owned);
         match tag {
-            Some(tag) => Self::XPath(format!("//{tag}[contains(normalize-space(.), {literal})]")),
+            Some(tag) => Self::XPath(format!(".//{tag}[contains(normalize-space(.), {literal})]")),
             None => Self::XPath(format!(
-                "//*[text()[contains(normalize-space(.), {literal})]]"
+                ".//*[text()[contains(normalize-space(.), {literal})]]"
             )),
         }
     }
@@ -392,7 +398,7 @@ impl SelectorBuf {
     /// or (with `exact`) whose whole text is `text`, case and all. Buttons made
     /// with `<input type="submit">` (and `button`, `reset`) match by their
     /// value. Runs of white space count as one space, and `<script>` and
-    /// `<style>` never match.
+    /// `<style>` never match, nor does anything in the `<head>`.
     ///
     /// This is an approximation written in XPath 1.0: only ASCII letters are
     /// folded for the case-insensitive match.
@@ -412,7 +418,7 @@ impl SelectorBuf {
         let content = text_match(".", text, exact);
         let value = text_match("@value", text, exact);
         Self::XPath(format!(
-            "//body/descendant-or-self::*\
+            ".//*[not(ancestor-or-self::head)]\
              [not(self::script or self::style or self::noscript or self::template)]\
              [({content} and not(.//*[{content}])) or \
              (self::input and (@type='button' or @type='submit' or @type='reset') and {value})]"
@@ -459,7 +465,7 @@ impl SelectorBuf {
         let by_label = text_match(".", text, exact);
         let by_aria = text_match("@aria-label", text, exact);
         Self::XPath(format!(
-            "//*[(self::input and not(@type='hidden')) or self::textarea or self::select or \
+            ".//*[(self::input and not(@type='hidden')) or self::textarea or self::select or \
              self::button or self::meter or self::output or self::progress or \
              @role='textbox' or @role='combobox' or @role='checkbox' or @role='radio' or \
              @role='switch' or @role='slider' or @role='spinbutton' or @role='listbox']\
@@ -498,12 +504,12 @@ impl SelectorBuf {
     /// let SelectorBuf::XPath(xpath) = SelectorBuf::role("button", Some("Sign in"), false) else {
     ///     unreachable!()
     /// };
-    /// assert!(xpath.starts_with("//*[@role='button' or (not(@role) and (self::button"));
+    /// assert!(xpath.starts_with(".//*[@role='button' or (not(@role) and (self::button"));
     /// assert!(xpath.contains("'sign in'"));
     /// ```
     pub fn role(role: &str, name: Option<&str>, exact: bool) -> Self {
         let role = role.trim();
-        let mut xpath = String::from("//*");
+        let mut xpath = String::from(".//*");
         if !role.is_empty() {
             let explicit = format!("@role={}", xpath_string_literal(role));
             match implicit_role(role) {
@@ -999,6 +1005,149 @@ pub fn xpath_to_css(xpath: &str) -> Result<String, SeleniumBaseError> {
     XPathReader { rest: trimmed }
         .path()
         .ok_or_else(|| SeleniumBaseError::InvalidSelector(format!("unsupported xpath: {xpath}")))
+}
+
+/// The branches of the XPath `xpath`: the pieces a `|` of the whole expression
+/// joins, so `.//a | //b` is `.//a ` and ` //b`.
+///
+/// A `|` inside a string literal (`'x | y'`), a predicate (`a[b | c]`) or a
+/// group (`(a | b)`) joins nothing of the expression itself and cuts nothing.
+/// The pieces are not trimmed. An expression without such a `|` is one piece.
+pub(crate) fn xpath_union_branches(xpath: &str) -> Vec<&str> {
+    let mut branches = Vec::new();
+    let mut depth = 0_usize;
+    let mut quote = None;
+    let mut start = 0;
+    for (at, c) in xpath.char_indices() {
+        match (quote, c) {
+            (Some(open), _) if c == open => quote = None,
+            (Some(_), _) => {}
+            (None, '\'' | '"') => quote = Some(c),
+            (None, '[' | '(') => depth += 1,
+            (None, ']' | ')') => depth = depth.saturating_sub(1),
+            (None, '|') if depth == 0 => {
+                branches.push(&xpath[start..at]);
+                start = at + '|'.len_utf8();
+            }
+            (None, _) => {}
+        }
+    }
+    branches.push(&xpath[start..]);
+    branches
+}
+
+/// The first branch of the XPath `xpath` (trimmed) that starts at the root of
+/// the document, or `None` if every branch starts at the context node.
+///
+/// A branch starts at the root when it begins with `/` (`//td`, `/html/body`),
+/// with a call of `id()`, which selects from the whole document, or with a
+/// group that holds such a branch (`(//td)[1]`, `(.//a | //b)`). A search from an
+/// element evaluates these from the root of the page whatever element it starts
+/// from, so they match outside it. A `//` or a `|` inside a predicate or a
+/// string does not count: `.//a[//b]` and `.//a[@title='x | //y']` start at the
+/// context node.
+pub(crate) fn xpath_root_branch(xpath: &str) -> Option<&str> {
+    xpath_union_branches(xpath)
+        .into_iter()
+        .map(str::trim)
+        .find(|branch| branch_starts_at_the_root(branch))
+}
+
+/// Whether `branch`, trimmed, starts at the root of the document (see
+/// [`xpath_root_branch`]).
+fn branch_starts_at_the_root(branch: &str) -> bool {
+    if let Some(group) = branch.strip_prefix('(') {
+        return xpath_root_branch(group).is_some();
+    }
+    branch.starts_with('/')
+        || branch
+            .strip_prefix("id")
+            .is_some_and(|call| call.trim_start().starts_with('('))
+}
+
+#[cfg(test)]
+mod tests_xpath_branches {
+    use super::*;
+
+    #[test]
+    fn a_union_is_cut_at_the_pipes_outside_strings_predicates_and_groups() {
+        assert_eq!(xpath_union_branches(".//a | //b"), [".//a ", " //b"]);
+        assert_eq!(
+            xpath_union_branches("./a|/html/body"),
+            ["./a", "/html/body"]
+        );
+        assert_eq!(xpath_union_branches(".//a | .//b | .//c").len(), 3);
+        assert_eq!(xpath_union_branches(".//a"), [".//a"]);
+        assert_eq!(xpath_union_branches(""), [""]);
+        assert_eq!(xpath_union_branches("a |"), ["a ", ""]);
+        // A `|` in a string, a predicate or a group is no branch of the whole.
+        for xpath in [
+            ".//a[@title='x | //y']",
+            ".//a[@title=\"x | //y\"]",
+            ".//a[@x=\"it's | //y\"]",
+            ".//a[b | c]",
+            ".//a[b[c | d]]",
+            "(.//a | .//b)[1]",
+            "((.//a | .//b) | .//c)",
+            "count(.//a | .//b)",
+        ] {
+            assert_eq!(xpath_union_branches(xpath), [xpath], "{xpath}");
+        }
+        // Quotes of the other kind inside a string do not end it, and text that is not
+        // ASCII does not upset the cut.
+        assert_eq!(
+            xpath_union_branches(".//a[@x=\"it's\"] | .//b[@y='say \"hi\"']"),
+            [".//a[@x=\"it's\"] ", " .//b[@y='say \"hi\"']"]
+        );
+        assert_eq!(
+            xpath_union_branches(".//a[.='日本語'] | .//b"),
+            [".//a[.='日本語'] ", " .//b"]
+        );
+    }
+
+    #[test]
+    fn the_root_branch_is_the_first_that_starts_with_a_slash_or_a_call_of_id() {
+        for (xpath, branch) in [
+            ("//td", "//td"),
+            ("  /html/body ", "/html/body"),
+            (".//a | //b", "//b"),
+            ("./a|/html/body", "/html/body"),
+            ("//a | //b", "//a"),
+            ("(//td)[1]", "(//td)[1]"),
+            ("( ( //td))", "( ( //td))"),
+            ("(.//a | //b)", "(.//a | //b)"),
+            ("((.//a) | ( //b))", "((.//a) | ( //b))"),
+            ("id('x')//a", "id('x')//a"),
+            ("id ( 'x' )", "id ( 'x' )"),
+            (".//a | id(\"x\")", "id(\"x\")"),
+            (".//a[@x='|'] | //b", "//b"),
+        ] {
+            assert_eq!(xpath_root_branch(xpath), Some(branch), "{xpath}");
+        }
+        for xpath in [
+            "",
+            ".//td",
+            "./td",
+            "(.//td)[1]",
+            ".//a | .//b",
+            "./a|./b",
+            "(.//a | (.//b))",
+            ".//a[@title='x | //y']",
+            ".//a[@title=\"x | //y\"]",
+            ".//a[.//b]",
+            ".//a[//b]",
+            ".//a[@href='/x']",
+            "parent::div",
+            "..",
+            "self::a[id('x')]",
+            // A name that begins with `id` is not a call of `id()`.
+            "id/a",
+            "idx/a",
+            "identity",
+        ] {
+            assert_eq!(xpath_root_branch(xpath), None, "{xpath}");
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1557,15 +1706,74 @@ mod tests {
         );
         let xpath = xpath_of(SelectorBuf::role("x'] | //script[('", Some("n"), false));
         assert!(
-            xpath.starts_with(r#"//*[@role="x'] | //script[('"]["#),
+            xpath.starts_with(r#".//*[@role="x'] | //script[('"]["#),
             "{xpath}"
         );
     }
 
     #[test]
+    fn a_quote_in_the_text_cannot_add_a_branch_to_the_xpath() {
+        for selector in [
+            SelectorBuf::role("x'] | //script[('", Some("n'] | //b['"), false),
+            SelectorBuf::containing_text("x'] | //b['", Some("p")),
+            SelectorBuf::containing_text("x'] | //b['", None),
+            SelectorBuf::text("x\"] | //b[\"", false),
+            SelectorBuf::label("x'] | //b['", true),
+        ] {
+            let xpath = xpath_of(selector);
+            assert_eq!(xpath_union_branches(&xpath), [xpath.as_str()]);
+            assert_eq!(xpath_root_branch(&xpath), None, "{xpath}");
+        }
+    }
+
+    #[test]
+    fn every_xpath_builder_starts_at_the_context_node() {
+        // A search from an element evaluates a path from the root of the page whatever
+        // element it starts from, so `Element::find` refuses one: the builders write
+        // `.//`, which finds the same elements from the page and stays inside an element.
+        for selector in [
+            SelectorBuf::containing_text("Save", Some("button")),
+            SelectorBuf::containing_text("Save", None),
+            SelectorBuf::text("Save", false),
+            SelectorBuf::text("Save", true),
+            SelectorBuf::has_text("Save"),
+            SelectorBuf::label("Email", false),
+            SelectorBuf::role("button", Some("Save"), false),
+            SelectorBuf::role("button", None, true),
+            SelectorBuf::role("tab", None, false),
+            SelectorBuf::role("", Some("Save"), true),
+            SelectorBuf::role("", None, false),
+        ] {
+            let xpath = xpath_of(selector);
+            assert_eq!(xpath_root_branch(&xpath), None, "{xpath}");
+            assert!(
+                xpath.starts_with(".//") || xpath.starts_with("self::"),
+                "{xpath}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_label_that_names_a_control_is_looked_for_in_the_whole_page() {
+        // A `<label for>` may sit anywhere in the document, outside the element
+        // that is searched too: that part of the path stays absolute.
+        for xpath in [
+            xpath_of(SelectorBuf::label("Email", false)),
+            xpath_of(SelectorBuf::role("textbox", Some("Email"), false)),
+            xpath_of(SelectorBuf::role("", Some("Email"), true)),
+        ] {
+            assert!(xpath.starts_with(".//*["), "{xpath}");
+            assert!(xpath.contains("@id=//label["), "{xpath}");
+        }
+    }
+
+    #[test]
     fn text_takes_the_innermost_element_and_input_buttons() {
         let xpath = xpath_of(SelectorBuf::text("Go", false));
-        assert!(xpath.starts_with("//body/descendant-or-self::*"), "{xpath}");
+        assert!(
+            xpath.starts_with(".//*[not(ancestor-or-self::head)]"),
+            "{xpath}"
+        );
         assert!(xpath.contains("and not(.//*[contains("), "{xpath}");
         assert!(xpath.contains("@type='submit'"), "{xpath}");
         assert!(xpath.contains("normalize-space(@value)"), "{xpath}");
@@ -1607,14 +1815,14 @@ mod tests {
         let button = xpath_of(SelectorBuf::role("button", None, false));
         assert_eq!(
             button,
-            "//*[@role='button' or (not(@role) and (self::button or self::summary or \
+            ".//*[@role='button' or (not(@role) and (self::button or self::summary or \
              (self::input and (@type='button' or @type='submit' or @type='reset' or \
              @type='image'))))]"
         );
         let custom = xpath_of(SelectorBuf::role("tab", None, false));
-        assert_eq!(custom, "//*[@role='tab']");
+        assert_eq!(custom, ".//*[@role='tab']");
         let any = xpath_of(SelectorBuf::role("", Some("Sign in"), true));
-        assert!(any.starts_with("//*[normalize-space(@aria-label)='Sign in' or (normalize-space(.)='Sign in' and not(.//*["), "{any}");
+        assert!(any.starts_with(".//*[normalize-space(@aria-label)='Sign in' or (normalize-space(.)='Sign in' and not(.//*["), "{any}");
     }
 
     #[test]

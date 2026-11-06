@@ -8,19 +8,22 @@
 // elements inside every element the previous step produced, optionally keeps
 // only the visible ones, and optionally narrows to one by position:
 //
-//   { selector: { kind, value }, visible: bool, nth: number | null, last: bool }
+//   { selector: { kind, value }, visible: bool, nth: number | null, last: bool, confine: bool }
 //
 // `kind` is decided by the Rust side; nothing here guesses it from the text.
 // Errors whose message starts with `sbcdp:` are turned into typed errors.
 (function () {
   if (window.__sbcdp) return;
 
-  function xpath(expression, scope) {
+  function xpath(expression, scope, confine) {
     // An absolute path such as "//a" or "(//a)[1]" ignores the context node and
     // searches the whole document, so it must be confined to the scope.
     // Relative ones ("./a", "..", "parent::div") start at the scope already and
     // may legitimately lead out of it.
-    const absolute = /^\s*\(*\s*\//.test(expression);
+    // `confine` is the Rust side saying that some branch of the path starts at
+    // the root ("a | //b", "(a | //b)[1]", "id('x')"), which the pattern below,
+    // that reads the start only, does not see.
+    const absolute = confine === true || /^\s*\(*\s*\//.test(expression);
     const out = [];
     const owner = scope.nodeType === 9 ? scope : scope.ownerDocument;
     const snapshot = owner.evaluate(
@@ -86,14 +89,14 @@
   }
 
 
-  function query(selector, scope, step) {
+  function query(selector, scope, step, confine) {
     const root = rootOf(scope, step);
     if (!root) return [];
     switch (selector.kind) {
       case "css":
         return cssQuery(selector.value, root);
       case "xpath":
-        return xpath(selector.value, root);
+        return xpath(selector.value, root, confine);
       case "link_text": {
         const wanted = selector.value.trim();
         return Array.from(root.querySelectorAll("a"))
@@ -126,7 +129,7 @@
     chain.forEach((step, index) => {
       const found = new Set();
       for (const scope of scopes) {
-        for (const el of query(step.selector, scope, index)) found.add(el);
+        for (const el of query(step.selector, scope, index, step.confine)) found.add(el);
       }
       let matches = Array.from(found);
       if (step.visible) matches = matches.filter(visible);

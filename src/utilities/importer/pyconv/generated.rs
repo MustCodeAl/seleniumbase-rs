@@ -107,7 +107,6 @@ pub(super) static GENERATED: &[Call] = &[
     call(&["get_session_storage_item"], "get_session_storage_item", &[s("key")], Flow::Await, Ret::Other),
     call(&["get_session_storage_items"], "get_session_storage_items", &[], Flow::Await, Ret::Other),
     call(&["get_session_storage_keys"], "get_session_storage_keys", &[], Flow::Await, Ret::ListStr),
-    call(&["get_text_content"], "get_text_content", &[s("selector"), BY, TIMEOUT], Flow::Await, Ret::Str),
     call(&["get_totp_code"], "get_totp_code", &[s("totp_key")], Flow::Try, Ret::Str),
     call(&["get_unique_links"], "get_unique_links", &[], Flow::Await, Ret::ListStr),
     call(&["get_user_agent"], "get_user_agent", &[], Flow::Await, Ret::Str),

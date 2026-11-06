@@ -76,14 +76,21 @@ let remove = row.find("link=Remove").await?;
 // Or stated explicitly, where the guess would be wrong: `td[2]` is XPath for the
 // second cell, but nothing in the text says so, and a string is read as CSS then.
 let cell = row.find(SelectorBuf::xpath("td[2]")).await?;
+
+// The selector builders start at the element too: of the two Save buttons of the page,
+// only the one inside the panel.
+let panel = sb.find_element("#panel").await?;
+let save = panel.find(SelectorBuf::role("button", Some("Save"), false)).await?;
 ```
 
 From an element, `find` and `find_all` search inside it. An XPath that starts at the root of the
-page (`//td`, `(//td)[1]`) matches the whole page from any element, so they refuse it with
-`InvalidSelector`: write `.//td` for the descendants of the element. A `p:contains("x")`
-selector is read as `.//p[...]`, so it stays inside the element too. An `<iframe>` element
-holds the frame, not the frame's document: switch to the frame with `switch_to_frame` and find
-from the page.
+page (`//td`, `(//td)[1]`, `id('x')`) matches the whole page from any element, so they refuse it
+with `InvalidSelector`: write `.//td` for the descendants of the element. So is a union with such
+a branch (`.//a | //b`, and the message names the branch), but not a `//` or a `|` inside a
+predicate or a string (`.//a[@title='x | //y']`). A `p:contains("x")` selector is read as
+`.//p[...]`, and the XPath of `SelectorBuf::role`, `text`, `label` and `containing_text` starts
+with `.//` too, so they stay inside the element. An `<iframe>` element holds the frame, not the
+frame's document: switch to the frame with `switch_to_frame` and find from the page.
 
 ## Examples
 

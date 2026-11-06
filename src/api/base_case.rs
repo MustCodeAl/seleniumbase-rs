@@ -1034,7 +1034,7 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Returns the visible text of the element `css`.
+    /// Returns the visible text of the element `css`, or the value of an `<input>` or a `<textarea>`.
     pub async fn get_text(&self, css: &str) -> Result<String, SeleniumBaseError> {
         let selector = shadow_find::checked(css)?;
         self.await_ready(css, Ready::Present).await?;
@@ -3249,11 +3249,12 @@ impl BaseCase {
     }
 
     /// Return whether the element has any non-empty visible text.
+    /// The text of an `<input>` or a `<textarea>` is its value, as in Python.
     pub async fn is_non_empty_text_visible(&self, css: &str) -> Result<bool, SeleniumBaseError> {
         let selector = shadow_find::checked(css)?;
         match self.session.find(selector).await {
             Ok(elem) => {
-                let text = elem.rendered_text().await.unwrap_or_default();
+                let text = elem.text().await.unwrap_or_default();
                 Ok(elem.is_visible().await.unwrap_or(false) && !text.trim().is_empty())
             }
             Err(_) => Ok(false),

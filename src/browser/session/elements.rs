@@ -91,16 +91,16 @@ impl BrowserSession {
         self.find(selector).await?.submit().await
     }
 
-    /// Returns the text the driver renders for the element `selector` finds.
+    /// Returns the text Python's `get_text` gives for the element `selector` finds.
     ///
-    /// That is the driver's own answer, which is empty for an `<input>`; the
-    /// text Python's checks compare is [`Element::text`].
+    /// That is the value of an `<input>` or a `<textarea>`, whose rendered text is empty,
+    /// and the text the driver renders for anything else: the same as [`Element::text`].
     pub async fn text(
         &self,
         selector: impl Into<SelectorBuf>,
     ) -> Result<String, SeleniumBaseError> {
         let element = self.find(selector).await?;
-        element.rendered_text().await
+        element.text().await
     }
 
     /// Hovers over the element `selector` finds.
@@ -439,13 +439,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn the_text_of_the_session_is_still_the_rendered_text_of_the_driver() {
-        // `BaseCase::get_text` reads this: the rendered text of an `<input>` is empty,
-        // and only `Element::text` reads the field's value.
+    async fn the_text_of_the_session_is_the_text_python_compares() {
+        // `BaseCase::get_text` reads this, and Python's `get_text` gives the value of an
+        // `<input>`, whose rendered text is empty: the same text as `Element::text`.
         let driver = page();
         let session = session(&driver).await;
 
-        assert_eq!(session.text("#a").await.unwrap(), "");
+        assert_eq!(session.text("#a").await.unwrap(), "typed");
         assert_eq!(
             session.find("#a").await.unwrap().text().await.unwrap(),
             "typed"

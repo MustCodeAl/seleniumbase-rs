@@ -312,9 +312,12 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   `clear`, `send_keys`, `type_text`, `press`, `select_option`, `submit`, `scroll_into_view` and
   `drag_to`, with `find`, `find_all` and `parent` for the elements inside and above it. `find`
   and `find_all` search inside the element: an XPath that starts at the root of the page
-  (`//td`) would match the whole page, so they refuse it with `InvalidSelector` (write
-  `.//td`), and they do not enter an `<iframe>` element's frame (switch to it with
-  `switch_to_frame`). It does not wait; a node the page replaced fails with `SeleniumBaseError::StaleElement`, which
+  (`//td`), a union with such a branch (`.//a | //b`) and a branch that calls `id()` would
+  match the whole page, so they refuse them with `InvalidSelector` naming the branch (write
+  `.//td`; a `|` inside a string or a predicate is not a branch, and a group such as
+  `(.//a | .//b)[1]` is read through), and they do not enter an `<iframe>` element's frame
+  (switch to it with `switch_to_frame`). The role, text, label and containing-text selectors of
+  `SelectorBuf` start at the context node, so a search from an element can use them. It does not wait; a node the page replaced fails with `SeleniumBaseError::StaleElement`, which
   now names the selector the element was found by (`#cart >> .row` for one found from another).
   An element from `BaseCase::get_parent` is called `<selector> >> ..` and one from
   `get_element_at_x_y` is called `element at (x, y)`, so a stale one says what it was.
@@ -381,6 +384,41 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   widget, added cookies in the `cdp` and `uc` modes that the WebDriver mode did not list. A
   DevTools answer with no list of cookies is `SeleniumBaseError::CdpDriver`; it was read as a
   page without cookies.
+
+### Fixed
+
+- **`BaseCase::get_text` gives the value of an `<input>` or a `<textarea>`, as Python's does.** It
+  gave the text the driver renders, which is empty for an input, so `get_text("#name")` on a
+  filled field answered `""` where Python answers the field's value (`get_property("value")`).
+  `BrowserSession::text`, which only `get_text` calls, reads `Element::text` now, as
+  `shadow_get_text` and the text waits already did, so `get_text_of_element`, the `get_text` tool
+  of the `driver` MCP server and `sbrs get-text` follow. Anything else still gives its rendered
+  text. `get_text_content` is not changed: Python's reads the `textContent` property, which is
+  not a field's value either, and Rust's still gives the rendered text, so the two differ for an
+  element that is not displayed. The parity table says so, as it does for the wait of `get_text`,
+  which is for the element to be present where Python waits for it to be visible.
+
+- **`find_text`, `find_exact_text`, `find_non_empty_text`, `is_non_empty_text_visible`,
+  `assert_non_empty_text` and the waits for non-empty text give the value of an `<input>` or a
+  `<textarea>` too.** They read the text the driver renders, which is empty for an input, so
+  `find_text("Ada", "#name")` timed out on a field that held "Ada" where Python finds it (it
+  reads `get_property("value")` of an `input` or a `textarea`, as it does for `get_text`). They
+  read `Element::text` now, as `assert_text`, `assert_exact_text`, `is_text_visible` and the
+  other text waits already did.
+
+- **The role, text, label and containing-text selectors work inside an element.**
+  `SelectorBuf::role`, `containing_text`, `text` and `label` wrote XPath that starts with `//`,
+  so `element.find(SelectorBuf::role("button", Some("Save"), false))` was refused. They write
+  `.//` now: from a page the same elements match, and from an element only the ones inside it.
+  `SelectorBuf::text` leaves out the `<head>` with a test where it started at `//body`, which
+  finds nothing from inside an element. The label that names a control (`@id=//label[..]/@for`)
+  stays absolute, since a label anywhere in the document names it. On the pure CDP engine a step
+  below another locator no longer matches the locator's own element: the page script kept a
+  `//` path inside the scope with `contains`, which counts the scope itself, and `.//` does not.
+  The page script also confines a step whose path has a branch from the root that its test of the
+  start of the path missed: `.//p | //button`, `(.//p | //button)[1]` and `id('x')` matched
+  elements outside the locator before them. Each step now carries `confine`, which the Rust side
+  sets with the check that `Element::find` refuses these paths with.
 
 </Update>
 

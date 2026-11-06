@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Element find</title>
+</head>
+<body>
+  <h1>Order</h1>
+
+  <!-- A form with an input and a textarea: what Python's get_text reads is their value. -->
+  <form id="order" onsubmit="return false">
+    <input id="name" value="Ada Lovelace">
+    <textarea id="notes">First note</textarea>
+    <label for="email">Email</label>
+    <input id="email" type="email" value="ada@example.test">
+  </form>
+
+  <!-- A Save button inside a container and another one outside it. -->
+  <div id="panel">
+    <p>Panel</p>
+    <button id="inside" type="button">Save</button>
+  </div>
+  <button id="outside" type="button">Save</button>
+</body>
+</html>

@@ -27,6 +27,8 @@ mod debug_prompt_chrome;
 mod debug_prompt_terminal_chrome;
 mod demo_mode_chrome;
 mod downloads_folder_chrome;
+mod element_chrome;
+
 mod esc_end_chrome;
 mod examples_parity_chrome;
 mod form_fields_chrome;

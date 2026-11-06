@@ -149,6 +149,74 @@ async fn evaluate_drops_the_return_of_the_last_line_like_python() {
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
 #[serial_test::serial(chrome)]
+async fn a_step_below_a_locator_finds_only_what_is_inside_it() {
+    let (browser, page, ..) = open().await;
+    // A container with a field and a button, the label of the field and another
+    // button outside it, beside the two buttons of the page.
+    page.evaluate(
+        r#"document.body.insertAdjacentHTML('beforeend',
+            '<label for="nick">Nick</label>' +
+            '<div id="panel"><p>Panel</p><input id="nick">' +
+            '<button id="inside" type="button">Save</button></div>' +
+            '<button id="outside" type="button">Save</button>')"#,
+    )
+    .await
+    .unwrap();
+    let panel = page.locator("#panel");
+
+    // The selectors that name a role, a text or a label start at the context node:
+    // from the page that is the whole document, from the container only itself.
+    let role = SelectorBuf::role("button", Some("Save"), false);
+    assert_eq!(page.locator(role.clone()).count().await.unwrap(), 2);
+    assert_eq!(panel.locator(role).count().await.unwrap(), 1);
+    for selector in [
+        SelectorBuf::containing_text("Save", Some("button")),
+        SelectorBuf::text("Save", false),
+    ] {
+        let name = selector.to_string();
+        assert_eq!(
+            page.locator(selector.clone()).count().await.unwrap(),
+            2,
+            "{name}"
+        );
+        assert_eq!(panel.locator(selector).count().await.unwrap(), 1, "{name}");
+    }
+    // The label names its field from anywhere in the document.
+    let nick = SelectorBuf::label("Nick", false);
+    assert_eq!(panel.locator(nick).count().await.unwrap(), 1);
+    // Nothing in the <head> shows text: the <title> says "Parity".
+    let title = SelectorBuf::text("Parity", false);
+    assert_eq!(page.locator(title).count().await.unwrap(), 0);
+    let heading = SelectorBuf::text("Welcome", false);
+    assert_eq!(page.locator(heading).count().await.unwrap(), 1);
+
+    // An XPath evaluated from the root of the document, whatever the container
+    // is, a union with such a branch and a call of `id()` keep what is inside it.
+    // `(.//p | //button)[1]` is the first button of the page, outside the container.
+    for (xpath, expected) in [
+        ("//button", 1),
+        (".//p | //button", 2),
+        ("(.//p | //button)[1]", 0),
+        ("id('outside')", 0),
+        ("id('inside')", 1),
+        (".//p | .//button", 2),
+    ] {
+        let found = panel
+            .locator(SelectorBuf::xpath(xpath))
+            .count()
+            .await
+            .unwrap();
+        assert_eq!(found, expected, "{xpath}");
+    }
+    // A path that starts at the context node may lead out of it.
+    assert_eq!(panel.parent().count().await.unwrap(), 1);
+
+    browser.close().await.unwrap();
+}
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
 async fn goto_if_not_url_only_navigates_to_another_page() {
     let (browser, page, base, _) = open().await;
     // A reload would put the fixture's own value (1) back.

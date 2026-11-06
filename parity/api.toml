@@ -924,11 +924,13 @@ rust = "BaseCase::get_session_storage_keys"
 [basecase."get_text"]
 status = "implemented"
 rust = "BaseCase::get_text"
-note = "A ::shadow selector (host::shadow inner) is read by this method and by every other that takes a selector, as in Python: the element is waited for, closed roots are entered, and the text is what the browser shows (a container that only slots its content gives the slotted text). shadow_get_text and the other shadow_* methods are the same lookups."
+note = "A ::shadow selector (host::shadow inner) is read by this method and by every other that takes a selector, as in Python: the element is waited for, closed roots are entered, and the text is what the browser shows (a container that only slots its content gives the slotted text). shadow_get_text and the other shadow_* methods are the same lookups. An <input> or a <textarea> gives its value (the DOM property), as Python's get_text does, and any other element the text the browser renders."
+divergence = "Waits for the element to be present, where Python waits until it is visible: an element that is not displayed answers at once, with the empty text the browser renders for it (the value of a hidden <input> is still its value), and the call does not wait for it to show."
 
 [basecase."get_text_content"]
 status = "implemented"
 rust = "BaseCase::get_text_content"
+divergence = "Gives the text the browser renders for the element, where Python reads its textContent property, the text of the markup: an element that is not displayed (display: none) answers an empty string here, and the white space the browser collapses and the text-transform of the page apply."
 
 [basecase."get_title"]
 status = "implemented"
