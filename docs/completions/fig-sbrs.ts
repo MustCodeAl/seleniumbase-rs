@@ -533,7 +533,7 @@ const completionSpec: Fig.Spec = {
     },
     {
       name: "get-cookies",
-      description: "Print all browser cookies as JSON.",
+      description: "Print the cookies of the current page as JSON (the line starts with Cookies:).",
       options: [
         {
           name: ["-h", "--help"],

@@ -66,7 +66,7 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs fingerprint presets`](#sbrs-fingerprint-presets) | List the presets and what each claims. |
 | [`sbrs get-alert-text`](#sbrs-get-alert-text) | Print the text of the alert that the page opens when it loads. |
 | [`sbrs get-attribute`](#sbrs-get-attribute) | Print an element attribute value. |
-| [`sbrs get-cookies`](#sbrs-get-cookies) | Print all browser cookies as JSON. |
+| [`sbrs get-cookies`](#sbrs-get-cookies) | Print the cookies of the current page as JSON (the line starts with Cookies:). |
 | [`sbrs get-current-url`](#sbrs-get-current-url) | Print the current URL. |
 | [`sbrs get-local-storage-item`](#sbrs-get-local-storage-item) | Print a local storage value by key. |
 | [`sbrs get-property`](#sbrs-get-property) | Print an element property value. |
@@ -2013,7 +2013,7 @@ sbrs --url https://example.com get-attribute --css a --attribute href
 
 ## sbrs get-cookies
 
-Print all browser cookies as JSON.
+Print the cookies of the current page as JSON (the line starts with Cookies:).
 
 ```bash Usage
 sbrs get-cookies

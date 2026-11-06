@@ -951,7 +951,7 @@ enum Commands {
         #[usage(long, value_hint = usage::ValueHint::Other, help = "Storage key")]
         key: String,
     },
-    /// Print all browser cookies as JSON.
+    /// Print the cookies of the current page as JSON (the line starts with Cookies:).
     #[usage(
         help_heading = "Page commands",
         example = "sbrs --url https://example.com get-cookies"
