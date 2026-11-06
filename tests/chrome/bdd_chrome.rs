@@ -61,8 +61,11 @@ async fn the_wrong_title(#[future(awt)] page: SbCdpCase) {
 #[serial_test::serial(chrome)]
 fn a_failed_scenario_leaves_the_three_files_of_its_page() {
     let id = format!(
-        "bdd_chrome.{}",
-        std::thread::current().name().unwrap_or("?")
+        "chrome.{}",
+        std::thread::current()
+            .name()
+            .unwrap_or("?")
+            .replace("::", ".")
     );
     let folder = std::path::Path::new("latest_logs").join(&id);
     drop(std::fs::remove_dir_all(&folder));
