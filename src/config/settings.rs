@@ -1665,6 +1665,22 @@ mod tests {
     }
 
     #[test]
+    fn the_array_form_of_chromium_arg_of_a_file_is_one_input_like_the_text_of_a_variable() {
+        // An item that holds a comma stays whole, and the features its items name join the list.
+        let file = "chromium_arg = [\"--a=b,c\", \"disable-features=X\"]\n";
+        let chromium = layered(file, &[]).browser.chromium;
+        assert_eq!(chromium.args, ["--a=b,c"]);
+        assert_eq!(chromium.disable_features, ["X"]);
+        // The text of a variable replaces the array of the file, and the features it named.
+        let over = layered(file, &[("SB_CHROMIUM_ARG", "--y")])
+            .browser
+            .chromium;
+        assert_eq!(over.args, ["--y"]);
+        assert!(over.disable_features.is_empty(), "{over:?}");
+    }
+
+    #[test]
+
     fn a_pair_works_out_the_display_and_the_events_over_the_settings_it_is_laid_on() {
         use crate::browser::options::{CdpEventCapture, VirtualDisplay};
         let pair = |variable: &'static str, value: &str| (variable, value.to_owned());
