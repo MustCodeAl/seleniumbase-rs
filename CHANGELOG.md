@@ -191,9 +191,14 @@ work, `docs/parity.md` the per-API status).
   `session` and `priority`), without them the driver's (an integer `expiry`, missing for a
   session cookie), so code that read `expires` worked in one mode. It is a `Vec<Cookie>` in both
   modes, and a session cookie has no `expires` on every path. Its documentation said "all
-  cookies"; it answers the cookies of the current page (`Network.getCookies` without `urls`,
-  as WebDriver's `get_all_cookies` does), and the comments of `BaseCase::get_cookies` and
-  `CdpClient::get_cookies` now say so.
+  cookies"; it answers the cookies of the current page, and the comments of
+  `BaseCase::get_cookies` and `CdpClient::get_cookies` now say so. With DevTools it asks
+  `Network.getCookies` for the current URL, as chromedriver does for WebDriver's
+  `get_all_cookies` (`CdpClient::get_cookies` takes the URL). Without `urls` the protocol also
+  answers the cookies of every frame of the page, so a cross-origin frame, such as a CAPTCHA
+  widget, added cookies in the `cdp` and `uc` modes that the WebDriver mode did not list. A
+  DevTools answer with no list of cookies is `SeleniumBaseError::CdpDriver`; it was read as a
+  page without cookies.
 
 
 ## [0.8.0] - 2026-11-05

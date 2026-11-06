@@ -54,6 +54,13 @@ Three behaviours are wrong today, beside the type:
    `/websites/chromedevtools_github_io_devtools-protocol_tot`). That is the same scope as
    WebDriver's `get_all_cookies` and as Python's `get_cookies`. Only the comments are
    wrong; the scope is right.
+   _Correction after review:_ the scope was not right for DevTools. The protocol definition
+   (`Network.getCookies` in `pdl/domains/Network.pdl` of the devtools-protocol repository)
+   says that without `urls` the command uses "the URLs of the page and all of its subframes",
+   while chromedriver sends `urls: [current page URL]` (`WebViewImpl::GetCookies` in
+   `chrome/test/chromedriver/chrome/web_view_impl.cc`). A frame of another origin therefore
+   added cookies in DevTools mode only. `BrowserSession::get_cookies` now sends the current
+   URL, as chromedriver does, and `CdpClient::get_cookies` takes it.
 
 What already works and must keep working:
 

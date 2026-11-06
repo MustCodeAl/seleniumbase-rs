@@ -1280,8 +1280,8 @@ impl BaseCase {
     ///
     /// The result is the same in every mode: the DevTools Protocol (modes `cdp` and `uc`) and
     /// plain WebDriver both answer the cookies the browser would send to the current URL, not
-    /// every cookie it holds, and a session cookie has no `expires`. Feed one to
-    /// [`add_cookie`](Self::add_cookie) to set it again.
+    /// every cookie it holds (a frame of another origin adds none), and a session cookie has no
+    /// `expires`. Feed one to [`add_cookie`](Self::add_cookie) to set it again.
     ///
     /// # Examples
     ///
