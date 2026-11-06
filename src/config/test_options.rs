@@ -86,8 +86,9 @@ impl OptionKind {
 /// One row of the table. See the [module documentation](self).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct OptionSpec {
-    /// The path of the field in [`Settings`] (`dark_mode`, `run.demo_mode`, `report.html`, `test.pdb`,
-    /// `test.data.env`), or `none` when the row has no field.
+    /// The path of the field in [`Settings`] as it is serialized (`browser.proxy.server`,
+    /// `browser.switches.dark-mode`, `run.demo_mode`, `report.html`, `test.pdb`), or `none` when the
+    /// row has no field. Several rows may write one field (`browser.window_size`).
     pub field: &'static str,
     /// The canonical flag, without the dashes: `dark-mode`.
     pub long: &'static str,
@@ -189,9 +190,9 @@ pub fn find_option(flag: &str) -> Option<&'static OptionSpec> {
     TEST_OPTIONS.iter().find(|row| row.matches_flag(flag))
 }
 
-/// The settings-file keys of the rows whose field moved into a group: the path of the field,
-/// then the key a file writes at its top level. A row not listed here has the key of its
-/// field when that has no dot.
+/// The keys a settings file writes at its top level (`dark_mode = true`): the variable of the row,
+/// then the key. The variable names the row, because several rows may write one field. A row
+/// not listed here has no key of its own (`[test] pdb`, `[report] html`).
 const FLAT_KEYS: &[(&str, &str)] = &[
     ("SB_BROWSER", "browser"),
     ("SB_HEADLESS", "headless"),

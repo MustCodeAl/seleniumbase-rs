@@ -633,6 +633,36 @@ mod tests {
 
     use crate::browser::options::{LaunchSwitch, PageLoadStrategy};
 
+    #[test]
+    fn the_recorder_switches_and_the_threads_are_read_flat_or_in_the_test_table() {
+        let flat = toml_file("recorder = true\nrec_print = true\nthreads = 4\n").unwrap();
+        let table = toml_file("[test]\nrecorder = true\nrec-print = true\nthreads = 4\n").unwrap();
+        assert!(flat.browser.has(LaunchSwitch::RecorderMode));
+        assert!(flat.browser.has(LaunchSwitch::RecPrint));
+        assert!(!flat.browser.has(LaunchSwitch::RecBehave));
+        assert_eq!(flat.test.threads, Some(4));
+        assert_eq!(flat, table);
+        // Written twice, in the table and flat, it is one setting twice.
+        let error = message(toml_file("threads = 4\n[test]\nthreads = 2\n").unwrap_err());
+        assert!(error.contains("are the same setting"), "{error}");
+        let error = message(toml_file("recorder = true\n[test]\nrec = true\n").unwrap_err());
+        assert!(error.contains("are the same setting (recorder)"), "{error}");
+    }
+
+    #[test]
+    fn a_value_the_file_gives_is_read_like_the_variable_and_not_repeated_when_refused() {
+        let error = message(toml_file("window_size = \"hunter2\"\n").unwrap_err());
+        assert!(error.contains("window_size"), "{error}");
+        assert!(!error.contains("hunter2"), "{error}");
+        // A number, a boolean and a null are texts too; a table is not.
+        let settings = toml_file("port = 4445\nmobile = true\nuser_data_dir = \"\"\n").unwrap();
+        assert_eq!(settings.session.grid.port, Some(4445));
+        assert!(settings.browser.mobile);
+        assert!(toml_file("port = [1]\n").is_err());
+        let json = parse_settings(Path::new("settings.json"), r#"{"locale": null}"#).unwrap();
+        assert_eq!(json.browser.lang, None);
+    }
+
     fn toml_file(content: &str) -> Result<Settings, SeleniumBaseError> {
         parse_settings(Path::new("sbase_config.toml"), content)
     }
@@ -664,21 +694,26 @@ mod tests {
     }
 
     #[test]
-    fn every_row_with_a_field_of_its_own_is_a_key() {
+    fn every_row_with_a_flat_key_is_a_key() {
+        let mut keys = 0;
         for row in TEST_OPTIONS {
-            if row.has_field()
-                && !row.field.contains('.')
-                && matches!(
-                    row.kind,
-                    OptionKind::Switch | OptionKind::Value(_) | OptionKind::Env(_)
-                )
-            {
-                assert_eq!(settings_key(row.field), Some(row.field), "{}", row.long);
-                for flag in row.flags() {
-                    assert_eq!(settings_key(flag), Some(row.field), "--{flag}");
-                }
+            let Some(key) = row.flat_key() else {
+                continue;
+            };
+            assert_eq!(settings_key(key), Some(key), "{}", row.long);
+            for flag in row.flags() {
+                assert_eq!(settings_key(flag), Some(key), "--{flag}");
             }
+            keys += 1;
         }
+        assert!(keys > 80, "only {keys} rows have a flat key");
+        // A shorthand has none, and a setting of the test run has its table only.
+        assert!(find_option("--chrome")
+            .and_then(OptionSpec::flat_key)
+            .is_none());
+        assert!(find_option("--pdb")
+            .and_then(OptionSpec::flat_key)
+            .is_none());
     }
 
     #[test]

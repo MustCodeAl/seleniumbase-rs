@@ -4,7 +4,7 @@ sidebarTitle: "Settings with figment"
 ---
 
 Status: design note, written before the code (branch `lane/design-settings`, from `90ca478e`).
-Every line number below is from that commit. Implemented on `lane/settings-v2`: the pins (step 1), the report table (step 2), the run group (step 3), the `browser` and `session` groups of `BrowserConfig` (step 4: `BrowserSettings`, `SessionSettings`, `GridSettings`, one Grid address function), the `SB_NO_SANDBOX` rule, and findings 1, 2, 3, 7, 8, 9, 11 and 13, finding 4 (`to_launch_options` goes through `to_browser_config`; step 5 in part) and finding 10 (the higher source decides between the spellings of the window size and of the language; done in `apply_env`, one source at a time, which is what the figment layering will do by construction); not yet: `Settings` holding the core and the typed readers (step 5), the figment layering (step 6), the `check_config` paths (open question 13), and the part of finding 12 that is not the `LaunchSettings` rename. What figment does was
+Every line number below is from that commit. Implemented on `lane/settings-v2`: the pins (step 1), the report table (step 2), the run group (step 3), the `browser` and `session` groups of `BrowserConfig` (step 4: `BrowserSettings`, `SessionSettings`, `GridSettings`, one Grid address function), the `SB_NO_SANDBOX` rule, and findings 1, 2, 3, 7, 8, 9, 11 and 13, finding 4 (`to_launch_options` goes through `to_browser_config`) and finding 10 (the higher source decides between the spellings of the window size and of the language; done in `apply_env`, one source at a time, which is what the figment layering will do by construction), step 5 (`Settings` holds the core: `Settings::browser` and `session` are `BrowserSettings` and `SessionSettings`, the field column of the option table is the dotted path, a row kind writes one entry of `browser.switches`, `config::text` reads the text of a variable or of a flat file key into the typed field, `with_launch_options`, `check_launch_values` and `base_browser_config` are gone, and `check_config` lists the paths with their variables, open question 13); not yet: the figment layering (step 6; the nested `[browser]` and `[session]` tables of a settings file, the `key` column of the table, `SettingsOverrides` as pairs), the docs pages (step 7), and the part of finding 12 that is not the `LaunchSettings` rename. What figment does was
 read on Context7 (the pages are listed under [Sources](#sources)); what those pages did not say is
 marked "to verify". Statements about today's behaviour come from reading the code; none was run,
 and each one that matters gets a test in [step 1](#implementation-steps) before anything moves.
@@ -880,6 +880,24 @@ One commit each; each runs the gate of `CLAUDE.md` (fmt, clippy with `-D warning
    (`launch_map.rs` keeps `remote_address` only if step 4 did not remove it); `to_launch_options`
    goes through `browser_config` (finding 4). Tests: step 1's, flipped for finding 4; a phone, a
    PAC file, a bypass list and `block_images` in `Settings` reach `LaunchOptions`.
+
+   *As implemented (2026-11-06).* The table keeps its seven columns: the first is the dotted path
+   (`browser.proxy.server`), and a row of `browser.switches` has the kind
+   `switch_in(DarkMode, "dark-mode")`, which names the `LaunchSwitch` and the name it has in the
+   serialized settings (the path the pins read). The flat key of a row is looked up by its
+   variable (`FLAT_KEYS`), because several rows share one path. The rows that several variables
+   write have a reader of their own in `src/config/text.rs`, picked by the variable in
+   `apply_row!`: the window size (`SB_WINDOW_WIDTH` and `_HEIGHT` are read together; a lone
+   side is a size with a side of zero until `validate` refuses it, so the other side may come
+   from a higher source), the language, the display, the debugging port, `chromium_arg` and
+   `disable_features`, the capabilities, the Firefox options, the event log and the reuse
+   class. The settings file reads the flat keys of the browser and the session through the
+   same readers (a file is one more source of variables), and the tables `[run]`, `[test]`,
+   `[report]`, `[plugins]` and `[fingerprint]` through serde. What is not in step 5: the nested
+   `[browser]` and `[session]` tables of a file (step 6). Where the sequential reading differs
+   from the note: `SB_XVFB_METRICS` is used only when `SB_XVFB` is on in the same source or
+   a lower one, and the capabilities and the Chromium features are added across sources.
+
 6. **`feat(config): layer the settings with figment`.** `SettingsFile` and `EnvVars`;
    `Settings::load`, `load_from`, `from_env`, `check` and `apply_options` on one `Figment`; the
    option table gains `key` and the new `field` path; `apply_env` and `OptionValue` go;

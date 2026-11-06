@@ -153,6 +153,79 @@ work, `docs/parity.md` the per-API status).
   `SB_*` variables, then the command line, each beating the one before), and only within one
   source does the size beat the pair and the code beat the locale, as before.
 
+- **Breaking: `Settings` holds the core (`docs/design/settings_v2.md`, step 5).**
+  `Settings::browser` is a `BrowserSettings` and `Settings::session` a `SessionSettings`, the
+  types `BrowserConfig` holds, and the 85 flat fields are gone, so a setting has one name in
+  `Settings`, in `BrowserConfig` and in the option table. The table names the path of each
+  setting (`browser.proxy.server`, `session.grid.port`, `browser.switches.dark-mode`). The
+  variables, the flags and the keys of a settings file do not change: a file still writes
+  `dark_mode = true` at the top level, and `[test] recorder = true` still works.
+
+  ```rust
+  // Before                                   // After
+  settings.browser (text)                     settings.browser.kind (a Browser)
+  settings.headless, mobile, ad_block         settings.browser.headless, mobile, ad_block
+  settings.proxy, proxy_pac_url               settings.browser.proxy.server, .pac_url
+  settings.proxy_bypass_list (text)           settings.browser.proxy.bypass_list
+  settings.chrome_bin                         settings.browser.executable_path
+  settings.start_page                         settings.browser.url
+  settings.user_data_dir (text)               settings.browser.user_data_dir (a path)
+  settings.extension_dir (text)               settings.browser.extensions (paths)
+  settings.locale, locale_code                settings.browser.lang
+  settings.window_width, window_height,
+    window_size (text)                        settings.browser.window_size
+  settings.window_position, device_metrics    settings.browser.window_position, device_metrics
+  settings.xvfb, xvfb_metrics                 settings.browser.virtual_display
+  settings.remote_debug                       settings.browser.debugging_port
+  settings.chromium_arg, disable_features,    settings.browser.chromium.args,
+    host_resolver_rules                         .disable_features, .host_resolver_rules
+  settings.dark_mode, block_images, ...,      settings.browser.has(LaunchSwitch::DarkMode),
+    esc_end, rec_sb_cdp, headless1              ... (browser.switches, 26 of them)
+  settings.test.recorder, rec_print,          settings.browser.has(LaunchSwitch::RecorderMode),
+    rec_behave, rec_sb_mgr                      RecPrint, RecBehave, RecSbMgr
+  settings.mode (text)                        settings.session.mode (a DriverMode)
+  settings.webdriver_url                      settings.session.webdriver_url
+  settings.server, port, protocol (text)      settings.session.grid.server, .port, .protocol
+  settings.remote_webdriver_timeout_seconds   settings.session.remote_webdriver_timeout_seconds
+  settings.page_load_strategy, driver_version settings.session.page_load_strategy, driver_version
+  settings.cap_file, cap_string               settings.session.capabilities
+  settings.extension_zip                      settings.session.extension_archives
+  settings.firefox_arg, firefox_pref          settings.session.firefox
+  settings.log_cdp_events, uc_cdp_events      settings.session.cdp_events
+  settings.reuse_session                      settings.session.reuse
+  settings.reuse_class_session                settings.session.reuse_class
+  settings.crumbs                             settings.session.crumbs
+  settings.threads                            settings.test.threads
+  ```
+
+  The text of a variable or of a flat key is read into the typed field where it is read
+  (`config::text`), so a window size, a phone screen, a driver mode or a browser name that does
+  not parse is refused with the variable and the flag that gave it (`SB_BROWSER (--browser):
+  ...`), and `Settings::check` lists it under that variable and not under `validation`. A
+  settings file names the key and does not repeat the value that was refused. A capabilities
+  file (`SB_CAP_FILE`) is read when the variable is read. `Settings::to_browser_config` clones
+  the two groups; `SettingsOverrides::apply` returns a `Result`, because the browser and the
+  mode it is given are parsed. `with_launch_options` and `check_launch_values` are gone, and
+  `Settings::validate` only refuses a window with one side. `TestSettings` has `threads` and
+  no longer the four recorder switches. `DriverMode` is written in lower case (`"cdp"`; the
+  capitalized names are still read). `check_config` of the `dev` MCP server lists each setting
+  by its path with the variables that write it:
+
+  ```json
+  "browser.window_size": { "value": "1280x720", "variable": "SB_WINDOW_WIDTH, SB_WINDOW_HEIGHT, SB_WINDOW_SIZE" }
+  ```
+
+  Where a value had two inputs, the rule is the one of the table: the later row of one source
+  wins, and a higher source wins over a lower one. Three corners follow from that. The
+  capabilities of a higher source are laid over the lower one's (the file, then the JSON
+  text), and `SB_DISABLE_FEATURES` adds to the features that `SB_CHROMIUM_ARG` named. A
+  virtual-display size (`SB_XVFB_METRICS`) counts only when `SB_XVFB` is on in the same
+  source or a lower one, as before; it is no longer remembered when `SB_XVFB` comes from a
+  higher source. And `sbrs` takes the default mode of a command (the DevTools for `devtools`)
+  also when the mode asked for is WebDriver, because the settings no longer tell "WebDriver"
+  from "no mode".
+
+
 
 - A settings file that sets `settings_file` (or `settings`) is refused: the setting names the
   file, so it did nothing there. `RuntimeConfig` reads `SB_WEBDRIVER_URL`, `SB_CHROME_BIN` and

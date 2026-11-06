@@ -78,7 +78,7 @@ impl FingerprintSettings {
 /// [`to_launch_options`](Self::to_launch_options) start a browser from it.
 ///
 /// [`browser`](Self::browser), [`session`](Self::session) and [`run`](Self::run) are the very
-/// types a [`BrowserConfig`](crate::BrowserConfig) holds, so a setting has one name in both. The
+/// types a [`BrowserConfig`] holds, so a setting has one name in both. The
 /// option table ([`TEST_OPTIONS`](crate::config::test_options::TEST_OPTIONS)) names the path of
 /// each setting (`browser.proxy.server`, `session.grid.port`), its variable and its flag.
 ///
@@ -155,12 +155,14 @@ pub struct Settings {
 /// };
 ///
 /// let mut settings = Settings::default();
-/// overrides.apply(&mut settings);
-/// assert!(settings.headless);
-/// assert_eq!(settings.proxy.as_deref(), Some("proxy.example.com:8080"));
+/// overrides.apply(&mut settings)?;
+/// assert!(settings.browser.headless);
+/// assert_eq!(settings.browser.proxy.server.as_deref(), Some("proxy.example.com:8080"));
 ///
 /// let env = overrides.env();
 /// assert!(env.contains(&("SB_HEADLESS", "true".to_owned())));
+/// # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
+///
 /// ```
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct SettingsOverrides {
@@ -282,6 +284,8 @@ impl SettingsOverrides {
     /// # Examples
     ///
     /// ```
+    /// use seleniumbase_rs::browser::options::LaunchSwitch;
+    ///
     /// use seleniumbase_rs::config::settings::{Settings, SettingsOverrides};
     ///
     /// let overrides = SettingsOverrides {
@@ -290,7 +294,7 @@ impl SettingsOverrides {
     /// };
     /// let mut settings = Settings::default();
     /// overrides.try_apply(&mut settings)?;
-    /// assert!(settings.dark_mode);
+    /// assert!(settings.browser.has(LaunchSwitch::DarkMode));
     ///
     /// let wrong = SettingsOverrides {
     ///     options: vec![("SB_DEVICE_METRICS", "1,2".to_owned())],
@@ -427,19 +431,19 @@ impl Settings {
         Ok(settings)
     }
 
-    /// Checks the values that name something: the browser, the driver mode and
-    /// the window size.
+    /// Checks what the values do not say by themselves: the window size.
     ///
+    /// A browser, a mode and the rest are typed fields, refused where they are read.
     /// [`from_file`](Self::from_file), [`load`](Self::load) and
-    /// [`from_env`](Self::from_env) call it, so a misspelt `browser` or `mode`
-    /// is an error there instead of a silent Chrome in WebDriver mode. Call it
+    /// [`from_env`](Self::from_env) call it, so a window with one side is an error there.
+    /// Call it
     /// yourself on a `Settings` built by hand, before
     /// [`to_browser_config`](Self::to_browser_config).
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::InvalidConfig`] for an unknown browser or
-    /// mode, and for a window width without a height (or the other way round)
+    /// Returns [`SeleniumBaseError::InvalidConfig`] for a window width without a height
+    /// (or the other way round)
     /// or one of zero pixels.
     pub fn validate(&self) -> Result<(), SeleniumBaseError> {
         // A lone side of the window is a size with a side of zero (`SB_WINDOW_WIDTH` read
@@ -738,8 +742,8 @@ impl Settings {
     /// Converts these settings into a `BrowserConfig` used by `BaseCase`.
     ///
     /// Settings that came from a file or the environment are checked already.
-    /// For one built by hand, call [`validate`](Self::validate) first: an
-    /// unknown browser or mode becomes Chrome or WebDriver here.
+    /// For one built by hand, call [`validate`](Self::validate) first: a
+    /// window with one side only is dropped here.
     pub fn to_browser_config(&self) -> BrowserConfig {
         self.apply_process_wide();
         let mut config = BrowserConfig {
@@ -840,15 +844,17 @@ impl Settings {
     /// # Examples
     ///
     /// ```
+    /// use seleniumbase_rs::browser::options::LaunchSwitch;
     /// use seleniumbase_rs::Settings;
+    ///
     ///
     /// let mut settings = Settings::default();
     /// settings.apply_options(&[
     ///     ("SB_DEVICE_METRICS", "360,640,2".to_owned()),
     ///     ("SB_BLOCK_IMAGES", "true".to_owned()),
     /// ])?;
-    /// assert!(settings.block_images);
-    /// assert_eq!(settings.device_metrics.as_deref(), Some("360,640,2"));
+    /// assert!(settings.browser.has(LaunchSwitch::BlockImages));
+    /// assert!(settings.browser.device_metrics.is_some());
     /// # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
     /// ```
     pub fn apply_options(&mut self, options: &[(&str, String)]) -> Result<(), SeleniumBaseError> {

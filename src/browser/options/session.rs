@@ -317,7 +317,7 @@ mod tests {
         let text = serde_json::to_string(&SessionSettings::default()).unwrap();
         assert_eq!(
             text,
-            r#"{"mode":"WebDriver","reuse":false,"auto_start_driver":true}"#
+            r#"{"mode":"webdriver","reuse":false,"auto_start_driver":true}"#
         );
         let back: SessionSettings = serde_json::from_str("{}").unwrap();
         assert_eq!(back, SessionSettings::default());
