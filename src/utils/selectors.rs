@@ -1110,6 +1110,25 @@ mod tests {
         assert!(Selector::auto_by("p_text=  ").is_err());
     }
 
+    #[test]
+    fn a_shadow_selector_with_contains_after_the_combinator_stays_css() {
+        // `:contains(..)` is rewritten as XPath, which cannot be cut at a
+        // shadow root: the shadow check comes first, as in `Selector::to_by`.
+        for selector in [
+            "app::shadow a:contains(\"Go\")",
+            "app ::shadow .row:contains('x') ::shadow b",
+            "div > app::shadow li:contains(\"Two\")",
+        ] {
+            assert_eq!(
+                SelectorBuf::from(selector),
+                SelectorBuf::css(selector),
+                "{selector}"
+            );
+            let by = Selector::auto(selector).to_by().unwrap();
+            assert_eq!(format!("{by}"), format!("CSS({selector})"), "{selector}");
+        }
+    }
+
     /// Python SeleniumBase's rules, written as a table: input, kind, text.
     #[test]
     fn classification_follows_the_python_rules() {
