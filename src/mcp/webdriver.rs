@@ -1207,7 +1207,7 @@ mod tests {
     #[tokio::test]
     async fn a_debug_bundle_lists_the_names_of_the_cookies_http_only_ones_too_and_no_values() {
         let driver = page_with_cookies();
-        let mut sb = driver.base_case().await;
+        let mut sb = Box::pin(driver.base_case()).await;
 
         let names = DevSession::cookie_names(&mut sb).await.unwrap();
 
