@@ -976,6 +976,35 @@ mod tests {
     }
 
     #[tokio::test(start_paused = true)]
+    async fn a_page_that_goes_back_and_forth_between_a_challenge_and_a_pending_page_is_given_up() {
+        let mut probes = 0_u32;
+        let tab = Scripted::new(move |ask, _| match ask {
+            Ask::Probe => {
+                probes += 1;
+                match probes {
+                    // A clearance loop: the challenge page, then a page marked as a challenge
+                    // that has drawn no widget, again and again, for thirty seconds. Each change
+                    // from the challenge page starts a new wait, but none may outlast the
+                    // interstitial timeout and the locate timeout together.
+                    1..=200 if !probes.is_multiple_of(2) => interstitial(),
+                    1..=200 => probe_of(Value::Null, true),
+                    _ => probe_of(Value::Null, false),
+                }
+            }
+            other => plain(other).unwrap(),
+        });
+        let options = quick().interstitial_timeout(Duration::from_secs(3));
+        let started = Instant::now();
+        assert_eq!(solve(&tab, &options).await.unwrap(), None);
+        assert!(
+            started.elapsed() <= Duration::from_secs(4),
+            "waited {:?}",
+            started.elapsed()
+        );
+    }
+
+
+    #[tokio::test(start_paused = true)]
 
     async fn a_widget_that_is_already_clear_is_not_pressed() {
         let tab = Scripted::new(|ask, _| match ask {
