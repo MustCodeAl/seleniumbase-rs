@@ -1,3 +1,7 @@
+---
+source: tests/mcp_tool_lists.rs
+expression: text
+---
 {
   "server": "seleniumbase-cdp",
   "tool_count": 43,

@@ -457,6 +457,16 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 
 ### Changed
 
+- The tool lists of the MCP servers (`cdp`, `driver`, `sb` and `dev`) are pinned with `insta`
+  snapshots, `tests/offline/snapshots/offline__mcp_tool_lists__<server>.snap`, checked by the
+  `mcp_tool_lists` module of the `offline` test binary. They replace the JSON files in
+  `tests/golden/mcp_tools/` and the `UPDATE_GOLDEN` switch. After a tool is added or changed
+  the test fails until the snapshot is reviewed: run
+  `cargo test -p seleniumbase-rs --features mcp-server --test offline mcp_tool_lists`, read the
+  diff with `cargo insta review` and accept it (`cargo insta accept`), or write the files without
+  `cargo-insta` by running the same command with `INSTA_UPDATE=always`, then commit the `.snap`
+  files. `insta` is a dev-dependency only. Generated files that the crate compiles, and the
+  command-line spec, stay on their own checks.
 - `sbrs` and `sbrs-mcp` parse their command line with usage-rs 7.2 (usage-lib 7.2 for the
   tests), up from 6.12. Nothing changes for a person: the help, the errors, the completion
   scripts and the generated `completions/sbrs.usage.kdl`, `docs/help/cli_reference.md` and
