@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use seleniumbase_rs::config::settings::Settings;
 
 mod default_values;
+mod nested;
 mod redaction;
 mod trim;
 

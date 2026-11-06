@@ -661,6 +661,12 @@ fn written_by(row: &OptionSpec) -> Vec<(String, Absent)> {
     }
 }
 
+/// The paths of the serialized settings that the row's variable writes: the paths of the
+/// nested form of a settings file that the row's flat key stands for.
+pub(crate) fn written_paths(row: &OptionSpec) -> Vec<String> {
+    written_by(row).into_iter().map(|(path, _)| path).collect()
+}
+
 /// `SB_WINDOW_WIDTH` and `SB_WINDOW_HEIGHT` together: the window size, unless the same source
 /// gives `SB_WINDOW_SIZE`, which wins and is read after them.
 ///

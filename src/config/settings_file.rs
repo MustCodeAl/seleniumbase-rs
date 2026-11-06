@@ -33,7 +33,7 @@ use crate::config::browser_options::{canonical_entries, ArgList, FileEntries};
 use crate::config::env_vars::row_of;
 use crate::config::layers::{describe, extract, merge_into, Given, Layer, Refused};
 use crate::config::settings::{Settings, SettingsProblem};
-use crate::config::test_options::{read_variables, Variables, TEST_OPTIONS};
+use crate::config::test_options::{read_variables, OptionSpec, Variables, TEST_OPTIONS};
 use crate::config::text::text_of;
 use crate::error::SeleniumBaseError;
 
@@ -216,7 +216,7 @@ impl SettingsFile {
             problems.push(Refused {
                 row: TEST_OPTIONS
                     .iter()
-                    .position(|row| row.field.replacen("test.data.", "test.", 1) == path)
+                    .position(|row| row_holds(row, &path))
                     .unwrap_or(usize::MAX),
                 problem: SettingsProblem {
                     source: self.path.display().to_string(),
@@ -310,6 +310,17 @@ fn hide_words(text: &str, value: &str) -> String {
     }
     hidden.push_str(&text[copied..]);
     hidden
+}
+
+/// Whether the setting at `path` of the serialized settings is the field of `row` or one inside
+/// it (`browser.proxy.server` for the row of `browser.proxy`), so that the problems of a nested
+/// table are sorted by the row of the option table too.
+fn row_holds(row: &OptionSpec, path: &str) -> bool {
+    let field = row.field.replacen("test.data.", "test.", 1);
+    row.has_field()
+        && path
+            .strip_prefix(&field)
+            .is_some_and(|rest| rest.is_empty() || rest.starts_with('.'))
 }
 
 /// The name of the settings file as the messages give it: the file name without its folder.
