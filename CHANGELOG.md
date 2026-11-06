@@ -381,6 +381,10 @@ work, `docs/parity.md` the per-API status).
   read `Element::text` now, as `assert_text`, `assert_exact_text`, `is_text_visible` and the
   other text waits already did.
 
+- **`BaseCase::cdp_get_text` gives the value of an `<input>` or a `<textarea>`, as Python's
+  `sb.cdp.get_text` does.** It read the element's `innerText`, which is empty for a field, where
+  Python's reads `text_all`, the field's value. Any other element still gives its rendered text.
+
 - **The role, text, label and containing-text selectors work inside an element.**
   `SelectorBuf::role`, `containing_text`, `text` and `label` wrote XPath that starts with `//`,
   so `element.find(SelectorBuf::role("button", Some("Save"), false))` was refused. They write
