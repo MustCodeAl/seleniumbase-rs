@@ -29,13 +29,12 @@ use std::path::{Path, PathBuf};
 use figment::value::{Dict, Map, Value};
 use figment::{Metadata, Profile, Provider};
 
-use crate::browser::options::BrowserSettings;
 use crate::config::browser_options::{canonical_entries, ArgList, FileEntries};
 use crate::config::env_vars::row_of;
-use crate::config::layers::{describe, extract, merge_into, put, Layer, Refused};
+use crate::config::layers::{describe, extract, merge_into, Given, Layer, Refused};
 use crate::config::settings::{Settings, SettingsProblem};
 use crate::config::test_options::{read_variables, Variables, TEST_OPTIONS};
-use crate::config::text::{add_chromium_items, text_of};
+use crate::config::text::text_of;
 use crate::error::SeleniumBaseError;
 
 /// What a settings file says.
@@ -144,6 +143,7 @@ impl SettingsFile {
         }
         let Variables {
             dict: read,
+            mut inputs,
             problems,
             ..
         } = read_variables(&|variable| texts.get(variable).cloned());
@@ -162,21 +162,9 @@ impl SettingsFile {
             refuse(row_of(variable), key, &message);
         }
         if let Some(items) = chromium_items {
-            let mut browser = BrowserSettings::default();
-            add_chromium_items(&mut browser, items.items());
-            let list = |items: &[String]| Value::serialize(items).map_err(|error| failed(&error));
-            put(
-                &mut dict,
-                "browser.chromium.args",
-                list(&browser.chromium.args)?,
-            );
-            if !browser.chromium.disable_features.is_empty() {
-                put(
-                    &mut dict,
-                    "browser.chromium.disable_features",
-                    list(&browser.chromium.disable_features)?,
-                );
-            }
+            // The array form keeps an item that holds a comma whole; the switches and the
+            // features it names are worked out with the other sources' (`text::replay`).
+            inputs.give("SB_CHROMIUM_ARG", Given::Items(items.items().to_vec()));
         }
 
         let metadata = Metadata::named(name).interpolater(move |_: &Profile, keys: &[&str]| {
@@ -186,7 +174,7 @@ impl SettingsFile {
         Ok(Self {
             path: path.to_path_buf(),
             what,
-            layer: Layer::new(metadata, dict),
+            layer: Layer::new(metadata, dict).with_inputs(inputs),
             refused,
         })
     }

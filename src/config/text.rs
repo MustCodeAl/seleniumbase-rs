@@ -12,7 +12,9 @@
 //! (`chromium_arg` fills `browser.chromium.args` and `browser.chromium.disable_features`).
 //! Each takes the text of one variable and writes the field; within one source the rows of
 //! the option table run in table order, and a higher source runs after a lower one, so the
-//! higher source wins.
+//! higher source wins. The variables of [`REPLAYED`], which write one setting together, are
+//! the exception: a source keeps their text and [`replay`] reads them once the sources are
+//! merged, the one nearest the top deciding each variable.
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -24,7 +26,8 @@ use crate::browser::options::{
     SessionSettings, VirtualDisplay, WindowPosition, WindowSize,
 };
 use crate::browser::reuse::ReuseClass;
-use crate::config::settings::parse_bool;
+use crate::config::layers::{Given, Inputs};
+use crate::config::settings::{parse_bool, Settings};
 use crate::error::SeleniumBaseError;
 
 /// How an option's text is written into a [`Settings`](crate::Settings) field.
@@ -193,8 +196,8 @@ pub(crate) fn locale_code(
 }
 
 /// `SB_XVFB`: on opens a virtual display of the size already asked for, else of the default
-/// size; off closes it. The size comes from `SB_XVFB_METRICS` ([`xvfb_metrics`]), which the
-/// table reads after this variable.
+/// size; off closes it. The size comes from `SB_XVFB_METRICS` ([`xvfb_metrics`]), which
+/// [`replay`] reads after this variable, whichever source gave each.
 pub(crate) fn xvfb(
     browser: &mut BrowserSettings,
     _name: &str,
@@ -281,7 +284,9 @@ fn add_disable_features(browser: &mut BrowserSettings, features: Vec<String>) {
     }
 }
 
-/// `SB_DISABLE_FEATURES`: Chromium features to switch off, separated by commas.
+/// `SB_DISABLE_FEATURES`: Chromium features to switch off, separated by commas. They are added
+/// to the earlier ones, those that the items of `SB_CHROMIUM_ARG` named; [`replay`] clears the
+/// features first when the variable is given, so that its list replaces a lower source's.
 pub(crate) fn disable_features(
     browser: &mut BrowserSettings,
     _name: &str,
@@ -385,6 +390,71 @@ pub(crate) fn uc_cdp_events(
         _ if on => session.cdp_events = CdpEventCapture::UndetectedOnly,
         CdpEventCapture::UndetectedOnly => session.cdp_events = CdpEventCapture::Off,
         _ => {}
+    }
+    Ok(())
+}
+
+/// The variables that [`replay`] works out, because two of them write one setting (or one writes
+/// what the other also writes) and a source may give only one of the two. The option table
+/// does not read them into a path: each source keeps the text it gave
+/// ([`Inputs`]).
+pub(crate) const REPLAYED: [&str; 6] = [
+    "SB_XVFB",
+    "SB_XVFB_METRICS",
+    "SB_CHROMIUM_ARG",
+    "SB_DISABLE_FEATURES",
+    "SB_LOG_CDP_EVENTS",
+    "SB_UC_CDP_EVENTS",
+];
+
+/// Works out the settings that several variables write together from the variables of all the
+/// sources, each as the source nearest the top gave it: the virtual display and its size, the
+/// Chromium switches and the features, and the DevTools events that are logged.
+///
+/// This is the reading of the variables as it was before the sources were layered, a variable
+/// being one input of its own: `settings` holds what the layers say of the other settings
+/// (and, for explicit code, of these), and each variable given is read over them, the way it is
+/// read within one source. So a display switched on by the file takes the size of the
+/// environment, `SB_UC_CDP_EVENTS=false` never lowers the capture of every session whoever
+/// asked for it, and a list of switches of a higher source takes with it the features its
+/// items named.
+///
+/// # Errors
+///
+/// The error of a variable whose text is refused. A source refuses it when it reads it, so the
+/// inputs of the layers do not hold one.
+pub(crate) fn replay(settings: &mut Settings, inputs: &Inputs) -> Result<(), SeleniumBaseError> {
+    let text = |variable: &str| match inputs.get(variable) {
+        Some(Given::Text(text)) => Some(text.as_str()),
+        _ => None,
+    };
+    let browser = &mut settings.browser;
+    // The list of `SB_DISABLE_FEATURES` replaces the features a lower layer named, and the
+    // features that the items of `SB_CHROMIUM_ARG` name come before it in the list.
+    let listed = text("SB_DISABLE_FEATURES");
+    if listed.is_some() {
+        browser.chromium.disable_features.clear();
+    }
+    match inputs.get("SB_CHROMIUM_ARG") {
+        Some(Given::Text(switches)) => chromium_arg(browser, "SB_CHROMIUM_ARG", switches)?,
+        Some(Given::Items(items)) => add_chromium_items(browser, items),
+        None => {}
+    }
+    if let Some(list) = listed {
+        disable_features(browser, "SB_DISABLE_FEATURES", list)?;
+    }
+    if let Some(on) = text("SB_XVFB") {
+        xvfb(browser, "SB_XVFB", on)?;
+    }
+    if let Some(size) = text("SB_XVFB_METRICS") {
+        xvfb_metrics(browser, "SB_XVFB_METRICS", size)?;
+    }
+    let session = &mut settings.session;
+    if let Some(on) = text("SB_LOG_CDP_EVENTS") {
+        log_cdp_events(session, "SB_LOG_CDP_EVENTS", on)?;
+    }
+    if let Some(on) = text("SB_UC_CDP_EVENTS") {
+        uc_cdp_events(session, "SB_UC_CDP_EVENTS", on)?;
     }
     Ok(())
 }

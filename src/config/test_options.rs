@@ -35,8 +35,8 @@
 //! # Ok::<(), &str>(())
 //! ```
 
-use crate::browser::options::{CdpEventCapture, LaunchSwitch, WindowSize};
-use crate::config::layers::{flag, no_items, nothing, put};
+use crate::browser::options::{LaunchSwitch, WindowSize};
+use crate::config::layers::{flag, no_items, nothing, put, Given, Inputs};
 use crate::config::text::{self, OptionValue};
 use figment::value::{Dict, Value};
 use std::path::PathBuf;
@@ -510,7 +510,7 @@ macro_rules! option_table {
 /// `SB_WINDOW_HEIGHT` of the environment.
 pub(crate) fn read_variables(var: &dyn Fn(&str) -> Option<String>) -> Variables {
     // The rows run in table order on a scratch `Settings`, so that what one row reads can
-    // depend on the rows before it in the same source (`SB_XVFB_METRICS` after `SB_XVFB`).
+    // depend on the rows before it in the same source (a refused value is found here).
     let mut scratch = Settings::default();
     let mut problems = Vec::new();
     apply_rows(&mut scratch, var, &mut problems);
@@ -520,8 +520,11 @@ pub(crate) fn read_variables(var: &dyn Fn(&str) -> Option<String>) -> Variables 
         .collect();
     // What the source gives is the paths its rows wrote, with the values the scratch has
     // there. A value that serializes to nothing (a switch that is off, a list that is empty)
-    // is written out, so that this source can turn off what a lower one turned on.
+    // is written out, so that this source can turn off what a lower one turned on. The
+    // variables that write a setting together are not read into a path: the source keeps the
+    // text it gave, and the setting is worked out when the sources are merged.
     let mut dict = Dict::new();
+    let mut inputs = Inputs::default();
     match Value::serialize(&scratch) {
         Ok(whole) => {
             let size_given = var("SB_WINDOW_SIZE").is_some();
@@ -529,6 +532,12 @@ pub(crate) fn read_variables(var: &dyn Fn(&str) -> Option<String>) -> Variables 
                 let given = row.kind.reads_env() && !row.env.is_empty() && var(row.env).is_some();
                 let axis = matches!(row.env, "SB_WINDOW_WIDTH" | "SB_WINDOW_HEIGHT");
                 if !given || refused.iter().any(|name| name == row.env) || (axis && size_given) {
+                    continue;
+                }
+                if text::REPLAYED.contains(&row.env) {
+                    if let Some(text) = var(row.env) {
+                        inputs.give(row.env, Given::Text(text));
+                    }
                     continue;
                 }
                 for (path, absent) in written_by(row) {
@@ -552,6 +561,7 @@ pub(crate) fn read_variables(var: &dyn Fn(&str) -> Option<String>) -> Variables 
     }
     Variables {
         dict,
+        inputs,
         problems,
         settings_file: scratch.settings_file,
     }
@@ -562,6 +572,9 @@ pub(crate) fn read_variables(var: &dyn Fn(&str) -> Option<String>) -> Variables 
 pub(crate) struct Variables {
     /// The settings written, by path.
     pub(crate) dict: Dict,
+    /// The variables of [`text::REPLAYED`] the source gave, as it gave them.
+    pub(crate) inputs: Inputs,
+
     /// The variables whose value is refused; each problem's source is the variable.
     pub(crate) problems: Vec<SettingsProblem>,
     /// The settings file `SB_SETTINGS_FILE` names, which no layer can hold (it names the file
@@ -574,14 +587,12 @@ pub(crate) struct Variables {
 enum Absent {
     /// Nothing: the setting stays what a lower source says.
     Skip,
-    /// The setting is unset (`SB_XVFB=false`).
+    /// The setting is unset (`SB_REMOTE_DEBUG=false`).
     Nothing,
-    /// A list with no item (`SB_CHROMIUM_ARG` with no switch).
+    /// A list with no item (`SB_EXTENSION_DIR` with no folder).
     NoItems,
     /// A switch that is off.
     Off,
-    /// No capture of DevTools events.
-    NoCapture,
 }
 
 impl Absent {
@@ -591,7 +602,6 @@ impl Absent {
             Self::Nothing => Some(nothing()),
             Self::NoItems => Some(no_items()),
             Self::Off => Some(flag(false)),
-            Self::NoCapture => Value::serialize(CdpEventCapture::Off).ok(),
         }
     }
 }
@@ -607,25 +617,16 @@ fn written_by(row: &OptionSpec) -> Vec<(String, Absent)> {
         "SB_WINDOW_WIDTH" => one("browser.window_size.width", Absent::Skip),
         "SB_WINDOW_HEIGHT" => one("browser.window_size.height", Absent::Skip),
         "SB_LOCALE" | "SB_LOCALE_CODE" => one("browser.lang", Absent::Skip),
-        "SB_XVFB" => one("browser.virtual_display", Absent::Nothing),
-        // The size of the display counts when the display is on.
-        "SB_XVFB_METRICS" => one("browser.virtual_display", Absent::Skip),
         "SB_REMOTE_DEBUG" => vec![
             ("browser.debugging_port".to_owned(), Absent::Nothing),
             ("browser.debugging_any_port".to_owned(), Absent::Off),
         ],
-        "SB_CHROMIUM_ARG" => vec![
-            ("browser.chromium.args".to_owned(), Absent::NoItems),
-            ("browser.chromium.disable_features".to_owned(), Absent::Skip),
-        ],
-        "SB_DISABLE_FEATURES" => one("browser.chromium.disable_features", Absent::Skip),
         "SB_EXTENSION_DIR" => one("browser.extensions", Absent::NoItems),
         "SB_EXTENSION_ZIP" => one("session.extension_archives", Absent::NoItems),
         "SB_REUSE_CLASS_SESSION" => one("session.reuse_class", Absent::Nothing),
         "SB_CAP_FILE" | "SB_CAP_STRING" => one("session.capabilities", Absent::Skip),
         "SB_FIREFOX_ARG" => one("session.firefox.args", Absent::Skip),
         "SB_FIREFOX_PREF" => one("session.firefox.preferences", Absent::Skip),
-        "SB_LOG_CDP_EVENTS" | "SB_UC_CDP_EVENTS" => one("session.cdp_events", Absent::NoCapture),
         _ => {
             // `TestSettings` flattens its `TestData`: `test.data.env` is `test.env` in the
             // serialized settings.

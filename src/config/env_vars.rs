@@ -690,6 +690,7 @@ impl<'a> EnvVars<'a> {
         let given = |name: &str| (self.lookup)(name).filter(|value| !value.trim().is_empty());
         let Variables {
             mut dict,
+            inputs,
             problems,
             settings_file,
         } = read_variables(&given);
@@ -719,7 +720,7 @@ impl<'a> EnvVars<'a> {
             })
             .collect();
         Read {
-            layer: Layer::new(self.metadata(), dict),
+            layer: Layer::new(self.metadata(), dict).with_inputs(inputs),
             refused,
             plugins_named,
             settings_file,

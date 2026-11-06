@@ -13,10 +13,13 @@
 //!
 //! Nothing in this module is public: no figment type is part of the API of the crate.
 
+use std::collections::BTreeMap;
+
 use figment::value::{Dict, Empty, Map, Tag, Value};
 use figment::{Figment, Metadata, Profile, Provider};
 
 use crate::config::settings::{Settings, SettingsProblem};
+use crate::config::text;
 use crate::error::SeleniumBaseError;
 
 /// The settings one source gives, as a dictionary at the paths of the serialized [`Settings`],
@@ -25,12 +28,25 @@ use crate::error::SeleniumBaseError;
 pub(crate) struct Layer {
     metadata: Metadata,
     dict: Dict,
+    /// The variables the source gave that no path holds by itself, to be worked out when the
+    /// layers are merged.
+    inputs: Inputs,
 }
 
 impl Layer {
     /// A layer named by `metadata` with the settings in `dict`.
     pub(crate) fn new(metadata: Metadata, dict: Dict) -> Self {
-        Self { metadata, dict }
+        Self {
+            metadata,
+            dict,
+            inputs: Inputs::default(),
+        }
+    }
+
+    /// This layer with the variables `inputs` that the source gave.
+    pub(crate) fn with_inputs(mut self, inputs: Inputs) -> Self {
+        self.inputs = inputs;
+        self
     }
 
     /// The layer of the defaults: no setting, so that every group takes its `Default`.
@@ -76,6 +92,51 @@ impl Provider for Layer {
     }
 }
 
+/// What a source gave for a variable of [`Inputs`].
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum Given {
+    /// The text of the variable, or of the flat key of a settings file.
+    Text(String),
+    /// The items of the array form of a flat key of a settings file
+    /// (`chromium_arg = ["--a", "--b"]`).
+    Items(Vec<String>),
+}
+
+/// The variables that no path of the settings holds by itself, as the layers gave them.
+///
+/// A setting that two variables write together (the virtual display and its size, the
+/// DevTools events of every session and of the undetected ones, the Chromium switches and
+/// the features they name) cannot be read one source at a time: half of it may come from the
+/// file and half from the environment, and what a source's half shows in the settings (a size
+/// with no display) may be nothing. So each source keeps the variables it gave, as it was
+/// given, the source nearest the top that gives a variable decides it, and the setting is
+/// worked out from the variables of all the sources once the layers are merged
+/// ([`text::replay`]).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub(crate) struct Inputs {
+    given: BTreeMap<&'static str, Given>,
+}
+
+impl Inputs {
+    /// Records what a source gave for `variable`; a later record replaces an earlier one.
+    pub(crate) fn give(&mut self, variable: &'static str, given: Given) {
+        self.given.insert(variable, given);
+    }
+
+    /// What the layers gave for `variable`, if anything.
+    pub(crate) fn get(&self, variable: &str) -> Option<&Given> {
+        self.given.get(variable)
+    }
+
+    /// The inputs `over` laid over these: for each variable `over` gives, its value replaces
+    /// ours.
+    pub(crate) fn lay(&mut self, over: &Self) {
+        for (variable, given) in &over.given {
+            self.given.insert(variable, given.clone());
+        }
+    }
+}
+
 /// A setting that a source refused, and the row of the option table it belongs to. The
 /// problems of all sources are listed in the order of the rows, whichever source gave each.
 pub(crate) struct Refused {
@@ -93,12 +154,18 @@ pub(crate) struct Refused {
 /// metadata of the layer the value came from and the path of the key.
 pub(crate) fn extract(layers: &[&Layer]) -> Result<Settings, Box<figment::Error>> {
     let mut figment = Figment::new();
+    let mut inputs = Inputs::default();
     for layer in layers {
         figment = figment.merge(*layer);
+        inputs.lay(&layer.inputs);
     }
     let mut settings: Settings = figment.extract().map_err(Box::new)?;
     // A switch that a higher layer turned off is no entry: the map holds the switches that are on.
     settings.browser.switches.retain(|_, on| *on);
+    // The settings that several variables write are worked out from the variables of all the
+    // layers, now that the layers are merged.
+    text::replay(&mut settings, &inputs)
+        .map_err(|error| Box::new(figment::Error::from(error.to_string())))?;
     Ok(settings)
 }
 
@@ -238,6 +305,26 @@ mod tests {
             .expect("a table");
         assert_eq!(size.get("width").and_then(Value::to_u128), Some(1024));
         assert_eq!(size.get("height").and_then(Value::to_u128), Some(600));
+    }
+
+    #[test]
+    fn the_inputs_of_a_higher_layer_replace_the_lower_ones_variable_by_variable() {
+        let given = |text: &str| Given::Text(text.to_owned());
+        let mut inputs = Inputs::default();
+        inputs.give("SB_XVFB", given("true"));
+        inputs.give("SB_XVFB_METRICS", given("800,600"));
+        let mut over = Inputs::default();
+        over.give("SB_XVFB_METRICS", given("1920,1080"));
+        over.give("SB_CHROMIUM_ARG", Given::Items(vec!["--a".to_owned()]));
+        inputs.lay(&over);
+        // A variable the higher layer leaves alone is the lower layer's.
+        assert_eq!(inputs.get("SB_XVFB"), Some(&given("true")));
+        assert_eq!(inputs.get("SB_XVFB_METRICS"), Some(&given("1920,1080")));
+        assert_eq!(
+            inputs.get("SB_CHROMIUM_ARG"),
+            Some(&Given::Items(vec!["--a".to_owned()]))
+        );
+        assert_eq!(inputs.get("SB_DISABLE_FEATURES"), None);
     }
 
     #[test]
