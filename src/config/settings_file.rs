@@ -157,7 +157,7 @@ impl SettingsFile {
             }
             // The value may be a secret: the message does not repeat it.
             if let Some(value) = texts.get(variable).filter(|value| !value.is_empty()) {
-                message = message.replace(value.as_str(), "…");
+                message = without_value(&message, value);
             }
             refuse(row_of(variable), key, &message);
         }
@@ -237,8 +237,7 @@ impl SettingsFile {
     fn refusal(&self, error: &figment::Error) -> String {
         let text = describe(error);
         match self.layer.text_at(&error.path) {
-            Some(value) if value.len() >= 3 => text.replace(value, "…"),
-            Some(value) if !value.is_empty() => text.replace(&format!("\"{value}\""), "\"…\""),
+            Some(value) if !value.is_empty() => without_value(&text, value),
             _ => text,
         }
     }
@@ -260,6 +259,53 @@ impl Provider for SettingsFile {
             None => self.layer.data(),
         }
     }
+}
+
+/// `message` without the secret `value`, which a reader or serde may have quoted in it.
+///
+/// Only the value is hidden: the value between quotes (`"v"`, `'v'` or `` `v` ``, however the
+/// reader quotes it), and the value that ends the message (`cannot parse bool: v`). A value of
+/// three characters or more is hidden wherever it stands alone, as a word of the message. A
+/// shorter value is never searched for in the words of the message: a secret of one letter is
+/// also a letter of "cannot parse", and the message must stay readable.
+fn without_value(message: &str, value: &str) -> String {
+    if value.is_empty() {
+        return message.to_owned();
+    }
+    let mut hidden = message.to_owned();
+    for quote in ['"', '\'', '`'] {
+        hidden = hidden.replace(
+            &format!("{quote}{value}{quote}"),
+            &format!("{quote}…{quote}"),
+        );
+    }
+    if let Some(head) = hidden.strip_suffix(value)
+        && head.ends_with(": ")
+    {
+        hidden = format!("{head}…");
+    }
+    if value.chars().count() >= 3 {
+        hidden = hide_words(&hidden, value);
+    }
+    hidden
+}
+
+/// `text` with each occurrence of `value` that is not part of a longer word replaced by `…`.
+fn hide_words(text: &str, value: &str) -> String {
+    let inside_word = |c: Option<char>| c.is_some_and(|c| c.is_alphanumeric() || c == '_');
+    let mut hidden = String::with_capacity(text.len());
+    let mut copied = 0;
+    for (at, found) in text.match_indices(value) {
+        let end = at + found.len();
+        if inside_word(text[..at].chars().next_back()) || inside_word(text[end..].chars().next()) {
+            continue;
+        }
+        hidden.push_str(&text[copied..at]);
+        hidden.push('…');
+        copied = end;
+    }
+    hidden.push_str(&text[copied..]);
+    hidden
 }
 
 /// The name of the settings file as the messages give it: the file name without its folder.
