@@ -17,9 +17,10 @@ use serde_json::{json, Value};
 use thirtyfour::common::keys::Key as WireKey;
 use thirtyfour::components::SelectElement;
 use thirtyfour::error::WebDriverErrorInner;
-use thirtyfour::prelude::{WebDriver, WebElement};
+use thirtyfour::prelude::{By, WebDriver, WebElement};
 
 use crate::browser::session::shown_text;
+use crate::browser::shadow_find;
 use crate::error::SeleniumBaseError;
 use crate::sb_cdp::{Key, Rect, SelectBy};
 use crate::utils::selectors::SelectorBuf;
@@ -512,6 +513,107 @@ impl Element {
     }
 }
 
+/// Finding other elements from this one.
+///
+/// Each looks once, since the element is already found: a search that finds
+/// nothing is an error for [`find`](Self::find) and an empty list for
+/// [`find_all`](Self::find_all). The elements found are named by the chain
+/// that led to them (`#cart >> .row`), as a
+/// [`Locator`](crate::sb_cdp::Locator) writes its chain, so a stale one says
+/// where it came from.
+impl Element {
+    /// The name of what `selector` finds inside this element: the chain.
+    fn below(&self, selector: &SelectorBuf) -> SelectorBuf {
+        SelectorBuf::css(format!("{self} >> {selector}"))
+    }
+
+    /// The locator for a search inside this element.
+    ///
+    /// A selector that crosses a shadow root is cut and followed from the
+    /// page, which an element cannot do from where it is: it is refused here
+    /// with a hint, not left to the driver.
+    fn lookup(selector: &SelectorBuf) -> Result<By, SeleniumBaseError> {
+        let by = shadow_find::by_of(selector)?;
+        if shadow_find::pieces(&by)?.is_some() {
+            return Err(SeleniumBaseError::InvalidSelector(format!(
+                "'{selector}' crosses a shadow root, which a search inside an element does not \
+                 enter: look it up from the page, as `BaseCase::find_element` does"
+            )));
+        }
+        Ok(by)
+    }
+
+    /// The first match of `selector` inside this element, looked for once.
+    ///
+    /// `selector` is anything that converts to a [`SelectorBuf`]: a string,
+    /// whose kind is read as everywhere else (`.remove`, `//td`, `link=Edit`),
+    /// or a [`SelectorBuf`] that names its kind. Like
+    /// [`Locator::locator`](crate::sb_cdp::Locator::locator), without the
+    /// laziness.
+    ///
+    /// # Errors
+    ///
+    /// The driver's `no such element` error if nothing matches,
+    /// [`SeleniumBaseError::InvalidSelector`] for an empty selector or one
+    /// that crosses a shadow root, and
+    /// [`SeleniumBaseError::StaleElement`] if this element went stale.
+    pub async fn find(
+        &self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<Element, SeleniumBaseError> {
+        let selector = selector.into();
+        let by = Self::lookup(&selector)?;
+        let found = self
+            .inner
+            .find(by)
+            .await
+            .map_err(|error| self.failed(error))?;
+        Ok(Self::new(found, self.driver.clone(), self.below(&selector)))
+    }
+
+    /// Every match of `selector` inside this element, possibly none.
+    ///
+    /// # Errors
+    ///
+    /// As [`find`](Self::find), except that nothing matching is an empty list.
+    pub async fn find_all(
+        &self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<Vec<Element>, SeleniumBaseError> {
+        let selector = selector.into();
+        let by = Self::lookup(&selector)?;
+        let found = self
+            .inner
+            .find_all(by)
+            .await
+            .map_err(|error| self.failed(error))?;
+        let name = self.below(&selector);
+        Ok(found
+            .into_iter()
+            .map(|inner| Self::new(inner, self.driver.clone(), name.clone()))
+            .collect())
+    }
+
+    /// The element this one is in.
+    ///
+    /// Like [`Locator::parent`](crate::sb_cdp::Locator::parent), without the
+    /// laziness.
+    ///
+    /// # Errors
+    ///
+    /// The driver's error if there is no parent, as on the document element;
+    /// and see [`find`](Self::find).
+    pub async fn parent(&self) -> Result<Element, SeleniumBaseError> {
+        let parent = self
+            .inner
+            .parent()
+            .await
+            .map_err(|error| self.failed(error))?;
+        let name = self.below(&SelectorBuf::xpath(".."));
+        Ok(Self::new(parent, self.driver.clone(), name))
+    }
+}
+
 /// What an element answers, against the mock WebDriver in `webdriver_support`.
 #[cfg(test)]
 mod tests {
@@ -732,6 +834,165 @@ mod tests {
             "{looked_for:?}"
         );
         assert_eq!(looked_for[2], "option:nth-of-type(2)");
+    }
+
+    /// A cart: `#a` (`e1`) holds the rows `r1`, which has gone stale, and `r2`,
+    /// and its parent is `p1`. `#b` (`e2`) has gone stale itself.
+    fn cart() -> MockWebDriver {
+        MockWebDriver::start(json!({}), |request: &Seen| {
+            let asked = request.body["value"].as_str().unwrap_or_default();
+            match (request.method.as_str(), request.path.as_str()) {
+                ("POST", "/element") => Reply::Value(match asked {
+                    "#b" => element("e2"),
+                    _ => element("e1"),
+                }),
+                ("POST", "/element/e1/element") => match asked {
+                    ".row" => Reply::Value(element("r1")),
+                    "./.." | ".." => Reply::Value(element("p1")),
+                    _ => Reply::Error(404, "no such element"),
+                },
+                ("POST", "/element/e1/elements") => match asked {
+                    ".row" => Reply::Value(json!([element("r1"), element("r2")])),
+                    _ => Reply::Value(json!([])),
+                },
+                ("POST", "/element/e2/element" | "/element/e2/elements") => {
+                    Reply::Error(404, "stale element reference")
+                }
+                ("POST", "/element/r1/element") => Reply::Value(element("c1")),
+                ("POST", "/execute/sync") => Reply::Value(element("p1")),
+                ("GET", "/element/r1/displayed") => Reply::Error(404, "stale element reference"),
+                ("GET", "/element/r2/displayed" | "/element/p1/displayed") => {
+                    Reply::Value(json!(true))
+                }
+                _ => Reply::Value(Value::Null),
+            }
+        })
+    }
+
+    #[tokio::test]
+    async fn find_looks_once_inside_the_element_and_names_the_chain() {
+        let driver = cart();
+        let (_session, cart) = found(&driver, "#a").await;
+
+        let row = cart.find(".row").await.unwrap();
+
+        assert_eq!(row.to_string(), "#a >> .row");
+        assert_eq!(row.as_webdriver_element().element_id().to_string(), "r1");
+        let asked = only_request(&driver, "/element/e1/element");
+        assert_eq!(asked["using"], "css selector");
+        assert_eq!(asked["value"], ".row");
+        // The chain goes on from there.
+        let cell = row.find("td").await.unwrap();
+        assert_eq!(cell.to_string(), "#a >> .row >> td");
+    }
+
+    #[tokio::test]
+    async fn a_search_reads_the_kind_of_its_selector() {
+        let driver = cart();
+        let (_session, cart) = found(&driver, "#a").await;
+
+        // Nothing matches, and the driver's error is passed on.
+        let error = cart.find("//td").await.unwrap_err();
+        assert!(
+            matches!(error, SeleniumBaseError::WebDriver(_)),
+            "{error:?}"
+        );
+        cart.find("link=Edit").await.unwrap_err();
+
+        let kinds: Vec<_> = driver
+            .requests("/element/e1/element")
+            .into_iter()
+            .map(|request| {
+                request.body["using"]
+                    .as_str()
+                    .unwrap_or_default()
+                    .to_owned()
+            })
+            .collect();
+        assert_eq!(kinds, ["xpath", "link text"]);
+    }
+
+    #[tokio::test]
+    async fn find_all_returns_every_match_and_no_match_is_an_empty_list() {
+        let driver = cart();
+        let (_session, cart) = found(&driver, "#a").await;
+
+        let rows = cart.find_all(".row").await.unwrap();
+        let ids: Vec<_> = rows
+            .iter()
+            .map(|row| row.as_webdriver_element().element_id().to_string())
+            .collect();
+        assert_eq!(ids, ["r1", "r2"]);
+        assert!(rows.iter().all(|row| row.to_string() == "#a >> .row"));
+
+        assert!(cart.find_all(".nothing").await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn parent_is_the_element_above_and_is_named_so() {
+        let driver = cart();
+        let (_session, cart) = found(&driver, "#a").await;
+
+        let parent = cart.parent().await.unwrap();
+
+        assert_eq!(parent.to_string(), "#a >> ..");
+        assert_eq!(parent.as_webdriver_element().element_id().to_string(), "p1");
+        assert!(parent.is_visible().await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn an_element_found_from_another_goes_stale_naming_the_chain() {
+        let driver = cart();
+        let (_session, cart) = found(&driver, "#a").await;
+        let rows = cart.find_all(".row").await.unwrap();
+
+        // The mock says `r1` is stale and `r2` is not; both are `#a >> .row`.
+        match rows[0].is_visible().await {
+            Err(SeleniumBaseError::StaleElement { selector }) => {
+                assert_eq!(selector, "#a >> .row");
+            }
+            other => panic!("expected StaleElement, got {other:?}"),
+        }
+        assert!(rows[1].is_visible().await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn a_search_from_a_stale_element_names_that_element() {
+        let driver = cart();
+        let (_session, gone) = found(&driver, "#b").await;
+
+        for error in [
+            gone.find(".row").await.unwrap_err(),
+            gone.find_all(".row").await.unwrap_err(),
+        ] {
+            match error {
+                SeleniumBaseError::StaleElement { selector } => assert_eq!(selector, "#b"),
+                other => panic!("expected StaleElement, got {other:?}"),
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn a_search_that_cannot_work_is_refused_before_the_driver_is_asked() {
+        let driver = cart();
+        let (_session, cart) = found(&driver, "#a").await;
+
+        for selector in ["", "  ", "host ::shadow", "host::shadow .row"] {
+            let error = cart.find(selector).await.unwrap_err();
+            assert!(
+                matches!(error, SeleniumBaseError::InvalidSelector(_)),
+                "{selector:?}: {error:?}"
+            );
+            cart.find_all(selector).await.unwrap_err();
+        }
+        let message = cart
+            .find("host::shadow .row")
+            .await
+            .unwrap_err()
+            .to_string();
+        assert!(message.contains("find_element"), "{message}");
+        assert!(driver.requests("/element/e1/element").is_empty());
+        assert!(driver.requests("/element/e1/elements").is_empty());
     }
 
     fn assert_send_sync_clone<T: Send + Sync + Clone>() {}
