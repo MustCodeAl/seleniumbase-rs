@@ -292,7 +292,6 @@ impl<'a> Selector<'a> {
 /// (`.//`). From a page that is the whole document, as `//` would be; from an
 /// [`Element`](crate::Element) it stays inside the element, where
 /// [`Element::find`](crate::Element::find) refuses a path from the root of the page.
-
 ///
 /// # Examples
 ///

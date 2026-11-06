@@ -209,7 +209,6 @@ work, `docs/parity.md` the per-API status).
   `//` path inside the scope with `contains`, which counts the scope itself, and `.//` does not.
 
 
-
 ## [0.8.0] - 2026-11-05
 
 ### Security
