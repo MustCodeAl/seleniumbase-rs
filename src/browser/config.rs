@@ -284,7 +284,7 @@ impl std::fmt::Debug for BrowserConfig {
 
 impl Default for BrowserConfig {
     fn default() -> Self {
-        Self::from_runtime_config(&crate::config::RuntimeConfig::default())
+        Self::base()
     }
 }
 
@@ -292,15 +292,33 @@ impl BrowserConfig {
     /// Build a `BrowserConfig` from the current process environment.
     ///
     /// This is the preferred constructor for deployable applications because
-    /// it honors `SB_WEBDRIVER_URL`, `SB_CHROME_BIN`, and other runtime
-    /// variables without requiring code changes per environment.
+    /// it honors `SB_WEBDRIVER_URL`, `SB_CHROME_BIN` and `SB_REMOTE_WEBDRIVER_TIMEOUT`, which it
+    /// reads as `Settings` reads them (a blank value is unset), without code changes per environment.
     pub fn from_env() -> Result<Self, SeleniumBaseError> {
-        let runtime = crate::config::RuntimeConfig::from_env()?;
-        Ok(Self::from_runtime_config(&runtime))
+        Self::from_vars(|name| std::env::var(name).ok())
     }
 
-    fn from_runtime_config(runtime: &crate::config::RuntimeConfig) -> Self {
-        let mut built = Self {
+    /// [`from_env`](Self::from_env) reading the variables from `var`, which looks one up by
+    /// name, instead of the process environment.
+    ///
+    /// # Errors
+    ///
+    /// [`SeleniumBaseError::InvalidConfig`] for an `SB_REMOTE_WEBDRIVER_TIMEOUT` that is not a
+    /// number of seconds.
+    pub fn from_vars(var: impl Fn(&str) -> Option<String>) -> Result<Self, SeleniumBaseError> {
+        let env = crate::config::env_vars::EnvVars::new("environment variable", var);
+        let mut built = Self::base();
+        built.session.webdriver_url = env
+            .text("SB_WEBDRIVER_URL")
+            .filter(|url| url != DEFAULT_WEBDRIVER_URL);
+        built.browser.executable_path = env.text("SB_CHROME_BIN").map(std::path::PathBuf::from);
+        built.session.remote_webdriver_timeout_seconds =
+            env.parse::<u64>("SB_REMOTE_WEBDRIVER_TIMEOUT")?;
+        Ok(built)
+    }
+
+    fn base() -> Self {
+        Self {
             browser: default_browser_settings(),
             session: SessionSettings::default(),
             run: RunSettings::default(),
@@ -311,14 +329,7 @@ impl BrowserConfig {
             cdp_target: None,
             #[cfg(feature = "plugins")]
             plugins: BrowserPlugins::default(),
-        };
-        if runtime.webdriver_url != DEFAULT_WEBDRIVER_URL {
-            built.session.webdriver_url = Some(runtime.webdriver_url.clone());
         }
-        built.browser.executable_path = runtime.chrome_bin.clone();
-        built.session.remote_webdriver_timeout_seconds =
-            runtime.remote_webdriver_timeout.map(|d| d.as_secs());
-        built
     }
 }
 

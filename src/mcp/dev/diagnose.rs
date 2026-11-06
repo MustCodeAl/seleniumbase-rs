@@ -796,8 +796,6 @@ fn variables_of(path: &str) -> String {
 /// The runtime variables (`SB_LOG_LEVEL` and the rest) as they were read.
 fn runtime_summary(runtime: &RuntimeConfig) -> Value {
     json!({
-        "webdriver_url": redact_setting("SB_WEBDRIVER_URL", &runtime.webdriver_url),
-        "chrome_bin": runtime.chrome_bin.as_ref().map(|path| path.display().to_string()),
         "patch_cache_dir": runtime
             .patch_cache_dir
             .as_ref()
@@ -807,9 +805,6 @@ fn runtime_summary(runtime: &RuntimeConfig) -> Value {
         "shutdown_timeout_seconds": runtime.shutdown_timeout.as_secs(),
         "chromedriver_port": runtime.chromedriver_port,
         "implicit_wait_seconds": runtime.implicit_wait.as_secs(),
-        "remote_webdriver_timeout_seconds": runtime
-            .remote_webdriver_timeout
-            .map(|timeout| timeout.as_secs()),
     })
 }
 

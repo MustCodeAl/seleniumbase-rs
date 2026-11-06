@@ -3,10 +3,13 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::api::run_settings::RunSettings;
-use crate::browser::config::{Browser, BrowserConfig, DriverMode};
+use crate::browser::config::BrowserConfig;
 use crate::browser::options::{BrowserSettings, LaunchSwitch, SessionSettings};
-use crate::browser::reuse::ReuseClass;
+use crate::config::env_vars::{EnvVars, Read};
+use crate::config::layers::{self, Layer, Refused};
 use crate::config::plugins::{PluginSelection, PLUGINS_ENV};
+use crate::config::settings_file::SettingsFile;
+
 use crate::config::test_settings::{TestData, TestSettings};
 use crate::core::test_run::ReportSettings;
 
@@ -136,11 +139,13 @@ pub struct Settings {
 
 /// The settings a command line asked for explicitly, and nothing else.
 ///
-/// Each field is `None` unless the user passed the matching option. That
+/// Each option is a pair of an `SB_*` variable and the text of its value, and there is one only
+/// for an option the user passed. That
 /// distinction matters: an option left at its default must not hide the value
 /// from a config file or an `SB_*` variable, but an option that was passed
-/// beats both. The same overrides can be applied to a [`Settings`] directly
-/// ([`apply`](Self::apply)) or handed to a child process, such as a test run,
+/// beats both: it is the highest layer of the settings. The same overrides can be applied to a
+/// [`Settings`] directly
+/// ([`try_apply`](Self::try_apply)) or handed to a child process, such as a test run,
 /// as environment variables ([`env`](Self::env)).
 ///
 /// # Examples
@@ -149,13 +154,13 @@ pub struct Settings {
 /// use seleniumbase_rs::config::settings::{Settings, SettingsOverrides};
 ///
 /// let overrides = SettingsOverrides {
-///     headless: Some(true),
-///     proxy: Some("proxy.example.com:8080".to_owned()),
-///     ..SettingsOverrides::default()
+///     options: vec![("SB_HEADLESS", "true".to_owned()),
+///         ("SB_PROXY", "proxy.example.com:8080".to_owned())],
+///
 /// };
 ///
 /// let mut settings = Settings::default();
-/// overrides.apply(&mut settings)?;
+/// overrides.try_apply(&mut settings)?;
 /// assert!(settings.browser.headless);
 /// assert_eq!(settings.browser.proxy.server.as_deref(), Some("proxy.example.com:8080"));
 ///
@@ -166,115 +171,17 @@ pub struct Settings {
 /// ```
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct SettingsOverrides {
-    /// Browser name (`SB_BROWSER`).
-    pub browser: Option<String>,
-    /// Run without a visible window (`SB_HEADLESS`).
-    pub headless: Option<bool>,
-    /// Driver mode: `webdriver`, `cdp` or `uc` (`SB_MODE`).
-    pub mode: Option<String>,
-    /// User-agent string (`SB_USER_AGENT`).
-    pub user_agent: Option<String>,
-    /// Browser locale (`SB_LOCALE`).
-    pub locale: Option<String>,
-    /// Block ads (`SB_AD_BLOCK`).
-    pub ad_block: Option<bool>,
-    /// Proxy address (`SB_PROXY`).
-    pub proxy: Option<String>,
-    /// Proxy auto-config URL (`SB_PROXY_PAC_URL`).
-    pub proxy_pac_url: Option<String>,
-    /// The fingerprint file to apply (`SB_FINGERPRINT`).
-    pub fingerprint: Option<String>,
-    /// Persistent profile directory (`SB_USER_DATA_DIR`).
-    pub user_data_dir: Option<String>,
-    /// Unpacked extension directory (`SB_EXTENSION_DIR`).
-    pub extension_dir: Option<String>,
-    /// Share browsers among the tests of a run (`SB_REUSE_SESSION`).
-    pub reuse_session: Option<bool>,
-    /// Share a browser among the tests of one module
-    /// (`SB_REUSE_CLASS_SESSION`).
-    pub reuse_class_session: Option<bool>,
-    /// Emulate a mobile device (`SB_MOBILE`).
-    pub mobile: Option<bool>,
-    /// Number of parallel threads (`SB_THREADS`).
-    pub threads: Option<usize>,
-    /// End the current test when ESC is pressed in the browser
-    /// (`SB_ESC_END`).
-    pub esc_end: Option<bool>,
-    /// Write recordings as pure CDP code (`SB_REC_SB_CDP`).
-    pub rec_sb_cdp: Option<bool>,
-    /// The other options of the option table, each as its `SB_*` variable and the text of its
-    /// value (`--dark` is `("SB_DARK_MODE", "true")`). [`try_apply`](Self::try_apply) reads
-    /// them as the environment is read, and [`env`](Self::env) hands them on unchanged; a
-    /// later pair for one variable wins.
+    /// The options, each as its `SB_*` variable and the text of its value (`--dark` is
+    /// `("SB_DARK_MODE", "true")`, `--headed` is `("SB_HEADLESS", "false")`). They are read as the
+    /// environment is read, so a blank value is no option and a value that does not parse is
+    /// refused naming its variable and its flag; for one variable given twice, the last pair
+    /// wins.
     pub options: Vec<(&'static str, String)>,
-
-    /// The page every browser opens first (`SB_START_PAGE`).
-    pub start_page: Option<String>,
 }
 
 impl SettingsOverrides {
-    /// Writes every option that is set into `settings`.
-    pub fn apply(&self, settings: &mut Settings) -> Result<(), SeleniumBaseError> {
-        if let Some(browser) = &self.browser {
-            settings.browser.kind = browser.parse::<Browser>()?;
-        }
-        if let Some(headless) = self.headless {
-            settings.browser.headless = headless;
-        }
-        if let Some(mode) = &self.mode {
-            settings.session.mode = mode.parse::<DriverMode>()?;
-        }
-        if let Some(user_agent) = &self.user_agent {
-            settings.browser.user_agent = Some(user_agent.clone());
-        }
-        if let Some(locale) = &self.locale {
-            // The command line beats an earlier `locale_code`: both write the language.
-            settings.browser.lang = Some(locale.clone());
-        }
-        if let Some(ad_block) = self.ad_block {
-            settings.browser.ad_block = ad_block;
-        }
-        if let Some(proxy) = &self.proxy {
-            settings.browser.proxy.server = Some(proxy.clone());
-        }
-        if let Some(pac) = &self.proxy_pac_url {
-            settings.browser.proxy.pac_url = Some(pac.clone());
-        }
-        if let Some(file) = &self.fingerprint {
-            settings.fingerprint.file = Some(PathBuf::from(file));
-        }
-        if let Some(dir) = &self.user_data_dir {
-            settings.browser.user_data_dir = Some(PathBuf::from(dir));
-        }
-        if let Some(dir) = &self.extension_dir {
-            settings.browser.extensions = crate::browser::config::split_extension_dirs(dir);
-        }
-        if let Some(reuse) = self.reuse_session {
-            settings.session.reuse = reuse;
-        }
-        if let Some(reuse) = self.reuse_class_session {
-            settings.session.reuse_class = reuse.then_some(ReuseClass::TestModule);
-        }
-        if let Some(mobile) = self.mobile {
-            settings.browser.mobile = mobile;
-        }
-        if let Some(threads) = self.threads {
-            settings.test.threads = Some(threads);
-        }
-        if let Some(esc_end) = self.esc_end {
-            settings.browser.set(LaunchSwitch::EscEnd, esc_end);
-        }
-        if let Some(rec_sb_cdp) = self.rec_sb_cdp {
-            settings.browser.set(LaunchSwitch::RecSbCdp, rec_sb_cdp);
-        }
-        if let Some(page) = &self.start_page {
-            settings.browser.url = Some(page.clone());
-        }
-        Ok(())
-    }
-
-    /// [`apply`](Self::apply), then the `options` as the environment is read, then the checks
-    /// of [`Settings::validate`].
+    /// Lays the options over `settings`, as the `SB_*` variables are laid over them (see
+    /// [`Settings::apply_options`]), then checks the result with [`Settings::validate`].
     ///
     /// # Errors
     ///
@@ -290,7 +197,6 @@ impl SettingsOverrides {
     ///
     /// let overrides = SettingsOverrides {
     ///     options: vec![("SB_DARK_MODE", "true".to_owned())],
-    ///     ..SettingsOverrides::default()
     /// };
     /// let mut settings = Settings::default();
     /// overrides.try_apply(&mut settings)?;
@@ -298,18 +204,16 @@ impl SettingsOverrides {
     ///
     /// let wrong = SettingsOverrides {
     ///     options: vec![("SB_DEVICE_METRICS", "1,2".to_owned())],
-    ///     ..SettingsOverrides::default()
     /// };
     /// assert!(wrong.try_apply(&mut Settings::default()).is_err());
     /// # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
     /// ```
     pub fn try_apply(&self, settings: &mut Settings) -> Result<(), SeleniumBaseError> {
-        self.apply(settings)?;
         settings.apply_options(&self.options)
     }
 
     /// The `SB_*` environment variables that carry these options to a child
-    /// process, one for each option that is set.
+    /// process, one for each option.
     ///
     /// A process that loads its settings with [`Settings::load`] sees them as
     /// the highest-priority overrides it can receive from outside. A proxy
@@ -317,36 +221,7 @@ impl SettingsOverrides {
     /// you trust with it.
     #[must_use]
     pub fn env(&self) -> Vec<(&'static str, String)> {
-        let text = |name, value: &Option<String>| value.clone().map(|value| (name, value));
-        let flag = |name, value: Option<bool>| value.map(|value| (name, value.to_string()));
-        {
-            let mut pairs: Vec<(&'static str, String)> = [
-                text("SB_BROWSER", &self.browser),
-                flag("SB_HEADLESS", self.headless),
-                text("SB_MODE", &self.mode),
-                text("SB_USER_AGENT", &self.user_agent),
-                text("SB_LOCALE", &self.locale),
-                flag("SB_AD_BLOCK", self.ad_block),
-                text("SB_PROXY", &self.proxy),
-                text("SB_PROXY_PAC_URL", &self.proxy_pac_url),
-                text(FINGERPRINT_ENV, &self.fingerprint),
-                text("SB_USER_DATA_DIR", &self.user_data_dir),
-                text("SB_EXTENSION_DIR", &self.extension_dir),
-                flag("SB_REUSE_SESSION", self.reuse_session),
-                flag("SB_REUSE_CLASS_SESSION", self.reuse_class_session),
-                flag("SB_MOBILE", self.mobile),
-                self.threads
-                    .map(|threads| ("SB_THREADS", threads.to_string())),
-                flag("SB_ESC_END", self.esc_end),
-                flag("SB_REC_SB_CDP", self.rec_sb_cdp),
-                text(START_PAGE_ENV, &self.start_page),
-            ]
-            .into_iter()
-            .flatten()
-            .collect();
-            pairs.extend(self.options.iter().cloned());
-            pairs
-        }
+        self.options.clone()
     }
 }
 
@@ -423,12 +298,7 @@ impl Settings {
 
     /// Reads and deserializes a settings file, without validating its values.
     fn read_file<P: AsRef<Path>>(path: P) -> Result<Self, SeleniumBaseError> {
-        let path = path.as_ref();
-        let content = fs::read_to_string(path).map_err(|e| {
-            SeleniumBaseError::InvalidConfig(format!("failed to read settings: {e}"))
-        })?;
-        let settings = crate::config::browser_options::parse_settings(path, &content)?;
-        Ok(settings)
+        SettingsFile::read(path.as_ref())?.settings()
     }
 
     /// Checks what the values do not say by themselves: the window size.
@@ -522,7 +392,7 @@ impl Settings {
         if let Some(flag) = flag {
             return Ok(Some(flag.to_owned()));
         }
-        if let Some(file) = var(FINGERPRINT_ENV).filter(|value| !value.trim().is_empty()) {
+        if let Some(file) = EnvVars::new("environment variable", &var).text(FINGERPRINT_ENV) {
             return Ok(Some(PathBuf::from(file)));
         }
         let table = match config {
@@ -536,8 +406,7 @@ impl Settings {
     }
 
     pub fn from_env() -> Result<Self, SeleniumBaseError> {
-        let settings = Self::default();
-        Self::apply_env_overrides(settings)
+        Self::apply_overrides(Self::default(), |name| std::env::var(name).ok())
     }
 
     /// Loads the global config file if one exists.
@@ -566,7 +435,7 @@ impl Settings {
     /// The settings file to read: the one `SB_SETTINGS_FILE` names (when `var` reports it
     /// and it is not blank), else the global file of the current folder if there is one.
     pub(super) fn global_file_with(var: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
-        if let Some(path) = var(SETTINGS_FILE_ENV).filter(|path| !path.trim().is_empty()) {
+        if let Some(path) = EnvVars::new("environment variable", var).text(SETTINGS_FILE_ENV) {
             return Some(PathBuf::from(path));
         }
         ["sbase_config.toml", ".sbase_config.toml", ".sbase_config"]
@@ -665,16 +534,24 @@ impl Settings {
         path: Option<P>,
         var: impl Fn(&str) -> Option<String>,
     ) -> Result<Self, SeleniumBaseError> {
-        // The plugin support check waits for the overrides, which may replace
-        // the file's plugins (`SB_PLUGINS=` turns them off) before it runs.
-        let settings = match path {
-            Some(p) => Self::parse_file(p)?,
-            None => match Self::global_file_with(&var) {
-                Some(file) => Self::parse_file(file)?,
-                None => Self::default(),
-            },
+        // The plugin support check waits for the variables, which may replace the file's
+        // plugins (`SB_PLUGINS=` turns them off) before it runs.
+        let file = match path {
+            Some(path) => Some(path.as_ref().to_path_buf()),
+            None => Self::global_file_with(&var),
         };
-        Self::apply_overrides(settings, var)
+        let file = file.map(|file| SettingsFile::read(&file)).transpose()?;
+        // The file alone is read and checked first, so that its errors are the file's.
+        if let Some(file) = &file {
+            file.settings()?.validate()?;
+        }
+        let below = file.map_or_else(Layer::defaults, SettingsFile::into_layer);
+        let (settings, problems) = Self::over(
+            &below,
+            None,
+            EnvVars::new("environment variable", var).read(),
+        )?;
+        Self::finish(settings, problems)
     }
 
     /// Reads the settings as [`load_from`](Self::load_from) does (the file `path`, or the
@@ -698,22 +575,49 @@ impl Settings {
             Some(path) => Some(path.as_ref().to_path_buf()),
             None => Self::global_file_with(&var),
         };
-        let mut problems = Vec::new();
-        let from_file = match &file {
-            Some(file) => Self::read_file(file).unwrap_or_else(|error| {
-                problems.push(SettingsProblem {
-                    source: file.display().to_string(),
-                    error,
-                });
-                Self::default()
-            }),
-            None => Self::default(),
+        // Each source is read on its own, and what a source refuses is left out of it, so that
+        // the rest of it is still read and checked.
+        let mut refused: Vec<Refused> = Vec::new();
+        let below = match &file {
+            Some(file) => match SettingsFile::read(file) {
+                Ok(mut read) => {
+                    refused.extend(read.check());
+                    read.into_layer()
+                }
+                // A file that cannot be read at all is left out whole.
+                Err(error) => {
+                    refused.push(Refused {
+                        row: 0,
+                        problem: SettingsProblem {
+                            source: file.display().to_string(),
+                            error,
+                        },
+                    });
+                    Layer::defaults()
+                }
+            },
+            None => Layer::defaults(),
         };
-        let (settings, from_variables) = Self::apply_overrides_lenient(from_file, var);
-        problems.extend(from_variables.into_iter().map(|problem| SettingsProblem {
-            source: problem.source.clone(),
-            error: named(problem),
-        }));
+        let env = EnvVars::new("environment variable", var).read();
+        let (settings, from_variables) = Self::over(&below, None, env).unwrap_or_else(|error| {
+            let problem = SettingsProblem {
+                source: "settings".to_owned(),
+                error,
+            };
+            (
+                Self::default(),
+                vec![Refused {
+                    row: usize::MAX,
+                    problem,
+                }],
+            )
+        });
+        refused.extend(from_variables);
+        // The problems of the file and of the variables run in the order of the option table,
+        // whichever source gave each.
+        refused.sort_by_key(|refused| refused.row);
+        let mut problems: Vec<SettingsProblem> =
+            refused.into_iter().map(|refused| refused.problem).collect();
         if let Err(error) = settings.validate() {
             problems.push(SettingsProblem {
                 source: "validation".to_owned(),
@@ -800,8 +704,52 @@ impl Settings {
         config
     }
 
-    fn apply_env_overrides(settings: Self) -> Result<Self, SeleniumBaseError> {
-        Self::apply_overrides(settings, |name| std::env::var(name).ok())
+    /// The settings of the layer `below` with the variables `env` laid over them, and the
+    /// variables that are refused (named by their variable and flag): a refused variable is left
+    /// out and the rest is read. `file` is the settings file the settings already name.
+    fn over(
+        below: &Layer,
+        file: Option<PathBuf>,
+        env: Read,
+    ) -> Result<(Self, Vec<Refused>), SeleniumBaseError> {
+        let Read {
+            layer,
+            refused,
+            plugins_named,
+            settings_file,
+        } = env;
+        let refused = refused
+            .into_iter()
+            .map(|Refused { row, problem }| Refused {
+                row,
+                problem: SettingsProblem {
+                    source: problem.source.clone(),
+                    error: named(problem),
+                },
+            })
+            .collect();
+        let mut settings = layers::extract(&[below, &layer])
+            .map_err(|error| SeleniumBaseError::InvalidConfig(layers::describe(&error)))?;
+        if plugins_named {
+            // The variable names the plugins, so the options of the others go with them.
+            settings.plugins.prune_unused();
+        }
+        settings.settings_file = settings_file.or(file);
+        Ok((settings, refused))
+    }
+
+    /// `settings` if no variable was refused, else the error of the first one; then the checks
+    /// of the whole: the window size, the plugins this build can run, and the fingerprint file.
+    fn finish(settings: Self, refused: Vec<Refused>) -> Result<Self, SeleniumBaseError> {
+        if let Some(refused) = refused.into_iter().next() {
+            return Err(refused.problem.error);
+        }
+        settings.validate()?;
+        // Plugins that cannot run are an error here, not a silent omission.
+        settings.plugins.ensure_supported()?;
+        // A fingerprint file that cannot be read is too, not a browser without it.
+        settings.check_fingerprint()?;
+        Ok(settings)
     }
 
     /// Applies the `SB_*` overrides that `var` reports on top of `settings`.
@@ -816,15 +764,13 @@ impl Settings {
         var: impl Fn(&str) -> Option<String>,
     ) -> Result<Self, SeleniumBaseError> {
         let (settings, problems) = Self::apply_overrides_lenient(settings, var);
-        if let Some(problem) = problems.into_iter().next() {
-            return Err(named(problem));
-        }
-        settings.validate()?;
-        // Plugins that cannot run are an error here, not a silent omission.
-        settings.plugins.ensure_supported()?;
-        // A fingerprint file that cannot be read is too, not a browser without it.
-        settings.check_fingerprint()?;
-        Ok(settings)
+        Self::finish(
+            settings,
+            problems
+                .into_iter()
+                .map(|problem| Refused { row: 0, problem })
+                .collect(),
+        )
     }
 
     /// Writes options given as `SB_*` variables and the text of their values, the way
@@ -858,18 +804,10 @@ impl Settings {
     /// # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
     /// ```
     pub fn apply_options(&mut self, options: &[(&str, String)]) -> Result<(), SeleniumBaseError> {
-        let var = |name: &str| {
-            options
-                .iter()
-                .rev()
-                .find(|(variable, _)| *variable == name)
-                .map(|(_, value)| value.clone())
-                .filter(|value| !value.trim().is_empty())
-        };
-        let mut problems = Vec::new();
-        crate::config::test_options::apply_env(self, &var, &mut problems);
+        let (laid, problems) = Self::lay(std::mem::take(self), EnvVars::pairs(options).read());
+        *self = laid;
         if let Some(problem) = problems.into_iter().next() {
-            return Err(named(problem));
+            return Err(problem.error);
         }
         self.validate()
     }
@@ -878,19 +816,31 @@ impl Settings {
     /// not parse is left out and comes back in the list, in the order the variables are
     /// read, instead of ending the function. Nothing is validated.
     fn apply_overrides_lenient(
-        mut settings: Self,
+        settings: Self,
         var: impl Fn(&str) -> Option<String>,
     ) -> (Self, Vec<SettingsProblem>) {
-        let mut problems = Vec::new();
-        let plugins_variable = var(PLUGINS_ENV);
-        let var = |name: &str| var(name).filter(|value| !value.trim().is_empty());
-        // The options of the table (`config::test_options`) are read in table order.
-        crate::config::test_options::apply_env(&mut settings, &var, &mut problems);
-        if let Some(v) = plugins_variable {
-            // The variable names the plugins; the options of the file stay.
-            settings.plugins.set_enabled_from_list(&v);
+        let env = EnvVars::new("environment variable", var).read();
+        Self::lay(settings, env)
+    }
+
+    /// `settings` with the variables `env` laid over them, as [`over`](Self::over) does; the
+    /// variables that are refused come back as problems, in the order of the option table.
+    fn lay(settings: Self, env: Read) -> (Self, Vec<SettingsProblem>) {
+        let laid = Layer::of_settings(&settings)
+            .and_then(|below| Self::over(&below, settings.settings_file.clone(), env));
+        match laid {
+            Ok((laid, refused)) => (
+                laid,
+                refused.into_iter().map(|refused| refused.problem).collect(),
+            ),
+            Err(error) => (
+                settings,
+                vec![SettingsProblem {
+                    source: "settings".to_owned(),
+                    error,
+                }],
+            ),
         }
-        (settings, problems)
     }
 }
 
@@ -948,7 +898,9 @@ pub(crate) fn parse_bool(value: &str) -> Result<bool, SeleniumBaseError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::browser::config::{Browser, DriverMode};
     use crate::browser::options::WindowSize;
+    use crate::browser::reuse::ReuseClass;
     use std::io::Write;
     use std::time::Duration;
 
@@ -1199,26 +1151,28 @@ mod tests {
     }
 
     fn every_option(fingerprint: &Path) -> SettingsOverrides {
+        let pair = |variable: &'static str, value: &str| (variable, value.to_owned());
         SettingsOverrides {
-            fingerprint: Some(fingerprint.display().to_string()),
-            browser: Some("firefox".to_owned()),
-            headless: Some(true),
-            mode: Some("uc".to_owned()),
-            user_agent: Some("TestAgent/1.0".to_owned()),
-            locale: Some("fr-FR".to_owned()),
-            ad_block: Some(true),
-            proxy: Some("proxy.test:8080".to_owned()),
-            proxy_pac_url: Some("http://proxy.test/proxy.pac".to_owned()),
-            user_data_dir: Some("/tmp/profile".to_owned()),
-            extension_dir: Some("/tmp/ext".to_owned()),
-            reuse_session: Some(true),
-            reuse_class_session: Some(true),
-            mobile: Some(true),
-            threads: Some(4),
-            esc_end: Some(true),
-            rec_sb_cdp: Some(true),
-            start_page: Some("https://example.test/".to_owned()),
-            options: Vec::new(),
+            options: vec![
+                pair(FINGERPRINT_ENV, &fingerprint.display().to_string()),
+                pair("SB_BROWSER", "firefox"),
+                pair("SB_HEADLESS", "true"),
+                pair("SB_MODE", "uc"),
+                pair("SB_USER_AGENT", "TestAgent/1.0"),
+                pair("SB_LOCALE", "fr-FR"),
+                pair("SB_AD_BLOCK", "true"),
+                pair("SB_PROXY", "proxy.test:8080"),
+                pair("SB_PROXY_PAC_URL", "http://proxy.test/proxy.pac"),
+                pair("SB_USER_DATA_DIR", "/tmp/profile"),
+                pair("SB_EXTENSION_DIR", "/tmp/ext"),
+                pair("SB_REUSE_SESSION", "true"),
+                pair("SB_REUSE_CLASS_SESSION", "true"),
+                pair("SB_MOBILE", "true"),
+                pair("SB_THREADS", "4"),
+                pair("SB_ESC_END", "true"),
+                pair("SB_REC_SB_CDP", "true"),
+                pair(START_PAGE_ENV, "https://example.test/"),
+            ],
         }
     }
 
@@ -1247,8 +1201,7 @@ mod tests {
         let from_file = settings_of("reuse_class_session = true");
         assert_eq!(from_file.session.reuse_class, Some(ReuseClass::TestModule));
         let only = SettingsOverrides {
-            reuse_class_session: Some(true),
-            ..SettingsOverrides::default()
+            options: vec![("SB_REUSE_CLASS_SESSION", "true".to_owned())],
         };
         assert_eq!(only.env(), [("SB_REUSE_CLASS_SESSION", "true".to_owned())]);
     }
@@ -1257,7 +1210,7 @@ mod tests {
     fn overrides_that_are_set_replace_the_settings() {
         let (_dir, file) = fingerprint_file();
         let mut settings = Settings::default();
-        every_option(&file).apply(&mut settings).unwrap();
+        every_option(&file).try_apply(&mut settings).unwrap();
 
         assert_eq!(settings.fingerprint.file.as_deref(), Some(file.as_path()));
         let (browser, session) = (&settings.browser, &settings.session);
@@ -1623,8 +1576,7 @@ mod tests {
         let from_file = settings_of("rec_sb_cdp = true");
         assert!(from_file.browser.has(LaunchSwitch::RecSbCdp));
         let only = SettingsOverrides {
-            rec_sb_cdp: Some(true),
-            ..SettingsOverrides::default()
+            options: vec![("SB_REC_SB_CDP", "true".to_owned())],
         };
         assert_eq!(only.env(), [("SB_REC_SB_CDP", "true".to_owned())]);
     }
@@ -1671,8 +1623,7 @@ mod tests {
     #[test]
     fn the_esc_end_override_is_exported_as_its_variable() {
         let only = SettingsOverrides {
-            esc_end: Some(true),
-            ..SettingsOverrides::default()
+            options: vec![("SB_ESC_END", "true".to_owned())],
         };
         assert_eq!(only.env(), [("SB_ESC_END", "true".to_owned())]);
     }
@@ -1686,7 +1637,7 @@ mod tests {
         before.test.threads = Some(2);
         let mut after = before.clone();
 
-        SettingsOverrides::default().apply(&mut after).unwrap();
+        SettingsOverrides::default().try_apply(&mut after).unwrap();
 
         assert_eq!(after, before);
     }
@@ -1696,10 +1647,9 @@ mod tests {
         let mut settings = Settings::default();
         settings.browser.headless = true;
         SettingsOverrides {
-            headless: Some(false),
-            ..SettingsOverrides::default()
+            options: vec![("SB_HEADLESS", "false".to_owned())],
         }
-        .apply(&mut settings)
+        .try_apply(&mut settings)
         .unwrap();
         assert!(!settings.browser.headless);
     }
@@ -1714,7 +1664,7 @@ mod tests {
         let via_env =
             Settings::apply_overrides(Settings::default(), |name| vars.get(name).cloned()).unwrap();
         let mut direct = Settings::default();
-        overrides.apply(&mut direct).unwrap();
+        overrides.try_apply(&mut direct).unwrap();
 
         assert_eq!(via_env, direct);
     }
@@ -1723,8 +1673,7 @@ mod tests {
     fn options_that_are_not_set_produce_no_variable() {
         assert!(SettingsOverrides::default().env().is_empty());
         let only_proxy = SettingsOverrides {
-            proxy: Some("p:1".to_owned()),
-            ..SettingsOverrides::default()
+            options: vec![("SB_PROXY", "p:1".to_owned())],
         };
         assert_eq!(only_proxy.env(), [("SB_PROXY", "p:1".to_owned())]);
     }
@@ -1821,10 +1770,9 @@ mod tests {
         );
 
         SettingsOverrides {
-            fingerprint: Some(from_flag.display().to_string()),
-            ..SettingsOverrides::default()
+            options: vec![(FINGERPRINT_ENV, from_flag.display().to_string())],
         }
-        .apply(&mut settings)
+        .try_apply(&mut settings)
         .unwrap();
 
         assert_eq!(
@@ -1919,8 +1867,7 @@ mod tests {
     #[test]
     fn the_override_is_exported_as_its_variable() {
         let only = SettingsOverrides {
-            fingerprint: Some("profiles/real.json".to_owned()),
-            ..SettingsOverrides::default()
+            options: vec![(FINGERPRINT_ENV, "profiles/real.json".to_owned())],
         };
 
         assert_eq!(
@@ -2014,10 +1961,9 @@ mod tests {
         // The command line over both, and on to the tests as the variable.
         let mut settings = both;
         let flag = SettingsOverrides {
-            start_page: Some("https://flag.test/".to_owned()),
-            ..SettingsOverrides::default()
+            options: vec![(START_PAGE_ENV, "https://flag.test/".to_owned())],
         };
-        flag.apply(&mut settings).unwrap();
+        flag.try_apply(&mut settings).unwrap();
         assert_eq!(settings.browser.url.as_deref(), Some("https://flag.test/"));
         assert_eq!(
             flag.env(),

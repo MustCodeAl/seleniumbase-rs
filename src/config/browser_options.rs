@@ -33,6 +33,7 @@ use serde::de::Deserializer;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
+#[cfg(test)]
 use crate::config::settings::Settings;
 use crate::config::test_options::{find_option, OptionKind, OptionSpec, TEST_OPTIONS};
 use crate::error::SeleniumBaseError;
@@ -259,7 +260,7 @@ fn table_key(table: &str, key: &str) -> Option<(&'static str, &'static str)> {
 }
 
 /// The entries of a settings file with each key renamed to the field it stands for.
-fn canonical_entries(
+pub(crate) fn canonical_entries(
     entries: Map<String, Value>,
     file: &Path,
 ) -> Result<FileEntries, SeleniumBaseError> {
@@ -267,6 +268,8 @@ fn canonical_entries(
     let mut top = Map::new();
     let mut text: Vec<TextEntry> = Vec::new();
     let mut groups: BTreeMap<&'static str, Map<String, Value>> = BTreeMap::new();
+    let mut written: BTreeMap<String, String> = BTreeMap::new();
+
     for (key, value) in entries {
         let name = settings_key(&key).ok_or_else(|| unknown_setting(&key, file))?;
         if name == "settings_file" {
@@ -295,6 +298,8 @@ fn canonical_entries(
             // A setting of a group, written flat: `demo` is `run.demo_mode`.
             Some(row) => {
                 if let Some((group, field)) = row.field.split_once('.') {
+                    written.insert(row.field.to_owned(), key.clone());
+
                     groups
                         .entry(group)
                         .or_default()
@@ -333,6 +338,8 @@ fn canonical_entries(
                     if let Some((_, first)) = seen.iter().find(|(known, _)| *known == path) {
                         return Err(same_setting(first, &written_as, &path));
                     }
+                    written.insert(path.clone(), written_as.clone());
+
                     seen.push((path, written_as));
                     groups
                         .entry(group)
@@ -352,74 +359,27 @@ fn canonical_entries(
             top.insert(group.to_owned(), Value::Object(fields));
         }
     }
-    Ok(FileEntries { groups: top, text })
+    Ok(FileEntries {
+        groups: top,
+        text,
+        written,
+    })
 }
 
 /// A setting a file gives as a flat key that is read as the text of its variable: the row,
 /// the key as the file wrote it, and the value.
-type TextEntry = (&'static OptionSpec, String, Value);
+pub(crate) type TextEntry = (&'static OptionSpec, String, Value);
 
 /// What a settings file holds, sorted by how each part is read.
-struct FileEntries {
+pub(crate) struct FileEntries {
     /// The tables and the settings of a group, which serde reads as they are written.
-    groups: Map<String, Value>,
+    pub(crate) groups: Map<String, Value>,
     /// The settings read through the readers of the option table, as the variables are.
-    text: Vec<TextEntry>,
-}
-
-/// Reads the flat settings of a file through the readers of the option table, as the
-/// variables are read, so that a value is refused in one place. The error names the key as
-/// the file wrote it and does not repeat the value, which may be a secret.
-fn read_text_settings(
-    settings: &mut Settings,
-    entries: Vec<TextEntry>,
-) -> Result<(), SeleniumBaseError> {
-    let refused =
-        |key: &str, message: &str| SeleniumBaseError::InvalidConfig(format!("{key}: {message}"));
-    let mut texts: BTreeMap<&'static str, String> = BTreeMap::new();
-    let mut keys: BTreeMap<&'static str, String> = BTreeMap::new();
-    for (row, key, value) in entries {
-        // A null is an unset setting, as it was for the optional fields.
-        if value.is_null() {
-            continue;
-        }
-
-        // The array form of `chromium_arg` keeps an item that holds a comma whole.
-        if row.env == "SB_CHROMIUM_ARG" && value.is_array() {
-            let items: ArgList =
-                serde_json::from_value(value).map_err(|error| refused(&key, &error.to_string()))?;
-            crate::config::text::add_chromium_items(&mut settings.browser, items.items());
-            continue;
-        }
-        let text = crate::config::text::text_of(&value)
-            .ok_or_else(|| refused(&key, "expected a text, a number or a boolean"))?;
-        texts.insert(row.env, text);
-        keys.insert(row.env, key);
-    }
-    let mut problems = Vec::new();
-    crate::config::test_options::apply_env(
-        settings,
-        &|name| texts.get(name).cloned(),
-        &mut problems,
-    );
-    match problems.into_iter().next() {
-        None => Ok(()),
-        Some(problem) => {
-            let value = texts
-                .get(problem.source.as_str())
-                .cloned()
-                .unwrap_or_default();
-            let key = keys
-                .get(problem.source.as_str())
-                .cloned()
-                .unwrap_or(problem.source);
-            let mut message = problem.error.to_string();
-            if !value.is_empty() {
-                message = message.replace(value.as_str(), "…");
-            }
-            Err(refused(&key, &message))
-        }
-    }
+    pub(crate) text: Vec<TextEntry>,
+    /// The key as the file wrote it, for each setting of a group the file wrote flat or in the
+    /// table of another group: by the path of the serialized settings (`run.demo_mode` is
+    /// `demo`, or `[test] rec_sleep`).
+    pub(crate) written: BTreeMap<String, String>,
 }
 
 /// Reads the settings file `path` whose text is `content` (TOML for a `.toml` name, JSON
@@ -427,26 +387,9 @@ fn read_text_settings(
 ///
 /// A key may be spelled with dashes or under an alias of its option (see
 /// [`settings_key`]); a key that is no setting is an error.
+#[cfg(test)]
 pub(crate) fn parse_settings(path: &Path, content: &str) -> Result<Settings, SeleniumBaseError> {
-    let (what, parsed) = if path.extension().is_some_and(|ext| ext == "toml") {
-        let table = toml::from_str::<toml::Table>(content).map_err(|error| error.to_string());
-        let value = table.and_then(|table| serde_json::to_value(table).map_err(|e| e.to_string()));
-        ("failed to parse TOML settings", value)
-    } else {
-        let value = serde_json::from_str::<Value>(content).map_err(|error| error.to_string());
-        ("failed to parse settings", value)
-    };
-    let failed = |error: &dyn std::fmt::Display| {
-        SeleniumBaseError::InvalidConfig(format!("{what}: {error}"))
-    };
-    let Value::Object(entries) = parsed.map_err(|error| failed(&error))? else {
-        return Err(failed(&"the file must hold one object"));
-    };
-    let FileEntries { groups, text } = canonical_entries(entries, path)?;
-    let mut settings: Settings =
-        serde_json::from_value(Value::Object(groups)).map_err(|error| failed(&error))?;
-    read_text_settings(&mut settings, text).map_err(|error| failed(&error))?;
-    Ok(settings)
+    crate::config::settings_file::SettingsFile::parse(path, content)?.settings()
 }
 
 /// The rows `sbrs options` lists: the options of the browser and the page, or with `all` the

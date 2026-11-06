@@ -35,8 +35,11 @@
 //! # Ok::<(), &str>(())
 //! ```
 
-use crate::browser::options::{LaunchSwitch, WindowSize};
+use crate::browser::options::{CdpEventCapture, LaunchSwitch, WindowSize};
+use crate::config::layers::{flag, no_items, nothing, put};
 use crate::config::text::{self, OptionValue};
+use figment::value::{Dict, Value};
+use std::path::PathBuf;
 
 use crate::config::settings::{Settings, SettingsProblem};
 use crate::config::test_settings::TestData;
@@ -494,8 +497,10 @@ macro_rules! option_table {
     };
 }
 
-/// Writes every option whose variable `var` reports into `settings`, the variables of one
-/// source; a value that does not parse goes to `problems`, in table order.
+/// Reads every option whose variable `var` reports, the variables of one source, into the
+/// settings they write (`Variables::dict`); a value that does not parse goes to
+/// `Variables::problems`, in table order. The providers `EnvVars` and `SettingsFile` call it.
+/// A row writes the field its path names; a derived row has a reader of its own (`config::text`).
 ///
 /// Two settings have two spellings: the window size (`SB_WINDOW_SIZE`, or `SB_WINDOW_WIDTH`
 /// and `SB_WINDOW_HEIGHT`) and the language (`SB_LOCALE`, `SB_LOCALE_CODE`). The source that
@@ -503,12 +508,136 @@ macro_rules! option_table {
 /// spelling, and within the source the window size and the locale code win, as they always
 /// did. A file's `window_size` therefore no longer beats `SB_WINDOW_WIDTH` and
 /// `SB_WINDOW_HEIGHT` of the environment.
-pub(crate) fn apply_env(
-    settings: &mut Settings,
-    var: &dyn Fn(&str) -> Option<String>,
-    problems: &mut Vec<SettingsProblem>,
-) {
-    apply_rows(settings, var, problems);
+pub(crate) fn read_variables(var: &dyn Fn(&str) -> Option<String>) -> Variables {
+    // The rows run in table order on a scratch `Settings`, so that what one row reads can
+    // depend on the rows before it in the same source (`SB_XVFB_METRICS` after `SB_XVFB`).
+    let mut scratch = Settings::default();
+    let mut problems = Vec::new();
+    apply_rows(&mut scratch, var, &mut problems);
+    let refused: Vec<String> = problems
+        .iter()
+        .map(|problem| problem.source.clone())
+        .collect();
+    // What the source gives is the paths its rows wrote, with the values the scratch has
+    // there. A value that serializes to nothing (a switch that is off, a list that is empty)
+    // is written out, so that this source can turn off what a lower one turned on.
+    let mut dict = Dict::new();
+    match Value::serialize(&scratch) {
+        Ok(whole) => {
+            let size_given = var("SB_WINDOW_SIZE").is_some();
+            for row in TEST_OPTIONS {
+                let given = row.kind.reads_env() && !row.env.is_empty() && var(row.env).is_some();
+                let axis = matches!(row.env, "SB_WINDOW_WIDTH" | "SB_WINDOW_HEIGHT");
+                if !given || refused.iter().any(|name| name == row.env) || (axis && size_given) {
+                    continue;
+                }
+                for (path, absent) in written_by(row) {
+                    match whole.find_ref(&path) {
+                        Some(value) => put(&mut dict, &path, value.clone()),
+                        None => {
+                            if let Some(value) = absent.value() {
+                                put(&mut dict, &path, value);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Err(error) => problems.push(SettingsProblem {
+            source: "settings".to_owned(),
+            error: SeleniumBaseError::InvalidConfig(format!(
+                "the settings cannot be layered: {error}"
+            )),
+        }),
+    }
+    Variables {
+        dict,
+        problems,
+        settings_file: scratch.settings_file,
+    }
+}
+
+/// What one source's variables say: the settings they write, as a dictionary at the paths of
+/// the serialized [`Settings`], and the values they refuse, in table order.
+pub(crate) struct Variables {
+    /// The settings written, by path.
+    pub(crate) dict: Dict,
+    /// The variables whose value is refused; each problem's source is the variable.
+    pub(crate) problems: Vec<SettingsProblem>,
+    /// The settings file `SB_SETTINGS_FILE` names, which no layer can hold (it names the file
+    /// the layers come from).
+    pub(crate) settings_file: Option<PathBuf>,
+}
+
+/// What a source that gave a variable but wrote nothing at its path means by it.
+#[derive(Clone, Copy)]
+enum Absent {
+    /// Nothing: the setting stays what a lower source says.
+    Skip,
+    /// The setting is unset (`SB_XVFB=false`).
+    Nothing,
+    /// A list with no item (`SB_CHROMIUM_ARG` with no switch).
+    NoItems,
+    /// A switch that is off.
+    Off,
+    /// No capture of DevTools events.
+    NoCapture,
+}
+
+impl Absent {
+    fn value(self) -> Option<Value> {
+        match self {
+            Self::Skip => None,
+            Self::Nothing => Some(nothing()),
+            Self::NoItems => Some(no_items()),
+            Self::Off => Some(flag(false)),
+            Self::NoCapture => Value::serialize(CdpEventCapture::Off).ok(),
+        }
+    }
+}
+
+/// The paths of the serialized settings that the row's variable writes, each with what it
+/// means when the source gives the variable and the settings have nothing at the path.
+///
+/// Most rows write the one path their `field` names. The derived rows, where several
+/// variables write one value or one writes two, name theirs.
+fn written_by(row: &OptionSpec) -> Vec<(String, Absent)> {
+    let one = |path: &str, absent| vec![(path.to_owned(), absent)];
+    match row.env {
+        "SB_WINDOW_WIDTH" => one("browser.window_size.width", Absent::Skip),
+        "SB_WINDOW_HEIGHT" => one("browser.window_size.height", Absent::Skip),
+        "SB_LOCALE" | "SB_LOCALE_CODE" => one("browser.lang", Absent::Skip),
+        "SB_XVFB" => one("browser.virtual_display", Absent::Nothing),
+        // The size of the display counts when the display is on.
+        "SB_XVFB_METRICS" => one("browser.virtual_display", Absent::Skip),
+        "SB_REMOTE_DEBUG" => vec![
+            ("browser.debugging_port".to_owned(), Absent::Nothing),
+            ("browser.debugging_any_port".to_owned(), Absent::Off),
+        ],
+        "SB_CHROMIUM_ARG" => vec![
+            ("browser.chromium.args".to_owned(), Absent::NoItems),
+            ("browser.chromium.disable_features".to_owned(), Absent::Skip),
+        ],
+        "SB_DISABLE_FEATURES" => one("browser.chromium.disable_features", Absent::Skip),
+        "SB_EXTENSION_DIR" => one("browser.extensions", Absent::NoItems),
+        "SB_EXTENSION_ZIP" => one("session.extension_archives", Absent::NoItems),
+        "SB_REUSE_CLASS_SESSION" => one("session.reuse_class", Absent::Nothing),
+        "SB_CAP_FILE" | "SB_CAP_STRING" => one("session.capabilities", Absent::Skip),
+        "SB_FIREFOX_ARG" => one("session.firefox.args", Absent::Skip),
+        "SB_FIREFOX_PREF" => one("session.firefox.preferences", Absent::Skip),
+        "SB_LOG_CDP_EVENTS" | "SB_UC_CDP_EVENTS" => one("session.cdp_events", Absent::NoCapture),
+        _ => {
+            // `TestSettings` flattens its `TestData`: `test.data.env` is `test.env` in the
+            // serialized settings.
+            let path = row.field.replacen("test.data.", "test.", 1);
+            let absent = if matches!(row.kind, OptionKind::Switch) {
+                Absent::Off
+            } else {
+                Absent::Skip
+            };
+            vec![(path, absent)]
+        }
+    }
 }
 
 /// `SB_WINDOW_WIDTH` and `SB_WINDOW_HEIGHT` together: the window size, unless the same source
@@ -745,15 +874,15 @@ mod tests {
     use std::path::PathBuf;
 
     fn read_all(pairs: &[(&str, &str)]) -> (Settings, Vec<SettingsProblem>) {
-        let mut settings = Settings::default();
-        let mut problems = Vec::new();
         let var = |name: &str| {
             pairs
                 .iter()
                 .find(|(key, _)| *key == name)
                 .map(|(_, value)| (*value).to_owned())
         };
-        apply_env(&mut settings, &var, &mut problems);
+        let Variables { dict, problems, .. } = read_variables(&var);
+        let layer = crate::config::layers::Layer::new(figment::Metadata::named("test"), dict);
+        let settings = crate::config::layers::extract(&[&layer]).expect("the variables extract");
         (settings, problems)
     }
 

@@ -340,7 +340,6 @@ fn layered(row: &OptionSpec, file: &Value, variable: &str, pair: &str) -> (Strin
     let mut settings = with_variable.settings;
     SettingsOverrides {
         options: vec![(row.env, pair.to_owned())],
-        ..SettingsOverrides::default()
     }
     .try_apply(&mut settings)
     .expect("the pair is valid");
@@ -865,12 +864,12 @@ fn finding_5_headless_has_one_default_for_each_entry_point() {
 
 /// Finding 7: `RuntimeConfig` read `SB_CHROME_BIN` without the blank rule of the table.
 #[test]
-fn finding_7_runtime_config_reads_a_blank_binary_as_unset() {
+fn finding_7_the_browser_config_reads_a_blank_binary_as_unset() {
     let dir = tempfile::tempdir().expect("a temporary folder");
     let path = file_with(dir.path(), "sbase_config.toml", "");
     let blank = |name: &str| (name == "SB_CHROME_BIN").then(String::new);
-    let runtime = RuntimeConfig::from_vars(blank).expect("valid");
-    assert_eq!(runtime.chrome_bin, None);
+    let config = BrowserConfig::from_vars(blank).expect("valid");
+    assert_eq!(config.browser.executable_path, None);
     assert_eq!(
         Settings::check_with(Some(&path), blank)
             .settings
@@ -884,9 +883,39 @@ fn finding_7_runtime_config_reads_a_blank_binary_as_unset() {
             .contains(&name)
             .then(|| " ".to_owned())
     };
-    let runtime = RuntimeConfig::from_vars(blank).expect("valid");
-    assert_eq!(runtime.webdriver_url, "http://localhost:4444");
-    assert_eq!(runtime.remote_webdriver_timeout, None);
+    let config = BrowserConfig::from_vars(blank).expect("valid");
+    assert_eq!(config.session.webdriver_url(), "http://localhost:4444");
+    assert_eq!(config.session.remote_webdriver_timeout_seconds, None);
+    // A value is read as `Settings` reads it, and `RuntimeConfig` no longer reads these three.
+    let given = |name: &str| match name {
+        "SB_CHROME_BIN" => Some("/opt/chrome".to_owned()),
+        "SB_WEBDRIVER_URL" => Some("http://grid:4444".to_owned()),
+        "SB_REMOTE_WEBDRIVER_TIMEOUT" => Some("30".to_owned()),
+        _ => None,
+    };
+    let config = BrowserConfig::from_vars(given).expect("valid");
+    let settings = Settings::check_with(Some(&path), given).settings;
+    assert_eq!(
+        config.browser.executable_path,
+        settings.browser.executable_path
+    );
+    assert_eq!(
+        config.session.webdriver_url(),
+        settings.session.webdriver_url()
+    );
+    assert_eq!(
+        config.session.remote_webdriver_timeout_seconds,
+        settings.session.remote_webdriver_timeout_seconds
+    );
+    assert_eq!(config.session.remote_webdriver_timeout_seconds, Some(30));
+    assert!(RuntimeConfig::from_vars(given).is_ok());
+    // A timeout that is no number is refused naming its variable.
+    let wrong = |name: &str| (name == "SB_REMOTE_WEBDRIVER_TIMEOUT").then(|| "soon".to_owned());
+    let error = BrowserConfig::from_vars(wrong).expect_err("not a number");
+    assert!(
+        error.to_string().contains("SB_REMOTE_WEBDRIVER_TIMEOUT"),
+        "{error}"
+    );
 }
 
 /// Finding 8: `BrowserConfig::threads` was written from `Settings::threads` and read by nothing.

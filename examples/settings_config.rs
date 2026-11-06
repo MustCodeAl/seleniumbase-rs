@@ -11,7 +11,7 @@
 //!    `.sbase_config.toml` or `.sbase_config` in the working directory.
 //! 4. `Settings::load_from(path)`, the file plus any `SB_*` environment
 //!    variables, which win over it.
-//! 5. `SettingsOverrides::apply`, what a command line asked for explicitly,
+//! 5. `SettingsOverrides::try_apply`, what a command line asked for explicitly,
 //!    which wins over everything.
 //!
 //! Run it with:
@@ -77,11 +77,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // 5. Explicit overrides win over the file and the environment.
     let overrides = SettingsOverrides {
-        headless: Some(false),
-        threads: Some(4),
-        ..SettingsOverrides::default()
+        options: vec![
+            ("SB_HEADLESS", "false".to_owned()),
+            ("SB_THREADS", "4".to_owned()),
+        ],
     };
-    overrides.apply(&mut settings)?;
+    overrides.try_apply(&mut settings)?;
     show("after explicit overrides", &settings);
     if settings.browser.headless || settings.test.threads != Some(4) {
         return Err("explicit overrides should win".into());

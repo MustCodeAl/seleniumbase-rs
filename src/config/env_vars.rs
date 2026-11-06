@@ -31,9 +31,14 @@ use std::fmt::{Display, Write as _};
 use std::str::FromStr;
 
 use crate::config::browser_options::flag_cell;
+use crate::config::layers::{no_items, put, Layer, Refused};
+use crate::config::plugins::{PluginSelection, PLUGINS_ENV};
 use crate::config::settings::Settings;
+use crate::config::test_options::{read_variables, Variables};
 use crate::config::test_options::{OptionKind, OptionSpec, TEST_OPTIONS};
 use crate::error::SeleniumBaseError;
+use figment::value::{Dict, Map, Value};
+use figment::{Metadata, Profile, Provider};
 
 /// A variable that is not a row of the option table.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -518,10 +523,7 @@ pub fn is_known(name: &str) -> bool {
 /// ```
 #[must_use]
 pub fn text(name: &str) -> Option<String> {
-    std::env::var(name)
-        .ok()
-        .map(|value| value.trim().to_owned())
-        .filter(|value| !value.is_empty())
+    EnvVars::process().text(name)
 }
 
 /// The value of the variable `name` read as a `T`; `None` when it is not set.
@@ -535,13 +537,7 @@ where
     T: FromStr,
     T::Err: Display,
 {
-    text(name)
-        .map(|value| {
-            value
-                .parse()
-                .map_err(|why: T::Err| refusal(name, &value, &why.to_string()))
-        })
-        .transpose()
+    EnvVars::process().parse(name)
 }
 
 /// The value of the switch variable `name`: `Some(true)` for `true`, `1`, `yes` or `on`,
@@ -556,17 +552,7 @@ where
 /// [`SeleniumBaseError::InvalidConfig`] naming the variable and the value, when the value is
 /// none of those.
 pub fn switch(name: &str) -> Result<Option<bool>, SeleniumBaseError> {
-    text(name)
-        .map(|value| {
-            crate::config::settings::parse_bool(&value).map_err(|_| {
-                refusal(
-                    name,
-                    &value,
-                    "expected true, 1, yes, on, false, 0, no or off",
-                )
-            })
-        })
-        .transpose()
+    EnvVars::process().switch(name)
 }
 
 /// The items of the variable `name`, separated by commas and trimmed; empty when it is not
@@ -596,6 +582,184 @@ pub fn refusal(name: &str, value: &str, why: &str) -> SeleniumBaseError {
         .and_then(|flag| flag.rsplit(' ').next());
     let stands_for = flag.map_or_else(String::new, |flag| format!(" (the variable of {flag})"));
     SeleniumBaseError::InvalidConfig(format!("{name}{stands_for}: cannot use '{value}': {why}"))
+}
+
+/// The value of the process variable `name`, as the environment has it.
+fn process_variable(name: &str) -> Option<String> {
+    std::env::var(name).ok()
+}
+
+/// Looks a variable up by name: the process environment, or the variables a program hands in.
+type Lookup<'a> = Box<dyn Fn(&str) -> Option<String> + 'a>;
+
+
+/// The `SB_*` variables of one source, and the one rule they are read by: a value that is empty
+/// or blank is not set (`SB_PLUGINS` is the exception, where an empty value is an answer).
+///
+/// The source is the process environment ([`process`](Self::process)), the variables a program
+/// hands to [`Settings::check_with`](crate::config::settings::Settings::check_with), or the
+/// pairs a command line asked for ([`pairs`](Self::pairs)). `EnvVars` is a figment provider:
+/// laid over the settings file, each variable it gives wins over the file's value for the same
+/// setting, and the settings it does not give are the file's. Every variable of the option
+/// table is read here and nowhere else; so are the few that other code reads
+/// ([`text`], [`switch`], [`parse`]).
+///
+/// The type is crate-private: no figment type is part of the API of the crate.
+pub(crate) struct EnvVars<'a> {
+    /// What an error calls the source: "environment variable" or "command line".
+    name: &'static str,
+    lookup: Lookup<'a>,
+}
+
+/// What the variables of one source gave, read once.
+pub(crate) struct Read {
+    /// The settings the variables wrote, by path.
+    pub(crate) layer: Layer,
+    /// The variables whose value is refused, with the row of each.
+    pub(crate) refused: Vec<Refused>,
+    /// Whether `SB_PLUGINS` was given, so that the options of the plugins it leaves out go.
+    pub(crate) plugins_named: bool,
+    /// The settings file `SB_SETTINGS_FILE` names.
+    pub(crate) settings_file: Option<std::path::PathBuf>,
+}
+
+impl<'a> EnvVars<'a> {
+    /// The variables `lookup` reports, called `name` in an error.
+    pub(crate) fn new(name: &'static str, lookup: impl Fn(&str) -> Option<String> + 'a) -> Self {
+        Self {
+            name,
+            lookup: Box::new(lookup),
+        }
+    }
+
+    /// The process environment.
+    pub(crate) fn process() -> EnvVars<'static> {
+        EnvVars::new("environment variable", process_variable)
+    }
+
+    /// The pairs of a command line (`("SB_HEADLESS", "true")`): for a variable given twice, the
+    /// last pair wins.
+    pub(crate) fn pairs(pairs: &'a [(&str, String)]) -> EnvVars<'a> {
+        EnvVars::new("command line", move |name: &str| {
+            pairs
+                .iter()
+                .rev()
+                .find(|(variable, _)| *variable == name)
+                .map(|(_, value)| value.clone())
+        })
+    }
+
+    /// The value of the variable `name`, trimmed; `None` when it is not set, empty or blank.
+    pub(crate) fn text(&self, name: &str) -> Option<String> {
+        (self.lookup)(name)
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty())
+    }
+
+    /// The value of the switch variable `name`; see [`switch`].
+    pub(crate) fn switch(&self, name: &str) -> Result<Option<bool>, SeleniumBaseError> {
+        self.text(name)
+            .map(|value| {
+                crate::config::settings::parse_bool(&value).map_err(|_| {
+                    refusal(
+                        name,
+                        &value,
+                        "expected true, 1, yes, on, false, 0, no or off",
+                    )
+                })
+            })
+            .transpose()
+    }
+
+    /// The value of the variable `name` read as a `T`; `None` when it is not set; see [`parse`].
+    pub(crate) fn parse<T>(&self, name: &str) -> Result<Option<T>, SeleniumBaseError>
+    where
+        T: FromStr,
+        T::Err: Display,
+    {
+        self.text(name)
+            .map(|value| {
+                value
+                    .parse()
+                    .map_err(|why: T::Err| refusal(name, &value, &why.to_string()))
+            })
+            .transpose()
+    }
+
+    /// Reads every variable of the option table, and `SB_PLUGINS`.
+    pub(crate) fn read(&self) -> Read {
+        let given = |name: &str| (self.lookup)(name).filter(|value| !value.trim().is_empty());
+        let Variables {
+            mut dict,
+            problems,
+            settings_file,
+        } = read_variables(&given);
+        // The variable names the plugins; the options of the file stay for the ones it names.
+        let plugins_named = match (self.lookup)(PLUGINS_ENV) {
+            Some(list) => {
+                let mut selection = PluginSelection::new();
+                selection.set_enabled_from_list(&list);
+                let names = Value::serialize(&selection)
+                    .ok()
+                    .and_then(|value| value.find_ref("enable").cloned())
+                    .unwrap_or_else(no_items);
+                put(&mut dict, "plugins.enable", names);
+                true
+            }
+            None => false,
+        };
+        let refused = problems
+            .into_iter()
+            .map(|problem| Refused {
+                row: row_of(&problem.source),
+                problem,
+            })
+            .collect();
+        Read {
+            layer: Layer::new(self.metadata(), dict),
+            refused,
+            plugins_named,
+            settings_file,
+        }
+    }
+}
+
+impl Provider for EnvVars<'_> {
+    fn metadata(&self) -> Metadata {
+        Metadata::named(self.name)
+            .interpolater(|_profile: &Profile, keys: &[&str]| variable_of(&keys.join(".")))
+    }
+
+    fn data(&self) -> Result<Map<Profile, Dict>, figment::Error> {
+        let read = self.read();
+        match read.refused.first() {
+            Some(refused) => Err(figment::Error::from(refused.problem.error.to_string())),
+            None => read.layer.data(),
+        }
+    }
+}
+
+/// The index of the row of the option table that reads `variable`; the rows run in this order.
+pub(crate) fn row_of(variable: &str) -> usize {
+    TEST_OPTIONS
+        .iter()
+        .position(|row| row.env == variable)
+        .unwrap_or(usize::MAX)
+}
+
+/// The variable that writes the setting at `path` of the serialized settings, or the path.
+fn variable_of(path: &str) -> String {
+    TEST_OPTIONS
+        .iter()
+        .filter(|row| row.has_field() && !row.env.is_empty())
+        .find(|row| {
+            let field = row.field.replacen("test.data.", "test.", 1);
+            field == path
+                || path
+                    .strip_prefix(field.as_str())
+                    .is_some_and(|rest| rest.starts_with('.'))
+        })
+        .map_or_else(|| path.to_owned(), |row| row.env.to_owned())
 }
 
 /// The table: the cells of each line in columns as wide as the longest cell.

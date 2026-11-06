@@ -27,7 +27,9 @@ use seleniumbase_rs::common::shutdown::{
 };
 use seleniumbase_rs::config::plugins::PluginSelection;
 use seleniumbase_rs::config::proxy_list::ProxyList;
-use seleniumbase_rs::config::settings::{Settings, SettingsOverrides};
+use seleniumbase_rs::config::settings::{
+    Settings, SettingsOverrides, FINGERPRINT_ENV, START_PAGE_ENV,
+};
 use seleniumbase_rs::evasion::patcher::find_system_chrome;
 use seleniumbase_rs::resources::assets;
 use seleniumbase_rs::utilities::grid_server::{default_state_dir, GridRole};
@@ -2659,14 +2661,20 @@ async fn run_doctor(options: &DoctorArgs) -> Result<(), Box<dyn std::error::Erro
     let mut failures: Vec<String> = Vec::new();
 
     let (runtime, problems) = RuntimeConfig::from_env_lenient();
+    // The browser settings are read as `Settings` reads them (a blank value is unset), not by
+    // `RuntimeConfig`.
+    let webdriver_url = seleniumbase_rs::config::env_vars::text("SB_WEBDRIVER_URL")
+        .unwrap_or_else(|| seleniumbase_rs::browser::options::DEFAULT_WEBDRIVER_URL.to_owned());
+    let chrome_bin_variable =
+        seleniumbase_rs::config::env_vars::text("SB_CHROME_BIN").map(std::path::PathBuf::from);
+
     for problem in &problems {
         println!("Invalid variable, default used: {problem}");
     }
-    println!("SB_WEBDRIVER_URL: {}", runtime.webdriver_url);
+    println!("SB_WEBDRIVER_URL: {webdriver_url}");
     println!(
         "SB_CHROME_BIN: {}",
-        runtime
-            .chrome_bin
+        chrome_bin_variable
             .as_deref()
             .map(|p| p.display().to_string())
             .unwrap_or_else(|| "(auto-detect)".to_owned())
@@ -2694,7 +2702,7 @@ async fn run_doctor(options: &DoctorArgs) -> Result<(), Box<dyn std::error::Erro
 
     println!();
     println!("Browser binary");
-    let chrome_bin = runtime.chrome_bin.clone().or_else(find_system_chrome);
+    let chrome_bin = chrome_bin_variable.clone().or_else(find_system_chrome);
     let chrome_present = match &chrome_bin {
         Some(path) if path.exists() => {
             println!("  Found: {}", path.display());
@@ -3341,6 +3349,22 @@ async fn run_plugin(command: &PluginCommand, args: &Cli) -> Result<(), Box<dyn s
     Ok(())
 }
 
+/// Adds the option `variable` with the text `value` to `options` when the flag was given.
+fn give(options: &mut Vec<(&'static str, String)>, variable: &'static str, value: Option<String>) {
+    if let Some(value) = value {
+        options.push((variable, value));
+    }
+}
+
+/// Adds the option `variable` as `true` or `false` to `options` when the flag was given.
+fn give_switch(
+    options: &mut Vec<(&'static str, String)>,
+    variable: &'static str,
+    on: Option<bool>,
+) {
+    give(options, variable, on.map(|on| on.to_string()));
+}
+
 /// `sbrs plugin run NAME`: launches a browser with the plugins the command line names and the
 /// plugin `NAME`, runs the task of `NAME` on it, and closes it. The results go to `--out` (or
 /// standard output) as JSON lines; the summary of the task goes to standard error.
@@ -3363,26 +3387,46 @@ async fn run_plugin_task(
         Some(path) => Settings::load_from(path)?,
         None => Settings::load()?,
     };
-    SettingsOverrides {
-        browser: args.browser.map(|browser| browser.name().to_owned()),
-        headless: args
-            .headless
+    let mut options: Vec<(&'static str, String)> = Vec::new();
+    give(
+        &mut options,
+        "SB_BROWSER",
+        args.browser.map(|browser| browser.name().to_owned()),
+    );
+    give_switch(
+        &mut options,
+        "SB_HEADLESS",
+        args.headless
             .then_some(true)
             .or_else(|| args.headed.then_some(false)),
-        user_agent: args.user_agent.clone().or_else(|| args.agent.clone()),
-        locale: args.locale.clone(),
-        ad_block: args.ad_block.then_some(true),
-        proxy: resolve_proxy(args.proxy.as_deref(), args.proxy_list.as_deref())?,
-        user_data_dir: args.user_data_dir.clone(),
-        extension_dir: args.extension_dir.clone(),
-        fingerprint: args
-            .fingerprint
+    );
+    give(
+        &mut options,
+        "SB_USER_AGENT",
+        args.user_agent.clone().or_else(|| args.agent.clone()),
+    );
+    give(&mut options, "SB_LOCALE", args.locale.clone());
+    give_switch(&mut options, "SB_AD_BLOCK", args.ad_block.then_some(true));
+    give(
+        &mut options,
+        "SB_PROXY",
+        resolve_proxy(args.proxy.as_deref(), args.proxy_list.as_deref())?,
+    );
+    give(&mut options, "SB_USER_DATA_DIR", args.user_data_dir.clone());
+    give(&mut options, "SB_EXTENSION_DIR", args.extension_dir.clone());
+    give(
+        &mut options,
+        FINGERPRINT_ENV,
+        args.fingerprint
             .as_ref()
             .map(|file| file.display().to_string()),
-        start_page: args.start_page.as_deref().map(start_page_url).transpose()?,
-        ..SettingsOverrides::default()
-    }
-    .try_apply(&mut settings)?;
+    );
+    give(
+        &mut options,
+        START_PAGE_ENV,
+        args.start_page.as_deref().map(start_page_url).transpose()?,
+    );
+    SettingsOverrides { options }.try_apply(&mut settings)?;
     settings.check_fingerprint()?;
     settings.plugins = choice.selection().clone();
 
@@ -3648,33 +3692,62 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         .into());
     }
 
-    let overrides = SettingsOverrides {
-        browser: args.browser.map(|browser| browser.name().to_owned()),
-        headless: args
-            .headless
+    let mut options: Vec<(&'static str, String)> = Vec::new();
+    give(
+        &mut options,
+        "SB_BROWSER",
+        args.browser.map(|browser| browser.name().to_owned()),
+    );
+    give_switch(
+        &mut options,
+        "SB_HEADLESS",
+        args.headless
             .then_some(true)
             .or_else(|| args.headed.then_some(false)),
-        mode: args
-            .cdp
+    );
+    give(
+        &mut options,
+        "SB_MODE",
+        args.cdp
             .then(|| "cdp".to_owned())
             .or_else(|| args.uc.then(|| "uc".to_owned())),
-        user_agent: args.user_agent.or(args.agent),
-        locale: args.locale,
-        ad_block: args.ad_block.then_some(true),
-        proxy,
-        proxy_pac_url: args.proxy_pac_url,
-        user_data_dir: args.user_data_dir,
-        extension_dir: args.extension_dir,
-        reuse_session: args.reuse_session.then_some(true),
-        reuse_class_session: args.reuse_class_session.then_some(true),
-        mobile: args.mobile.then_some(true),
-        threads: None,
-        esc_end: args.esc_end.then_some(true),
-        rec_sb_cdp: args.rec_sb_cdp.then_some(true),
-        fingerprint: args.fingerprint.map(|file| file.display().to_string()),
-        start_page: start_page_flag.clone(),
-        options: browser_options,
-    };
+    );
+    give(
+        &mut options,
+        "SB_USER_AGENT",
+        args.user_agent.or(args.agent),
+    );
+    give(&mut options, "SB_LOCALE", args.locale);
+    give_switch(&mut options, "SB_AD_BLOCK", args.ad_block.then_some(true));
+    give(&mut options, "SB_PROXY", proxy);
+    give(&mut options, "SB_PROXY_PAC_URL", args.proxy_pac_url);
+    give(&mut options, "SB_USER_DATA_DIR", args.user_data_dir);
+    give(&mut options, "SB_EXTENSION_DIR", args.extension_dir);
+    give_switch(
+        &mut options,
+        "SB_REUSE_SESSION",
+        args.reuse_session.then_some(true),
+    );
+    give_switch(
+        &mut options,
+        "SB_REUSE_CLASS_SESSION",
+        args.reuse_class_session.then_some(true),
+    );
+    give_switch(&mut options, "SB_MOBILE", args.mobile.then_some(true));
+    give_switch(&mut options, "SB_ESC_END", args.esc_end.then_some(true));
+    give_switch(
+        &mut options,
+        "SB_REC_SB_CDP",
+        args.rec_sb_cdp.then_some(true),
+    );
+    give(
+        &mut options,
+        FINGERPRINT_ENV,
+        args.fingerprint.map(|file| file.display().to_string()),
+    );
+    give(&mut options, START_PAGE_ENV, start_page_flag.clone());
+    options.extend(browser_options);
+    let overrides = SettingsOverrides { options };
     overrides.try_apply(&mut settings)?;
     // A fingerprint file named on the command line is checked here, like the variable's and
     // the file's: a wrong path is an error, not a browser without the fingerprint.
