@@ -48,7 +48,7 @@ pub(super) enum Shape {
     /// The value is `x, y`: `sb.method(target, x, y)`.
     TargetOffset,
     /// The target is the cookie's name and the value its value:
-    /// `sb.method(&serde_json::json!({ "name": target, "value": value }))`.
+    /// `sb.method(&Cookie::new(target, value))`.
     Cookie,
     /// The value is a whole number: `sb.method(target, n)`.
     TargetIndex,
