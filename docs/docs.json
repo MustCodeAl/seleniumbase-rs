@@ -894,7 +894,8 @@
               "design/devtools_client",
               "design/capability_types",
               "design/drivers_module",
-              "design/core_split"
+              "design/core_split",
+              "design/fingerprint_mimic"
             ]
           },
           {

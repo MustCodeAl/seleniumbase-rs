@@ -168,6 +168,7 @@ hidden: true
   - [Launch capabilities without thirtyfour types](design/capability_types.md)
   - [The session escape hatch, and what drivers keeps](design/drivers_module.md)
   - [A lean core, closer to Python SeleniumBase](design/core_split.md)
+  - [Mimic, a fifth state for every fingerprint setting](design/fingerprint_mimic.md)
 
 - [ABI & API Stability](ABI_API.md)
 - [Architecture Decision Records](adr/001-stealth-architecture.md)
