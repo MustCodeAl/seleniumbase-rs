@@ -412,6 +412,7 @@
               "stealth/advanced/playwright",
               "stealth/advanced/wire-formats",
               "stealth/advanced/mitm-proxy",
+              "stealth/advanced/http3",
               {
                 "group": "Stealthy scraping",
                 "pages": [
@@ -866,6 +867,7 @@
               "contributing/releasing",
               "contributing/consumers",
               "contributing/manual-checks",
+              "contributing/stealth-boringssl",
               "UPSTREAM_SYNC",
               "completions/README",
               "feature-requests"
