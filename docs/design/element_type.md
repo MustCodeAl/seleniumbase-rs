@@ -481,4 +481,5 @@ runs once after step 6; each step runs the tests of the files it changed.
     **Done:** `BrowserSession::text`, which only `get_text` called, reads `Element::text`
     now. `get_text` still waits for the element to be present where Python's waits until it is
     visible, and `get_text_content` still reads the rendered text where Python's reads the
-    `textContent` property: both are differences left as they were.
+    `textContent` property: both are differences left as they were, and the `divergence` of
+    their rows in `parity/api.toml` (so `docs/parity.md`) names both.
