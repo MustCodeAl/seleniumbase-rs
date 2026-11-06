@@ -41,6 +41,10 @@ use seleniumbase_rs::{
 };
 use serde_json::{json, Value};
 
+// The sources name the parser crate `usage`; the dependency is `usage-rs`, which is the name
+// the derives of usage 7 write their code against (see its entry in `Cargo.toml`).
+extern crate usage_rs as usage;
+
 mod args;
 #[path = "args/doctor.rs"]
 mod args_doctor;
@@ -2975,7 +2979,7 @@ fn with_settings_file(mut cli: Cli) -> Cli {
     cli
 }
 
-/// `Cli::parse`, after the checks of [`strict`] that usage 6 does not make itself. A command line that
+/// `Cli::parse`, after the checks of [`strict`] that usage does not make itself. A command line that
 /// does not parse prints the page of the command its words reached (see [`failure`]) and then the
 /// error, on standard error, and exits with status 2. Help, version and completion requests are
 /// answered by `Cli::parse` as before.
@@ -5092,6 +5096,62 @@ mod strict_cli_tests {
         try_parse_checked(argv).expect_err(&format!("{argv:?} was accepted"))
     }
 
+    /// What the parser alone, with no [`strict::check`] before it, makes of `argv` (the
+    /// program name first): whether it takes the command line, and whether it answers it as
+    /// a request for help.
+    fn parser_alone(argv: &[&str]) -> (bool, bool) {
+        let argv: Vec<&std::ffi::OsStr> = argv.iter().map(std::ffi::OsStr::new).collect();
+        match Cli::parse_from_argv(&argv) {
+            Ok(_) => (true, false),
+            Err(error) => (false, failure::is_request(&error)),
+        }
+    }
+
+    /// Why `strict` exists: usage 7.2 still takes every command line the three rules of
+    /// `strict` refuse. A scalar flag given twice keeps the last value (`args_override_self =
+    /// false` is a setting of one command, and no attribute puts it on an inline variant of
+    /// `Commands`), `--headless=false` is accepted by a `bool_value` switch where clap
+    /// refused it, and `help nosuch` is answered with the page of the last command it
+    /// names. When one of these assertions fails after an upgrade, usage has taken over the
+    /// rule: delete that rule from `strict.rs`; the tests around this one then hold usage
+    /// to it.
+    #[test]
+    fn usage_still_takes_what_the_rules_of_strict_refuse() {
+        for argv in [
+            &["sbrs", "get-text", "--css", "a", "--css", "b"][..],
+            &[
+                "sbrs",
+                "wait-for-text",
+                "--css",
+                "a",
+                "--text",
+                "t",
+                "--text",
+                "u",
+            ],
+            &["sbrs", "--headless", "get-title", "--headless"],
+            &["sbrs", "--headless=false", "open", "x"],
+            &["sbrs", "--headless=true", "open", "x"],
+            &["sbrs", "mkdir", "d", "--force=true"],
+        ] {
+            assert_eq!(
+                parser_alone(argv),
+                (true, false),
+                "{argv:?}: usage now refuses it itself"
+            );
+        }
+        for argv in [
+            &["sbrs", "help", "nosuch"][..],
+            &["sbrs", "help", "plugin", "nosuch"],
+        ] {
+            assert_eq!(
+                parser_alone(argv),
+                (false, true),
+                "{argv:?}: usage now refuses it itself"
+            );
+        }
+    }
+
     /// The result of [`strict::check`] alone, for the command line without the program name.
     fn checked(words: &[&str]) -> Result<(), String> {
         let words: Vec<&std::ffi::OsStr> = words.iter().map(std::ffi::OsStr::new).collect();
@@ -5173,13 +5233,13 @@ mod strict_cli_tests {
             failures: &mut Vec<String>,
         ) {
             // The root and the `Args` structs refuse a repeat themselves.
-            if !path.is_empty() && meta.args_override_self {
-                for flag_meta in meta.flags {
-                    let flag = flag_meta.flag;
-                    if flag_meta.builtin
+            if !path.is_empty() && meta.args_override_self() {
+                for flag_meta in meta.flags() {
+                    let flag = flag_meta.flag();
+                    if flag_meta.builtin()
                         || flag.action != usage::ArgAction::Set
-                        || flag_meta.repeatable
-                        || flag_meta.count
+                        || flag_meta.repeatable()
+                        || flag_meta.count()
                     {
                         continue;
                     }
@@ -5201,8 +5261,8 @@ mod strict_cli_tests {
                     }
                 }
             }
-            for sub in meta.subcommands {
-                path.push(sub.cmd.name.to_owned());
+            for sub in meta.subcommands() {
+                path.push(sub.cmd().name.to_owned());
                 walk(sub, path, refused, failures);
                 path.pop();
             }
@@ -5361,7 +5421,7 @@ mod usage_spec_tests {
     /// The check in `strict` holds every command to the rule of the root.
     #[test]
     fn the_root_refuses_a_flag_given_twice() {
-        assert!(!Cli::spec().root.args_override_self);
+        assert!(!Cli::spec().root.args_override_self());
     }
 
     /// The check in `strict` can see a value written after a switch only when the switch is
@@ -5370,7 +5430,7 @@ mod usage_spec_tests {
     #[test]
     fn every_switch_is_declared_bool_value() {
         /// A member of an `ArgGroup` (the language and syntax flags of `mkfile`) cannot be
-        /// declared `bool_value` in usage 6.12, so it is not held to the rule.
+        /// declared `bool_value` in usage 7.2, so it is not held to the rule.
         fn group_member(flag: &usage::Flag<'_>) -> bool {
             flag.longs.iter().any(|long| {
                 args::language::LONGS.contains(long)

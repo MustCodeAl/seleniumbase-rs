@@ -623,7 +623,7 @@ fn a_reader_that_goes_away_early_is_not_an_error() {
 
 #[test]
 fn zsh_completion_ends_a_complete_word_with_a_space() {
-    // usage 6.12's zsh script added every candidate with `compadd -S ''`, so `sbrs pl<Tab>`
+    // usage 7.2's zsh script adds every candidate with `compadd -S ''`, so `sbrs pl<Tab>`
     // stopped at `plugin` with no space and the next Tab never reached `info` and `list`.
     // The script runs in a real zsh with a stub `compadd` that prints whether zsh would add
     // its space ("space") or nothing ("none"), and the words it was given.
@@ -683,7 +683,7 @@ done
 
 #[test]
 fn powershell_completion_after_a_space_offers_the_next_level() {
-    // usage 6.12's PowerShell script cut the line at `Extent.Text`, which leaves out the space
+    // usage 7.2's PowerShell script cuts the line at `Extent.Text`, which leaves out the space
     // after the last word, so `sbrs plugin <Tab>` completed `plugin` again.
     if std::process::Command::new("pwsh")
         .args(["-NoProfile", "-Command", "exit 0"])

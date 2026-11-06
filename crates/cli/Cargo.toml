@@ -41,7 +41,10 @@ required-features = ["mcp-server"]
 seleniumbase-rs = { path = "../.." }
 # The command line parser: derives that generate the parser, the help, the shell
 # completions and the usage spec (`completions/sbrs.usage.kdl`) from one declaration.
-usage = { package = "usage-rs", version = "6", features = ["completions"] }
+# Under its own name, because since 7.0 the derives write their code against `::usage_rs`
+# and no longer look for a renamed dependency in this manifest. The binaries' roots bring
+# it in as `usage` (`extern crate usage_rs as usage;`), the name the sources use.
+usage-rs = { version = "7.2", features = ["completions"] }
 # `preserve_order`: `sbrs-mcp install` rewrites a client's JSON config and must keep the order
 # of its keys (thirtyfour turns the feature on already).
 serde_json = { version = "1.0", features = ["preserve_order"] }
@@ -110,8 +113,8 @@ tokio-console = ["seleniumbase-rs/tokio-console"]
 [dev-dependencies]
 # Writes the CLI reference page (docs/help/cli_reference.md) from the usage spec in a
 # test; usage-lib is the renderer of the usage tool (`usage generate markdown`), and
-# the binary does not link it. The same release train as `usage` above.
-usage_lib = { package = "usage-lib", version = "6.12", default-features = false, features = ["markdown"] }
+# the binary does not link it. The same release train as `usage-rs` above.
+usage_lib = { package = "usage-lib", version = "7.2", default-features = false, features = ["markdown"] }
 # The `report` module's test (feature `turso`) matches a timestamp.
 regex = "1.13"
 # `cli_scaffold` parses what `sbrs mkfile` and `sbrs mkdir` write.

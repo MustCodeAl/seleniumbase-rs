@@ -1,6 +1,6 @@
 //! The zsh and PowerShell scripts `sbrs completions` prints: usage's scripts with one fix each.
 //!
-//! usage 6.12's zsh script adds every candidate with `compadd -S ''`. That stops zsh from
+//! usage 7.2's zsh script adds every candidate with `compadd -S ''`. That stops zsh from
 //! putting its space after a complete word, so `sbrs pl<Tab>` gives `sbrs plugin` and the
 //! next Tab completes `plugin` again instead of offering `info` and `list`; the same
 //! happens after every flag. The patched script adds complete words without `-S ''`, so
@@ -81,23 +81,28 @@ mod tests {
     /// there, which is wrong for a selector, a number or a URL, so every declaration must say
     /// what it takes.
     fn unhinted(command: &CommandMeta<'_>, path: &str, found: &mut Vec<String>) {
-        for flag in command.flags.iter().filter(|flag| !flag.hide) {
-            if flag.flag.takes_value
-                && flag.choices.is_empty()
+        for flag in command.flags().iter().filter(|flag| !flag.hide()) {
+            if flag.flag().takes_value
+                && flag.choices().is_empty()
                 && flag.complete_type().is_none()
-                && flag.complete.is_none()
+                && flag.complete().is_none()
             {
-                let name = flag.flag.longs.first().copied().unwrap_or("?");
+                let name = flag.flag().longs.first().copied().unwrap_or("?");
                 found.push(format!("{path} --{name}"));
             }
         }
-        for arg in command.args.iter().filter(|arg| !arg.hide) {
-            if arg.choices.is_empty() && arg.complete_type.is_none() && arg.complete.is_none() {
-                found.push(format!("{path} <{}>", arg.arg.name));
+        for arg in command.args().iter().filter(|arg| !arg.hide()) {
+            if arg.choices().is_empty() && arg.complete_type().is_none() && arg.complete().is_none()
+            {
+                found.push(format!("{path} <{}>", arg.arg().name));
             }
         }
-        for subcommand in command.subcommands.iter().filter(|command| !command.hide) {
-            let name = format!("{path} {}", subcommand.cmd.name);
+        for subcommand in command
+            .subcommands()
+            .iter()
+            .filter(|command| !command.hide())
+        {
+            let name = format!("{path} {}", subcommand.cmd().name);
             unhinted(subcommand, &name, &mut *found);
         }
     }

@@ -120,6 +120,20 @@ crates/cli/tests/          every test that runs CARGO_BIN_EXE_sbrs or sbrs-mcp
    descriptions, `[aliases: x]`); the help tests that read the layout changed.
 3. Docs: the CLI reference page generated from the spec, the install lines,
    CHANGELOG (Breaking: the install command and package name).
+4. Move from usage 6.12 to 7.2 (2026-11-05). The only breaking change of 7.0 for this
+   crate is in the derive: it writes its code against `::usage_rs` and no longer reads the
+   manifest, so `crates/cli/Cargo.toml` depends on `usage-rs` under its own name and both
+   binary roots say `extern crate usage_rs as usage;`; the alternative, a
+   `#[usage(crate = usage)]` on each of the 66 derives, would have touched every
+   declaration. The fields of `CommandMeta`, `FlagMeta` and `ArgMeta` became `doc(hidden)`,
+   so `strict.rs`, `fig.rs` and the tests that walk the spec call `flags()`,
+   `subcommands()`, `cmd()` and the other accessors; 7.0 also removed `usage generate fig`,
+   which the crate does not use (`fig.rs` is its own). The generated KDL, reference page
+   and Fig spec came out byte for byte the same. None of the three rules of `strict.rs` is
+   closed by 7.0 to 7.2, and a test pins that. Plugin subcommands through `usage-dynamic`
+   (an `external_subcommand` variant, one spec per plugin, a `Catalog` for help and
+   completion) are a later change.
+
 
 ## Measures of done
 

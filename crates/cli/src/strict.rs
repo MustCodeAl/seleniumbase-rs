@@ -1,6 +1,6 @@
-//! What usage 6 lets through that clap did not, refused before the real parse.
+//! What usage 7 lets through that clap did not, refused before the real parse.
 //!
-//! usage 6.12 is looser than clap in three places that no attribute of the derives closes:
+//! usage 7.2 is looser than clap in three places that no attribute of the derives closes:
 //!
 //! - A scalar flag given twice. `args_override_self = false` is a setting of one command:
 //!   the root and an `Args` struct can say it, an inline variant of the command enum
@@ -13,6 +13,14 @@
 //!   neither.
 //! - `help` followed by a path that names no command. The parser stops at the last word
 //!   that names one and prints that page, so `help nosuch` printed the main help.
+//!
+//! usage 7.0 to 7.2 closed none of them (checked against its changelog and documentation on
+//! 2026-11-05): `args_override_self` is still documented per command, and the attributes of a
+//! `Subcommands` variant have no such setting; a switch that is not `bool_value` still drops
+//! the `=value`, and one that is takes `true` and `false`; `help` still stops at the last word
+//! that names a command. `usage_still_takes_what_the_rules_of_strict_refuse` (in `sbrs.rs`)
+//! holds each of the three open: when it fails, usage has taken the rule over, and the rule
+//! goes from here while its tests stay.
 //!
 //! [`check`] reads the events the generated parser reads, from the same tables, and
 //! refuses these three with the errors usage renders for everything else. Every other mistake,
@@ -41,7 +49,7 @@ pub fn check<'v>(
     argv: &[&'v OsStr],
 ) -> Result<(), Error<'static, 'v>> {
     // The rule is the root's: a command that says nothing about it is held to it too.
-    let strict = !spec.root.args_override_self;
+    let strict = !spec.root.args_override_self();
     let mut parser = Parser::new(root, argv);
     // The metadata of the command the parser is in, and the flags it has been given.
     let mut meta = spec.root;
@@ -89,7 +97,7 @@ pub fn check<'v>(
                 // Only a command whose own declaration lets the last value win needs the
                 // check: the root and the `Args` structs refuse a repeat themselves.
                 if strict
-                    && meta.args_override_self
+                    && meta.args_override_self()
                     && !repeats(flag_meta)
                     && given.contains(&flag.key)
                 {
@@ -125,30 +133,30 @@ fn subcommand_meta(
     meta: &'static CommandMeta<'static>,
     command: &Command<'_>,
 ) -> Option<&'static CommandMeta<'static>> {
-    meta.subcommands
+    meta.subcommands()
         .iter()
         .copied()
-        .find(|candidate| candidate.cmd.key == command.key)
+        .find(|candidate| candidate.cmd().key == command.key)
 }
 
 /// The metadata of `flag`, a flag of the command `meta` describes. A flag the command does
 /// not declare itself (one of an ancestor) has none here.
 fn flag_meta<'m>(meta: &'m CommandMeta<'static>, flag: &Flag<'_>) -> Option<&'m FlagMeta<'static>> {
-    meta.flags
+    meta.flags()
         .iter()
-        .find(|candidate| candidate.flag.key == flag.key)
+        .find(|candidate| candidate.flag().key == flag.key)
 }
 
 /// Whether the flag may be given more than once: a collection, or a counter.
 fn repeats(flag: &FlagMeta<'_>) -> bool {
-    flag.repeatable || flag.count
+    flag.repeatable() || flag.count()
 }
 
 /// The switch of the command `meta` describes that the parser calls `name`.
 fn switch_named(meta: &'static CommandMeta<'static>, name: &str) -> Option<&'static Flag<'static>> {
-    meta.flags
+    meta.flags()
         .iter()
-        .map(|candidate| candidate.flag)
+        .map(|candidate| candidate.flag())
         .find(|flag| flag.name == name && flag.bool_value && !flag.takes_value)
 }
 

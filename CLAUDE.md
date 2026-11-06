@@ -71,7 +71,7 @@ public API of this crate: keep items it imports public (`evasion::randomize`,
 | `profile_payloads/` | Parses external browser-profile JSON into a `Fingerprint`. |
 | `mcp/` | MCP servers `cdp`, `driver`, `sb` and `dev` (`tool`, `host`, `webdriver`, `cdp`, `devtools`, `stealth`, `schema`; `dev/` is the server with no browser: `find_api`, `parity_lookup`, `python_to_rust`, `scaffold`, `cli_help`, plugins, `install_driver`, `explain_error`, `check_config`, `check_fingerprint`, `diagnose_environment`; `api_index.json` is the index `find_api` searches and `spec.rs` reads the `sbrs` usage spec); started by `crates/cli/src/mcp_server.rs`. Held to the pedantic lint set. |
 | `cli/` | The library half of the command line, with no parser: `commands.rs`, `devtools.rs`, `fingerprint_cmd.rs` (`sbrs fingerprint`), `plugin_cmd.rs` (`sbrs plugin list|info`, the check of `--plugin` names and options), `prompt.rs`, `scaffold.rs`, `scripts/` (`sb_grid`, `sb_mkdir`, `sb_mkfile`, `sb_recorder`, `sb_commander` needs `tui`, ...). |
-| `crates/cli/` | Package `seleniumbase-rs-cli`: `src/sbrs.rs` (the command line, declared with the `usage` derives `Cli`, `Subcommands`, `Args` and `ValueEnum`), `src/fig.rs` (the Fig spec, written from the usage tables), `src/report.rs`, `src/fingerprint.rs` (`sbrs fingerprint`), `src/failure.rs` (a command line that does not parse prints the command's page, then the error), `src/completion.rs` (the patched zsh and PowerShell completion scripts), `src/reference.rs` (renders `docs/help/cli_reference.md` for the test that keeps it current), `src/mcp_server.rs`, `src/mcp_install/` (`sbrs-mcp install`, `uninstall` and `clients`: one module for the clients' locations and formats, one for editing JSON as text, one for `config.toml`; its tests point an `Env` at a temporary folder and never touch a real client config), and `tests/` for every test that runs the real `sbrs` or `sbrs-mcp` binary. Owns `usage` (the package `usage-rs`) and, for the tests, `usage-lib`. |
+| `crates/cli/` | Package `seleniumbase-rs-cli`: `src/sbrs.rs` (the command line, declared with the `usage` derives `Cli`, `Subcommands`, `Args` and `ValueEnum`), `src/fig.rs` (the Fig spec, written from the usage tables), `src/report.rs`, `src/fingerprint.rs` (`sbrs fingerprint`), `src/failure.rs` (a command line that does not parse prints the command's page, then the error), `src/completion.rs` (the patched zsh and PowerShell completion scripts), `src/reference.rs` (renders `docs/help/cli_reference.md` for the test that keeps it current), `src/mcp_server.rs`, `src/mcp_install/` (`sbrs-mcp install`, `uninstall` and `clients`: one module for the clients' locations and formats, one for editing JSON as text, one for `config.toml`; its tests point an `Env` at a temporary folder and never touch a real client config), and `tests/` for every test that runs the real `sbrs` or `sbrs-mcp` binary. Owns `usage-rs` (its sources import it as `usage`) and, for the tests, `usage-lib`. |
 | `testing/` | Feature `testing` (optional `rstest`): the `sb` and `sb_cdp` fixtures. `fixture.rs` (`Sb`, `SbCdp`: a handle that holds the settings and the test id, `run` owns the browser), `lifecycle.rs` (attempts, reruns, `Finalizer`, the `TestCase` seam), `evidence.rs` (`latest_logs/<test id>/`), `deadline.rs` (the hard time limit a prompt suspends), `report.rs` (the dashboard, HTML, JUnit and Allure reports a run asks for); `common/test_id.rs` is the always-compiled test id. `testing/bdd/` (feature `bdd`, which needs `testing`; it replaces the removed `behave` module): Gherkin scenarios as cargo tests through rstest-bdd (`SbCase`, `SbCdpCase`, `session.rs`) and the built-in steps in `bdd/steps/` (`nav`, `elements`, `asserts`, `deferred`, `frames`, `misc`). The tests of `bdd` are `#![cfg(feature = "bdd")]` files, so they run only with that feature. |
 | `plugins/` | Reporting and logging plugins (S3, GCP, Azure, screenshots, page source, driver manager, observer). |
 | `config/` | Settings, runtime config, `proxy_list`, `ad_block_list`. |
@@ -163,7 +163,9 @@ binaries with `cargo install --path crates/cli`.
 - macOS delays the first run of a freshly written script, so tests that fake
   `java` run it once with `--warm` before timing it.
 - `sbrs commander` exits with status 2 and a hint when built without `tui`.
-- usage 6 is looser than clap was in three places that the declarations cannot close,
+- usage 7.2 is looser than clap was in three places that the declarations cannot close
+  (7.0 to 7.2 closed none; `usage_still_takes_what_the_rules_of_strict_refuse` in
+  `sbrs.rs` fails the day usage does, and that rule then goes from `strict.rs`),
   so `crates/cli/src/strict.rs` reads the parser's events before the real parse and
   refuses them with status 2: a flag repeated after a subcommand (an inline struct
   variant of `Commands` cannot say `args_override_self`, so the check holds every
@@ -172,6 +174,12 @@ binaries with `cargo install --path crates/cli`.
   so every switch must be, and a test fails for one that is not) and a `help` path that
   names no command (`sbrs help nosuch`). The help lists the commands alphabetically,
   not in declaration order.
+- The derives of usage 7 write their code against `::usage_rs`, so `crates/cli/Cargo.toml`
+  names the dependency `usage-rs` and both binary roots (`sbrs.rs`, `mcp_server.rs`) say
+  `extern crate usage_rs as usage;` before their modules, the name the sources use; a new
+  binary root that derives needs the same line. The fields of `CommandMeta`, `FlagMeta` and
+  `ArgMeta` are `doc(hidden)`: read the tables through `flags()`, `subcommands()`, `cmd()`
+  and the other accessors.
 - Real-Chrome behaviour differs between headless and headed runs; check which
   one a test uses before trusting a timing.
 

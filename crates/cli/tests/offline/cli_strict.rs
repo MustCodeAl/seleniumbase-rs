@@ -1,4 +1,4 @@
-//! `sbrs` refuses what clap refused and usage 6 lets through (see `src/strict.rs`): a flag
+//! `sbrs` refuses what clap refused and usage 7 lets through (see `src/strict.rs`): a flag
 //! given twice, a value written after a switch, and `help` with a path that names no command.
 //! Each is checked against the real binary.
 //!

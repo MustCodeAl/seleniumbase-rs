@@ -46,7 +46,7 @@ pub(crate) enum SyntaxFlag {
     ClassFixture,
 }
 
-/// The long names of the members, for the test that every switch is a `bool_value`: usage 6.12
+/// The long names of the members, for the test that every switch is a `bool_value`: usage 7.2
 /// does not let a group member say so, hence `--pf=false` reads as `--pf`.
 #[cfg(test)]
 pub(crate) const SYNTAX_LONGS: &[&str] = &[
