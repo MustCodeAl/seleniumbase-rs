@@ -923,7 +923,7 @@ rust = "BaseCase::get_session_storage_keys"
 [basecase."get_text"]
 status = "implemented"
 rust = "BaseCase::get_text"
-note = "A ::shadow selector (host::shadow inner) is read by this method and by every other that takes a selector, as in Python: the element is waited for, closed roots are entered, and the text is what the browser shows (a container that only slots its content gives the slotted text). shadow_get_text and the other shadow_* methods are the same lookups."
+note = "A ::shadow selector (host::shadow inner) is read by this method and by every other that takes a selector, as in Python: the element is waited for, closed roots are entered, and the text is what the browser shows (a container that only slots its content gives the slotted text). shadow_get_text and the other shadow_* methods are the same lookups. An <input> or a <textarea> gives its value (the DOM property), as Python's get_text does, and any other element the text the browser renders."
 
 [basecase."get_text_content"]
 status = "implemented"

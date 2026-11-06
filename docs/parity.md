@@ -250,7 +250,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `get_session_storage_item` | implemented | `BaseCase::get_session_storage_item` |  |
 | `get_session_storage_items` | implemented | `BaseCase::get_session_storage_items` |  |
 | `get_session_storage_keys` | implemented | `BaseCase::get_session_storage_keys` |  |
-| `get_text` | implemented | `BaseCase::get_text` | A ::shadow selector (host::shadow inner) is read by this method and by every other that takes a selector, as in Python: the element is waited for, closed roots are entered, and the text is what the browser shows (a container that only slots its content gives the slotted text). shadow_get_text and the other shadow_* methods are the same lookups. |
+| `get_text` | implemented | `BaseCase::get_text` | A ::shadow selector (host::shadow inner) is read by this method and by every other that takes a selector, as in Python: the element is waited for, closed roots are entered, and the text is what the browser shows (a container that only slots its content gives the slotted text). shadow_get_text and the other shadow_* methods are the same lookups. An &lt;input&gt; or a &lt;textarea&gt; gives its value (the DOM property), as Python's get_text does, and any other element the text the browser renders. |
 | `get_text_content` | implemented | `BaseCase::get_text_content` |  |
 | `get_title` | implemented | `BaseCase::get_title` |  |
 | `get_totp_code` | implemented | `BaseCase::get_totp_code` |  |

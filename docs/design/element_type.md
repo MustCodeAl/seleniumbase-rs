@@ -26,6 +26,11 @@ read as `.//p[...]`; an `<iframe>` element is not entered (its frame is a differ
 (`#a >> ..`, `element at (10, 20)`) where a temporary marker selector had been the name. Python's
 `locator` is mapped to `find_element` by hand in the importer, since its parity row is `composed`.
 
+Three follow-up fixes came after (the `element-followups` lane): `BaseCase::get_text` gives a
+field's value (open question 11 below); a union is refused when any branch starts at the root
+(`.//a | //b`, `(.//a | //b)[1]`, a branch that calls `id()`); and the XPath of `SelectorBuf::role`,
+`text`, `label` and `containing_text` starts with `.//`, so they work from an `Element`.
+
 
 ## Goal
 
@@ -473,3 +478,7 @@ runs once after step 6; each step runs the tests of the files it changed.
     (`session/elements.rs:91-94`), so an `<input>` gives nothing, while `Locator::text` and
     Python read the field's value (`locator.rs:669-676`). `Element::text` follows `Locator` and
     `shown_text`. **Recommendation:** a separate fix lane for `get_text`, with a test first.
+    **Done:** `BrowserSession::text`, which only `get_text` called, reads `Element::text`
+    now. `get_text` still waits for the element to be present where Python's waits until it is
+    visible, and `get_text_content` still reads the rendered text where Python's reads the
+    `textContent` property: both are differences left as they were.

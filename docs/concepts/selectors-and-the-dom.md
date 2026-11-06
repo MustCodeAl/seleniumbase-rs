@@ -483,6 +483,12 @@ Their limits are written in their documentation: `aria-labelledby` is not
 followed, and roles that depend on context, hidden elements and states such as
 `checked` are not covered.
 
+The XPath they build starts at the context node (`.//`), so a page gives every
+match of the document, and an `Element` or a step below another `Locator` gives
+the matches inside it: `panel.find(SelectorBuf::role("button", Some("Save"), false))`
+does not find the Save button outside the panel. A label that names a control with
+`for` is still looked for in the whole document.
+
 <Tabs>
 
 <Tab title="Pure CDP engine" icon="bolt">

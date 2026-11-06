@@ -31,7 +31,7 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 
 ## All releases
 
-<Update label="Unreleased" description="Next release" tags={["New"]}>
+<Update label="Unreleased" description="Next release" tags={["New", "Fix"]}>
 
 ### Breaking
 
@@ -204,6 +204,34 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   where it was `//p[contains(., 'x')]`. On the page both match the same elements, but the new
   form starts at the context node, so a search from an `Element` stays inside the element.
   `BaseCase::convert_css_to_xpath` still writes the absolute path.
+
+### Fixed
+
+- **`BaseCase::get_text` gives the value of an `<input>` or a `<textarea>`, as Python's does.** It
+  gave the text the driver renders, which is empty for an input, so `get_text("#name")` on a
+  filled field answered `""` where Python answers the field's value (`get_property("value")`).
+  `BrowserSession::text`, which only `get_text` calls, reads `Element::text` now, as
+  `shadow_get_text` and the text waits already did, so `get_text_of_element`, the `get_text` tool
+  of the `driver` MCP server and `sbrs get-text` follow. Anything else still gives its rendered
+  text. `get_text_content` is not changed: Python's reads the `textContent` property, which is
+  not a field's value either.
+
+- **`Element::find` and `find_all` refuse an XPath union with a branch that starts at the
+  root.** They looked only at the start of the whole expression, so `.//a | //b` passed and
+  `//b` matched the whole page. Every branch is read now. A `|` inside a string or a predicate
+  (`.//a[@title='x | //y']`) is not a branch, a group is read through (`(.//a | //b)[1]`), and a
+  branch that calls `id()`, which selects from the whole document, is refused like `//`. The
+  `InvalidSelector` message names the branch and keeps the `.//td` hint.
+
+- **The role, text, label and containing-text selectors work inside an element.**
+  `SelectorBuf::role`, `containing_text`, `text` and `label` wrote XPath that starts with `//`,
+  so `element.find(SelectorBuf::role("button", Some("Save"), false))` was refused. They write
+  `.//` now: from a page the same elements match, and from an element only the ones inside it.
+  `SelectorBuf::text` leaves out the `<head>` with a test where it started at `//body`, which
+  finds nothing from inside an element. The label that names a control (`@id=//label[..]/@for`)
+  stays absolute, since a label anywhere in the document names it. On the pure CDP engine a step
+  below another locator no longer matches the locator's own element: the page script kept a
+  `//` path inside the scope with `contains`, which counts the scope itself, and `.//` does not.
 
 </Update>
 
