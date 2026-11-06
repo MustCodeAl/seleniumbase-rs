@@ -19,6 +19,11 @@
 //!    marker. The widget is not pressed again while it is verifying.
 //! 5. **Retry.** Only when the page can show a result and did not: after a
 //!    growing, spread-out wait, up to the attempts allowed, then a typed error.
+//! 6. **Rounds.** Steps 1 to 5 are one round. When [`SolveOptions::rounds`] allows
+//!    more, a round that spent its presses without a result is followed by the
+//!    cooldown and a new round, which finds the widget again; the typed error
+//!    comes after the last round. The rotations of the options are not acted on
+//!    here: a [`Surface`] has no proxy and no fingerprint to change.
 
 use std::time::Duration;
 
@@ -345,6 +350,7 @@ async fn verify<S: Surface>(
 ) -> Result<Verdict, SeleniumBaseError> {
     let started = Instant::now();
     let poll = poll_interval(options);
+    let clearance = clearance_cookies(kind, options);
     let mut fields = 0_u32;
     let mut gone = 0_u32;
     let mut last: Option<Check> = None;
@@ -368,17 +374,20 @@ async fn verify<S: Surface>(
                 return Ok(Verdict::Cleared(Evidence::Marker));
             }
         }
-        if let Some(name) = kind.clearance_cookie()
+        if !clearance.is_empty()
             && let Ok(cookies) = surface.cookie_names().await
         {
-            let arrived = cookies.iter().any(|cookie| cookie == name)
-                && !baseline.cookies.iter().any(|cookie| cookie == name);
+            let arrived = clearance.iter().any(|name| {
+                cookies.iter().any(|cookie| cookie == name)
+                    && !baseline.cookies.iter().any(|cookie| cookie == name)
+            });
             if arrived {
                 return Ok(Verdict::Cleared(Evidence::Cookie));
             }
         }
 
-        let verifiable = fields > 0 || options.marker.is_some();
+        let verifiable =
+            fields > 0 || options.marker.is_some() || options.clearance_cookie.is_some();
         let wait = if verifiable {
             options.verify_timeout
         } else {
@@ -390,8 +399,13 @@ async fn verify<S: Surface>(
             }
             let mut reason = if fields > 0 {
                 format!("the response field stayed empty for {wait:.1?} after the press")
-            } else {
+            } else if options.marker.is_some() {
                 format!("the success marker stayed false for {wait:.1?} after the press")
+            } else {
+                let name = options.clearance_cookie.as_deref().unwrap_or_default();
+                format!(
+                    "the clearance cookie {name} did not arrive within {wait:.1?} after the press"
+                )
             };
             if last.as_ref().is_some_and(|check| check.widget) {
                 reason.push_str("; the widget is still shown");
@@ -400,6 +414,66 @@ async fn verify<S: Surface>(
         }
         sleep(poll).await;
     }
+}
+
+/// The cookies whose arrival shows that the visitor was let through: the one the vendor sets
+/// and the one the options name.
+fn clearance_cookies<'a>(kind: Captcha, options: &'a SolveOptions) -> Vec<&'a str> {
+    kind.clearance_cookie()
+        .into_iter()
+        .chain(options.clearance_cookie.as_deref())
+        .collect()
+}
+
+/// What a round came to.
+enum Round {
+    /// The call is over, with this answer: `None` for a page that shows no widget.
+    Over(Option<Solved>),
+    /// Every press of the round was spent and the page, which could show a result, never did.
+    Spent { captcha: Captcha, reason: String },
+}
+
+/// What a call keeps from one round to the next.
+struct Hand {
+    person: Humanizer,
+    spread: Rng,
+    pointer: Option<Point>,
+    /// The presses of all the rounds so far.
+    presses: u32,
+    /// The widget the last round found.
+    widget: Option<Captcha>,
+}
+
+/// The answer of a call that cleared (or pressed, or lost) the widget of kind `captcha`.
+fn report(
+    captcha: Captcha,
+    presses: u32,
+    round: u32,
+    evidence: Option<Evidence>,
+    started: Instant,
+) -> Solved {
+    Solved {
+        captcha,
+        attempts: presses,
+        rounds: round,
+        evidence,
+        elapsed: started.elapsed(),
+    }
+}
+
+/// The answer when the widget cannot be read any more: `None` when it was never pressed (the
+/// page shows no widget), otherwise the widget went away after a press, which is a result.
+fn vanished(hand: &Hand, round: u32, started: Instant) -> Option<Solved> {
+    let captcha = hand.widget?;
+    (hand.presses > 0).then(|| {
+        report(
+            captcha,
+            hand.presses,
+            round,
+            Some(Evidence::WidgetGone),
+            started,
+        )
+    })
 }
 
 /// Finds a widget, presses it until the page shows it cleared, and says how.
@@ -418,24 +492,58 @@ pub(crate) async fn solve<S: Surface>(
     options: &SolveOptions,
 ) -> Result<Option<Solved>, SeleniumBaseError> {
     let started = Instant::now();
+    let rounds = options.rounds_allowed();
+    let mut hand = Hand {
+        person: Humanizer::new(options.behavior),
+        spread: Rng::from_entropy(),
+        pointer: None,
+        presses: 0,
+        widget: None,
+    };
+    let mut round = 1_u32;
+    loop {
+        match run_round(surface, options, &mut hand, round, started).await? {
+            Round::Over(answer) => return Ok(answer),
+            Round::Spent { captcha, reason } if round >= rounds => {
+                return Err(SeleniumBaseError::captcha(
+                    captcha.to_string(),
+                    hand.presses,
+                    reason,
+                ));
+            }
+            Round::Spent { captcha, reason } => {
+                tracing::debug!(
+                    widget = %captcha,
+                    round,
+                    %reason,
+                    "the round ended without a result; cooling down before the next one"
+                );
+                sleep(options.cooldown).await;
+                round += 1;
+            }
+        }
+    }
+}
+
+/// One pass of the solver: finds the widget, then settles, presses and verifies up to the
+/// attempts allowed. Ends the call with a verdict, or reports that the presses were spent.
+async fn run_round<S: Surface>(
+    surface: &S,
+    options: &SolveOptions,
+    hand: &mut Hand,
+    round: u32,
+    started: Instant,
+) -> Result<Round, SeleniumBaseError> {
     let Some(kind) = locate(surface, options).await? else {
-        return Ok(None);
+        // No widget at all, or, in a later round, one that went away.
+        return Ok(Round::Over(vanished(hand, round, started)));
     };
-
-    let mut person = Humanizer::new(options.behavior);
-    let mut spread = Rng::from_entropy();
-    let mut pointer: Option<Point> = None;
-    let mut attempts = 0_u32;
-    let mut reason = String::new();
+    hand.widget = Some(kind);
     let allowed = options.attempts_allowed();
-    let solved = |attempts: u32, evidence: Option<Evidence>| Solved {
-        captcha: kind,
-        attempts,
-        evidence,
-        elapsed: started.elapsed(),
-    };
+    let mut pressed = 0_u32;
+    let mut reason = String::new();
 
-    while attempts < allowed {
+    while pressed < allowed {
         // The mark of this document and the cookies before the press, to tell
         // afterwards what the press changed.
         let epoch = surface.eval(&script::epoch()).await?;
@@ -449,35 +557,38 @@ pub(crate) async fn solve<S: Surface>(
         if let Ok(Some(now)) = check(surface, kind).await
             && now.filled
         {
-            return Ok(Some(solved(attempts, Some(Evidence::Token))));
+            let cleared = report(kind, hand.presses, round, Some(Evidence::Token), started);
+            return Ok(Round::Over(Some(cleared)));
         }
 
         let Some(area) = settle(surface, kind, options).await? else {
             // It went away while it was being read.
-            return Ok(if attempts == 0 {
-                None
-            } else {
-                Some(solved(attempts, Some(Evidence::WidgetGone)))
-            });
+            return Ok(Round::Over(vanished(hand, round, started)));
         };
 
-        attempts += 1;
-        tracing::debug!(widget = %kind, attempt = attempts, "pressing the CAPTCHA widget");
-        press(surface, &mut person, &mut pointer, kind, area).await?;
+        pressed += 1;
+        hand.presses += 1;
+        tracing::debug!(widget = %kind, attempt = hand.presses, round, "pressing the CAPTCHA widget");
+        press(surface, &mut hand.person, &mut hand.pointer, kind, area).await?;
         match verify(surface, kind, options, &baseline).await? {
-            Verdict::Cleared(evidence) => return Ok(Some(solved(attempts, Some(evidence)))),
-            Verdict::Unverified => return Ok(Some(solved(attempts, None))),
+            Verdict::Cleared(evidence) => {
+                let cleared = report(kind, hand.presses, round, Some(evidence), started);
+                return Ok(Round::Over(Some(cleared)));
+            }
+            Verdict::Unverified => {
+                let pressed_once = report(kind, hand.presses, round, None, started);
+                return Ok(Round::Over(Some(pressed_once)));
+            }
             Verdict::Failed(why) => reason = why,
         }
-        if attempts < allowed {
-            sleep(wait_before(options, attempts, &mut spread)).await;
+        if pressed < allowed {
+            sleep(wait_before(options, pressed, &mut hand.spread)).await;
         }
     }
-    Err(SeleniumBaseError::captcha(
-        kind.to_string(),
-        attempts,
+    Ok(Round::Spent {
+        captcha: kind,
         reason,
-    ))
+    })
 }
 
 #[cfg(test)]
@@ -586,6 +697,14 @@ mod tests {
         async fn cookie_names(&self) -> Result<Vec<String>, SeleniumBaseError> {
             Ok(self.cookies.lock().unwrap().clone())
         }
+    }
+
+    /// How many times the widget has been pressed according to `events`.
+    fn presses_in(events: &[Event]) -> usize {
+        events
+            .iter()
+            .filter(|event| matches!(event, Event::Down(_)))
+            .count()
     }
 
     /// Short waits and a fast, seeded pointer, so a scenario runs in a blink
@@ -886,6 +1005,178 @@ mod tests {
     }
 
     #[tokio::test(start_paused = true)]
+    async fn a_round_that_ends_without_a_result_is_followed_by_another_after_the_cooldown() {
+        // Two presses to a round; the third press, in the second round, clears it.
+        let tab = Scripted::new(|ask, events| match ask {
+            Ask::Probe => probe_of(widget(), false),
+            Ask::Check => reading(presses_in(events) >= 3, true, 1),
+            other => plain(other).unwrap(),
+        });
+        let options = quick()
+            .attempts(2)
+            .rounds(2)
+            .cooldown(Duration::from_secs(30));
+        let started = Instant::now();
+        let solved = solve(&tab, &options).await.unwrap().expect("a widget");
+        assert_eq!(solved.rounds, 2);
+        assert_eq!(solved.attempts, 3, "the presses of all rounds are counted");
+        assert_eq!(solved.evidence, Some(Evidence::Token));
+        assert_eq!(tab.presses(), 3);
+        assert!(
+            started.elapsed() >= Duration::from_secs(30),
+            "the cooldown passed between the rounds: {:?}",
+            started.elapsed()
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn one_round_is_the_default_and_a_cooldown_is_not_waited_for_after_the_last() {
+        let tab = Scripted::new(|ask, _| match ask {
+            Ask::Probe => probe_of(widget(), false),
+            Ask::Check => reading(false, true, 1),
+            other => plain(other).unwrap(),
+        });
+        let started = Instant::now();
+        let error = solve(
+            &tab,
+            &quick().attempts(1).cooldown(Duration::from_secs(600)),
+        )
+        .await
+        .unwrap_err();
+        assert!(matches!(
+            error,
+            SeleniumBaseError::Captcha { attempts: 1, .. }
+        ));
+        assert!(
+            started.elapsed() < Duration::from_secs(60),
+            "no round is to come, so nothing cools down: {:?}",
+            started.elapsed()
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn the_rounds_allowed_bound_the_presses_and_the_error_counts_them_all() {
+        let tab = Scripted::new(|ask, _| match ask {
+            Ask::Probe => probe_of(widget(), false),
+            Ask::Check => reading(false, true, 1),
+            other => plain(other).unwrap(),
+        });
+        let options = quick()
+            .attempts(2)
+            .rounds(3)
+            .cooldown(Duration::from_secs(10));
+        let started = Instant::now();
+        let error = solve(&tab, &options).await.unwrap_err();
+        match &error {
+            SeleniumBaseError::Captcha { attempts, .. } => assert_eq!(*attempts, 6),
+            other => panic!("expected a CAPTCHA error, got {other:?}"),
+        }
+        assert_eq!(tab.presses(), 6);
+        assert!(
+            started.elapsed() >= Duration::from_secs(20),
+            "two cooldowns between three rounds: {:?}",
+            started.elapsed()
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_widget_gone_when_the_next_round_begins_is_a_result() {
+        // The widget is there until it is pressed, then it is gone for good.
+        let tab = Scripted::new(|ask, events| match ask {
+            Ask::Probe if events.is_empty() => probe_of(widget(), false),
+            Ask::Probe => probe_of(Value::Null, false),
+            Ask::Check => reading(false, true, 1),
+            other => plain(other).unwrap(),
+        });
+        let options = quick().attempts(1).rounds(2);
+        let solved = solve(&tab, &options).await.unwrap().expect("a widget");
+        assert_eq!(solved.evidence, Some(Evidence::WidgetGone));
+        assert_eq!(solved.attempts, 1);
+        assert_eq!(solved.rounds, 2);
+        assert_eq!(solved.captcha, Captcha::Turnstile);
+    }
+
+    /// Sets the cookie `name` in `tab` once the widget has been pressed.
+    fn set_cookie_after_the_press(
+        tab: &std::sync::Arc<Scripted>,
+        name: &'static str,
+    ) -> tokio::task::JoinHandle<()> {
+        let setter = std::sync::Arc::clone(tab);
+        tokio::spawn(async move {
+            loop {
+                if setter.presses() > 0 {
+                    setter.cookies.lock().unwrap().push(name.to_owned());
+                    return;
+                }
+                sleep(Duration::from_millis(5)).await;
+            }
+        })
+    }
+
+    /// A tab whose page has no response field, so only a cookie can show a result.
+    fn tab_with_no_field() -> Scripted {
+        Scripted::new(|ask, _| match ask {
+            Ask::Probe => probe_of(widget(), false),
+            Ask::Check => reading(false, true, 0),
+            other => plain(other).unwrap(),
+        })
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_named_clearance_cookie_that_arrives_is_a_result() {
+        let tab = std::sync::Arc::new(tab_with_no_field());
+        let watcher = set_cookie_after_the_press(&tab, "site_ok");
+        let options = quick().clearance_cookie("site_ok");
+        let solved = solve(&*tab, &options).await.unwrap().expect("a widget");
+        watcher.await.unwrap();
+        assert_eq!(solved.evidence, Some(Evidence::Cookie));
+        assert_eq!(solved.attempts, 1);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn the_vendors_clearance_cookie_still_counts_beside_a_named_one() {
+        let tab = std::sync::Arc::new(tab_with_no_field());
+        let watcher = set_cookie_after_the_press(&tab, "cf_clearance");
+        let options = quick().clearance_cookie("site_ok");
+        let solved = solve(&*tab, &options).await.unwrap().expect("a widget");
+        watcher.await.unwrap();
+        assert_eq!(solved.evidence, Some(Evidence::Cookie));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_named_clearance_cookie_lets_a_press_without_it_be_pressed_again_and_then_fail() {
+        // Without the name this page cannot show a result: one press, "unverified".
+        let tab = tab_with_no_field();
+        let solved = solve(&tab, &quick()).await.unwrap().expect("a widget");
+        assert_eq!(solved.evidence, None);
+        assert_eq!(tab.presses(), 1);
+
+        let tab = tab_with_no_field();
+        let options = quick().attempts(2).clearance_cookie("site_ok");
+        let error = solve(&tab, &options).await.unwrap_err();
+        match &error {
+            SeleniumBaseError::Captcha {
+                attempts, reason, ..
+            } => {
+                assert_eq!(*attempts, 2);
+                assert!(reason.contains("site_ok"), "{reason}");
+            }
+            other => panic!("expected a CAPTCHA error, got {other:?}"),
+        }
+        assert_eq!(tab.presses(), 2);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_named_clearance_cookie_that_was_there_before_the_press_is_not_a_result() {
+        let tab = tab_with_no_field();
+        tab.cookies.lock().unwrap().push("site_ok".to_owned());
+        let options = quick().attempts(1).clearance_cookie("site_ok");
+        let error = solve(&tab, &options).await.unwrap_err();
+        assert!(matches!(error, SeleniumBaseError::Captcha { .. }));
+    }
+
+    #[tokio::test(start_paused = true)]
+
     async fn a_page_replaced_by_one_with_no_widget_is_a_result() {
         let tab = Scripted::new(|ask, events| match ask {
             Ask::Probe => probe_of(widget(), false),

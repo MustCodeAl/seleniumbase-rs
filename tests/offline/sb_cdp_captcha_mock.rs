@@ -119,6 +119,57 @@ async fn a_widget_that_never_clears_fails_with_a_typed_error_after_three_presses
 }
 
 #[test_log::test(tokio::test)]
+async fn a_second_round_presses_again_after_the_cooldown_and_reports_both_rounds() {
+    // Two presses to a round; the third press, in the second round, clears it.
+    let (page, _mock, presses) = page_with_widget(3, 1).await;
+    let started = Instant::now();
+
+    let solved = page
+        .solve_captcha_with(
+            &options()
+                .attempts(2)
+                .rounds(2)
+                .verify_timeout(Duration::from_millis(300))
+                .cooldown(Duration::from_millis(1500)),
+        )
+        .await
+        .unwrap()
+        .expect("a widget");
+
+    assert_eq!(solved.rounds, 2);
+    assert_eq!(solved.attempts, 3);
+    assert_eq!(solved.evidence, Some(Evidence::Token));
+    assert_eq!(presses.load(Ordering::SeqCst), 3);
+    assert!(
+        started.elapsed() >= Duration::from_millis(1500),
+        "took {:?}",
+        started.elapsed()
+    );
+}
+
+#[test_log::test(tokio::test)]
+async fn rotations_set_on_the_options_are_carried_and_the_rounds_run_all_the_same() {
+    let (page, _mock, presses) = page_with_widget(u32::MAX, 1).await;
+    let options = options()
+        .attempts(1)
+        .rounds(3)
+        .verify_timeout(Duration::from_millis(300))
+        .rotate_proxy_after(1)
+        .rotate_fingerprint_after(2);
+
+    let error = page.solve_captcha_with(&options).await.unwrap_err();
+
+    // A page has no proxy and no fingerprint to change: the rounds run, then the error.
+    assert!(matches!(
+        error,
+        SeleniumBaseError::Captcha { attempts: 3, .. }
+    ));
+    assert_eq!(presses.load(Ordering::SeqCst), 3);
+    assert!(options.proxy_rotation_due(1));
+    assert!(options.fingerprint_rotation_due(2));
+}
+
+#[test_log::test(tokio::test)]
 async fn a_widget_that_is_already_clear_is_not_pressed() {
     let (page, mock, presses) = page_with_widget(0, 1).await;
 
