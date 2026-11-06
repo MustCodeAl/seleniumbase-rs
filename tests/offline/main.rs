@@ -70,6 +70,7 @@ mod sb_fixture;
 mod sb_fixture_plugins;
 mod sb_reports;
 mod sb_reports_env;
+mod settings_layers;
 mod settings_pins;
 
 mod shutdown_pool;
