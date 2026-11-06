@@ -1553,6 +1553,222 @@ mod tests {
         }
     }
 
+    /// The settings of a TOML settings file with the text `file` and the variables `vars` over
+    /// it, read by `load` and by `check`, which must agree.
+    fn layered(file: &str, vars: &'static [(&'static str, &'static str)]) -> Settings {
+        let mut tmp = tempfile::NamedTempFile::with_suffix(".toml").unwrap();
+        tmp.write_all(file.as_bytes()).unwrap();
+        let check = Settings::check_with(Some(tmp.path()), variables(vars));
+        assert!(check.problems.is_empty(), "{:?}", check.problems);
+        let loaded = Settings::load_with(Some(tmp.path()), variables(vars)).unwrap();
+        assert_eq!(check.settings, loaded);
+        loaded
+    }
+
+    #[test]
+    fn the_display_and_its_size_come_from_whichever_source_gives_each() {
+        use crate::browser::options::VirtualDisplay;
+        let big = Some(VirtualDisplay::new(1920, 1080));
+        let display = |file: &str, vars| layered(file, vars).browser.virtual_display;
+        // The switch in the file and the size in a variable, and the other way round.
+        assert_eq!(
+            display("xvfb = true", &[("SB_XVFB_METRICS", "1920,1080")]),
+            big
+        );
+        assert_eq!(
+            display("xvfb_metrics = \"1920,1080\"", &[("SB_XVFB", "true")]),
+            big
+        );
+        // A size with no switch opens no display.
+        assert_eq!(display("xvfb_metrics = \"1920,1080\"", &[]), None);
+        assert_eq!(display("", &[("SB_XVFB_METRICS", "1920,1080")]), None);
+        // A higher source that repeats the switch leaves the size of a lower one, and one that
+        // turns the switch off closes the display.
+        let both = "xvfb = true\nxvfb_metrics = \"1920,1080\"\n";
+        assert_eq!(display(both, &[("SB_XVFB", "true")]), big);
+        assert_eq!(display(both, &[("SB_XVFB", "false")]), None);
+        // The size of the higher source wins.
+        assert_eq!(
+            display(both, &[("SB_XVFB_METRICS", "800,600")]),
+            Some(VirtualDisplay::new(800, 600))
+        );
+    }
+
+    #[test]
+    fn the_event_capture_is_worked_out_from_both_variables_of_all_the_sources() {
+        use crate::browser::options::CdpEventCapture::{Always, Off, UndetectedOnly};
+        let capture = |file: &str, vars| layered(file, vars).session.cdp_events;
+        // `SB_UC_CDP_EVENTS` never lowers the capture of every session, whichever source says so.
+        assert_eq!(
+            capture("log_cdp_events = true", &[("SB_UC_CDP_EVENTS", "false")]),
+            Always
+        );
+        // Turning the capture of every session off leaves the undetected-only one alone.
+        assert_eq!(
+            capture("uc_cdp_events = true", &[("SB_LOG_CDP_EVENTS", "false")]),
+            UndetectedOnly
+        );
+        assert_eq!(
+            capture("log_cdp_events = true", &[("SB_LOG_CDP_EVENTS", "false")]),
+            Off
+        );
+        assert_eq!(
+            capture("uc_cdp_events = true", &[("SB_LOG_CDP_EVENTS", "true")]),
+            Always
+        );
+        assert_eq!(
+            capture(
+                "log_cdp_events = true\nuc_cdp_events = true\n",
+                &[("SB_LOG_CDP_EVENTS", "false")]
+            ),
+            UndetectedOnly
+        );
+    }
+
+    #[test]
+    fn the_chromium_features_follow_the_variable_that_names_them() {
+        let chromium = |file: &str, vars| layered(file, vars).browser.chromium;
+        // A list of switches replaces the lower one's, and the features named in it with it.
+        let over = chromium(
+            "chromium_arg = \"--a,disable-features=A\"",
+            &[("SB_CHROMIUM_ARG", "--y")],
+        );
+        assert_eq!(over.args, ["--y"]);
+        assert!(over.disable_features.is_empty(), "{over:?}");
+        // The features of `SB_DISABLE_FEATURES` are not the switches' own.
+        let kept = chromium(
+            "disable_features = \"X\"",
+            &[("SB_CHROMIUM_ARG", "--y")],
+        );
+        assert_eq!(kept.args, ["--y"]);
+        assert_eq!(kept.disable_features, ["X"]);
+        // The two variables name features together; one variable replaces its own kind.
+        let mut both = chromium(
+            "chromium_arg = \"disable-features=A\"",
+            &[("SB_DISABLE_FEATURES", "B")],
+        )
+        .disable_features;
+        both.sort();
+        assert_eq!(both, ["A", "B"]);
+        let replaced = chromium(
+            "disable_features = \"X\"",
+            &[("SB_DISABLE_FEATURES", "B")],
+        );
+        assert_eq!(replaced.disable_features, ["B"]);
+    }
+
+    #[test]
+    fn a_pair_works_out_the_display_and_the_events_over_the_settings_it_is_laid_on() {
+        use crate::browser::options::{CdpEventCapture, VirtualDisplay};
+        let pair = |variable: &'static str, value: &str| (variable, value.to_owned());
+        let mut settings = Settings::default();
+        settings.browser.virtual_display = Some(VirtualDisplay::default());
+        settings
+            .apply_options(&[pair("SB_XVFB_METRICS", "1920,1080")])
+            .unwrap();
+        let big = Some(VirtualDisplay::new(1920, 1080));
+        assert_eq!(settings.browser.virtual_display, big);
+        // The switch again does not forget the size the settings already hold.
+        settings.apply_options(&[pair("SB_XVFB", "true")]).unwrap();
+        assert_eq!(settings.browser.virtual_display, big);
+        settings.session.cdp_events = CdpEventCapture::Always;
+        settings
+            .apply_options(&[pair("SB_UC_CDP_EVENTS", "false")])
+            .unwrap();
+        assert_eq!(settings.session.cdp_events, CdpEventCapture::Always);
+    }
+
+    #[test]
+    fn a_pair_for_sb_plugins_names_the_plugins_as_the_variable_does() {
+        let mut settings = Settings::default();
+        settings.plugins.set_enabled_from_list("first,second");
+        settings
+            .apply_options(&[("SB_PLUGINS", "shield".to_owned())])
+            .unwrap();
+        assert_eq!(settings.plugins.enabled(), ["shield"]);
+        // An empty value is an answer: no plugin at all.
+        settings
+            .apply_options(&[("SB_PLUGINS", String::new())])
+            .unwrap();
+        assert!(settings.plugins.enabled().is_empty());
+    }
+
+    #[test]
+    fn load_meets_the_problems_of_the_file_and_of_the_variables_in_the_order_check_lists_them() {
+        // The refused value of the file is at a later row than the refused variable.
+        let mut file = tempfile::NamedTempFile::with_suffix(".toml").unwrap();
+        file.write_all(b"window_width = \"wide\"\n").unwrap();
+        let pairs: &'static [(&str, &str)] = &[("SB_HEADLESS", "maybe")];
+        let check = Settings::check_with(Some(file.path()), variables(pairs));
+        let error = Settings::load_with(Some(file.path()), variables(pairs)).unwrap_err();
+        assert_eq!(check.problems.len(), 2, "{:?}", check.problems);
+        assert_eq!(check.problems[0].source, "SB_HEADLESS");
+        assert_eq!(check.problems[0].error.to_string(), error.to_string());
+    }
+
+    #[test]
+    fn a_lone_window_side_of_the_file_is_completed_by_a_variable() {
+        let size = layered("window_width = 800\n", &[("SB_WINDOW_HEIGHT", "600")])
+            .browser
+            .window_size;
+        assert_eq!(size, Some(WindowSize::new(800, 600)));
+        // With nothing to complete it, it is refused by both.
+        let mut file = tempfile::NamedTempFile::with_suffix(".toml").unwrap();
+        file.write_all(b"window_width = 800\n").unwrap();
+        let check = Settings::check_with(Some(file.path()), variables(&[]));
+        let error = Settings::load_with(Some(file.path()), variables(&[])).unwrap_err();
+        assert_eq!(check.problems[0].error.to_string(), error.to_string());
+    }
+
+    #[test]
+    fn laying_no_option_over_loaded_settings_changes_nothing() {
+        let mut settings = settings_of(
+            r#"
+            browser = "firefox"
+            headless = true
+            proxy = "proxy.test:8080"
+            proxy_bypass_list = "a.test,b.test"
+            window_size = "800,600"
+            window_position = "10,20"
+            device_metrics = "360,640,2"
+            locale = "fr-FR"
+            user_agent = "agent"
+            extension_dir = "/a,/b"
+            chromium_arg = "--mute-audio,disable-features=Foo"
+            disable_features = "Bar"
+            host_resolver_rules = "MAP a.test 127.0.0.1"
+            xvfb = true
+            xvfb_metrics = "1920,1080"
+            remote_debug = true
+            dark_mode = true
+            block_images = true
+            mode = "cdp"
+            server = "hub.test"
+            port = 4445
+            protocol = "https"
+            page_load_strategy = "eager"
+            cap_string = '{"acceptInsecureCerts": true}'
+            firefox_arg = "-private"
+            log_cdp_events = true
+            reuse_class_session = true
+            crumbs = true
+            threads = 3
+            timeout_seconds = 12
+            demo = true
+
+            [report]
+            dashboard = true
+            dash_title = "Title"
+            "#,
+        );
+        settings.plugins.set_enabled_from_list("shield");
+        settings.test.data.account = Some("account".to_owned());
+        let before = settings.clone();
+        settings.apply_options(&[]).unwrap();
+        assert_eq!(settings, before);
+    }
+
+
     #[test]
     fn rec_sb_cdp_is_off_by_default_and_follows_its_variable_and_key() {
         assert!(!Settings::default().browser.has(LaunchSwitch::RecSbCdp));
