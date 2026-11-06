@@ -3667,3 +3667,6 @@ include!("base_case_impls/base_case_impl_switch_tests.rs");
 
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_logs_tests.rs");
+
+#[cfg(test)]
+include!("base_case_impls/base_case_impl_cookie_tests.rs");
