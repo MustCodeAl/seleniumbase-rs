@@ -85,11 +85,13 @@ const PARTIAL_LINK_TEXT_PREFIXES: [&str; 6] = [
 /// browser's `querySelector` rejects it; SeleniumBase rewrites it as XPath.
 const CONTAINS_PSEUDO: &str = ":contains(";
 
-/// The XPath for a CSS selector that uses `:contains()`, or `None` when the
+/// The XPath for a CSS selector that uses `:contains()`, written from the
+/// context node (`.//p[...]`) so that a search from an element stays inside it
+/// and a search from the page still matches the same elements, or `None` when the
 /// selector is more than the converter understands (it is then left as CSS and
 /// the browser reports the problem).
 fn contains_to_xpath(css: &str) -> Option<String> {
-    css_to_xpath(css).ok()
+    css_to_relative_xpath(css).ok()
 }
 
 /// `text` as an XPath string literal, quoted so that any content is safe.
@@ -1034,7 +1036,7 @@ mod tests {
             .unwrap();
         assert_eq!(
             variant_name(by),
-            variant_name(By::XPath("//button[contains(., 'Go on')]".to_owned()))
+            variant_name(By::XPath(".//button[contains(., 'Go on')]".to_owned()))
         );
     }
 
@@ -1127,6 +1129,28 @@ mod tests {
             let by = Selector::auto(selector).to_by().unwrap();
             assert_eq!(format!("{by}"), format!("CSS({selector})"), "{selector}");
         }
+    }
+
+    #[test]
+    fn contains_becomes_an_xpath_that_starts_at_the_context_node() {
+        // An absolute `//p[..]` ignores where a search starts: from an element it
+        // finds the matches of the whole document. `.//p[..]` stays inside.
+        assert_eq!(
+            SelectorBuf::from("p:contains('x')"),
+            SelectorBuf::xpath(".//p[contains(., 'x')]")
+        );
+        assert_eq!(
+            SelectorBuf::from("div > a:contains(\"Go\"), td:contains('x')"),
+            SelectorBuf::xpath(".//div/a[contains(., 'Go')] | .//td[contains(., 'x')]"),
+            "every path of the union starts at the context node"
+        );
+        let by = Selector::auto("p:contains('x')").to_by().unwrap();
+        assert_eq!(format!("{by}"), "XPath(.//p[contains(., 'x')])");
+        // The converter that `BaseCase::convert_css_to_xpath` offers is unchanged.
+        assert_eq!(
+            css_to_xpath("p:contains('x')").unwrap(),
+            "//p[contains(., 'x')]"
+        );
     }
 
     /// Python SeleniumBase's rules, written as a table: input, kind, text.
@@ -1622,13 +1646,18 @@ impl CssStep {
 /// Reads one CSS selector list from a string.
 struct CssParser<'a> {
     chars: std::iter::Peekable<std::str::Chars<'a>>,
+    /// Every path starts at the context node (`.//p`), not at the root of the
+    /// document (`//p`).
+    relative: bool,
+
     source: &'a str,
 }
 
 impl<'a> CssParser<'a> {
-    fn new(source: &'a str) -> Self {
+    fn new(source: &'a str, relative: bool) -> Self {
         Self {
             chars: source.chars().peekable(),
+            relative,
             source,
         }
     }
@@ -1859,9 +1888,14 @@ impl<'a> CssParser<'a> {
         Ok(CssStep { name, predicates })
     }
 
-    /// One complex selector, as an absolute XPath path.
+    /// One complex selector, as an XPath path: absolute (`//a`), or from the
+    /// context node (`.//a`) when the parser is `relative`.
     fn complex(&mut self) -> Result<String, SeleniumBaseError> {
-        let mut path = String::new();
+        let mut path = if self.relative {
+            ".".to_owned()
+        } else {
+            String::new()
+        };
         let mut combinator = CssCombinator::Descendant;
         loop {
             let step = self.compound()?;
@@ -1913,12 +1947,29 @@ impl<'a> CssParser<'a> {
 
 /// Converts the CSS selector `css` to an XPath expression.
 pub(crate) fn css_to_xpath(css: &str) -> Result<String, SeleniumBaseError> {
+    convert(css, false)
+}
+
+/// Converts the CSS selector `css` to an XPath expression whose every path
+/// starts at the context node (`.//p[...]`) where [`css_to_xpath`] starts at
+/// the root of the document (`//p[...]`).
+///
+/// A search from an element evaluates a leading `//` from the root of the
+/// page, so the absolute form finds elements outside the one searched; this
+/// form finds only what is inside it. From the page the two match the same
+/// elements.
+pub(crate) fn css_to_relative_xpath(css: &str) -> Result<String, SeleniumBaseError> {
+    convert(css, true)
+}
+
+/// The work of [`css_to_xpath`] and [`css_to_relative_xpath`].
+fn convert(css: &str, relative: bool) -> Result<String, SeleniumBaseError> {
     if css.trim().is_empty() {
         return Err(SeleniumBaseError::InvalidSelector(
             "cannot convert an empty CSS selector to XPath".to_owned(),
         ));
     }
-    CssParser::new(css).list()
+    CssParser::new(css, relative).list()
 }
 
 #[cfg(test)]

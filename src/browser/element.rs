@@ -525,6 +525,17 @@ impl Element {
     }
 }
 
+/// Whether `xpath` starts at the root of the document (`//td`, `/html/body`,
+/// `(//td)[1]`).
+///
+/// The WebDriver evaluates such a path from the root whatever element the
+/// search starts from, so inside an element it would match the whole page.
+fn starts_at_the_root(xpath: &str) -> bool {
+    xpath
+        .trim_start_matches(|c: char| c == '(' || c.is_whitespace())
+        .starts_with('/')
+}
+
 /// Finding other elements from this one.
 ///
 /// Each looks once, since the element is already found: a search that finds
@@ -546,6 +557,14 @@ impl Element {
     /// with a hint, not left to the driver.
     fn lookup(selector: &SelectorBuf) -> Result<By, SeleniumBaseError> {
         let by = shadow_find::by_of(selector)?;
+        if matches!(selector, SelectorBuf::XPath(xpath) if starts_at_the_root(xpath)) {
+            return Err(SeleniumBaseError::InvalidSelector(format!(
+                "'{selector}' starts at the root of the page, so it matches the whole page \
+                 from inside an element too: write it from the element (`.//td`) to search \
+                 inside this one, or look it up from the page with `BaseCase::find_element`"
+            )));
+        }
+
         if shadow_find::pieces(&by)?.is_some() {
             return Err(SeleniumBaseError::InvalidSelector(format!(
                 "'{selector}' crosses a shadow root, which a search inside an element does not \
@@ -558,16 +577,32 @@ impl Element {
     /// The first match of `selector` inside this element, looked for once.
     ///
     /// `selector` is anything that converts to a [`SelectorBuf`]: a string,
-    /// whose kind is read as everywhere else (`.remove`, `//td`, `link=Edit`),
+    /// whose kind is read as everywhere else (`.remove`, `.//td`, `link=Edit`),
     /// or a [`SelectorBuf`] that names its kind. Like
     /// [`Locator::locator`](crate::sb_cdp::Locator::locator), without the
     /// laziness.
     ///
+    /// The search stays inside this element. The WebDriver evaluates an XPath
+    /// that starts at the root of the page (`//td`, `/html/body`, `(//td)[1]`)
+    /// from the root whatever element it is asked from, so that would match
+    /// the whole page: it is refused. Write it from the element, `.//td`,
+    /// for the descendants. A `p:contains('x')` selector is read as
+    /// `.//p[...]`, which stays inside.
+    ///
+    /// An `<iframe>` element holds its frame, not the frame's document, so
+    /// this finds nothing in the frame, unlike
+    /// [`Locator::locator`](crate::sb_cdp::Locator::locator) on the pure CDP
+    /// engine, which searches inside it. To search a frame, switch to it with
+    /// [`BaseCase::switch_to_frame`](crate::BaseCase::switch_to_frame) and find
+    /// from the page; [`BaseCase::nested_click`](crate::BaseCase::nested_click)
+    /// does that for a click.
+    ///
     /// # Errors
     ///
     /// The driver's `no such element` error if nothing matches,
-    /// [`SeleniumBaseError::InvalidSelector`] for an empty selector or one
-    /// that crosses a shadow root, and
+    /// [`SeleniumBaseError::InvalidSelector`] for an empty selector, an XPath
+    /// that starts at the root of the page, or one that crosses a shadow root,
+    /// and
     /// [`SeleniumBaseError::StaleElement`] if this element went stale.
     pub async fn find(
         &self,
@@ -904,7 +939,7 @@ mod tests {
         let (_session, cart) = found(&driver, "#a").await;
 
         // Nothing matches, and the driver's error is passed on.
-        let error = cart.find("//td").await.unwrap_err();
+        let error = cart.find(".//td").await.unwrap_err();
         assert!(
             matches!(error, SeleniumBaseError::WebDriver(_)),
             "{error:?}"
@@ -925,6 +960,85 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn contains_is_looked_for_inside_the_element_not_in_the_whole_page() {
+        let driver = cart();
+        let (_session, cart) = found(&driver, "#a").await;
+
+        // `p:contains('x')` is XPath. An absolute `//p[..]` would match the
+        // whole page from inside an element, so it must start at the element.
+        cart.find("p:contains('x')").await.unwrap_err();
+        assert!(cart.find_all("p:contains('x')").await.unwrap().is_empty());
+
+        for path in ["/element/e1/element", "/element/e1/elements"] {
+            let asked = only_request(&driver, path);
+            assert_eq!(asked["using"], "xpath", "{path}");
+            assert_eq!(asked["value"], ".//p[contains(., 'x')]", "{path}");
+        }
+    }
+
+    #[tokio::test]
+    async fn an_xpath_from_the_root_is_refused_with_a_hint() {
+        let driver = cart();
+        let (_session, cart) = found(&driver, "#a").await;
+
+        for xpath in [
+            "//td",
+            "/html/body//td",
+            "  //td",
+            "(//td)[1]",
+            "( //td)[1]",
+            "((//td))",
+        ] {
+            for error in [
+                cart.find(xpath).await.unwrap_err(),
+                cart.find_all(xpath).await.unwrap_err(),
+            ] {
+                let SeleniumBaseError::InvalidSelector(message) = &error else {
+                    panic!("{xpath:?}: expected InvalidSelector, got {error:?}");
+                };
+                assert!(message.contains(".//td"), "{xpath:?}: {message}");
+                assert!(message.contains("find_element"), "{xpath:?}: {message}");
+            }
+        }
+        // The driver was not asked: it would have searched the whole page.
+        assert!(driver.requests("/element/e1/element").is_empty());
+        assert!(driver.requests("/element/e1/elements").is_empty());
+    }
+
+    #[tokio::test]
+    async fn an_xpath_that_starts_at_the_element_is_looked_up_as_written() {
+        let driver = cart();
+        let (_session, cart) = found(&driver, "#a").await;
+        let relative = [
+            ".//td",
+            "./td",
+            "(.//td)[1]",
+            "parent::div",
+            "descendant::td",
+        ];
+
+        for xpath in relative {
+            // The mock finds nothing; what matters is what the driver is asked.
+            let _ = cart.find(xpath).await;
+            let _ = cart.find_all(xpath).await;
+        }
+
+        for path in ["/element/e1/element", "/element/e1/elements"] {
+            let asked: Vec<_> = driver
+                .requests(path)
+                .into_iter()
+                .map(|request| (request.body["using"].clone(), request.body["value"].clone()))
+                .collect();
+            let expected: Vec<_> = relative
+                .iter()
+                .map(|xpath| (json!("xpath"), json!(xpath)))
+                .collect();
+            assert_eq!(asked, expected, "{path}");
+        }
+    }
+
+    #[tokio::test]
+
     async fn find_all_returns_every_match_and_no_match_is_an_empty_list() {
         let driver = cart();
         let (_session, cart) = found(&driver, "#a").await;
