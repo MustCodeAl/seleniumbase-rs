@@ -2,9 +2,9 @@
 //! crate's name.
 //!
 //! The WebDriver engine is built on the `thirtyfour` crate, and a few of its types show up in
-//! this crate's signatures: [`BaseCase::get_cookie`](crate::BaseCase::get_cookie) returns a
-//! [`Cookie`], the capabilities of a custom launch are [`DesiredCapabilities`], and an
-//! [`Element`](crate::Element) hands out the raw [`WebElement`] behind it. Import them from here
+//! this crate's signatures: the capabilities of a custom launch are [`DesiredCapabilities`], and an
+//! [`Element`](crate::Element) hands out the raw [`WebElement`] behind it. A WebDriver failure
+//! carries a [`WebDriverError`]. Import them from here
 //! and a program needs no `thirtyfour` line in its manifest:
 //!
 //! ```no_run
@@ -35,7 +35,6 @@
 //! meaning.
 
 pub use thirtyfour::common::capabilities::chromium::ChromiumLikeCapabilities;
-pub use thirtyfour::cookie::Cookie;
 pub use thirtyfour::error::{WebDriverError, WebDriverErrorInner};
 // `BaseCase::set_network_conditions` takes the chromedriver `NetworkConditions` of
 // thirtyfour, which thirtyfour has deprecated in favour of its typed CDP domain; the

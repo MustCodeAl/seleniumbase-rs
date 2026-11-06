@@ -38,6 +38,7 @@ use crate::browser::config::{whole_seconds, BrowserConfig};
 use crate::browser::element::Element;
 use crate::browser::session::BrowserSession;
 use crate::browser::shadow_find;
+use crate::cookie::Cookie;
 use crate::error::SeleniumBaseError;
 use crate::js_code::quote;
 use crate::sb_cdp::DevToolsEndpoint;
@@ -654,37 +655,26 @@ impl BaseCase {
         path: &Path,
         expiry: CookieExpiry,
     ) -> Result<(), SeleniumBaseError> {
-        let Value::Array(cookies) = read_saved_cookies(path)? else {
+        let Value::Array(saved) = read_saved_cookies(path)? else {
             return Err(SeleniumBaseError::InvalidConfig(format!(
                 "{} does not hold a list of cookies",
                 path.display()
             )));
         };
+        // The file holds W3C cookie objects, as Python writes them. Read them all before
+        // the first one goes in, so a bad file adds nothing.
+        let mut cookies = saved
+            .into_iter()
+            .map(|cookie| saved_cookie(cookie, path))
+            .collect::<Result<Vec<Cookie>, SeleniumBaseError>>()?;
         // As Python does, let the page finish loading before the cookies go in.
         self.wait_for_ready_state_complete().await?;
         let url = self.session.webdriver()?.current_url().await?;
         let origin = origin_of_url(url.as_str())?;
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map_or(0, |since| {
-                i64::try_from(since.as_secs()).unwrap_or(i64::MAX)
-            });
-        for mut cookie in cookies {
-            let Value::Object(fields) = &mut cookie else {
-                return Err(SeleniumBaseError::InvalidConfig(format!(
-                    "{} holds a cookie that is not an object",
-                    path.display()
-                )));
-            };
-            prepare_cookie(fields, &origin, expiry, now);
-            let cookie: thirtyfour::cookie::Cookie =
-                serde_json::from_value(cookie).map_err(|e| {
-                    SeleniumBaseError::InvalidConfig(format!(
-                        "{} holds a cookie that cannot be used: {e}",
-                        path.display()
-                    ))
-                })?;
-            self.session.webdriver()?.add_cookie(cookie).await?;
+        let now = unix_seconds();
+        for cookie in &mut cookies {
+            prepare_cookie(cookie, &origin, expiry, now);
+            self.session.add_cookie(cookie).await?;
         }
         Ok(())
     }
@@ -1286,8 +1276,29 @@ impl BaseCase {
         self.session.clear_browser_cookies().await
     }
 
-    /// Returns all cookies via CDP as JSON.
-    pub async fn get_cookies(&self) -> Result<Value, SeleniumBaseError> {
+    /// Returns the cookies of the current page, as Python's `get_cookies` does.
+    ///
+    /// The result is the same in every mode: the DevTools Protocol (modes `cdp` and `uc`) and
+    /// plain WebDriver both answer the cookies the browser would send to the current URL, not
+    /// every cookie it holds (a frame of another origin adds none), and a session cookie has no
+    /// `expires`. Feed one to [`add_cookie`](Self::add_cookie) to set it again as a session cookie.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use seleniumbase_rs::BaseCase;
+    /// # async fn demo(sb: &BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    /// for cookie in sb.get_cookies().await? {
+    ///     println!("{} expires {:?}", cookie.name, cookie.expires);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns the browser's or the driver's error if the cookies cannot be read.
+    pub async fn get_cookies(&self) -> Result<Vec<Cookie>, SeleniumBaseError> {
         self.session.get_cookies().await
     }
 
@@ -2102,18 +2113,19 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Adds a cookie, given as the W3C cookie object that
-    /// [`get_cookies`](Self::get_cookies) returns, as Python's
-    /// `add_cookie(cookie_dict, expiry=False)` does. The keyword is
-    /// [`AddCookie::expiry`]; see [`AddCookie`] for what the call does to the
-    /// cookie before it goes in.
+    /// Adds a cookie, as Python's `add_cookie(cookie_dict, expiry=False)` does.
+    /// A cookie that [`get_cookies`](Self::get_cookies) returned goes in with its expiry
+    /// dropped, so it lasts for the browser session, unless [`CookieExpiry::Saved`] is given.
+    /// The W3C cookie object of Python reads as a [`Cookie`] with
+    /// `seleniumbase_rs::json::from_value`. The keyword is [`AddCookie::expiry`]; see
+    /// [`AddCookie`] for what the call does to the cookie before it goes in.
     ///
     /// # Examples
     ///
     /// ```no_run
     /// # use seleniumbase_rs::api::base_case::BaseCase;
     /// # async fn demo(sb: &BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-    /// let cookie = serde_json::json!({ "name": "session", "value": "abc123", "path": "/" });
+    /// let cookie = seleniumbase_rs::Cookie::new("session", "abc123").http_only(true);
     /// sb.add_cookie(&cookie).await?;
     /// sb.add_cookie(&cookie).expiry(true).await?; // expires in a day
     /// # Ok(())
@@ -2122,61 +2134,51 @@ impl BaseCase {
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::InvalidConfig`] if `cookie_dict` is not an
-    /// object with a string `name` and `value`, and the browser's error if it
+    /// Returns [`SeleniumBaseError::InvalidConfig`] if the cookie has a domain and the page's
+    /// address cannot be read to move it to, and the browser's error if it
     /// refuses the cookie.
-    pub fn add_cookie<'a>(&'a self, cookie_dict: &'a Value) -> AddCookie<'a> {
-        AddCookie::new(self, cookie_dict)
+    pub fn add_cookie<'a>(&'a self, cookie: &'a Cookie) -> AddCookie<'a> {
+        AddCookie::new(self, cookie)
     }
 
     /// The work of [`add_cookie`](Self::add_cookie).
     pub(crate) async fn run_add_cookie(
         &self,
-        cookie_dict: &Value,
+        cookie: &Cookie,
         expiry: CookieExpiry,
     ) -> Result<(), SeleniumBaseError> {
-        let invalid = || {
-            SeleniumBaseError::InvalidConfig(
-                "a cookie is an object with a string \"name\" and a string \"value\"".to_owned(),
-            )
-        };
-        let Value::Object(fields) = cookie_dict else {
-            return Err(invalid());
-        };
-        let (Some(name), Some(value)) = (
-            fields.get("name").and_then(Value::as_str),
-            fields.get("value").and_then(Value::as_str),
-        ) else {
-            return Err(invalid());
-        };
-        let mut fields = fields.clone();
+        let mut cookie = cookie.clone();
         // Only a cookie with a domain needs to know which page it is added from.
-        let origin = if fields.contains_key("domain") {
+        let origin = if cookie.domain.is_empty() {
+            String::new()
+        } else {
             let url = self.session.webdriver()?.current_url().await?;
             origin_of_url(url.as_str())?
-        } else {
-            String::new()
         };
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map_or(0, |since| {
-                i64::try_from(since.as_secs()).unwrap_or(i64::MAX)
-            });
-        prepare_cookie(&mut fields, &origin, expiry, now);
-        let cookie: thirtyfour::cookie::Cookie = serde_json::from_value(Value::Object(fields))
-            .map_err(|e| {
-                SeleniumBaseError::InvalidConfig(format!("this cookie cannot be used: {e}"))
-            })?;
-        self.record("add_cookie", Some(name), Some(value));
-        self.session.webdriver()?.add_cookie(cookie).await?;
-        Ok(())
+        prepare_cookie(&mut cookie, &origin, expiry, unix_seconds());
+        self.record("add_cookie", Some(&cookie.name), Some(&cookie.value));
+        self.session.add_cookie(&cookie).await
     }
 
-    /// Executes the `get_cookie` action.
-    pub async fn get_cookie(
-        &self,
-        name: &str,
-    ) -> Result<crate::drivers::Cookie, SeleniumBaseError> {
+    /// The cookie of the current page called `name`, or `None` when the page has no such
+    /// cookie, as Python's `get_cookie` answers.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use seleniumbase_rs::BaseCase;
+    /// # async fn demo(sb: &BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    /// if let Some(session) = sb.get_cookie("session").await? {
+    ///     println!("{}", session.value);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns the driver's error for any failure other than a missing cookie.
+    pub async fn get_cookie(&self, name: &str) -> Result<Option<Cookie>, SeleniumBaseError> {
         self.session.get_cookie(name).await
     }
 
@@ -3667,3 +3669,6 @@ include!("base_case_impls/base_case_impl_switch_tests.rs");
 
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_logs_tests.rs");
+
+#[cfg(test)]
+include!("base_case_impls/base_case_impl_cookie_tests.rs");

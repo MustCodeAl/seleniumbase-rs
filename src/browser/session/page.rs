@@ -5,7 +5,9 @@ use std::path::Path;
 
 use serde_json::Value;
 
+use crate::cookie::Cookie;
 use crate::error::SeleniumBaseError;
+use thirtyfour::error::WebDriverErrorInner;
 
 use super::BrowserSession;
 
@@ -73,25 +75,38 @@ impl BrowserSession {
             .map_err(SeleniumBaseError::WebDriver)
     }
 
-    /// WebDriver interaction: `add_cookie`.
-    pub async fn add_cookie(&self, name: &str, value: &str) -> Result<(), SeleniumBaseError> {
-        let cookie = thirtyfour::cookie::Cookie::new(name, value);
+    /// Adds `cookie` to the browser through WebDriver, for the page the session is on.
+    ///
+    /// An empty `domain` is left out, so the browser uses the page's; the expiry is cut to
+    /// whole seconds. [`BaseCase::add_cookie`](crate::BaseCase::add_cookie) also moves a domain
+    /// that is not the page's and applies Python's `expiry` argument.
+    ///
+    /// # Errors
+    ///
+    /// Returns the driver's error if it refuses the cookie.
+    pub async fn add_cookie(&self, cookie: &Cookie) -> Result<(), SeleniumBaseError> {
         self.webdriver()?
-            .add_cookie(cookie)
+            .add_cookie(cookie.to_webdriver())
             .await
             .map_err(SeleniumBaseError::WebDriver)?;
         Ok(())
     }
 
-    /// WebDriver interaction: `get_cookie`.
-    pub async fn get_cookie(
-        &self,
-        name: &str,
-    ) -> Result<thirtyfour::cookie::Cookie, SeleniumBaseError> {
-        self.webdriver()?
-            .get_named_cookie(name)
-            .await
-            .map_err(SeleniumBaseError::WebDriver)
+    /// The cookie of the page called `name`, or `None` when the page has no such cookie, as
+    /// Python's `get_cookie` answers.
+    ///
+    /// # Errors
+    ///
+    /// Returns the driver's error for any failure other than a missing cookie.
+    pub async fn get_cookie(&self, name: &str) -> Result<Option<Cookie>, SeleniumBaseError> {
+        match self.webdriver()?.get_named_cookie(name).await {
+            Ok(cookie) => Ok(Some(Cookie::from_webdriver(&cookie))),
+            // Python's `get_cookie` answers `None` for a cookie that is not there.
+            Err(error) if matches!(error.as_inner(), WebDriverErrorInner::NoSuchCookie(_)) => {
+                Ok(None)
+            }
+            Err(error) => Err(SeleniumBaseError::WebDriver(error)),
+        }
     }
 
     /// WebDriver interaction: `delete_cookie`.

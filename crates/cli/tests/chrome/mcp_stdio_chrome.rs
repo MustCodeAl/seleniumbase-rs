@@ -1116,8 +1116,8 @@ async fn the_sb_server_runs_a_whole_session_over_stdio() {
     );
     // The cookie list works in a session with no DevTools connection, as it does with one.
     let cookies = mcp.json("get_cookies", json!({})).await;
-    assert_eq!(cookies["cookies"][0]["name"], "sid", "{cookies}");
-    assert_eq!(cookies["cookies"][0]["value"], "abc123", "{cookies}");
+    assert_eq!(cookies[0]["name"], "sid", "{cookies}");
+    assert_eq!(cookies[0]["value"], "abc123", "{cookies}");
 
     read_the_page(&mut mcp).await;
     fill_in_the_form(&mut mcp).await;

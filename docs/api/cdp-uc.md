@@ -36,7 +36,7 @@ starts a local browser or driver.
 | `open_new_tab_url(url)` | Open a new tab and navigate to `url`. |
 | `clear_browser_cache()` | Clears cache. |
 | `clear_browser_cookies()` | Clears cookies. |
-| `get_cookies()` | Returns cookies as JSON. |
+| `get_cookies()` | Returns the cookies of the current page as `Vec<Cookie>` (`seleniumbase_rs::Cookie`), read with `Network.getCookies` for the current URL, as chromedriver reads them. |
 | `set_network_conditions(conditions)` | Network throttling. |
 | `set_timezone(id)` | Sets timezone. |
 | `set_geolocation(lat, lon, acc)` | Sets geolocation. |

@@ -228,14 +228,12 @@ mod tests_misc_calls {
     }
 
     #[tokio::test]
-    async fn a_cookie_object_goes_in_without_its_expiry_unless_asked() {
+    async fn a_cookie_goes_in_without_its_expiry_unless_asked() {
         let driver = page();
         let sb = driver.base_case().await;
-        let cookie = json!({ "name": "k", "value": "v", "path": "/", "expiry": 4_102_444_800_i64 });
-
+        let cookie = Cookie::new("k", "v").path("/").expires(4_102_444_800.0);
         sb.add_cookie(&cookie).await.unwrap();
         sb.add_cookie(&cookie).expiry(true).await.unwrap();
-
         let sent: Vec<_> = driver
             .requests("/cookie")
             .iter()
@@ -245,22 +243,37 @@ mod tests_misc_calls {
         assert_eq!(sent[0]["name"], "k");
         assert_eq!(sent[0]["path"], "/");
         assert!(sent[0].get("expiry").is_none(), "{:?}", sent[0]);
-        // A day from now, not the year 2100 the object came with.
+        // A day from now, not the year 2100 the cookie came with.
         let day = sent[1]["expiry"].as_i64().unwrap();
         let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64;
         assert!((day - 86_400 - now).abs() < 120, "{day}");
     }
 
     #[tokio::test]
-    async fn a_cookie_without_a_name_and_a_value_is_refused() {
-        let driver = page();
+    async fn a_cookie_of_another_domain_goes_in_with_the_domain_of_the_page() {
+        let driver = MockWebDriver::start(json!({}), |request| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("GET", "/url") => Reply::Value(json!("https://www.example.test:8443/home")),
+                _ => Reply::Value(Value::Null),
+            }
+        });
         let sb = driver.base_case().await;
-
-        for cookie in [json!({ "name": "k" }), json!({ "value": "v" }), json!("k=v")] {
-            let error = sb.add_cookie(&cookie).await.unwrap_err();
-            assert!(matches!(error, SeleniumBaseError::InvalidConfig(_)), "{error:?}");
-        }
-        assert!(driver.requests("/cookie").is_empty());
+        sb.add_cookie(&Cookie::new("k", "v").domain(".other.test"))
+            .await
+            .unwrap();
+        sb.add_cookie(&Cookie::new("k", "v").domain(".example.test"))
+            .await
+            .unwrap();
+        sb.add_cookie(&Cookie::new("k", "v")).await.unwrap();
+        let sent: Vec<_> = driver
+            .requests("/cookie")
+            .iter()
+            .map(|request| request.body["cookie"].clone())
+            .collect();
+        // The port is not part of a cookie's domain.
+        assert_eq!(sent[0]["domain"], "www.example.test");
+        assert_eq!(sent[1]["domain"], ".example.test", "a domain of the page stays");
+        assert!(sent[2].get("domain").is_none(), "no domain: {:?}", sent[2]);
     }
 
     /// A server that answers `/report.csv` with a small file and anything else

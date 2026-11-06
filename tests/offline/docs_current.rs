@@ -177,6 +177,9 @@ const GONE: &[(&str, &str)] = &[
     ("drivers::{By, WebElement}", "seleniumbase_rs::Element"),
     ("Selector::to_by", "a selector string, or SelectorBuf"),
     ("Selector::auto_by", "a selector string, or SelectorBuf"),
+    // The cookie is one type of ours, the same in both engines (docs/design/cookie_type.md).
+    ("drivers::Cookie", "seleniumbase_rs::Cookie"),
+    ("thirtyfour::cookie::Cookie", "seleniumbase_rs::Cookie"),
     ("get_shadow_root", "find_element(\"host::shadow inner\")"),
     ("BaseCase::locator", "BaseCase::find_element"),
     // `Key` has one meaning: the pure CDP engine's, at the crate root. thirtyfour's is not
@@ -325,10 +328,7 @@ fn the_docs_name_no_removed_api_crate_feature_or_install_line() {
             .unwrap_or(&page)
             .to_string_lossy()
             .replace('\\', "/");
-        if EXEMPT
-            .iter()
-            .any(|e| rel == *e || (e.ends_with('/') && rel.starts_with(e)))
-        {
+        if is_exempt(&rel) {
             continue;
         }
         let text = fs::read_to_string(&page).unwrap_or_default();
@@ -340,6 +340,71 @@ fn the_docs_name_no_removed_api_crate_feature_or_install_line() {
                         number + 1
                     ));
                 }
+            }
+        }
+    }
+    assert!(
+        found.is_empty(),
+        "outdated names in the docs:\n{}",
+        found.join("\n")
+    );
+}
+
+/// Whether the page `rel` is one of the files that describe the past on purpose.
+fn is_exempt(rel: &str) -> bool {
+    EXEMPT
+        .iter()
+        .any(|e| rel == *e || (e.ends_with('/') && rel.starts_with(e)))
+}
+
+/// Whether `line` holds an import group `drivers::{...}` that lists `item` by name.
+///
+/// An entry of `GONE` is one spelling, so it cannot see `drivers::{Key, Cookie}`.
+fn drivers_group_lists(line: &str, item: &str) -> bool {
+    const OPEN: &str = "drivers::{";
+    line.match_indices(OPEN).any(|(at, _)| {
+        let rest = &line[at + OPEN.len()..];
+        let group = rest.split('}').next().unwrap_or(rest);
+        group.split(',').any(|name| name.trim() == item)
+    })
+}
+
+#[test]
+fn a_grouped_import_from_drivers_is_read_name_by_name() {
+    let listed = "use seleniumbase_rs::drivers::{DesiredCapabilities, Key, Cookie, ...};";
+    assert!(drivers_group_lists(listed, "Cookie"));
+    assert!(drivers_group_lists("`drivers::{Cookie}`", "Cookie"));
+    assert!(!drivers_group_lists(
+        "use seleniumbase_rs::drivers::{DesiredCapabilities, Key};",
+        "Cookie"
+    ));
+    assert!(!drivers_group_lists("drivers::{CookieJar}", "Cookie"));
+    assert!(!drivers_group_lists(
+        "use seleniumbase_rs::{Cookie, SameSite};",
+        "Cookie"
+    ));
+}
+
+#[test]
+fn no_page_imports_the_removed_drivers_cookie_in_a_group() {
+    let root = root();
+    let mut found = Vec::new();
+    for page in pages() {
+        let rel = page
+            .strip_prefix(&root)
+            .unwrap_or(&page)
+            .to_string_lossy()
+            .replace('\\', "/");
+        if is_exempt(&rel) {
+            continue;
+        }
+        let text = fs::read_to_string(&page).unwrap_or_default();
+        for (number, line) in text.lines().enumerate() {
+            if drivers_group_lists(line, "Cookie") {
+                found.push(format!(
+                    "{rel}:{}: `drivers::{{.., Cookie, ..}}` is gone; now: seleniumbase_rs::Cookie",
+                    number + 1
+                ));
             }
         }
     }

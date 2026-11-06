@@ -2,7 +2,6 @@
 //! environment emulation.
 
 use std::collections::BTreeMap;
-use std::fmt;
 use std::path::Path;
 
 use regex::Regex;
@@ -11,180 +10,13 @@ use serde_json::{json, Value};
 
 use super::page::Page;
 use crate::browser::options::DeviceMetrics;
+use crate::cookie::Cookie;
 
 use crate::error::SeleniumBaseError;
 
 // ----------------------------------------------------------------------
 // Cookies
 // ----------------------------------------------------------------------
-
-/// The `SameSite` attribute of a cookie.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[non_exhaustive]
-pub enum SameSite {
-    /// Sent only for same-site requests.
-    Strict,
-    /// Sent for same-site requests and top-level navigations.
-    Lax,
-    /// Sent for all requests; requires `secure`.
-    None,
-}
-
-/// A browser cookie.
-///
-/// The value is a credential, so [`Debug`](fmt::Debug) hides it.
-///
-/// # Examples
-///
-/// ```
-/// use seleniumbase_rs::sb_cdp::Cookie;
-///
-/// let cookie = Cookie::new("session", "s3cret").domain("example.com").secure(true);
-/// assert!(!format!("{cookie:?}").contains("s3cret"));
-/// ```
-#[derive(Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Cookie {
-    /// The cookie name.
-    pub name: String,
-    /// The cookie value.
-    pub value: String,
-    /// The domain it applies to.
-    pub domain: String,
-    /// The path it applies to.
-    pub path: String,
-    /// Expiry as seconds since the Unix epoch; `None` for a session cookie.
-    pub expires: Option<f64>,
-    /// Hidden from page scripts.
-    pub http_only: bool,
-    /// Sent only over HTTPS.
-    pub secure: bool,
-    /// The `SameSite` policy, if one is set.
-    pub same_site: Option<SameSite>,
-}
-
-impl Cookie {
-    /// Creates a session cookie for the current page's site.
-    pub fn new(name: impl Into<String>, value: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            value: value.into(),
-            domain: String::new(),
-            path: "/".to_owned(),
-            expires: None,
-            http_only: false,
-            secure: false,
-            same_site: None,
-        }
-    }
-
-    /// Sets the domain.
-    #[must_use]
-    pub fn domain(mut self, domain: impl Into<String>) -> Self {
-        self.domain = domain.into();
-        self
-    }
-
-    /// Sets the path.
-    #[must_use]
-    pub fn path(mut self, path: impl Into<String>) -> Self {
-        self.path = path.into();
-        self
-    }
-
-    /// Sets the expiry, in seconds since the Unix epoch.
-    #[must_use]
-    pub fn expires(mut self, expires: f64) -> Self {
-        self.expires = Some(expires);
-        self
-    }
-
-    /// Hides the cookie from page scripts.
-    #[must_use]
-    pub fn http_only(mut self, http_only: bool) -> Self {
-        self.http_only = http_only;
-        self
-    }
-
-    /// Restricts the cookie to HTTPS.
-    #[must_use]
-    pub fn secure(mut self, secure: bool) -> Self {
-        self.secure = secure;
-        self
-    }
-
-    /// Sets the `SameSite` policy.
-    #[must_use]
-    pub fn same_site(mut self, same_site: SameSite) -> Self {
-        self.same_site = Some(same_site);
-        self
-    }
-
-    fn from_protocol(value: &Value) -> Self {
-        let expires = value["expires"].as_f64().filter(|seconds| *seconds >= 0.0);
-        Self {
-            name: value["name"].as_str().unwrap_or_default().to_owned(),
-            value: value["value"].as_str().unwrap_or_default().to_owned(),
-            domain: value["domain"].as_str().unwrap_or_default().to_owned(),
-            path: value["path"].as_str().unwrap_or("/").to_owned(),
-            expires,
-            http_only: value["httpOnly"].as_bool().unwrap_or_default(),
-            secure: value["secure"].as_bool().unwrap_or_default(),
-            same_site: match value["sameSite"].as_str() {
-                Some("Strict") => Some(SameSite::Strict),
-                Some("Lax") => Some(SameSite::Lax),
-                Some("None") => Some(SameSite::None),
-                _ => None,
-            },
-        }
-    }
-
-    fn to_protocol(&self) -> Value {
-        let mut cookie = json!({
-            "name": self.name,
-            "value": self.value,
-            "path": self.path,
-            "httpOnly": self.http_only,
-            "secure": self.secure,
-        });
-        if !self.domain.is_empty() {
-            cookie["domain"] = json!(self.domain);
-        }
-        if let Some(expires) = self.expires {
-            cookie["expires"] = json!(expires);
-        }
-        if let Some(same_site) = self.same_site {
-            cookie["sameSite"] = json!(match same_site {
-                SameSite::Strict => "Strict",
-                SameSite::Lax => "Lax",
-                SameSite::None => "None",
-            });
-        }
-        cookie
-    }
-
-    /// Whether `pattern` matches the domain, name or value.
-    fn matches(&self, pattern: &Regex) -> bool {
-        pattern.is_match(&self.domain)
-            || pattern.is_match(&self.name)
-            || pattern.is_match(&self.value)
-    }
-}
-
-impl fmt::Debug for Cookie {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Cookie")
-            .field("name", &self.name)
-            .field("value", &"<redacted>")
-            .field("domain", &self.domain)
-            .field("path", &self.path)
-            .field("expires", &self.expires)
-            .field("http_only", &self.http_only)
-            .field("secure", &self.secure)
-            .field("same_site", &self.same_site)
-            .finish()
-    }
-}
 
 /// The cookie jar of one tab's browser profile.
 #[derive(Debug, Clone)]

@@ -50,7 +50,7 @@ rust = "BaseCase::ad_block"
 [basecase."add_cookie"]
 status = "implemented"
 rust = "BaseCase::add_cookie"
-note = "Takes the W3C cookie object that get_cookies returns (a serde_json::Value), and refuses one without a string name and value. The keyword expiry is the builder method .expiry(..), a bool as in Python or a CookieExpiry."
+note = "Takes a Cookie, such as one that get_cookies returned (a W3C cookie object, as Python takes it, reads as one with seleniumbase_rs::json::from_value). The keyword expiry is the builder method .expiry(..), a bool as in Python or a CookieExpiry."
 
 [basecase."add_cookies"]
 status = "implemented"
@@ -735,6 +735,7 @@ rust = "BaseCase::get_chromium_version"
 [basecase."get_cookie"]
 status = "implemented"
 rust = "BaseCase::get_cookie"
+note = "Returns Option<Cookie>: None when the page has no such cookie, as Python's None."
 
 [basecase."get_cookie_string"]
 status = "implemented"
@@ -743,7 +744,7 @@ rust = "BaseCase::get_cookie_string"
 [basecase."get_cookies"]
 status = "implemented"
 rust = "BaseCase::get_cookies"
-divergence = "Returns a serde_json::Value."
+note = "Returns Vec<Cookie> (the cookies of the current page), the same type in DevTools and plain WebDriver mode."
 
 [basecase."get_current_url"]
 status = "implemented"
@@ -3277,6 +3278,7 @@ rust = "BaseCase::get_attribute"
 [driver."get_cookie"]
 status = "implemented"
 rust = "BaseCase::get_cookie"
+note = "Returns Option<Cookie>: None when the page has no such cookie, as Python's None."
 
 [driver."get_cookie_string"]
 status = "implemented"

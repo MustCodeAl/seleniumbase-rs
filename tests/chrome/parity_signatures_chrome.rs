@@ -18,8 +18,7 @@ use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use seleniumbase_rs::{BaseCase, BrowserConfig, SeleniumBaseError};
-use serde_json::json;
+use seleniumbase_rs::{BaseCase, BrowserConfig, Cookie, DriverMode, SeleniumBaseError};
 
 /// A grey 60 x 40 box that follows the mouse while it is held down.
 const DRAG_PAGE: &str = "data:text/html,<html><body style=\"margin:0\">\
@@ -59,6 +58,17 @@ const TALL_PAGE: &str =
 
 async fn case(page: &str) -> BaseCase {
     let config = BrowserConfig::default().with_headless(true);
+    let mut sb = BaseCase::new(config).await.expect("Chrome starts");
+    sb.open(page).await.expect("the page opens");
+    sb
+}
+
+/// Like [`case`], in `mode` (`None` is plain WebDriver).
+async fn case_in_mode(mode: Option<DriverMode>, page: &str) -> BaseCase {
+    let mut config = BrowserConfig::default().with_headless(true);
+    if let Some(mode) = mode {
+        config = config.with_mode(mode);
+    }
     let mut sb = BaseCase::new(config).await.expect("Chrome starts");
     sb.open(page).await.expect("the page opens");
     sb
@@ -269,32 +279,58 @@ fn serve(heads: Arc<Mutex<Vec<String>>>) -> String {
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
 #[serial_test::serial(chrome)]
-async fn a_cookie_object_is_added_and_a_bad_one_is_refused() {
+async fn a_cookie_is_added_with_and_without_its_expiry() {
     let heads = Arc::new(Mutex::new(Vec::new()));
     let base = serve(heads);
     let mut sb = case(&format!("{base}/")).await;
 
-    sb.add_cookie(&json!({ "name": "k", "value": "v", "path": "/" }))
+    sb.add_cookie(&Cookie::new("k", "v").path("/"))
         .await
         .unwrap();
-    sb.add_cookie(
-        &json!({ "name": "k2", "value": "v2", "path": "/", "expiry": 4_102_444_800_i64 }),
-    )
-    .expiry(true)
-    .await
-    .unwrap();
+    sb.add_cookie(&Cookie::new("k2", "v2").path("/").expires(4_102_444_800.0))
+        .expiry(true)
+        .await
+        .unwrap();
     let cookies = js(&sb, "return document.cookie").await;
     assert!(
         cookies.contains("k=v") && cookies.contains("k2=v2"),
         "{cookies}"
     );
-
-    let error = sb.add_cookie(&json!({ "name": "k3" })).await.unwrap_err();
-    assert!(
-        matches!(error, SeleniumBaseError::InvalidConfig(_)),
-        "{error:?}"
-    );
     sb.quit().await.unwrap();
+}
+
+#[tokio::test]
+#[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
+async fn a_cookie_is_added_and_read_back_the_same_in_both_modes() {
+    let heads = Arc::new(Mutex::new(Vec::new()));
+    let base = serve(heads);
+    let mut seen = Vec::new();
+    // Plain WebDriver, then the DevTools Protocol beside it.
+    for mode in [None, Some(DriverMode::Cdp)] {
+        let mut sb = case_in_mode(mode, &format!("{base}/")).await;
+        sb.add_cookie(&Cookie::new("k", "v").path("/").http_only(true))
+            .await
+            .unwrap();
+
+        let found = sb
+            .get_cookie("k")
+            .await
+            .unwrap()
+            .expect("the cookie that was added is found");
+        assert_eq!((found.value.as_str(), found.http_only), ("v", true));
+        assert!(sb.get_cookie("nobody").await.unwrap().is_none());
+        let all = sb.get_cookies().await.unwrap();
+        assert!(all.contains(&found), "{all:?}");
+        seen.push(found);
+        sb.quit().await.unwrap();
+    }
+    // The fields both engines report read the same in both modes.
+    assert_eq!(seen[0].name, seen[1].name);
+    assert_eq!(seen[0].path, seen[1].path);
+    assert_eq!(seen[0].domain, seen[1].domain);
+    assert_eq!(seen[0].secure, seen[1].secure);
+    assert_eq!(seen[0].expires, seen[1].expires);
 }
 
 #[tokio::test]

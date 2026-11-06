@@ -157,10 +157,10 @@ async fn nowsecure_passes_with_the_uc_webdriver_engine() {
         }
         tokio::time::sleep(Duration::from_millis(250)).await;
     }
-    let cookies = sb.get_cookies().await.expect("cookies").to_string();
+    let cookies = sb.get_cookies().await.expect("cookies");
     let title = sb.get_title().await.unwrap_or_default();
     println!(
-        "uc: after {:.1?}: title {title:?}, real page {on_real_page}, cookies {cookies}",
+        "uc: after {:.1?}: title {title:?}, real page {on_real_page}, cookies {cookies:?}",
         started.elapsed()
     );
     sb.quit().await.ok();
@@ -170,7 +170,7 @@ async fn nowsecure_passes_with_the_uc_webdriver_engine() {
         "the site's own page did not load (title {title:?})"
     );
     assert!(
-        cookies.contains("cf_clearance"),
-        "no cf_clearance cookie among {cookies}"
+        cookies.iter().any(|cookie| cookie.name == "cf_clearance"),
+        "no cf_clearance cookie among {cookies:?}"
     );
 }

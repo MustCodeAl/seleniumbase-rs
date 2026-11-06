@@ -86,10 +86,11 @@ async fn snippets(sb: &mut BaseCase, site: &Site) -> Result<()> {
     // 8. Cookies
     // ------------------------------------------------------------------
     // Cookies need a real origin, which is why the page is served over HTTP.
-    sb.add_cookie(&seleniumbase_rs::json::json!({ "name": "session", "value": "abc123" }))
+    sb.add_cookie(&seleniumbase_rs::Cookie::new("session", "abc123"))
         .await?;
-    let session = sb.get_cookie("session").await?;
-    println!("session cookie: {}={}", session.name, session.value);
+    if let Some(session) = sb.get_cookie("session").await? {
+        println!("session cookie: {}={}", session.name, session.value);
+    }
 
     // ------------------------------------------------------------------
     // 9. Screenshot

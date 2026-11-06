@@ -31,18 +31,12 @@ impl crate::sb_cdp::CaptchaSurface for BaseCase {
     }
 
     async fn cookie_names(&self) -> Result<Vec<String>, SeleniumBaseError> {
-        let cookies = self.get_cookies().await?;
-        let list = cookies.get("cookies").unwrap_or(&cookies);
-        Ok(list
-            .as_array()
-            .map(|cookies| {
-                cookies
-                    .iter()
-                    .filter_map(|cookie| cookie.get("name").and_then(serde_json::Value::as_str))
-                    .map(str::to_owned)
-                    .collect()
-            })
-            .unwrap_or_default())
+        Ok(self
+            .get_cookies()
+            .await?
+            .into_iter()
+            .map(|cookie| cookie.name)
+            .collect())
     }
 }
 

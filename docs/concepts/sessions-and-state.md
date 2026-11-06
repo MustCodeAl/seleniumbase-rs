@@ -417,10 +417,13 @@ A WebDriver session is one browser started by the driver, with one profile.
 `sb.quit()` ends it. `--reuse-session` (`SB_REUSE_SESSION`) shares browsers
 between the tests of a run, so later tests start where earlier ones left off.
 
-Cookies and storage have their own methods: `get_cookie`, `add_cookie`,
-`delete_cookie`, `save_cookies` and `load_cookies` to a file, and
+Cookies and storage have their own methods: `get_cookie` (`None` when the page
+has no such cookie), `get_cookies`, `add_cookie`, `delete_cookie`,
+`save_cookies` and `load_cookies` to a file, and
 `get_local_storage_item`, `set_local_storage_item` and their session-storage
-twins. See [Cookies and storage](/api/cookies-storage).
+twins. The cookies are `seleniumbase_rs::Cookie` values, the same type as the
+pure CDP engine's, so a cookie read from one engine can be set on the other.
+See [Cookies and storage](/api/cookies-storage).
 
 </Tab>
 
@@ -437,10 +440,12 @@ A `Page` gives direct access to its state, all through the DevTools Protocol:
 
 A `Cookie` is built with `Cookie::new(name, value)` and the attribute methods
 `domain`, `path`, `expires`, `secure`, `http_only` and `same_site(SameSite)`,
-mirroring the table above.
+mirroring the table above. `Cookie` and `SameSite` are at the crate root
+(`seleniumbase_rs::{Cookie, SameSite}`), and `sb_cdp::{Cookie, SameSite}` is the
+same pair.
 
 ```rust,ignore src/main.rs
-use seleniumbase_rs::sb_cdp::{Cookie, SameSite};
+use seleniumbase_rs::{Cookie, SameSite};
 
 page.goto("https://example.com").await?; // be on the origin first
 page.cookies()
@@ -558,7 +563,8 @@ A `Session` is a set of cookies and, optionally, the local storage of one origin
   sign in and the others load the result.
 
 ```rust,ignore src/main.rs
-use seleniumbase_rs::sb_cdp::{Cookie, Session, SessionStore};
+use seleniumbase_rs::sb_cdp::{Session, SessionStore};
+use seleniumbase_rs::Cookie;
 
 let store = SessionStore::new();
 store.save("alice", Session::new(vec![Cookie::new("sid", "s3cret")]));

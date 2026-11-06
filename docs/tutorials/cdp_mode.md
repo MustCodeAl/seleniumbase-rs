@@ -96,7 +96,7 @@ useful when you send raw commands directly.
 | `set_geolocation(lat, lon, acc)` | Override geolocation via CDP. |
 | `clear_browser_cache()` | Clear the HTTP cache via CDP. |
 | `clear_browser_cookies()` | Clear cookies via CDP. |
-| `get_cookies()` | Return cookies as JSON via CDP. |
+| `get_cookies()` | Return the cookies of the current page as `Vec<Cookie>` via CDP; plain WebDriver mode answers the same type. |
 | `cdp_fast_type(selector, text)` | Clear the field and insert text in one operation. |
 | `cdp_wait_for_element_present(selector, timeout)` | Poll until the element exists in the DOM. |
 | `cdp_select_option_by_index(selector, index)` | Select a dropdown option by zero-based index. |

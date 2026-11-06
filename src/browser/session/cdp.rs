@@ -15,6 +15,7 @@ use thirtyfour::extensions::cdp::NetworkConditions;
 use crate::browser::config::BrowserConfig;
 use crate::browser::options::CdpEvent;
 use crate::browser::proxy_auth;
+use crate::cookie::Cookie;
 use crate::error::SeleniumBaseError;
 use crate::evasion::cdp::CdpClient;
 use crate::evasion::uc;
@@ -170,20 +171,36 @@ impl BrowserSession {
             .map_err(SeleniumBaseError::WebDriver)
     }
 
-    /// Returns all cookies via CDP as JSON: `{"cookies": [...]}`.
+    /// Returns the cookies of the current page, the same [`Cookie`] in both modes.
     ///
-    /// A session without a DevTools connection (plain WebDriver mode) answers
-    /// the same shape from WebDriver, with the cookies of the current page.
-    pub async fn get_cookies(&self) -> Result<Value, SeleniumBaseError> {
+    /// A session with a DevTools connection reads them with `Network.getCookies` for the
+    /// current URL, as chromedriver does, so a frame of another origin adds none; a session
+    /// without one (plain WebDriver mode) reads them through WebDriver. Either way these are
+    /// the cookies the browser would send to the current URL, not every cookie it holds. A
+    /// session cookie has no `expires`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::Unsupported`] if DevTools refuses the command,
+    /// [`SeleniumBaseError::WebDriver`] if the driver refuses to list the cookies, and
+    /// [`SeleniumBaseError::CdpDriver`] if DevTools answers without a list of cookies.
+    pub async fn get_cookies(&self) -> Result<Vec<Cookie>, SeleniumBaseError> {
         if let Ok(cdp) = self.cdp_client() {
-            return cdp.get_cookies().await;
+            let url = self.webdriver()?.current_url().await?;
+            let response = cdp.get_cookies(url.as_str()).await?;
+            let cookies = response["cookies"].as_array().ok_or_else(|| {
+                SeleniumBaseError::CdpDriver(
+                    "Network.getCookies answered no list of cookies".to_owned(),
+                )
+            })?;
+            return Ok(cookies.iter().map(Cookie::from_protocol).collect());
         }
         let cookies = self
             .webdriver()?
             .get_all_cookies()
             .await
             .map_err(SeleniumBaseError::WebDriver)?;
-        Ok(serde_json::json!({ "cookies": cookies }))
+        Ok(cookies.iter().map(Cookie::from_webdriver).collect())
     }
 
     /// Drains the DevTools Protocol events logged since the last call, oldest

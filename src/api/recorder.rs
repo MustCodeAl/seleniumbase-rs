@@ -1500,7 +1500,7 @@ mod tests {
                         kind == "string" || kind == "integer"
                     }
 
-                    "&Value" => matches!(argument, syn::Expr::Reference(_)),
+                    "&Cookie" => matches!(argument, syn::Expr::Reference(_)),
 
                     "bool" => kind == "bool",
                     _ => false,

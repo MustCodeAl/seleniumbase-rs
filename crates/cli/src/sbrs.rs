@@ -951,7 +951,7 @@ enum Commands {
         #[usage(long, value_hint = usage::ValueHint::Other, help = "Storage key")]
         key: String,
     },
-    /// Print all browser cookies as JSON.
+    /// Print the cookies of the current page as JSON (the line starts with Cookies:).
     #[usage(
         help_heading = "Page commands",
         example = "sbrs --url https://example.com get-cookies"
@@ -2122,8 +2122,8 @@ async fn solve_captcha_and_expect(
         println!("The page shows '{text}'.");
     }
     if let Some(name) = expect_cookie {
-        let cookies = sb.get_cookies().await?.to_string();
-        if !cookies.contains(&format!("\"{name}\"")) {
+        let cookies = sb.get_cookies().await?;
+        if !cookies.iter().any(|cookie| cookie.name == name) {
             return Err(seleniumbase_rs::SeleniumBaseError::AssertionFailed(
                 format!("the browser holds no cookie named '{name}'"),
             ));
@@ -3989,7 +3989,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Commands::GetCookies => {
             let mut sb = BaseCase::new(config).await?;
             let cookies = sb.get_cookies().await?;
-            println!("Cookies: {:?}", cookies);
+            println!("Cookies: {}", serde_json::to_string(&cookies)?);
             after.finish(&mut sb).await?;
         }
         Commands::PatchChromedriver { path } => {

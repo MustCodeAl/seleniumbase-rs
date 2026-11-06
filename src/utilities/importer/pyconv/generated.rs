@@ -74,6 +74,7 @@ pub(super) static GENERATED: &[Call] = &[
     call(&["get_chromium_version"], "get_chromium_version", &[], Flow::Await, Ret::Str),
     call(&["get_cookie"], "get_cookie", &[s("name")], Flow::Await, Ret::Other),
     call(&["get_cookie_string"], "get_cookie_string", &[], Flow::Await, Ret::Str),
+    call(&["get_cookies"], "get_cookies", &[], Flow::Await, Ret::Other),
     call(&["get_data_from_downloaded_file"], "get_data_from_downloaded_file", &[s("file"), TIMEOUT, omit("browser")], Flow::Try, Ret::Str),
     call(&["get_domain_url"], "get_domain_url", &[s("url")], Flow::Try, Ret::Str),
     call(&["get_downloaded_files"], "get_downloaded_files", &[omit("regex"), omit("browser")], Flow::Try, Ret::Other),

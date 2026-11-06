@@ -1,15 +1,21 @@
 //! JSON values, under this crate's name.
 //!
-//! The API trades in `serde_json` values: [`BaseCase::add_cookie`](crate::BaseCase::add_cookie)
-//! takes one, [`BaseCase::execute_script`](crate::BaseCase::execute_script) returns one, and
-//! so do the pure CDP engine's `Page::evaluate` and the CDP commands. Import the type and
-//! the [`json!`] macro from here and a program needs no `serde_json` line in its manifest:
+//! The API trades in `serde_json` values: [`BaseCase::execute_script`](crate::BaseCase::execute_script)
+//! returns one, and so do the pure CDP engine's `Page::evaluate` and the CDP commands. A W3C
+//! cookie object, as Python saves it, reads as a [`Cookie`](crate::Cookie) with [`from_value`].
+//! Import the type, the [`json!`] macro and [`from_value`] from here and a program needs no
+//! `serde_json` line in its manifest:
 //!
 //! ```
-//! use seleniumbase_rs::json::{json, Value};
+//! use seleniumbase_rs::json::{from_value, json, Error, Value};
+//! use seleniumbase_rs::Cookie;
 //!
-//! let cookie: Value = json!({ "name": "session", "value": "abc123" });
-//! assert_eq!(cookie["name"], "session");
+//! let object: Value = json!({ "name": "session", "value": "abc123" });
+//! assert_eq!(object["name"], "session");
+//!
+//! let cookie: Cookie = from_value(object)?;
+//! assert_eq!(cookie.path, "/");
+//! # Ok::<(), Error>(())
 //! ```
 //!
 //! Only the parts this crate's own signatures and its documentation use are listed. A program

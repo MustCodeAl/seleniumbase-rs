@@ -200,6 +200,7 @@ presentations, and optional stealth/CDP integrations.
 <LayoutDir name="resources" note="files the crate manages on disk, such as downloaded browser drivers" />
 <LayoutDir name="js_code" note="building blocks for the JavaScript the crate sends to a page" />
 <LayoutFile name="artifacts.rs" note="where the files of a test run go (latest_logs) and how they are named" />
+<LayoutFile name="cookie.rs" note="Cookie and SameSite, the one cookie type of both engines" />
 <LayoutFile name="drivers.rs" note="the WebDriver types behind BaseCase, under this crate's name" />
 <LayoutFile name="json.rs" note="JSON values and json!, under this crate's name" />
 <LayoutFile name="macros.rs" note="convenience macros for tests, such as sb_test!" />
@@ -563,6 +564,7 @@ capability trait.
 <LayoutFile name="base_case_impl_cdp_tests.rs" note="tests of the CDP helpers" />
 <LayoutFile name="base_case_impl_charts.rs" note="charts" />
 <LayoutFile name="base_case_impl_common.rs" note="helpers shared by the domain files" />
+<LayoutFile name="base_case_impl_cookie_tests.rs" note="tests of the cookie helpers" />
 <LayoutFile name="base_case_impl_debug.rs" note="debug helpers" />
 <LayoutFile name="base_case_impl_demo_tests.rs" note="tests of the demo helpers" />
 <LayoutFile name="base_case_impl_dialog_inspector.rs" note="the dialog inspector" />

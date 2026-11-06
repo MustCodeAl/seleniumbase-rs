@@ -1316,7 +1316,7 @@ cmd remove-local-storage-item help_heading="Page commands" help="Remove a local 
     complete key type=none
     example "sbrs --url https://example.com --user-data-dir ./profile remove-local-storage-item --key theme"
 }
-cmd get-cookies help_heading="Page commands" help="Print all browser cookies as JSON." {
+cmd get-cookies help_heading="Page commands" help="Print the cookies of the current page as JSON (the line starts with Cookies:)." {
     flag "-h --help" help="Print help" action=help builtin=#true
     example "sbrs --url https://example.com get-cookies"
 }

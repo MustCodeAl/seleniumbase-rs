@@ -16,7 +16,7 @@ Browser-wide permissions are on [Browser](/api/cdp-browser). This page is the st
 
 `page.cookies()` is the cookie jar.
 
-Build a cookie with `Cookie::new(name, value)`, then `domain`, `path`, `expires` (seconds, `f64`), `http_only`, `secure` and `same_site`. Those methods return the cookie. The fields are public: `name`, `value`, `domain`, `path`, `expires` (`Option<f64>`), `http_only`, `secure`, `same_site` (`Option<SameSite>`). `SameSite` is `Strict`, `Lax` or `None`.
+Build a cookie with `Cookie::new(name, value)`, then `domain`, `path`, `expires` (seconds, `f64`), `http_only`, `secure` and `same_site`. Those methods return the cookie. The fields are public: `name`, `value`, `domain`, `path`, `expires` (`Option<f64>`), `http_only`, `secure`, `same_site` (`Option<SameSite>`). `SameSite` is `Strict`, `Lax` or `None`. `Cookie` and `SameSite` are the types of the whole crate: `seleniumbase_rs::{Cookie, SameSite}` is the canonical path, `sb_cdp::{Cookie, SameSite}` the same pair, and the WebDriver engine's `get_cookie`, `get_cookies` and `add_cookie` use them too.
 
 | Method | Description |
 |--------|-------------|
