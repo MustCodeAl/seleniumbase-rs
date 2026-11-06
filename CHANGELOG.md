@@ -109,7 +109,7 @@ work, `docs/parity.md` the per-API status).
   `add_cookie(..)` keeps its `.expiry(..)` keyword and its rule that a `domain` outside the
   page's origin becomes the origin's host. The files of `save_cookies` and `load_cookies`
   keep the W3C format that Python SeleniumBase writes and reads.
-  The MCP tool `get_cookies` of the `sb` and `driver` servers answers the serialized
+  The MCP tool `get_cookies` of the `sb` server answers the serialized
   `Vec<Cookie>` (`[{"name": .., "value": .., "expires": ..}, ..]`, as `manage_cookies` of the
   `cdp` server does), where it answered `{"cookies": [..]}` with the driver's own objects
   (`expiry` for `expires`). `sbrs get-cookies` prints that JSON after `Cookies: `.
