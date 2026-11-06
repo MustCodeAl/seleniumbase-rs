@@ -718,16 +718,7 @@ impl Settings {
             plugins_named,
             settings_file,
         } = env;
-        let refused = refused
-            .into_iter()
-            .map(|Refused { row, problem }| Refused {
-                row,
-                problem: SettingsProblem {
-                    source: problem.source.clone(),
-                    error: named(problem),
-                },
-            })
-            .collect();
+
         let mut settings = layers::extract(&[below, &layer])
             .map_err(|error| SeleniumBaseError::InvalidConfig(layers::describe(&error)))?;
         if plugins_named {
@@ -870,7 +861,7 @@ pub struct SettingsProblem {
 
 /// The error of `problem`, saying which variable (and which flag) it came from when its text
 /// does not: `SB_HEADLESS (--headless): cannot parse bool: maybe`.
-fn named(problem: SettingsProblem) -> SeleniumBaseError {
+pub(crate) fn named(problem: SettingsProblem) -> SeleniumBaseError {
     let SettingsProblem { source, error } = problem;
     let SeleniumBaseError::InvalidConfig(text) = &error else {
         return error;

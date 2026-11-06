@@ -33,7 +33,7 @@ use std::str::FromStr;
 use crate::config::browser_options::flag_cell;
 use crate::config::layers::{no_items, put, Layer, Refused};
 use crate::config::plugins::{PluginSelection, PLUGINS_ENV};
-use crate::config::settings::Settings;
+use crate::config::settings::{named, Settings, SettingsProblem};
 use crate::config::test_options::{read_variables, Variables};
 use crate::config::test_options::{OptionKind, OptionSpec, TEST_OPTIONS};
 use crate::error::SeleniumBaseError;
@@ -592,7 +592,6 @@ fn process_variable(name: &str) -> Option<String> {
 /// Looks a variable up by name: the process environment, or the variables a program hands in.
 type Lookup<'a> = Box<dyn Fn(&str) -> Option<String> + 'a>;
 
-
 /// The `SB_*` variables of one source, and the one rule they are read by: a value that is empty
 /// or blank is not set (`SB_PLUGINS` is the exception, where an empty value is an answer).
 ///
@@ -708,11 +707,15 @@ impl<'a> EnvVars<'a> {
             }
             None => false,
         };
+        // A refusal says which variable it came from, and which flag stands for it.
         let refused = problems
             .into_iter()
             .map(|problem| Refused {
                 row: row_of(&problem.source),
-                problem,
+                problem: SettingsProblem {
+                    source: problem.source.clone(),
+                    error: named(problem),
+                },
             })
             .collect();
         Read {
@@ -836,6 +839,72 @@ mod tests {
     use std::collections::BTreeSet;
 
     use super::*;
+
+    /// The source that gives the one variable `name` the text `value`.
+    fn gives<'a>(name: &'a str, value: &'a str) -> EnvVars<'a> {
+        EnvVars::new("test", move |asked: &str| {
+            (asked == name).then(|| value.to_owned())
+        })
+    }
+
+    #[test]
+    fn only_a_true_value_turns_the_sandbox_off() {
+        for text in ["true", "TRUE", "1", "yes", "On"] {
+            let source = gives("SB_NO_SANDBOX", text);
+            assert_eq!(
+                source.switch("SB_NO_SANDBOX").unwrap(),
+                Some(true),
+                "{text}"
+            );
+        }
+        for text in ["false", "0", "no", "OFF"] {
+            let source = gives("SB_NO_SANDBOX", text);
+            assert_eq!(
+                source.switch("SB_NO_SANDBOX").unwrap(),
+                Some(false),
+                "{text}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_blank_value_is_unset_and_a_value_that_is_no_switch_is_refused() {
+        for text in ["", "   "] {
+            let source = gives("SB_NO_SANDBOX", text);
+            assert_eq!(source.switch("SB_NO_SANDBOX").unwrap(), None, "{text:?}");
+            assert_eq!(source.text("SB_NO_SANDBOX"), None, "{text:?}");
+        }
+        let error = gives("SB_NO_SANDBOX", "maybe")
+            .switch("SB_NO_SANDBOX")
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("SB_NO_SANDBOX"), "{error}");
+    }
+
+    #[test]
+    fn the_process_environment_and_a_lookup_are_read_by_the_same_rule() {
+        let source = gives("SB_CHROME_BIN", "  /opt/chrome  ");
+        assert_eq!(source.text("SB_CHROME_BIN").as_deref(), Some("/opt/chrome"));
+        let read = source.read();
+        assert!(read.refused.is_empty());
+        assert!(!read.plugins_named);
+        assert!(
+            !read.layer.is_empty(),
+            "the variable is a setting of the layer"
+        );
+        // `SB_PLUGINS` is the exception to the blank rule: empty names no plugin.
+        assert!(gives("SB_PLUGINS", "").read().plugins_named);
+    }
+
+    #[test]
+    fn a_figment_made_of_a_source_with_a_refused_variable_fails_naming_it() {
+        let source = gives("SB_HEADLESS", "maybe");
+        let error = figment::Figment::new()
+            .merge(source)
+            .extract::<Settings>()
+            .unwrap_err();
+        assert!(error.to_string().contains("SB_HEADLESS"), "{error}");
+    }
 
     #[test]
     fn a_variable_is_listed_once() {
