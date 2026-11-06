@@ -326,6 +326,15 @@ See `docs/tutorials/tracing.md` for subscriber configuration examples.
 - A test that fakes `java` or another executable must run the script once
   (`--warm`) before timing it: macOS can take seconds to run a freshly written
   script the first time.
+- Output that the crate does not compile, such as the tool lists of the MCP
+  servers, is pinned with [`insta`](https://insta.rs) snapshots: a `.snap` file
+  in a `snapshots/` folder beside the test, named after the module path
+  (`tests/offline/snapshots/offline__mcp_tool_lists__cdp.snap`). A test that
+  fails on a snapshot is reviewed with `cargo insta review` (`cargo install
+  cargo-insta`); without it, rerun the test with `INSTA_UPDATE=always`, read
+  `git diff` and commit the `.snap` file. Generated files the crate compiles,
+  and the command-line spec, keep their own `UPDATE_*` checks.
+
 - When writing doctests, mark browser-dependent snippets with `no_run` or
   `ignore`. Tutorials in `docs/tutorials/` are not compiled, so keep their code
   true by hand.
@@ -517,7 +526,8 @@ engines) and `src/mcp/stealth.rs` for how an extra toolset is attached.
    and review the insta snapshots of the tool lists (`tests/offline/snapshots/`):
    run `cargo test -p seleniumbase-rs --features mcp-server --test offline
    mcp_tool_lists`, read the diff with `cargo insta review`, accept it with
-   `cargo insta accept` (or rerun the test with `INSTA_UPDATE=always`), and
+   `cargo insta accept` (both come with `cargo install cargo-insta`; without
+   it rerun the test with `INSTA_UPDATE=always` and read `git diff`), and
    commit the `.snap` files.
 4. Test it without Chrome first (`tests/offline/mcp_cdp.rs`, `tests/offline/mcp_devtools.rs`),
    then with a real Chrome in a `*_chrome.rs` test if it reads a page.

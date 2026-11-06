@@ -545,6 +545,15 @@ turn the logs on, and the other ways to find out why a run fails, are in
 - A test that fakes `java` or another executable must run the script once
   (`--warm`) before timing it: macOS can take seconds to run a freshly written
   script the first time.
+- Output that the crate does not compile, such as the tool lists of the MCP
+  servers, is pinned with [`insta`](https://insta.rs) snapshots: a `.snap` file
+  in a `snapshots/` folder beside the test, named after the module path
+  (`tests/offline/snapshots/offline__mcp_tool_lists__cdp.snap`). A test that
+  fails on a snapshot is reviewed with `cargo insta review` (`cargo install
+  cargo-insta`); without it, rerun the test with `INSTA_UPDATE=always`, read
+  `git diff` and commit the `.snap` file. Generated files the crate compiles,
+  and the command-line spec, keep their own `UPDATE_*` checks.
+
 - When writing doctests, mark browser-dependent snippets with `no_run` or
   `ignore`. Tutorials in `docs/tutorials/` are not compiled, so keep their code
   true by hand.
@@ -843,14 +852,18 @@ try. Files a tool writes go through the output directory
 
 Register it in the group file of the server that offers it (`src/mcp/cdp/`,
 `src/mcp/driver/`, `src/mcp/sb/`: `navigation.rs`, `page.rs`, `input.rs`, ...),
-and write the snapshots of the tool lists again with `UPDATE_GOLDEN=1 cargo test
---features mcp-server --test offline mcp_tool_lists`.
+and review the insta snapshots of the tool lists (`tests/offline/snapshots/`):
+run `cargo test -p seleniumbase-rs --features mcp-server --test offline
+mcp_tool_lists`, read the diff with `cargo insta review`, accept it with
+`cargo insta accept` (both come with `cargo install cargo-insta`; without it
+rerun the test with `INSTA_UPDATE=always` and read `git diff`), and commit the
+`.snap` files.
 
 </Step>
 
 <Step title="Test it" icon="flask">
 
-Test it without Chrome first (`tests/mcp_cdp.rs`, `tests/mcp_devtools.rs`),
+Test it without Chrome first (`tests/offline/mcp_cdp.rs`, `tests/offline/mcp_devtools.rs`),
 then with a real Chrome in a `*_chrome.rs` test if it reads a page.
 
 </Step>

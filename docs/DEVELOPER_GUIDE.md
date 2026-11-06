@@ -1222,10 +1222,10 @@ schemas, annotations) with the insta snapshots in `tests/offline/snapshots/`
 (`offline__mcp_tool_lists__<server>.snap`). A new or changed tool fails the test
 until you review the snapshot: run
 `cargo test -p seleniumbase-rs --features mcp-server --test offline mcp_tool_lists`,
-then `cargo insta review` (or `cargo insta accept`), or write them without
-`cargo-insta` with
+then `cargo insta review` (or `cargo insta accept`; install it with
+`cargo install cargo-insta`), or write them without it with
 `INSTA_UPDATE=always cargo test -p seleniumbase-rs --features mcp-server --test offline mcp_tool_lists`,
-read the diff and commit it. Generated files that the crate compiles stay on
+read `git diff` and commit it. Generated files that the crate compiles stay on
 their own checks, not insta. A `dev` tool is tested in
 its own file with `Host::call`, and `install_driver` through
 `mcp::dev::host_with_installer` with a fake downloader, never the network.
