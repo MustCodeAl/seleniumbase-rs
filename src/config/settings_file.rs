@@ -341,3 +341,37 @@ fn inner_message(error: &SeleniumBaseError) -> String {
         other => other.to_string(),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_value_is_hidden_where_it_is_quoted_or_ends_the_message() {
+        assert_eq!(
+            without_value("cannot parse bool: a", "a"),
+            "cannot parse bool: …"
+        );
+        assert_eq!(
+            without_value("expected a number, not 'a'", "a"),
+            "expected a number, not '…'"
+        );
+        assert_eq!(
+            without_value("invalid type: string \"a\", expected a boolean", "a"),
+            "invalid type: string \"…\", expected a boolean"
+        );
+        assert_eq!(
+            without_value("unknown variant `a`, expected `cdp`", "a"),
+            "unknown variant `…`, expected `cdp`"
+        );
+    }
+
+    #[test]
+    fn a_long_value_is_hidden_where_it_stands_alone_and_not_inside_a_word() {
+        assert_eq!(
+            without_value("cannot use hunter2 here: hunter2x", "hunter2"),
+            "cannot use … here: hunter2x"
+        );
+        assert_eq!(without_value("nothing to hide", ""), "nothing to hide");
+    }
+}
