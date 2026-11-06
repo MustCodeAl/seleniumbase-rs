@@ -1093,7 +1093,6 @@ mod tests {
         recorder.record("click_visible_elements", Some(".btn"), None);
         recorder.record("find_element", Some("#x"), None);
         recorder.record("find_elements", Some(".x"), None);
-        recorder.record("get_shadow_root", Some("#host"), None);
         recorder.record("slow_click", Some("#y"), None);
         recorder.record("human_type", Some("#z"), Some("abc"));
         recorder.record("human_click", Some("#z"), None);

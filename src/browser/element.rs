@@ -121,7 +121,7 @@ impl Element {
     }
 
     /// The element as the page scripts take it in their arguments.
-    fn reference(&self) -> Result<Value, SeleniumBaseError> {
+    pub(crate) fn reference(&self) -> Result<Value, SeleniumBaseError> {
         self.inner.to_json().map_err(|error| self.failed(error))
     }
 
@@ -151,6 +151,18 @@ impl Element {
         shown_text(&self.inner)
             .await
             .map_err(|error| self.failed(error))
+    }
+
+    /// The text the driver renders for the element, as `BaseCase::get_text`
+    /// answers: empty for an `<input>` or a `<textarea>`, whose value
+    /// [`text`](Self::text) reads.
+    ///
+    /// # Errors
+    ///
+    /// [`SeleniumBaseError::StaleElement`] if the page replaced the element,
+    /// or the driver's error.
+    pub(crate) async fn rendered_text(&self) -> Result<String, SeleniumBaseError> {
+        self.inner.text().await.map_err(|error| self.failed(error))
     }
 
     /// The element's outer HTML.

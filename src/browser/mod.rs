@@ -22,7 +22,7 @@ pub(crate) mod password_prompts;
 mod plugin_hooks;
 mod proxy_auth;
 pub mod reuse;
-mod shadow_find;
+pub(crate) mod shadow_find;
 
 pub mod session;
 pub mod virtual_display;

@@ -107,7 +107,7 @@ async fn last_root<'a>(
     let (last, hosts) = pieces.split_last().ok_or_else(empty)?;
     let (first, inner) = hosts.split_first().ok_or_else(empty)?;
     let mut so_far = first.clone();
-    let mut host = match driver.find(Selector::auto(first).to_by()?).await {
+    let mut host = match driver.find(Selector::auto_by(first)?).await {
         Ok(element) => element,
         Err(error) if is_missing(&error) => return Ok(Walk::Short(so_far)),
         Err(other) => return Err(other.into()),

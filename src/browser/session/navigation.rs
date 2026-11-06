@@ -1,6 +1,6 @@
 //! Moving around: pages and history, frames, and windows and tabs.
 
-use thirtyfour::prelude::By;
+use crate::utils::selectors::SelectorBuf;
 
 use crate::error::SeleniumBaseError;
 
@@ -64,10 +64,13 @@ impl BrowserSession {
         Ok(self.webdriver()?.source().await?)
     }
 
-    /// Switches context into the frame located by `locator`.
-    pub async fn switch_to_frame(&mut self, locator: By) -> Result<(), SeleniumBaseError> {
-        let element = self.find(locator).await?;
-        element.enter_frame().await?;
+    /// Switches context into the frame `selector` finds.
+    pub async fn switch_to_frame(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
+        let element = self.find(selector).await?;
+        element.into_webdriver_element().enter_frame().await?;
         Ok(())
     }
 

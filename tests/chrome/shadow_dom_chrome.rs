@@ -178,6 +178,43 @@ async fn a_chain_crosses_three_shadow_roots() -> Result<()> {
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
 #[serial_test::serial(chrome)]
+async fn an_element_found_through_a_shadow_root_is_an_element_of_ours() -> Result<()> {
+    let url = serve();
+    run_browser_test(headless(), async |sb| {
+        sb.open(&url).await?;
+        sb.set_timeout(3).await?;
+
+        // `find_element` reads `host::shadow inner`, and the `Element` reads like the
+        // pure CDP engine's `Locator`.
+        let badge = sb
+            .find_element("app-shell::shadow user-card::shadow span.badge")
+            .await?;
+        assert_eq!(badge.text().await?, "Admin");
+        assert_eq!(badge.tag().await?, "span");
+        assert!(badge.is_visible().await?);
+        assert_eq!(
+            badge.to_string(),
+            "app-shell::shadow user-card::shadow span.badge"
+        );
+
+        // Every match of `find_elements` is one too, and the raw element stays reachable.
+        let items = sb.find_elements("app-shell::shadow li.item").await?;
+        assert_eq!(items.len(), 2);
+        let raw = items[0].as_webdriver_element();
+        assert!(!raw.element_id().to_string().is_empty());
+
+        // A search from an element does not enter a shadow root: the whole selector is
+        // written instead, and the attempt is refused at once.
+        let error = badge.find("inner::shadow b").await.unwrap_err();
+        assert!(error.to_string().contains("find_element"), "{error}");
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+#[ignore = "requires a local Chrome and chromedriver"]
+#[serial_test::serial(chrome)]
 async fn a_container_that_only_slots_its_content_gives_its_rendered_text() -> Result<()> {
     let url = serve();
     run_browser_test(headless(), async |sb| {

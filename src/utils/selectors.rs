@@ -209,7 +209,7 @@ impl<'a> Selector<'a> {
     ///
     /// Returns [`SeleniumBaseError::InvalidSelector`] when `selector` is empty
     /// or contains only whitespace.
-    pub fn auto_by(selector: &'a str) -> Result<By, SeleniumBaseError> {
+    pub(crate) fn auto_by(selector: &'a str) -> Result<By, SeleniumBaseError> {
         Self::auto(selector).to_by()
     }
 
@@ -223,7 +223,7 @@ impl<'a> Selector<'a> {
     ///
     /// Returns [`SeleniumBaseError::InvalidSelector`] when the text is empty
     /// or contains only whitespace.
-    pub fn to_by(self) -> Result<By, SeleniumBaseError> {
+    pub(crate) fn to_by(self) -> Result<By, SeleniumBaseError> {
         match self {
             // A selector that crosses a shadow root stays whole: the session
             // cuts it into pieces and finds each in its own root. A selector

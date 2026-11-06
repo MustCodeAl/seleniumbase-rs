@@ -626,12 +626,12 @@ rust = "BaseCase::fill"
 [basecase."find_element"]
 status = "implemented"
 rust = "BaseCase::find_element"
-divergence = "Returns a thirtyfour::WebElement; takes CSS or XPath only."
+divergence = "Returns an Element (the node the browser found, with the names of sb_cdp::Locator), not a Selenium WebElement; as_webdriver_element() gives the thirtyfour one. Takes CSS, XPath or link-text selectors only."
 
 [basecase."find_elements"]
 status = "implemented"
 rust = "BaseCase::find_elements"
-divergence = "Returns thirtyfour::WebElements; takes CSS or XPath only."
+divergence = "Returns Elements (see find_element), not Selenium WebElements. Takes CSS, XPath or link-text selectors only."
 
 [basecase."find_exact_text"]
 status = "implemented"
@@ -1218,8 +1218,9 @@ status = "implemented"
 rust = "BaseCase::load_html_string"
 
 [basecase."locator"]
-status = "implemented"
-rust = "BaseCase::locator"
+status = "composed"
+rust = "BaseCase::find_element"
+note = "Python's `sb.locator(selector)` is `find_element`. `BaseCase` has no method of that name: on the pure CDP engine `Page::locator` is a lazy locator that finds again on every use, and one name should mean one thing. `find_element` returns the Element the browser found."
 
 [basecase."main"]
 status = "not-applicable"
@@ -3385,8 +3386,9 @@ status = "implemented"
 rust = "BaseCase::js_click"
 
 [driver."locator"]
-status = "implemented"
-rust = "BaseCase::locator"
+status = "composed"
+rust = "BaseCase::find_element"
+note = "Python's `driver.locator(selector)` is `find_element`; `BaseCase` has no method of that name (see the `locator` row of basecase), since `Page::locator` is the lazy locator of the pure CDP engine. `find_element` returns an Element."
 
 [driver."open_new_tab"]
 status = "implemented"

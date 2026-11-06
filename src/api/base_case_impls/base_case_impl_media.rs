@@ -37,9 +37,13 @@ impl BaseCase {
     ) -> Result<PathBuf, SeleniumBaseError> {
         let dir = ensure_latest_logs_dir()?;
         let path = crate::artifacts::confined_path(&dir, filename)?;
-        let by = Selector::auto(css).to_by()?;
-        let element = self.session.find(by).await?;
-        element.screenshot(&path).await.map_err(SeleniumBaseError::WebDriver)?;
+        let selector = shadow_find::checked(css)?;
+        let element = self.session.find(selector).await?;
+        element
+            .as_webdriver_element()
+            .screenshot(&path)
+            .await
+            .map_err(SeleniumBaseError::WebDriver)?;
         Ok(path)
     }
 

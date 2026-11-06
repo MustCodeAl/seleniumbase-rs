@@ -276,7 +276,7 @@ mod tests_text_argument_order {
             sb.find_exact_text(" Welcome ", "h1").await.unwrap(),
             sb.find_non_empty_text("h1").await.unwrap(),
         ] {
-            assert_eq!(found.element_id().to_string(), "h1");
+            assert_eq!(found.as_webdriver_element().element_id().to_string(), "h1");
         }
         sb.find_text("Goodbye", "h1").await.unwrap_err();
         sb.find_exact_text("Welcom", "h1").await.unwrap_err();

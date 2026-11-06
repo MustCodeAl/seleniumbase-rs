@@ -6,7 +6,6 @@
 use std::fs;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use thirtyfour::WebElement;
 
 use crate::api::misc_calls::{
     ClickWithOffset, DownloadFile, DragByOffset, OffsetOptions, WaitForAttribute,
@@ -507,9 +506,9 @@ impl BaseCase {
     pub async fn find_link_text(
         &mut self,
         text: &str,
-    ) -> Result<Option<WebElement>, SeleniumBaseError> {
-        let by = By::LinkText(text);
-        match self.session.find(by).await {
+    ) -> Result<Option<Element>, SeleniumBaseError> {
+        let selector = SelectorBuf::link_text(text);
+        match self.session.find(selector).await {
             Ok(el) => Ok(Some(el)),
             Err(_) => Ok(None),
         }
@@ -519,9 +518,9 @@ impl BaseCase {
     pub async fn find_partial_link_text(
         &mut self,
         text: &str,
-    ) -> Result<Option<WebElement>, SeleniumBaseError> {
-        let by = By::PartialLinkText(text);
-        match self.session.find(by).await {
+    ) -> Result<Option<Element>, SeleniumBaseError> {
+        let selector = SelectorBuf::partial_link_text(text);
+        match self.session.find(selector).await {
             Ok(el) => Ok(Some(el)),
             Err(_) => Ok(None),
         }
@@ -541,7 +540,7 @@ impl BaseCase {
         &self,
         text: &str,
         css: &str,
-    ) -> Result<WebElement, SeleniumBaseError> {
+    ) -> Result<Element, SeleniumBaseError> {
         self.find_with_visible_text(TextMatch::Exact, text, css)
             .await
     }
@@ -556,7 +555,7 @@ impl BaseCase {
     ///
     /// Returns [`SeleniumBaseError::WaitTimeout`] if the element does not show
     /// that text when the timeout ends.
-    pub async fn find_text(&self, text: &str, css: &str) -> Result<WebElement, SeleniumBaseError> {
+    pub async fn find_text(&self, text: &str, css: &str) -> Result<Element, SeleniumBaseError> {
         self.find_with_visible_text(TextMatch::Contains, text, css)
             .await
     }
@@ -570,7 +569,7 @@ impl BaseCase {
     ///
     /// Returns [`SeleniumBaseError::WaitTimeout`] if the element shows no text
     /// when the timeout ends.
-    pub async fn find_non_empty_text(&self, css: &str) -> Result<WebElement, SeleniumBaseError> {
+    pub async fn find_non_empty_text(&self, css: &str) -> Result<Element, SeleniumBaseError> {
         self.find_with_visible_text(TextMatch::NonEmpty, "", css)
             .await
     }
@@ -582,24 +581,24 @@ impl BaseCase {
         kind: TextMatch,
         text: &str,
         css: &str,
-    ) -> Result<WebElement, SeleniumBaseError> {
+    ) -> Result<Element, SeleniumBaseError> {
         self.check_time_limit()?;
-        let by = Selector::auto(css).to_by()?;
+        let selector = shadow_find::checked(css)?;
         let what = match kind {
             TextMatch::Contains => format!("Text '{text}' was not visible in '{css}'"),
             TextMatch::Exact => format!("Exact text '{text}' was not visible in '{css}'"),
             TextMatch::NonEmpty => format!("Non-empty text was not visible in '{css}'"),
         };
         poll_until_found(self.default_wait_secs(), what, || {
-            let by = by.clone();
+            let selector = selector.clone();
             async move {
-                let Ok(element) = self.session.find(by).await else {
+                let Ok(element) = self.session.find(selector).await else {
                     return Ok(Polled::Pending { seen: None });
                 };
-                if !element.is_displayed().await.unwrap_or(false) {
+                if !element.is_visible().await.unwrap_or(false) {
                     return Ok(Polled::Pending { seen: None });
                 }
-                let shown = element.text().await.unwrap_or_default();
+                let shown = element.rendered_text().await.unwrap_or_default();
                 Ok(if kind.holds(&shown, text) {
                     Polled::Found(element)
                 } else {
@@ -616,28 +615,28 @@ impl BaseCase {
     pub async fn find_visible_elements(
         &mut self,
         css: &str,
-    ) -> Result<Vec<WebElement>, SeleniumBaseError> {
-        let by = Selector::auto(css).to_by()?;
-        let all = self.session.find_all(by).await?;
+    ) -> Result<Vec<Element>, SeleniumBaseError> {
+        let selector = shadow_find::checked(css)?;
+        let all = self.session.find_all(selector).await?;
         let mut visible = Vec::new();
         for el in all {
-            if el.is_displayed().await.unwrap_or(false) {
+            if el.is_visible().await.unwrap_or(false) {
                 visible.push(el);
             }
         }
         Ok(visible)
     }
 
-    /// Helper to convert a WebDriver element JSON response into a `WebElement`.
+    /// Helper to convert a WebDriver element JSON response into an `Element`.
     async fn element_from_script_result(
         &mut self,
         result: Value,
-    ) -> Result<Option<WebElement>, SeleniumBaseError> {
+    ) -> Result<Option<Element>, SeleniumBaseError> {
         if result.is_null() {
             return Ok(None);
         }
         // Re-query by a generated unique selector. This is the safest portable
-        // way to turn a JS element reference into a WebElement usable by the driver.
+        // way to turn a JS element reference into an Element usable by the driver.
         let mark: u64 = rand::rng().random::<u64>();
         let mark_attr = format!("sb-find-mark-{}", mark);
         let script = format!(
@@ -648,14 +647,14 @@ impl BaseCase {
             .execute(&script, vec![result.clone()])
             .await
             .map_err(SeleniumBaseError::WebDriver)?;
-        let by = By::Css(format!("[{}='1']", mark_attr));
-        match self.session.find(by).await {
+        let selector = SelectorBuf::css(format!("[{}='1']", mark_attr));
+        match self.session.find(selector).await {
             Ok(el) => {
                 // Remove the marker attribute.
                 let _ = self.session.webdriver()?
                     .execute(
                         "arguments[0].removeAttribute(arguments[1]);",
-                        vec![el.to_json()?, Value::String(mark_attr)],
+                        vec![el.reference()?, Value::String(mark_attr)],
                     )
                     .await;
                 Ok(Some(el))
@@ -676,10 +675,10 @@ impl BaseCase {
     ) -> Result<bool, SeleniumBaseError> {
         if self.is_shadow_selector(css) {
             // A script's querySelector cannot cross a shadow root; the session can.
-            let Ok(element) = self.session.find(Selector::auto(css).to_by()?).await else {
+            let Ok(element) = self.session.find(shadow_find::checked(css)?).await else {
                 return Ok(false);
             };
-            return Ok(element.attr(attribute).await?.is_some());
+            return Ok(element.as_webdriver_element().attr(attribute).await?.is_some());
         }
         let script = format!(
             "var el = document.querySelector({}); return !!(el && el.hasAttribute({}));",
@@ -872,7 +871,7 @@ impl BaseCase {
     pub async fn select_all(
         &mut self,
         css: &str,
-    ) -> Result<Vec<WebElement>, SeleniumBaseError> {
+    ) -> Result<Vec<Element>, SeleniumBaseError> {
         self.find_elements(css).await
     }
 
@@ -1055,8 +1054,9 @@ impl BaseCase {
         if self.is_element_present(css).await? {
             return Ok(None);
         }
-        let frames = self.session.find_all(By::Css("iframe, frame")).await?;
+        let frames = self.session.find_all(SelectorBuf::css("iframe, frame")).await?;
         for frame in frames {
+            let frame = frame.into_webdriver_element();
             let name = frame.attr("name").await?.filter(|name| !name.is_empty());
             let identifier = match name {
                 Some(name) => name,
@@ -1498,7 +1498,7 @@ impl BaseCase {
                 "the offset must be numbers, got ({x}, {y})"
             )));
         }
-        let by = Selector::auto(css).to_by()?;
+        let selector = shadow_find::checked(css)?;
         let seconds = self.wait_secs(options.timeout);
         self.await_ready_within(css, Ready::Visible, seconds).await?;
         let center = options.center.unwrap_or(false);
@@ -1510,14 +1510,14 @@ impl BaseCase {
         };
         self.record(action, Some(css), Some(&offset));
         self.demo_highlight(css).await?;
-        let element = self.session.find(by).await?;
+        let element = self.session.find(selector).await?;
         if options.scroll {
             // Python scrolls first: the offset is measured from the centre of the
             // part of the element in view, so an element below the fold or taller
             // than the window must be where the click lands before it is measured.
             element.scroll_into_view().await?;
         }
-        let size = element.rect().await?;
+        let size = element.bounding_box().await?;
         if options
             .mark
             .unwrap_or_else(|| self.run_settings.demo_mode())
@@ -1545,7 +1545,7 @@ impl BaseCase {
         let (from_x, from_y) = offset_from_center((x, y), (size.width, size.height), center);
         let chain = self.session.webdriver()?
             .action_chain()
-            .move_to_element_with_offset(&element, from_x, from_y);
+            .move_to_element_with_offset(element.as_webdriver_element(), from_x, from_y);
         let chain = if double {
             chain.double_click()
         } else {
@@ -1582,15 +1582,15 @@ impl BaseCase {
         y: i64,
         timeout: Option<Duration>,
     ) -> Result<(), SeleniumBaseError> {
-        let by = Selector::auto(css).to_by()?;
+        let selector = shadow_find::checked(css)?;
         let seconds = self.wait_secs(timeout);
         self.await_ready_within(css, Ready::Visible, seconds).await?;
         self.record("drag_and_drop_with_offset", Some(css), None);
         self.demo_highlight(css).await?;
-        let element = self.session.find(by).await?;
+        let element = self.session.find(selector).await?;
         self.session.webdriver()?
             .action_chain()
-            .drag_and_drop_element_by_offset(&element, x, y)
+            .drag_and_drop_element_by_offset(element.as_webdriver_element(), x, y)
             .perform()
             .await
             .map_err(SeleniumBaseError::WebDriver)?;
@@ -1602,9 +1602,11 @@ impl BaseCase {
     pub async fn click_chain(&mut self, css_list: &[&str]) -> Result<(), SeleniumBaseError> {
         let mut chain = self.session.webdriver()?.action_chain();
         for css in css_list {
-            let by = Selector::auto(css).to_by()?;
-            let element = self.session.find(by).await?;
-            chain = chain.move_to_element_center(&element).click();
+            let selector = shadow_find::checked(*css)?;
+            let element = self.session.find(selector).await?;
+            chain = chain
+                .move_to_element_center(element.as_webdriver_element())
+                .click();
         }
         chain.perform().await.map_err(SeleniumBaseError::WebDriver)
     }
@@ -1626,17 +1628,17 @@ impl BaseCase {
         &self,
         css_list: &[&str],
         timeout_secs: u64,
-    ) -> Result<WebElement, SeleniumBaseError> {
+    ) -> Result<Element, SeleniumBaseError> {
         let locators = css_list
             .iter()
-            .map(|css| Selector::auto(css).to_by())
+            .map(|css| shadow_find::checked(*css))
             .collect::<Result<Vec<_>, _>>()?;
         poll_until_found(
             self.effective_timeout(timeout_secs),
             format!("None of the selectors [{}] was present", css_list.join(", ")),
             || async {
-                for by in &locators {
-                    let found = self.session.find_all(by.clone()).await?;
+                for selector in &locators {
+                    let found = self.session.find_all(selector.clone()).await?;
                     if let Some(element) = found.into_iter().next() {
                         return Ok(Polled::Found(element));
                     }
@@ -1657,12 +1659,12 @@ impl BaseCase {
         &self,
         text: &str,
         timeout_secs: u64,
-    ) -> Result<WebElement, SeleniumBaseError> {
+    ) -> Result<Element, SeleniumBaseError> {
         poll_until_found(
             self.effective_timeout(timeout_secs),
             format!("Link text '{text}' was not present"),
             || async {
-                let links = self.session.webdriver()?.find_all(By::LinkText(text)).await?;
+                let links = self.session.find_all(SelectorBuf::link_text(text)).await?;
                 Ok(first_found(links))
             },
         )
@@ -1679,14 +1681,12 @@ impl BaseCase {
         &self,
         text: &str,
         timeout_secs: u64,
-    ) -> Result<WebElement, SeleniumBaseError> {
+    ) -> Result<Element, SeleniumBaseError> {
         poll_until_found(
             self.effective_timeout(timeout_secs),
             format!("Partial link text '{text}' was not present"),
             || async {
-                let links = self.session.webdriver()?
-                    .find_all(By::PartialLinkText(text))
-                    .await?;
+                let links = self.session.find_all(SelectorBuf::partial_link_text(text)).await?;
                 Ok(first_found(links))
             },
         )

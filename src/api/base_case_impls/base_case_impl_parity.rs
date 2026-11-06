@@ -144,11 +144,11 @@ impl BaseCase {
         timeout: u64,
     ) -> Result<(), SeleniumBaseError> {
         self.check_time_limit()?;
-        let by = Selector::auto(css).to_by()?;
+        let selector = shadow_find::checked(css)?;
         let reached = match ready {
-            Ready::Present => self.session.wait_for_element(by, timeout).await.map(drop),
-            Ready::Visible => self.session.wait_for_element_visible(by, timeout).await.map(drop),
-            Ready::Clickable => self.session.wait_for_element_clickable(by, timeout).await.map(drop),
+            Ready::Present => self.session.wait_for_element(selector, timeout).await.map(drop),
+            Ready::Visible => self.session.wait_for_element_visible(selector, timeout).await.map(drop),
+            Ready::Clickable => self.session.wait_for_element_clickable(selector, timeout).await.map(drop),
         };
         reached.map_err(|_| {
             SeleniumBaseError::wait_timeout(
@@ -207,20 +207,12 @@ impl BaseCase {
         css: &str,
     ) -> Result<crate::sb_cdp::Rect, SeleniumBaseError> {
         let element = self.find_element(css).await?;
-        let rect = element.rect().await?;
+        let rect = element.bounding_box().await?;
         let metrics = self
             .execute_script(&format!("return {};", crate::utils::geometry::WINDOW_METRICS_SCRIPT))
             .await?;
         let metrics: [f64; 6] = serde_json::from_value(metrics)?;
-        Ok(crate::utils::geometry::screen_rect(
-            crate::sb_cdp::Rect {
-                x: rect.x,
-                y: rect.y,
-                width: rect.width,
-                height: rect.height,
-            },
-            metrics,
-        ))
+        Ok(crate::utils::geometry::screen_rect(rect, metrics))
     }
 
     /// The centre of the element in screen coordinates. Corresponds to

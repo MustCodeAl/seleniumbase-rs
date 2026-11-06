@@ -18,8 +18,8 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 
 | Surface | Total | implemented | composed | not-applicable | planned |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| [BaseCase methods](#basecase-methods) | 453 | 444 | 2 | 7 | 0 |
-| [Driver methods](#driver-methods) | 79 | 77 | 2 | 0 | 0 |
+| [BaseCase methods](#basecase-methods) | 453 | 443 | 3 | 7 | 0 |
+| [Driver methods](#driver-methods) | 79 | 76 | 3 | 0 | 0 |
 | [CDP Mode methods](#cdp-mode-methods) | 215 | 15 | 186 | 14 | 0 |
 | [Command-line commands](#command-line-commands) | 36 | 32 | 4 | 0 | 0 |
 | [pytest options](#pytest-options) | 263 | 239 | 0 | 24 | 0 |
@@ -181,8 +181,8 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `fail` | implemented | `BaseCase::fail` |  |
 | `fast_type` | implemented | `BaseCase::fast_type` |  |
 | `fill` | implemented | `BaseCase::fill` |  |
-| `find_element` | implemented | `BaseCase::find_element` | Differs: Returns a thirtyfour::WebElement; takes CSS or XPath only. |
-| `find_elements` | implemented | `BaseCase::find_elements` | Differs: Returns thirtyfour::WebElements; takes CSS or XPath only. |
+| `find_element` | implemented | `BaseCase::find_element` | Differs: Returns an Element (the node the browser found, with the names of sb_cdp::Locator), not a Selenium WebElement; as_webdriver_element() gives the thirtyfour one. Takes CSS, XPath or link-text selectors only. |
+| `find_elements` | implemented | `BaseCase::find_elements` | Differs: Returns Elements (see find_element), not Selenium WebElements. Takes CSS, XPath or link-text selectors only. |
 | `find_exact_text` | implemented | `BaseCase::find_exact_text` | Differs: Takes no timeout: it waits for the default timeout (set_timeout). Fails with a wait timeout. |
 | `find_link_text` | implemented | `BaseCase::find_link_text` |  |
 | `find_non_empty_text` | implemented | `BaseCase::find_non_empty_text` | Differs: Takes no timeout: it waits for the default timeout (set_timeout). Fails with a wait timeout. |
@@ -322,7 +322,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `load_cookies` | implemented | `BaseCase::load_cookies` | Differs: The expiry argument is a CookieExpiry (load_cookies_with); load_cookies_from_path reads a file at any path, for the MCP server and the CLI. |
 | `load_html_file` | implemented | `BaseCase::load_html_file` |  |
 | `load_html_string` | implemented | `BaseCase::load_html_string` |  |
-| `locator` | implemented | `BaseCase::locator` |  |
+| `locator` | composed | `BaseCase::find_element` | Python's `sb.locator(selector)` is `find_element`. `BaseCase` has no method of that name: on the pure CDP engine `Page::locator` is a lazy locator that finds again on every use, and one name should mean one thing. `find_element` returns the Element the browser found. |
 | `main` | not-applicable |  | unittest/pytest harness plumbing; the Rust runner (api::runner) owns the lifecycle. |
 | `maximize` | implemented | `BaseCase::maximize` |  |
 | `maximize_window` | implemented | `BaseCase::maximize_window` |  |
@@ -541,7 +541,7 @@ Methods of Python's `Driver()`.
 | `is_uc_mode_active` | implemented | `BaseCase::is_uc_mode_active` |  |
 | `is_valid_url` | implemented | `BaseCase::is_valid_url` |  |
 | `js_click` | implemented | `BaseCase::js_click` |  |
-| `locator` | implemented | `BaseCase::locator` |  |
+| `locator` | composed | `BaseCase::find_element` | Python's `driver.locator(selector)` is `find_element`; `BaseCase` has no method of that name (see the `locator` row of basecase), since `Page::locator` is the lazy locator of the pure CDP engine. `find_element` returns an Element. |
 | `open_new_tab` | implemented | `BaseCase::open_new_tab` |  |
 | `open_new_window` | implemented | `BaseCase::open_new_window` |  |
 | `open_url` | implemented | `BaseCase::open_url` |  |

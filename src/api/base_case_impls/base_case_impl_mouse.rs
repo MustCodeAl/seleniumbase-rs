@@ -190,7 +190,7 @@ impl BaseCase {
         self.await_ready_within(selector, Ready::Present, seconds)
             .await?;
         self.demo_highlight(selector).await?;
-        let element = self.session.find(Selector::auto(selector).to_by()?)
+        let element = self.session.find(shadow_find::checked(selector)?)
             .await?;
         if !self.run_settings.demo_mode() && !self.run_settings.slow_mode() {
             element.scroll_into_view().await?;
@@ -250,16 +250,16 @@ impl BaseCase {
         css: &str,
     ) -> Result<(), SeleniumBaseError> {
         let parent = self.find_element(parent_css).await?;
-        let tag = parent.tag_name().await?;
+        let tag = parent.tag().await?;
         if tag.eq_ignore_ascii_case("iframe") || tag.eq_ignore_ascii_case("frame") {
             self.switch_to_frame(parent_css).await?;
             let clicked = self.click(css).await;
             self.switch_to_default_content().await?;
             return clicked;
         }
-        let by = Selector::auto(css).to_by()?;
+        let selector = shadow_find::checked(css)?;
         let child = parent
-            .find(by)
+            .find(selector)
             .await
             .map_err(|_| SeleniumBaseError::element_not_found(format!("{parent_css} {css}")))?;
         child.click().await?;

@@ -215,6 +215,8 @@ pub use evasion::providers::{
 pub use evasion::{
     engine_spoofing_args, find_system_chrome, ChromeBinaryPatcher, ChromedriverPatcher, EnginePatch,
 };
+pub use sb_cdp::{Key, SelectBy};
+
 pub use tracing_util::{
     init_tracing, init_tracing_from_runtime, init_tracing_json, init_tracing_json_with_filter,
     init_tracing_with_filter,

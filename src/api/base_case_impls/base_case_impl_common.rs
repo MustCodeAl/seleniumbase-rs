@@ -100,7 +100,7 @@ struct ShownText {
 }
 
 /// `Found` with the first of `elements`, or `Pending` if there is none.
-fn first_found(elements: Vec<thirtyfour::WebElement>) -> Polled<thirtyfour::WebElement> {
+fn first_found(elements: Vec<Element>) -> Polled<Element> {
     elements
         .into_iter()
         .next()

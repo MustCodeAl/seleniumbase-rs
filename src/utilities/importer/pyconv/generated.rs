@@ -143,7 +143,6 @@ pub(super) static GENERATED: &[Call] = &[
     call(&["js_update_text"], "js_update_text", &[s("selector"), s("text"), BY, TIMEOUT], Flow::Await, Ret::Unit),
     call(&["load_html_file"], "load_html_file", &[s("html_file"), omit("new_page")], Flow::Await, Ret::Unit),
     call(&["load_html_string"], "load_html_string", &[s("html_string"), omit("new_page")], Flow::Await, Ret::Unit),
-    call(&["locator"], "locator", &[s("selector"), BY, TIMEOUT], Flow::Await, Ret::Other),
     call(&["maximize"], "maximize", &[], Flow::Await, Ret::Unit),
     call(&["minimize"], "minimize", &[], Flow::Await, Ret::Unit),
     call(&["minimize_window"], "minimize_window", &[], Flow::Await, Ret::Unit),

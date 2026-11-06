@@ -3,83 +3,95 @@
 
 use std::time::Duration;
 
-use thirtyfour::prelude::{By, WebElement};
+use thirtyfour::prelude::WebElement;
 
+use crate::browser::element::Element;
+use crate::browser::shadow_find;
 use crate::error::SeleniumBaseError;
 use crate::utilities::retry::{poll_until, RetryPolicy};
+use crate::utils::selectors::SelectorBuf;
 
 use super::BrowserSession;
 
 impl BrowserSession {
-    /// Waits up to `timeout_secs` seconds for `locator` to match an element.
+    /// Waits up to `timeout_secs` seconds for `selector` to match an element,
+    /// and returns it.
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::WaitTimeout`] naming the locator if nothing
-    /// matches in time.
+    /// Returns [`SeleniumBaseError::InvalidSelector`] at once for a selector
+    /// that can never match, and [`SeleniumBaseError::WaitTimeout`] naming the
+    /// selector if nothing matches in time.
     pub async fn wait_for_element(
         &self,
-        locator: By,
+        selector: impl Into<SelectorBuf>,
         timeout_secs: u64,
-    ) -> Result<WebElement, SeleniumBaseError> {
+    ) -> Result<Element, SeleniumBaseError> {
         self.webdriver()?;
+        let selector = shadow_find::checked(selector)?;
 
         poll_until(
             Duration::from_secs(timeout_secs),
             RetryPolicy::webdriver(),
-            || async { self.find(locator.clone()).await.ok() },
+            || async { self.find(selector.clone()).await.ok() },
         )
         .await
-        .ok_or_else(|| timed_out(format!("element {locator}"), timeout_secs))
+        .ok_or_else(|| timed_out(format!("element {selector}"), timeout_secs))
     }
 
-    /// Waits up to `timeout` seconds for `locator` to become visible.
+    /// Waits up to `timeout_secs` seconds for `selector` to become visible, and
+    /// returns the element.
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::WaitTimeout`] naming the locator if it is
-    /// not visible in time.
+    /// Returns [`SeleniumBaseError::InvalidSelector`] at once for a selector
+    /// that can never match, and [`SeleniumBaseError::WaitTimeout`] naming the
+    /// selector if it is not visible in time.
     pub async fn wait_for_element_visible(
         &self,
-        locator: By,
+        selector: impl Into<SelectorBuf>,
         timeout_secs: u64,
-    ) -> Result<WebElement, SeleniumBaseError> {
+    ) -> Result<Element, SeleniumBaseError> {
         self.webdriver()?;
+        let selector = shadow_find::checked(selector)?;
 
         poll_until(
             Duration::from_secs(timeout_secs),
             RetryPolicy::webdriver(),
             || async {
-                match self.find(locator.clone()).await {
-                    Ok(element) if element.is_displayed().await.unwrap_or(false) => Some(element),
+                match self.find(selector.clone()).await {
+                    Ok(element) if element.is_visible().await.unwrap_or(false) => Some(element),
                     _ => None,
                 }
             },
         )
         .await
-        .ok_or_else(|| timed_out(format!("element {locator} to be visible"), timeout_secs))
+        .ok_or_else(|| timed_out(format!("element {selector} to be visible"), timeout_secs))
     }
 
-    /// Waits up to `timeout` seconds for `locator` to become clickable.
+    /// Waits up to `timeout_secs` seconds for `selector` to become clickable
+    /// (visible and enabled), and returns the element.
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::WaitTimeout`] naming the locator if it is
-    /// not clickable in time.
+    /// Returns [`SeleniumBaseError::InvalidSelector`] at once for a selector
+    /// that can never match, and [`SeleniumBaseError::WaitTimeout`] naming the
+    /// selector if it is not clickable in time.
     pub async fn wait_for_element_clickable(
         &self,
-        locator: By,
+        selector: impl Into<SelectorBuf>,
         timeout_secs: u64,
-    ) -> Result<WebElement, SeleniumBaseError> {
+    ) -> Result<Element, SeleniumBaseError> {
         self.webdriver()?;
+        let selector = shadow_find::checked(selector)?;
 
         poll_until(
             Duration::from_secs(timeout_secs),
             RetryPolicy::webdriver(),
             || async {
-                match self.find(locator.clone()).await {
+                match self.find(selector.clone()).await {
                     Ok(element)
-                        if element.is_displayed().await.unwrap_or(false)
+                        if element.is_visible().await.unwrap_or(false)
                             && element.is_enabled().await.unwrap_or(false) =>
                     {
                         Some(element)
@@ -89,27 +101,29 @@ impl BrowserSession {
             },
         )
         .await
-        .ok_or_else(|| timed_out(format!("element {locator} to be clickable"), timeout_secs))
+        .ok_or_else(|| timed_out(format!("element {selector} to be clickable"), timeout_secs))
     }
 
-    /// Waits up to `timeout` seconds for `locator` to be removed.
+    /// Waits up to `timeout_secs` seconds for `selector` to be removed.
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::WaitTimeout`] naming the locator if it is
-    /// still there when the time is up.
+    /// Returns [`SeleniumBaseError::InvalidSelector`] at once for a selector
+    /// that can never match, and [`SeleniumBaseError::WaitTimeout`] naming the
+    /// selector if it is still there when the time is up.
     pub async fn wait_for_element_absent(
         &self,
-        locator: By,
+        selector: impl Into<SelectorBuf>,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
         self.webdriver()?;
+        let selector = shadow_find::checked(selector)?;
 
         poll_until(
             Duration::from_secs(timeout_secs),
             RetryPolicy::webdriver(),
             || async {
-                match self.find_all(locator.clone()).await {
+                match self.find_all(selector.clone()).await {
                     Ok(elements) if elements.is_empty() => Some(()),
                     Err(_) => Some(()),
                     _ => None,
@@ -117,30 +131,32 @@ impl BrowserSession {
             },
         )
         .await
-        .ok_or_else(|| timed_out(format!("element {locator} to be absent"), timeout_secs))
+        .ok_or_else(|| timed_out(format!("element {selector} to be absent"), timeout_secs))
     }
 
-    /// Waits up to `timeout_secs` seconds for the element at `locator` to
+    /// Waits up to `timeout_secs` seconds for the element at `selector` to
     /// contain `expected_substring`.
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::WaitTimeout`] naming the text and the
-    /// locator if the text does not appear in time.
+    /// Returns [`SeleniumBaseError::InvalidSelector`] at once for a selector
+    /// that can never match, and [`SeleniumBaseError::WaitTimeout`] naming the
+    /// text and the selector if the text does not appear in time.
     pub async fn wait_for_text(
         &self,
-        locator: By,
+        selector: impl Into<SelectorBuf>,
         expected_substring: &str,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
         self.webdriver()?;
+        let selector = shadow_find::checked(selector)?;
 
         poll_until(
             Duration::from_secs(timeout_secs),
             RetryPolicy::webdriver(),
             || async {
-                match self.find(locator.clone()).await {
-                    Ok(element) => match shown_text(&element).await {
+                match self.find(selector.clone()).await {
+                    Ok(element) => match element.text().await {
                         Ok(text) if text.contains(expected_substring) => Some(()),
                         _ => None,
                     },
@@ -151,7 +167,7 @@ impl BrowserSession {
         .await
         .ok_or_else(|| {
             timed_out(
-                format!("text '{expected_substring}' in element {locator}"),
+                format!("text '{expected_substring}' in element {selector}"),
                 timeout_secs,
             )
         })
@@ -220,10 +236,10 @@ mod wait_tests {
         let driver = driver_without_elements();
         let session = session(&driver).await;
 
-        let message = message_of_the_timeout(session.wait_for_element(By::Css("#a"), 0).await);
+        let message = message_of_the_timeout(session.wait_for_element("#a", 0).await);
 
         assert!(
-            message.contains("timed out waiting for element CSS(#a)"),
+            message.contains("timed out waiting for element #a"),
             "{message}"
         );
     }
@@ -233,17 +249,12 @@ mod wait_tests {
         let driver = driver_without_elements();
         let session = session(&driver).await;
 
-        let visible =
-            message_of_the_timeout(session.wait_for_element_visible(By::Css("#v"), 0).await);
-        let clickable =
-            message_of_the_timeout(session.wait_for_element_clickable(By::Css("#c"), 0).await);
+        let visible = message_of_the_timeout(session.wait_for_element_visible("#v", 0).await);
+        let clickable = message_of_the_timeout(session.wait_for_element_clickable("#c", 0).await);
 
+        assert!(visible.contains("element #v to be visible"), "{visible}");
         assert!(
-            visible.contains("element CSS(#v) to be visible"),
-            "{visible}"
-        );
-        assert!(
-            clickable.contains("element CSS(#c) to be clickable"),
+            clickable.contains("element #c to be clickable"),
             "{clickable}"
         );
     }
@@ -254,13 +265,9 @@ mod wait_tests {
         let session = session(&driver).await;
 
         // The mock lists an element for every locator, so it never goes.
-        let message =
-            message_of_the_timeout(session.wait_for_element_absent(By::Css("#gone"), 0).await);
+        let message = message_of_the_timeout(session.wait_for_element_absent("#gone", 0).await);
 
-        assert!(
-            message.contains("element CSS(#gone) to be absent"),
-            "{message}"
-        );
+        assert!(message.contains("element #gone to be absent"), "{message}");
     }
 
     #[tokio::test]
@@ -268,11 +275,10 @@ mod wait_tests {
         let driver = driver_without_elements();
         let session = session(&driver).await;
 
-        let message =
-            message_of_the_timeout(session.wait_for_text(By::Css("#t"), "Welcome", 0).await);
+        let message = message_of_the_timeout(session.wait_for_text("#t", "Welcome", 0).await);
 
         assert!(message.contains("text 'Welcome'"), "{message}");
-        assert!(message.contains("CSS(#t)"), "{message}");
+        assert!(message.contains("element #t"), "{message}");
     }
 
     #[tokio::test]
@@ -281,7 +287,7 @@ mod wait_tests {
         let session = session(&driver).await;
 
         let error = session
-            .wait_for_element(By::Css("#a"), 0)
+            .wait_for_element("#a", 0)
             .await
             .expect_err("the element never comes");
 

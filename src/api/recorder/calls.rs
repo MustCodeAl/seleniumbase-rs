@@ -277,7 +277,6 @@ recorded_calls! {
     click_visible_elements(Target);
     find_element(TargetDiscarded);
     find_elements(TargetDiscarded);
-    get_shadow_root(TargetDiscarded);
     slow_click(Target) [Cdp];
     human_type(TargetValue);
     human_click(Target);
