@@ -5382,17 +5382,17 @@ note = "`with_grid(protocol, servername, port)` builds the URL Python builds: an
 [options_pytest."--settings"]
 status = "implemented"
 rust = "Settings::settings_file"
-note = "`sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top, each source winning over the one before for the settings it gives. The keys are the flat keys `sbrs options` lists (browser, headless, timeout_seconds, ...) and the tables [run], [test], [report], [plugins] and [fingerprint], not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
+note = "`sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top, each source winning over the one before for the settings it gives. The keys are the flat keys `sbrs options` lists (browser, headless, timeout_seconds, ...), the tables [run], [test], [report], [plugins] and [fingerprint], and the nested tables [browser] and [session] that `Settings` serializes to, not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
 
 [options_pytest."--settings-file"]
 status = "implemented"
 rust = "Settings::settings_file"
-note = "`sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top, each source winning over the one before for the settings it gives. The keys are the flat keys `sbrs options` lists (browser, headless, timeout_seconds, ...) and the tables [run], [test], [report], [plugins] and [fingerprint], not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
+note = "`sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top, each source winning over the one before for the settings it gives. The keys are the flat keys `sbrs options` lists (browser, headless, timeout_seconds, ...), the tables [run], [test], [report], [plugins] and [fingerprint], and the nested tables [browser] and [session] that `Settings` serializes to, not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
 
 [options_pytest."--settings_file"]
 status = "implemented"
 rust = "Settings::settings_file"
-note = "`sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top, each source winning over the one before for the settings it gives. The keys are the flat keys `sbrs options` lists (browser, headless, timeout_seconds, ...) and the tables [run], [test], [report], [plugins] and [fingerprint], not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
+note = "`sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top, each source winning over the one before for the settings it gives. The keys are the flat keys `sbrs options` lists (browser, headless, timeout_seconds, ...), the tables [run], [test], [report], [plugins] and [fingerprint], and the nested tables [browser] and [session] that `Settings` serializes to, not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
 
 [options_pytest."--sjw"]
 status = "implemented"
@@ -6071,7 +6071,7 @@ note = "The server name may carry a login (`USER:KEY@hub.browserstack.com`), whi
 [options_sb."settings_file"]
 status = "implemented"
 rust = "Settings::settings_file"
-note = "`sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top, each source winning over the one before for the settings it gives. The keys are the flat keys `sbrs options` lists (browser, headless, timeout_seconds, ...) and the tables [run], [test], [report], [plugins] and [fingerprint], not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
+note = "`sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top, each source winning over the one before for the settings it gives. The keys are the flat keys `sbrs options` lists (browser, headless, timeout_seconds, ...), the tables [run], [test], [report], [plugins] and [fingerprint], and the nested tables [browser] and [session] that `Settings` serializes to, not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
 
 [options_sb."size"]
 status = "implemented"
