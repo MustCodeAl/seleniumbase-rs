@@ -75,6 +75,16 @@ impl Layer {
             .any(|len| forget_at(&mut self.dict, &path[..len]))
     }
 
+    /// The setting at `path`, when it is a string.
+    pub(crate) fn text_at(&self, path: &[String]) -> Option<&str> {
+        let (last, parents) = path.split_last()?;
+        let mut dict = &self.dict;
+        for key in parents {
+            dict = dict.get(key)?.as_dict()?;
+        }
+        dict.get(last)?.as_str()
+    }
+
     /// Whether the layer holds no setting.
     #[cfg(test)]
     pub(crate) fn is_empty(&self) -> bool {

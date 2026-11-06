@@ -1776,6 +1776,29 @@ mod tests {
     }
 
     #[test]
+    fn a_refused_value_of_a_table_is_not_repeated_in_the_error() {
+        // The value may be a secret: the error names the file and the key and leaves it out,
+        // as it does for a flat key.
+        for (file, key) in [
+            ("[run]\ndemo_mode = \"hunter2\"\n", "demo_mode"),
+            ("[test]\nthreads = \"hunter2\"\n", "threads"),
+            ("[report]\ndashboard = \"hunter2\"\n", "dashboard"),
+        ] {
+            let mut tmp = tempfile::NamedTempFile::with_suffix(".toml").unwrap();
+            tmp.write_all(file.as_bytes()).unwrap();
+            let error = Settings::from_file(tmp.path()).unwrap_err().to_string();
+            assert!(error.contains(key), "{error}");
+            assert!(!error.contains("hunter2"), "{error}");
+            let check = Settings::check_with(Some(tmp.path()), variables(&[]));
+            assert_eq!(check.problems.len(), 1, "{:?}", check.problems);
+            let error = check.problems[0].error.to_string();
+            assert!(error.contains(key), "{error}");
+            assert!(!error.contains("hunter2"), "{error}");
+        }
+    }
+
+    #[test]
+
     fn a_driver_mode_that_was_asked_for_is_told_from_none_even_when_it_is_webdriver() {
         // `sbrs` gives a command its own mode only when none was asked for, so asking for
         // WebDriver must not read as asking for nothing.

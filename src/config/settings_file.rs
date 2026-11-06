@@ -192,7 +192,7 @@ impl SettingsFile {
             )));
         }
         extract(&[&self.layer]).map_err(|error| {
-            SeleniumBaseError::InvalidConfig(format!("{}: {}", self.what, describe(&error)))
+            SeleniumBaseError::InvalidConfig(format!("{}: {}", self.what, self.refusal(&error)))
         })
     }
 
@@ -219,7 +219,7 @@ impl SettingsFile {
                     error: SeleniumBaseError::InvalidConfig(format!(
                         "{}: {}",
                         self.what,
-                        describe(&error)
+                        self.refusal(&error)
                     )),
                 },
             });
@@ -229,6 +229,18 @@ impl SettingsFile {
         }
         problems.sort_by_key(|refused| refused.row);
         problems
+    }
+
+    /// What a figment error says of a value of the file that serde refused (the file, the key as
+    /// the file wrote it, what is wrong), without the value itself when it is a string: it may be
+    /// a secret, and serde's own text quotes it (`invalid type: string "…", expected a boolean`).
+    fn refusal(&self, error: &figment::Error) -> String {
+        let text = describe(error);
+        match self.layer.text_at(&error.path) {
+            Some(value) if value.len() >= 3 => text.replace(value, "…"),
+            Some(value) if !value.is_empty() => text.replace(&format!("\"{value}\""), "\"…\""),
+            _ => text,
+        }
     }
 
     /// The layer of the settings the file gives.

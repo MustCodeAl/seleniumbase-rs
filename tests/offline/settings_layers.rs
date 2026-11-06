@@ -120,6 +120,8 @@ fn a_refused_table_value_names_the_file_and_the_key_of_its_table() {
     let error = refused("sbase_config.toml", "[run]\ndemo_mode = \"later\"\n");
     assert!(error.contains("sbase_config.toml"), "{error}");
     assert!(error.contains("demo_mode"), "{error}");
+    // The value of a table is not repeated either: serde would quote it.
+    assert!(!error.contains("later"), "{error}");
 
     // A key written flat that belongs to a table is named as the file wrote it.
     let error = refused("sbase_config.toml", "demo = \"later\"\n");
