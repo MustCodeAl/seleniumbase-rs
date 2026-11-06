@@ -85,6 +85,32 @@ const PARTIAL_LINK_TEXT_PREFIXES: [&str; 6] = [
 /// browser's `querySelector` rejects it; SeleniumBase rewrites it as XPath.
 const CONTAINS_PSEUDO: &str = ":contains(";
 
+/// What separates the pieces of a chain in the name of an element found from
+/// another one (`#cart >> .row`), as `Locator`'s `Display` writes it.
+pub(crate) const CHAIN_SEPARATOR: &str = " >> ";
+
+/// What an element found by position is called: `element at (10, 20)`.
+///
+/// It is a description, not a selector (see [`is_lookup_selector`]).
+pub(crate) fn point_name(x: i64, y: i64) -> String {
+    format!("{POINT_NAME}{x}, {y})")
+}
+
+/// The start of [`point_name`].
+const POINT_NAME: &str = "element at (";
+
+/// Whether `name`, as an error or an element carries it, is a selector the page
+/// can be asked about.
+///
+/// An element found from another one is called by the chain that led to it
+/// (`#cart >> .row`), and one found by position by a description
+/// (`element at (10, 20)`). Those say where an element came from; neither is a
+/// selector, and a tool that looks the name up (a diagnosis of the page, a line
+/// of the test to point at) skips them.
+pub(crate) fn is_lookup_selector(name: &str) -> bool {
+    !name.contains(CHAIN_SEPARATOR) && !name.starts_with(POINT_NAME)
+}
+
 /// The XPath for a CSS selector that uses `:contains()`, written from the
 /// context node (`.//p[...]`) so that a search from an element stays inside it
 /// and a search from the page still matches the same elements, or `None` when the
@@ -1151,6 +1177,30 @@ mod tests {
             css_to_xpath("p:contains('x')").unwrap(),
             "//p[contains(., 'x')]"
         );
+    }
+
+    #[test]
+    fn what_an_element_is_called_is_not_always_a_selector() {
+        for selector in [
+            "#a",
+            "div > .row",
+            "//a[@x='1']",
+            "link=Edit",
+            "a:contains('>>')",
+            "li:nth-child(2)",
+        ] {
+            assert!(is_lookup_selector(selector), "{selector}");
+        }
+        // The chain of an element found from another, and an element found by position.
+        for name in [
+            "#cart >> .row",
+            "a >> b >> c",
+            "#a >> ..",
+            point_name(10, -20).as_str(),
+        ] {
+            assert!(!is_lookup_selector(name), "{name}");
+        }
+        assert_eq!(point_name(10, -20), "element at (10, -20)");
     }
 
     /// Python SeleniumBase's rules, written as a table: input, kind, text.

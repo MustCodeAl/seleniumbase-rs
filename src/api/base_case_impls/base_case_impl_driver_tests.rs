@@ -720,6 +720,46 @@ mod tests_wait_errors {
     }
 
     #[tokio::test]
+    async fn a_blank_link_text_or_xpath_is_reported_at_once_not_waited_for() {
+        /// The error `call` ends with, which it must reach long before any wait.
+        async fn ends_at_once<T: std::fmt::Debug>(
+            what: &str,
+            call: impl std::future::Future<Output = Result<T, SeleniumBaseError>>,
+        ) -> SeleniumBaseError {
+            match tokio::time::timeout(Duration::from_secs(5), call).await {
+                Ok(Err(error)) => error,
+                Ok(Ok(value)) => panic!("{what}: expected an error, got {value:?}"),
+                Err(_) => panic!("{what}: an empty text is not worth waiting 30 seconds for"),
+            }
+        }
+
+        let driver = mock_page("", false, Value::Null);
+        let mut sb = driver.base_case().await;
+        for text in ["", " ", "\t"] {
+            let errors = [
+                ends_at_once("wait_for_link_text", sb.wait_for_link_text(text, 30)).await,
+                ends_at_once(
+                    "wait_for_partial_link_text",
+                    sb.wait_for_partial_link_text(text, 30),
+                )
+                .await,
+                ends_at_once("click_link_text", sb.click_link_text(text)).await,
+                ends_at_once("click_xpath", sb.click_xpath(text)).await,
+            ];
+            for error in errors {
+                assert!(
+                    matches!(error, SeleniumBaseError::InvalidSelector(_)),
+                    "{text:?}: {error:?}"
+                );
+            }
+        }
+        // The driver was never asked to look for nothing.
+        assert!(driver.requests("/element").is_empty());
+        assert!(driver.requests("/elements").is_empty());
+    }
+
+    #[tokio::test]
+
     async fn a_download_that_never_arrives_times_out_and_returns_to_the_first_tab() {
         let driver = MockWebDriver::start(json!({}), |request| {
             match (request.method.as_str(), request.path.as_str()) {
@@ -748,6 +788,71 @@ mod tests_wait_errors {
         assert_eq!(switches, ["download-tab", "first-tab"]);
     }
 }
+
+mod tests_element_names {
+    use super::webdriver_support::{element, MockWebDriver, Reply};
+    use super::*;
+    use serde_json::{json, Value};
+
+    /// A driver whose every script hands back the element `p1`, as
+    /// `document.elementFromPoint` and `parentElement` do, and whose `p1` has
+    /// gone stale by the time something is asked of it.
+    fn driver() -> MockWebDriver {
+        MockWebDriver::start(json!({}), |request| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("POST", "/execute/sync" | "/element") => Reply::Value(element("p1")),
+                ("GET", "/element/p1/displayed") => Reply::Error(404, "stale element reference"),
+                _ => Reply::Value(Value::Null),
+            }
+        })
+    }
+
+    #[tokio::test]
+    async fn an_element_found_by_position_or_as_a_parent_is_named_for_what_it_is() {
+        let driver = driver();
+        let mut sb = driver.base_case().await;
+
+        let parent = sb.get_parent("#a").await.unwrap().expect("a parent");
+        let at_point = sb
+            .get_element_at_x_y(10, 20)
+            .await
+            .unwrap()
+            .expect("an element");
+
+        // Not the attribute selector the element was looked up by, which is gone.
+        assert_eq!(parent.to_string(), "#a >> ..");
+        assert_eq!(at_point.to_string(), "element at (10, 20)");
+        for found in [&parent, &at_point] {
+            let shown = format!("{found:?}");
+            assert!(!shown.contains("sb-find-mark"), "{shown}");
+        }
+        match parent.is_visible().await {
+            Err(SeleniumBaseError::StaleElement { selector }) => assert_eq!(selector, "#a >> .."),
+            other => panic!("expected StaleElement, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn the_marker_attribute_is_taken_off_again() {
+        let driver = driver();
+        let mut sb = driver.base_case().await;
+
+        sb.get_parent("#a").await.unwrap().expect("a parent");
+
+        let scripts: Vec<String> = driver
+            .requests("/execute/sync")
+            .iter()
+            .filter_map(|request| request.body["script"].as_str().map(str::to_owned))
+            .collect();
+        assert!(
+            scripts
+                .iter()
+                .any(|script| script.contains("removeAttribute")),
+            "{scripts:?}"
+        );
+    }
+}
+
 
 mod tests_ready_state {
     use super::webdriver_support::{MockWebDriver, Reply};

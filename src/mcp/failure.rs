@@ -14,6 +14,7 @@ use serde_json::{json, Map, Value};
 
 use super::tool::ToolError;
 use crate::error::SeleniumBaseError;
+use crate::utils::selectors::is_lookup_selector;
 
 /// How long the page may take to describe itself after a failure. A failure
 /// report must never wait on a page that has hung.
@@ -145,7 +146,9 @@ pub(crate) fn focus_selector(error: &ToolError, arguments: &Map<String, Value>) 
         | SeleniumBaseError::StaleElement { selector },
     ) = error
     {
-        return Some(selector.clone());
+        if is_lookup_selector(selector) {
+            return Some(selector.clone());
+        }
     }
     ["selector", "dropdown_selector", "css"]
         .iter()
@@ -536,6 +539,36 @@ mod tests {
     }
 
     #[test]
+    fn the_name_of_an_element_found_from_another_is_not_a_selector_to_look_up() {
+        // `#cart >> .row` is what the element is called; the page cannot be asked
+        // about it, so the call's own selector is the one to diagnose.
+        for name in ["#cart >> .row", "element at (1, 2)"] {
+            let stale = ToolError::Failed(SeleniumBaseError::stale_element(name));
+            assert_eq!(
+                focus_selector(&stale, &arguments(json!({ "selector": "#cart" }))).as_deref(),
+                Some("#cart"),
+                "{name}"
+            );
+            assert_eq!(focus_selector(&stale, &Map::new()), None, "{name}");
+
+            let report =
+                FailureReport::new("click_element", &Map::new(), &stale, None, &every_tool);
+            assert!(
+                report.next_steps.iter().all(|step| !step.contains(name)),
+                "{:?}",
+                report.next_steps
+            );
+        }
+        // A selector the error names is still the one that is used.
+        let inner = ToolError::Failed(SeleniumBaseError::stale_element("li > a"));
+        assert_eq!(
+            focus_selector(&inner, &Map::new()).as_deref(),
+            Some("li > a")
+        );
+    }
+
+    #[test]
+
     fn long_arguments_are_cut_short_and_the_structure_kept() {
         let long = "x".repeat(500);
         let short = shorten(

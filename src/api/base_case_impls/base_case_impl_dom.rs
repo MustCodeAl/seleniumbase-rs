@@ -439,26 +439,32 @@ impl BaseCase {
         self.set_text(css, text).await
     }
 
-    /// Returns the element at the given viewport coordinates.
+    /// Returns the element at the given viewport coordinates, or `None` if there is
+    /// none. The [`Element`] is called `element at (x, y)`, which its `Display` and a
+    /// [`SeleniumBaseError::StaleElement`] show.
     pub async fn get_element_at_x_y(
-        &mut self,
-        x: i64,
-        y: i64,
-    ) -> Result<Option<Element>, SeleniumBaseError> {
-        let script = format!("return document.elementFromPoint({}, {});", x, y);
-        let result = self.execute_script(&script).await?;
-        self.element_from_script_result(result).await
-    }
+            &mut self,
+            x: i64,
+            y: i64,
+        ) -> Result<Option<Element>, SeleniumBaseError> {
+            let script = format!("return document.elementFromPoint({}, {});", x, y);
+            let result = self.execute_script(&script).await?;
+            self.element_from_script_result(result, crate::utils::selectors::point_name(x, y))
+                .await
+        }
 
-    /// Returns the parent element of `css`.
+    /// Returns the parent element of `css`, or `None` if there is none. The [`Element`]
+    /// is called `<css> >> ..`, as [`Element::parent`] calls its result.
     pub async fn get_parent(&mut self, css: &str) -> Result<Option<Element>, SeleniumBaseError> {
-        let script = format!(
-            "return document.querySelector({})?.parentElement;",
-            quote(css)
-        );
-        let result = self.execute_script(&script).await?;
-        self.element_from_script_result(result).await
-    }
+            let script = format!(
+                "return document.querySelector({})?.parentElement;",
+                quote(css)
+            );
+            let result = self.execute_script(&script).await?;
+            // Named as `Element::parent` names its result.
+            let name = format!("{css}{}..", crate::utils::selectors::CHAIN_SEPARATOR);
+            self.element_from_script_result(result, name).await
+        }
 
     /// Returns the origin of the current URL, as `window.location.origin`
     /// reports it: the scheme, the host and a port that is not the scheme's
