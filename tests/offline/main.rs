@@ -70,6 +70,8 @@ mod sb_fixture;
 mod sb_fixture_plugins;
 mod sb_reports;
 mod sb_reports_env;
+mod settings_pins;
+
 mod shutdown_pool;
 mod stealth_audit_network;
 mod test_options_table;
