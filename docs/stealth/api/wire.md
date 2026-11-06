@@ -9,7 +9,7 @@ description: "API reference of seleniumbase-rs-wire: browser-identical TLS and H
 `seleniumbase_rs_stealth::wire` (implemented by `seleniumbase-rs-wire` in `crates/wire` of
 [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth))
 sends requests that look like a measured Chrome on the wire: the same TLS `ClientHello`, the same
-HTTP/2 start, and the same header names, order and values. It builds a wreq client from an
+HTTP/2 start, and the same header names, order and values. It builds a wreq client from a
 `WireFormat`, carries a browser's cookies on in plain HTTP (`HttpSession`), puts a real
 Chrome behind a loopback proxy that replays its requests (`MitmProxy`), and moves one identity
 between the two (`StealthSession`). A browser or system that was not measured is refused.
