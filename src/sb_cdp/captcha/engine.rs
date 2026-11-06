@@ -228,11 +228,14 @@ async fn locate<S: Surface>(
     surface: &S,
     options: &SolveOptions,
 ) -> Result<Option<Captcha>, SeleniumBaseError> {
+    let started = Instant::now();
     // When the current wait began. It starts again when an interstitial ends, so that a widget
     // the page draws after it has the whole locate timeout.
-    let mut since = Instant::now();
+    let mut since = started;
     // Whether the last reading was an interstitial that is being waited out.
     let mut interstitial = false;
+    // Whether any reading was one: only then is the interstitial timeout part of the whole wait.
+    let mut waited_out = false;
     loop {
         match probe(surface, false).await {
             Ok(found) => {
@@ -243,24 +246,44 @@ async fn locate<S: Surface>(
                     since = Instant::now();
                 }
                 interstitial = found.interstitial;
+                waited_out |= interstitial;
                 let limit = if interstitial {
                     options.interstitial_timeout
                 } else {
                     options.locate_timeout
                 };
-                if !(found.pending || interstitial) || since.elapsed() >= limit {
+                if !(found.pending || interstitial)
+                    || since.elapsed() >= limit
+                    || started.elapsed() >= locate_ceiling(options, waited_out)
+                {
                     return Ok(None);
                 }
             }
             // An interstitial that replaces itself answers with an error while it does: read it
             // again. Any other failed reading is an error at once.
             Err(error) => {
-                if !interstitial || since.elapsed() >= options.interstitial_timeout {
+                if !interstitial
+                    || since.elapsed() >= options.interstitial_timeout
+                    || started.elapsed() >= locate_ceiling(options, waited_out)
+                {
                     return Err(error);
                 }
             }
         }
         sleep(POLL).await;
+    }
+}
+
+/// The most a call to [`locate`] waits in all: the locate timeout, and the interstitial timeout
+/// too once a reading has been an interstitial. A page that goes back and forth between a
+/// challenge page and one with a widget on its way does not start the clock again each time.
+fn locate_ceiling(options: &SolveOptions, waited_out: bool) -> Duration {
+    if waited_out {
+        options
+            .locate_timeout
+            .saturating_add(options.interstitial_timeout)
+    } else {
+        options.locate_timeout
     }
 }
 
@@ -1003,9 +1026,7 @@ mod tests {
         );
     }
 
-
     #[tokio::test(start_paused = true)]
-
     async fn a_widget_that_is_already_clear_is_not_pressed() {
         let tab = Scripted::new(|ask, _| match ask {
             Ask::Probe => probe_of(widget(), false),
