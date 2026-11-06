@@ -74,7 +74,8 @@ work, `docs/parity.md` the per-API status).
   `Selector`, read by the rules of every other method. `BaseCase::get_shadow_root` is gone (a
   `host::shadow inner` selector reaches the same elements in every method, closed roots
   included) and so is `BaseCase::locator`, whose name belongs to the lazy `Page::locator`
-  (Python's `locator` is `find_element`; `get_element` stays). `Selector::to_by` and
+  (Python's `locator` is `find_element`, which the Python importer writes for it;
+  `get_element` stays). `Selector::to_by` and
   `Selector::auto_by` are crate-private. `drivers::WebElement` and `drivers::By` stay, for
   `Element::as_webdriver_element` and code that already holds them.
 
@@ -92,6 +93,14 @@ work, `docs/parity.md` the per-API status).
   // A thirtyfour call Element has no method for
   let raw = row.as_webdriver_element(); // &drivers::WebElement
   ```
+
+- **Breaking: `seleniumbase_rs::drivers::Key` is gone.** `drivers` re-exported thirtyfour's
+  `Key` while `seleniumbase_rs::Key` is the pure CDP engine's (the one `Element::press` and
+  `Locator::press` take): one name with two meanings. Nothing in this crate, its examples or
+  the `tests/contract_*.rs` files used the first, so import `seleniumbase_rs::Key`. A program
+  that wants the code points of thirtyfour's `Key` for a raw `send_keys` on
+  `as_webdriver_element()` lists `thirtyfour` itself, as `drivers` says for anything it does
+  not list.
 
 
 ### Added
@@ -118,9 +127,16 @@ work, `docs/parity.md` the per-API status).
   the rendered text), `html`, `tag`, `attribute` (the markup's), `property`, `bounding_box`,
   `is_visible`, `is_enabled`, `is_selected`, `click`, `double_click`, `right_click`, `hover`,
   `clear`, `send_keys`, `type_text`, `press`, `select_option`, `submit`, `scroll_into_view` and
-  `drag_to`, with `find`, `find_all` and `parent` for the elements inside and above it. It
-  does not wait; a node the page replaced fails with `SeleniumBaseError::StaleElement`, which
+  `drag_to`, with `find`, `find_all` and `parent` for the elements inside and above it. `find`
+  and `find_all` search inside the element: an XPath that starts at the root of the page
+  (`//td`) would match the whole page, so they refuse it with `InvalidSelector` (write
+  `.//td`), and they do not enter an `<iframe>` element's frame (switch to it with
+  `switch_to_frame`). It does not wait; a node the page replaced fails with `SeleniumBaseError::StaleElement`, which
   now names the selector the element was found by (`#cart >> .row` for one found from another).
+  An element from `BaseCase::get_parent` is called `<selector> >> ..` and one from
+  `get_element_at_x_y` is called `element at (x, y)`, so a stale one says what it was.
+  The failure report of the MCP server and the debug prompt take such a name, and a chain like
+  `#cart >> .row`, for a description and not a selector to look up, and skip it.
   `as_webdriver_element()` and `into_webdriver_element()` give the raw `thirtyfour` element.
   `Key` and `SelectBy` of the pure CDP engine are re-exported at the crate root, since
   `Element::press` and `Element::select_option` take them.
@@ -144,7 +160,25 @@ work, `docs/parity.md` the per-API status).
   (`timed out waiting for element #a to be visible`), where it used `thirtyfour`'s `CSS(#a)`.
   The waits and every other method of the session refuse a selector that can never match
   (empty, or a shadow selector that ends on `::shadow`) with `InvalidSelector` at once, as
-  `BaseCase` always did.
+  `BaseCase` did, except for the four methods of the next entry.
+
+- A stale reference in an action of `BrowserSession` or `BaseCase` (`click`, `hover`,
+  `type_text`, `select_option_by_text`, `drag_and_drop`, `nested_click`, ...) is now
+  `SeleniumBaseError::StaleElement { selector }` (category `stale_element`, `sbrs` exit code 3),
+  where it was `SeleniumBaseError::WebDriver(StaleElementReference)` (category `webdriver`, exit
+  code 4). The actions go through `Element`, which names the selector the node was found by.
+  Code that matched the `WebDriver` variant for a stale element matches `StaleElement` now; the
+  waits keep polling through it, as they did.
+
+- `BaseCase::wait_for_link_text("", n)`, `wait_for_partial_link_text("", n)`,
+  `click_link_text("")` and `click_xpath("")` fail at once with `InvalidSelector`. They took the
+  empty text to the driver, which found nothing, so the waits polled until `WaitTimeout`. The
+  same holds for a blank text (`" "`), as it does for every other method that takes a selector.
+
+- A `:contains()` selector (`p:contains("x")`) is read as the XPath `.//p[contains(., 'x')]`
+  where it was `//p[contains(., 'x')]`. On the page both match the same elements, but the new
+  form starts at the context node, so a search from an `Element` stays inside the element.
+  `BaseCase::convert_css_to_xpath` still writes the absolute path.
 
 
 ## [0.8.0] - 2026-11-05
