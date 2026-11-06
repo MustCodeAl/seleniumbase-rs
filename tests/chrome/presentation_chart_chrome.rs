@@ -43,12 +43,33 @@ fn test_config() -> BrowserConfig {
     config
 }
 
+/// A temporary working folder that moves the process back where it was when it drops.
+/// The chrome binary runs every test file in one process, so a test that left the
+/// process in a deleted folder broke every test after it.
+struct WorkDir {
+    dir: tempfile::TempDir,
+    previous: std::path::PathBuf,
+}
+
+impl WorkDir {
+    fn path(&self) -> &std::path::Path {
+        self.dir.path()
+    }
+}
+
+impl Drop for WorkDir {
+    fn drop(&mut self) {
+        let _ = std::env::set_current_dir(&self.previous);
+    }
+}
+
 /// Moves the process into a new folder, so that the saved files do not land in
 /// the crate. The caller keeps the folder alive for the whole test.
-fn work_in_a_temporary_folder() -> tempfile::TempDir {
+fn work_in_a_temporary_folder() -> WorkDir {
+    let previous = std::env::current_dir().expect("a working directory");
     let dir = tempfile::tempdir().expect("a temporary folder");
     std::env::set_current_dir(dir.path()).expect("move into it");
-    dir
+    WorkDir { dir, previous }
 }
 
 /// Waits until `css` is visible, or `limit` has passed.
