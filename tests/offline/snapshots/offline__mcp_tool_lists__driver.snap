@@ -1,3 +1,7 @@
+---
+source: tests/offline/mcp_tool_lists.rs
+expression: text
+---
 {
   "server": "seleniumbase-driver",
   "tool_count": 42,

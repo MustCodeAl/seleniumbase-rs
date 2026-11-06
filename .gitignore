@@ -30,3 +30,8 @@ latest_logs/
 # pages and the generated HTTP bearer token (mcp-token), which is a secret
 mcp_output/
 mcp-token
+
+# Snapshots insta has written and nobody has accepted yet (cargo insta review)
+*.snap.new
+*.pending-snap
+

@@ -1,0 +1,262 @@
+# GitLab CI for seleniumbase-rs.
+#
+# The repository is mirrored to GitLab.com after each gated publish, and CI runs on GitLab's
+# shared Linux runners (2 vCPUs, 8 GB, 30 GB of disk; an untagged job gets this size). The
+# GitHub workflows stay in .github/workflows: `release` and `docker` still run only there, and
+# the pages deployment of `ci.yml` has no equivalent here.
+#
+# The group is on GitLab's Open Source plan (Ultimate, approved 2026-11-06), so the whole test
+# suite runs on every pipeline; the Chrome and msrv jobs stay manual. Pipelines are created only for merge requests
+# and for the default branch (which must be `main`), and a new push cancels a pipeline that is
+# still running (every job is `interruptible`):
+#
+#   gate          fmt and clippy
+#   test          the whole test suite and rustdoc
+#   supply-chain  cargo deny and cargo audit
+#   docs          mise run mdx and mdbook build, only when the docs or their tooling change
+#   msrv          MANUAL: cargo check with the gui and tui features
+#   chrome        MANUAL: the real-Chrome tests, one binary at a time
+#
+# A manual job has a play button in the pipeline view. A pipeline made by hand on any branch
+# (Build > Pipelines > New pipeline) holds every job as a manual job. To push a commit that
+# needs no pipeline (a docs-only commit that was gated elsewhere), put `[ci skip]` in its
+# message, or push with `git push -o ci.skip`.
+#
+# No job needs a secret, and none prints one: there is no `set -x`, no `env` and no token in
+# this file.
+#
+# The Rust version is the one of Cargo.toml (`rust-version`), rust-toolchain.toml and the
+# Dockerfile. When it moves, move RUST_VERSION below with them; the `msrv` job fails when
+# Cargo.toml and RUST_VERSION differ.
+
+workflow:
+  auto_cancel:
+    on_new_commit: interruptible
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    # The lead pushes a lane or batch branch here to gate it before main fast-forwards to it.
+    - if: '$CI_COMMIT_BRANCH =~ /^(lane|batch)\//'
+    - if: $CI_PIPELINE_SOURCE == "web"
+
+default:
+  interruptible: true
+  retry:
+    max: 1
+    when: runner_system_failure
+
+variables:
+  RUST_VERSION: "1.99"
+  # The feature set of "Build and check" in CLAUDE.md and CONTRIBUTING.md.
+  FEATURES: "mcp-server test-util testing bdd"
+  # The command line package has no `testing` or `bdd` feature.
+  CLI_FEATURES: "mcp-server test-util"
+  # The environment of "Build and check": two build jobs fit the 2 vCPUs and 8 GB of the runner.
+  CARGO_BUILD_JOBS: "2"
+  CARGO_INCREMENTAL: "0"
+  CARGO_PROFILE_DEV_DEBUG: "0"
+  CARGO_TERM_COLOR: always
+  # A GitLab cache can only hold paths inside the project folder, so cargo keeps its registry there.
+  CARGO_HOME: $CI_PROJECT_DIR/.cargo
+
+# When a job is added to a pipeline. Merge requests and the default branch run it by itself; a
+# pipeline made by hand holds it as a manual job that does not block the pipeline.
+.rules_automatic:
+  - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  - if: '$CI_COMMIT_BRANCH =~ /^(lane|batch)\//'
+  - if: $CI_PIPELINE_SOURCE == "web"
+    when: manual
+    allow_failure: true
+
+# Every pipeline the workflow creates holds the job as a manual job.
+.rules_by_hand:
+  - when: manual
+    allow_failure: true
+
+# The toolchain image. rust-toolchain.toml names `1.99` with clippy and rustfmt, and the image
+# has neither component, so rustup installs them on the first cargo command of a job.
+.rust:
+  image: rust:${RUST_VERSION}-bookworm
+
+# The cargo registry and the build folder, keyed by Cargo.lock. The cache is saved even when the
+# job fails, since a failed test run still built every dependency. The executables of the tests
+# are about 100 MB each and are linked again on the next run, so they are dropped before the
+# upload.
+.target_cache:
+  cache:
+    key:
+      prefix: rust-target
+      files:
+        - Cargo.lock
+    paths:
+      - .cargo/registry/index/
+      - .cargo/registry/cache/
+      - .cargo/git/db/
+      - target/
+    when: always
+  after_script:
+    - |
+      [ -d target/debug ] || exit 0
+      rm -rf target/doc target/debug/incremental target/debug/examples target/tmp
+      find target/debug -maxdepth 1 -type f -delete
+      find target/debug/deps -type f -perm /111 ! -name '*.so' -delete
+
+# fmt and clippy of "Build and check", on every pipeline: cheap next to the tests, and they
+# catch most mistakes. The first run, and the first after a change of Cargo.lock, builds every
+# dependency once for the cache.
+gate:
+  extends:
+    - .rust
+    - .target_cache
+  rules:
+    - !reference [.rules_automatic]
+  timeout: 2h
+  script:
+    - rustc --version
+    - cargo --version
+    - cargo fmt --all -- --check
+    - cargo clippy --all-targets --features "$FEATURES" -- -D warnings
+
+# The rest of "Build and check": the whole test suite and rustdoc, a second run on Linux of what
+# every push passed on the lead's machine. A run takes an hour or more (the doctests are most of
+# it). The project timeout of GitLab is
+# 60 minutes by default: if this job is cut off there, raise it in Settings > CI/CD > General
+# pipelines > Timeout.
+test:
+  extends:
+    - .rust
+    - .target_cache
+  rules:
+    - !reference [.rules_automatic]
+  timeout: 3h
+  script:
+    - cargo test --no-fail-fast --features "$FEATURES"
+    - RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --features "$FEATURES"
+
+# The two dependency checks of the release gate (`cargo deny --workspace check`, `cargo audit`).
+# The tools are built from source the first time and kept in the cache, with the registry.
+# cargo-deny stays on the series of mise.toml. The workspace flag is a global option of
+# cargo-deny: without it only the library is a graph root and crates/cli goes unchecked.
+supply-chain:
+  extends: .rust
+  rules:
+    - !reference [.rules_automatic]
+  cache:
+    key:
+      prefix: supply-chain
+      files:
+        - Cargo.lock
+    paths:
+      - .cargo/bin/
+      - .cargo/.crates.toml
+      - .cargo/.crates2.json
+      - .cargo/registry/index/
+      - .cargo/registry/cache/
+      - .cargo/git/db/
+    when: always
+  script:
+    - export PATH="$CARGO_HOME/bin:$PATH"
+    - cargo install --locked --version '^0.20' cargo-deny
+    - cargo install --locked cargo-audit
+    - cargo deny --all-features --workspace check
+    - cargo audit
+
+# The Docs7 check (every page builds as MDX, the navigation and the layout trees are current)
+# and the mdBook build. mise installs what mise.toml pins (Python, mdBook) and Bun, which
+# mise.toml does not list. MISE_ENABLE_TOOLS leaves out Rust, Node and cargo-deny, which these
+# two tasks do not use.
+docs:
+  image: ghcr.io/jdx/mise:2026.10-debian
+  variables:
+    MISE_ENABLE_TOOLS: python,mdbook,bun
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes: &docs_paths
+        - "docs/**/*"
+        - "book.toml"
+        - "CONTRIBUTING.md"
+        - "mise.toml"
+        - "tools/docs_layout_tree.py"
+        - "tools/mdbook_strip_frontmatter.py"
+        - "tools/layout_tree/**/*"
+        - "tools/mdx-check/**/*"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes: *docs_paths
+    - if: $CI_PIPELINE_SOURCE == "web"
+      when: manual
+      allow_failure: true
+  script:
+    - mise trust
+    - mise use --global bun@1
+    - mise install
+    - mise run mdx
+    - mise run docs
+
+# MANUAL. The `msrv` job of ci.yml: the declared Rust version builds everything with the gui and
+# tui features, which need GTK and X11 headers.
+msrv:
+  extends: .rust
+  rules:
+    - !reference [.rules_by_hand]
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y -qq --no-install-recommends libgtk-3-dev libx11-dev libxdo-dev libxkbcommon-dev libxtst-dev libssl-dev pkg-config
+  script:
+    - grep -q "^rust-version = \"$RUST_VERSION\"" Cargo.toml
+    - rustc --version
+    - cargo check --all-targets --features gui,tui
+
+# MANUAL. The real-Chrome tests of the workspace, one binary at a time with --ignored and one
+# test thread, headless, with the pair of Debian packages that the Dockerfile and
+# tools/linux-check use (chromium and chromium-driver). Chromium cannot start its sandbox as
+# root in a container and the container has a small /dev/shm, so its flags say so.
+#
+# Left out, as tools/linux-check/chrome.sh leaves them out: the tests that open a real site
+# (captcha_live, examples_parity, the two leaked_password tests, cli_fingerprint), and
+# client_hints, which reads the `Google Chrome` brand that Chromium does not report. The
+# edge_msedgedriver and firefox_geckodriver binaries need other browsers.
+#
+# The cache of `gate` is read and not written. A failure of one binary does not stop the next;
+# the job fails at the end if any failed.
+chrome:
+  extends:
+    - .rust
+    - .target_cache
+  rules:
+    - !reference [.rules_by_hand]
+  timeout: 3h
+  cache:
+    policy: pull
+  variables:
+    SB_HEADLESS: "true"
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y -qq --no-install-recommends chromium chromium-driver ca-certificates
+    - mkdir -p /etc/chromium.d
+    - echo 'export CHROMIUM_FLAGS="$CHROMIUM_FLAGS --no-sandbox --disable-dev-shm-usage"' > /etc/chromium.d/zz-no-sandbox
+    - |
+      for dir in . crates/cli crates/playwright; do
+        mkdir -p "$dir/downloaded_drivers"
+        ln -sf /usr/bin/chromedriver "$dir/downloaded_drivers/chromedriver"
+      done
+    - chromium --version
+    - chromedriver --version
+  script:
+    - |
+      status=0
+      run() {
+        name=$1
+        shift
+        echo "=== $name"
+        timeout 2700 "$@" || { echo "=== $name failed or timed out (exit $?)"; status=1; }
+        pkill -f chromium || true
+        pkill -f chromedriver || true
+      }
+      run library cargo test -p seleniumbase-rs --features "$FEATURES" --test chrome -- --ignored --test-threads=1 \
+        --skip captcha_live --skip examples_parity --skip client_hints --skip leaked_password
+      run browser_smoke cargo test -p seleniumbase-rs --features "$FEATURES" --test browser_smoke -- --ignored --test-threads=1
+      run cli cargo test -p seleniumbase-rs-cli --features "$CLI_FEATURES" --test chrome -- --ignored --test-threads=1 \
+        --skip cli_fingerprint
+      run playwright cargo test -p seleniumbase-rs-playwright --test playwright_chrome -- --ignored --test-threads=1
+      exit $status

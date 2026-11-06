@@ -470,6 +470,18 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 
 ### Changed
 
+- The tool lists of the MCP servers (`cdp`, `driver`, `sb` and `dev`) are pinned with `insta`
+  snapshots, `tests/offline/snapshots/offline__mcp_tool_lists__<server>.snap`, checked by the
+  `mcp_tool_lists` module of the `offline` test binary. They replace the JSON files in
+  `tests/golden/mcp_tools/` and the `UPDATE_GOLDEN` switch. After a tool is added or changed
+  the test fails until the snapshot is reviewed: run
+  `cargo test -p seleniumbase-rs --features mcp-server --test offline mcp_tool_lists`, read the
+  diff with `cargo insta review` and accept it (`cargo insta accept`; the subcommand comes with
+  `cargo install cargo-insta`), or write the files without it by running the same command with
+  `INSTA_UPDATE=always` and reading `git diff`, then commit the `.snap` files. The failed test
+  leaves `*.snap.new` files for `cargo insta`, which `.gitignore` now skips. `insta` is a
+  dev-dependency only. Generated files that the crate compiles, and the
+  command-line spec, stay on their own checks.
 - `sbrs` and `sbrs-mcp` parse their command line with usage-rs 7.2 (usage-lib 7.2 for the
   tests), up from 6.12. Nothing changes for a person: the help, the errors, the completion
   scripts and the generated `completions/sbrs.usage.kdl`, `docs/help/cli_reference.md` and
@@ -505,6 +517,15 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   where it was `//p[contains(., 'x')]`. On the page both match the same elements, but the new
   form starts at the context node, so a search from an `Element` stays inside the element.
   `BaseCase::convert_css_to_xpath` still writes the absolute path.
+
+- CI runs on GitLab.com, where the repository is mirrored
+  (`gitlab.com/seleniumbaserust/seleniumbase-rs`, on GitLab's Open Source plan):
+  `.gitlab-ci.yml` defines a `gate` job (fmt and clippy), a `test` job (the whole test suite
+  and rustdoc), a `supply-chain` job (cargo deny and cargo audit) and a `docs` job
+  (`mise run mdx`, `mdbook build`, only when the docs change) for merge requests and `main`,
+  and the manual jobs `msrv` and `chrome` (the real-Chrome tests, headless). The GitHub
+  workflows stay in `.github/workflows`. The "CI on GitLab" section of `CONTRIBUTING.md` says
+  how to start the manual jobs.
 
 ### Fixed
 

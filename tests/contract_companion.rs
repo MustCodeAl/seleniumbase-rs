@@ -29,29 +29,20 @@ use serde_json::{json, Value};
 // ---------------------------------------------------------------------------------------------
 // 1. The programs of the extension's parity test (tests/golden/), compiled as they are.
 //
-// Each one is a `#[tokio::test]` or a `#[tokio::main]` program that would start a Chrome. The
-// shadow `tokio` module turns `#[tokio::test]` into `#[tokio::main]`, which compiles the same
-// body into a plain function that nothing calls and no test harness runs.
+// The `#[tokio::main]` programs would start a Chrome when run; compiled here, their `main` is
+// a plain function that nothing calls. The `#[tokio::test]` programs are not compiled (see
+// below): nothing could stop the test harness from running them.
 
-mod parity_cdp_test {
-    mod tokio {
-        pub use ::tokio::main as test;
-        pub use ::tokio::*;
-    }
-    include!("contract_companion/parity-cdp-test.rs.txt");
-}
+// parity-cdp-test.rs.txt: its `#[tokio::test]` comes from `seleniumbase_rs::tokio`, which no
+// shadow can turn into a function nothing calls, so it would run a real Chrome; its body is the
+// one of parity-cdp-main.rs.txt, compiled below, and section 2 checks it as text.
 
 mod parity_cdp_main {
     include!("contract_companion/parity-cdp-main.rs.txt");
 }
 
-mod parity_basecase_test {
-    mod tokio {
-        pub use ::tokio::main as test;
-        pub use ::tokio::*;
-    }
-    include!("contract_companion/parity-basecase-test.rs.txt");
-}
+// parity-basecase-test.rs.txt: the same, for the BaseCase programs (body compiled as
+// parity-basecase-main.rs.txt, text checked in section 2).
 
 mod parity_basecase_main {
     include!("contract_companion/parity-basecase-main.rs.txt");
@@ -66,6 +57,9 @@ mod e2e_tests {
     use seleniumbase_rs::sb_cdp::Key;
     use seleniumbase_rs::Fingerprint;
     use seleniumbase_rs::OsType;
+    // The extension's fingerprint code (API v2) names these two as well.
+    use seleniumbase_rs::BrowserType;
+    use seleniumbase_rs::ScreenSize;
     use serde_json::{json, Value};
 
     /// `parity_with_the_action_recorder` of the extension's end-to-end crate, against the copies of
@@ -106,14 +100,7 @@ mod e2e_tests {
             ),
         ];
         for (file, expected, produced) in cases {
-            // `ActionRecorder` imports `seleniumbase_rs::tokio` (its own `use` line, or in the braces) in
-            // a program, so that a project needs no `tokio` line in its manifest. The companion's
-            // generators and goldens do not write that line yet: it is the one difference this
-            // test allows, and it is to be removed here when the companion catches up.
-            let produced = produced
-                .replace("use seleniumbase_rs::tokio;\n", "")
-                .replace("use seleniumbase_rs::{tokio, ", "use seleniumbase_rs::{");
-
+            // The companion now writes `use seleniumbase_rs::tokio` as ActionRecorder does.
             assert_eq!(
                 produced, expected,
                 "{file} no longer matches ActionRecorder: the companion's generators follow it, \

@@ -196,6 +196,7 @@ seleniumbase-rs/               # the workspace root
 ├── docker/                    # the Linux verification image (Dockerfile.verify, verify-linux.sh) and firefox-check/
 ├── .config/                   # configuration of tools
 ├── .github/                   # GitHub Actions
+├── .gitlab-ci.yml             # GitLab CI: gate, test, supply-chain and docs jobs, and the manual msrv and chrome jobs
 ├── .warp/                     # the Warp terminal
 ├── Dockerfile                 # the sbrs image; its skeleton step lists every target
 ├── Makefile                   # make targets
@@ -326,6 +327,15 @@ See `docs/tutorials/tracing.md` for subscriber configuration examples.
 - A test that fakes `java` or another executable must run the script once
   (`--warm`) before timing it: macOS can take seconds to run a freshly written
   script the first time.
+- Output that the crate does not compile, such as the tool lists of the MCP
+  servers, is pinned with [`insta`](https://insta.rs) snapshots: a `.snap` file
+  in a `snapshots/` folder beside the test, named after the module path
+  (`tests/offline/snapshots/offline__mcp_tool_lists__cdp.snap`). A test that
+  fails on a snapshot is reviewed with `cargo insta review` (`cargo install
+  cargo-insta`); without it, rerun the test with `INSTA_UPDATE=always`, read
+  `git diff` and commit the `.snap` file. Generated files the crate compiles,
+  and the command-line spec, keep their own `UPDATE_*` checks.
+
 - When writing doctests, mark browser-dependent snippets with `no_run` or
   `ignore`. Tutorials in `docs/tutorials/` are not compiled, so keep their code
   true by hand.
@@ -371,6 +381,48 @@ On macOS, if a test binary cannot load `libpython`, prefix the test commands wit
 ```bash
 DYLD_LIBRARY_PATH="$HOME/.local/share/mise/installs/python/3.14.6/lib" cargo test --features "mcp-server test-util testing bdd"
 ```
+
+### CI on GitLab
+
+CI runs on GitLab.com, on its shared Linux runners. The repository is mirrored there after
+each gated publish, and the definition is `.gitlab-ci.yml`. The workflows in
+`.github/workflows` are still in the repository; the release and Docker ones run only on
+GitHub.
+
+GitLab creates a pipeline for merge requests and for `main`, and a new push cancels a
+pipeline that is still running. It has four jobs:
+
+- `gate` runs `cargo fmt --all -- --check` and clippy with `-D warnings` and the features
+  `mcp-server test-util testing bdd`.
+- `test` runs `cargo test --no-fail-fast` and `cargo doc --no-deps` with
+  `RUSTDOCFLAGS="-D warnings"`, with the same features: a second run, on Linux, of what every
+  push passed on the lead's machine.
+- `supply-chain` runs `cargo deny --all-features --workspace check` and `cargo audit`.
+- `docs` runs `mise run mdx` and `mdbook build`, and only when `docs/`, `book.toml`,
+  `CONTRIBUTING.md` or the tools that build the docs changed.
+
+Two more jobs are manual and never start by themselves. `msrv` runs `cargo check` with the
+`gui` and `tui` features on the Rust version of `Cargo.toml`, and fails when that version
+and the one in `.gitlab-ci.yml` differ. `chrome` installs Chromium and runs the real-Chrome
+tests (`tests/chrome`, `browser_smoke`, `crates/cli/tests/chrome` and the Playwright
+bridge) headless, one binary at a time with `--ignored --test-threads=1`. It leaves out the
+tests that open a real site (`captcha_live`, `examples_parity`, `leaked_password`,
+`cli_fingerprint`) and `client_hints`, which needs a branded Google Chrome.
+
+To start a manual job, open the pipeline of the merge request or of the commit and press
+the play button beside the job. To run jobs on a branch that has no merge request, use
+Build, then Pipelines, then New pipeline: every job is a manual job there. No job needs a
+secret.
+
+The `seleniumbaserust` group is on the
+[GitLab for Open Source](https://docs.gitlab.com/subscriptions/community_programs/) plan, so
+compute minutes are no constraint. One `test` run takes an hour or more (the doctests are the
+largest part; `tools/linux-check/RESULTS.md` has the timing of a run in a container). Give a
+commit that needs no pipeline `[ci skip]` in its message (or push it with
+`git push -o ci.skip`). A project's job timeout is 60 minutes by default. The `test` and `chrome` jobs ask for three
+hours with `timeout:`, which GitLab allows up to the runner's limit; if one is still cut off
+at 60 minutes, raise the timeout under Settings, CI/CD, General pipelines.
+
 
 ## Parity with Python SeleniumBase
 
@@ -514,9 +566,13 @@ engines) and `src/mcp/stealth.rs` for how an extra toolset is attached.
    (`SB_MCP_OUTPUT_DIR`), never to an arbitrary path.
 3. Register it in the group file of the server that offers it (`src/mcp/cdp/`,
    `src/mcp/driver/`, `src/mcp/sb/`: `navigation.rs`, `page.rs`, `input.rs`, ...),
-   and write the snapshots of the tool lists again with `UPDATE_GOLDEN=1 cargo test
-   --features mcp-server --test offline mcp_tool_lists`.
-4. Test it without Chrome first (`tests/mcp_cdp.rs`, `tests/mcp_devtools.rs`),
+   and review the insta snapshots of the tool lists (`tests/offline/snapshots/`):
+   run `cargo test -p seleniumbase-rs --features mcp-server --test offline
+   mcp_tool_lists`, read the diff with `cargo insta review`, accept it with
+   `cargo insta accept` (both come with `cargo install cargo-insta`; without
+   it rerun the test with `INSTA_UPDATE=always` and read `git diff`), and
+   commit the `.snap` files.
+4. Test it without Chrome first (`tests/offline/mcp_cdp.rs`, `tests/offline/mcp_devtools.rs`),
    then with a real Chrome in a `*_chrome.rs` test if it reads a page.
 5. Document it in `docs/tutorials/mcp_server.md`, add it to `CHANGELOG.md`, and
    give it an entry in `parity/api.toml` if upstream has the same tool.

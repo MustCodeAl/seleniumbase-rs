@@ -278,6 +278,7 @@ presentations, and optional stealth/CDP integrations.
 <LayoutDir name=".github" note="GitHub Actions">
 <LayoutDir name="workflows" note="ci, docker, completions, release and upstream-watch" />
 </LayoutDir>
+<LayoutFile name=".gitlab-ci.yml" note="GitLab CI: gate, test, supply-chain and docs jobs, and the manual msrv and chrome jobs" />
 <LayoutDir name=".warp" note="the Warp terminal">
 <LayoutDir name="workflows" note="the Warp workflows for sbrs" />
 </LayoutDir>
@@ -1215,13 +1216,18 @@ keeps them inside the output directory.
 
 <Step title="Test it" icon="flask">
 
-Test it: `tests/mcp_cdp.rs` shows how to drive a tool against the mock
-browser; `tests/mcp_webdriver.rs` covers the catalogues. `tests/mcp_tool_lists.rs`
-compares what `tools/list` answers on each server (names in order, descriptions,
-schemas, annotations) with `tests/golden/mcp_tools/*.json`; a new or changed tool
-fails it until you write the snapshots again with
-`UPDATE_GOLDEN=1 cargo test --features mcp-server --test offline mcp_tool_lists` and
-commit them. A `dev` tool is tested in
+Test it: `tests/offline/mcp_cdp.rs` shows how to drive a tool against the mock
+browser; `tests/offline/mcp_webdriver.rs` covers the catalogues.
+`tests/offline/mcp_tool_lists.rs` compares what `tools/list` answers on each server (names in order, descriptions,
+schemas, annotations) with the insta snapshots in `tests/offline/snapshots/`
+(`offline__mcp_tool_lists__<server>.snap`). A new or changed tool fails the test
+until you review the snapshot: run
+`cargo test -p seleniumbase-rs --features mcp-server --test offline mcp_tool_lists`,
+then `cargo insta review` (or `cargo insta accept`; install it with
+`cargo install cargo-insta`), or write them without it with
+`INSTA_UPDATE=always cargo test -p seleniumbase-rs --features mcp-server --test offline mcp_tool_lists`,
+read `git diff` and commit it. Generated files that the crate compiles stay on
+their own checks, not insta. A `dev` tool is tested in
 its own file with `Host::call`, and `install_driver` through
 `mcp::dev::host_with_installer` with a fake downloader, never the network.
 
