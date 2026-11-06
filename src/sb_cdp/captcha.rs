@@ -587,7 +587,6 @@ impl Page {
     /// "Just a moment...") is waited out first, until it navigates away or
     /// replaces itself (see [`SolveOptions::interstitial_timeout`]); what is left
     /// of the page is then looked at for a widget.
-
     ///
     /// The result is then looked for, because the widgets live in frames whose
     /// insides cannot be read: the response field of the widget holds a token,
@@ -600,7 +599,6 @@ impl Page {
     ///
     /// A round that spends its presses without a result can be followed by more
     /// rounds, after a cooldown (see [`SolveOptions::rounds`]).
-
     ///
     /// Returns the widget that was attempted, or `None` if the page shows no
     /// supported widget.

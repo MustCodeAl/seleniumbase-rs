@@ -445,7 +445,7 @@ async fn verify<S: Surface>(
 
 /// The cookies whose arrival shows that the visitor was let through: the one the vendor sets
 /// and the one the options name.
-fn clearance_cookies<'a>(kind: Captcha, options: &'a SolveOptions) -> Vec<&'a str> {
+fn clearance_cookies(kind: Captcha, options: &SolveOptions) -> Vec<&str> {
     kind.clearance_cookie()
         .into_iter()
         .chain(options.clearance_cookie.as_deref())
