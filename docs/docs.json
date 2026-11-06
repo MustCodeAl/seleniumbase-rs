@@ -886,7 +886,8 @@
               "design/trace_viewer",
               "design/playwright_basecase",
               "design/bon_builders",
-              "design/element_type"
+              "design/element_type",
+              "design/cookie_type"
             ]
           },
           {
