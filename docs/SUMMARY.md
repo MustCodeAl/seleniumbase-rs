@@ -154,6 +154,7 @@ hidden: true
   - [Stealth and impersonation plan](design/stealth_parity_plan.md)
   - [Fingerprint API v2](design/fingerprint-api-v2.md)
   - [Fingerprint capture, export and import](design/fingerprint-capture.md)
+  - [Fingerprint consistency](design/fingerprint_consistency.md)
   - [The sbrs CLI on usage](design/usage-cli.md)
   - [The dev MCP server](design/mcp-dev-tools.md)
   - [A trace viewer for the pure CDP engine](design/trace_viewer.md)
