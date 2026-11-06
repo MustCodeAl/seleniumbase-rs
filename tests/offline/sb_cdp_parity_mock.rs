@@ -83,6 +83,51 @@ async fn a_role_selector_is_sent_to_the_page_as_a_path_from_the_context_node() {
     assert!(sent[sent.len() - 1].contains(role), "{sent:?}");
 }
 
+#[test_log::test(tokio::test)]
+async fn an_xpath_with_a_branch_at_the_root_is_sent_to_the_page_to_stay_inside_its_scope() {
+    let (page, mock) = quick_page().await;
+    answer_every_script_with(&mock, json!(1));
+
+    // An XPath is evaluated from the root of the document whatever its context
+    // node is, for every branch of a union, a group and a call of `id()` that
+    // starts there, so the page script must keep what such a path finds inside
+    // the elements before it. A path that starts at the context node, wherever
+    // a `//` or a `|` stands, needs nothing of the kind.
+    let rooted = [
+        "//button",
+        ".//p | //button",
+        "(.//p | //button)[1]",
+        "id('outside')",
+    ];
+    let inside = [
+        ".//p",
+        ".//p | .//button",
+        ".//a[@title='x | //y']",
+        "parent::div",
+    ];
+    for xpath in rooted.iter().chain(inside.iter()) {
+        page.locator("#panel")
+            .locator(SelectorBuf::xpath(*xpath))
+            .count()
+            .await
+            .unwrap();
+
+        let sent = evaluated(&mock).pop().unwrap();
+        let step = format!(
+            r#"{{"selector":{{"kind":"xpath","value":{}}},"visible":false,"nth":null,"last":false,"confine":{}}}"#,
+            json!(xpath),
+            rooted.contains(xpath)
+        );
+        assert!(sent.contains(&step), "{xpath}: {sent}");
+    }
+
+    // A CSS step is never confined by path.
+    page.locator("#panel").locator("p").count().await.unwrap();
+    let sent = evaluated(&mock).pop().unwrap();
+    assert!(sent.contains(r#""confine":false"#), "{sent}");
+    assert!(!sent.contains(r#""confine":true"#), "{sent}");
+}
+
 #[test]
 fn a_contains_selector_converts_in_a_selector_buf_and_plain_css_stays_css() {
     assert_eq!(

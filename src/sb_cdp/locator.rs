@@ -17,7 +17,7 @@ use super::trace;
 
 use super::types::{ElementInfo, Point, Rect, SelectBy, State};
 use crate::error::SeleniumBaseError;
-use crate::utils::selectors::SelectorBuf;
+use crate::utils::selectors::{xpath_root_branch, SelectorBuf};
 
 /// One step of a locator chain: find within the previous step's matches.
 ///
@@ -29,11 +29,17 @@ struct Step {
     visible: bool,
     nth: Option<usize>,
     last: bool,
+    /// Whether the page helper keeps only the matches inside the step's scope:
+    /// the XPath has a branch that starts at the root of the document (`//b`,
+    /// `.//a | //b`, `id('x')`), which the page evaluates from the root whatever
+    /// the scope is.
+    confine: bool,
 }
 
 impl Step {
     fn new(selector: SelectorBuf) -> Self {
         Self {
+            confine: matches!(&selector, SelectorBuf::XPath(xpath) if xpath_root_branch(xpath).is_some()),
             selector,
             visible: false,
             nth: None,
