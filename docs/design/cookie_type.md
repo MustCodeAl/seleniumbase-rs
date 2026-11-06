@@ -3,10 +3,18 @@ title: "Design: one cookie type for both engines"
 sidebarTitle: "One cookie type"
 ---
 
-Status: proposal (2026-11-05). It is the first lane after the `Element` lane, as
+Status: implemented on `lane/cookie-type`, with every recommendation accepted (2026-11-05). It is the first lane after the `Element` lane, as
 [the element note](/design/element_type) recommends in open question 9: one lane for each
 thirtyfour type left in the public API, `Cookie` first, because `get_cookie` hands it
 to users.
+
+The note was written before the code and is kept as it was; three things turned out
+differently. `save_cookies_to_path` still writes the driver's own cookie objects (they already
+are the W3C objects Python writes, so converting through `Cookie` would only risk the format),
+and `load_cookies_from_path` is the side that converts: it reads every entry as a `Cookie`
+before the first one is added, so a bad file adds nothing. `add_cookie` has no
+`InvalidConfig` for "not an object with a name and a value" any more, since a `Cookie` always
+has both. `sbrs get-cookies` prints the serialized `Vec<Cookie>` after `Cookies: `.
 
 ## The problem
 
