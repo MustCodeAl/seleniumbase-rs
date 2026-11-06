@@ -117,6 +117,67 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   own port is left out of the address (`http://grid.test:80/wd/hub` is `http://grid.test/wd/hub`),
   and a protocol other than `http` and `https` is refused.
 
+- **Breaking: `BrowserConfig` is grouped into `browser` and `session`
+  (`docs/design/settings_v2.md`, step 4).** `browser::options::LaunchSettings` is renamed
+  `BrowserSettings` (the plugin crate keeps its own `LaunchSettings`), and it holds what both
+  engines start: `kind` (the `Browser`), `executable_path`, `headless`, `url`, `user_agent`,
+  `lang`, `mobile`, `device_metrics`, `window_size`, `window_position`, `proxy`
+  (`ProxySettings`: `server`, `pac_url`, `bypass_list`), `user_data_dir`, `extensions`,
+  `ad_block`, `ad_block_list`, `switches`, `chromium` (`ChromiumSettings`: `args`,
+  `disable_features`, `host_resolver_rules`), `virtual_display`, `debugging_port` and
+  `debugging_any_port`. `SessionSettings` (with `GridSettings`) holds what only a WebDriver
+  session reads: `mode`, `webdriver_url`, `grid`, `remote_webdriver_timeout_seconds`,
+  `driver_version`, `page_load_strategy`, `capabilities`, `extension_archives`, `firefox`,
+  `cdp_events`, `reuse`, `reuse_class`, `crumbs` and `auto_start_driver`. `BrowserConfig` holds
+  `browser`, `session`, `run`, `test_data` and `fingerprint` beside `cdp_url`, `cdp_discovery`,
+  `cdp_target` and `plugins`; the flat fields and `launch` are gone, and a configuration file
+  (JSON) nests them:
+
+  ```rust
+  // Before                                  // After
+  config.headless                            config.browser.headless
+  config.browser == Browser::Chromium        config.browser.kind == Browser::Chromium
+  config.proxy                               config.browser.proxy.server
+  config.locale                              config.browser.lang
+  config.start_page                          config.browser.url
+  config.browser_binary_path                 config.browser.executable_path
+  config.extra_args                          config.browser.chromium.args
+  config.launch.has(LaunchSwitch::DarkMode)  config.browser.has(LaunchSwitch::DarkMode)
+  config.mode                                config.session.mode
+  config.reuse_session                       config.session.reuse
+  config.webdriver_url                       config.session.webdriver_url()
+  config.launch.firefox                      config.session.firefox
+  config.launch.test_data                    config.test_data
+  ```
+
+  `BrowserConfig`'s `with_*` methods keep their names and signatures, except that
+  `with_launch_settings` is `with_browser_settings` and `with_session_settings`, and
+  `with_user_data_dir` takes a path. `extension_dir` is a list of folders (`extensions`), and
+  `BrowserSettings::switches` is a map, so a higher source can turn a switch off. A default
+  `BrowserSettings` opens a window, as Python does; a default `BrowserConfig` is still headless.
+  `SessionSettings::webdriver_url()` gives the server (`webdriver_url`, else the Grid address,
+  else `http://localhost:4444`). `StealthOptions::launch` is `browser` and has a `session`
+  beside it. The pure CDP engine reads `config.browser` whole; the settings it cannot use are
+  `config.session`.
+
+- **`Settings::to_launch_options` passes everything `BrowserConfig` passes to the pure CDP
+  engine.** It used a second, shorter mapping, so `SB_MOBILE`, `SB_DEVICE_METRICS`,
+  `SB_PROXY_PAC_URL`, `SB_PROXY_BYPASS_LIST` and the switches that are profile preferences
+  (`SB_BLOCK_IMAGES`, `SB_DISABLE_JS`, `SB_DISABLE_COOKIES`, `SB_DO_NOT_TRACK`,
+  `SB_EXTERNAL_PDF`, `SB_DISABLE_CSP`) reached a `BaseCase` and not an `sb_cdp` fixture. Now the
+  options are `LaunchOptions::builder().browser_config(&settings.to_browser_config())`, so both
+  engines start the same browser. One difference: `headless` off asks for a window on every
+  system (it was left to the engine's default, which is headless on Linux).
+
+- **Behaviour change: the higher source decides between two spellings of one setting.** The
+  window size (`window_size`, or `window_width` and `window_height`) and the language
+  (`locale`, `locale_code`) can be written two ways. A `window_size` of the settings file used
+  to beat `SB_WINDOW_WIDTH` and `SB_WINDOW_HEIGHT`, and a `locale_code` beat `SB_LOCALE` and
+  `--locale`, whatever set each. Now the order of the sources decides (file, then the
+  `SB_*` variables, then the command line, each beating the one before), and only within one
+  source does the size beat the pair and the code beat the locale, as before.
+
+
 - A settings file that sets `settings_file` (or `settings`) is refused: the setting names the
   file, so it did nothing there. `RuntimeConfig` reads `SB_WEBDRIVER_URL`, `SB_CHROME_BIN` and
   `SB_REMOTE_WEBDRIVER_TIMEOUT` with the blank rule of the option table: a blank value is

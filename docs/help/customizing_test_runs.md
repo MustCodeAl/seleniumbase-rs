@@ -471,6 +471,13 @@ by `--config`), applies the `SB_*` variables on top, and then the CLI flags
 override both. So `SB_HEADLESS=true sbrs open URL` runs headless, and
 `SB_HEADLESS=true sbrs --headed open URL` shows the window.
 
+Two settings can be written in two ways: the window size (`window_size`, or `window_width` and
+`window_height`) and the language (`locale`, or `locale_code`). The higher source decides,
+whichever spelling it uses: `SB_WINDOW_WIDTH` and `SB_WINDOW_HEIGHT` beat a `window_size` in the
+file, and `--locale` beats a `locale_code` in the environment. Only inside one source does the
+size beat the pair and the code beat the locale.
+
+
 <Tip>
 
 Use the config file for stable defaults, environment variables for CI-specific

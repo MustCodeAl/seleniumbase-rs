@@ -689,6 +689,7 @@ Launch and session plumbing:
 <LayoutFile name="plugins.rs" note="plugins turned on for the browser" />
 <LayoutFile name="proxy.rs" note="the proxy" />
 <LayoutFile name="remote.rs" note="a remote WebDriver server" />
+<LayoutFile name="session.rs" note="SessionSettings and GridSettings, what only a WebDriver session reads" />
 <LayoutFile name="switches.rs" note="browser switches" />
 <LayoutFile name="virtual_display.rs" note="a virtual display" />
 <LayoutFile name="window.rs" note="window size and position" />

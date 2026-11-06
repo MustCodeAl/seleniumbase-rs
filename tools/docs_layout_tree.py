@@ -214,6 +214,8 @@ def browser_detail():
         _file("plugins.rs", "plugins turned on for the browser"),
         _file("proxy.rs", "the proxy"),
         _file("remote.rs", "a remote WebDriver server"),
+        _file("session.rs", "SessionSettings and GridSettings, what only a WebDriver session reads"),
+
         _file("switches.rs", "browser switches"),
         _file("virtual_display.rs", "a virtual display"),
         _file("window.rs", "window size and position"),

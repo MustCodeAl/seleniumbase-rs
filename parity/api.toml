@@ -4073,17 +4073,17 @@ rust = "mcp::sb"
 
 [options_driver."ad_block"]
 status = "composed"
-rust = "BrowserConfig::ad_block"
-note = "Set BrowserConfig::ad_block (BrowserConfig::with_ad_block). Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
+rust = "BrowserSettings::ad_block"
+note = "Set BrowserSettings::ad_block (BrowserConfig::with_ad_block). Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_driver."ad_block_on"]
 status = "composed"
-rust = "BrowserConfig::ad_block"
-note = "Set BrowserConfig::ad_block (BrowserConfig::with_ad_block). Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
+rust = "BrowserSettings::ad_block"
+note = "Set BrowserSettings::ad_block (BrowserConfig::with_ad_block). Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_driver."agent"]
 status = "composed"
-rust = "BrowserConfig::user_agent"
+rust = "BrowserSettings::user_agent"
 
 [options_driver."binary_location"]
 status = "implemented"
@@ -4200,7 +4200,7 @@ reason = "Python adds --disable-web-security unless enable_ws is set. A Rust ses
 
 [options_driver."extension_dir"]
 status = "implemented"
-rust = "BrowserConfig::extension_dir"
+rust = "BrowserSettings::extensions"
 
 [options_driver."extension_zip"]
 status = "implemented"
@@ -4232,12 +4232,12 @@ rust = "BrowserConfig::with_guest_mode"
 
 [options_driver."headed"]
 status = "composed"
-rust = "BrowserConfig::headless"
+rust = "BrowserSettings::headless"
 note = "Headed is headless = false."
 
 [options_driver."headless"]
 status = "implemented"
-rust = "BrowserConfig::headless"
+rust = "BrowserSettings::headless"
 
 [options_driver."headless1"]
 status = "implemented"
@@ -4260,16 +4260,16 @@ rust = "BrowserConfig::with_incognito"
 
 [options_driver."is_mobile"]
 status = "composed"
-rust = "BrowserConfig::mobile"
+rust = "BrowserSettings::mobile"
 note = "Give the screen with `with_device_metrics`."
 
 [options_driver."locale"]
 status = "implemented"
-rust = "BrowserConfig::locale"
+rust = "BrowserSettings::lang"
 
 [options_driver."locale_code"]
 status = "composed"
-rust = "BrowserConfig::locale"
+rust = "BrowserSettings::lang"
 
 [options_driver."log_cdp"]
 status = "implemented"
@@ -4283,7 +4283,7 @@ note = "Asks the driver to keep the performance log; read it with `BrowserSessio
 
 [options_driver."mobile"]
 status = "implemented"
-rust = "BrowserConfig::mobile"
+rust = "BrowserSettings::mobile"
 note = "The pure CDP engine has LaunchOptionsBuilder::mobile and device_metrics: every tab, also one opened later, gets the same phone (390 by 715 at a ratio of 3 unless metrics are given). Python's pure CDP default is 412 by 732."
 
 [options_driver."multi_proxy"]
@@ -4322,7 +4322,7 @@ note = "`with_grid(protocol, servername, port)` builds the URL Python builds: an
 
 [options_driver."proxy"]
 status = "implemented"
-rust = "BrowserConfig::proxy"
+rust = "ProxySettings::server"
 divergence = "Checked as Python checks it (schemes http, https, socks4, socks5, socks5h; a SOCKS proxy takes no login). Chrome is never given the login in its arguments, and a WebDriver session does not answer the proxy's login yet, so USER:PASS@SERVER:PORT does not authenticate there; Firefox refuses a login with Python's message. The pure CDP engine can log in (LaunchOptionsBuilder::proxy)."
 
 [options_driver."proxy_bypass_list"]
@@ -4332,7 +4332,7 @@ note = "Chrome's `--proxy-bypass-list`. It applies to a proxy named with `proxy`
 
 [options_driver."proxy_pac_url"]
 status = "implemented"
-rust = "BrowserConfig::proxy_pac_url"
+rust = "ProxySettings::pac_url"
 note = "The pure CDP engine has LaunchOptionsBuilder::proxy_pac_url, and answers a login the PAC file asks for over the protocol."
 divergence = "The URL must end in .pac, with a login before it or in it. Chrome is never given the login, and a WebDriver session does not answer the PAC login yet, so it does not authenticate there; Firefox refuses a login with Python's message."
 
@@ -4368,7 +4368,7 @@ note = "The pure CDP engine has LaunchOptionsBuilder::swiftshader."
 
 [options_driver."uc"]
 status = "composed"
-rust = "BrowserConfig::mode"
+rust = "SessionSettings::mode"
 note = "DriverMode::Uc."
 
 [options_driver."uc_cdp"]
@@ -4393,12 +4393,12 @@ reason = "Deprecated upstream: UC Mode always launches the browser as a separate
 
 [options_driver."undetectable"]
 status = "composed"
-rust = "BrowserConfig::mode"
+rust = "SessionSettings::mode"
 note = "DriverMode::Uc."
 
 [options_driver."undetected"]
 status = "composed"
-rust = "BrowserConfig::mode"
+rust = "SessionSettings::mode"
 note = "DriverMode::Uc."
 
 [options_driver."use_auto_ext"]
@@ -4413,7 +4413,7 @@ note = "Choose the Browser variant."
 
 [options_driver."user_data_dir"]
 status = "implemented"
-rust = "BrowserConfig::user_data_dir"
+rust = "BrowserSettings::user_data_dir"
 
 [options_driver."window_position"]
 status = "implemented"
@@ -4850,7 +4850,7 @@ divergence = "Python assigns `document.onkeydown`, replacing the page's own hand
 
 [options_pytest."--extension-dir"]
 status = "implemented"
-rust = "BrowserConfig::extension_dir"
+rust = "BrowserSettings::extensions"
 
 [options_pytest."--extension-zip"]
 status = "implemented"
@@ -4859,7 +4859,7 @@ note = "A .zip or .crx file, sent in the `extensions` option of `goog:chromeOpti
 
 [options_pytest."--extension_dir"]
 status = "implemented"
-rust = "BrowserConfig::extension_dir"
+rust = "BrowserSettings::extensions"
 
 [options_pytest."--extension_zip"]
 status = "implemented"
@@ -4962,7 +4962,7 @@ note = "`sbrs test --headed` is `SB_HEADLESS=false`. Headed is headless = false.
 
 [options_pytest."--headless"]
 status = "implemented"
-rust = "BrowserConfig::headless"
+rust = "BrowserSettings::headless"
 
 [options_pytest."--headless1"]
 status = "implemented"
@@ -5034,7 +5034,7 @@ note = "A spelling of --list-fail-page; see there."
 
 [options_pytest."--locale"]
 status = "implemented"
-rust = "BrowserConfig::locale"
+rust = "BrowserSettings::lang"
 
 [options_pytest."--locale-code"]
 status = "implemented"
@@ -5107,7 +5107,7 @@ divergence = "Python applies the metrics only together with --mobile; here setti
 
 [options_pytest."--mobile"]
 status = "implemented"
-rust = "BrowserConfig::mobile"
+rust = "BrowserSettings::mobile"
 
 [options_pytest."--mobile-emulator"]
 status = "implemented"
@@ -5205,7 +5205,7 @@ note = "`with_grid(protocol, servername, port)` builds the URL Python builds: an
 
 [options_pytest."--proxy"]
 status = "implemented"
-rust = "BrowserConfig::proxy"
+rust = "ProxySettings::server"
 divergence = "Checked as Python checks it (schemes http, https, socks4, socks5, socks5h; a SOCKS proxy takes no login). Chrome is never given the login in its arguments, and a WebDriver session does not answer the proxy's login yet, so USER:PASS@SERVER:PORT does not authenticate there; Firefox refuses a login with Python's message. The pure CDP engine can log in (LaunchOptionsBuilder::proxy)."
 
 [options_pytest."--proxy-bypass-list"]
@@ -5220,7 +5220,7 @@ note = "Downloads of the driver, and of the Chrome for Testing builds, go throug
 
 [options_pytest."--proxy-pac-url"]
 status = "implemented"
-rust = "BrowserConfig::proxy_pac_url"
+rust = "ProxySettings::pac_url"
 divergence = "The URL must end in .pac, with a login before it or in it. Chrome is never given the login, and a WebDriver session does not answer the PAC login yet, so it does not authenticate there; Firefox refuses a login with Python's message."
 
 [options_pytest."--proxy-server"]
@@ -5432,12 +5432,12 @@ note = "A spelling of --screenshot; see there."
 
 [options_pytest."--start-page"]
 status = "implemented"
-rust = "BrowserConfig::start_page"
+rust = "BrowserSettings::url"
 note = "BaseCase::new opens the start page when one is set; BaseCase::open_start_page opens it again (about:blank when none is set)."
 
 [options_pytest."--start_page"]
 status = "implemented"
-rust = "BrowserConfig::start_page"
+rust = "BrowserSettings::url"
 note = "BaseCase::new opens the start page when one is set; BaseCase::open_start_page opens it again (about:blank when none is set)."
 
 [options_pytest."--swiftshader"]
@@ -5536,19 +5536,19 @@ note = "Sets `useAutomationExtension` to true. Upstream marks the option depreca
 
 [options_pytest."--user-agent"]
 status = "implemented"
-rust = "BrowserConfig::user_agent"
+rust = "BrowserSettings::user_agent"
 
 [options_pytest."--user-data-dir"]
 status = "implemented"
-rust = "BrowserConfig::user_data_dir"
+rust = "BrowserSettings::user_data_dir"
 
 [options_pytest."--user_agent"]
 status = "implemented"
-rust = "BrowserConfig::user_agent"
+rust = "BrowserSettings::user_agent"
 
 [options_pytest."--user_data_dir"]
 status = "implemented"
-rust = "BrowserConfig::user_data_dir"
+rust = "BrowserSettings::user_data_dir"
 
 [options_pytest."--var1"]
 status = "implemented"
@@ -5704,12 +5704,12 @@ note = "`Settings::test.data.account` (`account` in the `[test]` table, `SB_ACCO
 [options_sb."ad_block"]
 status = "implemented"
 rust = "Settings::ad_block"
-note = "Set BrowserConfig::ad_block (BrowserConfig::with_ad_block). Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
+note = "Set BrowserSettings::ad_block (BrowserConfig::with_ad_block). Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_sb."ad_block_on"]
 status = "implemented"
 rust = "Settings::ad_block"
-note = "Set BrowserConfig::ad_block (BrowserConfig::with_ad_block). Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
+note = "Set BrowserSettings::ad_block (BrowserConfig::with_ad_block). Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_sb."agent"]
 status = "implemented"
@@ -5842,7 +5842,7 @@ note = "`env` in the `[test]` table, `SB_ENV`, `sbrs test --env`; one of Python'
 
 [options_sb."extension_dir"]
 status = "implemented"
-rust = "BrowserConfig::extension_dir"
+rust = "BrowserSettings::extensions"
 
 [options_sb."extension_zip"]
 status = "implemented"
@@ -5883,7 +5883,7 @@ note = "Headed is headless = false."
 
 [options_sb."headless"]
 status = "implemented"
-rust = "BrowserConfig::headless"
+rust = "BrowserSettings::headless"
 
 [options_sb."headless1"]
 status = "implemented"
@@ -5925,7 +5925,7 @@ note = "After every page load (open, go_back, go_forward, refresh, wait_for_read
 
 [options_sb."locale"]
 status = "implemented"
-rust = "BrowserConfig::locale"
+rust = "BrowserSettings::lang"
 
 [options_sb."locale_code"]
 status = "implemented"
@@ -5954,7 +5954,7 @@ note = "How long BaseCase::post_message keeps its message, to the millisecond (2
 
 [options_sb."mobile"]
 status = "implemented"
-rust = "BrowserConfig::mobile"
+rust = "BrowserSettings::mobile"
 
 [options_sb."multi_proxy"]
 status = "not-applicable"
@@ -5992,7 +5992,7 @@ note = "`with_grid(protocol, servername, port)` builds the URL Python builds: an
 
 [options_sb."proxy"]
 status = "implemented"
-rust = "BrowserConfig::proxy"
+rust = "ProxySettings::server"
 divergence = "Checked as Python checks it (schemes http, https, socks4, socks5, socks5h; a SOCKS proxy takes no login). Chrome is never given the login in its arguments, and a WebDriver session does not answer the proxy's login yet, so USER:PASS@SERVER:PORT does not authenticate there; Firefox refuses a login with Python's message. The pure CDP engine can log in (LaunchOptionsBuilder::proxy)."
 
 [options_sb."proxy_bypass_list"]
@@ -6002,7 +6002,7 @@ note = "Chrome's `--proxy-bypass-list`. It applies to a proxy named with `proxy`
 
 [options_sb."proxy_pac_url"]
 status = "implemented"
-rust = "BrowserConfig::proxy_pac_url"
+rust = "ProxySettings::pac_url"
 divergence = "The URL must end in .pac, with a login before it or in it. Chrome is never given the login, and a WebDriver session does not answer the PAC login yet, so it does not authenticate there; Firefox refuses a login with Python's message."
 
 [options_sb."raise_test_failure"]
@@ -6091,7 +6091,7 @@ note = "Pauses, in full, after the same actions as --demo, which also outline th
 
 [options_sb."start_page"]
 status = "implemented"
-rust = "BrowserConfig::start_page"
+rust = "BrowserSettings::url"
 note = "BaseCase::new opens the start page when one is set; BaseCase::open_start_page opens it again (about:blank when none is set)."
 
 [options_sb."swiftshader"]
@@ -6160,7 +6160,7 @@ note = "`browser = \"chromium\"` in the settings file, `SB_BROWSER=chromium`, `s
 
 [options_sb."user_data_dir"]
 status = "implemented"
-rust = "BrowserConfig::user_data_dir"
+rust = "BrowserSettings::user_data_dir"
 
 [options_sb."var1"]
 status = "implemented"

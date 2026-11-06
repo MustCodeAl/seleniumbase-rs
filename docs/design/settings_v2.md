@@ -4,7 +4,7 @@ sidebarTitle: "Settings with figment"
 ---
 
 Status: design note, written before the code (branch `lane/design-settings`, from `90ca478e`).
-Every line number below is from that commit. Implemented on `lane/settings-v2`: the pins (step 1), the report table (step 2), the run group (step 3), the `SB_NO_SANDBOX` rule, and findings 1, 2, 3, 7, 8, 9, 11 and 13; not yet: the `browser` and `session` groups (steps 4 and 5), the figment layering (step 6), findings 4, 5, 10 and 12. What figment does was
+Every line number below is from that commit. Implemented on `lane/settings-v2`: the pins (step 1), the report table (step 2), the run group (step 3), the `browser` and `session` groups of `BrowserConfig` (step 4: `BrowserSettings`, `SessionSettings`, `GridSettings`, one Grid address function), the `SB_NO_SANDBOX` rule, and findings 1, 2, 3, 7, 8, 9, 11 and 13, finding 4 (`to_launch_options` goes through `to_browser_config`; step 5 in part) and finding 10 (the higher source decides between the spellings of the window size and of the language; done in `apply_env`, one source at a time, which is what the figment layering will do by construction); not yet: `Settings` holding the core and the typed readers (step 5), the figment layering (step 6), the `check_config` paths (open question 13), and the part of finding 12 that is not the `LaunchSettings` rename. What figment does was
 read on Context7 (the pages are listed under [Sources](#sources)); what those pages did not say is
 marked "to verify". Statements about today's behaviour come from reading the code; none was run,
 and each one that matters gets a test in [step 1](#implementation-steps) before anything moves.

@@ -223,7 +223,7 @@ See [Compression](/concepts/bundling-and-caching#compression).
 
 <Badge color="blue">Engine</Badge>
 
-The settings for one browser session: which browser, the driver mode, headless or not, proxy, user agent, fingerprint, plugins and more, set with `with_*` methods. `BrowserConfig::default()` is headless and reads no environment variables.
+The settings for one browser session, set with `with_*` methods and held in groups: `browser` (what both engines start: the browser, headless or not, proxy, user agent, window, switches), `session` (what only a WebDriver session reads: the driver mode, the server, the Grid, reuse), `run`, and the fingerprint and plugins. `BrowserConfig::default()` is headless and reads no environment variables.
 
 See [Public items of the crate root](/api/crate-root).
 

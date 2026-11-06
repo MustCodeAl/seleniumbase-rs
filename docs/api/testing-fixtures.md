@@ -72,7 +72,7 @@ async fn valid_login(sb: Sb) -> Result<()> {
 | Method | Description |
 |--------|-------------|
 | `data()` | The run's test data (`--env`, `--data`, `--var1`, ...). Empty when the settings could not be read. A `Page` has none of its own. |
-| `run(test)` | `test` is `AsyncFn(&Page) -> Result<()>`. Launches with `settings.to_launch_options()`. |
+| `run(test)` | `test` is `AsyncFn(&Page) -> Result<()>`. Launches with `settings.to_launch_options()`, which reads the same `BrowserConfig` a `BaseCase` gets (a phone, a PAC file, a bypass list and the profile preferences included; `headless` off opens a window). |
 | `run_with_browser(launch, test)` | Same lifecycle on the browser `launch` returns, once per attempt. Feature `test-util` (and the crate's own tests). Use it for `Browser::new_mocked()`. |
 
 ```rust
