@@ -17,6 +17,7 @@ const PAGE: &str = "data:text/html,<html><head><title>CDP page</title></head>\
     <body style=\"height:3000px\">\
     <select id=planet><option value=earth>Earth</option><option value=mars>Mars</option></select>\
     <a id=link href=\"/x\">Link</a>\
+    <input id=name value=Ada><textarea id=bio>Typed</textarea>\
     <div id=out>waiting</div>\
     <button id=low style=\"margin-top:2000px\" \
     onclick=\"document.getElementById('out').textContent='clicked'\">Low</button>\
@@ -38,6 +39,9 @@ async fn the_cdp_helpers_click_read_select_and_report_what_is_missing() {
     assert_eq!(sb.cdp_get_text("#out").await.unwrap(), "clicked");
 
     // Reads.
+    // A field's text is its value, as Python's `sb.cdp.get_text` gives it.
+    assert_eq!(sb.cdp_get_text("#name").await.unwrap(), "Ada");
+    assert_eq!(sb.cdp_get_text("#bio").await.unwrap(), "Typed");
     assert_eq!(
         sb.cdp_get_attribute("#planet", "id").await.unwrap(),
         Some("planet".to_owned())
