@@ -169,12 +169,15 @@ impl CdpClient {
         Ok(())
     }
 
-    /// Returns the cookies of the current page as the raw `Network.getCookies` result,
-    /// `{"cookies": [...]}`. Without `urls` the command answers the cookies the browser
-    /// would send to the current URL, not every cookie it holds.
-    pub async fn get_cookies(&self) -> Result<serde_json::Value, crate::error::SeleniumBaseError> {
+    /// Returns the cookies the browser would send to `url` as the raw `Network.getCookies` result,
+    /// `{"cookies": [...]}`. The URL is always sent: without `urls` the command also answers the
+    /// cookies of every frame of the page, which WebDriver (and chromedriver) does not list.
+    pub async fn get_cookies(
+        &self,
+        url: &str,
+    ) -> Result<serde_json::Value, crate::error::SeleniumBaseError> {
         self.dev_tools
-            .execute_cdp("Network.getCookies")
+            .execute_cdp_with_params("Network.getCookies", serde_json::json!({ "urls": [url] }))
             .await
             .map_err(|e| crate::error::SeleniumBaseError::Unsupported(e.to_string()))
     }

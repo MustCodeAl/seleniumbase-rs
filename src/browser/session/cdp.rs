@@ -173,10 +173,11 @@ impl BrowserSession {
 
     /// Returns the cookies of the current page, the same [`Cookie`] in both modes.
     ///
-    /// A session with a DevTools connection reads them with `Network.getCookies`, a session
-    /// without one (plain WebDriver mode) through WebDriver. Either way these are the cookies
-    /// the browser would send to the current URL, not every cookie it holds. A session cookie
-    /// has no `expires`.
+    /// A session with a DevTools connection reads them with `Network.getCookies` for the
+    /// current URL, as chromedriver does, so a frame of another origin adds none; a session
+    /// without one (plain WebDriver mode) reads them through WebDriver. Either way these are
+    /// the cookies the browser would send to the current URL, not every cookie it holds. A
+    /// session cookie has no `expires`.
     ///
     /// # Errors
     ///
@@ -185,7 +186,8 @@ impl BrowserSession {
     /// [`SeleniumBaseError::CdpDriver`] if DevTools answers without a list of cookies.
     pub async fn get_cookies(&self) -> Result<Vec<Cookie>, SeleniumBaseError> {
         if let Ok(cdp) = self.cdp_client() {
-            let response = cdp.get_cookies().await?;
+            let url = self.webdriver()?.current_url().await?;
+            let response = cdp.get_cookies(url.as_str()).await?;
             let cookies = response["cookies"].as_array().ok_or_else(|| {
                 SeleniumBaseError::CdpDriver(
                     "Network.getCookies answered no list of cookies".to_owned(),
