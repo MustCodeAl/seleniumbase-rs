@@ -229,7 +229,7 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   ...`), and `Settings::check` lists it under that variable and not under `validation`. A
   settings file names the key and does not repeat the value that was refused. A capabilities
   file (`SB_CAP_FILE`) is read when the variable is read. `Settings::to_browser_config` clones
-  the two groups; `SettingsOverrides::apply` returns a `Result`, because the browser and the
+  the two groups; `SettingsOverrides::try_apply` returns a `Result`, because the browser and the
   mode it is given are parsed. `with_launch_options` and `check_launch_values` are gone, and
   `Settings::validate` only refuses a window with one side. `TestSettings` has `threads` and
   no longer the four recorder switches. `DriverMode` is written in lower case (`"cdp"`; the
@@ -245,17 +245,65 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   capabilities of a higher source are laid over the lower one's (the file, then the JSON
   text), and `SB_DISABLE_FEATURES` adds to the features that `SB_CHROMIUM_ARG` named. A
   virtual-display size (`SB_XVFB_METRICS`) counts only when `SB_XVFB` is on in the same
-  source or a lower one, as before; it is no longer remembered when `SB_XVFB` comes from a
-  higher source. And `sbrs` takes the default mode of a command (the DevTools for `devtools`)
+  source; it is forgotten when `SB_XVFB` comes from another source, a higher or a lower one (the
+  layers are read one source at a time). And `sbrs` takes the default mode of a command (the DevTools for `devtools`)
   also when the mode asked for is WebDriver, because the settings no longer tell "WebDriver"
   from "no mode".
+
+- **Breaking: the settings are layered with figment (`docs/design/settings_v2.md`, step 6).**
+  The settings file, the `SB_*` variables and explicit code are three layers over the defaults,
+  each read into the settings it gives and merged key by key (`figment` 0.10, a dependency now
+  with its default features off; no figment type is public). `Settings::load`, `load_from`,
+  `from_env`, `check` and `apply_options` all go through it, so a higher source wins for each
+  setting it gives and leaves the others alone.
+
+  `SettingsOverrides` is its `(SB_* variable, text)` pairs only: the 18 typed fields and
+  `apply` are gone, `try_apply` and `env` stay.
+
+  ```rust
+  // Before
+  SettingsOverrides { headless: Some(true), proxy: Some("p:80".to_owned()), ..SettingsOverrides::default() }.apply(&mut settings)?;
+  // After: the pairs are the options as sbrs hands them on (`--headless` is SB_HEADLESS=true)
+  SettingsOverrides { options: vec![("SB_HEADLESS", "true".to_owned()), ("SB_PROXY", "p:80".to_owned())] }.try_apply(&mut settings)?;
+  ```
+
+  `RuntimeConfig` no longer has `webdriver_url`, `chrome_bin` and `remote_webdriver_timeout`:
+  they are settings, and every variable of the option table is read by one reader, with one
+  rule (a blank value is unset; `SB_NO_SANDBOX` too, with the fail-safe values above).
+  `BrowserConfig::from_env()` and the new `BrowserConfig::from_vars(lookup)` read the three
+  through it; they no longer fail for an unrelated bad runtime variable such as
+  `SB_LOG_FORMAT` (`RuntimeConfig::from_env` still does). `sbrs doctor` and the `dev` MCP
+  server's `check_config` read the browser variables the same way.
+
+  A value that is refused names its source. A variable is named with its flag, as before; a
+  value of the settings file names the file and the key as the file wrote it (with a dash or an
+  alias, flat or in its table), and does not repeat a value that may be a secret:
+
+  ```text
+  SB_HEADLESS (--headless): cannot parse bool: maybe
+  failed to parse TOML settings: sbase_config.toml: headless: cannot parse bool: …
+  failed to parse TOML settings: sbase_config.toml: [run] demo_mode: invalid type: string "later", expected a boolean
+  ```
+
+  `Settings::check` lists the problems of the file and of the variables in the order of the
+  rows of the option table, whichever source gave each, and a file with several refused values
+  reports every one and keeps the values it did not refuse (it used to report the first and
+  drop the whole file). Corners of the merge: a list of a higher source replaces the list of
+  the lower one (`SB_CHROMIUM_ARG`, `SB_EXTENSION_DIR`, `SB_PLUGINS`), the Chromium features of
+  `SB_DISABLE_FEATURES` replace the ones a lower source named (they were added across sources),
+  the Firefox preferences of a higher source are laid over the lower ones key by key, and
+  `SB_XVFB=true` from a higher source opens the display at the default size, whatever size a
+  lower source asked for with `SB_XVFB_METRICS`. A window width or height given alone is laid
+  over the size of a lower source; with no lower size it is read as a size with a side of zero,
+  which `validate` refuses as before (`WindowSize` reads a missing side of a table as 0).
+
 
 
 
 - A settings file that sets `settings_file` (or `settings`) is refused: the setting names the
-  file, so it did nothing there. `RuntimeConfig` reads `SB_WEBDRIVER_URL`, `SB_CHROME_BIN` and
-  `SB_REMOTE_WEBDRIVER_TIMEOUT` with the blank rule of the option table: a blank value is
-  unset, not an empty path.
+  file, so it did nothing there. `SB_WEBDRIVER_URL`, `SB_CHROME_BIN` and
+  `SB_REMOTE_WEBDRIVER_TIMEOUT` are read with the blank rule of the option table: a blank value
+  is unset, not an empty path.
 
 
 - **Breaking, security: `SB_NO_SANDBOX` fails safe.** The pure CDP engine turned Chrome's

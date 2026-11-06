@@ -4,7 +4,7 @@ sidebarTitle: "Settings with figment"
 ---
 
 Status: design note, written before the code (branch `lane/design-settings`, from `90ca478e`).
-Every line number below is from that commit. Implemented on `lane/settings-v2`: the pins (step 1), the report table (step 2), the run group (step 3), the `browser` and `session` groups of `BrowserConfig` (step 4: `BrowserSettings`, `SessionSettings`, `GridSettings`, one Grid address function), the `SB_NO_SANDBOX` rule, and findings 1, 2, 3, 7, 8, 9, 11 and 13, finding 4 (`to_launch_options` goes through `to_browser_config`) and finding 10 (the higher source decides between the spellings of the window size and of the language; done in `apply_env`, one source at a time, which is what the figment layering will do by construction), step 5 (`Settings` holds the core: `Settings::browser` and `session` are `BrowserSettings` and `SessionSettings`, the field column of the option table is the dotted path, a row kind writes one entry of `browser.switches`, `config::text` reads the text of a variable or of a flat file key into the typed field, `with_launch_options`, `check_launch_values` and `base_browser_config` are gone, and `check_config` lists the paths with their variables, open question 13); not yet: the figment layering (step 6; the nested `[browser]` and `[session]` tables of a settings file, the `key` column of the table, `SettingsOverrides` as pairs), the docs pages (step 7), and the part of finding 12 that is not the `LaunchSettings` rename. What figment does was
+Every line number below is from that commit. Implemented on `lane/settings-v2`: the pins (step 1), the report table (step 2), the run group (step 3), the `browser` and `session` groups of `BrowserConfig` (step 4: `BrowserSettings`, `SessionSettings`, `GridSettings`, one Grid address function), the `SB_NO_SANDBOX` rule, and findings 1, 2, 3, 7, 8, 9, 11 and 13, finding 4 (`to_launch_options` goes through `to_browser_config`) and finding 10 (the higher source decides between the spellings of the window size and of the language; done by the layering: each source gives one spelling and figment merges the sources key by key), step 5 (`Settings` holds the core: `Settings::browser` and `session` are `BrowserSettings` and `SessionSettings`, the field column of the option table is the dotted path, a row kind writes one entry of `browser.switches`, `config::text` reads the text of a variable or of a flat file key into the typed field, `with_launch_options`, `check_launch_values` and `base_browser_config` are gone, and `check_config` lists the paths with their variables, open question 13); step 6 (the settings are layered with figment: `SettingsFile` and `EnvVars` are crate-private providers over one `Figment`, `SettingsOverrides` is its pairs, `RuntimeConfig` drops the three shared fields and every variable of the table has one reader, errors name their source, `check` sorts by row) and step 7 (the docs pages, the CHANGELOG, the parity notes); not yet: the nested `[browser]` and `[session]` tables of a settings file, the `key` column of the table (the key of a row is still looked up by its variable, `FLAT_KEYS`), `OptionValue` (kept, as the reader of the text of one field), and the part of finding 12 that is not the `LaunchSettings` rename. What figment does was
 read on Context7 (the pages are listed under [Sources](#sources)); what those pages did not say is
 marked "to verify". Statements about today's behaviour come from reading the code; none was run,
 and each one that matters gets a test in [step 1](#implementation-steps) before anything moves.
@@ -897,6 +897,33 @@ One commit each; each runs the gate of `CLAUDE.md` (fmt, clippy with `-D warning
    `[browser]` and `[session]` tables of a file (step 6). Where the sequential reading differs
    from the note: `SB_XVFB_METRICS` is used only when `SB_XVFB` is on in the same source or
    a lower one, and the capabilities and the Chromium features are added across sources.
+
+   *As implemented (2026-11-06).* Each provider gives its source as a dictionary at the paths of
+   the serialized `Settings` (`config/layers.rs`: `Layer`, `put`, `merge_into`, `extract`,
+   `describe`, the one place figment is called). `read_variables` (`test_options.rs`) runs the
+   rows of the table in table order on a scratch `Settings`, so that a derived row can depend on
+   the rows before it in the same source, then reads back the paths each row wrote from the
+   serialized scratch (`written_by`); a path the serializer skips, because the value is its
+   default (a switch that is off, an empty list, a display that is off), is written out, so that
+   a higher source can turn off what a lower one turned on. `EnvVars` (`env_vars.rs`) reads the
+   variables of the process, a lookup, or the pairs of a command line, by one rule (a blank
+   value is unset; `SB_PLUGINS` is the exception) and is the only code that looks a variable of
+   the table up: `env_vars::text`, `switch` and `parse` go through it, so `profile_of` and
+   `Layers::resolve` read `SB_NO_SANDBOX` by the same rule and `BrowserConfig::from_env` and
+   `from_vars` read the three runtime variables (finding 7). `SettingsFile` (`settings_file.rs`)
+   reads the flat keys of the browser and the session through the same readers and hands the
+   tables on as written. An error names its source in a figment way: a layer has a name (the
+   file name, "environment variable", "command line") and an interpolater that gives a key
+   path back as the source writes it (the key as the file wrote it, the variable); `describe`
+   reads `error.metadata`, `error.path` and `Metadata::interpolate`. `Settings::check` reads
+   each source on its own, leaves a refused value out of its layer and goes on, and sorts the
+   problems by the row of the table. What differs from the note: the readers are the ones of
+   step 5 (`OptionValue::assign` and the functions of `config::text`), run before the
+   dictionary is made, instead of `deserialize_with` on every field; the key of a row is still
+   looked up by its variable (`FLAT_KEYS`), not a column of the table; the nested `[browser]`
+   and `[session]` tables of a file are not read; and a size of the virtual display counts when
+   `SB_XVFB` is on in the same source.
+
 
 6. **`feat(config): layer the settings with figment`.** `SettingsFile` and `EnvVars`;
    `Settings::load`, `load_from`, `from_env`, `check` and `apply_options` on one `Figment`; the

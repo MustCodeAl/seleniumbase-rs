@@ -20,7 +20,8 @@ overrides a lower-priority one:
 2. Global config file (`sbase_config.toml`, `.sbase_config.toml`, or `.sbase_config`).
 3. Environment variables (`SB_*`).
 4. Programmatic `BrowserConfig`.
-5. CLI flags (when using `sbrs`).
+5. CLI flags (when using `sbrs`): the pairs of `SettingsOverrides`, the last layer of the
+   settings ([how the layers are merged](#how-the-layers-are-merged)).
 
 <Info>
 
@@ -103,6 +104,45 @@ twice (`demo = true` and `[run] demo_mode = true`) is refused too. `[test]` stil
 report keys it held (`html`, `dashboard`, `databases`, ...) and `rec_sleep`; they land in
 `settings.report` and `settings.run`. A settings file cannot set `settings_file`: that setting
 names the file (`--settings-file`, `SB_SETTINGS_FILE`).
+
+
+## How the layers are merged
+
+Each source is read into the settings it gives, and a higher source wins for each setting it
+gives and leaves the others alone (the layers are merged key by key, so a variable that sets the
+proxy does not touch the window size the file set):
+
+* **One value** (a name, a number, a switch): the value of the higher source. A switch that a
+  higher source turns off (`SB_DARK_MODE=false`) turns off what a lower source turned on.
+* **A list** (`extension_dir`, `chromium_arg`, `SB_PLUGINS`): the list of the higher source
+  replaces the list of the lower one. `SB_PLUGINS` replaces the names in `[plugins] enable`
+  (an empty value means no plugin) and the options of the plugins it names stay.
+* **Capabilities** (`cap_file`, `cap_string`): merged key by key, the higher source winning on a
+  key.
+* **Two spellings of one setting** (`window_size`, or `window_width` and `window_height`;
+  `locale`, or `locale_code`): the source decides, not the spelling. A `window_size` in the file
+  therefore loses to `SB_WINDOW_WIDTH` and `SB_WINDOW_HEIGHT`; within one source the size and
+  the locale code win. A window width or height given alone is laid over the size of a lower
+  source.
+* **Explicit pairs**: the flags of `sbrs` are the `(SB_* variable, text)` pairs of
+  `SettingsOverrides`. `SettingsOverrides::try_apply(&mut settings)` (or `Settings::apply_options`
+  with the pairs) lays them over everything else; assigning to a field of the `Settings` that
+  `load` returns is the last word.
+
+A value that is refused names its source and where in it. A variable is named with its flag,
+and a value of the settings file with the file and the key as the file wrote it (the value
+itself is not repeated, because it may be a secret):
+
+```text
+SB_HEADLESS (--headless): cannot parse bool: maybe
+failed to parse TOML settings: sbase_config.toml: headless: cannot parse bool: …
+```
+
+`Settings::check` reports every problem and not only the first: each value of the file that is
+refused, each variable that is refused, then the window size, the plugins and the fingerprint.
+The problems of the file and of the variables are listed in the order of the rows of the option
+table (the order of `sbrs options --all`), whichever source gave each one, and a value that is
+refused is left out of its source so that the rest is still read.
 
 
 ## Loading settings programmatically
@@ -233,17 +273,19 @@ commands and the `--url` and `--token-file` flags.
 ## Runtime environment variables
 
 In addition to `Settings`, the crate reads `SB_*` runtime configuration for
-library behavior:
+library behavior (`RuntimeConfig`). Three of the variables below are settings of the browser,
+rows of the option table: `Settings` and `BrowserConfig::from_env()` read them, both by the one
+rule of the table (a blank value is unset), and `RuntimeConfig` does not hold them.
 
 <ParamField body="SB_WEBDRIVER_URL" type="string" default="http://localhost:4444">
 
-WebDriver endpoint.
+WebDriver endpoint. A blank value is unset.
 
 </ParamField>
 
 <ParamField body="SB_CHROME_BIN" type="string" default="auto-detect">
 
-Explicit Chrome/Chromium binary path.
+Explicit Chrome/Chromium binary path. A blank value is unset.
 
 </ParamField>
 

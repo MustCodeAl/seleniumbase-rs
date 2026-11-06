@@ -69,8 +69,8 @@ Bypass aggressive bot detection (like Cloudflare, DataDome) using **UC Mode** (U
 
 ```rust
 let mut config = BrowserConfig::default();
-config.mode = DriverMode::Uc; // Enable Stealth UC Mode
-config.headless = true;
+config.session.mode = DriverMode::Uc; // Enable Stealth UC Mode
+config.browser.headless = true;
 
 let mut sb = BaseCase::new(config).await?;
 sb.open("https://bot.sannysoft.com/").await?;
