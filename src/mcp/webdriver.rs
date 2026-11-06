@@ -46,12 +46,12 @@ impl DevSession for BaseCase {
     }
 
     async fn cookie_names(&mut self) -> Result<Vec<String>, SeleniumBaseError> {
-        // `get_cookies` answers `{"cookies": [...]}`, not an array, so the names are read from
-        // WebDriver's own list, which every session has and which includes HttpOnly cookies.
-        let header = self.get_cookie_string().await?;
-        Ok(header
-            .split("; ")
-            .filter_map(|pair| pair.split_once('=').map(|(name, _)| name.to_owned()))
+        // `get_cookies` lists the cookies of the page in every mode, HttpOnly ones included.
+        Ok(self
+            .get_cookies()
+            .await?
+            .into_iter()
+            .map(|cookie| cookie.name)
             .collect())
     }
 
@@ -1181,4 +1181,36 @@ pub(super) fn start_schema() -> Schema {
             "fingerprint_preset",
             super::fingerprint::launch_preset_prop(),
         )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::api::base_case::webdriver_support::{MockWebDriver, Reply};
+
+    /// A page with two cookies, one of them `HttpOnly`, which scripts cannot read.
+    fn page_with_cookies() -> MockWebDriver {
+        MockWebDriver::start(json!({}), |request| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("GET", "/cookie") => Reply::Value(json!([
+                    {
+                        "name": "sid", "value": "s3cret", "path": "/",
+                        "httpOnly": true, "secure": true
+                    },
+                    { "name": "theme", "value": "dark", "path": "/" }
+                ])),
+                _ => Reply::Value(Value::Null),
+            }
+        })
+    }
+
+    #[tokio::test]
+    async fn a_debug_bundle_lists_the_names_of_the_cookies_http_only_ones_too_and_no_values() {
+        let driver = page_with_cookies();
+        let mut sb = driver.base_case().await;
+
+        let names = DevSession::cookie_names(&mut sb).await.unwrap();
+
+        assert_eq!(names, ["sid", "theme"]);
+    }
 }
