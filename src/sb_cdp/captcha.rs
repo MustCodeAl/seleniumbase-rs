@@ -265,6 +265,8 @@ impl fmt::Display for Evidence {
 #[non_exhaustive]
 pub struct SolveOptions {
     locate_timeout: Duration,
+    interstitial_timeout: Duration,
+
     settle: Duration,
     verify_timeout: Duration,
     attempts: u32,
@@ -283,6 +285,8 @@ impl Default for SolveOptions {
     fn default() -> Self {
         Self {
             locate_timeout: Duration::from_secs(6),
+            interstitial_timeout: Duration::from_secs(20),
+
             settle: SETTLE,
             verify_timeout: Duration::from_secs(5),
             attempts: 3,
@@ -312,9 +316,27 @@ impl SolveOptions {
     /// signs of a challenge, or a widget element exists but has no size yet.
     /// A page with no such sign returns `None` at once, whatever this is. Use
     /// [`Duration::ZERO`] to never wait.
+    ///
+    /// A challenge page that shows no widget at all is waited out for
+    /// [`interstitial_timeout`](Self::interstitial_timeout) instead.
     #[must_use]
     pub fn locate_timeout(mut self, timeout: Duration) -> Self {
         self.locate_timeout = timeout;
+        self
+    }
+
+    /// How long to wait for a challenge page that shows no widget (an interstitial, such as
+    /// Cloudflare's "Just a moment...") to run its checks and go: it navigates away or replaces
+    /// itself, and then [`Page::solve_captcha`] looks for a widget on what is left. While it
+    /// waits, a reading that fails because the page is being replaced is read again. The wait
+    /// ends when the page is no longer an interstitial; a widget that is on its way after that
+    /// gets [`locate_timeout`](Self::locate_timeout) in turn.
+    ///
+    /// 20 s by default. A page that is not an interstitial is never waited for this long. Use
+    /// [`Duration::ZERO`] to never wait out an interstitial.
+    #[must_use]
+    pub fn interstitial_timeout(mut self, timeout: Duration) -> Self {
+        self.interstitial_timeout = timeout;
         self
     }
 
@@ -755,6 +777,16 @@ mod tests {
     }
 
     #[test]
+    fn an_interstitial_is_waited_out_longer_than_a_widget_on_its_way() {
+        let options = SolveOptions::default();
+        assert!(options.interstitial_timeout > options.locate_timeout);
+        let none = SolveOptions::new().interstitial_timeout(Duration::ZERO);
+        assert_eq!(none.interstitial_timeout, Duration::ZERO);
+        assert_ne!(none, options);
+    }
+
+    #[test]
+
     fn a_clearance_cookie_is_kept_by_name() {
         let options = SolveOptions::new().clearance_cookie("site_ok");
         assert_eq!(options.clearance_cookie.as_deref(), Some("site_ok"));

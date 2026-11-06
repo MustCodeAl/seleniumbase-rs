@@ -8,7 +8,8 @@
 //! 1. **Locate.** One script finds the widget in the page, its open shadow
 //!    roots and the frames it may read. A page with no widget and no sign of
 //!    a challenge answers `None` at once; a page that carries the signs of a
-//!    challenge is waited for.
+//!    challenge is waited for, and an interstitial (a challenge page with no
+//!    widget, which runs its checks and then goes) is waited out first.
 //! 2. **Settle.** The widget is read again and again until it has stood still
 //!    for [`SolveOptions::settle`], scrolled into view. An entrance animation
 //!    or a late layout moves a widget that was read once.
@@ -84,6 +85,9 @@ struct Seen {
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct Probe {
     widget: Option<Seen>,
+    /// The page is itself a challenge page, the interstitial that runs its checks and then
+    /// goes. It is waited out only while `widget` is `None`.
+    interstitial: bool,
     /// A challenge is on its way: the page is marked, or a widget element
     /// has no size yet.
     pending: bool,
@@ -91,6 +95,7 @@ struct Probe {
 
 fn parse_probe(value: &Value) -> Probe {
     let found = value.get("widget").filter(|widget| !widget.is_null());
+    let flag = |key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
     Probe {
         widget: found.and_then(|widget| {
             let (captcha, area) = Captcha::parse_located(widget)?;
@@ -103,10 +108,8 @@ fn parse_probe(value: &Value) -> Probe {
                     .unwrap_or(true),
             })
         }),
-        pending: value
-            .get("pending")
-            .and_then(Value::as_bool)
-            .unwrap_or(false),
+        interstitial: flag("interstitial"),
+        pending: flag("pending"),
     }
 }
 
@@ -219,19 +222,43 @@ fn wait_before(options: &SolveOptions, attempt: u32, rng: &mut Rng) -> Duration 
     }
 }
 
-/// Finds the widget, waiting for one that is on its way.
+/// Finds the widget, waiting for one that is on its way, and first waiting out an interstitial:
+/// a challenge page that shows no widget yet, which runs its checks and then goes.
 async fn locate<S: Surface>(
     surface: &S,
     options: &SolveOptions,
 ) -> Result<Option<Captcha>, SeleniumBaseError> {
-    let started = Instant::now();
+    // When the current wait began. It starts again when an interstitial ends, so that a widget
+    // the page draws after it has the whole locate timeout.
+    let mut since = Instant::now();
+    // Whether the last reading was an interstitial that is being waited out.
+    let mut interstitial = false;
     loop {
-        let found = probe(surface, false).await?;
-        if let Some(seen) = found.widget {
-            return Ok(Some(seen.captcha));
-        }
-        if !found.pending || started.elapsed() >= options.locate_timeout {
-            return Ok(None);
+        match probe(surface, false).await {
+            Ok(found) => {
+                if let Some(seen) = found.widget {
+                    return Ok(Some(seen.captcha));
+                }
+                if interstitial && !found.interstitial {
+                    since = Instant::now();
+                }
+                interstitial = found.interstitial;
+                let limit = if interstitial {
+                    options.interstitial_timeout
+                } else {
+                    options.locate_timeout
+                };
+                if !(found.pending || interstitial) || since.elapsed() >= limit {
+                    return Ok(None);
+                }
+            }
+            // An interstitial that replaces itself answers with an error while it does: read it
+            // again. Any other failed reading is an error at once.
+            Err(error) => {
+                if !interstitial || since.elapsed() >= options.interstitial_timeout {
+                    return Err(error);
+                }
+            }
         }
         sleep(POLL).await;
     }
@@ -691,7 +718,11 @@ mod tests {
                 Ask::Marker
             };
             let events = self.events();
-            Ok((self.answer.lock().unwrap())(&ask, &events))
+            let answer = (self.answer.lock().unwrap())(&ask, &events);
+            match answer.get("__error").and_then(Value::as_str) {
+                Some(message) => Err(SeleniumBaseError::CdpDriver(message.to_owned())),
+                None => Ok(answer),
+            }
         }
 
         async fn cookie_names(&self) -> Result<Vec<String>, SeleniumBaseError> {
@@ -733,6 +764,16 @@ mod tests {
 
     fn probe_of(widget: impl Into<Value>, pending: bool) -> Value {
         json!({ "widget": widget.into(), "pending": pending })
+    }
+
+    /// A challenge page with no widget: it runs its checks and will go.
+    fn interstitial() -> Value {
+        json!({ "widget": null, "interstitial": true, "pending": true })
+    }
+
+    /// What a page that is being replaced answers: the reading fails.
+    fn navigating() -> Value {
+        json!({ "__error": "Execution context was destroyed" })
     }
 
     fn reading(filled: bool, widget: bool, fields: u32) -> Value {
@@ -789,6 +830,153 @@ mod tests {
     }
 
     #[tokio::test(start_paused = true)]
+    async fn a_challenge_page_with_no_widget_is_waited_out_beyond_the_locate_timeout() {
+        let mut probes = 0;
+        let tab = Scripted::new(move |ask, _| match ask {
+            Ask::Probe => {
+                probes += 1;
+                // Thirty readings, over four seconds, far past the locate timeout of half one.
+                if probes <= 30 {
+                    interstitial()
+                } else {
+                    probe_of(Value::Null, false)
+                }
+            }
+            other => plain(other).unwrap(),
+        });
+        let started = Instant::now();
+        let result = solve(&tab, &quick()).await.unwrap();
+        assert_eq!(result, None, "what is left of the page shows no widget");
+        assert!(
+            started.elapsed() >= Duration::from_secs(4),
+            "waited {:?}",
+            started.elapsed()
+        );
+        assert!(tab.events().is_empty(), "nothing is pressed");
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn an_interstitial_that_replaces_itself_with_a_widget_page_is_read_through_the_error() {
+        let mut probes = 0;
+        let tab = Scripted::new(move |ask, events| match ask {
+            Ask::Probe => {
+                probes += 1;
+                match probes {
+                    1..=3 => interstitial(),
+                    // The page is replaced: a reading made at that moment fails.
+                    4 => navigating(),
+                    _ => probe_of(widget(), false),
+                }
+            }
+            Ask::Check => reading(presses_in(events) >= 1, true, 1),
+            other => plain(other).unwrap(),
+        });
+        let solved = solve(&tab, &quick()).await.unwrap().expect("a widget");
+        assert_eq!(solved.captcha, Captcha::Turnstile);
+        assert_eq!(solved.evidence, Some(Evidence::Token));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn an_interstitial_that_replaces_itself_with_the_real_page_is_not_an_error() {
+        let mut probes = 0;
+        let tab = Scripted::new(move |ask, _| match ask {
+            Ask::Probe => {
+                probes += 1;
+                match probes {
+                    1..=3 => interstitial(),
+                    4..=5 => navigating(),
+                    _ => probe_of(Value::Null, false),
+                }
+            }
+            other => plain(other).unwrap(),
+        });
+        let result = solve(&tab, &quick()).await.unwrap();
+        assert_eq!(result, None, "the real page shows no widget");
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn an_interstitial_that_never_ends_is_given_up_after_the_interstitial_timeout() {
+        let tab = Scripted::new(|ask, _| plain(ask).unwrap_or_else(interstitial));
+        let options = quick().interstitial_timeout(Duration::from_secs(3));
+        let started = Instant::now();
+        let result = solve(&tab, &options).await.unwrap();
+        assert_eq!(result, None);
+        assert!(
+            started.elapsed() >= Duration::from_secs(3)
+                && started.elapsed() < Duration::from_secs(10),
+            "waited {:?}",
+            started.elapsed()
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_zero_interstitial_timeout_never_waits_out_a_challenge_page() {
+        let tab = Scripted::new(|ask, _| plain(ask).unwrap_or_else(interstitial));
+        let options = quick().interstitial_timeout(Duration::ZERO);
+        let started = Instant::now();
+        assert_eq!(solve(&tab, &options).await.unwrap(), None);
+        assert!(started.elapsed() < Duration::from_millis(100));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_widget_on_its_way_after_the_interstitial_gets_the_locate_timeout_again() {
+        let mut probes = 0;
+        let tab = Scripted::new(move |ask, events| match ask {
+            Ask::Probe => {
+                probes += 1;
+                match probes {
+                    // Over three seconds of interstitial, then a widget element with no size
+                    // yet for a third of the locate timeout, then the widget.
+                    1..=20 => interstitial(),
+                    21..=23 => probe_of(Value::Null, true),
+                    _ => probe_of(widget(), false),
+                }
+            }
+            Ask::Check => reading(presses_in(events) >= 1, true, 1),
+            other => plain(other).unwrap(),
+        });
+        let solved = solve(&tab, &quick()).await.unwrap().expect("a widget");
+        assert_eq!(solved.evidence, Some(Evidence::Token));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_failing_reading_of_a_page_that_is_no_interstitial_is_an_error_at_once() {
+        let tab = Scripted::new(|ask, _| plain(ask).unwrap_or_else(navigating));
+        let started = Instant::now();
+        let error = solve(&tab, &quick()).await.unwrap_err();
+        assert!(
+            matches!(error, SeleniumBaseError::CdpDriver(_)),
+            "{error:?}"
+        );
+        assert!(started.elapsed() < Duration::from_millis(100));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_page_that_keeps_failing_after_an_interstitial_is_an_error_at_the_timeout() {
+        let mut probes = 0;
+        let tab = Scripted::new(move |ask, _| match ask {
+            Ask::Probe => {
+                probes += 1;
+                if probes <= 2 {
+                    interstitial()
+                } else {
+                    navigating()
+                }
+            }
+            other => plain(other).unwrap(),
+        });
+        let options = quick().interstitial_timeout(Duration::from_secs(3));
+        let started = Instant::now();
+        let error = solve(&tab, &options).await.unwrap_err();
+        assert!(
+            matches!(error, SeleniumBaseError::CdpDriver(_)),
+            "{error:?}"
+        );
+        assert!(started.elapsed() >= Duration::from_secs(3));
+    }
+
+    #[tokio::test(start_paused = true)]
+
     async fn a_widget_that_is_already_clear_is_not_pressed() {
         let tab = Scripted::new(|ask, _| match ask {
             Ask::Probe => probe_of(widget(), false),
