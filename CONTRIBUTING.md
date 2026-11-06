@@ -623,6 +623,10 @@ binary-signature detection.
 - Reference/help pages go in `docs/help/`.
 - AI-agent guidance goes in `COPILOT.md` and `CLAUDE.md`.
 - After adding a page, add it to `docs/SUMMARY.md`.
+- The user docs of the stealth crates live on this site, under `docs/stealth`
+  (and the stealthy `docs/scraping` pages): the Docs7 site builds only this
+  repository's `docs/` and `docs/docs.json`. The stealth repository's `docs/`
+  holds design and contributor notes; a page there is not on the site.
 - A user-visible change also gets an entry in `CHANGELOG.md`.
 - Say what was verified and how. A claim like "works in Chrome" needs a real
   Chrome behind it; otherwise say it was checked against the mock or by reading.
