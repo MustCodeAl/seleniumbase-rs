@@ -797,11 +797,16 @@ fn finding_3_the_report_options_are_declared_and_read_once() {
     assert!(saved.list_fail_page);
 }
 
-/// Finding 4: `to_launch_options` leaves out what `Layer::from_config` passes, the phone for one.
+/// Finding 4: `to_launch_options` goes through the browser configuration, so it passes what
+/// `Layer::from_config` passes: the phone, the PAC file, the bypass list, the preferences.
 #[test]
-fn finding_4_to_launch_options_leaves_the_phone_out_today() {
+fn finding_4_to_launch_options_passes_what_the_browser_config_passes() {
     let settings = Settings {
         mobile: true,
+        device_metrics: Some("412,732,3".to_owned()),
+        proxy_pac_url: Some("http://pac.example/proxy.pac".to_owned()),
+        proxy_bypass_list: Some("*.example.test;localhost".to_owned()),
+        block_images: true,
         ..Settings::default()
     };
     let direct = settings.to_launch_options().expect("launch options");
@@ -809,8 +814,27 @@ fn finding_4_to_launch_options_leaves_the_phone_out_today() {
         .browser_config(&settings.to_browser_config())
         .build()
         .expect("launch options");
-    assert_eq!(direct.user_agent(), None);
-    assert!(through_the_config.user_agent().is_some());
+    // The phone: a mobile user agent, and the screen that was asked for.
+    assert!(direct.user_agent().is_some());
+    assert_eq!(direct.user_agent(), through_the_config.user_agent());
+    let profile = std::path::Path::new("/tmp/profile");
+    let direct_args = direct.browser_args(profile);
+    assert_eq!(direct_args, through_the_config.browser_args(profile));
+    // The proxy's PAC file and bypass list reach the command line.
+    assert!(
+        direct_args
+            .iter()
+            .any(|arg| arg.starts_with("--proxy-pac-url=")),
+        "{direct_args:?}"
+    );
+    assert!(
+        direct_args
+            .iter()
+            .any(|arg| arg.starts_with("--proxy-bypass-list=")),
+        "{direct_args:?}"
+    );
+    // The profile preference of `block_images` is checked by a unit test in `config::launch_map`,
+    // where the options keep it.
 }
 
 /// Finding 5: `headless` has three defaults, one for each entry point.
@@ -887,9 +911,10 @@ fn finding_9_one_function_builds_a_grid_address() {
     assert_eq!(address(80, "http"), "http://grid.example.test/wd/hub");
 }
 
-/// Finding 10: `window_size` of the file wins over `SB_WINDOW_WIDTH` and `_HEIGHT`, whatever set each.
+/// Finding 10: the higher source decides between the spellings of one setting, so `SB_WINDOW_WIDTH`
+/// and `_HEIGHT` beat a `window_size` of the file; within one source the size wins.
 #[test]
-fn finding_10_a_window_size_of_the_file_beats_the_width_and_height_variables_today() {
+fn finding_10_the_higher_source_decides_between_the_spellings_of_the_window_size() {
     let dir = tempfile::tempdir().expect("a temporary folder");
     let path = file_with(
         dir.path(),
@@ -919,7 +944,52 @@ fn finding_10_a_window_size_of_the_file_beats_the_width_and_height_variables_tod
         ..Settings::default()
     });
     assert_ne!(file_size, variable_size);
-    assert_eq!(size(&check.settings), file_size);
+    assert_eq!(size(&check.settings), variable_size);
+}
+
+/// Finding 10, the other spellings: within one source the size and the locale code win; across
+/// sources the higher one decides.
+#[test]
+fn finding_10_the_size_and_the_locale_code_win_within_a_source_only() {
+    let dir = tempfile::tempdir().expect("a temporary folder");
+    let path = file_with(
+        dir.path(),
+        "sbase_config.toml",
+        "window_width = 800\nwindow_height = 600\nlocale_code = \"ar_eg\"\n",
+    );
+    let window = |settings: &Settings| {
+        let config = settings.to_browser_config();
+        config
+            .browser
+            .window_size
+            .map(|size| (size.width, size.height))
+    };
+    let lang = |settings: &Settings| settings.to_browser_config().browser.lang;
+    // The variables beat the file, whichever spelling each uses.
+    let check = Settings::check_with(Some(&path), |name| match name {
+        "SB_WINDOW_SIZE" => Some("1024,768".to_owned()),
+        "SB_LOCALE" => Some("de".to_owned()),
+        _ => None,
+    });
+    assert!(check.problems.is_empty(), "{:?}", check.problems);
+    assert_eq!(window(&check.settings), Some((1024, 768)));
+    assert_eq!(lang(&check.settings).as_deref(), Some("de"));
+    // Within the variables, the size and the code win over the other spelling.
+    let check = Settings::check_with(Some(&path), |name| match name {
+        "SB_WINDOW_SIZE" => Some("1024,768".to_owned()),
+        "SB_WINDOW_WIDTH" => Some("1".to_owned()),
+        "SB_WINDOW_HEIGHT" => Some("2".to_owned()),
+        "SB_LOCALE" => Some("de".to_owned()),
+        "SB_LOCALE_CODE" => Some("fr_FR".to_owned()),
+        _ => None,
+    });
+    assert!(check.problems.is_empty(), "{:?}", check.problems);
+    assert_eq!(window(&check.settings), Some((1024, 768)));
+    assert_eq!(lang(&check.settings).as_deref(), Some("fr-FR"));
+    // A file alone is read as before.
+    let check = Settings::check_with(Some(&path), |_| None);
+    assert_eq!(window(&check.settings), Some((800, 600)));
+    assert_eq!(lang(&check.settings).as_deref(), Some("ar-EG"));
 }
 
 /// Finding 11: `settings_file` was accepted as a key of the file and did nothing.

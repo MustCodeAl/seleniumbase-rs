@@ -7,21 +7,16 @@
 //! `with_chromium_arg`, ...), so a value that does not parse is refused in one
 //! place, [`Settings::validate`], and not at launch.
 
-use std::path::PathBuf;
-
 use crate::browser::config::{Browser, BrowserConfig};
 use crate::browser::options::{
-    grid_url, switch_args, CapabilityOverrides, CdpEventCapture, DeviceMetrics, DriverVersion,
-    ExtensionArchive, GridProtocol, LaunchSwitch, LocaleCode, PageLoadStrategy, ProxyBypassList,
-    VirtualDisplay, WindowPosition, WindowSize,
+    CapabilityOverrides, CdpEventCapture, DeviceMetrics, DriverVersion, ExtensionArchive,
+    GridProtocol, GridSettings, LaunchSwitch, LocaleCode, PageLoadStrategy, ProxyBypassList,
+    VirtualDisplay, WindowPosition, WindowSize, DEFAULT_WEBDRIVER_URL,
 };
 use crate::config::settings::Settings;
 use crate::config::test_settings::TestData;
 use crate::error::SeleniumBaseError;
 use crate::sb_cdp::LaunchOptions;
-
-/// The port Selenium Grid and chromedriver listen on in Python SeleniumBase.
-const DEFAULT_PORT: u16 = 4444;
 
 impl Settings {
     /// Checks the values that [`with_launch_options`](Self::with_launch_options) reads: the
@@ -181,10 +176,10 @@ impl Settings {
     /// ([`Browser`](crate::sb_cdp::Browser) in `sb_cdp`).
     ///
     /// The browser is Chrome, Chromium (`browser = "chromium"`) or the binary `chrome_bin`
-    /// names; another browser needs `chrome_bin`. `headless` is set when `headless` or
-    /// `headless1` is on, and left to the engine otherwise. The Chromium switches are the
-    /// ones [`to_browser_config`](Self::to_browser_config) gives a WebDriver session
-    /// (`dark_mode`, `disable_ws`, `swiftshader`, `host_resolver_rules`, ...). Settings that
+    /// names; another browser needs `chrome_bin`. The options are the ones a `BaseCase` gets from
+    /// [`to_browser_config`](Self::to_browser_config), read by
+    /// `LaunchOptionsBuilder::browser_config`: the headless setting (`headless` off starts a window),
+    /// the phone (`mobile`, `device_metrics`), the proxy PAC file and bypass list, `block_images` and the other preferences, and the Chromium switches (`dark_mode`, ...). Settings that
     /// only a WebDriver server reads (`server`, `driver_version`, `firefox_arg`, ...) are
     /// ignored.
     ///
@@ -214,82 +209,19 @@ impl Settings {
     /// ```
     pub fn to_launch_options(&self) -> Result<LaunchOptions, SeleniumBaseError> {
         let browser = self.browser.parse::<Browser>()?;
-        let config = self.with_launch_options(BrowserConfig::default())?;
-        let headless = self.headless || self.headless1;
-        let loads_extensions =
-            self.extension_dir.is_some() || !config.session.extension_archives.is_empty();
-
-        let mut builder = LaunchOptions::builder();
-        builder = match (&self.chrome_bin, browser) {
-            (Some(path), _) => builder.executable_path(path.clone()),
-            (None, Browser::Chrome) => builder,
-            (None, Browser::Chromium) => builder.use_chromium(true),
-            (None, other) => {
-                return Err(SeleniumBaseError::InvalidConfig(format!(
-                    "the pure CDP engine starts Chrome or Chromium; set chrome_bin to run {other}"
-                )))
-            }
-        };
-        if headless {
-            builder = builder.headless(true);
+        // The pure CDP engine starts Chrome, Chromium or the program `chrome_bin` names.
+        if self.chrome_bin.is_none() && !matches!(browser, Browser::Chrome | Browser::Chromium) {
+            return Err(SeleniumBaseError::InvalidConfig(format!(
+                "the pure CDP engine starts Chrome or Chromium; set chrome_bin to run {browser}"
+            )));
         }
-        if let Some(page) = &self.start_page {
-            builder = builder.url(page.as_str());
-        }
-        builder = builder
-            .incognito(self.incognito)
-            .guest(self.guest_mode)
-            .ad_block(self.ad_block);
-        if self.no_sandbox {
-            builder = builder.no_sandbox(true);
-        }
-        if let Some(proxy) = &self.proxy {
-            builder = builder.proxy(proxy.as_str());
-        }
-        if let Some(dir) = &self.user_data_dir {
-            builder = builder.user_data_dir(dir.as_str());
-        }
-        if let Some(user_agent) = &self.user_agent {
-            builder = builder.user_agent(user_agent.as_str());
-        }
-        if let Some(lang) = config.browser.lang.as_deref().or(self.locale.as_deref()) {
-            builder = builder.lang(lang);
-        }
-        let size = config.browser.window_size.or_else(|| {
-            self.window_width
-                .zip(self.window_height)
-                .map(|(width, height)| WindowSize::new(width, height))
-        });
-        if let Some(size) = size {
-            builder = builder.window_size(size.width, size.height);
-        }
-        if let Some(position) = config.browser.window_position {
-            builder = builder.window_position(position.x, position.y);
-        }
-        if let Some(dirs) = &self.extension_dir {
-            for dir in list(dirs) {
-                builder = builder.extension(PathBuf::from(dir));
-            }
-        }
-        if let Some(port) = config.browser.debugging_port {
-            builder = builder.debugging_port(port);
-        }
-        for arg in config.browser.chromium.args.iter().cloned().chain(
-            switch_args(&config.browser, headless, loads_extensions)
-                .into_iter()
-                // The builder has its own setters for these.
-                .filter(|arg| !matches!(arg.as_str(), "--incognito" | "--guest" | "--no-sandbox")),
-        ) {
-            builder = builder.arg(arg);
-        }
-        if let Some(fingerprint) = self.load_fingerprint()? {
-            builder = builder.fingerprint(&fingerprint);
-        }
+        let mut config = self.with_launch_options(self.base_browser_config())?;
+        config.fingerprint = self.load_fingerprint()?;
         #[cfg(feature = "plugins")]
         {
-            builder = builder.plugin_selection(&self.plugins);
+            config = config.with_plugin_selection(&self.plugins)?;
         }
-        builder.build()
+        LaunchOptions::builder().browser_config(&config).build()
     }
 }
 
@@ -334,21 +266,21 @@ pub(super) fn remote_address(
     port: Option<u16>,
     protocol: Option<&str>,
 ) -> Result<String, SeleniumBaseError> {
-    let protocol = protocol
-        .map(str::parse::<GridProtocol>)
-        .transpose()?
-        .unwrap_or_default();
-    let port = port.unwrap_or(DEFAULT_PORT);
-    match server {
-        Some(server) => grid_url(protocol, server, port),
-        None => Ok(format!("{protocol}://localhost:{port}")),
-    }
+    let grid = GridSettings {
+        server: server.map(str::to_owned),
+        port,
+        protocol: protocol.map(str::parse::<GridProtocol>).transpose()?,
+    };
+    Ok(grid
+        .url()?
+        .unwrap_or_else(|| DEFAULT_WEBDRIVER_URL.to_owned()))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::api::run_settings::RunSettings;
+    use std::path::PathBuf;
     use std::time::Duration;
 
     /// Changes one setting of a `Settings`.
@@ -716,6 +648,39 @@ mod tests {
             .collect();
         assert_eq!(features, ["--disable-features=Translate,Foo"]);
         assert_eq!(args.iter().filter(|arg| *arg == "--no-sandbox").count(), 1);
+    }
+
+    #[test]
+    fn the_cdp_options_carry_the_profile_preferences_of_the_switches() {
+        let settings = Settings {
+            block_images: true,
+            do_not_track: true,
+            ..Settings::default()
+        };
+        let options = settings.to_launch_options().unwrap();
+        assert_eq!(
+            options.prefs["profile.managed_default_content_settings.images"],
+            serde_json::json!(2)
+        );
+        assert_eq!(
+            options.prefs["enable_do_not_track"],
+            serde_json::json!(true)
+        );
+    }
+
+    #[test]
+    fn a_browser_the_engine_cannot_start_is_refused_unless_a_program_is_named() {
+        let firefox = Settings {
+            browser: "firefox".to_owned(),
+            ..Settings::default()
+        };
+        let error = firefox.to_launch_options().unwrap_err().to_string();
+        assert!(error.contains("set chrome_bin to run firefox"), "{error}");
+        let named = Settings {
+            chrome_bin: Some(PathBuf::from("/opt/other/chrome")),
+            ..firefox
+        };
+        assert!(named.to_launch_options().is_ok());
     }
 
     fn settings_file(name: &str, text: &str) -> PathBuf {

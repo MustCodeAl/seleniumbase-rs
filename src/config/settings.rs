@@ -336,6 +336,8 @@ impl SettingsOverrides {
         }
         if let Some(locale) = &self.locale {
             settings.locale = Some(locale.clone());
+            // The command line beats an earlier `locale_code`, whichever spelling it uses.
+            settings.locale_code = None;
         }
         if let Some(ad_block) = self.ad_block {
             settings.ad_block = ad_block;

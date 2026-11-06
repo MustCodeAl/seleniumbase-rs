@@ -410,10 +410,10 @@ macro_rules! option_table {
             }
         ),+];
 
-        /// Writes every option whose variable `var` reports into `settings`;
+        /// Writes every row whose variable `var` reports into `settings`;
         /// a value that does not parse goes to `problems`, in table order.
         #[allow(clippy::too_many_lines)]
-        pub(crate) fn apply_env(
+        fn apply_rows(
             settings: &mut Settings,
             var: &dyn Fn(&str) -> Option<String>,
             problems: &mut Vec<SettingsProblem>,
@@ -423,6 +423,32 @@ macro_rules! option_table {
             )+
         }
     };
+}
+
+/// Writes every option whose variable `var` reports into `settings`, the variables of one
+/// source; a value that does not parse goes to `problems`, in table order.
+///
+/// Two settings have two spellings: the window size (`SB_WINDOW_SIZE`, or `SB_WINDOW_WIDTH`
+/// and `SB_WINDOW_HEIGHT`) and the language (`SB_LOCALE`, `SB_LOCALE_CODE`). The source that
+/// writes one spelling decides: it replaces what a lower source wrote in the other
+/// spelling, and within the source the window size and the locale code win, as they always
+/// did. A file's `window_size` therefore no longer beats `SB_WINDOW_WIDTH` and
+/// `SB_WINDOW_HEIGHT` of the environment.
+pub(crate) fn apply_env(
+    settings: &mut Settings,
+    var: &dyn Fn(&str) -> Option<String>,
+    problems: &mut Vec<SettingsProblem>,
+) {
+    apply_rows(settings, var, problems);
+    if var("SB_WINDOW_SIZE").is_some() {
+        settings.window_width = None;
+        settings.window_height = None;
+    } else if var("SB_WINDOW_WIDTH").is_some() || var("SB_WINDOW_HEIGHT").is_some() {
+        settings.window_size = None;
+    }
+    if var("SB_LOCALE_CODE").is_none() && var("SB_LOCALE").is_some() {
+        settings.locale_code = None;
+    }
 }
 
 /// Hands every row of the table to the macro `$callback`, so that another
