@@ -210,6 +210,7 @@ def browser_detail():
         _file("extensions.rs", "extensions to load"),
         _file("firefox.rs", "Firefox arguments and preferences"),
         _file("locale.rs", "the locale"),
+        _file("network.rs", "NetworkThrottle, how the network is slowed down or cut off"),
         _file("mod.rs", "the options module"),
         _file("page_load.rs", "how long a navigation waits"),
         _file("plugins.rs", "plugins turned on for the browser"),
