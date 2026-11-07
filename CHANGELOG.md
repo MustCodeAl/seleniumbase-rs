@@ -396,9 +396,13 @@ work, `docs/parity.md` the per-API status).
   `?` on their results still gives a `SeleniumBaseError`. Code that built
   `SeleniumBaseError::WebDriver(error)` or read `error.as_inner()` changes. Three answers of the
   driver are now told apart, which fixes what they did before:
-  `invalid session id` is `BrowserDisconnected`, so a wait (`wait_for_element_present`, `click`, ...)
-  ends at once with it instead of polling a dead session until its timeout;
-  `invalid selector` is `InvalidSelector` (exit status 2), which a wait also ends with at once;
+  `invalid session id` is `BrowserDisconnected`, so the waits that poll through the shared helper
+  (`wait_for_any_of_elements_present`, `wait_for_link_text`, `wait_for_partial_link_text`,
+  `wait_for_title` and `switch_to_window`, among others) end at once with it instead of polling
+  a dead session until their timeout (`wait_for_element_present` and the waits of
+  `BrowserSession` have loops of their own that ignore every error until the timeout, and still
+  do);
+  `invalid selector` is `InvalidSelector` (exit status 2), which those waits also end with at once;
   and a lookup that finds nothing, `BrowserSession::find` and `Element::find`, is
   `ElementNotFound` naming the selector (exit status 3), where it was `WebDriver` (status 4).
   An `Element` method the driver refuses as not interactable is `ElementNotInteractable` naming
