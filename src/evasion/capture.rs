@@ -116,7 +116,12 @@ pub struct CapturedFingerprint {
     /// `webdriver`, `plugins_length`, `mime_types_length`, `cookie_enabled`,
     /// `do_not_track`, `pdf_viewer_enabled`, `pixel_depth`, `orientation`, `window`,
     /// `time_zone_offset_minutes`, `intl_locale`, `webgl_info`, `connection_type`,
-    /// `permissions`, `canvas_hash`, `audio_hash` and `headless_markers`. Two more
+    /// `permissions`, `canvas_hash`, `audio_hash`, `headless_markers`, and the
+    /// surfaces the consistency rules read ([`contradictions`](Self::contradictions)):
+    /// `global_privacy_control`, `screen_is_extended`, `time_zone_offsets`,
+    /// `intl_locales`, `intl_samples`, `webgl_extensions`, `webgl_limits`, `engine`,
+    /// `notification_permission`, `media_features`, `css_media`, `codecs`, `webgpu`,
+    /// `keyboard`, `storage`, `features`, `worker`, `frame` and `fonts_seen`. Two more
     /// say what went wrong: `errors` (a reading that threw) and `unanswered`
     /// (a setting the page could not answer, with the reason).
     pub unmapped: Map<String, Value>,
@@ -253,6 +258,18 @@ struct RawProbe {
     canvas_hash: Option<String>,
     audio_hash: Option<String>,
     headless: Vec<String>,
+    engine: Option<Value>,
+    notification_permission: Option<String>,
+    media_features: Option<Value>,
+    css_media: Option<Value>,
+    codecs: Option<Value>,
+    webgpu: Option<Value>,
+    keyboard: Option<Value>,
+    storage: Option<Value>,
+    features: Option<Value>,
+    worker: Option<Value>,
+    frame: Option<Value>,
+    fonts: Option<Value>,
     errors: Map<String, Value>,
 }
 
@@ -278,6 +295,7 @@ struct RawNavigator {
     cookie_enabled: Option<bool>,
     do_not_track: Option<String>,
     pdf_viewer_enabled: Option<bool>,
+    global_privacy_control: Option<bool>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -291,6 +309,7 @@ struct RawScreen {
     pixel_depth: Option<f64>,
     device_pixel_ratio: Option<f64>,
     orientation: Option<Value>,
+    is_extended: Option<bool>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -299,6 +318,11 @@ struct RawIntl {
     time_zone: Option<String>,
     locale: Option<String>,
     offset_minutes: Option<f64>,
+    january_offset_minutes: Option<f64>,
+    july_offset_minutes: Option<f64>,
+    date_string: Option<String>,
+    number_sample: Option<String>,
+    locales: Option<Value>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -310,6 +334,13 @@ struct RawWebGl {
     shading_language_version: Option<String>,
     unmasked_vendor: Option<String>,
     unmasked_renderer: Option<String>,
+    max_texture_size: Option<f64>,
+    max_renderbuffer_size: Option<f64>,
+    max_viewport_dims: Option<Value>,
+    max_vertex_uniform_vectors: Option<f64>,
+    aliased_line_width_range: Option<Value>,
+    extensions: Option<Vec<String>>,
+    webgl2: Option<bool>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -786,6 +817,23 @@ impl RawProbe {
                 })),
             );
         }
+        if let Reading::Present(gl) = &self.webgl {
+            put("webgl_extensions", gl.extensions.clone().map(Value::from));
+            put(
+                "webgl_limits",
+                gl.max_texture_size.map(|size| {
+                    json!({
+                        "max_texture_size": json_number(size),
+                        "max_renderbuffer_size": gl.max_renderbuffer_size.map(json_number),
+                        "max_viewport_dims": gl.max_viewport_dims,
+                        "max_vertex_uniform_vectors": gl.max_vertex_uniform_vectors.map(json_number),
+                        "aliased_line_width_range": gl.aliased_line_width_range,
+                        "webgl2": gl.webgl2,
+                    })
+                }),
+            );
+        }
+
         if let Reading::Present(link) = &self.connection {
             put("connection_type", link.kind.clone().map(Value::from));
         }
@@ -795,6 +843,45 @@ impl RawProbe {
         put("canvas_hash", self.canvas_hash.clone().map(Value::from));
         put("audio_hash", self.audio_hash.clone().map(Value::from));
         put("headless_markers", Some(json!(self.headless)));
+        put(
+            "global_privacy_control",
+            nav.global_privacy_control.map(Value::from),
+        );
+        if let Some(screen) = &self.screen {
+            put("screen_is_extended", screen.is_extended.map(Value::from));
+        }
+        if let Some(intl) = &self.intl {
+            if let (Some(january), Some(july)) =
+                (intl.january_offset_minutes, intl.july_offset_minutes)
+            {
+                put(
+                    "time_zone_offsets",
+                    Some(json!({ "january": json_number(january), "july": json_number(july) })),
+                );
+            }
+            put("intl_locales", intl.locales.clone());
+            if intl.date_string.is_some() || intl.number_sample.is_some() {
+                put(
+                    "intl_samples",
+                    Some(json!({ "date": intl.date_string, "number": intl.number_sample })),
+                );
+            }
+        }
+        put("engine", self.engine.clone());
+        put(
+            "notification_permission",
+            self.notification_permission.clone().map(Value::from),
+        );
+        put("media_features", self.media_features.clone());
+        put("css_media", self.css_media.clone());
+        put("codecs", self.codecs.clone());
+        put("webgpu", self.webgpu.clone());
+        put("keyboard", self.keyboard.clone());
+        put("storage", self.storage.clone());
+        put("features", self.features.clone());
+        put("worker", self.worker.clone());
+        put("frame", self.frame.clone());
+        put("fonts_seen", self.fonts.clone());
         if !self.errors.is_empty() {
             put("errors", Some(Value::Object(self.errors.clone())));
         }
@@ -840,6 +927,70 @@ mod tests {
         include_str!("../../tests/fixtures/fingerprint/probe_chrome_real_headless.json");
 
     const AT: &str = "2026-10-18T12:00:00Z";
+    /// A Windows preset applied in JavaScript alone to a headless Chrome on a
+    /// Mac: every surface the settings reach says Windows, every other one
+    /// says Mac. Written by hand from a real capture of each half.
+    const WINDOWS_ON_MAC: &str =
+        include_str!("../../tests/fixtures/fingerprint/probe_chrome_windows_on_mac.json");
+
+    #[test]
+    fn the_consistency_readings_reach_unmapped_under_their_own_keys() {
+        let captured = capture(WINDOWS_ON_MAC);
+
+        for key in [
+            "webgpu",
+            "worker",
+            "frame",
+            "features",
+            "media_features",
+            "css_media",
+            "codecs",
+            "keyboard",
+            "storage",
+            "fonts_seen",
+            "engine",
+            "notification_permission",
+            "intl_locales",
+            "intl_samples",
+            "time_zone_offsets",
+            "webgl_extensions",
+            "webgl_limits",
+            "global_privacy_control",
+            "screen_is_extended",
+        ] {
+            assert!(captured.unmapped.contains_key(key), "{key} is missing");
+        }
+        assert_eq!(captured.unmapped["webgpu"]["vendor"], json!("apple"));
+        assert_eq!(
+            captured.unmapped["time_zone_offsets"],
+            json!({ "january": 300, "july": 240 })
+        );
+        assert_eq!(
+            captured.unmapped["webgl_limits"]["max_texture_size"],
+            json!(16384)
+        );
+        assert_eq!(
+            captured.unmapped["webgl_extensions"]
+                .as_array()
+                .map(Vec::len),
+            Some(16)
+        );
+        assert_eq!(captured.unmapped["global_privacy_control"], json!(false));
+        assert_eq!(captured.unmapped["screen_is_extended"], json!(false));
+        assert_eq!(
+            captured.unmapped["worker"]["hardwareConcurrency"],
+            json!(10)
+        );
+    }
+
+    #[test]
+    fn a_reading_without_the_consistency_surfaces_has_none_of_their_keys() {
+        let captured = capture(CHROME_MACOS);
+
+        for key in ["webgpu", "worker", "frame", "features", "time_zone_offsets"] {
+            assert!(!captured.unmapped.contains_key(key), "{key} is there");
+        }
+    }
 
     #[test]
     fn the_capture_time_is_rfc_3339_in_utc_with_whole_seconds() {
@@ -1263,9 +1414,19 @@ mod tests {
             "fetch(",
             "XMLHttpRequest",
             "innerHTML",
-            "appendChild",
         ] {
             assert!(!script.contains(forbidden), "the script uses {forbidden}");
         }
+
+        // The script may hold a node in the page while it measures (a style
+        // sheet for the @media readings, an about:blank frame, a span for the
+        // fonts) and takes every one out again before it returns.
+        let appended = script.matches("appendChild(").count();
+        assert_eq!(appended, 3, "the script appends {appended} nodes");
+        assert_eq!(
+            script.matches(".remove();").count(),
+            appended,
+            "every node the script appends is removed in a finally block"
+        );
     }
 }
