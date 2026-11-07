@@ -39,11 +39,7 @@ impl BaseCase {
         let path = crate::artifacts::confined_path(&dir, filename)?;
         let selector = shadow_find::checked(css)?;
         let element = self.session.find(selector).await?;
-        element
-            .as_webdriver_element()
-            .screenshot(&path)
-            .await
-            .map_err(SeleniumBaseError::WebDriver)?;
+        fs::write(&path, element.screenshot_png().await?)?;
         Ok(path)
     }
 

@@ -13,6 +13,8 @@ impl BrowserSession {
     /// document run again in the new one (feature `plugins`).
     pub async fn goto(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
         if let Some(page) = &self.external_page {
+            self.leave_frames();
+
             return page.goto(url).await;
         }
         self.webdriver()?.goto(url).await?;
@@ -25,18 +27,30 @@ impl BrowserSession {
 
     /// Navigates back in browser history.
     pub async fn back(&self) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = &self.external_page {
+            self.leave_frames();
+            return page.back().await;
+        }
         self.webdriver()?.back().await?;
         Ok(())
     }
 
     /// Navigates forward in browser history.
     pub async fn forward(&self) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = &self.external_page {
+            self.leave_frames();
+            return page.forward().await;
+        }
         self.webdriver()?.forward().await?;
         Ok(())
     }
 
     /// Reloads the current page.
     pub async fn refresh(&self) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = &self.external_page {
+            self.leave_frames();
+            return page.reload().await;
+        }
         self.webdriver()?.refresh().await?;
         Ok(())
     }
@@ -61,6 +75,9 @@ impl BrowserSession {
 
     /// Returns the full HTML source of the current page.
     pub async fn page_source(&self) -> Result<String, SeleniumBaseError> {
+        if let Some(page) = &self.external_page {
+            return page.content().await;
+        }
         Ok(self.webdriver()?.source().await?)
     }
 
@@ -70,12 +87,15 @@ impl BrowserSession {
         selector: impl Into<SelectorBuf>,
     ) -> Result<(), SeleniumBaseError> {
         let element = self.find(selector).await?;
-        element.into_webdriver_element().enter_frame().await?;
-        Ok(())
+        self.enter_frame_element(&element).await
     }
 
     /// Switches context back to the top-level document.
     pub async fn switch_to_default_content(&mut self) -> Result<(), SeleniumBaseError> {
+        if self.external_page.is_some() {
+            self.leave_frames();
+            return Ok(());
+        }
         self.webdriver()?.enter_default_frame().await?;
         Ok(())
     }

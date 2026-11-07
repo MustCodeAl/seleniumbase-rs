@@ -394,7 +394,7 @@ impl BaseCase {
             let actual = match this.session.find(selector).await {
                 Ok(element) => {
                     this.session
-                        .attribute_or_property(element.as_webdriver_element(), attribute)
+                        .attribute_or_property(&element, attribute)
                         .await?
                 }
                 // Not there yet, same as a text assertion: keep looking.
@@ -506,8 +506,7 @@ impl BaseCase {
 
     /// Switches the context to the parent frame.
     pub async fn switch_to_parent_frame(&mut self) -> Result<(), SeleniumBaseError> {
-        self.session.webdriver()?.enter_parent_frame().await?;
-        Ok(())
+        self.session.switch_to_parent_frame().await
     }
 
     /// Returns `true` if `css` is visible on the page.
@@ -731,33 +730,26 @@ impl BaseCase {
         }
         self.await_ready(css, Ready::Present).await?;
         let selector = shadow_find::checked(css)?;
-        let driver = self.session.webdriver()?.clone();
         let element = self.session.find(selector).await?;
-        let opacity = driver
-            .execute(
-                "return arguments[0].style.opacity;",
-                vec![element.reference()?],
-            )
+        let opacity = element
+            .run_script("return arguments[0].style.opacity;", &[])
             .await
             .ok()
-            .and_then(|ret| ret.json().as_str().map(str::to_owned))
+            .and_then(|returned| returned.as_str().map(str::to_owned))
             .unwrap_or_default();
         // Change the opacity a bit to let the click succeed.
-        let _ = driver
-            .execute(
-                "arguments[0].style.opacity = '0.001';",
-                vec![element.reference()?],
-            )
+        let _ = element
+            .run_script("arguments[0].style.opacity = '0.001';", &[])
             .await;
         let clicked = if self.is_element_visible(css).await? {
             self.click(css).await
         } else {
             self.session.js_click_element(&element).await
         };
-        let _ = driver
-            .execute(
+        let _ = element
+            .run_script(
                 "arguments[0].style.opacity = arguments[1];",
-                vec![element.reference()?, Value::String(opacity)],
+                &[Value::String(opacity)],
             )
             .await;
         clicked
@@ -1591,15 +1583,7 @@ impl BaseCase {
     /// nothing.
     async fn swapped_text_hint(&self, expected: &str, css: &str, exact: bool) -> Option<String> {
         let selector = shadow_find::checked(expected).ok()?;
-        let shown = self
-            .session
-            .find(selector)
-            .await
-            .ok()?
-            .as_webdriver_element()
-            .text()
-            .await
-            .ok()?;
+        let shown = self.session.find(selector).await.ok()?.text().await.ok()?;
         let fits = if exact {
             shown.trim() == css.trim()
         } else {
@@ -3009,10 +2993,8 @@ impl BaseCase {
             )));
         }
 
-        let select =
-            thirtyfour::components::SelectElement::new(element.as_webdriver_element()).await?;
         let mut options = Vec::new();
-        for option in select.options().await? {
+        for option in element.find_all("option").await? {
             options.push(if attribute == "text" {
                 option.text().await.unwrap_or_default()
             } else {
@@ -3046,23 +3028,16 @@ impl BaseCase {
             Some(value) => (value, true),
             None => (value, false),
         };
-        let driver = self.session.webdriver()?.clone();
         let element = self.session.find(selector).await?;
-        let kind = driver
-            .execute(
-                SET_VALUE_SCRIPT,
-                vec![element.reference()?, Value::String(value.to_owned())],
-            )
+        let kind = element
+            .run_script(SET_VALUE_SCRIPT, &[Value::String(value.to_owned())])
             .await?;
         if enter {
-            element.send_keys(Key::Return.value().to_string()).await?;
-        } else if kind.json().as_str() == Some("range") {
+            element.press_return().await?;
+        } else if kind.as_str() == Some("range") {
             // Some sliders need a mouse event to run their listeners.
-            let _ = driver
-                .execute(
-                    "arguments[0].dispatchEvent(new Event('mousemove'));",
-                    vec![element.reference()?],
-                )
+            let _ = element
+                .run_script("arguments[0].dispatchEvent(new Event('mousemove'));", &[])
                 .await;
         }
         self.demo_pause(PauseKind::Full).await;
@@ -3673,3 +3648,5 @@ include!("base_case_impls/base_case_impl_logs_tests.rs");
 
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_cookie_tests.rs");
+#[cfg(test)]
+include!("base_case_impls/base_case_impl_pure_cdp_tests.rs");

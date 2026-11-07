@@ -17,7 +17,7 @@
 //!
 //! // The raw `thirtyfour` element, for a call that `Element` has no method for.
 //! let element = sb.find_element("my-app::shadow button").await?;
-//! let raw: &WebElement = element.as_webdriver_element();
+//! let raw: &WebElement = element.as_webdriver_element().expect("a WebDriver session");
 //! println!("{}", raw.element_id());
 //! element.click().await?;
 //! sb.quit().await

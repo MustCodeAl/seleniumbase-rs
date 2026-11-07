@@ -73,6 +73,8 @@ impl BrowserSession {
         }
         let mut fresh = Self::connect_cdp(config).await?;
         self.external_page = fresh.external_page.take();
+        self.leave_frames();
+
         Ok(())
     }
 

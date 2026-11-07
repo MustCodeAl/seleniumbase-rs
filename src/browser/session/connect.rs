@@ -1,6 +1,8 @@
 //! Starting a session: `connect`, a new browser, a leased one, and a direct
 //! CDP attachment, with the proxy login that goes with them.
 
+use std::sync::Mutex;
+
 use serde_json::Value;
 use thirtyfour::prelude::WebDriver;
 use tracing::{info, instrument};
@@ -68,6 +70,8 @@ impl BrowserSession {
             driver: Some(driver),
             cdp,
             external_page: None,
+            frames: Mutex::new(Vec::new()),
+
             driver_process,
             virtual_display,
             mobile: mobile_commands(&config),
@@ -110,6 +114,8 @@ impl BrowserSession {
             driver: Some(driver),
             cdp,
             external_page: None,
+            frames: Mutex::new(Vec::new()),
+
             driver_process: None,
             virtual_display: None,
             ad_block,

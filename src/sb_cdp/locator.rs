@@ -291,8 +291,8 @@ impl Locator {
             .await
     }
 
-    /// Runs `body` with the first match bound to `el`.
-    async fn with_element(&self, body: &str) -> Result<Value, SeleniumBaseError> {
+    /// Runs `body` with the first match bound to `el`, in the frame it is in.
+    pub(crate) async fn with_element(&self, body: &str) -> Result<Value, SeleniumBaseError> {
         let (value, _) = self.run_element(body, false).await?;
         Ok(value)
     }

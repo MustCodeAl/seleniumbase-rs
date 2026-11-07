@@ -22,6 +22,10 @@ impl BaseCase {
         frame: &FrameRef,
         invisible: bool,
     ) -> Result<bool, SeleniumBaseError> {
+        if self.session.pure_cdp_page().is_some() {
+            return self.try_enter_frame_cdp(frame, invisible).await;
+        }
+
         let driver = self.session.webdriver()?;
         let locator = match frame {
             FrameRef::Index(index) => {
@@ -54,6 +58,52 @@ impl BaseCase {
                 }
         refusal.map_or(Ok(false), |error| Err(SeleniumBaseError::WebDriver(error)))
     }
+
+    /// [`try_enter_frame`](Self::try_enter_frame) on a direct CDP attachment:
+    /// the frame is found the same ways, and entering it makes the session
+    /// search, script and click inside it from then on.
+    async fn try_enter_frame_cdp(
+        &self,
+        frame: &FrameRef,
+        invisible: bool,
+    ) -> Result<bool, SeleniumBaseError> {
+        let element = match frame {
+            FrameRef::Index(index) => {
+                let mut frames = self
+                    .session
+                    .find_all(SelectorBuf::css("iframe, frame"))
+                    .await?;
+                let index = usize::from(*index);
+                if index >= frames.len() {
+                    return Ok(false);
+                }
+                frames.swap_remove(index)
+            }
+            FrameRef::Locator(locator) => {
+                let mut found = None;
+                for attribute in ["id", "name"] {
+                    let lookup = SelectorBuf::css(frame_with_attribute(attribute, locator));
+                    if let Ok(element) = self.session.find(lookup).await {
+                        found = Some(element);
+                        break;
+                    }
+                }
+                if found.is_none()
+                    && let Ok(element) = self.session.find(SelectorBuf::from(locator.as_str())).await
+                    && (invisible || element.is_visible().await.unwrap_or(false))
+                {
+                    found = Some(element);
+                }
+                let Some(element) = found else {
+                    return Ok(false);
+                };
+                element
+            }
+        };
+        self.session.enter_frame_element(&element).await?;
+        Ok(true)
+    }
+
 
     /// The Python-shaped `switch_to_frame`: waits for `frame`, then enters it.
     pub(crate) async fn run_switch_to_frame(

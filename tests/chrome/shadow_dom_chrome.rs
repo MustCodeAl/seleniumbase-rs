@@ -200,7 +200,9 @@ async fn an_element_found_through_a_shadow_root_is_an_element_of_ours() -> Resul
         // Every match of `find_elements` is one too, and the raw element stays reachable.
         let items = sb.find_elements("app-shell::shadow li.item").await?;
         assert_eq!(items.len(), 2);
-        let raw = items[0].as_webdriver_element();
+        let raw = items[0]
+            .as_webdriver_element()
+            .expect("a WebDriver element");
         assert!(!raw.element_id().to_string().is_empty());
 
         // A search from an element does not enter a shadow root: the whole selector is

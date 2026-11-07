@@ -26,12 +26,15 @@ mod navigation;
 mod page;
 #[cfg(feature = "plugins")]
 mod plugins;
+mod pure_cdp;
 mod waits;
 
 #[cfg(feature = "plugins")]
 pub(crate) use emulation::blocked_patterns;
 pub(crate) use launch::server_url_for_joins;
 pub(crate) use waits::shown_text;
+
+use std::sync::Mutex;
 
 use serde_json::Value;
 use thirtyfour::prelude::WebDriver;
@@ -51,6 +54,12 @@ pub struct BrowserSession {
     cdp: Option<CdpClient>,
     /// A tab of an external Chromium app, reached without WebDriver.
     external_page: Option<crate::sb_cdp::Page>,
+    /// The frames a direct CDP attachment has entered, outermost first, each the
+    /// locator of its `<iframe>` or `<frame>`: WebDriver keeps the current frame
+    /// in the browser, the DevTools engine in the session. Empty at the top
+    /// document, and always empty for a WebDriver session.
+    frames: Mutex<Vec<crate::sb_cdp::Locator>>,
+
     driver_process: Option<DriverProcess>,
     /// The virtual screen of a headed Linux session; dropped, and so stopped,
     /// after the driver.
@@ -151,6 +160,8 @@ impl BrowserSession {
             driver: None,
             cdp: None,
             external_page: None,
+            frames: Mutex::new(Vec::new()),
+
             driver_process: None,
             virtual_display: None,
             ad_block: Vec::new(),

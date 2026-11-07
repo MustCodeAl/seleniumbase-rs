@@ -159,15 +159,12 @@ impl BaseCase {
     /// Runs `script` with `element` as `arguments[0]`. A script that returns a
     /// promise is waited for.
     async fn run_on_element(
-        &self,
-        script: &str,
-        element: &Element,
-    ) -> Result<Value, SeleniumBaseError> {
-        let returned = self.session.webdriver()?
-            .execute(script, vec![element.reference()?])
-            .await?;
-        Ok(returned.json().clone())
-    }
+            &self,
+            script: &str,
+            element: &Element,
+        ) -> Result<Value, SeleniumBaseError> {
+            element.run_script(script, &[]).await
+        }
 
     /// Plays the highlight animation on `element` and waits the 65 ms Python
     /// waits after it.

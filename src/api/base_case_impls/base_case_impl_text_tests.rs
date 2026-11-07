@@ -276,7 +276,7 @@ mod tests_text_argument_order {
             sb.find_exact_text(" Welcome ", "h1").await.unwrap(),
             sb.find_non_empty_text("h1").await.unwrap(),
         ] {
-            assert_eq!(found.as_webdriver_element().element_id().to_string(), "h1");
+            assert_eq!(found.as_webdriver_element().unwrap().element_id().to_string(), "h1");
         }
         sb.find_text("Goodbye", "h1").await.unwrap_err();
         sb.find_exact_text("Welcom", "h1").await.unwrap_err();
@@ -492,7 +492,7 @@ mod tests_get_text {
         sb.wait_for_non_empty_text("#name", 1).await.unwrap();
         sb.wait_for_non_empty_text_visible("#name", 1).await.unwrap();
         let found = sb.find_non_empty_text("#name").await.unwrap();
-        assert_eq!(found.as_webdriver_element().element_id().to_string(), "name");
+        assert_eq!(found.as_webdriver_element().unwrap().element_id().to_string(), "name");
     }
 
     #[tokio::test]
@@ -506,7 +506,7 @@ mod tests_get_text {
         sb.set_timeout(0).await.unwrap();
 
         let found = sb.find_text("Ada", "#name").await.unwrap();
-        assert_eq!(found.as_webdriver_element().element_id().to_string(), "name");
+        assert_eq!(found.as_webdriver_element().unwrap().element_id().to_string(), "name");
         sb.find_exact_text(" Ada Lovelace ", "#name").await.unwrap();
         sb.find_text("Typed", "#bio").await.unwrap();
         sb.find_exact_text("Typed since", "#bio").await.unwrap();
