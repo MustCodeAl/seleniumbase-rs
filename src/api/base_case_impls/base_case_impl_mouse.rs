@@ -242,8 +242,8 @@ impl BaseCase {
     /// [`SeleniumBaseError::ElementNotFound`] if either element is
     /// missing, [`SeleniumBaseError::StaleElement`] if the page replaced the
     /// parent or the child before the click, [`SeleniumBaseError::ElementNotInteractable`]
-    /// ([`SeleniumBaseError::WebDriver`]) if the click fails otherwise, as when
-    /// another element intercepts it.
+    /// if the driver refuses the click, as when another element intercepts it, and
+    /// [`SeleniumBaseError::WebDriver`] for any other failure of the driver.
     pub async fn nested_click(
         &mut self,
         parent_css: &str,
