@@ -374,7 +374,8 @@ needs no second crate.
 | A browser cookie, from either engine | `use seleniumbase_rs::{Cookie, SameSite};` | `thirtyfour` |
 | Why the driver failed a command (no such alert, window or frame; a script that threw) | `use seleniumbase_rs::{DriverErrorKind, SeleniumBaseError};` and `SeleniumBaseError::WebDriver(error)` with `error.kind()` | `thirtyfour` |
 | A named key for `Element::press` or `Locator::press` | `use seleniumbase_rs::Key;` (one `Key` for both engines; `drivers` has none) | `thirtyfour` |
-| Capabilities and network conditions of the WebDriver engine | `use seleniumbase_rs::drivers::{DesiredCapabilities, NetworkConditions, ...};` | `thirtyfour` |
+| How the network behaves (slowed down, cut off), on either engine | `use seleniumbase_rs::NetworkThrottle;` (with `std::time::Duration` for the latency) | `thirtyfour` |
+| Capabilities of the WebDriver engine | `use seleniumbase_rs::drivers::{DesiredCapabilities, ...};` | `thirtyfour` |
 | A JSON value or the `json!` macro | `use seleniumbase_rs::json::{json, Value};` | `serde_json = "1"` |
 | `#[async_trait]` for a `TestPlugin` or `PageEvidence` | `use seleniumbase_rs::plugins::observer::async_trait;` | `async-trait = "0.1"` |
 

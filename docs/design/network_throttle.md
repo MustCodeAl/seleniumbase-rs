@@ -3,11 +3,34 @@ title: "Design: one network throttle for both engines"
 sidebarTitle: "One network throttle"
 ---
 
-Status: proposal (2026-11-05). One of the lanes that
+Status: implemented on `lane/thirtyfour`, with every recommendation accepted (2026-11-07). One of the lanes that
 [the element note](/design/element_type) recommends in open question 9 (one lane for each
 thirtyfour type left in the public API), after [the cookie note](/design/cookie_type) and
 [the error note](/design/driver_error). This one is thirtyfour's `NetworkConditions`, which
 thirtyfour itself has deprecated.
+
+The note was written before the code and is kept as it was; these things turned out differently
+or were added. The line numbers it quotes were those of an earlier revision. It says `Emulation::offline` "is
+tested", but the test it names only checks that no detectable domain is enabled and never read the
+parameters; they are read now (`protocol_params`, and `tests/offline/sb_cdp_mobile.rs`). Context7
+again showed neither `Network.emulateNetworkConditions` nor a deprecation of it, only
+`Network.overrideNetworkState` and `Network.emulateNetworkConditionsByRule`, so open question 4
+stays at "keep it"; what was seen instead is Chrome 157 with its chromedriver, in the plain
+WebDriver mode: a latency of 400 ms made a local page load in 426 ms where it took 70 ms, an offline
+tab failed the load with `net::ERR_INTERNET_DISCONNECTED`, and the default put it back to 70 ms.
+Four things are the code's own: a crate-private `NetworkThrottle::commands()` (the two commands in
+order) beside `protocol_params`, so both engines send them from one place; a session attached over
+CDP (`cdp_url`) throttles its own tab, which the note did not mention; the session finds a browser
+without a DevTools channel from the `browserName` its driver reported (`firefox`, `safari` and
+`internet explorer`, as lower-case prefixes), because it keeps no browser kind; and the session
+words a refused command as `CdpDriver` itself, because `CdpClient` still words every refusal as
+`Unsupported` until [the DevTools client lane](/design/devtools_client). The example keeps
+`DriverMode::Cdp`, because `clear_browser_cache`, which it calls between the loads, still needs the
+CDP client. The `expect(deprecated)` of `src/evasion/cdp.rs` stays for `ChromeDevTools`, with its
+reason reworded. `docs/ABI_API.md` still listed `Key` among the `drivers` items, which an earlier
+lane had removed; that line is corrected together with the `NetworkConditions` one, and the
+`docs_current` test now names `set_network_conditions`, `NetworkConditions` and
+`drivers::ConnectionType` as gone.
 
 ## The problem
 

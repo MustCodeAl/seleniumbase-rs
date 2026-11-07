@@ -188,7 +188,7 @@ frame only.
 
 `page.cookies()` (`all`, `set`, `clear`, `header`, `save`, `load`),
 `page.local_storage()` / `page.session_storage()`, `page.window()` and
-`page.emulation()` (timezone, locale, geolocation, user agent, offline).
+`page.emulation()` (timezone, locale, geolocation, user agent, offline, network throttle).
 `browser.new_page`, `pages`, `newest_page`, `select_page` (a target id or part
 of a URL) and `page.bring_to_front` manage tabs. On a browser attached with
 `cdp_url`, `select_page` and `page(id)` prepare only the tab they return, and

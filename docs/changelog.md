@@ -441,6 +441,45 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   }
   ```
 
+- **Breaking: `NetworkThrottle` replaces `set_network_conditions` and thirtyfour's
+  `NetworkConditions`, and it works in every driver mode.** `NetworkThrottle`
+  (`seleniumbase_rs::NetworkThrottle`) holds `offline`, a `latency` as a `Duration`, and
+  `download` and `upload` limits in bytes per second as `Option<u32>` (`None` for no limit), in
+  place of milliseconds in a `u32` and a `-1`; its default changes nothing, so it is also what
+  puts the connection back. `BaseCase::set_network_throttle` and
+  `BrowserSession::set_network_throttle` take it, in place of `set_network_conditions`, and so
+  does the new `sb_cdp::Emulation::network_throttle` (`Emulation::offline` is a throttle that only
+  sets `offline`). `drivers::{ConnectionType, NetworkConditions}` (thirtyfour's, which it has
+  deprecated) and `CdpClient::set_network_conditions` are gone. The throttle used to need the CDP
+  or UC mode and was refused with `Unsupported` ("CDP is unavailable") in the plain WebDriver
+  mode; it now goes through the driver's DevTools channel in every mode on a Chromium browser. A
+  session attached over CDP throttles its own tab. A browser whose driver has no DevTools
+  channel (Firefox, Safari, Internet Explorer) is `Unsupported`, naming it, and a command the
+  browser refuses is `CdpDriver`, as on the pure CDP engine (it was `Unsupported`). `connection_type`
+  is not carried over. The example is `examples/network_throttle.rs`.
+
+  ```rust
+  // Before (the CDP or UC mode only)
+  sb.set_network_conditions(&NetworkConditions {
+      offline: false,
+      latency: 400,
+      download_throughput: 200_000,
+      upload_throughput: 94_000,
+      connection_type: Some(ConnectionType::Cellular3G),
+  })
+  .await?;
+  sb.set_network_conditions(&NetworkConditions::new()).await?; // back to normal
+  // After (every mode)
+  sb.set_network_throttle(&NetworkThrottle {
+      latency: Duration::from_millis(400),
+      download: Some(200_000),
+      upload: Some(94_000),
+      ..NetworkThrottle::default()
+  })
+  .await?;
+  sb.set_network_throttle(&NetworkThrottle::default()).await?; // back to normal
+  ```
+
 ### Security
 
 - `SB_NO_SANDBOX` fails safe: `SB_NO_SANDBOX=0`, `=false` and an empty value no longer turn Chrome's

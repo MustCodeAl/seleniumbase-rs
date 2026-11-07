@@ -35,7 +35,7 @@ SeleniumBase's CDP Mode (`sb.cdp`), which drives Chrome with no driver, is the
 
 <Visibility for="agents">
 
-Summary for AI exports: `DriverMode::Cdp` still uses WebDriver for the session and activates CDP domains. Call `sb.activate_cdp_mode().await?` before raw commands, then `execute_cdp(method)` or `execute_cdp_with_params(method, params)`. Helpers on `BaseCase` include `cdp_click`, `cdp_insert_text`, `cdp_fast_type`, `set_network_conditions`, `set_timezone`, `set_geolocation`, `clear_browser_cache` and `clear_browser_cookies`. `CdpReactor::start(host, port, headers)` continues every paused request with custom headers and needs a browser launched with `--remote-debugging-port=9222`.
+Summary for AI exports: `DriverMode::Cdp` still uses WebDriver for the session and activates CDP domains. Call `sb.activate_cdp_mode().await?` before raw commands, then `execute_cdp(method)` or `execute_cdp_with_params(method, params)`. Helpers on `BaseCase` include `cdp_click`, `cdp_insert_text`, `cdp_fast_type`, `set_network_throttle`, `set_timezone`, `set_geolocation`, `clear_browser_cache` and `clear_browser_cookies`. `CdpReactor::start(host, port, headers)` continues every paused request with custom headers and needs a browser launched with `--remote-debugging-port=9222`.
 
 </Visibility>
 
@@ -91,7 +91,7 @@ useful when you send raw commands directly.
 | `execute_cdp(method)` | Send a raw CDP command with no parameters. |
 | `execute_cdp_with_params(method, params)` | Send a raw CDP command with JSON parameters. |
 | `execute_cdp_cmd(command, params)` | Alias for `execute_cdp_with_params`. |
-| `set_network_conditions(conditions)` | Throttle the connection via CDP. |
+| `set_network_throttle(&throttle)` | Slow the network of the current window down, cut it off, or put it back, with a `NetworkThrottle`. It works in every driver mode on a Chromium browser. |
 | `set_timezone(id)` | Override the browser timezone via CDP. |
 | `set_geolocation(lat, lon, acc)` | Override geolocation via CDP. |
 | `clear_browser_cache()` | Clear the HTTP cache via CDP. |
@@ -206,21 +206,35 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 `CdpReactor::start` takes the debugger host, port, and a map of header
 overrides. It returns a reactor handle you can stop later with `stop()`.
 
-## Network conditions
+## Network throttle
 
-Throttle the connection through CDP to simulate slow networks:
+Throttle the connection through CDP to simulate slow networks. A `NetworkThrottle` says how:
+whether the network is cut off (`offline`), the `latency` added before each response starts to
+arrive, and the most bytes per second the page may receive (`download`) and send (`upload`).
+`None` is no limit, and the default throttles nothing:
 
 ```rust
-use seleniumbase_rs::drivers::NetworkConditions;
+use std::time::Duration;
 
-let mut conditions = NetworkConditions::new();
-conditions.offline = false;
-conditions.latency = 200;
-conditions.download_throughput = 256 * 1024;
-conditions.upload_throughput = 64 * 1024;
+use seleniumbase_rs::NetworkThrottle;
 
-sb.set_network_conditions(&conditions).await?;
+sb.set_network_throttle(&NetworkThrottle {
+    latency: Duration::from_millis(200),
+    download: Some(256 * 1024),
+    upload: Some(64 * 1024),
+    ..NetworkThrottle::default()
+})
+.await?;
+
+// Back to the connection as it is.
+sb.set_network_throttle(&NetworkThrottle::default()).await?;
 ```
+
+The throttle needs no CDP mode: it goes through the driver's DevTools channel in the plain
+WebDriver mode too, on any Chromium browser. Firefox, Safari and Internet Explorer have no such
+channel, so they answer `Unsupported`. A throttle belongs to the window it was set on and is not
+repeated for a window the session switches to. The pure CDP engine takes the same value:
+`page.emulation().network_throttle(&throttle)`.
 
 ## Cache and cookies
 
