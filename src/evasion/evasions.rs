@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use base64::Engine;
 
 use crate::evasion::fingerprint::{
-    BrandVersion, Dimension, Fingerprint, OsType, QuicMode, WebRtcPolicy,
+    BrandVersion, Dimension, Fingerprint, OsType, QuicMode, WebRtcPolicy, TASKBAR_HEIGHT,
 };
 use crate::evasion::providers::{default_registry, session_registry, EvasionContext};
 use crate::evasion::randomize::{chromium_hints, edge_hints, PRESET_CHROMIUM_MAJOR};
@@ -239,6 +239,40 @@ pub fn switches_to_args<'a>(switches: impl IntoIterator<Item = (&'a str, &'a str
         .collect()
 }
 
+/// The height Chrome's tab strip and toolbar take from a maximized window on
+/// `os`, in CSS pixels, without a bookmarks bar. A phone's browser has none.
+pub(crate) const fn browser_frame_height(os: OsType) -> u32 {
+    match os {
+        OsType::Windows => 87,
+        OsType::Macos => 80,
+        OsType::Linux => 85,
+        OsType::Android | OsType::Ios => 0,
+    }
+}
+
+/// The window a launch gives `fp`, or `None` when the fingerprint has no screen.
+///
+/// A phone's window is its screen. A desktop's is a maximized browser window:
+/// the screen's width and the available height less the browser's frame (tab
+/// strip and toolbar), so the page never fills the whole screen, which no
+/// headed desktop browser shows. The available height is the fingerprint's
+/// `avail_screen`, else the screen less a taskbar.
+pub fn window_size(fp: &Fingerprint) -> Option<(u32, u32)> {
+    let screen = fp.screen().value()?;
+    let os = fp.os_type();
+    if os.is_mobile() {
+        return Some((screen.width, screen.height));
+    }
+    let available = fp.avail_screen().value().map_or_else(
+        || screen.height.saturating_sub(TASKBAR_HEIGHT),
+        |avail| avail.height,
+    );
+    Some((
+        screen.width,
+        available.saturating_sub(browser_frame_height(os)),
+    ))
+}
+
 /// Returns Chromium command-line arguments derived from a fingerprint.
 pub fn launch_args(fp: &Fingerprint) -> Vec<String> {
     let mut args = vec![
@@ -285,8 +319,8 @@ pub fn launch_args(fp: &Fingerprint) -> Vec<String> {
         args.push(format!("--lang={locale}"));
     }
 
-    if let Some(size) = fp.screen().value() {
-        args.push(format!("--window-size={},{}", size.width, size.height));
+    if let Some((width, height)) = window_size(fp) {
+        args.push(format!("--window-size={width},{height}"));
     }
 
     // The policy flag is only passed when WebRTC is masked, which a policy,
@@ -769,6 +803,49 @@ mod tests {
         let map = raw_overrides(&fp);
         assert!(map.contains_key("Emulation.setDeviceMetricsOverride"));
         assert!(map.contains_key("Emulation.setGeolocationOverride"));
+    }
+
+    #[test]
+    fn a_desktop_window_is_the_available_screen_less_the_browser_frame() {
+        // The screen less the 40 pixels of a taskbar, less the 87 of Chrome's
+        // tab strip and toolbar on Windows.
+        assert_eq!(
+            window_size(&Fingerprint::windows_desktop()),
+            Some((1920, 953))
+        );
+        // The screen less 40, less the 80 of Chrome's frame on macOS.
+        assert_eq!(
+            window_size(&Fingerprint::macos_desktop()),
+            Some((1920, 960))
+        );
+        // An available screen the fingerprint gives replaces the default 40.
+        let fp = built(
+            Fingerprint::builder()
+                .os_type(OsType::Windows)
+                .screen(2560, 1440)
+                .avail_screen((2560, 1400)),
+        );
+        assert_eq!(window_size(&fp), Some((2560, 1313)));
+        assert!(
+            launch_args(&Fingerprint::windows_desktop())
+                .contains(&"--window-size=1920,953".to_owned()),
+            "the launch writes the same window"
+        );
+    }
+
+    #[test]
+    fn a_phone_window_is_its_screen() {
+        let phone = Fingerprint::android_mobile();
+        let screen = phone.screen().value().expect("a phone has a screen");
+        let size = (screen.width, screen.height);
+
+        assert_eq!(window_size(&phone), Some(size));
+        assert!(launch_args(&phone).contains(&format!("--window-size={},{}", size.0, size.1)));
+    }
+
+    #[test]
+    fn a_fingerprint_without_a_screen_gives_no_window() {
+        assert_eq!(window_size(&built(Fingerprint::builder())), None);
     }
 
     #[test]

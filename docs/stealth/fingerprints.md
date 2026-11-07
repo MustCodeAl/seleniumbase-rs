@@ -215,7 +215,7 @@ and `media_devices` (`(audio_in, audio_out, video_in)`).
 | `oscpu`, `build_id` | nothing to draw (an error) | no `Off` | `Navigator` | The `navigator_props` provider. |
 | `locale`, `languages`, `accept_languages` | The place's locale and language list. | no `Off` | `Localization` | The `localization` provider, `--lang`, `Emulation.setLocaleOverride`, and the `Accept-Language` of the user agent override. |
 | `timezone` | The place's time zone. | no `Off` | `Timezone` | The `timezone` provider and `Emulation.setTimezoneOverride`. |
-| `screen_spoof`, `avail_screen`, `pixel_ratio`, `color_depth` | The machine's screen. | no `Off` | `Screen` | The `window_geometry` provider, `--window-size` and `Emulation.setDeviceMetricsOverride`. |
+| `screen_spoof`, `avail_screen`, `pixel_ratio`, `color_depth` | The machine's screen. | no `Off` | `Screen` | The `window_geometry` provider, `--window-size` (a desktop's maximized browser window: the available screen less the tab strip and toolbar; a phone's screen) and `Emulation.setDeviceMetricsOverride`. |
 | `webgl` | An adapter the operating system reports. | no `Off` | `Graphics` | The `webgl` and `webgpu` providers: the WebGPU adapter names the same GPU. |
 | `fonts` | The system's fonts, with a few of the less common left out. | no `Off` | `Fonts` | The `fonts` provider. |
 | `media_devices` | A microphone, a speaker and, usually, a camera. | No device is listed. | `MediaDevices` | The `media_devices` provider. |
@@ -307,6 +307,12 @@ host's fonts, the host's APIs (`BarcodeDetector` on a Mac, `navigator.hid` for
 a phone persona), Chrome's own plugin list for a phone persona, touch events,
 the host's voices and keyboard, the storage quota, and the preset's battery
 shape.
+
+A desktop persona's launch window is a maximized browser window, so its viewport
+is never the whole screen (`viewport_is_screen`) and `screen.availHeight` is
+less than `screen.height` (`no_taskbar`). `StealthPolicy::native_only()` runs no
+script, so `availHeight` stays the screen's and `no_taskbar` shows; the presets
+use `balanced()`.
 
 ## What is spoofed
 

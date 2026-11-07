@@ -584,8 +584,11 @@ mod launch_tests {
         let locale = fingerprint.locale().as_str().unwrap();
         assert!(args.contains(&format!("--lang={locale}")));
         let screen = fingerprint.screen().value().unwrap();
-        let (w, h) = (screen.width, screen.height);
+        let (w, h) = crate::evasion::evasions::window_size(&fingerprint).unwrap();
         assert!(args.contains(&format!("--window-size={w},{h}")));
+        // A desktop persona launches a maximized browser window, not its whole screen.
+        assert!(h < screen.height, "{h} is under {}", screen.height);
+
         assert!(
             args.iter()
                 .any(|a| a.starts_with("--force-webrtc-ip-handling-policy=")),

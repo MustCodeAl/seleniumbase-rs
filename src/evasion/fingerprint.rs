@@ -63,6 +63,7 @@ pub use consistency::{Contradiction, Severity};
 use super::humanize::Rng;
 pub use super::policy::{AudioNoise, CanvasNoise, StealthPolicy};
 use super::randomize;
+pub(crate) use super::settings::TASKBAR_HEIGHT;
 pub use super::settings::{Geolocation, MediaDevices, ScreenSize, WebGl, WebRtcAddresses};
 pub use super::spoof::Spoof;
 
@@ -2134,7 +2135,7 @@ fn draw_random(f: &mut Fields, browser_type_set: bool) -> Result<(), Fingerprint
             .map_or((profile.screen.width, profile.screen.height), |size| {
                 (size.width, size.height)
             });
-        let lost = if os.is_mobile() { 0 } else { 40 };
+        let lost = if os.is_mobile() { 0 } else { TASKBAR_HEIGHT };
         f.avail_screen = Spoof::Value(ScreenSize::new(width, height.saturating_sub(lost)));
     }
     if f.pixel_ratio.is_random() {

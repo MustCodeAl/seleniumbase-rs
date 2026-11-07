@@ -18,6 +18,8 @@
 //!   before.
 
 use super::{EvasionContext, EvasionProvider, SB_PREAMBLE};
+use crate::evasion::fingerprint::TASKBAR_HEIGHT;
+
 use crate::evasion::fingerprint::{
     gpu_architecture, gpu_maker, languages_for_locale, AudioNoise, CanvasNoise, Dimension,
     Fingerprint, Geolocation, OsType, AUDIO_SEED_MASK,
@@ -551,7 +553,7 @@ impl EvasionProvider for WindowGeometryProvider {
         if let Some((w, h)) = size {
             let avail = fp.avail_screen().value();
             let avail_w = avail.map_or(w, |a| a.width);
-            let avail_h = avail.map_or_else(|| h.saturating_sub(40), |a| a.height);
+            let avail_h = avail.map_or_else(|| h.saturating_sub(TASKBAR_HEIGHT), |a| a.height);
             defs.push(format!(
                 "width: {w}, height: {h}, availWidth: {avail_w}, availHeight: {avail_h}"
             ));

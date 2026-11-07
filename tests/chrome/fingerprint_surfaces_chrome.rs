@@ -116,3 +116,42 @@ async fn the_core_count_reaches_the_window_and_a_worker() {
         "flips when Chrome applies the override to workers"
     );
 }
+
+#[tokio::test]
+#[ignore = "requires a local Chrome"]
+#[serial_test::serial(chrome)]
+async fn a_desktop_persona_has_a_frame_around_its_viewport() {
+    let (browser, page) = open(&Fingerprint::windows_desktop()).await;
+
+    let geometry = page
+        .evaluate(
+            "({ innerWidth: window.innerWidth, innerHeight: window.innerHeight, \
+               outerWidth: window.outerWidth, outerHeight: window.outerHeight, \
+               availHeight: screen.availHeight, height: screen.height })",
+        )
+        .await
+        .expect("the window answers");
+    browser.close().await.expect("Chrome closes");
+
+    let read = |key: &str| {
+        geometry[key]
+            .as_u64()
+            .unwrap_or_else(|| panic!("{key} is a number in {geometry}"))
+    };
+    assert!(
+        read("innerHeight") < read("outerHeight"),
+        "a browser window has a tab strip and a toolbar above its viewport: {geometry}"
+    );
+    assert!(
+        read("outerHeight") <= read("availHeight"),
+        "a window fits the available screen: {geometry}"
+    );
+    assert!(
+        read("innerWidth") <= read("outerWidth"),
+        "the viewport fits the window: {geometry}"
+    );
+    assert!(
+        read("innerHeight") < read("height"),
+        "the viewport is not the whole screen: {geometry}"
+    );
+}

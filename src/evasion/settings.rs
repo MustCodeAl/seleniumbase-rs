@@ -23,6 +23,10 @@ use serde::{Deserialize, Serialize};
 use super::fingerprint::MediaDeviceSpec;
 use super::spoof::Spoof;
 
+/// What a desktop's taskbar or menu bar takes from the height of the screen
+/// when a fingerprint gives no available screen, in CSS pixels.
+pub(crate) const TASKBAR_HEIGHT: u32 = 40;
+
 /// A screen size in CSS pixels.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]

@@ -52,6 +52,8 @@ const CLOSED: &[&str] = &[
     "headless_screen",
     "window_vs_screen",
     "voices_vs_os",
+    "viewport_is_screen",
+    "no_taskbar",
 ];
 
 /// The gaps the evasions leave open today, by rule, each with the rank it has
@@ -65,11 +67,6 @@ const OPEN: &[(&str, &str)] = &[
         "worker_vs_window",
         "step 2 sends the core count, which Chrome applies to the page and not to workers; the worker lane: a worker reports the real cores, memory, platform and GPU",
     ),
-    (
-        "no_taskbar",
-        "step 3: a headless shell keeps no taskbar out of the screen",
-    ),
-    ("viewport_is_screen", "step 3: a headless shell has no frame"),
     (
         "media_query_lie",
         "step 7: matchMedia is patched and the @media rules are not",

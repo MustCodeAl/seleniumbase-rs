@@ -31,7 +31,9 @@ use crate::browser::options::{
     VirtualDisplay, MOBILE_USER_AGENT,
 };
 use crate::error::SeleniumBaseError;
+use crate::evasion::evasions::window_size;
 use crate::evasion::fingerprint::{Dimension, Fingerprint, WebRtcPolicy};
+
 use crate::sb_cdp::identity::StealthPlan;
 
 /// A fingerprint the layers and the options built from them share. Its `Debug` is short: the
@@ -171,10 +173,7 @@ impl Layer {
         Self {
             user_agent: fingerprint.user_agent().value().cloned(),
             lang: fingerprint.locale().value().cloned(),
-            window_size: fingerprint
-                .screen()
-                .value()
-                .map(|size| (size.width, size.height)),
+            window_size: window_size(fingerprint),
             // Only a fingerprint that masks WebRTC passes the policy flag, which a policy, an
             // address or turning WebRTC off makes it; an empty one leaves Chrome's own
             // behaviour alone.

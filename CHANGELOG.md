@@ -614,6 +614,10 @@ work, `docs/parity.md` the per-API status).
 
 ### Fixed
 
+- A desktop persona's launch window is a maximized browser window, the available screen less
+  the tab strip and toolbar (`evasions::window_size`, `--window-size` and the pure CDP engine's
+  launch use it); it was the whole screen, which no headed browser shows
+  (`viewport_is_screen`). The 40 pixels of a taskbar are one constant, `TASKBAR_HEIGHT`.
 - A phone persona's window is its screen: `window.outerWidth` is the screen width and
   `outerHeight` the available height whatever the layout viewport is (a page without a viewport
   meta lays out at 980 pixels), as Chrome on Android reports them. The `window_geometry` provider
