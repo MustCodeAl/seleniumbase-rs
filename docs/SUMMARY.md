@@ -158,6 +158,7 @@ hidden: true
   - [Fingerprint API v2](design/fingerprint-api-v2.md)
   - [Fingerprint capture, export and import](design/fingerprint-capture.md)
   - [Fingerprint consistency](design/fingerprint_consistency.md)
+  - [Fingerprint consistency: the implementation plan](design/fingerprint_consistency_plan.md)
   - [The sbrs CLI on usage](design/usage-cli.md)
   - [The dev MCP server](design/mcp-dev-tools.md)
   - [A trace viewer for the pure CDP engine](design/trace_viewer.md)

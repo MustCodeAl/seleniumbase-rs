@@ -881,6 +881,7 @@
               "design/fingerprint-api-v2",
               "design/fingerprint-capture",
               "design/fingerprint_consistency",
+              "design/fingerprint_consistency_plan",
               "design/usage-cli",
               "design/mcp-dev-tools",
               "design/stealth_parity_plan",

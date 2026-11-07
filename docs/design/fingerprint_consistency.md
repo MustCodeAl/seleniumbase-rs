@@ -6,6 +6,8 @@ title: "Design: fingerprint consistency"
 
 Status: in progress on `lane/fp-consistency`; what landed is listed under
 `## Unreleased` in `CHANGELOG.md`, what is left is the ranked list at the end.
+The steps that close the gaps, with their decisions, are
+[the implementation plan](/design/fingerprint_consistency_plan).
 It builds on [Fingerprint API v2](/design/fingerprint-api-v2) and
 [Fingerprint capture, export and import](/design/fingerprint-capture).
 
