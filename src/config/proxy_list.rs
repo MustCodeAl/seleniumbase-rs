@@ -51,7 +51,7 @@ use std::fmt;
 use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Mutex, MutexGuard, PoisonError};
-use std::time::{Duration, Instant};
+use std::time::{Duration, SystemTime};
 
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
@@ -122,6 +122,9 @@ impl fmt::Display for ProxyEntry {
     }
 }
 
+/// The longest a proxy rests, so that a rest of any length can be added to a time.
+const MAX_REST: Duration = Duration::from_secs(100 * 365 * 24 * 60 * 60);
+
 /// How many sites [`RotationStrategy::StickyPerSite`] remembers; past this the
 /// memory starts again, so a long run that visits many sites stays bounded.
 pub const MAX_STICKY_SITES: usize = 4096;
@@ -183,11 +186,11 @@ impl Rotation {
 #[derive(Debug, Default, Clone, Copy)]
 struct Health {
     failures: u32,
-    resting_until: Option<Instant>,
+    resting_until: Option<SystemTime>,
 }
 
 impl Health {
-    fn resting(&self, now: Instant) -> bool {
+    fn resting(&self, now: SystemTime) -> bool {
         self.resting_until.is_some_and(|until| now < until)
     }
 }
@@ -373,10 +376,11 @@ impl ProxyList {
 
     /// Rests a proxy once it has failed `after_failures` times in a row (zero
     /// counts as one), for `rest`. A resting proxy is not picked, and its count
-    /// starts again when the rest begins.
+    /// starts again when the rest begins. A rest of more than a hundred years counts as a
+    /// hundred years, which no run outlasts.
     #[must_use]
     pub fn with_quarantine(mut self, after_failures: u32, rest: Duration) -> Self {
-        self.quarantine = Some((after_failures.max(1), rest));
+        self.quarantine = Some((after_failures.max(1), rest.min(MAX_REST)));
         self
     }
 
@@ -384,9 +388,68 @@ impl ProxyList {
     /// [rotation strategy](Self::with_rotation) among the proxies that are not
     /// resting. `None` when the list is empty or every proxy is resting. The
     /// site matters only to [`RotationStrategy::StickyPerSite`].
+    ///
+    /// Whether a proxy is resting is read from the clock; [`pick_at`](Self::pick_at) takes the
+    /// time instead.
+
     #[must_use]
     pub fn pick(&self, site: Option<&str>) -> Option<&ProxyEntry> {
-        self.choose(site, None)
+        self.pick_at(site, SystemTime::now())
+    }
+
+    /// Like [`pick`](Self::pick), but at the time `now` instead of the time of the clock: a
+    /// proxy is resting when the rest that [`report_at`](Self::report_at) (or
+    /// [`report`](Self::report)) began has not ended by `now`. It is for a caller that keeps its
+    /// own clock, such as a proxy pool that holds Unix seconds (`UNIX_EPOCH` plus a
+    /// [`Duration`] makes the time), and for a test that moves time by hand.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::time::{Duration, UNIX_EPOCH};
+    /// use seleniumbase_rs::config::proxy_list::{ProxyEntry, ProxyList, ProxyOutcome};
+    ///
+    /// let list = ProxyList::parse("a.test:1\nb.test:1\n")?
+    ///     .with_quarantine(1, Duration::from_secs(600));
+    /// let at = |secs| UNIX_EPOCH + Duration::from_secs(secs);
+    ///
+    /// // `a` fails at second 100, so it rests until second 700.
+    /// let a = list.iter().next().expect("a proxy");
+    /// list.report_at(a, ProxyOutcome::ConnectFailed, at(100));
+    /// assert_eq!(list.pick_at(None, at(699)).map(ProxyEntry::server), Some("b.test:1"));
+    /// assert_eq!(list.pick_at(None, at(700)).map(ProxyEntry::server), Some("a.test:1"));
+    /// # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
+    /// ```
+    #[must_use]
+    pub fn pick_at(&self, site: Option<&str>, now: SystemTime) -> Option<&ProxyEntry> {
+        self.choose(&|_| true, site, None, now)
+    }
+
+    /// Like [`pick`](Self::pick), among the proxies for which `accept` is true as well as not
+    /// resting: a pick of one country, say, when the entries are named for their country.
+    /// `None` when no proxy passes `accept` and is not resting. `accept` is called before the
+    /// list takes its lock, so it may use the list. With
+    /// [`RotationStrategy::StickyPerSite`] a site that stuck to a proxy `accept` refuses moves
+    /// to one it allows, and sticks to that.
+    #[must_use]
+    pub fn pick_where(
+        &self,
+        accept: impl Fn(&ProxyEntry) -> bool,
+        site: Option<&str>,
+    ) -> Option<&ProxyEntry> {
+        self.pick_where_at(accept, site, SystemTime::now())
+    }
+
+    /// Like [`pick_where`](Self::pick_where), at the time `now` (see
+    /// [`pick_at`](Self::pick_at)).
+    #[must_use]
+    pub fn pick_where_at(
+        &self,
+        accept: impl Fn(&ProxyEntry) -> bool,
+        site: Option<&str>,
+        now: SystemTime,
+    ) -> Option<&ProxyEntry> {
+        self.choose(&accept, site, None, now)
     }
 
     /// Like [`pick`](Self::pick), but never `current`, so that changing proxy
@@ -394,7 +457,19 @@ impl ProxyList {
     /// sticks to the new proxy.
     #[must_use]
     pub fn pick_other(&self, current: &ProxyEntry, site: Option<&str>) -> Option<&ProxyEntry> {
-        self.choose(site, self.index_of(current))
+        self.pick_other_at(current, site, SystemTime::now())
+    }
+
+    /// Like [`pick_other`](Self::pick_other), at the time `now` (see
+    /// [`pick_at`](Self::pick_at)).
+    #[must_use]
+    pub fn pick_other_at(
+        &self,
+        current: &ProxyEntry,
+        site: Option<&str>,
+        now: SystemTime,
+    ) -> Option<&ProxyEntry> {
+        self.choose(&|_| true, site, self.index_of(current), now)
     }
 
     /// Records what happened to a request through `entry`. A success clears
@@ -402,6 +477,13 @@ impl ProxyList {
     /// [quarantine](Self::with_quarantine) limit the proxy rests. An entry the list
     /// does not hold is ignored.
     pub fn report(&self, entry: &ProxyEntry, outcome: ProxyOutcome) {
+        self.report_at(entry, outcome, SystemTime::now());
+    }
+
+    /// Like [`report`](Self::report), at the time `now` instead of the time of the clock: a
+    /// proxy that comes to rest rests until `now` plus the rest (see
+    /// [`pick_at`](Self::pick_at)).
+    pub fn report_at(&self, entry: &ProxyEntry, outcome: ProxyOutcome, now: SystemTime) {
         let Some(index) = self.index_of(entry) else {
             return;
         };
@@ -418,19 +500,33 @@ impl ProxyList {
         if let Some((limit, rest)) = self.quarantine
             && health.failures >= limit
         {
-            health.resting_until = Some(Instant::now() + rest);
+            health.resting_until = Some(now.checked_add(rest).unwrap_or(now));
             health.failures = 0;
         }
     }
 
     /// The pick of every strategy: among the proxies that are not resting and
     /// are not `except`.
-    fn choose(&self, site: Option<&str>, except: Option<usize>) -> Option<&ProxyEntry> {
-        let now = Instant::now();
+    fn choose(
+        &self,
+        accept: &dyn Fn(&ProxyEntry) -> bool,
+        site: Option<&str>,
+        except: Option<usize>,
+        now: SystemTime,
+    ) -> Option<&ProxyEntry> {
+        // `accept` runs before the lock is taken, so that it may use this list.
+        let passing: Vec<usize> = self
+            .entries
+            .iter()
+            .enumerate()
+            .filter(|&(index, entry)| Some(index) != except && accept(entry))
+            .map(|(index, _)| index)
+            .collect();
         let mut state = locked(&self.state);
         state.fit(self.entries.len());
-        let open: Vec<usize> = (0..self.entries.len())
-            .filter(|&index| Some(index) != except && !state.health[index].resting(now))
+        let open: Vec<usize> = passing
+            .into_iter()
+            .filter(|&index| !state.health[index].resting(now))
             .collect();
         if open.is_empty() {
             return None;
@@ -604,6 +700,8 @@ fn check_server(server: &str) -> Result<(), SeleniumBaseError> {
 
 #[cfg(test)]
 mod tests {
+    use std::time::UNIX_EPOCH;
+
     use super::*;
 
     fn list(specs: &[&str]) -> ProxyList {
@@ -941,5 +1039,368 @@ mod tests {
             ["c.test:3", "b.test:2", "c.test:3", "b.test:2"],
             "c is next after b; the resting a is skipped, and b is not picked twice in a row"
         );
+    }
+
+    // The forms that take the time (`pick_at`, `pick_other_at`, `pick_where_at`, `report_at`):
+    // a caller that keeps its own clock, such as the stealth layer's proxy pool, drives them with
+    // a time of its own, and so do these tests.
+
+    /// The moment `secs` seconds after the Unix epoch.
+    fn at(secs: u64) -> SystemTime {
+        UNIX_EPOCH + Duration::from_secs(secs)
+    }
+
+    const P1: &str = "p1.test:8080";
+    const P2: &str = "p2.test:8080";
+    const P3: &str = "p3.test:8080";
+
+    fn three() -> ProxyList {
+        list(&[P1, P2, P3])
+    }
+
+    /// A copy of the entry of `list` that is served by `server`.
+    fn entry_of(list: &ProxyList, server: &str) -> ProxyEntry {
+        list.iter()
+            .find(|entry| entry.server() == server)
+            .expect("a proxy of the list")
+            .clone()
+    }
+
+    /// The servers of `count` picks in a row, all made at the time `now` (in seconds).
+    fn servers_at(list: &ProxyList, count: usize, now: u64) -> Vec<String> {
+        (0..count)
+            .map(|_| {
+                list.pick_at(None, at(now))
+                    .map(|entry| entry.server().to_owned())
+                    .unwrap_or_default()
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_list_can_be_shared_between_threads() {
+        fn assert_send_sync<T: Send + Sync>() {}
+        assert_send_sync::<ProxyList>();
+    }
+
+    #[test]
+    fn nothing_is_picked_from_an_empty_list_at_any_time() {
+        let list = ProxyList::new();
+        let stray = entry_of(&three(), P1);
+        assert!(list.pick_at(None, at(0)).is_none());
+        assert!(list.pick_where_at(|_| true, None, at(0)).is_none());
+        assert!(list.pick_other_at(&stray, None, at(0)).is_none());
+    }
+
+    #[test]
+    fn round_robin_at_a_time_skips_a_resting_proxy_without_repeating_another() {
+        let list = three().with_quarantine(1, Duration::from_secs(600));
+        list.report_at(&entry_of(&list, P2), ProxyOutcome::ConnectFailed, at(0));
+        assert_eq!(
+            servers_at(&list, 6, 1),
+            [P1, P3].repeat(3),
+            "the cycle holds its order around the gap"
+        );
+    }
+
+    #[test]
+    fn a_proxy_that_has_rested_long_enough_rejoins_the_cycle() {
+        let list = three().with_quarantine(1, Duration::from_secs(600));
+        list.report_at(&entry_of(&list, P2), ProxyOutcome::ConnectFailed, at(0));
+        let _ = servers_at(&list, 2, 1);
+        let mut after = servers_at(&list, 3, 600);
+        after.sort();
+        assert_eq!(after, [P1, P2, P3]);
+    }
+
+    #[test]
+    fn failures_rest_a_proxy_until_its_time_is_up_to_the_second() {
+        let list = list(&[P1, P2]).with_quarantine(3, Duration::from_secs(600));
+        let p1 = entry_of(&list, P1);
+        for _ in 0..3 {
+            list.report_at(&p1, ProxyOutcome::ConnectFailed, at(100));
+        }
+        assert_eq!(servers_at(&list, 4, 699), [P2; 4]);
+        let released = servers_at(&list, 2, 700);
+        assert!(released.contains(&P1.to_owned()), "{released:?}");
+    }
+
+    #[test]
+    fn a_released_proxy_starts_again_with_no_failures() {
+        let list = list(&[P1]).with_quarantine(2, Duration::from_secs(10));
+        let p1 = entry_of(&list, P1);
+        for _ in 0..2 {
+            list.report_at(&p1, ProxyOutcome::ConnectFailed, at(0));
+        }
+        assert!(list.pick_at(None, at(9)).is_none());
+        list.report_at(&p1, ProxyOutcome::ConnectFailed, at(10));
+        assert!(
+            list.pick_at(None, at(11)).is_some(),
+            "one failure after the rest is below the limit of two"
+        );
+    }
+
+    #[test]
+    fn a_limit_of_zero_means_the_first_failure() {
+        let list = list(&[P1]).with_quarantine(0, Duration::from_secs(60));
+        assert!(list.pick_at(None, at(0)).is_some());
+        list.report_at(&entry_of(&list, P1), ProxyOutcome::ConnectFailed, at(0));
+        assert!(list.pick_at(None, at(1)).is_none());
+    }
+
+    #[test]
+    fn every_failing_outcome_counts_and_a_success_clears_the_count() {
+        for failing in [
+            ProxyOutcome::ConnectFailed,
+            ProxyOutcome::Challenged,
+            ProxyOutcome::Blocked,
+        ] {
+            let list = list(&[P1]).with_quarantine(3, Duration::from_secs(60));
+            let p1 = entry_of(&list, P1);
+            list.report_at(&p1, failing, at(0));
+            list.report_at(&p1, failing, at(0));
+            list.report_at(&p1, ProxyOutcome::Success, at(0));
+            list.report_at(&p1, failing, at(0));
+            list.report_at(&p1, failing, at(0));
+            assert!(
+                list.pick_at(None, at(0)).is_some(),
+                "two failures after a success must not rest the proxy ({failing:?})"
+            );
+            list.report_at(&p1, failing, at(0));
+            assert!(list.pick_at(None, at(0)).is_none(), "the third one does");
+        }
+    }
+
+    #[test]
+    fn a_report_for_a_proxy_the_list_does_not_hold_changes_nothing() {
+        let list = three().with_quarantine(1, Duration::from_secs(600));
+        let stray = entry_of(&self::list(&["elsewhere.test:1"]), "elsewhere.test:1");
+        list.report_at(&stray, ProxyOutcome::Blocked, at(0));
+        assert_eq!(servers_at(&list, 3, 0), [P1, P2, P3]);
+    }
+
+    #[test]
+    fn a_rest_of_any_length_neither_panics_nor_ends() {
+        let list = three().with_quarantine(1, Duration::MAX);
+        list.report_at(&entry_of(&list, P1), ProxyOutcome::Blocked, at(0));
+        assert!(servers_at(&list, 4, 3_000_000_000)
+            .iter()
+            .all(|server| server != P1));
+    }
+
+    #[test]
+    fn least_failures_follows_the_healthiest_proxy() {
+        let list = three().with_rotation(RotationStrategy::LeastFailures);
+        let (p1, p2, p3) = (
+            entry_of(&list, P1),
+            entry_of(&list, P2),
+            entry_of(&list, P3),
+        );
+        list.report_at(&p1, ProxyOutcome::ConnectFailed, at(0));
+        list.report_at(&p1, ProxyOutcome::ConnectFailed, at(0));
+        list.report_at(&p2, ProxyOutcome::ConnectFailed, at(0));
+        assert_eq!(servers_at(&list, 3, 0), [P3; 3]);
+        list.report_at(&p3, ProxyOutcome::ConnectFailed, at(0));
+        assert_eq!(servers_at(&list, 4, 0), [P2, P3, P2, P3]);
+    }
+
+    #[test]
+    fn least_failures_rotates_among_equals() {
+        let list = three().with_rotation(RotationStrategy::LeastFailures);
+        assert_eq!(servers_at(&list, 6, 0), [P1, P2, P3].repeat(2));
+    }
+
+    #[test]
+    fn sticky_sites_are_independent_and_new_ones_move_on() {
+        let list = three().with_rotation(RotationStrategy::StickyPerSite);
+        let pick = |site: &str| {
+            list.pick_at(Some(site), at(0))
+                .map(|entry| entry.server().to_owned())
+                .unwrap_or_default()
+        };
+        let (a, b, c) = (pick("a.test"), pick("b.test"), pick("c.test"));
+        assert_eq!([a.as_str(), b.as_str(), c.as_str()], [P1, P2, P3]);
+        assert_eq!(pick("a.test"), a);
+        assert_eq!(pick("b.test"), b);
+    }
+
+    #[test]
+    fn sticky_without_a_site_rotates_like_round_robin() {
+        let list = three().with_rotation(RotationStrategy::StickyPerSite);
+        assert_eq!(servers_at(&list, 3, 0), [P1, P2, P3]);
+    }
+
+    #[test]
+    fn a_sticky_proxy_that_starts_to_rest_gives_way() {
+        let list = three()
+            .with_rotation(RotationStrategy::StickyPerSite)
+            .with_quarantine(1, Duration::from_secs(600));
+        let first = list.pick_at(Some("a.test"), at(0)).unwrap().clone();
+        list.report_at(&first, ProxyOutcome::Blocked, at(0));
+        let next = list
+            .pick_at(Some("a.test"), at(1))
+            .unwrap()
+            .server()
+            .to_owned();
+        assert_ne!(next, first.server());
+        assert_eq!(
+            list.pick_at(Some("a.test"), at(1)).unwrap().server(),
+            next,
+            "the site now sticks to the replacement"
+        );
+    }
+
+    #[test]
+    fn the_sticky_table_stays_bounded() {
+        let list = three().with_rotation(RotationStrategy::StickyPerSite);
+        for index in 0..MAX_STICKY_SITES + 25 {
+            let site = format!("site{index}.test");
+            assert!(list.pick_at(Some(&site), at(0)).is_some());
+        }
+        let remembered = locked(&list.state).sticky.len();
+        assert!(
+            (1..=MAX_STICKY_SITES).contains(&remembered),
+            "{remembered} sites remembered"
+        );
+    }
+
+    #[test]
+    fn pick_other_at_never_returns_the_current_proxy_and_moves_a_sticky_site() {
+        let list = three();
+        let p2 = entry_of(&list, P2);
+        assert!((0..6).all(|_| list.pick_other_at(&p2, None, at(0)).unwrap().server() != P2));
+
+        let sticky = three().with_rotation(RotationStrategy::StickyPerSite);
+        let first = sticky.pick_at(Some("a.test"), at(0)).unwrap().clone();
+        let moved = sticky
+            .pick_other_at(&first, Some("a.test"), at(0))
+            .unwrap()
+            .clone();
+        assert_ne!(moved.server(), first.server());
+        assert_eq!(
+            sticky.pick_at(Some("a.test"), at(0)).unwrap().server(),
+            moved.server()
+        );
+    }
+
+    #[test]
+    fn pick_other_at_with_nothing_else_left_is_none() {
+        let alone = list(&[P1]);
+        assert!(alone
+            .pick_other_at(&entry_of(&alone, P1), None, at(0))
+            .is_none());
+    }
+
+    #[test]
+    fn a_seeded_random_pick_at_a_time_gives_one_order_for_one_seed() {
+        let order = |seed| {
+            let list = three().with_rotation(RotationStrategy::Random { seed: Some(seed) });
+            servers_at(&list, 10, 0)
+        };
+        assert_eq!(order(11), order(11));
+    }
+
+    #[test]
+    fn random_uses_every_proxy_and_never_a_resting_one() {
+        let list = three().with_rotation(RotationStrategy::Random { seed: Some(3) });
+        let seen = servers_at(&list, 40, 0);
+        for server in [P1, P2, P3] {
+            assert!(
+                seen.iter().any(|seen| seen == server),
+                "{server} never drawn"
+            );
+        }
+        let list = three()
+            .with_rotation(RotationStrategy::Random { seed: Some(3) })
+            .with_quarantine(1, Duration::from_secs(600));
+        list.report_at(&entry_of(&list, P2), ProxyOutcome::Blocked, at(0));
+        assert!(!servers_at(&list, 60, 1).contains(&P2.to_owned()));
+    }
+
+    /// Three proxies named for a country, the French one first.
+    fn by_country() -> ProxyList {
+        ProxyList::parse("fr = fr.test:1\nde1 = de1.test:1\nde2 = de2.test:1\n")
+            .expect("a valid list")
+    }
+
+    fn german(entry: &ProxyEntry) -> bool {
+        entry.name().is_some_and(|name| name.starts_with("de"))
+    }
+
+    #[test]
+    fn pick_where_at_only_returns_proxies_that_pass_and_takes_turns_among_them() {
+        let list = by_country();
+        let order: Vec<_> = (0..4)
+            .map(|_| list.pick_where_at(german, None, at(0)).unwrap().server())
+            .collect();
+        assert_eq!(
+            order,
+            ["de1.test:1", "de2.test:1", "de1.test:1", "de2.test:1"]
+        );
+        assert!(list.pick_where_at(|_| false, None, at(0)).is_none());
+    }
+
+    #[test]
+    fn pick_where_at_finds_nothing_when_every_proxy_that_passes_rests() {
+        let list = by_country().with_quarantine(1, Duration::from_secs(600));
+        for name in ["de1", "de2"] {
+            let entry = list.get(name).unwrap().clone();
+            list.report_at(&entry, ProxyOutcome::Blocked, at(0));
+        }
+        assert!(list.pick_where_at(german, None, at(1)).is_none());
+        assert_eq!(
+            list.pick_at(None, at(1)).map(ProxyEntry::server),
+            Some("fr.test:1"),
+            "the other country still serves"
+        );
+    }
+
+    #[test]
+    fn a_sticky_site_moves_to_a_proxy_that_passes_and_sticks_to_it() {
+        let list = by_country().with_rotation(RotationStrategy::StickyPerSite);
+        assert_eq!(
+            list.pick_at(Some("shop.test"), at(0)).unwrap().server(),
+            "fr.test:1"
+        );
+        let moved = list
+            .pick_where_at(german, Some("shop.test"), at(0))
+            .unwrap()
+            .clone();
+        assert!(german(&moved));
+        assert_eq!(
+            list.pick_at(Some("shop.test"), at(0)).unwrap().server(),
+            moved.server()
+        );
+    }
+
+    #[test]
+    fn the_clock_forms_and_the_timed_forms_share_what_a_report_recorded() {
+        let list = three().with_quarantine(1, Duration::from_secs(600));
+        let now = SystemTime::now();
+        list.report(&entry_of(&list, P1), ProxyOutcome::Blocked);
+        assert!(
+            (0..6).all(|_| list
+                .pick_at(None, now + Duration::from_secs(590))
+                .unwrap()
+                .server()
+                != P1),
+            "a rest recorded by the clock is still on at the time it was set to last"
+        );
+        assert!(
+            (0..6).any(|_| list
+                .pick_at(None, now + Duration::from_secs(700))
+                .unwrap()
+                .server()
+                == P1),
+            "and over after it"
+        );
+
+        let other = three().with_quarantine(1, Duration::from_secs(600));
+        other.report_at(
+            &entry_of(&other, P1),
+            ProxyOutcome::Blocked,
+            SystemTime::now(),
+        );
+        assert!((0..6).all(|_| other.pick(None).unwrap().server() != P1));
     }
 }
