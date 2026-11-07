@@ -655,8 +655,14 @@ pub fn recorded_secret() -> Result<String, SeleniumBaseError> {
 /// Whether `SB_REC_KEEP_SECRETS` asks for typed passwords to be recorded as
 /// typed.
 fn keep_secrets() -> bool {
-    std::env::var("SB_REC_KEEP_SECRETS")
-        .is_ok_and(|value| value.eq_ignore_ascii_case("true") || value == "1")
+    keep_secrets_in(|name| std::env::var(name).ok())
+}
+
+/// [`keep_secrets`] for the variables `var` reports.
+fn keep_secrets_in(var: impl Fn(&str) -> Option<String>) -> bool {
+    var("SB_REC_KEEP_SECRETS")
+        .map(|value| value.trim().to_owned())
+        .is_some_and(|value| value.eq_ignore_ascii_case("true") || value == "1")
 }
 
 /// The Rust expression for a recorded text: a string literal, or, for the
@@ -1883,6 +1889,22 @@ mod tests {
             let error = revealed("{{SB_RECORDED_SECRET}}").unwrap_err().to_string();
             assert!(error.contains("SB_RECORDED_SECRET"), "{error}");
         }
+    }
+
+    #[test]
+    fn the_variable_that_keeps_typed_passwords_is_read_by_the_rule_of_every_variable() {
+        let given = |text: &'static str| keep_secrets_in(move |_| Some(text.to_owned()));
+        assert!(given("true"));
+        assert!(given("TRUE"));
+        assert!(given("1"));
+        // The one rule of every source: the value is trimmed, and a blank one is unset.
+        assert!(given(" true "));
+        assert!(given("1\t"));
+        assert!(!given("  "));
+        assert!(!given(""));
+        assert!(!given("false"));
+        assert!(!given("yes"));
+        assert!(!keep_secrets_in(|_| None));
     }
 
     #[test]

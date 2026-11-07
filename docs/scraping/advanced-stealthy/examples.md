@@ -16,8 +16,8 @@ this repository. Clone the stealth one and run them from its workspace root.
 
 That site, the "shop" of `http_session` and `stealth_session`, is a stand-in
 written for the examples. On this site it used to be named
-`examples/stealth_support/shop.rs`; in the stealth repository it is the mimic
-crate's example support code (`crates/mimic/examples/stealth_support/shop.rs`).
+`examples/stealth_support/shop.rs`; in the stealth repository it is the wire
+crate's example support code (`crates/wire/examples/stealth_support/shop.rs`).
 It is not any vendor's challenge, and getting past it says nothing about a
 real service.
 
@@ -25,7 +25,7 @@ real service.
 
 <Visibility for="agents">
 
-Summary for AI exports: `cookie_jar` and `browser_scraper` belong to the `scrape` crate (`cookie_jar` needs nothing, `browser_scraper` needs a Chrome); `custom_profile`, `http_session` and `stealth_session` belong to the `mimic` crate and need `cmake` and Chrome 155 on macOS (`stealth_session` also needs that Chrome installed). Run one with `cargo run -p <package> --example <name>` from the workspace root. None reaches the outside network, and on any system but macOS the three measured ones stop with `NotMeasured`.
+Summary for AI exports: `cookie_jar` and `browser_scraper` belong to the `scrape` crate (`cookie_jar` needs nothing, `browser_scraper` needs a Chrome); `custom_profile`, `http_session` and `stealth_session` belong to the `wire` crate and need `cmake` and Chrome 155 on macOS (`stealth_session` also needs that Chrome installed). Run one with `cargo run -p <package> --example <name>` from the workspace root. None reaches the outside network, and on any system but macOS the three measured ones stop with `NotMeasured`.
 
 </Visibility>
 
@@ -34,16 +34,16 @@ Summary for AI exports: `cookie_jar` and `browser_scraper` belong to the `scrape
 | `cookie_jar` | `scrape` | Nothing | Made-up `Set-Cookie` headers into the [cookie jar](/scraping/advanced-stealthy/identity#the-cookie-jar): which are stored, which are refused and why, and the `Cookie` header for five requests. |
 | `browser_scraper` | `scrape` | A Chrome | A [`BrowserScraper`](/scraping/stealthy/browser-scraper) detecting and solving the same kind of challenge in a headless Chrome. |
 | `capture_tls`, `capture_hints` | `scrape` | A headed Chrome | Re-measure the local Chrome into `crates/codec/src/measured`. They write the repository. |
-| `custom_profile` | `mimic` | `cmake`; Chrome 155 on macOS | The measured profile, with an Akamai string and a JA3 laid over it with `CustomProfileBuilder`, and four inputs the stack [refuses](/stealth/advanced/wire-formats#what-is-refused). |
-| `http_session` | `mimic` | `cmake`; Chrome 155 on macOS | An [`HttpSession`](/scraping/stealthy/http-session) fetching from a loopback TLS shop, its jar carrying the cookie the shop sets, and the <Tooltip tip="A fingerprint of the TLS ClientHello, as FoxIO defines it." cta="Wire formats" href="/stealth/advanced/wire-formats#reading-the-wire-formats">JA4</Tooltip> the shop saw next to the measured one. |
-| `stealth_session` | `mimic` | `cmake`; Chrome 155 on macOS, installed | A [`StealthSession`](/scraping/advanced-stealthy/stealth-session) that meets a challenge over HTTP, goes to a headless Chrome behind the proxy, comes back, and prints its changes of mode. |
-| `capture_h2` | `mimic` | `cmake`; a headed Chrome | The HTTP/2 capture. Run `capture_tls` and `capture_hints` first. |
+| `custom_profile` | `wire` | `cmake`; Chrome 155 on macOS | The measured profile, with an Akamai string and a JA3 laid over it with `WireFormatBuilder`, and four inputs the stack [refuses](/stealth/advanced/wire-formats#what-is-refused). |
+| `http_session` | `wire` | `cmake`; Chrome 155 on macOS | An [`HttpSession`](/scraping/stealthy/http-session) fetching from a loopback TLS shop, its jar carrying the cookie the shop sets, and the <Tooltip tip="A fingerprint of the TLS ClientHello, as FoxIO defines it." cta="Wire formats" href="/stealth/advanced/wire-formats#reading-the-wire-formats">JA4</Tooltip> the shop saw next to the measured one. |
+| `stealth_session` | `wire` | `cmake`; Chrome 155 on macOS, installed | A [`StealthSession`](/scraping/advanced-stealthy/stealth-session) that meets a challenge over HTTP, goes to a headless Chrome behind the proxy, comes back, and prints its changes of mode. |
+| `capture_h2` | `wire` | `cmake`; a headed Chrome | The HTTP/2 capture. Run `capture_tls` and `capture_hints` first. |
 
 ```text
 cargo run -p seleniumbase-rs-scrape      --example cookie_jar
-cargo run -p seleniumbase-rs-mimic --example custom_profile
-cargo run -p seleniumbase-rs-mimic --example http_session
-cargo run -p seleniumbase-rs-mimic --example stealth_session
+cargo run -p seleniumbase-rs-wire --example custom_profile
+cargo run -p seleniumbase-rs-wire --example http_session
+cargo run -p seleniumbase-rs-wire --example stealth_session
 cargo run -p seleniumbase-rs-scrape      --example browser_scraper
 ```
 
@@ -53,7 +53,7 @@ The three that use the measured emulation stop at once with the `NotMeasured`
 message on any system but macOS: they do not borrow the values of another system.
 `stealth_session` also needs the installed Chrome to be the measured major, or it is
 refused before it loads a page. The two that drive Chrome should run one at a time,
-and not beside another Chrome-driving program. The `mimic` ones start from the
+and not beside another Chrome-driving program. The `wire` ones start from the
 [unified setup](/scraping/stealthy/overview#which-crate-to-depend-on); the first build compiles BoringSSL.
 
 </Warning>
@@ -101,7 +101,7 @@ cargo run -p seleniumbase-rs-scrape --example capture_tls -- --help
 cargo run -p seleniumbase-rs-scrape --example capture_hints -- --snippet
 ```
 
-### seleniumbase-rs-mimic
+### seleniumbase-rs-wire
 
 <Warning>
 
@@ -112,16 +112,16 @@ of target directory on the first build.
 
 | Example | What it shows | Needs |
 |---|---|---|
-| `custom_profile` | A client from the measured Chrome 155 emulation, one part overridden with `CustomProfileBuilder`, and what the stack accepts and refuses. Opens no socket. | A measured system. |
+| `custom_profile` | A client from the measured Chrome 155 emulation, one part overridden with `WireFormatBuilder`, and what the stack accepts and refuses. Opens no socket. | A measured system. |
 | `http_session` | An `HttpSession` against a loopback TLS shop: plain HTTP with the measured Chrome handshake and headers, and the cookie jar following the shop. | A measured system. No browser. |
 | `stealth_session` | A `StealthSession` moving between plain HTTP and a real Chrome to pass a script challenge on a loopback shop. | A measured system and that Chrome installed, with the same major version as the measurement (155). |
 | `capture_h2` | Measures the HTTP/2 connection start and the request headers of the local Chrome and adds them to its measured file. Run `capture_tls` and `capture_hints` first. | The local Chrome (headed). Writes into the repository. |
 
 ```sh
-cargo run -p seleniumbase-rs-mimic --example custom_profile
-cargo run -p seleniumbase-rs-mimic --example http_session
-cargo run -p seleniumbase-rs-mimic --example stealth_session
-cargo run -p seleniumbase-rs-mimic --example capture_h2 -- --help
+cargo run -p seleniumbase-rs-wire --example custom_profile
+cargo run -p seleniumbase-rs-wire --example http_session
+cargo run -p seleniumbase-rs-wire --example stealth_session
+cargo run -p seleniumbase-rs-wire --example capture_h2 -- --help
 ```
 
 Only one Chrome-driving program should run on the machine at a time.
@@ -153,7 +153,7 @@ cargo run -p seleniumbase-rs-scrape --example capture_hints
 <Step title="Run capture_h2" icon="server">
 
 ```sh
-cargo run -p seleniumbase-rs-mimic --example capture_h2
+cargo run -p seleniumbase-rs-wire --example capture_h2
 ```
 
 </Step>
@@ -163,8 +163,8 @@ cargo run -p seleniumbase-rs-mimic --example capture_h2
 These two tests check the files against each other:
 
 ```sh
-cargo test -p seleniumbase-rs-codec --test wire_emulation
-cargo test -p seleniumbase-rs-mimic --test impersonate_capture_h2
+cargo test -p seleniumbase-rs-codec --test wire_measurement
+cargo test -p seleniumbase-rs-wire --test impersonate_capture_h2
 ```
 
 </Step>
@@ -179,5 +179,5 @@ They are the `*_chrome.rs` files and are `#[ignore]`d. Run them one binary at a 
 
 ```sh
 cargo test -p seleniumbase-rs-scrape --test scrape_browser_chrome -- --ignored --test-threads=1
-cargo test -p seleniumbase-rs-mimic --test stealth_session_chrome -- --ignored --test-threads=1
+cargo test -p seleniumbase-rs-wire --test stealth_session_chrome -- --ignored --test-threads=1
 ```

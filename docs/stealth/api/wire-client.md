@@ -1,12 +1,12 @@
 ---
-title: "mimic::client"
+title: "wire::client"
 sidebarTitle: "Client"
-description: "ImpersonationProfile, CustomProfileBuilder and impersonation_client."
+description: "WireFormat, WireFormatBuilder and WireFormat::client_builder."
 ---
 
-<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: mimic</Badge>
+<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: wire</Badge>
 
-`client` turns a measured browser into a wreq client. `ImpersonationProfile` is the measurement as data, including the known gaps BoringSSL cannot send. `impersonation_client` builds a `ClientBuilder` from a profile. `CustomProfileBuilder` lays a JA3 or an Akamai string over the measured profile. A browser or system with no measurement is refused.
+`client` turns a measured browser into a wreq client. `WireFormat` is the measurement as data, including the known gaps BoringSSL cannot send. `WireFormat::client_builder` builds a `ClientBuilder` from a profile. `WireFormatBuilder` lays a JA3 or an Akamai string over the measured profile. A browser or system with no measurement is refused.
 
 See [Wire formats](/stealth/advanced/wire-formats) and [Limits](/scraping/advanced-stealthy/limits). Only Chrome 155.0.8059.40 on macOS is measured.
 
@@ -15,10 +15,10 @@ See [Wire formats](/stealth/advanced/wire-formats) and [Limits](/scraping/advanc
 ```rust The measured Chrome on this operating system
 use seleniumbase_rs_stealth::codec::BrowserKind;
 use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
-use seleniumbase_rs_stealth::mimic::{ImpersonateError, ImpersonationProfile};
+use seleniumbase_rs_stealth::wire::{WireFormatError, WireFormat};
 
-fn profile() -> Result<ImpersonationProfile, ImpersonateError> {
-    ImpersonationProfile::for_system(BrowserKind::Chrome, OsType::Macos)
+fn profile() -> Result<WireFormat, WireFormatError> {
+    WireFormat::for_system(BrowserKind::Chrome, OsType::Macos)
 }
 ```
 
@@ -26,19 +26,19 @@ fn profile() -> Result<ImpersonationProfile, ImpersonateError> {
 
 ## `client`
 
-### `ImpersonateError`
+### `WireFormatError`
 
 <Badge color="blue" shape="pill">enum</Badge>
 
 ```rust
-pub enum ImpersonateError {
+pub enum WireFormatError {
     Ja3(#[from] Ja3Error),
     Ja4(#[from] Ja4Error),
     Peetprint(#[from] PeetprintError),
     Akamai(#[from] AkamaiError),
     Tls(#[from] TlsSpecError),
     Http2(#[from] H2SpecError),
-    Emulation(#[from] EmulationError),
+    WireMeasurement(#[from] WireMeasurementError),
     Headers(#[from] HeaderSpecError),
     Convert(#[from] ConvertError),
     VersionMismatch {
@@ -72,29 +72,29 @@ pub enum WireProtocol {
 
 The protocol a request is expected to travel on.
 
-### `ImpersonationProfile`
+### `WireFormat`
 
 <Badge color="blue" shape="pill">struct</Badge>
 
 ```rust
-pub struct ImpersonationProfile
+pub struct WireFormat
 ```
 
 A measured browser as data: what to send on the wire and in the headers to look like it.
 
-### `ImpersonationProfile` methods
+### `WireFormat` methods
 
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
-pub fn measured(kind: BrowserKind) -> Result<Self, ImpersonateError>
-pub fn for_system(kind: BrowserKind, os: OsType) -> Result<Self, ImpersonateError>
-pub fn from_measured(entry: &Measured) -> Result<Self, ImpersonateError>
-pub fn random(seed: u64) -> Result<Self, ImpersonateError>
-pub fn from_fingerprint(fingerprint: &Fingerprint) -> Result<Self, ImpersonateError>
+pub fn measured(kind: BrowserKind) -> Result<Self, WireFormatError>
+pub fn for_system(kind: BrowserKind, os: OsType) -> Result<Self, WireFormatError>
+pub fn from_measured(entry: &Measured) -> Result<Self, WireFormatError>
+pub fn random(seed: u64) -> Result<Self, WireFormatError>
+pub fn from_fingerprint(fingerprint: &Fingerprint) -> Result<Self, WireFormatError>
 pub fn with_locale(mut self, locale: &Locale) -> Self
-pub fn custom() -> CustomProfileBuilder
-pub fn validate(&self) -> Result<(), ImpersonateError>
+pub fn custom() -> WireFormatBuilder
+pub fn validate(&self) -> Result<(), WireFormatError>
 pub fn source(&self) -> &str
 pub fn kind(&self) -> BrowserKind
 pub fn os(&self) -> OsType
@@ -104,7 +104,7 @@ pub fn accept_language(&self) -> Option<&str>
 pub fn tls_spec(&self) -> &TlsSpec
 pub fn http2_spec(&self) -> &H2Spec
 pub fn header_spec(&self) -> &HeaderSpec
-pub fn identity(&self) -> &HeaderIdentity
+pub fn identity(&self) -> &ClientHeaders
 pub fn known_gaps(&self) -> &[KnownGap]
 pub fn dropped_settings(&self) -> &[(u16, u32)]
 pub fn headers_for(
@@ -112,14 +112,14 @@ pub fn headers_for(
         shape: RequestShape,
         cookie: Option<&str>,
         wire: WireProtocol,
-    ) -> Result<Vec<(String, String)>, ImpersonateError>
+    ) -> Result<Vec<(String, String)>, WireFormatError>
 pub fn apply(
         &self,
         request: RequestBuilder,
         shape: RequestShape,
         cookie: Option<&str>,
         wire: WireProtocol,
-    ) -> Result<RequestBuilder, ImpersonateError>
+    ) -> Result<RequestBuilder, WireFormatError>
 ```
 
 
@@ -148,17 +148,17 @@ pub fn apply(
 
 ## `client::custom`
 
-### `CustomProfileBuilder`
+### `WireFormatBuilder`
 
 <Badge color="blue" shape="pill">struct</Badge>
 
 ```rust
-pub struct CustomProfileBuilder
+pub struct WireFormatBuilder
 ```
 
-Builds an [`ImpersonationProfile`] from a measured base and caller-supplied inputs.
+Builds an [`WireFormat`] from a measured base and caller-supplied inputs.
 
-### `CustomProfileBuilder` methods
+### `WireFormatBuilder` methods
 
 <Badge color="yellow" shape="pill">method</Badge>
 
@@ -166,14 +166,14 @@ Builds an [`ImpersonationProfile`] from a measured base and caller-supplied inpu
 pub fn new() -> Self
 pub fn base(mut self, kind: BrowserKind) -> Self
 pub fn base_on(mut self, kind: BrowserKind, os: OsType) -> Self
-pub fn ja3(self, ja3: &str) -> Result<Self, ImpersonateError>
-pub fn ja4_r(self, ja4_r: &str) -> Result<Self, ImpersonateError>
-pub fn ja4_ro(self, ja4_ro: &str) -> Result<Self, ImpersonateError>
-pub fn peetprint(self, peetprint: &str) -> Result<Self, ImpersonateError>
-pub fn signature_algorithms(self, ids: &[u16]) -> Result<Self, ImpersonateError>
-pub fn grease(self, enabled: bool) -> Result<Self, ImpersonateError>
-pub fn permute_extensions(self, enabled: bool) -> Result<Self, ImpersonateError>
-pub fn akamai(mut self, akamai: &str) -> Result<Self, ImpersonateError>
+pub fn ja3(self, ja3: &str) -> Result<Self, WireFormatError>
+pub fn ja4_r(self, ja4_r: &str) -> Result<Self, WireFormatError>
+pub fn ja4_ro(self, ja4_ro: &str) -> Result<Self, WireFormatError>
+pub fn peetprint(self, peetprint: &str) -> Result<Self, WireFormatError>
+pub fn signature_algorithms(self, ids: &[u16]) -> Result<Self, WireFormatError>
+pub fn grease(self, enabled: bool) -> Result<Self, WireFormatError>
+pub fn permute_extensions(self, enabled: bool) -> Result<Self, WireFormatError>
+pub fn akamai(mut self, akamai: &str) -> Result<Self, WireFormatError>
 pub fn user_agent(mut self, user_agent: impl Into<String>) -> Self
 pub fn accept_language(mut self, accept_language: impl Into<String>) -> Self
 pub fn client_hints(mut self, hints: ClientHints) -> Self
@@ -181,7 +181,7 @@ pub fn header(
         mut self,
         shape: RequestShape,
         name: impl Into<String>,
-        value: HeaderValue,
+        value: HeaderSource,
     ) -> Self
 pub fn without_header(mut self, shape: RequestShape, name: impl Into<String>) -> Self
 pub fn header_order<I, S>(mut self, shape: RequestShape, names: I) -> Self
@@ -190,7 +190,7 @@ pub fn header_order<I, S>(mut self, shape: RequestShape, names: I) -> Self
         S: Into<String>,
 pub fn priority(mut self, destination: impl Into<String>, value: impl Into<String>) -> Self
 pub fn headers(mut self, spec: HeaderSpec) -> Self
-pub fn build(mut self) -> Result<ImpersonationProfile, ImpersonateError>
+pub fn build(mut self) -> Result<WireFormat, WireFormatError>
 ```
 
 
@@ -217,18 +217,18 @@ pub fn build(mut self) -> Result<ImpersonationProfile, ImpersonateError>
 
 ## Functions
 
-### `impersonation_client`
+### `WireFormat::client_builder`
 
 <Badge color="green" shape="pill">function</Badge>
 
 ```rust
-pub fn impersonation_client(
-    profile: &ImpersonationProfile,
-) -> Result<wreq::ClientBuilder, ImpersonateError>
+pub fn WireFormat::client_builder(
+    profile: &WireFormat,
+) -> Result<wreq::ClientBuilder, WireFormatError>
 ```
 
 Starts a wreq client with the TLS, HTTP/2 and default headers of a profile.
 
 ## Related
 
-The guide is [Wire formats](/stealth/advanced/wire-formats). The overview is [mimic](/stealth/api/mimic).
+The guide is [Wire formats](/stealth/advanced/wire-formats). The overview is [wire](/stealth/api/wire).

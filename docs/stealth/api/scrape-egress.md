@@ -6,7 +6,7 @@ description: "Proxy specs, the rotating pool, countries and locales, and URL red
 
 <Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: scrape</Badge>
 
-`egress` is where a scrape leaves the machine. `route` parses a proxy spec into an `EgressRef` and an `EgressKey` that carries no credentials. `pool` rotates those keys. `geo` maps a country to a language and a time zone. `redact` builds a `RedactedUrl` so a log cannot echo a password.
+`egress` is where a scrape leaves the machine. `route` parses a proxy spec into a `ProxyRoute` and a `ProxyKey` that carries no credentials. `pool` rotates those keys. `geo` maps a country to a language and a time zone. `redact` builds a `RedactedUrl` so a log cannot echo a password.
 
 How a clearance stays with the address that earned it is on [Identity and cookies](/scraping/advanced-stealthy/identity).
 
@@ -75,7 +75,7 @@ pub fn as_str(&self) -> &str
 pub enum GeoError {
     InvalidCountry(String),
     NoLocale(CountryCode),
-    Unknown(EgressKey),
+    Unknown(ProxyKey),
 }
 ```
 
@@ -135,7 +135,7 @@ Resolves the country, time zone and position of an egress. The shipped implement
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
-async fn resolve(&self, egress: &EgressRef) -> Result<GeoInfo, GeoError>
+async fn resolve(&self, egress: &ProxyRoute) -> Result<GeoInfo, GeoError>
 ```
 
 
@@ -171,12 +171,12 @@ pub enum RotationStrategy {
 
 How the pool chooses among the egresses that are available.
 
-### `EgressOutcome`
+### `ProxyOutcome`
 
 <Badge color="blue" shape="pill">enum</Badge>
 
 ```rust
-pub enum EgressOutcome {
+pub enum ProxyOutcome {
     Success,
     ConnectError,
     Challenged,
@@ -201,26 +201,26 @@ A rotating set of egresses, with failure counting and quarantine.
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
-pub fn new(egresses: Vec<EgressRef>, strategy: RotationStrategy) -> Self
-pub fn with_geo_proxies<I, S>(items: I, strategy: RotationStrategy) -> Result<Self, EgressError>
+pub fn new(egresses: Vec<ProxyRoute>, strategy: RotationStrategy) -> Self
+pub fn geo_proxies<I, S>(items: I, strategy: RotationStrategy) -> Result<Self, EgressError>
     where
         I: IntoIterator<Item = (S, CountryCode)>,
         S: AsRef<str>,
 pub fn quarantine(mut self, after_failures: u32, for_secs: u64) -> Self
-pub fn pick(&self, site: Option<&str>, now: u64) -> Option<EgressRef>
-pub fn pick_in(&self, country: CountryCode, site: Option<&str>, now: u64) -> Option<EgressRef>
+pub fn pick(&self, site: Option<&str>, now: u64) -> Option<ProxyRoute>
+pub fn pick_in(&self, country: CountryCode, site: Option<&str>, now: u64) -> Option<ProxyRoute>
 pub fn pick_other(
         &self,
-        current: &EgressKey,
+        current: &ProxyKey,
         site: Option<&str>,
         now: u64,
-    ) -> Option<EgressRef>
-pub fn report(&self, egress: &EgressKey, outcome: EgressOutcome, now: u64)
+    ) -> Option<ProxyRoute>
+pub fn report(&self, egress: &ProxyKey, outcome: ProxyOutcome, now: u64)
 ```
 
 
 - `new`: A pool over `egresses`, with the default quarantine.
-- `with_geo_proxies`: A pool built from `(spec, country)` pairs, each spec parsed the way [`EgressRef::parse`] parses it.
+- `geo_proxies`: A pool built from `(spec, country)` pairs, each spec parsed the way [`ProxyRoute::parse`] parses it.
 - `quarantine`: Sets how many failures in a row quarantine an egress, and for how many seconds. A limit of zero is read as one: the first failure quarantines.
 - `pick`: The egress for a request to `site` at time `now`, in seconds. `None` when the pool is empty or every egress is quarantined.
 - `pick_in`: Like [`ProxyPool::pick`], limited to egresses in `country`.
@@ -279,12 +279,12 @@ pub fn as_str(&self) -> &str
 
 ## `egress::route`
 
-### `EgressKey`
+### `ProxyKey`
 
 <Badge color="blue" shape="pill">struct</Badge>
 
 ```rust
-pub struct EgressKey {
+pub struct ProxyKey {
     pub scheme: String,
     pub host: String,
     pub port: u16,
@@ -294,23 +294,23 @@ pub struct EgressKey {
 
 The part of an egress that may be stored, logged and serialized: where traffic goes, never how to authenticate. Only this type is ever serialized.
 
-### `EgressRef`
+### `ProxyRoute`
 
 <Badge color="blue" shape="pill">struct</Badge>
 
 ```rust
-pub struct EgressRef
+pub struct ProxyRoute
 ```
 
 A proxy the traffic leaves through. Its credentials live in the [`Proxy`] and in the spec kept for launching; neither is printed or serialized, and this type does not implement `Serialize`.
 
-### `EgressRef` methods
+### `ProxyRoute` methods
 
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
 pub fn parse(spec: &str, country: Option<CountryCode>) -> Result<Self, EgressError>
-pub fn key(&self) -> &EgressKey
+pub fn key(&self) -> &ProxyKey
 pub fn proxy(&self) -> &Proxy
 ```
 

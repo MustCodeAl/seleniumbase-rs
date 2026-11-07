@@ -49,7 +49,7 @@ Design rules that apply to everything below:
 | Per-file review pass | Bugs found by reading were fixed, each with a test, across the book (`docs/`), `src/api` (the top-level modules and `base_case_impls`), `behave`, `cli`, `common`, `plugins`, the stealth page scripts, `utils/extensions` and the Playwright path. The CLI generators and recorders are run as the real binary in `crates/cli/tests/cli_generators.rs` and `crates/cli/tests/cli_objects.rs`. |
 | Recorder | Every action `BaseCase` records or the live recorder captures becomes a call in the generated Rust. What cannot be generated becomes a `// skipped:` comment that says why, and `ActionRecorder::try_record` refuses such an action and names the closest known one. |
 | Knowledge map and plans | `CLAUDE.md` (module map, checks, gotchas) and `docs/design/stealth_parity_plan.md` (20 work packages for the stealthscraper-rs feature set, JA3/JA4 and Akamai impersonation). |
-| Stealth scraping layer (moved out in 0.3.0) | Work packages 0 to 17 of the plan were built here as the features `scrape` and `impersonate` (wire parsers, the measured Chrome 155 table and capture tools, `ImpersonationProfile`, the cookie jar, `StealthIdentity`, challenge detection, the proxy pool, `BrowserScraper`, the ephemeral-CA TLS server, `HttpSession`, `MitmProxy`, `StealthSession`). On 2026-10-15 they moved to [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth) (crates `seleniumbase-rs-codec`, `-scrape`, `-mimic`), which uses only this crate's public API. The hardening of the pure CDP page script (`session_registry`) stays here. |
+| Stealth scraping layer (moved out in 0.3.0) | Work packages 0 to 17 of the plan were built here as the features `scrape` and `impersonate` (wire parsers, the measured Chrome 155 table and capture tools, `ImpersonationProfile`, the cookie jar, `StealthIdentity`, challenge detection, the proxy pool, `BrowserScraper`, the ephemeral-CA TLS server, `HttpSession`, `MitmProxy`, `StealthSession`). On 2026-10-15 they moved to [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth) (crates `seleniumbase-rs-codec`, `-scrape`, `-wire`), which uses only this crate's public API. The hardening of the pure CDP page script (`session_registry`) stays here. |
 
 ## 1. Finish the parity upgrade
 
@@ -383,7 +383,7 @@ WebSocket and HTTP/1.1 details, measuring more systems, the known `btls` and
 `wreq` gaps, listed in this section up to 0.2.x) belongs to
 [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth),
 where the crates `seleniumbase-rs-codec`, `seleniumbase-rs-scrape` and
-`seleniumbase-rs-mimic` live. The design history is
+`seleniumbase-rs-wire` live. The design history is
 `docs/design/stealth_parity_plan.md`. What stays here is keeping the public
 items those crates import (`sb_cdp`, `evasion::randomize`) stable.
 

@@ -261,7 +261,6 @@ headless = false
 mobile = false
 locale = "en-US"
 timeout_seconds = 10
-screenshot_dir = "screenshots"
 proxy = "http://proxy.example.com:8080"
 ```
 
@@ -273,13 +272,15 @@ proxy = "http://proxy.example.com:8080"
 
 Every key is optional and any key you leave out keeps its default. The keys are
 the flat keys `sbrs options` lists (the [Settings page](/tutorials/settings_and_config) describes the `[run]`, `[report]` and `[test]` tables too): `browser`, `headless`, `timeout_seconds`,
-`screenshot_dir`, `proxy`, `proxy_pac_url`, `window_width`, `window_height`,
+`proxy`, `proxy_pac_url`, `window_width`, `window_height`,
 `user_data_dir`, `extension_dir`, `locale`, `user_agent`, `mode` (`webdriver`,
 `cdp` or `uc`), `ad_block`, `reuse_session`, `reuse_class_session`, `mobile`, `threads`, `esc_end`,
 `rec_sb_cdp`, `remote_webdriver_timeout_seconds`, `webdriver_url` and `chrome_bin`.
 Note that `timeout_seconds` is a whole number of seconds. A `browser` or `mode`
 that is not a known name, or a `window_width` without a `window_height`, is an
-error when the file is read.
+error when the file is read. The file may also write the nested form that `Settings`
+serializes to (`[browser]`, `[session]` and the tables inside them); the
+[Settings page](/tutorials/settings_and_config#the-nested-form) shows it.
 
 `Settings::load_global()` looks for these names, in this order, in the
 **current working directory only** (it does not search parent directories):
@@ -299,8 +300,7 @@ reads one specific file by the same rule.
 `timeout_seconds` becomes the default wait of every `BaseCase` made from
 `settings.to_browser_config()` (`BaseCase::new`, so `run_browser_test` and the
 plugin runner too); `sb.set_timeout(..)` changes it later. `window_width` and
-`window_height` set the browser window when both are present. `screenshot_dir`
-is stored for your code to read; nothing in the crate applies it.
+`window_height` set the browser window when both are present.
 
 </Note>
 

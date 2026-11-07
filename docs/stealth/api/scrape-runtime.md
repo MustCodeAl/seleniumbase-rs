@@ -6,7 +6,7 @@ description: "CDP helpers, the egress switch, the identity file, state stores, t
 
 <Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: scrape</Badge>
 
-These modules are the I/O around the pure scrape types, other than `BrowserScraper`. `egress_switch` opens a browser context behind a new proxy. `json_store` and `identity_file` persist state and identities. `tracing_sink` writes events to `tracing`. `capture` is the `capture_tls` and `capture_hints` measurement tools.
+These modules are the I/O around the pure scrape types, other than `BrowserScraper`. `proxy_switch` opens a browser context behind a new proxy. `json_store` and `identity_file` persist state and identities. `tracing_sink` writes events to `tracing`. `capture` is the `capture_tls` and `capture_hints` measurement tools.
 
 The programs are on [Runnable examples](/scraping/advanced-stealthy/examples). `BrowserScraper` has its own page.
 
@@ -14,10 +14,10 @@ The programs are on [Runnable examples](/scraping/advanced-stealthy/examples). `
 
 ```rust Open a state file
 use seleniumbase_rs_stealth::scrape::ledger::state::StateError;
-use seleniumbase_rs_stealth::scrape::JsonStateStore;
+use seleniumbase_rs_stealth::scrape::JsonLedger;
 
-fn open(path: &str) -> Result<JsonStateStore, StateError> {
-    JsonStateStore::open(path)
+fn open(path: &str) -> Result<JsonLedger, StateError> {
+    JsonLedger::open(path)
 }
 ```
 
@@ -57,7 +57,7 @@ pub const TARGET: &str = "seleniumbase_rs_scrape";
 ```
 
 
-- `DEFAULT_OUT_DIR`: Where the measured files go, relative to the folder of the crate that runs the tool. The tools run from the scrape and mimic crates, which sit beside the codec crate that embeds the files.
+- `DEFAULT_OUT_DIR`: Where the measured files go, relative to the folder of the crate that runs the tool. The tools run from the scrape and wire crates, which sit beside the codec crate that embeds the files.
 - `DEFAULT_FIXTURES_DIR`: Where the raw byte fixtures go, relative to the folder of the crate that runs the tool: the tests of the codec crate, next to the measured files.
 - `MAX_PROBES`: The most TLS probe connections `--probes` accepts.
 - `MAX_TIMEOUT_SECS`: The longest `--timeout` accepted, in seconds.
@@ -609,12 +609,12 @@ pub struct PageSnapshot {
 
 The page as the browser rendered it, with the verdict on it.
 
-### `EgressLocale`
+### `ProxyLocale`
 
 <Badge color="blue" shape="pill">struct</Badge>
 
 ```rust
-pub struct EgressLocale {
+pub struct ProxyLocale {
     pub locale: &'static Locale,
     pub timezone: String,
 }
@@ -622,14 +622,14 @@ pub struct EgressLocale {
 
 The locale and time zone an egress puts a tab in.
 
-### `EgressLocale` methods
+### `ProxyLocale` methods
 
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
 pub async fn resolve(
         resolver: &dyn GeoResolver,
-        egress: &EgressRef,
+        egress: &ProxyRoute,
     ) -> Result<Self, ScrapeError>
 pub fn localize(&self, fingerprint: &Fingerprint) -> Result<Fingerprint, ScrapeError>
 ```
@@ -638,19 +638,19 @@ pub fn localize(&self, fingerprint: &Fingerprint) -> Result<Fingerprint, ScrapeE
 - `resolve`: Asks `resolver` where `egress` is and finds the locale of that country.
 - `localize`: The fingerprint `fingerprint` becomes in this locale: its language, `Accept-Language`, time zone and position are this locale's, with the time zone this egress reported, and every other setting is kept. `fingerprint` is left as it was. See [`LocaleExt::localize`].
 
-## `runtime::egress_switch`
+## `runtime::proxy_switch`
 
-### `EgressSwitch`
+### `ProxySwitch`
 
 <Badge color="blue" shape="pill">trait</Badge>
 
 ```rust
-pub trait EgressSwitch
+pub trait ProxySwitch
 ```
 
 Changes where a browser's traffic leaves from.
 
-### `EgressSwitch` methods
+### `ProxySwitch` methods
 
 <Badge color="yellow" shape="pill">method</Badge>
 
@@ -658,7 +658,7 @@ Changes where a browser's traffic leaves from.
 async fn switch(
         &self,
         browser: &Browser,
-        egress: Option<&EgressRef>,
+        egress: Option<&ProxyRoute>,
     ) -> Result<Page, ScrapeError>
 ```
 
@@ -673,7 +673,7 @@ async fn switch(
 pub struct ContextProxySwitch
 ```
 
-An [`EgressSwitch`] that opens a new browser context with its own proxy and drops the one it opened before.
+An [`ProxySwitch`] that opens a new browser context with its own proxy and drops the one it opened before.
 
 ### `ContextProxySwitch` methods
 
@@ -752,17 +752,17 @@ pub fn is_not_found(&self) -> bool
 
 ## `runtime::json_store`
 
-### `JsonStateStore`
+### `JsonLedger`
 
 <Badge color="blue" shape="pill">struct</Badge>
 
 ```rust
-pub struct JsonStateStore
+pub struct JsonLedger
 ```
 
 A state store backed by one JSON file.
 
-### `JsonStateStore` methods
+### `JsonLedger` methods
 
 <Badge color="yellow" shape="pill">method</Badge>
 
@@ -1050,7 +1050,7 @@ Reads the rendered page and decides whether it is a challenge, using the status 
 <Badge color="green" shape="pill">function</Badge>
 
 ```rust
-pub async fn apply_locale(page: &Page, placed: &EgressLocale) -> Result<(), ScrapeError>
+pub async fn apply_locale(page: &Page, placed: &ProxyLocale) -> Result<(), ScrapeError>
 ```
 
 Makes `page` report the locale and time zone of `placed` over the protocol, for the documents it loads from now on.
@@ -1082,7 +1082,7 @@ Sets the unexpired cookies of `jar` in the tab's browser context and returns how
 ```rust
 pub async fn clearance_value(
     page: &Page,
-    vendor: Option<Vendor>,
+    vendor: Option<ProtectionVendor>,
 ) -> Result<Option<String>, ScrapeError>
 ```
 
@@ -1095,7 +1095,7 @@ The value of the clearance cookie of `vendor` in the tab's browser context, when
 ```rust
 pub async fn wait_for_clearance(
     page: &Page,
-    vendor: Option<Vendor>,
+    vendor: Option<ProtectionVendor>,
     stale: Option<&str>,
     timeout: Duration,
 ) -> Result<bool, ScrapeError>
@@ -1148,7 +1148,7 @@ Attempts the CAPTCHA widget the page shows, if it shows one, with the solver of 
 <Badge color="green" shape="pill">function</Badge>
 
 ```rust
-pub fn save_blocking(path: &Path, identity: &StealthIdentity) -> Result<(), IdentityFileError>
+pub fn save_blocking(path: &Path, identity: &Identity) -> Result<(), IdentityFileError>
 ```
 
 Writes `identity` to `path`, creating the directories above it. This blocks on the file system; use [`save`] from async code.
@@ -1158,7 +1158,7 @@ Writes `identity` to `path`, creating the directories above it. This blocks on t
 <Badge color="green" shape="pill">function</Badge>
 
 ```rust
-pub fn load_blocking(path: &Path) -> Result<StealthIdentity, IdentityFileError>
+pub fn load_blocking(path: &Path) -> Result<Identity, IdentityFileError>
 ```
 
 Reads the identity at `path`. This blocks on the file system; use [`load`] from async code.
@@ -1170,7 +1170,7 @@ Reads the identity at `path`. This blocks on the file system; use [`load`] from 
 ```rust
 pub async fn save(
     path: impl AsRef<Path>,
-    identity: &StealthIdentity,
+    identity: &Identity,
 ) -> Result<(), IdentityFileError>
 ```
 
@@ -1181,7 +1181,7 @@ Writes `identity` to `path` without blocking the async threads. See [`save_block
 <Badge color="green" shape="pill">function</Badge>
 
 ```rust
-pub async fn load(path: impl AsRef<Path>) -> Result<StealthIdentity, IdentityFileError>
+pub async fn load(path: impl AsRef<Path>) -> Result<Identity, IdentityFileError>
 ```
 
 Reads the identity at `path` without blocking the async threads. See [`load_blocking`].

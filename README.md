@@ -517,7 +517,7 @@ cookies, and execute JavaScript in the active page.
 No feature is on by default. The features `scrape` and `impersonate` were removed
 in 0.3.0: the stealth scraping layer (JA3/JA4/Akamai, the measured Chrome table,
 `BrowserScraper`, `HttpSession`, `MitmProxy`, `StealthSession`) is now the crates
-`seleniumbase-rs-codec`, `seleniumbase-rs-scrape` and `seleniumbase-rs-mimic`
+`seleniumbase-rs-codec`, `seleniumbase-rs-scrape` and `seleniumbase-rs-wire`
 in [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
 (see [Stealth Scraping](./docs/scraping/stealthy/first-fetch.md)).
 

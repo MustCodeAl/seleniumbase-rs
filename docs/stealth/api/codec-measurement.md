@@ -1,12 +1,12 @@
 ---
-title: "codec::emulation"
-sidebarTitle: "Emulation"
-description: "The measured browser tables of seleniumbase-rs-codec: Emulation, Provenance, EmulationError and the lookups get, get_version, for_kind, measured, try_measured, newest and measured_systems."
+title: "codec::measurement"
+sidebarTitle: "WireMeasurement"
+description: "The measured browser tables of seleniumbase-rs-codec: WireMeasurement, Provenance, WireMeasurementError and the lookups get, get_version, for_kind, measured, try_measured, newest and measured_systems."
 ---
 
 <Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: codec</Badge>
 
-`seleniumbase_rs_stealth::codec::emulation` holds every wire value the stealth layer
+`seleniumbase_rs_stealth::codec::measurement` holds every wire value the stealth layer
 imitates. Each one was measured from a real browser by a capture tool
 (`capture_tls`, `capture_hints`, `capture_h2`) and stored as JSON under
 `crates/codec/src/measured`. The files are embedded with `include_str!`, parsed
@@ -19,11 +19,11 @@ holds `chrome-155-macos.json`. How the files are made and refreshed is in
 
 ```rust Look up a measured browser
 use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
-use seleniumbase_rs_stealth::codec::emulation::{self, EmulationError};
+use seleniumbase_rs_stealth::codec::measurement::{self, WireMeasurementError};
 use seleniumbase_rs_stealth::codec::BrowserKind;
 
-fn main() -> Result<(), EmulationError> {
-    let chrome = emulation::get(BrowserKind::Chrome, OsType::Macos)?;
+fn main() -> Result<(), WireMeasurementError> {
+    let chrome = measurement::get(BrowserKind::Chrome, OsType::Macos)?;
     println!("{} {}", chrome.major, chrome.full_version);
     println!("{}", chrome.provenance.captured_on);
     println!("{:?}", chrome.provenance.known_gaps);
@@ -34,18 +34,18 @@ fn main() -> Result<(), EmulationError> {
 
 ```rust An unmeasured system is refused
 use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
-use seleniumbase_rs_stealth::codec::emulation::{self, EmulationError};
+use seleniumbase_rs_stealth::codec::measurement::{self, WireMeasurementError};
 use seleniumbase_rs_stealth::codec::BrowserKind;
 
-let windows = emulation::get(BrowserKind::Chrome, OsType::Windows);
-assert!(matches!(windows, Err(EmulationError::NotMeasured { .. })));
+let windows = measurement::get(BrowserKind::Chrome, OsType::Windows);
+assert!(matches!(windows, Err(WireMeasurementError::NotMeasured { .. })));
 ```
 
 ```rust A table of your own
-use seleniumbase_rs_stealth::codec::emulation::Emulation;
+use seleniumbase_rs_stealth::codec::measurement::WireMeasurement;
 
-fn load(text: &str) -> Result<Emulation, Box<dyn std::error::Error>> {
-    Ok(Emulation::from_json("my-browser.json", text)?)
+fn load(text: &str) -> Result<WireMeasurement, Box<dyn std::error::Error>> {
+    Ok(WireMeasurement::from_json("my-browser.json", text)?)
 }
 ```
 
@@ -62,13 +62,13 @@ chrome-155-macos
 
 </ResponseExample>
 
-## `Emulation`
+## `WireMeasurement`
 
 <Badge color="blue" shape="pill">struct</Badge>
 
 ```rust
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Emulation {
+pub struct WireMeasurement {
     pub kind: BrowserKind,
     pub major: u32,
     pub full_version: String,
@@ -76,7 +76,7 @@ pub struct Emulation {
     pub user_agent: String,
     pub tls: TlsSpec,
     pub tls_websocket: Option<TlsSpec>,
-    pub http2: Option<Http2Spec>,
+    pub http2: Option<H2Spec>,
     pub headers: HeaderSpec,
     pub client_hints: Option<ClientHints>,
     pub provenance: Provenance,
@@ -129,7 +129,7 @@ The `ClientHello` of its WebSocket connections, which offer only HTTP/1.1.
 
 </ResponseField>
 
-<ResponseField name="http2" type="Option<Http2Spec>">
+<ResponseField name="http2" type="Option<H2Spec>">
 
 The start of its HTTP/2 connections, when the HTTP/2 capture has run. See
 [H2Spec](/stealth/api/codec-h2-spec).
@@ -155,12 +155,12 @@ Where the entry came from.
 
 </ResponseField>
 
-### `Emulation::from_json`
+### `WireMeasurement::from_json`
 
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
-pub fn from_json(name: &str, json: &str) -> Result<Self, EmulationError>
+pub fn from_json(name: &str, json: &str) -> Result<Self, WireMeasurementError>
 ```
 
 Reads one measured file, for a browser the crate does not ship as well as for the
@@ -181,7 +181,7 @@ The text of the file, at most `MAX_MEASURED_JSON_BYTES` (16 MiB).
 
 </ParamField>
 
-<ResponseField name="returns" type="Result<Emulation, EmulationError>">
+<ResponseField name="returns" type="Result<WireMeasurement, WireMeasurementError>">
 
 `Parse` when the text is not a measured file, `TooLarge` above the limit,
 `Inconsistent` when the entry contradicts itself, `Headers` when the header spec
@@ -189,18 +189,18 @@ is invalid.
 
 </ResponseField>
 
-### `Emulation::to_json`
+### `WireMeasurement::to_json`
 
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
-pub fn to_json(&self) -> Result<String, EmulationError>
+pub fn to_json(&self) -> Result<String, WireMeasurementError>
 ```
 
 The entry as pretty-printed JSON, without the raw evidence. Returns
-`EmulationError::Parse` when serialization fails, which a valid entry never does.
+`WireMeasurementError::Parse` when serialization fails, which a valid entry never does.
 
-### `Emulation::file_stem`
+### `WireMeasurement::file_stem`
 
 <Badge color="yellow" shape="pill">method</Badge>
 
@@ -254,14 +254,14 @@ re-exported here from [`tls_spec`](/stealth/api/codec-tls-spec#knowngap).
 
 </ResponseField>
 
-## `EmulationError`
+## `WireMeasurementError`
 
 <Badge color="purple" shape="pill">enum</Badge>
 
 ```rust
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 #[non_exhaustive]
-pub enum EmulationError {
+pub enum WireMeasurementError {
     NotMeasured { kind: BrowserKind, os: OsType },
     VersionNotMeasured { kind: BrowserKind, major: u32, os: OsType },
     Parse { name: String, reason: String },
@@ -270,15 +270,11 @@ pub enum EmulationError {
     Headers { name: String, source: HeaderSpecError },
     Duplicate { first: String, second: String },
 }
-
-pub type SpecError = EmulationError;
 ```
 
-Why a measured table could not be read or looked up. `SpecError` is the design
-plan's name for it: its `NotMeasured` variant is the plan's
-`SpecError::NotMeasured`.
+Why a measured table could not be read or looked up.
 
-<ResponseField name="EmulationError" type="enum">
+<ResponseField name="WireMeasurementError" type="enum">
 
 <Expandable title="variants" defaultOpen>
 
@@ -335,15 +331,14 @@ Two measured files describe the same browser, major version and system.
 <Badge color="yellow" shape="pill">fn</Badge>
 
 ```rust
-pub fn get(kind: BrowserKind, os: OsType) -> Result<&'static Emulation, EmulationError>
+pub fn get(kind: BrowserKind, os: OsType) -> Result<&'static WireMeasurement, WireMeasurementError>
 ```
 
-The newest measured entry of a browser on an operating system. Re-exported at the
-crate root as `get_emulation`.
+The newest measured entry of a browser on an operating system.
 
-<ResponseField name="returns" type="Result<&'static Emulation, EmulationError>">
+<ResponseField name="returns" type="Result<&'static WireMeasurement, WireMeasurementError>">
 
-`EmulationError::NotMeasured { kind, os }` when the pair has no capture.
+`WireMeasurementError::NotMeasured { kind, os }` when the pair has no capture.
 
 </ResponseField>
 
@@ -356,7 +351,7 @@ pub fn get_version(
     kind: BrowserKind,
     os: OsType,
     major: u32,
-) -> Result<&'static Emulation, EmulationError>
+) -> Result<&'static WireMeasurement, WireMeasurementError>
 ```
 
 The measured entry of a browser at one major version on an operating system.
@@ -368,32 +363,30 @@ has captures but not at `major`.
 <Badge color="yellow" shape="pill">fn</Badge>
 
 ```rust
-pub fn for_kind(kind: BrowserKind) -> &'static Emulation
+pub fn for_kind(kind: BrowserKind) -> &'static WireMeasurement
 ```
 
-The newest measured entry of a browser, whatever the system. Re-exported as
-`emulation_for_kind`. It panics if `kind` has no entry; the unit test
-`every_browser_kind_has_an_entry` rules that out.
+The newest measured entry of a browser, whatever the system. It panics if `kind`
+has no entry; the unit test `every_browser_kind_has_an_entry` rules that out.
 
-## `measured`
+## `all`
 
 <Badge color="yellow" shape="pill">fn</Badge>
 
 ```rust
-pub fn measured() -> &'static [Emulation]
+pub fn all() -> &'static [WireMeasurement]
 ```
 
-Every measured entry, parsed once from the embedded JSON. Re-exported as
-`measured_emulations`. It panics if an embedded file is broken; the unit tests
-parse every file, so a broken file cannot reach a release. Use `try_measured` to
-see the error instead.
+Every measured entry, parsed once from the embedded JSON. It panics if an embedded
+file is broken; the unit tests parse every file, so a broken file cannot reach a
+release. Use `try_all` to see the error instead.
 
-## `try_measured`
+## `try_all`
 
 <Badge color="yellow" shape="pill">fn</Badge>
 
 ```rust
-pub fn try_measured() -> Result<&'static [Emulation], &'static EmulationError>
+pub fn try_all() -> Result<&'static [WireMeasurement], &'static WireMeasurementError>
 ```
 
 Every measured entry, or the first error met while parsing the embedded files.
@@ -403,13 +396,13 @@ Every measured entry, or the first error met while parsing the embedded files.
 <Badge color="yellow" shape="pill">fn</Badge>
 
 ```rust
-pub fn newest(entries: &[Emulation], kind: BrowserKind) -> Option<&Emulation>
-pub fn newest_on(entries: &[Emulation], kind: BrowserKind, os: OsType) -> Option<&Emulation>
+pub fn newest(entries: &[WireMeasurement], kind: BrowserKind) -> Option<&WireMeasurement>
+pub fn newest_on(entries: &[WireMeasurement], kind: BrowserKind, os: OsType) -> Option<&WireMeasurement>
 ```
 
 The entry with the highest major version of `kind` (on `os`) among `entries`; the
 first of equals wins. They work on any slice, such as a table of your own read
-with `Emulation::from_json`.
+with `WireMeasurement::from_json`.
 
 ## `measured_systems`
 
@@ -431,7 +424,7 @@ pub fn source_names() -> Vec<&'static str>
 
 The names of the embedded measured files: today `["chrome-155-macos.json"]`. A
 file added to `src/measured` must be added to the crate's list of sources too; the
-test `tests/wire_emulation.rs` fails when one is missing.
+test `tests/wire_measurement.rs` fails when one is missing.
 
 ## Constants
 
@@ -441,7 +434,7 @@ test `tests/wire_emulation.rs` fails when one is missing.
 pub const MAX_MEASURED_JSON_BYTES: usize = 16 * 1024 * 1024;
 ```
 
-The largest measured file `Emulation::from_json` reads, in bytes.
+The largest measured file `WireMeasurement::from_json` reads, in bytes.
 
 ## Related
 

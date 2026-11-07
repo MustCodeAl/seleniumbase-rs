@@ -185,7 +185,7 @@ impl ReportSettings {
         let mut report = settings.report.clone();
         let chosen = var("SB_REPORT_DB")
             .filter(|value| !value.trim().is_empty())
-            .map(PathBuf::from)
+            .map(|value| PathBuf::from(value.trim()))
             .or_else(|| report.db.clone())
             .or_else(|| {
                 // `--database-env` picks one of the databases of the `[report.databases]` table.

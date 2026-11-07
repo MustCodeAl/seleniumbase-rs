@@ -17,7 +17,7 @@ to keep. The `runtime` module does the I/O. The crate builds no BoringSSL and ru
 Reach for scrape when a real browser has to load the page: a challenge that runs in the document,
 a script that must execute, or the DOM after render. `BrowserScraper` is the entry point.
 
-Reach for [mimic](/stealth/api/mimic) when the site judges the wire fingerprint, or when a
+Reach for [wire](/stealth/api/wire) when the site judges the wire fingerprint, or when a
 browser's cookies should continue over plain HTTP. That crate is a separate facade feature and
 needs cmake.
 
@@ -30,8 +30,8 @@ use seleniumbase_rs_stealth::tokio;
 #[tokio::main]
 async fn main() -> Result<(), ScrapeError> {
     let mut scraper = BrowserScraper::builder()
-        .with_geo_proxies([("http://user:pass@de.proxy.example:8080", CountryCode::new("DE")?)])?
-        .with_max_challenge_attempts(4)
+        .geo_proxies([("http://user:pass@de.proxy.example:8080", CountryCode::new("DE")?)])?
+        .max_challenge_attempts(4)
         .build()
         .await?;
     let page = scraper.fetch("https://example.com/").await?;
@@ -42,7 +42,7 @@ async fn main() -> Result<(), ScrapeError> {
 
 </RequestExample>
 
-`BrowserScraper::builder` returns `BrowserScraperBuilder`. `with_geo_proxies` takes
+`BrowserScraper::builder` returns `BrowserScraperBuilder`. `geo_proxies` takes
 `(spec, CountryCode)` pairs and returns `Result`. `CountryCode::new` returns
 `Result<CountryCode, egress::geo::GeoError>`, and that error converts into `ScrapeError`.
 `fetch(&mut self, url)` returns `BrowserFetch` (`body: String`, `status: u16`).
@@ -64,7 +64,7 @@ which the facade always depends on. They are not Cargo features. Import through
 ## Features
 
 `default = ["scrape"]` in the stealth repository's root `Cargo.toml`. `scrape` turns on `codec`.
-`mimic` stays off unless the dependency asks for it.
+`wire` stays off unless the dependency asks for it.
 
 `seleniumbase-rs-scrape` declares no Cargo features of its own. Its tests enable `test-util` on
 `seleniumbase-rs` and `test-fixtures` on `seleniumbase-rs-codec`.
@@ -77,7 +77,7 @@ which the facade always depends on. They are not Cargo features. Import through
 | `challenge` | Detection, interstitial markers, the mitigation policy. | [Challenges](/stealth/api/scrape-challenge) |
 | `egress` | Proxy specs, the pool, countries, URL redaction. | [Egress](/stealth/api/scrape-egress) |
 | `jar` | The cookie jar and `Set-Cookie`. | [Cookie jar](/stealth/api/scrape-jar) |
-| `passport` | `StealthIdentity` and `SessionPolicy`. | [Identity](/stealth/api/scrape-passport) |
+| `passport` | `Identity` and `EscalationPolicy`. | [Identity](/stealth/api/scrape-passport) |
 | `ledger` | Per-site state and events. | [Ledger](/stealth/api/scrape-ledger) |
 | `runtime` (the rest) | Egress switch, identity file, stores, capture tools. | [Runtime](/stealth/api/scrape-runtime) |
 | `error` | `ScrapeError`. | [Errors](/stealth/api/scrape-error) |
@@ -86,21 +86,21 @@ which the facade always depends on. They are not Cargo features. Import through
 
 | Root name | Module |
 |---|---|
-| `ChallengeKind`, `Detection`, `Evidence`, `ResponseView`, `Vendor` | `challenge::detect` |
-| `Action`, `AttemptContext`, `GiveUpReason`, `MitigationPolicy`, `Mode` | `challenge::mitigation` |
+| `ChallengeKind`, `Detection`, `ChallengeEvidence`, `ResponseView`, `ProtectionVendor` | `challenge::detect` |
+| `Mitigation`, `AttemptContext`, `GiveUpReason`, `MitigationPolicy`, `FetchKind` | `challenge::mitigation` |
 | `CountryCode`, `GeoResolver`, `LocaleExt`, `StaticGeoResolver` | `egress::geo` |
 | `ProxyPool`, `RotationStrategy` | `egress::pool` |
 | `RedactedUrl`, `Secret` | `egress::redact` |
-| `EgressKey`, `EgressRef` | `egress::route` |
+| `ProxyKey`, `ProxyRoute` | `egress::route` |
 | `ScrapeError` | `error` |
 | `CookieJar` | `jar::store` |
-| `CollectingEventSink`, `EventSink`, `NoopEventSink`, `ScraperEvent` | `ledger::events` |
-| `DomainState`, `InMemoryStateStore`, `StateStore` | `ledger::state` |
-| `EmulationRef`, `IdentityError`, `StealthIdentity` | `passport::identity` |
-| `SessionPolicy`, `Transition` | `passport::policy` |
+| `CollectingEventSink`, `EventSink`, `NoopEventSink`, `ScrapeEvent` | `ledger::events` |
+| `SiteRecord`, `InMemoryLedger`, `Ledger` | `ledger::state` |
+| `WireMeasurementRef`, `IdentityError`, `Identity` | `passport::identity` |
+| `EscalationPolicy`, `Escalation` | `passport::policy` |
 | `BrowserFetch`, `BrowserLauncher`, `BrowserScraper`, `BrowserScraperBuilder`, `ChromeLauncher` | `runtime::browser_scraper` |
-| `ContextProxySwitch`, `EgressSwitch` | `runtime::egress_switch` |
-| `JsonStateStore` | `runtime::json_store` |
+| `ContextProxySwitch`, `ProxySwitch` | `runtime::proxy_switch` |
+| `JsonLedger` | `runtime::json_store` |
 | `TracingEventSink` | `runtime::tracing_sink` |
 
 `detect`, `GeoError` and `StateError` stay in their modules: `challenge::detect::detect`,

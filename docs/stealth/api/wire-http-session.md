@@ -1,24 +1,24 @@
 ---
-title: "mimic::http_session"
+title: "wire::http_session"
 sidebarTitle: "HttpSession"
 description: "HttpSession: plain HTTP that continues a browser session with the measured TLS and HTTP/2."
 ---
 
-<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: mimic</Badge>
+<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: wire</Badge>
 
 `HttpSession` sends plain HTTP that looks like the measured Chrome on the wire and carries a browser's cookies. `from_page` is async and copies a `Page`. `from_identity` is synchronous. `get` and `request` send; `fetch` also judges the reply. At the crate root, `Attempt`, `Fetched`, `Rules`, `Verdict` and `Headers` are `HttpAttempt`, `HttpFetched`, `HttpRules`, `HttpVerdict` and `ReplyHeaders`.
 
-The guide is [HttpSession](/scraping/stealthy/http-session). `HttpOptions::new` uses a 30 second timeout, a 64 MiB body, and 10 redirects. `validate` refuses a timeout above one hour, a body limit above 1 GiB, or more than 30 redirects.
+The guide is [HttpSession](/scraping/stealthy/http-session). `HttpSessionOptions::new` uses a 30 second timeout, a 64 MiB body, and 10 redirects. `validate` refuses a timeout above one hour, a body limit above 1 GiB, or more than 30 redirects.
 
 <RequestExample>
 
 ```rust Continue a page as plain HTTP
 use seleniumbase_rs_stealth::json::Value;
-use seleniumbase_rs_stealth::mimic::{HttpError, HttpOptions, HttpSession};
+use seleniumbase_rs_stealth::wire::{HttpError, HttpSessionOptions, HttpSession};
 use seleniumbase_rs_stealth::sb_cdp::Page;
 
 async fn orders(page: &Page) -> Result<(), HttpError> {
-    let session = HttpSession::from_page(page, None, HttpOptions::new()).await?;
+    let session = HttpSession::from_page(page, None, HttpSessionOptions::new()).await?;
     let reply = session.get("https://example.com/api/orders").await?;
     let orders: Value = reply.json()?;
     println!("{orders}");
@@ -48,13 +48,13 @@ pub const MAX_PACED_SITES: usize = 4096;
 
 - `Clock`: A source of the time in seconds since the Unix epoch.
 - `DEFAULT_TIMEOUT`: How long one request may take in all, redirects included, unless told otherwise.
-- `MAX_TIMEOUT`: The longest total time per request [`HttpOptions::validate`] accepts.
+- `MAX_TIMEOUT`: The longest total time per request [`HttpSessionOptions::validate`] accepts.
 - `DEFAULT_CONNECT_TIMEOUT`: How long a connection may take to open, unless told otherwise.
 - `DEFAULT_MAX_BODY_BYTES`: The largest response body read into memory unless told otherwise, after decompression.
-- `MAX_BODY_LIMIT`: The largest response body [`HttpOptions::validate`] accepts as a limit.
+- `MAX_BODY_LIMIT`: The largest response body [`HttpSessionOptions::validate`] accepts as a limit.
 - `DEFAULT_MAX_REQUEST_BYTES`: The largest request body sent unless told otherwise.
 - `DEFAULT_MAX_REDIRECTS`: How many redirects are followed, as in a browser.
-- `MAX_REDIRECT_LIMIT`: The most redirects [`HttpOptions::validate`] accepts as a limit.
+- `MAX_REDIRECT_LIMIT`: The most redirects [`HttpSessionOptions::validate`] accepts as a limit.
 - `MAX_PACED_SITES`: The most paced sites kept at once; past it the table starts over.
 
 ## `http_session`
@@ -67,7 +67,7 @@ pub const MAX_PACED_SITES: usize = 4096;
 pub struct HttpSession
 ```
 
-Plain HTTP requests that continue a browser's session; see the [module](/stealth/api/mimic) documentation.
+Plain HTTP requests that continue a browser's session; see the [module](/stealth/api/wire) documentation.
 
 ### `HttpSession` methods
 
@@ -75,41 +75,41 @@ Plain HTTP requests that continue a browser's session; see the [module](/stealth
 
 ```rust
 pub fn from_identity(
-        identity: &StealthIdentity,
-        egress: Option<EgressRef>,
-        options: HttpOptions,
+        identity: &Identity,
+        egress: Option<ProxyRoute>,
+        options: HttpSessionOptions,
     ) -> Result<Self, HttpError>
 pub fn request(&self, method: Method, url: &str) -> HttpRequest<'_>
-pub async fn get(&self, url: &str) -> Result<HttpReply, HttpError>
-pub fn profile(&self) -> &ImpersonationProfile
-pub fn egress(&self) -> Option<&EgressKey>
+pub async fn get(&self, url: &str) -> Result<HttpResponse, HttpError>
+pub fn profile(&self) -> &WireFormat
+pub fn egress(&self) -> Option<&ProxyKey>
 pub fn cookie_count(&self) -> usize
 pub fn assess(
         &self,
-        reply: &HttpReply,
+        reply: &HttpResponse,
         attempt: &Attempt,
         rules: &Rules,
-        identity: &StealthIdentity,
+        identity: &Identity,
     ) -> Verdict
 pub async fn fetch(
         &self,
         url: &str,
         attempt: &Attempt,
         rules: &Rules,
-        identity: &StealthIdentity,
+        identity: &Identity,
     ) -> Result<Fetched, HttpError>
 pub fn preflight(
         &self,
         url: &str,
-        identity: &StealthIdentity,
-        state: Option<&DomainState>,
+        identity: &Identity,
+        state: Option<&SiteRecord>,
         rules: &Rules,
-    ) -> Result<Transition, HttpError>
-pub fn export_identity(&self, base: &StealthIdentity) -> StealthIdentity
+    ) -> Result<Escalation, HttpError>
+pub fn export_identity(&self, base: &Identity) -> Identity
 pub async fn from_page(
         page: &Page,
-        egress: Option<EgressRef>,
-        mut options: HttpOptions,
+        egress: Option<ProxyRoute>,
+        mut options: HttpSessionOptions,
     ) -> Result<Self, HttpError>
 pub async fn sync_cookies_back(&self, page: &Page) -> Result<usize, HttpError>
 ```
@@ -136,7 +136,7 @@ pub async fn sync_cookies_back(&self, page: &Page) -> Result<usize, HttpError>
 
 ```rust
 pub enum HttpError {
-    Impersonate(ImpersonateError),
+    Impersonate(WireFormatError),
     VersionMismatch {
             /// The major version the browser or identity claims.
             browser: u32,
@@ -188,17 +188,17 @@ Why an `HttpSession` could not be made or a request failed.
 
 ## `http_session::options`
 
-### `HttpOptions`
+### `HttpSessionOptions`
 
 <Badge color="blue" shape="pill">struct</Badge>
 
 ```rust
-pub struct HttpOptions
+pub struct HttpSessionOptions
 ```
 
 The limits and plumbing of an HTTP session.
 
-### `HttpOptions` methods
+### `HttpSessionOptions` methods
 
 <Badge color="yellow" shape="pill">method</Badge>
 
@@ -249,7 +249,7 @@ pub fn validate(&self) -> Result<(), HttpError>
 pub struct Attempt {
     pub number: u32,
     pub previous_challenges: u32,
-    pub can_rotate_egress: bool,
+    pub can_rotate_proxy: bool,
     pub can_escalate: bool,
 }
 ```
@@ -263,7 +263,7 @@ Where a fetch stands, as the mitigation policy needs to know it.
 ```rust
 pub struct Rules {
     pub mitigation: MitigationPolicy,
-    pub session: SessionPolicy,
+    pub session: EscalationPolicy,
 }
 ```
 
@@ -276,8 +276,8 @@ The two policies that judge a reply.
 ```rust
 pub struct Verdict {
     pub detection: Detection,
-    pub action: Action,
-    pub transition: Transition,
+    pub action: Mitigation,
+    pub escalation: Escalation,
 }
 ```
 
@@ -300,7 +300,7 @@ pub fn is_clear(&self) -> bool
 
 ```rust
 pub struct Fetched {
-    pub reply: HttpReply,
+    pub reply: HttpResponse,
     pub verdict: Verdict,
 }
 ```
@@ -340,12 +340,12 @@ pub fn is_empty(&self) -> bool
 - `len`: How many headers there are.
 - `is_empty`: Whether there are no headers.
 
-### `ReplyProtocol`
+### `WireProtocol`
 
 <Badge color="blue" shape="pill">enum</Badge>
 
 ```rust
-pub enum ReplyProtocol {
+pub enum WireProtocol {
     Http2,
     Http1,
 }
@@ -353,17 +353,17 @@ pub enum ReplyProtocol {
 
 The protocol a reply travelled on.
 
-### `HttpReply`
+### `HttpResponse`
 
 <Badge color="blue" shape="pill">struct</Badge>
 
 ```rust
-pub struct HttpReply
+pub struct HttpResponse
 ```
 
 One answer, with its whole body.
 
-### `HttpReply` methods
+### `HttpResponse` methods
 
 <Badge color="yellow" shape="pill">method</Badge>
 
@@ -376,7 +376,7 @@ pub fn headers(&self) -> &Headers
 pub fn bytes(&self) -> &[u8]
 pub fn text(&self) -> Result<&str, HttpError>
 pub fn json<T: DeserializeOwned>(&self) -> Result<T, HttpError>
-pub fn protocol(&self) -> ReplyProtocol
+pub fn protocol(&self) -> WireProtocol
 pub fn redirects(&self) -> &[RedactedUrl]
 pub fn elapsed(&self) -> Duration
 pub fn detect(&self) -> Detection
@@ -419,7 +419,7 @@ pub fn body(mut self, body: impl Into<Bytes>) -> Self
 pub fn json<T: Serialize + ?Sized>(mut self, value: &T) -> Self
 pub fn form(mut self, fields: &[(&str, &str)]) -> Self
 pub fn timeout(mut self, timeout: std::time::Duration) -> Self
-pub async fn send(self) -> Result<HttpReply, HttpError>
+pub async fn send(self) -> Result<HttpResponse, HttpError>
 ```
 
 
@@ -433,4 +433,4 @@ pub async fn send(self) -> Result<HttpReply, HttpError>
 
 ## Related
 
-The guide is [HttpSession](/scraping/stealthy/http-session). The overview is [mimic](/stealth/api/mimic).
+The guide is [HttpSession](/scraping/stealthy/http-session). The overview is [wire](/stealth/api/wire).

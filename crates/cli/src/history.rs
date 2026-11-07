@@ -19,7 +19,7 @@ pub(crate) async fn run(
     json: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let path = db
-        .or_else(|| std::env::var_os("SB_REPORT_DB").map(PathBuf::from))
+        .or_else(|| seleniumbase_rs::config::env_vars::text("SB_REPORT_DB").map(PathBuf::from))
         .unwrap_or_else(|| PathBuf::from(DEFAULT_DB));
     // Opening would create an empty database, which would hide a typo in the path.
     if !path.exists() {

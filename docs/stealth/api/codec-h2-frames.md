@@ -179,7 +179,7 @@ How many bytes of the input the preface used, the magic included.
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
-pub fn pseudo_order(&self) -> Result<[Pseudo; 4], H2CaptureError>
+pub fn pseudo_order(&self) -> Result<[PseudoHeader; 4], H2CaptureError>
 pub fn akamai(&self) -> Result<Akamai, H2CaptureError>
 pub fn regular_headers(&self) -> impl Iterator<Item = &HeaderField>
 pub fn header(&self, name: &str) -> Option<&str>

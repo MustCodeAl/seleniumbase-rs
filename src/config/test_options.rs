@@ -21,7 +21,7 @@
 //!
 //! An `sbrs test` flag wins over an `SB_*` variable already in the
 //! environment, which wins over the settings file, which wins over the
-//! default. A variable that is empty or blank counts as unset.
+//! default. A variable is read trimmed, and one that is empty or blank counts as unset.
 //!
 //! # Examples
 //!
@@ -36,7 +36,7 @@
 //! ```
 
 use crate::browser::options::{LaunchSwitch, WindowSize};
-use crate::config::layers::{flag, no_items, nothing, put, Given, Inputs};
+use crate::config::layers::{empty_at, flag, no_items, nothing, put, Given, Inputs};
 use crate::config::text::{self, OptionValue};
 use figment::value::{Dict, Value};
 use std::path::PathBuf;
@@ -497,10 +497,12 @@ macro_rules! option_table {
     };
 }
 
-/// Reads every option whose variable `var` reports, the variables of one source, into the
+/// Reads every option whose variable `raw` reports, the variables of one source, into the
 /// settings they write (`Variables::dict`); a value that does not parse goes to
 /// `Variables::problems`, in table order. The providers `EnvVars` and `SettingsFile` call it.
 /// A row writes the field its path names; a derived row has a reader of its own (`config::text`).
+/// Every reader gets the text trimmed, and a variable that is blank is not given: the one rule
+/// of every source, so that a padded `SB_HEADLESS= true ` is read as `true`.
 ///
 /// Two settings have two spellings: the window size (`SB_WINDOW_SIZE`, or `SB_WINDOW_WIDTH`
 /// and `SB_WINDOW_HEIGHT`) and the language (`SB_LOCALE`, `SB_LOCALE_CODE`). The source that
@@ -508,7 +510,15 @@ macro_rules! option_table {
 /// spelling, and within the source the window size and the locale code win, as they always
 /// did. A file's `window_size` therefore no longer beats `SB_WINDOW_WIDTH` and
 /// `SB_WINDOW_HEIGHT` of the environment.
-pub(crate) fn read_variables(var: &dyn Fn(&str) -> Option<String>) -> Variables {
+pub(crate) fn read_variables(raw: &dyn Fn(&str) -> Option<String>) -> Variables {
+    // One rule for every source and every reader: a value is trimmed, and a blank one is unset.
+    let trimmed = |name: &str| {
+        raw(name)
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty())
+    };
+    let var: &dyn Fn(&str) -> Option<String> = &trimmed;
+
     // The rows run in table order on a scratch `Settings`, so that what one row reads can
     // depend on the rows before it in the same source (a refused value is found here).
     let mut scratch = Settings::default();
@@ -544,7 +554,7 @@ pub(crate) fn read_variables(var: &dyn Fn(&str) -> Option<String>) -> Variables 
                     match whole.find_ref(&path) {
                         Some(value) => put(&mut dict, &path, value.clone()),
                         None => {
-                            if let Some(value) = absent.value() {
+                            if let Some(value) = absent.value(&path) {
                                 put(&mut dict, &path, value);
                             }
                         }
@@ -591,17 +601,22 @@ enum Absent {
     Nothing,
     /// A list with no item (`SB_EXTENSION_DIR` with no folder).
     NoItems,
+    /// The default of the setting, whatever its type: an unset option, a list with no item or a
+    /// switch that is off, whichever the setting at the path accepts (`layers::empty_at`).
+    Default,
+
     /// A switch that is off.
     Off,
 }
 
 impl Absent {
-    fn value(self) -> Option<Value> {
+    fn value(self, path: &str) -> Option<Value> {
         match self {
             Self::Skip => None,
             Self::Nothing => Some(nothing()),
             Self::NoItems => Some(no_items()),
             Self::Off => Some(flag(false)),
+            Self::Default => empty_at(path),
         }
     }
 }
@@ -625,20 +640,30 @@ fn written_by(row: &OptionSpec) -> Vec<(String, Absent)> {
         "SB_EXTENSION_ZIP" => one("session.extension_archives", Absent::NoItems),
         "SB_REUSE_CLASS_SESSION" => one("session.reuse_class", Absent::Nothing),
         "SB_CAP_FILE" | "SB_CAP_STRING" => one("session.capabilities", Absent::Skip),
-        "SB_FIREFOX_ARG" => one("session.firefox.args", Absent::Skip),
+        "SB_FIREFOX_ARG" => one("session.firefox.args", Absent::NoItems),
         "SB_FIREFOX_PREF" => one("session.firefox.preferences", Absent::Skip),
         _ => {
             // `TestSettings` flattens its `TestData`: `test.data.env` is `test.env` in the
             // serialized settings.
             let path = row.field.replacen("test.data.", "test.", 1);
-            let absent = if matches!(row.kind, OptionKind::Switch) {
-                Absent::Off
-            } else {
-                Absent::Skip
+            // A source that gives a variable says what the setting is: when the serialized
+            // settings hold nothing at the path, the reader left the default there, and that
+            // is the value the source gives. The settings file is the one setting no layer
+            // holds (it names the file the layers come from).
+            let absent = match row.kind {
+                OptionKind::Switch => Absent::Off,
+                _ if row.env == "SB_SETTINGS_FILE" => Absent::Skip,
+                _ => Absent::Default,
             };
             vec![(path, absent)]
         }
     }
+}
+
+/// The paths of the serialized settings that the row's variable writes: the paths of the
+/// nested form of a settings file that the row's flat key stands for.
+pub(crate) fn written_paths(row: &OptionSpec) -> Vec<String> {
+    written_by(row).into_iter().map(|(path, _)| path).collect()
 }
 
 /// `SB_WINDOW_WIDTH` and `SB_WINDOW_HEIGHT` together: the window size, unless the same source
@@ -1094,5 +1119,31 @@ mod tests {
         let (settings, problems) = read_all(&[("", "true"), ("none", "true")]);
         assert!(problems.is_empty());
         assert_eq!(settings, Settings::default());
+    }
+
+    #[test]
+    fn a_setting_the_serializer_leaves_out_has_a_default_value_for_every_row_that_reads_it() {
+        // A row of `Absent::Default` whose variable gives the default of a setting is written
+        // out as the value `layers::empty_at` finds for the path; when the settings hold nothing
+        // there and `empty_at` finds nothing either, the source silently loses the value (a
+        // later `skip_serializing_if` on a number or a text would do it). No row may be in that
+        // state, so that such a change fails here and not as a lower source winning.
+        let whole = Value::serialize(Settings::default()).expect("the settings serialize");
+        for row in TEST_OPTIONS
+            .iter()
+            .filter(|row| row.kind.reads_env() && !row.env.is_empty())
+        {
+            for (path, absent) in written_by(row) {
+                if !matches!(absent, Absent::Default) {
+                    continue;
+                }
+                assert!(
+                    whole.find_ref(&path).is_some() || empty_at(&path).is_some(),
+                    "{}: {path} is left out of the serialized settings and no value stands for \
+                     its default",
+                    row.env
+                );
+            }
+        }
     }
 }

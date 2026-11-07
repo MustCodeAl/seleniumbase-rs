@@ -2868,7 +2868,9 @@ async fn run_doctor(options: &DoctorArgs) -> Result<(), Box<dyn std::error::Erro
 async fn run_prompt(options: &PromptArgs) -> Result<(), Box<dyn std::error::Error>> {
     let browser = prompt::locate_browser(
         options.browser_path.as_deref(),
-        std::env::var_os("SB_CHROME_BIN").as_deref(),
+        seleniumbase_rs::config::env_vars::text("SB_CHROME_BIN")
+            .map(std::ffi::OsString::from)
+            .as_deref(),
         find_system_chrome,
     );
     let driver = assets::lookup_chromedriver();

@@ -27,13 +27,13 @@ const GONE: &[(&str, &str)] = &[
     ("new_page(None", "new_page()"),
     // Settings (0.5.0 split load).
     ("Settings::load(None", "Settings::load() / load_from(path)"),
-    // The stealth crates moved out and were renamed (0.3.0, then codec/mimic).
-    ("seleniumbase_rs_wire", "seleniumbase_rs_codec"),
-    ("seleniumbase-rs-wire", "seleniumbase-rs-codec"),
-    ("seleniumbase_rs_impersonate", "seleniumbase_rs_mimic"),
-    ("seleniumbase-rs-impersonate", "seleniumbase-rs-mimic"),
-    ("crates/wire", "crates/codec"),
-    ("crates/impersonate", "crates/mimic"),
+    // The stealth crates moved out and were renamed (0.3.0, then codec/mimic, then codec/wire).
+    ("seleniumbase_rs_mimic", "seleniumbase_rs_wire"),
+    ("seleniumbase-rs-mimic", "seleniumbase-rs-wire"),
+    ("seleniumbase_rs_impersonate", "seleniumbase_rs_wire"),
+    ("seleniumbase-rs-impersonate", "seleniumbase-rs-wire"),
+    ("crates/mimic", "crates/wire"),
+    ("crates/impersonate", "crates/wire"),
     (
         "features = [\"scrape\"",
         "the seleniumbase-rs-stealth repository",

@@ -1,7 +1,7 @@
 ---
 title: "codec::tls_spec"
 sidebarTitle: "TlsSpec"
-description: "The TLS profile in seleniumbase-rs-codec: TlsSpec, Alps, KnownGap and SpecError, the reproducibility check against what BoringSSL can emit, and the custom JA3, JA4 and peetprint overlays."
+description: "The TLS profile in seleniumbase-rs-codec: TlsSpec, Alps, KnownGap and TlsSpecError, the reproducibility check against what BoringSSL can emit, and the custom JA3, JA4 and peetprint overlays."
 ---
 
 <Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: codec</Badge>
@@ -26,11 +26,11 @@ in [Wire formats](/stealth/advanced/wire-formats#what-is-refused).
 
 ```rust Fingerprints of the measured spec
 use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
-use seleniumbase_rs_stealth::codec::emulation;
+use seleniumbase_rs_stealth::codec::measurement;
 use seleniumbase_rs_stealth::codec::BrowserKind;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let chrome = emulation::get(BrowserKind::Chrome, OsType::Macos)?;
+    let chrome = measurement::get(BrowserKind::Chrome, OsType::Macos)?;
     let measured = &chrome.tls;
     println!("{}", measured.ja4());
     // What a BoringSSL client can send of it.
@@ -43,7 +43,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```rust Overlay a custom JA3
 use seleniumbase_rs_stealth::codec::ja3::Ja3;
-use seleniumbase_rs_stealth::codec::tls_spec::{SpecError, TlsSpec};
+use seleniumbase_rs_stealth::codec::tls_spec::{TlsSpecError, TlsSpec};
 
 fn with_custom_ja3(base: &TlsSpec, text: &str) -> Result<TlsSpec, Box<dyn std::error::Error>> {
     let ja3 = Ja3::parse(text)?;
@@ -54,7 +54,7 @@ fn with_custom_ja3(base: &TlsSpec, text: &str) -> Result<TlsSpec, Box<dyn std::e
 
 fn refused(base: &TlsSpec) {
     let result = base.with_signature_algorithms(&[0x0904]);
-    assert!(matches!(result, Err(SpecError::UnsupportedSigalg { id: 0x0904, .. })));
+    assert!(matches!(result, Err(TlsSpecError::UnsupportedSigalg { id: 0x0904, .. })));
 }
 ```
 
@@ -217,14 +217,14 @@ The `application_settings` extension, when sent.
 
 ```rust
 pub fn from_client_hello(hello: &ClientHello) -> Self
-pub fn with_observed_order(&self, other: &ClientHello) -> Result<Self, SpecError>
+pub fn with_observed_order(&self, other: &ClientHello) -> Result<Self, TlsSpecError>
 ```
 
 `from_client_hello` records the profile a parsed hello shows; GREASE becomes the
 `grease` flag, and the extension order is taken as observed
 (`permute_extensions` is `false`). `with_observed_order` compares a second hello
 of the same client: a changed extension order sets `permute_extensions`. It
-returns `SpecError::HellosDiffer` when the cipher suites or the set of extensions
+returns `TlsSpecError::HellosDiffer` when the cipher suites or the set of extensions
 differ.
 
 ### Extension flags
@@ -281,11 +281,11 @@ algorithms and the delegated credentials.
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
-pub fn check_reproducible(&self) -> Result<(), SpecError>
+pub fn check_reproducible(&self) -> Result<(), TlsSpecError>
 ```
 
 Checks the spec against what BoringSSL can emit (plan section 3.8) and returns
-the first `SpecError` found, checking in this order: the version, the cipher
+the first `TlsSpecError` found, checking in this order: the version, the cipher
 suites, the extensions, the groups, the point formats, the signature algorithms,
 then extension content.
 
@@ -313,10 +313,10 @@ then extension content.
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
-pub fn with_ja3(&self, ja3: &Ja3) -> Result<Self, SpecError>
-pub fn with_signature_algorithms(&self, ids: &[u16]) -> Result<Self, SpecError>
-pub fn with_ja4_raw(&self, raw: &Ja4Raw, order: Ja4Order) -> Result<Self, SpecError>
-pub fn with_peetprint(&self, peet: &Peetprint) -> Result<Self, SpecError>
+pub fn with_ja3(&self, ja3: &Ja3) -> Result<Self, TlsSpecError>
+pub fn with_signature_algorithms(&self, ids: &[u16]) -> Result<Self, TlsSpecError>
+pub fn with_ja4_raw(&self, raw: &Ja4Raw, order: Ja4Order) -> Result<Self, TlsSpecError>
+pub fn with_peetprint(&self, peet: &Peetprint) -> Result<Self, TlsSpecError>
 ```
 
 <ResponseField name="with_ja3" type="method">
@@ -410,7 +410,7 @@ The ML-DSA signature schemes (`0x0904` to `0x0906`).
 
 </ResponseField>
 
-## `SpecError`
+## `TlsSpecError`
 
 <Badge color="purple" shape="pill">enum</Badge>
 
@@ -418,7 +418,7 @@ The ML-DSA signature schemes (`0x0904` to `0x0906`).
 // Re-exported at the crate root as TlsSpecError.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 #[non_exhaustive]
-pub enum SpecError {
+pub enum TlsSpecError {
     LegacyVersion(u16),
     UnsupportedVersion(u16),
     NoCipherSuites,
@@ -435,14 +435,14 @@ pub enum SpecError {
     Alpn(String),
     Ja4Mismatch(Ja4Section),
     Ja4Alpn(String),
-    PeetprintMismatch(PeetField),
+    PeetprintMismatch(PeetprintField),
     HellosDiffer,
 }
 ```
 
 Why a spec cannot be reproduced, or an overlay cannot be applied.
 
-<ResponseField name="SpecError" type="enum">
+<ResponseField name="TlsSpecError" type="enum">
 
 <Expandable title="variants">
 
@@ -544,7 +544,7 @@ No known ALPN name has this two-character `JA4` ALPN code.
 
 </ResponseField>
 
-<ResponseField name="PeetprintMismatch(PeetField)">
+<ResponseField name="PeetprintMismatch(PeetprintField)">
 
 The recomputed peetprint differs from the input in this field.
 

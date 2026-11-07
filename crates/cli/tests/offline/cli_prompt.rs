@@ -197,6 +197,28 @@ fn the_line_says_whether_the_driver_matches_the_browser() {
 
 #[cfg(unix)]
 #[test]
+fn the_browser_variable_is_read_trimmed_like_every_variable_of_the_option_table() {
+    let dir = tempfile::tempdir().unwrap();
+    let chrome = bundled_chrome(dir.path(), "155.0.8059.40");
+    // `sbrs doctor` and `Settings` trim this variable; `sbrs prompt` took it as it was and
+    // looked for a browser at a path with blanks around it.
+    let padded = PathBuf::from(format!(" {} ", chrome.display()));
+    let output = prompt(
+        dir.path(),
+        &[("SB_CHROME_BIN", &padded)],
+        &["--no-cache", "--ascii"],
+    );
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert_eq!(
+        stdout(&output),
+        "chrome 155 -driver\n",
+        "{}",
+        stderr(&output)
+    );
+}
+
+#[cfg(unix)]
+#[test]
 fn a_driver_downloaded_into_the_folder_counts() {
     let dir = tempfile::tempdir().unwrap();
     let chrome = bundled_chrome(dir.path(), "155.0.8059.40");

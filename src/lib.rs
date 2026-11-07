@@ -34,7 +34,7 @@
 //! The experimental stealth scraping layer (wire fingerprints, `BrowserScraper`,
 //! `HttpSession`, `MitmProxy`, `StealthSession`) is not part of this crate. It
 //! lives in the crates `seleniumbase-rs-codec`, `seleniumbase-rs-scrape` and
-//! `seleniumbase-rs-mimic` of
+//! `seleniumbase-rs-wire` of
 //! <https://github.com/MustCodeAl/seleniumbase-rs-stealth>, which build on the
 //! public API of this one.
 

@@ -1,7 +1,7 @@
 ---
 title: "codec::header_spec"
 sidebarTitle: "HeaderSpec"
-description: "Header names, order and values per request shape in seleniumbase-rs-codec: HeaderSpec, HeaderValue placeholders, HeaderIdentity, RequestShape, the HTTP/2 priority table and HeaderSpecError."
+description: "Header names, order and values per request shape in seleniumbase-rs-codec: HeaderSpec, HeaderSource placeholders, ClientHeaders, RequestShape, the HTTP/2 priority table and HeaderSpecError."
 ---
 
 <Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: codec</Badge>
@@ -10,10 +10,10 @@ A `HeaderSpec` says which headers a request carries, in which order, with which
 capitalisation, for two request shapes: a top-level navigation
 (`RequestShape::Document`) and a script-issued request (`RequestShape::Fetch`).
 Most values are literal. The ones that belong to the caller's identity are
-placeholders, resolved at request time from a `HeaderIdentity`: the `User-Agent`,
+placeholders, resolved at request time from a `ClientHeaders`: the `User-Agent`,
 `Accept-Language`, the client hints and the cookie. Because the caller supplies
 them, any of them can change without touching the spec, and any header can be
-replaced by name with `HeaderIdentity::with_override` or `HeaderSpec::with_header`.
+replaced by name with `ClientHeaders::with_override` or `HeaderSpec::with_header`.
 
 A spec is built from a captured header list (`HeaderSpec::from_captured`), or
 written by hand as plain data and checked with `HeaderSpec::validate`. Names keep
@@ -25,12 +25,12 @@ on what the request is for, so it is looked up by the `Sec-Fetch-Dest` value wit
 <RequestExample>
 
 ```rust Render a captured list
-use seleniumbase_rs_stealth::codec::header_spec::{HeaderIdentity, HeaderSpec, RequestShape};
+use seleniumbase_rs_stealth::codec::header_spec::{ClientHeaders, HeaderSpec, RequestShape};
 
 fn main() -> Result<(), seleniumbase_rs_stealth::codec::header_spec::HeaderSpecError> {
     let captured = [("Accept", "*/*"), ("User-Agent", "Agent/1.0"), ("Host", "example.test")];
     let spec = HeaderSpec::from_captured(&captured, &captured)?;
-    let identity = HeaderIdentity::new("Agent/2.0");
+    let identity = ClientHeaders::new("Agent/2.0");
     let headers = spec.render(RequestShape::Fetch, &identity)?;
     // `Host` belongs to the connection; the user agent is the caller's.
     println!("{headers:?}");
@@ -40,11 +40,11 @@ fn main() -> Result<(), seleniumbase_rs_stealth::codec::header_spec::HeaderSpecE
 
 ```rust The measured priority table
 use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
-use seleniumbase_rs_stealth::codec::emulation;
+use seleniumbase_rs_stealth::codec::measurement;
 use seleniumbase_rs_stealth::codec::BrowserKind;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let chrome = emulation::get(BrowserKind::Chrome, OsType::Macos)?;
+    let chrome = measurement::get(BrowserKind::Chrome, OsType::Macos)?;
     println!("{:?}", chrome.headers.priority_for("document"));
     println!("{:?}", chrome.headers.priority_for("empty"));
     Ok(())
@@ -75,9 +75,9 @@ Some("u=1, i")
 #[serde(deny_unknown_fields)]
 pub struct HeaderSpec {
     #[serde(default)]
-    pub document: Vec<(String, HeaderValue)>,
+    pub document: Vec<(String, HeaderSource)>,
     #[serde(default)]
-    pub fetch: Vec<(String, HeaderValue)>,
+    pub fetch: Vec<(String, HeaderSource)>,
     #[serde(default)]
     pub priority_by_dest: Vec<(String, String)>,
 }
@@ -85,13 +85,13 @@ pub struct HeaderSpec {
 
 The header names, their order and their values, per request shape.
 
-<ResponseField name="document" type="Vec<(String, HeaderValue)>">
+<ResponseField name="document" type="Vec<(String, HeaderSource)>">
 
 Headers of a navigation, in order.
 
 </ResponseField>
 
-<ResponseField name="fetch" type="Vec<(String, HeaderValue)>">
+<ResponseField name="fetch" type="Vec<(String, HeaderSource)>">
 
 Headers of a script-issued request, in order.
 
@@ -117,7 +117,7 @@ pub fn from_captured<N: AsRef<str>, V: AsRef<str>>(
 ```
 
 Builds a spec from the headers of one captured navigation and one captured fetch.
-Pseudo-headers, the transport headers of `TRANSPORT_HEADERS` and the credential
+PseudoHeader-headers, the transport headers of `TRANSPORT_HEADERS` and the credential
 headers are dropped. The identity headers become placeholders. A `priority` header
 (an HTTP/2 capture) moves to the priority table, keyed by the same request's
 `Sec-Fetch-Dest`. Fails when a name or value is invalid, a header repeats, or a
@@ -143,11 +143,11 @@ end, and at most `MAX_VALUE_LEN` bytes.
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
-pub fn headers(&self, shape: RequestShape) -> &[(String, HeaderValue)]
+pub fn headers(&self, shape: RequestShape) -> &[(String, HeaderSource)]
 pub fn render(
     &self,
     shape: RequestShape,
-    identity: &HeaderIdentity,
+    identity: &ClientHeaders,
 ) -> Result<Vec<(String, String)>, HeaderSpecError>
 pub fn priority_for(&self, dest: &str) -> Option<&str>
 ```
@@ -168,7 +168,7 @@ pub fn with_header(
     &self,
     shape: RequestShape,
     name: &str,
-    value: HeaderValue,
+    value: HeaderSource,
 ) -> Result<Self, HeaderSpecError>
 pub fn without_header(&self, shape: RequestShape, name: &str) -> Self
 pub fn with_priority(&self, dest: &str, value: &str) -> Result<Self, HeaderSpecError>
@@ -180,7 +180,7 @@ it, appended when it does not. `without_header` removes it (any capitalisation).
 `with_priority` sets the `priority` value for `dest`. The two that can fail check
 the result.
 
-## `HeaderValue`
+## `HeaderSource`
 
 <Badge color="purple" shape="pill">enum</Badge>
 
@@ -188,7 +188,7 @@ the result.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
-pub enum HeaderValue {
+pub enum HeaderSource {
     Literal(String),
     UserAgent,
     SecChUa,
@@ -203,7 +203,7 @@ The value of one header in a `HeaderSpec`. In JSON a literal is
 `{"literal": "1"}` and a placeholder is its snake-case name, such as
 `"user_agent"` or `"sec_ch_ua"`.
 
-<ResponseField name="HeaderValue" type="enum">
+<ResponseField name="HeaderSource" type="enum">
 
 <Expandable title="variants" defaultOpen>
 
@@ -253,13 +253,13 @@ The identity's cookie; left out when the identity has none.
 
 </ResponseField>
 
-## `HeaderIdentity`
+## `ClientHeaders`
 
 <Badge color="blue" shape="pill">struct</Badge>
 
 ```rust
 #[derive(Clone, PartialEq, Eq)]
-pub struct HeaderIdentity {
+pub struct ClientHeaders {
     pub user_agent: String,
     pub accept_language: Option<String>,
     pub sec_ch_ua: Option<String>,
@@ -269,7 +269,7 @@ pub struct HeaderIdentity {
     pub overrides: Vec<(String, String)>,
 }
 
-impl HeaderIdentity {
+impl ClientHeaders {
     pub fn new(user_agent: impl Into<String>) -> Self;
     pub fn with_accept_language(mut self, value: impl Into<String>) -> Self;
     pub fn with_client_hints(
@@ -391,7 +391,7 @@ caller adds it to the requests that need it.
 
 <Columns cols={2}>
 
-<Card color="#1a85d4" title="Emulation" icon="database" href="/stealth/api/codec-emulation">
+<Card color="#1a85d4" title="WireMeasurement" icon="database" href="/stealth/api/codec-measurement">
 
 The measured `headers` of a browser.
 

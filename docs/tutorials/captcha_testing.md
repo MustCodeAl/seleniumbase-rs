@@ -331,7 +331,9 @@ to name something your page shows when it worked).
 It returns `Some(Captcha::...)` for the widget it pressed, `None` when no
 supported widget is visible and the page shows no sign of one on its way (a page
 that is marked as a challenge but has not drawn the widget yet is waited for, up
-to `SolveOptions::locate_timeout`, 6 seconds by default), and an error when the
+to `SolveOptions::locate_timeout`, 6 seconds by default; a challenge page that
+shows no widget at all, such as "Just a moment...", is waited out first, up to
+`SolveOptions::interstitial_timeout`, 20 seconds by default), and an error when the
 script that looks for the widget fails or the browser refuses the input. The
 script can fail while the page is still navigating ("Execution context was
 destroyed"), so such an error need not end a test that has just submitted a form

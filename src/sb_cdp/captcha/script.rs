@@ -113,6 +113,15 @@ function challengeMarked() {
   return ALL.some((root) => root.querySelector(selector));
 }
 
+// Whether the page is itself a challenge page, the interstitial that runs its checks and then
+// goes, and not a page that merely carries a widget: its title or its stage shows it.
+function interstitial() {
+  if (document.title.startsWith('Just a moment')) return true;
+  const selector = DATA.interstitial.join(',');
+  return ALL.some((root) => root.querySelector(selector));
+}
+
+
 // A challenge that is on its way: the page is marked, or a widget element
 // exists and has not been given a size yet (the script is still drawing it).
 function pending() {
@@ -148,6 +157,7 @@ fn data() -> String {
         "kinds": kinds,
         "recaptcha": recaptcha,
         "markers": MARKERS,
+        "interstitial": INTERSTITIAL,
         "stage": STAGE,
     });
     serde_json::to_string(&data).unwrap_or_else(|_| "{}".to_owned())
@@ -171,6 +181,15 @@ pub(super) const STAGE: [&str; 3] = [
     r#"[data-testid*="challenge-"]"#,
 ];
 
+/// What marks a page as a challenge page itself, the interstitial, as against a page that
+/// carries a widget: the stage and the form the challenge draws in, and its own script. The
+/// widget's frame is not here, as a site may keep a hidden frame on every page.
+pub(super) const INTERSTITIAL: [&str; 3] = [
+    "#challenge-stage",
+    "#challenge-form",
+    r#"script[src*="/challenge-platform/"][src*="/orchestrate/"]"#,
+];
+
 /// `body` wrapped in the library, as an expression that evaluates to its
 /// return value.
 fn wrap(body: &str) -> String {
@@ -186,10 +205,10 @@ pub(super) fn locate() -> String {
 }
 
 /// Finds the widget (scrolling to it when `scroll`) and says whether a
-/// challenge is on its way: `{ widget, pending }`.
+/// challenge is on its way: `{ widget, interstitial, pending }`.
 pub(super) fn probe(scroll: bool) -> String {
     wrap(&format!(
-        "return {{ widget: find({scroll}, -1), pending: pending() }};"
+        "return {{ widget: find({scroll}, -1), interstitial: interstitial(), pending: pending() }};"
     ))
 }
 
@@ -275,6 +294,24 @@ mod tests {
     }
 
     #[test]
+    fn the_interstitial_is_told_by_the_challenge_pages_own_markers_not_by_a_widget_frame() {
+        let script = probe(false);
+        for marker in INTERSTITIAL {
+            assert!(MARKERS.contains(&marker), "{marker} is a challenge marker");
+            assert!(script.contains(&serde_json::to_string(marker).unwrap()));
+        }
+        assert!(script.contains("interstitial: interstitial()"), "{script}");
+        // A frame of the vendor is on pages that are no challenge at all, and may be hidden.
+        assert!(INTERSTITIAL
+            .iter()
+            .all(|marker| !marker.starts_with("iframe")));
+        assert!(INTERSTITIAL
+            .iter()
+            .all(|marker| !marker.contains("cf-chl-widget")));
+    }
+
+    #[test]
+
     fn the_challenge_beacon_alone_does_not_mark_a_page() {
         // Most Cloudflare sites carry the jsd beacon on every page; waiting for
         // a widget there would slow every call down.

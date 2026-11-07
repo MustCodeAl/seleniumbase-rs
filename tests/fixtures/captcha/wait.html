@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en-US">
+<meta charset="utf-8">
+<title>Just a moment...</title>
+<!--
+  An imitation of a Cloudflare script challenge, served by the local fixture server: a
+  challenge page that shows no widget, runs its "checks" for two and a half seconds and then
+  replaces itself with the page named by ?next= (the real page, /cleared, when there is none;
+  /iframe for a page that holds a widget). No real challenge site is contacted.
+-->
+<style>
+  body { font: 15px sans-serif; margin: 0; text-align: center; }
+  #challenge-stage { margin: 120px auto 0; width: 600px; }
+</style>
+<script src="/cdn-cgi/challenge-platform/h/b/orchestrate/chl_page/v1"></script>
+<h1>example.test</h1>
+<p>Checking if the site connection is secure</p>
+<div id="challenge-stage"><p>Verifying...</p></div>
+<script>
+  const next = new URLSearchParams(location.search).get('next') || '/cleared';
+  setTimeout(() => location.replace(next), 2500);
+</script>
+</html>

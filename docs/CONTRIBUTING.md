@@ -411,7 +411,7 @@ prompt that runs the checks, is in
 <LayoutDir name=".github" note="GitHub Actions">
 <LayoutDir name="workflows" note="ci, docker, completions, release and upstream-watch" />
 </LayoutDir>
-<LayoutFile name=".gitlab-ci.yml" note="GitLab CI: gate, test, supply-chain and docs jobs, and the manual msrv and chrome jobs" />
+<LayoutFile name=".gitlab-ci.yml" note="GitLab CI: gate, test, supply-chain and docs jobs, the GitLab security scanners, and the manual msrv and chrome jobs" />
 <LayoutDir name=".warp" note="the Warp terminal">
 <LayoutDir name="workflows" note="the Warp workflows for sbrs" />
 </LayoutDir>
@@ -617,8 +617,10 @@ each gated publish, and the definition is `.gitlab-ci.yml`. The workflows in
 `.github/workflows` are still in the repository; the release and Docker ones run only on
 GitHub.
 
-GitLab creates a pipeline for merge requests and for `main`, and a new push cancels a
-pipeline that is still running. It has four jobs:
+GitLab creates a pipeline for a merge request, for `main`, and for a `lane/` or `batch/`
+branch that has no merge request yet (a branch that has one is gated by its merge request
+pipeline only, so a push does not run the test suite twice). A new push cancels a pipeline that
+is still running. Four jobs gate a commit:
 
 - `gate` runs `cargo fmt --all -- --check` and clippy with `-D warnings` and the features
   `mcp-server test-util testing bdd`.
@@ -629,9 +631,23 @@ pipeline that is still running. It has four jobs:
 - `docs` runs `mise run mdx` and `mdbook build`, and only when `docs/`, `book.toml`,
   `CONTRIBUTING.md` or the tools that build the docs changed.
 
+Every job takes its tools from mise: the Rust toolchain, cargo-deny, Python and mdBook are the
+versions `mise.toml` pins, the ones `mise install` gives you locally. The Rust jobs install mise
+on the `rust` image and run cargo through `mise exec`; `docs` runs on mise's own image.
+
+GitLab's security scanners (an Ultimate feature, which the group has through the Open Source
+plan) add four jobs that report and never stop the pipeline: `secret_detection`,
+`dependency-scanning` (it reads `Cargo.lock`), `gitlab-advanced-sast-ext` (the Rust files:
+GitLab Advanced SAST supports Rust in beta, and its Semgrep-based analyzer has no Rust rules)
+and `gitlab-advanced-sast` (the JavaScript, Python, TypeScript and Ruby files). Read their
+findings in the Security tab of the pipeline and in the security widget of the merge request;
+`cargo deny` and `cargo audit` in `supply-chain` stay the gate for advisories.
+[CI on GitLab](/contributing/ci) explains each scanner and its variables, and how a future
+`fuzz/` crate plugs into GitLab's coverage-guided fuzzing.
+
 Two more jobs are manual and never start by themselves. `msrv` runs `cargo check` with the
 `gui` and `tui` features on the Rust version of `Cargo.toml`, and fails when that version
-and the one in `.gitlab-ci.yml` differ. `chrome` installs Chromium and runs the real-Chrome
+or the one of `mise.toml` and the one in `.gitlab-ci.yml` differ. `chrome` installs Chromium and runs the real-Chrome
 tests (`tests/chrome`, `browser_smoke`, `crates/cli/tests/chrome` and the Playwright
 bridge) headless, one binary at a time with `--ignored --test-threads=1`. It leaves out the
 tests that open a real site (`captcha_live`, `examples_parity`, `leaked_password`,
@@ -639,8 +655,20 @@ tests that open a real site (`captcha_live`, `examples_parity`, `leaked_password
 
 To start a manual job, open the pipeline of the merge request or of the commit and press
 the play button beside the job. To run jobs on a branch that has no merge request, use
-Build, then Pipelines, then New pipeline: every job is a manual job there. No job needs a
-secret.
+Build, then Pipelines, then New pipeline: every job of ours is a manual job there, and the
+scanners run. No job needs a secret.
+
+A lane or batch branch is gated on GitLab before `main` moves to it:
+
+1. Push the branch to the `gitlab` remote: `git push gitlab lane/my-change`.
+2. Open a merge request: `glab mr create --fill --target-branch main --no-editor`.
+3. GitLab Duo Code Review reviews it. Automatic reviews are on for the project, so it starts
+   when the merge request is created; `/assign_reviewer @GitLabDuo` in a comment asks for
+   another. Read its comments, fix what is right and answer the rest.
+4. The merge request pipeline must be green (`gate`, `test`, `supply-chain`, and `docs` when
+   docs changed), and the scanners' findings in the security widget must be read.
+5. The lead fast-forwards `main` to the gated commit on GitHub and on GitLab, and checks that
+   local and remote agree. That fast-forward is the merge; the GitLab merge button is not used.
 
 The `seleniumbaserust` group is on the
 [GitLab for Open Source](https://docs.gitlab.com/subscriptions/community_programs/) plan, so

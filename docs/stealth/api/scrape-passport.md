@@ -1,12 +1,12 @@
 ---
 title: "scrape::passport"
 sidebarTitle: "Identity"
-description: "StealthIdentity, the session policy and the emulation reference."
+description: "Identity, the session policy and the emulation reference."
 ---
 
 <Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: scrape</Badge>
 
-`passport` is the identity a scrape carries between the browser and plain HTTP: the fingerprint, the cookies, the clearances and the emulation it claims. `SessionPolicy` says when that identity should stay on HTTP and when it should go to the browser.
+`passport` is the identity a scrape carries between the browser and plain HTTP: the fingerprint, the cookies, the clearances and the emulation it claims. `EscalationPolicy` says when that identity should stay on HTTP and when it should go to the browser.
 
 See [Identity and cookies](/scraping/advanced-stealthy/identity).
 
@@ -15,10 +15,10 @@ See [Identity and cookies](/scraping/advanced-stealthy/identity).
 ```rust The emulation an identity claims
 use seleniumbase_rs_stealth::codec::BrowserKind;
 use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
-use seleniumbase_rs_stealth::scrape::EmulationRef;
+use seleniumbase_rs_stealth::scrape::WireMeasurementRef;
 
-fn chrome_on_macos(major: u32) -> EmulationRef {
-    EmulationRef {
+fn chrome_on_macos(major: u32) -> WireMeasurementRef {
+    WireMeasurementRef {
         kind: BrowserKind::Chrome,
         major,
         os: OsType::Macos,
@@ -45,12 +45,12 @@ pub const DEFAULT_CLEARANCE_MARGIN_SECS: u64 = 120;
 
 ## `passport::identity`
 
-### `EmulationRef`
+### `WireMeasurementRef`
 
 <Badge color="blue" shape="pill">struct</Badge>
 
 ```rust
-pub struct EmulationRef {
+pub struct WireMeasurementRef {
     pub kind: BrowserKind,
     pub major: u32,
     pub os: OsType,
@@ -66,7 +66,7 @@ The measured browser whose TLS, HTTP/2 and headers an identity presents.
 ```rust
 pub struct Clearance {
     pub site: String,
-    pub vendor: Vendor,
+    pub vendor: ProtectionVendor,
     pub cookie: String,
     pub expires_at: u64,
 }
@@ -74,18 +74,18 @@ pub struct Clearance {
 
 Proof that a site let the identity through: the vendor's clearance cookie is in the jar.
 
-### `StealthIdentity`
+### `Identity`
 
 <Badge color="blue" shape="pill">struct</Badge>
 
 ```rust
-pub struct StealthIdentity {
+pub struct Identity {
     pub schema: u32,
     pub fingerprint: Fingerprint,
-    pub emulation: EmulationRef,
+    pub wire_measurement: WireMeasurementRef,
     pub cookies: CookieJar,
     pub accept_ch: BTreeMap<String, Vec<String>>,
-    pub egress: Option<EgressKey>,
+    pub egress: Option<ProxyKey>,
     pub clearances: Vec<Clearance>,
     pub created_at: u64,
 }
@@ -93,22 +93,22 @@ pub struct StealthIdentity {
 
 A fingerprint, its emulation, and what the identity earned with them.
 
-### `StealthIdentity` methods
+### `Identity` methods
 
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
 pub fn new(
         fingerprint: Fingerprint,
-        emulation: EmulationRef,
-        egress: Option<EgressKey>,
+        wire_measurement: WireMeasurementRef,
+        egress: Option<ProxyKey>,
         now: u64,
     ) -> Result<Self, IdentityError>
 pub fn verify(&self) -> Result<(), IdentityError>
 pub fn refresh_clearances(&mut self, now: u64)
 pub fn clearance_for(&self, site: &str) -> Option<&Clearance>
-pub fn check_egress(&self, egress: Option<&EgressKey>) -> Result<(), IdentityError>
-pub fn check_emulation(&self, measured: &EmulationRef) -> Result<(), IdentityError>
+pub fn check_proxy(&self, egress: Option<&ProxyKey>) -> Result<(), IdentityError>
+pub fn check_wire_measurement(&self, measured: &WireMeasurementRef) -> Result<(), IdentityError>
 ```
 
 
@@ -116,8 +116,8 @@ pub fn check_emulation(&self, measured: &EmulationRef) -> Result<(), IdentityErr
 - `verify`: Checks an identity that was read from outside: its schema, its fingerprint, and that it carries no proxy.
 - `refresh_clearances`: Records a [`Clearance`] for every live clearance cookie in the jar, replacing the old list.
 - `clearance_for`: The clearance for `site`, a registrable domain or any host on it. When several vendors cleared the site, the one that lasts longest. It may already be expired: compare [`Clearance::expires_at`] with the time.
-- `check_egress`: Checks that a request leaves through the egress this identity belongs to.
-- `check_emulation`: Checks that the browser measured now is the one the identity was made for.
+- `check_proxy`: Checks that a request leaves through the egress this identity belongs to.
+- `check_wire_measurement`: Checks that the browser measured now is the one the identity was made for.
 
 ### `IdentityError`
 
@@ -125,11 +125,11 @@ pub fn check_emulation(&self, measured: &EmulationRef) -> Result<(), IdentityErr
 
 ```rust
 pub enum IdentityError {
-    EgressMismatch {
+    ProxyMismatch {
             /// The egress the identity is bound to.
-            expected: Option<EgressKey>,
+            expected: Option<ProxyKey>,
             /// The egress the request would leave through.
-            found: Option<EgressKey>,
+            found: Option<ProxyKey>,
         },
     Schema(u32),
     Incoherent(Vec<String>),
@@ -146,53 +146,53 @@ Why an identity was refused.
 
 ## `passport::policy`
 
-### `SessionPolicy`
+### `EscalationPolicy`
 
 <Badge color="blue" shape="pill">struct</Badge>
 
 ```rust
-pub struct SessionPolicy {
+pub struct EscalationPolicy {
     pub require_clearance_for_http: bool,
     pub clearance_margin: Duration,
     pub demote_after_solve: bool,
-    pub prefer: Mode,
+    pub prefer: FetchKind,
 }
 ```
 
 When a session changes mode.
 
-### `SessionPolicy` methods
+### `EscalationPolicy` methods
 
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
 pub fn before_fetch(
         &self,
-        mode: Mode,
-        id: &StealthIdentity,
+        fetch_kind: FetchKind,
+        id: &Identity,
         site: &str,
-        st: Option<&DomainState>,
+        st: Option<&SiteRecord>,
         now: u64,
-    ) -> Transition
+    ) -> Escalation
 pub fn after_fetch(
         &self,
-        mode: Mode,
+        fetch_kind: FetchKind,
         d: &Detection,
-        a: &Action,
-        id: &StealthIdentity,
-    ) -> Transition
+        a: &Mitigation,
+        id: &Identity,
+    ) -> Escalation
 ```
 
 
 - `before_fetch`: Whether to change mode before fetching `site`. See the module documentation for the table.
 - `after_fetch`: Whether to change mode after the action chosen for `d` has been carried out. See the module documentation for the table.
 
-### `Transition`
+### `Escalation`
 
 <Badge color="blue" shape="pill">enum</Badge>
 
 ```rust
-pub enum Transition {
+pub enum Escalation {
     Stay,
     Escalate(EscalateReason),
     Demote(DemoteReason),
@@ -201,16 +201,16 @@ pub enum Transition {
 
 A change of mode, or none.
 
-### `Transition` methods
+### `Escalation` methods
 
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
-pub fn resulting_mode(self, current: Mode) -> Mode
+pub fn resulting_kind(self, current: FetchKind) -> FetchKind
 ```
 
 
-- `resulting_mode`: The mode a session in `current` is in after this transition.
+- `resulting_kind`: The mode a session in `current` is in after this transition.
 
 ### `EscalateReason`
 

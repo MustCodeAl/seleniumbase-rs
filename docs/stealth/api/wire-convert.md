@@ -1,10 +1,10 @@
 ---
-title: "mimic::convert"
+title: "wire::convert"
 sidebarTitle: "Convert"
 description: "Plain functions from the codec specs to wreq and BoringSSL options."
 ---
 
-<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: mimic</Badge>
+<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: wire</Badge>
 
 `convert` maps a codec spec onto what BoringSSL and wreq can emit. `tls_options`, `http2_options` and `wreq_headers` do the mapping. `check_emittable` reports a spec that cannot be sent. `ConvertError` names the gap. This module and `client` are the ones that name wreq types.
 
@@ -14,7 +14,7 @@ See [Wire formats](/stealth/advanced/wire-formats).
 
 ```rust Can this TLS spec be sent?
 use seleniumbase_rs_stealth::codec::TlsSpec;
-use seleniumbase_rs_stealth::mimic::convert::{check_emittable, ConvertError};
+use seleniumbase_rs_stealth::wire::convert::{check_emittable, ConvertError};
 
 fn can_send(spec: &TlsSpec) -> Result<(), ConvertError> {
     check_emittable(spec)
@@ -108,4 +108,4 @@ pub fn wreq_headers(
 
 ## Related
 
-The guide is [Wire formats](/stealth/advanced/wire-formats). The overview is [mimic](/stealth/api/mimic).
+The guide is [Wire formats](/stealth/advanced/wire-formats). The overview is [wire](/stealth/api/wire).

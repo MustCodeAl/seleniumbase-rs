@@ -6,7 +6,7 @@ description: "Challenge detection, interstitial markers and the mitigation polic
 
 <Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: scrape</Badge>
 
-`challenge` decides what a response is and what to do next. `detect` reads a `ResponseView` and returns a `Detection`. `markers` holds the interstitial strings. `mitigation` turns a detection and an attempt into an `Action`.
+`challenge` decides what a response is and what to do next. `detect` reads a `ResponseView` and returns a `Detection`. `markers` holds the interstitial strings. `mitigation` turns a detection and an attempt into a `Mitigation`.
 
 `BrowserScraper` calls this on every load. See [BrowserScraper](/scraping/stealthy/browser-scraper).
 
@@ -87,12 +87,12 @@ pub const MAX_RETRY_AFTER_SECS: u64 = 3600;
 
 ## `challenge::detect`
 
-### `Vendor`
+### `ProtectionVendor`
 
 <Badge color="blue" shape="pill">enum</Badge>
 
 ```rust
-pub enum Vendor {
+pub enum ProtectionVendor {
     Cloudflare,
     DataDome,
     PerimeterX,
@@ -125,13 +125,13 @@ pub enum ChallengeKind {
 
 What a response asks of the client.
 
-### `Evidence`
+### `ChallengeEvidence`
 
 <Badge color="blue" shape="pill">struct</Badge>
 
 ```rust
-pub struct Evidence {
-    pub vendor: Option<Vendor>,
+pub struct ChallengeEvidence {
+    pub vendor: Option<ProtectionVendor>,
     pub markers: Vec<&'static str>,
     pub widget: Option<Captcha>,
 }
@@ -146,7 +146,7 @@ What the scan found, kept with the verdict so a caller can log why.
 ```rust
 pub struct Detection {
     pub kind: ChallengeKind,
-    pub evidence: Evidence,
+    pub evidence: ChallengeEvidence,
 }
 ```
 
@@ -169,12 +169,12 @@ The parts of a response that detection reads.
 
 ## `challenge::mitigation`
 
-### `Mode`
+### `FetchKind`
 
 <Badge color="blue" shape="pill">enum</Badge>
 
 ```rust
-pub enum Mode {
+pub enum FetchKind {
     Browser,
     Http,
 }
@@ -189,9 +189,9 @@ How a request is being made.
 ```rust
 pub struct AttemptContext {
     pub attempt: u32,
-    pub mode: Mode,
+    pub fetch_kind: FetchKind,
     pub consecutive_challenges: u32,
-    pub can_rotate_egress: bool,
+    pub can_rotate_proxy: bool,
     pub can_escalate: bool,
     pub now: u64,
 }
@@ -199,12 +199,12 @@ pub struct AttemptContext {
 
 Where the fetch stands when a detection comes back.
 
-### `Action`
+### `Mitigation`
 
 <Badge color="blue" shape="pill">enum</Badge>
 
 ```rust
-pub enum Action {
+pub enum Mitigation {
     Proceed,
     Retry {
             /// How long to wait first.
@@ -212,8 +212,8 @@ pub enum Action {
         },
     Escalate,
     Solve,
-    RotateEgress,
-    RotateProfile,
+    RotateProxy,
+    RotateFingerprint,
     Cooldown {
             /// When the site may be tried again.
             until: u64,
@@ -246,8 +246,8 @@ Why the policy stopped.
 pub struct MitigationPolicy {
     pub max_challenge_attempts: u32,
     pub backoff: RetryPolicy,
-    pub rotate_egress_after: u32,
-    pub rotate_profile_after: u32,
+    pub rotate_proxy_after: u32,
+    pub rotate_fingerprint_after: u32,
     pub block_cooldown_secs: u64,
 }
 ```
@@ -259,7 +259,7 @@ The thresholds of the decision table.
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
-pub fn decide(&self, detection: &Detection, context: &AttemptContext) -> Action
+pub fn decide(&self, detection: &Detection, context: &AttemptContext) -> Mitigation
 ```
 
 
@@ -282,7 +282,7 @@ Decides what `view` asks of the client.
 <Badge color="green" shape="pill">function</Badge>
 
 ```rust
-pub fn clearance_cookie(vendor: Vendor) -> Option<&'static str>
+pub fn clearance_cookie(vendor: ProtectionVendor) -> Option<&'static str>
 ```
 
 The cookie that proves a vendor's challenge was passed, once it is set.

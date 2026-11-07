@@ -11,6 +11,11 @@ downloaded_files/
 .serena/
 __pycache__/
 
+# What GitLab CI keeps in the project folder for its cache: mise's folders (MISE_DATA_DIR) and
+# the cargo-audit of the supply-chain job
+/.mise/
+/.cargo-audit/
+
 # Left in the project directory by the local docker build wrapper
 slim.report.json
 .ai-bom.json

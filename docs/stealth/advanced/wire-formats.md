@@ -3,15 +3,15 @@ title: "Wire Formats and Impersonation"
 sidebarTitle: "Wire formats"
 ---
 
-Examples importing `seleniumbase_rs_stealth::mimic` require the facade's
-`mimic` feature. See the [single-dependency setup](/scraping/stealthy/overview#which-crate-to-depend-on);
+Examples importing `seleniumbase_rs_stealth::wire` require the facade's
+`wire` feature. See the [single-dependency setup](/scraping/stealthy/overview#which-crate-to-depend-on);
 this feature builds BoringSSL and needs cmake and a C/C++ toolchain.
 
 <Badge color="orange">Experimental</Badge>
 
 <Visibility for="agents">
 
-Summary for AI exports: every wire value comes from a capture tool and is stored as JSON in `crates/codec/src/measured`. Today the only entry is Chrome 155.0.8059.40 on macOS (captured 2026-10-11); any other system is refused with `NotMeasured`. `seleniumbase_rs_codec` parses the TLS `ClientHello`, JA3, JA4, peetprint and Akamai strings. `seleniumbase_rs_mimic` turns a measured `ImpersonationProfile` into a wreq client, and `ImpersonationProfile::custom()` layers your own inputs over it, refusing what BoringSSL and wreq cannot send.
+Summary for AI exports: every wire value comes from a capture tool and is stored as JSON in `crates/codec/src/measured`. Today the only entry is Chrome 155.0.8059.40 on macOS (captured 2026-10-11); any other system is refused with `NotMeasured`. `seleniumbase_rs_codec` parses the TLS `ClientHello`, JA3, JA4, peetprint and Akamai strings. `seleniumbase_rs_wire` turns a measured `WireFormat` into a wreq client, and `WireFormat::custom()` layers your own inputs over it, refusing what BoringSSL and wreq cannot send.
 
 </Visibility>
 
@@ -29,11 +29,11 @@ client hints, and where it came from:
 
 ```rust
 use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
-use seleniumbase_rs_stealth::codec::emulation::{self, EmulationError};
+use seleniumbase_rs_stealth::codec::measurement::{self, WireMeasurementError};
 use seleniumbase_rs_stealth::codec::BrowserKind;
 
-fn demo() -> Result<(), EmulationError> {
-    let chrome = emulation::get(BrowserKind::Chrome, OsType::Macos)?;
+fn demo() -> Result<(), WireMeasurementError> {
+    let chrome = measurement::get(BrowserKind::Chrome, OsType::Macos)?;
     assert_eq!(chrome.major, 155);
     println!("{} captured on {}", chrome.provenance.browser, chrome.provenance.captured_on);
     // The JA4 of the measured hello. The capture recorded t13d1517h2_8daaf6152771_cb7bf5808d99
@@ -41,16 +41,15 @@ fn demo() -> Result<(), EmulationError> {
     println!("{}", chrome.tls.ja4());
 
     // A system nobody measured is an error, never a nearby guess.
-    let windows = emulation::get(BrowserKind::Chrome, OsType::Windows);
-    assert!(matches!(windows, Err(EmulationError::NotMeasured { .. })));
+    let windows = measurement::get(BrowserKind::Chrome, OsType::Windows);
+    assert!(matches!(windows, Err(WireMeasurementError::NotMeasured { .. })));
     Ok(())
 }
 ```
 
-`EmulationError::NotMeasured { kind, os }` is the error the design plan calls
-`SpecError::NotMeasured`; `codec::emulation::SpecError` is an alias for
-`EmulationError`. The TLS and HTTP/2 refusals live in two other enums with the
-same name, `codec::tls_spec::SpecError` and `codec::h2_spec::SpecError`.
+`WireMeasurementError::NotMeasured { kind, os }` is the error the design plan calls
+`SpecError::NotMeasured`. The TLS and HTTP/2 refusals live in two other enums,
+`codec::tls_spec::TlsSpecError` and `codec::h2_spec::H2SpecError`.
 
 <Note>
 
@@ -65,14 +64,14 @@ and commits the result.
 
 The same rule shows up higher up:
 
-- `ImpersonationProfile::for_system(BrowserKind::Chrome, OsType::Windows)` and
-  `ImpersonationProfile::from_fingerprint` of a Windows `Fingerprint` return
-  `ImpersonateError::Emulation(EmulationError::NotMeasured { .. })`.
-- `ImpersonationProfile::from_fingerprint` of a fingerprint whose user agent
+- `WireFormat::for_system(BrowserKind::Chrome, OsType::Windows)` and
+  `WireFormat::from_fingerprint` of a Windows `Fingerprint` return
+  `WireFormatError::WireMeasurement(WireMeasurementError::NotMeasured { .. })`.
+- `WireFormat::from_fingerprint` of a fingerprint whose user agent
   claims another Chrome major than the measured one returns
-  `ImpersonateError::VersionMismatch`: Chrome 155's handshake under a Chrome 153
+  `WireFormatError::VersionMismatch`: Chrome 155's handshake under a Chrome 153
   user agent is a contradiction too.
-- `ImpersonationProfile::random(seed)` only draws from measured entries, and
+- `WireFormat::random(seed)` only draws from measured entries, and
   the identity it builds claims the measured major
   (`Fingerprint::randomized_with_major`).
 
@@ -108,7 +107,7 @@ Chrome of another version than the file it extends.
 ```text
 cargo run -p seleniumbase-rs-scrape      --example capture_tls
 cargo run -p seleniumbase-rs-scrape      --example capture_hints
-cargo run -p seleniumbase-rs-mimic --example capture_h2
+cargo run -p seleniumbase-rs-wire --example capture_h2
 ```
 
 - `capture_tls` points the browser at a loopback listener that records each
@@ -136,15 +135,15 @@ They share these options: `--out DIR` (default `crates/codec/src/measured`),
 
 <Step title="Register the new file" icon="file-code">
 
-Add the new file to the `SOURCES` list in `crates/codec/src/emulation.rs`. The test
-`crates/codec/tests/wire_emulation.rs` fails when a file in `crates/codec/src/measured` is missing
+Add the new file to the `SOURCES` list in `crates/codec/src/measurement.rs`. The test
+`crates/codec/tests/wire_measurement.rs` fails when a file in `crates/codec/src/measured` is missing
 from that list.
 
 </Step>
 
 <Step title="Run the wire tests" icon="flask">
 
-Run the wire tests, including `crates/mimic/tests/impersonate_wire.rs`. They compare what
+Run the wire tests, including `crates/wire/tests/impersonate_wire.rs`. They compare what
 our client sends with the measured file and fail, by name, when a known gap
 closes or a new difference appears.
 
@@ -205,24 +204,24 @@ Compare JA4 when you compare a browser with a client.
 
 The spec types sit on top of the parsers. A `TlsSpec`
 (`TlsSpec::from_client_hello`) is the whole TLS profile as plain data, and an
-`H2Spec` (alias `Http2Spec`; `H2Spec::from_capture`, `H2Spec::from_akamai`) is
+`H2Spec` (alias `H2Spec`; `H2Spec::from_capture`, `H2Spec::from_akamai`) is
 the HTTP/2 start. Each has `check_reproducible()`, which says whether the
 BoringSSL and wreq stack can send it, and names what it cannot.
 
 ## An impersonating client
 
-The `mimic` crate turns a measured profile into a wreq client:
+The `wire` crate turns a measured profile into a wreq client:
 
 ```rust
-use seleniumbase_rs_stealth::mimic::client::{
-    impersonation_client, ImpersonationProfile, WireProtocol,
+use seleniumbase_rs_stealth::wire::client::{
+    WireFormat::client_builder, WireFormat, WireProtocol,
 };
 use seleniumbase_rs_stealth::codec::header_spec::RequestShape;
 use seleniumbase_rs_stealth::codec::BrowserKind;
 
 async fn demo() -> Result<(), Box<dyn std::error::Error>> {
-    let profile = ImpersonationProfile::measured(BrowserKind::Chrome)?;
-    let client = impersonation_client(&profile)?.build()?;
+    let profile = WireFormat::measured(BrowserKind::Chrome)?;
+    let client = profile.client_builder()?.build()?;
 
     let request = client.get("https://example.com/");
     let request = profile.apply(request, RequestShape::Document, None, WireProtocol::Http2)?;
@@ -232,7 +231,7 @@ async fn demo() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-- `impersonation_client` returns a `wreq::ClientBuilder` with the profile's
+- `WireFormat::client_builder` returns a `wreq::ClientBuilder` with the profile's
   `ClientHello`, HTTP/2 start and default headers. You add proxies, timeouts and
   a trust store, then build. Certificate verification stays on: trust a private
   root with `tls_cert_store`, never by turning verification off.
@@ -249,24 +248,24 @@ async fn demo() -> Result<(), Box<dyn std::error::Error>> {
 - Cookies, redirects, body limits and the hand-over from a browser are not part
   of this client. That is what [`HttpSession`](/scraping/stealthy/http-session) is for.
 
-Other ways to get a profile: `ImpersonationProfile::for_system(kind, os)`,
-`ImpersonationProfile::from_fingerprint(&fp)` (a Chromium identity that claims
-the measured major), `ImpersonationProfile::random(seed)`, and
+Other ways to get a profile: `WireFormat::for_system(kind, os)`,
+`WireFormat::from_fingerprint(&fp)` (a Chromium identity that claims
+the measured major), `WireFormat::random(seed)`, and
 `.with_locale(&locale)` to change the `Accept-Language`.
 
 ## Custom inputs
 
-Every part of a profile can be supplied by the caller. `CustomProfileBuilder`
+Every part of a profile can be supplied by the caller. `WireFormatBuilder`
 starts from the newest measured Chrome (or `base`/`base_on` another measured
 entry) and layers your inputs over it. What an input does not carry comes from
 the base: a JA3 has no signature algorithms, an Akamai string has no HEADERS
 priority, a header list has no TLS.
 
 ```rust
-use seleniumbase_rs_stealth::mimic::client::ImpersonationProfile;
+use seleniumbase_rs_stealth::wire::client::WireFormat;
 
 fn demo() -> Result<(), Box<dyn std::error::Error>> {
-    let profile = ImpersonationProfile::custom()
+    let profile = WireFormat::custom()
         .akamai("1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p")?
         .user_agent("Mozilla/5.0 (custom)")
         .accept_language("de-DE,de;q=0.9")
@@ -297,9 +296,9 @@ client exists.
 
 BoringSSL and wreq cannot emit everything a browser can. Anything they cannot
 reproduce is refused with a named error before a client exists, and
-`crates/mimic/tests/impersonate_wire.rs` proves on the wire that an accepted input arrives as
-given. The errors are variants of `ImpersonateError`: `Tls(..)` wraps
-`codec::tls_spec::SpecError`, `Http2(..)` wraps `codec::h2_spec::SpecError`,
+`crates/wire/tests/impersonate_wire.rs` proves on the wire that an accepted input arrives as
+given. The errors are variants of `WireFormatError`: `Tls(..)` wraps
+`codec::tls_spec::TlsSpecError`, `Http2(..)` wraps `codec::h2_spec::H2SpecError`,
 `Convert(..)` wraps the rules that belong to the client stack itself. A string that
 is not well formed at all is `Ja3(..)`, `Ja4(..)`, `Peetprint(..)` or `Akamai(..)`.
 
@@ -318,20 +317,20 @@ For example, a JA3 that adds `trust_anchors` and a signature algorithm BoringSSL
 cannot write:
 
 ```rust
-use seleniumbase_rs_stealth::mimic::client::{ImpersonateError, ImpersonationProfile};
-use seleniumbase_rs_stealth::codec::tls_spec::SpecError;
+use seleniumbase_rs_stealth::wire::client::{WireFormatError, WireFormat};
+use seleniumbase_rs_stealth::codec::tls_spec::TlsSpecError;
 
 fn demo(ja3_with_trust_anchors: &str) {
-    let refused = ImpersonationProfile::custom().ja3(ja3_with_trust_anchors);
+    let refused = WireFormat::custom().ja3(ja3_with_trust_anchors);
     assert!(matches!(
         refused,
-        Err(ImpersonateError::Tls(SpecError::UnsupportedExtension { id: 0xCA34, .. }))
+        Err(WireFormatError::Tls(TlsSpecError::UnsupportedExtension { id: 0xCA34, .. }))
     ));
 
-    let refused = ImpersonationProfile::custom().signature_algorithms(&[0x0904]);
+    let refused = WireFormat::custom().signature_algorithms(&[0x0904]);
     assert!(matches!(
         refused,
-        Err(ImpersonateError::Tls(SpecError::UnsupportedSigalg { id: 0x0904, .. }))
+        Err(WireFormatError::Tls(TlsSpecError::UnsupportedSigalg { id: 0x0904, .. }))
     ));
 }
 ```
@@ -347,12 +346,12 @@ fingerprint from the one you named.
 ## Where these types live
 
 The parsers and the measured table are `seleniumbase_rs_stealth::codec`, on by
-default. `ImpersonationProfile`, `CustomProfileBuilder` and
-`impersonation_client` are re-exported at `seleniumbase_rs_stealth::mimic`, which
-needs `features = ["mimic"]`. The module paths used above
-(`mimic::client`, `codec::tls_spec`) are the same types. The item pages are
-[codec](/stealth/api/codec), [Emulation](/stealth/api/codec-emulation),
-[TlsSpec](/stealth/api/codec-tls-spec) and [mimic](/stealth/api/mimic).
+default. `WireFormat`, `WireFormatBuilder` and
+`WireFormat::client_builder` are re-exported at `seleniumbase_rs_stealth::wire`, which
+needs `features = ["wire"]`. The module paths used above
+(`wire::client`, `codec::tls_spec`) are the same types. The item pages are
+[codec](/stealth/api/codec), [WireMeasurement](/stealth/api/codec-measurement),
+[TlsSpec](/stealth/api/codec-tls-spec) and [wire](/stealth/api/wire).
 
 <Columns cols={2}>
 

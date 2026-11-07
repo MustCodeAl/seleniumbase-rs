@@ -133,6 +133,35 @@ async fn json_output_parses() {
 }
 
 #[tokio::test]
+async fn the_database_variable_is_read_trimmed_and_a_blank_one_is_unset() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("results.db");
+    database(&db).await;
+
+    let padded = Command::new(SBASE)
+        .args(["report", "history"])
+        .env("SB_REPORT_DB", format!(" {} ", db.display()))
+        .output()
+        .unwrap();
+    assert!(padded.status.success(), "{}", err(&padded));
+    assert!(out(&padded).contains("nightly"));
+
+    // A blank variable is not set: the default path is looked for, not an empty one.
+    let blank = Command::new(SBASE)
+        .args(["report", "history"])
+        .current_dir(dir.path())
+        .env("SB_REPORT_DB", "  ")
+        .output()
+        .unwrap();
+    assert!(!blank.status.success());
+    assert!(
+        err(&blank).contains("reports/results.db"),
+        "{}",
+        err(&blank)
+    );
+}
+
+#[tokio::test]
 async fn the_database_can_come_from_the_environment() {
     let dir = tempfile::tempdir().unwrap();
     let db = dir.path().join("results.db");

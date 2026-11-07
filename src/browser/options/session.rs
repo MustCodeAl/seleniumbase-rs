@@ -45,7 +45,7 @@ const DEFAULT_GRID_PORT: u16 = 4444;
 /// # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 /// ```
 #[derive(Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct GridSettings {
     /// The Grid's host name, which may carry a scheme, a login, a port and a path
     /// (`--server`, `SB_SERVER`).
@@ -107,7 +107,7 @@ impl fmt::Debug for GridSettings {
 /// Every field has a default that changes nothing; the default session is the one a
 /// `BrowserConfig::default()` starts.
 #[derive(Clone, Deserialize, PartialEq, Serialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct SessionSettings {
     /// How the browser is driven: WebDriver, DevTools without a driver binary, or the
     /// undetected mode (`--cdp`, `--uc`, `SB_MODE`). `None` when no mode was asked for, which

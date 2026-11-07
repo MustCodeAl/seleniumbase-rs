@@ -717,7 +717,7 @@ See [Public items of the crate root](/api/crate-root).
 
 <Badge color="red">Network</Badge>
 
-The exit address a request leaves through: one of your proxies, or the direct connection. Changing it (`rotate_egress`) opens a new browser context behind the new proxy and drops the old one with its cookies, because a [clearance](#clearance) belongs to the address that earned it.
+The exit address a request leaves through: one of your proxies, or the direct connection. Changing it (`rotate_proxy`) opens a new browser context behind the new proxy and drops the old one with its cookies, because a [clearance](#clearance) belongs to the address that earned it.
 
 See [BrowserScraper](/scraping/stealthy/browser-scraper#egress-and-the-profile).
 
@@ -941,7 +941,7 @@ See [Modern web technologies](/concepts/modern-web#single-page-apps-and-framewor
 
 <Badge color="purple">Stealth</Badge>
 
-What a session presents to a site. In the stealth crates a `StealthIdentity` holds the [Fingerprint](#fingerprint), a reference to the measured browser, the cookies it earned, its [clearances](#clearance) and the [egress](#egress) they were earned through; it never holds a proxy, and its file is private. In the fingerprint pages, an identity is also a whole Fingerprint drawn for one seed.
+What a session presents to a site. In the stealth crates an `Identity` holds the [Fingerprint](#fingerprint), a reference to the measured browser, the cookies it earned, its [clearances](#clearance) and the [egress](#egress) they were earned through; it never holds a proxy, and its file is private. In the fingerprint pages, an identity is also a whole Fingerprint drawn for one seed.
 
 See [Cookies, Identity and Challenges](/scraping/advanced-stealthy/identity#identity-session-policy-and-the-identity-file).
 
@@ -949,7 +949,7 @@ See [Cookies, Identity and Challenges](/scraping/advanced-stealthy/identity#iden
 
 <Badge color="red">Network</Badge>
 
-Making a client send the same TLS handshake, HTTP/2 start and headers as a [measured](#measured-profile) browser, so a site sees that browser's [wire fingerprint](#wire-fingerprint). The `mimic` crate does it with a wreq client, and only Chrome 155 on macOS is measured today.
+Making a client send the same TLS handshake, HTTP/2 start and headers as a [measured](#measured-profile) browser, so a site sees that browser's [wire fingerprint](#wire-fingerprint). The `wire` crate does it with a wreq client, and only Chrome 155 on macOS is measured today.
 
 See [Wire Formats and Impersonation](/stealth/advanced/wire-formats#an-impersonating-client).
 
@@ -1195,7 +1195,7 @@ See [What happens to your code](/concepts/bundling-and-caching#what-happens-to-y
 
 <Badge color="red">Network</Badge>
 
-A loopback forward proxy in the experimental `mimic` crate. It ends a real Chrome's TLS with a certificate from an [ephemeral CA](#ephemeral-ca) and replays each request through the impersonating client, so the site sees the measured handshake instead of Chrome's own.
+A loopback forward proxy in the experimental `wire` crate. It ends a real Chrome's TLS with a certificate from an [ephemeral CA](#ephemeral-ca) and replays each request through the impersonating client, so the site sees the measured handshake instead of Chrome's own.
 
 See [TLS Server and MitmProxy](/stealth/advanced/mitm-proxy#mitmproxy).
 
@@ -1669,7 +1669,7 @@ See [Deployment](/deployment#selenium-grid).
 
 <Badge color="purple">Stealth</Badge>
 
-The separate, experimental repository that holds the TLS and HTTP/2 layer as three crates: `codec` (wire formats), `scrape` ([BrowserScraper](#browserscraper), identity, challenge detection) and `mimic` ([HttpSession](#httpsession), [MitmProxy](#mitmproxy), [StealthSession](#stealthsession)). It left this crate in 0.3.0.
+The separate, experimental repository that holds the TLS and HTTP/2 layer as three crates: `codec` (wire formats), `scrape` ([BrowserScraper](#browserscraper), identity, challenge detection) and `wire` ([HttpSession](#httpsession), [MitmProxy](#mitmproxy), [StealthSession](#stealthsession)). It left this crate in 0.3.0.
 
 See [Stealth Scraping](/scraping/stealthy/overview).
 
@@ -1845,7 +1845,7 @@ See [Fingerprint & Stealth Profiles](/stealth/policies).
 
 <Badge color="purple">Stealth</Badge>
 
-A session in the experimental `mimic` crate that presents one identity in two modes: plain HTTP through an [HttpSession](#httpsession), or a real Chrome behind a [MitmProxy](#mitmproxy). When a challenge appears in HTTP mode it moves to the browser, solves it there, and returns to HTTP with the clearance.
+A session in the experimental `wire` crate that presents one identity in two modes: plain HTTP through an [HttpSession](#httpsession), or a real Chrome behind a [MitmProxy](#mitmproxy). When a challenge appears in HTTP mode it moves to the browser, solves it there, and returns to HTTP with the clearance.
 
 See [StealthSession](/scraping/advanced-stealthy/stealth-session).
 

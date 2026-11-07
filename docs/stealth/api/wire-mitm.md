@@ -1,19 +1,19 @@
 ---
-title: "mimic::mitm"
+title: "wire::mitm"
 sidebarTitle: "MITM proxy"
 description: "MitmProxy: a loopback proxy that replays Chrome's requests with the measured handshake."
 ---
 
-<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: mimic</Badge>
+<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: wire</Badge>
 
 `MitmProxy` binds on loopback, ends Chrome's TLS with a leaf of an in-memory CA, and replays each request through the impersonating client. It requires a random proxy token, refuses destinations it will not intercept, and never tunnels blind.
 
-The guide is [MITM proxy](/stealth/advanced/mitm-proxy). The CA is [TLS server](/stealth/api/mimic-tls-server).
+The guide is [MITM proxy](/stealth/advanced/mitm-proxy). The CA is [TLS server](/stealth/api/wire-tls-server).
 
 <RequestExample>
 
 ```rust Options for the loopback proxy
-use seleniumbase_rs_stealth::mimic::MitmOptions;
+use seleniumbase_rs_stealth::wire::MitmOptions;
 
 fn main() {
     let options = MitmOptions::default();
@@ -122,7 +122,7 @@ pub enum MitmError {
     Tls(#[from] TlsServerError),
     InvalidOptions(&'static str),
     Random,
-    Upstream(#[from] ImpersonateError),
+    Upstream(#[from] WireFormatError),
     Egress(&'static str),
     Unauthorized,
     BadTarget(&'static str),
@@ -186,8 +186,8 @@ A loopback MITM proxy for one Chrome profile.
 
 ```rust
 pub async fn start(
-        profile: ImpersonationProfile,
-        egress: Option<EgressRef>,
+        profile: WireFormat,
+        egress: Option<ProxyRoute>,
         options: MitmOptions,
         sink: Arc<dyn EventSink>,
     ) -> Result<Self, MitmError>
@@ -199,9 +199,9 @@ pub fn browser_proxy(&self) -> Proxy
 pub fn chrome_args(&self) -> Vec<String>
 pub fn configure_launch(&self, options: LaunchOptions) -> Result<LaunchOptions, SeleniumBaseError>
 pub fn stats(&self) -> MitmStats
-pub fn egress(&self) -> Option<EgressKey>
-pub fn swap_upstream(&self, egress: Option<EgressRef>) -> Result<(), MitmError>
-pub fn swap_profile(&self, profile: ImpersonationProfile) -> Result<(), MitmError>
+pub fn egress(&self) -> Option<ProxyKey>
+pub fn swap_upstream(&self, egress: Option<ProxyRoute>) -> Result<(), MitmError>
+pub fn swap_wire_format(&self, profile: WireFormat) -> Result<(), MitmError>
 pub async fn shutdown(self, grace: Duration)
 ```
 
@@ -217,9 +217,9 @@ pub async fn shutdown(self, grace: Duration)
 - `stats`: The counts so far.
 - `egress`: The egress requests leave through now, `None` for a direct connection.
 - `swap_upstream`: Sends the next requests through `egress` (or directly with `None`).
-- `swap_profile`: Sends the next requests with `profile`'s fingerprint, through the same egress.
+- `swap_wire_format`: Sends the next requests with `profile`'s fingerprint, through the same egress.
 - `shutdown`: Stops accepting, lets requests under way finish for up to `grace`, then aborts what is left. Every clone stops with it.
 
 ## Related
 
-The guide is [MITM proxy](/stealth/advanced/mitm-proxy). The overview is [mimic](/stealth/api/mimic).
+The guide is [MITM proxy](/stealth/advanced/mitm-proxy). The overview is [wire](/stealth/api/wire).

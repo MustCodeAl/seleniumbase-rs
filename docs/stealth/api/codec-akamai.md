@@ -1,7 +1,7 @@
 ---
 title: "codec::akamai"
 sidebarTitle: "Akamai"
-description: "Akamai HTTP/2 fingerprint strings in seleniumbase-rs-codec: Akamai, PriorityFrame, Pseudo, AkamaiError and the bounds of the parser."
+description: "Akamai HTTP/2 fingerprint strings in seleniumbase-rs-codec: Akamai, PriorityFrame, PseudoHeader, AkamaiError and the bounds of the parser."
 ---
 
 <Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: codec</Badge>
@@ -30,7 +30,7 @@ given client stack can emit is a separate question, answered by
 <RequestExample>
 
 ```rust Parse the measured Chrome string
-use seleniumbase_rs_stealth::codec::akamai::{Akamai, Pseudo};
+use seleniumbase_rs_stealth::codec::akamai::{Akamai, PseudoHeader};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // The Akamai string measured from Chrome 155 on macOS.
@@ -38,7 +38,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(akamai.settings, vec![(1, 65536), (2, 0), (4, 6_291_456), (6, 262_144)]);
     assert_eq!(akamai.window_update, 15_663_105);
     assert!(akamai.priority_frames.is_empty());
-    assert_eq!(akamai.pseudo_order, Pseudo::ALL);
+    assert_eq!(akamai.pseudo_order, PseudoHeader::ALL);
     println!("{akamai}");
     Ok(())
 }
@@ -71,7 +71,7 @@ pub struct Akamai {
     pub settings: Vec<(u16, u32)>,
     pub window_update: u32,
     pub priority_frames: Vec<PriorityFrame>,
-    pub pseudo_order: [Pseudo; 4],
+    pub pseudo_order: [PseudoHeader; 4],
 }
 ```
 
@@ -98,7 +98,7 @@ PRIORITY frames in the order they were sent.
 
 </ResponseField>
 
-<ResponseField name="pseudo_order" type="[Pseudo; 4]">
+<ResponseField name="pseudo_order" type="[PseudoHeader; 4]">
 
 The order of the four request pseudo-headers.
 
@@ -157,22 +157,22 @@ The protocol weight, 1 to 256 (the wire byte plus one).
 
 </ResponseField>
 
-## `Pseudo`
+## `PseudoHeader`
 
 <Badge color="purple" shape="pill">enum</Badge>
 
 ```rust
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum Pseudo {
+pub enum PseudoHeader {
     Method,
     Authority,
     Scheme,
     Path,
 }
 
-impl Pseudo {
-    pub const ALL: [Pseudo; 4] = [Pseudo::Method, Pseudo::Authority, Pseudo::Scheme, Pseudo::Path];
+impl PseudoHeader {
+    pub const ALL: [PseudoHeader; 4] = [PseudoHeader::Method, PseudoHeader::Authority, PseudoHeader::Scheme, PseudoHeader::Path];
     pub const fn letter(self) -> char;
     pub const fn header_name(self) -> &'static str;
     pub fn from_letter(letter: char) -> Option<Self>;
@@ -185,7 +185,7 @@ complete set of pseudo-headers of a plain request, so the enum is not
 `non_exhaustive`: a pseudo-header order is a permutation of exactly these four.
 In JSON it is written in lower case (`"method"`, `"authority"`, ...).
 
-<ResponseField name="Pseudo" type="enum">
+<ResponseField name="PseudoHeader" type="enum">
 
 <Expandable title="variants" defaultOpen>
 

@@ -6,17 +6,17 @@ description: "Per-site state, event sinks and the events a scraper reports."
 
 <Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: scrape</Badge>
 
-`ledger` is the memory of a scrape. `state` keeps what each site has done behind `StateStore`. `events` is what the scraper reports, with URLs and proxies already redacted, behind `EventSink`.
+`ledger` is the memory of a scrape. `state` keeps what each site has done behind `Ledger`. `events` is what the scraper reports, with URLs and proxies already redacted, behind `EventSink`.
 
 See [BrowserScraper](/scraping/stealthy/browser-scraper).
 
 <RequestExample>
 
 ```rust The in-memory store
-use seleniumbase_rs_stealth::scrape::InMemoryStateStore;
+use seleniumbase_rs_stealth::scrape::InMemoryLedger;
 
 fn main() {
-    let _store = InMemoryStateStore::new();
+    let _store = InMemoryLedger::new();
 }
 ```
 
@@ -39,19 +39,19 @@ pub const MAX_STATE_SITES: usize = 10_000;
 
 ## `ledger::events`
 
-### `ScraperEvent`
+### `ScrapeEvent`
 
 <Badge color="blue" shape="pill">enum</Badge>
 
 ```rust
-pub enum ScraperEvent {
+pub enum ScrapeEvent {
     Request {
             /// The URL requested, redacted.
             url: RedactedUrl,
             /// The HTTP status of the answer.
             status: u16,
             /// How the request was made.
-            mode: Mode,
+            fetch_kind: FetchKind,
             /// How long it took, in milliseconds.
             elapsed_ms: u64,
         },
@@ -61,9 +61,9 @@ pub enum ScraperEvent {
             /// What the answer asked for.
             kind: ChallengeKind,
             /// The vendor behind it, when known.
-            vendor: Option<Vendor>,
+            vendor: Option<ProtectionVendor>,
             /// How the request was made.
-            mode: Mode,
+            fetch_kind: FetchKind,
         },
     ChallengeSolved {
             /// The URL requested, redacted.
@@ -79,21 +79,21 @@ pub enum ScraperEvent {
             /// The site the decision is about.
             site: String,
             /// What was chosen.
-            action: Action,
+            action: Mitigation,
         },
-    ModeChanged {
+    FetchKindChanged {
             /// The mode it left.
-            from: Mode,
+            from: FetchKind,
             /// The mode it entered.
-            to: Mode,
+            to: FetchKind,
             /// Why.
-            reason: Transition,
+            reason: Escalation,
         },
     EgressRotated {
             /// The egress it left, `None` for the direct connection.
-            from: Option<EgressKey>,
+            from: Option<ProxyKey>,
             /// The egress it entered, `None` for the direct connection.
-            to: Option<EgressKey>,
+            to: Option<ProxyKey>,
         },
     ProfileRotated {
             /// The noise seed of the profile it left.
@@ -126,7 +126,7 @@ pub enum ScraperEvent {
 
 Something a scrape did or decided, with nothing secret in it.
 
-### `ScraperEvent` methods
+### `ScrapeEvent` methods
 
 <Badge color="yellow" shape="pill">method</Badge>
 
@@ -152,7 +152,7 @@ Where scraper events go.
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
-fn emit(&self, event: &ScraperEvent)
+fn emit(&self, event: &ScrapeEvent)
 ```
 
 
@@ -184,8 +184,8 @@ A sink that keeps the newest [`MAX_COLLECTED_EVENTS`] events, for tests and shor
 
 ```rust
 pub fn new() -> Self
-pub fn events(&self) -> Vec<ScraperEvent>
-pub fn take(&self) -> Vec<ScraperEvent>
+pub fn events(&self) -> Vec<ScrapeEvent>
+pub fn take(&self) -> Vec<ScrapeEvent>
 pub fn len(&self) -> usize
 pub fn is_empty(&self) -> bool
 ```
@@ -199,12 +199,12 @@ pub fn is_empty(&self) -> bool
 
 ## `ledger::state`
 
-### `DomainState`
+### `SiteRecord`
 
 <Badge color="blue" shape="pill">struct</Badge>
 
 ```rust
-pub struct DomainState {
+pub struct SiteRecord {
     pub site: String,
     pub successes: u64,
     pub challenges: u64,
@@ -213,20 +213,20 @@ pub struct DomainState {
     pub last_challenge: Option<ChallengeKind>,
     pub last_seen: u64,
     pub cooldown_until: Option<u64>,
-    pub preferred_mode: Option<Mode>,
-    pub last_egress: Option<EgressKey>,
+    pub preferred_kind: Option<FetchKind>,
+    pub last_egress: Option<ProxyKey>,
 }
 ```
 
 What is known about one site: how it has answered, and how it should be approached next. `site` is the key; callers pass the registrable domain.
 
-### `DomainState` methods
+### `SiteRecord` methods
 
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
 pub fn new(site: impl Into<String>) -> Self
-pub fn record(&mut self, detection: &Detection, mode: Mode, now: u64)
+pub fn record(&mut self, detection: &Detection, fetch_kind: FetchKind, now: u64)
 pub fn start_cooldown(&mut self, until: u64)
 pub fn in_cooldown(&self, now: u64) -> bool
 ```
@@ -269,23 +269,23 @@ pub enum StateError {
 
 Why a state store failed.
 
-### `StateStore`
+### `Ledger`
 
 <Badge color="blue" shape="pill">trait</Badge>
 
 ```rust
-pub trait StateStore
+pub trait Ledger
 ```
 
 Where per-site state lives between requests.
 
-### `StateStore` methods
+### `Ledger` methods
 
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
-async fn get(&self, site: &str) -> Result<Option<DomainState>, StateError>
-async fn put(&self, state: DomainState) -> Result<(), StateError>
+async fn get(&self, site: &str) -> Result<Option<SiteRecord>, StateError>
+async fn put(&self, state: SiteRecord) -> Result<(), StateError>
 async fn remove(&self, site: &str) -> Result<(), StateError>
 async fn sites(&self) -> Result<Vec<String>, StateError>
 ```
@@ -296,17 +296,17 @@ async fn sites(&self) -> Result<Vec<String>, StateError>
 - `remove`: Forgets `site`. Forgetting a site that is not there is not an error.
 - `sites`: Every site that has state, in order.
 
-### `InMemoryStateStore`
+### `InMemoryLedger`
 
 <Badge color="blue" shape="pill">struct</Badge>
 
 ```rust
-pub struct InMemoryStateStore
+pub struct InMemoryLedger
 ```
 
 A store that keeps everything in memory, behind an `Arc`, so that clones share it.
 
-### `InMemoryStateStore` methods
+### `InMemoryLedger` methods
 
 <Badge color="yellow" shape="pill">method</Badge>
 

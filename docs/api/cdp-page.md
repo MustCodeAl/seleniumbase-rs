@@ -91,7 +91,9 @@ There is no public method that switches into a frame, and none that accepts or d
 
 `solve_captcha_with(options)` is the same and returns `Option<Solved>`: the widget, how many presses, the `Evidence` that it cleared (`Token`, `Marker`, `Cookie`, `Navigated`, `WidgetState`, `WidgetGone`) or `None` when that cannot be seen, and the elapsed `Duration`.
 
-`SolveOptions::new()` is the default (up to three presses). `locate_timeout`, `settle`, `verify_timeout`, `attempts`, `backoff`, `success_marker` and `behavior` each return a new options value. `attempts_allowed` is at least one.
+`SolveOptions::new()` is the default (up to three presses in one round). `locate_timeout`, `interstitial_timeout`, `settle`, `verify_timeout`, `attempts`, `backoff`, `retry_policy`, `rounds`, `cooldown`, `rotate_proxy_after`, `rotate_fingerprint_after`, `clearance_cookie`, `success_marker` and `behavior` each return a new options value. `attempts_allowed` and `rounds_allowed` are at least one; `cooldown_between_rounds` is the wait between rounds; `proxy_rotation_due(failed_rounds)` and `fingerprint_rotation_due(failed_rounds)` say whether a rotation is due after that many rounds in a row without a result. The solver applies `rounds`, `cooldown` and `clearance_cookie` itself; a `Page` has no proxy list and cannot change its fingerprint, so `rotate_proxy_after` and `rotate_fingerprint_after` only carry the setting for the layer that owns them. `Solved::rounds` is how many rounds the call made.
+
+A challenge page that shows no widget (an interstitial such as "Just a moment...") is waited out for `interstitial_timeout` (20 s by default) before the page that is left is looked at for a widget; a reading that fails while the page is being replaced is read again, and any other failed reading is an error at once. A page that is still a challenge page when the time is up (at most `locate_timeout` and `interstitial_timeout` together) fails with `SeleniumBaseError::WaitTimeout` rather than answering `None`.
 
 ## Messenger, fingerprint, WebRTC, breakpoint
 

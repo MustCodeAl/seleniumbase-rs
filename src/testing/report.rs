@@ -147,11 +147,7 @@ mod s3 {
     }
 
     pub(super) fn finalizer(folder: &Path, id: &str) -> Option<Arc<dyn Finalizer>> {
-        let var = |name: &str| {
-            std::env::var(name)
-                .ok()
-                .filter(|value| !value.trim().is_empty())
-        };
+        let var = crate::config::env_vars::text;
         let Some(bucket) = var("SB_S3_BUCKET") else {
             tracing::warn!("SB_WITH_S3_LOGGING is on, but SB_S3_BUCKET names no bucket");
             return None;

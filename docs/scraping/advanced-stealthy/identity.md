@@ -47,22 +47,22 @@ between runs.
 
 ## Identity, session policy and the identity file
 
-A `StealthIdentity` (`scrape::passport::identity`) is what a scrape session
+An `Identity` (`scrape::passport::identity`) is what a scrape session
 presents to a site: the `Fingerprint`, a reference to the measured browser its
-wire behaviour comes from (`EmulationRef`), the cookies it earned, the client
+wire behaviour comes from (`WireMeasurementRef`), the cookies it earned, the client
 hints each origin asked for, the clearances found in the jar, and the egress
 those cookies were earned through.
 
 ```rust
-use seleniumbase_rs_stealth::scrape::passport::identity::{EmulationRef, StealthIdentity};
+use seleniumbase_rs_stealth::scrape::passport::identity::{WireMeasurementRef, Identity};
 use seleniumbase_rs_stealth::scrape::runtime::identity_file;
 use seleniumbase_rs_stealth::evasion::fingerprint::{Fingerprint, OsType};
 use seleniumbase_rs_stealth::codec::BrowserKind;
 
 async fn demo(now: u64) -> Result<(), Box<dyn std::error::Error>> {
     let fingerprint = Fingerprint::randomized_with_major(OsType::Macos, 7, 155);
-    let emulation = EmulationRef { kind: BrowserKind::Chrome, major: 155, os: OsType::Macos };
-    let identity = StealthIdentity::new(fingerprint, emulation, None, now)?;
+    let emulation = WireMeasurementRef { kind: BrowserKind::Chrome, major: 155, os: OsType::Macos };
+    let identity = Identity::new(fingerprint, emulation, None, now)?;
 
     identity_file::save("identity.json", &identity).await?;
     let again = identity_file::load("identity.json").await?;
@@ -79,8 +79,8 @@ Things to know:
 
 A clearance cookie is
 bound to the exit address, so an identity is used again only through the same
-egress. `check_egress` returns `IdentityError::EgressMismatch` for any other.
-`check_emulation` refuses an identity made for another Chrome major than the
+egress. `check_proxy` returns `IdentityError::ProxyMismatch` for any other.
+`check_wire_measurement` refuses an identity made for another Chrome major than the
 measured one.
 
 </Accordion>
@@ -88,7 +88,7 @@ measured one.
 <Accordion title="It never holds a proxy" icon="shield">
 
 A proxy can carry a password, so
-`StealthIdentity::new` clears it, serialization leaves it out, and `verify`
+`Identity::new` clears it, serialization leaves it out, and `verify`
 refuses an identity that has one. `Debug` prints the cookie count and the
 egress key only. A clearance records the cookie's name, never its value.
 
@@ -112,29 +112,29 @@ lock between processes. On systems other than Unix there is no mode to check.
 
 </AccordionGroup>
 
-`SessionPolicy` (`scrape::passport::policy`) decides when a session should move
+`EscalationPolicy` (`scrape::passport::policy`) decides when a session should move
 between plain HTTP and the browser, as a pure function of the mode, the identity,
 the site's state and the time:
 
 ```rust
-use seleniumbase_rs_stealth::scrape::challenge::mitigation::Mode;
-use seleniumbase_rs_stealth::scrape::passport::identity::StealthIdentity;
-use seleniumbase_rs_stealth::scrape::passport::policy::{SessionPolicy, Transition};
+use seleniumbase_rs_stealth::scrape::challenge::mitigation::FetchKind;
+use seleniumbase_rs_stealth::scrape::passport::identity::Identity;
+use seleniumbase_rs_stealth::scrape::passport::policy::{EscalationPolicy, Escalation};
 
-fn demo(identity: &StealthIdentity, now: u64) {
-    let policy = SessionPolicy {
+fn demo(identity: &Identity, now: u64) {
+    let policy = EscalationPolicy {
         require_clearance_for_http: true,
-        ..SessionPolicy::default()
+        ..EscalationPolicy::default()
     };
     // An HTTP session whose identity holds no clearance for the site goes to the browser.
-    let step = policy.before_fetch(Mode::Http, identity, "example.com", None, now);
-    assert!(matches!(step, Transition::Escalate(_)));
+    let step = policy.before_fetch(FetchKind::Http, identity, "example.com", None, now);
+    assert!(matches!(step, Escalation::Escalate(_)));
 }
 ```
 
 The defaults are a margin of 120 seconds before a clearance expires, demotion
 back to HTTP after a solve, and a preference for HTTP. `after_fetch` turns an
-`Action::Escalate` seen in HTTP mode into an escalation and a solved challenge in
+`Mitigation::Escalate` seen in HTTP mode into an escalation and a solved challenge in
 the browser into a demotion when the identity now holds a clearance. The tables
 are in the module documentation. `BrowserScraper` stays in the browser and never
 applies them. [`HttpSession`](/scraping/stealthy/http-session) offers `preflight` and `assess` for a
@@ -147,12 +147,12 @@ flowchart LR
   B -- "Demote after a solve, once the identity holds a clearance" --> H
 ```
 
-*How SessionPolicy moves a session*
+*How EscalationPolicy moves a session*
 
 ## Challenge detection and mitigation
 
 `scrape::challenge::detect::detect` reads a `ResponseView` (URL, status, headers,
-body) and returns a `Detection`: a `ChallengeKind` and the `Evidence` behind it.
+body) and returns a `Detection`: a `ChallengeKind` and the `ChallengeEvidence` behind it.
 
 - The kinds are `None`, `JsChallenge` (a script must run), `Interactive` (a widget
   must be completed), `Blocked` and `RateLimited { retry_after_secs }`.
@@ -166,7 +166,7 @@ body) and returns a `Detection`: a `ChallengeKind` and the `Evidence` behind it.
 - Only the first 256 KiB of a body is scanned.
 
 `MitigationPolicy::decide(&detection, &AttemptContext)` turns a detection into one
-`Action`. It is a pure function; the caller passes the attempt number, the mode,
+`Mitigation`. It is a pure function; the caller passes the attempt number, the mode,
 the streak of challenges the site has shown, whether another egress exists, and
 `now`.
 
@@ -175,14 +175,18 @@ the streak of challenges the site has shown, whether another egress exists, and
 | `None` | `Proceed` |
 | Anything else, once `attempt >= max_challenge_attempts` (default 3) | `GiveUp` |
 | `RateLimited` | `Cooldown` for `Retry-After` (capped at one hour), or 60 s |
-| `Blocked` | `RotateEgress`, or `Cooldown` (900 s by default) when there is nothing to rotate to |
+| `Blocked` | `RotateProxy`, or `Cooldown` (900 s by default) when there is nothing to rotate to |
 | Script or interactive challenge, HTTP mode | `Escalate` to the browser when it can; otherwise retry, rotate, or give up |
 | Script or interactive challenge, browser mode | `Solve`; a streak of 2 rotates the egress (when another exists) and a streak of 3 rotates the profile |
 
 <Warning>
 
 A solve is the browser waiting for the vendor's clearance cookie, after clicking
-a widget if there is one (`Page::solve_captcha`). It is an attempt, not a
+a widget if there is one (`cdp::solve_widget`, which uses the core's
+`Page::solve_captcha_with`: it presses along a human path and again, up to three
+times, when the page shows no result). A widget that never clears is a failed
+attempt, which the policy judges like a script challenge that stands, not an
+error. It is an attempt, not a
 guarantee: sites change their pages, and no solver here promises to pass any
 service.
 
@@ -190,7 +194,7 @@ service.
 
 ## How these types are imported
 
-`CookieJar`, `StealthIdentity`, `SessionPolicy`, `MitigationPolicy`, `Detection`,
+`CookieJar`, `Identity`, `EscalationPolicy`, `MitigationPolicy`, `Detection`,
 `ChallengeKind` and `CountryCode` are re-exported at
 `seleniumbase_rs_stealth::scrape`, so `use seleniumbase_rs_stealth::scrape::CookieJar`
 is the same type as the module paths used above. `identity_file` is not
@@ -208,7 +212,7 @@ it. Make a new identity.
 </Card>
 
 <Card title="HttpSession" icon="network-wired" color="#a631be" href="/scraping/stealthy/http-session">
-  The same jar, carried on plain HTTP. Needs `mimic`.
+  The same jar, carried on plain HTTP. Needs `wire`.
 </Card>
 
 </Columns>

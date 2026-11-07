@@ -35,7 +35,9 @@ use serde_json::{Map, Value};
 
 #[cfg(test)]
 use crate::config::settings::Settings;
-use crate::config::test_options::{find_option, OptionKind, OptionSpec, TEST_OPTIONS};
+use crate::config::test_options::{
+    find_option, written_paths, OptionKind, OptionSpec, TEST_OPTIONS,
+};
 use crate::error::SeleniumBaseError;
 
 /// The top-level keys of a settings file that hold a table of their own.
@@ -222,6 +224,53 @@ fn same_setting(first: &str, second: &str, setting: &str) -> SeleniumBaseError {
     ))
 }
 
+/// The group of the settings that the top-level key `key` of a settings file holds, when its
+/// value is a table: `[browser]` and `[session]` are the nested form of the settings, as
+/// [`Settings`](crate::Settings) serializes them (`browser.proxy.server`). A `browser` that is
+/// not a table is the flat key of the browser kind.
+fn nested_group(key: &str, value: &Value) -> Option<&'static str> {
+    if !value.is_object() {
+        return None;
+    }
+    match key.trim().to_ascii_lowercase().as_str() {
+        "browser" => Some("browser"),
+        "session" => Some("session"),
+        _ => None,
+    }
+}
+
+/// The settings the nested table `table` of the group `group` gives, each as its path in the
+/// serialized settings and as the file spells it (`[browser.proxy] server`, with the group
+/// spelled `key`): a table or a map is followed down, a value of any other kind ends a path.
+/// `tables` is the way down from the group, with a dot before each table.
+fn nested_leaves(
+    group: &str,
+    tables: &str,
+    key: &str,
+    table: &Map<String, Value>,
+    leaves: &mut Vec<(String, String)>,
+) {
+    for (name, value) in table {
+        match value {
+            Value::Object(inner) => {
+                nested_leaves(group, &format!("{tables}.{name}"), key, inner, leaves);
+            }
+            _ => leaves.push((
+                format!("{group}{tables}.{name}"),
+                format!("[{key}{tables}] {name}"),
+            )),
+        }
+    }
+}
+
+/// Whether the settings at the paths `a` and `b` are the same setting or one holds the other
+/// (`browser.window_size` holds `browser.window_size.width`).
+fn overlaps(a: &str, b: &str) -> bool {
+    a == b
+        || a.strip_prefix(b).is_some_and(|rest| rest.starts_with('.'))
+        || b.strip_prefix(a).is_some_and(|rest| rest.starts_with('.'))
+}
+
 /// The group and the key that `key` stands for inside the table `table` (`test` or `report`) of
 /// a settings file, if it is a setting of it.
 ///
@@ -269,8 +318,18 @@ pub(crate) fn canonical_entries(
     let mut text: Vec<TextEntry> = Vec::new();
     let mut groups: BTreeMap<&'static str, Map<String, Value>> = BTreeMap::new();
     let mut written: BTreeMap<String, String> = BTreeMap::new();
+    let mut nested: Vec<(&'static str, String, Value)> = Vec::new();
 
     for (key, value) in entries {
+        // A table named `browser` or `session` is the nested form of the settings.
+        if let Some(group) = nested_group(&key, &value) {
+            if let Some((_, first, _)) = nested.iter().find(|(known, _, _)| *known == group) {
+                return Err(same_setting(first, &key, group));
+            }
+            nested.push((group, key, value));
+            continue;
+        }
+
         let name = settings_key(&key).ok_or_else(|| unknown_setting(&key, file))?;
         if name == "settings_file" {
             // The setting names the file, so a file cannot hold it: it would do nothing.
@@ -354,6 +413,24 @@ pub(crate) fn canonical_entries(
             None => {}
         }
     }
+    // A nested table is read by serde as it is written, like the tables above. A setting that
+    // it gives and a flat key gives too is written twice.
+    for (group, key, table) in nested {
+        let Value::Object(table) = table else {
+            continue;
+        };
+        let mut leaves = Vec::new();
+        nested_leaves(group, "", &key, &table, &mut leaves);
+        for (row, flat_key, _) in &text {
+            for path in written_paths(row) {
+                if let Some((_, spelled)) = leaves.iter().find(|(leaf, _)| overlaps(leaf, &path)) {
+                    return Err(same_setting(flat_key, spelled, &path));
+                }
+            }
+        }
+        top.insert(group.to_owned(), Value::Object(table));
+    }
+
     for (group, fields) in groups {
         if !fields.is_empty() {
             top.insert(group.to_owned(), Value::Object(fields));
