@@ -308,7 +308,6 @@ a phone persona), Chrome's own plugin list for a phone persona, touch events,
 the host's voices and keyboard, the storage quota, and the preset's battery
 shape.
 
-
 ## What is spoofed
 
 With a CDP session and the `balanced()` policy (see the provider table for the

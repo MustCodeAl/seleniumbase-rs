@@ -437,7 +437,6 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   `qualcomm` and `adreno-7xx` for a phone), so WebGPU and WebGL agree, which fpscanner and
   CreepJS check. A Linux persona whose GPU is not Intel's answers no adapter, as Chrome on Linux
   has WebGPU for Intel Gen 12 and later only.
-
 - Docs: the stealth crates' HTTP/3 page is on the site, as Stealth › Advanced stealth ›
   HTTP/3 (`docs/stealth/advanced/http3.md`, ported from the stealth repository's
   `docs/http3.md`): the `sbrs-h3d` helper, the `http3` feature, and what was measured equal to
@@ -639,7 +638,6 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   real viewport.
 - The user agent override of an Android persona without Client Hints of its own sends no
   `architecture`, as Chrome on Android reports none; it sent `arm`.
-
 - `get_cookie` of a cookie the page does not have is `Ok(None)`, as Python's is `None`. It was
   the driver's "no such cookie" error, and `examples/cookies_storage.rs` asserted that. Any
   other driver error is still an error.
