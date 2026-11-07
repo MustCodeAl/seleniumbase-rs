@@ -221,10 +221,10 @@ pub use error::{Result, ResultExt, SeleniumBaseError};
 pub use evasion::capture::CapturedFingerprint;
 pub use evasion::fingerprint::{
     AudioNoise, BatteryProfile, BrandVersion, BrowserType, CanvasNoise, ClientHints,
-    CoherenceReport, ConnectionProfile, Dimension, Fingerprint, FingerprintBuilder,
+    CoherenceReport, ConnectionProfile, Contradiction, Dimension, Fingerprint, FingerprintBuilder,
     FingerprintComparison, FingerprintError, Geolocation, HumanizeConfig, MediaDevices, OsType,
-    ProxyConfig, QuicMode, ScreenSize, SettingDiff, SpeechVoice, Spoof, StealthPolicy, WebGl,
-    WebRtcAddresses, WebRtcPolicy,
+    ProxyConfig, QuicMode, ScreenSize, SettingDiff, Severity, SpeechVoice, Spoof, StealthPolicy,
+    WebGl, WebRtcAddresses, WebRtcPolicy,
 };
 pub use evasion::providers::{
     default_registry, session_registry, EvasionConfig, EvasionContext, EvasionProvider,
