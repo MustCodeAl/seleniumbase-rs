@@ -15,7 +15,7 @@ Tested against local captures and servers, not against live services. No guarant
 
 <Visibility for="agents">
 
-Summary for AI exports: only Chrome 155.0.8059.40 on macOS is measured and every other pair is refused with `NotMeasured`. The handshake has known gaps against Chrome (`trust_anchors`, the ML-DSA signature algorithms and a GREASE signature algorithm), there is no HTTP/3, and nothing was checked against a live bot-protection service. Follow each site's terms and the law where you are.
+Summary for AI exports: only Chrome 155.0.8059.40 on macOS is measured and every other pair is refused with `NotMeasured`. The handshake has known gaps against Chrome (`trust_anchors`, the ML-DSA signature algorithms and a GREASE signature algorithm), HTTP/3 exists only through an experimental helper program, and nothing was checked against a live bot-protection service. Follow each site's terms and the law where you are.
 
 </Visibility>
 
@@ -52,7 +52,10 @@ State these plainly to yourself before you build on any of this.
   apply to them. Behind the `MitmProxy` the origin sees our handshake, gaps
   included, and not Chrome's own, which `BrowserScraper` leaves with unchanged.
   That is the price of one wire identity in both modes of a `StealthSession`.
-- **No HTTP/3.** wreq has none, and Chrome behind the proxy has QUIC switched off.
+- **No HTTP/3 in `HttpSession`, `StealthSession` or the proxy.** wreq has none,
+  and Chrome behind the proxy has QUIC switched off. HTTP/3 is sent only by the
+  experimental `sbrs-h3d` helper, with no fallback and no proxy: see
+  [HTTP/3](/stealth/advanced/http3).
 - **WebSocket passes the `MitmProxy` as `wss://` and `ws://`** (the latter in
   plain text, so with no hello to impersonate); every other upgrade is refused.
   It needs the proxy's credentials in Chrome first: `configure_launch` loads the

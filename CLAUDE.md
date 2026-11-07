@@ -142,6 +142,10 @@ binaries with `cargo install --path crates/cli`.
 - A new Python-parity API gets an entry in `parity/api.toml`.
 - A public item a consumer imports needs its `tests/contract_*.rs` updated in the same commit (`mise run contracts`, `docs/contributing/consumers.md`).
 - Tutorials in `docs/tutorials/` are not compiled; keep their code true by hand.
+- The user docs of the stealth crates live on the core site under `docs/stealth`
+  (and the stealthy `docs/scraping` pages), because Docs7 builds only this
+  repository's `docs/` and `docs/docs.json`. The stealth repository's `docs/`
+  holds design and contributor notes; a page there is not on the site.
   Only the `sbrs mkdir`/`mkfile` golden templates are compiled as doctests.
 - `completions/sbrs.usage.kdl` and `docs/help/cli_reference.md` are generated from
   the declarations in `crates/cli/src/sbrs.rs`; a test fails when either is stale.
