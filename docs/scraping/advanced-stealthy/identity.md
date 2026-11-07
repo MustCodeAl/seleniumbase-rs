@@ -24,7 +24,7 @@ fn demo() -> Result<(), Box<dyn std::error::Error>> {
     let url = Url::parse("https://shop.example.com/cart")?;
 
     let mut jar = CookieJar::new();
-    jar.store(&url, "sid=abc; Path=/; Secure; HttpOnly; SameSite=Lax", now);
+    jar.receive(&url, "sid=abc; Path=/; Secure; HttpOnly; SameSite=Lax", now);
     let header = jar.header_for(&url, SiteContext::SameSite { top_level: true }, now);
     assert_eq!(header.as_deref(), Some("sid=abc"));
     Ok(())
@@ -35,7 +35,7 @@ What the jar enforces: `Secure` cookies need a secure origin (https or wss, or a
 loopback host), `__Secure-` and `__Host-` prefixes, `SameSite=None` needs
 `Secure`, and a `Domain` on a public suffix or an IP address is refused. Lifetimes
 are capped at 400 days. A cookie it refuses comes back as
-`StoreOutcome::Ignored(IgnoreReason)` with the reason. The jar is bounded: 180
+`SetCookieOutcome::Ignored(IgnoreReason)` with the reason. The jar is bounded: 180
 cookies and 256 KiB per site, 3000 cookies in all, and a path or domain over its
 limit is refused. `Debug` prints counts only, and a jar read back from a file is
 checked against the same rules, so an edited file cannot smuggle in a cookie the
@@ -49,9 +49,11 @@ between runs.
 
 An `Identity` (`scrape::passport::identity`) is what a scrape session
 presents to a site: the `Fingerprint`, a reference to the measured browser its
-wire behaviour comes from (`WireMeasurementRef`), the cookies it earned, the client
-hints each origin asked for, the clearances found in the jar, and the egress
-those cookies were earned through.
+wire behaviour comes from (`WireMeasurementRef`), the cookies it earned (and the
+local storage of one origin) as a core `Session` (`identity.session`;
+`cookie_jar(now)` gives an HTTP client the same cookies as a jar), the client
+hints each origin asked for, the clearances found in the jar, and the proxy
+those cookies were earned through (`identity.proxy`).
 
 ```rust
 use seleniumbase_rs_stealth::scrape::passport::identity::{WireMeasurementRef, Identity};
@@ -61,8 +63,8 @@ use seleniumbase_rs_stealth::codec::BrowserKind;
 
 async fn demo(now: u64) -> Result<(), Box<dyn std::error::Error>> {
     let fingerprint = Fingerprint::randomized_with_major(OsType::Macos, 7, 155);
-    let emulation = WireMeasurementRef { kind: BrowserKind::Chrome, major: 155, os: OsType::Macos };
-    let identity = Identity::new(fingerprint, emulation, None, now)?;
+    let measurement = WireMeasurementRef { kind: BrowserKind::Chrome, major: 155, os: OsType::Macos };
+    let identity = Identity::new(fingerprint, measurement, None, now)?;
 
     identity_file::save("identity.json", &identity).await?;
     let again = identity_file::load("identity.json").await?;
@@ -88,7 +90,7 @@ measured one.
 <Accordion title="It never holds a proxy" icon="shield">
 
 A proxy can carry a password, so
-`Identity::new` clears it, serialization leaves it out, and `verify`
+`Identity::new` clears it, serialization leaves it out, and `validate`
 refuses an identity that has one. `Debug` prints the cookie count and the
 egress key only. A clearance records the cookie's name, never its value.
 

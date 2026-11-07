@@ -114,11 +114,11 @@ fn localize(&self, fingerprint: &Fingerprint) -> Result<Fingerprint, Fingerprint
 pub struct GeoInfo {
     pub country: CountryCode,
     pub timezone: Option<String>,
-    pub coordinates: Option<(f64, f64)>,
+    pub coordinates: Option<Geolocation>,
 }
 ```
 
-What a geo lookup learned about an egress.
+What a geo lookup learned about an egress. `coordinates` is the core's `Geolocation` (`seleniumbase_rs::evasion::fingerprint::Geolocation`), the type a fingerprint's `geolocation` takes.
 
 ### `GeoResolver`
 
@@ -178,7 +178,7 @@ How the pool chooses among the egresses that are available.
 ```rust
 pub enum ProxyOutcome {
     Success,
-    ConnectError,
+    ConnectFailed,
     Challenged,
     Blocked,
 }
@@ -202,7 +202,7 @@ A rotating set of egresses, with failure counting and quarantine.
 
 ```rust
 pub fn new(egresses: Vec<ProxyRoute>, strategy: RotationStrategy) -> Self
-pub fn geo_proxies<I, S>(items: I, strategy: RotationStrategy) -> Result<Self, EgressError>
+pub fn from_geo_proxies<I, S>(items: I, strategy: RotationStrategy) -> Result<Self, ProxyRouteError>
     where
         I: IntoIterator<Item = (S, CountryCode)>,
         S: AsRef<str>,
@@ -220,7 +220,7 @@ pub fn report(&self, egress: &ProxyKey, outcome: ProxyOutcome, now: u64)
 
 
 - `new`: A pool over `egresses`, with the default quarantine.
-- `geo_proxies`: A pool built from `(spec, country)` pairs, each spec parsed the way [`ProxyRoute::parse`] parses it.
+- `from_geo_proxies`: A pool built from `(spec, country)` pairs, each spec parsed the way [`ProxyRoute::parse`] parses it.
 - `quarantine`: Sets how many failures in a row quarantine an egress, and for how many seconds. A limit of zero is read as one: the first failure quarantines.
 - `pick`: The egress for a request to `site` at time `now`, in seconds. `None` when the pool is empty or every egress is quarantined.
 - `pick_in`: Like [`ProxyPool::pick`], limited to egresses in `country`.
@@ -309,7 +309,7 @@ A proxy the traffic leaves through. Its credentials live in the [`Proxy`] and in
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
-pub fn parse(spec: &str, country: Option<CountryCode>) -> Result<Self, EgressError>
+pub fn parse(spec: &str, country: Option<CountryCode>) -> Result<Self, ProxyRouteError>
 pub fn key(&self) -> &ProxyKey
 pub fn proxy(&self) -> &Proxy
 ```
@@ -319,18 +319,18 @@ pub fn proxy(&self) -> &Proxy
 - `key`: The storable part of this egress.
 - `proxy`: The proxy for a browser context, such as `ContextOptions::proxy`.
 
-### `EgressError`
+### `ProxyRouteError`
 
 <Badge color="blue" shape="pill">enum</Badge>
 
 ```rust
-pub enum EgressError {
+pub enum ProxyRouteError {
     Scheme(String),
     Address(RedactedUrl),
 }
 ```
 
-Why an egress spec was refused.
+Why a proxy spec was refused. The enum is `non_exhaustive`.
 
 ## Related
 

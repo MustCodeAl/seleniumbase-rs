@@ -54,9 +54,9 @@ A scraping session that moves between HTTP and a real browser. See the [module d
 pub fn builder() -> StealthSessionBuilder
 pub fn fetch_kind(&self) -> FetchKind
 pub fn identity(&self) -> &Identity
-pub fn egress(&self) -> Option<&ProxyKey>
+pub fn proxy_route(&self) -> Option<&ProxyKey>
 pub fn seed(&self) -> u64
-pub fn http(&self) -> Option<&HttpSession>
+pub fn http_session(&self) -> Option<&HttpSession>
 pub fn page(&self) -> Option<&Page>
 pub async fn close(self) -> Result<(), StealthError>
 pub async fn fetch(&mut self, url: &str) -> Result<StealthFetch, StealthError>
@@ -73,11 +73,11 @@ pub async fn demote(&mut self) -> Result<(), StealthError>
 
 
 - `builder`: Starts configuring a session.
-- `mode`: The mode the requests are sent in now.
+- `fetch_kind`: How the requests are sent now: over HTTP or through the browser.
 - `identity`: The identity as of the last change of mode, rotation, import or restore.
-- `egress`: The egress both legs leave through; `None` for the direct connection. It carries no credentials.
+- `proxy_route`: The proxy both legs leave through; `None` for the direct connection. It carries no credentials.
 - `seed`: The noise seed of the profile in use.
-- `http`: The HTTP session, in HTTP mode: for requests of your own, such as an API call, that carry the cookies the session has earned. `None` in browser mode.
+- `http_session`: The HTTP session, in HTTP mode: for requests of your own, such as an API call, that carry the cookies the session has earned. `None` in browser mode.
 - `page`: The tab of the browser, in browser mode. `None` in HTTP mode.
 - `close`: Closes the browser if one is running, and stops the MITM proxy.
 - `fetch`: Fetches `url` in whichever mode the session is in, moving between HTTP and the browser as the policies decide. See the [module documentation](/stealth/api/wire) for the loop.
@@ -105,8 +105,11 @@ Configures a [`StealthSession`]; see [`StealthSession::builder`].
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
-pub fn launch_options(mut self, launch: LaunchOptionsBuilder) -> Self
-pub fn launcher(mut self, launcher: Arc<dyn BrowserLauncher>) -> Self
+pub fn launch_options(mut self, launch: LaunchOptions) -> Self
+pub fn launcher<F, Fut>(mut self, launch: F) -> Self
+    where
+        F: Fn(LaunchOptions) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Result<Browser, SeleniumBaseError>> + Send + 'static,
 pub fn geo_proxies<I, S>(mut self, proxies: I) -> Result<Self, StealthError>
     where
         I: IntoIterator<Item = (S, CountryCode)>,
@@ -114,15 +117,15 @@ pub fn geo_proxies<I, S>(mut self, proxies: I) -> Result<Self, StealthError>
 pub fn proxy_strategy(mut self, strategy: RotationStrategy) -> Self
 pub fn max_challenge_attempts(mut self, attempts: u32) -> Self
 pub fn mitigation(mut self, policy: MitigationPolicy) -> Self
-pub fn policy(mut self, policy: EscalationPolicy) -> Self
+pub fn escalation_policy(mut self, policy: EscalationPolicy) -> Self
 pub fn ledger(mut self, store: Arc<dyn Ledger>) -> Self
 pub fn event_sink(mut self, sink: Arc<dyn EventSink>) -> Self
 pub fn geo_resolver(mut self, geo: Arc<dyn GeoResolver>) -> Self
 pub fn rate_limit(mut self, calls: usize, window: Duration) -> Self
 pub fn seed(mut self, seed: u64) -> Self
 pub fn fingerprint(mut self, fingerprint: Fingerprint) -> Self
-pub fn restore(mut self, identity: Identity) -> Self
-pub fn http_options(mut self, options: HttpSessionOptions) -> Self
+pub fn identity(mut self, identity: Identity) -> Self
+pub fn http_session_options(mut self, options: HttpSessionOptions) -> Self
 pub fn mitm_options(mut self, options: MitmOptions) -> Self
 pub fn solve_timeout(mut self, timeout: Duration) -> Self
 pub fn clock(mut self, clock: Clock) -> Self
@@ -131,20 +134,20 @@ pub async fn build(self) -> Result<StealthSession, StealthError>
 
 
 - `launch_options`: The launch options of the browser, a built `LaunchOptions`. The session adds its fingerprint to a copy of them (`LaunchOptions::with_fingerprint`), so a setting made here (a user agent, say) wins over the fingerprint's. The proxy is the MITM proxy's, whatever is set here.
-- `launcher`: How a browser is started. The default starts Chrome.
+- `launcher`: How a browser is started: a closure from the `LaunchOptions` to a `Browser`, as core's `BrowserPool::with_launcher` takes (see [`Launcher`](/stealth/api/scrape-browser-scraper)). The default is core's `Browser::launch`.
 - `geo_proxies`: Adds proxies, each with the country it exits in. The country decides the language and the time zone the session presents while it leaves through that proxy.
 - `proxy_strategy`: How the pool picks an egress when one is needed: at the start and at each rotation.
 - `max_challenge_attempts`: How many loads of one URL a fetch may make before it gives up. Zero is read as one.
 - `mitigation`: The whole mitigation policy: when to rotate, how long to cool down. The attempts set by `max_challenge_attempts` still apply on top; without either, the attempts are [`DEFAULT_ATTEMPTS`].
-- `policy`: When the session changes mode: the mode it prefers, whether HTTP needs a clearance, how close to its end a clearance may get, and whether a solve sends the session back to HTTP.
+- `escalation_policy`: When the session changes mode: the mode it prefers, whether HTTP needs a clearance, how close to its end a clearance may get, and whether a solve sends the session back to HTTP.
 - `ledger`: Where what is learned about each site is kept between fetches.
 - `event_sink`: Where the session reports what it does. The HTTP session and the MITM proxy report to it as well.
 - `geo_resolver`: How the country, time zone and language of an egress are found.
 - `rate_limit`: At most `calls` fetches of one site in `window`, in either mode. The limit is per site, not global.
 - `seed`: The seed of the first profile. The same seed gives the same profile, and each rotation derives the next seed from the last, so a run can be repeated.
 - `fingerprint`: The first profile itself, instead of one drawn from the seed. It must claim the measured Chrome. A rotation replaces it with a generated profile of the same operating system. The rotations derive from `seed`, not from the seed of this fingerprint.
-- `restore`: Starts from a saved identity: its fingerprint, its cookies and its clearances. It takes the place of `fingerprint` and `seed`.
-- `http_options`: The limits and plumbing of the HTTP leg: timeouts, body size, redirects, the trust store and the resolver entries. The clock and the event sink of the session replace the ones in these options.
+- `identity`: Starts from a saved identity: its fingerprint, its cookies and its clearances. It takes the place of `fingerprint` and `seed`.
+- `http_session_options`: The limits and plumbing of the HTTP leg: timeouts, body size, redirects, the trust store and the resolver entries. The clock and the event sink of the session replace the ones in these options.
 - `mitm_options`: The limits and custom inputs of the MITM proxy that carries the browser leg.
 - `solve_timeout`: How long a solved challenge is waited for. The default is [`DEFAULT_SOLVE_TIMEOUT`].
 - `clock`: The clock the session reads, in seconds since the Unix epoch. The default is the system clock.
@@ -161,7 +164,7 @@ pub enum StealthError {
     Scrape(#[from] ScrapeError),
     Http(#[from] HttpError),
     Mitm(#[from] MitmError),
-    Impersonate(#[from] WireFormatError),
+    WireFormat(#[from] WireFormatError),
 }
 ```
 
@@ -183,7 +186,7 @@ pub struct StealthFetch {
     pub fetch_kind: FetchKind,
     pub attempts: u32,
     pub solved: Option<ChallengeKind>,
-    pub egress: Option<ProxyKey>,
+    pub proxy: Option<ProxyKey>,
 }
 ```
 

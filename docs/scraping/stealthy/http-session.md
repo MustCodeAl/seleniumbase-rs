@@ -61,7 +61,7 @@ Both refuse, before any request, what would contradict the measured handshake:
   agent and `Browser.getVersion` are checked.
 - A browser that is not Chrome (Edge, Opera, Firefox and the like), a Chrome
   whose user agent says `HeadlessChrome`, or a system that was not measured:
-  `HttpError::Impersonate(..)`. A headless Chrome that was given no fingerprint
+  `HttpError::WireFormat(..)`. A headless Chrome that was given no fingerprint
   announces itself, so give it one or run it headed.
 - An identity of another egress than the one passed, or a page whose context
   proxy is another than `egress`: `HttpError::Identity(..)`.
@@ -102,7 +102,7 @@ async fn demo(session: HttpSession) -> Result<(), Box<dyn std::error::Error>> {
   added. `CONNECT`, `TRACE` and `TRACK` are refused, and so is a URL with
   credentials in it or a scheme other than http and https.
 - A status other than 2xx is a reply, not an error. `HttpResponse` has `status()`,
-  `headers()` (`ReplyHeaders`), `bytes()`, `text()`, `json::<T>()`, `url()` after
+  `headers()` (`ResponseHeaders`), `bytes()`, `text()`, `json::<T>()`, `url()` after
   redirects (and `redacted_url()`), `redirects()`, `protocol()`, `elapsed()` and
   `detect()`.
 
@@ -145,7 +145,7 @@ Largest accepted: 30.
 
 </ParamField>
 
-<ParamField body="pacing(calls, window)" default="off">
+<ParamField body="rate_limit(calls, window)" default="off">
 
 Per site.
 
@@ -158,22 +158,22 @@ refuses a value out of range before a client exists.
 
 - **Judging replies.** `reply.detect()` runs the [challenge
   detection](/scraping/advanced-stealthy/identity#challenge-detection-and-mitigation). `session.assess(&reply,
-  &Attempt, &Rules, &identity)` adds what the `MitigationPolicy` and the
-  `EscalationPolicy` make of it, as a `Verdict { detection, action, transition }`;
+  &HttpAttempt, &HttpRules, &identity)` adds what the `MitigationPolicy` and the
+  `EscalationPolicy` make of it, as an `HttpVerdict { detection, action, escalation }`;
   `session.fetch(url, &attempt, &rules, &identity)` sends a `GET` and judges it
-  in one call (`Fetched { reply, verdict }`); `session.preflight(url, &identity,
+  in one call (`HttpFetch { reply, verdict }`); `session.preflight(url, &identity,
   state, &rules)` asks, before a request, whether the identity's clearance is
   about to end so that the browser should take the URL first. They are the
   pieces of your own loop; [`StealthSession`](/scraping/advanced-stealthy/stealth-session) is that loop.
 
   ```rust
-  use seleniumbase_rs_stealth::wire::http_session::{Attempt, Rules};
+  use seleniumbase_rs_stealth::wire::http_session::{HttpAttempt, HttpRules};
   use seleniumbase_rs_stealth::wire::HttpSession;
   use seleniumbase_rs_stealth::scrape::Identity;
 
   async fn demo(session: HttpSession, identity: Identity) -> Result<(), Box<dyn std::error::Error>> {
       let fetched = session
-          .fetch("https://example.com/", &Attempt::default(), &Rules::default(), &identity)
+          .fetch("https://example.com/", &HttpAttempt::default(), &HttpRules::default(), &identity)
           .await?;
       if fetched.verdict.is_clear() {
           println!("{}", fetched.reply.text()?);
@@ -184,8 +184,8 @@ refuses a value out of range before a client exists.
   }
   ```
 - **Identity.** `export_identity(&base)` puts the session's cookies back into a
-  `Identity` and refreshes its clearances. `egress()` is the exit without
-  credentials, `cookie_count()` and `profile()` read the state. Cloning gives
+  `Identity` and refreshes its clearances. `proxy_route()` is the exit without
+  credentials, `cookie_count()` and `wire_format()` read the state. Cloning gives
   another handle to the same session.
 - **Secrets.** Cookies, credentials and proxy passwords never reach `Debug`, logs,
   events or errors: URLs are redacted, a failure of the HTTP client is reduced to
@@ -232,10 +232,10 @@ refused. The rest of `HttpSession` is tested against loopback sites
 
 `HttpSession`, `HttpSessionOptions`, `HttpResponse` and `HttpError` are re-exported at
 `seleniumbase_rs_stealth::wire`, which is what the example above imports. The
-module path `wire::http_session::HttpSession` is the same type. Five names that
-would clash at the root are renamed there: `Attempt`, `Fetched`, `Rules`,
-`Verdict` and `Headers` become `HttpAttempt`, `HttpFetched`, `HttpRules`,
-`HttpVerdict` and `ReplyHeaders`. The original names stay in `http_session`.
+module path `wire::http_session::HttpSession` is the same type. The types that
+judge a reply and read its headers have one name, in the module and at the
+root: `HttpAttempt`, `HttpFetch`, `HttpRules`, `HttpVerdict` and
+`ResponseHeaders`.
 
 <Columns cols={2}>
 

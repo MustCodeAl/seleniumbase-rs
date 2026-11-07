@@ -1,7 +1,7 @@
 ---
 title: "scrape::runtime::browser_scraper"
 sidebarTitle: "BrowserScraper"
-description: "BrowserScraper, its builder, BrowserFetch and the launcher port."
+description: "BrowserScraper, its builder, BrowserFetch and the Launcher."
 ---
 
 <Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: scrape</Badge>
@@ -58,7 +58,7 @@ pub struct BrowserFetch {
     pub detection: Detection,
     pub attempts: u32,
     pub solved: Option<ChallengeKind>,
-    pub egress: Option<ProxyKey>,
+    pub proxy: Option<ProxyKey>,
 }
 ```
 
@@ -84,8 +84,8 @@ pub fn page(&self) -> &Page
 pub fn browser(&self) -> &Browser
 pub fn fingerprint(&self) -> &Fingerprint
 pub fn seed(&self) -> u64
-pub fn egress(&self) -> Option<&ProxyKey>
-pub fn sessions(&self) -> &SessionStore
+pub fn proxy_route(&self) -> Option<&ProxyKey>
+pub fn session_store(&self) -> &SessionStore
 pub async fn close(self) -> Result<(), ScrapeError>
 pub async fn fetch(&mut self, url: &str) -> Result<BrowserFetch, ScrapeError>
 pub async fn solve_challenge(&mut self) -> Result<Detection, ScrapeError>
@@ -103,8 +103,8 @@ pub async fn load_session(&self, name: &str) -> Result<bool, ScrapeError>
 - `browser`: The browser the scraper drives. It changes when the profile does.
 - `fingerprint`: The fingerprint the browser presents.
 - `seed`: The noise seed of the profile in use.
-- `egress`: The egress the browser leaves through; `None` for the direct connection.
-- `sessions`: The sessions saved with `save_session`.
+- `proxy_route`: The proxy the browser leaves through; `None` for the direct connection.
+- `session_store`: The sessions saved with `save_session`.
 - `close`: Closes the browser. A scraper that is dropped instead leaves the browser to its own drop.
 - `fetch`: Fetches `url` through the browser, solving challenges on the way.
 - `solve_challenge`: Reads the page now open, solves the challenge on it if there is one, and waits for the browser to show the clearance. Returns what the page is afterwards.
@@ -132,7 +132,7 @@ Configures a [`BrowserScraper`]; see [`BrowserScraper::builder`].
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
-pub fn launch_options(mut self, launch: LaunchOptionsBuilder) -> Self
+pub fn launch_options(mut self, launch: LaunchOptions) -> Self
 pub fn geo_proxies<I, S>(mut self, proxies: I) -> Result<Self, ScrapeError>
     where
         I: IntoIterator<Item = (S, CountryCode)>,
@@ -147,7 +147,10 @@ pub fn rate_limit(mut self, calls: usize, window: Duration) -> Self
 pub fn seed(mut self, seed: u64) -> Self
 pub fn fingerprint(mut self, fingerprint: Fingerprint) -> Self
 pub fn proxy_switch(mut self, switch: Box<dyn ProxySwitch>) -> Self
-pub fn launcher(mut self, launcher: Arc<dyn BrowserLauncher>) -> Self
+pub fn launcher<F, Fut>(mut self, launch: F) -> Self
+    where
+        F: Fn(LaunchOptions) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Result<Browser, SeleniumBaseError>> + Send + 'static,
 pub fn session_store(mut self, sessions: SessionStore) -> Self
 pub fn solve_timeout(mut self, timeout: Duration) -> Self
 pub fn clock(mut self, clock: Clock) -> Self
@@ -167,7 +170,7 @@ pub async fn build(self) -> Result<BrowserScraper, ScrapeError>
 - `seed`: The seed of the first profile. The same seed gives the same profile, and each rotation derives the next seed from the last, so a run can be repeated.
 - `fingerprint`: The first profile itself, instead of one drawn from the seed. A rotation replaces it with a generated profile of the same operating system.
 - `proxy_switch`: How the egress is changed. The default opens a browser context behind the new proxy.
-- `launcher`: How a browser is started. The default starts Chrome.
+- `launcher`: How a browser is started: a closure from the `LaunchOptions` to a `Browser`, as core's `BrowserPool::with_launcher` takes (see [`Launcher`]). The default is core's `Browser::launch`.
 - `session_store`: The store `save_session` writes to, to share logins with other scrapers or a `BrowserPool`.
 - `solve_timeout`: How long a solved challenge is waited for. The default is [`DEFAULT_SOLVE_TIMEOUT`].
 - `clock`: The clock the scraper reads. The default is the system clock.
@@ -175,36 +178,31 @@ pub async fn build(self) -> Result<BrowserScraper, ScrapeError>
 
 ## `runtime::browser_scraper::launcher`
 
-### `BrowserLauncher`
-
-<Badge color="blue" shape="pill">trait</Badge>
-
-```rust
-pub trait BrowserLauncher
-```
-
-Starts a browser for a `BrowserScraper`.
-
-### `BrowserLauncher` methods
-
-<Badge color="yellow" shape="pill">method</Badge>
-
-```rust
-async fn launch(&self, options: LaunchOptions) -> Result<Browser, ScrapeError>
-```
-
-
-- `launch`: Starts a browser with `options`.
-
-### `ChromeLauncher`
+### `Launcher`
 
 <Badge color="blue" shape="pill">struct</Badge>
 
 ```rust
-pub struct ChromeLauncher;
+pub struct Launcher(/* private */);
 ```
 
-Starts Chrome (or the browser the launch options name) with [`Browser::launch`].
+Starts a browser for a `BrowserScraper` or a `StealthSession`: a launch closure, as core's `BrowserPool::with_launcher` takes. The default is core's `Browser::launch`; another closure can start a different build, reuse a browser, or hand out a scripted one in a test. It is cloneable, implements `Default` and `Debug`.
+
+### `Launcher` methods
+
+<Badge color="yellow" shape="pill">method</Badge>
+
+```rust
+pub fn new<F, Fut>(launch: F) -> Self
+    where
+        F: Fn(LaunchOptions) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Result<Browser, SeleniumBaseError>> + Send + 'static,
+pub async fn launch(&self, options: LaunchOptions) -> Result<Browser, ScrapeError>
+```
+
+
+- `new`: A launcher that calls `launch`, a closure from the launch options to a browser.
+- `launch`: Starts a browser with `options`.
 
 ## Related
 

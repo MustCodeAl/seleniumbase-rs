@@ -187,7 +187,7 @@ An absolute-form `http://` request is checked the same way and forwarded without
 `mitm.configure_launch(options)` takes built `LaunchOptions`, returns them made
 again (a `Result`) with the proxy set, makes the proxy's priming page
 the start page (see [the priming page](#the-priming-page)) and adds
-`mitm.chrome_args()`:
+`mitm.launch_args()`:
 
 - the `--ignore-certificate-errors-spki-list` switch with the leaf pin only (never
   the CA pin),
@@ -417,7 +417,7 @@ async fn demo(browser: Browser, mitm: MitmProxy) -> Result<(), Box<dyn std::erro
 
 ### Changing the upstream, and stopping
 
-`swap_upstream(egress)` and `swap_wire_format(profile)` build the new upstream
+`swap_proxy(egress)` and `swap_wire_format(profile)` build the new upstream
 client first and then replace the old one. Requests under way finish on the old
 one, and the listener, its port and the browser's open connections stay.
 `shutdown(grace)` stops accepting, lets requests finish for up to `grace`, then

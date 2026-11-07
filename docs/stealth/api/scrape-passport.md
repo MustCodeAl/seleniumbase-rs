@@ -1,18 +1,18 @@
 ---
 title: "scrape::passport"
 sidebarTitle: "Identity"
-description: "Identity, the session policy and the emulation reference."
+description: "Identity, the escalation policy and the wire measurement reference."
 ---
 
 <Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: scrape</Badge>
 
-`passport` is the identity a scrape carries between the browser and plain HTTP: the fingerprint, the cookies, the clearances and the emulation it claims. `EscalationPolicy` says when that identity should stay on HTTP and when it should go to the browser.
+`passport` is the identity a scrape carries between the browser and plain HTTP: the fingerprint, the cookies (a core `Session`), the clearances and the wire measurement it claims. `EscalationPolicy` says when that identity should stay on HTTP and when it should go to the browser.
 
 See [Identity and cookies](/scraping/advanced-stealthy/identity).
 
 <RequestExample>
 
-```rust The emulation an identity claims
+```rust The wire measurement an identity claims
 use seleniumbase_rs_stealth::codec::BrowserKind;
 use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
 use seleniumbase_rs_stealth::scrape::WireMeasurementRef;
@@ -32,14 +32,14 @@ fn chrome_on_macos(major: u32) -> WireMeasurementRef {
 
 ```rust
 // passport/identity.rs
-pub const IDENTITY_SCHEMA: u32 = 1;
+pub const IDENTITY_SCHEMA: u32 = 2;
 pub const NO_EXPIRY: u64 = u64::MAX;
 // passport/policy.rs
 pub const DEFAULT_CLEARANCE_MARGIN_SECS: u64 = 120;
 ```
 
 
-- `IDENTITY_SCHEMA`: The version of the identity layout. A file with another version is refused, not guessed at.
+- `IDENTITY_SCHEMA`: The version of the identity layout. A file with another version is refused, not guessed at. Version 2 holds the cookies and the local storage as a core `Session`; a version 1 file (a cookie jar) is refused.
 - `NO_EXPIRY`: The expiry recorded for a clearance cookie that has none (a session cookie): no known end.
 - `DEFAULT_CLEARANCE_MARGIN_SECS`: How close to its end a clearance may get before an HTTP session goes back to the browser.
 
@@ -83,15 +83,15 @@ pub struct Identity {
     pub schema: u32,
     pub fingerprint: Fingerprint,
     pub wire_measurement: WireMeasurementRef,
-    pub cookies: CookieJar,
+    pub session: Session,
     pub accept_ch: BTreeMap<String, Vec<String>>,
-    pub egress: Option<ProxyKey>,
+    pub proxy: Option<ProxyKey>,
     pub clearances: Vec<Clearance>,
     pub created_at: u64,
 }
 ```
 
-A fingerprint, its emulation, and what the identity earned with them.
+A fingerprint, its wire measurement, and what the identity earned with them. `session` is the core's `sb_cdp::Session`: the cookies (and the local storage of one origin) as core keeps a browser's login state; [`Identity::cookie_jar`] gives them to an HTTP client.
 
 ### `Identity` methods
 
@@ -101,22 +101,26 @@ A fingerprint, its emulation, and what the identity earned with them.
 pub fn new(
         fingerprint: Fingerprint,
         wire_measurement: WireMeasurementRef,
-        egress: Option<ProxyKey>,
+        proxy: Option<ProxyKey>,
         now: u64,
     ) -> Result<Self, IdentityError>
-pub fn verify(&self) -> Result<(), IdentityError>
+pub fn validate(&self) -> Result<(), IdentityError>
+pub fn cookie_jar(&self, now: u64) -> CookieJar
+pub fn replace_cookies(&mut self, jar: &CookieJar, now: u64)
 pub fn refresh_clearances(&mut self, now: u64)
 pub fn clearance_for(&self, site: &str) -> Option<&Clearance>
-pub fn check_proxy(&self, egress: Option<&ProxyKey>) -> Result<(), IdentityError>
+pub fn check_proxy(&self, proxy: Option<&ProxyKey>) -> Result<(), IdentityError>
 pub fn check_wire_measurement(&self, measured: &WireMeasurementRef) -> Result<(), IdentityError>
 ```
 
 
 - `new`: Makes an identity from a fingerprint. See the module documentation for what it refuses.
-- `verify`: Checks an identity that was read from outside: its schema, its fingerprint, and that it carries no proxy.
+- `validate`: Checks an identity that was read from outside: its schema, its fingerprint, and that it carries no proxy.
+- `cookie_jar`: The identity's cookies as an HTTP cookie jar at `now`, for a client that receives `Set-Cookie` headers and sends `Cookie` ones. Expired cookies, and ones the jar refuses, are left out.
+- `replace_cookies`: Keeps the live cookies of `jar` at `now` as the identity's, in place of the ones it had. The local storage stays.
 - `refresh_clearances`: Records a [`Clearance`] for every live clearance cookie in the jar, replacing the old list.
 - `clearance_for`: The clearance for `site`, a registrable domain or any host on it. When several vendors cleared the site, the one that lasts longest. It may already be expired: compare [`Clearance::expires_at`] with the time.
-- `check_proxy`: Checks that a request leaves through the egress this identity belongs to.
+- `check_proxy`: Checks that a request leaves through the proxy this identity belongs to.
 - `check_wire_measurement`: Checks that the browser measured now is the one the identity was made for.
 
 ### `IdentityError`
@@ -133,7 +137,7 @@ pub enum IdentityError {
         },
     Schema(u32),
     Incoherent(Vec<String>),
-    EmulationMismatch {
+    WireMeasurementMismatch {
             /// The major version the identity claims.
             identity: u32,
             /// The major version that was measured.
