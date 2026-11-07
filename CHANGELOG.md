@@ -432,6 +432,12 @@ work, `docs/parity.md` the per-API status).
 
 ### Changed
 
+- Two allocation hotspots found by the `alloc` and `alloc_sites` benches are gone, with the same
+  output. The importer's tokenizer sizes its token list from the length of the source instead of
+  growing it from empty (about 150 fewer reallocations and 20 % fewer bytes per run over the 28
+  golden Python files), and `find_api` compares names, types and docs without lowercasing each
+  entry's text for every search (3,552 allocations and 145 KB per call down to 432 and 54 KB).
+
 - The tool lists of the MCP servers (`cdp`, `driver`, `sb` and `dev`) are pinned with `insta`
   snapshots, `tests/offline/snapshots/offline__mcp_tool_lists__<server>.snap`, checked by the
   `mcp_tool_lists` module of the `offline` test binary. They replace the JSON files in
