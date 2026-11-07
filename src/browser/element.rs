@@ -345,8 +345,8 @@ fn wire_key(key: Key) -> WireKey {
 ///
 /// None of them waits for the element to be ready, since an `Element` is
 /// already found: an element that is covered, hidden or disabled fails with
-/// the driver's error. [`BaseCase`](crate::BaseCase) methods by selector wait
-/// first.
+/// [`SeleniumBaseError::ElementNotInteractable`]. [`BaseCase`](crate::BaseCase) methods by
+/// selector wait first.
 impl Element {
     /// Clicks the element.
     ///
@@ -356,7 +356,8 @@ impl Element {
     /// # Errors
     ///
     /// [`SeleniumBaseError::StaleElement`] if the page replaced the element,
-    /// or the driver's error, such as a click another element intercepts.
+    /// [`SeleniumBaseError::ElementNotInteractable`] if the driver refuses the click, as when
+    /// another element intercepts it, or the driver's error.
     pub async fn click(&self) -> Result<(), SeleniumBaseError> {
         self.inner.click().await.map_err(|error| self.failed(error))
     }
