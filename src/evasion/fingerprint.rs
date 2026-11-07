@@ -51,11 +51,13 @@ use std::sync::Arc;
 use serde::{Deserialize, Deserializer, Serialize};
 
 mod compare;
+mod consistency;
 mod file;
 #[cfg(test)]
 mod schema;
 
 pub use compare::{FingerprintComparison, SettingDiff};
+pub use consistency::{Contradiction, Severity};
 
 use super::humanize::Rng;
 pub use super::policy::{AudioNoise, CanvasNoise, StealthPolicy};
@@ -1084,32 +1086,14 @@ impl Fingerprint {
             webgl.vendor.as_deref().unwrap_or(""),
             webgl.renderer.as_deref().unwrap_or("")
         );
-        // (what the strings name, the API's name, the systems that report it)
-        let families: [(&[&str], &str, &[OsType]); 4] = [
-            (&["Direct3D", "D3D11"], "Direct3D", &[OsType::Windows]),
-            (
-                &["Metal", "Apple"],
-                "Apple GPU or Metal",
-                &[OsType::Macos, OsType::Ios],
-            ),
-            (&["Mesa"], "Mesa", &[OsType::Linux]),
-            (
-                &["Adreno", "Mali", "PowerVR"],
-                "mobile GPU",
-                &[OsType::Android],
-            ),
-        ];
-        for (needles, api, systems) in families {
-            if !needles.iter().any(|n| named.contains(n)) {
-                continue;
-            }
-            if !systems.contains(&self.0.os()) {
-                report.errors.push(format!(
-                    "WebGL renderer '{}' is a {api} renderer, which {:?} does not report",
-                    webgl.renderer.as_deref().unwrap_or(""),
-                    self.0.os()
-                ));
-            }
+        if let Some((api, systems)) = renderer_family(&named)
+            && !systems.contains(&self.0.os())
+        {
+            report.errors.push(format!(
+                "WebGL renderer '{}' is a {api} renderer, which {:?} does not report",
+                webgl.renderer.as_deref().unwrap_or(""),
+                self.0.os()
+            ));
         }
     }
 
@@ -1938,6 +1922,31 @@ fn refuse_useless_off(f: &Fields) -> Result<(), FingerprintError> {
         Some((setting, _)) => Err(FingerprintError::OffNotAvailable { setting }),
         None => Ok(()),
     }
+}
+
+/// The graphics API a WebGL vendor and renderer string names, with the systems
+/// that report it: Direct3D on Windows, Apple's GPU or Metal on macOS and iOS,
+/// Mesa on Linux, a mobile GPU on Android. `None` for a string that names no
+/// family this crate knows.
+pub(crate) fn renderer_family(named: &str) -> Option<(&'static str, &'static [OsType])> {
+    const FAMILIES: [(&[&str], &str, &[OsType]); 4] = [
+        (&["Direct3D", "D3D11"], "Direct3D", &[OsType::Windows]),
+        (
+            &["Metal", "Apple"],
+            "Apple GPU or Metal",
+            &[OsType::Macos, OsType::Ios],
+        ),
+        (&["Mesa"], "Mesa", &[OsType::Linux]),
+        (
+            &["Adreno", "Mali", "PowerVR"],
+            "mobile GPU",
+            &[OsType::Android],
+        ),
+    ];
+    FAMILIES
+        .iter()
+        .find(|(needles, _, _)| needles.iter().any(|needle| named.contains(needle)))
+        .map(|(_, api, systems)| (*api, *systems))
 }
 
 /// Whether any setting asks to be drawn at random.
