@@ -78,6 +78,22 @@ pub(super) struct Lexed {
     pub(super) comments: Vec<Comment>,
 }
 
+/// How many bytes of source one token takes, on average, when the token list is sized before
+/// reading. Most of the golden Python files take 6 or more (the other five grow the list once),
+/// where a list that starts empty grows five or six times for a file of that size.
+const BYTES_PER_TOKEN: usize = 6;
+
+impl Lexed {
+    /// An empty result whose token list has room for the tokens `source` is expected to hold, so
+    /// the list is allocated once rather than doubled its way up.
+    fn for_source(source: &str) -> Self {
+        Self {
+            tokens: Vec::with_capacity(source.len() / BYTES_PER_TOKEN),
+            comments: Vec::new(),
+        }
+    }
+}
+
 /// Why the source could not be read.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct LexError {
@@ -156,7 +172,7 @@ impl<'a> Lexer<'a> {
             line: 1,
             line_offset: 0,
             dialect,
-            out: Lexed::default(),
+            out: Lexed::for_source(src),
             nl_pending: true,
             py_line_start_pending: true,
             depth: 0,
