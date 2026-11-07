@@ -216,7 +216,7 @@ and `media_devices` (`(audio_in, audio_out, video_in)`).
 | `locale`, `languages`, `accept_languages` | The place's locale and language list. | no `Off` | `Localization` | The `localization` provider, `--lang`, `Emulation.setLocaleOverride`, and the `Accept-Language` of the user agent override. |
 | `timezone` | The place's time zone. | no `Off` | `Timezone` | The `timezone` provider and `Emulation.setTimezoneOverride`. |
 | `screen_spoof`, `avail_screen`, `pixel_ratio`, `color_depth` | The machine's screen. | no `Off` | `Screen` | The `window_geometry` provider, `--window-size` and `Emulation.setDeviceMetricsOverride`. |
-| `webgl` | An adapter the operating system reports. | no `Off` | `Graphics` | The `webgl` provider. |
+| `webgl` | An adapter the operating system reports. | no `Off` | `Graphics` | The `webgl` and `webgpu` providers: the WebGPU adapter names the same GPU. |
 | `fonts` | The system's fonts, with a few of the less common left out. | no `Off` | `Fonts` | The `fonts` provider. |
 | `media_devices` | A microphone, a speaker and, usually, a camera. | No device is listed. | `MediaDevices` | The `media_devices` provider. |
 | `geolocation` | A spot in the place's main city. | The request is denied (`PERMISSION_DENIED`). | `Geolocation` | The `geolocation` provider, `Emulation.setGeolocationOverride`, and the geolocation permission for a position. |
@@ -255,6 +255,60 @@ locale (the table's list for a known locale, else the locale and its language),
 and `navigator.platform` and the operating-system persona, from a recognised user
 agent. A value you set is never replaced.
 
+## Consistency
+
+A detector does not need to know the real machine. It needs two surfaces that
+disagree: a WebGL renderer that names an NVIDIA card next to a WebGPU adapter
+that says `apple`, a worker that reports ten cores next to a window that reports
+eight, a phone whose pointer is `fine`. A spoof that contradicts another surface
+is worse than no spoof, so a capture can be asked whether the browser agrees
+with itself:
+
+```rust
+use seleniumbase_rs::sb_cdp::Page;
+
+async fn check(page: &Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let captured = page.capture_fingerprint().await?;
+    for contradiction in captured.contradictions() {
+        println!("{contradiction}");
+    }
+    Ok(())
+}
+```
+
+`CapturedFingerprint::contradictions()` returns every pair of surfaces of one
+capture that disagree, loudest first, as a `Contradiction`: the rule (a short
+name such as `webgpu_vs_webgl`), the two surfaces as a page reads them, their
+two values, the persona rule they break, why, and a `Severity` (`high`: a value
+that names the other machine or that every detector reads; `medium`; `low`: a
+quiet preference). The persona is the one the capture's own user agent names,
+so no expected fingerprint is needed: `compare_to` answers whether the page
+matches a fingerprint, `contradictions` whether it matches itself. The rules
+are the ones the open-source detectors apply (fpscanner, CreepJS, BotD,
+FingerprintJS, rebrowser-bot-detector, fp-collect, ThumbmarkJS); the inventory
+with the sources and the ranked gaps is
+[Fingerprint consistency](/design/fingerprint_consistency).
+
+The same list is the `contradictions` field of the MCP tools
+`compare_fingerprint` and `explain_fingerprint`, and the summary of
+`sbrs fingerprint capture` prints it (`--readings` writes it). A rule whose
+readings the capture lacks says nothing: a page whose policy blocked a worker is
+not a contradiction.
+
+What the evasions make agree today, so a contradiction there is a regression:
+the user agent against `navigator.platform`, `vendor`, `productSub`, the Client
+Hints and the engine; `navigator.language` against `languages` and the Intl
+locales; the time zone against the `Date` offsets; the window against the
+screen; WebGL against WebGPU and the operating system; an `about:blank` frame
+against the window; the three codec answers. What is still open, in rank order:
+a dedicated worker's `navigator`, WebGL and Intl (the init script does not reach
+workers), the CSS media features of a phone persona (`pointer`, `hover`), the
+host's fonts, the host's APIs (`BarcodeDetector` on a Mac, `navigator.hid` for
+a phone persona), Chrome's own plugin list for a phone persona, touch events,
+the host's voices and keyboard, the storage quota, and the preset's battery
+shape.
+
+
 ## What is spoofed
 
 With a CDP session and the `balanced()` policy (see the provider table for the
@@ -269,7 +323,9 @@ conditions), for the values the fingerprint holds:
 * `navigator.permissions.query` for notifications
 * `screen.width`, `height`, `availWidth`, `availHeight`, `colorDepth`,
   `outerWidth`, `outerHeight` and `devicePixelRatio`
-* WebGL `UNMASKED_VENDOR_WEBGL` and `UNMASKED_RENDERER_WEBGL`
+* WebGL `UNMASKED_VENDOR_WEBGL` and `UNMASKED_RENDERER_WEBGL`, and the WebGPU
+  adapter's `vendor` and `architecture` for the same GPU (no adapter at all for a
+  Linux persona whose GPU is not Intel's)
 * Canvas `toDataURL`, `toBlob` and `getImageData` noise
 * Audio noise (when the policy's `audio_noise` is not `Natural`, which
   `balanced()` and so every preset and every `randomized` identity set)

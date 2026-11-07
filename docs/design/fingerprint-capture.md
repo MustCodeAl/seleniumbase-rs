@@ -67,6 +67,7 @@ checks, never applied.
 pub struct CapturedFingerprint { pub fingerprint: Fingerprint, pub unmapped: Map<String, Value>, pub probe: ProbeInfo }
 pub struct ProbeInfo { pub url: String, pub captured_at: String, pub browser_version: Option<String> }
 CapturedFingerprint::from_probe(raw: &Value, captured_at: impl Into<String>) -> Result<Self, SeleniumBaseError>
+CapturedFingerprint::contradictions(&self) -> Vec<Contradiction>   // where the page disagrees with itself; see fingerprint_consistency.md
 
 // the engines
 Page::capture_fingerprint(&self) -> Result<CapturedFingerprint, SeleniumBaseError>      // sb_cdp

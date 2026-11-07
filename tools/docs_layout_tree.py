@@ -266,6 +266,7 @@ def evasion_detail():
     fingerprint = _folder(
         "fingerprint", "parts of fingerprint.rs",
         _file("compare.rs", "compares two fingerprints"),
+        _file("consistency.rs", "the rules behind CapturedFingerprint::contradictions"),
         _file("file.rs", "reads and writes a fingerprint file"),
         _file("schema.rs", "the fingerprint JSON schema"),
     )

@@ -384,6 +384,35 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- **Fingerprint consistency: a browser is asked whether it agrees with itself.**
+  `CapturedFingerprint::contradictions()` returns every pair of surfaces of one capture that
+  disagree (`Contradiction`: the rule, the two surfaces, their values, the persona rule they
+  break, why, and a `Severity`), loudest first. The persona is the one the capture's own user
+  agent names, so no expected fingerprint is needed. The rules are the ones the open-source
+  detectors apply (fpscanner, CreepJS, BotD, FingerprintJS, rebrowser-bot-detector, fp-collect,
+  ThumbmarkJS): the WebGPU adapter against the WebGL renderer and the system, a worker and an
+  `about:blank` frame against the window, the window against the screen, the CSS media features
+  against the device (and `matchMedia` against `@media`), the three codec answers, the fonts, the
+  API presence, plugins, touch, Intl against `navigator.language`, the offsets against the time
+  zone, Client Hints against the user agent, voices, the keyboard map, WebGL extensions, the
+  storage quota, the battery shape and the engine. The capture script reads the surfaces these
+  rules need (a worker, a frame, WebGPU, the media features through `matchMedia` and `@media`,
+  the codecs, the keyboard map, the storage quota, the API map, the Intl locales and offsets, the
+  fonts by measurement, touch), kept under `CapturedFingerprint::unmapped`. `compare_fingerprint`
+  and `explain_fingerprint` on the MCP servers answer a `contradictions` field (a loud one raises
+  `explain_fingerprint`'s risk), and `sbrs fingerprint capture` lists them in its summary and
+  writes them with `--readings`. The inventory of surfaces, detectors and ranked gaps is
+  `docs/design/fingerprint_consistency.md`; `tests/chrome/fingerprint_consistency_chrome.rs`
+  launches each preset in a headless Chrome and fails on a contradiction the evasions should
+  avoid; `tests/chrome/identity_linking_chrome.rs` proves that a second browser context and a
+  second profile start with every store empty (cookies, `localStorage`, IndexedDB, the Cache
+  API, service worker registrations, the HTTP cache's `ETag`).
+- The `webgpu` provider: `GPUAdapterInfo.vendor` and `architecture` name the GPU the `WebGl`
+  renderer names (`nvidia` and `lovelace` for an RTX 40 card, `apple` and `metal-3` for a Mac,
+  `qualcomm` and `adreno-7xx` for a phone), so WebGPU and WebGL agree, which fpscanner and
+  CreepJS check. A Linux persona whose GPU is not Intel's answers no adapter, as Chrome on Linux
+  has WebGPU for Intel Gen 12 and later only.
+
 - `sbrs options --env` lists seven variables the code already read: `SB_REC_FILE`,
   `SB_REC_KEEP_SECRETS`, `SB_S3_BUCKET`, `SB_S3_REGION`, `SB_S3_PREFIX`, `SB_OCR_MODELS` and
   `SB_GRID_DIR`. `env_vars::switch` reads a switch variable (`true`, `1`, `yes`, `on`; `false`,
@@ -490,6 +519,15 @@ work, `docs/parity.md` the per-API status).
   how to start the manual jobs.
 
 ### Fixed
+
+- A phone persona's window is its screen: `window.outerWidth` is the screen width and
+  `outerHeight` the available height whatever the layout viewport is (a page without a viewport
+  meta lays out at 980 pixels), as Chrome on Android reports them. The `window_geometry` provider
+  made the window as wide as the layout viewport, wider than the screen, which every detector
+  reads as a lie. A desktop window is still as large as the screen and never smaller than its
+  real viewport.
+- The user agent override of an Android persona without Client Hints of its own sends no
+  `architecture`, as Chrome on Android reports none; it sent `arm`.
 
 - `get_cookie` of a cookie the page does not have is `Ok(None)`, as Python's is `None`. It was
   the driver's "no such cookie" error, and `examples/cookies_storage.rs` asserted that. Any

@@ -101,7 +101,7 @@ There is no public method that switches into a frame, and none that accepts or d
 | `set_messenger_theme(settings)` | How later messages look and where they sit. `settings` converts into `MessengerSettings` (`MessengerTheme` or `MessengerLocation` change one part). |
 | `post_message(message, options)` | Shows `message` as text, not HTML. `options` is `MessageOptions`. When pause is set, the call waits out the message duration. |
 | `apply_fingerprint(fingerprint)` | Applies a `Fingerprint` to this tab. What a plan contains is on [State](/api/cdp-state). |
-| `capture_fingerprint()` | Reads what this tab shows a page, as a `CapturedFingerprint`. One script evaluation; it changes nothing and asks for no permission. Prefer an `https:` page or `about:blank` for a full reading. |
+| `capture_fingerprint()` | Reads what this tab shows a page, as a `CapturedFingerprint`. One script evaluation; it changes nothing and asks for no permission (it holds a style sheet, a frame and a span in the page while it measures, and removes them). Prefer an `https:` page or `about:blank` for a full reading. `captured.contradictions()` lists where the page disagrees with itself (WebGPU against WebGL, a worker against the window, ...), loudest first; see [Consistency](/stealth/fingerprints#consistency). |
 | `compare_fingerprint(expected)` | Captures, then compares with `expected`. Returns a `FingerprintComparison`. |
 | `shield_webrtc()` | Relay-only WebRTC in this tab, now and on later pages. No host, `.local` or public candidate, and no STUN server. |
 | `webrtc_report()` | Gathers local ICE candidates (no STUN server) into a `WebRtcReport`. The page must be allowed to use WebRTC. |

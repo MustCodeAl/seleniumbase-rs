@@ -75,6 +75,15 @@ the scraping tools have theirs in
 
 </Accordion>
 
+<Accordion title="Two surfaces of the page disagree" icon="code-compare">
+
+**Likely cause.** A setting reaches one surface and not another that reports the same fact: the WebGL renderer was replaced and the WebGPU adapter was not, `navigator.hardwareConcurrency` in the window and not in a worker, `matchMedia` and not the `@media` rules, a phone persona whose pointer is `fine`. A detector needs no fingerprint to see this, only the two readings.
+
+**Fix.** Capture and read `CapturedFingerprint::contradictions()` (the `contradictions` field of `compare_fingerprint` and `explain_fingerprint`, the summary of `sbrs fingerprint capture`), loudest first. Each names the rule, the two surfaces, the two values and the persona rule they break. For a surface the evasions reach (`webgl_vs_os`, `client_hints_vs_user_agent`, `window_vs_screen`, ...), fix the fingerprint the message points at; for one they do not yet (a worker's `navigator`, the host's fonts and APIs), the ranked list in [Fingerprint consistency](/design/fingerprint_consistency) says what is open, and `tests/chrome/fingerprint_consistency_chrome.rs` which rules a preset may still show.
+
+</Accordion>
+
+
 </AccordionGroup>
 
 ---
