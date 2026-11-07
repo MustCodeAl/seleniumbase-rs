@@ -233,7 +233,7 @@ pub(super) fn check(captured: &CapturedFingerprint) -> Vec<Contradiction> {
 // ---------------------------------------------------------------------------
 
 /// The maker a WebGL vendor or renderer string names, in the word WebGPU uses.
-fn gpu_maker(text: &str) -> Option<&'static str> {
+pub(crate) fn gpu_maker(text: &str) -> Option<&'static str> {
     let lower = text.to_ascii_lowercase();
     [
         ("swiftshader", "google"),
@@ -255,6 +255,80 @@ fn gpu_maker(text: &str) -> Option<&'static str> {
     .into_iter()
     .find(|(needle, _)| lower.contains(needle))
     .map(|(_, maker)| maker)
+}
+
+/// The WebGPU `architecture` Chrome reports for the GPU a WebGL renderer
+/// string names, in the words Dawn uses (`lovelace`, `rdna-3`, `gen-12-lp`,
+/// `metal-3`, `adreno-7xx`, `valhall`). Empty for a family this crate cannot
+/// place, which is also what Chrome reports for a GPU it cannot.
+pub(crate) fn gpu_architecture(renderer: &str) -> &'static str {
+    let lower = renderer
+        .to_ascii_lowercase()
+        .replace("(r)", "")
+        .replace("(tm)", "")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    let has = |needles: &[&str]| needles.iter().any(|needle| lower.contains(needle));
+    match gpu_maker(renderer) {
+        Some("nvidia") => {
+            if has(&["rtx 40"]) {
+                "lovelace"
+            } else if has(&["rtx 30"]) {
+                "ampere"
+            } else if has(&["rtx 20", "gtx 16"]) {
+                "turing"
+            } else if has(&["gtx 10"]) {
+                "pascal"
+            } else {
+                ""
+            }
+        }
+        Some("amd") => {
+            if has(&["rx 7"]) {
+                "rdna-3"
+            } else if has(&["rx 6"]) {
+                "rdna-2"
+            } else if has(&["rx 5"]) {
+                "rdna-1"
+            } else if has(&["vega"]) {
+                "gcn-5"
+            } else {
+                ""
+            }
+        }
+        Some("intel") => {
+            if has(&["arc"]) {
+                "gen-12-hp"
+            } else if has(&["iris xe", "uhd graphics 7"]) {
+                "gen-12-lp"
+            } else if has(&["uhd graphics 6", "hd graphics 6", "iris plus"]) {
+                "gen-9"
+            } else {
+                ""
+            }
+        }
+        Some("apple") => "metal-3",
+        Some("qualcomm") => {
+            if has(&["adreno 7"]) {
+                "adreno-7xx"
+            } else if has(&["adreno 6"]) {
+                "adreno-6xx"
+            } else {
+                ""
+            }
+        }
+        Some("arm") => {
+            if has(&["mali-g7", "immortalis"]) {
+                "valhall"
+            } else if has(&["mali-g5", "mali-g3"]) {
+                "bifrost"
+            } else {
+                ""
+            }
+        }
+        _ => "",
+    }
 }
 
 /// The WebGL renderer and vendor of a capture, unmasked when the browser gave
@@ -545,6 +619,7 @@ fn geometry(
         );
     }
     if let (Some(inner_width), Some(outer_width)) = (inner.0, outer.0)
+        && !persona.mobile
         && inner_width > outer_width
     {
         findings.push(
@@ -552,7 +627,7 @@ fn geometry(
             Severity::High,
             ["window.innerWidth", "window.outerWidth"],
             [json!(inner_width), json!(outer_width)],
-            "the viewport is inside the window",
+            "a desktop's viewport is inside its window (a phone's layout viewport may be wider)",
             "innerWidth is larger than outerWidth",
         );
     }

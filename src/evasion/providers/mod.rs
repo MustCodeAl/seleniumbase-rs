@@ -462,7 +462,11 @@ mod tests {
             ("locale", |b| b.locale("de-DE"), &["localization"]),
             ("timezone", |b| b.timezone("Europe/Berlin"), &["timezone"]),
             ("screen", |b| b.screen(1440, 900), &["window_geometry"]),
-            ("webgl", |b| b.webgl(("Vendor", "Renderer")), &["webgl"]),
+            (
+                "webgl",
+                |b| b.webgl(("Vendor", "Renderer")),
+                &["webgl", "webgpu"],
+            ),
             (
                 "geolocation",
                 |b| b.geolocation((52.5, 13.4)),
@@ -589,6 +593,7 @@ mod tests {
         for name in [
             "navigator_props",
             "webgl",
+            "webgpu",
             "window_geometry",
             "timezone",
             "battery",
@@ -765,6 +770,7 @@ mod tests {
         permissions_passes_the_audit => "permissions",
         window_geometry_passes_the_audit => "window_geometry",
         webgl_passes_the_audit => "webgl",
+        webgpu_passes_the_audit => "webgpu",
         canvas_noise_passes_the_audit => "canvas_noise",
         audio_noise_passes_the_audit => "audio_noise",
         webrtc_passes_the_audit => "webrtc",

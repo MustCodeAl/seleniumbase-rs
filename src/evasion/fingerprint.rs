@@ -57,6 +57,7 @@ mod file;
 mod schema;
 
 pub use compare::{FingerprintComparison, SettingDiff};
+pub(crate) use consistency::{gpu_architecture, gpu_maker};
 pub use consistency::{Contradiction, Severity};
 
 use super::humanize::Rng;

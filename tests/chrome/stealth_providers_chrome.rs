@@ -1026,3 +1026,49 @@ async fn a_whole_fingerprint_applied_over_cdp_is_consistent() {
     assert_eq!(r["cores"], json!(fp.hardware_concurrency().value()));
     lab.close().await;
 }
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
+async fn the_webgpu_adapter_names_the_gpu_of_the_webgl_renderer() {
+    let lab = lab().await;
+    let probe = r##"(async () => {
+        if (!navigator.gpu) { return { gpu: false }; }
+        const adapter = await navigator.gpu.requestAdapter();
+        if (!adapter) { return { gpu: true, adapter: false }; }
+        const info = adapter.info;
+        return {
+            gpu: true, adapter: true, vendor: info.vendor, architecture: info.architecture,
+            own: Object.getOwnPropertyNames(info),
+            proto: Object.getPrototypeOf(info) === GPUAdapterInfo.prototype,
+        };
+    })()"##;
+    let before = lab.eval(probe).await;
+    if before["adapter"] != json!(true) {
+        println!("this Chrome has no WebGPU adapter, so there is nothing to make agree: {before}");
+        lab.close().await;
+        return;
+    }
+
+    // The Windows preset names an NVIDIA RTX 40 card: the adapter follows it.
+    lab.install(&persona(), &["webgl", "webgpu"]).await;
+    let after = lab.eval(probe).await;
+    assert_eq!(after["vendor"], "nvidia", "{after}");
+    assert_eq!(after["architecture"], "lovelace", "{after}");
+    assert_eq!(
+        after["own"], before["own"],
+        "no property was added to the info"
+    );
+    assert_eq!(
+        after["proto"],
+        json!(true),
+        "the info is still a GPUAdapterInfo"
+    );
+
+    // A Linux persona with a discrete GPU has no WebGPU adapter at all.
+    lab.install(&Fingerprint::linux_desktop(), &["webgl", "webgpu"])
+        .await;
+    let linux = lab.eval(probe).await;
+    assert_eq!(linux["adapter"], json!(false), "{linux}");
+    lab.close().await;
+}

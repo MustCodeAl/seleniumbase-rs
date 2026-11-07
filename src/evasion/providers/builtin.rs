@@ -19,8 +19,8 @@
 
 use super::{EvasionContext, EvasionProvider, SB_PREAMBLE};
 use crate::evasion::fingerprint::{
-    languages_for_locale, AudioNoise, CanvasNoise, Dimension, Fingerprint, Geolocation,
-    AUDIO_SEED_MASK,
+    gpu_architecture, gpu_maker, languages_for_locale, AudioNoise, CanvasNoise, Dimension,
+    Fingerprint, Geolocation, OsType, AUDIO_SEED_MASK,
 };
 
 /// Fills `@NAME@` markers in a JavaScript template, in one pass.
@@ -72,6 +72,7 @@ pub fn all() -> Vec<Box<dyn EvasionProvider>> {
         Box::new(PluginsProvider),
         Box::new(WindowGeometryProvider),
         Box::new(WebglProvider),
+        Box::new(WebGpuProvider),
         Box::new(CanvasNoiseProvider),
         Box::new(AudioNoiseProvider),
         Box::new(WebRtcProvider),
@@ -554,9 +555,22 @@ impl EvasionProvider for WindowGeometryProvider {
             defs.push(format!(
                 "width: {w}, height: {h}, availWidth: {avail_w}, availHeight: {avail_h}"
             ));
+            // A phone's window is its screen: Chrome on Android reports the screen
+            // width and the available height whatever the layout viewport is (a
+            // page without a viewport meta lays out at 980 pixels). A desktop
+            // window is as large as the screen and never smaller than its real
+            // viewport.
+            let (outer_w, outer_h) = if fp.os_type().is_mobile() {
+                (w.to_string(), avail_h.to_string())
+            } else {
+                (
+                    format!("Math.max({w}, window.innerWidth)"),
+                    format!("Math.max({avail_h}, window.innerHeight)"),
+                )
+            };
             replaceables.push_str(&format!(
-                "  try {{ replaceable('outerWidth', function () {{ return Math.max({w}, window.innerWidth); }}); }} catch (e) {{}}\n\
-                 \x20 try {{ replaceable('outerHeight', function () {{ return Math.max({avail_h}, window.innerHeight); }}); }} catch (e) {{}}\n"
+                "  try {{ replaceable('outerWidth', function () {{ return {outer_w}; }}); }} catch (e) {{}}\n\
+                 \x20 try {{ replaceable('outerHeight', function () {{ return {outer_h}; }}); }} catch (e) {{}}\n"
             ));
         }
         if let Some(depth) = depth {
@@ -637,6 +651,66 @@ impl EvasionProvider for WebglProvider {
   patch(window.WebGL2RenderingContext);
 })();"##,
             &[("VENDOR", &vendor), ("RENDERER", &renderer)],
+        ))
+    }
+}
+
+/// Makes the WebGPU adapter name the GPU the WebGL renderer names.
+///
+/// `GPUAdapterInfo.vendor` and `architecture` are what a page reads from
+/// `navigator.gpu.requestAdapter()`; fpscanner, CreepJS and ThumbmarkJS hold
+/// them against the WebGL renderer, and one machine has one GPU. The vendor is
+/// the maker the `WebGl` value names (`nvidia`, `apple`, `qualcomm`), the
+/// architecture the family Dawn reports for it (`lovelace`, `metal-3`,
+/// `adreno-7xx`; empty when the family is not known, as Chrome reports it for
+/// a GPU it cannot place). A Linux persona whose GPU is not Intel's gets no
+/// adapter at all: Chrome on Linux has WebGPU for Intel Gen 12 and later only.
+/// A renderer that names no maker leaves the browser's adapter alone.
+///
+/// The init script does not reach workers, so an `OffscreenCanvas` in a worker
+/// still reports the host's adapter (the `worker_vs_window` contradiction).
+#[derive(Clone, Copy, Debug, Default)]
+pub struct WebGpuProvider;
+
+impl EvasionProvider for WebGpuProvider {
+    fn name(&self) -> &str {
+        "webgpu"
+    }
+    fn priority(&self) -> i32 {
+        51
+    }
+    fn applies(&self, fp: &Fingerprint) -> bool {
+        fp.is_masked(Dimension::Graphics)
+    }
+    fn script(&self, ctx: &EvasionContext) -> Option<String> {
+        let fp = ctx.fingerprint;
+        let gl = fp.webgl().value()?;
+        let renderer = gl.renderer.as_deref().unwrap_or("");
+        let vendor = gl.vendor.as_deref().unwrap_or("");
+        let maker = gpu_maker(renderer).or_else(|| gpu_maker(vendor))?;
+        let adapterless = fp.os_type() == OsType::Linux && maker != "intel";
+        Some(render(
+            r##"(function () {
+  @SB@
+  const vendor = @VENDOR@;
+  const architecture = @ARCHITECTURE@;
+  const adapterless = @ADAPTERLESS@;
+  if (!navigator.gpu) { return; }
+  if (adapterless) {
+    const gpu = Object.getPrototypeOf(navigator.gpu);
+    const original = gpu.requestAdapter;
+    gpu.requestAdapter = sb.native(function requestAdapter() { return Promise.resolve(null); }, 'requestAdapter', original);
+    return;
+  }
+  if (typeof GPUAdapterInfo === 'undefined') { return; }
+  try { sb.getter(GPUAdapterInfo.prototype, 'vendor', function () { return vendor; }); } catch (e) {}
+  try { sb.getter(GPUAdapterInfo.prototype, 'architecture', function () { return architecture; }); } catch (e) {}
+})();"##,
+            &[
+                ("VENDOR", &quoted(maker)),
+                ("ARCHITECTURE", &quoted(gpu_architecture(renderer))),
+                ("ADAPTERLESS", if adapterless { "true" } else { "false" }),
+            ],
         ))
     }
 }
@@ -1957,7 +2031,7 @@ mod tests {
     #[test]
     fn all_providers_are_priority_ordered() {
         let providers = all();
-        assert_eq!(providers.len(), 29);
+        assert_eq!(providers.len(), 30);
         let mut last = i32::MIN;
         for p in &providers {
             assert!(p.priority() >= last, "provider {} out of order", p.name());
@@ -2006,6 +2080,61 @@ mod tests {
         assert!(!script.contains("__sbVendorId") && !script.contains("__sbRendererId"));
         assert!(!script.contains("0x10de"));
         assert!(!script.contains("0x1f91"));
+    }
+
+    #[test]
+    fn webgpu_names_the_maker_and_the_family_of_the_webgl_renderer() {
+        let fp = Fingerprint::windows_desktop();
+        let script = WebGpuProvider.script(&ctx_for(&fp)).unwrap();
+        assert!(script.contains("const vendor = 'nvidia';"), "{script}");
+        assert!(
+            script.contains("const architecture = 'lovelace';"),
+            "{script}"
+        );
+        assert!(script.contains("const adapterless = false;"), "{script}");
+        assert!(script.contains("GPUAdapterInfo.prototype"));
+    }
+
+    #[test]
+    fn a_mac_persona_has_an_apple_adapter_on_metal_and_a_phone_its_own_gpu() {
+        let script = WebGpuProvider
+            .script(&ctx_for(&Fingerprint::macos_desktop()))
+            .unwrap();
+        assert!(script.contains("const vendor = 'apple';"), "{script}");
+        assert!(
+            script.contains("const architecture = 'metal-3';"),
+            "{script}"
+        );
+
+        let script = WebGpuProvider
+            .script(&ctx_for(&Fingerprint::android_mobile()))
+            .unwrap();
+        assert!(script.contains("const vendor = 'qualcomm';"), "{script}");
+        assert!(
+            script.contains("const architecture = 'adreno-7xx';"),
+            "{script}"
+        );
+    }
+
+    #[test]
+    fn a_linux_persona_with_a_discrete_gpu_has_no_webgpu_adapter() {
+        let fp = Fingerprint::linux_desktop();
+        let script = WebGpuProvider.script(&ctx_for(&fp)).unwrap();
+        assert!(script.contains("const adapterless = true;"), "{script}");
+        assert!(script.contains("requestAdapter"), "{script}");
+    }
+
+    #[test]
+    fn a_renderer_that_names_no_maker_leaves_webgpu_alone() {
+        let fp = windows_with(|b| b.webgl(("Vendor", "Renderer")));
+        assert!(WebGpuProvider.script(&ctx_for(&fp)).is_none());
+        let fp = windows_with(|b| b.webgl(("Google Inc. (Intel)", "Intel(R) Iris(R) Xe Graphics")));
+        let script = WebGpuProvider.script(&ctx_for(&fp)).unwrap();
+        assert!(script.contains("const vendor = 'intel';"), "{script}");
+        assert!(
+            script.contains("const architecture = 'gen-12-lp';"),
+            "{script}"
+        );
     }
 
     #[test]
