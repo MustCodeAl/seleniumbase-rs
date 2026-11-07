@@ -7,9 +7,9 @@
 //!   save the result as a fingerprint file.
 //! - `compare_fingerprint` asks whether the browser presents a fingerprint:
 //!   which settings it contradicts, which it matches and which no page can
-//!   read.
+//!   read, and the contradictions between two surfaces of the page itself.
 //! - `explain_fingerprint` lists the signs of automation a detection script
-//!   would find, how coherent the readings are and what such a script reads.
+//!   would find, where the page contradicts itself and what such a script reads.
 //! - [`offline_tools`] (`diff_fingerprints`, `patch_fingerprint`) and the
 //!   helpers [`build`] and [`fingerprint_arg`] need no browser; the `sb`
 //!   server's stealth tools use them.
@@ -37,7 +37,9 @@ use crate::api::base_case::BaseCase;
 use crate::cli::fingerprint_cmd::{self, ExportSource, PRESET_NAMES};
 use crate::error::SeleniumBaseError;
 use crate::evasion::capture::CapturedFingerprint;
-use crate::evasion::fingerprint::{Fingerprint, FingerprintComparison, OsType};
+use crate::evasion::fingerprint::{
+    Contradiction, Fingerprint, FingerprintComparison, OsType, Severity,
+};
 
 /// The systems a random identity can claim.
 const OS_NAMES: [&str; 5] = ["windows", "macos", "linux", "android", "ios"];
@@ -527,7 +529,9 @@ pub(super) fn tools<S: CaptureSession>() -> Vec<ToolDef<S>> {
             "Ask whether the running browser presents a fingerprint (give a fingerprint, a path \
              or a preset): captures what the page shows and lists the settings it contradicts, \
              the ones it matches and the ones no page can read (those are never counted as \
-             matches). The text starts with presents: yes|no, verified: yes|no.",
+             matches), then the contradictions between two surfaces of the page itself (the \
+             WebGPU adapter against the WebGL renderer, a worker against the window), loudest \
+             first. The text starts with presents: yes|no, verified: yes|no.",
             Effect::Observe,
             source_schema(),
             compare_fingerprint::<S>,
@@ -547,6 +551,21 @@ pub(super) fn tools<S: CaptureSession>() -> Vec<ToolDef<S>> {
                 },
                 "matched": { "type": "array", "items": { "type": "string" } },
                 "unverifiable": { "type": "array", "items": { "type": "string" } },
+                "contradictions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "rule": { "type": "string" },
+                            "severity": { "type": "string", "enum": ["low", "medium", "high"] },
+                            "surfaces": { "type": "array", "items": { "type": "string" } },
+                            "values": { "type": "array" },
+                            "persona": { "type": "string" },
+                            "reason": { "type": "string" }
+                        },
+                        "required": ["rule", "severity", "surfaces", "values", "persona", "reason"]
+                    }
+                },
                 "url": { "type": "string" }
             }),
             &[
@@ -556,6 +575,7 @@ pub(super) fn tools<S: CaptureSession>() -> Vec<ToolDef<S>> {
                 "differences",
                 "matched",
                 "unverifiable",
+                "contradictions",
             ],
         ))
         .untrusted(),
@@ -565,7 +585,9 @@ pub(super) fn tools<S: CaptureSession>() -> Vec<ToolDef<S>> {
             "Say what a detection script would find in the running browser: the signs of \
              automation (webdriver flag, headless markers, software renderer ...) with how \
              loudly a detector reacts and what to change, whether the readings agree with each \
-             other, and the values a script reads first. Optionally opens url first.",
+             other (the fingerprint's own coherence, and the contradictions between two surfaces \
+             of the page itself: a worker against the window, WebGPU against WebGL), and the \
+             values a script reads first. Optionally opens url first.",
             Effect::Mixed,
             Schema::new().optional("url", Prop::string("Page to open before reading")),
             explain_fingerprint::<S>,
@@ -575,6 +597,7 @@ pub(super) fn tools<S: CaptureSession>() -> Vec<ToolDef<S>> {
                 "risk": { "type": "string", "enum": ["none", "low", "medium", "high"] },
                 "leaks": { "type": "array", "items": { "type": "object" } },
                 "coherence": { "type": "object" },
+                "contradictions": { "type": "array", "items": { "type": "object" } },
                 "detector_view": { "type": "object" },
                 "not_readable": { "type": "array", "items": { "type": "string" } },
                 "unanswered": { "type": "object" },
@@ -584,6 +607,7 @@ pub(super) fn tools<S: CaptureSession>() -> Vec<ToolDef<S>> {
                 "risk",
                 "leaks",
                 "coherence",
+                "contradictions",
                 "detector_view",
                 "not_readable",
             ],
@@ -653,13 +677,19 @@ async fn compare_fingerprint<S: CaptureSession>(
     let comparison = expected.compare_to(&captured.fingerprint);
     Ok(comparison_output(
         &comparison,
+        &captured.contradictions(),
         expected.claimed_settings().len(),
         &captured.probe.url,
     ))
 }
 
 /// The answer of `compare_fingerprint`: the verdict first, then the evidence.
-fn comparison_output(comparison: &FingerprintComparison, claimed: usize, url: &str) -> Output {
+fn comparison_output(
+    comparison: &FingerprintComparison,
+    contradictions: &[Contradiction],
+    claimed: usize,
+    url: &str,
+) -> Output {
     let yes = |flag: bool| if flag { "yes" } else { "no" };
     let mut text = format!(
         "presents: {}, verified: {}\n",
@@ -679,6 +709,17 @@ fn comparison_output(comparison: &FingerprintComparison, claimed: usize, url: &s
         );
         for difference in &comparison.differences {
             let _ = writeln!(text, "- {difference}");
+        }
+    }
+    if !contradictions.is_empty() {
+        let _ = writeln!(
+            text,
+            "{} contradiction(s) between surfaces of the page itself, loudest first (a detector \
+             needs no fingerprint to see these):",
+            contradictions.len()
+        );
+        for contradiction in contradictions {
+            let _ = writeln!(text, "- {contradiction}");
         }
     }
     if !comparison.matched.is_empty() {
@@ -704,6 +745,7 @@ fn comparison_output(comparison: &FingerprintComparison, claimed: usize, url: &s
         "differences": comparison.differences,
         "matched": comparison.matched,
         "unverifiable": comparison.unverifiable,
+        "contradictions": contradictions,
         "url": url,
     });
     Output::Structured { text, data }
@@ -748,6 +790,15 @@ pub(super) fn explain(captured: &CapturedFingerprint) -> (String, Value) {
         });
         leaks.push((*marker, severity, what, fix));
     }
+    // Two surfaces of the page that disagree are a sign as loud as a marker.
+    let contradictions = captured.contradictions();
+    for contradiction in &contradictions {
+        worst = worst.max(match contradiction.severity {
+            Severity::High => 3,
+            Severity::Medium => 2,
+            Severity::Low => 1,
+        });
+    }
     let risk = match worst {
         3 => "high",
         2 => "medium",
@@ -785,6 +836,13 @@ pub(super) fn explain(captured: &CapturedFingerprint) -> (String, Value) {
             let _ = writeln!(text, "- {marker} ({severity}): {what}. Fix: {fix}.");
         }
     }
+    for contradiction in &contradictions {
+        let _ = writeln!(
+            text,
+            "Surfaces disagree ({}): {contradiction}",
+            contradiction.severity
+        );
+    }
     for (label, key) in [("error", "errors"), ("warning", "warnings")] {
         for line in coherence[key]
             .as_array()
@@ -817,6 +875,7 @@ pub(super) fn explain(captured: &CapturedFingerprint) -> (String, Value) {
             }))
             .collect::<Vec<_>>(),
         "coherence": coherence,
+        "contradictions": contradictions,
         "detector_view": view,
         "not_readable": NOT_READABLE,
         "unanswered": captured.unmapped.get("unanswered").cloned().unwrap_or_else(|| json!({})),
@@ -1308,6 +1367,7 @@ mod tests {
         let comparison = claimed.compare_to(&seen);
         let Output::Structured { text, data } = comparison_output(
             &comparison,
+            &[],
             claimed.claimed_settings().len(),
             "https://x.test/",
         ) else {
@@ -1316,5 +1376,46 @@ mod tests {
         assert!(text.starts_with("presents: no, verified: no\n"), "{text}");
         assert_eq!(data["presents"], false);
         assert_ne!(data["differences"], json!([]));
+    }
+
+    #[test]
+    fn a_comparison_and_an_explanation_list_what_the_page_contradicts_in_itself() {
+        // A Windows persona applied in JavaScript alone to a Chrome on a Mac.
+        let raw: Value = serde_json::from_str(include_str!(
+            "../../tests/fixtures/fingerprint/probe_chrome_windows_on_mac.json"
+        ))
+        .unwrap();
+        let seen = CapturedFingerprint::from_probe(&raw, "2026-11-06T12:00:00Z").unwrap();
+        let claimed = Fingerprint::windows_desktop();
+
+        let comparison = claimed.compare_to(&seen.fingerprint);
+        let Output::Structured { text, data } = comparison_output(
+            &comparison,
+            &seen.contradictions(),
+            claimed.claimed_settings().len(),
+            "https://x.test/",
+        ) else {
+            panic!("a comparison has text and data")
+        };
+        assert!(
+            text.contains("contradiction(s) between surfaces of the page itself"),
+            "{text}"
+        );
+        assert!(text.contains("- webgpu_vs_webgl (high): "), "{text}");
+        assert_eq!(data["contradictions"][0]["rule"], "webgpu_vs_webgl");
+        assert_eq!(data["contradictions"][0]["severity"], "high");
+
+        let (text, data) = explain(&seen);
+        assert_eq!(data["risk"], "high", "a loud contradiction is a loud sign");
+        assert!(
+            text.contains("Surfaces disagree (high): webgpu_vs_webgl (high): "),
+            "{text}"
+        );
+        assert_eq!(
+            data["leaks"],
+            json!([]),
+            "no marker of automation, only contradictions"
+        );
+        assert!(data["contradictions"].as_array().unwrap().len() >= 8);
     }
 }

@@ -379,6 +379,18 @@ pub fn capture_summary(captured: &CapturedFingerprint) -> String {
             markers.join(", ")
         );
     }
+    let contradictions = captured.contradictions();
+    if !contradictions.is_empty() {
+        let _ = writeln!(
+            text,
+            "  {} contradiction(s) between surfaces of this browser, loudest first (a detector \
+             needs no fingerprint to see these):",
+            contradictions.len()
+        );
+        for contradiction in &contradictions {
+            let _ = writeln!(text, "    - {contradiction}");
+        }
+    }
     text
 }
 
@@ -651,6 +663,30 @@ mod tests {
         assert!(summary.contains("warning: this browser shows the markers of an automated one"));
         assert!(summary.contains("user_agent_says_headless, navigator_webdriver_true"));
         assert_eq!(captured.fingerprint.browser_type(), BrowserType::Chromium);
+    }
+
+    #[test]
+    fn the_summary_lists_the_contradictions_of_the_browser_loudest_first() {
+        // A Windows persona applied in JavaScript alone to a Chrome on a Mac.
+        let raw: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/fixtures/fingerprint/probe_chrome_windows_on_mac.json"
+        ))
+        .unwrap();
+        let captured = CapturedFingerprint::from_probe(&raw, "2026-11-06T12:00:00Z").unwrap();
+
+        let summary = capture_summary(&captured);
+
+        assert!(
+            summary.contains("contradiction(s) between surfaces of this browser"),
+            "{summary}"
+        );
+        assert!(
+            summary.contains("    - webgpu_vs_webgl (high): "),
+            "{summary}"
+        );
+        let loud = summary.find("webgpu_vs_webgl").unwrap();
+        let quiet = summary.find("battery_shape").unwrap();
+        assert!(loud < quiet, "loudest first: {summary}");
     }
 
     #[test]

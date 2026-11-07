@@ -256,7 +256,7 @@ pub async fn capture(args: CaptureArgs, config: BrowserConfig) -> Result<(), Box
         None => println!("{}", captured.fingerprint.to_json_pretty()?),
     }
     if let Some(path) = &args.readings {
-        let readings = json!({ "probe": captured.probe, "unmapped": captured.unmapped });
+        let readings = json!({ "probe": captured.probe, "unmapped": captured.unmapped, "contradictions": captured.contradictions() });
         std::fs::write(path, serde_json::to_string_pretty(&readings)?)?;
         eprintln!("Wrote {}", path.display());
     }
