@@ -2,30 +2,30 @@
 title: "StealthSession"
 ---
 
-Examples importing `seleniumbase_rs_stealth::mimic` require the facade's
-`mimic` feature. See the [single-dependency setup](/scraping/stealthy/overview#which-crate-to-depend-on);
+Examples importing `seleniumbase_rs_stealth::wire` require the facade's
+`wire` feature. See the [single-dependency setup](/scraping/stealthy/overview#which-crate-to-depend-on);
 this feature builds BoringSSL and needs cmake and a C/C++ toolchain.
 
-<Badge color="blue">Crate: mimic</Badge>
+<Badge color="blue">Crate: wire</Badge>
 
-`mimic::stealth_session::StealthSession` joins the pieces. It presents one
-`StealthIdentity` (the fingerprint, the measured browser it belongs to, the
+`wire::stealth_session::StealthSession` joins the pieces. It presents one
+`Identity` (the fingerprint, the measured browser it belongs to, the
 cookies it earned and the <Tooltip tip="The exit address a request leaves through: one of your proxies, or the direct connection.">egress</Tooltip> they were earned through) in one of two modes
 and moves between them by the policies:
 
-- `Mode::Http`: an [`HttpSession`](/scraping/stealthy/http-session) sends the requests. It is fast
+- `FetchKind::Http`: an [`HttpSession`](/scraping/stealthy/http-session) sends the requests. It is fast
   and cheap, with the measured handshake and headers.
-- `Mode::Browser`: a real Chrome sends them, behind a
+- `FetchKind::Browser`: a real Chrome sends them, behind a
   [`MitmProxy`](/stealth/advanced/mitm-proxy#mitmproxy) that replays each request with the same measured
   handshake. A clearance earned here is valid in the other mode.
 
 ```rust
-use seleniumbase_rs_stealth::mimic::StealthSession;
+use seleniumbase_rs_stealth::wire::StealthSession;
 use seleniumbase_rs_stealth::scrape::CountryCode;
 
 async fn demo() -> Result<(), Box<dyn std::error::Error>> {
     let mut session = StealthSession::builder()
-        .with_geo_proxies([("http://user:pass@de.proxy.example:8080", CountryCode::new("DE")?)])?
+        .geo_proxies([("http://user:pass@de.proxy.example:8080", CountryCode::new("DE")?)])?
         .build()
         .await?;
     let page = session.fetch("https://example.com/").await?;
@@ -37,14 +37,14 @@ async fn demo() -> Result<(), Box<dyn std::error::Error>> {
 
 ## The loop
 
-A session starts in the mode its `SessionPolicy` prefers (HTTP by default).
+A session starts in the mode its `EscalationPolicy` prefers (HTTP by default).
 `fetch(url)` asks the policies three questions:
 
 <Steps>
 
 <Step title="Before the request" icon="hourglass-start">
 
-`SessionPolicy::before_fetch`: does the identity hold
+`EscalationPolicy::before_fetch`: does the identity hold
 a clearance for the site that is about to end, must it hold one and does not,
 or does the site's history say plain requests fail? Then the session goes to
 the browser first.
@@ -63,14 +63,14 @@ stops the fetch.
 
 <Step title="After a solve" icon="circle-check">
 
-`SessionPolicy::after_fetch`: a browser that earned a
+`EscalationPolicy::after_fetch`: a browser that earned a
 clearance hands the identity back to HTTP (a demotion), which carries it on.
 
 </Step>
 
 </Steps>
 
-Every change of mode emits `ScraperEvent::ModeChanged` with its reason. The
+Every change of mode emits `ScrapeEvent::FetchKindChanged` with its reason. The
 browser is closed when the session goes back to HTTP and started again, with the
 same identity and egress, when it is needed. **The MITM proxy is started the first
 time a browser is needed** (at `build()` when the policy prefers the browser) and
@@ -120,9 +120,9 @@ the earlier fetches wrote:
   holds the clearance (`demote_after_solve`, on by default); repeated blocks rotate
   the egress and then the profile.
 
-`SessionPolicy` holds four switches:
+`EscalationPolicy` holds four switches:
 
-<ParamField body="prefer" type="Mode" default="Http">
+<ParamField body="prefer" type="FetchKind" default="Http">
 
 The mode a session starts in and returns to.
 
@@ -166,13 +166,13 @@ HTTP preferred, and a profile drawn from a random seed.
 | Setting | What it does |
 |---|---|
 | `launch_options(options)`, `launcher(..)` | How the browser starts. `options` is a built `LaunchOptions`. A setting made in the options (a user agent, say) wins over the fingerprint's, and the proxy is always the MITM proxy's. |
-| `with_geo_proxies([(spec, country)])`, `proxy_strategy(..)` | The egress pool and how it picks, as for `BrowserScraper`. Both legs leave through the same egress. |
-| `with_max_challenge_attempts(n)`, `mitigation(policy)` | Loads per fetch (zero reads as one) and the whole mitigation policy. |
-| `policy(SessionPolicy)` | The mode it prefers, whether HTTP needs a clearance, the clearance margin, whether a solve sends it back to HTTP. |
-| `with_state_store(..)`, `with_event_sink(..)`, `geo_resolver(..)`, `per_site_rate(calls, window)` | As for `BrowserScraper`. The HTTP leg and the proxy report to the same sink. |
+| `geo_proxies([(spec, country)])`, `proxy_strategy(..)` | The egress pool and how it picks, as for `BrowserScraper`. Both legs leave through the same egress. |
+| `max_challenge_attempts(n)`, `mitigation(policy)` | Loads per fetch (zero reads as one) and the whole mitigation policy. |
+| `policy(EscalationPolicy)` | The mode it prefers, whether HTTP needs a clearance, the clearance margin, whether a solve sends it back to HTTP. |
+| `ledger(..)`, `event_sink(..)`, `geo_resolver(..)`, `rate_limit(calls, window)` | As for `BrowserScraper`. The HTTP leg and the proxy report to the same sink. |
 | `seed(..)`, `fingerprint(..)` | The first profile. A fingerprint must claim the measured Chrome. |
 | `restore(identity)` | Starts from a saved identity: its fingerprint, cookies and clearances. It must belong to one of the proxies added, or to the direct connection when there is none. |
-| `http_options(HttpOptions)`, `mitm_options(MitmOptions)` | The limits of each leg. The session's clock and event sink replace the ones in the HTTP options. |
+| `http_options(HttpSessionOptions)`, `mitm_options(MitmOptions)` | The limits of each leg. The session's clock and event sink replace the ones in the HTTP options. |
 | `solve_timeout(..)`, `clock(..)` | How long a solve is waited for, and the clock. |
 
 `build()` fails with `StealthError::Impersonate` when this machine's system has no
@@ -187,8 +187,8 @@ legs.
 |---|---|
 | `escalate()` | Goes to the browser now, with the identity as it stands. The cookies of the HTTP session move into the browser. |
 | `demote()` | Goes back to HTTP now, with the cookies the browser holds, and closes the browser. A browser that cannot be read (it crashed) does not trap the session: the identity as of the last read is used. |
-| `rotate_profile()` | A new seed derived from the old one, a new fingerprint for the same operating system that claims the measured Chrome. Cookies and clearances are dropped; what is known of each site stays. In browser mode a new Chrome starts behind the same proxy, on the same port. |
-| `rotate_egress()` | Another egress of the pool, with the same fingerprint in the language and time zone of the new country. The proxy is pointed at it first, so its port stays. Cookies and clearances are dropped, because a clearance belongs to the address that earned it. `NoEgressAvailable` when the pool has nothing else. |
+| `rotate_fingerprint()` | A new seed derived from the old one, a new fingerprint for the same operating system that claims the measured Chrome. Cookies and clearances are dropped; what is known of each site stays. In browser mode a new Chrome starts behind the same proxy, on the same port. |
+| `rotate_proxy()` | Another egress of the pool, with the same fingerprint in the language and time zone of the new country. The proxy is pointed at it first, so its port stays. Cookies and clearances are dropped, because a clearance belongs to the address that earned it. `NoProxyLeft` when the pool has nothing else. |
 | `export_identity()`, `import_identity(&id)` | Take the identity out of the session, or put one in. It must belong to the egress in use. |
 | `mode()`, `identity()`, `egress()`, `seed()`, `http()`, `page()` | Read the state. `http()` is the `HttpSession` in HTTP mode, for requests of your own that carry the earned cookies; `page()` is the tab in browser mode. |
 | `close()` | Closes the browser if one runs and stops the proxy. A dropped session leaves both to their own drop. |
@@ -210,7 +210,7 @@ yourself when you know more than the answers show:
 - Leave both alone for ordinary fetching; `fetch` escalates and demotes on its own.
 
 ```rust
-use seleniumbase_rs_stealth::mimic::StealthSession;
+use seleniumbase_rs_stealth::wire::StealthSession;
 
 async fn login_then_scrape(password: &str) -> Result<(), Box<dyn std::error::Error>> {
     let mut session = StealthSession::builder().build().await?;
@@ -285,9 +285,9 @@ the test: no vendor's challenge was run.
 ## How this type is imported
 
 `StealthSession`, `StealthSessionBuilder`, `StealthFetch` and `StealthError` are
-re-exported at `seleniumbase_rs_stealth::mimic`. The module path
-`mimic::stealth_session::StealthSession` is the same type. The feature is
-`mimic`; without it the module does not exist.
+re-exported at `seleniumbase_rs_stealth::wire`. The module path
+`wire::stealth_session::StealthSession` is the same type. The feature is
+`wire`; without it the module does not exist.
 
 ## Where to go next
 

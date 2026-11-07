@@ -136,7 +136,7 @@ fn spawn_self(profile: Profile) -> Result<Target, SeleniumBaseError> {
 
 /// The `SB_LOG_LEVEL` for a server this program starts: the caller's own, else `warn`.
 fn log_level() -> String {
-    std::env::var("SB_LOG_LEVEL").unwrap_or_else(|_| "warn".to_owned())
+    seleniumbase_rs::config::env_vars::text("SB_LOG_LEVEL").unwrap_or_else(|| "warn".to_owned())
 }
 
 // The options of `tools`. (Plain comments, not docs.)

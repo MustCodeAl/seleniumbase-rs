@@ -6,8 +6,9 @@
 # the pages deployment of `ci.yml` has no equivalent here.
 #
 # The group is on GitLab's Open Source plan (Ultimate, approved 2026-11-06), so the whole test
-# suite runs on every pipeline; the Chrome and msrv jobs stay manual. Pipelines are created only for merge requests
-# and for the default branch (which must be `main`), and a new push cancels a pipeline that is
+# suite runs on every pipeline; the Chrome and msrv jobs stay manual. Pipelines are created only
+# for merge requests, for the default branch (which must be `main`), for `lane/` and `batch/`
+# branches that have no open merge request, and by hand, and a new push cancels a pipeline that is
 # still running (every job is `interruptible`):
 #
 #   gate          fmt and clippy
@@ -17,6 +18,15 @@
 #   msrv          MANUAL: cargo check with the gui and tui features
 #   chrome        MANUAL: the real-Chrome tests, one binary at a time
 #
+# GitLab's own security scanners (Ultimate) come from the `include:` below and add these jobs to
+# the `test` stage. They are `allow_failure` in their templates, so a scanner that breaks never
+# stops the pipeline, and their findings go to the Security tab and the merge request widget:
+#
+#   secret_detection          secrets in the files and in the commits of the pipeline
+#   dependency-scanning       the advisories and the licences of the crates in Cargo.lock
+#   gitlab-advanced-sast-ext  GitLab Advanced SAST (beta) for the Rust files
+#   gitlab-advanced-sast      GitLab Advanced SAST for the JavaScript, Python, TypeScript and Ruby files
+#
 # A manual job has a play button in the pipeline view. A pipeline made by hand on any branch
 # (Build > Pipelines > New pipeline) holds every job as a manual job. To push a commit that
 # needs no pipeline (a docs-only commit that was gated elsewhere), put `[ci skip]` in its
@@ -25,19 +35,44 @@
 # No job needs a secret, and none prints one: there is no `set -x`, no `env` and no token in
 # this file.
 #
-# The Rust version is the one of Cargo.toml (`rust-version`), rust-toolchain.toml and the
-# Dockerfile. When it moves, move RUST_VERSION below with them; the `msrv` job fails when
-# Cargo.toml and RUST_VERSION differ.
+# Every job takes its tools from mise (https://mise.jdx.dev), as mise's "Continuous integration"
+# page describes for GitLab: the Rust toolchain, cargo-deny, Python and mdBook are the versions
+# mise.toml pins, the ones a local `mise install` gives. The Rust jobs run on the rust image, for
+# its C toolchain, system libraries and rustup, and install mise with its install script
+# (MISE_VERSION pins the release); the docs job runs on mise's own image. A job names the tools
+# of mise.toml it needs in MISE_ENABLE_TOOLS.
+#
+# The Rust version is the one of Cargo.toml (`rust-version`), mise.toml, rust-toolchain.toml and
+# the Dockerfile. When it moves, move RUST_VERSION below with them; the `msrv` job fails when
+# Cargo.toml or mise.toml and RUST_VERSION differ.
 
 workflow:
   auto_cancel:
     on_new_commit: interruptible
   rules:
+    # A push to a branch that has an open merge request creates a merge request pipeline (the next
+    # rule) and, without this rule, a second branch pipeline: the whole test suite twice. This is
+    # the rule GitLab documents to avoid duplicate pipelines (ci/yaml/workflow); it names the push
+    # source so a pipeline made by hand (`web`) on such a branch still runs.
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS && $CI_PIPELINE_SOURCE == "push"
+      when: never
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
     # The lead pushes a lane or batch branch here to gate it before main fast-forwards to it.
     - if: '$CI_COMMIT_BRANCH =~ /^(lane|batch)\//'
     - if: $CI_PIPELINE_SOURCE == "web"
+
+# GitLab's security scanners. The `Jobs/` templates hold jobs and variables only (no `workflow:`
+# and no `stages:`), so they do not change the pipelines the workflow rules create, and their
+# jobs use the `test` stage, which exists by default. Each template decides by its own `rules`
+# whether its job runs: see AST_ENABLE_MR_PIPELINES below. The `Dependency-Scanning.v2` template
+# is GitLab's current dependency scanning (it reads Cargo.lock into a CycloneDX SBOM and matches
+# it against the GitLab advisory database); the SAST and secret detection ones are the stable
+# editions, and the docs warn against mixing stable and latest editions.
+include:
+  - template: Jobs/SAST.gitlab-ci.yml
+  - template: Jobs/Secret-Detection.gitlab-ci.yml
+  - template: Jobs/Dependency-Scanning.v2.gitlab-ci.yml
 
 default:
   interruptible: true
@@ -46,6 +81,16 @@ default:
     when: runner_system_failure
 
 variables:
+  # By default the security jobs run in branch pipelines only. With "true" they run in the merge
+  # request pipeline and are left out of the branch pipeline of a branch that has an open merge
+  # request, which is the pairing of the workflow rules above.
+  AST_ENABLE_MR_PIPELINES: "true"
+  # The Semgrep-based SAST analyzer has no Rust rules and its job is not routed `.rs` files; Rust is
+  # covered only by GitLab Advanced SAST (beta), which this variable turns on. It adds the job
+  # `gitlab-advanced-sast-ext` for the Rust files and `gitlab-advanced-sast` for the files of
+  # the languages that analyzer has always covered (here the JavaScript, Python, TypeScript and
+  # Ruby ones).
+  GITLAB_ADVANCED_SAST_ENABLED: "true"
   RUST_VERSION: "1.99"
   # The feature set of "Build and check" in CLAUDE.md and CONTRIBUTING.md.
   FEATURES: "mcp-server test-util testing bdd"
@@ -58,6 +103,10 @@ variables:
   CARGO_TERM_COLOR: always
   # A GitLab cache can only hold paths inside the project folder, so cargo keeps its registry there.
   CARGO_HOME: $CI_PROJECT_DIR/.cargo
+  # The mise release the install script fetches (the docs job's image is the same release), and
+  # where it puts it.
+  MISE_VERSION: "v2026.10.4"
+  MISE_INSTALL_PATH: /usr/local/bin/mise
 
 # When a job is added to a pipeline. Merge requests and the default branch run it by itself; a
 # pipeline made by hand holds it as a manual job that does not block the pipeline.
@@ -74,10 +123,24 @@ variables:
   - when: manual
     allow_failure: true
 
-# The toolchain image. rust-toolchain.toml names `1.99` with clippy and rustfmt, and the image
-# has neither component, so rustup installs them on the first cargo command of a job.
+# Installs mise when the image has none, then the tools of mise.toml that MISE_ENABLE_TOOLS names.
+.mise_install:
+  - command -v mise >/dev/null || curl --proto '=https' --tlsv1.2 -fsSL https://mise.run | sh
+  - mise --version
+  - mise install
+
+# The toolchain image and mise. For Rust, mise runs the image's rustup with the version of
+# mise.toml (the image already holds it) and sets RUSTUP_TOOLCHAIN, so every cargo command goes
+# through `mise exec --`. rustup ranks RUSTUP_TOOLCHAIN above rust-toolchain.toml, so the clippy
+# and rustfmt components that file names are added here: the image's toolchain has neither.
 .rust:
   image: rust:${RUST_VERSION}-bookworm
+  variables:
+    MISE_ENABLE_TOOLS: rust
+  before_script:
+    - !reference [.mise_install]
+    - mise exec -- rustup component add clippy rustfmt
+    - mise exec -- rustup show active-toolchain
 
 # The cargo registry and the build folder, keyed by Cargo.lock. The cache is saved even when the
 # job fails, since a failed test run still built every dependency. The executables of the tests
@@ -113,10 +176,9 @@ gate:
     - !reference [.rules_automatic]
   timeout: 2h
   script:
-    - rustc --version
-    - cargo --version
-    - cargo fmt --all -- --check
-    - cargo clippy --all-targets --features "$FEATURES" -- -D warnings
+    - mise exec -- cargo --version
+    - mise exec -- cargo fmt --all -- --check
+    - mise exec -- cargo clippy --all-targets --features "$FEATURES" -- -D warnings
 
 # The rest of "Build and check": the whole test suite and rustdoc, a second run on Linux of what
 # every push passed on the lead's machine. A run takes an hour or more (the doctests are most of
@@ -131,45 +193,67 @@ test:
     - !reference [.rules_automatic]
   timeout: 3h
   script:
-    - cargo test --no-fail-fast --features "$FEATURES"
-    - RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --features "$FEATURES"
+    - mise exec -- cargo test --no-fail-fast --features "$FEATURES"
+    - RUSTDOCFLAGS="-D warnings" mise exec -- cargo doc --no-deps --features "$FEATURES"
 
 # The two dependency checks of the release gate (`cargo deny --workspace check`, `cargo audit`).
-# The tools are built from source the first time and kept in the cache, with the registry.
-# cargo-deny stays on the series of mise.toml. The workspace flag is a global option of
-# cargo-deny: without it only the library is a graph root and crates/cli goes unchecked.
+# cargo-deny is the release of mise.toml; mise.toml has no cargo-audit, so it is built from source
+# the first time into .cargo-audit. Both are kept in the cache, with the registry. The workspace
+# flag is a global option of cargo-deny: without it only the library is a graph root and
+# crates/cli goes unchecked.
 supply-chain:
   extends: .rust
   rules:
     - !reference [.rules_automatic]
+  variables:
+    MISE_ENABLE_TOOLS: rust,cargo-deny
+    # A GitLab cache can only hold paths inside the project folder.
+    MISE_DATA_DIR: $CI_PROJECT_DIR/.mise
+    MISE_CACHE_DIR: $CI_PROJECT_DIR/.mise/cache
   cache:
-    key:
-      prefix: supply-chain
-      files:
-        - Cargo.lock
-    paths:
-      - .cargo/bin/
-      - .cargo/.crates.toml
-      - .cargo/.crates2.json
-      - .cargo/registry/index/
-      - .cargo/registry/cache/
-      - .cargo/git/db/
-    when: always
+    - key:
+        prefix: supply-chain
+        files:
+          - Cargo.lock
+      paths:
+        - .cargo-audit/
+        - .cargo/registry/index/
+        - .cargo/registry/cache/
+        - .cargo/git/db/
+      when: always
+    - key:
+        prefix: mise-supply-chain-amd64
+        files:
+          - mise.toml
+      paths:
+        - .mise/installs/
+        - .mise/cache/
+      when: always
   script:
-    - export PATH="$CARGO_HOME/bin:$PATH"
-    - cargo install --locked --version '^0.20' cargo-deny
-    - cargo install --locked cargo-audit
-    - cargo deny --all-features --workspace check
-    - cargo audit
+    - mise exec -- cargo install --locked --root .cargo-audit cargo-audit
+    - export PATH="$CI_PROJECT_DIR/.cargo-audit/bin:$PATH"
+    - mise exec -- cargo deny --all-features --workspace check
+    - mise exec -- cargo audit
 
 # The Docs7 check (every page builds as MDX, the navigation and the layout trees are current)
 # and the mdBook build. mise installs what mise.toml pins (Python, mdBook) and Bun, which
 # mise.toml does not list. MISE_ENABLE_TOOLS leaves out Rust, Node and cargo-deny, which these
-# two tasks do not use.
+# two tasks do not use. The installed tools are kept in the cache.
 docs:
-  image: ghcr.io/jdx/mise:2026.10-debian
+  image: ghcr.io/jdx/mise:2026.10.4-debian
   variables:
     MISE_ENABLE_TOOLS: python,mdbook,bun
+    MISE_DATA_DIR: $CI_PROJECT_DIR/.mise
+    MISE_CACHE_DIR: $CI_PROJECT_DIR/.mise/cache
+  cache:
+    key:
+      prefix: mise-docs-amd64
+      files:
+        - mise.toml
+    paths:
+      - .mise/installs/
+      - .mise/cache/
+    when: always
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes: &docs_paths
@@ -186,8 +270,9 @@ docs:
     - if: $CI_PIPELINE_SOURCE == "web"
       when: manual
       allow_failure: true
+  before_script:
+    - !reference [.mise_install]
   script:
-    - mise trust
     - mise use --global bun@1
     - mise install
     - mise run mdx
@@ -202,10 +287,12 @@ msrv:
   before_script:
     - apt-get update -qq
     - apt-get install -y -qq --no-install-recommends libgtk-3-dev libx11-dev libxdo-dev libxkbcommon-dev libxtst-dev libssl-dev pkg-config
+    - !reference [.rust, before_script]
   script:
     - grep -q "^rust-version = \"$RUST_VERSION\"" Cargo.toml
-    - rustc --version
-    - cargo check --all-targets --features gui,tui
+    - grep -q "^rust = \"$RUST_VERSION\"" mise.toml
+    - mise exec -- rustc --version
+    - mise exec -- cargo check --all-targets --features gui,tui
 
 # MANUAL. The real-Chrome tests of the workspace, one binary at a time with --ignored and one
 # test thread, headless, with the pair of Debian packages that the Dockerfile and
@@ -233,6 +320,7 @@ chrome:
   before_script:
     - apt-get update -qq
     - apt-get install -y -qq --no-install-recommends chromium chromium-driver ca-certificates
+    - !reference [.rust, before_script]
     - mkdir -p /etc/chromium.d
     - echo 'export CHROMIUM_FLAGS="$CHROMIUM_FLAGS --no-sandbox --disable-dev-shm-usage"' > /etc/chromium.d/zz-no-sandbox
     - |
@@ -253,10 +341,10 @@ chrome:
         pkill -f chromium || true
         pkill -f chromedriver || true
       }
-      run library cargo test -p seleniumbase-rs --features "$FEATURES" --test chrome -- --ignored --test-threads=1 \
+      run library mise exec -- cargo test -p seleniumbase-rs --features "$FEATURES" --test chrome -- --ignored --test-threads=1 \
         --skip captcha_live --skip examples_parity --skip client_hints --skip leaked_password
-      run browser_smoke cargo test -p seleniumbase-rs --features "$FEATURES" --test browser_smoke -- --ignored --test-threads=1
-      run cli cargo test -p seleniumbase-rs-cli --features "$CLI_FEATURES" --test chrome -- --ignored --test-threads=1 \
+      run browser_smoke mise exec -- cargo test -p seleniumbase-rs --features "$FEATURES" --test browser_smoke -- --ignored --test-threads=1
+      run cli mise exec -- cargo test -p seleniumbase-rs-cli --features "$CLI_FEATURES" --test chrome -- --ignored --test-threads=1 \
         --skip cli_fingerprint
-      run playwright cargo test -p seleniumbase-rs-playwright --test playwright_chrome -- --ignored --test-threads=1
+      run playwright mise exec -- cargo test -p seleniumbase-rs-playwright --test playwright_chrome -- --ignored --test-threads=1
       exit $status

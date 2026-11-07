@@ -295,6 +295,87 @@ async fn a_widget_that_never_clears_fails_with_the_typed_error() {
     browser.close().await.expect("Chrome closes");
 }
 
+/// Whether the real page (the one `/cleared` serves) is on the tab right now.
+async fn real_page_is_shown(page: &Page) -> bool {
+    page.evaluate_as("!!document.getElementById('real-page')")
+        .await
+        .unwrap_or(false)
+}
+
+#[tokio::test]
+#[ignore = "starts a headless Chrome"]
+#[serial_test::serial(chrome)]
+async fn a_script_challenge_with_no_widget_is_waited_out_until_the_real_page_is_there() {
+    let site = Site::start();
+    let (browser, page) = launch().await;
+    open(&page, &site, "/wait").await;
+
+    // The challenge page runs its checks for two and a half seconds, far past the half
+    // second that a widget on its way is given.
+    let options = SolveOptions::new().locate_timeout(Duration::from_millis(500));
+    let started = Instant::now();
+    let result = page
+        .solve_captcha_with(&options)
+        .await
+        .expect("solve_captcha_with");
+
+    assert_eq!(result, None, "the real page shows no widget");
+    assert!(
+        real_page_is_shown(&page).await,
+        "the call returned while the challenge page was still there"
+    );
+    assert!(
+        started.elapsed() >= Duration::from_secs(2),
+        "returned after {:?}",
+        started.elapsed()
+    );
+    let cookies = page.cookies().all().await.expect("cookies");
+    assert!(cookies.iter().any(|cookie| cookie.name == "cf_clearance"));
+    browser.close().await.expect("Chrome closes");
+}
+
+#[tokio::test]
+#[ignore = "starts a headless Chrome"]
+#[serial_test::serial(chrome)]
+async fn a_script_challenge_that_hands_over_to_a_page_with_a_widget_is_waited_out_and_pressed() {
+    let site = Site::start();
+    let (browser, page) = launch().await;
+    open(&page, &site, "/wait?next=/iframe").await;
+
+    let solved = page
+        .solve_captcha_with(&SolveOptions::default())
+        .await
+        .expect("solve_captcha_with")
+        .expect("the widget of the page the challenge hands over to");
+
+    assert_eq!(solved.captcha, Captcha::Turnstile);
+    assert_eq!(solved.evidence, Some(Evidence::Token), "{solved}");
+    assert!(cleared_within(&page, CLEAR_WITHIN).await, "did not clear");
+    browser.close().await.expect("Chrome closes");
+}
+
+#[tokio::test]
+#[ignore = "starts a headless Chrome"]
+#[serial_test::serial(chrome)]
+async fn a_zero_interstitial_timeout_leaves_a_script_challenge_at_once() {
+    let site = Site::start();
+    let (browser, page) = launch().await;
+    open(&page, &site, "/wait").await;
+
+    let options = SolveOptions::new().interstitial_timeout(Duration::ZERO);
+    let result = page
+        .solve_captcha_with(&options)
+        .await
+        .expect("solve_captcha_with");
+
+    assert_eq!(result, None);
+    assert!(
+        !real_page_is_shown(&page).await,
+        "the challenge page was not waited out"
+    );
+    browser.close().await.expect("Chrome closes");
+}
+
 /// The fixtures the table measures, with their path and the time they get.
 const MEASURED: [(&str, &str); 7] = [
     ("frame", "/iframe"),

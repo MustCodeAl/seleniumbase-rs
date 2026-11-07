@@ -740,6 +740,15 @@ fn the_report_is_the_report_table_and_only_the_results_database_reads_a_variable
 }
 
 #[test]
+fn the_results_database_variable_is_read_trimmed() {
+    let report = ReportSettings::from_settings_with(&Settings::default(), |name| {
+        (name == "SB_REPORT_DB").then(|| " out/results.db ".to_owned())
+    });
+
+    assert_eq!(report.db.as_deref(), Some(Path::new("out/results.db")));
+}
+
+#[test]
 fn the_report_table_of_the_settings_file_is_read() {
     let settings: Settings = toml::from_str(
         r#"

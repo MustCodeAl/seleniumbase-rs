@@ -2,13 +2,13 @@
 title: "HttpSession"
 ---
 
-Examples importing `seleniumbase_rs_stealth::mimic` require the facade's
-`mimic` feature. See the [single-dependency setup](/scraping/stealthy/overview#which-crate-to-depend-on);
+Examples importing `seleniumbase_rs_stealth::wire` require the facade's
+`wire` feature. See the [single-dependency setup](/scraping/stealthy/overview#which-crate-to-depend-on);
 this feature builds BoringSSL and needs cmake and a C/C++ toolchain.
 
 <Badge color="orange">Experimental</Badge>
 
-`mimic::http_session::HttpSession` sends plain HTTP requests that look like
+`wire::http_session::HttpSession` sends plain HTTP requests that look like
 the Chrome a browser page came from. A browser spends a second or more on a page;
 a request spends milliseconds. Once a page has earned its cookies (a login, a
 passed check), an `HttpSession` carries them on: the measured TLS `ClientHello`
@@ -19,16 +19,16 @@ approximated.
 
 <Visibility for="agents">
 
-Summary for AI exports: `HttpSession` (crate `seleniumbase-rs-mimic`) sends plain HTTP requests that carry the cookies, the measured TLS and HTTP/2 start, the header names and order, the user agent, client hints and `Accept-Language` of a Chrome. Build one with `HttpSession::from_page` or `HttpSession::from_identity`; a browser or system that was not measured is refused. It does not run JavaScript or solve a challenge.
+Summary for AI exports: `HttpSession` (crate `seleniumbase-rs-wire`) sends plain HTTP requests that carry the cookies, the measured TLS and HTTP/2 start, the header names and order, the user agent, client hints and `Accept-Language` of a Chrome. Build one with `HttpSession::from_page` or `HttpSession::from_identity`; a browser or system that was not measured is refused. It does not run JavaScript or solve a challenge.
 
 </Visibility>
 
 ```rust
-use seleniumbase_rs_stealth::mimic::{HttpOptions, HttpSession};
+use seleniumbase_rs_stealth::wire::{HttpSessionOptions, HttpSession};
 use seleniumbase_rs_stealth::sb_cdp::Page;
 
 async fn demo(page: Page) -> Result<(), Box<dyn std::error::Error>> {
-    let session = HttpSession::from_page(&page, None, HttpOptions::new()).await?;
+    let session = HttpSession::from_page(&page, None, HttpSessionOptions::new()).await?;
     let reply = session.get("https://example.com/api/orders").await?;
     let orders: serde_json::Value = reply.json()?;
     println!("{orders}");
@@ -48,7 +48,7 @@ async fn demo(page: Page) -> Result<(), Box<dyn std::error::Error>> {
   proxy, such as a MITM proxy the browser was launched with, is not visible to a
   page, so say so with `egress`.
 - `HttpSession::from_identity(&identity, egress, options)` builds one from a
-  [`StealthIdentity`](/scraping/advanced-stealthy/identity#identity-session-policy-and-the-identity-file): its
+  [`Identity`](/scraping/advanced-stealthy/identity#identity-session-policy-and-the-identity-file): its
   fingerprint becomes the user agent, hints and languages, and its cookies fill
   the jar.
 
@@ -75,7 +75,7 @@ Both refuse, before any request, what would contradict the measured handshake:
 is reported there.
 
 ```rust
-use seleniumbase_rs_stealth::mimic::{HttpSession, Method};
+use seleniumbase_rs_stealth::wire::{HttpSession, Method};
 use seleniumbase_rs_stealth::codec::header_spec::RequestShape;
 
 async fn demo(session: HttpSession) -> Result<(), Box<dyn std::error::Error>> {
@@ -101,7 +101,7 @@ async fn demo(session: HttpSession) -> Result<(), Box<dyn std::error::Error>> {
   a silent overwrite. Any other header replaces the profile's value in place or is
   added. `CONNECT`, `TRACE` and `TRACK` are refused, and so is a URL with
   credentials in it or a scheme other than http and https.
-- A status other than 2xx is a reply, not an error. `HttpReply` has `status()`,
+- A status other than 2xx is a reply, not an error. `HttpResponse` has `status()`,
   `headers()` (`ReplyHeaders`), `bytes()`, `text()`, `json::<T>()`, `url()` after
   redirects (and `redacted_url()`), `redirects()`, `protocol()`, `elapsed()` and
   `detect()`.
@@ -121,7 +121,7 @@ async fn demo(session: HttpSession) -> Result<(), Box<dyn std::error::Error>> {
   redirect is followed where it points, a private address included, so a session
   that fetches URLs for someone else must filter them before it asks.
 
-**Limits** are `HttpOptions`, with defaults that are safe on the open web:
+**Limits** are `HttpSessionOptions`, with defaults that are safe on the open web:
 
 <ParamField body="timeout" default="30 s">
 
@@ -153,13 +153,13 @@ Per site.
 
 Also `event_sink`, `trust(CertStore)` for a private root (certificate
 verification is never turned off), `resolve(host, addr)`, `bypass(host)`,
-`installed_chrome_major(major)` and `clock(..)`. `HttpOptions::validate`
+`installed_chrome_major(major)` and `clock(..)`. `HttpSessionOptions::validate`
 refuses a value out of range before a client exists.
 
 - **Judging replies.** `reply.detect()` runs the [challenge
   detection](/scraping/advanced-stealthy/identity#challenge-detection-and-mitigation). `session.assess(&reply,
   &Attempt, &Rules, &identity)` adds what the `MitigationPolicy` and the
-  `SessionPolicy` make of it, as a `Verdict { detection, action, transition }`;
+  `EscalationPolicy` make of it, as a `Verdict { detection, action, transition }`;
   `session.fetch(url, &attempt, &rules, &identity)` sends a `GET` and judges it
   in one call (`Fetched { reply, verdict }`); `session.preflight(url, &identity,
   state, &rules)` asks, before a request, whether the identity's clearance is
@@ -167,11 +167,11 @@ refuses a value out of range before a client exists.
   pieces of your own loop; [`StealthSession`](/scraping/advanced-stealthy/stealth-session) is that loop.
 
   ```rust
-  use seleniumbase_rs_stealth::mimic::http_session::{Attempt, Rules};
-  use seleniumbase_rs_stealth::mimic::HttpSession;
-  use seleniumbase_rs_stealth::scrape::StealthIdentity;
+  use seleniumbase_rs_stealth::wire::http_session::{Attempt, Rules};
+  use seleniumbase_rs_stealth::wire::HttpSession;
+  use seleniumbase_rs_stealth::scrape::Identity;
 
-  async fn demo(session: HttpSession, identity: StealthIdentity) -> Result<(), Box<dyn std::error::Error>> {
+  async fn demo(session: HttpSession, identity: Identity) -> Result<(), Box<dyn std::error::Error>> {
       let fetched = session
           .fetch("https://example.com/", &Attempt::default(), &Rules::default(), &identity)
           .await?;
@@ -184,7 +184,7 @@ refuses a value out of range before a client exists.
   }
   ```
 - **Identity.** `export_identity(&base)` puts the session's cookies back into a
-  `StealthIdentity` and refreshes its clearances. `egress()` is the exit without
+  `Identity` and refreshes its clearances. `egress()` is the exit without
   credentials, `cookie_count()` and `profile()` read the state. Cloning gives
   another handle to the same session.
 - **Secrets.** Cookies, credentials and proxy passwords never reach `Debug`, logs,
@@ -230,9 +230,9 @@ refused. The rest of `HttpSession` is tested against loopback sites
 
 ## Next steps
 
-`HttpSession`, `HttpOptions`, `HttpReply` and `HttpError` are re-exported at
-`seleniumbase_rs_stealth::mimic`, which is what the example above imports. The
-module path `mimic::http_session::HttpSession` is the same type. Five names that
+`HttpSession`, `HttpSessionOptions`, `HttpResponse` and `HttpError` are re-exported at
+`seleniumbase_rs_stealth::wire`, which is what the example above imports. The
+module path `wire::http_session::HttpSession` is the same type. Five names that
 would clash at the root are renamed there: `Attempt`, `Fetched`, `Rules`,
 `Verdict` and `Headers` become `HttpAttempt`, `HttpFetched`, `HttpRules`,
 `HttpVerdict` and `ReplyHeaders`. The original names stay in `http_session`.

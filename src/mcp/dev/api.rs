@@ -127,33 +127,56 @@ fn words(text: &str) -> Vec<String> {
         .collect()
 }
 
-/// How well `entry` answers a query of `words`, or `None` when it does not.
+/// How well `entry` answers a query of `words`, or `None` when it does not. `joined` is the
+/// words joined with `_`, built once per search.
 ///
 /// An exact name scores 100, a name that contains the words joined with `_`
 /// 80, a name that contains every word 60, and a method whose name, type and
 /// documentation together mention every word 40.
-fn score(entry: &ApiEntry, words: &[String]) -> Option<u32> {
-    let name = entry.name.to_lowercase();
-    let joined = words.join("_");
-    if name == joined {
+fn score(entry: &ApiEntry, words: &[String], joined: &str) -> Option<u32> {
+    if folded_eq(&entry.name, joined) {
         return Some(100);
     }
-    if name.contains(&joined) {
+    if folded_contains(&entry.name, joined) {
         return Some(80);
     }
-    if words.iter().all(|word| name.contains(word.as_str())) {
+    if words.iter().all(|word| folded_contains(&entry.name, word)) {
         return Some(60);
     }
-    let owner = entry.owner.to_lowercase();
-    let doc = entry.doc.to_lowercase();
     words
         .iter()
         .all(|word| {
-            name.contains(word.as_str())
-                || owner.contains(word.as_str())
-                || doc.contains(word.as_str())
+            folded_contains(&entry.name, word)
+                || folded_contains(&entry.owner, word)
+                || folded_contains(&entry.doc, word)
         })
         .then_some(40)
+}
+
+/// Whether the lowercase form of `text` is `lowered`, a string that is lowercase already.
+///
+/// ASCII text is folded in place; only text with other characters is lowercased into a new
+/// string, because Unicode lowercasing can change its length.
+fn folded_eq(text: &str, lowered: &str) -> bool {
+    if text.is_ascii() {
+        text.eq_ignore_ascii_case(lowered)
+    } else {
+        text.to_lowercase() == lowered
+    }
+}
+
+/// Whether the lowercase form of `text` contains `lowered`, a string that is lowercase already.
+/// ASCII text is folded in place, like in [`folded_eq`].
+fn folded_contains(text: &str, lowered: &str) -> bool {
+    if text.is_ascii() {
+        lowered.is_empty()
+            || text
+                .as_bytes()
+                .windows(lowered.len())
+                .any(|window| window.eq_ignore_ascii_case(lowered.as_bytes()))
+    } else {
+        text.to_lowercase().contains(lowered)
+    }
 }
 
 /// What a search found: every match, best first.
@@ -174,15 +197,17 @@ pub(super) fn search<'a>(index: &'a [ApiEntry], query: &str, engine: &str) -> Op
     if words.is_empty() {
         return None;
     }
+    let joined = words.join("_");
+
     let mut matches: Vec<(u32, &ApiEntry)> = index
         .iter()
         .filter(|entry| engine == "any" || entry.engine == engine)
         .filter(|entry| {
             owner
                 .as_ref()
-                .is_none_or(|owner| entry.owner.to_lowercase() == *owner)
+                .is_none_or(|owner| folded_eq(&entry.owner, owner))
         })
-        .filter_map(|entry| score(entry, &words).map(|score| (score, entry)))
+        .filter_map(|entry| score(entry, &words, &joined).map(|score| (score, entry)))
         .collect();
     matches.sort_by(|(a_score, a), (b_score, b)| {
         b_score
@@ -445,6 +470,40 @@ mod tests {
             .iter()
             .map(|(_, entry)| format!("{}::{}", entry.owner, entry.name))
             .collect()
+    }
+
+    #[test]
+    fn folding_ascii_in_place_agrees_with_lowercasing_a_copy() {
+        let words = ["element", "ünd", "straße", "click", "ist", "for text", ""];
+        let texts = [
+            "Clicks the ELEMENT",
+            "Waits for TEXT",
+            "Klickt İSTANBUL Ünd Fenster",
+            "Straße",
+        ];
+        for text in texts {
+            let lowered = text.to_lowercase();
+            assert!(
+                folded_eq(text, &lowered),
+                "{text:?} is its own lowercase form"
+            );
+            assert!(!folded_eq(text, "x"), "{text:?} is not x");
+            for word in words {
+                assert_eq!(
+                    folded_contains(text, word),
+                    lowered.contains(word),
+                    "{text:?} contains {word:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_doc_of_a_method_with_other_characters_is_searched() {
+        let index = vec![entry("open", "Page", "cdp", "Opens the page — ÜBER fast.")];
+        let found = search(&index, "über fast", "any").unwrap();
+        assert_eq!(names(&found), ["Page::open"]);
+        assert_eq!(found.matches[0].0, 40);
     }
 
     #[test]

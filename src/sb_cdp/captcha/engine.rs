@@ -8,7 +8,8 @@
 //! 1. **Locate.** One script finds the widget in the page, its open shadow
 //!    roots and the frames it may read. A page with no widget and no sign of
 //!    a challenge answers `None` at once; a page that carries the signs of a
-//!    challenge is waited for.
+//!    challenge is waited for, and an interstitial (a challenge page with no
+//!    widget, which runs its checks and then goes) is waited out first.
 //! 2. **Settle.** The widget is read again and again until it has stood still
 //!    for [`SolveOptions::settle`], scrolled into view. An entrance animation
 //!    or a late layout moves a widget that was read once.
@@ -19,6 +20,11 @@
 //!    marker. The widget is not pressed again while it is verifying.
 //! 5. **Retry.** Only when the page can show a result and did not: after a
 //!    growing, spread-out wait, up to the attempts allowed, then a typed error.
+//! 6. **Rounds.** Steps 1 to 5 are one round. When [`SolveOptions::rounds`] allows
+//!    more, a round that spent its presses without a result is followed by the
+//!    cooldown and a new round, which finds the widget again; the typed error
+//!    comes after the last round. The rotations of the options are not acted on
+//!    here: a [`Surface`] has no proxy and no fingerprint to change.
 
 use std::time::Duration;
 
@@ -79,6 +85,9 @@ struct Seen {
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct Probe {
     widget: Option<Seen>,
+    /// The page is itself a challenge page, the interstitial that runs its checks and then
+    /// goes. It is waited out only while `widget` is `None`.
+    interstitial: bool,
     /// A challenge is on its way: the page is marked, or a widget element
     /// has no size yet.
     pending: bool,
@@ -86,6 +95,7 @@ struct Probe {
 
 fn parse_probe(value: &Value) -> Probe {
     let found = value.get("widget").filter(|widget| !widget.is_null());
+    let flag = |key: &str| value.get(key).and_then(Value::as_bool).unwrap_or(false);
     Probe {
         widget: found.and_then(|widget| {
             let (captcha, area) = Captcha::parse_located(widget)?;
@@ -98,10 +108,8 @@ fn parse_probe(value: &Value) -> Probe {
                     .unwrap_or(true),
             })
         }),
-        pending: value
-            .get("pending")
-            .and_then(Value::as_bool)
-            .unwrap_or(false),
+        interstitial: flag("interstitial"),
+        pending: flag("pending"),
     }
 }
 
@@ -214,21 +222,106 @@ fn wait_before(options: &SolveOptions, attempt: u32, rng: &mut Rng) -> Duration 
     }
 }
 
-/// Finds the widget, waiting for one that is on its way.
+/// Finds the widget, waiting for one that is on its way, and first waiting out an interstitial:
+/// a challenge page that shows no widget yet, which runs its checks and then goes.
 async fn locate<S: Surface>(
     surface: &S,
     options: &SolveOptions,
 ) -> Result<Option<Captcha>, SeleniumBaseError> {
     let started = Instant::now();
+    // When the current wait began. It starts again when an interstitial ends, so that a widget
+    // the page draws after it has the whole locate timeout.
+    let mut since = started;
+    // Whether the last reading was an interstitial that is being waited out.
+    let mut interstitial = false;
+    // Whether any reading was one: only then is the interstitial timeout part of the whole wait,
+    // and only then is a page still marked as a challenge at the end an error, not `None`.
+    let mut waited_out = false;
     loop {
-        let found = probe(surface, false).await?;
-        if let Some(seen) = found.widget {
-            return Ok(Some(seen.captcha));
-        }
-        if !found.pending || started.elapsed() >= options.locate_timeout {
-            return Ok(None);
+        match probe(surface, false).await {
+            Ok(found) => {
+                if let Some(seen) = found.widget {
+                    return Ok(Some(seen.captcha));
+                }
+                if interstitial && !found.interstitial {
+                    since = Instant::now();
+                }
+                interstitial = found.interstitial;
+                waited_out |= interstitial;
+                if !(found.pending || interstitial) {
+                    return Ok(None);
+                }
+                if since.elapsed() >= wait_limit(options, interstitial, found.pending)
+                    || started.elapsed() >= locate_ceiling(options, waited_out)
+                {
+                    return if waited_out {
+                        Err(still_a_challenge(started.elapsed()))
+                    } else {
+                        Ok(None)
+                    };
+                }
+            }
+            // An interstitial that replaces itself answers with an error while it does: read it
+            // again. Any other failed reading is an error at once.
+            Err(error) => {
+                if !interstitial
+                    || !page_is_being_replaced(&error)
+                    || since.elapsed() >= options.interstitial_timeout
+                    || started.elapsed() >= locate_ceiling(options, waited_out)
+                {
+                    return Err(error);
+                }
+            }
         }
         sleep(POLL).await;
+    }
+}
+
+/// How long the current wait may last: the interstitial timeout for a challenge page, but never
+/// less than the locate timeout for one that is also drawing its widget, and the locate timeout
+/// for any other page with a widget on its way.
+fn wait_limit(options: &SolveOptions, interstitial: bool, pending: bool) -> Duration {
+    match (interstitial, pending) {
+        (true, true) => options.interstitial_timeout.max(options.locate_timeout),
+        (true, false) => options.interstitial_timeout,
+        (false, _) => options.locate_timeout,
+    }
+}
+
+/// The error for a page that is still a challenge page when the search for a widget ends. Not
+/// `None`: that would tell the caller the page shows no captcha, while the browser has not got
+/// past it.
+fn still_a_challenge(waited: Duration) -> SeleniumBaseError {
+    SeleniumBaseError::wait_timeout(
+        "waiting out the challenge page: it is still there and shows no widget to press",
+        Some(waited),
+    )
+}
+
+/// Whether a failed reading only means that the page is being replaced, as an interstitial that
+/// navigates or reloads itself is. Unlike the navigation race of `Page`, a closed target is not
+/// one here: a tab or connection that is gone fails every reading until the timeout.
+fn page_is_being_replaced(error: &SeleniumBaseError) -> bool {
+    let message = error.to_string();
+    [
+        "Execution context was destroyed",
+        "Cannot find context",
+        "Inspected target navigated",
+    ]
+    .iter()
+    .any(|sign| message.contains(sign))
+}
+
+/// The most a call to [`locate`] waits in all: the locate timeout, and the interstitial timeout
+/// too once a reading has been an interstitial. A page that goes back and forth between a
+/// challenge page and one with a widget on its way does not start the clock again each time.
+fn locate_ceiling(options: &SolveOptions, waited_out: bool) -> Duration {
+    if waited_out {
+        options
+            .locate_timeout
+            .saturating_add(options.interstitial_timeout)
+    } else {
+        options.locate_timeout
     }
 }
 
@@ -345,6 +438,7 @@ async fn verify<S: Surface>(
 ) -> Result<Verdict, SeleniumBaseError> {
     let started = Instant::now();
     let poll = poll_interval(options);
+    let clearance = clearance_cookies(kind, options);
     let mut fields = 0_u32;
     let mut gone = 0_u32;
     let mut last: Option<Check> = None;
@@ -368,17 +462,20 @@ async fn verify<S: Surface>(
                 return Ok(Verdict::Cleared(Evidence::Marker));
             }
         }
-        if let Some(name) = kind.clearance_cookie()
+        if !clearance.is_empty()
             && let Ok(cookies) = surface.cookie_names().await
         {
-            let arrived = cookies.iter().any(|cookie| cookie == name)
-                && !baseline.cookies.iter().any(|cookie| cookie == name);
+            let arrived = clearance.iter().any(|name| {
+                cookies.iter().any(|cookie| cookie == name)
+                    && !baseline.cookies.iter().any(|cookie| cookie == name)
+            });
             if arrived {
                 return Ok(Verdict::Cleared(Evidence::Cookie));
             }
         }
 
-        let verifiable = fields > 0 || options.marker.is_some();
+        let verifiable =
+            fields > 0 || options.marker.is_some() || options.clearance_cookie.is_some();
         let wait = if verifiable {
             options.verify_timeout
         } else {
@@ -390,8 +487,13 @@ async fn verify<S: Surface>(
             }
             let mut reason = if fields > 0 {
                 format!("the response field stayed empty for {wait:.1?} after the press")
-            } else {
+            } else if options.marker.is_some() {
                 format!("the success marker stayed false for {wait:.1?} after the press")
+            } else {
+                let name = options.clearance_cookie.as_deref().unwrap_or_default();
+                format!(
+                    "the clearance cookie {name} did not arrive within {wait:.1?} after the press"
+                )
             };
             if last.as_ref().is_some_and(|check| check.widget) {
                 reason.push_str("; the widget is still shown");
@@ -400,6 +502,66 @@ async fn verify<S: Surface>(
         }
         sleep(poll).await;
     }
+}
+
+/// The cookies whose arrival shows that the visitor was let through: the one the vendor sets
+/// and the one the options name.
+fn clearance_cookies(kind: Captcha, options: &SolveOptions) -> Vec<&str> {
+    kind.clearance_cookie()
+        .into_iter()
+        .chain(options.clearance_cookie.as_deref())
+        .collect()
+}
+
+/// What a round came to.
+enum Round {
+    /// The call is over, with this answer: `None` for a page that shows no widget.
+    Over(Option<Solved>),
+    /// Every press of the round was spent and the page, which could show a result, never did.
+    Spent { captcha: Captcha, reason: String },
+}
+
+/// What a call keeps from one round to the next.
+struct Hand {
+    person: Humanizer,
+    spread: Rng,
+    pointer: Option<Point>,
+    /// The presses of all the rounds so far.
+    presses: u32,
+    /// The widget the last round found.
+    widget: Option<Captcha>,
+}
+
+/// The answer of a call that cleared (or pressed, or lost) the widget of kind `captcha`.
+fn report(
+    captcha: Captcha,
+    presses: u32,
+    round: u32,
+    evidence: Option<Evidence>,
+    started: Instant,
+) -> Solved {
+    Solved {
+        captcha,
+        attempts: presses,
+        rounds: round,
+        evidence,
+        elapsed: started.elapsed(),
+    }
+}
+
+/// The answer when the widget cannot be read any more: `None` when it was never pressed (the
+/// page shows no widget), otherwise the widget went away after a press, which is a result.
+fn vanished(hand: &Hand, round: u32, started: Instant) -> Option<Solved> {
+    let captcha = hand.widget?;
+    (hand.presses > 0).then(|| {
+        report(
+            captcha,
+            hand.presses,
+            round,
+            Some(Evidence::WidgetGone),
+            started,
+        )
+    })
 }
 
 /// Finds a widget, presses it until the page shows it cleared, and says how.
@@ -418,24 +580,58 @@ pub(crate) async fn solve<S: Surface>(
     options: &SolveOptions,
 ) -> Result<Option<Solved>, SeleniumBaseError> {
     let started = Instant::now();
+    let rounds = options.rounds_allowed();
+    let mut hand = Hand {
+        person: Humanizer::new(options.behavior),
+        spread: Rng::from_entropy(),
+        pointer: None,
+        presses: 0,
+        widget: None,
+    };
+    let mut round = 1_u32;
+    loop {
+        match run_round(surface, options, &mut hand, round, started).await? {
+            Round::Over(answer) => return Ok(answer),
+            Round::Spent { captcha, reason } if round >= rounds => {
+                return Err(SeleniumBaseError::captcha(
+                    captcha.to_string(),
+                    hand.presses,
+                    reason,
+                ));
+            }
+            Round::Spent { captcha, reason } => {
+                tracing::debug!(
+                    widget = %captcha,
+                    round,
+                    %reason,
+                    "the round ended without a result; cooling down before the next one"
+                );
+                sleep(options.cooldown).await;
+                round += 1;
+            }
+        }
+    }
+}
+
+/// One pass of the solver: finds the widget, then settles, presses and verifies up to the
+/// attempts allowed. Ends the call with a verdict, or reports that the presses were spent.
+async fn run_round<S: Surface>(
+    surface: &S,
+    options: &SolveOptions,
+    hand: &mut Hand,
+    round: u32,
+    started: Instant,
+) -> Result<Round, SeleniumBaseError> {
     let Some(kind) = locate(surface, options).await? else {
-        return Ok(None);
+        // No widget at all, or, in a later round, one that went away.
+        return Ok(Round::Over(vanished(hand, round, started)));
     };
-
-    let mut person = Humanizer::new(options.behavior);
-    let mut spread = Rng::from_entropy();
-    let mut pointer: Option<Point> = None;
-    let mut attempts = 0_u32;
-    let mut reason = String::new();
+    hand.widget = Some(kind);
     let allowed = options.attempts_allowed();
-    let solved = |attempts: u32, evidence: Option<Evidence>| Solved {
-        captcha: kind,
-        attempts,
-        evidence,
-        elapsed: started.elapsed(),
-    };
+    let mut pressed = 0_u32;
+    let mut reason = String::new();
 
-    while attempts < allowed {
+    while pressed < allowed {
         // The mark of this document and the cookies before the press, to tell
         // afterwards what the press changed.
         let epoch = surface.eval(&script::epoch()).await?;
@@ -449,35 +645,38 @@ pub(crate) async fn solve<S: Surface>(
         if let Ok(Some(now)) = check(surface, kind).await
             && now.filled
         {
-            return Ok(Some(solved(attempts, Some(Evidence::Token))));
+            let cleared = report(kind, hand.presses, round, Some(Evidence::Token), started);
+            return Ok(Round::Over(Some(cleared)));
         }
 
         let Some(area) = settle(surface, kind, options).await? else {
             // It went away while it was being read.
-            return Ok(if attempts == 0 {
-                None
-            } else {
-                Some(solved(attempts, Some(Evidence::WidgetGone)))
-            });
+            return Ok(Round::Over(vanished(hand, round, started)));
         };
 
-        attempts += 1;
-        tracing::debug!(widget = %kind, attempt = attempts, "pressing the CAPTCHA widget");
-        press(surface, &mut person, &mut pointer, kind, area).await?;
+        pressed += 1;
+        hand.presses += 1;
+        tracing::debug!(widget = %kind, attempt = hand.presses, round, "pressing the CAPTCHA widget");
+        press(surface, &mut hand.person, &mut hand.pointer, kind, area).await?;
         match verify(surface, kind, options, &baseline).await? {
-            Verdict::Cleared(evidence) => return Ok(Some(solved(attempts, Some(evidence)))),
-            Verdict::Unverified => return Ok(Some(solved(attempts, None))),
+            Verdict::Cleared(evidence) => {
+                let cleared = report(kind, hand.presses, round, Some(evidence), started);
+                return Ok(Round::Over(Some(cleared)));
+            }
+            Verdict::Unverified => {
+                let pressed_once = report(kind, hand.presses, round, None, started);
+                return Ok(Round::Over(Some(pressed_once)));
+            }
             Verdict::Failed(why) => reason = why,
         }
-        if attempts < allowed {
-            sleep(wait_before(options, attempts, &mut spread)).await;
+        if pressed < allowed {
+            sleep(wait_before(options, pressed, &mut hand.spread)).await;
         }
     }
-    Err(SeleniumBaseError::captcha(
-        kind.to_string(),
-        attempts,
+    Ok(Round::Spent {
+        captcha: kind,
         reason,
-    ))
+    })
 }
 
 #[cfg(test)]
@@ -580,12 +779,24 @@ mod tests {
                 Ask::Marker
             };
             let events = self.events();
-            Ok((self.answer.lock().unwrap())(&ask, &events))
+            let answer = (self.answer.lock().unwrap())(&ask, &events);
+            match answer.get("__error").and_then(Value::as_str) {
+                Some(message) => Err(SeleniumBaseError::CdpDriver(message.to_owned())),
+                None => Ok(answer),
+            }
         }
 
         async fn cookie_names(&self) -> Result<Vec<String>, SeleniumBaseError> {
             Ok(self.cookies.lock().unwrap().clone())
         }
+    }
+
+    /// How many times the widget has been pressed according to `events`.
+    fn presses_in(events: &[Event]) -> usize {
+        events
+            .iter()
+            .filter(|event| matches!(event, Event::Down(_)))
+            .count()
     }
 
     /// Short waits and a fast, seeded pointer, so a scenario runs in a blink
@@ -614,6 +825,16 @@ mod tests {
 
     fn probe_of(widget: impl Into<Value>, pending: bool) -> Value {
         json!({ "widget": widget.into(), "pending": pending })
+    }
+
+    /// A challenge page with no widget: it runs its checks and will go.
+    fn interstitial() -> Value {
+        json!({ "widget": null, "interstitial": true, "pending": true })
+    }
+
+    /// What a page that is being replaced answers: the reading fails.
+    fn navigating() -> Value {
+        json!({ "__error": "Execution context was destroyed" })
     }
 
     fn reading(filled: bool, widget: bool, fields: u32) -> Value {
@@ -667,6 +888,229 @@ mod tests {
         let tab = Scripted::new(|ask, _| plain(ask).unwrap_or_else(|| probe_of(Value::Null, true)));
         let result = solve(&tab, &quick()).await.unwrap();
         assert_eq!(result, None);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_challenge_page_with_no_widget_is_waited_out_beyond_the_locate_timeout() {
+        let mut probes = 0;
+        let tab = Scripted::new(move |ask, _| match ask {
+            Ask::Probe => {
+                probes += 1;
+                // Thirty readings, over four seconds, far past the locate timeout of half one.
+                if probes <= 30 {
+                    interstitial()
+                } else {
+                    probe_of(Value::Null, false)
+                }
+            }
+            other => plain(other).unwrap(),
+        });
+        let started = Instant::now();
+        let result = solve(&tab, &quick()).await.unwrap();
+        assert_eq!(result, None, "what is left of the page shows no widget");
+        assert!(
+            started.elapsed() >= Duration::from_secs(4),
+            "waited {:?}",
+            started.elapsed()
+        );
+        assert!(tab.events().is_empty(), "nothing is pressed");
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn an_interstitial_that_replaces_itself_with_a_widget_page_is_read_through_the_error() {
+        let mut probes = 0;
+        let tab = Scripted::new(move |ask, events| match ask {
+            Ask::Probe => {
+                probes += 1;
+                match probes {
+                    1..=3 => interstitial(),
+                    // The page is replaced: a reading made at that moment fails.
+                    4 => navigating(),
+                    _ => probe_of(widget(), false),
+                }
+            }
+            Ask::Check => reading(presses_in(events) >= 1, true, 1),
+            other => plain(other).unwrap(),
+        });
+        let solved = solve(&tab, &quick()).await.unwrap().expect("a widget");
+        assert_eq!(solved.captcha, Captcha::Turnstile);
+        assert_eq!(solved.evidence, Some(Evidence::Token));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn an_interstitial_that_replaces_itself_with_the_real_page_is_not_an_error() {
+        let mut probes = 0;
+        let tab = Scripted::new(move |ask, _| match ask {
+            Ask::Probe => {
+                probes += 1;
+                match probes {
+                    1..=3 => interstitial(),
+                    4..=5 => navigating(),
+                    _ => probe_of(Value::Null, false),
+                }
+            }
+            other => plain(other).unwrap(),
+        });
+        let result = solve(&tab, &quick()).await.unwrap();
+        assert_eq!(result, None, "the real page shows no widget");
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn an_interstitial_that_never_ends_is_an_error_after_the_interstitial_timeout() {
+        let tab = Scripted::new(|ask, _| plain(ask).unwrap_or_else(interstitial));
+        let options = quick().interstitial_timeout(Duration::from_secs(3));
+        let started = Instant::now();
+        // Not `Ok(None)`, which would tell the caller that the page shows no captcha while the
+        // browser is still on the challenge page.
+        let error = solve(&tab, &options).await.unwrap_err();
+        assert!(
+            matches!(error, SeleniumBaseError::WaitTimeout(_)),
+            "{error:?}"
+        );
+        assert!(
+            started.elapsed() >= Duration::from_secs(3)
+                && started.elapsed() < Duration::from_secs(10),
+            "waited {:?}",
+            started.elapsed()
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_zero_interstitial_timeout_gives_a_challenge_page_only_the_locate_timeout() {
+        // The challenge page is marked as one whose widget is on its way, so it still gets the
+        // locate timeout that any such page gets, and no more.
+        let tab = Scripted::new(|ask, _| plain(ask).unwrap_or_else(interstitial));
+        let options = quick().interstitial_timeout(Duration::ZERO);
+        let started = Instant::now();
+        let error = solve(&tab, &options).await.unwrap_err();
+        assert!(
+            matches!(error, SeleniumBaseError::WaitTimeout(_)),
+            "{error:?}"
+        );
+        assert!(
+            started.elapsed() >= Duration::from_millis(500)
+                && started.elapsed() < Duration::from_secs(1),
+            "waited {:?}",
+            started.elapsed()
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_widget_on_its_way_after_the_interstitial_gets_the_locate_timeout_again() {
+        let mut probes = 0;
+        let tab = Scripted::new(move |ask, events| match ask {
+            Ask::Probe => {
+                probes += 1;
+                match probes {
+                    // Over three seconds of interstitial, then a widget element with no size
+                    // yet for a third of the locate timeout, then the widget.
+                    1..=20 => interstitial(),
+                    21..=23 => probe_of(Value::Null, true),
+                    _ => probe_of(widget(), false),
+                }
+            }
+            Ask::Check => reading(presses_in(events) >= 1, true, 1),
+            other => plain(other).unwrap(),
+        });
+        let solved = solve(&tab, &quick()).await.unwrap().expect("a widget");
+        assert_eq!(solved.evidence, Some(Evidence::Token));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_failing_reading_of_a_page_that_is_no_interstitial_is_an_error_at_once() {
+        let tab = Scripted::new(|ask, _| plain(ask).unwrap_or_else(navigating));
+        let started = Instant::now();
+        let error = solve(&tab, &quick()).await.unwrap_err();
+        assert!(
+            matches!(error, SeleniumBaseError::CdpDriver(_)),
+            "{error:?}"
+        );
+        assert!(started.elapsed() < Duration::from_millis(100));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_page_that_keeps_failing_after_an_interstitial_is_an_error_at_the_timeout() {
+        let mut probes = 0;
+        let tab = Scripted::new(move |ask, _| match ask {
+            Ask::Probe => {
+                probes += 1;
+                if probes <= 2 {
+                    interstitial()
+                } else {
+                    navigating()
+                }
+            }
+            other => plain(other).unwrap(),
+        });
+        let options = quick().interstitial_timeout(Duration::from_secs(3));
+        let started = Instant::now();
+        let error = solve(&tab, &options).await.unwrap_err();
+        assert!(
+            matches!(error, SeleniumBaseError::CdpDriver(_)),
+            "{error:?}"
+        );
+        assert!(started.elapsed() >= Duration::from_secs(3));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_tab_that_dies_during_an_interstitial_is_an_error_at_once() {
+        let mut probes = 0;
+        let tab = Scripted::new(move |ask, _| match ask {
+            Ask::Probe => {
+                probes += 1;
+                if probes <= 2 {
+                    interstitial()
+                } else {
+                    // Not a page that is being replaced: the connection is gone.
+                    json!({ "__error": "WebSocket connection closed" })
+                }
+            }
+            other => plain(other).unwrap(),
+        });
+        let options = quick().interstitial_timeout(Duration::from_secs(3));
+        let started = Instant::now();
+        let error = solve(&tab, &options).await.unwrap_err();
+        assert!(
+            matches!(error, SeleniumBaseError::CdpDriver(_)),
+            "{error:?}"
+        );
+        assert!(
+            started.elapsed() < Duration::from_secs(1),
+            "waited {:?}",
+            started.elapsed()
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_page_that_goes_back_and_forth_between_a_challenge_and_a_pending_page_is_given_up() {
+        let mut probes = 0_u32;
+        let tab = Scripted::new(move |ask, _| match ask {
+            Ask::Probe => {
+                probes += 1;
+                match probes {
+                    // A clearance loop: the challenge page, then a page marked as a challenge
+                    // that has drawn no widget, again and again, for thirty seconds. Each change
+                    // from the challenge page starts a new wait, but none may outlast the
+                    // interstitial timeout and the locate timeout together.
+                    1..=200 if !probes.is_multiple_of(2) => interstitial(),
+                    1..=200 => probe_of(Value::Null, true),
+                    _ => probe_of(Value::Null, false),
+                }
+            }
+            other => plain(other).unwrap(),
+        });
+        let options = quick().interstitial_timeout(Duration::from_secs(3));
+        let started = Instant::now();
+        let error = solve(&tab, &options).await.unwrap_err();
+        assert!(
+            matches!(error, SeleniumBaseError::WaitTimeout(_)),
+            "the page is still a challenge page: {error:?}"
+        );
+        assert!(
+            started.elapsed() <= Duration::from_secs(4),
+            "waited {:?}",
+            started.elapsed()
+        );
     }
 
     #[tokio::test(start_paused = true)]
@@ -886,6 +1330,178 @@ mod tests {
     }
 
     #[tokio::test(start_paused = true)]
+    async fn a_round_that_ends_without_a_result_is_followed_by_another_after_the_cooldown() {
+        // Two presses to a round; the third press, in the second round, clears it.
+        let tab = Scripted::new(|ask, events| match ask {
+            Ask::Probe => probe_of(widget(), false),
+            Ask::Check => reading(presses_in(events) >= 3, true, 1),
+            other => plain(other).unwrap(),
+        });
+        let options = quick()
+            .attempts(2)
+            .rounds(2)
+            .cooldown(Duration::from_secs(30));
+        let started = Instant::now();
+        let solved = solve(&tab, &options).await.unwrap().expect("a widget");
+        assert_eq!(solved.rounds, 2);
+        assert_eq!(solved.attempts, 3, "the presses of all rounds are counted");
+        assert_eq!(solved.evidence, Some(Evidence::Token));
+        assert_eq!(tab.presses(), 3);
+        assert!(
+            started.elapsed() >= Duration::from_secs(30),
+            "the cooldown passed between the rounds: {:?}",
+            started.elapsed()
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn one_round_is_the_default_and_a_cooldown_is_not_waited_for_after_the_last() {
+        let tab = Scripted::new(|ask, _| match ask {
+            Ask::Probe => probe_of(widget(), false),
+            Ask::Check => reading(false, true, 1),
+            other => plain(other).unwrap(),
+        });
+        let started = Instant::now();
+        let error = solve(
+            &tab,
+            &quick().attempts(1).cooldown(Duration::from_secs(600)),
+        )
+        .await
+        .unwrap_err();
+        assert!(matches!(
+            error,
+            SeleniumBaseError::Captcha { attempts: 1, .. }
+        ));
+        assert!(
+            started.elapsed() < Duration::from_secs(60),
+            "no round is to come, so nothing cools down: {:?}",
+            started.elapsed()
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn the_rounds_allowed_bound_the_presses_and_the_error_counts_them_all() {
+        let tab = Scripted::new(|ask, _| match ask {
+            Ask::Probe => probe_of(widget(), false),
+            Ask::Check => reading(false, true, 1),
+            other => plain(other).unwrap(),
+        });
+        let options = quick()
+            .attempts(2)
+            .rounds(3)
+            .cooldown(Duration::from_secs(10));
+        let started = Instant::now();
+        let error = solve(&tab, &options).await.unwrap_err();
+        match &error {
+            SeleniumBaseError::Captcha { attempts, .. } => assert_eq!(*attempts, 6),
+            other => panic!("expected a CAPTCHA error, got {other:?}"),
+        }
+        assert_eq!(tab.presses(), 6);
+        assert!(
+            started.elapsed() >= Duration::from_secs(20),
+            "two cooldowns between three rounds: {:?}",
+            started.elapsed()
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_widget_gone_when_the_next_round_begins_is_a_result() {
+        // The widget is there until it is pressed, then it is gone for good.
+        let tab = Scripted::new(|ask, events| match ask {
+            Ask::Probe if events.is_empty() => probe_of(widget(), false),
+            Ask::Probe => probe_of(Value::Null, false),
+            Ask::Check => reading(false, true, 1),
+            other => plain(other).unwrap(),
+        });
+        let options = quick().attempts(1).rounds(2);
+        let solved = solve(&tab, &options).await.unwrap().expect("a widget");
+        assert_eq!(solved.evidence, Some(Evidence::WidgetGone));
+        assert_eq!(solved.attempts, 1);
+        assert_eq!(solved.rounds, 2);
+        assert_eq!(solved.captcha, Captcha::Turnstile);
+    }
+
+    /// Sets the cookie `name` in `tab` once the widget has been pressed.
+    fn set_cookie_after_the_press(
+        tab: &std::sync::Arc<Scripted>,
+        name: &'static str,
+    ) -> tokio::task::JoinHandle<()> {
+        let setter = std::sync::Arc::clone(tab);
+        tokio::spawn(async move {
+            loop {
+                if setter.presses() > 0 {
+                    setter.cookies.lock().unwrap().push(name.to_owned());
+                    return;
+                }
+                sleep(Duration::from_millis(5)).await;
+            }
+        })
+    }
+
+    /// A tab whose page has no response field, so only a cookie can show a result.
+    fn tab_with_no_field() -> Scripted {
+        Scripted::new(|ask, _| match ask {
+            Ask::Probe => probe_of(widget(), false),
+            Ask::Check => reading(false, true, 0),
+            other => plain(other).unwrap(),
+        })
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_named_clearance_cookie_that_arrives_is_a_result() {
+        let tab = std::sync::Arc::new(tab_with_no_field());
+        let watcher = set_cookie_after_the_press(&tab, "site_ok");
+        let options = quick().clearance_cookie("site_ok");
+        let solved = solve(&*tab, &options).await.unwrap().expect("a widget");
+        watcher.await.unwrap();
+        assert_eq!(solved.evidence, Some(Evidence::Cookie));
+        assert_eq!(solved.attempts, 1);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn the_vendors_clearance_cookie_still_counts_beside_a_named_one() {
+        let tab = std::sync::Arc::new(tab_with_no_field());
+        let watcher = set_cookie_after_the_press(&tab, "cf_clearance");
+        let options = quick().clearance_cookie("site_ok");
+        let solved = solve(&*tab, &options).await.unwrap().expect("a widget");
+        watcher.await.unwrap();
+        assert_eq!(solved.evidence, Some(Evidence::Cookie));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_named_clearance_cookie_lets_a_press_without_it_be_pressed_again_and_then_fail() {
+        // Without the name this page cannot show a result: one press, "unverified".
+        let tab = tab_with_no_field();
+        let solved = solve(&tab, &quick()).await.unwrap().expect("a widget");
+        assert_eq!(solved.evidence, None);
+        assert_eq!(tab.presses(), 1);
+
+        let tab = tab_with_no_field();
+        let options = quick().attempts(2).clearance_cookie("site_ok");
+        let error = solve(&tab, &options).await.unwrap_err();
+        match &error {
+            SeleniumBaseError::Captcha {
+                attempts, reason, ..
+            } => {
+                assert_eq!(*attempts, 2);
+                assert!(reason.contains("site_ok"), "{reason}");
+            }
+            other => panic!("expected a CAPTCHA error, got {other:?}"),
+        }
+        assert_eq!(tab.presses(), 2);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_named_clearance_cookie_that_was_there_before_the_press_is_not_a_result() {
+        let tab = tab_with_no_field();
+        tab.cookies.lock().unwrap().push("site_ok".to_owned());
+        let options = quick().attempts(1).clearance_cookie("site_ok");
+        let error = solve(&tab, &options).await.unwrap_err();
+        assert!(matches!(error, SeleniumBaseError::Captcha { .. }));
+    }
+
+    #[tokio::test(start_paused = true)]
+
     async fn a_page_replaced_by_one_with_no_widget_is_a_result() {
         let tab = Scripted::new(|ask, events| match ask {
             Ask::Probe => probe_of(widget(), false),

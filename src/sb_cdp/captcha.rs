@@ -6,6 +6,13 @@
 //! [`Evidence`]). The steps are in the `engine` module and run against any
 //! `Surface`, which is how `BaseCase::solve_captcha` shares them; the scripts
 //! the steps send to the page are in the `script` module.
+//!
+//! A call is one or more rounds of those steps ([`SolveOptions::rounds`]), with a
+//! cooldown between them, and a challenge page that shows no widget (an
+//! interstitial) is waited out before the first. The proxy and the fingerprint
+//! cannot be changed from a `Page`, so the options that name when to change them
+//! ([`SolveOptions::rotate_proxy_after`], [`SolveOptions::rotate_fingerprint_after`])
+//! are only carried for the layer that can.
 
 use std::fmt;
 use std::time::Duration;
@@ -265,11 +272,18 @@ impl fmt::Display for Evidence {
 #[non_exhaustive]
 pub struct SolveOptions {
     locate_timeout: Duration,
+    interstitial_timeout: Duration,
+
     settle: Duration,
     verify_timeout: Duration,
     attempts: u32,
     backoff: Duration,
     retry_policy: Option<RetryPolicy>,
+    rounds: u32,
+    cooldown: Duration,
+    rotate_proxy_after: Option<u32>,
+    rotate_fingerprint_after: Option<u32>,
+    clearance_cookie: Option<String>,
     marker: Option<String>,
     behavior: Behavior,
 }
@@ -278,11 +292,18 @@ impl Default for SolveOptions {
     fn default() -> Self {
         Self {
             locate_timeout: Duration::from_secs(6),
+            interstitial_timeout: Duration::from_secs(20),
+
             settle: SETTLE,
             verify_timeout: Duration::from_secs(5),
             attempts: 3,
             backoff: Duration::from_millis(600),
             retry_policy: None,
+            rounds: 1,
+            cooldown: Duration::ZERO,
+            rotate_proxy_after: None,
+            rotate_fingerprint_after: None,
+            clearance_cookie: None,
             marker: None,
             behavior: Behavior::default(),
         }
@@ -302,9 +323,34 @@ impl SolveOptions {
     /// signs of a challenge, or a widget element exists but has no size yet.
     /// A page with no such sign returns `None` at once, whatever this is. Use
     /// [`Duration::ZERO`] to never wait.
+    ///
+    /// A challenge page that shows no widget at all is waited out for
+    /// [`interstitial_timeout`](Self::interstitial_timeout) instead.
     #[must_use]
     pub fn locate_timeout(mut self, timeout: Duration) -> Self {
         self.locate_timeout = timeout;
+        self
+    }
+
+    /// How long to wait for a challenge page that shows no widget (an interstitial, such as
+    /// Cloudflare's "Just a moment...") to run its checks and go: it navigates away or replaces
+    /// itself, and then [`Page::solve_captcha`] looks for a widget on what is left. While it
+    /// waits, a reading that fails because the page is being replaced is read again; any other
+    /// failed reading (a closed tab, a lost connection) is an error at once. The wait ends when
+    /// the page is no longer an interstitial; a widget that is on its way after that gets
+    /// [`locate_timeout`](Self::locate_timeout) in turn. The whole search never takes longer
+    /// than the two timeouts together, however often the page changes between the two states.
+    ///
+    /// When the time is up and the page is still a challenge page, the solver fails with
+    /// [`SeleniumBaseError::WaitTimeout`](crate::SeleniumBaseError::WaitTimeout) rather than
+    /// answering `None`, which would say that the page shows no captcha.
+    ///
+    /// 20 s by default. A page that is not an interstitial is never waited for this long. With
+    /// [`Duration::ZERO`] an interstitial is not waited out: a challenge page whose widget is on
+    /// its way gets the locate timeout, as any page with a widget on its way does.
+    #[must_use]
+    pub fn interstitial_timeout(mut self, timeout: Duration) -> Self {
+        self.interstitial_timeout = timeout;
         self
     }
 
@@ -355,6 +401,75 @@ impl SolveOptions {
         self
     }
 
+    /// How many rounds to make at most. A round is one whole pass of the solver: find the
+    /// widget, wait for it to stand still, press it up to [`attempts`](Self::attempts) times
+    /// and read the page. When every press of a round was spent and the page, which could show
+    /// a result, never did, the [`cooldown`](Self::cooldown) passes and the next round begins
+    /// by finding the widget again: a widget that failed is often drawn anew, and another
+    /// challenge may follow. The presses of all rounds are counted in [`Solved::attempts`]
+    /// and in the error.
+    ///
+    /// One by default, a single pass. Zero counts as one. The solver runs the rounds itself;
+    /// they are what [`rotate_proxy_after`](Self::rotate_proxy_after) and
+    /// [`rotate_fingerprint_after`](Self::rotate_fingerprint_after) count.
+    #[must_use]
+    pub fn rounds(mut self, rounds: u32) -> Self {
+        self.rounds = rounds;
+        self
+    }
+
+    /// How long to wait between two rounds: after a round that ended without a result, and
+    /// before the next one begins. Zero by default, so the next round begins at once. The
+    /// solver applies it itself, and only when another round is to come.
+    #[must_use]
+    pub fn cooldown(mut self, wait: Duration) -> Self {
+        self.cooldown = wait;
+        self
+    }
+
+    /// After how many rounds in a row that ended without a result the proxy is to change.
+    /// Counted from one, so zero counts as one. Never, by default.
+    ///
+    /// This only carries the setting. A [`Page`] holds no proxy list and cannot change its
+    /// own proxy, so the solver never rotates: the layer that owns the proxies (the stealth
+    /// scraper) asks [`proxy_rotation_due`](Self::proxy_rotation_due) between rounds and
+    /// rotates itself. To act between rounds, make one round for each call
+    /// (`rounds(1)`) and count the rounds that failed.
+    #[must_use]
+    pub fn rotate_proxy_after(mut self, rounds: u32) -> Self {
+        self.rotate_proxy_after = Some(rounds);
+        self
+    }
+
+    /// After how many rounds in a row that ended without a result the fingerprint is to
+    /// change. Counted from one, so zero counts as one. Never, by default.
+    ///
+    /// Like [`rotate_proxy_after`](Self::rotate_proxy_after), this only carries the setting: a
+    /// [`Page`] cannot be given another fingerprint by the solver, so the layer that does it
+    /// reads [`fingerprint_rotation_due`](Self::fingerprint_rotation_due) between rounds. When
+    /// both rotations are due, the stealth scraper changes the fingerprint first, as a new
+    /// fingerprint is the stronger step.
+    #[must_use]
+    pub fn rotate_fingerprint_after(mut self, rounds: u32) -> Self {
+        self.rotate_fingerprint_after = Some(rounds);
+        self
+    }
+
+    /// The name of a cookie whose arrival shows that the visitor was let through, another
+    /// check beside the response field, the [success marker](Self::success_marker) and the
+    /// cookie the vendor sets itself (`cf_clearance` for Cloudflare). The cookie counts when it
+    /// is in the browser after a press and was not before it, so a cookie left over from an
+    /// earlier visit shows nothing.
+    ///
+    /// Naming a cookie lets the solver tell a failed press from one it cannot judge, as a
+    /// success marker does: a press after which the cookie did not arrive is pressed again,
+    /// and fails the call when the attempts are spent. The solver applies it itself.
+    #[must_use]
+    pub fn clearance_cookie(mut self, name: impl Into<String>) -> Self {
+        self.clearance_cookie = Some(name.into());
+        self
+    }
+
     /// A script expression that is true once the site shows its own page or
     /// the result of the widget, such as `document.querySelector('#welcome')`.
     /// It is checked after each press, and it makes a missing response field
@@ -378,6 +493,36 @@ impl SolveOptions {
     pub fn attempts_allowed(&self) -> u32 {
         self.attempts.max(1)
     }
+
+    /// How many rounds are allowed at most; at least one.
+    #[must_use]
+    pub fn rounds_allowed(&self) -> u32 {
+        self.rounds.max(1)
+    }
+
+    /// The wait between two rounds, [`Duration::ZERO`] when none was set.
+    #[must_use]
+    pub fn cooldown_between_rounds(&self) -> Duration {
+        self.cooldown
+    }
+
+    /// Whether the proxy is to change after `failed_rounds` rounds in a row that ended
+    /// without a result: [`rotate_proxy_after`](Self::rotate_proxy_after) was set and the
+    /// count has reached it. Always `false` when it was not set.
+    #[must_use]
+    pub fn proxy_rotation_due(&self, failed_rounds: u32) -> bool {
+        self.rotate_proxy_after
+            .is_some_and(|after| failed_rounds >= after.max(1))
+    }
+
+    /// Whether the fingerprint is to change after `failed_rounds` rounds in a row that ended
+    /// without a result: [`rotate_fingerprint_after`](Self::rotate_fingerprint_after) was set
+    /// and the count has reached it. Always `false` when it was not set.
+    #[must_use]
+    pub fn fingerprint_rotation_due(&self, failed_rounds: u32) -> bool {
+        self.rotate_fingerprint_after
+            .is_some_and(|after| failed_rounds >= after.max(1))
+    }
 }
 
 /// What [`Page::solve_captcha_with`] did to a widget.
@@ -386,8 +531,11 @@ impl SolveOptions {
 pub struct Solved {
     /// The widget that was pressed.
     pub captcha: Captcha,
-    /// How many times it was pressed; zero when it was already clear.
+    /// How many times it was pressed, in all rounds; zero when it was already clear.
     pub attempts: u32,
+    /// How many rounds the call made: one, unless a round ended without a result and
+    /// [`SolveOptions::rounds`] allowed another.
+    pub rounds: u32,
     /// What showed it cleared, or `None` when nothing the solver can read did:
     /// the widget was pressed once and the result cannot be seen from outside
     /// (a frame from another origin, with no response field on the page).
@@ -442,6 +590,11 @@ impl Page {
     /// checkbox widgets are pressed at the left edge where they draw their box
     /// and the `DataDome` slider is dragged.
     ///
+    /// A challenge page that shows no widget at all (an interstitial, such as
+    /// "Just a moment...") is waited out first, until it navigates away or
+    /// replaces itself (see [`SolveOptions::interstitial_timeout`]); what is left
+    /// of the page is then looked at for a widget.
+    ///
     /// The result is then looked for, because the widgets live in frames whose
     /// insides cannot be read: the response field of the widget holds a token,
     /// the clearance cookie arrived, or the page was replaced by one with no
@@ -450,6 +603,9 @@ impl Page {
     /// growing wait, up to three presses. See [`SolveOptions`] to change any of
     /// this, and [`solve_captcha_with`](Self::solve_captcha_with) for what was
     /// seen.
+    ///
+    /// A round that spends its presses without a result can be followed by more
+    /// rounds, after a cooldown (see [`SolveOptions::rounds`]).
     ///
     /// Returns the widget that was attempted, or `None` if the page shows no
     /// supported widget.
@@ -606,6 +762,61 @@ mod tests {
     }
 
     #[test]
+    fn the_defaults_make_one_round_and_never_rotate() {
+        let options = SolveOptions::default();
+        assert_eq!(options.rounds_allowed(), 1);
+        assert_eq!(options.cooldown_between_rounds(), Duration::ZERO);
+        assert!(!options.proxy_rotation_due(u32::MAX));
+        assert!(!options.fingerprint_rotation_due(u32::MAX));
+        assert!(options.clearance_cookie.is_none());
+    }
+
+    #[test]
+    fn rounds_and_a_cooldown_are_set_and_zero_rounds_count_as_one() {
+        let options = SolveOptions::new()
+            .rounds(0)
+            .cooldown(Duration::from_secs(30));
+        assert_eq!(options.rounds_allowed(), 1);
+        assert_eq!(options.cooldown_between_rounds(), Duration::from_secs(30));
+        assert_eq!(SolveOptions::new().rounds(4).rounds_allowed(), 4);
+    }
+
+    #[test]
+    fn a_rotation_is_due_once_its_round_count_is_reached() {
+        let options = SolveOptions::new()
+            .rotate_proxy_after(2)
+            .rotate_fingerprint_after(3);
+        assert!(!options.proxy_rotation_due(0));
+        assert!(!options.proxy_rotation_due(1));
+        assert!(options.proxy_rotation_due(2));
+        assert!(options.proxy_rotation_due(9));
+        assert!(!options.fingerprint_rotation_due(2));
+        assert!(options.fingerprint_rotation_due(3));
+
+        let at_once = SolveOptions::new().rotate_proxy_after(0);
+        assert!(!at_once.proxy_rotation_due(0), "no failed round yet");
+        assert!(at_once.proxy_rotation_due(1), "zero counts as one");
+    }
+
+    #[test]
+    fn an_interstitial_is_waited_out_longer_than_a_widget_on_its_way() {
+        let options = SolveOptions::default();
+        assert!(options.interstitial_timeout > options.locate_timeout);
+        let none = SolveOptions::new().interstitial_timeout(Duration::ZERO);
+        assert_eq!(none.interstitial_timeout, Duration::ZERO);
+        assert_ne!(none, options);
+    }
+
+    #[test]
+
+    fn a_clearance_cookie_is_kept_by_name() {
+        let options = SolveOptions::new().clearance_cookie("site_ok");
+        assert_eq!(options.clearance_cookie.as_deref(), Some("site_ok"));
+        assert_ne!(options, SolveOptions::new());
+    }
+
+    #[test]
+
     fn the_locate_script_asks_the_page_for_the_first_widget_and_scrolls_to_it() {
         let script = Captcha::locate_script();
         assert!(script.contains("return find(true, -1);"), "{script}");

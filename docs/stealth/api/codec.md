@@ -19,10 +19,10 @@ entry, Chrome 155.0.8059.40 on macOS. The guide that explains these formats is
 
 ```rust The measured Chrome
 use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
-use seleniumbase_rs_stealth::codec::{get_emulation, BrowserKind, EmulationError};
+use seleniumbase_rs_stealth::codec::{measurement, BrowserKind, WireMeasurementError};
 
-fn main() -> Result<(), EmulationError> {
-    let chrome = get_emulation(BrowserKind::Chrome, OsType::Macos)?;
+fn main() -> Result<(), WireMeasurementError> {
+    let chrome = measurement::get(BrowserKind::Chrome, OsType::Macos)?;
     println!("{} {}", chrome.provenance.browser, chrome.tls.ja4());
     Ok(())
 }
@@ -81,7 +81,7 @@ crate has no default features.
 
 | Module | What it holds | Page |
 |---|---|---|
-| `emulation` | The measured browser tables, embedded from JSON, and their lookups. | [Emulation](/stealth/api/codec-emulation) |
+| `measurement` | The measured browser tables, embedded from JSON, and their lookups. | [WireMeasurement](/stealth/api/codec-measurement) |
 | `client_hello` | The TLS `ClientHello` parser, `ext_id` constants and GREASE helpers. | [ClientHello](/stealth/api/codec-client-hello) |
 | `ja3`, `ja3::peetprint` | JA3 and the peetprint, parsed, rendered and hashed. | [JA3 and peetprint](/stealth/api/codec-ja3) |
 | `ja4` | JA4, `JA4_o`, `JA4_r` and `JA4_ro`. | [JA4](/stealth/api/codec-ja4) |
@@ -95,24 +95,20 @@ crate has no default features.
 ## Re-exports at the root
 
 The main types are re-exported, so `seleniumbase_rs_stealth::codec::Ja4` is
-`seleniumbase_rs_stealth::codec::ja4::Ja4`. Two enums are both called `SpecError` in their
-modules, and three lookups of `emulation` have short names, so they are renamed:
+`seleniumbase_rs_stealth::codec::ja4::Ja4`. Each root name is the item's own name; the lookups
+of `measurement` are called through the module (`measurement::all`, `measurement::for_kind`,
+`measurement::get`) and have no root alias.
 
 | Root name | Item |
 |---|---|
 | `Akamai`, `AkamaiError` | `akamai::Akamai`, `akamai::AkamaiError` |
 | `ClientHello`, `ClientHelloError` | `client_hello::ClientHello`, `client_hello::ClientHelloError` |
-| `Emulation`, `EmulationError` | `emulation::Emulation`, `emulation::EmulationError` |
-| `measured_emulations` | `emulation::measured` |
-| `emulation_for_kind` | `emulation::for_kind` |
-| `get_emulation` | `emulation::get` |
-| `H2Spec`, `H2SpecError` | `h2_spec::H2Spec`, `h2_spec::SpecError` |
-| `HeaderIdentity`, `HeaderSpec`, `HeaderSpecError`, `RequestShape` | the `header_spec` items of the same name |
+| `WireMeasurement`, `WireMeasurementError` | `measurement::WireMeasurement`, `measurement::WireMeasurementError` |
+| `H2Spec`, `H2SpecError` | `h2_spec::H2Spec`, `h2_spec::H2SpecError` |
+| `ClientHeaders`, `HeaderSpec`, `HeaderSpecError`, `RequestShape` | the `header_spec` items of the same name |
 | `Ja3`, `Ja3Error`, `Peetprint`, `PeetprintError` | `ja3::Ja3`, `ja3::Ja3Error`, `ja3::peetprint::Peetprint`, `ja3::peetprint::PeetprintError` |
 | `Ja4`, `Ja4Error`, `Ja4Raw` | the `ja4` items of the same name |
-| `KnownGap`, `TlsSpec`, `TlsSpecError` | `tls_spec::KnownGap`, `tls_spec::TlsSpec`, `tls_spec::SpecError` |
-
-`emulation::SpecError` is a type alias of `EmulationError`.
+| `KnownGap`, `TlsSpec`, `TlsSpecError` | `tls_spec::KnownGap`, `tls_spec::TlsSpec`, `tls_spec::TlsSpecError` |
 
 ## `BrowserKind`
 
@@ -152,9 +148,9 @@ measurement.
 
 <Columns cols={2}>
 
-<Card color="#1a85d4" title="Emulation" icon="database" href="/stealth/api/codec-emulation">
+<Card color="#1a85d4" title="WireMeasurement" icon="database" href="/stealth/api/codec-measurement">
 
-The measured tables: `Emulation`, `Provenance`, `get`, `get_version`, `measured`.
+The measured tables: `WireMeasurement`, `Provenance`, `get`, `get_version`, `measured`.
 
 </Card>
 
@@ -178,7 +174,7 @@ Parse the first TLS handshake message, across records.
 
 <Card color="#1ca1c7" title="Akamai" icon="code" href="/stealth/api/codec-akamai">
 
-The HTTP/2 fingerprint string: `Akamai`, `PriorityFrame`, `Pseudo`.
+The HTTP/2 fingerprint string: `Akamai`, `PriorityFrame`, `PseudoHeader`.
 
 </Card>
 

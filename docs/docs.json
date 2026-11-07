@@ -412,6 +412,7 @@
               "stealth/advanced/playwright",
               "stealth/advanced/wire-formats",
               "stealth/advanced/mitm-proxy",
+              "stealth/advanced/http3",
               {
                 "group": "Stealthy scraping",
                 "pages": [
@@ -615,7 +616,7 @@
                       "stealth/api/codec-h2-frames",
                       "stealth/api/codec-akamai",
                       "stealth/api/codec-header-spec",
-                      "stealth/api/codec-emulation",
+                      "stealth/api/codec-measurement",
                       "stealth/api/codec-ids"
                     ]
                   }
@@ -643,21 +644,21 @@
                 ]
               },
               {
-                "product": "Stealth API: mimic",
+                "product": "Stealth API: wire",
                 "icon": "masks-theater",
                 "description": "HttpSession, the MITM proxy, StealthSession and the impersonating client",
                 "groups": [
                   {
-                    "group": "Stealth API: mimic",
+                    "group": "Stealth API: wire",
                     "pages": [
-                      "stealth/api/mimic",
-                      "stealth/api/mimic-client",
-                      "stealth/api/mimic-convert",
-                      "stealth/api/mimic-http-session",
-                      "stealth/api/mimic-mitm",
-                      "stealth/api/mimic-tls-server",
-                      "stealth/api/mimic-stealth-session",
-                      "stealth/api/mimic-capture-h2"
+                      "stealth/api/wire",
+                      "stealth/api/wire-client",
+                      "stealth/api/wire-convert",
+                      "stealth/api/wire-http-session",
+                      "stealth/api/wire-mitm",
+                      "stealth/api/wire-tls-server",
+                      "stealth/api/wire-stealth-session",
+                      "stealth/api/wire-capture-h2"
                     ]
                   }
                 ]
@@ -864,8 +865,10 @@
               "contributing/benchmarking",
               "contributing/coverage",
               "contributing/releasing",
+              "contributing/ci",
               "contributing/consumers",
               "contributing/manual-checks",
+              "contributing/stealth-boringssl",
               "UPSTREAM_SYNC",
               "completions/README",
               "feature-requests"
@@ -895,7 +898,9 @@
               "design/capability_types",
               "design/drivers_module",
               "design/core_split",
-              "design/fingerprint_mimic"
+              "design/fingerprint_mimic",
+              "design/api_guidelines_audit",
+              "design/dependency_review"
             ]
           },
           {

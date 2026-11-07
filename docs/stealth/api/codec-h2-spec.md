@@ -1,7 +1,7 @@
 ---
 title: "codec::h2_spec"
 sidebarTitle: "H2Spec"
-description: "The HTTP/2 profile in seleniumbase-rs-codec: H2Spec (alias Http2Spec), its constructors from a capture, a preface or an Akamai string, the check against what the wreq HTTP/2 stack can send, setting_id and SpecError."
+description: "The HTTP/2 profile in seleniumbase-rs-codec: H2Spec , its constructors from a capture, a preface or an Akamai string, the check against what the wreq HTTP/2 stack can send, setting_id and H2SpecError."
 ---
 
 <Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: codec</Badge>
@@ -28,7 +28,7 @@ stack cannot emit, as of `wreq-proto` 0.2.6:
 
 ```rust From an Akamai string
 use seleniumbase_rs_stealth::codec::akamai::Akamai;
-use seleniumbase_rs_stealth::codec::h2_spec::{H2Spec, SpecError};
+use seleniumbase_rs_stealth::codec::h2_spec::{H2Spec, H2SpecError};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let akamai: Akamai = "1:4096;2:0;4:1048576|983041|0|m,a,s,p".parse()?;
@@ -36,18 +36,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(spec.akamai(), akamai);
 
     let grease: Akamai = "2570:1;4:1048576|0|0|m,a,s,p".parse()?;
-    assert_eq!(H2Spec::from_akamai(&grease), Err(SpecError::UnsupportedSetting(2570)));
+    assert_eq!(H2Spec::from_akamai(&grease), Err(H2SpecError::UnsupportedSetting(2570)));
     Ok(())
 }
 ```
 
 ```rust The measured HTTP/2 start
 use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
-use seleniumbase_rs_stealth::codec::emulation;
+use seleniumbase_rs_stealth::codec::measurement;
 use seleniumbase_rs_stealth::codec::BrowserKind;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let chrome = emulation::get(BrowserKind::Chrome, OsType::Macos)?;
+    let chrome = measurement::get(BrowserKind::Chrome, OsType::Macos)?;
     let http2 = chrome.http2.as_ref().ok_or("no HTTP/2 capture")?;
     println!("{}", http2.akamai());
     println!("{:?}", http2.headers_priority);
@@ -80,17 +80,17 @@ pub struct H2Spec {
     pub priority_frames: Vec<PriorityFrame>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub headers_priority: Option<HeadersPriority>,
-    pub pseudo_order: [Pseudo; 4],
+    pub pseudo_order: [PseudoHeader; 4],
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub initial_stream_id: Option<u32>,
 }
 
-pub type Http2Spec = H2Spec;
+pub type H2Spec = H2Spec;
 ```
 
 A whole HTTP/2 profile: what a client sends before and in its first request.
-`Http2Spec` is the same type under the name the design plan uses; it is the type
-of `Emulation::http2`. Re-exported at the crate root as `H2Spec`.
+`H2Spec` is the same type under the name the design plan uses; it is the type
+of `WireMeasurement::http2`. Re-exported at the crate root as `H2Spec`.
 
 <ResponseField name="settings" type="Vec<(u16, u32)>">
 
@@ -116,7 +116,7 @@ The priority fields of the first HEADERS frame, when the client sends them.
 
 </ResponseField>
 
-<ResponseField name="pseudo_order" type="[Pseudo; 4]">
+<ResponseField name="pseudo_order" type="[PseudoHeader; 4]">
 
 The order of the request pseudo-headers.
 
@@ -133,10 +133,10 @@ The stream id of the first request, when it is not the usual `1`.
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
-pub fn from_preface(preface: &H2Preface) -> Result<Self, SpecError>
-pub fn from_capture(bytes: &[u8]) -> Result<Self, SpecError>
-pub fn from_akamai(akamai: &Akamai) -> Result<Self, SpecError>
-pub fn with_akamai(&self, akamai: &Akamai) -> Result<Self, SpecError>
+pub fn from_preface(preface: &H2Preface) -> Result<Self, H2SpecError>
+pub fn from_capture(bytes: &[u8]) -> Result<Self, H2SpecError>
+pub fn from_akamai(akamai: &Akamai) -> Result<Self, H2SpecError>
+pub fn with_akamai(&self, akamai: &Akamai) -> Result<Self, H2SpecError>
 ```
 
 <ResponseField name="from_preface" type="method">
@@ -178,7 +178,7 @@ from this spec. The result is checked.
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
-pub fn check_reproducible(&self) -> Result<(), SpecError>
+pub fn check_reproducible(&self) -> Result<(), H2SpecError>
 pub fn akamai(&self) -> Akamai
 pub fn setting(&self, id: u16) -> Option<u32>
 pub fn without_unsupported_settings(&self) -> (Self, Vec<(u16, u32)>)
@@ -197,7 +197,7 @@ pub fn without_unsupported_settings(&self) -> (Self, Vec<(u16, u32)>)
   setting, the dropped entries are the known gap between the capture and what a
   client can reproduce.
 
-## `SpecError`
+## `H2SpecError`
 
 <Badge color="purple" shape="pill">enum</Badge>
 
@@ -205,7 +205,7 @@ pub fn without_unsupported_settings(&self) -> (Self, Vec<(u16, u32)>)
 // Re-exported at the crate root as H2SpecError.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 #[non_exhaustive]
-pub enum SpecError {
+pub enum H2SpecError {
     UnsupportedSetting(u16),
     DuplicateSetting(u16),
     SettingValue { id: u16, value: u32 },
@@ -222,7 +222,7 @@ pub enum SpecError {
 
 Why an HTTP/2 spec cannot be built or cannot be sent.
 
-<ResponseField name="SpecError" type="enum">
+<ResponseField name="H2SpecError" type="enum">
 
 <Expandable title="variants">
 

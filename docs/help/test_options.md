@@ -42,7 +42,8 @@ the variables you exported yourself.
 
 - **Precedence.** A flag of `sbrs test` wins over an `SB_*` variable already in
   the environment, which wins over the settings file, which wins over the
-  default. A variable that is empty or blank counts as unset. The options of
+  default. A variable is read trimmed, and one that is empty or blank counts as
+  unset. The options of
   `sbrs` before the command (`sbrs --headless test`) are forwarded too, and a
   flag after `test` wins over them.
 - **Switches.** A switch is `--flag`, which is true, or `--flag=false`, so a

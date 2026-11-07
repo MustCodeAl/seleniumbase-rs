@@ -957,7 +957,7 @@ impl SeleniumBaseError {
                 "The {captcha} widget was found and pressed {attempts} time(s), but the page \
                  never showed it cleared. A harder challenge may have followed, the site may \
                  refuse this browser, or the press may have missed the box: watch a headed run, \
-                 give SolveOptions more attempts or a longer verify_timeout, or finish the \
+                 give SolveOptions more attempts or rounds or a longer verify_timeout, or finish the \
                  widget by hand."
             ),
 

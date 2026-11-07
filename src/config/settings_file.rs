@@ -14,7 +14,10 @@
 //!   variables, so that a value is refused in one place;
 //! * the tables and the settings of the other groups (`[run]`, `[test]`, `[report]`,
 //!   `[plugins]`, `[fingerprint]`) are handed on as written, and figment's extraction reads
-//!   them with serde.
+//!   them with serde;
+//! * the nested tables `[browser]` and `[session]`, with the tables and maps inside them, are the
+//!   settings as `Settings` serializes them: they are handed on as written, beside the flat
+//!   keys, and a setting that a flat key and a nested table both give is written twice.
 //!
 //! A value that is refused names the file and the key as the file wrote it
 //! (`sbase_config.toml: headless: cannot parse bool: …`), and never repeats the value, which may
@@ -33,7 +36,7 @@ use crate::config::browser_options::{canonical_entries, ArgList, FileEntries};
 use crate::config::env_vars::row_of;
 use crate::config::layers::{describe, extract, merge_into, Given, Layer, Refused};
 use crate::config::settings::{Settings, SettingsProblem};
-use crate::config::test_options::{read_variables, Variables, TEST_OPTIONS};
+use crate::config::test_options::{read_variables, OptionSpec, Variables, TEST_OPTIONS};
 use crate::config::text::text_of;
 use crate::error::SeleniumBaseError;
 
@@ -156,8 +159,12 @@ impl SettingsFile {
                 message = rest.to_owned();
             }
             // The value may be a secret: the message does not repeat it.
-            if let Some(value) = texts.get(variable).filter(|value| !value.is_empty()) {
-                message = message.replace(value.as_str(), "…");
+            if let Some(value) = texts
+                .get(variable)
+                .map(|value| value.trim())
+                .filter(|value| !value.is_empty())
+            {
+                message = without_value(&message, value);
             }
             refuse(row_of(variable), key, &message);
         }
@@ -212,7 +219,7 @@ impl SettingsFile {
             problems.push(Refused {
                 row: TEST_OPTIONS
                     .iter()
-                    .position(|row| row.field.replacen("test.data.", "test.", 1) == path)
+                    .position(|row| row_holds(row, &path))
                     .unwrap_or(usize::MAX),
                 problem: SettingsProblem {
                     source: self.path.display().to_string(),
@@ -237,8 +244,7 @@ impl SettingsFile {
     fn refusal(&self, error: &figment::Error) -> String {
         let text = describe(error);
         match self.layer.text_at(&error.path) {
-            Some(value) if value.len() >= 3 => text.replace(value, "…"),
-            Some(value) if !value.is_empty() => text.replace(&format!("\"{value}\""), "\"…\""),
+            Some(value) if !value.is_empty() => without_value(&text, value),
             _ => text,
         }
     }
@@ -262,6 +268,111 @@ impl Provider for SettingsFile {
     }
 }
 
+/// `message` without the secret `value`, which a reader or serde may have quoted in it.
+///
+/// Only the value is hidden: the value between quotes (`"v"`, `'v'` or `` `v` ``, however the
+/// reader quotes it), and the value that ends the message (`cannot parse bool: v`). A value of
+/// three characters or more is hidden wherever it stands alone, as a word of the message. A
+/// shorter value is never searched for in the words of the message: a secret of one letter is
+/// also a letter of "cannot parse", and the message must stay readable.
+///
+/// The value is hidden as serde writes it too (a quote or a backslash in it gets a backslash
+/// before it), and so is each item of a comma-separated value that the message quotes: a reader
+/// names the item it refuses and not the whole list.
+fn without_value(message: &str, value: &str) -> String {
+    if value.is_empty() {
+        return message.to_owned();
+    }
+    let mut hidden = hide_text(message, value);
+    // serde writes a text with its escapes (`zq9\\zq9` for `zq9\zq9`), so the value as the file
+    // has it is not the text in the message.
+    let written = escaped(value);
+    if written != value {
+        hidden = hide_text(&hidden, &written);
+    }
+    // A reader names the item of a list that it refuses (`got 'item'`), which is part of the
+    // value: an item is hidden where the message quotes it.
+    for item in value
+        .split(',')
+        .map(str::trim)
+        .filter(|item| !item.is_empty() && *item != value)
+    {
+        hidden = hide_quoted(&hidden, item);
+        let written = escaped(item);
+        if written != item {
+            hidden = hide_quoted(&hidden, &written);
+        }
+    }
+    hidden
+}
+
+/// `message` without `value` where it is quoted, where it ends the message and, for a value of
+/// three characters or more, where it stands alone as a word.
+fn hide_text(message: &str, value: &str) -> String {
+    let mut hidden = hide_quoted(message, value);
+    if let Some(head) = hidden.strip_suffix(value)
+        && head.ends_with(": ")
+    {
+        hidden = format!("{head}…");
+    }
+    if value.chars().count() >= 3 {
+        hidden = hide_words(&hidden, value);
+    }
+    hidden
+}
+
+/// `message` with `value` between quotes (`"v"`, `'v'` or `` `v` ``) replaced by `…`.
+fn hide_quoted(message: &str, value: &str) -> String {
+    let mut hidden = message.to_owned();
+    for quote in ['"', '\'', '`'] {
+        hidden = hidden.replace(
+            &format!("{quote}{value}{quote}"),
+            &format!("{quote}…{quote}"),
+        );
+    }
+    hidden
+}
+
+/// `value` as a `Debug` string writes it, without its quotes: a quote or a backslash gets a
+/// backslash before it, as serde writes the text it refuses.
+fn escaped(value: &str) -> String {
+    let written = format!("{value:?}");
+    written
+        .strip_prefix('"')
+        .and_then(|rest| rest.strip_suffix('"'))
+        .unwrap_or(&written)
+        .to_owned()
+}
+
+/// `text` with each occurrence of `value` that is not part of a longer word replaced by `…`.
+fn hide_words(text: &str, value: &str) -> String {
+    let inside_word = |c: Option<char>| c.is_some_and(|c| c.is_alphanumeric() || c == '_');
+    let mut hidden = String::with_capacity(text.len());
+    let mut copied = 0;
+    for (at, found) in text.match_indices(value) {
+        let end = at + found.len();
+        if inside_word(text[..at].chars().next_back()) || inside_word(text[end..].chars().next()) {
+            continue;
+        }
+        hidden.push_str(&text[copied..at]);
+        hidden.push('…');
+        copied = end;
+    }
+    hidden.push_str(&text[copied..]);
+    hidden
+}
+
+/// Whether the setting at `path` of the serialized settings is the field of `row` or one inside
+/// it (`browser.proxy.server` for the row of `browser.proxy`), so that the problems of a nested
+/// table are sorted by the row of the option table too.
+fn row_holds(row: &OptionSpec, path: &str) -> bool {
+    let field = row.field.replacen("test.data.", "test.", 1);
+    row.has_field()
+        && path
+            .strip_prefix(&field)
+            .is_some_and(|rest| rest.is_empty() || rest.starts_with('.'))
+}
+
 /// The name of the settings file as the messages give it: the file name without its folder.
 fn file_name(path: &Path) -> String {
     path.file_name().map_or_else(
@@ -275,5 +386,59 @@ fn inner_message(error: &SeleniumBaseError) -> String {
     match error {
         SeleniumBaseError::InvalidConfig(text) => text.clone(),
         other => other.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_value_is_hidden_where_it_is_quoted_or_ends_the_message() {
+        assert_eq!(
+            without_value("cannot parse bool: a", "a"),
+            "cannot parse bool: …"
+        );
+        assert_eq!(
+            without_value("expected a number, not 'a'", "a"),
+            "expected a number, not '…'"
+        );
+        assert_eq!(
+            without_value("invalid type: string \"a\", expected a boolean", "a"),
+            "invalid type: string \"…\", expected a boolean"
+        );
+        assert_eq!(
+            without_value("unknown variant `a`, expected `cdp`", "a"),
+            "unknown variant `…`, expected `cdp`"
+        );
+    }
+
+    #[test]
+    fn a_value_is_hidden_as_serde_escapes_it_and_by_the_item_a_reader_names() {
+        assert_eq!(
+            without_value(
+                "invalid type: string \"zq9\\\\zq9\", expected a boolean",
+                "zq9\\zq9"
+            ),
+            "invalid type: string \"…\", expected a boolean"
+        );
+        assert_eq!(
+            without_value("a preference as NAME:VALUE, got 'zq9'", "good:1,zq9"),
+            "a preference as NAME:VALUE, got '…'"
+        );
+        // An item that the message does not quote is left alone.
+        assert_eq!(
+            without_value("cannot use good in here", "good,zq9"),
+            "cannot use good in here"
+        );
+    }
+
+    #[test]
+    fn a_long_value_is_hidden_where_it_stands_alone_and_not_inside_a_word() {
+        assert_eq!(
+            without_value("cannot use hunter2 here: hunter2x", "hunter2"),
+            "cannot use … here: hunter2x"
+        );
+        assert_eq!(without_value("nothing to hide", ""), "nothing to hide");
     }
 }

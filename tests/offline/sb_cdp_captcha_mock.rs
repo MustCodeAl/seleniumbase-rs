@@ -69,6 +69,61 @@ fn seeded() -> Behavior {
     Behavior::builder().seed(21).build().unwrap()
 }
 
+/// A short wait for a widget that is on its way, so that a longer wait shows.
+fn quick_locate() -> SolveOptions {
+    options().locate_timeout(Duration::from_millis(300))
+}
+
+/// A page that is a challenge page for ten readings, is then replaced (the reading made at that
+/// moment fails, as it does in Chrome) and shows either a Turnstile widget or none.
+async fn page_after_an_interstitial(widget_follows: bool) -> (Page, MockCtrl, Arc<AtomicU32>) {
+    let (browser, mock) = Browser::new_mocked();
+    let presses = Arc::new(AtomicU32::new(0));
+
+    let counted = Arc::clone(&presses);
+    mock.on("Input.dispatchMouseEvent", move |params| {
+        if params["type"] == "mousePressed" {
+            counted.fetch_add(1, Ordering::SeqCst);
+        }
+        Ok(json!({}))
+    });
+
+    let seen = Arc::clone(&presses);
+    let mut probes = 0_u32;
+    mock.on("Runtime.evaluate", move |params| {
+        let expression = params["expression"].as_str().unwrap_or_default();
+        if expression.contains("pending: pending() }") {
+            probes += 1;
+            return match probes {
+                1..=10 => Ok(value(
+                    json!({ "widget": null, "interstitial": true, "pending": true }),
+                )),
+                11 => Err("Cannot find context with specified id".to_owned()),
+                _ if widget_follows => Ok(value(json!({
+                    "widget": { "kind": 0, "x": 100.0, "y": 200.0, "width": 300.0,
+                                "height": 65.0, "inView": true },
+                    "pending": false,
+                }))),
+                _ => Ok(value(json!({ "widget": null, "pending": false }))),
+            };
+        }
+        Ok(if expression.contains("const k = DATA.kinds") {
+            value(json!({
+                "fields": 1,
+                "filled": seen.load(Ordering::SeqCst) >= 1,
+                "success": false, "widget": true, "pending": false, "epoch": "doc",
+            }))
+        } else if expression.contains("__sbCaptcha = Math.random") {
+            value(json!("doc"))
+        } else if expression.contains("window.innerWidth") {
+            value(json!([1000.0, 800.0]))
+        } else {
+            value(Value::Null)
+        })
+    });
+    (browser.default_page().await.unwrap(), mock, presses)
+}
+
 fn options() -> SolveOptions {
     SolveOptions::new().behavior(seeded())
 }
@@ -116,6 +171,94 @@ async fn a_widget_that_never_clears_fails_with_a_typed_error_after_three_presses
         started.elapsed()
     );
     assert!(error.hint().unwrap().contains("verify_timeout"));
+}
+
+#[test_log::test(tokio::test)]
+async fn a_second_round_presses_again_after_the_cooldown_and_reports_both_rounds() {
+    // Two presses to a round; the third press, in the second round, clears it.
+    let (page, _mock, presses) = page_with_widget(3, 1).await;
+    let started = Instant::now();
+
+    let solved = page
+        .solve_captcha_with(
+            &options()
+                .attempts(2)
+                .rounds(2)
+                .verify_timeout(Duration::from_millis(300))
+                .cooldown(Duration::from_millis(1500)),
+        )
+        .await
+        .unwrap()
+        .expect("a widget");
+
+    assert_eq!(solved.rounds, 2);
+    assert_eq!(solved.attempts, 3);
+    assert_eq!(solved.evidence, Some(Evidence::Token));
+    assert_eq!(presses.load(Ordering::SeqCst), 3);
+    assert!(
+        started.elapsed() >= Duration::from_millis(1500),
+        "took {:?}",
+        started.elapsed()
+    );
+}
+
+#[test_log::test(tokio::test)]
+async fn rotations_set_on_the_options_are_carried_and_the_rounds_run_all_the_same() {
+    let (page, _mock, presses) = page_with_widget(u32::MAX, 1).await;
+    let options = options()
+        .attempts(1)
+        .rounds(3)
+        .verify_timeout(Duration::from_millis(300))
+        .rotate_proxy_after(1)
+        .rotate_fingerprint_after(2);
+
+    let error = page.solve_captcha_with(&options).await.unwrap_err();
+
+    // A page has no proxy and no fingerprint to change: the rounds run, then the error.
+    assert!(matches!(
+        error,
+        SeleniumBaseError::Captcha { attempts: 3, .. }
+    ));
+    assert_eq!(presses.load(Ordering::SeqCst), 3);
+    assert!(options.proxy_rotation_due(1));
+    assert!(options.fingerprint_rotation_due(2));
+}
+
+#[test_log::test(tokio::test)]
+async fn a_challenge_page_that_replaces_itself_is_waited_out_before_the_widget_is_looked_for() {
+    let (page, mock, presses) = page_after_an_interstitial(true).await;
+
+    let solved = page
+        .solve_captcha_with(&quick_locate())
+        .await
+        .unwrap()
+        .expect("the widget of the page that is left");
+
+    assert_eq!(solved.captcha, Captcha::Turnstile);
+    assert_eq!(solved.attempts, 1);
+    assert_eq!(solved.evidence, Some(Evidence::Token));
+    assert_eq!(presses.load(Ordering::SeqCst), 1);
+    // The pointer moved only once the interstitial was gone and the widget was there.
+    let moves = mock.calls_to("Input.dispatchMouseEvent").len();
+    assert!(moves > 0, "the pointer travelled to the widget");
+}
+
+#[test_log::test(tokio::test)]
+async fn a_challenge_page_that_leaves_the_real_page_is_no_error_and_nothing_is_pressed() {
+    let (page, mock, presses) = page_after_an_interstitial(false).await;
+    let started = Instant::now();
+
+    let result = page.solve_captcha_with(&quick_locate()).await.unwrap();
+
+    assert_eq!(result, None, "the page that is left shows no widget");
+    assert_eq!(presses.load(Ordering::SeqCst), 0);
+    assert!(mock.calls_to("Input.dispatchMouseEvent").is_empty());
+    // The interstitial was waited for, well past the 300 ms of a widget on its way.
+    assert!(
+        started.elapsed() >= Duration::from_millis(1200),
+        "took {:?}",
+        started.elapsed()
+    );
 }
 
 #[test_log::test(tokio::test)]

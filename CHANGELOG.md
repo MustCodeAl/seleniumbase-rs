@@ -422,6 +422,28 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- Docs: the stealth crates' HTTP/3 page is on the site, as Stealth › Advanced stealth ›
+  HTTP/3 (`docs/stealth/advanced/http3.md`, ported from the stealth repository's
+  `docs/http3.md`): the `sbrs-h3d` helper, the `http3` feature, and what was measured equal to
+  and different from Chrome 156. The stealth repository's BoringSSL build note is a contributor
+  page, `docs/contributing/stealth-boringssl.md`. Advanced stealthy scraping › Limits points to
+  the HTTP/3 page, and Cookies, identity and challenges says how a widget is solved. `CLAUDE.md`
+  and `CONTRIBUTING.md` say where the stealth crates' user docs live: on this site under
+  `docs/stealth`, never only in the stealth repository's `docs/`.
+
+- **A settings file accepts the nested form beside the flat keys (`docs/design/settings_v2.md`,
+  open question 2).** The tables `[browser]` and `[session]`, with the tables and maps inside
+  them (`[browser.proxy]`, `[browser.chromium]`, `[browser.switches]`, `[session.grid]`), are the
+  settings as `Settings` serializes them, so a file written with `toml::to_string(&settings)` or
+  `serde_json::to_string(&settings)` loads back equal. One setting written in both forms is
+  refused, naming both spellings (`"dark_mode" and "[browser.switches] dark-mode" are the same
+  setting`), and a key that is no field of one of five tables is refused (`BrowserSettings`,
+  `SessionSettings`, `ProxySettings`, `ChromiumSettings` and `GridSettings` deny unknown
+  fields); the small tables inside them (`window_size`, `window_position`, `device_metrics`,
+  `virtual_display` and `[session.firefox]`) ignore a key they do not know. The tables are read
+  as written, without the trim rule of the flat keys. A `browser` that is a text is still the
+  flat key of the browser kind.
+
 - `sbrs options --env` lists seven variables the code already read: `SB_REC_FILE`,
   `SB_REC_KEEP_SECRETS`, `SB_S3_BUCKET`, `SB_S3_REGION`, `SB_S3_PREFIX`, `SB_OCR_MODELS` and
   `SB_GRID_DIR`. `env_vars::switch` reads a switch variable (`true`, `1`, `yes`, `on`; `false`,
@@ -466,9 +488,56 @@ work, `docs/parity.md` the per-API status).
   `as_webdriver_element()` and `into_webdriver_element()` give the raw `thirtyfour` element.
   `Key` and `SelectBy` of the pure CDP engine are re-exported at the crate root, since
   `Element::press` and `Element::select_option` take them.
+- Another retry strategy for the CAPTCHA solver, moved to core from the stealth layer's
+  mitigation policy (`SolveOptions`): `rounds(n)` and `cooldown(wait)` (a round is a whole pass of
+  locate, settle, press and verify; a round that spent its presses without a result is followed
+  by the cooldown and a new round that finds the widget again; `Solved::rounds` says how many
+  were made and `Solved::attempts` and the error count the presses of all of them), and
+  `clearance_cookie(name)` (one more cookie whose arrival shows the visitor was let through,
+  beside the vendor's; a press after which it did not come is pressed again, as with a success
+  marker). `rotate_proxy_after(n)` and `rotate_fingerprint_after(n)` only carry the setting,
+  because a `Page` has no proxy list and cannot change its fingerprint: the layer that owns them
+  reads `proxy_rotation_due(failed_rounds)` and `fingerprint_rotation_due(failed_rounds)`
+  between rounds. `rounds_allowed()` and `cooldown_between_rounds()` read the other two.
+- `Page::solve_captcha` waits out a script challenge, the page Cloudflare shows with the title
+  "Just a moment..." and no widget, which runs its checks and then navigates away or replaces
+  itself. It used to give it only the locate timeout, and a reading made while the page was being
+  replaced failed the call. Now the page is waited out for `SolveOptions::interstitial_timeout`
+  (20 s by default), a reading that fails meanwhile because the page is being replaced is read
+  again (any other failed reading is an error at once), and a widget that is on its way after it
+  gets the locate timeout in turn. The whole search takes at most the two timeouts together, and
+  a page that is still a challenge page when they run out fails the call with
+  `SeleniumBaseError::WaitTimeout` instead of answering `None`. A challenge page is told by its
+  own markers (its title, `#challenge-stage`, `#challenge-form`, its `orchestrate` script), not
+  by the widget's frame, which sites keep hidden on ordinary pages.
+- `Locale::accept_language_list(&[..])`: the `Accept-Language` header for a raw list of
+  languages, such as a page's `navigator.languages` (trimmed, without empty entries or repeats,
+  at most ten, the first bare and then `q` falling from 0.9 by a tenth), beside
+  `Locale::accept_language` for a locale's own list. The stealth wire format can call it
+  instead of keeping a copy of the rule.
+
 
 
 ### Changed
+
+- The pages about the stealth crates (`docs/stealth/**`, `docs/scraping/**`, the glossary, the
+  crate-root API page, `README.md`, `CLAUDE.md`) use the names of the stealth repository after
+  its naming review. The `mimic` crate is `wire` (`seleniumbase-rs-wire`, the feature and facade
+  path `wire`, the pages `stealth/api/wire*`), the codec `Emulation` is `WireMeasurement` (module
+  `measurement`, page `stealth/api/codec-measurement`; its lookups are `measurement::all`,
+  `for_kind`, `get`), `ImpersonationProfile` and `CustomProfileBuilder` are `WireFormat` and
+  `WireFormatBuilder`, the egress types are proxy types (`ProxyRoute`, `ProxyKey`,
+  `ProxySwitch`, `ProxyLocale`, `rotate_proxy`), `Mode` is `FetchKind`, `Transition` is
+  `Escalation`, `Action` is `Mitigation`, the state store family is `Ledger` and `SiteRecord`,
+  `StealthIdentity` is `Identity`, and the TLS and HTTP/2 spec errors are `TlsSpecError` and
+  `H2SpecError`. The changelog of the stealth repository has the full list. Prose that says
+  "egress" is kept, as the stealth repository keeps it.
+
+- Two allocation hotspots found by the `alloc` and `alloc_sites` benches are gone, with the same
+  output. The importer's tokenizer sizes its token list from the length of the source instead of
+  growing it from empty (about 150 fewer reallocations and 20 % fewer bytes per run over the 28
+  golden Python files), and `find_api` compares names, types and docs without lowercasing each
+  entry's text for every search (3,552 allocations and 145 KB per call down to 432 and 54 KB).
 
 - The tool lists of the MCP servers (`cdp`, `driver`, `sb` and `dev`) are pinned with `insta`
   snapshots, `tests/offline/snapshots/offline__mcp_tool_lists__<server>.snap`, checked by the
@@ -527,6 +596,23 @@ work, `docs/parity.md` the per-API status).
   workflows stay in `.github/workflows`. The "CI on GitLab" section of `CONTRIBUTING.md` says
   how to start the manual jobs.
 
+- ci: GitLab security scanning. `.gitlab-ci.yml` includes GitLab's SAST, secret detection and
+  dependency scanning templates, which add the jobs `secret_detection`, `dependency-scanning`
+  (it reads `Cargo.lock`), `gitlab-advanced-sast-ext` (the Rust files: GitLab Advanced SAST
+  supports Rust in beta, its Semgrep-based analyzer does not) and `gitlab-advanced-sast`. They
+  report to the Security tab and the merge request and never stop the pipeline. A branch with an
+  open merge request is now gated by its merge request pipeline only, not by a second branch
+  pipeline. `docs/contributing/ci.md` (new) describes the scanners, the merge-request flow with
+  GitLab Duo Code Review, and where a future `fuzz/` crate plugs into GitLab's coverage-guided
+  fuzzing; the "CI on GitLab" section of `CONTRIBUTING.md` has the short form.
+
+- ci: every GitLab job takes its tools from mise. The Rust toolchain, cargo-deny, Python and
+  mdBook are the versions `mise.toml` pins, the ones a local `mise install` gives. The Rust jobs
+  install mise (release pinned by `MISE_VERSION`) on the `rust` image and run cargo through
+  `mise exec`; `supply-chain` uses the cargo-deny of `mise.toml` instead of building it, and the
+  manual `msrv` job also fails when `mise.toml` and `RUST_VERSION` differ.
+
+
 ### Fixed
 
 - `get_cookie` of a cookie the page does not have is `Ok(None)`, as Python's is `None`. It was
@@ -584,6 +670,33 @@ work, `docs/parity.md` the per-API status).
   start of the path missed: `.//p | //button`, `(.//p | //button)[1]` and `id('x')` matched
   elements outside the locator before them. Each step now carries `confine`, which the Rust side
   sets with the check that `Element::find` refuses these paths with.
+
+- A value that equals the default of its setting still wins over a lower source. A list with no
+  item (`SB_PROXY_BYPASS_LIST=,`) was written as nothing, so the list of the settings file stayed;
+  it empties it now, and so does `SB_FIREFOX_ARG=,` for the Firefox arguments of a file. The
+  numbers, texts, enums and options of the run, test and report groups were already right, and a
+  test pins them (file, variable, then pair).
+- A refused value of a settings file is hidden where the message quotes it (`"v"`, `'v'`,
+  `` `v` ``) or ends with it, and the words of the message stay: a one-letter value turned
+  `cannot parse bool` into `c…nnot p…rse bool`. A value of three characters or more is also
+  hidden where it stands alone in the message, so a secret that spells a word of the message
+  hides that word. The value is hidden as serde writes it too (`"p\\ss"` for `p\ss`), and so is
+  an item of a list that the message quotes (`got 'item'`).
+- One rule reads a value in every source: it is trimmed, and a blank one is unset.
+  `EnvVars::read` gave the readers of the option table the text as it was, so `SB_HEADLESS=" true "`
+  was refused and `SB_USER_AGENT` kept its blanks, while `env_vars::text`, `switch` and `parse`
+  trimmed. The flat keys of a settings file follow the rule too: `user_agent = ""` is unset,
+  where it set an empty text. The runtime variables follow it (`RuntimeConfig` refused
+  `SB_CHROMEDRIVER_PORT=" 9515"` and a blank `SB_SHUTDOWN_TIMEOUT_SECS`), and so do
+  `SB_REPORT_DB` (`ReportSettings` kept its blanks, and `sbrs report history` took an empty value
+  for the path), the S3 variables, the `SB_LOG_LEVEL` that the `sbrs-mcp` client commands pass
+  on, `SB_REC_KEEP_SECRETS` (`" true "` did not keep the typed text) and the `SB_CHROME_BIN` that
+  `sbrs prompt` reads (it looked for a browser at a path with blanks around it, where
+  `sbrs doctor` and `Settings` trimmed it). `SB_PLUGINS` keeps an empty or blank value as an answer,
+  the nested tables of a settings file are read as written, and a few variables of one tool that
+  name a key, a file or a folder (`SB_ENCRYPTION_KEY`, `SB_REC_FILE`, `SB_OCR_MODELS`,
+  `SB_GRID_DIR`, and `SB_REPORT_ROOT`, which `sbrs test` sets to its working directory) are not
+  trimmed.
 
 
 ## [0.8.0] - 2026-11-05

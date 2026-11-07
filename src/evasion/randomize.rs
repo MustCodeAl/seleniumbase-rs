@@ -515,6 +515,17 @@ const MAX_ACCURACY_METRES: f64 = 150.0;
 /// language drops by one tenth, down to a floor of one.
 const SECOND_LANGUAGE_Q_TENTHS: usize = 9;
 
+/// How many languages of a raw list [`Locale::accept_language_list`] keeps. The tenth carries
+/// the lowest `q` Chrome writes, one tenth.
+const MAX_ACCEPT_LANGUAGES: usize = 10;
+
+/// The `q` of the language at `index` (counting from zero) of an `Accept-Language` list, in
+/// tenths: [`SECOND_LANGUAGE_Q_TENTHS`] for the second, one less for each later one, never
+/// below one.
+fn quality_tenths(index: usize) -> usize {
+    (SECOND_LANGUAGE_Q_TENTHS + 1).saturating_sub(index).max(1)
+}
+
 /// A spot near a city, as a browser would report it.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct Position {
@@ -552,13 +563,58 @@ impl Locale {
         let mut header = String::new();
         for (index, language) in self.languages.iter().enumerate() {
             if index > 0 {
-                let tenths = (SECOND_LANGUAGE_Q_TENTHS + 1).saturating_sub(index).max(1);
+                let tenths = quality_tenths(index);
                 header.push_str(&format!(",{language};q=0.{tenths}"));
             } else {
                 header.push_str(language);
             }
         }
         header
+    }
+
+    /// `Accept-Language` for a raw list of languages, such as the list a page reports in
+    /// `navigator.languages`, in the shape Chrome sends it: the first language bare, then each
+    /// later one with a `q` that falls by a tenth from `0.9` down to `0.1`.
+    ///
+    /// This is the list form of [`accept_language`](Self::accept_language), which writes the
+    /// curated list of a locale. A raw list is cleaned first: each entry is trimmed, an empty
+    /// entry and a repeat are dropped, and only the first ten are kept (the tenth carries
+    /// `q=0.1`, the lowest value Chrome writes). Returns `None` when no language is left.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use seleniumbase_rs::evasion::randomize::Locale;
+    ///
+    /// assert_eq!(
+    ///     Locale::accept_language_list(&["de-DE", " de ", "de", "en-US"]).as_deref(),
+    ///     Some("de-DE,de;q=0.9,en-US;q=0.8")
+    /// );
+    /// assert_eq!(Locale::accept_language_list(&[" ", ""]), None);
+    /// ```
+    #[must_use]
+    pub fn accept_language_list<S: AsRef<str>>(languages: &[S]) -> Option<String> {
+        let mut kept: Vec<&str> = Vec::new();
+        for language in languages {
+            let language = language.as_ref().trim();
+            if !language.is_empty() && !kept.contains(&language) {
+                kept.push(language);
+            }
+        }
+        let header = kept
+            .iter()
+            .take(MAX_ACCEPT_LANGUAGES)
+            .enumerate()
+            .map(|(index, language)| {
+                if index == 0 {
+                    (*language).to_owned()
+                } else {
+                    format!("{language};q=0.{}", quality_tenths(index))
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        (!header.is_empty()).then_some(header)
     }
 
     /// A spot within a few kilometres of the city, with the accuracy a browser would claim. It
@@ -1875,6 +1931,72 @@ mod tests {
             header.ends_with("l;q=0.1"),
             "the floor is one tenth: {header}"
         );
+    }
+
+    fn list(items: &[&str]) -> Vec<String> {
+        items.iter().map(|item| (*item).to_owned()).collect()
+    }
+
+    #[test]
+    fn a_raw_list_takes_the_shape_chrome_sends() {
+        assert_eq!(
+            Locale::accept_language_list(&list(&["en-US", "en"])).as_deref(),
+            Some("en-US,en;q=0.9")
+        );
+        assert_eq!(
+            Locale::accept_language_list(&list(&["de-DE", "de", "en-US", "en"])).as_deref(),
+            Some("de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7")
+        );
+        assert_eq!(
+            Locale::accept_language_list(&list(&["fr"])).as_deref(),
+            Some("fr")
+        );
+        assert_eq!(
+            Locale::accept_language_list(&["de-DE", "de"]).as_deref(),
+            Some("de-DE,de;q=0.9"),
+            "a list of &str is a list too"
+        );
+    }
+
+    #[test]
+    fn a_raw_list_with_no_language_gives_no_header() {
+        assert_eq!(Locale::accept_language_list(&list(&[" ", ""])), None);
+        assert_eq!(Locale::accept_language_list(&list(&[])), None);
+    }
+
+    #[test]
+    fn a_raw_list_is_trimmed_and_its_repeats_collapse() {
+        assert_eq!(
+            Locale::accept_language_list(&list(&["en", "en", " en "])).as_deref(),
+            Some("en")
+        );
+        assert_eq!(
+            Locale::accept_language_list(&list(&[" de-DE ", "", "de", "de-DE", "en"])).as_deref(),
+            Some("de-DE,de;q=0.9,en;q=0.8"),
+            "an empty entry and a repeat do not take a place in the quality order"
+        );
+    }
+
+    #[test]
+    fn a_raw_list_keeps_ten_languages_and_the_tenth_is_a_tenth() {
+        let many: Vec<String> = (0..30).map(|n| format!("l{n}")).collect();
+        let header = Locale::accept_language_list(&many).expect("a header");
+        assert_eq!(header.matches(',').count(), 9, "{header}");
+        assert!(header.starts_with("l0,l1;q=0.9,l2;q=0.8"), "{header}");
+        assert!(header.ends_with("l9;q=0.1"), "{header}");
+        assert!(!header.contains("l10"), "{header}");
+    }
+
+    #[test]
+    fn the_two_forms_agree_on_a_curated_list() {
+        for locale in LOCALES {
+            assert_eq!(
+                Locale::accept_language_list(locale.languages),
+                Some(locale.accept_language()),
+                "{}",
+                locale.tag
+            );
+        }
     }
 
     #[test]

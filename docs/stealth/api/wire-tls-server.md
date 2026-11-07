@@ -1,10 +1,10 @@
 ---
-title: "mimic::tls_server"
+title: "wire::tls_server"
 sidebarTitle: "TLS server"
 description: "EphemeralCa: an in-memory P-256 CA, one leaf per host, never written to disk."
 ---
 
-<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: mimic</Badge>
+<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: wire</Badge>
 
 `tls_server` is the certificate authority `MitmProxy` uses. `EphemeralCa` is an in-memory P-256 CA. It issues one leaf per host, pinned by SPKI, and never writes a key to disk.
 
@@ -13,7 +13,7 @@ How Chrome is told to trust the leaf is on [MITM proxy](/stealth/advanced/mitm-p
 <RequestExample>
 
 ```rust An in-memory CA
-use seleniumbase_rs_stealth::mimic::{EphemeralCa, TlsServerError};
+use seleniumbase_rs_stealth::wire::{EphemeralCa, TlsServerError};
 
 fn main() -> Result<(), TlsServerError> {
     let ca = EphemeralCa::generate()?;
@@ -213,4 +213,4 @@ Runs the server side of one TLS handshake with `leaf` and checks the client's SN
 
 ## Related
 
-The guide is [MITM proxy](/stealth/advanced/mitm-proxy). The overview is [mimic](/stealth/api/mimic).
+The guide is [MITM proxy](/stealth/advanced/mitm-proxy). The overview is [wire](/stealth/api/wire).

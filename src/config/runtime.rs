@@ -98,6 +98,12 @@ impl RuntimeConfig {
     pub fn from_vars_lenient(
         var: impl Fn(&str) -> Option<String>,
     ) -> (Self, Vec<SeleniumBaseError>) {
+        // The one rule of every source: a value is trimmed, and a blank one is unset.
+        let var = |name: &str| {
+            var(name)
+                .map(|value| value.trim().to_owned())
+                .filter(|value| !value.is_empty())
+        };
         let mut cfg = Self::default();
         let mut problems = Vec::new();
         let mut keep = |parsed: Result<(), SeleniumBaseError>| {
@@ -110,7 +116,7 @@ impl RuntimeConfig {
             cfg.patch_cache_dir = Some(PathBuf::from(v));
         }
         if let Some(v) = var("SB_LOG_LEVEL") {
-            cfg.log_level = Some(v).filter(|level| !level.trim().is_empty());
+            cfg.log_level = Some(v);
         }
         if let Some(v) = var("SB_LOG_FORMAT") {
             keep(parse_log_format(&v).map(|format| cfg.log_format = format));
@@ -207,6 +213,28 @@ mod tests {
             assert_eq!(cfg.log_level, None, "{text:?}");
             assert!(problems.is_empty());
         }
+    }
+
+    #[test]
+    fn a_padded_value_is_read_trimmed_and_a_blank_one_is_unset() {
+        // The one rule of every source: `SB_CHROMEDRIVER_PORT=" 9515"` is a port, and
+        // `SB_IMPLICIT_WAIT_SECS="  "` is not set, where each was refused.
+        let (cfg, problems) = RuntimeConfig::from_vars_lenient(|name| match name {
+            "SB_CHROMEDRIVER_PORT" => Some(" 9515 ".to_owned()),
+            "SB_SHUTDOWN_TIMEOUT_SECS" => Some(" 5\t".to_owned()),
+            "SB_IMPLICIT_WAIT_SECS" => Some("  ".to_owned()),
+            "SB_LOG_FORMAT" => Some(" json ".to_owned()),
+            "SB_LOG_LEVEL" => Some(" debug ".to_owned()),
+            "SB_PATCH_CACHE_DIR" => Some("  ".to_owned()),
+            _ => None,
+        });
+        assert!(problems.is_empty(), "{problems:?}");
+        assert_eq!(cfg.chromedriver_port, 9515);
+        assert_eq!(cfg.shutdown_timeout, Duration::from_secs(5));
+        assert_eq!(cfg.implicit_wait, RuntimeConfig::default().implicit_wait);
+        assert_eq!(cfg.log_format, LogFormat::Json);
+        assert_eq!(cfg.log_level.as_deref(), Some("debug"));
+        assert_eq!(cfg.patch_cache_dir, None);
     }
 
     #[test]

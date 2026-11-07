@@ -241,6 +241,24 @@ pub(crate) fn no_items() -> Value {
     Value::Array(Tag::Default, Vec::new())
 }
 
+/// The value that is the default of the setting at `path` of the serialized settings, for a
+/// setting the serializer leaves out when it holds its default (`skip_serializing_if`: an
+/// option that is unset, a list with no item, a switch that is off).
+///
+/// A source that gave such a setting a value that is its default must still win over a lower
+/// source, so its layer needs a value at the path. The type of the setting decides which value
+/// is the default, so each of the three that stand for it is tried on the settings, and the
+/// first that they accept is the one. `None` for a path none of them stands for.
+pub(crate) fn empty_at(path: &str) -> Option<Value> {
+    [nothing(), no_items(), flag(false)]
+        .into_iter()
+        .find(|candidate| {
+            let mut dict = Dict::new();
+            put(&mut dict, path, candidate.clone());
+            extract(&[&Layer::new(Metadata::named("probe"), dict)]).is_ok()
+        })
+}
+
 fn forget_at(dict: &mut Dict, path: &[String]) -> bool {
     match path {
         [] => false,
@@ -335,6 +353,56 @@ mod tests {
             Some(&Given::Items(vec!["--a".to_owned()]))
         );
         assert_eq!(inputs.get("SB_DISABLE_FEATURES"), None);
+    }
+
+    #[test]
+    fn the_default_of_a_setting_the_serializer_leaves_out_is_the_value_its_type_accepts() {
+        // An option that is unset, a list with no item and a switch that is off.
+        assert!(matches!(
+            empty_at("browser.debugging_port"),
+            Some(Value::Empty(_, Empty::None))
+        ));
+        assert!(matches!(
+            empty_at("browser.extensions"),
+            Some(Value::Array(_, items)) if items.is_empty()
+        ));
+        assert!(matches!(
+            empty_at("report.dashboard"),
+            Some(Value::Bool(_, false))
+        ));
+        // A number and an enum take the unset value too (figment leaves the field out and serde
+        // fills its default), so a field that gains `skip_serializing_if` later is covered.
+        assert!(matches!(
+            empty_at("run.timeout_multiplier"),
+            Some(Value::Empty(_, Empty::None))
+        ));
+        assert!(matches!(empty_at("test.runner"), Some(Value::Empty(..))));
+        // A field the group does not have is refused as well.
+        assert!(empty_at("run.no_such_field").is_none());
+    }
+
+    #[test]
+    fn an_unset_value_over_a_number_or_a_name_leaves_the_default_of_the_setting() {
+        let mut low = Dict::new();
+        put(&mut low, "run.timeout_multiplier", Value::from(3_u32));
+        put(&mut low, "test.runner", text("nextest"));
+        let mut high = Dict::new();
+        put(&mut high, "run.timeout_multiplier", nothing());
+        put(&mut high, "test.runner", nothing());
+        let low = Layer::new(Metadata::named("low"), low);
+        let high = Layer::new(Metadata::named("high"), high);
+        let over = extract(&[&low, &high]).expect("the layers are settings");
+        let lone = extract(&[&low]).expect("the layer is settings");
+        let seen = |settings: &Settings| {
+            let whole = serde_json::to_value(settings).expect("the settings serialize");
+            (
+                whole["run"]["timeout_multiplier"].clone(),
+                whole["test"]["runner"].clone(),
+            )
+        };
+        let defaults = seen(&Settings::default());
+        assert_ne!(seen(&lone), defaults, "the lower layer sets both");
+        assert_eq!(seen(&over), defaults);
     }
 
     #[test]

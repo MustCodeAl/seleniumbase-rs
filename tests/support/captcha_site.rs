@@ -22,6 +22,8 @@ const DECOY: &str = include_str!("../fixtures/captcha/decoy.html");
 const HUMAN: &str = include_str!("../fixtures/captcha/human.html");
 const INTERSTITIAL: &str = include_str!("../fixtures/captcha/interstitial.html");
 const CLEARED: &str = include_str!("../fixtures/captcha/cleared.html");
+const WAIT: &str = include_str!("../fixtures/captcha/wait.html");
+
 const WIDGET: &str = include_str!("../fixtures/captcha/widget.html");
 
 /// The two origins of the fixture site.
@@ -80,6 +82,8 @@ fn route(path: &str, far: &str) -> Answer {
         "/decoy" => Answer::html(DECOY, far),
         "/human" => Answer::html(HUMAN, far),
         "/interstitial" => Answer::html(INTERSTITIAL, far),
+        "/wait" => Answer::html(WAIT, far),
+
         "/w" => Answer::html(WIDGET, far),
         // What the real challenge answers with once the widget is solved.
         "/cleared" => Answer {
