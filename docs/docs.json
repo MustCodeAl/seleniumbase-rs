@@ -893,7 +893,8 @@
               "design/element_type",
               "design/cookie_type",
               "design/api_guidelines_audit",
-              "design/dependency_review"
+              "design/dependency_review",
+              "design/security_hardening_plan"
             ]
           },
           {

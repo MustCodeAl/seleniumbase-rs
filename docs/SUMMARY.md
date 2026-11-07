@@ -167,6 +167,7 @@ hidden: true
   - [One cookie type for both engines](design/cookie_type.md)
   - [Rust API Guidelines and Pragmatic Rust audit](design/api_guidelines_audit.md)
   - [Dependency review of the five repositories](design/dependency_review.md)
+  - [Security hardening plan](design/security_hardening_plan.md)
 
 - [ABI & API Stability](ABI_API.md)
 - [Architecture Decision Records](adr/001-stealth-architecture.md)
