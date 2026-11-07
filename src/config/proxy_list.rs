@@ -495,10 +495,26 @@ impl ProxyList {
         chosen
     }
 
-    /// The next of `candidates` in turn, by the list's shared turn.
+    /// The next of `candidates` (positions in the list, ascending, never empty) in turn: the
+    /// first at or after where the shared turn stands, or the first of all when none is, and
+    /// the turn then stands just after it. So a proxy that rests leaves a gap in the cycle and
+    /// no other proxy is picked twice because of it.
     fn next_of(&self, candidates: &[usize]) -> usize {
-        let turn = self.cursor.fetch_add(1, Ordering::Relaxed);
-        candidates[turn % candidates.len()]
+        let length = self.entries.len().max(1);
+        let mut chosen = 0;
+        let _ = self
+            .cursor
+            .try_update(Ordering::Relaxed, Ordering::Relaxed, |turn| {
+                let start = turn % length;
+                chosen = candidates
+                    .iter()
+                    .copied()
+                    .find(|&position| position >= start)
+                    .or_else(|| candidates.first().copied())
+                    .unwrap_or_default();
+                Some(chosen + 1)
+            });
+        chosen
     }
 
     /// Where `entry` is in the list: the entry itself, else one with the same
@@ -909,5 +925,21 @@ mod tests {
             count += 1;
         }
         assert_eq!(count, 2);
+    }
+
+    #[test]
+    fn round_robin_holds_its_order_around_a_proxy_that_starts_to_rest_mid_cycle() {
+        let list = list(&["a.test:1", "b.test:2", "c.test:3"])
+            .with_quarantine(1, Duration::from_secs(600));
+        let a = list.iter().next().unwrap().clone();
+        assert_eq!(list.pick(None).unwrap().server(), "a.test:1");
+        assert_eq!(list.pick(None).unwrap().server(), "b.test:2");
+        list.report(&a, ProxyOutcome::Blocked);
+        let order: Vec<_> = (0..4).map(|_| list.pick(None).unwrap().server()).collect();
+        assert_eq!(
+            order,
+            ["c.test:3", "b.test:2", "c.test:3", "b.test:2"],
+            "c is next after b; the resting a is skipped, and b is not picked twice in a row"
+        );
     }
 }
