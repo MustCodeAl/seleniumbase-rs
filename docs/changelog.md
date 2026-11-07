@@ -409,6 +409,15 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 
 ### Added
 
+- Docs: the stealth crates' HTTP/3 page is on the site, as Stealth › Advanced stealth ›
+  HTTP/3 (`docs/stealth/advanced/http3.md`, ported from the stealth repository's
+  `docs/http3.md`): the `sbrs-h3d` helper, the `http3` feature, and what was measured equal to
+  and different from Chrome 156. The stealth repository's BoringSSL build note is a contributor
+  page, `docs/contributing/stealth-boringssl.md`. Advanced stealthy scraping › Limits points to
+  the HTTP/3 page, and Cookies, identity and challenges says how a widget is solved. `CLAUDE.md`
+  and `CONTRIBUTING.md` say where the stealth crates' user docs live: on this site under
+  `docs/stealth`, never only in the stealth repository's `docs/`.
+
 - **A settings file accepts the nested form beside the flat keys (`docs/design/settings_v2.md`,
   open question 2).** The tables `[browser]` and `[session]`, with the tables and maps inside
   them (`[browser.proxy]`, `[browser.chromium]`, `[browser.switches]`, `[session.grid]`), are the
@@ -510,6 +519,12 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   `StealthIdentity` is `Identity`, and the TLS and HTTP/2 spec errors are `TlsSpecError` and
   `H2SpecError`. The changelog of the stealth repository has the full list. Prose that says
   "egress" is kept, as the stealth repository keeps it.
+
+- Two allocation hotspots found by the `alloc` and `alloc_sites` benches are gone, with the same
+  output. The importer's tokenizer sizes its token list from the length of the source instead of
+  growing it from empty (about 150 fewer reallocations and 20 % fewer bytes per run over the 28
+  golden Python files), and `find_api` compares names, types and docs without lowercasing each
+  entry's text for every search (3,552 allocations and 145 KB per call down to 432 and 54 KB).
 
 - The tool lists of the MCP servers (`cdp`, `driver`, `sb` and `dev`) are pinned with `insta`
   snapshots, `tests/offline/snapshots/offline__mcp_tool_lists__<server>.snap`, checked by the
