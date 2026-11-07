@@ -22,7 +22,7 @@ The `workflow:` rules of `.gitlab-ci.yml` decide it:
 | A push to `main` | A branch pipeline. |
 | A push to a `lane/` or `batch/` branch with no open merge request | A branch pipeline. |
 | A push to a branch that has an open merge request | None. The merge request pipeline covers the push; without this rule every push would run the whole test suite twice. |
-| Build, then Pipelines, then New pipeline | A pipeline by hand: the gate jobs are manual, the scanners run. |
+| Build, then Pipelines, then New pipeline | A pipeline by hand: our jobs are manual, the scanners run. |
 
 A new push cancels a pipeline of the same kind that is still running.
 
@@ -112,18 +112,22 @@ source and the vulnerability report; it does not replace them.
 
 `secret_detection` scans the files and the commits of the pipeline: on a merge request all the
 commits of the branch, on `main` the commits since the previous push. It does not look at the
-history that is already in `main`. To scan the whole history once, start a pipeline by hand
-(Build, then Pipelines, then New pipeline) on a branch that has no open merge request, with the
-variable `SECRET_DETECTION_HISTORIC_SCAN` set to `true`. A secret that a scan finds is leaked:
-rotate it first, then remove it from the code.
+history that is already in `main`. To scan the whole history once, run the job with the variable
+`SECRET_DETECTION_HISTORIC_SCAN` set to `true`, in a pipeline of a branch that has no open merge
+request. The project refuses variables on a pipeline started by hand
+(**Settings**, then **CI/CD**, then **Variables**, **Minimum role to use pipeline variables** is
+"No one allowed"), so either an Owner relaxes that setting for the run, or a throwaway commit
+adds `SECRET_DETECTION_HISTORIC_SCAN: "true"` to `variables:` and the next commit takes it out
+again. A secret that a scan finds is leaked: rotate it first, then remove it from the code.
 
 ### Not added
 
 - **Code Quality.** The template that runs the CodeClimate engine is deprecated since GitLab
-  17.3 with removal planned for 19.0, needs Docker-in-Docker, and CodeClimate has no Rust
-  engine. GitLab's replacement is to import the report of a linter you already run, which must
-  be in the Code Quality JSON format; clippy does not write that format, so this needs a
-  converter that is not part of GitLab. No job for it yet.
+  17.3 with removal planned for 19.0, and it needs Docker-in-Docker. GitLab's replacement is to
+  import the report of a linter you already run, in the Code Quality JSON format, as a
+  `codequality` report artifact. GitLab's list of tools with a documented integration has no
+  Rust tool, so a clippy report would need a converter that is not part of GitLab. No job for
+  it yet.
 - **Coverage-guided fuzzing.** See the last section: there is no fuzz crate yet.
 
 ## The merge-request flow
@@ -149,8 +153,9 @@ A lane or batch branch is gated on GitLab before `main` moves to it:
    the docs changed. Open the scanners' findings in the security widget of the merge request;
    a new finding is a reason to fix or to dismiss it with a stated reason.
 5. The lead then fast-forwards `main` to the gated commit on GitHub and on GitLab and checks
-   that local and remote agree. Nobody merges in the GitLab button or force-pushes. Close the
-   merge request if GitLab has not marked it merged by itself.
+   that local and remote agree. That fast-forward is the merge: the GitLab merge button and
+   force-pushes are not used. Close the merge request if GitLab has not marked it merged by
+   itself.
 
 ### GitLab Duo Code Review
 
