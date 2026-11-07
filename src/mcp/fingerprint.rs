@@ -806,36 +806,11 @@ pub(super) fn explain(captured: &CapturedFingerprint) -> (String, Value) {
         _ => "none",
     };
     let coherence = coherence_report(&captured.fingerprint);
-    let file = redacted(&captured.fingerprint);
-    let mut view = Map::new();
-    for key in VIEW_SETTINGS {
-        if let Some(value) = file.get(key) {
-            view.insert(key.to_owned(), value.clone());
-        }
-    }
-    for key in VIEW_READINGS {
-        if let Some(value) = captured.unmapped.get(key) {
-            view.insert(key.to_owned(), value.clone());
-        }
-    }
+    let view = detector_view(captured);
 
     let url = &captured.probe.url;
     let mut text = String::new();
-    if leaks.is_empty() {
-        let _ = writeln!(
-            text,
-            "Risk: none. A detection script finds no sign of automation in this browser ({url})."
-        );
-    } else {
-        let _ = writeln!(
-            text,
-            "Risk: {risk}. A detection script finds {} sign(s) of automation in this browser ({url}):",
-            leaks.len()
-        );
-        for (marker, severity, what, fix) in &leaks {
-            let _ = writeln!(text, "- {marker} ({severity}): {what}. Fix: {fix}.");
-        }
-    }
+    write_signs(&mut text, risk, url, &leaks);
     for contradiction in &contradictions {
         let _ = writeln!(
             text,
@@ -882,6 +857,42 @@ pub(super) fn explain(captured: &CapturedFingerprint) -> (String, Value) {
         "url": url,
     });
     (text, data)
+}
+
+/// The settings and the readings a detection script reads first.
+fn detector_view(captured: &CapturedFingerprint) -> Map<String, Value> {
+    let file = redacted(&captured.fingerprint);
+    let mut view = Map::new();
+    for key in VIEW_SETTINGS {
+        if let Some(value) = file.get(key) {
+            view.insert(key.to_owned(), value.clone());
+        }
+    }
+    for key in VIEW_READINGS {
+        if let Some(value) = captured.unmapped.get(key) {
+            view.insert(key.to_owned(), value.clone());
+        }
+    }
+    view
+}
+
+/// The first lines of the explanation: the risk, then each sign of automation.
+fn write_signs(text: &mut String, risk: &str, url: &str, leaks: &[(&str, &str, &str, &str)]) {
+    if leaks.is_empty() {
+        let _ = writeln!(
+            text,
+            "Risk: none. A detection script finds no sign of automation in this browser ({url})."
+        );
+    } else {
+        let _ = writeln!(
+            text,
+            "Risk: {risk}. A detection script finds {} sign(s) of automation in this browser ({url}):",
+            leaks.len()
+        );
+        for (marker, severity, what, fix) in leaks {
+            let _ = writeln!(text, "- {marker} ({severity}): {what}. Fix: {fix}.");
+        }
+    }
 }
 
 // ----------------------------------------------------------------------

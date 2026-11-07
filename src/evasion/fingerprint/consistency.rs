@@ -70,6 +70,56 @@ pub struct Contradiction {
     pub reason: String,
 }
 
+impl Contradiction {
+    /// Every rule [`CapturedFingerprint::contradictions`] applies, by the name a
+    /// `Contradiction` carries in [`rule`](Self::rule), grouped by the part of
+    /// the capture each one reads.
+    ///
+    /// A test keeps the list equal to the rules the checker fires, so a client
+    /// that wants to list the rules, or to know which ones it has handled, can
+    /// rely on it. `api_present_vs_persona` is an API the persona never has
+    /// that the page shows (the evasions remove it); `api_missing_vs_persona`
+    /// is an API the persona always has that the host's browser lacks (a limit
+    /// of the host).
+    pub const RULES: [&'static str; 35] = [
+        "webgpu_vs_webgl",
+        "webgpu_vs_os",
+        "webgl_vs_os",
+        "worker_vs_window",
+        "frame_vs_window",
+        "headless_screen",
+        "window_vs_screen",
+        "no_taskbar",
+        "viewport_is_screen",
+        "pixel_ratio_vs_device",
+        "media_pointer_vs_device",
+        "color_gamut_vs_os",
+        "forced_colors_vs_os",
+        "media_query_lie",
+        "codecs_disagree",
+        "codecs_vs_browser",
+        "fonts_vs_os",
+        "api_present_vs_persona",
+        "api_missing_vs_persona",
+        "plugins_vs_device",
+        "pdf_viewer_vs_plugins",
+        "touch_vs_device",
+        "language_vs_languages",
+        "intl_vs_language",
+        "offset_vs_zone",
+        "platform_vs_user_agent",
+        "client_hints_vs_user_agent",
+        "voices_vs_os",
+        "keyboard_vs_locale",
+        "webgl_extensions_vs_renderer",
+        "storage_quota_vs_device",
+        "battery_shape",
+        "vendor_vs_user_agent",
+        "product_sub_vs_user_agent",
+        "engine_vs_user_agent",
+    ];
+}
+
 impl fmt::Display for Contradiction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -224,7 +274,7 @@ pub(super) fn check(captured: &CapturedFingerprint) -> Vec<Contradiction> {
     battery(fp, &mut findings);
     engine(&persona, fp, readings, &mut findings);
 
-    findings.list.sort_by(|a, b| b.severity.cmp(&a.severity));
+    findings.list.sort_by_key(|c| std::cmp::Reverse(c.severity));
     findings.list
 }
 
@@ -1057,7 +1107,11 @@ fn apis(persona: &Persona, readings: &Map<String, Value>, findings: &mut Finding
             format!("{} always has {surface}", persona.describe())
         };
         findings.push(
-            "api_presence_vs_persona",
+            if found {
+                "api_present_vs_persona"
+            } else {
+                "api_missing_vs_persona"
+            },
             severity,
             ["navigator.userAgent", surface],
             [json!(persona.user_agent), json!(found)],
@@ -1478,7 +1532,7 @@ fn webgl_parameters(
     if !mobile_gpu {
         return;
     }
-    if let Some(extensions) = at(readings, "webgl_info.extensions").and_then(Value::as_array)
+    if let Some(extensions) = at(readings, "webgl_extensions").and_then(Value::as_array)
         && extensions
             .iter()
             .any(|e| e.as_str() == Some("WEBGL_compressed_texture_s3tc"))
@@ -1665,7 +1719,7 @@ mod tests {
             // Menlo and Helvetica Neue, and no Segoe UI.
             "fonts_vs_os",
             // BarcodeDetector is on macOS and not on Windows.
-            "api_presence_vs_persona",
+            "api_present_vs_persona",
             // Samantha speaks.
             "voices_vs_os",
             // A Retina display's P3 gamut.
@@ -1793,7 +1847,7 @@ mod tests {
             "touch_vs_device",
             "pixel_ratio_vs_device",
             // navigator.hid is a desktop API.
-            "api_presence_vs_persona",
+            "api_present_vs_persona",
             // A Direct3D renderer on Android.
             "webgl_vs_os",
         ] {
@@ -1814,9 +1868,9 @@ mod tests {
         );
     }
 
-    #[test]
-    fn each_rule_fires_on_the_reading_it_watches() {
-        let cases: Vec<(&str, Vec<(&str, Value)>)> = vec![
+    /// The readings that make one rule fire, rule by rule.
+    fn cases() -> Vec<(&'static str, Vec<(&'static str, Value)>)> {
+        vec![
             ("intl_vs_language", vec![("intl.locale", json!("de-DE"))]),
             (
                 "intl_vs_language",
@@ -1896,9 +1950,31 @@ mod tests {
                 "touch_vs_device",
                 vec![("features.onTouchStart", json!(true))],
             ),
-        ];
+            (
+                "webgl_extensions_vs_renderer",
+                vec![
+                    ("webgl.unmaskedVendor", json!("Qualcomm")),
+                    ("webgl.unmaskedRenderer", json!("Adreno (TM) 740")),
+                    (
+                        "webgl_extensions",
+                        json!(["WEBGL_compressed_texture_s3tc"]),
+                    ),
+                ],
+            ),
+            (
+                "api_present_vs_persona",
+                vec![("features.contacts", json!(true))],
+            ),
+            (
+                "api_missing_vs_persona",
+                vec![("features.hid", json!(false))],
+            ),
+        ]
+    }
 
-        for (rule, changes) in cases {
+    #[test]
+    fn each_rule_fires_on_the_reading_it_watches() {
+        for (rule, changes) in cases() {
             let mut raw = probe();
             let described = format!("{changes:?}");
             for (path, value) in changes {
@@ -1910,6 +1986,76 @@ mod tests {
                 "{rule} did not fire on {described}: {rules:?}"
             );
         }
+    }
+
+    /// The Windows persona's probe, made an iPhone's Safari.
+    fn safari_persona(raw: &mut Value) {
+        set(
+            raw,
+            "navigator.userAgent",
+            json!("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"),
+        );
+        set(raw, "navigator.platform", json!("iPhone"));
+        set(raw, "navigator.vendor", json!("Apple Computer, Inc."));
+        without(raw, &["userAgentData"]);
+    }
+
+    #[test]
+    fn every_rule_fires_somewhere_and_every_name_is_listed() {
+        let mut fired: std::collections::BTreeSet<&'static str> = std::collections::BTreeSet::new();
+        let mut phone = probe();
+        android_persona(&mut phone);
+        let mut safari = probe();
+        safari_persona(&mut safari);
+        for raw in [probe(), phone, safari] {
+            fired.extend(rules(&raw));
+        }
+        for (_, changes) in cases() {
+            let mut raw = probe();
+            for (path, value) in changes {
+                set(&mut raw, path, value);
+            }
+            fired.extend(rules(&raw));
+        }
+
+        let listed: std::collections::BTreeSet<&'static str> =
+            Contradiction::RULES.iter().copied().collect();
+        assert_eq!(
+            listed.len(),
+            Contradiction::RULES.len(),
+            "a rule is listed twice: {:?}",
+            Contradiction::RULES
+        );
+        let unlisted: Vec<_> = fired.difference(&listed).collect();
+        let silent: Vec<_> = listed.difference(&fired).collect();
+        assert!(
+            unlisted.is_empty() && silent.is_empty(),
+            "fired but not listed: {unlisted:?}; listed but never fired by these readings: {silent:?}"
+        );
+    }
+
+    #[test]
+    fn the_api_rule_is_two_one_for_what_is_there_and_one_for_what_is_missing() {
+        let mut phone = probe();
+        android_persona(&mut phone);
+
+        let found = found(&phone);
+        let present = found
+            .iter()
+            .find(|c| c.rule == "api_present_vs_persona")
+            .expect("navigator.hid is there on an Android persona");
+        assert_eq!(present.surfaces[1], "navigator.hid");
+        assert_eq!(present.values[1], json!(true));
+        let missing = found
+            .iter()
+            .find(|c| c.rule == "api_missing_vs_persona")
+            .expect("navigator.contacts is missing on an Android persona");
+        assert_eq!(missing.surfaces[1], "navigator.contacts");
+        assert_eq!(missing.values[1], json!(false));
+        assert!(
+            found.iter().all(|c| c.rule != "api_presence_vs_persona"),
+            "the old name is gone: {found:#?}"
+        );
     }
 
     #[test]

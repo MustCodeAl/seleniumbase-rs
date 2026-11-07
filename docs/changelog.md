@@ -431,7 +431,12 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   launches each preset in a headless Chrome and fails on a contradiction the evasions should
   avoid; `tests/chrome/identity_linking_chrome.rs` proves that a second browser context and a
   second profile start with every store empty (cookies, `localStorage`, IndexedDB, the Cache
-  API, service worker registrations, the HTTP cache's `ETag`).
+  API, service worker registrations, the HTTP cache's `ETag`). `Contradiction::RULES` lists
+  every rule by name (a test keeps it equal to the rules the checker fires), and the API rule is
+  two, `api_present_vs_persona` (the page has an API the persona never has) and
+  `api_missing_vs_persona` (the persona has an API the host's Chrome lacks, a limit of the host);
+  `api_presence_vs_persona` is gone. `webgl_extensions_vs_renderer` read a key the capture never
+  writes, so it never fired; it now reads `webgl_extensions`.
 - The `webgpu` provider: `GPUAdapterInfo.vendor` and `architecture` name the GPU the `WebGl`
   renderer names (`nvidia` and `lovelace` for an RTX 40 card, `apple` and `metal-3` for a Mac,
   `qualcomm` and `adreno-7xx` for a phone), so WebGPU and WebGL agree, which fpscanner and

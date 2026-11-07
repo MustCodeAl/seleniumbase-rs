@@ -174,7 +174,7 @@ const STORES: [&str; 6] = [
 fn assert_unlinked(second: &Value, first: &Value, what: &str) {
     for store in STORES {
         let held = &second[store];
-        let empty = held.is_null() || *held == Value::from(0);
+        let empty = held.is_null() || held.as_u64() == Some(0);
         assert!(
             empty,
             "{what}: the second identity found something in {store}: {held} (the first left {})",
@@ -232,22 +232,23 @@ async fn a_second_browser_context_starts_with_every_store_empty() {
     let second = visit(&second_page, &base, "beta").await;
     assert_unlinked(&second, &first, "a second browser context");
 
-    let log = seen.lock().expect("the log");
-    assert!(
-        !log.cookies
-            .iter()
-            .any(|cookie| cookie.contains("alpha") && cookie.contains("beta")),
-        "one request carried both identities' cookies: {log:?}"
-    );
-    if favicons_after_first > 0 {
+    {
+        let log = seen.lock().expect("the log");
         assert!(
-            log.favicons > favicons_after_first,
-            "the favicon cache of the first identity served the second: {log:?}"
+            !log.cookies
+                .iter()
+                .any(|cookie| cookie.contains("alpha") && cookie.contains("beta")),
+            "one request carried both identities' cookies: {log:?}"
         );
-    } else {
-        println!("headless Chrome asked for no favicon, so the favicon cache is not checked");
+        if favicons_after_first > 0 {
+            assert!(
+                log.favicons > favicons_after_first,
+                "the favicon cache of the first identity served the second: {log:?}"
+            );
+        } else {
+            println!("headless Chrome asked for no favicon, so the favicon cache is not checked");
+        }
     }
-    drop(log);
 
     second_context.dispose().await.expect("the context closes");
     browser.close().await.expect("Chrome closes");

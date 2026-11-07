@@ -51,6 +51,7 @@ const CLOSED: &[&str] = &[
     "pixel_ratio_vs_device",
     "headless_screen",
     "window_vs_screen",
+    "voices_vs_os",
 ];
 
 /// The gaps the evasions leave open today, by rule, each with the rank it has
@@ -58,44 +59,80 @@ const CLOSED: &[&str] = &[
 const OPEN: &[(&str, &str)] = &[
     // Rank 1, WebGPU against WebGL and the system, is closed by the `webgpu` provider.
     // Rank 3's `window_vs_screen` and `pixel_ratio_vs_device` are closed by the geometry fixes.
+    // Every reason starts with the step of `docs/design/fingerprint_consistency_plan.md`
+    // that closes the gap, or with `host:` for a gap that stays.
     (
         "worker_vs_window",
-        "rank 2: a worker reports the real cores, memory and GPU",
+        "step 2 (the core count) and the worker lane: a worker reports the real memory, platform and GPU",
     ),
     (
         "no_taskbar",
-        "rank 3: a headless shell keeps no taskbar out of the screen",
+        "step 3: a headless shell keeps no taskbar out of the screen",
     ),
-    (
-        "viewport_is_screen",
-        "rank 3: a headless shell has no frame",
-    ),
+    ("viewport_is_screen", "step 3: a headless shell has no frame"),
     (
         "media_query_lie",
-        "rank 4: matchMedia is patched and the @media rules are not",
+        "step 7: matchMedia is patched and the @media rules are not",
     ),
-    ("media_pointer_vs_device", "rank 4: the host's pointer"),
-    ("color_gamut_vs_os", "rank 4: the host's display"),
-    ("fonts_vs_os", "rank 6: the host's fonts"),
-    ("api_presence_vs_persona", "rank 7: the host's APIs"),
-    ("plugins_vs_device", "rank 8: Chrome's own plugin list"),
-    ("pdf_viewer_vs_plugins", "rank 8: Chrome's own plugin list"),
+    (
+        "media_pointer_vs_device",
+        "step 5: the host's pointer, until a phone persona turns touch emulation on",
+    ),
+    ("color_gamut_vs_os", "step 6: the host's display"),
+    ("fonts_vs_os", "host: the host's fonts"),
+    (
+        "api_present_vs_persona",
+        "step 10: the host's APIs a persona never has",
+    ),
+    (
+        "api_missing_vs_persona",
+        "host: an API the host's Chrome lacks cannot be added honestly",
+    ),
+    (
+        "plugins_vs_device",
+        "step 11: Chrome's own plugin list on a phone persona",
+    ),
+    (
+        "pdf_viewer_vs_plugins",
+        "step 11: Chrome's own plugin list on a phone persona",
+    ),
     (
         "touch_vs_device",
-        "rank 9: touch events follow the launch option, not the persona",
+        "step 5: touch events follow the launch option, not the persona",
     ),
-    ("voices_vs_os", "rank 13: the host's voices"),
-    ("keyboard_vs_locale", "rank 14: the host's keyboard"),
+    ("keyboard_vs_locale", "step 14: the host's keyboard"),
     (
         "webgl_extensions_vs_renderer",
-        "rank 15: the host's WebGL extensions",
+        "step 15: the host's WebGL extensions",
     ),
-    ("storage_quota_vs_device", "rank 16: the context's quota"),
+    (
+        "storage_quota_vs_device",
+        "step 17: the context's quota",
+    ),
     (
         "battery_shape",
-        "rank 19: the preset's battery charges with no time to full",
+        "step 18: the preset's battery charges with no time to full",
     ),
 ];
+
+/// `CLOSED` and `OPEN` are a partition of every rule the checker has: a new
+/// rule goes into one of the two lists, and no rule is in both. Needs no
+/// browser, so it is not ignored.
+#[test]
+fn every_rule_is_closed_or_open_exactly_once() {
+    let open: Vec<&str> = OPEN.iter().map(|(rule, _)| *rule).collect();
+    for rule in CLOSED {
+        assert!(!open.contains(rule), "{rule} is in CLOSED and in OPEN");
+    }
+    let mut listed: Vec<&str> = CLOSED.iter().copied().chain(open).collect();
+    listed.sort_unstable();
+    let mut rules = Contradiction::RULES.to_vec();
+    rules.sort_unstable();
+    assert_eq!(
+        listed, rules,
+        "CLOSED and OPEN together are every rule of Contradiction::RULES, once each"
+    );
+}
 
 /// Serves `PAGE` on a loopback port: `127.0.0.1` is a secure context, the only
 /// kind of page Chrome gives Client Hints, WebGPU and the storage quota.
@@ -142,11 +179,15 @@ async fn contradictions_of(persona: &Fingerprint) -> Vec<Contradiction> {
 
 /// Fails on a contradiction of a closed surface or of an unknown rule; prints
 /// the open ones, so a run shows which gaps this host exposes.
-fn assert_only_open_gaps(name: &str, found: &[Contradiction]) {
+///
+/// `closed_here` holds the rules a step closed for this persona only (a gap that
+/// stays open for another persona, a phone's pointer for example): they fail the
+/// test like a rule of `CLOSED`.
+fn assert_only_open_gaps(name: &str, found: &[Contradiction], closed_here: &[&str]) {
     let mut regressions = Vec::new();
     for contradiction in found {
         let rule = contradiction.rule;
-        if CLOSED.contains(&rule) {
+        if CLOSED.contains(&rule) || closed_here.contains(&rule) {
             regressions.push(format!("closed surface: {contradiction}"));
         } else if let Some((_, gap)) = OPEN.iter().find(|(open, _)| *open == rule) {
             println!("{name}: open gap ({gap}): {contradiction}");
@@ -166,7 +207,7 @@ fn assert_only_open_gaps(name: &str, found: &[Contradiction]) {
 #[serial_test::serial(chrome)]
 async fn a_windows_persona_agrees_with_itself_where_the_evasions_reach() {
     let found = contradictions_of(&Fingerprint::windows_desktop()).await;
-    assert_only_open_gaps("windows", &found);
+    assert_only_open_gaps("windows", &found, &[]);
 }
 
 #[tokio::test]
@@ -174,7 +215,7 @@ async fn a_windows_persona_agrees_with_itself_where_the_evasions_reach() {
 #[serial_test::serial(chrome)]
 async fn a_macos_persona_agrees_with_itself_where_the_evasions_reach() {
     let found = contradictions_of(&Fingerprint::macos_desktop()).await;
-    assert_only_open_gaps("macos", &found);
+    assert_only_open_gaps("macos", &found, &[]);
 }
 
 #[tokio::test]
@@ -182,7 +223,7 @@ async fn a_macos_persona_agrees_with_itself_where_the_evasions_reach() {
 #[serial_test::serial(chrome)]
 async fn a_linux_persona_agrees_with_itself_where_the_evasions_reach() {
     let found = contradictions_of(&Fingerprint::linux_desktop()).await;
-    assert_only_open_gaps("linux", &found);
+    assert_only_open_gaps("linux", &found, &[]);
 }
 
 #[tokio::test]
@@ -190,5 +231,5 @@ async fn a_linux_persona_agrees_with_itself_where_the_evasions_reach() {
 #[serial_test::serial(chrome)]
 async fn an_android_persona_agrees_with_itself_where_the_evasions_reach() {
     let found = contradictions_of(&Fingerprint::android_mobile()).await;
-    assert_only_open_gaps("android", &found);
+    assert_only_open_gaps("android", &found, &[]);
 }
