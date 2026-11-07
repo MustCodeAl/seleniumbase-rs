@@ -161,6 +161,7 @@ hidden: true
   - [The dev MCP server](design/mcp-dev-tools.md)
   - [A trace viewer for the pure CDP engine](design/trace_viewer.md)
   - [Stealthy Playwright Mode on the BaseCase API](design/playwright_basecase.md)
+  - [BaseCase over pure CDP](design/basecase_over_cdp.md)
   - [Generated builders with bon](design/bon_builders.md)
   - [Settings regrouped and layered with figment](design/settings_v2.md)
   - [An element type of our own for the WebDriver engine](design/element_type.md)
