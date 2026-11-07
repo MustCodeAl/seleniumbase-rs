@@ -40,6 +40,16 @@ A new push cancels a pipeline of the same kind that is still running.
 | `gitlab-advanced-sast` | GitLab Advanced SAST for the JavaScript, Python, TypeScript and Ruby files | No |
 | `msrv`, `chrome` | Manual: the declared Rust version, and the real-Chrome tests | Never start by themselves |
 
+Every job takes its tools from [mise](https://mise.jdx.dev/continuous-integration.html), so a
+job and a local `mise install` use the same versions: the Rust toolchain, cargo-deny, Python and
+mdBook of `mise.toml`. The Rust jobs run on the `rust` image (its C toolchain, system libraries
+and rustup) and install mise with its install script, at the release `MISE_VERSION` names; mise
+then selects the toolchain of `mise.toml` through the image's rustup and sets
+`RUSTUP_TOOLCHAIN`, so the jobs run cargo through `mise exec --` and add the clippy and rustfmt
+components themselves (rustup ranks that variable above `rust-toolchain.toml`). `docs` runs on
+mise's own image. Each job names the tools it needs in `MISE_ENABLE_TOOLS`, and the jobs that
+install more than Rust (`supply-chain`, `docs`) keep mise's folders in their cache.
+
 ## The security scanners
 
 The scanners are GitLab's own templates, included at the top of `.gitlab-ci.yml`:

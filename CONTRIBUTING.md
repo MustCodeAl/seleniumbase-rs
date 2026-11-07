@@ -403,6 +403,10 @@ is still running. Four jobs gate a commit:
 - `docs` runs `mise run mdx` and `mdbook build`, and only when `docs/`, `book.toml`,
   `CONTRIBUTING.md` or the tools that build the docs changed.
 
+Every job takes its tools from mise: the Rust toolchain, cargo-deny, Python and mdBook are the
+versions `mise.toml` pins, the ones `mise install` gives you locally. The Rust jobs install mise
+on the `rust` image and run cargo through `mise exec`; `docs` runs on mise's own image.
+
 GitLab's security scanners (an Ultimate feature, which the group has through the Open Source
 plan) add four jobs that report and never stop the pipeline: `secret_detection`,
 `dependency-scanning` (it reads `Cargo.lock`), `gitlab-advanced-sast-ext` (the Rust files:
@@ -415,7 +419,7 @@ future `fuzz/` crate plugs into GitLab's coverage-guided fuzzing.
 
 Two more jobs are manual and never start by themselves. `msrv` runs `cargo check` with the
 `gui` and `tui` features on the Rust version of `Cargo.toml`, and fails when that version
-and the one in `.gitlab-ci.yml` differ. `chrome` installs Chromium and runs the real-Chrome
+or the one of `mise.toml` and the one in `.gitlab-ci.yml` differ. `chrome` installs Chromium and runs the real-Chrome
 tests (`tests/chrome`, `browser_smoke`, `crates/cli/tests/chrome` and the Playwright
 bridge) headless, one binary at a time with `--ignored --test-threads=1`. It leaves out the
 tests that open a real site (`captcha_live`, `examples_parity`, `leaked_password`,
