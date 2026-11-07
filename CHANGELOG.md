@@ -417,6 +417,10 @@ work, `docs/parity.md` the per-API status).
   `qualcomm` and `adreno-7xx` for a phone), so WebGPU and WebGL agree, which fpscanner and
   CreepJS check. A Linux persona whose GPU is not Intel's answers no adapter, as Chrome on Linux
   has WebGPU for Intel Gen 12 and later only.
+- A fingerprint's `hardware_concurrency` is also sent as
+  `Emulation.setHardwareConcurrencyOverride`, so Chrome answers the persona's core count from
+  its own side as well as from the page script. Chrome applies it to the page and not to a
+  dedicated worker, which still reports the host's count (`worker_vs_window` stays open).
 - Docs: the stealth crates' HTTP/3 page is on the site, as Stealth › Advanced stealth ›
   HTTP/3 (`docs/stealth/advanced/http3.md`, ported from the stealth repository's
   `docs/http3.md`): the `sbrs-h3d` helper, the `http3` feature, and what was measured equal to

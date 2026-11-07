@@ -410,6 +410,13 @@ pub(crate) fn raw_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Val
         );
     }
 
+    if let Some(cores) = fp.hardware_concurrency().value() {
+        map.insert(
+            "Emulation.setHardwareConcurrencyOverride".to_owned(),
+            serde_json::json!({ "hardwareConcurrency": cores }),
+        );
+    }
+
     if let Some(tz) = fp.timezone().value() {
         map.insert(
             "Emulation.setTimezoneOverride".to_owned(),
@@ -762,6 +769,22 @@ mod tests {
         let map = raw_overrides(&fp);
         assert!(map.contains_key("Emulation.setDeviceMetricsOverride"));
         assert!(map.contains_key("Emulation.setGeolocationOverride"));
+    }
+
+    #[test]
+    fn the_core_count_is_also_a_protocol_override() {
+        let map = raw_overrides(&Fingerprint::windows_desktop());
+        assert_eq!(
+            map.get("Emulation.setHardwareConcurrencyOverride"),
+            Some(&serde_json::json!({ "hardwareConcurrency": 8 })),
+            "the Windows preset's eight cores are sent as a command"
+        );
+
+        let none = raw_overrides(&built(Fingerprint::builder()));
+        assert!(
+            !none.contains_key("Emulation.setHardwareConcurrencyOverride"),
+            "a fingerprint that sets no core count sends none"
+        );
     }
 
     /// The names in the `Browser.grantPermissions` override, if there is one.

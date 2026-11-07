@@ -63,7 +63,7 @@ const OPEN: &[(&str, &str)] = &[
     // that closes the gap, or with `host:` for a gap that stays.
     (
         "worker_vs_window",
-        "step 2 (the core count) and the worker lane: a worker reports the real memory, platform and GPU",
+        "step 2 sends the core count, which Chrome applies to the page and not to workers; the worker lane: a worker reports the real cores, memory, platform and GPU",
     ),
     (
         "no_taskbar",

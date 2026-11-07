@@ -59,6 +59,8 @@ Two paths deliver a `Fingerprint` (see `src/evasion/evasions.rs` and
   `Network.setUserAgentOverride` (user agent, `platform`, `Accept-Language`,
   Client Hints metadata), `Emulation.setLocaleOverride` (Intl),
   `Emulation.setTimezoneOverride` (Intl and `Date`),
+  `Emulation.setHardwareConcurrencyOverride` (the core count; step 2 of the
+  [implementation plan](/design/fingerprint_consistency_plan)),
   `Emulation.setDeviceMetricsOverride` (screen size, pixel ratio, `mobile`),
   `Emulation.setGeolocationOverride`, `Browser.grantPermissions`,
   `Network.setBlockedURLs`, `Page.setBypassCSP`,
