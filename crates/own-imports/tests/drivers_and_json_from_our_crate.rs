@@ -6,18 +6,15 @@
 //! `seleniumbase_rs::json` reads a W3C cookie object as the `Cookie` that `BaseCase::add_cookie`
 //! takes.
 
-#![expect(
-    deprecated,
-    reason = "NetworkConditions is the type BaseCase::set_network_conditions takes"
-)]
+use std::time::Duration;
 
 use seleniumbase_rs::drivers::{
-    ChromiumLikeCapabilities, ConnectionType, DesiredCapabilities, NetworkConditions,
-    WebDriverError, WebElement,
+    ChromiumLikeCapabilities, DesiredCapabilities, WebDriverError, WebElement,
 };
 use seleniumbase_rs::json::{from_value, json, Value};
 use seleniumbase_rs::{
-    BaseCase, Cookie, DriverErrorKind, Element, Key, SameSite, SelectBy, SeleniumBaseError,
+    BaseCase, Cookie, DriverErrorKind, Element, Key, NetworkThrottle, SameSite, SelectBy,
+    SeleniumBaseError,
 };
 
 #[test]
@@ -46,15 +43,32 @@ fn capabilities_of_a_custom_launch_are_built_from_the_drivers_module() {
 }
 
 #[test]
-fn network_conditions_are_the_type_the_api_takes() {
-    let slow = NetworkConditions {
-        offline: false,
-        latency: 400,
-        download_throughput: 200_000,
-        upload_throughput: 94_000,
-        connection_type: Some(ConnectionType::Cellular3G),
+fn a_network_throttle_is_built_and_set_from_our_crate() {
+    let slow = NetworkThrottle {
+        latency: Duration::from_millis(400),
+        download: Some(200_000),
+        ..NetworkThrottle::default()
     };
-    assert_eq!(slow.latency, 400);
+    assert_eq!(slow.latency, Duration::from_millis(400));
+    assert_ne!(slow, NetworkThrottle::default());
+    // Naming the function is enough: it compiles without `thirtyfour` in the manifest.
+    let _what_a_test_writes = what_a_test_writes_with_a_throttle;
+}
+
+/// What a test writes to slow the network, cut it off and put it back: the type is at the
+/// crate root and the default is the connection as it is.
+async fn what_a_test_writes_with_a_throttle(sb: &BaseCase) -> seleniumbase_rs::Result<()> {
+    sb.set_network_throttle(&NetworkThrottle {
+        latency: Duration::from_millis(400),
+        ..NetworkThrottle::default()
+    })
+    .await?;
+    sb.set_network_throttle(&NetworkThrottle {
+        offline: true,
+        ..NetworkThrottle::default()
+    })
+    .await?;
+    sb.set_network_throttle(&NetworkThrottle::default()).await
 }
 
 #[test]

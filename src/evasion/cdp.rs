@@ -4,11 +4,11 @@
 //! common commands such as injecting scripts, clearing state, and dispatching
 //! input events. It is used by stealth and automation internals.
 
-// thirtyfour deprecates `ChromeDevTools` and its `NetworkConditions`, which
+// thirtyfour deprecates `ChromeDevTools`, which
 // this wrapper still exposes.
 #![expect(
     deprecated,
-    reason = "thirtyfour has deprecated ChromeDevTools and NetworkConditions, which this wrapper exposes"
+    reason = "thirtyfour has deprecated ChromeDevTools, which this wrapper exposes"
 )]
 
 use std::sync::Arc;
@@ -219,18 +219,6 @@ impl CdpClient {
         });
         self.dev_tools
             .execute_cdp_with_params("Input.insertText", params)
-            .await
-            .map_err(|e| crate::error::SeleniumBaseError::Unsupported(e.to_string()))?;
-        Ok(())
-    }
-
-    /// Applies network throttling/latency conditions via CDP.
-    pub async fn set_network_conditions(
-        &self,
-        conditions: thirtyfour::extensions::cdp::NetworkConditions,
-    ) -> Result<(), crate::error::SeleniumBaseError> {
-        self.dev_tools
-            .set_network_conditions(&conditions)
             .await
             .map_err(|e| crate::error::SeleniumBaseError::Unsupported(e.to_string()))?;
         Ok(())
