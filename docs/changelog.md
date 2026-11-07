@@ -324,12 +324,6 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   (`--no-sandbox`, a `no_sandbox` key) already read the variable this way.
 
 
-### Security
-
-- `SB_NO_SANDBOX` fails safe: `SB_NO_SANDBOX=0`, `=false` and an empty value no longer turn Chrome's
-  sandbox off (see the breaking change above, which lists the accepted values).
-
-
 - **Breaking: the WebDriver engine returns `seleniumbase_rs::Element` and takes selectors, not
   `thirtyfour` types.** `BaseCase::find_element`, `find_elements`, `get_element`,
   `get_element_at_x_y`, `get_parent`, `find_link_text`, `find_partial_link_text`,
@@ -447,7 +441,10 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   }
   ```
 
+### Security
 
+- `SB_NO_SANDBOX` fails safe: `SB_NO_SANDBOX=0`, `=false` and an empty value no longer turn Chrome's
+  sandbox off (see the breaking change above, which lists the accepted values).
 
 ### Added
 
