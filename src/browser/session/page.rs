@@ -3,7 +3,7 @@
 
 use std::path::Path;
 
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use crate::cookie::Cookie;
 use crate::error::SeleniumBaseError;
@@ -85,6 +85,9 @@ impl BrowserSession {
     ///
     /// Returns the driver's error if it refuses the cookie.
     pub async fn add_cookie(&self, cookie: &Cookie) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = self.external_page.get() {
+            return Self::add_cdp_cookie(&page, cookie).await;
+        }
         self.webdriver()?
             .add_cookie(cookie.to_webdriver())
             .await
@@ -99,6 +102,10 @@ impl BrowserSession {
     ///
     /// Returns the driver's error for any failure other than a missing cookie.
     pub async fn get_cookie(&self, name: &str) -> Result<Option<Cookie>, SeleniumBaseError> {
+        if self.external_page.is_some() {
+            let cookies = self.get_cookies().await?;
+            return Ok(cookies.into_iter().find(|cookie| cookie.name == name));
+        }
         match self.webdriver()?.get_named_cookie(name).await {
             Ok(cookie) => Ok(Some(Cookie::from_webdriver(&cookie))),
             // Python's `get_cookie` answers `None` for a cookie that is not there.
@@ -111,6 +118,12 @@ impl BrowserSession {
 
     /// WebDriver interaction: `delete_cookie`.
     pub async fn delete_cookie(&self, name: &str) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = self.external_page.get() {
+            let url = page.url().await?;
+            page.execute("Network.deleteCookies", json!({ "name": name, "url": url }))
+                .await?;
+            return Ok(());
+        }
         self.webdriver()?
             .delete_cookie(name)
             .await
@@ -120,10 +133,43 @@ impl BrowserSession {
 
     /// WebDriver interaction: `delete_all_cookies`.
     pub async fn delete_all_cookies(&self) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = self.external_page.get() {
+            // The cookies of the page's address, as WebDriver deletes them.
+            for cookie in self.get_cookies().await? {
+                page.execute(
+                    "Network.deleteCookies",
+                    json!({ "name": cookie.name, "domain": cookie.domain, "path": cookie.path }),
+                )
+                .await?;
+            }
+            return Ok(());
+        }
         self.webdriver()?
             .delete_all_cookies()
             .await
             .map_err(SeleniumBaseError::WebDriver)?;
+        Ok(())
+    }
+
+    /// Adds `cookie` through DevTools to the page of a direct CDP attachment.
+    ///
+    /// A cookie with no domain is given the page's address, as WebDriver gives
+    /// it the page's domain.
+    async fn add_cdp_cookie(
+        page: &crate::sb_cdp::Page,
+        cookie: &Cookie,
+    ) -> Result<(), SeleniumBaseError> {
+        let mut protocol = cookie.to_protocol();
+        if cookie.domain.is_empty() {
+            protocol["url"] = json!(page.url().await?);
+        }
+        let answer = page.execute("Network.setCookie", protocol).await?;
+        if answer["success"].as_bool() == Some(false) {
+            return Err(SeleniumBaseError::cdp_driver(format!(
+                "the browser refused the cookie '{}'",
+                cookie.name
+            )));
+        }
         Ok(())
     }
 }

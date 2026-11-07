@@ -153,6 +153,10 @@ impl BrowserSession {
 
     /// Clears the browser cache via CDP.
     pub async fn clear_browser_cache(&self) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = self.external_page.get() {
+            page.execute("Network.clearBrowserCache", json!({})).await?;
+            return Ok(());
+        }
         let cdp = self.cdp_client()?;
         cdp.clear_cache().await
     }
@@ -162,6 +166,9 @@ impl BrowserSession {
     /// A session without a DevTools connection (plain WebDriver mode) clears the
     /// cookies of the current domain through WebDriver instead.
     pub async fn clear_browser_cookies(&self) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = self.external_page.get() {
+            return page.cookies().clear().await;
+        }
         if let Ok(cdp) = self.cdp_client() {
             return cdp.clear_cookies().await;
         }
@@ -185,6 +192,18 @@ impl BrowserSession {
     /// [`SeleniumBaseError::WebDriver`] if the driver refuses to list the cookies, and
     /// [`SeleniumBaseError::CdpDriver`] if DevTools answers without a list of cookies.
     pub async fn get_cookies(&self) -> Result<Vec<Cookie>, SeleniumBaseError> {
+        if let Some(page) = self.external_page.get() {
+            let url = page.url().await?;
+            let response = page
+                .execute("Network.getCookies", json!({ "urls": [url] }))
+                .await?;
+            let cookies = response["cookies"].as_array().ok_or_else(|| {
+                SeleniumBaseError::CdpDriver(
+                    "Network.getCookies answered no list of cookies".to_owned(),
+                )
+            })?;
+            return Ok(cookies.iter().map(Cookie::from_protocol).collect());
+        }
         if let Ok(cdp) = self.cdp_client() {
             let url = self.webdriver()?.current_url().await?;
             let response = cdp.get_cookies(url.as_str()).await?;
@@ -224,12 +243,18 @@ impl BrowserSession {
 
     /// Dispatches a CDP mouse click at `(x, y)`.
     pub async fn cdp_mouse_click(&self, x: f64, y: f64) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = self.external_page.get() {
+            return page.mouse().click(crate::sb_cdp::Point { x, y }).await;
+        }
         let cdp = self.cdp_client()?;
         cdp.mouse_click(x, y).await
     }
 
     /// Inserts `text` via CDP without element focus.
     pub async fn cdp_type_text(&self, text: &str) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = self.external_page.get() {
+            return page.keyboard().insert_text(text).await;
+        }
         let cdp = self.cdp_client()?;
         cdp.keyboard_insert_text(text).await
     }
@@ -239,6 +264,19 @@ impl BrowserSession {
         &self,
         conditions: &NetworkConditions,
     ) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = self.external_page.get() {
+            page.execute(
+                "Network.emulateNetworkConditions",
+                json!({
+                    "offline": conditions.offline,
+                    "latency": conditions.latency,
+                    "downloadThroughput": conditions.download_throughput,
+                    "uploadThroughput": conditions.upload_throughput,
+                }),
+            )
+            .await?;
+            return Ok(());
+        }
         let cdp = self.cdp_client()?;
         cdp.set_network_conditions(conditions.clone()).await
     }
@@ -250,12 +288,21 @@ impl BrowserSession {
         longitude: f64,
         accuracy: f64,
     ) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = self.external_page.get() {
+            return page
+                .emulation()
+                .geolocation(latitude, longitude, accuracy)
+                .await;
+        }
         let cdp = self.cdp_client()?;
         uc::override_geolocation(cdp, latitude, longitude, accuracy).await
     }
 
     /// Sets the browser timezone via CDP.
     pub async fn set_timezone(&self, timezone_id: &str) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = self.external_page.get() {
+            return page.emulation().timezone(timezone_id).await;
+        }
         let cdp = self.cdp_client()?;
         uc::override_timezone(cdp, timezone_id).await
     }

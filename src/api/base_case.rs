@@ -589,7 +589,7 @@ impl BaseCase {
     /// Returns the browser's error, or [`SeleniumBaseError::InvalidConfig`] if
     /// the file cannot be written.
     pub async fn save_cookies_to_path(&self, path: &Path) -> Result<(), SeleniumBaseError> {
-        let cookies = self.session.webdriver()?.get_all_cookies().await?;
+        let cookies = self.session.all_cookies().await?;
         let json = serde_json::to_string_pretty(&cookies).map_err(|e| {
             SeleniumBaseError::InvalidConfig(format!("Failed to serialize cookies: {e}"))
         })?;
@@ -666,7 +666,7 @@ impl BaseCase {
             .collect::<Result<Vec<Cookie>, SeleniumBaseError>>()?;
         // As Python does, let the page finish loading before the cookies go in.
         self.wait_for_ready_state_complete().await?;
-        let url = self.session.webdriver()?.current_url().await?;
+        let url = self.session.current_url().await?;
         let origin = origin_of_url(url.as_str())?;
         let now = unix_seconds();
         for cookie in &mut cookies {
@@ -2157,7 +2157,7 @@ impl BaseCase {
         let origin = if cookie.domain.is_empty() {
             String::new()
         } else {
-            let url = self.session.webdriver()?.current_url().await?;
+            let url = self.session.current_url().await?;
             origin_of_url(url.as_str())?
         };
         prepare_cookie(&mut cookie, &origin, expiry, unix_seconds());

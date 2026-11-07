@@ -58,6 +58,9 @@ mod tests_pure_cdp {
                     value(json!(self.text))
                 } else if expression.contains("/* getAttribute */") {
                     value(json!(self.attribute))
+                } else if expression.contains("window.location.href") {
+                    value(json!("https://example.com/app"))
+
                 } else if expression.contains("el.tagName.toLowerCase()") {
                     value(json!(self.tag))
                 } else if expression.contains("el.innerText") {
@@ -374,6 +377,124 @@ mod tests_pure_cdp {
         sb.close_window().await.unwrap();
 
         assert_eq!(mock.calls_to("Target.closeTarget").len(), 1);
+    }
+
+
+    /// One cookie of the page, as `Network.getCookies` reports it.
+    fn one_cookie(mock: &MockCtrl) {
+        mock.reply(
+            "Network.getCookies",
+            json!({ "cookies": [{
+                "name": "sid", "value": "abc", "domain": "example.com", "path": "/",
+                "httpOnly": true, "secure": false, "expires": -1,
+            }]}),
+        );
+    }
+
+    #[tokio::test]
+    async fn the_cookies_of_the_page_are_asked_for_by_its_address() {
+        let (sb, mock) = case().await;
+        Page::one().script(&mock);
+        one_cookie(&mock);
+
+        let cookies = sb.get_cookies().await.unwrap();
+
+        assert_eq!(cookies.len(), 1);
+        assert_eq!((cookies[0].name.as_str(), cookies[0].value.as_str()), ("sid", "abc"));
+        assert!(cookies[0].http_only);
+        assert_eq!(cookies[0].expires, None, "a session cookie has no expiry");
+        let asked = mock.calls_to("Network.getCookies");
+        assert_eq!(asked[0].params["urls"], json!(["https://example.com/app"]));
+        assert_eq!(sb.get_cookie("sid").await.unwrap().unwrap().value, "abc");
+        assert!(sb.get_cookie("other").await.unwrap().is_none());
+        assert_eq!(sb.get_cookie_string().await.unwrap(), "sid=abc");
+    }
+
+    #[tokio::test]
+    async fn a_cookie_without_a_domain_is_added_for_the_address_of_the_page() {
+        let (sb, mock) = case().await;
+        Page::one().script(&mock);
+        mock.reply("Network.setCookie", json!({ "success": true }));
+
+        sb.add_cookie(&Cookie::new("theme", "dark")).await.unwrap();
+
+        let sent = mock.calls_to("Network.setCookie");
+        assert_eq!(sent.len(), 1);
+        assert_eq!(sent[0].params["name"], json!("theme"));
+        assert_eq!(sent[0].params["url"], json!("https://example.com/app"));
+    }
+
+    #[tokio::test]
+    async fn a_cookie_the_browser_refuses_is_an_error() {
+        let (sb, mock) = case().await;
+        Page::one().script(&mock);
+        mock.reply("Network.setCookie", json!({ "success": false }));
+
+        let error = sb
+            .add_cookie(&Cookie::new("theme", "dark"))
+            .await
+            .unwrap_err();
+
+        assert!(error.to_string().contains("theme"), "{error}");
+    }
+
+    #[tokio::test]
+    async fn cookies_are_deleted_by_name_and_all_of_the_page_by_what_the_page_has() {
+        let (sb, mock) = case().await;
+        Page::one().script(&mock);
+        one_cookie(&mock);
+
+        sb.delete_cookie("sid").await.unwrap();
+        sb.clear_all_cookies().await.unwrap();
+        sb.clear_browser_cookies().await.unwrap();
+
+        let deleted: Vec<_> = mock
+            .calls_to("Network.deleteCookies")
+            .into_iter()
+            .map(|call| call.params)
+            .collect();
+        assert_eq!(
+            deleted,
+            [
+                json!({ "name": "sid", "url": "https://example.com/app" }),
+                json!({ "name": "sid", "domain": "example.com", "path": "/" }),
+            ]
+        );
+        assert_eq!(mock.calls_to("Network.clearBrowserCookies").len(), 1);
+    }
+
+    #[tokio::test]
+    async fn saved_cookies_are_the_w3c_objects_python_writes() {
+        let (sb, mock) = case().await;
+        Page::one().script(&mock);
+        one_cookie(&mock);
+        let path = std::env::temp_dir().join(format!("sbrs-pure-cdp-cookies-{}.json", std::process::id()));
+
+        sb.save_cookies_to_path(&path).await.unwrap();
+        let saved: Value = serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        let _ = std::fs::remove_file(&path);
+
+        assert_eq!(saved[0]["name"], json!("sid"));
+        assert_eq!(saved[0]["value"], json!("abc"));
+        assert_eq!(saved[0]["httpOnly"], json!(true));
+        assert_eq!(saved[0]["domain"], json!("example.com"));
+    }
+
+    #[tokio::test]
+    async fn the_devtools_helpers_go_to_the_page() {
+        let (sb, mock) = case().await;
+
+        sb.set_timezone("Europe/Paris").await.unwrap();
+        sb.set_geolocation(48.85, 2.35, 10.0).await.unwrap();
+        sb.clear_browser_cache().await.unwrap();
+        sb.cdp_mouse_click(5.0, 6.0).await.unwrap();
+        sb.cdp_insert_text("hi").await.unwrap();
+
+        assert_eq!(mock.calls_to("Emulation.setTimezoneOverride").len(), 1);
+        assert_eq!(mock.calls_to("Emulation.setGeolocationOverride").len(), 1);
+        assert_eq!(mock.calls_to("Network.clearBrowserCache").len(), 1);
+        assert_eq!(mouse(&mock).len(), 3, "move, press, release");
+        assert_eq!(mock.calls_to("Input.insertText")[0].params["text"], json!("hi"));
     }
 
 

@@ -7,6 +7,7 @@
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use crate::browser::element::Element;
+use crate::cookie::Cookie;
 use crate::error::SeleniumBaseError;
 use crate::sb_cdp::{Locator, Page};
 use crate::utils::selectors::SelectorBuf;
@@ -71,6 +72,22 @@ impl BrowserSession {
             return Ok(());
         }
         self.webdriver().map(|_| ())
+    }
+
+    /// The cookies of the page as the WebDriver library holds them, which is the
+    /// form `BaseCase::save_cookies` writes (W3C cookie objects): what the
+    /// driver reports, or what DevTools reports for the page's address,
+    /// converted.
+    ///
+    /// # Errors
+    ///
+    /// The engine's error.
+    pub(crate) async fn all_cookies(&self) -> Result<Vec<thirtyfour::Cookie>, SeleniumBaseError> {
+        if self.external_page.is_some() {
+            let cookies = self.get_cookies().await?;
+            return Ok(cookies.iter().map(Cookie::to_webdriver).collect());
+        }
+        Ok(self.webdriver()?.get_all_cookies().await?)
     }
 
     /// The handles of the open windows and tabs, in the order the browser lists
