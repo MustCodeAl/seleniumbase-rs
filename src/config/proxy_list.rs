@@ -391,7 +391,6 @@ impl ProxyList {
     ///
     /// Whether a proxy is resting is read from the clock; [`pick_at`](Self::pick_at) takes the
     /// time instead.
-
     #[must_use]
     pub fn pick(&self, site: Option<&str>) -> Option<&ProxyEntry> {
         self.pick_at(site, SystemTime::now())
