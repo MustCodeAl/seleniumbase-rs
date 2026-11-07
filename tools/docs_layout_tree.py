@@ -574,6 +574,7 @@ LAYOUT = D(
       F("nextest.toml", "the nextest configuration and its chrome test group")),
     D(".github", "GitHub Actions",
       D("workflows", "ci, docker, completions, release and upstream-watch")),
+    F(".gitlab-ci.yml", "GitLab CI: gate, test, supply-chain and docs jobs, the GitLab security scanners, and the manual msrv and chrome jobs"),
     D(".warp", "the Warp terminal",
       D("workflows", "the Warp workflows for sbrs")),
     F("Dockerfile", "the sbrs image; its skeleton step lists every target"),

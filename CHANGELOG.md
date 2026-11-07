@@ -518,6 +518,26 @@ work, `docs/parity.md` the per-API status).
   form starts at the context node, so a search from an `Element` stays inside the element.
   `BaseCase::convert_css_to_xpath` still writes the absolute path.
 
+- CI runs on GitLab.com, where the repository is mirrored
+  (`gitlab.com/seleniumbaserust/seleniumbase-rs`, on GitLab's Open Source plan):
+  `.gitlab-ci.yml` defines a `gate` job (fmt and clippy), a `test` job (the whole test suite
+  and rustdoc), a `supply-chain` job (cargo deny and cargo audit) and a `docs` job
+  (`mise run mdx`, `mdbook build`, only when the docs change) for merge requests and `main`,
+  and the manual jobs `msrv` and `chrome` (the real-Chrome tests, headless). The GitHub
+  workflows stay in `.github/workflows`. The "CI on GitLab" section of `CONTRIBUTING.md` says
+  how to start the manual jobs.
+
+- ci: GitLab security scanning. `.gitlab-ci.yml` includes GitLab's SAST, secret detection and
+  dependency scanning templates, which add the jobs `secret_detection`, `dependency-scanning`
+  (it reads `Cargo.lock`), `gitlab-advanced-sast-ext` (the Rust files: GitLab Advanced SAST
+  supports Rust in beta, its Semgrep-based analyzer does not) and `gitlab-advanced-sast`. They
+  report to the Security tab and the merge request and never stop the pipeline. A branch with an
+  open merge request is now gated by its merge request pipeline only, not by a second branch
+  pipeline. `docs/contributing/ci.md` (new) describes the scanners, the merge-request flow with
+  GitLab Duo Code Review, and where a future `fuzz/` crate plugs into GitLab's coverage-guided
+  fuzzing; the "CI on GitLab" section of `CONTRIBUTING.md` has the short form.
+
+
 ### Fixed
 
 - `get_cookie` of a cookie the page does not have is `Ok(None)`, as Python's is `None`. It was

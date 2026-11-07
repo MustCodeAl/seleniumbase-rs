@@ -411,6 +411,7 @@ prompt that runs the checks, is in
 <LayoutDir name=".github" note="GitHub Actions">
 <LayoutDir name="workflows" note="ci, docker, completions, release and upstream-watch" />
 </LayoutDir>
+<LayoutFile name=".gitlab-ci.yml" note="GitLab CI: gate, test, supply-chain and docs jobs, the GitLab security scanners, and the manual msrv and chrome jobs" />
 <LayoutDir name=".warp" note="the Warp terminal">
 <LayoutDir name="workflows" note="the Warp workflows for sbrs" />
 </LayoutDir>
@@ -608,6 +609,72 @@ DYLD_LIBRARY_PATH="$HOME/.local/share/mise/installs/python/3.14.6/lib" cargo tes
 ```
 
 </Tip>
+
+### CI on GitLab
+
+CI runs on GitLab.com, on its shared Linux runners. The repository is mirrored there after
+each gated publish, and the definition is `.gitlab-ci.yml`. The workflows in
+`.github/workflows` are still in the repository; the release and Docker ones run only on
+GitHub.
+
+GitLab creates a pipeline for a merge request, for `main`, and for a `lane/` or `batch/`
+branch that has no merge request yet (a branch that has one is gated by its merge request
+pipeline only, so a push does not run the test suite twice). A new push cancels a pipeline that
+is still running. Four jobs gate a commit:
+
+- `gate` runs `cargo fmt --all -- --check` and clippy with `-D warnings` and the features
+  `mcp-server test-util testing bdd`.
+- `test` runs `cargo test --no-fail-fast` and `cargo doc --no-deps` with
+  `RUSTDOCFLAGS="-D warnings"`, with the same features: a second run, on Linux, of what every
+  push passed on the lead's machine.
+- `supply-chain` runs `cargo deny --all-features --workspace check` and `cargo audit`.
+- `docs` runs `mise run mdx` and `mdbook build`, and only when `docs/`, `book.toml`,
+  `CONTRIBUTING.md` or the tools that build the docs changed.
+
+GitLab's security scanners (an Ultimate feature, which the group has through the Open Source
+plan) add four jobs that report and never stop the pipeline: `secret_detection`,
+`dependency-scanning` (it reads `Cargo.lock`), `gitlab-advanced-sast-ext` (the Rust files:
+GitLab Advanced SAST supports Rust in beta, and its Semgrep-based analyzer has no Rust rules)
+and `gitlab-advanced-sast` (the JavaScript, Python, TypeScript and Ruby files). Read their
+findings in the Security tab of the pipeline and in the security widget of the merge request;
+`cargo deny` and `cargo audit` in `supply-chain` stay the gate for advisories.
+[CI on GitLab](/contributing/ci) explains each scanner and its variables, and how a future
+`fuzz/` crate plugs into GitLab's coverage-guided fuzzing.
+
+Two more jobs are manual and never start by themselves. `msrv` runs `cargo check` with the
+`gui` and `tui` features on the Rust version of `Cargo.toml`, and fails when that version
+and the one in `.gitlab-ci.yml` differ. `chrome` installs Chromium and runs the real-Chrome
+tests (`tests/chrome`, `browser_smoke`, `crates/cli/tests/chrome` and the Playwright
+bridge) headless, one binary at a time with `--ignored --test-threads=1`. It leaves out the
+tests that open a real site (`captcha_live`, `examples_parity`, `leaked_password`,
+`cli_fingerprint`) and `client_hints`, which needs a branded Google Chrome.
+
+To start a manual job, open the pipeline of the merge request or of the commit and press
+the play button beside the job. To run jobs on a branch that has no merge request, use
+Build, then Pipelines, then New pipeline: every job of ours is a manual job there, and the
+scanners run. No job needs a secret.
+
+A lane or batch branch is gated on GitLab before `main` moves to it:
+
+1. Push the branch to the `gitlab` remote: `git push gitlab lane/my-change`.
+2. Open a merge request: `glab mr create --fill --target-branch main --no-editor`.
+3. GitLab Duo Code Review reviews it. Automatic reviews are on for the project, so it starts
+   when the merge request is created; `/assign_reviewer @GitLabDuo` in a comment asks for
+   another. Read its comments, fix what is right and answer the rest.
+4. The merge request pipeline must be green (`gate`, `test`, `supply-chain`, and `docs` when
+   docs changed), and the scanners' findings in the security widget must be read.
+5. The lead fast-forwards `main` to the gated commit on GitHub and on GitLab, and checks that
+   local and remote agree. That fast-forward is the merge; the GitLab merge button is not used.
+
+The `seleniumbaserust` group is on the
+[GitLab for Open Source](https://docs.gitlab.com/subscriptions/community_programs/) plan, so
+compute minutes are no constraint. One `test` run takes an hour or more (the doctests are the
+largest part; `tools/linux-check/RESULTS.md` has the timing of a run in a container). Give a
+commit that needs no pipeline `[ci skip]` in its message (or push it with
+`git push -o ci.skip`). A project's job timeout is 60 minutes by default. The `test` and `chrome` jobs ask for three
+hours with `timeout:`, which GitLab allows up to the runner's limit; if one is still cut off
+at 60 minutes, raise the timeout under Settings, CI/CD, General pipelines.
+
 
 ## Parity with Python SeleniumBase
 

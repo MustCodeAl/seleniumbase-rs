@@ -259,6 +259,7 @@ check_golden() {
     dir=$(consumer_dir companion)
     [ -d "$dir/tests/golden" ] || { bad "companion: no $dir/tests/golden"; return; }
     for golden in "$dir"/tests/golden/*; do
+        [ -f "$golden" ] || continue # a folder (the companion's own fingerprint corpus) is no golden program
         name=$(basename "$golden")
         copy=$contracts/contract_companion/$name
         if ! cmp -s "$golden" "$copy"; then
@@ -417,7 +418,7 @@ sync_golden() {
     dir=$(consumer_dir companion)
     [ -d "$dir/tests/golden" ] || { echo "no $dir/tests/golden" >&2; exit 1; }
     mkdir -p "$contracts/contract_companion"
-    cp "$dir"/tests/golden/* "$contracts/contract_companion/"
+    for golden in "$dir"/tests/golden/*; do [ -f "$golden" ] && cp "$golden" "$contracts/contract_companion/"; done
     printf 'copied the golden programs of %s into %s\n' "$dir" "${contracts#"$core"/}/contract_companion"
 }
 

@@ -1,4 +1,4 @@
-use seleniumbase_rs::{BaseCase, BrowserConfig};
+use seleniumbase_rs::{tokio, BaseCase, BrowserConfig};
 
 #[tokio::test]
 async fn recorded_test() -> Result<(), Box<dyn std::error::Error>> {
