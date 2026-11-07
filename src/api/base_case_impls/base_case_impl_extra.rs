@@ -1074,17 +1074,17 @@ impl BaseCase {
         FrameSwitch::new(self, frame.into())
     }
 
-    /// The attribute `name` of the frame element `frame`: the markup's, as a
+    /// The attribute `name` of `element`: the markup's, as a
     /// WebDriver session reads it, and the page's `getAttribute` on a CDP one.
-    async fn frame_attribute(
-        frame: &Element,
-        name: &str,
-    ) -> Result<Option<String>, SeleniumBaseError> {
-        match frame.as_webdriver_element() {
-            Some(raw) => Ok(raw.attr(name).await?),
-            None => frame.attribute(name).await,
+    async fn markup_attribute(
+            element: &Element,
+            name: &str,
+        ) -> Result<Option<String>, SeleniumBaseError> {
+            match element.as_webdriver_element() {
+                Some(raw) => Ok(raw.attr(name).await?),
+                None => element.attribute(name).await,
+            }
         }
-    }
 
 
     /// Switches into the `<iframe>` or `<frame>` that holds the element `css`
@@ -1111,12 +1111,12 @@ impl BaseCase {
             }
             let frames = self.session.find_all(SelectorBuf::css("iframe, frame")).await?;
             for frame in frames {
-                let name = Self::frame_attribute(&frame, "name")
+                let name = Self::markup_attribute(&frame, "name")
                     .await?
                     .filter(|name| !name.is_empty());
                 let identifier = match name {
                     Some(name) => name,
-                    None => Self::frame_attribute(&frame, "id")
+                    None => Self::markup_attribute(&frame, "id")
                         .await?
                         .unwrap_or_default(),
                 };
@@ -1870,7 +1870,7 @@ impl BaseCase {
             self.effective_timeout(timeout_secs),
             format!("Title did not contain '{substring}'"),
             || async {
-                let title = self.session.webdriver()?.title().await?;
+                let title = self.session.current_title().await?;
                 Ok(if title.contains(substring) {
                     Polled::Found(())
                 } else {

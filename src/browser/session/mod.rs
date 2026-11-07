@@ -17,6 +17,7 @@
 mod capabilities;
 mod cdp;
 mod connect;
+mod dialogs;
 mod elements;
 mod emulation;
 mod fingerprint;
@@ -32,6 +33,8 @@ mod waits;
 #[cfg(feature = "plugins")]
 pub(crate) use emulation::blocked_patterns;
 use pure_cdp::PageSlot;
+
+pub(crate) use dialogs::{DialogWatch, PureDialogs};
 
 pub(crate) use launch::server_url_for_joins;
 pub(crate) use waits::shown_text;

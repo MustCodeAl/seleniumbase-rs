@@ -8,9 +8,12 @@
 //! the name `Element` has for it.
 
 use std::fmt;
+use std::future::Future;
+use std::sync::Arc;
 
 use serde_json::Value;
 
+use crate::browser::session::DialogWatch;
 use crate::error::SeleniumBaseError;
 use crate::sb_cdp::{Key, Locator, Rect, SelectBy};
 use crate::utils::selectors::{SelectorBuf, CHAIN_SEPARATOR};
@@ -21,6 +24,8 @@ pub(super) struct CdpElement {
     locator: Locator,
     /// How the element was found, for errors, `Debug` and `Display`.
     selector: SelectorBuf,
+    /// The dialogs of the element's tab, for the actions that can open one.
+    dialogs: Option<Arc<DialogWatch>>,
 }
 
 impl fmt::Debug for CdpElement {
@@ -40,8 +45,29 @@ impl fmt::Display for CdpElement {
 
 impl CdpElement {
     /// The element `locator` finds, named `selector`.
-    pub(super) fn new(locator: Locator, selector: SelectorBuf) -> Self {
-        Self { locator, selector }
+    pub(super) fn new(
+        locator: Locator,
+        selector: SelectorBuf,
+        dialogs: Option<Arc<DialogWatch>>,
+    ) -> Self {
+        Self {
+            locator,
+            selector,
+            dialogs,
+        }
+    }
+
+    /// Runs `action`, a command that can open a dialog, and lets it go as soon
+    /// as one opens: the page stalls inside the command until the dialog is
+    /// answered (see [`DialogWatch`]).
+    async fn guarded(
+        &self,
+        action: impl Future<Output = Result<(), SeleniumBaseError>>,
+    ) -> Result<(), SeleniumBaseError> {
+        match &self.dialogs {
+            Some(dialogs) => dialogs.unless_dialog(action).await.map(drop),
+            None => action.await,
+        }
     }
 
     /// This element under `name`, for one found by a selector that no longer
@@ -132,15 +158,15 @@ impl CdpElement {
     }
 
     pub(super) async fn click(&self) -> Result<(), SeleniumBaseError> {
-        self.locator.click().await
+        self.guarded(self.locator.click()).await
     }
 
     pub(super) async fn double_click(&self) -> Result<(), SeleniumBaseError> {
-        self.locator.double_click().await
+        self.guarded(self.locator.double_click()).await
     }
 
     pub(super) async fn right_click(&self) -> Result<(), SeleniumBaseError> {
-        self.locator.right_click().await
+        self.guarded(self.locator.right_click()).await
     }
 
     pub(super) async fn hover(&self) -> Result<(), SeleniumBaseError> {
@@ -152,23 +178,23 @@ impl CdpElement {
     }
 
     pub(super) async fn send_keys(&self, text: &str) -> Result<(), SeleniumBaseError> {
-        self.locator.send_keys(text).await
+        self.guarded(self.locator.send_keys(text)).await
     }
 
     pub(super) async fn type_text(&self, text: &str) -> Result<(), SeleniumBaseError> {
-        self.locator.type_text(text).await
+        self.guarded(self.locator.type_text(text)).await
     }
 
     pub(super) async fn press(&self, key: Key) -> Result<(), SeleniumBaseError> {
-        self.locator.press(key).await
+        self.guarded(self.locator.press(key)).await
     }
 
     pub(super) async fn select_option(&self, by: SelectBy<'_>) -> Result<(), SeleniumBaseError> {
-        self.locator.select_option(by).await
+        self.guarded(self.locator.select_option(by)).await
     }
 
     pub(super) async fn submit(&self) -> Result<(), SeleniumBaseError> {
-        self.locator.submit().await
+        self.guarded(self.locator.submit()).await
     }
 
     pub(super) async fn scroll_into_view(&self) -> Result<(), SeleniumBaseError> {
@@ -176,7 +202,7 @@ impl CdpElement {
     }
 
     pub(super) async fn drag_to(&self, target: &CdpElement) -> Result<(), SeleniumBaseError> {
-        self.locator.drag_to(&target.locator).await
+        self.guarded(self.locator.drag_to(&target.locator)).await
     }
 
     /// The name of what `selector` finds inside this element: the chain.
@@ -186,9 +212,9 @@ impl CdpElement {
 
     /// The element `locator` finds if it matches now, else the error that
     /// names `name`. It does not wait: a found element is found once.
-    async fn found(locator: Locator, name: SelectorBuf) -> Result<Self, SeleniumBaseError> {
+    async fn found(&self, locator: Locator, name: SelectorBuf) -> Result<Self, SeleniumBaseError> {
         if locator.exists().await? {
-            Ok(Self::new(locator, name))
+            Ok(Self::new(locator, name, self.dialogs.clone()))
         } else {
             Err(SeleniumBaseError::element_not_found(name.to_string()))
         }
@@ -196,7 +222,7 @@ impl CdpElement {
 
     pub(super) async fn find(&self, selector: SelectorBuf) -> Result<Self, SeleniumBaseError> {
         let name = self.below(&selector);
-        Self::found(self.locator.locator(selector), name).await
+        self.found(self.locator.locator(selector), name).await
     }
 
     pub(super) async fn find_all(
@@ -210,12 +236,12 @@ impl CdpElement {
             .all()
             .await?
             .into_iter()
-            .map(|locator| Self::new(locator, name.clone()))
+            .map(|locator| Self::new(locator, name.clone(), self.dialogs.clone()))
             .collect())
     }
 
     pub(super) async fn parent(&self) -> Result<Self, SeleniumBaseError> {
         let name = self.below(&SelectorBuf::xpath(".."));
-        Self::found(self.locator.parent(), name).await
+        self.found(self.locator.parent(), name).await
     }
 }

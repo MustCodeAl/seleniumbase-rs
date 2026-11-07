@@ -58,6 +58,9 @@ mod tests_pure_cdp {
                     value(json!(self.text))
                 } else if expression.contains("/* getAttribute */") {
                     value(json!(self.attribute))
+                } else if expression.contains("document.title") {
+                    value(json!("Welcome page"))
+
                 } else if expression.contains("window.location.href") {
                     value(json!("https://example.com/app"))
 
@@ -495,6 +498,183 @@ mod tests_pure_cdp {
         assert_eq!(mock.calls_to("Network.clearBrowserCache").len(), 1);
         assert_eq!(mouse(&mock).len(), 3, "move, press, release");
         assert_eq!(mock.calls_to("Input.insertText")[0].params["text"], json!("hi"));
+    }
+
+
+    /// A dialog the page opened, as `Page.javascriptDialogOpening` reports it.
+    fn open_dialog(mock: &MockCtrl, kind: &str, message: &str) {
+        mock.emit(
+            "Page.javascriptDialogOpening",
+            json!({
+                "url": "https://example.com/app", "message": message, "type": kind,
+                "hasBrowserHandler": false, "defaultPrompt": "initial",
+            }),
+            Some("S1"),
+        );
+    }
+
+    #[tokio::test]
+    async fn an_alert_the_page_opened_is_read_and_answered() {
+        let (sb, mock) = case().await;
+        open_dialog(&mock, "confirm", "Sure?");
+
+        let alert = sb.switch_to_alert().await.unwrap();
+        assert_eq!(alert.text().await.unwrap(), "Sure?");
+        assert!(sb.is_alert_present().await.unwrap());
+        alert.accept().await.unwrap();
+
+        let handled = mock.calls_to("Page.handleJavaScriptDialog");
+        assert_eq!(handled.len(), 1);
+        assert_eq!(handled[0].params, json!({ "accept": true }));
+        assert!(!sb.is_alert_present().await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn a_prompt_takes_the_typed_text_and_a_dismissed_alert_is_cancelled() {
+        let (sb, mock) = case().await;
+        open_dialog(&mock, "prompt", "Name?");
+        let prompt = sb.switch_to_alert().await.unwrap();
+        prompt.send_keys("Ada").await.unwrap();
+        prompt.accept().await.unwrap();
+
+        open_dialog(&mock, "alert", "Bye");
+        sb.switch_to_alert().await.unwrap().dismiss().await.unwrap();
+
+        let handled: Vec<_> = mock
+            .calls_to("Page.handleJavaScriptDialog")
+            .into_iter()
+            .map(|call| call.params)
+            .collect();
+        assert_eq!(
+            handled,
+            [
+                json!({ "accept": true, "promptText": "Ada" }),
+                json!({ "accept": false }),
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn an_alert_command_without_an_alert_fails_as_no_such_alert() {
+        let (sb, mock) = case().await;
+
+        let error = sb.accept_alert().await.unwrap_err();
+
+        assert!(error.to_string().contains("no such alert"), "{error}");
+        assert!(mock.calls_to("Page.handleJavaScriptDialog").is_empty());
+        assert!(!sb.is_alert_present().await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn an_action_is_refused_while_a_dialog_is_open() {
+        let (mut sb, mock) = case().await;
+        Page::one().script(&mock);
+        open_dialog(&mock, "alert", "Hold on");
+        sb.switch_to_alert().await.unwrap();
+
+        let error = sb.click("#go").await.unwrap_err();
+
+        assert!(error.to_string().contains("unexpected alert open"), "{error}");
+        assert!(mouse(&mock).is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_screenshot_is_the_png_the_browser_captured() {
+        let (sb, mock) = case().await;
+        mock.reply("Page.captureScreenshot", json!({ "data": "iVBORw0KGgo=" }));
+
+        let png = sb.screenshot_as_png().await.unwrap();
+
+        assert_eq!(png, [0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a]);
+    }
+
+    #[tokio::test]
+    async fn scripts_run_in_the_frame_the_case_is_in() {
+        let (mut sb, mock) = case().await;
+        Page {
+            tag: "iframe",
+            ..Page::one()
+        }
+        .script(&mock);
+
+        sb.execute_script("return 1;").await.unwrap();
+        let top = last_expression(&mock);
+        sb.switch_to_frame("#frame").await.unwrap();
+        sb.execute_script("return 2;").await.unwrap();
+        let inside = last_expression(&mock);
+
+        assert!(top.starts_with("(function() {\nreturn 1;"), "{top}");
+        assert!(!top.contains("#frame"), "{top}");
+        assert!(inside.contains("#frame") && inside.contains("return 2;"), "{inside}");
+    }
+
+    #[tokio::test]
+    async fn an_async_script_gets_its_callback_as_the_last_argument() {
+        let (sb, mock) = case().await;
+
+        sb.execute_async_script("arguments[arguments.length - 1](7);")
+            .await
+            .unwrap();
+
+        let sent = last_expression(&mock);
+        assert!(sent.starts_with("new Promise("), "{sent}");
+        assert!(sent.contains(".call(window, resolve)"), "{sent}");
+    }
+
+    #[tokio::test]
+    async fn a_named_key_is_a_real_key_event_and_links_are_found_by_their_text() {
+        let (mut sb, mock) = case().await;
+        Page::one().script(&mock);
+
+        sb.press_key("enter").await.unwrap();
+        sb.click_link("Docs").await.unwrap();
+
+        let keys: Vec<_> = mock
+            .calls_to("Input.dispatchKeyEvent")
+            .into_iter()
+            .filter_map(|call| call.params["key"].as_str().map(str::to_owned))
+            .collect();
+        assert!(keys.iter().any(|key| key == "Enter"), "{keys:?}");
+        assert!(
+            mock.calls_to("Runtime.evaluate").into_iter().any(|call| {
+                call.params["expression"]
+                    .as_str()
+                    .is_some_and(|expression| expression.contains("link_text"))
+            }),
+            "the link is looked up by its text"
+        );
+        assert!(!mouse(&mock).is_empty(), "the link is clicked");
+        sb.wait_for_title("Welcome", 1).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn an_action_that_opens_a_dialog_is_let_go_instead_of_waited_for() {
+        let (browser, mock) = Browser::new_mocked();
+        let page = browser.default_page().await.unwrap();
+        let watch = crate::browser::session::DialogWatch::start(&page);
+        let emitter = mock.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(30)).await;
+            open_dialog(&emitter, "alert", "Hi");
+        });
+
+        // A command that stalls for ever, as a click does that opens an alert.
+        let outcome = watch
+            .unless_dialog(std::future::pending::<Result<(), SeleniumBaseError>>())
+            .await;
+
+        assert!(matches!(outcome, Ok(None)), "{outcome:?}");
+        assert_eq!(watch.current().unwrap().message, "Hi");
+    }
+
+
+    /// The expression of the last `Runtime.evaluate`.
+    fn last_expression(mock: &MockCtrl) -> String {
+        mock.calls_to("Runtime.evaluate")
+            .into_iter()
+            .filter_map(|call| call.params["expression"].as_str().map(str::to_owned))
+            .next_back()
+            .unwrap_or_default()
     }
 
 

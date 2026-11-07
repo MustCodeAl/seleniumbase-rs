@@ -204,7 +204,7 @@ impl BrowserSession {
         config.validate()?;
         if config.session.reuse || config.recorder_mode() {
             return Err(SeleniumBaseError::invalid_config(
-                "direct CDP attachment does not support WebDriver session reuse or Recorder Mode",
+                "direct CDP attachment does not support WebDriver session reuse or Recorder Mode: the recorder reads the browser through a driver, so record on a WebDriver session",
             ));
         }
         let options = crate::sb_cdp::LaunchOptions::builder()

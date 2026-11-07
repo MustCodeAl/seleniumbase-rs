@@ -187,9 +187,12 @@ impl BaseCase {
             || self.is_alert_present(),
         )
         .await?;
-        Ok(Alert::new(
-            self.session.webdriver()?.clone(),
-            Arc::clone(&self.recorder),
-        ))
+        match self.session.dialogs() {
+                    Some(dialogs) => Ok(Alert::over_cdp(dialogs, Arc::clone(&self.recorder))),
+                    None => Ok(Alert::new(
+                        self.session.webdriver()?.clone(),
+                        Arc::clone(&self.recorder),
+                    )),
+                }
     }
 }

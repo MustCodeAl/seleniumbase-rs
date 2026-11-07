@@ -798,8 +798,12 @@ impl Element {
     }
 
     /// An element the pure CDP engine's `locator` finds, named `selector`.
-    pub(crate) fn cdp(locator: Locator, selector: SelectorBuf) -> Self {
-        CdpElement::new(locator, selector).into()
+    pub(crate) fn cdp(
+        locator: Locator,
+        selector: SelectorBuf,
+        dialogs: Option<std::sync::Arc<crate::browser::session::DialogWatch>>,
+    ) -> Self {
+        CdpElement::new(locator, selector, dialogs).into()
     }
 
     /// This element under `name`, for one that was found by a selector that
@@ -831,7 +835,7 @@ impl Element {
     ) -> Result<Value, SeleniumBaseError> {
         match &self.engine {
             Engine::WebDriver(element) => element.run_script(script, args).await,
-            Engine::Cdp(element) => element.run_script(script, args).await,
+            Engine::Cdp(element) => Box::pin(element.run_script(script, args)).await,
         }
     }
 
@@ -843,7 +847,19 @@ impl Element {
             Engine::WebDriver(element) => {
                 element.send_keys(WireKey::Return.value().to_string()).await
             }
-            Engine::Cdp(element) => element.press(Key::Enter).await,
+            Engine::Cdp(element) => Box::pin(element.press(Key::Enter)).await,
+        }
+    }
+
+    /// Presses Enter in the element, as `BaseCase::press_keys` does for a
+    /// trailing newline: the Enter key of a WebDriver session, and a real Enter
+    /// key event on a CDP one.
+    pub(crate) async fn press_enter(&self) -> Result<(), SeleniumBaseError> {
+        match &self.engine {
+            Engine::WebDriver(element) => {
+                element.send_keys(WireKey::Enter.value().to_string()).await
+            }
+            Engine::Cdp(element) => Box::pin(element.press(Key::Enter)).await,
         }
     }
 
@@ -859,7 +875,7 @@ impl Element {
                 .screenshot_as_png()
                 .await
                 .map_err(|error| element.failed(error)),
-            Engine::Cdp(element) => element.screenshot().await,
+            Engine::Cdp(element) => Box::pin(element.screenshot()).await,
         }
     }
 
@@ -906,7 +922,7 @@ impl Element {
     pub async fn text(&self) -> Result<String, SeleniumBaseError> {
         match &self.engine {
             Engine::WebDriver(element) => element.text().await,
-            Engine::Cdp(element) => element.text().await,
+            Engine::Cdp(element) => Box::pin(element.text()).await,
         }
     }
 
@@ -921,7 +937,7 @@ impl Element {
     pub(crate) async fn rendered_text(&self) -> Result<String, SeleniumBaseError> {
         match &self.engine {
             Engine::WebDriver(element) => element.rendered_text().await,
-            Engine::Cdp(element) => element.rendered_text().await,
+            Engine::Cdp(element) => Box::pin(element.rendered_text()).await,
         }
     }
 
@@ -935,7 +951,7 @@ impl Element {
     pub async fn html(&self) -> Result<String, SeleniumBaseError> {
         match &self.engine {
             Engine::WebDriver(element) => element.html().await,
-            Engine::Cdp(element) => element.html().await,
+            Engine::Cdp(element) => Box::pin(element.html()).await,
         }
     }
 
@@ -947,7 +963,7 @@ impl Element {
     pub async fn tag(&self) -> Result<String, SeleniumBaseError> {
         match &self.engine {
             Engine::WebDriver(element) => element.tag().await,
-            Engine::Cdp(element) => element.tag().await,
+            Engine::Cdp(element) => Box::pin(element.tag()).await,
         }
     }
 
@@ -968,7 +984,7 @@ impl Element {
     ) -> Result<Option<String>, SeleniumBaseError> {
         match &self.engine {
             Engine::WebDriver(element) => element.attribute(name).await,
-            Engine::Cdp(element) => element.attribute(name.as_ref()).await,
+            Engine::Cdp(element) => Box::pin(element.attribute(name.as_ref())).await,
         }
     }
 
@@ -985,7 +1001,7 @@ impl Element {
     ) -> Result<Option<String>, SeleniumBaseError> {
         match &self.engine {
             Engine::WebDriver(element) => element.property(name).await,
-            Engine::Cdp(element) => element.property(name.as_ref()).await,
+            Engine::Cdp(element) => Box::pin(element.property(name.as_ref())).await,
         }
     }
 
@@ -999,7 +1015,7 @@ impl Element {
     pub async fn bounding_box(&self) -> Result<Rect, SeleniumBaseError> {
         match &self.engine {
             Engine::WebDriver(element) => element.bounding_box().await,
-            Engine::Cdp(element) => element.bounding_box().await,
+            Engine::Cdp(element) => Box::pin(element.bounding_box()).await,
         }
     }
 
@@ -1013,7 +1029,7 @@ impl Element {
     pub async fn is_visible(&self) -> Result<bool, SeleniumBaseError> {
         match &self.engine {
             Engine::WebDriver(element) => element.is_visible().await,
-            Engine::Cdp(element) => element.is_visible().await,
+            Engine::Cdp(element) => Box::pin(element.is_visible()).await,
         }
     }
 
@@ -1027,7 +1043,7 @@ impl Element {
     pub async fn is_enabled(&self) -> Result<bool, SeleniumBaseError> {
         match &self.engine {
             Engine::WebDriver(element) => element.is_enabled().await,
-            Engine::Cdp(element) => element.is_enabled().await,
+            Engine::Cdp(element) => Box::pin(element.is_enabled()).await,
         }
     }
 
@@ -1041,7 +1057,7 @@ impl Element {
     pub async fn is_selected(&self) -> Result<bool, SeleniumBaseError> {
         match &self.engine {
             Engine::WebDriver(element) => element.is_selected().await,
-            Engine::Cdp(element) => element.is_selected().await,
+            Engine::Cdp(element) => Box::pin(element.is_selected()).await,
         }
     }
 
@@ -1058,7 +1074,7 @@ impl Element {
     pub async fn click(&self) -> Result<(), SeleniumBaseError> {
         match &self.engine {
             Engine::WebDriver(element) => element.click().await,
-            Engine::Cdp(element) => element.click().await,
+            Engine::Cdp(element) => Box::pin(element.click()).await,
         }
     }
 
@@ -1072,7 +1088,7 @@ impl Element {
     pub async fn double_click(&self) -> Result<(), SeleniumBaseError> {
         match &self.engine {
             Engine::WebDriver(element) => element.double_click().await,
-            Engine::Cdp(element) => element.double_click().await,
+            Engine::Cdp(element) => Box::pin(element.double_click()).await,
         }
     }
 
@@ -1086,7 +1102,7 @@ impl Element {
     pub async fn right_click(&self) -> Result<(), SeleniumBaseError> {
         match &self.engine {
             Engine::WebDriver(element) => element.right_click().await,
-            Engine::Cdp(element) => element.right_click().await,
+            Engine::Cdp(element) => Box::pin(element.right_click()).await,
         }
     }
 
@@ -1100,7 +1116,7 @@ impl Element {
     pub async fn hover(&self) -> Result<(), SeleniumBaseError> {
         match &self.engine {
             Engine::WebDriver(element) => element.hover().await,
-            Engine::Cdp(element) => element.hover().await,
+            Engine::Cdp(element) => Box::pin(element.hover()).await,
         }
     }
 
@@ -1114,7 +1130,7 @@ impl Element {
     pub async fn clear(&self) -> Result<(), SeleniumBaseError> {
         match &self.engine {
             Engine::WebDriver(element) => element.clear().await,
-            Engine::Cdp(element) => element.clear().await,
+            Engine::Cdp(element) => Box::pin(element.clear()).await,
         }
     }
 
@@ -1130,7 +1146,7 @@ impl Element {
     pub async fn send_keys(&self, text: impl AsRef<str>) -> Result<(), SeleniumBaseError> {
         match &self.engine {
             Engine::WebDriver(element) => element.send_keys(text).await,
-            Engine::Cdp(element) => element.send_keys(text.as_ref()).await,
+            Engine::Cdp(element) => Box::pin(element.send_keys(text.as_ref())).await,
         }
     }
 
@@ -1145,7 +1161,7 @@ impl Element {
     pub async fn type_text(&self, text: impl AsRef<str>) -> Result<(), SeleniumBaseError> {
         match &self.engine {
             Engine::WebDriver(element) => element.type_text(text).await,
-            Engine::Cdp(element) => element.type_text(text.as_ref()).await,
+            Engine::Cdp(element) => Box::pin(element.type_text(text.as_ref())).await,
         }
     }
 
@@ -1160,7 +1176,7 @@ impl Element {
     pub async fn press(&self, key: Key) -> Result<(), SeleniumBaseError> {
         match &self.engine {
             Engine::WebDriver(element) => element.press(key).await,
-            Engine::Cdp(element) => element.press(key).await,
+            Engine::Cdp(element) => Box::pin(element.press(key)).await,
         }
     }
 
@@ -1177,7 +1193,7 @@ impl Element {
     pub async fn select_option(&self, by: SelectBy<'_>) -> Result<(), SeleniumBaseError> {
         match &self.engine {
             Engine::WebDriver(element) => element.select_option(by).await,
-            Engine::Cdp(element) => element.select_option(by).await,
+            Engine::Cdp(element) => Box::pin(element.select_option(by)).await,
         }
     }
 
@@ -1192,7 +1208,7 @@ impl Element {
     pub async fn submit(&self) -> Result<(), SeleniumBaseError> {
         match &self.engine {
             Engine::WebDriver(element) => element.submit().await,
-            Engine::Cdp(element) => element.submit().await,
+            Engine::Cdp(element) => Box::pin(element.submit()).await,
         }
     }
 
@@ -1207,7 +1223,7 @@ impl Element {
     pub async fn scroll_into_view(&self) -> Result<(), SeleniumBaseError> {
         match &self.engine {
             Engine::WebDriver(element) => element.scroll_into_view().await,
-            Engine::Cdp(element) => element.scroll_into_view().await,
+            Engine::Cdp(element) => Box::pin(element.scroll_into_view()).await,
         }
     }
 
@@ -1223,7 +1239,7 @@ impl Element {
     pub async fn drag_to(&self, target: &Element) -> Result<(), SeleniumBaseError> {
         match (&self.engine, &target.engine) {
             (Engine::WebDriver(from), Engine::WebDriver(to)) => from.drag_to(to).await,
-            (Engine::Cdp(from), Engine::Cdp(to)) => from.drag_to(to).await,
+            (Engine::Cdp(from), Engine::Cdp(to)) => Box::pin(from.drag_to(to)).await,
             _ => Err(mixed_engines()),
         }
     }
@@ -1259,7 +1275,9 @@ impl Element {
     ) -> Result<Element, SeleniumBaseError> {
         match &self.engine {
             Engine::WebDriver(element) => element.find(selector).await.map(Self::from),
-            Engine::Cdp(element) => element.find(selector.into()).await.map(Self::from),
+            Engine::Cdp(element) => Box::pin(element.find(selector.into()))
+                .await
+                .map(Self::from),
         }
     }
 
@@ -1279,8 +1297,7 @@ impl Element {
                 .into_iter()
                 .map(Self::from)
                 .collect()),
-            Engine::Cdp(element) => Ok(element
-                .find_all(selector.into())
+            Engine::Cdp(element) => Ok(Box::pin(element.find_all(selector.into()))
                 .await?
                 .into_iter()
                 .map(Self::from)
@@ -1300,7 +1317,7 @@ impl Element {
     pub async fn parent(&self) -> Result<Element, SeleniumBaseError> {
         match &self.engine {
             Engine::WebDriver(element) => element.parent().await.map(Self::from),
-            Engine::Cdp(element) => element.parent().await.map(Self::from),
+            Engine::Cdp(element) => Box::pin(element.parent()).await.map(Self::from),
         }
     }
 }

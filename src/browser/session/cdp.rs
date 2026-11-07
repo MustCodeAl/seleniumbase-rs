@@ -234,6 +234,15 @@ impl BrowserSession {
     ///
     /// Returns the driver's error when it keeps no `performance` log.
     pub async fn cdp_events(&self) -> Result<Vec<CdpEvent>, SeleniumBaseError> {
+        if self.external_page.is_some() {
+            return Err(SeleniumBaseError::Unsupported(
+                "cdp_events reads the performance log of a driver, which a direct CDP attachment \
+                 has none of: subscribe to the tab's protocol events with `Page::events()` \
+                 (`BaseCase::devtools_endpoint()` reaches the browser)"
+                    .to_owned(),
+            ));
+        }
+
         let entries = self.webdriver()?.get_log("performance").await?;
         Ok(entries
             .iter()

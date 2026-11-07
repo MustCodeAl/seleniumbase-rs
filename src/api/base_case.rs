@@ -2423,8 +2423,8 @@ impl BaseCase {
                     timeout
                 )));
             }
-            if self.session.webdriver()?.get_alert_text().await.is_ok() {
-                self.session.webdriver()?.accept_alert().await?;
+            if self.session.get_alert_text().await.is_ok() {
+                self.session.switch_to_alert_accept().await?;
                 return Ok(());
             }
             tokio::time::sleep(Duration::from_millis(50)).await;
@@ -2442,8 +2442,8 @@ impl BaseCase {
                     timeout
                 )));
             }
-            if self.session.webdriver()?.get_alert_text().await.is_ok() {
-                self.session.webdriver()?.dismiss_alert().await?;
+            if self.session.get_alert_text().await.is_ok() {
+                self.session.switch_to_alert_dismiss().await?;
                 return Ok(());
             }
             tokio::time::sleep(Duration::from_millis(50)).await;
@@ -3153,7 +3153,7 @@ impl BaseCase {
 
     /// Return whether a JavaScript alert is currently present.
     pub async fn is_alert_present(&self) -> Result<bool, SeleniumBaseError> {
-        Ok(self.session.webdriver()?.get_alert_text().await.is_ok())
+        Ok(self.session.get_alert_text().await.is_ok())
     }
 
     /// Get the browser user agent string.
@@ -3336,7 +3336,7 @@ impl BaseCase {
             element.send_keys(key.to_string()).await?;
         }
         if enter {
-            element.send_keys(Key::Enter.value().to_string()).await?;
+            element.press_enter().await?;
         }
         // Python pauses in full after a typed Enter, which sends the page on.
         self.demo_pause(if enter {
@@ -3346,6 +3346,27 @@ impl BaseCase {
         })
         .await;
         Ok(())
+    }
+
+    /// [`press_key`](Self::press_key) on a direct CDP attachment: the key goes
+    /// to the page's keyboard as a real key event.
+    async fn press_cdp_key(page: &crate::sb_cdp::Page, key: Key) -> Result<(), SeleniumBaseError> {
+        use crate::sb_cdp::Key as DevToolsKey;
+        let keyboard = page.keyboard();
+        match key {
+            Key::Enter | Key::Return => keyboard.press(DevToolsKey::Enter).await,
+            Key::Tab => keyboard.press(DevToolsKey::Tab).await,
+            Key::Escape => keyboard.press(DevToolsKey::Escape).await,
+            Key::Up => keyboard.press(DevToolsKey::ArrowUp).await,
+            Key::Down => keyboard.press(DevToolsKey::ArrowDown).await,
+            Key::Left => keyboard.press(DevToolsKey::ArrowLeft).await,
+            Key::Right => keyboard.press(DevToolsKey::ArrowRight).await,
+            Key::Space => keyboard.type_char(' ').await,
+            other => Err(SeleniumBaseError::Unsupported(format!(
+                "press_key cannot press {other:?} on a direct CDP attachment: use \
+                 `locator.press(sb_cdp::Key::..)` for the keys of the DevTools engine"
+            ))),
+        }
     }
 
     /// Presses one named key on the element that has focus: `enter`,
@@ -3373,6 +3394,9 @@ impl BaseCase {
                 )))
             }
         };
+        if let Some(page) = self.session.pure_cdp_page() {
+            return Self::press_cdp_key(&page, key).await;
+        }
         self.session
             .webdriver()?
             .action_chain()

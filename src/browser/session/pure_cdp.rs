@@ -4,7 +4,9 @@
 //!
 //! The design, group by group, is `docs/design/basecase_over_cdp.md`.
 
-use std::sync::{Mutex, MutexGuard, PoisonError};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+
+use serde_json::Value;
 
 use crate::browser::element::Element;
 use crate::cookie::Cookie;
@@ -12,7 +14,7 @@ use crate::error::SeleniumBaseError;
 use crate::sb_cdp::{Locator, Page};
 use crate::utils::selectors::SelectorBuf;
 
-use super::BrowserSession;
+use super::{BrowserSession, DialogWatch, PureDialogs};
 
 /// The tab a direct CDP attachment drives.
 ///
@@ -20,10 +22,17 @@ use super::BrowserSession;
 /// does through `&self`, so it sits behind a lock: handed out as a clone and
 /// never held across an `.await`.
 #[derive(Default)]
-pub(super) struct PageSlot(Mutex<Option<Page>>);
+pub(super) struct PageSlot(Mutex<Option<Tab>>);
+
+/// A tab and the watch of its dialogs.
+#[derive(Clone)]
+struct Tab {
+    page: Page,
+    dialogs: Arc<DialogWatch>,
+}
 
 impl PageSlot {
-    fn locked(&self) -> MutexGuard<'_, Option<Page>> {
+    fn locked(&self) -> MutexGuard<'_, Option<Tab>> {
         // The slot is only read and replaced, so a panic while it was held
         // cannot have left it half-written.
         self.0.lock().unwrap_or_else(PoisonError::into_inner)
@@ -31,17 +40,32 @@ impl PageSlot {
 
     /// The tab, if the session is a direct CDP attachment.
     pub(super) fn get(&self) -> Option<Page> {
-        self.locked().clone()
+        self.locked().as_ref().map(|tab| tab.page.clone())
+    }
+
+    /// The dialogs of the tab, and the tab to answer them on.
+    pub(super) fn dialogs(&self) -> Option<PureDialogs> {
+        self.locked()
+            .as_ref()
+            .map(|tab| PureDialogs::new(tab.page.clone(), Arc::clone(&tab.dialogs)))
+    }
+
+    /// The watch of the dialogs of the tab.
+    pub(super) fn watch(&self) -> Option<Arc<DialogWatch>> {
+        self.locked().as_ref().map(|tab| Arc::clone(&tab.dialogs))
     }
 
     /// Makes `page` the tab the session drives.
     pub(super) fn set(&self, page: Option<Page>) {
-        *self.locked() = page;
+        *self.locked() = page.map(|page| Tab {
+            dialogs: DialogWatch::start(&page),
+            page,
+        });
     }
 
     /// Takes the tab away, leaving the session with none.
     pub(super) fn take(&self) -> Option<Page> {
-        self.locked().take()
+        self.locked().take().map(|tab| tab.page)
     }
 
     /// Whether the session is a direct CDP attachment.
@@ -72,6 +96,43 @@ impl BrowserSession {
             return Ok(());
         }
         self.webdriver().map(|_| ())
+    }
+
+    /// The dialogs of the tab a direct CDP attachment drives, or `None` for a
+    /// WebDriver session, whose browser keeps its dialog.
+    pub(crate) fn dialogs(&self) -> Option<PureDialogs> {
+        self.external_page.dialogs()
+    }
+
+    /// Evaluates `expression` in the frame the session is in, or in the tab at
+    /// its top document, and answers its value. A promise is awaited. A call
+    /// that opens a dialog is let go with `null`, as WebDriver lets a script
+    /// go that opened one (see [`DialogWatch::unless_dialog`]).
+    ///
+    /// # Errors
+    ///
+    /// The engine's error for a script that throws.
+    pub(super) async fn cdp_evaluate(
+        &self,
+        page: &Page,
+        expression: String,
+    ) -> Result<Value, SeleniumBaseError> {
+        let run = async {
+            match self.frame_scope() {
+                // The script runs where the frame's own root element is: the frame's.
+                Some(frame) => {
+                    frame
+                        .locator("html")
+                        .with_element(&format!("return {expression};"))
+                        .await
+                }
+                None => page.evaluate(&expression).await,
+            }
+        };
+        match self.external_page.watch() {
+            Some(dialogs) => Ok(dialogs.unless_dialog(run).await?.unwrap_or(Value::Null)),
+            None => run.await,
+        }
     }
 
     /// The cookies of the page as the WebDriver library holds them, which is the
@@ -294,7 +355,7 @@ impl BrowserSession {
     ) -> Result<Element, SeleniumBaseError> {
         let locator = self.cdp_locator(page, selector.clone());
         if locator.exists().await? {
-            Ok(Element::cdp(locator, selector))
+            Ok(Element::cdp(locator, selector, self.external_page.watch()))
         } else {
             Err(SeleniumBaseError::element_not_found(selector.to_string()))
         }
@@ -314,7 +375,7 @@ impl BrowserSession {
         let locators = self.cdp_locator(page, selector.clone()).all().await?;
         Ok(locators
             .into_iter()
-            .map(|locator| Element::cdp(locator, selector.clone()))
+            .map(|locator| Element::cdp(locator, selector.clone(), self.external_page.watch()))
             .collect())
     }
 }

@@ -143,6 +143,14 @@ impl BaseCase {
     /// WebDriver error if the browser has no log to read (only Chromium-based
     /// browsers do).
     pub async fn assert_no_js_errors(&self) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = self.session.pure_cdp_page() {
+            // A direct CDP attachment has no driver log: the page's own errors.
+            page.assert_no_js_errors().await?;
+            let message = demo::label_message("ASSERT NO JS ERRORS");
+            self.demo_assert_success(&message, Some("html")).await;
+            return Ok(());
+        }
+
         let entries = self.session.webdriver()?.browser_log().await?;
         let errors = severe_js_errors(&entries);
         if errors.is_empty() {

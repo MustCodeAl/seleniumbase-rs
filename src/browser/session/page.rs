@@ -14,6 +14,14 @@ use super::BrowserSession;
 impl BrowserSession {
     /// WebDriver interaction: `execute_async_script`.
     pub async fn execute_async_script(&self, script: &str) -> Result<Value, SeleniumBaseError> {
+        if let Some(page) = self.external_page.get() {
+            // The callback is the last argument, as WebDriver passes it: a promise
+            // the script resolves.
+            let expression = format!(
+                    "new Promise((resolve, reject) => {{ try {{ (function() {{\n{script}\n}}).call(window, resolve); }} catch (error) {{ reject(error); }} }})"
+                );
+            return Box::pin(self.cdp_evaluate(&page, expression)).await;
+        }
         self.webdriver()?
             .execute_async(script, vec![])
             .await
@@ -24,9 +32,10 @@ impl BrowserSession {
     /// Executes arbitrary JavaScript and returns the result.
     pub async fn execute_script(&self, script: &str) -> Result<Value, SeleniumBaseError> {
         if let Some(page) = self.external_page.get() {
-            return page
-                .evaluate(format!("(function() {{\n{script}\n}}).call(window)"))
-                .await;
+            return Box::pin(
+                self.cdp_evaluate(&page, format!("(function() {{\n{script}\n}}).call(window)")),
+            )
+            .await;
         }
         let ret = self.webdriver()?.execute(script, Vec::new()).await?;
         Ok(ret.json().clone())
@@ -34,17 +43,27 @@ impl BrowserSession {
 
     /// Captures a screenshot and writes it to `path`.
     pub async fn screenshot(&self, path: &Path) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = self.external_page.get() {
+            std::fs::write(path, page.screenshot().await?)?;
+            return Ok(());
+        }
         self.webdriver()?.screenshot(path).await?;
         Ok(())
     }
 
     /// Captures a screenshot and returns the raw PNG bytes.
     pub async fn screenshot_as_png(&self) -> Result<Vec<u8>, SeleniumBaseError> {
+        if let Some(page) = self.external_page.get() {
+            return page.screenshot().await;
+        }
         Ok(self.webdriver()?.screenshot_as_png().await?)
     }
 
     /// WebDriver interaction: `switch_to_alert_accept`.
     pub async fn switch_to_alert_accept(&self) -> Result<(), SeleniumBaseError> {
+        if let Some(dialogs) = self.external_page.dialogs() {
+            return dialogs.accept().await;
+        }
         self.webdriver()?
             .accept_alert()
             .await
@@ -53,6 +72,9 @@ impl BrowserSession {
 
     /// WebDriver interaction: `switch_to_alert_dismiss`.
     pub async fn switch_to_alert_dismiss(&self) -> Result<(), SeleniumBaseError> {
+        if let Some(dialogs) = self.external_page.dialogs() {
+            return dialogs.dismiss().await;
+        }
         self.webdriver()?
             .dismiss_alert()
             .await
@@ -61,6 +83,9 @@ impl BrowserSession {
 
     /// WebDriver interaction: `get_alert_text`.
     pub async fn get_alert_text(&self) -> Result<String, SeleniumBaseError> {
+        if let Some(dialogs) = self.external_page.dialogs() {
+            return dialogs.text();
+        }
         self.webdriver()?
             .get_alert_text()
             .await
@@ -69,6 +94,9 @@ impl BrowserSession {
 
     /// WebDriver interaction: `type_alert_text`.
     pub async fn type_alert_text(&self, text: &str) -> Result<(), SeleniumBaseError> {
+        if let Some(dialogs) = self.external_page.dialogs() {
+            return dialogs.send_text(text);
+        }
         self.webdriver()?
             .send_alert_text(text)
             .await
