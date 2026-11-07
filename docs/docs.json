@@ -891,7 +891,8 @@
               "design/bon_builders",
               "design/settings_v2",
               "design/element_type",
-              "design/cookie_type"
+              "design/cookie_type",
+              "design/api_guidelines_audit"
             ]
           },
           {
