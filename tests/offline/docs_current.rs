@@ -189,6 +189,12 @@ const GONE: &[(&str, &str)] = &[
     // A failed WebDriver command is `SeleniumBaseError::WebDriver(DriverError)`, read by its
     // `DriverErrorKind`; thirtyfour's enum of cases is not re-exported (docs/design/driver_error.md).
     ("WebDriverErrorInner", "DriverErrorKind"),
+    // The network throttle is one type of ours, the same in both engines
+    // (docs/design/network_throttle.md); thirtyfour's chromedriver `NetworkConditions` and its
+    // `ConnectionType` are not re-exported.
+    ("set_network_conditions", "set_network_throttle"),
+    ("NetworkConditions", "NetworkThrottle"),
+    ("drivers::ConnectionType", "NetworkThrottle"),
     (
         "use rstest::",
         "seleniumbase_rs::testing::{fixture, rstest}",
