@@ -862,7 +862,6 @@ mod tests_driver_errors {
     }
 }
 
-
 mod tests_element_names {
     use super::webdriver_support::{element, MockWebDriver, Reply};
     use super::*;

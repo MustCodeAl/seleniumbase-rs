@@ -1180,7 +1180,6 @@ mod tests {
     }
 
     #[test]
-
     fn the_servers_own_errors_are_explained_as_the_servers() {
         let answer = explain(
             Some("no browser session is running; call start_browser first"),
