@@ -499,6 +499,12 @@ work, `docs/parity.md` the per-API status).
   GitLab Duo Code Review, and where a future `fuzz/` crate plugs into GitLab's coverage-guided
   fuzzing; the "CI on GitLab" section of `CONTRIBUTING.md` has the short form.
 
+- ci: every GitLab job takes its tools from mise. The Rust toolchain, cargo-deny, Python and
+  mdBook are the versions `mise.toml` pins, the ones a local `mise install` gives. The Rust jobs
+  install mise (release pinned by `MISE_VERSION`) on the `rust` image and run cargo through
+  `mise exec`; `supply-chain` uses the cargo-deny of `mise.toml` instead of building it, and the
+  manual `msrv` job also fails when `mise.toml` and `RUST_VERSION` differ.
+
 
 ### Fixed
 
