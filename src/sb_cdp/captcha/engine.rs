@@ -234,7 +234,8 @@ async fn locate<S: Surface>(
     let mut since = started;
     // Whether the last reading was an interstitial that is being waited out.
     let mut interstitial = false;
-    // Whether any reading was one: only then is the interstitial timeout part of the whole wait.
+    // Whether any reading was one: only then is the interstitial timeout part of the whole wait,
+    // and only then is a page still marked as a challenge at the end an error, not `None`.
     let mut waited_out = false;
     loop {
         match probe(surface, false).await {
@@ -247,22 +248,24 @@ async fn locate<S: Surface>(
                 }
                 interstitial = found.interstitial;
                 waited_out |= interstitial;
-                let limit = if interstitial {
-                    options.interstitial_timeout
-                } else {
-                    options.locate_timeout
-                };
-                if !(found.pending || interstitial)
-                    || since.elapsed() >= limit
+                if !(found.pending || interstitial) {
+                    return Ok(None);
+                }
+                if since.elapsed() >= wait_limit(options, interstitial, found.pending)
                     || started.elapsed() >= locate_ceiling(options, waited_out)
                 {
-                    return Ok(None);
+                    return if waited_out {
+                        Err(still_a_challenge(started.elapsed()))
+                    } else {
+                        Ok(None)
+                    };
                 }
             }
             // An interstitial that replaces itself answers with an error while it does: read it
             // again. Any other failed reading is an error at once.
             Err(error) => {
                 if !interstitial
+                    || !page_is_being_replaced(&error)
                     || since.elapsed() >= options.interstitial_timeout
                     || started.elapsed() >= locate_ceiling(options, waited_out)
                 {
@@ -272,6 +275,41 @@ async fn locate<S: Surface>(
         }
         sleep(POLL).await;
     }
+}
+
+/// How long the current wait may last: the interstitial timeout for a challenge page, but never
+/// less than the locate timeout for one that is also drawing its widget, and the locate timeout
+/// for any other page with a widget on its way.
+fn wait_limit(options: &SolveOptions, interstitial: bool, pending: bool) -> Duration {
+    match (interstitial, pending) {
+        (true, true) => options.interstitial_timeout.max(options.locate_timeout),
+        (true, false) => options.interstitial_timeout,
+        (false, _) => options.locate_timeout,
+    }
+}
+
+/// The error for a page that is still a challenge page when the search for a widget ends. Not
+/// `None`: that would tell the caller the page shows no captcha, while the browser has not got
+/// past it.
+fn still_a_challenge(waited: Duration) -> SeleniumBaseError {
+    SeleniumBaseError::wait_timeout(
+        "waiting out the challenge page: it is still there and shows no widget to press",
+        Some(waited),
+    )
+}
+
+/// Whether a failed reading only means that the page is being replaced, as an interstitial that
+/// navigates or reloads itself is. Unlike the navigation race of `Page`, a closed target is not
+/// one here: a tab or connection that is gone fails every reading until the timeout.
+fn page_is_being_replaced(error: &SeleniumBaseError) -> bool {
+    let message = error.to_string();
+    [
+        "Execution context was destroyed",
+        "Cannot find context",
+        "Inspected target navigated",
+    ]
+    .iter()
+    .any(|sign| message.contains(sign))
 }
 
 /// The most a call to [`locate`] waits in all: the locate timeout, and the interstitial timeout
@@ -918,12 +956,17 @@ mod tests {
     }
 
     #[tokio::test(start_paused = true)]
-    async fn an_interstitial_that_never_ends_is_given_up_after_the_interstitial_timeout() {
+    async fn an_interstitial_that_never_ends_is_an_error_after_the_interstitial_timeout() {
         let tab = Scripted::new(|ask, _| plain(ask).unwrap_or_else(interstitial));
         let options = quick().interstitial_timeout(Duration::from_secs(3));
         let started = Instant::now();
-        let result = solve(&tab, &options).await.unwrap();
-        assert_eq!(result, None);
+        // Not `Ok(None)`, which would tell the caller that the page shows no captcha while the
+        // browser is still on the challenge page.
+        let error = solve(&tab, &options).await.unwrap_err();
+        assert!(
+            matches!(error, SeleniumBaseError::WaitTimeout(_)),
+            "{error:?}"
+        );
         assert!(
             started.elapsed() >= Duration::from_secs(3)
                 && started.elapsed() < Duration::from_secs(10),
@@ -933,12 +976,23 @@ mod tests {
     }
 
     #[tokio::test(start_paused = true)]
-    async fn a_zero_interstitial_timeout_never_waits_out_a_challenge_page() {
+    async fn a_zero_interstitial_timeout_gives_a_challenge_page_only_the_locate_timeout() {
+        // The challenge page is marked as one whose widget is on its way, so it still gets the
+        // locate timeout that any such page gets, and no more.
         let tab = Scripted::new(|ask, _| plain(ask).unwrap_or_else(interstitial));
         let options = quick().interstitial_timeout(Duration::ZERO);
         let started = Instant::now();
-        assert_eq!(solve(&tab, &options).await.unwrap(), None);
-        assert!(started.elapsed() < Duration::from_millis(100));
+        let error = solve(&tab, &options).await.unwrap_err();
+        assert!(
+            matches!(error, SeleniumBaseError::WaitTimeout(_)),
+            "{error:?}"
+        );
+        assert!(
+            started.elapsed() >= Duration::from_millis(500)
+                && started.elapsed() < Duration::from_secs(1),
+            "waited {:?}",
+            started.elapsed()
+        );
     }
 
     #[tokio::test(start_paused = true)]
@@ -999,6 +1053,35 @@ mod tests {
     }
 
     #[tokio::test(start_paused = true)]
+    async fn a_tab_that_dies_during_an_interstitial_is_an_error_at_once() {
+        let mut probes = 0;
+        let tab = Scripted::new(move |ask, _| match ask {
+            Ask::Probe => {
+                probes += 1;
+                if probes <= 2 {
+                    interstitial()
+                } else {
+                    // Not a page that is being replaced: the connection is gone.
+                    json!({ "__error": "WebSocket connection closed" })
+                }
+            }
+            other => plain(other).unwrap(),
+        });
+        let options = quick().interstitial_timeout(Duration::from_secs(3));
+        let started = Instant::now();
+        let error = solve(&tab, &options).await.unwrap_err();
+        assert!(
+            matches!(error, SeleniumBaseError::CdpDriver(_)),
+            "{error:?}"
+        );
+        assert!(
+            started.elapsed() < Duration::from_secs(1),
+            "waited {:?}",
+            started.elapsed()
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
     async fn a_page_that_goes_back_and_forth_between_a_challenge_and_a_pending_page_is_given_up() {
         let mut probes = 0_u32;
         let tab = Scripted::new(move |ask, _| match ask {
@@ -1018,7 +1101,11 @@ mod tests {
         });
         let options = quick().interstitial_timeout(Duration::from_secs(3));
         let started = Instant::now();
-        assert_eq!(solve(&tab, &options).await.unwrap(), None);
+        let error = solve(&tab, &options).await.unwrap_err();
+        assert!(
+            matches!(error, SeleniumBaseError::WaitTimeout(_)),
+            "the page is still a challenge page: {error:?}"
+        );
         assert!(
             started.elapsed() <= Duration::from_secs(4),
             "waited {:?}",

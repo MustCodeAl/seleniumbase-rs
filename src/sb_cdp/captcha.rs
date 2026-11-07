@@ -335,12 +335,19 @@ impl SolveOptions {
     /// How long to wait for a challenge page that shows no widget (an interstitial, such as
     /// Cloudflare's "Just a moment...") to run its checks and go: it navigates away or replaces
     /// itself, and then [`Page::solve_captcha`] looks for a widget on what is left. While it
-    /// waits, a reading that fails because the page is being replaced is read again. The wait
-    /// ends when the page is no longer an interstitial; a widget that is on its way after that
-    /// gets [`locate_timeout`](Self::locate_timeout) in turn.
+    /// waits, a reading that fails because the page is being replaced is read again; any other
+    /// failed reading (a closed tab, a lost connection) is an error at once. The wait ends when
+    /// the page is no longer an interstitial; a widget that is on its way after that gets
+    /// [`locate_timeout`](Self::locate_timeout) in turn. The whole search never takes longer
+    /// than the two timeouts together, however often the page changes between the two states.
     ///
-    /// 20 s by default. A page that is not an interstitial is never waited for this long. Use
-    /// [`Duration::ZERO`] to never wait out an interstitial.
+    /// When the time is up and the page is still a challenge page, the solver fails with
+    /// [`SeleniumBaseError::WaitTimeout`](crate::SeleniumBaseError::WaitTimeout) rather than
+    /// answering `None`, which would say that the page shows no captcha.
+    ///
+    /// 20 s by default. A page that is not an interstitial is never waited for this long. With
+    /// [`Duration::ZERO`] an interstitial is not waited out: a challenge page whose widget is on
+    /// its way gets the locate timeout, as any page with a widget on its way does.
     #[must_use]
     pub fn interstitial_timeout(mut self, timeout: Duration) -> Self {
         self.interstitial_timeout = timeout;
