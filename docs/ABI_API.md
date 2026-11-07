@@ -44,9 +44,10 @@ The crate root exposes the following modules:
 
 <Note>
 
-The modules `wire`, `scrape` and `impersonate` were removed in 0.3.0. They are
-the crates `seleniumbase-rs-codec`, `seleniumbase-rs-scrape` and
-`seleniumbase-rs-wire` of
+The core modules `wire`, `scrape` and `impersonate` were removed in 0.3.0. Their
+code lives on, in that order, in the crates `seleniumbase-rs-codec` (the old
+`wire` module: wire formats), `seleniumbase-rs-scrape` and
+`seleniumbase-rs-wire` (the old `impersonate` module) of
 [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
 now. Use the unified `seleniumbase-rs-stealth` facade to access their `codec`,
 `scrape` and optional `wire` modules alongside all of the core public API,
