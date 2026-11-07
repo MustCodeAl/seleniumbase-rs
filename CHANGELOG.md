@@ -443,10 +443,13 @@ work, `docs/parity.md` the per-API status).
   "Just a moment..." and no widget, which runs its checks and then navigates away or replaces
   itself. It used to give it only the locate timeout, and a reading made while the page was being
   replaced failed the call. Now the page is waited out for `SolveOptions::interstitial_timeout`
-  (20 s by default), a reading that fails meanwhile is read again, and a widget that is on its
-  way after it gets the locate timeout in turn. A challenge page is told by its own markers (its
-  title, `#challenge-stage`, `#challenge-form`, its `orchestrate` script), not by the widget's
-  frame, which sites keep hidden on ordinary pages.
+  (20 s by default), a reading that fails meanwhile because the page is being replaced is read
+  again (any other failed reading is an error at once), and a widget that is on its way after it
+  gets the locate timeout in turn. The whole search takes at most the two timeouts together, and
+  a page that is still a challenge page when they run out fails the call with
+  `SeleniumBaseError::WaitTimeout` instead of answering `None`. A challenge page is told by its
+  own markers (its title, `#challenge-stage`, `#challenge-form`, its `orchestrate` script), not
+  by the widget's frame, which sites keep hidden on ordinary pages.
 - `Locale::accept_language_list(&[..])`: the `Accept-Language` header for a raw list of
   languages, such as a page's `navigator.languages` (trimmed, without empty entries or repeats,
   at most ten, the first bare and then `q` falling from 0.9 by a tenth), beside

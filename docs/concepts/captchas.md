@@ -200,9 +200,13 @@ the other:
    title, `#challenge-stage`, `#challenge-form` or its `orchestrate` script),
    runs its checks and then navigates away or replaces itself. It is waited out
    first, 20 s by default (`SolveOptions::interstitial_timeout`), and a reading
-   that fails while the page is being replaced is read again. What is left of
-   the page is looked at then, and a widget that is on its way gets the 6 s in
-   turn.
+   that fails while the page is being replaced is read again; any other failed
+   reading (a closed tab, a lost connection) is an error at once. What is left
+   of the page is looked at then, and a widget that is on its way gets the 6 s
+   in turn. The search never takes longer than the two timeouts together, and a
+   page that is still a challenge page when they run out is an error
+   (`SeleniumBaseError::WaitTimeout`), not `None`: the browser has not got past
+   it.
 2. **Settle.** The widget is scrolled to the middle of the viewport and read
    again and again until it has stood still, in view, for 240 ms. A page that
    animates a widget in, or lays it out late, moves a widget that was read once.
@@ -273,7 +277,9 @@ to change. A `Page` has no proxy list and cannot give itself another
 fingerprint, so the solver only carries these two settings: the layer that owns
 them (the stealth scraper) asks `proxy_rotation_due(failed_rounds)` and
 `fingerprint_rotation_due(failed_rounds)` between rounds, one round for each
-call (`rounds(1)`).
+call (`rounds(1)`). Given to `Page::solve_captcha_with` or
+`BaseCase::solve_captcha_with` alone, they change nothing: every round uses the
+same proxy and fingerprint.
 
 `clearance_cookie(name)` names one more cookie whose arrival shows that the
 visitor was let through, beside the one the vendor sets. It counts when it is in
