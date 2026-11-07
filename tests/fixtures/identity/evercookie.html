@@ -1,0 +1,74 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>identity</title>
+  <link rel="icon" href="/favicon.ico">
+</head>
+<body>
+  <p>Every store a page can write a mark into, read back before it is written.</p>
+  <script>
+    // The evercookie shape: a mark is kept in every store a page can reach and
+    // read back on the next visit. `window.__found` holds what each store held
+    // BEFORE this visit wrote its own mark (null: nothing), so a second identity
+    // that finds the first one's mark anywhere is linked to it.
+    (async () => {
+      const mark = new URLSearchParams(location.search).get('mark') || 'none';
+      const found = {};
+
+      found.cookie = document.cookie || null;
+      document.cookie = 'mark=' + mark + '; path=/';
+
+      found.localStorage = localStorage.getItem('mark');
+      localStorage.setItem('mark', mark);
+      found.sessionStorage = sessionStorage.getItem('mark');
+      sessionStorage.setItem('mark', mark);
+
+      found.indexedDb = await new Promise((resolve) => {
+        const open = indexedDB.open('identity', 1);
+        open.onupgradeneeded = () => open.result.createObjectStore('kv');
+        open.onerror = () => resolve('error');
+        open.onsuccess = () => {
+          const store = open.result.transaction('kv', 'readwrite').objectStore('kv');
+          const get = store.get('mark');
+          get.onsuccess = () => {
+            store.put(mark, 'mark');
+            resolve(get.result === undefined ? null : get.result);
+          };
+          get.onerror = () => resolve('error');
+        };
+      });
+
+      try {
+        const cache = await caches.open('identity');
+        const hit = await cache.match('/marker');
+        found.cacheApi = hit ? await hit.text() : null;
+        await cache.put('/marker', new Response(mark));
+      } catch (error) {
+        found.cacheApi = 'error: ' + error.message;
+      }
+
+      // The HTTP cache: the server answers /mark with an ETag that names the
+      // visitor and `Cache-Control: no-cache`, so a browser that holds the entry
+      // revalidates with If-None-Match and gets the first visitor's body back.
+      try {
+        const response = await fetch('/mark');
+        found.etag = await response.text();
+      } catch (error) {
+        found.etag = 'error: ' + error.message;
+      }
+
+      // A service worker registration that survives into another identity links
+      // the two; the count is read before this visit registers its own.
+      try {
+        found.serviceWorkers = (await navigator.serviceWorker.getRegistrations()).length;
+        await navigator.serviceWorker.register('/sw.js');
+      } catch (error) {
+        found.serviceWorkers = 'error: ' + error.message;
+      }
+
+      window.__found = found;
+    })();
+  </script>
+</body>
+</html>
