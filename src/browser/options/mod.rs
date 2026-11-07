@@ -47,6 +47,7 @@ mod driver;
 mod extensions;
 mod firefox;
 mod locale;
+mod network;
 mod page_load;
 #[cfg(feature = "plugins")]
 mod plugins;
@@ -68,6 +69,7 @@ pub(crate) use extensions::Bundled;
 pub use extensions::ExtensionArchive;
 pub use firefox::{FirefoxOptions, FirefoxPreference};
 pub use locale::LocaleCode;
+pub use network::NetworkThrottle;
 pub use page_load::PageLoadStrategy;
 #[cfg(feature = "plugins")]
 pub use plugins::BrowserPlugins;

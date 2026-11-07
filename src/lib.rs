@@ -210,6 +210,7 @@ pub use api::tour::TourTheme;
 pub use api::traits::{AssertionApi, BrowserApi, ElementApi, ScreenshotApi};
 pub use browser::config::{Browser, BrowserConfig, DriverMode};
 pub use browser::element::Element;
+pub use browser::options::NetworkThrottle;
 
 pub use browser::reuse::shutdown_reused_sessions;
 pub use browser::session::BrowserSession;

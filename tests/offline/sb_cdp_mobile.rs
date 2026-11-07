@@ -8,6 +8,7 @@
 #![cfg(feature = "test-util")]
 
 use std::path::Path;
+use std::time::Duration;
 
 use seleniumbase_rs::browser::options::{
     DeviceMetrics, LaunchSwitch, ProxyBypassList, WindowPosition, WindowSize, MOBILE_USER_AGENT,
@@ -15,7 +16,7 @@ use seleniumbase_rs::browser::options::{
 use seleniumbase_rs::sb_cdp::{
     Browser, ColorScheme, LaunchOptions, LaunchOptionsBuilder, MockCtrl,
 };
-use seleniumbase_rs::{BrowserConfig, Fingerprint, OsType, SeleniumBaseError};
+use seleniumbase_rs::{BrowserConfig, Fingerprint, NetworkThrottle, OsType, SeleniumBaseError};
 use serde_json::json;
 
 async fn launched(options: LaunchOptions) -> (Browser, MockCtrl) {
@@ -206,6 +207,93 @@ async fn the_emulation_of_a_tab_can_be_changed_at_run_time() {
             json!({ "name": "prefers-color-scheme", "value": "dark" }),
             json!({ "name": "prefers-color-scheme", "value": "" })
         ]
+    );
+}
+
+#[test_log::test(tokio::test)]
+async fn a_tab_is_throttled_cut_off_and_put_back_with_one_type() {
+    let (browser, mock) = Browser::new_mocked();
+    let emulation = browser.default_page().await.unwrap().emulation();
+
+    emulation
+        .network_throttle(&NetworkThrottle {
+            offline: false,
+            latency: Duration::from_millis(400),
+            download: Some(200_000),
+            upload: Some(94_000),
+        })
+        .await
+        .unwrap();
+    emulation
+        .network_throttle(&NetworkThrottle::default())
+        .await
+        .unwrap();
+    emulation.offline(true).await.unwrap();
+
+    // Each throttle enables the domain, then emulates, in that order.
+    let methods: Vec<_> = mock
+        .calls()
+        .into_iter()
+        .map(|call| call.method)
+        .filter(|method| method.starts_with("Network."))
+        .collect();
+    assert_eq!(
+        methods,
+        [
+            "Network.enable",
+            "Network.emulateNetworkConditions",
+            "Network.enable",
+            "Network.emulateNetworkConditions",
+            "Network.enable",
+            "Network.emulateNetworkConditions",
+        ]
+    );
+    let emulated: Vec<_> = mock
+        .calls_to("Network.emulateNetworkConditions")
+        .into_iter()
+        .map(|call| call.params)
+        .collect();
+    assert_eq!(
+        emulated,
+        [
+            json!({
+                "offline": false,
+                "latency": 400,
+                "downloadThroughput": 200_000,
+                "uploadThroughput": 94_000,
+            }),
+            // The default puts the connection back: no latency, no limits.
+            json!({
+                "offline": false,
+                "latency": 0,
+                "downloadThroughput": -1,
+                "uploadThroughput": -1,
+            }),
+            // `offline(true)` is a throttle that only cuts the network off.
+            json!({
+                "offline": true,
+                "latency": 0,
+                "downloadThroughput": -1,
+                "uploadThroughput": -1,
+            }),
+        ]
+    );
+}
+
+#[test_log::test(tokio::test)]
+async fn a_refused_throttle_is_a_cdp_driver_error() {
+    let (browser, mock) = Browser::new_mocked();
+    let emulation = browser.default_page().await.unwrap().emulation();
+    mock.fail("Network.emulateNetworkConditions", "not allowed here");
+
+    let error = emulation
+        .network_throttle(&NetworkThrottle::default())
+        .await
+        .unwrap_err();
+
+    assert!(
+        matches!(&error, SeleniumBaseError::CdpDriver(message) if message.contains("not allowed here")),
+        "{error:?}"
     );
 }
 
