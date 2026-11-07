@@ -999,21 +999,13 @@ impl BaseCase {
 
     /// Returns all open window/tab handles.
     pub async fn get_all_window_handles(&self) -> Result<Vec<String>, SeleniumBaseError> {
-        let handles = self.session.webdriver()?
-            .windows()
-            .await
-            .map_err(SeleniumBaseError::WebDriver)?;
-        Ok(handles.into_iter().map(|h| h.to_string()).collect())
-    }
+            self.session.window_handles().await
+        }
 
     /// Returns the handle of the currently focused window/tab.
     pub async fn get_current_window_handle(&self) -> Result<String, SeleniumBaseError> {
-        let handle = self.session.webdriver()?
-            .window()
-            .await
-            .map_err(SeleniumBaseError::WebDriver)?;
-        Ok(handle.to_string())
-    }
+            self.session.window_handle().await
+        }
 
     /// Raises the z-index of the element `css` to 999999 once it is visible.
     /// Use it when a click fails with "Other element would receive the
@@ -1038,12 +1030,16 @@ impl BaseCase {
 
     /// Focuses the current browser window.
     pub(crate) async fn focus_window(&self) -> Result<(), SeleniumBaseError> {
-        self.session.webdriver()?
-            .execute("window.focus();", vec![])
-            .await
-            .map_err(SeleniumBaseError::WebDriver)?;
-        Ok(())
-    }
+            if let Some(page) = self.session.pure_cdp_page() {
+                return page.bring_to_front().await;
+            }
+            self.session
+                .webdriver()?
+                .execute("window.focus();", vec![])
+                .await
+                .map_err(SeleniumBaseError::WebDriver)?;
+            Ok(())
+        }
 
     // ========================================================================
     // Frame helpers

@@ -92,9 +92,8 @@ impl BaseCase {
 
     /// Full-screens the browser window.
     pub async fn fullscreen_window(&self) -> Result<(), SeleniumBaseError> {
-        self.session.webdriver()?.fullscreen_window().await?;
-        Ok(())
-    }
+            self.session.fullscreen_window().await
+        }
 
     /// Returns the screen width via JavaScript.
     pub async fn get_screen_width(&self) -> Result<i64, SeleniumBaseError> {

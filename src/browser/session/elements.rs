@@ -158,7 +158,7 @@ impl BrowserSession {
         selector: impl Into<SelectorBuf>,
     ) -> Result<Element, SeleniumBaseError> {
         if let Some(page) = self.pure_cdp_page() {
-            return self.cdp_find(page, selector.into()).await;
+            return self.cdp_find(&page, selector.into()).await;
         }
 
         let driver = self.webdriver()?;
@@ -180,7 +180,7 @@ impl BrowserSession {
         selector: impl Into<SelectorBuf>,
     ) -> Result<Vec<Element>, SeleniumBaseError> {
         if let Some(page) = self.pure_cdp_page() {
-            return self.cdp_find_all(page, selector.into()).await;
+            return self.cdp_find_all(&page, selector.into()).await;
         }
 
         let driver = self.webdriver()?;

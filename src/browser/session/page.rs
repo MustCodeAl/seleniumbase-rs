@@ -23,7 +23,7 @@ impl BrowserSession {
 
     /// Executes arbitrary JavaScript and returns the result.
     pub async fn execute_script(&self, script: &str) -> Result<Value, SeleniumBaseError> {
-        if let Some(page) = &self.external_page {
+        if let Some(page) = self.external_page.get() {
             return page
                 .evaluate(format!("(function() {{\n{script}\n}}).call(window)"))
                 .await;

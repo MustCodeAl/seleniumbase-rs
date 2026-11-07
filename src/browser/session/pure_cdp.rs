@@ -4,12 +4,50 @@
 //!
 //! The design, group by group, is `docs/design/basecase_over_cdp.md`.
 
+use std::sync::{Mutex, MutexGuard, PoisonError};
+
 use crate::browser::element::Element;
 use crate::error::SeleniumBaseError;
 use crate::sb_cdp::{Locator, Page};
 use crate::utils::selectors::SelectorBuf;
 
 use super::BrowserSession;
+
+/// The tab a direct CDP attachment drives.
+///
+/// It changes when the session switches tabs, which WebDriver's window switch
+/// does through `&self`, so it sits behind a lock: handed out as a clone and
+/// never held across an `.await`.
+#[derive(Default)]
+pub(super) struct PageSlot(Mutex<Option<Page>>);
+
+impl PageSlot {
+    fn locked(&self) -> MutexGuard<'_, Option<Page>> {
+        // The slot is only read and replaced, so a panic while it was held
+        // cannot have left it half-written.
+        self.0.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// The tab, if the session is a direct CDP attachment.
+    pub(super) fn get(&self) -> Option<Page> {
+        self.locked().clone()
+    }
+
+    /// Makes `page` the tab the session drives.
+    pub(super) fn set(&self, page: Option<Page>) {
+        *self.locked() = page;
+    }
+
+    /// Takes the tab away, leaving the session with none.
+    pub(super) fn take(&self) -> Option<Page> {
+        self.locked().take()
+    }
+
+    /// Whether the session is a direct CDP attachment.
+    pub(super) fn is_some(&self) -> bool {
+        self.locked().is_some()
+    }
+}
 
 impl BrowserSession {
     /// A session on `page`, a tab of a browser the pure CDP engine drives, as a
@@ -19,8 +57,8 @@ impl BrowserSession {
     #[cfg(any(test, feature = "test-util"))]
     #[must_use]
     pub fn attach_page(page: Page) -> Self {
-        let mut session = Self::disconnected();
-        session.external_page = Some(page);
+        let session = Self::disconnected();
+        session.external_page.set(Some(page));
         session
     }
 
@@ -33,6 +71,121 @@ impl BrowserSession {
             return Ok(());
         }
         self.webdriver().map(|_| ())
+    }
+
+    /// The handles of the open windows and tabs, in the order the browser lists
+    /// them. On a direct CDP attachment a handle is the tab's target id.
+    ///
+    /// # Errors
+    ///
+    /// The engine's error, or [`SeleniumBaseError::SessionNotStarted`] after
+    /// [`quit`](Self::quit).
+    pub async fn window_handles(&self) -> Result<Vec<String>, SeleniumBaseError> {
+        if let Some(page) = self.external_page.get() {
+            let tabs = page.browser().list_pages().await?;
+            return Ok(tabs.into_iter().map(|tab| tab.id).collect());
+        }
+        let handles = self.webdriver()?.windows().await?;
+        Ok(handles.iter().map(ToString::to_string).collect())
+    }
+
+    /// The handle of the window or tab the session is on.
+    ///
+    /// # Errors
+    ///
+    /// See [`window_handles`](Self::window_handles).
+    pub async fn window_handle(&self) -> Result<String, SeleniumBaseError> {
+        if let Some(page) = self.external_page.get() {
+            return Ok(page.id().to_string());
+        }
+        Ok(self.webdriver()?.window().await?.to_string())
+    }
+
+    /// Makes `page` the tab a direct CDP attachment drives, brought to the
+    /// front, at its top document.
+    pub(crate) async fn switch_to_tab(&self, page: Page) -> Result<(), SeleniumBaseError> {
+        page.bring_to_front().await?;
+        self.external_page.set(Some(page));
+        self.leave_frames();
+        Ok(())
+    }
+
+    /// The position and size of the window, as `(x, y, width, height)`.
+    ///
+    /// # Errors
+    ///
+    /// The engine's error.
+    pub async fn window_rect(&self) -> Result<(i64, i64, i64, i64), SeleniumBaseError> {
+        if let Some(page) = self.external_page.get() {
+            let bounds = page.window().bounds().await?;
+            return Ok((bounds.x, bounds.y, bounds.width, bounds.height));
+        }
+        let rect = self.webdriver()?.get_window_rect().await?;
+        Ok((rect.x, rect.y, rect.width, rect.height))
+    }
+
+    /// Moves and resizes the window.
+    ///
+    /// # Errors
+    ///
+    /// The engine's error.
+    pub async fn set_window_rect(
+        &self,
+        x: i64,
+        y: i64,
+        width: u32,
+        height: u32,
+    ) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = self.external_page.get() {
+            return page
+                .window()
+                .set_bounds(x, y, i64::from(width), i64::from(height))
+                .await;
+        }
+        self.webdriver()?
+            .set_window_rect(x, y, width, height)
+            .await?;
+        Ok(())
+    }
+
+    /// Minimizes the window.
+    ///
+    /// # Errors
+    ///
+    /// The engine's error.
+    pub async fn minimize_window(&self) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = self.external_page.get() {
+            return page.window().minimize().await;
+        }
+        self.webdriver()?.minimize_window().await?;
+        Ok(())
+    }
+
+    /// Makes the window fullscreen.
+    ///
+    /// # Errors
+    ///
+    /// The engine's error.
+    pub async fn fullscreen_window(&self) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = self.external_page.get() {
+            return page.window().fullscreen().await;
+        }
+        self.webdriver()?.fullscreen_window().await?;
+        Ok(())
+    }
+
+    /// Closes the window or tab the session is on. The session has none after
+    /// it, until it switches to another.
+    ///
+    /// # Errors
+    ///
+    /// The engine's error.
+    pub async fn close_window(&self) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = self.external_page.get() {
+            return page.close().await;
+        }
+        self.webdriver()?.close_window().await?;
+        Ok(())
     }
 
     /// The locator for `selector` on `page`.

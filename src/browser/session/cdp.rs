@@ -66,7 +66,7 @@ impl BrowserSession {
     /// [`SeleniumBaseError::CdpDriver`] when that address does not answer or
     /// advertises no WebSocket.
     pub async fn devtools_endpoint(&self) -> Result<DevToolsEndpoint, SeleniumBaseError> {
-        if let Some(page) = &self.external_page {
+        if let Some(page) = self.external_page.get() {
             return Ok(page.browser().devtools_endpoint());
         }
         let capabilities =
@@ -105,8 +105,8 @@ impl BrowserSession {
     /// # }
     /// ```
     #[must_use]
-    pub fn pure_cdp_page(&self) -> Option<&crate::sb_cdp::Page> {
-        self.external_page.as_ref()
+    pub fn pure_cdp_page(&self) -> Option<crate::sb_cdp::Page> {
+        self.external_page.get()
     }
 
     /// Enables the Page and Network CDP domains.
@@ -116,7 +116,7 @@ impl BrowserSession {
     ///
     /// [`CdpClient::enable_default_domains`]: crate::evasion::cdp::CdpClient::enable_default_domains
     pub async fn activate_cdp_mode(&self) -> Result<(), SeleniumBaseError> {
-        if let Some(page) = &self.external_page {
+        if let Some(page) = self.external_page.get() {
             for method in crate::evasion::cdp::DEFAULT_DOMAIN_COMMANDS {
                 page.execute(method, json!({})).await?;
             }
@@ -144,7 +144,7 @@ impl BrowserSession {
         method: &str,
         params: Value,
     ) -> Result<Value, SeleniumBaseError> {
-        if let Some(page) = &self.external_page {
+        if let Some(page) = self.external_page.get() {
             return page.execute(method, params).await;
         }
         let cdp = self.cdp_client()?;
@@ -331,14 +331,13 @@ mod endpoint_tests {
     async fn a_direct_attachment_answers_the_endpoint_of_its_browser() {
         let (browser, _mock) = Browser::new_mocked();
         let page = browser.default_page().await.expect("a page on the mock");
-        let mut session = BrowserSession::disconnected();
-        session.external_page = Some(page);
+        let session = BrowserSession::disconnected();
+        session.external_page.set(Some(page));
 
         let endpoint = session
             .devtools_endpoint()
             .await
             .expect("an attachment has its browser's endpoint");
-
         // What `Browser::http_url` says of the mock (`tests/offline/sb_cdp_parity_mock.rs`).
         assert_eq!(endpoint.http_url(), "http://127.0.0.1:0");
         assert_eq!(endpoint, browser.devtools_endpoint());

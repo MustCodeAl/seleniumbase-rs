@@ -281,6 +281,102 @@ mod tests_pure_cdp {
         );
     }
 
+    /// Two open tabs, `T1` and `T2`, as `Target.getTargets` lists them.
+    fn two_tabs(mock: &MockCtrl) {
+        mock.reply(
+            "Target.getTargets",
+            json!({ "targetInfos": [
+                { "targetId": "T1", "type": "page", "url": "about:blank", "title": "" },
+                { "targetId": "T2", "type": "page", "url": "about:blank", "title": "" },
+            ]}),
+        );
+    }
+
+    #[tokio::test]
+    async fn window_handles_are_the_target_ids_of_the_tabs() {
+        let (sb, mock) = case().await;
+        two_tabs(&mock);
+
+        assert_eq!(sb.get_all_window_handles().await.unwrap(), ["T1", "T2"]);
+        assert_eq!(sb.get_current_window_handle().await.unwrap(), "T1");
+    }
+
+    #[tokio::test]
+    async fn switching_to_a_window_makes_its_tab_the_one_the_case_drives() {
+        let (sb, mock) = case().await;
+        two_tabs(&mock);
+
+        sb.switch_to_window("T2").await.unwrap();
+
+        assert_eq!(sb.get_current_window_handle().await.unwrap(), "T2");
+        assert!(
+            !mock.calls_to("Page.bringToFront").is_empty(),
+            "the tab is brought to the front"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_new_tab_is_created_by_the_browser_and_switched_to() {
+        let (mut sb, mock) = case().await;
+        two_tabs(&mock);
+
+        sb.open_new_tab().await.unwrap();
+
+        let created = mock.calls_to("Target.createTarget");
+        assert_eq!(created.len(), 1);
+        assert_eq!(created[0].params["newWindow"], json!(false));
+        assert_eq!(sb.get_current_window_handle().await.unwrap(), "T2");
+    }
+
+    #[tokio::test]
+    async fn a_new_tab_that_is_not_switched_to_leaves_the_case_where_it_was() {
+        let (mut sb, mock) = case().await;
+        two_tabs(&mock);
+
+        sb.open_new_tab().switch_to(false).await.unwrap();
+
+        assert_eq!(mock.calls_to("Target.createTarget").len(), 1);
+        assert_eq!(sb.get_current_window_handle().await.unwrap(), "T1");
+    }
+
+    #[tokio::test]
+    async fn the_window_is_measured_and_resized_through_the_browser() {
+        let (sb, mock) = case().await;
+        mock.reply(
+            "Browser.getWindowForTarget",
+            json!({ "windowId": 7, "bounds": {
+                "left": 10, "top": 20, "width": 800, "height": 600, "windowState": "normal",
+            }}),
+        );
+
+        assert_eq!(sb.get_window_rect().await.unwrap(), (10, 20, 800, 600));
+        assert_eq!(sb.get_window_position().await.unwrap(), (10, 20));
+        sb.set_window_size(1024, 768).await.unwrap();
+        sb.maximize().await.unwrap();
+
+        let set = mock.calls_to("Browser.setWindowBounds");
+        let bounds: Vec<_> = set.iter().map(|call| call.params["bounds"].clone()).collect();
+        assert!(set.iter().all(|call| call.params["windowId"] == json!(7)));
+        assert!(
+            bounds.contains(&json!({ "left": 0, "top": 0, "width": 1024, "height": 768 })),
+            "{bounds:?}"
+        );
+        assert!(
+            bounds.contains(&json!({ "windowState": "maximized" })),
+            "{bounds:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn closing_the_window_closes_its_tab() {
+        let (mut sb, mock) = case().await;
+
+        sb.close_window().await.unwrap();
+
+        assert_eq!(mock.calls_to("Target.closeTarget").len(), 1);
+    }
+
+
     /// The expression of the last `Runtime.evaluate` that searched with a chain.
     fn last_chain(mock: &MockCtrl) -> String {
         mock.calls_to("Runtime.evaluate")

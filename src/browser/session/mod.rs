@@ -31,6 +31,8 @@ mod waits;
 
 #[cfg(feature = "plugins")]
 pub(crate) use emulation::blocked_patterns;
+use pure_cdp::PageSlot;
+
 pub(crate) use launch::server_url_for_joins;
 pub(crate) use waits::shown_text;
 
@@ -53,7 +55,7 @@ pub struct BrowserSession {
     driver: Option<WebDriver>,
     cdp: Option<CdpClient>,
     /// A tab of an external Chromium app, reached without WebDriver.
-    external_page: Option<crate::sb_cdp::Page>,
+    external_page: PageSlot,
     /// The frames a direct CDP attachment has entered, outermost first, each the
     /// locator of its `<iframe>` or `<frame>`: WebDriver keeps the current frame
     /// in the browser, the DevTools engine in the session. Empty at the top
@@ -159,7 +161,7 @@ impl BrowserSession {
         Self {
             driver: None,
             cdp: None,
-            external_page: None,
+            external_page: PageSlot::default(),
             frames: Mutex::new(Vec::new()),
 
             driver_process: None,

@@ -478,20 +478,19 @@ impl BaseCase {
 
     /// Returns the current browser window position as `(x, y)`.
     pub async fn get_window_position(&self) -> Result<(i64, i64), SeleniumBaseError> {
-        let rect = self.session.webdriver()?.get_window_rect().await?;
-        Ok((rect.x, rect.y))
+        let (x, y, _, _) = self.session.window_rect().await?;
+        Ok((x, y))
     }
 
     /// Moves the browser window to `(x, y)`.
     pub async fn set_window_position(&self, x: u32, y: u32) -> Result<(), SeleniumBaseError> {
-        let rect = self.session.webdriver()?.get_window_rect().await?;
+        let (_, _, width, height) = self.session.window_rect().await?;
         self.session
-            .webdriver()?
             .set_window_rect(
                 x.into(),
                 y.into(),
-                rect.width.try_into().unwrap_or(0),
-                rect.height.try_into().unwrap_or(0),
+                width.try_into().unwrap_or(0),
+                height.try_into().unwrap_or(0),
             )
             .await?;
         self.demo_pause(PauseKind::Short).await;
@@ -500,8 +499,7 @@ impl BaseCase {
 
     /// Closes the current browser window or tab.
     pub async fn close_window(&mut self) -> Result<(), SeleniumBaseError> {
-        self.session.webdriver()?.close_window().await?;
-        Ok(())
+        self.session.close_window().await
     }
 
     /// Switches the context to the parent frame.
@@ -773,6 +771,15 @@ impl BaseCase {
         &mut self,
         switch_to: bool,
     ) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = self.session.pure_cdp_page() {
+            // A page script cannot open a tab without a click behind it; the browser can.
+            let tab = page.browser().new_page().await?;
+            return if switch_to {
+                self.session.switch_to_tab(tab).await
+            } else {
+                Ok(())
+            };
+        }
         self.execute_script("window.open('');").await?;
         if !switch_to {
             return Ok(());
@@ -808,6 +815,13 @@ impl BaseCase {
 
     /// Executes the `switch_to_default_window` action.
     pub async fn switch_to_default_window(&mut self) -> Result<(), SeleniumBaseError> {
+        if self.session.pure_cdp_page().is_some() {
+            let handles = self.session.window_handles().await?;
+            if let Some(first) = handles.first() {
+                self.session.switch_to_window(first).await?;
+            }
+            return Ok(());
+        }
         let handles = self.session.webdriver()?.windows().await?;
         if let Some(first) = handles.first() {
             self.session
@@ -820,6 +834,13 @@ impl BaseCase {
 
     /// Executes the `switch_to_newest_window` action.
     pub async fn switch_to_newest_window(&mut self) -> Result<(), SeleniumBaseError> {
+        if self.session.pure_cdp_page().is_some() {
+            let handles = self.session.window_handles().await?;
+            if let Some(last) = handles.last() {
+                self.session.switch_to_window(last).await?;
+            }
+            return Ok(());
+        }
         let handles = self.session.webdriver()?.windows().await?;
         if let Some(last) = handles.last() {
             self.session
@@ -2738,7 +2759,7 @@ impl BaseCase {
 
     /// Minimize the browser window.
     pub async fn minimize_window(&self) -> Result<(), SeleniumBaseError> {
-        self.session.webdriver()?.minimize_window().await?;
+        self.session.minimize_window().await?;
         self.demo_pause(PauseKind::Short).await;
         Ok(())
     }
@@ -2751,10 +2772,7 @@ impl BaseCase {
         width: u32,
         height: u32,
     ) -> Result<(), SeleniumBaseError> {
-        self.session
-            .webdriver()?
-            .set_window_rect(x, y, width, height)
-            .await?;
+        self.session.set_window_rect(x, y, width, height).await?;
         self.demo_pause(PauseKind::Short).await;
         Ok(())
     }

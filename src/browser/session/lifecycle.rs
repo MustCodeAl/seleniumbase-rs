@@ -71,8 +71,8 @@ impl BrowserSession {
         if let Some(page) = self.external_page.take() {
             page.browser().close().await?;
         }
-        let mut fresh = Self::connect_cdp(config).await?;
-        self.external_page = fresh.external_page.take();
+        let fresh = Self::connect_cdp(config).await?;
+        self.external_page.set(fresh.external_page.take());
         self.leave_frames();
 
         Ok(())

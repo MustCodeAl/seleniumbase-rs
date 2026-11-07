@@ -20,7 +20,7 @@ use super::launch::{
     apply_window_rect, connect_driver, resolve_remote_debug, start_virtual_display,
     validate_mode_support,
 };
-use super::BrowserSession;
+use super::{BrowserSession, PageSlot};
 
 impl BrowserSession {
     /// Starts a browser for `config` and connects to it, or, with
@@ -69,7 +69,7 @@ impl BrowserSession {
         let mut session = Self {
             driver: Some(driver),
             cdp,
-            external_page: None,
+            external_page: PageSlot::default(),
             frames: Mutex::new(Vec::new()),
 
             driver_process,
@@ -113,7 +113,7 @@ impl BrowserSession {
         Ok(Self {
             driver: Some(driver),
             cdp,
-            external_page: None,
+            external_page: PageSlot::default(),
             frames: Mutex::new(Vec::new()),
 
             driver_process: None,
@@ -226,8 +226,8 @@ impl BrowserSession {
                 return Err(error);
             }
         };
-        let mut session = Self::disconnected();
-        session.external_page = Some(page);
+        let session = Self::disconnected();
+        session.external_page.set(Some(page));
         Ok(session)
     }
 }
