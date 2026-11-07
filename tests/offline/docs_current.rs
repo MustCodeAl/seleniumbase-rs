@@ -186,6 +186,9 @@ const GONE: &[(&str, &str)] = &[
     // re-exported (docs/design/element_type.md).
     ("drivers::Key", "seleniumbase_rs::Key"),
     ("DesiredCapabilities, Key", "seleniumbase_rs::Key"),
+    // A failed WebDriver command is `SeleniumBaseError::WebDriver(DriverError)`, read by its
+    // `DriverErrorKind`; thirtyfour's enum of cases is not re-exported (docs/design/driver_error.md).
+    ("WebDriverErrorInner", "DriverErrorKind"),
     (
         "use rstest::",
         "seleniumbase_rs::testing::{fixture, rstest}",
