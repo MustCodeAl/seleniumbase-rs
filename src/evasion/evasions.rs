@@ -561,7 +561,7 @@ fn build_user_agent_metadata(fp: &Fingerprint, ua: &str) -> Option<serde_json::V
         OsType::Windows => ("x86", "10.0.0", "", fp.platform().as_str() == Some("Win64")),
         OsType::Macos => ("arm", "27.0.1", "", false),
         OsType::Linux => ("x86", "", "", false),
-        OsType::Android => ("arm", "14.0.0", "Pixel 7", true),
+        OsType::Android => ("", "14.0.0", "Pixel 7", true),
         OsType::Ios => ("arm", "26.0", "iPhone", true),
     };
     let (brands, full_version_list, full_version) = if ua.contains("Chrome") {
