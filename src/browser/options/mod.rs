@@ -83,7 +83,7 @@ pub use window::{WindowPosition, WindowSize};
 ///
 /// Both engines read it, so it belongs to the [`BrowserSettings`] they share.
 #[derive(Clone, Default, Deserialize, PartialEq, Serialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct ProxySettings {
     /// The proxy server, written `[scheme://][user:password@]host:port` (`--proxy`,
     /// `SB_PROXY`).
@@ -112,7 +112,7 @@ impl std::fmt::Debug for ProxySettings {
 
 /// The Chromium command-line settings that have no switch of their own.
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct ChromiumSettings {
     /// Extra command-line arguments (`--chromium-arg`, `SB_CHROMIUM_ARG`), each written with
     /// its leading `--`.
@@ -137,7 +137,7 @@ pub struct ChromiumSettings {
 /// start without these options: the default [`Browser`] and headed (Python's default). A
 /// default [`BrowserConfig`](crate::BrowserConfig) is headless.
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct BrowserSettings {
     /// Which browser to start (`--browser`, `SB_BROWSER`).
     pub kind: Browser,

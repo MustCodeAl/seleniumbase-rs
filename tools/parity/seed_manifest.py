@@ -318,7 +318,7 @@ OPTION_GROUPS = [
     ),
     (
         ("settings_file", "settings"), "composed", "Settings::from_file",
-        "`sbase --config FILE` or Settings::load_from(path) read a TOML or JSON file; the keys are the flat keys `sbrs options` lists and the tables [run], [test], [report], [plugins] and [fingerprint].",
+        "`sbase --config FILE` or Settings::load_from(path) read a TOML or JSON file; the keys are the flat keys `sbrs options` lists, the tables [run], [test], [report], [plugins] and [fingerprint], and the nested tables [browser] and [session] that Settings serializes to.",
     ),
     (
         ("with_screen_shots",), "composed", "ScreenshotOnFailurePlugin::new",
