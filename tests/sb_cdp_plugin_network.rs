@@ -639,7 +639,7 @@ async fn the_headers_of_a_program_rule_win_over_those_of_the_plugins() {
     let (_browser, page, mock) = launch(plugins).await;
     let _interception = page
         .intercept(vec![Rule::modify()
-            .with_header("X-Both", "u")
+            .set_header("X-Both", "u")
             .remove_header("X-Gone")])
         .await
         .unwrap();

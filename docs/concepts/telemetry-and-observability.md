@@ -171,7 +171,7 @@ See [the network](/concepts/network) for requests and responses and
   [block-resources](/plugins/block-resources).
 - **Rules on one page.** `Page::intercept` takes `Rule` values, so
   `Rule::block().url("*://www.google-analytics.com/*")` drops a tracker's requests
-  and `Rule::modify().with_header("X-Test-Run", "42")` marks the rest. The returned
+  and `Rule::modify().set_header("X-Test-Run", "42")` marks the rest. The returned
   `Interception` keeps a log of the requests it saw.
 - **Recording.** `Page::start_har` returns a `HarRecorder` that records the page's
   traffic as a HAR 1.2 file, to see exactly which third parties a page calls.

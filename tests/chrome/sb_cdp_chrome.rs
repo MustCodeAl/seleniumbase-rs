@@ -818,7 +818,7 @@ async fn interception_blocks_mocks_and_rewrites_real_requests_and_stops_cleanly(
         .intercept(vec![
             Rule::block().url("*/logo.png"),
             Rule::fulfill(Response::json(200, &json!({ "mocked": true }))).url("*/api/data"),
-            Rule::modify().with_header("X-Probe", "yes").url("*/echo"),
+            Rule::modify().set_header("X-Probe", "yes").url("*/echo"),
         ])
         .await
         .unwrap();

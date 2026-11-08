@@ -500,7 +500,7 @@ let interception = page
         Rule::fulfill(Response::json(200, &json!({ "items": [] })))
             .url("*/api/items*"),
         // Modify: add a header to every API request that does go out.
-        Rule::modify().url("*/api/*").with_header("X-Test", "1"),
+        Rule::modify().url("*/api/*").set_header("X-Test", "1"),
     ])
     .await?;
 
@@ -515,7 +515,7 @@ interception.stop().await?; // stops intercepting and resumes normal traffic
 
 A `Response` is built with `Response::new(status, body)`, `Response::json`,
 `Response::html`, and `.header(name, value)`. A modifying rule can also use
-`remove_header`, `redirect_to`, `change_method` and `with_body`. Every
+`remove_header`, `redirect_to`, `change_method` and `replace_body`. Every
 `Seen` pairs the `Request` (its `url`, `method`, `resource_type` and `headers`)
 with the `Outcome`.
 

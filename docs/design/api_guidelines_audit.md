@@ -615,7 +615,7 @@ literal_string_with_formatting_args = "allow"
   step named like a setter, and `replace_body(self, ..) -> Self` (`:277`) returns `Self`, not the
   old value. There is no public `take_*` and no public `*_mut` getter (0 hits); the `case_mut()` of
   F6 is the first one to be added, in the guide's form. Rename the two builder steps `with_header`
-  and `with_body` (F15, lane 15). **Done (2026-11-08):** the two builder steps are `with_header` and `with_body`.
+  and `with_body` (F15, lane 15).
 * Google also says to avoid `.clone()` "as a substitute for borrowing": `get_browser` clones the
   whole `BrowserConfig` (above) where a `&BrowserConfig` would do.
 * Breaking: yes for the other 26 and for the renames; yes for `BaseCase` too (D2 reversed).

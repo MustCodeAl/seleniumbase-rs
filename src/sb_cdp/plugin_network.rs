@@ -26,7 +26,7 @@
 //!    fails the request too: nothing stays paused.
 //! 3. Otherwise the request goes on with the headers the plugins' rules add
 //!    ([`PluginSet::extra_headers`]) under the headers of a program rule that
-//!    changes them (the program's `with_header` and `remove_header` win).
+//!    changes them (the program's `set_header` and `remove_header` win).
 //!
 //! At the response stage, which Chrome pauses only for the URLs an `observe`
 //! filter names, [`PluginSet::on_response`] sees the status, the type and, up

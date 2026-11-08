@@ -28,11 +28,11 @@ A `Rule` with no condition matches every request. Conditions combine with "and".
 | `url(glob)` | Only URLs that match `glob`. |
 | `method(method)` | Only this HTTP method. |
 | `resource_type(kind)` | Only this `ResourceType`. Call it again to allow another. |
-| `with_header(name, value)` | Sets a request header. For a `modify` rule. |
+| `set_header(name, value)` | Sets a request header. For a `modify` rule. |
 | `remove_header(name)` | Removes a request header. |
 | `redirect_to(url)` | Sends the request to another URL. |
 | `change_method(method)` | Changes the HTTP method. |
-| `with_body(body)` | Replaces the request body. |
+| `replace_body(body)` | Replaces the request body. |
 | `matches(request)` | Whether this rule matches `request`. |
 
 | On `Response` | Description |
