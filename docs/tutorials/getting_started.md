@@ -23,7 +23,7 @@ browser, interacts with a page, asserts on the result, and cleans up.
 
 <Visibility for="agents">
 
-Summary for AI exports: add `seleniumbase-rs` to `Cargo.toml` (it re-exports the Tokio runtime as `seleniumbase_rs::tokio`), build a `BrowserConfig`, create `BaseCase::new(config).await?`, call `open`, `click`, `type_text` and the `assert_*` methods, then `quit`. Rust 1.99 or newer and a Chromium-based browser are required. Import from `seleniumbase_rs`, not from the crates it is built on. Tokio: `use seleniumbase_rs::tokio;` before `#[tokio::main]` or `#[tokio::test]`. rstest (feature `testing`): `use seleniumbase_rs::testing::{fixture, rstest};`. Gherkin (feature `bdd`): `use seleniumbase_rs::testing::bdd::{given, scenario, scenarios, skip, then, when};` plus `use seleniumbase_rs::testing::rstest;`, and `rstest-bdd = "0.6"` in the manifest (never named in code). Elements: `BaseCase::find_element` returns `seleniumbase_rs::Element`; the raw WebDriver types of the escape hatches: `use seleniumbase_rs::drivers::{WebDriver, WebElement};` (`WebElement` for `Element::as_webdriver_element`); extra capabilities: `CapabilityOverrides::from_text` with `BrowserConfig::with_capabilities`. There is one `Key`, `use seleniumbase_rs::Key;`, which `Element::press` and `Locator::press` take; `drivers` has no `Key`. Cookies, from either engine: `use seleniumbase_rs::{Cookie, SameSite};`. JSON: `use seleniumbase_rs::json::{json, Value};`. Test plugins: `use seleniumbase_rs::plugins::observer::async_trait;`. Plugin crates, your own `serde` derives and your own `tracing` spans still need those crates.
+Summary for AI exports: add `seleniumbase-rs` to `Cargo.toml` (it re-exports the Tokio runtime as `seleniumbase_rs::tokio`), build a `BrowserConfig`, create `BaseCase::new(config).await?`, call `open`, `click`, `type_text` and the `assert_*` methods, then `quit`. Rust 1.99 or newer and a Chromium-based browser are required. Import from `seleniumbase_rs`, not from the crates it is built on. Tokio: `use seleniumbase_rs::tokio;` before `#[tokio::main]` or `#[tokio::test]`. rstest (feature `testing`): `use seleniumbase_rs::testing::{fixture, rstest};`. Gherkin (feature `bdd`): `use seleniumbase_rs::testing::bdd::{given, scenario, scenarios, skip, then, when};` plus `use seleniumbase_rs::testing::rstest;`, and `rstest-bdd = "0.6"` in the manifest (never named in code). Elements: `BaseCase::find_element` returns `seleniumbase_rs::Element`; the raw WebDriver types of the escape hatches: `use seleniumbase_rs::drivers::{WebDriver, WebDriverError, WebElement};` (`WebElement` for `Element::as_webdriver_element`, `WebDriver` for `BrowserSession::webdriver`, `WebDriverError` for the calls made on them); extra capabilities: `CapabilityOverrides::from_text` with `BrowserConfig::with_capabilities`. There is one `Key`, `use seleniumbase_rs::Key;`, which `Element::press` and `Locator::press` take; `drivers` has no `Key`. Cookies, from either engine: `use seleniumbase_rs::{Cookie, SameSite};`. JSON: `use seleniumbase_rs::json::{json, Value};`. Test plugins: `use seleniumbase_rs::plugins::observer::async_trait;`. Plugin crates, your own `serde` derives and your own `tracing` spans still need those crates.
 
 </Visibility>
 
@@ -370,7 +370,7 @@ needs no second crate.
 | The `sb` and `sb_cdp` fixtures | `use seleniumbase_rs::testing::{sb, Sb, sb_cdp, SbCdp};` | nothing else |
 | Gherkin steps and scenarios (feature `bdd`) | `use seleniumbase_rs::testing::bdd::{given, when, then, scenario, scenarios, skip};` and `use seleniumbase_rs::testing::rstest;` | `rstest-bdd-macros = "0.6"`, `rstest = "0.26"` |
 | An element on the WebDriver engine | `use seleniumbase_rs::Element;` (a selector is a plain string; `Key` and `SelectBy` are at the crate root too) | `thirtyfour` |
-| The raw `thirtyfour` element behind an `Element` | `use seleniumbase_rs::drivers::WebElement;` | `thirtyfour` |
+| The raw `thirtyfour` element behind an `Element`, or the driver behind a session | `use seleniumbase_rs::drivers::{WebDriver, WebElement};` (and `WebDriverError` for the calls made on them) | `thirtyfour` |
 | A browser cookie, from either engine | `use seleniumbase_rs::{Cookie, SameSite};` | `thirtyfour` |
 | Why the driver failed a command (no such alert, window or frame; a script that threw) | `use seleniumbase_rs::{DriverErrorKind, SeleniumBaseError};` and `SeleniumBaseError::WebDriver(error)` with `error.kind()` | `thirtyfour` |
 | A named key for `Element::press` or `Locator::press` | `use seleniumbase_rs::Key;` (one `Key` for both engines; `drivers` has none) | `thirtyfour` |
@@ -379,12 +379,16 @@ needs no second crate.
 | A JSON value or the `json!` macro | `use seleniumbase_rs::json::{json, Value};` | `serde_json = "1"` |
 | `#[async_trait]` for a `TestPlugin` or `PageEvidence` | `use seleniumbase_rs::plugins::observer::async_trait;` | `async-trait = "0.1"` |
 
-`seleniumbase_rs::drivers` lists the `thirtyfour` types that appear in this
-crate's signatures. [`BaseCase::find_element`](/api/traits) returns a
-`seleniumbase_rs::Element`, whose methods take the same selector strings as
-`BaseCase`: `row.find(".remove")`. `Element::as_webdriver_element()` gives
-the `drivers::WebElement` behind it, for a `thirtyfour` call the element has no
-method for.
+`seleniumbase_rs::drivers` holds the three raw `thirtyfour` types of the escape
+hatches and nothing else: `WebElement`, `WebDriver` and `WebDriverError`.
+[`BaseCase::find_element`](/api/traits) returns a `seleniumbase_rs::Element`,
+whose methods take the same selector strings as `BaseCase`: `row.find(".remove")`.
+`Element::as_webdriver_element()` gives the `drivers::WebElement` behind it, and
+`BrowserSession::webdriver()` gives the `drivers::WebDriver` behind a session (an
+error, not a panic, for a session that has none), for a `thirtyfour` call the
+element or the session has no method for; the calls on them fail with a
+`drivers::WebDriverError`, which `?` turns into a `SeleniumBaseError`. A program
+that needs more of `thirtyfour` than those three lists the crate itself.
 
 #### Why a macro needs an import you never name
 
