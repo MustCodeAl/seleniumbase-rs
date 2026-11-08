@@ -670,6 +670,7 @@ Launch and session plumbing:
 <LayoutFile name="chromium_snapshots.rs" note="Chromium snapshot builds" />
 <LayoutFile name="config.rs" note="BrowserConfig, Browser and DriverMode" />
 <LayoutFile name="download_progress.rs" note="progress bars for downloads, quiet when not on a terminal" />
+<LayoutFile name="devtools.rs" note="the WebDriver engine's DevTools client (CdpClient)" />
 <LayoutFile name="downloader.rs" note="downloading a browser or a driver" />
 <LayoutFile name="downloads.rs" note="the downloaded_files folder browsers save into" />
 <LayoutFile name="driver_access.rs" note="repairs and runs drivers" />
@@ -687,6 +688,7 @@ Launch and session plumbing:
 <LayoutFile name="extensions.rs" note="extensions to load" />
 <LayoutFile name="firefox.rs" note="Firefox arguments and preferences" />
 <LayoutFile name="locale.rs" note="the locale" />
+<LayoutFile name="network.rs" note="NetworkThrottle, how the network is slowed down or cut off" />
 <LayoutFile name="mod.rs" note="the options module" />
 <LayoutFile name="page_load.rs" note="how long a navigation waits" />
 <LayoutFile name="plugins.rs" note="plugins turned on for the browser" />

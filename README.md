@@ -312,7 +312,7 @@ See [CLI Usage](./docs/tutorials/cli_usage.md) for every command and option.
 | PDF parsing | `cargo run --example pdf_example` |
 | Cookies & storage | `cargo run --example cookies_storage` |
 | JS execution | `cargo run --example js_execution` |
-| Network conditions | `cargo run --example network_conditions` |
+| Network throttle | `cargo run --example network_throttle` |
 | GUI automation | `cargo run --example gui_automation --features gui` |
 | Native dialogs | `cargo run --example dialog --features gui` |
 | HTML inspector | `cargo run --example html_inspector` |

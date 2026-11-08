@@ -36,6 +36,7 @@ pub(crate) use waits::shown_text;
 use serde_json::Value;
 use thirtyfour::prelude::WebDriver;
 
+use crate::browser::devtools::CdpClient;
 use crate::browser::launcher::DriverProcess;
 #[cfg(feature = "plugins")]
 use crate::browser::plugin_hooks::SessionPlugins;
@@ -43,7 +44,6 @@ use crate::browser::proxy_auth::ProxyAuthSidecar;
 use crate::browser::reuse::Lease;
 use crate::browser::virtual_display::XvfbProcess;
 use crate::error::SeleniumBaseError;
-use crate::evasion::cdp::CdpClient;
 
 /// Owns a WebDriver session, optional CDP client, and optional auto-started driver process.
 pub struct BrowserSession {

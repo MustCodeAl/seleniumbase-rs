@@ -13,7 +13,7 @@ fn cookie_header<'a>(cookies: impl IntoIterator<Item = (&'a str, &'a str)>) -> S
 impl BaseCase {
     /// Deletes all cookies for the current domain.
     pub async fn clear_all_cookies(&self) -> Result<(), SeleniumBaseError> {
-        self.session.webdriver()?.delete_all_cookies().await.map_err(SeleniumBaseError::WebDriver)
+        self.session.webdriver()?.delete_all_cookies().await.map_err(SeleniumBaseError::from)
     }
 
     /// Clears all local storage.

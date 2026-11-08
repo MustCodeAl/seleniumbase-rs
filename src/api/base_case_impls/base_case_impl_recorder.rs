@@ -111,11 +111,7 @@ impl BaseCase {
             return Ok(());
         }
         self.session
-            .devtools()?
-            .execute_with_params(
-                "Page.addScriptToEvaluateOnNewDocument",
-                serde_json::json!({ "source": crate::api::recorder::recorder_injection() }),
-            )
+            .devtools()?.execute("Page.addScriptToEvaluateOnNewDocument", serde_json::json!({ "source": crate::api::recorder::recorder_injection() }))
             .await?;
         Ok(())
     }

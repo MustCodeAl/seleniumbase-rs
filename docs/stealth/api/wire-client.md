@@ -13,12 +13,12 @@ See [Wire formats](/stealth/advanced/wire-formats) and [Limits](/scraping/advanc
 <RequestExample>
 
 ```rust The measured Chrome on this operating system
-use seleniumbase_rs_stealth::codec::BrowserKind;
+use seleniumbase_rs::browser::config::Browser;
 use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
 use seleniumbase_rs_stealth::wire::{WireFormatError, WireFormat};
 
 fn profile() -> Result<WireFormat, WireFormatError> {
-    WireFormat::for_system(BrowserKind::Chrome, OsType::Macos)
+    WireFormat::for_system(Browser::Chrome, OsType::Macos)
 }
 ```
 
@@ -87,24 +87,21 @@ A measured browser as data: what to send on the wire and in the headers to look 
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
-pub fn measured(kind: BrowserKind) -> Result<Self, WireFormatError>
-pub fn for_system(kind: BrowserKind, os: OsType) -> Result<Self, WireFormatError>
+pub fn measured(kind: Browser) -> Result<Self, WireFormatError>
+pub fn for_system(kind: Browser, os: OsType) -> Result<Self, WireFormatError>
 pub fn from_measured(entry: &Measured) -> Result<Self, WireFormatError>
 pub fn random(seed: u64) -> Result<Self, WireFormatError>
 pub fn from_fingerprint(fingerprint: &Fingerprint) -> Result<Self, WireFormatError>
-pub fn with_locale(mut self, locale: &Locale) -> Self
-pub fn custom() -> WireFormatBuilder
+pub fn builder() -> WireFormatBuilder
 pub fn validate(&self) -> Result<(), WireFormatError>
 pub fn source(&self) -> &str
-pub fn kind(&self) -> BrowserKind
+pub fn kind(&self) -> Browser
 pub fn os(&self) -> OsType
 pub fn major(&self) -> u32
-pub fn user_agent(&self) -> &str
-pub fn accept_language(&self) -> Option<&str>
 pub fn tls_spec(&self) -> &TlsSpec
-pub fn http2_spec(&self) -> &H2Spec
+pub fn h2_spec(&self) -> &H2Spec
 pub fn header_spec(&self) -> &HeaderSpec
-pub fn identity(&self) -> &ClientHeaders
+pub fn client_headers(&self) -> &ClientHeaders
 pub fn known_gaps(&self) -> &[KnownGap]
 pub fn dropped_settings(&self) -> &[(u16, u32)]
 pub fn headers_for(
@@ -120,6 +117,7 @@ pub fn apply(
         cookie: Option<&str>,
         wire: WireProtocol,
     ) -> Result<RequestBuilder, WireFormatError>
+pub fn client_builder(&self) -> Result<wreq::ClientBuilder, WireFormatError>
 ```
 
 
@@ -127,24 +125,22 @@ pub fn apply(
 - `for_system`: The newest measured entry of a browser on one operating system.
 - `from_measured`: A profile from one measured entry.
 - `random`: A profile for a seeded random identity on a measured system.
-- `from_fingerprint`: A profile for the identity of a fingerprint, riding the measured TLS and HTTP/2 of its operating system.
-- `with_locale`: The same profile with the `Accept-Language` of a locale.
-- `custom`: A builder that layers custom inputs over a measured base.
+- `from_fingerprint`: A profile for the identity of a fingerprint (`ClientHeaders::from_fingerprint`: its user agent, languages and client hints, the hints computed from its Chrome major unless it sets its own), riding the measured TLS and HTTP/2 of its operating system. To change the language, localize the fingerprint first (`LocaleExt::localize`).
+- `builder`: A builder that layers custom inputs over a measured base.
 - `validate`: Checks that the specs can be sent and the headers are valid.
 - `source`: Where the profile comes from, such as `chrome-155-macos`.
 - `kind`: The browser.
 - `os`: The operating system the browser was measured on.
 - `major`: The major version that was measured.
-- `user_agent`: The `User-Agent` a request carries.
-- `accept_language`: The `Accept-Language` a request carries, when it has one.
 - `tls_spec`: The TLS spec the client sends.
-- `http2_spec`: The HTTP/2 spec the client sends.
+- `h2_spec`: The HTTP/2 spec the client sends.
 - `header_spec`: The header lists.
-- `identity`: The values of the identity placeholders (a cookie is never part of it).
+- `client_headers`: The values of the identity placeholders: the `User-Agent` (`.user_agent`), the `Accept-Language` (`.accept_language`) and the client hints a request carries (a cookie is never part of it).
 - `known_gaps`: What the measured hello has and `BoringSSL` cannot send: the difference between this client's hello and the browser's, which the wire test asserts and nothing else.
 - `dropped_settings`: The SETTINGS of the measured HTTP/2 start that wreq cannot send and the profile dropped.
 - `headers_for`: The headers of one request, in wire order, with the placeholders filled.
 - `apply`: Sets the headers of one request on a wreq request: the rendered list in its order and spelling, in place of the client's default headers.
+- `client_builder`: Starts a wreq client with the TLS, HTTP/2 and default headers of this profile.
 
 ## `client::custom`
 
@@ -164,8 +160,8 @@ Builds an [`WireFormat`] from a measured base and caller-supplied inputs.
 
 ```rust
 pub fn new() -> Self
-pub fn base(mut self, kind: BrowserKind) -> Self
-pub fn base_on(mut self, kind: BrowserKind, os: OsType) -> Self
+pub fn base(mut self, kind: Browser) -> Self
+pub fn base_on(mut self, kind: Browser, os: OsType) -> Self
 pub fn ja3(self, ja3: &str) -> Result<Self, WireFormatError>
 pub fn ja4_r(self, ja4_r: &str) -> Result<Self, WireFormatError>
 pub fn ja4_ro(self, ja4_ro: &str) -> Result<Self, WireFormatError>
@@ -174,9 +170,8 @@ pub fn signature_algorithms(self, ids: &[u16]) -> Result<Self, WireFormatError>
 pub fn grease(self, enabled: bool) -> Result<Self, WireFormatError>
 pub fn permute_extensions(self, enabled: bool) -> Result<Self, WireFormatError>
 pub fn akamai(mut self, akamai: &str) -> Result<Self, WireFormatError>
-pub fn user_agent(mut self, user_agent: impl Into<String>) -> Self
-pub fn accept_language(mut self, accept_language: impl Into<String>) -> Self
-pub fn client_hints(mut self, hints: ClientHints) -> Self
+pub fn fingerprint(mut self, fingerprint: &Fingerprint) -> Result<Self, WireFormatError>
+pub fn client_headers(mut self, headers: ClientHeaders) -> Self
 pub fn header(
         mut self,
         shape: RequestShape,
@@ -205,29 +200,14 @@ pub fn build(mut self) -> Result<WireFormat, WireFormatError>
 - `grease`: Turns GREASE (RFC 8701) on or off in the hello: the extra cipher, group, version and signature algorithm values and the first and last extension that fingerprints strip.
 - `permute_extensions`: Lets `BoringSSL` shuffle the extensions on every connection, as Chrome does, or pins their order. A JA3, `JA4_ro` or similar input pins the order; its JA3 is then exact.
 - `akamai`: Replaces the HTTP/2 SETTINGS, connection window, PRIORITY frames and pseudo-header order with an Akamai fingerprint. The HEADERS priority fields stay the base's.
-- `user_agent`: Sets the `User-Agent`.
-- `accept_language`: Sets the `Accept-Language`.
-- `client_hints`: Sets the client hints (`Sec-CH-UA`, `Sec-CH-UA-Mobile`, `Sec-CH-UA-Platform`).
+- `fingerprint`: Takes the identity (the `User-Agent`, the `Accept-Language` and the client hints) of a core fingerprint, as `ClientHeaders::from_fingerprint` reads it. Fails with `WireFormatError::Fingerprint` for a fingerprint without a user agent.
+- `client_headers`: Takes the identity from `ClientHeaders` captured from a browser (`ClientHeaders::from_captured`) or written by hand, the other way to fill the client hints.
 - `header`: Sets a header of one request shape: replaced in place (keeping its position and spelling) when the list has it, appended when it does not.
 - `without_header`: Removes a header of one request shape.
 - `header_order`: Puts the named headers of one request shape first, in this order; the others follow in their old order. A name that is not in the list is refused by `build`.
 - `priority`: Sets the HTTP/2 `priority` header value for requests with this `Sec-Fetch-Dest`.
 - `headers`: Replaces both header lists and the priority table.
 - `build`: Applies the identity and header inputs, checks every spec, and returns the profile.
-
-## Functions
-
-### `WireFormat::client_builder`
-
-<Badge color="green" shape="pill">function</Badge>
-
-```rust
-pub fn WireFormat::client_builder(
-    profile: &WireFormat,
-) -> Result<wreq::ClientBuilder, WireFormatError>
-```
-
-Starts a wreq client with the TLS, HTTP/2 and default headers of a profile.
 
 ## Related
 

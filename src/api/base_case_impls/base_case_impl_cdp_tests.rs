@@ -112,3 +112,38 @@ mod tests_cdp_input {
         assert!(sent(&driver, "Input.dispatchKeyEvent").is_empty());
     }
 }
+
+mod tests_cdp_refusal {
+    use super::webdriver_support::{MockWebDriver, Reply};
+    use super::*;
+    use crate::browser::config::DriverMode;
+    use serde_json::json;
+
+    #[tokio::test]
+    async fn a_command_the_driver_refuses_is_a_cdp_driver_error_not_unsupported() {
+        // The pure CDP engine words a refused command as `CdpDriver` (exit code 4); a WebDriver
+        // session used to call the same refusal `Unsupported` (exit code 2, "the input was wrong").
+        let driver = MockWebDriver::start(json!({}), |request| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("POST", "/goog/cdp/execute") if request.body["cmd"] == "Bogus.method" => {
+                    Reply::Error(500, "unknown error")
+                }
+                _ => Reply::Value(Value::Null),
+            }
+        });
+        let mut config = BrowserConfig::default()
+            .with_webdriver_url(driver.url().to_owned())
+            .with_mode(DriverMode::Cdp);
+        config.session.auto_start_driver = false;
+        let sb = BaseCase::new(config).await.expect("the mock accepts a session");
+
+        let error = sb
+            .execute_cdp_cmd("Bogus.method", json!({}))
+            .await
+            .unwrap_err();
+
+        assert!(matches!(error, SeleniumBaseError::CdpDriver(_)), "{error:?}");
+        assert!(error.to_string().contains("Bogus.method"), "{error}");
+        assert_eq!(error.exit_code(), 4);
+    }
+}
