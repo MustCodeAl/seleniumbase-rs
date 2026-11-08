@@ -490,10 +490,7 @@ async fn base_case_refuses_a_proxy_on_an_attached_app_before_it_connects() {
     let config = BrowserConfig::default()
         .with_cdp_url(&server.http)
         .with_proxy("alice:hunter2@proxy.example:3128");
-    let error = BaseCase::new(config)
-        .await
-        .err()
-        .expect("a proxy is refused");
+    let error = BaseCase::new(config).await.expect_err("a proxy is refused");
     assert!(
         matches!(error, SeleniumBaseError::InvalidConfig(_)),
         "{error:?}"
@@ -537,7 +534,7 @@ async fn base_case_refuses_a_user_agent_on_an_attached_app_before_it_connects() 
     let server = AttachServer::start(None).await;
     let mut config = BrowserConfig::default().with_cdp_url(&server.http);
     config.browser.user_agent = Some("Custom/1.0".to_owned());
-    let error = BaseCase::new(config).await.err().expect("refused");
+    let error = BaseCase::new(config).await.expect_err("refused");
     assert!(
         matches!(error, SeleniumBaseError::InvalidConfig(_)),
         "{error:?}"
