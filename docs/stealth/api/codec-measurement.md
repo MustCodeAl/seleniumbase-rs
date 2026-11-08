@@ -10,7 +10,7 @@ description: "The measured browser tables of seleniumbase-rs-codec: WireMeasurem
 imitates. Each one was measured from a real browser by a capture tool
 (`capture_tls`, `capture_hints`, `capture_h2`) and stored as JSON under
 `crates/codec/src/measured`. The files are embedded with `include_str!`, parsed
-once, and looked up by `BrowserKind` and `OsType`. Only what was measured
+once, and looked up by `Browser` and `OsType`. Only what was measured
 exists: an unmeasured pair is an error, never a nearby guess. Today the table
 holds `chrome-155-macos.json`. How the files are made and refreshed is in
 [Wire formats](/stealth/advanced/wire-formats#re-measuring-when-chrome-updates).
@@ -20,10 +20,10 @@ holds `chrome-155-macos.json`. How the files are made and refreshed is in
 ```rust Look up a measured browser
 use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
 use seleniumbase_rs_stealth::codec::measurement::{self, WireMeasurementError};
-use seleniumbase_rs_stealth::codec::BrowserKind;
+use seleniumbase_rs::browser::config::Browser;
 
 fn main() -> Result<(), WireMeasurementError> {
-    let chrome = measurement::get(BrowserKind::Chrome, OsType::Macos)?;
+    let chrome = measurement::get(Browser::Chrome, OsType::Macos)?;
     println!("{} {}", chrome.major, chrome.full_version);
     println!("{}", chrome.provenance.captured_on);
     println!("{:?}", chrome.provenance.known_gaps);
@@ -35,9 +35,9 @@ fn main() -> Result<(), WireMeasurementError> {
 ```rust An unmeasured system is refused
 use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
 use seleniumbase_rs_stealth::codec::measurement::{self, WireMeasurementError};
-use seleniumbase_rs_stealth::codec::BrowserKind;
+use seleniumbase_rs::browser::config::Browser;
 
-let windows = measurement::get(BrowserKind::Chrome, OsType::Windows);
+let windows = measurement::get(Browser::Chrome, OsType::Windows);
 assert!(matches!(windows, Err(WireMeasurementError::NotMeasured { .. })));
 ```
 
@@ -69,7 +69,7 @@ chrome-155-macos
 ```rust
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WireMeasurement {
-    pub kind: BrowserKind,
+    pub kind: Browser,
     pub major: u32,
     pub full_version: String,
     pub os: OsType,
@@ -87,7 +87,7 @@ One measured browser on one operating system: everything a client must send to
 look like it. `OsType` and `ClientHints` are the core's
 (`seleniumbase_rs_stealth::evasion::fingerprint`).
 
-<ResponseField name="kind" type="BrowserKind" required>
+<ResponseField name="kind" type="Browser" required>
 
 The browser.
 
@@ -262,8 +262,8 @@ re-exported here from [`tls_spec`](/stealth/api/codec-tls-spec#knowngap).
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 #[non_exhaustive]
 pub enum WireMeasurementError {
-    NotMeasured { kind: BrowserKind, os: OsType },
-    VersionNotMeasured { kind: BrowserKind, major: u32, os: OsType },
+    NotMeasured { kind: Browser, os: OsType },
+    VersionNotMeasured { kind: Browser, major: u32, os: OsType },
     Parse { name: String, reason: String },
     TooLarge { name: String },
     Inconsistent { name: String, reason: &'static str },
@@ -331,7 +331,7 @@ Two measured files describe the same browser, major version and system.
 <Badge color="yellow" shape="pill">fn</Badge>
 
 ```rust
-pub fn get(kind: BrowserKind, os: OsType) -> Result<&'static WireMeasurement, WireMeasurementError>
+pub fn get(kind: Browser, os: OsType) -> Result<&'static WireMeasurement, WireMeasurementError>
 ```
 
 The newest measured entry of a browser on an operating system.
@@ -348,7 +348,7 @@ The newest measured entry of a browser on an operating system.
 
 ```rust
 pub fn get_version(
-    kind: BrowserKind,
+    kind: Browser,
     os: OsType,
     major: u32,
 ) -> Result<&'static WireMeasurement, WireMeasurementError>
@@ -363,11 +363,11 @@ has captures but not at `major`.
 <Badge color="yellow" shape="pill">fn</Badge>
 
 ```rust
-pub fn for_kind(kind: BrowserKind) -> &'static WireMeasurement
+pub fn for_kind(kind: Browser) -> Option<&WireMeasurement>
 ```
 
-The newest measured entry of a browser, whatever the system. It panics if `kind`
-has no entry; the unit test `every_browser_kind_has_an_entry` rules that out.
+The newest measured entry of a browser, whatever the system. It is `None` if `kind`
+has no entry.
 
 ## `all`
 
@@ -396,8 +396,8 @@ Every measured entry, or the first error met while parsing the embedded files.
 <Badge color="yellow" shape="pill">fn</Badge>
 
 ```rust
-pub fn newest(entries: &[WireMeasurement], kind: BrowserKind) -> Option<&WireMeasurement>
-pub fn newest_on(entries: &[WireMeasurement], kind: BrowserKind, os: OsType) -> Option<&WireMeasurement>
+pub fn newest(entries: &[WireMeasurement], kind: Browser) -> Option<&WireMeasurement>
+pub fn newest_on(entries: &[WireMeasurement], kind: Browser, os: OsType) -> Option<&WireMeasurement>
 ```
 
 The entry with the highest major version of `kind` (on `os`) among `entries`; the
@@ -409,7 +409,7 @@ with `WireMeasurement::from_json`.
 <Badge color="yellow" shape="pill">fn</Badge>
 
 ```rust
-pub fn measured_systems(kind: BrowserKind) -> Vec<OsType>
+pub fn measured_systems(kind: Browser) -> Vec<OsType>
 ```
 
 The operating systems with a measured entry for `kind`, without repeats.

@@ -13,13 +13,13 @@ See [Identity and cookies](/scraping/advanced-stealthy/identity).
 <RequestExample>
 
 ```rust The wire measurement an identity claims
-use seleniumbase_rs_stealth::codec::BrowserKind;
+use seleniumbase_rs::browser::config::Browser;
 use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
 use seleniumbase_rs_stealth::scrape::WireMeasurementRef;
 
 fn chrome_on_macos(major: u32) -> WireMeasurementRef {
     WireMeasurementRef {
-        kind: BrowserKind::Chrome,
+        kind: Browser::Chrome,
         major,
         os: OsType::Macos,
     }
@@ -51,7 +51,7 @@ pub const DEFAULT_CLEARANCE_MARGIN_SECS: u64 = 120;
 
 ```rust
 pub struct WireMeasurementRef {
-    pub kind: BrowserKind,
+    pub kind: Browser,
     pub major: u32,
     pub os: OsType,
 }

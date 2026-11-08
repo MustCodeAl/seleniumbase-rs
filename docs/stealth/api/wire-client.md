@@ -13,12 +13,12 @@ See [Wire formats](/stealth/advanced/wire-formats) and [Limits](/scraping/advanc
 <RequestExample>
 
 ```rust The measured Chrome on this operating system
-use seleniumbase_rs_stealth::codec::BrowserKind;
+use seleniumbase_rs::browser::config::Browser;
 use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
 use seleniumbase_rs_stealth::wire::{WireFormatError, WireFormat};
 
 fn profile() -> Result<WireFormat, WireFormatError> {
-    WireFormat::for_system(BrowserKind::Chrome, OsType::Macos)
+    WireFormat::for_system(Browser::Chrome, OsType::Macos)
 }
 ```
 
@@ -87,15 +87,15 @@ A measured browser as data: what to send on the wire and in the headers to look 
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
-pub fn measured(kind: BrowserKind) -> Result<Self, WireFormatError>
-pub fn for_system(kind: BrowserKind, os: OsType) -> Result<Self, WireFormatError>
+pub fn measured(kind: Browser) -> Result<Self, WireFormatError>
+pub fn for_system(kind: Browser, os: OsType) -> Result<Self, WireFormatError>
 pub fn from_measured(entry: &Measured) -> Result<Self, WireFormatError>
 pub fn random(seed: u64) -> Result<Self, WireFormatError>
 pub fn from_fingerprint(fingerprint: &Fingerprint) -> Result<Self, WireFormatError>
 pub fn builder() -> WireFormatBuilder
 pub fn validate(&self) -> Result<(), WireFormatError>
 pub fn source(&self) -> &str
-pub fn kind(&self) -> BrowserKind
+pub fn kind(&self) -> Browser
 pub fn os(&self) -> OsType
 pub fn major(&self) -> u32
 pub fn tls_spec(&self) -> &TlsSpec
@@ -160,8 +160,8 @@ Builds an [`WireFormat`] from a measured base and caller-supplied inputs.
 
 ```rust
 pub fn new() -> Self
-pub fn base(mut self, kind: BrowserKind) -> Self
-pub fn base_on(mut self, kind: BrowserKind, os: OsType) -> Self
+pub fn base(mut self, kind: Browser) -> Self
+pub fn base_on(mut self, kind: Browser, os: OsType) -> Self
 pub fn ja3(self, ja3: &str) -> Result<Self, WireFormatError>
 pub fn ja4_r(self, ja4_r: &str) -> Result<Self, WireFormatError>
 pub fn ja4_ro(self, ja4_ro: &str) -> Result<Self, WireFormatError>

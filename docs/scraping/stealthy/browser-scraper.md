@@ -101,7 +101,7 @@ The country decides the language and the time zone the browser presents
 while it leaves through that proxy, from a built-in locale table (the
 `StaticGeoResolver`; no IP lookup service ships).
 
-`proxy_strategy` picks how the pool chooses: `RoundRobin` (the default),
+`proxy_rotation` takes core's `RotationStrategy` and picks how the pool chooses: `RoundRobin` (the default),
 `Random { seed }`, `LeastFailures` or `StickyPerSite`. An egress with three
 failures in a row is out of rotation for ten minutes by default.
 
@@ -189,8 +189,8 @@ it and call `build()?`.
 
 `BrowserScraper::builder()` returns a `BrowserScraperBuilder`. Every setting has
 a default, so `builder().build().await?` is a working scraper: Chrome, no proxy,
-state in memory, events on `tracing`, three attempts, a 30 second solve timeout
-(`DEFAULT_SOLVE_TIMEOUT`), and a profile drawn from a random seed. Unless
+state in memory, events on `tracing`, three attempts, a 30 second solve wait
+(the default policy's `DEFAULT_VERIFY_TIMEOUT`), and a profile drawn from a random seed. Unless
 `fingerprint` is set, `build` starts a headless Chrome once to learn the installed
 major and closes it before starting the browser it keeps.
 
@@ -198,9 +198,9 @@ major and closes it before starting the browser it keeps.
 |---|---|---|
 | `launch_options` | the platform's | A built `LaunchOptions`. A user agent set here wins over the fingerprint's. |
 | `geo_proxies` | none | `(spec, country)` pairs. A bad spec is `ScrapeError::Proxy` and never echoes the password. |
-| `proxy_strategy` | `RoundRobin` | Also `Random { seed }`, `LeastFailures`, `StickyPerSite`. |
+| `proxy_rotation` | `RoundRobin` | Also `Random { seed }`, `LeastFailures`, `StickyPerSite`. |
 | `max_challenge_attempts` | 3 | Zero is read as one. The default gives up before the profile ladder starts. |
-| `mitigation` | `MitigationPolicy::default()` | When to rotate and how long to cool down. The attempts above still win. |
+| `mitigation` | `MitigationPolicy::default()` | When to rotate, how long to cool down, and how long a solved challenge is waited for: pass a policy whose `solve` is `SolveOptions::new().verify_timeout(..)` (default 30 s). The attempts above still win. |
 | `ledger` | in memory | `JsonLedger::open(path)` for the file. |
 | `event_sink` | `TracingEventSink` | `CollectingEventSink` keeps the newest events. |
 | `geo_resolver` | `StaticGeoResolver` | The built-in locale table. No IP lookup ships. |
@@ -208,7 +208,6 @@ major and closes it before starting the browser it keeps.
 | `seed` | random | Same seed, same first profile. Each rotation derives the next seed. |
 | `fingerprint` | drawn from the seed | Skips the version probe. A rotation replaces it. |
 | `session_store` | empty | Where `save_session` writes, to share a login with a `BrowserPool`. |
-| `solve_timeout` | 30 s | How long a solved challenge is waited for. |
 | `clock` | the system clock | Seconds since the Unix epoch. Tests replace it. |
 
 `proxy_switch` and `launcher` replace the defaults: without a `proxy_switch` the

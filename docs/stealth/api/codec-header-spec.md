@@ -41,10 +41,10 @@ fn main() -> Result<(), seleniumbase_rs_stealth::codec::header_spec::HeaderSpecE
 ```rust The measured priority table
 use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
 use seleniumbase_rs_stealth::codec::measurement;
-use seleniumbase_rs_stealth::codec::BrowserKind;
+use seleniumbase_rs::browser::config::Browser;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let chrome = measurement::get(BrowserKind::Chrome, OsType::Macos)?;
+    let chrome = measurement::get(Browser::Chrome, OsType::Macos)?;
     println!("{:?}", chrome.headers.priority_for("document"));
     println!("{:?}", chrome.headers.priority_for("empty"));
     Ok(())

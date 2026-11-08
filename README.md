@@ -116,7 +116,7 @@ See [Install without a checkout](./docs/building.md#install-without-a-checkout)
 
 **The library:** add the crate from GitHub (it is not on crates.io). It carries no
 command-line code; `sbrs` is the separate package above. It is the only dependency
-the examples need: the Tokio runtime (`seleniumbase_rs::tokio`), the WebDriver types
+the examples need: the Tokio runtime (`seleniumbase_rs::tokio`), the raw WebDriver types of the escape hatches
 (`seleniumbase_rs::drivers`), JSON values (`seleniumbase_rs::json`) and the test
 attributes (`seleniumbase_rs::testing`) are re-exported, so a `use` line in this
 documentation names `seleniumbase_rs` and never another crate. The

@@ -3,7 +3,7 @@ title: "Design: the session escape hatch, and what drivers keeps"
 sidebarTitle: "What drivers keeps"
 ---
 
-Status: proposal (2026-11-05). The last of the lanes that
+Status: implemented on `lane/thirtyfour`, with every recommendation of the open questions accepted (2026-11-08). The last of the lanes that
 [the element note](/design/element_type) recommends in open question 9: after
 [the cookie note](/design/cookie_type), [the error note](/design/driver_error),
 [the network throttle note](/design/network_throttle),

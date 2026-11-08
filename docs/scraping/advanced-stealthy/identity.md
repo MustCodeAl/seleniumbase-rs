@@ -59,11 +59,11 @@ those cookies were earned through (`identity.proxy`).
 use seleniumbase_rs_stealth::scrape::passport::identity::{WireMeasurementRef, Identity};
 use seleniumbase_rs_stealth::scrape::runtime::identity_file;
 use seleniumbase_rs_stealth::evasion::fingerprint::{Fingerprint, OsType};
-use seleniumbase_rs_stealth::codec::BrowserKind;
+use seleniumbase_rs::browser::config::Browser;
 
 async fn demo(now: u64) -> Result<(), Box<dyn std::error::Error>> {
     let fingerprint = Fingerprint::randomized_with_major(OsType::Macos, 7, 155);
-    let measurement = WireMeasurementRef { kind: BrowserKind::Chrome, major: 155, os: OsType::Macos };
+    let measurement = WireMeasurementRef { kind: Browser::Chrome, major: 155, os: OsType::Macos };
     let identity = Identity::new(fingerprint, measurement, None, now)?;
 
     identity_file::save("identity.json", &identity).await?;
