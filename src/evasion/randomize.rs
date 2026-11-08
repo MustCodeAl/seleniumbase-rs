@@ -32,7 +32,7 @@ use super::settings::{MediaDevices, WebGl, WebRtcAddresses};
 const CHROMIUM_MAJORS: [u32; 8] = [155, 156, 156, 157, 157, 157, 157, 157];
 
 /// The current stable Chromium major (Chrome for Testing last-known-good,
-/// 2026-11-08). The next bump is this constant, [`CHROMIUM_MAJORS`] and a new
+/// 2026-11-08). The next bump is this constant, the private `CHROMIUM_MAJORS` table and a new
 /// row in [`KNOWN_FULL_VERSIONS`]; a test fails while the table is older.
 pub const CURRENT_STABLE_MAJOR: u32 = 157;
 
