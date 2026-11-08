@@ -24,12 +24,12 @@ use super::settings::{MediaDevices, WebGl, WebRtcAddresses};
 /// stable releases. Refresh with each Chromium release, together with
 /// [`KNOWN_FULL_VERSIONS`], which must hold a row for every major listed here.
 ///
-/// A repeated major weights the draw: on 2026-11-08 Chrome for Testing's Stable was 157.0.8103.38 (Beta 158 is never drawn), so 157 gets four draws in five and 156 one.
+/// A repeated major weights the draw: on 2026-11-08 Chrome for Testing's Stable was 157.0.8103.38 (Beta 158 is never drawn), so 157 gets five draws in eight, 156 two and the lagging 155 one, as real visitors spread over the last three releases.
 /// Earlier (2026-10-15) Google's Chrome version history
 /// (`versionhistory.googleapis.com`, stable channel, `mac` and `win64`) served
 /// 155 to everyone and 156.0.8078.35 to an early 0.5 %; 154 is the release
 /// before them.
-const CHROMIUM_MAJORS: [u32; 5] = [156, 157, 157, 157, 157];
+const CHROMIUM_MAJORS: [u32; 8] = [155, 156, 156, 157, 157, 157, 157, 157];
 
 /// The current stable Chromium major (Chrome for Testing last-known-good,
 /// 2026-11-08). The next bump is this constant, [`CHROMIUM_MAJORS`] and a new
