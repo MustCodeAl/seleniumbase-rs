@@ -186,6 +186,23 @@ const GONE: &[(&str, &str)] = &[
     // re-exported (docs/design/element_type.md).
     ("drivers::Key", "seleniumbase_rs::Key"),
     ("DesiredCapabilities, Key", "seleniumbase_rs::Key"),
+    // A failed WebDriver command is `SeleniumBaseError::WebDriver(DriverError)`, read by its
+    // `DriverErrorKind`; thirtyfour's enum of cases is not re-exported (docs/design/driver_error.md).
+    ("WebDriverErrorInner", "DriverErrorKind"),
+    // The network throttle is one type of ours, the same in both engines
+    // (docs/design/network_throttle.md); thirtyfour's chromedriver `NetworkConditions` and its
+    // `ConnectionType` are not re-exported.
+    ("set_network_conditions", "set_network_throttle"),
+    ("NetworkConditions", "NetworkThrottle"),
+    ("drivers::ConnectionType", "NetworkThrottle"),
+    // Launch capabilities go through our types: `CapabilityOverrides` with
+    // `BrowserConfig::with_capabilities`, and `StealthOptions::args()` for the arguments; thirtyfour's
+    // capability types are not re-exported (docs/design/capability_types.md).
+    ("drivers::DesiredCapabilities", "CapabilityOverrides"),
+    ("drivers::{DesiredCapabilities", "CapabilityOverrides"),
+    ("BrowserCapabilitiesHelper", "StealthOptions::args"),
+    ("ChromiumLikeCapabilities", "StealthOptions::args"),
+    ("opts.apply_to(", "opts.args()"),
     (
         "use rstest::",
         "seleniumbase_rs::testing::{fixture, rstest}",

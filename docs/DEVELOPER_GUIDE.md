@@ -687,6 +687,7 @@ Launch and session plumbing:
 <LayoutFile name="extensions.rs" note="extensions to load" />
 <LayoutFile name="firefox.rs" note="Firefox arguments and preferences" />
 <LayoutFile name="locale.rs" note="the locale" />
+<LayoutFile name="network.rs" note="NetworkThrottle, how the network is slowed down or cut off" />
 <LayoutFile name="mod.rs" note="the options module" />
 <LayoutFile name="page_load.rs" note="how long a navigation waits" />
 <LayoutFile name="plugins.rs" note="plugins turned on for the browser" />

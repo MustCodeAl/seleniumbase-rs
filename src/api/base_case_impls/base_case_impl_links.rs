@@ -33,7 +33,7 @@ impl BaseCase {
         self.record("click_link", Some(text), None);
         let element = self.session.webdriver()?.find(By::LinkText(text)).await?;
         let before = self.demo_page_before().await;
-        element.click().await.map_err(SeleniumBaseError::WebDriver)?;
+        element.click().await?;
         self.demo_pause_after(before).await;
         Ok(())
     }
@@ -43,7 +43,7 @@ impl BaseCase {
         self.record("click_partial_link", Some(text), None);
         let element = self.session.webdriver()?.find(By::PartialLinkText(text)).await?;
         let before = self.demo_page_before().await;
-        element.click().await.map_err(SeleniumBaseError::WebDriver)?;
+        element.click().await?;
         self.demo_pause_after(before).await;
         Ok(())
     }
@@ -139,7 +139,7 @@ impl BaseCase {
         attribute: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
         let el = self.session.webdriver()?.find(By::LinkText(text)).await?;
-        el.attr(attribute).await.map_err(SeleniumBaseError::WebDriver)
+        el.attr(attribute).await.map_err(SeleniumBaseError::from)
     }
 
     /// Alias for `get_link_attribute`.
@@ -158,7 +158,7 @@ impl BaseCase {
         attribute: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
         let el = self.session.webdriver()?.find(By::PartialLinkText(text)).await?;
-        el.attr(attribute).await.map_err(SeleniumBaseError::WebDriver)
+        el.attr(attribute).await.map_err(SeleniumBaseError::from)
     }
 
     /// Returns the `href` of the first link with exact `text`.

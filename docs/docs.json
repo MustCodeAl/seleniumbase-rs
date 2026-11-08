@@ -892,6 +892,13 @@
               "design/settings_v2",
               "design/element_type",
               "design/cookie_type",
+              "design/driver_error",
+              "design/network_throttle",
+              "design/devtools_client",
+              "design/capability_types",
+              "design/drivers_module",
+              "design/core_split",
+              "design/fingerprint_mimic",
               "design/api_guidelines_audit",
               "design/dependency_review"
             ]

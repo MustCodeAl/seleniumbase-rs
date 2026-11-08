@@ -263,6 +263,30 @@ mod capability_tests {
     }
 
     #[test]
+    fn stealth_options_args_are_the_arguments_the_session_asks_chrome_for() {
+        // `StealthOptions::args()` is the public view of a Chromium launch now that `apply_to`
+        // is the crate's own (docs/design/capability_types.md), so it must say what the session
+        // really asks for.
+        for config in [
+            BrowserConfig::default(),
+            BrowserConfig::default().with_mode(crate::browser::config::DriverMode::Uc),
+            BrowserConfig::default().with_headless(true),
+        ] {
+            let expected = crate::evasion::options::StealthOptions::from(&config)
+                .args()
+                .unwrap();
+            let caps = caps_json(&config);
+            let asked: Vec<String> = caps["goog:chromeOptions"]["args"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|arg| arg.as_str().unwrap().to_owned())
+                .collect();
+            assert_eq!(asked, expected);
+        }
+    }
+
+    #[test]
     fn firefox_gets_its_arguments_preferences_and_page_load_strategy() {
         let mut firefox = FirefoxOptions::default();
         firefox.add_args("private-window").unwrap();

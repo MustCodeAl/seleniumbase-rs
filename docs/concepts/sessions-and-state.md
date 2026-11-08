@@ -436,7 +436,7 @@ A `Page` gives direct access to its state, all through the DevTools Protocol:
 | `page.cookies()` | `Cookies` | `all()`, `set(&[Cookie])`, `clear()`, `header()`, `save(path, filter)`, `load(path, filter)` |
 | `page.local_storage()` | `Storage` | `get(key)`, `set(key, value)`, `remove(key)`, `clear()`, `entries()` |
 | `page.session_storage()` | `Storage` | The same, for `sessionStorage` |
-| `page.emulation()` | `Emulation` | `timezone(id)`, `locale(..)`, `geolocation(..)`, `user_agent(..)`, `offline(..)` |
+| `page.emulation()` | `Emulation` | `timezone(id)`, `locale(..)`, `geolocation(..)`, `user_agent(..)`, `offline(..)`, `network_throttle(..)` |
 
 A `Cookie` is built with `Cookie::new(name, value)` and the attribute methods
 `domain`, `path`, `expires`, `secure`, `http_only` and `same_site(SameSite)`,

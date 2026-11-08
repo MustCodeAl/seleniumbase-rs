@@ -146,7 +146,7 @@ impl From<&BrowserConfig> for StealthOptions {
 
 impl StealthOptions {
     /// Applies the options to a Chromium-like capabilities object.
-    pub fn apply_to<C: ChromiumLikeCapabilities>(
+    pub(crate) fn apply_to<C: ChromiumLikeCapabilities>(
         &self,
         caps: &mut C,
     ) -> Result<(), SeleniumBaseError> {
@@ -442,7 +442,7 @@ const UC_ARGS: [&str; 17] = [
 ];
 
 /// Adds the standard undetected-chrome launch arguments.
-pub fn apply_undetected_args<C: ChromiumLikeCapabilities>(
+fn apply_undetected_args<C: ChromiumLikeCapabilities>(
     caps: &mut C,
 ) -> Result<(), SeleniumBaseError> {
     for arg in UC_ARGS {

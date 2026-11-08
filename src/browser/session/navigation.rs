@@ -85,7 +85,7 @@ impl BrowserSession {
         self.webdriver()?
             .maximize_window()
             .await
-            .map_err(SeleniumBaseError::WebDriver)
+            .map_err(SeleniumBaseError::from)
     }
 
     /// WebDriver interaction: `set_window_size`.
@@ -93,16 +93,12 @@ impl BrowserSession {
         self.webdriver()?
             .set_window_rect(0, 0, width, height)
             .await
-            .map_err(SeleniumBaseError::WebDriver)
+            .map_err(SeleniumBaseError::from)
     }
 
     /// Returns the current window size as `(width, height)`.
     pub async fn get_window_size(&self) -> Result<(u32, u32), SeleniumBaseError> {
-        let rect = self
-            .webdriver()?
-            .get_window_rect()
-            .await
-            .map_err(SeleniumBaseError::WebDriver)?;
+        let rect = self.webdriver()?.get_window_rect().await?;
         Ok((rect.width as u32, rect.height as u32))
     }
 
@@ -112,10 +108,7 @@ impl BrowserSession {
     /// [`apply_ad_block`](Self::apply_ad_block).
     pub async fn switch_to_window(&self, handle: &str) -> Result<(), SeleniumBaseError> {
         let h = thirtyfour::common::types::WindowHandle::from(handle.to_string());
-        self.webdriver()?
-            .switch_to_window(h)
-            .await
-            .map_err(SeleniumBaseError::WebDriver)?;
+        self.webdriver()?.switch_to_window(h).await?;
         self.apply_mobile_emulation().await?;
         self.apply_ad_block().await
     }
@@ -126,15 +119,8 @@ impl BrowserSession {
     /// see [`apply_ad_block`](Self::apply_ad_block). Browser plugins (feature
     /// `plugins`) give it their packages and `on_page_created`.
     pub async fn switch_to_new_window(&self) -> Result<(), SeleniumBaseError> {
-        let handle = self
-            .webdriver()?
-            .new_window()
-            .await
-            .map_err(SeleniumBaseError::WebDriver)?;
-        self.webdriver()?
-            .switch_to_window(handle)
-            .await
-            .map_err(SeleniumBaseError::WebDriver)?;
+        let handle = self.webdriver()?.new_window().await?;
+        self.webdriver()?.switch_to_window(handle).await?;
         self.apply_ad_block().await?;
         self.apply_mobile_emulation().await?;
         #[cfg(feature = "plugins")]

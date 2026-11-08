@@ -12,7 +12,6 @@
 use std::path::{Component, Path, PathBuf};
 
 use serde_json::{json, Map, Value};
-use thirtyfour::error::{WebDriverError, WebDriverErrorInner};
 
 use super::NoBrowser;
 use crate::browser::options::LaunchSwitch;
@@ -21,7 +20,7 @@ use crate::cli::plugin_cmd;
 use crate::config::plugins::PluginSelection;
 use crate::config::settings::Settings;
 use crate::config::RuntimeConfig;
-use crate::error::SeleniumBaseError;
+use crate::error::{DriverError, DriverErrorKind, SeleniumBaseError};
 use crate::evasion::fingerprint::Fingerprint;
 use crate::mcp::devtools::redact_setting;
 use crate::mcp::failure::FailureReport;
@@ -288,6 +287,43 @@ fn quoted(text: &str) -> (&str, &str) {
     inner.split_once('\'').unwrap_or((inner, ""))
 }
 
+/// The kind of driver failure that `text` describes, from the words the driver used.
+///
+/// This is the one place that reads the words: the error the text came from is gone, and the
+/// text is all there is to tell its advice from.
+fn driver_kind_of(text: &str) -> DriverErrorKind {
+    use DriverErrorKind as Kind;
+    let text = text.to_lowercase();
+    let says = |words: &[&str]| words.iter().any(|word| text.contains(word));
+    if says(&["no such element"]) {
+        Kind::ElementNotFound
+    } else if says(&["stale element"]) {
+        Kind::StaleElement
+    } else if says(&["click intercepted", "not interactable"]) {
+        Kind::ElementNotInteractable
+    } else if says(&["no such frame"]) {
+        Kind::FrameNotFound
+    } else if says(&["no such window"]) {
+        Kind::WindowNotFound
+    } else if says(&["no such alert"]) {
+        Kind::AlertNotFound
+    } else if says(&["no such cookie"]) {
+        Kind::CookieNotFound
+    } else if says(&["javascript error"]) {
+        Kind::ScriptFailed
+    } else if says(&["session not created", "only supports"]) {
+        Kind::BrowserLaunch
+    } else if says(&["invalid argument"]) {
+        Kind::InvalidArgument
+    } else if says(&["invalid session", "disconnected"]) {
+        Kind::Unreachable
+    } else if says(&["timeout", "timed out"]) {
+        Kind::TimedOut
+    } else {
+        Kind::Other
+    }
+}
+
 /// The error of `category` that `rest` (the message after the category's
 /// prefix) describes, or `None` for a category the library does not have.
 ///
@@ -333,9 +369,7 @@ fn rebuild(category: &str, rest: &str) -> Option<SeleniumBaseError> {
             let (url, after) = quoted(rest);
             E::navigation(url, after.trim().trim_start_matches("failed:").trim())
         }
-        "webdriver" => E::WebDriver(WebDriverError::from_inner(
-            WebDriverErrorInner::UnknownResponse(0, rest.to_owned()),
-        )),
+        "webdriver" => E::WebDriver(DriverError::new(driver_kind_of(rest), rest)),
         "cdp_driver" => E::cdp_driver(rest),
         "playwright" => E::playwright(rest),
         "patcher" => {
@@ -1108,6 +1142,41 @@ mod tests {
             driver["hint"].as_str().unwrap().contains("sbrs install"),
             "{driver}"
         );
+    }
+
+    #[test]
+    fn a_driver_failure_is_advised_by_the_words_the_driver_used() {
+        for (message, advice) in [
+            (
+                "webdriver command failed: no such element: unable to locate",
+                "iframe",
+            ),
+            (
+                "webdriver command failed: stale element reference: not attached",
+                "Find it again",
+            ),
+            (
+                "webdriver command failed: element click intercepted",
+                "covers the target",
+            ),
+            (
+                "webdriver command failed: invalid session id",
+                "driver is still running",
+            ),
+            (
+                "webdriver command failed: operation timed out",
+                "did not answer in time",
+            ),
+            (
+                "webdriver command failed: something odd",
+                "failed the command",
+            ),
+        ] {
+            let answer = explain(Some(message), None);
+            assert_eq!(answer["category"], "webdriver", "{message}");
+            let hint = answer["hint"].as_str().unwrap();
+            assert!(hint.contains(advice), "{message}: {hint}");
+        }
     }
 
     #[test]

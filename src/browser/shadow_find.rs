@@ -21,11 +21,11 @@ use http::Method;
 use thirtyfour::common::command::FormatRequestData;
 use thirtyfour::common::command::Selector as WireSelector;
 use thirtyfour::common::types::SessionId;
-use thirtyfour::error::{WebDriverError, WebDriverErrorInner};
+use thirtyfour::error::WebDriverError;
 use thirtyfour::prelude::{By, WebDriver, WebElement};
 use thirtyfour::RequestData;
 
-use crate::error::SeleniumBaseError;
+use crate::error::{driver_kind, DriverErrorKind, SeleniumBaseError};
 use crate::utils::selectors::{Selector, SelectorBuf};
 use crate::utils::shadow::{is_shadow_selector, shadow_chain};
 
@@ -83,7 +83,7 @@ async fn shadow_root_of(
 
 /// Whether the driver said that nothing matches.
 fn is_missing(error: &WebDriverError) -> bool {
-    matches!(error.as_inner(), WebDriverErrorInner::NoSuchElement(_))
+    driver_kind(error) == DriverErrorKind::ElementNotFound
 }
 
 /// How far a walk down the pieces of a selector got.
