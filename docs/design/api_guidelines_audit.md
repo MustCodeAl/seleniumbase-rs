@@ -803,7 +803,7 @@ literal_string_with_formatting_args = "allow"
   asks for abbreviations (`CallbackFn`), the opposite; rule R1 takes the middle, short names and an
   abbreviation only when it is common outside the project. Fix: spell `ws` as `web_security` and
   `rec` as `recording` (lane 15); the flag spellings stay in the doc comments. Other cases are
-  `uc: bool` (F9) and the module `jqc`, not counted further.
+  `uc: bool` (F9) and the module `jqc`, not counted further. **Done (2026-11-08):** the six setters are renamed (`with_recording_*`, `with_disable_web_security`, `with_enable_web_security`); the accessor `rec_sb_cdp()` is not renamed yet.
 * Breaking: yes.
 
 ### F12. The crate root and the size of the crate (M-SINGLE-ITEM-PATH, M-SMALLER-CRATES, M-BALANCED-MODULES, M-NO-GLOB-REEXPORTS; Google: glob imports, non-leaf modules, small crates)

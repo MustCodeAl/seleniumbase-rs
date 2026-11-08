@@ -769,12 +769,12 @@ impl BrowserConfig {
     /// [`ActionRecorder::to_cdp_script`](crate::api::recorder::ActionRecorder::to_cdp_script).
     /// The session itself still runs on WebDriver; only the generated code
     /// changes.
-    pub fn with_rec_sb_cdp(self, on: bool) -> Self {
+    pub fn with_recording_sb_cdp(self, on: bool) -> Self {
         self.with_switch(LaunchSwitch::RecSbCdp, on)
     }
 
     /// Whether recordings are written as pure CDP code
-    /// ([`with_rec_sb_cdp`](Self::with_rec_sb_cdp)).
+    /// ([`with_recording_sb_cdp`](Self::with_recording_sb_cdp)).
     #[must_use]
     pub fn rec_sb_cdp(&self) -> bool {
         self.browser.has(LaunchSwitch::RecSbCdp)
@@ -793,19 +793,19 @@ impl BrowserConfig {
 
     /// Print the recording when it is written (`--rec-print`). Turns Recorder
     /// Mode on.
-    pub fn with_rec_print(self, on: bool) -> Self {
+    pub fn with_recording_print(self, on: bool) -> Self {
         self.with_switch(LaunchSwitch::RecPrint, on)
     }
 
     /// Also write the recording as a Gherkin feature (`--rec-behave`). Turns
     /// Recorder Mode on.
-    pub fn with_rec_behave(self, on: bool) -> Self {
+    pub fn with_recording_behave(self, on: bool) -> Self {
         self.with_switch(LaunchSwitch::RecBehave, on)
     }
 
     /// Write the recording as a standalone script instead of a test
     /// (`--rec-sb-mgr`). Turns Recorder Mode on.
-    pub fn with_rec_sb_mgr(self, on: bool) -> Self {
+    pub fn with_recording_sb_mgr(self, on: bool) -> Self {
         self.with_switch(LaunchSwitch::RecSbMgr, on)
     }
 
@@ -825,21 +825,21 @@ impl BrowserConfig {
         .any(|switch| self.browser.has(switch))
     }
 
-    /// Whether the recording is printed ([`with_rec_print`](Self::with_rec_print)).
+    /// Whether the recording is printed ([`with_recording_print`](Self::with_recording_print)).
     #[must_use]
     pub fn rec_print(&self) -> bool {
         self.browser.has(LaunchSwitch::RecPrint)
     }
 
     /// Whether the recording is also written as a Gherkin feature
-    /// ([`with_rec_behave`](Self::with_rec_behave)).
+    /// ([`with_recording_behave`](Self::with_recording_behave)).
     #[must_use]
     pub fn rec_behave(&self) -> bool {
         self.browser.has(LaunchSwitch::RecBehave)
     }
 
     /// Whether the recording is written as a standalone script
-    /// ([`with_rec_sb_mgr`](Self::with_rec_sb_mgr)).
+    /// ([`with_recording_sb_mgr`](Self::with_recording_sb_mgr)).
     #[must_use]
     pub fn rec_sb_mgr(&self) -> bool {
         self.browser.has(LaunchSwitch::RecSbMgr)
@@ -937,14 +937,14 @@ impl BrowserConfig {
 
     /// Switch web security off (`--disable-ws`, `--dws`): cross-origin
     /// requests and certificate errors are allowed. Chromium only.
-    pub fn with_disable_ws(self, on: bool) -> Self {
+    pub fn with_disable_web_security(self, on: bool) -> Self {
         self.with_switch(LaunchSwitch::DisableWebSecurity, on)
     }
 
     /// Keep web security on (`--enable-ws`), which is the default; the
-    /// opposite of [`with_disable_ws`](Self::with_disable_ws).
-    pub fn with_enable_ws(self, on: bool) -> Self {
-        self.with_disable_ws(!on)
+    /// opposite of [`with_disable_web_security`](Self::with_disable_web_security).
+    pub fn with_enable_web_security(self, on: bool) -> Self {
+        self.with_disable_web_security(!on)
     }
 
     /// Render with SwiftShader, a software WebGL renderer (`--swiftshader`).
@@ -1724,7 +1724,7 @@ mod tests {
             .with_guest_mode(true)
             .with_incognito(true)
             .with_devtools(true)
-            .with_disable_ws(true)
+            .with_disable_web_security(true)
             .with_swiftshader(true)
             .with_enable_3d_apis(true)
             .with_maximize(true)
@@ -1744,11 +1744,11 @@ mod tests {
         ] {
             assert!(on.browser.has(switch), "{switch:?}");
         }
-        let off = on.with_dark_mode(false).with_enable_ws(true);
+        let off = on.with_dark_mode(false).with_enable_web_security(true);
         assert!(!off.browser.has(LaunchSwitch::DarkMode));
         assert!(!off.browser.has(LaunchSwitch::DisableWebSecurity));
         assert!(off
-            .with_enable_ws(false)
+            .with_enable_web_security(false)
             .browser
             .has(LaunchSwitch::DisableWebSecurity));
     }
@@ -1802,7 +1802,7 @@ mod tests {
     #[test]
     fn rec_sb_cdp_is_off_until_it_is_asked_for_and_is_written_as_a_switch() {
         assert!(!BrowserConfig::default().rec_sb_cdp());
-        let on = BrowserConfig::default().with_rec_sb_cdp(true);
+        let on = BrowserConfig::default().with_recording_sb_cdp(true);
         assert!(on.rec_sb_cdp());
         assert!(!on.esc_end(), "the switches are independent");
         let json = serde_json::to_value(&on).unwrap();
@@ -1812,7 +1812,7 @@ mod tests {
         );
         let back: BrowserConfig = serde_json::from_value(json).unwrap();
         assert!(back.rec_sb_cdp());
-        assert!(!on.with_rec_sb_cdp(false).rec_sb_cdp());
+        assert!(!on.with_recording_sb_cdp(false).rec_sb_cdp());
     }
 
     #[test]
@@ -1822,14 +1822,14 @@ mod tests {
         assert!(off.clone().with_recorder_mode(true).recorder_mode());
         assert!(!off.clone().with_recorder_mode(true).rec_print());
         for config in [
-            off.clone().with_rec_print(true),
-            off.clone().with_rec_behave(true),
-            off.clone().with_rec_sb_mgr(true),
-            off.clone().with_rec_sb_cdp(true),
+            off.clone().with_recording_print(true),
+            off.clone().with_recording_behave(true),
+            off.clone().with_recording_sb_mgr(true),
+            off.clone().with_recording_sb_cdp(true),
         ] {
             assert!(config.recorder_mode());
         }
-        let on = off.with_rec_print(true).with_rec_behave(true);
+        let on = off.with_recording_print(true).with_recording_behave(true);
         assert!(on.rec_print() && on.rec_behave() && !on.rec_sb_mgr());
         let json = serde_json::to_value(&on).unwrap();
         assert_eq!(

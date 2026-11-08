@@ -10,6 +10,13 @@ work, `docs/parity.md` the per-API status).
 
 ### Breaking
 
+- **Breaking: the `BrowserConfig` setters spell their words out.** `with_rec_sb_cdp`, `with_rec_print`,
+  `with_rec_behave` and `with_rec_sb_mgr` are now `with_recording_sb_cdp`, `with_recording_print`,
+  `with_recording_behave` and `with_recording_sb_mgr`; `with_disable_ws` and `with_enable_ws` are
+  now `with_disable_web_security` and `with_enable_web_security` (`ws` is web security). The CLI
+  flags and the `SB_*` variables keep their names. Rename the calls; the behaviour is the same.
+
+
 - **Breaking: the interception builder steps are named `with_*`.** `Rule::set_header` is now
   `Rule::with_header` and `Rule::replace_body` is now `Rule::with_body`: they take and return
   the rule, like the other steps, so `set_*` stays for a setter that changes a value in place.

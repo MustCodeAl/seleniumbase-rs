@@ -67,10 +67,10 @@ they work on `mkrec` and before `test`, and each has an `SB_*` variable and a
 | You get | Flag | Variable | `BrowserConfig` | File |
 |---|---|---|---|---|
 | An rstest test that uses the `sb` fixture (the default) | none | | | `recordings/NAME_rec.rs` |
-| A standalone `#[tokio::main]` program that calls `BaseCase` | `--rec-sb-mgr` | `SB_REC_SB_MGR` | `with_rec_sb_mgr(true)` | `recordings/NAME_rec.rs` |
-| A standalone program for the pure CDP engine | `--rec-sb-cdp` | `SB_REC_SB_CDP` | `with_rec_sb_cdp(true)` | `recordings/NAME_rec.rs` |
-| A Gherkin feature, as well as the code | `--rec-behave` (`--rec-gherkin`; `mkrec --behave`) | `SB_REC_BEHAVE` | `with_rec_behave(true)` | `recordings/features/NAME_rec.feature` |
-| The code printed with line numbers | `--rec-print` | `SB_REC_PRINT` | `with_rec_print(true)` | the terminal |
+| A standalone `#[tokio::main]` program that calls `BaseCase` | `--rec-sb-mgr` | `SB_REC_SB_MGR` | `with_recording_sb_mgr(true)` | `recordings/NAME_rec.rs` |
+| A standalone program for the pure CDP engine | `--rec-sb-cdp` | `SB_REC_SB_CDP` | `with_recording_sb_cdp(true)` | `recordings/NAME_rec.rs` |
+| A Gherkin feature, as well as the code | `--rec-behave` (`--rec-gherkin`; `mkrec --behave`) | `SB_REC_BEHAVE` | `with_recording_behave(true)` | `recordings/features/NAME_rec.feature` |
+| The code printed with line numbers | `--rec-print` | `SB_REC_PRINT` | `with_recording_print(true)` | the terminal |
 | The recorded actions as JSON | always | | | `recordings/NAME_rec.json` |
 
 `--rec-sleep` (`SB_REC_SLEEP`) keeps the sleeps of the recording.
@@ -163,7 +163,7 @@ at a `recorder_breakpoint`; with the file in `tests/`, run it with
 
 | Method | What it does |
 |---|---|
-| `BrowserConfig::with_recorder_mode(bool)` | Turns Recorder Mode on (`--rec`, `SB_RECORDER`). `with_rec_print`, `with_rec_behave`, `with_rec_sb_mgr` and `with_rec_sb_cdp` turn it on too. |
+| `BrowserConfig::with_recorder_mode(bool)` | Turns Recorder Mode on (`--rec`, `SB_RECORDER`). `with_recording_print`, `with_recording_behave`, `with_recording_sb_mgr` and `with_recording_sb_cdp` turn it on too. |
 | `BaseCase::recorder_breakpoint(message)` | Pauses the test. `c` continues, `q` ends the test as skipped, and the end of stdin (nextest, CI) continues at once. A test built on the fixture calls `api::recorder::recorder_breakpoint(sb, message)`. |
 | `BaseCase::wait_for_recorder_end(limit)` | Waits for SHIFT+ESC (`--ee`), for every window to close, or for `limit`. |
 | `BaseCase::activate_recorder()` | Starts recording on the newest tab, for a test that did not turn Recorder Mode on. |
@@ -314,7 +314,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 `BaseCase::export_recording_as_cdp_rust()` returns it from a live test. To make
 `export_recording_as_rust` and `save_recording_to_logs` write it, as the Python
-flag does, turn the setting on with `BrowserConfig::with_rec_sb_cdp(true)`, the
+flag does, turn the setting on with `BrowserConfig::with_recording_sb_cdp(true)`, the
 `sbrs --rec-sb-cdp` flag or `SB_REC_SB_CDP=true`; the test itself still runs on
 WebDriver, and only the generated code changes.
 
