@@ -82,7 +82,7 @@ pub struct BrowserSession {
 }
 
 impl BrowserSession {
-    /// The session's [`WebDriver`](crate::drivers::WebDriver), the raw type of the WebDriver
+    /// The session's [`WebDriver`], the raw type of the WebDriver
     /// engine for a call that the session has no method for (Python's `self.driver`), or an
     /// error when the session has none; it never panics.
     /// A failed call on it is a [`WebDriverError`](crate::drivers::WebDriverError), which `?`
