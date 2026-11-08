@@ -54,7 +54,7 @@ pub(crate) enum Reporting {
     /// No run, whatever the settings say.
     Off,
     /// This run.
-    Run(Arc<TestRun>),
+    Run(TestRun),
 }
 
 /// Whether `settings` ask for anything a run does.
@@ -69,10 +69,10 @@ pub(crate) fn wants_a_run(settings: &ReportSettings) -> bool {
 
 /// The run a test is recorded in, if any. A run of the process that cannot be
 /// made is logged, and the test runs without it.
-pub(crate) fn run_for(reporting: &Reporting, settings: &Settings) -> Option<Arc<TestRun>> {
+pub(crate) fn run_for(reporting: &Reporting, settings: &Settings) -> Option<TestRun> {
     match reporting {
         Reporting::Off => None,
-        Reporting::Run(run) => Some(Arc::clone(run)),
+        Reporting::Run(run) => Some(run.clone()),
         Reporting::Auto => {
             if !wants_a_run(&ReportSettings::from_settings(settings)) {
                 return None;
@@ -92,14 +92,14 @@ pub(crate) fn run_for(reporting: &Reporting, settings: &Settings) -> Option<Arc<
 /// upload of its logs to S3 (when asked). `logs_dir` is where the lifecycle
 /// writes the test's evidence.
 pub(crate) fn finalizers(
-    run: Option<&Arc<TestRun>>,
+    run: Option<&TestRun>,
     settings: &Settings,
     test: &TestId,
     logs_dir: &Path,
 ) -> Vec<Arc<dyn Finalizer>> {
     let mut finalizers: Vec<Arc<dyn Finalizer>> = Vec::new();
     if let Some(run) = run {
-        finalizers.push(Arc::new(RunFinalizer::new(Arc::clone(run), test.clone())));
+        finalizers.push(Arc::new(RunFinalizer::new(run.clone(), test.clone())));
     }
     if settings.report.with_s3_logging {
         finalizers.extend(s3::finalizer(&logs_dir.join(&test.id), &test.id));
@@ -280,8 +280,8 @@ mod tests {
             crate::core::test_run::RunKey::new("report-unit"),
         )
         .unwrap();
-        let chosen = run_for(&Reporting::Run(Arc::clone(&run)), &Settings::default()).unwrap();
-        assert!(Arc::ptr_eq(&chosen, &run));
+        let chosen = run_for(&Reporting::Run(run.clone()), &Settings::default()).unwrap();
+        assert_eq!(chosen.root(), run.root());
         let test = TestId::named("unit::test");
         assert_eq!(
             finalizers(Some(&run), &Settings::default(), &test, root.path()).len(),

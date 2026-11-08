@@ -198,7 +198,7 @@ impl Sb {
     /// ([`TestRun::current`]) when the settings turn a report on
     /// (`--dashboard`, `--html`, `--junit-xml`, ...), and in none otherwise.
     #[must_use]
-    pub fn report_to(mut self, run: Arc<TestRun>) -> Self {
+    pub fn report_to(mut self, run: TestRun) -> Self {
         self.config.reporting = Reporting::Run(run);
         self
     }
@@ -351,7 +351,7 @@ impl SbCdp {
 
     /// As [`Sb::report_to`].
     #[must_use]
-    pub fn report_to(mut self, run: Arc<TestRun>) -> Self {
+    pub fn report_to(mut self, run: TestRun) -> Self {
         self.config.reporting = Reporting::Run(run);
         self
     }

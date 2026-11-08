@@ -425,7 +425,7 @@ impl Effect {
     }
 }
 
-/// The future a tool handler returns.
+/// The future a tool handler returns. A boxed future, because handlers are stored as trait objects.
 pub type ToolFuture = Pin<Box<dyn Future<Output = Result<Output, ToolError>> + Send>>;
 
 type Handler<S> = Box<dyn Fn(Ctx<S>, Args) -> ToolFuture + Send + Sync>;

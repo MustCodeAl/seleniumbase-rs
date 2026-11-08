@@ -33,6 +33,22 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 
 <Update label="Unreleased" description="Next release" tags={["New", "Fix"]}>
 
+### Added
+
+- Terminal colour follows `NO_COLOR`, `CLICOLOR` and `CLICOLOR_FORCE`. The `Debug` text of
+  `SeleniumBaseError` is styled (message, `hint:` label, hint) only when standard error may
+  be coloured; `{:#?}` and `Display` stay plain. `owo-colors` and `anstream` are new
+  dependencies.
+
+
+### Changed
+
+- **Chrome version data moved to the current stable, 157.0.8103.38** (Chrome for Testing
+  last-known-good, 2026-11-08). A generated identity claims 157 four times in five and 156 once
+  (no Beta); the presets, `MOBILE_USER_AGENT` and the docs name 157. `randomize` has a new
+  constant `CURRENT_STABLE_MAJOR` and a test that fails when the table is older.
+
+
 ### Breaking
 
 - **Breaking: the `BrowserConfig` setters spell their words out.** `with_rec_sb_cdp`, `with_rec_print`,
@@ -513,6 +529,27 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   (`from_text`, `from_file`, Python's `--cap-string` and `--cap-file`) given to
   `BrowserConfig::with_capabilities`, and what the stealth options launch is
   `StealthOptions::args()` (a test holds it equal to the arguments the session asks Chrome for).
+
+- **Breaking: `BrowserSession::driver()` is gone, and `seleniumbase_rs::drivers` keeps three
+  types.** The session's WebDriver has one accessor, `BrowserSession::webdriver()`, which returns
+  a `Result`: `Unsupported` on a direct CDP attachment, `SessionNotStarted` after `quit` or a
+  `reconnect` that could not start a browser. `driver()` returned the same reference and
+  panicked in those cases. `drivers` is now the escape hatch only: `WebDriver` (behind
+  `BrowserSession::webdriver`), `WebElement` (behind `Element::as_webdriver_element`) and
+  `WebDriverError` (what calls on them fail with). Its last two other items, `By` (nothing takes
+  it since `Element`) and `WebDriverResult`, are gone, so with the items the earlier entries
+  remove (`Cookie`, `Key`, `ConnectionType`, `NetworkConditions`, `WebDriverErrorInner` and the
+  capability types) nothing of `thirtyfour` is re-exported but those three. The module doc names
+  the version the crate builds against (`thirtyfour` 0.38) and says that a program which needs
+  more of it lists the crate itself. The name `drivers` stays.
+
+  ```rust
+  // Before: panics when the session has no driver.
+  let title = session.driver().title().await?;
+  // After: an error instead
+  let title = session.webdriver()?.title().await?;
+  ```
+
 
 
 ### Security

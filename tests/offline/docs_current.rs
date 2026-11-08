@@ -173,7 +173,7 @@ const GONE: &[(&str, &str)] = &[
     // The WebDriver engine hands out `Element` and takes selector strings, not `By`
     // (docs/design/element_type.md). `drivers::WebElement` stays for the escape hatch of
     // `Element::as_webdriver_element`, which the pages may name.
-    ("use seleniumbase_rs::drivers::By", "a selector string"),
+    ("drivers::By", "a selector string"),
     ("drivers::{By, WebElement}", "seleniumbase_rs::Element"),
     ("Selector::to_by", "a selector string, or SelectorBuf"),
     ("Selector::auto_by", "a selector string, or SelectorBuf"),
@@ -203,6 +203,18 @@ const GONE: &[(&str, &str)] = &[
     ("BrowserCapabilitiesHelper", "StealthOptions::args"),
     ("ChromiumLikeCapabilities", "StealthOptions::args"),
     ("opts.apply_to(", "opts.args()"),
+    ("drivers::Capabilities", "CapabilityOverrides"),
+    ("drivers::CapabilitiesHelper", "CapabilityOverrides"),
+    ("drivers::LoggingPrefsLogLevel", "CapabilityOverrides"),
+    // `drivers` keeps the raw types of the escape hatches, `WebDriver`, `WebElement` and
+    // `WebDriverError`, and nothing else (docs/design/drivers_module.md). The result alias of
+    // thirtyfour is not one of them, and `BrowserSession::driver` (which panicked) is gone for
+    // `BrowserSession::webdriver`, which answers with an error.
+    ("drivers::WebDriverResult", "seleniumbase_rs::Result"),
+    ("drivers::WebDriverErrorInner", "DriverErrorKind"),
+    ("drivers::NetworkConditions", "NetworkThrottle"),
+    ("session.driver()", "session.webdriver()?"),
+    ("BrowserSession::driver", "BrowserSession::webdriver"),
     (
         "use rstest::",
         "seleniumbase_rs::testing::{fixture, rstest}",
@@ -374,6 +386,30 @@ fn is_exempt(rel: &str) -> bool {
         .any(|e| rel == *e || (e.ends_with('/') && rel.starts_with(e)))
 }
 
+/// What `seleniumbase_rs::drivers` keeps, sorted (docs/design/drivers_module.md): the raw
+/// types of the WebDriver engine for the escape hatches `BrowserSession::webdriver` and
+/// `Element::as_webdriver_element`, and the error their calls fail with.
+const DRIVERS_KEEPS: &[&str] = &["WebDriver", "WebDriverError", "WebElement"];
+
+/// Every item `drivers` re-exported once and no longer does, each removed by the lane named
+/// in docs/design/drivers_module.md: a page that lists one in a `drivers::{...}` group is
+/// out of date.
+const DRIVERS_GONE: &[&str] = &[
+    "BrowserCapabilitiesHelper",
+    "By",
+    "Capabilities",
+    "CapabilitiesHelper",
+    "ChromiumLikeCapabilities",
+    "ConnectionType",
+    "Cookie",
+    "DesiredCapabilities",
+    "Key",
+    "LoggingPrefsLogLevel",
+    "NetworkConditions",
+    "WebDriverErrorInner",
+    "WebDriverResult",
+];
+
 /// Whether `line` holds an import group `drivers::{...}` that lists `item` by name.
 ///
 /// An entry of `GONE` is one spelling, so it cannot see `drivers::{Key, Cookie}`.
@@ -403,7 +439,7 @@ fn a_grouped_import_from_drivers_is_read_name_by_name() {
 }
 
 #[test]
-fn no_page_imports_the_removed_drivers_cookie_in_a_group() {
+fn no_page_imports_a_removed_drivers_item_in_a_group() {
     let root = root();
     let mut found = Vec::new();
     for page in pages() {
@@ -417,11 +453,13 @@ fn no_page_imports_the_removed_drivers_cookie_in_a_group() {
         }
         let text = fs::read_to_string(&page).unwrap_or_default();
         for (number, line) in text.lines().enumerate() {
-            if drivers_group_lists(line, "Cookie") {
-                found.push(format!(
-                    "{rel}:{}: `drivers::{{.., Cookie, ..}}` is gone; now: seleniumbase_rs::Cookie",
-                    number + 1
-                ));
+            for item in DRIVERS_GONE {
+                if drivers_group_lists(line, item) {
+                    found.push(format!(
+                        "{rel}:{}: `drivers::{{.., {item}, ..}}` is gone (docs/design/drivers_module.md)",
+                        number + 1
+                    ));
+                }
             }
         }
     }
@@ -429,6 +467,39 @@ fn no_page_imports_the_removed_drivers_cookie_in_a_group() {
         found.is_empty(),
         "outdated names in the docs:\n{}",
         found.join("\n")
+    );
+}
+
+#[test]
+fn the_drivers_module_re_exports_only_the_escape_hatch_types() {
+    let source = fs::read_to_string(root().join("src/drivers.rs")).expect("src/drivers.rs is read");
+    let code = source
+        .lines()
+        .filter(|line| !line.trim_start().starts_with("//"))
+        .collect::<Vec<_>>()
+        .join(" ");
+    let mut exported: Vec<String> = Vec::new();
+    for statement in code.split(';') {
+        let Some(path) = statement.trim().strip_prefix("pub use ") else {
+            continue;
+        };
+        match path.split_once('{') {
+            Some((_, group)) => exported.extend(
+                group
+                    .trim_end_matches('}')
+                    .split(',')
+                    .map(str::trim)
+                    .filter(|name| !name.is_empty())
+                    .map(str::to_owned),
+            ),
+            None => exported.extend(path.rsplit("::").next().map(str::to_owned)),
+        }
+    }
+    exported.sort();
+    assert_eq!(
+        exported, DRIVERS_KEEPS,
+        "`drivers` re-exports the raw types of the escape hatches and nothing else \
+         (docs/design/drivers_module.md)"
     );
 }
 

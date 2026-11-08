@@ -13,7 +13,7 @@
 //! `*` when the run starts, and the `----- ... -----` lines when it ends.
 
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use seleniumbase_rs::core::test_run::{
@@ -66,7 +66,7 @@ fn terminal_width() -> Option<usize> {
 
 /// The run that `sbrs test` opens before Cargo and finishes after it.
 pub(crate) struct Session {
-    run: Arc<TestRun>,
+    run: TestRun,
     root: PathBuf,
     settings: ReportSettings,
 }

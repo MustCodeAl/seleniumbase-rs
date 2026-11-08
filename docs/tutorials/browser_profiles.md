@@ -455,7 +455,7 @@ launch, because its folder and name seed the draw.
   "parameters": {
     "fingerprint": {
       "navigator": {
-        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
         "platform": "Win32",
         "hardware_concurrency": 8,
         "device_memory": 8
@@ -565,7 +565,7 @@ Value column of the
       "graphics_noise": "medium",
       "localization_masking": "en-US,en;q=0.9",
       "media_devices_masking": "audioinput:default:Mic1|videoinput:default:Cam1",
-      "navigator_masking": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+      "navigator_masking": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
       "ports_masking": "block:80,443,3000,8080,9222",
       "proxy_masking": "socks5://user123:pass456@192.168.1.50:1080",
       "screen_masking": "1920x1080x24",

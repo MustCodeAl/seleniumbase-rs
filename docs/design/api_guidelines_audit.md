@@ -1,12 +1,12 @@
 ---
-title: "Design: API rules audit (Rust API Guidelines, Pragmatic Rust, Google)"
+title: "Design: API rules audit (Rust API Guidelines, Pragmatic Rust, Google, Idiomatic Rust Snippets)"
 sidebarTitle: "API guidelines audit"
 ---
 
 Status: audit note, written before any fix, on branch `lane/api-audit` (from `404208aa`, 2026-11-06),
-and extended on 2026-11-07 on `lane/api-audit-google` (from `2327ffb8`). The three guides the crate
-follows, the Rust API Guidelines, Microsoft's Pragmatic Rust Guidelines and Google's Rust style
-guide, are one set of rules here, [The rules we follow](#the-rules-we-follow); every finding and
+and extended on 2026-11-07 on `lane/api-audit-google` (from `2327ffb8`). The four sources the crate
+follows, the Rust API Guidelines, Microsoft's Pragmatic Rust Guidelines, Google's Rust style
+guide and Idiomatic Rust Snippets (`IRS:`, added 2026-11-08), are one set of rules here, [The rules we follow](#the-rules-we-follow); every finding and
 every fix lane names the guides it comes from. The note is read-only on code: no cargo command was
 run (no clippy, no rustdoc, no doctests), so every statement comes from reading the source through
 the code index, from literal-text counts, and from the three guideline books. A `file:line` is from
@@ -78,7 +78,7 @@ How the numbers were made, and what they cannot say:
 * Statuses: met, partly (some items meet it, some do not), not met, n/a (the crate has nothing
   the item is about), not checked. "Affected" is a verified count or a lower bound; "not counted"
   means only a compiler lint can count it, which is lane 1 and 2 below. `accepted` is a fifth
-  status for a deviation the owner decided to keep (D1, D2, D8, D10 to D12).
+  status for a deviation the owner decided to keep (D1, D8, D11, D12; D2 and D10 were reversed on 2026-11-08).
 * The third pass counts lines of `src/` without `crates/` and without `src/mcp/dev/api_index.json`
   (a path filter `src/` also matches `crates/*/src/`, so the exclusion is explicit). A count is a
   number of lines, not of items, and is an upper bound unless the text says it was read.
@@ -107,28 +107,28 @@ The ids that no rule row uses are n/a or not checked and stay only in the per-id
 down: C-ITER-TY, C-NUM-FMT, C-RW-VALUE, C-BITFLAG, C-MACRO-VIS and C-STRUCT-BOUNDS,
 M-TAUTOLOGICAL-TESTS and the performance and application guidelines.
 
-Tally of the 31 rules: met 3, partly 18, not met 4, accepted 4 (R3 with 26 `get_` still open, R5,
-R16, R29), not checked 1, n/a 1.
+Tally of the 44 rules: met 3, partly 18, accepted 2 (R16, R29; R3 and R5 were accepted until the
+owner reversed D2 and D10 on 2026-11-08), not met 6, not checked 14 (R32 to R44 are new, see [The fourth source](#the-fourth-source)), n/a 1.
 
 | # | Rule we follow | Sources | Where the guides differ: what we adopt | Status | Affected | Finding |
 |---|---|---|---|---|---|---|
 | R1 | Names follow the standard library style, in one word order, and say what the item is; short, but with no abbreviation that an outsider cannot read. | C-CASE, C-WORD-ORDER; M-WEASEL-WORDS, M-SHORT-NAMES; G: naming (methods, lifetimes, generic parameters), avoid abbreviations | M-SHORT-NAMES prefers abbreviations (`CallbackFn`); Google refuses those that delete letters inside a word or that people outside the project do not know. Adopt: at most two short words, no module name as a prefix, and an abbreviation only when it is common outside the project (`Fn`, `Ip`, `Css`), so `rec` and `ws` go. | partly | 6 `BrowserConfig` setters and 1 accessor, `uc`, `jqc`, the names of F11 | F11 |
 | R2 | `as_` is a cheap borrow, `to_` costs, `into_` consumes; a conversion that names its type says so. | C-CONV, C-CONV-SPECIFIC; G: naming methods (`wrong_self_convention`) | Agree. | met | 4 `name` methods that should be `as_str` | F5 |
-| R3 | A getter is `foo()` or `foo_mut()`, a setter `set_foo(T)`; `take_foo()` clears and returns the old value, `replace_foo(T)` sets and returns it; there is no `get_` prefix. | C-GETTER; M-RUST-SHAPED; G: getters and setters | Agree on the rule. D2 keeps the Python `get_*` names on `BaseCase`. | accepted on `BaseCase` (78), not met on 26 others | 104 `get_`; 14 public `set_*`, 13 of them fit; `set_header` and `replace_body` consume `self` | F5, F15 |
-| R4 | Constructors are `new`, `new_with_foo`, `try_new` when they return a `Result`, and `from_foo` beside a `From` impl; a constructor does what its name says; an options struct implements `Default`. | C-CTOR; G: naming initialization functions, pair `From` with constructors, options structs implement `Default` | Agree. | partly | 10 `new` return a `Result` and `try_new` has 0; 5 constructors are named `with_*`; `BaseCase::new` starts a browser | F15 |
-| R5 | `with_*` is a setter that takes and returns `self`; a builder validates in `build()`. | C-BUILDER; M-INIT-BUILDER, M-INIT-CASCADED, M-BUILD-RESULT; G: closure accessors | Google gives `with_foo(f)` the meaning "call `f` with a borrow of `foo`". Adopt ours (D10): a closure accessor is never named `with_*`. | accepted (D10); the four builders met | 153 public `with_*` (about 80 on `BrowserConfig`), 0 closure accessors | F15 |
-| R6 | A parameter takes the widest borrowed or generic form: `&str`, `&[T]`, `&T`, `Option<&T>`, `impl AsRef<Path>`, and `impl Into<String>` where the call site gains; the same parameters come in the same order. | C-CALLER-CONTROL, C-GENERIC; M-IMPL-ASREF, M-IMPL-IO, M-IMPL-RANGEBOUNDS, M-PARAMETER-CONSISTENCY; G: flexible references, accepting `Into`, iterators vs slices in parameters | C-GENERIC and M-IMPL-ASREF ask for generics; Google weighs `Into` against code size and says application code almost never takes it. Adopt: generics at the library boundary, each kept to the conversion and a call to a non-generic body; concrete types in `crates/cli`. | partly | 0 `&Vec<`, 0 public `&Option<`, 253 `impl Into<` lines, paths as `&str`, 2 methods with the order reversed (`type_text`, `assert_text`) | F9, F16 |
-| R7 | A named type, not a `String` or a `bool`, where the value has a meaning; named fields, not tuples; a newtype, not an alias, when the type needs an API of its own. | C-NEWTYPE, C-CUSTOM-TYPE, C-NEWTYPE-HIDE; M-STRONG-TYPES; G: enum over bool, named fields over tuples, newtypes vs type aliases | Agree. | partly | 371 selector parameters, 9 `bool` sites, 1 tuple alias | F9 |
-| R8 | A function returns an iterator unless it builds the collection or callers need one; a collection type implements the collection traits. | C-ITER, C-COLLECT; M-COLLECTION-TRAITS; G: iterators vs owned collections in return types | Agree. | met in the files read, not counted | The functions read build a `Vec` from a browser answer, which is the guide's own exception | none |
+| R3 | A getter is `foo()` or `foo_mut()`, a setter `set_foo(T)`; `take_foo()` clears and returns the old value, `replace_foo(T)` sets and returns it; there is no `get_` prefix. | C-GETTER; M-RUST-SHAPED; G: getters and setters | Agree on the rule. D2 is reversed (2026-11-08): `BaseCase` getters drop `get_` (`get_text` becomes `text`); the Python names stay findable through `parity/api.toml`, the Python importer and `parity_lookup`. | not met (104, 78 on `BaseCase`) | 104 `get_`; 14 public `set_*`, 13 of them fit; `set_header` and `replace_body` consume `self` | F5, F15 |
+| R4 | Constructors are `new`, `new_with_foo`, `try_new` when they return a `Result`, and `from_foo` beside a `From` impl; a constructor does what its name says; an options struct implements `Default`. | C-CTOR; G: naming initialization functions, pair `From` with constructors, options structs implement `Default`; IRS: associated function `new` | Agree. | partly | 10 `new` return a `Result` and `try_new` has 0; 5 constructors are named `with_*`; `BaseCase::new` starts a browser | F15 |
+| R5 | A builder is a separate type whose setters are named after the field and take and return `self`; `build()` validates; `with_*` names a constructor only. | C-BUILDER; M-INIT-BUILDER, M-INIT-CASCADED, M-BUILD-RESULT; G: closure accessors; IRS: builder pattern (method chaining) | Adopt (D10 replaced, 2026-11-08): setters are named after the field, on a separate builder type (`BrowserConfig::builder().headless(true).build()`), as C-BUILDER and IRS's builder idiom do, so there is no conflict with IRS; `build()` still validates, which is the stricter rule where IRS lets it return unchecked. `with_*` stays only for constructors, as in std's `Vec::with_capacity`; Google's closure meaning of `with_foo(f)` is not used. | not met (the bon builders lane does it) | 153 public `with_*` (about 80 on `BrowserConfig`), 0 closure accessors | F15 |
+| R6 | A parameter takes the widest borrowed or generic form: `&str`, `&[T]`, `&T`, `Option<&T>`, `impl AsRef<Path>`, and `impl Into<String>` where the call site gains; the same parameters come in the same order. | C-CALLER-CONTROL, C-GENERIC; M-IMPL-ASREF, M-IMPL-IO, M-IMPL-RANGEBOUNDS, M-PARAMETER-CONSISTENCY; G: flexible references, accepting `Into`, iterators vs slices in parameters; IRS: `&str` over `String` (string vs str anti-pattern), borrowing instead of cloning | C-GENERIC and M-IMPL-ASREF ask for generics; Google weighs `Into` against code size and says application code almost never takes it. Adopt: generics at the library boundary, each kept to the conversion and a call to a non-generic body; concrete types in `crates/cli`. | partly | 0 `&Vec<`, 0 public `&Option<`, 253 `impl Into<` lines, paths as `&str`, 2 methods with the order reversed (`type_text`, `assert_text`) | F9, F16 |
+| R7 | A named type, not a `String` or a `bool`, where the value has a meaning; named fields, not tuples; a newtype, not an alias, when the type needs an API of its own. | C-NEWTYPE, C-CUSTOM-TYPE, C-NEWTYPE-HIDE; M-STRONG-TYPES; G: enum over bool, named fields over tuples, newtypes vs type aliases; IRS: newtype pattern (`UserId` and `AccountId` over `u64`, `From` between wrappers), stringly typed anti-pattern (F9) | Agree. | partly | 371 selector parameters, 9 `bool` sites, 1 tuple alias | F9 |
+| R8 | A function returns an iterator unless it builds the collection or callers need one; a collection type implements the collection traits. | C-ITER, C-COLLECT; M-COLLECTION-TRAITS; G: iterators vs owned collections in return types; IRS: iterator adapters, `iter`/`iter_mut`/`into_iter` | Agree. | met in the files read, not counted | The functions read build a `Vec` from a browser answer, which is the guide's own exception | none |
 | R9 | A public type derives what it can: `Debug`, `Clone`, `Default`, `Eq` and `Hash` if it may be a map key, serde where it is stored; handles are `Send` and `Sync`. | C-COMMON-TRAITS, C-DEBUG, C-DEBUG-NONEMPTY, C-SEND-SYNC, C-SERDE; M-PUBLIC-DEBUG, M-PUBLIC-DISPLAY, M-TYPES-SEND; G: important traits, `#[derive]` over manual impls | Agree. | partly | `BaseCase` and `BrowserSession` without `Debug`; 3 `Copy` enums without `Hash`; 3 types pinned `Send` and `Sync` | F2, F14 |
 | R10 | The standard trait, not a look-alike method (`FromStr`, `From`, `Display`, `Default`, `IntoIterator`); an operator only for its own meaning. | C-CONV-TRAITS, C-OVERLOAD; G: known standard library traits (`should_implement_trait`), no overloading for non-mathematical purposes | Google asks for the trait and refuses an operator used as sugar, and the two meet in `not()`. Adopt: the method, with the reason written in `#[expect]`. | met | 31 `fn from_str(` lines (the 15 read are `FromStr` impls) and no `pub fn from_str(`; 2 recorded exceptions, `not()` at `src/sb_cdp/expect.rs:92,316` | none |
-| R11 | A trait exists for generic programming, for an `impl` or `dyn` parameter, or as an extension (its name ends in `Ext`); a trait nobody should implement is sealed; no `Deref` for inheritance; a library takes generics, not `dyn`. | C-SEALED, C-DEREF, C-OBJECT; M-DI-HIERARCHY, M-ESSENTIAL-FN-INHERENT; G: trait vs inherent impl, extension traits, generics vs `dyn` | C-OBJECT keeps a trait object safe where that helps; Google prefers generics. Adopt: `dyn` only for seams such as `CdpTransport`. | not met | 6 open traits, 3 `Deref` impls | F6 |
+| R11 | A trait exists for generic programming, for an `impl` or `dyn` parameter, or as an extension (its name ends in `Ext`); a trait nobody should implement is sealed; no `Deref` for inheritance; a library takes generics, not `dyn`. | C-SEALED, C-DEREF, C-OBJECT; M-DI-HIERARCHY, M-ESSENTIAL-FN-INHERENT; G: trait vs inherent impl, extension traits, generics vs `dyn`; IRS: builder by method chaining over boxed trait-object decorators; IRS: extension traits (`StringExt`, a trait the user must import), enum polymorphism, visitor as enum and `match`, decorator as method chaining, deref abuse anti-pattern (F6) | C-OBJECT keeps a trait object safe where that helps; Google prefers generics. Adopt: `dyn` only for seams such as `CdpTransport`. | not met | 6 open traits, 3 `Deref` impls | F6 |
 | R12 | Trait methods are native `async fn` unless the trait is used as `dyn`. | M-ASYNC-FN; G: generics vs `dyn` | Adopt D5; the dyn compatibility of C-OBJECT is given up where nothing uses `dyn`. | partly | 84 `#[async_trait` sites | F16 |
 | R13 | A public type can grow: private fields or `#[non_exhaustive]`; fields checked where they are set; features only add; `const fn` only if it stays const; `#[doc(hidden)]` is private. | C-STRUCT-PRIVATE, C-VALIDATE, C-HIDDEN; M-FEATURES-ADDITIVE, M-STRONG-TYPES-GUARD; G: `#[non_exhaustive]` on enums and on structs, `const fn`, `doc(hidden)` | C-STRUCT-PRIVATE wants private fields; Google lets a struct keep public fields when callers build it with `..Default::default()`. Adopt: structs built that way (`Settings`, `BrowserSettings`, `ProxyConfig`) stay exhaustive with `Default`; structs built by `with_*` (`BrowserConfig`, `Cookie`) take `#[non_exhaustive]`; an enum that may grow takes it. | partly | `BrowserConfig` has 9 public fields and one behind a feature; 70 `#[non_exhaustive]` for 547 structs and enums; 85 `pub const fn` | F8, F13 |
-| R14 | A failure the caller can recover from is a typed `Result` with a source; `Option` where the cause is obvious; never `Result<_, String>`; one canonical error. | C-GOOD-ERR; M-ERRORS-CANONICAL-STRUCTS, M-FROM-ERROR; G: reporting errors (`Option`, `Result`, `panic!`), `Copy` error types | M-ERRORS-CANONICAL-STRUCTS wants a struct with `kind()`; C-GOOD-ERR and Google accept an enum. Adopt the struct (D4). | partly | 31 of 34 variants keep no source; 4 `Result<_, String>`; 2 `Box<dyn Error>` | F4 |
-| R15 | A panic reports a bug or a broken invariant, never an expected state; where one is needed it is `expect` with the reason, not `unwrap`, and it is documented. | M-PANIC-ON-BUG, M-PANIC-MESSAGE; G: reporting errors, document panic cases, `expect` over `unwrap`, pattern matching over check-then-unwrap | `CLAUDE.md` says `unwrap()` only in tests; Google prefers `expect` where a panic is needed. Adopt both: `unwrap_used` and `panic` warn in production code, `expect_used` stays off, `missing_panics_doc` is on. | partly | 4,357 `.unwrap()`, 632 `.expect(` and 164 `panic!(` lines, tests included; 4 `# Panics` | F10, F7, F1 |
+| R14 | A failure the caller can recover from is a typed `Result` with a source; `Option` where the cause is obvious; never `Result<_, String>`; one canonical error. | C-GOOD-ERR; M-ERRORS-CANONICAL-STRUCTS, M-FROM-ERROR; G: reporting errors (`Option`, `Result`, `panic!`), `Copy` error types; IRS: custom error type with `Display`, `Error` and `From` | M-ERRORS-CANONICAL-STRUCTS wants a struct with `kind()`; C-GOOD-ERR and Google accept an enum. Adopt the struct (D4). | partly | 31 of 34 variants keep no source; 4 `Result<_, String>`; 2 `Box<dyn Error>` | F4 |
+| R15 | A panic reports a bug or a broken invariant, never an expected state; where one is needed it is `expect` with the reason, not `unwrap`, and it is documented. | M-PANIC-ON-BUG, M-PANIC-MESSAGE; G: reporting errors, document panic cases, `expect` over `unwrap`, pattern matching over check-then-unwrap; IRS: unwrap abuse, panic in libraries anti-patterns (F22) | `CLAUDE.md` says `unwrap()` only in tests; Google prefers `expect` where a panic is needed. Adopt both: `unwrap_used` and `panic` warn in production code, `expect_used` stays off, `missing_panics_doc` is on. | partly | 4,357 `.unwrap()`, 632 `.expect(` and 164 `panic!(` lines, tests included; 4 `# Panics` | F10, F7, F1 |
 | R16 | A panic is not caught and a poisoned lock is not recovered, except where the reason is written. | M-PANIC-CONTINUATION, M-PANIC-IS-STOP; G: don't call `catch_unwind`, handling poison | The three agree. Adopt D11 (three production `catch_unwind`, no more) and D12 (one helper for poison). | accepted, narrowly | 3 production `catch_unwind`, 34 `PoisonError::into_inner` | F22 |
-| R17 | No `unsafe` unless there is no safe way; each block has a `// SAFETY:` comment. | M-UNSAFE, M-UNSAFE-IMPLIES-UB, M-UNSOUND; G: unsafe code | Agree. | partly: none in the library, 10 of 11 test blocks lack the comment | 11 blocks, all in test code | F24 |
+| R17 | No `unsafe` unless there is no safe way; each block has a `// SAFETY:` comment. | M-UNSAFE, M-UNSAFE-IMPLIES-UB, M-UNSOUND; G: unsafe code; IRS: unnecessary unsafe anti-pattern (F24) | Agree. | partly: none in the library, 10 of 11 test blocks lack the comment | 11 blocks, all in test code | F24 |
 | R18 | Every public item has a doc that says what the code does not; a module has `//!`; a function that fails or panics says so; examples cover each type and each family of methods. | C-CRATE-DOC, C-EXAMPLE, C-FAILURE, C-LINK, C-QUESTION-MARK; M-CANONICAL-DOCS, M-FIRST-DOC-SENTENCE, M-MODULE-DOCS, M-DOC-INLINE, M-DOCUMENTED-MAGIC, M-DESIGN-FOR-AI; G: when and how to write documentation | C-EXAMPLE wants an example on every item; Google wants enough of them "somewhere" to show how the crate works. Adopt Google's, because `BaseCase` has about 700 methods; `# Errors` stays on every fallible function (M-CANONICAL-DOCS); a variant whose name says it may go undocumented (Google). | partly | 280 `# Examples` for about 2,846 `pub` functions; 894 `# Errors` against 2,580 `Result` returns; 4 modules without `//!`; no `missing_docs` | F3 |
 | R19 | Docs describe the code, not its history or its Python origin, except where the parity table needs it. | M-NO-META-DESIGN-DOCUMENTATION | One guide. | partly | 681 lines | F18 |
 | R20 | A macro only where a function cannot do the job; no macro changes its result type by its arity; documentation is written at the item, not generated. | C-EVOCATIVE, C-MACRO-ATTR, C-ANYWHERE, C-MACRO-TY; M-MACRO-LAST-RESORT, M-MACROS-DONT-LIE, M-EXAMPLE-OVER-PROC, M-MACRO-MAIN-CRATE; G: macros, document in a straightforward manner | Agree. D3 cuts the `sb_*` macros to `sb_test!`. | not met, fix decided | 27 exported and 16 internal `macro_rules!` | F7 |
@@ -136,13 +136,26 @@ R16, R29), not checked 1, n/a 1.
 | R22 | A crate holds one concern; the crates sit flat in the workspace folder. | M-SMALLER-CRATES, M-CRATES-FLAT-FOLDER, M-CRATES-IN-WORKSPACE; G: prefer small crates, flat file layout (both Chromium only) | Google's two rules are Chromium's and allow a large foundational library. Adopt Microsoft's split, designed in `docs/design/core_split.md` (D6). | not met, decided | 1 library with two engines, the evasion layer, the MCP servers, a translator and the CLI half | F12 |
 | R23 | Complete metadata; the latest edition; one workspace manifest; no unstable feature. | C-METADATA, C-STABLE, C-PERMISSIVE, C-RELNOTES, C-FEATURE; M-CARGO-WORKSPACE, M-LATEST-EDITION, M-MSRV, M-OOBE; G: no unstable features | M-MSRV asks for a few versions behind; D1 keeps the newest stable. | partly; M-MSRV accepted | 5 missing `[package]` fields; the empty feature `error-backtrace`; 0 `#![feature(` | F13 |
 | R24 | One lint set for the workspace; a deviation is `#[expect]` with a reason; the formatter decides the layout. | M-STATIC-VERIFICATION, M-LINT-OVERRIDE-EXPECT; G: formatting tool, opting out of rustfmt, the Clippy lints it names | Agree. | partly | 5 module trees under the set, of about 27; 15 `#[allow(`; `style_edition = "2021"` (D7: 2024 later) | F1, F19 |
-| R25 | The library does not print, keeps global state small, runs nothing before `main`, and logs in a structured way. | M-LOG-NOT-PRINT, M-LOG-STRUCTURED, M-AVOID-STATICS; G: do not run code before `main()` | Agree. | partly | 3 `eprintln!`; 21 statics; 0 `#[ctor` | F17 |
+| R25 | The library does not print, keeps global state small, runs nothing before `main`, and logs in a structured way. | M-LOG-NOT-PRINT, M-LOG-STRUCTURED, M-AVOID-STATICS; G: do not run code before `main()`; IRS: lazy initialization and singleton with `OnceLock`, no `unsafe` | Agree. | partly | 3 `eprintln!`; 21 statics; 0 `#[ctor` | F17 |
 | R26 | Inputs come from arguments, not from the environment, so the code can be tested; a function with a clear receiver is a method. | C-METHOD; M-MOCKABLE-SYSCALLS, M-TEST-UTIL, M-INTEGRATION-TESTS | Agree. | partly | 9 sites | F20 |
-| R27 | `Drop` neither blocks nor fails silently; cleanup that needs `await` goes to a task. | C-DTOR-FAIL, C-DTOR-BLOCK | One guide. | partly | 3 types | F21 |
-| R28 | No `Arc`, `Rc` or `Box` in a public signature; a service is a cheap `Clone` handle; borrow instead of cloning. | C-SMART-PTR, C-INTERMEDIATE; M-AVOID-WRAPPERS, M-SERVICES-CLONE, M-SIMPLE-ABSTRACTIONS; G: avoid `Rc` and `Arc`, prefer borrows over deep copies | Google lets `Arc` stand where borrowing is "unreasonably complex"; Microsoft keeps it out of the public API. Adopt: `Arc` inside is a judgment call, never in a signature. | partly | 2 constructors, 5 closure aliases and 3 future aliases; 168 `Arc<` lines inside | F23 |
-| R29 | Foreign types stay out of the API, with an escape hatch where the user needs one. | M-DONT-LEAK-TYPES, M-ESCAPE-HATCHES, M-FOREIGN-REEXPORTS | One guide. | accepted (D8) for the four re-exports; thirtyfour is in progress elsewhere | 4 re-exports | none |
-| R30 | Implementation habits: a type written where inference hides it, pattern matching over check-then-unwrap, every variant of a `non_exhaustive` enum listed, a message on an assertion, a loop where a chain reads worse, `format!` over `+` and over `str::replace` for templates. | G: implementation concerns | One guide. | not checked item by item | 3 `for_each`; 42 `.replace("` lines, 8 read (runtime text, not templates) | none |
+| R27 | `Drop` neither blocks nor fails silently; cleanup that needs `await` goes to a task. | C-DTOR-FAIL, C-DTOR-BLOCK; IRS: RAII, lock guards | One guide, plus IRS's RAII. | partly | 3 types | F21 |
+| R28 | No `Arc`, `Rc` or `Box` in a public signature; a service is a cheap `Clone` handle; borrow instead of cloning. | C-SMART-PTR, C-INTERMEDIATE; M-AVOID-WRAPPERS, M-SERVICES-CLONE, M-SIMPLE-ABSTRACTIONS; G: avoid `Rc` and `Arc`, prefer borrows over deep copies; IRS: excessive cloning anti-pattern, observer by channel, unnecessary smart pointers anti-pattern (F23), flyweight (an `Arc` cache kept inside, never in a signature), mediator (its `Arc<Mutex<..>>` loses to this rule) | Google lets `Arc` stand where borrowing is "unreasonably complex"; Microsoft keeps it out of the public API. Adopt: `Arc` inside is a judgment call, never in a signature. | partly | 2 constructors, 5 closure aliases and 3 future aliases; 168 `Arc<` lines inside | F23 |
+| R29 | Foreign types stay out of the API, with an escape hatch where the user needs one. | M-DONT-LEAK-TYPES, M-ESCAPE-HATCHES, M-FOREIGN-REEXPORTS; IRS: adapter, facade, proxy | One guide, plus IRS's wrappers that keep the wrapped type private. | accepted (D8) for the four re-exports; thirtyfour is in progress elsewhere | 4 re-exports | none |
+| R30 | Implementation habits: a type written where inference hides it, pattern matching over check-then-unwrap, every variant of a `non_exhaustive` enum listed, a message on an assertion, a loop where a chain reads worse, `format!` over `+` and over `str::replace` for templates. | G: implementation concerns; IRS: poor pattern matching, iterator and manual-indexing anti-patterns (see R41) | One guide, plus IRS. | not checked item by item | 3 `for_each`; 42 `.replace("` lines, 8 read (runtime text, not templates) | none |
 | R31 | Not for this crate: FFI, `-sys` crates, the Chromium, Android and Fuchsia rules, the 11 performance guidelines and the 3 application guidelines (for `crates/cli`). | M-FFI-NAMING, M-FFI-TRANSLATES, M-ISOLATE-DLL-STATE, M-SYS-CRATES, M-UPSTREAM-GUIDELINES, M-MACRO-HELPERS, M-MACRO-VERSION-PIN, M-PROC-IMPL, M-PROC-IMPLIED-ITEMS; G: small crates, flat layout, import macro, no `async`/`.await`, no `std` threads, `fuchsia_sync::Mutex`, test framework per codebase | None. | n/a | none | none |
+| R32 | A trait whose implementor picks one related type uses an associated type, not an extra type parameter on every user; a parameter only where one type may implement the trait several times. | IRS: associated types | New in IRS; the three guides name no rule. Adopt for the 15 `pub trait`s and any new one; it fits C-SEALED and R11. IRS also shows a default associated type (`type Output = String;`); that is an unstable feature, so R23 wins and it is not adopted. | not checked | the 15 `pub trait`s | none |
+| R33 | A library function returns `Result` and propagates with `?` through `From` impls; it never calls `process::exit` and never prints the error to end the program; that choice belongs to `crates/cli`. | IRS: `?` propagation, unwrap abuse, panic in libraries (graceful `exit(1)` in `main` only; F22) | R14 and R15 cover the error type and the panic; IRS adds the exit. Adopt: no `process::exit` in `src/`; where IRS maps errors to `String` with `map_err(format!)`, R14 wins (never `Result<_, String>`). | not checked | `process::exit` in `src/` not counted | none |
+| R34 | A builder with required fields, and a handle with a strict lifecycle, encode the state in a type parameter (typestate, `PhantomData` markers) so that `build()` or an invalid call does not compile; a transition consumes `self`. | IRS: type state pattern, builder with type states | New in IRS. Adopt where a field is required (the bon builders lane gives this for required members) and for lifecycles with an invalid order. R5 still holds: `build()` validates what the types cannot say. IRS's `build()` calls `unwrap`; R15 wins (no `unwrap` in production). | not checked | builders with a required field, handles with a lifecycle: not counted | none |
+| R35 | A type that owns a resource (browser, driver, session, pool) releases it in `Drop`, so an early return or an error still cleans up; scoped state is a guard value that restores it on drop. | IRS: RAII, `Drop`, lock guards | New in IRS as a pattern; C-DTOR-* only limit what `Drop` may do. Adopt with R27 on top: `Drop` neither blocks nor fails silently, async cleanup goes to a task, and (R25) it prints nothing, which IRS's example does. | not checked | the 21 `impl Drop` in `src` (F21) | F21 |
+| R36 | Events and observers go through a channel (`mpsc`, `tokio::sync`): the subscriber owns a receiver and dropping it unsubscribes; no `Arc<dyn Observer>` list in a public signature. | IRS: message passing, mediator, traditional observer vs channels | IRS shows both and prefers the channel. Adopt the channel; the `Arc<dyn Observer>` form loses to R28 (no `Arc` in a signature) and R11 (generics, not `dyn`). | not checked | plugin observers and event streams: not counted | F23 |
+| R37 | Avoid: a factory or a strategy that returns or stores `Box<dyn Trait>` in the public API. A factory is an enum or a generic constructor; a strategy is a generic parameter or a closure. | IRS: factory method, abstract factory, strategy, chain of responsibility, bridge, mediator (all with `Box<dyn ...>`) | IRS's own examples use `Box<dyn Shape>` and `Box<dyn Strategy>`; under the page's principles the stricter rule wins, so R11 and R28 beat them. `dyn` stays only for seams such as `CdpTransport`. | not checked | the `Box<dyn` sites of R28 (2 constructors, 5 closure aliases, 3 future aliases) | F23 |
+| R38 | A facade is one type that owns its subsystems and delegates, and an adapter is a type that wraps a foreign type and implements our trait; the wrapped type stays private. | IRS: facade, adapter, proxy | New as a pattern name; it fits `BaseCase` over `sb_cdp`, the Playwright bridge and R29's escape hatch. IRS's proxy example prints a log line; R25 wins (the library does not print). | not checked | `BaseCase`, `PlaywrightSidecar`: not judged here | none |
+| R39 | Use when the kinds of a thing are a closed set: an enum and `match` (enum polymorphism), with the operations as methods or functions, instead of a trait hierarchy or a visitor trait; the enum is `#[non_exhaustive]` if it may grow. | IRS: enum polymorphism, visitor | IRS itself says a visitor is better replaced by enum and `match`, and keeps a visitor trait object for plugin-style outside operations "rarely". Adopt the enum; the trait-object visitor loses to R11. | not checked | enums such as `Spoof`, `DriverMode`, `BrowserKind`: not judged | F6 |
+| R40 | Avoid: ignoring a `Result` or a compiler warning (`let _ =`, `.ok()`, an `allow` to silence it). A fallible call is propagated or handled; a lint is satisfied, or `#[expect]` with a reason. | IRS: ignoring warnings anti-pattern | Agrees with R24 and R14; no conflict. | not checked | `let _ =` and `.ok()` sites: not counted | F1, F19 |
+| R41 | Avoid: an index loop (`for i in 0..len` with `v[i + 1]`) and a chain of intermediate `Vec`s where one iterator chain does it; use `windows`, `get`, adapters. | IRS: manual indexing, iterator anti-patterns | Library code only; Google's "chains that read worse" (R30) still wins where a loop is clearer. | not checked | 3 `for_each` known; index loops not counted | none |
+| R42 | Avoid: `mut` where a binding does not change, and `&mut self` where `&self` is enough; a public method takes `&mut self` only when it changes the value. | IRS: excessive mutability anti-pattern | Applies to the 700 `BaseCase` methods and to local code; no other guide names it. | not checked | public `&mut self` receivers: not counted | none |
+| R43 | Avoid: explicit lifetimes where elision gives the same signature; a lifetime parameter that no output uses. | IRS: improper lifetime handling anti-pattern | Applies to public signatures; Clippy's `needless_lifetimes` is the lint to turn on in lane 1 (R24). | not checked | not counted | F1 |
+| R44 | Avoid: forcing a type (`as` casts that lose value, `transmute`) and a function whose signature promises more than it returns (divides by a count that may be zero); return `Option` or `Result`, convert with `TryFrom`. | IRS: fighting the type system anti-pattern | Fits R7, R14 and R15; no conflict. | not checked | `as` casts in public code: not counted | F9, F10 |
 
 ## Coverage by item: Rust API Guidelines
 
@@ -156,7 +169,7 @@ and partly 17; C-METHOD and C-DTOR-BLOCK moved to partly in the second; the thir
 |---|---|---|---|
 | C-CASE | met | 0 | rustc's naming lints are on by default and the gate runs clippy with `-D warnings`; no counter-example in the files read. |
 | C-CONV | met | 4 | 13 `as_`, 4 `into_` and at least 30 `to_` methods fit their prefixes; four `const fn name(self) -> &'static str` are the odd names where `as_str` is used elsewhere (`Browser::name` and `DriverMode::name` in `src/browser/config.rs:91,169`, `src/browser/chrome_for_testing.rs:84`, `src/browser/options/proxy.rs:120`). |
-| C-GETTER | not met | 104 | 35 `pub fn get_` and 69 `pub async fn get_` (78 of them on `BaseCase`, where D2 keeps the Python names). |
+| C-GETTER | not met | 104 | 35 `pub fn get_` and 69 `pub async fn get_` (78 of them on `BaseCase`, where D2 is reversed: the prefix goes). |
 | C-ITER | met | 0 | `ProxyList` has `iter` and `IntoIterator for &ProxyList` (`src/config/proxy_list.rs:518,535`). |
 | C-ITER-TY | n/a | 0 | No public iterator type. |
 | C-FEATURE | met | 0 | Feature names carry no `use-` or `with-`. |
@@ -334,8 +347,9 @@ guide.
    exist and `Page::locator` already takes `impl Into<SelectorBuf>`; the parameter is called `css`
    even when it holds an XPath.
 3. **104 `get_` functions (F5; C, G)**, 78 on `BaseCase`, the one checklist item with a
-   count in the hundreds. It follows the Python names, so decision D2 (taken) keeps them on
-   `BaseCase`; the other 26 stay on the list.
+   count in the hundreds. The owner reversed D2 on 2026-11-08: `BaseCase` drops the prefix
+   too (`get_text` becomes `text`), and the Python names stay findable through `parity/api.toml`,
+   the Python importer and `parity_lookup`.
 4. **27 exported macros, mostly one method call (F7; C, M, G)**; in five of them an optional last
    argument changes the type from a `Result` to `()` that panics. Decision D3 (taken) cuts the
    `sb_*` macros to `sb_test!`.
@@ -588,8 +602,9 @@ literal_string_with_formatting_args = "allow"
 * Four `const fn name(self) -> &'static str` (`Browser`, `DriverMode`,
   `src/browser/chrome_for_testing.rs:84`, `src/browser/options/proxy.rs:120`) should be `as_str`,
   like the 13 other `as_str`.
-* The prefix is the Python names (`parity/api.toml`). Decision D2 (taken): the names stay on
-  `BaseCase` (78 of the 104), so C-GETTER and Google's getter rule are accepted deviations there.
+* The prefix is the Python names (`parity/api.toml`). Decision D2 was reversed on 2026-11-08: the
+  `BaseCase` getters (78 of the 104) drop `get_`; the Python names stay findable through
+  `parity/api.toml`, the Python importer and `parity_lookup`.
   What this finding still asks for: the other 26 `get_*`, `get_browser`, the `*_js` getters and
   `name` (the cheap part, lane 15).
 * Google (rule R3) spells the whole family: `foo()` returns `&T` (or `T` if it is `Copy`),
@@ -603,7 +618,7 @@ literal_string_with_formatting_args = "allow"
   and `with_body` (F15, lane 15). **Done (2026-11-08):** the two builder steps are `with_header` and `with_body`.
 * Google also says to avoid `.clone()` "as a substitute for borrowing": `get_browser` clones the
   whole `BrowserConfig` (above) where a `&BrowserConfig` would do.
-* Breaking: yes for the other 26 and for the renames; none for `BaseCase` (D2).
+* Breaking: yes for the other 26 and for the renames; yes for `BaseCase` too (D2 reversed).
 
 ### F6. Open traits and `Deref` for inheritance (C-SEALED, C-DEREF; Google: trait vs inherent impl, extension traits)
 
@@ -904,15 +919,16 @@ literal_string_with_formatting_args = "allow"
   `pub const fn`, about 80 of them on `BrowserConfig`), and none reads or changes a property through a
   closure. The one `with_*` that takes a closure, `FingerprintBuilder::with_policy`
   (`src/evasion/fingerprint.rs:1771`), stores a transform that `build()` runs. Decision D10
-  (taken): keep `with_*` as the setter, never name a closure accessor `with_*`, and make the five
-  constructors above and `set_header`/`replace_body` (F5) fit that rule.
+  (replaced on 2026-11-08): setters lose `with_` and are named after the field on a separate
+  builder type (the bon builders lane); `with_*` stays only for constructors, as in `Vec::with_capacity`,
+  so the five constructors above keep their names and `set_header`/`replace_body` (F5) become
+  setters of a builder or `set_*`.
 * Google also asks that an options struct implement `Default` and that an important `From` impl
   have a constructor beside it: `BrowserConfig`, `Settings`, `BrowserSettings` and `ProxyConfig`
   have a `Default` (the tests above build them with it) and no `allow` of `new_without_default`
   exists (F1); the `From` impls were not read for the second point.
-* Fix: `BaseCase::connect(config)` for `new`; `BaseCase::new_with_session` for `with_session` (two
-  arguments, so Google's `new_with_foo` and not `from_session`); `new_with_*` for the other four
-  `with_*` constructors; `try_new` for the fallible `new` above (`BaseCase::new` is `async` and
+* Fix: `BaseCase::connect(config)` for `new`; the `with_*` constructors keep their names (the
+  `new_with_*` rename is dropped with D10); `try_new` for the fallible `new` above (`BaseCase::new` is `async` and
   starts a browser, so it takes `connect` instead); `with_header` and `with_body` for `set_header`
   and `replace_body`; nothing else.
 * Breaking: yes, small.
@@ -1057,7 +1073,9 @@ literal_string_with_formatting_args = "allow"
   sites call it, and `std::sync::PoisonError::into_inner` is disallowed everywhere else.
 * Breaking: no.
 
-### F23. Wrappers in public signatures (M-AVOID-WRAPPERS, M-SERVICES-CLONE; Google: avoid `Rc` and `Arc`, generics vs `dyn`)
+### F23. Wrappers in public signatures (M-AVOID-WRAPPERS, M-SERVICES-CLONE; Google: avoid `Rc` and `Arc`, generics vs `dyn`) [done, except `Session<S>`]
+
+* Done: `TestRun` is a `Clone` handle (`TestRun::current`, `open`, `resume` return it; `RunFinalizer::new`, `ReportsPlugin::with_run`, `Sb::report_to` take it); each boxed alias carries a doc line that says why it is boxed. Not done: `Session<S>` is still the Tokio guard type (its doc says so).
 
 * The first pass wrote "no `Arc`, `Rc` or `Box` in the public signatures read"; the third pass
   found these. Two public constructors take `Arc<TestRun>`: `with_run` (`src/plugins/reports.rs:221`)
@@ -1115,7 +1133,7 @@ the same commit and runs `mise run contracts` and `mise run semver`. The order p
 lanes that cost little and tell the rest (1 to 4), then the lanes that break little or nothing
 (5 to 9), then the breaking lanes from the smaller to the larger (10 to 20), the history
 clean-up (21) and, last, the formatting-only commit (22). The owner's decisions of 2026-11-07 shaped
-the list: D2 removed the lane that renamed the `get_*` of `BaseCase`, D3 made the macro lane a
+the list: D2 removed the lane that renamed the `get_*` of `BaseCase` (reversed on 2026-11-08: lane 15 renames them now), D3 made the macro lane a
 deletion, D4 and D9 fixed the error lanes, D5 the trait lane, and D7 the last lane; D10 to D12 added
 or filled lanes 9, 14 and 15.
 
@@ -1199,10 +1217,9 @@ or filled lanes 9, 14 and 15.
     `src/macros.rs`, `src/lib.rs`, `tests/`, `examples/`, `docs/`. Breaking.
 15. **Names** (F11, F5 cheap part, F15; C-GETTER, C-CTOR, C-WORD-ORDER; M-SHORT-NAMES,
     M-WEASEL-WORDS; G: getters and setters, initialization functions, avoid abbreviations):
-    `BrowserKind`, one `Proxy`, `connect` and `new_with_session`, `new_with_*` for the other four
-    `with_*` constructors, `try_new` for the fallible `new`, `as_str` for the four `name`,
+    `BrowserKind`, one `Proxy`, `connect`, `try_new` for the fallible `new`, `as_str` for the four `name`,
     `get_browser` and the `*_js` getters, `with_header` and `with_body`, the six abbreviated
-    `BrowserConfig` setters and the accessor `rec_sb_cdp`. The `BaseCase::get_*` names stay (D2).
+    `BrowserConfig` setters and the accessor `rec_sb_cdp`. The `BaseCase::get_*` names go too (D2 reversed); the `new_with_*` renames are dropped (D10); builder setters move to the bon builders lane.
     Files: `src/browser/config.rs`, `src/lib.rs`, `src/evasion/fingerprint.rs`,
     `src/browser/options/`, `src/config/proxy_list.rs`, `src/profile_payloads/profile.rs`,
     `src/api/base_case.rs`, `src/browser/chrome_for_testing.rs`, `src/sb_cdp/intercept.rs`, the
@@ -1237,9 +1254,12 @@ taken on the recommendation written under each.
 
 * D1. **Taken (owner): the MSRV stays the newest stable.** `rust-version = "1.99"`; the `msrv` CI job
   and the `Dockerfile` base image move with it, as `CLAUDE.md` says. M-MSRV is an accepted deviation.
-* D2. **Taken (owner): keep the Python `get_*` names on `BaseCase`** (78 of the 104). C-GETTER and
-  Google's getter rule are accepted deviations there; the other 26 `get_*`, the four `name`
-  methods and `get_browser` are renamed in lane 15.
+* D2. **REVERSED (owner, 2026-11-08): `BaseCase` getters drop `get_`** (`get_text` becomes `text`; 78
+  of the 104). The Python names stay findable through `parity/api.toml`, the Python importer and
+  `parity_lookup`. All 104 `get_*`, the four `name` methods and `get_browser` are renamed in lane 15.
+  Direction: the pure CDP engine (`sb_cdp`) is the Rust-native API and `BaseCase` is the
+  Python-familiar layer built on it, also Rust-named; the rule set applies to every public API in
+  every repository (core, playwright, the stealth crates, plugins, the Tauri plugin).
 * D3. **Taken (owner): cut the `sb_*` macros to `sb_test!`.** The four macros not named `sb_*`
   follow the same rule on the recommendation of this page, which the owner accepted: `uc_config!`
   and `cdp_config!` go, and `selector!` and `fingerprint!` are kept only if a function cannot do
@@ -1264,8 +1284,13 @@ taken on the recommendation written under each.
 * D9. **Taken (recommendation accepted): typed errors that display the same text.** The message
   stays Python's (`SbRecorder::check`, `validate_file_name`, `find_examples`); a type carries it, so
   `?` works and a caller can match (lane 5).
-* D10. **Taken (recommendation accepted): keep `with_*` as the setter that takes and returns
-  `self`.** Google's guide gives `with_foo(f)` the meaning "call `f` with a borrow of `foo`" (and
+* D10. **REPLACED (owner, 2026-11-08): builder setters lose `with_` and are named after the field on
+  a separate builder type** (`BrowserConfig::builder().headless(true).build()`, C-BUILDER, agreeing
+  with IRS's builder idiom), done by the bon builders lane; `build()` still validates (R5);
+  `with_*` stays only for constructors, as in std's `Vec::with_capacity`; the `new_with_*` rename of
+  F15 is dropped. The text below is the earlier decision, kept for the record.
+  Earlier text: keep `with_*` as the setter that takes and returns
+  `self`. Google's guide gives `with_foo(f)` the meaning "call `f` with a borrow of `foo`" (and
   `with_mut_foo(f)` for a mutable borrow), for a property inside a `Mutex` or `RefCell` or when a
   change needs follow-up work that `set_foo` cannot do. The crate and `seleniumbase-rs-stealth` use
   `with_*` for builder setters (`BrowserConfig::with_*`, `RunSettings::with_*`,
@@ -1387,6 +1412,14 @@ that delete letters (F11), non-leaf modules without definitions (F12), named fie
 Decisions: the owner took D1 to D3 and D5 to D8, and accepted this page's recommendation for D4 and
 D9 to D12; they are marked taken above, and their work is in lanes 1, 5, 9, 14, 15, 16, 18 and 22.
 
+## The fourth source
+
+On 2026-11-08 the owner added Idiomatic Rust Snippets (`IRS:`, github.com/saltukalakus/idiomatic-rust-snippets, read on Context7). It has no ids; a rule is named by the title of its snippet. It tags R4, R5, R6, R8, R11, R14, R15 and R28, adds R32 and R33 (status not checked: the code is not judged against them yet; that is the next audit pass), and no longer conflicts with R5 after the owner's D10 replacement (plain setters; `build()` still validates). Its snippets on builders, `new`, `&str`, cloning, iterators, `Display`/`Error`/`From` and `?` agree with the other three; its remaining snippets are language lessons, not API rules.
+
+A second round of four queries (newtype, typestate, RAII and `Drop`, extension traits and conversion traits) tagged R7 (newtype pattern), R11 (extension traits) and R27 (RAII) and added R34 (typestate) and R35 (RAII owners and guards), both not checked. What the source did not return for the fourth query: `Default`, `From`/`Into` as a parameter rule, `AsRef`, `Cow` and sealed traits (only the `From` between newtype wrappers and a default associated type, which is unstable, came back). The crate's rules on those stay with the other three guides.
+
+A third round (design patterns, three queries) tagged R25 (`OnceLock` lazy initialization), R28 (observer by channel) and R29 (adapter, facade, proxy) and added R36 (observer by channel), R37 (avoid `Box<dyn>` factories and strategies) and R38 (facade and adapter), all not checked. That list was incomplete: Context7 had missed pages. A direct read of the repository (`gh api`, pages under `src/patterns` and `src/anti-patterns`) in a fourth round covered every pattern and anti-pattern it holds: the creational, structural and behavioural pages (singleton, abstract method, chain of responsibility, enum polymorphism, mediator, message passing, visitor, bridge, decorator, flyweight) are tagged to R5, R11, R25, R28, R36 and R37 or have R39, and each anti-pattern is tagged or has a row (R40 to R44; stringly typed to R7 and F9, deref abuse to R11 and F6, panic in libraries to R15, R33 and F22, unnecessary smart pointers to R28 and F23, unnecessary unsafe to R17). The rust-unofficial Rust Design Patterns book was queried, then dropped at the owner's correction, and is not a source of this page.
+
 ## Not checked
 
 * Anything a compiler lint reports: the full list of types without `Debug`, `Clone`, `Eq`, `Hash`;
@@ -1417,5 +1450,8 @@ D9 to D12; they are marked taken above, and their work is in lanes 1, 5, 9, 14, 
   in one file: `agents/all.txt`, read again for the third pass)
 * [Google's Rust style guide](https://github.com/google/styleguide/blob/gh-pages/rustguide.md)
   (`/google/styleguide` on Context7; the file fetched from the raw page and read on 2026-11-07)
+* [Idiomatic Rust Snippets](https://github.com/saltukalakus/idiomatic-rust-snippets) (`IRS:`;
+  `/saltukalakus/idiomatic-rust-snippets` on Context7, three queries on 2026-11-08: API design and
+  naming, error handling, builders and iterators; only the snippets those returned were read; four more queries on 2026-11-08 for the second round)
 * Cargo reference, workspaces and the `lints` table; the Rust Reference on lint attributes; the
   Clippy lint configuration book (all read on Context7).

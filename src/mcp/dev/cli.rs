@@ -21,10 +21,10 @@ use crate::mcp::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};
 /// How long `<driver> --version` may take.
 const VERSION_TIMEOUT: Duration = Duration::from_secs(10);
 
-/// The future of a driver download.
+/// The future of a driver download. A boxed future, because [`Installer`] stores closures that return it.
 pub type InstallFuture = Pin<Box<dyn Future<Output = Result<PathBuf, SeleniumBaseError>> + Send>>;
 
-/// Downloads a driver and returns where its executable is.
+/// Downloads a driver and returns where its executable is. A boxed closure, because the server stores it.
 ///
 /// [`host`](super::host) uses the downloader of `sbrs install`. A test gives
 /// [`host_with_installer`](super::host_with_installer) one that reaches no

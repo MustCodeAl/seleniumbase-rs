@@ -1,7 +1,6 @@
 //! Plugins that record how each test went.
 
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 use std::time::Duration;
 
@@ -200,7 +199,7 @@ fn status_of(outcome: &Result<()>) -> TestStatus {
 /// [`core::test_run`](crate::core::test_run).
 #[derive(Debug)]
 pub struct RunReporterPlugin {
-    run: Arc<TestRun>,
+    run: TestRun,
     recorder: Option<TestRecorder>,
 }
 
@@ -218,7 +217,7 @@ impl RunReporterPlugin {
 
     /// A plugin that records into `run`.
     #[must_use]
-    pub fn with_run(run: Arc<TestRun>) -> Self {
+    pub fn with_run(run: TestRun) -> Self {
         Self {
             run,
             recorder: None,
