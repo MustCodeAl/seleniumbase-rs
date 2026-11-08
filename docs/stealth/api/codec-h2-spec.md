@@ -44,10 +44,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```rust The measured HTTP/2 start
 use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
 use seleniumbase_rs_stealth::codec::measurement;
-use seleniumbase_rs_stealth::codec::BrowserKind;
+use seleniumbase_rs::browser::config::Browser;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let chrome = measurement::get(BrowserKind::Chrome, OsType::Macos)?;
+    let chrome = measurement::get(Browser::Chrome, OsType::Macos)?;
     let http2 = chrome.http2.as_ref().ok_or("no HTTP/2 capture")?;
     println!("{}", http2.akamai());
     println!("{:?}", http2.headers_priority);

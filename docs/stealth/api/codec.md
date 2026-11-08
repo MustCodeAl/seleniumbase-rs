@@ -19,10 +19,11 @@ entry, Chrome 155.0.8059.40 on macOS. The guide that explains these formats is
 
 ```rust The measured Chrome
 use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
-use seleniumbase_rs_stealth::codec::{measurement, BrowserKind, WireMeasurementError};
+use seleniumbase_rs::browser::config::Browser;
+use seleniumbase_rs_stealth::codec::{measurement, WireMeasurementError};
 
 fn main() -> Result<(), WireMeasurementError> {
-    let chrome = measurement::get(BrowserKind::Chrome, OsType::Macos)?;
+    let chrome = measurement::get(Browser::Chrome, OsType::Macos)?;
     println!("{} {}", chrome.provenance.browser, chrome.tls.ja4());
     Ok(())
 }
@@ -110,39 +111,10 @@ of `measurement` are called through the module (`measurement::all`, `measurement
 | `Ja4`, `Ja4Error`, `Ja4Raw` | the `ja4` items of the same name |
 | `KnownGap`, `TlsSpec`, `TlsSpecError` | `tls_spec::KnownGap`, `tls_spec::TlsSpec`, `tls_spec::TlsSpecError` |
 
-## `BrowserKind`
+## Browsers
 
-<Badge color="purple" shape="pill">enum</Badge>
-
-```rust
-#[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BrowserKind {
-    Chrome,
-}
-```
-
-A browser whose wire behaviour the measured tables describe. It is defined at the
-crate root and has no serde of its own: the measured JSON spells it `Chrome`, and
-the identity file of the scrape crate spells it `chrome`.
-
-<ResponseField name="BrowserKind" type="enum">
-
-<Expandable title="variants" defaultOpen>
-
-<ResponseField name="Chrome">
-
-Google Chrome, the first browser measured (on macOS).
-
-</ResponseField>
-
-</Expandable>
-
-</ResponseField>
-
-The enum is `#[non_exhaustive]`: match it with a wildcard arm. Every variant has
-a measured entry; a unit test of the crate fails when one is added without a
-measurement.
+The codec has no browser enum of its own: it names browsers with core's
+`seleniumbase_rs::browser::config::Browser` (`Browser::Chrome` is the one measured).
 
 ## Sub-pages
 

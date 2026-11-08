@@ -598,6 +598,24 @@ work, `docs/parity.md` the per-API status).
   at most ten, the first bare and then `q` falling from 0.9 by a tenth), beside
   `Locale::accept_language` for a locale's own list. The stealth wire format can call it
   instead of keeping a copy of the rule.
+- `ProxyList` picks and reports at a time the caller gives, so a caller that keeps its own clock
+  (the stealth proxy pool holds Unix seconds) can drive the rotation and the quarantine through
+  it instead of keeping a copy of both: `pick_at(site, now)`, `pick_other_at(current, site, now)`
+  and `report_at(entry, outcome, now)` take a `std::time::SystemTime`, and `pick`, `pick_other`
+  and `report` are the same calls with the time of the clock. `pick_where(accept, site)` and
+  `pick_where_at(accept, site, now)` choose only among the proxies a closure over the entry
+  allows (a pick of one country, when the entries are named for their country); `accept` runs
+  before the list takes its lock. A rest is held to a hundred years so that adding it to a time
+  cannot overflow, and a list is still `Send + Sync`. The scenarios of the stealth pool are
+  tests of the list with explicit times: the cycle around a resting proxy, release after the
+  rest time, a released proxy starting with no failures, a limit of zero, the healthiest proxy
+  for least failures, sticky per site, a seeded random order and a report for an unknown proxy.
+- `SolveOptions::verify_timeout_allowed()` reads the time allowed for the page to show a result
+  after a press, as `verify_timeout` set it (5 s by default). It is named like
+  `attempts_allowed()`, `rounds_allowed()` and `cooldown_between_rounds()`, and it lets the
+  stealth scraper bound its wait for the clearance cookie with the one setting instead of a
+  `solve_timeout` of its own.
+
 
 
 
@@ -615,6 +633,26 @@ work, `docs/parity.md` the per-API status).
   `StealthIdentity` is `Identity`, and the TLS and HTTP/2 spec errors are `TlsSpecError` and
   `H2SpecError`. The changelog of the stealth repository has the full list. Prose that says
   "egress" is kept, as the stealth repository keeps it.
+
+- The pages about the stealth crates follow the stealth repository's lanes `stealth-wire` and
+  `stealth-scrape` (and the naming review where a page had not caught up): `HttpSession`,
+  `StealthSession`, `BrowserScraper` and `MitmProxy` read their proxy as `proxy_route()` and the
+  fetch results hold `proxy`, not `egress`; `BrowserScraper::session_store()`,
+  `HttpSession::wire_format()` and `http_session()`, the builder options `escalation_policy`,
+  `identity`, `http_session_options` and `rate_limit`, `launcher` (a launch closure, with the
+  `Launcher` type) in place of `BrowserLauncher` and `ChromeLauncher`, `ContextProxySwitch` no
+  longer public, `MitigationPolicy::solve` (core's `SolveOptions`), `GeoInfo::coordinates` (core's
+  `Geolocation`), `Identity::session`, `proxy`, `validate`, `cookie_jar` and `replace_cookies`
+  (identity file version 2), `WireFormat::builder`, `h2_spec`, `client_headers` and
+  `WireFormatBuilder::fingerprint` and `client_headers` in place of `custom`, `http2_spec`,
+  `identity`, `user_agent`, `accept_language`, `client_hints` and `with_locale`,
+  `ClientHeaders::from_fingerprint`, `CookieJar::receive` and `SetCookieOutcome`,
+  `HttpError::WireFormat` and `StealthError::WireFormat`, `ScrapeError::Proxy`, `Ledger` and
+  `NoProxyLeft`, `LedgerError`, `ProxyRouteError`, `ProxyOutcome::ConnectFailed`,
+  `ScrapeEvent::ProxyRotated` and `FingerprintRotated`, `MitmProxy::proxy_url`, `launch_args`,
+  `proxy_route` and `swap_proxy`, and the `http_session` types under their exported names
+  (`HttpAttempt`, `HttpFetch`, `HttpRules`, `HttpVerdict`, `ResponseHeaders`).
+
 
 - Two allocation hotspots found by the `alloc` and `alloc_sites` benches are gone, with the same
   output. The importer's tokenizer sizes its token list from the length of the source instead of
@@ -714,6 +752,13 @@ work, `docs/parity.md` the per-API status).
   widget, added cookies in the `cdp` and `uc` modes that the WebDriver mode did not list. A
   DevTools answer with no list of cookies is `SeleniumBaseError::CdpDriver`; it was read as a
   page without cookies.
+- A round-robin `ProxyList` holds its order around a proxy that starts to rest in the middle of a
+  cycle. The turn was a counter taken modulo the number of open proxies, so with three proxies
+  handed out as a, b and a then reported blocked, the next pick was b again instead of c. The
+  turn is now a position in the list: the next pick is the first open proxy at or after it, and
+  the turn moves just past that proxy. The least-failures tie and the first pick of a site that
+  sticks to a proxy use the same turn.
+
 
 ### Fixed
 

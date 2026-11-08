@@ -6,7 +6,7 @@ description: "ScrapeError, the one error enum seleniumbase-rs-scrape returns."
 
 <Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: scrape</Badge>
 
-Every fallible call in the scrape crate returns `ScrapeError`. A URL on an error is a `RedactedUrl`. The enum is `non_exhaustive`. `GeoError`, `EgressError`, `StateError` and `IdentityError` convert into it.
+Every fallible call in the scrape crate returns `ScrapeError`. A URL on an error is a `RedactedUrl`. The enum is `non_exhaustive`. `ProxyRouteError`, `GeoError`, `LedgerError`, `IdentityError` and the core's `FingerprintError` convert into it.
 
 See [BrowserScraper](/scraping/stealthy/browser-scraper).
 
@@ -17,7 +17,7 @@ use seleniumbase_rs_stealth::scrape::ScrapeError;
 
 fn explain(error: &ScrapeError) -> &'static str {
     match error {
-        ScrapeError::NoEgressAvailable => "no other proxy",
+        ScrapeError::NoProxyLeft => "no other proxy",
         ScrapeError::CoolingDown { .. } => "site cooldown",
         ScrapeError::Unsolved { .. } => "challenge not passed",
         _ => "other scrape error",
@@ -33,9 +33,9 @@ fn explain(error: &ScrapeError) -> &'static str {
 
 ```rust
 pub enum ScrapeError {
-    Egress(#[from] EgressError),
+    Proxy(#[from] ProxyRouteError),
     Geo(#[from] GeoError),
-    State(#[from] StateError),
+    Ledger(#[from] LedgerError),
     Identity(#[from] IdentityError),
     Fingerprint(#[from] FingerprintError),
     Unsolved {
@@ -64,7 +64,7 @@ pub enum ScrapeError {
             /// What the browser said.
             reason: String,
         },
-    NoEgressAvailable,
+    NoProxyLeft,
     Browser(SeleniumBaseError),
 }
 ```

@@ -506,6 +506,15 @@ impl SolveOptions {
         self.cooldown
     }
 
+    /// How long the page is allowed to show the result of a press, as
+    /// [`verify_timeout`](Self::verify_timeout) set it: 5 s by default, [`Duration::ZERO`] to
+    /// not wait. The layer that waits for a solve's result itself (the stealth scraper waits for
+    /// the clearance cookie) reads it here, so that one setting bounds the wait for both.
+    #[must_use]
+    pub fn verify_timeout_allowed(&self) -> Duration {
+        self.verify_timeout
+    }
+
     /// Whether the proxy is to change after `failed_rounds` rounds in a row that ended
     /// without a result: [`rotate_proxy_after`](Self::rotate_proxy_after) was set and the
     /// count has reached it. Always `false` when it was not set.
@@ -769,6 +778,18 @@ mod tests {
         assert!(!options.proxy_rotation_due(u32::MAX));
         assert!(!options.fingerprint_rotation_due(u32::MAX));
         assert!(options.clearance_cookie.is_none());
+    }
+
+    #[test]
+    fn the_time_allowed_for_a_result_is_read_back_as_it_was_set() {
+        assert_eq!(
+            SolveOptions::default().verify_timeout_allowed(),
+            Duration::from_secs(5)
+        );
+        let options = SolveOptions::new().verify_timeout(Duration::from_secs(30));
+        assert_eq!(options.verify_timeout_allowed(), Duration::from_secs(30));
+        let none = SolveOptions::new().verify_timeout(Duration::ZERO);
+        assert_eq!(none.verify_timeout_allowed(), Duration::ZERO);
     }
 
     #[test]
