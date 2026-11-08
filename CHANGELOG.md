@@ -484,6 +484,27 @@ work, `docs/parity.md` the per-API status).
   `BrowserConfig::with_capabilities`, and what the stealth options launch is
   `StealthOptions::args()` (a test holds it equal to the arguments the session asks Chrome for).
 
+- **Breaking: `BrowserSession::driver()` is gone, and `seleniumbase_rs::drivers` keeps three
+  types.** The session's WebDriver has one accessor, `BrowserSession::webdriver()`, which returns
+  a `Result`: `Unsupported` on a direct CDP attachment, `SessionNotStarted` after `quit` or a
+  `reconnect` that could not start a browser. `driver()` returned the same reference and
+  panicked in those cases. `drivers` is now the escape hatch only: `WebDriver` (behind
+  `BrowserSession::webdriver`), `WebElement` (behind `Element::as_webdriver_element`) and
+  `WebDriverError` (what calls on them fail with). Its last two other items, `By` (nothing takes
+  it since `Element`) and `WebDriverResult`, are gone, so with the items the earlier entries
+  remove (`Cookie`, `Key`, `ConnectionType`, `NetworkConditions`, `WebDriverErrorInner` and the
+  capability types) nothing of `thirtyfour` is re-exported but those three. The module doc names
+  the version the crate builds against (`thirtyfour` 0.38) and says that a program which needs
+  more of it lists the crate itself. The name `drivers` stays.
+
+  ```rust
+  // Before: panics when the session has no driver.
+  let title = session.driver().title().await?;
+  // After: an error instead
+  let title = session.webdriver()?.title().await?;
+  ```
+
+
 
 ### Security
 
