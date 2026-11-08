@@ -670,6 +670,7 @@ Launch and session plumbing:
 <LayoutFile name="chromium_snapshots.rs" note="Chromium snapshot builds" />
 <LayoutFile name="config.rs" note="BrowserConfig, Browser and DriverMode" />
 <LayoutFile name="download_progress.rs" note="progress bars for downloads, quiet when not on a terminal" />
+<LayoutFile name="devtools.rs" note="the WebDriver engine's DevTools client (CdpClient)" />
 <LayoutFile name="downloader.rs" note="downloading a browser or a driver" />
 <LayoutFile name="downloads.rs" note="the downloaded_files folder browsers save into" />
 <LayoutFile name="driver_access.rs" note="repairs and runs drivers" />
