@@ -23,12 +23,16 @@ fn root() -> &'static Path {
     ROOT.get_or_init(|| {
         let dir = tempfile::tempdir().unwrap();
         // FIXME: Audit that the environment access only happens in single-threaded code.
+        // SAFETY: the OnceLock init runs once, before any test of this binary reads these variables.
         unsafe { std::env::set_var("SB_REPORT_ROOT", dir.path()) };
         // FIXME: Audit that the environment access only happens in single-threaded code.
+        // SAFETY: the OnceLock init runs once, before any test of this binary reads these variables.
         unsafe { std::env::set_var("SB_RUN_ID", "sb-reports-env") };
         // FIXME: Audit that the environment access only happens in single-threaded code.
+        // SAFETY: the OnceLock init runs once, before any test of this binary reads these variables.
         unsafe { std::env::set_var("SB_DASHBOARD", "true") };
         // FIXME: Audit that the environment access only happens in single-threaded code.
+        // SAFETY: the OnceLock init runs once, before any test of this binary reads these variables.
         unsafe { std::env::set_var("SB_DASH_TITLE", "Env_run") };
         dir
     })
