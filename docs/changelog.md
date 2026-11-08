@@ -33,6 +33,14 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 
 <Update label="Unreleased" description="Next release" tags={["New", "Fix"]}>
 
+### Added
+
+- Terminal colour follows `NO_COLOR`, `CLICOLOR` and `CLICOLOR_FORCE`. The `Debug` text of
+  `SeleniumBaseError` is styled (message, `hint:` label, hint) only when standard error may
+  be coloured; `{:#?}` and `Display` stay plain. `owo-colors` and `anstream` are new
+  dependencies.
+
+
 ### Breaking
 
 - **Breaking: one rule picks among the sources of a launch setting, whatever the order of the
