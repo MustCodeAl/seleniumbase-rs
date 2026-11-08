@@ -58,12 +58,6 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   flags and the `SB_*` variables keep their names. Rename the calls; the behaviour is the same.
 
 
-- **Breaking: the interception builder steps are named `with_*`.** `Rule::set_header` is now
-  `Rule::with_header` and `Rule::replace_body` is now `Rule::with_body`: they take and return
-  the rule, like the other steps, so `set_*` stays for a setter that changes a value in place.
-  Rename the calls; the behaviour is the same.
-
-
 - **Breaking: one rule picks among the sources of a launch setting, whatever the order of the
   calls.** `LaunchOptionsBuilder` used to apply its calls in order: `fingerprint(&fp)` filled
   only the settings that were unset when it was called, and `browser_config(&config)` replaced

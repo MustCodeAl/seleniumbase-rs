@@ -33,12 +33,6 @@ work, `docs/parity.md` the per-API status).
   flags and the `SB_*` variables keep their names. Rename the calls; the behaviour is the same.
 
 
-- **Breaking: the interception builder steps are named `with_*`.** `Rule::set_header` is now
-  `Rule::with_header` and `Rule::replace_body` is now `Rule::with_body`: they take and return
-  the rule, like the other steps, so `set_*` stays for a setter that changes a value in place.
-  Rename the calls; the behaviour is the same.
-
-
 - **Breaking: `TestRun` is a `Clone` handle, not an `Arc`.** `TestRun::current`, `open`,
   `open_with_console` and `resume` return a `TestRun`; `RunFinalizer::new`, the reports plugin's
   `with_run` and `Sb::report_to`/`SbCdp::report_to` take one. Clone it to share the run. The
