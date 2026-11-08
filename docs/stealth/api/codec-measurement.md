@@ -1,7 +1,7 @@
 ---
 title: "codec::measurement"
 sidebarTitle: "WireMeasurement"
-description: "The measured browser tables of seleniumbase-rs-codec: WireMeasurement, Provenance, WireMeasurementError and the lookups get, get_version, for_kind, measured, try_measured, newest and measured_systems."
+description: "The measured browser tables of seleniumbase-rs-codec: WireMeasurement, Provenance, WireMeasurementError and the lookups get, get_version, for_kind, all, try_all, newest and measured_systems."
 ---
 
 <Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: codec</Badge>

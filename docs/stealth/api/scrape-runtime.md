@@ -13,10 +13,10 @@ The programs are on [Runnable examples](/scraping/advanced-stealthy/examples). `
 <RequestExample>
 
 ```rust Open a state file
-use seleniumbase_rs_stealth::scrape::ledger::state::StateError;
+use seleniumbase_rs_stealth::scrape::ledger::state::LedgerError;
 use seleniumbase_rs_stealth::scrape::JsonLedger;
 
-fn open(path: &str) -> Result<JsonLedger, StateError> {
+fn open(path: &str) -> Result<JsonLedger, LedgerError> {
     JsonLedger::open(path)
 }
 ```
@@ -665,26 +665,7 @@ async fn switch(
 
 - `switch`: Opens a tab in `browser` that leaves through `egress`, or directly when `egress` is `None`.
 
-### `ContextProxySwitch`
-
-<Badge color="blue" shape="pill">struct</Badge>
-
-```rust
-pub struct ContextProxySwitch
-```
-
-An [`ProxySwitch`] that opens a new browser context with its own proxy and drops the one it opened before.
-
-### `ContextProxySwitch` methods
-
-<Badge color="yellow" shape="pill">method</Badge>
-
-```rust
-pub fn new() -> Self
-```
-
-
-- `new`: A switch that has opened no context yet.
+Without a `ProxySwitch` the scraper takes core's path: a new browser context with the proxy (`Browser::new_context_with` with `ContextOptions::proxy`), the context before dropped. A `ProxySwitch` is for another way, such as swapping the upstream of a [`MitmProxy`](/stealth/api/wire-mitm). The switch that opens a context is no longer public.
 
 ## `runtime::identity_file`
 
@@ -767,7 +748,7 @@ A state store backed by one JSON file.
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
-pub fn open(path: impl Into<PathBuf>) -> Result<Self, StateError>
+pub fn open(path: impl Into<PathBuf>) -> Result<Self, LedgerError>
 pub fn path(&self) -> &Path
 ```
 
@@ -1138,10 +1119,10 @@ Lets the pointer arrive on the page the way a person's would.
 <Badge color="green" shape="pill">function</Badge>
 
 ```rust
-pub async fn solve_widget(page: &Page) -> Result<(), ScrapeError>
+pub async fn solve_widget(page: &Page, options: &SolveOptions) -> Result<(), ScrapeError>
 ```
 
-Attempts the CAPTCHA widget the page shows, if it shows one, with the solver of the core ([`Page::solve_captcha_with`]).
+Attempts the CAPTCHA widget the page shows, if it shows one, with the solver of the core ([`Page::solve_captcha_with`]) and `options`, the mitigation policy's `solve` (presses, rounds, cooldown, clearance cookie). A widget that was pressed and never showed cleared is one failed attempt, not an error; only a browser that cannot be read, or that refuses the input, is.
 
 ### `save_blocking`
 

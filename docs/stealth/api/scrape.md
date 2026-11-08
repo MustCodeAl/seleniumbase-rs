@@ -98,13 +98,13 @@ which the facade always depends on. They are not Cargo features. Import through
 | `SiteRecord`, `InMemoryLedger`, `Ledger` | `ledger::state` |
 | `WireMeasurementRef`, `IdentityError`, `Identity` | `passport::identity` |
 | `EscalationPolicy`, `Escalation` | `passport::policy` |
-| `BrowserFetch`, `BrowserLauncher`, `BrowserScraper`, `BrowserScraperBuilder`, `ChromeLauncher` | `runtime::browser_scraper` |
-| `ContextProxySwitch`, `ProxySwitch` | `runtime::proxy_switch` |
+| `BrowserFetch`, `BrowserScraper`, `BrowserScraperBuilder`, `Launcher` | `runtime::browser_scraper` |
+| `ProxySwitch` | `runtime::proxy_switch` |
 | `JsonLedger` | `runtime::json_store` |
 | `TracingEventSink` | `runtime::tracing_sink` |
 
-`detect`, `GeoError` and `StateError` stay in their modules: `challenge::detect::detect`,
-`egress::geo::GeoError`, `ledger::state::StateError`.
+`detect`, `GeoError` and `LedgerError` stay in their modules: `challenge::detect::detect`,
+`egress::geo::GeoError`, `ledger::state::LedgerError`.
 
 ## Guides
 
