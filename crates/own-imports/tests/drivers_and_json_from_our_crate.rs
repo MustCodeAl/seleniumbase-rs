@@ -9,17 +9,34 @@
 use std::time::Duration;
 
 use seleniumbase_rs::browser::options::CapabilityOverrides;
-use seleniumbase_rs::drivers::{WebDriverError, WebElement};
+use seleniumbase_rs::drivers::{WebDriver, WebDriverError, WebElement};
 use seleniumbase_rs::json::{from_value, json, Value};
 use seleniumbase_rs::{
-    BaseCase, Cookie, DriverErrorKind, Element, Key, NetworkThrottle, SameSite, SelectBy,
-    SeleniumBaseError,
+    BaseCase, BrowserSession, Cookie, DriverErrorKind, Element, Key, NetworkThrottle, SameSite,
+    SelectBy, SeleniumBaseError,
 };
 
 #[test]
 fn an_element_and_the_types_around_it_come_from_our_crate() {
     // Naming the function is enough: it compiles without `thirtyfour` in the manifest.
     let _what_a_test_writes = what_a_test_writes_with_an_element;
+}
+
+#[test]
+fn the_raw_driver_of_a_session_comes_from_our_crate() {
+    // Naming the function is enough: it compiles without `thirtyfour` in the manifest.
+    let _what_a_test_writes = what_a_test_writes_with_the_raw_driver;
+}
+
+/// What a test writes for a call that `BrowserSession` has no method for: `webdriver()` gives
+/// the `drivers::WebDriver` (an error, not a panic, for a session without one), and a failed call
+/// on it is a `drivers::WebDriverError`, which `?` turns into the error type of the crate.
+async fn what_a_test_writes_with_the_raw_driver(
+    session: &BrowserSession,
+) -> seleniumbase_rs::Result<()> {
+    let raw: &WebDriver = session.webdriver()?;
+    println!("{}", raw.title().await?);
+    Ok(())
 }
 
 /// What a test of the WebDriver engine writes with an element: `Element`, `Key` and

@@ -64,7 +64,12 @@ async fn an_edge_session_runs_on_an_msedgedriver_the_crate_starts() {
         .goto("data:text/html,<title>edge%20driver%20ok</title><p>hi</p>")
         .await
         .expect("the page opens");
-    let title = session.driver().title().await.expect("the title is read");
+    let title = session
+        .webdriver()
+        .expect("the session has a driver")
+        .title()
+        .await
+        .expect("the title is read");
     assert_eq!(title, "edge driver ok");
 
     session.quit().await.expect("the session quits");

@@ -98,8 +98,8 @@ diagnostic.
 ### Modules
 
 The remaining public API sits in modules: `api`, `artifacts`, `behave`,
-`browser`, `cli`, `common`, `config`, `core`, `drivers` (the WebDriver types the API
-takes or returns), `error`, `evasion`, `js_code`, `json` (`json!` and `Value`), `macros`,
+`browser`, `cli`, `common`, `config`, `core`, `drivers` (the raw `WebDriver`,
+`WebElement` and `WebDriverError` of the escape hatches), `error`, `evasion`, `js_code`, `json` (`json!` and `Value`), `macros`,
 `tokio` (the runtime, re-exported so `#[tokio::main]` needs no `tokio` line; see
 [Imports and dependencies](/tutorials/getting_started#imports-and-dependencies)),
 `plugins` (test-reporting plugins), `profile_payloads`, `resources`,

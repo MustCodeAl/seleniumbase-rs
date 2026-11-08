@@ -104,7 +104,7 @@ config.plugins = [{
 }];";
 
 /// Supported chart types.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ChartType {
     /// A pie chart: one slice per point.
     Pie,

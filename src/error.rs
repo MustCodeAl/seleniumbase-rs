@@ -394,6 +394,31 @@ impl From<WebDriverError> for SeleniumBaseError {
     }
 }
 
+impl SeleniumBaseError {
+    /// The `{:?}` form: the message, then the hint on its own line. With `on`
+    /// set the message, the `hint:` label and the hint text each get a style;
+    /// without it the text carries no escape sequence.
+    fn write_plain_or_styled(&self, out: &mut impl std::fmt::Write, on: bool) -> std::fmt::Result {
+        use crate::common::color::palette;
+        palette::ERROR.write(out, self, on)?;
+        if let Some(hint) = self.hint() {
+            out.write_char('\n')?;
+            palette::WARNING.write(out, "hint:", on)?;
+            out.write_char(' ')?;
+            palette::DIM.write(out, hint, on)?;
+        }
+        Ok(())
+    }
+
+    /// The `{:?}` text with colour forced on or off, for tests.
+    #[cfg(test)]
+    fn debug_with_color(&self, on: bool) -> String {
+        let mut text = String::new();
+        let _ = self.write_plain_or_styled(&mut text, on);
+        text
+    }
+}
+
 /// `{:?}` prints what `{}` prints and, on the next line, the hint, so a `main`
 /// that returns `Result<(), SeleniumBaseError>` fails with a message a person
 /// can act on rather than a dump of the variant's fields. `{:#?}` keeps a
@@ -412,11 +437,9 @@ impl std::fmt::Debug for SeleniumBaseError {
                 .field("transient", &self.is_transient())
                 .finish();
         }
-        write!(f, "{self}")?;
-        if let Some(hint) = hint {
-            write!(f, "\nhint: {hint}")?;
-        }
-        Ok(())
+
+        // Unit tests print plain even on a terminal; `debug_with_color` forces either.
+        self.write_plain_or_styled(f, !cfg!(test) && crate::common::color::stderr_color())
     }
 }
 
@@ -1854,6 +1877,21 @@ mod tests {
     }
 
     #[test]
+    fn debug_is_styled_only_when_colour_is_on() {
+        let error = SeleniumBaseError::element_not_found("button");
+        let hint = error.hint().expect("a hint");
+        assert_eq!(
+            error.debug_with_color(true),
+            format!("\x1b[1;31m{error}\x1b[0m\n\x1b[1;33mhint:\x1b[0m \x1b[2m{hint}\x1b[0m")
+        );
+        assert_eq!(
+            error.debug_with_color(false),
+            format!("{error}\nhint: {hint}")
+        );
+    }
+
+    #[test]
+
     fn alternate_debug_keeps_a_structured_form() {
         let shown = format!("{:#?}", SeleniumBaseError::wait_timeout("visible #x", None));
         assert!(shown.starts_with("SeleniumBaseError {"), "{shown}");

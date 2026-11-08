@@ -24,11 +24,17 @@ use super::settings::{MediaDevices, WebGl, WebRtcAddresses};
 /// stable releases. Refresh with each Chromium release, together with
 /// [`KNOWN_FULL_VERSIONS`], which must hold a row for every major listed here.
 ///
-/// On 2026-10-15 Google's Chrome version history
+/// A repeated major weights the draw: on 2026-11-08 Chrome for Testing's Stable was 157.0.8103.38 (Beta 158 is never drawn), so 157 gets five draws in eight, 156 two and the lagging 155 one, as real visitors spread over the last three releases.
+/// Earlier (2026-10-15) Google's Chrome version history
 /// (`versionhistory.googleapis.com`, stable channel, `mac` and `win64`) served
 /// 155 to everyone and 156.0.8078.35 to an early 0.5 %; 154 is the release
 /// before them.
-const CHROMIUM_MAJORS: [u32; 3] = [154, 155, 156];
+const CHROMIUM_MAJORS: [u32; 8] = [155, 156, 156, 157, 157, 157, 157, 157];
+
+/// The current stable Chromium major (Chrome for Testing last-known-good,
+/// 2026-11-08). The next bump is this constant, the private `CHROMIUM_MAJORS` table and a new
+/// row in [`KNOWN_FULL_VERSIONS`]; a test fails while the table is older.
+pub const CURRENT_STABLE_MAJOR: u32 = 157;
 
 /// The Chromium major the fixed presets ([`Fingerprint::windows_desktop`](crate::Fingerprint::windows_desktop) and
 /// the others) claim: the newest of the majors a generated identity may claim.
@@ -63,7 +69,7 @@ pub struct KnownFullVersion {
 /// differ a little between platforms and over a release's life (Google served
 /// 155.0.8059.85 from 2026-10-15); one real build per major is far closer to
 /// what a real browser reports than `{major}.0.0.0`.
-pub const KNOWN_FULL_VERSIONS: [KnownFullVersion; 3] = [
+pub const KNOWN_FULL_VERSIONS: [KnownFullVersion; 4] = [
     // Google's version history, stable channel, read 2026-10-15.
     KnownFullVersion {
         major: 154,
@@ -82,6 +88,12 @@ pub const KNOWN_FULL_VERSIONS: [KnownFullVersion; 3] = [
     KnownFullVersion {
         major: 156,
         full_version: "156.0.8078.35",
+        source: FullVersionSource::GooglePublished,
+    },
+    // Chrome for Testing last-known-good Stable, read 2026-11-08. Not measured here.
+    KnownFullVersion {
+        major: 157,
+        full_version: "157.0.8103.38",
         source: FullVersionSource::GooglePublished,
     },
 ];
@@ -1822,6 +1834,20 @@ mod tests {
     }
 
     #[test]
+    fn the_table_is_not_older_than_the_current_stable_major() {
+        let newest = KNOWN_FULL_VERSIONS.iter().map(|row| row.major).max();
+        assert!(
+            newest >= Some(CURRENT_STABLE_MAJOR),
+            "KNOWN_FULL_VERSIONS stops at {newest:?}; add a row for {CURRENT_STABLE_MAJOR}"
+        );
+        assert!(
+            CHROMIUM_MAJORS.iter().max() >= Some(&CURRENT_STABLE_MAJOR),
+            "CHROMIUM_MAJORS must draw {CURRENT_STABLE_MAJOR}"
+        );
+    }
+
+    #[test]
+
     fn the_presets_claim_the_newest_major_that_may_be_drawn() {
         assert_eq!(Some(&PRESET_CHROMIUM_MAJOR), CHROMIUM_MAJORS.iter().max());
     }
