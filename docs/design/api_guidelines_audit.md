@@ -1,22 +1,33 @@
 ---
-title: "Design: Rust API Guidelines and Pragmatic Rust audit"
+title: "Design: API rules audit (Rust API Guidelines, Pragmatic Rust, Google)"
 sidebarTitle: "API guidelines audit"
 ---
 
-Status: audit note, written before any fix, on branch `lane/api-audit` (from `404208aa`, 2026-11-06).
-It is read-only on code: no cargo command was run (no clippy, no rustdoc, no doctests), so every
-statement comes from reading the source through the code index, from literal-text counts, and
-from the two guideline books. Every `file:line` below is from that commit (the second pass, below,
-re-read the lines it cites). The five areas that the thirtyfour lanes are reworking are marked
-[in progress elsewhere](#in-progress-elsewhere) and are not judged here.
+Status: audit note, written before any fix, on branch `lane/api-audit` (from `404208aa`, 2026-11-06),
+and extended on 2026-11-07 on `lane/api-audit-google` (from `2327ffb8`). The three guides the crate
+follows, the Rust API Guidelines, Microsoft's Pragmatic Rust Guidelines and Google's Rust style
+guide, are one set of rules here, [The rules we follow](#the-rules-we-follow); every finding and
+every fix lane names the guides it comes from. The note is read-only on code: no cargo command was
+run (no clippy, no rustdoc, no doctests), so every statement comes from reading the source through
+the code index, from literal-text counts, and from the three guideline books. A `file:line` is from
+`404208aa` (the second pass re-read the lines it cites) unless it belongs to the third pass, whose
+lines are from `2327ffb8`. The five areas that the thirtyfour lanes are reworking are marked
+[in progress elsewhere](#in-progress-elsewhere) and are not judged here. The owner's decisions of
+2026-11-07 are in [Decisions for the owner](#decisions-for-the-owner): all twelve are taken.
 
-Two passes made this note. The first walked the root, `api`, `browser`, `sb_cdp`, `error`,
+Three passes made this note. The first walked the root, `api`, `browser`, `sb_cdp`, `error`,
 `cookie`, the macros and the manifests. The second spot-checked the first pass against the code
 (35 claims: 26 stood and 9 were corrected, listed in
 [What the second pass changed](#what-the-second-pass-changed)), walked the modules the first pass
 had only sampled (`storage`, `plugin_host`, `artifacts`, `plugins`, `profile_payloads`, `core`,
 `testing`, `utilities`, `crates/playwright`), added two findings (F20 and F21) and two fix lanes,
 and moved two checklist items from met to partly.
+
+The third pass (2026-11-07) read Google's Rust style guide, searched the code again for each of its
+rules, merged them with the other two guides into one set of rules, tagged every finding with the
+guides it comes from, added three findings (F22 to F24), corrected two first-pass claims and put the
+work the owner's decisions need into the fix lanes (see
+[What the third pass changed](#what-the-third-pass-changed)).
 
 ## What was checked, and against what
 
@@ -25,11 +36,23 @@ and moved two checklist items from met to partly.
 * The [Pragmatic Rust Guidelines](https://microsoft.github.io/rust-guidelines/) of Microsoft,
   version 2026.6 (book generated 2026-10-26): 90 guidelines, read from the single-file form at
   `agents/all.txt`. The lint set under M-STATIC-VERIFICATION is quoted from it below.
+* [Google's Rust style guide](https://github.com/google/styleguide/blob/gh-pages/rustguide.md)
+  (`rustguide.md` on `gh-pages`, fetched 2026-11-07): 61 rule sections, 6 of them for Chromium or
+  Fuchsia only (small crates, flat file layout, the import macro, no `async`/`.await`, no `std`
+  threads, `fuchsia_sync::Mutex`). It has no ids, so a rule is named by the title of its section
+  (`G: getters and setters`). The sections on errors, getters and setters, standard traits,
+  documentation and unsafe code were read on Context7 (`/google/styleguide`, through the connector
+  because the plugin's quota had run out); the file was then fetched from the raw page and every
+  section that applies to a library was read (the sections on iterator chains and on assertion
+  messages only by their titles). Its own scope rule: for library code its API rules
+  are binding, for application code (`crates/cli`) they are a strong recommendation.
 * Cargo's `[workspace.lints]` and `[lints] workspace = true`, `#[expect]` on lint groups, and the
   `clippy.toml` keys `allow-unwrap-in-tests`, `allow-expect-in-tests` and `allow-panic-in-tests`
   were checked on Context7 (`/websites/doc_rust-lang_cargo`, `/websites/doc_rust-lang_stable_reference`,
   `/rust-lang/rust-clippy`). The Rust Style Guide was looked at only through `rustfmt.toml`.
-  Effective Rust was not read item by item.
+  Effective Rust was not read item by item. For the third pass the `disallowed-methods` key of
+  `clippy.toml` (fields `path`, `reason`, `replacement`) was checked on the same Context7 entry of
+  Clippy.
 
 How the numbers were made, and what they cannot say:
 
@@ -54,18 +77,86 @@ How the numbers were made, and what they cannot say:
   doc comment on every item it listed (a `///` above `#[default]` reads as missing).
 * Statuses: met, partly (some items meet it, some do not), not met, n/a (the crate has nothing
   the item is about), not checked. "Affected" is a verified count or a lower bound; "not counted"
-  means only a compiler lint can count it, which is lane 1 and 2 below.
+  means only a compiler lint can count it, which is lane 1 and 2 below. `accepted` is a fifth
+  status for a deviation the owner decided to keep (D1, D2, D8, D10 to D12).
+* The third pass counts lines of `src/` without `crates/` and without `src/mcp/dev/api_index.json`
+  (a path filter `src/` also matches `crates/*/src/`, so the exclusion is explicit). A count is a
+  number of lines, not of items, and is an upper bound unless the text says it was read.
 
-## Summary: Rust API Guidelines
+## The rules we follow
+
+The three guides overlap on most rules and disagree on a few. The crate follows one set. Each rule
+below appears once, with its ids in every guide it comes from (`C-` the Rust API Guidelines, `M-`
+Pragmatic Rust, `G:` Google's guide, named by the title of its section), and the fourth column says
+what the crate adopts where the guides differ, and why. From then on the adopted form is the rule: a
+later lane does not choose between guides again.
+
+Four principles settled the differences:
+
+1. When two rules can both be met, the stricter one wins (glob re-exports, R21).
+2. A rule that a lint checks wins over one a reviewer has to remember: each rule says its lint
+   where there is one, and lane 1 turns it on.
+3. Library code is bound by the API rules of all three guides; application code (`crates/cli`) takes
+   them as strong recommendations. That is Google's own scope rule and the line Microsoft draws with
+   its application guidelines.
+4. A deviation needs its reason where it is made (`#[expect(.., reason = "..")]`) or here, as a
+   decision. The owner's decisions of 2026-11-07 are the accepted deviations.
+
+Status is the crate's status against the adopted rule, in the words used below, plus `accepted`.
+The ids that no rule row uses are n/a or not checked and stay only in the per-id tables further
+down: C-ITER-TY, C-NUM-FMT, C-RW-VALUE, C-BITFLAG, C-MACRO-VIS and C-STRUCT-BOUNDS,
+M-TAUTOLOGICAL-TESTS and the performance and application guidelines.
+
+Tally of the 31 rules: met 3, partly 18, not met 4, accepted 4 (R3 with 26 `get_` still open, R5,
+R16, R29), not checked 1, n/a 1.
+
+| # | Rule we follow | Sources | Where the guides differ: what we adopt | Status | Affected | Finding |
+|---|---|---|---|---|---|---|
+| R1 | Names follow the standard library style, in one word order, and say what the item is; short, but with no abbreviation that an outsider cannot read. | C-CASE, C-WORD-ORDER; M-WEASEL-WORDS, M-SHORT-NAMES; G: naming (methods, lifetimes, generic parameters), avoid abbreviations | M-SHORT-NAMES prefers abbreviations (`CallbackFn`); Google refuses those that delete letters inside a word or that people outside the project do not know. Adopt: at most two short words, no module name as a prefix, and an abbreviation only when it is common outside the project (`Fn`, `Ip`, `Css`), so `rec` and `ws` go. | partly | 6 `BrowserConfig` setters and 1 accessor, `uc`, `jqc`, the names of F11 | F11 |
+| R2 | `as_` is a cheap borrow, `to_` costs, `into_` consumes; a conversion that names its type says so. | C-CONV, C-CONV-SPECIFIC; G: naming methods (`wrong_self_convention`) | Agree. | met | 4 `name` methods that should be `as_str` | F5 |
+| R3 | A getter is `foo()` or `foo_mut()`, a setter `set_foo(T)`; `take_foo()` clears and returns the old value, `replace_foo(T)` sets and returns it; there is no `get_` prefix. | C-GETTER; M-RUST-SHAPED; G: getters and setters | Agree on the rule. D2 keeps the Python `get_*` names on `BaseCase`. | accepted on `BaseCase` (78), not met on 26 others | 104 `get_`; 14 public `set_*`, 13 of them fit; `set_header` and `replace_body` consume `self` | F5, F15 |
+| R4 | Constructors are `new`, `new_with_foo`, `try_new` when they return a `Result`, and `from_foo` beside a `From` impl; a constructor does what its name says; an options struct implements `Default`. | C-CTOR; G: naming initialization functions, pair `From` with constructors, options structs implement `Default` | Agree. | partly | 10 `new` return a `Result` and `try_new` has 0; 5 constructors are named `with_*`; `BaseCase::new` starts a browser | F15 |
+| R5 | `with_*` is a setter that takes and returns `self`; a builder validates in `build()`. | C-BUILDER; M-INIT-BUILDER, M-INIT-CASCADED, M-BUILD-RESULT; G: closure accessors | Google gives `with_foo(f)` the meaning "call `f` with a borrow of `foo`". Adopt ours (D10): a closure accessor is never named `with_*`. | accepted (D10); the four builders met | 153 public `with_*` (about 80 on `BrowserConfig`), 0 closure accessors | F15 |
+| R6 | A parameter takes the widest borrowed or generic form: `&str`, `&[T]`, `&T`, `Option<&T>`, `impl AsRef<Path>`, and `impl Into<String>` where the call site gains; the same parameters come in the same order. | C-CALLER-CONTROL, C-GENERIC; M-IMPL-ASREF, M-IMPL-IO, M-IMPL-RANGEBOUNDS, M-PARAMETER-CONSISTENCY; G: flexible references, accepting `Into`, iterators vs slices in parameters | C-GENERIC and M-IMPL-ASREF ask for generics; Google weighs `Into` against code size and says application code almost never takes it. Adopt: generics at the library boundary, each kept to the conversion and a call to a non-generic body; concrete types in `crates/cli`. | partly | 0 `&Vec<`, 0 public `&Option<`, 253 `impl Into<` lines, paths as `&str`, 2 methods with the order reversed (`type_text`, `assert_text`) | F9, F16 |
+| R7 | A named type, not a `String` or a `bool`, where the value has a meaning; named fields, not tuples; a newtype, not an alias, when the type needs an API of its own. | C-NEWTYPE, C-CUSTOM-TYPE, C-NEWTYPE-HIDE; M-STRONG-TYPES; G: enum over bool, named fields over tuples, newtypes vs type aliases | Agree. | partly | 371 selector parameters, 9 `bool` sites, 1 tuple alias | F9 |
+| R8 | A function returns an iterator unless it builds the collection or callers need one; a collection type implements the collection traits. | C-ITER, C-COLLECT; M-COLLECTION-TRAITS; G: iterators vs owned collections in return types | Agree. | met in the files read, not counted | The functions read build a `Vec` from a browser answer, which is the guide's own exception | none |
+| R9 | A public type derives what it can: `Debug`, `Clone`, `Default`, `Eq` and `Hash` if it may be a map key, serde where it is stored; handles are `Send` and `Sync`. | C-COMMON-TRAITS, C-DEBUG, C-DEBUG-NONEMPTY, C-SEND-SYNC, C-SERDE; M-PUBLIC-DEBUG, M-PUBLIC-DISPLAY, M-TYPES-SEND; G: important traits, `#[derive]` over manual impls | Agree. | partly | `BaseCase` and `BrowserSession` without `Debug`; 3 `Copy` enums without `Hash`; 3 types pinned `Send` and `Sync` | F2, F14 |
+| R10 | The standard trait, not a look-alike method (`FromStr`, `From`, `Display`, `Default`, `IntoIterator`); an operator only for its own meaning. | C-CONV-TRAITS, C-OVERLOAD; G: known standard library traits (`should_implement_trait`), no overloading for non-mathematical purposes | Google asks for the trait and refuses an operator used as sugar, and the two meet in `not()`. Adopt: the method, with the reason written in `#[expect]`. | met | 31 `fn from_str(` lines (the 15 read are `FromStr` impls) and no `pub fn from_str(`; 2 recorded exceptions, `not()` at `src/sb_cdp/expect.rs:92,316` | none |
+| R11 | A trait exists for generic programming, for an `impl` or `dyn` parameter, or as an extension (its name ends in `Ext`); a trait nobody should implement is sealed; no `Deref` for inheritance; a library takes generics, not `dyn`. | C-SEALED, C-DEREF, C-OBJECT; M-DI-HIERARCHY, M-ESSENTIAL-FN-INHERENT; G: trait vs inherent impl, extension traits, generics vs `dyn` | C-OBJECT keeps a trait object safe where that helps; Google prefers generics. Adopt: `dyn` only for seams such as `CdpTransport`. | not met | 6 open traits, 3 `Deref` impls | F6 |
+| R12 | Trait methods are native `async fn` unless the trait is used as `dyn`. | M-ASYNC-FN; G: generics vs `dyn` | Adopt D5; the dyn compatibility of C-OBJECT is given up where nothing uses `dyn`. | partly | 84 `#[async_trait` sites | F16 |
+| R13 | A public type can grow: private fields or `#[non_exhaustive]`; fields checked where they are set; features only add; `const fn` only if it stays const; `#[doc(hidden)]` is private. | C-STRUCT-PRIVATE, C-VALIDATE, C-HIDDEN; M-FEATURES-ADDITIVE, M-STRONG-TYPES-GUARD; G: `#[non_exhaustive]` on enums and on structs, `const fn`, `doc(hidden)` | C-STRUCT-PRIVATE wants private fields; Google lets a struct keep public fields when callers build it with `..Default::default()`. Adopt: structs built that way (`Settings`, `BrowserSettings`, `ProxyConfig`) stay exhaustive with `Default`; structs built by `with_*` (`BrowserConfig`, `Cookie`) take `#[non_exhaustive]`; an enum that may grow takes it. | partly | `BrowserConfig` has 9 public fields and one behind a feature; 70 `#[non_exhaustive]` for 547 structs and enums; 85 `pub const fn` | F8, F13 |
+| R14 | A failure the caller can recover from is a typed `Result` with a source; `Option` where the cause is obvious; never `Result<_, String>`; one canonical error. | C-GOOD-ERR; M-ERRORS-CANONICAL-STRUCTS, M-FROM-ERROR; G: reporting errors (`Option`, `Result`, `panic!`), `Copy` error types | M-ERRORS-CANONICAL-STRUCTS wants a struct with `kind()`; C-GOOD-ERR and Google accept an enum. Adopt the struct (D4). | partly | 31 of 34 variants keep no source; 4 `Result<_, String>`; 2 `Box<dyn Error>` | F4 |
+| R15 | A panic reports a bug or a broken invariant, never an expected state; where one is needed it is `expect` with the reason, not `unwrap`, and it is documented. | M-PANIC-ON-BUG, M-PANIC-MESSAGE; G: reporting errors, document panic cases, `expect` over `unwrap`, pattern matching over check-then-unwrap | `CLAUDE.md` says `unwrap()` only in tests; Google prefers `expect` where a panic is needed. Adopt both: `unwrap_used` and `panic` warn in production code, `expect_used` stays off, `missing_panics_doc` is on. | partly | 4,357 `.unwrap()`, 632 `.expect(` and 164 `panic!(` lines, tests included; 4 `# Panics` | F10, F7, F1 |
+| R16 | A panic is not caught and a poisoned lock is not recovered, except where the reason is written. | M-PANIC-CONTINUATION, M-PANIC-IS-STOP; G: don't call `catch_unwind`, handling poison | The three agree. Adopt D11 (three production `catch_unwind`, no more) and D12 (one helper for poison). | accepted, narrowly | 3 production `catch_unwind`, 34 `PoisonError::into_inner` | F22 |
+| R17 | No `unsafe` unless there is no safe way; each block has a `// SAFETY:` comment. | M-UNSAFE, M-UNSAFE-IMPLIES-UB, M-UNSOUND; G: unsafe code | Agree. | partly: none in the library, 10 of 11 test blocks lack the comment | 11 blocks, all in test code | F24 |
+| R18 | Every public item has a doc that says what the code does not; a module has `//!`; a function that fails or panics says so; examples cover each type and each family of methods. | C-CRATE-DOC, C-EXAMPLE, C-FAILURE, C-LINK, C-QUESTION-MARK; M-CANONICAL-DOCS, M-FIRST-DOC-SENTENCE, M-MODULE-DOCS, M-DOC-INLINE, M-DOCUMENTED-MAGIC, M-DESIGN-FOR-AI; G: when and how to write documentation | C-EXAMPLE wants an example on every item; Google wants enough of them "somewhere" to show how the crate works. Adopt Google's, because `BaseCase` has about 700 methods; `# Errors` stays on every fallible function (M-CANONICAL-DOCS); a variant whose name says it may go undocumented (Google). | partly | 280 `# Examples` for about 2,846 `pub` functions; 894 `# Errors` against 2,580 `Result` returns; 4 modules without `//!`; no `missing_docs` | F3 |
+| R19 | Docs describe the code, not its history or its Python origin, except where the parity table needs it. | M-NO-META-DESIGN-DOCUMENTATION | One guide. | partly | 681 lines | F18 |
+| R20 | A macro only where a function cannot do the job; no macro changes its result type by its arity; documentation is written at the item, not generated. | C-EVOCATIVE, C-MACRO-ATTR, C-ANYWHERE, C-MACRO-TY; M-MACRO-LAST-RESORT, M-MACROS-DONT-LIE, M-EXAMPLE-OVER-PROC, M-MACRO-MAIN-CRATE; G: macros, document in a straightforward manner | Agree. D3 cuts the `sb_*` macros to `sb_test!`. | not met, fix decided | 27 exported and 16 internal `macro_rules!` | F7 |
+| R21 | One path per item; no glob imports, except `use super::*` in a test module; no prelude; a non-leaf module only declares and re-exports; a file is named after its main item. | M-SINGLE-ITEM-PATH, M-NO-GLOB-REEXPORTS, M-NO-PRELUDE, M-BALANCED-MODULES; G: glob imports, non-leaf modules, name files after the primary item | Google allows `pub use submodule::*` in a non-leaf module; M-NO-GLOB-REEXPORTS does not. Adopt the stricter. | not met | about 86 root re-exports with a second path; 1 glob re-export; 13 types defined in 7 `mod.rs` files | F12 |
+| R22 | A crate holds one concern; the crates sit flat in the workspace folder. | M-SMALLER-CRATES, M-CRATES-FLAT-FOLDER, M-CRATES-IN-WORKSPACE; G: prefer small crates, flat file layout (both Chromium only) | Google's two rules are Chromium's and allow a large foundational library. Adopt Microsoft's split, designed in `docs/design/core_split.md` (D6). | not met, decided | 1 library with two engines, the evasion layer, the MCP servers, a translator and the CLI half | F12 |
+| R23 | Complete metadata; the latest edition; one workspace manifest; no unstable feature. | C-METADATA, C-STABLE, C-PERMISSIVE, C-RELNOTES, C-FEATURE; M-CARGO-WORKSPACE, M-LATEST-EDITION, M-MSRV, M-OOBE; G: no unstable features | M-MSRV asks for a few versions behind; D1 keeps the newest stable. | partly; M-MSRV accepted | 5 missing `[package]` fields; the empty feature `error-backtrace`; 0 `#![feature(` | F13 |
+| R24 | One lint set for the workspace; a deviation is `#[expect]` with a reason; the formatter decides the layout. | M-STATIC-VERIFICATION, M-LINT-OVERRIDE-EXPECT; G: formatting tool, opting out of rustfmt, the Clippy lints it names | Agree. | partly | 5 module trees under the set, of about 27; 15 `#[allow(`; `style_edition = "2021"` (D7: 2024 later) | F1, F19 |
+| R25 | The library does not print, keeps global state small, runs nothing before `main`, and logs in a structured way. | M-LOG-NOT-PRINT, M-LOG-STRUCTURED, M-AVOID-STATICS; G: do not run code before `main()` | Agree. | partly | 3 `eprintln!`; 21 statics; 0 `#[ctor` | F17 |
+| R26 | Inputs come from arguments, not from the environment, so the code can be tested; a function with a clear receiver is a method. | C-METHOD; M-MOCKABLE-SYSCALLS, M-TEST-UTIL, M-INTEGRATION-TESTS | Agree. | partly | 9 sites | F20 |
+| R27 | `Drop` neither blocks nor fails silently; cleanup that needs `await` goes to a task. | C-DTOR-FAIL, C-DTOR-BLOCK | One guide. | partly | 3 types | F21 |
+| R28 | No `Arc`, `Rc` or `Box` in a public signature; a service is a cheap `Clone` handle; borrow instead of cloning. | C-SMART-PTR, C-INTERMEDIATE; M-AVOID-WRAPPERS, M-SERVICES-CLONE, M-SIMPLE-ABSTRACTIONS; G: avoid `Rc` and `Arc`, prefer borrows over deep copies | Google lets `Arc` stand where borrowing is "unreasonably complex"; Microsoft keeps it out of the public API. Adopt: `Arc` inside is a judgment call, never in a signature. | partly | 2 constructors, 5 closure aliases and 3 future aliases; 168 `Arc<` lines inside | F23 |
+| R29 | Foreign types stay out of the API, with an escape hatch where the user needs one. | M-DONT-LEAK-TYPES, M-ESCAPE-HATCHES, M-FOREIGN-REEXPORTS | One guide. | accepted (D8) for the four re-exports; thirtyfour is in progress elsewhere | 4 re-exports | none |
+| R30 | Implementation habits: a type written where inference hides it, pattern matching over check-then-unwrap, every variant of a `non_exhaustive` enum listed, a message on an assertion, a loop where a chain reads worse, `format!` over `+` and over `str::replace` for templates. | G: implementation concerns | One guide. | not checked item by item | 3 `for_each`; 42 `.replace("` lines, 8 read (runtime text, not templates) | none |
+| R31 | Not for this crate: FFI, `-sys` crates, the Chromium, Android and Fuchsia rules, the 11 performance guidelines and the 3 application guidelines (for `crates/cli`). | M-FFI-NAMING, M-FFI-TRANSLATES, M-ISOLATE-DLL-STATE, M-SYS-CRATES, M-UPSTREAM-GUIDELINES, M-MACRO-HELPERS, M-MACRO-VERSION-PIN, M-PROC-IMPL, M-PROC-IMPLIED-ITEMS; G: small crates, flat layout, import macro, no `async`/`.await`, no `std` threads, `fuchsia_sync::Mutex`, test framework per codebase | None. | n/a | none | none |
+
+## Coverage by item: Rust API Guidelines
+
+The item-level evidence behind the rule table: every `C-` id once, with its count. The rule table maps
+each id to its rule (R1 to R31) and to the Google rule that shares it.
 
 Tally of the 54 items: met 24, partly 19, not met 3, n/a 7, not checked 1 (the first pass had met 26
-and partly 17; C-METHOD and C-DTOR-BLOCK moved to partly in the second).
+and partly 17; C-METHOD and C-DTOR-BLOCK moved to partly in the second; the third moved none).
 
 | Item | Status | Affected | In one line |
 |---|---|---|---|
 | C-CASE | met | 0 | rustc's naming lints are on by default and the gate runs clippy with `-D warnings`; no counter-example in the files read. |
 | C-CONV | met | 4 | 13 `as_`, 4 `into_` and at least 30 `to_` methods fit their prefixes; four `const fn name(self) -> &'static str` are the odd names where `as_str` is used elsewhere (`Browser::name` and `DriverMode::name` in `src/browser/config.rs:91,169`, `src/browser/chrome_for_testing.rs:84`, `src/browser/options/proxy.rs:120`). |
-| C-GETTER | not met | 104 | 35 `pub fn get_` and 69 `pub async fn get_` (78 of them on `BaseCase`). |
+| C-GETTER | not met | 104 | 35 `pub fn get_` and 69 `pub async fn get_` (78 of them on `BaseCase`, where D2 keeps the Python names). |
 | C-ITER | met | 0 | `ProxyList` has `iter` and `IntoIterator for &ProxyList` (`src/config/proxy_list.rs:518,535`). |
 | C-ITER-TY | n/a | 0 | No public iterator type. |
 | C-FEATURE | met | 0 | Feature names carry no `use-` or `with-`. |
@@ -118,11 +209,16 @@ and partly 17; C-METHOD and C-DTOR-BLOCK moved to partly in the second).
 | C-STABLE | partly | 4 | Public dependencies at 0.x: thirtyfour 0.38, rstest 0.28, rstest-bdd 0.6, the plugin crate 0.1 (F13). |
 | C-PERMISSIVE | met | 0 | MIT (`Cargo.toml:20`); `deny.toml` exists (not re-run). |
 
-## Summary: Pragmatic Rust Guidelines
+## Coverage by item: Pragmatic Rust Guidelines
 
-Tally of the 90 guidelines: met 20, partly 29, not met 7, n/a 11, not checked 23. The 23 not
-checked are the 11 performance guidelines, the 3 application guidelines (they concern
-`crates/cli`), and 9 single ones marked below.
+The item-level evidence behind the rule table: every `M-` id once, with its count.
+
+Tally of the 90 guidelines: met 19, partly 32, not met 5, accepted 2 (M-MSRV, M-FOREIGN-REEXPORTS),
+n/a 11, not checked 21. The 21 not checked are the 11 performance guidelines, the 3 application
+guidelines (they concern `crates/cli`), and 7 single ones marked below. The third pass moved
+M-AVOID-WRAPPERS from met to partly, M-PANIC-CONTINUATION and M-PANIC-IS-STOP from not checked to
+partly, and M-MSRV and M-FOREIGN-REEXPORTS from not met to accepted (the first pass had met 20,
+partly 29, not met 7, not checked 23).
 
 | Guideline | Status | Affected | In one line |
 |---|---|---|---|
@@ -131,9 +227,10 @@ checked are the 11 performance guidelines, the 3 application guidelines (they co
 | M-RUST-SHAPED | partly | about 700 | `BaseCase` keeps Python's flat shape; `sb_cdp` is the Rust-shaped engine. |
 | M-SINGLE-ITEM-PATH | not met | about 86 | The crate root re-exports about 86 names that also live in their modules (F12). |
 | M-TAUTOLOGICAL-TESTS | not checked | n/a | Tests were not read. |
-| M-PANIC-CONTINUATION, M-PANIC-IS-STOP, M-PANIC-MESSAGE | not checked | n/a | Needs the production `unwrap`/`expect`/`panic` list (lane 1). |
+| M-PANIC-CONTINUATION, M-PANIC-IS-STOP | partly | 3 and 34 | Library code should not catch a panic and go on, and a panic is not to be assumed caught: 3 production `catch_unwind` and 34 `PoisonError::into_inner` (F22, D11, D12). Google has both rules. |
+| M-PANIC-MESSAGE | not checked | n/a | Needs the production `unwrap`/`expect`/`panic` list (lane 1). |
 | M-PANIC-ON-BUG | partly | 3 | `BrowserSession::driver` panics on an expected state; two macro arms panic (F10). |
-| M-UNSAFE-IMPLIES-UB, M-UNSAFE | met | 0 | No `unsafe` in the library; two calls in test code (`src/api/master_qa/wrapper_tests.rs:36,48`). |
+| M-UNSAFE-IMPLIES-UB, M-UNSAFE | met | 0 | No `unsafe` in the library; 11 blocks in test code, 2 in `src/api/master_qa/wrapper_tests.rs:36,48` and 9 in `tests/` (the first pass counted `src` only), 10 of them without the `SAFETY:` comment that Google asks for (F24). |
 | M-UNSOUND | not checked | n/a | Not audited. |
 | M-CANONICAL-DOCS | partly | see C-FAILURE | Same gaps as C-FAILURE and C-EXAMPLE (F3). |
 | M-DOC-INLINE | partly | 0 of 26 | `sb_cdp/mod.rs:110-177` marks every `pub use`; `src/lib.rs:201-246` marks none. |
@@ -141,22 +238,22 @@ checked are the 11 performance guidelines, the 3 application guidelines (they co
 | M-MODULE-DOCS | partly | 4 | `common/mod.rs`, `config/mod.rs`, `utils/mod.rs`, `utilities/mod.rs` have no `//!`. |
 | M-EXAMPLE-OVER-PROC | met | 0 | Only `macro_rules!`. |
 | M-MACRO-HELPERS, M-MACRO-VERSION-PIN, M-PROC-IMPL, M-PROC-IMPLIED-ITEMS | n/a | 0 | No proc macro, no third-party helper item. |
-| M-MACRO-LAST-RESORT | not met | 27 | 27 exported macros; those read are mostly a single method call (F7). |
+| M-MACRO-LAST-RESORT | not met | 27 | 27 exported macros; those read are mostly a single method call (F7). Google ranks macros after functions too; D3 cuts the `sb_*` macros to `sb_test!`. |
 | M-MACRO-MAIN-CRATE | partly | 1 | `sb_test!` expands to `#[tokio::test]`, which needs `tokio` in scope. |
 | M-MACROS-DONT-LIE | partly | 2 or more | `sb_open!` returns a `Result` or panics by arity (F7). |
 | M-CARGO-WORKSPACE | partly | 1 | `[workspace.package]` is used; no `[workspace.dependencies]`, no `[workspace.lints]` (F1, F13). |
-| M-CRATES-FLAT-FOLDER | not met | 1 | The library is the root package, the others sit in `crates/`. |
+| M-CRATES-FLAT-FOLDER | not met | 1 | The library is the root package, the others sit in `crates/`. Decided in `docs/design/core_split.md` (D6). |
 | M-CRATES-IN-WORKSPACE | met | 0 | All three members are listed. |
 | M-LATEST-EDITION | met | 0 | Edition 2024 (`Cargo.toml:18`). |
-| M-MSRV | not met | 1 | `rust-version = "1.99"` is the newest stable; the guideline wants a few versions behind (F13). |
+| M-MSRV | accepted | 1 | `rust-version = "1.99"` is the newest stable; the guideline wants a few versions behind (F13). Decision D1 keeps the newest stable. |
 | M-DOCUMENTED-MAGIC | met | 0 | Constants carry their reason (`src/api/run_settings.rs:30-60`); sampled. |
 | M-LINT-OVERRIDE-EXPECT | partly | 15 | 15 `#[allow(` against 25 `#[expect(` (F19). |
 | M-LOG-STRUCTURED | not checked | n/a | `tracing` is used with named fields at `src/error.rs:543`; the rest not read. |
 | M-PUBLIC-DEBUG | partly | 2 or more | See C-DEBUG. |
 | M-PUBLIC-DISPLAY | not checked | n/a | Not audited. |
 | M-REGULAR-FN | not checked | n/a | Not audited. |
-| M-SHORT-NAMES | not checked | n/a | Not audited. |
-| M-SMALLER-CRATES | not met | 1 | One crate holds two engines, the evasion layer, the MCP servers, a Python-to-Rust translator, the CLI half, reports and plugin hosts (F12). |
+| M-SHORT-NAMES | not checked | n/a | Read in the third pass: it prefers abbreviations where Google refuses them (rule R1 adopts a middle form); the crate's names were not counted against it. |
+| M-SMALLER-CRATES | not met | 1 | One crate holds two engines, the evasion layer, the MCP servers, a Python-to-Rust translator, the CLI half, reports and plugin hosts (F12). The split is designed in `docs/design/core_split.md` (D6). |
 | M-STATIC-VERIFICATION | partly | see F1 | Gates exist; the lint set is a subset on 5 module trees. |
 | M-UPSTREAM-GUIDELINES | n/a | 0 | This note. |
 | M-WEASEL-WORDS | partly | 5 | `core::log_helper`, `core::report_helper`; the grab-bag modules `common`, `utils`, `utilities`. |
@@ -165,7 +262,7 @@ checked are the 11 performance guidelines, the 3 application guidelines (they co
 | M-SYS-CRATES | n/a | 0 | No `-sys` crate. |
 | M-DONT-LEAK-TYPES | partly | see list | thirtyfour types (in progress elsewhere); `serde_json::Value` and `tokio` through deliberate re-exports. |
 | M-ESCAPE-HATCHES | met | 0 | `Element::as_webdriver_element` and `into_webdriver_element` (`src/browser/element.rs:143,149`), `Page::browser`. |
-| M-FOREIGN-REEXPORTS | not met | 4 | `tokio`, `drivers`, `json`, `testing::rstest`: deliberate, see decision D8. |
+| M-FOREIGN-REEXPORTS | accepted | 4 | `tokio`, `drivers`, `json`, `testing::rstest`: deliberate, decision D8 accepts them. |
 | M-IMPL-ASREF | partly | not counted | `path: &str` and `file_path: &str` (F9). |
 | M-IMPL-IO, M-IMPL-RANGEBOUNDS | n/a | 0 | Nothing takes a reader or a range. |
 | M-TYPES-SEND | partly | 3 pinned | See C-SEND-SYNC. |
@@ -174,12 +271,12 @@ checked are the 11 performance guidelines, the 3 application guidelines (they co
 | M-INTEGRATION-TESTS | met | 0 | `tests/` holds the offline, chrome and contract binaries. |
 | M-LOG-NOT-PRINT | partly | 3 | Three `eprintln!` in library code (F17). The five `println!` in `BaseCase` and the `rich_helper` print functions are documented prints, not counted. |
 | M-MOCKABLE-SYSCALLS | partly | 9 | The settings code takes an injected lookup (`Settings::load_with`, `from_vars`); three `upload_file`, `artifacts::logs_root`, `find_system_chrome` and four cookie-file methods read the environment or the working directory directly (F20). `sb_cdp::Browser::new_mocked` (feature `test-util`) is the engine-level mock; the WebDriver engine's was not checked as exported. |
-| M-NO-GLOB-REEXPORTS | partly | 1 | `src/profile_payloads/mod.rs:55`: `pub use profile::*;`. |
+| M-NO-GLOB-REEXPORTS | partly | 1 | `src/profile_payloads/mod.rs:55`: `pub use profile::*;`. Google allows it in a non-leaf module; rule R21 adopts the stricter. |
 | M-STRONG-TYPES-GUARD | partly | 3 | Public fields (C-VALIDATE). |
 | M-STRONG-TYPES | partly | see C-NEWTYPE | Strings for selectors and paths, `bool` for modes, keyword strings in `ProfileParams` (F9). |
 | M-TEST-UTIL | met | 0 | Feature `test-util` (`Cargo.toml:194`). |
 | M-ASYNC-FN | partly | 84 | 84 `#[async_trait` sites, boxing every call of the capability traits (F16). |
-| M-AVOID-WRAPPERS | met | 0 | No `Arc`, `Rc` or `Box` in the public signatures read. |
+| M-AVOID-WRAPPERS | partly | 10 | 2 public constructors take `Arc<TestRun>`, 5 public aliases name a boxed closure and 3 a boxed future (F23; the first pass read the signatures of other modules and wrote met). |
 | M-BALANCED-MODULES | partly | 4 | Files of 2,844, 2,836, 2,711 and 2,342 lines (tests included). |
 | M-COLLECTION-TRAITS | met | 0 | `ProxyList`. |
 | M-DI-HIERARCHY | met | 0 | Concrete types first; `dyn` only for `CdpTransport`-style seams. |
@@ -225,41 +322,48 @@ under the set.
 
 ## The ten findings that matter most
 
-Ranked by how many callers meet the problem and by how hard it is to fix later.
+Ranked by how many callers meet the problem and by how hard it is to fix later. The letters after a
+finding name the guides it comes from: C the Rust API Guidelines, M Pragmatic Rust, G Google's
+guide.
 
-1. **No lint set in the manifests (F1).** The Pragmatic Rust set is held on 5 of about 27 module
+1. **No lint set in the manifests (F1; M, G).** The Pragmatic Rust set is held on 5 of about 27 module
    trees by attributes in `src/lib.rs`; `[workspace.lints]` does not exist, so over 4,000 lines with `.unwrap()`,
    600 with `.expect(` and 160 with `panic!(` in `src` are unchecked and every count in this note that says
    "not counted" waits on it.
-2. **Selectors are `&str` in about 370 signatures (F9)** although `Selector` and `SelectorBuf`
+2. **Selectors are `&str` in about 370 signatures (F9; C, M, G)** although `Selector` and `SelectorBuf`
    exist and `Page::locator` already takes `impl Into<SelectorBuf>`; the parameter is called `css`
    even when it holds an XPath.
-3. **104 `get_` functions (F5, C-GETTER)**, 78 on `BaseCase`, the one checklist item with a
-   count in the hundreds. It follows the Python names, so it is decision D2, not a quick fix.
-4. **27 exported macros, mostly one method call (F7)**; in five of them an optional last argument
-   changes the type from a `Result` to `()` that panics.
-5. **The error type keeps almost no source (F4):** 31 of 34 variants hold only text,
+3. **104 `get_` functions (F5; C, G)**, 78 on `BaseCase`, the one checklist item with a
+   count in the hundreds. It follows the Python names, so decision D2 (taken) keeps them on
+   `BaseCase`; the other 26 stay on the list.
+4. **27 exported macros, mostly one method call (F7; C, M, G)**; in five of them an optional last
+   argument changes the type from a `Result` to `()` that panics. Decision D3 (taken) cuts the
+   `sb_*` macros to `sb_test!`.
+5. **The error type keeps almost no source (F4; C, M, G):** 31 of 34 variants hold only text,
    `ResultExt::sb_context` turns every error into `InvalidConfig`, and public functions return
    `Result<_, String>` (4) or `Box<dyn Error>` without `Send + Sync` (2).
-6. **Open traits and `Deref` for inheritance (F6):** six traits that nobody should implement are
+6. **Open traits and `Deref` for inheritance (F6; C, M, G):** six traits that nobody should implement are
    open, and `MasterQA`, `SbCase`, `SbCdpCase` deref to `BaseCase`. `crates/playwright` shows the
    sealed form.
-7. **`BrowserConfig` is not additive (F8):** a public field exists only under feature `plugins`,
-   and no config struct, `Browser` or `DriverMode` is `#[non_exhaustive]`; `src/api` has no
-   `#[non_exhaustive]` at all.
-8. **Two paths per item and one crate for everything (F12):** about 86 root re-exports, 203
+7. **`BrowserConfig` is not additive (F8; C, M, G):** a public field exists only under feature
+   `plugins`, and no config struct, `Browser` or `DriverMode` is `#[non_exhaustive]`; `src/api` has
+   no `#[non_exhaustive]` at all. The settings tables that callers build with `..Default::default()`
+   stay exhaustive on purpose (Google's exception, rule R13).
+8. **Two paths per item and one crate for everything (F12; M, G):** about 86 root re-exports, 203
    `pub mod`, a Python translator and the library half of the CLI inside the library.
-9. **`BaseCase` and `BrowserSession` have no `Debug` (F2)**, no doc comment on `BaseCase` (F3), and
-   `Send + Sync` is pinned for 3 types of the public handles (F14).
-10. **The logging plugins (F20):** unit structs with a receiver-less `upload_file` that reads its
+9. **`BaseCase` and `BrowserSession` have no `Debug` (F2; C, M, G)**, no doc comment on `BaseCase`
+   (F3; C, M, G), and `Send + Sync` is pinned for 3 types of the public handles (F14; C, M).
+10. **The logging plugins (F20; C, M):** unit structs with a receiver-less `upload_file` that reads its
     credentials from the environment, and an error enum of `String`s.
 
 
 ## Findings
 
-Each finding names the items, the proposed fix, and whether it breaks the public API.
+Each finding names the items, the guides it comes from (in its heading), the proposed fix, and
+whether it breaks the public API. F1 to F21 are the findings of the first two passes with the
+Google rules merged in; F22 to F24 are new in the third pass.
 
-### F1. No workspace lint set (M-STATIC-VERIFICATION, M-CARGO-WORKSPACE)
+### F1. No workspace lint set (M-STATIC-VERIFICATION, M-CARGO-WORKSPACE; Google: lints it names, `missing_docs`, formatting)
 
 * Where: every manifest; `src/lib.rs:53-193`; `clippy.toml`.
 * Fix: one `[workspace.lints]` in `Cargo.toml` with the guideline's table, and `[lints]` with
@@ -310,9 +414,11 @@ literal_string_with_formatting_args = "allow"
 ```
 
 * Project extras on top of the guideline (our rules, not the book's): `unsafe_code = "deny"` (the
-  library has no `unsafe`; the two test calls take `#[expect(unsafe_code, reason = "...")]`), and
-  `unwrap_used`, `expect_used`, `panic` at `warn`, with `allow-unwrap-in-tests = true`,
-  `allow-expect-in-tests = true` and `allow-panic-in-tests = true` in `clippy.toml`. That turns
+  library has no `unsafe`; the 11 test blocks take `#[expect(unsafe_code, reason = "...")]`), and
+  `unwrap_used` and `panic` at `warn`, with `allow-unwrap-in-tests = true` and
+  `allow-panic-in-tests = true` in `clippy.toml`; `expect_used` stays off, because Google's guide
+  prefers `expect` with a reason to `unwrap` where a panic is needed (rule R15) and
+  `missing_panics_doc` then documents each one. That turns
   the rule in `CLAUDE.md` ("`unwrap()` only in tests") into a check; today nothing enforces it, and
   the 4,357 lines with `.unwrap()`, 632 with `.expect(` and 164 with `panic!(` in `src/` (a
   literal search in the second pass; the first pass counted 3,836, 532 and 130 with another scope,
@@ -325,10 +431,25 @@ literal_string_with_formatting_args = "allow"
   The five existing blocks and the misplaced comment go away in the same commit. Check on the
   first module that Clippy's groups behave like rustc's before relying on it.
 * `rustfmt.toml` pins `style_edition = "2021"` while the crate is edition 2024 and nothing says
-  why; decision D7.
+  why; decision D7 (taken: move to 2024, later, as the last lane).
+* Google (rule R24): the guide asks for `missing_docs` on public APIs, and the lint's name occurs
+  nowhere in the repository (0 hits), so lane 1 adds it to the table. The guide names these Clippy
+  lints: `should_implement_trait`, `wrong_self_convention`, `new_without_default`,
+  `len_without_is_empty`, `ptr_arg`, `borrowed_box` and `exhaustive_enums`; lane 1 reads the group
+  of each on Clippy's list and adds those the table above lacks (`exhaustive_enums` is not in it).
+  No `allow` of `new_without_default` exists (0 hits) and `should_implement_trait` is expected
+  twice, with a reason (`src/sb_cdp/expect.rs:89,313`).
+* Panics (D11, D12, F22): `clippy.toml` gets `disallowed-methods` entries (fields `path`, `reason`,
+  `replacement`, read on Context7) for `std::panic::catch_unwind`, for the `catch_unwind` method of
+  `futures_util`'s `FutureExt` and for `std::sync::PoisonError::into_inner`, so a new use fails the
+  gate unless it carries `#[expect(clippy::disallowed_methods, reason = "...")]`. Clippy reports a
+  path that does not exist, so each entry is checked on the first run.
+* The guide also says to format with the tool, to opt out with `#[rustfmt::skip]` only for manual
+  alignment or generated code, and not to use unstable features: `rustfmt.toml` is the one key above
+  (the default width of 100 is the guide's) and the repository has no `#![feature(` (0 hits).
 * Breaking: no.
 
-### F2. `Debug` is missing on the two main types (C-DEBUG, M-PUBLIC-DEBUG)
+### F2. `Debug` is missing on the two main types (C-DEBUG, M-PUBLIC-DEBUG; Google: important traits)
 
 * `BaseCase` (`src/api/base_case.rs:60`) and `BrowserSession` (`src/browser/session/mod.rs:49`)
   have no derive and no `impl Debug` (there is no `Debug for BaseCase` or `Debug for BrowserSession`
@@ -345,9 +466,15 @@ literal_string_with_formatting_args = "allow"
   `finish_non_exhaustive()`, as `MasterQA` does. The exact list of other gaps comes from
   `missing_debug_implementations` once lane 1 turns it on for the whole crate. Derive `Hash` on the
   `Copy` enums above.
+* Google (rule R9): "if you think it is likely that a type will be used as a map key ... implement
+  `Hash` and `Eq`", which is the missing `Hash` above; `Clone` for "most types ... unless they
+  represent some external resource", so `BaseCase` and `BrowserSession`, which own a browser,
+  rightly have none (`Browser` and `Page` are the cheap `Clone` handles of M-SERVICES-CLONE);
+  `Copy` "whenever it is reasonably clear that the type will continue to be `Copy`". The guide also
+  says to derive where a manual impl could be a derive; that was not counted.
 * Breaking: no.
 
-### F3. Documentation gaps (C-EXAMPLE, C-FAILURE, M-CANONICAL-DOCS, M-MODULE-DOCS, M-DOC-INLINE)
+### F3. Documentation gaps (C-EXAMPLE, C-FAILURE, M-CANONICAL-DOCS, M-MODULE-DOCS, M-DOC-INLINE; Google: documentation)
 
 * `BaseCase` has no doc comment at all (`src/api/base_case.rs:58-60`: a constant, a blank line,
   `pub struct BaseCase {`), confirmed by reading. Its fields are private, so the struct needs one
@@ -371,11 +498,27 @@ literal_string_with_formatting_args = "allow"
 * `src/lib.rs:201-246` has 26 `pub use` statements without `#[doc(inline)]`, while
   `src/sb_cdp/mod.rs:110-177` marks every one; the root page of the docs therefore lists links, not
   items.
-* Fix: a doc for `BaseCase` and the four variants, module docs for the four roots, then the lint
+* Google (rule R18): "add documentation comments to public APIs, potentially using the `missing_docs`
+  lint" (not on today, F1). On examples: "enough functionality should be covered in examples
+  *somewhere* to give an idea of how the crate works", so the target is one example per type and
+  per family of methods, not the 2,566 functions without one that C-EXAMPLE read literally would
+  ask for (`BaseCase` alone has about 700 methods). "Always document panic cases": the 4
+  `# Panics` and `missing_panics_doc`, above. "It is generally okay to omit documentation on
+  individual enum variants, especially if their name is self-explanatory": the four `Browser`
+  variants may stay as they are. "Comments should say something that the code does not already
+  say": the first line of `BrowserSession::driver` above fails it; none other was counted, because
+  only reading finds them.
+* The 7 `#[doc = concat!(` attributes (`src/api/recorder.rs:975`, `src/cli/scripts/sb_mkchart.rs:348`,
+  `sb_mkdir.rs:644,662`, `sb_mkfile.rs:903`, `sb_mkpres.rs:456`, `src/utilities/python_importer.rs:563`):
+  the one read, `src/cli/scripts/sb_mkdir.rs:640-668`, is a `cfg(doctest)` harness over golden
+  files, not user documentation, so the guide's "document things in a straightforward manner ... rather than
+  generating documentation from macros" does not touch it; the other six were not read.
+* Fix: a doc for `BaseCase` (the four `Browser` variants may stay undocumented, see above), module
+  docs for the four roots, one example per type and per family of methods, then the lint
   output of lane 1 for `# Errors` and `# Panics`; `#[doc(inline)]` on the root re-exports.
 * Breaking: no.
 
-### F4. The error type (C-GOOD-ERR, M-ERRORS-CANONICAL-STRUCTS, M-FROM-ERROR)
+### F4. The error type (C-GOOD-ERR, M-ERRORS-CANONICAL-STRUCTS, M-FROM-ERROR; Google: reporting errors)
 
 * `SeleniumBaseError` (`src/error.rs:18-202`) is one `#[non_exhaustive]` enum of 34 variants.
   Fifteen are a bare `String` (`InvalidSelector`, `WaitTimeout`, `CdpDriver`, `Playwright`,
@@ -419,12 +562,21 @@ literal_string_with_formatting_args = "allow"
 * Fix, small: keep the source in `sb_context` (a new `Context` variant or a boxed source), and
   keep the source in the two `From` impls with `#[source]`; give the six functions above a typed
   error (decision D9); let the plugin errors keep their source and take `#[non_exhaustive]`
-  (lane 7). Breaking: low.
+  (lane 5). Breaking: low.
 * Fix, large: the canonical shape of M-ERRORS-CANONICAL-STRUCTS, a struct with a `kind()` enum, a
   source and a hint, and `Skipped` leaves the error type. Breaking: yes, and it waits for the
   thirtyfour driver-errors lane (the `WebDriver` variant, `src/error.rs:76`).
+* Google (rule R14): "use `Option` for simple failures where the cause is obvious", `Result` "for
+  recoverable failures where the caller needs context", and `panic!` for bugs and violated
+  invariants. By it `parse_ide_html`, which cannot fail, returns its value and no `Result`; the four
+  `Result<_, String>` give a caller no failure mode to tell apart, which is what the guide's
+  `Result` is for; and `Skipped` is not a failure at all. The guide's advice that error types
+  implement `Copy` "whenever possible" does not apply: the variants carry `String`s.
+* Decisions taken: D4, `Skipped` leaves the error type and the canonical struct is adopted (lane 18,
+  after the driver-errors lane); D9, the six functions get a typed error that displays the text they
+  return today (lane 5).
 
-### F5. The `get_` prefix (C-GETTER)
+### F5. The `get_` prefix (C-GETTER; Google: getters and setters, naming methods)
 
 * 104 `get_` functions: 35 `pub fn` and 69 `pub async fn`, 78 of them in the `BaseCase` files
   (`get_text`, `get_title`, `get_url`, `get_window_position` at `src/api/base_case.rs:480`).
@@ -436,11 +588,24 @@ literal_string_with_formatting_args = "allow"
 * Four `const fn name(self) -> &'static str` (`Browser`, `DriverMode`,
   `src/browser/chrome_for_testing.rs:84`, `src/browser/options/proxy.rs:120`) should be `as_str`,
   like the 13 other `as_str`.
-* The prefix is the Python names (`parity/api.toml`), so this is decision D2, not a quick rename.
-  The cheap part: fix `get_browser`, the `*_js` getters and `name`.
-* Breaking: yes.
+* The prefix is the Python names (`parity/api.toml`). Decision D2 (taken): the names stay on
+  `BaseCase` (78 of the 104), so C-GETTER and Google's getter rule are accepted deviations there.
+  What this finding still asks for: the other 26 `get_*`, `get_browser`, the `*_js` getters and
+  `name` (the cheap part, lane 15).
+* Google (rule R3) spells the whole family: `foo()` returns `&T` (or `T` if it is `Copy`),
+  `foo_mut()` returns `&mut T`, `take_foo()` clears the value and returns the old one, `set_foo(T)`
+  takes the value, `replace_foo(T)` sets it and returns the old one. Of the 14 public `set_*` in
+  `src`, 13 fit (a `&mut self` method or a free function that returns nothing; `set_time_limit`
+  returns a `Result`); `set_header(self, ..) -> Self` (`src/sb_cdp/intercept.rs:251`) is a builder
+  step named like a setter, and `replace_body(self, ..) -> Self` (`:277`) returns `Self`, not the
+  old value. There is no public `take_*` and no public `*_mut` getter (0 hits); the `case_mut()` of
+  F6 is the first one to be added, in the guide's form. Rename the two builder steps `with_header`
+  and `with_body` (F15, lane 15).
+* Google also says to avoid `.clone()` "as a substitute for borrowing": `get_browser` clones the
+  whole `BrowserConfig` (above) where a `&BrowserConfig` would do.
+* Breaking: yes for the other 26 and for the renames; none for `BaseCase` (D2).
 
-### F6. Open traits and `Deref` for inheritance (C-SEALED, C-DEREF)
+### F6. Open traits and `Deref` for inheritance (C-SEALED, C-DEREF; Google: trait vs inherent impl, extension traits)
 
 * Open and meant to stay closed: `BrowserApi`, `ElementApi`, `AssertionApi`, `ScreenshotApi`
   (`src/api/traits.rs:37,62,81,99`; implemented for `BaseCase` and `sb_cdp::Page` only),
@@ -454,9 +619,20 @@ literal_string_with_formatting_args = "allow"
   `src/testing/bdd/mod.rs:207,213`). The sealing pattern is already in the repository:
   `PlaywrightTarget: sealed::Sealed`, with the `sealed` module private
   (`crates/playwright/src/target.rs:36-61`).
+* Google (rules R11, R12): define a trait "to enable generic programming", to accept or return an
+  `impl Trait` or `dyn Trait`, or as an extension trait, and "don't use traits merely to organize
+  code". The four capability traits pass: generic bounds name them (`E: BrowserApi + ElementApi +
+  AssertionApi`, `src/api/traits.rs:20` and `tests/offline/sb_cdp_mock.rs:1183`). `Contains` is an
+  input trait implemented on foreign types (`[T]`, `[T; N]`, `Vec<T>` and, by its doc, `str` and
+  `String`), which the guide expects and does not call an extension trait; `ResultExt` carries the
+  `Ext` suffix the guide asks for. "In libraries, prefer accepting generics ... over `dyn Trait`":
+  `dyn BrowserApi` occurs nowhere in the repository (14 hits for the name, none `dyn`); the other
+  three traits were not searched.
+* Decision D5 (taken): native `async fn` where no `dyn` is used (F16, lane 16). The guide's
+  `foo_mut()` is the name for the `case_mut()` above.
 * Breaking: yes (callers of `qa.open(..)` write `qa.case_mut().open(..)`).
 
-### F7. Macros (M-MACRO-LAST-RESORT, M-MACROS-DONT-LIE, C-MACRO-ATTR)
+### F7. Macros (M-MACRO-LAST-RESORT, M-MACROS-DONT-LIE, C-MACRO-ATTR; Google: macros)
 
 * `src/macros.rs` exports 26 macros (`selector!`, `sb_test!`, `sb_open!`, `sb_click!`, `sb_type!`,
   ..., `sb_with_timeout!`, `sb_config!`, `uc_config!`, `cdp_config!`, `fingerprint!`) and
@@ -470,11 +646,22 @@ literal_string_with_formatting_args = "allow"
 * `sb_config!` lists seven fixed orders of three options (`:314-344`); an eighth setting needs a
   new arm.
 * `sb_with_timeout!` drops the error of restoring the timeout (`let _ =`, `:418`).
-* Fix: keep `sb_test!` and, if the owner wants them, `selector!` and `fingerprint!`; delete the
-  single-call wrappers and the `_config!` macros; if any wrapper stays, one arity, one type.
-* Breaking: yes. Decision D3.
+* Google (rule R20): prefer, in order, regular functions, types and traits, then `macro_rules!`,
+  then other code generation, then `proc_macro`, because macros make tools and large-scale changes
+  harder. Beside the 27 exported macros `src` has 16 internal `macro_rules!` helpers
+  (`option_methods!` in `src/api/jqc.rs:830`, `text_contains!` in `src/api/membership.rs:45`,
+  `accessors!` and `setters!` in `src/evasion/fingerprint.rs:700,1463`, `audit_each!` in
+  `src/evasion/providers/mod.rs:746`, and others in `src/config/`, `src/api/recorder/calls.rs` and
+  a test). `setters!` defines public builder methods but takes each doc comment from its call site
+  (`$(#[$doc:meta])*`, `:1464`), so the docs stay written where the guide wants them; the cost is
+  the tooling one.
+* Fix: decision D3 (taken) cuts the `sb_*` macros to `sb_test!` (and its `#[doc(hidden)]` helper
+  `sb_test_options!`). The four macros that are not named `sb_*` follow the same rule: `uc_config!`
+  and `cdp_config!` go (they are `BrowserConfig::default().with_mode(..)`), and lane 14 reads the
+  expansions of `selector!` and `fingerprint!` and deletes either one if a function does the job.
+* Breaking: yes.
 
-### F8. Evolution of the public types (C-STRUCT-PRIVATE, C-VALIDATE, M-FEATURES-ADDITIVE)
+### F8. Evolution of the public types (C-STRUCT-PRIVATE, C-VALIDATE, M-FEATURES-ADDITIVE; Google: non_exhaustive)
 
 * `BrowserConfig` (`src/browser/config.rs:202-248`) has 9 public fields, no `#[non_exhaustive]`,
   and one of them, `plugins`, exists only with feature `plugins` (`:245-247`). A crate that builds
@@ -490,12 +677,28 @@ literal_string_with_formatting_args = "allow"
   variants and are exhaustive, as are `IdeCommand` (`src/utilities/selenium_ide.rs:8`) and
   `ProfileParams` with its siblings (`src/profile_payloads/profile.rs`). `storage` does it right:
   `RunSummary` and `FlakyTest` are `#[non_exhaustive]` (`src/storage/results.rs:144,178`).
-* Fix: `#[non_exhaustive]` on the config structs, the two enums and the `api`, `utilities` and
-  `profile_payloads` types listed above; the `plugins` field becomes
-  unconditional (a zero-size `BrowserPlugins` when the feature is off).
+* Google (rule R13) asks for `#[non_exhaustive]` on an enum of a public API that may change (not on
+  an enum that describes a fixed set, or two states) and on a struct with public fields, with one
+  exception that matters here: you "want to enable your users to use functional record update (FRU)
+  struct initialization syntax" (`..Default::default()`), because a `#[non_exhaustive]` struct
+  "can't be constructed with the struct literal syntax" outside its crate. Callers build the
+  settings tables that way: `tests/chrome/bdd_chrome.rs:13-18` builds `Settings { browser:
+  BrowserSettings { headless: true, ..Default::default() }, ..Settings::default() }` and the
+  stealth contract builds `ProxyConfig { host, ..Default::default() }`
+  (`tests/contract_stealth.rs:200-203,332-335`); `..Default::default()` stands on 24 lines of the
+  repository outside the changelog. So `Settings`, `BrowserSettings`, `ProxyConfig` and the like
+  stay exhaustive with `Default`, and a field added to them breaks only a literal that does not
+  end in `..Default::default()`; `BrowserConfig`, `Cookie` and the `api` records are built by
+  `with_*` and `new`, so they take the attribute.
+* Also Google: list every variant in a `match` over a `non_exhaustive` enum (an implementation
+  habit, not counted).
+* Fix: `#[non_exhaustive]` on `BrowserConfig`, `Cookie`, the two enums and the `api`, `utilities`
+  and `profile_payloads` types listed above, and not on the tables built with
+  `..Default::default()`; the `plugins` field becomes unconditional (a zero-size `BrowserPlugins`
+  when the feature is off).
 * Breaking: yes.
 
-### F9. Strings, booleans and paths where a type fits (C-NEWTYPE, C-CUSTOM-TYPE, C-GENERIC)
+### F9. Strings, booleans and paths where a type fits (C-NEWTYPE, C-CUSTOM-TYPE, C-GENERIC; Google: flexible references, `Into`, enum over bool, named fields)
 
 * Selectors: 270 `css: &str` and 101 `selector: &str` parameters, although `Selector` and
   `SelectorBuf` exist (`src/utils/selectors.rs`) and `sb_cdp::Page::locator` already takes
@@ -525,9 +728,30 @@ literal_string_with_formatting_args = "allow"
 * Fix: `impl AsRef<Path>` for filesystem paths; enums for the booleans; for selectors, a lane of
   its own that moves `BaseCase` to `impl Into<SelectorBuf>` the way `Page::locator` does (it is
   the largest change in this note: about 370 signatures).
+* Google (rules R6, R7): its table says `&str` for `&String`, `&[T]` for `&Vec<T>` and `Option<&T>`
+  for `&Option<T>`. `src` has no `&Vec<` (0) and three `&Option<`, none public (a serde `serialize`
+  helper, `src/api/run_settings.rs:126`; a private helper, `src/evasion/capture.rs:406`; a closure,
+  `src/mcp/dev/diagnose.rs:685`), and the six `&String` are `From<&String>` impls, so the table is
+  met. The guide also says to use `enum` parameters instead of `bool` where the purpose is not
+  obvious: the nine sites above.
+* Google on `Into`: "consider accepting `impl Into<T>` ... if call-site ergonomics are paramount",
+  balanced against "code bloat concerns", and application code "should almost never" use it. `src`
+  has 253 lines with `impl Into<` (147 `impl Into<String>`), which fits the first half;
+  `crates/cli`, being application code, takes concrete types. The selector lane turns about 370
+  signatures into generic functions: it keeps each one to the conversion and a call to a
+  non-generic body, so they do not become 370 copies of their bodies (lane 19).
+* Google: "prefer types with named fields over tuples". `pub type GeneratedFile = (RelativeName,
+  String);` (`src/cli/scaffold.rs:345`) names a pair by position; make it a struct with named
+  fields. Other tuple returns were not counted. The other `pub type` aliases read (15 in all) are
+  boxed closures and futures (F23), `Result<T>` (`src/error.rs:6`) and plain renamings such as
+  `HtmlInspection`.
+* Google on iterators: library code "should accept iterators or `impl IntoIterator` if it only
+  needs to iterate" and should prefer returning iterators; `&[&str]` and `&[String]` parameters
+  were not counted, and the functions read return a `Vec` built from a browser answer, which the
+  guide allows.
 * Breaking: yes.
 
-### F10. Panics on expected states (M-PANIC-ON-BUG)
+### F10. Panics on expected states (M-PANIC-ON-BUG; Google: panic for bugs, `expect` over `unwrap`)
 
 * `BrowserSession::driver` (`src/browser/session/mod.rs:93-99`) panics after `quit`, on a direct
   CDP attachment and after a failed `reconnect`: states a caller can reach without a bug. Its
@@ -536,9 +760,17 @@ literal_string_with_formatting_args = "allow"
 * There are 4 `# Panics` sections, so the rest is undocumented or absent; lane 1's
   `missing_panics_doc` and the `panic` lint list them.
 * Fix: remove `driver()` in favour of `webdriver()` once the drivers lane lands.
+* Google (rule R15): `panic!` is "to report bugs and violated invariants", and `Result` is for
+  failures "the caller can reasonably anticipate"; `driver()` is the second kind, which the fix
+  above follows. "If a panic is necessary because an invariant cannot be expressed in the type
+  system, prefer `expect` over `unwrap` to document the reason", and prefer pattern matching to
+  check-then-unwrap: lane 1 turns on `unwrap_used` and `panic` for production code and leaves
+  `expect_used` off (F1), so each production `.unwrap()` that remains becomes `expect("reason")`
+  or an `if let`. The guide adds that some codebases avoid panics altogether; this one does not.
+* Related: F22 (panics that are caught).
 * Breaking: yes. Blocked by the drivers module.
 
-### F11. Names that collide or drift (C-WORD-ORDER, M-WEASEL-WORDS)
+### F11. Names that collide or drift (C-WORD-ORDER, M-WEASEL-WORDS; Google: avoid abbreviations)
 
 * `seleniumbase_rs::Browser` (`src/lib.rs:211`) is the enum of browser kinds;
   `seleniumbase_rs::sb_cdp::Browser` (`src/sb_cdp/mod.rs:113`) is the engine; the fingerprint has a
@@ -559,9 +791,22 @@ literal_string_with_formatting_args = "allow"
 * Fix: rename the enum `Browser` to `BrowserKind`; one `Proxy` type with conversions; fold
   `common`, `utils` and `utilities` into named modules; delete or hide `api::cdp_page` and
   `cdp_driver` after a deprecation-free removal (no users yet).
+* Google (rule R1): do not use abbreviations "that someone outside your project is unlikely to
+  know" and do not "abbreviate by deleting letters within a word". Six `BrowserConfig` setters do:
+  `with_rec_sb_cdp`, `with_rec_print`, `with_rec_behave`, `with_rec_sb_mgr`
+  (`src/browser/config.rs:772,796,802,808`; `rec` is recording and `sb` the project's own prefix)
+  and `with_disable_ws`, `with_enable_ws` (`:940,946`), where `ws` stands for web security, as the
+  enum behind them says (`LaunchSwitch::DisableWebSecurity`), though most readers will see
+  WebSocket; the accessor `rec_sb_cdp()` (`:779`) has the same name. The names come from
+  SeleniumBase's flags, which the doc comments keep (`--rec-sb-cdp`, `--disable-ws`);
+  `with_esc_end` stays, since Esc is the name of the key. M-SHORT-NAMES, read in the third pass,
+  asks for abbreviations (`CallbackFn`), the opposite; rule R1 takes the middle, short names and an
+  abbreviation only when it is common outside the project. Fix: spell `ws` as `web_security` and
+  `rec` as `recording` (lane 15); the flag spellings stay in the doc comments. Other cases are
+  `uc: bool` (F9) and the module `jqc`, not counted further.
 * Breaking: yes.
 
-### F12. The crate root and the size of the crate (M-SINGLE-ITEM-PATH, M-SMALLER-CRATES, M-BALANCED-MODULES, M-NO-GLOB-REEXPORTS)
+### F12. The crate root and the size of the crate (M-SINGLE-ITEM-PATH, M-SMALLER-CRATES, M-BALANCED-MODULES, M-NO-GLOB-REEXPORTS; Google: glob imports, non-leaf modules, small crates)
 
 * `src/lib.rs:201-246` re-exports about 86 names, 27 of them from `evasion::fingerprint`, and the
   27 macros sit at the root as well. Each is reachable by two paths. `Cookie` has two public
@@ -576,9 +821,28 @@ literal_string_with_formatting_args = "allow"
 * Fix: narrow to `pub(crate)` everything the `tests/contract_*.rs` files and the stealth, Tauri and
   plugin crates do not import; keep one path per item; replace the glob. A crate split (importer,
   CLI half, MCP servers) is decision D6.
-* Breaking: yes.
+* Google (rule R21): "the only items in non-leaf modules should be module declarations and
+  re-exports" (a small amount of code that ties things together is fine). 13 `pub struct` are
+  defined in 7 `mod.rs` files of `src`: `src/browser/session/mod.rs:49` (`BrowserSession`),
+  `src/browser/options/mod.rs` (3), `src/evasion/providers/mod.rs` (3), `src/mcp/cdp/mod.rs:60`,
+  `src/mcp/dev/mod.rs:55`, `src/testing/bdd/mod.rs` (2) and `src/utilities/importer/mod.rs` (2).
+  Move each into a file named after the type (the guide: name files and leaf modules after the
+  primary user-defined item) and re-export it; the paths stay, so this does not break (lane 6). The
+  files read are otherwise named that way (`base_case.rs`, `cookie.rs`, `master_qa.rs`).
+* Google on glob imports: "don't use glob imports", except `use super::*` for inline modules and
+  `pub use submodule::*` for non-leaf modules, and "defining preludes should be avoided". `src` has
+  341 lines ending in `::*;`: 331 are `use super::*;`, which the guide allows; 9 import a third-party
+  prelude (3 `base64::prelude::*` at `src/api/base_case.rs:8`, `src/api/cdp_page.rs:16` and
+  `src/sb_cdp/breakpoint.rs:141`; 6 `httpmock::prelude::*` at `src/browser/chrome_for_testing.rs:722`,
+  `downloader.rs:268`, `driver_install.rs:675` and `src/cli/scripts/sb_grid.rs:556,582,607`), which
+  the guide leaves to the reviewer; and 1 is the re-export above, which the guide allows and
+  M-NO-GLOB-REEXPORTS does not. Rule R21 adopts the stricter, so lane 6 replaces it.
+* Google's "prefer small crates" and "flat file layout" are marked for Chromium and allow "a large
+  foundational library"; they add nothing to the split, which D6 (taken) designs in
+  `docs/design/core_split.md`.
+* Breaking: yes for the module tree; no for the `mod.rs` moves and the glob.
 
-### F13. Manifest (C-METADATA, C-STABLE, M-MSRV, M-CARGO-WORKSPACE)
+### F13. Manifest (C-METADATA, C-STABLE, M-MSRV, M-CARGO-WORKSPACE; Google: no unstable features, `const fn`)
 
 * `[package]` (`Cargo.toml:23-30`) has `description`, `license`, `repository`; it lacks
   `documentation`, `readme`, `keywords`, `categories`, `homepage`.
@@ -588,13 +852,18 @@ literal_string_with_formatting_args = "allow"
   ("a backtrace on every error"). A feature that does nothing and is documented as doing
   something.
 * `rust-version = "1.99"` is the newest stable (`:19`); M-MSRV asks for a few versions behind.
-  `CLAUDE.md` says this is deliberate, so it is decision D1.
+  `CLAUDE.md` says this is deliberate, so it was decision D1 (taken: keep the newest stable; the
+  `msrv` CI job and the `Dockerfile` base image move with it).
 * No `[workspace.dependencies]`: versions are repeated per member (F1 adds the lints; this adds the
   dependencies).
 * Public dependencies below 1.0: `thirtyfour` 0.38 (`:82`), `rstest` 0.28 (`:164`), `rstest-bdd`
   0.6 (`:166`), and `seleniumbase-rs-plugin` 0.1 from a git revision (`:155`), re-exported as
   `plugin_api`. The `semver` task in `mise.toml:210` (cargo-semver-checks against a tag) exists,
   which is the right gate.
+* Google (rule R23): "don't use unstable features": none (0 `#![feature(` in the repository). "Mark
+  a public function as `const` only if you expect it to remain `const`": 85 `pub const fn` in
+  `src`, among them the four `name` methods (F5); none was read for that question, and turning one
+  into a plain function breaks callers, so lane 15 reads those four before it renames them.
 * Breaking: removing `error-backtrace` breaks anyone who enables it; nobody is known to.
 
 ### F14. `Send` and `Sync` are pinned for three types (C-SEND-SYNC, M-TYPES-SEND)
@@ -606,7 +875,7 @@ literal_string_with_formatting_args = "allow"
 * Fix: one test file with an `assert_send_sync` over every public handle type.
 * Breaking: no.
 
-### F15. Constructors and builders (C-CTOR, C-BUILDER, M-INIT-BUILDER)
+### F15. Constructors and builders (C-CTOR, C-BUILDER, M-INIT-BUILDER; Google: initialization functions, closure accessors)
 
 * `BaseCase::new` is `async` and starts a browser (`src/api/base_case.rs:131`), where
   `sb_cdp::Browser::launch` says what it does; `BaseCase::with_session` is a constructor
@@ -617,11 +886,38 @@ literal_string_with_formatting_args = "allow"
   `BrowserConfig`, consuming setters named like the field on `Cookie`, `RunSettings::with_*`,
   public fields on `Settings`. The builder note (`/design/bon_builders`) settled the first two;
   this audit keeps that decision.
-* Fix: `BaseCase::connect(config)` for `new`, `BaseCase::from_session` for `with_session`;
-  nothing else.
+* Google (rule R4) names initialization functions: "`new()`, or `new_with_foo()` if there is more
+  than one. If the constructor returns a `Result`, use `try_new()`", and `from_foo()` for a
+  value-to-value conversion with a `From` impl. `src` has 83 `pub fn new(`, at least 10 of which
+  return a `Result` on their first line (`src/api/gui.rs:174`, `src/api/master_qa.rs:244`,
+  `src/browser/options/extensions.rs:42`, `src/cli/scaffold.rs:144`,
+  `src/cli/scripts/sb_mkchart.rs:146`, `sb_mkdir.rs:171`, `sb_mkfile.rs:238`, `sb_mkpres.rs:247`,
+  `src/core/allure.rs:423`, `src/plugins/reports.rs:215`); `try_new` has 0 hits (a `new` whose
+  signature spans lines was not read). Five constructors carry the name of a setter:
+  `BaseCase::with_session` (`src/api/base_case.rs:161`), `with_sources` (`src/core/allure.rs:433`),
+  `with_config` (`src/evasion/providers/mod.rs:105`), `with_run` (`src/plugins/reports.rs:221`) and
+  `with_launcher` (`src/sb_cdp/pool.rs:324`).
+* Google (rule R5) gives `with_foo(f)` another meaning: it calls `f` with a borrow of the `foo`
+  property (and `with_mut_foo` with a mutable borrow), for a property inside a `Mutex` or
+  `RefCell`, or when a change needs follow-up work and `set_foo` cannot be used. Here `with_*` is
+  the setter that takes and returns `self`: 153 public items in `src` (151 `pub fn` and 2
+  `pub const fn`, about 80 of them on `BrowserConfig`), and none reads or changes a property through a
+  closure. The one `with_*` that takes a closure, `FingerprintBuilder::with_policy`
+  (`src/evasion/fingerprint.rs:1771`), stores a transform that `build()` runs. Decision D10
+  (taken): keep `with_*` as the setter, never name a closure accessor `with_*`, and make the five
+  constructors above and `set_header`/`replace_body` (F5) fit that rule.
+* Google also asks that an options struct implement `Default` and that an important `From` impl
+  have a constructor beside it: `BrowserConfig`, `Settings`, `BrowserSettings` and `ProxyConfig`
+  have a `Default` (the tests above build them with it) and no `allow` of `new_without_default`
+  exists (F1); the `From` impls were not read for the second point.
+* Fix: `BaseCase::connect(config)` for `new`; `BaseCase::new_with_session` for `with_session` (two
+  arguments, so Google's `new_with_foo` and not `from_session`); `new_with_*` for the other four
+  `with_*` constructors; `try_new` for the fallible `new` above (`BaseCase::new` is `async` and
+  starts a browser, so it takes `connect` instead); `with_header` and `with_body` for `set_header`
+  and `replace_body`; nothing else.
 * Breaking: yes, small.
 
-### F16. Capability traits (M-ASYNC-FN, M-PARAMETER-CONSISTENCY)
+### F16. Capability traits (M-ASYNC-FN, M-PARAMETER-CONSISTENCY; Google: generics vs `dyn`)
 
 * All four use `#[async_trait]` (`src/api/traits.rs:36,61,80,98`), 84 sites in all. That boxes
   every call and fixes the futures' bounds; native `async fn` in traits drops the boxing but the
@@ -635,9 +931,13 @@ literal_string_with_formatting_args = "allow"
 * Parameter order: `type_text(css, text)` (`:70`) but `assert_text(expected, css)` (`:91`); the
   doc says Python does so, but one trait cannot teach two orders.
 * Fix: `&self` for reads; settle one order for the Rust names.
+* Decision D5 (taken): native `async fn` in the traits where nothing uses them as `dyn`. `dyn
+  BrowserApi` occurs nowhere in the repository (F6); lane 16 searches the other three first and
+  keeps `#[async_trait]` only on a trait that is used as `dyn`. Google (rule R11) agrees: a library
+  prefers generics to `dyn`.
 * Breaking: yes.
 
-### F17. Printing, statics, global effects (M-LOG-NOT-PRINT, M-AVOID-STATICS)
+### F17. Printing, statics, global effects (M-LOG-NOT-PRINT, M-AVOID-STATICS; Google: no code before `main`)
 
 * `eprintln!` in library code: `src/api/master_qa.rs:431`, `src/browser/driver_access.rs:288`,
   `src/mcp/http.rs:842`. Use `tracing`. The three `eprintln!` in `src/cli/scripts/rich_helper.rs`
@@ -652,6 +952,9 @@ literal_string_with_formatting_args = "allow"
   two tests in one process can disturb each other.
 * Fix: `tracing` for the three prints; leave the rest (they are the design) and list them in the
   crate docs.
+* Google (rule R25): "do not cause code to run before `main()`", for example through the `ctor`
+  crate: no `#[ctor` (0 hits) and no `ctor` dependency (the only text matches in the manifests are
+  feature names such as `plugin-extractor`). Met.
 * Breaking: no.
 
 ### F18. Docs that tell the design history (M-NO-META-DESIGN-DOCUMENTATION)
@@ -721,6 +1024,78 @@ literal_string_with_formatting_args = "allow"
   `drop` to log. Check the other 16 with the lane.
 * Breaking: no.
 
+### F22. Panics that are caught, locks that are recovered (M-PANIC-CONTINUATION, M-PANIC-IS-STOP; Google: no `catch_unwind`, handling poison)
+
+* The three guides agree. M-PANIC-CONTINUATION: library code "should not attempt to catch a panic
+  and continue execution". M-PANIC-IS-STOP: it is not valid to "assume panics will be caught, even
+  by your own code". Google: `panic::catch_unwind` "is prohibited in first-party Rust code", except
+  as a defense in depth that is never relied upon, and one must "never reach inside a poisoned
+  mutex to get at its insides, no matter how tempting the use case may seem".
+* Production `catch_unwind`: three sites. `src/api/runner.rs:179` is the test runner: it catches the
+  panic of a failing test, takes the evidence, closes the browser, keeps the payload and raises it
+  again (`Ended::finish`; its test says "the panic is raised again", `:337-338`), which is the shape
+  M-PANIC-CONTINUATION allows. `src/api/pdf.rs:164` (`guarded`) turns a panic inside the PDF
+  parser, which has paths that panic on a malformed file (its doc, `:156-160`), into
+  `SeleniumBaseError::Pdf` and goes on. `src/sb_cdp/plugin_hooks.rs:343` turns the panic of a
+  plugin task into a plugin error and goes on. The other 8 lines with `catch_unwind` (11 in all)
+  are the import `src/api/pdf.rs:29` and 7 tests: `src/api/runner.rs:337`,
+  `src/plugins/observer.rs:652` and `src/testing/lifecycle.rs:985` were read;
+  `src/testing/lifecycle.rs:1074`, `tests/chrome/bdd_chrome.rs:73`,
+  `tests/offline/bdd_scenarios.rs:179` and `tests/offline/reporting_run.rs:414` are tests by their
+  files.
+* Poisoned locks: 34 lines with `PoisonError::into_inner` in `src` (for example
+  `src/artifacts.rs:97,106,154,432`, `src/browser/reuse.rs:125,134,372,381,389`,
+  `src/common/shutdown.rs:314`, `src/config/proxy_list.rs:198`, `src/core/allure.rs:450`,
+  `src/api/recorder/output.rs:189`, `src/cli/plugin_cmd.rs:939`); `.lock().unwrap()` stands on 84
+  lines, tests included and not split. The code does not say why it recovers; the probable reason
+  is the one D11 keeps, that the runner goes on after a failed test, so the process-wide registries
+  (cleanup list, session reuse, test logs) must still answer for the next one.
+* Fix, taken as D11 and D12: no new `catch_unwind`. The three sites stay, each with a one-line
+  comment that says why, and `disallowed-methods` (F1) makes a fourth one fail the gate. Poison
+  goes through one crate-private helper in `common` that locks and, on poison, returns the guard:
+  the single place where the guide's rule is knowingly broken, with the reason written once. The 34
+  sites call it, and `std::sync::PoisonError::into_inner` is disallowed everywhere else.
+* Breaking: no.
+
+### F23. Wrappers in public signatures (M-AVOID-WRAPPERS, M-SERVICES-CLONE; Google: avoid `Rc` and `Arc`, generics vs `dyn`)
+
+* The first pass wrote "no `Arc`, `Rc` or `Box` in the public signatures read"; the third pass
+  found these. Two public constructors take `Arc<TestRun>`: `with_run` (`src/plugins/reports.rs:221`)
+  and `new` (`src/core/test_run.rs:1470`). Public aliases name a boxed closure: `Clock` and
+  `IdSource` (`src/core/allure.rs:85,88`), `Console` (`src/core/test_run.rs:96`) and `Installer`
+  (`src/mcp/dev/cli.rs:32`) are `Arc<dyn Fn ..>`, and `ProgressCallback` (`src/mcp/client.rs:182`) is
+  `Box<dyn FnMut ..>`; three name a boxed future (`InstallFuture`, `src/mcp/dev/cli.rs:25`;
+  `ResourceFuture`, `src/mcp/resources.rs:130`; `ToolFuture`, `src/mcp/tool.rs:429`); and
+  `Session<S>` (`src/mcp/host.rs:180`) is a Tokio guard type, `OwnedMappedMutexGuard<Option<S>, S>`,
+  which also leaks a dependency's type (M-DONT-LEAK-TYPES).
+* The rules: M-AVOID-WRAPPERS keeps `Rc`, `Arc` and `Box` out of public APIs unless the pointer is
+  fundamental to the API or benchmarks justify it; M-SERVICES-CLONE wants a heavy service to be a
+  cheap `Clone` handle that shares its state, as `Browser` and `Page` are; Google prefers unique
+  ownership and borrowing to `Rc` and `Arc` unless that would be "unreasonably complex", a judgment
+  call for review (`src` has 168 lines with `Arc<` and 1 with `Rc<`, `src/api/html.rs:35`, not
+  judged site by site), and, in libraries, generics to `dyn Trait`.
+* Fix: `TestRun` becomes a `Clone` handle that holds its own `Arc` (if it is not one already), so
+  the two constructors take a `TestRun`; `Session<S>` is hidden behind a type of our own. The
+  closure and future aliases stay: a callback that a struct stores has to be boxed, or the struct
+  takes a type parameter; each alias gets a doc line that says so.
+* Breaking: yes, small.
+
+### F24. `unsafe` in tests without a safety comment (M-UNSAFE; Google: unsafe code)
+
+* The library has no `unsafe`. Test code has 11 `unsafe` blocks: `src/api/master_qa/wrapper_tests.rs:36,48`,
+  `tests/chrome/masterqa_chrome.rs:81,129,139,156`, `tests/offline/sb_reports_env.rs:26,28,30,32`
+  and `tests/no_sandbox_env.rs:31`. Ten are one-line `std::env::set_var` or `remove_var` calls
+  (both are `unsafe` in edition 2024); the eleventh has a comment about the environment, and it is
+  the only one with a safety comment (`:30`: "this binary has one test, and nothing else reads the
+  environment meanwhile"). The first pass counted `src` only and found two.
+* Google: "add a safety comment starting with `SAFETY:` that explains why the code is correct", and
+  a technical justification; its other rules (a safe abstraction, a separate crate) do not apply,
+  since the library has no `unsafe`. M-UNSAFE asks for a valid reason, and the lint
+  `undocumented_unsafe_blocks` is in the F1 table and will list the ten.
+* Fix: a `// SAFETY:` line on each of the ten (lane 3). F20's `logs_root_with(lookup)` takes the
+  environment out of most of these tests, which removes the blocks (lane 7).
+* Breaking: no.
+
 ## In progress elsewhere
 
 Not judged here: driver errors (`SeleniumBaseError::WebDriver`, `src/error.rs:76`), network
@@ -732,97 +1107,198 @@ escape hatch by design and counts as M-ESCAPE-HATCHES met.
 
 ## Fix lanes
 
-In this order; each is one concern, with the files it mostly touches. None is started. Every
+In this order; each is one concern, with the files it mostly touches and the guides it serves (C the
+Rust API Guidelines, M Pragmatic Rust, G Google's guide). None is started. Every
 lane ends with the repository's gate (`cargo fmt --check`, clippy with `-D warnings`, the tests,
 `cargo doc` with `-D warnings`); a breaking lane also updates the `tests/contract_*.rs` files in
 the same commit and runs `mise run contracts` and `mise run semver`. The order puts first the
 lanes that cost little and tell the rest (1 to 4), then the lanes that break little or nothing
-(5 to 8), then the breaking lanes from the smaller to the larger (9 to 19), and the history
-clean-up last.
+(5 to 9), then the breaking lanes from the smaller to the larger (10 to 20), the history
+clean-up (21) and, last, the formatting-only commit (22). The owner's decisions of 2026-11-07 shaped
+the list: D2 removed the lane that renamed the `get_*` of `BaseCase`, D3 made the macro lane a
+deletion, D4 and D9 fixed the error lanes, D5 the trait lane, and D7 the last lane; D10 to D12 added
+or filled lanes 9, 14 and 15.
 
-1. **The Microsoft lint set for the whole workspace through `[workspace.lints]`** (F1, F19).
+1. **The lint set for the whole workspace through `[workspace.lints]`** (F1, F19; M-STATIC-VERIFICATION,
+   M-LINT-OVERRIDE-EXPECT; G: lints it names, `missing_docs`, `expect` over `unwrap`).
    Files: `Cargo.toml`, `crates/cli/Cargo.toml`, `crates/playwright/Cargo.toml`,
    `crates/own-imports/Cargo.toml`, `src/lib.rs`, `clippy.toml`. Not breaking. Output: the exact
    lists for lanes 2 to 4 and 8 (`missing_debug_implementations`, `missing_errors_doc`,
-   `missing_panics_doc`, `unwrap_used`). Delete the five attribute blocks and the misplaced
-   comment in `src/lib.rs` in the same commit; put `#[expect(clippy::pedantic, reason = "lane N")]`
-   on each module that is not yet clean, so a later lane finds its line by the
-   `unfulfilled_lint_expectations` warning.
-2. **`Debug`, `Hash` and `Send + Sync` pins** (F2, F14). Files: `src/api/base_case.rs`,
+   `missing_panics_doc`, `unwrap_used`, `missing_docs`, `undocumented_unsafe_blocks`). Adds the
+   `disallowed-methods` entries of D11 and D12 (F22) and the Google lints the table lacks. Delete
+   the five attribute blocks and the misplaced comment in `src/lib.rs` in the same commit; put
+   `#[expect(clippy::pedantic, reason = "lane N")]` on each module that is not yet clean, so a
+   later lane finds its line by the `unfulfilled_lint_expectations` warning.
+2. **`Debug`, `Hash` and `Send + Sync` pins** (F2, F14; C-DEBUG, C-COMMON-TRAITS, C-SEND-SYNC;
+   M-PUBLIC-DEBUG, M-TYPES-SEND; G: important traits). Files: `src/api/base_case.rs`,
    `src/browser/session/mod.rs`, `src/browser/config.rs`, `src/api/chart.rs`, whatever the lint
    lists, one new test file. Not breaking.
-3. **Doc gaps** (F3, and the doc half of F21). Files: `src/api/base_case.rs`,
+3. **Doc gaps and safety comments** (F3, the doc half of F21, F24; C-EXAMPLE, C-FAILURE;
+   M-CANONICAL-DOCS, M-MODULE-DOCS, M-UNSAFE; G: documentation, unsafe code). One example per type
+   and per family of methods, not per method (rule R18); `# Errors` and `# Panics` from the lint
+   output; a `// SAFETY:` line on the ten test blocks that lack one. Files: `src/api/base_case.rs`,
    `src/browser/config.rs`, `src/common/mod.rs`, `src/config/mod.rs`, `src/utils/mod.rs`,
    `src/utilities/mod.rs`, `src/lib.rs`, `src/macros.rs` (fences), `src/plugins/`,
    `src/utilities/selenium_ide.rs`, `src/profile_payloads/profile.rs`, `src/browser/launcher.rs`,
-   `src/browser/virtual_display.rs`. Not breaking.
-4. **Manifest and tooling** (F13, F1 rustfmt): metadata, `[workspace.dependencies]`,
-   `error-backtrace` and the three pages that describe it wrongly, after decisions D1 and D7.
-   Files: the four manifests, `rustfmt.toml`, `README.md`, `CONTRIBUTING.md`, `docs/building.md`.
-   Breaking only for the feature.
-5. **Keep the source in errors** (F4 small): `sb_context`, the two `From` impls, `#[non_exhaustive]`
-   on the plugin errors, and typed errors for `find_examples`, `SbRecorder::check`, `check_in`,
-   `validate_file_name`, `parse_ide_file` and `parse_ide_html` after decision D9. Files:
-   `src/error.rs` and its callers, `src/cli/scripts/all_scripts.rs`, `src/cli/scripts/sb_recorder.rs`,
+   `src/browser/virtual_display.rs`, the test files of F24. Not breaking.
+4. **Manifest and tooling** (F13, F1 rustfmt; C-METADATA; M-CARGO-WORKSPACE; G: no unstable
+   features): metadata, `[workspace.dependencies]`, `error-backtrace` and the three pages that
+   describe it wrongly. D1 is taken (the MSRV stays the newest stable) and D7 moved to lane 22.
+   Files: the four manifests, `README.md`, `CONTRIBUTING.md`, `docs/building.md`. Breaking only for
+   the feature.
+5. **Keep the source in errors** (F4 small; C-GOOD-ERR; M-FROM-ERROR; G: reporting errors):
+   `sb_context`, the two `From` impls, `#[non_exhaustive]` on the plugin errors, and typed errors
+   that display the text of today for `find_examples`, `SbRecorder::check`, `check_in`,
+   `validate_file_name`, `parse_ide_file` and `parse_ide_html` (D9, taken); `parse_ide_html`, which
+   cannot fail, returns its value. Files: `src/error.rs` and its callers,
+   `src/cli/scripts/all_scripts.rs`, `src/cli/scripts/sb_recorder.rs`,
    `src/utilities/selenium_ide.rs`. Low breaking.
-6. **Print, glob, small hygiene** (F17, F12 glob). Files: `src/api/master_qa.rs`,
-   `src/browser/driver_access.rs`, `src/mcp/http.rs`, `src/profile_payloads/mod.rs`. Not breaking.
-7. **The logging plugins and the path helpers take their inputs** (F20): an upload target per store
-   with `from_env()`, `logs_root_with`, `find_system_chrome_with`, a directory for the cookie-file
-   methods. Files: `src/plugins/s3_logging_plugin.rs`, `azure_logging_plugin.rs`,
-   `gcp_logging_plugin.rs`, `src/artifacts.rs`, `src/evasion/patcher.rs`,
-   `src/api/base_case.rs`, `src/api/base_case_impls/base_case_impl_parity.rs`. Breaking only for
-   the three plugin types.
-8. **`Drop` that blocks or writes** (F21, the code half): `spawn_blocking` for the `wait`, an
-   explicit `finish` for `TestRecorder`, and the check of the 16 `impl Drop` not read. Files:
-   `src/browser/launcher.rs`, `src/browser/virtual_display.rs`,
+6. **Print, glob, `mod.rs`, small hygiene** (F17, F12 glob and non-leaf modules; M-LOG-NOT-PRINT,
+   M-NO-GLOB-REEXPORTS; G: glob imports, non-leaf modules, name files after the primary item):
+   `tracing` for the three prints, the glob re-export replaced, and the 13 types of 7 `mod.rs`
+   files moved to files named after them and re-exported. Files: `src/api/master_qa.rs`,
+   `src/browser/driver_access.rs`, `src/mcp/http.rs`, `src/profile_payloads/mod.rs`, the 7 `mod.rs`
+   files of F12. Not breaking.
+7. **The logging plugins and the path helpers take their inputs** (F20; C-METHOD;
+   M-MOCKABLE-SYSCALLS): an upload target per store with `from_env()`, `logs_root_with`,
+   `find_system_chrome_with`, a directory for the cookie-file methods. Files:
+   `src/plugins/s3_logging_plugin.rs`, `azure_logging_plugin.rs`, `gcp_logging_plugin.rs`,
+   `src/artifacts.rs`, `src/evasion/patcher.rs`, `src/api/base_case.rs`,
+   `src/api/base_case_impls/base_case_impl_parity.rs`. Breaking only for the three plugin types.
+8. **`Drop` that blocks or writes** (F21, the code half; C-DTOR-BLOCK): `spawn_blocking` for the
+   `wait`, an explicit `finish` for `TestRecorder`, and the check of the 16 `impl Drop` not read.
+   Files: `src/browser/launcher.rs`, `src/browser/virtual_display.rs`,
    `src/browser/session/lifecycle.rs`, `src/core/test_run.rs`. Not breaking.
-9. **Sealed traits and no `Deref`** (F6). Files: `src/api/traits.rs`, `src/error.rs`,
-   `src/api/membership.rs`, `src/api/master_qa.rs`, `src/testing/bdd/mod.rs`, their tests. Breaking.
-10. **`non_exhaustive` and the unconditional `plugins` field** (F8). Files:
-    `src/browser/config.rs`, `src/cookie.rs`, `src/config/settings.rs`, the `api`, `utilities` and
-    `profile_payloads` types of F8, and every struct literal (use `constructors` to list them
-    first). Breaking.
-11. **Booleans to enums, paths to `AsRef<Path>`, keywords to enums** (F9 without selectors). Files:
-    the sites in F9. Breaking.
-12. **Macros** (F7), after D3. Files: `src/macros.rs`, `src/lib.rs`, `tests/`, `examples/`,
-    `docs/`. Breaking.
-13. **Names** (F11, F5 cheap part, F15): `BrowserKind`, one `Proxy`, `connect` and `from_session`,
-    `as_str` for the four `name`, `get_browser`. Files: `src/browser/config.rs`, `src/lib.rs`,
-    `src/evasion/fingerprint.rs`, `src/browser/options/`, `src/config/proxy_list.rs`,
-    `src/profile_payloads/profile.rs`, `src/api/base_case.rs`,
-    `src/browser/chrome_for_testing.rs`. Breaking. Use `tokensave_rename`.
-14. **Trait receivers and parameter order** (F16), with D5. Files: `src/api/traits.rs` and the
-    `BaseCase` and `Page` impls. Breaking.
-15. **Public module tree** (F12): `pub(crate)` pass, one path per item. Files: `src/lib.rs`,
-    `mod.rs` files, the contract tests. Breaking; run `mise run semver` and the contract tests.
-16. **Error redesign** (F4 large), after the thirtyfour driver-errors lane. Files: `src/error.rs`
-    and every constructor call. Breaking, large.
-17. **Selector typing** (F9 selectors): `BaseCase` on `impl Into<SelectorBuf>`. About 371
-    signatures (public or not); do it with `ast_grep_rewrite`. Breaking, large.
-18. **`get_` names** (F5), only if D2 says yes; with the translator tables
-    (`src/utilities/importer/translate.rs`, `src/mcp/dev/api_index.json`) and `parity/api.toml`.
-    Breaking, large.
-19. **`panic` to `Result` for `driver()`** (F10), after the drivers lane. Files:
-    `src/browser/session/mod.rs`. Breaking.
-20. **Docs without history** (F18). Files: wherever the search lists. Not breaking.
+9. **Panics that are caught, locks that are recovered** (F22; M-PANIC-CONTINUATION,
+   M-PANIC-IS-STOP; G: no `catch_unwind`, handling poison; D11 and D12): a one-line comment and
+   an `#[expect(clippy::disallowed_methods, reason = "...")]` on the three production
+   `catch_unwind`, the crate-private lock helper in `common`, the 34 lock sites on it. Files:
+   `src/api/runner.rs`, `src/api/pdf.rs`, `src/sb_cdp/plugin_hooks.rs`, `src/common/` (the
+   helper), and the lock sites (`src/artifacts.rs`, `src/browser/reuse.rs`,
+   `src/common/shutdown.rs`, `src/config/proxy_list.rs`, `src/core/allure.rs`,
+   `src/api/recorder/output.rs`, `src/cli/plugin_cmd.rs`, and the rest of the 34). Not breaking.
+10. **Sealed traits and no `Deref`** (F6; C-SEALED, C-DEREF; M-ESSENTIAL-FN-INHERENT; G: trait vs
+    inherent impl, `foo_mut`). Files: `src/api/traits.rs`, `src/error.rs`, `src/api/membership.rs`,
+    `src/api/master_qa.rs`, `src/testing/bdd/mod.rs`, their tests. Breaking.
+11. **Wrappers out of public signatures** (F23; M-AVOID-WRAPPERS, M-SERVICES-CLONE; G: avoid `Rc`
+    and `Arc`): `TestRun` as a `Clone` handle, `Session<S>` hidden, a doc line on each boxed alias.
+    Files: `src/core/test_run.rs`, `src/plugins/reports.rs`, `src/core/allure.rs`, `src/mcp/host.rs`,
+    the call sites. Breaking, small.
+12. **`non_exhaustive` and the unconditional `plugins` field** (F8; C-STRUCT-PRIVATE, C-VALIDATE;
+    M-FEATURES-ADDITIVE; G: `non_exhaustive` with its record-update exception): on `BrowserConfig`,
+    `Cookie`, `Browser`, `DriverMode` and the `api`, `utilities` and `profile_payloads` types of F8,
+    and not on `Settings`, `BrowserSettings`, `ProxyConfig` and the other tables built with
+    `..Default::default()`. Files: `src/browser/config.rs`, `src/cookie.rs`, the types of F8, and
+    every struct literal (use `constructors` to list them first). Breaking.
+13. **Booleans to enums, paths to `AsRef<Path>`, keywords to enums, the tuple alias** (F9 without
+    selectors; C-CUSTOM-TYPE, C-GENERIC, C-NEWTYPE; M-IMPL-ASREF, M-STRONG-TYPES; G: enum over bool,
+    flexible references, named fields). Files: the sites in F9, `src/cli/scaffold.rs`. Breaking.
+14. **Macros** (F7; C-MACRO-ATTR; M-MACRO-LAST-RESORT, M-MACROS-DONT-LIE; G: macros), with D3
+    taken: delete every `sb_*` macro but `sb_test!`, delete `uc_config!` and `cdp_config!`, read
+    `selector!` and `fingerprint!` and delete either if a function does the job. Files:
+    `src/macros.rs`, `src/lib.rs`, `tests/`, `examples/`, `docs/`. Breaking.
+15. **Names** (F11, F5 cheap part, F15; C-GETTER, C-CTOR, C-WORD-ORDER; M-SHORT-NAMES,
+    M-WEASEL-WORDS; G: getters and setters, initialization functions, avoid abbreviations):
+    `BrowserKind`, one `Proxy`, `connect` and `new_with_session`, `new_with_*` for the other four
+    `with_*` constructors, `try_new` for the fallible `new`, `as_str` for the four `name`,
+    `get_browser` and the `*_js` getters, `with_header` and `with_body`, the six abbreviated
+    `BrowserConfig` setters and the accessor `rec_sb_cdp`. The `BaseCase::get_*` names stay (D2).
+    Files: `src/browser/config.rs`, `src/lib.rs`, `src/evasion/fingerprint.rs`,
+    `src/browser/options/`, `src/config/proxy_list.rs`, `src/profile_payloads/profile.rs`,
+    `src/api/base_case.rs`, `src/browser/chrome_for_testing.rs`, `src/sb_cdp/intercept.rs`, the
+    `new` that return a `Result` (F15). Breaking. Use `tokensave_rename`.
+16. **Trait receivers, parameter order and native async** (F16; M-ASYNC-FN,
+    M-PARAMETER-CONSISTENCY; G: generics vs `dyn`), with D5 taken: native `async fn` in the four
+    traits where nothing uses them as `dyn`. Files: `src/api/traits.rs` and the `BaseCase` and
+    `Page` impls. Breaking.
+17. **Public module tree** (F12; M-SINGLE-ITEM-PATH, M-BALANCED-MODULES): `pub(crate)` pass, one
+    path per item. Files: `src/lib.rs`, `mod.rs` files, the contract tests. Breaking; run
+    `mise run semver` and the contract tests. The crate split is not part of it: D6 designs it in
+    `docs/design/core_split.md`.
+18. **Error redesign** (F4 large; M-ERRORS-CANONICAL-STRUCTS; G: reporting errors), with D4
+    taken: the canonical struct, `Skipped` out of the error type, after the thirtyfour driver-errors
+    lane. Files: `src/error.rs` and every constructor call. Breaking, large.
+19. **Selector typing** (F9 selectors; C-NEWTYPE; M-STRONG-TYPES; G: the code-size caveat of
+    `Into`): `BaseCase` on `impl Into<SelectorBuf>`, each generic function kept to the conversion
+    and a call to a non-generic body. About 371 signatures (public or not); do it with
+    `ast_grep_rewrite`. Breaking, large.
+20. **`panic` to `Result` for `driver()`** (F10; M-PANIC-ON-BUG; G: panic for bugs), after the
+    drivers lane. Files: `src/browser/session/mod.rs`. Breaking.
+21. **Docs without history** (F18; M-NO-META-DESIGN-DOCUMENTATION). Files: wherever the search
+    lists. Not breaking.
+22. **`style_edition = "2024"`** (D7, taken, later; G: the formatting tool decides the layout):
+    one formatting-only commit after every other lane has merged, so it conflicts with none of
+    them. Files: `rustfmt.toml` and what `cargo fmt` changes. Not breaking.
 
 ## Decisions for the owner
 
-* D1. MSRV: keep the newest stable, or a few versions behind (M-MSRV)?
-* D2. Keep the Python `get_*` names on `BaseCase`, or rename about 104 to Rust names?
-* D3. Keep any of the 27 `sb_*` macros, or cut to `sb_test!`?
-* D4. Is `Skipped` an error? Is the canonical error struct wanted at all?
-* D5. `async_trait` or native async functions in the four traits?
-* D6. Split the crate (translator, CLI half, MCP servers) or keep one?
-* D7. `style_edition = "2021"`: intended?
-* D8. The deliberate re-exports (`tokio`, `json`, `testing::rstest`, `drivers`): an accepted
-  deviation from M-FOREIGN-REEXPORTS? The imports note in `CLAUDE.md` says yes; this audit lists
-  them so the choice is written down.
-* D9. Keep `String` as the error where the text is Python's message (`SbRecorder::check`,
-  `validate_file_name`, `find_examples`), or give them an error type that displays the same text
-  (lane 5)?
+All twelve are taken (2026-11-07). D1 to D3 and D5 to D8 are the owner's own; D4 and D9 to D12 were
+taken on the recommendation written under each.
 
+* D1. **Taken (owner): the MSRV stays the newest stable.** `rust-version = "1.99"`; the `msrv` CI job
+  and the `Dockerfile` base image move with it, as `CLAUDE.md` says. M-MSRV is an accepted deviation.
+* D2. **Taken (owner): keep the Python `get_*` names on `BaseCase`** (78 of the 104). C-GETTER and
+  Google's getter rule are accepted deviations there; the other 26 `get_*`, the four `name`
+  methods and `get_browser` are renamed in lane 15.
+* D3. **Taken (owner): cut the `sb_*` macros to `sb_test!`.** The four macros not named `sb_*`
+  follow the same rule on the recommendation of this page, which the owner accepted: `uc_config!`
+  and `cdp_config!` go, and `selector!` and `fingerprint!` are kept only if a function cannot do
+  their job (lane 14).
+* D4. **Taken (recommendation accepted): `Skipped` leaves the error type and the canonical error
+  struct is adopted** (a struct with a `kind()` enum, a source and a hint), after the thirtyfour
+  driver-errors lane (lane 18). Why: a skipped test is an outcome, not a failure, and the three
+  guides ask for a typed error with a source (Google: `Result` is for failures the caller has to
+  tell apart). Cost: breaking and large; every `matches!` on `SeleniumBaseError` and every
+  constructor call changes, and `is_skipped` moves to the test outcome.
+* D5. **Taken (owner): native `async fn` in the four capability traits where nothing uses them as
+  `dyn`.** `dyn BrowserApi` occurs nowhere in the repository; lane 16 searches the other three
+  first and keeps `#[async_trait]` only on a trait that is used as `dyn`.
+* D6. **Taken (owner): the crate split is designed in `docs/design/core_split.md`** (not on this
+  branch). This page does not repeat it and lane 17 does not split crates. M-SMALLER-CRATES and
+  M-CRATES-FLAT-FOLDER are decided there; Google's two crate rules are Chromium's.
+* D7. **Taken (owner): `style_edition` moves to 2024, later**: lane 22, a formatting-only commit
+  after every other lane.
+* D8. **Taken (owner): the deliberate re-exports (`tokio`, `json`, `testing::rstest`, `drivers`)
+  are an accepted deviation from M-FOREIGN-REEXPORTS.** The imports note in `CLAUDE.md` is the
+  reason; this audit lists them so the choice is written down.
+* D9. **Taken (recommendation accepted): typed errors that display the same text.** The message
+  stays Python's (`SbRecorder::check`, `validate_file_name`, `find_examples`); a type carries it, so
+  `?` works and a caller can match (lane 5).
+* D10. **Taken (recommendation accepted): keep `with_*` as the setter that takes and returns
+  `self`.** Google's guide gives `with_foo(f)` the meaning "call `f` with a borrow of `foo`" (and
+  `with_mut_foo(f)` for a mutable borrow), for a property inside a `Mutex` or `RefCell` or when a
+  change needs follow-up work that `set_foo` cannot do. The crate and `seleniumbase-rs-stealth` use
+  `with_*` for builder setters (`BrowserConfig::with_*`, `RunSettings::with_*`,
+  `ProxyList::with_rotation`: 153 public items in `src`).
+  Option A, keep: nothing is renamed, and no `with_*` here takes a closure to read or change a
+  property, so the two meanings never meet in one type. The cost is that a reader who knows
+  Google's meaning has to learn ours, and a closure accessor, if one is ever needed, cannot be
+  called `with_*`. Option B, adopt Google's meaning: the 153 setters need another name, and the
+  candidates collide: `foo(self, v)` clashes with the getter `foo()` that Google and C-GETTER ask
+  for on the same property, and `set_foo(&mut self, v)` ends the chaining that every example, doc
+  page, test and the stealth crates use (1,327 lines of the repository contain `.with_`, an upper
+  bound that includes other crates' methods). B renames the public API of several repositories at
+  once and ends with a worse name. Recommendation: A, with three rules: `with_*` is only a setter
+  that consumes and returns `self` (the five `with_*` constructors become `new_with_*` and
+  `set_header` and `replace_body` become `with_header` and `with_body`: lane 15); a closure
+  accessor is never named `with_*`; the exception stands in the rule table (R5).
+* D11. **Taken (recommendation accepted): `catch_unwind` stays at the three production sites, and
+  nowhere else.** The runner's use ends in a re-raised panic, the shape the three guides allow; the
+  PDF guard and the plugin-task guard turn the panic of third-party code into an error and go on,
+  which the guides discourage, and the alternatives are worse: a parser that panics on a malformed
+  file cannot be fixed from here, and a plugin task is someone else's code. Each site gets a
+  one-line comment and `disallowed-methods` makes a fourth one fail the gate (lanes 1 and 9). Cost:
+  three documented deviations from three guides. The alternative, running the parser and the plugin
+  tasks in a child process so that a crash is a dead process and not a caught panic, is much more
+  code for the same result.
+* D12. **Taken (recommendation accepted): poison is recovered in one place.** A crate-private helper
+  in `common` locks and, on poison, returns the guard; the 34 sites call it and
+  `PoisonError::into_inner` is disallowed elsewhere. It is still a deviation from Google's rule,
+  but it is one, with its reason written once, where the 34 are now unexplained. The reason
+  (probable, the code does not say): the runner goes on after a failed test (D11), so the
+  process-wide registries must still work for the next one. The alternative is a non-poisoning mutex
+  from a crate, a new dependency (the manifests have none); it can replace the helper later without
+  touching the 34 sites.
 ## What the second pass changed
 
 The second pass re-read the code behind 35 claims of the first pass. No cargo command was run.
@@ -883,6 +1359,34 @@ the `Result<_, String>` and `Box<dyn Error>` signatures to C-GOOD-ERR, and the m
 `config/mod.rs`.
 
 
+## What the third pass changed
+
+The third pass (2026-11-07, on the tree of `2327ffb8`) read Google's Rust style guide and searched the
+code for each of its rules, and re-read five rules of Pragmatic Rust (M-PANIC-CONTINUATION,
+M-PANIC-IS-STOP, M-AVOID-WRAPPERS, M-SERVICES-CLONE, M-SHORT-NAMES). No cargo command was run.
+
+Corrected (2), both claims of the first pass:
+
+1. M-AVOID-WRAPPERS, "no `Arc`, `Rc` or `Box` in the public signatures read": wrong for `core`,
+   `plugins` and `mcp`, where 2 constructors and 8 aliases carry them (F23). Met moved to partly.
+2. M-UNSAFE, "two calls in test code": the count covered `src` only; `tests/` has 9 more blocks
+   (F24).
+
+Moved: M-PANIC-CONTINUATION and M-PANIC-IS-STOP from not checked to partly (their text is quoted in
+F22); M-MSRV and M-FOREIGN-REEXPORTS from not met to accepted (D1, D8); M-SHORT-NAMES stays not
+checked, but it was read and it conflicts with Google on abbreviations (R1).
+
+Added: the rule table (R1 to R31); the guides each finding comes from, in every finding heading and
+in the ten that matter most; three findings (F22 to F24); lanes 9, 11 and 22; and the Google rules
+merged into F1 to F13 and F15 to F17. What Google's guide asks and the other two do not: no
+`catch_unwind` and no recovered poison (F22), the record-update exception to `non_exhaustive` (F8),
+`new_with_foo` and `try_new` (F15), `foo_mut`, `take_foo` and `replace_foo` (F5), no abbreviations
+that delete letters (F11), non-leaf modules without definitions (F12), named fields over tuples
+(F9), and `SAFETY:` comments (F24).
+
+Decisions: the owner took D1 to D3 and D5 to D8, and accepted this page's recommendation for D4 and
+D9 to D12; they are marked taken above, and their work is in lanes 1, 5, 9, 14, 15, 16, 18 and 22.
+
 ## Not checked
 
 * Anything a compiler lint reports: the full list of types without `Debug`, `Clone`, `Eq`, `Hash`;
@@ -897,11 +1401,21 @@ the `Result<_, String>` and `Box<dyn Error>` signatures to C-GOOD-ERR, and the m
   tests only and has no public item.
 * 16 of the 21 `impl Drop` in `src` (F21), and the Azure and GCP error enums.
 * Whether `cargo-semver-checks` is clean on the current tree (not run).
+* Google's guide, what was not checked: how types and functions are imported (unqualified types,
+  module-qualified functions, trait imports scoped to a function), type inference and turbofish,
+  assertion messages, the length of iterator chains (3 `for_each` found), `format!` against
+  `str::replace` (42 `.replace("` lines, 8 read), lifetime and generic-parameter names,
+  `#[must_use]` (1,065 sites, none judged), which `Clone` and `Copy` impls are missing, `.clone()`
+  used to dodge a borrow, `&[T]` parameters that could take an iterator, functions that return a
+  `Vec` where an iterator would do, whether each of the 168 `Arc<` lines is needed, and how big the
+  definitions in the 7 `mod.rs` files are. The Chromium, Android and Fuchsia rules are n/a.
 
 ## Sources
 
 * [Rust API Guidelines checklist](https://rust-lang.github.io/api-guidelines/checklist.html)
 * [Pragmatic Rust Guidelines 2026.6](https://microsoft.github.io/rust-guidelines/) (all guidelines
-  in one file: `agents/all.txt`)
+  in one file: `agents/all.txt`, read again for the third pass)
+* [Google's Rust style guide](https://github.com/google/styleguide/blob/gh-pages/rustguide.md)
+  (`/google/styleguide` on Context7; the file fetched from the raw page and read on 2026-11-07)
 * Cargo reference, workspaces and the `lints` table; the Rust Reference on lint attributes; the
   Clippy lint configuration book (all read on Context7).
