@@ -109,10 +109,10 @@ use std::time::Duration;
 use seleniumbase_rs_stealth::wire::{WireFormat, MitmOptions, MitmProxy};
 use seleniumbase_rs_stealth::sb_cdp::{Browser, LaunchOptions};
 use seleniumbase_rs_stealth::scrape::NoopEventSink;
-use seleniumbase_rs_stealth::codec::BrowserKind;
+use seleniumbase_rs::browser::config::Browser;
 
 async fn demo() -> Result<(), Box<dyn std::error::Error>> {
-    let profile = WireFormat::measured(BrowserKind::Chrome)?;
+    let profile = WireFormat::measured(Browser::Chrome)?;
     let mitm =
         MitmProxy::start(profile, None, MitmOptions::default(), Arc::new(NoopEventSink)).await?;
     let options = mitm.configure_launch(LaunchOptions::builder().build()?)?;

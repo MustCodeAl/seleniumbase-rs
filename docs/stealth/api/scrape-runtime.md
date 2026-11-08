@@ -343,7 +343,7 @@ pub fn label(&self) -> String
 
 ```rust
 pub struct EntryId {
-    pub kind: BrowserKind,
+    pub kind: Browser,
     pub major: u32,
     pub os: OsType,
 }

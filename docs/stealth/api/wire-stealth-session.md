@@ -114,7 +114,7 @@ pub fn geo_proxies<I, S>(mut self, proxies: I) -> Result<Self, StealthError>
     where
         I: IntoIterator<Item = (S, CountryCode)>,
         S: AsRef<str>,
-pub fn proxy_strategy(mut self, strategy: RotationStrategy) -> Self
+pub fn proxy_rotation(mut self, rotation: RotationStrategy) -> Self
 pub fn max_challenge_attempts(mut self, attempts: u32) -> Self
 pub fn mitigation(mut self, policy: MitigationPolicy) -> Self
 pub fn escalation_policy(mut self, policy: EscalationPolicy) -> Self
@@ -127,7 +127,6 @@ pub fn fingerprint(mut self, fingerprint: Fingerprint) -> Self
 pub fn identity(mut self, identity: Identity) -> Self
 pub fn http_session_options(mut self, options: HttpSessionOptions) -> Self
 pub fn mitm_options(mut self, options: MitmOptions) -> Self
-pub fn solve_timeout(mut self, timeout: Duration) -> Self
 pub fn clock(mut self, clock: Clock) -> Self
 pub async fn build(self) -> Result<StealthSession, StealthError>
 ```
@@ -136,9 +135,9 @@ pub async fn build(self) -> Result<StealthSession, StealthError>
 - `launch_options`: The launch options of the browser, a built `LaunchOptions`. The session adds its fingerprint to a copy of them (`LaunchOptions::with_fingerprint`), so a setting made here (a user agent, say) wins over the fingerprint's. The proxy is the MITM proxy's, whatever is set here.
 - `launcher`: How a browser is started: a closure from the `LaunchOptions` to a `Browser`, as core's `BrowserPool::with_launcher` takes (see [`Launcher`](/stealth/api/scrape-browser-scraper)). The default is core's `Browser::launch`.
 - `geo_proxies`: Adds proxies, each with the country it exits in. The country decides the language and the time zone the session presents while it leaves through that proxy.
-- `proxy_strategy`: How the pool picks an egress when one is needed: at the start and at each rotation.
+- `proxy_rotation`: How the pool picks an egress when one is needed: at the start and at each rotation. Takes core's `seleniumbase_rs::config::proxy_list::RotationStrategy`.
 - `max_challenge_attempts`: How many loads of one URL a fetch may make before it gives up. Zero is read as one.
-- `mitigation`: The whole mitigation policy: when to rotate, how long to cool down. The attempts set by `max_challenge_attempts` still apply on top; without either, the attempts are [`DEFAULT_ATTEMPTS`].
+- `mitigation`: The whole mitigation policy: when to rotate, how long to cool down, and how long a solved challenge is waited for (its `solve` options: `SolveOptions::new().verify_timeout(..)`; the default policy waits `DEFAULT_VERIFY_TIMEOUT`, 30 s). The attempts set by `max_challenge_attempts` still apply on top; without either, the attempts are [`DEFAULT_ATTEMPTS`].
 - `escalation_policy`: When the session changes mode: the mode it prefers, whether HTTP needs a clearance, how close to its end a clearance may get, and whether a solve sends the session back to HTTP.
 - `ledger`: Where what is learned about each site is kept between fetches.
 - `event_sink`: Where the session reports what it does. The HTTP session and the MITM proxy report to it as well.
@@ -149,7 +148,6 @@ pub async fn build(self) -> Result<StealthSession, StealthError>
 - `identity`: Starts from a saved identity: its fingerprint, its cookies and its clearances. It takes the place of `fingerprint` and `seed`.
 - `http_session_options`: The limits and plumbing of the HTTP leg: timeouts, body size, redirects, the trust store and the resolver entries. The clock and the event sink of the session replace the ones in these options.
 - `mitm_options`: The limits and custom inputs of the MITM proxy that carries the browser leg.
-- `solve_timeout`: How long a solved challenge is waited for. The default is [`DEFAULT_SOLVE_TIMEOUT`].
 - `clock`: The clock the session reads, in seconds since the Unix epoch. The default is the system clock.
 - `build`: Builds the session and starts its first leg: an HTTP session, or a browser behind the MITM proxy when the policy prefers the browser.
 

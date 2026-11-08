@@ -194,19 +194,20 @@ What a request through an egress came to.
 pub struct ProxyPool
 ```
 
-A rotating set of egresses, with failure counting and quarantine.
+A rotating set of proxy routes on core's `ProxyList` (`seleniumbase_rs::config::proxy_list`), with failure counting and quarantine.
 
 ### `ProxyPool` methods
 
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
-pub fn new(egresses: Vec<ProxyRoute>, strategy: RotationStrategy) -> Self
-pub fn from_geo_proxies<I, S>(items: I, strategy: RotationStrategy) -> Result<Self, ProxyRouteError>
+pub fn from_routes(routes: Vec<ProxyRoute>, rotation: RotationStrategy) -> Result<Self, ProxyRouteError>
+pub fn from_list(list: ProxyList) -> Result<Self, ProxyRouteError>
+pub fn from_geo_proxies<I, S>(items: I, rotation: RotationStrategy) -> Result<Self, ProxyRouteError>
     where
         I: IntoIterator<Item = (S, CountryCode)>,
         S: AsRef<str>,
-pub fn quarantine(mut self, after_failures: u32, for_secs: u64) -> Self
+pub fn with_quarantine(mut self, after_failures: u32, rest: Duration) -> Self
 pub fn pick(&self, site: Option<&str>, now: u64) -> Option<ProxyRoute>
 pub fn pick_in(&self, country: CountryCode, site: Option<&str>, now: u64) -> Option<ProxyRoute>
 pub fn pick_other(
@@ -215,13 +216,14 @@ pub fn pick_other(
         site: Option<&str>,
         now: u64,
     ) -> Option<ProxyRoute>
-pub fn report(&self, egress: &ProxyKey, outcome: ProxyOutcome, now: u64)
+pub fn report(&self, proxy: &ProxyKey, outcome: ProxyOutcome, now: u64)
 ```
 
 
-- `new`: A pool over `egresses`, with the default quarantine.
+- `from_routes`: A pool over `routes`, rotating the way `rotation` says (core's `RotationStrategy`), with the default quarantine. Fails with `ProxyRouteError::Address` for a route whose address core's `ProxyList` refuses.
+- `from_list`: A pool over the proxies of a core `ProxyList`, kept as the list was set up (its rotation and quarantine). A list entry carries no country, so `pick_in` finds nothing in such a pool. Fails with the `ProxyRouteError` of the first entry that is not a route.
 - `from_geo_proxies`: A pool built from `(spec, country)` pairs, each spec parsed the way [`ProxyRoute::parse`] parses it.
-- `quarantine`: Sets how many failures in a row quarantine an egress, and for how many seconds. A limit of zero is read as one: the first failure quarantines.
+- `with_quarantine`: Sets how many failures in a row quarantine an egress, and for how long it rests. A limit of zero is read as one: the first failure quarantines.
 - `pick`: The egress for a request to `site` at time `now`, in seconds. `None` when the pool is empty or every egress is quarantined.
 - `pick_in`: Like [`ProxyPool::pick`], limited to egresses in `country`.
 - `pick_other`: Like [`ProxyPool::pick`], excluding `current`, so that a rotation really moves. With [`RotationStrategy::StickyPerSite`] the site then sticks to the new egress.

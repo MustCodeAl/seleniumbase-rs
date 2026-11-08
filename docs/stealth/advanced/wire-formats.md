@@ -30,10 +30,10 @@ client hints, and where it came from:
 ```rust
 use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
 use seleniumbase_rs_stealth::codec::measurement::{self, WireMeasurementError};
-use seleniumbase_rs_stealth::codec::BrowserKind;
+use seleniumbase_rs::browser::config::Browser;
 
 fn demo() -> Result<(), WireMeasurementError> {
-    let chrome = measurement::get(BrowserKind::Chrome, OsType::Macos)?;
+    let chrome = measurement::get(Browser::Chrome, OsType::Macos)?;
     assert_eq!(chrome.major, 155);
     println!("{} captured on {}", chrome.provenance.browser, chrome.provenance.captured_on);
     // The JA4 of the measured hello. The capture recorded t13d1517h2_8daaf6152771_cb7bf5808d99
@@ -41,7 +41,7 @@ fn demo() -> Result<(), WireMeasurementError> {
     println!("{}", chrome.tls.ja4());
 
     // A system nobody measured is an error, never a nearby guess.
-    let windows = measurement::get(BrowserKind::Chrome, OsType::Windows);
+    let windows = measurement::get(Browser::Chrome, OsType::Windows);
     assert!(matches!(windows, Err(WireMeasurementError::NotMeasured { .. })));
     Ok(())
 }
@@ -64,7 +64,7 @@ and commits the result.
 
 The same rule shows up higher up:
 
-- `WireFormat::for_system(BrowserKind::Chrome, OsType::Windows)` and
+- `WireFormat::for_system(Browser::Chrome, OsType::Windows)` and
   `WireFormat::from_fingerprint` of a Windows `Fingerprint` return
   `WireFormatError::WireMeasurement(WireMeasurementError::NotMeasured { .. })`.
 - `WireFormat::from_fingerprint` of a fingerprint whose user agent
@@ -217,10 +217,10 @@ use seleniumbase_rs_stealth::wire::client::{
     WireFormat::client_builder, WireFormat, WireProtocol,
 };
 use seleniumbase_rs_stealth::codec::header_spec::RequestShape;
-use seleniumbase_rs_stealth::codec::BrowserKind;
+use seleniumbase_rs::browser::config::Browser;
 
 async fn demo() -> Result<(), Box<dyn std::error::Error>> {
-    let profile = WireFormat::measured(BrowserKind::Chrome)?;
+    let profile = WireFormat::measured(Browser::Chrome)?;
     let client = profile.client_builder()?.build()?;
 
     let request = client.get("https://example.com/");
