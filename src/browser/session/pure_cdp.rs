@@ -119,11 +119,15 @@ impl BrowserSession {
     ) -> Result<Value, SeleniumBaseError> {
         let run = async {
             match self.frame_scope() {
-                // The script runs where the frame's own root element is: the frame's.
+                // The frame's own root element finds the frame; its window evaluates the
+                // script, so `document` and `window` are the frame's.
                 Some(frame) => {
+                    let source = serde_json::to_string(&expression)?;
                     frame
                         .locator("html")
-                        .with_element(&format!("return {expression};"))
+                        .with_element(&format!(
+                            "return el.ownerDocument.defaultView.eval({source});"
+                        ))
                         .await
                 }
                 None => page.evaluate(&expression).await,

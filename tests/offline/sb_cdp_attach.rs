@@ -568,27 +568,29 @@ async fn reconnect_attaches_to_the_same_endpoint_and_starts_no_driver() {
 }
 
 #[test_log::test(tokio::test)]
-async fn a_webdriver_call_on_a_cdp_attachment_is_an_error_not_a_panic() {
+async fn a_call_that_needs_a_webdriver_on_a_cdp_attachment_is_an_error_not_a_panic() {
     let server = AttachServer::start(None).await;
     let config = BrowserConfig::default().with_cdp_url(&server.http);
-    let mut session = BrowserSession::connect(config.clone()).await.unwrap();
+    let session = BrowserSession::connect(config.clone()).await.unwrap();
+    // The driver itself, and the performance log only a driver keeps.
     for error in [
-        session.back().await.unwrap_err(),
-        session.forward().await.unwrap_err(),
-        session.refresh().await.unwrap_err(),
-        session.page_source().await.unwrap_err(),
-        session.click("#go").await.unwrap_err(),
+        session.webdriver().unwrap_err(),
+        session.cdp_events().await.unwrap_err(),
     ] {
         assert!(
             matches!(&error, SeleniumBaseError::Unsupported(text) if text.contains("CDP")),
             "{error:?}"
         );
     }
+    // The title is the page's own, not a driver's.
+
+    assert_eq!(session.current_title().await.unwrap(), "Tauri window");
+
     let mut case = BaseCase::with_session(config, session);
-    let error = case.click("#go").await.unwrap_err();
+    let error = case.get_chromedriver_version().unwrap_err();
     assert!(
-        !matches!(error, SeleniumBaseError::SessionNotStarted),
-        "{error:?}"
+        matches!(&error, SeleniumBaseError::Unsupported(text) if text.contains("get_browser_version")),
+        "the error names the alternative: {error:?}"
     );
     case.quit().await.unwrap();
 }
