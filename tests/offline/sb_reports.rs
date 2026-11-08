@@ -8,7 +8,6 @@
 
 use std::path::Path;
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::Arc;
 
 use base64::prelude::*;
 use seleniumbase_rs::config::test_settings::TestSettings;
@@ -50,7 +49,7 @@ fn fixture(run: &TestRun, change: impl FnOnce(&mut TestSettings)) -> SbCdp {
         test,
         ..Settings::default()
     })
-    .report_to(Arc::clone(run))
+    .report_to(run.clone())
 }
 
 /// The one result the run has.
@@ -64,7 +63,7 @@ fn only(run: &TestRun) -> TestResult {
 async fn a_running_test_is_untested_and_a_finished_one_has_its_result() {
     let root = tempfile::tempdir().unwrap();
     let run = open(root.path(), |settings| settings.dashboard = true);
-    let live = Arc::clone(&run);
+    let live = run.clone();
     fixture(&run, |_| {})
         .run_with_browser(
             async || mocked().await,
@@ -156,7 +155,7 @@ async fn a_failed_test_is_recorded_with_its_evidence_in_pythons_layout() {
 async fn an_attempt_that_will_be_run_again_is_not_the_result() {
     let root = tempfile::tempdir().unwrap();
     let run = open(root.path(), |_| {});
-    let live = Arc::clone(&run);
+    let live = run.clone();
     let attempts = AtomicU32::new(0);
     fixture(&run, |test| {
         test.reruns = 1;
@@ -270,7 +269,7 @@ async fn a_test_that_starts_after_the_run_was_finalized_takes_it_up_again() {
     run.finalize().unwrap();
     assert!(run.snapshot().unwrap().finished);
 
-    let live = Arc::clone(&run);
+    let live = run.clone();
     fixture(&run, |_| {})
         .run_with_browser(
             async || mocked().await,
@@ -291,7 +290,7 @@ async fn a_test_without_a_report_leaves_the_run_alone() {
     let root = tempfile::tempdir().unwrap();
     let run = open(root.path(), |_| {});
     SbCdp::new(Settings::default())
-        .report_to(Arc::clone(&run))
+        .report_to(run.clone())
         .without_report()
         .run_with_browser(async || mocked().await, async |_page| Ok(()))
         .await

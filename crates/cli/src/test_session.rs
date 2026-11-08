@@ -13,7 +13,7 @@
 //! `*` when the run starts, and the `----- ... -----` lines when it ends.
 
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use seleniumbase_rs::core::test_run::{

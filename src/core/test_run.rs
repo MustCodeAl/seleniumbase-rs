@@ -680,8 +680,7 @@ impl TestRun {
                 )
                 .map_err(|error| error.to_string())
             })
-            .as_ref()
-            .map(Clone::clone)
+            .clone()
             .map_err(|message| SeleniumBaseError::InvalidConfig(message.clone()))
     }
 
@@ -697,11 +696,7 @@ impl TestRun {
     /// Returns an error if the run folder cannot be used, if `latest_logs` is a
     /// symbolic link (nothing is deleted then), or if the files of the run were
     /// written by a newer version.
-    pub fn open(
-        root: impl Into<PathBuf>,
-        settings: ReportSettings,
-        key: RunKey,
-    ) -> Result<Self> {
+    pub fn open(root: impl Into<PathBuf>, settings: ReportSettings, key: RunKey) -> Result<Self> {
         Self::open_with_console(root, settings, key, stderr_console())
     }
 
@@ -717,7 +712,15 @@ impl TestRun {
         key: RunKey,
         console: Console,
     ) -> Result<Self> {
-        let run = Self { state: Arc::new(RunState { root: root.into(), settings, key, console, sinks: Mutex::new(Vec::new()) }) };
+        let run = Self {
+            state: Arc::new(RunState {
+                root: root.into(),
+                settings,
+                key,
+                console,
+                sinks: Mutex::new(Vec::new()),
+            }),
+        };
         run.begin()?;
         // Allure is a sink like any other; a folder that cannot be used is logged there.
         #[cfg(feature = "allure")]
@@ -744,7 +747,15 @@ impl TestRun {
                 state.join(RUN_FILE).display()
             )));
         };
-        Ok(Self { state: Arc::new(RunState { root, settings: settings.unwrap_or(run.settings), key: RunKey::new(run.key), console: stderr_console(), sinks: Mutex::new(Vec::new()) }) })
+        Ok(Self {
+            state: Arc::new(RunState {
+                root,
+                settings: settings.unwrap_or(run.settings),
+                key: RunKey::new(run.key),
+                console: stderr_console(),
+                sinks: Mutex::new(Vec::new()),
+            }),
+        })
     }
 
     /// The folder the run's files are under.

@@ -1,7 +1,6 @@
 //! Plugins that record how each test went.
 
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 use std::time::Duration;
 

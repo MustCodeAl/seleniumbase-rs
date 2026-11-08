@@ -198,8 +198,10 @@ impl Sb {
     /// ([`TestRun::current`]) when the settings turn a report on
     /// (`--dashboard`, `--html`, `--junit-xml`, ...), and in none otherwise.
     #[must_use]
-    pub fn report_to(mut self, run: TestRun) -> Self { self.config.reporting = Reporting::Run(run);
-    self }
+    pub fn report_to(mut self, run: TestRun) -> Self {
+        self.config.reporting = Reporting::Run(run);
+        self
+    }
 
     /// Records this test in no run, whatever the run configuration asks for.
     #[must_use]
@@ -349,8 +351,10 @@ impl SbCdp {
 
     /// As [`Sb::report_to`].
     #[must_use]
-    pub fn report_to(mut self, run: TestRun) -> Self { self.config.reporting = Reporting::Run(run);
-    self }
+    pub fn report_to(mut self, run: TestRun) -> Self {
+        self.config.reporting = Reporting::Run(run);
+        self
+    }
 
     /// As [`Sb::without_report`].
     #[must_use]
