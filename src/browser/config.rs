@@ -41,7 +41,7 @@ use crate::evasion::fingerprint::Fingerprint;
 ///
 /// [`FromStr`]: std::str::FromStr
 /// [`Display`]: std::fmt::Display
-#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, Hash)]
 pub enum Browser {
     #[default]
     Chrome,
@@ -152,6 +152,7 @@ impl std::str::FromStr for Browser {
 /// [`Display`]: std::fmt::Display
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Hash)]
 pub enum DriverMode {
     // The names in a file are lower case; the capitalized names of an older file are read too.
     #[default]

@@ -81,6 +81,18 @@ pub struct BrowserSession {
     plugins: Option<SessionPlugins>,
 }
 
+impl std::fmt::Debug for BrowserSession {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BrowserSession")
+            .field("has_driver", &self.driver.is_some())
+            .field("has_cdp", &self.cdp.is_some())
+            .field("external_page", &self.external_page.is_some())
+            .field("remote_debug", &self.remote_debug)
+            .field("reused", &self.reuse.is_some())
+            .finish_non_exhaustive()
+    }
+}
+
 impl BrowserSession {
     /// WebDriver interaction: `connect`.
     ///
