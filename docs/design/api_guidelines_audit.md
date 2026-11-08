@@ -78,7 +78,7 @@ How the numbers were made, and what they cannot say:
 * Statuses: met, partly (some items meet it, some do not), not met, n/a (the crate has nothing
   the item is about), not checked. "Affected" is a verified count or a lower bound; "not counted"
   means only a compiler lint can count it, which is lane 1 and 2 below. `accepted` is a fifth
-  status for a deviation the owner decided to keep (D1, D2, D8, D10 to D12).
+  status for a deviation the owner decided to keep (D1, D8, D11, D12; D2 and D10 were reversed on 2026-11-08).
 * The third pass counts lines of `src/` without `crates/` and without `src/mcp/dev/api_index.json`
   (a path filter `src/` also matches `crates/*/src/`, so the exclusion is explicit). A count is a
   number of lines, not of items, and is an upper bound unless the text says it was read.
@@ -107,16 +107,16 @@ The ids that no rule row uses are n/a or not checked and stay only in the per-id
 down: C-ITER-TY, C-NUM-FMT, C-RW-VALUE, C-BITFLAG, C-MACRO-VIS and C-STRUCT-BOUNDS,
 M-TAUTOLOGICAL-TESTS and the performance and application guidelines.
 
-Tally of the 33 rules: met 3, partly 18, not met 4, accepted 4 (R3 with 26 `get_` still open, R5,
-R16, R29), not checked 3 (R32 and R33 are new, see [The fourth source](#the-fourth-source)), n/a 1.
+Tally of the 33 rules: met 3, partly 18, accepted 2 (R16, R29; R3 and R5 were accepted until the
+owner reversed D2 and D10 on 2026-11-08), not met 6, not checked 3 (R32 and R33 are new, see [The fourth source](#the-fourth-source)), n/a 1.
 
 | # | Rule we follow | Sources | Where the guides differ: what we adopt | Status | Affected | Finding |
 |---|---|---|---|---|---|---|
 | R1 | Names follow the standard library style, in one word order, and say what the item is; short, but with no abbreviation that an outsider cannot read. | C-CASE, C-WORD-ORDER; M-WEASEL-WORDS, M-SHORT-NAMES; G: naming (methods, lifetimes, generic parameters), avoid abbreviations | M-SHORT-NAMES prefers abbreviations (`CallbackFn`); Google refuses those that delete letters inside a word or that people outside the project do not know. Adopt: at most two short words, no module name as a prefix, and an abbreviation only when it is common outside the project (`Fn`, `Ip`, `Css`), so `rec` and `ws` go. | partly | 6 `BrowserConfig` setters and 1 accessor, `uc`, `jqc`, the names of F11 | F11 |
 | R2 | `as_` is a cheap borrow, `to_` costs, `into_` consumes; a conversion that names its type says so. | C-CONV, C-CONV-SPECIFIC; G: naming methods (`wrong_self_convention`) | Agree. | met | 4 `name` methods that should be `as_str` | F5 |
-| R3 | A getter is `foo()` or `foo_mut()`, a setter `set_foo(T)`; `take_foo()` clears and returns the old value, `replace_foo(T)` sets and returns it; there is no `get_` prefix. | C-GETTER; M-RUST-SHAPED; G: getters and setters | Agree on the rule. D2 keeps the Python `get_*` names on `BaseCase`. | accepted on `BaseCase` (78), not met on 26 others | 104 `get_`; 14 public `set_*`, 13 of them fit; `set_header` and `replace_body` consume `self` | F5, F15 |
+| R3 | A getter is `foo()` or `foo_mut()`, a setter `set_foo(T)`; `take_foo()` clears and returns the old value, `replace_foo(T)` sets and returns it; there is no `get_` prefix. | C-GETTER; M-RUST-SHAPED; G: getters and setters | Agree on the rule. D2 is reversed (2026-11-08): `BaseCase` getters drop `get_` (`get_text` becomes `text`); the Python names stay findable through `parity/api.toml`, the Python importer and `parity_lookup`. | not met (104, 78 on `BaseCase`) | 104 `get_`; 14 public `set_*`, 13 of them fit; `set_header` and `replace_body` consume `self` | F5, F15 |
 | R4 | Constructors are `new`, `new_with_foo`, `try_new` when they return a `Result`, and `from_foo` beside a `From` impl; a constructor does what its name says; an options struct implements `Default`. | C-CTOR; G: naming initialization functions, pair `From` with constructors, options structs implement `Default`; IRS: associated function `new` | Agree. | partly | 10 `new` return a `Result` and `try_new` has 0; 5 constructors are named `with_*`; `BaseCase::new` starts a browser | F15 |
-| R5 | `with_*` is a setter that takes and returns `self`; a builder validates in `build()`. | C-BUILDER; M-INIT-BUILDER, M-INIT-CASCADED, M-BUILD-RESULT; G: closure accessors; IRS: builder pattern (method chaining) | Google gives `with_foo(f)` the meaning "call `f` with a borrow of `foo`". Adopt ours (D10): a closure accessor is never named `with_*`. IRS names its setters after the field (`walls(4)`) and lets `build()` return the value without a check; we keep `with_*` and a `build()` that validates (the stricter rule wins). | accepted (D10); the four builders met | 153 public `with_*` (about 80 on `BrowserConfig`), 0 closure accessors | F15 |
+| R5 | A builder is a separate type whose setters are named after the field and take and return `self`; `build()` validates; `with_*` names a constructor only. | C-BUILDER; M-INIT-BUILDER, M-INIT-CASCADED, M-BUILD-RESULT; G: closure accessors; IRS: builder pattern (method chaining) | Adopt (D10 replaced, 2026-11-08): setters are named after the field, on a separate builder type (`BrowserConfig::builder().headless(true).build()`), as C-BUILDER and IRS's builder idiom do, so there is no conflict with IRS; `build()` still validates, which is the stricter rule where IRS lets it return unchecked. `with_*` stays only for constructors, as in std's `Vec::with_capacity`; Google's closure meaning of `with_foo(f)` is not used. | not met (the bon builders lane does it) | 153 public `with_*` (about 80 on `BrowserConfig`), 0 closure accessors | F15 |
 | R6 | A parameter takes the widest borrowed or generic form: `&str`, `&[T]`, `&T`, `Option<&T>`, `impl AsRef<Path>`, and `impl Into<String>` where the call site gains; the same parameters come in the same order. | C-CALLER-CONTROL, C-GENERIC; M-IMPL-ASREF, M-IMPL-IO, M-IMPL-RANGEBOUNDS, M-PARAMETER-CONSISTENCY; G: flexible references, accepting `Into`, iterators vs slices in parameters; IRS: `&str` over `String` (string vs str anti-pattern), borrowing instead of cloning | C-GENERIC and M-IMPL-ASREF ask for generics; Google weighs `Into` against code size and says application code almost never takes it. Adopt: generics at the library boundary, each kept to the conversion and a call to a non-generic body; concrete types in `crates/cli`. | partly | 0 `&Vec<`, 0 public `&Option<`, 253 `impl Into<` lines, paths as `&str`, 2 methods with the order reversed (`type_text`, `assert_text`) | F9, F16 |
 | R7 | A named type, not a `String` or a `bool`, where the value has a meaning; named fields, not tuples; a newtype, not an alias, when the type needs an API of its own. | C-NEWTYPE, C-CUSTOM-TYPE, C-NEWTYPE-HIDE; M-STRONG-TYPES; G: enum over bool, named fields over tuples, newtypes vs type aliases | Agree. | partly | 371 selector parameters, 9 `bool` sites, 1 tuple alias | F9 |
 | R8 | A function returns an iterator unless it builds the collection or callers need one; a collection type implements the collection traits. | C-ITER, C-COLLECT; M-COLLECTION-TRAITS; G: iterators vs owned collections in return types; IRS: iterator adapters, `iter`/`iter_mut`/`into_iter` | Agree. | met in the files read, not counted | The functions read build a `Vec` from a browser answer, which is the guide's own exception | none |
@@ -158,7 +158,7 @@ and partly 17; C-METHOD and C-DTOR-BLOCK moved to partly in the second; the thir
 |---|---|---|---|
 | C-CASE | met | 0 | rustc's naming lints are on by default and the gate runs clippy with `-D warnings`; no counter-example in the files read. |
 | C-CONV | met | 4 | 13 `as_`, 4 `into_` and at least 30 `to_` methods fit their prefixes; four `const fn name(self) -> &'static str` are the odd names where `as_str` is used elsewhere (`Browser::name` and `DriverMode::name` in `src/browser/config.rs:91,169`, `src/browser/chrome_for_testing.rs:84`, `src/browser/options/proxy.rs:120`). |
-| C-GETTER | not met | 104 | 35 `pub fn get_` and 69 `pub async fn get_` (78 of them on `BaseCase`, where D2 keeps the Python names). |
+| C-GETTER | not met | 104 | 35 `pub fn get_` and 69 `pub async fn get_` (78 of them on `BaseCase`, where D2 is reversed: the prefix goes). |
 | C-ITER | met | 0 | `ProxyList` has `iter` and `IntoIterator for &ProxyList` (`src/config/proxy_list.rs:518,535`). |
 | C-ITER-TY | n/a | 0 | No public iterator type. |
 | C-FEATURE | met | 0 | Feature names carry no `use-` or `with-`. |
@@ -336,8 +336,9 @@ guide.
    exist and `Page::locator` already takes `impl Into<SelectorBuf>`; the parameter is called `css`
    even when it holds an XPath.
 3. **104 `get_` functions (F5; C, G)**, 78 on `BaseCase`, the one checklist item with a
-   count in the hundreds. It follows the Python names, so decision D2 (taken) keeps them on
-   `BaseCase`; the other 26 stay on the list.
+   count in the hundreds. The owner reversed D2 on 2026-11-08: `BaseCase` drops the prefix
+   too (`get_text` becomes `text`), and the Python names stay findable through `parity/api.toml`,
+   the Python importer and `parity_lookup`.
 4. **27 exported macros, mostly one method call (F7; C, M, G)**; in five of them an optional last
    argument changes the type from a `Result` to `()` that panics. Decision D3 (taken) cuts the
    `sb_*` macros to `sb_test!`.
@@ -590,8 +591,9 @@ literal_string_with_formatting_args = "allow"
 * Four `const fn name(self) -> &'static str` (`Browser`, `DriverMode`,
   `src/browser/chrome_for_testing.rs:84`, `src/browser/options/proxy.rs:120`) should be `as_str`,
   like the 13 other `as_str`.
-* The prefix is the Python names (`parity/api.toml`). Decision D2 (taken): the names stay on
-  `BaseCase` (78 of the 104), so C-GETTER and Google's getter rule are accepted deviations there.
+* The prefix is the Python names (`parity/api.toml`). Decision D2 was reversed on 2026-11-08: the
+  `BaseCase` getters (78 of the 104) drop `get_`; the Python names stay findable through
+  `parity/api.toml`, the Python importer and `parity_lookup`.
   What this finding still asks for: the other 26 `get_*`, `get_browser`, the `*_js` getters and
   `name` (the cheap part, lane 15).
 * Google (rule R3) spells the whole family: `foo()` returns `&T` (or `T` if it is `Copy`),
@@ -605,7 +607,7 @@ literal_string_with_formatting_args = "allow"
   and `with_body` (F15, lane 15).
 * Google also says to avoid `.clone()` "as a substitute for borrowing": `get_browser` clones the
   whole `BrowserConfig` (above) where a `&BrowserConfig` would do.
-* Breaking: yes for the other 26 and for the renames; none for `BaseCase` (D2).
+* Breaking: yes for the other 26 and for the renames; yes for `BaseCase` too (D2 reversed).
 
 ### F6. Open traits and `Deref` for inheritance (C-SEALED, C-DEREF; Google: trait vs inherent impl, extension traits)
 
@@ -906,15 +908,16 @@ literal_string_with_formatting_args = "allow"
   `pub const fn`, about 80 of them on `BrowserConfig`), and none reads or changes a property through a
   closure. The one `with_*` that takes a closure, `FingerprintBuilder::with_policy`
   (`src/evasion/fingerprint.rs:1771`), stores a transform that `build()` runs. Decision D10
-  (taken): keep `with_*` as the setter, never name a closure accessor `with_*`, and make the five
-  constructors above and `set_header`/`replace_body` (F5) fit that rule.
+  (replaced on 2026-11-08): setters lose `with_` and are named after the field on a separate
+  builder type (the bon builders lane); `with_*` stays only for constructors, as in `Vec::with_capacity`,
+  so the five constructors above keep their names and `set_header`/`replace_body` (F5) become
+  setters of a builder or `set_*`.
 * Google also asks that an options struct implement `Default` and that an important `From` impl
   have a constructor beside it: `BrowserConfig`, `Settings`, `BrowserSettings` and `ProxyConfig`
   have a `Default` (the tests above build them with it) and no `allow` of `new_without_default`
   exists (F1); the `From` impls were not read for the second point.
-* Fix: `BaseCase::connect(config)` for `new`; `BaseCase::new_with_session` for `with_session` (two
-  arguments, so Google's `new_with_foo` and not `from_session`); `new_with_*` for the other four
-  `with_*` constructors; `try_new` for the fallible `new` above (`BaseCase::new` is `async` and
+* Fix: `BaseCase::connect(config)` for `new`; the `with_*` constructors keep their names (the
+  `new_with_*` rename is dropped with D10); `try_new` for the fallible `new` above (`BaseCase::new` is `async` and
   starts a browser, so it takes `connect` instead); `with_header` and `with_body` for `set_header`
   and `replace_body`; nothing else.
 * Breaking: yes, small.
@@ -1117,7 +1120,7 @@ the same commit and runs `mise run contracts` and `mise run semver`. The order p
 lanes that cost little and tell the rest (1 to 4), then the lanes that break little or nothing
 (5 to 9), then the breaking lanes from the smaller to the larger (10 to 20), the history
 clean-up (21) and, last, the formatting-only commit (22). The owner's decisions of 2026-11-07 shaped
-the list: D2 removed the lane that renamed the `get_*` of `BaseCase`, D3 made the macro lane a
+the list: D2 removed the lane that renamed the `get_*` of `BaseCase` (reversed on 2026-11-08: lane 15 renames them now), D3 made the macro lane a
 deletion, D4 and D9 fixed the error lanes, D5 the trait lane, and D7 the last lane; D10 to D12 added
 or filled lanes 9, 14 and 15.
 
@@ -1201,10 +1204,9 @@ or filled lanes 9, 14 and 15.
     `src/macros.rs`, `src/lib.rs`, `tests/`, `examples/`, `docs/`. Breaking.
 15. **Names** (F11, F5 cheap part, F15; C-GETTER, C-CTOR, C-WORD-ORDER; M-SHORT-NAMES,
     M-WEASEL-WORDS; G: getters and setters, initialization functions, avoid abbreviations):
-    `BrowserKind`, one `Proxy`, `connect` and `new_with_session`, `new_with_*` for the other four
-    `with_*` constructors, `try_new` for the fallible `new`, `as_str` for the four `name`,
+    `BrowserKind`, one `Proxy`, `connect`, `try_new` for the fallible `new`, `as_str` for the four `name`,
     `get_browser` and the `*_js` getters, `with_header` and `with_body`, the six abbreviated
-    `BrowserConfig` setters and the accessor `rec_sb_cdp`. The `BaseCase::get_*` names stay (D2).
+    `BrowserConfig` setters and the accessor `rec_sb_cdp`. The `BaseCase::get_*` names go too (D2 reversed); the `new_with_*` renames are dropped (D10); builder setters move to the bon builders lane.
     Files: `src/browser/config.rs`, `src/lib.rs`, `src/evasion/fingerprint.rs`,
     `src/browser/options/`, `src/config/proxy_list.rs`, `src/profile_payloads/profile.rs`,
     `src/api/base_case.rs`, `src/browser/chrome_for_testing.rs`, `src/sb_cdp/intercept.rs`, the
@@ -1239,9 +1241,12 @@ taken on the recommendation written under each.
 
 * D1. **Taken (owner): the MSRV stays the newest stable.** `rust-version = "1.99"`; the `msrv` CI job
   and the `Dockerfile` base image move with it, as `CLAUDE.md` says. M-MSRV is an accepted deviation.
-* D2. **Taken (owner): keep the Python `get_*` names on `BaseCase`** (78 of the 104). C-GETTER and
-  Google's getter rule are accepted deviations there; the other 26 `get_*`, the four `name`
-  methods and `get_browser` are renamed in lane 15.
+* D2. **REVERSED (owner, 2026-11-08): `BaseCase` getters drop `get_`** (`get_text` becomes `text`; 78
+  of the 104). The Python names stay findable through `parity/api.toml`, the Python importer and
+  `parity_lookup`. All 104 `get_*`, the four `name` methods and `get_browser` are renamed in lane 15.
+  Direction: the pure CDP engine (`sb_cdp`) is the Rust-native API and `BaseCase` is the
+  Python-familiar layer built on it, also Rust-named; the rule set applies to every public API in
+  every repository (core, playwright, the stealth crates, plugins, the Tauri plugin).
 * D3. **Taken (owner): cut the `sb_*` macros to `sb_test!`.** The four macros not named `sb_*`
   follow the same rule on the recommendation of this page, which the owner accepted: `uc_config!`
   and `cdp_config!` go, and `selector!` and `fingerprint!` are kept only if a function cannot do
@@ -1266,8 +1271,13 @@ taken on the recommendation written under each.
 * D9. **Taken (recommendation accepted): typed errors that display the same text.** The message
   stays Python's (`SbRecorder::check`, `validate_file_name`, `find_examples`); a type carries it, so
   `?` works and a caller can match (lane 5).
-* D10. **Taken (recommendation accepted): keep `with_*` as the setter that takes and returns
-  `self`.** Google's guide gives `with_foo(f)` the meaning "call `f` with a borrow of `foo`" (and
+* D10. **REPLACED (owner, 2026-11-08): builder setters lose `with_` and are named after the field on
+  a separate builder type** (`BrowserConfig::builder().headless(true).build()`, C-BUILDER, agreeing
+  with IRS's builder idiom), done by the bon builders lane; `build()` still validates (R5);
+  `with_*` stays only for constructors, as in std's `Vec::with_capacity`; the `new_with_*` rename of
+  F15 is dropped. The text below is the earlier decision, kept for the record.
+  Earlier text: keep `with_*` as the setter that takes and returns
+  `self`. Google's guide gives `with_foo(f)` the meaning "call `f` with a borrow of `foo`" (and
   `with_mut_foo(f)` for a mutable borrow), for a property inside a `Mutex` or `RefCell` or when a
   change needs follow-up work that `set_foo` cannot do. The crate and `seleniumbase-rs-stealth` use
   `with_*` for builder setters (`BrowserConfig::with_*`, `RunSettings::with_*`,
@@ -1391,7 +1401,7 @@ D9 to D12; they are marked taken above, and their work is in lanes 1, 5, 9, 14, 
 
 ## The fourth source
 
-On 2026-11-08 the owner added Idiomatic Rust Snippets (`IRS:`, github.com/saltukalakus/idiomatic-rust-snippets, read on Context7). It has no ids; a rule is named by the title of its snippet. It tags R4, R5, R6, R8, R11, R14, R15 and R28, adds R32 and R33 (status not checked: the code is not judged against them yet; that is the next audit pass), and loses to the stricter rule in one place (R5, bare setter names and an unchecked `build()`). Its snippets on builders, `new`, `&str`, cloning, iterators, `Display`/`Error`/`From` and `?` agree with the other three; its remaining snippets are language lessons, not API rules.
+On 2026-11-08 the owner added Idiomatic Rust Snippets (`IRS:`, github.com/saltukalakus/idiomatic-rust-snippets, read on Context7). It has no ids; a rule is named by the title of its snippet. It tags R4, R5, R6, R8, R11, R14, R15 and R28, adds R32 and R33 (status not checked: the code is not judged against them yet; that is the next audit pass), and no longer conflicts with R5 after the owner's D10 replacement (plain setters; `build()` still validates). Its snippets on builders, `new`, `&str`, cloning, iterators, `Display`/`Error`/`From` and `?` agree with the other three; its remaining snippets are language lessons, not API rules.
 
 ## Not checked
 
