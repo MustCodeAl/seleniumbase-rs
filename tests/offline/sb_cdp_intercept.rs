@@ -94,7 +94,7 @@ async fn a_modified_request_continues_with_its_headers_changed() {
     let (page, mock) = page().await;
     let _i = page
         .intercept(vec![Rule::modify()
-            .set_header("X-Run", "42")
+            .with_header("X-Run", "42")
             .remove_header("Cookie")])
         .await
         .unwrap();
@@ -157,7 +157,7 @@ async fn the_log_records_each_request_and_how_it_was_answered() {
     let interception = page
         .intercept(vec![
             Rule::block().resource_type(ResourceType::Image),
-            Rule::modify().set_header("X", "1").method("POST"),
+            Rule::modify().with_header("X", "1").method("POST"),
         ])
         .await
         .unwrap();

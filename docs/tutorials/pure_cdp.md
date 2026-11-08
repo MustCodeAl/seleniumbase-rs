@@ -371,7 +371,7 @@ async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
         .intercept(vec![
             Rule::block().resource_type(ResourceType::Image).resource_type(ResourceType::Font),
             Rule::fulfill(Response::json(200, &seleniumbase_rs::json::json!({ "plan": "pro" }))).url("*/api/account"),
-            Rule::modify().set_header("X-Test-Run", "42").url("https://example.com/*"),
+            Rule::modify().with_header("X-Test-Run", "42").url("https://example.com/*"),
         ])
         .await?;
 

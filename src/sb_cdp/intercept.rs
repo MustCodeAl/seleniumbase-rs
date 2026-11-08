@@ -23,7 +23,7 @@
 //!         Rule::fulfill(Response::json(200, &serde_json::json!({"plan": "pro"})))
 //!             .url("*/api/account"),
 //!         // Tell the server who is asking.
-//!         Rule::modify().set_header("X-Test-Run", "42").url("https://example.com/*"),
+//!         Rule::modify().with_header("X-Test-Run", "42").url("https://example.com/*"),
 //!     ])
 //!     .await?;
 //!
@@ -210,7 +210,7 @@ impl Rule {
     }
 
     /// Sends matching requests on with the changes added by
-    /// [`set_header`](Self::set_header) and its siblings.
+    /// [`with_header`](Self::with_header) and its siblings.
     #[must_use]
     pub fn modify() -> Self {
         Self::with(Action::Modify(Changes::default()))
@@ -248,7 +248,7 @@ impl Rule {
 
     /// For a [`modify`](Self::modify) rule: sets a request header.
     #[must_use]
-    pub fn set_header(self, name: impl Into<String>, value: impl Into<String>) -> Self {
+    pub fn with_header(self, name: impl Into<String>, value: impl Into<String>) -> Self {
         self.changes(|c| {
             c.set_headers.insert(name.into(), value.into());
         })
@@ -274,7 +274,7 @@ impl Rule {
 
     /// For a [`modify`](Self::modify) rule: replaces the request body.
     #[must_use]
-    pub fn replace_body(self, body: impl Into<Vec<u8>>) -> Self {
+    pub fn with_body(self, body: impl Into<Vec<u8>>) -> Self {
         self.changes(|c| c.body = Some(body.into()))
     }
 
@@ -649,7 +649,7 @@ mod tests {
             ("X-Gone".to_owned(), "p".to_owned()),
         ]);
         let rule = Rule::modify()
-            .set_header("X-Both", "u")
+            .with_header("X-Both", "u")
             .remove_header("x-gone");
         let page = request("https://a.test/", "GET", ResourceType::Fetch);
 
@@ -813,12 +813,12 @@ mod tests {
     #[test]
     fn modifying_keeps_the_original_headers_and_applies_the_changes() {
         let rule = Rule::modify()
-            .set_header("accept", "text/plain")
-            .set_header("X-New", "1")
+            .with_header("accept", "text/plain")
+            .with_header("X-New", "1")
             .remove_header("Cookie")
             .redirect_to("https://b.test/")
             .change_method("POST")
-            .replace_body("hi");
+            .with_body("hi");
         let Action::Modify(changes) = &rule.action else {
             panic!("a modify rule")
         };
@@ -859,7 +859,7 @@ mod tests {
     #[test]
     fn change_methods_do_nothing_on_other_kinds_of_rule() {
         let rule = Rule::block()
-            .set_header("X", "1")
+            .with_header("X", "1")
             .redirect_to("https://x.test/");
         assert_eq!(rule, Rule::block());
     }
