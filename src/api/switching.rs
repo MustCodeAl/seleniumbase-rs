@@ -405,51 +405,51 @@ impl Alert {
     ///
     /// # Errors
     ///
-    /// Returns the driver's error if no alert is open.
+    /// A [`SeleniumBaseError::WebDriver`] of kind [`AlertNotFound`](crate::DriverErrorKind::AlertNotFound) if no alert is open.
     pub async fn text(&self) -> Result<String, SeleniumBaseError> {
         self.driver
             .get_alert_text()
             .await
-            .map_err(SeleniumBaseError::WebDriver)
+            .map_err(SeleniumBaseError::from)
     }
 
     /// Accepts the alert (clicks OK). Python's `alert.accept()`.
     ///
     /// # Errors
     ///
-    /// Returns the driver's error if no alert is open.
+    /// A [`SeleniumBaseError::WebDriver`] of kind [`AlertNotFound`](crate::DriverErrorKind::AlertNotFound) if no alert is open.
     pub async fn accept(&self) -> Result<(), SeleniumBaseError> {
         self.record("accept_alert", None);
         self.driver
             .accept_alert()
             .await
-            .map_err(SeleniumBaseError::WebDriver)
+            .map_err(SeleniumBaseError::from)
     }
 
     /// Dismisses the alert (clicks Cancel). Python's `alert.dismiss()`.
     ///
     /// # Errors
     ///
-    /// Returns the driver's error if no alert is open.
+    /// A [`SeleniumBaseError::WebDriver`] of kind [`AlertNotFound`](crate::DriverErrorKind::AlertNotFound) if no alert is open.
     pub async fn dismiss(&self) -> Result<(), SeleniumBaseError> {
         self.record("dismiss_alert", None);
         self.driver
             .dismiss_alert()
             .await
-            .map_err(SeleniumBaseError::WebDriver)
+            .map_err(SeleniumBaseError::from)
     }
 
     /// Types `text` into the prompt. Python's `alert.send_keys(text)`.
     ///
     /// # Errors
     ///
-    /// Returns the driver's error if no prompt is open.
+    /// A [`SeleniumBaseError::WebDriver`] of kind [`AlertNotFound`](crate::DriverErrorKind::AlertNotFound) if no prompt is open.
     pub async fn send_keys(&self, text: &str) -> Result<(), SeleniumBaseError> {
         self.record("type_alert_text", Some(text));
         self.driver
             .send_alert_text(text)
             .await
-            .map_err(SeleniumBaseError::WebDriver)
+            .map_err(SeleniumBaseError::from)
     }
 }
 

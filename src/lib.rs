@@ -210,6 +210,7 @@ pub use api::tour::TourTheme;
 pub use api::traits::{AssertionApi, BrowserApi, ElementApi, ScreenshotApi};
 pub use browser::config::{Browser, BrowserConfig, DriverMode};
 pub use browser::element::Element;
+pub use browser::options::NetworkThrottle;
 
 pub use browser::reuse::shutdown_reused_sessions;
 pub use browser::session::BrowserSession;
@@ -217,7 +218,7 @@ pub use common::tls::install_tls_provider;
 pub use config::settings::{Settings, SettingsOverrides};
 pub use config::{LogFormat, RuntimeConfig};
 pub use cookie::{Cookie, SameSite};
-pub use error::{Result, ResultExt, SeleniumBaseError};
+pub use error::{DriverError, DriverErrorKind, Result, ResultExt, SeleniumBaseError};
 pub use evasion::capture::CapturedFingerprint;
 pub use evasion::fingerprint::{
     AudioNoise, BatteryProfile, BrandVersion, BrowserType, CanvasNoise, ClientHints,

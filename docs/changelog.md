@@ -324,12 +324,6 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   (`--no-sandbox`, a `no_sandbox` key) already read the variable this way.
 
 
-### Security
-
-- `SB_NO_SANDBOX` fails safe: `SB_NO_SANDBOX=0`, `=false` and an empty value no longer turn Chrome's
-  sandbox off (see the breaking change above, which lists the accepted values).
-
-
 - **Breaking: the WebDriver engine returns `seleniumbase_rs::Element` and takes selectors, not
   `thirtyfour` types.** `BaseCase::find_element`, `find_elements`, `get_element`,
   `get_element_at_x_y`, `get_parent`, `find_link_text`, `find_partial_link_text`,
@@ -406,6 +400,112 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   `as_webdriver_element()` lists `thirtyfour` itself, as `drivers` says for anything it does
   not list.
 
+- **Breaking: `SeleniumBaseError::WebDriver` holds our own `DriverError`, and a failed WebDriver
+  command is read by its `DriverErrorKind`, not by `thirtyfour`'s enum.** `DriverError` and
+  `DriverErrorKind` are at the crate root. `DriverError::kind()` is a `#[non_exhaustive]`
+  `DriverErrorKind`: `ElementNotFound`, `StaleElement`, `ElementNotInteractable` (also a click
+  that was intercepted, an element in an invalid state, a move target out of bounds),
+  `FrameNotFound`, `WindowNotFound`, `AlertNotFound`, `CookieNotFound`, `ScriptFailed`,
+  `TimedOut` (the driver's command or script ran out of time, not a wait of this crate),
+  `BrowserLaunch`, `InvalidArgument`, `Unreachable` and `Other`; `message()` is the driver's text,
+  which `{}` still prints after `webdriver command failed: `, and `source()` is the `thirtyfour`
+  error, named by no public item. `drivers::WebDriverErrorInner` is gone; `drivers::WebDriverError`
+  stays, as the error of the escape hatches (`Element::as_webdriver_element`,
+  `BrowserSession::webdriver`), and `From<drivers::WebDriverError> for SeleniumBaseError` stays, so
+  `?` on their results still gives a `SeleniumBaseError`. Code that built
+  `SeleniumBaseError::WebDriver(error)` or read `error.as_inner()` changes. Three answers of the
+  driver are now told apart, which fixes what they did before:
+  `invalid session id` is `BrowserDisconnected`, so the waits that poll through the shared helper
+  (`wait_for_any_of_elements_present`, `wait_for_link_text`, `wait_for_partial_link_text`,
+  `wait_for_title` and `switch_to_window`, among others) end at once with it instead of polling
+  a dead session until their timeout (`wait_for_element_present` and the waits of
+  `BrowserSession` have loops of their own that ignore every error until the timeout, and still
+  do);
+  `invalid selector` is `InvalidSelector` (exit status 2), which those waits also end with at once;
+  and a lookup that finds nothing, `BrowserSession::find` and `Element::find`, is
+  `ElementNotFound` naming the selector (exit status 3), where it was `WebDriver` (status 4).
+  An `Element` method the driver refuses as not interactable is `ElementNotInteractable` naming
+  the element's selector. `hint()` for `WebDriver` follows the kind, so a driver that words a
+  message differently keeps its advice. `category()` is still `webdriver` and `exit_code()` still 4.
+
+  ```rust
+  // Before: name thirtyfour to read why the driver failed.
+  match error {
+      SeleniumBaseError::WebDriver(e) if matches!(e.as_inner(), WebDriverErrorInner::NoSuchAlert(_)) => {}
+      other => return Err(other),
+  }
+  // After
+  match error {
+      SeleniumBaseError::WebDriver(e) if e.kind() == DriverErrorKind::AlertNotFound => {}
+      other => return Err(other),
+  }
+  ```
+
+- **Breaking: `NetworkThrottle` replaces `set_network_conditions` and thirtyfour's
+  `NetworkConditions`, and it works in every driver mode.** `NetworkThrottle`
+  (`seleniumbase_rs::NetworkThrottle`) holds `offline`, a `latency` as a `Duration`, and
+  `download` and `upload` limits in bytes per second as `Option<u32>` (`None` for no limit), in
+  place of milliseconds in a `u32` and a `-1`; its default changes nothing, so it is also what
+  puts the connection back. `BaseCase::set_network_throttle` and
+  `BrowserSession::set_network_throttle` take it, in place of `set_network_conditions`, and so
+  does the new `sb_cdp::Emulation::network_throttle` (`Emulation::offline` is a throttle that only
+  sets `offline`). `drivers::{ConnectionType, NetworkConditions}` (thirtyfour's, which it has
+  deprecated) and `CdpClient::set_network_conditions` are gone. The throttle used to need the CDP
+  or UC mode and was refused with `Unsupported` ("CDP is unavailable") in the plain WebDriver
+  mode; it now goes through the driver's DevTools channel in every mode on a Chromium browser. A
+  session attached over CDP throttles its own tab. A browser whose driver has no DevTools
+  channel (Firefox, Safari, Internet Explorer) is `Unsupported`, naming it, and a command the
+  browser refuses is `CdpDriver`, as on the pure CDP engine (it was `Unsupported`). `connection_type`
+  is not carried over. The example is `examples/network_throttle.rs`.
+
+  ```rust
+  // Before (the CDP or UC mode only)
+  sb.set_network_conditions(&NetworkConditions {
+      offline: false,
+      latency: 400,
+      download_throughput: 200_000,
+      upload_throughput: 94_000,
+      connection_type: Some(ConnectionType::Cellular3G),
+  })
+  .await?;
+  sb.set_network_conditions(&NetworkConditions::new()).await?; // back to normal
+  // After (every mode)
+  sb.set_network_throttle(&NetworkThrottle {
+      latency: Duration::from_millis(400),
+      download: Some(200_000),
+      upload: Some(94_000),
+      ..NetworkThrottle::default()
+  })
+  .await?;
+  sb.set_network_throttle(&NetworkThrottle::default()).await?; // back to normal
+  ```
+
+- **Breaking: the WebDriver engine's DevTools client is `browser::devtools::CdpClient`, with no
+  thirtyfour type in it.** It moved from `evasion::cdp` (which keeps `DETECTABLE_DOMAINS` and
+  `is_detectable_enable`). Its public `dev_tools` field (thirtyfour's deprecated
+  `ChromeDevTools`) is gone: commands go through thirtyfour's `Cdp::send_raw` on the same
+  `/goog/cdp/execute` passthrough, and `from_handle` is crate-private (`BrowserSession::devtools`
+  gives a client). One name for one call: `CdpClient::execute(method, params)`, as
+  `Page::execute`; `execute_with_params` and `send_command` are gone, and a command without
+  parameters passes `json!({})`. A command the browser refuses is `CdpDriver` with the command's
+  name and the browser's message (exit code 4), as on the pure CDP engine; it was `Unsupported`
+  (exit code 2), so `BaseCase::execute_cdp_cmd` failed differently on the two engines.
+  `Unsupported` stays for a session with no DevTools at all.
+
+- **Breaking: launch capabilities name no thirtyfour type.** `drivers` no longer re-exports
+  `ChromiumLikeCapabilities`, `BrowserCapabilitiesHelper`, `Capabilities`, `CapabilitiesHelper`,
+  `DesiredCapabilities` or `LoggingPrefsLogLevel`, and the functions that took them are the
+  crate's own: `CapabilityOverrides::apply_to` and `StealthOptions::apply_to` are crate-private
+  and `apply_undetected_args` is private. Extra capabilities stay `CapabilityOverrides`
+  (`from_text`, `from_file`, Python's `--cap-string` and `--cap-file`) given to
+  `BrowserConfig::with_capabilities`, and what the stealth options launch is
+  `StealthOptions::args()` (a test holds it equal to the arguments the session asks Chrome for).
+
+
+### Security
+
+- `SB_NO_SANDBOX` fails safe: `SB_NO_SANDBOX=0`, `=false` and an empty value no longer turn Chrome's
+  sandbox off (see the breaking change above, which lists the accepted values).
 
 ### Added
 
@@ -502,6 +602,24 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   at most ten, the first bare and then `q` falling from 0.9 by a tenth), beside
   `Locale::accept_language` for a locale's own list. The stealth wire format can call it
   instead of keeping a copy of the rule.
+- `ProxyList` picks and reports at a time the caller gives, so a caller that keeps its own clock
+  (the stealth proxy pool holds Unix seconds) can drive the rotation and the quarantine through
+  it instead of keeping a copy of both: `pick_at(site, now)`, `pick_other_at(current, site, now)`
+  and `report_at(entry, outcome, now)` take a `std::time::SystemTime`, and `pick`, `pick_other`
+  and `report` are the same calls with the time of the clock. `pick_where(accept, site)` and
+  `pick_where_at(accept, site, now)` choose only among the proxies a closure over the entry
+  allows (a pick of one country, when the entries are named for their country); `accept` runs
+  before the list takes its lock. A rest is held to a hundred years so that adding it to a time
+  cannot overflow, and a list is still `Send + Sync`. The scenarios of the stealth pool are
+  tests of the list with explicit times: the cycle around a resting proxy, release after the
+  rest time, a released proxy starting with no failures, a limit of zero, the healthiest proxy
+  for least failures, sticky per site, a seeded random order and a report for an unknown proxy.
+- `SolveOptions::verify_timeout_allowed()` reads the time allowed for the page to show a result
+  after a press, as `verify_timeout` set it (5 s by default). It is named like
+  `attempts_allowed()`, `rounds_allowed()` and `cooldown_between_rounds()`, and it lets the
+  stealth scraper bound its wait for the clearance cookie with the one setting instead of a
+  `solve_timeout` of its own.
+
 
 
 
@@ -519,6 +637,26 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   `StealthIdentity` is `Identity`, and the TLS and HTTP/2 spec errors are `TlsSpecError` and
   `H2SpecError`. The changelog of the stealth repository has the full list. Prose that says
   "egress" is kept, as the stealth repository keeps it.
+
+- The pages about the stealth crates follow the stealth repository's lanes `stealth-wire` and
+  `stealth-scrape` (and the naming review where a page had not caught up): `HttpSession`,
+  `StealthSession`, `BrowserScraper` and `MitmProxy` read their proxy as `proxy_route()` and the
+  fetch results hold `proxy`, not `egress`; `BrowserScraper::session_store()`,
+  `HttpSession::wire_format()` and `http_session()`, the builder options `escalation_policy`,
+  `identity`, `http_session_options` and `rate_limit`, `launcher` (a launch closure, with the
+  `Launcher` type) in place of `BrowserLauncher` and `ChromeLauncher`, `ContextProxySwitch` no
+  longer public, `MitigationPolicy::solve` (core's `SolveOptions`), `GeoInfo::coordinates` (core's
+  `Geolocation`), `Identity::session`, `proxy`, `validate`, `cookie_jar` and `replace_cookies`
+  (identity file version 2), `WireFormat::builder`, `h2_spec`, `client_headers` and
+  `WireFormatBuilder::fingerprint` and `client_headers` in place of `custom`, `http2_spec`,
+  `identity`, `user_agent`, `accept_language`, `client_hints` and `with_locale`,
+  `ClientHeaders::from_fingerprint`, `CookieJar::receive` and `SetCookieOutcome`,
+  `HttpError::WireFormat` and `StealthError::WireFormat`, `ScrapeError::Proxy`, `Ledger` and
+  `NoProxyLeft`, `LedgerError`, `ProxyRouteError`, `ProxyOutcome::ConnectFailed`,
+  `ScrapeEvent::ProxyRotated` and `FingerprintRotated`, `MitmProxy::proxy_url`, `launch_args`,
+  `proxy_route` and `swap_proxy`, and the `http_session` types under their exported names
+  (`HttpAttempt`, `HttpFetch`, `HttpRules`, `HttpVerdict`, `ResponseHeaders`).
+
 
 - Two allocation hotspots found by the `alloc` and `alloc_sites` benches are gone, with the same
   output. The importer's tokenizer sizes its token list from the length of the source instead of
@@ -618,6 +756,13 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   widget, added cookies in the `cdp` and `uc` modes that the WebDriver mode did not list. A
   DevTools answer with no list of cookies is `SeleniumBaseError::CdpDriver`; it was read as a
   page without cookies.
+- A round-robin `ProxyList` holds its order around a proxy that starts to rest in the middle of a
+  cycle. The turn was a counter taken modulo the number of open proxies, so with three proxies
+  handed out as a, b and a then reported blocked, the next pick was b again instead of c. The
+  turn is now a position in the list: the next pick is the first open proxy at or after it, and
+  the turn moves just past that proxy. The least-failures tie and the first pick of a site that
+  sticks to a proxy use the same turn.
+
 
 ### Fixed
 

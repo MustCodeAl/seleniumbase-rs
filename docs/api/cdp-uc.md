@@ -37,7 +37,7 @@ starts a local browser or driver.
 | `clear_browser_cache()` | Clears cache. |
 | `clear_browser_cookies()` | Clears cookies. |
 | `get_cookies()` | Returns the cookies of the current page as `Vec<Cookie>` (`seleniumbase_rs::Cookie`), read with `Network.getCookies` for the current URL, as chromedriver reads them. |
-| `set_network_conditions(conditions)` | Network throttling. |
+| `set_network_throttle(&throttle)` | Network throttling: a `NetworkThrottle` (`offline`, `latency`, `download`, `upload`; the default changes nothing). Works in every driver mode on a Chromium browser. |
 | `set_timezone(id)` | Sets timezone. |
 | `set_geolocation(lat, lon, acc)` | Sets geolocation. |
 | `install_addon(path, temporary)` | Firefox only: installs an add-on (an `.xpi` file or an unpacked directory on the machine geckodriver runs on) through geckodriver and returns its id. An unsigned add-on needs `temporary = true`. Other browsers get `Unsupported`; use `with_extension_dir` for Chrome. |

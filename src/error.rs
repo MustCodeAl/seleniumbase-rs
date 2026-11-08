@@ -1,4 +1,5 @@
 use std::time::Duration;
+use thirtyfour::error::{WebDriverError, WebDriverErrorInner};
 use thiserror::Error;
 use tracing;
 
@@ -71,9 +72,14 @@ pub enum SeleniumBaseError {
     // ------------------------------------------------------------------
     // WebDriver / CDP / Playwright backends
     // ------------------------------------------------------------------
-    /// The WebDriver backend returned an error.
+    /// The WebDriver engine's driver failed a command, or could not be reached.
+    ///
+    /// [`DriverError::kind`] says what kind of failure the driver reported. Two of its answers
+    /// are not this variant, because they need no context: `invalid session id` is
+    /// [`BrowserDisconnected`](Self::BrowserDisconnected) and `invalid selector` is
+    /// [`InvalidSelector`](Self::InvalidSelector).
     #[error("webdriver command failed: {0}")]
-    WebDriver(#[from] thirtyfour::error::WebDriverError),
+    WebDriver(DriverError),
 
     /// The Chrome DevTools Protocol backend returned an error.
     #[error("CDP driver error: {0}")]
@@ -199,6 +205,193 @@ pub enum SeleniumBaseError {
         /// What went wrong, as the plugin set reported it.
         reason: String,
     },
+}
+
+/// What the driver (chromedriver, geckodriver, msedgedriver, ...) answered when it failed a
+/// command: what [`SeleniumBaseError::WebDriver`] holds.
+///
+/// [`kind`](Self::kind) says what kind of failure it was, in this crate's words, and
+/// [`message`](Self::message) is the driver's own text, which `{}` prints. The error of the
+/// WebDriver library that carried the answer is kept as the
+/// [`source`](std::error::Error::source); no public item names its type.
+///
+/// Two answers are not here, because they need no context and have a variant of their own:
+/// `invalid session id` is [`SeleniumBaseError::BrowserDisconnected`] and `invalid selector` is
+/// [`SeleniumBaseError::InvalidSelector`].
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::{DriverErrorKind, SeleniumBaseError};
+///
+/// /// Whether a failed alert call only found that no alert was open.
+/// fn no_alert_was_open(error: &SeleniumBaseError) -> bool {
+///     matches!(
+///         error,
+///         SeleniumBaseError::WebDriver(driver) if driver.kind() == DriverErrorKind::AlertNotFound
+///     )
+/// }
+///
+/// assert!(!no_alert_was_open(&SeleniumBaseError::SessionNotStarted));
+/// ```
+#[derive(Debug, Error)]
+#[error("{message}")]
+pub struct DriverError {
+    kind: DriverErrorKind,
+    message: String,
+    #[source]
+    source: Option<WebDriverError>,
+}
+
+impl DriverError {
+    /// What kind of failure the driver reported.
+    #[must_use]
+    pub fn kind(&self) -> DriverErrorKind {
+        self.kind
+    }
+
+    /// The driver's own words for the failure.
+    #[must_use]
+    pub fn message(&self) -> &str {
+        &self.message
+    }
+
+    /// A driver error of `kind` that says `message`, with no WebDriver library error behind it.
+    pub(crate) fn new(kind: DriverErrorKind, message: impl Into<String>) -> Self {
+        Self {
+            kind,
+            message: message.into(),
+            source: None,
+        }
+    }
+
+    /// The answer `error` carries, with the error kept as the source.
+    fn of(error: WebDriverError) -> Self {
+        Self {
+            kind: driver_kind(&error),
+            message: error.to_string(),
+            source: Some(error),
+        }
+    }
+
+    /// The message on one line, without the page data and the stack trace the driver adds:
+    /// what a variant that holds a short reason carries.
+    pub(crate) fn summary(&self) -> String {
+        summary(&self.message)
+    }
+}
+
+/// What kind of failure the driver reported for a command: the cases of
+/// [`DriverError::kind`].
+///
+/// Where a variant of [`SeleniumBaseError`] means the same thing, the kind has its name: the
+/// variant is what this crate found out (with the selector, or the browser), the kind is what
+/// the driver said. The enum is `#[non_exhaustive]`, so a case added later is not a breaking
+/// change; match with a `_` arm.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum DriverErrorKind {
+    /// No element matched (`no such element`). Python's `NoSuchElementException`.
+    ElementNotFound,
+    /// The element is no longer in the page (`stale element reference`). Python's
+    /// `StaleElementReferenceException`.
+    StaleElement,
+    /// The element cannot be used: it is hidden or disabled, another element covers it
+    /// (`element click intercepted`), it is in an invalid state or its move target is out of
+    /// bounds. Python's `ElementNotInteractableException`, `ElementClickInterceptedException`,
+    /// `InvalidElementStateException` and `MoveTargetOutOfBoundsException`.
+    ElementNotInteractable,
+    /// There is no such iframe (`no such frame`). Python's `NoSuchFrameException`.
+    FrameNotFound,
+    /// There is no such window or tab (`no such window`). Python's `NoSuchWindowException`.
+    WindowNotFound,
+    /// No alert is open (`no such alert`). Python's `NoAlertPresentException`.
+    AlertNotFound,
+    /// The page has no cookie of that name (`no such cookie`). Python's `get_cookie` answers
+    /// `None` for it, and so does this crate's.
+    CookieNotFound,
+    /// A script the page ran threw an error (`javascript error`).
+    ScriptFailed,
+    /// The driver's command or script ran out of time (`timeout`, `script timeout`). This is
+    /// not [`SeleniumBaseError::WaitTimeout`]: that one is a wait of this crate running out.
+    /// Python's `TimeoutException`.
+    TimedOut,
+    /// The driver could not start the browser (`session not created`). Python's
+    /// `SessionNotCreatedException`.
+    BrowserLaunch,
+    /// The driver refused an argument of the command: a URL it cannot parse, a cookie for
+    /// another domain, a value of the wrong type. Python's `InvalidArgumentException`.
+    InvalidArgument,
+    /// The driver could not be reached, or its answer did not arrive. Python's
+    /// `WebDriverException`.
+    Unreachable,
+    /// Any other answer, and any case the WebDriver library adds later. Python's
+    /// `WebDriverException`.
+    Other,
+}
+
+/// What kind of failure `error` is.
+///
+/// The WebDriver library's enum is `#[non_exhaustive]`, so a case this crate does not know is
+/// [`DriverErrorKind::Other`].
+pub(crate) fn driver_kind(error: &WebDriverError) -> DriverErrorKind {
+    use DriverErrorKind as Kind;
+    use WebDriverErrorInner as Inner;
+    match error.as_inner() {
+        Inner::NoSuchElement(_) => Kind::ElementNotFound,
+        Inner::StaleElementReference(_) => Kind::StaleElement,
+        Inner::ElementNotInteractable(_)
+        | Inner::ElementClickIntercepted(_)
+        | Inner::InvalidElementState(_)
+        | Inner::MoveTargetOutOfBounds(_) => Kind::ElementNotInteractable,
+        Inner::NoSuchFrame(_) => Kind::FrameNotFound,
+        Inner::NoSuchWindow(_) => Kind::WindowNotFound,
+        Inner::NoSuchAlert(_) => Kind::AlertNotFound,
+        Inner::NoSuchCookie(_) => Kind::CookieNotFound,
+        Inner::JavascriptError(_) => Kind::ScriptFailed,
+        Inner::Timeout(_) | Inner::WebDriverTimeout(_) | Inner::ScriptTimeout(_) => Kind::TimedOut,
+        Inner::SessionNotCreated(_) => Kind::BrowserLaunch,
+        Inner::InvalidArgument(_)
+        | Inner::InvalidUrl(_)
+        | Inner::InvalidCookieDomain(_)
+        | Inner::UnableToSetCookie(_) => Kind::InvalidArgument,
+        Inner::RequestFailed(_) | Inner::HttpError(_) | Inner::IoError(_) => Kind::Unreachable,
+        _ => Kind::Other,
+    }
+}
+
+/// `message` on one line: without the page data and the stack trace that the driver adds, and
+/// with its lines joined by single spaces.
+fn summary(message: &str) -> String {
+    message
+        .lines()
+        .take_while(|line| {
+            let line = line.trim_start();
+            !(line.starts_with("Stacktrace:") || line.starts_with("Data:"))
+        })
+        .flat_map(str::split_whitespace)
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// A WebDriver library error is what the escape hatches (`Element::as_webdriver_element`,
+/// `BrowserSession::webdriver`) return, so `?` on their results gives this crate's error.
+///
+/// The driver's `invalid session id` is [`BrowserDisconnected`](SeleniumBaseError::BrowserDisconnected)
+/// and its `invalid selector` is [`InvalidSelector`](SeleniumBaseError::InvalidSelector); every
+/// other answer is [`WebDriver`](SeleniumBaseError::WebDriver) with its [`DriverErrorKind`].
+impl From<WebDriverError> for SeleniumBaseError {
+    fn from(error: WebDriverError) -> Self {
+        match error.as_inner() {
+            WebDriverErrorInner::InvalidSessionId(_) => Self::BrowserDisconnected {
+                reason: summary(&error.to_string()),
+            },
+            WebDriverErrorInner::InvalidSelector(_) => {
+                Self::InvalidSelector(summary(&error.to_string()))
+            }
+            _ => Self::WebDriver(DriverError::of(error)),
+        }
+    }
 }
 
 /// `{:?}` prints what `{}` prints and, on the next line, the hint, so a `main`
@@ -495,6 +688,20 @@ impl SeleniumBaseError {
         )
     }
 
+    /// This error, with the driver's `no such element` answer turned into
+    /// [`ElementNotFound`](Self::ElementNotFound) naming `selector`.
+    ///
+    /// The driver's answer cannot say what was looked for; the calls that know it use this.
+    /// Any other error is returned as it is.
+    pub(crate) fn naming_selector(self, selector: &str) -> Self {
+        match self {
+            Self::WebDriver(error) if error.kind() == DriverErrorKind::ElementNotFound => {
+                Self::element_not_found(selector)
+            }
+            other => other,
+        }
+    }
+
     /// Returns a short, stable category tag for metrics / dashboards.
     pub fn category(&self) -> &'static str {
         match self {
@@ -706,7 +913,7 @@ impl SeleniumBaseError {
                  DNS, TLS certificates and any proxy settings are correct; open it in an \
                  ordinary browser to compare."
             ),
-            Self::WebDriver(error) => webdriver_hint(&error.to_string()).to_owned(),
+            Self::WebDriver(error) => driver_hint(error.kind()).to_owned(),
             Self::CdpDriver(message) => cdp_hint(message).to_owned(),
             Self::Playwright(_) => "The Playwright session failed. Check that its browser is \
                  installed and still running, and that the page was not closed, then retry."
@@ -964,29 +1171,62 @@ fn plugin_hint(plugin: &str) -> String {
     )
 }
 
-/// Advice for a WebDriver failure, from the words its message uses.
-fn webdriver_hint(message: &str) -> &'static str {
-    let message = message.to_lowercase();
-    if message.contains("no such element") {
-        "The driver found no element for the selector. Wait for it to appear, check the \
-         selector, or switch into the iframe that holds it."
-    } else if message.contains("stale element") {
-        "The page changed after the element was found. Find it again right before using it."
-    } else if message.contains("click intercepted") || message.contains("not interactable") {
-        "Another element covers the target, or it is hidden or disabled. Close the banner or \
-         dialog in the way, scroll the target into view, or wait until it is enabled."
-    } else if message.contains("session not created") || message.contains("only supports") {
-        "The driver could not start the browser; a chromedriver whose version does not match \
-         the browser is the usual cause. Run `sbrs doctor` to compare them and `sbrs install` \
-         to fetch a matching driver."
-    } else if message.contains("invalid session") || message.contains("disconnected") {
-        "The browser behind this session has closed or crashed. Start a new session."
-    } else if message.contains("timeout") || message.contains("timed out") {
-        "The browser did not answer in time. The page may be busy or hung: wait for it to \
-         load, or raise the timeout."
-    } else {
-        "The WebDriver server failed the command. Check that the browser is still open and \
-         that the driver matches its version (`sbrs doctor`)."
+/// Advice for a WebDriver failure, from the kind of failure the driver reported.
+fn driver_hint(kind: DriverErrorKind) -> &'static str {
+    match kind {
+        DriverErrorKind::ElementNotFound => {
+            "The driver found no element for the selector. Wait for it to appear, check the \
+             selector, or switch into the iframe that holds it."
+        }
+        DriverErrorKind::StaleElement => {
+            "The page changed after the element was found. Find it again right before using it."
+        }
+        DriverErrorKind::ElementNotInteractable => {
+            "Another element covers the target, or it is hidden or disabled. Close the banner or \
+             dialog in the way, scroll the target into view, or wait until it is enabled."
+        }
+        DriverErrorKind::FrameNotFound => {
+            "There is no such iframe on the page, or not yet. Wait for it to load, check its id, \
+             name or index, and switch back to the top page first when the frame is nested."
+        }
+        DriverErrorKind::WindowNotFound => {
+            "That window or tab is closed, or was never open. List the open windows, switch to \
+             one of them, and wait for a click that opens a new window to finish."
+        }
+        DriverErrorKind::AlertNotFound => {
+            "No alert, confirm or prompt is open. Wait for the page to raise it before reading or \
+             answering it, and check that nothing else already closed it."
+        }
+        DriverErrorKind::CookieNotFound => {
+            "The page has no cookie of that name. Check that the cookie belongs to this page's \
+             domain and path and that the page has loaded."
+        }
+        DriverErrorKind::ScriptFailed => {
+            "A script threw an error in the page. The driver's message says which: check the \
+             script for typos and that every element it uses is on the page."
+        }
+        DriverErrorKind::TimedOut => {
+            "The browser did not answer in time. The page may be busy or hung: wait for it to \
+             load, or raise the timeout."
+        }
+        DriverErrorKind::BrowserLaunch => {
+            "The driver could not start the browser; a chromedriver whose version does not match \
+             the browser is the usual cause. Run `sbrs doctor` to compare them and `sbrs install` \
+             to fetch a matching driver."
+        }
+        DriverErrorKind::InvalidArgument => {
+            "The driver refused an argument of the command: a URL without a scheme, a cookie for \
+             another domain, or a value of the wrong type. Check what the call was given."
+        }
+        DriverErrorKind::Unreachable => {
+            "The WebDriver server could not be reached, or it lost the browser. Check that the \
+             driver is still running and the browser is open (`sbrs doctor`), then start a new \
+             session."
+        }
+        DriverErrorKind::Other => {
+            "The WebDriver server failed the command. Check that the browser is still open and \
+             that the driver matches its version (`sbrs doctor`)."
+        }
     }
 }
 
@@ -1141,6 +1381,192 @@ mod tests {
         assert!(hint.contains("css selector"));
     }
 
+    /// The error `inner` becomes when `?` turns it into ours.
+    fn driver_said(inner: WebDriverErrorInner) -> SeleniumBaseError {
+        SeleniumBaseError::from(WebDriverError::from_inner(inner))
+    }
+
+    /// What the driver sends with an answer, as the WebDriver library holds it.
+    fn info() -> thirtyfour::error::WebDriverErrorInfo {
+        thirtyfour::error::WebDriverErrorInfo::new("the driver's words".to_owned())
+    }
+
+    /// The kind of the driver error that `error` is; panics with what it is instead.
+    fn kind_of_driver_error(error: SeleniumBaseError) -> DriverErrorKind {
+        match error {
+            SeleniumBaseError::WebDriver(driver) => driver.kind(),
+            other => panic!("expected a WebDriver error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn every_case_of_the_webdriver_librarys_error_is_told_by_its_kind() {
+        use DriverErrorKind as Kind;
+        use WebDriverErrorInner as Inner;
+        let cases = [
+            (Inner::NoSuchElement(info()), Kind::ElementNotFound),
+            (Inner::StaleElementReference(info()), Kind::StaleElement),
+            (
+                Inner::ElementNotInteractable(info()),
+                Kind::ElementNotInteractable,
+            ),
+            (
+                Inner::ElementClickIntercepted(info()),
+                Kind::ElementNotInteractable,
+            ),
+            (
+                Inner::InvalidElementState(info()),
+                Kind::ElementNotInteractable,
+            ),
+            (
+                Inner::MoveTargetOutOfBounds(info()),
+                Kind::ElementNotInteractable,
+            ),
+            (Inner::NoSuchFrame(info()), Kind::FrameNotFound),
+            (Inner::NoSuchWindow(info()), Kind::WindowNotFound),
+            (Inner::NoSuchAlert(info()), Kind::AlertNotFound),
+            (Inner::NoSuchCookie(info()), Kind::CookieNotFound),
+            (Inner::JavascriptError(info()), Kind::ScriptFailed),
+            (Inner::Timeout("slow".to_owned()), Kind::TimedOut),
+            (Inner::WebDriverTimeout(info()), Kind::TimedOut),
+            (Inner::ScriptTimeout(info()), Kind::TimedOut),
+            (Inner::SessionNotCreated(info()), Kind::BrowserLaunch),
+            (Inner::InvalidArgument(info()), Kind::InvalidArgument),
+            (
+                Inner::InvalidUrl(url::Url::parse("not a url").unwrap_err()),
+                Kind::InvalidArgument,
+            ),
+            (Inner::InvalidCookieDomain(info()), Kind::InvalidArgument),
+            (Inner::UnableToSetCookie(info()), Kind::InvalidArgument),
+            (
+                Inner::RequestFailed("refused".to_owned()),
+                Kind::Unreachable,
+            ),
+            (Inner::HttpError("502".to_owned()), Kind::Unreachable),
+            (
+                Inner::IoError(std::io::Error::other("disk")),
+                Kind::Unreachable,
+            ),
+            (Inner::UnknownResponse(500, "?".to_owned()), Kind::Other),
+            (Inner::NotInSpec(info()), Kind::Other),
+            (Inner::ParseError("x".to_owned()), Kind::Other),
+            (Inner::Json("x".to_owned()), Kind::Other),
+            (Inner::InsecureCertificate(info()), Kind::Other),
+            (Inner::NotFound("x".to_owned(), "y".to_owned()), Kind::Other),
+        ];
+        for (inner, kind) in cases {
+            let said = format!("{inner:?}");
+            assert_eq!(kind_of_driver_error(driver_said(inner)), kind, "{said}");
+        }
+        // A case of the library that the table does not name is `Other`.
+        let fatal = SeleniumBaseError::from(WebDriverError::FatalError("boom".to_owned()));
+        assert_eq!(kind_of_driver_error(fatal), Kind::Other);
+    }
+
+    #[test]
+    fn an_invalid_session_id_is_a_browser_that_is_gone() {
+        let error = driver_said(WebDriverErrorInner::InvalidSessionId(info()));
+        assert!(
+            matches!(&error, SeleniumBaseError::BrowserDisconnected { reason }
+                if reason.contains("the driver's words")),
+            "{error:?}"
+        );
+        assert!(error.is_transient());
+    }
+
+    #[test]
+    fn an_invalid_selector_is_the_selector_error() {
+        let error = driver_said(WebDriverErrorInner::InvalidSelector(info()));
+        assert!(
+            matches!(&error, SeleniumBaseError::InvalidSelector(detail)
+                if detail.contains("the driver's words")),
+            "{error:?}"
+        );
+        assert_eq!(error.exit_code(), 2);
+    }
+
+    #[test]
+    fn a_driver_error_keeps_the_drivers_words_and_the_error_that_carried_them() {
+        let error = driver_said(WebDriverErrorInner::NoSuchAlert(info()));
+        let SeleniumBaseError::WebDriver(driver) = &error else {
+            panic!("expected a WebDriver error, got {error:?}");
+        };
+
+        assert!(driver.message().contains("the driver's words"));
+        assert_eq!(
+            error.to_string(),
+            format!("webdriver command failed: {}", driver.message())
+        );
+        let source = std::error::Error::source(driver).expect("the carrying error is the source");
+        assert!(source.downcast_ref::<WebDriverError>().is_some());
+        // The category and the exit status are those of the variant.
+        assert_eq!((error.category(), error.exit_code()), ("webdriver", 4));
+        // An error made by hand has no WebDriver library error behind it.
+        let by_hand = DriverError::new(DriverErrorKind::Other, "x");
+        assert!(std::error::Error::source(&by_hand).is_none());
+    }
+
+    #[test]
+    fn a_summary_is_one_line_without_the_stack_trace() {
+        use thirtyfour::error::{WebDriverErrorInfo, WebDriverErrorValue};
+        let info = WebDriverErrorInfo {
+            status: 400,
+            error: "element click intercepted".to_owned(),
+            value: WebDriverErrorValue {
+                message: "element click intercepted: other element would receive the click"
+                    .to_owned(),
+                error: None,
+                stacktrace: Some("#0 0x1 first\n#1 0x2 second".to_owned()),
+                data: None,
+            },
+        };
+        let error = driver_said(WebDriverErrorInner::ElementClickIntercepted(info));
+        let SeleniumBaseError::WebDriver(driver) = error else {
+            panic!("expected a WebDriver error");
+        };
+
+        let summary = driver.summary();
+
+        assert!(
+            summary.contains("other element would receive the click"),
+            "{summary}"
+        );
+        assert!(
+            !summary.contains("#0") && !summary.contains('\n'),
+            "{summary}"
+        );
+        // The whole text stays the message.
+        assert!(driver.message().contains("#0 0x1 first"));
+    }
+
+    #[test]
+    fn every_kind_has_advice_of_its_own() {
+        use DriverErrorKind as Kind;
+        let kinds = [
+            Kind::ElementNotFound,
+            Kind::StaleElement,
+            Kind::ElementNotInteractable,
+            Kind::FrameNotFound,
+            Kind::WindowNotFound,
+            Kind::AlertNotFound,
+            Kind::CookieNotFound,
+            Kind::ScriptFailed,
+            Kind::TimedOut,
+            Kind::BrowserLaunch,
+            Kind::InvalidArgument,
+            Kind::Unreachable,
+            Kind::Other,
+        ];
+        let mut seen = Vec::new();
+        for kind in kinds {
+            let error = SeleniumBaseError::WebDriver(DriverError::new(kind, "the driver's words"));
+            let hint = error.hint().expect("every error has a hint");
+            assert!(hint.len() > 40 && hint.ends_with('.'), "{kind:?}: {hint}");
+            assert!(!seen.contains(&hint), "{kind:?} repeats advice: {hint}");
+            seen.push(hint);
+        }
+    }
+
     /// One error of every kind, for checks that must hold for all of them.
     fn one_of_each() -> Vec<SeleniumBaseError> {
         vec![
@@ -1153,7 +1579,7 @@ mod tests {
             SeleniumBaseError::browser_disconnected("reset"),
             SeleniumBaseError::SessionNotStarted,
             SeleniumBaseError::navigation("https://a.test", "dns"),
-            SeleniumBaseError::WebDriver(thirtyfour::error::WebDriverError::FatalError(
+            SeleniumBaseError::from(thirtyfour::error::WebDriverError::FatalError(
                 "boom".to_owned(),
             )),
             SeleniumBaseError::cdp_driver("boom"),

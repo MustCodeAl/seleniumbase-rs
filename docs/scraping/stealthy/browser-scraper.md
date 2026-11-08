@@ -211,8 +211,11 @@ major and closes it before starting the browser it keeps.
 | `solve_timeout` | 30 s | How long a solved challenge is waited for. |
 | `clock` | the system clock | Seconds since the Unix epoch. Tests replace it. |
 
-`proxy_switch` and `launcher` replace the defaults (`ContextProxySwitch`,
-`ChromeLauncher`). A program does not need to set them. `build` returns
+`proxy_switch` and `launcher` replace the defaults: without a `proxy_switch` the
+scraper takes core's path (`Browser::new_context_with` with `ContextOptions::proxy`,
+the context before dropped), and `launcher` takes a launch closure, from the
+`LaunchOptions` to a `Browser`, as core's `BrowserPool::with_launcher` does (the
+default is core's `Browser::launch`). A program does not need to set them. `build` returns
 `ScrapeError::Browser` when no browser starts and `ScrapeError::Geo` when an
 egress's country has no locale. The methods and the fields of `BrowserFetch`
 are on [the API page](/stealth/api/scrape#re-exports-at-the-root).

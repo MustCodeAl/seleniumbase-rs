@@ -193,12 +193,12 @@ pub enum SiteContext {
 
 Where a request comes from relative to its target, which decides the `SameSite` rules (RFC 6265bis section 5.2).
 
-### `StoreOutcome`
+### `SetCookieOutcome`
 
 <Badge color="blue" shape="pill">enum</Badge>
 
 ```rust
-pub enum StoreOutcome {
+pub enum SetCookieOutcome {
     Stored,
     Replaced,
     Deleted,
@@ -206,7 +206,7 @@ pub enum StoreOutcome {
 }
 ```
 
-What [`CookieJar::store`] did with a `Set-Cookie` header.
+What [`CookieJar::receive`] did with a `Set-Cookie` header. The enum is `non_exhaustive`.
 
 ### `IgnoreReason`
 
@@ -248,7 +248,7 @@ pub fn new() -> Self
 pub fn len(&self) -> usize
 pub fn is_empty(&self) -> bool
 pub fn cookies(&self) -> &[StoredCookie]
-pub fn store(&mut self, request_url: &Url, set_cookie: &str, now: u64) -> StoreOutcome
+pub fn receive(&mut self, request_url: &Url, set_cookie: &str, now: u64) -> SetCookieOutcome
 pub fn header_for(
         &mut self,
         request_url: &Url,
@@ -256,6 +256,7 @@ pub fn header_for(
         now: u64,
     ) -> Option<String>
 pub fn from_cdp(cookies: &[Cookie], now: u64) -> Self
+pub fn check_cdp(cookies: &[Cookie]) -> Result<(), JarError>
 pub fn to_cdp(&self, now: u64) -> Vec<Cookie>
 pub fn expiry_of(&self, name: &str, site: &str) -> Option<u64>
 pub fn remove_expired(&mut self, now: u64) -> usize
@@ -266,9 +267,10 @@ pub fn remove_expired(&mut self, now: u64) -> usize
 - `len`: How many cookies the jar holds, expired ones not yet removed included.
 - `is_empty`: Whether the jar holds no cookie.
 - `cookies`: The cookies, in the order they were first stored.
-- `store`: Stores the cookie of one `Set-Cookie` header received for `request_url` (RFC 6265 section 5.3 with RFC 6265bis section 5.7). An overwrite keeps the old creation time; an expired cookie removes the stored one. Expired cookies are purged, and when a bound is passed the cookie evicted is, among the others, an insecure one before a `Secure` one, then the least recently accessed, then the oldest.
+- `receive`: Stores the cookie of one `Set-Cookie` header received for `request_url` (RFC 6265 section 5.3 with RFC 6265bis section 5.7). An overwrite keeps the old creation time; an expired cookie removes the stored one. Expired cookies are purged, and when a bound is passed the cookie evicted is, among the others, an insecure one before a `Secure` one, then the least recently accessed, then the oldest.
 - `header_for`: The `Cookie` header value for a request to `request_url` made in `context`, or `None` when no cookie applies or the URL cannot carry cookies (RFC 6265 section 5.4). Cookies with longer paths come first, then those created earlier. Expired cookies are purged, and every cookie sent has its last access raised to `now`; a clock that steps back does not lower it, so a jar the library wrote always loads again.
 - `from_cdp`: A jar holding `cookies` as CDP reports them (`Network.getAllCookies`). A leading dot in the domain marks a domain cookie, no dot a host-only one, and `expires: None` a session cookie. A cookie the jar would refuse (see [`IgnoreReason`]), one without a domain, and an expired one are left out; a later cookie with the same name, domain and path replaces an earlier one.
+- `check_cdp`: Holds `cookies`, as core keeps them (the cookies of a `Session`), to the jar's rules, as a jar file is held when it is read back: the first one the jar would refuse, a repeat, or a bound passed is a [`JarError`]. The identity file calls it for the cookies of a session it reads.
 - `to_cdp`: The unexpired cookies as CDP cookies, in the form `Network.getAllCookies` reports: a domain cookie's domain gets a leading dot, a host-only cookie's has none, and a session cookie has no expiry. Whether `Network.setCookies` keeps a host-only cookie host-only depends on how the caller sends it; a bare domain alone may be read as a `Domain` attribute.
 - `expiry_of`: The latest expiry among the persistent cookies called `name` on `site`, a registrable domain or any host on it. `None` when there is no such cookie or only session cookies.
 - `remove_expired`: Removes every cookie expired at `now` and returns how many there were.

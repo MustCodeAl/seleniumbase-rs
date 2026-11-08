@@ -1,10 +1,3 @@
-// thirtyfour deprecates its `NetworkConditions`, which `set_network_conditions`
-// still takes.
-#![expect(
-    deprecated,
-    reason = "thirtyfour has deprecated NetworkConditions, which this API still takes"
-)]
-
 use base64::prelude::*;
 use rand::RngExt;
 use std::path::{Path, PathBuf};
@@ -36,6 +29,7 @@ use crate::api::tour::Tour;
 use crate::artifacts::{artifact_path, ensure_latest_logs_dir};
 use crate::browser::config::{whole_seconds, BrowserConfig};
 use crate::browser::element::Element;
+use crate::browser::options::NetworkThrottle;
 use crate::browser::session::BrowserSession;
 use crate::browser::shadow_find;
 use crate::cookie::Cookie;
@@ -46,7 +40,6 @@ use crate::utils::selectors::{css_to_xpath, Selector, SelectorBuf};
 use serde_json::Value;
 use std::collections::HashMap;
 use thirtyfour::common::keys::Key;
-use thirtyfour::extensions::cdp::NetworkConditions;
 use thirtyfour::prelude::By;
 
 /// The page script of [`BaseCase::set_value`]: sets the value of the element
@@ -1328,12 +1321,46 @@ impl BaseCase {
         self.session.cdp_type_text(text).await
     }
 
-    /// Configures network throttling/latency via CDP.
-    pub async fn set_network_conditions(
+    /// Slows the network of the window the browser is on, cuts it off, or puts it back, as
+    /// `throttle` says. The default [`NetworkThrottle`] changes nothing, so it ends a throttle.
+    ///
+    /// It works in every [`DriverMode`](crate::DriverMode), the plain WebDriver mode included,
+    /// on a Chromium browser, and on a session attached over CDP. The throttle belongs to the
+    /// window it was set on, as the rest of the DevTools emulation does: a window the session
+    /// switches to afterwards is not throttled until it is told so.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use std::time::Duration;
+    ///
+    /// use seleniumbase_rs::{BaseCase, NetworkThrottle};
+    ///
+    /// # async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    /// sb.set_network_throttle(&NetworkThrottle {
+    ///     latency: Duration::from_millis(400),
+    ///     download: Some(200_000),
+    ///     ..NetworkThrottle::default()
+    /// })
+    /// .await?;
+    /// sb.open("https://example.com").await?;
+    ///
+    /// // Back to the connection as it is.
+    /// sb.set_network_throttle(&NetworkThrottle::default()).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// See [`BrowserSession::set_network_throttle`](crate::BrowserSession::set_network_throttle):
+    /// [`SeleniumBaseError::Unsupported`] for Firefox, Safari and Internet Explorer,
+    /// [`SeleniumBaseError::CdpDriver`] if the browser refuses a command.
+    pub async fn set_network_throttle(
         &self,
-        conditions: &NetworkConditions,
+        throttle: &NetworkThrottle,
     ) -> Result<(), SeleniumBaseError> {
-        self.session.set_network_conditions(conditions).await
+        self.session.set_network_throttle(throttle).await
     }
 
     /// Sets the browser timezone via CDP (e.g. "America/New_York").

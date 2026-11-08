@@ -566,6 +566,13 @@ data. Treat the file like a password, and do not commit or share it.
 
 - `Page::emulation().offline(true)` simulates having no network, to test an
   "offline" message; it sends `Network.emulateNetworkConditions`.
+- `Page::emulation().network_throttle(&throttle)` slows the tab down as well as cutting it
+  off: a `NetworkThrottle` holds `offline`, a `latency` (a `Duration` added before each
+  response starts to arrive) and the `download` and `upload` limits in bytes per second
+  (`None` for no limit). Its default changes nothing, so `NetworkThrottle::default()` puts the
+  connection back, and `offline(true)` is the throttle that only sets `offline`. The WebDriver
+  engine takes the same value in `BaseCase::set_network_throttle`; see
+  [CDP mode](/tutorials/cdp_mode#network-throttle). The throttle belongs to the tab.
 - In a WebDriver session, CDP mode adds the same DevTools commands. See
   [CDP mode](/tutorials/cdp_mode).
 

@@ -11,7 +11,7 @@ this feature builds BoringSSL and needs cmake and a C/C++ toolchain.
 
 <Visibility for="agents">
 
-Summary for AI exports: every wire value comes from a capture tool and is stored as JSON in `crates/codec/src/measured`. Today the only entry is Chrome 155.0.8059.40 on macOS (captured 2026-10-11); any other system is refused with `NotMeasured`. `seleniumbase_rs_codec` parses the TLS `ClientHello`, JA3, JA4, peetprint and Akamai strings. `seleniumbase_rs_wire` turns a measured `WireFormat` into a wreq client, and `WireFormat::custom()` layers your own inputs over it, refusing what BoringSSL and wreq cannot send.
+Summary for AI exports: every wire value comes from a capture tool and is stored as JSON in `crates/codec/src/measured`. Today the only entry is Chrome 155.0.8059.40 on macOS (captured 2026-10-11); any other system is refused with `NotMeasured`. `seleniumbase_rs_codec` parses the TLS `ClientHello`, JA3, JA4, peetprint and Akamai strings. `seleniumbase_rs_wire` turns a measured `WireFormat` into a wreq client, and `WireFormat::builder()` layers your own inputs over it, refusing what BoringSSL and wreq cannot send.
 
 </Visibility>
 
@@ -250,8 +250,10 @@ async fn demo() -> Result<(), Box<dyn std::error::Error>> {
 
 Other ways to get a profile: `WireFormat::for_system(kind, os)`,
 `WireFormat::from_fingerprint(&fp)` (a Chromium identity that claims
-the measured major), `WireFormat::random(seed)`, and
-`.with_locale(&locale)` to change the `Accept-Language`.
+the measured major; its `User-Agent`, languages and client hints are the
+fingerprint's, the hints computed from its Chrome major unless it sets its own)
+and `WireFormat::random(seed)`. To change the `Accept-Language`, localize the
+fingerprint first (`LocaleExt::localize`) and build the profile from the result.
 
 ## Custom inputs
 
@@ -262,15 +264,17 @@ the base: a JA3 has no signature algorithms, an Akamai string has no HEADERS
 priority, a header list has no TLS.
 
 ```rust
+use seleniumbase_rs_stealth::codec::header_spec::ClientHeaders;
 use seleniumbase_rs_stealth::wire::client::WireFormat;
 
 fn demo() -> Result<(), Box<dyn std::error::Error>> {
-    let profile = WireFormat::custom()
+    let profile = WireFormat::builder()
         .akamai("1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p")?
-        .user_agent("Mozilla/5.0 (custom)")
-        .accept_language("de-DE,de;q=0.9")
+        .client_headers(
+            ClientHeaders::new("Mozilla/5.0 (custom)").with_accept_language("de-DE,de;q=0.9"),
+        )
         .build()?;
-    assert_eq!(profile.user_agent(), "Mozilla/5.0 (custom)");
+    assert_eq!(profile.client_headers().user_agent, "Mozilla/5.0 (custom)");
     Ok(())
 }
 ```
@@ -321,13 +325,13 @@ use seleniumbase_rs_stealth::wire::client::{WireFormatError, WireFormat};
 use seleniumbase_rs_stealth::codec::tls_spec::TlsSpecError;
 
 fn demo(ja3_with_trust_anchors: &str) {
-    let refused = WireFormat::custom().ja3(ja3_with_trust_anchors);
+    let refused = WireFormat::builder().ja3(ja3_with_trust_anchors);
     assert!(matches!(
         refused,
         Err(WireFormatError::Tls(TlsSpecError::UnsupportedExtension { id: 0xCA34, .. }))
     ));
 
-    let refused = WireFormat::custom().signature_algorithms(&[0x0904]);
+    let refused = WireFormat::builder().signature_algorithms(&[0x0904]);
     assert!(matches!(
         refused,
         Err(WireFormatError::Tls(TlsSpecError::UnsupportedSigalg { id: 0x0904, .. }))
