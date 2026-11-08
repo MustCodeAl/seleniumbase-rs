@@ -70,6 +70,8 @@ which = "8.0"
 # `sbrs encrypt` and `sbrs decrypt` with no argument on a terminal: reads the text and the
 # passphrase without echo.
 rpassword = "7.5"
+owo-colors = "4.1"
+anstream = "0.6"
 
 [features]
 # The prebuilt binaries and `cargo install` carry PDF text extraction, the MCP
