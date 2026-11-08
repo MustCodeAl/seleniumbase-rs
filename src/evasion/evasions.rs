@@ -404,15 +404,28 @@ pub(crate) fn raw_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Val
     }
 
     if let Some(size) = fp.screen().value() {
-        map.insert(
-            "Emulation.setDeviceMetricsOverride".to_owned(),
-            serde_json::json!({
-                "width": size.width,
-                "height": size.height,
-                "deviceScaleFactor": fp.pixel_ratio().value().copied().unwrap_or(1.0),
-                "mobile": fp.os_type().is_mobile(),
-            }),
-        );
+        // A phone is a phone-sized page: its viewport is its screen. A desktop
+                // persona keeps the viewport its window has: the viewport fields are `0`,
+                // which the protocol reads as "no override", and the screen goes in
+                // `screenWidth` and `screenHeight`, so the browser itself reports
+                // `screen.width` and `screen.height`.
+                let mobile = fp.os_type().is_mobile();
+                let (width, height) = if mobile {
+                    (size.width, size.height)
+                } else {
+                    (0, 0)
+                };
+                map.insert(
+                    "Emulation.setDeviceMetricsOverride".to_owned(),
+                    serde_json::json!({
+                        "width": width,
+                        "height": height,
+                        "screenWidth": size.width,
+                        "screenHeight": size.height,
+                        "deviceScaleFactor": fp.pixel_ratio().value().copied().unwrap_or(1.0),
+                        "mobile": mobile,
+                    }),
+                );
     }
 
     if let Some(ua) = fp.user_agent().value() {
@@ -1068,6 +1081,39 @@ mod tests {
             meta.get("platformVersion").and_then(|v| v.as_str()),
             Some("14.0.0")
         );
+    }
+
+    #[test]
+    fn a_desktop_screen_is_reported_without_a_viewport_override() {
+        let map = raw_overrides(&Fingerprint::windows_desktop());
+
+        assert_eq!(
+            map.get("Emulation.setDeviceMetricsOverride"),
+            Some(&serde_json::json!({
+                "width": 0,
+                "height": 0,
+                "screenWidth": 1920,
+                "screenHeight": 1080,
+                "deviceScaleFactor": 1.0,
+                "mobile": false,
+            })),
+            "the browser reports the screen itself and the page keeps its window's viewport"
+        );
+    }
+
+    #[test]
+    fn a_phone_screen_is_its_viewport() {
+        let phone = Fingerprint::android_mobile();
+        let map = raw_overrides(&phone);
+
+        let metrics = map
+            .get("Emulation.setDeviceMetricsOverride")
+            .expect("device metrics override");
+        assert_eq!(metrics["width"], 412);
+        assert_eq!(metrics["height"], 915);
+        assert_eq!(metrics["screenWidth"], 412);
+        assert_eq!(metrics["screenHeight"], 915);
+        assert_eq!(metrics["mobile"], true);
     }
 
     #[test]
