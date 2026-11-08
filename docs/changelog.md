@@ -33,6 +33,14 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 
 <Update label="Unreleased" description="Next release" tags={["New", "Fix"]}>
 
+### Changed
+
+- **Chrome version data moved to the current stable, 157.0.8103.38** (Chrome for Testing
+  last-known-good, 2026-11-08). A generated identity claims 157 four times in five and 156 once
+  (no Beta); the presets, `MOBILE_USER_AGENT` and the docs name 157. `randomize` has a new
+  constant `CURRENT_STABLE_MAJOR` and a test that fails when the table is older.
+
+
 ### Breaking
 
 - **Breaking: one rule picks among the sources of a launch setting, whatever the order of the
