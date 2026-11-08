@@ -1,20 +1,9 @@
 //! Chrome DevTools Protocol (CDP) helpers.
 //!
-//! This module wraps the `thirtyfour` CDP extensions with typed helpers for
-//! common commands such as injecting scripts, clearing state, and dispatching
-//! input events. It is used by stealth and automation internals.
+//! Which protocol domains give an automated browser away. The DevTools client of a WebDriver
+//! session is [`CdpClient`](crate::browser::devtools::CdpClient).
 
-// thirtyfour deprecates `ChromeDevTools`, which
-// this wrapper still exposes.
-#![expect(
-    deprecated,
-    reason = "thirtyfour has deprecated ChromeDevTools, which this wrapper exposes"
-)]
-
-use std::sync::Arc;
-use thirtyfour::extensions::cdp::ChromeDevTools;
-
-/// The commands [`CdpClient::enable_default_domains`] sends, in order.
+/// The commands [`CdpClient::enable_default_domains`](crate::browser::devtools::CdpClient::enable_default_domains) sends, in order.
 ///
 /// None of the [`DETECTABLE_DOMAINS`] may be added: each is an automation tell
 /// (see the method's documentation).
@@ -52,176 +41,12 @@ pub fn is_detectable_enable(method: &str) -> bool {
 
 /// Says so in the log when a caller sends one of the detectable `enable`
 /// commands. It is still sent: a person who asks for it by name gets it.
-fn warn_if_detectable(method: &str) {
+pub(crate) fn warn_if_detectable(method: &str) {
     if is_detectable_enable(method) {
         tracing::warn!(
             method,
             "this command makes the browser show that it is driven; most pages do not need it"
         );
-    }
-}
-
-/// Thin wrapper around [`ChromeDevTools`] for issuing CDP commands.
-pub struct CdpClient {
-    pub dev_tools: ChromeDevTools,
-}
-
-impl CdpClient {
-    /// Builds a CDP client from a shared session handle.
-    pub fn from_handle(handle: Arc<thirtyfour::session::handle::SessionHandle>) -> Self {
-        Self {
-            dev_tools: ChromeDevTools::new(handle),
-        }
-    }
-
-    /// Registers `script` to run on every new document via
-    /// `Page.addScriptToEvaluateOnNewDocument`.
-    pub async fn add_init_script(
-        &self,
-        script: &str,
-    ) -> Result<(), crate::error::SeleniumBaseError> {
-        let params = serde_json::json!({
-            "source": script,
-        });
-        self.dev_tools
-            .execute_cdp_with_params("Page.addScriptToEvaluateOnNewDocument", params)
-            .await
-            .map_err(|e| crate::error::SeleniumBaseError::Unsupported(e.to_string()))?;
-        Ok(())
-    }
-
-    /// Sends a CDP command with parameters, discarding the response.
-    pub async fn send_command(
-        &self,
-        cmd: &str,
-        params: serde_json::Value,
-    ) -> Result<(), crate::error::SeleniumBaseError> {
-        warn_if_detectable(cmd);
-        self.dev_tools
-            .execute_cdp_with_params(cmd, params)
-            .await
-            .map_err(|e| crate::error::SeleniumBaseError::Unsupported(e.to_string()))?;
-        Ok(())
-    }
-
-    /// Enables the Page and Network CDP domains.
-    ///
-    /// The domains in [`DETECTABLE_DOMAINS`] are deliberately left off. The
-    /// Runtime domain is the one that matters most: enabling it makes the
-    /// browser report every console call and every new execution context to the
-    /// client, and bot-detection scripts probe for exactly that traffic (for
-    /// example by logging an object whose property getter fires only if a
-    /// client is listening). Commands such as `Runtime.evaluate` work without
-    /// it.
-    ///
-    /// # Errors
-    ///
-    /// Returns the first domain the browser refused to enable.
-    pub async fn enable_default_domains(&self) -> Result<(), crate::error::SeleniumBaseError> {
-        for domain in DEFAULT_DOMAIN_COMMANDS {
-            self.dev_tools.execute_cdp(domain).await.map_err(|e| {
-                crate::error::SeleniumBaseError::Unsupported(format!("{domain}: {e}"))
-            })?;
-        }
-        Ok(())
-    }
-
-    /// Executes a CDP command and returns the JSON response.
-    pub async fn execute(
-        &self,
-        method: &str,
-    ) -> Result<serde_json::Value, crate::error::SeleniumBaseError> {
-        warn_if_detectable(method);
-        self.dev_tools
-            .execute_cdp(method)
-            .await
-            .map_err(|e| crate::error::SeleniumBaseError::Unsupported(e.to_string()))
-    }
-
-    /// Executes a CDP command with JSON parameters and returns the response.
-    pub async fn execute_with_params(
-        &self,
-        method: &str,
-        params: serde_json::Value,
-    ) -> Result<serde_json::Value, crate::error::SeleniumBaseError> {
-        warn_if_detectable(method);
-        self.dev_tools
-            .execute_cdp_with_params(method, params)
-            .await
-            .map_err(|e| crate::error::SeleniumBaseError::Unsupported(e.to_string()))
-    }
-
-    /// Clears the browser cache.
-    pub async fn clear_cache(&self) -> Result<(), crate::error::SeleniumBaseError> {
-        self.dev_tools
-            .execute_cdp("Network.clearBrowserCache")
-            .await
-            .map_err(|e| crate::error::SeleniumBaseError::Unsupported(e.to_string()))?;
-        Ok(())
-    }
-
-    /// Clears all browser cookies.
-    pub async fn clear_cookies(&self) -> Result<(), crate::error::SeleniumBaseError> {
-        self.dev_tools
-            .execute_cdp("Network.clearBrowserCookies")
-            .await
-            .map_err(|e| crate::error::SeleniumBaseError::Unsupported(e.to_string()))?;
-        Ok(())
-    }
-
-    /// Returns the cookies the browser would send to `url` as the raw `Network.getCookies` result,
-    /// `{"cookies": [...]}`. The URL is always sent: without `urls` the command also answers the
-    /// cookies of every frame of the page, which WebDriver (and chromedriver) does not list.
-    pub async fn get_cookies(
-        &self,
-        url: &str,
-    ) -> Result<serde_json::Value, crate::error::SeleniumBaseError> {
-        self.dev_tools
-            .execute_cdp_with_params("Network.getCookies", serde_json::json!({ "urls": [url] }))
-            .await
-            .map_err(|e| crate::error::SeleniumBaseError::Unsupported(e.to_string()))
-    }
-
-    /// Dispatches a left mouse click at the given coordinates via CDP.
-    ///
-    /// # Errors
-    ///
-    /// Returns the error of the first event the browser refused, so a click
-    /// that did not happen is not reported as one that did.
-    pub async fn mouse_click(&self, x: f64, y: f64) -> Result<(), crate::error::SeleniumBaseError> {
-        for (kind, button) in [
-            ("mouseMoved", None),
-            ("mousePressed", Some("left")),
-            ("mouseReleased", Some("left")),
-        ] {
-            let mut params = serde_json::json!({ "type": kind, "x": x, "y": y });
-            if let Some(button) = button {
-                params["button"] = serde_json::json!(button);
-                params["clickCount"] = serde_json::json!(1);
-            }
-            self.dev_tools
-                .execute_cdp_with_params("Input.dispatchMouseEvent", params)
-                .await
-                .map_err(|e| {
-                    crate::error::SeleniumBaseError::Unsupported(format!("{kind}: {e}"))
-                })?;
-        }
-        Ok(())
-    }
-
-    /// Inserts `text` as if typed via the CDP Input domain.
-    pub async fn keyboard_insert_text(
-        &self,
-        text: &str,
-    ) -> Result<(), crate::error::SeleniumBaseError> {
-        let params = serde_json::json!({
-            "text": text
-        });
-        self.dev_tools
-            .execute_cdp_with_params("Input.insertText", params)
-            .await
-            .map_err(|e| crate::error::SeleniumBaseError::Unsupported(e.to_string()))?;
-        Ok(())
     }
 }
 

@@ -4,10 +4,10 @@
 use serde_json::{json, Value};
 
 use crate::browser::config::BrowserConfig;
+use crate::browser::devtools::CdpClient;
 use crate::browser::options::emulated_phone;
 use crate::config::ad_block_list::{AdBlockList, MAX_URL_PATTERNS};
 use crate::error::SeleniumBaseError;
-use crate::evasion::cdp::CdpClient;
 
 use super::fingerprint::fingerprint_overrides;
 use super::BrowserSession;
@@ -47,7 +47,7 @@ impl BrowserSession {
         let cdp = match self.cdp.as_ref() {
             Some(cdp) => cdp,
             None => {
-                own = CdpClient::from_handle(driver.handle().clone());
+                own = CdpClient::new(driver);
                 &own
             }
         };
@@ -65,7 +65,7 @@ impl BrowserSession {
                 Some(urls) if *method == "Network.setBlockedURLs" => json!({ "urls": urls }),
                 _ => params.clone(),
             };
-            cdp.execute_with_params(method, params).await?;
+            cdp.execute(method, params).await?;
         }
         Ok(())
     }
@@ -101,12 +101,12 @@ impl BrowserSession {
         let cdp = match self.cdp.as_ref() {
             Some(cdp) => cdp,
             None => {
-                own = CdpClient::from_handle(driver.handle().clone());
+                own = CdpClient::new(driver);
                 &own
             }
         };
         for (method, params) in &self.mobile {
-            cdp.execute_with_params(method, params.clone()).await?;
+            cdp.execute(method, params.clone()).await?;
         }
         Ok(())
     }
@@ -546,7 +546,7 @@ mod ad_block_tests {
         let connected = BrowserSession::connect(config).await;
 
         assert!(
-            matches!(connected, Err(SeleniumBaseError::Unsupported(_))),
+            matches!(connected, Err(SeleniumBaseError::CdpDriver(_))),
             "a block that is not in place must not look like one that is"
         );
     }

@@ -5,11 +5,11 @@
 use serde_json::{json, Value};
 
 use crate::browser::config::BrowserConfig;
+use crate::browser::devtools::CdpClient;
 use crate::browser::options::{CdpEvent, NetworkThrottle};
 use crate::browser::proxy_auth;
 use crate::cookie::Cookie;
 use crate::error::SeleniumBaseError;
-use crate::evasion::cdp::CdpClient;
 use crate::evasion::uc;
 use crate::sb_cdp::DevToolsEndpoint;
 
@@ -22,17 +22,6 @@ const DEVTOOLS_PROBE_TIMEOUT: std::time::Duration = std::time::Duration::from_se
 /// What the drivers of the browsers that have no DevTools channel report as their
 /// `browserName`, compared as lower-case prefixes (Safari Technology Preview is a Safari).
 const BROWSERS_WITHOUT_DEVTOOLS: [&str; 3] = ["firefox", "safari", "internet explorer"];
-
-/// A command the browser refused, worded as the pure CDP engine words it.
-///
-/// [`CdpClient`] still reports every refused command as `Unsupported`; a refusal is not the
-/// input being wrong but the DevTools channel failing, which is `CdpDriver`.
-fn refused_command(error: SeleniumBaseError) -> SeleniumBaseError {
-    match error {
-        SeleniumBaseError::Unsupported(reason) => SeleniumBaseError::CdpDriver(reason),
-        other => other,
-    }
-}
 
 impl BrowserSession {
     /// A DevTools Protocol client for this session, whatever its
@@ -47,12 +36,13 @@ impl BrowserSession {
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::Unsupported`] for a session that is not
-    /// connected.
+    /// connected. A command the browser refuses through the client is
+    /// [`SeleniumBaseError::CdpDriver`].
     pub fn devtools(&self) -> Result<CdpClient, SeleniumBaseError> {
         let driver = self.driver.as_ref().ok_or_else(|| {
             SeleniumBaseError::Unsupported("the session has no browser driver".to_owned())
         })?;
-        Ok(CdpClient::from_handle(driver.handle().clone()))
+        Ok(CdpClient::new(driver))
     }
 
     /// The DevTools endpoint of the browser this session drives: the addresses
@@ -121,7 +111,7 @@ impl BrowserSession {
     /// The Runtime domain stays off on purpose: enabling it is a well-known
     /// bot-detection tell. See [`CdpClient::enable_default_domains`].
     ///
-    /// [`CdpClient::enable_default_domains`]: crate::evasion::cdp::CdpClient::enable_default_domains
+    /// [`CdpClient::enable_default_domains`]: crate::browser::devtools::CdpClient::enable_default_domains
     pub async fn activate_cdp_mode(&self) -> Result<(), SeleniumBaseError> {
         if let Some(page) = &self.external_page {
             for method in crate::evasion::cdp::DEFAULT_DOMAIN_COMMANDS {
@@ -130,9 +120,7 @@ impl BrowserSession {
             return Ok(());
         }
         let cdp = self.cdp_client()?;
-        cdp.enable_default_domains()
-            .await
-            .map_err(|e| crate::error::SeleniumBaseError::Unsupported(e.to_string()))?;
+        cdp.enable_default_domains().await?;
         Ok(())
     }
 
@@ -142,7 +130,7 @@ impl BrowserSession {
             return self.execute_cdp_with_params(method, json!({})).await;
         }
         let cdp = self.cdp_client()?;
-        cdp.execute(method).await
+        cdp.execute(method, json!({})).await
     }
 
     /// Executes a CDP command with JSON parameters.
@@ -155,7 +143,7 @@ impl BrowserSession {
             return page.execute(method, params).await;
         }
         let cdp = self.cdp_client()?;
-        cdp.execute_with_params(method, params).await
+        cdp.execute(method, params).await
     }
 
     /// Clears the browser cache via CDP.
@@ -264,9 +252,7 @@ impl BrowserSession {
         self.require_devtools_channel()?;
         let cdp = self.devtools()?;
         for (method, params) in throttle.commands() {
-            cdp.execute_with_params(method, params)
-                .await
-                .map_err(refused_command)?;
+            cdp.execute(method, params).await?;
         }
         Ok(())
     }
@@ -310,14 +296,12 @@ impl BrowserSession {
     /// Applies UC stealth patches and user-agent overrides.
     pub async fn enable_uc_mode(&self, config: &BrowserConfig) -> Result<(), SeleniumBaseError> {
         let cdp = self.cdp_client()?;
-        cdp.enable_default_domains()
-            .await
-            .map_err(|e| crate::error::SeleniumBaseError::Unsupported(e.to_string()))?;
+        cdp.enable_default_domains().await?;
         uc::apply_uc_stealth(cdp).await?;
         if let Some(user_agent) = config.browser.user_agent.as_deref() {
             uc::override_user_agent(cdp, user_agent, config.browser.lang.as_deref()).await?;
         } else {
-            if let Ok(version_info) = cdp.execute("Browser.getVersion").await
+            if let Ok(version_info) = cdp.execute("Browser.getVersion", json!({})).await
                 && let Some(ua) = version_info["userAgent"].as_str()
                 && ua.contains("HeadlessChrome")
             {

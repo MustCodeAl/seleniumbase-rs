@@ -455,6 +455,19 @@ work, `docs/parity.md` the per-API status).
   sb.set_network_throttle(&NetworkThrottle::default()).await?; // back to normal
   ```
 
+- **Breaking: the WebDriver engine's DevTools client is `browser::devtools::CdpClient`, with no
+  thirtyfour type in it.** It moved from `evasion::cdp` (which keeps `DETECTABLE_DOMAINS` and
+  `is_detectable_enable`). Its public `dev_tools` field (thirtyfour's deprecated
+  `ChromeDevTools`) is gone: commands go through thirtyfour's `Cdp::send_raw` on the same
+  `/goog/cdp/execute` passthrough, and `from_handle` is crate-private (`BrowserSession::devtools`
+  gives a client). One name for one call: `CdpClient::execute(method, params)`, as
+  `Page::execute`; `execute_with_params` and `send_command` are gone, and a command without
+  parameters passes `json!({})`. A command the browser refuses is `CdpDriver` with the command's
+  name and the browser's message (exit code 4), as on the pure CDP engine; it was `Unsupported`
+  (exit code 2), so `BaseCase::execute_cdp_cmd` failed differently on the two engines.
+  `Unsupported` stays for a session with no DevTools at all.
+
+
 ### Security
 
 - `SB_NO_SANDBOX` fails safe: `SB_NO_SANDBOX=0`, `=false` and an empty value no longer turn Chrome's
