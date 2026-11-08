@@ -174,6 +174,7 @@ hidden: true
   - [Mimic, a fifth state for every fingerprint setting](design/fingerprint_mimic.md)
   - [API rules audit: Rust API Guidelines, Pragmatic Rust, Google](design/api_guidelines_audit.md)
   - [Dependency review of the five repositories](design/dependency_review.md)
+  - [Security hardening plan](design/security_hardening_plan.md)
 
 - [ABI & API Stability](ABI_API.md)
 - [Architecture Decision Records](adr/001-stealth-architecture.md)

@@ -900,7 +900,8 @@
               "design/core_split",
               "design/fingerprint_mimic",
               "design/api_guidelines_audit",
-              "design/dependency_review"
+              "design/dependency_review",
+              "design/security_hardening_plan"
             ]
           },
           {
