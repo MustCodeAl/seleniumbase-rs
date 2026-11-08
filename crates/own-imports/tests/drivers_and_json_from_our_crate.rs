@@ -8,9 +8,8 @@
 
 use std::time::Duration;
 
-use seleniumbase_rs::drivers::{
-    ChromiumLikeCapabilities, DesiredCapabilities, WebDriverError, WebElement,
-};
+use seleniumbase_rs::browser::options::CapabilityOverrides;
+use seleniumbase_rs::drivers::{WebDriverError, WebElement};
 use seleniumbase_rs::json::{from_value, json, Value};
 use seleniumbase_rs::{
     BaseCase, Cookie, DriverErrorKind, Element, Key, NetworkThrottle, SameSite, SelectBy,
@@ -36,10 +35,14 @@ async fn what_a_test_writes_with_an_element(element: &Element) -> seleniumbase_r
 }
 
 #[test]
-fn capabilities_of_a_custom_launch_are_built_from_the_drivers_module() {
-    let mut caps = DesiredCapabilities::chrome();
-    caps.add_arg("--headless=new").expect("a Chrome argument");
-    assert!(format!("{caps:?}").contains("--headless=new"));
+fn capabilities_of_a_custom_launch_are_given_with_our_types() {
+    // Python's `--cap-string`: extra capabilities as JSON, given to the configuration. No
+    // capability type of `thirtyfour` is named.
+    let caps =
+        CapabilityOverrides::from_text(r#"{"goog:chromeOptions": {"args": ["--headless=new"]}}"#)
+            .expect("JSON capabilities");
+    assert!(caps.keys().any(|key| key == "goog:chromeOptions"));
+    let _config = seleniumbase_rs::BrowserConfig::default().with_capabilities(caps);
 }
 
 #[test]

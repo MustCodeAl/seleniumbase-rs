@@ -2,7 +2,7 @@
 //! crate's name.
 //!
 //! The WebDriver engine is built on the `thirtyfour` crate, and a few of its types show up in
-//! this crate's signatures: the capabilities of a custom launch are [`DesiredCapabilities`], and an
+//! this crate's escape hatches: an
 //! [`Element`](crate::Element) hands out the raw [`WebElement`] behind it. The calls on those
 //! raw types fail with a [`WebDriverError`], which `?` turns into a
 //! [`SeleniumBaseError`](crate::SeleniumBaseError); this crate's own calls fail with a
@@ -37,11 +37,7 @@
 //! private-use code points a WebDriver session types, is not re-exported, so the name has one
 //! meaning.
 
-pub use thirtyfour::common::capabilities::chromium::ChromiumLikeCapabilities;
 pub use thirtyfour::error::WebDriverError;
 
 pub use thirtyfour::prelude::WebDriverResult;
-pub use thirtyfour::{
-    BrowserCapabilitiesHelper, By, Capabilities, CapabilitiesHelper, DesiredCapabilities,
-    LoggingPrefsLogLevel, WebDriver, WebElement,
-};
+pub use thirtyfour::{By, WebDriver, WebElement};

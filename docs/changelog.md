@@ -492,6 +492,15 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   (exit code 2), so `BaseCase::execute_cdp_cmd` failed differently on the two engines.
   `Unsupported` stays for a session with no DevTools at all.
 
+- **Breaking: launch capabilities name no thirtyfour type.** `drivers` no longer re-exports
+  `ChromiumLikeCapabilities`, `BrowserCapabilitiesHelper`, `Capabilities`, `CapabilitiesHelper`,
+  `DesiredCapabilities` or `LoggingPrefsLogLevel`, and the functions that took them are the
+  crate's own: `CapabilityOverrides::apply_to` and `StealthOptions::apply_to` are crate-private
+  and `apply_undetected_args` is private. Extra capabilities stay `CapabilityOverrides`
+  (`from_text`, `from_file`, Python's `--cap-string` and `--cap-file`) given to
+  `BrowserConfig::with_capabilities`, and what the stealth options launch is
+  `StealthOptions::args()` (a test holds it equal to the arguments the session asks Chrome for).
+
 
 ### Security
 

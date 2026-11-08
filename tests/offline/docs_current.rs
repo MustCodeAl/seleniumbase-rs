@@ -195,6 +195,14 @@ const GONE: &[(&str, &str)] = &[
     ("set_network_conditions", "set_network_throttle"),
     ("NetworkConditions", "NetworkThrottle"),
     ("drivers::ConnectionType", "NetworkThrottle"),
+    // Launch capabilities go through our types: `CapabilityOverrides` with
+    // `BrowserConfig::with_capabilities`, and `StealthOptions::args()` for the arguments; thirtyfour's
+    // capability types are not re-exported (docs/design/capability_types.md).
+    ("drivers::DesiredCapabilities", "CapabilityOverrides"),
+    ("drivers::{DesiredCapabilities", "CapabilityOverrides"),
+    ("BrowserCapabilitiesHelper", "StealthOptions::args"),
+    ("ChromiumLikeCapabilities", "StealthOptions::args"),
+    ("opts.apply_to(", "opts.args()"),
     (
         "use rstest::",
         "seleniumbase_rs::testing::{fixture, rstest}",
