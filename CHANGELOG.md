@@ -10,6 +10,11 @@ work, `docs/parity.md` the per-API status).
 
 ### Breaking
 
+- **Breaking: `TestRun` is a `Clone` handle, not an `Arc`.** `TestRun::current`, `open`,
+  `open_with_console` and `resume` return a `TestRun`; `RunFinalizer::new`, the reports plugin's
+  `with_run` and `Sb::report_to`/`SbCdp::report_to` take one. Clone it to share the run. The
+  boxed closure and future aliases (`Console`, `Clock`, `IdSource`, `Installer`, `InstallFuture`,
+  `ProgressCallback`, `ResourceFuture`, `ToolFuture`) now say in their docs why they are boxed.
 - **Breaking: one rule picks among the sources of a launch setting, whatever the order of the
   calls.** `LaunchOptionsBuilder` used to apply its calls in order: `fingerprint(&fp)` filled
   only the settings that were unset when it was called, and `browser_config(&config)` replaced

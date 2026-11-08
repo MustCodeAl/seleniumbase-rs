@@ -92,7 +92,7 @@ const PPID_REUSE_SECONDS: i64 = 6 * 60 * 60;
 /// source; a report must not hang on a page that has.
 const PAGE_WAIT: Duration = Duration::from_secs(5);
 
-/// Where a recorder prints (the `=> Fail Page: <url>` line).
+/// Where a recorder prints (the `=> Fail Page: <url>` line). A boxed closure, because the run stores it.
 pub type Console = Arc<dyn Fn(&str) + Send + Sync>;
 
 fn stderr_console() -> Console {
@@ -622,12 +622,27 @@ struct Written {
 
 /// A run of tests, possibly across processes. See the [module](self)
 /// documentation.
+#[derive(Clone)]
 pub struct TestRun {
+    state: Arc<RunState>,
+}
+
+/// The state a [`TestRun`] handle shares.
+#[doc(hidden)]
+pub struct RunState {
     root: PathBuf,
     settings: ReportSettings,
     key: RunKey,
     console: Console,
     sinks: Mutex<Vec<Arc<dyn RunSink>>>,
+}
+
+impl std::ops::Deref for TestRun {
+    type Target = RunState;
+
+    fn deref(&self) -> &RunState {
+        &self.state
+    }
 }
 
 impl fmt::Debug for TestRun {
@@ -641,7 +656,7 @@ impl fmt::Debug for TestRun {
 }
 
 /// The run of this process, or why it could not be made.
-static CURRENT: OnceLock<std::result::Result<Arc<TestRun>, String>> = OnceLock::new();
+static CURRENT: OnceLock<std::result::Result<TestRun, String>> = OnceLock::new();
 
 impl TestRun {
     /// The run of the calling process, made the first time it is asked for:
@@ -652,7 +667,7 @@ impl TestRun {
     ///
     /// Returns the error that made the run, every time: the settings could not
     /// be read, or the run folder could not be used.
-    pub fn current() -> Result<Arc<Self>> {
+    pub fn current() -> Result<Self> {
         CURRENT
             .get_or_init(|| {
                 let settings = Settings::load().map_err(|error| error.to_string())?;
@@ -666,7 +681,7 @@ impl TestRun {
                 .map_err(|error| error.to_string())
             })
             .as_ref()
-            .map(Arc::clone)
+            .map(Clone::clone)
             .map_err(|message| SeleniumBaseError::InvalidConfig(message.clone()))
     }
 
@@ -686,7 +701,7 @@ impl TestRun {
         root: impl Into<PathBuf>,
         settings: ReportSettings,
         key: RunKey,
-    ) -> Result<Arc<Self>> {
+    ) -> Result<Self> {
         Self::open_with_console(root, settings, key, stderr_console())
     }
 
@@ -701,14 +716,8 @@ impl TestRun {
         settings: ReportSettings,
         key: RunKey,
         console: Console,
-    ) -> Result<Arc<Self>> {
-        let run = Arc::new(Self {
-            root: root.into(),
-            settings,
-            key,
-            console,
-            sinks: Mutex::new(Vec::new()),
-        });
+    ) -> Result<Self> {
+        let run = Self { state: Arc::new(RunState { root: root.into(), settings, key, console, sinks: Mutex::new(Vec::new()) }) };
         run.begin()?;
         // Allure is a sink like any other; a folder that cannot be used is logged there.
         #[cfg(feature = "allure")]
@@ -725,7 +734,7 @@ impl TestRun {
     ///
     /// Returns an error naming the folder if there is no run in `root`, or if
     /// its files cannot be read.
-    pub fn resume(root: impl Into<PathBuf>, settings: Option<ReportSettings>) -> Result<Arc<Self>> {
+    pub fn resume(root: impl Into<PathBuf>, settings: Option<ReportSettings>) -> Result<Self> {
         let root = root.into();
         let state = root.join(RUN_DIR);
         let Some(run) = read_run_file(&state)? else {
@@ -735,13 +744,7 @@ impl TestRun {
                 state.join(RUN_FILE).display()
             )));
         };
-        Ok(Arc::new(Self {
-            root,
-            settings: settings.unwrap_or(run.settings),
-            key: RunKey::new(run.key),
-            console: stderr_console(),
-            sinks: Mutex::new(Vec::new()),
-        }))
+        Ok(Self { state: Arc::new(RunState { root, settings: settings.unwrap_or(run.settings), key: RunKey::new(run.key), console: stderr_console(), sinks: Mutex::new(Vec::new()) }) })
     }
 
     /// The folder the run's files are under.
@@ -948,7 +951,7 @@ impl TestRun {
     /// # Errors
     ///
     /// Returns an error if the run's files cannot be written.
-    pub fn start(self: &Arc<Self>, test: TestId) -> Result<TestRecorder> {
+    pub fn start(&self, test: TestId) -> Result<TestRecorder> {
         self.record(Event::Start {
             id: test.id.clone(),
             display: test.display.clone(),
@@ -962,7 +965,7 @@ impl TestRun {
         let log_dir = self.logs_dir().join(&test.id);
         let thread = artifacts::activate_test_logs(&log_dir);
         Ok(TestRecorder {
-            run: Arc::clone(self),
+            run: self.clone(),
             test,
             started: Instant::now(),
             finished: false,
@@ -1156,7 +1159,7 @@ fn absolute(root: PathBuf) -> io::Result<PathBuf> {
 /// [`finish`](Self::finish). A recorder that is dropped without `finish`
 /// records the test as failed (when the thread is panicking) or unreported.
 pub struct TestRecorder {
-    run: Arc<TestRun>,
+    run: TestRun,
     test: TestId,
     started: Instant,
     finished: bool,
@@ -1457,7 +1460,7 @@ impl Drop for TestRecorder {
 #[cfg(feature = "testing")]
 #[derive(Debug)]
 pub struct RunFinalizer {
-    run: Arc<TestRun>,
+    run: TestRun,
     test: TestId,
     recorder: Mutex<Option<TestRecorder>>,
 }
@@ -1467,7 +1470,7 @@ impl RunFinalizer {
     /// A finalizer that records the attempts of `test` in `run`. Make it where
     /// the test's id is read ([`TestId::current`] on the test's own thread).
     #[must_use]
-    pub fn new(run: Arc<TestRun>, test: TestId) -> Self {
+    pub fn new(run: TestRun, test: TestId) -> Self {
         Self {
             run,
             test,
@@ -1593,7 +1596,7 @@ mod finalizer_tests {
         }
     }
 
-    fn run(root: &Path) -> Arc<TestRun> {
+    fn run(root: &Path) -> TestRun {
         TestRun::open(root, ReportSettings::default(), RunKey::new("finalizer")).unwrap()
     }
 
@@ -1619,7 +1622,7 @@ mod finalizer_tests {
             ("f::skips", Outcome::Skipped(&skip)),
         ];
         for (name, outcome) in cases {
-            let finalizer = RunFinalizer::new(Arc::clone(&run), TestId::named(name));
+            let finalizer = RunFinalizer::new(run.clone(), TestId::named(name));
             finalizer.finish(&end(outcome), &Fake).await;
         }
 
@@ -1651,7 +1654,7 @@ mod finalizer_tests {
     async fn a_started_test_is_untested_until_its_last_attempt_ends() {
         let root = tempfile::tempdir().unwrap();
         let run = run(root.path());
-        let finalizer = RunFinalizer::new(Arc::clone(&run), TestId::named("f::flaky"));
+        let finalizer = RunFinalizer::new(run.clone(), TestId::named("f::flaky"));
         finalizer.begin("f.flaky").await;
         let status = || run.snapshot().unwrap().results[0].status;
         assert_eq!(status(), TestStatus::Untested);
@@ -1682,7 +1685,7 @@ mod finalizer_tests {
     async fn a_browser_that_did_not_start_ends_the_test_as_failed() {
         let root = tempfile::tempdir().unwrap();
         let run = run(root.path());
-        let finalizer = RunFinalizer::new(Arc::clone(&run), TestId::named("f::no_browser"));
+        let finalizer = RunFinalizer::new(run.clone(), TestId::named("f::no_browser"));
         finalizer.begin("f.no_browser").await;
         let error = SeleniumBaseError::BrowserLaunch {
             binary: "chrome".to_owned(),
@@ -1716,7 +1719,7 @@ mod finalizer_tests {
         fs::write(folder.join("screenshot.png"), b"taken by the lifecycle").unwrap();
         let error = SeleniumBaseError::AssertionFailed("title".to_owned());
 
-        RunFinalizer::new(Arc::clone(&run), TestId::named("f::fails"))
+        RunFinalizer::new(run.clone(), TestId::named("f::fails"))
             .finish(&end(Outcome::Failed(&error)), &Fake)
             .await;
 

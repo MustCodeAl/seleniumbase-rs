@@ -66,7 +66,7 @@ fn terminal_width() -> Option<usize> {
 
 /// The run that `sbrs test` opens before Cargo and finishes after it.
 pub(crate) struct Session {
-    run: Arc<TestRun>,
+    run: TestRun,
     root: PathBuf,
     settings: ReportSettings,
 }

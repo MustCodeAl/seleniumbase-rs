@@ -54,7 +54,7 @@ pub(crate) enum Reporting {
     /// No run, whatever the settings say.
     Off,
     /// This run.
-    Run(Arc<TestRun>),
+    Run(TestRun),
 }
 
 /// Whether `settings` ask for anything a run does.
@@ -69,7 +69,7 @@ pub(crate) fn wants_a_run(settings: &ReportSettings) -> bool {
 
 /// The run a test is recorded in, if any. A run of the process that cannot be
 /// made is logged, and the test runs without it.
-pub(crate) fn run_for(reporting: &Reporting, settings: &Settings) -> Option<Arc<TestRun>> {
+pub(crate) fn run_for(reporting: &Reporting, settings: &Settings) -> Option<TestRun> {
     match reporting {
         Reporting::Off => None,
         Reporting::Run(run) => Some(Arc::clone(run)),
@@ -92,7 +92,7 @@ pub(crate) fn run_for(reporting: &Reporting, settings: &Settings) -> Option<Arc<
 /// upload of its logs to S3 (when asked). `logs_dir` is where the lifecycle
 /// writes the test's evidence.
 pub(crate) fn finalizers(
-    run: Option<&Arc<TestRun>>,
+    run: Option<&TestRun>,
     settings: &Settings,
     test: &TestId,
     logs_dir: &Path,

@@ -36,14 +36,14 @@ async fn mocked() -> Result<Browser> {
 }
 
 /// A new run under `root` with the report settings `change` makes.
-fn open(root: &Path, change: impl FnOnce(&mut ReportSettings)) -> Arc<TestRun> {
+fn open(root: &Path, change: impl FnOnce(&mut ReportSettings)) -> TestRun {
     let mut settings = ReportSettings::default();
     change(&mut settings);
     TestRun::open(root, settings, RunKey::new("sb-reports")).unwrap()
 }
 
 /// A fixture that records its test in `run`.
-fn fixture(run: &Arc<TestRun>, change: impl FnOnce(&mut TestSettings)) -> SbCdp {
+fn fixture(run: &TestRun, change: impl FnOnce(&mut TestSettings)) -> SbCdp {
     let mut test = TestSettings::default();
     change(&mut test);
     SbCdp::new(Settings {

@@ -1057,7 +1057,9 @@ literal_string_with_formatting_args = "allow"
   sites call it, and `std::sync::PoisonError::into_inner` is disallowed everywhere else.
 * Breaking: no.
 
-### F23. Wrappers in public signatures (M-AVOID-WRAPPERS, M-SERVICES-CLONE; Google: avoid `Rc` and `Arc`, generics vs `dyn`)
+### F23. Wrappers in public signatures (M-AVOID-WRAPPERS, M-SERVICES-CLONE; Google: avoid `Rc` and `Arc`, generics vs `dyn`) [done, except `Session<S>`]
+
+* Done: `TestRun` is a `Clone` handle (`TestRun::current`, `open`, `resume` return it; `RunFinalizer::new`, `ReportsPlugin::with_run`, `Sb::report_to` take it); each boxed alias carries a doc line that says why it is boxed. Not done: `Session<S>` is still the Tokio guard type (its doc says so).
 
 * The first pass wrote "no `Arc`, `Rc` or `Box` in the public signatures read"; the third pass
   found these. Two public constructors take `Arc<TestRun>`: `with_run` (`src/plugins/reports.rs:221`)

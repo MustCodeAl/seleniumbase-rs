@@ -178,7 +178,7 @@ pub struct ClientProgress {
     pub message: Option<String>,
 }
 
-/// What [`McpClient::call`] calls with each progress report.
+/// What [`McpClient::call`] calls with each progress report. A boxed closure, because the client keeps it for the length of the call.
 pub type ProgressCallback = Box<dyn FnMut(ClientProgress) + Send>;
 
 /// A resource, or a template of resource URIs, of a server.
