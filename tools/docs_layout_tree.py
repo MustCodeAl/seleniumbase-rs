@@ -227,6 +227,8 @@ def browser_detail():
         _file("chrome_for_testing.rs", "Chrome for Testing builds"),
         _file("chromium_snapshots.rs", "Chromium snapshot builds"),
         _file("config.rs", "BrowserConfig, Browser and DriverMode"),
+        _file("devtools.rs", "CdpClient, the DevTools client of the WebDriver engine"),
+
         _file("download_progress.rs", "progress bars for downloads, quiet when not on a terminal"),
         _file("downloader.rs", "downloading a browser or a driver"),
         _file("downloads.rs", "the downloaded_files folder browsers save into"),
