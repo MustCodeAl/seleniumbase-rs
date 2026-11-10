@@ -5991,6 +5991,7 @@ dependencies = [
  "jiff",
  "object_store",
  "ocrs",
+ "owo-colors 4.4.0",
  "pdf-extract",
  "printpdf",
  "proc-macro2",
