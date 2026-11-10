@@ -14,6 +14,9 @@ work, `docs/parity.md` the per-API status).
   `SeleniumBaseError` is styled (message, `hint:` label, hint) only when standard error may
   be coloured; `{:#?}` and `Display` stay plain. `owo-colors` and `anstream` are new
   dependencies.
+- A phone persona turns touch emulation on, so touch events, the touch points and a coarse
+  pointer that cannot hover agree.
+
 
 
 ### Changed
@@ -22,6 +25,13 @@ work, `docs/parity.md` the per-API status).
   last-known-good, 2026-11-08). A generated identity claims 157 four times in five and 156 once
   (no Beta); the presets, `MOBILE_USER_AGENT` and the docs name 157. `randomize` has a new
   constant `CURRENT_STABLE_MAJOR` and a test that fails when the table is older.
+
+
+### Fixed
+
+- A WebDriver session given a desktop fingerprint keeps its window's viewport; the
+  device-metrics override made it the size of the screen. Both engines now send the desktop form
+  (`width` and `height` `0`, the screen in `screenWidth` and `screenHeight`).
 
 
 ### Breaking

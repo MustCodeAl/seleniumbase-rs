@@ -39,6 +39,9 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   `SeleniumBaseError` is styled (message, `hint:` label, hint) only when standard error may
   be coloured; `{:#?}` and `Display` stay plain. `owo-colors` and `anstream` are new
   dependencies.
+- A phone persona turns touch emulation on, so touch events, the touch points and a coarse
+  pointer that cannot hover agree.
+
 
 
 ### Changed
@@ -47,6 +50,13 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   last-known-good, 2026-11-08). A generated identity claims 157 four times in five and 156 once
   (no Beta); the presets, `MOBILE_USER_AGENT` and the docs name 157. `randomize` has a new
   constant `CURRENT_STABLE_MAJOR` and a test that fails when the table is older.
+
+
+### Fixed
+
+- A WebDriver session given a desktop fingerprint keeps its window's viewport; the
+  device-metrics override made it the size of the screen. Both engines now send the desktop form
+  (`width` and `height` `0`, the screen in `screenWidth` and `screenHeight`).
 
 
 ### Breaking
@@ -58,6 +68,11 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   flags and the `SB_*` variables keep their names. Rename the calls; the behaviour is the same.
 
 
+- **Breaking: `TestRun` is a `Clone` handle, not an `Arc`.** `TestRun::current`, `open`,
+  `open_with_console` and `resume` return a `TestRun`; `RunFinalizer::new`, the reports plugin's
+  `with_run` and `Sb::report_to`/`SbCdp::report_to` take one. Clone it to share the run. The
+  boxed closure and future aliases (`Console`, `Clock`, `IdSource`, `Installer`, `InstallFuture`,
+  `ProgressCallback`, `ResourceFuture`, `ToolFuture`) now say in their docs why they are boxed.
 - **Breaking: one rule picks among the sources of a launch setting, whatever the order of the
   calls.** `LaunchOptionsBuilder` used to apply its calls in order: `fingerprint(&fp)` filled
   only the settings that were unset when it was called, and `browser_config(&config)` replaced

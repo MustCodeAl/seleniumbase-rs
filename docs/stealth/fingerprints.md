@@ -211,7 +211,7 @@ and `media_devices` (`(audio_in, audio_out, video_in)`).
 
 | Setting | `Random` draws | `Off` means | Dimension | What then acts |
 |---|---|---|---|---|
-| `user_agent`, `platform`, `hardware_concurrency`, `device_memory`, `max_touch_points`, `vendor`, `product_sub`, `app_version` | The machine's value for the operating system. | no `Off` | `Navigator` | The `navigator_props` and `plugins` providers, `--user-agent`, `Network.setUserAgentOverride`, and `Emulation.setHardwareConcurrencyOverride` for `hardware_concurrency`. |
+| `user_agent`, `platform`, `hardware_concurrency`, `device_memory`, `max_touch_points`, `vendor`, `product_sub`, `app_version` | The machine's value for the operating system. | no `Off` | `Navigator` | The `navigator_props` and `plugins` providers, `--user-agent`, `Network.setUserAgentOverride`, and `Emulation.setHardwareConcurrencyOverride` for `hardware_concurrency`. A phone persona also sends `Emulation.setTouchEmulationEnabled` with its touch points. |
 | `oscpu`, `build_id` | nothing to draw (an error) | no `Off` | `Navigator` | The `navigator_props` provider. |
 | `locale`, `languages`, `accept_languages` | The place's locale and language list. | no `Off` | `Localization` | The `localization` provider, `--lang`, `Emulation.setLocaleOverride`, and the `Accept-Language` of the user agent override. |
 | `timezone` | The place's time zone. | no `Off` | `Timezone` | The `timezone` provider and `Emulation.setTimezoneOverride`. |

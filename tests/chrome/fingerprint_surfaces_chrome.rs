@@ -155,3 +155,42 @@ async fn a_desktop_persona_has_a_frame_around_its_viewport() {
         "the viewport is not the whole screen: {geometry}"
     );
 }
+
+#[tokio::test]
+#[ignore = "requires a local Chrome"]
+#[serial_test::serial(chrome)]
+async fn a_phone_persona_has_a_coarse_pointer_that_cannot_hover_and_fires_touch_events() {
+    let persona = Fingerprint::android_mobile();
+    let (browser, page) = open(&persona).await;
+
+    let seen = page
+        .evaluate(
+            "({ touchEvents: 'ontouchstart' in window, points: navigator.maxTouchPoints, \
+               pointerCoarse: matchMedia('(pointer: coarse)').matches, \
+               anyPointerCoarse: matchMedia('(any-pointer: coarse)').matches, \
+               hoverNone: matchMedia('(hover: none)').matches, \
+               anyHoverNone: matchMedia('(any-hover: none)').matches })",
+        )
+        .await
+        .expect("the window answers");
+    browser.close().await.expect("Chrome closes");
+
+    assert_eq!(seen["touchEvents"], json!(true), "touch events: {seen}");
+    assert_eq!(
+        seen["points"],
+        json!(persona.max_touch_points().value().copied().unwrap_or(5)),
+        "the touch points of the persona: {seen}"
+    );
+    for key in [
+        "pointerCoarse",
+        "anyPointerCoarse",
+        "hoverNone",
+        "anyHoverNone",
+    ] {
+        assert_eq!(
+            seen[key],
+            json!(true),
+            "{key} follows touch emulation: {seen}"
+        );
+    }
+}

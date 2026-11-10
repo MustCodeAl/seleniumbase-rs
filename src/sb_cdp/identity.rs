@@ -45,31 +45,6 @@ const PERMISSIONS: &str = "Browser.grantPermissions";
 /// the page's own scripts.
 const INIT_SCRIPT_COMMAND: &str = "Page.addScriptToEvaluateOnNewDocument";
 
-/// The override that sets what the screen and the pixel ratio read as.
-const DEVICE_METRICS: &str = "Emulation.setDeviceMetricsOverride";
-
-/// The device metrics a tab is given for the screen the library computed.
-///
-/// The library's own override sets the viewport to the screen's size. A
-/// desktop persona's page must keep the viewport its window really has, so
-/// there the viewport fields are `0`, which the protocol reads as "no
-/// override", and the size goes in `screenWidth` and `screenHeight`: the
-/// browser itself then reports `screen.width` and `screen.height`, with no
-/// script involved. A mobile persona is a phone-sized page, so its viewport
-/// stays the screen.
-fn session_metrics(overrides: &Value) -> Value {
-    let mobile = overrides["mobile"].as_bool().unwrap_or(false);
-    let viewport = |size: &Value| if mobile { size.clone() } else { json!(0) };
-    json!({
-        "width": viewport(&overrides["width"]),
-        "height": viewport(&overrides["height"]),
-        "screenWidth": overrides["width"],
-        "screenHeight": overrides["height"],
-        "deviceScaleFactor": overrides["deviceScaleFactor"],
-        "mobile": mobile,
-    })
-}
-
 /// What it takes to give a page the identity of a [`Fingerprint`], worked out
 /// once, whatever carries the commands to the browser.
 ///
@@ -151,8 +126,6 @@ impl StealthPlan {
                         .filter_map(|name| name.as_str().map(str::to_owned))
                         .collect()
                 });
-            } else if method == DEVICE_METRICS {
-                tab.push((method, session_metrics(&params)));
             } else {
                 tab.push((method, params));
             }
@@ -315,6 +288,9 @@ mod tests {
         assert!(methods.contains(&"Emulation.setTimezoneOverride"));
         assert!(methods.contains(&"Emulation.setLocaleOverride"));
     }
+
+    /// The override that sets what the screen and the pixel ratio read as.
+    const DEVICE_METRICS: &str = "Emulation.setDeviceMetricsOverride";
 
     /// The parameters of the `method` command in `identity`, if it has one.
     fn params_of<'a>(identity: &'a StealthPlan, method: &str) -> Option<&'a Value> {

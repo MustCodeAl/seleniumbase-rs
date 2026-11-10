@@ -405,27 +405,42 @@ pub(crate) fn raw_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Val
 
     if let Some(size) = fp.screen().value() {
         // A phone is a phone-sized page: its viewport is its screen. A desktop
-                // persona keeps the viewport its window has: the viewport fields are `0`,
-                // which the protocol reads as "no override", and the screen goes in
-                // `screenWidth` and `screenHeight`, so the browser itself reports
-                // `screen.width` and `screen.height`.
-                let mobile = fp.os_type().is_mobile();
-                let (width, height) = if mobile {
-                    (size.width, size.height)
-                } else {
-                    (0, 0)
-                };
-                map.insert(
-                    "Emulation.setDeviceMetricsOverride".to_owned(),
-                    serde_json::json!({
-                        "width": width,
-                        "height": height,
-                        "screenWidth": size.width,
-                        "screenHeight": size.height,
-                        "deviceScaleFactor": fp.pixel_ratio().value().copied().unwrap_or(1.0),
-                        "mobile": mobile,
-                    }),
-                );
+        // persona keeps the viewport its window has: the viewport fields are `0`,
+        // which the protocol reads as "no override", and the screen goes in
+        // `screenWidth` and `screenHeight`, so the browser itself reports
+        // `screen.width` and `screen.height`.
+        let mobile = fp.os_type().is_mobile();
+        let (width, height) = if mobile {
+            (size.width, size.height)
+        } else {
+            (0, 0)
+        };
+        map.insert(
+            "Emulation.setDeviceMetricsOverride".to_owned(),
+            serde_json::json!({
+                "width": width,
+                "height": height,
+                "screenWidth": size.width,
+                "screenHeight": size.height,
+                "deviceScaleFactor": fp.pixel_ratio().value().copied().unwrap_or(1.0),
+                "mobile": mobile,
+            }),
+        );
+    }
+
+    // A phone has a touch screen: touch events, its touch points and, through
+    // Chrome's touch emulation, a coarse pointer that cannot hover.
+    if fp.os_type().is_mobile() && fp.is_masked(Dimension::Navigator) {
+        let points = fp
+            .max_touch_points()
+            .value()
+            .copied()
+            .filter(|points| *points > 0)
+            .unwrap_or(5);
+        map.insert(
+            "Emulation.setTouchEmulationEnabled".to_owned(),
+            serde_json::json!({ "enabled": true, "maxTouchPoints": points }),
+        );
     }
 
     if let Some(ua) = fp.user_agent().value() {
@@ -1102,6 +1117,27 @@ mod tests {
     }
 
     #[test]
+    fn a_phone_persona_turns_touch_emulation_on_with_its_touch_points() {
+        let phone = Fingerprint::android_mobile();
+        let map = raw_overrides(&phone);
+
+        let touch = map
+            .get("Emulation.setTouchEmulationEnabled")
+            .expect("a phone persona turns touch emulation on");
+        assert_eq!(touch["enabled"], true);
+        let points = phone.max_touch_points().value().copied().unwrap_or(5);
+        assert_eq!(touch["maxTouchPoints"], points);
+    }
+
+    #[test]
+    fn a_desktop_persona_leaves_touch_alone() {
+        let map = raw_overrides(&Fingerprint::windows_desktop());
+
+        assert!(!map.contains_key("Emulation.setTouchEmulationEnabled"));
+    }
+
+    #[test]
+
     fn a_phone_screen_is_its_viewport() {
         let phone = Fingerprint::android_mobile();
         let map = raw_overrides(&phone);

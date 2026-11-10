@@ -54,6 +54,7 @@ const CLOSED: &[&str] = &[
     "voices_vs_os",
     "viewport_is_screen",
     "no_taskbar",
+    "touch_vs_device",
 ];
 
 /// The gaps the evasions leave open today, by rule, each with the rank it has
@@ -73,7 +74,7 @@ const OPEN: &[(&str, &str)] = &[
     ),
     (
         "media_pointer_vs_device",
-        "step 5: the host's pointer, until a phone persona turns touch emulation on",
+        "host: touch emulation gives a phone `pointer: coarse` and `hover: none`, but `any-pointer: fine` stays true for the host's mouse and no protocol command sets it",
     ),
     ("color_gamut_vs_os", "step 6: the host's display"),
     ("fonts_vs_os", "host: the host's fonts"),
@@ -92,10 +93,6 @@ const OPEN: &[(&str, &str)] = &[
     (
         "pdf_viewer_vs_plugins",
         "step 11: Chrome's own plugin list on a phone persona",
-    ),
-    (
-        "touch_vs_device",
-        "step 5: touch events follow the launch option, not the persona",
     ),
     ("keyboard_vs_locale", "step 14: the host's keyboard"),
     (
