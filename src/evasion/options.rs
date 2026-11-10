@@ -9,6 +9,7 @@ use crate::browser::options::{
     LocaleCode, SessionSettings,
 };
 use crate::error::SeleniumBaseError;
+use crate::evasion::evasions::pdf_viewer_enabled;
 use crate::evasion::fingerprint::Fingerprint;
 use thirtyfour::common::capabilities::chromium::ChromiumLikeCapabilities;
 use thirtyfour::LoggingPrefsLogLevel;
@@ -300,6 +301,16 @@ impl StealthOptions {
                 serde_json::json!(LocaleCode::normalise(locale)),
             );
         }
+        // A phone persona's browser has no PDF viewer: PDFs open outside it, so
+        // `navigator.plugins` is empty and `pdfViewerEnabled` is false.
+        if self
+            .fingerprint
+            .as_ref()
+            .is_some_and(|fingerprint| !pdf_viewer_enabled(fingerprint))
+        {
+            preferences.extend(chrome_preferences([LaunchSwitch::ExternalPdf]));
+        }
+
         if !preferences.is_empty() {
             caps.add_experimental_option("prefs", preferences)?;
         }
@@ -929,6 +940,24 @@ mod tests {
     }
 
     #[test]
+    fn a_webdriver_session_with_a_phone_fingerprint_opens_pdfs_outside_the_browser() {
+        let opens_outside = |options: &StealthOptions| {
+            let prefs = chrome_options(options)["prefs"].clone();
+            prefs["plugins"]["always_open_pdf_externally"] == json!(true)
+                || prefs["plugins.always_open_pdf_externally"] == json!(true)
+        };
+        let mut phone = options_for(&BrowserConfig::default());
+        phone.fingerprint = Some(Fingerprint::android_mobile());
+        let mut desktop = options_for(&BrowserConfig::default());
+        desktop.fingerprint = Some(Fingerprint::windows_desktop());
+
+        assert!(opens_outside(&phone), "{}", chrome_options(&phone));
+        assert!(!opens_outside(&desktop));
+        assert!(!opens_outside(&options_for(&BrowserConfig::default())));
+    }
+
+    #[test]
+
     fn chrome_sync_is_off_unless_it_was_asked_for() {
         let default = options_for(&BrowserConfig::default()).args().unwrap();
         assert!(

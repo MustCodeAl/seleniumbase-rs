@@ -273,6 +273,14 @@ pub fn window_size(fp: &Fingerprint) -> Option<(u32, u32)> {
     ))
 }
 
+/// Whether the persona's browser has a PDF viewer: `navigator.pdfViewerEnabled`
+/// and the five PDF entries of `navigator.plugins`. A phone persona's has not,
+/// as Chrome on Android lists no plugins; every other persona's has.
+#[must_use]
+pub fn pdf_viewer_enabled(fp: &Fingerprint) -> bool {
+    !(fp.os_type().is_mobile() && fp.is_masked(Dimension::Navigator))
+}
+
 /// Returns Chromium command-line arguments derived from a fingerprint.
 pub fn launch_args(fp: &Fingerprint) -> Vec<String> {
     let mut args = vec![
@@ -1155,6 +1163,18 @@ mod tests {
     #[test]
     fn a_fingerprint_without_media_features_sends_no_emulated_media() {
         assert!(!raw_overrides(&Fingerprint::default()).contains_key("Emulation.setEmulatedMedia"));
+    }
+
+    #[test]
+
+    fn a_phone_persona_has_no_pdf_viewer() {
+        assert!(!pdf_viewer_enabled(&Fingerprint::android_mobile()));
+        assert!(!pdf_viewer_enabled(&Fingerprint::ios_mobile_safari()));
+        assert!(pdf_viewer_enabled(&Fingerprint::windows_desktop()));
+        assert!(
+            pdf_viewer_enabled(&Fingerprint::default()),
+            "a fingerprint that claims nothing leaves the browser's viewer"
+        );
     }
 
     #[test]

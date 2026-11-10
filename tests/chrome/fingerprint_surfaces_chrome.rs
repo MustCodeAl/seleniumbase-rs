@@ -249,3 +249,32 @@ async fn the_media_features_of_a_persona_reach_match_media_and_style_sheets() {
     assert_eq!(seen["cssP3"], json!(false), "{seen}");
     assert_eq!(seen["mqSrgb"], json!(true), "{seen}");
 }
+
+#[tokio::test]
+#[ignore = "requires a local Chrome"]
+#[serial_test::serial(chrome)]
+async fn a_phone_persona_lists_no_plugins_and_no_pdf_viewer() {
+    let persona = Fingerprint::android_mobile();
+    let (browser, page) = open(&persona).await;
+    let probe = "({ plugins: navigator.plugins.length, mimeTypes: navigator.mimeTypes.length, \
+                  pdfViewer: navigator.pdfViewerEnabled })";
+
+    let default_context = page.evaluate(probe).await.expect("the page answers");
+    let context = browser.new_context().await.expect("a context");
+    let second = context.new_page().await.expect("a page in the context");
+    second
+        .goto(&serve())
+        .await
+        .expect("the loopback page loads");
+    let other_context = second.evaluate(probe).await.expect("the page answers");
+    browser.close().await.expect("Chrome closes");
+
+    for (name, seen) in [
+        ("default context", &default_context),
+        ("new context", &other_context),
+    ] {
+        assert_eq!(seen["plugins"], json!(0), "{name}: {seen}");
+        assert_eq!(seen["mimeTypes"], json!(0), "{name}: {seen}");
+        assert_eq!(seen["pdfViewer"], json!(false), "{name}: {seen}");
+    }
+}

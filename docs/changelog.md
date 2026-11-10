@@ -43,12 +43,25 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   `reduced_transparency`, `contrast`, `forced_colors`); `ColorScheme` moved to
   `evasion::settings` and is still `sb_cdp::ColorScheme`.
 
+- A phone persona's browser opens PDFs outside it, so it lists no plugins and says
+  `pdfViewerEnabled: false`, as Chrome on Android (`evasions::pdf_viewer_enabled`).
+
+- The `api_presence` provider removes the APIs Chrome on the persona's system does not have
+  (`navigator.hid` on a phone, `BarcodeDetector` on Windows and Linux, ...), and adds none.
+
 - A phone persona turns touch emulation on, so touch events, the touch points and a coarse
   pointer that cannot hover agree.
 
 
 
 ### Changed
+
+- `media_codecs` answers `MediaSource.isTypeSupported` and `mediaCapabilities.decodingInfo` as it
+  answers `canPlayType`.
+
+- The `headless` provider no longer patches `matchMedia`; `media_features` goes through
+  `Emulation.setEmulatedMedia`, which `@media` rules see too (`media_query_lie` and
+  `color_gamut_vs_os` are closed). `capture_fingerprint` reads `media_features` back.
 
 - **Chrome version data moved to the current stable, 157.0.8103.38** (Chrome for Testing
   last-known-good, 2026-11-08). A generated identity claims 157 four times in five and 156 once

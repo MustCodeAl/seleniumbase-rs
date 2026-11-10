@@ -31,7 +31,7 @@ use crate::browser::options::{
     VirtualDisplay, MOBILE_USER_AGENT,
 };
 use crate::error::SeleniumBaseError;
-use crate::evasion::evasions::window_size;
+use crate::evasion::evasions::{pdf_viewer_enabled, window_size};
 use crate::evasion::fingerprint::{Dimension, Fingerprint, WebRtcPolicy};
 
 use crate::sb_cdp::identity::StealthPlan;
@@ -184,6 +184,8 @@ impl Layer {
                 text: Redacted(url),
                 checked: false,
             }),
+            switches: pdf_switches(fingerprint),
+
             ..Self::default()
         }
     }
@@ -216,6 +218,17 @@ impl Layer {
             }
         }
     }
+}
+
+/// The switches a fingerprint turns on: a persona with no PDF viewer (a phone) has the browser
+/// open PDFs outside it, which empties `navigator.plugins` and makes `pdfViewerEnabled` false.
+/// The preference is native and holds for every browser context of the profile.
+fn pdf_switches(fingerprint: &Fingerprint) -> BTreeMap<LaunchSwitch, bool> {
+    let mut switches = BTreeMap::new();
+    if !pdf_viewer_enabled(fingerprint) {
+        switches.insert(LaunchSwitch::ExternalPdf, true);
+    }
+    switches
 }
 
 /// The browser one layer asks for: a binary, Chromium, or (when asked not to) Chrome. The two
@@ -587,6 +600,39 @@ mod tests {
     }
 
     #[test]
+    fn a_phone_fingerprint_opens_pdfs_outside_the_browser() {
+        let phone = Fingerprint::android_mobile();
+        let desktop = Fingerprint::windows_desktop();
+
+        let phone_options = built(LaunchOptions::builder().fingerprint(&phone));
+        let desktop_options = built(LaunchOptions::builder().fingerprint(&desktop));
+        let overridden = built(
+            LaunchOptions::builder()
+                .fingerprint(&phone)
+                .switch(LaunchSwitch::ExternalPdf, false),
+        );
+
+        assert_eq!(
+            phone_options.prefs["plugins.always_open_pdf_externally"],
+            serde_json::json!(true),
+            "Chrome on Android has no PDF viewer"
+        );
+        assert!(
+            !desktop_options
+                .prefs
+                .contains_key("plugins.always_open_pdf_externally"),
+            "a desktop keeps its viewer"
+        );
+        assert!(
+            !overridden
+                .prefs
+                .contains_key("plugins.always_open_pdf_externally"),
+            "a switch of the builder wins over the fingerprint's"
+        );
+    }
+
+    #[test]
+
     fn a_browser_the_builder_names_replaces_the_one_the_config_names() {
         let config = chromium_config();
         let path_config = BrowserConfig::default().with_browser_binary_path("/opt/config/chrome");
