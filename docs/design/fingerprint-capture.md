@@ -39,6 +39,8 @@ same fingerprint from the same readings.
 | `navigator.language`, `navigator.languages` | `locale`, `languages` (and `accept_languages`, derived: see below) |
 | `Intl.DateTimeFormat().resolvedOptions().timeZone` | `timezone` |
 | `screen.width`/`height`, `availWidth`/`availHeight`, `colorDepth`, `devicePixelRatio` | `screen`, `avail_screen`, `color_depth`, `pixel_ratio` |
+| `matchMedia` for `color-gamut`, `prefers-color-scheme`, `prefers-reduced-motion`, `prefers-reduced-transparency`, `prefers-contrast`, `forced-colors` | `media_features`; one feature missing or unknown leaves it `Natural` and says why under `unanswered` (the raw readings stay under `media_features` and `css_media`) |
+
 | WebGL `UNMASKED_VENDOR_WEBGL`, `UNMASKED_RENDERER_WEBGL` | `webgl` |
 | `navigator.userAgentData` and its high-entropy values | `client_hints`; no API reads `Off` |
 | `enumerateDevices()` counts | `media_devices`; no API reads `Off` |

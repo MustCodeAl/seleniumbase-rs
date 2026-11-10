@@ -53,6 +53,8 @@ use super::fingerprint::{
     BatteryProfile, BrandVersion, BrowserType, ClientHints, ConnectionProfile, Fingerprint,
     FingerprintBuilder, MediaDevices, ScreenSize, SpeechVoice, StealthPolicy, WebGl,
 };
+use super::fingerprint::{ColorGamut, ColorScheme, Contrast, MediaFeatures};
+
 use super::js::capture_js::get_capture_js;
 use super::spoof::Spoof;
 use crate::error::SeleniumBaseError;
@@ -111,7 +113,7 @@ pub struct ProbeInfo {
 pub struct CapturedFingerprint {
     /// Every setting the page answered, as a value; the rest stay `Natural`.
     pub fingerprint: Fingerprint,
-    /// The readings that have no setting, as the capture script returned them
+    /// The readings no setting holds, and the raw readings the consistency rules compare (`media_features` also makes the setting of that name), as the capture script returned them
     /// (their nested keys keep the script's spelling): `secure_context`,
     /// `webdriver`, `plugins_length`, `mime_types_length`, `cookie_enabled`,
     /// `do_not_track`, `pdf_viewer_enabled`, `pixel_depth`, `orientation`, `window`,
@@ -579,9 +581,37 @@ impl RawProbe {
         }
 
         builder = self.map_graphics(builder, unanswered);
+        builder = self.map_media(builder, unanswered);
+
         builder = self.map_devices(builder, unanswered);
         builder = self.map_client_hints(builder, unanswered);
         builder
+    }
+
+    /// The display and preferences the page read through `matchMedia`: all six
+    /// features read as known words make the `media_features` setting; a
+    /// reading with a feature missing or unknown leaves the setting to the
+    /// browser and says so. A probe with no media reading at all is silent: the
+    /// script that wrote it did not read them.
+    fn map_media(
+        &self,
+        builder: FingerprintBuilder,
+        unanswered: &mut Map<String, Value>,
+    ) -> FingerprintBuilder {
+        let Some(media) = self.media_features.as_ref().and_then(Value::as_object) else {
+            return builder;
+        };
+        match media_features_of(media) {
+            Some(features) => builder.media_features(features),
+            None => {
+                note_unanswered(
+                    unanswered,
+                    "media_features",
+                    Some("a media feature was not read as a known value"),
+                );
+                builder
+            }
+        }
     }
 
     fn map_graphics(
@@ -902,6 +932,44 @@ fn json_number(number: f64) -> Value {
     }
 }
 
+/// The six media features of the setting from a `mediaFeatures` reading, or
+/// `None` when one is missing or is not a word its feature has.
+fn media_features_of(media: &Map<String, Value>) -> Option<MediaFeatures> {
+    let read = |feature: &str| media.get(feature).and_then(Value::as_str);
+    let reduce = |feature: &str| match read(feature)? {
+        "reduce" => Some(true),
+        "no-preference" => Some(false),
+        _ => None,
+    };
+    Some(MediaFeatures {
+        color_gamut: match read("color-gamut")? {
+            "srgb" => ColorGamut::Srgb,
+            "p3" => ColorGamut::P3,
+            "rec2020" => ColorGamut::Rec2020,
+            _ => return None,
+        },
+        color_scheme: match read("prefers-color-scheme")? {
+            "light" => ColorScheme::Light,
+            "dark" => ColorScheme::Dark,
+            _ => return None,
+        },
+        reduced_motion: reduce("prefers-reduced-motion")?,
+        reduced_transparency: reduce("prefers-reduced-transparency")?,
+        contrast: match read("prefers-contrast")? {
+            "no-preference" => Contrast::NoPreference,
+            "more" => Contrast::More,
+            "less" => Contrast::Less,
+            "custom" => Contrast::Custom,
+            _ => return None,
+        },
+        forced_colors: match read("forced-colors")? {
+            "none" => false,
+            "active" => true,
+            _ => return None,
+        },
+    })
+}
+
 /// Records why a setting was left to the browser.
 fn note_unanswered(unanswered: &mut Map<String, Value>, setting: &str, reason: Option<&str>) {
     unanswered.insert(
@@ -1189,6 +1257,75 @@ mod tests {
     }
 
     #[test]
+    fn the_media_features_reading_becomes_the_setting() {
+        let captured = capture(WINDOWS_ON_MAC);
+
+        assert_eq!(
+            captured.fingerprint.media_features().value(),
+            Some(&MediaFeatures::new(ColorGamut::P3))
+        );
+        assert!(
+            captured.unmapped.contains_key("media_features"),
+            "the raw reading stays for the consistency rules"
+        );
+        assert!(!captured.unmapped.contains_key("unanswered"));
+    }
+
+    #[test]
+    fn a_dark_reduced_motion_reading_maps_each_feature() {
+        let mut raw: Value = serde_json::from_str(WINDOWS_ON_MAC).unwrap();
+        raw["mediaFeatures"]["prefers-color-scheme"] = json!("dark");
+        raw["mediaFeatures"]["prefers-reduced-motion"] = json!("reduce");
+        raw["mediaFeatures"]["prefers-contrast"] = json!("more");
+        raw["mediaFeatures"]["forced-colors"] = json!("active");
+
+        let captured = CapturedFingerprint::from_probe(&raw, AT).unwrap();
+
+        assert_eq!(
+            captured.fingerprint.media_features().value(),
+            Some(&MediaFeatures {
+                color_scheme: ColorScheme::Dark,
+                reduced_motion: true,
+                contrast: Contrast::More,
+                forced_colors: true,
+                ..MediaFeatures::new(ColorGamut::P3)
+            })
+        );
+    }
+
+    #[test]
+    fn a_partial_media_reading_is_unanswered() {
+        let mut raw: Value = serde_json::from_str(WINDOWS_ON_MAC).unwrap();
+        raw["mediaFeatures"]["prefers-contrast"] = Value::Null;
+
+        let captured = CapturedFingerprint::from_probe(&raw, AT).unwrap();
+
+        assert!(captured.fingerprint.media_features().is_natural());
+        assert!(
+            captured.unmapped["unanswered"]["media_features"].is_string(),
+            "{:?}",
+            captured.unmapped
+        );
+    }
+
+    #[test]
+    fn a_fingerprint_with_the_captured_media_features_lists_them_as_matched() {
+        let claimed = Fingerprint::builder()
+            .media_features(MediaFeatures::new(ColorGamut::P3))
+            .build()
+            .unwrap();
+        let seen = capture(WINDOWS_ON_MAC).fingerprint;
+
+        let comparison = claimed.compare_to(&seen);
+
+        assert!(
+            comparison.matched.contains(&"media_features"),
+            "{comparison:?}"
+        );
+    }
+
+    #[test]
+
     fn the_readings_without_a_setting_are_kept() {
         let unmapped = capture(CHROME_MACOS).unmapped;
 
