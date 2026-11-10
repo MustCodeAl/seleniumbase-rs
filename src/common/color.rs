@@ -38,7 +38,7 @@
 use owo_colors::OwoColorize as _;
 use std::ffi::OsStr;
 use std::fmt::{self, Display};
-use std::io::{self, IsTerminal};
+use std::io::IsTerminal;
 
 /// The escape sequence that resets every attribute.
 pub const RESET: &str = "\x1b[0m";
@@ -125,11 +125,11 @@ pub(crate) fn write_colored<W>(
     raw: W,
     choice: anstream::ColorChoice,
     text: impl Display,
-) -> io::Result<()>
+) -> std::io::Result<()>
 where
     W: anstream::stream::RawStream + anstream::stream::AsLockedWrite,
 {
-    use io::Write as _;
+    use std::io::Write as _;
     let mut stream = anstream::AutoStream::new(raw, choice);
     write!(stream, "{text}")?;
     stream.flush()
