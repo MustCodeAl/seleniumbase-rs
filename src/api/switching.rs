@@ -273,7 +273,7 @@ impl<'a> FrameSwitch<'a> {
     /// # async fn demo(sb: &mut seleniumbase_rs::BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
     /// let heading = sb
     ///     .frame_switch("iframe#content")
-    ///     .run(async |sb| sb.get_text("h1").await)
+    ///     .run(async |sb| sb.text("h1").await)
     ///     .await?;
     /// // Back in the page that holds the frame.
     /// sb.assert_text("Welcome", "#top").await?;

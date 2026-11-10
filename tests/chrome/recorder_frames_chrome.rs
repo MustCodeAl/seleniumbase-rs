@@ -208,7 +208,7 @@ async fn a_click_in_a_captcha_frame_is_one_comment_and_not_a_step() {
     click_inside(&mut sb, "iframe[title=\"reCAPTCHA\"]", 30.0, 20.0).await;
     click_inside(&mut sb, "iframe[title=\"reCAPTCHA\"]", 100.0, 100.0).await;
     watch(&mut sb, 2).await;
-    let tabs = sb.get_all_window_handles().await.unwrap().len();
+    let tabs = sb.all_window_handles().await.unwrap().len();
     sb.quit().await.unwrap();
 
     assert_eq!(tabs, 1, "the widget is not opened in a tab of its own");
@@ -233,7 +233,7 @@ async fn a_click_in_a_captcha_frame_of_another_origin_is_one_comment() {
     click_inside(&mut sb, "iframe[title=\"hCaptcha\"]", 30.0, 20.0).await;
     click_inside(&mut sb, "iframe[title=\"hCaptcha\"]", 100.0, 100.0).await;
     watch(&mut sb, 2).await;
-    let tabs = sb.get_all_window_handles().await.unwrap().len();
+    let tabs = sb.all_window_handles().await.unwrap().len();
     sb.quit().await.unwrap();
 
     assert_eq!(tabs, 1, "the widget is not opened in a tab of its own");
@@ -261,7 +261,7 @@ async fn an_empty_about_blank_frame_is_never_a_step_or_a_tab() {
     open_home(&mut sb, &home).await;
     click_inside(&mut sb, "iframe#blank", 40.0, 20.0).await;
     watch(&mut sb, 2).await;
-    let tabs = sb.get_all_window_handles().await.unwrap().len();
+    let tabs = sb.all_window_handles().await.unwrap().len();
     sb.quit().await.unwrap();
 
     assert_eq!(tabs, 1, "about:blank is not opened in a tab");
@@ -385,7 +385,7 @@ async fn a_link_that_opens_a_tab_is_a_click_and_then_the_page_it_opened() {
     open_home(&mut sb, &home).await;
     sb.click("#popup-link").await.unwrap();
     watch(&mut sb, 3).await;
-    let tabs = sb.get_all_window_handles().await.unwrap().len();
+    let tabs = sb.all_window_handles().await.unwrap().len();
     sb.quit().await.unwrap();
 
     // Python writes no tab switch: the pages of every tab are one list.

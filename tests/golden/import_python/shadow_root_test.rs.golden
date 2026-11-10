@@ -18,15 +18,15 @@ async fn shadow_root_test(sb: Sb) -> Result<()> {
         sb.goto("https://seleniumbase.io/other/shadow_dom").await?;
         println!();
         sb.click("button.tab_1").await?;
-        let text = sb.get_text("fancy-tabs::shadow #panels").await?;
+        let text = sb.text("fancy-tabs::shadow #panels").await?;
         println!("{}", text);
         sb.assert_exact_text("Content Panel 1", "fancy-tabs::shadow #panels").await?;
         sb.click("button.tab_2").await?;
-        let text_2 = sb.get_text("fancy-tabs::shadow #panels").await?;
+        let text_2 = sb.text("fancy-tabs::shadow #panels").await?;
         println!("{}", text_2);
         sb.assert_exact_text("Content Panel 2", "fancy-tabs::shadow #panels").await?;
         sb.click("button.tab_3").await?;
-        let text_3 = sb.get_text("fancy-tabs::shadow #panels").await?;
+        let text_3 = sb.text("fancy-tabs::shadow #panels").await?;
         println!("{}", text_3);
         sb.assert_exact_text("Content Panel 3", "fancy-tabs::shadow #panels").await?;
         Ok(())

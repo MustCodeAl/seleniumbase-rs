@@ -117,7 +117,7 @@ async fn the_destination_receives_the_page_the_link_was_clicked_on_as_its_refere
     sb.generate_referral(&start, &landing, None)
         .await
         .expect("the referral is generated");
-    assert_eq!(sb.get_current_url().await.unwrap(), landing);
+    assert_eq!(sb.current_url().await.unwrap(), landing);
     assert_eq!(referers(&requests, "/landing"), [Some(start.clone())]);
     assert_eq!(
         referers(&requests, "/start"),
@@ -143,7 +143,7 @@ async fn the_destination_receives_the_page_the_link_was_clicked_on_as_its_refere
         .await
         .expect("the referral with a selector is generated");
     assert_eq!(referers(&requests, "/more"), [Some(landing.clone())]);
-    assert_eq!(sb.get_current_url().await.unwrap(), format!("{base}/more"));
+    assert_eq!(sb.current_url().await.unwrap(), format!("{base}/more"));
 
     // A chain starts from the page the browser is on, then each page links on
     // to the next.
@@ -154,7 +154,7 @@ async fn the_destination_receives_the_page_the_link_was_clicked_on_as_its_refere
         .expect("the chain is generated");
     assert_eq!(referers(&requests, "/one"), [Some(start.clone())]);
     assert_eq!(referers(&requests, "/two"), [Some(one.clone())]);
-    assert_eq!(sb.get_current_url().await.unwrap(), two);
+    assert_eq!(sb.current_url().await.unwrap(), two);
 
     // A traffic chain does it again, from the last page of the one before.
     sb.generate_traffic_chain(&[&one, &two], 2)

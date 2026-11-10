@@ -701,269 +701,269 @@ rust = "BaseCase::get"
 
 [basecase."get_active_element_css"]
 status = "implemented"
-rust = "BaseCase::get_active_element_css"
+rust = "BaseCase::active_element_css"
 
 [basecase."get_attribute"]
 status = "implemented"
-rust = "BaseCase::get_attribute"
+rust = "BaseCase::attribute"
 divergence = "Returns None when the element has neither the attribute nor a DOM property of that name that is set, where Python raises (its hard_fail=False returns None); has no timeout, by or hard_fail arguments (the wait is the default timeout, see set_timeout)."
 
 [basecase."get_beautiful_soup"]
 status = "implemented"
-rust = "BaseCase::get_beautiful_soup"
+rust = "BaseCase::beautiful_soup"
 
 [basecase."get_browser_downloads_folder"]
 status = "implemented"
-rust = "BaseCase::get_browser_downloads_folder"
+rust = "BaseCase::browser_downloads_folder"
 
 [basecase."get_chrome_version"]
 status = "implemented"
-rust = "BaseCase::get_chrome_version"
+rust = "BaseCase::chrome_version"
 
 [basecase."get_chromedriver_version"]
 status = "implemented"
-rust = "BaseCase::get_chromedriver_version"
+rust = "BaseCase::chromedriver_version"
 
 [basecase."get_chromium_driver_version"]
 status = "implemented"
-rust = "BaseCase::get_chromium_driver_version"
+rust = "BaseCase::chromium_driver_version"
 
 [basecase."get_chromium_version"]
 status = "implemented"
-rust = "BaseCase::get_chromium_version"
+rust = "BaseCase::chromium_version"
 
 [basecase."get_cookie"]
 status = "implemented"
-rust = "BaseCase::get_cookie"
+rust = "BaseCase::cookie"
 note = "Returns Option<Cookie>: None when the page has no such cookie, as Python's None."
 
 [basecase."get_cookie_string"]
 status = "implemented"
-rust = "BaseCase::get_cookie_string"
+rust = "BaseCase::cookie_string"
 
 [basecase."get_cookies"]
 status = "implemented"
-rust = "BaseCase::get_cookies"
+rust = "BaseCase::cookies"
 note = "Returns Vec<Cookie> (the cookies of the current page), the same type in DevTools and plain WebDriver mode."
 
 [basecase."get_current_url"]
 status = "implemented"
-rust = "BaseCase::get_current_url"
+rust = "BaseCase::current_url"
 
 [basecase."get_data_from_downloaded_file"]
 status = "implemented"
-rust = "BaseCase::get_data_from_downloaded_file"
+rust = "BaseCase::data_from_downloaded_file"
 
 [basecase."get_domain_url"]
 status = "implemented"
-rust = "BaseCase::get_domain_url"
+rust = "BaseCase::domain_url"
 note = "A pure function of its argument, as in Python: a string that is not an http(s) URL comes back as it is. The scheme's own default port is dropped."
 
 [basecase."get_downloaded_files"]
 status = "implemented"
-rust = "BaseCase::get_downloaded_files"
+rust = "BaseCase::downloaded_files"
 
 [basecase."get_downloads_folder"]
 status = "implemented"
-rust = "BaseCase::get_downloads_folder"
+rust = "BaseCase::downloads_folder"
 
 [basecase."get_element"]
 status = "implemented"
-rust = "BaseCase::get_element"
+rust = "BaseCase::element"
 
 [basecase."get_element_at_x_y"]
 status = "implemented"
-rust = "BaseCase::get_element_at_x_y"
+rust = "BaseCase::element_at_x_y"
 
 [basecase."get_file_data"]
 status = "implemented"
-rust = "BaseCase::get_file_data"
+rust = "BaseCase::file_data"
 
 [basecase."get_google_auth_code"]
 status = "implemented"
-rust = "BaseCase::get_google_auth_code"
+rust = "BaseCase::google_auth_code"
 
 [basecase."get_google_auth_password"]
 status = "implemented"
-rust = "BaseCase::get_google_auth_password"
+rust = "BaseCase::google_auth_password"
 note = "An alias of get_mfa_code, as in Python."
 
 [basecase."get_gui_element_center"]
 status = "implemented"
-rust = "BaseCase::get_gui_element_center"
+rust = "BaseCase::gui_element_center"
 
 [basecase."get_gui_element_rect"]
 status = "implemented"
-rust = "BaseCase::get_gui_element_rect"
+rust = "BaseCase::gui_element_rect"
 
 [basecase."get_html"]
 status = "implemented"
-rust = "BaseCase::get_html"
+rust = "BaseCase::html"
 
 [basecase."get_image_url"]
 status = "implemented"
-rust = "BaseCase::get_image_url"
+rust = "BaseCase::image_url"
 
 [basecase."get_jqc_button_input"]
 status = "implemented"
-rust = "BaseCase::get_jqc_button_input"
+rust = "BaseCase::jqc_button_input"
 note = "A call builder: await it, with Python's extra arguments as the builder methods (options, and button for the text input). A headless browser or a virtual display opens no dialog and returns Python's value at once."
 
 [basecase."get_jqc_form_inputs"]
 status = "implemented"
-rust = "BaseCase::get_jqc_form_inputs"
+rust = "BaseCase::jqc_form_inputs"
 note = "A call builder: await it, with Python's extra arguments as the builder methods (options, and button for the text input). A headless browser or a virtual display opens no dialog and returns Python's value at once."
 
 [basecase."get_jqc_text_input"]
 status = "implemented"
-rust = "BaseCase::get_jqc_text_input"
+rust = "BaseCase::jqc_text_input"
 note = "A call builder: await it, with Python's extra arguments as the builder methods (options, and button for the text input). A headless browser or a virtual display opens no dialog and returns Python's value at once."
 
 [basecase."get_link_attribute"]
 status = "implemented"
-rust = "BaseCase::get_link_attribute"
+rust = "BaseCase::link_attribute"
 
 [basecase."get_link_status_code"]
 status = "implemented"
-rust = "BaseCase::get_link_status_code"
+rust = "BaseCase::link_status_code"
 
 [basecase."get_link_text_attribute"]
 status = "implemented"
-rust = "BaseCase::get_link_text_attribute"
+rust = "BaseCase::link_text_attribute"
 
 [basecase."get_local_storage_item"]
 status = "implemented"
-rust = "BaseCase::get_local_storage_item"
+rust = "BaseCase::local_storage_item"
 
 [basecase."get_local_storage_items"]
 status = "implemented"
-rust = "BaseCase::get_local_storage_items"
+rust = "BaseCase::local_storage_items"
 
 [basecase."get_local_storage_keys"]
 status = "implemented"
-rust = "BaseCase::get_local_storage_keys"
+rust = "BaseCase::local_storage_keys"
 
 [basecase."get_locale_code"]
 status = "implemented"
-rust = "BaseCase::get_locale_code"
+rust = "BaseCase::locale_code"
 
 [basecase."get_mfa_code"]
 status = "implemented"
-rust = "BaseCase::get_mfa_code"
+rust = "BaseCase::mfa_code"
 
 [basecase."get_new_driver"]
 status = "implemented"
-rust = "BaseCase::get_new_driver"
+rust = "BaseCase::new_driver"
 divergence = "Returns a DriverId, not the driver object. The browser options of Python's arguments go in a BrowserConfig: get_new_driver_with(config)."
 
 [basecase."get_origin"]
 status = "implemented"
-rust = "BaseCase::get_origin"
+rust = "BaseCase::origin"
 
 [basecase."get_page_source"]
 status = "implemented"
-rust = "BaseCase::get_page_source"
+rust = "BaseCase::page_source"
 
 [basecase."get_page_title"]
 status = "implemented"
-rust = "BaseCase::get_page_title"
+rust = "BaseCase::page_title"
 
 [basecase."get_parent"]
 status = "implemented"
-rust = "BaseCase::get_parent"
+rust = "BaseCase::parent"
 
 [basecase."get_partial_link_text_attribute"]
 status = "implemented"
-rust = "BaseCase::get_partial_link_text_attribute"
+rust = "BaseCase::partial_link_text_attribute"
 
 [basecase."get_path_of_downloaded_file"]
 status = "implemented"
-rust = "BaseCase::get_path_of_downloaded_file"
+rust = "BaseCase::path_of_downloaded_file"
 
 [basecase."get_pdf_text"]
 status = "implemented"
-rust = "BaseCase::get_pdf_text"
+rust = "BaseCase::pdf_text"
 
 [basecase."get_property"]
 status = "implemented"
-rust = "BaseCase::get_property"
+rust = "BaseCase::property"
 
 [basecase."get_property_value"]
 status = "implemented"
-rust = "BaseCase::get_property_value"
+rust = "BaseCase::property_value"
 
 [basecase."get_recorded_console_logs"]
 status = "implemented"
-rust = "BaseCase::get_recorded_console_logs"
+rust = "BaseCase::recorded_console_logs"
 
 [basecase."get_saved_cookies"]
 status = "implemented"
-rust = "BaseCase::get_saved_cookies"
+rust = "BaseCase::saved_cookies"
 
 [basecase."get_screen_rect"]
 status = "implemented"
-rust = "BaseCase::get_screen_rect"
+rust = "BaseCase::screen_rect"
 
 [basecase."get_select_options"]
 status = "implemented"
-rust = "BaseCase::get_select_options"
+rust = "BaseCase::select_options"
 divergence = "Takes Python's attribute (\"text\" by default, \"index\" or \"value\") and timeout as call-builder keywords, .attribute(..) and .timeout(..), and returns Vec<String>. Python's attribute=None, which gives the option elements, has no equal; the by argument is the selector's own prefix."
 
 [basecase."get_session_storage_item"]
 status = "implemented"
-rust = "BaseCase::get_session_storage_item"
+rust = "BaseCase::session_storage_item"
 
 [basecase."get_session_storage_items"]
 status = "implemented"
-rust = "BaseCase::get_session_storage_items"
+rust = "BaseCase::session_storage_items"
 
 [basecase."get_session_storage_keys"]
 status = "implemented"
-rust = "BaseCase::get_session_storage_keys"
+rust = "BaseCase::session_storage_keys"
 
 [basecase."get_text"]
 status = "implemented"
-rust = "BaseCase::get_text"
+rust = "BaseCase::text"
 note = "A ::shadow selector (host::shadow inner) is read by this method and by every other that takes a selector, as in Python: the element is waited for, closed roots are entered, and the text is what the browser shows (a container that only slots its content gives the slotted text). shadow_get_text and the other shadow_* methods are the same lookups. An <input> or a <textarea> gives its value (the DOM property), as Python's get_text does, and any other element the text the browser renders."
 divergence = "Waits for the element to be present, where Python waits until it is visible: an element that is not displayed answers at once, with the empty text the browser renders for it (the value of a hidden <input> is still its value), and the call does not wait for it to show."
 
 [basecase."get_text_content"]
 status = "implemented"
-rust = "BaseCase::get_text_content"
+rust = "BaseCase::text_content"
 divergence = "Gives the text the browser renders for the element, where Python reads its textContent property, the text of the markup: an element that is not displayed (display: none) answers an empty string here, and the white space the browser collapses and the text-transform of the page apply."
 
 [basecase."get_title"]
 status = "implemented"
-rust = "BaseCase::get_title"
+rust = "BaseCase::title"
 
 [basecase."get_totp_code"]
 status = "implemented"
-rust = "BaseCase::get_totp_code"
+rust = "BaseCase::totp_code"
 
 [basecase."get_unique_links"]
 status = "implemented"
-rust = "BaseCase::get_unique_links"
+rust = "BaseCase::unique_links"
 
 [basecase."get_user_agent"]
 status = "implemented"
-rust = "BaseCase::get_user_agent"
+rust = "BaseCase::user_agent"
 
 [basecase."get_value"]
 status = "implemented"
-rust = "BaseCase::get_value"
+rust = "BaseCase::value"
 
 [basecase."get_window_position"]
 status = "implemented"
-rust = "BaseCase::get_window_position"
+rust = "BaseCase::window_position"
 
 [basecase."get_window_rect"]
 status = "implemented"
-rust = "BaseCase::get_window_rect"
+rust = "BaseCase::window_rect"
 divergence = "Returns an (x, y, width, height) tuple; Python returns a dict."
 
 [basecase."get_window_size"]
 status = "implemented"
-rust = "BaseCase::get_window_size"
+rust = "BaseCase::window_size"
 
 [basecase."go_back"]
 status = "implemented"
@@ -2152,7 +2152,7 @@ note = "Call `page.locator(selector).drag_to(..)`; the Locator holds the selecto
 [cdp."enter_mfa_code"]
 status = "composed"
 rust = "BaseCase::enter_mfa_code"
-note = "BaseCase::enter_mfa_code is a WebDriver-engine method; on the CDP engine compute the code with BaseCase::get_mfa_code and type it with Locator::type_text."
+note = "BaseCase::enter_mfa_code is a WebDriver-engine method; on the CDP engine compute the code with BaseCase::mfa_code and type it with Locator::type_text."
 
 [cdp."evaluate"]
 status = "composed"
@@ -2339,8 +2339,8 @@ note = "`page.locale_code()` is `navigator.language`, or the first of `navigator
 
 [cdp."get_mfa_code"]
 status = "composed"
-rust = "BaseCase::get_mfa_code"
-note = "BaseCase::get_mfa_code computes the TOTP code and needs no browser; it is a method of the WebDriver-engine BaseCase."
+rust = "BaseCase::mfa_code"
+note = "BaseCase::mfa_code computes the TOTP code and needs no browser; it is a method of the WebDriver-engine BaseCase."
 
 [cdp."get_navigation_history"]
 status = "composed"
@@ -3271,56 +3271,56 @@ note = "Named go_forward, like the BaseCase method."
 
 [driver."get_active_element_css"]
 status = "implemented"
-rust = "BaseCase::get_active_element_css"
+rust = "BaseCase::active_element_css"
 
 [driver."get_attribute"]
 status = "implemented"
-rust = "BaseCase::get_attribute"
+rust = "BaseCase::attribute"
 
 [driver."get_cookie"]
 status = "implemented"
-rust = "BaseCase::get_cookie"
+rust = "BaseCase::cookie"
 note = "Returns Option<Cookie>: None when the page has no such cookie, as Python's None."
 
 [driver."get_cookie_string"]
 status = "implemented"
-rust = "BaseCase::get_cookie_string"
+rust = "BaseCase::cookie_string"
 
 [driver."get_current_url"]
 status = "implemented"
-rust = "BaseCase::get_current_url"
+rust = "BaseCase::current_url"
 
 [driver."get_locale_code"]
 status = "implemented"
-rust = "BaseCase::get_locale_code"
+rust = "BaseCase::locale_code"
 
 [driver."get_origin"]
 status = "implemented"
-rust = "BaseCase::get_origin"
+rust = "BaseCase::origin"
 
 [driver."get_page_source"]
 status = "implemented"
-rust = "BaseCase::get_page_source"
+rust = "BaseCase::page_source"
 
 [driver."get_parent"]
 status = "implemented"
-rust = "BaseCase::get_parent"
+rust = "BaseCase::parent"
 
 [driver."get_screen_rect"]
 status = "implemented"
-rust = "BaseCase::get_screen_rect"
+rust = "BaseCase::screen_rect"
 
 [driver."get_text"]
 status = "implemented"
-rust = "BaseCase::get_text"
+rust = "BaseCase::text"
 
 [driver."get_title"]
 status = "implemented"
-rust = "BaseCase::get_title"
+rust = "BaseCase::title"
 
 [driver."get_user_agent"]
 status = "implemented"
-rust = "BaseCase::get_user_agent"
+rust = "BaseCase::user_agent"
 
 [driver."highlight"]
 status = "implemented"

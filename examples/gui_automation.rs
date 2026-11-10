@@ -79,7 +79,7 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
 
     sb.gui_write("Hello from the OS keyboard")?;
     wait_for_value(sb, "Hello from the OS keyboard").await?;
-    println!("typed: {}", sb.get_value("#note").await?);
+    println!("typed: {}", sb.value("#note").await?);
 
     // Select everything with the platform shortcut, then delete it.
     sb.gui_press_keys(&[MODIFIER, "a"])?;
@@ -93,7 +93,7 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
 /// briefly for the field to hold `expected`.
 async fn wait_for_value(sb: &mut BaseCase, expected: &str) -> Result<()> {
     for _ in 0..30 {
-        if sb.get_value("#note").await? == expected {
+        if sb.value("#note").await? == expected {
             return Ok(());
         }
         sb.sleep(0.1).await;

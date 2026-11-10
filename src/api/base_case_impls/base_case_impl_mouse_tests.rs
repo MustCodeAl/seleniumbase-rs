@@ -69,7 +69,7 @@ mod tests_conditional_click {
         // A browser with no locale at all answers `undefined`, which is `null`.
         let driver = MockWebDriver::start(json!({}), |_| Reply::Value(Value::Null));
         let sb = driver.base_case().await;
-        assert_eq!(sb.get_locale_code().await.unwrap(), "");
+        assert_eq!(sb.locale_code().await.unwrap(), "");
         let script = driver.requests("/execute/sync").last().unwrap().body["script"]
             .as_str()
             .unwrap()
@@ -81,7 +81,7 @@ mod tests_conditional_click {
 
         let driver = MockWebDriver::start(json!({}), |_| Reply::Value(json!("de-DE")));
         let sb = driver.base_case().await;
-        assert_eq!(sb.get_locale_code().await.unwrap(), "de-DE");
+        assert_eq!(sb.locale_code().await.unwrap(), "de-DE");
     }
 }
 

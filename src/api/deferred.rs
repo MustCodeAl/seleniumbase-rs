@@ -146,7 +146,7 @@ impl AssertTarget for BaseCase {
     }
 
     async fn current_url(&mut self) -> Option<String> {
-        self.get_current_url().await.ok()
+        BaseCase::current_url(self).await.ok()
     }
 }
 

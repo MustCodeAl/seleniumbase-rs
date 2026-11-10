@@ -437,7 +437,7 @@ impl MasterQA {
             return;
         }
         println!("\n*** Close the html report window to continue ***");
-        while matches!(self.sb.get_all_window_handles().await, Ok(handles) if !handles.is_empty()) {
+        while matches!(self.sb.all_window_handles().await, Ok(handles) if !handles.is_empty()) {
             tokio::time::sleep(RESULTS_PAGE_POLL).await;
         }
     }

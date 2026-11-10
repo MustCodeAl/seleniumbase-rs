@@ -31,8 +31,7 @@ impl crate::sb_cdp::CaptchaSurface for BaseCase {
     }
 
     async fn cookie_names(&self) -> Result<Vec<String>, SeleniumBaseError> {
-        Ok(self
-            .get_cookies()
+        Ok(self.cookies()
             .await?
             .into_iter()
             .map(|cookie| cookie.name)

@@ -40,7 +40,7 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
 
     // ---- Cookies ----
     sb.add_cookie(&Cookie::new("session", "abc123")).await?;
-    let Some(cookie) = sb.get_cookie("session").await? else {
+    let Some(cookie) = sb.cookie("session").await? else {
         return ensure(false, "the added cookie is found");
     };
     ensure(cookie.value == "abc123", "the cookie keeps its value")?;
@@ -52,7 +52,7 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
     sb.save_cookies_to_path(&file).await?;
     sb.delete_cookie("session").await?;
     ensure(
-        sb.get_cookie("session").await?.is_none(),
+        sb.cookie("session").await?.is_none(),
         "the deleted cookie is gone",
     )?;
     // `Saved` keeps the expiry the cookie was saved with; `load_cookies(name)`
@@ -60,7 +60,7 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
     sb.load_cookies_from_path(&file, CookieExpiry::Saved)
         .await?;
     ensure(
-        sb.get_cookies()
+        sb.cookies()
             .await?
             .iter()
             .any(|cookie| cookie.name == "session" && cookie.value == "abc123"),
@@ -70,7 +70,7 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
 
     // ---- Local storage ----
     sb.set_local_storage_item("username", "demo_user").await?;
-    let username = sb.get_local_storage_item("username").await?;
+    let username = sb.local_storage_item("username").await?;
     ensure(
         username.as_str() == Some("demo_user"),
         "the stored value reads back",
@@ -79,14 +79,14 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
 
     sb.remove_local_storage_item("username").await?;
     ensure(
-        sb.get_local_storage_item("username").await?.is_null(),
+        sb.local_storage_item("username").await?.is_null(),
         "a removed item reads back as null",
     )?;
 
     sb.set_local_storage_item("theme", "dark").await?;
     sb.clear_local_storage().await?;
     ensure(
-        sb.get_local_storage_item("theme").await?.is_null(),
+        sb.local_storage_item("theme").await?.is_null(),
         "clearing storage removes every item",
     )?;
     println!("local storage cleared");

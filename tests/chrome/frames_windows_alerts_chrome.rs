@@ -128,7 +128,7 @@ async fn on_the_top_page() -> BaseCase {
 
 /// Who the page the driver is in says it is (`#who` of the frames' pages).
 async fn who(sb: &BaseCase) -> String {
-    sb.get_text("#who").await.expect("a frame page with #who")
+    sb.text("#who").await.expect("a frame page with #who")
 }
 
 #[tokio::test]
@@ -157,20 +157,20 @@ async fn a_frame_is_entered_by_id_name_selector_or_position() {
     sb.switch_to_frame("iframe.card")
         .await
         .expect("a frame is entered by a selector");
-    assert_eq!(sb.get_text("#outer").await.unwrap(), "Outer");
+    assert_eq!(sb.text("#outer").await.unwrap(), "Outer");
     sb.switch_to_frame("nested")
         .await
         .expect("a frame inside a frame");
     assert_eq!(who(&sb).await, "nested");
     sb.switch_to_parent_frame().await.unwrap();
-    assert_eq!(sb.get_text("#outer").await.unwrap(), "Outer");
+    assert_eq!(sb.text("#outer").await.unwrap(), "Outer");
     sb.switch_to_default_content().await.unwrap();
 
     // An XPath selector.
     sb.switch_to_frame("//iframe[@title='Card']")
         .await
         .expect("a frame is entered by an XPath selector");
-    assert_eq!(sb.get_text("#outer").await.unwrap(), "Outer");
+    assert_eq!(sb.text("#outer").await.unwrap(), "Outer");
     sb.switch_to_default_content().await.unwrap();
 
     // A position: the first frame of the document.
@@ -261,7 +261,7 @@ async fn frame_switch_runs_in_the_frame_and_leaves_it_after() {
     // Python: `with self.frame_switch("by-id"): ...`
     let inside = sb
         .frame_switch("by-id")
-        .run(async |sb| sb.get_text("#who").await)
+        .run(async |sb| sb.text("#who").await)
         .await
         .expect("the frame is entered");
     assert_eq!(inside, "by-id");
@@ -275,11 +275,11 @@ async fn frame_switch_runs_in_the_frame_and_leaves_it_after() {
         .run(async |sb| {
             sb.frame_switch("nested")
                 .run(async |sb| {
-                    assert_eq!(sb.get_text("#who").await?, "nested");
+                    assert_eq!(sb.text("#who").await?, "nested");
                     Ok(())
                 })
                 .await?;
-            assert_eq!(sb.get_text("#outer").await?, "Outer");
+            assert_eq!(sb.text("#outer").await?, "Outer");
             Ok(())
         })
         .await
@@ -325,33 +325,33 @@ async fn frame_switch_runs_in_the_frame_and_leaves_it_after() {
 async fn a_window_is_entered_by_position_or_handle_and_waited_for() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = on_the_top_page().await;
-    let first = sb.get_current_window_handle().await.unwrap();
+    let first = sb.current_window_handle().await.unwrap();
 
     sb.click("#open-second").await.unwrap();
     // The newest window, as `switch_to_window(-1)` in Python.
     sb.switch_to_window(-1)
         .await
         .expect("the newest window is entered");
-    assert_eq!(sb.get_text("#second").await.unwrap(), "Opened");
-    let second = sb.get_current_window_handle().await.unwrap();
+    assert_eq!(sb.text("#second").await.unwrap(), "Opened");
+    let second = sb.current_window_handle().await.unwrap();
     assert_ne!(second, first);
 
     // The first window, as `switch_to_window(0)`.
     sb.switch_to_window(0)
         .await
         .expect("the first window is entered");
-    assert_eq!(sb.get_current_window_handle().await.unwrap(), first);
+    assert_eq!(sb.current_window_handle().await.unwrap(), first);
     assert!(sb.is_element_present("#top").await.unwrap());
 
     // A handle, and the one before the newest.
     sb.switch_to_window(second.as_str())
         .await
         .expect("a window is entered by its handle");
-    assert_eq!(sb.get_current_window_handle().await.unwrap(), second);
+    assert_eq!(sb.current_window_handle().await.unwrap(), second);
     sb.switch_to_window(-2)
         .await
         .expect("-2 is the window before the newest");
-    assert_eq!(sb.get_current_window_handle().await.unwrap(), first);
+    assert_eq!(sb.current_window_handle().await.unwrap(), first);
 
     // A window that opens a moment later is waited for.
     sb.execute_script("setTimeout(function () { window.open('/second?label=Late'); }, 600);")
@@ -360,7 +360,7 @@ async fn a_window_is_entered_by_position_or_handle_and_waited_for() {
     sb.switch_to_window(2)
         .await
         .expect("the call waits for the third window");
-    assert_eq!(sb.get_text("#second").await.unwrap(), "Late");
+    assert_eq!(sb.text("#second").await.unwrap(), "Late");
 
     // A window that is not there.
     let error = sb
@@ -423,7 +423,7 @@ async fn switch_to_alert_waits_for_the_alert_and_gives_it_back() {
         .await
         .unwrap();
     let alert = sb.wait_for_and_switch_to_alert(5).await.unwrap();
-    assert_eq!(sb.get_alert_text().await.unwrap(), "Hello");
+    assert_eq!(sb.alert_text().await.unwrap(), "Hello");
     assert_eq!(alert.text().await.unwrap(), "Hello");
     sb.accept_alert().await.unwrap();
 

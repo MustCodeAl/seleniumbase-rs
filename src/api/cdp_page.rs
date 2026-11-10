@@ -326,7 +326,7 @@ impl<'a> CdpPage<'a> {
     /// Returns [`SeleniumBaseError::ElementNotFound`] if nothing matches and
     /// [`SeleniumBaseError::InvalidSelector`] for a selector the browser
     /// rejects.
-    pub async fn get_text(&self, selector: &str) -> Result<String, SeleniumBaseError> {
+    pub async fn text(&self, selector: &str) -> Result<String, SeleniumBaseError> {
         let script = single_element_script(selector, TEXT_OF_ELEMENT);
         let result = self.evaluate_raw(&script).await?;
         extract_string_value(&result).ok_or_else(|| SeleniumBaseError::element_not_found(selector))
@@ -338,7 +338,7 @@ impl<'a> CdpPage<'a> {
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::ElementNotFound`] if nothing matches.
-    pub async fn get_attribute(
+    pub async fn attribute(
         &self,
         selector: &str,
         attribute: &str,
@@ -355,7 +355,7 @@ impl<'a> CdpPage<'a> {
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::ElementNotFound`] if nothing matches.
-    pub async fn get_property(
+    pub async fn property(
         &self,
         selector: &str,
         property: &str,
@@ -367,13 +367,13 @@ impl<'a> CdpPage<'a> {
     }
 
     /// Returns `document.title`.
-    pub async fn get_title(&self) -> Result<String, SeleniumBaseError> {
+    pub async fn title(&self) -> Result<String, SeleniumBaseError> {
         let result = self.evaluate_raw("document.title").await?;
         Ok(extract_string_value(&result).unwrap_or_default())
     }
 
     /// Returns `window.location.href`.
-    pub async fn get_url(&self) -> Result<String, SeleniumBaseError> {
+    pub async fn url(&self) -> Result<String, SeleniumBaseError> {
         let result = self.evaluate_raw("window.location.href").await?;
         Ok(extract_string_value(&result).unwrap_or_default())
     }
@@ -1248,9 +1248,9 @@ mod driven_tests {
         let page = CdpPage::new(&session);
 
         for error in [
-            page.get_text("#gone").await.unwrap_err(),
-            page.get_attribute("#gone", "href").await.unwrap_err(),
-            page.get_property("#gone", "value").await.unwrap_err(),
+            page.text("#gone").await.unwrap_err(),
+            page.attribute("#gone", "href").await.unwrap_err(),
+            page.property("#gone", "value").await.unwrap_err(),
         ] {
             assert!(
                 matches!(&error, SeleniumBaseError::ElementNotFound { selector, .. } if selector == "#gone"),
@@ -1297,8 +1297,8 @@ mod driven_tests {
         let page = CdpPage::new(&session);
 
         for error in [
-            page.get_text("#").await.unwrap_err(),
-            page.get_attribute("#", "id").await.unwrap_err(),
+            page.text("#").await.unwrap_err(),
+            page.attribute("#", "id").await.unwrap_err(),
             page.type_text("#", "x").await.unwrap_err(),
             page.select_option_by_value("#", "x").await.unwrap_err(),
         ] {
@@ -1314,7 +1314,7 @@ mod driven_tests {
         let (_driver, session) = driven(|_, _| returned(json!([null]))).await;
 
         let attribute = CdpPage::new(&session)
-            .get_attribute("a", "download")
+            .attribute("a", "download")
             .await
             .unwrap();
 
@@ -1334,13 +1334,13 @@ mod driven_tests {
         .await;
         let page = CdpPage::new(&session);
 
-        assert_eq!(page.get_text("h1").await.unwrap(), "Hello");
+        assert_eq!(page.text("h1").await.unwrap(), "Hello");
         assert_eq!(
-            page.get_attribute("a", "href").await.unwrap().as_deref(),
+            page.attribute("a", "href").await.unwrap().as_deref(),
             Some("/home")
         );
         assert_eq!(
-            page.get_property("a", "href").await.unwrap().as_deref(),
+            page.property("a", "href").await.unwrap().as_deref(),
             Some("/home")
         );
     }
@@ -1360,7 +1360,7 @@ mod driven_tests {
         .await;
 
         assert_eq!(
-            CdpPage::new(&session).get_text("#name").await.unwrap(),
+            CdpPage::new(&session).text("#name").await.unwrap(),
             "Ada Lovelace"
         );
     }
@@ -1411,8 +1411,8 @@ mod driven_tests {
         .await;
         let page = CdpPage::new(&session);
 
-        assert_eq!(page.get_title().await.unwrap(), "Home");
-        assert_eq!(page.get_url().await.unwrap(), "https://example.test/");
+        assert_eq!(page.title().await.unwrap(), "Home");
+        assert_eq!(page.url().await.unwrap(), "https://example.test/");
     }
 
     #[tokio::test]

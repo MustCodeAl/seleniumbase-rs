@@ -126,10 +126,10 @@ async fn what_a_test_writes_with_a_cookie(sb: &BaseCase) -> seleniumbase_rs::Res
     sb.add_cookie(&Cookie::new("session", "abc123").http_only(true))
         .expiry(true)
         .await?;
-    if let Some(cookie) = sb.get_cookie("session").await? {
+    if let Some(cookie) = sb.cookie("session").await? {
         println!("{cookie:?}");
     }
-    for cookie in sb.get_cookies().await? {
+    for cookie in sb.cookies().await? {
         println!("{} expires {:?}", cookie.name, cookie.expires);
     }
     Ok(())

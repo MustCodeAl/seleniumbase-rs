@@ -64,7 +64,7 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
             ))
         })?;
     sb.highlight(TEXT_BOX).await?;
-    println!("Loaded: {}", sb.get_title().await?);
+    println!("Loaded: {}", sb.title().await?);
 
     let screenshot = sb.save_screenshot_to_logs().await?;
     let source = sb.save_page_source_to_logs().await?;

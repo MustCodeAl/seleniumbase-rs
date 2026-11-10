@@ -156,7 +156,7 @@ fn link_check_client() -> Result<&'static reqwest::Client, SeleniumBaseError> {
 ///
 /// Redirects are not followed, so a moved page reports `301` or `302` rather
 /// than the status of wherever it points; that matches Python SeleniumBase's
-/// `get_link_status_code`. The check is a `HEAD` request, repeated as a `GET`
+/// `link_status_code`. The check is a `HEAD` request, repeated as a `GET`
 /// when the server does not implement `HEAD` (405 or 501).
 ///
 /// # Errors
@@ -233,13 +233,13 @@ impl BaseCase {
         }
     }
 
-    /// Alias for `get_property`.
-    pub async fn get_property_value(
+    /// Alias for `property`.
+    pub async fn property_value(
         &mut self,
         css: &str,
         property: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
-        self.get_property(css, property).await
+        self.property(css, property).await
     }
 
     /// Asserts that `css` is in the DOM, visible or not, waiting up to the
@@ -999,7 +999,7 @@ mod tests_with_a_driver {
             _ => Reply::Value(Value::Null),
         });
         let sb = driver.base_case().await;
-        assert_eq!(sb.get_cookie_string().await.unwrap(), "sid=abc; theme=dark");
+        assert_eq!(sb.cookie_string().await.unwrap(), "sid=abc; theme=dark");
     }
 
     #[tokio::test]
@@ -1012,15 +1012,15 @@ mod tests_with_a_driver {
             |_| Reply::Value(Value::Null),
         );
         let sb = driver.base_case().await;
-        assert_eq!(sb.get_chromedriver_version().unwrap(), "152.0.7977.64");
-        assert_eq!(sb.get_chromium_driver_version().unwrap(), "152.0.7977.64");
+        assert_eq!(sb.chromedriver_version().unwrap(), "152.0.7977.64");
+        assert_eq!(sb.chromium_driver_version().unwrap(), "152.0.7977.64");
 
         let firefox = MockWebDriver::start(json!({ "browserName": "firefox" }), |_| {
             Reply::Value(Value::Null)
         });
         let sb = firefox.base_case().await;
         assert!(matches!(
-            sb.get_chromedriver_version(),
+            sb.chromedriver_version(),
             Err(SeleniumBaseError::Unsupported(_))
         ));
     }
@@ -1079,7 +1079,7 @@ mod tests_with_a_driver {
             ("about:blank", "about:blank"),
             ("file:///tmp/a.html", "file:///tmp/a.html"),
         ] {
-            assert_eq!(sb.get_domain_url(url).unwrap(), domain, "{url}");
+            assert_eq!(sb.domain_url(url).unwrap(), domain, "{url}");
         }
     }
 }

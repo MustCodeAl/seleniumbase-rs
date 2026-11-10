@@ -77,7 +77,7 @@ impl BaseCase {
 
     /// Returns an attribute value of an element inside shadow roots, once the
     /// element is in the page: the attribute if the element has it, else the
-    /// DOM property of that name, as [`get_attribute`](Self::get_attribute)
+    /// DOM property of that name, as [`attribute`](Self::attribute)
     /// does.
     ///
     /// # Errors
@@ -213,7 +213,7 @@ mod tests_shadow {
         sb.set_timeout(1).await.unwrap();
 
         sb.click("app-root::shadow #go").await.expect("the button is clicked");
-        assert_eq!(sb.get_text("app-root ::shadow h1").await.unwrap(), "Welcome");
+        assert_eq!(sb.text("app-root ::shadow h1").await.unwrap(), "Welcome");
         sb.assert_exact_text("Welcome", "app-root::shadow h1")
             .await
             .expect("the heading says Welcome");
@@ -278,7 +278,7 @@ mod tests_shadow {
         assert!(!sb.is_element_present("p::shadow h1").await.unwrap());
         assert!(!sb.is_element_visible("p::shadow h1").await.unwrap());
         sb.click("p::shadow h1").await.expect_err("p has no shadow root");
-        sb.get_text("nope::shadow h1").await.expect_err("nope is not in the page");
+        sb.text("nope::shadow h1").await.expect_err("nope is not in the page");
     }
 
     #[tokio::test]
@@ -287,8 +287,7 @@ mod tests_shadow {
         let mut sb = driver.base_case().await;
 
         for selector in ["app-root ::shadow", "app-root::shadow"] {
-            let message = sb
-                .get_text(selector)
+            let message = sb.text(selector)
                 .await
                 .expect_err("a selector must end inside a shadow root")
                 .to_string();

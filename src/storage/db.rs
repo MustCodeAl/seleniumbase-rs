@@ -88,7 +88,7 @@ async fn meta(conn: &Connection, key: &str) -> Result<Option<String>> {
 
 /// Reads column `idx` as text.
 pub(super) fn text(row: &Row, idx: usize) -> Result<String> {
-    match row.get_value(idx)? {
+    match row.value(idx)? {
         Value::Text(text) => Ok(text),
         other => Err(unexpected(idx, "text", &other)),
     }
@@ -96,7 +96,7 @@ pub(super) fn text(row: &Row, idx: usize) -> Result<String> {
 
 /// Reads column `idx` as an integer.
 pub(super) fn integer(row: &Row, idx: usize) -> Result<i64> {
-    match row.get_value(idx)? {
+    match row.value(idx)? {
         Value::Integer(n) => Ok(n),
         other => Err(unexpected(idx, "an integer", &other)),
     }
@@ -104,7 +104,7 @@ pub(super) fn integer(row: &Row, idx: usize) -> Result<i64> {
 
 /// Reads column `idx` as an integer that may be absent.
 pub(super) fn optional_integer(row: &Row, idx: usize) -> Result<Option<i64>> {
-    match row.get_value(idx)? {
+    match row.value(idx)? {
         Value::Null => Ok(None),
         Value::Integer(n) => Ok(Some(n)),
         other => Err(unexpected(idx, "an integer or null", &other)),
@@ -114,7 +114,7 @@ pub(super) fn optional_integer(row: &Row, idx: usize) -> Result<Option<i64>> {
 /// Reads column `idx` as a real number. SQLite stores a whole-number real as
 /// an integer when it can, so both are accepted.
 pub(super) fn real(row: &Row, idx: usize) -> Result<f64> {
-    match row.get_value(idx)? {
+    match row.value(idx)? {
         Value::Real(n) => Ok(n),
         #[expect(
             clippy::cast_precision_loss,

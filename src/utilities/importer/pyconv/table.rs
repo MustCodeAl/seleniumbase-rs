@@ -281,8 +281,8 @@ pub(super) static TABLE: &[Call] = &[
     act(&["go_forward"], "go_forward", &[]),
     act(&["refresh", "refresh_page", "reload_page"], "refresh", &[]),
     act(&["maximize_window"], "maximize_window", &[]),
-    get(&["get_title", "get_page_title"], "get_title", &[], Ret::Str),
-    get(&["get_current_url"], "get_current_url", &[], Ret::Str),
+    get(&["get_title", "get_page_title"], "title", &[], Ret::Str),
+    get(&["get_current_url"], "current_url", &[], Ret::Str),
     act(
         &["open_new_window"],
         "open_new_window",
@@ -299,7 +299,7 @@ pub(super) static TABLE: &[Call] = &[
         "switch_to_default_window",
         &[],
     ),
-    act(&["get_new_driver"], "get_new_driver", &[]),
+    act(&["get_new_driver"], "new_driver", &[]),
     act(&["open_new_tab"], "open_new_tab", &[omit("switch_to")]),
     // Frames.
     act(
@@ -656,13 +656,13 @@ pub(super) static TABLE: &[Call] = &[
     ),
     get(
         &["get_text"],
-        "get_text",
+        "text",
         &[s("selector"), BY, TIMEOUT],
         Ret::Str,
     ),
     get(
         &["get_attribute"],
-        "get_attribute",
+        "attribute",
         &[
             s("selector"),
             s("attribute"),
@@ -674,7 +674,7 @@ pub(super) static TABLE: &[Call] = &[
     ),
     get(
         &["get_select_options"],
-        "get_select_options",
+        "select_options",
         &[
             s("dropdown_selector"),
             chain("attribute", K::Str, ".attribute({})"),

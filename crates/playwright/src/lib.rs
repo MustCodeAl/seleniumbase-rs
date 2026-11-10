@@ -69,7 +69,7 @@
 //! sb.open("https://example.com").await?;
 //!
 //! let playwright = PlaywrightSidecar::attach(&sb).await?; // the window `sb` is on
-//! // Placeholder: any rustwright call goes in the closure. Our own title is `sb.get_title()`.
+//! // Placeholder: any rustwright call goes in the closure. Our own title is `sb.title()`.
 //! playwright.run(|pw| pw.title(Default::default())).await?;
 //! sb.assert_element("h1").await?;
 //!

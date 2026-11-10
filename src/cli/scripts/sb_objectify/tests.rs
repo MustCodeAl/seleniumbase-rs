@@ -90,7 +90,7 @@ async fn t(sb: &mut BaseCase) -> Result<(), E> {
     sb.click("#a").await?;
     sb.type_text("input[name=q]", "rust").await?;
     sb.assert_text("Welcome", "h1").await?;
-    sb.get_text(selector).await?;
+    sb.text(selector).await?;
     sb.click(&format!("#{id}")).await?;
     sb.click("#owned".to_owned()).await?;
     sb.sleep(1.0).await;

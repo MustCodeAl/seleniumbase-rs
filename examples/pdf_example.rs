@@ -38,7 +38,7 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
     println!("PDF saved to {}", pdf.display());
 
     let path = pdf.to_string_lossy();
-    let text = sb.get_pdf_text(&path)?;
+    let text = sb.pdf_text(&path)?;
     println!("Extracted {} characters of text", text.len());
 
     // The heading and the green sentence are both on the printed page.

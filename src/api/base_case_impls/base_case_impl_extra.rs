@@ -471,7 +471,7 @@ impl BaseCase {
         &mut self,
         substring: &str,
     ) -> Result<(), SeleniumBaseError> {
-        let url = self.get_current_url().await?;
+        let url = self.current_url().await?;
         if url.contains(substring) {
             return Err(SeleniumBaseError::AssertionFailed(format!(
                 "Expected URL '{}' to not contain '{}'",
@@ -488,7 +488,7 @@ impl BaseCase {
     ) -> Result<(), SeleniumBaseError> {
         let re = regex::Regex::new(regex)
             .map_err(|e| SeleniumBaseError::AssertionFailed(e.to_string()))?;
-        let url = self.get_current_url().await?;
+        let url = self.current_url().await?;
         if !re.is_match(&url) {
             return Err(SeleniumBaseError::AssertionFailed(format!(
                 "Expected URL '{}' to match regex '{}'",
@@ -934,7 +934,7 @@ impl BaseCase {
 
     /// Switches focus to the tab/window with index `index` (0-based).
     pub async fn switch_to_tab(&self, index: usize) -> Result<(), SeleniumBaseError> {
-        let handles = self.get_all_window_handles().await?;
+        let handles = self.all_window_handles().await?;
         let handle = handles.get(index).ok_or_else(|| {
             SeleniumBaseError::AssertionFailed(format!("No tab at index {}", index))
         })?;
@@ -948,7 +948,7 @@ impl BaseCase {
 
     /// Switches focus to the most recently opened tab/window.
     pub async fn switch_to_newest_tab(&self) -> Result<(), SeleniumBaseError> {
-        let handles = self.get_all_window_handles().await?;
+        let handles = self.all_window_handles().await?;
         let last = handles.last().ok_or_else(|| {
             SeleniumBaseError::AssertionFailed("No windows available".to_owned())
         })?;
@@ -956,7 +956,7 @@ impl BaseCase {
     }
 
     /// Returns all open window/tab handles.
-    pub async fn get_all_window_handles(&self) -> Result<Vec<String>, SeleniumBaseError> {
+    pub async fn all_window_handles(&self) -> Result<Vec<String>, SeleniumBaseError> {
         let handles = self.session.webdriver()?
             .windows()
             .await?;
@@ -964,7 +964,7 @@ impl BaseCase {
     }
 
     /// Returns the handle of the currently focused window/tab.
-    pub async fn get_current_window_handle(&self) -> Result<String, SeleniumBaseError> {
+    pub async fn current_window_handle(&self) -> Result<String, SeleniumBaseError> {
         let handle = self.session.webdriver()?
             .window()
             .await?;
@@ -1112,7 +1112,7 @@ impl BaseCase {
     }
 
     /// Returns all console log lines recorded so far.
-    pub async fn get_recorded_console_logs(&self) -> Result<Vec<String>, SeleniumBaseError> {
+    pub async fn recorded_console_logs(&self) -> Result<Vec<String>, SeleniumBaseError> {
         let result = self
             .execute_script("return window.__sbConsoleLogs || [];")
             .await?;
@@ -1133,7 +1133,7 @@ impl BaseCase {
     // ========================================================================
 
     /// Generates the current TOTP code for `secret`.
-    pub fn get_totp_code(&self, secret: &str) -> Result<String, SeleniumBaseError> {
+    pub fn totp_code(&self, secret: &str) -> Result<String, SeleniumBaseError> {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
@@ -1141,20 +1141,20 @@ impl BaseCase {
         generate_totp(secret, now)
     }
 
-    /// Alias for `get_totp_code`.
-    pub fn get_mfa_code(&self, secret: &str) -> Result<String, SeleniumBaseError> {
-        self.get_totp_code(secret)
+    /// Alias for `totp_code`.
+    pub fn mfa_code(&self, secret: &str) -> Result<String, SeleniumBaseError> {
+        self.totp_code(secret)
     }
 
-    /// Alias for `get_totp_code` (Google Authenticator uses standard TOTP).
-    pub fn get_google_auth_code(&self, secret: &str) -> Result<String, SeleniumBaseError> {
-        self.get_totp_code(secret)
+    /// Alias for `totp_code` (Google Authenticator uses standard TOTP).
+    pub fn google_auth_code(&self, secret: &str) -> Result<String, SeleniumBaseError> {
+        self.totp_code(secret)
     }
 
-    /// Alias for `get_totp_code`: Python's `get_google_auth_password(totp_key)`
+    /// Alias for `totp_code`: Python's `get_google_auth_password(totp_key)`
     /// is the same call as its `get_mfa_code`.
-    pub fn get_google_auth_password(&self, totp_key: &str) -> Result<String, SeleniumBaseError> {
-        self.get_mfa_code(totp_key)
+    pub fn google_auth_password(&self, totp_key: &str) -> Result<String, SeleniumBaseError> {
+        self.mfa_code(totp_key)
     }
 
 
@@ -1166,7 +1166,7 @@ impl BaseCase {
         css: &str,
         secret: &str,
     ) -> Result<(), SeleniumBaseError> {
-        let code = self.get_totp_code(secret)?;
+        let code = self.totp_code(secret)?;
         self.type_text(css, &format!("{code}\n")).await
     }
 
@@ -1199,7 +1199,7 @@ impl BaseCase {
     // ========================================================================
 
     /// Returns the list of files in the browser's default download folder.
-    pub fn get_downloaded_files(
+    pub fn downloaded_files(
         &self,
     ) -> Result<Vec<PathBuf>, SeleniumBaseError> {
         let dir = default_download_dir();
@@ -1260,7 +1260,7 @@ impl BaseCase {
         url: &str,
         filename: &str,
         timeout_secs: u64,
-    ) -> Result<PathBuf, SeleniumBaseError> { let original = self.get_current_window_handle().await?;
+    ) -> Result<PathBuf, SeleniumBaseError> { let original = self.current_window_handle().await?;
     self.session.switch_to_new_window().await?;
     self.open(url).await?;
     let expected = crate::artifacts::confined_path(&default_download_dir(), filename)?;
@@ -1318,7 +1318,7 @@ impl BaseCase {
         };
         let folder = folder.map_or_else(default_download_dir, Path::to_path_buf);
         let path = crate::artifacts::confined_path(&folder, &name)?;
-        let agent = self.get_user_agent().await?;
+        let agent = self.user_agent().await?;
         let body = fetch_bytes(file_url, &agent).await?;
         fs::create_dir_all(&folder)?;
         fs::write(&path, body)?;
@@ -1822,12 +1822,12 @@ impl BaseCase {
     }
 
     /// Returns the path to the latest logs directory.
-    pub fn get_log_path(&self) -> Result<PathBuf, SeleniumBaseError> {
+    pub fn log_path(&self) -> Result<PathBuf, SeleniumBaseError> {
         ensure_latest_logs_dir()
     }
 
     /// Returns the browser download folder path.
-    pub fn get_browser_downloads_folder(&self) -> PathBuf {
+    pub fn browser_downloads_folder(&self) -> PathBuf {
         default_download_dir()
     }
 
@@ -1855,22 +1855,22 @@ impl BaseCase {
         self.refresh().await
     }
 
-    /// Alias for `get_current_url`.
-    pub async fn get_url(&mut self) -> Result<String, SeleniumBaseError> {
-        self.get_current_url().await
+    /// Alias for `current_url`.
+    pub async fn url(&mut self) -> Result<String, SeleniumBaseError> {
+        self.current_url().await
     }
 
-    /// Alias for `get_title`.
-    pub async fn get_page_title(&mut self) -> Result<String, SeleniumBaseError> {
-        self.get_title().await
+    /// Alias for `title`.
+    pub async fn page_title(&mut self) -> Result<String, SeleniumBaseError> {
+        self.title().await
     }
 
-    /// Alias for `get_text`.
-    pub async fn get_text_of_element(
+    /// Alias for `text`.
+    pub async fn text_of_element(
         &mut self,
         css: &str,
     ) -> Result<String, SeleniumBaseError> {
-        self.get_text(css).await
+        self.text(css).await
     }
 }
 

@@ -80,14 +80,14 @@ async fn the_regular_methods_read_a_shadow_selector() -> Result<()> {
         // Python also reads the combinator with a space before it.
         sb.assert_exact_text("App shell", "app-shell ::shadow #title")
             .await?;
-        assert_eq!(sb.get_text("app-shell::shadow #title").await?, "App shell");
+        assert_eq!(sb.text("app-shell::shadow #title").await?, "App shell");
 
         sb.type_text("app-shell::shadow #name", "Ada").await?;
         sb.click("app-shell::shadow #go").await?;
         sb.assert_exact_text("Hello, Ada", "app-shell::shadow #greeting")
             .await?;
         assert_eq!(
-            sb.get_attribute("app-shell::shadow #go", "data-kind")
+            sb.attribute("app-shell::shadow #go", "data-kind")
                 .await?
                 .as_deref(),
             Some("primary")
@@ -134,7 +134,7 @@ async fn the_regular_methods_read_a_shadow_selector() -> Result<()> {
         sb.set_timeout(1).await?;
         assert!(sb.click("#light::shadow #go").await.is_err());
         assert!(sb.click("app-shell::shadow #nope").await.is_err());
-        assert!(sb.get_text("nope-host::shadow #go").await.is_err());
+        assert!(sb.text("nope-host::shadow #go").await.is_err());
         Ok(())
     })
     .await
@@ -153,15 +153,15 @@ async fn a_chain_crosses_three_shadow_roots() -> Result<()> {
 
         sb.assert_exact_text("Admin", two).await?;
         sb.assert_exact_text("Gold", three).await?;
-        assert_eq!(sb.get_text(three).await?, "Gold");
+        assert_eq!(sb.text(three).await?, "Gold");
         assert_eq!(
-            sb.get_attribute(three, "data-tier").await?.as_deref(),
+            sb.attribute(three, "data-tier").await?.as_deref(),
             Some("gold")
         );
         sb.type_text("app-shell::shadow user-card::shadow input.note", "hi")
             .await?;
         assert_eq!(
-            sb.get_attribute("app-shell::shadow user-card::shadow input.note", "value")
+            sb.attribute("app-shell::shadow user-card::shadow input.note", "value")
                 .await?
                 .as_deref(),
             Some("hi")
@@ -223,7 +223,7 @@ async fn a_container_that_only_slots_its_content_gives_its_rendered_text() -> Re
         // Python's get_text reads what the browser shows, slotted text
         // included; the container's own textContent is empty.
         assert_eq!(
-            sb.get_text("fancy-tabs::shadow #panels").await?,
+            sb.text("fancy-tabs::shadow #panels").await?,
             "Content Panel 1"
         );
         sb.assert_exact_text("Content Panel 1", "fancy-tabs::shadow #panels")
@@ -320,7 +320,7 @@ async fn a_selector_that_ends_on_a_shadow_root_is_refused_at_once() -> Result<()
         sb.set_timeout(5).await?;
         let started = std::time::Instant::now();
         let error = sb
-            .get_text("app-shell ::shadow")
+            .text("app-shell ::shadow")
             .await
             .expect_err("a selector must end inside a shadow root")
             .to_string();

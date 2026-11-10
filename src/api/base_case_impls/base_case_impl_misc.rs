@@ -152,7 +152,7 @@ impl BaseCase {
         level: u8,
     ) -> Result<(), SeleniumBaseError> {
         if let Err(error) = self.check_window(name, level).await {
-            let url = self.get_current_url().await.ok();
+            let url = self.current_url().await.ok();
             self.deferred.record_failure(url, error.to_string());
         }
         Ok(())
@@ -356,9 +356,9 @@ impl BaseCase {
         }
     }
 
-    /// Alias for `get_beautiful_soup_object`.
-    pub async fn get_beautiful_soup(&self) -> Result<BeautifulSoup, SeleniumBaseError> {
-        self.get_beautiful_soup_object().await
+    /// Alias for `beautiful_soup_object`.
+    pub async fn beautiful_soup(&self) -> Result<BeautifulSoup, SeleniumBaseError> {
+        self.beautiful_soup_object().await
     }
 
     /// Executes a CDP command with the given parameters.

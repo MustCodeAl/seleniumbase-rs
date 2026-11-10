@@ -137,7 +137,7 @@ sb_steps! {
 
     /// Asserts that an element has an attribute.
     fn assert_attribute(sb, selector: String, attribute: String) {
-        match sb.get_attribute(&selector, &attribute).await? {
+        match sb.attribute(&selector, &attribute).await? {
             Some(_) => Ok(()),
             None => Err(SeleniumBaseError::AssertionFailed(format!(
                 "Expected attribute '{attribute}' of '{selector}' to be there"

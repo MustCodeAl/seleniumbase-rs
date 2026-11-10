@@ -120,13 +120,12 @@ impl BaseCase {
     ///
     /// Returns the CDP error if neither source gives a version, rather than an
     /// empty or made-up string.
-    pub async fn get_browser_version(&self) -> Result<String, SeleniumBaseError> {
+    pub async fn browser_version(&self) -> Result<String, SeleniumBaseError> {
         match self.browser_version_info().await {
             Ok(info) => info["product"].as_str().map(str::to_owned).ok_or_else(|| {
                 SeleniumBaseError::Unsupported("Browser.getVersion reported no product".to_owned())
             }),
-            Err(cdp_error) => self
-                .get_user_agent()
+            Err(cdp_error) => self.user_agent()
                 .await
                 .ok()
                 .and_then(|user_agent| product_from_user_agent(&user_agent))
@@ -135,14 +134,14 @@ impl BaseCase {
     }
 
     /// The browser's version number, such as `126.0.6478.126`, without the
-    /// product name that [`get_browser_version`](Self::get_browser_version)
+    /// product name that [`browser_version`](Self::browser_version)
     /// keeps. Corresponds to Python's `get_chrome_version`.
     ///
     /// # Errors
     ///
-    /// See [`get_browser_version`](Self::get_browser_version).
-    pub async fn get_chrome_version(&self) -> Result<String, SeleniumBaseError> {
-        self.get_browser_version()
+    /// See [`browser_version`](Self::browser_version).
+    pub async fn chrome_version(&self) -> Result<String, SeleniumBaseError> {
+        self.browser_version()
             .await
             .map(|product| version_number(&product))
     }
@@ -152,9 +151,9 @@ impl BaseCase {
     ///
     /// # Errors
     ///
-    /// See [`get_browser_version`](Self::get_browser_version).
-    pub async fn get_chromium_version(&self) -> Result<String, SeleniumBaseError> {
-        self.get_chrome_version()
+    /// See [`browser_version`](Self::browser_version).
+    pub async fn chromium_version(&self) -> Result<String, SeleniumBaseError> {
+        self.chrome_version()
             .await
             .map(|version| major_version(&version))
     }
@@ -170,7 +169,7 @@ impl BaseCase {
     ///
     /// Returns [`SeleniumBaseError::Unsupported`] if the session reports no
     /// driver version, as a Firefox session does not.
-    pub fn get_chromedriver_version(&self) -> Result<String, SeleniumBaseError> {
+    pub fn chromedriver_version(&self) -> Result<String, SeleniumBaseError> {
         let capabilities = serde_json::to_value(self.session.webdriver()?.capabilities())?;
         driver_version_from_capabilities(&capabilities).ok_or_else(|| {
             SeleniumBaseError::Unsupported(
@@ -179,9 +178,9 @@ impl BaseCase {
         })
     }
 
-    /// Alias for `get_chromedriver_version`.
-    pub fn get_chromium_driver_version(&self) -> Result<String, SeleniumBaseError> {
-        self.get_chromedriver_version()
+    /// Alias for `chromedriver_version`.
+    pub fn chromium_driver_version(&self) -> Result<String, SeleniumBaseError> {
+        self.chromedriver_version()
     }
 
     /// Returns true if the browser reports an online network state.

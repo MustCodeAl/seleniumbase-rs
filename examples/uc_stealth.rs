@@ -48,7 +48,7 @@ async fn demo(sb: &mut BaseCase, url: String, own_page: bool) -> Result<()> {
     sb.wait_for_ready_state_complete().await?;
     sb.wait_for_element_visible("body", 10).await?;
 
-    let title = sb.get_title().await?;
+    let title = sb.title().await?;
     println!("Title: {title}");
     if own_page {
         ensure(title == "Web Testing Page", "the demo page loaded")?;

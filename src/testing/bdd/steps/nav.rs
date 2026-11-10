@@ -37,7 +37,7 @@ sb_steps! {
         "User maximizes the window";
 
     /// Starts another browser and makes it the current one.
-    fn get_new_driver(sb) { sb.get_new_driver().await.map(drop) }
+    fn get_new_driver(sb) { sb.new_driver().await.map(drop) }
         "Get new driver", "User gets new driver";
 
     /// Goes back to the first browser.

@@ -54,7 +54,7 @@ async fn pressing_escape_in_the_page_ends_the_test() {
 
     // Until ESC is pressed, calls do their work.
     sb.click("#go").await.expect("the first click works");
-    assert_eq!(sb.get_title().await.unwrap(), "clicked");
+    assert_eq!(sb.title().await.unwrap(), "clicked");
     reset_title(&sb).await;
 
     // The person presses ESC with the page in front of them.
@@ -70,7 +70,7 @@ async fn pressing_escape_in_the_page_ends_the_test() {
         "{error:?}"
     );
     assert_eq!(
-        sb.get_title().await.unwrap(),
+        sb.title().await.unwrap(),
         "start",
         "the stopped click did not click"
     );
@@ -98,7 +98,7 @@ async fn without_the_setting_escape_changes_nothing() {
     sb.click("#box").await.expect("focus the input");
     sb.press_key("escape").await.expect("press ESC");
     sb.click("#go").await.expect("ESC is ignored");
-    assert_eq!(sb.get_title().await.unwrap(), "clicked");
+    assert_eq!(sb.title().await.unwrap(), "clicked");
     sb.wait_for_ready_state_complete()
         .await
         .expect("the page is ready");

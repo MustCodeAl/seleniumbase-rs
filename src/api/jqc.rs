@@ -9,14 +9,14 @@
 //! # use seleniumbase_rs::{BaseCase, SeleniumBaseError};
 //! # async fn demo(sb: &BaseCase) -> Result<(), SeleniumBaseError> {
 //! let answer = sb
-//!     .get_jqc_button_input("Continue?", [("Yes", "green"), ("No", "red")])
+//!     .jqc_button_input("Continue?", [("Yes", "green"), ("No", "red")])
 //!     .await?;
 //! let name = sb
-//!     .get_jqc_text_input("Your name?")
+//!     .jqc_text_input("Your name?")
 //!     .button(("Send", "orange"))
 //!     .options([("theme", "material"), ("width", "52%")])
 //!     .await?;
-//! let (text, button) = sb.get_jqc_form_inputs("Reason?", ["OK", "Cancel"]).await?;
+//! let (text, button) = sb.jqc_form_inputs("Reason?", ["OK", "Cancel"]).await?;
 //! # Ok(()) }
 //! ```
 //!
@@ -1298,16 +1298,13 @@ mod tests {
         let sb = BaseCase::new(config).await.unwrap();
 
         let button = sb
-            .get_jqc_button_input("Sure?", [("A", "red"), ("B", "green")])
+            .jqc_button_input("Sure?", [("A", "red"), ("B", "green")])
             .await
             .unwrap();
         assert_eq!(button, "B");
-        let text = sb.get_jqc_text_input("Name?").await.unwrap();
+        let text = sb.jqc_text_input("Name?").await.unwrap();
         assert_eq!(text, "");
-        let form = sb
-            .get_jqc_form_inputs("Why?", ["First", "Last"])
-            .await
-            .unwrap();
+        let form = sb.jqc_form_inputs("Why?", ["First", "Last"]).await.unwrap();
         assert_eq!(form, (String::new(), "Last".to_owned()));
 
         let scripted: Vec<_> = driver
@@ -1322,22 +1319,19 @@ mod tests {
     async fn the_arguments_are_checked_even_where_nobody_watches() {
         let sb = case_without_session(true);
         let none: [&str; 0] = [];
-        let empty = sb.get_jqc_button_input("?", none).await;
+        let empty = sb.jqc_button_input("?", none).await;
         assert_eq!(
             message_of(empty),
             "List \"buttons\" requires at least one button!"
         );
-        let empty = sb.get_jqc_form_inputs("?", none).await;
+        let empty = sb.jqc_form_inputs("?", none).await;
         assert!(message_of(empty).contains("requires at least one button"));
 
-        let colour = sb.get_jqc_button_input("?", [("A", "pink")]).await;
+        let colour = sb.jqc_button_input("?", [("A", "pink")]).await;
         assert!(message_of(colour).contains("pink is an invalid jquery-confirm button color!"));
-        let colour = sb.get_jqc_text_input("?").button(("Go", "pink")).await;
+        let colour = sb.jqc_text_input("?").button(("Go", "pink")).await;
         assert!(message_of(colour).contains("invalid jquery-confirm button color"));
-        let option = sb
-            .get_jqc_text_input("?")
-            .options([("shape", "round")])
-            .await;
+        let option = sb.jqc_text_input("?").options([("shape", "round")]).await;
         assert_eq!(message_of(option), "Unknown option: \"shape\"");
     }
 
@@ -1345,9 +1339,9 @@ mod tests {
     fn the_futures_of_the_calls_are_send() {
         fn assert_send<T: Send>(_: &T) {}
         let sb = case_without_session(true);
-        assert_send(&sb.get_jqc_button_input("m", ["a"]).into_future());
-        assert_send(&sb.get_jqc_text_input("m").into_future());
-        assert_send(&sb.get_jqc_form_inputs("m", ["a"]).into_future());
+        assert_send(&sb.jqc_button_input("m", ["a"]).into_future());
+        assert_send(&sb.jqc_text_input("m").into_future());
+        assert_send(&sb.jqc_form_inputs("m", ["a"]).into_future());
     }
 
     /// A browser that shows a dialog: it answers the library loads, reports the
@@ -1394,7 +1388,7 @@ mod tests {
         let sb = watched_case(&driver).await;
 
         let (text, button) = sb
-            .get_jqc_form_inputs("Why?", [("A", "green"), ("B", "red")])
+            .jqc_form_inputs("Why?", [("A", "green"), ("B", "red")])
             .theme(JqcTheme::Seamless)
             .await
             .unwrap();
@@ -1429,7 +1423,7 @@ mod tests {
         sb.set_jqc_theme("Material", Some("red"), Some("52"))
             .unwrap();
 
-        sb.get_jqc_button_input("Hi", ["OK"]).await.unwrap();
+        sb.jqc_button_input("Hi", ["OK"]).await.unwrap();
         let script = scripts(&driver)
             .into_iter()
             .find(|script| script.contains("jconfirm({"))
@@ -1439,13 +1433,13 @@ mod tests {
         assert!(script.contains(r#"boxWidth: "52%""#), "{script}");
 
         // A call's own option wins for that call only.
-        sb.get_jqc_button_input("Hi", ["OK"])
+        sb.jqc_button_input("Hi", ["OK"])
             .options([("theme", "dark")])
             .await
             .unwrap();
         sb.reset_jqc_theme();
         assert_eq!(*sb.jqc_defaults(), JqcDefaults::default());
-        sb.get_jqc_button_input("Hi", ["OK"]).await.unwrap();
+        sb.jqc_button_input("Hi", ["OK"]).await.unwrap();
         let opened: Vec<_> = scripts(&driver)
             .into_iter()
             .filter(|script| script.contains("jconfirm({"))
@@ -1459,13 +1453,13 @@ mod tests {
         // The page navigated: jconfirm is gone.
         let driver = dialog_driver(vec![1, -1], Value::Null);
         let sb = watched_case(&driver).await;
-        let error = sb.get_jqc_text_input("Name?").await;
+        let error = sb.jqc_text_input("Name?").await;
         assert!(message_of(error).contains("closed without an answer"));
 
         // It closed, but stored nothing.
         let driver = dialog_driver(vec![0], Value::Null);
         let sb = watched_case(&driver).await;
-        let error = sb.get_jqc_button_input("Sure?", ["OK"]).await;
+        let error = sb.jqc_button_input("Sure?", ["OK"]).await;
         assert!(message_of(error).contains("closed without an answer"));
     }
 

@@ -10,7 +10,7 @@ use seleniumbase_rs::{tokio, Result};
 async fn test_window_switching(sb: Sb) -> Result<()> {
     sb.run(async |sb| {
         sb.goto("about:blank").await?;
-        sb.get_new_driver().await?;
+        sb.new_driver().await?;
         sb.goto("data:text/html,<h1>Page A</h1>").await?;
         sb.assert_text("Page A", "html").await?;
         sb.open_new_window().await?;

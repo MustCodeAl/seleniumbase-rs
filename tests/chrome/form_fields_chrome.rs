@@ -137,7 +137,7 @@ async fn get_attribute_falls_back_to_the_dom_property() -> Result<()> {
         sb.set_timeout(1).await?;
 
         // A select has no value attribute: Selenium gives the chosen value.
-        let chosen = sb.get_attribute("#pick", "value").await?;
+        let chosen = sb.attribute("#pick", "value").await?;
         assert_eq!(chosen.as_deref(), Some("v2"));
         sb.assert_attribute("#pick", "value", "v2").await?;
         assert!(sb.assert_attribute("#pick", "value", "v1").await.is_err());
@@ -145,20 +145,17 @@ async fn get_attribute_falls_back_to_the_dom_property() -> Result<()> {
         // An input's value attribute is what the page wrote; its value is
         // what was typed.
         sb.type_text("#name", "typed").await?;
-        let typed = sb.get_attribute("#name", "value").await?;
+        let typed = sb.attribute("#name", "value").await?;
         assert_eq!(typed.as_deref(), Some("typed"));
 
         // An attribute the element has is what the call returns.
-        assert_eq!(
-            sb.get_attribute("#pick", "id").await?.as_deref(),
-            Some("pick")
-        );
+        assert_eq!(sb.attribute("#pick", "id").await?.as_deref(), Some("pick"));
         // A boolean property that is false is no attribute, as in Selenium.
         let unselected = sb
-            .get_attribute("#pick option[value=\"v1\"]", "selected")
+            .attribute("#pick option[value=\"v1\"]", "selected")
             .await?;
         assert_eq!(unselected, None);
-        assert_eq!(sb.get_attribute("#pick", "data-missing").await?, None);
+        assert_eq!(sb.attribute("#pick", "data-missing").await?, None);
         Ok(())
     })
     .await
@@ -175,11 +172,11 @@ async fn get_attribute_gives_what_a_field_holds_now_not_the_value_of_its_markup(
 
         // Before any typing the property is the markup's text.
         assert_eq!(
-            sb.get_attribute("#prefilled", "value").await?.as_deref(),
+            sb.attribute("#prefilled", "value").await?.as_deref(),
             Some("")
         );
         assert_eq!(
-            sb.get_attribute("#greeting", "value").await?.as_deref(),
+            sb.attribute("#greeting", "value").await?.as_deref(),
             Some("Hello")
         );
 
@@ -189,11 +186,11 @@ async fn get_attribute_gives_what_a_field_holds_now_not_the_value_of_its_markup(
         sb.type_text("#prefilled", "typed").await?;
         sb.type_text("#greeting", "Goodbye").await?;
         assert_eq!(
-            sb.get_attribute("#prefilled", "value").await?.as_deref(),
+            sb.attribute("#prefilled", "value").await?.as_deref(),
             Some("typed")
         );
         assert_eq!(
-            sb.get_attribute("#greeting", "value").await?.as_deref(),
+            sb.attribute("#greeting", "value").await?.as_deref(),
             Some("Goodbye")
         );
         sb.assert_attribute("#prefilled", "value", "typed").await?;
@@ -206,11 +203,11 @@ async fn get_attribute_gives_what_a_field_holds_now_not_the_value_of_its_markup(
         // it the property says no, and so does `get_attribute`.
         let walk = "ul.todo-list li:nth-child(2) input.toggle";
         assert_eq!(
-            sb.get_attribute(walk, "checked").await?.as_deref(),
+            sb.attribute(walk, "checked").await?.as_deref(),
             Some("true")
         );
         sb.uncheck_if_checked(walk).await?;
-        assert_eq!(sb.get_attribute(walk, "checked").await?, None);
+        assert_eq!(sb.attribute(walk, "checked").await?, None);
         Ok(())
     })
     .await
@@ -223,22 +220,15 @@ async fn get_select_options_gives_the_text_the_value_or_the_index_of_each_option
     let url = serve();
     run_browser_test(headless(), async |sb| {
         sb.open(&url).await?;
-        assert_eq!(
-            sb.get_select_options("#pick").await?,
-            ["One", "Two", "Three"]
-        );
-        let values = sb.get_select_options("#pick").attribute("value").await?;
+        assert_eq!(sb.select_options("#pick").await?, ["One", "Two", "Three"]);
+        let values = sb.select_options("#pick").attribute("value").await?;
         assert_eq!(values, ["v1", "v2", "v3"]);
-        let indexes = sb.get_select_options("#pick").attribute("index").await?;
+        let indexes = sb.select_options("#pick").attribute("index").await?;
         assert_eq!(indexes, ["0", "1", "2"]);
-        assert!(sb
-            .get_select_options("#pick")
-            .attribute("title")
-            .await
-            .is_err());
+        assert!(sb.select_options("#pick").attribute("title").await.is_err());
         // Not a select.
         sb.set_timeout(1).await?;
-        assert!(sb.get_select_options("#name").await.is_err());
+        assert!(sb.select_options("#name").await.is_err());
         Ok(())
     })
     .await
@@ -267,10 +257,7 @@ async fn checkboxes_at_zero_opacity_or_not_displayed_can_be_checked_and_unchecke
         sb.check_if_unchecked("#hidden-box").await?;
         assert!(sb.is_checked("#hidden-box").await?);
 
-        assert_eq!(
-            sb.get_text("#clicked").await?,
-            "toggle0;toggle1;hidden-box;"
-        );
+        assert_eq!(sb.text("#clicked").await?, "toggle0;toggle1;hidden-box;");
         // The opacity is put back to what the stylesheet says.
         let opacity = sb
             .execute_script(
@@ -301,10 +288,7 @@ async fn js_click_reads_contains_and_xpath_selectors_and_waits_for_the_element()
         // An element that is not displayed can be clicked with a script.
         sb.js_click("#covered").await?;
 
-        assert_eq!(
-            sb.get_text("#clicked").await?,
-            "coffee;coffee;late;covered;"
-        );
+        assert_eq!(sb.text("#clicked").await?, "coffee;coffee;late;covered;");
         Ok(())
     })
     .await

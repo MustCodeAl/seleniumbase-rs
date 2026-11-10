@@ -116,12 +116,10 @@ impl BaseCase {
         Ok(())
     }
 
-    /// The handle of the window the WebDriver is on. An error, not a panic,
-    /// where the session has no WebDriver (a direct CDP attachment, or a
-    /// session that was quit): [`BrowserSession::webdriver`] says which.
-    async fn current_window_handle(&self) -> Result<String, SeleniumBaseError> {
-        Ok(self.session.webdriver()?.window().await?.to_string())
-    }
+
+
+
+    
 
     /// Runs the page script in the document that is loaded now, unless it has
     /// run in this tab's origin already. Returns whether it ran.
@@ -155,7 +153,7 @@ impl BaseCase {
                     .to_owned(),
             ));
         }
-        let url = self.get_current_url().await?;
+        let url = self.current_url().await?;
         if NOT_RECORDED_SCHEMES
             .iter()
             .any(|scheme| url.starts_with(scheme))
@@ -183,7 +181,7 @@ impl BaseCase {
     /// frame that a frame opened in a new tab needs. Only `http`, `https` and
     /// `file` pages are recorded; any other tab has none.
     async fn recorded_actions_on_active_tab(&self) -> Result<Vec<RawAction>, SeleniumBaseError> {
-        let url = self.get_current_url().await?;
+        let url = self.current_url().await?;
         if !crate::api::recorder::recordable(&url) {
             return Ok(Vec::new());
         }
@@ -209,7 +207,7 @@ impl BaseCase {
     ///
     /// Returns the driver's error when the page cannot be read.
     pub async fn save_recorded_actions(&mut self) -> Result<(), SeleniumBaseError> {
-        let url = self.get_current_url().await?;
+        let url = self.current_url().await?;
         if !crate::api::recorder::recordable(&url) {
             return Ok(());
         }
@@ -264,7 +262,7 @@ impl BaseCase {
             self.recording.window_count = handles.len();
             let _ = driver.switch_to_window(newest.clone()).await;
         }
-        let Ok(url) = self.get_current_url().await else {
+        let Ok(url) = self.current_url().await else {
             return false;
         };
         if crate::api::recorder::recordable(&url) {
@@ -442,7 +440,7 @@ impl BaseCase {
         order.extend(others);
         for handle in &order {
             let live = match self.switch_to_window(handle).await {
-                Ok(()) => match self.get_current_url().await {
+                Ok(()) => match self.current_url().await {
                     Ok(url) if crate::api::recorder::recordable(&url) => {
                         origins.push(crate::api::recorder::origin_of(&url));
                         self.recorded_actions_on_active_tab().await.ok()
