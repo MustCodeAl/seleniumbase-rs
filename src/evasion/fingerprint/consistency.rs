@@ -1055,7 +1055,7 @@ pub(crate) fn api_expected(
     }
 }
 
-pub(crate) const APIS: [(&str, &str); 22] = [
+const APIS: [(&str, &str); 22] = [
     ("chrome", "window.chrome"),
     ("userAgentData", "navigator.userAgentData"),
     ("deviceMemory", "navigator.deviceMemory"),
