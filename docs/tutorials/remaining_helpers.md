@@ -268,7 +268,7 @@ engines against a real Chrome.
 ## Window introspection
 
 ```rust
-let (x, y, width, height) = sb.get_window_rect().await?;
+let (x, y, width, height) = sb.window_rect().await?;
 sb.maximize().await?;
 sb.minimize().await?;
 ```
@@ -301,7 +301,7 @@ sb.start_recording_console_logs().await?;
 // console_log_script(script) do:
 sb.console_log_string("Custom log entry").await?;
 sb.console_log_script("document.title").await?;
-let logs = sb.get_recorded_console_logs().await?;
+let logs = sb.recorded_console_logs().await?;
 ```
 
 ## Referral / traffic helpers

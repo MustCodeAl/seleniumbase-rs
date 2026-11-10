@@ -197,69 +197,69 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `generate_traffic` | implemented | `BaseCase::generate_traffic` | Runs generate_referral `loops` times (a u32), with a 0.05 s pause after each. |
 | `generate_traffic_chain` | implemented | `BaseCase::generate_traffic_chain` | Runs generate_referral_chain `loops` times (a u32), with a 0.05 s pause after each. |
 | `get` | implemented | `BaseCase::get` |  |
-| `get_active_element_css` | implemented | `BaseCase::get_active_element_css` |  |
-| `get_attribute` | implemented | `BaseCase::get_attribute` | Differs: Returns None when the element has neither the attribute nor a DOM property of that name that is set, where Python raises (its hard_fail=False returns None); has no timeout, by or hard_fail arguments (the wait is the default timeout, see set_timeout). |
-| `get_beautiful_soup` | implemented | `BaseCase::get_beautiful_soup` |  |
-| `get_browser_downloads_folder` | implemented | `BaseCase::get_browser_downloads_folder` |  |
-| `get_chrome_version` | implemented | `BaseCase::get_chrome_version` |  |
-| `get_chromedriver_version` | implemented | `BaseCase::get_chromedriver_version` |  |
-| `get_chromium_driver_version` | implemented | `BaseCase::get_chromium_driver_version` |  |
-| `get_chromium_version` | implemented | `BaseCase::get_chromium_version` |  |
-| `get_cookie` | implemented | `BaseCase::get_cookie` | Returns Option&lt;Cookie&gt;: None when the page has no such cookie, as Python's None. |
-| `get_cookie_string` | implemented | `BaseCase::get_cookie_string` |  |
-| `get_cookies` | implemented | `BaseCase::get_cookies` | Returns Vec&lt;Cookie&gt; (the cookies of the current page), the same type in DevTools and plain WebDriver mode. |
-| `get_current_url` | implemented | `BaseCase::get_current_url` |  |
-| `get_data_from_downloaded_file` | implemented | `BaseCase::get_data_from_downloaded_file` |  |
-| `get_domain_url` | implemented | `BaseCase::get_domain_url` | A pure function of its argument, as in Python: a string that is not an http(s) URL comes back as it is. The scheme's own default port is dropped. |
-| `get_downloaded_files` | implemented | `BaseCase::get_downloaded_files` |  |
-| `get_downloads_folder` | implemented | `BaseCase::get_downloads_folder` |  |
-| `get_element` | implemented | `BaseCase::get_element` |  |
-| `get_element_at_x_y` | implemented | `BaseCase::get_element_at_x_y` |  |
-| `get_file_data` | implemented | `BaseCase::get_file_data` |  |
-| `get_google_auth_code` | implemented | `BaseCase::get_google_auth_code` |  |
-| `get_google_auth_password` | implemented | `BaseCase::get_google_auth_password` | An alias of get_mfa_code, as in Python. |
-| `get_gui_element_center` | implemented | `BaseCase::get_gui_element_center` |  |
-| `get_gui_element_rect` | implemented | `BaseCase::get_gui_element_rect` |  |
-| `get_html` | implemented | `BaseCase::get_html` |  |
-| `get_image_url` | implemented | `BaseCase::get_image_url` |  |
-| `get_jqc_button_input` | implemented | `BaseCase::get_jqc_button_input` | A call builder: await it, with Python's extra arguments as the builder methods (options, and button for the text input). A headless browser or a virtual display opens no dialog and returns Python's value at once. |
-| `get_jqc_form_inputs` | implemented | `BaseCase::get_jqc_form_inputs` | A call builder: await it, with Python's extra arguments as the builder methods (options, and button for the text input). A headless browser or a virtual display opens no dialog and returns Python's value at once. |
-| `get_jqc_text_input` | implemented | `BaseCase::get_jqc_text_input` | A call builder: await it, with Python's extra arguments as the builder methods (options, and button for the text input). A headless browser or a virtual display opens no dialog and returns Python's value at once. |
-| `get_link_attribute` | implemented | `BaseCase::get_link_attribute` |  |
-| `get_link_status_code` | implemented | `BaseCase::get_link_status_code` |  |
-| `get_link_text_attribute` | implemented | `BaseCase::get_link_text_attribute` |  |
-| `get_local_storage_item` | implemented | `BaseCase::get_local_storage_item` |  |
-| `get_local_storage_items` | implemented | `BaseCase::get_local_storage_items` |  |
-| `get_local_storage_keys` | implemented | `BaseCase::get_local_storage_keys` |  |
-| `get_locale_code` | implemented | `BaseCase::get_locale_code` |  |
-| `get_mfa_code` | implemented | `BaseCase::get_mfa_code` |  |
-| `get_new_driver` | implemented | `BaseCase::get_new_driver` | Differs: Returns a DriverId, not the driver object. The browser options of Python's arguments go in a BrowserConfig: get_new_driver_with(config). |
-| `get_origin` | implemented | `BaseCase::get_origin` |  |
-| `get_page_source` | implemented | `BaseCase::get_page_source` |  |
-| `get_page_title` | implemented | `BaseCase::get_page_title` |  |
-| `get_parent` | implemented | `BaseCase::get_parent` |  |
-| `get_partial_link_text_attribute` | implemented | `BaseCase::get_partial_link_text_attribute` |  |
-| `get_path_of_downloaded_file` | implemented | `BaseCase::get_path_of_downloaded_file` |  |
-| `get_pdf_text` | implemented | `BaseCase::get_pdf_text` |  |
-| `get_property` | implemented | `BaseCase::get_property` |  |
-| `get_property_value` | implemented | `BaseCase::get_property_value` |  |
-| `get_recorded_console_logs` | implemented | `BaseCase::get_recorded_console_logs` |  |
-| `get_saved_cookies` | implemented | `BaseCase::get_saved_cookies` |  |
-| `get_screen_rect` | implemented | `BaseCase::get_screen_rect` |  |
-| `get_select_options` | implemented | `BaseCase::get_select_options` | Differs: Takes Python's attribute ("text" by default, "index" or "value") and timeout as call-builder keywords, .attribute(..) and .timeout(..), and returns Vec&lt;String&gt;. Python's attribute=None, which gives the option elements, has no equal; the by argument is the selector's own prefix. |
-| `get_session_storage_item` | implemented | `BaseCase::get_session_storage_item` |  |
-| `get_session_storage_items` | implemented | `BaseCase::get_session_storage_items` |  |
-| `get_session_storage_keys` | implemented | `BaseCase::get_session_storage_keys` |  |
-| `get_text` | implemented | `BaseCase::get_text` | A ::shadow selector (host::shadow inner) is read by this method and by every other that takes a selector, as in Python: the element is waited for, closed roots are entered, and the text is what the browser shows (a container that only slots its content gives the slotted text). shadow_get_text and the other shadow_* methods are the same lookups. An &lt;input&gt; or a &lt;textarea&gt; gives its value (the DOM property), as Python's get_text does, and any other element the text the browser renders. Differs: Waits for the element to be present, where Python waits until it is visible: an element that is not displayed answers at once, with the empty text the browser renders for it (the value of a hidden &lt;input&gt; is still its value), and the call does not wait for it to show. |
-| `get_text_content` | implemented | `BaseCase::get_text_content` | Differs: Gives the text the browser renders for the element, where Python reads its textContent property, the text of the markup: an element that is not displayed (display: none) answers an empty string here, and the white space the browser collapses and the text-transform of the page apply. |
-| `get_title` | implemented | `BaseCase::get_title` |  |
-| `get_totp_code` | implemented | `BaseCase::get_totp_code` |  |
-| `get_unique_links` | implemented | `BaseCase::get_unique_links` |  |
-| `get_user_agent` | implemented | `BaseCase::get_user_agent` |  |
-| `get_value` | implemented | `BaseCase::get_value` |  |
-| `get_window_position` | implemented | `BaseCase::get_window_position` |  |
-| `get_window_rect` | implemented | `BaseCase::get_window_rect` | Differs: Returns an (x, y, width, height) tuple; Python returns a dict. |
-| `get_window_size` | implemented | `BaseCase::get_window_size` |  |
+| `get_active_element_css` | implemented | `BaseCase::active_element_css` |  |
+| `get_attribute` | implemented | `BaseCase::attribute` | Differs: Returns None when the element has neither the attribute nor a DOM property of that name that is set, where Python raises (its hard_fail=False returns None); has no timeout, by or hard_fail arguments (the wait is the default timeout, see set_timeout). |
+| `get_beautiful_soup` | implemented | `BaseCase::beautiful_soup` |  |
+| `get_browser_downloads_folder` | implemented | `BaseCase::browser_downloads_folder` |  |
+| `get_chrome_version` | implemented | `BaseCase::chrome_version` |  |
+| `get_chromedriver_version` | implemented | `BaseCase::chromedriver_version` |  |
+| `get_chromium_driver_version` | implemented | `BaseCase::chromium_driver_version` |  |
+| `get_chromium_version` | implemented | `BaseCase::chromium_version` |  |
+| `get_cookie` | implemented | `BaseCase::cookie` | Returns Option&lt;Cookie&gt;: None when the page has no such cookie, as Python's None. |
+| `get_cookie_string` | implemented | `BaseCase::cookie_string` |  |
+| `get_cookies` | implemented | `BaseCase::cookies` | Returns Vec&lt;Cookie&gt; (the cookies of the current page), the same type in DevTools and plain WebDriver mode. |
+| `get_current_url` | implemented | `BaseCase::current_url` |  |
+| `get_data_from_downloaded_file` | implemented | `BaseCase::data_from_downloaded_file` |  |
+| `get_domain_url` | implemented | `BaseCase::domain_url` | A pure function of its argument, as in Python: a string that is not an http(s) URL comes back as it is. The scheme's own default port is dropped. |
+| `get_downloaded_files` | implemented | `BaseCase::downloaded_files` |  |
+| `get_downloads_folder` | implemented | `BaseCase::downloads_folder` |  |
+| `get_element` | implemented | `BaseCase::element` |  |
+| `get_element_at_x_y` | implemented | `BaseCase::element_at_x_y` |  |
+| `get_file_data` | implemented | `BaseCase::file_data` |  |
+| `get_google_auth_code` | implemented | `BaseCase::google_auth_code` |  |
+| `get_google_auth_password` | implemented | `BaseCase::google_auth_password` | An alias of get_mfa_code, as in Python. |
+| `get_gui_element_center` | implemented | `BaseCase::gui_element_center` |  |
+| `get_gui_element_rect` | implemented | `BaseCase::gui_element_rect` |  |
+| `get_html` | implemented | `BaseCase::html` |  |
+| `get_image_url` | implemented | `BaseCase::image_url` |  |
+| `get_jqc_button_input` | implemented | `BaseCase::jqc_button_input` | A call builder: await it, with Python's extra arguments as the builder methods (options, and button for the text input). A headless browser or a virtual display opens no dialog and returns Python's value at once. |
+| `get_jqc_form_inputs` | implemented | `BaseCase::jqc_form_inputs` | A call builder: await it, with Python's extra arguments as the builder methods (options, and button for the text input). A headless browser or a virtual display opens no dialog and returns Python's value at once. |
+| `get_jqc_text_input` | implemented | `BaseCase::jqc_text_input` | A call builder: await it, with Python's extra arguments as the builder methods (options, and button for the text input). A headless browser or a virtual display opens no dialog and returns Python's value at once. |
+| `get_link_attribute` | implemented | `BaseCase::link_attribute` |  |
+| `get_link_status_code` | implemented | `BaseCase::link_status_code` |  |
+| `get_link_text_attribute` | implemented | `BaseCase::link_text_attribute` |  |
+| `get_local_storage_item` | implemented | `BaseCase::local_storage_item` |  |
+| `get_local_storage_items` | implemented | `BaseCase::local_storage_items` |  |
+| `get_local_storage_keys` | implemented | `BaseCase::local_storage_keys` |  |
+| `get_locale_code` | implemented | `BaseCase::locale_code` |  |
+| `get_mfa_code` | implemented | `BaseCase::mfa_code` |  |
+| `get_new_driver` | implemented | `BaseCase::new_driver` | Differs: Returns a DriverId, not the driver object. The browser options of Python's arguments go in a BrowserConfig: get_new_driver_with(config). |
+| `get_origin` | implemented | `BaseCase::origin` |  |
+| `get_page_source` | implemented | `BaseCase::page_source` |  |
+| `get_page_title` | implemented | `BaseCase::page_title` |  |
+| `get_parent` | implemented | `BaseCase::parent` |  |
+| `get_partial_link_text_attribute` | implemented | `BaseCase::partial_link_text_attribute` |  |
+| `get_path_of_downloaded_file` | implemented | `BaseCase::path_of_downloaded_file` |  |
+| `get_pdf_text` | implemented | `BaseCase::pdf_text` |  |
+| `get_property` | implemented | `BaseCase::property` |  |
+| `get_property_value` | implemented | `BaseCase::property_value` |  |
+| `get_recorded_console_logs` | implemented | `BaseCase::recorded_console_logs` |  |
+| `get_saved_cookies` | implemented | `BaseCase::saved_cookies` |  |
+| `get_screen_rect` | implemented | `BaseCase::screen_rect` |  |
+| `get_select_options` | implemented | `BaseCase::select_options` | Differs: Takes Python's attribute ("text" by default, "index" or "value") and timeout as call-builder keywords, .attribute(..) and .timeout(..), and returns Vec&lt;String&gt;. Python's attribute=None, which gives the option elements, has no equal; the by argument is the selector's own prefix. |
+| `get_session_storage_item` | implemented | `BaseCase::session_storage_item` |  |
+| `get_session_storage_items` | implemented | `BaseCase::session_storage_items` |  |
+| `get_session_storage_keys` | implemented | `BaseCase::session_storage_keys` |  |
+| `get_text` | implemented | `BaseCase::text` | A ::shadow selector (host::shadow inner) is read by this method and by every other that takes a selector, as in Python: the element is waited for, closed roots are entered, and the text is what the browser shows (a container that only slots its content gives the slotted text). shadow_get_text and the other shadow_* methods are the same lookups. An &lt;input&gt; or a &lt;textarea&gt; gives its value (the DOM property), as Python's get_text does, and any other element the text the browser renders. Differs: Waits for the element to be present, where Python waits until it is visible: an element that is not displayed answers at once, with the empty text the browser renders for it (the value of a hidden &lt;input&gt; is still its value), and the call does not wait for it to show. |
+| `get_text_content` | implemented | `BaseCase::text_content` | Differs: Gives the text the browser renders for the element, where Python reads its textContent property, the text of the markup: an element that is not displayed (display: none) answers an empty string here, and the white space the browser collapses and the text-transform of the page apply. |
+| `get_title` | implemented | `BaseCase::title` |  |
+| `get_totp_code` | implemented | `BaseCase::totp_code` |  |
+| `get_unique_links` | implemented | `BaseCase::unique_links` |  |
+| `get_user_agent` | implemented | `BaseCase::user_agent` |  |
+| `get_value` | implemented | `BaseCase::value` |  |
+| `get_window_position` | implemented | `BaseCase::window_position` |  |
+| `get_window_rect` | implemented | `BaseCase::window_rect` | Differs: Returns an (x, y, width, height) tuple; Python returns a dict. |
+| `get_window_size` | implemented | `BaseCase::window_size` |  |
 | `go_back` | implemented | `BaseCase::go_back` |  |
 | `go_forward` | implemented | `BaseCase::go_forward` |  |
 | `go_to` | implemented | `BaseCase::go_to` |  |
@@ -512,19 +512,19 @@ Methods of Python's `Driver()`.
 | `find_element` | implemented | `BaseCase::find_element` |  |
 | `find_elements` | implemented | `BaseCase::find_elements` |  |
 | `forward` | composed | `BaseCase::go_forward` | Named go_forward, like the BaseCase method. |
-| `get_active_element_css` | implemented | `BaseCase::get_active_element_css` |  |
-| `get_attribute` | implemented | `BaseCase::get_attribute` |  |
-| `get_cookie` | implemented | `BaseCase::get_cookie` | Returns Option&lt;Cookie&gt;: None when the page has no such cookie, as Python's None. |
-| `get_cookie_string` | implemented | `BaseCase::get_cookie_string` |  |
-| `get_current_url` | implemented | `BaseCase::get_current_url` |  |
-| `get_locale_code` | implemented | `BaseCase::get_locale_code` |  |
-| `get_origin` | implemented | `BaseCase::get_origin` |  |
-| `get_page_source` | implemented | `BaseCase::get_page_source` |  |
-| `get_parent` | implemented | `BaseCase::get_parent` |  |
-| `get_screen_rect` | implemented | `BaseCase::get_screen_rect` |  |
-| `get_text` | implemented | `BaseCase::get_text` |  |
-| `get_title` | implemented | `BaseCase::get_title` |  |
-| `get_user_agent` | implemented | `BaseCase::get_user_agent` |  |
+| `get_active_element_css` | implemented | `BaseCase::active_element_css` |  |
+| `get_attribute` | implemented | `BaseCase::attribute` |  |
+| `get_cookie` | implemented | `BaseCase::cookie` | Returns Option&lt;Cookie&gt;: None when the page has no such cookie, as Python's None. |
+| `get_cookie_string` | implemented | `BaseCase::cookie_string` |  |
+| `get_current_url` | implemented | `BaseCase::current_url` |  |
+| `get_locale_code` | implemented | `BaseCase::locale_code` |  |
+| `get_origin` | implemented | `BaseCase::origin` |  |
+| `get_page_source` | implemented | `BaseCase::page_source` |  |
+| `get_parent` | implemented | `BaseCase::parent` |  |
+| `get_screen_rect` | implemented | `BaseCase::screen_rect` |  |
+| `get_text` | implemented | `BaseCase::text` |  |
+| `get_title` | implemented | `BaseCase::title` |  |
+| `get_user_agent` | implemented | `BaseCase::user_agent` |  |
 | `highlight` | implemented | `BaseCase::highlight` | Differs: Scrolls to the element and outlines it once for about a second, restored by a timer in the page, so the call does not block; Python animates the element for `loops` rounds and takes scroll and timeout arguments. |
 | `highlight_click` | implemented | `BaseCase::highlight_click` |  |
 | `highlight_if_visible` | implemented | `BaseCase::highlight_if_visible` |  |
@@ -625,7 +625,7 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `close_active_tab` | composed | `Page::close` | `page.close()` closes that Page's tab. |
 | `download_file` | implemented | `Page::download_file` | `page.download_file(url, dir)` has the page fetch the address and save the response, as Python does, then waits for the browser to finish and returns the saved path. `page.download_by_click(selector, dir)` follows a download that a click starts. Differs: Takes the folder to save in (Python uses ./downloaded_files) and waits for the browser's own download events, bounded by the page timeout; a bad HTTP status, a fetch the page refuses (CORS) or a cancelled download is SeleniumBaseError::Download. The name comes from the Content-Disposition header when the server sends one, else from the address (Python: the address only). |
 | `drag_and_drop` | composed | `Locator::drag_to` | Call `page.locator(selector).drag_to(..)`; the Locator holds the selector, so it is not an argument of the call. |
-| `enter_mfa_code` | composed | `BaseCase::enter_mfa_code` | BaseCase::enter_mfa_code is a WebDriver-engine method; on the CDP engine compute the code with BaseCase::get_mfa_code and type it with Locator::type_text. |
+| `enter_mfa_code` | composed | `BaseCase::enter_mfa_code` | BaseCase::enter_mfa_code is a WebDriver-engine method; on the CDP engine compute the code with BaseCase::mfa_code and type it with Locator::type_text. |
 | `evaluate` | composed | `Page::evaluate` | `page.evaluate(script)`; values come back as serde_json::Value, so an element comes back as `{}`. As in Python, a `return ` that starts the last line is dropped; a `return` anywhere else is a syntax error, so wrap such a script in `(() => { ... })()`. |
 | `execute_script` | composed | `Page::evaluate` | `page.evaluate(script)`, as for `evaluate`: a `return ` that starts the last line is dropped, so Selenium-style `return document.title` works; values come back as serde_json::Value. |
 | `fast_keys` | composed | `Keyboard::insert_text` | Python types into the element the selector names. Focus it first: `page.locator(selector).focus().await?; page.keyboard().insert_text(text).await?` inserts the text in one step after what the field holds. fast_type's Locator::fill clears the field first. |
@@ -663,7 +663,7 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `get_html` | composed | `Page::content` | `page.content()` returns the whole page's HTML, `document.documentElement.outerHTML`, which is what Python returns with `include_shadow_dom=False`. Python's default (True) reads the html element's outer HTML through DevTools; whether that adds shadow-root content was not compared. For one element use `page.locator(selector).html()`. |
 | `get_local_storage_item` | composed | `Storage::get` | `page.local_storage().get(key)`. |
 | `get_locale_code` | implemented | `Page::locale_code` | `page.locale_code()` is `navigator.language`, or the first of `navigator.languages` when that is empty. |
-| `get_mfa_code` | composed | `BaseCase::get_mfa_code` | BaseCase::get_mfa_code computes the TOTP code and needs no browser; it is a method of the WebDriver-engine BaseCase. |
+| `get_mfa_code` | composed | `BaseCase::mfa_code` | BaseCase::mfa_code computes the TOTP code and needs no browser; it is a method of the WebDriver-engine BaseCase. |
 | `get_navigation_history` | composed | `Page::execute` | Raw protocol call: `page.execute(..)` with `Page.getNavigationHistory`. |
 | `get_nested_element` | composed | `Locator::locator` | Call `page.locator(selector).locator(..)`; the Locator holds the selector, so it is not an argument of the call. It finds an element inside a frame of any origin, as `nested_click` does. |
 | `get_origin` | implemented | `Page::origin` | `page.origin()` is `window.location.origin`. |

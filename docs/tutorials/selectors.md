@@ -25,7 +25,7 @@ things you can do for test maintainability. This page also covers Web Components
 
 <Visibility for="agents">
 
-Summary for AI exports: `BaseCase` reads a selector string by its prefix. `#` is an ID and `.` a class, a string that starts with `/`, `//`, `./`, `../`, `(` or an XPath axis is XPath, `link=` and `partial_link=` (and their short forms) match link text, and anything else is CSS. Prefixes are matched exactly. `Selector::auto` detects the strategy and `SelectorBuf::css(..)` states it where a method takes `impl Into<SelectorBuf>`. The `::shadow` combinator moves the search into the shadow root of the element on its left, and can be chained for nested Web Components, as in `sb.click("app-shell::shadow nav-menu::shadow a[href='/settings']")`. Every method that takes a selector reads it (`click`, `type_text`, `get_text`, `get_attribute`, `assert_element`, `assert_text`, `assert_exact_text`, `is_element_visible`, `wait_for_element_visible`, `find_elements`, ...) and waits for the element. A selector must end on an element inside the last shadow root. The older `shadow_click`, `shadow_type`, `shadow_get_text`, `shadow_get_attribute`, `assert_shadow_element` and `assert_shadow_text` are the same lookups, and `find_element("host::shadow inner")` returns the element inside the root as an `Element`. The WebDriver engine reaches closed roots; the pure CDP engine (`page.locator`) reaches open roots only. A check can be written in three formats: direct API calls in Rust (`BaseCase`, or `Locator` on the pure CDP engine), `sbrs` CLI commands such as `open`, `smoke` and `deferred`, and JSON scenarios run with `sbrs run-scenario --file`. Use the direct API for production tests, the CLI or JSON scenarios for CI smoke checks, and JSON scenarios for non-developer authors.
+Summary for AI exports: `BaseCase` reads a selector string by its prefix. `#` is an ID and `.` a class, a string that starts with `/`, `//`, `./`, `../`, `(` or an XPath axis is XPath, `link=` and `partial_link=` (and their short forms) match link text, and anything else is CSS. Prefixes are matched exactly. `Selector::auto` detects the strategy and `SelectorBuf::css(..)` states it where a method takes `impl Into<SelectorBuf>`. The `::shadow` combinator moves the search into the shadow root of the element on its left, and can be chained for nested Web Components, as in `sb.click("app-shell::shadow nav-menu::shadow a[href='/settings']")`. Every method that takes a selector reads it (`click`, `type_text`, `text`, `attribute`, `assert_element`, `assert_text`, `assert_exact_text`, `is_element_visible`, `wait_for_element_visible`, `find_elements`, ...) and waits for the element. A selector must end on an element inside the last shadow root. The older `shadow_click`, `shadow_type`, `shadow_get_text`, `shadow_get_attribute`, `assert_shadow_element` and `assert_shadow_text` are the same lookups, and `find_element("host::shadow inner")` returns the element inside the root as an `Element`. The WebDriver engine reaches closed roots; the pure CDP engine (`page.locator`) reaches open roots only. A check can be written in three formats: direct API calls in Rust (`BaseCase`, or `Locator` on the pure CDP engine), `sbrs` CLI commands such as `open`, `smoke` and `deferred`, and JSON scenarios run with `sbrs run-scenario --file`. Use the direct API for production tests, the CLI or JSON scenarios for CI smoke checks, and JSON scenarios for non-developer authors.
 
 </Visibility>
 
@@ -146,7 +146,7 @@ end of the text) must follow it.
 sb.click("my-app::shadow button").await?;
 sb.type_text("my-app::shadow input", "hello").await?;
 sb.assert_text("hello", "my-app::shadow div.result").await?;
-let text = sb.get_text("my-app::shadow div.result").await?;
+let text = sb.text("my-app::shadow div.result").await?;
 ```
 
 Each fragment after `::shadow` is evaluated inside that shadow root, not the
@@ -162,7 +162,7 @@ All of them. A few that Python's own examples use:
 |---|---|
 | `click`, `double_click`, `hover`, `js_click` | Wait for the element, then act on it. |
 | `type_text`, `clear` | Wait for the element to be displayed, then clear and type. |
-| `get_text`, `get_attribute` | Wait for the element, then read what the browser shows. A container that only slots its content gives the slotted text. |
+| `text`, `attribute` | Wait for the element, then read what the browser shows. A container that only slots its content gives the slotted text. |
 | `assert_element`, `assert_element_present`, `assert_text`, `assert_exact_text` | Wait up to the case's timeout (`set_timeout`), then assert. |
 | `is_element_visible`, `is_element_present`, `is_text_visible` | Look once; a host that is missing or has no shadow root is `false`, not an error. |
 | `wait_for_element_visible`, `wait_for_element_present`, `find_element`, `find_elements` | Wait for the element, or list the matches in the innermost root. |
@@ -297,7 +297,7 @@ async fn main() -> seleniumbase_rs::Result<()> {
 
     run_browser_test(config, async |sb| {
         sb.open("https://example.com").await?;
-        let heading = sb.get_text("h1").await?;
+        let heading = sb.text("h1").await?;
         println!("{heading}");
         sb.assert_text("Example", "h1").await
     })
@@ -392,7 +392,7 @@ program with an error and `sbrs` with a non-zero exit status.
 ### Direct API
 
 The most flexible format. Use it for production tests and complex logic. With
-`BaseCase`, the selector is an argument of every call (`sb.get_text("h1")`).
+`BaseCase`, the selector is an argument of every call (`sb.text("h1")`).
 `run_browser_test` starts the browser, runs your closure and always quits the
 browser, even when an assertion fails.
 

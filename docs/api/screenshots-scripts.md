@@ -50,4 +50,4 @@ direct attachment, use `cdp_screenshot()` or the pure `Page` screenshot API.
 | `console_log_string(text)` | Logs `text` to the browser console via JavaScript. |
 | `console_log_script(script)` | Logs the value of the JavaScript expression `script` to the console. |
 | `start_recording_console_logs()` | Starts capturing console logs. |
-| `get_recorded_console_logs()` | Returns captured console log lines. |
+| `recorded_console_logs()` | Returns captured console log lines. |

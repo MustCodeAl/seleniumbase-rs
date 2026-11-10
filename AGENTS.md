@@ -183,7 +183,7 @@ server (`find_api`) before you write the call.
    `page.locator(".spinner").wait_for(State::Absent)`.
 5. **Assert with the retrying assertions:** `sb.assert_text(text, selector)` (text
    first), `assert_exact_text`, `assert_element`, `assert_title`; pure CDP
-   `locator.expect().to_have_text(..)`. Not `get_text` plus `assert_eq!`: it reads
+   `locator.expect().to_have_text(..)`. Not `text` plus `assert_eq!`: it reads
    once. End every call with `?`.
 6. **Scope the query and know how many match.** A selector or a `Locator` acts on
    the first match. Put the container in the selector

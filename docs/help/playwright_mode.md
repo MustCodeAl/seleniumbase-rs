@@ -93,12 +93,12 @@ Playwright call becomes:
 | `page.goto(url)` | `Page::goto`, or `BrowserApi::open` | `BaseCase::open` |
 | `page.click(sel)` | `Locator::click`, or `ElementApi::click` | `BaseCase::click` |
 | `page.fill(sel, text)`, `page.type` | `Locator::fill` and `Locator::type_text`, or `ElementApi::type_text` | `BaseCase::type_text` |
-| `text_content`, `inner_text` | `Locator::text`, or `ElementApi::get_text` | `BaseCase::get_text` |
-| `page.get_attribute(sel, name)` | `Locator::attribute`, or `ElementApi::get_attribute` | `BaseCase::get_attribute` |
+| `text_content`, `inner_text` | `Locator::text`, or `ElementApi::text` | `BaseCase::text` |
+| `page.get_attribute(sel, name)` | `Locator::attribute`, or `ElementApi::attribute` | `BaseCase::attribute` |
 | `page.evaluate(js)` | `Page::evaluate`, `Page::evaluate_as` | `BaseCase::execute_script` |
 | `page.screenshot(path)` | `ScreenshotApi::save_screenshot`, `Page::screenshot` (bytes) | `BaseCase::save_screenshot_to_path` |
 | `browser.new_page()` | `Browser::new_page`, `Browser::new_page_at` | `BaseCase::open_new_tab` |
-| `page.title()`, `page.url`, `page.content()` | `Page::title`, `Page::url`, `Page::content` | `get_title`, `get_current_url`, `get_page_source` |
+| `page.title()`, `page.url`, `page.content()` | `Page::title`, `Page::url`, `Page::content` | `title`, `current_url`, `page_source` |
 | `reload`, `go_back`, `go_forward` | `Page::reload`, `Page::back`, `Page::forward` | `refresh`, `go_back`, `go_forward` |
 | `page.wait_for_selector(sel)` | `Locator::wait_for` | `BaseCase::wait_for_element` |
 | `page.wait_for_function(js)` | `Page::wait_for_function` | |
@@ -164,7 +164,7 @@ async fn main() -> seleniumbase_rs::Result<()> {
 ```
 
 The page title in the examples of this guide is a placeholder: our own API already reads it
-(`page.title()`, `sb.get_title()`), and `pw.title(..)` only shows the closure receiving the
+(`page.title()`, `sb.title()`), and `pw.title(..)` only shows the closure receiving the
 rustwright page of the same tab. Put a call that only Playwright has in its place (the
 paragraph after the Playwright-to-ours table says what those are).
 
@@ -226,7 +226,7 @@ async fn main() -> seleniumbase_rs::Result<()> {
     sb.open("https://example.com").await?;
 
     let playwright = PlaywrightSidecar::attach(&sb).await?; // the window `sb` is on
-    // Placeholder: any rustwright call goes in the closure. Our own title is `sb.get_title()`.
+    // Placeholder: any rustwright call goes in the closure. Our own title is `sb.title()`.
     playwright.run(|pw| pw.title(Default::default())).await?;
     sb.assert_element("h1").await?;
 

@@ -104,9 +104,9 @@ async fn main() -> seleniumbase_rs::Result<()> {
 
     let playwright = PlaywrightSidecar::attach(&sb).await?; // the window `sb` is on
     // `title` stands in for a call only Playwright has: our own API reads it with
-    // `sb.get_title()`, and the closure sees the same window.
+    // `sb.title()`, and the closure sees the same window.
     let theirs = playwright.run(|pw| pw.title(Default::default())).await?;
-    assert_eq!(sb.get_title().await?, theirs);
+    assert_eq!(sb.title().await?, theirs);
     sb.assert_element("h1").await?;
 
     playwright.close().await?;
@@ -144,7 +144,7 @@ The sidecar must be on the tab its target is on, not on whichever page the brows
 | Target | Tab id hint | URL hint |
 |---|---|---|
 | `sb_cdp::Page` | `Page::id()`, the tab's DevTools target id | `Page::url()` |
-| `BaseCase` | `BaseCase::get_current_window_handle()`, when the session has one | `BaseCase::get_current_url()` |
+| `BaseCase` | `BaseCase::current_window_handle()`, when the session has one | `BaseCase::current_url()` |
 
 A page whose target id is the id hint wins. Otherwise the one page whose URL is the URL hint is taken. If neither picks exactly one page, `attach` returns `SeleniumBaseError::Playwright` naming the URLs that are open: it never guesses, because a silent wrong tab is worse than an error. Two tabs on the same URL are therefore refused unless the id tells them apart: attach beside the `sb_cdp::Page` of the tab, or give the tabs different URLs. For a `BaseCase` on a direct CDP attachment (`BrowserConfig::with_cdp_url`) there is no window handle, so the URL decides. A chromedriver window handle is compared with the target id as it is; when it is not equal, the URL hint decides.
 

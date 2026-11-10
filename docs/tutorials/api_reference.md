@@ -72,7 +72,7 @@ use a longer name (`css` for `selector`, `timeout_secs` for `timeout`).
 | `x`, `y` | integer | A position in pixels (`i32` or `i64`, depending on the method). |
 | `path`, `filename` | `&str` or `&Path` | A file to read or write. |
 | `index` | `usize` | A position in a list, such as an `<option>` of a `<select>`. |
-| `key` | `&str` | A storage key (`get_local_storage_item(key)`) or a key name (`gui_press_key(key)`). |
+| `key` | `&str` | A storage key (`local_storage_item(key)`) or a key name (`gui_press_key(key)`). |
 | `name` | `&str` | A name the method looks up: a cookie, a tour, a chart, a saved baseline. |
 | `script` | `&str` | JavaScript to run in the page. |
 
@@ -98,8 +98,8 @@ call with `?` (`sleep` is an exception: it cannot fail).
 | Kind of method | Returns |
 |---|---|
 | Actions (`click`, `type_text`, `open`, `set_attribute`, ...) and assertions | `()`: nothing, or an error |
-| `get_text`, `get_title`, `get_current_url` and the like | `String` |
-| `get_attribute(selector, attr)`, `get_property(selector, prop)` | `Option<String>`: `None` when it is not set (`get_attribute` goes by the DOM property first, as Selenium does: what was typed, not the `value=""` of the markup) |
+| `text`, `title`, `current_url` and the like | `String` |
+| `attribute(selector, attr)`, `property(selector, prop)` | `Option<String>`: `None` when it is not set (`attribute` goes by the DOM property first, as Selenium does: what was typed, not the `value=""` of the markup) |
 | `find_element(selector)` | an `Element`: a handle to the first match, found within 10 seconds |
 | `find_elements(selector)` | `Vec<Element>`: every match, possibly none |
 | `execute_script(script)` | `seleniumbase_rs::json::Value`: what the script returned |
@@ -263,6 +263,6 @@ For exact signatures, run `cargo doc --no-deps --open`.
 
 <Callout icon="clipboard-check" color="#10B981">
 
-Checked against the source of this branch: the argument lists and argument order of the `BaseCase` tables (names and counts, by script), the capability traits and the crate-root items. The multi-driver rows (`get_new_driver` to `driver_count`) were checked earlier, against commit 8e9180f. The one-line descriptions of the other `BaseCase` methods were not all re-read.
+Checked against the source of this branch: the argument lists and argument order of the `BaseCase` tables (names and counts, by script), the capability traits and the crate-root items. The multi-driver rows (`new_driver` to `driver_count`) were checked earlier, against commit 8e9180f. The one-line descriptions of the other `BaseCase` methods were not all re-read.
 
 </Callout>

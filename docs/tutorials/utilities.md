@@ -49,11 +49,11 @@ ready or the timeout passes (10 seconds by default; see
 | --- | --- |
 | `click`, `double_click`, `context_click` | visible and enabled |
 | `type_text`, `send_keys`, `clear`, `hover`, `drag_and_drop` | visible |
-| `get_text`, `get_attribute`, `submit`, `set_value`, `select_option_by_*` | present |
+| `text`, `attribute`, `submit`, `set_value`, `select_option_by_*` | present |
 
 ```mermaid
 flowchart LR
-  A["Action: click, type_text, get_text, ..."] --> B{"Element ready?"}
+  A["Action: click, type_text, text, ..."] --> B{"Element ready?"}
   B -- "yes" --> C["Act"]
   B -- "not yet" --> D["Poll again"] --> B
   B -- "timeout passed (10 s by default)" --> E["SeleniumBaseError::WaitTimeout"]

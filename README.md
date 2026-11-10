@@ -178,20 +178,20 @@ Core groups of methods include:
 
 | Group | Examples |
 |-------|----------|
-| Navigation | `open`, `refresh`, `go_back`, `go_forward`, `get_current_url`, `get_title` |
+| Navigation | `open`, `refresh`, `go_back`, `go_forward`, `current_url`, `title` |
 | Element interaction | `click`, `type_text`, `clear`, `submit`, `hover`, `double_click`, `context_click`, `drag_and_drop` |
 | JavaScript execution | `execute_script`, `execute_async_script`, `js_click`, `js_type`, `set_attribute`, `remove_attribute` |
 | Waits | `wait_for_element_present`, `wait_for_element_visible`, `wait_for_element_clickable`, `wait_for_text`, `wait_for_ready_state_complete` |
 | Assertions | `assert_title`, `assert_text`, `assert_element`, `assert_attribute`, `assert_no_404_errors`, `assert_no_js_errors` |
-| Queries | `is_element_present`, `is_element_visible`, `is_element_enabled`, `is_text_visible`, `get_text`, `get_attribute`, `get_property` |
+| Queries | `is_element_present`, `is_element_visible`, `is_element_enabled`, `is_text_visible`, `text`, `attribute`, `property` |
 | Frames and windows | `switch_to_frame`, `switch_to_default_content`, `switch_to_window`, `switch_to_new_window`, `maximize_window`, `set_window_size` |
-| Storage | `add_cookie`, `get_cookie`, `delete_all_cookies`, `set_local_storage_item`, `get_local_storage_item`, `clear_local_storage` |
+| Storage | `add_cookie`, `cookie`, `delete_all_cookies`, `set_local_storage_item`, `local_storage_item`, `clear_local_storage` |
 | Scroll | `scroll_to`, `scroll_to_top`, `scroll_to_bottom`, `smooth_scroll_to`, `scroll_by_y` |
-| Alerts | `accept_alert`, `dismiss_alert`, `type_alert_text`, `get_alert_text` |
+| Alerts | `accept_alert`, `dismiss_alert`, `type_alert_text`, `alert_text` |
 | Uploads | `choose_file` |
-| MFA/TOTP | `get_totp_code` |
-| PDF | `save_as_pdf`, `get_pdf_text`, `assert_pdf_text` |
-| HTML parsing | `soup_find`, `soup_find_all`, `get_beautiful_soup_object` |
+| MFA/TOTP | `totp_code` |
+| PDF | `save_as_pdf`, `pdf_text`, `assert_pdf_text` |
+| HTML parsing | `soup_find`, `soup_find_all`, `beautiful_soup_object` |
 
 Most methods are `async`, return `Result<T, SeleniumBaseError>`, and many
 automatically wait for the target element to be present and visible before
@@ -338,7 +338,7 @@ use seleniumbase_rs::{tokio, BaseCase, BrowserConfig, DriverMode};
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut sb = BaseCase::new(BrowserConfig::default().with_mode(DriverMode::Cdp)).await?;
     sb.open("https://seleniumbase.io").await?;
-    let text = sb.get_text("h1").await?;
+    let text = sb.text("h1").await?;
     println!("{text}");
     sb.quit().await?;
     Ok(())

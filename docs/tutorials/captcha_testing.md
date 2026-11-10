@@ -447,7 +447,7 @@ A Turnstile key that always passes (`1x...AA`, `1x...BB`) needs no click: skip
 ### With WebDriver (`BaseCase`)
 
 `BaseCase` has no wait for a field's value, so a small helper does it. The field
-is hidden, and `get_value` reads the live `value` property of an element whether
+is hidden, and `value` reads the live `value` property of an element whether
 or not it is visible:
 
 ```rust,no_run
@@ -456,7 +456,7 @@ use seleniumbase_rs::{run_browser_test, tokio, BaseCase, BrowserConfig, Result, 
 /// Waits up to `seconds` for the hidden field `css` to hold a token.
 async fn wait_for_token(sb: &mut BaseCase, css: &str, seconds: u32) -> Result<String> {
     for _ in 0..seconds * 4 {
-        if let Ok(value) = sb.get_value(css).await {
+        if let Ok(value) = sb.value(css).await {
             if !value.is_empty() {
                 return Ok(value);
             }

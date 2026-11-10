@@ -1991,7 +1991,7 @@ See [Build from source](/contributing/from-source#working-with-an-ai-assistant).
 
 <Badge color="green">Testing</Badge>
 
-Time-based one-time password: a short code worked out from a shared secret and the current time. `get_totp_code(secret)` returns it from a base32 secret (RFC 6238 with HMAC-SHA1, a 30 second step and 6 digits).
+Time-based one-time password: a short code worked out from a shared secret and the current time. `totp_code(secret)` returns it from a base32 secret (RFC 6238 with HMAC-SHA1, a 30 second step and 6 digits).
 
 See [MFA / TOTP Guide](/tutorials/mfa_totp).
 

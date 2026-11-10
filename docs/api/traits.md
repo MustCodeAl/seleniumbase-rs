@@ -45,8 +45,8 @@ where
 | `refresh(&self) -> Result<()>` | Reloads the page. | `Page::reload()`. |
 | `go_back(&self) -> Result<()>` | Browser back. | `Page::back()`. |
 | `go_forward(&self) -> Result<()>` | Browser forward. | `Page::forward()`. |
-| `get_title(&mut self) -> Result<String>` | The page title. | `Page::title()`. |
-| `get_url(&mut self) -> Result<String>` | The current URL. | `Page::url()`. |
+| `title(&mut self) -> Result<String>` | The page title. | `Page::title()`. |
+| `url(&mut self) -> Result<String>` | The current URL. | `Page::url()`. |
 
 ### ElementApi
 
@@ -55,8 +55,8 @@ where
 | `click(&mut self, css: &str) -> Result<()>` | Clicks the element. | `locator(css).click()`. |
 | `double_click(&mut self, css: &str) -> Result<()>` | Double-clicks it. | `locator(css).double_click()`. |
 | `type_text(&mut self, css: &str, text: &str) -> Result<()>` | Waits for the element to be visible, clears it and types. | Clears the field, then types one key at a time. |
-| `get_text(&mut self, css: &str) -> Result<String>` | The element's visible text, after waiting for it to be present. | `locator(css).text()`. |
-| `get_attribute(&mut self, css: &str, attr: &str) -> Result<Option<String>>` | The attribute value, `None` when absent. | `locator(css).attribute(attr)`. |
+| `text(&mut self, css: &str) -> Result<String>` | The element's visible text, after waiting for it to be present. | `locator(css).text()`. |
+| `attribute(&mut self, css: &str, attr: &str) -> Result<Option<String>>` | The attribute value, `None` when absent. | `locator(css).attribute(attr)`. |
 
 ### AssertionApi
 

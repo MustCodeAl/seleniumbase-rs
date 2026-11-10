@@ -499,7 +499,7 @@ let config = BrowserConfig::default().with_window_size(WindowSize::new(1920, 108
 
 // Inside the test:
 sb.set_window_size(1366, 768).await?;
-let (width, height) = sb.get_window_size().await?;
+let (width, height) = sb.window_size().await?;
 ```
 
 </Tab>
@@ -640,12 +640,12 @@ sbrs --headless print-pdf https://example.com -o example.pdf
 `download_file_in_browser` opens the address in a new tab, waits up to the given
 number of seconds for the file, and goes back to the first tab. The assertions
 wait up to the default timeout for a file that is still being written. All of
-them look in `get_downloads_folder()`: the `downloaded_files` folder of the
+them look in `downloads_folder()`: the `downloaded_files` folder of the
 working directory, as in Python SeleniumBase.
 
 `download_file` is the plain HTTP form, as in Python: it fetches the address
 with the browser's user agent, sends none of the page's cookies, and saves the
-body in `get_downloads_folder()` under the last part of the address, or in the
+body in `downloads_folder()` under the last part of the address, or in the
 folder that `.destination_folder(..)` names. `save_file_as(url, new_file_name)`
 does the same under a name of your choosing. Both return the file's `PathBuf`.
 
@@ -662,12 +662,12 @@ let path = sb
 sb.click("a#export").await?;
 sb.assert_downloaded_file("export.csv").await?;
 sb.assert_data_in_downloaded_file("id,name", "export.csv").await?;
-println!("downloads go to {}", sb.get_downloads_folder().display());
+println!("downloads go to {}", sb.downloads_folder().display());
 ```
 
 <Warning>
 
-A browser the library launches is told to save into `get_downloads_folder()`:
+A browser the library launches is told to save into `downloads_folder()`:
 the WebDriver engine asks for it in the session's capabilities (a download
 preference you set yourself wins), and the pure CDP engine sends
 `Browser.setDownloadBehavior` at launch. If your own preferences make the browser
@@ -789,7 +789,7 @@ The alert methods work the same headless. Read the text before you answer;
 
 ```rust Dialogs
 sb.click("#delete").await?; // the page calls confirm("Delete?")
-let question = sb.get_alert_text().await?;
+let question = sb.alert_text().await?;
 sb.accept_alert().await?;
 
 sb.click("#rename").await?; // the page calls prompt("New name")
@@ -892,19 +892,19 @@ har.save("example.har")?;
 
 <Tab title="BaseCase (WebDriver)" icon="code">
 
-`get_page_source` returns the HTML, and `save_page_source_to_logs` saves it in
+`page_source` returns the HTML, and `save_page_source_to_logs` saves it in
 `latest_logs/`. `start_recording_console_logs` wraps `console.log` in the current
 document, so start it after the page loads and read the lines before it
 navigates. `assert_no_js_errors` reads the browser's own log, which only
 Chromium browsers keep, and fails on its `SEVERE` entries.
 
 ```rust Source and console
-let html = sb.get_page_source().await?;
+let html = sb.page_source().await?;
 let saved = sb.save_page_source_to_logs().await?;
 
 sb.start_recording_console_logs().await?;
 sb.click("#run").await?;
-let lines = sb.get_recorded_console_logs().await?;
+let lines = sb.recorded_console_logs().await?;
 
 sb.assert_no_js_errors().await?;
 ```
@@ -1024,7 +1024,7 @@ and see [GUI automation](/tutorials/gui_automation) for the `gui` feature.
 - **Check the mode in the log.** `BaseCase::new` and the session log a `headless`
   field at the `info` level, which `init_tracing()` shows unless `RUST_LOG` says
   otherwise.
-- **Check what the page sees.** `sb.get_user_agent()` returns a user agent with
+- **Check what the page sees.** `sb.user_agent()` returns a user agent with
   `HeadlessChrome` in it when nothing replaced it.
 - **Attach DevTools.** `BrowserConfig::with_remote_debug(true)` opens Chrome's
   remote debugger at `http://localhost:9222`, and `with_remote_debug_port(port)`

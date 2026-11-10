@@ -91,8 +91,8 @@ mentions an engine's own types:
 
 | Trait | Responsibility |
 |---|---|
-| `BrowserApi` | Navigation and lifecycle: `open`, `quit`, `refresh`, `go_back`, `go_forward`, `get_title`, `get_url`. |
-| `ElementApi` | Interacting with elements: `click`, `double_click`, `type_text`, `get_text`, `get_attribute`. (Holding an element handle is engine-specific: `BaseCase::find_element` returns an `Element`, a `Page` offers `locator(..)`.) |
+| `BrowserApi` | Navigation and lifecycle: `open`, `quit`, `refresh`, `go_back`, `go_forward`, `title`, `url`. |
+| `ElementApi` | Interacting with elements: `click`, `double_click`, `type_text`, `text`, `attribute`. (Holding an element handle is engine-specific: `BaseCase::find_element` returns an `Element`, a `Page` offers `locator(..)`.) |
 | `AssertionApi` | Test assertions: `assert_title`, `assert_element`, `assert_text`, `assert_no_js_errors`. |
 | `ScreenshotApi` | Screenshot capture: `save_screenshot`, `screenshot_as_png`. |
 

@@ -469,7 +469,7 @@ points:
 `reconnect` checks the plugins for the new browser first, so a refusal leaves
 the session as it was; then the old browser's plugins get `on_close`, and the
 new browser goes through every hook, `before_launch` starting again from the
-configuration. `get_new_driver` starts a browser with its own run of the hooks.
+configuration. `new_driver` starts a browser with its own run of the hooks.
 
 What reaches a plugin depends on the browser:
 

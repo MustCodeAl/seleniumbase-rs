@@ -144,7 +144,7 @@ Browser tests fail most often because they interact with elements before the
 page is ready. `BaseCase` actions wait for the target before they act, for up
 to the default timeout (10 seconds; change it with `set_timeout`): `click` waits
 until the element is displayed and enabled, `type_text`, `clear` and `hover`
-until it is displayed, and `get_text` and `submit` until it exists. When you need
+until it is displayed, and `text` and `submit` until it exists. When you need
 finer control, use explicit waits:
 
 ```rust,no_run
