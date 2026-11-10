@@ -257,6 +257,13 @@ impl DriverError {
     }
 
     /// A driver error of `kind` that says `message`, with no WebDriver library error behind it.
+    #[cfg_attr(
+        all(not(feature = "mcp-server"), not(test)),
+        expect(
+            dead_code,
+            reason = "only the dev MCP server builds a DriverError by hand"
+        )
+    )]
     pub(crate) fn new(kind: DriverErrorKind, message: impl Into<String>) -> Self {
         Self {
             kind,
