@@ -1882,7 +1882,7 @@ mod tests {
         let hint = error.hint().expect("a hint");
         assert_eq!(
             error.debug_with_color(true),
-            format!("\x1b[1;31m{error}\x1b[0m\n\x1b[1;33mhint:\x1b[0m \x1b[2m{hint}\x1b[0m")
+            format!("\x1b[31;1m{error}\x1b[0m\n\x1b[33;1mhint:\x1b[0m \x1b[2m{hint}\x1b[0m")
         );
         assert_eq!(
             error.debug_with_color(false),

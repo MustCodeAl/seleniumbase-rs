@@ -13,7 +13,10 @@ work, `docs/parity.md` the per-API status).
 - Terminal colour follows `NO_COLOR`, `CLICOLOR` and `CLICOLOR_FORCE`. The `Debug` text of
   `SeleniumBaseError` is styled (message, `hint:` label, hint) only when standard error may
   be coloured; `{:#?}` and `Display` stay plain. `owo-colors` and `anstream` are new
-  dependencies.
+  dependencies: `owo-colors` writes every style (a style puts its colours before its
+  attributes, as in `ESC[31;1m`), and
+  the `rich_helper` printers write through `anstream`, which strips the escape codes when the
+  stream is piped or `NO_COLOR` is set.
 
 
 ### Changed

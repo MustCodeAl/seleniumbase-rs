@@ -35,8 +35,9 @@
 //! );
 //! ```
 
+use owo_colors::OwoColorize as _;
 use std::ffi::OsStr;
-use std::fmt::{self, Display, Write as _};
+use std::fmt::{self, Display};
 use std::io::IsTerminal;
 
 /// The escape sequence that resets every attribute.
@@ -111,6 +112,29 @@ pub fn stdout_color() -> bool {
     anstream::AutoStream::choice(&std::io::stdout()) != anstream::ColorChoice::Never
 }
 
+/// Writes `text`, which may carry escape sequences, to `raw` through
+/// [`anstream::AutoStream`]: with [`anstream::ColorChoice::Never`] (or `Auto`
+/// on a pipe, or with `NO_COLOR` set) the sequences are stripped, with
+/// `Always` they pass.
+///
+/// # Errors
+///
+/// Returns the error of `raw`.
+#[cfg(test)]
+pub(crate) fn write_colored<W>(
+    raw: W,
+    choice: anstream::ColorChoice,
+    text: impl Display,
+) -> std::io::Result<()>
+where
+    W: anstream::stream::RawStream + anstream::stream::AsLockedWrite,
+{
+    use std::io::Write as _;
+    let mut stream = anstream::AutoStream::new(raw, choice);
+    write!(stream, "{text}")?;
+    stream.flush()
+}
+
 /// Replaces every control character except newline and tab with U+FFFD.
 ///
 /// Terminals act on escape sequences, so text that came from outside the
@@ -167,25 +191,26 @@ pub enum Color {
 }
 
 impl Color {
-    /// The code of the colour as a foreground; a background is 10 more.
-    const fn foreground(self) -> u8 {
+    /// The colour as `owo_colors` names it.
+    const fn owo(self) -> owo_colors::AnsiColors {
+        use owo_colors::AnsiColors as A;
         match self {
-            Self::Black => 30,
-            Self::Red => 31,
-            Self::Green => 32,
-            Self::Yellow => 33,
-            Self::Blue => 34,
-            Self::Magenta => 35,
-            Self::Cyan => 36,
-            Self::White => 37,
-            Self::LightBlack => 90,
-            Self::LightRed => 91,
-            Self::LightGreen => 92,
-            Self::LightYellow => 93,
-            Self::LightBlue => 94,
-            Self::LightMagenta => 95,
-            Self::LightCyan => 96,
-            Self::LightWhite => 97,
+            Self::Black => A::Black,
+            Self::Red => A::Red,
+            Self::Green => A::Green,
+            Self::Yellow => A::Yellow,
+            Self::Blue => A::Blue,
+            Self::Magenta => A::Magenta,
+            Self::Cyan => A::Cyan,
+            Self::White => A::White,
+            Self::LightBlack => A::BrightBlack,
+            Self::LightRed => A::BrightRed,
+            Self::LightGreen => A::BrightGreen,
+            Self::LightYellow => A::BrightYellow,
+            Self::LightBlue => A::BrightBlue,
+            Self::LightMagenta => A::BrightMagenta,
+            Self::LightCyan => A::BrightCyan,
+            Self::LightWhite => A::BrightWhite,
         }
     }
 }
@@ -199,7 +224,7 @@ impl Color {
 /// use seleniumbase_rs::common::color::{Color, Style};
 ///
 /// const WARNING: Style = Style::PLAIN.fg(Color::Yellow).bold();
-/// assert_eq!(WARNING.paint("slow", true), "\x1b[1;33mslow\x1b[0m");
+/// assert_eq!(WARNING.paint("slow", true), "\x1b[33;1mslow\x1b[0m");
 /// assert_eq!(WARNING.paint("slow", false), "slow");
 /// ```
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -267,37 +292,37 @@ impl Style {
     }
 
     /// The escape sequence that starts the style (one sequence, such as
-    /// `\x1b[1;34;106m`), or an empty string for [`Style::PLAIN`].
+    /// `\x1b[34;106;1m`), or an empty string for [`Style::PLAIN`].
     #[must_use]
     pub fn escape(self) -> String {
         if self.is_plain() {
             return String::new();
         }
-        let mut codes: Vec<u8> = Vec::with_capacity(5);
+        let shown = "".style(self.owo()).to_string();
+        shown.strip_suffix(RESET).unwrap_or(&shown).to_owned()
+    }
+
+    /// The same style as an [`owo_colors::Style`], which does the writing of
+    /// the escape sequences. `"text".style(style.owo())` is the styled text.
+    #[must_use]
+    pub(crate) fn owo(self) -> owo_colors::Style {
+        let mut style = owo_colors::Style::new();
         if self.bold {
-            codes.push(1);
+            style = style.bold();
         }
         if self.dim {
-            codes.push(2);
+            style = style.dimmed();
         }
         if self.underline {
-            codes.push(4);
+            style = style.underline();
         }
         if let Some(color) = self.fg {
-            codes.push(color.foreground());
+            style = style.color(color.owo());
         }
         if let Some(color) = self.bg {
-            codes.push(color.foreground() + 10);
+            style = style.on_color(color.owo());
         }
-        let mut sequence = String::from("\x1b[");
-        for (index, code) in codes.iter().enumerate() {
-            if index > 0 {
-                sequence.push(';');
-            }
-            let _ = write!(sequence, "{code}");
-        }
-        sequence.push('m');
-        sequence
+        style
     }
 
     /// `text` in this style when `on` is set, else `text` as it is.
@@ -318,7 +343,7 @@ impl Style {
     /// Returns the error of `out`.
     pub fn write(self, out: &mut impl fmt::Write, text: impl Display, on: bool) -> fmt::Result {
         if on && !self.is_plain() {
-            write!(out, "{}{text}{RESET}", self.escape())
+            write!(out, "{}", text.style(self.owo()))
         } else {
             write!(out, "{text}")
         }
@@ -407,18 +432,18 @@ mod tests {
                 palette::PATH.paint("x.rs", on)
             )
         };
-        assert_eq!(line(true), "\x1b[1;31merror:\x1b[0m \x1b[36mx.rs\x1b[0m");
+        assert_eq!(line(true), "\x1b[31;1merror:\x1b[0m \x1b[36mx.rs\x1b[0m");
         assert_eq!(line(false), "error: x.rs");
     }
 
     #[test]
 
-    fn a_style_is_one_escape_sequence_with_the_attributes_first() {
+    fn a_style_is_one_escape_sequence_with_the_colours_first() {
         assert_eq!(palette::BANNER_LABEL.escape(), "\x1b[34;106m");
         assert_eq!(palette::BANNER_FILE.escape(), "\x1b[31;103m");
         assert_eq!(palette::BANNER_MARK.escape(), "\x1b[91;103m");
         assert_eq!(palette::BANNER_OPTION.escape(), "\x1b[30;45m");
-        assert_eq!(palette::STEP.escape(), "\x1b[1;35m");
+        assert_eq!(palette::STEP.escape(), "\x1b[35;1m");
         assert_eq!(palette::DIM.escape(), "\x1b[2m");
         let all = Style::PLAIN
             .bold()
@@ -426,7 +451,7 @@ mod tests {
             .underline()
             .fg(Color::LightWhite)
             .on(Color::Black);
-        assert_eq!(all.escape(), "\x1b[1;2;4;97;40m");
+        assert_eq!(all.escape(), "\x1b[97;40;1;2;4m");
     }
 
     #[test]
@@ -448,8 +473,33 @@ mod tests {
 
     #[test]
     fn painting_on_wraps_the_text_and_resets() {
-        assert_eq!(palette::ERROR.paint("boom", true), "\x1b[1;31mboom\x1b[0m");
+        assert_eq!(palette::ERROR.paint("boom", true), "\x1b[31;1mboom\x1b[0m");
         assert_eq!(palette::PATH.paint(7, true), "\x1b[36m7\x1b[0m");
+    }
+
+    #[test]
+    fn a_styled_text_written_through_anstream_keeps_escapes_only_when_colour_is_allowed() {
+        let styled = palette::ERROR.paint("boom", true);
+        assert!(styled.contains('\x1b'), "{styled:?}");
+        let mut piped = Vec::new();
+        write_colored(&mut piped, anstream::ColorChoice::Never, &styled).unwrap();
+        assert_eq!(String::from_utf8(piped).unwrap(), "boom");
+        let mut forced = Vec::new();
+        write_colored(&mut forced, anstream::ColorChoice::Always, &styled).unwrap();
+        assert_eq!(String::from_utf8(forced).unwrap(), styled);
+    }
+
+    #[test]
+    fn a_style_is_written_by_owo_colors() {
+        use owo_colors::OwoColorize as _;
+        let style = palette::BANNER_FILE;
+        assert_eq!(
+            style.paint("x", true),
+            "x".style(style.owo()).to_string(),
+            "the text is what owo-colors writes for the same style"
+        );
+        assert!(style.paint("x", true).contains('\x1b'));
+        assert_eq!(style.paint("x", false), "x");
     }
 
     #[test]
