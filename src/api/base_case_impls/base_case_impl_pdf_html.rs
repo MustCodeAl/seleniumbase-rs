@@ -115,7 +115,7 @@ impl BaseCase {
     /// Returns the locale the browser was configured with, if one was.
     ///
     /// `None` means no locale was set, so the browser uses its own default.
-    /// Use [`BaseCase::get_locale_code`] to ask the browser what it is using.
+    /// Use [`BaseCase::locale_code`] to ask the browser what it is using.
     pub fn configured_locale(&self) -> Option<&str> {
         self.config.browser.lang.as_deref()
     }
@@ -126,7 +126,7 @@ impl BaseCase {
     /// The `en-US` fallback is a guess, not what the browser reports: a browser
     /// started without a locale uses the operating system's. Call
     /// [`BaseCase::configured_locale`] to tell the two apart, or
-    /// [`BaseCase::get_locale_code`] for the locale the browser is using.
+    /// [`BaseCase::locale_code`] for the locale the browser is using.
     pub fn locale(&self) -> String {
         self.configured_locale().unwrap_or("en-US").to_owned()
     }

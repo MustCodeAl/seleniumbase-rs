@@ -1,8 +1,8 @@
 //! jquery-confirm dialog boxes: the page dialogs of Python's `get_jqc_*`
 //! methods, with their themes.
 //!
-//! [`BaseCase::get_jqc_button_input`], [`BaseCase::get_jqc_text_input`] and
-//! [`BaseCase::get_jqc_form_inputs`] open a [jquery-confirm] box in the page,
+//! [`BaseCase::jqc_button_input`], [`BaseCase::jqc_text_input`] and
+//! [`BaseCase::jqc_form_inputs`] open a [jquery-confirm] box in the page,
 //! wait for the person to answer it and return what was clicked or typed:
 //!
 //! ```no_run
@@ -31,9 +31,9 @@
 //! In a headless browser or on a virtual display (`nobody_watches`, Python's
 //! `headless or headless2 or xvfb`) no dialog opens and no script runs: the
 //! calls return at once with the value Python returns there. That is the text
-//! of the last button for [`BaseCase::get_jqc_button_input`], `""` for
-//! [`BaseCase::get_jqc_text_input`] and `("", last button)` for
-//! [`BaseCase::get_jqc_form_inputs`]. The arguments are checked first, so a
+//! of the last button for [`BaseCase::jqc_button_input`], `""` for
+//! [`BaseCase::jqc_text_input`] and `("", last button)` for
+//! [`BaseCase::jqc_form_inputs`]. The arguments are checked first, so a
 //! bad colour or option fails in a headless run too.
 //!
 //! # Themes
@@ -870,7 +870,7 @@ macro_rules! option_methods {
     };
 }
 
-/// The call of [`BaseCase::get_jqc_button_input`]: await it to get the text of
+/// The call of [`BaseCase::jqc_button_input`]: await it to get the text of
 /// the button that was clicked.
 #[must_use = "nothing happens until the call is awaited"]
 pub struct JqcButtonInput<'a> {
@@ -909,7 +909,7 @@ impl<'a> IntoFuture for JqcButtonInput<'a> {
     }
 }
 
-/// The call of [`BaseCase::get_jqc_text_input`]: await it to get the text typed
+/// The call of [`BaseCase::jqc_text_input`]: await it to get the text typed
 /// into the dialog's input.
 #[must_use = "nothing happens until the call is awaited"]
 pub struct JqcTextInput<'a> {
@@ -950,7 +950,7 @@ impl<'a> IntoFuture for JqcTextInput<'a> {
     }
 }
 
-/// The call of [`BaseCase::get_jqc_form_inputs`]: await it to get the text of
+/// The call of [`BaseCase::jqc_form_inputs`]: await it to get the text of
 /// the input and the text of the button that was clicked.
 #[must_use = "nothing happens until the call is awaited"]
 pub struct JqcFormInputs<'a> {

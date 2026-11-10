@@ -1,7 +1,7 @@
 // Multi-driver session management helpers.
 
 /// Names one of the browsers of a [`BaseCase`]: the one it started with
-/// ([`DriverId::DEFAULT`]) or one that [`BaseCase::get_new_driver`] opened.
+/// ([`DriverId::DEFAULT`]) or one that [`BaseCase::new_driver`] opened.
 ///
 /// An id names the same browser for as long as the case lives, whichever
 /// browser is active, and it is never given to another browser after its
