@@ -25,6 +25,9 @@ work, `docs/parity.md` the per-API status).
 
 ### Changed
 
+- `media_codecs` answers `MediaSource.isTypeSupported` and `mediaCapabilities.decodingInfo` as it
+  answers `canPlayType`.
+
 - The `headless` provider no longer patches `matchMedia`; `media_features` goes through
   `Emulation.setEmulatedMedia`, which `@media` rules see too (`media_query_lie` and
   `color_gamut_vs_os` are closed). `capture_fingerprint` reads `media_features` back.

@@ -1461,6 +1461,37 @@ impl EvasionProvider for MediaCodecsProvider {
     const codecs = match[2].split(',').map(function (c) { return c.trim(); }).filter(Boolean);
     return codecs.length > 0 && codecs.every(function (c) { return known.test(c); }) ? 'probably' : '';
   }, 'canPlayType', original);
+  // The same rule answers the other two questions a page asks of the codecs, so
+  // the three answers agree: only a "no" for a type the rule accepts becomes a "yes".
+  const accepts = function (type) {
+    const match = container.exec(String(type));
+    if (!match) { return false; }
+    if (match[2] === undefined) { return true; }
+    const codecs = match[2].split(',').map(function (c) { return c.trim(); }).filter(Boolean);
+    return codecs.length > 0 && codecs.every(function (c) { return known.test(c); });
+  };
+  ['MediaSource', 'ManagedMediaSource'].forEach(function (name) {
+    const owner = window[name];
+    if (typeof owner !== 'function' || typeof owner.isTypeSupported !== 'function') { return; }
+    const originalSupported = owner.isTypeSupported;
+    owner.isTypeSupported = sb.native(function isTypeSupported(type) {
+      return originalSupported.apply(this, arguments) || accepts(type);
+    }, 'isTypeSupported', originalSupported);
+  });
+  if (typeof MediaCapabilities !== 'undefined' && typeof MediaCapabilities.prototype.decodingInfo === 'function') {
+    const originalDecoding = MediaCapabilities.prototype.decodingInfo;
+    MediaCapabilities.prototype.decodingInfo = sb.native(function decodingInfo(configuration) {
+      return originalDecoding.apply(this, arguments).then(function (info) {
+        if (!info || info.supported !== false || !configuration) { return info; }
+        const types = [];
+        if (configuration.video && configuration.video.contentType) { types.push(configuration.video.contentType); }
+        if (configuration.audio && configuration.audio.contentType) { types.push(configuration.audio.contentType); }
+        if (types.length === 0 || !types.every(accepts)) { return info; }
+        return Object.assign({}, info, { supported: true, smooth: true, powerEfficient: true });
+      });
+    }, 'decodingInfo', originalDecoding);
+  }
+
 })();"##,
             &[],
         ))
@@ -2281,6 +2312,23 @@ mod tests {
     }
 
     #[test]
+    fn media_codecs_answers_is_type_supported_and_decoding_info_too() {
+        let fp = Fingerprint::windows_desktop();
+        let script = MediaCodecsProvider.script(&ctx_for(&fp)).unwrap();
+
+        for needle in [
+            "canPlayType",
+            "isTypeSupported",
+            "ManagedMediaSource",
+            "decodingInfo",
+            "powerEfficient",
+        ] {
+            assert!(script.contains(needle), "{needle} in {script}");
+        }
+    }
+
+    #[test]
+
     fn the_headless_fixes_leave_match_media_to_the_browser() {
         // A patched `matchMedia` next to `@media` rules that answer the truth is
         // the `media_query_lie`: the media features go through the protocol.

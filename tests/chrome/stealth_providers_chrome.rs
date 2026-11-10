@@ -861,6 +861,76 @@ async fn codec_support_is_filled_in_only_for_a_chromium_without_proprietary_code
     lab.close().await;
 }
 
+/// The three answers a page can ask of H.264 and AAC, as one value each: what
+/// `canPlayType`, `MediaSource.isTypeSupported` and `decodingInfo` say.
+const CODEC_ANSWERS: &str = r##"(async () => {
+    const mp4 = 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
+    const video = document.createElement('video');
+    const info = await navigator.mediaCapabilities.decodingInfo({
+        type: 'file',
+        video: { contentType: 'video/mp4; codecs="avc1.42E01E"', width: 640, height: 360, bitrate: 1e6, framerate: 30 },
+    });
+    return {
+        canPlay: video.canPlayType(mp4) !== '',
+        mediaSource: MediaSource.isTypeSupported(mp4),
+        decoding: info.supported,
+    };
+})()"##;
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
+async fn a_build_without_the_proprietary_codecs_answers_alike_once_patched() {
+    let lab = lab().await;
+    // A Chromium build that cannot play MP4: all three answers say no.
+    lab.eval(
+        r##"(() => {
+        const realDecoding = MediaCapabilities.prototype.decodingInfo;
+        HTMLMediaElement.prototype.canPlayType = function canPlayType() { return ''; };
+        MediaSource.isTypeSupported = function isTypeSupported() { return false; };
+        MediaCapabilities.prototype.decodingInfo = function decodingInfo(config) {
+            return realDecoding.call(this, config).then((info) => (
+                { ...info, supported: false, smooth: false, powerEfficient: false }));
+        };
+        return 1;
+    })()"##,
+    )
+    .await;
+    let crippled = lab.eval(CODEC_ANSWERS).await;
+    assert_eq!(
+        crippled,
+        json!({ "canPlay": false, "mediaSource": false, "decoding": false }),
+        "the stand-in cannot play MP4 in any of the three ways"
+    );
+
+    lab.install(&persona(), &["media_codecs"]).await;
+
+    let after = lab.eval(CODEC_ANSWERS).await;
+    assert_eq!(
+        after,
+        json!({ "canPlay": true, "mediaSource": true, "decoding": true }),
+        "the three answers agree, as in a Chrome with the codecs"
+    );
+    lab.close().await;
+}
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
+async fn the_codecs_of_a_real_chrome_are_left_alone() {
+    let lab = lab().await;
+    let before = lab.eval(CODEC_ANSWERS).await;
+
+    lab.install(&persona(), &["media_codecs"]).await;
+
+    let after = lab.eval(CODEC_ANSWERS).await;
+    assert_eq!(
+        before, after,
+        "an answer that is already yes is not touched"
+    );
+    lab.close().await;
+}
+
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
 #[serial_test::serial(chrome)]
